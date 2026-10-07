@@ -37,6 +37,8 @@ describe('4.3-UNIT preIssue', () => {
     ]);
     expect(preIssueRowsFor(rows, 'section_9').map((r) => [r.kind, r.text])).toEqual([
       ['sheets', '0 de 94'],
+      // F-03 (review 2026-10-06): the empty sheets are named apart, as information.
+      ['sheets_empty', '94 fichas vazias'],
       ...CABINES.map((name) => ['cabine_incompleta', `${name}: faltam 6 campos`]),
     ]);
     expect(preIssueRowsFor(rows, 'section_11').map((r) => [r.kind, r.text])).toEqual([['setup_missing', 'Nenhum instrumento em Dados do relatório']]);
@@ -49,7 +51,7 @@ describe('4.3-UNIT preIssue', () => {
     const geradores = snapshot.locations.find((l) => l.name === 'Geradores')!;
     const without = { ...snapshot, blocks: snapshot.blocks.filter((b) => b.location_id !== geradores.id) };
     const rows = preIssue(without);
-    expect(preIssueRowsFor(rows, 'section_9').filter((r) => r.kind !== 'cabine_incompleta').map((r) => r.text)).toEqual(['0 de 75', cabineSemEquipamentoText('Geradores')]);
+    expect(preIssueRowsFor(rows, 'section_9').filter((r) => r.kind !== 'cabine_incompleta').map((r) => r.text)).toEqual(['0 de 75', '75 fichas vazias', cabineSemEquipamentoText('Geradores')]);
     expect(rows.find((r) => r.kind === 'cabine_sem_equipamento')).toMatchObject({ id: `cabine_sem_equipamento:${geradores.id}`, severity: 'pending' });
     // A cabine with no sheet to fill its data on is named once, by the row above.
     expect(rows.some((r) => r.id === `cabine_incompleta:${geradores.id}`)).toBe(false);

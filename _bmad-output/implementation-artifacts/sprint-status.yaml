@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 10-06-2026 18:05
+last_updated: 10-06-2026 18:20
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -140,7 +140,7 @@ development_status:
   11-8-deploy-the-same-images-to-aws: done  # PRs #74, #76, #77, #78; deployed a207641 to https://3.230.46.205; evidence in E11-A2
   11-9-let-the-priority-suggest-the-deadline-on-a-point-of-attentio: done  # PR #71
   11-10-print-the-action-plan-table-in-section-8-post-mvp-before-202: done  # PR #71
-  11-11-see-a-sheets-photos-on-the-sheet-and-pick-files-in-one-tap: review  # spec-11-11-sheet-photo-strip-and-direct-picker.md; Matheus field feedback 2026-10-05; PR #92 carried no code (MVP review 2026-10-06, F-01)
+  11-11-see-a-sheets-photos-on-the-sheet-and-pick-files-in-one-tap: done  # PR #98; spec-11-11-sheet-photo-strip-and-direct-picker.md; Matheus field feedback 2026-10-05; PR #92 carried no code (MVP review 2026-10-06, F-01)
   epic-11-retrospective: done  # epic-11-retro-2026-09-30.md; machine verdict rejected (11-6 blocked); override to accepted-with-open-items is Matheus's call
 
   epic-12: done  # stories PRs #35-#38; fixes PR #39; journey review 2026-09-24; runs before Epic 6, confirmed by Matheus (sprint-change-proposal-2026-09-24.md)
@@ -151,6 +151,18 @@ development_status:
   12-5-apply-the-v0-9-visual-direction: done  # PR #38
   12-6-the-tap-budget-is-a-test: done  # PR #38
   epic-12-retrospective: done  # no PR; commit e9e863c, epic-12-retro-2026-09-25.md
+
+  epic-13: backlog  # field UX analysis 2026-10-06 (review-field-ux-2026-10-06.md); excludes everything the 2026-10-06 MVP review batches own (F-01 to F-29)
+  13-1-capture-at-the-resolution-the-reading-needs: backlog
+  13-2-torch-zoom-and-tap-to-focus-in-the-viewfinder: backlog
+  13-3-pinch-zoom-to-read-the-photo: backlog
+  13-4-the-keyboard-stops-fighting-the-field-and-the-sheet-says-sal: backlog
+  13-5-a-reading-shows-its-age-can-be-cancelled-and-never-dead-ends: backlog
+  13-6-a-shot-refused-by-quota-survives-the-tab: backlog
+  13-7-the-plate-tile-on-every-block-type: backlog  # DoR: E8-A3 answered by Matheus
+  13-8-the-emission-audit-one-ai-pass-before-emitir-that-points-nev: backlog  # DoR: field-defects batch 2 merged (F-03 dialog)
+  13-9-dictation-on-behind-one-line-of-consent: backlog  # DoR: consent wording decided by Matheus
+  epic-13-retrospective: optional
 
 action_items:
   - id: "epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli"

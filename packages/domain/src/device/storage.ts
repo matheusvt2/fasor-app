@@ -38,23 +38,35 @@ export interface StorageUsage {
   /** `navigator.storage.estimate().usage`, or null when the browser has no answer. */
   usage_bytes: number | null;
   relatorios: number;
+  /** The photo originals kept on this device (`originalFileCount`). */
   photos: number;
+  /** F-21: the photos the outbox still holds (`SyncCounts.photos_pending`); 0 when omitted. */
+  photos_awaiting?: number;
 }
 
 export interface StorageLine {
   /** `.sr-value.t-value`: the size, or why there is none. */
   value: string;
-  /** `.sr-value`: "· 2 relatórios · 0 fotos", or '' when there is no size to qualify. */
+  /** `.sr-value`: "· 2 relatórios · 4 fotos neste aparelho", or '' when there is no size to qualify. */
   detail: string;
+  /** F-21: the second line, "2 fotos aguardando envio", or '' when none waits. */
+  awaiting: string;
 }
 
 /** The two spans of `90-account.html`'s `.storage-line`. */
 export function storageLine(usage: StorageUsage): StorageLine {
   // authored: the mock always has an estimate; a browser that refuses one needs a
   // sentence, and "Indisponível neste navegador" says what is true without alarming.
-  if (usage.usage_bytes === null) return { value: 'Indisponível neste navegador', detail: '' };
+  // F-21 (review 2026-10-06): the photos are those kept on the device, said so, never read
+  // as a total; the ones still waiting to go out get a line of their own.
+  const waiting = usage.photos_awaiting ?? 0;
+  // authored: F-21.
+  const awaiting = waiting > 0 ? `${plural(waiting, 'foto', 'fotos')} aguardando envio` : '';
+  if (usage.usage_bytes === null) return { value: 'Indisponível neste navegador', detail: '', awaiting };
   return {
     value: formatBytes(usage.usage_bytes),
-    detail: `· ${relatoriosCount(usage.relatorios)} · ${plural(usage.photos, 'foto', 'fotos')}`,
+    // authored: F-21, "neste aparelho" after the mock's "· 2 relatórios · 118 fotos".
+    detail: `· ${relatoriosCount(usage.relatorios)} · ${plural(usage.photos, 'foto', 'fotos')} neste aparelho`,
+    awaiting,
   };
 }

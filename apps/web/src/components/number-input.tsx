@@ -69,6 +69,12 @@ export interface NumberInputState {
    * commit, and typing again dirties the text as usual (E10-Q1).
    */
   commitValue: (value: ParsedNumber) => void;
+  /**
+   * F-02: marks the typed text as written without committing it (the caller writes it in a
+   * batch of its own, the setup altitude's "Confirmar"): blur, Enter and leaving the page
+   * then have nothing left to commit.
+   */
+  markClean: () => void;
 }
 
 const rawOf = (parsed: ParsedNumber | null | 'invalid'): string | null => (parsed === null || parsed === 'invalid' ? null : parsed.raw);
@@ -167,6 +173,11 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
     parsed,
     commitNow: settle,
     commitValue,
+    markClean: () => {
+      movedWhileFocused.current = false;
+      setInvalid(false);
+      dirty.current = false;
+    },
     inputProps: {
       ref: element,
       value: text,

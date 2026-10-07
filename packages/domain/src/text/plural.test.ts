@@ -46,7 +46,7 @@ describe('plural and the count phrases', () => {
   });
 
   it('keeps the storage line on the shared helper', () => {
-    expect(storageLine({ usage_bytes: 1024, relatorios: 1, photos: 1 }).detail).toBe('· 1 relatório · 1 foto');
+    expect(storageLine({ usage_bytes: 1024, relatorios: 1, photos: 1 }).detail).toBe('· 1 relatório · 1 foto neste aparelho');
   });
 });
 

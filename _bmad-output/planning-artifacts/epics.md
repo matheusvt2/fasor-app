@@ -499,6 +499,12 @@ A field engineer resumes the sheet where they stopped in one tap, never has to t
 **Also covers:** UX-DR33 to UX-DR40, UX-DR45, UX-DR46 (revisited); AR-10, AR-17, AR-20 (`per_unit` in the seed)
 **Decisions (journey review 2026-09-24, Amelia and Sally with Matheus):** the lost-tap fix ships alone and first (D-1); the visual refresh lands in the mocks before the app (D-10); the tap budget becomes a real test (D-11). Matheus confirmed on 2026-09-24 that Epic 12 runs before Epic 6 and decided the Não ensaiado reasons (three standard plus free text, Story 12.4); the nameplate TAG field, the printed observation and the status on generate stay for later.
 
+### Epic 13: The photo is the instrument: capture hardening, honest waiting and the emission audit (field UX analysis 2026-10-06)
+A field engineer points the camera at a plate, a display or a panel and the shot is worth reading: full sensor resolution, a torch for dark cubicle interiors, zoom and tap-to-focus, and pinch-zoom to read his own photo when the OCR says "Verificar". The keyboard stops fighting serials and dates and the sheet says "Salvo"; a reading in flight shows its age and can be cancelled or retried anywhere; a shot refused by quota still survives the tab; the plate tile reaches every block type; dictation turns on behind one line of consent; and before "Emitir" an optional AI pass lists the contradictions rules cannot see — pointing, never writing. Source: `ux-fasor-2026-09-18/review-field-ux-2026-10-06.md` (findings CAP-1 to AI-3, the Field Control / Produttivo synthesis).
+**FRs covered:** FR-33, FR-36, FR-38, FR-39, FR-43, FR-56 (revisited: capture quality, waiting states, durability); FR-40 (dictation turned on); the emission audit carries no FR yet (SPEC.md gains its capability line with Story 13.8)
+**Scope boundary (2026-10-06):** everything the 2026-10-06 MVP hands-on review owns stays out — F-01 (Story 11.11, PR #98), the field-defects batch 2 (F-02 to F-28 rows named in `spec-review-fixes-field-defects-2.md`, in progress) and the layout-and-copy third batch (F-06, F-07, F-10, F-11, F-15 to F-19, F-22 to F-26, F-29). Stories 13.4 and 13.8 build on batch results (F-02, F-03), never replace them.
+**Decisions:** three waves — the camera funnel first (13.1 to 13.3), then trust and ergonomics (13.4 to 13.6), then the gated assists (13.7 to 13.9, each behind its own Definition of Ready). Considered from the competitor synthesis and not taken now: QR asset lookup, photo markup, gallery lock (recorded in the source review § 3).
+
 ## Epic 1: Sign in and work on the device (offline-first foundation)
 
 A company user signs in once, opens PRODUTO on any device, and every relatório in progress is already on the device and keeps working with no signal; whatever is captured lands locally first and reaches the server by itself. Stories stay small; the whole MVP runs 100% locally in Docker (AWS only after the MVP), so this epic exposes the local stack to tablets over HTTPS and the offline proof runs on a real iPad against that origin. Mockups: `prototype/screens/10-login.html`, `20-home.html`, `90-account.html`, `85-sync.html` (badge and counts only), `key-login.html`, `key-home.html`, `key-account.html`.
@@ -2739,3 +2745,223 @@ So that a story cannot add taps to the sheet without anyone noticing.
 **Then** both tests are tagged `@p0` and finish within the 15-minute gate
 
 **Definition of Done, in addition:** the retro of Epic 12 records the measured numbers next to the review's table.
+
+## Epic 13: The photo is the instrument: capture hardening, honest waiting and the emission audit (field UX analysis 2026-10-06)
+
+A field engineer points the camera and the shot is worth reading; typing, when the camera could not do it, is respected; waiting on a reading is a visible, cancellable choice; and the relatório gets one optional AI conference before it is issued. Source: `ux-fasor-2026-09-18/review-field-ux-2026-10-06.md` (findings CAP-1 to AI-3; the Field Control / Produttivo synthesis in its § 3). Scope boundary: the 2026-10-06 MVP review batches own F-01 to F-29 (see the Epic List entry); this epic never touches those findings except to build on their merged results. Waves: 13.1 to 13.3 (camera funnel) first, 13.4 to 13.6 (trust and ergonomics) second, 13.7 to 13.9 (gated assists) last, each of the last three behind its own Definition of Ready.
+
+### Story 13.1: Capture at the resolution the reading needs
+
+**Dev model:** opus · **Effort:** high · camera constraints and `ImageCapture`, with the encode cap re-measured against the fixture plates
+
+As a field engineer,
+I want every shot taken at the camera's real resolution,
+So that the plate I photographed is legible to the OCR and to me.
+
+**Acceptance Criteria:**
+
+**Given** any capture surface (burst, plate, display, panel, thermo-hygrometer)
+**When** the stream starts
+**Then** `getUserMedia` asks for `facingMode: environment` with ideal 3840x2160, the track's actual settings are logged once per session for diagnostics, and the captured bitmap's dimensions are asserted in a test (CAP-1; FR-33, FR-36, FR-38, FR-43)
+
+**Given** a single-shot capture (plate, display, panel, thermo-hygrometer)
+**When** the device supports `ImageCapture.takePhoto()`
+**Then** the shot is taken at the sensor's photo resolution and falls back to the video-frame grab where unsupported (iPadOS Safari); the `<input capture>` and e2e fake-camera fallbacks keep working unchanged
+
+**Given** `photo-encode.ts`
+**When** a plate, display or panel shot is encoded
+**Then** the long-edge cap and quality are re-measured against reading accuracy on the Porto Seguro fixture plates, the chosen numbers recorded in a dated note here (keep 2560 px / 0.85 unless the measurement says otherwise)
+
+**Definition of Done, in addition:** the E1-A1 manual device script gains a step recording the actual capture size per path on one Android tablet and one iPad.
+
+### Story 13.2: Torch, zoom and tap-to-focus in the viewfinder
+
+**Dev model:** opus · **Effort:** high · `MediaStreamTrack` capabilities with per-device hiding
+
+As a field engineer in front of a dark cubicle,
+I want a torch, zoom and tap-to-focus in the viewfinder,
+So that the plate inside the panel is readable without leaving the app or carrying a second light.
+
+**Acceptance Criteria:**
+
+**Given** the viewfinder (burst and single-shot)
+**When** `track.getCapabilities()` offers `torch`, `zoom` or focus control
+**Then** a 48 px torch toggle, a zoom control (pinch on the preview plus a visible control) and tap-to-focus are offered, each hidden — not disabled — when the capability is absent, none covering the shutter or "Concluir fotos", and the torch state resets per camera session (CAP-2; DESIGN.md touch rules; EXPERIENCE.md: no gesture a stylus cannot make — the visible zoom control is the stylus path)
+
+**Given** iPadOS Safari or the fake/e2e camera path
+**When** the camera opens
+**Then** no unsupported control renders and every existing camera spec stays green
+
+**Definition of Done, in addition:** a real-device pass on Android Chrome with the torch on is recorded in the E1-A1 script.
+
+### Story 13.3: Pinch-zoom to read the photo
+
+**Dev model:** opus · **Effort:** medium · viewer gestures over the existing crop zoom
+
+As a field engineer,
+I want to pinch-zoom and pan any photo in the viewer,
+So that my own photo is the magnifier when a field reads "Verificar" or the OCR read nothing.
+
+**Acceptance Criteria:**
+
+**Given** the Photo viewer and the plate-crop view
+**When** the user pinches, double-taps, or uses visible zoom buttons (the stylus and desktop path)
+**Then** the image zooms up to its native resolution and pans while zoomed, the reading flow's programmatic crop zoom keeps working, back/Escape and the existing actions keep their behavior, and no swipe navigation is added (CAP-3; EXPERIENCE.md gesture rules)
+
+**Given** a 390 px phone
+**When** the viewer opens
+**Then** the same gestures work and every control keeps its 48 px hit area
+
+**Definition of Done, in addition:** exercised on touch in the durability matrix (Android Chrome emulation and WebKit).
+
+### Story 13.4: The keyboard stops fighting the field, and the sheet says Salvo
+
+**Dev model:** opus · **Effort:** high · input attributes, month-year dates, visible saved state
+
+As a field engineer typing what the camera could not read,
+I want the keyboard to respect serials, TAGs and dates, and the sheet to say it saved,
+So that a typed value is never mangled by autocorrect and never doubted.
+
+**Acceptance Criteria:**
+
+**Given** the nameplate text fields (Nº série, TAG, Tipo, Identificação, TAP atual)
+**When** they render
+**Then** `autoCapitalize`, `autoCorrect` and `spellCheck` are off, matching the TAG dialogs (INP-1)
+
+**Given** every input in the sheet's continuous Enter run
+**When** it renders
+**Then** it carries `enterKeyHint="next"` (the last cell before the primary carries `"done"`), and a durability spec on Android Chrome emulation and WebKit asserts that a focus change by tap commits the value, since the iOS phone decimal pad has no Return key (INP-2)
+
+**Given** an empty date field such as Fabricação
+**When** the engineer types a month-year ("08/2024") or a year alone, or taps the "Hoje" chip on fields where a full date applies
+**Then** the value is accepted and rendered the way stored month-only values already render; the chip word is authored (INP-3)
+
+**Given** a field's op lands in the outbox
+**When** the sheet header renders
+**Then** a quiet visible "Salvo às HH:MM" state replaces the screen-reader-only text, reading "Salvo neste aparelho às HH:MM" while offline; it never blocks and adds no tap (INP-4; builds on the merged F-02 fix, never replaces it)
+
+**Definition of Done, in addition:** the tap-budget specs are unchanged (no added taps or keystrokes).
+
+### Story 13.5: A reading shows its age, can be cancelled, and never dead-ends
+
+**Dev model:** opus · **Effort:** high · reading lifecycle UI over the existing queue, no contract change
+
+As a field engineer waiting on a reading,
+I want to see how long it has been running, cancel it, and retry any failure where it happened,
+So that waiting is a choice and no photo leads to a dead end.
+
+**Acceptance Criteria:**
+
+**Given** any pending reading ("Lendo…")
+**When** 10 seconds pass
+**Then** the line gains the elapsed time ("Lendo… 30 s") and a "Cancelar" action that discards the reading while keeping the photo, through the discard the Suggestion rules already define (WAIT-1)
+
+**Given** the 5 s fast poll
+**When** its 120 s window closes with the reading still `running`
+**Then** the cell says it is still reading (wording authored) and polling continues at the slow cadence until the job's own timeout or result resolves it — never a silent stop (WAIT-1)
+
+**Given** a failed display reading
+**When** the failure lands in the cell
+**Then** it offers "Tentar novamente" (disabled offline with the reason) and "Digitar", exactly as the plate failure does; the open `deferred-work.md` row closes (WAIT-2)
+
+**Given** the panel-capture dialog with a reading in flight
+**When** the user leaves it by navigation
+**Then** the photo and its suggestion are not orphaned: reopening the palette shows the pending or arrived proposal, and the arrival toast's "Ver" leads back to it; the open `deferred-work.md` row closes (WAIT-3)
+
+**Definition of Done, in addition:** the flow is exercised end to end under `fake` providers with an injected delay; all wording lands in `copy/pt-br.ts` as authored.
+
+### Story 13.6: A shot refused by quota survives the tab
+
+**Dev model:** opus · **Effort:** medium · rescue path durability
+
+As a field engineer with a full tablet,
+I want a shot the database refused to still exist after the tab dies,
+So that "no photo is ever lost" has no footnote.
+
+**Acceptance Criteria:**
+
+**Given** a quota refusal on a shot while offline
+**When** the rescue path runs
+**Then** it first frees evictable space (acked originals per the existing eviction rules) and retries the write; if the write still fails, capture is refused before the next shot with the storage banner and a camera-surface message, so the engineer is told at capture time instead of a silent memory-only hold (CAP-4; FR-56; EXPERIENCE.md storage-low rule)
+
+**Given** a durability spec
+**When** the tab is killed after a refused shot
+**Then** either the shot exists in Dexie after reload or the refusal was shown before the camera allowed another shot — asserted in the durability matrix
+
+### Story 13.7: The plate tile on every block type
+
+**Dev model:** opus · **Effort:** medium · tile gating by type plus one fake fixture per type
+
+*(Definition of Ready: Matheus answers E8-A3 — which block types carry the "Fotografar placa" tile; the default proposal is all eight. The story builds the recorded answer.)*
+
+As a field engineer,
+I want "Fotografar placa" on every block type that has a plate,
+So that the photo-first path is not a transformer privilege.
+
+**Acceptance Criteria:**
+
+**Given** the block types the E8-A3 answer names
+**When** a sheet's Placa step renders with AI features on
+**Then** the tile shows and the reading runs with that type's field definitions, the same trust rules applying unchanged (AI-1; FR-33)
+
+**Given** `LLM_PROVIDER=fake` and `OCR_PROVIDER=fake`
+**When** a plate is read on any enabled type
+**Then** the fake providers carry at least one fixture per enabled type, so local demos and e2e read every type instead of failing at once (closes deferred-work E78-Q2)
+
+**Given** the tap-budget specs
+**When** they run
+**Then** the budgets are unchanged
+
+### Story 13.8: The emission audit: one AI pass before Emitir that points, never writes
+
+**Dev model:** fable · **Effort:** high · a new reading kind over the existing queue, kernel findings model, export-dialog section
+
+*(Definition of Ready: the 2026-10-06 field-defects batch 2 is merged, so the F-03 confirmation dialog exists to build on; the pattern source is review-field-ux-2026-10-06.md AI-3 — both reference products converged on AI as a closing QA gate.)*
+
+As an engineer about to issue,
+I want the app to read the assembled relatório and list the contradictions rules cannot see,
+So that the client never receives a report that disagrees with itself.
+
+**Acceptance Criteria:**
+
+**Given** the Export dialog with AI features on and a non-fake LLM provider (or the fake fixture locally)
+**When** the user taps "Conferir antes de emitir" — one optional tap, never automatic, never blocking, absent entirely with AI features off
+**Then** a server job sends the relatório's assembled text and values (verdicts, readings, observations, captions; never raw photos) to the LLM with a versioned prompt, and the findings come back each naming the sheet, row or section it used, shown as information rows with "Ver" links in the dialog and on the Sumário; nothing is written, counted or printed from a finding — the Suggestion discipline extended to findings (NFR-12 is amended by this story: this pass is AI and the screen says so)
+
+**Given** the finding kinds
+**When** the job runs
+**Then** it covers at least: a conclusion that disagrees with its NC items, a reading far out of family across phases or units without a mark, a parecer that disagrees with the restrições it summarizes, and a caption naming an equipment the relatório does not carry; the prompt never asks the model to rewrite any text
+
+**Given** `LLM_PROVIDER=fake`
+**When** the audit runs locally or in e2e
+**Then** a fixture returns canned findings so the whole flow is exercised without a cloud call
+
+**Given** cost
+**When** the job completes
+**Then** tokens and USD are logged per run, one run per tap, within the USD 100/month ceiling
+
+*(No FR: new capability from `review-field-ux-2026-10-06.md`; SPEC.md gains its capability line with this story. The device-composed conclusion text and parecer summary stay deterministic — this story does not touch them.)*
+
+### Story 13.9: Dictation on, behind one line of consent
+
+**Dev model:** opus · **Effort:** medium · consent gate over the existing engine and suggestion flow
+
+*(Definition of Ready: Matheus decides the consent wording and confirms `webspeech` as the shipped default engine — the Epic 9 open question on audio going to the browser vendor. Online-only stands, `source-deltas.md` row 37.)*
+
+As a field engineer with dirty gloves,
+I want to dictate after accepting one clear line about where the audio goes,
+So that the fastest input this market ships is on without a hidden privacy trade.
+
+**Acceptance Criteria:**
+
+**Given** the first mic tap of a user
+**When** the consent dialog shows
+**Then** it names the engine and where the audio goes (wording decided with Matheus), "Ativar" persists the consent per user and enables every mic; "Agora não" hides the mics and Account gains a "Ditado" toggle row to turn it on later (AI-2; FR-40)
+
+**Given** `VITE_SPEECH_ENGINE`
+**When** the web ships
+**Then** the default becomes `webspeech` with the consent gate in front; offline the control stays hidden as today, and every dictation result remains a "Ditado" suggestion with "Usar"
+
+**Given** the dictation specs
+**When** they run
+**Then** the existing suggestion-only behavior is unchanged and the consent dialog is covered at 390 and 768 px

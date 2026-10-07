@@ -8,7 +8,7 @@ import { syncNow } from './support/sync.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
-import { createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
+import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 import { pushDrafts } from './support/relatorio-seed.ts';
 
 /*
@@ -107,8 +107,10 @@ test('@p0 4.8-E2E-001 11.1-E2E-001 a relatório born on Home: the Sumário\'s "G
   await expect(reason(page)).toHaveText(IDLE_1);
 
   // Pressed with the creation batch possibly still in the outbox: the dialog drains it first
-  // ("Enviando…", asserted in jsdom), then the working state.
+  // ("Enviando…", asserted in jsdom), then the working state. F-03 (D1): its 94 sheets are
+  // empty, so the issue is confirmed first.
   await generateButton(page).click();
+  await confirmIssue(modal, /^Emitir com 94 fichas vazias/);
   await expect(modal.locator('.gen-progress[role="status"]')).toContainText('Gerando revisão 1…', { timeout: 60_000 });
   await expect(modal.locator('.gen-progress')).toContainText('pode fechar — o aviso chega quando terminar');
   await expect(generateButton(page)).toHaveAttribute('aria-disabled', 'true');
@@ -189,6 +191,7 @@ test('@p0 4.8-E2E-001 11.1-E2E-001 a relatório born on Home: the Sumário\'s "G
   await dialog(page).getByRole('button', { name: 'Gerar de novo' }).click();
   await expect(reason(page)).toHaveText(IDLE_1);
   await generateButton(page).click();
+  await confirmIssue(dialog(page), /^Emitir com 94 fichas vazias/);
   await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeVisible({ timeout: 30_000 });
   await expect(dialog(page).locator('.revision-row')).toHaveCount(1);
 });

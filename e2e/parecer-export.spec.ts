@@ -6,7 +6,7 @@ import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.t
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
-import { createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
+import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 import { pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
@@ -218,6 +218,9 @@ test('@p0 7.5-E2E-001 "Pré-visualizar" opens preview.pdf in a new tab, reading 
   const tab = await tabPromise;
   // Headless Chrome has no PDF viewer: the tab's navigation to the PDF is what is observed.
   const requested = tab.waitForRequest(/\/api\/relatorios\/[0-9a-f-]{36}\/preview\.pdf\?v=[0-9a-f-]{36}$/, { timeout: JOB_TIMEOUT });
+  // Review 2026-10-06: while the job runs the tab is not blank: it names the step and shows a bar.
+  await expect(tab.getByRole('progressbar', { name: 'Gerando rascunho…' })).toBeVisible();
+  await expect(tab.getByText('O PDF abre nesta aba quando ficar pronto. Pode levar até um minuto.')).toBeVisible();
   await expect(previewButton(page)).toHaveText('Gerando rascunho…');
   const url = (await requested).url();
   await expect(previewButton(page)).toHaveText('Pré-visualizar');
@@ -340,6 +343,8 @@ test('@p1 7.5-E2E-004 Epic 4 item 29: "Restaurar" lists only the block removed a
   await setParecer(page, relatorioId);
   await footButton(page).click();
   await generateButton(page).click();
+  // F-03 (D1): the new relatório's sheets are empty, so the issue is confirmed first.
+  await confirmIssue(dialog(page), /^Emitir com 94 fichas vazias/);
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   await page.keyboard.press('Escape');
   // Removed after it: "Requisitos básicos".

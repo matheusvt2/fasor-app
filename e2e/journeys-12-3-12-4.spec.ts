@@ -52,6 +52,15 @@ async function createWord(page: Page, c: TapCounter, key: string, name: string):
   await c.tap(`${key} Criar`, page.getByRole('option', { name: `Criar “${name}”` }), () => expect(combobox).toHaveValue(new RegExp(name), { timeout: EFFECT_MS }));
 }
 
+/** "Outro…" on a registry field, the value typed, and the registry's own entry picked (no "Criar"). */
+async function pickWord(page: Page, c: TapCounter, key: string, typed: string, option: string): Promise<void> {
+  const combobox = field(page, key).getByRole('combobox');
+  await c.tap(`${key} Outro…`, field(page, key).getByRole('button', { name: 'Outro…' }), () => expect(combobox).toBeFocused({ timeout: EFFECT_MS }));
+  await c.type(typed);
+  await expect(page.getByRole('option', { name: /^Criar/ })).toHaveCount(0);
+  await c.tap(`${key} ${option}`, page.getByRole('option', { name: option, exact: true }), () => expect(combobox).toHaveValue(option, { timeout: EFFECT_MS }));
+}
+
 /** Both pickers of a seccionadora with no suggestion yet: open, pick MG-01 (two taps each). */
 async function pickInstruments(page: Page, c: TapCounter): Promise<void> {
   for (const testKey of ['isolacao', 'resistencia_contato']) {
@@ -93,7 +102,9 @@ async function confirmPair(page: Page, c: TapCounter, restriction: 'Sem restriç
 
 async function conclude(page: Page, c: TapCounter, nextBlockId: string): Promise<void> {
   await expect(page.getByTestId('ficha-progress')).toHaveText('Ficha completa');
-  await c.tap('Concluir ficha', page.locator('#ficha-primary'), async () => {
+  // F-12 (D2, 2026-10-06): the complete sheet's primary reads "Concluir e avançar".
+  await expect(page.locator('#ficha-primary')).toHaveText(/Concluir e avançar/);
+  await c.tap('Concluir e avançar', page.locator('#ficha-primary'), async () => {
     await expect(toast(page)).toContainText('Ficha concluída', { timeout: EFFECT_MS });
     await expect(page).toHaveURL(new RegExp(`/ficha/${nextBlockId}$`), { timeout: EFFECT_MS });
   });
@@ -142,7 +153,9 @@ test('@p1 12.3-E2E-004 J1, J3 and J2 at 768 px: a new plate, the second secciona
   const meio = page.getByLabel('Meio de extinção', { exact: true });
   await j1.tap('Meio de extinção', meio, () => expect(meio).toBeFocused({ timeout: EFFECT_MS }));
   await j1.pick('Meio de extinção AR', meio, 'AR');
-  await createWord(page, j1, 'tensao_de_placa', '13,8');
+  // F-09 (D4, 2026-10-06): 13,8 kV comes seeded with the standard template, so it is picked
+  // (the same taps the "Criar" took before).
+  await pickWord(page, j1, 'tensao_de_placa', '13,8', '13,8 kV');
   await typeField(page, j1, 'Corrente nominal', '630');
   const acionamento = page.getByLabel('Acionamento', { exact: true });
   await j1.tap('Acionamento', acionamento, () => expect(acionamento).toBeFocused({ timeout: EFFECT_MS }));

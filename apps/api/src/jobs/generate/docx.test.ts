@@ -431,6 +431,22 @@ describe('11.10-UNIT section 8 action-plan table', () => {
     return document.slice(start, end);
   }
 
+  it('F-05: a point citing a photo after "etc." prints "…, conforme Imagem N. <ação>" as its bullet; the table keeps the text', async () => {
+    const base = fixtureSnapshot();
+    const [first] = livePoints(base.points);
+    const [photoId, number] = [...numberPhotos(base.files).entries()].find(([, n]) => n === 1)!;
+    const text = `Ausência de identificação da função dos transformadores etc. [[foto:${photoId}]]`;
+    const action = 'Instalar placas de sinalização NR-10 nas portas das cabines';
+    const snapshot: RelatorioSnapshot = { ...base, points: base.points.map((point) => (point.id === first!.id ? { ...point, text, action } : point)) };
+    const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: ISSUED_AT });
+    const docx = await buildDocx(layout, { tocPages: placeholderPages(layout) });
+    const xml = sectionXml(readZipEntries(docx).get('word/document.xml')!.toString('utf8'), 8);
+    const paragraphs = [...xml.matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)].map((m) => paragraphText(m[0]));
+    expect(paragraphs).toContain(`Ausência de identificação da função dos transformadores etc., conforme Imagem ${number}. ${action}`);
+    const cells = [...xml.matchAll(/<w:tc(?:\s[^>]*)?>([\s\S]*?)<\/w:tc>/g)].map((cell) => paragraphText(cell[1]!));
+    expect(cells).toContain(`Ausência de identificação da função dos transformadores etc. Imagem ${number}`);
+  }, 60_000);
+
   it('prints the header row and one row per bullet directly after the last bullet', async () => {
     const base = fixtureSnapshot();
     const [first, second] = livePoints(base.points);

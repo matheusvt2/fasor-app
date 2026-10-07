@@ -50,7 +50,7 @@ import { CropThumb } from '../../components/crop-thumb.tsx';
 import { SuggestionField } from '../../components/suggestion-field.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
-import { useSession } from '../../state/session.tsx';
+import { useServerReachable } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { useCamera } from './camera-view.tsx';
 import type { FichaApi } from './ficha-api.ts';
@@ -228,11 +228,13 @@ export function useDisplaySuggestions({
 /**
  * "Foto guardada — leitura quando houver sinal" (queued, offline) or "Lendo…" (running) under
  * a cell or a field. F-17: a queued reading on a device with signal reads "Lendo…" (State
- * Patterns › Reading in progress); the waiting words are for a device without one.
+ * Patterns › Reading in progress); the waiting words are for a device without one, or whose
+ * server did not answer (F-13, `useServerReachable`).
  */
 export function QueuedBanner({ state }: { state: DisplayQueuedState }) {
   const t = copy.ficha.ensaios;
-  const online = useSession().online;
+  // F-13 (review 2026-10-06): the plate row's rule, so both read alike on one sheet.
+  const online = useServerReachable();
   return (
     <span className="queued-banner">
       <svg className="ico" aria-hidden="true">

@@ -27,6 +27,8 @@
 .export-dialog .gen-progress { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); font-size: var(--t-meta-size); color: var(--ink-secondary); }
 /* `[data-route] .gen-error` */
 .export-dialog .gen-error { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); font-size: var(--t-body-size); color: var(--nao-conforme); }
+/* authored (F-03, D1, review 2026-10-06): the issue confirmation's question above its buttons, the `.export-state` rhythm. */
+.export-dialog .issue-confirm { display: flex; flex-direction: column; gap: var(--sp-3); }
 /* authored: the mock's "Revisões" label sits `margin-bottom: var(--sp-2)` above the rows through an inline style. */
 .export-dialog .revisions-label { margin-bottom: var(--sp-2); }
 /* authored: the mock draws the dialog inside a frame; as a real modal on a short viewport it scrolls. */

@@ -224,7 +224,8 @@ export function LastSendSection({ sync }: { sync: SyncState }) {
                 </span>
                 <span className="sr-body">
                   <span className="sr-primary">{lastSendText(name, push.at)}</span>
-                  <span className="sr-secondary">{mine ? copy.sync.thisDevice : copy.sync.otherDevice}</span>
+                  {/* F-14: no device word until this device's id is known, so its own row is never "Outro aparelho". */}
+                  {sync.deviceId === null ? null : <span className="sr-secondary">{mine ? copy.sync.thisDevice : copy.sync.otherDevice}</span>}
                 </span>
               </li>
             );

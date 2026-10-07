@@ -12,8 +12,9 @@ import { listPtBr } from '../text/plural.ts';
 /*
  * Story 7.3 (AC1): section 8, the points of attention, as printed bullets. First the live
  * points in `order_key` order, each `[[foto:id]]` token of its text replaced by the frozen
- * "Imagem N" of `numberPhotos` (the same map section 7 prints), its Ação recomendada after
- * one space. A stored point written from an untested sheet (`origin: not_tested`) is a
+ * "Imagem N" of `numberPhotos` (the same map section 7 prints) as a "conforme Imagem N"
+ * clause where the text does not introduce it (F-05, `resolveBulletPhotoTokens`), its Ação
+ * recomendada after the text's full stop. A stored point written from an untested sheet (`origin: not_tested`) is a
  * bullet of its own, never merged (open question 1). Then the derived Não ensaiado entries
  * in tree order, consecutive entries with the same reason and justification as one bullet
  * (`groupDerivedPoints`, E3-A9 bullet 4).
@@ -78,6 +79,70 @@ export function resolvePhotoTokens(text: string, numbering: ReadonlyMap<string, 
     .join('');
 }
 
+/** Words after which a photo reference reads naturally as it is ("Ver Imagem 2", "em Imagem 3"). */
+const REFERENCE_WORDS = /\b(conforme|ver|vide|veja|imagem|imagens)\b/i;
+const CONNECTIVES: ReadonlySet<string> = new Set(['e', 'ou', 'em', 'na', 'no', 'nas', 'nos', 'de', 'da', 'do', 'das', 'dos', 'a', 'o', 'as', 'os', 'com', 'para', 'por', 'pela', 'pelo']);
+/** A sentence end inside a point's text: ".", "!" or "?" before a space, never the "." of "etc.". */
+const SENTENCE_END = /(?<!\betc)[.!?](?=\s)/gi;
+
+/** The part of `text` after its last sentence end. */
+function currentSentence(text: string): string {
+  let at = -1;
+  for (const match of text.matchAll(SENTENCE_END)) at = match.index;
+  return text.slice(at + 1);
+}
+
+/**
+ * F-05 (review 2026-10-06): a bullet's photo reference reads as a clause, "…, conforme
+ * Imagem N", unless the sentence already introduces it ("conforme", "ver", an earlier
+ * "Imagem" of the same sentence) or the words before it lead into it ("em", "e", an open
+ * parenthesis); a reference after a full stop takes the full stop after it ("Porta
+ * danificada. [[foto]]" prints "Porta danificada, conforme Imagem 1."), and "etc." keeps its
+ * period ("… etc., conforme Imagem 1"). A removed photo's token prints as `resolvePhotoTokens`
+ * prints it. The action-plan table keeps `resolvePhotoTokens`.
+ */
+export function resolveBulletPhotoTokens(text: string, numbering: ReadonlyMap<string, number>): string {
+  let out = '';
+  /** The last thing printed is a reference, with at most spaces after it. */
+  let afterRef = false;
+  for (const token of pointTextTokens(text)) {
+    if (token.kind === 'text') {
+      // A full stop moved after a reference is not printed twice.
+      out += /[.!?]$/.test(out) && /^[.!?]/.test(token.text) ? token.text.slice(1) : token.text;
+      if (token.text.trim() !== '') afterRef = false;
+      continue;
+    }
+    const n = numbering.get(token.id);
+    if (n === undefined) {
+      out += REMOVED_PHOTO_REF_TEXT;
+      afterRef = false;
+      continue;
+    }
+    const label = photoRefLabel(n);
+    // Two references side by side read as a list: "Imagem 5 e Imagem 12".
+    if (afterRef) {
+      const trimmed = out.trimEnd();
+      // A full stop moved after the first reference stays after the last one.
+      const moved = /\d[.!?]$/.test(trimmed) ? trimmed.slice(-1) : '';
+      out = `${moved === '' ? trimmed : trimmed.slice(0, -1)} e ${label}${moved}`;
+      continue;
+    }
+    afterRef = true;
+    const trimmed = out.trimEnd();
+    const lastWord = /(\p{L}+)$/u.exec(trimmed)?.[1]?.toLocaleLowerCase('pt-BR') ?? null;
+    const leadsIn = trimmed === '' || REFERENCE_WORDS.test(currentSentence(out)) || (lastWord !== null && CONNECTIVES.has(lastWord)) || /[(,;:\u2014-]$/.test(trimmed);
+    if (leadsIn) {
+      out += label;
+    } else if (/[.!?]$/.test(trimmed) && !/\betc\.$/i.test(trimmed)) {
+      // authored: the clause that cites a photo after a sentence (open for Bruno).
+      out = `${trimmed.slice(0, -1)}, conforme ${label}${trimmed.slice(-1)}`;
+    } else {
+      out = `${trimmed}, conforme ${label}`;
+    }
+  }
+  return out;
+}
+
 /** A sentence: trimmed, with a final period unless it already ends in ".", "!" or "?". */
 function sentence(text: string): string {
   const trimmed = text.trim();
@@ -104,9 +169,10 @@ export function derivedGroupText(group: DerivedPointGroup, entries: readonly Der
 export function resolveSection8(snapshot: Section8Snapshot, numbering: ReadonlyMap<string, number>): Section8Bullet[] {
   const points: Section8Bullet[] = livePoints(snapshot.points).map((point) => {
     const parts = [point.text, point.action ?? '']
-      .map((part) => resolvePhotoTokens(part, numbering).trim())
+      .map((part) => resolveBulletPhotoTokens(part, numbering).trim())
       .filter((part) => part !== '');
-    return { kind: 'point', text: parts.join(' '), point_id: point.id };
+    // F-05: the action starts a sentence of its own after the point's text.
+    return { kind: 'point', text: parts.length === 2 ? `${sentence(parts[0]!)} ${parts[1]!}` : (parts[0] ?? ''), point_id: point.id };
   });
   const entries = derivedPoints(snapshot);
   const derived: Section8Bullet[] = groupDerivedPoints(entries).map((group) => ({

@@ -170,10 +170,42 @@ function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): Blo
   }
 }
 
-/** The picker's list: live instruments, the last one used for this test type first, then by code. */
-export function instrumentPickerOrder<T extends Pick<InstrumentRow, 'id' | 'code' | 'removed_at'>>(instruments: readonly T[], lastId: string | null): T[] {
+/** What `instrumentPickerOrder` ranks by besides the last one used (F-27). */
+export interface InstrumentPickerContext {
+  /** The test the picker is for: an instrument fits it when its registry default for that test is set. */
+  testKey?: TestKey;
+  /** The instruments ticked in setup Etapa 4 (`setup.instrument_ids`). */
+  setupIds?: readonly string[];
+}
+
+/** F-27: an instrument fits a test when its registry row holds a default for it (`test_isolacao`, ...) with a value. */
+function fitsTest(row: object, testKey: TestKey | undefined): boolean {
+  if (testKey === undefined) return false;
+  const value = (row as Record<string, unknown>)[`test_${testKey}`] as { raw?: unknown } | null | undefined;
+  return typeof value?.raw === 'string' && value.raw.trim() !== '';
+}
+
+/**
+ * The picker's list of live instruments. F-27 (review 2026-10-06): first the ones that fit the
+ * test and were ticked in setup, then the ones that fit, then the ones ticked, then the rest;
+ * inside each group the last one used for this test type first (the one the header suggests,
+ * "Sugerido"), then by code.
+ */
+export function instrumentPickerOrder<T extends Pick<InstrumentRow, 'id' | 'code' | 'removed_at'>>(
+  instruments: readonly T[],
+  lastId: string | null,
+  context: InstrumentPickerContext = {},
+): T[] {
+  const ticked = new Set(context.setupIds ?? []);
+  const group = (row: T) => {
+    const fits = fitsTest(row, context.testKey);
+    const inSetup = ticked.has(row.id);
+    return fits && inSetup ? 0 : fits ? 1 : inSetup ? 2 : 3;
+  };
   const live = instruments.filter((row) => row.removed_at === null);
   live.sort((a, b) => {
+    const byGroup = group(a) - group(b);
+    if (byGroup !== 0) return byGroup;
     if (a.id === lastId) return -1;
     if (b.id === lastId) return 1;
     return a.code.localeCompare(b.code, 'pt-BR', { numeric: true });

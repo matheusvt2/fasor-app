@@ -9,7 +9,7 @@ import { getSeed, sectionText, type SectionVariable } from '../seed/definitions.
 import type { TextBlock } from '../seed/schema.ts';
 import { sectionNumber } from '../templates/compose.ts';
 import { parseRichText, richBlockNumbers, richRunsResolved, richRunsText, type RichRun } from '../templates/rich-text.ts';
-import { resolveSectionText } from '../templates/section-text.ts';
+import { isOptionalSectionVariable, resolveSectionText } from '../templates/section-text.ts';
 import { documentControlRows, MISSING, REVISION_ROW_LABEL, type DocumentControlRow } from './document-control.ts';
 import { section10Layout, type LayoutSection10 } from './section-10.ts';
 import { section11Layout, type LayoutSectionCertificates } from './section-11.ts';
@@ -204,10 +204,11 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
   const textDate = dateInForce(inputs.sectionTextAt ?? inputs.issuedAt);
 
   const cover = seed.cover;
-  const coverRows: DocumentControlRow[] = cover.rows.map((row) => ({
-    label: row.label,
-    value: resolveSectionText(row.value, variables).resolved,
-  }));
+  // F-04 (D1): a cover row whose optional field is empty is left out, never "[Informações adicionais]".
+  const coverRows: DocumentControlRow[] = cover.rows.flatMap((row) => {
+    const resolved = resolveSectionText(row.value, variables);
+    return resolved.unresolved.some(isOptionalSectionVariable) ? [] : [{ label: row.label, value: resolved.resolved }];
+  });
 
   const sections: LayoutSection[] = printedSections(snapshot).map(({ section, ownText }, index) => {
     const number = index + 1;

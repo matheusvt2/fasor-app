@@ -5,7 +5,7 @@ import { act, cleanup, configure, fireEvent, render, screen, waitFor, within } f
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { commitBatch } from '../../db/commit.ts';
+import { commitBatch, toRecord } from '../../db/commit.ts';
 import { readGenerateAwaiting } from '../../db/prefs.ts';
 import { openDatabase, type AppDatabase, type OutboxRow } from '../../db/schema.ts';
 import { applyPulled } from '../../db/sync-store.ts';
@@ -64,7 +64,12 @@ const session = (): SessionState => ({
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
 
-async function freshDb(): Promise<AppDatabase> {
+/**
+ * The small fixture on a device, its parecer set. With `responsible` (the default) the device
+ * also holds the responsible's user row, so the cover prints no "[Responsável]" and, with no
+ * empty sheet, "Gerar relatório" asks nothing (F-03); without it, one field prints blank.
+ */
+async function freshDb({ responsible = true }: { responsible?: boolean } = {}): Promise<AppDatabase> {
   const user = `019966c1-0049-7000-8000-${(++counter).toString(16).padStart(12, '0')}`;
   const db = openDatabase(user);
   await db.delete();
@@ -72,6 +77,7 @@ async function freshDb(): Promise<AppDatabase> {
   await applyPulled(fresh, portoSeguroSmall.log);
   // Story 7.5: the parecer is set, so "Parecer não preenchido" does not block these issue walks.
   await applyPulled(fresh, [parecerOp()]);
+  if (responsible) await withResponsible(fresh);
   return fresh;
 }
 
@@ -520,10 +526,15 @@ describe('Export dialog (Story 4.8)', () => {
   });
 
   it('shows the inline error with "Tentar novamente" when the job fails, and a network failure ends the same way', async () => {
-    database = await freshDb();
+    // The fixture as pulled, its cover printing "[Responsável]": every press asks first (F-03).
+    database = await freshDb({ responsible: false });
     const sync = syncState();
     render(<Harness sync={sync} />);
+    // The relatório is read (the document control is drawn) before the press, so the issue
+    // confirmation is asked deterministically: the fixture's cover prints "[Responsável]".
+    await within(dialog()).findByLabelText('Controle do documento — impresso após a capa');
     await userEvent.click(generateButton());
+    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Emitir mesmo assim' }));
     await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
     await act(async () => {
       await applyPulled(database!, jobOps('failed'));
@@ -539,6 +550,9 @@ describe('Export dialog (Story 4.8)', () => {
     // "Tentar novamente" asks again; a request that never completes fails inline too.
     (sync.generate as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new SyncRequestError({ kind: 'network' }));
     await userEvent.click(within(modal).getByRole('button', { name: 'Tentar novamente' }));
+    // F-03 (D1): the retry asks the same question before it issues again.
+    await within(modal).findByRole('group', { name: 'Emitir com 1 campo em branco?' });
+    await userEvent.click(within(modal).getByRole('button', { name: 'Emitir mesmo assim' }));
     await waitFor(() => expect(sync.generate).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(within(modal).getByRole('alert')).toBeInTheDocument());
   });
@@ -842,7 +856,7 @@ describe('Export dialog (Story 4.8)', () => {
 
 describe('Export dialog (Story 7.5)', () => {
   it('lists "Antes de emitir": the count of the Sumário warnings with "Ver no sumário", rejected ops with "Reenviar", and the document control as a dl', async () => {
-    database = await freshDb();
+    database = await freshDb({ responsible: false });
     const onSee = vi.fn();
     const sync = syncState({ counts: { dead: 2 } });
     render(
@@ -910,6 +924,25 @@ describe('Export dialog (Story 7.5)', () => {
     expect(await statusOps(database)).toEqual([]);
     // A preview job never reads as a running issue.
     expect(within(modal).queryByText(/Gerando revisão/)).toBeNull();
+    open.mockRestore();
+  });
+
+  it('review 2026-10-06: the tab "Pré-visualizar" opens shows a waiting page (step, bar, note) until the PDF is in it', async () => {
+    database = await freshDb();
+    const PREVIEW_JOB = '019966c1-0000-7000-8000-0000000000e4';
+    const sync = syncState({ preview: vi.fn(async () => ({ outcome: 'queued' as const, job_id: PREVIEW_JOB })) });
+    const tabDocument = document.implementation.createHTMLDocument('');
+    const tab = { location: { href: '' }, close: vi.fn(), opener: {}, document: tabDocument };
+    const open = vi.spyOn(window, 'open').mockImplementation(() => tab as unknown as Window);
+    render(<Harness sync={sync} />);
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+    expect(tabDocument.title).toBe('Gerando rascunho…');
+    expect(tabDocument.querySelector('[role="progressbar"]')?.getAttribute('aria-label')).toBe('Gerando rascunho…');
+    expect(tabDocument.body.textContent).toContain('O PDF abre nesta aba quando ficar pronto. Pode levar até um minuto.');
+    // Once the outbox is drained and the job asked for, the page moves to the second step.
+    await waitFor(() => expect(sync.preview).toHaveBeenCalled());
+    await waitFor(() => expect(tabDocument.querySelector('h1')?.textContent).toBe('Gerando rascunho…'));
+    expect(tabDocument.body.textContent).toContain('Etapa 2 de 2');
     open.mockRestore();
   });
 
@@ -1234,5 +1267,105 @@ describe('Export dialog (Story 7.5)', () => {
     });
     expect(within(list).getByText(/^Último envio de Eduardo: \d{2}\/\d{2} \d{2}:\d{2}$/)).toBeVisible();
     expect(within(list).queryByText(/Último envio de Bento/)).toBeNull();
+  });
+});
+
+/** A pulled create of one more chave sheet with nothing typed on it (an empty sheet, F-03). */
+function emptySheetOp(): Op {
+  const original = portoSeguroSmall.log.find((op) => op.kind === 'create' && op.path === `block/${BLOCK_CHAVE_ID}`)!;
+  const id = '019966c1-0049-7000-8000-0000000000f3';
+  return { ...original, op_id: newId(), path: `block/${id}`, value: { ...(original.value as Record<string, unknown>), id, order_key: 'a9' } as Op['value'], seq: 19_998 };
+}
+
+/**
+ * The relatório's responsible as this device holds it (the fixture's log carries no user row,
+ * so its cover would print "[Responsável]"): with it, no field prints blank.
+ */
+async function withResponsible(db: AppDatabase): Promise<void> {
+  await db.entities.put(
+    toRecord(`user:${USER}`, { id: USER, name: 'Bento Braga', email: 'b@teste.local', council: 'crea', registration_number: 'SP 5063583141', title: 'Eng. Eletricista', photo_location_enabled: false }),
+  );
+}
+
+describe('F-03 (review 2026-10-06, D1): issuing with an empty sheet asks first', () => {
+  it('names the count, offers "Pré-visualizar" first; "Voltar" issues nothing; "Emitir mesmo assim" issues', async () => {
+    database = await freshDb();
+    await applyPulled(database, [emptySheetOp()]);
+    const sync = syncState();
+    render(<Harness sync={sync} />);
+    // The new info row is one of the dialog's own lines.
+    expect(await within(dialog()).findByText('1 ficha vazia')).toBeVisible();
+    await userEvent.click(generateButton());
+    const group = await within(dialog()).findByRole('group', { name: 'Emitir com 1 ficha vazia?' });
+    expect(within(group).getAllByRole('button').map((button) => button.textContent)).toEqual(['Pré-visualizar', 'Voltar', 'Emitir mesmo assim']);
+    await userEvent.click(within(group).getByRole('button', { name: 'Voltar' }));
+    await waitFor(() => expect(generateButton()).toHaveFocus());
+    await new Promise((resolve) => setTimeout(resolve, TIMING.retryMs * 3));
+    expect(sync.generate).not.toHaveBeenCalled();
+    expect(await statusOps(database)).toEqual([]);
+
+    await userEvent.click(generateButton());
+    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Emitir mesmo assim' }));
+    await waitFor(() => expect(sync.generate).toHaveBeenCalledTimes(1));
+  });
+
+  it('a question standing when the connection drops is put away and never comes back without a press', async () => {
+    database = await freshDb();
+    await applyPulled(database, [emptySheetOp()]);
+    const sync = syncState();
+    const { rerender } = render(<Harness sync={sync} />);
+    await within(dialog()).findByText('1 ficha vazia');
+    await userEvent.click(generateButton());
+    await within(dialog()).findByRole('group', { name: 'Emitir com 1 ficha vazia?' });
+    rerender(<Harness sync={syncState({ online: false, generate: sync.generate })} />);
+    await waitFor(() => expect(within(dialog()).queryByRole('group', { name: /^Emitir com/ })).toBeNull());
+    rerender(<Harness sync={syncState({ generate: sync.generate })} />);
+    await waitFor(() => expect(generateButton()).not.toHaveAttribute('aria-disabled'));
+    expect(within(dialog()).queryByRole('group', { name: /^Emitir com/ })).toBeNull();
+    expect(sync.generate).not.toHaveBeenCalled();
+  });
+
+  it('"Tentar novamente" after a failure asks the same question before it issues again', async () => {
+    database = await freshDb();
+    await applyPulled(database, [emptySheetOp()]);
+    const sync = syncState();
+    render(<Harness sync={sync} />);
+    await within(dialog()).findByText('1 ficha vazia');
+    await userEvent.click(generateButton());
+    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Emitir mesmo assim' }));
+    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
+    await act(async () => {
+      await applyPulled(database!, jobOps('failed'));
+    });
+    const retry = await within(dialog()).findByRole('button', { name: 'Tentar novamente' });
+    await userEvent.click(retry);
+    expect(await within(dialog()).findByRole('group', { name: 'Emitir com 1 ficha vazia?' })).toBeVisible();
+    expect(sync.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it('a press before the relatório is read waits for the counts, then asks; "Emitir mesmo assim" issues once', async () => {
+    database = await freshDb({ responsible: false });
+    const sync = syncState();
+    render(<Harness sync={sync} />);
+    // Pressed at once, before the snapshot is read (the document control is not drawn yet).
+    expect(within(dialog()).queryByLabelText('Controle do documento — impresso após a capa')).toBeNull();
+    await userEvent.click(generateButton());
+    const question = await within(dialog()).findByRole('group', { name: 'Emitir com 1 campo em branco?' });
+    expect(sync.generate).not.toHaveBeenCalled();
+    await userEvent.click(within(question).getByRole('button', { name: 'Emitir mesmo assim' }));
+    await waitFor(() => expect(sync.generate).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, TIMING.retryMs * 3));
+    expect(sync.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks nothing when no sheet is empty and no field prints blank', async () => {
+    database = await freshDb();
+    const sync = syncState();
+    render(<Harness sync={sync} />);
+    // The relatório is read (the document control is drawn) before the press.
+    await within(dialog()).findByLabelText('Controle do documento — impresso após a capa');
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(sync.generate).toHaveBeenCalledTimes(1));
+    expect(within(dialog()).queryByRole('group', { name: /^Emitir com/ })).toBeNull();
   });
 });

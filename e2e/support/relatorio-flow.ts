@@ -20,7 +20,7 @@ export async function typeDate(dialog: Locator, label: string, digits: string): 
 /** Home › "Novo relatório": creates the client and the obra inline and continues to the Project. */
 export async function createProjectFromHome(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Novo relatório' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Novo relatório' });
+  const dialog = page.getByRole('dialog', { name: 'Novo relatório', exact: true });
   await expect(dialog.getByRole('button', { name: 'Continuar' })).toHaveAttribute('aria-disabled', 'true');
   await dialog.getByRole('combobox', { name: 'Cliente' }).fill(CLIENT);
   await page.getByRole('option', { name: `Criar “${CLIENT}”` }).click();
@@ -41,7 +41,8 @@ export async function createProjectFromHome(page: Page): Promise<void> {
  * the relatório id.
  */
 export async function createRelatorio(page: Page, options: { whileOnSetup?: () => Promise<void> } = {}): Promise<string> {
-  const dialog = page.getByRole('dialog', { name: 'Novo relatório' });
+  // F-28 (D3): the second step is named apart from Home's first.
+  const dialog = page.getByRole('dialog', { name: 'Novo relatório — tipo e datas', exact: true });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('radio', { name: /Cabine primária/ })).toHaveAttribute('aria-checked', 'true');
   await expect(dialog.getByRole('combobox', { name: 'Template' })).toHaveValue(STANDARD_TEMPLATE_NAME);
@@ -67,6 +68,17 @@ export async function createRelatorio(page: Page, options: { whileOnSetup?: () =
   // Story 12.5 (J-17): the App bar names the relatório; the Sumário list says where we are.
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible();
   return relatorioId;
+}
+
+/**
+ * F-03 (review 2026-10-06, D1): "Gerar relatório" on a relatório with empty sheets or fields
+ * printed blank asks first, naming the counts ("Emitir com 94 fichas vazias e 2 campos em
+ * branco?"); "Emitir mesmo assim" issues. `question` is what the confirmation must say.
+ */
+export async function confirmIssue(dialog: Locator, question: RegExp = /^Emitir com \d+ fichas? vazias?/): Promise<void> {
+  const group = dialog.getByRole('group', { name: question });
+  await expect(group).toBeVisible();
+  await group.getByRole('button', { name: 'Emitir mesmo assim' }).click();
 }
 
 /** The three verdicts of the parecer band, as its segments read. */

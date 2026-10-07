@@ -130,7 +130,9 @@ async function readingsAndConclude(page: Page, c: Counter, nextBlockId: string):
     expect(page.getByRole('radiogroup', { name: 'Resultado' }).getByRole('radio', { name: 'Aprovado' })).toHaveAttribute('aria-checked', 'true', { timeout: EFFECT_MS }),
   );
   await expect(page.getByTestId('ficha-progress')).toHaveText('Ficha completa');
-  await c.tap('Concluir ficha', page.locator('#ficha-primary'), async () => {
+  // F-12 (D2, 2026-10-06): the complete sheet's primary reads "Concluir e avançar".
+  await expect(page.locator('#ficha-primary')).toHaveText(/Concluir e avançar/);
+  await c.tap('Concluir e avançar', page.locator('#ficha-primary'), async () => {
     await expect(toast(page)).toContainText('Ficha concluída', { timeout: EFFECT_MS });
     await expect(page).toHaveURL(new RegExp(`/ficha/${nextBlockId}$`), { timeout: EFFECT_MS });
   });
@@ -194,7 +196,10 @@ test('@p1 12.1-E2E-009 J1 and J3 at 768 px: every tap lands on the first try, co
   const tensao = field(page, 'tensao_de_placa').getByRole('combobox');
   await j1.tap('Tensão Outro…', field(page, 'tensao_de_placa').getByRole('button', { name: 'Outro…' }), () => expect(tensao).toBeFocused({ timeout: EFFECT_MS }));
   await j1.type('13,8');
-  await j1.tap('Tensão Criar', page.getByRole('option', { name: 'Criar “13,8”' }), () => expect(tensao).toHaveValue(/13,8/, { timeout: EFFECT_MS }));
+  // F-09 (D4, 2026-10-06): 13,8 kV comes seeded with the standard template, so the typed value
+  // picks it (the same one tap the "Criar" took before).
+  await expect(page.getByRole('option', { name: /^Criar/ })).toHaveCount(0);
+  await j1.tap('Tensão 13,8 kV', page.getByRole('option', { name: '13,8 kV', exact: true }), () => expect(tensao).toHaveValue(/13,8/, { timeout: EFFECT_MS }));
 
   const corrente = page.getByLabel('Corrente nominal', { exact: true });
   await j1.tap('Corrente nominal', corrente, () => expect(corrente).toBeFocused({ timeout: EFFECT_MS }));

@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
-import type { RelatorioRow, UserRow } from '@app/domain';
+import { defaultEmpresaRow, type RelatorioRow, type UserRow } from '@app/domain';
 import { INSTRUMENT_MEGOHMETRO_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
 import { I18nProvider } from 'react-aria-components';
@@ -507,6 +507,178 @@ describe('4.2 SetupSurface', () => {
     await waitFor(() => expect(input).toHaveFocus());
     const stored = (await database.entities.get(['relatorio', RELATORIO]))!.row as RelatorioRow;
     expect(stored.setup).toMatchObject({ site_altitude_m: 764, site_altitude_confirmed: false });
+  });
+
+  describe('F-02: a typed altitude is never lost', () => {
+    const ALTITUDE = 'relatorio/setup/site_altitude_m';
+    const altitudeOps = () => database!.outbox.where('path').equals(ALTITUDE).toArray();
+
+    it('leaving the field for another one writes the typed value; a reload shows it', async () => {
+      database = await seeded();
+      const view = renderSetup();
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await userEvent.type(input, '760');
+      await userEvent.click(screen.getByRole('textbox', { name: 'Justificativa' }));
+      await untilStored(altitudeOps, (ops) => expect(ops.map((op) => op.value)).toEqual([760]));
+      view.unmount();
+      renderSetup();
+      expect(await screen.findByRole('spinbutton', { name: 'Altitude do site' })).toHaveValue(760);
+    });
+
+    it('Enter writes the typed value', async () => {
+      database = await seeded();
+      renderSetup();
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await userEvent.type(input, '760{Enter}');
+      await untilStored(altitudeOps, (ops) => expect(ops.map((op) => op.value)).toEqual([760]));
+    });
+
+    it('an idle pause writes the typed value while the field keeps the focus', async () => {
+      database = await seeded();
+      renderSetup();
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await userEvent.type(input, '760');
+      expect(input).toHaveFocus();
+      await untilStored(altitudeOps, (ops) => expect(ops.map((op) => op.value)).toEqual([760]));
+    });
+
+    it('leaving the page with the value still typed writes it', async () => {
+      database = await seeded();
+      const view = renderSetup();
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await userEvent.type(input, '760');
+      view.unmount();
+      await untilStored(altitudeOps, (ops) => expect(ops.map((op) => op.value)).toEqual([760]));
+    });
+
+    it('text that is no number writes nothing and the field stays editable', async () => {
+      database = await seeded();
+      renderSetup();
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await userEvent.type(input, 'abc');
+      await userEvent.click(screen.getByRole('textbox', { name: 'Justificativa' }));
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      expect(await altitudeOps()).toEqual([]);
+      expect(input).toBeEnabled();
+      await userEvent.type(input, '12');
+      await userEvent.tab();
+      await untilStored(altitudeOps, (ops) => expect(ops.map((op) => op.value)).toEqual([12]));
+    });
+
+    it('a transient entry the browser cannot read ("-", reported as \'\' with badInput) writes nothing over the stored value, on idle or blur', async () => {
+      database = await seeded();
+      const relatorioRecord = await database.entities.get(['relatorio', RELATORIO]);
+      const row = relatorioRecord!.row as RelatorioRow;
+      await database.entities.put({ ...relatorioRecord!, row: { ...row, setup: { ...row.setup, site_altitude_m: 760 } } });
+      renderSetup();
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await waitFor(() => expect(input).toHaveValue(760));
+      input.focus();
+      Object.defineProperty(input, 'validity', { configurable: true, value: { badInput: true, valid: false } });
+      fireEvent.change(input, { target: { value: '' } });
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      fireEvent.blur(input);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      expect(await altitudeOps()).toEqual([]);
+      expect(((await database.entities.get(['relatorio', RELATORIO]))!.row as RelatorioRow).setup.site_altitude_m).toBe(760);
+    });
+
+    it('a decimal typed is kept as typed while the field has the focus; the write rounds to whole metres', async () => {
+      database = await seeded();
+      renderSetup();
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await userEvent.type(input, '812.5');
+      await untilStored(altitudeOps, (ops) => expect(ops.map((op) => op.value)).toEqual([813]));
+      expect(input).toHaveFocus();
+      expect(input).toHaveValue(812.5);
+    });
+
+    it('a geolocation "Sugerido" altitude focused and left, or left on unmount, with nothing typed writes nothing', async () => {
+      const getCurrentPosition = vi.fn((ok: PositionCallback) => ok({ coords: { altitude: 763.6 } } as GeolocationPosition));
+      Object.defineProperty(navigator, 'geolocation', { configurable: true, value: { getCurrentPosition } });
+      try {
+        database = await seeded();
+        const view = renderSetup();
+        const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+        await waitFor(() => expect(input).toHaveValue(764));
+        await userEvent.click(input);
+        await userEvent.click(screen.getByRole('textbox', { name: 'Justificativa' }));
+        await new Promise((resolve) => setTimeout(resolve, 700));
+        expect(input.closest('.altitude-field')).toHaveAttribute('data-state', 'suggested');
+        view.unmount();
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        expect(await altitudeOps()).toEqual([]);
+      } finally {
+        // @ts-expect-error jsdom has no geolocation; the property above added it.
+        delete navigator.geolocation;
+      }
+    });
+
+    it('"Concluir dados do relatório" writes the typed altitude before the status', async () => {
+      database = await seeded();
+      const relatorioRecord = await database.entities.get(['relatorio', RELATORIO]);
+      await database.entities.put({
+        ...relatorioRecord!,
+        row: {
+          ...(relatorioRecord!.row as RelatorioRow),
+          status: 'rascunho',
+          setup: { ...(relatorioRecord!.row as RelatorioRow).setup, service_end: '2026-09-08', art_trt_number: '2620262602583', instrument_ids: [INSTRUMENT_MEGOHMETRO_ID] },
+        },
+      });
+      renderSetup();
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const button = await screen.findByRole('button', { name: 'Concluir dados do relatório' });
+      await waitFor(() => expect(button).not.toHaveAttribute('aria-disabled'));
+      await userEvent.type(input, '760');
+      await userEvent.click(button);
+      await screen.findByTestId('sumario-route');
+      await untilStored(
+        () => database!.outbox.toArray(),
+        (ops) => {
+          const altitude = ops.find((op) => op.path === ALTITUDE);
+          const status = ops.find((op) => op.path === 'relatorio/status');
+          expect(altitude?.value).toBe(760);
+          expect(status?.value).toBe('em_campo');
+          expect(altitude!.client_ts <= status!.client_ts).toBe(true);
+        },
+      );
+      const stored = (await database.entities.get(['relatorio', RELATORIO]))!.row as RelatorioRow;
+      expect(stored.setup.site_altitude_m).toBe(760);
+    });
+
+    it('"Confirmar" writes the altitude exactly once, with the confirmation', async () => {
+      database = await seeded();
+      renderSetup();
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await userEvent.type(input, '760');
+      await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+      await screen.findByText('Altitude do site: < 1000 m — confirmada');
+      await untilStored(
+        () => database!.outbox.where('path').equals('relatorio/setup/site_altitude_confirmed').toArray(),
+        (ops) => expect(ops.map((op) => op.value)).toEqual([true]),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      expect((await altitudeOps()).map((op) => op.value)).toEqual([760]);
+    });
+  });
+
+  it('F-08: an unregistered company says where to fill it in under "Empresa executora", the way to Cadastros › Empresa; gone once registered', async () => {
+    database = await seeded();
+    renderSetup();
+    const band = (await screen.findByRole('heading', { level: 2, name: 'Etapa 2 — Objetivo e escopo' })).closest('section')!;
+    const link = await within(band).findByRole('button', { name: 'Cadastre a empresa em Cadastros › Empresa' });
+    await userEvent.click(link);
+    expect(await screen.findByTestId('cadastros-route')).toHaveTextContent(`/cadastros {"tab":"empresa","returnTo":"/relatorio/${RELATORIO}/setup?etapa=2"}`);
+  });
+
+  it('F-08: a registered company shows its name and no pointer', async () => {
+    database = await seeded();
+    const id = '019966c1-000f-7000-8000-0000000000e1';
+    await database.entities.put(toRecord(`registry:${id}`, { ...defaultEmpresaRow(id), name: 'Empresa B de Teste' }));
+    renderSetup();
+    const band = (await screen.findByRole('heading', { level: 2, name: 'Etapa 2 — Objetivo e escopo' })).closest('section')!;
+    await within(band).findByText('Empresa B de Teste');
+    expect(within(band).queryByRole('button', { name: 'Cadastre a empresa em Cadastros › Empresa' })).toBeNull();
   });
 
   it('Q3: Etapa 2 carries no "Escopo" field (the cover prints Etapa 1\'s Informações adicionais)', async () => {

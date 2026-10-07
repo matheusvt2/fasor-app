@@ -184,7 +184,7 @@ describe('4.1 ProjectSurface', () => {
     database = await freshDb();
     await seed(database, []);
     renderProject({ openNew: true });
-    const dialog = await screen.findByRole('dialog', { name: 'Novo relatório' });
+    const dialog = await screen.findByRole('dialog', { name: 'Novo relatório — tipo e datas' });
     expect(dialog).toBeVisible();
     // The dialog waits for the templates query, so the only pickable template is already chosen.
     expect(within(dialog).getByRole('combobox', { name: 'Template' })).toHaveValue('Cabine primária — padrão');
@@ -192,11 +192,21 @@ describe('4.1 ProjectSurface', () => {
     expect(within(dialog).getByRole('button', { name: 'Criar relatório' })).not.toHaveAttribute('aria-disabled');
   });
 
+  it('F-28 (D3): an obra that already has relatórios opens "Novo relatório — tipo e datas" at once too, the list kept behind it', async () => {
+    database = await freshDb();
+    await seed(database, [relatorio(OLDER, 'emitido', '2026-03-12', '2026-03-14')]);
+    renderProject({ openNew: true });
+    const dialog = await screen.findByRole('dialog', { name: 'Novo relatório — tipo e datas' });
+    expect(within(dialog).getByRole('button', { name: 'Criar relatório' })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Relatórios desta obra (1)', hidden: true })).toBeInTheDocument();
+    expect(screen.queryAllByRole('heading', { name: 'Novo relatório', hidden: true })).toHaveLength(0);
+  });
+
   it('consumes the hand-over once: after Cancelar a later write to the project row does not reopen the dialog', async () => {
     database = await freshDb();
     await seed(database, []);
     renderProject({ openNew: true });
-    const dialog = await screen.findByRole('dialog', { name: 'Novo relatório' });
+    const dialog = await screen.findByRole('dialog', { name: 'Novo relatório — tipo e datas' });
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     // A push ack rematerializes the project row: the live query re-emits a fresh object.

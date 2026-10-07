@@ -191,6 +191,23 @@ export function ncAbertosText(n: number): string {
   return plural(n, 'NC aberto', 'NC abertos');
 }
 
+/**
+ * F-03 (review 2026-10-06): the live equipment sheets nothing was typed on (`sheetState` is
+ * `vazia`). The Sumário's section 9 and the Export dialog name them, and issuing a revision
+ * with any asks for a confirmation that counts them.
+ */
+export function emptySheetCount(blocks: readonly BlockRow[]): number {
+  let n = 0;
+  for (const block of blocks) if (block.removed_at === null && isEquipmentBlock(block) && sheetState(block) === 'vazia') n += 1;
+  return n;
+}
+
+/** "1 ficha vazia", "93 fichas vazias". */
+export function fichasVaziasText(n: number): string {
+  // authored: F-03, the info row of section 9 and the Export dialog.
+  return plural(n, 'ficha vazia', 'fichas vazias');
+}
+
 /** "1 não ensaiada", "3 não ensaiadas". */
 export function naoEnsaiadasText(n: number): string {
   return plural(n, 'não ensaiada', 'não ensaiadas');

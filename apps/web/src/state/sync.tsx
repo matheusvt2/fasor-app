@@ -466,6 +466,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * F-13 (review 2026-10-06): the browser is online and the server answered the last cycle, so
+ * a shot goes out now and its reading runs; false outside a `SyncProvider`.
+ */
+export function useServerReachable(): boolean {
+  const value = use(SyncContext);
+  return value !== null && value.online && value.unreachable === null;
+}
+
 /** The whole sync state, live data and actions. Read with `use`, so `useSyncActions` may fall back to it after a condition. */
 export function useSync(): SyncState {
   const value = use(SyncContext);

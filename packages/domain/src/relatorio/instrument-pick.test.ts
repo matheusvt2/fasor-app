@@ -106,6 +106,31 @@ describe('5.7-UNIT remembering the last instrument per test type', () => {
     expect(instrumentPickerOrder(rows, '1').map((r) => r.code)).toEqual(['5A', '2E', '10B']);
     expect(instrumentPickerOrder(rows, null).map((r) => r.code)).toEqual(['2E', '5A', '10B']);
   });
+
+  it('F-27: fitting and ticked first, then fitting, then ticked, then the rest; the last used first inside its group', () => {
+    const range = { raw: '5 kV', unit: null };
+    const row = (id: string, code: string, fits: 'isolacao' | 'relacao_transformacao' | 'resistencia_contato' | null) => ({
+      id,
+      code,
+      removed_at: null,
+      test_isolacao: fits === 'isolacao' ? range : null,
+      test_resistencia_contato: fits === 'resistencia_contato' ? range : null,
+      test_relacao_transformacao: fits === 'relacao_transformacao' ? range : null,
+    });
+    // The review's case: setup ticked 1T and 2E; the isolação test; the registry 1T, 2E, 3M.
+    const registry = [row('t', '1T', 'relacao_transformacao'), row('e', '2E', 'isolacao'), row('m', '3M', 'resistencia_contato')];
+    expect(instrumentPickerOrder(registry, null, { testKey: 'isolacao', setupIds: ['t', 'e'] }).map((r) => r.code)).toEqual(['2E', '1T', '3M']);
+    // A fitting instrument not ticked comes before a ticked one that does not fit.
+    const more = [...registry, row('f', '4E', 'isolacao')];
+    expect(instrumentPickerOrder(more, null, { testKey: 'isolacao', setupIds: ['t', 'e'] }).map((r) => r.code)).toEqual(['2E', '4E', '1T', '3M']);
+    // The last used leads its own group, never jumps above a better group.
+    expect(instrumentPickerOrder(more, 'm', { testKey: 'isolacao', setupIds: ['t', 'e'] }).map((r) => r.code)).toEqual(['2E', '4E', '1T', '3M']);
+    expect(instrumentPickerOrder(more, 'f', { testKey: 'isolacao', setupIds: ['t', 'e', 'f'] }).map((r) => r.code)).toEqual(['4E', '2E', '1T', '3M']);
+    // A default with no value is no fit.
+    const empty = [{ ...row('e', '2E', null), test_isolacao: { raw: null, unit: null } }, row('m', '3M', 'resistencia_contato')];
+    expect(instrumentPickerOrder(empty, null, { testKey: 'isolacao' }).map((r) => r.code)).toEqual(['2E', '3M']);
+    expect(instrumentPickerOrder([row('m', '3M', 'resistencia_contato'), { ...row('z', '9Z', null), test_isolacao: { raw: null, unit: null } }, row('f', '4E', 'isolacao')], null, { testKey: 'isolacao' }).map((r) => r.code)).toEqual(['4E', '3M', '9Z']);
+  });
 });
 
 describe('12.3-UNIT suggestedInstrument (J-07, D-4)', () => {

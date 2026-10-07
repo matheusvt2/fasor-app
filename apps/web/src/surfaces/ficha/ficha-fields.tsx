@@ -447,6 +447,7 @@ function WordField({ field, value, commit, missing, label, registries, blocks, o
         recentIds={recents}
         value={selected}
         initialText={current === null ? '' : wordLabel(kind, current)}
+        emptyHint={copy.ficha.wordEmpty[kind]}
         {...(kind === 'voltage_class' ? { matchKey: voltageMatchKey } : {})}
         onChange={(id) => {
           const chosen = rows.find((row) => row.id === id);

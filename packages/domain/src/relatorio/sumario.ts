@@ -5,7 +5,7 @@ import { photoCountText } from '../photos/text.ts';
 import type { BlockRow, EquipmentRow, LocationRow, RelatorioStatus } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { isRelatorioSectionType, relatorioSectionNumber, type RelatorioSectionType } from './instantiate.ts';
-import { blockingRows, preIssueRowsFor, type PreIssueRow, type SumarioRowKey } from './pre-issue.ts';
+import { blockingRows, issueConfirmReason, preIssueRowsFor, type IssueConfirmation, type PreIssueRow, type SumarioRowKey } from './pre-issue.ts';
 import { progressCounterText, type Progress } from './progress.ts';
 import { sectionTextEdited } from './section-variables.ts';
 import { locationPathText } from './location-path.ts';
@@ -340,14 +340,19 @@ export function nextTextSection(snapshot: Pick<RelatorioSnapshot, 'blocks'>, blo
 /**
  * The foot's `.btn-reason`: nothing blocks, or the blocking rows named by line. E78-Q1: every
  * row a blocking pre-issue row addresses is named, the rows drawn blocking and the keys of
- * `issues` alike, so a blocker the Sumário has no row for is still named by its title.
+ * `issues` alike, so a blocker the Sumário has no row for is still named by its title. With
+ * nothing blocking, `confirm` (F-03) adds what the issue confirmation will count.
  */
-export function generateReason(rows: readonly SumarioRow[], issues: readonly PreIssueRow[] = []): string {
+export function generateReason(rows: readonly SumarioRow[], issues: readonly PreIssueRow[] = [], confirm?: IssueConfirmation): string {
   const drawn = rows.filter((row) => row.blocking);
   // A blocking pre-issue row whose Sumário row is not drawn blocking (or not drawn at all).
   const unnamed = [...new Set(blockingRows(issues).map((issue) => issue.row))].filter((key) => !drawn.some((row) => row.rowKey === key));
   // authored: the mock draws the one-blocker case ("Só o parecer (linha 10) impede gerar.").
-  if (drawn.length === 0 && unnamed.length === 0) return 'Nada impede gerar.';
+  if (drawn.length === 0 && unnamed.length === 0) {
+    // F-03 (D1): nothing blocks, but issuing with empty sheets or blank fields asks first.
+    const ask = confirm === undefined ? null : issueConfirmReason(confirm);
+    return ask === null ? 'Nada impede gerar.' : `Nada impede gerar. ${ask}`;
+  }
   const named = [
     ...drawn.map((row) => (row.number === null ? row.title : `${row.title} (linha ${row.number})`)),
     ...unnamed.map((key) => SUMARIO_TITLES[key]),

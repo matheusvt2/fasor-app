@@ -220,8 +220,8 @@ test('@p0 12.3-E2E-002 the instrument last used for a test kind is suggested on 
   expect(await instrumentOps(second.blockId)).toEqual([]);
   await expect(page.getByTestId('ficha-progress')).toHaveText('Ficha completa');
 
-  // "Concluir ficha": the two instruments in the conclusion's batch.
-  await expect(page.locator('#ficha-primary')).toHaveText(/Concluir ficha/);
+  // "Concluir e avançar" (F-12, D2): the two instruments in the conclusion's batch.
+  await expect(page.locator('#ficha-primary')).toHaveText(/Concluir e avançar/);
   await page.locator('#ficha-primary').click();
   await expect(toast(page)).toContainText('Ficha concluída');
   await expect(page).not.toHaveURL(new RegExp(`/ficha/${second.blockId}$`));
@@ -242,7 +242,9 @@ test('@p0 12.3-E2E-002 the instrument last used for a test kind is suggested on 
   await expect(stored.locator('.suggested-pill')).toHaveCount(0);
 });
 
-test('@p0 12.4-E2E-004 a voltage class created with its unit ("15 kV") through "Outro…" is kept through a Tab away and a reload: "15" stored once, never a later null, read with its unit (E12-Q1)', async ({ page }) => {
+// F-09 (D4, 2026-10-06): 13,8 · 15 · 24,2 · 36,2 kV come seeded with the standard template, so
+// the class created here is one the seed does not hold (17,5 kV).
+test('@p0 12.4-E2E-004 a voltage class created with its unit ("17,5 kV") through "Outro…" is kept through a Tab away and a reload: "17,5" stored once, never a later null, read with its unit (E12-Q1)', async ({ page }) => {
   test.setTimeout(120_000);
   const { relatorioId, enel } = await setUp(page);
   const [secEnel] = enel;
@@ -254,23 +256,23 @@ test('@p0 12.4-E2E-004 a voltage class created with its unit ("15 kV") through "
   await tensao.getByRole('button', { name: 'Outro…' }).click();
   const combobox = tensao.getByRole('combobox');
   await expect(combobox).toBeFocused();
-  await page.keyboard.type('15 kV');
-  await page.getByRole('option', { name: 'Criar “15 kV”' }).click();
-  await expect(combobox).toHaveValue('15 kV');
-  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `sheet/${secEnel.blockId}/nameplate/tensao_de_placa`).map((row) => row.value)).toEqual(['15']);
+  await page.keyboard.type('17,5 kV');
+  await page.getByRole('option', { name: 'Criar “17,5 kV”' }).click();
+  await expect(combobox).toHaveValue('17,5 kV');
+  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `sheet/${secEnel.blockId}/nameplate/tensao_de_placa`).map((row) => row.value)).toEqual(['17,5']);
   // The created row arrives, then the engineer tabs away: the value stays.
   await combobox.focus();
   await page.keyboard.press('Tab');
-  await expect(combobox).toHaveValue('15 kV');
+  await expect(combobox).toHaveValue('17,5 kV');
   await expect(tensao).not.toHaveAttribute('data-missing-field');
   expect(await stepMissing(page, 'Placa')).toBe(placaBefore - 1);
 
   await page.reload();
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
-  await expect(field(page, 'tensao_de_placa').getByRole('button', { name: '15 kV', pressed: true })).toBeVisible();
+  await expect(field(page, 'tensao_de_placa').getByRole('button', { name: '17,5 kV', pressed: true })).toBeVisible();
   await expect(field(page, 'tensao_de_placa')).not.toHaveAttribute('data-missing-field');
   expect(await stepMissing(page, 'Placa')).toBe(placaBefore - 1);
-  expect((await outbox(page)).filter((row) => row.path === `sheet/${secEnel.blockId}/nameplate/tensao_de_placa`).map((row) => row.value)).toEqual(['15']);
+  expect((await outbox(page)).filter((row) => row.path === `sheet/${secEnel.blockId}/nameplate/tensao_de_placa`).map((row) => row.value)).toEqual(['17,5']);
 });
 
 test('@p0 12.1-E2E-008 a primary still labelled "Próxima ficha" when the last reading commits concludes on the fresh rows: the suggested instruments and the conclusion in one batch, then the next sheet (E12-Q6, open question D-4 kept)', async ({ page }) => {

@@ -180,7 +180,16 @@ function TestSection({
         <h2 id={headingId}>{screenLabel(test.title)}</h2>
         {readOnly ? <span className="btn-reason">{copy.ficha.checklist.readOnlyReason}</span> : null}
       </div>
-      <InstrumentPicker api={api} block={block} blocks={blocks} testKey={test.testKey} instruments={instruments} serviceEnd={serviceEnd} readOnly={readOnly} />
+      <InstrumentPicker
+        api={api}
+        block={block}
+        blocks={blocks}
+        testKey={test.testKey}
+        instruments={instruments}
+        serviceEnd={serviceEnd}
+        setupInstrumentIds={snapshot.relatorio.setup.instrument_ids}
+        readOnly={readOnly}
+      />
       {tables.length > 1 ? <div className="tests-two">{tables}</div> : tables}
     </section>
   );

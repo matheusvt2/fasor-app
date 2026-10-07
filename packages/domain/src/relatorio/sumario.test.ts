@@ -122,7 +122,7 @@ describe('4.3-UNIT sumarioRows', () => {
     expect(meta.section_2).toBe('texto padrão');
     // Story 12.3: every cabine of a new relatório still asks its six fields (pending, never blocking).
     expect(meta.section_9).toBe(
-      ['0 de 94', ...['Cubículo Enel', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores'].map((name) => `${name}: faltam 6 campos`)].join(' · '),
+      ['0 de 94', '94 fichas vazias', ...['Cubículo Enel', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores'].map((name) => `${name}: faltam 6 campos`)].join(' · '),
     );
     // Stories 6.3/6.5: section 7 counts its photos (none yet).
     expect(meta.section_7).toBe('Nenhuma foto');
@@ -271,6 +271,9 @@ describe('E78-Q1 sumarioRows on a snapshot with no section block', () => {
     expect(rows.find((r) => r.rowKey === 'section_10')).toMatchObject({ meta: 'Apto com restrições', blocking: false });
     expect(exportPrecheck(issues).blocking).toEqual([]);
     expect(generateReason(rows, issues)).toBe('Nada impede gerar.');
+    // F-03 (D1): nothing blocks, but the issue asks first while sheets are empty or fields blank.
+    expect(generateReason(rows, issues, { emptySheets: 0, blankFields: 0 })).toBe('Nada impede gerar.');
+    expect(generateReason(rows, issues, { emptySheets: 93, blankFields: 2 })).toBe('Nada impede gerar. Emitir pede confirmação: 93 fichas vazias e 2 campos em branco.');
   });
 
   it('a relatório with section blocks never gets virtual rows', () => {

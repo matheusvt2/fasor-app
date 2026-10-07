@@ -237,7 +237,7 @@ test('@p0 12.2-E2E-003 J5 at 768: Home to the first sheet of a new relatório wi
 
   // Home › Novo relatório: client and obra created inline.
   await journey.tap(page.getByRole('button', { name: 'Novo relatório' }));
-  const start = page.getByRole('dialog', { name: 'Novo relatório' });
+  const start = page.getByRole('dialog', { name: 'Novo relatório', exact: true });
   await start.getByRole('combobox', { name: 'Cliente' }).fill('Cliente da jornada');
   await journey.tap(page.getByRole('option', { name: 'Criar “Cliente da jornada”' }));
   await expect(start.getByRole('combobox', { name: 'Cliente' })).toHaveValue('Cliente da jornada');
@@ -249,7 +249,8 @@ test('@p0 12.2-E2E-003 J5 at 768: Home to the first sheet of a new relatório wi
   await journey.tap(start.getByRole('button', { name: 'Continuar' }));
 
   // The Project's dialog: today in both dates, Criar ready at once.
-  const create = page.getByRole('dialog', { name: 'Novo relatório' });
+  // F-28 (D3): the second step, named apart.
+  const create = page.getByRole('dialog', { name: 'Novo relatório — tipo e datas', exact: true });
   await expect(create.getByRole('button', { name: 'Criar relatório' })).not.toHaveAttribute('aria-disabled', 'true');
   await journey.tap(create.getByRole('button', { name: 'Criar relatório' }));
   await expect(page).toHaveURL(/\/relatorio\/[0-9a-f-]{36}\/setup\?etapa=1$/, { timeout: 30_000 });

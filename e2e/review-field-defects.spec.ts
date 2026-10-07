@@ -266,7 +266,7 @@ test('@p1 F-05 a registered client\'s site is offered in "Local (obra)"; picking
   await syncNow(page);
   await page.goto('/');
   await page.getByRole('button', { name: 'Novo relatório', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Novo relatório' });
+  const dialog = page.getByRole('dialog', { name: 'Novo relatório', exact: true });
   await dialog.getByRole('combobox', { name: 'Cliente' }).fill('Cliente UX');
   await page.getByRole('option', { name: 'Cliente UX', exact: true }).click();
   await expect(dialog.getByRole('combobox', { name: 'Cliente' })).toHaveValue('Cliente UX');

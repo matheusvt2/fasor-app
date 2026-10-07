@@ -6,7 +6,7 @@ import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './su
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
-import { setParecer, typeDate } from './support/relatorio-flow.ts';
+import { confirmIssue, setParecer, typeDate } from './support/relatorio-flow.ts';
 import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 
 /*
@@ -343,6 +343,8 @@ test('@p0 11.10-E2E-001 the DOCX section 8 carries the action-plan table: the po
   const generate = dialog.locator('.generate-row').getByRole('button', { name: 'Gerar relatório' });
   await expect(generate).toBeEnabled({ timeout: 30_000 });
   await generate.click();
+  // F-03 (D1): the relatório's sheets are empty (one not tested), so the issue is confirmed first.
+  await confirmIssue(dialog, /^Emitir com 93 fichas vazias/);
   await expect(toast(page)).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   const download = await downloadFrom(page, () => dialog.getByRole('button', { name: 'DOCX — abrir no Word' }).click());
   expect(download.suggestedFilename()).toBe('relatorio-rev-1.docx');

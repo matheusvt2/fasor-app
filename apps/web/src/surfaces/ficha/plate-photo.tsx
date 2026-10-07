@@ -10,7 +10,7 @@ import type { PhotoTile } from '../../db/photo-store.ts';
 import { clearRereadAsked, readRereadAsked, writeRereadAsked } from '../../db/prefs.ts';
 import { useAiFeatures } from '../../state/ai-features.tsx';
 import { useSession } from '../../state/session.tsx';
-import { requestSyncCycle, useSync } from '../../state/sync.tsx';
+import { requestSyncCycle, useServerReachable, useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { PlateCaptureTile } from './photo-openers.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
@@ -59,8 +59,13 @@ export function PlatePhotoRow({
   const t = copy.ficha.nameplate;
   const aiFeatures = useAiFeatures();
   const src = useObjectUrl(tile.thumb);
+  // F-13: with the server reachable a queued reading is about to run: "Lendo…", never the
+  // waiting words, which are for a device without signal, or a photo whose upload failed
+  // (its reading cannot start until the bytes are on the server).
+  const reachable = useServerReachable();
+  const shown = view === 'queued' && reachable && !tile.upload_error ? 'running' : view;
   return (
-    <div className="photo-row ficha-np-photo" data-reading={view}>
+    <div className="photo-row ficha-np-photo" data-reading={shown}>
       <AriaButton className="photo-tile" aria-label={t.plateTileLabel(number)} onPress={onOpen} data-photo-id={tile.id}>
         <span className="thumb">
           {src === null ? <span className="thumb-fake" /> : <img className="thumb-img" src={src} alt="" />}
@@ -74,7 +79,7 @@ export function PlatePhotoRow({
       <div className="photo-text">
         <p className="photo-caption">{tile.caption ?? PLATE_CAPTION}</p>
         <p className="photo-meta">{captionPhotoMetaText(number, tile.captured_at)}</p>
-        {view === 'queued' ? (
+        {shown === 'queued' ? (
           <span className="queued-banner">
             <svg className="ico" aria-hidden="true">
               <use href="/sprite.svg#i-image" />
@@ -82,7 +87,7 @@ export function PlatePhotoRow({
             {t.queued}
           </span>
         ) : null}
-        {view === 'running' ? (
+        {shown === 'running' ? (
           <p className="reading-line" role="status">
             {t.reading}
           </p>

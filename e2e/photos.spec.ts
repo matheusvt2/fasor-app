@@ -78,7 +78,8 @@ test('@p0 6.1-E2E-001 "Tirar foto" opens the camera, a burst of three saves at o
   await camera.getByRole('button', { name: 'Concluir fotos' }).click();
   await expect(page.getByRole('dialog', { name: 'Câmera' })).toHaveCount(0);
   await expect(button).toBeFocused();
-  await expect(toast(page)).toContainText('Fotos salvas neste aparelho — entram na fila de envio');
+  // F-13 (review 2026-10-06): online with the server reachable, the toast speaks of no queue.
+  await expect(toast(page)).toContainText('Fotos salvas — enviando');
   await expect(page.locator('.camera-capture-btn')).toHaveAttribute('data-count', '');
 
   // Reload: the three photos are still there, each with its context caption, in capture

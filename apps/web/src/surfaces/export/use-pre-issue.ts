@@ -1,4 +1,4 @@
-import { preIssue, progress, type PreIssueRow, type Progress, type RelatorioSnapshot, type SuggestionRow } from '@app/domain';
+import { issueConfirmation, preIssue, progress, type IssueConfirmation, type PreIssueRow, type Progress, type RelatorioSnapshot, type SuggestionRow } from '@app/domain';
 import { useMemo } from 'react';
 import { now } from '../../clock.ts';
 import { uploadErrorIds } from '../../db/file-store.ts';
@@ -38,4 +38,12 @@ export function usePreIssue(
         : preIssue(snapshot, computed ?? progress(snapshot, pending), { photoErrors, now: now(), rejected: counts.dead, lastPushes, pendingSuggestions: pending }),
     [snapshot, computed, photoErrors, counts.dead, lastPushes, pending],
   );
+}
+
+/**
+ * F-03 (D1): what issuing would print blank, the counts "Gerar relatório" asks to confirm
+ * (`issueConfirmation`); null until the snapshot is read.
+ */
+export function useIssueConfirmation(snapshot: RelatorioSnapshot | null): IssueConfirmation | null {
+  return useMemo(() => (snapshot === null ? null : issueConfirmation(snapshot, { now: now() })), [snapshot]);
 }

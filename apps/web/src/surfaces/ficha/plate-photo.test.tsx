@@ -69,9 +69,9 @@ afterEach(() => {
 });
 
 describe('8.2-UNIT the plate photo row', () => {
-  it('queued: the tile with its number, the caption, the meta and "Foto guardada — leitura quando houver sinal"', async () => {
+  it('queued without signal: the tile with its number, the caption, the meta and "Foto guardada — leitura quando houver sinal"', async () => {
     const onOpen = vi.fn();
-    const { container } = wrap(<PlatePhotoRow tile={tile()} number={3} view="queued" onOpen={onOpen} onFillManually={vi.fn()} />);
+    const { container } = wrap(<PlatePhotoRow tile={tile()} number={3} view="queued" onOpen={onOpen} onFillManually={vi.fn()} />, makeSyncState({ online: false }));
     expect(container.querySelector('.photo-row.ficha-np-photo .photo-tile .number-badge')).toHaveTextContent('3');
     expect(container.querySelector('.photo-caption')).toHaveTextContent('placa de identificação');
     expect(container.querySelector('.photo-meta')?.textContent).toMatch(/^Nº provisório 3 · /);
@@ -79,6 +79,21 @@ describe('8.2-UNIT the plate photo row', () => {
     expect(container.querySelector('.reading-line')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Foto 3, placa — abrir' }));
     expect(onOpen).toHaveBeenCalledOnce();
+  });
+
+  it('F-13: queued with the server reachable reads "Lendo…", never the waiting words; online but unreachable keeps them', () => {
+    const { container, unmount } = wrap(<PlatePhotoRow tile={tile()} number={3} view="queued" onOpen={vi.fn()} onFillManually={vi.fn()} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Lendo…');
+    expect(container.querySelector('.queued-banner')).toBeNull();
+    unmount();
+    const unreachable = wrap(<PlatePhotoRow tile={tile()} number={3} view="queued" onOpen={vi.fn()} onFillManually={vi.fn()} />, makeSyncState({ unreachable: 'server' }));
+    expect(unreachable.container.querySelector('.queued-banner')).toHaveTextContent('Foto guardada — leitura quando houver sinal');
+  });
+
+  it('F-13: a queued reading whose upload failed keeps the waiting words, even with the server reachable', () => {
+    const { container } = wrap(<PlatePhotoRow tile={tile({ upload_error: { state: 'dead', code: 'file_row_missing', at: '2026-09-06T13:21:00.000Z' } })} number={3} view="queued" onOpen={vi.fn()} onFillManually={vi.fn()} />);
+    expect(container.querySelector('.queued-banner')).toHaveTextContent('Foto guardada — leitura quando houver sinal');
+    expect(container.querySelector('.reading-line')).toBeNull();
   });
 
   it('running: "Lendo…" instead of the queued line', () => {

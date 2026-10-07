@@ -4,7 +4,7 @@ import { readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.tes
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
-import { createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
+import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
 /*
@@ -99,6 +99,8 @@ test('@p1 11.4-E2E-002 a relatório made from a formatted template: section 2 op
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
   const modal = page.getByRole('dialog', { name: 'Gerar relatório' });
   await modal.locator('.generate-row').getByRole('button', { name: 'Gerar relatório' }).click();
+  // F-03 (D1): the new relatório's sheets are empty, so the issue is confirmed first.
+  await confirmIssue(modal);
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   const download = await downloadFrom(page, () => modal.getByRole('button', { name: 'DOCX — abrir no Word' }).click());
   const document = readZipEntries(await downloadBytes(download)).get('word/document.xml')!.toString('utf8');

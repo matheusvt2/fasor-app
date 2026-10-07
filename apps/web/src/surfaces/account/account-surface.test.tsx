@@ -167,9 +167,22 @@ describe('Account: Armazenamento', () => {
     try {
       renderAccount(syncState('', 0));
       await waitFor(() =>
-        expect(screen.getByTestId('storage-value')).toHaveTextContent('1,2 GB· 0 relatórios · 0 fotos'),
+        expect(screen.getByTestId('storage-value')).toHaveTextContent('1,2 GB· 0 relatórios · 0 fotos neste aparelho'),
       );
       expect(screen.getByTestId('storage-value').querySelector('.sr-value.t-value')).toHaveTextContent('1,2 GB');
+      // F-21: no second line while no photo waits to be sent.
+      expect(screen.queryByTestId('storage-awaiting')).toBeNull();
+    } finally {
+      undo();
+    }
+  });
+
+  it('F-21: photos still in the outbox get a second line, "N fotos aguardando envio"', async () => {
+    const undo = stubStorage(async () => ({ usage: 5 * 1024 ** 2 }));
+    try {
+      renderAccount(makeSyncState({ counts: { pending: 2, photos_pending: 2 }, badgeState: 'pending', pendingText: '2 fotos', pendingCount: 2 }));
+      expect(await screen.findByTestId('storage-awaiting')).toHaveTextContent('2 fotos aguardando envio');
+      expect(screen.getByTestId('storage-value')).toHaveTextContent('5,0 MB· 0 relatórios · 0 fotos neste aparelho');
     } finally {
       undo();
     }
