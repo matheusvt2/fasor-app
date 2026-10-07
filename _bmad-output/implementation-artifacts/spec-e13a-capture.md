@@ -2,10 +2,10 @@
 title: 'Epic 13 batch A: capture at full resolution, torch and zoom, and a quota-refused shot that survives'
 type: 'feature'
 created: '2026-10-07'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'b1c2c6b1a411a41d783bfa7ef50834cb94c68380'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -222,3 +222,28 @@ container with `--user root`; never on the host. Wrap every Playwright run in th
 on it longer than a few minutes: start it in the background writing to `.scratch-e13a/<name>.log`
 (`(lockf /tmp/fasor-verify.lock sh -c '<cmd>'; echo EXIT=$?) > .scratch-e13a/<name>.log 2>&1`) and poll its tail.
 After a change in `packages/domain`, `podman compose restart api` before api tests. Read only log tails.
+
+## Auto Run Result
+
+Status: done (PR open, not merged).
+
+- **Summary.** 13.1: every camera session asks for ideal 3840x2160 (plus a non-required `zoom: true`) and logs the
+  track settings once; single shots use `ImageCapture.takePhoto()` with a 2 s fallback to the frame grab. 13.2: torch,
+  zoom (pinch plus visible "−"/"+") and tap-to-focus render only from the track's capabilities, the torch off per
+  session. 13.6: a quota refusal evicts acked originals sized to the shot and retries; still refused offline, the
+  shutter is disabled with the reason in `.cam-hint`, the opener retries before opening, and the storage banner is
+  forced while a shot is held. A StrictMode remount stopping the live track in the e2e bundle (pre-existing) is fixed.
+- **Files.** Kernel `photos/eviction.ts` (`refusalPressureBytes`), `photos/text.ts` (`storageRefusedBannerText`,
+  `cameraZoomText`); `db/file-store.ts` (`runEviction` minimum bytes); `files/capture-rescue.ts` (evict-then-retry,
+  `subscribe`, single-flight retry); `surfaces/ficha/use-photo-capture.ts` (`captureRescueDeps`, `retry`);
+  `state/storage-reading.ts` (`useCaptureRefused`); `state/banner-slot.tsx`, `surfaces/app-shell.tsx` (forced banner);
+  `surfaces/ficha/camera-view.tsx` (13.1, 13.2, 13.6 UI); `copy/pt-br.ts`, `public/sprite.svg`, `styles/app.css`;
+  tests in the matching unit files, `e2e/camera-capture.spec.ts` (new) and `e2e/durability.spec.ts` (13.6-E2E-001).
+- **Review.** 9 findings: 6 patched (listed in the triage log), 2 rejected (zoom refused by a PTZ-less grant: unlikely,
+  adds surface; burst taps before a refusal arrives: the spec forbids a shutter that waits for the save, open
+  question Q4), 1 false (retry with no database is unreachable from the opener).
+- **Follow-up review:** true (3 medium and 3 low patched, no high). Named risk: the out-of-gesture picker fallback and
+  the finder's pointer capture have no real-device check; the integrated epic review should exercise both.
+- **Verification.** The staged gate (`test-results/gate-e13a/run.sh`) under the host lock; its summary is in the PR.
+- **Residual risks.** `takePhoto` and the PTZ prompt are untested on real tablets (E1-A1 lines in the PR); WebKit
+  cannot store Blobs in Playwright's ephemeral contexts, so 13.6-E2E-001 is annotated there.
