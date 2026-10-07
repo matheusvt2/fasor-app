@@ -178,3 +178,37 @@ as information rows with "Ver" in the dialog and on the Sumário. Nothing else r
 - `pnpm test:api -- src/http/audit src/jobs/audit` -- expected: green.
 - `pnpm exec tsx scripts/e2e.ts e2e/emission-audit.spec.ts --project desktop-chrome` -- expected: green.
 - The orchestrator runs the full stage-by-stage gate under the host lock; the implementer does not.
+
+## Auto Run Result
+
+Status: done
+
+- Summary: "Conferir antes de emitir" in the Export dialog (AI features on only) posts `POST /api/relatorios/:id/audit` behind the preview's barrier. That creates one `audit_run` (a server-only entity; contract 15, MIN 15) and one job on the sibling `audit` pg-boss queue (`retryLimit` 0, singleton on the run id). The job:
+  - builds `auditInput(layoutSpec(draft), snapshot)`: text and values only, capped at 48k characters, parecer first;
+  - makes one provider call: the `fake` fixture, Bedrock Converse through the exported `converseTool`, or the AI-off refusal;
+  - keeps the findings that `validateAuditFindings` resolves against the refs it sent;
+  - writes only `audit_run/*` ops and logs one `audit run` line with tokens and USD.
+
+  The device renders the newest finished run's findings as `.precheck` rows with "Ver", in the dialog and on the Sumário.
+- Files:
+  - Domain: `packages/domain/src/audit/*` (input, schema, validate, text), `contract/audit.ts`, `contract/errors.ts`, `contract/version.ts`, `ops/path.ts`, `schemas/entities.ts`, and `print/layout.ts` (now exports `printedSections`).
+  - Api: `apps/api/src/http/audit.ts`, `http/barrier.ts` (the barrier helpers, moved out of `generate.ts`), `http/app.ts`, `main.ts`, `jobs/audit/*`, and `jobs/reading/providers/bedrock.ts` (exports only).
+  - Web: `apps/web/src/db/audit-store.ts`, `surfaces/export/{use-audit.ts,audit-findings.tsx,export-dialog.tsx,export.css}`, `surfaces/relatorio/{sumario-surface.tsx,generate-action.tsx}`, `state/sync.tsx`, `state/sync-actions.ts`, `sync/client.ts`, `copy/pt-br.ts`, and `styles/app.css`.
+  - Tests and docs: `e2e/emission-audit.spec.ts`, `e2e/support/groups.ts`, CAP-26 in SPEC.md, and `docs/kbs`.
+- Review: 15 findings in total.
+  - Patched: 4 medium, plus 2 low that share one root cause.
+  - Deferred: 1 medium (the worker's invalid-payload path has no test).
+  - Rejected: 6 low and 2 false, each with its reason in the triage log.
+- Follow-up review recommended: true, because two or more medium entries were patched (patched by verdict: medium 4, low 1 group).
+  - Named risk: the device-side `useAudit` state machine (drain, barrier retry, `audit_running` adoption, stale-run read) is exercised only by unit doubles and one real-job e2e, never under real network loss mid-run.
+- Verification: the implementer's targeted runs are green:
+  - domain and web audit tests: 58 passed;
+  - api audit tests: 8 passed;
+  - e2e @p0 and @p1: passed;
+  - tsc and eslint: clean.
+
+  The full stage-by-stage gate runs under the host lock before the PR.
+- Residual risks:
+  - The copy and the kind labels are proposals.
+  - The findings reuse `.precheck`, because the mock has no class for them.
+  - A device clock far ahead of the server reads a fresh run as stale (the same rule as generate).
