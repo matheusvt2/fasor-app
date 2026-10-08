@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PhotoTile } from '../../db/photo-store.ts';
-import { readReadingCancelled, readRereadAsked, writeReadingCancelled } from '../../db/prefs.ts';
+import { readReadingCancelled, readRereadAsked, readRereadAt, writeReadingCancelled } from '../../db/prefs.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
 import { AiFeaturesContext } from '../../state/ai-features.tsx';
 import { SyncRequestError } from '../../sync/client.ts';
@@ -163,6 +163,22 @@ describe('review F-07 (Q-3): "Ler de novo" after a cancel', () => {
     expect(await readReadingCancelled(session.database, PHOTO)).toBeUndefined();
     expect(screen.queryByRole('button', { name: 'Ler de novo' })).toBeNull();
     expect(screen.queryByTestId('toast')).toBeNull();
+  });
+
+  it('Epic 13 re-check N-1: after "Ler de novo" the wait counts from the press, not from the earlier status op (no age, no "Cancelar" yet), and the press instant is recorded', async () => {
+    session.database = await freshDb();
+    await writeReadingCancelled(session.database, PHOTO, CANCELLED_AT);
+    const { container } = render(running(makeSyncState()));
+    await waitFor(() => expect(again()).toBeInTheDocument(), { timeout: 5000 });
+    const before = Date.now();
+    await userEvent.click(again());
+    await waitFor(() => expect(container.querySelector('.reading-wait')).not.toBeNull());
+    // The tile's newest status op is 20 s old: counted from it, the line would read "Lendo… 20 s" with "Cancelar".
+    await waitFor(() => expect(container.querySelector('.reading-wait .reading-line')).toHaveTextContent(/^Lendo…$/));
+    expect(screen.queryByRole('button', { name: 'Cancelar' })).toBeNull();
+    const at = await readRereadAt(session.database, PHOTO);
+    expect(at).toBeDefined();
+    expect(Date.parse(at!)).toBeGreaterThanOrEqual(before - 1000);
   });
 
   it('a 409 reading_running or not_caught_up answer is success: the cancel stays cleared, no error toast', async () => {

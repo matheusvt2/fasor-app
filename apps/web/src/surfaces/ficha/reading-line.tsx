@@ -5,7 +5,7 @@ import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { SyncRequestError } from '../../sync/client.ts';
-import { clearReadingCancelled, clearRereadAsked, readReadingCancelled, readRereadAsked, writeReadingCancelled, writeRereadAsked } from '../../db/prefs.ts';
+import { clearReadingCancelled, clearRereadAsked, readReadingCancelled, readRereadAsked, readRereadAt, writeReadingCancelled, writeRereadAsked, writeRereadAt } from '../../db/prefs.ts';
 import { discardCancelledReadings } from '../../db/suggestion-store.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
@@ -33,6 +33,12 @@ import { useToast } from '../../state/toast.tsx';
 export function useReadingCancelled(photoId: string): boolean | null {
   const db = useSession().database;
   return useLiveQuery(() => (db === null ? Promise.resolve(false) : readReadingCancelled(db, photoId).then((at) => at !== undefined)), [db, photoId], null) ?? null;
+}
+
+/** Epic 13 re-check N-1: when "Ler de novo" was last pressed for the photo here (`readingStartedAt`'s `reread_at`), null when never or not read yet. */
+export function useRereadAt(photoId: string): string | null {
+  const db = useSession().database;
+  return useLiveQuery(() => (db === null ? Promise.resolve(undefined) : readRereadAt(db, photoId)), [db, photoId], undefined) ?? null;
 }
 
 /** The device clock as an ISO string, read again every `everyMs` while mounted. */
@@ -131,10 +137,14 @@ export function CancelledReading({ photoId, canRetry }: { photoId: string; canRe
     const rereadPhoto = sync.rereadPhoto;
     setAsking(true);
     let cancelledAt: string | undefined;
+    // N-1: the press instant is recorded before the cancel is cleared, so the returning wait
+    // line counts from the press, not from the capture or the earlier status op.
+    const pressedAt = toIso(now());
     void (db === null
       ? Promise.resolve()
-      : readReadingCancelled(db, photoId).then((at) => {
+      : readReadingCancelled(db, photoId).then(async (at) => {
           cancelledAt = at;
+          await writeRereadAt(db, photoId, pressedAt);
           return clearReadingCancelled(db, photoId);
         })
     )

@@ -117,7 +117,7 @@ export interface SyncStateRow {
  * Device-local, never-synced state (Conventions).
  * Keys: `db_version`, `device_id`, `theme`, `recovery_notice_dismissed`, `registry_tab`,
  * `last_sheet:{relatorio_id}`, `photo_seq`, `geolocation_denied`, `caption_recents:{relatorio_id}`,
- * `reread_asked:{photo_id}`.
+ * `reread_asked:{photo_id}`, `reading_cancelled:{photo_id}`, `reread_at:{photo_id}`.
  */
 export interface LocalPrefRow {
   key: string;

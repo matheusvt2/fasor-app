@@ -9,7 +9,7 @@ import { usePinchZoom } from '../../input/use-pinch-zoom.ts';
 import { useAiFeatures } from '../../state/ai-features.tsx';
 import { useServerReachable } from '../../state/sync.tsx';
 import { PlateCaptureTile } from './photo-openers.tsx';
-import { CancelledReading, FailedReading, ReadingWaitLine, useReadingCancelled } from './reading-line.tsx';
+import { CancelledReading, FailedReading, ReadingWaitLine, useReadingCancelled, useRereadAt } from './reading-line.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 
 /*
@@ -64,6 +64,8 @@ export function PlatePhotoRow({
   // Story 13.5: a reading cancelled on this device shows no waiting line (the photo stays);
   // review F-07: it offers "Ler de novo" instead.
   const cancelled = useReadingCancelled(tile.id);
+  // Epic 13 re-check N-1: after "Ler de novo" the wait counts from the press.
+  const rereadAt = useRereadAt(tile.id);
   const canRetry = aiFeatures || tile.reading_kind === null || !readingNeedsAi(tile.reading_kind);
   return (
     <div className="photo-row ficha-np-photo" data-reading={shown}>
@@ -93,7 +95,7 @@ export function PlatePhotoRow({
         {shown === 'running' && cancelled !== true ? (
           <ReadingWaitLine
             photoId={tile.id}
-            startedAt={readingStartedAt({ captured_at: tile.captured_at, bytes_acked_at: tile.bytes_acked_at ?? null, reading_status_at: tile.reading_status_at ?? null })}
+            startedAt={readingStartedAt({ captured_at: tile.captured_at, bytes_acked_at: tile.bytes_acked_at ?? null, reading_status_at: tile.reading_status_at ?? null, reread_at: rereadAt })}
             variant="plate"
           />
         ) : null}
