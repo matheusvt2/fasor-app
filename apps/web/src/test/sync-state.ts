@@ -13,6 +13,9 @@ export type SyncStateOverrides = Partial<Omit<SyncState, 'counts'>> & { counts?:
 /** The id a default `generate` answer queues. */
 export const FAKE_JOB_ID = '019966b0-0000-7000-8000-0000000000e1';
 
+/** The run id a default `audit` answer names. */
+export const FAKE_AUDIT_RUN_ID = '019966b0-0000-7000-8000-0000000000a1';
+
 /** An idle, online, clean `SyncState` with every action a `vi.fn`; `overrides` win, `counts` merge. */
 export function makeSyncState(overrides: SyncStateOverrides = {}): SyncState {
   const counts = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, suggestions_pending: 0, readings_queued: 0, merged: 0, upload_errors: 0, ...overrides.counts };
@@ -44,6 +47,7 @@ export function makeSyncState(overrides: SyncStateOverrides = {}): SyncState {
     generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: FAKE_JOB_ID, revision_number: 1 })),
     preview: vi.fn(async () => ({ outcome: 'queued' as const, job_id: FAKE_JOB_ID })),
     rereadPhoto: vi.fn(async () => {}),
+    audit: vi.fn(async () => ({ audit_run_id: FAKE_AUDIT_RUN_ID })),
     ...overrides,
     counts,
   };

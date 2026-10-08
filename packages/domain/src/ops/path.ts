@@ -54,6 +54,8 @@ export const EQUIPMENT_FIELDS = ['tag', 'removed_at'] as const;
 export const FILE_FIELDS = ['caption', 'block_id', 'item_key', 'removed_at', 'reading_kind', 'reading_target', 'people_in_photo'] as const;
 export const FILE_SERVER_FIELDS = ['uploaded_at', 'variants', 'reading_status'] as const;
 export const GENERATION_JOB_FIELDS = ['status', 'error', 'result_file_id', 'result', 'started_at'] as const;
+/** Story 13.8 (contract 15): the fields the audit job writes on its `audit_run` row. */
+export const AUDIT_RUN_FIELDS = ['status', 'findings', 'error', 'prompt_version', 'started_at', 'finished_at'] as const;
 
 /**
  * Keys a `{field}` segment may never name: identity, ownership and derived values are set
@@ -141,6 +143,9 @@ export const opPathSchema = z.discriminatedUnion('family', [
   z.object({ family: z.literal('relatorio/preview_file_id') }),
   // E12-Q4: the server's move of an unedited seeded template to the current seed version.
   z.object({ family: z.literal('template/seed_version'), id: uuidV7Schema, field: z.literal('seed_version') }),
+  // Story 13.8 (contract 15): the emission audit's server-only run row.
+  z.object({ family: z.literal('audit_run'), id: uuidV7Schema }),
+  z.object({ family: z.literal('audit_run/field'), id: uuidV7Schema, field: z.enum(AUDIT_RUN_FIELDS) }),
 ]);
 
 export type OpPath = z.infer<typeof opPathSchema>;
@@ -284,6 +289,15 @@ export const FAMILIES: readonly FamilyDef[] = [
   // moves the unedited "Cabine primária — padrão" template to the current version with
   // this `system:identity` put (a relatório keeps the version it was made with, AR-20).
   { family: 'template/seed_version', entity: 'template', serverOnly: true, segments: [lit('template'), id(), en(['seed_version'])] },
+  // Story 13.8 (contract 15): the emission audit. The route creates the run, the audit job
+  // writes its fields; no device ever does (a finding is information, never an op of its own).
+  { family: 'audit_run', entity: 'audit_run', create: true, serverOnly: true, segments: [lit('audit_run'), id()] },
+  {
+    family: 'audit_run/field',
+    entity: 'audit_run',
+    serverOnly: true,
+    segments: [lit('audit_run'), id(), en(AUDIT_RUN_FIELDS)],
+  },
 ];
 
 const BY_FAMILY: ReadonlyMap<PathFamily, FamilyDef> = new Map(FAMILIES.map((f) => [f.family, f]));

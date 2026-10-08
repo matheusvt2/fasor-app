@@ -111,3 +111,4 @@ export * from './text/plural.ts';
 export * from './text/normalize-name.ts';
 export * from './reading/index.ts';
 export * from './text/hash.ts';
+export * from './audit/index.ts';

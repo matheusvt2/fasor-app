@@ -190,8 +190,8 @@ body {
   /* `.frame-phone .doc-control th` */
   .doc-control th { width: 128px; }
   /* `.frame-phone [data-route="/relatorio/porto-seguro/exportar"] .precheck li` and `li .pc-actions` (73-exportar.html) */
-  .export-dialog .precheck li { flex-wrap: wrap; }
-  .export-dialog .precheck li .pc-actions { margin-left: calc(-1 * var(--sp-3)); flex-wrap: wrap; max-width: 100%; }
+  .export-dialog .precheck li, .sumario-audit .precheck li { flex-wrap: wrap; }
+  .export-dialog .precheck li .pc-actions, .sumario-audit .precheck li .pc-actions { margin-left: calc(-1 * var(--sp-3)); flex-wrap: wrap; max-width: 100%; }
   /* authored (Story 7.5, DESIGN.md "stacks on phone"): the Export dialog's document control
      `dl` puts each value under its key below the tablet breakpoint (`export.css` dt/dd). */
   .export-dialog dl.doc-control { grid-template-columns: minmax(0, 1fr); }
@@ -821,6 +821,8 @@ html { scroll-padding-bottom: var(--sticky-bar-covered, 0px); }
      `.pc-actions`) trigger. The pattern of `.revision-row .rev-text` (`73-exportar.html`); the
      `:has()` outranks `export.css`, which loads after this file. */
   .export-dialog .precheck li:has(> .pc-actions) > .pc-text { flex-basis: 100%; }
+  /* Story 13.8: the Sumário's audit findings, the same list on the same rule. */
+  .sumario-audit .precheck li:has(> .pc-actions) > .pc-text { flex-basis: 100%; }
   /* F-18 (D8): the Sumário's and the sheet's "…" trigger stays on the title's line, top right,
      where `.frame-phone .sheet-header { flex-direction: column }` put it alone on a line of its
      own; the title column takes the rest of the row. */

@@ -54,6 +54,9 @@ export const errorCodeSchema = z.enum([
   'body_too_large',
   'rate_limited',
   ...opRejectCodeSchema.options,
+  // Story 13.8 (contract 15): the audit route refuses while a run of the relatório is still
+  // active (`details.audit_run_id` names it); one tap is at most one run.
+  'audit_running',
 ]);
 export type ErrorCode = z.infer<typeof errorCodeSchema>;
 

@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { instantiateTemplate, standardTemplate, type BlockRow, type LocationRow, type RelatorioRow, type SumarioRow } from '@app/domain';
+import { instantiateTemplate, SERVER_DEVICE_ID, standardTemplate, type BlockRow, type LocationRow, type RelatorioRow, type SumarioRow } from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -116,6 +116,7 @@ function tree(id: string, sync: SyncState, state: unknown = null) {
                 <Route path="/relatorio/:id/setup" element={<SetupProbe />} />
                 <Route path="/relatorio/:id/secao/:blockId" element={<p data-testid="secao-route">Seção</p>} />
                 <Route path="/relatorio/:id/pontos" element={<p data-testid="pontos-route">Pontos</p>} />
+                <Route path="/relatorio/:id/fotos" element={<p data-testid="fotos-route">Fotos</p>} />
               </Routes>
               <ToastOutlet />
             </ExtraBannerProvider>
@@ -742,5 +743,40 @@ describe('4.6 SumarioSurface: status transitions and the issued banner', () => {
     renderSumario();
     await waitFor(() => expect(rows()).toHaveLength(13));
     expect(screen.queryByText(/Relatório emitido em/)).toBeNull();
+  });
+});
+
+describe('13.8 the audit findings on the Sumário', () => {
+  it('lists the newest finished run under the AI note, and a photo finding\'s "Ver" opens the gallery', async () => {
+    database = await seeded();
+    const run = '019966c1-0000-7000-8000-0000000000a1';
+    const op = (kind: 'create' | 'put', path: string, value: unknown, seq: number) => ({
+      op_id: `019966c1-0001-7000-8000-${(0xa100 + seq).toString(16).padStart(12, '0')}`,
+      kind,
+      scope: 'relatorio' as const,
+      company_id: COMPANY,
+      project_id: null,
+      relatorio_id: RELATORIO,
+      path,
+      value: value as never,
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: 'system:audit',
+      device_id: SERVER_DEVICE_ID,
+      client_ts: '2026-10-07T17:32:00.000Z',
+      seq: 40_000 + seq,
+    });
+    await applyPulled(database, [
+      op('create', `audit_run/${run}`, { id: run, relatorio_id: RELATORIO, status: 'queued', findings: [], error: null, prompt_version: null, created_at: '2026-10-07T17:31:00.000Z', started_at: null, finished_at: null }, 1),
+      op('put', `audit_run/${run}/findings`, [{ kind: 'caption_equipment', text: 'A legenda cita um equipamento ausente.', ref: 'photo:019966c1-0000-7000-8000-0000000000f1', label: 'Imagem 1', target: { kind: 'photos' } }], 2),
+      op('put', `audit_run/${run}/finished_at`, '2026-10-07T17:32:00.000Z', 3),
+      op('put', `audit_run/${run}/status`, 'done', 4),
+    ]);
+    renderSumario();
+    const block = await screen.findByRole('region', { name: 'Conferência por IA' });
+    expect(within(block).getByText('Feita por IA: aponta pontos para você conferir. Nada é alterado no relatório.')).toBeInTheDocument();
+    await userEvent.click(within(block).getByRole('button', { name: 'Ver Imagem 1' }));
+    expect(await screen.findByTestId('fotos-route')).toBeInTheDocument();
   });
 });

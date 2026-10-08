@@ -25,6 +25,7 @@ import {
   tagVerdict,
   templateFromRelatorio,
   templateSavedText,
+  type AuditTarget,
   type BlockRow,
   type DuplicateTagDecision,
   type EntityState,
@@ -52,6 +53,9 @@ import { pickBanner, type Banner } from '../../state/banner-slot.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { usePageTitle } from '../../state/page-title.tsx';
 import { useSession } from '../../state/session.tsx';
+import { useAiFeatures } from '../../state/ai-features.tsx';
+import { useLatestAuditRun } from '../../db/audit-store.ts';
+import { AuditFindings } from '../export/audit-findings.tsx';
 import { useIssueConfirmation, usePreIssue } from '../export/use-pre-issue.ts';
 import { usePreview } from '../export/use-preview.ts';
 import { AddSectionDialog } from './add-section-dialog.tsx';
@@ -144,6 +148,10 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
       document.removeEventListener('keydown', clear);
     };
   }, [highlighted]);
+  // Story 13.8 (AI-3): the newest finished audit's findings, read from IndexedDB; nothing else reads them.
+  const aiFeatures = useAiFeatures();
+  const audit = useLatestAuditRun(db, relatorioId);
+  const auditHeadingId = useId();
   const relatorio = snapshot.relatorio;
   const templateName = templates.find((row) => row.id === relatorio.template_id)?.name ?? null;
   const responsibleName = users.find((row) => row.id === relatorio.setup.responsible_user_id)?.name ?? null;
@@ -298,6 +306,24 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
     else void navigate(`/relatorio/${relatorioId}/ficha/${blockId}`);
   }
 
+  /**
+   * Story 13.8: a finding's "Ver": a section marks its Sumário row (as "Ver no sumário" does)
+   * and scrolls it into view; a sheet or one of its rows opens the sheet; a photo, the gallery.
+   */
+  function seeAuditTarget(target: AuditTarget): void {
+    if (target.kind === 'sheet') {
+      void navigate(`/relatorio/${relatorioId}/ficha/${target.blockId}`);
+      return;
+    }
+    if (target.kind === 'photos') {
+      void navigate(`/relatorio/${relatorioId}/fotos`);
+      return;
+    }
+    const rowKey = target.rowKey as SumarioRowKey;
+    setHighlighted(new Set([rowKey]));
+    listRef.current?.querySelector(`[data-row="${rowKey}"]`)?.scrollIntoView({ block: 'center' });
+  }
+
   /** The header Overflow's backward-move Confirm: one `relatorio/status` put, focus back on the trigger. */
   function onConfirmBack(): void {
     if (backMove === null) return;
@@ -385,6 +411,15 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             ),
           )}
         </ol>
+        {!aiFeatures || audit.done === null ? null : (
+          <section className="sumario-audit" aria-labelledby={auditHeadingId}>
+            <h3 className="field-label" id={auditHeadingId}>
+              {copy.audit.heading}
+            </h3>
+            <p className="audit-note">{copy.audit.note}</p>
+            <AuditFindings run={audit.done} onSee={seeAuditTarget} />
+          </section>
+        )}
       </div>
 
       <div className="sticky-action-bar">
@@ -408,7 +443,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             </svg>
             {preview.phase.kind === 'working' ? copy.export.previewing : t.preview}
           </Button>
-          <GenerateAction relatorioId={relatorioId} reasonId={reasonId} onSeeInSumario={(keys) => setHighlighted(new Set(keys))} />
+          <GenerateAction relatorioId={relatorioId} reasonId={reasonId} onSeeInSumario={(keys) => setHighlighted(new Set(keys))} onSeeAuditTarget={seeAuditTarget} />
         </div>
       </div>
 

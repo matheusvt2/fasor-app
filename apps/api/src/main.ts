@@ -7,6 +7,8 @@ import { migrate } from './db/migrate.ts';
 import { createApp } from './http/app.ts';
 import { now } from './clock.ts';
 import { newId } from './ids.ts';
+import { createAuditProvider } from './jobs/audit/provider.ts';
+import { registerAuditWorker } from './jobs/audit/worker.ts';
 import { probeLibreOffice } from './jobs/generate/libreoffice.ts';
 import { registerGenerateWorker } from './jobs/generate/worker.ts';
 import { createReadingProviders } from './jobs/reading/providers/index.ts';
@@ -79,6 +81,10 @@ if (config.WORKER === '1') {
         }
       : {}),
   });
+  // Story 13.8: the emission audit's worker, on the same pg-boss instance and the same
+  // LLM_PROVIDER switch (`fake` by default); AI_FEATURES=off refuses every run permanently.
+  await registerAuditWorker(boss, { db, now, newId, provider: createAuditProvider(config) });
+  log('audit worker registered', { llm_provider: config.LLM_PROVIDER, ai_features: config.AI_FEATURES });
 }
 
 const auth = createAuth({

@@ -6,6 +6,7 @@ import { NOT_TESTED_REASON_KEYS } from '../seed/definitions.ts';
 import { checkTemplateRow } from '../seed/template-rules.ts';
 import { nodeNameSchema, skeletonNodeSchema, templateBlockSchema } from './block-config.ts';
 import { councilSchema } from './council.ts';
+import { AUDIT_RUN_STATUSES, auditFindingSchema } from '../audit/schema.ts';
 
 /*
  * Row schemas for every entity the op log materializes (AD-5, AD-10, AD-18).
@@ -600,6 +601,25 @@ export const revisionRowSchema = z.object({
   created_at: isoTimestampSchema,
 });
 
+/**
+ * Story 13.8 (contract 15): one emission audit, a server-only row the audit job writes
+ * (`audit_run/{id}` create at the route, then `audit_run/{id}/{field}` puts). Its findings are
+ * information the device shows and nothing else reads: never a sheet, a count, a status, a
+ * pre-issue row, the snapshot or the document. A run writes `findings`, `prompt_version` and
+ * `finished_at` with `status: done`, or `error` and `finished_at` with `status: failed`.
+ */
+export const auditRunRowSchema = z.object({
+  id: uuidV7Schema,
+  relatorio_id: uuidV7Schema,
+  status: z.enum(AUDIT_RUN_STATUSES),
+  findings: z.array(auditFindingSchema).default([]),
+  error: nullableString.default(null),
+  prompt_version: nullableString.default(null),
+  created_at: isoTimestampSchema,
+  started_at: nullableIso.default(null),
+  finished_at: nullableIso.default(null),
+});
+
 // --- entity registry -------------------------------------------------------
 
 export const entityRowSchemas = {
@@ -616,6 +636,7 @@ export const entityRowSchemas = {
   user: userRowSchema,
   generation_job: generationJobRowSchema,
   revision: revisionRowSchema,
+  audit_run: auditRunRowSchema,
 } as const;
 
 export type Entity = keyof typeof entityRowSchemas;
@@ -636,6 +657,7 @@ export type TemplateRow = EntityRowOf<'template'>;
 export type UserRow = EntityRowOf<'user'>;
 export type GenerationJobRow = EntityRowOf<'generation_job'>;
 export type RevisionRow = EntityRowOf<'revision'>;
+export type AuditRunRow = EntityRowOf<'audit_run'>;
 export type EntityRow = EntityRowOf<Entity>;
 
 export const scopeSchema = z.enum(['company', 'project', 'relatorio']);
@@ -659,6 +681,7 @@ export const ENTITY_SCOPE: Readonly<Record<Entity, readonly Scope[]>> = {
   suggestion: ['relatorio'],
   generation_job: ['relatorio'],
   revision: ['relatorio'],
+  audit_run: ['relatorio'],
   file: ['company', 'relatorio'],
 };
 

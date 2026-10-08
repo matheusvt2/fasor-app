@@ -19,6 +19,7 @@ import {
   sumarioLineOf,
   sumarioRows,
   toIso,
+  type AuditTarget,
   type RevisionFileFormat,
   type RevisionRow,
   type SumarioRowKey,
@@ -31,9 +32,12 @@ import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { relatorioState } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
+import { useAiFeatures } from '../../state/ai-features.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useSyncActions } from '../../state/sync-actions.ts';
+import { AuditFindings } from './audit-findings.tsx';
 import { downloadRevisionFile, fetchRevisionFile, hasShareSheet, shareFile, shareRevisionFile, type RevisionFileRef } from './revision-file.ts';
+import { useAudit } from './use-audit.ts';
 import { DEFAULT_TIMING, useGenerate, type GenerateTiming } from './use-generate.ts';
 import { useIssueConfirmation, usePreIssue } from './use-pre-issue.ts';
 import { usePreview } from './use-preview.ts';
@@ -50,6 +54,11 @@ export interface ExportDialogProps {
   onEditInSetup?: (etapa: number) => void;
   /** "Ver no sumário": closes the dialog and highlights the Sumário rows these warnings stand on. */
   onSeeInSumario?: (rows: SumarioRowKey[]) => void;
+  /**
+   * Story 13.8: an audit finding's "Ver": a section closes the dialog and marks its Sumário row,
+   * a sheet (or one of its rows) opens the sheet, a photo the gallery. Absent, no "Ver".
+   */
+  onSeeAuditTarget?: (target: AuditTarget) => void;
   /** Test hook: shorter waits than the 3 s poll and 2 s retry of the product. */
   timing?: GenerateTiming;
 }
@@ -70,9 +79,12 @@ const TITLE_ID = 'export-title';
  * words a failure beside its row. Mounted by the Sumário's
  * "Gerar relatório" (`surfaces/relatorio/generate-action.tsx`).
  */
-export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup, onSeeInSumario, timing = DEFAULT_TIMING }: ExportDialogProps) {
+export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup, onSeeInSumario, onSeeAuditTarget, timing = DEFAULT_TIMING }: ExportDialogProps) {
   const state = useGenerate(relatorioId, timing);
   const preview = usePreview(relatorioId, timing);
+  // Story 13.8 (AI-3): the optional AI pass, never automatic and never in the way of the issue.
+  const aiFeatures = useAiFeatures();
+  const audit = useAudit(relatorioId, timing);
   const { phase, relatorio, revisions, idleNumber, userNames, online } = state;
   const whoOf = (row: RevisionRow) => userNames[row.created_by] ?? null;
   const downloadingReasonId = useId();
@@ -445,6 +457,31 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
             </ul>
           </div>
         ) : null}
+
+        {!aiFeatures || phase.kind === 'ready' ? null : (
+          // Story 13.8: after "Antes de emitir", before the document control. Information only:
+          // nothing here changes the rows above, the count, the confirmation or "Gerar relatório".
+          <div className="audit-block">
+            <p className="field-label">{copy.audit.heading}</p>
+            <p className="audit-note">{copy.audit.note}</p>
+            <AuditFindings run={audit.display.done} onSee={onSeeAuditTarget} />
+            {audit.failed ? (
+              <div className="gen-error" role="alert">
+                <span>{copy.audit.failed}</span>
+              </div>
+            ) : null}
+            <div className="audit-actions">
+              <Button
+                variant="secondary"
+                isDisabled={!audit.online || audit.running}
+                disabledReason={!audit.online ? copy.audit.offlineReason : audit.running ? copy.audit.runningReason : undefined}
+                onPress={audit.start}
+              >
+                {audit.running ? copy.audit.running : copy.audit.start}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {phase.kind === 'ready' || control.length === 0 ? null : (
           <div>

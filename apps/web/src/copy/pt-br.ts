@@ -1570,6 +1570,30 @@ export const copy = {
     // authored: a failed display reading's way to type the value instead.
     typeInstead: 'Digitar',
   },
+  // Story 13.8 (AI-3): the emission audit in the Export dialog and on the Sumário. Its kind
+  // labels, counts and "Conferido às HH:MM" are the kernel's (`audit/text.ts`).
+  audit: {
+    // authored: the optional tap, after "Antes de emitir" (proposal for Matheus).
+    start: 'Conferir antes de emitir',
+    // authored: the block's heading, in the dialog and on the Sumário.
+    heading: 'Conferência por IA',
+    // authored: the note that the pass is AI and changes nothing.
+    note: 'Feita por IA: aponta pontos para você conferir. Nada é alterado no relatório.',
+    // authored: the button while the run is asked for and runs.
+    running: 'Conferindo…',
+    // authored: the run failed (provider error, timeout, a stale run); the button stays tappable.
+    failed: 'Não foi possível conferir agora.',
+    // authored: why the button waits offline.
+    offlineReason: 'Sem conexão: a conferência precisa do servidor.',
+    // authored: why the button waits while a run is asked for and runs.
+    runningReason: 'A conferência está em andamento; os pontos aparecem aqui.',
+    // authored: each finding's way to what it names.
+    see: 'Ver',
+    // authored: the accessible name of a finding's "Ver" (its target).
+    seeLabel: (target: string) => `Ver ${target}`,
+    // authored: the findings list's accessible name.
+    listLabel: 'Pontos apontados pela conferência por IA',
+  },
   // Story 13.5 (WAIT-3): the field palette's panel photos whose result dialog was left.
   panelAwaiting: {
     // authored: the group heading above them, under "Fotografar equipamento".

@@ -85,9 +85,9 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 14 and refuses version 13 (Story 11.6: a version-13 bundle queues the caption reading at pick time, before the cloud LLM)', () => {
-    expect(CONTRACT_VERSION).toBe(14);
-    expect(MIN_CONTRACT_VERSION).toBe(14);
+  it('speaks version 15 and refuses version 14 (Story 13.8: a version-14 bundle cannot parse the audit_run families)', () => {
+    expect(CONTRACT_VERSION).toBe(15);
+    expect(MIN_CONTRACT_VERSION).toBe(15);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

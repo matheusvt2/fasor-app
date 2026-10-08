@@ -22,4 +22,4 @@ Local-first client with an operation outbox, a thin sync API, a modular-monolith
 
 ## Capabilities
 
-SPEC.md lists CAP-1 to CAP-25: registries and identity (1-7), templates (8), setup/Sumário/tree/blocks (9-11), the equipment sheet (12-18), camera assists (19), photos (20), points of attention (21), offline sync (22), multi-device merge (23), generation (24), parecer and pre-issue list (25). Grep `CAP-n` in SPEC.md for one. Build order: [delivery-slice](/project/delivery-slice.md).
+SPEC.md lists CAP-1 to CAP-26: registries and identity (1-7), templates (8), setup/Sumário/tree/blocks (9-11), the equipment sheet (12-18), camera assists (19), photos (20), points of attention (21), offline sync (22), multi-device merge (23), generation (24), parecer and pre-issue list (25), the optional AI emission audit (26, Story 13.8). Grep `CAP-n` in SPEC.md for one. Build order: [delivery-slice](/project/delivery-slice.md).

@@ -87,8 +87,13 @@
  * with no reading and no context (`clientReadingKindPutAllowed`); a version-13 server refuses
  * it (`op_invalid`), so a version-14 client must not talk to one. No new family and no row
  * shape change; `MIN_CONTRACT_VERSION` stays 13.
+ *
+ * 15 (2026-10-07, Story 13.8): the emission audit. The server-only `audit_run/{id}` create and
+ * `audit_run/{id}/{field}` put families are new (the `audit_run` row: status, findings,
+ * prompt version, timestamps), and so are the route `POST /api/relatorios/{id}/audit` and the
+ * error code `audit_running`.
  */
-export const CONTRACT_VERSION = 14;
+export const CONTRACT_VERSION = 15;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -144,8 +149,14 @@ export const CONTRACT_VERSION = 14;
  * is answered, so a photo later marked "Pessoas na foto" or given a caption could already be
  * on its way; a version-14 bundle asks only once the batch is answered or closed (ledger 1131).
  * No contract change at 14, but a version-13 bundle must update before a cloud LLM is wired.
+ *
+ * 15 (2026-10-07, Story 13.8): a version-14 bundle cannot parse an `audit_run/{id}` create nor
+ * an `audit_run/{id}/{field}` put: its `opSchema` refuses an unknown family, so the whole
+ * pulled page fails (`invalid_response`) instead of the unknown family being skipped. A
+ * relatório stream carries those ops once anyone taps "Conferir antes de emitir", so the
+ * version-14 bundle updates too.
  */
-export const MIN_CONTRACT_VERSION = 14;
+export const MIN_CONTRACT_VERSION = 15;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

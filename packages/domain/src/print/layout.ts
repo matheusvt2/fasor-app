@@ -174,8 +174,8 @@ function seedParagraph(block: { kind: TextBlock['kind']; text: string }, variabl
   return { kind: block.kind, text, runs: [{ text }] };
 }
 
-/** The printed sections as (FO.SERV-03 section, own text) pairs: the live section blocks, else the seed's eleven. */
-function printedSections(snapshot: RelatorioSnapshot): { section: number; ownText: string | null }[] {
+/** The printed sections as (FO.SERV-03 section, own text) pairs: the live section blocks, else the seed's eleven. Story 13.8: exported for the audit input, which names each printed section by its Sumário row. */
+export function printedSections(snapshot: RelatorioSnapshot): { section: number; ownText: string | null }[] {
   const live = sectionBlocks(snapshot.blocks)
     .map((block) => {
       const section = relatorioSectionNumber(block.block_type);

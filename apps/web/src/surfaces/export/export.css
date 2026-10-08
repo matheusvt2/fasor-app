@@ -60,3 +60,26 @@
 .export-dialog dl.doc-control dd { margin: 0; padding: var(--sp-2) var(--sp-3); vertical-align: top; border-top: var(--doc-control-row-divider); font: var(--doc-control-value-typography); color: var(--ink-primary); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 /* `.doc-control tr:first-child th, .doc-control tr:first-child td` */
 .export-dialog dl.doc-control .dc-row:first-child dt, .export-dialog dl.doc-control .dc-row:first-child dd { border-top: 0; }
+
+/*
+ * Story 13.8 (AI-3): the emission audit's block. In the dialog its findings are a `.precheck`
+ * list under the rules above; on the Sumário (`.sumario-audit`, outside `.export-dialog`) the
+ * same list mirrors their declarations verbatim: `components.css` `.export-dialog .precheck`
+ * and this file's `.precheck li`, `li .pc-text`, `li .pc-actions` and `.precheck .pc-meta`.
+ * The mock has no findings class of its own (open question for DESIGN.md).
+ */
+.sumario-audit .precheck { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--t-body-size); }
+.sumario-audit .precheck li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); min-height: var(--touch-min); }
+.sumario-audit .precheck li .pc-text { flex: 1; min-width: 0; }
+.sumario-audit .precheck li .pc-actions { display: flex; gap: var(--sp-1); flex: none; }
+.sumario-audit .precheck .pc-meta { color: var(--ink-secondary); font-size: var(--t-meta-size); }
+/* authored: the block's rhythm, the `.export-state` gap between its heading, note, list and button row. */
+.audit-block, .sumario-audit { display: flex; flex-direction: column; gap: var(--sp-2); }
+/* authored: the AI note and the summary line ("2 pontos para conferir · Conferido às 14:32"): the fact line's look (`.export-sec9-note`). */
+.audit-block .audit-note, .sumario-audit .audit-note, .audit-findings .audit-summary { margin: 0; color: var(--ink-secondary); font-size: var(--t-meta-size); }
+.audit-findings .audit-summary { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); margin-bottom: var(--sp-2); }
+/* authored: the Sumário block sits under the rows with the list's own top spacing. */
+.sumario-audit { margin-top: var(--sp-5); }
+/* authored: the audit's button row, the `.generate-row` declarations under a class of its own so
+   the "Gerar relatório" row (and its reason) stays the dialog's only `.generate-row`. */
+.export-dialog .audit-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-3) var(--sp-4); }

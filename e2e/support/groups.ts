@@ -75,6 +75,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'panel-capture-pipeline.spec.ts',
     why: 'uploads a panel photo the api reads on its one reading queue and worker, then waits for the plate reading its re-target queued',
   },
+  // Story 13.8: the emission audit; 13.8-E2E-002 issues a revision with findings present.
+  {
+    file: 'emission-audit.spec.ts',
+    why: 'issues a revision through the shared queue and LibreOffice (13.8-E2E-002) and waits on the audit job of the one api worker',
+  },
   // Story 13.7: "Fotografar placa" on every block type through the real reading job.
   {
     file: 'plate-every-type.spec.ts',

@@ -12,7 +12,7 @@ import { useSync as syncState, type SyncState } from './sync.tsx';
 /** The callbacks of `SyncState`, stable for the session. */
 export type SyncActions = Pick<
   SyncState,
-  'syncNow' | 'syncRelatorio' | 'syncProject' | 'resendDead' | 'retryUpload' | 'fetchFile' | 'generate' | 'preview' | 'rereadPhoto'
+  'syncNow' | 'syncRelatorio' | 'syncProject' | 'resendDead' | 'retryUpload' | 'fetchFile' | 'generate' | 'preview' | 'rereadPhoto' | 'audit'
 >;
 
 export const SyncActionsContext = createContext<SyncActions | null>(null);

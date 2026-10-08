@@ -9,6 +9,8 @@ import type { Auth } from '../auth/auth.ts';
 import { now as clock } from '../clock.ts';
 import type { Db } from '../db/client.ts';
 import { newId as mintId } from '../ids.ts';
+import type { AuditPayload } from '../jobs/audit/payload.ts';
+import { enqueueAudit } from '../jobs/audit/worker.ts';
 import type { GeneratePayload } from '../jobs/generate/job.ts';
 import { enqueueGenerate } from '../jobs/generate/worker.ts';
 import type { ReadingPayload } from '../jobs/reading/payload.ts';
@@ -16,6 +18,7 @@ import { enqueueReading } from '../jobs/reading/worker.ts';
 import { log, logError } from '../log.ts';
 import { createSyncRoutes } from '../sync/routes.ts';
 import { createAccountRoutes } from './account.ts';
+import { createAuditRoutes } from './audit.ts';
 import { createFileRoutes } from './files.ts';
 import { createGenerateRoutes } from './generate.ts';
 import { createHealthRoutes, type HealthProbes } from './health.ts';
@@ -100,6 +103,8 @@ export interface AppOptions {
    * neither, file receipt leaves a plate photo `queued` and the reread route answers 500.
    */
   enqueueReading?: (payload: ReadingPayload) => Promise<void>;
+  /** Story 13.8: test override of the send to the `audit` queue; wins over `boss`. With neither, the audit route answers 500 after failing its run. */
+  enqueueAudit?: (payload: AuditPayload) => Promise<void>;
   /** Story 11.8 follow-up: `config.AI_FEATURES === 'on'`; absent reads as on (every existing test). */
   aiFeatures?: boolean;
   /**
@@ -220,6 +225,18 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
       now: options.now ?? clock,
       newId: options.newId ?? mintId,
       ...(enqueue === undefined ? {} : { enqueue }),
+    }),
+  );
+
+  // Story 13.8: the emission audit, behind the same session middleware and barrier.
+  const sendAudit = options.enqueueAudit ?? (boss === undefined ? undefined : (payload: AuditPayload) => enqueueAudit(boss, payload));
+  app.route(
+    '/',
+    createAuditRoutes(options.db, {
+      now: options.now ?? clock,
+      newId: options.newId ?? mintId,
+      ...(sendAudit === undefined ? {} : { enqueue: sendAudit }),
+      aiFeatures,
     }),
   );
 
