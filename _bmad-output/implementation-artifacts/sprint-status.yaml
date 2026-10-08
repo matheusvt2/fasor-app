@@ -814,7 +814,7 @@ action_items:
     epic: 11
     action: "E11-A1 Answer 'os testes estão demorando muito': profile the @p0 e2e (1405-1738 s of every verify) and propose either a story verify of lint, static, unit, api and touched specs with the full @p0 in the per-wave integrated gate (Epic 11 precedent), or a dated DoD budget with the measured number; target story gate <= 15 min or the dated budget"
     owner: "coordinator drafts; Matheus decides"
-    status: open
+    status: done  # 2026-10-08, Matheus: story gate (lint, static, unit, api, touched specs), full @p0 per wave; AGENTS.md Decisions of record
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-91-e11-a2-close-11-8-live-evidence"
     epic: 11

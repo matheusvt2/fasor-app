@@ -1400,3 +1400,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: only the definitions reference them; the integration test calls `runAuditJob` directly. Mirror `apps/api/src/jobs/generate/worker.integration.test.ts`.
   class: debt
   state: open (owner: Epic 13 fix batch)
+- source_spec: `AGENTS.md` (Decisions of record, 2026-10-08 story gate)
+  summary: Three unit failures recur on this host in almost every gate and force reruns: `apps/web/src/state/theme.test.tsx` (fails every run), `apps/web/src/surfaces/export/export-dialog.test.tsx` (load-sensitive, passes alone) and the unhandled timer error from `apps/web/src/components/number-input.test.tsx:21` (a harness timer never cleared, setState after teardown). Fix them so a red unit stage means a defect.
+  evidence: Epic 13 gate logs (`test-results/gate-e13*/test-unit.log` in the batch worktrees); `reviews/epic-13-review-qa.md` § 4 (b).
+  class: debt
+  state: open (owner: the next carry-over batch)
+- source_spec: `AGENTS.md` (Decisions of record, 2026-10-08 story gate)
+  summary: Measure, on a free machine, (B) the `@p0` e2e at `--workers=2` against `PARALLEL_WORKERS=1` (the 2026-09-27 three-worker validation failed on the older 4 GB VM; the VM now has 11.4 GB) and (C) the plain `pnpm verify` against the stage-by-stage gate (it was OOM-killed on the 4 GB VM). Adopt each one only if it stays green twice.
+  evidence: `e2e/support/groups.ts` `PARALLEL_WORKERS`; `scripts/verify.ts` phases; `spec-test-speed.md`.
+  class: debt
+  state: open (owner: coordinator, next free gate)
