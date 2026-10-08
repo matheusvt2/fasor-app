@@ -141,7 +141,8 @@ export function holdScreenWakeLock(): () => void {
     if (!held) return;
     held = false;
     state.holders -= 1;
-    if (state.holders === 0) listen(false);
+    // The touch and key listeners stay once installed: the idle time always counts from the
+    // last real touch, so a sheet opened long after an earlier one is not taken for idle.
     evaluate();
   };
 }

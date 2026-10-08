@@ -152,10 +152,11 @@ export function NameplateSection({
    * reading cancelled here (`reading_cancelled:{photo}`), and what they already brought is
    * discarded now; the post-pull sweep discards what they bring later. The photos stay.
    */
-  const cancelOlderPlates = () => {
+  const cancelOlderPlates = (shot: CaptureTarget) => {
     const author = api.author;
     if (db === null || author === null) return;
-    const older = suggestions.tiles.filter((tile) => tile.reading_kind === 'plate' && tile.block_id === block.id).map((tile) => tile.id);
+    // The new photo (its id assigned before the shot) is never among them, whatever the tiles hold now.
+    const older = suggestions.tiles.filter((tile) => tile.reading_kind === 'plate' && tile.block_id === block.id && tile.id !== shot.fileId).map((tile) => tile.id);
     const at = toIso(now());
     void Promise.all(
       older.map((photoId) => writeReadingCancelled(db, photoId, at).then(() => discardCancelledReadings(db, author, { newId, now }, photoId))),
@@ -165,7 +166,9 @@ export function NameplateSection({
       })
       .catch((error: unknown) => console.error('older plate readings not cancelled', error));
   };
-  const retake: PlateRetake | null = readOnly || !aiFeatures ? null : { relatorioId: api.relatorioId, target: plateTarget, onShot: cancelOlderPlates };
+  // The retake's photo id is assigned up front, so the cancel above can spare it by id.
+  const retakeTarget = (): CaptureTarget => ({ ...plateTarget(), fileId: newId() });
+  const retake: PlateRetake | null = readOnly || !aiFeatures ? null : { relatorioId: api.relatorioId, target: retakeTarget, onShot: cancelOlderPlates };
 
   /** The focused field's region on the plate: its pending suggestion's, else its confirmed source's (this photo only). */
   const focusedBox = (() => {
@@ -197,9 +200,25 @@ export function NameplateSection({
     target?.focus();
   };
 
+  /**
+   * DG-2: the replace suggestion a typed `next` turns down: the field's pending suggestion under
+   * "Sugerido: … — Substituir" when `next` is a value other than it; null otherwise (an equal
+   * value is the device's auto-confirm to make, a cleared field makes it a fill again).
+   */
+  function replacedBy(fieldKey: string, next: unknown) {
+    const entry = suggestions.entries.get(fieldKey);
+    if (entry?.view !== 'replace' || next === null || next === undefined) return null;
+    return compareSuggestion(next, entry.suggestion.value, entry.field) !== 'equal' ? entry.suggestion : null;
+  }
+
   function createWord(fieldKey: string, kind: 'manufacturer' | 'voltage_class', name: string): void {
+    const replaced = replacedBy(fieldKey, name);
     void api
-      .edit((_blocks, by) => [createWordOp(by, kind, newId(), name), nameplateOp(by, api.relatorioId, block.id, fieldKey, name)])
+      .edit((_blocks, by) => [
+        createWordOp(by, kind, newId(), name),
+        nameplateOp(by, api.relatorioId, block.id, fieldKey, name),
+        ...(replaced === null ? [] : [discardSuggestionOp(by, replaced)]),
+      ])
       .catch(() => undefined);
   }
 
@@ -283,8 +302,7 @@ export function NameplateSection({
                 if (api.author === null) return undefined;
                 // DG-2: a typed value that changes the field under "Sugerido: … — Substituir"
                 // discards that suggestion in the same batch (the engineer chose the typed one).
-                const replaced =
-                  pending?.view === 'replace' && next !== null && next !== undefined && compareSuggestion(next, pending.suggestion.value, field) !== 'equal' ? pending.suggestion : null;
+                const replaced = replacedBy(field.key, next);
                 return api.commit([
                   nameplateOp(api.author, api.relatorioId, block.id, field.key, next),
                   ...(replaced === null ? [] : [discardSuggestionOp(api.author, replaced)]),

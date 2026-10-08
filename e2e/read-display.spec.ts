@@ -150,7 +150,8 @@ test('@p0 9.1-E2E-006 a frame the camera fails to grab mid-burst is said in the 
   await shutter.click();
   // FLD-V1: said where the engineer looks, in the camera's own hint (a toast would sit under the opaque scrim).
   await expect(hint).toBeVisible();
-  await expect(hint).toHaveText('Não foi possível salvar a foto. Tente de novo.');
+  // E9-Q7: the row the next shot fills stays named after the failure.
+  await expect(hint).toHaveText('Não foi possível salvar a foto. Tente de novo. Próxima leitura: Seccionadora contato aberto · T3');
   await expect(hint).toHaveAttribute('data-state', 'failed');
   await expect(page.getByTestId('toast')).toHaveCount(0);
   await expect(opener(page, 'contato_aberto')).toHaveAttribute('data-count', '1');

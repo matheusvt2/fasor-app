@@ -1,9 +1,9 @@
 import type { Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
-import { readFileBlobs, readStore } from './support/outbox.ts';
+import { readStore } from './support/outbox.ts';
 import { devicePhotos, expectCameraOpen, openChaveSheet } from './support/photos.ts';
 import { holdPhotoBytes, openTransformerSheet, pushPlateSuggestions, pushReadingStatus, transformerPlateFields } from './support/reading-ops.ts';
-import { syncNow, syncNowAndReturn } from './support/sync.ts';
+import { syncNowAndReturn } from './support/sync.ts';
 
 /*
  * R8CAP-E2E (review 2026-10-08, "no photo fails silently"): driven as a person does it, with the
@@ -111,7 +111,10 @@ test('@p0 R8CAP-E2E-001 a plate reading that read nothing says so, "Preencher ma
   await expect(plateRow(page).locator('.photo-tile')).toHaveAttribute('data-photo-id', second);
   await expect(plateRow(page).getByText('Nada foi lido nesta foto')).toHaveCount(0);
   await expect(plateRow(page)).not.toHaveAttribute('data-reading', 'empty');
-  expect((await prefs(page)).map((row) => row.key)).toContain(`reading_cancelled:${first}`);
+  const keys = (await prefs(page)).map((row) => row.key);
+  expect(keys).toContain(`reading_cancelled:${first}`);
+  // The new photo's own reading is never cancelled.
+  expect(keys).not.toContain(`reading_cancelled:${second}`);
 });
 
 test('@p0 R8CAP-E2E-002 a "Ler visor" reading that read nothing says so under its empty cell: "Digitar" focuses the cell, "Fotografar de novo" shoots the same target, and a typed value hides the line', async ({ page }) => {
@@ -175,9 +178,8 @@ test('@p0 R8CAP-E2E-003 at 768 and at 390 px closing the camera from the Sticky 
       await camera.getByRole('button', { name: close, exact: true }).click();
       await expect(cameraDialog(page)).toHaveCount(0, { timeout: 15_000 });
       await expect(opener).toBeFocused();
-      // The rows the shot added settle; the page never moved.
-      await page.waitForTimeout(500);
-      expect(Math.abs((await page.evaluate(() => window.scrollY)) - y), `${width} px, ${close}`).toBeLessThanOrEqual(2);
+      // The page never moved.
+      await expect.poll(async () => Math.abs((await page.evaluate(() => window.scrollY)) - y), { message: `${width} px, ${close}` }).toBeLessThanOrEqual(2);
     }
   }
 });
@@ -200,7 +202,7 @@ test('@p1 R8CAP-E2E-004 a single plate shot says it is saving, the shutter disab
   await expect(cameraDialog(page)).toHaveCount(0, { timeout: 15_000 });
 });
 
-test('@p1 R8CAP-E2E-005 a plate photo whose bytes the server does not hold yet reads "Lendo…" with no age and no "Cancelar", however long; once the bytes are acked the age counts from the ack', async ({ page }) => {
+test('@p1 R8CAP-E2E-005 a plate photo whose bytes the server does not hold yet reads "Lendo…" with no age, no "Cancelar" and no note past 10 s from its capture (the count from the ack is the kernel and component units\' rule)', async ({ page }) => {
   test.setTimeout(180_000);
   await holdPhotoBytes(page);
   await openTransformerSheet(page, account, database);
@@ -211,27 +213,11 @@ test('@p1 R8CAP-E2E-005 a plate photo whose bytes the server does not hold yet r
   await expect.poll(() => page.evaluate(() => Date.now()), { timeout: 20_000 }).toBeGreaterThan(captured + 11_000);
   const line = plateRow(page).locator('.reading-wait .reading-line');
   await expect(line).toHaveText('Lendo…');
-  await page.waitForTimeout(1_500);
-  await expect(line).toHaveText('Lendo…');
   await expect(plateRow(page).getByRole('button', { name: 'Cancelar' })).toHaveCount(0);
   await expect(plateRow(page).locator('.reading-note')).toHaveCount(0);
-
-  // The bytes go up: the age counts from the ack, so it is under 10 s right after it.
-  await page.unrouteAll({ behavior: 'ignoreErrors' });
-  await syncNow(page);
-  await expect
-    .poll(async () => (await readFileBlobs(page, database)).some((blob) => blob.id === plateId && blob.variant === 'original' && blob.acked), { timeout: 30_000 })
-    .toBe(true);
-  await page.goBack();
-  const text = await plateRow(page)
-    .locator('.reading-wait .reading-line')
-    .textContent({ timeout: 2_000 })
-    .catch(() => null);
-  // The reading may already have landed; while it waits, never the age from the capture.
-  if (text !== null) expect(text).toMatch(/^Lendo…( \d s)?$/);
 });
 
-test('@p0 R8CAP-E2E-006 a reading landing on typed nameplate values: "Manter o digitado" discards it and keeps the value; a different typed value discards it in its own batch', async ({ page, context }) => {
+test('@p0 R8CAP-E2E-006 a reading landing on typed nameplate values: "Manter o digitado" discards it and keeps the value; a different typed value discards it in its own batch; the suggested value typed is left to the auto-confirm; the plate row then reads done', async ({ page, context }) => {
   test.setTimeout(180_000);
   await holdPhotoBytes(page);
   const ids = await openTransformerSheet(page, account, database);
@@ -241,6 +227,7 @@ test('@p0 R8CAP-E2E-006 a reading landing on typed nameplate values: "Manter o d
   for (const [key, value] of [
     ['n_serie', 'SU-TYPED-1'],
     ['tipo', 'TIPO-A'],
+    ['identificacao', 'TR-00'],
   ] as const) {
     const input = field(page, key).locator('input').first();
     await input.fill(value);
@@ -249,8 +236,12 @@ test('@p0 R8CAP-E2E-006 a reading landing on typed nameplate values: "Manter o d
   }
   await context.setOffline(false);
   await syncNowAndReturn(page);
-  const all = transformerPlateFields(['n_serie', 'tipo']);
-  const suggestions = await pushPlateSuggestions(account.companyId, ids.relatorioId, { blockId: ids.blockId, photoId: plateId, fields: { n_serie: all.n_serie!, tipo: all.tipo! } });
+  const all = transformerPlateFields(['n_serie', 'tipo', 'identificacao']);
+  const suggestions = await pushPlateSuggestions(account.companyId, ids.relatorioId, {
+    blockId: ids.blockId,
+    photoId: plateId,
+    fields: { n_serie: all.n_serie!, tipo: all.tipo!, identificacao: all.identificacao! },
+  });
   await pushReadingStatus(account.companyId, ids.relatorioId, plateId, 'done');
   await syncNowAndReturn(page);
 
@@ -278,6 +269,29 @@ test('@p0 R8CAP-E2E-006 a reading landing on typed nameplate values: "Manter o d
   expect(discard.value).toBe('discarded');
   expect(put.batch_id).not.toBeNull();
   expect(discard.batch_id).toBe(put.batch_id);
+
+  // The suggested value typed exactly under its replace line: no discard in that batch; the
+  // device's auto-confirm takes it after the next sync.
+  await expect(field(page, 'identificacao').locator('.suggestion-alt')).toContainText('TR-01');
+  const ident = field(page, 'identificacao').locator('input').first();
+  await ident.fill('TR-01');
+  await ident.press('Enter');
+  await expect.poll(async () => (await outbox(page)).some((op) => op.path === `sheet/${ids.blockId}/nameplate/identificacao` && op.value === 'TR-01')).toBe(true);
+  const typed = (await outbox(page)).find((op) => op.path === `sheet/${ids.blockId}/nameplate/identificacao` && op.value === 'TR-01')!;
+  expect((await outbox(page)).filter((op) => op.batch_id === typed.batch_id).map((op) => op.path)).toEqual([`sheet/${ids.blockId}/nameplate/identificacao`]);
+  await syncNowAndReturn(page);
+  const sheetCell = async () => {
+    const block = (await readStore<{ entity: string; id: string; row: { sheet: { nameplate: Record<string, { source_suggestion_id: string | null } | undefined> } } }>(page, database, 'entities')).find(
+      (record) => record.entity === 'block' && record.id === ids.blockId,
+    );
+    return block?.row.sheet.nameplate.identificacao?.source_suggestion_id ?? null;
+  };
+  await expect.poll(sheetCell, { timeout: 30_000 }).toBe(suggestions.identificacao);
+
+  // Every suggestion read from the plate resolved: the row reads done, with no empty line or retake.
+  await expect(plateRow(page)).toHaveAttribute('data-reading', 'done');
+  await expect(plateRow(page).getByText('Nada foi lido nesta foto')).toHaveCount(0);
+  await expect(plateRow(page).getByRole('button', { name: 'Fotografar de novo' })).toHaveCount(0);
 });
 
 /** A fake Screen Wake Lock: every request and release is recorded on `window.__wakeLock`; `mode` grants or rejects. */
@@ -328,6 +342,18 @@ test('@p0 R8CAP-E2E-007 an open sheet holds one screen wake lock and leaving it 
   await expect.poll(async () => (await wakeLog(page)).held).toBe(0);
   expect((await wakeLog(page)).releases).toBeGreaterThanOrEqual(1);
 
+  // A camera outside any sheet (the gallery's): held while it is open, released once it closes.
+  await page.goto(`/relatorio/${ids.relatorioId}/fotos`);
+  const galleryCamera = page.getByRole('button', { name: 'Tirar foto', exact: true });
+  await expect(galleryCamera).toBeVisible({ timeout: 30_000 });
+  expect((await wakeLog(page)).held).toBe(0);
+  await galleryCamera.click();
+  const view = await expectCameraOpen(page);
+  await expect.poll(async () => (await wakeLog(page)).held).toBe(1);
+  await view.getByRole('button', { name: 'Fechar a câmera sem concluir' }).click();
+  await expect(cameraDialog(page)).toHaveCount(0, { timeout: 15_000 });
+  await expect.poll(async () => (await wakeLog(page)).held).toBe(0);
+
   // Conta: on by default; off, stored in IndexedDB.
   await page.goto('/account');
   const toggle = page.getByRole('switch', { name: 'Manter a tela ligada' });
@@ -340,8 +366,11 @@ test('@p0 R8CAP-E2E-007 an open sheet holds one screen wake lock and leaving it 
   // A sheet opened now asks for nothing.
   await page.goto(`/relatorio/${ids.relatorioId}/ficha/${ids.blockId}`);
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  // A touch on the sheet, then the camera opened and closed (two more holders): still nothing asked.
   await page.locator('.sheet-header .sheet-title').click();
-  await page.waitForTimeout(1_000);
+  await page.locator('.sticky-action-bar .camera-capture-btn').click();
+  await (await expectCameraOpen(page)).getByRole('button', { name: 'Fechar a câmera sem concluir' }).click();
+  await expect(cameraDialog(page)).toHaveCount(0, { timeout: 15_000 });
   expect((await wakeLog(page)).requests).toEqual([]);
 
   // On again, the next sheet takes it.
@@ -380,4 +409,33 @@ test('@p0 R8CAP-E2E-008 with a Screen Wake Lock that refuses, the sheet, the cam
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByTestId('toast')).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test('@p0 R8CAP-E2E-009 a thermo-hygrometer reading that read nothing says so under the first empty environment field, with "Fotografar de novo" and "Digitar"; the retake shoots the same target', async ({ page }) => {
+  test.setTimeout(180_000);
+  await holdPhotoBytes(page);
+  const ids = await openTransformerSheet(page, account, database);
+  const env = page.locator('section.ficha-amb');
+  let before = await photoIds(page);
+  await env.locator('.ficha-amb-actions').getByRole('button', { name: 'Ler visor' }).click();
+  const first = await shootOnce(page, before);
+  await syncNowAndReturn(page);
+  await pushReadingStatus(account.companyId, ids.relatorioId, first, 'done');
+  await syncNowAndReturn(page);
+
+  // One line, under Temperatura (the first empty field), none under Umidade.
+  const temperature = env.locator('[data-field-key="temperature_c"]');
+  const empty = temperature.locator('.reading-empty');
+  await expect(empty.locator('.reading-line')).toHaveText('Nada foi lido nesta foto');
+  await expect(env.locator('.reading-empty')).toHaveCount(1);
+  await expect(empty.getByRole('button', { name: 'Digitar' })).toBeVisible();
+
+  before = await photoIds(page);
+  await empty.getByRole('button', { name: 'Fotografar de novo' }).click();
+  const second = await shootOnce(page, before);
+  const creates = (await outbox(page)).filter((op) => op.kind === 'create' && (op.path === `file/${first}` || op.path === `file/${second}`));
+  const targetOf = (id: string) => (creates.find((op) => op.path === `file/${id}`)!.value as { reading_target: unknown }).reading_target;
+  expect((creates.find((op) => op.path === `file/${second}`)!.value as { reading_kind: string }).reading_kind).toBe('display');
+  expect(targetOf(second)).toEqual(targetOf(first));
+  await expect(env.locator('.reading-empty')).toHaveCount(0);
 });

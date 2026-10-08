@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: no photo fails silently (empty reading, visible camera failures, wake lock, camera return)'
 type: 'bugfix'
 created: '2026-10-08'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'e2527c8e4ade1462d449d7c71c37e43875b625ba'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -109,6 +109,37 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-10-08 — Review pass
+Layers: Edge Case Hunter and Verification Gap Reviewer (Blind Hunter and Intent Alignment skipped: token economy; the integrated review covers them). One review-fix loop.
+- verdicts: 25 findings — high 0, medium 10, low 15, false 0, maybe-false 0 (the gap layer's 2 "other findings" included; one duplicates the picker-path gap)
+- findings:
+  - `medium` `patch` E1 wake lock: interactions tracked only while holders > 0, so a ficha opened >10 min after the last tracked touch holds no lock until the next touch — listeners kept for good once installed, unit case added.
+  - `low` `reject` E2 wall-clock jump (NTP) skews the idle time — rare on a tablet; one early or late release; the fix would bypass the app's clock seam.
+  - `low` `reject` E3 a refused `writeKeepScreenOn` leaves the switch showing the new value until reload — an IndexedDB write refusal is rare and a reload shows the stored truth; the fix adds an error branch.
+  - `low` `reject` E4 the switch draws on for the first frames before a stored off is read — cosmetic; a tap there writes what the engineer saw; the location switch renders its default first the same way.
+  - `medium` `patch` E5 close during "Salvando as fotos…" then reopen: the old `finish` ends the new session (pre-existing race, now inside the DB-4 window, file touched, minutes to fix) — `finish` ends only the session it started.
+  - `low` `patch` E6 a shot of a closed session reporting into a reopened one — grouped with E5 (stale session callbacks); `cameraSays` speaks only to the shot's own session.
+  - `low` `reject` E7 a held (refused) shot after a failed one leaves the failure under the refused hint — needs a failure followed by a storage refusal; the refused hint takes precedence while it lasts.
+  - `medium` `patch` E8 `onShot` fires before the save, so a failed retake save cancels the older plate readings with no new photo — `onShot` moved to the `'saved'` report; the retake target pre-assigns its `fileId`, never cancelled.
+  - `medium` `patch` E9 "Criar" under a replace line writes the word and the put but leaves the suggestion pending — `createWord` appends the discard on the same rule as `commit`.
+  - `medium` `defer` E10 a reread that reads nothing after an earlier run's (now discarded) rows reads `done`, not `empty` (cancel, "Ler de novo", nothing read) — real; telling runs apart needs the photo's latest `reading_run_id`, which the photo row does not carry (a contract change).
+  - `medium` `defer` E11 the same for a display photo — same root as E10.
+  - `low` `reject` E12 a thermo-hygrometer retake whose line moves to another field unmounts the hosting banner and its camera as it closes — the photo is still saved; hosting the camera elsewhere is more than a direct fix; listed as known open in the PR.
+  - `low` `reject` E13 the plate empty line stays after every plate field was typed — the line stays accurate and matches the plate's failed line, which does not hide either.
+  - `low` `patch` E14 the failure text replaced the next-row hint after a failed burst grab (E9-Q7's row cue lost) — the hint shows the failure then the next-row hint; the T3 assertion is back.
+  - `low` `reject` E15 the Sumário panel dialog's wait still counts from the capture — the spec scoped DG-4 to the sheet's lines; listed as known open in the PR.
+  - `medium` `patch` E16 (claim) AC "a typed different value also discards it" fails through "Criar" — same root as E9.
+  - `medium` `patch` V1 nothing asserts the plate row reads `done` (not `empty`) once every suggestion is resolved — assertions added to R8CAP-E2E-006.
+  - `medium` `patch` V2 the thermo-hygrometer empty line and retake never run through `useEnvDisplay`/`envAfter` — new R8CAP e2e on the transformer sheet.
+  - `low` `patch` V3 the save-failure half of FLD-V1 is tested only against a mocked capture — `renderHook` tests of `usePhotoCapture` with a throwing save.
+  - `low` `patch` V4 wake-lock holders off the sheet (gallery or panel camera) are never observed — a step added to R8CAP-E2E-007.
+  - `medium` `patch` V5 the system-picker path never calls `onShot`, so a picker retake cancels nothing — grouped with E8; a camera-view unit case covers it.
+  - `low` `patch` V6 R8CAP-E2E-001 does not assert the new photo's reading is left alone — negative assertion added (grouped with E8).
+  - `low` `patch` V7 DG-2's equal-value guard is unexercised — a field typed to the suggested value in R8CAP-E2E-006 (no discard; provenance after a sync).
+  - `low` `patch` V8 R8CAP-E2E-005's ack half cannot fail (skipped on absence; the regex accepts a bare "Lendo…") — made a real check or narrowed to what it asserts.
+  - `medium` `patch` V9 (other) the picker-path omission is also a behaviour defect — duplicate of V5, same patch.
+- also patched (orchestrator): `pnpm lint` reported 27 warnings against main's 24, all three new `page.waitForTimeout` in `e2e/review-photo-failures.spec.ts`.
 
 ## Design Notes
 

@@ -115,6 +115,24 @@ describe('R8CAP-UNIT the screen wake lock', () => {
     release();
   });
 
+  it('touches made while nothing holds the lock still count: a sheet opened 10 min after the first one, right after a touch, takes the lock', async () => {
+    const lock = fakeWakeLock();
+    setKeepScreenOn(true);
+    const first = holdScreenWakeLock();
+    await settle();
+    first();
+    await settle();
+    expect(lock.held()).toHaveLength(0);
+    // Eleven minutes away from any holder, then a touch on another screen, then a sheet opens.
+    await vi.advanceTimersByTimeAsync(WAKE_LOCK_IDLE_MS + 60_000);
+    window.dispatchEvent(new Event('pointerdown'));
+    const second = holdScreenWakeLock();
+    await settle();
+    expect(lock.request).toHaveBeenCalledTimes(2);
+    expect(lock.held()).toHaveLength(1);
+    second();
+  });
+
   it('a hidden page gives it back (the browser drops it too); visible again, it is taken again', async () => {
     const lock = fakeWakeLock();
     setKeepScreenOn(true);

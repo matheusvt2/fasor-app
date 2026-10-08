@@ -299,16 +299,20 @@ export function useCamera(
    * FLD-V1: whether a shot's failure (or success) is said by the open camera itself: true while
    * the view is open and not closing, so the toast stays for a closed or closing camera.
    */
-  const cameraSays = (outcome: 'saved' | 'failed'): boolean => {
-    if (!mounted.current || sessionRef.current === null || finishing.current) return false;
-    setShotFailed(outcome === 'failed');
-    return true;
-  };
+  const cameraSays =
+    (session: CameraSession | null) =>
+    (outcome: 'saved' | 'failed'): boolean => {
+      // Only the session the shot was taken in, while it is open and not closing.
+      if (!mounted.current || session === null || sessionRef.current !== session || finishing.current === session) return false;
+      setShotFailed(outcome === 'failed');
+      return true;
+    };
 
   /** One grab of the shutter: tracked until it resolves, then saved (or reported). */
   const grab = (frame: Promise<Blob | ImageBitmap>) => {
     const target = tapTarget.current ?? sessionRef.current?.target ?? null;
     tapTarget.current = null;
+    const says = cameraSays(sessionRef.current);
     // The index this tap's target was taken at (`shutter` counted it just before).
     const shot = taken.current - 1;
     const done: Promise<void> = frame.then(
@@ -318,8 +322,12 @@ export function useCamera(
           return;
         }
         shotGrabbed.current = true;
-        capture.shoot(photo, target, cameraSays);
-        options.onShot?.(target);
+        const onShot = options.onShot;
+        // CAPT-V1: the shot counts once it is stored, never at the hand-over.
+        capture.shoot(photo, target, (outcome) => {
+          if (outcome === 'saved') onShot?.(target);
+          return says(outcome);
+        });
       },
       () => {
         setBurst((n) => Math.max(0, n - 1));
@@ -329,7 +337,7 @@ export function useCamera(
           taken.current = shot;
           setTakenCount(shot);
         }
-        if (!cameraSays('failed')) showToast(copy.photos.failedToast);
+        if (!says('failed')) showToast(copy.photos.failedToast);
       },
     );
     grabs.current.add(done);
@@ -338,7 +346,8 @@ export function useCamera(
     if (single) finish();
   };
 
-  const finishing = useRef(false);
+  /** The session "Concluir" (or a single shot) is closing, while its saves are awaited; null when none. */
+  const finishing = useRef<CameraSession | null>(null);
 
   const end = (ending: CameraSession | null) => {
     setSaving(false);
@@ -355,10 +364,10 @@ export function useCamera(
 
   /** "Concluir fotos" waits for every pending commit, then closes and says so. */
   const finish = () => {
-    if (finishing.current) return;
-    finishing.current = true;
-    setSaving(true);
     const ending = sessionRef.current;
+    if (ending === null || finishing.current === ending) return;
+    finishing.current = ending;
+    setSaving(true);
     // A shot whose frame is still being read joins the commit queue before it is awaited,
     // and the stream stays live until then.
     // W-13: whatever happens to the settle (a refused commit that rejects), the view closes,
@@ -371,9 +380,12 @@ export function useCamera(
       })
       .catch(() => undefined)
       .finally(() => {
-        finishing.current = false;
-        end(ending);
-        setBurst(0);
+        if (finishing.current === ending) finishing.current = null;
+        // Closed by its close button meanwhile, maybe reopened: only the session this started
+        // closes; a newer one stays open with its own count.
+        const current = sessionRef.current;
+        if (current === ending) end(ending);
+        if (current === ending || current === null) setBurst(0);
         // A single shot whose frame could not be read already said so ("failedToast").
         if (!allSaved) return;
         if (!single) showToast(reachable ? copy.photos.doneToastOnline : copy.photos.doneToast);
@@ -386,7 +398,12 @@ export function useCamera(
     fallbackTarget.current = null;
     if (file === undefined || context === null) return;
     setBurst(1);
-    capture.shoot(file, context);
+    const onShot = options.onShot;
+    capture.shoot(file, context, (outcome) => {
+      if (outcome === 'saved') onShot?.(context);
+      // The camera view is not open: a failure is the toast.
+      return false;
+    });
     void capture.settle().then((allSaved) => {
       setBurst(0);
       if (allSaved) showToast(single ? (reachable ? copy.photos.doneOneToastOnline : copy.photos.doneOneToast) : reachable ? copy.photos.doneToastOnline : copy.photos.doneToast);
@@ -757,7 +774,17 @@ function CameraView({
             </div>
           )}
           <p className="cam-hint" aria-live="polite" data-state={refused ? 'refused' : failed ? 'failed' : undefined}>
-            {refused ? t.refusedHint : failed ? t.failedToast : (hint ?? t.hint)}
+            {refused ? (
+              t.refusedHint
+            ) : failed ? (
+              <>
+                {t.failedToast}
+                {/* E9-Q7: the row the next shot fills stays named after the failure. */}
+                {hint === null ? null : <> {hint}</>}
+              </>
+            ) : (
+              (hint ?? t.hint)
+            )}
           </p>
           <div className="cam-bottom">
             <span className="cam-link" aria-hidden="true" />

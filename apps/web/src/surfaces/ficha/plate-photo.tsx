@@ -97,8 +97,8 @@ export function PlatePendingRow() {
 export interface PlateRetake {
   relatorioId: string;
   target: () => CaptureTarget;
-  /** The shot was read and handed to the capture: the older plate photos' readings are cancelled here. */
-  onShot: () => void;
+  /** The shot is stored (with `target`, whose `fileId` is the new photo's): the older plate photos' readings are cancelled here. */
+  onShot: (target: CaptureTarget) => void;
 }
 
 /** The plate photo's row: the tile (opens the viewer), its caption and meta, and the reading line. */
@@ -141,7 +141,7 @@ export function PlatePhotoRow({
     retake?.relatorioId ?? '',
     () => latestRetake.current?.target() ?? { blockId: tile.block_id, itemKey: null, caption: PLATE_CAPTION },
     opener,
-    { singleShot: true, onShot: () => latestRetake.current?.onShot() },
+    { singleShot: true, onShot: (target) => latestRetake.current?.onShot(target) },
   );
   // F-13: with the server reachable a queued reading is about to run: "Lendo…", never the
   // waiting words, which are for a device without signal, or a photo whose upload failed
