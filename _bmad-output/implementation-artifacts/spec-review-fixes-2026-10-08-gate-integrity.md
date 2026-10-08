@@ -94,3 +94,16 @@ The JSON report names spec files relative to `testDir` (`rootDir: /workspace/e2e
 ## Auto Run Result
 
 Status: done. Implemented by the orchestrator in place of `bmad-dev-opus-high` (no subagent tool in this session). Story gate: lint, static, test:api 550/550, test:unit 3097/3097 twice in a row; touched specs and mutation runs as listed in the PR body.
+
+## Independent review (2026-10-08, PR #116)
+
+16 findings kept. Fixed in the batch branch:
+
+- r8gate-tests-1: the 5 s `asyncUtilTimeout` left `apps/web/src/test-setup.ts` (the shared setup is back to its `origin/main` form) and is set only in `session.test.tsx` and `theme.test.tsx`, whose waits end on a Dexie open or write on fake-indexeddb. A `camera-view.test.tsx` guard keeps the default ceiling under `TAKE_PHOTO_TIMEOUT_MS`, so its rejection tests cannot pass on the timeout's fallback.
+- r8gate-tests-6, r8gate-rules-7, r8gate-correctness-2: `specFilters` walks the arguments as Commander does for `playwright test`, from a table of every option of Playwright 1.63 with its arity (`PLAYWRIGHT_TEST_OPTIONS`); a tooling test compares the table with the installed Playwright's own options and the filters with its own parser.
+- r8gate-tests-3: a spec path counts as matched only through a test that ran: a spec whose every test skipped, or a `:line[:column]` on which no ran test or describe starts, fails the run. The message is now "spec path ran no test", and a run of skipped tests only counts as no test run.
+- r8gate-rules-2: `playwright/no-wait-for-timeout` is a warning on `e2e/**` with an allow-list (`e2e/support/taps.ts`, `e2e/lost-taps.durability.spec.ts`).
+- r8gate-rules-1: `deferred-work.md` closes the E13-A2 row and carries this batch's deferrals, the three above and the review's known-open findings.
+- r8gate-rules-4: `docs/kbs/log.md` keeps both wave-1 lines when `origin/main` is merged.
+
+Known open, each a ledger row: r8gate-correctness-1, r8gate-correctness-3 with r8gate-tests-4, r8gate-tests-2, r8gate-tests-5, r8gate-rules-5. r8gate-rules-3 (files outside the listed ownership) and r8gate-rules-6 (a note for PR #115) are recorded in the PR body.
