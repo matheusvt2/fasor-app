@@ -167,3 +167,53 @@ describe('8.4-UNIT buildReadingSuggestions drops', () => {
     expect(dropped.every((d) => d.reason === 'unknown_key')).toBe(true);
   });
 });
+
+describe('AIR-1 and AIR-V1 buildReadingSuggestions: units as printed, bare years', () => {
+  const box = (n: number): [number, number, number, number] => [10 * n, 10, 10 * n + 8, 20];
+  const plateOcr = ocrReadResultSchema.parse({
+    image: { width: 1600, height: 1100 },
+    tokens: [
+      { id: 't0', text: '13.800', bbox: box(0), confidence: 0.99 },
+      { id: 't1', text: 'V', bbox: box(1), confidence: 0.99 },
+      { id: 't2', text: '2012', bbox: box(2), confidence: 0.99 },
+      { id: 't3', text: '1,5', bbox: box(3), confidence: 0.99 },
+      { id: 't4', text: 'MVA', bbox: box(4), confidence: 0.99 },
+    ],
+    preprocessing_applied: false,
+  });
+  const values = (rows: StructuringOutput['values']): StructuringOutput => structuringOutputSchema.parse({ values: rows });
+  const value = (key: string, v: unknown, ids: string[]) => ({ key, value: v, ocr_token_ids: ids, confidence: 0.9 }) as StructuringOutput['values'][number];
+  const rowOf = (rows: { target_path: string }[], key: string) => rows.find((row) => row.target_path.endsWith(`/${key}`));
+
+  it('"13.800 V" on the kV field is 13,8 kV suggested; "1,5 MVA" is 1500 kVA; a bare year is suggested as printed', () => {
+    const built = buildReadingSuggestions(
+      input({
+        ocr: plateOcr,
+        output: values([
+          value('tensao_nominal_at', { raw: '13800', unit: 'V', state: 'measured' }, ['t0', 't1']),
+          value('data_fabricacao', '2012', ['t2']),
+          value('potencia_nominal', { raw: '1.5', unit: 'MVA', state: 'measured' }, ['t3', 't4']),
+        ]),
+      }),
+    );
+    expect(built.dropped).toEqual([]);
+    expect(rowOf(built.rows, 'tensao_nominal_at')).toMatchObject({ value: { raw: '13.8', unit: 'kV', state: 'measured' }, trust: 'suggested' });
+    expect(rowOf(built.rows, 'data_fabricacao')).toMatchObject({ value: '2012', trust: 'suggested' });
+    expect(rowOf(built.rows, 'potencia_nominal')).toMatchObject({ value: { raw: '1500', unit: 'kVA', state: 'measured' }, trust: 'suggested' });
+  });
+
+  it('a model that drops the unit no longer makes a 1,000 times wrong trusted value', () => {
+    const built = buildReadingSuggestions(input({ ocr: plateOcr, output: values([value('tensao_nominal_at', { raw: '13800', unit: null, state: 'measured' }, ['t0', 't1'])]) }));
+    expect(rowOf(built.rows, 'tensao_nominal_at')).toMatchObject({ value: { raw: '13.8', unit: 'kV' }, trust: 'suggested' });
+  });
+
+  it('a wrong digit stays a check after the conversion: the digit rule reads the printed raw', () => {
+    const built = buildReadingSuggestions(input({ ocr: plateOcr, output: values([value('tensao_nominal_at', { raw: '13900', unit: 'V', state: 'measured' }, ['t0', 't1'])]) }));
+    expect(rowOf(built.rows, 'tensao_nominal_at')).toMatchObject({ value: { raw: '13.9', unit: 'kV' }, trust: 'verify' });
+  });
+
+  it('a model raw that kept the pt-BR thousands dot is the printed number, as a check', () => {
+    const built = buildReadingSuggestions(input({ ocr: plateOcr, output: values([value('tensao_nominal_at', { raw: '13.800', unit: 'V', state: 'measured' }, ['t0', 't1'])]) }));
+    expect(rowOf(built.rows, 'tensao_nominal_at')).toMatchObject({ value: { raw: '13.8', unit: 'kV' }, trust: 'verify' });
+  });
+});

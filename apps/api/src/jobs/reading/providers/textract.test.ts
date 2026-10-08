@@ -17,7 +17,7 @@ import {
 import { ocrReadResultSchema, type OcrImage } from '@app/domain';
 import sharp from 'sharp';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { isPermanentReadingError, PermanentReadingError, ProviderError, ProviderTimeoutError } from './errors.ts';
+import { isPermanentReadingError, PermanentReadingError, ProviderError, ProviderRefusedError, ProviderTimeoutError } from './errors.ts';
 import { TEXTRACT_MAX_BYTES, textractProvider, textractTokens, type TextractLike } from './textract.ts';
 
 /*
@@ -198,9 +198,7 @@ describe('11.7 Textract failures', () => {
     ['DocumentTooLargeException', new DocumentTooLargeException(meta)],
     ['AccessDeniedException', new AccessDeniedException(meta)],
     ['InvalidS3ObjectException', new InvalidS3ObjectException(meta)],
-    ['CredentialsProviderError', credentials],
     ['UnrecognizedClientException', Object.assign(new Error('refused'), { name: 'UnrecognizedClientException', $fault: 'client' })],
-    ['ExpiredTokenException', Object.assign(new Error('refused'), { name: 'ExpiredTokenException', $fault: 'client' })],
     ['InvalidSignatureException', Object.assign(new Error('refused'), { name: 'InvalidSignatureException', $fault: 'client' })],
     ['ValidationException', Object.assign(new Error('refused'), { name: 'ValidationException', $fault: 'client' })],
     // A client fault no list names: permanent by its $fault.
@@ -215,6 +213,20 @@ describe('11.7 Textract failures', () => {
     });
   }
 
+  // API-V2 (review 2026-10-08): a refusal (rights, signature, request shape) is told apart from a bad document.
+  for (const name of ['AccessDeniedException', 'UnrecognizedClientException', 'InvalidSignatureException', 'ValidationException', 'SignatureDoesNotMatch']) {
+    it(`${name} is a refusal (ProviderRefusedError)`, async () => {
+      const thrown = permanent.find(([row]) => row === name)![1];
+      expect(await failure(read(failingWith(thrown), wide))).toBeInstanceOf(ProviderRefusedError);
+    });
+  }
+  for (const name of ['InvalidParameterException', 'UnsupportedDocumentException', 'BadDocumentException', 'DocumentTooLargeException', 'InvalidS3ObjectException']) {
+    it(`${name} is a document fault, not a refusal`, async () => {
+      const thrown = permanent.find(([row]) => row === name)![1];
+      expect(await failure(read(failingWith(thrown), wide))).not.toBeInstanceOf(ProviderRefusedError);
+    });
+  }
+
   const serverFault = Object.assign(new Error('boom'), { name: 'SomethingNew', $fault: 'server' });
   const network = Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' });
   const transient: [string, unknown][] = [
@@ -226,6 +238,9 @@ describe('11.7 Textract failures', () => {
     ['an unlisted server fault (ServiceUnavailable)', Object.assign(new Error('unavailable'), { name: 'ServiceUnavailable', $fault: 'server' })],
     ['a client fault the SDK marks retryable', Object.assign(new Error('try again'), { name: 'RequestTimeoutException', $fault: 'client', $retryable: {} })],
     ['a network error', network],
+    // AIR-17/API-1 (review 2026-10-08): a credential fetch or refresh that fails passes on a later attempt, as on Bedrock.
+    ['CredentialsProviderError', credentials],
+    ['ExpiredTokenException', Object.assign(new Error('expired'), { name: 'ExpiredTokenException', $fault: 'client' })],
   ];
   for (const [name, thrown] of transient) {
     it(`${name} is transient`, async () => {

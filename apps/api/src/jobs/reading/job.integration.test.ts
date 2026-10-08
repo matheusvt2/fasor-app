@@ -307,6 +307,11 @@ describe('8.4-INT reading job attempts', () => {
       expect(mine).toHaveLength(values.length);
       expect(mine.every((s) => s.status === 'pending')).toBe(true);
       expect(mine.map((s) => s.target_path).sort()).toEqual(values.map((v) => `sheet/${block.id}/nameplate/${v.key}`).sort());
+      if (type === 'tp') {
+        // AIR-1 and AIR-V1 (review 2026-10-08): "13.800 V" lands as 13,8 kV and a bare year as printed, both trusted.
+        expect(mine.find((s) => s.target_path.endsWith('/tensao_nominal_at'))).toMatchObject({ value: { raw: '13.8', unit: 'kV', state: 'measured' }, trust: 'suggested' });
+        expect(mine.find((s) => s.target_path.endsWith('/data_fabricacao'))).toMatchObject({ value: '2020', trust: 'suggested' });
+      }
       const [run] = await runs(id);
       expect(run).toMatchObject({ attempt: 1, outcome: 'ok', ocr_provider: 'fake', model: 'fake', prompt_version: 'fake-1' });
     }, 60_000);

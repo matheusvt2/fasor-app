@@ -1,11 +1,11 @@
 import type { ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import { AUDIT_FINDING_KINDS, type AuditRef } from '@app/domain';
 import { describe, expect, it } from 'vitest';
-import { usdFor, type BedrockConverseOutput, type BedrockLike } from '../reading/providers/bedrock.ts';
-import { AiFeaturesOffError, isPermanentReadingError, ProviderError } from '../reading/providers/errors.ts';
+import { bedrockClientSource, usdFor, type BedrockConverseOutput, type BedrockLike } from '../../ai/bedrock.ts';
+import { AiFeaturesOffError, isPermanentReadingError, ProviderError, ProviderRefusedError } from '../../ai/errors.ts';
+import { createReadingProviders } from '../reading/providers/index.ts';
 import { AUDIT_KIND_RULES, AUDIT_PROMPT_VERSION, AUDIT_SYSTEM, AUDIT_TOOL, AUDIT_TOOL_SCHEMA, auditPrompt } from './prompt.ts';
 import { bedrockAuditProvider, createAuditProvider, fakeAuditProvider, FAKE_AUDIT_MODEL, resolveFakeSelector } from './provider.ts';
-import { bedrockClientSource } from '../reading/providers/bedrock.ts';
 
 /*
  * Story 13.8: the audit's prompt, tool and providers, with no database and no cloud: the
@@ -131,6 +131,47 @@ describe('13.8-UNIT-012 the Bedrock audit on an injected client', () => {
     });
     const provider = bedrockAuditProvider({ source: bedrockClientSource({ region: 'us-east-1', client }), modelId: HAIKU });
     await expect(provider.audit({ text: 'x', refs })).rejects.toBeInstanceOf(ProviderError);
+  });
+
+  it('API-V2: a denied call is a refusal, which the job records as provider_refused, not invalid_output', async () => {
+    const client = fakeClient(async () => {
+      throw Object.assign(new Error('explicit deny'), { name: 'AccessDeniedException', $fault: 'client' });
+    });
+    const provider = bedrockAuditProvider({ source: bedrockClientSource({ region: 'us-east-1', client }), modelId: HAIKU });
+    await expect(provider.audit({ text: 'x', refs })).rejects.toBeInstanceOf(ProviderRefusedError);
+  });
+
+  it('a credential hiccup is transient', async () => {
+    const client = fakeClient(async () => {
+      throw Object.assign(new Error('Could not load credentials from any providers'), { name: 'CredentialsProviderError' });
+    });
+    const provider = bedrockAuditProvider({ source: bedrockClientSource({ region: 'us-east-1', client }), modelId: HAIKU });
+    const error = await provider.audit({ text: 'x', refs }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ProviderError);
+    expect(isPermanentReadingError(error)).toBe(false);
+  });
+});
+
+describe('API-3 (review 2026-10-08) one Bedrock client per process', () => {
+  it('the reading providers and the audit given one source build one client, on the first call', async () => {
+    const client = fakeClient(async () => toolAnswer({ findings: [] }));
+    let built = 0;
+    const source = bedrockClientSource({
+      region: 'us-east-1',
+      createClient: () => {
+        built += 1;
+        return client;
+      },
+    });
+    const config = { LLM_PROVIDER: 'bedrock', OCR_PROVIDER: 'fake', OCR_SERVICE_URL: 'http://ocr:8000', AI_FEATURES: 'on' } as const;
+    const reading = createReadingProviders(config, { bedrock: { source } });
+    const audit = createAuditProvider(config, { bedrock: { source } });
+    expect(built).toBe(0);
+    await audit.audit({ text: 'x', refs });
+    const providers = reading({ photo_sha256: 'e'.repeat(64), reading_kind: 'caption', block_type: null, table_key: null });
+    await providers.prose.describe({ image: { bytes: new Uint8Array([1]), mime: 'image/jpeg' }, kind: 'caption', context: { block_type: null, item_label: null } }).catch(() => undefined);
+    expect(built).toBe(1);
+    expect(client.commands.length).toBeGreaterThanOrEqual(2);
   });
 });
 

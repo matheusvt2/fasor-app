@@ -1,7 +1,8 @@
 import { DetectDocumentTextCommand, TextractClient, type Block, type DetectDocumentTextCommandOutput } from '@aws-sdk/client-textract';
 import { ocrReadResultSchema, type OcrImage, type OcrProvider, type OcrReadResult, type OcrToken } from '@app/domain';
 import sharp from 'sharp';
-import { PermanentReadingError, ProviderError, ProviderTimeoutError } from './errors.ts';
+import { callWithTimeout, classifyAwsError } from '../../../ai/aws.ts';
+import { PermanentReadingError } from './errors.ts';
 
 /*
  * Story 11.7: the `textract` OCR provider, Amazon Textract `DetectDocumentText` (synchronous,
@@ -46,23 +47,19 @@ export function createTextractClient(region: string): TextractLike {
   return new TextractClient({ region, maxAttempts: 1 });
 }
 
-/** Client faults no retry fixes: the request, the document or the caller's rights are wrong. */
-const PERMANENT_ERRORS = new Set([
+/**
+ * Textract's input faults: the document itself is wrong, so no retry fixes it. Refusals
+ * (`AccessDeniedException`, also the budget action's deny, a bad signature) and the transient
+ * credential and throttle errors are the shared `classifyAwsError`'s (review 2026-10-08,
+ * AIR-17/API-1: a credential hiccup retries here as it does on Bedrock).
+ */
+const TEXTRACT_INPUT_ERRORS: ReadonlySet<string> = new Set([
   'InvalidParameterException',
   'UnsupportedDocumentException',
   'BadDocumentException',
   'DocumentTooLargeException',
-  'AccessDeniedException',
   'InvalidS3ObjectException',
-  'CredentialsProviderError',
-  'UnrecognizedClientException',
-  'ExpiredTokenException',
-  'InvalidSignatureException',
-  'ValidationException',
 ]);
-
-/** Client faults that are throttles or limits: a later attempt may pass. */
-const THROTTLE_ERRORS = new Set(['ThrottlingException', 'ProvisionedThroughputExceededException', 'LimitExceededException']);
 
 /** A pixel coordinate of a normalized one; the rounding drops float noise before floor/ceil. */
 function pixel(normalized: number, size: number, round: (n: number) => number): number {
@@ -122,19 +119,9 @@ export function textractTokens(blocks: readonly Block[], width: number, height: 
   return tokens;
 }
 
-/** How a failed `send` is classified (the matrix of Story 11.7). */
+/** How a failed `send` is classified (the matrix of Story 11.7, credentials and refusals as `classifyAwsError`). */
 export function classifyTextractError(error: unknown): Error {
-  const name = error instanceof Error ? error.name : 'UnknownError';
-  const message = error instanceof Error ? error.message : String(error);
-  const fault = (error as { $fault?: unknown } | null)?.$fault;
-  const retryable = (error as { $retryable?: unknown } | null)?.$retryable;
-  if (PERMANENT_ERRORS.has(name)) return new PermanentReadingError(`textract: ${name}: ${message}`, { cause: error });
-  // Any other client fault (a signature mismatch, a new validation error) is permanent too,
-  // unless the SDK marks it retryable or it is a throttle or limit.
-  if (fault === 'client' && !retryable && !THROTTLE_ERRORS.has(name)) return new PermanentReadingError(`textract: ${name}: ${message}`, { cause: error });
-  // Throttling, quota, any `$fault: 'server'`, a dropped connection and anything else are
-  // transient: pg-boss tries again.
-  return new ProviderError(`textract: ${name}: ${message}`, { cause: error });
+  return classifyAwsError('textract', error, { permanent: TEXTRACT_INPUT_ERRORS });
 }
 
 export function textractProvider(options: TextractProviderOptions): OcrProvider {
@@ -155,17 +142,13 @@ export function textractProvider(options: TextractProviderOptions): OcrProvider 
         throw new PermanentReadingError('textract: the image cannot be decoded', { cause: error });
       }
       client ??= createClient(options.region);
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      let output: Pick<DetectDocumentTextCommandOutput, 'Blocks'>;
-      try {
-        output = await client.send(new DetectDocumentTextCommand({ Document: { Bytes: image.bytes } }), { abortSignal: controller.signal });
-      } catch (error) {
-        if (controller.signal.aborted) throw new ProviderTimeoutError(`textract: no answer within ${timeoutMs} ms`);
-        throw classifyTextractError(error);
-      } finally {
-        clearTimeout(timer);
-      }
+      const textract = client;
+      const output = await callWithTimeout(
+        'textract',
+        timeoutMs,
+        (abortSignal) => textract.send(new DetectDocumentTextCommand({ Document: { Bytes: image.bytes } }), { abortSignal }),
+        classifyTextractError,
+      );
       const result = { image: size, tokens: textractTokens(output.Blocks ?? [], size.width, size.height), preprocessing_applied: false };
       const parsed = ocrReadResultSchema.safeParse(result);
       // The mapping is deterministic: the same answer fails the same way on every attempt.
