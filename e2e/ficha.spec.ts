@@ -837,7 +837,7 @@ const seccionadoraPlate = (relatorioId: string, blockId: string): OpDraft[] =>
   );
 const stepHost = (page: Page, step: string) => page.locator(`#ficha-step-${step}`);
 
-test('@p0 12.1-E2E-007 D-2: the NC chip completing the checklist keeps it open; a pointer focus below leaves it open; the stepper and Tab collapse the section left; an out-of-limit Ensaios step never collapses', async ({ page }) => {
+test('@p0 12.1-E2E-011 D-2: the NC chip completing the checklist keeps it open; a pointer focus below leaves it open; the stepper and Tab collapse the section left; an out-of-limit Ensaios step never collapses', async ({ page }) => {
   test.setTimeout(150_000);
   const { relatorioId } = await openRelatorio(page, 1280);
   await openEnel(page);
@@ -913,7 +913,7 @@ test('@p0 12.1-E2E-007 D-2: the NC chip completing the checklist keeps it open; 
   await expect(stepHost(page, 'placa')).toHaveClass(/is-collapsed/);
 });
 
-test('@p1 12.1-E2E-008 J-15: once the checklist is complete the Sticky action bar drops its bulk mirror (its focus goes to the list head); the list head keeps the disabled action with its reason', async ({ page }) => {
+test('@p1 12.1-E2E-012 J-15: once the checklist is complete the Sticky action bar drops its bulk mirror (its focus goes to the list head); the list head keeps the disabled action with its reason', async ({ page }) => {
   test.setTimeout(120_000);
   const { relatorioId } = await openRelatorio(page, 1280);
   await openEnel(page);

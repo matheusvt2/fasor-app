@@ -27,6 +27,7 @@
     "@playwright/test": "1.63.0",
     "@types/node": "^24.0.0",
     "eslint": "^10.11.0",
+    "eslint-plugin-playwright": "2.12.1",
     "globals": "^16.0.0",
     "postgres": "^3.4.9",
     "tsx": "^4.23.0",

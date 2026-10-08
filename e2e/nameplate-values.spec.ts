@@ -37,7 +37,7 @@ interface EntityRecord {
 const outbox = (page: Page) => readStore<OutboxRow>(page, database, 'outbox');
 const field = (page: Page, key: string): Locator => page.locator(`#ficha-nameplate [data-field-key="${key}"]`);
 
-test('@p0 E78-Q3 E78-Q4 8.1-E2E-005 "Copiar da última visita" of "07/2025" stores 2025-07 and shows it; an unregistered manufacturer shows its name and one tap on "Criar SIEMENS?" registers it', async ({
+test('@p0 E78-Q3 E78-Q4 8.1-E2E-010 "Copiar da última visita" of "07/2025" stores 2025-07 and shows it; an unregistered manufacturer shows its name and one tap on "Criar SIEMENS?" registers it', async ({
   page,
 }) => {
   test.setTimeout(180_000);

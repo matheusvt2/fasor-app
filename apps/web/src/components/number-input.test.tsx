@@ -1,16 +1,31 @@
 import { numberEchoText, parseReadingPtBr } from '@app/domain';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../state/toast.tsx';
 import { useNumberInput, type ParsedNumber } from './number-input.tsx';
 
 vi.mock('../state/drafts.tsx', () => ({ useDraftSource: () => undefined }));
 
-/** A field whose commits land in "the store" after `delay` ms, like a Dexie live query. */
+/**
+ * A field whose commits land in "the store" after `delay` ms, like a Dexie live query.
+ *
+ * E13-A2: the store timers are cleared on unmount. A test that ends right after a commit
+ * (the last one here commits with a 50 ms delay and returns) left its timer running past
+ * the file's teardown, and its `setRaw` then fired on a torn-down React tree: an
+ * unhandled error that turned a green `test:unit` red under load.
+ */
 function Harness({ onCommit, delay = 0, external }: { onCommit: (value: ParsedNumber | null) => void; delay?: number; external?: { set: (raw: string) => void } }) {
   const [raw, setRaw] = useState<string | null>(null);
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      for (const timer of pending) clearTimeout(timer);
+      pending.clear();
+    };
+  }, []);
   if (external !== undefined) external.set = (next) => setRaw(next);
   const number = useNumberInput({
     storedText: raw ?? '',
@@ -18,7 +33,11 @@ function Harness({ onCommit, delay = 0, external }: { onCommit: (value: ParsedNu
     parse: (text) => parseReadingPtBr(text, { units: ['A', 'mA'], defaultUnit: 'A' }),
     commit: (value) => {
       onCommit(value);
-      setTimeout(() => setRaw(value?.raw ?? null), delay);
+      const timer = setTimeout(() => {
+        timers.current.delete(timer);
+        setRaw(value?.raw ?? null);
+      }, delay);
+      timers.current.add(timer);
     },
     echo: (value) => numberEchoText(value.raw, value.unit),
     draft: { surface: 'ficha', entityId: 'e', field: 'f' },

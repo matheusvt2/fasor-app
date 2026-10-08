@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import type { AccountResponse, UserProfile } from '@app/domain';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { databaseName, openDatabase } from '../db/schema.ts';
 import { clearLastSession, readAiFeatures, readLastSession, readReAuthRequired, writeAiFeatures, writeLastSession, writeReAuthRequired } from './last-session.ts';
@@ -70,6 +70,11 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  // E13-A2: unmount first. This hook runs before the setup file's `cleanup()` (after-hooks
+  // run in reverse order), so the provider of the test that just ended was still mounted
+  // while its database was deleted: a boot still in flight under load reopened it ("Another
+  // connection wants to delete database") and wrote into the next test's device state.
+  cleanup();
   current?.database?.close();
   await openDatabase(profile.id).delete();
 });

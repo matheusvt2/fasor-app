@@ -16,10 +16,18 @@ import type { E2eGroup } from '../e2e/support/groups.ts';
  * After both, it writes `test-results/e2e-report/summary.json` (per group and in total:
  * tests, passed, failed, skipped, flaky, duration, and every test's title with its
  * outcome) and prints the totals, so runs can be compared title by title.
+ *
+ * TST-V1 (review 2026-10-08): each group runs with `--pass-with-no-tests`, because a spec
+ * path of the serial group matches nothing in the parallel group and the other way round.
+ * So the command checks the spec paths itself: a spec path (a positional argument) that
+ * matched no test in either group fails the run, and a typo can no longer turn a story
+ * gate green on the other paths alone.
  */
 
 const root = resolve(import.meta.dirname, '..');
 const REPORT_DIR = resolve(root, 'test-results/e2e-report');
+/** Playwright's `testDir`: the JSON report names each spec file relative to it. */
+const E2E_DIR = resolve(root, 'e2e');
 
 type Outcome = 'expected' | 'unexpected' | 'flaky' | 'skipped';
 
@@ -57,6 +65,65 @@ export interface GroupSummary {
   results: Record<string, Outcome>;
   /** Errors outside any test (global setup or teardown, a file that failed to load). */
   errors: string[];
+  /** Every spec file at least one test of this group came from, relative to `e2e/`. */
+  files: string[];
+}
+
+/**
+ * The Playwright options that take a value as the next argument (`--project x`), so the
+ * value is not read as a spec path. Options written `--name=value` carry their own value.
+ */
+const VALUE_OPTIONS = new Set([
+  '--grep',
+  '-g',
+  '--grep-invert',
+  '--project',
+  '--workers',
+  '-j',
+  '--reporter',
+  '--retries',
+  '--repeat-each',
+  '--timeout',
+  '--global-timeout',
+  '--max-failures',
+  '--shard',
+  '--config',
+  '-c',
+  '--output',
+  '--trace',
+  '--tsconfig',
+]);
+
+/** The spec paths (positional arguments, Playwright's file filters) of an e2e command. */
+export function specFilters(args: readonly string[]): string[] {
+  const filters: string[] = [];
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i]!;
+    if (VALUE_OPTIONS.has(arg)) {
+      i += 1;
+      continue;
+    }
+    if (arg.startsWith('-')) continue;
+    filters.push(arg);
+  }
+  return filters;
+}
+
+/**
+ * The spec paths that matched no test of the run. Mirrors Playwright's own reading of a
+ * file filter (`createFileFiltersFromArguments`): an optional `:line[:column]` suffix is
+ * dropped, `/re/flags` is a regular expression, anything else is a case-insensitive
+ * regular expression tested against the absolute path of each spec file.
+ */
+export function unmatchedFilters(filters: readonly string[], files: readonly string[], testDir: string): string[] {
+  const paths = files.map((file) => resolve(testDir, file));
+  return filters.filter((filter) => {
+    const located = /^(.*?):(\d+):?(\d+)?$/.exec(filter);
+    const pattern = located ? located[1]! : filter;
+    const literal = /^\/(.*)\/([gi]*)$/.exec(pattern);
+    const re = literal ? new RegExp(literal[1]!, literal[2]!.replace('g', '')) : new RegExp(pattern, 'i');
+    return !paths.some((path) => re.test(path));
+  });
 }
 
 /** Drops every `--workers`/`-j` argument (with its value), for the serial group. */
@@ -80,18 +147,22 @@ export function groupArgs(group: E2eGroup, args: readonly string[]): string[] {
   return group === 'parallel' ? [...base, ...args] : [...base, ...withoutWorkers(args), '--workers=1'];
 }
 
-function collect(suite: JsonSuite, path: string[], into: Record<string, Outcome>): void {
+function collect(suite: JsonSuite, path: string[], into: Record<string, Outcome>, files: Set<string>): void {
   const here = suite.title === '' ? path : [...path, suite.title];
   for (const spec of suite.specs ?? []) {
-    for (const test of spec.tests) into[[test.projectName, ...here, spec.title].join(' > ')] = test.status;
+    for (const test of spec.tests) {
+      into[[test.projectName, ...here, spec.title].join(' > ')] = test.status;
+      files.add(spec.file);
+    }
   }
-  for (const child of suite.suites ?? []) collect(child, here, into);
+  for (const child of suite.suites ?? []) collect(child, here, into, files);
 }
 
 /** Reads one group's JSON report into its summary; a missing report counts as a failure. */
 export function summarize(group: E2eGroup, exitCode: number, report: JsonReport | null): GroupSummary {
   const results: Record<string, Outcome> = {};
-  for (const suite of report?.suites ?? []) collect(suite, [], results);
+  const files = new Set<string>();
+  for (const suite of report?.suites ?? []) collect(suite, [], results, files);
   const outcomes = Object.values(results);
   const count = (outcome: Outcome) => outcomes.filter((value) => value === outcome).length;
   return {
@@ -106,6 +177,7 @@ export function summarize(group: E2eGroup, exitCode: number, report: JsonReport 
     flaky: count('flaky'),
     results,
     errors: (report?.errors ?? []).map((error) => error.message ?? String(error)),
+    files: [...files].sort(),
   };
 }
 
@@ -134,13 +206,17 @@ export function runBothGroups(runGroup: (group: E2eGroup) => GroupSummary): [Gro
   return [parallel, serial];
 }
 
-/** The combined result: exit 1 when either group failed or neither ran a test. */
-export function combine(groups: readonly GroupSummary[], durationMs: number) {
+/**
+ * The combined result: exit 1 when either group failed, neither ran a test, or a spec path
+ * of the command (`filters`) matched no test in either group (TST-V1).
+ */
+export function combine(groups: readonly GroupSummary[], durationMs: number, filters: readonly string[] = [], testDir = E2E_DIR) {
   const sum = (key: 'tests' | 'passed' | 'failed' | 'skipped' | 'flaky') => groups.reduce((total, group) => total + group[key], 0);
   const total = { tests: sum('tests'), passed: sum('passed'), failed: sum('failed'), skipped: sum('skipped'), flaky: sum('flaky'), durationMs };
   const results = Object.assign({}, ...groups.map((group) => group.results)) as Record<string, Outcome>;
-  const failed = groups.some((group) => group.exitCode !== 0) || total.tests === 0;
-  return { exitCode: failed ? 1 : 0, total, titles: Object.keys(results).sort() };
+  const unmatched = unmatchedFilters(filters, [...new Set(groups.flatMap((group) => group.files))], testDir);
+  const failed = groups.some((group) => group.exitCode !== 0) || total.tests === 0 || unmatched.length > 0;
+  return { exitCode: failed ? 1 : 0, total, titles: Object.keys(results).sort(), unmatched };
 }
 
 function run(command: string, args: string[], env: NodeJS.ProcessEnv): number {
@@ -179,9 +255,9 @@ function main(): void {
 
   // Sequential on purpose: the serial group starts only once the parallel run has exited.
   const groups = runBothGroups((group) => runGroup(group, args));
-  const { exitCode, total, titles } = combine(groups, Date.now() - started);
+  const { exitCode, total, titles, unmatched } = combine(groups, Date.now() - started, specFilters(args));
   const failed = exitCode !== 0;
-  const summary = { args, exitCode, total, groups, titles };
+  const summary = { args, exitCode, total, groups, titles, unmatched };
   const summaryFile = resolve(REPORT_DIR, 'summary.json');
   mkdirSync(dirname(summaryFile), { recursive: true });
   writeFileSync(summaryFile, `${JSON.stringify(summary, null, 2)}\n`);
@@ -193,6 +269,7 @@ function main(): void {
   }
   console.log(`[e2e]   total: ${line(total)} (wall time, build included)`);
   if (total.tests === 0) console.log('[e2e]   no group found a test');
+  for (const filter of unmatched) console.log(`[e2e]   spec path matched no test: ${filter}`);
   console.log(`[e2e]   report: ${summaryFile}`);
   process.exit(failed ? 1 : 0);
 }

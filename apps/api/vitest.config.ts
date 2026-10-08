@@ -15,5 +15,8 @@ export default defineConfig({
     // that exact race becomes live. The whole suite runs in under 10s, so serializing costs
     // nothing against the 15-minute gate budget.
     fileParallelism: false,
+    // TST-V1 (review 2026-10-08): a focused `it.only` fails the run (Vitest allows it
+    // outside CI by default).
+    allowOnly: false,
   },
 });

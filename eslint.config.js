@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import playwright from 'eslint-plugin-playwright';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
@@ -86,6 +87,17 @@ export default tseslint.config(
           ],
         },
       ],
+    },
+  },
+  // Gate integrity (TST-V1, review 2026-10-08): a focused Playwright test or an action whose
+  // promise is never awaited lets the gate pass on less than it claims. `forbidOnly` in
+  // `playwright.config.ts` and the scan in `scripts/e2e.test.ts` back these up.
+  {
+    files: ['e2e/**/*.ts'],
+    plugins: { playwright },
+    rules: {
+      'playwright/no-focused-test': 'error',
+      'playwright/missing-playwright-await': 'error',
     },
   },
   // Fetch location (AR-1): the network is touched only by sync, files and api.
