@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: gate integrity (focused tests, test ids, sync arrange, recurring unit failures)'
 type: 'bugfix'
 created: '2026-10-08'
-status: 'in-progress'
+status: 'done'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus
@@ -11,7 +11,16 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/review-fixes-2026-10-08-context.md'
 warnings: ['batched']
 batched_reason: 'Four gate-integrity findings (TST-V1, TST-V2, TST-2, E13-A2) share the test tooling files (scripts/e2e.ts, scripts/e2e.test.ts, the configs) and one story gate.'
-deferred: []
+deferred:
+  - summary: 'scripts/e2e.ts summarize keys results by title, so under --repeat-each the summary counts each title once with its last outcome (a run with 2 failed repeats printed "14 passed" while Playwright exited 1; the exit code stays right).'
+    evidence: 'scripts/e2e.ts collect(); .scratch run tst2-x5 of this batch'
+    severity: low
+  - summary: 'The signIn setup helper waits 5 s for Home ("Relatórios por status"); under host load 12.2-E2E-006 failed there 2 of 5 repeats, then passed 3 of 3 isolated.'
+    evidence: 'e2e/support/merged-fixtures.ts signIn; journey-forward.spec.ts:172'
+    severity: low
+  - summary: 'number-input.test.tsx leaked timer: the unhandled error of PR #105 could not be reproduced on demand (nor with --detectAsyncLeaks); the harness now clears its timers on unmount, which removes the only timer that outlived a test.'
+    evidence: 'apps/web/src/components/number-input.test.tsx Harness'
+    severity: low
 ---
 
 <intent-contract>
@@ -81,3 +90,7 @@ The JSON report names spec files relative to `testDir` (`rootDir: /workspace/e2e
 **Commands:**
 - `podman compose --profile tools run --rm --user root tools pnpm lint|static|test:unit|test:api` -- exit 0.
 - `pnpm exec tsx scripts/e2e.ts e2e/journey-taps.spec.ts e2e/lost-taps.durability.spec.ts e2e/journey-forward.spec.ts e2e/ficha.spec.ts e2e/nameplate-values.spec.ts e2e/plate-every-type.spec.ts e2e/sheet-knows-12-3-12-4.spec.ts e2e/suggestions.spec.ts --project desktop-chrome --project durability-desktop-chrome` under the lock -- exit 0.
+
+## Auto Run Result
+
+Status: done. Implemented by the orchestrator in place of `bmad-dev-opus-high` (no subagent tool in this session). Story gate: lint, static, test:api 550/550, test:unit 3097/3097 twice in a row; touched specs and mutation runs as listed in the PR body.
