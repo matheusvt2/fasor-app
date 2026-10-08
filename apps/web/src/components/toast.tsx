@@ -42,6 +42,8 @@ export function Toast({
   const returnTo = useRef<HTMLElement | null>(null);
   const element = useRef<HTMLDivElement>(null);
   useStickyBarClearance(element);
+  useToastClearance(element);
+  useFocusedClearOfToast(element, toast.id);
 
   function onFocus(event: FocusEvent<HTMLDivElement>) {
     const from = event.relatedTarget;
@@ -125,6 +127,90 @@ function useStickyBarClearance(element: { current: HTMLDivElement | null }): voi
       element.current?.style.setProperty('--toast-bar', `${stickyBarCovered()}px`);
     });
   });
+}
+
+/** The root's custom property: the toast's own height plus the `--sp-3` gap, while a toast is up. */
+export const TOAST_CLEARANCE = '--toast-clearance';
+/** The root's attribute while a toast is up (`app.css` gives a page with no Sticky action bar its bottom room). */
+export const TOAST_UP = 'data-toast-up';
+
+/**
+ * Review fixes 2026-10-08 (H-7, FLD-7's covering part, DE-6): a toast never covers the last rows
+ * of a page nor a field Tab lands on. While a toast is up the root carries `--toast-clearance`,
+ * the toast's own height plus the `--sp-3` gap, never its position (`--toast-bar` already
+ * depends on the sticky bar, and a clearance derived from where the toast sits would move the
+ * bar and feed back into itself). `app.css` adds it to the page's `scroll-padding-bottom` and
+ * as room after the content, before the page's Sticky action bar. Re-measured when the toast's
+ * text wraps to another line count.
+ */
+function useToastClearance(element: { current: HTMLDivElement | null }): void {
+  useLayoutEffect(() => {
+    const toast = element.current;
+    if (typeof window === 'undefined' || toast === null) return;
+    const root = document.documentElement;
+    const place = () => {
+      root.style.setProperty(TOAST_CLEARANCE, `calc(${Math.ceil(toast.getBoundingClientRect().height)}px + var(--sp-3))`);
+    };
+    place();
+    root.setAttribute(TOAST_UP, '');
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
+    observer?.observe(toast);
+    return () => {
+      observer?.disconnect();
+      root.style.removeProperty(TOAST_CLEARANCE);
+      root.removeAttribute(TOAST_UP);
+    };
+  }, [element]);
+}
+
+/** The `--sp-3` gap in px, read off the root (12 px when the tokens are not loaded). */
+function gapPx(): number {
+  const value = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sp-3'));
+  return Number.isFinite(value) ? value : 12;
+}
+
+/**
+ * Review fixes 2026-10-08 (H-7): the focused element, when the toast's box overlaps it, scrolls
+ * until it ends `--sp-3` above the toast's top edge. Elements inside the toast or a dialog
+ * (which sits over the toast) are left alone.
+ */
+export function keepClearOfToast(target: Element | null, toast: HTMLElement): void {
+  if (!(target instanceof HTMLElement) || target === document.body || target === document.documentElement) return;
+  if (toast.contains(target) || target.closest('[role="dialog"], [role="alertdialog"]') !== null) return;
+  const box = target.getBoundingClientRect();
+  if (box.width === 0 && box.height === 0) return;
+  const over = toast.getBoundingClientRect();
+  const overlaps = box.bottom > over.top && box.top < over.bottom && box.right > over.left && box.left < over.right;
+  if (!overlaps) return;
+  window.scrollBy({ top: Math.ceil(box.bottom - over.top + gapPx()), behavior: 'instant' });
+}
+
+/** Runs the focused-element rule when a toast is displayed and whenever the focus moves while it is up. */
+function useFocusedClearOfToast(element: { current: HTMLDivElement | null }, toastId: number): void {
+  useLayoutEffect(() => {
+    const toast = element.current;
+    if (typeof window === 'undefined' || toast === null) return;
+    keepClearOfToast(document.activeElement, toast);
+  }, [element, toastId]);
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return;
+    let frame: number | null = null;
+    // After the browser's own scroll of the focus into view, which runs with the focus itself.
+    const onFocusIn = (event: globalThis.FocusEvent) => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      const target = event.target instanceof Element ? event.target : null;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        const toast = element.current;
+        if (toast !== null && target !== null && document.activeElement === target) keepClearOfToast(target, toast);
+      });
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => {
+      document.removeEventListener('focusin', onFocusIn);
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, [element]);
 }
 
 /** The root's custom property `app.css` turns into `scroll-padding-bottom`. */

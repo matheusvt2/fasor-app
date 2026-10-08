@@ -53,6 +53,8 @@ import { pickBanner, type Banner } from '../../state/banner-slot.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { usePageTitle } from '../../state/page-title.tsx';
 import { useSession } from '../../state/session.tsx';
+import { useToast } from '../../state/toast.tsx';
+import { useStickyBarScrollPadding } from '../../components/toast.tsx';
 import { useAiFeatures } from '../../state/ai-features.tsx';
 import { useLatestAuditRun } from '../../db/audit-store.ts';
 import { AuditFindings } from '../export/audit-findings.tsx';
@@ -202,6 +204,10 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // One write path for the rows and the tree: the serialised edit queue, the announcer and
   // the undo toast that any later edit or leaving the Sumário retires.
   const editor = useRelatorioEditor(relatorioId, relatorio.project_id);
+  const { showToast } = useToast();
+  // Review fixes 2026-10-08 (DF-1): the foot bar is sticky now, so a field or row focused by Tab
+  // stops above it, as on the ficha (`--sticky-bar-covered`).
+  useStickyBarScrollPadding();
   const { announcement } = editor;
   const treeContext = useMemo(
     () => ({ relatorioId, projectId: relatorio.project_id, seedVersion: relatorio.seed_version, editor }),
@@ -229,14 +235,22 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
 
   const renaming = renamingId === null ? undefined : equipment.find((row) => row.id === renamingId && row.removed_at === null);
 
-  /** The rename dialog's save: one `equipment/{id}/tag` put, the tree's own rule (`tagVerdict`). */
+  /**
+   * The rename dialog's save: one `equipment/{id}/tag` put, the tree's own rule (`tagVerdict`).
+   * Review fixes 2026-10-08 (WEB-3): a refusal found in the fresh store (the TAG taken meanwhile,
+   * an empty TAG, the row gone) says so in a toast, as the tree's rename does; nothing is written.
+   */
   function onRename(equipmentId: string, tag: string): void {
     setRenamingId(null);
     const out: { refusal: string | null } = { refusal: null };
     void editor
       .edit((_blocks, by, fresh) => {
         const row = fresh.equipment.find((e) => e.id === equipmentId && e.removed_at === null);
-        if (row === undefined || row.tag === tag.trim()) return null;
+        if (row === undefined) {
+          out.refusal = t.tree.gone;
+          return null;
+        }
+        if (row.tag === tag.trim()) return null;
         const verdict = tagVerdict(tag, fresh.equipment, equipmentId);
         if (verdict !== null) {
           out.refusal = verdict.reason === 'empty' ? t.tagDialogs.emptyTag : tagTakenText(verdict.holder.tag, null);
@@ -246,6 +260,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
       })
       .then((batch) => {
         if (batch !== null) editor.undoable(tagRenamedText(tag.trim()), batch);
+        else if (out.refusal !== null) showToast(out.refusal);
       })
       .catch(() => undefined);
   }
@@ -429,7 +444,11 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
         <span className="btn-reason" id={reasonId}>
           {generateReason(rows, issues, confirmCounts ?? undefined)}
         </span>
-        {preview.phase.kind === 'failed' ? (
+        {preview.phase.kind === 'blocked' ? (
+          <span className="btn-reason" role="alert">
+            {copy.export.deadOpsPreviewReason}
+          </span>
+        ) : preview.phase.kind === 'failed' ? (
           <span className="btn-reason" role="alert">
             {copy.export.previewFailed}
           </span>

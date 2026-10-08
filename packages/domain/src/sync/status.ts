@@ -411,3 +411,13 @@ export interface SyncDecisionRow {
   kind: 'cell' | 'removal' | 'duplicate_tag';
   text: string;
 }
+
+/**
+ * Review fixes 2026-10-08 (XC-4): the accessible name of the banner slot's "+N" chip, the
+ * conditions folded behind the one banner shown: "+1, outra condição — abrir status de
+ * sincronização", "+3, outras condições — …". It starts with the visible "+N" (WCAG 2.5.3).
+ */
+export function outrasCondicoesLabel(n: number): string {
+  // authored: WCAG 2.5.3 wants the accessible name to start with the visible label, the "+N" the chip prints.
+  return `+${n}, ${n === 1 ? 'outra condição' : 'outras condições'} — abrir status de sincronização`;
+}

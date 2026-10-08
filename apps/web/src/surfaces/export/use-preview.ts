@@ -1,7 +1,6 @@
 import { expectedFileIds, GENERATE_JOB_EXPIRE_S, isJobActive, toIso } from '@app/domain';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { now } from '../../clock.ts';
-import { pendingUploadCount } from '../../db/file-store.ts';
 import { generationJobRow, lastOpIdFor } from '../../db/generate-store.ts';
 import { toSnapshot } from '../../db/snapshot.ts';
 import { useSession } from '../../state/session.tsx';
@@ -10,6 +9,7 @@ import { previewPdfUrl, SyncRequestError } from '../../sync/client.ts';
 import { publishReAuth } from '../../api/auth-client.ts';
 import { isSessionExpired, isUnauthorized, SessionExpiredError } from './session-expired.tsx';
 import { setPreviewTabStep, writePreviewTab } from './preview-tab.ts';
+import { DeadOpsError, drainForServerJob, isJobAborted, throwIfAborted, wait } from './server-job.ts';
 import { DEFAULT_TIMING, type GenerateTiming } from './use-generate.ts';
 
 /*
@@ -20,15 +20,28 @@ import { DEFAULT_TIMING, type GenerateTiming } from './use-generate.ts';
  * number). Meanwhile the tab shows a waiting page with the step and a bar (`preview-tab.ts`).
  * Nothing is written by the device: no status op, no revision. A failure closes the
  * tab and says so beside the button.
+ *
+ * Review fixes 2026-10-08 (QW25): like "Gerar relatório", a dead op held in the outbox stops the
+ * press before anything is asked of the server (no tab, no drain, no POST; `blocked`, the button
+ * stays enabled and the next press checks again), and one found mid-drain closes the tab the
+ * same way. `cancel()` (the dialog closed) and an unmount abort the press in flight: its waits
+ * stop, no POST follows, the tab closes and nothing reads as failed.
  */
 
-export type PreviewPhase = { kind: 'idle' } | { kind: 'working' } | { kind: 'failed'; sessionExpired?: boolean };
+export type PreviewPhase =
+  | { kind: 'idle' }
+  | { kind: 'working' }
+  /** A dead op is held in the outbox: nothing was asked; the sentence says why (`deadOpsPreviewReason`). */
+  | { kind: 'blocked' }
+  | { kind: 'failed'; sessionExpired?: boolean };
 
 export interface PreviewState {
   phase: PreviewPhase;
   /** The button is disabled offline ("Sem conexão"), like "Gerar relatório". */
   online: boolean;
   start: () => void;
+  /** Stops the press in flight (the dialog closed): no POST after it, the tab closed, no failure line. */
+  cancel: () => void;
 }
 
 const MAX_ROUNDS = 10;
@@ -49,7 +62,11 @@ function openBlankTab(): Tab {
   return tab;
 }
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+/** One press: its abort and the blank tab it opened. */
+interface Press {
+  controller: AbortController;
+  tab: Tab;
+}
 
 export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT_TIMING): PreviewState {
   const session = useSession();
@@ -61,96 +78,112 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
   const syncRef = useRef(sync);
   syncRef.current = sync;
   const [phase, setPhase] = useState<PreviewPhase>({ kind: 'idle' });
-  const mounted = useRef(true);
   /** The press in flight: a second press while it runs does nothing (one tab, one job). */
-  const busy = useRef(false);
-  /** The blank tab of the press in flight; closed when the surface goes away before the PDF is in it. */
-  const openTab = useRef<Tab>(null);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-      openTab.current?.close();
-      openTab.current = null;
-    };
+  const current = useRef<Press | null>(null);
+
+  /** Aborts the press in flight and closes its tab; its outcome is then ignored. */
+  const abortPress = useCallback(() => {
+    const press = current.current;
+    if (press === null) return false;
+    current.current = null;
+    press.controller.abort();
+    press.tab?.close();
+    return true;
   }, []);
 
+  useEffect(() => () => void abortPress(), [abortPress]);
+
   const run = useCallback(
-    async (tab: Tab) => {
+    async (press: Press) => {
       if (db === null) throw new Error('no device store');
       const engine = syncRef.current;
       if (engine.preview === undefined) throw new Error('no preview route');
-      // Drain: the outbox and the uploads, a bounded number of cycles.
-      for (let round = 0; ; round++) {
-        if (reAuthRequired.current) throw new SessionExpiredError();
-        await engine.syncNow().catch(() => undefined);
-        const unsent = await db.outbox.where('status').anyOf('pending', 'sent').count();
-        if (unsent === 0 && (await pendingUploadCount(db)) === 0) break;
-        if (round >= MAX_ROUNDS) throw new Error('outbox did not drain');
-        await wait(timing.retryMs);
-      }
+      const { tab } = press;
+      const signal = press.controller.signal;
+      // Drain: the outbox and the uploads, a bounded number of cycles; a dead op or a gone session stops it.
+      await drainForServerJob(db, engine, { maxRounds: MAX_ROUNDS, retryMs: timing.retryMs, signal, isSessionExpired: () => reAuthRequired.current });
       if (tab !== null) setPreviewTabStep(tab, 'generating');
       // Ask, answering a 409 with a sync and a retry, as the issue does.
       let jobId: string | null = null;
       for (let attempt = 0; jobId === null; attempt++) {
         const [lastOpId, snapshot] = await Promise.all([lastOpIdFor(db, relatorioId), toSnapshot(db, relatorioId)]);
+        throwIfAborted(signal);
+        if (reAuthRequired.current) throw new SessionExpiredError();
         try {
           jobId = (await engine.preview(relatorioId, { last_op_id: lastOpId, file_ids_expected: expectedFileIds(snapshot) })).job_id;
         } catch (error) {
           const notCaughtUp = error instanceof SyncRequestError && error.failure.kind === 'http' && error.failure.code === 'not_caught_up';
           if (!notCaughtUp || attempt >= MAX_ROUNDS) throw error;
+          throwIfAborted(signal);
           await engine.syncNow().catch(() => undefined);
-          await wait(timing.retryMs);
+          await wait(timing.retryMs, signal);
         }
       }
       // Pull until the job is done (its file named) or ends without one; a job row that
       // never arrives is given up once a job of its own would have expired.
       const askedAt = now().getTime();
       for (;;) {
+        throwIfAborted(signal);
         await engine.syncRelatorio(relatorioId).catch(() => undefined);
+        throwIfAborted(signal);
         const job = await generationJobRow(db, jobId);
         if (job !== null && job.status === 'done' && job.result_file_id !== null) {
-          if (!mounted.current) return;
+          throwIfAborted(signal);
           const url = previewPdfUrl(relatorioId, job.result_file_id);
-          openTab.current = null;
+          // The tab is the PDF's now: an abort from here on leaves it open.
+          press.tab = null;
           if (tab === null) window.open(url, '_blank', 'noopener');
           else tab.location.href = url;
           return;
         }
         if (job !== null && (job.status === 'failed' || job.status === 'done' || !isJobActive(job, toIso(now())))) throw new Error(`preview job ${jobId} ended without a file`);
         if (job === null && now().getTime() - askedAt > GENERATE_JOB_EXPIRE_S * 1000) throw new Error(`preview job ${jobId} never arrived`);
-        if (!mounted.current) return;
-        await wait(timing.pollMs);
+        await wait(timing.pollMs, signal);
       }
     },
     [db, relatorioId, timing.pollMs, timing.retryMs],
   );
 
   const start = useCallback(() => {
-    if (busy.current || !syncRef.current.online || db === null) return;
-    busy.current = true;
-    const tab = openBlankTab();
-    openTab.current = tab;
+    if (current.current !== null || !syncRef.current.online || db === null) return;
+    // Like "Gerar relatório": a dead op stops the press before anything is asked (no tab, no drain).
+    if (syncRef.current.counts.dead > 0) {
+      setPhase({ kind: 'blocked' });
+      return;
+    }
+    const press: Press = { controller: new AbortController(), tab: null };
+    press.tab = openBlankTab();
+    current.current = press;
     setPhase({ kind: 'working' });
-    run(tab)
+    const own = () => current.current === press;
+    run(press)
       .then(
         () => {
-          if (mounted.current) setPhase({ kind: 'idle' });
+          if (own()) setPhase({ kind: 'idle' });
         },
         (error: unknown) => {
+          press.tab?.close();
+          // An abort (the dialog closed, the surface went away) is never a failure.
+          if (isJobAborted(error) || press.controller.signal.aborted) return;
+          if (error instanceof DeadOpsError) {
+            if (own()) setPhase({ kind: 'blocked' });
+            return;
+          }
           console.error('preview failed', error);
-          tab?.close();
           // F-12 / W-23: a 401 is a session that expired: the re-auth banner and its own words.
           const expired = isSessionExpired(error) || reAuthRequired.current;
           if (isUnauthorized(error)) publishReAuth();
-          if (mounted.current) setPhase(expired ? { kind: 'failed', sessionExpired: true } : { kind: 'failed' });
+          if (own()) setPhase(expired ? { kind: 'failed', sessionExpired: true } : { kind: 'failed' });
         },
       )
       .finally(() => {
-        busy.current = false;
-        if (openTab.current === tab) openTab.current = null;
+        if (own()) current.current = null;
       });
   }, [db, run]);
 
-  return { phase, online: sync.online, start };
+  const cancel = useCallback(() => {
+    if (abortPress()) setPhase({ kind: 'idle' });
+  }, [abortPress]);
+
+  return { phase, online: sync.online, start, cancel };
 }

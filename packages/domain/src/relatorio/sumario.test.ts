@@ -281,8 +281,8 @@ describe('E78-Q1 sumarioRows on a snapshot with no section block', () => {
     expect(exportPrecheck(issues).blocking).toEqual([]);
     expect(generateReason(rows, issues)).toBe('Nada impede gerar.');
     // F-03 (D1): nothing blocks, but the issue asks first while sheets are empty or fields blank.
-    expect(generateReason(rows, issues, { emptySheets: 0, blankFields: 0 })).toBe('Nada impede gerar.');
-    expect(generateReason(rows, issues, { emptySheets: 93, blankFields: 2 })).toBe('Nada impede gerar. Emitir pede confirmação: 93 fichas vazias e 2 campos em branco.');
+    expect(generateReason(rows, issues, { emptySheets: 0, blankFields: 0, blankCnpjs: [], logoMissing: false })).toBe('Nada impede gerar.');
+    expect(generateReason(rows, issues, { emptySheets: 93, blankFields: 2, blankCnpjs: [], logoMissing: false })).toBe('Nada impede gerar. Emitir pede confirmação: 93 fichas vazias e 2 campos em branco.');
   });
 
   it('a relatório with section blocks never gets virtual rows', () => {

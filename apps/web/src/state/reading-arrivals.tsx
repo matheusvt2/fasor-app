@@ -1,6 +1,10 @@
 import {
+  arrivalServed,
+  arrivalsToAnnounce,
   arrivedReadingsCount,
+  cabineOf,
   firstSheetWithPendingSuggestions,
+  legendasSugeridasText,
   leiturasProntasText,
   panelPhotosAwaiting,
   panelSuggestionOf,
@@ -8,11 +12,12 @@ import {
   photoFileRowSchema,
   suggestionRowSchema,
   suggestionRowsOf,
+  type ArrivalScreen,
   type EquipmentRow,
   type SuggestionRow,
 } from '@app/domain';
-import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import { useCallback, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { ui } from '../copy/ui.ts';
 import { relatorioState } from '../db/home-store.ts';
 import { useLiveQuery } from '../db/live.ts';
@@ -33,6 +38,14 @@ import { relatorioSnapshotOf } from '../db/relatorio-snapshot.ts';
  * fresh sign-in): only what arrives afterwards does. New rows seen while a cycle runs wait
  * for its end, so the post-pull sweep has auto-confirmed what the engineer had already typed
  * and only the rows still pending then are announced.
+ *
+ * Review fixes 2026-10-08 (DC-4, merging DB-5, DE-5, DG-3; H-7): arrivals the screen already
+ * draws announce nothing (the open ficha's own suggestions and its cabine's environment fields;
+ * the gallery's captions, `arrivalsToAnnounce`). Caption rows are their own arrival, "N legendas
+ * sugeridas", whose "Ver" opens the gallery; they never count as "leituras". An announcement is
+ * withdrawn once served (`arrivalServed`: nothing it named is pending off screen any more), so it
+ * never sits over the fields it announced. "Ver" on the address already shown scrolls to and
+ * focuses the first pending suggestion of the page instead of a navigation that does nothing.
  */
 
 /** The device's pending suggestion rows (every relatório). */
@@ -98,11 +111,52 @@ export async function arrivalTarget(db: AppDatabase, relatorioId: string, newest
   return blockId === null ? `/relatorio/${relatorioId}` : `/relatorio/${relatorioId}/ficha/${blockId}`;
 }
 
+/** The route the arrival rules read: an equipment ficha, a gallery, or anything else. */
+export function arrivalRoute(pathname: string): { kind: 'ficha'; relatorioId: string; blockId: string } | { kind: 'gallery'; relatorioId: string } | { kind: 'other' } {
+  const ficha = /^\/relatorio\/([^/]+)\/ficha\/([^/]+)\/?$/.exec(pathname);
+  if (ficha !== null) return { kind: 'ficha', relatorioId: ficha[1]!, blockId: ficha[2]! };
+  const gallery = /^\/relatorio\/([^/]+)\/fotos\/?$/.exec(pathname);
+  if (gallery !== null) return { kind: 'gallery', relatorioId: gallery[1]! };
+  return { kind: 'other' };
+}
+
+/** What the screen at `pathname` draws, for the arrival rules: a ficha with its block's cabine. */
+export async function arrivalScreen(db: AppDatabase, pathname: string): Promise<ArrivalScreen> {
+  const route = arrivalRoute(pathname);
+  if (route.kind !== 'ficha') return route;
+  const state = await relatorioState(db, route.relatorioId);
+  if (state === null) return { ...route, cabineId: null };
+  const snapshot = relatorioSnapshotOf(state, route.relatorioId);
+  const block = snapshot.blocks.find((row) => row.id === route.blockId);
+  return { ...route, cabineId: cabineOf(snapshot.locations, block?.location_id ?? null)?.id ?? null };
+}
+
+const FOCUSABLE = 'button, input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+/** "Ver" on the screen it leads to: the first pending suggestion of the page, scrolled to and focused. */
+export function focusFirstSuggestion(): void {
+  const first = document.querySelector<HTMLElement>('[data-suggestion-id], .suggestion-field[data-state="suggested"]');
+  if (first === null) return;
+  const target = first.matches(FOCUSABLE) ? first : (first.querySelector<HTMLElement>(FOCUSABLE) ?? first);
+  first.scrollIntoView({ block: 'center' });
+  if (target === first && !first.hasAttribute('tabindex')) first.setAttribute('tabindex', '-1');
+  target.focus({ preventScroll: true });
+}
+
+/** Whether `to` is the address already shown (a navigation to it would do nothing). */
+function isShown(to: string, where: { pathname: string; search: string }): boolean {
+  const url = new URL(to, 'http://app.local');
+  return url.pathname === where.pathname && url.search === where.search;
+}
+
 /** Mounted once in the shell (router and toast available); renders nothing. */
 export function ReadingArrivals() {
   const db = useSession().database;
   const navigate = useNavigate();
-  const { showToast } = useToast();
+  const location = useLocation();
+  const where = useRef(location);
+  where.current = location;
+  const { showToast, withdrawToast } = useToast();
   // Tagged with its database, so an answer of the previous session is never read as this one's.
   const observed = useLiveQuery(async () => (db === null ? null : { db, rows: await pendingRows(db) }), [db], null);
   const { running, lastSyncAt } = useSync();
@@ -116,27 +170,68 @@ export function ReadingArrivals() {
   }, [running]);
   // What this device's store held when first looked at, per database (a sign-in starts over).
   const memory = useRef<{ db: AppDatabase; state: ArrivalState } | null>(null);
+  /** The announcements on screen or queued, by text: the rows each named (withdrawn once served). */
+  const announced = useRef<{ db: AppDatabase; byText: Map<string, Set<string>> } | null>(null);
+
+  /** "Ver": the place `to`, or, when it is the address already shown, the first suggestion on it. */
+  const open = useCallback(
+    (to: string) => {
+      if (isShown(to, where.current)) focusFirstSuggestion();
+      else void navigate(to);
+    },
+    [navigate],
+  );
+
+  /** Withdraws every announcement the screen now shown has served; then announces `arrived`. */
+  const review = useCallback(
+    async (database: AppDatabase, rows: readonly SuggestionRow[], arrived: readonly SuggestionRow[]) => {
+      const screen = await arrivalScreen(database, where.current.pathname);
+      if (announced.current?.db !== database) announced.current = { db: database, byText: new Map() };
+      const held = announced.current.byText;
+      for (const [text, ids] of held) {
+        if (!arrivalServed(ids, rows, screen)) continue;
+        held.delete(text);
+        withdrawToast(text);
+      }
+      if (arrived.length === 0) return;
+      const { readings, captions } = arrivalsToAnnounce(arrived, screen);
+      const say = (text: string, rowsSaid: readonly SuggestionRow[], onPress: () => void) => {
+        held.set(text, new Set([...(held.get(text) ?? []), ...rowsSaid.map((row) => row.id)]));
+        // Not a press's answer: it waits behind a job outcome on screen (Q-1, R-1).
+        showToast(text, { action: { label: ui.readingArrival.open, onPress }, arrival: true });
+      };
+      if (readings.length > 0) {
+        const newest = readings.reduce((a, b) => (a.id > b.id ? a : b));
+        say(leiturasProntasText(arrivedReadingsCount(readings)), readings, () => {
+          void arrivalTarget(database, newest.relatorio_id, newest)
+            .then(open)
+            .catch(() => undefined);
+        });
+      } else if (captions.length > 0) {
+        // One toast at a time: with readings in the same pull, the gallery's own line names the captions.
+        const relatorioId = captions[0]!.relatorio_id;
+        say(legendasSugeridasText(captions.length), captions, () => open(`/relatorio/${relatorioId}/fotos`));
+      }
+    },
+    [open, showToast, withdrawToast],
+  );
 
   useEffect(() => {
     if (db === null || observed === null || observed.db !== db) return;
     const synced = running ? syncedAtStart.current : hadSynced;
     const step = arrivalStep(memory.current?.db === db ? memory.current.state : null, observed.rows, { running, synced });
     memory.current = { db, state: step.state };
-    if (step.arrived.length === 0) return;
-    const newest = step.arrived.reduce((a, b) => (a.id > b.id ? a : b));
-    showToast(leiturasProntasText(arrivedReadingsCount(step.arrived)), {
-      action: {
-        label: ui.readingArrival.open,
-        onPress: () => {
-          void arrivalTarget(db, newest.relatorio_id, newest)
-            .then((to) => navigate(to))
-            .catch(() => undefined);
-        },
-      },
-      // Not a press's answer: it waits behind a job outcome on screen (Q-1, R-1).
-      arrival: true,
-    });
-  }, [db, observed, running, hadSynced, navigate, showToast]);
+    if (step.arrived.length === 0 && (announced.current === null || announced.current.byText.size === 0)) return;
+    void review(db, observed.rows, step.arrived).catch(() => undefined);
+  }, [db, observed, running, hadSynced, review]);
+
+  // A move to the screen an announcement leads to serves it.
+  const pathname = location.pathname;
+  useEffect(() => {
+    if (db === null || observed === null || observed.db !== db || announced.current === null || announced.current.byText.size === 0) return;
+    void review(db, observed.rows, []).catch(() => undefined);
+    // Only the address re-runs this; the rows' own changes run the watcher above.
+  }, [pathname]);
 
   return null;
 }

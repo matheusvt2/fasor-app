@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { instantiateTemplate, SERVER_DEVICE_ID, standardTemplate, type BlockRow, type LocationRow, type RelatorioRow, type SumarioRow } from '@app/domain';
-import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
-import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
+import { EQUIPMENT_CHAVE_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
+import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
 import { MemoryRouter, Route, Routes, useSearchParams } from 'react-router';
@@ -805,5 +805,25 @@ describe('13.8 the audit findings on the Sumário', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Gerar relatório' });
     await userEvent.click(await within(dialog).findByRole('button', { name: 'Ver Imagem 1' }));
     expect(await screen.findByTestId('fotos-route')).toHaveAttribute('data-volta', 'exportar');
+  });
+});
+
+describe('Review fixes 2026-10-08 (WEB-3): the Sumário rename says its refusal', () => {
+  it('a TAG taken in the store after the dialog checked it: "Salvar" toasts the refusal and writes nothing', async () => {
+    database = await seeded();
+    renderSumario(RELATORIO, syncState(), { renameEquipmentId: EQUIPMENT_CHAVE_ID });
+    const dialog = await screen.findByRole('dialog', { name: 'Renomear TAG SEC-TEST' });
+    const input = within(dialog).getByRole('textbox', { name: 'TAG' });
+    await userEvent.clear(input);
+    await userEvent.type(input, 'SEC-NOVO');
+    const save = within(dialog).getByRole('button', { name: 'Salvar' });
+    expect(save).not.toHaveAttribute('aria-disabled');
+    // Another device's equipment takes the TAG in the store; the dialog has not re-read it yet.
+    const other = { id: '019966c1-000e-7000-8000-000000000001', last_nameplate: null, project_id: portoSeguroSmall.projectId, removed_at: null, tag: 'SEC-NOVO', type: 'chave_seccionadora' };
+    await database.entities.put(toRecord(`equipment:${other.id}`, other as never));
+    fireEvent.click(save);
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('TAG já existe nesta obra — SEC-NOVO'));
+    const ops = await database.outbox.toArray();
+    expect(ops.filter((op) => op.path === `equipment/${EQUIPMENT_CHAVE_ID}/tag`)).toEqual([]);
   });
 });

@@ -165,7 +165,7 @@ describe('AppShell banner slot, live region and toast', () => {
       expect(container.querySelectorAll('.banner')).toHaveLength(1);
       expect(container.querySelector('.banner')).toHaveAttribute('data-banner', 're-auth');
       expect(
-        screen.getByRole('button', { name: '+1, outras condições — abrir status de sincronização' }),
+        screen.getByRole('button', { name: '+1, outra condição — abrir status de sincronização' }),
       ).toHaveTextContent(
         '+1',
       );

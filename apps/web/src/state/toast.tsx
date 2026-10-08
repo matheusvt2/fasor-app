@@ -19,6 +19,11 @@ import type { Timers } from '../input/field-commit.ts';
  * not made to wait: it takes the slot at once, and the outcome it interrupts goes back to the
  * head of the queue and shows again, for its full 6 s, after it. A toast that arrived on its own
  * (`arrival`: a reading ready to confirm, a recovered draft) keeps waiting behind the outcome.
+ *
+ * Review fixes 2026-10-08 (H-7, DE-6): the queue and its timers are unchanged (an action toast
+ * still never expires on a timer). What changed is where a toast may sit: while one is up, the
+ * toast itself (`components/toast.tsx`) reserves its own height plus the `--sp-3` gap at the
+ * bottom of the page (`--toast-clearance`), and scrolls the focused field clear of it.
  */
 
 export const TOAST_TIMEOUT_MS = 6_000;

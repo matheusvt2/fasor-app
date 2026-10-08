@@ -4,6 +4,7 @@ import { BLOCK_CHAVE_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seg
 import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
+import type { OutboxRow } from '../../db/schema.ts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
 import { applyPulled } from '../../db/sync-store.ts';
@@ -34,12 +35,14 @@ const TIMING = { pollMs: 20, retryMs: 10 };
 
 let database: AppDatabase | null = null;
 let counter = 0;
+/** `session.reAuthRequired`: a test flips it to say the session is known to be gone. */
+let reAuth = false;
 
 const session = (): SessionState => ({
   status: 'signed-in',
   user: { id: USER, name: 'Bento Braga', email: 'b@teste.local', companyId: COMPANY, companyName: 'Empresa B de Teste', council: null, registrationNumber: null, title: null },
   online: true,
-  reAuthRequired: false,
+  reAuthRequired: reAuth,
   aiFeatures: true,
   database,
   signIn: vi.fn(),
@@ -110,13 +113,13 @@ function runOps(status: 'queued' | 'running' | 'done' | 'failed', options: { id?
   return ops;
 }
 
-function Harness({ sync, ai = true, onSee }: { sync: SyncState; ai?: boolean; onSee?: (target: unknown) => void }) {
+function Harness({ sync, ai = true, onSee, open = true, timing = TIMING }: { sync: SyncState; ai?: boolean; onSee?: (target: unknown) => void; open?: boolean; timing?: typeof TIMING }) {
   return (
     <AiFeaturesContext value={ai}>
       <MemoryRouter>
         <SyncContext value={sync}>
           <ToastProvider>
-            <ExportDialog relatorioId={REL} isOpen onOpenChange={() => {}} timing={TIMING} {...(onSee === undefined ? {} : { onSeeAuditTarget: onSee })} />
+            <ExportDialog relatorioId={REL} isOpen={open} onOpenChange={() => {}} timing={timing} {...(onSee === undefined ? {} : { onSeeAuditTarget: onSee })} />
           </ToastProvider>
         </SyncContext>
       </MemoryRouter>
@@ -131,6 +134,7 @@ const generateButton = () => within(dialog()).getByRole('button', { name: /^(Ger
 
 afterEach(async () => {
   cleanup();
+  reAuth = false;
   await database?.delete();
   database = null;
 });
@@ -295,5 +299,87 @@ describe('13.8 the audit in the Export dialog', () => {
     render(<Harness sync={syncState({ online: false })} />);
     await waitFor(() => expect(auditButton()).toHaveAttribute('aria-disabled', 'true'));
     expect(within(dialog()).getByText('Sem conexão: a conferência precisa do servidor.')).toBeInTheDocument();
+  });
+});
+
+/** An outbox row of this device: refused for good (`dead`) or still `pending`. */
+function outboxRow(status: 'dead' | 'pending'): OutboxRow {
+  return { ...parecer(), device_id: 'tablet-1', status, error_code: status === 'dead' ? 'invalid_value' : null, targets: [`relatorio:${REL}`] } as unknown as OutboxRow;
+}
+
+describe('Review fixes 2026-10-08 (QW25): the audit\'s barrier guards', () => {
+  const DEAD = 'Há alterações rejeitadas — resolva em Sincronização antes de conferir.';
+  const SESSION_EXPIRED = 'Sua sessão expirou. Entre de novo para enviar.';
+
+  it('with a dead op held, a tap drains nothing and asks nothing; the refusal shows and the button stays enabled', async () => {
+    database = await freshDb();
+    const sync = syncState({ counts: { dead: 1 } });
+    render(<Harness sync={sync} />);
+    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Conferir antes de emitir' }));
+    expect(await within(dialog()).findByText(DEAD)).toBeVisible();
+    expect(sync.syncNow).not.toHaveBeenCalled();
+    expect(sync.audit).not.toHaveBeenCalled();
+    expect(auditButton()).not.toHaveAttribute('aria-disabled');
+    expect(within(dialog()).queryByText('Não foi possível conferir agora.')).toBeNull();
+  });
+
+  it('a dead op found mid-drain asks nothing, with the same refusal', async () => {
+    database = await freshDb();
+    const db = database;
+    const syncNow = vi.fn(async () => {
+      await db.outbox.put(outboxRow('dead'));
+      return 'ran' as const;
+    });
+    const sync = syncState({ syncNow });
+    render(<Harness sync={sync} />);
+    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Conferir antes de emitir' }));
+    expect(await within(dialog()).findByText(DEAD)).toBeVisible();
+    expect(sync.audit).not.toHaveBeenCalled();
+  });
+
+  it('a session already gone asks nothing and shows the sign-in note, never the generic failure', async () => {
+    reAuth = true;
+    database = await freshDb();
+    const sync = syncState();
+    render(<Harness sync={sync} />);
+    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Conferir antes de emitir' }));
+    expect(await within(dialog()).findByText(SESSION_EXPIRED)).toBeVisible();
+    expect(within(dialog()).getByRole('button', { name: 'Entrar de novo' })).toBeVisible();
+    expect(within(dialog()).queryByText('Não foi possível conferir agora.')).toBeNull();
+    expect(sync.audit).not.toHaveBeenCalled();
+  });
+
+  it('a session that goes during the drain asks nothing and shows the sign-in note', async () => {
+    database = await freshDb();
+    const syncNow = vi.fn(async () => {
+      reAuth = true;
+      return 'ran' as const;
+    });
+    const sync = syncState({ syncNow });
+    render(<Harness sync={sync} />);
+    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Conferir antes de emitir' }));
+    expect(await within(dialog()).findByText(SESSION_EXPIRED)).toBeVisible();
+    expect(within(dialog()).queryByText('Não foi possível conferir agora.')).toBeNull();
+    expect(sync.audit).not.toHaveBeenCalled();
+  });
+
+  it('closing the dialog while the tap drains aborts it: no POST after, and nothing reads as failed on reopen', async () => {
+    database = await freshDb();
+    const db = database;
+    await db.outbox.put(outboxRow('pending'));
+    const slow = { pollMs: 20, retryMs: 50 };
+    const sync = syncState();
+    const { rerender } = render(<Harness sync={sync} timing={slow} />);
+    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Conferir antes de emitir' }));
+    await waitFor(() => expect(sync.syncNow).toHaveBeenCalled());
+    rerender(<Harness sync={sync} timing={slow} open={false} />);
+    // The outbox drains after the close: a tap still running would now ask for the audit.
+    await db.outbox.clear();
+    await new Promise((resolve) => setTimeout(resolve, slow.retryMs * 6));
+    expect(sync.audit).not.toHaveBeenCalled();
+    rerender(<Harness sync={sync} timing={slow} open />);
+    await waitFor(() => expect(auditButton()).toHaveTextContent('Conferir antes de emitir'));
+    expect(auditButton()).not.toHaveAttribute('aria-disabled');
+    expect(within(dialog()).queryByText('Não foi possível conferir agora.')).toBeNull();
   });
 });

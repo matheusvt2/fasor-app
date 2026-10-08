@@ -1405,7 +1405,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Story 13.8 review (known open): the audit worker's invalid-payload path (`handleAuditJobs`, `recordInvalidPayload` in `apps/api/src/jobs/audit/worker.ts`) has no test; a malformed job would leave its run reading as running until its age expires.
   evidence: only the definitions reference them; the integration test calls `runAuditJob` directly. Mirror `apps/api/src/jobs/generate/worker.integration.test.ts`.
   class: debt
-  state: open (owner: Epic 13 fix batch)
+  state: ~~open (owner: Epic 13 fix batch)~~ done (2026-10-08, review fixes batch r8emit, API-V1): the invalid-payload path also writes `finished_at` (`apps/api/src/jobs/audit/worker.ts`), and `apps/api/src/jobs/audit/worker.integration.test.ts` drives `handleAuditJobs` with a malformed payload (run failed, `audit_failed`, `finished_at` set, the row passing `auditRunRowSchema`) and with ids that name no row (logged only, never throws).
 - source_spec: `AGENTS.md` (Decisions of record, 2026-10-08 story gate)
   summary: Three unit failures recur on this host in almost every gate and force reruns: `apps/web/src/state/theme.test.tsx` (fails every run), `apps/web/src/surfaces/export/export-dialog.test.tsx` (load-sensitive, passes alone) and the unhandled timer error from `apps/web/src/components/number-input.test.tsx:21` (a harness timer never cleared, setState after teardown). Fix them so a red unit stage means a defect.
   evidence: Epic 13 gate logs (`test-results/gate-e13*/test-unit.log` in the batch worktrees); `reviews/epic-13-review-qa.md` § 4 (b).

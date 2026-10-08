@@ -263,3 +263,12 @@
    with an ellipsis in a 200 px tile) names its label and file in full: "Foto de capa · Nenhum
    arquivo" wraps instead of reading "Foto de capa · Nenhum arqu…". */
 [data-route="/relatorio/:id/setup"] .brand-tile .tile-name { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+
+/* Review fixes 2026-10-08 (batch r8emit): DF-1 */
+/* "Pré-visualizar" and "Gerar relatório" stay within reach on a long Sumário: the foot bar is
+   sticky as the ficha's (`ficha.css`: `position: sticky; bottom: 0; margin-top: auto`, static under
+   a 480 px viewport height), mirroring `components.css` `.frame--crop .sticky-action-bar`. */
+[data-route="/relatorio/:id"] .sticky-action-bar { position: sticky; bottom: 0; }
+@media (max-height: 479.98px) {
+  [data-route="/relatorio/:id"] .sticky-action-bar { position: static; }
+}

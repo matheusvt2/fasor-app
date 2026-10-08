@@ -20,6 +20,8 @@ import { emptySheetCount, fichasVaziasText, progress } from './progress.ts';
 const TEMPLATE_ID = '019966b0-0081-7000-8000-000000000001';
 const AT = '2026-09-08T12:00:00.000Z';
 const NOW = new Date('2026-09-26T12:00:00.000Z');
+/** No identity gap: both CNPJs typed and a logo registered. */
+const NO_GAPS = { blankCnpjs: [], logoMissing: false } as const;
 
 function fresh(): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
@@ -257,6 +259,10 @@ describe('7.5-UNIT exportPrecheck and the blocked reason', () => {
     expect(precheck.countText).toBe(`${rows.length - 3} avisos`);
     expect(exportPrecheck([rows.find((r) => r.kind === 'sheets')!]).countText).toBe('1 aviso');
     expect(exportPrecheck([]).countText).toBe('');
+    // XC-4 (review 2026-10-08): the sentence after the count agrees with it.
+    expect(exportPrecheck([rows.find((r) => r.kind === 'sheets')!]).countMetaText).toBe(' — está na linha do sumário; não impede gerar.');
+    expect(precheck.countMetaText).toBe(' — estão nas linhas do sumário; nenhum impede gerar.');
+    expect(exportPrecheck([]).countMetaText).toBe('');
   });
 
   it('says which Sumário line to fill and which revision it issues (mock verbatim)', () => {
@@ -325,12 +331,12 @@ describe('F-03 (review 2026-10-06, D1): empty sheets and blank fields ask before
     );
     // The section texts' placeholders, plus the cover's "[Responsável]" (no responsible yet).
     expect(labels.has('Responsável')).toBe(false);
-    expect(counts).toEqual({ emptySheets: 94, blankFields: labels.size + 1 });
+    expect(counts).toEqual({ emptySheets: 94, blankFields: labels.size + 1, blankCnpjs: ['contratante', 'contratada'], logoMissing: true });
     expect(labels.size).toBeGreaterThan(1);
-    expect(issueConfirmText({ emptySheets: 93, blankFields: 2 })).toBe('Emitir com 93 fichas vazias e 2 campos em branco?');
-    expect(issueConfirmText({ emptySheets: 1, blankFields: 0 })).toBe('Emitir com 1 ficha vazia?');
-    expect(issueConfirmText({ emptySheets: 0, blankFields: 1 })).toBe('Emitir com 1 campo em branco?');
-    expect(issueConfirmReason({ emptySheets: 93, blankFields: 0 })).toBe('Emitir pede confirmação: 93 fichas vazias.');
+    expect(issueConfirmText({ emptySheets: 93, blankFields: 2, ...NO_GAPS })).toBe('Emitir com 93 fichas vazias e 2 campos em branco?');
+    expect(issueConfirmText({ emptySheets: 1, blankFields: 0, ...NO_GAPS })).toBe('Emitir com 1 ficha vazia?');
+    expect(issueConfirmText({ emptySheets: 0, blankFields: 1, ...NO_GAPS })).toBe('Emitir com 1 campo em branco?');
+    expect(issueConfirmReason({ emptySheets: 93, blankFields: 0, ...NO_GAPS })).toBe('Emitir pede confirmação: 93 fichas vazias.');
   });
 
   it('counts a blank required cover row ("[Responsável]") and stops once the responsible is set', () => {
@@ -341,7 +347,39 @@ describe('F-03 (review 2026-10-06, D1): empty sheets and blank fields ask before
   });
 
   it('asks nothing when both counts are zero', () => {
-    expect(issueConfirmText({ emptySheets: 0, blankFields: 0 })).toBeNull();
-    expect(issueConfirmReason({ emptySheets: 0, blankFields: 0 })).toBeNull();
+    expect(issueConfirmText({ emptySheets: 0, blankFields: 0, ...NO_GAPS })).toBeNull();
+    expect(issueConfirmReason({ emptySheets: 0, blankFields: 0, ...NO_GAPS })).toBeNull();
+  });
+
+  // Review fixes 2026-10-08 (DF-6): the CNPJs printed "—" and the missing logo, named after the counts.
+  it('names the blank CNPJs and the missing logo after the counts when the question is asked', () => {
+    const both = { blankCnpjs: ['contratante', 'contratada'] as const, logoMissing: true };
+    expect(issueConfirmText({ emptySheets: 93, blankFields: 2, ...both })).toBe(
+      'Emitir com 93 fichas vazias, 2 campos em branco, os CNPJs do contratante e da contratada em branco e o logo da empresa não cadastrado?',
+    );
+    expect(issueConfirmReason({ emptySheets: 93, blankFields: 2, ...both })).toBe(
+      'Emitir pede confirmação: 93 fichas vazias, 2 campos em branco, os CNPJs do contratante e da contratada em branco e o logo da empresa não cadastrado.',
+    );
+    expect(issueConfirmText({ emptySheets: 1, blankFields: 0, blankCnpjs: ['contratante'], logoMissing: false })).toBe('Emitir com 1 ficha vazia e o CNPJ do contratante em branco?');
+    expect(issueConfirmText({ emptySheets: 0, blankFields: 1, blankCnpjs: ['contratada'], logoMissing: false })).toBe('Emitir com 1 campo em branco e o CNPJ da contratada em branco?');
+    expect(issueConfirmText({ emptySheets: 2, blankFields: 0, blankCnpjs: [], logoMissing: true })).toBe('Emitir com 2 fichas vazias e o logo da empresa não cadastrado?');
+  });
+
+  it('never asks for the CNPJs or the logo alone: the trigger stays the empty sheets and the blanks (D1)', () => {
+    const both = { blankCnpjs: ['contratante', 'contratada'] as const, logoMissing: true };
+    expect(issueConfirmText({ emptySheets: 0, blankFields: 0, ...both })).toBeNull();
+    expect(issueConfirmReason({ emptySheets: 0, blankFields: 0, ...both })).toBeNull();
+  });
+
+  it('reads the gaps off the snapshot: a typed CNPJ (spaces aside) and a registered logo are not gaps', () => {
+    const snapshot = fresh();
+    const client = { id: TEMPLATE_ID, kind: 'client', name: 'Cliente', cnpj: '  ', contact_name: null, contact_phone: null, sites: [], removed_at: null };
+    const empresa = { id: TEMPLATE_ID, kind: 'empresa', name: 'Empresa', cnpj: '12345678000190', logo_file_id: TEMPLATE_ID } as unknown as NonNullable<RelatorioSnapshot['empresa']>;
+    const counts = issueConfirmation({ ...snapshot, client: client as unknown as NonNullable<RelatorioSnapshot['client']>, empresa }, { now: NOW });
+    expect(counts.blankCnpjs).toEqual(['contratante']);
+    expect(counts.logoMissing).toBe(false);
+    const typed = issueConfirmation({ ...snapshot, client: { ...client, cnpj: '11222333000181' } as unknown as NonNullable<RelatorioSnapshot['client']>, empresa: { ...empresa, logo_file_id: null } }, { now: NOW });
+    expect(typed.blankCnpjs).toEqual([]);
+    expect(typed.logoMissing).toBe(true);
   });
 });
