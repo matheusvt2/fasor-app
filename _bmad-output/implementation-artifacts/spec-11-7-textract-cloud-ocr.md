@@ -52,7 +52,7 @@ deferred: []
 | WORD not under any LINE | Orphan WORD block | Appended after the LINE-ordered words, in block order | none |
 | No text | Only a PAGE block | `tokens: []` | none |
 | Too large | bytes > 10 MiB (Textract sync limit, 10485760) | Not sent | `PermanentReadingError` |
-| Client fault | `InvalidParameterException`, `UnsupportedDocumentException`, `BadDocumentException`, `DocumentTooLargeException`, `AccessDeniedException` (also the budget action's deny), `InvalidS3ObjectException`, a credentials-provider error | Attempt fails | `PermanentReadingError` naming the error |
+| Client fault | `InvalidParameterException`, `UnsupportedDocumentException`, `BadDocumentException`, `DocumentTooLargeException`, `AccessDeniedException` (also the budget action's deny), `InvalidS3ObjectException`, ~~a credentials-provider error~~ *(2026-10-08, review fixes r8read, AIR-17/API-1: a credentials-provider error and `ExpiredTokenException` are transient `ProviderError`, as on Bedrock, through the shared `classifyAwsError` in `apps/api/src/ai/aws.ts`; `AccessDeniedException` and the other refusals are `ProviderRefusedError`, a `PermanentReadingError`)* | Attempt fails | `PermanentReadingError` naming the error |
 | Throttle / server fault | `ThrottlingException`, `ProvisionedThroughputExceededException`, `LimitExceededException`, `InternalServerError`, any `$fault: 'server'`, network error | Attempt fails | `ProviderError` (transient) |
 | Timeout | No answer within the timeout | Aborted | `ProviderTimeoutError` |
 | Routing, textract | `OCR_PROVIDER=textract`; `reading_kind` `plate` / `panel` / `display` | `plate`, `panel` -> Textract, `ocr_name='textract'`; `display` -> `ocr-svc` adapter on `OCR_SERVICE_URL`, `ocr_name='ocr-svc'` | none |

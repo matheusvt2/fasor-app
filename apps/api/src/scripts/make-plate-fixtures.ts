@@ -103,8 +103,10 @@ const PLATES: PlateSpec[] = [
       { key: 'tipo_de_isolacao', tokens: ['EPÓXI'], value: 'EPÓXI' },
       { key: 'potencia_nominal', tokens: ['500', 'VA'], value: num('500', 'VA') },
       { key: 'tap_atual', tokens: ['2'], value: '2' },
-      { key: 'data_fabricacao', tokens: ['11/2020'], value: '2020-11' },
-      { key: 'tensao_nominal_at', tokens: ['13,8', 'kV'], value: num('13.8', 'kV') },
+      // AIR-V1 (review 2026-10-08): a plate that prints only the year, suggested as printed.
+      { key: 'data_fabricacao', tokens: ['2020'], value: '2020' },
+      // AIR-1 (review 2026-10-08): the AT voltage printed in V on a kV field, stored as 13,8 kV.
+      { key: 'tensao_nominal_at', tokens: ['13.800', 'V'], value: num('13800', 'V') },
       { key: 'tensao_nominal_bt', tokens: ['115', 'V'], value: num('115', 'V') },
       { key: 'ligacao_secundaria', tokens: ['Y'], value: 'Y' },
     ],

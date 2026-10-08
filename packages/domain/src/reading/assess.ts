@@ -11,7 +11,8 @@ import { readingValueText } from './value.ts';
  * Story 8.5: the trust and the hint of one normalized value, computed on the server and
  * never taken from the model.
  *
- * - Digits (AC 1): the value's digits must be the cited tokens' digits, else `verify`.
+ * - Digits (AC 1): the value's digits must be the cited tokens' digits, else `verify`; a value
+ *   normalization moved into another unit is read as printed (`printedText`, AIR-1).
  * - Voltage class (AC 2): a kV absent from the company's live registry is `verify`; a
  *   match stores the registry row's name.
  * - Manufacturer (AC 2): a name the registry does not hold stays `suggested` (unless the
@@ -39,6 +40,11 @@ export interface AssessReadingInput {
   registry: ReadingRegistry;
   /** Normalization's own verdict (`NormalizedReadingValue.verify`): true forces `verify`. */
   verify?: boolean;
+  /**
+   * AIR-1: the text the digit rule reads in place of the value's own (`NormalizedReadingValue.printedText`),
+   * so a value moved into the field's unit ("13800" V stored as "13.8" kV) is checked against what the plate prints.
+   */
+  printedText?: string;
 }
 
 function live<T extends WordRow>(rows: readonly T[]): T[] {
@@ -56,7 +62,7 @@ export function assessReadingValue(input: AssessReadingInput): ReadingAssessment
   let trust: SuggestionRow['trust'] = input.verify === true ? 'verify' : 'suggested';
   let hint: SuggestionHint | null = null;
 
-  if (!digitCoverage(readingValueText(field, value), cited)) trust = 'verify';
+  if (!digitCoverage(input.printedText ?? readingValueText(field, value), cited)) trust = 'verify';
 
   if (field.kind === 'voltage_class' && typeof value === 'string') {
     const wanted = kvKey(value);

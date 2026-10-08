@@ -5,7 +5,7 @@ import { log, logError } from '../../log.ts';
 import { applyOps, applyServerBatch } from '../../sync/apply.ts';
 import { serverOp } from '../../sync/server-op.ts';
 import { toSnapshot } from '../../sync/snapshot.ts';
-import { AiFeaturesOffError, PermanentReadingError, ProviderError, ProviderTimeoutError } from '../reading/providers/errors.ts';
+import { AiFeaturesOffError, PermanentReadingError, ProviderError, ProviderRefusedError, ProviderTimeoutError } from '../../ai/errors.ts';
 import { AUDIT_ACTOR, type AuditPayload } from './payload.ts';
 import type { AuditProvider } from './provider.ts';
 
@@ -24,7 +24,8 @@ import type { AuditProvider } from './provider.ts';
  */
 
 /** Every value `audit_run/{id}/error` may carry; `enqueue_failed` is written by the route. */
-export const AUDIT_ERROR_CODES = ['ai_features_off', 'provider_timeout', 'provider_failed', 'invalid_output', 'audit_failed', 'enqueue_failed'] as const;
+// `provider_refused` (review 2026-10-08, API-V2): a denied or misconfigured call (IAM, model id, request shape), not a bad answer.
+export const AUDIT_ERROR_CODES = ['ai_features_off', 'provider_timeout', 'provider_failed', 'provider_refused', 'invalid_output', 'audit_failed', 'enqueue_failed'] as const;
 export type AuditErrorCode = (typeof AUDIT_ERROR_CODES)[number];
 
 export interface AuditJobDeps {
@@ -53,6 +54,7 @@ export function auditRunPut(payload: Pick<AuditPayload, 'run_id' | 'company_id' 
 function errorCodeOf(error: unknown): AuditErrorCode {
   if (error instanceof AiFeaturesOffError) return 'ai_features_off';
   if (error instanceof ProviderTimeoutError) return 'provider_timeout';
+  if (error instanceof ProviderRefusedError) return 'provider_refused';
   if (error instanceof PermanentReadingError) return 'invalid_output';
   if (error instanceof ProviderError) return 'provider_failed';
   return 'audit_failed';
