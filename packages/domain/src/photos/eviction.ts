@@ -29,6 +29,16 @@ export function storagePressureBytes(reading: StorageReading | null, freeBytes: 
 }
 
 /**
+ * Story 13.6 (CAP-4): the bytes to free after the browser refused a shot: the reading's
+ * pressure, or the shot's own bytes when that is more (a refusal says the origin is full,
+ * whatever the last estimate read). Never negative; a non-finite `neededBytes` counts as 0.
+ */
+export function refusalPressureBytes(reading: StorageReading | null, neededBytes: number): number {
+  const needed = Number.isFinite(neededBytes) ? Math.max(0, neededBytes) : 0;
+  return Math.max(storagePressureBytes(reading), needed);
+}
+
+/**
  * The ids to delete, in order: the wholesale ones first, then the oldest-acked while the
  * freed bytes stay under `pressure`. A blob whose relatório is not on the device is never
  * evicted wholesale (its status is unknown).

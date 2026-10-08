@@ -125,6 +125,12 @@
   <symbol id="i-share" viewBox="0 0 24 24">
     <path d="M12 15V4M8 8l4-4 4 4M5 12v7h14v-7" />
   </symbol>
+  <symbol id="i-flash" viewBox="0 0 24 24">
+    <path d="M13 3L5 14h6l-1 7 8-11h-6z" />
+  </symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24">
+    <path d="M5 12h14" />
+  </symbol>
   <symbol id="i-zoom-in" viewBox="0 0 24 24">
     <circle cx="10.5" cy="10.5" r="6" />
     <path d="M15 15l5 5M10.5 8v5M8 10.5h5" />

@@ -97,6 +97,23 @@ describe('bannerCandidates', () => {
     expect(pickBanner(bannerCandidates({ reAuthRequired: false, online: false, unsyncedForDays: true, storage: low }))?.kind).toBe('storage-low');
   });
 
+  it('13.6 a refused shot forces the low-storage banner, with or without a low reading', () => {
+    const MB = 1024 * 1024;
+    const roomy = { usage: 0, quota: 10_000 * MB };
+    expect(bannerCandidates({ reAuthRequired: false, online: true, storage: null, storageRefused: true })).toEqual([
+      { kind: 'storage-low', variant: 'warning', role: 'region', text: 'Pouco espaço neste aparelho. Sincronize para liberar.', actions: undefined },
+    ]);
+    expect(bannerCandidates({ reAuthRequired: false, online: true, storage: roomy, storageRefused: true })[0]).toMatchObject({
+      kind: 'storage-low',
+      text: 'Pouco espaço neste aparelho (10000 MB). Sincronize para liberar.',
+    });
+    expect(bannerCandidates({ reAuthRequired: false, online: true, storage: roomy, storageRefused: false })).toEqual([]);
+    // Offline, the refusal takes the slot and the offline condition is counted beside it.
+    const offline = bannerCandidates({ reAuthRequired: false, online: false, storage: null, storageRefused: true });
+    expect(offline.map((banner) => banner.kind)).toEqual(['storage-low', 'offline']);
+    expect(pickBanner(offline)?.kind).toBe('storage-low');
+  });
+
   it('never publishes a draft-found candidate: the persistent toast is the only offer (retro U7)', () => {
     const candidates = bannerCandidates({ reAuthRequired: false, online: true, unsyncedForDays: true });
     expect(candidates.map((b) => b.kind)).toEqual(['unsynced-5-days']);

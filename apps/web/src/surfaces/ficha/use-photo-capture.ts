@@ -3,8 +3,11 @@ import { useCallback, useEffect, useRef } from 'react';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitPhotoCapture, type PhotoCaptureInput } from '../../db/file-commit.ts';
+import { runEviction } from '../../db/file-store.ts';
+import type { AppDatabase } from '../../db/schema.ts';
 import { clearGeolocationDenied, photoLocationEnabled, readPhotoSeq, writeGeolocationDenied, writePhotoSeqAtLeast } from '../../db/photo-store.ts';
 import { deviceId } from '../../db/sync-store.ts';
+import { storageHeadroom } from '../../device/storage-estimate.ts';
 import { reserveDirectSeq, sendPhotoDirect, sessionCaptureRescue, type RescueDeps } from '../../files/capture-rescue.ts';
 import { browserPositionTracker, type PositionTracker } from '../../files/geolocation.ts';
 import { encodePhoto, type EncodedPhoto } from '../../files/photo-encode.ts';
@@ -22,6 +25,9 @@ import { createBrowserSyncClient } from '../../sync/client.ts';
  * its position, then committed as one transaction (`commitPhotoCapture`). Shots commit one
  * after another, in the order they were taken. A browser that refuses to store a shot hands
  * it to the capture rescue (sent straight to the server online, held in memory offline).
+ * Story 13.6 (CAP-4): the rescue first evicts acknowledged originals sized to the shot
+ * (`freeSpace`) and tries the device once more; `retry` lets the camera's opener try a held
+ * shot again before it opens.
  */
 
 export interface CaptureTarget {
@@ -52,7 +58,26 @@ export interface PhotoCapture {
   shoot: (source: Blob | ImageBitmap, target: CaptureTarget) => void;
   /** Waits for every pending commit and retries a held shot once; false when a shot is still held. */
   settle: () => Promise<boolean>;
+  /** Story 13.6: tries every held shot once more (eviction first); resolves to how many are still held. */
+  retry: () => Promise<number>;
   ready: boolean;
+}
+
+/** The capture rescue's dependencies on this device's store: commit, direct send and (CAP-4) the eviction sized to a shot. */
+export function captureRescueDeps(db: AppDatabase, isOnline: () => boolean): RescueDeps {
+  return {
+    isOnline,
+    commit: (input) => commitPhotoCapture(db, input, { newId, now }),
+    sendDirect: async (input) => {
+      const device = await deviceId(db, newId);
+      const localSeq = reserveDirectSeq(input.fileId, await readPhotoSeq(db));
+      // Best effort (the device may be refusing writes): the next stored shot continues after it.
+      await writePhotoSeqAtLeast(db, localSeq).catch(() => undefined);
+      await sendPhotoDirect(input, { client: createBrowserSyncClient(), deviceId: device, localSeq, newId, now: now() });
+    },
+    // CAP-4: the acknowledged originals the kernel allows, at least the refused shot's bytes.
+    freeSpace: async (neededBytes) => runEviction(db, await storageHeadroom(), neededBytes),
+  };
 }
 
 export function usePhotoCapture(relatorioId: string): PhotoCapture {
@@ -84,20 +109,7 @@ export function usePhotoCapture(relatorioId: string): PhotoCapture {
     return tracker.current;
   }, [db]);
 
-  const rescueDeps = useCallback((): RescueDeps | null => {
-    if (db === null) return null;
-    return {
-      isOnline: () => onlineRef.current,
-      commit: (input) => commitPhotoCapture(db, input, { newId, now }),
-      sendDirect: async (input) => {
-        const device = await deviceId(db, newId);
-        const localSeq = reserveDirectSeq(input.fileId, await readPhotoSeq(db));
-        // Best effort (the device may be refusing writes): the next stored shot continues after it.
-        await writePhotoSeqAtLeast(db, localSeq).catch(() => undefined);
-        await sendPhotoDirect(input, { client: createBrowserSyncClient(), deviceId: device, localSeq, newId, now: now() });
-      },
-    };
-  }, [db]);
+  const rescueDeps = useCallback((): RescueDeps | null => (db === null ? null : captureRescueDeps(db, () => onlineRef.current)), [db]);
 
   const prepare = useCallback(async () => {
     if (db === null || user === null) return;
@@ -175,5 +187,15 @@ export function usePhotoCapture(relatorioId: string): PhotoCapture {
     return still === 0;
   }, [rescueDeps, showToast]);
 
-  return { prepare, shoot, settle, ready: db !== null && user !== null };
+  const retry = useCallback(async () => {
+    const deps = rescueDeps();
+    if (deps === null || sessionCaptureRescue.heldCount() === 0) return sessionCaptureRescue.heldCount();
+    try {
+      return await sessionCaptureRescue.retryHeld(deps);
+    } finally {
+      requestStorageCheck();
+    }
+  }, [rescueDeps]);
+
+  return { prepare, shoot, settle, retry, ready: db !== null && user !== null };
 }

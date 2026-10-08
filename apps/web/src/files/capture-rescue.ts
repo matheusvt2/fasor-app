@@ -9,6 +9,11 @@ import type { SyncClient } from '../sync/client.ts';
  * (the pull brings the row back, and the thumb refresh its server thumb); offline, it is
  * kept in memory, the surface shows the error toast, and it is tried again once on the
  * next shot or on "Concluir fotos".
+ *
+ * Story 13.6 (CAP-4): before either, the acknowledged originals the kernel allows are evicted
+ * (`freeSpace`, sized to the shot) and the commit is tried once more. A shot still refused
+ * offline is held, and the held list is observable (`subscribe`): while it is not empty the
+ * camera blocks the next shot and the shell forces the storage banner.
  */
 
 /** True for the browser's quota refusal, however Dexie wrapped it. */
@@ -33,6 +38,11 @@ export interface RescueDeps {
   commit: (input: PhotoCaptureInput) => Promise<unknown>;
   /** The refusal path while online: push the create and PUT the bytes (`sendPhotoDirect`). */
   sendDirect: (input: PhotoCaptureInput) => Promise<void>;
+  /**
+   * Story 13.6: frees at least `neededBytes` of acknowledged originals where the kernel allows
+   * (`runEviction`), before the refused commit is tried once more. A throw is ignored.
+   */
+  freeSpace?: (neededBytes: number) => Promise<unknown>;
 }
 
 export interface CaptureRescue {
@@ -41,12 +51,39 @@ export interface CaptureRescue {
   /** Tries every held shot once more; resolves to how many are still held. */
   retryHeld(deps: RescueDeps): Promise<number>;
   heldCount(): number;
+  /** Story 13.6: called after every change of the held count; returns the unsubscribe. */
+  subscribe(listener: () => void): () => void;
+}
+
+/** The bytes a shot needs on the device: its original and its thumb. */
+export function shotBytes(input: Pick<PhotoCaptureInput, 'original' | 'thumb'>): number {
+  return input.original.size + input.thumb.size;
 }
 
 export function createCaptureRescue(): CaptureRescue {
   let held: PhotoCaptureInput[] = [];
+  const listeners = new Set<() => void>();
+  let retrying: Promise<number> | null = null;
+
+  function setHeld(next: PhotoCaptureInput[]): void {
+    const changed = next.length !== held.length;
+    held = next;
+    if (changed) for (const listener of [...listeners]) listener();
+  }
 
   async function attempt(input: PhotoCaptureInput, deps: RescueDeps): Promise<SaveOutcome> {
+    try {
+      await deps.commit(input);
+      return 'saved';
+    } catch (error) {
+      if (!isQuotaError(error)) throw error;
+    }
+    // CAP-4: free what the kernel allows, sized to this shot, and try the device once more.
+    try {
+      await deps.freeSpace?.(shotBytes(input));
+    } catch {
+      // Eviction is best effort: the retry below still runs.
+    }
     try {
       await deps.commit(input);
       return 'saved';
@@ -67,24 +104,39 @@ export function createCaptureRescue(): CaptureRescue {
   return {
     async save(input, deps) {
       const outcome = await attempt(input, deps);
-      if (outcome === 'held') held.push(input);
+      if (outcome === 'held') setHeld([...held, input]);
       return outcome;
     },
-    async retryHeld(deps) {
-      const waiting = held;
-      held = [];
-      for (const input of waiting) {
-        let outcome: SaveOutcome;
-        try {
-          outcome = await attempt(input, deps);
-        } catch {
-          outcome = 'held';
+    retryHeld(deps) {
+      // One retry at a time (the camera's open, a shot and "Concluir fotos" may ask together):
+      // a second caller waits for the one running, so a held shot is never committed twice.
+      if (retrying !== null) return retrying;
+      const run = async (): Promise<number> => {
+        // Each held shot leaves the list only once it was stored or sent, so the refused state
+        // stays on while the retry is still running.
+        for (const input of [...held]) {
+          let outcome: SaveOutcome;
+          try {
+            outcome = await attempt(input, deps);
+          } catch {
+            outcome = 'held';
+          }
+          if (outcome !== 'held') setHeld(held.filter((shot) => shot !== input));
         }
-        if (outcome === 'held') held.push(input);
-      }
-      return held.length;
+        return held.length;
+      };
+      retrying = run().finally(() => {
+        retrying = null;
+      });
+      return retrying;
     },
     heldCount: () => held.length,
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
   };
 }
 
