@@ -14,6 +14,7 @@ import {
   firstRunCell,
   nextUnit,
   readingLabelText,
+  runEnterKeyHint,
   runTarget,
   unitDefaultFor,
   worstReadings,
@@ -323,6 +324,30 @@ describe('5.6-UNIT the continuous run', () => {
     expect(runTarget(tp, at('isolacao', 2, 1), 'next')).toEqual(at('relacao_transformacao', 0, 3));
     const address = at('relacao_transformacao', 0, 0);
     expect(evaluatedCells(tp).find((c) => c.address.testKey === address.testKey && c.address.row === address.row && c.address.col === address.col)?.source).toBe('nameplate');
+  });
+});
+
+describe('13.4 INP-2 runEnterKeyHint', () => {
+  const empty = evaluateSheetReadings(block('chave_seccionadora'), SEC);
+
+  it('says next while Enter moves to another cell and done where it lands on the primary', () => {
+    expect(runEnterKeyHint(empty, at('isolacao', 0, 0))).toBe('next');
+    expect(runEnterKeyHint(empty, at('isolacao', 5, 0))).toBe('next');
+    expect(runEnterKeyHint(empty, at('resistencia_contato', 1, 0))).toBe('next');
+    expect(runEnterKeyHint(empty, at('resistencia_contato', 2, 0))).toBe('done');
+  });
+
+  it('is recomputed as cells fill: the last column of a table turns done once nothing empty follows', () => {
+    const filled = evaluateSheetReadings(
+      block('chave_seccionadora', test('resistencia_contato', [[0, 0, measured('10', 'µΩ')], [1, 0, measured('10', 'µΩ')], [2, 0, measured('10', 'µΩ')]])),
+      SEC,
+    );
+    expect(runEnterKeyHint(filled, at('isolacao', 5, 0))).toBe('done');
+    expect(runEnterKeyHint(filled, at('isolacao', 4, 0))).toBe('next');
+  });
+
+  it('is done for a cell outside the run', () => {
+    expect(runEnterKeyHint(empty, at('isolacao', 99, 0))).toBe('done');
   });
 });
 

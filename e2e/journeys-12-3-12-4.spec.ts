@@ -160,8 +160,9 @@ test('@p1 12.3-E2E-004 J1, J3 and J2 at 768 px: a new plate, the second secciona
   const acionamento = page.getByLabel('Acionamento', { exact: true });
   await j1.tap('Acionamento', acionamento, () => expect(acionamento).toBeFocused({ timeout: EFFECT_MS }));
   await j1.pick('Acionamento MANUAL/PUNHO', acionamento, 'MANUAL/PUNHO');
-  const day = field(page, 'data_de_fabricacao').getByRole('spinbutton').first();
-  await j1.tap('Data de fabricação, dia', day, () => expect(day).toBeFocused({ timeout: EFFECT_MS }));
+  // Story 13.4 (INP-3): the empty date is a text input that reads the same eight digits.
+  const day = field(page, 'data_de_fabricacao').locator('input.input');
+  await j1.tap('Data de fabricação', day, () => expect(day).toBeFocused({ timeout: EFFECT_MS }));
   await j1.type('01012020');
   await j1.tap('Marcar os restantes como Conforme', bulk(page, 'Marcar os restantes como Conforme'), () => expect(toast(page)).toContainText('marcados Conforme', { timeout: EFFECT_MS }));
   await expect(stepper(page).getByRole('button', { name: 'Placa, 0 faltando' })).toBeVisible();

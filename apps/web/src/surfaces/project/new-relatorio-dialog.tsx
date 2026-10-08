@@ -87,6 +87,9 @@ export function NewRelatorioDialog({ project, client, relatorios, templates, onC
     setStart(next);
   }
 
+  /** Story 13.4 (INP-3): the "Hoje" chip of a date the user cleared. */
+  const today = () => calendarDateOfInstant(now());
+
   async function create(): Promise<void> {
     if (db === null || user === null || template === null || start === null || inFlight.current) return;
     inFlight.current = true;
@@ -172,8 +175,8 @@ export function NewRelatorioDialog({ project, client, relatorios, templates, onC
       </div>
 
       <div className="field-pair">
-        <DateField label={t.startLabel} value={start} onChange={onStart} />
-        <DateField label={t.endLabel} value={end} onChange={setEnd} isInvalid={endBeforeStart(start, end)} />
+        <DateField label={t.startLabel} value={start} onChange={onStart} today={today} />
+        <DateField label={t.endLabel} value={end} onChange={setEnd} isInvalid={endBeforeStart(start, end)} today={today} />
       </div>
 
       <div className="dialog-actions">

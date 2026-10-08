@@ -23,4 +23,4 @@ export {
   type VisibleColumn,
 } from './reading-cells.ts';
 export { cellAddressesOf, effectiveCriterion, evaluatedCells, evaluateSheetReadings, evaluateTest, unitDefaultFor } from './reading-evaluation.ts';
-export { firstRunCell, runTarget, worstReadings, type WorstReading } from './reading-run.ts';
+export { firstRunCell, runEnterKeyHint, runTarget, worstReadings, type WorstReading } from './reading-run.ts';

@@ -86,6 +86,16 @@ const dialog = () => screen.getByRole('dialog', { name: 'Novo relatório — tip
 const create = () => within(dialog()).getByRole('button', { name: 'Criar relatório' });
 const segments = (label: string) => within(within(dialog()).getByRole('group', { name: label })).getAllByRole('spinbutton');
 
+const group = (label: string) => within(dialog()).getByRole('group', { name: label });
+
+/** Empties every segment of a date (Backspace until each shows its placeholder). */
+async function clearDate(label: string) {
+  for (const index of [0, 1, 2]) {
+    await userEvent.click(segments(label)[index]!);
+    await userEvent.keyboard('{Backspace}{Backspace}{Backspace}{Backspace}');
+  }
+}
+
 async function typeDate(label: string, digits: string) {
   await userEvent.click(segments(label)[0]!);
   await userEvent.keyboard(digits);
@@ -140,6 +150,31 @@ describe('4.1 NewRelatorioDialog', () => {
     await typeDate('Início da parada', '01092026');
     await waitFor(() => expect(segments('Fim da parada').map((s) => s.textContent)).toEqual(['05', '09', '2026']));
     expect(create()).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('13.4 INP-3: a cleared end, then a cleared start, is filled with today by "Hoje", and Criar is ready again', async () => {
+    database = await freshDb();
+    await database.entities.put(toRecord(`template:${TEMPLATE}`, template()));
+    renderDialog();
+    const [year, month, day] = calendarDateOfInstant(new Date()).split('-');
+    const hoje = (label: string) => within(group(label).closest('.field') as HTMLElement).queryByRole('button', { name: 'Hoje' });
+    expect(hoje('Início da parada')).toBeNull();
+    expect(hoje('Fim da parada')).toBeNull();
+
+    await clearDate('Fim da parada');
+    await waitFor(() => expect(hoje('Fim da parada')).not.toBeNull());
+    await userEvent.click(hoje('Fim da parada')!);
+    await waitFor(() => expect(segments('Fim da parada').map((s) => s.textContent)).toEqual([day, month, year]));
+    expect(hoje('Fim da parada')).toBeNull();
+    expect(segments('Fim da parada')[0]).toHaveFocus();
+    expect(create()).not.toHaveAttribute('aria-disabled');
+
+    await clearDate('Início da parada');
+    await waitFor(() => expect(hoje('Início da parada')).not.toBeNull());
+    await userEvent.click(hoje('Início da parada')!);
+    await waitFor(() => expect(segments('Início da parada').map((s) => s.textContent)).toEqual([day, month, year]));
+    expect(segments('Fim da parada').map((s) => s.textContent)).toEqual([day, month, year]);
+    await waitFor(() => expect(create()).not.toHaveAttribute('aria-disabled'));
   });
 
   it('Criar writes one batch of 223 ops under one batch_id and opens Relatório setup at Etapa 1', async () => {

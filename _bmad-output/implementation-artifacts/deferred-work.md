@@ -1002,7 +1002,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Narrowing, E78-Q2. Under the `fake` providers only `transformador_forca` has a default fixture: a plate photographed through the app on any other type still fails permanently at its first attempt ("no fixture for block type ..."). Adding a default per type needs a synthetic plate for it.
   evidence: `apps/api/src/jobs/reading/providers/fake.ts` `DEFAULT_FIXTURE_BY_BLOCK_TYPE`.
   class: deferred
-  state: open (owner: none)
+  state: ~~open (owner: none)~~ closed (2026-10-07, Story 13.7, `spec-13-7-plate-tile-every-type.md`, batch e13d: every block type with a nameplate has a synthetic default plate, `fixtures/images/plate-<type>.png` from `apps/api/src/scripts/make-plate-fixtures.ts`, listed in `kinds/plate.ts` `fakeDefaults`; the two cable types have no nameplate and keep the permanent failure)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-8-fix-qa.md`
   summary: Narrowing, E78-Q5. "Tentar novamente" waits for the photo's next reading status op in component state: a reload before that op arrives offers it again. The route still answers 409 while the reading is `running`, so the only second run left is one asked after the job already ended.
@@ -1362,6 +1362,18 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-layout-copy-3.md`
   summary: F-11's `scroll-padding-bottom` measures the sticky bar against `window.innerHeight`, so on WebKit/iOS the on-screen keyboard inset (`visualViewport`) is left out of the padding EXPERIENCE.md:369 asks for; the WebKit leg of `test:e2e:matrix` was not run for this batch (review 2026-10-07, BH8).
   evidence: `apps/web/src/components/toast.tsx` `stickyBarCovered`; unverified on WebKit. A `durability-webkit` run of the F-11 case, or a `visualViewport.height` fallback with a test, would settle it.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-13-4-keyboard-and-salvo.md`
+  summary: Story 13.4 narrowing: a typed guess over a suggested "Data de fabricação" (OCR suggestion pending) still parses with `parseFieldInput`, so it refuses a bare year ("2012") and digit runs and applies no F-22 range, while the plain empty field accepts them through `parsePlateDateText`.
+  evidence: `apps/web/src/surfaces/ficha/nameplate-suggestions.tsx` `useNameplateSuggestions().type` (~:237-241) and `packages/domain/src/relatorio/suggestion-group.ts:155-158`; review VG3, 2026-10-07. The spec kept the OCR path's parse unchanged; whether a bare year may be written over a suggestion is a product call.
+  class: debt
+  state: open (owner: coordinator decision, then the next sheet batch)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-13-4-keyboard-and-salvo.md`
+  summary: EXPERIENCE.md › Autosave still describes "Salvo" as a visually hidden status; Story 13.4 made it a visible header line ("Salvo às HH:MM", offline "Salvo neste aparelho às HH:MM").
+  evidence: `ux-fasor-2026-09-18/EXPERIENCE.md:404`; planning documents are amended by strike-through with a date, which this batch leaves to the coordinator.
+  class: docs
+  state: open (owner: coordinator)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-13-3-13-5-zoom-and-waiting.md`
   summary: Story 13.3's touch spec (`e2e/photo-zoom.durability.spec.ts`) is skipped on `durability-webkit`: Playwright's WebKit build cannot store a photo Blob in IndexedDB ("UnknownError: Error preparing Blob/File data to be stored in object store"), so no photo exists there to zoom. The WebKit leg of the 13.3 DoD is a manual iPad pass (Epic 13 batch C, 2026-10-07).

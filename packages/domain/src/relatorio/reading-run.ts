@@ -61,6 +61,16 @@ export function runTarget(evaluations: readonly TestEvaluation[], from: CellAddr
   return 'end';
 }
 
+/**
+ * Story 13.4 (INP-2): the mobile keyboard's Enter key label of a run cell: `next` while Enter
+ * moves to another cell, `done` on the cell whose Enter hands the focus to the primary action
+ * (or goes nowhere).
+ */
+export function runEnterKeyHint(evaluations: readonly TestEvaluation[], address: CellAddress): 'next' | 'done' {
+  const target = runTarget(evaluations, address, 'next');
+  return target === null || target === 'end' ? 'done' : 'next';
+}
+
 /** The first cell the run would stop at (the first empty one), or null when every cell holds a value. */
 export function firstRunCell(evaluations: readonly TestEvaluation[]): CellAddress | null {
   for (const block of runBlocks(evaluations)) {

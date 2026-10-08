@@ -39,13 +39,16 @@ has the sha256 of a committed image. A photo with no fixture named after its own
 back to the default fixture of its target block type (`DEFAULT_FIXTURE_BY_BLOCK_TYPE` in
 `providers/fake.ts`):
 
-- `transformador_forca`: the synthetic transformer plate below. Its OCR boxes are scaled to
-  the width and height of the image the job sends (read with sharp), so the job's size check
-  passes whatever size the device's re-encode gave the photo, and the eleven suggestions
-  arrive. This is how the local stack and `e2e/plate-reading.spec.ts` read a plate through the
-  app under the `fake` providers.
-- any other block type: the reading fails permanently at its first attempt ("no fixture for
-  block type ..."), and the sheet offers "Tentar novamente" and "Preencher manualmente".
+- every block type with a nameplate (Story 13.7): `transformador_forca` replays the synthetic
+  transformer plate below, and `para_raio`, `chave_seccionadora`, `disjuntor_mt`, `tp` and
+  `tc` the synthetic plates of "The synthetic plates of the other types". The OCR boxes are
+  scaled to the width and height of the image the job sends (read with sharp), so the job's
+  size check passes whatever size the device's re-encode gave the photo, and the type's
+  suggestions arrive. This is how the local stack, `e2e/plate-reading.spec.ts` and
+  `e2e/plate-every-type.spec.ts` read a plate through the app under the `fake` providers.
+- a type with no nameplate (`cabos_entrada`, `cabos_saida`; the app shows no plate tile on
+  their sheets): the reading fails permanently at its first attempt ("no fixture for block
+  type ..."), and the sheet would offer "Tentar novamente" and "Preencher manualmente".
 
 A photo's own fixture always wins over the default (the error and timeout images below).
 
@@ -58,6 +61,11 @@ the thermo-hygrometer has no block type and the table key `env`.
 | Kind | Block type | Table (`reading_target.table_key`) | Default fixture replays |
 |---|---|---|---|
 | plate | `transformador_forca` | - | `plate-transformador.jpg` |
+| plate | `para_raio` | - | `images/plate-para-raio.png` |
+| plate | `chave_seccionadora` | - | `images/plate-chave-seccionadora.png` |
+| plate | `disjuntor_mt` | - | `images/plate-disjuntor-mt.png` |
+| plate | `tp` | - | `images/plate-tp.png` |
+| plate | `tc` | - | `images/plate-tc.png` |
 | display | `transformador_forca` | `isolacao` | `display-tres-valores.jpg` (1,20 / 1,45 / 1,80 GΩ: only 1 MINUTO is suggested) |
 | display | any | `isolacao` | `display-isolacao.jpg` (147 GΩ) |
 | display | any | `resistencia_contato` | `display-microhmimetro.jpg` (87 µΩ, read at 0.17: Verificar) |
@@ -74,7 +82,7 @@ in `services/ocr/tests/fixtures/` (their table: `displays.md`); a display sugges
 
 ## Adding one
 
-1. Commit the image the fixture is for: the synthetic plate lives in
+1. Commit the image the fixture is for: the synthetic transformer plate lives in
    `services/ocr/tests/fixtures/`, anything else goes in `images/` here. A test
    (`providers/fake.test.ts`) fails when a fixture's name is not the sha256 of one of them.
 2. Name the fixture after that sha256 and write the OCR tokens and the structured values.
@@ -111,6 +119,43 @@ suggestions (`vol_oleo` gets none: the model leaves it out):
 does not, so the server makes it `verify` whatever the model says. A cell filled before the
 run gets `mode: replace`; a manufacturer the company already registered as `Celtta` stores
 the registry's spelling and no hint.
+
+## The synthetic plates of the other types (Story 13.7)
+
+Five plates, one per nameplate type besides the transformer, each a 1200 x 900 PNG in
+`images/` (the `print` variant keeps that size, so a photo of the committed image replays its
+own fixture unscaled). Each draws a header with the type's label, then one row per field: the
+seed label's words at the left, the value at the right. The values are invented, valid for
+their field kind, and the manufacturers are made-up words; nothing comes from a real plate.
+Every value cites the tokens that print all of its digits, so with empty cells and nothing in
+the registries each value is a pending `suggested` suggestion, except a `voltage_class` value
+(TENSÃO NOMINAL, TENSÃO DE PLACA), which is `verify` unless the company registered that class
+(Story 8.5); every new manufacturer carries `create_registry_entry`. Every nameplate key of the
+type is covered except `tag` and `vol_oleo`. Tokens are `t0..`, confidence 0.99,
+`preprocessing_applied: false`; each value's confidence is 0.97.
+
+| Image | Fixture | Tokens | Values (field: value, cited tokens) |
+|---|---|---|---|
+| `plate-para-raio.png` | `966c9b54...json` | 16 | fabricacao `Quelvar` (t2); n_serie `PR-2207-114` (t5); tipo `ZNO-15/10` (t7); tensao_nominal `15 kV` (t10 t11, verify unless registered); corrente_nominal `{raw: 10, unit: kA}` (t14 t15) |
+| `plate-chave-seccionadora.png` | `deaede23...json` | 30 | identificacao `SEC-02` (t3); fabricacao `Morvatec` (t5); n_serie `SC-190344` (t8); tipo `SFU-17/630` (t10); meio_de_extincao `AR` (t14); tensao_de_placa `17,5 kV` (t18 t19, verify unless registered); corrente_nominal `{raw: 630, unit: A}` (t22 t23); acionamento `MANUAL/PUNHO` (t25); data_de_fabricacao `2019-03` (t29, prints `03/2019`) |
+| `plate-disjuntor-mt.png` | `b0b6f663...json` | 40 | identificacao `DJ-01` (t3); fabricacao `Tensilda` (t5); n_serie `DJ-210587` (t8); tipo `VBX-17` (t10); meio_de_extincao `SF6` (t14); corrente_nominal `{raw: 630, unit: A}` (t17 t18); capacidade_interruptor `{raw: 25, unit: kA}` (t21 t22); data_de_fabricacao `2021-06` (t26); tensao_nominal `15 kV` (t29 t30, verify unless registered); aj_bobina `220 Vcc` (t33 t34); aj_rele_50_51 `120 A` (t38 t39) |
+| `plate-tp.png` | `92b72ab7...json` | 37 | identificacao `TP-01` (t2); fabricacao `Ondarel` (t4); n_serie `TP-118204` (t7); tipo `UTE-15` (t9); tipo_de_isolacao `EPÓXI` (t13); potencia_nominal `{raw: 500, unit: VA}` (t16 t17); tap_atual `2` (t20); data_fabricacao `2020-11` (t23); tensao_nominal_at `{raw: 13.8, unit: kV}` (t27 t28, prints `13,8`); tensao_nominal_bt `{raw: 115, unit: V}` (t32 t33); ligacao_secundaria `Y` (t36) |
+| `plate-tc.png` | `0b5dce48...json` | 43 | identificacao `TC-01` (t2); fabricacao `Velquor` (t4); n_serie `TC-305117` (t7); tipo `UCE-15` (t9); tipo_de_isolacao `Á SECO` (t13 t14); potencia_nominal `{raw: 25, unit: VA}` (t17 t18); tap_atual `1` (t21); data_fabricacao `2022-02` (t24); tensao_nominal_at `{raw: 15, unit: kV}` (t28 t29); tensao_nominal_bt `{raw: 220, unit: V}` (t33 t34); ligacao_secundaria `Y` (t37); relacao `200-5 A` (t39 t40); exatidao `10B100` (t42) |
+
+The images and fixtures are generated, never edited by hand, by
+`apps/api/src/scripts/make-plate-fixtures.ts` in the `tools` container:
+
+```sh
+docker compose --profile tools run --rm tools pnpm exec tsx apps/api/src/scripts/make-plate-fixtures.ts
+```
+
+It lays each plate out from a table of values and the type's seed `FieldDef`s, draws it as an
+inline SVG (font DejaVu Sans) rendered by sharp, and measures every token box by drawing the
+token alone at its position on a white page and trimming the page to its ink. It writes the
+PNG and `<sha256>.json` and prints the shas, which `kinds/plate.ts` lists in `fakeDefaults`.
+The output is reproducible in the same container image; a different font set changes the
+bytes, so a re-run that prints new shas needs `kinds/plate.ts` updated and the old JSONs
+removed.
 
 ## The error and timeout images
 
