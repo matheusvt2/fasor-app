@@ -148,6 +148,10 @@ describe('AIR-1 normalizeReadingValue: a plate number in another unit of the fie
     expect(normalizeReadingValue(kv, number('13900', 'V'), tokens('13.800', 'V'))).toMatchObject({ value: { raw: '13.9', unit: 'kV' }, verify: false, printedText: '13900' });
   });
 
+  it('a signed raw is compared by magnitude with the unsigned print', () => {
+    expect(normalizeReadingValue(kva, number('-3', 'kVA'), tokens('-3', 'kVA'))).toEqual({ ok: true, value: { raw: '-3', unit: 'kVA', state: 'measured' }, verify: false });
+  });
+
   it('two numbers in the tokens skip the printed-number check', () => {
     expect(normalizeReadingValue(amps, number('200', 'A'), tokens('200-5', 'A'))).toEqual({ ok: true, value: { raw: '200', unit: 'A', state: 'measured' }, verify: false });
   });

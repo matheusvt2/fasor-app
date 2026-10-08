@@ -128,8 +128,10 @@ function normalizeNumber(field: ReadingField, model: { raw: string; unit: string
   const printed = printedOf(cited);
   let verify = false;
   let raw = model.raw;
-  if (printed.run !== null && printed.number !== null && digitsOf(printed.run) === digitsOf(model.raw) && Number(printed.number) !== Number(model.raw)) {
-    raw = printed.number;
+  // The printed run carries no sign: compare magnitudes and keep the model's sign.
+  const sign = model.raw.startsWith('-') ? '-' : '';
+  if (printed.run !== null && printed.number !== null && digitsOf(printed.run) === digitsOf(model.raw) && Number(printed.number) !== Math.abs(Number(model.raw))) {
+    raw = `${sign}${printed.number}`;
     verify = true;
   }
   if (modelUnit !== null && printed.unit !== null && !sameUnit(modelUnit, printed.unit)) verify = true;

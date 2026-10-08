@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: plate reading units and bare years, one AWS error and timeout layer (batch r8read)'
 type: 'bugfix'
 created: '2026-10-08'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'e48774182082e511099a1f1365f99958ae8350d8'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,13 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/review-fixes-2026-10-08-context.md'
 warnings: ['batched', 'multiple-goals']
 batched_reason: 'The coordinator cut the plate-reading findings of the 2026-10-08 review into one batch (r8read): AIR-1, AIR-V1, PLN-13 in the kernel reading rules and AIR-17/API-1 with the C4 AWS layer (API-3, API-V2) in apps/api, fixed together for one story gate.'
-deferred: []
+deferred:
+  - summary: 'A suggested plate date outside 1900 .. next year is not refused on the reading path (the typed path refuses it, F-22).'
+    evidence: 'reading/value.ts has no clock; buildReadingSuggestions would need `now`.'
+    severity: low
+  - summary: '"13.800 kV" on a voltage class reads as 13,800 kV (parseVoltageClassKv treats the dot as a decimal).'
+    evidence: 'registry/word-row.ts parseVoltageClassKv; unchanged by this batch.'
+    severity: low
 ---
 
 <intent-contract>
@@ -136,6 +142,17 @@ AWS errors (`classifyAwsError`):
 ## Spec Change Log
 
 ## Review Triage Log
+
+2026-10-08, pass 1 (no subagent tool in this session: implementation and both review lenses, Edge Case Hunter and Verification Gap Reviewer, ran in the orchestrator; Blind Hunter and Intent Alignment skipped for token economy, the integrated review covers them). Verdicts: 0 high, 2 medium, 2 low patched; 2 low deferred.
+
+| Finding | Verdict | Route | Evidence / action |
+|---|---|---|---|
+| EC1 a signed raw (`-3`) against its unsigned printed run was rewritten to `3` and marked Verificar | medium | patch | `normalizeNumber` compares magnitudes and keeps the model's sign; value test "a signed raw is compared by magnitude" |
+| EC2 the reading run row now records `ProviderRefusedError` for a denied call where tests expected `PermanentReadingError` | medium | patch | no code parses the class name (grep); `job.integration.test.ts` 11.6 AccessDenied row expects `ProviderRefusedError`, still one attempt |
+| VG1 no test held the audit to its new import boundary | low | patch | `audit.test.ts` reads `provider.ts` and `job.ts` and refuses an import from `reading/providers` |
+| VG2 the fake-fixture digit test read the converted value | low | patch | `fake.test.ts` reads `printedText` and passes the cited tokens |
+| EC3 a suggested bare year or ISO date outside 1900 .. next year is not refused on the reading path (the typed path refuses it) | low | defer | pre-existing for ISO dates; the reading has no clock; listed as known open |
+| EC4 "13.800 kV" (a pt-BR thousands dot before kV on a voltage class) still reads as 13,800 through `parseVoltageClassKv` | low | defer | unchanged behaviour, not printed on real plates; listed as known open |
 
 ## Design Notes
 

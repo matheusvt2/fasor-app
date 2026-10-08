@@ -189,13 +189,15 @@ describe('13.7-API every block type with a nameplate has its plate default', () 
       for (const value of output.values) {
         const field = fields.get(value.key);
         expect(field, `${type} ${value.key}`).toBeDefined();
-        const normalized = normalizeReadingValue(field!, value.value);
-        expect(normalized.ok && !normalized.verify, `${type} ${value.key} is valid for its kind`).toBe(true);
         const cited = inTokenOrder(value.ocr_token_ids.map((id) => tokens.get(id)!));
         expect(cited.every((token) => token !== undefined)).toBe(true);
+        const normalized = normalizeReadingValue(field!, value.value, cited);
+        expect(normalized.ok && !normalized.verify, `${type} ${value.key} is valid for its kind`).toBe(true);
         // The transformer's `tap_atual` is the wrong-digit case of Story 8.5 (README).
         if (type === 'transformador_forca' && value.key === 'tap_atual') continue;
-        expect(digitCoverage(readingValueText(field!, normalized.ok ? normalized.value : null), cited), `${type} ${value.key} digits`).toBe(true);
+        // AIR-1: a value moved into the field's unit is read as printed (`printedText`).
+        const printed = normalized.ok ? (normalized.printedText ?? readingValueText(field!, normalized.value)) : '';
+        expect(digitCoverage(printed, cited), `${type} ${value.key} digits`).toBe(true);
       }
     });
   }

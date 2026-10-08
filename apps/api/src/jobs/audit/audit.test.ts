@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import { AUDIT_FINDING_KINDS, type AuditRef } from '@app/domain';
 import { describe, expect, it } from 'vitest';
@@ -153,6 +155,12 @@ describe('13.8-UNIT-012 the Bedrock audit on an injected client', () => {
 });
 
 describe('API-3 (review 2026-10-08) one Bedrock client per process', () => {
+  it('the audit imports the AI provider base, never the reading providers', () => {
+    for (const file of ['provider.ts', 'job.ts']) {
+      expect(readFileSync(join(import.meta.dirname, file), 'utf8'), file).not.toMatch(/from '[^']*reading\/providers/);
+    }
+  });
+
   it('the reading providers and the audit given one source build one client, on the first call', async () => {
     const client = fakeClient(async () => toolAnswer({ findings: [] }));
     let built = 0;
