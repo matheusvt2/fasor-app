@@ -1369,6 +1369,12 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: debt
   state: ~~open (owner: coordinator decision, then the next sheet batch)~~ closed 2026-10-08 by the review fixes batch r8read (PLN-13, decided with AIR-V1 in the coordinator's launch prompt): `parseFieldInput` reads a date through `parsePlateDateText` with the F-22 range when given `now`, so a typed bare year or digit run over a suggestion is taken as the plain field takes it.
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-plate-reading.md`
+  summary: Independent review r8read-rules-3 (PR #115): the OCR/structuring contract still documents a `date` value as `YYYY-MM[-DD]` (`structuringValueSchemaFor('date')`) while the reading accepts a bare plate year ("2012") before that check and the Bedrock prompt (`bedrock-structuring-2`) asks for `YYYY` when only a year is printed. A consumer validating against `structuringValueSchemaFor` would drop every bare-year plate date again.
+  evidence: `packages/domain/src/contract/ocr.ts:131` and `:163`, the committed `services/ocr/contract/ocr-contract.schema.json:276`; `packages/domain/src/reading/value.ts` `normalizeReadingValue` (bare year returned first). The batch spec forbade editing `contract/ocr.ts`.
+  class: debt
+  state: open (owner: the next change to `contract/ocr.ts`: add `YYYY` to the date shape and re-export the schema)
+
 - source_spec: `_bmad-output/implementation-artifacts/spec-13-4-keyboard-and-salvo.md`
   summary: EXPERIENCE.md › Autosave still describes "Salvo" as a visually hidden status; Story 13.4 made it a visible header line ("Salvo às HH:MM", offline "Salvo neste aparelho às HH:MM").
   evidence: `ux-fasor-2026-09-18/EXPERIENCE.md:404`; planning documents are amended by strike-through with a date, which this batch leaves to the coordinator.

@@ -212,6 +212,20 @@ describe('AIR-1 and AIR-V1 buildReadingSuggestions: units as printed, bare years
     expect(rowOf(built.rows, 'tensao_nominal_at')).toMatchObject({ value: { raw: '13.9', unit: 'kV' }, trust: 'verify' });
   });
 
+  it('a unit only the model gives, cited by its number alone, is converted as a check (r8read-correctness-1)', () => {
+    const built = buildReadingSuggestions(
+      input({
+        ocr: plateOcr,
+        output: values([
+          value('tensao_nominal_at', { raw: '13800', unit: 'V', state: 'measured' }, ['t0']),
+          value('potencia_nominal', { raw: '1.5', unit: 'MVA', state: 'measured' }, ['t3']),
+        ]),
+      }),
+    );
+    expect(rowOf(built.rows, 'tensao_nominal_at')).toMatchObject({ value: { raw: '13.8', unit: 'kV' }, trust: 'verify' });
+    expect(rowOf(built.rows, 'potencia_nominal')).toMatchObject({ value: { raw: '1500', unit: 'kVA' }, trust: 'verify' });
+  });
+
   it('a model raw that kept the pt-BR thousands dot is the printed number, as a check', () => {
     const built = buildReadingSuggestions(input({ ocr: plateOcr, output: values([value('tensao_nominal_at', { raw: '13.800', unit: 'V', state: 'measured' }, ['t0', 't1'])]) }));
     expect(rowOf(built.rows, 'tensao_nominal_at')).toMatchObject({ value: { raw: '13.8', unit: 'kV' }, trust: 'verify' });

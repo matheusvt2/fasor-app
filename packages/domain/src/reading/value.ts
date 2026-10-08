@@ -10,7 +10,8 @@ import { convertReadingUnit, parseSiUnit } from './units.ts';
 
 /*
  * Story 8.4: a structured value as the reading job emits it. The model's value is first
- * checked against its kind's shape (`structuringValueSchemaFor`), then normalized to what
+ * checked against its kind's shape (`structuringValueSchemaFor`; a bare-year date is the one
+ * exception, accepted before that check, see below), then normalized to what
  * the sheet stores (AD-11, the same shapes `parseFieldInput` writes for a typed value). A
  * value that does not normalize is dropped by the caller and logged, never emitted.
  *
@@ -18,7 +19,9 @@ import { convertReadingUnit, parseSiUnit } from './units.ts';
  * quantity ("13.800 V" on a kV field) is moved into the field's unit (`convertReadingUnit`),
  * the unit read from the cited tokens when the model gives none; the digit rule keeps reading
  * the value as printed (`printedText`). A plate date is kept exactly as precise as printed: a
- * bare year ("2012") is stored as is, the shape the typed path stores (Story 13.4).
+ * bare year ("2012") is stored as is, the shape the typed path stores (Story 13.4). The OCR
+ * contract's date shape (`structuringValueSchemaFor('date')`, `YYYY-MM[-DD]`) does not hold
+ * the bare year yet; it gains `YYYY` at the next contract change (`deferred-work.md`).
  */
 
 type ReadingField = Pick<FieldDef, 'kind' | 'unit' | 'options'>;
@@ -28,6 +31,8 @@ const ISO_DATE = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/;
 const BARE_YEAR = /^\d{4}$/;
 /** A printed number: digits with pt-BR or dot separators inside ("13.800", "1,5", "500"). */
 const NUMBER_RUN = /\d(?:[\d.,]*\d)?/g;
+/** A number alone, with pt-BR or dot separators inside ("13800", "13.800", "17,5"). */
+const BARE_NUMBER = /^\d(?:[\d.,]*\d)?$/;
 /** A voltage printed with a unit other than kV: the number, then the unit ("13.800 V", "13800V"). */
 const NUMBER_WITH_UNIT = /^(\d(?:[\d.,]*\d)?)\s*([^\d\s].*)$/;
 
@@ -119,7 +124,8 @@ function sameUnit(a: string, b: string): boolean {
  * A number field's model value against what its cited tokens print:
  * - a raw whose digits are the printed number's but whose value differs (the model kept a
  *   pt-BR thousands dot, "13.800" read as 13.8) takes the printed pt-BR number, and asks for a check;
- * - the unit is the model's, else the one the tokens print; a model unit the tokens contradict asks for a check;
+ * - the unit is the model's, else the one the tokens print; a model unit the tokens contradict asks for a check,
+ *   and so does a model unit the tokens do not print whose power is not the field's (a factor nothing printed grounds);
  * - a unit of the field's quantity is converted into the field's unit; another unit asks for a check.
  */
 function normalizeNumber(field: ReadingField, model: { raw: string; unit: string | null }, cited: readonly CitedToken[]): NormalizedReadingValue {
@@ -134,7 +140,11 @@ function normalizeNumber(field: ReadingField, model: { raw: string; unit: string
     raw = `${sign}${printed.number}`;
     verify = true;
   }
+  // Model and print disagree on the unit: neither is grounded, so the model pair is kept and checked.
   if (modelUnit !== null && printed.unit !== null && !sameUnit(modelUnit, printed.unit)) verify = true;
+  // A model unit the cited tokens do not print, of another power than the field's: the factor of
+  // its conversion rests on the model alone (Story 8.5: trust is never the model's), so it is checked.
+  if (modelUnit !== null && printed.unit === null && fieldUnit !== null && !sameUnit(modelUnit, fieldUnit)) verify = true;
   const unit = modelUnit ?? printed.unit;
   let stored = raw;
   if (unit !== null) {
@@ -164,6 +174,21 @@ function voltageClassKv(text: string): string | null {
 }
 
 /**
+ * A voltage class the model gives as a bare number, read in the volt unit its cited tokens print
+ * when that unit is not kV and the number is the one printed ("13800" beside "13.800" "V" is
+ * "13800 V"), the way `normalizeNumber` takes a unit the model dropped (AIR-1); otherwise the
+ * model's text as given.
+ */
+function withPrintedVoltUnit(text: string, cited: readonly CitedToken[]): string {
+  const bare = text.trim();
+  if (!BARE_NUMBER.test(bare)) return text;
+  const printed = printedOf(cited);
+  if (printed.unit === null || printed.run === null || digitsOf(printed.run) !== digitsOf(bare)) return text;
+  if (parseSiUnit(printed.unit)?.base !== 'V' || sameUnit(printed.unit, 'kV')) return text;
+  return `${bare} ${printed.unit}`;
+}
+
+/**
  * The stored shape of a model value, by kind, `cited` being the OCR tokens it cites:
  * - `number`: `raw` must be a plain decimal (`-?\d+(\.\d+)?`); the unit becomes the field's
  *   (`field.unit ?? null`) and the value is moved into it from the model's unit, or from the
@@ -171,7 +196,8 @@ function voltageClassKv(text: string): string | null {
  *   the state becomes `measured`;
  * - `date`: a bare year (`2012`, as printed) or a valid ISO month or day;
  * - `select`: one of the options, matched ignoring case and accents, stored as the option;
- * - `voltage_class`: a kV number (`parseVoltageClassKv`, or a volt value moved into kV), stored as its kV text;
+ * - `voltage_class`: a kV number (`parseVoltageClassKv`, or a volt value moved into kV, the volt unit
+ *   read from the cited tokens when the model gives a bare number), stored as its kV text;
  * - `text` and `manufacturer`: whitespace collapsed, not empty.
  */
 export function normalizeReadingValue(field: ReadingField, value: unknown, cited: readonly CitedToken[] = []): NormalizedReadingValue {
@@ -196,10 +222,11 @@ export function normalizeReadingValue(field: ReadingField, value: unknown, cited
     }
     case 'voltage_class': {
       if (typeof parsed !== 'string') return invalid;
-      const kv = voltageClassKv(parsed);
+      const given = withPrintedVoltUnit(parsed, cited);
+      const kv = voltageClassKv(given);
       if (kv === null) return invalid;
       // A voltage moved into kV keeps its printed text for the digit rule.
-      return parseVoltageClassKv(parsed) === null ? { ok: true, value: kv, verify: false, printedText: parsed } : { ok: true, value: kv, verify: false };
+      return parseVoltageClassKv(given) === null ? { ok: true, value: kv, verify: false, printedText: parsed } : { ok: true, value: kv, verify: false };
     }
     case 'text':
     case 'manufacturer': {

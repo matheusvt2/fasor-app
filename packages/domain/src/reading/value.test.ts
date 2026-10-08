@@ -133,6 +133,29 @@ describe('AIR-1 normalizeReadingValue: a plate number in another unit of the fie
 
   it('a model unit the tokens contradict keeps the model pair and asks for a check', () => {
     expect(normalizeReadingValue(kv, number('13.8', 'kV'), tokens('13.800', 'V'))).toEqual({ ok: true, value: { raw: '13.8', unit: 'kV', state: 'measured' }, verify: true });
+    // Independent review r8read-correctness-1: neither unit is grounded on a disagreement, so the
+    // model pair is converted as given (never switched to the printed unit) and the row stays Verificar.
+    expect(normalizeReadingValue(kv, number('13.8', 'V'), tokens('13,8', 'kV'))).toEqual({
+      ok: true,
+      value: { raw: '0.0138', unit: 'kV', state: 'measured' },
+      verify: true,
+      printedText: '13.8',
+    });
+  });
+
+  it('a model unit the tokens do not print, of another power than the field, is converted and asks for a check', () => {
+    // r8read-correctness-1: "380" printed alone on a V field, the model inventing kV: the factor
+    // of 1000 rests on the model alone, so the converted value is never trusted.
+    const v = { kind: 'number', unit: 'V' } as const;
+    expect(normalizeReadingValue(v, number('380', 'kV'), tokens('380'))).toEqual({
+      ok: true,
+      value: { raw: '380000', unit: 'V', state: 'measured' },
+      verify: true,
+      printedText: '380',
+    });
+    expect(normalizeReadingValue(kva, number('1.5', 'MVA'), tokens('1,5'))).toMatchObject({ value: { raw: '1500', unit: 'kVA' }, verify: true });
+    // The field's own unit (in any case) printed nowhere is no conversion and no check.
+    expect(normalizeReadingValue(kva, number('500', 'KVA'), tokens('500'))).toEqual({ ok: true, value: { raw: '500', unit: 'kVA', state: 'measured' }, verify: false });
   });
 
   it('a unit stuck to the number is still read', () => {
@@ -160,5 +183,16 @@ describe('AIR-1 normalizeReadingValue: a plate number in another unit of the fie
     expect(normalizeReadingValue(voltage, '13.800 V', tokens('13.800', 'V'))).toEqual({ ok: true, value: '13,8', verify: false, printedText: '13.800 V' });
     expect(normalizeReadingValue(voltage, '15000V')).toEqual({ ok: true, value: '15', verify: false, printedText: '15000V' });
     expect(normalizeReadingValue(voltage, '15 A')).toEqual({ ok: false, reason: 'invalid_shape' });
+  });
+
+  it('a voltage class given as a bare number takes the volt unit its tokens print (r8read-correctness-3)', () => {
+    expect(normalizeReadingValue(voltage, '13800', tokens('13.800', 'V'))).toEqual({ ok: true, value: '13,8', verify: false, printedText: '13800' });
+    expect(normalizeReadingValue(voltage, '13.800', tokens('13.800', 'V'))).toEqual({ ok: true, value: '13,8', verify: false, printedText: '13.800' });
+    expect(normalizeReadingValue(voltage, '13800', tokens('13.800V'))).toEqual({ ok: true, value: '13,8', verify: false, printedText: '13800' });
+    // kV printed, no unit printed, a number that is not the printed one, or another quantity: read as before.
+    expect(normalizeReadingValue(voltage, '15', tokens('15', 'kV'))).toEqual({ ok: true, value: '15', verify: false });
+    expect(normalizeReadingValue(voltage, '15', tokens('15'))).toEqual({ ok: true, value: '15', verify: false });
+    expect(normalizeReadingValue(voltage, '13,8', tokens('13.800', 'V'))).toEqual({ ok: true, value: '13,8', verify: false });
+    expect(normalizeReadingValue(voltage, '15', tokens('15', 'A'))).toEqual({ ok: true, value: '15', verify: false });
   });
 });

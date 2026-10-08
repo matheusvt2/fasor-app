@@ -19,6 +19,21 @@ deferred:
   - summary: '"13.800 kV" on a voltage class reads as 13,800 kV (parseVoltageClassKv treats the dot as a decimal).'
     evidence: 'registry/word-row.ts parseVoltageClassKv; unchanged by this batch.'
     severity: low
+  - summary: 'The OCR contract text still says a date value is YYYY-MM[-DD] while the reading accepts a bare year before that check (independent review r8read-rules-3).'
+    evidence: 'contract/ocr.ts:131 and :163, services/ocr/contract/ocr-contract.schema.json:276; this spec forbids editing contract/ocr.ts; deferred-work.md entry of 2026-10-08.'
+    severity: low
+  - summary: 'An English thousands comma ("1,250 A") read correctly by the model is replaced by the pt-BR reading of the print (1,25 A), under Verificar (independent review r8read-correctness-2).'
+    evidence: 'reading/value.ts normalizeNumber printed-number override; the prompt imposes the pt-BR reading, so the kernel follows it.'
+    severity: low
+  - summary: 'bedrock-eval isRight normalizes without the cited tokens, so it scores a value the job would store converted (independent review r8read-correctness-4).'
+    evidence: 'apps/api/src/scripts/bedrock-eval.ts isRight; build.ts passes the ordered cited tokens.'
+    severity: low
+  - summary: 'The one shared Bedrock client is wired in main.ts with no test; the factories alone are tested (independent review r8read-tests-2).'
+    evidence: 'apps/api/src/main.ts bedrockClientSource passed to createReadingProviders and createAuditProvider; audit.test.ts injects the source itself.'
+    severity: low
+  - summary: 'The audit import-boundary test reads provider.ts and job.ts only and matches static imports only (independent review r8read-tests-4).'
+    evidence: 'apps/api/src/jobs/audit/audit.test.ts; worker.ts, prompt.ts, payload.ts unchecked, though none imports reading/providers today.'
+    severity: low
 ---
 
 <intent-contract>
@@ -67,6 +82,9 @@ Number fields (`normalizeReadingValue`, then `assessReadingValue`); "tokens" are
 | Wrong digit after conversion | kV; `{raw:'13900', unit:'V'}`; `13.800` `V` | converted `13.9`; verify (digit rule on the printed raw) |
 | Two numbers in the tokens | A; `{raw:'200', unit:'A'}`; `200-5` `A` | no pt-BR cross-check (ambiguous); digit rule as today |
 | Voltage class in V | voltage_class kV; `'13.800 V'`; `13.800` `V` | `'13,8'`, then the registry rule (verify unless registered); the digit rule reads `13.800 V` |
+| Model unit printed nowhere (added 2026-10-08, independent review r8read-correctness-1) | V; `{raw:'380', unit:'kV'}`; `380` | `{raw:'380000', unit:'V'}`; verify (the factor rests on the model alone) |
+| Model and print disagree, the other way (added 2026-10-08, r8read-correctness-1) | kV; `{raw:'13.8', unit:'V'}`; `13,8` `kV` | `{raw:'0.0138', unit:'kV'}` (the model pair, never switched to the printed unit); verify |
+| Voltage class, model drops the unit (added 2026-10-08, r8read-correctness-3) | voltage_class kV; `'13800'`; `13.800` `V` | `'13,8'`, then the registry rule; the digit rule reads `13800` |
 
 Dates (`normalizeReadingValue`, `parseFieldInput`):
 
@@ -116,7 +134,7 @@ AWS errors (`classifyAwsError`):
 
 **Execution:**
 - `packages/domain/src/reading/units.ts` (new, exported through `reading/index.ts`) -- `parseSiUnit(text): {prefix: number; base: string} | null` for the bases the seed uses (`V`, `A`, `VA`, `Ω`/`ohm`, `L`, `%`; base matched ignoring case, `Ω`/`ohm` and `µ`/`μ`/`u` variants) and the prefixes `µ m k M G T` (`k`/`K` kilo; `M` mega; `m` milli; trailing `.` ignored); `convertReadingUnit(raw, from, to): string | null` (same base, decimal shift by the prefix difference via `shiftDecimal`, `raw` unchanged for an equal factor, null when either unit is unknown or the bases differ) -- the SI conversion of AIR-1, one kernel home.
-- `packages/domain/src/reading/value.ts` -- `normalizeReadingValue(field, value, cited = [])`: number: read the printed number and unit from the cited tokens' texts (exactly one number run -> `parseDecimalPtBr`; the unit is the non-number remainder when it parses with `parseSiUnit`); source unit = printed unit, else the model unit; a model unit that parses and differs from a printed one, a model raw that differs numerically from the printed pt-BR number (then the printed number is used), or an unconvertible differing unit ask for `verify`; convert into `field.unit`; return `printedText` (the text the digit rule must read: the model raw before conversion, or the voltage text as given). Voltage class: accept `<number> <volt unit>` and convert to kV before `parseVoltageClassKv`. Date: `YYYY` kept as is, else `parseCalendarDate` as today (no digit runs from the model). Update the header comment. -- AIR-1, AIR-V1.
+- `packages/domain/src/reading/value.ts` -- `normalizeReadingValue(field, value, cited = [])`: number: read the printed number and unit from the cited tokens' texts (exactly one number run -> `parseDecimalPtBr`; the unit is the non-number remainder when it parses with `parseSiUnit`); ~~source unit = printed unit, else the model unit~~ *(2026-10-08, r8read independent review: this clause contradicted the matrix row "Model and print disagree on unit", which keeps the model pair; the matrix wins and the code follows it: source unit = the model unit, else the printed unit; when both are given and disagree, neither is grounded, so the model pair is converted and the row asks for a check; a model unit the cited tokens do not print whose power is not the field's is converted and asks for a check too, since nothing printed grounds its factor)*; a model unit that parses and differs from a printed one, a model raw that differs numerically from the printed pt-BR number (then the printed number is used), or an unconvertible differing unit ask for `verify`; convert into `field.unit`; return `printedText` (the text the digit rule must read: the model raw before conversion, or the voltage text as given). Voltage class: accept `<number> <volt unit>` and convert to kV before `parseVoltageClassKv` *(2026-10-08, r8read independent review: a bare number the model gives takes the volt unit its cited tokens print, when that unit is not kV and the number is the printed one, as the number branch does)*. Date: `YYYY` kept as is, else `parseCalendarDate` as today (no digit runs from the model). Update the header comment. -- AIR-1, AIR-V1.
 - `packages/domain/src/reading/assess.ts` -- `AssessReadingInput.printedText?: string`; the digit rule reads it when present, else `readingValueText(field, value)`. `reading/build.ts` -- pass `cited` (in token order) to `normalizeReadingValue` and `printedText` to `assessReadingValue`. -- keep the digit rule on the printed raw.
 - `packages/domain/src/relatorio/suggestion-group.ts` -- `parseFieldInput(field, text, options?: {now?: Date})`: date via `parsePlateDateText`, refused when `options.now` is given and `plateDateAccepted` fails; update the doc comment. `apps/web/src/surfaces/ficha/nameplate-suggestions.tsx` -- pass `{ now: now() }` from `../../clock.ts`. -- PLN-13 (closes `deferred-work.md` entry at ~:1366: mark it closed with the date and this batch).
 - Kernel unit tests: `reading/units.test.ts` (every row of the matrix's conversions, unknown units, case, `µ` variants), `reading/value.test.ts` (every number and date row; the old `'2012'` invalid case becomes valid), `reading/assess.test.ts` / `reading/build.test.ts` (a converted value stays `suggested` with printed digits; `13900` on printed `13.800` is `verify`), `relatorio/suggestions.test.ts` (PLN-13 rows).
@@ -153,6 +171,22 @@ AWS errors (`classifyAwsError`):
 | VG2 the fake-fixture digit test read the converted value | low | patch | `fake.test.ts` reads `printedText` and passes the cited tokens |
 | EC3 a suggested bare year or ISO date outside 1900 .. next year is not refused on the reading path (the typed path refuses it) | low | defer | pre-existing for ISO dates; the reading has no clock; listed as known open |
 | EC4 "13.800 kV" (a pt-BR thousands dot before kV on a voltage class) still reads as 13,800 through `parseVoltageClassKv` | low | defer | unchanged behaviour, not printed on real plates; listed as known open |
+
+2026-10-08, pass 2: independent review of PR #115 (`.scratch-r8read/independent-review-pr115.json`, 11 findings kept after verification). Verdicts: 3 medium and 3 low patched, 5 low deferred.
+
+| Finding | Verdict | Route | Evidence / action |
+|---|---|---|---|
+| r8read-correctness-1 a unit only the model gives, printed nowhere in the cited tokens, rescaled the value by 1000 and stayed Sugerido | medium | patch | `normalizeNumber` asks for a check when the model's unit is not printed and its power is not the field's; on a disagreement the model pair is kept as Verificar (verifier's correction: switching to the printed unit would break the "Model and print disagree on unit" row); the Execution clause that contradicted that row is struck with a dated note; value and build tests (`380` kV on a V field, both disagreement directions), mutation-proven |
+| r8read-tests-1 the F-22 range on a date typed over a suggestion had no test that fails if the web drops `now` | medium | patch | `plate-units-years.spec.ts` types `1850` over the date suggestion: the invalid helper shows and nothing is written, then `2019` is taken; red with `{ now: now() }` removed |
+| r8read-rules-1 the PR conflicted with main on `docs/kbs/log.md` | medium | patch | origin/main merged (no rebase), both log lines kept, main's first; the story gate re-ran on the merged head |
+| r8read-correctness-3 the voltage_class branch ignored the unit printed in the cited tokens ("13800" beside "13.800 V" stored 13800 kV) | low | patch | `withPrintedVoltUnit` reads a bare number in the printed volt unit when it is not kV and the number is the printed one; value tests, mutation-proven |
+| r8read-tests-3 Confirmar on a bare-year date suggestion was never exercised | low | patch | second `plate-units-years.spec.ts` test confirms "2020": put and `confirmed` status in one batch, the toast names the year, both ops reach `acked` |
+| r8read-rules-3 the OCR contract text still says a date is `YYYY-MM[-DD]` | low | defer | the text lives only in `contract/ocr.ts` (and the schema exported from it), which this spec forbids editing; `value.ts` header states the exception; `deferred-work.md` entry for the next contract change |
+| r8read-correctness-2 an English thousands comma read right by the model is replaced by the pt-BR reading of the print | low | defer | the prompt imposes the pt-BR reading; the result is Verificar, never trusted |
+| r8read-correctness-4 `bedrock-eval` scores values without the cited tokens | low | defer | dev evaluation script only |
+| r8read-tests-2 the shared Bedrock client in `main.ts` has no test | low | defer | the factories' sharing is tested; the composition root is not |
+| r8read-tests-4 the audit import-boundary test reads two of five files, static imports only | low | defer | the boundary holds today (grep) |
+| r8read-rules-2 edits outside the ownership table not all named | low | defer | listed by name in the PR body |
 
 ## Design Notes
 
