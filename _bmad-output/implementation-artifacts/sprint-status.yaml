@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 10-06-2026 18:20
+last_updated: 10-08-2026 12:28
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -152,17 +152,17 @@ development_status:
   12-6-the-tap-budget-is-a-test: done  # PR #38
   epic-12-retrospective: done  # no PR; commit e9e863c, epic-12-retro-2026-09-25.md
 
-  epic-13: in-progress  # batches A-E per epic-13-context.md (2026-10-07); field UX analysis 2026-10-06 (review-field-ux-2026-10-06.md); excludes everything the 2026-10-06 MVP review batches own (F-01 to F-29)
-  13-1-capture-at-the-resolution-the-reading-needs: backlog
-  13-2-torch-zoom-and-tap-to-focus-in-the-viewfinder: backlog
-  13-3-pinch-zoom-to-read-the-photo: backlog
-  13-4-the-keyboard-stops-fighting-the-field-and-the-sheet-says-sal: backlog
-  13-5-a-reading-shows-its-age-can-be-cancelled-and-never-dead-ends: backlog
-  13-6-a-shot-refused-by-quota-survives-the-tab: backlog
-  13-7-the-plate-tile-on-every-block-type: backlog  # DoR met 2026-10-07: E8-A3 answered, all eight types
-  13-8-the-emission-audit-one-ai-pass-before-emitir-that-points-nev: backlog  # DoR: field-defects batch 2 merged (F-03 dialog)
+  epic-13: in-progress  # 13.1-13.8 done (PRs #103-#110); 13.9 deferred
+  13-1-capture-at-the-resolution-the-reading-needs: done  # PR #106; fixes PR #109
+  13-2-torch-zoom-and-tap-to-focus-in-the-viewfinder: done  # PR #106; fixes PR #109
+  13-3-pinch-zoom-to-read-the-photo: done  # PR #103; fixes PR #109
+  13-4-the-keyboard-stops-fighting-the-field-and-the-sheet-says-sal: done  # PR #104; fixes PR #109
+  13-5-a-reading-shows-its-age-can-be-cancelled-and-never-dead-ends: done  # PR #103; fixes PRs #109, #110
+  13-6-a-shot-refused-by-quota-survives-the-tab: done  # PR #106; fixes PR #109
+  13-7-the-plate-tile-on-every-block-type: done  # PR #105; E8-A3 answered 2026-10-07 (cables carry no plate, no tile)
+  13-8-the-emission-audit-one-ai-pass-before-emitir-that-points-nev: done  # PR #107; fixes PR #109
   13-9-dictation-on-behind-one-line-of-consent: backlog  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus
-  epic-13-retrospective: optional
+  epic-13-retrospective: done  # epic-13-retro-2026-10-08.md; machine verdict rejected (13-9 deferred); override to accepted-with-open-items is Matheus's call
 
 action_items:
   - id: "epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli"
@@ -870,3 +870,63 @@ action_items:
     owner: "coordinator"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-13-retro-item-100-e13-a1-wave-gate-on-75c4bad"
+    epic: 13
+    action: "E13-A1 Run the wave gate on integrated main 75c4bad before Epic 14 starts: full @p0, test:e2e:full and the full test:e2e:matrix under the lock with the main stack stopped; a red stage becomes a fix batch; target all three green, only failures also red on b1c2c6b left, each with a ledger row"
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-101-e13-a2-fix-recurring-unit-failures"
+    epic: 13
+    action: "E13-A2 Fix the three recurring unit failures (theme.test.tsx, export-dialog.test.tsx drain under load, number-input.test.tsx:21 harness timer); until then a PR names each red unit test and its isolated pass; target test:unit exit 0 in two consecutive story gates, 0 PRs merged with a red stage"
+    owner: "next carry-over batch"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-102-e13-a3-epic-13-device-script"
+    epic: 13
+    action: "E13-A3 Add the Epic 13 device steps to test-artifacts/manual/offline-proof-script.md (13.1 capture size per path on Android and iPad, 13.2 torch/zoom/focus in a dark cubicle, 13.3 iPad pinch, 13.4 iOS decimal pad commit by tap, 13.3/13.6 WebKit legs), meeting the 13.1/13.2 DoD as written; run with E6-A5, E8-A7, E9-A10, E10-A7, E12-A3; evidence in test-artifacts/manual"
+    owner: "coordinator (script lines); Matheus (device run)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-103-e13-a4-ledger-cleanup"
+    epic: 13
+    action: "E13-A4 deferred-work: close the EXPERIENCE.md Salvo row (landed #109); re-own the panel wait-text/cancel-order test row and the audit worker invalid-payload test row to the next carry-over batch; record the 2026-10-07 every-device decision on the panel palette row and route or accept the two-device double-confirm risk; target 0 rows owned by a finished batch"
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-104-e13-a5-handoff-every-phase"
+    epic: 13
+    action: "E13-A5 Playbook: WIP commit, push and HANDOFF.md update at every phase boundary (spec ready, review done, gate started), and a coordinator resume procedure from HANDOFF.md, after three classifier stalls killed orchestrators in Epic 13; target a stalled Epic 14 batch resumes with no rework beyond its last phase"
+    owner: "coordinator (playbook)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-105-e13-a6-capture-refactor"
+    epic: 13
+    action: "E13-A6 Refactor without behavior change: one pointer-gesture core shared by use-pinch-zoom.ts and the camera controls, and camera-view.tsx (899 lines) split into stream/session, capabilities/controls and single-shot modules; target no camera file over 400 lines, camera, zoom and plate-shot-fallback specs green"
+    owner: "next carry-over batch"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-106-e13-a7-fallback-and-capture-test-rules"
+    epic: 13
+    action: "E13-A7 Playbook test rules: a story adopting a browser API with a fallback ships an e2e on the real surface stubbing the API to reject and to hang (plate-shot-fallback.spec.ts pattern); an e2e that captures asserts a property of the captured file (its size), not only that it exists"
+    owner: "coordinator (playbook)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-107-e13-a8-epic-13-product-questions"
+    epic: 13
+    action: "E13-A8 Add to the E5-A3 session: authored copy pending Bruno (13.2 torch/zoom/refusal, 13.8 audit copy and .precheck look, Ler de novo, Recorte na tela, F-09 banner and burst line, wait announcements), Q-2 Hoje on Proxima intervencao, Q-4 cables nameplate, the 13.4 typed-year-over-suggestion parse, the #110 toast priority rule (arrival opt-in); dated answers under Stories 13.2-13.8"
+    owner: "Matheus (Bruno for wording)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-108-e13-a9-decide-story-13-9"
+    epic: 13
+    action: "E13-A9 Decide Story 13.9: settle its DoR (consent wording, webspeech default) and schedule it, or move it to a later epic with a dated line, so epic-13 can close"
+    owner: "Matheus"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-109-e13-a10-measure-story-gate"
+    epic: 13
+    action: "E13-A10 Measure the 2026-10-08 story gate and load rules on Epic 14's first wave from the PR bodies (lock wait, gate wall time, reruns per batch); fold in E11-A3 lock-holder visibility if a wait exceeds 60 min; target every lock wait under 60 min, at most one rerun per batch"
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
