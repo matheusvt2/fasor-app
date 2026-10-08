@@ -322,6 +322,11 @@ function pushPanelSuggestion(relatorioId: string, photoId: string): Promise<stri
 test('@p0 13.5-E2E-003 a panel photo whose dialog was left by navigation waits in its palette: the row shows its state, then the proposal, and a tap reopens the dialog where "Confirmar" creates the block', async ({ page }) => {
   test.setTimeout(180_000);
   const { relatorioId, photoId } = await panelShot(page);
+  // Review F-06: past 10 s the dialog shows the age outside its live region, which still says "Lendo a foto…".
+  const waiting = result(page).locator('.detect-waiting');
+  await expect(waiting).toHaveText(/^Lendo… \d+ s$/, { timeout: 20_000 });
+  expect(await waiting.evaluate((element) => element.closest('[role="status"], [aria-live]') === null)).toBe(true);
+  await expect(result(page).getByRole('status')).toHaveText('Lendo a foto…');
   // Away from the dialog (another screen), then back to the Sumário: no dialog by itself.
   await page.goto('/');
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();

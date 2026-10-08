@@ -60,20 +60,20 @@ export interface UndoableEdits {
 
 export function useUndoableEdits(): UndoableEdits {
   const db = useSession().database;
-  const { showToast, dismissToast, toast } = useToast();
+  const { showToast, withdrawToast } = useToast();
   const queue = useRef<Promise<unknown>>(Promise.resolve());
 
   /** The live undo toast (one object per toast, so two with the same text differ); null once retired or pressed. */
   const undoToast = useRef<{ text: string } | null>(null);
   /** The last toast this surface showed (undo or plain), by its text. */
   const ownToast = useRef<string | null>(null);
-  const shownToast = useRef(toast);
-  shownToast.current = toast;
-  const dismissRef = useRef(dismissToast);
-  dismissRef.current = dismissToast;
+  // Review fix: a toast of this surface is withdrawn wherever it is, on screen or queued
+  // behind a job outcome, so it never acts after the surface left.
+  const withdrawRef = useRef(withdrawToast);
+  withdrawRef.current = withdrawToast;
   useEffect(
     () => () => {
-      if (ownToast.current !== null && shownToast.current?.text === ownToast.current) dismissRef.current();
+      if (ownToast.current !== null) withdrawRef.current(ownToast.current);
     },
     [],
   );
@@ -85,7 +85,7 @@ export function useUndoableEdits(): UndoableEdits {
   }, []);
 
   const retire = useCallback(() => {
-    if (undoToast.current !== null && shownToast.current?.text === undoToast.current.text) dismissRef.current();
+    if (undoToast.current !== null) withdrawRef.current(undoToast.current.text);
     undoToast.current = null;
   }, []);
 

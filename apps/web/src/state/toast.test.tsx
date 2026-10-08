@@ -116,14 +116,21 @@ describe('Toast', () => {
 });
 
 const opened = vi.fn();
+const openedNewer = vi.fn();
 const dismissed = vi.fn();
 
 function QueueButtons() {
-  const { showToast, showOnce, dismissToast } = useToast();
+  const { showToast, showOnce, dismissToast, withdrawToast } = useToast();
   return (
     <>
       <button type="button" onClick={dismissToast}>
         fechar
+      </button>
+      <button type="button" onClick={() => withdrawToast('1 leitura pronta para confirmar')}>
+        retirar
+      </button>
+      <button type="button" onClick={() => showToast('1 leitura pronta para confirmar', { action: { label: 'Ver', onPress: openedNewer } })}>
+        leitura nova
       </button>
       <button type="button" onClick={() => showToast('Revisão 1 pronta — DOCX e PDF', { outcome: true })}>
         revisão
@@ -238,5 +245,47 @@ describe('review F-03/F-04 (Q-1) the toast queue behind a job outcome', () => {
     act(() => timers.run());
     await userEvent.click(screen.getByText('uma vez'));
     expect(screen.queryByTestId('toast')).toBeNull();
+  });
+
+  it('a same-text toast asked for while one is queued replaces it in place: the newer action is the one kept', async () => {
+    opened.mockReset();
+    openedNewer.mockReset();
+    const timers = fakeTimers();
+    render(<QueueHarness timers={timers} />);
+    await userEvent.click(screen.getByText('revisão'));
+    await userEvent.click(screen.getByText('leitura'));
+    await userEvent.click(screen.getByText('primeiro'));
+    await userEvent.click(screen.getByText('leitura nova'));
+    act(() => timers.run());
+    // Still first in line (replaced in place), with the newer "Ver".
+    expect(shownText()).toContain('1 leitura pronta para confirmar');
+    await userEvent.click(screen.getByRole('button', { name: 'Ver' }));
+    expect(openedNewer).toHaveBeenCalledTimes(1);
+    expect(opened).not.toHaveBeenCalled();
+    expect(shownText()).toBe('Primeiro');
+  });
+
+  it('withdrawToast drops a queued toast of that text, and dismisses it when it is on screen', async () => {
+    dismissed.mockReset();
+    const timers = fakeTimers();
+    render(<QueueHarness timers={timers} />);
+    // Queued behind the outcome, then withdrawn: it never shows.
+    await userEvent.click(screen.getByText('revisão'));
+    await userEvent.click(screen.getByText('leitura'));
+    await userEvent.click(screen.getByText('retirar'));
+    act(() => timers.run());
+    expect(screen.queryByTestId('toast')).toBeNull();
+    // Pushed back to the head of the queue by an outcome, then withdrawn: gone too.
+    await userEvent.click(screen.getByText('leitura'));
+    await userEvent.click(screen.getByText('revisão'));
+    await userEvent.click(screen.getByText('retirar'));
+    expect(shownText()).toContain('Revisão 1 pronta');
+    act(() => timers.run());
+    expect(screen.queryByTestId('toast')).toBeNull();
+    // On screen: dismissed quietly (no `onDismiss`).
+    await userEvent.click(screen.getByText('leitura'));
+    await userEvent.click(screen.getByText('retirar'));
+    expect(screen.queryByTestId('toast')).toBeNull();
+    expect(dismissed).not.toHaveBeenCalled();
   });
 });

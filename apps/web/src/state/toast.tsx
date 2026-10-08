@@ -35,6 +35,12 @@ export interface ToastState {
    */
   showOnce: (key: string, text: string, options?: ShowToastOptions) => void;
   dismissToast: () => void;
+  /**
+   * Review fix: takes a toast of this text away wherever it is: every queued entry with it is
+   * dropped, and it is dismissed (quietly, no `onDismiss`) when it is the one on screen. An undo
+   * toast retired while it waited behind an outcome never shows later.
+   */
+  withdrawToast: (text: string) => void;
 }
 
 const ToastContext = createContext<ToastState | null>(null);
@@ -118,8 +124,11 @@ export function ToastProvider({ children, timers = browserTimers }: { children: 
       const entry: ToastEntry = { text, options };
       const on = current.current?.entry ?? null;
       if (on?.options.outcome === true) {
-        // A job outcome holds the slot: this one waits, once per text.
-        if (!queue.current.some((queued) => queued.text === text)) queue.current.push(entry);
+        // A job outcome holds the slot: this one waits, once per text (the newer ask replaces
+        // the queued one in place, so its action and `onDismiss` are the ones kept).
+        const at = queue.current.findIndex((queued) => queued.text === text);
+        if (at < 0) queue.current.push(entry);
+        else queue.current[at] = entry;
         return;
       }
       if (options.outcome === true && on !== null && on.options.action !== undefined) {
@@ -129,6 +138,17 @@ export function ToastProvider({ children, timers = browserTimers }: { children: 
       slot.display(entry);
     },
     [slot],
+  );
+
+  const withdrawToast = useCallback(
+    (text: string) => {
+      queue.current = queue.current.filter((queued) => queued.text !== text);
+      if (current.current?.entry.text === text) {
+        clearTimer();
+        slot.advance();
+      }
+    },
+    [clearTimer, slot],
   );
 
   const showOnce = useCallback(
@@ -141,8 +161,8 @@ export function ToastProvider({ children, timers = browserTimers }: { children: 
   );
 
   const value = useMemo<ToastState>(
-    () => ({ toast, showToast, showOnce, dismissToast }),
-    [toast, showToast, showOnce, dismissToast],
+    () => ({ toast, showToast, showOnce, dismissToast, withdrawToast }),
+    [toast, showToast, showOnce, dismissToast, withdrawToast],
   );
 
   return <ToastContext value={value}>{children}</ToastContext>;

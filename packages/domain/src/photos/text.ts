@@ -9,10 +9,12 @@ import { plural } from '../text/plural.ts';
 /**
  * The camera view's status line during a burst (`70-fotos.html` `.cam-count`). Review F-09:
  * while a shot is refused and held in memory (`held`), the line never says "salva": authored
- * "1 foto nesta rajada · aguardando espaço neste aparelho".
+ * "1 foto nesta rajada · aguardando espaço neste aparelho"; with earlier shots saved,
+ * "3 fotos nesta rajada · 1 aguardando espaço neste aparelho".
  */
 export function burstCountText(n: number, held = false): string {
-  if (held) return `${plural(n, 'foto', 'fotos')} nesta rajada · aguardando espaço neste aparelho`;
+  // One shot is held at most (the shutter stays shut until it is stored); the earlier ones were saved.
+  if (held) return n === 1 ? '1 foto nesta rajada · aguardando espaço neste aparelho' : `${n} fotos nesta rajada · 1 aguardando espaço neste aparelho`;
   return n === 1
     ? '1 foto nesta rajada · salva neste aparelho com a legenda do contexto'
     : `${n} fotos nesta rajada · salvas neste aparelho com a legenda do contexto`;

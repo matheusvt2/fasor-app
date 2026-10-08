@@ -11,7 +11,8 @@ import { makeSyncState } from '../test/sync-state.ts';
 import { finishGenerate, GenerateWatcher } from './generate-watcher.tsx';
 import type { SessionState } from './session.tsx';
 import { SyncContext } from './sync.tsx';
-import { ToastOutlet, ToastProvider } from './toast.tsx';
+import type { Timers } from '../input/field-commit.ts';
+import { ToastOutlet, ToastProvider, useToast, type ToastState } from './toast.tsx';
 
 /*
  * R4 (Story 7.5): the app-level watcher turns an awaited revision into the `issue` op and
@@ -165,5 +166,47 @@ describe('R4 GenerateWatcher', () => {
     expect(second.ops).toEqual(['emitido']);
     expect(toasts).toEqual(['Revisão 1 pronta — DOCX e PDF']);
     expect(await issueOps(database)).toEqual(['emitido']);
+  });
+
+  it('review F-04 (Q-1): the ready toast is a job outcome: a toast asked for meanwhile waits for its 6 s, then shows', async () => {
+    database = await freshDb();
+    const { row, op } = revision(1);
+    await applyPulled(database, [op]);
+    const pending = new Map<number, () => void>();
+    let id = 0;
+    const timers: Timers = {
+      setTimeout(cb) {
+        pending.set(++id, cb);
+        return id;
+      },
+      clearTimeout(handle) {
+        pending.delete(handle as number);
+      },
+    };
+    const toastApi: { current: ToastState | null } = { current: null };
+    function Grab() {
+      toastApi.current = useToast();
+      return null;
+    }
+    render(
+      <ToastProvider timers={timers}>
+        <Grab />
+        <ToastOutlet />
+      </ToastProvider>,
+    );
+    const db = database;
+    await act(async () => {
+      await finishGenerate(db, { id: USER, companyId: COMPANY }, REL, row, (text, options) => toastApi.current!.showToast(text, options));
+    });
+    expect(screen.getByTestId('toast')).toHaveTextContent('Revisão 1 pronta — DOCX e PDF');
+    act(() => toastApi.current!.showToast('1 foto ficou como Geral, sem legenda'));
+    expect(screen.getByTestId('toast')).toHaveTextContent('Revisão 1 pronta — DOCX e PDF');
+    // The revision's 6 s run out: the other toast shows now.
+    act(() => {
+      const due = [...pending.values()];
+      pending.clear();
+      for (const cb of due) cb();
+    });
+    expect(screen.getByTestId('toast')).toHaveTextContent('1 foto ficou como Geral, sem legenda');
   });
 });

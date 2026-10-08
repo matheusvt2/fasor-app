@@ -2,10 +2,10 @@
 title: 'Epic 13 fixes: integrated review findings'
 type: 'bugfix'
 created: '2026-10-08'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '092ca04a9e7ac3da2ebadf26a4137db99604c75d'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context: []
@@ -116,3 +116,9 @@ Run inside the tools container (`podman compose --profile tools run --rm --user 
 - `pnpm test:unit -- <paths>`; `pnpm test:api -- <path>` for F-14; `pnpm lint`; `pnpm static`.
 - `pnpm exec tsx scripts/e2e.ts e2e/<spec> --project desktop-chrome` per touched spec; photo-numbers with `--repeat-each=5`.
 - After a `packages/domain` change: `podman compose restart api web`.
+
+## Auto Run Result
+
+- Summary: F-01 to F-14 of the Epic 13 QA fixed per the intent contract; one review pass, six patches applied (3 medium, 3 low), five rejected with reasons above, none deferred.
+- Follow-up review recommended: true by count (three medium patches); the named risk is the toast queue's interaction with every toast caller, covered by the integrated QA re-check.
+- Verification: lint, static and the touched unit, api and e2e specs green in the implementer's runs; the staged gate output is in the PR body.

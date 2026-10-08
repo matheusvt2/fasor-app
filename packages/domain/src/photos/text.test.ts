@@ -66,7 +66,8 @@ describe('13.6-UNIT-001 storageRefusedBannerText', () => {
 describe('review F-09 burstCountText while a shot is held', () => {
   it('never says "salva" for a refused shot held in memory', () => {
     expect(burstCountText(1, true)).toBe('1 foto nesta rajada · aguardando espaço neste aparelho');
-    expect(burstCountText(3, true)).toBe('3 fotos nesta rajada · aguardando espaço neste aparelho');
+    // The earlier shots of the burst were saved: only the held one waits.
+    expect(burstCountText(3, true)).toBe('3 fotos nesta rajada · 1 aguardando espaço neste aparelho');
     expect(burstCountText(1, true)).not.toMatch(/salva/);
     expect(burstCountText(1, false)).toBe(burstCountText(1));
   });
