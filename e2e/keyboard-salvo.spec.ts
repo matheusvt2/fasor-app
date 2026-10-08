@@ -121,11 +121,13 @@ test('@p0 13.4-E2E-002 INP-3 "Hoje": an empty service start on Etapa 1 is filled
   await page.goto(`/relatorio/${built.relatorioId}/setup?etapa=1`);
   const setupRoot = page.locator('.setup-content');
   const start = setupRoot.locator('.field').filter({ has: page.getByRole('group', { name: 'Início da execução' }) });
-  const hoje = start.locator('.chip-row').getByRole('button', { name: 'Hoje', exact: true });
+  // Review F-12: each chip is named for its date ("Hoje em Início da execução"); the visible word is "Hoje".
+  const hoje = start.locator('.chip-row').getByRole('button', { name: 'Hoje em Início da execução', exact: true });
   await expect(hoje).toBeVisible({ timeout: 30_000 });
+  await expect(hoje).toHaveText('Hoje');
   // The empty end offers its own "Hoje" too, until the start's fills it (the end follows an empty end).
   const end = setupRoot.locator('.field').filter({ has: page.getByRole('group', { name: 'Fim da execução' }) });
-  await expect(end.locator('.chip-row').getByRole('button', { name: 'Hoje', exact: true })).toBeVisible();
+  await expect(end.locator('.chip-row').getByRole('button', { name: 'Hoje em Fim da execução', exact: true })).toBeVisible();
 
   // The glyph stays inside the `.input` box with the chip row under it.
   const box = (await start.locator('.input').boundingBox())!;
@@ -138,7 +140,7 @@ test('@p0 13.4-E2E-002 INP-3 "Hoje": an empty service start on Etapa 1 is filled
   const [y, m, d] = today.split('-');
   await expect(start.getByRole('spinbutton')).toHaveText([d!, m!, y!]);
   await expect(hoje).toHaveCount(0);
-  await expect(end.getByRole('button', { name: 'Hoje', exact: true })).toHaveCount(0);
+  await expect(end.getByRole('button', { name: 'Hoje em Fim da execução', exact: true })).toHaveCount(0);
   // The chip that held the focus is gone: the focus is on the start's first segment.
   await expect(start.getByRole('spinbutton').first()).toBeFocused();
   const setupValue = async (key: string) => (await outbox(page)).filter((row) => row.path.endsWith(`/${key}`) && row.path.includes('setup')).map((row) => row.value);
@@ -149,7 +151,7 @@ test('@p0 13.4-E2E-002 INP-3 "Hoje": an empty service start on Etapa 1 is filled
   await page.reload();
   const again = page.locator('.setup-content .field').filter({ has: page.getByRole('group', { name: 'Início da execução' }) });
   await expect(again.getByRole('spinbutton')).toHaveText([d!, m!, y!], { timeout: 30_000 });
-  await expect(page.locator('.setup-content').getByRole('button', { name: 'Hoje', exact: true })).toHaveCount(0);
+  await expect(page.locator('.setup-content').getByRole('button', { name: /^Hoje em / })).toHaveCount(0);
 });
 
 test('@p0 13.4-E2E-003 INP-4 at 390 px: "Salvo às HH:MM" shows once an op lands, "Salvo neste aparelho" offline, and the header keeps its height', async ({ page, context }) => {

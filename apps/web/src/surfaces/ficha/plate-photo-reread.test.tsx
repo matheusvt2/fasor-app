@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { readReadingCancelled, readRereadAsked, writeReadingCancelled } from '../../db/prefs.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
+import { AiFeaturesContext } from '../../state/ai-features.tsx';
+import { SyncRequestError } from '../../sync/client.ts';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { makeSyncState } from '../../test/sync-state.ts';
@@ -126,5 +128,87 @@ describe('13.5: "Tentar novamente" after a cancel', () => {
     await userEvent.click(retry());
     await waitFor(() => expect(sync.rereadPhoto).toHaveBeenCalledWith(PHOTO));
     expect(await readReadingCancelled(session.database, PHOTO)).toBeUndefined();
+  });
+});
+
+describe('review F-07 (Q-3): "Ler de novo" after a cancel', () => {
+  const runningTile = (): PhotoTile => ({ ...failedTile(OP_A), reading_status: 'running', reading_status_at: new Date(Date.now() - 20_000).toISOString() });
+  const running = (sync: SyncState, ai = true): ReactNode => (
+    <AiFeaturesContext value={ai}>
+      <SyncContext value={sync}>
+        <ToastProvider>
+          <PlatePhotoRow tile={runningTile()} number={3} view="running" onOpen={vi.fn()} onFillManually={vi.fn()} />
+          <ToastOutlet />
+        </ToastProvider>
+      </SyncContext>
+    </AiFeaturesContext>
+  );
+  const again = () => screen.getByRole('button', { name: 'Ler de novo' });
+  const CANCELLED_AT = '2026-10-07T12:00:00.000Z';
+
+  afterEach(() => {
+    session.online = true;
+  });
+
+  it('a cancelled reading shows "Ler de novo" instead of the wait line; the press clears the cancel, asks the reread route, and the wait line returns', async () => {
+    session.database = await freshDb();
+    await writeReadingCancelled(session.database, PHOTO, CANCELLED_AT);
+    const sync = makeSyncState();
+    const { container } = render(running(sync));
+    await waitFor(() => expect(again()).toBeInTheDocument(), { timeout: 5000 });
+    expect(container.querySelector('.reading-wait')).toBeNull();
+    await userEvent.click(again());
+    await waitFor(() => expect(sync.rereadPhoto).toHaveBeenCalledWith(PHOTO));
+    await waitFor(() => expect(container.querySelector('.reading-wait')).not.toBeNull());
+    expect(await readReadingCancelled(session.database, PHOTO)).toBeUndefined();
+    expect(screen.queryByRole('button', { name: 'Ler de novo' })).toBeNull();
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+
+  it('a 409 reading_running or not_caught_up answer is success: the cancel stays cleared, no error toast', async () => {
+    for (const code of ['reading_running', 'not_caught_up']) {
+      session.database = await freshDb();
+      await writeReadingCancelled(session.database, PHOTO, CANCELLED_AT);
+      const sync = makeSyncState({ rereadPhoto: vi.fn(async () => Promise.reject(new SyncRequestError({ kind: 'http', status: 409, code }))) });
+      const { container, unmount } = render(running(sync));
+      await waitFor(() => expect(again()).toBeInTheDocument(), { timeout: 5000 });
+      await userEvent.click(again());
+      await waitFor(() => expect(container.querySelector('.reading-wait')).not.toBeNull());
+      expect(await readReadingCancelled(session.database, PHOTO)).toBeUndefined();
+      expect(screen.queryByTestId('toast')).toBeNull();
+      unmount();
+      await session.database.close();
+    }
+  });
+
+  it('any other failure records the cancel again and says "Não foi possível pedir a nova leitura"', async () => {
+    session.database = await freshDb();
+    await writeReadingCancelled(session.database, PHOTO, CANCELLED_AT);
+    const sync = makeSyncState({ rereadPhoto: vi.fn(async () => Promise.reject(new SyncRequestError({ kind: 'http', status: 503 }))) });
+    render(running(sync));
+    await waitFor(() => expect(again()).toBeInTheDocument(), { timeout: 5000 });
+    await userEvent.click(again());
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('Não foi possível pedir a nova leitura'));
+    await waitFor(async () => expect(await readReadingCancelled(session.database!, PHOTO)).toBe(CANCELLED_AT));
+    await waitFor(() => expect(again()).not.toHaveAttribute('aria-disabled'));
+  });
+
+  it('offline it is disabled with "Sem conexão"; with AI features off it is not offered', async () => {
+    session.database = await freshDb();
+    await writeReadingCancelled(session.database, PHOTO, CANCELLED_AT);
+    session.online = false;
+    const sync = makeSyncState({ online: false });
+    const offline = render(running(sync));
+    await waitFor(() => expect(again()).toHaveAttribute('aria-disabled', 'true'), { timeout: 5000 });
+    expect(again()).toHaveAccessibleDescription('Sem conexão');
+    await userEvent.click(again());
+    expect(sync.rereadPhoto).not.toHaveBeenCalled();
+    offline.unmount();
+
+    session.online = true;
+    const { container } = render(running(makeSyncState(), false));
+    await waitFor(() => expect(container.querySelector('.reading-wait')).toBeNull());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.queryByRole('button', { name: 'Ler de novo' })).toBeNull();
   });
 });

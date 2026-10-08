@@ -17,7 +17,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { cabineEnvOp, cabineSeOp, sheetObservationsOp } from './ficha-ops.ts';
 import { firstFocusable, ReadOnlyField, SheetField } from './ficha-fields.tsx';
 import type { FichaApi } from './ficha-api.ts';
-import { envAfter, EnvReadDisplayButton, EnvSuggestionFill, useEnvDisplay } from './read-display.tsx';
+import { envAfter, envLineField, EnvReadDisplayButton, EnvSuggestionFill, useEnvDisplay } from './read-display.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
 
@@ -101,6 +101,9 @@ export function CabineBlock({
     );
   }
 
+  // Review F-08: the thermo-hygrometer photo's line shows under one environment field.
+  const envFields = definition.env.filter((field) => field.key !== 'altitude_m');
+  const envLine = envLineField(envDisplay, envFields, (field) => (cabine.env as Record<string, unknown>)[field.key] ?? null);
   const fieldOf = (group: 'se' | 'env', field: FieldDef, after?: (value: unknown) => ReactNode) => {
     const value = (cabine[group] as Record<string, unknown>)[field.key] ?? null;
     return (
@@ -160,16 +163,14 @@ export function CabineBlock({
           <EnvReadDisplayButton relatorioId={api.relatorioId} cabineId={cabine.id} target={envTarget} />
         </div>
         <div className="nameplate-grid">
-          {definition.env
-            .filter((field) => field.key !== 'altitude_m')
-            .map((field) => {
-              const entry = envDisplay.entries.get(field.key);
-              return entry !== undefined && entry.view === 'fill' ? (
-                <EnvSuggestionFill key={`${field.key}:${entry.suggestion.id}`} model={envDisplay} field={field} suggestion={entry.suggestion} />
-              ) : (
-                fieldOf('env', field, (value) => envAfter(envDisplay, field, value))
-              );
-            })}
+          {envFields.map((field) => {
+            const entry = envDisplay.entries.get(field.key);
+            return entry !== undefined && entry.view === 'fill' ? (
+              <EnvSuggestionFill key={`${field.key}:${entry.suggestion.id}`} model={envDisplay} field={field} suggestion={entry.suggestion} />
+            ) : (
+              fieldOf('env', field, (value) => envAfter(envDisplay, field, value, envLine))
+            );
+          })}
           {altitudeField === undefined ? null : (
             <ReadOnlyField field={altitudeField} value={altitude === null ? null : { raw: String(altitude), unit: 'm', state: 'measured' }} helper={t.altitudeHelper} />
           )}

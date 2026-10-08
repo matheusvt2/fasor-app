@@ -92,9 +92,15 @@ function ViewerBody({
   onClose,
   onEditCaption,
   onRemove,
-  zoom = null,
+  zoom: cropZoom = null,
 }: PhotoViewerProps & { tile: PhotoTile; index: number; titleId: string }) {
   const t = copy.viewer;
+  // Review F-05 (Q-5): opened from a crop, "Ajustar à tela" leaves the crop for the whole photo
+  // at fit. The crop it left is remembered by photo and region, so another photo or another
+  // crop opens as asked.
+  const cropKey = cropZoom === null ? null : `${tile.id}|${cropZoom.join(',')}`;
+  const [leftCrop, setLeftCrop] = useState<string | null>(null);
+  const zoom = cropZoom !== null && leftCrop !== cropKey ? cropZoom : null;
   const countId = useId();
   const [confirming, setConfirming] = useState(false);
   const number = numbers.get(tile.id) ?? index + 1;
@@ -131,7 +137,7 @@ function ViewerBody({
         <span className="viewer-count" id={countId}>
           {viewerCountText(number, total, provisional)}
         </span>
-        <ZoomControls pinch={pinch} />
+        <ZoomControls pinch={pinch} inCrop={zoom !== null} onLeaveCrop={() => setLeftCrop(cropKey)} />
       </div>
       <div className="viewer-photo" ref={pinch.stageRef as RefObject<HTMLDivElement | null>} {...pinch.handlers} data-zoom-scale={String(Math.round(pinch.scale * 1000) / 1000)}>
         {src === null ? (
@@ -258,8 +264,11 @@ function ZoomedPicture({
  * Story 13.3: "Ampliar", "Reduzir" and "Ajustar à tela", 48 px each, in the top bar. At a bound
  * a button is disabled (`aria-disabled`, still focusable) and points at its reason, shown beside
  * them: "Foto inteira na tela" at fit, "Ampliação máxima" at the picture's own resolution.
+ * Review F-05: in a crop view (`inCrop`) the fit is the crop's ("Recorte na tela"), and "Ajustar
+ * à tela" stays enabled and leaves the crop for the whole photo (`onLeaveCrop`); two reasons
+ * shown at once are kept apart by a visible " · ".
  */
-function ZoomControls({ pinch }: { pinch: PinchZoom }) {
+function ZoomControls({ pinch, inCrop, onLeaveCrop }: { pinch: PinchZoom; inCrop: boolean; onLeaveCrop: () => void }) {
   const z = copy.viewerZoom;
   const fitReasonId = useId();
   const maxReasonId = useId();
@@ -270,21 +279,32 @@ function ZoomControls({ pinch }: { pinch: PinchZoom }) {
       </svg>
     </AriaButton>
   );
+  const fitReason = pinch.canZoomOut ? null : (
+    <span className="viewer-zoom-reason" id={fitReasonId}>
+      {inCrop ? z.atCropFit : z.atFit}
+    </span>
+  );
+  const maxReason = pinch.canZoomIn ? null : (
+    <span className="viewer-zoom-reason" id={maxReasonId}>
+      {z.atMax}
+    </span>
+  );
+  const fit = () => {
+    if (inCrop) onLeaveCrop();
+    pinch.reset();
+  };
   return (
     <div className="viewer-zoom-controls" role="group" aria-label={z.group}>
       {button(z.zoomIn, 'i-zoom-in', pinch.canZoomIn, maxReasonId, pinch.zoomIn)}
       {button(z.zoomOut, 'i-zoom-out', pinch.canZoomOut, fitReasonId, pinch.zoomOut)}
-      {button(z.zoomFit, 'i-zoom-fit', pinch.canZoomOut, fitReasonId, pinch.reset)}
-      {pinch.canZoomOut ? null : (
-        <span className="viewer-zoom-reason" id={fitReasonId}>
-          {z.atFit}
+      {button(z.zoomFit, 'i-zoom-fit', pinch.canZoomOut || inCrop, fitReasonId, fit)}
+      {fitReason}
+      {fitReason !== null && maxReason !== null ? (
+        <span className="viewer-zoom-reason viewer-zoom-sep" aria-hidden="true">
+          {z.reasonSeparator}
         </span>
-      )}
-      {pinch.canZoomIn ? null : (
-        <span className="viewer-zoom-reason" id={maxReasonId}>
-          {z.atMax}
-        </span>
-      )}
+      ) : null}
+      {maxReason}
     </div>
   );
 }

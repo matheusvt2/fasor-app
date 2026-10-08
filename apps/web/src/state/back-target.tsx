@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router';
 
 /*
  * Where the App bar's back button goes when the route alone cannot say (Story 4.3: the
@@ -34,4 +35,23 @@ export function useBackTarget(target: string | null): void {
     setTarget(target);
     return () => setTarget(null);
   }, [setTarget, target]);
+}
+
+/** The query a surface opened from the Export dialog carries (`?volta=exportar`; the setup's precedent). */
+export const RETURN_PARAM = 'volta';
+export const RETURN_TO_EXPORT = 'exportar';
+
+/** The Sumário with its Export dialog open (`?exportar=1`, `EXPORT_PARAM` of `generate-action.tsx`). */
+export function exportDialogPath(relatorioId: string): string {
+  return `/relatorio/${relatorioId}?exportar=1`;
+}
+
+/**
+ * Review F-11: a sheet or the gallery opened from the Export dialog's audit "Ver"
+ * (`?volta=exportar`) sends its App bar "Voltar" back to that dialog; otherwise the route's
+ * own back applies.
+ */
+export function useBackToExport(relatorioId: string): void {
+  const [search] = useSearchParams();
+  useBackTarget(search.get(RETURN_PARAM) === RETURN_TO_EXPORT ? exportDialogPath(relatorioId) : null);
 }

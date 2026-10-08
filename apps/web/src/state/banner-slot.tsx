@@ -1,4 +1,4 @@
-import { storageLow, storageRefusedBannerText, type StorageReading } from '@app/domain';
+import { storageLow, storageLowBannerText, storageRefusedBannerText, type StorageReading } from '@app/domain';
 import { useId, type ReactNode } from 'react';
 import { copy } from '../copy/pt-br.ts';
 
@@ -99,14 +99,15 @@ export function bannerCandidates(conditions: BannerConditions): Banner[] {
   }
   // Story 6.2 (FR-57, AD-8): under 500 MB free (provisional) the device warns before a
   // capture can fail; the capture itself is still attempted.
-  // Story 13.6: a refused shot forces it, with the free space when the browser gives a reading.
+  // Story 13.6: a refused shot forces it; review F-09: then it says the refusal, with no figure.
   const storage = conditions.storage ?? null;
-  if (conditions.storageRefused === true || (storage !== null && storageLow(storage))) {
+  const refused = conditions.storageRefused === true;
+  if (refused || (storage !== null && storageLow(storage))) {
     candidates.push({
       kind: 'storage-low',
       variant: 'warning',
       role: 'region',
-      text: storageRefusedBannerText(storage),
+      text: refused || storage === null ? storageRefusedBannerText() : storageLowBannerText(storage),
       actions: conditions.storageAction,
     });
   }

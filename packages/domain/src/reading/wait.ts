@@ -37,9 +37,19 @@ export interface ReadingWait {
   cancellable: boolean;
   /** From 120 s: the line adds the still-reading note (the device now polls every 60 s). */
   stillReading: boolean;
+  /**
+   * Review F-06: what the line's live region says. Unlike `text` it changes only at the
+   * transitions (under 10 s, the 10 s "Cancelar" point, the 120 s still-reading point), so a
+   * screen reader is not told every tick of the age.
+   */
+  announcement: string;
 }
 
 const READING = 'Lendo…';
+// authored (review F-06): the 10 s transition, "Cancelar" is now offered.
+const ANNOUNCE_CANCELLABLE = 'Lendo… já é possível cancelar.';
+// authored (review F-06): the 120 s transition, the device now checks every minute.
+const ANNOUNCE_STILL_READING = 'Lendo… a leitura está demorando; o app continua conferindo a cada minuto.';
 
 /**
  * The wait line of a pending reading started at `startedAt`, read at `nowIso`. The age is
@@ -51,10 +61,10 @@ export function readingWait(startedAt: string, nowIso: string): ReadingWait {
   const ageMs = Number.isFinite(start) && Number.isFinite(now) ? Math.max(0, now - start) : 0;
   const cancellable = ageMs >= READING_CANCEL_AFTER_MS;
   const stillReading = ageMs >= READING_FAST_POLL_WINDOW_MS;
-  if (!cancellable) return { text: READING, cancellable, stillReading };
+  if (!cancellable) return { text: READING, cancellable, stillReading, announcement: READING };
   const seconds = Math.floor(ageMs / 1000);
   const elapsed = seconds < 60 ? `${seconds} s` : `${Math.floor(seconds / 60)} min ${String(seconds % 60).padStart(2, '0')} s`;
-  return { text: `${READING} ${elapsed}`, cancellable, stillReading };
+  return { text: `${READING} ${elapsed}`, cancellable, stillReading, announcement: stillReading ? ANNOUNCE_STILL_READING : ANNOUNCE_CANCELLABLE };
 }
 
 /** The pending suggestions read from a photo whose reading was cancelled on this device: each is discarded. */

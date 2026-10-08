@@ -8,7 +8,8 @@ import { newId } from '../ids.ts';
 import { createDb } from './client.ts';
 import { entities } from './schema.ts';
 import { dropCompany } from './test-cleanup.ts';
-import { removePortoSeguroSmall, SMALL_FIXTURE_RELATORIO_ID } from './test-fixtures.ts';
+import { sampleRelatorioIds } from './sample-relatorio.ts';
+import { SMALL_FIXTURE_RELATORIO_ID } from './test-fixtures.ts';
 import { TEST_SEED } from './test-seed.ts';
 
 /**
@@ -75,7 +76,7 @@ describe('seed-users CLI', () => {
     }
   }, 120_000);
 
-  it('seeds the small Porto Seguro relatório onto the named company with --sample-relatorio', async () => {
+  it('seeds the small Porto Seguro relatório onto the named company with --sample-relatorio, under ids derived for it (review F-14)', async () => {
     const companyId = newId();
     const args = [
       '--company-id',
@@ -97,13 +98,15 @@ describe('seed-users CLI', () => {
     try {
       const run = seedUsers(args);
       expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0);
-      expect(run.stdout).toContain(`seeded the sample relatório ${SMALL_FIXTURE_RELATORIO_ID} in company ${companyId}`);
+      const { relatorioId } = sampleRelatorioIds(companyId);
+      expect(relatorioId).not.toBe(SMALL_FIXTURE_RELATORIO_ID);
+      expect(run.stdout).toContain(`seeded the sample relatório ${relatorioId} in company ${companyId}`);
       const userId = /as user (\S+) in company/.exec(run.stdout)?.[1];
 
       const [relatorio] = await db
         .select({ company_id: entities.company_id, row: entities.row })
         .from(entities)
-        .where(and(eq(entities.entity, 'relatorio'), eq(entities.id, SMALL_FIXTURE_RELATORIO_ID)));
+        .where(and(eq(entities.entity, 'relatorio'), eq(entities.id, relatorioId)));
       expect(relatorio?.company_id).toBe(companyId);
       expect((relatorio?.row as { setup: { responsible_user_id: string | null } }).setup.responsible_user_id).toBe(userId);
       const blocks = await db
@@ -111,9 +114,24 @@ describe('seed-users CLI', () => {
         .from(entities)
         .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'block')));
       expect(blocks.length).toBeGreaterThan(0);
+      // Nothing of the test fixture's fixed ids was planted in this company.
+      expect(await db.select({ id: entities.id }).from(entities).where(and(eq(entities.company_id, companyId), eq(entities.id, SMALL_FIXTURE_RELATORIO_ID)))).toEqual([]);
+
+      // A re-run replaces the company's own copy: the same rows, no second relatório.
+      const again = seedUsers(args);
+      expect(again.status, `${again.stdout}\n${again.stderr}`).toBe(0);
+      const relatorios = await db
+        .select({ id: entities.id })
+        .from(entities)
+        .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'relatorio')));
+      expect(relatorios.map((row) => row.id)).toEqual([relatorioId]);
+      const blocksAgain = await db
+        .select({ id: entities.id })
+        .from(entities)
+        .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'block')));
+      expect(blocksAgain.map((row) => row.id).sort()).toEqual(blocks.map((row) => row.id).sort());
     } finally {
-      await removePortoSeguroSmall(db, { allowCompanyId: companyId });
       await dropCompany(db, companyId);
     }
-  }, 120_000);
+  }, 180_000);
 });

@@ -6,7 +6,7 @@ import { loadConfig } from '../apps/api/src/config.ts';
 import { createDb } from '../apps/api/src/db/client.ts';
 import { migrate } from '../apps/api/src/db/migrate.ts';
 import { seedStandardTemplate, seedTestCompanies, seedUser, TEST_SEED } from '../apps/api/src/db/seed.ts';
-import { seedPortoSeguroSmall, SMALL_FIXTURE_RELATORIO_ID } from '../apps/api/src/db/test-fixtures.ts';
+import { seedSampleRelatorio } from '../apps/api/src/db/sample-relatorio.ts';
 import { newId } from '../apps/api/src/ids.ts';
 import { assertInCompose } from './test-reset.ts';
 
@@ -41,12 +41,12 @@ import { assertInCompose } from './test-reset.ts';
  *
  * `--sample-relatorio` also gives the company a relatório with data: the small Porto Seguro
  * fixture (`packages/domain/fixtures/porto-seguro/small`), applied through the op log with
- * the seeded user as its responsible. Its ids are fixed, so it lives in one company at a
- * time: a run for another company moves it there, and a re-run for the same company puts it
- * back as the fixture has it (any edit made on it is dropped). It is refused with `--test`,
- * whose companies the automated suites reset. The automated suites (`test:api` and the e2e
- * global setup) seed the same fixture, so a run of them deletes the sample from the
- * developer's company outright, and a device that pulled it keeps stale rows of it.
+ * the seeded user as its responsible. Review F-14: its ids are derived per company
+ * (`apps/api/src/db/sample-relatorio.ts`), never the fixture's fixed ids, so every company
+ * can hold its own copy, and a re-run for the same company replaces that company's copy as
+ * the fixture has it (any edit made on it is dropped). It is refused with `--test`, whose
+ * companies the automated suites reset. The automated suites (`test:api` and the e2e global
+ * setup) seed and remove the fixture under its fixed ids, so they never touch the sample.
  */
 
 const USAGE = `usage:
@@ -57,8 +57,8 @@ const USAGE = `usage:
   (--password may be left out when SEED_USER_PASSWORD holds it: prefer the variable, it stays off the command line;
    the registration flags set a new user's initial values; a re-run resets the password and the name only;
    --standard-template also seeds the company's "Cabine primária — padrão" template once;
-   --sample-relatorio also seeds the small Porto Seguro relatório, fixed ids, one company at a time;
-   test:api and the e2e setup reclaim it, deleting it from your company while devices keep stale rows)`;
+   --sample-relatorio also seeds the small Porto Seguro relatório under ids derived for the company;
+   a re-run replaces the company's own copy, and test:api and the e2e setup never touch it)`;
 
 export function parseArgs(argv: string[]): Record<string, string | true> {
   const out: Record<string, string | true> = {};
@@ -212,8 +212,8 @@ async function main(): Promise<void> {
       );
     }
     if (sampleRelatorio) {
-      await seedPortoSeguroSmall(db, result.companyId, { responsibleUserId: result.userId });
-      console.log(`seeded the sample relatório ${SMALL_FIXTURE_RELATORIO_ID} in company ${result.companyId}`);
+      const relatorioId = await seedSampleRelatorio(db, result.companyId, { responsibleUserId: result.userId });
+      console.log(`seeded the sample relatório ${relatorioId} in company ${result.companyId}`);
     }
     if (company.minted) {
       console.log(`new company id ${result.companyId}: pass --company-id ${result.companyId} to add its next users`);

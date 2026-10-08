@@ -6,6 +6,7 @@ import { newId } from '../ids.ts';
 import { createDb } from './client.ts';
 import { company, entities, ops, verification } from './schema.ts';
 import { dropCompany } from './test-cleanup.ts';
+import { sampleRelatorioIds, seedSampleRelatorio } from './sample-relatorio.ts';
 import { removePortoSeguroSmall, seedPortoSeguroSmall, SMALL_FIXTURE_RELATORIO_ID } from './test-fixtures.ts';
 
 /*
@@ -51,6 +52,33 @@ describe('E-4 removePortoSeguroSmall', () => {
     expect(await counts(foreign)).toEqual({ ops: 0, entities: 0 });
     const anywhere = await db.select({ id: entities.id }).from(entities).where(eq(entities.id, SMALL_FIXTURE_RELATORIO_ID));
     expect(anywhere).toEqual([]);
+  });
+});
+
+describe('review F-14 the developer\'s sample relatório', () => {
+  it('seeded on a non-test company under derived ids: removePortoSeguroSmall(db) does not throw and the sample\'s rows survive', async () => {
+    const developer = newId();
+    leftovers.push(developer);
+    const relatorioId = await seedSampleRelatorio(db, developer);
+    expect(relatorioId).toBe(sampleRelatorioIds(developer).relatorioId);
+    expect(relatorioId).not.toBe(SMALL_FIXTURE_RELATORIO_ID);
+    const seeded = await counts(developer);
+    expect(seeded.ops).toBe(portoSeguroSmall.log.length);
+
+    await expect(removePortoSeguroSmall(db)).resolves.toBeUndefined();
+    expect(await counts(developer)).toEqual(seeded);
+    const [relatorio] = await db.select({ company_id: entities.company_id }).from(entities).where(eq(entities.id, relatorioId));
+    expect(relatorio?.company_id).toBe(developer);
+
+
+    // A second company gets its own copy; a re-seed replaces only the company's own.
+    const other = newId();
+    leftovers.push(other);
+    const otherId = await seedSampleRelatorio(db, other);
+    expect(otherId).not.toBe(relatorioId);
+    await seedSampleRelatorio(db, developer);
+    expect(await counts(developer)).toEqual(seeded);
+    expect((await counts(other)).ops).toBe(portoSeguroSmall.log.length);
   });
 });
 

@@ -100,6 +100,8 @@ export {
   displayLineShown,
   displayQueuedCells,
   displayQueuedEnv,
+  type EnvLineFieldInput,
+  displayEnvLineField,
 } from './measurement-suggestions.ts';
 export {
   type EnvSuggestionField,

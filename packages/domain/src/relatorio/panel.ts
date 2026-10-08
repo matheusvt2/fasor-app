@@ -83,6 +83,24 @@ export function panelReadingLine(input: { online: boolean; photo: Pick<PhotoFile
   }
 }
 
+/**
+ * Review F-13 (Story 13.5, WAIT-3): the text of one palette row of a panel photo whose result
+ * dialog was left: what the dialog would say now. The proposal when one is there, else the
+ * reading line; a suggestion that names no type gives neither, and the row then says where the
+ * reading stands as if none had come ("A foto não mostrou o tipo do equipamento.").
+ */
+export function panelAwaitingRowText(input: {
+  online: boolean;
+  photo: Pick<PhotoFileRow, 'reading_status'>;
+  suggestion: PanelSuggestion | null;
+  proposal: Pick<PanelProposal, 'text'> | null;
+}): string {
+  if (input.proposal !== null) return input.proposal.text;
+  const line = panelReadingLine({ online: input.online, photo: input.photo, suggestion: input.suggestion });
+  if (line !== null) return line.text;
+  return panelReadingLine({ online: input.online, photo: input.photo, suggestion: null })?.text ?? '';
+}
+
 /** What `panelPhotosAwaiting` reads of a photo row. */
 export type PanelPhotoLike = Pick<PhotoFileRow, 'id' | 'reading_kind' | 'reading_target' | 'local_seq' | 'captured_at'> & { removed_at?: string | null };
 

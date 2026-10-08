@@ -33,6 +33,7 @@ import {
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { useParams } from 'react-router';
+import { useBackToExport } from '../../state/back-target.tsx';
 import { Button, Chip, FilterChipGroup, PhotoRow } from '../../components/index.ts';
 import { SuggestionBlock } from '../../components/suggestion-field.tsx';
 import { copy } from '../../copy/pt-br.ts';
@@ -78,6 +79,8 @@ import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
  */
 export function GallerySurface() {
   const { id = '' } = useParams();
+  // Review F-11: opened from the Export dialog's audit "Ver", "Voltar" reopens the dialog.
+  useBackToExport(id);
   return (
     <main className="screen" data-route="/relatorio/:id/fotos">
       <RelatorioGate id={id}>{(state) => <Gallery key={id} relatorioId={id} state={state} />}</RelatorioGate>

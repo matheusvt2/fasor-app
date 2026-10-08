@@ -11,8 +11,9 @@ import { TEST_SEED } from './test-seed.ts';
 
 /*
  * Test support (Story 4.8): the small Porto Seguro fixture seeded onto a company as the
- * server would apply it, for the generate suites and the Export e2e, and for a developer
- * through `scripts/seed-users.ts --sample-relatorio`. The fixture's op
+ * server would apply it, for the generate suites and the Export e2e. (A developer's sample,
+ * `scripts/seed-users.ts --sample-relatorio`, is the same log under ids derived per company,
+ * `sample-relatorio.ts`, so it never collides with this one; review F-14.) The fixture's op
  * ids are fixed, so an earlier run's rows are reclaimed first; the same removal cleans up
  * afterwards, including the server's own generate ops of that relatório.
  */

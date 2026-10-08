@@ -79,43 +79,40 @@ export function PlateCaptureTile({ relatorioId, target }: { relatorioId: string;
     const timer = setTimeout(() => setShot(false), PLATE_SHOT_GRACE_MS);
     return () => clearTimeout(timer);
   }, [shot, camera.burst]);
-  if (shot) {
-    const t = copy.ficha.nameplate;
-    return (
-      <>
-        <div className="photo-row ficha-np-photo" data-reading={online ? 'running' : 'queued'} data-pending-shot="">
-          <span className="photo-tile">
-            <span className="thumb">
-              <span className="thumb-fake" />
-            </span>
+  // Review F-01: `camera.element` keeps one place in the tree whichever branch shows (the
+  // pending shot's row or the tile), so the camera view and its `<video>` are never replaced
+  // while the shot is being read.
+  const t = copy.ficha.nameplate;
+  const content = shot ? (
+    <div className="photo-row ficha-np-photo" data-reading={online ? 'running' : 'queued'} data-pending-shot="">
+      <span className="photo-tile">
+        <span className="thumb">
+          <span className="thumb-fake" />
+        </span>
+      </span>
+      <div className="photo-text">
+        <p className="photo-caption">{PLATE_CAPTION}</p>
+        {online ? (
+          <p className="reading-line" role="status">
+            {t.reading}
+          </p>
+        ) : (
+          <span className="queued-banner" role="status">
+            <svg className="ico" aria-hidden="true">
+              <use href="/sprite.svg#i-image" />
+            </svg>
+            {t.queued}
           </span>
-          <div className="photo-text">
-            <p className="photo-caption">{PLATE_CAPTION}</p>
-            {online ? (
-              <p className="reading-line" role="status">
-                {t.reading}
-              </p>
-            ) : (
-              <span className="queued-banner" role="status">
-                <svg className="ico" aria-hidden="true">
-                  <use href="/sprite.svg#i-image" />
-                </svg>
-                {t.queued}
-              </span>
-            )}
-          </div>
-        </div>
-        {camera.element}
-      </>
-    );
-  }
-  return (
+        )}
+      </div>
+    </div>
+  ) : (
     <>
       {/* F-26: while the camera is asked for, the tile says so and keeps its name ("never a silent no-op"). */}
       <AriaButton
         ref={opener}
         className="camera-capture-tile"
-        aria-label={copy.ficha.nameplate.takePlate}
+        aria-label={t.takePlate}
         aria-describedby={camera.denied ? deniedId : undefined}
         data-state={camera.opening ? 'opening' : undefined}
         onPress={camera.open}
@@ -123,8 +120,8 @@ export function PlateCaptureTile({ relatorioId, target }: { relatorioId: string;
         <svg className="ico" aria-hidden="true">
           <use href="/sprite.svg#i-camera" />
         </svg>
-        {copy.ficha.nameplate.takePlate}
-        {camera.opening ? <span className="camera-opening">{copy.ficha.nameplate.opening}</span> : null}
+        {t.takePlate}
+        {camera.opening ? <span className="camera-opening">{t.opening}</span> : null}
       </AriaButton>
       <CameraOpeningStatus opening={camera.opening} />
       {camera.denied ? (
@@ -132,6 +129,11 @@ export function PlateCaptureTile({ relatorioId, target }: { relatorioId: string;
           {copy.photos.denied}
         </p>
       ) : null}
+    </>
+  );
+  return (
+    <>
+      {content}
       {camera.element}
     </>
   );

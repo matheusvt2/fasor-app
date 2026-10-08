@@ -112,8 +112,13 @@ test('@p0 13.8-E2E-001 one tap brings the findings to the dialog and the Sumári
   const sheetRow = rows.nth(0);
   const label = (await sheetRow.getByRole('button', { name: /^Ver / }).getAttribute('aria-label'))!;
   await sheetRow.getByRole('button', { name: label }).click();
-  await expect(page).toHaveURL(/\/relatorio\/[^/]+\/ficha\/[^/]+$/);
+  await expect(page).toHaveURL(/\/relatorio\/[^/]+\/ficha\/[^/?]+\?volta=exportar$/);
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible();
+  // Review F-11: opened from the dialog, the App bar's "Voltar" reopens the dialog.
+  await page.locator('.app-bar').getByRole('button', { name: 'Voltar', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}\\?exportar=1$`));
+  await expect(dialog(page)).toBeVisible();
+  await expect(dialog(page).getByRole('list', { name: FINDINGS }).getByRole('listitem')).toHaveCount(3);
 
   // The Sumário shows the same rows under the AI note; a section's "Ver" marks its row.
   await page.goto(`/relatorio/${relatorioId}`);
@@ -123,7 +128,15 @@ test('@p0 13.8-E2E-001 one tap brings the findings to the dialog and the Sumári
   await expect(block.getByRole('list', { name: FINDINGS }).getByRole('listitem')).toHaveCount(3);
   await block.getByRole('button', { name: 'Ver Seção 10 · Conclusão e parecer' }).click();
   await expect(page.locator('.sumario .sum-row[data-row="section_10"]')).toHaveClass(/is-highlighted/);
+  // The Sumário block's own sheet "Ver" opens the sheet without the way back to the dialog.
+  await block.getByRole('button', { name: label, exact: true }).click();
+  await expect(page).toHaveURL(/\/relatorio\/[^/]+\/ficha\/[^/?]+$/);
+  await page.locator('.app-bar').getByRole('button', { name: 'Voltar', exact: true }).click();
+  await expect(page).not.toHaveURL(/\/ficha\//);
+  await expect(page).not.toHaveURL(/exportar/);
+  await expect(dialog(page)).toHaveCount(0);
   expect(await outboxIds(page)).toEqual(before);
+  await page.goto(`/relatorio/${relatorioId}`);
 
   // AI features off: no button in the dialog and no findings block in either place.
   await aiFeaturesOff(page);

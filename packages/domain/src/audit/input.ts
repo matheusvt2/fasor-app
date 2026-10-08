@@ -118,12 +118,23 @@ function sheetLines(snapshot: RelatorioSnapshot, sheet: PrintSheet, photoRefs: M
       }
       if (!rowHasValues(row)) return;
       const id = `row:${sheet.blockId}:${p}:${r}`;
-      const first = texts[0] ?? '';
-      const label = first === '' ? `${sheetLabel} · linha ${r + 1}` : `${sheetLabel} · ${clip(screenLabel(first), ROW_LABEL_MAX)}`;
+      const label = auditRowLabel(sheetLabel, texts[0] ?? '', r);
       lines.push({ text: `  [${id}] ${texts.join(SEP)}`, ref: { id, label, target } });
     });
   });
   return lines;
+}
+
+/** Review F-10: a first cell that is only placeholder dashes ("-", "–", "—") or blank names nothing. */
+const PLACEHOLDER_CELL = /^[\s\-\u2013\u2014]*$/;
+
+/**
+ * A printed row's finding label: the sheet and the row's first printed cell, or "linha N"
+ * (1-based) when that cell is empty or only a placeholder dash (review F-10).
+ */
+export function auditRowLabel(sheetLabel: string, firstCell: string, rowIndex: number): string {
+  const first = firstCell.trim();
+  return PLACEHOLDER_CELL.test(first) ? `${sheetLabel} · linha ${rowIndex + 1}` : `${sheetLabel} · ${clip(screenLabel(first), ROW_LABEL_MAX)}`;
 }
 
 /** One photo line, its ref offered once however often the photo prints (section 7 and its sheet). */

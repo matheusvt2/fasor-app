@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { LocationRow, SuggestionRow } from '../schemas/entities.ts';
 import { SEED_VERSION } from '../seed/definitions.ts';
 import {
+  panelAwaitingRowText,
   panelCancelOps,
   panelCreateText,
   panelLocation,
@@ -173,6 +174,24 @@ describe('E9-Q10 the result dialog line while no panel suggestion is there', () 
     const read = suggestion({ block_type: 'chave_seccionadora', column: 9, column_text: 'C09' });
     expect(line(true, 'done', read)).toBeNull();
     expect(line(false, 'queued', read)).toBeNull();
+  });
+});
+
+describe('review F-13 panelAwaitingRowText: the text of a palette row whose dialog was left', () => {
+  it('the proposal when there is one, else the reading line, else the line as if no suggestion had come; empty with no reading', () => {
+    const read = suggestion(SEC9);
+    const noType = suggestion({ block_type: null, column: null, column_text: null } as unknown as PanelSuggestion['value']);
+    expect(panelAwaitingRowText({ online: true, photo: { reading_status: 'done' }, suggestion: read, proposal: { text: 'Criar SEC-C09-2 · Chave seccionadora · Coluna 9?' } })).toBe(
+      'Criar SEC-C09-2 · Chave seccionadora · Coluna 9?',
+    );
+    expect(panelAwaitingRowText({ online: true, photo: { reading_status: 'running' }, suggestion: null, proposal: null })).toBe('Lendo a foto…');
+    expect(panelAwaitingRowText({ online: false, photo: { reading_status: 'queued' }, suggestion: null, proposal: null })).toBe(
+      'Sem sinal, a foto fica guardada: o bloco é criado pelo tipo e a foto já vira a placa dele.',
+    );
+    expect(panelAwaitingRowText({ online: true, photo: { reading_status: 'failed' }, suggestion: null, proposal: null })).toBe('Não foi possível ler a foto.');
+    // A suggestion naming no type: no proposal, no line; the row reads as if none had come.
+    expect(panelAwaitingRowText({ online: true, photo: { reading_status: 'done' }, suggestion: noType, proposal: null })).toBe('A foto não mostrou o tipo do equipamento.');
+    expect(panelAwaitingRowText({ online: true, photo: { reading_status: 'none' }, suggestion: null, proposal: null })).toBe('');
   });
 });
 

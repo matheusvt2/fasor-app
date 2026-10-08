@@ -52,7 +52,7 @@ function renderBanner(state: 'queued' | 'running' | 'failed', sync: SyncStateOve
 describe('F-17 QueuedBanner', () => {
   it('online, a queued reading reads "Lendo…"', () => {
     renderBanner('queued');
-    expect(screen.getByText('Lendo…')).toHaveClass('queued-banner');
+    expect(screen.getByText('Lendo…', { selector: '.queued-banner' })).toBeInTheDocument();
     expect(screen.queryByText('Foto guardada — leitura quando houver sinal')).toBeNull();
   });
 
@@ -68,7 +68,7 @@ describe('F-17 QueuedBanner', () => {
 
   it('a running reading reads "Lendo…" either way', () => {
     renderBanner('running', { online: false });
-    expect(screen.getByText('Lendo…')).toBeInTheDocument();
+    expect(screen.getByText('Lendo…', { selector: '.queued-banner' })).toBeInTheDocument();
   });
 });
 
@@ -80,19 +80,23 @@ describe('13.5-UNIT the wait and failed lines of a display reading', () => {
     unmount();
 
     const again = renderBanner('running', {}, tileAged(12_400));
-    expect(screen.getByRole('status')).toHaveTextContent(/^Lendo… 12 s$/);
+    expect(screen.getByText(/^Lendo… 12 s$/)).toHaveClass('queued-banner');
+    // Review F-06: the ticking age sits outside the live region; the region says the transition.
+    expect(screen.getByText(/^Lendo… 12 s$/).closest('[role="status"], [aria-live]')).toBeNull();
+    expect(screen.getByRole('status')).toHaveTextContent(/^Lendo… já é possível cancelar\.$/);
     expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
     expect(screen.queryByText(/A leitura está demorando/)).toBeNull();
     again.unmount();
 
     renderBanner('running', {}, tileAged(125_000));
-    expect(screen.getByRole('status')).toHaveTextContent(/^Lendo… 2 min 05 s$/);
+    expect(screen.getByText(/^Lendo… 2 min 05 s$/)).toHaveClass('queued-banner');
+    expect(screen.getByRole('status')).toHaveTextContent('Lendo… a leitura está demorando; o app continua conferindo a cada minuto.');
     expect(screen.getByText('A leitura está demorando. O app continua conferindo a cada minuto; a foto está guardada.')).toBeInTheDocument();
   });
 
   it('counts from the newest pulled status op when there is one', () => {
     renderBanner('running', {}, tileAged(300_000, { reading_status_at: new Date(Date.now() - 15_000).toISOString() }));
-    expect(screen.getByRole('status')).toHaveTextContent(/^Lendo… 15 s$/);
+    expect(screen.getByText(/^Lendo… 15 s$/)).toHaveClass('queued-banner');
   });
 
   it('offline the queued words stay and nothing is offered to cancel (nothing runs)', () => {
@@ -169,13 +173,13 @@ describe('13.5-UNIT a failed thermo-hygrometer reading under its environment fie
     viewer: null,
   });
   const field = { key: 'temperature_c', label: 'Temperatura', kind: 'number' } as unknown as Parameters<typeof envAfter>[1];
-  const draw = (value: unknown) =>
+  const draw = (value: unknown, line: string | null = 'temperature_c') =>
     render(
       <SyncContext value={makeSyncState()}>
         <ToastProvider>
           <div className="field" data-field-key="temperature_c">
             <input aria-label="Temperatura" />
-            {envAfter(model(), field, value)}
+            {envAfter(model(), field, value, line)}
           </div>
         </ToastProvider>
       </SyncContext>,
@@ -189,6 +193,12 @@ describe('13.5-UNIT a failed thermo-hygrometer reading under its environment fie
     empty.unmount();
 
     draw({ raw: '23.4', unit: '°C', state: 'measured' });
+    expect(screen.queryByText('Não foi possível ler')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Digitar' })).toBeNull();
+  });
+
+  it('review F-08: a field that is not the photo\'s line field shows no line (one line per photo)', () => {
+    draw(null, 'humidity_pct');
     expect(screen.queryByText('Não foi possível ler')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Digitar' })).toBeNull();
   });

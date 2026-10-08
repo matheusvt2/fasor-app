@@ -1560,6 +1560,10 @@ export const copy = {
     atMax: 'Ampliação máxima',
     // authored: why "Reduzir" and "Ajustar à tela" are disabled (the whole picture is shown).
     atFit: 'Foto inteira na tela',
+    // authored (review F-05, Q-5): why "Reduzir" is disabled at the fit of a view opened from a crop.
+    atCropFit: 'Recorte na tela',
+    // authored (review F-05): between two reasons shown at once.
+    reasonSeparator: ' · ',
   },
   // Story 13.5 (WAIT-1, WAIT-2): the reading wait line and the failed display reading.
   readingWait: {
@@ -1569,6 +1573,8 @@ export const copy = {
     stillReading: 'A leitura está demorando. O app continua conferindo a cada minuto; a foto está guardada.',
     // authored: a failed display reading's way to type the value instead.
     typeInstead: 'Digitar',
+    // authored (review F-07, Q-3): a cancelled reading asks the server to read the photo again.
+    readAgain: 'Ler de novo',
   },
   // Story 13.8 (AI-3): the emission audit in the Export dialog and on the Sumário. Its kind
   // labels, counts and "Conferido às HH:MM" are the kernel's (`audit/text.ts`).

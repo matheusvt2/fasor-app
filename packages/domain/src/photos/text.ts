@@ -6,8 +6,13 @@ import { plural } from '../text/plural.ts';
  * and the upload queue (AGENTS.md "Derived text goes in packages/domain").
  */
 
-/** The camera view's status line during a burst (`70-fotos.html` `.cam-count`). */
-export function burstCountText(n: number): string {
+/**
+ * The camera view's status line during a burst (`70-fotos.html` `.cam-count`). Review F-09:
+ * while a shot is refused and held in memory (`held`), the line never says "salva": authored
+ * "1 foto nesta rajada · aguardando espaço neste aparelho".
+ */
+export function burstCountText(n: number, held = false): string {
+  if (held) return `${plural(n, 'foto', 'fotos')} nesta rajada · aguardando espaço neste aparelho`;
   return n === 1
     ? '1 foto nesta rajada · salva neste aparelho com a legenda do contexto'
     : `${n} fotos nesta rajada · salvas neste aparelho com a legenda do contexto`;
@@ -68,11 +73,11 @@ export function storageLowBannerText(reading: StorageReading): string {
 
 /**
  * Story 13.6 (CAP-4): the low-storage banner while a shot is refused, shown whatever the last
- * reading said. With a reading it is `storageLowBannerText`; without one (the browser gave no
- * estimate) the same sentence without the number. Authored.
+ * reading said. Review F-09: no free-space figure, which a per-origin quota (Safari) can
+ * contradict; the refusal itself is the reason. Authored.
  */
-export function storageRefusedBannerText(reading: StorageReading | null): string {
-  return reading === null ? 'Pouco espaço neste aparelho. Sincronize para liberar.' : storageLowBannerText(reading);
+export function storageRefusedBannerText(): string {
+  return 'Este aparelho recusou guardar a foto. Sincronize para liberar espaço.';
 }
 
 /** Story 13.2 (CAP-2): the camera's zoom readout, "1,0×", "2,5×" (one decimal, pt-BR comma). Authored. */

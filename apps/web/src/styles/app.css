@@ -636,6 +636,12 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
   .cam-bottom .cam-link { font-size: var(--t-body-size); }
   .cam-context { white-space: nowrap; font-size: 12px; }
   .cam-finder { min-height: 300px; }
+  /* authored (review F-02): a long context shrinks and ends in an ellipsis, so the close button
+     and the torch stay whole inside the row; neither of them shrinks. */
+  .cam-context { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .cam-context .ico { flex: none; }
+  .cam-context .cam-context-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cam-top > .icon-btn, .cam-top .cam-torch { flex: none; }
 }
 /* authored: the live stream fills the finder where the mock draws `.thumb-fake`, under the
    corner marks. */

@@ -1,4 +1,5 @@
 import {
+  panelAwaitingRowText,
   panelCancelOps,
   panelProposal,
   panelPhotosAwaiting,
@@ -72,8 +73,8 @@ export interface PanelAwaitingRow {
 
 /**
  * Story 13.5 (WAIT-3): the panel photos taken from the palette of `locationId` whose result
- * dialog was left (`panelPhotosAwaiting`), each with what the dialog would say now: the
- * proposal when one is there, else the reading line (`panelProposal`, `panelReadingLine`).
+ * dialog was left (`panelPhotosAwaiting`), each with what the dialog would say now
+ * (`panelAwaitingRowText` over `panelProposal`).
  */
 export function panelAwaitingRows(input: {
   photos: readonly PhotoFileRow[];
@@ -87,11 +88,8 @@ export function panelAwaitingRows(input: {
   return panelPhotosAwaiting(input.photos, input.locationId).map((photo) => {
     const suggestion = panelSuggestionOf(input.pending, photo.id);
     const proposal = panelProposal({ seedVersion: input.seedVersion, locations: input.locations, equipment: input.equipment, paletteLocationId: input.locationId, suggestion, pickedType: null });
-    const line = panelReadingLine({ online: input.online, photo, suggestion });
-    // A suggestion that names no type gives no proposal and no line: the row then says where
-    // the reading stands as if none had come ("A foto não mostrou o tipo do equipamento.").
-    const reason = proposal === null && line === null ? panelReadingLine({ online: input.online, photo, suggestion: null }) : null;
-    return { photoId: photo.id, text: proposal?.text ?? line?.text ?? reason?.text ?? '' };
+    // Review F-13: which text the row shows is the kernel's choice.
+    return { photoId: photo.id, text: panelAwaitingRowText({ online: input.online, photo, suggestion, proposal }) };
   });
 }
 
@@ -298,12 +296,16 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
         </h2>
         <div className="detect-result">
           {/* One live region for every kind: the same element stays while "Lendo a foto…" turns
-              into the failed or empty reason, so the change is announced (E9-Q10). */}
+              into the failed or empty reason, so the change is announced (E9-Q10). Review F-06:
+              while waiting it says "Lendo a foto…" once; the ticking age is drawn outside it. */}
           {readingLine === null ? null : (
             <div className="detect-line" role="status">
-              {readingLine.kind === 'waiting' ? <p className="detect-waiting">{waitText ?? readingLine.text}</p> : <span className="btn-reason">{readingLine.text}</span>}
+              {readingLine.kind === 'waiting' ? <span className="visually-hidden">{readingLine.text}</span> : <span className="btn-reason">{readingLine.text}</span>}
             </div>
           )}
+          {readingLine?.kind === 'waiting' ? (
+            <p className="detect-waiting">{waitText ?? readingLine.text}</p>
+          ) : null}
           {proposal === null ? null : (
             <SuggestionField
               label={t.newBlock}

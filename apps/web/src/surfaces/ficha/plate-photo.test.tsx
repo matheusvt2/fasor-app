@@ -111,7 +111,10 @@ describe('8.2-UNIT the plate photo row', () => {
   it('13.5: from 10 s the line counts ("Lendo… 12 s") and offers "Cancelar", which takes it away at once', async () => {
     const started = new Date(Date.now() - 12_400).toISOString();
     const { container } = wrap(<PlatePhotoRow tile={tile({ reading_status: 'running', captured_at: '2026-09-06T13:20:00.000Z', reading_status_at: started })} number={3} view="running" onOpen={vi.fn()} onFillManually={vi.fn()} />);
-    expect(screen.getByRole('status')).toHaveTextContent(/^Lendo… 12 s$/);
+    expect(container.querySelector('.reading-line')).toHaveTextContent(/^Lendo… 12 s$/);
+    // Review F-06: the ticking age is outside the live region, which says only the transition.
+    expect(container.querySelector('.reading-line')?.closest('[role="status"], [aria-live]')).toBeNull();
+    expect(screen.getByRole('status')).toHaveTextContent(/^Lendo… já é possível cancelar\.$/);
     await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(container.querySelector('.reading-line, .queued-banner')).toBeNull();
     // The photo stays.

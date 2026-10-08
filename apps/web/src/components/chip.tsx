@@ -14,6 +14,8 @@ export interface ChipProps {
    * does nothing.
    */
   isInactive?: boolean;
+  /** Review F-12: an accessible name richer than the visible word (a text chip only). */
+  'aria-label'?: string;
 }
 
 /** A chip that is on screen but does nothing: `aria-disabled`, focusable, never pressed. */
@@ -30,7 +32,7 @@ export function InactiveChip({ children, className = 'chip' }: { children: React
  * toggle (`aria-pressed`) and a text chip is a plain tap. `chip-row` wraps to a new line at
  * 8px gaps and never scrolls sideways — the layout is the surface's, not this component's.
  */
-export function Chip({ children, isSelected, onSelectedChange, onPress, isInactive = false }: ChipProps) {
+export function Chip({ children, isSelected, onSelectedChange, onPress, isInactive = false, 'aria-label': ariaLabel }: ChipProps) {
   if (isInactive) return <InactiveChip>{children}</InactiveChip>;
   if (onSelectedChange) {
     return (
@@ -40,7 +42,7 @@ export function Chip({ children, isSelected, onSelectedChange, onPress, isInacti
     );
   }
   return (
-    <AriaButton className="chip" onPress={onPress}>
+    <AriaButton className="chip" onPress={onPress} {...(ariaLabel === undefined ? {} : { 'aria-label': ariaLabel })}>
       {children}
     </AriaButton>
   );

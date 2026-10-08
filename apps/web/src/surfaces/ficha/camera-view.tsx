@@ -504,11 +504,31 @@ interface ImageCaptureLike {
 }
 
 /**
- * Story 13.1: the camera's own photo (full sensor resolution where the browser has
- * `ImageCapture`), or the frame grab when there is none, when it fails or when it has not
- * answered in `TAKE_PHOTO_TIMEOUT_MS`.
+ * Review F-01: the frame on screen at the tap, decoded at once (before any await), so a single
+ * shot never depends on the viewfinder still being there when `takePhoto()` fails or is slow.
+ * Rejects when the video has no frame yet (or the browser has no `createImageBitmap`); the
+ * caller then waits for one (`grabFrame`).
  */
-async function takePhotoOrGrab(track: MediaStreamTrack | null, video: HTMLVideoElement): Promise<Blob | ImageBitmap> {
+function frameAtTap(video: HTMLVideoElement): Promise<ImageBitmap> {
+  let early: Promise<ImageBitmap>;
+  try {
+    early = typeof createImageBitmap === 'function' ? createImageBitmap(video) : Promise.reject(new Error('no createImageBitmap'));
+  } catch (error) {
+    early = Promise.reject(error instanceof Error ? error : new Error('no frame at the tap'));
+  }
+  // Never an unhandled rejection: whoever uses it reads the rejection itself.
+  early.catch(() => undefined);
+  return early;
+}
+
+/**
+ * Story 13.1: the camera's own photo (full sensor resolution where the browser has
+ * `ImageCapture`), or a frame when there is none, when it fails or when it has not answered in
+ * `TAKE_PHOTO_TIMEOUT_MS`. Review F-01: that frame is `early`, the one taken at the tap; only if
+ * it could not be read is a frame grabbed from the viewfinder now. When the photo wins the early
+ * frame is closed; a photo that answers after the timeout is ignored (one shot, one photo).
+ */
+async function takePhotoOrGrab(track: MediaStreamTrack | null, video: HTMLVideoElement, early: Promise<ImageBitmap>): Promise<Blob | ImageBitmap> {
   const Capture = (globalThis as { ImageCapture?: new (track: MediaStreamTrack) => ImageCaptureLike }).ImageCapture;
   if (Capture !== undefined && track !== null && track.readyState !== 'ended') {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -519,14 +539,20 @@ async function takePhotoOrGrab(track: MediaStreamTrack | null, video: HTMLVideoE
           timer = setTimeout(() => reject(new Error('takePhoto timed out')), TAKE_PHOTO_TIMEOUT_MS);
         }),
       ]);
-      if (photo instanceof Blob && photo.size > 0) return photo;
+      if (photo instanceof Blob && photo.size > 0) {
+        void early.then(
+          (bitmap) => bitmap.close(),
+          () => undefined,
+        );
+        return photo;
+      }
     } catch {
-      // The frame grab below takes the shot instead.
+      // The frame of the tap takes the shot instead.
     } finally {
       clearTimeout(timer);
     }
   }
-  return grabFrame(video);
+  return early.catch(() => grabFrame(video));
 }
 
 /** One frame of the live stream, decoded; waits for the first frame when the stream has none yet. */
@@ -627,7 +653,8 @@ function CameraView({
       onGrab(Promise.reject(new Error('no viewfinder')));
       return;
     }
-    onGrab(single ? takePhotoOrGrab(track, element) : grabFrame(element));
+    // Review F-01: a single shot reads the frame of the tap now, before `takePhoto()` is awaited.
+    onGrab(single ? takePhotoOrGrab(track, element, frameAtTap(element)) : grabFrame(element));
   };
 
   return (
@@ -644,7 +671,7 @@ function CameraView({
               <svg className="ico" aria-hidden="true">
                 <use href="/sprite.svg#i-layers" />
               </svg>
-              {cameraContextText(caption)}
+              <span className="cam-context-text">{cameraContextText(caption)}</span>
             </span>
             {capabilities.torch ? (
               <ToggleButton className="icon-btn cam-torch" aria-label={t.torch} isSelected={controls.torch} onChange={controls.setTorch}>
@@ -700,7 +727,7 @@ function CameraView({
             </AriaButton>
           </div>
           <p className="cam-count" role="status">
-            {count === 0 ? t.burstIdle : burstCountText(count)}
+            {count === 0 ? t.burstIdle : burstCountText(count, refused)}
           </p>
         </Dialog>
       </Modal>

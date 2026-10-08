@@ -712,7 +712,7 @@ for (const mode of ['all', 'once'] as const) {
       if (mode === 'all') {
         // The refusal is shown at capture time, with the storage banner.
         await expect(refusal.first()).toBeVisible({ timeout: 20_000 });
-        await expect(page.locator('.banner-slot .banner[data-banner="storage-low"] .banner-text')).toContainText('Pouco espaço neste aparelho');
+        await expect(page.locator('.banner-slot .banner[data-banner="storage-low"] .banner-text')).toHaveText('Este aparelho recusou guardar a foto. Sincronize para liberar espaço.');
         expect(await devicePhotos(page, database)).toHaveLength(0);
         // The camera allows no other shot: the next press opens no picker and says why again.
         let pickers = 0;

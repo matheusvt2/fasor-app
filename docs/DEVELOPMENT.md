@@ -77,7 +77,7 @@ docker compose --profile tools run --rm tools pnpm exec tsx scripts/seed-users.t
 - `SEED_USER_PASSWORD` in the environment replaces `--password`, so the password stays out of shell history and process listings.
 - Re-running for an existing e-mail resets the password and the name, never the registration.
 - `--standard-template` gives the company the standard template once.
-- `--sample-relatorio` gives it the small Porto Seguro relatório. Its ids are fixed, so it lives in one company at a time. The test suites reclaim it only from test companies: while it sits in a company of yours, the export tests on that stack fail at setup with "the small fixture is held by ...". Run those tests on an isolated stack (below) or re-seed the sample into a test company.
+- `--sample-relatorio` gives it the small Porto Seguro relatório, under ids derived for that company (never the test fixture's fixed ids). A re-run replaces the company's own copy; the test suites never touch it, so `test:api` and the e2e setup run green beside it.
 
 ## The `prod` profile
 

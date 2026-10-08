@@ -11,6 +11,7 @@ import {
   displayBurstStops,
   displayMismatchText,
   MISMATCH_LINE_SEP,
+  displayEnvLineField,
   displayLineShown,
   displayQueuedCells,
   displayQueuedEnv,
@@ -266,6 +267,24 @@ describe('9.1-UNIT the queued display photos', () => {
     expect(displayQueuedEnv([env], CABINE)).toEqual({ state: 'queued', photoId: id(0x50) });
     expect(displayQueuedEnv([{ ...env, reading_status: 'done' as const }], CABINE)).toBeNull();
     expect(displayQueuedEnv([env], OTHER)).toBeNull();
+  });
+
+  it('review F-08: a thermo-hygrometer photo shows its line under one field, the first (definition order) that would show it', () => {
+    const waiting = { state: 'running' as const, photoId: id(0x50) };
+    const failed = { state: 'failed' as const, photoId: id(0x50) };
+    const fields = (temperature: unknown, humidity: unknown, filling: readonly string[] = []) => [
+      { key: 'temperature_c', value: temperature, filling: filling.includes('temperature_c') },
+      { key: 'humidity_pct', value: humidity, filling: filling.includes('humidity_pct') },
+    ];
+    expect(displayEnvLineField(waiting, fields(null, null))).toBe('temperature_c');
+    // A waiting line shows whatever the value: still the first field, once.
+    expect(displayEnvLineField(waiting, fields(n('24'), null))).toBe('temperature_c');
+    // A failed line skips a typed field: the first empty one.
+    expect(displayEnvLineField(failed, fields(n('24'), null))).toBe('humidity_pct');
+    expect(displayEnvLineField(failed, fields(n('24'), n('60')))).toBeNull();
+    // A field a suggestion fills never carries the line.
+    expect(displayEnvLineField(waiting, fields(null, null, ['temperature_c']))).toBe('humidity_pct');
+    expect(displayEnvLineField(null, fields(null, null))).toBeNull();
   });
 
   it('13.5-UNIT a failed display reading is listed on its empty start cell only; a typed value hides it; a waiting shot of the same row wins', () => {
