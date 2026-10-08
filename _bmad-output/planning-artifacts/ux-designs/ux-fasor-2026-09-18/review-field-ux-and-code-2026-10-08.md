@@ -1992,3 +1992,1295 @@ Driven by the main session in its own browser context (768x1024, touch emulation
 - 13.2: torch 48x48 with aria-pressed, zoom 1,0x with steps; shutter 76x76. 13.4: inputmode=decimal and enterkeyhint next/done on reading cells. 13.8: the audit runs in about 5 s on the fake provider and lists points with "Ver".
 - Strong flows: new relatório in 2 short dialogs with inline creation; plate reading with crops and "Confirmar todos"; Ler visor shooting the cells in order and advancing to the next test; one-tap checklist with undo; TTR computed and judged; deterministic conclusion with the criteria shown.
 
+## 13. Agent browser journeys (dynamic pass)
+
+This pass drove the running app in a browser, step by step, the way the field engineer would use it. It ran seven journeys, about 300 taps and 650 keystrokes in total:
+
+- setting up a relatório for a new client;
+- a first transformer, working from the photo;
+- the next transformers, with an NC and a point of attention;
+- photos;
+- emission;
+- a field sweep (touch targets, overflow, contrast, offline);
+- the office surfaces, plus two devices editing one ficha.
+
+The photo-to-field loop is the strongest part of the app. A plate photo fills 9 fields in 4 taps. One Ler visor burst returns 3 isolation readings with no visible wait. Bulk Conforme and the conclusion written on the device save real taps. The shell also suits a gloved hand: outside the TTR table and the template screens, no control is under 48 px.
+
+Most of the cost sits in seven places:
+
+1. The transformer ratio (TTR) table is broken at every tablet width.
+2. A new client inherits the reference site's 94 fichas.
+3. 399 of 648 keystrokes went into fields that a photo, a default or a carry-over could have filled.
+4. Every photo taken on a ficha gets one template caption per burst and is never read by vision.
+5. Closing the camera scrolls the ficha by half a screen.
+6. Emission took 47.7 s for the draft and 97.6 s for the issue, and produced 114 pages, about 100 of them blank forms.
+7. On a phone, the second Novo relatório dialog cannot be finished at a viewport height of 800 px or less.
+
+Of the 15 defects from the 2026-10-06 review, 10 are fixed, 4 have changed but are still open, and 1 cannot be observed with the stub camera.
+
+### 1. Setup and limits
+
+**Stack**
+- Compose project `fasor-review`, worktree `/Users/matheusvilella/Documents/estudos/fasor-app-review`, running the same app code as main at a8b9b0e (2026-10-08).
+- Web on the Vite dev server at http://localhost:4073, api at :4030, plus PostgreSQL and MinIO.
+- Nothing was started or stopped, no repository file was changed, and no test or gate was run.
+- A verifier checked every code citation against main and set the verdict given with each finding.
+
+**Accounts**
+- Device A: `campo@revisao.test`, company "Revisao de Campo", which has the template "Cabine primária - padrão" and a small sample relatório.
+- Device B: `colega@revisao.test`, in its own browser context.
+
+**Fake providers**
+- `LLM_PROVIDER` and `OCR_PROVIDER` are `fake`. A plate, display or panel photo with no fixture of its own replays the synthetic plate of its block type; cables have no plate.
+- Captions and NC drafts replay fixture prose. The emission audit returns 4 canned points (`apps/api/src/jobs/audit/fixtures/fake-audit.json`). `VITE_SPEECH_ENGINE` is `none`, so there is no microphone.
+- The AI timings therefore come from the fake: plate 5.6-7.1 s, captions about 2 s, audit 1.5-4.1 s. So do the AI values: the same serial on every transformer and a 12,57 % ratio error. This pass judged how the app handles those results, not reading accuracy.
+
+**Camera and location stub**
+- `getUserMedia` returns a 2560x1920 canvas stream that draws a synthetic transformer nameplate and reports torch, zoom (1-4) and focus.
+- Geolocation is granted at -23.55, -46.63.
+- The image content, the open time (70-80 ms to about 0.9 s) and the instant focus are stub behaviour, not app findings.
+
+**Viewports and themes**
+- Phone 390x844, tablet portrait 768x1024, tablet landscape 1024x768, and desktop 1280x800 where a desktop view mattered.
+- The phone dialog was also checked at 390x800, 390x760, 390x700 and 360x640.
+- Dark mode was tested through Conta > Tema and through emulated media.
+
+**How things were counted**
+- A tap is any press of a control: a chip, a checkbox, a tab, a menu item or a dialog button.
+- A keystroke is each character typed, plus Enter and Tab.
+- The OS file chooser counts as about 3 taps where noted.
+- Waits are wall clock, taken with `Date.now()` around the action.
+- Exploration that a human would not need is listed apart from the totals.
+
+**Evidence**
+- Every screenshot named below is in `.playwright-mcp/dyn/` of the main checkout (gitignored). The prefixes map to journeys:
+
+  | Prefix | Journey |
+  |---|---|
+  | `ja` | J-a setup |
+  | `jb` | J-b transformer |
+  | `jc` | J-c/d next fichas and NC |
+  | `je` | J-e photos |
+  | `jf` | J-f emission |
+  | `fc` | field sweep |
+  | `dh` | surfaces and two devices |
+
+- The generated documents are `.playwright-mcp/relatorio-rascunho.pdf`, `.playwright-mcp/relatorio-rev-1.pdf` and `.playwright-mcp/relatorio-rev-1.docx`. Copies (`jf-preview.pdf`, `jf-rev1.pdf`, `jf-rev1.docx`) are in the session scratchpad `dynamic/`.
+
+**What a desktop browser cannot show about a real tablet in a dark cubicle**
+- **Light.** The dark cubicle interior is the binding risk, and direct sun is the other extreme. Contrast was computed from the CSS tokens, not perceived; headlamp glare on a glossy screen and dark-adapted eyes are not represented.
+- **Capture quality.** Torch power, exposure, focus hunting in low light, motion blur at 3-4x zoom and OCR on a dirty or embossed plate were all untested, because the camera is a canvas.
+- **Touch.** A click has no contact area, while a gloved fingertip is wide and imprecise and a stylus has no hover. Mis-taps onto neighbouring controls (DB-2, DA-10) were inferred from geometry with `elementFromPoint`, not felt. Pinch zoom (13.3) and gloved swipe-scrolling were not exercised.
+- **Soft keyboard.** No on-screen keyboard appeared. `inputmode` and `enterkeyhint` were read from the DOM, and keyboard occlusion of the next field is inferred. A real phone keeps only about 650-760 px of its 844 px after the browser chrome.
+- **Performance and network.** Everything ran on a laptop CPU and a local podman stack (LibreOffice rendered in 47.7 s and 97.6 s). A tablet's CPU, thermal throttling and a weak cell link will differ. Offline was a clean on/off switch, not a link that comes and goes.
+- **Offline cold start.** The Vite dev server unregisters the service worker under HMR (`apps/web/src/main.tsx:33`). Reloading while offline therefore hit Chrome's offline page (`fc-24-reload-offline-390.png`), and an offline cold start of the PWA is untested.
+
+### 2. Measured journeys
+
+| Journey | Scope | Viewports |
+|---|---|---|
+| J-a setup | Login to an empty TR-1 for a new client and site; phone dialog check | 768x1024; 390x844 (+ 390x800/760/700, 360x640) |
+| J-b transformer | TR-1 photo first, filled and concluded; phone walk of TR-1 and TR-2 | 768x1024; 390x844 |
+| J-c/d next fichas and NC | TR-2 with NC, photo and point of attention; lean TR-3; TR-4 Não ensaiado | 1024x768 (+ 768, 1280 checks) |
+| J-e photos | Bursts, captions, imports, gallery, removal, section 8 numbering | 768x1024; 390x844 |
+| J-f emission | Parecer, cabine data, audit, draft, issue, downloads | 1024x768; 390x844 |
+| Field sweep | Touch targets, overflow, contrast, toasts, fonts; offline para-raio PR-ENEL | 390, 768, 1024, 1280 |
+| Surfaces and two devices | Cadastros, templates, Sync, Conta; device A and device B on DJ-ENEL | 768x1024; 390x844 |
+
+#### J-a Setup (login to an empty TR-1)
+
+Viewport 768x1024:
+
+| # | Screen | Taps | Keys | Wait s | Notes |
+|---|---|---|---|---|---|
+| 1 | Login | 3 | 36 | n/m | E-mail and password typed in full. E-mail has no autofocus. Wait not measured (networkidle never settles). |
+| 2 | Home > Novo relatório, new client + new site | 4 | 38 | 0 | Cliente autofocused (22 chars), tap Criar. Focus moves to Local (15 chars). Enter did not create (1 wasted key), so tap Criar, then Continuar. |
+| 3 | Tipo e datas | 1 | 0 | 0.6 | Type, template and both dates pre-filled. Criar relatório opens setup at Etapa 1. |
+| 4 | Etapa 1 Capa | 3 | 27 | 0 | Informações adicionais (27). Escolher foto de capa + pick a file (counted 1). No thumbnail appears. |
+| 5 | Etapa 2 Empresa executora detour | 5 | 32 | 0 | Link to Cadastros, Razão social (32), Voltar lands on Home, tap the card (opens the Sumário), tap the Capa e dados row, re-scroll. 3 taps if the return path works (DA-3). |
+| 6 | Etapa 2 Local | 1 | 37 | 0 | Free text, empty, not defaulted from the obra. |
+| 7 | Etapa 3 ART | 1 | 17 | 0 | Responsável, conselho and CREA pre-filled from the profile. ART is a text field with no numeric inputmode. |
+| 8 | Etapa 4 instruments | 3 | 0 | 0 | Three 56 px full-row checkboxes. |
+| 9 | Etapa 5 Local | 3 | 70 | 0 | Altitude 720 (3) left without Confirmar (F-02 check), date 08102027 (8), Justificativa (59). |
+| 10 | Etapa 6 parecer | 1 | 0 | 0 | Apto accepted with 94 empty fichas. The resumo Confirmar was not tapped (not required). |
+| 11 | Concluir dados do relatório | 1 | 0 | 1.2 | Goes to the Sumário, status Em campo. |
+| 12 | Sumário > tree > TR-1 | 2 | 0 | 0.9 | Section 9 already expanded. Expandir 1° Subsolo, tap TR-1. |
+| **Total** | | **28** | **257** | **~2.7** | 25 taps and 221 keys after sign-in, plus at least 4 long scrolls of the one-page setup (2000 px tall). |
+
+Viewport 390x844 (Home and the dialog only, existing client and site):
+
+| # | Screen | Taps | Keys | Wait s | Notes |
+|---|---|---|---|---|---|
+| 1 | Home > Novo relatório | 1 | 0 | 0 | Status tiles in a 2x2 grid, no horizontal scroll (scrollWidth 390). |
+| 2 | Cliente: type and pick the existing client | 1 | 3 | 0 | The suggestion list (226 px) is narrower than the field (279 px). |
+| 3 | Local: open the list, pick the only site | 2 | 0 | 0 | The client's only site is not pre-selected. |
+| 4 | Continuar | 1 | 0 | 0 | Cancelar and Continuar stack right-aligned, Cancelar above the primary. |
+| 5 | Tipo e datas: Criar relatório | (1) | 0 | - | Dialog 859 px tall and not scrollable. At 390x844 the top is cut by 8 px; at 390x800/760/700/640 Criar relatório is below the viewport. Cancelar was tapped instead. |
+| **Total** | | **5 (+1 to create)** | **3** | **0** | |
+
+#### J-b Transformer TR-1, photo first
+
+Viewport 768x1024 (the steps a human must do):
+
+| # | Screen | Taps | Keys | Wait s | Notes |
+|---|---|---|---|---|---|
+| 1 | Plate photo (Dados de placa, about 830 px down, one swipe) | 2 | 0 | 7.1 | Fotografar placa + Disparar. The camera closed itself 1.4 s after the shutter and the reading took 5.6 s (measured on TR-2; under 30 s on TR-1). |
+| 2 | Confirm plate (suggestions with crops) | 3 | 0 | 0 | Confirmar todos (9), TAP atual "Verificar" Confirmar, "Criar Celtta?" |
+| 3 | Vol. óleo | 1 | 4 | 0 | "380" plus an Enter that did nothing. |
+| 4 | Cabine (Características da SE) | 5 | 13 | 0 | Select 2 taps, 3 fields 3 taps. 13,8 / 380 / 500 = 10 chars plus 3 Enters that did nothing. |
+| 5 | Ambiente via Ler visor (termo-higrômetro) | 4 | 0 | 14.2 | Ler visor, Disparar, 2 x Confirmar. The camera stayed 7.9 s after the shutter, then "Lendo…" for 6.3 s below the fold. |
+| 6 | Checklist (Verificações) | 8 | 0 | 7.5 | Tab, NC on item 9, chip "pontos de corrosão", Adicionar foto, 2 x Disparar, Concluir fotos (7.5 s until the camera closed), Marcar os restantes como Conforme. |
+| 7 | Isolação (Ensaios) | 9 | 0 | 0 | Tab, instrument 2 taps, Ler visor, 3 x Disparar (one per row), Concluir, Confirmar todos (3). Readings finished while shooting. |
+| 8 | Relação de transformação | 6 | 0 | 7.1 | Instrument 2 taps, Ler visor, Disparar, Concluir, then Confirmar todos (1) after "Lendo…" for 7.1 s. |
+| 9 | TTR remaining phases | 1 | 12 | 0 | 39,45 Enter 39,49 Enter (the Enter run goes next, then done hands focus to the primary). |
+| 10 | Observações + Conclusão | 4 | 0 | 0 | Confirmar observação (suggested from the NC), Confirmar "Aprovado · Com restrições?", Confirmar texto, Concluir e avançar (left the ficha within 300 ms). |
+| **Total** | | **43** | **29** (25 chars + 4 Enter) | **35.9** | |
+
+Exploration at 768, not in the total:
+
+- Camera and viewer, 10 taps: torch 1, zoom + 2 (1.0x to 1.6x), tap-to-focus 1, toast "Ver" 1, crop 1, Ajustar à tela 1, Ampliar 2, Fechar 1.
+- Caption, 2 taps: Legendar 1, Voltar sem alterar 1.
+- Cancel and retry, 5 taps: Ler visor, Disparar, Concluir, Cancelar (offered at 10 s while offline, "Lendo… 10 s"), Ler de novo. Ler de novo was disabled offline with "Sem conexão". Once online it showed "Lendo…" for about 4-5 s, then disappeared with no result or message.
+- Camera open time: 70-80 ms (stub).
+
+Viewport 390x844 (walk of the concluded TR-1 and TR-2):
+
+| # | Screen | Taps | Keys | Wait s | Notes |
+|---|---|---|---|---|---|
+| 1 | Walk Placa, Verificações, Isolação, TTR, Conclusão | 0 | 0 | 0 | Swipes only. The primary "Próxima ficha" (207x56) sits bottom right, within thumb reach. |
+| 2 | Unit-cycle check (Isolação cell) | 3 | 0 | 0 | One tap GΩ to TΩ, then 2 more to cycle back to GΩ. |
+| 3 | Cell options ("Mais opções") | 1 | 1 (Esc) | 0 | Menu 240 px wide at x 129-369, inside the viewport. |
+| **Total** | | **4** | **1** | **0** | |
+
+Keyboard type per field at 390 (inputmode / enterkeyhint):
+
+| Fields | inputmode / enterkeyhint | Notes |
+|---|---|---|
+| Tensão primária, Tensão secundária, Potência instalada, Temperatura, Umidade, Vol. óleo, Potência nominal, Tensão nominal AT, Tensão nominal BT | decimal / none | |
+| Data fabricação | numeric / none | Digits typed without "/" are parsed. |
+| Identificação, Nº série, Tipo, TAP atual, Ligação secundária | text / none | |
+| Isolação 1 minuto x3 | decimal / next, next, done | Input is 133x29 px. |
+| TTR V primário, V secundário, H1-H3, H2-H1, H3-H2 | decimal / done | 213-261 x 54 px when stacked. |
+
+#### J-c/d Next fichas, NC and Não ensaiado
+
+Viewport 1024x768, tree rail open unless noted:
+
+| # | Screen | Taps | Keys | Wait s | Notes |
+|---|---|---|---|---|---|
+| 1 | Move to TR-2 (sticky bar) | 1 | 0 | 0 | "Próxima ficha" opens TR-2 at once. |
+| 2 | TR-2 Dados de placa | 6 | 14 | 0 | "Igual à TR-1?" (1) fills 10 fields. "Confirmar todos (2)" (1) took the photo's ID and serial, identical to TR-1 because the fake replays, with no warning. Retyping TR-02 and 240815-08 took 4 taps (focus, clear) and 14 keys. With a correct reading this step is 2 taps and 0 keys. |
+| 3 | TR-2 Verificações | 4 | 0 | 0 | Section tab, Repetir (sets 15 items and copies item 9 NC from TR-1), item 9 to C, item 4 to NC. |
+| 4 | NC photo (camera burst) | 3 | 0 | ~1 (open) + <2 (NC draft) | Adicionar foto, Disparar, Concluir fotos. Context caption pre-written. |
+| 5 | NC observation (TR-2 item 4) | 3 | 2 | 0 | "Usar" on the photo draft (the fake prose did not match), select-all + Backspace, then the chip "vazamento de óleo pela junta". Best case: 1 tap on the chip. |
+| 6 | Criar ponto de atenção dialog | 6 | 74 | 0 | Text (1 tap, 30 keys), Ação recomendada (1 tap, 37 keys), P1 (1, fills Prazo 07/11/2026 as Sugerido), Responsável (1 tap, 7 keys), Concluir (1). The text had to be scrolled to reach Prazo. |
+| 7 | TR-2 Ensaios, isolation via Ler visor | 7 | 0 | ~2 | Tab, Ler visor, 3 shutters, Concluir, Confirmar todos (3). Instrument 2E and GΩ come from memory. |
+| 8 | TR-2 Ensaios, TTR via Ler visor | 5 | 11 | 5.9 | Ler visor, 1 shutter, Concluir, Confirmar todos (1) fills H1-H3 only. H2-H1 and H3-H2 typed (1 tap, 10 chars, 1 Tab). V primário and V secundário come from the plate. |
+| 9 | TR-2 Conclusão | 4 | 0 | 1.6 | Tab, Confirmar "Aprovado · Com restrições?", Confirmar text (Observações "Item 4: ..." auto-composed), "Concluir e avançar" (on TR-3 in under 300 ms). |
+| | **TR-2 subtotal (steps 1-9)** | **39** | **101** | **~12.5** | |
+| 10 | TR-3 lean, no photo | 12 | 47 | ~1.2 | Igual à TR-2 (1), ID and serial (2 taps, 14 keys), Verificações tab, Repetir, item 4 back to C (3, the NC was copied from TR-2), Ensaios tab and first cell (2), 6 values with Enter between (33 keys; Enter skips the default V cells), Conclusão tab, Confirmar, Confirmar, Concluir e avançar (4). |
+| 11 | TR-4 Não ensaiado | 4 | 0 | 0 | Mais opções, Marcar não ensaiado, reason chip "Impossibilidade de desligamento", Marcar não ensaiado. Goes to section 8 automatically with the standard text. |
+| **Total (needed)** | | **55** | **148** | **~13.7** | The journey log reported 56 taps; its rows add to 55. |
+
+Exploratory, not counted: 9 taps and 4.1 s.
+
+- "Ver" on the reading toast went to the Sumário, and the TR-2 row brought it back (2).
+- Collapse the rail (1).
+- Concluir ficha from the overflow on the empty TR-5 (2; it only focuses Identificação).
+- Instrument picker (1).
+- Sumário row 8, Gerar relatório, Conferir antes de emitir (3; the fake audit took 4.1 s).
+
+#### J-e Photos
+
+Viewport 768x1024:
+
+| # | Screen | Taps | Keys | Wait s | Notes |
+|---|---|---|---|---|---|
+| 1 | Burst of 4 evidence photos from TR-5 | 6 | 0 | 0.3 open + 0.7 save | Foto 1, shutter 4, Concluir 1 = 1.5 taps per photo. Context caption auto-filled. The page then jumped down (DE-2). |
+| 2 | Change caption of photo 16 by chip | 4 | 0 | 0.5 | Thumbnail, Editar legenda, activity chip, Salvar legenda. |
+| 3 | Free-text caption of photo 17 | 5 | 30 | 0.5 | Thumbnail, Editar legenda, Editar texto, select-all, Salvar. 29 characters + 1 delete. |
+| 4 | Import 2 files into TR-5 (Adicionar fotos > sheet) | 5 | 0 | 0.7 | Adicionar fotos 1, OS picker about 3, Adicionar 2 fotos 1. TR-5 preselected, shared caption. The files became photos 1 and 2 and every later number shifted by 2. |
+| 5 | Go to the gallery | 2 | 0 | 0.9 | Voltar, Registro fotográfico (the tree has no gallery or camera entry). |
+| 6 | Burst of 3 general photos from the gallery | 5 | 0 | 0.6 save + 2.1 vision | "Contexto: foto geral". 3 "Sugerido" captions plus a banner. |
+| 7 | "Ver" on "1 leitura pronta para confirmar" | 2 | 0 | 1.0 | Wasted: lands on a Sumário showing "0 sugestões por confirmar". |
+| 8 | Confirmar todas | 1 | 0 | 0.7 | "3 legendas confirmadas" |
+| 9 | Check the section 8 photo reference | 2 | 0 | 0.8 | "Imagem 13" (was 11), renumbered automatically. |
+| **Total** | | **32** | **30** | **~9.0** (rows add to 8.8) | 9 photos shot, 2 imported, 5 captions changed or confirmed. |
+
+Viewport 390x844:
+
+| # | Screen | Taps | Keys | Wait s | Notes |
+|---|---|---|---|---|---|
+| 10 | Burst of 2 at the Placa section | 5 | 0 | 0.3 + 0.7 | Stepper Placa 1, Foto 1, shutter 2, Concluir 1. Context pill truncated. Page jumped +418 px. |
+| 11 | Viewer, remove a duplicate | 3 | 0 | 0.5 | Thumbnail, Remover, Remover foto. The undo toast then stayed more than 75 s. |
+| 12 | Dismiss the undo toast to reach the last rows | 1 | 0 | 0 | Forced: the toast intercepts taps on rows 26 and 27. |
+| 13 | Open the composer, back without change | 3 | 0 | 0.5 | Composer 2206 px tall, 2.6 screens. |
+| 14 | Import 2 plate photos into TP-ENEL from the gallery | 7 | 0 | 0.7 | Adicionar fotos 1, OS picker about 3, Outro equipamento 1, TP-ENEL 1 (out of 95 rows), scroll + Adicionar 2 fotos 1. |
+| 15 | Try to read the imported plate | 4 | 0 | 1.2 | Expand cabine, TP-ENEL, Fotografar placa (camera only), X. The plate stays at 12 empty fields. |
+| **Total** | | **23** | **0** | **~3.9** (reported about 4.6) | |
+
+Cost per photo:
+
+| Action | Cost |
+|---|---|
+| Burst from a ficha | 1.5 taps per photo |
+| Gallery burst with vision captions | 2 taps per photo (5 + 1 for 3 photos), about 2 s wait |
+| Re-caption a ficha photo | 4 taps with a chip; 5 taps and about 30 keystrokes with free text |
+| Import | 2.5 taps per file from a ficha; 3.5 from the gallery |
+
+#### J-f Emission
+
+Viewport 1024x768:
+
+| # | Screen | Taps | Keys | Wait s | Notes |
+|---|---|---|---|---|---|
+| 1 | Sumário: open "Conclusão e parecer" | 1 | 0 | 0.9 | Lands on setup Etapa 6 (`?etapa=6`). |
+| 2 | Etapa 6: pick "Apto com restrições" (the suggestion), Confirmar the summary | 2 | 0 | 0.5 | The summary is a count, not an engineering conclusion. |
+| 3 | Back to the Sumário | 1 | 0 | 0.8 | |
+| 4 | Cabine data for Cubículo Enel ("faltam 6 campos") | 10 | 15 | 1 | Overflow, "Abrir primeira ficha (dados da cabine)", Tipo de SE (2), 5 fields, Voltar. Done for 1 of 5 such cabines; the other 4 cost about 40 taps and 60 keys more, with no copy from another cabine. |
+| 5 | Scroll to the foot (1826 px), Gerar relatório | 1 | 0 | 0.1 | The action bar is not sticky; at 390 it is 2929 px down. |
+| 6 | Dialog: "Conferir antes de emitir" (audit 13.8) | 1 | 0 | 1.5 | Fake provider: 4 canned points. |
+| 7 | Audit "Ver Imagem 1", then Voltar to the dialog | 2 | 0 | 2 | Gallery opens at the top, photo 1 not marked. The dialog reopens. |
+| 8 | Pré-visualizar (draft) | 1 | 0 | 47.7 | New tab shows a waiting page, then preview.pdf: 114 pages, 8.8 MB. |
+| 9 | Switch back to the app tab | 1 | 0 | 0 | |
+| 10 | Gerar relatório, then "Emitir mesmo assim" (90 fichas vazias) | 2 | 0 | 97.6 | "Gerando revisão 1… pode fechar". No progress or estimate. |
+| 11 | Download PDF, then DOCX | 2 | 0 | 1.5 | relatorio-rev-1.pdf (8.5 MB, 114 pages), relatorio-rev-1.docx (1.4 MB). |
+| 12 | Close the dialog | 0 | 1 | 0 | Escape or a tap outside; there is no close button. |
+| **Total** | | **24** | **16** | **~153.6** | 145.3 s of it is draft plus issue generation. Minimal path (steps 1-3, 5, 8-12): 11 taps, 1 keystroke, ~149 s (the journey log said 13 taps). |
+
+Viewport 390x844 (dialog check only): 0 taps. The dialog in the confirm state is 327 px wide with no horizontal overflow, and its buttons are stacked at 48 px tall. "Emitir mesmo assim" sits about 3 screens down, below the audit list and the Controle table.
+
+#### Field sweep
+
+Offline capture and conclusion, para-raio PR-ENEL, 390x844:
+
+| # | Screen | Taps | Keys | Wait s | Notes |
+|---|---|---|---|---|---|
+| 1 | Go offline (ficha PR-ENEL) | 0 | 0 | 2.5 | Badge "Off", banner "Sem conexão". |
+| 2 | Fotografar placa | 1 | 0 | <1.6 | Camera opened (stub; includes a fixed 1.2 s probe wait). |
+| 3 | Disparar | 1 | 0 | ~0.5 | Camera closes itself. Tile "Foto guardada — leitura quando houver sinal"; toast "Foto salva neste aparelho — entra na fila de envio". |
+| 4 | Fabricação chip Celtta | 1 | 0 | 0 | |
+| 5 | Nº série | 1 | 6 | 0 | Enter does nothing (no enterkeyhint); the next 3 chars landed in the same field. |
+| 6 | Tipo | 1 | 3 | 0 | Needs its own tap. |
+| 7 | Tensão nominal chip 15 kV | 1 | 0 | 0 | |
+| 8 | Corrente nominal | 1 | 2 | 0 | "Salvo neste aparelho às 15:46" visible. |
+| 9 | Marcar os restantes como Conforme | 1 | 0 | 0 | 5 items. The undo toast closed 0.63 s later, when the next field was tapped. |
+| 10 | Isolation readings x4 | 1 | 20 | 0 | 16 digits + 4 Enter; enterkeyhint next, next, next, done. The last Enter hands focus to the primary. |
+| 11 | Aprovado + Sem restrições | 2 | 0 | 0 | The suggested conclusion text stays unconfirmed. |
+| 12 | Concluir e avançar | 1 | 0 | 0.6 | Next ficha SEC-ENEL; toast "Ficha concluída" visible 6.1 s. |
+| 13 | Open Sync status | 1 | 0 | 1.0 | "1 ficha e 1 foto aguardando · 1 leitura na fila" |
+| 14 | Reload offline | 0 | 0 | - | ERR_INTERNET_DISCONNECTED: the dev server has no service worker (main.tsx:33). Environment limit. |
+| 15 | Back online + reload | 0 | 0 | 3.3 | Page load. |
+| 16 | Sync settles | 0 | 0 | 6.0 | "sincronizado" flash at 3.4 s, "22 pendentes" at 3.65-5.5 s, then "sincronizado". |
+| 17 | Reading arrives | 0 | 0 | 21.3 | 3.4-11.9 s the line read "Lendo… 2 min 54 s ... está demorando"; at 11.9 s it reset to "Lendo…"; at 21.3 s "Sugestões prontas — 3 campos". |
+| 18 | Toast Ver | 1 | 0 | 0 | The toast stayed more than 12 s. Ver did not scroll (y 331 to 331). |
+| **Total** | | **14** | **31** | **~29** | Steps 2-12 (fill and conclude offline): 12 taps, 31 keys. The 21.3 s count from the reconnect and overlap the 6.0 s sync. |
+
+Touch targets (visible interactive elements; the React Aria 1x1 hidden "Descartar" dismiss button is excluded):
+
+| Surface | 390: n / <44 / <48 | 768: n / <44 / <48 | Worst |
+|---|---|---|---|
+| Home | 14 / 0 / 0 | 14 / 0 / 0 | min 48x48 (Voltar, Conta) |
+| Novo relatório dialog | 7 / 0 / 0 | - | |
+| Sumário | 47 / 0 / 0 | 47 / 0 / 0 | min 48x48 |
+| Sumário menus | 3 items 238x48 | - | not clipped (F-19) |
+| Tree /arvore | 79-88 / 0 / 0 | 4 collapsed, 25 open / 0 / 0 | cabine label 267x24 not tappable |
+| Ficha TR-1 (whole page) | 143 / 0 / 0 | 144 / 3 / 3 | TTR ", V primário" and ", V secundário" 36x29, ", H3-H2 / X3-X0" 24x29 at 768; 34x29, 34x29, 24x29 at 1024; 65x29, 65x29, 24x29 at 1280 |
+| Ficha by section, 390 | none under 48 in any section | | tri-state 113x56, contiguous with no gap |
+| Camera | 6 / 0 / 0 | - | 48x48 controls, shutter 76x76, Concluir 137x48 |
+| Gallery /fotos | 69 / 0 / 0 | 69 / 0 / 0 | |
+| Photo viewer | 9 / 0 / 0 | 9 / 0 / 0 | |
+| Export dialog | 12 / 0 / 0 | 12 / 0 / 0 | 390: 327x796, content 2340 px tall |
+| Pontos | 8 / 0 / 0 | 8 / 0 / 0 | |
+| Setup | 27-28 / 0 / 0 | 27 / 0 / 0 | |
+| Cadastros | 9 / 0 / 0 | 14 / 0 / 0 | |
+| Conta | 10 / 0 / 0 | 10 / 0 / 0 | |
+| Sync | 4 / 0 / 0 | 4 / 0 / 0 | |
+| Templates list | 7 / 0 / 0 | 7 / 0 / 1 | |
+| Template editor | 139 / 4 / 4 | 139 / 7 / 7 | "Editar texto de N ..." 165x33 (390), 519x33 (768) |
+
+At 390 the ficha by section was: chrome 12, Características 4, Ambiente 4, Placa 14, Verificações 70, Isolação 11, Relação 13, Observações 1, Conclusão 5, Fotos 9 controls.
+
+The exceptions are the ficha's TTR inputs (3 at 768) and the template screens (4 and 7 in the editor, 1 in the list at 768).
+
+Horizontal page overflow at 390 (scrollWidth minus clientWidth) was 0 px on every route checked:
+
+- /, Sumário, /arvore, ficha TR-1, ficha PR-ENEL;
+- /fotos, /pontos, /setup (etapas 1 and 2);
+- /cadastros, /account, /sync, /templates, /templates/:id.
+
+Overflow happens only inside components. The PR-ENEL isolation table is 400 px wide in a 343 px box at 390. The TR-1 ratio table is 728 px in a 657 px box at 768 and 1024.
+
+Contrast (WCAG ratio, from the computed tokens):
+
+| Pair | Light | Dark |
+|---|---|---|
+| ink-primary on surface-base | 16.74 | 16.92 |
+| ink-primary on field fill (sunken) | 15.70 | 12.93 |
+| ink-secondary on base / raised / sunken | 8.28 / 8.80 / 7.76 | 9.75 / 8.56 / 7.45 |
+| Sugerido amber (fora-do-limite) on its fill / on raised | 5.82 / 6.80 | 7.76 / 9.17 |
+| conforme on raised / on its fill | 6.56 / 5.62 | 8.63 / 7.23 |
+| nao-conforme on raised / on its fill | 6.57 / 5.37 | 7.27 / 6.68 |
+| nao-ensaiado on its fill | 7.29 | 7.41 |
+| sync-ok / sync-pending on raised | 6.56 / 6.80 | 8.63 / 9.17 |
+| primary on base; primary-foreground on primary | 8.15; 8.66 | 8.75; 8.18 |
+| border-strong / hairline on base | 5.63 / 1.49 | 6.00 / 1.63 |
+| disabled "Repetir da ficha anterior" (opacity 0.4, blended) | ~2.0 | ~2.4 |
+
+The theme switch is Conta > Tema (Sistema / Claro / Escuro). Escuro sets `data-theme=dark` and persists as `releng.theme`. In dark mode no light background leaks except the intended number badges.
+
+Toasts:
+
+- The plain toast "Ficha concluída" lasts 6.1 s (`TOAST_TIMEOUT_MS = 6000`, `apps/web/src/state/toast.tsx:24`).
+- The action toast "1 leitura pronta para confirmar · Ver · Fechar" has no expiry. It was still up after 12 s: 249x112 px at y=594, over the plate suggestions.
+- The undo toast "5 itens marcados Conforme · Desfazer" was gone 0.63 s later, on the next field tap.
+- Outcomes persist in these places:
+  - the tree status Concluída;
+  - the Sumário's "3 sugestões por confirmar" (a tap goes straight to the ficha);
+  - the ficha banner "Sugestões prontas — 3 campos para confirmar";
+  - the section 9 line "1 ficha com sugestões por confirmar · 1 ficha concluída sem texto de conclusão confirmado".
+
+Font sizes on the ficha (the same at 390 and 768):
+
+| Element | Size / weight |
+|---|---|
+| Sheet title | 24/600 |
+| Measurement value | 22/600 |
+| Tri-state C/NC/NA | 18/600 |
+| Plate text value | 18/400 |
+| Checklist row label, header "Faltam ..." | 16/400 |
+| Field label | 14/500, secondary colour |
+| Unit, chip | 14/500 |
+| Sugerido line | 14/400, amber |
+| Photo meta | 14/400 |
+| Stepper | 14/600 |
+| Root | 16 px |
+
+Text sizes on TR-1, counted: 12px x1 (camera word "Foto"), 14px x130, 16px x47, 18px x69, 22px x5, 24px x2.
+
+#### Surfaces and two devices
+
+Device A (`campo@revisao.test`), 768x1024:
+
+| # | Screen | Taps | Keys | Wait s | Notes |
+|---|---|---|---|---|---|
+| 1 | Home > Cadastros | 1 | 0 | 0 | Shortcut card. The last tab used is remembered (opened on Classes de tensão). |
+| 2 | Walk the 6 Cadastros tabs | 6 | 0 | 0 | 1 tap per tab. The tab row wraps to 2 lines at 768. |
+| 3 | Open client Metalurgica, read, close | 2 | 0 | 0 | Obras list empty although the obra "Unidade Jundiai" exists (DH-6). |
+| 4 | New instrument 4E, realistic minimum | 13 | 66 | 0 | Código 2, Fabricante 8 + Criar, Nome 10, Tipo 8, série 9, RBC 8, switch, date 8, interval 2, emissor 11. Validade computed (15/03/2027). The 3 test standards and the certificate file were not filled (about +7 taps, +15 keys). |
+| 4b | Same, without tapping "Criar" | 12 | 66 | 0 | Manufacturer silently not saved (DH-1). |
+| 5 | Remove 4E (cleanup) | 3 | 0 | 0 | Open, Remover, confirm Remover. |
+| 6 | Home > Templates > open the composer | 2 | 0 | 1.6 | The composer loads 6 cabines / 17 colunas / 94 blocos. |
+| 7 | Composer: select Coluna 1, open its menu | 2 | 0 | 0 | Menu Renomear/Descer/Remover not clipped; steppers per type. |
+| 8 | Sync status, Sincronizar agora (nothing pending) | 2 | 0 | 1.0-1.5 | Badge > Sync; "Sincronizando…" then "Sincronizado". |
+| 9 | Conta | 1 | 0 | 0 | CREA, coordinates switch, theme, storage, Sair. |
+| **Total** | | **32** | **66** | **2.6-3.1** | Row 4b is an alternative to row 4, not added. |
+
+At 390x844 the same surfaces took 7+ taps and 0 keys:
+
+- Cadastros tabs collapse into a menu button: 2 taps per tab (open, pick).
+- The instrument panel is a full-screen sheet with no overflow (scrollWidth 390), 1 tap.
+- Composer, Sync, Conta and Home took 4 taps, with no horizontal overflow on any of them. Home counts sit in a 2x2 grid with no wrap.
+
+Two devices (A = campo at 768; B = colega in a new context at 768, then 390):
+
+| # | Screen | Taps | Keys | Wait s | Notes |
+|---|---|---|---|---|---|
+| 1 | B sign in | 3 | 37 | 1.1 | E-mail 19 + senha 18. |
+| 2 | B opens a relatório not on the device | 1 | 0 | 4.1 (+1.0 to correct numbers) | "Baixando o relatório…", then for about 1 s a wrong "Em campo · 2 de 94 · 0 sugestões" (DH-7). |
+| 3 | Reach DJ-ENEL (A and B) | 3 | 0 | 0 | Expand section 9, expand Cubículo Enel, ficha. |
+| 4 | B offline: Nº série DJB111, Identificação DJ-B, Corrente nominal 630 | 3 | 13 | 0 | Badge "sem conexão"; Sync lists "DJ-ENEL aguardando envio". |
+| 5 | A: Nº série DJA222, Tipo PVO, badge > Sincronizar agora | 4 | 9 | 1.1 | |
+| 6 | B back online, open Sync | 1 | 0 | 1.9 | Auto-synced on reconnect: "Conflito · 1 contradição", "DJ-ENEL: 1 célula em contradição · Resolver". |
+| 7 | A Sincronizar agora | 1 | 0 | 2.5 | A also shows Conflito with the same decision row. |
+| 8 | B Resolver > pick DJA222 > Aplicar | 3 | 0 | 1.0 | Toast "Contradição resolvida — ficha mesclada · Desfazer". Merged: DJ-B, DJA222, PVO, 630. |
+| 9 | A Sincronizar agora, open the ficha | 2 | 0 | 2.5 | A shows the same merged values; header "Preenchido por Colega de Campo". |
+| 10 | B types Vol. óleo 12 (online); A keeps the ficha open | 1 | 2 | 43 | A's open ficha updated itself after 42.7 s, with no tap. |
+| 11 | Second contradiction (Capacidade interruptor 350 on B offline vs 500 on A), A syncs | 5 | 6 | 2.0 | A's ficha shows 350 (B's value) with no cell marker; banner at the top (DH-4). |
+| 12 | B at 390: Resolver > 500 kA > Aplicar, both sync | 5 | 0 | 5.0 | The dialog fits 390 (cards 309x101, Aplicar 343x48). |
+| **Total** | | **32** | **67** | **~66** | 43 s of it is the passive live update. |
+
+#### Summary across journeys
+
+| Journey | Viewport | Taps | Keystrokes | Visible wait s | Typed fields a photo, default or carry-over could have filled |
+|---|---|---|---|---|---|
+| J-a setup | 768 | 28 (25 after sign-in) | 257 (221) | ~2.7 | 6 fields, 180 keys: Etapa 2 Local 37, Justificativa 59, Próxima intervenção 8, Informações adicionais 27 (defaults or carry-over, 131); ART 17 (photo of the ART); Razão social 32 (seeded from the company name) |
+| J-a phone dialog | 390 | 5 (+1, unreachable) | 3 | 0 | 0 keys; the single site not preselected costs 2 taps |
+| J-b TR-1 | 768 | 43 | 29 | 35.9 | 3 fields, 13 keys: cabine Tensão primária, Tensão secundária, Potência instalada (the plate held them). Also 2 TTR phase cells, 12 keys, with no capture cell, and Vol. óleo, 4 keys, which the fake reading did not return. |
+| J-b phone walk | 390 | 4 | 1 | 0 | - |
+| J-c/d TR-2 to TR-4 | 1024x768 | 55 | 148 | ~13.7 | 5 fields, 88 keys: point text 30, Ação recomendada 37, Responsável 7 (from the NC row and the last use); TR-3 Identificação and Nº série 14 (plate photo skipped on the lean path). Also 2 TTR phase cells per transformer (11 keys on TR-2). The TR-2 ID and serial retyped (14 keys) are excluded because the fake replay forced them. |
+| J-e photos | 768 / 390 | 32 / 23 | 30 / 0 | ~9.0 / ~3.9 | 1 field, 30 keys (free-text caption; vision captions run only for photos with no ficha) |
+| J-f emission | 1024x768 | 24 | 16 | ~153.6 | 5 fields, 15 keys (cabine data, Cubículo Enel); 4 more cabines would cost about 40 taps and 60 keys |
+| Field sweep, offline PR-ENEL | 390 | 14 | 31 | ~29 | 3 fields, 11 keys (Nº série 6, Tipo 3, Corrente nominal 2), typed while the plate photo waited for signal, which is the designed offline fallback |
+| Surfaces + two devices | 768 / 390 / 768+390 | 32 / 7+ / 32 | 66 / 0 / 67 | 2.6-3.1 / 0 / ~66 | 7 fields, 62 keys of instrument data printed on the calibration certificate (Fabricante 8, Nome 10, Tipo 8, série 9, RBC 8, date 8, emissor 11) |
+| **All** | | **~299** | **648** | **~317** | **30 fields, 399 keystrokes** |
+
+Notes on the totals:
+
+- 399 of 648 keystrokes is 62 %, or 69 % of the 575 typed after the two sign-ins (36 + 37).
+- Of the ~317 s of waiting, 145.3 s is draft plus issue rendering and about 43 s is a passive live update.
+- The waits an engineer feels on a ficha are the 7-14 s camera and reading stops (DB-4).
+
+Cost per ficha:
+
+| Ficha | Path | Taps | Keys | Wait s |
+|---|---|---|---|---|
+| TR-1, first transformer, photo first | J-b | 43 | 29 | 35.9 |
+| TR-2, repeat aids, NC, photo, point of attention | J-c | 39 (incl. the move from TR-1) | 101 (74 in the point dialog) | ~12.5 |
+| TR-3, lean, no photo | J-c | 12 | 47 | ~1.2 |
+| TR-4, Não ensaiado | J-c | 4 | 0 | 0 |
+| PR-ENEL, offline para-raio | sweep | 12 | 31 | reading arrived 21.3 s after reconnect |
+| Cubículo Enel cabine data | J-f | 10 | 15 | ~1 |
+
+### 3. Findings by theme
+
+There are 79 findings, after merging 12 duplicates out of the 91 raised by the journeys:
+
+- **By severity:** 4 high, 35 medium, 40 low.
+- **By verdict:** 43 confirmed; 16 partly confirmed, with the correction stated; 18 that follow the spec or a decision of record, so changing them needs Matheus's decision; 2 already planned.
+- **Source tags:** "by spec" means the behaviour follows the spec or a decision of record. "Partly" means the core was confirmed and a detail was corrected. "Planned" means already tracked.
+
+#### 3.1 Touch and flow
+
+##### DA-2 · high · by spec · The standard template drops the reference site's 94 fichas onto every new client (merges DH-10)
+- **Observed:**
+  - A new relatório for a new client (Metalurgica Serra Azul) came with the reference site's structure: Cubículo Enel 9 fichas, 1° Subsolo 49 (TR-1..TR-5, CS-SUBSOLO..-5, Colunas 1-5 ...), Oxigênio 5, Cobertura A 6, Cobertura B 6, Geradores 19.
+  - The dialog says "Os 94 blocos nascem nas cabines e colunas do template". The Sumário opens at "0 de 94 · 94 fichas vazias", every cabine shows "faltam 6 campos", and the Gerar bar reads "Nada impede gerar. Emitir pede confirmação: 94 fichas vazias."
+  - Pruning is block by block, through each row's menu. Templates lists one template, "Semente v3 · 9 seções · 6 cabines · 17 colunas · 94 blocos", and reshaping it means a stepper per type per column, plus renames and removals.
+- **Evidence:** ja-25-sumario-tree-768.png, ja-26-tree-subsolo-768.png, ja-06-tipo-datas-768.png, dh-11-templates-768.png, dh-12-composer-768.png, dh-14-composer-coluna-768.png.
+- **Root cause:**
+  - `packages/domain/src/seed/template.ts:17-26, 79-198` seeds the reference job's skeleton, as Stories 3.1 and 3.2 require (epics.md:984-997), and instantiation copies every block (epics.md:1152).
+  - The relatório tree has no location removal: `apps/web/src/surfaces/relatorio/tree-actions.ts:520` offers only removeBlock, and removeCabine exists only in the template composer (pt-br.ts:428).
+  - "Semente vN" comes from `packages/domain/src/templates/text.ts:80`. Mock 41-templates.html:37 drew a neutral skeleton ("1 cabine › 1 coluna com os 8 tipos de equipamento (1 de cada)") and "Semente do PRODUTO", and no source-deltas row records the change.
+- **Impact:** This is the most expensive onboarding step, and it happens on site, in gloves. Leftover blocks either inflate the empty-ficha count, so the emission confirmation becomes noise, or print as equipment the client does not have. It is what produced the 90 blank forms in J-f (DF-3).
+- **Recommendation:**
+  - Ship a neutral minimal template (one cabine, one of each type, or empty) beside the reference one, renamed as a named example.
+  - Add a short "o que tem nesta cabine" step with per-type steppers prefilled with 1, and a "N colunas, cada uma com…" generator.
+  - Allow removing a whole cabine or coluna on the relatório with one confirmation.
+  - Later, a "walk the cabine" mode where each plate photo creates a block of the type it reads, with its TAG.
+  - Drop "Semente vN" from the visible line.
+
+##### DA-3 · medium · partly · Empresa executora can only be filled through a detour to Cadastros
+- **Observed:**
+  - Etapa 2 shows an empty, read-only Empresa executora with the link "Cadastre a empresa em Cadastros › Empresa". Cadastros carries the whole company form: CNPJ, phone, e-mail, address, logo, cover background, form title and code.
+  - After the Razão social was typed (32 keys), Voltar landed on Home. The new Rascunho card has no Continuar and opens the Sumário. Getting back cost 3 more taps and a re-scroll: 5 taps and 32 keys in all.
+  - Concluir checks only the ART, so nothing says the Empresa line is still missing.
+- **Evidence:** ja-08-setup-full-768.png, ja-12-cadastros-empresa-768.png, ja-15-sumario-rascunho-768.png.
+- **Root cause:**
+  - `apps/web/src/surfaces/relatorio/setup/etapa2-escopo.tsx:120-130` renders a read-only box and a link only. setupGaps never lists the empresa (setup-complete.ts:11, 31-45); FR-1 makes the razão social a pre-issue warning.
+  - The return path is held only in one-shot history state (`apps/web/src/state/arrival-state.ts:14-19`, `registries-surface.tsx:65-70`).
+- **Correction:** The link does pass `returnTo /relatorio/:id/setup?etapa=2` (etapa2-escopo.tsx:127), AppShell prefers it (app-shell.tsx:94), and `e2e/review-field-defects-2.spec.ts:335-337` (@p1) asserts the return. Landing on Home is plausibly a Vite dependency re-optimization reload on the first visit to /cadastros, which wipes that state. Re-check it once. If the return works, the detour costs 3 taps, not 5.
+- **Recommendation:**
+  - Take the Razão social inline in Etapa 2, as one field that writes the company row.
+  - Seed it from the company name given at account creation.
+  - Leave logo, CNPJ and address to the office, and say so.
+  - Make the return path survive a remount, for example as a query parameter.
+
+##### DA-5 · medium · partly · Setup asks for text the app could default, carry over or read
+- **Observed:**
+  - Of the 221 keystrokes after sign-in, 131 went into predictable fields:
+    - Etapa 2 Local, 37 keys. It is normally the obra or its address; "Local (obra)" was already "Unidade Jundiai".
+    - Justificativa, 59 keys. It is normally "periodicidade anual / NR-10".
+    - Próxima intervenção, 8 keys. It is normally the execução + 12 months.
+    - Informações adicionais, 27 keys.
+  - With the ART (17) and the altitude (3) that makes 151.
+  - The ART is a plain text field although the ART is at hand on paper or as a PDF.
+  - The client CNPJ and the site address are never asked; the Sumário shows "CNPJ do contratante em branco".
+  - Etapa 6 accepted Apto with 94 of 94 fichas empty, and the suggested resumo read "Foram registradas 94 fichas de ensaio: 94 ainda não concluídas."
+- **Evidence:** ja-08-setup-full-768.png, ja-16-etapa2-local-768.png, ja-21-etapa5-6-768.png, ja-22-etapa6-apto-768.png.
+- **Root cause:**
+  - `packages/domain/src/relatorio/instantiate.ts:179-190`: local, additional_info, next_intervention_date and next_intervention_justification are created null.
+  - `apps/web/src/surfaces/relatorio/setup/etapa3-responsavel.tsx:82-88`: the ART input has no inputMode.
+  - `new-project-dialog.tsx:106`: a client created inline gets cnpj null and is never asked for one.
+  - Etapa 6 sits in setup by design (Story 7.4, etapa6-parecer.tsx:23-32).
+- **Correction:** The journey estimated about 160 predictable keystrokes; the fields add to 131, or 151 with the ART and altitude.
+- **Recommendation:**
+  - Default Próxima intervenção to the end of execução + 12 months, with a standard Justificativa per template.
+  - Default Local from the obra, and keep the last value per obra.
+  - Add "Fotografar ART", where OCR fills the number, responsável and client CNPJ, and give the ART field numeric inputmode.
+  - Ask the CNPJ when the client is created, or leave it to the office.
+  - Show Etapa 6 once the fichas are done, or keep it collapsed as "decidir depois".
+
+##### DB-2 · medium · confirmed · At 390 a stray tap changes GΩ to TΩ at once, even on a concluded ficha
+- **Observed:**
+  - At 390 a reading-filled isolation cell stacks a 133x29 px input (y 422-450) directly above the 58x48 unit-cycle button. `elementFromPoint` 8 px below the input returns `BUTTON.mf-unit.unit-cycle`.
+  - One tap changed gigaohms to teraohms and saved at once ("1 pendente"), on a ficha already marked "Ficha completa". Getting back took 2 more taps through megaohms, 3 in all.
+  - A plausibility hint did appear: "Primário 1000× acima de Primário e Secundário. Conferir?"
+- **Evidence:** jb-54-isolacao-cell-390.png, jb-55-unit-toggled-390.png.
+- **Root cause:**
+  - `apps/web/src/surfaces/ficha/measurement-field.tsx:156-158` gives a reading-filled cell the class `ficha-cell suggestion-field`.
+  - `apps/web/src/styles/app.css:735-736` sets `flex-wrap: wrap` on `.suggestion-field > .measurement-field` below 768 px, so the input sits alone on a short line.
+  - `measurement-field.tsx:131-137, 176-179`: the unit cycle commits the value in the new unit, with no confirmation or undo.
+  - Typed cells do not wrap. The ficha stays editable after "Ficha completa" until emission, by design.
+- **Impact:** 1,45 GΩ becomes 1,45 TΩ or MΩ, which flips pass/fail against >400 MΩ and changes the printed conclusion.
+- **Recommendation:** Make the input 48 px tall and put the unit beside the value. Once a value exists, make the unit a choice with Desfazer. On a concluded ficha, ask before changing a confirmed reading.
+
+##### DC-2 · medium · by spec (the toast deviates) · Repetir copies NC results, and an NC moves from ficha to ficha
+- **Observed:**
+  - On TR-2, Repetir copied all 15 items, including item 9 NC from TR-1, with an empty required Observação. On TR-3 it copied item 4 NC from TR-2.
+  - The toasts only say "Padrão de TR-1 repetido" and "Padrão de TR-2 repetido". The counter shows 1, with a red "Obrigatória em item não conforme" further down, and the bulk bar says "Todos os itens já estão marcados".
+  - Undoing it cost 1 tap per ficha.
+- **Evidence:** jc-09-repetir-1024.png, jc-10-item9-copied-1024.png, jc-40-tr3-repetir-1024.png.
+- **Root cause:**
+  - `packages/domain/src/relatorio/ficha.ts:149-164` copies C, NC and NA, taking the source from the latest concluded ficha of the type (`:132-140`).
+  - This follows FR-26 (epics.md:63) and EXPERIENCE.md:126, :303 ("C/NC/NA pattern"). The toast in `apps/web/src/copy/pt-br.ts:1123` names no count, which deviates from FR-26 and epics.md:1486-1487.
+- **Recommendation:** Copy C and NA only, and leave items that were NC unset with "NC na TR-1 — confira". At minimum, have the toast say "14 itens copiados · 1 NC — conferir" and scroll to the NC. Either way this needs a decision on FR-26.
+
+##### DC-3 · medium · by spec · A point of attention from an NC row starts empty
+- **Observed:**
+  - "Criar ponto de atenção" on TR-2 item 4 opened with only the token "Imagem 11", although the row held "vazamento de óleo pela junta" under "Juntas, vedações e vazamentos".
+  - The Textos rápidos are site-level ("Ausência de placas...", "Diagrama unifilar desatualizado", "Chuva e umidade elevada", "Ensaios pendentes"). Ação recomendada and Responsável have no chips.
+  - 74 of the journey's 148 keystrokes went into this dialog (text 30, Ação 37, Responsável 7), and the text had to be scrolled to reach Prazo.
+- **Evidence:** jc-18-poa-dialog-1024.png, jc-21-poa-prazo-1024.png.
+- **Root cause:** `apps/web/src/surfaces/ficha/checklist-section.tsx:424-434` seeds the dialog from the photo tokens only, and `apps/web/src/surfaces/points/point-editor.tsx:136` uses that seed as the text. Story 6.6 (epics.md:1770-1772) pre-links only the photo and the equipment, and Story 11.9 keeps Responsável as free text.
+- **Recommendation:**
+  - Prefill "Item 4 — Juntas, vedações e vazamentos: vazamento de óleo pela junta" (see DF-10 for the token).
+  - Seed Ação recomendada chips per checklist item, such as "Substituir a junta", "Reapertar" and "Limpar e pintar".
+  - Offer the last Responsável as a chip.
+
+##### DC-4 · medium · confirmed · Arrival toasts announce readings already on screen, never expire, cover the fields, and "Ver" leaves or does nothing (merges DB-5, DE-5, DG-3)
+- **Observed:**
+  - **J-b.** After Ler visor in Ambiente the page did not move, and "Lendo…" and then the suggestions stayed hidden behind the sticky bars. "1 leitura pronta para confirmar · Ver · Fechar" stayed more than 12 s over Fabricação and Tipo de isolação. "14 itens marcados Conforme · Desfazer" still covered the TTR table two navigations later.
+  - **J-c.** A toast followed the NC photo draft ("1 leitura"), the 3-shot Ler visor ("2 leituras" for 3 values) and the TTR shot ("1 leitura"). Ver went from /ficha/TR-2 to the Sumário because the draft was already used, and returning took 2 taps.
+  - **J-e.** With the gallery already showing "3 legendas sugeridas — Confirmar todas", a toast read "1 leitura pronta para confirmar · Ver". Ver opened a Sumário showing "0 sugestões por confirmar", and 1 more tap brought the engineer back.
+  - **Sweep.** On PR-ENEL after reconnect, the toast (249x112 px at 63,594, 4 lines) covered Nº série and its "Sugerido: PR-2207-114" for more than 12 s. Ver kept scrollY at 331.5 and only closed the toast.
+- **Evidence:** jb-07-after-shot-state-768.png, jb-19-lendo-elapsed-768.png, jb-20-ambiente-suggested-768.png, jb-28-instrument-picker-768.png, jc-15-item4-draft-1024.png, jc-17-toast-ver-1024.png, jc-27-after-concluir-1024.png, jc-30-ttr-suggested-1024.png, je-17-gallery-after-burst-b-768.png, je-19-leitura-ver-768.png, fc-26-suggestions-vs-typed-390.png, fc-27-toast-ver-390.png.
+- **Root cause:**
+  - `apps/web/src/state/reading-arrivals.tsx:26-35, 39-47, 61-76` announces every pending suggestion a sync brings in, captions included. It does not filter for the open ficha, the gallery, or a reading started on this device.
+  - `reading-arrivals.tsx:84-98, 124-136`: Ver falls back to /relatorio/{id}, or resolves to the URL already on screen, where navigate() does nothing.
+  - `apps/web/src/state/toast.tsx:26-27, 107-114`: an action toast never expires, a deliberate Epic 13 Q-1 choice.
+  - `camera-view.tsx:313-317` returns focus without scrolling to the read fields.
+  - The count is in reading runs by design. EXPERIENCE.md:139, :379 and FR-42 meant this toast for readings queued offline. It is the same family as F-25.
+- **Recommendation:**
+  - Skip the toast when every arrival belongs to the surface on screen or to a reading just started on this device.
+  - Make caption suggestions their own arrival ("3 legendas sugeridas"), routed to /fotos.
+  - Make Ver scroll to and focus the first suggestion, and after the camera closes, scroll the read fields into view.
+  - At 390, keep the toast to 1-2 lines and dock it clear of the suggested field.
+
+##### DC-5 · medium · by spec · Não ensaiado locks the plate, yet the banner promises the ficha prints with the plate data
+- **Observed:**
+  - TR-4 was marked not tested from the overflow in 4 taps (reason "Impossibilidade de desligamento"). That is the natural order when the client refuses the shutdown at the door.
+  - The banner says "Os campos ficam somente leitura; a ficha imprime com os dados de placa e o motivo". Every plate field then shows "—", and "Fotografar placa" and "Igual à TR-3?" are gone. The dialog gave no hint to capture the plate first.
+  - To identify the equipment, the engineer must Desfazer, read the plate, and mark it again.
+- **Evidence:** jc-46-tr4-nao-ensaiado-dialog-1024.png, jc-47-tr4-not-tested-1024.png, jc-48-tr4-plate-readonly-1024.png.
+- **Root cause:** `apps/web/src/surfaces/ficha/nameplate-section.tsx:84, 104-105, 208, 228` hides the plate controls when read-only, as `checklist-section.tsx:298-299` (AR-17) and epics.md:1608-1610 (UX-DR48) specify. The banner copy (pt-br.ts:997) comes verbatim from key-sheet-states.html:90.
+- **Recommendation:** Keep Dados de placa (photo, Igual a, typing) editable on a not-tested ficha, and lock only the checklist, tests and conclusion. Alternatively, add "Fotografar placa antes?" to the dialog.
+
+##### DC-6 · medium · confirmed · A ficha concludes with zero photos and no warning
+- **Observed:**
+  - TR-3 (Igual à TR-2, Repetir, ID and serial, 6 values) reported complete on all four section tabs. It concluded through "Concluir e avançar" with no plate photo and no equipment photo, and the toast said "Ficha concluída".
+  - Gerar relatório later showed "12 avisos — estão nas linhas do sumário; nenhum impede gerar". Whether a ficha with no photo is among them was not confirmed.
+- **Evidence:** jc-43-tr3-conclusao-1024.png, jc-44-tr3-concluded-1024.png, jc-52-gerar-dialog-1024.png.
+- **Root cause:** `packages/domain/src/relatorio/pre-issue.ts:247-346` has no per-ficha photo check; its photo checks cover only uncaptioned, suggested, pending and failed uploads. sheetProgress, through `use-ficha-actions.ts:132-134`, has no photo criterion, and FR-73 lists none.
+- **Recommendation:** Add a soft warning in the stepper and on Concluir ("Sem foto — concluir assim?"), and a pre-issue warning for fichas with no plate or equipment photo.
+
+##### DE-4 · medium · partly · Imports sort by file date and silently renumber every photo
+- **Observed:**
+  - Two files imported into TR-5 got the stamp "05/10 09:13", earlier than the relatório. They became photos 1 and 2, and the burst taken a minute earlier moved from 16-19 to 18-21.
+  - Plate files imported later took "07/10 20:50" and shifted every number again. The TR-2 NC photo the engineer knew as 11 is now "Imagem 13"; the section 8 token followed it.
+  - No message says the numbers moved, and the photo's date cannot be edited.
+- **Evidence:** je-11-imported-strip-768.png, je-14-gallery-768.png, je-22-section8-after-renumber-768.png.
+- **Root cause:** `packages/domain/src/photos/numbering.ts:21-27` numbers in capture order (captured_at, local_seq, id; AD-17). `apps/web/src/files/photo-import.ts:10, 105` takes the EXIF time, else the file's lastModified, else the clock. There is no check that the time falls within the visit, and no notice when numbers change.
+- **Correction:** The pre-visit stamps are the mtimes of the repository fixture files; a phone photo carries its on-site EXIF time. The renumbering itself is designed.
+- **Recommendation:** When a file's time falls outside the relatório's dates, stamp the import time or ask once. Show a toast such as "Fotos 1-2 entraram antes; a numeração mudou".
+
+##### DE-6 · medium · partly · At 390 the undo toast covers the last photo rows and blocks taps on them
+- **Observed:**
+  - After Remover, "Foto 28 removida do relatório · Desfazer · Fechar" wraps to 4 lines at 390 and sits over rows 26 and 27.
+  - It intercepted taps on "Foto 27, abrir" for 30 s, was still there 40 s later, and stayed more than 75 s in all. Reaching the rows cost one forced tap on Fechar.
+- **Evidence:** je-32-undo-toast-covers-tile-390.png.
+- **Root cause:** `apps/web/src/state/toast.tsx:110-111` gives action toasts no timer, as EXPERIENCE.md:262 and :412 specify (persistent, at least 20 s). The defect is that nothing clears space under the toast in the photo strip (sheet-photos-section.tsx and the toast CSS).
+- **Recommendation:** Pad the strip while a toast is up, and shorten the copy to one line ("Foto 28 removida · Desfazer"). An 8-10 s expiry would contradict EXPERIENCE.md and needs a decision.
+
+##### DF-1 · medium · by spec · Pré-visualizar and Gerar relatório sit at the very end of a long Sumário
+- **Observed:**
+  - The only entry to the export dialog is the Sumário's bottom bar, which does not stay on screen.
+  - At 1024 Gerar relatório was at y=6086 of a 6146 px page with 1° Subsolo expanded (1826 px of scroll with the tree collapsed). At 390x844 it was at y=2929 of 2989 px.
+  - The header overflow offers only Restaurar ficha removida, Salvar como template and Voltar para Rascunho.
+- **Evidence:** jf-02-sumario-top-1024.png.
+- **Root cause:** `apps/web/src/styles/components.css:191` sets the action bar to `position: static`, and `apps/web/src/surfaces/relatorio/relatorio.css:131-132` only adds `margin-top: auto`. Only the ficha makes the bar sticky (`ficha.css:85`). EXPERIENCE.md:273 lists a sticky bar only on the ficha, setup and caption composer.
+- **Recommendation:** Make the Sumário bar sticky like the ficha's, or add Gerar relatório to the header overflow and to the Home card.
+
+##### DF-6 · medium · confirmed · Issued with "CNPJ —" for both parties and no logo, and the confirmation never mentions it
+- **Observed:**
+  - PDF p.2 prints "Contratante Metalurgica Serra Azul · CNPJ —" and "Contratada Revisao Engenharia Eletrica Ltda · CNPJ —". The cover and header carry no logo.
+  - These sat among "11 avisos — estão nas linhas do sumário; nenhum impede gerar.", behind "Ver no sumário". The confirmation asked only about the 90 empty fichas.
+- **Evidence:** jf-14-gerar-click-1024.png; `.playwright-mcp/relatorio-rev-1.pdf` p.2.
+- **Root cause:** `packages/domain/src/relatorio/pre-issue.ts:511-522, 525-539`: issueConfirmation counts only empty fichas and "[Label]" blanks. Missing CNPJ and logo are warnings only, by decision (source-deltas.md row 27, EXPERIENCE.md:337).
+- **Recommendation:** In the confirm step, list the values that will print as a dash on the cover or in Controle do documento (both CNPJs, the logo), each with a one-tap link to its field. Keep "Emitir mesmo assim".
+
+##### DH-4 · medium · by spec · During a contradiction the ficha shows the other device's value with no marker on the cell
+- **Observed:**
+  - Device A typed Capacidade interruptor 500 and synced; device B typed 350 offline and then synced. A's cell now showed 350 kA with no outline, icon or hint.
+  - The only signs were the banner at the top, "DJ-ENEL: 1 célula em contradição · Ver", which scrolls away, and the badge "Conflito".
+- **Evidence:** dh-38-a-ficha-in-conflict-768.png, dh-39-a-ficha-top-in-conflict-768.png.
+- **Root cause:** `packages/domain/src/merge/policy.ts:78-79, 147-151` lets the value the server applied later stand and records the other side as cell.conflict. No ficha field reads cell.conflict; there is only a block-level banner (`ficha-surface.tsx:147`, `sync/conflict-banner.tsx:12-20, 30-33, 52-56`). EXPERIENCE.md:263-264 and :385 specify only the banner and the Conflict view.
+- **Impact:** The engineer sees a number he did not type and cannot tell whether he mis-keyed, the app lost his entry or a colleague overwrote it. He may retype it, which creates more contradictions.
+- **Recommendation:** Mark the cell itself with an outline, "em contradição" and both values, and let a tap open the Conflict view. Until the contradiction is resolved, show the local value or a neutral "dois valores".
+
+##### DA-9 · low · confirmed · Enter does not create a new client or site in the Novo relatório combobox
+- **Observed:** After typing "Unidade Jundiai" the list showed only 'Criar "Unidade Jundiai"'. Enter closed the list, and Continuar stayed disabled with "Continuar: falta a obra": 1 wasted key, then a tap.
+- **Evidence:** ja-05-local-enter-not-created-768.png.
+- **Root cause:** `apps/web/src/components/combobox.tsx:108-122`: with allowsCustomValue and no focused option, Enter commits the typed text, and only CREATE_KEY creates (`:110-113`, option at `:153`).
+- **Recommendation:** Let Enter pick the option when it is the only one, or focus the first option while the user types.
+
+##### DA-10 · low · by spec (FR-19) · The editable position number in each tree row is easy to hit by mistake
+- **Observed:** The "Posição de TR-1" input (x 139-195, 56x48, numeric) sits directly left of the row's open target (x 199-676). A tap a few millimetres left opens the numeric keyboard and can reorder blocks.
+- **Evidence:** ja-27-tree-position-focus-768.png.
+- **Root cause:** `apps/web/src/surfaces/templates/reorder-controls.tsx:50-60`, `relatorio-tree.tsx:688-689`. FR-19 (epics.md:53) requires a typed position box.
+- **Recommendation:** Render the position as plain text, editable only in an explicit reorder mode. This needs an amendment to FR-19 or DESIGN.md.
+
+##### DA-11 · low · confirmed · A client's only site is not pre-selected
+- **Observed:** After "Metalurgica Serra Azul" was picked, Local (obra) was empty and its list held only "Unidade Jundiai". That is 2 extra taps on every repeat relatório.
+- **Evidence:** ja-34-cliente-picked-390.png, ja-35-local-list-390.png.
+- **Root cause:** `apps/web/src/surfaces/home/new-project-dialog.tsx:87-92, 193-197` resets the site whenever a client is picked.
+- **Recommendation:** Auto-select the only site and focus Continuar. Later, offer "Repetir último relatório desta obra".
+
+##### DA-12 · low · confirmed · Optional Confirmar buttons in setup leave doubt about what was saved
+- **Observed:** The altitude 720 is written when the field loses focus, but its outlined Confirmar stays. Resumo do parecer shows "Sugerido" plus another Confirmar. Concluir is enabled without either, and setup has no Salvo cue.
+- **Evidence:** ja-20-etapa5-left-768.png, ja-23-setup-bottom-768.png.
+- **Root cause:** `apps/web/src/surfaces/relatorio/setup/etapa5-local.tsx:72-76, 113-132` keys the button on site_altitude_confirmed, a flag that gates nothing (`entities.ts:306`, `instantiate.ts:188`).
+- **Recommendation:** Once the value is stored, show "Salvo - 720 m" with Alterar, and keep Confirmar for a geolocation Sugerido only. Give setup the 13.4 Salvo line.
+
+##### DB-8 · low · confirmed · No instrument is picked on the first ficha, although exactly one fits
+- **Observed:**
+  - On TR-1 both tests started at "Selecione o instrumento", costing 2 taps per test and 4 per transformer.
+  - The picker lists every live instrument of the company, ranked: fits and ticked, fits, ticked, the rest. "Sugerido" appears only after a first use.
+  - From TR-2 on, 2E and 1T come back as "Último usado neste relatório", with GΩ remembered.
+- **Evidence:** jb-28-instrument-picker-768.png, jb-36-ttr-instrument-list-768.png, ja-30-instrument-picker-768.png, jc-54-instrument-picker-1024.png.
+- **Root cause:** `packages/domain/src/relatorio/instrument-pick.ts:143-153` suggests an instrument only after an earlier use; `:194-213` ranks but never filters.
+- **Recommendation:** When exactly one instrument ticked in setup fits the test, suggest it on the first ficha. List the ones that do not fit under "Outros".
+
+##### DB-17 · low · by spec (D-2) · The section stepper does not follow scroll (merges DG-10)
+- **Observed:** At 390 the ficha is about 8100 px tall. A wheel scroll from y 906 to 8106 left "Placa, 0 faltando" as the current step while Verificações, Isolação, Relação, Conclusão and Fotos passed. Any tap into a field does move it.
+- **Evidence:** jb-51-conclusao-390.png, fc-09-ficha-dark-checklist-390.png.
+- **Root cause:** `apps/web/src/surfaces/ficha/use-ficha-steps.ts:44-63` changes the current step only on focus-in or a tap, which is the D-2 model (source-deltas 2026-09-24); `section-stepper.tsx:25`.
+- **Recommendation:** Drive the highlight from an IntersectionObserver, kept separate from D-2's collapse-on-leave logic.
+
+##### DC-12 · low · by spec · Enter after the last test cell lands on "Próxima ficha" while Conclusão is still open
+- **Observed:** On TR-3, Enter in H3-H2 focused "Próxima ficha" while the tabs read "Conclusão, 2 faltando". A second Enter (the Go key) leaves the ficha with the conclusion unconfirmed.
+- **Root cause:** `ficha-surface.tsx:49-50` ends the Enter run on the primary, and `use-ficha-actions.ts:122-162` makes the primary conclude('next') when the ficha cannot be concluded. This is what epics.md:1532 and EXPERIENCE.md:273 specify.
+- **Recommendation:** End the run on the Conclusão Confirmar, or on Concluir e avançar once nothing else is missing.
+
+##### DE-9 · low · confirmed · The photo strip's help text names a "Legendar" button its rows do not have
+- **Observed:** The strip says '"Legendar" só para mudar', but its rows carry only the thumbnail. Changing a caption takes the thumbnail and then Editar legenda, one tap more than in the gallery. At 390 captions are cut to 2 lines.
+- **Evidence:** je-04-after-concluir-768.png, je-32-undo-toast-covers-tile-390.png.
+- **Root cause:** `sheet-photos-section.tsx:16-17` leaves Legendar out deliberately, while `pt-br.ts:969` still names it.
+- **Recommendation:** Add Legendar to the strip rows, or reword the help to "toque na foto › Editar legenda". Show the full caption.
+
+##### DE-11 · low · partly · Import sheet: the caption field takes focus, no thumbnails, and the confirm button is below the fold at 390
+- **Observed:**
+  - Opened from a ficha, the sheet focuses `TEXTAREA.observation-field`. Android Chrome may raise the keyboard over "Adicionar 2 fotos"; iPadOS does not raise it on programmatic focus.
+  - The picked files are never shown.
+  - At 390 "Adicionar 2 fotos" sits at y=922 of 844, and the header "De qual equipamento? — vale para as 2 fotos" wraps.
+  - The equipment list (95 rows) has no search.
+- **Evidence:** je-10-after-import-768.png, je-38-import-tp-chosen-390.png, je-37-outro-equip-390.png.
+- **Root cause:** `apps/web/src/components/dialog-shell.tsx:57-63` focuses the first tabbable element. `capture-sheet.tsx:509` delays the equipment radiogroup while `:538-560` renders the caption at once, so the caption wins. `app.css:769-774` gives the sheet no sticky footer.
+- **Recommendation:** Do not autofocus. Show a row of thumbnails for the picked files, keep the primary button sticky, and add a search to the equipment list.
+
+##### DF-7 · low · confirmed · Audit "Ver" opens the surface, not the item, and an old run looks current
+- **Observed:**
+  - "Ver Imagem 1" opens /fotos?volta=exportar at the top of 29 photos, with nothing marked. A finding about a row opens its ficha at the top.
+  - After the parecer changed, the dialog still showed "Conferido às 15:07" with "O parecer não menciona as restrições", and nothing marked it as out of date.
+- **Evidence:** jf-12-audit-ver-imagem1-1024.png.
+- **Root cause:** `packages/domain/src/audit/schema.ts:20-29`: a finding can point only at a section, a ficha or the photo gallery, with no photo id or row. `sumario-surface.tsx:314-323` navigates to those. The display (`audit/text.ts`) keeps no record of the data a run checked.
+- **Recommendation:** Pass the photo id or row key and highlight the item. Store a data hash per run and label old runs "feita antes das últimas alterações — conferir de novo".
+
+##### DF-11 · low · confirmed · After issue, Controle still says "Rev. 1 na primeira emissão", and the files are reached only through "Gerar relatório"
+- **Observed:** The Controle row's hint does not change once revision 1 exists. To fetch the issued PDF again, the engineer scrolls to the foot and taps "Gerar relatório", a label that suggests a new generation, and finds the files under Revisões. The Home card of an issued relatório has no download or share.
+- **Evidence:** jf-19-sumario-emitido-1024.png, jf-20-sumario-foot-emitido-1024.png, jf-21-home-emitido-1024.png.
+- **Root cause:** `packages/domain/src/relatorio/sumario.ts:139` holds a static string copied from mock 40-relatorio-overview.html.
+- **Recommendation:** Derive "Rev. 1 emitida em 08/10 · próxima: Rev. 2" in the kernel. Add "Baixar PDF da Rev. 1" or "Compartilhar" to the Home card and the Sumário header.
+
+##### DF-13 · low · confirmed · The export dialog has no close button, and at 390 its action is about three screens down
+- **Observed:**
+  - Before the confirmation the dialog offers Ver no sumário, 4 x Ver, Conferir antes de emitir, Editar em Dados do relatório, Pré-visualizar and Gerar relatório. There is no Fechar; it closes only with Escape or a tap on the thin outside margin.
+  - At 390 the dialog is 327x796 with 2340 px of content, and "Emitir mesmo assim" sits below the audit list and the Controle table.
+- **Evidence:** jf-15-export-dialog-top-390.png, jf-16-export-dialog-confirm-390.png.
+- **Root cause:** `dialog-shell.tsx:67-71` relies on isDismissable only, and `export-dialog.tsx:343-350` renders the generate row last. The mock 73-exportar.html has no close button either.
+- **Recommendation:** Add a visible Fechar in the header. At phone width, pin the generate or confirm row to the bottom of the dialog.
+
+##### DG-5 · low · confirmed · The sync badge counts ops ("22 pendentes") and first flashes "sincronizado"
+- **Observed:** After the online reload the badge read "sincronizado" at 3.40 s, "22 pendentes" from 3.65 to 5.5 s, and "sincronizado" again at 5.97 s. The Sync page said "1 ficha e 1 foto aguardando · 1 leitura na fila". While offline the badge says only "Off".
+- **Evidence:** fc-23-sync-status-offline-390.png.
+- **Root cause:** `packages/domain/src/sync/counts.ts:205` counts outbox op rows. `apps/web/src/state/sync.tsx:298-311` shows "ok" before the first outbox read; outboxRead is used only by `sync-status-surface.tsx:45` and `use-generate.ts`.
+- **Recommendation:** Count fichas and fotos, as the Sync page does, and show a neutral badge until the first outbox read.
+
+##### DG-8 · low · confirmed · Tapping a cabine's name in the tree does nothing
+- **Observed:** The label box is 267x24 inside a 375x82 row. A tap on its centre left the row at "Expandir 1° Subsolo"; only the 48 px chevron expands it.
+- **Evidence:** fc-03-tree-label-tap-390.png.
+- **Root cause:** `relatorio-tree.tsx:722-742`: the location row's body is an inert div, while equipment rows are full-width buttons (`:770`).
+- **Recommendation:** Make the location row's body toggle expansion.
+
+##### DG-13 · low · by spec · "Concluir e avançar" concludes without the suggested conclusion text
+- **Observed:** On PR-ENEL, after Aprovado and Sem restrições, the button moved on in 0.6 s. The conclusion text built on the device stayed Sugerido, and the Sumário later listed "1 ficha concluída sem texto de conclusão confirmado".
+- **Evidence:** fc-35-pr-enel-conclusion-390.png.
+- **Root cause:** EXPERIENCE.md:129, :313 and FR-30 (epics.md:67) say an unconfirmed text neither blocks Concluir nor prints; `pre-issue.ts:184-188` warns about it.
+- **Recommendation (needs a decision):** Treat Concluir as confirming the text shown, or label the button "Concluir com este texto".
+
+##### DH-6 · low · partly · The client's "Obras" in Cadastros does not list obras created from Novo relatório, and the copy says "projetos"
+- **Observed:** Metalurgica Serra Azul's Obras list was empty although "Unidade Jundiai" exists. The removal note says "… está referenciado em projetos".
+- **Evidence:** dh-04-cliente-768.png.
+- **Root cause:** `client-panel.tsx:136-142` lists only client.sites, while an obra created in Novo relatório is a project row (`new-project-dialog.tsx:131-133`); copy in `pt-br.ts:1479`.
+- **Correction:** Re-adding the site would not create a duplicate obra, because unprojectedSites drops a site an obra already names (`packages/domain/src/relatorio/project.ts:76-89`). The cost is confusion and a redundant row.
+- **Recommendation:** List the client's obras, at least read-only with their relatórios, or merge the two concepts. Say "relatórios" in the note.
+
+##### DH-8 · low · confirmed · "3 sugestões por confirmar" on the Sync page is plain text
+- **Observed:** The row names no ficha and cannot be tapped. A green "3 leituras prontas" line above it reads as a different thing.
+- **Evidence:** dh-15-sync-768.png.
+- **Root cause:** `sync-sections.tsx:95-101` renders a span inside a list item.
+- **Recommendation:** Link the row to the first ficha with suggestions, or list the fichas, and merge the two lines.
+
+##### DH-11 · low · by spec · After a merge the header credits only the last writer
+- **Observed:** The header read "Preenchido por Colega de Campo · 08/10 16:09", although Nº série and Tipo came from Engenheiro de Campo.
+- **Evidence:** dh-36-a-ficha-merged-768.png.
+- **Root cause:** `use-ficha-actions.ts:167-169` and `sheet-progress.ts:323-326` show block.last_modified_by. EXPERIENCE.md:111 and :230 ask for a single "filled by".
+- **Recommendation:** Name both authors, or show each field's author on demand.
+
+#### 3.2 Capture
+
+##### DA-4 · medium · confirmed · The cover photo shows no thumbnail and goes through a file picker, not the camera
+- **Observed:** After a file was picked, the 200 px tile still read "Foto de capa", with only "Foto de capa - panel-seccionadora.png - 41,3 kB - Envio pendente" below it. There was no `<img>` in the page after 3 s. The input accepts `image/jpeg,image/png` and has no capture attribute.
+- **Evidence:** ja-11-capa-photo-768.png.
+- **Root cause:** `etapa1-capa.tsx:110-117` renders UploadTile without previewSrc, and `upload-tile.tsx:111, 141-145` shows the placeholder whenever previewSrc is null. The Empresa tab does pass previewSrc (`empresa-tab.tsx:186, 196`).
+- **Recommendation:** Pass an object URL as previewSrc. Offer "Tirar foto" through the in-app camera beside "Escolher da galeria", or "Usar como capa" from the photo viewer.
+
+##### DA-7 · medium · confirmed · The plate photo sits below seven cabine fields, and the Placa tab does not reach it
+- **Observed:**
+  - On TR-1 the "Fotografar placa" tile was at y=1203 when the ficha opened (viewport 1024, bottom bar from about y=890). After the Placa tab, scrollY was 204 and the tile was at y=999, still under the bar.
+  - The order on screen is Características da SE (Tipo de SE, Tensão primária, Tensão secundária, Potência instalada), then Ambiente de ensaio (Ler visor, Temperatura, Umidade, Altitude), then Dados de placa.
+  - The Placa tab counts 18 missing fields: 12 plate and 6 cabine.
+- **Evidence:** ja-28-ficha-tr1-768.png, ja-29-ficha-placa-tab-768.png.
+- **Root cause:** `ficha-surface.tsx:178-193` renders the cabine block before the plate section, so the Placa step's anchor lands on the cabine fields (`nameplate-section.tsx:54, 211`). `cabine-block.tsx:77` keeps the block expanded while the cabine is incomplete, so this repeats on every ficha of the cabine, not only the first.
+- **Recommendation:** Make "Fotografar placa" the first element of the ficha, or a bottom-bar button when the block has a plate. Point the Placa tab at Dados de placa and give the cabine data its own chip. Prefill the cabine data from the plates (DB-6).
+
+##### DB-4 · medium · partly · The camera stays on screen 7.5-8 s after the shutter on a one-shot reading, with no saving cue
+- **Observed:**
+  - Ambiente Ler visor: the camera closed 7930 ms after Disparar, then "Lendo…" showed for 6.3 s more, 14.2 s in all.
+  - NC burst: 7473 ms from Concluir fotos to the camera closing.
+  - Plate single shot on TR-2: 1415 ms.
+  - Meanwhile only "1 foto nesta rajada" changes, so the engineer may shoot again or close the camera while it is still saving.
+- **Evidence:** jb-06-after-shutter-768.png, jb-19-lendo-elapsed-768.png, jb-29-after-shutter-1000ms-768.png, jb-29-after-shutter-3000ms-768.png, jb-29-after-shutter-5000ms-768.png, jb-30-camera-stuck-768.png, jb-46-single-shot-waiting-768.png.
+- **Root cause:** `camera-view.tsx:307-308, 326-345`: the camera closes only after every photo of the burst is fully saved. Each save waits, in order, for:
+  - takePhoto, up to TAKE_PHOTO_TIMEOUT_MS 2000 (`camera-view.tsx:51`);
+  - a GPS fix, up to FIX_WAIT_MS 5 s when no fix younger than 60 s exists (`geolocation.ts:10, 93-100`);
+  - the 2560 px JPEG encode and its SHA-256 (`photo-encode.ts:63-74`);
+  - the IndexedDB commit.
+
+  The sequence is in `use-photo-capture.ts:143, 180-188`.
+- **Correction:** The upload is not awaited. Part of the 7.5-8 s may come from the stub (takePhoto on a canvas) and the timing of the emulated geolocation. The 1.4 s plate close fits a fresh GPS fix.
+- **Recommendation:** After the shutter, freeze the frame with "Salvando…" and close as soon as the blob is in IndexedDB. Attach the GPS fix when it arrives instead of blocking the close. Measure on a real tablet.
+
+##### DE-3 · medium · confirmed · An imported or earlier plate photo cannot be read
+- **Observed:**
+  - plate-tp.png and plate-para-raio.png were imported into TP-ENEL. They sit in its strip as photos 3 and 4, captioned "Detalhe do transformador de potencial TP-ENEL", while the ficha still says "Faltam 12 campos da placa".
+  - "Fotografar placa" only opens the camera ("Contexto: placa de identificação"), and neither the strip nor the viewer can read a photo as the plate.
+  - The import listed 95 equipment rows with no search, and nothing was proposed from the image.
+- **Evidence:** je-41-tp-enel-strip-390.png, je-42-fotografar-placa-390.png, je-37-outro-equip-390.png.
+- **Root cause:** plate-photo.tsx, photo-openers.tsx and use-photo-capture.ts route only through the camera. sheet-photos-section.tsx and photo-viewer.tsx offer no way to read a photo again, and `capture-sheet.tsx:448-535` has no filter. FR-33 (epics.md:73, 2011) defines the plate reading as a camera shot.
+- **Impact:** In a dark cubicle the engineer often shoots the plate with the phone's own camera and flash, or a colleague sends the photo later. Every one of those fields is then typed by hand.
+- **Recommendation:** Add "Ler como placa" to the viewer and the strip, and to the import sheet when the target plate is empty. Use OCR to propose the equipment for gallery imports, and add a search to the list.
+
+##### DH-2 · medium · planned · Instrument registration is all typing, although the calibration certificate is attached
+- **Observed:**
+  - Registering one instrument took 13 taps and 66 keys: Código 2, Fabricante 8 + Criar, Nome 10, Tipo 8, série 9, RBC 8, Acreditado switch, date 8, interval 2, emissor 11.
+  - The 3 "Padrão de ensaio" pairs and the file add about 7 taps and 15 keys.
+  - "Arquivo do certificado: PDF, JPG ou PNG · até 25 MB" is only stored, not read. Validade is computed (15/03/2027).
+  - The CNPJ, address and phone on Empresa and Clientes have no reading path either.
+- **Evidence:** dh-06-novo-instrumento-768.png, dh-07-instrumento-preenchido-768.png.
+- **Root cause:** `instrument-panel.tsx` uses only typed fields, and the certificate is upload-only (AR-6). Certificate reading is already proposed as AIR-15 / roadmap L15 (review-field-ux-and-code-2026-10-08.md:552, :1098), not yet as a story. Reading client CNPJ and address is not planned.
+- **Recommendation:** Run the reading pipeline on the attached certificate or on a photo of the calibration label. At minimum, suggest Validade, Data, RBC nº and Nº série for one-tap confirmation.
+
+##### DB-12 · low · confirmed · The single-shot camera shows burst copy and a wrong context, and the plate line says "Nada foi gravado" after 9 fields were saved
+- **Observed:**
+  - The plate and Ambiente Ler visor cameras close after one shot, yet show "Rajada: toque no disparador quantas vezes precisar" and a "Concluir fotos" button.
+  - The termo-higrômetro reading's context reads "Detalhe do transformador de força TR-1 do 1° Subsolo".
+  - After Confirmar todos, the plate line still reads "2 sugestões lidas da foto 1. Nada foi gravado: ...".
+- **Evidence:** jb-03-camera-open-100ms-768.png, jb-13-after-confirm-all-768.png.
+- **Root cause:** `camera-view.tsx:724-730` ignores the single-shot mode (t.burstIdle, `pt-br.ts:759`). `caption.ts:92-104, 358-360` has no display case. `suggestion-ops.ts:81-86` counts the pending rows left.
+- **Recommendation:** In single-shot mode show "Uma foto: a câmera fecha sozinha" and hide Concluir fotos. Caption the reading "Visor do termo-higrômetro". After a partial confirm, say "9 campos confirmados · 2 aguardam você".
+
+##### DB-13 · low · confirmed · Each zoom press moves a tenth of the range, with no presets
+- **Observed:** 2 taps took 1,0x to 1,6x (0.3 per press with the stub's 1-4 range), so reaching 4x would take 10 presses. Insulating gloves rule out pinching.
+- **Evidence:** jb-04-camera-torch-zoom-focus-768.png.
+- **Root cause:** `camera-view.tsx:479-481`. Story 13.2 (epics.md:2791) asks only for a visible control.
+- **Recommendation:** Add 1x, 2x and 4x preset chips, or make the zoom value a tap target that cycles through them.
+
+##### DE-8 · low · confirmed · The camera context pill is cut off at 390 and cannot be changed
+- **Observed:** The pill reads "Contexto: Detalhe do transfor…" and is a plain span, so the caption a burst will carry can be neither read in full nor changed before shooting.
+- **Evidence:** je-25-camera-390.png.
+- **Root cause:** `camera-view.tsx:670-674`; `app.css:637, 641-643` set nowrap with an ellipsis.
+- **Recommendation:** Make the pill a button that opens a compact chooser (an item or test of this ficha, placa, vista geral), and let it wrap to two lines.
+
+#### 3.3 AI reading
+
+##### DB-6 · medium · confirmed · The cabine's "Características da SE" are typed by hand right after the same values were read from the plate
+- **Observed:**
+  - After the plate confirm the header read "Faltam 3 campos da placa, 6 campos da cabine, ...". The plate's AT and BT filled the TTR defaults, but not the cabine's Tensão primária, Tensão secundária and Potência instalada.
+  - Those cost 5 taps and 10 characters (Tipo de SE select, 13,8 / 380 / 500), plus 3 Enters that did nothing.
+  - J-f repeated the cabine block for Cubículo Enel (10 taps, 15 keys). 4 more cabines showed "faltam 6 campos", which would cost about 40 taps and 60 keys more.
+- **Evidence:** jb-13-after-confirm-all-768.png, jb-17-cabine-filled-768.png, jf-06-cubiculo-enel-1024.png, jf-07-cabine-dados-1024.png, jf-08-cabine-preenchida-1024.png.
+- **Root cause:** `packages/domain/src/relatorio/reading-evaluation.ts:147-151`: only the TTR takes a value from the nameplate. The cabine fields primary_kv, secondary_kv and installed_kva (`seed/v1.ts:587-593`) get no suggestion from the plate. This is not planned.
+- **Recommendation:** After the first transformer plate in a cabine, suggest the cabine voltages and the installed power (sum of kVA) as Sugerido. Ask Tipo de SE once, at setup. Add "Copiar de outra cabine".
+
+##### DB-9 · medium · by spec · "Ler de novo" ends with no outcome line
+- **Observed:** A TTR reading was cancelled offline (Cancelar offered at 10 s, "Lendo… 10 s"), then retried with Ler de novo once online. The cell showed "Nova leitura pedida" at 0 s and "Lendo…" at 2-4 s, then nothing for 28 s: no line and no toast.
+- **Evidence:** jb-39-after-cancel-768.png, jb-40-after-retry-768.png.
+- **Root cause:** The TTR has a single capture cell (`seed/v1.ts:493`, capture_column "H1-H3 / X1-X0"). A reading equal to the stored 34,512 is confirmed silently (`suggestion-store.ts:41, 62-67`; `measurement-suggestions.ts:31`), as EXPERIENCE.md:124 specifies ("the crop attaches silently"). The fake returned the same value.
+- **Recommendation:** End every reading with a line: "Leitura igual ao valor confirmado", "Nenhum valor novo encontrado", or the failure with Ler de novo.
+
+##### DC-7 · medium · confirmed · The same serial on two fichas is not flagged (merges DB-15)
+- **Observed:** TR-2 received Identificação "TR-01" and Nº série "240815-07", identical to the concluded TR-1. "Confirmar todos (2)" at 1024, or "(10)" at 390, would write them. The Identificação also differs from the TAG.
+- **Evidence:** jc-05-confirm-dup-serial-1024.png, jb-53-tr2-suggestions-390.png.
+- **Root cause:** `packages/domain/src/relatorio/integrity.ts:14-15, 38, 81-94` checks only duplicate TAGs and certificate numbers, not serials. The 13.8 audit kinds (epics.md:2949) do not include it either. The duplicated values come from the fake; the missing check is real.
+- **Recommendation:** Add a kernel check: the same Nº série on two live equipments of one relatório marks the field "Igual à TR-1 — confira", keeps it out of the bulk confirm, and adds a pre-issue warning. Do the same for an Identificação that differs from the TAG.
+
+##### DG-2 · medium · confirmed · A reading that lands after an offline conclusion silently un-counts the ficha, and the typed value cannot be kept
+- **Observed:**
+  - PR-ENEL was filled by hand offline (Celtta, PR2291, ZnO) and concluded. On reconnect the reading arrived 21.3 s later with Quelvar, PR-2207-114 and ZNO-15/10.
+  - The tree kept "Concluída" and the header "Ficha completa", but the Sumário stayed at 4 of 94, with "3 sugestões por confirmar".
+  - Each field offered only "Substituir". Retyping "PR2291" and pressing Tab left "Sugerido: PR-2207-114 Substituir" in place.
+- **Evidence:** fc-25-back-online-reading-390.png, fc-26-suggestions-vs-typed-390.png, fc-36-sugestoes-count-tap-390.png.
+- **Root cause:**
+  - `nameplate-suggestions.tsx:58-59, 421-430` offers only Substituir, as EXPERIENCE.md:312 specifies.
+  - `nameplate-section.tsx:244`: typing a value never discards the suggestion.
+  - `progress.ts:41-51` never counts a ficha with pending suggestions, while the tree ignores them.
+- **Impact:** An engineer who read the plate himself, perhaps because the photo was poor in a dark cubicle, cannot reject the AI value. He must accept values he believes are wrong, or leave the ficha uncounted.
+- **Recommendation:** Add "Manter o digitado" beside Substituir, where one tap discards the suggestion, plus "Manter os digitados" for the whole group. Show "Concluída · 3 sugestões" in the tree.
+
+##### DG-4 · medium · confirmed · On reconnect the reading line shows a 3-minute "está demorando" for a photo not yet uploaded
+- **Observed:**
+  - Offline, the tile correctly said "Foto guardada — leitura quando houver sinal".
+  - After reconnect, from 3.65 to 11.6 s it showed "Lendo… 2 min 54 s" rising to "3 min 02 s", with "a leitura está demorando; o app continua conferindo a cada minuto" and Cancelar.
+  - At 11.9 s it reset to "Lendo…", and at 21.3 s "Sugestões prontas — 3 campos" arrived.
+- **Evidence:** fc-16-offline-after-shot-390.png.
+- **Root cause:** `plate-photo.tsx:63` shows the reading as running as soon as the server is reachable, before the upload is acknowledged. `packages/domain/src/reading/wait.ts:19-31` then measures from the capture time. The same pattern is in `read-display.tsx:260-270`.
+- **Impact:** Just as signal returns, the engineer is told the AI has been stuck for 3 minutes and invited to cancel a reading that has not started.
+- **Recommendation:** Keep "Enviando foto…" until the upload is acknowledged, and measure the age and the Cancelar and still-reading thresholds from the acknowledgement.
+
+##### DB-11 · low · confirmed · Reading hints and labels do not name the row (merges DC-11)
+- **Observed:**
+  - The burst hint reads "Próxima leitura: Ensaio de isolação · Primário" for both Primário–Massa and Primário–Secundário.
+  - The TTR hint ends with a dangling "Ensaio de relação de transformação ·".
+  - The accessible names read "Primário, 1 minuto" on two rows, and ", V primário" and ", H1-H3 / X1-X0" with a leading comma.
+- **Evidence:** jb-31-camera-3-shots-768.png, jc-24-ler-visor-1024.png, jc-26-visor-waiting-1024.png.
+- **Root cause:** `reading-evaluation.ts:191` labels a row by its first connection column (rows PRIMÁRIO/MASSA/SECUNDÁRIO and PRIMÁRIO/SECUNDÁRIO/MASSA, `v1.ts:383-385`). `measurement-suggestions.ts:181, 213-216` always joins with " · ". `pt-br.ts:1145` builds the cell label.
+- **Recommendation:** Name rows "Primário–Massa" and "Primário–Secundário". Omit the separator when the TAP is empty, or say "TAP atual".
+
+##### DG-12 · low · by spec (mock) · The AI-suggested value is the smallest text on the plate line
+- **Observed:** "Sugerido: Quelvar" is 14px/400 in rgb(138,75,0), against a typed value at 18px/400 and a measurement at 22px/600. That makes comparing the AI reading with the plate harder at arm's length.
+- **Evidence:** fc-26-suggestions-vs-typed-390.png.
+- **Root cause:** `components.css:441` sets `.suggestion-alt` at the meta size, faithful to the mock.
+- **Recommendation:** Show the value at 18px/600, with "Sugerido" as the small label. This needs a DESIGN.md decision and an app.css translation.
+
+#### 3.4 AI report building
+
+##### DE-1 · high · by spec · Every photo taken on a ficha gets one template caption per burst, and vision captioning never runs on them
+- **Observed:**
+  - All 4 photos of the TR-5 burst read "Detalhe dos ensaios de relação de transformação realizados no transformador de força TR-5 do 1° Subsolo". The 3 TR-5 photos at 390 all read "Detalhe do transformador de força TR-5 do 1° Subsolo". The gallery shows runs of 2 to 4 identical captions.
+  - Only the 3 gallery photos with no ficha got a vision suggestion, about 2 s after Concluir, confirmed with one "Confirmar todas".
+  - Re-captioning a ficha photo costs 4 taps with a chip, or 5 taps and about 30 keys with free text, one photo at a time. There is no multi-select.
+- **Evidence:** je-04-after-concluir-768.png, je-14-gallery-768.png, je-35-gallery-bottom-390.png.
+- **Root cause:**
+  - `packages/domain/src/reading/prose.ts:83-87` skips every photo taken on a ficha (reasons "captioned" or "has_block"), so `apps/web/src/db/file-commit.ts:114-121` asks for no reading.
+  - `camera-view.tsx:233` reads the context once per opener press.
+  - Story 9.3 (epics.md:2214-2226) limits vision captions to photos with no ficha and no caption.
+- **Impact:** For a user who works from photos, a leak, a corroded bushing and a thermometer read as the same sentence in section 7. Either every photo is re-captioned by hand, or the relatório ships captions that say nothing.
+- **Recommendation (a scope change for Matheus):** Request a vision caption for ficha photos too, keeping the template as a prefix and letting the model add what is visible, shown as Sugerido with "Confirmar todas" in the strip. Vary the template within a burst by the item or test on screen. Add "Legendar selecionadas" to the strip and the gallery.
+
+##### DB-10 · medium · partly · "Aprovado · Com restrições" suggested for a ratio error 25 times the criterion, and "aceitável na ficha" reads as a judgement
+- **Observed:** H1-H3 measured 12,57 % off the calculated ratio (criterion ±0,5 %), and the ficha had an NC. The device suggested "Aprovado · Com restrições?" and wrote "apresentou desvio de relação de transformação de 12,57 % em H1-H3 / X1-X0 (critério: ±0,5 %, aceitável na ficha)".
+- **Evidence:** jb-41-ttr-enter-run-768.png, jb-42-conclusao-768.png.
+- **Root cause:** `conclusion.ts:72-87` always suggests aprovado, adding Com restrições on any NC or out-of-criterion reading. The clause appends the criterion's source name, "aceitável na ficha" (`seed/criteria.ts:40`).
+- **Correction:** "Reprovado is never suggested" is a decision of record (EXPERIENCE.md:128, :310; anti-pattern :239), and the 12,57 % came from the fake.
+- **Recommendation (a decision for Matheus and Bruno):** When a value exceeds its criterion by a set factor, leave the verdict unsuggested and ask. Rephrase the clause as "critério da ficha: ±0,5 %". Add "verdict too lenient for its readings" to the 13.8 audit kinds.
+
+##### DF-3 · medium · confirmed · Issuing with empty fichas prints about 100 pages of blank forms
+- **Observed:**
+  - relatorio-rev-1.pdf has 114 pages for 4 concluded fichas out of 94. Pages 13-61 and 70-112 are almost all empty tables; for example, p.113 TC-GERADORES-4 has "-" in every cell and empty conclusion boxes.
+  - The confirmation says only "Emitir com 90 fichas vazias?", and nothing says the empty fichas will print as blank forms.
+- **Evidence:** jf-14-gerar-click-1024.png; `.playwright-mcp/relatorio-rev-1.pdf`.
+- **Root cause:** `packages/domain/src/print/group-for-print.ts:14, 195` prints every ficha once, `section-9.ts:636` renders full tables with "-", and `pre-issue.ts:525-539` writes the confirmation. Decision D1 (2026-10-06, EXPERIENCE.md:337) kept emission behind a confirmation and decided nothing on leaving fichas out.
+- **Impact:** The client receives a signed 114-page relatório in which most fichas look as if the engineer forgot them. The blank pages also make generation 2 to 3 times slower (DF-2).
+- **Recommendation:** Say what happens to the empty fichas, and offer "Omitir fichas vazias" as the default, listing the omitted equipment once as "não ensaiado / fora do escopo desta visita". Print blank forms only on request.
+
+##### DF-4 · medium · partly · Section 10 is a count, and the fixed text after it says the tests were positive
+- **Observed:**
+  - PDF p.113-114 print "Apto com restrições", then "Foram registradas 94 fichas de ensaio: 3 concluídas, 1 não ensaiada ... e 90 ainda não concluídas...", then the fixed bullet "Apesar dos resultados dos testes serem positivos para a continuidade de operação das SE's...".
+  - Meanwhile TR-1 (p.64) failed its ratio criterion by a factor of 25 (12,57 % against ±0,5 %).
+  - Etapa 6 says "Montado no aparelho a partir das contagens".
+- **Evidence:** jf-04-parecer-restricoes-1024.png; `.playwright-mcp/relatorio-rev-1.pdf` p.64, p.113-114.
+- **Root cause:** `parecer.ts:212-222` writes counts only, including "ainda não concluídas". `seed/sections-v1.ts:221` holds the bullet, which `print/section-10.ts` prints under every verdict.
+- **Correction:** The absence of an AI-drafted parecer is a recorded decision: NFR-12 (epics.md:145) and Story 13.8 (epics.md:2962). The audit's parecer_vs_restricoes check is canned in the fake.
+- **Recommendation:**
+  - Make the "resultados positivos" bullet conditional on the verdict; this part is a defect fix.
+  - Word unfinished fichas as scope ("fora do escopo desta visita").
+  - An LLM draft of the parecer, citing its sources and confirm-only, would reverse NFR-12 and needs a decision.
+
+##### DF-5 · medium · partly · Captions claim tests "realizados" on TR-5, whose ficha is empty
+- **Observed:** PDF p.10-11: Imagem 20, 22 and 23 read "Detalhe dos ensaios de ... realizados no transformador de força TR-5", while TR-5 is "Vazia" and prints blank.
+- **Evidence:** `.playwright-mcp/relatorio-rev-1.pdf` p.10-11.
+- **Root cause:** `packages/domain/src/photos/caption.ts:174-190` takes the activity from the section on screen when the photo is taken, and `:202-208` always writes "realizado". Captions are stored at capture and never checked against the ficha's state later. The audit is text-only by design (`audit/input.ts:13-19`).
+- **Recommendation:** Add a pre-issue check in the kernel for captions that name a test or verification on an empty or not-tested ficha. Use neutral context captions on empty fichas ("Foto do transformador TR-5").
+
+##### DB-16 · low · confirmed · The NC photo caption ignores the NC, and reading photos join the ficha's printed photos
+- **Observed:**
+  - The NC photo caption is "Detalhe da verificação de corrosão, pintura, vibrações realizada no transformador de força TR-1 do 1° Subsolo"; it never mentions "pontos de corrosão".
+  - TR-1 shows "Fotos da ficha (9)" after 1 plate, 1 ambient, 2 NC, 3 isolation and 2 TTR shots. That includes the photo of the cancelled reading, which prints.
+- **Evidence:** jb-25-legendar-768.png.
+- **Root cause:** `caption.ts:92-96` builds the activity from the item label only. `print/section-9.ts:581-592` prints display-reading photos in the "other" group.
+- **Recommendation:** Add the NC observation to the caption of a photo taken from an NC item. Keep reading photos as evidence for the reading, out of the printed list unless chosen, and drop or ask about a cancelled reading's photo.
+
+##### DC-10 · low · confirmed · A chip added after a sentence gives "., "
+- **Observed:** The observation became "Oxidação aparente na estrutura do equipamento., vazamento de óleo pela junta", and it prints that way in section 9.
+- **Root cause:** `packages/domain/src/relatorio/ficha.ts:204` adds ", " unless the text ends with whitespace, "(", "," or ";".
+- **Recommendation:** After ".", "!" or "?", insert a space and the phrase capitalised.
+
+##### DF-9 · low · partly · The criteria line can disagree with an edited conclusion
+- **Observed:** PDF p.64 prints "R_iso Primário–Massa 1,45 GΩ · critério >400 MΩ · RT H1-H3 / X1-X0 12,57 % · critério ±0,5 % · item 9 NC" under the conclusion.
+- **Root cause:** `print/section-9.ts:555` prints a freshly composed line whenever there is text, even when the text was edited; the symbols come from `conclusion.ts:143-147`. The line itself is specified (EXPERIENCE.md:129, :172, :314), but :314 says it is frozen with the confirmed text.
+- **Recommendation:** Freeze the line with the confirmed text, which is the defect. Whether to print full words instead of "R_iso" is a copy decision.
+
+##### DF-10 · low · confirmed · Section 8 point text starts with a bare "Imagem 15"
+- **Observed:** PDF p.12 prints the bullet "Imagem 15 Vazamento de óleo pela junta. Substituir a junta e completar o óleo", and the table cell "Imagem 15 Vazamento de óleo pela junta." beside an Imagens column that already says 15.
+- **Root cause:** `checklist-section.tsx:427-431` puts the photo token first. section-8.ts prints a leading token bare (resolveBulletPhotoTokens; resolvePhotoTokens `:71-79`). The F-05 fix covered only tokens after the text.
+- **Recommendation:** Print the reference after the text ("(Imagem 15)"), or drop it where the Imagens column already carries it. Do not seed the text with the token.
+
+#### 3.5 Field ergonomics
+
+##### DB-7 · medium · by spec (13.4 scope) · Enter does nothing in the plate and cabine fields (merges DG-7)
+- **Observed:**
+  - In J-b, Enter left focus in place in Vol. óleo, Tensão primária, Tensão secundária and Potência instalada: 4 dead Enters were counted.
+  - In the sweep, the same happened in Nº série, Tipo and Corrente nominal, and the next 3 characters ran into the same field ("PR2291ZnO"). None of these fields has an enterkeyhint.
+- **Root cause:** `ficha-fields.tsx:204, 375`: Enter commits and keeps focus. The enterkeyhint exists only in `ensaios-section.tsx:130-165` and `measurement-field.tsx:106-108`. INP-2 (epics.md:2837-2839) and EXPERIENCE.md:307 limit the Enter run to the readings.
+- **Recommendation:** Extend the Enter run to the plate and cabine fields: enterKeyHint next, the next empty field, then the next missing step.
+
+##### DF-2 · medium · confirmed · Draft 47.7 s, issue 97.6 s, and the issue does not reuse an identical draft
+- **Observed:**
+  - Pré-visualizar took 47.7 s to preview.pdf (114 pages, 8.8 MB). "Emitir mesmo assim" took 97.6 s to "Revisão 1 pronta" (114 pages, an 8.5 MB PDF plus a 1.4 MB DOCX).
+  - No data changed in between, and the two PDFs differ only in "Revisão do documento" ("—" vs "Rev. 1").
+  - The dialog shows only "Gerando revisão 1… pode fechar". The draft tab does show a written waiting page.
+- **Evidence:** jf-17-emitindo-1024.png.
+- **Root cause:**
+  - `apps/api/src/jobs/generate/job.ts:179-199` renders the full document 2-3 times per job (buildDocx + convertToPdf, so the table of contents matches; AD-15).
+  - `job.ts:219-266` runs preview and issue as separate jobs, and the preview keeps only its PDF.
+  - `print/revisions.ts:177-183` reports no stage or page count. Mock 73-exportar.html:118 designed a progress line ("119 páginas · seção 9 montada, montando seção 7"); the app kept only "pode fechar" (`pt-br.ts:464-465`).
+  - These times come from a local podman stack. Why the issue took twice as long as the preview is unexplained; a third table-of-contents pass is possible (`job.ts:199`).
+- **Recommendation:** Reuse the draft render when the data hash is unchanged, stamping the revision and dropping the watermark. Show coarse progress and an estimate from the ficha count. Leaving empty fichas out (DF-3) shrinks the render as well.
+
+##### DC-8 · low · by spec · In landscape the sticky chrome takes 245 of 768 px
+- **Observed:** At 1024x768 the app bar is 56 px. The bottom action bar starts at y=579 and is 189 px tall: section tabs, the "Marcar os restantes como Conforme" mirror, and Foto / Adicionar fotos / Próxima ficha. The rail is 305 px wide. About 704x523 px remain, enough for about 4 checklist rows or one table.
+- **Evidence:** jc-08-verificacoes-1024.png, jc-54-instrument-picker-1024.png.
+- **Root cause:** `sticky-action-bar.tsx:40-43` and `ficha.css:83`, as EXPERIENCE.md:273, FR-26 (the mirror) and UX-DR74 (a 320 px rail) specify.
+- **Recommendation:** In landscape, fold the bulk-action mirror into the action row, and collapse the rail automatically while a ficha is being filled.
+
+##### DE-10 · low · partly · The caption composer has no inspection activities, near-duplicate places, a small preview and a two-step free-text path
+- **Observed:**
+  - Atividade offers only service and test activities: there is no "placa de identificação", "inspeção visual", "vazamento" or "vista geral".
+  - Local lists 13 chips with near-duplicates: "Cubículo Enel" and "cubículo da Enel", "Cobertura A" and "cobertura lado A".
+  - At 390 the preview is about 100 px wide and the dialog is 2206 px tall, 2.6 screens.
+  - Free text takes Editar texto, then clearing the generated sentence, then typing.
+- **Evidence:** je-06-caption-dialog-768.png, je-09-free-text-768.png, je-33-composer-390.png.
+- **Root cause:** `caption-composer.tsx:43-44, 132-168` and `caption.ts:244-258` build the chips from the seed words and the location names. The preview size and dialog height are browser measurements, not checked in code.
+- **Recommendation:** Add inspection and finding activities, remove duplicate places, put the selected chips and a larger preview first, and let typing replace the generated text without a toggle.
+
+##### DF-8 · low · confirmed · Every downloaded file is named relatorio-rev-1.pdf / .docx
+- **Observed:** The draft is relatorio-rascunho.pdf, and every issued file is relatorio-rev-N, with no client, site or date. Relatórios cannot be told apart in Downloads, a share sheet or an e-mail.
+- **Root cause:** `packages/domain/src/contract/generate.ts:89-91`, `print/revisions.ts:223-224`.
+- **Recommendation:** Name files `<cliente>-<local>-<AAAA-MM-DD>-rev1.pdf`, slugified, without the codename.
+
+##### DG-11 · low · by spec · Dark mode is good but can only be switched in Conta
+- **Observed:** Going from sunlight into a dark cubicle takes the avatar, a scroll to Tema, Escuro and back: 3 taps plus a scroll, and the place in the ficha is lost. Contrast passes comfortably in both themes.
+- **Evidence:** fc-08-ficha-dark-top-390.png, fc-09-ficha-dark-checklist-390.png, fc-10-sumario-dark-390.png, fc-12-ficha-appdark-lightmedia-390.png.
+- **Root cause:** `account-surface.tsx` is the only caller of setTheme (Story 1.6, epics.md:714). "Sistema" follows the OS, which does not change inside a cubicle.
+- **Recommendation:** Add a theme toggle to the ficha overflow menu or the camera bar, with an optional "Escuro ao usar a lanterna".
+
+##### DH-9 · low · confirmed · CNPJ and phone fields open the alphabetic keyboard
+- **Observed:** The CNPJ and Telefone fields on Empresa, and the CNPJ and Telefone do contato on the client, have no inputMode and type text, so a tablet shows QWERTY with the digits on a second layer.
+- **Root cause:** `cnpj-field.tsx:28-31`, `empresa-tab.tsx:156, 312`, `client-panel.tsx:131-135, 196`.
+- **Caveat:** Receita Federal began issuing alphanumeric CNPJs to new registrations in July 2026 (IN RFB 2.229/2024), while the validator still strips to 14 digits (`checks/cnpj.ts:8-9`). The CNPJ keyboard and the validator should be decided together.
+- **Recommendation:** Use `type=tel` for the phone fields now, which is safe; give the CNPJ a numeric keyboard only together with the validator decision.
+
+#### 3.6 Defects and layout
+
+##### DC-1 · high · confirmed · The transformer ratio (TTR) table is broken at every tablet width (merges DB-1, DG-1)
+- **Observed:**
+  - Input widths in px for [V primário, V secundário, H1-H3, H2-H1, H3-H2]; every input is 29 px tall:
+
+    | Width | V primário | V secundário | H1-H3 | H2-H1 | H3-H2 |
+    |---|---|---|---|---|---|
+    | 768 | 36 | 36 | 89 (J-c) / 121 (J-b) | 62 | 24 |
+    | 1024, rail open | 34 | 34 | 85 | 59 | 24 |
+    | 1024, rail collapsed | 67 | 67 | 149 | 102 | 24 |
+    | 1280 | 65 | 65 | 145 | 99 | 24 |
+
+  - At 768 and 1024 the table is 728 px wide in a 657 px box.
+  - The defaults 15 kV and 380 V show as "1" and "3", and "34,512" shows as "34,51".
+  - "39,48" sits in a 24 px box (`.measurement-field` clientWidth 0, scrollWidth 48) and shows as "39,".
+  - "calc." prints one letter per line ("c / alc."), and "Marcar Com restrições" is cut at the cell edge.
+  - Focusing the last cell scrolls `.ficha-mt` sideways to scrollLeft 71.5 (951 vs 880), and the header then reads "vel ±0,5 %".
+  - At 390 the stacked cards are fine (213-261 x 54 px).
+- **Evidence:** jb-35-ttr-768.png, jb-38b-lendo-cancel-page-768.png, jb-41-ttr-enter-run-768.png, jc-31-ttr-typed-1024.png, jc-32-ttr-rail-collapsed-1024.png, jc-33-ttr-768.png, jc-33-ttr-1280.png, fc-06-ratio-row-768.png, fc-07-ratio-row-1024.png, fc-07-ratio-row-1280.png, jb-51-ttr-390.png.
+- **Root cause:**
+  - `apps/web/src/styles/components.css:524-526` gives the wide table a fixed layout with percentage widths for columns 1-6 only (13+14+14+14+27+18 = 100 %), copied from the 6-column TP mock (60-ficha.html:729).
+  - The transformer TTR has 8 columns (`packages/domain/src/seed/v1.ts:481-494`: TAP Nº, V PRIMÁRIO, V SECUNDÁRIO, VAL CALCULADO, H1-H3, H2-H1, H3-H2, CONDIÇÕES), so columns 7 and 8 get only their padding.
+  - `components.css:527` breaks words anywhere, and `:532` scrolls the whole section sideways.
+  - `ensaios-section.tsx:317` applies the wide class to every ratio table. The 300 px cell minimum (`ficha.css:126`) is unscoped and ignored under fixed layout. The cards apply only below 768 px (`ficha.css:149-152`).
+  - The only e2e check, `e2e/ficha.spec.ts:605-606`, asserts the 6-column TP header.
+  - This contradicts UX-DR40 ("nothing clipped") and UX-DR74 ("tables in full in landscape"), and it is not tracked anywhere.
+- **Impact:** This is one of the two tests on every transformer, and the tablet is the main field device. The engineer cannot see or hit the third phase reading, the voltages that feed the computed ratio, or the verdict per row.
+- **Recommendation:**
+  - Set 8-column widths for the transformer TTR in ficha.css or app.css (components.css stays byte-identical), for example 13/11/11/11/15/15/15/9. Alternatively, use the cards up to 1279 px, or move V primário, V secundário and Calculado into a header line.
+  - Scope the 300 px rule with `:not(.ficha-ttr)`.
+  - Add a Playwright check at 768, 1024 and 1280 that every TTR input is at least 72 px wide and 48 px tall and shows its whole value.
+
+##### DA-1 · high · partly · On a phone the second Novo relatório dialog overflows and cannot scroll, so Criar relatório is unreachable
+- **Observed:**
+  - At 390 the dialog is 859 px tall (907 px at 360).
+  - Its top is at y=-7.7 at 390x844, -25.7 at 390x760 and -79.7 at 390x700.
+  - The bottom of Criar relatório is at 805.7 at 390x800, 785.7 at 390x760 and 755.7 at 390x700, below the viewport at every height of 800 px or less.
+  - A mouse wheel over the scrim does not scroll it (scrollHeight equals clientHeight, html overflow hidden).
+  - Tablet sizes are fine: 592 px tall at 768x1024 and 1024x768.
+  - A real 390x844 phone keeps only about 650-760 px after the browser bars.
+- **Evidence:** ja-36-tipo-datas-390.png, ja-37-tipo-datas-390x700.png, ja-39-tipo-datas-390x760.png, ja-40-tipo-datas-360x640.png.
+- **Root cause:**
+  - `components.css:664-666` centres the dialog in the scrim and gives `.form-dialog` no max-height or overflow.
+  - `app.css:522-528` makes the scrim fixed and `.dialog-modal` `display: contents`.
+  - `dialog-shell.tsx:84-96` locks page scroll and provides no scroll container.
+  - UX-DR60 (epics.md:272) asks for this dialog full-screen on phone; `app.css:155-156` only stacks the dates.
+- **Correction:** The "tipo e datas" step is a separate NewRelatorioDialog opened after navigation (`new-project-dialog.tsx:146-153`), not a second step of the same dialog. Other form dialogs (instrument form, rename dialogs) are exposed in the same way when they run tall. The export dialog is not affected: `export.css:35` gives it max-height and overflow.
+- **Recommendation:** In app.css, give `.form-dialog` `max-height: calc(100dvh - 2*var(--sp-5))` and `overflow-y: auto` with a sticky action row, aligned to the top on phones, or make it full-screen per UX-DR60. Shorten the phone copy. Add a Playwright check of every form dialog at 390x664.
+
+##### DA-6 · medium · partly · Phone Sumário tree rows leave about 100 px for the TAG and status
+- **Observed:** At 390 every row keeps the drag handle (48 px), the position input and the options button (48 px). "TR-" sat above "2", "Vazia" dropped below its dot, and the "1° Subsolo" subtitle wrapped to 3 lines. The same tree reads well at 768.
+- **Evidence:** ja-42-sumario-390.png.
+- **Root cause:** `relatorio-tree.tsx:687-699` renders all three on every row, and `relatorio.css:115-118` and `app.css:241-246` add no phone simplification.
+- **Correction:** The TAG element is `flex: none` (`relatorio.css:118`), so it should overflow rather than break; which element broke needs a re-check. The position box at 390 is 48 px (`app.css:200-201`), not 56.
+- **Recommendation:** Below 768, hide the handle and the position box (reorder from the menu or a "Reordenar" mode), keep the TAG on one line, and put type and status on a second line.
+
+##### DA-8 · medium · confirmed · With the rail open at 768 the ficha scrolls sideways and clips Próxima ficha
+- **Observed:** With the rail open, scrollWidth is 827 against clientWidth 753. Próxima ficha spans x 628-827 and is cut at 753 ("Próxima fic"). scrollWidth returns to 753 once the rail closes.
+- **Evidence:** ja-43-ficha-rail-open-768.png.
+- **Root cause:** The bottom-bar buttons do not wrap (`components.css:195-196`) or shrink (`:178`). The phone wrap rule (`app.css:124-127`) and the landscape and desktop rules (`app.css:362-364, 408-410`) do not cover 768-1023 px (see also `ficha.css:54-55, 67, 79`). The rail is collapsed by default in portrait (`ficha.css:50-53, 72-73`).
+- **Recommendation:** From 768 to 1023 px, show the rail as an overlay drawer, or let the bar wrap or compact as it does on the phone.
+
+##### DB-3 · medium · confirmed · Isolation tables at 390 overflow and break words (merges DG-6)
+- **Observed:**
+  - **TR-1.** Labels break mid-word: "Mass a", "Secu ndári o", "Primá rio". The table is 387 px in a 343 px box after reload. Its right edge is at 403 px, and the row's "Mais opções" ends at 398 px in a 375 px viewport. After a cell menu the block stayed shifted (scrollLeft 28.5), clipping "eitável >400 MΩ", "onte do critério" and "mário".
+  - **PR-ENEL.** The table is 400 px in a 343 px box. "Mas/sa" wraps (a 43x65 cell on 2 lines), and the unit splits as "M/Ω".
+- **Evidence:** jb-51-isolacao-390.png, jb-57-dark-scheme-390.png, jb-58-isolacao-after-reload-390.png, fc-21-offline-before-conclude-390.png.
+- **Root cause:** `ficha.css:128-142` lets every cell of these tables break anywhere below 768 px, sized for an assumed 358 px box. `components.css:532` scrolls the title row together with the table. This contradicts `app.css:147-148` ("never scrolls sideways"). EXPERIENCE.md:307 keeps these tables as tables on phone.
+- **Recommendation:** Drop an empty Guard column at phone width, abbreviate Terra and Guard, and never break words of 5 characters or fewer, or units. Clip the section and give the table its own scroller. Stacking these tables would change EXPERIENCE.md:307.
+
+##### DE-2 · medium · confirmed · Closing the camera scrolls the ficha by half a screen
+- **Observed:**
+  - With native clicks at 768x1024, scrollY went from 300 to 810.5 after X, and to 1349 after the next Concluir: +510 each time.
+  - At 390x844 it went 271.5, 690, 1108.5: +418 each time.
+  - Before a burst the engineer was at Identificação; after it, at Potência nominal (390), or at Conclusão instead of the isolation table (768).
+  - The focus log shows focus on `BUTTON.camera-capture-btn` "Tirar foto" without options, then a scroll.
+- **Evidence:** je-04-after-concluir-768.png, je-27-after-burst-b-390.png.
+- **Root cause:** `apps/web/src/input/focus-restore.ts:58, 62` call `element.focus()` without preventScroll. They are reached through `camera-view.tsx:171-180` (used at `:316` and `:361`) on the opener, which sits in the sticky bar. `app.css:796` (`scroll-padding-bottom: var(--sticky-bar-covered)`, the F-11 fix) makes that bar count as hidden, so the browser scrolls to reveal it. Elsewhere the app already passes preventScroll (`use-ficha-steps.ts:81`, `relatorio-tree.tsx:292`).
+- **Impact:** A photo is taken of the item being inspected, and that place is lost after every burst, dozens of times per cabine.
+- **Recommendation:** Pass `focus({ preventScroll: true })` in focus-restore.ts, and save and restore scrollY around the camera.
+
+##### DH-1 · medium · confirmed · A manufacturer typed under "Outro…" is shown but never saved unless "Criar" is tapped
+- **Observed:**
+  - "Megabras" was typed, then the engineer pressed Escape or tapped elsewhere. The field still read "Megabras".
+  - After Fechar, the row read "série MB5501234 · RBC 12345/26" with no manufacturer, and reopening showed the "Outro…" chip. This was seen twice.
+  - The 'Criar "Megabras"' popover also covers the next field, Nome. It is the F-02 failure class again.
+- **Evidence:** dh-08-fabricante-combobox-768.png, dh-07-instrumento-preenchido-768.png.
+- **Root cause:** `registry-picker-field.tsx:119-133` keeps the typed text in local state, and "Criar" is the only way to save unmatched text. `combobox.tsx:109-122` keeps that text visible after blur without saving it. The caller is `instrument-panel.tsx:274-284`. Not planned: the unknownManufacturer auto-create (deferred-work.md:942-945) covers only the suggestion path.
+- **Recommendation:** On blur or Enter, save the typed text by matching or creating the word. Otherwise mark it "não salvo" and create it on blur. Keep the popover off the next field.
+
+##### DH-3 · medium · confirmed · The instrument panel hides a manufacturer missing from Fabricantes
+- **Observed:** Instrument 1T reads "Hi-Tech · série TEST-RAT-01" in the list, but its panel's Fabricante shows only "Outro…", as if empty. Fabricantes holds only "Celtta".
+- **Evidence:** dh-05-instrumentos-768.png, dh-20-instrumento-panel-390.png, dh-09-fabricantes-768.png.
+- **Root cause:** `registry-picker-field.tsx:73, 94-118` builds chips only from registry entries and puts the stored name into the hidden combobox; `instrument-panel.tsx:278-279`. Desktop widths (1280 px and up) show the name.
+- **Trigger:** Here, the fixture data (`porto-seguro/small/op-log.ts:111, 135, 159`). A renamed or archived word reaches the same state, because instruments keep the name by value (AD-19; `word-registry-panel.tsx:214`).
+- **Recommendation:** When the stored name has no registry entry, show it as the selected chip, or create the word at seed or import.
+
+##### DB-14 · low · by spec · The ficha header at 390 wastes the top of the screen, and "Salvo" scrolls away
+- **Observed:**
+  - The title breaks as "Transformador de força" / "—" / "TR-1".
+  - With the attribution lines, the progress sentence and the suggestions banner, the first field starts at about y=400 of 844.
+  - "Salvo às" lives in the header that does not stay on screen, and the counts wrap to two lines ("Faltam 12 campos da placa, 15 / verificações, 8 leituras e a conclusão").
+- **Evidence:** jb-50-tr1-top-390.png, jb-52-tr2-top-390.png.
+- **Root cause:** `ficha-header.tsx:46-60, 77, 107-113`; `app.css:140`. The placement follows Story 13.4.
+- **Recommendation:** Write "TR-1 · Transformador de força" without the dash, merge the attribution lines, and show the saved state in the sticky bar. This is a design change.
+
+##### DC-9 · low · partly · The next ficha opens with its heading under the app bar
+- **Observed:** On arrival at TR-3, scrollY was 66.5 and the heading "Transformador de força — TR-3" sat at top 5.5 px, bottom 37.5 px, under the 56 px app bar.
+- **Evidence:** jc-02-tr2-open-1024.png, jc-37-concluir-300ms-1024.png.
+- **Root cause (probable, not proven):** `relatorio-tree.tsx:249-266` scrolls the rail row into view on mount, and that also scrolls the document. It is triggered from `ficha-rail.tsx:82`, after `forward-arrival.ts:24` reset the page to the top, with a remount per ficha (`ficha-surface.tsx:64`). To confirm, check whether scrollY stays 0 with the rail collapsed.
+- **Recommendation:** Scroll only the rail container (set its scrollTop), or offset the scroll by the app bar height.
+
+##### DE-7 · low · confirmed · The camera context picks a section hidden under the bottom bar
+- **Observed:** The screen showed the isolation table, with the TTR starting below it, partly under the 190 px sticky bar. The camera context nevertheless read "Detalhe dos ensaios de relação de transformação".
+- **Evidence:** je-01-tr5-start-768.png, je-02-camera-opening-768.png.
+- **Root cause:** `use-on-screen.ts:55-58` clips visibility at the app bar and the window bottom, not at the sticky bar; used at `:64-77` and `:83-94`.
+- **Recommendation:** Clip at the top of the bar (`--sticky-bar-covered`), and make the context pill changeable (DE-8).
+
+##### DG-9 · low · planned · /arvore at 768 opens collapsed, next to an empty pane
+- **Observed:** The page has 4 elements and "Abra uma ficha na árvore.". One tap opens a 320 px tree, and the remaining 448 px stays empty.
+- **Evidence:** fc-32-tree-768.png, fc-33-tree-768-opened.png.
+- **Root cause:** `tree-surface.tsx:14-22, 49, 95-97`; tracked in deferred-work.md:627-631.
+- **Recommendation:** Render the tree full width below 1024 px.
+
+##### DG-14 · low · confirmed · Disabled actions drawn at 40 % opacity read at about 2:1
+- **Observed:** "Repetir da ficha anterior do mesmo tipo" blends to about rgb(161,180,198) on #F7F8FA in light mode (about 2.0:1) and about rgb(63,84,107) on #101317 in dark mode (about 2.4:1). The reason line under it stays readable.
+- **Evidence:** fc-19-two-bulk-buttons-390.png.
+- **Root cause:** `components.css:185`. WCAG 1.4.3 exempts inactive controls, so this is about legibility in the field, not compliance.
+- **Recommendation:** Use a disabled colour token of at least 3:1 (a DESIGN.md token with an app.css override).
+
+##### DG-15 · low · confirmed · Template editor "Editar texto de …" buttons are 33 px tall
+- **Observed:** 4 are under 44 px at 390 (165x33), and 7 at 768 (519x33).
+- **Root cause:** `section-list.tsx:104` and `templates.css:55, 73` set no minimum height.
+- **Recommendation:** Give them a 48 px minimum height.
+
+##### DH-5 · low · partly · Three surfaces give three different "concluded" counts (merges DF-12)
+- **Observed:**
+  - The Home card said "5 de 94 fichas" while the Sumário said "4 de 94 fichas concluídas"; PR-ENEL was held back by 3 suggestions.
+  - In J-f the Sumário said "4 de 94" (TR-1..3 plus TR-4 Não ensaiada), while Etapa 6 and the printed parecer said "3 de 94 fichas concluídas, 1 não ensaiada".
+  - "Continuar" pointed at the older "Cliente de Testes" relatório (Em campo, 06/09). The one edited today is "Em revisão", so resuming it cost 2 extra taps.
+- **Evidence:** dh-01-home-768.png, dh-02-sumario-768.png.
+- **Root cause:**
+  - `home/cards.ts:223` and `project-surface.tsx:168` count without the pending suggestions.
+  - `progress.ts:51` counts Não ensaiada as concluded; `parecer.ts:166` does not.
+  - Continuar goes to Em campo only, by spec (`cards.ts:272`, EXPERIENCE.md:44, :288).
+  - Related open entry: E78-R2 (deferred-work.md:1029-1033).
+- **Recommendation:** Use one kernel rule and one phrase everywhere ("3 concluídas + 1 não ensaiada de 94"), and pass the suggestions to the Home counter. Giving Continuar to the relatório touched last on this device is a spec change.
+
+##### DH-7 · low · confirmed · On a second device the Sumário shows a wrong status while downloading
+- **Observed:**
+  - About 4.1 s after the tap, device B showed "Em campo 08/10/2026 · 2 de 94 fichas concluídas · 2 NC abertos · 0 não ensaiadas · 0 sugestões por confirmar".
+  - 1 s later it showed "Em revisão · 4 de 94 · 1 não ensaiada · 3 sugestões".
+  - On Home, the card of a relatório not yet on the device has no date and sorts last.
+- **Evidence:** dh-24-b-home-768.png, dh-25-b-download-768.png, dh-26-b-sumario-768.png.
+- **Root cause:**
+  - `relatorio-gate.tsx:40, 75` renders the Sumário before the download is complete.
+  - `sync/engine.ts:516-548` applies the download page by page.
+  - `home/cards.ts:136-146, 262-271` and `contract/sync.ts:62-70`: the summary feed carries no service dates.
+- **Recommendation:** Keep the download state until the whole snapshot is applied, and add the service dates to the summary feed.
+
+### 4. Status of the 2026-10-06 F-items and the Epic 13 features
+
+| Item | 2026-10-06 defect | Status now | As observed | Journeys |
+|---|---|---|---|---|
+| F-02 | Value typed in setup Etapa 5 lost unless Confirmar is tapped | Fixed | Altitude 720 left without Confirmar appears in the TR-1 Ambiente as "720 m · Do setup do relatório". Confirmar still shows after the value is stored (DA-12); the same failure class is open in Cadastros (DH-1). | J-a, J-b, surfaces |
+| F-03 | Relatório with empty fichas issues as Emitido with one tap | Fixed | The Sumário foot says "Nada impede gerar. Emitir pede confirmação: 94 fichas vazias." (90 later). Emitir shows "Emitir com 90 fichas vazias?" with Voltar / Emitir mesmo assim: 2 taps. Etapa 6 accepts Apto at 0 of 94 (DA-5); blank forms print (DF-3); the confirmation ignores the dashed CNPJs (DF-6). | J-a, J-f |
+| F-04 | Placeholders printed literally | Fixed | The issued PDF (114 pages) and DOCX were checked with pdftotext and document.xml: no {…}; empty values print "-" or "—". A bare leading "Imagem 15" remains (DF-10). | J-f |
+| F-06 | App bar not sticky | Fixed | position sticky; the banner stays at y=0 after 1500 px of setup scroll (ja-09). Pinned on the ficha, gallery, composer, Cadastros and Sumário at 390, 768 and 1024. The Sumário action bar does not stay on screen (DF-1). | All |
+| F-07 | Rail labels break mid-word | Fixed in the rail | "Transformador de / força" at 768 and 1024 (ja-43, jc-02). The pattern reappears in the isolation tables at 390 (DB-3) and the phone Sumário tree (DA-6). | J-a, J-c, sweep |
+| F-09 | No voltage classes or manufacturers for a new company | Partly fixed | Classes de tensão seeded as 13,8 / 15 / 24,2 / 36,2 kV (`packages/domain/src/seed/voltage-classes.ts:12`), offered as chips. Fabricantes is empty by decision D4 ("Nenhum fabricante cadastrado ainda — digite o nome para criar"), but a plate reading offers "Criar Celtta?" in one tap and later fichas show it as a chip. The seeded instruments' "Hi-Tech" and "Instrument" are not registry entries (DH-3). | J-a, J-b, surfaces |
+| F-10 | Icon-only wide photo button at 390 | Changed, still icon-only | "Adicionar fotos" is now a 56x56 square whose label exists only for screen readers, next to the labelled 56x56 "Foto". The gallery button is labelled (275x48). | J-a, J-b, J-e, sweep |
+| F-11 | Fields scrolled under the sticky bar | Fixed | scroll-padding-top 56 px and scroll-padding-bottom 129 px; a section jumped to lands at y=56; no field was hidden while working at 1024. Leftovers: a new ficha's heading under the app bar on arrival (DC-9); the bottom padding drives the camera-close jump (DE-2). | J-b, J-c |
+| F-12 | Concluir ficha leaves the ficha at once | Changed | The primary reads "Concluir e avançar" and opens the next ficha in under 300 ms (0.6 s offline), with a 6.1 s "Ficha concluída" toast and no Desfazer. The concluded state cannot be reviewed in place, and it concludes without the suggested text (DG-13). | J-b, J-c, sweep |
+| F-17 | Export dialog at 390 | Fixed | 327 px wide (327x796, 2340 px of content), no horizontal overflow, 12 controls none under 48 px, Ver links 51x48. Emitir is about 3 screens down and there is no close button (DF-13). | J-f, sweep |
+| F-18 | Header counts wrap at 390 | Fixed | The Sumário counts wrap as whole 48 px chips over three rows (199/102/126/205 px; "4 de 94 fichas concluídas" / "2 NC abertos 1 não ensaiada" / "0 sugestões por confirmar"). Home counts sit in a 2x2 grid. The ficha header wraps to two lines but reads correctly (DB-14). | J-a, J-b, J-f, sweep, surfaces |
+| F-19 | Options popover clipped | Fixed | Reading cell menu 240 px at x 129-369 (390); Sumário overflow 240x154 at x 119; last-row menu 240x58 at y 481; items 238x48; ficha overflow at 1024; composer column menu at 768; Cadastros tab menu at 390. | J-b, J-c, sweep, surfaces |
+| F-25 | Toast covers the Prazo it filled | Fixed | P1 filled Prazo 07/11/2026 as Sugerido, with no toast over it (jc-21). The overlap pattern persists elsewhere: arrival toasts (DC-4) and the undo toast at 390 (DE-6). | J-c |
+| F-26 | No feedback while the camera opens | Present in code, not observable | The stub opened in 70-80 ms (J-b), about 0.3 s (J-e), about 0.9 s (J-c), and under 1.6 s including a 1.2 s probe wait (sweep). The code has "Abrindo câmera…" and aria-busy (`photo-openers.tsx:111`, `copy/pt-br.ts:1076`). Needs a real tablet. | J-b, J-c, J-e, sweep |
+| F-27 | Instrument picker lists every instrument | Partly fixed | The fitting instrument is ranked first (`instrument-pick.ts:189-213`), but every live instrument of the company is still listed and none is picked on the first ficha (DB-8). From the second ficha, "Último usado neste relatório" is pre-selected with its unit. | J-a, J-b, J-c |
+
+| Epic 13 feature | As built and observed | Gaps |
+|---|---|---|
+| 13.1 Capture resolution | Stored at 2560x1920 (console "camera track settings {width: 2560, height: 1920}", `camera-view.tsx:377`). A 4-shot burst takes 6 taps. | Measured against a 2560x1920 stub. A real tablet's sensor and the 7.5-8 s close (DB-4) need a device check. |
+| 13.2 Torch, zoom, tap-to-focus | 48 px torch with on/off state, 48 px zoom +/-, a focus ring at the tapped point, 76 px shutter, 48 px close. | Zoom moves a tenth of the range per press, with no presets (DB-13). Real torch and focus could not be tested with the stub. |
+| 13.3 Pinch-zoom viewer | 48 px Ampliar, Reduzir and Ajustar à tela; disabled controls say why ("Foto inteira na tela", "Ampliação máxima"); opened from a crop it shows "Recorte na tela". | The pinch gesture itself was not exercised (mouse). |
+| 13.4 Keyboard and visible Salvo | Numeric fields open a decimal keyboard; the date accepts 082024; in the readings Enter goes next/done and ends on the primary; "Salvo às 14:44", and "Salvo neste aparelho às 15:46" offline. | No Enter run in the plate and cabine fields (DB-7); Salvo sits in the header that scrolls away (DB-14); setup has no Salvo (DA-12); the run ends on Próxima ficha with Conclusão still open (DC-12). |
+| 13.5 Reading wait, cancel, retry | "Lendo…", then "Lendo… 10 s" with a 48 px Cancelar; "Ler de novo" disabled offline with "Sem conexão"; the plate wait says typed values are never overwritten, and that held offline. | A retry ends with no outcome (DB-9); a 3-minute age before the upload (DG-4); results land below the fold, under toasts (DC-4). |
+| 13.7 Plate tile on every type with a plate | Seen on the transformers TR-1..TR-5, on TP-ENEL and on PR-ENEL; prints under DADOS DO EQUIPAMENTO. | Below the cabine fields on every ficha of an incomplete cabine (DA-7); an imported photo cannot be read (DE-3); read-only on Não ensaiado (DC-5). |
+| 13.8 Emission audit | About 1.5 s (J-f) and 4.1 s (J-c) with the fake; labelled as AI with "Nada é alterado no relatório" and "Conferindo…"; every Ver returns through `?volta=exportar`. | Ver opens the surface, not the item, and old runs are not marked (DF-7); the output is canned, so what it would detect is untested; no kind covers a lenient verdict (DB-10) or a duplicate serial (DC-7). |
+
+### 5. Strengths observed
+
+**Setup**
+- A client and a site are created inline from the Novo relatório combobox ('Criar "X"'), and focus moves to the next field by itself, so nobody visits Cadastros first.
+- At tablet sizes the second dialog pre-fills type, template and both parada dates: one tap to create.
+- Responsável, conselho and CREA come from the profile, and the ART number is echoed as it will print in section 10.
+- Etapa 4's instruments are 56 px full-row checkboxes. Concluir names exactly what is missing ("falta o número da ART").
+- The Sumário explains what blocks emission and opens scrolled to "você parou aqui". Instrument validity is computed (15/03/2027).
+
+**Plate and readings**
+- A plate photo fills its fields in 4 taps: Fotografar placa, Disparar (the camera closes itself, 1.4 s on TR-2), then Confirmar todos (9) after a 5.6 s reading (fake). Each suggestion has a 48 px crop that opens the viewer on the region read. Doubtful fields stay out of the bulk confirm ("Verificar"), and "Criar Celtta?" takes one tap.
+- Plate values feed the ratio test: V primário and V secundário get defaults, "Calculado 39,47" appears at once, and Enter skips those cells.
+- The Ler visor burst walks the table row by row. 3 isolation readings arrived while the engineer was still shooting, with no visible wait at 768 and about 2 s at 1024, and one "Confirmar todos (3)" took them.
+- Offline capture is honest: "Foto guardada — leitura quando houver sinal" and "o que você digitar não é sobrescrito pela leitura", and the late reading did respect the typed values.
+- Plausibility hints catch mistakes: a unit 1000x off ("Conferir?"), and "Fora do aceitável (±0,5 %)" with a "Marcar Com restrições" shortcut.
+
+**Ficha flow**
+- A 15-item checklist with one NC takes 3 taps: NC, a reason chip that fills the observação, and "Marcar os restantes como Conforme" with Desfazer. Finished sections collapse.
+- Repeat aids save real taps:
+  - "Próxima ficha" is one tap.
+  - "Igual à TR-1?" copies 10 plate fields and deliberately leaves ID and serial to the photo.
+  - Repetir sets 15 items in one tap.
+  - Instruments and units are remembered.
+  - TR-2 opens with the cabine collapsed and "Sugestões prontas — 11 campos".
+- The conclusion is assisted on the device, with no network needed: Observações are composed from the NC items ("Item 4: vazamento de óleo pela junta"), the verdict is suggested, and the text cites the values and criteria. It costs 3 Confirm taps.
+- A point of attention comes pre-linked to its photo and equipment. P1 fills Prazo as Sugerido, and the save toast says "1 de 1 na seção 8".
+- Não ensaiado takes 4 taps with reason chips, adds the standard section 8 paragraph, and keeps Desfazer.
+- Minimal fichas are cheap: the lean TR-3 took 12 taps, and the offline PR-ENEL took 12 taps and 31 keys. Concluding offline is one tap and opens the next ficha in 0.6 s.
+
+**Photos**
+- The camera opens in about 0.3 s. Nothing asks anything between shots, so a burst costs 1.5 taps per photo.
+- The context caption is written with no typing. The viewer shows "08/10/2026 15:10 · -23,5500, -46,6300" with a pin, and the tiles carry a GPS mark.
+- Gallery photos with no ficha get vision captions about 2 s after Concluir, shown with an amber "Sugerido" and confirmed with one "Confirmar todas".
+- Importing from a ficha pre-selects its equipment and applies one caption to the batch ("2 fotos adicionadas — legenda aplicada").
+- Section 8 tokens follow renumbering ("Imagem 13"). Remover asks for confirmation and offers Desfazer, and recently used chips move to the top.
+
+**Emission**
+- The F-03 confirmation works: one stray tap cannot issue the relatório.
+- The parecer takes 2 taps, with the suggestion and its counts shown, a preview of section 10, and "Nada é impresso até você confirmar".
+- The audit is fast and labelled as AI, and every Ver returns to the open dialog.
+- The draft tab shows a written waiting page, and the issue says "pode fechar — o aviso chega quando terminar".
+- After issue, the dialog shows "Revisão 1 pronta" with DOCX and PDF rows, Share, the Emitido tag and "Qualquer alteração a partir de agora gera a revisão 2".
+- The issued document has:
+  - no placeholders, and the watermark only on the draft;
+  - captions with date, time and coordinates;
+  - NC photos captioned "Item 9 · Corrosão, pintura, vibrações · NC";
+  - the plate tile under DADOS DO EQUIPAMENTO;
+  - the NÃO ENSAIADO band for TR-4, with the matching section 8 item.
+
+**Shell and field ergonomics**
+- Targets meet 48x48 almost everywhere: 0 of 143 ficha controls at 390, and 0 on Home, Sumário, tree, gallery, viewer, camera, export dialog, Pontos, setup, Cadastros, Conta and Sync at 390 and 768. The tri-state chips are 113x56 and the shutter is 76x76.
+- No route overflows horizontally at 390.
+- Contrast holds in both themes: ink 16.74 / 16.92:1, secondary text at least 7.45:1, the Sugerido amber at least 5.82:1, every status colour at least 5.37:1. The theme choice persists.
+- Values are large: measurements at 22/600 and the tri-state at 18/600.
+- Numeric fields get the decimal keyboard, and the date accepts digits without "/".
+- The Sync page names exactly what waits and in what order it uploads. Tapping "3 sugestões por confirmar" on the Sumário goes straight to the ficha.
+
+**Sync and two devices**
+- Merging is cell by cell. Different cells typed on two tablets merged with no question, and only the cell typed on both was held.
+- The contradiction card is clear and glove-friendly: "A minha" and "A de Engenheiro" side by side, each with value, unit, source and time, as 309x101 radio cards plus a 343x48 Aplicar. It takes 3 taps, offers Desfazer, and fits 390.
+- Both devices learn about the contradiction (badge "Conflito", the Sync row, and a banner with Ver).
+- Timings are good: reconnecting synced by itself in 1.9 s; Sincronizar agora answers in 1.1 s; a ficha left open picked up the other device's value by itself in 42.7 s; the first download of 94 fichas took about 4 s behind "Baixando o relatório…".
+- Conta is lean (name and e-mail "Fornecido pela empresa", CREA, coordinates switch, theme, storage), and the console showed no errors after sign-in in any journey.
+
+### 6. Dropped findings and corrections (stub artifacts, refuted or environmental)
+
+- **DA-1, the extension to the export dialog (the F-17 link): refuted.** `export.css:35` already gives `.export-dialog` a max-height and `overflow-y: auto`.
+- **DA-3, "Voltar from Cadastros lands on Home": unconfirmed.** The return path exists and has an e2e test (`registries-surface.tsx:65-70`, `e2e/review-field-defects-2.spec.ts:335-337`); the Home landing is likely a Vite re-optimization reload.
+- **DA-5, "about 160 predictable keystrokes": corrected** to 131, or 151 with the ART and altitude.
+- **DA-6, the "TR-" / "2" TAG split: element unconfirmed.** The TAG is `flex: none` (`relatorio.css:118`); the position box at 390 is 48 px, not 56.
+- **DB-4, "the camera close waits for the upload": refuted.** The upload is not awaited; the exact 7.5-8 s may be inflated by the stub's takePhoto and the emulated geolocation.
+- **DB-10, the 12,57 % ratio deviation: a fake reader value.** Never suggesting Reprovado is a decision of record (EXPERIENCE.md:128, :310, :239).
+- **DB-13, "7-10 taps to reach 4x": specific to the stub's** 1-4 zoom range.
+- **DB-15 / DC-7, TR-2 receiving TR-1's serial and Identificação: a stub artifact.** The fake replays one plate per block type. The missing duplicate check is kept.
+- **DB-9, the silent retry: the fake returned the stored value.** A matching reading attaching silently is specified (EXPERIENCE.md:124); kept as a design gap.
+- **DB-2, "even on a concluded ficha": not a failed guard.** Fichas stay editable until emission by design.
+- **DC-1 / DG-1, "the 300 px minimum sizes the TTR columns": mechanism corrected.** The 6-column fixed layout sizes them, and fixed layout ignores cell minimums.
+- **DC-2, copying NC in Repetir: by spec (FR-26).** Only the count missing from the toast is kept as a deviation.
+- **DE-4, file dates 05/10 09:13 and 07/10 20:50: a stub artifact.** These are the mtimes of the repository fixture files; field photos carry their EXIF time.
+- **DE-6, "let the undo toast expire after 8-10 s": refuted as a fix.** It contradicts EXPERIENCE.md:262 and :412 (persistent, at least 20 s); only the overlap is kept.
+- **DE-11, "the soft keyboard rises over the button": device-dependent.** iPadOS does not raise it on programmatic focus.
+- **DF-2, absolute render times: environment.** They come from a local podman stack; why the issue took twice as long as the preview is unexplained.
+- **DF-4, "no AI draft of the parecer": a decision of record (NFR-12, Story 13.8).** Kept only as a request.
+- **DF-5, a seccionadora panel captioned as TR-5 and a para-raio plate as TP-ENEL: a stub artifact.** The automation uploaded fixture images onto fichas.
+- **DG-7, the step 5 keystroke count:** the dead Enter and the 3 run-on characters were not counted in the offline table.
+- **Field sweep, "no ficha control under 48 at 390 and 768": overstated.** 3 TTR inputs at 768, 4/7 in the template editor and 1 in the Templates list at 768 are exceptions.
+- **DH-6, "re-adding the site creates a duplicate obra": refuted.** unprojectedSites drops a site an obra already names (`project.ts:76-89`).
+- **J-c/d tap total 56: corrected to 55** (the rows add to 55).
+- **J-e 390 wait "about 4.6 s": the rows add to about 3.9 s.**
+- **J-f minimal path "13 taps": corrected to 11 taps**, 1 keystroke, about 149 s.
+- **Offline reload, ERR_INTERNET_DISCONNECTED (fc-24): environment limit.** The Vite dev server runs with no service worker (`apps/web/src/main.tsx:33`).
+- **Camera open times (70-80 ms, about 0.3 s, about 0.9 s, under 1.6 s), instant focus, and the plate image content: stub behaviour.** They are not app findings, and they also make F-26 unobservable.
