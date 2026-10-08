@@ -9,6 +9,7 @@ import {
   seedOutbox,
   serverOnlyOp,
 } from './support/outbox.ts';
+import { SYNC_CYCLE_TIMEOUT } from './support/sync.ts';
 
 /**
  * Matches the API routes only. A glob over every path holding "api" would also match the
@@ -149,7 +150,16 @@ test('@p2 1.5-E2E-003 a pull answering 426 replaces the shell with "Atualizar" w
   page.on('request', (request) => {
     if (new URL(request.url()).pathname === '/api/sync/ops') pushes.push(request.method());
   });
+  // The shell swaps on the launch cycle's company pull, and that pull runs only after the
+  // cycle's push has been applied by the server: a round trip of seconds under load (the
+  // wave-1 gate of 2026-10-08 drew the heading just past 5 s). So the wait is on the 426
+  // itself, within one cycle's budget; the heading follows it in one render.
+  const outdated = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === '/api/sync/company' && response.status() === 426,
+    { timeout: SYNC_CYCLE_TIMEOUT },
+  );
   await page.reload();
+  await outdated;
 
   await expect(page.getByRole('heading', { level: 1, name: 'Atualização necessária' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Atualizar' })).toBeVisible();
