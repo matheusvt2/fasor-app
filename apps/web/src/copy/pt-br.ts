@@ -89,6 +89,10 @@ export const copy = {
       'Permissão negada no aparelho — as fotos saem sem coordenadas. Libere em Ajustes › Localização e o pino volta na próxima foto.',
     // authored: the switch's save is a local commit, so only a refused device write fails it.
     locationSaveFailed: 'Não foi possível salvar. Tente de novo.',
+    // authored (review 2026-10-08, FLD-1; no mock draws it): the device-local wake-lock switch.
+    screenHeading: 'Tela',
+    keepScreenOnLabel: 'Manter a tela ligada',
+    keepScreenOnSub: 'Enquanto uma ficha, a câmera ou uma leitura estiver aberta. Depois de 10 minutos sem toque a tela volta a apagar sozinha.',
     // Tema and Armazenamento from `mockups/prototype/screens/90-account.html`.
     themeHeading: 'Tema',
     themeNote: 'Segue a preferência do aparelho. Os dois temas mantêm o contraste para uso ao sol.',
@@ -772,8 +776,13 @@ export const copy = {
     // authored: FR-57 and Story 13.6 (CAP-4), the browser refused to store a shot while offline even after
     // freeing space; it is kept in memory and the camera takes no other shot until it is stored.
     refusalToast: 'Este aparelho recusou guardar a foto. Ela fica na memória desta aba: sincronize para liberar espaço antes de fotografar de novo.',
-    // authored: a shot that could not be read or saved at all.
+    // authored: a shot that could not be read or saved at all. Review 2026-10-08 (FLD-V1): the
+    // open camera says it in `.cam-hint` until the next shot saves; a closed one, in a toast.
     failedToast: 'Não foi possível salvar a foto. Tente de novo.',
+    // authored (review 2026-10-08, DB-4): `.cam-count` from the shutter of a single shot, or from
+    // "Concluir" of a burst, until the view closes (the shots are being stored on the device).
+    savingOne: 'Salvando a foto…',
+    saving: 'Salvando as fotos…',
     // `60-ficha.html` NC row, verbatim.
     addPhoto: 'Adicionar foto',
     addPhotoReason: 'Recomendada para não conforme',
@@ -1575,6 +1584,11 @@ export const copy = {
     typeInstead: 'Digitar',
     // authored (review F-07, Q-3): a cancelled reading asks the server to read the photo again.
     readAgain: 'Ler de novo',
+    // authored (review 2026-10-08, CAPT-V1): a reading that ended with nothing read (a dark or
+    // blurred frame), on the plate and under a display cell or field.
+    empty: 'Nada foi lido nesta foto',
+    // The panel dialog's retake word (`40-relatorio-overview.html`), here a single shot of the same target.
+    retake: 'Fotografar de novo',
   },
   // Story 13.8 (AI-3): the emission audit in the Export dialog and on the Sumário. Its kind
   // labels, counts and "Conferido às HH:MM" are the kernel's (`audit/text.ts`).

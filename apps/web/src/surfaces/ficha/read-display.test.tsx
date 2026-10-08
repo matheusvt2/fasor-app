@@ -38,7 +38,13 @@ const tileAged = (ageMs: number, extra: Partial<PhotoTile> = {}): PhotoTile => (
   ...extra,
 });
 
-function renderBanner(state: 'queued' | 'running' | 'failed', sync: SyncStateOverrides = {}, tile: PhotoTile = tileAged(0)) {
+/** Review 2026-10-08 (DG-4): a tile whose bytes the server took when it was captured, `ageMs` ago (the age counts from there). */
+const ackedAged = (ageMs: number, extra: Partial<PhotoTile> = {}): PhotoTile => {
+  const at = new Date(Date.now() - ageMs).toISOString();
+  return tileAged(ageMs, { captured_at: at, bytes_acked_at: at, ...extra });
+};
+
+function renderBanner(state: 'queued' | 'running' | 'failed' | 'empty', sync: SyncStateOverrides = {}, tile: PhotoTile = tileAged(0)) {
   session.online = sync.online ?? true;
   return render(
     <SyncContext value={makeSyncState(sync)}>
@@ -74,12 +80,12 @@ describe('F-17 QueuedBanner', () => {
 
 describe('13.5-UNIT the wait and failed lines of a display reading', () => {
   it('under 10 s "Lendo…" alone; from 10 s its age and "Cancelar"; from 120 s the still-reading note', () => {
-    const { unmount } = renderBanner('queued', {}, tileAged(5_000));
+    const { unmount } = renderBanner('queued', {}, ackedAged(5_000));
     expect(screen.getByRole('status')).toHaveTextContent(/^Lendo…$/);
     expect(screen.queryByRole('button', { name: 'Cancelar' })).toBeNull();
     unmount();
 
-    const again = renderBanner('running', {}, tileAged(12_400));
+    const again = renderBanner('running', {}, ackedAged(12_400));
     expect(screen.getByText(/^Lendo… 12 s$/)).toHaveClass('queued-banner');
     // Review F-06: the ticking age sits outside the live region; the region says the transition.
     expect(screen.getByText(/^Lendo… 12 s$/).closest('[role="status"], [aria-live]')).toBeNull();
@@ -88,7 +94,7 @@ describe('13.5-UNIT the wait and failed lines of a display reading', () => {
     expect(screen.queryByText(/A leitura está demorando/)).toBeNull();
     again.unmount();
 
-    renderBanner('running', {}, tileAged(125_000));
+    renderBanner('running', {}, ackedAged(125_000));
     expect(screen.getByText(/^Lendo… 2 min 05 s$/)).toHaveClass('queued-banner');
     expect(screen.getByRole('status')).toHaveTextContent('Lendo… a leitura está demorando; o app continua conferindo a cada minuto.');
     expect(screen.getByText('A leitura está demorando. O app continua conferindo a cada minuto; a foto está guardada.')).toBeInTheDocument();
@@ -99,6 +105,41 @@ describe('13.5-UNIT the wait and failed lines of a display reading', () => {
     expect(screen.getByText(/^Lendo… 15 s$/)).toHaveClass('queued-banner');
   });
 
+  it('review 2026-10-08 (DG-4): a photo whose bytes the server does not hold yet reads "Lendo…" alone, however old, with no "Cancelar" and no note; once acked the age counts from the ack', () => {
+    const { unmount } = renderBanner('queued', {}, tileAged(180_000));
+    expect(screen.getByText(/^Lendo…$/, { selector: '.queued-banner' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancelar' })).toBeNull();
+    expect(screen.queryByText(/A leitura está demorando/)).toBeNull();
+    unmount();
+    renderBanner('queued', {}, tileAged(180_000, { bytes_acked_at: new Date(Date.now() - 12_400).toISOString() }));
+    expect(screen.getByText(/^Lendo… 12 s$/)).toHaveClass('queued-banner');
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
+  });
+
+  it('review 2026-10-08 (CAPT-V1): an empty reading says "Nada foi lido nesta foto" with "Fotografar de novo" (given the retake) and "Digitar", which focuses the cell', async () => {
+    const retake = { relatorioId: '019966b0-0092-7000-8000-000000000999', photos: [{ id: PHOTO, reading_kind: 'display' as const, reading_target: null, reading_status: 'done' as const, local_seq: 1, captured_at: '2026-10-08T12:00:00.000Z', block_id: null, item_key: null, caption: 'T1' }] };
+    const { unmount } = render(
+      <SyncContext value={makeSyncState()}>
+        <ToastProvider>
+          <div className="ficha-cell">
+            <input aria-label="T1, Valor" />
+            <QueuedBanner entry={{ state: 'empty', photoId: PHOTO }} tile={tileAged(0, { reading_status: 'done' })} retake={retake} />
+          </div>
+        </ToastProvider>
+      </SyncContext>,
+    );
+    expect(await screen.findByText('Nada foi lido nesta foto')).toHaveClass('reading-line');
+    expect(screen.getByRole('button', { name: 'Fotografar de novo' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Digitar' }));
+    expect(screen.getByRole('textbox', { name: 'T1, Valor' })).toHaveFocus();
+    unmount();
+    // Without the retake (nothing to shoot again with), only the way to type.
+    renderBanner('empty', {}, tileAged(0, { reading_status: 'done' }));
+    expect(await screen.findByText('Nada foi lido nesta foto')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Fotografar de novo' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Digitar' })).toBeInTheDocument();
+  });
+
   it('offline the queued words stay and nothing is offered to cancel (nothing runs)', () => {
     renderBanner('queued', { online: false }, tileAged(60_000));
     expect(screen.getByText('Foto guardada — leitura quando houver sinal')).toHaveClass('queued-banner');
@@ -106,7 +147,7 @@ describe('13.5-UNIT the wait and failed lines of a display reading', () => {
   });
 
   it('"Cancelar" takes the line away at once', async () => {
-    renderBanner('running', {}, tileAged(20_000));
+    renderBanner('running', {}, ackedAged(20_000));
     await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(screen.queryByRole('status')).toBeNull();
     expect(screen.queryByText(/^Lendo…/)).toBeNull();

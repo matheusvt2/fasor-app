@@ -2,6 +2,7 @@ import { burstCountText, cameraContextText, cameraZoomText } from '@app/domain';
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { Button as AriaButton, Dialog, Modal, ModalOverlay, ToggleButton } from 'react-aria-components';
 import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from '../../input/focus-restore.ts';
+import { useScreenWakeLock } from '../../input/use-screen-wake-lock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { sessionCaptureRescue } from '../../files/capture-rescue.ts';
 import { useCaptureRefused } from '../../state/storage-reading.ts';
@@ -30,6 +31,14 @@ import { usePhotoCapture, type CaptureTarget } from './use-photo-capture.ts';
  * and the torch starts off in every session. Story 13.6 (CAP-4): while a refused shot is
  * held in memory the shutter is disabled with the reason in `.cam-hint`, and the opener
  * retries the held shot before it opens the camera again.
+ *
+ * Review 2026-10-08: a shot whose frame cannot be read or whose save fails while the burst is
+ * open is said in `.cam-hint` (`data-state="failed"`) until the next shot saves, never in a toast
+ * under the camera's opaque scrim (FLD-V1); once the camera is closing or closed, the toast says
+ * it as before. From "Concluir" (and a single shot's shutter) until the view closes, `.cam-count`
+ * says the shots are being saved and the shutter and "Concluir" are disabled (DB-4). The focus
+ * goes back to the opener without scrolling the sheet (DE-2), and the screen stays awake while
+ * the view is open (FLD-1).
  */
 
 const DENIED_ERRORS = new Set(['NotAllowedError', 'SecurityError', 'PermissionDeniedError']);
@@ -65,6 +74,8 @@ export interface CameraOptions {
   shotHint?: (shot: number) => string;
   /** Story 9.1: the closing button's word ("Concluir"); default "Concluir fotos". */
   doneLabel?: string;
+  /** Review 2026-10-08 (CAPT-V1): a shot's frame was read and handed to the capture, with the target it saves under. */
+  onShot?: (target: CaptureTarget) => void;
 }
 
 export interface CameraControl {
@@ -119,6 +130,11 @@ export function useCamera(
   const mounted = useRef(true);
   // Frame grabs not yet resolved: "Concluir fotos" waits for them before stopping the stream.
   const grabs = useRef(new Set<Promise<void>>());
+  // Review 2026-10-08 (FLD-V1): the last shot of the open burst could not be read or saved;
+  // `.cam-hint` says so until the next shot saves.
+  const [shotFailed, setShotFailed] = useState(false);
+  // Review 2026-10-08 (DB-4): "Concluir" (or a single shot) is waiting for the saves.
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     mounted.current = true;
@@ -144,6 +160,7 @@ export function useCamera(
       shotGrabbed.current = false;
       taken.current = 0;
       setTakenCount(0);
+      setShotFailed(false);
     }
     setSession(next);
   };
@@ -175,7 +192,9 @@ export function useCamera(
         const target = opener.current;
         return target === null || document.querySelector('.camera-view') !== null ? null : target;
       },
-      { frames: LIST_FOCUS_WATCH_FRAMES },
+      // DE-2: the opener may sit in the Sticky action bar, which the sheet's scroll padding
+      // counts as covered; a plain focus scrolled the sheet by half a screen.
+      { frames: LIST_FOCUS_WATCH_FRAMES, preventScroll: true },
     );
   }, [opener]);
 
@@ -276,6 +295,16 @@ export function useCamera(
     startStream(media, context, true);
   };
 
+  /**
+   * FLD-V1: whether a shot's failure (or success) is said by the open camera itself: true while
+   * the view is open and not closing, so the toast stays for a closed or closing camera.
+   */
+  const cameraSays = (outcome: 'saved' | 'failed'): boolean => {
+    if (!mounted.current || sessionRef.current === null || finishing.current) return false;
+    setShotFailed(outcome === 'failed');
+    return true;
+  };
+
   /** One grab of the shutter: tracked until it resolves, then saved (or reported). */
   const grab = (frame: Promise<Blob | ImageBitmap>) => {
     const target = tapTarget.current ?? sessionRef.current?.target ?? null;
@@ -289,7 +318,8 @@ export function useCamera(
           return;
         }
         shotGrabbed.current = true;
-        capture.shoot(photo, target);
+        capture.shoot(photo, target, cameraSays);
+        options.onShot?.(target);
       },
       () => {
         setBurst((n) => Math.max(0, n - 1));
@@ -299,7 +329,7 @@ export function useCamera(
           taken.current = shot;
           setTakenCount(shot);
         }
-        showToast(copy.photos.failedToast);
+        if (!cameraSays('failed')) showToast(copy.photos.failedToast);
       },
     );
     grabs.current.add(done);
@@ -311,6 +341,7 @@ export function useCamera(
   const finishing = useRef(false);
 
   const end = (ending: CameraSession | null) => {
+    setSaving(false);
     startSession(null);
     ending?.stream.getTracks().forEach((track) => track.stop());
     returnFocus();
@@ -326,6 +357,7 @@ export function useCamera(
   const finish = () => {
     if (finishing.current) return;
     finishing.current = true;
+    setSaving(true);
     const ending = sessionRef.current;
     // A shot whose frame is still being read joins the commit queue before it is awaited,
     // and the stream stays live until then.
@@ -386,6 +418,8 @@ export function useCamera(
           hint={shotHint === undefined ? null : shotHint(takenCount)}
           shutterDisabled={shotTarget !== undefined && shotTarget(takenCount) === null}
           refused={refused}
+          failed={shotFailed}
+          saving={saving}
           single={single}
           doneLabel={options.doneLabel ?? null}
           onShutter={shutter}
@@ -580,6 +614,8 @@ function CameraView({
   hint,
   shutterDisabled,
   refused,
+  failed,
+  saving,
   single,
   doneLabel,
   onShutter,
@@ -596,6 +632,10 @@ function CameraView({
   shutterDisabled: boolean;
   /** Story 13.6: a refused shot is held; no other shot until it is stored. */
   refused: boolean;
+  /** Review 2026-10-08 (FLD-V1): the last shot could not be read or saved; said in `.cam-hint` until the next one saves. */
+  failed: boolean;
+  /** Review 2026-10-08 (DB-4): the view waits for the shots to be saved before it closes. */
+  saving: boolean;
   /** Story 13.1: the single shot is the camera's own photo where the browser can take one. */
   single: boolean;
   doneLabel: string | null;
@@ -608,6 +648,8 @@ function CameraView({
 }) {
   const t = copy.photos;
   const video = useRef<HTMLVideoElement>(null);
+  // FLD-1: the screen stays awake while the camera is open.
+  useScreenWakeLock(true);
 
   useEffect(() => {
     const element = video.current;
@@ -714,20 +756,21 @@ function CameraView({
               </AriaButton>
             </div>
           )}
-          <p className="cam-hint" aria-live="polite" data-state={refused ? 'refused' : undefined}>
-            {refused ? t.refusedHint : (hint ?? t.hint)}
+          <p className="cam-hint" aria-live="polite" data-state={refused ? 'refused' : failed ? 'failed' : undefined}>
+            {refused ? t.refusedHint : failed ? t.failedToast : (hint ?? t.hint)}
           </p>
           <div className="cam-bottom">
             <span className="cam-link" aria-hidden="true" />
-            <AriaButton className="cam-shutter" aria-label={t.shutter} onPress={fire} isDisabled={shutterDisabled || refused} autoFocus>
+            <AriaButton className="cam-shutter" aria-label={t.shutter} onPress={fire} isDisabled={shutterDisabled || refused || saving} autoFocus>
               <span aria-hidden="true" />
             </AriaButton>
-            <AriaButton className="btn btn-secondary cam-done" onPress={onDone}>
+            <AriaButton className="btn btn-secondary cam-done" onPress={onDone} isDisabled={saving}>
               {doneLabel ?? t.done}
             </AriaButton>
           </div>
-          <p className="cam-count" role="status">
-            {count === 0 ? t.burstIdle : burstCountText(count, refused)}
+          <p className="cam-count" role="status" data-state={saving ? 'saving' : undefined}>
+            {/* DB-4: the words follow the mode (one shot or a burst), not the count. */}
+            {saving ? (single ? t.savingOne : t.saving) : count === 0 ? t.burstIdle : burstCountText(count, refused)}
           </p>
         </Dialog>
       </Modal>

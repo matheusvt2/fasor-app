@@ -1,5 +1,7 @@
 import {
   camposCopiadosText,
+  compareSuggestion,
+  discardSuggestionOp,
   isCellFilled,
   lastNameplateCopy,
   nameplateCopyFields,
@@ -12,6 +14,7 @@ import {
   plateReadingView,
   showsConfirmedGlyph,
   suggestNameplateCopy,
+  toIso,
   type BlockDefinition,
   type BlockRow,
   type EntityState,
@@ -22,15 +25,20 @@ import {
 } from '@app/domain';
 import { useId, useMemo, useState, type FocusEvent } from 'react';
 import { Chip } from '../../components/index.ts';
+import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { writeReadingCancelled } from '../../db/prefs.ts';
+import { discardCancelledReadings } from '../../db/suggestion-store.ts';
 import { newId } from '../../ids.ts';
+import { useSession } from '../../state/session.tsx';
+import { requestSyncCycle } from '../../state/sync.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { firstFocusable, ReadOnlyField, SheetField } from './ficha-fields.tsx';
 import { createWordOp, nameplateOp } from './ficha-ops.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { NameplateField, ReplaceLine, SuggestionFill, SuggestionGroupHead, useNameplateSuggestions } from './nameplate-suggestions.tsx';
 import { useAiFeatures } from '../../state/ai-features.tsx';
-import { PlateCameraGroup, PlateCrop, PlatePhotoRow } from './plate-photo.tsx';
+import { PlateCameraGroup, PlateCrop, PlatePhotoRow, type PlateRetake } from './plate-photo.tsx';
 import { useReadingCancelled } from './reading-line.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
@@ -55,6 +63,11 @@ import type { CaptureTarget } from './use-photo-capture.ts';
  * (with the copy chips) while the sheet has no plate photo; then the photo's row with its
  * reading line; and, while suggestions read from it wait, the plate crop with the focused
  * field's region outlined (focus inside the grid names the field by its `data-field-key`).
+ *
+ * Review 2026-10-08: a reading that read nothing offers "Fotografar de novo"; the new shot
+ * becomes the plate photo and the older plate photos' readings are cancelled on this device,
+ * so whatever they bring, now or later, is discarded (CAPT-V1). A typed value that changes a
+ * field under a replace line discards that suggestion in the same batch (DG-2).
  */
 export function NameplateSection({
   api,
@@ -92,7 +105,8 @@ export function NameplateSection({
   });
   // --- Stories 8.2/8.6: the plate photo, its reading and the crop ---------------------------
   const plate = useMemo(() => platePhotoOf(suggestions.tiles, block.id), [suggestions.tiles, block.id]);
-  const view = plate === null ? null : plateReadingView(plate, suggestions.pending);
+  const view = plate === null ? null : plateReadingView(plate, suggestions.rows);
+  const db = useSession().database;
   const plateCancelled = useReadingCancelled(plate?.id ?? '');
   const region = plate === null || view !== 'ready' ? null : plateCropRegion(suggestions.pending, plate.id);
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
@@ -132,6 +146,26 @@ export function NameplateSection({
     caption: PLATE_CAPTION,
     reading: { kind: 'plate', target: plateReadingTarget(block.id, block.block_type) as JsonValue },
   });
+
+  /**
+   * CAPT-V1: "Fotografar de novo" took its shot: every older plate photo of this sheet has its
+   * reading cancelled here (`reading_cancelled:{photo}`), and what they already brought is
+   * discarded now; the post-pull sweep discards what they bring later. The photos stay.
+   */
+  const cancelOlderPlates = () => {
+    const author = api.author;
+    if (db === null || author === null) return;
+    const older = suggestions.tiles.filter((tile) => tile.reading_kind === 'plate' && tile.block_id === block.id).map((tile) => tile.id);
+    const at = toIso(now());
+    void Promise.all(
+      older.map((photoId) => writeReadingCancelled(db, photoId, at).then(() => discardCancelledReadings(db, author, { newId, now }, photoId))),
+    )
+      .then((discarded) => {
+        if (discarded.some((ids) => ids.length > 0)) requestSyncCycle();
+      })
+      .catch((error: unknown) => console.error('older plate readings not cancelled', error));
+  };
+  const retake: PlateRetake | null = readOnly || !aiFeatures ? null : { relatorioId: api.relatorioId, target: plateTarget, onShot: cancelOlderPlates };
 
   /** The focused field's region on the plate: its pending suggestion's, else its confirmed source's (this photo only). */
   const focusedBox = (() => {
@@ -214,6 +248,7 @@ export function NameplateSection({
             view={view}
             onOpen={() => suggestions.openPhoto(plate.id)}
             onFillManually={readOnly ? null : fillManually}
+            retake={retake}
           />
           {/* Review F-07: once the reading was cancelled here, nothing will overwrite the fields: no note. */}
           {(view === 'queued' || view === 'running') && plateCancelled !== true ? <p className="section-note">{t.fieldsNote}</p> : null}
@@ -244,7 +279,17 @@ export function NameplateSection({
               blocks={snapshot.blocks}
               onCreateWord={(kind, name) => createWord(field.key, kind, name)}
               onRegisterWord={registerWord}
-              commit={(next) => (api.author === null ? undefined : api.commit([nameplateOp(api.author, api.relatorioId, block.id, field.key, next)]))}
+              commit={(next) => {
+                if (api.author === null) return undefined;
+                // DG-2: a typed value that changes the field under "Sugerido: … — Substituir"
+                // discards that suggestion in the same batch (the engineer chose the typed one).
+                const replaced =
+                  pending?.view === 'replace' && next !== null && next !== undefined && compareSuggestion(next, pending.suggestion.value, field) !== 'equal' ? pending.suggestion : null;
+                return api.commit([
+                  nameplateOp(api.author, api.relatorioId, block.id, field.key, next),
+                  ...(replaced === null ? [] : [discardSuggestionOp(api.author, replaced)]),
+                ]);
+              }}
               after={after}
               // F-01: a suggestion landing on this field while it holds uncommitted typing
               // swaps it out; the typed text is committed then, never replaced by the guess.

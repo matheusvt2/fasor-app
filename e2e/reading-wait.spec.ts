@@ -117,6 +117,11 @@ test('@p0 13.5-E2E-001 a plate and a thermo-hygrometer reading pending past 10 s
   const termoId = await importThrough(page, env(page).locator('.ficha-amb-actions').getByRole('button', { name: 'Ler visor' }), TERMO, 'visor.jpg');
   // The creates go out; the bytes stay here, so no job runs yet.
   await syncNowAndReturn(page);
+  // Review 2026-10-08 (DG-4): the wait counts only once the server holds the photo; its
+  // `queued` status op (the queue's own word, nothing changes) says it does.
+  await pushReadingStatus(account.companyId, ids.relatorioId, plateId, 'queued');
+  await pushReadingStatus(account.companyId, ids.relatorioId, termoId, 'queued');
+  await syncNowAndReturn(page);
 
   // Under 10 s from the capture: "Lendo…" alone (the shot may already be older on a slow run).
   const plateLine = plateRow(page).locator('.reading-wait');
@@ -211,9 +216,13 @@ test('@p0 13.5-E2E-002 a failed display reading on an empty cell offers "Tentar 
 test('@p0 13.5-E2E-006 review F-06/F-07/F-08: one line per thermo-hygrometer photo; the live region says only the transitions; a cancelled reading drops the fields note and offers "Ler de novo" (offline disabled with "Sem conexão"), which asks the reread route and brings the wait line back', async ({ page, context }) => {
   test.setTimeout(180_000);
   await holdPhotoBytes(page);
-  await openTransformerSheet(page, account, database);
+  const ids = await openTransformerSheet(page, account, database);
   const plateId = await importThrough(page, nameplate(page).locator('.camera-group').getByRole('button', { name: 'Fotografar placa' }), PLATE, 'placa.jpg');
   const termoId = await importThrough(page, env(page).locator('.ficha-amb-actions').getByRole('button', { name: 'Ler visor' }), TERMO, 'visor.jpg');
+  await syncNowAndReturn(page);
+  // Review 2026-10-08 (DG-4): the server holds both photos (their `queued` status op), so the waits count.
+  await pushReadingStatus(account.companyId, ids.relatorioId, plateId, 'queued');
+  await pushReadingStatus(account.companyId, ids.relatorioId, termoId, 'queued');
   await syncNowAndReturn(page);
 
   // F-08: the thermo-hygrometer photo has one line, under Temperatura, none under Umidade.

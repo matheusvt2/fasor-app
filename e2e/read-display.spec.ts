@@ -125,7 +125,7 @@ test('@p0 9.1-E2E-002 at 390 px the title row keeps "Ler visor" on its own line 
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 });
 
-test('@p1 9.1-E2E-006 a frame the camera fails to grab mid-burst is said, and the next shot retries its row (none skipped)', async ({ page, context }) => {
+test('@p0 9.1-E2E-006 a frame the camera fails to grab mid-burst is said in the camera\'s own hint, never a toast under its scrim (review 2026-10-08 FLD-V1), and the next shot retries its row (none skipped)', async ({ page, context }) => {
   test.setTimeout(180_000);
   await openChaveSheet(page, account, database);
   await context.setOffline(true);
@@ -148,13 +148,18 @@ test('@p1 9.1-E2E-006 a frame the camera fails to grab mid-burst is said, and th
     }) as typeof createImageBitmap;
   });
   await shutter.click();
-  await expect(page.getByTestId('toast')).toContainText('Não foi possível salvar a foto. Tente de novo.');
+  // FLD-V1: said where the engineer looks, in the camera's own hint (a toast would sit under the opaque scrim).
+  await expect(hint).toBeVisible();
+  await expect(hint).toHaveText('Não foi possível salvar a foto. Tente de novo.');
+  await expect(hint).toHaveAttribute('data-state', 'failed');
+  await expect(page.getByTestId('toast')).toHaveCount(0);
   await expect(opener(page, 'contato_aberto')).toHaveAttribute('data-count', '1');
-  await expect(hint).toHaveText('Próxima leitura: Seccionadora contato aberto · T3');
 
-  // The next shot reads T3, the row the failed grab left.
+  // The next shot reads T3, the row the failed grab left; once it is saved the hint names the next row again.
   await shutter.click();
   await expect(hint).toHaveText('Próxima leitura: Seccionadora contato aberto · T5');
+  await expect(hint).not.toHaveAttribute('data-state');
+  await expect(page.getByTestId('toast')).toHaveCount(0);
   await expect(opener(page, 'contato_aberto')).toHaveAttribute('data-count', '2');
   await view.getByRole('button', { name: 'Concluir', exact: true }).click();
   await expect(camera(page)).toHaveCount(0, { timeout: 15_000 });

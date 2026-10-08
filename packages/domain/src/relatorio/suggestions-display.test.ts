@@ -321,4 +321,39 @@ describe('9.1-UNIT the queued display photos', () => {
     expect(displayLineShown(entry, n('23.4', '°C'))).toBe(false);
     expect(displayLineShown({ state: 'running', photoId: id(0x70) }, n('23.4', '°C'))).toBe(true);
   });
+
+  it('review 2026-10-08 (CAPT-V1): a done display reading that read nothing is empty on its empty target only, like a failed one, and only given the rows', () => {
+    const photo = (row: number, status: string, n0 = row, seq0 = 1) => ({
+      id: id(0xa0 + n0),
+      reading_kind: 'display' as const,
+      reading_target: displayCellTarget(BLOCK, 'chave_seccionadora', 'isolacao', { row, col: 0 }) as JsonValue,
+      reading_status: status as 'done',
+      removed_at: null,
+      local_seq: seq0,
+      captured_at: '2026-10-08T12:00:00.000Z',
+    });
+    const readFrom = (photoId: string, status: SuggestionRow['status'] = 'pending') => suggestion(cellPath('isolacao', 0, 0), n('1'), { status, source: { photo_id: photoId, bbox: [0, 0, 1, 1], ocr_token_ids: [], reading_run_id: RUN } });
+    // Empty on an empty cell; the rows of another photo do not count.
+    expect(displayQueuedCells([photo(0, 'done')], BLOCK, chave(), [readFrom(id(0xff))])).toEqual([{ address: { testKey: 'isolacao', row: 0, col: 0 }, state: 'empty', photoId: id(0xa0) }]);
+    // Without the rows (or without the sheet) never: the caller did not say what was read.
+    expect(displayQueuedCells([photo(0, 'done')], BLOCK, chave())).toEqual([]);
+    expect(displayQueuedCells([photo(0, 'done')], BLOCK, undefined, [])).toEqual([]);
+    // A row of any status read from it: done, no line.
+    for (const status of ['pending', 'confirmed', 'discarded'] as const) expect(displayQueuedCells([photo(0, 'done')], BLOCK, chave(), [readFrom(id(0xa0), status)])).toEqual([]);
+    // A typed value hides it.
+    const typed = chave({ isolacao: { '0': { '0': cell(n('147')) } } });
+    expect(displayQueuedCells([photo(0, 'done')], BLOCK, typed, [])).toEqual([]);
+    // A later waiting shot of the row wins; an earlier empty one under a later failed one shows the failure.
+    expect(displayQueuedCells([photo(0, 'done'), photo(0, 'queued', 9, 2)], BLOCK, chave(), []).map((entry) => [entry.state, entry.photoId])).toEqual([['queued', id(0xa9)]]);
+    expect(displayQueuedCells([photo(0, 'done'), photo(0, 'failed', 9, 2)], BLOCK, chave(), []).map((entry) => entry.state)).toEqual(['failed']);
+    expect(displayLineShown({ state: 'empty', photoId: id(0xa0) }, null)).toBe(true);
+    expect(displayLineShown({ state: 'empty', photoId: id(0xa0) }, n('1'))).toBe(false);
+    // The thermo-hygrometer: the same rule, each field deciding with its own value.
+    const env = { id: id(0xb0), reading_kind: 'display' as const, reading_target: displayEnvTarget(CABINE) as JsonValue, reading_status: 'done' as const, removed_at: null };
+    expect(displayQueuedEnv([env], CABINE, [])).toEqual({ state: 'empty', photoId: id(0xb0) });
+    expect(displayQueuedEnv([env], CABINE, [readFrom(id(0xb0), 'discarded')])).toBeNull();
+    expect(displayQueuedEnv([env], CABINE)).toBeNull();
+    const empty = { state: 'empty' as const, photoId: id(0xb0) };
+    expect(displayEnvLineField(empty, [{ key: 'temperature_c', value: n('24', '°C'), filling: false }, { key: 'humidity_pct', value: null, filling: false }])).toBe('humidity_pct');
+  });
 });

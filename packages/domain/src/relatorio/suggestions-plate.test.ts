@@ -108,20 +108,41 @@ describe('8.2-UNIT the plate photo of a sheet', () => {
     expect(PLATE_CAPTION).toBe('placa de identificação');
   });
 
-  it('reads its reading as queued, running, failed, ready or done', () => {
+  it('reads its reading as queued, running, failed, ready, done or empty', () => {
     const p = (reading_status: 'none' | 'queued' | 'running' | 'done' | 'failed') => ({ id: PHOTO, reading_status });
     expect(plateReadingView(p('queued'), [])).toBe('queued');
     expect(plateReadingView(p('running'), [])).toBe('running');
     expect(plateReadingView(p('failed'), [])).toBe('failed');
-    expect(plateReadingView(p('done'), [])).toBe('done');
+    // Review 2026-10-08 (CAPT-V1): a done reading that read nothing is `empty`; `none` stays `done`.
+    expect(plateReadingView(p('done'), [])).toBe('empty');
     expect(plateReadingView(p('none'), [])).toBe('done');
     // Ready while any pending suggestion came from it, whatever its stored status.
     const pending = [suggestion('tipo', 'X')];
     expect(plateReadingView(p('done'), pending)).toBe('ready');
     expect(plateReadingView(p('queued'), pending)).toBe('ready');
-    // Another photo's suggestion, or one already confirmed, is not this photo's.
-    expect(plateReadingView(p('done'), [suggestion('tipo', 'X', { source: { ...pending[0]!.source, photo_id: OTHER_PHOTO } })])).toBe('done');
+    // Another photo's suggestion is not this photo's (review 2026-10-08: nothing was read from it, `empty`);
+    // one already confirmed is (`done`, nothing left to confirm).
+    expect(plateReadingView(p('done'), [suggestion('tipo', 'X', { source: { ...pending[0]!.source, photo_id: OTHER_PHOTO } })])).toBe('empty');
     expect(plateReadingView(p('done'), [{ ...pending[0]!, status: 'confirmed' }])).toBe('done');
+  });
+
+  it('review 2026-10-08 (CAPT-V1): empty only for a done reading with no row of any status from the photo', () => {
+    const p = (reading_status: 'none' | 'queued' | 'running' | 'done' | 'failed') => ({ id: PHOTO, reading_status });
+    const row = suggestion('tipo', 'X');
+    const elsewhere = suggestion('tipo', 'X', { source: { ...row.source, photo_id: OTHER_PHOTO } });
+    // Another photo's rows do not make this one's reading read something.
+    expect(plateReadingView(p('done'), [elsewhere])).toBe('empty');
+    expect(plateReadingView(p('done'), [{ ...elsewhere, status: 'confirmed' }])).toBe('empty');
+    // Every row read from it confirmed or discarded: done, no line.
+    expect(plateReadingView(p('done'), [{ ...row, status: 'confirmed' }])).toBe('done');
+    expect(plateReadingView(p('done'), [{ ...row, status: 'discarded' }])).toBe('done');
+    // A pending row: ready, whatever the status.
+    expect(plateReadingView(p('done'), [row])).toBe('ready');
+    // Only `done` reads empty: a waiting, failed or never-asked reading never does.
+    expect(plateReadingView(p('queued'), [])).toBe('queued');
+    expect(plateReadingView(p('running'), [])).toBe('running');
+    expect(plateReadingView(p('failed'), [])).toBe('failed');
+    expect(plateReadingView(p('none'), [])).toBe('done');
   });
 
   it('crops the union of the pending bboxes of the photo with a margin, clamped, and outlines a field inside it', () => {

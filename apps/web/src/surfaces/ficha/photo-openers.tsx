@@ -1,11 +1,10 @@
-import { PLATE_CAPTION, photoUploadState } from '@app/domain';
+import { photoUploadState } from '@app/domain';
 import { PHOTO_ACCEPT } from '../../files/photo-import.ts';
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { PhotoRow } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
-import { useSession } from '../../state/session.tsx';
 import { useCamera } from './camera-view.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 
@@ -61,14 +60,14 @@ export function useSheetCamera(relatorioId: string, target: () => CaptureTarget)
  * nameplate fields. The camera opens straight away and closes by itself after one shot; the
  * shot is a normal sheet photo created with the plate reading (`target().reading`). A
  * refused camera shows its reason under the tile. No "Digitar" link (D-6: the fields are
- * always there).
+ * always there). From the shutter until the photo's stored row replaces this group, the
+ * plate row's pending variant (`pendingRow`, review 2026-10-08 CAPT-16) shows instead.
  */
-export function PlateCaptureTile({ relatorioId, target }: { relatorioId: string; target: () => CaptureTarget }) {
+export function PlateCaptureTile({ relatorioId, target, pendingRow }: { relatorioId: string; target: () => CaptureTarget; pendingRow: ReactNode }) {
   const opener = useRef<HTMLButtonElement>(null);
   const camera = useCamera(relatorioId, target, opener, { singleShot: true });
   const deniedId = useId();
   useAriaBusy(opener, camera.opening);
-  const online = useSession().online;
   // F-13: from the shutter on, the plate's row shows its reading state at once ("Lendo…", or
   // the queued words offline), before the photo's committed row replaces this group. A shot
   // that never lands gives the tile back.
@@ -84,28 +83,7 @@ export function PlateCaptureTile({ relatorioId, target }: { relatorioId: string;
   // while the shot is being read.
   const t = copy.ficha.nameplate;
   const content = shot ? (
-    <div className="photo-row ficha-np-photo" data-reading={online ? 'running' : 'queued'} data-pending-shot="">
-      <span className="photo-tile">
-        <span className="thumb">
-          <span className="thumb-fake" />
-        </span>
-      </span>
-      <div className="photo-text">
-        <p className="photo-caption">{PLATE_CAPTION}</p>
-        {online ? (
-          <p className="reading-line" role="status">
-            {t.reading}
-          </p>
-        ) : (
-          <span className="queued-banner" role="status">
-            <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-image" />
-            </svg>
-            {t.queued}
-          </span>
-        )}
-      </div>
-    </div>
+    pendingRow
   ) : (
     <>
       {/* F-26: while the camera is asked for, the tile says so and keeps its name ("never a silent no-op"). */}

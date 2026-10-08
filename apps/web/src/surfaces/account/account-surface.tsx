@@ -3,6 +3,7 @@ import {
   defaultTitleForCouncil,
   pendingNotSentText,
   registrationOfUserRow,
+  KEEP_SCREEN_ON_DEFAULT,
   registrationRowText,
   storageLine,
   type Registration,
@@ -16,7 +17,9 @@ import { relatorioRows, originalFileCount } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { clearGeolocationDenied, useGeolocationDenied, writeGeolocationDenied } from '../../db/photo-store.ts';
 import { localUser } from '../../db/sync-store.ts';
+import { writeKeepScreenOn } from '../../db/prefs.ts';
 import { estimateStorageUsage } from '../../device/storage-estimate.ts';
+import { setKeepScreenOn, useKeepScreenOn } from '../../input/use-screen-wake-lock.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useTheme } from '../../state/theme.tsx';
@@ -39,6 +42,9 @@ import './account.css';
  * device-local `geolocation_denied` pref the capture records, or a Permissions API state of
  * `denied`), the denied line replaces the "on" helper and the switch stays on, so a later
  * permission works again at once. A switch is its own inverse: no undo toast.
+ *
+ * Review 2026-10-08 (FLD-1): "Manter a tela ligada" (device-local, on by default) lets the app
+ * hold the screen awake while a ficha, the camera or a reading wait is shown.
  */
 
 const THEME_OPTIONS: ReadonlyArray<{ value: ThemePreference; label: string }> = [
@@ -58,6 +64,13 @@ export function AccountSurface() {
   const storageHeadingId = useId();
   const sessionHeadingId = useId();
   const signOutNoteId = useId();
+  const screenHeadingId = useId();
+  const screenLabelId = useId();
+  const screenSubId = useId();
+  // FLD-1: the stored switch, shown at once after a tap (the write lands a moment later).
+  const storedKeepOn = useKeepScreenOn();
+  const [keepOnTapped, setKeepOnTapped] = useState<boolean | null>(null);
+  const keepScreenOn = keepOnTapped ?? storedKeepOn ?? KEEP_SCREEN_ON_DEFAULT;
 
   const theme = useTheme();
   const db = session.database;
@@ -159,6 +172,12 @@ export function AccountSurface() {
     } catch {
       setLocationError(copy.account.locationSaveFailed);
     }
+  }
+
+  function saveKeepScreenOn(on: boolean) {
+    setKeepOnTapped(on);
+    setKeepScreenOn(on);
+    if (db !== null) void writeKeepScreenOn(db, on).catch((error: unknown) => console.error('keep screen on not saved', error));
   }
 
   async function save(registration: Registration) {
@@ -280,6 +299,26 @@ export function AccountSurface() {
                 {locationError}
               </span>
             )}
+          </div>
+        </section>
+
+        <section className="section" aria-labelledby={screenHeadingId}>
+          <div className="section-head">
+            <h2 id={screenHeadingId}>{copy.account.screenHeading}</h2>
+          </div>
+          <div className="keep-screen-row">
+          <div className="toggle-row">
+            <span>
+              <span className="toggle-label" id={screenLabelId}>
+                {copy.account.keepScreenOnLabel}
+              </span>
+              <br />
+              <span className="toggle-sub" id={screenSubId}>
+                {copy.account.keepScreenOnSub}
+              </span>
+            </span>
+            <Toggle isSelected={keepScreenOn} aria-labelledby={screenLabelId} aria-describedby={screenSubId} onChange={saveKeepScreenOn} />
+          </div>
           </div>
         </section>
 

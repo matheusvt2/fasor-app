@@ -1,4 +1,4 @@
-import { themePreferenceSchema, type ThemePreference } from '@app/domain';
+import { keepScreenOnOf, keepScreenOnSchema, themePreferenceSchema, type KeepScreenOn, type ThemePreference } from '@app/domain';
 import { LAST_SHEET_PREF, RECOVERY_NOTICE_PREF, REGISTRY_TAB_PREF, THEME_PREF, type AppDatabase } from './schema.ts';
 
 /*
@@ -221,4 +221,18 @@ export async function readAllReadingCancelled(db: AppDatabase): Promise<string[]
   const prefix = readingCancelledKey('');
   const rows = await db.local_prefs.where('key').startsWith(prefix).toArray();
   return rows.map((row) => row.key.slice(prefix.length)).filter((id) => id !== '');
+}
+
+/**
+ * Review 2026-10-08 (FLD-1): "Manter a tela ligada" in Conta, device-local (`keep_screen_on`).
+ * On when nothing (or nothing valid) is stored; the kernel's schema reads and writes it.
+ */
+const KEEP_SCREEN_ON_PREF = 'keep_screen_on';
+
+export async function readKeepScreenOn(db: AppDatabase): Promise<KeepScreenOn> {
+  return keepScreenOnOf((await db.local_prefs.get(KEEP_SCREEN_ON_PREF))?.value);
+}
+
+export async function writeKeepScreenOn(db: AppDatabase, on: KeepScreenOn): Promise<void> {
+  await db.local_prefs.put({ key: KEEP_SCREEN_ON_PREF, value: keepScreenOnSchema.parse(on) });
 }
