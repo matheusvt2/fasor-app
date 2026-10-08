@@ -2,10 +2,11 @@ import { cellAddressesOf, getDefinition, itensMarcadosConformeText, type FieldDe
 import type { BrowserContext, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { signInForDurability } from './support/durability.ts';
-import { deviceDatabaseName, expect, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
+import { syncNow } from './support/sync.ts';
 import { humanTap, touchPressAcross } from './support/taps.ts';
 
 /*
@@ -132,13 +133,9 @@ async function setUp(page: Page, context: BrowserContext, seed: (scope: Scope, s
   await pushDrafts(page, database, [...built.drafts, ...seed(scope, secc), ...(instruments ? [instrumentDraft()] : [])]);
   await page.goto(`/relatorio/${built.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
-  if (instruments) {
-    await syncBadge(page).click();
-    const button = page.getByRole('button', { name: 'Sincronizar agora' });
-    await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-    await button.click();
-    await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: 30_000 });
-  }
+  // TST-2: the shared helper waits until the tapped cycle is over (its pull landed), not
+  // only until nothing is pending, which can hold before the cycle ran.
+  if (instruments) await syncNow(page);
   return { relatorioId: built.relatorioId, secc };
 }
 

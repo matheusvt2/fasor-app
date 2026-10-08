@@ -80,7 +80,7 @@ for (const type of EQUIPMENT_BLOCK_TYPES) {
     continue;
   }
 
-  test(`@p1 13.7-E2E-001 ${type}: a plate imported through "Fotografar placa" is read by the real job and its suggestions arrive without a manual sync`, async ({ page }) => {
+  test(`@p1 13.7-E2E-002 ${type}: a plate imported through "Fotografar placa" is read by the real job and its suggestions arrive without a manual sync`, async ({ page }) => {
     test.setTimeout(180_000);
     const bytes = readFileSync(plate.image);
     const values = fixtureValues(bytes);

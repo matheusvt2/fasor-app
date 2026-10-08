@@ -1,9 +1,10 @@
 import { type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
-import { deviceDatabaseName, expect, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { newRelatorioDrafts, pushDrafts } from './support/relatorio-seed.ts';
+import { syncNow } from './support/sync.ts';
 import { humanTap, waitForTapTarget } from './support/taps.ts';
 
 /*
@@ -156,11 +157,9 @@ test('@p1 12.1-E2E-009 J1 and J3 at 768 px: every tap lands on the first try, co
   await pushDrafts(page, database, [...built.drafts, instrumentDraft()]);
   await page.goto(`/relatorio/${built.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
-  await syncBadge(page).click();
-  const syncButton = page.getByRole('button', { name: 'Sincronizar agora' });
-  await expect(syncButton).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-  await syncButton.click();
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: 30_000 });
+  // TST-2: the shared helper waits until the tapped cycle is over (its pull landed), not
+  // only until nothing is pending, which can hold before the cycle ran.
+  await syncNow(page);
 
   // --- J1 SEC-ENEL: the plate typed field by field --------------------------------------
   await page.goto(`/relatorio/${built.relatorioId}/ficha/${secEnel.blockId}`);

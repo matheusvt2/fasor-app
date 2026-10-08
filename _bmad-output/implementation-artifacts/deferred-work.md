@@ -1410,7 +1410,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Three unit failures recur on this host in almost every gate and force reruns: `apps/web/src/state/theme.test.tsx` (fails every run), `apps/web/src/surfaces/export/export-dialog.test.tsx` (load-sensitive, passes alone) and the unhandled timer error from `apps/web/src/components/number-input.test.tsx:21` (a harness timer never cleared, setState after teardown). Fix them so a red unit stage means a defect.
   evidence: Epic 13 gate logs (`test-results/gate-e13*/test-unit.log` in the batch worktrees); `reviews/epic-13-review-qa.md` § 4 (b).
   class: debt
-  state: open (owner: the next carry-over batch)
+  state: ~~open (owner: the next carry-over batch)~~ closed (2026-10-08, PR #116, review fixes batch r8gate, E13-A2): `theme.test.tsx` was a real race (a late first read of `local_prefs` put the old theme back after a press; a choice made first now wins, `apps/web/src/state/theme.tsx`); `export-dialog.test.tsx:271` waits for the press the dialog defers until its first read; the `number-input.test.tsx` harness clears its timers on unmount; `session.test.tsx` unmounts before it deletes its database, and it and `theme.test.tsx` wait 5 s on their Dexie boots. `test:unit` green twice in a row on the merged head 201ef72: 270 files, 3132 tests (122 s, 112 s).
 - source_spec: `AGENTS.md` (Decisions of record, 2026-10-08 story gate)
   summary: Measure, on a free machine, (B) the `@p0` e2e at `--workers=2` against `PARALLEL_WORKERS=1` (the 2026-09-27 three-worker validation failed on the older 4 GB VM; the VM now has 11.4 GB) and (C) the plain `pnpm verify` against the stage-by-stage gate (it was OOM-killed on the 4 GB VM). Adopt each one only if it stays green twice.
   evidence: `e2e/support/groups.ts` `PARALLEL_WORKERS`; `scripts/verify.ts` phases; `spec-test-speed.md`.
@@ -1426,3 +1426,48 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `test-results/wave-e13/attempt1/verify-plain.log` (E13-A1 worktree) around line 675; the `RUN arch="${TARGETARCH:-$(dpkg --print-architecture)}"` step.
   class: defect
   state: open (owner: the next carry-over batch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md`
+  summary: `scripts/e2e.ts` `summarize` keys results by title, so under `--repeat-each` the summary counts each title once with its last outcome (a run with 2 failed repeats printed "14 passed" while Playwright exited 1). The exit code stays right; only `summary.json` and the printed counts undercount.
+  evidence: `scripts/e2e.ts` `collect()` (`into.results[...] = test.status`); the batch's `--repeat-each=5` run of `journey-forward.spec.ts` (PR #116 body). Predates the batch.
+  class: bug
+  state: open (owner: the next carry-over batch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md`
+  summary: The `signIn` setup helper waits 5 s for Home ("Relatórios por status"); under host load 12.2-E2E-006 failed there 2 of 5 repeats, then passed 3 of 3 isolated.
+  evidence: `e2e/support/merged-fixtures.ts` `signIn`; `e2e/journey-forward.spec.ts:172`; PR #116 body.
+  class: debt
+  state: open (owner: the next carry-over batch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md`
+  summary: The unhandled timer error of `apps/web/src/components/number-input.test.tsx:21` (PR #105) could not be reproduced on demand, not even with `--detectAsyncLeaks`; PR #116 makes the harness clear its timers on unmount, which removes the only timer that outlived a test. Close it once a wave gate shows no such error.
+  evidence: `apps/web/src/components/number-input.test.tsx` `Harness`; PR #116 body.
+  class: test-gap
+  state: open (owner: the coordinator, at the next wave gate)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md` (independent review of PR #116, r8gate-correctness-1)
+  summary: With a corrupt stored theme, a theme pressed during the provider's first read is put first and then overwritten by `readTheme`'s repair write of 'system' (the localStorage mirror too); the `chosen` guard drops the read result, so the screen shows the choice while `local_prefs` holds 'system' until the next load. Narrow: needs a corrupt row plus a press during the first read.
+  evidence: `apps/web/src/db/prefs.ts:22-29` (repair write in `readTheme`); `apps/web/src/state/theme.tsx:50` (`cancelled || chosen.current`) and `:70-77` (`setTheme`). Fix: skip the repair when a choice was made, or repair only while the row still holds the invalid value (compare-and-put in one Dexie transaction).
+  class: bug
+  state: open (owner: the next carry-over batch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md` (independent review of PR #116, r8gate-correctness-3 and r8gate-tests-4)
+  summary: The source scans in `scripts/e2e.test.ts` are textual. The focused-test scan misses `it.only.each(` and a `.only(` split across lines (`allowOnly: false` and `forbidOnly: true` still fail those at run time). The TST-2 guard has no run-time backup: it checks only the literal `name: 'Sincronizar agora'`, so `getByText`, double quotes or a regex name pass it, and it picks the tap-timing specs by the prose of `SERIAL_SPECS[].why`.
+  evidence: `scripts/e2e.test.ts` `FOCUSED` and the TST-2 test (`/^times (a|every) tap/`, `.includes("name: 'Sincronizar agora'")`); `e2e/support/groups.ts:58-61, :90`. No current spec breaks either; every current use is written `{ name: 'Sincronizar agora' }`.
+  class: test-gap
+  state: open (owner: the next carry-over batch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md` (independent review of PR #116, r8gate-tests-2)
+  summary: `export-dialog.test.tsx` no longer pins that the press asks for the sync cycle at once: its `waitFor(() => expect(pending.syncNow).toHaveBeenCalled())` is also met by the flushing effect's retry kick 10 ms later (`retryMs` 10 in the test, 2000 in production), so removing `void sync.syncNow()` from `start()` keeps it green.
+  evidence: `apps/web/src/surfaces/export/export-dialog.test.tsx:36, :275`; `apps/web/src/surfaces/export/use-generate.ts:372-387, :468-473`. Fix: wait for the dialog's first read before the click and keep the synchronous expect, or give the test a `retryMs` above the wait window.
+  class: test-gap
+  state: open (owner: the next carry-over batch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md` (independent review of PR #116, r8gate-tests-5)
+  summary: `duplicateTestIds()` compares a template id as its source text (`10.3-E2E-00${...}`), so a new literal `10.3-E2E-001` would duplicate a runtime id of `e2e/conflicts.spec.ts:337` unseen, and titles held in a variable are not read at all. No collision exists today.
+  evidence: `scripts/e2e.test.ts` `testIds`; `e2e/conflicts.spec.ts:337, :708`. Fix: expand `${cond ? a : b}` into both ids, or read the ids from `playwright test --list --reporter=json`.
+  class: test-gap
+  state: open (owner: the next carry-over batch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md` (independent review of PR #116, r8gate-rules-5)
+  summary: The TST-V2 renames leave review and QA documents citing the old ids: `reviews/epic-13-review-qa.md:100` cites 13.7-E2E-001 for the plated tile (now 13.7-E2E-002, `e2e/plate-every-type.spec.ts:83`); `spec-epic-7-8-fix-qa.md:166` and `reviews/epic-7-8-review-qa.md:209` cite 8.1-E2E-005 for the nameplate-values test (now 8.1-E2E-010; 8.1-E2E-005 resolves only to `e2e/suggestions.spec.ts:279`). The map: ficha D-2 12.1-E2E-007 to 12.1-E2E-011, ficha J-15 12.1-E2E-008 to 12.1-E2E-012, plate-every-type plated case 13.7-E2E-001 to 13.7-E2E-002, nameplate-values 8.1-E2E-005 to 8.1-E2E-010.
+  evidence: PR #116 body; `spec-review-fixes-2026-10-08-gate-integrity.md` Execution list. A dated note beside each citation (strike-through rule) settles it.
+  class: docs
+  state: open (owner: the coordinator)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md` (independent review of PR #116, r8gate-rules-2)
+  summary: `playwright/no-wait-for-timeout` warns on e2e/** since PR #116, with an allow-list of the files whose fixed waits are the gesture or schedule under test (`e2e/support/taps.ts`, `e2e/lost-taps.durability.spec.ts`). The other 24 `waitForTimeout` calls warn on every lint run until each is shrunk, sized from an app constant or allowed (review TST-7).
+  evidence: `eslint.config.js` (the e2e block and its allow-list); `pnpm lint` reports 24 warnings, 0 errors.
+  class: debt
+  state: open (owner: the next carry-over batch, with TST-7)

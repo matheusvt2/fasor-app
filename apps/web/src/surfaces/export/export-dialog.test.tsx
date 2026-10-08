@@ -266,9 +266,13 @@ describe('Export dialog (Story 4.8)', () => {
     const pending = syncState({ counts: { pending: 2 } });
     const { rerender } = render(<Harness sync={pending} />);
     await userEvent.click(generateButton());
-    // The cycle is asked for at once (and again after `retryMs` while the outbox stays
-    // pending: the kick that keeps a stalled cycle moving, so the count is "at least once").
-    expect(pending.syncNow).toHaveBeenCalled();
+    // The cycle is asked for as soon as the press is taken (and again after `retryMs` while
+    // the outbox stays pending: the kick that keeps a stalled cycle moving, so the count is
+    // "at least once"). E13-A2: a press that lands before the dialog's first read of the
+    // relatório waits for that read (F-03, the empty-sheet question needs its counts), so
+    // the cycle starts when the read lands, not inside the click: under load the read was
+    // still out when the click returned and this failed with no call at all.
+    await waitFor(() => expect(pending.syncNow).toHaveBeenCalled());
     await waitFor(() => expect(generateButton()).toHaveAttribute('aria-disabled', 'true'));
     expect(within(dialog()).getByText('Enviando…')).toHaveClass('btn-reason');
     // Matheus, 2026-09-30: the waiting button says so.

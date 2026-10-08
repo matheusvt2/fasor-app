@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import playwright from 'eslint-plugin-playwright';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
@@ -87,6 +88,31 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  // Gate integrity (TST-V1, review 2026-10-08): a focused Playwright test or an action whose
+  // promise is never awaited lets the gate pass on less than it claims. `forbidOnly` in
+  // `playwright.config.ts` and the scan in `scripts/e2e.test.ts` back these up.
+  // A fixed `waitForTimeout` waits for nothing in particular, so it is a warning: each new
+  // one shows in the lint output, and the existing ones are TST-7's to shrink or size.
+  {
+    files: ['e2e/**/*.ts'],
+    plugins: { playwright },
+    rules: {
+      'playwright/no-focused-test': 'error',
+      'playwright/missing-playwright-await': 'error',
+      'playwright/no-wait-for-timeout': 'warn',
+    },
+  },
+  // The `no-wait-for-timeout` allow-list: files whose fixed waits are the gesture or the
+  // schedule under test, never a wait for the app.
+  {
+    files: [
+      // The press's hold (`TAP_HOLD_MS`): how long a human finger stays down.
+      'e2e/support/taps.ts',
+      // `waitUntil` lands each tap at its scheduled delay; that timing is what the spec measures.
+      'e2e/lost-taps.durability.spec.ts',
+    ],
+    rules: { 'playwright/no-wait-for-timeout': 'off' },
   },
   // Fetch location (AR-1): the network is touched only by sync, files and api.
   {

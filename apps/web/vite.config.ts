@@ -119,5 +119,7 @@ export default defineConfig({
     // F-GATE-1: the 5 s default flaked under load; 15 s gives headroom without masking a
     // real hang.
     testTimeout: 15_000,
+    // TST-V1: a focused `it.only` fails the run (Vitest allows it outside CI by default).
+    allowOnly: false,
   },
 });
