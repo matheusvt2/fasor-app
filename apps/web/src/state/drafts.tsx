@@ -199,6 +199,8 @@ export function DraftProvider({ children }: { children: ReactNode }) {
     showToast(copy.draft.foundText, {
       action: { label: copy.draft.recoverAction, onPress: recover },
       onDismiss: () => setDeclined(true),
+      // Raised on its own, not by a press: it waits behind a job outcome on screen (R-1).
+      arrival: true,
     });
   }, [offer, declined, toast, showToast, recover]);
 

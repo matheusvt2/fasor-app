@@ -64,7 +64,7 @@ import type { FichaApi } from './ficha-api.ts';
 import { cabineEnvOp, testCellOp } from './ficha-ops.ts';
 import { cellKey, MeasurementField, type RunDirection } from './measurement-field.tsx';
 import { useCropViewer } from './nameplate-suggestions.tsx';
-import { CancelledReading, DisplayFailedLine, ReadingWaitLine, useReadingCancelled } from './reading-line.tsx';
+import { CancelledReading, DisplayFailedLine, ReadingWaitLine, useReadingCancelled, useRereadAt } from './reading-line.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 
 /*
@@ -250,6 +250,8 @@ export function QueuedBanner({ entry, tile }: { entry: DisplayQueuedEntry; tile:
   const online = useServerReachable();
   const aiFeatures = useAiFeatures();
   const cancelled = useReadingCancelled(entry.photoId);
+  // Epic 13 re-check N-1: after "Ler de novo" the wait counts from the press.
+  const rereadAt = useRereadAt(entry.photoId);
   if (entry.state === 'failed') {
     return <DisplayFailedLine photoId={entry.photoId} statusOpId={tile?.reading_status_op_id ?? null} canRetry={aiFeatures || !readingNeedsAi('display')} />;
   }
@@ -265,7 +267,7 @@ export function QueuedBanner({ entry, tile }: { entry: DisplayQueuedEntry; tile:
       </span>
     );
   }
-  const startedAt = tile === null ? null : readingStartedAt({ captured_at: tile.captured_at, bytes_acked_at: tile.bytes_acked_at ?? null, reading_status_at: tile.reading_status_at ?? null });
+  const startedAt = tile === null ? null : readingStartedAt({ captured_at: tile.captured_at, bytes_acked_at: tile.bytes_acked_at ?? null, reading_status_at: tile.reading_status_at ?? null, reread_at: rereadAt });
   if (startedAt === null) {
     // The photo's tile is not read yet: the plain line, nothing to count from.
     return (

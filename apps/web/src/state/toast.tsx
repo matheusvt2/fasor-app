@@ -13,6 +13,12 @@ import type { Timers } from '../input/field-commit.ts';
  * arriving over an action toast (the reading arrival's "Ver") takes the slot, and the action
  * toast goes back to the head of the queue, its action kept. Plain toasts among themselves
  * still replace each other. One toast is visible at a time.
+ *
+ * Epic 13 re-check R-1 (coordinator, under Q-1 "nothing disappears unread"): a toast with an
+ * action that answers the user's own press (an undo such as "Seção removida ... Desfazer") is
+ * not made to wait: it takes the slot at once, and the outcome it interrupts goes back to the
+ * head of the queue and shows again, for its full 6 s, after it. A toast that arrived on its own
+ * (`arrival`: a reading ready to confirm, a recovered draft) keeps waiting behind the outcome.
  */
 
 export const TOAST_TIMEOUT_MS = 6_000;
@@ -23,11 +29,20 @@ export interface ShowToastOptions {
   onDismiss?: () => void;
   /** A job outcome: never replaced within its display time; what comes meanwhile queues behind it. */
   outcome?: boolean;
+  /**
+   * Arrived on its own, not as the answer to a press (a reading ready to confirm, a recovered
+   * draft): even with an action it waits behind a job outcome. Without this, a toast with an
+   * action is the user's own and interrupts the outcome, which shows again after it.
+   */
+  arrival?: boolean;
 }
 
 export interface ToastState {
   toast: ToastMessage | null;
-  /** Replaces whatever is showing (one toast at a time), unless a job outcome holds the slot: then it queues. */
+  /**
+   * Replaces whatever is showing (one toast at a time), unless a job outcome holds the slot: then
+   * it queues, except the user's own action toast, which interrupts the outcome (see `arrival`).
+   */
   showToast: (text: string, options?: ShowToastOptions) => void;
   /**
    * Shows a toast only the first time this `key` is asked for in this page session
@@ -123,6 +138,14 @@ export function ToastProvider({ children, timers = browserTimers }: { children: 
     (text: string, options: ShowToastOptions = {}) => {
       const entry: ToastEntry = { text, options };
       const on = current.current?.entry ?? null;
+      const own = options.action !== undefined && options.arrival !== true && options.outcome !== true;
+      if (on?.options.outcome === true && own) {
+        // R-1: the user's own action toast shows now; the outcome it interrupts goes back to
+        // the head of the queue and is shown again, for its full time, once this one is gone.
+        queue.current = [on, ...queue.current.filter((queued) => queued.text !== on.text && queued.text !== text)];
+        slot.display(entry);
+        return;
+      }
       if (on?.options.outcome === true) {
         // A job outcome holds the slot: this one waits, once per text (the newer ask replaces
         // the queued one in place, so its action and `onDismiss` are the ones kept).

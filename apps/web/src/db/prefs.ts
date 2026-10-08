@@ -198,6 +198,24 @@ export async function clearReadingCancelled(db: AppDatabase, photoId: string): P
   await db.local_prefs.delete(readingCancelledKey(photoId));
 }
 
+/**
+ * Epic 13 re-check N-1: "Ler de novo" after a cancel, recorded per photo (`reread_at:{photo_id}`)
+ * with the moment it was pressed, so the wait line counts from the press (`readingStartedAt`'s
+ * `reread_at`) instead of from the capture or the earlier status op until the server's next one
+ * is pulled. The kernel takes the newest instant, so an old record never holds the count back.
+ */
+const rereadAtKey = (photoId: string) => `reread_at:${photoId}`;
+
+/** When "Ler de novo" was last pressed for the photo on this device, or `undefined`. */
+export async function readRereadAt(db: AppDatabase, photoId: string): Promise<string | undefined> {
+  const value = (await db.local_prefs.get(rereadAtKey(photoId)))?.value as { at?: unknown } | undefined;
+  return value !== undefined && value !== null && typeof value === 'object' && typeof value.at === 'string' ? value.at : undefined;
+}
+
+export async function writeRereadAt(db: AppDatabase, photoId: string, at: string): Promise<void> {
+  await db.local_prefs.put({ key: rereadAtKey(photoId), value: { at } });
+}
+
 /** Every photo whose reading this device cancelled (the sweep's input). */
 export async function readAllReadingCancelled(db: AppDatabase): Promise<string[]> {
   const prefix = readingCancelledKey('');

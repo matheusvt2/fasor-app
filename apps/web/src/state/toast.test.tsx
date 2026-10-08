@@ -118,6 +118,7 @@ describe('Toast', () => {
 const opened = vi.fn();
 const openedNewer = vi.fn();
 const dismissed = vi.fn();
+const undone = vi.fn();
 
 function QueueButtons() {
   const { showToast, showOnce, dismissToast, withdrawToast } = useToast();
@@ -129,7 +130,7 @@ function QueueButtons() {
       <button type="button" onClick={() => withdrawToast('1 leitura pronta para confirmar')}>
         retirar
       </button>
-      <button type="button" onClick={() => showToast('1 leitura pronta para confirmar', { action: { label: 'Ver', onPress: openedNewer } })}>
+      <button type="button" onClick={() => showToast('1 leitura pronta para confirmar', { action: { label: 'Ver', onPress: openedNewer }, arrival: true })}>
         leitura nova
       </button>
       <button type="button" onClick={() => showToast('Revisão 1 pronta — DOCX e PDF', { outcome: true })}>
@@ -138,7 +139,7 @@ function QueueButtons() {
       <button type="button" onClick={() => showToast('Revisão 2 pronta — DOCX e PDF', { outcome: true })}>
         revisão 2
       </button>
-      <button type="button" onClick={() => showToast('1 leitura pronta para confirmar', { action: { label: 'Ver', onPress: opened }, onDismiss: dismissed })}>
+      <button type="button" onClick={() => showToast('1 leitura pronta para confirmar', { action: { label: 'Ver', onPress: opened }, onDismiss: dismissed, arrival: true })}>
         leitura
       </button>
       <button type="button" onClick={() => showToast('Primeiro')}>
@@ -149,6 +150,9 @@ function QueueButtons() {
       </button>
       <button type="button" onClick={() => showOnce('k', 'Uma vez')}>
         uma vez
+      </button>
+      <button type="button" onClick={() => showToast('Seção removida deste relatório — numeração refeita', { action: { label: 'Desfazer', onPress: undone } })}>
+        remover
       </button>
     </>
   );
@@ -287,5 +291,39 @@ describe('review F-03/F-04 (Q-1) the toast queue behind a job outcome', () => {
     await userEvent.click(screen.getByText('retirar'));
     expect(screen.queryByTestId('toast')).toBeNull();
     expect(dismissed).not.toHaveBeenCalled();
+  });
+});
+
+describe('Epic 13 re-check R-1: a toast answering the user\'s own press is not queued behind a job outcome', () => {
+  it('"Revisão 1 pronta" showing, the user removes a section: "Seção removida" with "Desfazer" shows at once; the revision comes back for its full 6 s once it is dismissed', async () => {
+    undone.mockReset();
+    const timers = fakeTimers();
+    render(<QueueHarness timers={timers} />);
+    await userEvent.click(screen.getByText('revisão'));
+    await userEvent.click(screen.getByText('remover'));
+    expect(screen.getAllByTestId('toast')).toHaveLength(1);
+    expect(shownText()).toContain('Seção removida deste relatório — numeração refeita');
+    // An undo toast has no expiry: the interrupted outcome's timer is gone, it waits at the head.
+    expect(timers.pending()).toBe(0);
+    await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    expect(undone).toHaveBeenCalledTimes(1);
+    expect(shownText()).toContain('Revisão 1 pronta — DOCX e PDF');
+    expect(timers.pending()).toBe(1);
+    act(() => timers.run());
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+
+  it('the interrupted outcome goes back to the head of the queue, before a reading arrival that was waiting behind it', async () => {
+    const timers = fakeTimers();
+    render(<QueueHarness timers={timers} />);
+    await userEvent.click(screen.getByText('revisão'));
+    await userEvent.click(screen.getByText('leitura'));
+    expect(shownText()).toContain('Revisão 1 pronta');
+    await userEvent.click(screen.getByText('remover'));
+    expect(shownText()).toContain('Seção removida');
+    await userEvent.click(screen.getByText('fechar'));
+    expect(shownText()).toContain('Revisão 1 pronta');
+    act(() => timers.run());
+    expect(shownText()).toContain('1 leitura pronta para confirmar');
   });
 });

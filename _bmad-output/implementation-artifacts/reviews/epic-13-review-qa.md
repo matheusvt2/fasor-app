@@ -144,3 +144,57 @@ ninth op reached the outbox **452 ms** after the last Enter (all nine landed, fo
   roughly 12k input tokens per run, but say if a daily cap is wanted.
 - **Device passes owed (E1-A1 script, Matheus):** 13.1 capture sizes per path on an Android tablet and an iPad,
   13.2 torch and zoom on Android in a dark cubicle, 13.3 pinch on an iPad, 13.4 iOS decimal pad commit by tap.
+
+## Re-check 2026-10-08
+
+Main `25594ed` (PR #108 story gate, PR #109 Epic 13 fixes). Same worktree and stack (`e13qa`, port base 7), stack
+rebuilt from empty volumes. Every stage ran alone under `lockf -t 20000 /tmp/fasor-verify.lock`, logs in
+`test-results/qa-e13-r2/`. The QA user was re-seeded with `seed-users --sample-relatorio` *before* `test:api` ran,
+which is the F-14 check. Browser pass: Playwright MCP against `http://localhost:7073`, the same canvas camera stub,
+plus `ImageCapture.prototype.takePhoto` stubbed to reject and to answer after 5 s.
+
+### Gate
+
+| Stage | Result | Counts | Time | Notes |
+|---|---|---|---|---|
+| lint | 0 | - | 18 s | |
+| static | 0 | - | 27 s | |
+| test:api | 0 | 75 files, 550 passed | 193 s | with the sample relatório seeded into a non-test company (F-14) |
+| test:unit | 1 | 268 of 269 files, 3082 of 3083 tests | 115 s | `theme.test.tsx` only (known host failure; it also failed alone, 4/5, here). No unhandled error in the log. |
+| test:e2e (`@p0`) | 0 | 229 tests: 229 passed (parallel 182, serial 47) | 1029 s | |
+| test:e2e:full | 1 | 415 tests: 410 passed, 1 failed, 4 skipped (parallel 306/310, serial 104/105) | 1912 s | parecer-export 7.5-E2E-004, see R-1 |
+| matrix, Epic 13 durability specs (`durability`, `photo-zoom.durability`, `keyboard-salvo.durability` on the three durability projects) | 1 | 54 tests: 43 passed, 1 failed, 10 skipped | 183 s | durability 4.5-E2E-004 on Android only, failing identically on the base `b1c2c6b` (section 1): pre-existing |
+
+Reruns alone: parecer-export 7.5-E2E-004 failed 3 of 3 (`--repeat-each=3`); it passed in the 62c024c full run,
+so it is a regression of PR #109 (R-1). photo-numbers 7.2 and 7.3 passed inside the full run (and in PR #109's
+5 of 5).
+
+### Findings
+
+| Id | Status | Evidence |
+|---|---|---|
+| F-01 | fixed | Plate tile on TR-TEST with `takePhoto` rejecting and on SEC-TEST with `takePhoto` answering after 5 s: one call each, the photo stored in Dexie (`files` 0 to 1, 1 to 2), toast "Foto salva — enviando", no failure toast. New `@p0` `plate-shot-fallback.spec.ts` green. |
+| F-02 | fixed | 390 px, capabilities offered, context "Contexto: Detalhe do transformador de força TR-TEST da Cabine de Testes": `.cam-top` scrollWidth 375 = clientWidth; close at x 12, torch at x 315 (48x48), chip ellipsized at 239 px; the torch toggles. |
+| F-03 | fixed | photo-numbers 7.2/7.3 green in the full run. |
+| F-04 | fixed (see R-1) | Export with a thermo-hygrometer reading in flight: "Revisão 1 pronta — DOCX e PDF" at 10.3 s, the queued "1 leitura pronta para confirmar" at 16.3 s (6 s later); the revision toast was not replaced. |
+| F-05 | fixed | From a crop: "Recorte na tela · Ampliação máxima"; "Ajustar à tela" leaves the crop for the whole photo ("Foto inteira na tela", "Ampliar" enabled). |
+| F-06 | fixed | The ticking "Lendo… 42 s" is outside the live region; the only `role="status"` in the row is the visually hidden "Lendo… já é possível cancelar." |
+| F-07 | fixed (see N-1) | After "Cancelar": the fields note is gone and "Ler de novo" (48 px) shows; offline it is disabled with "Sem conexão"; pressed online it posts `POST /api/photos/{id}/reread` once and the wait line returns. |
+| F-08 | fixed | One thermo-hygrometer photo: one wait line, under Temperatura only. |
+| F-09 | fixed | Quota refusal offline: banner "Este aparelho recusou guardar a foto. Sincronize para liberar espaço." (no MB figure); burst line "1 foto nesta rajada · aguardando espaço neste aparelho"; shutter disabled with the reason; banner gone once a write succeeds. |
+| F-10 | fixed (code and unit test) | `packages/domain/src/audit/input.ts:128-137` (`PLACEHOLDER_CELL`); the sample relatório's fake findings had no dash row to show it in the browser. |
+| F-11 | fixed | Dialog "Ver" on a sheet and on the gallery add `?volta=exportar`; the App bar "Voltar" returns to `?exportar=1` with the dialog open, both times. |
+| F-12 | fixed | Chips read "Hoje em Início da execução" and "Hoje em Fim da execução" (accessible names). |
+| F-13 | fixed (code) | `panelAwaitingRowText` in `packages/domain/src/relatorio/panel.ts:92`, used at `panel-capture.tsx:92`. |
+| F-14 | fixed | `seed-users --sample-relatorio` seeded relatório `019966c1-0000-7c6f-adbd-dd7ec0a84c1c` (company-derived id); `test:api` 550/550 afterwards. |
+
+No finding regressed in what it fixed. New:
+
+| Id | Severity | Area | Evidence | Proposed fix | Owner |
+|---|---|---|---|---|---|
+| R-1 | Medium | PR #109 toast queue (F-04) | `e2e/parecer-export.spec.ts:353` fails 3/3 alone on 25594ed, passed on 62c024c; `apps/web/src/state/toast.tsx:24-30,126-129`. After "Revisão 1 pronta" the user closes the dialog and removes a section: the "Seção removida deste relatório — numeração refeita" toast (the user's own action, with its undo) waits up to 6 s behind the outcome toast. | Let a toast caused by the user's own action (an undo/"Desfazer" toast, or any toast asked from a press) take the slot and send the outcome back to the queue, or end the outcome's hold when its dialog closes; keep the reading-arrival case queued. Then 7.5-E2E-004 passes unchanged. | fix batch |
+| N-1 | Low | F-07 "Ler de novo" | `packages/domain/src/reading/wait.ts:24` accepts `reread_at`, but no caller passes it (`grep reread_at apps/web/src` is empty). After "Ler de novo" the line shows the age since the capture ("Lendo… 1 min 01 s") and an immediate "Cancelar" until the server's next status op is pulled. | Pass the recorded reread instant (the `local_prefs` reread row) as `reread_at` to `readingStartedAt`. | fix batch |
+
+**Re-check verdict: fix needed.** F-01 to F-14 are fixed; `@p0` is 229/229. One regression (R-1, Medium) turns
+the full run red deterministically; N-1 is Low. The only other red tests are pre-existing (4.5-E2E-004 on
+Android, failing on the pre-epic base too) or the known `theme.test.tsx` host failure.

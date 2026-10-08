@@ -133,6 +133,8 @@ export function ReadingArrivals() {
             .catch(() => undefined);
         },
       },
+      // Not a press's answer: it waits behind a job outcome on screen (Q-1, R-1).
+      arrival: true,
     });
   }, [db, observed, running, hadSynced, navigate, showToast]);
 
