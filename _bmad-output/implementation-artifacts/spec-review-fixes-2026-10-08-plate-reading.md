@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: plate reading units and bare years, one AWS error and timeout layer (batch r8read)'
 type: 'bugfix'
 created: '2026-10-08'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'e48774182082e511099a1f1365f99958ae8350d8'
 review_loop_iteration: 0
 followup_review_recommended: false
