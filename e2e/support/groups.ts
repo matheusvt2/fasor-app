@@ -116,9 +116,11 @@ export type E2eGroup = 'parallel' | 'serial';
  * group. The first `pnpm verify` on three workers still failed 12.4-E2E-001 in the parallel
  * group (a Confirmar not applied within 5 s, load 12-14 from unlocked work elsewhere) and
  * 12.1-E2E-007 alone in the serial group, so the gate stays on one worker. `--workers=3`
- * runs the parallel group on three pairs on demand.
+ * runs the parallel group on three pairs on demand. On 2026-10-08, on the 11.4 GB / 6 CPU VM with nothing
+ * else running, `pnpm test:e2e --workers=2` passed 229 of 229 twice on main a8b9b0e (612 s and 723 s,
+ * against 1081 s on one worker), so the default is two.
  */
-export const PARALLEL_WORKERS = 1;
+export const PARALLEL_WORKERS = 2;
 
 /** The fewest worker pairs the global setup seeds, whatever the worker count. */
 export const MIN_WORKER_PAIRS = 3;

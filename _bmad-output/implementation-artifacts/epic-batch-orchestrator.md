@@ -144,9 +144,13 @@ overrides (they win over the workflow text):
   even one targeted spec. The coordinator stops the main checkout's stack (`podman compose stop`) while batches run.
 - (2026-10-08, this macOS host) `docker` is not on PATH: use `podman compose`, and run the tools container with
   `--user root`. `flock` is absent: use `lockf -t 20000 /tmp/fasor-verify.lock sh -c '...'`, started with `nohup`
-  so no tool time limit kills the wait, and poll the tagged log. Run the gate stage by stage from one tagged
+  so no tool time limit kills the wait, and poll the tagged log. ~~Run the gate stage by stage from one tagged
   `test-results/gate-<tag>/run.sh` that writes `summary.txt` lines `name exitcode` (PRs #103-#107 are the
-  precedent). Spec paths go before `--project` when calling `scripts/e2e.ts` directly. A new spec that times taps
+  precedent).~~ *(2026-10-08: the 11.4 GB VM runs the plain `pnpm verify` without OOM (two runs); a batch runs
+  `pnpm lint`, `pnpm static`, `pnpm test:api` and `pnpm test:unit` (or the plain `pnpm verify` when it wants the
+  `@p0` too), then its touched specs, logging each to a tagged file. A new tagged worktree reuses an existing
+  `app-api-*`/`app-tools-*` image with `podman tag` instead of building: a fresh build on this host fails on a
+  LibreOffice arm64/amd64 mismatch, see `deferred-work.md`.)* Spec paths go before `--project` when calling `scripts/e2e.ts` directly. A new spec that times taps
   against a render goes in `SERIAL_SPECS` or `scripts/e2e.test.ts` fails. Never `pkill` by a pattern that matches
   another batch's processes.
 - Read files with offset/limit; do not re-read a file you just edited; do not cat whole large files.

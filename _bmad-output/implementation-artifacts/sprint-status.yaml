@@ -152,7 +152,7 @@ development_status:
   12-6-the-tap-budget-is-a-test: done  # PR #38
   epic-12-retrospective: done  # no PR; commit e9e863c, epic-12-retro-2026-09-25.md
 
-  epic-13: in-progress  # 13.1-13.8 done (PRs #103-#110); 13.9 deferred
+  epic-13: in-progress  # 13.1-13.8 done (PRs #103-#110); accepted-with-open-items by Matheus 2026-10-08; 13.9 deferred (E13-A9)
   13-1-capture-at-the-resolution-the-reading-needs: done  # PR #106; fixes PR #109
   13-2-torch-zoom-and-tap-to-focus-in-the-viewfinder: done  # PR #106; fixes PR #109
   13-3-pinch-zoom-to-read-the-photo: done  # PR #103; fixes PR #109
@@ -162,7 +162,7 @@ development_status:
   13-7-the-plate-tile-on-every-block-type: done  # PR #105; E8-A3 answered 2026-10-07 (cables carry no plate, no tile)
   13-8-the-emission-audit-one-ai-pass-before-emitir-that-points-nev: done  # PR #107; fixes PR #109
   13-9-dictation-on-behind-one-line-of-consent: backlog  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus
-  epic-13-retrospective: done  # epic-13-retro-2026-10-08.md; machine verdict rejected (13-9 deferred); override to accepted-with-open-items is Matheus's call
+  epic-13-retrospective: done  # epic-13-retro-2026-10-08.md; machine verdict rejected (13-9 deferred); overridden to accepted-with-open-items by Matheus 2026-10-08 after the E13-A1 wave gate
 
 action_items:
   - id: "epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli"
@@ -874,7 +874,7 @@ action_items:
     epic: 13
     action: "E13-A1 Run the wave gate on integrated main 75c4bad before Epic 14 starts: full @p0, test:e2e:full and the full test:e2e:matrix under the lock with the main stack stopped; a red stage becomes a fix batch; target all three green, only failures also red on b1c2c6b left, each with a ledger row"
     owner: "coordinator"
-    status: open
+    status: done  # 2026-10-08 on a8b9b0e: verify green, e2e:full 409/415, matrix 80/93, failures known or pre-epic (deferred-work rows)
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-101-e13-a2-fix-recurring-unit-failures"
     epic: 13

@@ -1409,4 +1409,14 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Measure, on a free machine, (B) the `@p0` e2e at `--workers=2` against `PARALLEL_WORKERS=1` (the 2026-09-27 three-worker validation failed on the older 4 GB VM; the VM now has 11.4 GB) and (C) the plain `pnpm verify` against the stage-by-stage gate (it was OOM-killed on the 4 GB VM). Adopt each one only if it stays green twice.
   evidence: `e2e/support/groups.ts` `PARALLEL_WORKERS`; `scripts/verify.ts` phases; `spec-test-speed.md`.
   class: debt
-  state: open (owner: coordinator, next free gate)
+  state: ~~open (owner: coordinator, next free gate)~~ closed (2026-10-08, main a8b9b0e): (B) `--workers=2` passed `@p0` 229/229 twice (612 s, 723 s, against 1081 s on one worker), `PARALLEL_WORKERS` is now 2; (C) the plain `pnpm verify` ran twice without OOM (run 1 green in 1527 s; run 2 stopped at `test:unit` on the recurring `export-dialog.test.tsx`, the entry above), the stage-by-stage script is retired
+- source_spec: `epic-13-retro-2026-10-08.md` (E13-A1 wave gate)
+  summary: Four e2e failures remain on integrated main after Epic 13, each a known host failure or red on the pre-epic base b1c2c6b: points 6.6-E2E-011 (load-sensitive, passes alone), ficha.durability E5-A2-E2E-003 (`toBeFocused` "inactive" at 390 px on this host), Android 4.5-E2E-004 (phone palette bottom sheet) and WebKit F-11 (reading focus by Tab or Enter run). They keep `test:e2e:full` and the matrix red on this host.
+  evidence: `test-results/wave-e13/e2e-full.log` and `e2e-matrix.log` in the E13-A1 worktree; `reviews/epic-13-review-qa.md` § 1 (base comparison).
+  class: debt
+  state: open (owner: the next carry-over batch, with E13-A2)
+- source_spec: `epic-13-retro-2026-10-08.md` (E13-A1 wave gate)
+  summary: Building the api/tools image from scratch in a new compose project on this macOS podman host fails: the LibreOffice step downloads the arm64 packages while dpkg reports an amd64 system ("package architecture (arm64) does not match system (amd64)"). Existing images run fine, so new worktrees reuse them with `podman tag`. Likely a `TARGETARCH` versus the base image platform mismatch in the Dockerfile's LibreOffice case.
+  evidence: `test-results/wave-e13/attempt1/verify-plain.log` (E13-A1 worktree) around line 675; the `RUN arch="${TARGETARCH:-$(dpkg --print-architecture)}"` step.
+  class: defect
+  state: open (owner: the next carry-over batch)
