@@ -226,6 +226,23 @@ test('@p0 13.2-E2E-001 offered torch, zoom and focus: the controls act through a
   const again = await expectCameraOpen(page);
   await expect(again.getByRole('button', { name: 'Lanterna' })).toHaveAttribute('aria-pressed', 'false');
   await expect(again.getByRole('group', { name: 'Zoom' })).toBeVisible();
+
+  // Review F-02: at 390 px a long context shrinks; the torch and "Fechar a câmera" stay whole on screen.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const context = again.locator('.cam-context');
+  expect((await context.textContent())!.length).toBeGreaterThan(50);
+  const width = 390;
+  for (const control of [again.getByRole('button', { name: 'Lanterna' }), again.getByRole('button', { name: 'Fechar a câmera sem concluir' })]) {
+    await expect(control).toBeVisible();
+    const box = (await control.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(width);
+    expect(box.width).toBeGreaterThanOrEqual(48);
+  }
+  // The row itself never scrolls sideways.
+  const row = await again.locator('.cam-top').evaluate((element) => ({ scroll: element.scrollWidth, client: element.clientWidth, left: element.scrollLeft }));
+  expect(row.scroll).toBeLessThanOrEqual(row.client);
+  expect(row.left).toBe(0);
 });
 
 test('@p0 13.2-E2E-002 a camera that offers no torch, zoom or focus shows none of the controls', async ({ page }) => {
@@ -256,11 +273,13 @@ test('@p0 13.6-E2E-002 offline, a shot the device refuses blocks the next one wi
     await shoot(page, 1);
     await expect(shutter).toBeDisabled({ timeout: 15_000 });
     await expect(camera.locator('.cam-hint')).toHaveText('Sem espaço para guardar outra foto neste aparelho. Feche a câmera e sincronize para liberar espaço.');
+    // Review F-09: the held shot is not "salva".
+    await expect(camera.locator('.cam-count')).not.toContainText('salva');
     await expect(page.getByTestId('toast').filter({ hasText: 'Este aparelho recusou guardar a foto.' }).first()).toBeVisible();
 
     await camera.getByRole('button', { name: 'Fechar a câmera sem concluir' }).click();
     await expect(page.getByRole('dialog', { name: 'Câmera' })).toHaveCount(0);
-    await expect(page.locator('.banner-slot .banner[data-banner="storage-low"] .banner-text')).toContainText('Pouco espaço neste aparelho');
+    await expect(page.locator('.banner-slot .banner[data-banner="storage-low"] .banner-text')).toHaveText('Este aparelho recusou guardar a foto. Sincronize para liberar espaço.');
     expect(await devicePhotos(page, database)).toHaveLength(0);
 
     // Still refused: the opener tries the held shot again and does not open the camera.

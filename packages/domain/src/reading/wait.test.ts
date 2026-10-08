@@ -15,23 +15,41 @@ describe('13.5-UNIT the reading wait line', () => {
   });
 
   it('reads "Lendo…" under 10 s, with nothing to cancel', () => {
-    expect(readingWait(T0, T0)).toEqual({ text: 'Lendo…', cancellable: false, stillReading: false });
-    expect(readingWait(T0, at(9_999))).toEqual({ text: 'Lendo…', cancellable: false, stillReading: false });
+    expect(readingWait(T0, T0)).toEqual({ text: 'Lendo…', cancellable: false, stillReading: false, announcement: 'Lendo…' });
+    expect(readingWait(T0, at(9_999))).toEqual({ text: 'Lendo…', cancellable: false, stillReading: false, announcement: 'Lendo…' });
   });
 
   it('from 10 s the seconds and Cancelar; from a minute "M min SS s"; from 120 s the still-reading note', () => {
-    expect(readingWait(T0, at(10_000))).toEqual({ text: 'Lendo… 10 s', cancellable: true, stillReading: false });
-    expect(readingWait(T0, at(12_900))).toEqual({ text: 'Lendo… 12 s', cancellable: true, stillReading: false });
+    expect(readingWait(T0, at(10_000))).toMatchObject({ text: 'Lendo… 10 s', cancellable: true, stillReading: false });
+    expect(readingWait(T0, at(12_900))).toMatchObject({ text: 'Lendo… 12 s', cancellable: true, stillReading: false });
     expect(readingWait(T0, at(59_999)).text).toBe('Lendo… 59 s');
     expect(readingWait(T0, at(60_000)).text).toBe('Lendo… 1 min 00 s');
-    expect(readingWait(T0, at(119_999))).toEqual({ text: 'Lendo… 1 min 59 s', cancellable: true, stillReading: false });
-    expect(readingWait(T0, at(120_000))).toEqual({ text: 'Lendo… 2 min 00 s', cancellable: true, stillReading: true });
+    expect(readingWait(T0, at(119_999))).toMatchObject({ text: 'Lendo… 1 min 59 s', cancellable: true, stillReading: false });
+    expect(readingWait(T0, at(120_000))).toMatchObject({ text: 'Lendo… 2 min 00 s', cancellable: true, stillReading: true });
     expect(readingWait(T0, at(125_000)).text).toBe('Lendo… 2 min 05 s');
     expect(readingWait(T0, at(11 * 60_000 + 7_000)).text).toBe('Lendo… 11 min 07 s');
   });
 
+  it('review F-06: the announced text changes only at the transitions (under 10 s, at 10 s, at 120 s), never with the ticking age', () => {
+    const announced = new Set<string>();
+    let changes = 0;
+    let last: string | null = null;
+    for (let ms = 0; ms <= 180_000; ms += 1_000) {
+      const { announcement } = readingWait(T0, at(ms));
+      announced.add(announcement);
+      if (last !== null && announcement !== last) changes += 1;
+      last = announcement;
+    }
+    expect(changes).toBe(2);
+    expect([...announced]).toEqual(['Lendo…', 'Lendo… já é possível cancelar.', 'Lendo… a leitura está demorando; o app continua conferindo a cada minuto.']);
+    // Thirty seconds of a running reading change the region at most twice (here once, at 10 s).
+    const window = new Set(Array.from({ length: 31 }, (_, s) => readingWait(T0, at(s * 1_000)).announcement));
+    expect(window.size).toBeLessThanOrEqual(3);
+    expect(readingWait(T0, at(12_000)).announcement).toBe(readingWait(T0, at(59_000)).announcement);
+  });
+
   it('a start ahead of the device clock (server stamp, skewed tablet) reads 0 s, never negative; an unreadable time reads 0 s', () => {
-    expect(readingWait(at(30_000), T0)).toEqual({ text: 'Lendo…', cancellable: false, stillReading: false });
+    expect(readingWait(at(30_000), T0)).toEqual({ text: 'Lendo…', cancellable: false, stillReading: false, announcement: 'Lendo…' });
     expect(readingWait('not a time', T0).text).toBe('Lendo…');
   });
 

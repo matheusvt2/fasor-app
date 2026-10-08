@@ -101,12 +101,16 @@ describe('bannerCandidates', () => {
     const MB = 1024 * 1024;
     const roomy = { usage: 0, quota: 10_000 * MB };
     expect(bannerCandidates({ reAuthRequired: false, online: true, storage: null, storageRefused: true })).toEqual([
-      { kind: 'storage-low', variant: 'warning', role: 'region', text: 'Pouco espaço neste aparelho. Sincronize para liberar.', actions: undefined },
+      { kind: 'storage-low', variant: 'warning', role: 'region', text: 'Este aparelho recusou guardar a foto. Sincronize para liberar espaço.', actions: undefined },
     ]);
+    // Review F-09: forced by a refusal, no free-space figure (a roomy reading would contradict it).
     expect(bannerCandidates({ reAuthRequired: false, online: true, storage: roomy, storageRefused: true })[0]).toMatchObject({
       kind: 'storage-low',
-      text: 'Pouco espaço neste aparelho (10000 MB). Sincronize para liberar.',
+      text: 'Este aparelho recusou guardar a foto. Sincronize para liberar espaço.',
     });
+    expect(bannerCandidates({ reAuthRequired: false, online: true, storage: { usage: 9_820 * MB, quota: 10_000 * MB }, storageRefused: true })[0]?.text).toBe(
+      'Este aparelho recusou guardar a foto. Sincronize para liberar espaço.',
+    );
     expect(bannerCandidates({ reAuthRequired: false, online: true, storage: roomy, storageRefused: false })).toEqual([]);
     // Offline, the refusal takes the slot and the offline condition is counted beside it.
     const offline = bannerCandidates({ reAuthRequired: false, online: false, storage: null, storageRefused: true });

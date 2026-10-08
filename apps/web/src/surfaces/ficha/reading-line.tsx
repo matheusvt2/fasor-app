@@ -4,6 +4,7 @@ import { TextButton } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { useLiveQuery } from '../../db/live.ts';
+import { SyncRequestError } from '../../sync/client.ts';
 import { clearReadingCancelled, clearRereadAsked, readReadingCancelled, readRereadAsked, writeReadingCancelled, writeRereadAsked } from '../../db/prefs.ts';
 import { discardCancelledReadings } from '../../db/suggestion-store.ts';
 import { newId } from '../../ids.ts';
@@ -23,6 +24,9 @@ import { useToast } from '../../state/toast.tsx';
  *   line at once; the post-pull sweep discards what it produces later. The photo stays.
  * - `FailedReading`: "Não foi possível ler", "Tentar novamente" (the reread route) and the
  *   way to type instead ("Preencher manualmente" on the plate, "Digitar" on a cell).
+ * - `CancelledReading` (review F-07, Q-3): after "Cancelar", "Ler de novo" clears the cancel and
+ *   asks the reread route; a reading still on its way (409 `reading_running`, `not_caught_up`)
+ *   counts as asked, and the wait line returns.
  */
 
 /** Whether this device cancelled the photo's reading: null until read. */
@@ -50,9 +54,9 @@ export interface ReadingWaitLineProps {
 }
 
 /**
- * The wait line of a reading the server has or is about to run. `aria-busy` keeps the
- * ticking seconds from being announced every second; the line is a live region still, so
- * screen readers read it when asked and once it settles.
+ * The wait line of a reading the server has or is about to run. Review F-06: the ticking age
+ * is visible but outside any live region; the visually hidden `role="status"` beside it says
+ * the kernel's `announcement`, which changes only at the 10 s and 120 s transitions.
  */
 export function ReadingWaitLine({ photoId, startedAt, variant }: ReadingWaitLineProps) {
   const t = copy.readingWait;
@@ -79,11 +83,9 @@ export function ReadingWaitLine({ photoId, startedAt, variant }: ReadingWaitLine
 
   const text =
     variant === 'plate' ? (
-      <p className="reading-line" role="status" aria-busy="true">
-        {wait.text}
-      </p>
+      <p className="reading-line">{wait.text}</p>
     ) : (
-      <span className="queued-banner" role="status" aria-busy="true">
+      <span className="queued-banner">
         <svg className="ico" aria-hidden="true">
           <use href="/sprite.svg#i-image" />
         </svg>
@@ -93,8 +95,66 @@ export function ReadingWaitLine({ photoId, startedAt, variant }: ReadingWaitLine
   return (
     <div className="reading-wait" data-photo-id={photoId}>
       {text}
+      <span className="visually-hidden reading-announce" role="status">
+        {wait.announcement}
+      </span>
       {wait.cancellable ? <TextButton onPress={cancel}>{t.cancel}</TextButton> : null}
       {wait.stillReading ? <p className="reading-note">{t.stillReading}</p> : null}
+    </div>
+  );
+}
+
+/** A reread answer that means the reading is already on its way (the server is reading, or the bytes are not up yet). */
+function readingOnItsWay(error: unknown): boolean {
+  if (!(error instanceof SyncRequestError) || error.failure.kind !== 'http') return false;
+  return error.failure.status === 409 && (error.failure.code === 'reading_running' || error.failure.code === 'not_caught_up');
+}
+
+/**
+ * Review F-07 (Q-3, Matheus 2026-10-08): a reading cancelled on this device offers "Ler de
+ * novo". The press clears the cancel and asks the existing reread route, then a sync cycle; a
+ * reading already on its way counts as asked (the wait line returns). Any other failure
+ * records the cancel again and says so. Offline it is disabled with "Tentar novamente"'s
+ * reason; while AI features are off for a kind that needs them (`canRetry`), nothing shows.
+ */
+export function CancelledReading({ photoId, canRetry }: { photoId: string; canRetry: boolean }) {
+  const t = copy.ficha.nameplate;
+  const sync = useSync();
+  const session = useSession();
+  const online = session.online;
+  const db = session.database;
+  const { showToast } = useToast();
+  const [asking, setAsking] = useState(false);
+  if (!canRetry) return null;
+  const again = () => {
+    if (asking || sync.rereadPhoto === undefined) return;
+    const rereadPhoto = sync.rereadPhoto;
+    setAsking(true);
+    let cancelledAt: string | undefined;
+    void (db === null
+      ? Promise.resolve()
+      : readReadingCancelled(db, photoId).then((at) => {
+          cancelledAt = at;
+          return clearReadingCancelled(db, photoId);
+        })
+    )
+      .then(() =>
+        rereadPhoto(photoId).catch((error: unknown) => {
+          if (!readingOnItsWay(error)) throw error;
+        }),
+      )
+      .then(() => requestSyncCycle())
+      .catch(() => {
+        setAsking(false);
+        if (db !== null) void writeReadingCancelled(db, photoId, cancelledAt ?? toIso(now())).catch(() => undefined);
+        showToast(t.retryFailed);
+      });
+  };
+  return (
+    <div className="reading-cancelled" data-photo-id={photoId}>
+      <TextButton isDisabled={!online || asking} disabledReason={!online ? t.retryOffline : asking ? t.retryAsked : undefined} onPress={again}>
+        {copy.readingWait.readAgain}
+      </TextButton>
     </div>
   );
 }

@@ -48,7 +48,7 @@ import { useLiveQuery } from '../../db/live.ts';
 import { readLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { useForgetArrivalState } from '../../state/arrival-state.ts';
-import { useBackTarget } from '../../state/back-target.tsx';
+import { RETURN_PARAM, RETURN_TO_EXPORT, useBackTarget } from '../../state/back-target.tsx';
 import { pickBanner, type Banner } from '../../state/banner-slot.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { usePageTitle } from '../../state/page-title.tsx';
@@ -309,14 +309,17 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   /**
    * Story 13.8: a finding's "Ver": a section marks its Sumário row (as "Ver no sumário" does)
    * and scrolls it into view; a sheet or one of its rows opens the sheet; a photo, the gallery.
+   * Review F-11: from the Export dialog (`fromDialog`) the sheet or the gallery is opened with
+   * `?volta=exportar`, so its App bar "Voltar" reopens the dialog; the Sumário's own block does not.
    */
-  function seeAuditTarget(target: AuditTarget): void {
+  function seeAuditTarget(target: AuditTarget, fromDialog = false): void {
+    const back = fromDialog ? `?${RETURN_PARAM}=${RETURN_TO_EXPORT}` : '';
     if (target.kind === 'sheet') {
-      void navigate(`/relatorio/${relatorioId}/ficha/${target.blockId}`);
+      void navigate(`/relatorio/${relatorioId}/ficha/${target.blockId}${back}`);
       return;
     }
     if (target.kind === 'photos') {
-      void navigate(`/relatorio/${relatorioId}/fotos`);
+      void navigate(`/relatorio/${relatorioId}/fotos${back}`);
       return;
     }
     const rowKey = target.rowKey as SumarioRowKey;
@@ -417,7 +420,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
               {copy.audit.heading}
             </h3>
             <p className="audit-note">{copy.audit.note}</p>
-            <AuditFindings run={audit.done} onSee={seeAuditTarget} />
+            <AuditFindings run={audit.done} onSee={(target) => seeAuditTarget(target)} />
           </section>
         )}
       </div>
@@ -443,7 +446,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             </svg>
             {preview.phase.kind === 'working' ? copy.export.previewing : t.preview}
           </Button>
-          <GenerateAction relatorioId={relatorioId} reasonId={reasonId} onSeeInSumario={(keys) => setHighlighted(new Set(keys))} onSeeAuditTarget={seeAuditTarget} />
+          <GenerateAction relatorioId={relatorioId} reasonId={reasonId} onSeeInSumario={(keys) => setHighlighted(new Set(keys))} onSeeAuditTarget={(target) => seeAuditTarget(target, true)} />
         </div>
       </div>
 

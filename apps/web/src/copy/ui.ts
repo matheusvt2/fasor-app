@@ -186,6 +186,8 @@ export const ui = {
   dateField: {
     // authored: Story 13.4 INP-3, the chip under an empty service date that fills today.
     today: 'Hoje',
+    // authored (review F-12): the chip's accessible name, so two empty dates' chips differ.
+    todayLabel: (field: string) => `Hoje em ${field}`,
   },
   photoRow: {
     // `70-fotos.html` tile row `.photo-text .btn-text`, verbatim.

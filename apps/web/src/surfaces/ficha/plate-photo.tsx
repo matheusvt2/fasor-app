@@ -9,7 +9,7 @@ import { usePinchZoom } from '../../input/use-pinch-zoom.ts';
 import { useAiFeatures } from '../../state/ai-features.tsx';
 import { useServerReachable } from '../../state/sync.tsx';
 import { PlateCaptureTile } from './photo-openers.tsx';
-import { FailedReading, ReadingWaitLine, useReadingCancelled } from './reading-line.tsx';
+import { CancelledReading, FailedReading, ReadingWaitLine, useReadingCancelled } from './reading-line.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 
 /*
@@ -61,8 +61,10 @@ export function PlatePhotoRow({
   // (its reading cannot start until the bytes are on the server).
   const reachable = useServerReachable();
   const shown = view === 'queued' && reachable && !tile.upload_error ? 'running' : view;
-  // Story 13.5: a reading cancelled on this device shows no waiting line (the photo stays).
+  // Story 13.5: a reading cancelled on this device shows no waiting line (the photo stays);
+  // review F-07: it offers "Ler de novo" instead.
   const cancelled = useReadingCancelled(tile.id);
+  const canRetry = aiFeatures || tile.reading_kind === null || !readingNeedsAi(tile.reading_kind);
   return (
     <div className="photo-row ficha-np-photo" data-reading={shown}>
       <AriaButton className="photo-tile" aria-label={t.plateTileLabel(number)} onPress={onOpen} data-photo-id={tile.id}>
@@ -87,7 +89,8 @@ export function PlatePhotoRow({
           </span>
         ) : null}
         {/* Story 13.5: the age from 10 s, "Cancelar" and, past 120 s, the still-reading note. */}
-        {shown === 'running' ? (
+        {cancelled === true && view !== 'failed' && onFillManually !== null ? <CancelledReading photoId={tile.id} canRetry={canRetry} /> : null}
+        {shown === 'running' && cancelled !== true ? (
           <ReadingWaitLine
             photoId={tile.id}
             startedAt={readingStartedAt({ captured_at: tile.captured_at, bytes_acked_at: tile.bytes_acked_at ?? null, reading_status_at: tile.reading_status_at ?? null })}
@@ -105,7 +108,7 @@ export function PlatePhotoRow({
             key={tile.reading_status_op_id ?? 'create'}
             photoId={tile.id}
             statusOpId={tile.reading_status_op_id}
-            canRetry={aiFeatures || tile.reading_kind === null || !readingNeedsAi(tile.reading_kind)}
+            canRetry={canRetry}
             onFallback={onFillManually}
             fallbackLabel={t.fillManually}
           />

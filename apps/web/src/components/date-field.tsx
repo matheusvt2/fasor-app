@@ -77,6 +77,7 @@ export function DateField({ label, value, onChange, isInvalid, describedBy, auto
       {showToday ? (
         <div className="chip-row">
           <Chip
+            aria-label={ui.dateField.todayLabel(label)}
             onPress={() => {
               onChange(today());
               onBlur?.();

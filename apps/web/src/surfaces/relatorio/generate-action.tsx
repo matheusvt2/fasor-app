@@ -65,7 +65,8 @@ export function GenerateAction({ relatorioId, reasonId, onSeeInSumario, onSeeAud
           : {
               onSeeAuditTarget: (target: AuditTarget) => {
                 // A section is marked on the Sumário behind the dialog, which closes first; a
-                // sheet or the gallery is a navigation, and "Voltar" reopens the dialog (`?exportar=1`).
+                // sheet or the gallery is a navigation with `?volta=exportar` (review F-11), so
+                // its App bar "Voltar" and the browser's back both reopen the dialog (`?exportar=1`).
                 if (target.kind === 'section') setOpen(false);
                 onSeeAuditTarget(target);
               },

@@ -309,3 +309,21 @@ export function displayQueuedEnv(photos: readonly DisplayReadingPhoto[], locatio
   });
   return targetLine(shots);
 }
+
+/** One environment field as the cabine sheet draws it: its key, its stored value, and whether a suggestion fills it (no line there). */
+export interface EnvLineFieldInput {
+  key: string;
+  value: unknown;
+  filling: boolean;
+}
+
+/**
+ * Review F-08: the one environment field the thermo-hygrometer photo's line shows under, so a
+ * photo has one wait, failed or cancelled line, not one under Temperatura and one under
+ * Umidade. It is the first field, in definition order, that would show the line (not filled
+ * by a suggestion, and `displayLineShown` with its value); null when none would.
+ */
+export function displayEnvLineField(entry: DisplayQueuedEntry | null, fields: readonly EnvLineFieldInput[]): string | null {
+  if (entry === null) return null;
+  return fields.find((field) => !field.filling && displayLineShown(entry, field.value))?.key ?? null;
+}

@@ -330,7 +330,87 @@ describe('13.1 the full-resolution capture', () => {
     await waitFor(() => expect(capture.shoot).toHaveBeenCalledTimes(1));
     expect(capture.shoot.mock.calls[0]![0]).toBe(photo);
     expect(constructed).toEqual([track]);
-    expect(grab).not.toHaveBeenCalled();
+    // Review F-01: the frame of the tap was read before the photo was awaited; the photo won, so it is closed.
+    expect(grab).toHaveBeenCalledTimes(1);
+    const early = (await grab.mock.results[0]!.value) as { close: ReturnType<typeof vi.fn> };
+    await waitFor(() => expect(early.close).toHaveBeenCalledTimes(1));
+  });
+
+  /** Review F-01: the viewfinder goes away (replaced, detached) once `takePhoto()` is under way. */
+  function detachVideo(): void {
+    vi.spyOn(HTMLMediaElement.prototype, 'readyState', 'get').mockReturnValue(0);
+    vi.spyOn(HTMLVideoElement.prototype, 'videoWidth', 'get').mockReturnValue(0);
+  }
+
+  it('review F-01: takePhoto rejects after the viewfinder went away; the frame of the tap is saved, no failure', async () => {
+    const { media } = cameraStream();
+    useStream(media);
+    const grab = liveFrames(1920, 1080);
+    vi.stubGlobal(
+      'ImageCapture',
+      class {
+        takePhoto = async () => {
+          detachVideo();
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          throw new DOMException('setPhotoOptions failed', 'UnknownError');
+        };
+      },
+    );
+    renderCamera(true);
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    await screen.findByRole('dialog', { name: 'Câmera' });
+    await userEvent.click(screen.getByRole('button', { name: 'Disparar' }));
+    await waitFor(() => expect(capture.shoot).toHaveBeenCalledTimes(1), { timeout: 1000 });
+    expect(grab).toHaveBeenCalledTimes(1);
+    expect(capture.shoot.mock.calls[0]![0]).toMatchObject({ width: 1920, height: 1080 });
+    expect(screen.queryByText('Não foi possível salvar a foto. Tente de novo.')).toBeNull();
+  });
+
+  it('review F-01: takePhoto answers after the timeout with the viewfinder gone; the frame of the tap is saved and the late photo ignored', async () => {
+    const { media } = cameraStream();
+    useStream(media);
+    const grab = liveFrames(1920, 1080);
+    const late = new Blob(['late'], { type: 'image/jpeg' });
+    vi.stubGlobal(
+      'ImageCapture',
+      class {
+        takePhoto = () => {
+          detachVideo();
+          return new Promise<Blob>((resolve) => setTimeout(() => resolve(late), TAKE_PHOTO_TIMEOUT_MS + 300));
+        };
+      },
+    );
+    renderCamera(true);
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    await screen.findByRole('dialog', { name: 'Câmera' });
+    await userEvent.click(screen.getByRole('button', { name: 'Disparar' }));
+    await waitFor(() => expect(capture.shoot).toHaveBeenCalledTimes(1), { timeout: TAKE_PHOTO_TIMEOUT_MS + 1000 });
+    expect(capture.shoot.mock.calls[0]![0]).toMatchObject({ width: 1920, height: 1080 });
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    // One shot, one photo: the late answer is not saved too.
+    expect(capture.shoot).toHaveBeenCalledTimes(1);
+    expect(grab).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Não foi possível salvar a foto. Tente de novo.')).toBeNull();
+  });
+
+  it('review F-01: no frame at the tap (the stream had none yet) still waits for one, as before', async () => {
+    const { media } = cameraStream();
+    useStream(media);
+    const grab = liveFrames(1920, 1080);
+    grab.mockImplementationOnce(async () => Promise.reject(new DOMException('no frame', 'InvalidStateError')));
+    vi.stubGlobal(
+      'ImageCapture',
+      class {
+        takePhoto = async () => Promise.reject(new DOMException('photo failed', 'UnknownError'));
+      },
+    );
+    renderCamera(true);
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    await screen.findByRole('dialog', { name: 'Câmera' });
+    await userEvent.click(screen.getByRole('button', { name: 'Disparar' }));
+    await waitFor(() => expect(capture.shoot).toHaveBeenCalledTimes(1));
+    expect(grab).toHaveBeenCalledTimes(2);
+    expect(capture.shoot.mock.calls[0]![0]).toMatchObject({ width: 1920, height: 1080 });
   });
 
   it('falls back to the frame grab when takePhoto rejects, and the shot still saves', async () => {

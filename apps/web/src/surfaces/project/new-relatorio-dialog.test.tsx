@@ -157,7 +157,7 @@ describe('4.1 NewRelatorioDialog', () => {
     await database.entities.put(toRecord(`template:${TEMPLATE}`, template()));
     renderDialog();
     const [year, month, day] = calendarDateOfInstant(new Date()).split('-');
-    const hoje = (label: string) => within(group(label).closest('.field') as HTMLElement).queryByRole('button', { name: 'Hoje' });
+    const hoje = (label: string) => within(group(label).closest('.field') as HTMLElement).queryByRole('button', { name: `Hoje em ${label}` });
     expect(hoje('Início da parada')).toBeNull();
     expect(hoje('Fim da parada')).toBeNull();
 

@@ -74,14 +74,16 @@ describe('13.4 INP-3 DateField "Hoje"', () => {
     const onChange = vi.fn();
     const onBlur = vi.fn();
     const { container } = render(<TodayHarness onChange={onChange} onBlur={onBlur} />);
-    const chip = screen.getByRole('button', { name: 'Hoje' });
+    const chip = screen.getByRole('button', { name: 'Hoje em Início da execução' });
+    // Review F-12: the visible word stays "Hoje"; the name says which date it fills.
+    expect(chip).toHaveTextContent(/^Hoje$/);
     expect(chip).toHaveClass('chip');
     expect(chip.parentElement).toHaveClass('chip-row');
     await userEvent.click(chip);
     expect(onChange).toHaveBeenLastCalledWith('2026-10-07');
     expect(onBlur).toHaveBeenCalled();
     expect(screen.getAllByRole('spinbutton').map((s) => s.textContent)).toEqual(['07', '10', '2026']);
-    expect(screen.queryByRole('button', { name: 'Hoje' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Hoje/ })).toBeNull();
     // The chip that held the focus is gone: the focus is on the date's first segment, not the body.
     expect(screen.getAllByRole('spinbutton')[0]).toHaveFocus();
     expect(await axe(container)).toHaveNoViolations();
@@ -89,14 +91,27 @@ describe('13.4 INP-3 DateField "Hoje"', () => {
 
   it('is absent once a value exists, a stored month-only value included', () => {
     const { unmount } = render(<TodayHarness onChange={vi.fn()} initial="2026-09-08" />);
-    expect(screen.queryByRole('button', { name: 'Hoje' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Hoje/ })).toBeNull();
     unmount();
     render(<TodayHarness onChange={vi.fn()} initial="2024-08" />);
-    expect(screen.queryByRole('button', { name: 'Hoje' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Hoje/ })).toBeNull();
   });
 
   it('is absent on a field without `today`', () => {
     render(<Harness onChange={vi.fn()} />);
-    expect(screen.queryByRole('button', { name: 'Hoje' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Hoje/ })).toBeNull();
+  });
+});
+
+describe('review F-12 the "Hoje" chips of two empty dates', () => {
+  it('are told apart by their accessible names, "Hoje em {campo}"', () => {
+    render(
+      <I18nProvider locale="pt-BR">
+        <DateField label="Início da execução" value={null} today={() => '2026-10-07'} onChange={vi.fn()} />
+        <DateField label="Fim da execução" value={null} today={() => '2026-10-07'} onChange={vi.fn()} />
+      </I18nProvider>,
+    );
+    expect(screen.getAllByRole('button', { name: /^Hoje em / }).map((chip) => chip.getAttribute('aria-label'))).toEqual(['Hoje em Início da execução', 'Hoje em Fim da execução']);
+    expect(screen.getAllByRole('button', { name: /^Hoje em / }).map((chip) => chip.textContent)).toEqual(['Hoje', 'Hoje']);
   });
 });

@@ -13,6 +13,7 @@ import {
   displayEnvTarget,
   displayMismatchText,
   MISMATCH_LINE_SEP,
+  displayEnvLineField,
   displayLineShown,
   displayQueuedCells,
   displayQueuedEnv,
@@ -63,7 +64,7 @@ import type { FichaApi } from './ficha-api.ts';
 import { cabineEnvOp, testCellOp } from './ficha-ops.ts';
 import { cellKey, MeasurementField, type RunDirection } from './measurement-field.tsx';
 import { useCropViewer } from './nameplate-suggestions.tsx';
-import { DisplayFailedLine, ReadingWaitLine, useReadingCancelled } from './reading-line.tsx';
+import { CancelledReading, DisplayFailedLine, ReadingWaitLine, useReadingCancelled } from './reading-line.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 
 /*
@@ -241,7 +242,7 @@ export function useDisplaySuggestions({
  * server did not answer (F-13, `useServerReachable`). Story 13.5: the running line is the
  * shared wait line (its age from 10 s, "Cancelar", the still-reading note past 120 s), and a
  * failed reading on an empty target is the failed line with "Tentar novamente" and "Digitar".
- * Nothing shows once the reading was cancelled on this device.
+ * Once the reading was cancelled on this device, only "Ler de novo" shows (review F-07).
  */
 export function QueuedBanner({ entry, tile }: { entry: DisplayQueuedEntry; tile: PhotoTile | null }) {
   const t = copy.ficha.ensaios;
@@ -252,7 +253,8 @@ export function QueuedBanner({ entry, tile }: { entry: DisplayQueuedEntry; tile:
   if (entry.state === 'failed') {
     return <DisplayFailedLine photoId={entry.photoId} statusOpId={tile?.reading_status_op_id ?? null} canRetry={aiFeatures || !readingNeedsAi('display')} />;
   }
-  if (cancelled === true) return null;
+  // Review F-07: a reading cancelled on this device offers "Ler de novo" instead of the line.
+  if (cancelled === true) return <CancelledReading photoId={entry.photoId} canRetry={aiFeatures || !readingNeedsAi('display')} />;
   if (entry.state === 'queued' && (!online || tile?.upload_error)) {
     return (
       <span className="queued-banner">
@@ -659,15 +661,29 @@ export function EnvReadDisplayButton({ relatorioId, cabineId, target }: { relato
   );
 }
 
-/** What an environment field adds under itself: the mismatch line beside a different value and the queued (or, while it is empty, failed) line. */
-export function envAfter(model: EnvDisplayModel, field: FieldDef, value: unknown): ReactNode {
+/**
+ * Review F-08: the one environment field the thermo-hygrometer photo's line shows under (the
+ * kernel's `displayEnvLineField`), from the fields in definition order and their stored values.
+ */
+export function envLineField(model: EnvDisplayModel, fields: readonly FieldDef[], valueOf: (field: FieldDef) => unknown): string | null {
+  return displayEnvLineField(
+    model.queued,
+    fields.map((field) => ({ key: field.key, value: valueOf(field), filling: model.entries.get(field.key)?.view === 'fill' })),
+  );
+}
+
+/**
+ * What an environment field adds under itself: the mismatch line beside a different value and
+ * the queued (or, while it is empty, failed) line, under `lineField` only (review F-08).
+ */
+export function envAfter(model: EnvDisplayModel, field: FieldDef, value: unknown, lineField: string | null): ReactNode {
   const entry = model.entries.get(field.key);
   const label = screenLabel(field.label);
   const mismatch =
     entry !== undefined && entry.view === 'replace' ? (
       <MismatchLine value={value} suggestion={entry.suggestion} onVisor={() => model.confirm(entry.suggestion, label)} onTyped={() => model.keepTyped(entry.suggestion)} />
     ) : null;
-  const banner = model.queued === null || !displayLineShown(model.queued, value) ? null : <QueuedBanner entry={model.queued} tile={tileOf(model.tiles, model.queued.photoId)} />;
+  const banner = model.queued === null || field.key !== lineField || !displayLineShown(model.queued, value) ? null : <QueuedBanner entry={model.queued} tile={tileOf(model.tiles, model.queued.photoId)} />;
   if (mismatch === null && banner === null) return undefined;
   return (
     <>

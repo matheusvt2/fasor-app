@@ -208,6 +208,65 @@ test('@p0 13.5-E2E-002 a failed display reading on an empty cell offers "Tentar 
   await expect(cell.locator('.reading-failed')).toHaveCount(0);
 });
 
+test('@p0 13.5-E2E-006 review F-06/F-07/F-08: one line per thermo-hygrometer photo; the live region says only the transitions; a cancelled reading drops the fields note and offers "Ler de novo" (offline disabled with "Sem conexão"), which asks the reread route and brings the wait line back', async ({ page, context }) => {
+  test.setTimeout(180_000);
+  await holdPhotoBytes(page);
+  await openTransformerSheet(page, account, database);
+  const plateId = await importThrough(page, nameplate(page).locator('.camera-group').getByRole('button', { name: 'Fotografar placa' }), PLATE, 'placa.jpg');
+  const termoId = await importThrough(page, env(page).locator('.ficha-amb-actions').getByRole('button', { name: 'Ler visor' }), TERMO, 'visor.jpg');
+  await syncNowAndReturn(page);
+
+  // F-08: the thermo-hygrometer photo has one line, under Temperatura, none under Umidade.
+  await expect(env(page).locator(`.reading-wait[data-photo-id="${termoId}"]`)).toHaveCount(1);
+  await expect(env(page).locator('[data-field-key="temperature_c"] .reading-wait')).toHaveCount(1);
+  await expect(env(page).locator('[data-field-key="humidity_pct"] .reading-wait')).toHaveCount(0);
+
+  // F-06: the ticking age is outside the live region; the region changes only at 10 s.
+  const plateLine = plateRow(page).locator('.reading-wait');
+  await expect(plateLine.locator('.reading-line')).toHaveText(/^Lendo… \d+ s$/, { timeout: 20_000 });
+  expect(await plateLine.locator('.reading-line').evaluate((element) => element.closest('[role="status"], [aria-live]') === null)).toBe(true);
+  await expect(plateLine.getByRole('status')).toHaveText('Lendo… já é possível cancelar.');
+  const announced = await plateLine.getByRole('status').textContent();
+  await expect.poll(async () => plateLine.locator('.reading-line').textContent(), { timeout: 5_000 }).not.toBe(await plateLine.locator('.reading-line').textContent());
+  expect(await plateLine.getByRole('status').textContent()).toBe(announced);
+
+  // F-07: the fields note shows while the reading waits, and goes with "Cancelar".
+  const note = nameplate(page).getByText('Os campos continuam digitáveis; o que você digitar não é sobrescrito pela leitura.');
+  await expect(note).toBeVisible();
+  await plateLine.getByRole('button', { name: 'Cancelar' }).click();
+  const again = plateRow(page).getByRole('button', { name: 'Ler de novo' });
+  await expect(again).toBeVisible();
+  await expect(note).toHaveCount(0);
+  await expect(plateRow(page).locator('.reading-wait')).toHaveCount(0);
+
+  // Offline it waits with "Tentar novamente"'s reason.
+  await context.setOffline(true);
+  await expect(again).toHaveAttribute('aria-disabled', 'true');
+  await expect(again).toHaveAccessibleDescription('Sem conexão');
+  await context.setOffline(false);
+  await expect(again).not.toHaveAttribute('aria-disabled', 'true', { timeout: 15_000 });
+
+  // Online it asks the reread route (the bytes are still held: 409 not_caught_up, the reading is on its way).
+  const rereads: string[] = [];
+  page.on('request', (request) => {
+    const path = new URL(request.url()).pathname;
+    if (/^\/api\/photos\/[^/]+\/reread$/.test(path)) rereads.push(path);
+  });
+  await again.click();
+  await expect.poll(() => rereads).toEqual([`/api/photos/${plateId}/reread`]);
+  await expect(plateRow(page).locator('.reading-wait')).toBeVisible({ timeout: 15_000 });
+  await expect(plateRow(page).getByRole('button', { name: 'Ler de novo' })).toHaveCount(0);
+  await expect(note).toBeVisible();
+  await expect(page.getByTestId('toast').filter({ hasText: 'Não foi possível pedir a nova leitura' })).toHaveCount(0);
+  const prefs = await readStore<{ key: string }>(page, database, 'local_prefs');
+  expect(prefs.map((row) => row.key)).not.toContain(`reading_cancelled:${plateId}`);
+
+  // The display line too: cancelled, one "Ler de novo" for the photo.
+  await env(page).locator('.reading-wait').getByRole('button', { name: 'Cancelar' }).click();
+  await expect(env(page).getByRole('button', { name: 'Ler de novo' })).toHaveCount(1);
+  await expect(env(page).locator('.reading-wait')).toHaveCount(0);
+});
+
 const tree = (page: Page) => page.getByRole('list', { name: 'Locais do relatório' });
 const coluna = (page: Page, name: string) => page.locator('li.s9-coluna').filter({ has: page.locator(':scope > .s9-col .s9-col-name', { hasText: new RegExp(`^${name}$`) }) });
 const tagsIn = (li: Locator) => li.locator(':scope > .s9-eqs > li.s9-eq .block-tag');
@@ -263,6 +322,11 @@ function pushPanelSuggestion(relatorioId: string, photoId: string): Promise<stri
 test('@p0 13.5-E2E-003 a panel photo whose dialog was left by navigation waits in its palette: the row shows its state, then the proposal, and a tap reopens the dialog where "Confirmar" creates the block', async ({ page }) => {
   test.setTimeout(180_000);
   const { relatorioId, photoId } = await panelShot(page);
+  // Review F-06: past 10 s the dialog shows the age outside its live region, which still says "Lendo a foto…".
+  const waiting = result(page).locator('.detect-waiting');
+  await expect(waiting).toHaveText(/^Lendo… \d+ s$/, { timeout: 20_000 });
+  expect(await waiting.evaluate((element) => element.closest('[role="status"], [aria-live]') === null)).toBe(true);
+  await expect(result(page).getByRole('status')).toHaveText('Lendo a foto…');
   // Away from the dialog (another screen), then back to the Sumário: no dialog by itself.
   await page.goto('/');
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();

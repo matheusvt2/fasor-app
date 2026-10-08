@@ -256,11 +256,26 @@ test('@p0 13.3-E2E-002 the inline plate crop pinches and pans in its box, a tap 
   await expect(zoomed).toHaveAttribute('data-zoom', /^[\d.]+,[\d.]+,[\d.]+,[\d.]+$/);
   const stage = dialog.locator('.viewer-photo');
   expect(await scaleOf(stage)).toBe(1);
+  // Review F-05: at the crop's own fit "Reduzir" says "Recorte na tela"; "Ajustar à tela" stays enabled.
+  const zoomOut = dialog.getByRole('button', { name: 'Reduzir' });
+  const fit = dialog.getByRole('button', { name: 'Ajustar à tela' });
+  await expect(zoomOut).toHaveAttribute('aria-disabled', 'true');
+  await expect(zoomOut).toHaveAccessibleDescription('Recorte na tela');
+  await expect(fit).not.toHaveAttribute('aria-disabled', 'true');
   await dialog.getByRole('button', { name: 'Ampliar' }).click();
   await expect.poll(() => scaleOf(stage)).toBeGreaterThan(1);
   await expect(zoomed).toHaveAttribute('data-zoom', /,/);
   await pinch(stage, 60, 200);
   await expect.poll(() => scaleOf(stage)).toBeGreaterThan(1.5);
+  // "Ajustar à tela" leaves the crop for the whole photo at fit.
+  await fit.click();
+  await expect(dialog.locator('svg.viewer-zoom')).toHaveCount(0);
+  await expect(dialog.locator('img.viewer-img')).toBeVisible();
+  await expect.poll(() => scaleOf(stage)).toBe(1);
+  await expect(zoomOut).toHaveAccessibleDescription('Foto inteira na tela');
+  await expect(fit).toHaveAttribute('aria-disabled', 'true');
+  // Two reasons at once never run together.
+  expect(await dialog.getByRole('group', { name: 'Ampliação da foto' }).textContent()).not.toMatch(/tela\s*Ampliação|Recorte na telaFoto/);
   await page.keyboard.press('Escape');
   await expect(viewer(page)).toHaveCount(0);
 });

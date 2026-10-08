@@ -96,6 +96,16 @@ function SetupProbe() {
   return <p data-testid="setup-route">Setup {params.get('etapa')}</p>;
 }
 
+/** The gallery route: says the `volta` it was opened with (review F-11). */
+function FotosProbe() {
+  const [params] = useSearchParams();
+  return (
+    <p data-testid="fotos-route" data-volta={params.get('volta') ?? ''}>
+      Fotos
+    </p>
+  );
+}
+
 /** Stands in for `AppShell`'s one banner slot, which a route cannot render itself (`extra-banner.tsx`). */
 function BannerSlotProbe() {
   const banner = useExtraBannerValue();
@@ -116,7 +126,7 @@ function tree(id: string, sync: SyncState, state: unknown = null) {
                 <Route path="/relatorio/:id/setup" element={<SetupProbe />} />
                 <Route path="/relatorio/:id/secao/:blockId" element={<p data-testid="secao-route">Seção</p>} />
                 <Route path="/relatorio/:id/pontos" element={<p data-testid="pontos-route">Pontos</p>} />
-                <Route path="/relatorio/:id/fotos" element={<p data-testid="fotos-route">Fotos</p>} />
+                <Route path="/relatorio/:id/fotos" element={<FotosProbe />} />
               </Routes>
               <ToastOutlet />
             </ExtraBannerProvider>
@@ -746,37 +756,54 @@ describe('4.6 SumarioSurface: status transitions and the issued banner', () => {
   });
 });
 
+/** A finished audit run with one photo finding ("Ver Imagem 1"). */
+function auditRunOps() {
+  const run = '019966c1-0000-7000-8000-0000000000a1';
+  const op = (kind: 'create' | 'put', path: string, value: unknown, seq: number) => ({
+    op_id: `019966c1-0001-7000-8000-${(0xa100 + seq).toString(16).padStart(12, '0')}`,
+    kind,
+    scope: 'relatorio' as const,
+    company_id: COMPANY,
+    project_id: null,
+    relatorio_id: RELATORIO,
+    path,
+    value: value as never,
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: 'system:audit',
+    device_id: SERVER_DEVICE_ID,
+    client_ts: '2026-10-07T17:32:00.000Z',
+    seq: 40_000 + seq,
+  });
+  return [
+    op('create', `audit_run/${run}`, { id: run, relatorio_id: RELATORIO, status: 'queued', findings: [], error: null, prompt_version: null, created_at: '2026-10-07T17:31:00.000Z', started_at: null, finished_at: null }, 1),
+    op('put', `audit_run/${run}/findings`, [{ kind: 'caption_equipment', text: 'A legenda cita um equipamento ausente.', ref: 'photo:019966c1-0000-7000-8000-0000000000f1', label: 'Imagem 1', target: { kind: 'photos' } }], 2),
+    op('put', `audit_run/${run}/finished_at`, '2026-10-07T17:32:00.000Z', 3),
+    op('put', `audit_run/${run}/status`, 'done', 4),
+  ];
+}
+
 describe('13.8 the audit findings on the Sumário', () => {
   it('lists the newest finished run under the AI note, and a photo finding\'s "Ver" opens the gallery', async () => {
     database = await seeded();
-    const run = '019966c1-0000-7000-8000-0000000000a1';
-    const op = (kind: 'create' | 'put', path: string, value: unknown, seq: number) => ({
-      op_id: `019966c1-0001-7000-8000-${(0xa100 + seq).toString(16).padStart(12, '0')}`,
-      kind,
-      scope: 'relatorio' as const,
-      company_id: COMPANY,
-      project_id: null,
-      relatorio_id: RELATORIO,
-      path,
-      value: value as never,
-      prev_op_id: null,
-      batch_id: null,
-      meta: null,
-      actor_id: 'system:audit',
-      device_id: SERVER_DEVICE_ID,
-      client_ts: '2026-10-07T17:32:00.000Z',
-      seq: 40_000 + seq,
-    });
-    await applyPulled(database, [
-      op('create', `audit_run/${run}`, { id: run, relatorio_id: RELATORIO, status: 'queued', findings: [], error: null, prompt_version: null, created_at: '2026-10-07T17:31:00.000Z', started_at: null, finished_at: null }, 1),
-      op('put', `audit_run/${run}/findings`, [{ kind: 'caption_equipment', text: 'A legenda cita um equipamento ausente.', ref: 'photo:019966c1-0000-7000-8000-0000000000f1', label: 'Imagem 1', target: { kind: 'photos' } }], 2),
-      op('put', `audit_run/${run}/finished_at`, '2026-10-07T17:32:00.000Z', 3),
-      op('put', `audit_run/${run}/status`, 'done', 4),
-    ]);
+    await applyPulled(database, auditRunOps());
     renderSumario();
     const block = await screen.findByRole('region', { name: 'Conferência por IA' });
     expect(within(block).getByText('Feita por IA: aponta pontos para você conferir. Nada é alterado no relatório.')).toBeInTheDocument();
     await userEvent.click(within(block).getByRole('button', { name: 'Ver Imagem 1' }));
-    expect(await screen.findByTestId('fotos-route')).toBeInTheDocument();
+    // Review F-11: the Sumário's own block opens the gallery without the way back to the dialog.
+    expect(await screen.findByTestId('fotos-route')).toHaveAttribute('data-volta', '');
+  });
+
+  it('review F-11: from the Export dialog, a photo finding\'s "Ver" opens the gallery with ?volta=exportar', async () => {
+    database = await seeded();
+    await applyPulled(database, auditRunOps());
+    renderSumario();
+    await screen.findByRole('region', { name: 'Conferência por IA' });
+    await userEvent.click(screen.getByRole('button', { name: 'Gerar relatório' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Gerar relatório' });
+    await userEvent.click(await within(dialog).findByRole('button', { name: 'Ver Imagem 1' }));
+    expect(await screen.findByTestId('fotos-route')).toHaveAttribute('data-volta', 'exportar');
   });
 });

@@ -9,7 +9,7 @@ import type { AppDatabase } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 import { useSession } from './session.tsx';
 import { useSync } from './sync.tsx';
-import { useToast } from './toast.tsx';
+import { useToast, type ShowToastOptions } from './toast.tsx';
 
 /*
  * R4 (Story 4.8 review, closed in Story 7.5): the ready toast and the `issue` status op of a
@@ -56,7 +56,7 @@ export async function finishGenerate(
   author: GenerateAuthor | null,
   relatorioId: string,
   revision: RevisionRow,
-  showToast: (text: string) => void,
+  showToast: (text: string, options?: ShowToastOptions) => void,
 ): Promise<boolean> {
   let inFlight = finishing.get(db);
   if (inFlight === undefined) {
@@ -70,7 +70,8 @@ export async function finishGenerate(
   }
   const work = (async () => {
     if (author !== null) await emitIssueFor(db, author, relatorioId, revision).catch((error: unknown) => console.error('issue status op failed', error));
-    showToast(readyToast(revision.number));
+    // Review F-04 (Q-1): a job outcome holds the toast slot for its full time; what comes meanwhile queues.
+    showToast(readyToast(revision.number), { outcome: true });
     await clearGenerateAwaiting(db, relatorioId).catch(() => undefined);
   })();
   inFlight.set(revision.id, work);

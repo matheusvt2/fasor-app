@@ -31,6 +31,7 @@ import type { PhotoTile } from '../../db/photo-store.ts';
 import { NameplateField, ReplaceLine, SuggestionFill, SuggestionGroupHead, useNameplateSuggestions } from './nameplate-suggestions.tsx';
 import { useAiFeatures } from '../../state/ai-features.tsx';
 import { PlateCameraGroup, PlateCrop, PlatePhotoRow } from './plate-photo.tsx';
+import { useReadingCancelled } from './reading-line.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 
@@ -92,6 +93,7 @@ export function NameplateSection({
   // --- Stories 8.2/8.6: the plate photo, its reading and the crop ---------------------------
   const plate = useMemo(() => platePhotoOf(suggestions.tiles, block.id), [suggestions.tiles, block.id]);
   const view = plate === null ? null : plateReadingView(plate, suggestions.pending);
+  const plateCancelled = useReadingCancelled(plate?.id ?? '');
   const region = plate === null || view !== 'ready' ? null : plateCropRegion(suggestions.pending, plate.id);
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
   if (definition.nameplate.length === 0) return null;
@@ -213,7 +215,8 @@ export function NameplateSection({
             onOpen={() => suggestions.openPhoto(plate.id)}
             onFillManually={readOnly ? null : fillManually}
           />
-          {view === 'queued' || view === 'running' ? <p className="section-note">{t.fieldsNote}</p> : null}
+          {/* Review F-07: once the reading was cancelled here, nothing will overwrite the fields: no note. */}
+          {(view === 'queued' || view === 'running') && plateCancelled !== true ? <p className="section-note">{t.fieldsNote}</p> : null}
         </>
       ) : null}
       <div className="nameplate-grid" onFocus={trackFocus} onBlur={dropFocus}>

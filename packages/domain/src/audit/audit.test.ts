@@ -13,7 +13,7 @@ import { progress } from '../relatorio/progress.ts';
 import { sumarioRows } from '../relatorio/sumario.ts';
 import type { AuditRunRow, BlockRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { AUDIT_INPUT_MAX_CHARS, AUDIT_TRUNCATED_MARKER, auditInput, type AuditRef } from './input.ts';
+import { AUDIT_INPUT_MAX_CHARS, AUDIT_TRUNCATED_MARKER, auditInput, auditRowLabel, type AuditRef } from './input.ts';
 import { AUDIT_FINDING_KINDS } from './schema.ts';
 import { auditCheckedAtText, auditDisplay, auditFindingRows, auditRunActive, auditSummaryText, AUDIT_FINDING_KIND_LABELS, AUDIT_RUN_EXPIRE_S, AUDIT_RUN_QUEUE_RETENTION_S } from './text.ts';
 import { AUDIT_FINDING_MAX_CHARS, AUDIT_MAX_FINDINGS, validateAuditFindings } from './validate.ts';
@@ -313,5 +313,15 @@ describe('13.8-UNIT-005 an audit_run in the store changes nothing the relatório
     const issuesWithout = preIssue(without, progress(without), { now });
     expect(issuesWith).toEqual(issuesWithout);
     expect(sumarioRows(withRun, issuesWith, progress(withRun))).toEqual(sumarioRows(without, issuesWithout, progress(without)));
+  });
+});
+
+describe('review F-10 a row named by a placeholder first cell', () => {
+  it('falls back to "linha N" when the first printed cell is only dashes or blank, and keeps a real first cell', () => {
+    for (const dash of ['-', '–', '—', ' - ', '--', '', '   ']) {
+      expect(auditRowLabel('Cabos de entrada CE-ENEL', dash, 2)).toBe('Cabos de entrada CE-ENEL · linha 3');
+    }
+    expect(auditRowLabel('Chave seccionadora SEC-TEST', 'Fase C', 5)).toBe('Chave seccionadora SEC-TEST · Fase C');
+    expect(auditRowLabel('Chave seccionadora SEC-TEST', '-10', 0)).toBe('Chave seccionadora SEC-TEST · -10');
   });
 });

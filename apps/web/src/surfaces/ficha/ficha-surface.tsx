@@ -14,6 +14,7 @@ import {
 } from '@app/domain';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router';
+import { useBackToExport } from '../../state/back-target.tsx';
 import { pickBanner, type Banner } from '../../state/banner-slot.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { useConflictBanner } from '../sync/conflict-banner.tsx';
@@ -56,6 +57,8 @@ const PRIMARY_ID = 'ficha-primary';
  */
 export function FichaSurface() {
   const { id = '', blockId = '' } = useParams();
+  // Review F-11: opened from the Export dialog's audit "Ver", "Voltar" reopens the dialog.
+  useBackToExport(id);
   return (
     <main className="screen" data-route="/relatorio/:id/ficha/:blockId">
       <RelatorioGate id={id}>{(state) => <Ficha key={blockId} relatorioId={id} blockId={blockId} state={state} />}</RelatorioGate>

@@ -401,7 +401,7 @@ Behavioral. Visual specs live in `DESIGN.md` § Components under the same names,
 ## Interaction Primitives
 
 - **Tap to act; one primary action per surface.** No hover-only affordances (touch first).
-- **Autosave** on every field change (debounced — value is architecture's call; the UX only requires that leaving a field never loses it) to local storage, then to the server when online. No Save button on sheets; "Concluir ficha" marks state, it does not save. A visually hidden "Salvo" status is announced at most every few seconds, never per keystroke.
+- **Autosave** on every field change (debounced — value is architecture's call; the UX only requires that leaving a field never loses it) to local storage, then to the server when online. No Save button on sheets; "Concluir ficha" marks state, it does not save. ~~A visually hidden "Salvo" status is announced at most every few seconds, never per keystroke.~~ *(2026-10-08, Story 13.4, PR #104:)* The sheet header shows a visible, quiet saved line in a status region, "Salvo às HH:MM" once the last field op lands in the outbox, "Salvo neste aparelho às HH:MM" while the server is not reachable; it changes on a committed op, never per keystroke.
 - **Reorder three ways, always:** press and hold 300 ms + drag; Overflow menu "Subir · Descer" (and "Mover para…" where a location can change); keyboard Alt+↑/↓ wherever the element is focusable and a keyboard is attached. The new position is announced ("SEC-C09 movido para a posição 3 de 5"). No swipe gestures (gloves, glare) except system back.
 - **Enter moves down a measurement column; Tab moves right.** Numeric fields open the decimal keypad (`inputmode="decimal"`).
 - **Next/previous sheet** follows tree order; "Próxima coluna" jumps locations.

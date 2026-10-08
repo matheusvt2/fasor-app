@@ -2774,6 +2774,8 @@ So that the plate I photographed is legible to the OCR and to me.
 
 **Definition of Done, in addition:** the E1-A1 manual device script gains a step recording the actual capture size per path on one Android tablet and one iPad.
 
+*(2026-10-08, delivered in PR #106, narrowings: the encode cap is kept at 2560 px / 0.85, since the fake providers cannot score reading accuracy; the device capture-size step is owed in E1-A1. Epic 13 QA F-01, a plate shot lost when `takePhoto()` failed, is fixed in the Epic 13 fix batch.)*
+
 ### Story 13.2: Torch, zoom and tap-to-focus in the viewfinder
 
 **Dev model:** opus · **Effort:** high · `MediaStreamTrack` capabilities with per-device hiding
@@ -2794,6 +2796,8 @@ So that the plate inside the panel is readable without leaving the app or carryi
 
 **Definition of Done, in addition:** a real-device pass on Android Chrome with the torch on is recorded in the E1-A1 script.
 
+*(2026-10-08, delivered in PR #106, narrowings: the torch, zoom and refusal copy is authored, accepted by Matheus on 2026-10-07 pending Bruno's field review.)*
+
 ### Story 13.3: Pinch-zoom to read the photo
 
 **Dev model:** opus · **Effort:** medium · viewer gestures over the existing crop zoom
@@ -2813,6 +2817,8 @@ So that my own photo is the magnifier when a field reads "Verificar" or the OCR 
 **Then** the same gestures work and every control keeps its 48 px hit area
 
 **Definition of Done, in addition:** exercised on touch in the durability matrix (Android Chrome emulation and WebKit).
+
+*(2026-10-08, delivered in PR #103, narrowings: the WebKit zoom spec is skipped (Playwright WebKit cannot store a photo Blob); the iPad pinch pass is owed in E1-A1. Matheus, Q-5: from a crop, "Ajustar à tela" always shows the whole photo.)*
 
 ### Story 13.4: The keyboard stops fighting the field, and the sheet says Salvo
 
@@ -2842,6 +2848,8 @@ So that a typed value is never mangled by autocorrect and never doubted.
 
 **Definition of Done, in addition:** the tap-budget specs are unchanged (no added taps or keystrokes).
 
+*(2026-10-08, delivered in PR #104, narrowings: "Hoje" only on the service start and end dates (Matheus, 2026-10-07); the offline wording is keyed to server reachability; a stored full date keeps the segmented picker; EXPERIENCE.md's "Salvo" sentence is struck through and replaced.)*
+
 ### Story 13.5: A reading shows its age, can be cancelled, and never dead-ends
 
 **Dev model:** opus · **Effort:** high · reading lifecycle UI over the existing queue, no contract change
@@ -2870,6 +2878,8 @@ So that waiting is a choice and no photo leads to a dead end.
 
 **Definition of Done, in addition:** the flow is exercised end to end under `fake` providers with an injected delay; all wording lands in `copy/pt-br.ts` as authored.
 
+*(2026-10-08, delivered in PR #103, narrowings: the panel palette lists the awaiting photos of every device (Matheus, 2026-10-07); the cancel is device-local. Matheus, Q-3: after "Cancelar" a cancelled reading offers "Ler de novo" through the reread route, built in the Epic 13 fix batch.)*
+
 ### Story 13.6: A shot refused by quota survives the tab
 
 **Dev model:** opus · **Effort:** medium · rescue path durability
@@ -2887,6 +2897,8 @@ So that "no photo is ever lost" has no footnote.
 **Given** a durability spec
 **When** the tab is killed after a refused shot
 **Then** either the shot exists in Dexie after reload or the refusal was shown before the camera allowed another shot — asserted in the durability matrix
+
+*(2026-10-08, delivered in PR #106, narrowings: the WebKit durability leg is not covered (Playwright WebKit cannot store a photo Blob).)*
 
 ### Story 13.7: The plate tile on every block type
 
@@ -2913,6 +2925,8 @@ So that the photo-first path is not a transformer privilege.
 **Given** the tap-budget specs
 **When** they run
 **Then** the budgets are unchanged
+
+*(2026-10-08, delivered in PR #105, narrowings: the two cable types carry no nameplate and get no tile (Matheus, 2026-10-07).)*
 
 ### Story 13.8: The emission audit: one AI pass before Emitir that points, never writes
 
@@ -2943,6 +2957,8 @@ So that the client never receives a report that disagrees with itself.
 **Then** tokens and USD are logged per run, one run per tap, within the USD 100/month ceiling
 
 *(No FR: new capability from `review-field-ux-2026-10-06.md`; SPEC.md gains its capability line with this story. The device-composed conclusion text and parecer summary stay deterministic — this story does not touch them.)*
+
+*(2026-10-08, delivered in PR #107, narrowings: the audit runs on its own `audit` queue, not as a ReadingKind; CONTRACT_VERSION and MIN_CONTRACT_VERSION are 15 (old clients must update before syncing); no daily cap on audit runs (Matheus, Q-7); the copy and the `.precheck` look of the findings rows are authored.)*
 
 ### Story 13.9: Dictation on, behind one line of consent
 
