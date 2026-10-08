@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { burstCountText, photosPendingText, photoUploadState, sheetPhotosHeading, storageLowBannerText, uploadPillText } from './text.ts';
+import {
+  burstCountText,
+  cameraZoomText,
+  photosPendingText,
+  photoUploadState,
+  sheetPhotosHeading,
+  storageLowBannerText,
+  storageRefusedBannerText,
+  uploadPillText,
+} from './text.ts';
 
 const MB = 1024 * 1024;
 
@@ -44,5 +53,21 @@ describe('11.11-UNIT-002 sheetPhotosHeading', () => {
   it('reads "Fotos da ficha (n)" (`60-ficha.html` `#ficha-h-fotos-dj`)', () => {
     expect(sheetPhotosHeading(1)).toBe('Fotos da ficha (1)');
     expect(sheetPhotosHeading(3)).toBe('Fotos da ficha (3)');
+  });
+});
+
+describe('13.6-UNIT-001 storageRefusedBannerText', () => {
+  it('names the free space when there is a reading, and drops the number without one', () => {
+    expect(storageRefusedBannerText({ usage: 1_000 * MB, quota: 1_180 * MB })).toBe('Pouco espaço neste aparelho (180 MB). Sincronize para liberar.');
+    expect(storageRefusedBannerText(null)).toBe('Pouco espaço neste aparelho. Sincronize para liberar.');
+  });
+});
+
+describe('13.2-UNIT-001 cameraZoomText', () => {
+  it('reads one decimal with the pt-BR comma', () => {
+    expect(cameraZoomText(1)).toBe('1,0×');
+    expect(cameraZoomText(2.5)).toBe('2,5×');
+    expect(cameraZoomText(3.04)).toBe('3,0×');
+    expect(cameraZoomText(Number.NaN)).toBe('1,0×');
   });
 });

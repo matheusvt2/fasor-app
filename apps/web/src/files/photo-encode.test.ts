@@ -66,3 +66,14 @@ describe('W-24 encodePhoto', () => {
     expect(draws[1]).toMatchObject({ width: 307, height: 512 });
   });
 });
+
+describe('13.1-UNIT-001 the encode cap after the full-resolution capture', () => {
+  it('keeps 2560 px / 0.85 (narrowing of 2026-10-07): a 3840x2160 frame is stored at 2560x1440', async () => {
+    expect(ORIGINAL_MAX_PX).toBe(2560);
+    expect(ORIGINAL_QUALITY).toBe(0.85);
+    vi.stubGlobal('OffscreenCanvas', FakeCanvas);
+    const frame = { width: 3840, height: 2160, close: vi.fn() } as unknown as ImageBitmap;
+    const encoded = await encodePhoto(frame);
+    expect(await encoded.original.text()).toBe('2560x1440@0.85');
+  });
+});

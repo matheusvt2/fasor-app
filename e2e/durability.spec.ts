@@ -659,3 +659,84 @@ test('@p0 6.2-E2E-003 the network drops mid-upload: every photo uploads exactly 
     expect(Math.max(sizes.print!.width, sizes.print!.height)).toBe(2000);
   }
 });
+
+for (const mode of ['all', 'once'] as const) {
+  const title =
+    mode === 'all'
+      ? '@p0 13.6-E2E-001 offline, every store of the shot refused: the refusal shows before another shot, and after the tab dies no photo row is left'
+      : '@p0 13.6-E2E-001 offline, the shot refused once: the eviction retry stores it, and it is still on the device after the tab dies';
+  test(title, async ({ page, context, browserName, seed }) => {
+    test.setTimeout(180_000);
+    // Same reason as 6.2-E2E-003: Playwright's WebKit contexts are ephemeral and refuse every
+    // Blob in IndexedDB, so no shot can be stored there, refused or not.
+    if (browserName === 'webkit') {
+      test.info().annotations.push({
+        type: 'not-covered-here',
+        description: "Playwright's WebKit contexts are ephemeral and refuse Blobs in IndexedDB; Safari itself is the pending manual iPad script",
+      });
+      return;
+    }
+    const account = seed.companies[1];
+    const database = deviceDatabaseName(account.userId);
+    await withoutServiceWorker(page);
+    // No camera API: "Tirar foto" falls back to the system camera, as in 6.2-E2E-003.
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true });
+    });
+    // The device's `files` store refuses with the browser's quota error: every put, or the next one.
+    await page.addInitScript(() => {
+      const original = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['put']>) {
+        const w = window as unknown as { __refuseFiles?: 'all' | 'once' | null };
+        if (this.name === 'files' && (w.__refuseFiles === 'all' || w.__refuseFiles === 'once')) {
+          if (w.__refuseFiles === 'once') w.__refuseFiles = null;
+          throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+        }
+        return original.apply(this, args);
+      };
+    });
+    await openChaveSheet(page, account, database, { signIn: () => signInForDurability(page, context, account.email) });
+    const shot = await jpegFromPage(page, 1600, 1200);
+    const opener = page.getByRole('button', { name: 'Tirar foto', exact: true });
+    const refusal = page.getByTestId('toast').filter({ hasText: 'Este aparelho recusou guardar a foto.' });
+
+    await context.setOffline(true);
+    try {
+      await page.evaluate((value) => {
+        (window as unknown as { __refuseFiles?: string | null }).__refuseFiles = value;
+      }, mode);
+      const chooser = page.waitForEvent('filechooser');
+      await opener.click();
+      await (await chooser).setFiles({ name: 'foto.jpg', mimeType: 'image/jpeg', buffer: shot });
+
+      if (mode === 'all') {
+        // The refusal is shown at capture time, with the storage banner.
+        await expect(refusal.first()).toBeVisible({ timeout: 20_000 });
+        await expect(page.locator('.banner-slot .banner[data-banner="storage-low"] .banner-text')).toContainText('Pouco espaço neste aparelho');
+        expect(await devicePhotos(page, database)).toHaveLength(0);
+        // The camera allows no other shot: the next press opens no picker and says why again.
+        let pickers = 0;
+        page.on('filechooser', () => {
+          pickers += 1;
+        });
+        await opener.click();
+        await expect(refusal.first()).toBeVisible();
+        await page.waitForTimeout(1_500);
+        expect(pickers).toBe(0);
+      } else {
+        await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 20_000 }).toBe(1);
+        expect(await page.evaluate(() => (window as unknown as { __refuseFiles?: string | null }).__refuseFiles)).toBeNull();
+        await expect(refusal).toHaveCount(0);
+      }
+    } finally {
+      await context.setOffline(false);
+    }
+
+    // The tab dies; a new one opens the app from the same device store.
+    await page.close();
+    const reopened = await context.newPage();
+    await reopened.goto('/');
+    await expect(reopened.getByRole('group', { name: 'Relatórios por status' })).toBeVisible({ timeout: 30_000 });
+    expect(await devicePhotos(reopened, database)).toHaveLength(mode === 'all' ? 0 : 1);
+  });
+}

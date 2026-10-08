@@ -65,3 +65,18 @@ export function storageLowBannerText(reading: StorageReading): string {
   const free = Math.max(0, reading.quota - reading.usage);
   return `Pouco espaço neste aparelho (${Math.floor(free / MIB)} MB). Sincronize para liberar.`;
 }
+
+/**
+ * Story 13.6 (CAP-4): the low-storage banner while a shot is refused, shown whatever the last
+ * reading said. With a reading it is `storageLowBannerText`; without one (the browser gave no
+ * estimate) the same sentence without the number. Authored.
+ */
+export function storageRefusedBannerText(reading: StorageReading | null): string {
+  return reading === null ? 'Pouco espaço neste aparelho. Sincronize para liberar.' : storageLowBannerText(reading);
+}
+
+/** Story 13.2 (CAP-2): the camera's zoom readout, "1,0×", "2,5×" (one decimal, pt-BR comma). Authored. */
+export function cameraZoomText(zoom: number): string {
+  const value = Number.isFinite(zoom) ? zoom : 1;
+  return `${value.toFixed(1).replace('.', ',')}×`;
+}

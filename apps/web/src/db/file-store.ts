@@ -4,6 +4,7 @@ import {
   fileRowSchema,
   orderUploads,
   relatorioStatusSchema,
+  refusalPressureBytes,
   storagePressureBytes,
   type EvictionBlob,
   type FileRow,
@@ -184,9 +185,10 @@ export async function uploadErrorIds(db: AppDatabase): Promise<ReadonlySet<strin
  * `cropSourceBlob` kept: a server original held only to draw a suggestion's crop, sized by
  * its bytes and aged from when it was fetched, re-downloaded on the next view. Thumbs are
  * never touched. The relatórios' statuses come from this device's rows; `reading` sizes the
- * pressure. Returns the ids actually deleted.
+ * pressure. Story 13.6 (CAP-4): after a refused shot, `minimumBytes` (the shot's bytes)
+ * raises the pressure through the kernel's `refusalPressureBytes`. Returns the ids actually deleted.
  */
-export async function runEviction(db: AppDatabase, reading: StorageReading | null): Promise<string[]> {
+export async function runEviction(db: AppDatabase, reading: StorageReading | null, minimumBytes?: number): Promise<string[]> {
   const evictable = (row: FileBlobRow) => row.acked && (row.variant === 'original' || row.variant === 'crop');
   const acked = await db.files.filter(evictable).toArray();
   if (acked.length === 0) return [];
@@ -216,7 +218,7 @@ export async function runEviction(db: AppDatabase, reading: StorageReading | nul
       relatorio_id: relatorioId,
     });
   }
-  const plan = evictionPlan({ blobs, relatorioStatus, pressure: storagePressureBytes(reading) });
+  const plan = evictionPlan({ blobs, relatorioStatus, pressure: minimumBytes === undefined ? storagePressureBytes(reading) : refusalPressureBytes(reading, minimumBytes) });
   const deleted: string[] = [];
   if (plan.length > 0) {
     await db.transaction('rw', db.files, async () => {
