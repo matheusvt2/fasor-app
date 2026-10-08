@@ -121,7 +121,13 @@ export function unmatchedFilters(filters: readonly string[], files: readonly str
     const located = /^(.*?):(\d+):?(\d+)?$/.exec(filter);
     const pattern = located ? located[1]! : filter;
     const literal = /^\/(.*)\/([gi]*)$/.exec(pattern);
-    const re = literal ? new RegExp(literal[1]!, literal[2]!.replace('g', '')) : new RegExp(pattern, 'i');
+    let re: RegExp;
+    try {
+      re = literal ? new RegExp(literal[1]!, literal[2]!.replace('g', '')) : new RegExp(pattern, 'i');
+    } catch {
+      // Not a valid pattern (Playwright refuses it as well): matched as plain text.
+      return !paths.some((path) => path.toLowerCase().includes(pattern.toLowerCase()));
+    }
     return !paths.some((path) => re.test(path));
   });
 }
