@@ -238,10 +238,15 @@ describe('Home: relatório cards', () => {
     await database.sync_state.put(onDevice(R_FIELD_HERE));
 
     renderHome();
-    await waitFor(() => expect(cards()).toHaveLength(2));
+    // "On this device" comes from the sync_state live query, not the relatório rows' one:
+    // on a loaded machine both cards can be on screen in date order before it answers,
+    // so the wait is on the order itself, not on the card count (wave-1 gate, 2026-10-08).
+    await waitFor(() => {
+      expect(cards()).toHaveLength(2);
+      expect(cards()[0]).toHaveAttribute('data-relatorio', R_FIELD_HERE);
+      expect(cards()[0]).toHaveClass('is-current');
+    });
     const [first, second] = cards();
-    expect(first).toHaveAttribute('data-relatorio', R_FIELD_HERE);
-    expect(first).toHaveClass('is-current');
     // Story 12.2: "Continuar" is live; with no sheet on the relatório it opens the Sumário.
     expect(within(first!).getByRole('button', { name: 'Continuar' })).not.toHaveAttribute('aria-disabled');
     expect(first!.querySelector('.btn-reason')).toBeNull();
@@ -299,9 +304,12 @@ describe('Home: relatório cards', () => {
     const next = await screen.findByRole('button', { name: 'Continuar: SEC-02 · 1 de 2' });
     expect(next.querySelector('.tabular')).toHaveTextContent('SEC-02 · 1 de 2');
     const card = cards()[0]!;
-    expect(card.querySelector('.card-state .progress-counter')).toHaveTextContent('1 de 2 fichas');
-    expect(card.querySelector('.card-state .progress-counter')).toHaveAttribute('data-state', 'pending');
-    expect(card.querySelector('.card-title')).toHaveAttribute('aria-label', 'Seguradora Exemplo · Blocos Norte e Sul, Em campo, 1 de 2 fichas');
+    // The counter is Home's blocks live query, not the "Continuar" target's: either can land first.
+    await waitFor(() => {
+      expect(card.querySelector('.card-state .progress-counter')).toHaveTextContent('1 de 2 fichas');
+      expect(card.querySelector('.card-state .progress-counter')).toHaveAttribute('data-state', 'pending');
+      expect(card.querySelector('.card-title')).toHaveAttribute('aria-label', 'Seguradora Exemplo · Blocos Norte e Sul, Em campo, 1 de 2 fichas');
+    });
 
     // The pointer wins, live.
     await writeLastSheet(database, R_FIELD_HERE, done.id);
@@ -330,12 +338,13 @@ describe('Home: relatório cards', () => {
       expect(cards()).toHaveLength(1);
       expect(cards()[0]?.querySelector('.card-title')).toHaveTextContent('Seguradora Exemplo · Blocos Norte e Sul');
       expect(cards()[0]?.querySelector('.card-meta')).toHaveTextContent('06–08/09/2026 · Cabine primária — padrão');
+      // The device line is the sync_state live query's, another one again (wave-1 gate, 2026-10-08).
+      // The stamp is from 07/09; the suite runs on a later day, so the kernel dates it.
+      expect(cards()[0]?.querySelector('.card-device')).toHaveTextContent('No aparelho · atualizado 07/09 21:40');
     });
     const card = cards()[0]!;
     expect(card.querySelector('.card-state .status-pill')).toHaveAttribute('data-status', 'em-campo');
     expect(card.querySelector('.card-state .sync-badge')).toHaveClass('is-compact');
-    // The stamp is from 07/09; the suite runs on a later day, so the kernel dates it.
-    expect(card.querySelector('.card-device')).toHaveTextContent('No aparelho · atualizado 07/09 21:40');
     // Story 12.2: a relatório on this device carries its "n de N fichas" (none here). Its
     // own live query can land after the card's first lines on a loaded machine (E3-A4).
     await waitFor(() => expect(card.querySelector('.progress-counter')).toHaveTextContent('0 de 0 fichas'));
