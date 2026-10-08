@@ -2,10 +2,10 @@
 title: 'Review fixes 2026-10-08: no photo fails silently (empty reading, visible camera failures, wake lock, camera return)'
 type: 'bugfix'
 created: '2026-10-08'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'e2527c8e4ade1462d449d7c71c37e43875b625ba'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -13,7 +13,14 @@ context:
   - '{project-root}/AGENTS.md'
 warnings: ['batched', 'oversized']
 # batched: the coordinator cut one batch (r8cap) for the photo-capture and reading-wait findings of the 2026-10-08 review; they share camera-view.tsx, plate-photo.tsx, reading-line.tsx and read-display.tsx.
-deferred: []
+deferred:
+  - summary: >-
+      A reread that reads nothing after an earlier run's (now discarded) suggestions reads `done`, not `empty`, on the plate and on a display target (E10, E11).
+    evidence: |-
+      `plateReadingView` and `targetLine` decide `empty` from any suggestion row citing the photo; after "Cancelar" (rows discarded) and "Ler de novo", a reread with zero rows still finds the first run's discarded rows and shows no line. Telling runs apart needs the photo's latest `reading_run_id`, which the photo row does not carry (a contract change, out of this round).
+    location: >-
+      packages/domain/src/relatorio/plate-suggestions.ts plateReadingView; packages/domain/src/relatorio/measurement-suggestions.ts targetLine
+    severity: medium
 ---
 
 <intent-contract>
@@ -158,3 +165,12 @@ Layers: Edge Case Hunter and Verification Gap Reviewer (Blind Hunter and Intent 
 - `pnpm lint`, `pnpm static`, `pnpm test:unit` (narrow with a path while iterating), `pnpm test:api` -- expected: green.
 - `pnpm exec tsx scripts/e2e.ts e2e/review-photo-failures.spec.ts e2e/read-display.spec.ts <other touched specs> --project desktop-chrome --project durability-desktop-chrome` under the host lock -- expected: green.
 - Mutation runs for FLD-V1, DE-2, FLD-1 and DG-4 (revert the fix, show the named test red, restore): record each command and outcome in the report.
+
+## Auto Run Result
+
+- **Summary:** the kernel "empty" reading view (plate, display cells, thermo-hygrometer) with "Nada foi lido nesta foto", "Fotografar de novo" (one shot of the same target; the plate retake cancels the older plate readings on this device once its shot is stored) and the type-instead action; a failed burst shot said in `.cam-hint` (with the next-row hint kept) instead of a toast under the scrim; "Salvando a foto…" / "Salvando as fotos…" with the shutter and "Concluir" disabled until the view closes; the camera's focus return with `preventScroll`; the reading wait counted only once the server holds the bytes (`readingWaitStart`); "Manter o digitado" beside "Substituir" and a discard on a typed (or "Criar") different value; the pending plate row as `PlatePhotoRow`'s pending variant on `useServerReachable`; one `useNowIso`; a screen wake lock (sheet, camera, reading waits, panel wait) with a 10 min idle cap behind the device-local "Manter a tela ligada" switch in Conta.
+- **Files:** kernel `plate-suggestions.ts`, `measurement-suggestions.ts`, `reading/wait.ts`, new `prefs/wake-lock.ts`; web `camera-view.tsx`, `use-photo-capture.ts`, `plate-photo.tsx`, `photo-openers.tsx`, `nameplate-section.tsx`, `nameplate-suggestions.tsx`, `read-display.tsx`, `reading-line.tsx`, `panel-capture.tsx`, `ficha-surface.tsx`, `account-surface.tsx`, `db/prefs.ts`, `input/focus-restore.ts`, new `input/use-screen-wake-lock.ts`, new `state/now-iso.ts`, `copy/pt-br.ts`, `copy/ui.ts`, `styles/app.css` (one r8cap block); tests: new `e2e/review-photo-failures.spec.ts` (R8CAP-E2E-001 to 009), `read-display.spec.ts` 9.1-E2E-006 (now `@p0`, asserts the hint), `reading-wait.spec.ts` 13.5-E2E-001/006 (push a `queued` status op so the wait counts), unit tests for every kernel rule, the camera, the wake lock, the capture report and the components.
+- **Review:** 25 findings; 17 patched in one loop (E1, E5, E6, E8, E9, E14, E16, V1-V9), 2 deferred (E10, E11: a reread that reads nothing after a discarded earlier run, needs the latest `reading_run_id` on the device), 6 rejected (E2, E3, E4, E7, E12, E13, E15 as logged above; E12 and E15 also listed as known open in the PR).
+- **Follow-up review recommended:** true. Seven medium entries were patched. The specific unverified risk is the camera's session ownership, which was rewritten after the review and not reviewed again. It covers `finish` ending only its own session, `cameraSays` bound to the shot's session, and `onShot` moved to the `'saved'` report. New unit cases cover it, and so do R8CAP-E2E-001, 9.1-E2E-006 and the 22 gate specs.
+- **Verification:** the story gate on d544a8a (pre-merge): lint 0 errors, 24 warnings (main's baseline), static clean, test:unit 3162/3162, test:api green, 22 touched specs on desktop-chrome + durability-desktop-chrome 133/133. It was re-run after merging origin/main (PR #117); the PR body carries the final output. Mutation runs (fix reverted, test red, restored): FLD-V1 (camera-view unit), DE-2 (camera-view unit and R8CAP-E2E-003), DG-4 (plate-photo unit), FLD-1 (wake-lock unit, 6 red).
+- **Residual risks:** E10/E11 (deferred); a thermo-hygrometer retake whose line moves to the other field unmounts its camera as it closes (photo still saved); the Sumário panel dialog's wait still counts from the capture; DB-4's close still waits for the GPS fix (deferred-work entry).
