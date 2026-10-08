@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import type { AccountResponse, UserProfile } from '@app/domain';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, configure, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { databaseName, openDatabase } from '../db/schema.ts';
 import { clearLastSession, readAiFeatures, readLastSession, readReAuthRequired, writeAiFeatures, writeLastSession, writeReAuthRequired } from './last-session.ts';
@@ -13,6 +13,11 @@ import { aiFeaturesOn, setAiFeaturesValue } from './ai-features.tsx';
  * the re-auth banner; and the registration is saved as the user's own ops on the device,
  * with no network call.
  */
+
+// E13-A2: the waits here end on the provider's boot, which opens the user's Dexie database
+// on fake-indexeddb; on a loaded gate host that took longer than Testing Library's 1 s
+// ("booting" at 1 s). A legitimately slow path, so this file, not the shared setup, gets 5 s.
+configure({ asyncUtilTimeout: 5_000 });
 
 const readSession = vi.fn<() => Promise<AccountResponse | null>>();
 const signIn = vi.fn();

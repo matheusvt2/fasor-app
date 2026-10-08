@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, getConfig, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -285,6 +285,13 @@ describe('13.1 the full-resolution capture', () => {
   });
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  // The takePhoto rejection tests below wait on Testing Library's default ceiling, so that
+  // ceiling must stay under the takePhoto timeout: a wait as long as the timeout would also
+  // pass on the timeout's fallback, and a capture that ignored the rejection would stay green.
+  it('waits on a default ceiling shorter than the takePhoto timeout (review 2026-10-08, PR #116)', () => {
+    expect(getConfig().asyncUtilTimeout).toBeLessThan(TAKE_PHOTO_TIMEOUT_MS);
   });
 
   it('asks for the environment camera at ideal 3840x2160, logs the track settings once, and the burst shot is the frame at the stream\'s size', async () => {

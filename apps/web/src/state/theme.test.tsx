@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, configure, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readTheme, writeTheme } from '../db/prefs.ts';
@@ -11,6 +11,11 @@ import { ThemeProvider, useTheme } from './theme.tsx';
  * UX-DR1: the override lives in the user's `local_prefs`, applies to the root element
  * with no reload, and survives a remount (which is what a page reload is here).
  */
+
+// E13-A2: every wait here is a `local_prefs` read or write on fake-indexeddb (the
+// provider's first read, a press's put), a legitimately slow path that passes Testing
+// Library's 1 s on a loaded gate host. Scoped to this file, as in the surface tests.
+configure({ asyncUtilTimeout: 5_000 });
 
 let database: AppDatabase | null = null;
 
