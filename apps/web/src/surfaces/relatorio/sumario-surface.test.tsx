@@ -826,4 +826,21 @@ describe('Review fixes 2026-10-08 (WEB-3): the Sumário rename says its refusal'
     const ops = await database.outbox.toArray();
     expect(ops.filter((op) => op.path === `equipment/${EQUIPMENT_CHAVE_ID}/tag`)).toEqual([]);
   });
+
+  it('the equipment removed on another device before "Salvar": the "gone" refusal toasts and nothing is written', async () => {
+    database = await seeded();
+    renderSumario(RELATORIO, syncState(), { renameEquipmentId: EQUIPMENT_CHAVE_ID });
+    const dialog = await screen.findByRole('dialog', { name: 'Renomear TAG SEC-TEST' });
+    const input = within(dialog).getByRole('textbox', { name: 'TAG' });
+    await userEvent.clear(input);
+    await userEvent.type(input, 'SEC-NOVO');
+    const save = within(dialog).getByRole('button', { name: 'Salvar' });
+    // Another device removed the equipment; the dialog has not re-read it yet.
+    const record = (await database.entities.get(['equipment', EQUIPMENT_CHAVE_ID]))!;
+    await database.entities.put({ ...record, removed_at: '2026-10-08T12:00:00.000Z', row: { ...(record.row as object), removed_at: '2026-10-08T12:00:00.000Z' } as never });
+    fireEvent.click(save);
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('A ficha mudou em outro aparelho; nada foi alterado.'));
+    const ops = await database.outbox.toArray();
+    expect(ops.filter((op) => op.path === `equipment/${EQUIPMENT_CHAVE_ID}/tag`)).toEqual([]);
+  });
 });

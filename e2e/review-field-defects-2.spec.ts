@@ -215,9 +215,9 @@ test('@p0 F-03 F-04 issuing with 93 empty sheets asks first, naming the counts; 
   // The Sumário names the empty sheets on row 9, and the foot says the issue asks first.
   const row9 = sumario(page).locator('li[data-row="section_9"]');
   await expect(row9.locator('.sum-status').first()).toContainText('93 fichas vazias', { timeout: 30_000 });
-  // DF-6 (review fixes 2026-10-08): the worker seed's Empresa and this client have no CNPJ, and no logo is registered.
+  // DF-6 (review fixes 2026-10-08): this client is named with no CNPJ; the worker seed has no Empresa (no CNPJ named for it) and no logo.
   await expect(page.locator('.sticky-action-bar .btn-reason').first()).toHaveText(
-    /^Nada impede gerar\. Emitir pede confirmação: 93 fichas vazias, \d+ campos? em branco, os CNPJs do contratante e da contratada em branco e o logo da empresa não cadastrado\.$/,
+    /^Nada impede gerar\. Emitir pede confirmação: 93 fichas vazias, \d+ campos? em branco, o CNPJ do contratante em branco e o logo da empresa não cadastrado\.$/,
   );
 
   // The dialog's own line, then the question with "Pré-visualizar" first.
@@ -226,7 +226,7 @@ test('@p0 F-03 F-04 issuing with 93 empty sheets asks first, naming the counts; 
   const statusBefore = (await outbox(page)).filter((row) => row.path === 'relatorio/status').length;
   await generateButton(page).click();
   const question = exportDialog(page).getByRole('group', {
-    name: /^Emitir com 93 fichas vazias, \d+ campos? em branco, os CNPJs do contratante e da contratada em branco e o logo da empresa não cadastrado\?$/,
+    name: /^Emitir com 93 fichas vazias, \d+ campos? em branco, o CNPJ do contratante em branco e o logo da empresa não cadastrado\?$/,
   });
   await expect(question).toBeVisible();
   await expect(question.getByRole('button')).toHaveText(['Pré-visualizar', 'Voltar', 'Emitir mesmo assim']);

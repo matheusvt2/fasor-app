@@ -197,6 +197,16 @@ describe('Review fixes 2026-10-08 (H-7, DE-6): a toast never covers the focused 
       keepClearOfToast(field, toast);
       expect(scrollBy).not.toHaveBeenCalled();
       dialog.remove();
+      // Taller than the room above the toast (a section host focused by a stepper jump): it
+      // scrolls only until its own top reaches the top of the page, never to its end.
+      document.body.append(field);
+      box.mockReturnValue(rect(100, 900));
+      keepClearOfToast(field, toast);
+      expect(scrollBy).toHaveBeenLastCalledWith({ top: 100, behavior: 'instant' });
+      scrollBy.mockClear();
+      box.mockReturnValue(rect(0, 900));
+      keepClearOfToast(field, toast);
+      expect(scrollBy).not.toHaveBeenCalled();
     } finally {
       scrollBy.mockRestore();
       field.remove();

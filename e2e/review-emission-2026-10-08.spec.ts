@@ -1,6 +1,6 @@
 import type { Page, Request } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
-import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readDeviceId, readStore, seedOutbox, serverOnlyOp } from './support/outbox.ts';
 import { setParecer } from './support/relatorio-flow.ts';
 import { newRelatorioDrafts, pushDrafts } from './support/relatorio-seed.ts';
@@ -85,8 +85,9 @@ test('@p0 R8E-E2E-001 with a dead op held, "Pré-visualizar" on the Sumário foo
   const popups: string[] = [];
   context.on('page', (opened) => popups.push(opened.url()));
 
-  // The Sumário foot.
+  // The Sumário foot, once the provider's first read of the outbox counts the dead op.
   await openSumario(page, relatorioId);
+  await expect(syncBadge(page)).toHaveAttribute('data-dead', '1', { timeout: 30_000 });
   const footPreview = bar(page).getByRole('button', { name: 'Pré-visualizar' });
   await footPreview.click();
   await expect(bar(page).getByRole('alert')).toHaveText('Há alterações rejeitadas — resolva em Sincronização antes de pré-visualizar.');
@@ -145,6 +146,31 @@ for (const size of [
       }, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
       expect(topmost, name).toBe(true);
     }
+    if (size.width !== 768) {
+      // Tab onto a control just under the now sticky bar: the page's scroll padding stops it above the bar.
+      const start = await page.evaluate(() => {
+        const barTop = document.querySelector('[data-route="/relatorio/:id"] .sticky-action-bar')!.getBoundingClientRect().top;
+        const tabbable = [...document.querySelectorAll<HTMLElement>('.overview-content button, .overview-content input, .overview-content [tabindex="0"]')].filter(
+          (element) => element.tabIndex >= 0 && element.getClientRects().length > 0 && !element.closest('[aria-hidden="true"]'),
+        );
+        const at = tabbable.findIndex((element) => element.getBoundingClientRect().bottom > barTop);
+        if (at <= 0) return null;
+        tabbable[at - 1]!.focus({ preventScroll: true });
+        tabbable[at - 1]!.setAttribute('data-r8e-start', '');
+        return at;
+      });
+      expect(start).not.toBeNull();
+      await page.keyboard.press('Tab');
+      const landed = await page.evaluate(() => {
+        const active = document.activeElement as HTMLElement;
+        const barTop = document.querySelector('[data-route="/relatorio/:id"] .sticky-action-bar')!.getBoundingClientRect().top;
+        return { moved: !active.hasAttribute('data-r8e-start'), inside: active.closest('.overview-content') !== null, bottom: active.getBoundingClientRect().bottom, barTop };
+      });
+      expect(landed.moved).toBe(true);
+      expect(landed.inside).toBe(true);
+      expect(landed.bottom).toBeLessThanOrEqual(landed.barTop + 1);
+      await page.evaluate(() => window.scrollTo(0, 0));
+    }
     const box = (await bar(page).getByRole('button', { name: 'Gerar relatório' }).boundingBox())!;
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await expect(exportDialog(page)).toBeVisible();
@@ -157,8 +183,9 @@ test('@p1 R8E-E2E-008 the issue confirmation and the foot reason name the blank 
   test.setTimeout(180_000);
   const relatorioId = await setUp(page);
   await setParecer(page, relatorioId);
-  // The worker's Empresa B has no CNPJ and no logo, and the client none either.
-  const gaps = 'os CNPJs do contratante e da contratada em branco e o logo da empresa não cadastrado';
+  // The client is named with no CNPJ ("CNPJ —"); the worker's company has no Empresa registered
+  // (its line prints "—" whole, so no CNPJ is named for it) and so no logo.
+  const gaps = 'o CNPJ do contratante em branco e o logo da empresa não cadastrado';
   await expect(bar(page).locator('.btn-reason').first()).toHaveText(new RegExp(`^Nada impede gerar\\. Emitir pede confirmação: 94 fichas vazias, \\d+ campos? em branco, ${gaps}\\.$`), { timeout: 30_000 });
   await bar(page).getByRole('button', { name: 'Gerar relatório' }).click();
   const modal = exportDialog(page);

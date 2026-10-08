@@ -528,8 +528,8 @@ export interface IssueConfirmation {
   emptySheets: number;
   blankFields: number;
   /**
-   * Review fixes 2026-10-08 (DF-6): the parties whose CNPJ Controle do documento prints as "—"
-   * (`partyLine`). Named in the question only when it is asked (empty sheets or blanks): they
+   * Review fixes 2026-10-08 (DF-6): the named parties whose CNPJ Controle do documento prints as
+   * "—" (`partyLine`'s "CNPJ —"; a missing party prints "—" whole and is not named here). Named in the question only when it is asked (empty sheets or blanks): they
    * never ask on their own (D1, EXPERIENCE.md, the trigger is unchanged).
    */
   blankCnpjs: readonly ('contratante' | 'contratada')[];
@@ -551,8 +551,11 @@ export function issueConfirmation(snapshot: RelatorioSnapshot, context: Pick<Pre
     }
   }
   const blankCnpjs: ('contratante' | 'contratada')[] = [];
-  if (blankText(snapshot.client?.cnpj)) blankCnpjs.push('contratante');
-  if (blankText(snapshot.empresa?.cnpj)) blankCnpjs.push('contratada');
+  // Exactly when `partyLine` prints "CNPJ —": the party is named and its CNPJ is blank (with no
+  // party at all the whole line prints "—", and the question does not name a CNPJ).
+  const cnpjDash = (party: { name: string; cnpj?: string | null } | null | undefined) => party != null && !blankText(party.name) && blankText(party.cnpj);
+  if (cnpjDash(snapshot.client)) blankCnpjs.push('contratante');
+  if (cnpjDash(snapshot.empresa)) blankCnpjs.push('contratada');
   const logoMissing = snapshot.empresa === null || snapshot.empresa.logo_file_id === null;
   return { emptySheets: emptySheetCount(snapshot.blocks), blankFields: blank.size, blankCnpjs, logoMissing };
 }

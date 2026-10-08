@@ -94,7 +94,7 @@ export function arrivalStep(
  * result dialog still waits (live, `reading_kind: 'panel'`), the Sumário with `?panel={photo}`,
  * which reopens that dialog on the proposal.
  */
-export async function arrivalTarget(db: AppDatabase, relatorioId: string, newest?: SuggestionRow): Promise<string> {
+export async function arrivalTarget(db: AppDatabase, relatorioId: string, newest?: SuggestionRow, announced?: ReadonlySet<string>): Promise<string> {
   const state = await relatorioState(db, relatorioId);
   if (state === null) return `/relatorio/${relatorioId}`;
   if (newest !== undefined) {
@@ -107,7 +107,12 @@ export async function arrivalTarget(db: AppDatabase, relatorioId: string, newest
   }
   const snapshot = relatorioSnapshotOf(state, relatorioId);
   const equipment = [...state.entries()].filter(([key]) => key.startsWith('equipment:')).map(([, row]) => row as EquipmentRow);
-  const blockId = firstSheetWithPendingSuggestions({ ...snapshot, equipment }, pendingSuggestions(suggestionRowsOf(state, relatorioId)));
+  const pending = pendingSuggestions(suggestionRowsOf(state, relatorioId));
+  const sheets = { ...snapshot, equipment };
+  // Review fixes 2026-10-08 (DC-4): the sheet the toast announced first (its rows still pending),
+  // so older suggestions of a sheet earlier in tree order never keep "Ver" away from it.
+  const own = announced === undefined ? null : firstSheetWithPendingSuggestions(sheets, pending.filter((row) => announced.has(row.id)));
+  const blockId = own ?? firstSheetWithPendingSuggestions(sheets, pending);
   return blockId === null ? `/relatorio/${relatorioId}` : `/relatorio/${relatorioId}/ficha/${blockId}`;
 }
 
@@ -135,7 +140,8 @@ const FOCUSABLE = 'button, input, select, textarea, [tabindex]:not([tabindex="-1
 
 /** "Ver" on the screen it leads to: the first pending suggestion of the page, scrolled to and focused. */
 export function focusFirstSuggestion(): void {
-  const first = document.querySelector<HTMLElement>('[data-suggestion-id], .suggestion-field[data-state="suggested"]');
+  // A nameplate cell already confirmed keeps its `data-suggestion-id`: it is not pending.
+  const first = document.querySelector<HTMLElement>('[data-suggestion-id]:not([data-state="confirmed"]), .suggestion-field[data-state="suggested"]');
   if (first === null) return;
   const target = first.matches(FOCUSABLE) ? first : (first.querySelector<HTMLElement>(FOCUSABLE) ?? first);
   first.scrollIntoView({ block: 'center' });
@@ -185,7 +191,8 @@ export function ReadingArrivals() {
   /** Withdraws every announcement the screen now shown has served; then announces `arrived`. */
   const review = useCallback(
     async (database: AppDatabase, rows: readonly SuggestionRow[], arrived: readonly SuggestionRow[]) => {
-      const screen = await arrivalScreen(database, where.current.pathname);
+      // A failed read never drops arrivals already taken out of `waiting`: they are announced as off screen.
+      const screen = await arrivalScreen(database, where.current.pathname).catch((): ArrivalScreen => ({ kind: 'other' }));
       if (announced.current?.db !== database) announced.current = { db: database, byText: new Map() };
       const held = announced.current.byText;
       for (const [text, ids] of held) {
@@ -196,14 +203,23 @@ export function ReadingArrivals() {
       if (arrived.length === 0) return;
       const { readings, captions } = arrivalsToAnnounce(arrived, screen);
       const say = (text: string, rowsSaid: readonly SuggestionRow[], onPress: () => void) => {
-        held.set(text, new Set([...(held.get(text) ?? []), ...rowsSaid.map((row) => row.id)]));
+        // The toast of this text now names these rows only (it replaces any earlier one of the same text).
+        const ids = new Set(rowsSaid.map((row) => row.id));
+        held.set(text, ids);
         // Not a press's answer: it waits behind a job outcome on screen (Q-1, R-1).
-        showToast(text, { action: { label: ui.readingArrival.open, onPress }, arrival: true });
+        showToast(text, {
+          action: { label: ui.readingArrival.open, onPress },
+          arrival: true,
+          onDismiss: () => {
+            if (held.get(text) === ids) held.delete(text);
+          },
+        });
       };
       if (readings.length > 0) {
         const newest = readings.reduce((a, b) => (a.id > b.id ? a : b));
+        const announcedIds = new Set(readings.map((row) => row.id));
         say(leiturasProntasText(arrivedReadingsCount(readings)), readings, () => {
-          void arrivalTarget(database, newest.relatorio_id, newest)
+          void arrivalTarget(database, newest.relatorio_id, newest, announcedIds)
             .then(open)
             .catch(() => undefined);
         });

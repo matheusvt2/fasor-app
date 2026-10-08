@@ -73,6 +73,12 @@ export function useAudit(relatorioId: string, timing: GenerateTiming = DEFAULT_T
 
   useEffect(() => () => void abortTap(), [abortTap]);
 
+  // The refusal stands while a dead op does: once none is left (resent and accepted), it goes.
+  const dead = sync.counts.dead;
+  useEffect(() => {
+    if (dead === 0) setBlocked(false);
+  }, [dead]);
+
   const run = useCallback(
     async (signal: AbortSignal) => {
       if (db === null) throw new Error('no device store');
@@ -173,6 +179,8 @@ export function useAudit(relatorioId: string, timing: GenerateTiming = DEFAULT_T
   }, [db, run]);
 
   const cancel = useCallback(() => {
+    // A refusal shown goes with the dialog; the next tap checks again.
+    setBlocked(false);
     if (!abortTap()) return;
     setBusy(false);
     setRequestFailed(false);

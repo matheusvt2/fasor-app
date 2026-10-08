@@ -331,7 +331,7 @@ describe('F-03 (review 2026-10-06, D1): empty sheets and blank fields ask before
     );
     // The section texts' placeholders, plus the cover's "[Responsável]" (no responsible yet).
     expect(labels.has('Responsável')).toBe(false);
-    expect(counts).toEqual({ emptySheets: 94, blankFields: labels.size + 1, blankCnpjs: ['contratante', 'contratada'], logoMissing: true });
+    expect(counts).toEqual({ emptySheets: 94, blankFields: labels.size + 1, blankCnpjs: [], logoMissing: true });
     expect(labels.size).toBeGreaterThan(1);
     expect(issueConfirmText({ emptySheets: 93, blankFields: 2, ...NO_GAPS })).toBe('Emitir com 93 fichas vazias e 2 campos em branco?');
     expect(issueConfirmText({ emptySheets: 1, blankFields: 0, ...NO_GAPS })).toBe('Emitir com 1 ficha vazia?');
@@ -378,6 +378,9 @@ describe('F-03 (review 2026-10-06, D1): empty sheets and blank fields ask before
     const counts = issueConfirmation({ ...snapshot, client: client as unknown as NonNullable<RelatorioSnapshot['client']>, empresa }, { now: NOW });
     expect(counts.blankCnpjs).toEqual(['contratante']);
     expect(counts.logoMissing).toBe(false);
+    // DF-6 review: a missing party prints "—" whole, so its CNPJ is not named; a nameless one neither.
+    expect(issueConfirmation({ ...snapshot, client: null, empresa: null }, { now: NOW }).blankCnpjs).toEqual([]);
+    expect(issueConfirmation({ ...snapshot, client: { ...client, name: '  ' } as unknown as NonNullable<RelatorioSnapshot['client']>, empresa: { ...empresa, cnpj: null } }, { now: NOW }).blankCnpjs).toEqual(['contratada']);
     const typed = issueConfirmation({ ...snapshot, client: { ...client, cnpj: '11222333000181' } as unknown as NonNullable<RelatorioSnapshot['client']>, empresa: { ...empresa, logo_file_id: null } }, { now: NOW });
     expect(typed.blankCnpjs).toEqual([]);
     expect(typed.logoMissing).toBe(true);

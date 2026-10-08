@@ -121,8 +121,11 @@ function Harness({ sync, open = true }: { sync: SyncState; open?: boolean }) {
 
 const SESSION_EXPIRED = 'Sua sessão expirou. Entre de novo para enviar.';
 
-/** DF-6 (review fixes 2026-10-08): the fixture's client has no CNPJ and the device no Empresa, so the question names them after its counts. */
-const IDENTITY_GAPS = ', os CNPJs do contratante e da contratada em branco e o logo da empresa não cadastrado';
+/**
+ * DF-6 (review fixes 2026-10-08): the fixture's client is named with no CNPJ ("CNPJ —") and the
+ * device has no Empresa (its whole line prints "—", so no CNPJ of it is named, but no logo either).
+ */
+const IDENTITY_GAPS = ', o CNPJ do contratante em branco e o logo da empresa não cadastrado';
 
 /** Counts the re-auth banner raises (`publishReAuth`) while `body` runs. */
 async function countReAuth(body: () => Promise<void>): Promise<number> {
@@ -1449,5 +1452,25 @@ describe('Review fixes 2026-10-08 (QW25): "Pré-visualizar" refuses a dead op an
     expect(within(dialog()).queryByText('Não foi possível gerar o rascunho. Os dados não foram alterados.')).toBeNull();
     open.mockRestore();
   });
-});
 
+  it('the refusal goes once no dead op is left, and with the dialog; the next press checks again', async () => {
+    database = await freshDb();
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const blocked = syncState({ counts: { dead: 1 } });
+    const { rerender } = render(<Harness sync={blocked} />);
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+    expect(await within(dialog()).findByText(DEAD_PREVIEW)).toBeVisible();
+    // Resent and accepted: no dead op any more.
+    rerender(<Harness sync={syncState({ counts: { dead: 0 } })} />);
+    await waitFor(() => expect(within(dialog()).queryByText(DEAD_PREVIEW)).toBeNull());
+    // Refused again, then the dialog closes and reopens: nothing stays from before.
+    rerender(<Harness sync={blocked} />);
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+    expect(await within(dialog()).findByText(DEAD_PREVIEW)).toBeVisible();
+    rerender(<Harness sync={blocked} open={false} />);
+    rerender(<Harness sync={blocked} open />);
+    expect(within(dialog()).queryByText(DEAD_PREVIEW)).toBeNull();
+    expect(open).not.toHaveBeenCalled();
+    open.mockRestore();
+  });
+});

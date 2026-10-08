@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: emission and export (barrier guards, visible refusals, toasts that never cover the field)'
 type: 'bugfix'
 created: '2026-10-08'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '66b476140e8d579fa2bd7426daa741b58c213ff8'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,21 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/review-fixes-2026-10-08-context.md'
 warnings: ['batched', 'oversized']
 # batched: the review-fixes round cuts its batches by surface (context row r8emit, Matheus 2026-10-08); these items share the Export dialog, the Sumário foot and the toast slot.
-deferred: []
+deferred:
+  - summary: >-
+      An env reading for a ficha whose cabine block is collapsed may be neither drawn nor announced.
+    evidence: |-
+      Edge Case Hunter, maybe-false: `suggestionOnScreen` treats every `location/{cabine}/env/*` row as on screen on any ficha of that cabine; settle by checking whether the collapsed "Da cabine" line draws a pending env suggestion.
+    location: >-
+      packages/domain/src/relatorio/arrivals.ts
+    severity: medium (unverified)
+  - summary: >-
+      A panel suggestion arriving while its Sumário ?panel= result dialog shows it is still announced by the arrival toast.
+    evidence: |-
+      Pre-existing: every arrival was announced before this batch; `ArrivalScreen` has no kind for the panel dialog.
+    location: >-
+      apps/web/src/state/reading-arrivals.tsx
+    severity: low
 ---
 
 <intent-contract>
@@ -109,6 +123,35 @@ deferred: []
 - Given a reading that lands for the open ficha, then no arrival toast; for another sheet, the toast's "Ver" opens it and the toast is gone there; a caption-only arrival reads "N legendas sugeridas" and "Ver" opens the gallery; none while on the gallery (`@p0`/`@p1`, R8E-E2E-005..007; kernel unit tests for the filter).
 - Given the issue confirmation asked with blank CNPJs and no logo, then the question and the foot reason name them (`@p1`, R8E-E2E-008, plus kernel units); given no empty sheet and no blank field, then no question (unit).
 - Given an invalid audit payload with a run row, then the row is failed with `finished_at` set (api integration).
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-10-08 — Review pass
+Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter, Intent Alignment (token economy; the integrated epic review covers them).
+- verdicts: 20 findings — high 1, medium 8, low 10, false 0, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` VG: an env reading for the open ficha's cabine (`arrivalScreen` deriving `cabineId`) has no web test — web unit case added (env row on the open ficha, no toast).
+  - `[medium]` `[patch]` VG: no test that an unmount aborts the audit tap — `unmount()` case added to `audit.test.tsx`.
+  - `[medium]` `[patch]` VG: no test that Tab onto a row of the now sticky Sumário stops above the bar — Tab leg added to R8E-E2E-002 at 390 and 1280 px.
+  - `[medium]` `[patch]` VG: the no-sticky-bar toast clearance rules of `app.css` are untested — R8E-E2E-003 leg on a page with no sticky bar.
+  - `[medium]` `[patch]` VG: the Sumário rename's "row gone" refusal has no test — unit case added.
+  - `[low]` `[patch]` VG other (grouped with ECH "confirmed field"): "Ver" can focus a confirmed nameplate cell carrying `data-suggestion-id` — selector excludes `data-state="confirmed"`.
+  - `[medium]` `[patch]` VG other: announcements held by text merge ids across a dismissed or replaced toast, so a later same-text toast is never served and stays over its fields — a new toast replaces its text's set; dismissing drops it.
+  - `[high]` `[patch]` ECH: `keepClearOfToast` scrolls a focused element taller than the room above the toast (a `.ficha-step` host focused by the stepper) to its end — the rule never scrolls past the element's own top and skips when it cannot fit.
+  - `[low]` `[patch]` ECH: `focusFirstSuggestion` picks a confirmed nameplate cell — same fix as the grouped VG row.
+  - `[low]` `[reject]` ECH: "Ver" on the shown address with nothing to focus only closes — the matrix row says "No suggestion element: closes only"; the Sumário fallback of `arrivalTarget` is pre-existing.
+  - `[medium]` `[patch]` ECH: "Ver" targets the first sheet with any pending suggestion, so an open ficha with older pending suggestions keeps it from opening the announced sheet — the target is computed among the announced rows still pending first.
+  - `[maybe-false]` `[defer]` ECH: an env suggestion on a ficha whose cabine block is collapsed may be neither drawn nor announced — settle by checking whether the collapsed "Da cabine" line draws a pending env suggestion (if true: medium, unverified).
+  - `[low]` `[defer]` ECH: a panel suggestion arriving while its Sumário `?panel=` dialog shows it is still announced — pre-existing (every arrival was announced before); needs a screen kind for the panel dialog.
+  - `[low]` `[reject]` ECH: one pull with captions of two relatórios counts both while "Ver" leads to one gallery — one engineer works one relatório at a time; the fix adds grouping.
+  - `[low]` `[reject]` ECH: readings and captions in one pull announce only the readings — one toast at a time; the captions stay on the gallery line and Sumário row 7; listed as known open.
+  - `[low]` `[reject]` ECH: a route change during the `arrivalScreen` read judges the screen just left — a milliseconds window; the fix adds a re-check loop.
+  - `[low]` `[patch]` ECH: `arrivalScreen` rejecting drops arrivals — `.catch` to `{ kind: 'other' }`.
+  - `[low]` `[patch]` ECH: the `blocked` refusal stays after the dead op is gone or across a close/reopen — cleared when `counts.dead` is 0 and on `cancel()`.
+  - `[low]` `[patch]` ECH: with no client or no empresa the question names a blank CNPJ while the whole party prints "—" — named only for a party with a name and a blank CNPJ.
+  - `[medium]` `[patch]` ECH: before the first outbox read `counts.dead` is 0, so a press right after load opens and closes a tab and R8E-E2E-001 can flake — the e2e waits for the Sync badge's `data-dead="1"`; the product race (a tab flash, the refusal still shown by the drain) is inherent to opening the tab inside the press.
 
 ## Design Notes
 

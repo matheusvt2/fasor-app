@@ -93,6 +93,12 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
 
   useEffect(() => () => void abortPress(), [abortPress]);
 
+  // The refusal stands while a dead op does: once none is left (resent and accepted), it goes.
+  const dead = sync.counts.dead;
+  useEffect(() => {
+    if (dead === 0) setPhase((current) => (current.kind === 'blocked' ? { kind: 'idle' } : current));
+  }, [dead]);
+
   const run = useCallback(
     async (press: Press) => {
       if (db === null) throw new Error('no device store');
@@ -182,7 +188,9 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
   }, [db, run]);
 
   const cancel = useCallback(() => {
+    // A press in flight stops; a refusal shown goes with the dialog, and the next press checks again.
     if (abortPress()) setPhase({ kind: 'idle' });
+    else setPhase((current) => (current.kind === 'blocked' ? { kind: 'idle' } : current));
   }, [abortPress]);
 
   return { phase, online: sync.online, start, cancel };

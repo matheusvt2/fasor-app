@@ -171,7 +171,8 @@ function gapPx(): number {
 
 /**
  * Review fixes 2026-10-08 (H-7): the focused element, when the toast's box overlaps it, scrolls
- * until it ends `--sp-3` above the toast's top edge. Elements inside the toast or a dialog
+ * until it ends `--sp-3` above the toast's top edge, never past its own top (the page's
+ * `scroll-padding-top`): an element taller than the room above the toast keeps its start in view. Elements inside the toast or a dialog
  * (which sits over the toast) are left alone.
  */
 export function keepClearOfToast(target: Element | null, toast: HTMLElement): void {
@@ -182,7 +183,13 @@ export function keepClearOfToast(target: Element | null, toast: HTMLElement): vo
   const over = toast.getBoundingClientRect();
   const overlaps = box.bottom > over.top && box.top < over.bottom && box.right > over.left && box.left < over.right;
   if (!overlaps) return;
-  window.scrollBy({ top: Math.ceil(box.bottom - over.top + gapPx()), behavior: 'instant' });
+  // Never past the element's own top (under the App bar): a section host focused by a stepper
+  // jump is taller than the room above the toast, and must land at its start, not its end.
+  const topInset = Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop);
+  const room = box.top - (Number.isFinite(topInset) ? topInset : 0);
+  const by = Math.min(Math.ceil(box.bottom - over.top + gapPx()), Math.floor(room));
+  if (by <= 0) return;
+  window.scrollBy({ top: by, behavior: 'instant' });
 }
 
 /** Runs the focused-element rule when a toast is displayed and whenever the focus moves while it is up. */

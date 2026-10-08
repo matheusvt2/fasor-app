@@ -86,11 +86,18 @@ async function removeFromViewer(page: Page, tile: Locator): Promise<void> {
   await expect(toast(page).getByRole('button', { name: 'Desfazer' })).toBeVisible();
 }
 
+/** The viewer of the photo tapped opened; it is closed again. */
+async function viewerOpened(page: Page): Promise<void> {
+  await expect(page.getByRole('dialog', { name: /^Foto \d+ de \d+$/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.photo-viewer')).toHaveCount(0);
+}
+
 /**
  * At the end of the page, the last row's centre is its own (not the toast's), and a tap there
- * opens it: the viewer of that photo.
+ * acts (`acted`: by default the viewer of that photo opens).
  */
-async function lastRowClearOfToast(page: Page, last: Locator): Promise<void> {
+async function lastRowClearOfToast(page: Page, last: Locator, acted: () => Promise<void> = () => viewerOpened(page)): Promise<void> {
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await page.waitForTimeout(300);
   const box = (await last.boundingBox())!;
@@ -103,9 +110,7 @@ async function lastRowClearOfToast(page: Page, last: Locator): Promise<void> {
   const toastBox = (await toast(page).boundingBox())!;
   expect(centre.y).toBeLessThan(toastBox.y);
   await page.mouse.click(centre.x, centre.y);
-  await expect(page.getByRole('dialog', { name: /^Foto \d+ de \d+$/ })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.photo-viewer')).toHaveCount(0);
+  await acted();
 }
 
 test('@p0 R8E-E2E-003 at 390 px an undo toast leaves the last photo rows of the ficha strip and of the gallery reachable: their centres are not under it and a tap opens them', async ({ page }) => {
@@ -129,6 +134,21 @@ test('@p0 R8E-E2E-003 at 390 px an undo toast leaves the last photo rows of the 
   await expect(galleryItems(page)).toHaveCount(5);
   await lastRowClearOfToast(page, galleryItems(page).last().getByRole('button', { name: /^Foto \d+, abrir$/ }));
   await expect(toast(page)).toBeVisible();
+
+  // A page with no Sticky action bar (the tree at 390): its room after the content and its
+  // scroll padding come from the toast alone. "Agrupar por tipo" leaves an undo toast up.
+  await page.goto(`/relatorio/${relatorioId}/arvore`);
+  const tree = page.getByRole('list', { name: 'Árvore do relatório' });
+  await expect(tree).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-route="/relatorio/:id/arvore"] .sticky-action-bar')).toHaveCount(0);
+  for (let expand = tree.getByRole('button', { name: /^Expandir / }); (await expand.count()) > 0; ) await expand.first().click();
+  await tree.getByRole('button', { name: 'Mais opções de Cubículo Enel' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'Agrupar por tipo na seção 9' }).or(page.getByRole('menuitem', { name: 'Agrupar por tipo na seção 9' })).click();
+  await expect(toast(page).getByRole('button', { name: 'Desfazer' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight)).toBe(true);
+  await lastRowClearOfToast(page, tree.locator('button.tree-body').last(), async () => {
+    await expect(page).toHaveURL(/\/ficha\/[0-9a-f-]{36}$/);
+  });
 });
 
 test('@p0 R8E-E2E-004 a field focused where a toast appears scrolls clear of it: it ends fully above the toast\'s top edge, still focused', async ({ page }) => {

@@ -382,4 +382,36 @@ describe('Review fixes 2026-10-08 (QW25): the audit\'s barrier guards', () => {
     expect(auditButton()).not.toHaveAttribute('aria-disabled');
     expect(within(dialog()).queryByText('Não foi possível conferir agora.')).toBeNull();
   });
+
+  it('unmounting while the tap drains aborts it: no POST after', async () => {
+    database = await freshDb();
+    const db = database;
+    await db.outbox.put(outboxRow('pending'));
+    const slow = { pollMs: 20, retryMs: 50 };
+    const sync = syncState();
+    const { unmount } = render(<Harness sync={sync} timing={slow} />);
+    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Conferir antes de emitir' }));
+    await waitFor(() => expect(sync.syncNow).toHaveBeenCalled());
+    unmount();
+    await db.outbox.clear();
+    await new Promise((resolve) => setTimeout(resolve, slow.retryMs * 6));
+    expect(sync.audit).not.toHaveBeenCalled();
+  });
+
+  it('the refusal goes once no dead op is left, and with the dialog', async () => {
+    database = await freshDb();
+    const blocked = syncState({ counts: { dead: 1 } });
+    const { rerender } = render(<Harness sync={blocked} />);
+    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Conferir antes de emitir' }));
+    expect(await within(dialog()).findByText(DEAD)).toBeVisible();
+    rerender(<Harness sync={syncState({ counts: { dead: 0 } })} />);
+    await waitFor(() => expect(within(dialog()).queryByText(DEAD)).toBeNull());
+    rerender(<Harness sync={blocked} />);
+    await userEvent.click(auditButton());
+    expect(await within(dialog()).findByText(DEAD)).toBeVisible();
+    rerender(<Harness sync={blocked} open={false} />);
+    rerender(<Harness sync={blocked} open />);
+    expect(within(dialog()).queryByText(DEAD)).toBeNull();
+    expect(blocked.audit).not.toHaveBeenCalled();
+  });
 });
