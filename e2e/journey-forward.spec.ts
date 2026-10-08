@@ -1,9 +1,10 @@
 import { artOrTrtLabel } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
-import { deviceDatabaseName, expect, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
 import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
+import { syncNowAndReturn } from './support/sync.ts';
 
 /*
  * 12.2-E2E: the forward path, driven as a person would. J0 resumes the last sheet from Home
@@ -49,18 +50,6 @@ function tapCounter() {
       return taps;
     },
   };
-}
-
-/** "Sincronizar agora" from the Sync status, until nothing is waiting, then back where it was. */
-async function syncNow(page: Page): Promise<void> {
-  const back = page.url();
-  await syncBadge(page).click();
-  const button = page.getByRole('button', { name: 'Sincronizar agora' });
-  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-  await button.click();
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: 30_000 });
-  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-  await page.goto(back);
 }
 
 /** An Em campo relatório of the standard template pushed from the office, its Sumário open. */
@@ -331,7 +320,8 @@ test('@p1 12.2-E2E-004 with no last sheet, "Continuar" opens the first sheet sti
   await pushDrafts(page, database, [
     officeDraft(account, { relatorioId }, `block/${first}/concluded_by`, { actor_id: account.userId, at: new Date().toISOString() }),
   ]);
-  await syncNow(page);
+  // TST-2: the shared helper waits until the tapped cycle is over, then goes back.
+  await syncNowAndReturn(page);
   const again = await firstCabineRows(page);
   await expect(again.nth(0).locator('.s9-state')).toHaveAttribute('data-state', 'ok', { timeout: 30_000 });
 

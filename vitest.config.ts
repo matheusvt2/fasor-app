@@ -11,6 +11,9 @@ import { defineConfig } from 'vitest/config';
  */
 export default defineConfig({
   test: {
+    // TST-V1 (review 2026-10-08): a focused `it.only` fails the run on every host, not only
+    // where `CI` is set (Vitest's default). Each project repeats it in its own config.
+    allowOnly: false,
     projects: [
       'packages/domain',
       'apps/web',
@@ -18,6 +21,7 @@ export default defineConfig({
         test: {
           name: 'tooling',
           include: ['scripts/**/*.test.ts'],
+          allowOnly: false,
           // F-GATE-1: the 5 s default timed out real runs of the CLI-spawning tests in this
           // project under normal machine load; 15 s gives them headroom without hiding a hang.
           testTimeout: 15_000,

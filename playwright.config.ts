@@ -32,6 +32,10 @@ const label = group ?? 'all';
 
 export default defineConfig({
   testDir: 'e2e',
+  // TST-V1 (review 2026-10-08): a stray `test.only` fails the run instead of turning the
+  // gate green on the one focused test. `scripts/e2e.ts` also fails a spec path that
+  // matched no test, and `scripts/e2e.test.ts` scans every test file for a focused test.
+  forbidOnly: true,
   // `list` for the terminal; the JSON report per group is what `scripts/e2e.ts` counts
   // (tests, outcomes, titles) for the run's summary.
   // `timing-reporter.ts` writes where each test spent its time (hooks vs body) per group.
