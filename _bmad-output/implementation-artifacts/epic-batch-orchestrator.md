@@ -134,6 +134,21 @@ overrides (they win over the workflow text):
   before its PR, and so does the epic's last story PR (E6-A2).~~ *(2026-09-30, Matheus, split gate E10-A1: a batch
   runs `pnpm verify` plus the Playwright specs it touched, targeted; `test:e2e:full` and the full matrix run once per
   wave on the integrated main, launched by the coordinator, and at the epic QA.)*
+- (2026-10-08, Matheus, E11-A1, story gate) The batch gate is lint, static, test:unit, test:api and the Playwright
+  specs the batch touched (plus its touched durability specs on the matrix projects under the E10-A4 condition); the
+  batch does NOT run the full `@p0` stage. Wherever this file says "the full `pnpm verify`" for a batch, read "the
+  story gate". The coordinator runs the full `@p0`, `test:e2e:full` and the matrix once per wave on the integrated
+  main. A failure called a flake still needs its failing state explained and a passing isolated run on the same
+  commit.
+- (2026-10-08, load rules) At most two batch stacks are up at a time. No Playwright run outside the host lock, not
+  even one targeted spec. The coordinator stops the main checkout's stack (`podman compose stop`) while batches run.
+- (2026-10-08, this macOS host) `docker` is not on PATH: use `podman compose`, and run the tools container with
+  `--user root`. `flock` is absent: use `lockf -t 20000 /tmp/fasor-verify.lock sh -c '...'`, started with `nohup`
+  so no tool time limit kills the wait, and poll the tagged log. Run the gate stage by stage from one tagged
+  `test-results/gate-<tag>/run.sh` that writes `summary.txt` lines `name exitcode` (PRs #103-#107 are the
+  precedent). Spec paths go before `--project` when calling `scripts/e2e.ts` directly. A new spec that times taps
+  against a render goes in `SERIAL_SPECS` or `scripts/e2e.test.ts` fails. Never `pkill` by a pattern that matches
+  another batch's processes.
 - Read files with offset/limit; do not re-read a file you just edited; do not cat whole large files.
 - No Playwright MCP browser pass in the batch (the integrated QA after the last merge does the human-style pass).
   The batch still covers each story's main ACs with Playwright specs tagged `@p0` (as a human would: clicks,
