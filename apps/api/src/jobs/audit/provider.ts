@@ -3,8 +3,8 @@ import { join } from 'node:path';
 import type { AuditRef } from '@app/domain';
 import { z } from 'zod';
 import { DEFAULT_BEDROCK_MODEL_ID, type Config } from '../../config.ts';
-import { assertPricedModel, BEDROCK_DEFAULT_REGION, bedrockClientSource, converseTool, type BedrockLike, type BedrockProviderOptions } from '../reading/providers/bedrock.ts';
-import { AiFeaturesOffError, PermanentReadingError } from '../reading/providers/errors.ts';
+import { assertPricedModel, BEDROCK_DEFAULT_REGION, bedrockClientSource, converseTool, type BedrockClientSource, type BedrockLike, type BedrockProviderOptions } from '../../ai/bedrock.ts';
+import { AiFeaturesOffError, PermanentReadingError } from '../../ai/errors.ts';
 import { AUDIT_MAX_TOKENS, AUDIT_PROMPT_VERSION, AUDIT_SYSTEM, AUDIT_TOOL, AUDIT_TOOL_DESCRIPTION, AUDIT_TOOL_SCHEMA, auditPrompt } from './prompt.ts';
 
 /*
@@ -12,7 +12,8 @@ import { AUDIT_MAX_TOKENS, AUDIT_PROMPT_VERSION, AUDIT_SYSTEM, AUDIT_TOOL, AUDIT
  * (`jobs/reading/providers/index.ts`): `AI_FEATURES=off` refuses every call permanently
  * whatever `LLM_PROVIDER` says; `fake` (the default) answers the canned findings of
  * `fixtures/fake-audit.json` with no cloud call; `bedrock` sends the assembled text through
- * the reading providers' Converse adapter (`converseTool`, Claude Haiku 4.5 by default). The
+ * the AI provider base's Converse adapter (`apps/api/src/ai/bedrock.ts` `converseTool`, Claude
+ * Haiku 4.5 by default), on the Bedrock client the reading uses when `main.ts` passes it. The
  * backend never uses a personal Claude subscription.
  *
  * The provider returns the model's raw findings list; the job keeps only the ones the kernel
@@ -111,8 +112,11 @@ export function bedrockAuditProvider(options: BedrockProviderOptions): AuditProv
 export interface AuditProviderOptions {
   /** The fake's fixture; defaults to the committed `fixtures/fake-audit.json`. */
   fixturePath?: string;
-  /** An injected Bedrock Runtime client (tests; nothing then reaches AWS), its timeout and its builder. */
-  bedrock?: { client?: BedrockLike; timeoutMs?: number; createClient?: (region: string) => BedrockLike };
+  /**
+   * An injected Bedrock Runtime client (tests; nothing then reaches AWS), its timeout and its
+   * builder; `source` (review 2026-10-08, API-3) is the reading's client source, used as is.
+   */
+  bedrock?: { client?: BedrockLike; timeoutMs?: number; createClient?: (region: string) => BedrockLike; source?: BedrockClientSource };
 }
 
 /** The audit provider the env names; with AI features off none is built (and no model is checked). */
@@ -122,11 +126,13 @@ export function createAuditProvider(
 ): AuditProvider {
   if (config.AI_FEATURES === 'off') return aiFeaturesOffAuditProvider();
   if (config.LLM_PROVIDER === 'fake') return fakeAuditProvider(options.fixturePath);
-  const source = bedrockClientSource({
-    region: config.BEDROCK_REGION ?? BEDROCK_DEFAULT_REGION,
-    ...(options.bedrock?.client === undefined ? {} : { client: options.bedrock.client }),
-    ...(options.bedrock?.createClient === undefined ? {} : { createClient: options.bedrock.createClient }),
-  });
+  const source =
+    options.bedrock?.source ??
+    bedrockClientSource({
+      region: config.BEDROCK_REGION ?? BEDROCK_DEFAULT_REGION,
+      ...(options.bedrock?.client === undefined ? {} : { client: options.bedrock.client }),
+      ...(options.bedrock?.createClient === undefined ? {} : { createClient: options.bedrock.createClient }),
+    });
   return bedrockAuditProvider({
     source,
     modelId: config.BEDROCK_MODEL_ID ?? DEFAULT_BEDROCK_MODEL_ID,

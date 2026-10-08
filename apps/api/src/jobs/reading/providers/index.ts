@@ -2,7 +2,8 @@ import type { OcrProvider, ProseProvider, StructuringProvider } from '@app/domai
 import { DEFAULT_BEDROCK_ESCALATION_MODEL_ID, DEFAULT_BEDROCK_MODEL_ID, DEFAULT_BEDROCK_PANEL_MODEL_ID, type Config } from '../../../config.ts';
 import type { ReadingKind } from '../payload.ts';
 import { DEFAULT_FIXTURES_DIR, fakeOcrProvider, fakeProseProvider, fakeStructuringProvider } from './fake.ts';
-import { BEDROCK_DEFAULT_REGION, bedrockClientSource, bedrockProseProvider, bedrockStructuringProvider, type BedrockLike } from './bedrock.ts';
+import { BEDROCK_DEFAULT_REGION, bedrockClientSource, type BedrockClientSource, type BedrockLike } from '../../../ai/bedrock.ts';
+import { bedrockProseProvider, bedrockStructuringProvider } from './bedrock.ts';
 import { ocrSvcProvider } from './ocr-svc.ts';
 import { TEXTRACT_DEFAULT_REGION, textractProvider, type TextractLike } from './textract.ts';
 import { aiFeaturesOffProseProvider, aiFeaturesOffStructuringProvider } from './unimplemented.ts';
@@ -72,8 +73,10 @@ export interface ReadingProviderOptions {
   /**
    * Story 11.6: an injected Bedrock Runtime client (tests; nothing then reaches AWS), the
    * Converse timeout in ms, and how the client is built from the region (tests spy on it).
+   * `source` (review 2026-10-08, API-3) is a client source built once by the caller and shared
+   * with the emission audit (`main.ts`), used as is in place of a new one.
    */
-  bedrock?: { client?: BedrockLike; timeoutMs?: number; createClient?: (region: string) => BedrockLike };
+  bedrock?: { client?: BedrockLike; timeoutMs?: number; createClient?: (region: string) => BedrockLike; source?: BedrockClientSource };
 }
 
 export function createReadingProviders(
@@ -98,11 +101,13 @@ export function createReadingProviders(
   const aiOff = config.AI_FEATURES === 'off';
   const bedrock = (() => {
     if (config.LLM_PROVIDER !== 'bedrock' || aiOff) return null;
-    const source = bedrockClientSource({
-      region: config.BEDROCK_REGION ?? BEDROCK_DEFAULT_REGION,
-      ...(options.bedrock?.client === undefined ? {} : { client: options.bedrock.client }),
-      ...(options.bedrock?.createClient === undefined ? {} : { createClient: options.bedrock.createClient }),
-    });
+    const source =
+      options.bedrock?.source ??
+      bedrockClientSource({
+        region: config.BEDROCK_REGION ?? BEDROCK_DEFAULT_REGION,
+        ...(options.bedrock?.client === undefined ? {} : { client: options.bedrock.client }),
+        ...(options.bedrock?.createClient === undefined ? {} : { createClient: options.bedrock.createClient }),
+      });
     const timeout = options.bedrock?.timeoutMs === undefined ? {} : { timeoutMs: options.bedrock.timeoutMs };
     const modelId = config.BEDROCK_MODEL_ID ?? DEFAULT_BEDROCK_MODEL_ID;
     const escalationModel = config.BEDROCK_ESCALATION_MODEL_ID ?? DEFAULT_BEDROCK_ESCALATION_MODEL_ID;

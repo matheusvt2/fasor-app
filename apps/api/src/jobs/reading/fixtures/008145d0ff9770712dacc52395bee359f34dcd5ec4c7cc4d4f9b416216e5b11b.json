@@ -261,12 +261,12 @@
       },
       {
         "id": "t23",
-        "text": "11/2020",
+        "text": "2020",
         "bbox": [
           642,
           590,
-          757,
-          613
+          712,
+          611
         ],
         "confidence": 0.99
       },
@@ -305,22 +305,22 @@
       },
       {
         "id": "t27",
-        "text": "13,8",
+        "text": "13.800",
         "bbox": [
           642,
           652,
-          703,
-          676
+          739,
+          673
         ],
         "confidence": 0.99
       },
       {
         "id": "t28",
-        "text": "kV",
+        "text": "V",
         "bbox": [
-          715,
-          652,
-          750,
+          749,
+          653,
+          769,
           672
         ],
         "confidence": 0.99
@@ -481,7 +481,7 @@
       },
       {
         "key": "data_fabricacao",
-        "value": "2020-11",
+        "value": "2020",
         "ocr_token_ids": [
           "t23"
         ],
@@ -490,8 +490,8 @@
       {
         "key": "tensao_nominal_at",
         "value": {
-          "raw": "13.8",
-          "unit": "kV",
+          "raw": "13800",
+          "unit": "V",
           "state": "measured"
         },
         "ocr_token_ids": [

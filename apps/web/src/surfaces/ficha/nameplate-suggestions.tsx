@@ -45,6 +45,7 @@ import { PhotoViewer } from '../photos/photo-viewer.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { firstFocusable, PLAIN_TEXT } from './ficha-fields.tsx';
 import { createWordOp, nameplateOp } from './ficha-ops.ts';
+import { now } from '../../clock.ts';
 import { newId } from '../../ids.ts';
 
 /*
@@ -236,7 +237,8 @@ export function useNameplateSuggestions({
 
   const type = (s: SuggestionRow, field: FieldDef, text: string): Promise<boolean> | 'invalid' | 'unchanged' => {
     if (text === fieldInputText(field, s.value)) return 'unchanged';
-    const parsed = parseFieldInput(field, text);
+    // PLN-13: a typed date over a suggestion takes what the plain field takes, a bare year included.
+    const parsed = parseFieldInput(field, text, { now: now() });
     if (!parsed.ok) return 'invalid';
     const value = parsed.value;
     // A manufacturer the registry does not hold is created with the typed put (one batch).

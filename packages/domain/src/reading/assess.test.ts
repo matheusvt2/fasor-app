@@ -87,6 +87,14 @@ describe('8.5-UNIT digit coverage (Story 8.5 AC 1)', () => {
     const value = { raw: '500', unit: 'kVA', state: 'measured' };
     expect(assessReadingValue({ field: number, value, cited, registry: none, verify: true }).trust).toBe('verify');
   });
+
+  it('AIR-1: a converted value is read through its printed text', () => {
+    const cited = [token(0, '13.800'), token(1, 'V')];
+    const value = { raw: '13.8', unit: 'kV', state: 'measured' };
+    expect(assessReadingValue({ field: number, value, cited, registry: none }).trust).toBe('verify');
+    expect(assessReadingValue({ field: number, value, cited, registry: none, printedText: '13800' }).trust).toBe('suggested');
+    expect(assessReadingValue({ field: number, value: { raw: '13.9', unit: 'kV', state: 'measured' }, cited, registry: none, printedText: '13900' }).trust).toBe('verify');
+  });
 });
 
 describe('8.5-UNIT registries (Story 8.5 AC 2)', () => {

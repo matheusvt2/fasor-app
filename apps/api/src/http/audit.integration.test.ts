@@ -36,8 +36,8 @@ import { runAuditJob, type AuditJobDeps } from '../jobs/audit/job.ts';
 import type { AuditPayload } from '../jobs/audit/payload.ts';
 import { AUDIT_PROMPT_VERSION, AUDIT_TOOL } from '../jobs/audit/prompt.ts';
 import { bedrockAuditProvider, createAuditProvider, type AuditProvider } from '../jobs/audit/provider.ts';
-import { bedrockClientSource, usdFor, type BedrockConverseOutput } from '../jobs/reading/providers/bedrock.ts';
-import { ProviderError } from '../jobs/reading/providers/errors.ts';
+import { bedrockClientSource, usdFor, type BedrockConverseOutput } from '../ai/bedrock.ts';
+import { ProviderError } from '../ai/errors.ts';
 import { createS3 } from '../storage/s3.ts';
 import { createApp } from './app.ts';
 
@@ -357,6 +357,28 @@ describe('13.8-API-001 one tap, one run, one job', () => {
     expect(failed).toMatchObject({ status: 'failed', error: 'provider_failed', findings: [] });
     expect(lines[0]).toMatchObject({ status: 'failed', error: 'provider_failed', error_class: 'ProviderError' });
     expect((await postAudit(app, relatorioId, lastOpId)).status).toBe(202);
+  });
+
+  it('API-V2 (review 2026-10-08): a denied Bedrock call fails the run as provider_refused, not invalid_output', async () => {
+    const sent: AuditPayload[] = [];
+    const app = appWith(sent);
+    const { relatorioId, lastOpId } = await relatorio(app);
+    expect((await postAudit(app, relatorioId, lastOpId)).status).toBe(202);
+    const denied = bedrockAuditProvider({
+      source: bedrockClientSource({
+        region: 'us-east-1',
+        client: {
+          async send() {
+            throw Object.assign(new Error('User is not authorized to perform: bedrock:InvokeModel'), { name: 'AccessDeniedException', $fault: 'client' });
+          },
+        },
+      }),
+      modelId: 'global.anthropic.claude-haiku-4-5-20251001-v1:0',
+    });
+    const lines = await auditLogLines(() => runAuditJob(jobDeps(denied), sent[0]!));
+    const [failed] = await runsOf(relatorioId);
+    expect(failed).toMatchObject({ status: 'failed', error: 'provider_refused', findings: [] });
+    expect(lines[0]).toMatchObject({ status: 'failed', error: 'provider_refused', error_class: 'ProviderRefusedError' });
   });
 });
 

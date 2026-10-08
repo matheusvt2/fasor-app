@@ -36,7 +36,7 @@ import {
   type BedrockConverseOutput,
   type BedrockLike,
 } from './bedrock.ts';
-import { isPermanentReadingError, PermanentReadingError, ProviderError, ProviderTimeoutError } from './errors.ts';
+import { isPermanentReadingError, PermanentReadingError, ProviderError, ProviderRefusedError, ProviderTimeoutError } from './errors.ts';
 
 /*
  * Story 11.6: the `bedrock` provider on hand-built Converse answers through an injected
@@ -250,6 +250,19 @@ describe('11.6 Bedrock: no tool_use or invalid JSON is permanent', () => {
   });
 });
 
+describe('AIR-1 and AIR-V1 (review 2026-10-08): the structuring prompt', () => {
+  it('asks for dates exactly as precise as printed and spells out the pt-BR separators; its version is 2', async () => {
+    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-2');
+    const client = replying([toolUse('record_values', plateValues)]);
+    await structurer(client).structure(plateInput);
+    const system = client.commands[0]!.input.system![0]!.text!;
+    expect(system).toContain('YYYY for a year alone');
+    expect(system).toContain('never add a month or a day');
+    expect(system).not.toContain('- date: YYYY-MM or YYYY-MM-DD.');
+    expect(system).toContain('"13.800" is 13800 and "1,5" is 1.5');
+  });
+});
+
 describe('11.6 Bedrock: throttling, 5xx and timeout are transient', () => {
   const transient: [string, unknown][] = [
     ['ThrottlingException', new ThrottlingException({ $metadata: {}, message: 'Too many tokens' })],
@@ -297,6 +310,8 @@ describe('11.6 Bedrock: access denied and a bad model id are permanent', () => {
     it(`${name} is permanent and names the AWS error`, async () => {
       const error = await failure(structurer(failingWith(thrown)).structure(plateInput));
       expect(error).toBeInstanceOf(PermanentReadingError);
+      // API-V2 (review 2026-10-08): a denied or misconfigured call is a refusal, not a bad answer.
+      expect(error).toBeInstanceOf(ProviderRefusedError);
       expect((error as Error).message).toContain((thrown as Error).name);
     });
   }

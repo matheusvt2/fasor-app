@@ -1,4 +1,5 @@
-import { dateFieldText, parseCalendarDate } from '../format/datetime.ts';
+import { plateDateAccepted } from '../checks/plate-date.ts';
+import { dateFieldText, parsePlateDateText } from '../format/datetime.ts';
 import { formatDecimalGroupedPtBr, parseDecimalPtBr } from '../parse/pt-br-number.ts';
 import { parseVoltageClassKv, type WordRow } from '../registry/word-row.ts';
 import type { BlockRow, Cell, JsonValue, RelatorioStatus, SuggestionRow } from '../schemas/entities.ts';
@@ -140,11 +141,17 @@ export function fieldInputText(field: Pick<FieldDef, 'kind'>, value: unknown): s
 /**
  * What the engineer typed into a suggested field, as the value its kind stores (AR-10), or
  * `{ok: false}` when it is not one (the kind's invalid helper shows and nothing is written).
- * Empty text is `null`. Number: `{raw, unit: field.unit, state: 'measured'}`; date:
- * `dd/mm/aaaa`, `mm/aaaa` or ISO; select: an option, ignoring case and accents; voltage
- * class: a kV number ("15", "17,5 kV").
+ * Empty text is `null`. Number: `{raw, unit: field.unit, state: 'measured'}`; date: what the
+ * plain date field takes (`parsePlateDateText`: `dd/mm/aaaa`, `mm/aaaa`, a bare `aaaa`, ISO or
+ * a digit run; PLN-13), refused outside 1900 .. next year when `options.now` is given
+ * (`plateDateAccepted`, F-22); select: an option, ignoring case and accents; voltage class: a
+ * kV number ("15", "17,5 kV").
  */
-export function parseFieldInput(field: Pick<FieldDef, 'kind' | 'unit' | 'options'>, text: string): { ok: true; value: JsonValue | null } | { ok: false } {
+export function parseFieldInput(
+  field: Pick<FieldDef, 'kind' | 'unit' | 'options'>,
+  text: string,
+  options: { now?: Date } = {},
+): { ok: true; value: JsonValue | null } | { ok: false } {
   const trimmed = text.trim();
   if (trimmed === '') return { ok: true, value: null };
   switch (field.kind) {
@@ -153,8 +160,9 @@ export function parseFieldInput(field: Pick<FieldDef, 'kind' | 'unit' | 'options
       return raw === null ? { ok: false } : { ok: true, value: { raw, unit: field.unit ?? null, state: 'measured' } };
     }
     case 'date': {
-      const iso = parseCalendarDate(trimmed);
-      return iso === null ? { ok: false } : { ok: true, value: iso };
+      const date = parsePlateDateText(trimmed);
+      if (date === null || (options.now !== undefined && !plateDateAccepted(date, options.now))) return { ok: false };
+      return { ok: true, value: date };
     }
     case 'select': {
       const wanted = normalizeRegistryName(trimmed);

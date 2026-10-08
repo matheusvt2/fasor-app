@@ -308,6 +308,15 @@ describe('8.1-UNIT the editable guess', () => {
     expect(parseFieldInput(def('date'), '31/02/2012')).toEqual({ ok: false });
     expect(parseFieldInput(def('date'), '13/2012')).toEqual({ ok: false });
     expect(parseFieldInput(def('date'), 'ontem')).toEqual({ ok: false });
+    // PLN-13: what the plain date field takes, a bare year and digit runs included, in the F-22 range.
+    const now = new Date('2026-10-08T12:00:00Z');
+    expect(parseFieldInput(def('date'), '2019', { now })).toEqual({ ok: true, value: '2019' });
+    expect(parseFieldInput(def('date'), '15032019', { now })).toEqual({ ok: true, value: '2019-03-15' });
+    expect(parseFieldInput(def('date'), '032019', { now })).toEqual({ ok: true, value: '2019-03' });
+    expect(parseFieldInput(def('date'), '2027', { now })).toEqual({ ok: true, value: '2027' });
+    expect(parseFieldInput(def('date'), '1850', { now })).toEqual({ ok: false });
+    expect(parseFieldInput(def('date'), '2028', { now })).toEqual({ ok: false });
+    expect(parseFieldInput(def('date'), '20/02/0001', { now })).toEqual({ ok: false });
     expect(parseFieldInput(select, 'epoxi')).toEqual({ ok: true, value: 'EPÓXI' });
     expect(parseFieldInput(select, 'a seco')).toEqual({ ok: true, value: 'Á SECO' });
     expect(parseFieldInput(select, 'vidro')).toEqual({ ok: false });

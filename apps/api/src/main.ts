@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server';
 import { createAuth } from './auth/auth.ts';
 import { parseTrustedOrigins } from './auth/trusted-origins.ts';
 import { loadConfigOrExit, rateLimitEnabled, requestLimits } from './config.ts';
+import { bedrockClientSource } from './ai/bedrock.ts';
 import { createDb } from './db/client.ts';
 import { migrate } from './db/migrate.ts';
 import { createApp } from './http/app.ts';
@@ -57,13 +58,16 @@ if (config.WORKER === '1') {
   // Story 8.4: the plate reading worker, on the providers the env names (both `fake` by default);
   // Story 11.7: `OCR_PROVIDER=textract` reads through TEXTRACT_REGION. Story 11.6:
   // `LLM_PROVIDER=bedrock` structures and writes prose through Converse in BEDROCK_REGION.
+  // Review 2026-10-08 (API-3): one Bedrock client per process, built on the first call, shared
+  // by the reading providers and the emission audit (neither builds one while it is unused).
+  const bedrock = { source: bedrockClientSource({ region: config.BEDROCK_REGION }) };
   await registerReadingWorker(boss, {
     db,
     s3,
     bucket: config.S3_BUCKET,
     now,
     newId,
-    providers: createReadingProviders(config),
+    providers: createReadingProviders(config, { bedrock }),
     aiFeatures: config.AI_FEATURES === 'on',
   });
   log('reading worker registered', {
@@ -83,7 +87,7 @@ if (config.WORKER === '1') {
   });
   // Story 13.8: the emission audit's worker, on the same pg-boss instance and the same
   // LLM_PROVIDER switch (`fake` by default); AI_FEATURES=off refuses every run permanently.
-  await registerAuditWorker(boss, { db, now, newId, provider: createAuditProvider(config) });
+  await registerAuditWorker(boss, { db, now, newId, provider: createAuditProvider(config, { bedrock }) });
   log('audit worker registered', { llm_provider: config.LLM_PROVIDER, ai_features: config.AI_FEATURES });
 }
 

@@ -81,13 +81,20 @@ export function buildReadingSuggestions(input: BuildReadingSuggestionsInput): Bu
       dropped.push({ key: field.key, reason: 'unknown_token' });
       continue;
     }
-    const normalized = normalizeReadingValue(field, structured.value);
+    const ordered = inTokenOrder(cited);
+    const normalized = normalizeReadingValue(field, structured.value, ordered);
     if (!normalized.ok) {
       dropped.push({ key: field.key, reason: normalized.reason });
       continue;
     }
-    const ordered = inTokenOrder(cited);
-    const assessed = assessReadingValue({ field, value: normalized.value, cited: ordered, registry: input.registry, verify: normalized.verify });
+    const assessed = assessReadingValue({
+      field,
+      value: normalized.value,
+      cited: ordered,
+      registry: input.registry,
+      verify: normalized.verify,
+      ...(normalized.printedText === undefined ? {} : { printedText: normalized.printedText }),
+    });
     const union = unionBox(ordered.map((token) => token.bbox))!;
     rows.push(
       suggestionRowSchema.parse({

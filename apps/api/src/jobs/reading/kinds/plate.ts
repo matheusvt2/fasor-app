@@ -62,7 +62,7 @@ export const plateHandler: ReadingKindHandler = {
     // images/plate-disjuntor-mt.png
     { block_type: 'disjuntor_mt', sha256: 'b0b6f663b5b5f869c2876b0c40af4bf6a6706875d24286b0a1d9d9bd22ae0b35' },
     // images/plate-tp.png
-    { block_type: 'tp', sha256: '92b72ab7e46fe04e7e0d6c06565e8ed9e86541a68ef170e55726edc37eff54d6' },
+    { block_type: 'tp', sha256: '008145d0ff9770712dacc52395bee359f34dcd5ec4c7cc4d4f9b416216e5b11b' },
     // images/plate-tc.png
     { block_type: 'tc', sha256: '0b5dce48ef09a2a08b164d75a69208fb645ba112302a1631cd299ef3d94618a5' },
   ],
