@@ -10,7 +10,7 @@ import {
   test,
 } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
-import { syncNowAndReturn } from './support/sync.ts';
+import { SYNC_CYCLE_TIMEOUT, syncNowAndReturn } from './support/sync.ts';
 
 /*
  * 3.2-E2E, 3.3-E2E and 3.4-E2E. The Templates surface and the Template composer, driven
@@ -32,6 +32,8 @@ async function openTemplates(page: Page): Promise<void> {
 const activeList = (page: Page) => page.getByRole('list', { name: 'Templates ativos' });
 const archivedList = (page: Page) => page.getByRole('list', { name: 'Templates arquivados' });
 const names = (list: Locator) => list.locator('.rr-primary');
+/** One template's row in a list, by its "Abrir template ⟨nome⟩" button: a test's own row, whatever else the list holds. */
+const templateRow = (list: Locator, name: string) => list.getByRole('button', { name: `Abrir template ${name}`, exact: true });
 
 /** Opens the composer of a template from the list, by its row. */
 async function openComposer(page: Page, name: string): Promise<void> {
@@ -302,6 +304,11 @@ test('@p0 3.4-E2E-001 builds a skeleton from "Novo template" and reorders a colu
   const paths = await outboxPaths(page, account.userId);
   expect(paths.length).toBeGreaterThan(5);
   expect(paths.every((path) => path.startsWith('template/'))).toBe(true);
+
+  // The reload's launch cycle pushes this "Novo template". It ends here, not in the next
+  // test on this worker: a push still in flight when the page closes lands in Empresa B
+  // whenever the server gets to it, which was inside 3.4-E2E-003's reset (wave-1 gate, 2026-10-08).
+  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: SYNC_CYCLE_TIMEOUT });
 });
 
 test('@p0 3.4-E2E-002 sets quantities per node with the palette stepper; the coluna and the totals follow', async ({ page, seed }) => {
@@ -382,7 +389,9 @@ test('@p0 3.4-E2E-003 section blocks reorder, duplicate and remove with undo; Ag
   const account = seed.companies[1];
   await signIn(page, account.email);
   await openTemplates(page);
-  await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME], { timeout: 30_000 });
+  // Its own row: a late write from an earlier test can still land in Empresa B after the
+  // reset, and this test is about the standard template's composition, not the list.
+  await expect(templateRow(activeList(page), STANDARD_TEMPLATE_NAME)).toBeVisible({ timeout: 30_000 });
   await openComposer(page, STANDARD_TEMPLATE_NAME);
   const tags = page.getByRole('list', { name: 'Blocos do template' }).locator('.block-tag');
   await expect(tags).toHaveText(['1', '2', '3', '4', '5', '6', '8', '10', '11']);
@@ -438,7 +447,7 @@ test('@p0 3.4-E2E-003 section blocks reorder, duplicate and remove with undo; Ag
     const tablet = await other.newPage();
     await signIn(tablet, account.email);
     await openTemplates(tablet);
-    await expect(names(activeList(tablet))).toHaveText([STANDARD_TEMPLATE_NAME], { timeout: 30_000 });
+    await expect(templateRow(activeList(tablet), STANDARD_TEMPLATE_NAME)).toBeVisible({ timeout: 30_000 });
     await openComposer(tablet, STANDARD_TEMPLATE_NAME);
     await expect(tablet.getByRole('switch', { name: 'Agrupar por tipo Cubículo Enel' })).toHaveAttribute('aria-checked', 'true');
     await expect(tablet.getByRole('list', { name: 'Blocos do template' }).locator('.block-tag')).toHaveText([
