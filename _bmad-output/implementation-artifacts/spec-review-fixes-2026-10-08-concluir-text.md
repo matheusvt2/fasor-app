@@ -125,6 +125,11 @@ deferred:
 - Trigger: r8conc-c16-4 (low). The MIN 16 paragraph in `version.ts` also names the basis rule; `audit.integration.test.ts:51` no longer says MIN 15. The PR body says that MIN 16 stops pulls, not pushes, and what the fold does with a contract-15 tablet's unflagged composed text.
 - KEEP: the narrowed contradiction rule, the basis-follows-the-text rule, `meta.composed`, contract 16 and every test and document of the earlier entries.
 
+### 2026-10-09 — re-check of the writer-side row (P1)
+- Trigger: a writer that rewrites on its own chain before pulling keeps the other side's marks (the seen-stamp rule), so the two status entries can share a value. (a) E edits; A concludes, then edits her own text before pulling: text EA with conflict E1, status `edited` with conflict `edited`. The writer-side row offered the composition against E1 and dropped EA. (b) A concludes; E edits, then taps "Substituir" before pulling: status `confirmed` with conflict `confirmed`. The EDITED side became E's composed text under "Editado". Amended: when the status value and the status `conflict` share a value, the row pairs each cell's value with its `conflict` (the round-3 way). `edited`/`edited`: two unflagged edited sides, standing = (text value, `edited`, basis value), displaced = (text `conflict` ?? text value, `edited`, basis `conflict` ?? basis value). `confirmed`/`confirmed`: both sides are the composition now, flagged `composed`. Writer sides apply only when one status entry is `confirmed` and the other `edited`, or when the status holds no `conflict`.
+- Trigger (low): a third tablet's same-value status put dropped the status `conflict`, so the EDITED side's basis fell back to the composition (a stale edited text read fresh after the pick). Amended: the EDITED basis falls back to the basis `conflict` before the composition.
+- KEEP: everything of the previous entry.
+
 ## Review Triage Log
 
 ### 2026-10-08 — Review pass
