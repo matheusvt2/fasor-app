@@ -428,9 +428,11 @@ function DateTextField({ field, value, commit, missing, label, after, flushOnUnm
     return parsed === null || !plateDateAccepted(parsed, now()) ? false : parsed;
   };
   /** Commits the typed date; false when it is refused (the invalid helper shows). */
-  const submit = (): boolean => {
-    // Enter committed this text and moved the focus on: the blur that follows writes it no second time.
-    if (submitted.current === text) return true;
+  const submit = (onBlur = false): boolean => {
+    // Enter committed this text and moved the focus on: the blur that follows writes it no second
+    // time. Only the blur skips it, so an Enter (Shift+Enter included) still re-commits a write the
+    // store refused (AD-8), as before.
+    if (onBlur && submitted.current === text) return true;
     const next = reading(text);
     pending.current = false;
     if (next === undefined) return true;
@@ -479,7 +481,7 @@ function DateTextField({ field, value, commit, missing, label, after, flushOnUnm
         }}
         onFocus={() => onFocusChange(true)}
         onBlur={() => {
-          submit();
+          submit(true);
           // Retries a write the store refused before (AD-8: the next blur commits it again).
           committer.blur();
           onFocusChange(false);

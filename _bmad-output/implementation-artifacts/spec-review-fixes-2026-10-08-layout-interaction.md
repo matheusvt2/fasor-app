@@ -131,6 +131,14 @@ deferred:
   - `[maybe-false]` `[reject]` ECH claim (low confidence): the E9-Q4 wrap left on confirmed cells may wrap the unit off the input's line for a wider value or narrower table — AC3/AC4 assert the shared line and the 8 px hit test on the real phone tables; settling it needs a value or table the seed does not draw; if true it would be low (the DB-2 guard and 48 px input still hold).
   - `[low]` `[patch]` Orchestrator: the DB-7 doc comment of `focusNextMissingField` sits above `let enterRunMoving` — patch: move it.
 
+### 2026-10-09 — Re-check of the loop's patches (process lesson P1)
+- layer: one blocking opus reviewer over the loop diff only (cc66ba3).
+- verdicts: 2 findings — high 0, medium 0, low 2, false 0, maybe-false 0
+- findings:
+  - `[low]` `[patch]` DateTextField: `submitted` was checked on every submit, so after a write the store refused (AD-8) a Shift+Enter (no blur) no longer re-committed it — patch (orchestrator): the skip applies only to the blur's submit (`submit(true)`); Enter and Shift+Enter re-commit as before.
+  - `[low]` `[patch]` deferred-work.md: the resolved TTR entry's evidence still listed the pre-fix 1223/945 px column widths as current — patch (orchestrator): marked as the measurement before the fix.
+- every other loop patch re-checked as fixing its finding with no new defect (commit-on-leave, the held-Enter swallow, the TTR wrap and `.mt-word`, R8LAY-E2E-014, the IME tests, the doc comment).
+
 ## Design Notes
 
 At 657 px (768 portrait with the 48 px strip, 1024 with the 320 px rail) the 8-column TTR cannot hold five 48 px-tall inputs of five digits at the value size plus TAP, Calculado and Condição: its whole-word minimum is about 800 px, so it scrolls inside its own box there (UX-DR40 "horizontal scroll as a last resort") with the title row and page still; from about 880 px (1280 with the rail) it fits. Cards at tablet widths or an auto-collapsing rail would contradict UX-DR40 ("real table at every width") and UX-DR74 ("tables in full in landscape") and are an open question, not this batch's choice.
