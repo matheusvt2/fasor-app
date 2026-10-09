@@ -143,7 +143,8 @@ export function useFichaActions({
           firstMissing = freshProgress.firstIncompleteStep ?? 'placa';
           return null;
         }
-        // The TAG the ficha and section 9 compose with: the fresh equipment row's, '' when none.
+        // The TAG the ficha's own text field composes with: the fresh project equipment row's
+        // (`useProjectEquipment`, the same source as Story 5.8's "Confirmar"), '' when none.
         const tag = fresh.equipment_id === null ? '' : (rows.equipment.find((row) => row.id === fresh.equipment_id)?.tag ?? '');
         const text = conclusionTextOnConclude(fresh, definition, tag);
         return [

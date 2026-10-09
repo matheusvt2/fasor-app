@@ -208,6 +208,25 @@ describe('7.5-UNIT preIssue: the rows the story adds', () => {
       expect(bothRows.find((r) => r.kind === 'conclusion_unconfirmed')?.text).toBe('1 ficha concluída sem texto de conclusão confirmado');
     });
 
+    it('names a live stale sheet the tree does not draw (no location) by its TAG, after the drawn ones; a removed one is never named', () => {
+      const snapshot = fresh();
+      const [first, second] = sheetOrder(snapshot);
+      const offTree = (b: BlockRow) => ({ ...concludedWith(snapshot, b, 'confirmed', false), location_id: null });
+      const both = withBlocks(
+        snapshot,
+        new Map([
+          [first!.blockId, offTree],
+          [second!.blockId, (b: BlockRow) => concludedWith(snapshot, b, 'confirmed', false)],
+        ]),
+      );
+      expect(sheetOrder(both).some((node) => node.blockId === first!.blockId)).toBe(false);
+      expect(staleRows(both).map((r) => r.text)).toEqual([`Textos de conclusão desatualizados: ${second!.name} e ${first!.tag}`]);
+      const alone = withBlocks(snapshot, new Map([[first!.blockId, offTree]]));
+      expect(staleRows(alone).map((r) => r.text)).toEqual([`Texto de conclusão desatualizado: ${first!.tag}`]);
+      const removed = withBlocks(snapshot, new Map([[first!.blockId, (b: BlockRow) => ({ ...offTree(b), removed_at: AT })]]));
+      expect(staleRows(removed)).toEqual([]);
+    });
+
     it('conclusionStaleText: singular and plural', () => {
       expect(conclusionStaleText(['SEC-C05'])).toBe('Texto de conclusão desatualizado: SEC-C05');
       expect(conclusionStaleText(['SEC-C05', 'TR-01'])).toBe('Textos de conclusão desatualizados: SEC-C05 e TR-01');

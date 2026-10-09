@@ -218,4 +218,5 @@ test('@p0 R8CONC-E2E-003 a TAG renamed after the conclude makes the confirmed te
   await openSumario(page, relatorioId);
   await expect(row9(page)).not.toContainText('Texto de conclusão desatualizado');
   await expect(row9(page)).not.toContainText('sem texto de conclusão confirmado');
+  expect(await exportWarnings(page)).toBe(warningsBefore);
 });

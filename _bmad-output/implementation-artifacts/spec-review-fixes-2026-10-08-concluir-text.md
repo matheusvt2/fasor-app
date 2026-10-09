@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: Concluir ficha confirms the composed conclusion text'
 type: 'feature'
 created: '2026-10-08'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'f0adf337eda97a933a3881f29281dfd32be94141'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -13,7 +13,14 @@ context:
   - '{project-root}/AGENTS.md'
 warnings: ['batched', 'oversized']
 # batched: the coordinator cut one batch (r8conc) for Decision 1 of the 2026-10-08 review: JRN-V1 (the fold) and AIB-1's stale row ship together, because the fold makes every concluded sheet carry a confirmed text, which is exactly what can later go stale.
-deferred: []
+deferred:
+  - summary: >-
+      The conclude composes with the project's equipment row even when it is removed (as the ficha's text field and Story 5.8's "Confirmar" do), while section 9 and pre-issue read only live equipment rows, so a live block whose equipment row is removed would get a text that reads stale at once.
+    evidence: |-
+      `use-ficha-actions.ts` conclude reads `rows.equipment` (project equipment, removed included, `relatorio-editor.ts:70-80`); `useProjectEquipment` feeds the ficha's `tag`; `buildSnapshot` keeps only live equipment rows (`schemas/snapshot.ts:132-133`) for `print/section-9.ts` and `preIssue`. Pre-existing divergence shared with the separate "Confirmar"; reaching it needs a live block whose equipment row was removed (a merge state). Settle by choosing one TAG source for the ficha, section 9 and pre-issue.
+    location: >-
+      apps/web/src/surfaces/ficha/use-ficha-actions.ts conclude; packages/domain/src/schemas/snapshot.ts buildSnapshot
+    severity: low
 ---
 
 <intent-contract>
@@ -91,6 +98,26 @@ deferred: []
 - Given J1 and J3 of the tap budget, when they run, then they stay within `TAP_BUDGET` (9 and 7 taps) and assert `text_status = confirmed` in the conclude batch.
 - Given a concluded sheet whose stored text no longer matches its values, when the Sumário or the Export dialog is opened, then section 9's row reads "Texto de conclusão desatualizado: <TAG>" (plural form naming every TAG), the sheet shows "Sugerido: texto atualizado — Substituir", and "Substituir" removes the row.
 - Given the conclude batch, when it is undone through the commit path's undo, then every field it wrote is restored to its prior value.
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-10-08 — Review pass
+- verdicts: 12 findings — high 0, medium 1, low 10, false 1, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` (verification-gap) The stale row's off-tree fallback naming and its `removed_at` exclusion have no test; deleting either stays green — patch: a `conclusion_stale` unit case with a live stale sheet outside the tree (named last by its TAG) and the same sheet tombstoned (no row).
+  - `[low]` `[patch]` (verification-gap, other) J2's `lastTextStatus === 'confirmed'` cannot show the conclude left the confirmed text alone — patch: assert the J2 conclude batch carries no `conclusion/text*` op.
+  - `[low]` `[defer]` (edge-case) The conclude takes the TAG from project equipment, removed rows included, while section 9 and pre-issue use live rows only — pre-existing divergence shared with the ficha's text field and Story 5.8's "Confirmar"; needs a live block whose equipment row is removed; deferred (frontmatter).
+  - `[low]` `[patch]` (edge-case) A stored text cell with a null `text_status` is overwritten by the conclude — the behavior is right (a null status is unconfirmed: the field shows the composed text and nothing prints), the JSDoc's "no text was stored yet" overstated it — patch: JSDoc reworded to "confirmed or edited".
+  - `[low]` `[reject]` (edge-case) Two stale sheets sharing a TAG read "SEC-01 e SEC-01" — a duplicated TAG already has its own `duplicate_tag` row on section 9; disambiguating names adds branches for a state the engineer is already told to fix.
+  - `[low]` `[reject]` (edge-case) The stale row's name list is unbounded — many concluded sheets going stale at once needs a change on each; a cap adds a branch and authored copy; listed as known open in the PR.
+  - `[low]` `[patch]` (edge-case) J2's assertion passes whether or not the conclude rewrote the text — same defect as the verification-gap "other" row; same patch.
+  - `[low]` `[patch]` (edge-case) R8CONC-E2E-003 never re-reads the Export dialog count after "Substituir" though its title says the dialog counts it "until it is tapped" — patch: the count equals the pre-rename count at the end.
+  - `[low]` `[reject]` (edge-case, claim) `conclusion_stale` is not in `EXPLICIT_KINDS`, so the Export dialog counts it instead of naming the TAG — the conservative reading chosen in this spec (its twin `conclusion_unconfirmed` is summarized too; "Ver no sumário" leads to row 9, which names the TAGs); fixing it edits the spec's Never list; listed as an open question in the PR.
+  - `[low]` `[patch]` (edge-case, claim) The comment above `tag` in `conclude` says it is the TAG section 9 composes with; section 9 reads live equipment only — patch: the comment names the ficha's own source (`useProjectEquipment`, as Story 5.8's "Confirmar").
+  - `[false]` `[reject]` (edge-case, claim) The undo test does not deep-equal the original because the undone fields are null cells — refuted as a defect: every reader treats a null cell as absent (`isCellFilled`, `storedText`), so the restored state reads exactly as before; the test asserts the values.
+  - `[low]` `[reject]` (edge-case, claim) No UI undo exists for the conclude batch — unchanged behavior (concluding never had an undo toast); the batch's inversion is covered by the kernel `invertBatch` test and the generic `undoBatch` tests; known open in the PR.
 
 ## Design Notes
 
