@@ -197,6 +197,8 @@ test('@p1 E5-A2-E2E-003 the Sticky action bar with the on-screen keyboard: above
   await page.setViewportSize({ width: 390, height: 844 });
   await openSeccionadora(page, context);
   await tap(page, stepper(page).getByRole('button', { name: /^Ensaios,/ }), info);
+  // As in E5-A2-E2E-002: the reading is tapped once the jump has landed, or the land takes the focus back.
+  await expect(page.locator('#ficha-step-ensaios')).toBeFocused();
   const reading = page.getByRole('textbox', { name: 'T1, Valor', exact: true });
   await tap(page, reading, info);
   await expect(reading).toBeFocused();
