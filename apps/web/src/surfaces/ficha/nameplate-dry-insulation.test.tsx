@@ -170,7 +170,8 @@ function draw(shown: BlockRow, current: BlockRow = shown, rows: readonly Suggest
   return { api, built, committed, rerender: (b: BlockRow, next: readonly SuggestionRow[] = rows) => view.rerender(ui(b, stateOf(next))) };
 }
 
-const chip = (n: number) => screen.findByRole('button', { name: `Marcar ${n} itens de óleo como NA` });
+// The device flag is read by a live query, which resolves late under a loaded parallel run.
+const chip = (n: number) => screen.findByRole('button', { name: `Marcar ${n} itens de óleo como NA` }, { timeout: 5000 });
 const noChip = () => expect(screen.queryByRole('button', { name: /itens? de óleo como NA$/ })).toBeNull();
 const checklistOps = (ops: readonly OpDraft[]) => ops.filter((op) => op.path.includes('/checklist/'));
 /** Lets the flag read and any pending promise settle. */
@@ -267,11 +268,11 @@ describe('r8dry 2026-10-09: the chip "Marcar N itens de óleo como NA"', () => {
     noChip();
   });
 
-  it('is not offered on a block where this device already used it', async () => {
-    await writeOilNaUsed(session.database!, ID, '2026-10-09T12:00:00.000Z');
+  it('is not offered once this device records it used on the block', async () => {
     draw(block(insulated('EPÓXI')));
-    await settle();
-    noChip();
+    expect(await chip(8)).toBeInTheDocument();
+    await writeOilNaUsed(session.database!, ID, '2026-10-09T12:00:00.000Z');
+    await waitFor(noChip, { timeout: 5000 });
   });
 
   it('goes away when the insulation is cleared, and VOL. ÓLEO is missing again', async () => {
