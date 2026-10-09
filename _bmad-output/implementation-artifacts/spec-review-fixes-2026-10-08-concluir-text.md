@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: Concluir ficha confirms the composed conclusion text'
 type: 'feature'
 created: '2026-10-08'
-status: 'done'
+status: 'in-progress'
 baseline_revision: 'f0adf337eda97a933a3881f29281dfd32be94141'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -117,6 +117,13 @@ deferred:
 - KEEP: everything of the earlier entries except the broader contradiction rule.
 
 - Re-check of the round (P1), two fixes: an emptied edited text (`''` committed on blur) merged by `filled_over_empty` keeps `''` on its side of the unit decision; and a concurrent `text_basis` put folds as `sequential` (it follows the text's latest writer) unless the `text_status` cell holds a `conflict`, so two edits or two confirms on different bases raise no decision.
+
+### 2026-10-09 — focused review of fd66fe3..fb95f81 (contract 16 not released yet: no further bump)
+- Trigger: r8conc-c16-1 (medium). An emptied edit written after the contradiction formed mixed two writes in the unit row (the typed text under "Confirmado", flagged composed on a pick; the composed text on neither side). Amended: the row is built from two writer sides, EDITED and COMPOSED, not from each cell's mark. COMPOSED is the text the app composes now (`composeConclusion`), status `confirmed`, its own basis, and its pick is flagged `composed`; its author is the `confirmed` status entry. EDITED is status `edited` with the edited text taken in this order: the text cell's `conflict` (a text contradiction only forms from a composed put over an edited text); else `''` when the text cell carries a `filled_over_empty` merge (the emptied edit); else the text cell's value when the status stands `edited`; else the text cell's value as the only text left (a contract-15 tablet's unflagged composed text replaced the edited one as `latest_text`; documented limit). EDITED's basis is the basis paired with the `edited` status entry (the basis value when the status value is `edited`, the basis `conflict` when the status `conflict` is `edited`), else the composition's. The standing side is COMPOSED when the text cell holds a `conflict`, else the side whose status the status cell shows. A pick's `meta.composed` comes from the picked side (COMPOSED), never from a companion status. Fold and view tests for edit, conclude, then an emptied edit, in both seq orders.
+- Trigger: r8conc-c16-2 (low). A third tablet's composed put while the text cell holds a `conflict` dropped the edited text (same_value or latest_text). Amended: a concurrent composed text put over a text cell holding a `conflict` (or a standing `edited` status) is protected before the same-value check; the put's value stands and the cell keeps its existing `conflict` (the edited text), so the edited side never drops out until "Aplicar". Three-device kernel test.
+- Trigger: r8conc-c16-3 (low). "Desfazer" after "Aplicar" lost the conclusion text cell's `filled_over_empty` merge record. Amended: the restore marks of a `sheet/{id}/conclusion/text` put also carry the `merge` record its apply cleared, and the sequential fold writes it back. `applyPickOps` + `invertBatch` round-trip test for the emptied case.
+- Trigger: r8conc-c16-4 (low). The MIN 16 paragraph in `version.ts` also names the basis rule; `audit.integration.test.ts:51` no longer says MIN 15. The PR body says that MIN 16 stops pulls, not pushes, and what the fold does with a contract-15 tablet's unflagged composed text.
+- KEEP: the narrowed contradiction rule, the basis-follows-the-text rule, `meta.composed`, contract 16 and every test and document of the earlier entries.
 
 ## Review Triage Log
 
