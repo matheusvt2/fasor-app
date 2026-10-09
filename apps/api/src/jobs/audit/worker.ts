@@ -53,10 +53,13 @@ async function recordInvalidPayload(deps: AuditJobDeps, data: unknown, queueJobI
     }
     const at = toIso(deps.now());
     const run = { run_id, company_id, relatorio_id: record.relatorio_id };
-    const result = await applyOps(deps.db, companyId, [auditRunPut(run, at, deps.newId, 'status', 'failed'), auditRunPut(run, at, deps.newId, 'error', 'audit_failed')], {
-      now: deps.now,
-      origin: 'server',
-    });
+    // Review fixes 2026-10-08 (API-V1): a failed run carries `finished_at`, as every other failure writer's does.
+    const result = await applyOps(
+      deps.db,
+      companyId,
+      [auditRunPut(run, at, deps.newId, 'status', 'failed'), auditRunPut(run, at, deps.newId, 'error', 'audit_failed'), auditRunPut(run, at, deps.newId, 'finished_at', at)],
+      { now: deps.now, origin: 'server' },
+    );
     if (result.rejected.length > 0) logError('audit invalid payload could not fail its run row', { ...fields, rejected: result.rejected });
   } catch (error) {
     logError('audit invalid payload could not fail its run row', { ...fields, error: String(error) });

@@ -126,6 +126,10 @@ test('@p0 E5-A2-E2E-002 phone 390: the M · G · T chips under a focused insulat
   await page.setViewportSize({ width: 390, height: 844 });
   const { blockId } = await openSeccionadora(page, context);
   await tap(page, stepper(page).getByRole('button', { name: /^Ensaios,/ }), info);
+  // The jump lands a frame or two after the tap (scroll, then the step takes the focus); a person
+  // taps the reading once it is there. Tapped before, the land took the focus back from the
+  // reading (r8emit gate, 2026-10-08: the step host focused, the reading "inactive").
+  await expect(page.locator('#ficha-step-ensaios')).toBeFocused();
   const reading = page.getByRole('textbox', { name: 'T1, Valor', exact: true });
   const chips = page.getByRole('group', { name: 'Unidade' });
   await expect(chips).toHaveCount(0);
@@ -193,6 +197,8 @@ test('@p1 E5-A2-E2E-003 the Sticky action bar with the on-screen keyboard: above
   await page.setViewportSize({ width: 390, height: 844 });
   await openSeccionadora(page, context);
   await tap(page, stepper(page).getByRole('button', { name: /^Ensaios,/ }), info);
+  // As in E5-A2-E2E-002: the reading is tapped once the jump has landed, or the land takes the focus back.
+  await expect(page.locator('#ficha-step-ensaios')).toBeFocused();
   const reading = page.getByRole('textbox', { name: 'T1, Valor', exact: true });
   await tap(page, reading, info);
   await expect(reading).toBeFocused();

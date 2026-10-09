@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Toast, type ToastAction, type ToastMessage } from '../components/toast.tsx';
+import { useInRouterContext, useLocation } from 'react-router';
+import { dropToastRoom, Toast, type ToastAction, type ToastMessage } from '../components/toast.tsx';
 import type { Timers } from '../input/field-commit.ts';
 
 /*
@@ -19,6 +20,11 @@ import type { Timers } from '../input/field-commit.ts';
  * not made to wait: it takes the slot at once, and the outcome it interrupts goes back to the
  * head of the queue and shows again, for its full 6 s, after it. A toast that arrived on its own
  * (`arrival`: a reading ready to confirm, a recovered draft) keeps waiting behind the outcome.
+ *
+ * Review fixes 2026-10-08 (H-7, DE-6): the queue and its timers are unchanged (an action toast
+ * still never expires on a timer). What changed is where a toast may sit: while one is up, the
+ * toast itself (`components/toast.tsx`) reserves its own height plus the `--sp-3` gap at the
+ * bottom of the page (`--toast-clearance`), and scrolls the focused field clear of it.
  */
 
 export const TOAST_TIMEOUT_MS = 6_000;
@@ -197,18 +203,31 @@ export function useToast(): ToastState {
   return value;
 }
 
+/** A route change drops the bottom room a toast left behind (review fixes 2026-10-08, DE-6). */
+function RoomOnRouteChange() {
+  const { pathname } = useLocation();
+  useEffect(() => dropToastRoom(), [pathname]);
+  return null;
+}
+
 /** The one place a toast is drawn, rendered once by the app shell. */
 export function ToastOutlet() {
   const { toast, dismissToast } = useToast();
-  if (toast === null) return null;
+  const routed = useInRouterContext();
+  // One stable tree: the route watcher is never remounted when a toast comes or goes.
   return (
-    <Toast
-      toast={toast}
-      onClose={dismissToast}
-      onDismiss={() => {
-        toast.onDismiss?.();
-        dismissToast();
-      }}
-    />
+    <>
+      {routed ? <RoomOnRouteChange /> : null}
+      {toast === null ? null : (
+        <Toast
+          toast={toast}
+          onClose={dismissToast}
+          onDismiss={() => {
+            toast.onDismiss?.();
+            dismissToast();
+          }}
+        />
+      )}
+    </>
   );
 }

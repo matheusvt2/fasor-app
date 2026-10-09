@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { instantiateTemplate, SERVER_DEVICE_ID, standardTemplate, type BlockRow, type LocationRow, type RelatorioRow, type SumarioRow } from '@app/domain';
-import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
-import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
+import { EQUIPMENT_CHAVE_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
+import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
 import { MemoryRouter, Route, Routes, useSearchParams } from 'react-router';
@@ -19,6 +19,7 @@ import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { GenerateAction } from './generate-action.tsx';
 import { SETTLE_TIMEOUT_MS } from './relatorio-editor.ts';
 import { RowBody } from './sumario-row.tsx';
+import { SyncRequestError } from '../../sync/client.ts';
 import { SumarioSurface } from './sumario-surface.tsx';
 
 /*
@@ -537,6 +538,21 @@ describe('4.3 SumarioSurface', () => {
     open.mockRestore();
   });
 
+  it('review fixes 2026-10-08: a foot preview refused because the session expired says so with "Entrar de novo", not the generic failure', async () => {
+    database = await seeded();
+    const tab = { location: { href: '' }, close: vi.fn(), opener: {} };
+    const open = vi.spyOn(window, 'open').mockImplementation(() => tab as unknown as Window);
+    const sync = syncState({ preview: vi.fn(async () => Promise.reject(new SyncRequestError({ kind: 'http', status: 401 }))) });
+    renderSumario(RELATORIO, sync);
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    const bar = document.querySelector('.sticky-action-bar') as HTMLElement;
+    await userEvent.click(within(bar).getByRole('button', { name: 'Pré-visualizar' }));
+    expect(await within(bar).findByText('Sua sessão expirou. Entre de novo para enviar.')).toBeVisible();
+    expect(within(bar).getByRole('button', { name: 'Entrar de novo' })).toBeVisible();
+    expect(within(bar).queryByText('Não foi possível gerar o rascunho. Os dados não foram alterados.')).toBeNull();
+    open.mockRestore();
+  });
+
   it('7.5: offline, the foot "Pré-visualizar" is disabled with the offline reason', async () => {
     database = await seeded();
     const open = vi.spyOn(window, 'open');
@@ -805,5 +821,42 @@ describe('13.8 the audit findings on the Sumário', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Gerar relatório' });
     await userEvent.click(await within(dialog).findByRole('button', { name: 'Ver Imagem 1' }));
     expect(await screen.findByTestId('fotos-route')).toHaveAttribute('data-volta', 'exportar');
+  });
+});
+
+describe('Review fixes 2026-10-08 (WEB-3): the Sumário rename says its refusal', () => {
+  it('a TAG taken in the store after the dialog checked it: "Salvar" toasts the refusal and writes nothing', async () => {
+    database = await seeded();
+    renderSumario(RELATORIO, syncState(), { renameEquipmentId: EQUIPMENT_CHAVE_ID });
+    const dialog = await screen.findByRole('dialog', { name: 'Renomear TAG SEC-TEST' });
+    const input = within(dialog).getByRole('textbox', { name: 'TAG' });
+    await userEvent.clear(input);
+    await userEvent.type(input, 'SEC-NOVO');
+    const save = within(dialog).getByRole('button', { name: 'Salvar' });
+    expect(save).not.toHaveAttribute('aria-disabled');
+    // Another device's equipment takes the TAG in the store; the dialog has not re-read it yet.
+    const other = { id: '019966c1-000e-7000-8000-000000000001', last_nameplate: null, project_id: portoSeguroSmall.projectId, removed_at: null, tag: 'SEC-NOVO', type: 'chave_seccionadora' };
+    await database.entities.put(toRecord(`equipment:${other.id}`, other as never));
+    fireEvent.click(save);
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('TAG já existe nesta obra — SEC-NOVO'));
+    const ops = await database.outbox.toArray();
+    expect(ops.filter((op) => op.path === `equipment/${EQUIPMENT_CHAVE_ID}/tag`)).toEqual([]);
+  });
+
+  it('the equipment removed on another device before "Salvar": the "gone" refusal toasts and nothing is written', async () => {
+    database = await seeded();
+    renderSumario(RELATORIO, syncState(), { renameEquipmentId: EQUIPMENT_CHAVE_ID });
+    const dialog = await screen.findByRole('dialog', { name: 'Renomear TAG SEC-TEST' });
+    const input = within(dialog).getByRole('textbox', { name: 'TAG' });
+    await userEvent.clear(input);
+    await userEvent.type(input, 'SEC-NOVO');
+    const save = within(dialog).getByRole('button', { name: 'Salvar' });
+    // Another device removed the equipment; the dialog has not re-read it yet.
+    const record = (await database.entities.get(['equipment', EQUIPMENT_CHAVE_ID]))!;
+    await database.entities.put({ ...record, removed_at: '2026-10-08T12:00:00.000Z', row: { ...(record.row as object), removed_at: '2026-10-08T12:00:00.000Z' } as never });
+    fireEvent.click(save);
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('A ficha mudou em outro aparelho; nada foi alterado.'));
+    const ops = await database.outbox.toArray();
+    expect(ops.filter((op) => op.path === `equipment/${EQUIPMENT_CHAVE_ID}/tag`)).toEqual([]);
   });
 });

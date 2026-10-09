@@ -85,6 +85,15 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   // Story 13.8 (AI-3): the optional AI pass, never automatic and never in the way of the issue.
   const aiFeatures = useAiFeatures();
   const audit = useAudit(relatorioId, timing);
+  // Review fixes 2026-10-08 (WDT-V1): the hooks stay mounted while the dialog is closed (the
+  // Sumário always renders it), so closing it stops a preview or an audit press in flight.
+  const { cancel: cancelPreview } = preview;
+  const { cancel: cancelAudit } = audit;
+  useEffect(() => {
+    if (isOpen) return;
+    cancelPreview();
+    cancelAudit();
+  }, [isOpen, cancelPreview, cancelAudit]);
   const { phase, relatorio, revisions, idleNumber, userNames, online } = state;
   const whoOf = (row: RevisionRow) => userNames[row.created_by] ?? null;
   const downloadingReasonId = useId();
@@ -445,7 +454,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                 <li>
                   <span className="pc-text">
                     {precheck.countText}
-                    <span className="pc-meta">{copy.export.countMeta}</span>
+                    <span className="pc-meta">{precheck.countMetaText}</span>
                   </span>
                   {onSeeInSumario === undefined ? null : (
                     <span className="pc-actions">
@@ -465,7 +474,13 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
             <p className="field-label">{copy.audit.heading}</p>
             <p className="audit-note">{copy.audit.note}</p>
             <AuditFindings run={audit.display.done} onSee={onSeeAuditTarget} />
-            {audit.failed ? (
+            {audit.blocked ? (
+              <div className="gen-error" role="alert">
+                <span>{copy.audit.deadOpsReason}</span>
+              </div>
+            ) : audit.sessionExpired ? (
+              <SessionExpiredNote />
+            ) : audit.failed ? (
               <div className="gen-error" role="alert">
                 <span>{copy.audit.failed}</span>
               </div>
@@ -518,7 +533,11 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
 
         {body}
 
-        {preview.phase.kind === 'failed' ? (
+        {preview.phase.kind === 'blocked' ? (
+          <div className="gen-error" role="alert">
+            <span>{copy.export.deadOpsPreviewReason}</span>
+          </div>
+        ) : preview.phase.kind === 'failed' ? (
           preview.phase.sessionExpired === true ? (
             <SessionExpiredNote />
           ) : (
