@@ -116,6 +116,8 @@ deferred:
 - Trigger: r8conc-merge-3 (one decision). The Conflict view shows `text`, `text_status` and `text_basis` as ONE "Texto da conclusão" row whenever any of the three holds a `conflict`; its two sides are (text, status, basis) triples, and "Aplicar" writes all three puts of the picked side (`applyPickOps`), so no resolution leaves an edited text marked confirmed or a composed text marked edited. A side whose status is `confirmed` but whose text has no durable `conflict` (an edited text that arrived later stood as `latest_text`) is the text the app composes now (`composeConclusion` on the block, its basis with it). Kernel test of each pick set; R8CONC-E2E-004 asserts the three cells after "Aplicar".
 - KEEP: everything of the earlier entries except the broader contradiction rule.
 
+- Re-check of the round (P1), two fixes: an emptied edited text (`''` committed on blur) merged by `filled_over_empty` keeps `''` on its side of the unit decision; and a concurrent `text_basis` put folds as `sequential` (it follows the text's latest writer) unless the `text_status` cell holds a `conflict`, so two edits or two confirms on different bases raise no decision.
+
 ## Review Triage Log
 
 ### 2026-10-08 — Review pass
@@ -180,3 +182,9 @@ Status: done (2026-10-09, branch `fix/review-2026-10-08-concluir-text`).
 - Gate note: the compose `api` dev server (`tsx watch`) does not reload `packages/domain` changes, so a first e2e run on the merged head met a server folding with the previous kernel (R8CONC-E2E-004 red, server cell `latest_text`). The api is restarted before every e2e run of the second gate.
 - `origin/main` 9027abf (#120) merged too (merge 3390670); r8dry's `anyAnswered` deferral no longer applies (Matheus's 2026-10-09 amendment of Decision 2: the oil NA marks come from a one-tap chip), so `anyAnswered` is unchanged.
 - Story gate on 3390670: lint, static, test:api 576, test:unit 3288, touched specs 82 passed (desktop-chrome and durability-desktop-chrome, api restarted first), matrix `lost-taps.durability.spec.ts` 13 passed and 1 skipped by design. Mutation runs (on 56e8df4, same mechanism files): fresh rows swapped for the rendered block turns `use-ficha-actions.test.tsx` red (12.1-E2E-004 stays green: timing-dependent, as the review predicted); the edited-text contradiction removed turns two `policy.test.ts` cases and R8CONC-E2E-004 red.
+
+### Third pass (2026-10-09, focused review of 794757a; contract 16 by Matheus)
+
+- `meta.composed` on a composed, confirmed conclusion text put (the conclude, "Confirmar", "Substituir"); `mergePolicy` makes only such a put over a standing `text_status = edited` a contradiction; two edits stay `latest_text`; the basis follows the text unless the status is in contradiction.
+- The Conflict view resolves text, status and basis as one "Texto da conclusão" decision (`conclusionTextConflict`, `applyPickOps` writes three puts; "Confirmado"/"Editado" in each side's meta).
+- `CONTRACT_VERSION` and `MIN_CONTRACT_VERSION` 16 with dated notes; `sync.integration.test.ts` answers a contract-15 pull 426; round context struck through and annotated; source-deltas row "FR-58 and Story 10.1"; `docs/kbs/log.md` line; deferred-work deploy entry (owner Matheus).
