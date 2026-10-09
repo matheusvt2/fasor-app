@@ -2,10 +2,10 @@
 title: 'Review fixes 2026-10-08: emission and export (barrier guards, visible refusals, toasts that never cover the field)'
 type: 'bugfix'
 created: '2026-10-08'
-status: 'in-review'
+status: 'done'
 baseline_revision: '66b476140e8d579fa2bd7426daa741b58c213ff8'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -164,3 +164,19 @@ Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter, 
 **Commands (inside the tools container, `podman compose --profile tools run --rm --user root tools ...`):**
 - `pnpm lint`, `pnpm static`, `pnpm test:unit`, `pnpm test:api` -- expected: green.
 - Targeted Playwright only under the host lock (orchestrator runs the gate): `pnpm exec tsx scripts/e2e.ts <spec> --project desktop-chrome --grep R8E` -- expected: green.
+
+## Auto Run Result
+
+Status: done (one review loop; story gate run by the orchestrator, results in the PR body).
+
+**Summary:** Preview and audit share `drainForServerJob` (dead-op, re-auth and abort guards); a dead op refuses both at the press with their own sentence; closing the dialog or unmounting aborts the press; the audit shows the sign-in note when the session is gone. The Sumário rename toasts its refusals and its foot bar is sticky. Kernel plurals for the precheck sentence and the "+N" chip; the issue confirmation names a named party's blank CNPJ and the missing logo when it asks (trigger unchanged). The audit worker's invalid payload writes `finished_at`. Toasts reserve their own height (`--toast-clearance`, scroll padding and bottom room) and scroll a focused field clear; reading arrivals skip what the screen draws, captions are their own toast, an announcement is withdrawn once served, and "Ver" on its own address focuses the first pending suggestion.
+
+**Files:** `apps/web/src/surfaces/export/{server-job.ts (new), use-preview.ts, use-audit.ts, export-dialog.tsx}` guards and refusals; `apps/web/src/surfaces/relatorio/{sumario-surface.tsx, relatorio.css}` rename refusal, sticky foot; `apps/web/src/components/toast.tsx`, `apps/web/src/state/toast.tsx`, `apps/web/src/styles/app.css` toast clearance and focused-field rule; `apps/web/src/state/{reading-arrivals.tsx, banner-slot.tsx}`; `apps/web/src/copy/pt-br.ts` two authored refusals, two keys moved to the kernel; `packages/domain/src/relatorio/{arrivals.ts (new), pre-issue.ts}`, `packages/domain/src/sync/status.ts`; `apps/api/src/jobs/audit/worker.ts` plus `worker.integration.test.ts`; e2e `review-emission-2026-10-08.spec.ts`, `review-toasts-2026-10-08.spec.ts`, `review-field-defects-2.spec.ts`.
+
+**Review:** 20 findings (high 1, medium 8, low 10, maybe-false 1); 14 patched (1 high, 8 medium, 5 low counted by row; the confirmed-field pair is one entry), 2 deferred (frontmatter), 4 rejected with reasons in the triage log.
+
+**Follow-up review recommended:** true. This first pass patched one high (the focused-field scroll for a tall element) and several mediums; the named unverified risk is the toast rule's interaction with section jumps and arrivals on a real tablet, which the wave's integrated QA browser pass should cover.
+
+**Verification:** implementer: lint, static, unit, api green; the 43 toast specs plus the new specs on both desktop projects (353 passed, 2 failing also on the base); mutation runs red for the press-time dead check, the cancel on close, the clearance write, the on-screen filter, the bottom-room CSS and each review-loop rule. Orchestrator: the story gate after merging origin/main 342911f (see the PR body).
+
+**Residual risks:** a pull carrying readings and captions announces only the readings; a press right after load, before the first outbox read, can flash and close a tab before the drain refuses; the deferred env-on-collapsed-cabine case.
