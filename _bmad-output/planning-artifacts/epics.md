@@ -3034,6 +3034,8 @@ So that the stories that follow have a mock to match and Bruno approves the prin
 
 **Definition of Done, in addition:** Matheus approves the mocks; Bruno sees the checklist surface and the printed table, and his answer is recorded under this story with its date.
 
+*(2026-10-09, Matheus approved the mocks: `prototype/screens/40`, `42`, `61`, `62`, `63`, the rail, and `key-print-section-9.html`. Bruno's answer on the checklist surface and the printed table is pending.)*
+
 ### Story 14.2: A local holds its equipment with no coluna
 
 **Dev model:** opus · **Effort:** ~~medium~~ high *(2026-10-09)* · ~~copy and composer and tree affordances; the kernel already allows a block on a root node (AD-6)~~ a third location kind in the kernel, the template skeleton, the composer, the tree and section 9 grouping (AD-6 amended 2026-10-09)

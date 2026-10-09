@@ -2,14 +2,28 @@
 /* Source: mockups/key-template-composer.html frame 1 (desktop: palette 400 px + composition) + frame 2 (tablet landscape: palette 320 px, one-column grids).
    Tablet portrait and phone are not in the mock: the palette stacks above the composition, collapsed behind its head (tap "Blocos" to open).
    v0.5.0: the composition carries the LOCATION SKELETON — cabines › colunas with equipment quantities per column (Quantity steppers), so every block of a new relatório is born in its column with its final TAG; no "Sem local".
+   2026-10-09 (Story 14.1): the skeleton has three levels, Local › Cabine › Coluna (sprint-change-proposal-2026-10-08.md § 8.1). A local card holds cabine cards;
+   a cabine card has its Função and holds coluna rows, or (no coluna, e.g. a masonry room) its equipment directly with "Adicionar equipamento".
+   Every level has the drag handle, a Position box and an Overflow menu. "Adicionar cabine" opens #tc-dlg-cabine (Função + Nome). The palette lists the two library types after the eight.
    Governs: EXPERIENCE.md § IA › Template composer; § Block Model › Template, Location, Sub-block ownership; § Component Patterns › Block palette (office; Quantity stepper per column), Block card, Tri-state (NA padrão); Flow 1 step 4. */
-/* Location skeleton: cabine cards expand into their columns; the selected column shows its steppers */
+/* Location skeleton: local cards expand into cabine cards, cabine cards into their columns (or their own equipment); the selected column shows its steppers */
 [data-route="/templates/porto-seguro"] .skeleton-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
-[data-route="/templates/porto-seguro"] .cabine-card .block-expand { padding-left: var(--sp-4); min-width: 0; max-width: 100%; }
+[data-route="/templates/porto-seguro"] .local-card > .block-expand, [data-route="/templates/porto-seguro"] .cabine-card > .block-expand { padding-left: var(--sp-4); min-width: 0; max-width: 100%; }
+/* Nested cards (a cabine inside its local) sit on the sunken surface so the two levels read apart */
+[data-route="/templates/porto-seguro"] .cabine-list > .cabine-card { background: var(--surface-base); }
+[data-route="/templates/porto-seguro"] .local-card .block-line .local-kicker { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+/* A cabine made current by "Adicionar equipamento": primary edge plus the word, like an open column */
+[data-route="/templates/porto-seguro"] .cabine-card.is-current { box-shadow: inset 4px 0 0 var(--primary); }
+[data-route="/templates/porto-seguro"] .cab-current { display: none; font-weight: 400; color: var(--primary); }
+[data-route="/templates/porto-seguro"] .cabine-card.is-current .cab-current { display: inline; }
+[data-route="/templates/porto-seguro"] .column-row .col-current { color: var(--primary); }
+[data-route="/templates/porto-seguro"] .cab-direct .table-title { margin-bottom: 0; }
 [data-route="/templates/porto-seguro"] .cabine-card .block-line .cabine-flag { font-size: var(--t-label-size); font-weight: var(--t-label-weight); }
 [data-route="/templates/porto-seguro"] .column-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-hairline); }
-[data-route="/templates/porto-seguro"] .column-row { border-bottom: 1px solid var(--border-hairline); }
-[data-route="/templates/porto-seguro"] .column-row .col-head { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--touch-field); width: 100%; text-align: left; padding: 0 var(--sp-2) 0 0; cursor: pointer; }
+[data-route="/templates/porto-seguro"] .column-row { border-bottom: 1px solid var(--border-hairline); display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--sp-2); }
+[data-route="/templates/porto-seguro"] .column-row > .col-pos, [data-route="/templates/porto-seguro"] .column-row > .col-pos-empty { flex: none; width: 56px; }
+[data-route="/templates/porto-seguro"] .column-row > .overflow-trigger { flex: none; }
+[data-route="/templates/porto-seguro"] .column-row .col-head { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--touch-field); flex: 1; min-width: 0; text-align: left; padding: 0 var(--sp-2) 0 0; cursor: pointer; }
 [data-route="/templates/porto-seguro"] .column-row .col-name { font-size: var(--t-body-size); font-weight: 600; min-width: 96px; }
 [data-route="/templates/porto-seguro"] .column-row .col-sum { flex: 1; min-width: 0; font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
 [data-route="/templates/porto-seguro"] .column-row .col-chev .ico { transition: transform .12s ease; color: var(--ink-secondary); }
@@ -17,7 +31,7 @@
 [data-route="/templates/porto-seguro"] .column-row.is-open { background: var(--focus-fill); border-left: 4px solid var(--primary); }
 [data-route="/templates/porto-seguro"] .column-row.is-open .col-head { padding-left: var(--sp-2); }
 [data-route="/templates/porto-seguro"] .column-row .col-body { display: none; padding: 0 var(--sp-3) var(--sp-3) var(--sp-3); }
-[data-route="/templates/porto-seguro"] .column-row.is-open .col-body { display: block; }
+[data-route="/templates/porto-seguro"] .column-row.is-open .col-body { display: block; flex-basis: 100%; }
 [data-route="/templates/porto-seguro"] .qty-grid { display: grid; grid-template-columns: 1fr; gap: 0 var(--sp-5); }
 .frame-desktop [data-route="/templates/porto-seguro"] .qty-grid { grid-template-columns: 1fr 1fr; }
 [data-route="/templates/porto-seguro"] .qty-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); min-height: var(--touch-field); border-top: 1px solid var(--border-hairline); }
@@ -58,13 +72,30 @@
 .frame-phone [data-route="/templates/porto-seguro"] .palette-collapse.is-open .palette-head { border-bottom-color: transparent; }
 .frame-tablet [data-route="/templates/porto-seguro"] .palette-items,
 .frame-phone [data-route="/templates/porto-seguro"] .palette-items { padding-bottom: var(--sp-3); }
+/* Palette target: the open coluna or the current cabine; with none, "Selecione uma cabine ou coluna." (CSS :has(), no JS) */
+[data-route="/templates/porto-seguro"] .pal-target { padding-top: 0; font-weight: 400; }
+[data-route="/templates/porto-seguro"] .pal-target b { color: var(--primary); }
+[data-route="/templates/porto-seguro"] .pal-none { display: none; }
+[data-route="/templates/porto-seguro"] .composer-layout:not(:has(.column-row.is-open, .cabine-card.is-current)) .pal-now { display: none; }
+[data-route="/templates/porto-seguro"] .composer-layout:not(:has(.column-row.is-open, .cabine-card.is-current)) .pal-none { display: inline; color: var(--ink-primary); font-weight: 600; }
 /* Composition */
 [data-route="/templates/porto-seguro"] .block-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
 [data-route="/templates/porto-seguro"] .block-card { flex-wrap: wrap; }
 [data-route="/templates/porto-seguro"] .block-card[data-toggle-class], [data-route="/templates/porto-seguro"] .block-card[data-open] { cursor: pointer; }
 /* D7 — Block card overflow menu (shared overlay, top right) and the Rich text editor of section blocks with boilerplate (office only) */
-[data-route="/templates/porto-seguro"] #tc-dlg-menu { align-items: flex-start; justify-content: flex-end; padding: calc(var(--touch-field) + var(--sp-3)) var(--sp-3) 0; }
-[data-route="/templates/porto-seguro"] #tc-dlg-menu .overflow-menu { box-shadow: var(--shadow-float); }
+[data-route="/templates/porto-seguro"] #tc-dlg-menu, [data-route="/templates/porto-seguro"] .tc-menu-scrim { align-items: flex-start; justify-content: flex-end; padding: calc(var(--touch-field) + var(--sp-3)) var(--sp-3) 0; }
+[data-route="/templates/porto-seguro"] #tc-dlg-menu .overflow-menu, [data-route="/templates/porto-seguro"] .tc-menu-scrim .overflow-menu { box-shadow: var(--shadow-float); }
+/* "Adicionar cabine": Função as option rows (two columns from tablet), "Outra" reveals its text field */
+[data-route="/templates/porto-seguro"] .tc-fn-options { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.frame-phone [data-route="/templates/porto-seguro"] .tc-fn-options { grid-template-columns: 1fr; }
+[data-route="/templates/porto-seguro"] .tc-fn-options .option-row { cursor: pointer; }
+[data-route="/templates/porto-seguro"] .tc-fn-options .option-row[aria-checked="true"] .radio { border-color: var(--primary); }
+[data-route="/templates/porto-seguro"] .tc-fn-options .option-row[aria-checked="true"] .radio::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--primary); }
+[data-route="/templates/porto-seguro"] #tc-dlg-cabine .tc-fn-other { display: none; }
+[data-route="/templates/porto-seguro"] #tc-dlg-cabine:has([data-fn="outra"][aria-checked="true"]) .tc-fn-other { display: flex; }
+[data-route="/templates/porto-seguro"] .tc-cabine-dialog { max-height: 100%; overflow: auto; }
+.frame-phone [data-route="/templates/porto-seguro"] .tc-cabine-dialog .dialog-actions { flex-direction: column-reverse; }
+.frame-phone [data-route="/templates/porto-seguro"] .tc-cabine-dialog .dialog-actions .btn { width: 100%; }
 [data-route="/templates/porto-seguro"] .overflow-menu .menu-item { cursor: pointer; }
 [data-route="/templates/porto-seguro"] .rich-dialog { width: min(720px, 100%); max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: var(--sp-4); }
 [data-route="/templates/porto-seguro"] .rich-dialog .dialog-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); }
@@ -79,10 +110,10 @@
 [data-route="/templates/porto-seguro"] .block-card .block-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); }
 [data-route="/templates/porto-seguro"] .block-card .block-expand { flex-basis: 100%; border-top: 1px solid var(--border-hairline); margin-top: var(--sp-3); padding: var(--sp-4) var(--sp-4) var(--sp-2) var(--touch-min); display: flex; flex-direction: column; gap: var(--sp-4); cursor: default; }
 .frame-phone [data-route="/templates/porto-seguro"] .block-card .block-expand { padding-left: var(--sp-3); padding-right: var(--sp-3); }
-[data-route="/templates/porto-seguro"] .block-card:not(.is-open) .block-expand { display: none; }
+[data-route="/templates/porto-seguro"] .block-card:not(.is-open) > .block-expand { display: none; }
 [data-route="/templates/porto-seguro"] .block-card.is-open { border-color: var(--primary); }
 [data-route="/templates/porto-seguro"] .block-card .card-chev .ico { transition: transform .12s ease; }
-[data-route="/templates/porto-seguro"] .block-card.is-open .card-chev .ico { transform: rotate(180deg); }
+[data-route="/templates/porto-seguro"] .block-card.is-open > .card-chev .ico { transform: rotate(180deg); }
 [data-route="/templates/porto-seguro"] .defaults-grid,
 [data-route="/templates/porto-seguro"] .items-grid,
 [data-route="/templates/porto-seguro"] .subtype-row { display: grid; grid-template-columns: 1fr; gap: 0 var(--sp-5); }
@@ -103,6 +134,13 @@
 [data-route="/templates/porto-seguro"] .combobox-option[role="option"] { cursor: pointer; }
 /* Phone: the whole card is the tap target, so the decorative chevron gives its 48 px back to the text */
 .frame-phone [data-route="/templates/porto-seguro"] .block-card .card-chev { display: none; }
+/* Phone: narrower Position boxes; a column's summary drops under its name */
+.frame-phone [data-route="/templates/porto-seguro"] .pos-box { width: 48px; padding: 0 var(--sp-1); }
+.frame-phone [data-route="/templates/porto-seguro"] .column-row > .col-pos, .frame-phone [data-route="/templates/porto-seguro"] .column-row > .col-pos-empty { width: 48px; }
+.frame-phone [data-route="/templates/porto-seguro"] .column-row .col-head { flex-wrap: wrap; gap: 0 var(--sp-2); }
+.frame-phone [data-route="/templates/porto-seguro"] .column-row .col-sum { order: 3; flex-basis: 100%; padding-bottom: var(--sp-2); }
+.frame-phone [data-route="/templates/porto-seguro"] .column-row .col-name { flex: 1; }
+.frame-phone [data-route="/templates/porto-seguro"] .local-card > .block-expand, .frame-phone [data-route="/templates/porto-seguro"] .cabine-card > .block-expand { padding-left: var(--sp-2); padding-right: var(--sp-2); }
 [data-route="/templates/porto-seguro"] .composer-main .section-head .section-note { margin: 0; }
 </style>
 <section class="screen" data-route="/templates/porto-seguro" data-title="Porto Seguro — Torres A e B" data-shell="app" data-rail="false">
@@ -126,8 +164,10 @@
         <button class="palette-item" data-toast="10 Conclusão já está no template"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>10 Conclusão</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
         <button class="palette-item" data-toast="11 Certificados já está no template"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>11 Certificados</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
 
-        <p class="palette-group" style="margin-top: var(--sp-3)">Equipamentos · toque para adicionar à coluna selecionada (Coluna 5)</p>
-        <!-- Office palette: each row adds one block of the type to the selected column of the skeleton; the count shown is the template total.
+        <p class="palette-group" style="margin-top: var(--sp-3)">Equipamentos</p>
+        <!-- Current target: the open coluna or the cabine whose "Adicionar equipamento" was tapped (Story 14.2). With none current, CSS :has() swaps in the prompt. -->
+        <p class="palette-group pal-target" aria-live="polite"><span class="pal-now">Toque para adicionar em: <b id="tc-pal-current">Coluna 5 · Cabine primária</b></span><span class="pal-none">Selecione uma cabine ou coluna.</span></p>
+        <!-- Office palette: each row adds one block of the type to the current coluna or cabine of the skeleton; the count shown is the template total.
              The prototype cannot increment, so the tap sets the next fixed value on Coluna 5's stepper (data-set-text). -->
         <button class="palette-item" data-set-text="#tc-c5-cbent|1" data-toast="Cabos de entrada adicionados à Coluna 5 · TAG CB-C05"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Cabos de entrada</span><span class="pi-meta">4 no template · 1 por cabine, na primeira coluna</span></span><span class="plus" aria-hidden="true">+</span></button>
         <button class="palette-item" data-set-text="#tc-c5-pr|1" data-toast="Para-raio adicionado à Coluna 5 · TAG PR-C05"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Para-raio</span><span class="pi-meta">5 no template · entrada / saída</span></span><span class="plus" aria-hidden="true">+</span></button>
@@ -137,7 +177,11 @@
         <button class="palette-item" data-set-text="#tc-c5-tc|2" data-toast="TC adicionado à Coluna 5 · TAG TC-C05-2"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>TC — proteção</span><span class="pi-meta">11 no template</span></span><span class="plus" aria-hidden="true">+</span></button>
         <button class="palette-item" data-set-text="#tc-c5-cbsai|1" data-toast="Cabos de saída adicionados à Coluna 5 · TAG CBS-C05"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Cabos de saída / alimentação TRn</span><span class="pi-meta">9 no template</span></span><span class="plus" aria-hidden="true">+</span></button>
         <button class="palette-item" data-set-text="#tc-c5-tr|1" data-toast="Transformador adicionado à Coluna 5 · TAG TR-C05"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Transformador de força</span><span class="pi-meta">8 no template · subtipo padrão: a seco</span></span><span class="plus" aria-hidden="true">+</span></button>
-        <p class="palette-group" style="margin-top: var(--sp-2)">Ao criar um relatório, cada bloco nasce na sua coluna com a TAG final sugerida (SEC-C05 na Coluna 5). Nada fica "sem local".</p>
+        <!-- The two library types (Story 14.5, sprint-change-proposal § 8.2–8.4) come after the eight; the document prints them under "Outros equipamentos" -->
+        <p class="palette-group" style="margin-top: var(--sp-2)">Outros equipamentos</p>
+        <button class="palette-item" data-set-text="#tc-c5-fap|1" data-toast="Fonte auxiliar da proteção adicionada à Coluna 5 · TAG FAP-C05"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Fonte auxiliar da proteção</span><span class="pi-meta">0 no template · 16 itens · subtipo padrão: no-break de comando</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-set-text="#tc-c5-cta|1" data-toast="Chave de transferência automática adicionada à Coluna 5 · TAG CTA-C05"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Chave de transferência automática</span><span class="pi-meta">0 no template · 17 itens · chave ASCO, BT ou MT</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <p class="palette-group" style="margin-top: var(--sp-2)">Ao criar um relatório, cada bloco nasce na sua coluna, ou na cabine quando ela não tem colunas, com a TAG final sugerida (SEC-C05 na Coluna 5). Nada fica "sem local".</p>
       </div>
     </aside>
 
@@ -149,126 +193,227 @@
         <span class="echo">Duplicado de Cabine primária — padrão (FO.SERV-03) · 02/09 · Bruno</span>
       </div>
 
-      <!-- ---------------- Location skeleton: cabines › colunas, quantities per column (Block Model › Template, Location; Flow 1 step 4) ---------------- -->
+<!-- ---------------- Location skeleton: Local › Cabine › Coluna (decided 2026-10-09, sprint-change-proposal-2026-10-08.md § 8.1; Story 14.1/14.2).
+           A local (room or place) holds one or more cabines; a cabine has a Função and zero or more colunas; equipment sits on a cabine or a coluna, never on a local.
+           Each level keeps the drag handle, the Position box and the Overflow menu. ---------------- -->
       <section class="section" aria-labelledby="tc-h-locais">
         <div class="section-head">
-          <h2 id="tc-h-locais">Esqueleto de locais · 6 cabines · 26 colunas · 94 blocos</h2>
-          <span class="section-note">Cada bloco do relatório nasce na sua coluna, com a TAG final (tipo + coluna)</span>
+          <h2 id="tc-h-locais">Esqueleto de locais · 6 locais · 7 cabines · 26 colunas · 94 blocos</h2>
+          <span class="section-note">Local › cabine › coluna. Cada bloco nasce na sua coluna, ou na cabine quando ela não tem colunas, com a TAG final</span>
         </div>
-        <ul class="skeleton-list block-list" aria-label="Cabines do template">
+        <ul class="skeleton-list block-list" aria-label="Locais do template">
 
-          <li class="block-card cabine-card" data-toggle-class="is-open">
+          <li class="block-card local-card" data-toggle-class="is-open">
             <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Cubículo Enel"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
-            <div class="block-body"><div class="block-line"><span class="block-name">Cubículo Enel</span><span class="cabine-flag">1 coluna · 9 blocos</span></div><span class="block-sub">Entrada: cabos de entrada · para-raio (2) · seccionadora (2) · TP · TC · disjuntor · cabos de saída · <span class="cabine-flag">Agrupar por tipo: desativado</span></span></div>
+            <input class="pos-box" type="text" inputmode="numeric" value="1" aria-label="Posição de Cubículo Enel entre os 6 locais — digite outro número para mover" data-toast="Cubículo Enel movido para a posição 1 de 6 — Desfazer">
+            <div class="block-body"><div class="block-line"><span class="local-kicker">Local</span><span class="block-name">Cubículo Enel</span><span class="cabine-flag">1 cabine · 1 coluna · 9 blocos</span></div><span class="block-sub">Cabine de entrada · Verificações do local: 19 itens, respondidos uma vez neste local</span></div>
             <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
-            <button class="overflow-trigger" data-toast="Renomear · Agrupar por tipo · Remover cabine — não prototipado" aria-label="Mais opções de Cubículo Enel"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+            <button class="overflow-trigger" data-open="#tc-dlg-loc-menu" data-set-text="#tc-cab-local|Cubículo Enel" aria-label="Mais opções de Cubículo Enel"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
             <div class="block-expand" data-toggle-class="is-touched">
-              <ul class="column-list" aria-label="Colunas de Cubículo Enel">
-                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Entrada</span><span class="col-sum">1 cabos de entrada · 2 para-raios · 2 seccionadoras · 1 TP · 1 TC · 1 disjuntor · 1 cabos de saída</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+              <ul class="skeleton-list cabine-list" aria-label="Cabines de Cubículo Enel">
+              <li class="block-card cabine-card" data-toggle-class="is-open">
+                <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Cabine de entrada em Cubículo Enel"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <input class="pos-box" type="text" inputmode="numeric" value="1" aria-label="Posição de Cabine de entrada entre as 1 cabines de Cubículo Enel — digite outro número para mover" data-toast="Cabine de entrada movida para a posição 1 de 1 em Cubículo Enel — Desfazer">
+                <div class="block-body"><div class="block-line"><span class="block-name">Cabine de entrada</span><span class="cabine-flag">1 coluna · 9 blocos</span></div><span class="block-sub">Função: entrada · cabos de entrada · para-raio (2) · seccionadora (2) · TP · TC · disjuntor · cabos de saída · <span class="cabine-flag">Agrupar por tipo: desativado</span></span></div>
+                <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+                <button class="overflow-trigger" data-open="#tc-dlg-cab-menu" aria-label="Mais opções de Cabine de entrada"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+                <div class="block-expand" data-toggle-class="is-touched">
+                  <ul class="column-list" aria-label="Colunas de Cabine de entrada">
+                    <li class="column-row"><input class="pos-box col-pos" type="text" inputmode="numeric" value="1" aria-label="Posição de Entrada em Cabine de entrada — digite outro número para mover" data-toast="Entrada movida para a posição 1 — Desfazer"><button class="col-head" data-toast="Só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Entrada</span><span class="col-sum">1 cabos de entrada · 2 para-raios · 2 seccionadoras · 1 TP · 1 TC · 1 disjuntor · 1 cabos de saída</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button><button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Entrada"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+                  </ul>
+                  <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 2 adicionada em Cabine de entrada — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+                </div>
+              </li>
               </ul>
-              <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 2 adicionada em Cubículo Enel — nomeie-a e ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+              <div class="skeleton-actions"><button class="btn btn-text" data-open="#tc-dlg-cabine" data-set-text="#tc-cab-local|Cubículo Enel"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar cabine</button></div>
             </div>
           </li>
 
-          <li class="block-card cabine-card is-open" data-toggle-class="is-open" id="tc-cab-subsolo">
+          <li class="block-card local-card is-open" data-toggle-class="is-open" id="tc-loc-subsolo">
             <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar 1° Subsolo"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
-            <div class="block-body"><div class="block-line"><span class="block-name">1° Subsolo</span><span class="cabine-flag">17 colunas · 55 blocos</span></div><span class="block-sub">Cubículos de MT: 13 seccionadoras · 14 disjuntores · 6 TP · 6 TC · 5 trafos · 1 cabos de entrada · 6 cabos de saída · 4 para-raios · <span class="cabine-flag">Agrupar por tipo: ativado</span></span></div>
+            <input class="pos-box" type="text" inputmode="numeric" value="2" aria-label="Posição de 1° Subsolo entre os 6 locais — digite outro número para mover" data-toast="1° Subsolo movido para a posição 2 de 6 — Desfazer">
+            <div class="block-body"><div class="block-line"><span class="local-kicker">Local</span><span class="block-name">1° Subsolo</span><span class="cabine-flag">2 cabines · 17 colunas · 55 blocos</span></div><span class="block-sub">Cabine primária · Cabine de transformação · Verificações do local: 19 itens, respondidos uma vez neste local</span></div>
             <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
-            <button class="overflow-trigger" data-toast="Renomear · Agrupar por tipo · Remover cabine — não prototipado" aria-label="Mais opções de 1° Subsolo"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+            <button class="overflow-trigger" data-open="#tc-dlg-loc-menu" data-set-text="#tc-cab-local|1° Subsolo" aria-label="Mais opções de 1° Subsolo"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
             <div class="block-expand" data-toggle-class="is-touched">
-              <ul class="column-list" aria-label="Colunas de 1° Subsolo">
-                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 tem os steppers no protótipo"><span class="col-name">Coluna 1</span><span class="col-sum">1 cabos de entrada · 2 para-raios · 1 seccionadora</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
-                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 tem os steppers no protótipo"><span class="col-name">Coluna 2</span><span class="col-sum">1 seccionadora · 1 disjuntor</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
-                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 tem os steppers no protótipo"><span class="col-name">Coluna 3</span><span class="col-sum">1 TP · 1 TC · 1 disjuntor</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
-                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 tem os steppers no protótipo"><span class="col-name">Coluna 4</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 trafo</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
-
-                <!-- Selected column: quantities per type with the Quantity stepper; TAGs are what the relatório will be born with -->
-                <li class="column-row is-open" id="tc-col-5">
-                  <button class="col-head" data-toggle-class="is-open" data-toggle-target="#tc-col-5" aria-expanded="true" aria-controls="tc-col-5-body"><span class="col-name">Coluna 5</span><span class="col-sum">Seccionadora 1 · Disjuntor 1 · TP 1 · TC 1 · selecionada: a paleta adiciona aqui</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button>
-                  <div class="col-body" id="tc-col-5-body">
-                    <div class="qty-grid">
-                      <div class="qty-row"><span class="qty-name">Chave seccionadora<span class="qty-tag">TAG ao criar: SEC-C05</span></span><div class="quantity-stepper" role="group" aria-label="Seccionadoras na Coluna 5, 1"><button class="step" data-set-text="#tc-c5-sec|0" aria-label="Menos um">−</button><span class="count" id="tc-c5-sec">1</span><button class="step" data-set-text="#tc-c5-sec|2" aria-label="Mais um">+</button></div></div>
-                      <div class="qty-row"><span class="qty-name">Disjuntor MT<span class="qty-tag">TAG ao criar: DJ-C05</span></span><div class="quantity-stepper" role="group" aria-label="Disjuntores na Coluna 5, 1"><button class="step" data-set-text="#tc-c5-dj|0" aria-label="Menos um">−</button><span class="count" id="tc-c5-dj">1</span><button class="step" data-set-text="#tc-c5-dj|2" aria-label="Mais um">+</button></div></div>
-                      <div class="qty-row"><span class="qty-name">TP — proteção<span class="qty-tag">TAG ao criar: TP-C05</span></span><div class="quantity-stepper" role="group" aria-label="TP na Coluna 5, 1"><button class="step" data-set-text="#tc-c5-tp|0" aria-label="Menos um">−</button><span class="count" id="tc-c5-tp">1</span><button class="step" data-set-text="#tc-c5-tp|2" aria-label="Mais um">+</button></div></div>
-                      <div class="qty-row"><span class="qty-name">TC — proteção<span class="qty-tag">TAG ao criar: TC-C05</span></span><div class="quantity-stepper" role="group" aria-label="TC na Coluna 5, 1"><button class="step" data-set-text="#tc-c5-tc|0" aria-label="Menos um">−</button><span class="count" id="tc-c5-tc">1</span><button class="step" data-set-text="#tc-c5-tc|2" aria-label="Mais um">+</button></div></div>
+              <ul class="skeleton-list cabine-list" aria-label="Cabines de 1° Subsolo">
+              <li class="block-card cabine-card is-open" data-toggle-class="is-open" id="tc-cab-primaria">
+                <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Cabine primária em 1° Subsolo"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <input class="pos-box" type="text" inputmode="numeric" value="1" aria-label="Posição de Cabine primária entre as 2 cabines de 1° Subsolo — digite outro número para mover" data-toast="Cabine primária movida para a posição 1 de 2 em 1° Subsolo — Desfazer">
+                <div class="block-body"><div class="block-line"><span class="block-name">Cabine primária</span><span class="cabine-flag">17 colunas · 53 blocos</span></div><span class="block-sub">Função: primária · 13 seccionadoras · 14 disjuntores · 6 TP · 6 TC · 3 trafos · 1 cabos de entrada · 6 cabos de saída · 4 para-raios · <span class="cabine-flag">Agrupar por tipo: ativado</span></span></div>
+                <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+                <button class="overflow-trigger" data-open="#tc-dlg-cab-menu" aria-label="Mais opções de Cabine primária"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+                <div class="block-expand" data-toggle-class="is-touched">
+                  <ul class="column-list" aria-label="Colunas de Cabine primária">
+                    <li class="column-row"><input class="pos-box col-pos" type="text" inputmode="numeric" value="1" aria-label="Posição de Coluna 1 em Cabine primária — digite outro número para mover" data-toast="Coluna 1 movida para a posição 1 — Desfazer"><button class="col-head" data-toast="Só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Coluna 1</span><span class="col-sum">1 cabos de entrada · 2 para-raios · 1 seccionadora</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button><button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Coluna 1"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+                    <li class="column-row"><input class="pos-box col-pos" type="text" inputmode="numeric" value="2" aria-label="Posição de Coluna 2 em Cabine primária — digite outro número para mover" data-toast="Coluna 2 movida para a posição 2 — Desfazer"><button class="col-head" data-toast="Só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Coluna 2</span><span class="col-sum">1 seccionadora · 1 disjuntor</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button><button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Coluna 2"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+                    <li class="column-row"><input class="pos-box col-pos" type="text" inputmode="numeric" value="3" aria-label="Posição de Coluna 3 em Cabine primária — digite outro número para mover" data-toast="Coluna 3 movida para a posição 3 — Desfazer"><button class="col-head" data-toast="Só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Coluna 3</span><span class="col-sum">1 TP · 1 TC · 1 disjuntor</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button><button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Coluna 3"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+                    <li class="column-row"><input class="pos-box col-pos" type="text" inputmode="numeric" value="4" aria-label="Posição de Coluna 4 em Cabine primária — digite outro número para mover" data-toast="Coluna 4 movida para a posição 4 — Desfazer"><button class="col-head" data-toast="Só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Coluna 4</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 trafo</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button><button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Coluna 4"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+                    <!-- Selected column: quantities per type with the Quantity stepper; TAGs are what the relatório will be born with -->
+                    <li class="column-row is-open" id="tc-col-5"><input class="pos-box col-pos" type="text" inputmode="numeric" value="5" aria-label="Posição de Coluna 5 em Cabine primária — digite outro número para mover" data-toast="Coluna 5 movida para a posição 5 — Desfazer">
+                      <button class="col-head" data-toggle-class="is-open" data-toggle-target="#tc-col-5" data-set-text="#tc-pal-current|Coluna 5 · Cabine primária" aria-expanded="true" aria-controls="tc-col-5-body"><span class="col-name">Coluna 5</span><span class="col-sum">Seccionadora 1 · Disjuntor 1 · TP 1 · TC 1 · <span class="col-current">selecionada: a paleta adiciona aqui</span></span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button>
+                      <button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Coluna 5"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+                      <div class="col-body" id="tc-col-5-body">
+                        <div class="qty-grid">
+                      <div class="qty-row"><span class="qty-name">Chave seccionadora<span class="qty-tag">TAG ao criar: SEC-C05</span></span><div class="quantity-stepper" role="group" aria-label="Chave seccionadora na Coluna 5, 1"><button class="step" data-set-text="#tc-c5-sec|0" aria-label="Menos um">−</button><span class="count" id="tc-c5-sec">1</span><button class="step" data-set-text="#tc-c5-sec|2" aria-label="Mais um">+</button></div></div>
+                      <div class="qty-row"><span class="qty-name">Disjuntor MT<span class="qty-tag">TAG ao criar: DJ-C05</span></span><div class="quantity-stepper" role="group" aria-label="Disjuntor MT na Coluna 5, 1"><button class="step" data-set-text="#tc-c5-dj|0" aria-label="Menos um">−</button><span class="count" id="tc-c5-dj">1</span><button class="step" data-set-text="#tc-c5-dj|2" aria-label="Mais um">+</button></div></div>
+                      <div class="qty-row"><span class="qty-name">TP — proteção<span class="qty-tag">TAG ao criar: TP-C05</span></span><div class="quantity-stepper" role="group" aria-label="TP — proteção na Coluna 5, 1"><button class="step" data-set-text="#tc-c5-tp|0" aria-label="Menos um">−</button><span class="count" id="tc-c5-tp">1</span><button class="step" data-set-text="#tc-c5-tp|2" aria-label="Mais um">+</button></div></div>
+                      <div class="qty-row"><span class="qty-name">TC — proteção<span class="qty-tag">TAG ao criar: TC-C05</span></span><div class="quantity-stepper" role="group" aria-label="TC — proteção na Coluna 5, 1"><button class="step" data-set-text="#tc-c5-tc|0" aria-label="Menos um">−</button><span class="count" id="tc-c5-tc">1</span><button class="step" data-set-text="#tc-c5-tc|2" aria-label="Mais um">+</button></div></div>
                       <div class="qty-row"><span class="qty-name">Cabos de entrada<span class="qty-tag">TAG ao criar: CB-C05</span></span><div class="quantity-stepper" role="group" aria-label="Cabos de entrada na Coluna 5, 0"><button class="step" data-set-text="#tc-c5-cbent|0" aria-label="Menos um">−</button><span class="count is-zero" id="tc-c5-cbent">0</span><button class="step" data-set-text="#tc-c5-cbent|1" aria-label="Mais um">+</button></div></div>
-                      <div class="qty-row"><span class="qty-name">Para-raio<span class="qty-tag">TAG ao criar: PR-C05</span></span><div class="quantity-stepper" role="group" aria-label="Para-raios na Coluna 5, 0"><button class="step" data-set-text="#tc-c5-pr|0" aria-label="Menos um">−</button><span class="count is-zero" id="tc-c5-pr">0</span><button class="step" data-set-text="#tc-c5-pr|1" aria-label="Mais um">+</button></div></div>
-                      <div class="qty-row"><span class="qty-name">Cabos de saída / alimentação TRn<span class="qty-tag">TAG ao criar: CBS-C05</span></span><div class="quantity-stepper" role="group" aria-label="Cabos de saída na Coluna 5, 0"><button class="step" data-set-text="#tc-c5-cbsai|0" aria-label="Menos um">−</button><span class="count is-zero" id="tc-c5-cbsai">0</span><button class="step" data-set-text="#tc-c5-cbsai|1" aria-label="Mais um">+</button></div></div>
-                      <div class="qty-row"><span class="qty-name">Transformador de força<span class="qty-tag">TAG ao criar: TR-C05</span></span><div class="quantity-stepper" role="group" aria-label="Transformadores na Coluna 5, 0"><button class="step" data-set-text="#tc-c5-tr|0" aria-label="Menos um">−</button><span class="count is-zero" id="tc-c5-tr">0</span><button class="step" data-set-text="#tc-c5-tr|1" aria-label="Mais um">+</button></div></div>
-                    </div>
-                    <div class="chip-row" aria-label="Copiar composição">
-                      <button class="chip" data-toast="Composição da Coluna 5 copiada para as colunas 6–17"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Repetir nas colunas 6–17</button>
-                      <button class="chip" data-toast="Coluna 5 copiada da Coluna 4 · trafo incluído"><svg class="ico" aria-hidden="true"><use href="#i-repeat"/></svg>Igual à Coluna 4</button>
+                      <div class="qty-row"><span class="qty-name">Para-raio<span class="qty-tag">TAG ao criar: PR-C05</span></span><div class="quantity-stepper" role="group" aria-label="Para-raio na Coluna 5, 0"><button class="step" data-set-text="#tc-c5-pr|0" aria-label="Menos um">−</button><span class="count is-zero" id="tc-c5-pr">0</span><button class="step" data-set-text="#tc-c5-pr|1" aria-label="Mais um">+</button></div></div>
+                      <div class="qty-row"><span class="qty-name">Cabos de saída / alimentação TRn<span class="qty-tag">TAG ao criar: CBS-C05</span></span><div class="quantity-stepper" role="group" aria-label="Cabos de saída / alimentação TRn na Coluna 5, 0"><button class="step" data-set-text="#tc-c5-cbsai|0" aria-label="Menos um">−</button><span class="count is-zero" id="tc-c5-cbsai">0</span><button class="step" data-set-text="#tc-c5-cbsai|1" aria-label="Mais um">+</button></div></div>
+                      <div class="qty-row"><span class="qty-name">Transformador de força<span class="qty-tag">TAG ao criar: TR-C05</span></span><div class="quantity-stepper" role="group" aria-label="Transformador de força na Coluna 5, 0"><button class="step" data-set-text="#tc-c5-tr|0" aria-label="Menos um">−</button><span class="count is-zero" id="tc-c5-tr">0</span><button class="step" data-set-text="#tc-c5-tr|1" aria-label="Mais um">+</button></div></div>
+                      <div class="qty-row"><span class="qty-name">Fonte auxiliar da proteção<span class="qty-tag">TAG ao criar: FAP-C05</span></span><div class="quantity-stepper" role="group" aria-label="Fonte auxiliar da proteção na Coluna 5, 0"><button class="step" data-set-text="#tc-c5-fap|0" aria-label="Menos um">−</button><span class="count is-zero" id="tc-c5-fap">0</span><button class="step" data-set-text="#tc-c5-fap|1" aria-label="Mais um">+</button></div></div>
+                      <div class="qty-row"><span class="qty-name">Chave de transferência automática<span class="qty-tag">TAG ao criar: CTA-C05</span></span><div class="quantity-stepper" role="group" aria-label="Chave de transferência automática na Coluna 5, 0"><button class="step" data-set-text="#tc-c5-cta|0" aria-label="Menos um">−</button><span class="count is-zero" id="tc-c5-cta">0</span><button class="step" data-set-text="#tc-c5-cta|1" aria-label="Mais um">+</button></div></div>
+                        </div>
+                        <div class="chip-row" aria-label="Copiar composição">
+                          <button class="chip" data-toast="Composição da Coluna 5 copiada para as colunas 6–17"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Repetir nas colunas 6–17</button>
+                          <button class="chip" data-toast="Coluna 5 copiada da Coluna 4 · trafo incluído"><svg class="ico" aria-hidden="true"><use href="#i-repeat"/></svg>Igual à Coluna 4</button>
+                        </div>
+                      </div>
+                    </li>
+                    <li class="column-row"><input class="pos-box col-pos" type="text" inputmode="numeric" value="6" aria-label="Posição de Coluna 6 em Cabine primária — digite outro número para mover" data-toast="Coluna 6 movida para a posição 6 — Desfazer"><button class="col-head" data-toast="Só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Coluna 6</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 TP · 1 TC</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button><button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Coluna 6"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+                    <li class="column-row"><span class="col-pos-empty" aria-hidden="true"></span><button class="col-head" data-toast="Colunas 7–17 — só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Colunas 7–17</span><span class="col-sum">11 colunas · 8 seccionadoras · 9 disjuntores · 3 TP · 3 TC · 2 trafos · 6 cabos de saída · 2 para-raios</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+                  </ul>
+                  <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 18 adicionada em Cabine primária — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+                </div>
+              </li>
+              <!-- Cabine with no coluna (masonry room): its equipment sits on the cabine; "Adicionar equipamento" makes it the palette's current target (Story 14.2) -->
+              <li class="block-card cabine-card is-open" data-toggle-class="is-open" id="tc-cab-trafo">
+                <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Cabine de transformação em 1° Subsolo"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <input class="pos-box" type="text" inputmode="numeric" value="2" aria-label="Posição de Cabine de transformação entre as 2 cabines de 1° Subsolo — digite outro número para mover" data-toast="Cabine de transformação movida para a posição 2 de 2 em 1° Subsolo — Desfazer">
+                <div class="block-body"><div class="block-line"><span class="block-name">Cabine de transformação</span><span class="cabine-flag">sem colunas · 2 blocos</span></div><span class="block-sub">Função: transformação · alvenaria: os equipamentos ficam na cabine · <span class="cabine-flag">Agrupar por tipo: desativado</span></span></div>
+                <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+                <button class="overflow-trigger" data-open="#tc-dlg-cab-menu" aria-label="Mais opções de Cabine de transformação"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+                <div class="block-expand" data-toggle-class="is-touched">
+                  <div class="cab-direct">
+                    <p class="table-title">Equipamentos na cabine <span class="cab-current">· selecionada: a paleta adiciona aqui</span></p>
+                    <div class="qty-grid">
+                      <div class="qty-row"><span class="qty-name">Transformador de força<span class="qty-tag">TAG ao criar: TR1 e TR2</span></span><div class="quantity-stepper" role="group" aria-label="Transformador de força na Cabine de transformação, 2"><button class="step" data-set-text="#tc-trafo-tr|1" aria-label="Menos um">−</button><span class="count" id="tc-trafo-tr">2</span><button class="step" data-set-text="#tc-trafo-tr|3" aria-label="Mais um">+</button></div></div>
                     </div>
                   </div>
-                </li>
-
-                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 tem os steppers no protótipo"><span class="col-name">Coluna 6</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 TP · 1 TC</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
-                <li class="column-row"><button class="col-head" data-toast="Colunas 7–17 — só a Coluna 5 tem os steppers no protótipo"><span class="col-name">Colunas 7–17</span><span class="col-sum">11 colunas · 8 seccionadoras · 9 disjuntores · 4 TP · 4 TC · 4 trafos · 6 cabos de saída · 2 para-raios</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+                  <div class="skeleton-actions">
+                    <button class="btn btn-secondary" data-toggle-class="is-current" data-toggle-target="#tc-cab-trafo" data-set-text="#tc-pal-current|Cabine de transformação · 1° Subsolo" data-toast="Cabine de transformação selecionada: a paleta adiciona os equipamentos nela"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar equipamento</button>
+                    <button class="btn btn-text" data-toast="Coluna 1 adicionada em Cabine de transformação — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button>
+                  </div>
+                </div>
+              </li>
               </ul>
-              <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 18 adicionada em 1° Subsolo — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+              <div class="skeleton-actions"><button class="btn btn-text" data-open="#tc-dlg-cabine" data-set-text="#tc-cab-local|1° Subsolo"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar cabine</button></div>
             </div>
           </li>
 
-          <li class="block-card cabine-card" data-toggle-class="is-open">
+          <li class="block-card local-card" data-toggle-class="is-open">
             <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Oxigênio"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
-            <div class="block-body"><div class="block-line"><span class="block-name">Oxigênio</span><span class="cabine-flag">2 colunas · 8 blocos</span></div><span class="block-sub">1 cabos de entrada · 2 seccionadoras · 2 disjuntores · 1 TP · 1 TC · 1 trafo · <span class="cabine-flag">Agrupar por tipo: desativado</span></span></div>
+            <input class="pos-box" type="text" inputmode="numeric" value="3" aria-label="Posição de Oxigênio entre os 6 locais — digite outro número para mover" data-toast="Oxigênio movido para a posição 3 de 6 — Desfazer">
+            <div class="block-body"><div class="block-line"><span class="local-kicker">Local</span><span class="block-name">Oxigênio</span><span class="cabine-flag">1 cabine · 2 colunas · 8 blocos</span></div><span class="block-sub">Cabine de transformação · Verificações do local: 19 itens, respondidos uma vez neste local</span></div>
             <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
-            <button class="overflow-trigger" data-toast="Renomear · Agrupar por tipo · Remover cabine — não prototipado" aria-label="Mais opções de Oxigênio"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+            <button class="overflow-trigger" data-open="#tc-dlg-loc-menu" data-set-text="#tc-cab-local|Oxigênio" aria-label="Mais opções de Oxigênio"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
             <div class="block-expand" data-toggle-class="is-touched">
-              <ul class="column-list" aria-label="Colunas de Oxigênio">
-                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Coluna 1</span><span class="col-sum">1 cabos de entrada · 1 seccionadora · 1 disjuntor · 1 TP · 1 TC</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
-                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Coluna 2</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 trafo</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+              <ul class="skeleton-list cabine-list" aria-label="Cabines de Oxigênio">
+              <li class="block-card cabine-card" data-toggle-class="is-open">
+                <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Cabine de transformação em Oxigênio"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <input class="pos-box" type="text" inputmode="numeric" value="1" aria-label="Posição de Cabine de transformação entre as 1 cabines de Oxigênio — digite outro número para mover" data-toast="Cabine de transformação movida para a posição 1 de 1 em Oxigênio — Desfazer">
+                <div class="block-body"><div class="block-line"><span class="block-name">Cabine de transformação</span><span class="cabine-flag">2 colunas · 8 blocos</span></div><span class="block-sub">Função: transformação · 1 cabos de entrada · 2 seccionadoras · 2 disjuntores · 1 TP · 1 TC · 1 trafo · <span class="cabine-flag">Agrupar por tipo: desativado</span></span></div>
+                <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+                <button class="overflow-trigger" data-open="#tc-dlg-cab-menu" aria-label="Mais opções de Cabine de transformação"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+                <div class="block-expand" data-toggle-class="is-touched">
+                  <ul class="column-list" aria-label="Colunas de Cabine de transformação">
+                    <li class="column-row"><input class="pos-box col-pos" type="text" inputmode="numeric" value="1" aria-label="Posição de Coluna 1 em Cabine de transformação — digite outro número para mover" data-toast="Coluna 1 movida para a posição 1 — Desfazer"><button class="col-head" data-toast="Só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Coluna 1</span><span class="col-sum">1 cabos de entrada · 1 seccionadora · 1 disjuntor · 1 TP · 1 TC</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button><button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Coluna 1"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+                    <li class="column-row"><input class="pos-box col-pos" type="text" inputmode="numeric" value="2" aria-label="Posição de Coluna 2 em Cabine de transformação — digite outro número para mover" data-toast="Coluna 2 movida para a posição 2 — Desfazer"><button class="col-head" data-toast="Só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Coluna 2</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 trafo</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button><button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Coluna 2"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+                  </ul>
+                  <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 3 adicionada em Cabine de transformação — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+                </div>
+              </li>
               </ul>
-              <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 3 adicionada em Oxigênio — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+              <div class="skeleton-actions"><button class="btn btn-text" data-open="#tc-dlg-cabine" data-set-text="#tc-cab-local|Oxigênio"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar cabine</button></div>
             </div>
           </li>
 
-          <li class="block-card cabine-card" data-toggle-class="is-open">
+          <li class="block-card local-card" data-toggle-class="is-open">
             <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Cobertura A"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
-            <div class="block-body"><div class="block-line"><span class="block-name">Cobertura A</span><span class="cabine-flag">2 colunas · 7 blocos</span></div><span class="block-sub">2 seccionadoras · 2 disjuntores · 1 TP · 1 TC · 1 trafo · <span class="cabine-flag">Agrupar por tipo: desativado</span></span></div>
+            <input class="pos-box" type="text" inputmode="numeric" value="4" aria-label="Posição de Cobertura A entre os 6 locais — digite outro número para mover" data-toast="Cobertura A movido para a posição 4 de 6 — Desfazer">
+            <div class="block-body"><div class="block-line"><span class="local-kicker">Local</span><span class="block-name">Cobertura A</span><span class="cabine-flag">1 cabine · 2 colunas · 7 blocos</span></div><span class="block-sub">Cabine de transformação · Verificações do local: 19 itens, respondidos uma vez neste local</span></div>
             <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
-            <button class="overflow-trigger" data-toast="Renomear · Agrupar por tipo · Remover cabine — não prototipado" aria-label="Mais opções de Cobertura A"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+            <button class="overflow-trigger" data-open="#tc-dlg-loc-menu" data-set-text="#tc-cab-local|Cobertura A" aria-label="Mais opções de Cobertura A"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
             <div class="block-expand" data-toggle-class="is-touched">
-              <ul class="column-list" aria-label="Colunas de Cobertura A">
-                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Coluna 1</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 TP · 1 TC</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
-                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Coluna 2</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 trafo</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+              <ul class="skeleton-list cabine-list" aria-label="Cabines de Cobertura A">
+              <li class="block-card cabine-card" data-toggle-class="is-open">
+                <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Cabine de transformação em Cobertura A"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <input class="pos-box" type="text" inputmode="numeric" value="1" aria-label="Posição de Cabine de transformação entre as 1 cabines de Cobertura A — digite outro número para mover" data-toast="Cabine de transformação movida para a posição 1 de 1 em Cobertura A — Desfazer">
+                <div class="block-body"><div class="block-line"><span class="block-name">Cabine de transformação</span><span class="cabine-flag">2 colunas · 7 blocos</span></div><span class="block-sub">Função: transformação · 2 seccionadoras · 2 disjuntores · 1 TP · 1 TC · 1 trafo · <span class="cabine-flag">Agrupar por tipo: desativado</span></span></div>
+                <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+                <button class="overflow-trigger" data-open="#tc-dlg-cab-menu" aria-label="Mais opções de Cabine de transformação"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+                <div class="block-expand" data-toggle-class="is-touched">
+                  <ul class="column-list" aria-label="Colunas de Cabine de transformação">
+                    <li class="column-row"><input class="pos-box col-pos" type="text" inputmode="numeric" value="1" aria-label="Posição de Coluna 1 em Cabine de transformação — digite outro número para mover" data-toast="Coluna 1 movida para a posição 1 — Desfazer"><button class="col-head" data-toast="Só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Coluna 1</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 TP · 1 TC</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button><button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Coluna 1"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+                    <li class="column-row"><input class="pos-box col-pos" type="text" inputmode="numeric" value="2" aria-label="Posição de Coluna 2 em Cabine de transformação — digite outro número para mover" data-toast="Coluna 2 movida para a posição 2 — Desfazer"><button class="col-head" data-toast="Só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Coluna 2</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 trafo</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button><button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Coluna 2"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+                  </ul>
+                  <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 3 adicionada em Cabine de transformação — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+                </div>
+              </li>
               </ul>
-              <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 3 adicionada em Cobertura A — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+              <div class="skeleton-actions"><button class="btn btn-text" data-open="#tc-dlg-cabine" data-set-text="#tc-cab-local|Cobertura A"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar cabine</button></div>
             </div>
           </li>
 
-          <li class="block-card cabine-card" data-toggle-class="is-open">
+          <li class="block-card local-card" data-toggle-class="is-open">
             <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Cobertura B"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
-            <div class="block-body"><div class="block-line"><span class="block-name">Cobertura B</span><span class="cabine-flag">2 colunas · 7 blocos</span></div><span class="block-sub">2 seccionadoras · 2 disjuntores · 1 TP · 1 TC · 1 trafo · <span class="cabine-flag">Agrupar por tipo: desativado</span></span></div>
+            <input class="pos-box" type="text" inputmode="numeric" value="5" aria-label="Posição de Cobertura B entre os 6 locais — digite outro número para mover" data-toast="Cobertura B movido para a posição 5 de 6 — Desfazer">
+            <div class="block-body"><div class="block-line"><span class="local-kicker">Local</span><span class="block-name">Cobertura B</span><span class="cabine-flag">1 cabine · 2 colunas · 7 blocos</span></div><span class="block-sub">Cabine de transformação · Verificações do local: 19 itens, respondidos uma vez neste local</span></div>
             <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
-            <button class="overflow-trigger" data-toast="Renomear · Agrupar por tipo · Remover cabine — não prototipado" aria-label="Mais opções de Cobertura B"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+            <button class="overflow-trigger" data-open="#tc-dlg-loc-menu" data-set-text="#tc-cab-local|Cobertura B" aria-label="Mais opções de Cobertura B"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
             <div class="block-expand" data-toggle-class="is-touched">
-              <ul class="column-list" aria-label="Colunas de Cobertura B">
-                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Coluna 1</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 TP · 1 TC</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
-                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Coluna 2</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 trafo</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+              <ul class="skeleton-list cabine-list" aria-label="Cabines de Cobertura B">
+              <li class="block-card cabine-card" data-toggle-class="is-open">
+                <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Cabine de transformação em Cobertura B"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <input class="pos-box" type="text" inputmode="numeric" value="1" aria-label="Posição de Cabine de transformação entre as 1 cabines de Cobertura B — digite outro número para mover" data-toast="Cabine de transformação movida para a posição 1 de 1 em Cobertura B — Desfazer">
+                <div class="block-body"><div class="block-line"><span class="block-name">Cabine de transformação</span><span class="cabine-flag">2 colunas · 7 blocos</span></div><span class="block-sub">Função: transformação · 2 seccionadoras · 2 disjuntores · 1 TP · 1 TC · 1 trafo · <span class="cabine-flag">Agrupar por tipo: desativado</span></span></div>
+                <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+                <button class="overflow-trigger" data-open="#tc-dlg-cab-menu" aria-label="Mais opções de Cabine de transformação"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+                <div class="block-expand" data-toggle-class="is-touched">
+                  <ul class="column-list" aria-label="Colunas de Cabine de transformação">
+                    <li class="column-row"><input class="pos-box col-pos" type="text" inputmode="numeric" value="1" aria-label="Posição de Coluna 1 em Cabine de transformação — digite outro número para mover" data-toast="Coluna 1 movida para a posição 1 — Desfazer"><button class="col-head" data-toast="Só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Coluna 1</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 TP · 1 TC</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button><button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Coluna 1"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+                    <li class="column-row"><input class="pos-box col-pos" type="text" inputmode="numeric" value="2" aria-label="Posição de Coluna 2 em Cabine de transformação — digite outro número para mover" data-toast="Coluna 2 movida para a posição 2 — Desfazer"><button class="col-head" data-toast="Só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Coluna 2</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 trafo</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button><button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Coluna 2"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+                  </ul>
+                  <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 3 adicionada em Cabine de transformação — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+                </div>
+              </li>
               </ul>
-              <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 3 adicionada em Cobertura B — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+              <div class="skeleton-actions"><button class="btn btn-text" data-open="#tc-dlg-cabine" data-set-text="#tc-cab-local|Cobertura B"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar cabine</button></div>
             </div>
           </li>
 
-          <li class="block-card cabine-card" data-toggle-class="is-open">
+          <li class="block-card local-card" data-toggle-class="is-open">
             <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Geradores"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
-            <div class="block-body"><div class="block-line"><span class="block-name">Geradores</span><span class="cabine-flag">2 colunas · 8 blocos</span></div><span class="block-sub">1 cabos de entrada · 2 seccionadoras · 2 disjuntores · 1 TP · 1 TC · 1 cabos de saída · <span class="cabine-flag">Agrupar por tipo: ativado</span></span></div>
+            <input class="pos-box" type="text" inputmode="numeric" value="6" aria-label="Posição de Geradores entre os 6 locais — digite outro número para mover" data-toast="Geradores movido para a posição 6 de 6 — Desfazer">
+            <div class="block-body"><div class="block-line"><span class="local-kicker">Local</span><span class="block-name">Geradores</span><span class="cabine-flag">1 cabine · 2 colunas · 8 blocos</span></div><span class="block-sub">Cabine de distribuição · Verificações do local: 19 itens, respondidos uma vez neste local</span></div>
             <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
-            <button class="overflow-trigger" data-toast="Renomear · Agrupar por tipo · Remover cabine — não prototipado" aria-label="Mais opções de Geradores"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+            <button class="overflow-trigger" data-open="#tc-dlg-loc-menu" data-set-text="#tc-cab-local|Geradores" aria-label="Mais opções de Geradores"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
             <div class="block-expand" data-toggle-class="is-touched">
-              <ul class="column-list" aria-label="Colunas de Geradores">
-                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Coluna 1</span><span class="col-sum">1 cabos de entrada · 1 seccionadora · 1 disjuntor · 1 TP · 1 TC</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
-                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Coluna 2</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 cabos de saída</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+              <ul class="skeleton-list cabine-list" aria-label="Cabines de Geradores">
+              <li class="block-card cabine-card" data-toggle-class="is-open">
+                <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Cabine de distribuição em Geradores"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <input class="pos-box" type="text" inputmode="numeric" value="1" aria-label="Posição de Cabine de distribuição entre as 1 cabines de Geradores — digite outro número para mover" data-toast="Cabine de distribuição movida para a posição 1 de 1 em Geradores — Desfazer">
+                <div class="block-body"><div class="block-line"><span class="block-name">Cabine de distribuição</span><span class="cabine-flag">2 colunas · 8 blocos</span></div><span class="block-sub">Função: distribuição · 1 cabos de entrada · 2 seccionadoras · 2 disjuntores · 1 TP · 1 TC · 1 cabos de saída · <span class="cabine-flag">Agrupar por tipo: ativado</span></span></div>
+                <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+                <button class="overflow-trigger" data-open="#tc-dlg-cab-menu" aria-label="Mais opções de Cabine de distribuição"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+                <div class="block-expand" data-toggle-class="is-touched">
+                  <ul class="column-list" aria-label="Colunas de Cabine de distribuição">
+                    <li class="column-row"><input class="pos-box col-pos" type="text" inputmode="numeric" value="1" aria-label="Posição de Coluna 1 em Cabine de distribuição — digite outro número para mover" data-toast="Coluna 1 movida para a posição 1 — Desfazer"><button class="col-head" data-toast="Só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Coluna 1</span><span class="col-sum">1 cabos de entrada · 1 seccionadora · 1 disjuntor · 1 TP · 1 TC</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button><button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Coluna 1"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+                    <li class="column-row"><input class="pos-box col-pos" type="text" inputmode="numeric" value="2" aria-label="Posição de Coluna 2 em Cabine de distribuição — digite outro número para mover" data-toast="Coluna 2 movida para a posição 2 — Desfazer"><button class="col-head" data-toast="Só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Coluna 2</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 cabos de saída</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button><button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Coluna 2"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+                  </ul>
+                  <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 3 adicionada em Cabine de distribuição — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+                </div>
+              </li>
               </ul>
-              <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 3 adicionada em Geradores — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+              <div class="skeleton-actions"><button class="btn btn-text" data-open="#tc-dlg-cabine" data-set-text="#tc-cab-local|Geradores"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar cabine</button></div>
             </div>
           </li>
         </ul>
         <div class="skeleton-actions">
-          <button class="btn btn-secondary" data-toast="Cabine 7 adicionada ao esqueleto — nomeie-a e adicione colunas"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar cabine</button>
-          <span class="btn-reason">Cabines e colunas podem ser renomeadas depois, no relatório, pela árvore</span>
+          <button class="btn btn-secondary" data-toast="Local 7 adicionado ao esqueleto — nomeie-o e adicione a primeira cabine"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar local</button>
+          <span class="btn-reason">Locais, cabines e colunas podem ser renomeados depois, no relatório, pela árvore</span>
         </div>
       </section>
 
@@ -373,6 +518,77 @@
       <button class="menu-item" role="menuitem" data-close data-toast="Bloco duplicado abaixo, com os mesmos padrões">Duplicar</button>
       <div class="menu-group"><button class="menu-item" role="menuitem" data-close data-open="#tc-dlg-rich">Editar texto</button></div>
       <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-toast="Bloco removido" data-toast-action="Desfazer">Remover</button></div>
+    </div>
+  </div>
+
+  <!-- Skeleton overflow menus, one per level (Local › Cabine › Coluna): the same order as a Block card's, so every level reorders without dragging -->
+  <div class="dialog-scrim tc-menu-scrim" id="tc-dlg-loc-menu" hidden>
+    <div class="overflow-menu" role="menu" aria-label="Opções do local">
+      <button class="menu-item" role="menuitem" data-close data-toast="Local adicionado abaixo — nomeie-o e adicione a primeira cabine">Adicionar abaixo</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Local movido uma posição para cima — Desfazer">Subir</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Local movido uma posição para baixo — Desfazer">Descer</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Local duplicado abaixo, com as mesmas cabines e colunas">Duplicar</button>
+      <div class="menu-group">
+        <button class="menu-item" role="menuitem" data-close data-open="#tc-dlg-cabine">Adicionar cabine</button>
+        <button class="menu-item" role="menuitem" data-close data-toast="Renomear local — não prototipado">Renomear</button>
+      </div>
+      <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-toast="Local removido com as suas cabines" data-toast-action="Desfazer">Remover</button></div>
+    </div>
+  </div>
+  <div class="dialog-scrim tc-menu-scrim" id="tc-dlg-cab-menu" hidden>
+    <div class="overflow-menu" role="menu" aria-label="Opções da cabine">
+      <button class="menu-item" role="menuitem" data-close data-open="#tc-dlg-cabine">Adicionar abaixo</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Cabine movida uma posição para cima — Desfazer">Subir</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Cabine movida uma posição para baixo — Desfazer">Descer</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Mover a cabine para outro local — não prototipado">Mover para outro local</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Cabine duplicada abaixo, com as mesmas colunas e quantidades">Duplicar</button>
+      <div class="menu-group">
+        <button class="menu-item" role="menuitem" data-close data-toast="Função e nome — o mesmo formulário de Adicionar cabine, preenchido; não prototipado">Função e nome</button>
+        <button class="menu-item" role="menuitem" data-close data-toast="Agrupar por tipo na seção 9: alternado">Agrupar por tipo</button>
+      </div>
+      <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-toast="Cabine removida com as suas colunas" data-toast-action="Desfazer">Remover</button></div>
+    </div>
+  </div>
+  <div class="dialog-scrim tc-menu-scrim" id="tc-dlg-col-menu" hidden>
+    <div class="overflow-menu" role="menu" aria-label="Opções da coluna">
+      <button class="menu-item" role="menuitem" data-close data-toast="Coluna adicionada abaixo — ajuste as quantidades">Adicionar abaixo</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Coluna movida uma posição para cima — Desfazer">Subir</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Coluna movida uma posição para baixo — Desfazer">Descer</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Coluna duplicada abaixo, com as mesmas quantidades">Duplicar</button>
+      <div class="menu-group"><button class="menu-item" role="menuitem" data-close data-toast="Renomear coluna — não prototipado">Renomear</button></div>
+      <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-toast="Coluna removida" data-toast-action="Desfazer">Remover</button></div>
+    </div>
+  </div>
+
+  <!-- "Adicionar cabine" (Story 14.1/14.2): asks the Função and a name that defaults to "Cabine <função>"; colunas are added afterwards, inside the cabine card -->
+  <div class="dialog-scrim" id="tc-dlg-cabine" hidden>
+    <div class="form-dialog tc-cabine-dialog" role="dialog" aria-modal="true" aria-labelledby="tc-cab-title" aria-describedby="tc-cab-desc">
+      <h2 class="dialog-title" id="tc-cab-title">Adicionar cabine</h2>
+      <p class="t-body" id="tc-cab-desc">Em <strong id="tc-cab-local">1° Subsolo</strong>. A cabine guarda as características da SE, o ambiente de ensaio e o agrupamento por tipo. Colunas são opcionais: sem elas, os equipamentos ficam na cabine.</p>
+      <div class="field" role="radiogroup" aria-labelledby="tc-cab-fn-label">
+        <span class="field-label" id="tc-cab-fn-label">Função</span>
+        <div class="tc-fn-options">
+          <div class="option-row" role="radio" aria-checked="false" tabindex="0" data-fn="entrada" data-set-text="#tc-cab-name|Cabine de entrada"><span class="radio" aria-hidden="true"></span><span class="grow">Entrada</span></div>
+          <div class="option-row" role="radio" aria-checked="false" tabindex="0" data-fn="primaria" data-set-text="#tc-cab-name|Cabine primária"><span class="radio" aria-hidden="true"></span><span class="grow">Primária</span></div>
+          <div class="option-row is-selected" role="radio" aria-checked="true" tabindex="0" data-fn="transformacao" data-set-text="#tc-cab-name|Cabine de transformação"><span class="radio" aria-hidden="true"></span><span class="grow">Transformação</span></div>
+          <div class="option-row" role="radio" aria-checked="false" tabindex="0" data-fn="distribuicao" data-set-text="#tc-cab-name|Cabine de distribuição"><span class="radio" aria-hidden="true"></span><span class="grow">Distribuição</span></div>
+          <div class="option-row" role="radio" aria-checked="false" tabindex="0" data-fn="outra" data-set-text="#tc-cab-name|Cabine de medição"><span class="radio" aria-hidden="true"></span><span class="grow">Outra</span></div>
+        </div>
+      </div>
+      <div class="field tc-fn-other">
+        <span class="field-label" id="tc-cab-other-label">Qual função</span>
+        <div class="input" role="textbox" aria-labelledby="tc-cab-other-label" contenteditable="true">Medição</div>
+        <span class="helper">Escrita como deve aparecer na árvore e no relatório.</span>
+      </div>
+      <div class="field">
+        <span class="field-label" id="tc-cab-name-label">Nome</span>
+        <div class="input" role="textbox" aria-labelledby="tc-cab-name-label" contenteditable="true"><span id="tc-cab-name">Cabine de transformação</span></div>
+        <span class="helper">Vem da função; pode ser trocado.</span>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Cabine adicionada — adicione colunas ou equipamentos">Adicionar cabine</button>
+      </div>
     </div>
   </div>
 
