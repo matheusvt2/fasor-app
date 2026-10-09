@@ -42,3 +42,18 @@ Waves start from `origin/main` after every PR of the previous wave merged. Wave 
 - The coordinator's review stack `fasor-review` (port base 4) is stopped since the browser pass ended; at most two batch stacks run at a time.
 - Every Playwright run is under `lockf -t 20000 /tmp/fasor-verify.lock`, started with `nohup` and polled through a tagged log.
 - A new worktree reuses the existing images with `podman tag localhost/app-api-review:latest localhost/app-api-<tag>:latest` and `podman tag localhost/app-tools-review:latest localhost/app-tools-<tag>:latest` (the images of commit `e0efac7`).
+
+## Outcome (2026-10-09)
+
+| Tag | PR | Merge |
+|---|---|---|
+| r8read | #115 | e2527c8 |
+| r8gate | #116 | 66b4761 |
+| wave 1 gate fixes | #117 | 342911f |
+| r8cap | #118 | f0adf33 |
+| r8emit | #119 | f057f9b |
+| r8dry | #120 | 9027abf |
+| r8conc | #121 | 326e676 |
+| r8lay | #122 | TODO-R8LAY-SHA |
+
+What each PR changed, the gates, the decisions taken during the round and the open questions it leaves are in section 14 of the report.
