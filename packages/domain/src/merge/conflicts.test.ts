@@ -7,7 +7,7 @@ import type { Op } from '../ops/op.ts';
 import { emptySheet, type BlockRow, type EquipmentRow, type JsonValue } from '../schemas/entities.ts';
 import { getDefinition, SEED_VERSION } from '../seed/definitions.ts';
 import { syncBadgeState, syncCounts } from '../sync/counts.ts';
-import { composeConclusion } from '../relatorio/conclusion.ts';
+import { composeConclusion, conclusionTextState } from '../relatorio/conclusion.ts';
 import { opFactory, TEST_COMPANY, TEST_RELATORIO } from '../test-support.ts';
 import {
   applyPickOps,
@@ -346,7 +346,7 @@ describe('contract 16: the conclusion text, its status and its basis are one dec
     const after = fold([...log, ...stamped]);
     for (const field of ['text', 'text_status', 'text_basis'] as const) expect(after.sheet.conclusion[field]?.conflict).toBeUndefined();
     expect({ text: after.sheet.conclusion.text?.value, status: after.sheet.conclusion.text_status?.value, basis: after.sheet.conclusion.text_basis?.value }).toEqual(tripleOf(drafts));
-    return { triple: tripleOf(drafts), drafts };
+    return { triple: tripleOf(drafts), drafts, stamped };
   }
 
   /** No pick leaves an edited text marked confirmed or a composed text marked edited. */
@@ -556,6 +556,73 @@ describe('contract 16: the conclusion text, its status and its basis are one dec
       const undone = fold([...log, ...stamped, ...inverses]);
       expect(sides(undone)).toEqual(sides(row));
     }
+  });
+
+  it('same-status rows (a): E edits; A concludes, then edits her own text before pulling: two unflagged edited sides, each text with its own basis', () => {
+    const { create, ana, f, e, a } = editAndConclude();
+    // Ana's "Editar" and typing, chained on her own ops, stamped as her device commits them.
+    const own = (op: Op) => ({ prev: op.op_id, meta: { standing_op_id: op.op_id, seen_conflict_op_id: null } });
+    const anaEdit = [
+      f.op({ path: at('text'), value: 'Texto editado por Ana.', actor_id: ANA, device_id: A_DEVICE, prev_op_id: own(a[0]!).prev, meta: own(a[0]!).meta }),
+      f.op({ path: at('text_status'), value: 'edited', actor_id: ANA, device_id: A_DEVICE, prev_op_id: own(a[1]!).prev, meta: own(a[1]!).meta }),
+      f.op({ path: at('text_basis'), value: 'bbbbbbbb', actor_id: ANA, device_id: A_DEVICE, prev_op_id: own(a[2]!).prev, meta: own(a[2]!).meta }),
+    ];
+    const log = [create, ...e, ...a, ...anaEdit];
+    const row = fold(log);
+    expect(row.sheet.conclusion.text).toMatchObject({ value: 'Texto editado por Ana.', conflict: { value: EDITED } });
+    expect(row.sheet.conclusion.text_status).toMatchObject({ value: 'edited', conflict: { value: 'edited' } });
+    const cell = decisionOf(row).cells[0]!;
+    expect(cell.composedSide).toBeUndefined();
+    const standing = resolve(log, row, 'standing', ana);
+    const displaced = resolve(log, row, 'displaced', ana);
+    expect(standing.triple).toEqual({ text: 'Texto editado por Ana.', status: 'edited', basis: 'bbbbbbbb' });
+    expect(displaced.triple).toEqual({ text: EDITED, status: 'edited', basis: 'aaaaaaaa' });
+    for (const pick of [standing, displaced]) expect(pick.drafts[0]!.meta).toBeNull();
+  });
+
+  it('same-status rows (b): A concludes; E edits, then taps "Substituir" before pulling: two composed sides, both the composition now and both flagged', () => {
+    const { create, ana, eduardo, f, e, a } = editAndConclude();
+    const own = (op: Op) => ({ standing_op_id: op.op_id, seen_conflict_op_id: null });
+    const head = (op: Op) => op.op_id;
+    // His last text op is the typed one (e[3]); "Substituir" writes the composed text, flagged.
+    const replace = [
+      f.op({ path: at('text'), value: 'Texto composto visto por Eduardo, de novo.', actor_id: EDUARDO, device_id: E_DEVICE, prev_op_id: head(e[3]!), meta: { ...own(e[3]!), composed: true } }),
+      eduardo(at('text_status'), 'confirmed', head(e[1]!), own(e[1]!)),
+      eduardo(at('text_basis'), 'cccccccc', head(e[2]!), own(e[2]!)),
+    ];
+    const log = [create, ...a, ...e, ...replace];
+    const row = fold(log);
+    expect(row.sheet.conclusion.text_status).toMatchObject({ value: 'confirmed', conflict: { value: 'confirmed' } });
+    const now = composeConclusion(row, definition, TAG);
+    const cell = decisionOf(row).cells[0]!;
+    expect(cell.composedSide).toBe('both');
+    for (const pick of ['standing', 'displaced'] as const) {
+      const resolved = resolve(log, row, pick, ana);
+      expect(resolved.triple).toEqual({ text: now.text, status: 'confirmed', basis: now.basis });
+      expect(resolved.drafts[0]!.meta).toEqual({ composed: true });
+    }
+  });
+
+  it('a third tablet concludes after the contradiction: the edited side keeps E\'s basis, so the edited text still reads stale after its pick', () => {
+    const { create, ana, f, e, a } = editAndConclude();
+    // Tablet D saw nothing of the sheet's conclusion: its stamps say so.
+    const seenNothing = { standing_op_id: null, seen_conflict_op_id: null };
+    const third = [
+      f.op({ path: at('text'), value: 'Texto composto da terceira.', actor_id: ANA, device_id: 'tablet-d', meta: { ...seenNothing, composed: true } }),
+      f.op({ path: at('text_status'), value: 'confirmed', actor_id: ANA, device_id: 'tablet-d', meta: seenNothing }),
+      f.op({ path: at('text_basis'), value: 'dddddddd', actor_id: ANA, device_id: 'tablet-d', meta: seenNothing }),
+    ];
+    const log = [create, ...e, ...a, ...third];
+    const row = fold(log);
+    // D's same-value status dropped the status mark; the basis kept E's as its conflict.
+    expect(row.sheet.conclusion.text_status?.conflict).toBeUndefined();
+    expect(row.sheet.conclusion.text_basis).toMatchObject({ value: 'dddddddd', conflict: { value: 'aaaaaaaa' } });
+    const cell = decisionOf(row).cells[0]!;
+    const editedPick = cell.composedSide === 'standing' ? 'displaced' : 'standing';
+    const edited = resolve(log, row, editedPick, ana);
+    expect(edited.triple).toEqual({ text: EDITED, status: 'edited', basis: 'aaaaaaaa' });
+    const after = fold([...log, ...edited.stamped]);
+    expect(conclusionTextState(after, composeConclusion(after, definition, TAG))).toBe('stale');
   });
 
   it('each side of the row says its status in the view', () => {
