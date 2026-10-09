@@ -42,6 +42,20 @@ const row9 = (page: Page) => sumario(page).locator('li[data-row="section_9"]');
 const generated = (page: Page) => page.locator('.ficha-conc-text .suggestion-field.is-generated');
 const exportDialog = (page: Page) => page.getByRole('dialog', { name: 'Gerar relatório' });
 
+/**
+ * The Export dialog's summarized warnings ("N avisos — estão nas linhas do sumário"): the
+ * stale row is one of them, like its twin `conclusion_unconfirmed` (not an explicit kind).
+ */
+async function exportWarnings(page: Page): Promise<number> {
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
+  const line = exportDialog(page).locator('.precheck li').filter({ has: page.getByRole('button', { name: 'Ver no sumário' }) }).locator('.pc-text');
+  await expect(line).toContainText(/^\d+ avisos? — /);
+  const count = Number(/^(\d+)/.exec((await line.textContent()) ?? '')![1]);
+  await page.keyboard.press('Escape');
+  await expect(exportDialog(page)).toHaveCount(0);
+  return count;
+}
+
 /** The plate (TAG from the block), every checklist item C and every reading within its criterion; no conclusion. */
 function filledSheet(scope: Scope, blockId: string): OpDraft[] {
   const plate = (kind: string, unit: string | undefined, options: readonly string[] | undefined, key: string): unknown =>
@@ -161,12 +175,14 @@ test('@p0 R8CONC-E2E-002 an edited text is left as it is: the menu\'s "Concluir 
   expect((await textOps()).at(-1)).toBe(edited);
 });
 
-test('@p0 R8CONC-E2E-003 a TAG renamed after the conclude makes the confirmed text stale: the sheet offers "Substituir", row 9 and the Export dialog name the TAG until it is tapped', async ({ page }) => {
+test('@p0 R8CONC-E2E-003 a TAG renamed after the conclude makes the confirmed text stale: the sheet offers "Substituir", row 9 names the TAG and the Export dialog counts it until it is tapped', async ({ page }) => {
   test.setTimeout(240_000);
   const { relatorioId, sheet } = await setUp(page);
   await openSheet(page, relatorioId, sheet.blockId);
   await confirmPairAndConclude(page, sheet);
   await expectConcludeConfirmsText(page, database, sheet.blockId, `A seccionadora ${sheet.tag}`);
+  await openSumario(page, relatorioId);
+  const warningsBefore = await exportWarnings(page);
 
   // "Renomear TAG" from the sheet's menu.
   const renamed = `${sheet.tag}-R`;
@@ -187,8 +203,8 @@ test('@p0 R8CONC-E2E-003 a TAG renamed after the conclude makes the confirmed te
   const staleText = `Texto de conclusão desatualizado: ${renamed}`;
   await openSumario(page, relatorioId);
   await expect(row9(page)).toContainText(staleText);
-  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
-  await expect(exportDialog(page).locator('.precheck li', { hasText: staleText })).toBeVisible();
+  // The Export dialog counts it with the other warnings on the Sumário rows.
+  expect(await exportWarnings(page)).toBe(warningsBefore + 1);
 
   // "Substituir" on the sheet: the recomposed text, under the new TAG; the row is gone.
   await openSheet(page, relatorioId, sheet.blockId);
