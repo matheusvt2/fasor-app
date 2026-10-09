@@ -162,3 +162,13 @@ Status: done (2026-10-09, branch `fix/review-2026-10-08-concluir-text`).
 **Verification (story gate, head 5ff621e, under the host lock, LOCKED_AFTER 0 s).** lint 0 errors (24 existing warnings; the first lint run failed only on a mutation scratch file inside the worktree, removed and re-run green); static green; test:api 574 passed; test:unit 3185 passed; touched specs on desktop-chrome and durability-desktop-chrome 66 passed (240 s); `lost-taps.durability.spec.ts` on durability-android-chrome and durability-webkit 13 passed, 1 skipped by design (12.1-E2E-007 on webkit). Mutation run: with the three text ops dropped from `conclude`, 5.1-E2E-001 (J1) and R8CONC-E2E-001 fail on "the conclude batch confirms the text"; restored.
 
 **Residual risks.** The conclude still has no UI undo (unchanged); the Export dialog counts the stale row rather than naming it (open question); the stale row's name list is uncapped; a live block with a removed equipment row composes with a TAG section 9 does not use (pre-existing).
+
+### Second pass (2026-10-09, independent review of PR #121)
+
+- `origin/main` f057f9b (#119) merged into the branch (merge fef4ba8; deferred-work.md resolved keeping every row of both sides).
+- consistency-1 fixed in the kernel: `mergePolicy` (`packages/domain/src/merge/policy.ts`) makes a concurrent put on `sheet/{id}/conclusion/text` a `contradiction` while the standing `text_status` reads `edited` (`ops/apply.ts` `cellOf` passes the cell as `textStatus`). The edited text stays as the cell's durable `conflict` (or stands), and "Aplicar" in the Conflict view restores it. No op field, rule name or contract version changed. Covered by `merge/policy.test.ts` (both seq orders) and the two-device `R8CONC-E2E-004` in `e2e/conflicts.spec.ts`.
+- consistency-2: `CONCLUSION_WORDS` reads `confirmed` "Confirmado" and `edited` "Editado" (authored); `text_basis` hashes stay (known open).
+- tests-2: `apps/web/src/db/commit.test.ts` undoes a conclude-shaped batch (D-4 instrument, three text ops, `concluded_by`) through `undoBatch`.
+- tests-3: `apps/web/src/surfaces/ficha/use-ficha-actions.test.tsx` runs the conclude's build on fresh rows that differ from the rendered block; mutation run in the PR body.
+- rules-2, decision-1, decision-2: D-7 comments amended; open questions recorded in deferred-work.md (owners Matheus, Bruno).
+- Gate note: the compose `api` dev server (`tsx watch`) does not reload `packages/domain` changes, so a first e2e run on the merged head met a server folding with the previous kernel (R8CONC-E2E-004 red, server cell `latest_text`). The api is restarted before every e2e run of the second gate.
