@@ -1,4 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { applyOp, entityKey, readPath, type EntityState } from '../ops/apply.ts';
+import type { Op } from '../ops/op.ts';
+import { invertBatch } from '../ops/outbox.ts';
+import { blockFieldPath, sheetConclusionPath } from '../ops/path.ts';
+import { idSequence, opFactory, T1 } from '../test-support.ts';
 import { emptySheet, type BlockRow, type Cell, type Sheet } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
@@ -8,6 +13,7 @@ import {
   conclusionPairComplete,
   conclusionSuggestionText,
   conclusionTextForPrint,
+  conclusionTextOnConclude,
   conclusionTextState,
   observationRequired,
   restrictionWarning,
@@ -298,5 +304,95 @@ describe('12.4-UNIT suggestedSheetObservation (J-10, D-7)', () => {
     };
     expect(suggestedSheetObservation(block({ checklist }, { config: config('observations') }), SEC)).toBeNull();
     expect(suggestedSheetObservation(block({ checklist }, { not_tested: { reason: 'outro', text: 'x', at: '2026-09-06T12:00:00.000Z', by: 'u1' } }), SEC)).toBeNull();
+  });
+});
+
+describe('R8CONC-UNIT conclusionTextOnConclude (review 2026-10-08 Decision 1, JRN-V1)', () => {
+  const pair = { result: cell('aprovado'), restriction: cell('sem_restricoes') };
+  const ready = () => block({ checklist: allC(), test: within(), nameplate: plate, conclusion: pair });
+
+  it('an unconfirmed text with the pair set: the text and basis of one composition of the block', () => {
+    const b = ready();
+    const composed = composeConclusion(b, SEC, 'SEC-C05');
+    expect(conclusionTextOnConclude(b, SEC, 'SEC-C05')).toEqual({ text: composed.text, basis: composed.basis });
+    expect(composed.text.startsWith('A seccionadora SEC-C05 (Celtta, 15 kV, 630 A)')).toBe(true);
+    // A cleared text (null cells, as an undo leaves them) asks again.
+    const cleared = block({ ...b.sheet, conclusion: { ...pair, text: cell(null), text_status: cell(null), text_basis: cell(null) } });
+    expect(conclusionTextOnConclude(cleared, SEC, 'SEC-C05')).toEqual({ text: composed.text, basis: composed.basis });
+  });
+
+  it('composes from the block it is given: a reading typed right before the tap is in the text and its basis', () => {
+    const rendered = ready();
+    const test = within();
+    test.isolacao!.cells['5'] = { '0': measured('330', 'MΩ') };
+    const fresh = block({ ...rendered.sheet, test });
+    const folded = conclusionTextOnConclude(fresh, SEC, 'SEC-C05')!;
+    expect(folded.basis).toBe(composeConclusion(fresh, SEC, 'SEC-C05').basis);
+    expect(folded.basis).not.toBe(composeConclusion(rendered, SEC, 'SEC-C05').basis);
+    expect(folded.text).toContain('330 MΩ');
+  });
+
+  it('null for an edited text, a confirmed text (fresh or stale), an incomplete pair, the conclusion off, or a sheet not tested', () => {
+    const b = ready();
+    const composed = composeConclusion(b, SEC, 'SEC-C05');
+    const stored = (status: string, basis: string) => block({ ...b.sheet, conclusion: { ...pair, text: cell('x'), text_status: cell(status), text_basis: cell(basis) } });
+    expect(conclusionTextOnConclude(stored('edited', composed.basis), SEC, 'SEC-C05')).toBeNull();
+    expect(conclusionTextOnConclude(stored('confirmed', composed.basis), SEC, 'SEC-C05')).toBeNull();
+    const staleConfirmed = stored('confirmed', 'deadbeef');
+    expect(conclusionTextState(staleConfirmed, composeConclusion(staleConfirmed, SEC, 'SEC-C05'))).toBe('stale');
+    expect(conclusionTextOnConclude(staleConfirmed, SEC, 'SEC-C05')).toBeNull();
+    expect(conclusionTextOnConclude(block({ ...b.sheet, conclusion: { result: cell('aprovado') } }), SEC, 'SEC-C05')).toBeNull();
+    expect(conclusionTextOnConclude(block({ ...b.sheet, conclusion: { restriction: cell('sem_restricoes') } }), SEC, 'SEC-C05')).toBeNull();
+    // The conclusion is locked on in every equipment config (LOCKED_SUB_BLOCKS); a config that
+    // enables no sub-block at all is the one way to turn it off and exercise the guard.
+    expect(conclusionTextOnConclude(block(b.sheet, { config: { block_type: 'section_8', sub_blocks: {}, na_defaults: [] } }), SEC, 'SEC-C05')).toBeNull();
+    expect(conclusionTextOnConclude(block(b.sheet, { not_tested: { reason: 'outro', text: 'x', at: '2026-09-06T12:00:00.000Z', by: 'u1' } }), SEC, 'SEC-C05')).toBeNull();
+  });
+
+  /** The conclude batch the sheet writes: the three text ops and `concluded_by`, one batch. */
+  function concludeBatch(b: BlockRow, tag: string): Op[] {
+    const f = opFactory(undefined, idSequence('019966b0-0052-7000-8000-'));
+    const batch_id = '019966b0-0051-7000-8000-000000000099';
+    const folded = conclusionTextOnConclude(b, SEC, tag)!;
+    return [
+      f.op({ path: sheetConclusionPath(b.id, 'text'), value: folded.text, batch_id }),
+      f.op({ path: sheetConclusionPath(b.id, 'text_status'), value: 'confirmed', batch_id }),
+      f.op({ path: sheetConclusionPath(b.id, 'text_basis'), value: folded.basis, batch_id }),
+      f.op({ path: blockFieldPath(b.id, 'concluded_by'), value: { actor_id: ID, at: '2026-09-06T12:00:00.000Z' }, batch_id }),
+    ];
+  }
+
+  function applyRecording(state: EntityState, ops: readonly Op[]): { state: EntityState; before: Map<string, unknown> } {
+    const before = new Map<string, unknown>();
+    let next = state;
+    for (const op of ops) {
+      before.set(op.op_id, readPath(next, op));
+      next = applyOp(next, op);
+    }
+    return { state: next, before };
+  }
+
+  it('applied, the text reads confirmed and prints the composed text; undone, every field it wrote is back to its prior value', () => {
+    const original = ready();
+    const key = entityKey('block', original.id);
+    const initial: EntityState = new Map([[key, original]]);
+    const batch = concludeBatch(original, 'SEC-C05');
+    const { state, before } = applyRecording(initial, batch);
+    const concluded = state.get(key) as BlockRow;
+    const composed = composeConclusion(concluded, SEC, 'SEC-C05');
+    expect(conclusionTextState(concluded, composed)).toBe('confirmed');
+    expect(conclusionTextForPrint(concluded)).toBe(composed.text);
+    expect(concluded.concluded_by).toEqual({ actor_id: ID, at: '2026-09-06T12:00:00.000Z' });
+
+    const inverses = invertBatch(batch, before, { newId: idSequence('019966b0-0053-7000-8000-'), now: T1 });
+    const undone = inverses.reduce((s, op) => applyOp(s, op), state).get(key) as BlockRow;
+    const values = (row: BlockRow) => Object.fromEntries(Object.entries(row.sheet.conclusion).map(([field, c]) => [field, c?.value ?? null]));
+    // A field never set before is undone to a null cell (AD-18: the history is append-only).
+    expect(values(undone)).toEqual({ ...values(original), text: null, text_status: null, text_basis: null });
+    expect(undone.sheet.conclusion.result).toEqual(original.sheet.conclusion.result);
+    expect(undone.sheet.conclusion.restriction).toEqual(original.sheet.conclusion.restriction);
+    expect(undone.concluded_by).toEqual(original.concluded_by);
+    expect(conclusionTextState(undone, composeConclusion(undone, SEC, 'SEC-C05'))).toBe('unconfirmed');
+    expect(conclusionTextForPrint(undone)).toBeNull();
   });
 });

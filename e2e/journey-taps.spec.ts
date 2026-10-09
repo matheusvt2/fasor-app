@@ -1,6 +1,7 @@
 import { type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
+import { expectConcludeConfirmsText } from './support/conclude-batch.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { newRelatorioDrafts, pushDrafts } from './support/relatorio-seed.ts';
@@ -223,6 +224,8 @@ test('@p1 12.1-E2E-009 J1 and J3 at 768 px: every tap lands on the first try, co
   await pickInstruments(page, j1);
   await readingsAndConclude(page, j1, secEnel2.blockId);
   report('J1 SEC-ENEL', j1, '24 taps + 1 lost');
+  // Review 2026-10-08 Decision 1: the conclude confirmed the composed text (read after the counted tap).
+  await expectConcludeConfirmsText(page, database, secEnel.blockId, `A seccionadora ${secEnel.tag}`);
 
   // --- J3 SEC-ENEL-2: "Igual à", its own unit, "Repetir" -----------------------------------
   // Story 12.3: IDENTIFICAÇÃO and Nº SÉRIE are never copied (typed here), the instruments
@@ -254,6 +257,7 @@ test('@p1 12.1-E2E-009 J1 and J3 at 768 px: every tap lands on the first try, co
   const after = built.sheets[at + 1]!;
   await readingsAndConclude(page, j3, after.blockId);
   report('J3 SEC-ENEL-2', j3, '9 taps + 2 lost');
+  await expectConcludeConfirmsText(page, database, secEnel2.blockId, `A seccionadora ${secEnel2.tag}`);
 
   // 24 and 9 at Story 12.1; Stories 12.3/12.4 took "Digitar", the two Combobox taps, the
   // TAG and J3's four picker taps out, and put J3's two per-unit fields in.

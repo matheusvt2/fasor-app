@@ -1,4 +1,4 @@
-import { getDefinition, SEED_VERSION, type BlockRow, type EquipmentRow, type OpDraft } from '@app/domain';
+import { cellAddressesOf, getDefinition, SEED_VERSION, type BlockRow, type EquipmentRow, type OpDraft } from '@app/domain';
 import type { BrowserContext, Locator, Page } from '@playwright/test';
 import { resetTestCompanyData, seedAccount } from '../apps/api/src/db/seed.ts';
 import { colleagueContext } from './support/colleague.ts';
@@ -762,3 +762,96 @@ for (const choice of ['Manter', 'Remover'] as const) {
     }
   });
 }
+
+/** SEC-C12 complete from the office (plate, every item C, every reading within, the pair set), its text never confirmed. */
+function completeSec12(seed: WorkerSeed, relatorioId: string, sheets: SeededSheet[]): OpDraft[] {
+  const definition = getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora');
+  const blockId = sheets.find((s) => s.tag === 'SEC-C12')!.blockId;
+  const account = seed.companies[0];
+  const scope = { relatorioId };
+  const plate = (kind: string, unit: string | undefined, options: readonly string[] | undefined, key: string): unknown =>
+    kind === 'number' ? { raw: '630', unit: unit ?? null, state: 'measured' } : kind === 'date' ? '2020-01-01' : kind === 'select' ? options![0] : kind === 'voltage_class' ? '15' : `P-${key}`;
+  return [
+    ...definition.nameplate.filter((f) => f.key !== 'tag').map((f) => officeDraft(account, scope, `sheet/${blockId}/nameplate/${f.key}`, plate(f.kind, f.unit, f.options, f.key))),
+    ...definition.checklist!.map((item) => officeDraft(account, scope, `sheet/${blockId}/checklist/${item.key}/result`, 'C')),
+    ...definition.tests
+      .flatMap((t) => cellAddressesOf(definition, t.key))
+      .map((c) =>
+        officeDraft(account, scope, `sheet/${blockId}/test/${c.testKey}/cell/${c.row}/${c.col}`, c.testKey === 'isolacao' ? { raw: '150', unit: 'GΩ', state: 'measured' } : { raw: '100', unit: 'µΩ', state: 'measured' }),
+      ),
+    officeDraft(account, scope, `sheet/${blockId}/conclusion/result`, 'aprovado'),
+    officeDraft(account, scope, `sheet/${blockId}/conclusion/restriction`, 'sem_restricoes'),
+  ];
+}
+
+test('@p0 R8CONC-E2E-004 an edited conclusion text and a concurrent "Concluir e avançar": the edited text is the contradiction\'s other side, never lost; picking it restores it on both tablets and the server', async ({
+  page,
+  browser,
+  seed,
+}) => {
+  test.setTimeout(300_000);
+  const { devices, relatorioId, blockId } = await twoDevices(page, browser, seed, (relatorioId, sheets) => completeSec12(seed, relatorioId, sheets));
+  const { ana, eduardo } = devices;
+  const textPath = `sheet/${blockId}/conclusion/text`;
+  const statusPath = `sheet/${blockId}/conclusion/text_status`;
+  try {
+    for (const device of [eduardo, ana]) {
+      await openSheet(device.page, relatorioId, blockId);
+      await expect(device.page.getByTestId('ficha-progress')).toHaveText('Ficha completa');
+      await device.context.setOffline(true);
+    }
+    // Eduardo: "Editar" on the composed text, his words typed after it.
+    await stepper(eduardo.page).getByRole('button', { name: /^Conclusão,/ }).click();
+    await eduardo.page.locator('.ficha-conc-text .suggestion-field.is-generated').getByRole('button', { name: 'Editar' }).click();
+    await expect.poll(async () => (await lastWritten(eduardo, statusPath)).value).toBe('edited');
+    const editor = eduardo.page.getByRole('textbox', { name: 'Texto da conclusão' });
+    await expect(editor).toBeFocused();
+    await eduardo.page.keyboard.press('ControlOrMeta+End');
+    await eduardo.page.keyboard.type(' Texto de Eduardo.');
+    await editor.blur();
+    await expect.poll(async () => String((await lastWritten(eduardo, textPath)).value)).toMatch(/ Texto de Eduardo\.$/);
+    const eText = await lastWritten(eduardo, textPath);
+    const eBasis = await lastWritten(eduardo, `sheet/${blockId}/conclusion/text_basis`);
+
+    // Ana, not having seen it: "Concluir e avançar" confirms the composed text in the conclude batch.
+    await expect(ana.page.locator('#ficha-primary')).toHaveText(/Concluir e avançar/);
+    await ana.page.locator('#ficha-primary').click();
+    await expect(toast(ana.page)).toContainText('Ficha concluída');
+    expect((await lastWritten(ana, statusPath)).value).toBe('confirmed');
+    const aText = await lastWritten(ana, textPath);
+    expect(aText.value).not.toBe(eText.value);
+
+    await syncAll(devices);
+
+    // Eduardo's edited text is never folded away: Ana's later text shows, his is the cell's conflict.
+    const server = await expectConverged(devices, blockId);
+    expect(server.sheet.conclusion.text).toMatchObject({ value: aText.value, conflict: { value: eText.value } });
+
+    // Ana's Conflict view: the text, its status and its basis are ONE "Texto da conclusão" row (contract 16).
+    await openSheet(ana.page, relatorioId, blockId);
+    await conflictBanner(ana.page).getByRole('button', { name: 'Ver', exact: true }).click();
+    const view = conflictView(ana.page);
+    await expect(view).toBeVisible();
+    await expect(view.locator('.cv-cell .cc-name', { hasText: 'Texto da conclusão' })).toHaveCount(1);
+    await expect(view.locator('.cv-cell')).toHaveCount(1);
+    await expect(view.getByRole('radiogroup')).toHaveCount(1);
+    for (const group of await view.getByRole('radiogroup').all()) {
+      const theirs = group.getByRole('radio', { name: /A de Eduardo/ });
+      await theirs.click();
+      await expect(theirs).toHaveAttribute('aria-checked', 'true');
+    }
+    await view.getByRole('button', { name: 'Aplicar' }).click();
+    await expect(view).toBeHidden();
+    await expect(conflictBanner(ana.page)).toHaveCount(0);
+
+    await syncNow(ana.page);
+    await syncNow(eduardo.page);
+    const after = await expectConverged(devices, blockId);
+    expect(after.sheet.conclusion.text?.value).toBe(eText.value);
+    expect(after.sheet.conclusion.text_status?.value).toBe('edited');
+    expect(after.sheet.conclusion.text_basis?.value).toBe(eBasis.value);
+    for (const field of ['text', 'text_status', 'text_basis'] as const) expect(after.sheet.conclusion[field]?.conflict, field).toBeUndefined();
+  } finally {
+    await eduardo.context.close();
+  }
+});

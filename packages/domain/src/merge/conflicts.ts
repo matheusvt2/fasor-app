@@ -3,6 +3,7 @@ import { entityKey, type EntityKey } from '../ops/apply.ts';
 import { formatPath, type OpPath } from '../ops/path.ts';
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { avatarInitial } from '../registration.ts';
+import { composeConclusion } from '../relatorio/conclusion.ts';
 import { sheetOrder, fieldValueText } from '../relatorio/ficha.ts';
 import { evaluateTest } from '../relatorio/reading-evaluation.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
@@ -60,6 +61,17 @@ export interface CellConflict {
   standing: DecisionSide;
   /** The side it displaced (`cell.conflict`). */
   displaced: DecisionSide;
+  /**
+   * Contract 16 (PR #121 review, 2026-10-09): the conclusion text is decided as one unit
+   * with its status and basis. These are the two other paths, with each side's value;
+   * "Aplicar" writes them with the text (`applyPickOps`).
+   */
+  companions?: { path: string; standing: unknown; displaced: unknown }[];
+  /**
+   * Contract 16 (c16-1): on the conclusion text row, the side that is the composed text (`both`
+   * when the two writes were confirms); its pick is flagged `composed`.
+   */
+  composedSide?: ConflictPick | 'both';
 }
 
 export interface CellDecision {
@@ -142,8 +154,104 @@ const CONCLUSION_LABELS: Readonly<Record<string, string>> = {
   text_basis: 'Base do texto',
 };
 
+/**
+ * Contract 16 (PR #121 review, 2026-10-09; focused review c16-1): the conclusion text, its
+ * status and its basis as ONE contradiction, when any of the three holds a `conflict`. The
+ * row is built from two writer sides, never from each cell's mark, so no pick leaves an
+ * edited text marked confirmed or a composed text marked edited:
+ * - COMPOSED: the text the app composes now (`composeConclusion`), status `confirmed`, its
+ *   own basis; its pick is flagged `composed`; its author is the `confirmed` status entry.
+ * - EDITED: status `edited`; its text is the text cell's `conflict` (a text contradiction only
+ *   forms from a composed put over an edited text), else `''` when the text cell carries a
+ *   `filled_over_empty` merge (the emptied edit), else the text cell's value (the status
+ *   stands `edited`, or it is the only text left: a contract-15 tablet's unflagged composed
+ *   text replaced the edited one as latest text, a documented limit). Its basis is the one
+ *   paired with the `edited` status entry, else the composition's; its author is that entry.
+ * The standing side is COMPOSED when the text cell holds a `conflict`, else the side whose
+ * status the status cell shows. With no definition for the block (a seed this device does
+ * not ship) nothing can be composed: COMPOSED then takes the text written with the
+ * `confirmed` status (the text cell's value when it holds a `conflict` or the status stands
+ * `confirmed`, else null) and that write's basis, so it never carries the edited text.
+ * Writer sides apply only to a `confirmed`/`edited` status pair, or when the status holds no
+ * `conflict`. Re-check of the writer-side row (2026-10-09): when the status value and its
+ * `conflict` share a value (a writer rewrote on its own chain before pulling), the row pairs
+ * each cell's value with its `conflict`: `edited`/`edited` gives two unflagged edited sides,
+ * `confirmed`/`confirmed` two composed sides, both the composition now and both flagged.
+ * The EDITED basis with no `edited` status entry falls back to the basis `conflict` (the
+ * edited write's, a third tablet's same-value status having dropped the status mark).
+ */
+function conclusionTextConflict(block: BlockRow, definition: BlockDefinition | null, tag: string, opOf: OpenDecisionsInput['opOf']): CellConflict | null {
+  const { text, text_status: status, text_basis: basis } = block.sheet.conclusion;
+  if (text?.conflict === undefined && status?.conflict === undefined && basis?.conflict === undefined) return null;
+  const shown = (cell: Cell | null | undefined) => (cell === null || cell === undefined ? null : (cell.shown_op_id ?? cell.op_id));
+  // The two status entries: the value the cell shows and the one it displaced.
+  const entries = [
+    { op_id: shown(status), value: status?.value ?? null, basis: basis?.value ?? null },
+    ...(status?.conflict === undefined ? [] : [{ op_id: status.conflict.op_id, value: status.conflict.value, basis: basis?.conflict === undefined ? (basis?.value ?? null) : basis.conflict.value }]),
+  ];
+  const path = (field: 'text' | 'text_status' | 'text_basis') => formatPath({ family: 'sheet/conclusion', block_id: block.id, field });
+  const sideFrom = (opId: string | null, value: unknown): DecisionSide => {
+    const facts = opId === null ? undefined : opOf(opId);
+    return { op_id: opId ?? '', value, source_suggestion_id: null, actor_id: facts?.actor_id ?? null, device_id: facts?.device_id ?? null, client_ts: facts?.client_ts ?? null };
+  };
+  const row = (standing: DecisionSide, displaced: DecisionSide, statusValue: string, bases: [unknown, unknown], composedSide?: CellConflict['composedSide']): CellConflict => ({
+    path: path('text'),
+    section: SECTION_CONCLUSION,
+    label: CONCLUSION_LABELS.text!,
+    standing,
+    displaced,
+    companions: [
+      { path: path('text_status'), standing: statusValue, displaced: statusValue },
+      { path: path('text_basis'), standing: bases[0], displaced: bases[1] },
+    ],
+    ...(composedSide === undefined ? {} : { composedSide }),
+  });
+  // A status entry pair of one value: each cell's value paired with its `conflict`.
+  if (status?.conflict !== undefined && status.value === status.conflict.value && (status.value === 'edited' || status.value === 'confirmed')) {
+    const standingBasis = basis?.value ?? null;
+    const displacedBasis = basis?.conflict !== undefined ? basis.conflict.value : standingBasis;
+    if (status.value === 'edited') {
+      const standingText = text?.value ?? null;
+      const displacedText = text?.conflict !== undefined ? text.conflict.value : standingText;
+      return row(sideFrom(shown(status), standingText), sideFrom(status.conflict.op_id, displacedText), 'edited', [standingBasis, displacedBasis]);
+    }
+    const now = definition === null ? null : composeConclusion(block, definition, tag);
+    const standingText = now?.text ?? text?.value ?? null;
+    const displacedText = now?.text ?? (text?.conflict !== undefined ? text.conflict.value : (text?.value ?? null));
+    const bases: [unknown, unknown] = now === null ? [standingBasis, displacedBasis] : [now.basis, now.basis];
+    return row(sideFrom(shown(status), standingText), sideFrom(status.conflict.op_id, displacedText), 'confirmed', bases, 'both');
+  }
+  const editedEntry = entries.find((entry) => entry.value === 'edited');
+  const confirmedEntry = entries.find((entry) => entry.value === 'confirmed');
+  const composition = definition === null ? null : composeConclusion(block, definition, tag);
+
+  const editedText = text?.conflict !== undefined ? text.conflict.value : text?.merge?.rule === 'filled_over_empty' ? '' : (text?.value ?? null);
+  const editedBasis = editedEntry !== undefined ? editedEntry.basis : basis?.conflict !== undefined ? basis.conflict.value : (composition?.basis ?? null);
+  const composedText = composition !== null ? composition.text : text?.conflict !== undefined || status?.value === 'confirmed' ? (text?.value ?? null) : null;
+  const composedBasis = composition !== null ? composition.basis : (confirmedEntry?.basis ?? null);
+
+  const edited = sideFrom(editedEntry?.op_id ?? text?.conflict?.op_id ?? shown(text), editedText);
+  const composed = sideFrom(confirmedEntry?.op_id ?? shown(text), composedText);
+  const composedStands = text?.conflict !== undefined || status?.value === 'confirmed';
+  const value = { edited: { status: 'edited', basis: editedBasis }, composed: { status: 'confirmed', basis: composedBasis } };
+  const standing = composedStands ? 'composed' : 'edited';
+  const displaced = composedStands ? 'edited' : 'composed';
+  return {
+    path: path('text'),
+    section: SECTION_CONCLUSION,
+    label: CONCLUSION_LABELS.text!,
+    standing: composedStands ? composed : edited,
+    displaced: composedStands ? edited : composed,
+    companions: [
+      { path: path('text_status'), standing: value[standing].status, displaced: value[displaced].status },
+      { path: path('text_basis'), standing: value[standing].basis, displaced: value[displaced].basis },
+    ],
+    composedSide: composedStands ? 'standing' : 'displaced',
+  };
+}
+
 /** Every cell of a block holding a `conflict`, in the sheet's order, with its section and name. */
-function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf']): CellConflict[] {
+function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf'], equipment: OpenDecisionsInput['equipment'] = []): CellConflict[] {
   const definition = definitionOf(block);
   const out: CellConflict[] = [];
   const push = (path: OpPath, cell: Cell | undefined, section: string, label: string) => {
@@ -196,9 +304,12 @@ function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf']): Cel
     }
   }
 
-  for (const field of ['result', 'restriction', 'text', 'text_status', 'text_basis'] as const) {
+  for (const field of ['result', 'restriction'] as const) {
     push({ family: 'sheet/conclusion', block_id: blockId, field }, sheet.conclusion[field], SECTION_CONCLUSION, CONCLUSION_LABELS[field]!);
   }
+  const tag = block.equipment_id === null ? '' : (equipment.find((row) => row.id === block.equipment_id)?.tag ?? '');
+  const text = conclusionTextConflict(block, definition, tag, opOf);
+  if (text !== null) out.push(text);
   push({ family: 'sheet/observations', block_id: blockId }, sheet.observations ?? undefined, SECTION_OBSERVATIONS, 'Observações da ficha');
   return out;
 }
@@ -232,7 +343,7 @@ export function openDecisions(input: OpenDecisionsInput): Decision[] {
   for (const block of sorted) {
     // A removed block's cells are not decided: its sheet is out of the tree (and a put on it
     // would mark a removal conflict); its removal decision, if any, comes first.
-    const conflicts = block.removed_at === null ? cellConflictsOf(block, input.opOf) : [];
+    const conflicts = block.removed_at === null ? cellConflictsOf(block, input.opOf, input.equipment) : [];
     if (conflicts.length > 0) cells.push({ kind: 'cell', relatorio_id: input.relatorioId, block_id: block.id, cells: conflicts });
     const mark = block.removal_conflict;
     if (mark !== undefined && block.removed_at !== null) {
@@ -297,6 +408,11 @@ export function conflictOpIds(blocks: readonly Pick<BlockRow, 'sheet'>[]): strin
       if (cell.conflict === undefined) continue;
       ids.add(cell.shown_op_id ?? cell.op_id);
       ids.add(cell.conflict.op_id);
+    }
+    // Contract 16: the conclusion row names its sides' authors from the text and status cells.
+    const { text, text_status: status, text_basis: basis } = block.sheet.conclusion;
+    if (text?.conflict !== undefined || status?.conflict !== undefined || basis?.conflict !== undefined) {
+      for (const cell of [text, status]) if (cell !== null && cell !== undefined) ids.add(cell.shown_op_id ?? cell.op_id);
     }
   }
   return [...ids];
@@ -390,18 +506,26 @@ export type ConflictPick = 'standing' | 'displaced';
  * "Aplicar": one put per cell, the picked side's value and (when it came from a reading)
  * its `source_suggestion_id`. The device stamps `prev_op_id` and `standing_op_id` at commit,
  * so the puts are sequential and clear each cell's `conflict`. Null until every cell has a pick.
+ * Contract 16: the conclusion text's pick also writes its companions (status and basis) with
+ * the same side's values; the composed side's text is flagged `composed` (`composedSide`).
  */
 export function applyPickOps(author: Author, decision: CellDecision, picks: Readonly<Record<string, ConflictPick>>): OpDraft[] | null {
   if (decision.cells.some((cell) => picks[cell.path] === undefined)) return null;
-  return decision.cells.map((cell) => {
-    const side = picks[cell.path] === 'standing' ? cell.standing : cell.displaced;
-    return {
-      ...relatorioOpEnvelope(author, decision.relatorio_id),
-      kind: 'put' as const,
-      path: cell.path,
-      value: side.value as JsonValue,
-      meta: side.source_suggestion_id === null ? null : { source_suggestion_id: side.source_suggestion_id },
-    };
+  const put = (path: string, value: unknown, meta: OpDraft['meta']): OpDraft => ({
+    ...relatorioOpEnvelope(author, decision.relatorio_id),
+    kind: 'put' as const,
+    path,
+    value: (value ?? null) as JsonValue,
+    meta,
+  });
+  return decision.cells.flatMap((cell) => {
+    const pick = picks[cell.path]!;
+    const side = pick === 'standing' ? cell.standing : cell.displaced;
+    const companions = (cell.companions ?? []).map((companion) => ({ path: companion.path, value: pick === 'standing' ? companion.standing : companion.displaced }));
+    // Contract 16 (c16-1): the flag comes from the picked side, never from a companion status.
+    const composed = cell.composedSide === 'both' || cell.composedSide === pick;
+    const meta = side.source_suggestion_id !== null ? { source_suggestion_id: side.source_suggestion_id } : composed ? { composed: true } : null;
+    return [put(cell.path, side.value, meta), ...companions.map((companion) => put(companion.path, companion.value, null))];
   });
 }
 
@@ -487,6 +611,9 @@ const CONCLUSION_WORDS: Readonly<Record<string, string>> = {
   reprovado: 'Reprovado',
   sem_restricoes: 'Sem restrições',
   com_restricoes: 'Com restrições',
+  // authored: the conclusion text's status (review 2026-10-09, r8conc-consistency-2).
+  confirmed: 'Confirmado',
+  edited: 'Editado',
 };
 
 /** A side's value as the sheet displays it ("3.300 MΩ", "Conforme", "Aprovado"); "—" when empty. */
@@ -534,6 +661,10 @@ export function conflictSideView(
   const mine = side.actor_id !== null && side.actor_id === context.viewerActorId;
   const name = context.users.find((row) => row.id === side.actor_id)?.name.trim() ?? '';
   const meta = [side.source_suggestion_id === null ? 'Digitado' : 'Ler visor'];
+  // Contract 16: the conclusion text's side says its status ("Confirmado", "Editado").
+  const status = cell.companions?.find((companion) => companion.path.endsWith('/text_status'));
+  const statusValue = status === undefined ? undefined : side === cell.displaced ? status.displaced : status.standing;
+  if (typeof statusValue === 'string' && CONCLUSION_WORDS[statusValue] !== undefined) meta.push(CONCLUSION_WORDS[statusValue]!);
   if (side.client_ts !== null) meta.push(formatShortDateTime(side.client_ts));
   if (side.device_id !== null && side.device_id === context.viewerDeviceId) meta.push('este aparelho');
   return {

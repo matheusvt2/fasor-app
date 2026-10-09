@@ -4,6 +4,7 @@ import { actorIdSchema, deviceIdSchema, uuidV7Schema, type NewId } from '../ids.
 import {
   blockRemovalConflictSchema,
   cellConflictSchema,
+  cellMergeSchema,
   ENTITY_SCOPE,
   entityRowSchemas,
   jsonValueSchema,
@@ -47,7 +48,13 @@ export type OpKind = z.infer<typeof opKindSchema>;
  * folds as any other write.
  */
 export const cellRestoreSchema = z.object({
-  conflict: cellConflictSchema,
+  /** Optional since contract 16: a conclusion text restore may carry only `merge`. */
+  conflict: cellConflictSchema.optional(),
+  /**
+   * Contract 16 (c16-3): on a `sheet/{id}/conclusion/text` put only, the `merge` record its
+   * apply cleared (the emptied edit's `filled_over_empty`), which the conclusion row reads.
+   */
+  merge: cellMergeSchema.optional(),
   shown_op_id: uuidV7Schema.nullable(),
 });
 export type CellRestore = z.infer<typeof cellRestoreSchema>;
@@ -73,6 +80,12 @@ export const opMetaSchema = z.looseObject({
   seen_conflict_op_id: uuidV7Schema.nullable().optional(),
   seen_modified_at: isoTimestampSchema.nullable().optional(),
   restore: restoreMarksSchema.optional(),
+  /**
+   * Contract 16 (PR #121 review, 2026-10-09): on a `sheet/{id}/conclusion/text` put, the text
+   * is the one the app composed and confirms with `text_status = confirmed` ("Concluir ficha",
+   * Story 5.8's "Confirmar" and "Substituir"); `mergePolicy` reads it. Never coalesced.
+   */
+  composed: z.boolean().optional(),
 });
 export type OpMeta = z.infer<typeof opMetaSchema>;
 

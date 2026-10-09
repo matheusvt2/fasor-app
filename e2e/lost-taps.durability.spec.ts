@@ -1,6 +1,7 @@
 import { cellAddressesOf, getDefinition, itensMarcadosConformeText, type FieldDef, type OpDraft } from '@app/domain';
 import type { BrowserContext, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
+import { conclusionOpOf, concludeBatch } from './support/conclude-batch.ts';
 import { signInForDurability } from './support/durability.ts';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -260,6 +261,19 @@ test('@p0 12.1-E2E-004 lost tap: "Concluir ficha" right after Enter on the last 
     await expect(toast(page), `Concluir at ${delay} ms`).toContainText('Ficha concluída', { timeout: EFFECT_MS });
     await expect(page).not.toHaveURL(new RegExp(`/ficha/${sheet.blockId}$`));
     await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `block/${sheet.blockId}/concluded_by`).length).toBe(1);
+    // Review 2026-10-08 Decision 1: the same batch confirms the composed conclusion text.
+    const batch = await concludeBatch(page, database, sheet.blockId);
+    expect(conclusionOpOf(batch, sheet.blockId, 'text_status')?.value, `text confirmed at ${delay} ms`).toBe('confirmed');
+    if (i === 0) {
+      // Composed from the fresh rows, the last reading included: reopened, the text reads
+      // confirmed, never stale (a basis from the render before the Enter commit would be).
+      await openSheet(page, relatorioId, sheet.blockId);
+      await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
+      const generated = page.locator('.ficha-conc-text .suggestion-field.is-generated');
+      await expect(generated.locator('.helper')).toHaveText('Confirmado · impresso na linha Conclusão da ficha (seção 9)');
+      await expect(generated.locator('.suggestion-alt')).toHaveCount(0);
+      await expect(generated.getByRole('button', { name: 'Confirmar' })).toHaveCount(0);
+    }
   }
 });
 
