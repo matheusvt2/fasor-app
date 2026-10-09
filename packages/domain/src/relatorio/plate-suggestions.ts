@@ -27,21 +27,38 @@ export function platePhotoOf<T extends PlatePhotoLike>(photos: readonly T[], blo
   return best;
 }
 
-export type PlateReadingView = 'queued' | 'running' | 'failed' | 'ready' | 'done';
+/**
+ * Review 2026-10-08 (CAPT-V1): the plate photos a retake supersedes, whose readings this
+ * device cancels: the live plate photos of `blockId`, the new shot (`keepId`) excepted.
+ */
+export function supersededPlatePhotos<T extends PlatePhotoLike>(photos: readonly T[], blockId: string, keepId: string | null | undefined): T[] {
+  return photos.filter((photo) => (photo.removed_at ?? null) === null && photo.reading_kind === 'plate' && photo.block_id === blockId && photo.id !== keepId);
+}
+
+export type PlateReadingView = 'queued' | 'running' | 'failed' | 'ready' | 'done' | 'empty';
 
 /**
  * Where the plate photo's reading stands on the sheet: `ready` while any pending suggestion
  * was read from it (whatever its stored status), else its `reading_status`: `queued`
  * ("Foto guardada — leitura quando houver sinal"), `running` ("Lendo…"), `failed` ("Não foi
  * possível ler"), and `done` (nothing left to confirm; `none` reads the same, no line).
+ *
+ * Review 2026-10-08 (CAPT-V1): `empty` is a `done` reading that read nothing: no suggestion
+ * row of any status cites the photo ("Nada foi lido nesta foto", a retake and the way to
+ * type). `rows` are all the device's suggestion rows of the relatório, not only the pending
+ * ones: a reading whose suggestions were all confirmed or discarded is `done`, not `empty`.
+ * The server writes a run's rows and its `done` status in one batch, so the device never
+ * sees `done` before the rows.
  */
-export function plateReadingView(photo: Pick<PhotoFileRow, 'id' | 'reading_status'>, pending: readonly Pick<SuggestionRow, 'status' | 'source'>[]): PlateReadingView {
-  if (pending.some((row) => row.status === 'pending' && row.source.photo_id === photo.id)) return 'ready';
+export function plateReadingView(photo: Pick<PhotoFileRow, 'id' | 'reading_status'>, rows: readonly Pick<SuggestionRow, 'status' | 'source'>[]): PlateReadingView {
+  if (rows.some((row) => row.status === 'pending' && row.source.photo_id === photo.id)) return 'ready';
   switch (photo.reading_status) {
     case 'queued':
     case 'running':
     case 'failed':
       return photo.reading_status;
+    case 'done':
+      return rows.some((row) => row.source.photo_id === photo.id) ? 'done' : 'empty';
     default:
       return 'done';
   }

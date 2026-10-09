@@ -1,5 +1,6 @@
 import {
   camposCopiadosText,
+  discardSuggestionOp,
   isCellFilled,
   lastNameplateCopy,
   nameplateCopyFields,
@@ -11,7 +12,11 @@ import {
   plateReadingTarget,
   plateReadingView,
   showsConfirmedGlyph,
+  supersededPlatePhotos,
+  suggestionView,
+  typedTurnsDownSuggestion,
   suggestNameplateCopy,
+  toIso,
   type BlockDefinition,
   type BlockRow,
   type EntityState,
@@ -20,17 +25,22 @@ import {
   type RelatorioSnapshot,
   type WordRow,
 } from '@app/domain';
-import { useId, useMemo, useState, type FocusEvent } from 'react';
+import { useId, useMemo, useRef, useState, type FocusEvent } from 'react';
 import { Chip } from '../../components/index.ts';
+import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { writeReadingCancelled } from '../../db/prefs.ts';
+import { discardCancelledReadings } from '../../db/suggestion-store.ts';
 import { newId } from '../../ids.ts';
+import { useSession } from '../../state/session.tsx';
+import { requestSyncCycle } from '../../state/sync.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { firstFocusable, ReadOnlyField, SheetField } from './ficha-fields.tsx';
 import { createWordOp, nameplateOp } from './ficha-ops.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { NameplateField, ReplaceLine, SuggestionFill, SuggestionGroupHead, useNameplateSuggestions } from './nameplate-suggestions.tsx';
 import { useAiFeatures } from '../../state/ai-features.tsx';
-import { PlateCameraGroup, PlateCrop, PlatePhotoRow } from './plate-photo.tsx';
+import { PlateCameraGroup, PlateCrop, PlatePhotoRow, type PlateRetake } from './plate-photo.tsx';
 import { useReadingCancelled } from './reading-line.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
@@ -55,6 +65,11 @@ import type { CaptureTarget } from './use-photo-capture.ts';
  * (with the copy chips) while the sheet has no plate photo; then the photo's row with its
  * reading line; and, while suggestions read from it wait, the plate crop with the focused
  * field's region outlined (focus inside the grid names the field by its `data-field-key`).
+ *
+ * Review 2026-10-08: a reading that read nothing offers "Fotografar de novo"; the new shot
+ * becomes the plate photo and the older plate photos' readings are cancelled on this device,
+ * so whatever they bring, now or later, is discarded (CAPT-V1). A typed value that changes a
+ * field under a replace line discards that suggestion in the same batch (DG-2).
  */
 export function NameplateSection({
   api,
@@ -92,7 +107,14 @@ export function NameplateSection({
   });
   // --- Stories 8.2/8.6: the plate photo, its reading and the crop ---------------------------
   const plate = useMemo(() => platePhotoOf(suggestions.tiles, block.id), [suggestions.tiles, block.id]);
-  const view = plate === null ? null : plateReadingView(plate, suggestions.pending);
+  const view = plate === null ? null : plateReadingView(plate, suggestions.rows);
+  const db = useSession().database;
+  // DG-2: the suggestions still pending as last drawn (a turn-down never discards one confirmed meanwhile).
+  const pendingIds = useRef(new Set<string>());
+  pendingIds.current = new Set(suggestions.pending.map((row) => row.id));
+  // DG-2: the suggestions this sheet already wrote a discard for (one discard each, even when
+  // Enter, a blur and "Criar" follow each other before the sheet is drawn again).
+  const turnedDown = useRef(new Set<string>());
   const plateCancelled = useReadingCancelled(plate?.id ?? '');
   const region = plate === null || view !== 'ready' ? null : plateCropRegion(suggestions.pending, plate.id);
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
@@ -133,6 +155,29 @@ export function NameplateSection({
     reading: { kind: 'plate', target: plateReadingTarget(block.id, block.block_type) as JsonValue },
   });
 
+  /**
+   * CAPT-V1: "Fotografar de novo" took its shot: every older plate photo of this sheet has its
+   * reading cancelled here (`reading_cancelled:{photo}`), and what they already brought is
+   * discarded now; the post-pull sweep discards what they bring later. The photos stay.
+   */
+  const cancelOlderPlates = (shot: CaptureTarget) => {
+    const author = api.author;
+    if (db === null || author === null) return;
+    // The new photo (its id assigned before the shot) is never among them, whatever the tiles hold now.
+    const older = supersededPlatePhotos(suggestions.tiles, block.id, shot.fileId).map((tile) => tile.id);
+    const at = toIso(now());
+    void Promise.all(
+      older.map((photoId) => writeReadingCancelled(db, photoId, at).then(() => discardCancelledReadings(db, author, { newId, now }, photoId))),
+    )
+      .then((discarded) => {
+        if (discarded.some((ids) => ids.length > 0)) requestSyncCycle();
+      })
+      .catch((error: unknown) => console.error('older plate readings not cancelled', error));
+  };
+  // The retake's photo id is assigned up front, so the cancel above can spare it by id.
+  const retakeTarget = (): CaptureTarget => ({ ...plateTarget(), fileId: newId() });
+  const retake: PlateRetake | null = readOnly || !aiFeatures ? null : { relatorioId: api.relatorioId, target: retakeTarget, onShot: cancelOlderPlates };
+
   /** The focused field's region on the plate: its pending suggestion's, else its confirmed source's (this photo only). */
   const focusedBox = (() => {
     if (plate === null || region === null || focusedKey === null) return null;
@@ -163,9 +208,48 @@ export function NameplateSection({
     target?.focus();
   };
 
-  function createWord(fieldKey: string, kind: 'manufacturer' | 'voltage_class', name: string): void {
+  /**
+   * DG-2: the replace suggestion a typed `next` turns down: the field's pending suggestion under
+   * "Sugerido: … — Substituir" when `next` is a value other than it; null otherwise (an equal
+   * value is the device's auto-confirm to make, a cleared field makes it a fill again).
+   */
+  function replacedBy(fieldKey: string, next: unknown) {
+    const entry = suggestions.entries.get(fieldKey);
+    return entry !== undefined && typedTurnsDownSuggestion(entry.view, entry.suggestion.value, next, entry.field) ? entry.suggestion : null;
+  }
+
+  /**
+   * DG-2 (r8cap-correctness-2): the engineer left the field (blur) or pressed Enter. The idle
+   * commit while typing never discards; this one-op batch does, on the relatório's edit queue
+   * after the field's own commit (the input's handlers run before this wrapper's), reading the
+   * value as stored then: still under the replace line and not equal to the suggestion.
+   */
+  function turnDownOnLeave(fieldKey: string): void {
+    const entry = suggestions.entries.get(fieldKey);
+    if (entry?.view !== 'replace') return;
+    const s = entry.suggestion;
     void api
-      .edit((_blocks, by) => [createWordOp(by, kind, newId(), name), nameplateOp(by, api.relatorioId, block.id, fieldKey, name)])
+      .edit((blocks, by) => {
+        const fresh = blocks.find((row) => row.id === block.id);
+        if (fresh === undefined || !pendingIds.current.has(s.id) || turnedDown.current.has(s.id)) return null;
+        const cell = fresh.sheet.nameplate[fieldKey];
+        const view = suggestionView(cell, s, entry.field);
+        if (!typedTurnsDownSuggestion(view, s.value, cell?.value ?? null, entry.field)) return null;
+        turnedDown.current.add(s.id);
+        return [discardSuggestionOp(by, s)];
+      })
+      .catch(() => undefined);
+  }
+
+  function createWord(fieldKey: string, kind: 'manufacturer' | 'voltage_class', name: string): void {
+    const replaced = replacedBy(fieldKey, name);
+    if (replaced !== null) turnedDown.current.add(replaced.id);
+    void api
+      .edit((_blocks, by) => [
+        createWordOp(by, kind, newId(), name),
+        nameplateOp(by, api.relatorioId, block.id, fieldKey, name),
+        ...(replaced === null ? [] : [discardSuggestionOp(by, replaced)]),
+      ])
       .catch(() => undefined);
   }
 
@@ -214,6 +298,7 @@ export function NameplateSection({
             view={view}
             onOpen={() => suggestions.openPhoto(plate.id)}
             onFillManually={readOnly ? null : fillManually}
+            retake={retake}
           />
           {/* Review F-07: once the reading was cancelled here, nothing will overwrite the fields: no note. */}
           {(view === 'queued' || view === 'running') && plateCancelled !== true ? <p className="section-note">{t.fieldsNote}</p> : null}
@@ -244,7 +329,14 @@ export function NameplateSection({
               blocks={snapshot.blocks}
               onCreateWord={(kind, name) => createWord(field.key, kind, name)}
               onRegisterWord={registerWord}
-              commit={(next) => (api.author === null ? undefined : api.commit([nameplateOp(api.author, api.relatorioId, block.id, field.key, next)]))}
+              commit={(next) => {
+                if (api.author === null) return undefined;
+                // DG-2: a typed value that changes the field under "Sugerido: … — Substituir"
+                // discards that suggestion in the same batch (the engineer chose the typed one).
+                // DG-2: never a discard here (this may be the idle commit mid-typing); leaving
+                // the field or Enter turns the suggestion down (`turnDownOnLeave`).
+                return api.commit([nameplateOp(api.author, api.relatorioId, block.id, field.key, next)]);
+              }}
               after={after}
               // F-01: a suggestion landing on this field while it holds uncommitted typing
               // swaps it out; the typed text is committed then, never replaced by the guess.
@@ -254,7 +346,7 @@ export function NameplateSection({
           // One wrapper for every field, confirmed or not, so the field keeps its place in the
           // tree when a typed correction clears the provenance mid-typing (no remount).
           return (
-            <NameplateField key={field.key} model={suggestions} field={field} source={source}>
+            <NameplateField key={field.key} model={suggestions} field={field} source={source} onLeave={pending?.view === 'replace' ? () => turnDownOnLeave(field.key) : undefined}>
               {sheetField}
             </NameplateField>
           );

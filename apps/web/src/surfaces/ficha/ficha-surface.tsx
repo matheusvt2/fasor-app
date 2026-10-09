@@ -20,6 +20,7 @@ import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { useConflictBanner } from '../sync/conflict-banner.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { useHeldWhilePressed } from '../../input/press-hold.ts';
+import { useScreenWakeLock } from '../../input/use-screen-wake-lock.ts';
 import { RelatorioGate } from '../relatorio/relatorio-gate.tsx';
 import '../relatorio/relatorio.css';
 import { CabineBlock, QuickNotes } from './cabine-block.tsx';
@@ -104,6 +105,8 @@ function FichaBody({
   definition: BlockDefinition;
 }) {
   const blockId = block.id;
+  // Review 2026-10-08 (FLD-1): the screen stays awake while a sheet is open ("Manter a tela ligada" in Conta).
+  useScreenWakeLock(true);
   const { session, db, navigate, showToast, projectId, equipment, users, instruments, registries, editor, savedAt, saved, own, tag, typeName, progress, next, cabine, cabineFirst, enabled, api } =
     useFichaData({ relatorioId, snapshot, state, block });
   // E12-A7: only the steps whose sub-block is on; the header sentence names only these.

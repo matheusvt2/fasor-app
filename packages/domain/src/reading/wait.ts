@@ -30,6 +30,28 @@ export function readingStartedAt(input: { captured_at: string; bytes_acked_at?: 
   return latest;
 }
 
+/**
+ * Review 2026-10-08 (DG-4): where a reading's wait line counts from, or null while the server
+ * does not hold the photo's bytes yet. A shot taken offline and sent on reconnect reads
+ * "Lendo…" with no age, no "Cancelar" and no still-reading note until the server took its
+ * bytes (`bytes_acked_at`, or `uploaded_at` on a photo another device sent), moved its
+ * reading (a pulled status op) or was asked again here (`reread_at`); from then on, the
+ * newest of those instants and the capture (`readingStartedAt`'s rule).
+ */
+export function readingWaitStart(input: {
+  captured_at: string;
+  bytes_acked_at?: string | null;
+  uploaded_at?: string | null;
+  reading_status_at?: string | null;
+  reread_at?: string | null;
+}): string | null {
+  const held = [input.bytes_acked_at ?? null, input.uploaded_at ?? null, input.reading_status_at ?? null, input.reread_at ?? null].filter((at): at is string => at !== null);
+  if (held.length === 0) return null;
+  let latest = input.captured_at;
+  for (const at of held) if (Date.parse(at) > Date.parse(latest)) latest = at;
+  return latest;
+}
+
 export interface ReadingWait {
   /** "Lendo…" under 10 s, then "Lendo… 12 s", from a minute "Lendo… 2 min 05 s". */
   text: string;
@@ -53,9 +75,12 @@ const ANNOUNCE_STILL_READING = 'Lendo… a leitura está demorando; o app contin
 
 /**
  * The wait line of a pending reading started at `startedAt`, read at `nowIso`. The age is
- * clamped at 0 s (a tablet clock behind the server's never reads a negative age).
+ * clamped at 0 s (a tablet clock behind the server's never reads a negative age). Review
+ * 2026-10-08 (DG-4): a null start (`readingWaitStart`, the server does not hold the bytes
+ * yet) is "Lendo…" alone, never cancellable, never still reading.
  */
-export function readingWait(startedAt: string, nowIso: string): ReadingWait {
+export function readingWait(startedAt: string | null, nowIso: string): ReadingWait {
+  if (startedAt === null) return { text: READING, cancellable: false, stillReading: false, announcement: READING };
   const start = Date.parse(startedAt);
   const now = Date.parse(nowIso);
   const ageMs = Number.isFinite(start) && Number.isFinite(now) ? Math.max(0, now - start) : 0;

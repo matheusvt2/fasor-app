@@ -48,14 +48,21 @@ export interface CaptureTarget {
   fileId?: string;
 }
 
+/** A shot's outcome, heard by its camera: true when the camera said it (no toast then). */
+export type ShotReport = (outcome: 'saved' | 'failed') => boolean;
+
 const EXIF_HEAD_BYTES = 256 * 1024;
 const NO_EXIF: Pick<ExifData, 'dateTimeOriginal' | 'offsetMinutes'> = { dateTimeOriginal: null, offsetMinutes: null };
 
 export interface PhotoCapture {
   /** Reads the location setting and asks for a fix: called when the camera opens. */
   prepare: () => Promise<void>;
-  /** Takes one shot; returns at once (the commit runs behind it). The hook owns an ImageBitmap it is given. */
-  shoot: (source: Blob | ImageBitmap, target: CaptureTarget) => void;
+  /**
+   * Takes one shot; returns at once (the commit runs behind it). The hook owns an ImageBitmap it
+   * is given. Review 2026-10-08 (FLD-V1): `report` hears the shot saved or failed and returns
+   * true when it says so itself (the open camera's hint); otherwise a failure is a toast.
+   */
+  shoot: (source: Blob | ImageBitmap, target: CaptureTarget, report?: ShotReport) => void;
   /** Waits for every pending commit and retries a held shot once; false when a shot is still held. */
   settle: () => Promise<boolean>;
   /** Story 13.6: tries every held shot once more (eviction first); resolves to how many are still held. */
@@ -122,7 +129,7 @@ export function usePhotoCapture(relatorioId: string): PhotoCapture {
   }, [db, user, trackerOf]);
 
   const shoot = useCallback(
-    (source: Blob | ImageBitmap, target: CaptureTarget) => {
+    (source: Blob | ImageBitmap, target: CaptureTarget, report?: ShotReport) => {
       const deps = rescueDeps();
       if (deps === null || user === null) return;
       const tappedAt = now();
@@ -163,11 +170,14 @@ export function usePhotoCapture(relatorioId: string): PhotoCapture {
           if (sessionCaptureRescue.heldCount() > 0) await sessionCaptureRescue.retryHeld(deps);
           const outcome = await sessionCaptureRescue.save(input, deps);
           if (outcome === 'held') showToast(copy.photos.refusalToast);
-          // E6-Q14: a saved shot goes out now when online, not on the next 60 s tick.
-          else requestSyncCycle();
+          else {
+            report?.('saved');
+            // E6-Q14: a saved shot goes out now when online, not on the next 60 s tick.
+            requestSyncCycle();
+          }
         } catch (error) {
           console.error('photo capture failed', error);
-          showToast(copy.photos.failedToast);
+          if (report?.('failed') !== true) showToast(copy.photos.failedToast);
         } finally {
           requestStorageCheck();
         }

@@ -9,7 +9,7 @@ import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { makeSyncState } from '../../test/sync-state.ts';
 import { useSheetCamera } from './photo-openers.tsx';
-import { PlateCameraGroup, PlateCrop, PlatePhotoRow } from './plate-photo.tsx';
+import { PlateCameraGroup, PlateCrop, PlatePendingRow, PlatePhotoRow } from './plate-photo.tsx';
 
 /*
  * 8.2/8.6-UNIT: the plate photo above the nameplate, state by state (`60-ficha.html`): the tile
@@ -289,6 +289,77 @@ describe('F-26 (review 2026-10-06) the Sticky action bar\'s "Tirar foto" while t
     expect(button).not.toHaveAttribute('aria-disabled');
     await userEvent.click(button);
     expect(getUserMedia).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('review 2026-10-08 (CAPT-V1) the empty plate reading', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'mediaDevices');
+  });
+
+  const retake = { relatorioId: PHOTO, target: () => ({ blockId: null, itemKey: null, caption: 'placa de identificação' }), onShot: vi.fn() };
+
+  it('says "Nada foi lido nesta foto" with "Fotografar de novo", which opens the camera, and "Preencher manualmente", which hands over to the fields', async () => {
+    const getUserMedia = vi.fn(() => new Promise<MediaStream>(() => undefined));
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+    const fill = vi.fn();
+    const { container } = wrap(<PlatePhotoRow tile={tile({ reading_status: 'done' })} number={3} view="empty" onOpen={vi.fn()} onFillManually={fill} retake={retake} />);
+    expect(await screen.findByText('Nada foi lido nesta foto')).toHaveClass('reading-line');
+    expect(container.querySelector('.photo-row')).toHaveAttribute('data-reading', 'empty');
+    await userEvent.click(screen.getByRole('button', { name: 'Preencher manualmente' }));
+    expect(fill).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole('button', { name: 'Fotografar de novo' }));
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+  });
+
+  it('on a read-only sheet only the words; with the AI features off, no "Fotografar de novo"', async () => {
+    const { unmount } = wrap(<PlatePhotoRow tile={tile({ reading_status: 'done' })} number={3} view="empty" onOpen={vi.fn()} onFillManually={null} retake={null} />);
+    expect(await screen.findByText('Nada foi lido nesta foto')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Fotografar de novo' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Preencher manualmente' })).toBeNull();
+    unmount();
+    wrap(
+      <AiFeaturesContext value={false}>
+        <PlatePhotoRow tile={tile({ reading_status: 'done' })} number={3} view="empty" onOpen={vi.fn()} onFillManually={vi.fn()} retake={retake} />
+      </AiFeaturesContext>,
+    );
+    expect(await screen.findByText('Nada foi lido nesta foto')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Fotografar de novo' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Preencher manualmente' })).toBeInTheDocument();
+  });
+
+  it('a done reading with something read (all confirmed or discarded) has no line', () => {
+    const { container } = wrap(<PlatePhotoRow tile={tile({ reading_status: 'done' })} number={3} view="done" onOpen={vi.fn()} onFillManually={vi.fn()} retake={retake} />);
+    expect(container.querySelector('.reading-line')).toBeNull();
+    expect(screen.queryByText('Nada foi lido nesta foto')).toBeNull();
+  });
+});
+
+describe('review 2026-10-08 the plate wait and the pending shot', () => {
+  it('DG-4: a queued photo the server does not hold yet reads "Lendo…" alone, however old, with no "Cancelar"', () => {
+    const old = new Date(Date.now() - 180_000).toISOString();
+    wrap(<PlatePhotoRow tile={tile({ captured_at: old })} number={3} view="queued" onOpen={vi.fn()} onFillManually={vi.fn()} />);
+    expect(screen.getByText(/^Lendo…$/, { selector: '.reading-line' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancelar' })).toBeNull();
+  });
+
+  it('DG-4: once the bytes are acked the age counts from the ack', () => {
+    const old = new Date(Date.now() - 180_000).toISOString();
+    const acked = new Date(Date.now() - 12_400).toISOString();
+    wrap(<PlatePhotoRow tile={tile({ captured_at: old, bytes_acked_at: acked })} number={3} view="queued" onOpen={vi.fn()} onFillManually={vi.fn()} />);
+    expect(screen.getByText(/^Lendo… 12 s$/, { selector: '.reading-line' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
+  });
+
+  it('CAPT-V2: the pending shot reads "Lendo…" with the server reachable, the queued words when it answers nothing though the browser is online', () => {
+    const { container, unmount } = wrap(<PlatePendingRow />);
+    expect(container.querySelector('.photo-row[data-pending-shot]')).toHaveAttribute('data-reading', 'running');
+    expect(screen.getByRole('status')).toHaveTextContent('Lendo…');
+    unmount();
+    session.online = true;
+    const unreachable = wrap(<PlatePendingRow />, makeSyncState({ online: true, unreachable: 'server' }));
+    expect(unreachable.container.querySelector('.photo-row[data-pending-shot]')).toHaveAttribute('data-reading', 'queued');
+    expect(screen.getByRole('status')).toHaveTextContent('Foto guardada — leitura quando houver sinal');
   });
 });
 

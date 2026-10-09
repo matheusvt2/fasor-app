@@ -66,6 +66,10 @@ import { newId } from '../../ids.ts';
  * the registry does not hold is created in the same batch as the typed put and the discard.
  * The group note names the plate photo ("da foto 3") when all its suggestions came from one
  * photo this device numbers.
+ *
+ * Review 2026-10-08 (DG-2): the replace line also offers "Manter o digitado", one tap that
+ * discards the suggestion and keeps the typed value (a plate read by eye in a dark cubicle
+ * must not be forced to take the AI's value).
  */
 
 export type SuggestionCrop = Pick<SuggestionRow, 'source'>;
@@ -83,13 +87,17 @@ export interface NameplateSuggestionsModel {
    * A write resolves true once the batch is in, false when nothing was written.
    */
   type: (s: SuggestionRow, field: FieldDef, text: string) => Promise<boolean> | 'invalid' | 'unchanged';
+  /** DG-2: "Manter o digitado" on a replace line: this suggestion's discard alone, one batch; the field keeps its value. */
+  keepTyped: (s: SuggestionRow) => void;
   openCrop: (s: SuggestionCrop) => void;
   /** Story 8.6: opens the viewer on one photo, zoomed on a region when given (the plate crop). */
   openPhoto: (photoId: string, zoom?: NormalizedBox | null) => void;
   /** The Photo viewer opened from a crop, zoomed on its region. */
   viewer: ReactNode;
-  /** Story 8.6: the device's pending rows of the relatório (the plate photo's reading reads them). */
+  /** Story 8.6: the device's pending rows of the relatório (the plate crop reads them). */
   pending: readonly SuggestionRow[];
+  /** Review 2026-10-08 (CAPT-V1): every suggestion row of the relatório on this device, any status (the plate photo's reading reads them). */
+  rows: readonly SuggestionRow[];
   /** Story 8.2: the relatório's live photos on this device, and their provisional numbers. */
   tiles: readonly PhotoTile[];
   numbers: ReadonlyMap<string, number>;
@@ -257,6 +265,18 @@ export function useNameplateSuggestions({
       .catch(() => false);
   };
 
+  const keepTyped = (s: SuggestionRow) => {
+    if (inFlight.current.has(s.id)) return;
+    inFlight.current.add(s.id);
+    void api
+      .edit((_blocks, by) => [discardSuggestionOp(by, s)])
+      .then((batch) => {
+        if (batch !== null) sayWhenDrawn([s.id], copy.ficha.ensaios.typedKept);
+      })
+      .catch(() => undefined)
+      .finally(() => inFlight.current.delete(s.id));
+  };
+
   // --- the viewer, opened on a crop's region when the photo is on this device -----------
   const { tiles, numbers, openPhoto, openCrop, viewer } = useCropViewer({ api, snapshot, onCaptionPhoto });
 
@@ -266,7 +286,7 @@ export function useNameplateSuggestions({
   const sourcePhoto = singleSourcePhotoId(list.filter((entry) => entry.view !== 'none').map((entry) => entry.suggestion));
   const photoNumber = sourcePhoto === null ? null : (numbers.get(sourcePhoto) ?? null);
 
-  return { entries, counts, sourceOf, confirm, confirmAll, type, openCrop, openPhoto, viewer, pending, tiles, numbers, photoNumber, createsEntry };
+  return { entries, counts, sourceOf, confirm, confirmAll, type, keepTyped, openCrop, openPhoto, viewer, pending, rows, tiles, numbers, photoNumber, createsEntry };
 }
 
 /** The group head: the note and "Confirmar todos (N)", the button only while N > 0. */
@@ -420,13 +440,17 @@ function focusPlainField(key: string, frames = 10): void {
   });
 }
 
-/** "Sugerido: 15 kV — Substituir" under a field the engineer filled with another value. */
+/** "Sugerido: 15 kV — Substituir · Manter o digitado" under a field the engineer filled with another value. */
 export function ReplaceLine({ model, field, suggestion }: { model: NameplateSuggestionsModel; field: FieldDef; suggestion: SuggestionRow }) {
   return (
     <span className="suggestion-alt" data-suggestion-id={suggestion.id}>
       {replaceLineText(suggestionValueText(field, suggestion.value))}
       <button type="button" className="btn btn-text" onClick={() => model.confirm(suggestion, field)}>
         {ui.suggestionField.replace}
+      </button>
+      {/* DG-2: the typed value wins, the suggestion is discarded. */}
+      <button type="button" className="btn btn-text" onClick={() => model.keepTyped(suggestion)}>
+        {ui.suggestionField.keepTyped}
       </button>
     </span>
   );
@@ -437,9 +461,52 @@ export function ReplaceLine({ model, field, suggestion }: { model: NameplateSugg
  * `data-state="confirmed"` with the crop shrunk to its glyph; otherwise only the field. The
  * element stays the same either way, so the field is never remounted when that changes.
  */
-export function NameplateField({ model, field, source, children }: { model: NameplateSuggestionsModel; field: FieldDef; source: SuggestionRow | null; children: ReactNode }) {
+export function NameplateField({
+  model,
+  field,
+  source,
+  onLeave,
+  children,
+}: {
+  model: NameplateSuggestionsModel;
+  field: FieldDef;
+  source: SuggestionRow | null;
+  /** DG-2: the focus left the field, or Enter was pressed in it (after the field's own commit, which handles the event first). */
+  onLeave?: (() => void) | undefined;
+  children: ReactNode;
+}) {
+  // DG-2: WebKit does not focus a tapped button, so the input's blur on a tap of the field's
+  // own "Substituir" or "Manter o digitado" has no `relatedTarget`. A press that started inside
+  // the field marks it until its pointerup or click (cleared a tick later, so a press on the
+  // input itself never swallows a later real blur); a blur meanwhile is not a leave.
+  const pressedInside = useRef(false);
+  const endPress = () => {
+    setTimeout(() => {
+      pressedInside.current = false;
+    }, 0);
+  };
   return (
     <div
+      onPointerDownCapture={
+        onLeave === undefined
+          ? undefined
+          : () => {
+              pressedInside.current = true;
+            }
+      }
+      onPointerUpCapture={onLeave === undefined ? undefined : endPress}
+      onClickCapture={onLeave === undefined ? undefined : endPress}
+      onBlur={
+        onLeave === undefined
+          ? undefined
+          : (event) => {
+              const next = event.relatedTarget;
+              if (next instanceof Node && event.currentTarget.contains(next)) return;
+              if (pressedInside.current) return;
+              onLeave();
+            }
+      }
+      onKeyDown={onLeave === undefined ? undefined : (event) => (event.key === 'Enter' ? onLeave() : undefined)}
       className={source === null ? 'ficha-nameplate-field' : 'ficha-nameplate-field suggestion-field ficha-suggestion-confirmed'}
       data-state={source === null ? undefined : 'confirmed'}
       data-suggestion-id={source?.id}

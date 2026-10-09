@@ -35,6 +35,7 @@ export {
   suggestionFieldDef,
   compareSuggestion,
   suggestionView,
+  typedTurnsDownSuggestion,
 } from './suggestion-rows.ts';
 export {
   type NameplateSuggestion,
@@ -66,6 +67,7 @@ export {
   PLATE_CAPTION,
   type PlatePhotoLike,
   platePhotoOf,
+  supersededPlatePhotos,
   type PlateReadingView,
   plateReadingView,
   type NormalizedBox,

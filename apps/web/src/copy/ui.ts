@@ -111,6 +111,8 @@ export const ui = {
     confirm: 'Confirmar',
     // `60-ficha.html` `.suggestion-alt` button (Story 8.1).
     replace: 'Substituir',
+    // authored (review 2026-10-08, DG-2): beside "Substituir", discards the suggestion and keeps the typed value.
+    keepTyped: 'Manter o digitado',
     // `60-ficha.html` `.crop-thumb` aria-label; EXPERIENCE.md › Suggestion field: the crop's alt.
     cropLabel: (label: string) => `Ver recorte da placa — ${label}`,
     cropAlt: 'Recorte da placa',

@@ -19,7 +19,7 @@ import {
   type PhotoFileRow,
   type SuggestionRow,
 } from '@app/domain';
-import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject } from 'react';
+import { useCallback, useId, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Button as AriaButton } from 'react-aria-components';
 import { Button, Chip, TextButton } from '../../components/index.ts';
@@ -33,6 +33,8 @@ import { localFileRow } from '../../db/file-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { newId } from '../../ids.ts';
 import { restoreFocus } from '../../input/focus-restore.ts';
+import { useScreenWakeLock } from '../../input/use-screen-wake-lock.ts';
+import { useNowIso } from '../../state/now-iso.ts';
 import { useSession } from '../../state/session.tsx';
 import { useCamera } from '../ficha/camera-view.tsx';
 import type { CaptureTarget } from '../ficha/use-photo-capture.ts';
@@ -136,18 +138,6 @@ function panelWaitText(waiting: string, startedAt: string, nowIso: string): stri
   return wait.cancellable ? wait.text : waiting;
 }
 
-/** The device clock as an ISO string, read again every second while `active`. */
-function useTickingNow(active: boolean): string {
-  const [iso, setIso] = useState(() => toIso(now()));
-  useEffect(() => {
-    if (!active) return;
-    setIso(toIso(now()));
-    const timer = setInterval(() => setIso(toIso(now())), 1000);
-    return () => clearInterval(timer);
-  }, [active]);
-  return iso;
-}
-
 export function PanelCapture({ relatorioId, seedVersion, locations, equipment, onConfirm, focusAfter, ref }: PanelCaptureProps) {
   const t = copy.sumario.panel;
   const session = useSession();
@@ -218,7 +208,11 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
   }, [db, photoId]);
 
   const photo = data?.photo ?? null;
-  const nowIso = useTickingNow(photo !== null && (photo.reading_status === 'queued' || photo.reading_status === 'running'));
+  const waiting = photo !== null && (photo.reading_status === 'queued' || photo.reading_status === 'running');
+  // Review 2026-10-08: the one ticking clock of the reading waits (CAPT-16), and the screen
+  // stays awake while the dialog waits for its reading (FLD-1).
+  const nowIso = useNowIso(1000, waiting);
+  useScreenWakeLock(waiting);
   const suggestion = shot === null || data == null ? null : panelSuggestionOf(data.pending, shot.photoId);
 
   /** "Cancelar", Esc, the scrim and "Fotografar de novo": the unconfirmed photo removed and its suggestion discarded. */
