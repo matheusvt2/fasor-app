@@ -505,6 +505,12 @@ A field engineer points the camera at a plate, a display or a panel and the shot
 **Scope boundary (2026-10-06):** everything the 2026-10-06 MVP hands-on review owns stays out — F-01 (Story 11.11, PR #98), the field-defects batch 2 (F-02 to F-28 rows named in `spec-review-fixes-field-defects-2.md`, in progress) and the layout-and-copy third batch (F-06, F-07, F-10, F-11, F-15 to F-19, F-22 to F-26, F-29). Stories 13.4 and 13.8 build on batch results (F-02, F-03), never replace them.
 **Decisions:** three waves — the camera funnel first (13.1 to 13.3), then trust and ergonomics (13.4 to 13.6), then the gated assists (13.7 to 13.9, each behind its own Definition of Ready). Considered from the competitor synthesis and not taken now: QR asset lookup, photo markup, gallery lock (recorded in the source review § 3).
 
+### Epic 14: Locals, the site checklist and office-created equipment types (Bruno, 2026-10-08)
+An office user composes a masonry room as a local holding its equipment directly, with no coluna; every local carries the Verificações do local, 19 site items answered C · NC · NA whoever provides them and printed once with the local; and when a job holds equipment the base lacks — the no-break de comando first, the chave ASCO next — the office creates its type by copying an existing one, publishes it, and field users fill it like any seeded type. Source: `sprint-change-proposal-2026-10-08.md` (Bruno's voice notes of 2026-10-08, the competitor and norm research, the architecture impact); `source-deltas.md` rows of 2026-10-08.
+**FRs covered:** FR-10, FR-17, FR-18, FR-22, FR-24, FR-25, FR-49, FR-68 (revisited); new capabilities CAP-27 (site checklist per location) and CAP-28 (office-created equipment types) in `SPEC.md`, added 2026-10-08
+**Also covers:** AR-20 (seed v4 and the AD-21 amendment); UX-DR29, UX-DR30, UX-DR36, UX-DR37, UX-DR38, UX-DR70
+**Decisions (Matheus, 2026-10-08):** batch correct-course; the scope rule, the criteria-editing non-goal, `source-deltas.md` row "Q6 and the FR-5 assumption" and CAP-12's fixed eight are revoked as recorded there; Epic 14 starts now, with the Epic 13 carry-over (E13-A2, A4, A6) in the next carry-over batch in parallel. Waves: 14.1 (mocks) alone; then 14.2 to 14.4; then ~~14.5 to 14.7~~, after `bmad-architecture` settles the AD-21 amendment. The chave ASCO of 2026-10-10 is recorded outside the sheets: the app cannot serve it by then. *(2026-10-09, John (PM) with Matheus: re-sliced. Library types ship before company types: the new Story 14.5 adds the measurement table and ships "Fonte auxiliar da proteção" and "Chave de transferência automática" as seed types, with AD-21 unchanged; the former 14.5, 14.6 and 14.7 became 14.6, 14.7 and 14.8 (wave 3); wave 3 starts only after two or three real jobs have used the library types, with the count of new-type and adjustment requests recorded; the editor frames moved from Story 14.1 to Story 14.7. Waves: 0 = 14.1; 1 = 14.2 to 14.4; 2 = 14.5; 3 = 14.6 to 14.8. `sprint-change-proposal-2026-10-08.md` § 9.)*
+
 ## Epic 1: Sign in and work on the device (offline-first foundation)
 
 A company user signs in once, opens PRODUTO on any device, and every relatório in progress is already on the device and keeps working with no signal; whatever is captured lands locally first and reaches the server by itself. Stories stay small; the whole MVP runs 100% locally in Docker (AWS only after the MVP), so this epic exposes the local stack to tablets over HTTPS and the offline proof runs on a real iPad against that origin. Mockups: `prototype/screens/10-login.html`, `20-home.html`, `90-account.html`, `85-sync.html` (badge and counts only), `key-login.html`, `key-home.html`, `key-account.html`.
@@ -2985,3 +2991,303 @@ So that the fastest input this market ships is on without a hidden privacy trade
 **Given** the dictation specs
 **When** they run
 **Then** the existing suggestion-only behavior is unchanged and the consent dialog is covered at 390 and 768 px
+
+## Epic 14: Locals, the site checklist and office-created equipment types (Bruno, 2026-10-08)
+
+A masonry room is a local that holds its equipment with no coluna; every local carries its Verificações do local and prints them once *(2026-10-09: "local" in this epic means the room node — today's root cabine; the on-screen names of cabine and local follow Bruno's structure, Story 14.2)*; and the office adds the equipment types the base lacks, by copy, so a job with a no-break de comando or a chave ASCO is still one relatório. Source: `sprint-change-proposal-2026-10-08.md`. Waves: 14.1 alone (the mocks every later story matches, Definition of Ready item 4); 14.2 to 14.4 next; ~~14.5 to 14.7 last, behind the architecture settlement in Story 14.5's Definition of Ready~~. The 2026-10-08 story gate applies to every story. *(2026-10-09, John (PM) with Matheus: re-sliced. Library types ship before company types: the new Story 14.5 adds the measurement table and ships "Fonte auxiliar da proteção" and "Chave de transferência automática" as seed types, with AD-21 unchanged; the former 14.5, 14.6 and 14.7 became 14.6, 14.7 and 14.8 (wave 3); wave 3 starts only after two or three real jobs have used the library types, with the count of new-type and adjustment requests recorded; the editor frames moved from Story 14.1 to Story 14.7. Waves: 0 = 14.1; 1 = 14.2 to 14.4; 2 = 14.5; 3 = 14.6 to 14.8. `sprint-change-proposal-2026-10-08.md` § 9.)*
+
+### Story 14.1: The mocks for locals, the site checklist and the type editor
+
+*(2026-10-09: the type-editor frames moved to Story 14.7; this story draws the structure, the site checklist, its printed table and the library-type sheets of Story 14.5.)*
+
+**Dev model:** opus · **Effort:** medium · mock HTML from the existing tokens and components, no app code
+
+As Matheus and Bruno,
+I want to see the local, the Verificações do local, their printed table and the type editor before any of it is built,
+So that the stories that follow have a mock to match and Bruno approves the printed layout on paper first.
+
+**Acceptance Criteria:**
+
+**Given** `mockups/prototype/screens/42-template-composer.html` and `40-relatorio-overview.html`
+**When** they are updated
+**Then** ~~the root location reads "local" ("Adicionar local", "Esqueleto de locais", the palette prompt "Selecione um local ou coluna"),~~ the root node shows ~~the structure Bruno sends (recommended: a cabine with Função and Local fields, `source-deltas.md` 2026-10-09)~~ the three levels Local › Cabine › Coluna decided 2026-10-09, a local holding two cabines with their Função, a cabine with no coluna shows "Adicionar equipamento" inside its card, and a local holding two transformers and no coluna is drawn (CAP-8; UX-DR70, UX-DR29)
+
+**Given** the site checklist
+**When** it is drawn
+**Then** a new screen (`61-verificacoes-local.html`) shows the 19 items of `sprint-change-proposal-2026-10-08.md` § 4.1 under their six group headings with Checklist rows, the Bulk action bar, an NC row expanded with chips, observation, photo and "Criar ponto de atenção"; `60-ficha.html` shows how "Da cabine" leads to it; the tree row of a local shows its progress (CAP-27; UX-DR36 to UX-DR38)
+
+**Given** the printed relatório
+**When** the section 9 sample is drawn
+**Then** a print mock shows one local's header, CARACTERÍSTICAS DA SE, AMBIENTE DE ENSAIO and the VERIFICAÇÕES DO LOCAL table (ÍTEM · C · NC · NA · OBSERVAÇÕES, group rows), in the FO.SERV-03 table style (CAP-27; FR-68)
+
+**Given** the office-created types
+**When** they are drawn
+**Then** ~~`41-templates.html` gains a "Tipos de equipamento" list (seeded types read-only with "Duplicar"; company types with Rascunho · Publicado · Aposentado), and a new type editor screen (`43-tipo-equipamento.html`) shows label, TAG prefix, noun and gender, nameplate fields, checklist items with NC phrases, tests from a grammar picker including the measurement table, criteria with source, "Publicar" and "Aposentar"; the field Block palette of `60-ficha.html` lists a published company type after the eight (CAP-28; UX-DR29, UX-DR70)~~ *(2026-10-09: moved to Story 14.7)*
+
+**Given** the library types of Story 14.5 *(added 2026-10-09)*
+**When** they are drawn
+**Then** `60-ficha.html` gains a measurement-table frame (a Fonte auxiliar da proteção sheet with battery blocks added on site by "Adicionar bloco", a derived Δ% column, a yes/no row and the subtype select) and a CTA frame with the E5 method options; the field Block palette lists the two library types after the eight; the print mock shows the "Outros equipamentos" group after Transformadores (CAP-28; UX-DR29, UX-DR38; FR-68)
+
+**Given** every new or changed frame
+**When** it is reviewed
+**Then** it exists at 390, 768 and 1280 px in light and dark, uses only `tokens.css` and `components.css` classes or a documented addition per `MOCK-GUIDE.md`, carries no emoji and no Fasor branding, and `MOCK-GUIDE.md` and `index.html` list it
+
+**Definition of Done, in addition:** Matheus approves the mocks; Bruno sees the checklist surface and the printed table, and his answer is recorded under this story with its date.
+
+### Story 14.2: A local holds its equipment with no coluna
+
+**Dev model:** opus · **Effort:** ~~medium~~ high *(2026-10-09)* · ~~copy and composer and tree affordances; the kernel already allows a block on a root node (AD-6)~~ a third location kind in the kernel, the template skeleton, the composer, the tree and section 9 grouping (AD-6 amended 2026-10-09)
+
+*(2026-10-09, Matheus: the structure is **Local › Cabine › Coluna** — a local holds one or more cabines, a cabine zero or more colunas (`source-deltas.md` 2026-10-09). The criteria below are amended by the dated block at the end of this story; where they disagree, that block wins.)*
+
+As an office user composing a job with masonry rooms,
+I want to add a local and put its equipment in it directly,
+So that a transformation room with two transformers needs no invented coluna.
+
+*(Definition of Ready: Story 14.1's composer and tree frames are approved; 2026-10-09: ~~Bruno has sent the cabine and local structure (`sprint-change-proposal-2026-10-08.md` § 7)~~ the structure is Local › Cabine › Coluna (Matheus, 2026-10-09, § 8) and the frames follow it.)*
+
+**Acceptance Criteria:**
+
+**Given** the Template composer
+**When** it renders
+**Then** ~~the root location reads "local" in every on-screen string ("Adicionar local", the skeleton heading, the palette prompt, menus and announcements), from `copy/pt-br.ts`; the kernel keeps `kind = cabine` and the generated DOCX keeps "cabine"~~ the root node follows Bruno's structure in every on-screen string, from `copy/pt-br.ts` (recommended: "Adicionar cabine" asks for Função and Local, and the card reads e.g. "Cabine de transformação · 1° Subsolo"); the generated DOCX changes only as that answer says *(2026-10-09)* (CAP-8; FR-10; UX-DR70; `source-deltas.md` 2026-10-08)
+
+**Given** a local with no coluna
+**When** the user taps "Adicionar equipamento" in its card
+**Then** the local becomes current and the palette's steppers set quantities on it; the blocks are born on the local with the TAG rule for a block on a cabine (`relatorio/tag.ts`), and the card lists them as a coluna's body does (FR-10; UX-DR29, UX-DR30)
+
+**Given** the relatório tree
+**When** a local has no coluna
+**Then** the field user adds equipment from the local's row (FR-18) and the same wording applies
+
+**Given** a template with one local holding two transformers and no coluna
+**When** a relatório is created and generated
+**Then** both sheets are born in the local with their TAGs and section 9 prints them under the local (FR-68)
+
+**Definition of Done, in addition:** a Playwright spec walks the composer, the relatório tree and generation for a local with no coluna at 768 and 1280 px.
+
+**Acceptance Criteria added 2026-10-09 (Local › Cabine › Coluna):**
+
+**Given** the kernel
+**When** this story lands
+**Then** a location `kind` is `local`, `cabine` or `coluna`; a local is a root holding one or more cabines; a cabine holds zero or more colunas and keeps `se`, `env`, `agrupar_por_tipo` and gains `funcao` (Entrada · Primária · Transformação · Distribuição, or a typed name); an equipment block sits on a cabine or a coluna, never on a local; ~~seed v4 templates and relatórios put every cabine under a local, and v1 to v3 rows keep cabines as roots~~ *(readiness 2026-10-09: the structure is template and relatório data, not a seed definition, so it is tied to no seed version)* templates and relatórios created after this story put every cabine under a local, and rows created before keep cabines as roots and read, sync and print as before (AD-6 amended 2026-10-09; CAP-8; FR-10, FR-24)
+
+**Given** a company template created before this story *(added 2026-10-09, readiness)*
+**When** it is opened in the composer or used to create a relatório
+**Then** each root cabine is wrapped in a local of the same name, written as template ops (the template's version moves, no relatório is touched), so every relatório created afterwards has locals; a relatório created before keeps its cabine roots
+
+**Given** the Template composer and the relatório tree
+**When** they render a v4 skeleton
+**Then** "Adicionar local" adds a local, "Adicionar cabine" inside it asks for the Função and adds a cabine, "Adicionar coluna" inside a cabine stays optional, and a cabine with no coluna offers "Adicionar equipamento" in place; every move, rename and remove works at each of the three levels by the four reorder ways, announcing as today (FR-10, FR-17, FR-19; UX-DR29, UX-DR30, UX-DR70)
+
+**Given** the seeded standard template
+**When** it moves to v4
+**Then** each of its six current cabines sits under a local of the same name, with a Função settled in the story spec (the Porto Seguro fixture on v1 stays as it is) *(readiness 2026-10-09: "moves to v4" above means the template's new version, not seed v4, which Story 14.3 creates)*
+
+**Given** a relatório on v4 with a local holding two cabines (one with colunas, one ALVENARIA with two transformers on the cabine)
+**When** it is generated
+**Then** section 9 prints the local's heading, then each cabine with its CARACTERÍSTICAS DA SE and AMBIENTE DE ENSAIO and its sheets, under both schemes; "Copiar da cabine anterior" copies from the previous cabine in tree order (FR-24, FR-68)
+
+**Definition of Done, in addition (2026-10-09):** the contract version bump and its MIN_CONTRACT_VERSION decision are written in the PR; a Playwright spec composes the two-cabine local, creates the relatório, fills the first sheet of each cabine and generates; the durability specs touched run on the matrix projects.
+
+### Story 14.3: Verificações do local: capture
+
+**Dev model:** opus · **Effort:** high · seed v4, a location op family, merge, progress, pre-issue, a point and photo target, and a field surface
+
+As a field engineer inside a room,
+I want to mark the room's safety, fire, lighting, grounding, signage and condition items once,
+So that the relatório records the room itself and an NC becomes a point of attention in one tap.
+
+*(Definition of Ready: Story 14.1's checklist frames are approved; the 19 items of `sprint-change-proposal-2026-10-08.md` § 4.1 are the list (Bruno, 2026-10-08); the NC chip phrases are authored in this story and reviewed by Bruno before the first real job, as the equipment chips were; 2026-10-09: Story 14.2 is merged, and the checklist belongs to the `kind = local` row, answered once for all its cabines — read "local" below as that row.)*
+
+**Acceptance Criteria:**
+
+**Given** the seed
+**When** this story lands
+**Then** seed v4 is v3 plus a site item list (19 keys, labels, groups, 3-4 NC phrases each), `SEED_VERSION` is v4, v1 to v3 stay frozen and resolvable, and a kernel test pins that v4 differs from v3 only by the site list (CAP-27; AR-20; AD-21)
+
+**Given** templates and relatórios that exist before this story
+**When** a relatório is created after it
+**Then** the seeded standard template and every live company template reach v4 without touching any relatório (the mechanism is settled in the story spec, never a rewrite of a relatório's `seed_version`), and a relatório on v1 to v3 shows and prints no site checklist (AD-21) *(readiness 2026-10-09: every such template already has locals from Story 14.2; a relatório on v4 created from a template with locals carries the checklist on each local)*
+
+**Given** a local of a relatório on v4
+**When** the user opens "Verificações do local" from the local's tree row or from the "Da cabine" line
+**Then** the 19 items render as Checklist rows under their group headings with the Tri-state control, observation, chips, photos and "Marcar os restantes como Conforme"; every write is a `location/{id}/checklist/{itemKey}/{result|observation}` op through `applyOp` on both sides, offline first, and a coluna offers no such surface (CAP-27; FR-25; UX-DR36 to UX-DR38; AD-3, AD-6)
+
+**Given** an NC item
+**When** the user taps "Criar ponto de atenção"
+**Then** the point is created with `location_id` and the item's photos as tokens, and the item links back to it as an NC sheet row does (FR-49; AD-26)
+
+**Given** progress and pre-issue
+**When** items are unanswered
+**Then** they count in the local's progress on the tree row and the Sumário, and one non-blocking pre-issue row names the locals with unanswered items; the parecer stays the only blocking row (CAP-25, CAP-27)
+
+**Given** two devices answering the same local's items
+**When** they sync
+**Then** items merge per item as sheet checklist rows do, and the replay test stays byte-equal (AD-3)
+
+**Definition of Done, in addition:** the contract version is bumped with its MIN_CONTRACT_VERSION decision written in the PR; a Playwright spec answers all 19 items offline, creates a point from an NC item with a photo, reloads and syncs; the durability specs touched run on the matrix projects (the 2026-10-08 story gate).
+
+### Story 14.4: Verificações do local: the printed table
+
+**Dev model:** opus · **Effort:** high · a section 9 part in the renderer and its golden comparison
+
+As Bruno issuing the relatório,
+I want each room's checklist printed once inside the room,
+So that the client sees the room's condition beside its equipment.
+
+*(Definition of Ready: Story 14.3 is merged; Bruno's answer on the print mock is recorded under Story 14.1.)*
+
+**Acceptance Criteria:**
+
+**Given** a relatório on v4 with answered site items
+**When** it is generated
+**Then** section 9 prints, for each local, a VERIFICAÇÕES DO LOCAL table (ÍTEM · C · NC · NA · OBSERVAÇÕES with group rows, as the approved mock) right after AMBIENTE DE ENSAIO *(2026-10-09: of the local's first cabine)*, once per local under both schemes, never per cabine *(2026-10-09)*, per coluna or per sheet (CAP-27; FR-68; AD-6, AD-16)
+
+**Given** a local with no equipment block
+**When** it is generated
+**Then** the local still prints its header, cabine data and site table
+
+**Given** site-item photos and points
+**When** the document is built
+**Then** the photos take their place in section 7 with a context caption naming the local and the item, and a point created from an item prints in section 8 like any manual point (FR-48; AD-26)
+
+**Given** a relatório on v1 to v3, including the Porto Seguro fixture
+**When** it is generated
+**Then** the document is unchanged and the golden documents still match (AD-15)
+
+**Definition of Done, in addition:** the DOCX and its PDF are checked against the approved print mock; the generate specs touched run serially per `e2e/support/groups.ts`.
+
+### Story 14.5: The measurement table and two library types: Fonte auxiliar da proteção and Chave de transferência automática
+
+*(Added 2026-10-09 by John (PM) with Matheus: the smallest increment that puts the no-break de comando and the chave ASCO in Bruno's hands, with no company-type machinery and AD-21 unchanged — the two types are seeded code.)*
+
+**Dev model:** opus · **Effort:** high · a new table grammar and criteria in the kernel, seed v5 with two block types, palettes, sheet and section 9
+
+As Bruno,
+I want the auxiliary protection supply (no-break de comando, fonte capacitiva, retificador + banco Vcc) and the automatic transfer switch in the palette with their own sheets,
+So that the next job with a no-break or a chave ASCO is recorded in the relatório, not beside it.
+
+*(Definition of Ready: Story 14.3 is merged (seed v4); the measurement-table and library-type frames of Story 14.1 are approved; the content is `sprint-change-proposal-2026-10-08.md` § 8.3 and § 8.4, set by Matheus on 2026-10-09 ("coloque o que acha, depois a gente ajusta"; "deixa configurável").)*
+
+**Acceptance Criteria:**
+
+**Given** the kernel
+**When** this story lands
+**Then** a generic **measurement table** grammar exists beside the four seeded ones: fixed named rows or rows the field user adds ("Adicionar bloco", numbered), several value columns with units, a column derived from two others (Δ% against a reference typed on the sheet), and yes/no or choice results; its cells are written through `sheet/{blockId}/test/{testKey}/...` ops within AD-3's append-only rule, settled in the story spec; `compareCriterion` gains `>=`, `<=`, `between`, `pass_fail`, a limit relative to a column (≤ 50 % above the lowest, ≤ 2.5 % from the average) and equality to another cell (deixado = projeto), each criterion naming its source (CAP-28; AD-3, AD-21; SPEC Constraints, criteria sourced)
+
+**Given** the seed
+**When** v5 lands
+**Then** v5 is v4 plus two block types, `fonte_auxiliar_protecao` (subtypes no-break de comando, fonte capacitiva, retificador + banco Vcc, each pre-marking NA what does not apply) and `chave_transferencia_automatica` (configurable tensão BT/MT, polos, neutro, transição, bypass; E5 options método, carga, fonte dos tempos), with the nameplate fields, checklist items with authored NC phrases, tests and default criteria of § 8.3 and § 8.4; the closed enums gain the two keys; TAG prefixes, nouns for the conclusion and caption texts, and template totals come from the kernel; v1 to v4 stay frozen and a kernel test pins the difference (AR-20; AD-21)
+
+**Given** the composer and the field Block palette
+**When** a template or relatório is on v5
+**Then** both types are offered after the eight with Quantity steppers and suggested TAGs, and the field adds them offline (FR-10, FR-18; UX-DR29, UX-DR30)
+
+**Given** a sheet of either type
+**When** a field user fills it offline
+**Then** nameplate, checklist with bulk actions and chips, the measurement tables with rows added on site and derived Δ%, criteria evaluation, the suggested conclusion and its text, Não ensaiado, photos and points work as on a seeded sheet (FR-22, FR-25, FR-27)
+
+**Given** generation
+**When** a relatório holds them
+**Then** section 9 prints them in an "Outros equipamentos" group after Transformadores with native tables, and a relatório on v1 to v4 prints exactly as before (FR-68; AD-15)
+
+**Definition of Done, in addition:** a Playwright spec places both types in a template, fills a no-break de comando with four battery blocks added on site and a CTA with its E5 method chosen, offline, generates the DOCX and checks both tables and the conclusion of an NC; the durability specs touched run on the matrix projects.
+
+### Story 14.6: Company equipment types in the kernel
+
+*(2026-10-09: renumbered from 14.5. Wave 3 gate (John with Matheus): this story starts only after two or three real jobs have used the library types of Story 14.5, with the count of new-type requests and of adjustments to existing types recorded here with dates; that count sets the editor's scope. The measurement table and the criteria vocabulary already exist from Story 14.5; this story makes types company data.)*
+
+**Dev model:** opus · **Effort:** max · opens the closed type enums, threads a resolver context through every definition lookup and `applyOp`, and keeps replay byte-equal
+
+As the product,
+I want an equipment type to be company data with immutable published versions,
+So that the office can add types without a code release and no relatório ever changes under a type edit.
+
+*(Definition of Ready: `bmad-architecture` has settled the AD-21, AD-3 and AD-15 amendments proposed on 2026-10-08 (registry and op families, the resolver context, the contract version, the `blockTypeSchema` shape) and they are written in the spine without "proposed".)*
+
+**Acceptance Criteria:**
+
+**Given** the registry
+**When** an office user's client writes a company type
+**Then** a draft holds label, TAG prefix, noun with gender, nameplate fields of the six AD-11 kinds, checklist items with NC phrases, tests and criteria; publishing freezes a version; a published version used by any block refuses every change; retiring keeps it resolvable; the rows are company-scoped and a cross-tenant test proves company B never resolves company A's type (CAP-28; AD-5, AD-10, AD-21)
+
+**Given** every definition lookup (`getDefinition`, `findDefinition`, `getSeed`, `assertSeedPath` in `applyOp`)
+**When** a block of a company type is read on the device or the server
+**Then** it resolves through the resolver context from the type id and version, the same op log replayed through both layers yields byte-equal snapshots with company types in it, and seeded types resolve as before (AD-2, AD-3, AD-21)
+
+**Given** tests on a company type
+**When** they are defined
+**Then** they use one of the four seeded grammars or the generic measurement table (named rows, unit, value, one criterion each; *2026-10-09: also rows added in the field, several value columns, a derived Δ% against a typed reference and yes/no results, from the no-break and chave ASCO drafts in `sprint-change-proposal-2026-10-08.md` § 7.4 — built by Story 14.5, reused here*), and `compareCriterion` implements `>=`, `<=`, `between`, `±` and `pass_fail`, each criterion naming a source; a criterion without one is rejected by the kernel (CAP-28; SPEC Constraints, criteria sourced)
+
+**Given** composed outputs
+**When** they concern a company type
+**Then** the conclusion suggestion is the same generic rule, the conclusion text, caption words, TAG suggestion, template totals and the print group "Outros equipamentos" come from the type's data in the kernel, never from `apps/*` (AD-2)
+
+**Given** the snapshot
+**When** a relatório holds company-type blocks
+**Then** it carries every type version they reference (AD-15)
+
+**Definition of Done, in addition:** the contract version bump and its MIN_CONTRACT_VERSION decision are written in the PR; the durability specs touched run on the matrix projects.
+
+### Story 14.7: The type editor
+
+*(2026-10-09: renumbered from 14.6.)*
+
+**Dev model:** opus · **Effort:** high · an office surface over Story ~~14.5's~~ 14.6's *(2026-10-09)* ops, from ~~the 14.1 mocks~~ its own editor frames *(2026-10-09)*
+
+As an office user,
+I want to copy an equipment type, edit it and publish it,
+So that the job's unusual equipment has a sheet before the visit.
+
+*(Definition of Ready: Story ~~14.5~~ 14.6 is merged; the editor frames ~~of Story 14.1~~ are approved — 2026-10-09: they moved here from Story 14.1 and are drawn first with `bmad-ux`, matching the criterion struck there: a "Tipos de equipamento" list in `41-templates.html` with library types read-only and "Duplicar", company types with Rascunho · Publicado · Aposentado, and a `43-tipo-equipamento.html` editor.)*
+
+**Acceptance Criteria:**
+
+**Given** Templates › "Tipos de equipamento"
+**When** the list renders
+**Then** the eight seeded types show read-only with "Duplicar", company types show their status (Rascunho · Publicado · Aposentado) and version, and the surface is reached only from Templates, never from a field surface (CAP-28; UX-DR70)
+
+**Given** "Duplicar" on any type
+**When** the draft opens
+**Then** the user edits label, TAG prefix, noun and gender, nameplate fields (kind, unit, options), checklist items and NC phrases, tests from the grammar picker including the measurement table, and criteria with their source; each edit autosaves as ops; the kernel's validation messages show inline; a preview renders the sheet as the field will see it
+
+**Given** a valid draft
+**When** the user taps "Publicar"
+**Then** a version is frozen; a later edit opens a draft of the next version; "Aposentar" asks for confirmation, hides the type from palettes and keeps every block that uses it working
+
+**Definition of Done, in addition:** a Playwright spec creates a type from a copy, publishes it, edits it into a second version and retires it, at 768 and 1280 px.
+
+### Story 14.8: Office types in templates, the field and the document: the no-break de comando end to end
+
+*(2026-10-09: renumbered from 14.7 when the library types moved to Story 14.5; this story now proves duplicate-and-adjust on a library type and a company type in use.)*
+
+**Dev model:** opus · **Effort:** high · palettes, sheet rendering and section 9 for company types, proven on the first real case
+
+As Bruno,
+I want the no-break de comando I created to sit in my template, be filled offline in the field and print in the relatório,
+So that the equipment the base lacked is part of the job like any other.
+
+*(Definition of Ready: Story ~~14.6~~ 14.7 *(2026-10-09)* is merged; Bruno has given the no-break de comando's nameplate fields, checks, measurements and limits (open item 1 of `sprint-change-proposal-2026-10-08.md` § 6; 2026-10-09: a researched draft for him to correct is in § 7.2, with the question whether the type is a generic "Fonte auxiliar da proteção"), recorded under this story with its date.)*
+
+**Acceptance Criteria:**
+
+**Given** the Template composer and the field Block palette
+**When** a company type is published
+**Then** it is offered after the eight with its Quantity stepper and suggested TAG; a template records the type version it places; a retired type is no longer offered (CAP-28; FR-10, FR-18; UX-DR29, UX-DR30)
+
+**Given** a block of a company type
+**When** a field user fills it offline
+**Then** the sheet renders its nameplate, checklist and tests as a seeded sheet does, with bulk actions, criteria evaluation, the suggested conclusion and its text, Não ensaiado, photos and points (FR-22, FR-25, CAP-28)
+
+**Given** a type edited after a relatório exists
+**When** that relatório is opened and generated
+**Then** it keeps the version its blocks were created with; a relatório created afterwards takes the new version (AD-21)
+
+**Given** generation
+**When** the relatório holds company-type blocks
+**Then** section 9 prints them in the "Outros equipamentos" group after Transformadores with their tables, and the Sumário and pre-issue count them (FR-68, FR-71)
+
+**Definition of Done, in addition:** a Playwright spec creates the no-break de comando from a copy with Bruno's content, places it in a template, fills it offline in a relatório, generates the DOCX and checks its table; the chave ASCO is created afterwards by the office through the editor, as data, with no code change.
+
+*(2026-10-09, Matheus: "coloque o que acha, depois a gente ajusta" and "deixa configurável". ~~The two first cases ship as **library types** in the next seed version — "Fonte auxiliar da proteção" (subtypes no-break de comando, fonte capacitiva, retificador + banco Vcc) and "Chave de transferência automática" (the chave ASCO; BT or MT, poles, neutro, transição and the E5 method as configurable fields and sub-block options) — with the content of `sprint-change-proposal-2026-10-08.md` § 8.3 and § 8.4. They are read-only and usable directly, and the office duplicates one to adjust it. This replaces the Definition of Ready on Bruno's no-break content, and the Definition of Done becomes: a Playwright spec places both library types in a template, fills a no-break with battery blocks added on site and a CTA with its E5 method offline, generates the DOCX and checks their tables; then it duplicates the CTA, changes one criterion, publishes, and shows that a relatório created earlier is unchanged.~~ Re-sliced the same day: the library types ship in Story 14.5. This story's Definition of Done becomes: a Playwright spec duplicates the library CTA into a company type, changes one criterion and one checklist item, publishes it, places it in a template, fills it offline and generates; a relatório created from the library CTA earlier is unchanged.)*
