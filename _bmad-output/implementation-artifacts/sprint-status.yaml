@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 10-08-2026 12:28
+last_updated: 10-08-2026 18:30
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -163,6 +163,16 @@ development_status:
   13-8-the-emission-audit-one-ai-pass-before-emitir-that-points-nev: done  # PR #107; fixes PR #109
   13-9-dictation-on-behind-one-line-of-consent: backlog  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus
   epic-13-retrospective: done  # epic-13-retro-2026-10-08.md; machine verdict rejected (13-9 deferred); overridden to accepted-with-open-items by Matheus 2026-10-08 after the E13-A1 wave gate
+  epic-14: backlog  # sprint-change-proposal-2026-10-08.md; Bruno 2026-10-08; re-sliced 2026-10-09: waves 14.1 | 14.2-14.4 | 14.5 | 14.6-14.8 (after real use)
+  14-1-the-mocks-for-locals-the-site-checklist-and-the-type-editor: backlog  # DoD: Matheus approves; Bruno sees checklist and print table
+  14-2-a-local-holds-its-equipment-with-no-coluna: backlog  # DoR: 14.1 composer and tree frames approved; 2026-10-09 scope: Local > Cabine > Coluna, effort high
+  14-3-verificações-do-local-capture: backlog  # DoR: 14.1 checklist frames approved, 14.2 merged; NC chips reviewed by Bruno before the first real job
+  14-4-verificações-do-local-the-printed-table: backlog  # DoR: 14.3 merged; Bruno's answer on the print mock
+  14-5-the-measurement-table-and-two-library-types-fonte-auxiliar: backlog  # added 2026-10-09 (John with Matheus); wave 2; DoR: 14.3 merged, 14.1 library frames approved
+  14-6-company-equipment-types-in-the-kernel: backlog  # wave 3, renumbered from 14.5; gate: 2-3 real jobs on the library types; DoR: bmad-architecture settles AD-21/AD-3/AD-15
+  14-7-the-type-editor: backlog  # wave 3, renumbered from 14.6; editor frames drawn first
+  14-8-office-types-in-templates-the-field-and-the-document-the-no: backlog  # wave 3, renumbered from 14.7; duplicate-and-adjust of a library type
+  epic-14-retrospective: optional
 
 action_items:
   - id: "epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli"
