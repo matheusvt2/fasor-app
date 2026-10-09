@@ -12,6 +12,7 @@ import {
   applyPickOps,
   conflictOpIds,
   conflictSideView,
+  conflictValueText,
   conflictViewTitle,
   decisionCount,
   decisionSplit,
@@ -312,6 +313,16 @@ describe('stampSeen', () => {
     expect(stampSeen(ana(removedAt, null, null, null, 'remove'), state).meta).toEqual({ seen_modified_at: x.client_ts });
     const order = ana(`block/${BLOCK}/order_key`, 'b0');
     expect(stampSeen(order, state)).toBe(order);
+  });
+});
+
+describe('conflictValueText: the conclusion words', () => {
+  it('words the pair and the conclusion text status (r8conc-consistency-2); the text itself stays as written', () => {
+    const at = (field: string) => ({ path: `sheet/019966b0-0012-7000-8000-000000000001/conclusion/${field}` });
+    expect(conflictValueText(at('result'), 'aprovado')).toBe('Aprovado');
+    expect(conflictValueText(at('text_status'), 'confirmed')).toBe('Confirmado');
+    expect(conflictValueText(at('text_status'), 'edited')).toBe('Editado');
+    expect(conflictValueText(at('text'), 'Texto editado.')).toBe('Texto editado.');
   });
 });
 

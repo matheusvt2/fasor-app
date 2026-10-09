@@ -48,6 +48,8 @@ export interface MergePolicyInput {
   op: Pick<Op, 'kind' | 'path' | 'prev_op_id' | 'device_id' | 'value'> & { meta?: Op['meta'] };
   /** For a checklist observation: the item's result cell, as it stands. */
   result?: Cell | null | undefined;
+  /** For the conclusion text: the sheet's `text_status` cell, as it stands. */
+  textStatus?: Cell | null | undefined;
 }
 
 /** Null, absent, a blank string, or an AD-11 number whose state is `empty` (`isCellFilled`'s rule). Module-internal to `merge/`. */
@@ -58,7 +60,11 @@ export function isEmptyValue(value: unknown): boolean {
   return false;
 }
 
-/** The free-text cells: the latest edit wins and the other version is kept in the info entry. */
+/**
+ * The free-text cells: the latest edit wins and the other version is kept in the info entry.
+ * Review 2026-10-09 (PR #121, r8conc-consistency-1): the conclusion text is the exception
+ * while its standing `text_status` reads `edited` (`mergePolicy`).
+ */
 function isFreeText(path: OpPath): boolean {
   if (path.family === 'sheet/observations') return true;
   if (path.family === 'sheet/checklist') return path.field === 'observation';
@@ -75,7 +81,11 @@ function isNcDevice(result: Cell, deviceId: string): boolean {
 /**
  * The rule for one concurrent pair, in the story's order: same value, filled over empty,
  * NC over C, the NC device's observation, latest free text, and anything else a
- * contradiction. A contradiction keeps the `seq`-later op's value on display and (Story
+ * contradiction. Review 2026-10-09 (PR #121, r8conc-consistency-1): a concurrent put on the
+ * conclusion text whose standing `text_status` is `edited` is a contradiction, not latest
+ * free text, so a text the engineer edited is never replaced by another device's text
+ * (another edit, or the composed text "Concluir ficha" confirms, Decision 1) without a
+ * durable decision in the Conflict view. A contradiction keeps the `seq`-later op's value on display and (Story
  * 10.2) marks the cell with the side it displaced (`mergeCell`, the one branch).
  */
 export function mergePolicy(input: MergePolicyInput): MergeOutcome {
@@ -99,6 +109,7 @@ export function mergePolicy(input: MergePolicyInput): MergeOutcome {
       return { kind: isNcDevice(result, op.device_id) ? 'apply' : 'keep', rule: 'nc_observation' };
     }
   }
+  if (path.family === 'sheet/conclusion' && path.field === 'text' && input.textStatus?.value === 'edited') return { kind: 'contradiction' };
   if (isFreeText(path)) return { kind: 'apply', rule: 'latest_text' };
   return { kind: 'contradiction' };
 }
@@ -112,6 +123,8 @@ export interface MergeCellContext {
   path: OpPath;
   /** For a checklist observation: the item's result cell. */
   result?: Cell | null | undefined;
+  /** For the conclusion text: the sheet's `text_status` cell. */
+  textStatus?: Cell | null | undefined;
 }
 
 /**
@@ -128,7 +141,7 @@ export interface MergeCellContext {
  *   its `conflict`; an applied one (a same value included) drops it.
  */
 export function mergeCell(current: Cell | null | undefined, op: Op, context: MergeCellContext): Cell {
-  const outcome = mergePolicy({ path: context.path, current, op, result: context.result });
+  const outcome = mergePolicy({ path: context.path, current, op, result: context.result, textStatus: context.textStatus });
   if (outcome.kind === 'sequential') {
     // E10-Q2 (contract 13): the undo of "Aplicar" puts the value back with the marks the
     // resolution cleared (`meta.restore`), so the decision is open again on every device.

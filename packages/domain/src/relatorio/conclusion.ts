@@ -107,7 +107,9 @@ export function restrictionWarning(block: BlockRow): string | null {
  * ⟨observação⟩" per NC item that carries an observation, in checklist order, `n` the row
  * number. Null when the sheet observation holds text, the observation or checklist
  * sub-block is off, the sheet is marked not tested, or no NC item has an observation. It is
- * written only by its own "Confirmar" or with the conclusion text's confirm.
+ * written only by its own "Confirmar" or with the conclusion text's own "Confirmar"; the text
+ * confirm "Concluir ficha" folds into its batch (review 2026-10-08 Decision 1,
+ * `conclusionTextOnConclude`) never writes it.
  */
 export function suggestedSheetObservation(block: BlockRow, definition: BlockDefinition): string | null {
   if (block.not_tested !== null || !enabledSubBlocksOf(block).has('observations')) return null;

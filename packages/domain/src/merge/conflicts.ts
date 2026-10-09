@@ -487,6 +487,9 @@ const CONCLUSION_WORDS: Readonly<Record<string, string>> = {
   reprovado: 'Reprovado',
   sem_restricoes: 'Sem restrições',
   com_restricoes: 'Com restrições',
+  // authored: the conclusion text's status (review 2026-10-09, r8conc-consistency-2).
+  confirmed: 'Confirmado',
+  edited: 'Editado',
 };
 
 /** A side's value as the sheet displays it ("3.300 MΩ", "Conforme", "Aprovado"); "—" when empty. */

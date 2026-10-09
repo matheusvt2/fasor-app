@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: Concluir ficha confirms the composed conclusion text'
 type: 'feature'
 created: '2026-10-08'
-status: 'done'
+status: 'in-progress'
 baseline_revision: 'f0adf337eda97a933a3881f29281dfd32be94141'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -100,6 +100,15 @@ deferred:
 - Given the conclude batch, when it is undone through the commit path's undo, then every field it wrote is restored to its prior value.
 
 ## Spec Change Log
+
+### 2026-10-09 — independent review of PR #121 (coordinator)
+- Trigger: r8conc-consistency-1 (medium). Device B edits the conclusion text offline; device A, not having pulled it, concludes: A's composed `text` folds over B's under `latest_text` (B's text kept only in a session-only info entry) and the Conflict view cannot restore it. Amended: in the kernel merge (`packages/domain/src/merge/policy.ts` `mergePolicy`, fed by `ops/apply.ts` `cellOf`), a concurrent put on `sheet/{id}/conclusion/text` whose standing `text_status` cell reads `edited` is a `contradiction` (durable `conflict` carrying the displaced edited text; "Aplicar" restores it), not `latest_text`. No new op field, no new rule name, no contract change. Two concurrent *edits* of the text therefore also make a durable decision instead of `latest_text` (stricter, nothing lost). Known-bad state avoided: an edited text silently replaced by a composed one. Covered by kernel tests (both seq orders) and a two-device e2e.
+- Trigger: r8conc-consistency-2 (low). The Conflict view words `text_status` as raw tokens: `CONCLUSION_WORDS` gains `confirmed` "Confirmado" and `edited` "Editado" (authored). `text_basis` rows still show the hash (known open).
+- Trigger: r8conc-tests-2 (low). Undo of the conclude batch through the commit path (`undoBatch`) with a D-4 instrument op in the batch, in `apps/web/src/db/commit.test.ts`.
+- Trigger: r8conc-tests-3 (low). A deterministic web unit test runs `conclude`'s build on fresh rows that differ from the rendered block and asserts the text and basis follow the fresh rows; mutation run (swap `fresh` for `block`) turns it red.
+- Trigger: r8conc-rules-1 (high, process). `origin/main` (#119) merged; the story gate re-runs on the merged head.
+- r8conc-decision-2, r8conc-decision-1, r8conc-rules-2 (low): behaviour kept; open questions and comment/deferred-entry wording only.
+- KEEP: `conclusionTextOnConclude` and its fresh-rows composition; the `conclusion_stale` row; every e2e and unit test of the first pass.
 
 ## Review Triage Log
 

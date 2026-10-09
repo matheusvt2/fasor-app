@@ -102,7 +102,9 @@ export function sheetCellAt(sheet: Sheet, path: OpPath): Cell | undefined {
  */
 function cellOf(block: BlockRow, op: Op, path: OpPath): Cell {
   const result = path.family === 'sheet/checklist' && path.field === 'observation' ? block.sheet.checklist[path.item_key]?.result : undefined;
-  return mergeCell(sheetCellAt(block.sheet, path), op, { path, result });
+  // r8conc-consistency-1: an edited conclusion text is never replaced as latest free text.
+  const textStatus = path.family === 'sheet/conclusion' && path.field === 'text' ? block.sheet.conclusion.text_status : undefined;
+  return mergeCell(sheetCellAt(block.sheet, path), op, { path, result, textStatus });
 }
 
 /** The template fields whose put is a content edit (D-4): every relatório copies these at creation. */

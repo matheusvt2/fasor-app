@@ -337,6 +337,58 @@ describe('batch and undo', () => {
     db.close();
   });
 
+  it('r8conc tests-2: undoing a conclude-shaped batch (D-4 instrument, the confirmed text, concluded_by) restores every field it wrote', async () => {
+    const db = await freshDb();
+    await seed(db);
+    const d = deps();
+    const conclusion = (field: string) => `sheet/${BLOCK_1_ID}/conclusion/${field}`;
+    const instrumentPath = `sheet/${BLOCK_1_ID}/test/isolacao/instrument`;
+    const header = {
+      instrument_id: '019966b0-000d-7000-8000-0000000000aa',
+      code: 'MG-01',
+      manufacturer: 'Instrum',
+      model: 'DMG10Ki',
+      serial: 'IN919021',
+      cert_number: '37428/26',
+      calibrated_at: '2026-08-28',
+      valid_until: '2027-08-28',
+      test_parameter: null,
+    };
+    const read = async () => {
+      const row = (await db.entities.get(['block', BLOCK_1_ID]))!.row as BlockRow;
+      return {
+        instrument: row.sheet.test.isolacao?.instrument?.value ?? null,
+        text: row.sheet.conclusion.text?.value ?? null,
+        text_status: row.sheet.conclusion.text_status?.value ?? null,
+        text_basis: row.sheet.conclusion.text_basis?.value ?? null,
+        concluded_by: row.concluded_by,
+      };
+    };
+    const before = await read();
+    const { batch_id } = await commitBatch(
+      db,
+      [
+        put(instrumentPath, header),
+        put(conclusion('text'), 'O transformador apresentou valores medidos dentro dos critérios de aceitação.'),
+        put(conclusion('text_status'), 'confirmed'),
+        put(conclusion('text_basis'), '0a1b2c3d'),
+        put(`block/${BLOCK_1_ID}/concluded_by`, { actor_id: USER_ID, at: '2026-10-09T12:00:00.000Z' }),
+      ],
+      d,
+    );
+    expect(await read()).toEqual({
+      instrument: header,
+      text: 'O transformador apresentou valores medidos dentro dos critérios de aceitação.',
+      text_status: 'confirmed',
+      text_basis: '0a1b2c3d',
+      concluded_by: { actor_id: USER_ID, at: '2026-10-09T12:00:00.000Z' },
+    });
+    const inverses = await undoBatch(db, batch_id, d);
+    expect(inverses).toHaveLength(5);
+    expect(await read()).toEqual(before);
+    db.close();
+  });
+
   it("stamps this device's minted id on every op, whatever the caller passed (retro A4)", async () => {
     const db = await freshDb();
     await seed(db);

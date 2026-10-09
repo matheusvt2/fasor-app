@@ -45,7 +45,8 @@ import { useSheetObservationDictation } from './sheet-observation-dictation.tsx'
  * field stays editable (Story 5.9 AC 2). Story 12.4 (D-7): while the sheet observation is
  * empty and NC items carry observations, the field is a Suggestion field holding the
  * kernel's "Item ⟨n⟩: ⟨observação⟩" lines, written by its "Confirmar" or together with the
- * conclusion text's confirm; Com restrições then needs no typing. Story 9.4: the section head
+ * conclusion text's own "Confirmar"; Com restrições then needs no typing. The text confirm
+ * "Concluir ficha" folds into its batch (review 2026-10-08 Decision 1) never writes it. Story 9.4: the section head
  * carries "Ditar observações"; a dictated text (or a table utterance the kernel could not
  * read) waits under the field as a Suggestion field and "Usar" appends it (`appendObservation`).
  */

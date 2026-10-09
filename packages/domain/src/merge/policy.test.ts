@@ -117,6 +117,20 @@ describe('mergePolicy', () => {
     });
   });
 
+  it('r8conc-consistency-1: a concurrent conclusion text over an edited one is a contradiction, after same value and filled over empty', () => {
+    const { eduardo } = world();
+    const text = `sheet/${BLOCK}/conclusion/text`;
+    const edited = c('edited');
+    expect(mergePolicy({ path: at(text), current: c('meu texto'), op: eduardo(text, 'texto composto'), textStatus: edited })).toEqual({ kind: 'contradiction' });
+    expect(mergePolicy({ path: at(text), current: c('meu texto'), op: eduardo(text, 'meu texto'), textStatus: edited })).toEqual({ kind: 'apply', rule: 'same_value' });
+    expect(mergePolicy({ path: at(text), current: c(null), op: eduardo(text, 'texto composto'), textStatus: edited })).toEqual({ kind: 'apply', rule: 'filled_over_empty' });
+    // A confirmed (or absent) status keeps the latest free text, and the sequential case is unchanged.
+    expect(mergePolicy({ path: at(text), current: c('a'), op: eduardo(text, 'b'), textStatus: c('confirmed') })).toEqual({ kind: 'apply', rule: 'latest_text' });
+    expect(mergePolicy({ path: at(text), current: c('a'), op: eduardo(text, 'b') })).toEqual({ kind: 'apply', rule: 'latest_text' });
+    const head = c('meu texto');
+    expect(mergePolicy({ path: at(text), current: head, op: eduardo(text, 'b', head.op_id), textStatus: edited })).toEqual({ kind: 'sequential' });
+  });
+
   it('keeps the NC device observation: the record says which device was NC', () => {
     const { eduardo, ana } = world();
     const ncKeptAway: Cell = { ...c('NC'), merge: { head_op_id: c('x').op_id, device_id: A_DEVICE, kept: true, rule: 'nc_over_c' } };
@@ -196,6 +210,35 @@ describe('the fold of two devices on one sheet', () => {
     const a = ana(path, 'texto de Ana');
     expect(standing(fold([create, e, a]).sheet.observations ?? undefined)).toEqual({ value: 'texto de Ana', op_id: a.op_id });
     expect(standing(fold([create, a, e]).sheet.observations ?? undefined)).toEqual({ value: 'texto de Eduardo', op_id: e.op_id });
+  });
+
+  it('r8conc-consistency-1: an edited conclusion text and a concurrent conclude: the edited text is never lost, in either seq order', () => {
+    const { create, eduardo, ana } = world();
+    const at = (field: string) => `sheet/${BLOCK}/conclusion/${field}`;
+    const EDITED = 'Texto editado por Eduardo.';
+    const COMPOSED = 'A seccionadora SEC-01 apresentou valores medidos dentro dos critérios de aceitação.';
+    const pair = [ana(at('result'), 'aprovado'), ana(at('restriction'), 'sem_restricoes')];
+    // Eduardo: "Editar" (text, edited, basis), then his typed text, chained on his own ops.
+    const e1 = [eduardo(at('text'), COMPOSED), eduardo(at('text_status'), 'edited'), eduardo(at('text_basis'), 'aaaaaaaa')];
+    const e2 = eduardo(at('text'), EDITED, e1[0]!.op_id);
+    // Ana, not having pulled Eduardo's ops: the conclude batch (her prev is the pair's state, not his text).
+    const conclude = [
+      ana(at('text'), COMPOSED.replace('.', ' e todos os itens verificados conformes.')),
+      ana(at('text_status'), 'confirmed'),
+      ana(at('text_basis'), 'bbbbbbbb'),
+      ana(`block/${BLOCK}/concluded_by`, { actor_id: ANA, at: '2026-10-09T12:00:00.000Z' }),
+    ];
+    const editFirst = fold([create, ...pair, ...e1, e2, ...conclude]);
+    const concludeFirst = fold([create, ...pair, ...conclude, ...e1, e2]);
+    for (const row of [editFirst, concludeFirst]) {
+      const text = row.sheet.conclusion.text!;
+      expect([text.value, text.conflict?.value]).toContain(EDITED);
+    }
+    // Edit first: the conclude's composed text stands, Eduardo's text is the durable conflict.
+    expect(editFirst.sheet.conclusion.text?.value).toBe(conclude[0]!.value);
+    expect(editFirst.sheet.conclusion.text?.conflict).toEqual({ op_id: e2.op_id, value: EDITED, source_suggestion_id: null });
+    // Conclude first: Eduardo's edit lands on a confirmed text and stands (latest free text).
+    expect(concludeFirst.sheet.conclusion.text?.value).toBe(EDITED);
   });
 
   it('10.2 a contradiction shows the seq-later op and marks the cell with the side it displaced', () => {
