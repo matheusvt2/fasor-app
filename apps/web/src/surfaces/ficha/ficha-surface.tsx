@@ -44,11 +44,12 @@ import { useFichaActions } from './use-ficha-actions.ts';
 import { useFichaData } from './use-ficha-data.ts';
 import { useFichaPhotos } from './use-ficha-photos.ts';
 import { useFichaSteps } from './use-ficha-steps.ts';
+import { SHEET_PRIMARY_ID } from './ficha-fields.tsx';
 import './ficha.css';
 import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 
-/** The Sticky action bar's primary: where the readings' continuous Enter run ends. */
-const PRIMARY_ID = 'ficha-primary';
+/** The Sticky action bar's primary: where the readings' and the plate's Enter runs end (one id, `ficha-fields.tsx`). */
+const PRIMARY_ID = SHEET_PRIMARY_ID;
 
 /**
  * `/relatorio/:id/ficha/:blockId` (Stories 5.1-5.4; `60-ficha.html`, `key-equipment-sheet.html`,

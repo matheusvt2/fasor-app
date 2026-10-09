@@ -17,6 +17,7 @@ import {
   runEnterKeyHint,
   runTarget,
   unitDefaultFor,
+  unitTapNeedsEdit,
   worstReadings,
   type CellAddress,
 } from './readings.ts';
@@ -348,6 +349,28 @@ describe('13.4 INP-2 runEnterKeyHint', () => {
 
   it('is done for a cell outside the run', () => {
     expect(runEnterKeyHint(empty, at('isolacao', 99, 0))).toBe('done');
+  });
+});
+
+describe('R8LAY-UNIT-001 DB-2 unitTapNeedsEdit', () => {
+  const filled = test('isolacao', [[0, 0, measured('1.45', 'GΩ')]]);
+  const concludedBy = { actor_id: ID, at: '2026-09-06T12:00:00.000Z' };
+  const cellAt = (row: BlockRow, address: CellAddress) =>
+    evaluatedCells(evaluateSheetReadings(row, SEC)).find((c) => c.address.testKey === address.testKey && c.address.row === address.row && c.address.col === address.col)!;
+
+  it('is true on a concluded sheet for a measured cell only', () => {
+    const concluded = { ...block('chave_seccionadora', filled), concluded_by: concludedBy };
+    expect(unitTapNeedsEdit(concluded, cellAt(concluded, at('isolacao', 0, 0)))).toBe(true);
+    // An empty cell of the same concluded sheet cycles at once.
+    expect(unitTapNeedsEdit(concluded, cellAt(concluded, at('isolacao', 1, 0)))).toBe(false);
+    expect(unitTapNeedsEdit(concluded, { state: 'not_measured' })).toBe(false);
+  });
+
+  it('is false on an open sheet and on a sheet marked not tested', () => {
+    const open = block('chave_seccionadora', filled);
+    expect(unitTapNeedsEdit(open, cellAt(open, at('isolacao', 0, 0)))).toBe(false);
+    const notTested = { ...block('chave_seccionadora', filled), concluded_by: concludedBy, not_tested: { reason: 'x', actor_id: ID, at: '2026-09-06T12:00:00.000Z' } } as unknown as BlockRow;
+    expect(unitTapNeedsEdit(notTested, { state: 'measured' })).toBe(false);
   });
 });
 

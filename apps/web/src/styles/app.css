@@ -871,3 +871,39 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
 [data-route="/relatorio/:id/ficha/:blockId"] .reading-empty { display: flex; flex-direction: column; gap: 0; min-width: 0; }
 [data-route="/relatorio/:id/ficha/:blockId"] .reading-empty .row-wrap { gap: 0 var(--sp-2); }
 [data-route="/relatorio/:id/ficha/:blockId"] .reading-empty .row-wrap .btn-text:first-child { margin-left: calc(-1 * var(--sp-3)); }
+
+/* ---------- Review fixes 2026-10-08 (batch r8lay): layout and interaction ---------- */
+
+/* DB-2, DB-3: authored, every table value input is at least 48 px tall (`--touch-min`), so where its
+   field wraps (a suggested or confirmed reading's cell below 768 px under E9-Q4 above, `.is-wide`
+   cells) it is never the 29 px line a finger misses for the unit control under it. The E9-Q4 wrap stays
+   on a confirmed reading's cell: with the phone tables' words whole (`ficha.css`) the value column
+   is at least as wide as a typed cell's input, unit and Overflow, so the confirmed cell's input and
+   unit control share their line and only the crop glyph wraps (scoping the wrap off instead put the
+   glyph on that line too and pushed the contact tables past their 358 px box, E9-Q4/9.4-E2E-011). */
+.measurement-table td.cell-value .measurement-field > input.mf-value { min-height: var(--touch-min); }
+
+/* DA-1: authored. DESIGN.md › Form dialog and UX-DR60 ask for the Form dialog full screen on phone;
+   this is the recorded narrowing (spec r8lay, `deferred-work.md`): the Form and Confirm dialogs stay
+   inside the scrim's `--sp-5` padding (`components.css` `.dialog-scrim`) and scroll in themselves,
+   so "Criar relatório" is reachable at 390x700. Precedents: `export.css` `.export-dialog { max-height:
+   calc(100dvh - 2 * var(--sp-5)); overflow-y: auto }` (the declarations used here) and `relatorio.css`
+   `.form-dialog.move-dialog > * { flex-shrink: 0 }` (its parts keep their height). `.rich-dialog`,
+   `.defaults-dialog` and `.move-dialog` keep their own rules. */
+.form-dialog:not(.rich-dialog, .defaults-dialog, .move-dialog), .confirm-dialog { max-height: calc(100dvh - 2 * var(--sp-5)); overflow-y: auto; }
+.form-dialog:not(.rich-dialog, .defaults-dialog, .move-dialog) > *, .confirm-dialog > * { flex-shrink: 0; }
+
+/* DA-8: authored, from 768 to 1023.98 px (tablet portrait, where the rail can be opened beside the
+   sheet) the Sticky action bar's buttons wrap to a second line instead of running past the column:
+   `components.css` keeps each `.btn` on one line (`white-space: nowrap`) at `flex: 1`, and no mock
+   rule covers this range (the phone wraps, `.frame-phone ... .has-camera`, above; landscape and desktop
+   align right from 1024 px). */
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  .sticky-action-bar .bar-buttons { flex-wrap: wrap; }
+}
+
+/* DH-3: authored (no mock draws it), the E78-Q4 line of a stored manufacturer the registry does not
+   hold, in the instrument panel (Cadastros). Precedent: the sheet's own authored line, declarations
+   of `ficha.css` `.word-unregistered` and `.word-unregistered-name`. */
+.registry-panel .word-unregistered { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
+.registry-panel .word-unregistered-name { color: var(--ink-primary); font-weight: 600; }

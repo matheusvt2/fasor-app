@@ -1581,6 +1581,76 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: PR #119 body; review of PR #119 r8emit-rules-5.
   class: docs
   state: ~~open (owner: coordinator)~~ resolved 2026-10-09 (closing docs PR of the round): dated notes on EXPERIENCE.md :262 (toast room and focused field, arrival toast leaves once served), :273 (Sumário foot bar sticky), :337 (DF-6 names in the question) and :379 (what a pull announces, the caption toast)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: Open question (review 2026-10-08 DC-1): the transformer TTR at tablet widths stays a table (UX-DR40 "real table at every width", UX-DR74 "tables in full in landscape"); in a 657 px box (768 portrait with the strip, 1024 with the 320 px rail) its eight columns at their whole-word minimum (about 825 px, measured 2026-10-09 once the unit and the "Não medido" trigger wrap under the input: TAP 44, V 114 + 114, Calculado 113, captures 3 x 120, Condição 80) do not fit, so the table scrolls inside its own `.mt-scroll` box, the title row and the page still; from 1280 (864 px) it fits. Cards up to 1279 px, or an auto-collapsing rail while a sheet is filled (DC-8), are the alternatives the report proposes.
+  evidence: `apps/web/src/surfaces/ficha/ficha.css` (block "Review fixes 2026-10-08 (batch r8lay)"); `ensaios-section.tsx` `.mt-scroll`; report DC-1, DC-8; spec Design Notes.
+  class: debt
+  state: open (owner: coordinator, decision by Matheus and Bruno)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: Open question (review 2026-10-08 DA-6): the phone Sumário tree rows keep the drag handle and the Position box on every row (about 100 px left for TAG, type and state); the batch only keeps words whole. Hiding the handle or the Position box below 768 px (reorder from the menu or a "Reordenar" mode) is a product change.
+  evidence: `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` `SumarioEquipment`; `relatorio.css` (block r8lay DA-6); report DA-6.
+  class: debt
+  state: open (owner: coordinator, decision by Matheus and Bruno)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: Open question (review 2026-10-08 DB-3): abbreviating or dropping the Linha / Terra / Guard columns (an empty Guard column at phone width) would let the phone isolation tables fit without their own scroller; the batch keeps every column and its words whole, and lets a too-wide table scroll inside `.mt-scroll`.
+  evidence: `apps/web/src/surfaces/ficha/ficha.css` (phone table rules); report DB-3; EXPERIENCE.md:307.
+  class: debt
+  state: open (owner: coordinator, decision by Matheus and Bruno)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: Open question (review 2026-10-08 DB-2): a unit change on an open sheet still rewrites the value at once with no "Desfazer", and on a concluded sheet the batch only turns the first tap into "edit the cell" (the kernel's `unitTapNeedsEdit`); the report also proposes the unit as a choice with Desfazer once a value exists, or a confirmation on a concluded sheet.
+  evidence: `apps/web/src/surfaces/ficha/measurement-field.tsx` `tapUnit`; `packages/domain/src/relatorio/reading-run.ts` `unitTapNeedsEdit`; report DB-2.
+  class: debt
+  state: open (owner: coordinator, decision by Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: Open question (review 2026-10-08 DH-1): the Combobox popover with 'Criar "…"' still opens over the next field (Nome in the instrument panel), so a tap meant for Nome lands on "Criar"; moving the popover off the next field is a design question. The leave-commit now saves the name either way.
+  evidence: `apps/web/src/components/combobox.tsx` (Popover placement); `registry-picker-field.tsx` `commitLeft`; report DH-1.
+  class: debt
+  state: open (owner: coordinator, decision by Bruno)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: Review 2026-10-08 DA-1, narrowed: the Form and Confirm dialogs now stay inside the scrim's padding and scroll inside themselves (`app.css` block r8lay, the `export.css` precedent), but DESIGN.md › Form dialog and UX-DR60 (epics.md:272) ask for a full-screen Form dialog on phone; still not full-screen.
+  evidence: `apps/web/src/styles/app.css` (block "Review fixes 2026-10-08 (batch r8lay)"); DESIGN.md › Form dialog; epics.md:272.
+  class: debt
+  state: open (owner: coordinator)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: ~~Known open~~ Open question against Story 13.4 INP-2 (epics.md:2837-2839, "done" on the run's last input before the primary; independent review of PR #122, r8lay-rules-2, 2026-10-09) (review 2026-10-08 DB-7): every plate and cabine text, number and date-text field labels the keyboard's Enter key "next", including the last one before the sheet's primary (the readings' run computes "done" from the kernel's run; the plate has no such run in the kernel). Also: Enter in a select or a manufacturer / voltage class field does not run on.
+  evidence: `apps/web/src/surfaces/ficha/ficha-fields.tsx` `focusNextMissingField`, `enterKeyHint="next"`.
+  class: debt
+  state: open (owner: coordinator, decision by Matheus: keep "next", or compute "done" when no missing-field marker follows the field, a dynamic target the plate run gained with DB-7)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: Known open (review 2026-10-08 DH-1): an unreadable voltage class ("abc") typed and left in Classe de tensão creates nothing and stays as typed text, unsaved and unmarked (today's behaviour; `parseVoltageClassKv` returns null).
+  evidence: `apps/web/src/surfaces/ficha/ficha-fields.tsx` `WordField` `onCreate`; `apps/web/src/components/registry-picker-field.tsx` `commitLeft`.
+  class: debt
+  state: open (owner: coordinator)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: ~~Open question, a contradiction in the spec~~ (resolved 2026-10-09, review of the batch: the value cells of a ratio table keep the mock's own wrap, `.is-wide td.cell-value .measurement-field { flex-wrap: wrap }`, so the unit and the 48 px trigger go under the input, and "Marcar Com restrições" wraps between its words; both tables fit at 1280 and R8LAY-E2E-001/009 assert it) Was: a contradiction in the spec (AC1, AC2 "at 1280 the table scroller does not scroll at all"; Design Notes "from about 880 px it fits"): measured on 2026-10-09 at 1280x800 the transformer TTR's whole-word minimum is 1223 px and the TP's 945 px, against the 864 px the 880 px content column leaves (rail open or not, `--content-max`). Each value cell carries its 48 px "Não medido" Overflow trigger, each V cell a 48 px unit slot, and each input keeps six digits ("34,512") at the value size, so neither fits without dropping a touch target, the unit slot's mock width or the content cap. Both tables scroll inside `.mt-scroll` at 1280 with the title row and the page still; R8LAY-E2E-001/009 assert that, not the no-scroll clause.
+  evidence: `e2e/review-layout-interaction-2026-10-08.spec.ts` R8LAY-E2E-001 and -009 (the 2026-10-09 measurement before the fix, one-line cells: TAP 44, V primário 210, V secundário 210, Calculado 113, captures 199/199/168, Condição 80; TP: 68, 210, 210, 127, 168, 162); `components.css` `.overflow-trigger`, `.mf-unit` (`min-width: var(--touch-min)`); `tokens.css` `--content-max: 880px`.
+  class: debt
+  state: resolved (2026-10-09)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: Planning documents to amend with a dated line (strike-through rule) for what PR #122 ships (independent review r8lay-rules-1, 2026-10-09): EXPERIENCE.md:125 (Units: "a tap cycles MΩ → GΩ → TΩ"; on a concluded sheet a pointer tap on a measured cell's unit only focuses the input, the kernel's `unitTapNeedsEdit`); EXPERIENCE.md:276 (Combobox: a name typed under "Outro…" and left is selected or created as "Criar" would, only text changed since the field took the focus); EXPERIENCE.md:307/:406 and source-deltas.md D-2 (Enter in a plate or cabine field commits and moves to the next missing field, then the primary; that run does not collapse the section it leaves, only the readings run does); DESIGN.md › Measurement table and `60-ficha.html` (each table in its own `.mt-scroll` box, the title row never scrolls; ratio tables by content from 768 px, the trailing parts under a six-digit input; Condição drawn `td.cell-dim`; phone point labels wrap between words, the phone value input 4.5ch); DESIGN.md › Form dialog (the dialog scrolls inside the scrim on phone, not full screen).
+  evidence: PR #122 body; `measurement-field.tsx` `tapUnit`; `registry-picker-field.tsx` `commitLeft`; `ficha-fields.tsx` `focusNextMissingField`; `use-ficha-steps.ts` `isEnterRunMoving`; `ficha.css` and `app.css` r8lay blocks.
+  class: docs
+  state: open (owner: coordinator)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: Deferred review finding (spec frontmatter `deferred:`, independent review r8lay-rules-3): a TAG wider than the phone Sumário row's room runs the page sideways at 390 px; the rail's F-07 ellipsis has no phone `.s9-eq` counterpart. Mostly pre-existing (`.sum-s9 .s9-eq-open`'s grid already gave an unbreakable TAG its min-content), now with the batch's `nowrap` TAG and `min-content` row.
+  evidence: `apps/web/src/surfaces/relatorio/relatorio.css` (block r8lay DA-6); TAGs are free text (`tag-dialogs.tsx`).
+  class: debt
+  state: open (owner: coordinator)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: Follow-up review recommended (spec `followup_review_recommended: true`, independent review r8lay-rules-3): check on real Android Chrome and iPadOS WebKit tablets (Inter at the value size) that the ratio tables' wrap and the 1280 fit hold, that `.mt-scroll`'s cue and the scroll to Condição show, and that the held-Enter swallow of the plate Enter run works with soft keyboards (which may not mark `repeat`). Never run in this batch (desktop Chrome only).
+  evidence: `ficha.css` r8lay TTR block; `ficha-fields.tsx` `focusNextMissingField`; R8LAY-E2E-001/009.
+  class: debt
+  state: open (owner: coordinator, at the integrated QA pass)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: Narrowing 8 of PR #122: the spec's task "scope the E9-Q4 phone wrap off a confirmed reading's cell" was not done (it put the crop glyph on the input's line and pushed the contact tables past their 358 px box, 9.4-E2E-011); the input and its unit control still share their line, asserted by R8LAY-E2E-010 and the 8 px hit test of R8LAY-E2E-002 on the real phone tables. A wider confirmed value or a narrower table could still wrap the unit off the line.
+  evidence: `apps/web/src/styles/app.css` (r8lay block, DB-2/DB-3 note); spec triage log (maybe-false row).
+  class: debt
+  state: open (owner: coordinator)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-photo-failures.md`, `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: R8CAP-E2E-003 scrolls once (`window.scrollTo(0, 300)`) and then polls `scrollY > 200` without scrolling again; when the sheet is not yet tall enough (`openChaveSheet` waits only for the title) the poll times out. Failed once under the load of PR #122's first gate; passed 3 of 3 alone on the branch and 3 of 3 on origin/main 9027abf. Retry the scroll inside the poll (independent review of PR #122, r8lay-tests-3).
+  evidence: `e2e/review-photo-failures.spec.ts:165-166`; `e2e/support/photos.ts` `openChaveSheet`.
+  class: debt
+  state: open (owner: coordinator)
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md` (r8conc second gate, 2026-10-09)
   summary: Process pitfall: the compose `api` service runs `tsx watch src/main.ts`, which does not reload a change under `packages/domain` (reached through the workspace link), so an e2e run after a kernel edit meets a server that still folds with the previous kernel; the web bundle is rebuilt by `scripts/e2e.ts` and is current. The r8conc gate met it: R8CONC-E2E-004 failed with the server cell merged `latest_text` while the device folded a `contradiction`. A batch that edits the fold (`ops/apply.ts`, `merge/`) restarts the api (`podman compose restart api`) before its e2e run; a gate step or a watch on `packages/domain` would settle it.
   evidence: `docker-compose.yml` api `command: pnpm --filter @app/api dev`; `apps/api/package.json` `"dev": "tsx watch src/main.ts"`; `/tmp/gate2-r8conc-e2e.log` (R8CONC-E2E-004 `expectConverged` diff).

@@ -18,6 +18,7 @@ import {
 import { Button as AriaButton } from 'react-aria-components';
 import { useSearchParams } from 'react-router';
 import { memo, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from 'react';
+import { WholeWords } from '../../components/whole-words.tsx';
 import { ConfirmDialog, OverflowMenu, TextButton, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
@@ -690,7 +691,9 @@ const SumarioEquipment = memo(function SumarioEquipment({ node, shared }: { node
       <PositionBox name={node.name} position={node.position} siblings={node.siblings} reorder={reorder} className="s9-pos" />
       <button type="button" className="s9-eq-open" data-tree-open onClick={() => shared.actions.openSheet(node.blockId)}>
         <span className="block-tag">{node.tag}</span>
-        <span className="s9-eq-name">{node.typeLabel}</span>
+        <span className="s9-eq-name">
+          <WholeWords className="s9-word" text={node.typeLabel} />
+        </span>
         {current ? <span className="sum-here">{copy.sumario.here}</span> : null}
         <span className="s9-state" data-state={node.sumarioStateAttr}>
           <span aria-hidden="true">{node.glyph}</span> {node.stateText}
