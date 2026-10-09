@@ -1,9 +1,10 @@
 ---
-title: 'Review fixes 2026-10-08: a dry transformer can be concluded (dry insulation marks the oil items NA)'
+title: 'Review fixes 2026-10-08: a dry transformer can be concluded (one tap marks the oil items NA)'
 type: 'feature'
 created: '2026-10-08'
-status: 'done'
+status: 'in-progress'
 baseline_revision: 'f0adf337eda97a933a3881f29281dfd32be94141'
+amendment_baseline: '8e3761a' # merge of origin/main f057f9b (#119) before the 2026-10-09 amendment
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'
@@ -13,10 +14,40 @@ context:
   - '{project-root}/AGENTS.md'
 warnings: ['batched', 'oversized']
 # batched: the coordinator cut one batch (r8dry) for Decision 2 of the 2026-10-08 review (findings H-4 and the subtype part of MKT-7); both change the same kernel rule and the same nameplate confirm paths.
-deferred: []
+deferred:
+  - summary: >-
+      An oil option for TIPO DE ISOLAÇÃO (seed v1 offers only EPÓXI and Á SECO and the field is required, so an oil-filled unit must pick a dry value) waits for a new seed version (owner: Matheus and Bruno).
+    evidence: |-
+      `packages/domain/src/seed/v1.ts:42`; independent review of PR #120 r8dry-decision-1; source-deltas row "Story 3.5 and FR-11", amended 2026-10-09; deferred-work.md entry.
+    severity: medium
+  - summary: >-
+      Clearing or changing TIPO DE ISOLAÇÃO after the chip wrote the NA marks keeps those marks (the chip goes away, VOL. ÓLEO counts again); whether clearing should offer to unmark is an open question for Matheus.
+    evidence: |-
+      Independent review r8dry-decision-3; nothing in the decision says what clearing does to marks already written; deferred-work.md entry (class question).
+    severity: low
 ---
 
 <intent-contract>
+
+## Amendment 2026-10-09 (Matheus; supersedes the marked parts below)
+
+Decision (independent review of PR #120, r8dry-decision-1): seed v1 offers only EPÓXI and Á SECO for TIPO DE ISOLAÇÃO and the field is required, so an oil-filled unit is forced to pick a dry value; confirming a dry insulation must therefore **no longer write the NA marks by itself**. Instead:
+
+- A one-tap chip "Marcar N itens de óleo como NA" (N from the kernel; `// authored:`) is offered on a block with no subtype whose **stored** TIPO DE ISOLAÇÃO is EPÓXI or Á SECO, whatever wrote it ("Confirmar", "Substituir", "Confirmar todos", typed, picked, a copy chip, the auto-confirm sweep, another device), while at least one of the dry subtype's oil items has no value yet and the chip was not used on this block on this device. Its tap writes the NA marks on the fresh block's oil items with no value yet, in one batch, with "Desfazer" (toast `oilItemsNaText(n)`).
+- The chip goes away once used (and stays away after its "Desfazer"), when the insulation is no longer dry, or when no oil item is left without a value; it never counts an item already answered. "Used" is a device flag per block in `local_prefs` (like `reading_cancelled`); the kernel decides the offer from the block and that flag.
+- `VOL. ÓLEO` still stops counting as missing on a block whose subtype or stored insulation is dry. The template subtype works as before (its `na_defaults` display NA; no chip on a block with a subtype).
+- Superseded below: every sentence that makes a confirm, "Confirmar todos", a typed value or a hand pick write NA marks or raise an undo toast (Approach; Always bullets 3-4; matrix rows "Confirm dry", "Confirmar todos", "Item already answered", "Every oil item answered", "Picked by hand", "Typed over a fill", "Undo"; Never bullet on copy chips; ACs R8DRY-E2E-001..005 as written). Those paths write exactly what they wrote before this batch, with today's toasts. The matrix rows "Not dry", "Block with subtype", "Missing rule" and "Two devices" stand, read with the chip in place of the confirm.
+- The "never mark on a disabled checklist" guard is dropped: `checklist` is a locked sub-block (`LOCKED_SUB_BLOCKS`, `seed/template.ts:34`; `templates/compose.ts:263`), so a stored config cannot disable it.
+
+| Scenario | Input / State | Expected Output / Behavior |
+|----------|--------------|---------------------------|
+| Confirm dry | no subtype, any dry write path | only that path's own ops and toast; the chip appears under TIPO DE ISOLAÇÃO with N = oil items with no value |
+| Chip tap | chip shown, fresh block has `valvula_de_alivio` = C | one batch of 7 `NA` puts (none on that item); toast "7 itens de óleo marcados NA" with "Desfazer"; chip gone; flag set |
+| Undo of the chip | "Desfazer" | the marks back to unset; the chip stays gone (flag) |
+| Not dry any more | insulation cleared or changed to a non-dry value | chip gone; marks already written stay (open question, deferred) |
+| All answered | every oil item has a value | no chip |
+| Subtype | config.subtype set | no chip; VOL. ÓLEO not missing |
+| Copy chip / auto-confirm | stored EPÓXI written by "Igual à ⟨TAG⟩?" or the sweep | VOL. ÓLEO not missing and the chip offered, as for a confirm |
 
 ## Intent
 
@@ -101,7 +132,30 @@ deferred: []
 - Given any TF, TP or TC whose subtype is dry or whose stored insulation is EPÓXI or Á SECO, when its progress is computed, then VOL. ÓLEO adds nothing to Placa, the header counter, the stepper or "Concluir ficha", and the field shows no missing marker; without either it counts as before (kernel unit tests).
 - Given device A's `NA` mark and device B's concurrent put on the same item, when both reach the server, then `mergePolicy` gives `same_value` for NA, `filled_over_empty` for an empty side and `contradiction` for C or NC (kernel unit test; E4-A8).
 
+**Amendment 2026-10-09 — execution (supersedes the write-path tasks above):**
+- `packages/domain/src/relatorio/dry-insulation.ts` -- drop `dryInsulationNaItems`'s value argument in favour of `oilNaChipItems(block, { used }): string[]` (the oil items the chip would mark: no subtype, stored insulation dry via `drySubtypeOfInsulation`, the subtype's `na_defaults` whose result cell is not filled, definition checklist order; `[]` when `used`); remove the unreachable disabled-checklist guard; add `oilNaChipText(n)` "Marcar 1 item de óleo como NA" / "Marcar 8 itens de óleo como NA" (`// authored:`); keep `oilItemsNaText` for the undo toast; remove `withOilItemsNaText` and `isInsulationTarget` if nothing uses them. Tests: offer per TF/TP/TC, subtype, used, all answered, C/NC/NA kept, cleared cell, a config claiming the checklist off still offers (locked), whatever wrote the insulation; texts.
+- `apps/web/src/db/prefs.ts` -- `oil_na_used:{blockId}` read/write (pattern of `reading_cancelled`), and a live hook where the chip renders.
+- `apps/web/src/surfaces/ficha/nameplate-suggestions.tsx` -- back to its baseline behaviour (no marks, no undo toast; keep #119's changes from the merge).
+- `apps/web/src/surfaces/ficha/nameplate-section.tsx` -- the select commits through `api.commit` again (no marks); keep `missingKeys` and `fillManually`; under TIPO DE ISOLAÇÃO (its `after` slot, beside a replace line when there is one) render a `Chip` with `oilNaChipText(n)` while `oilNaChipItems(block, {used})` is non-empty and the sheet is not read-only; its tap writes `checklistResultOp(… 'NA')` for `oilNaChipItems(fresh, {used: false})` of the fresh block inside `api.edit`, sets the device flag once the batch is written, raises `api.undoable(oilItemsNaText(n), batch)` and moves the focus to the TIPO DE ISOLAÇÃO select (the chip unmounts).
+- `apps/web/src/surfaces/ficha/nameplate-dry-insulation.test.tsx` -- rewrite: no write path (select, "Confirmar", "Substituir" on a replace line, "Confirmar todos", typed over the guess) builds a checklist op or calls `undoable`; the chip is offered for TF, TP and TC with a stored dry insulation however written (a copy-chip-like stored cell with no `source_suggestion_id`), not with a subtype, not once used; its tap against a fresh block with `valvula_de_alivio` = C builds 7 marks and none on that item (mutation run: rendered block instead of fresh, red).
+- `e2e/dry-transformer.durability.spec.ts` -- R8DRY-E2E-001..005 rewritten to the chip (ACs below); `e2e/plate.spec.ts` back to its baseline 8.6-E2E-001 assertions (16 ops, plain toast).
+- `_bmad-output/implementation-artifacts/deferred-work.md` -- on the two r8dry entries of 2026-10-08, strike the state through and add a dated 2026-10-09 line (the `anyAnswered` entry: the marks are now the engineer's own tap, so they are an answer; the copy-chip question: resolved, the chip follows the stored value); add the two entries of the frontmatter `deferred` list (oil seed option, owner Matheus and Bruno; clearing keeps the marks, class question).
+
+**Amendment 2026-10-09 — acceptance (supersedes the ACs above where they differ):**
+- Given a no-subtype transformador de força with a plate reading carrying EPÓXI and no VOL. ÓLEO, when the engineer taps "Confirmar todos", then the batch holds only the confirm pairs (no checklist op) and the chip "Marcar 8 itens de óleo como NA" shows under TIPO DE ISOLAÇÃO; when the chip is tapped, then one batch holds exactly 8 `checklist/{oil}/result = 'NA'` puts and the chip is gone; when the rest is filled and "Concluir ficha" tapped, then `concluded_by` is committed with no `nameplate/vol_oleo` op, and after a reload the sheet reads concluded with the 8 rows NA and no chip (`@p0 R8DRY-E2E-001`).
+- Given the chip applied after "Confirmar" on EPÓXI, when "Desfazer" is pressed, then one inverse batch puts the 8 results back to null, the insulation stays EPÓXI, the chip does not come back (also after a reload), and after `syncNow` no outbox row is `dead` (`@p0 R8DRY-E2E-002`).
+- Given `valvula_de_alivio` tapped C, when Á SECO is picked by hand, then that batch holds the insulation put alone and the chip reads "Marcar 7 itens de óleo como NA"; its tap writes 7 marks, none on `valvula_de_alivio`; "Desfazer" puts the 7 back to null and `valvula_de_alivio` stays C after a reload (`@p0 R8DRY-E2E-003`).
+- Given a no-subtype TP (or TC) whose plate is copied with "Igual à ⟨TAG⟩?" from a sheet holding EPÓXI, then VOL. ÓLEO shows no missing marker and the chip is offered (`@p1 R8DRY-E2E-004`).
+- Given every oil item already answered, when EPÓXI is confirmed, then no chip shows, the batch is the 2 confirm ops and the toast has no "Desfazer" (`@p1 R8DRY-E2E-005`).
+- Given the chip shown, when the insulation is cleared, then the chip is gone and VOL. ÓLEO is marked missing again (unit or e2e).
+
 ## Spec Change Log
+
+### 2026-10-09 — Matheus's decision after the independent review of PR #120
+- Trigger: r8dry-decision-1 (an oil-filled unit forced to pick a dry insulation would get its eight oil items marked NA by the confirm).
+- Amended: the "Amendment 2026-10-09" block at the head of the intent contract (chip instead of automatic marks; the disabled-checklist guard dropped as unreachable); title; frontmatter `deferred`.
+- Known-bad state avoided: a forced dry pick on an oil-filled unit silently hiding its oil checklist.
+- KEEP: the kernel module and `nameplateMissingKeys` as the one "missing" rule (header, stepper, "Concluir ficha", field marker, "Preencher manualmente"); the fresh-block read inside the edit for whatever writes the marks; R8DRY e2e ids and the durability spec file; the plate.spec.ts assertions return to the baseline batch of 16 ops and the plain toast.
 
 ## Review Triage Log
 
