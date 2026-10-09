@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: a dry transformer can be concluded (dry insulation marks the oil items NA)'
 type: 'feature'
 created: '2026-10-08'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'f0adf337eda97a933a3881f29281dfd32be94141'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -101,6 +101,24 @@ deferred: []
 - Given any TF, TP or TC whose subtype is dry or whose stored insulation is EPÓXI or Á SECO, when its progress is computed, then VOL. ÓLEO adds nothing to Placa, the header counter, the stepper or "Concluir ficha", and the field shows no missing marker; without either it counts as before (kernel unit tests).
 - Given device A's `NA` mark and device B's concurrent put on the same item, when both reach the server, then `mergePolicy` gives `same_value` for NA, `filled_over_empty` for an empty side and `contradiction` for C or NC (kernel unit test; E4-A8).
 
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-10-08 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer; Blind Hunter and Intent Alignment skipped (token economy; the integrated review covers them).
+- verdicts: 9 findings — high 0, medium 1, low 5, false 3, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` (VG gap 1) The fresh-block read of the oil marks (`commitDryInsulation`, `oilMarks` in `confirm`/`confirmAll`/`type`) is not pinned: swapping it for the rendered `block` keeps every test green, and a C or NC tapped just before would be overwritten by NA — pre-verified gap; fix: a web unit test with a fake `FichaApi` running the captured `Build` against a fresh block that differs from the render.
+  - `[low]` `[patch]` (VG gap 2) The "nothing marked" branch (plain toast, no "Desfazer") is not pinned at the web level; a dropped `marked > 0` guard would put "0 itens de óleo" and an undo on every confirm or typed correction — pre-verified gap; fix: `@p1 R8DRY-E2E-005` (all oil items answered, one Confirmar: 2-op batch, plain toast, no "Desfazer") plus unit asserts that `undoable` is not called.
+  - `[low]` `[reject]` (VG other 1) A deferred "Desfazer" (raised once the confirm is drawn, F-25) is not retired by a batch written in the gap before it appears; pressing it would reset a newer answer — real but the gap is one live-query render (tens of ms) and the fix needs a write counter on the editor (new surface); listed as known open in the PR.
+  - `[low]` `[patch]` (VG other 2) "Preencher manualmente" (`fillManually`) uses its own "empty" predicate and can focus VOL. ÓLEO on a dry block — fix: first key of the kernel `missingKeys`, else the first field.
+  - `[low]` `[reject]` (ECH 1) Same root cause as VG other 1 (late "Desfazer" after a newer edit) — same verdict and route.
+  - `[low]` `[reject]` (ECH 2) Clearing TIPO DE ISOLAÇÃO after a dry write leaves the NA marks — the specified behaviour (Design Notes: marks are never removed later); the batch's own "Desfazer" reverts them, and the decision asks for no unmarking; adding it would be a product change.
+  - `[false]` `[reject]` (ECH 3) A legacy "EPOXI" or other spelling would not match — every write path stores the exact option (`SelectField` options, `parseFieldInput` and `normalizeReadingValue` normalize to EPÓXI / Á SECO, `seed.test.ts:169-183`), and the Porto Seguro fixture holds only "EPÓXI" (22) and "Á SECO" (9).
+  - `[false]` `[reject]` (ECH 4) A dry pick on a block with a subtype goes through `api.edit` instead of `api.commit` — it writes the same single put; both paths retire the toast standing when the value is committed (`use-undoable-edits.ts` `commit` and `write`), and the select ignores the promise (`void commit(...)`), so no observable difference.
+  - `[false]` `[reject]` (ECH 5) VOL. ÓLEO shows missing while EPÓXI is still a pending suggestion — that is the decision ("confirmed insulation"; a pending suggestion is a row, never a cell); the AC's "never" reads after the confirm, which R8DRY-E2E-001 asserts.
+
 ## Design Notes
 
 - Why marks and not a config op: the binding decision says "writes … NA marks … on items that have no value yet"; MKT-7's config-op proposal is superseded by it.
@@ -114,3 +132,29 @@ deferred: []
 - `podman compose --profile tools run --rm --user root tools pnpm test:unit -- packages/domain/src/relatorio` -- expected: green.
 - `podman compose --profile tools run --rm --user root tools pnpm lint` and `pnpm static` -- expected: green.
 - `nohup sh -c "lockf -t 20000 /tmp/fasor-verify.lock sh -c 'podman compose --profile tools run --rm --user root tools pnpm exec tsx scripts/e2e.ts e2e/dry-transformer.durability.spec.ts e2e/plate.spec.ts --project desktop-chrome --project durability-desktop-chrome'; echo EXIT=\$?" > /tmp/gate-r8dry-dev-e2e.log 2>&1 &` -- expected: EXIT=0.
+
+## Auto Run Result
+
+Status: done
+
+**Summary:** On a transformador de força, TP or TC with no subtype, a dry TIPO DE ISOLAÇÃO (EPÓXI or Á SECO) written by "Confirmar", "Substituir", "Confirmar todos", a value typed over the suggestion or the select picked by hand writes, in the same batch, `NA` on the dry subtype's oil items that hold no value yet (read from the fresh block inside the edit), with "Desfazer" when any mark was written. VOL. ÓLEO no longer counts as missing on a block whose subtype or stored insulation is dry; the Placa count, header, stepper, "Concluir ficha", the field's missing marker and "Preencher manualmente" all read the kernel's `nameplateMissingKeys`.
+
+**Files changed:**
+- `packages/domain/src/relatorio/dry-insulation.ts` -- new kernel rule: `drySubtypeOfInsulation`, `isDryBlock`, `dryInsulationNaItems`, `isInsulationTarget`, `nameplateMissingKeys`, texts `oilItemsNaText`, `withOilItemsNaText` (authored).
+- `packages/domain/src/relatorio/dry-insulation.test.ts` -- kernel matrix for TF, TP, TC, texts, two-device `mergePolicy` outcomes.
+- `packages/domain/src/relatorio/sheet-progress.ts` (+ test) -- Placa count reads `nameplateMissingKeys`.
+- `packages/domain/src/index.ts` -- export.
+- `apps/web/src/surfaces/ficha/nameplate-section.tsx` -- kernel missing marker, dry pick through `api.edit` with the marks and an undo toast, `fillManually` on the kernel set.
+- `apps/web/src/surfaces/ficha/nameplate-suggestions.tsx` -- `confirm`, `confirmAll`, `type` carry the marks; undo toast when marks were written.
+- `apps/web/src/surfaces/ficha/nameplate-dry-insulation.test.tsx` -- web unit tests pinning the fresh-block read and the no-undo branches.
+- `e2e/dry-transformer.durability.spec.ts` -- R8DRY-E2E-001..005.
+- `e2e/plate.spec.ts` -- 8.6-E2E-001 expects the 8 marks in the confirm batch (24 ops) and the longer toast.
+- `_bmad-output/implementation-artifacts/deferred-work.md` -- `anyAnswered` entry and open question 1.
+
+**Review:** 9 findings; patches applied 3 (1 medium, 2 low: fresh-block unit test, R8DRY-E2E-005 plus no-undo unit asserts, `fillManually`); deferred 0; rejected 6 (3 false; 3 low: the late "Desfazer" after a newer edit, twice, listed as known open in the PR; clearing the insulation keeps the marks, by design).
+
+**Follow-up review recommended:** false (one medium patched, test-only; no unverified risk named).
+
+**Verification:** lint and static clean; unit suite green (dev run 1935 tests, new web test 7/7); `e2e/dry-transformer.durability.spec.ts` and `e2e/plate.spec.ts` under the lock green; the dry spec on the three matrix projects green (12/12 before R8DRY-E2E-005); mutation runs: marks removed turns R8DRY-E2E-001..004 red; rendered-block read turns 6 of 7 web unit tests red. The story gate runs after this.
+
+**Residual risks:** a "Desfazer" raised after the confirm is drawn (F-25) is not retired by a batch written in that one-render gap; `conclusion.ts` `anyAnswered` counts the marks (deferred, r8conc's file); copy chips write no marks (open question 1).

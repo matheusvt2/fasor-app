@@ -4,7 +4,6 @@ import {
   drySubtypeOfInsulation,
   dryInsulationNaItems,
   INSULATION_FIELD_KEY,
-  isCellFilled,
   lastNameplateCopy,
   nameplateMissingKeys,
   nameplateCopyFields,
@@ -211,8 +210,8 @@ export function NameplateSection({
   /** "Preencher manualmente": the first empty field of the plate takes the focus. */
   const fillManually = () => {
     // Every field filled: the first one (the engineer is taken to the plate either way).
-    const key =
-      definition.nameplate.find((field) => !isCellFilled(block.sheet.nameplate[field.key]) && !(field.key === 'tag' && tagPrefill !== null))?.key ?? definition.nameplate[0]?.key;
+    // The kernel's missing set (Decision 2: VOL. ÓLEO is not missing on a dry block).
+    const key = definition.nameplate.find((field) => missingKeys.has(field.key))?.key ?? definition.nameplate[0]?.key;
     if (key === undefined) return;
     const root = document.querySelector<HTMLElement>(`#ficha-nameplate .nameplate-grid [data-field-key="${key}"]`);
     const target = root === null ? null : firstFocusable(root);

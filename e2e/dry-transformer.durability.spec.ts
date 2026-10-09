@@ -269,3 +269,26 @@ test('@p1 R8DRY-E2E-004 Á SECO typed over a pending EPÓXI writes the put, the 
   expect(batch.find((r) => r.path === `suggestion/${suggestions.tipo_de_isolacao}/status`)?.value).toBe('discarded');
   expect(batch.filter((r) => r.path.includes('/checklist/')).map((r) => r.path).sort()).toEqual(markPaths(blockId, OIL));
 });
+
+test('@p1 R8DRY-E2E-005 "Confirmar" on EPÓXI with every oil item already answered writes the confirm pair alone: a plain toast, no "Desfazer"', async ({ page, context }) => {
+  test.setTimeout(240_000);
+  const { sheet, suggestions } = await setUp(
+    page,
+    context,
+    (scope, s, drafts) => [...seedCabines(scope, drafts), ...OIL.map((key) => officeDraft(account, scope, `sheet/${s.blockId}/checklist/${key}/result`, 'C'))],
+    ['tipo_de_isolacao'],
+  );
+  const blockId = sheet.blockId;
+  const fill = field(page, 'tipo_de_isolacao').locator('.field.suggestion-field');
+  await expect(fill).toBeVisible({ timeout: 30_000 });
+  for (const key of OIL) await expect(checked(page, key)).toHaveAttribute('data-value', 'c');
+
+  await fill.getByRole('button', { name: 'Sugerido, EPÓXI, confirmar' }).click();
+  await expect(toast(page)).toContainText('— confirmado');
+  await expect(toast(page)).not.toContainText('itens de óleo');
+  await expect(toast(page).getByRole('button', { name: 'Desfazer' })).toHaveCount(0);
+  const batch = await batchOf(page, `sheet/${blockId}/nameplate/tipo_de_isolacao`);
+  expect(batch.map((r) => r.path).sort()).toEqual([`sheet/${blockId}/nameplate/tipo_de_isolacao`, `suggestion/${suggestions.tipo_de_isolacao}/status`].sort());
+  expect(batch.some((r) => r.path.includes('/checklist/'))).toBe(false);
+  for (const key of OIL) await expect(checked(page, key)).toHaveAttribute('data-value', 'c');
+});
