@@ -1486,6 +1486,56 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `packages/domain/src/relatorio/plate-suggestions.ts` `plateReadingView`; `packages/domain/src/relatorio/measurement-suggestions.ts` `targetLine`; `apps/api/src/jobs/reading/job.ts:241-262` (each run writes its rows with its own `reading_run_id`).
   class: debt
   state: open (owner: coordinator)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md`
+  summary: Review 2026-10-08 AIB-1, the parecer part (known open): the r8conc batch adds the `conclusion_stale` pre-issue row for the sheets' conclusion texts only; a confirmed or edited parecer text whose basis no longer matches section 10's values has no `parecer_stale` row, so the Sumário and the Export dialog do not say it.
+  evidence: `review-field-ux-and-code-2026-10-08.md` AIB-1; `packages/domain/src/relatorio/pre-issue.ts` (`conclusion_stale` beside `conclusion_unconfirmed`); `packages/domain/src/relatorio/parecer.ts`. The batch's Never list excludes `parecer_stale`.
+  class: debt
+  state: open (owner: coordinator)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md`
+  summary: Open question: the review's 14.3 lists "+ D-7 observation" in the conclude batch, while the source-deltas row of 2026-10-08 lists only `text`, `text_status` and `text_basis`. The conservative reading ships: "Concluir ficha" never writes the D-7 sheet observation suggestion (`suggestedSheetObservation`); only the text's own "Confirmar" (and the observation's) writes it. Consequence (independent review of PR #121, 2026-10-09, r8conc-decision-1): on a Sem restrições sheet with NC observations, the old route (confirming the text later, which wrote the observation with it) is gone once "Concluir ficha" confirms the text, so the suggestion stays unwritten unless its own "Confirmar" is tapped, and no pre-issue row names it (the observation is required only with Com restrições).
+  evidence: `review-field-ux-and-code-2026-10-08.md` 14.3; `source-deltas.md` row "Story 5.8: the composed conclusion text …"; `apps/web/src/surfaces/ficha/use-ficha-actions.ts` `conclude`; `apps/web/src/surfaces/ficha/conclusao-section.tsx` `confirmText`.
+  class: debt
+  state: open (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md`
+  summary: Open question (AIB-1): a stale edited conclusion text is named in the new `conclusion_stale` row ("Texto de conclusão desatualizado: <TAG>") but still prints in section 9 (`print/section-9.ts` prints an edited text always, drops a stale confirmed one). Whether a stale edited text should print, or block, is a product decision; AIB-16's single print rule stays out of this round.
+  evidence: `packages/domain/src/print/section-9.ts` `conclusionParts`; `packages/domain/src/relatorio/pre-issue.ts` `staleConclusionNames`.
+  class: debt
+  state: open (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md`
+  summary: Wording review (Decision 1 of 2026-10-08: "Concluir ficha" confirms the composed text): the conclusion text helper still reads "… Impresso na linha Conclusão da seção 9 depois de confirmar." (mock copy) although "Concluir ficha" now confirms the text; Bruno may prefer "confirmado ao concluir a ficha", as the instrument picker says. The new kernel copy `conclusionStaleText` ("Texto de conclusão desatualizado: …", authored) is in the same review.
+  evidence: `apps/web/src/copy/pt-br.ts` `ficha.conclusao.textHelper`; `packages/domain/src/relatorio/pre-issue.ts` `conclusionStaleText`.
+  class: docs
+  state: open (owner: Bruno)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md` (r8conc batch review, edge-case EC-1)
+  summary: Known open: the conclude, the ficha's conclusion text field and Story 5.8's "Confirmar" compose with the TAG of the project's equipment row, removed rows included (`useProjectEquipment`, `rows.equipment`), while section 9 and the pre-issue rows read only the snapshot's live equipment rows. A live block whose equipment row was removed (a merge state) would get a text that reads stale at once in section 9 and the `conclusion_stale` row. Pre-existing divergence, not introduced by the fold.
+  evidence: `apps/web/src/surfaces/ficha/use-ficha-actions.ts` `conclude`; `apps/web/src/surfaces/relatorio/relatorio-editor.ts:70-80`; `packages/domain/src/schemas/snapshot.ts` `buildSnapshot` (live equipment only). Settle by choosing one TAG source for the ficha, section 9 and pre-issue.
+  class: bug
+  state: open (owner: coordinator)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md` (r8conc batch review, edge-case EC-7)
+  summary: Open question: the new `conclusion_stale` row is summarized in the Export dialog ("N avisos — estão nas linhas do sumário", "Ver no sumário" leads to row 9, which names the TAGs), like its twin `conclusion_unconfirmed`; it is not in `EXPLICIT_KINDS`, so the dialog itself does not name the TAGs. A stale confirmed text is dropped from section 9 while the sheet still shows it, which fits the `EXPLICIT_KINDS` rationale ("the document then prints … the sheet did not name"); listing it by name is a one-word change once decided.
+  evidence: `packages/domain/src/relatorio/pre-issue.ts` `EXPLICIT_KINDS`, `exportPrecheck`; `apps/web/src/surfaces/export/export-dialog.tsx:419-458`.
+  class: debt
+  state: open (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md` (r8conc batch review, edge-case EC-4 and EC-3)
+  summary: Known open: `conclusionStaleText` names every stale sheet, with no cap ("e mais N") and no disambiguation of two sheets sharing a TAG (the duplicate already has its own `duplicate_tag` row). Many concluded sheets going stale at once (a criterion change in a later seed) would make row 9's meta long.
+  evidence: `packages/domain/src/relatorio/pre-issue.ts` `conclusionStaleText`, `staleConclusionNames`.
+  class: debt
+  state: open (owner: Bruno, with the wording review)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md` (r8conc batch review, edge-case EC-10)
+  summary: Known open: concluding a sheet has no undo toast (unchanged: `conclude` shows the plain "Ficha concluída"), so the folded text cannot be undone from the UI; the batch's inversion is covered by the kernel `invertBatch` test in `conclusion.test.ts` and the generic `undoBatch` tests. After an undo the text fields read as null cells, which every reader treats as absent.
+  evidence: `apps/web/src/surfaces/ficha/use-ficha-actions.ts` `conclude` (`showToast(t.concluded)`); `packages/domain/src/relatorio/conclusion.test.ts` (R8CONC undo case); `apps/web/src/db/commit.test.ts` "batch and undo".
+  class: debt
+  state: open (owner: coordinator)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md` (independent review of PR #121, r8conc-decision-2)
+  summary: Open question: when a sheet is concluded with a confirmed (never edited) text that went stale, should the conclude replace it with the fresh composition, as it confirms an unconfirmed one? Kept as is for now: the conclude never writes over a stored confirmed or edited text (`conclusionTextOnConclude`), the sheet shows "Sugerido: texto atualizado — Substituir" and row 9 names it (`conclusion_stale`).
+  evidence: `packages/domain/src/relatorio/conclusion.ts` `conclusionTextOnConclude`; `packages/domain/src/relatorio/pre-issue.ts` `staleConclusionNames`.
+  class: debt
+  state: open (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md` (independent review of PR #121, r8conc-consistency-2)
+  summary: Known open: a `text_basis` conflict (two devices confirming or editing the conclusion text concurrently, or an edited text against a conclude) shows each side's 8-hex basis hash in the Conflict view, a value the engineer cannot read; `text_status` now reads "Confirmado" / "Editado". *(2026-10-09, focused review of 794757a: the text, its status and its basis are one "Texto da conclusão" row; the basis has no row of its own and no hash is shown; each side's meta says its status.)*
+  evidence: `packages/domain/src/merge/conflicts.ts` `conflictValueText`, `CONCLUSION_WORDS`, `conclusionTextConflict`.
+  class: debt
+  state: closed (PR #121, contract 16 round)
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-emission.md`
   summary: Review 2026-10-08 DF-6, narrowed: the issue confirmation names a named party's blank CNPJ ("o CNPJ do contratante em branco", "os CNPJs do contratante e da contratada em branco") and the missing logo ("o logo da empresa não cadastrado") only when it is already asked (empty sheets or `[Rótulo]` blanks, decision D1). Open question for Matheus: should a blank CNPJ or a missing logo alone ask before issuing?
   evidence: `packages/domain/src/relatorio/pre-issue.ts` `issueConfirmation`, `identityGapParts`; EXPERIENCE.md:337 (D1); source-deltas.md row 27 (warn only, never required).
@@ -1530,6 +1580,12 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Planning documents to amend with a dated line (strike-through rule) for what PR #119 ships: EXPERIENCE.md:273 (the Sticky action bar now also on the Sumário, DF-1); EXPERIENCE.md:337 (the D1 question also names a named party's blank CNPJ and the missing logo, DF-6); EXPERIENCE.md:262 and :379 (a reading-arrival toast is not raised for suggestions the screen already draws, captions are their own "N legendas sugeridas" toast whose "Ver" opens the gallery, an arrival toast leaves once served, a toast reserves its own height at the page's bottom and a focused field scrolls clear of it).
   evidence: PR #119 body; review of PR #119 r8emit-rules-5.
   class: docs
+  state: open (owner: coordinator)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md` (r8conc second gate, 2026-10-09)
+  summary: Process pitfall: the compose `api` service runs `tsx watch src/main.ts`, which does not reload a change under `packages/domain` (reached through the workspace link), so an e2e run after a kernel edit meets a server that still folds with the previous kernel; the web bundle is rebuilt by `scripts/e2e.ts` and is current. The r8conc gate met it: R8CONC-E2E-004 failed with the server cell merged `latest_text` while the device folded a `contradiction`. A batch that edits the fold (`ops/apply.ts`, `merge/`) restarts the api (`podman compose restart api`) before its e2e run; a gate step or a watch on `packages/domain` would settle it.
+  evidence: `docker-compose.yml` api `command: pnpm --filter @app/api dev`; `apps/api/package.json` `"dev": "tsx watch src/main.ts"`; `/tmp/gate2-r8conc-e2e.log` (R8CONC-E2E-004 `expectConverged` diff).
+  class: debt
+  state: open (owner: coordinator)
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-dry-transformer.md` (r8dry, Decision 2)
   summary: `conclusion.ts` `anyAnswered` counts any filled checklist result as an answer, so the oil items a dry TIPO DE ISOLAÇÃO marks NA count too: a no-subtype transformer whose only answers are those eight NA marks offers the amber conclusion pair as if the engineer had checked something. Whether a dry-insulation mark (or any NA) should count as an answer there is r8conc's file and call.
   evidence: `packages/domain/src/relatorio/conclusion.ts:66` (`anyAnswered`); `packages/domain/src/relatorio/dry-insulation.ts` `dryInsulationNaItems`; marks written by `apps/web/src/surfaces/ficha/{nameplate-section.tsx,nameplate-suggestions.tsx}`.
@@ -1549,4 +1605,9 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Clearing or changing TIPO DE ISOLAÇÃO after the chip wrote the NA marks keeps those marks (the chip goes away and VOL. ÓLEO counts again). Whether clearing should offer to unmark them is an open question for Matheus.
   evidence: `packages/domain/src/relatorio/dry-insulation.ts` `oilNaChipItems`, `nameplateMissingKeys`; `apps/web/src/surfaces/ficha/nameplate-section.tsx` `markOilItemsNa`; spec frontmatter `deferred`.
   class: question
+  state: open (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md` (focused review of 794757a, contract 16)
+  summary: Deploy: PR #121 raises `CONTRACT_VERSION` and `MIN_CONTRACT_VERSION` to 16 (the conclusion text merge rule), so every tablet on a version-15 bundle gets 426 on its next pull and must update before it syncs again (G2-1, G2-5). Deploy the MIN 16 release as a release train in an evening window, with the field asked to sync first.
+  evidence: `packages/domain/src/contract/version.ts` (16 paragraphs); `review-fixes-2026-10-08-context.md` (struck "No MIN raise" sentence); `source-deltas.md` row "FR-58 and Story 10.1".
+  class: debt
   state: open (owner: Matheus)

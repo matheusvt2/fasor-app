@@ -14,6 +14,7 @@ import {
   type InstrumentHeader,
   type JsonValue,
   type OpDraft,
+  type OpMeta,
 } from '@app/domain';
 
 /*
@@ -96,15 +97,21 @@ export function testInstrumentOp(author: Author, relatorioId: string, blockId: s
   return put(author, relatorioId, sheetTestPath(blockId, testKey, 'instrument'), header);
 }
 
-/** `sheet/{blockId}/conclusion/{field}` put (Story 5.8): the pair, the confirmed text, its status and basis; null clears. */
+/**
+ * `sheet/{blockId}/conclusion/{field}` put (Story 5.8): the pair, the confirmed text, its status
+ * and basis; null clears. Contract 16: the text put of a composed, confirmed text carries
+ * `meta: { composed: true }` (`mergePolicy` reads it).
+ */
 export function conclusionOp(
   author: Author,
   relatorioId: string,
   blockId: string,
   field: 'result' | 'restriction' | 'text' | 'text_status' | 'text_basis',
   value: string | null,
+  meta?: OpMeta,
 ): OpDraft {
-  return put(author, relatorioId, sheetConclusionPath(blockId, field), value);
+  const op = put(author, relatorioId, sheetConclusionPath(blockId, field), value);
+  return meta === undefined ? op : { ...op, meta };
 }
 
 /** `block/{id}/concluded_by` put: `{actor_id, at}` (AR-17), only at Progress = Completa. */

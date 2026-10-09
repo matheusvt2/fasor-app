@@ -44,6 +44,14 @@ describe('1.4-UNIT-003 coalescing', () => {
     expect(coalesce(f.op({ path, value: 'y', batch_id: BATCH }), plain())).toBeNull();
   });
 
+  it('contract 16: keeps two rows when either carries meta.composed, so the flag is never merged away', () => {
+    const f = opFactory();
+    const text = `sheet/${B1}/conclusion/text`;
+    const composed = f.op({ path: text, value: 'composto', meta: { composed: true } });
+    expect(coalesce(f.op({ path: text, value: 'x' }), composed)).toBeNull();
+    expect(coalesce(composed, f.op({ path: text, value: 'y' }))).toBeNull();
+  });
+
   it('keeps two rows across paths, devices, kinds and actors', () => {
     const f = opFactory();
     const a = f.op({ path, value: 'x' });

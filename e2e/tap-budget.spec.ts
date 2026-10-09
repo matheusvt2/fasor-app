@@ -1,6 +1,7 @@
 import { getDefinition, type OpDraft } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
+import { expectConcludeConfirmsText } from './support/conclude-batch.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { pushLastNameplate } from './support/push-server-ops.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
@@ -17,6 +18,11 @@ import { tapCounter, type TapCounter } from './support/taps.ts';
  * `keydown` per character, Enter, Tab or Backspace. Every tap is a `humanTap` whose effect
  * is awaited, so a lost tap fails instead of costing a second one. Navigation to the first
  * sheet is not counted; J1's "Concluir ficha" lands on J3's sheet.
+ *
+ * Review 2026-10-08 Decision 1 (JRN-V1): the conclude also confirms the composed conclusion
+ * text in its own batch, so no journey taps the text's "Confirmar" and no tap is added; after
+ * each journey's count the outbox is read (no tap) for `text`, `text_status = confirmed` and
+ * `text_basis` in the `concluded_by` batch.
  */
 
 /**
@@ -211,6 +217,7 @@ test('@p0 5.1-E2E-001 the tap budget at 768 px, offline: J1 with the plate copie
   await confirmPair(page, j1);
   await conclude(page, j1, secEnel2.blockId);
   const j1Count = await report(page, 'J1', j1);
+  await expectConcludeConfirmsText(page, database, secEnel.blockId, `A seccionadora ${secEnel.tag}`);
 
   // --- J3 SEC-ENEL-2: "Igual à", its own unit, "Repetir", the suggested instruments --------
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible();
@@ -235,6 +242,7 @@ test('@p0 5.1-E2E-001 the tap budget at 768 px, offline: J1 with the plate copie
   await confirmPair(page, j3);
   await conclude(page, j3, after(built.sheets, secEnel2).blockId);
   const j3Count = await report(page, 'J3', j3);
+  await expectConcludeConfirmsText(page, database, secEnel2.blockId, `A seccionadora ${secEnel2.tag}`);
   await context.setOffline(false);
 
   expect(j1Count.taps, 'J1 taps').toBeLessThanOrEqual(TAP_BUDGET.J1.taps);

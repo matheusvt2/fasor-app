@@ -4,10 +4,13 @@ import { replay } from '../ops/replay.ts';
 import type { InstrumentRow } from '../registry/instrument-row.ts';
 import type { BlockRow, Cell, RelatorioParecer, SuggestionRow, UserRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { findDefinition } from '../seed/definitions.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { instantiateTemplate } from './instantiate.ts';
-import { blockingRows, exportPrecheck, issueConfirmation, issueConfirmReason, issueConfirmText, parecerMissingReason, preIssue, preIssueRowsFor, type PreIssueRow } from './pre-issue.ts';
+import { blockingRows, conclusionStaleText, exportPrecheck, issueConfirmation, issueConfirmReason, issueConfirmText, parecerMissingReason, preIssue, preIssueRowsFor, type PreIssueRow } from './pre-issue.ts';
+import { composeConclusion } from './conclusion.ts';
+import { sheetOrder } from './ficha.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
 import { restorableBlocks, sumarioRows } from './sumario.ts';
 import { emptySheetCount, fichasVaziasText, progress } from './progress.ts';
@@ -128,6 +131,109 @@ describe('7.5-UNIT preIssue: the rows the story adds', () => {
       b.concluded_by === null ? b : { ...b, sheet: { ...b.sheet, conclusion: { ...b.sheet.conclusion, text: cell(`Texto ${i}`), text_status: cell('confirmed') } } },
     );
     expect(preIssue({ ...snapshot, blocks: confirmed }, undefined, { now: NOW }).some((r) => r.kind === 'conclusion_unconfirmed')).toBe(false);
+  });
+
+  describe('R8CONC-UNIT conclusion_stale (review 2026-10-08 AIB-1)', () => {
+    const pair = { result: cell('aprovado'), restriction: cell('sem_restricoes') };
+    const tagOf = (snapshot: RelatorioSnapshot, b: BlockRow) => snapshot.equipment.find((e) => e.id === b.equipment_id)?.tag ?? '';
+    /** A concluded sheet with a stored text: `fresh` keeps the basis its values compose now, else a stale one. */
+    const concludedWith = (snapshot: RelatorioSnapshot, b: BlockRow, status: 'confirmed' | 'edited', fresh: boolean, conclusion: BlockRow['sheet']['conclusion'] = pair): BlockRow => {
+      const sheetBlock = { ...b, concluded_by: { actor_id: TEST_USER, at: AT }, sheet: { ...b.sheet, conclusion } };
+      const composed = composeConclusion(sheetBlock, findDefinition(b.seed_version, b.block_type)!, tagOf(snapshot, b));
+      const text = { text: cell(status === 'edited' ? 'Texto próprio' : composed.text), text_status: cell(status), text_basis: cell(fresh ? composed.basis : 'deadbeef') };
+      return { ...sheetBlock, sheet: { ...sheetBlock.sheet, conclusion: { ...conclusion, ...text } } };
+    };
+    const withBlocks = (snapshot: RelatorioSnapshot, change: ReadonlyMap<string, (b: BlockRow) => BlockRow>): RelatorioSnapshot => ({
+      ...snapshot,
+      blocks: snapshot.blocks.map((b) => change.get(b.id)?.(b) ?? b),
+    });
+    const staleRows = (snapshot: RelatorioSnapshot) => preIssue(snapshot, undefined, { now: NOW }).filter((r) => r.kind === 'conclusion_stale');
+    const blockOf = (snapshot: RelatorioSnapshot, blockId: string) => snapshot.blocks.find((b) => b.id === blockId)!;
+
+    it('names one stale confirmed sheet by its TAG on section 9, pending, and the Sumário row 9 says it', () => {
+      const snapshot = fresh();
+      const [first] = sheetOrder(snapshot);
+      expect(first!.tag).not.toBe('');
+      const stale = withBlocks(snapshot, new Map([[first!.blockId, (b: BlockRow) => concludedWith(snapshot, b, 'confirmed', false)]]));
+      const rows = staleRows(stale);
+      expect(rows).toEqual([{ id: 'conclusion_stale', row: 'section_9', severity: 'pending', text: `Texto de conclusão desatualizado: ${first!.tag}`, kind: 'conclusion_stale' }]);
+      const computed = progress(stale);
+      const row9 = sumarioRows(stale, preIssue(stale, computed, { now: NOW }), computed).find((r) => r.rowKey === 'section_9')!;
+      expect(row9.meta).toContain(`Texto de conclusão desatualizado: ${first!.tag}`);
+    });
+
+    it('a TAG renamed after the confirm makes it stale, named by the new TAG', () => {
+      const snapshot = fresh();
+      const [first] = sheetOrder(snapshot);
+      const confirmed = withBlocks(snapshot, new Map([[first!.blockId, (b: BlockRow) => concludedWith(snapshot, b, 'confirmed', true)]]));
+      expect(staleRows(confirmed)).toEqual([]);
+      const equipmentId = blockOf(confirmed, first!.blockId).equipment_id;
+      const renamed = { ...confirmed, equipment: confirmed.equipment.map((e) => (e.id === equipmentId ? { ...e, tag: 'SEC-NOVA' } : e)) };
+      expect(staleRows(renamed).map((r) => r.text)).toEqual(['Texto de conclusão desatualizado: SEC-NOVA']);
+    });
+
+    it('names two stale sheets in tree order, joined with "e", whatever the order of the rows; an edited stale text is named too', () => {
+      const snapshot = fresh();
+      const [first, second] = sheetOrder(snapshot);
+      const stale = withBlocks(
+        snapshot,
+        new Map([
+          [first!.blockId, (b: BlockRow) => concludedWith(snapshot, b, 'edited', false)],
+          [second!.blockId, (b: BlockRow) => concludedWith(snapshot, b, 'confirmed', false)],
+        ]),
+      );
+      const reversed = { ...stale, blocks: [...stale.blocks].reverse() };
+      expect(staleRows(reversed).map((r) => r.text)).toEqual([`Textos de conclusão desatualizados: ${first!.name} e ${second!.name}`]);
+    });
+
+    it('no row for a fresh confirmed text, an unconcluded sheet or an incomplete pair; a sheet is never in both rows', () => {
+      const snapshot = fresh();
+      const [first, second, third] = sheetOrder(snapshot);
+      const quiet = withBlocks(
+        snapshot,
+        new Map([
+          [first!.blockId, (b: BlockRow) => concludedWith(snapshot, b, 'confirmed', true)],
+          // A stale text on a sheet not concluded yet is the sheet's own business.
+          [second!.blockId, (b: BlockRow) => ({ ...concludedWith(snapshot, b, 'confirmed', false), concluded_by: null })],
+        ]),
+      );
+      expect(staleRows(quiet)).toEqual([]);
+      // A stale text whose restriction was cleared does not print: `conclusion_unconfirmed` counts it, this row does not.
+      const incomplete = withBlocks(quiet, new Map([[third!.blockId, (b: BlockRow) => concludedWith(snapshot, b, 'confirmed', false, { result: cell('aprovado') })]]));
+      const rows = preIssue(incomplete, undefined, { now: NOW });
+      expect(rows.filter((r) => r.kind === 'conclusion_stale')).toEqual([]);
+      expect(rows.find((r) => r.kind === 'conclusion_unconfirmed')?.text).toBe('1 ficha concluída sem texto de conclusão confirmado');
+      // Both rows at once: the stale sheet is named, the incomplete one counted, neither twice.
+      const both = withBlocks(incomplete, new Map([[first!.blockId, (b: BlockRow) => concludedWith(snapshot, b, 'confirmed', false)]]));
+      const bothRows = preIssue(both, undefined, { now: NOW });
+      expect(bothRows.find((r) => r.kind === 'conclusion_stale')?.text).toBe(`Texto de conclusão desatualizado: ${first!.name}`);
+      expect(bothRows.find((r) => r.kind === 'conclusion_unconfirmed')?.text).toBe('1 ficha concluída sem texto de conclusão confirmado');
+    });
+
+    it('names a live stale sheet the tree does not draw (no location) by its TAG, after the drawn ones; a removed one is never named', () => {
+      const snapshot = fresh();
+      const [first, second] = sheetOrder(snapshot);
+      const offTree = (b: BlockRow) => ({ ...concludedWith(snapshot, b, 'confirmed', false), location_id: null });
+      const both = withBlocks(
+        snapshot,
+        new Map([
+          [first!.blockId, offTree],
+          [second!.blockId, (b: BlockRow) => concludedWith(snapshot, b, 'confirmed', false)],
+        ]),
+      );
+      expect(sheetOrder(both).some((node) => node.blockId === first!.blockId)).toBe(false);
+      expect(staleRows(both).map((r) => r.text)).toEqual([`Textos de conclusão desatualizados: ${second!.name} e ${first!.tag}`]);
+      const alone = withBlocks(snapshot, new Map([[first!.blockId, offTree]]));
+      expect(staleRows(alone).map((r) => r.text)).toEqual([`Texto de conclusão desatualizado: ${first!.tag}`]);
+      const removed = withBlocks(snapshot, new Map([[first!.blockId, (b: BlockRow) => ({ ...offTree(b), removed_at: AT })]]));
+      expect(staleRows(removed)).toEqual([]);
+    });
+
+    it('conclusionStaleText: singular and plural', () => {
+      expect(conclusionStaleText(['SEC-C05'])).toBe('Texto de conclusão desatualizado: SEC-C05');
+      expect(conclusionStaleText(['SEC-C05', 'TR-01'])).toBe('Textos de conclusão desatualizados: SEC-C05 e TR-01');
+      expect(conclusionStaleText(['SEC-C05', 'TR-01', 'DJ-01'])).toBe('Textos de conclusão desatualizados: SEC-C05, TR-01 e DJ-01');
+    });
   });
 
   it('Story 8.6: sheets holding pending suggestions are one warning on section 9 that never blocks; removed blocks and confirmed rows do not count', () => {
