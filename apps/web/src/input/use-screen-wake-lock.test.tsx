@@ -1,7 +1,7 @@
 import { WAKE_LOCK_IDLE_MS } from '@app/domain';
 import { render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { holdScreenWakeLock, resetScreenWakeLockForTests, setKeepScreenOn, useScreenWakeLock } from './use-screen-wake-lock.ts';
+import { holdScreenWakeLock, resetScreenWakeLockForTests, setKeepScreenOn, useScreenWakeLock, WAKE_LOCK_REQUEST_LIMIT_MS } from './use-screen-wake-lock.ts';
 
 /*
  * R8CAP-UNIT (review 2026-10-08, FLD-1): one screen wake lock for the whole page, held while a
@@ -17,8 +17,10 @@ interface FakeSentinel {
   fireRelease: () => void;
 }
 
-function fakeWakeLock(mode: 'grant' | 'reject' | 'throw' = 'grant') {
+function fakeWakeLock(mode: 'grant' | 'reject' | 'throw' | 'hang' = 'grant') {
   const sentinels: FakeSentinel[] = [];
+  /** 'hang': the requests that never settled, answered only when the test says so. */
+  const hung: (() => void)[] = [];
   const request = vi.fn((type: 'screen') => {
     expect(type).toBe('screen');
     if (mode === 'throw') throw new DOMException('policy', 'NotAllowedError');
@@ -33,11 +35,19 @@ function fakeWakeLock(mode: 'grant' | 'reject' | 'throw' = 'grant') {
         listeners.forEach((listener) => listener());
       },
     };
+    if (mode === 'hang') {
+      return new Promise<FakeSentinel>((resolve) => {
+        hung.push(() => {
+          sentinels.push(sentinel);
+          resolve(sentinel);
+        });
+      });
+    }
     sentinels.push(sentinel);
     return Promise.resolve(sentinel);
   });
   Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request } });
-  return { request, sentinels, held: () => sentinels.filter((sentinel) => !sentinel.released) };
+  return { request, sentinels, hung, held: () => sentinels.filter((sentinel) => !sentinel.released) };
 }
 
 let visibility: DocumentVisibilityState = 'visible';
@@ -182,6 +192,45 @@ describe('R8CAP-UNIT the screen wake lock', () => {
       release();
       errors.mockRestore();
     }
+  });
+
+  it('a request that hangs counts as refused after the limit: the next touch asks again; a late sentinel is kept only while wanted and none is held', async () => {
+    const lock = fakeWakeLock('hang');
+    setKeepScreenOn(true);
+    const release = holdScreenWakeLock();
+    await settle();
+    expect(lock.request).toHaveBeenCalledTimes(1);
+    // Before the limit a touch does not ask twice.
+    window.dispatchEvent(new Event('pointerdown'));
+    await settle();
+    expect(lock.request).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(WAKE_LOCK_REQUEST_LIMIT_MS);
+    expect(lock.request).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(new Event('pointerdown'));
+    await settle();
+    expect(lock.request).toHaveBeenCalledTimes(2);
+    // The abandoned first request answers late, still wanted, none held: kept.
+    lock.hung[0]!();
+    await settle();
+    expect(lock.held()).toHaveLength(1);
+    // The second one answers too: one is already held, so it is given back.
+    lock.hung[1]!();
+    await settle();
+    expect(lock.held()).toHaveLength(1);
+    expect(lock.sentinels).toHaveLength(2);
+    release();
+    await settle();
+    expect(lock.held()).toHaveLength(0);
+  });
+
+  it('the first holder counts as an interaction: a sheet opened over 10 min after the page loaded takes the lock at once', async () => {
+    const lock = fakeWakeLock();
+    setKeepScreenOn(true);
+    await vi.advanceTimersByTimeAsync(WAKE_LOCK_IDLE_MS + 60_000);
+    const release = holdScreenWakeLock();
+    await settle();
+    expect(lock.held()).toHaveLength(1);
+    release();
   });
 
   it('without the API nothing happens and nothing throws', async () => {

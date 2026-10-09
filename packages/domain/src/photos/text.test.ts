@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  cameraSavingText,
   burstCountText,
   cameraZoomText,
   photosPendingText,
@@ -79,5 +80,14 @@ describe('13.2-UNIT-001 cameraZoomText', () => {
     expect(cameraZoomText(2.5)).toBe('2,5×');
     expect(cameraZoomText(3.04)).toBe('3,0×');
     expect(cameraZoomText(Number.NaN)).toBe('1,0×');
+  });
+});
+
+describe('R8CAP-UNIT the camera saving line (review 2026-10-08, DB-4)', () => {
+  it('names one shot in the singular, more in the plural, and nothing with no shot', () => {
+    expect(cameraSavingText(0)).toBeNull();
+    expect(cameraSavingText(1)).toBe('Salvando a foto…');
+    expect(cameraSavingText(2)).toBe('Salvando as fotos…');
+    expect(cameraSavingText(12)).toBe('Salvando as fotos…');
   });
 });

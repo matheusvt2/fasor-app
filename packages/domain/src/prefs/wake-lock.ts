@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { plural } from '../text/plural.ts';
 
 /*
  * Review 2026-10-08 (FLD-1): "Manter a tela ligada" is device-local state in `local_prefs`,
@@ -37,4 +38,13 @@ export interface WakeLockInput {
 /** Whether the screen is to be held awake now: the switch on, some surface wanting it, the page visible, a touch or key in the last ten minutes. */
 export function wakeLockWanted(input: WakeLockInput): boolean {
   return input.enabled && input.holders > 0 && input.visible && input.idleMs < WAKE_LOCK_IDLE_MS;
+}
+
+/**
+ * Conta's "Manter a tela ligada" sub line, its idle time derived from `WAKE_LOCK_IDLE_MS`.
+ * authored (review 2026-10-08, FLD-1; no mock draws it).
+ */
+export function keepScreenOnSubText(idleMs: number = WAKE_LOCK_IDLE_MS): string {
+  const minutes = Math.round(idleMs / 60_000);
+  return `Enquanto uma ficha, a câmera ou uma leitura estiver aberta. Depois de ${plural(minutes, 'minuto', 'minutos')} sem toque a tela volta a apagar sozinha.`;
 }

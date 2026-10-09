@@ -1,6 +1,5 @@
 import {
   camposCopiadosText,
-  compareSuggestion,
   discardSuggestionOp,
   isCellFilled,
   lastNameplateCopy,
@@ -13,6 +12,9 @@ import {
   plateReadingTarget,
   plateReadingView,
   showsConfirmedGlyph,
+  supersededPlatePhotos,
+  suggestionView,
+  typedTurnsDownSuggestion,
   suggestNameplateCopy,
   toIso,
   type BlockDefinition,
@@ -23,7 +25,7 @@ import {
   type RelatorioSnapshot,
   type WordRow,
 } from '@app/domain';
-import { useId, useMemo, useState, type FocusEvent } from 'react';
+import { useId, useMemo, useRef, useState, type FocusEvent } from 'react';
 import { Chip } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -107,6 +109,12 @@ export function NameplateSection({
   const plate = useMemo(() => platePhotoOf(suggestions.tiles, block.id), [suggestions.tiles, block.id]);
   const view = plate === null ? null : plateReadingView(plate, suggestions.rows);
   const db = useSession().database;
+  // DG-2: the suggestions still pending as last drawn (a turn-down never discards one confirmed meanwhile).
+  const pendingIds = useRef(new Set<string>());
+  pendingIds.current = new Set(suggestions.pending.map((row) => row.id));
+  // DG-2: the suggestions this sheet already wrote a discard for (one discard each, even when
+  // Enter, a blur and "Criar" follow each other before the sheet is drawn again).
+  const turnedDown = useRef(new Set<string>());
   const plateCancelled = useReadingCancelled(plate?.id ?? '');
   const region = plate === null || view !== 'ready' ? null : plateCropRegion(suggestions.pending, plate.id);
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
@@ -156,7 +164,7 @@ export function NameplateSection({
     const author = api.author;
     if (db === null || author === null) return;
     // The new photo (its id assigned before the shot) is never among them, whatever the tiles hold now.
-    const older = suggestions.tiles.filter((tile) => tile.reading_kind === 'plate' && tile.block_id === block.id && tile.id !== shot.fileId).map((tile) => tile.id);
+    const older = supersededPlatePhotos(suggestions.tiles, block.id, shot.fileId).map((tile) => tile.id);
     const at = toIso(now());
     void Promise.all(
       older.map((photoId) => writeReadingCancelled(db, photoId, at).then(() => discardCancelledReadings(db, author, { newId, now }, photoId))),
@@ -207,12 +215,35 @@ export function NameplateSection({
    */
   function replacedBy(fieldKey: string, next: unknown) {
     const entry = suggestions.entries.get(fieldKey);
-    if (entry?.view !== 'replace' || next === null || next === undefined) return null;
-    return compareSuggestion(next, entry.suggestion.value, entry.field) !== 'equal' ? entry.suggestion : null;
+    return entry !== undefined && typedTurnsDownSuggestion(entry.view, entry.suggestion.value, next, entry.field) ? entry.suggestion : null;
+  }
+
+  /**
+   * DG-2 (r8cap-correctness-2): the engineer left the field (blur) or pressed Enter. The idle
+   * commit while typing never discards; this one-op batch does, on the relatório's edit queue
+   * after the field's own commit (the input's handlers run before this wrapper's), reading the
+   * value as stored then: still under the replace line and not equal to the suggestion.
+   */
+  function turnDownOnLeave(fieldKey: string): void {
+    const entry = suggestions.entries.get(fieldKey);
+    if (entry?.view !== 'replace') return;
+    const s = entry.suggestion;
+    void api
+      .edit((blocks, by) => {
+        const fresh = blocks.find((row) => row.id === block.id);
+        if (fresh === undefined || !pendingIds.current.has(s.id) || turnedDown.current.has(s.id)) return null;
+        const cell = fresh.sheet.nameplate[fieldKey];
+        const view = suggestionView(cell, s, entry.field);
+        if (!typedTurnsDownSuggestion(view, s.value, cell?.value ?? null, entry.field)) return null;
+        turnedDown.current.add(s.id);
+        return [discardSuggestionOp(by, s)];
+      })
+      .catch(() => undefined);
   }
 
   function createWord(fieldKey: string, kind: 'manufacturer' | 'voltage_class', name: string): void {
     const replaced = replacedBy(fieldKey, name);
+    if (replaced !== null) turnedDown.current.add(replaced.id);
     void api
       .edit((_blocks, by) => [
         createWordOp(by, kind, newId(), name),
@@ -302,11 +333,9 @@ export function NameplateSection({
                 if (api.author === null) return undefined;
                 // DG-2: a typed value that changes the field under "Sugerido: … — Substituir"
                 // discards that suggestion in the same batch (the engineer chose the typed one).
-                const replaced = replacedBy(field.key, next);
-                return api.commit([
-                  nameplateOp(api.author, api.relatorioId, block.id, field.key, next),
-                  ...(replaced === null ? [] : [discardSuggestionOp(api.author, replaced)]),
-                ]);
+                // DG-2: never a discard here (this may be the idle commit mid-typing); leaving
+                // the field or Enter turns the suggestion down (`turnDownOnLeave`).
+                return api.commit([nameplateOp(api.author, api.relatorioId, block.id, field.key, next)]);
               }}
               after={after}
               // F-01: a suggestion landing on this field while it holds uncommitted typing
@@ -317,7 +346,7 @@ export function NameplateSection({
           // One wrapper for every field, confirmed or not, so the field keeps its place in the
           // tree when a typed correction clears the provenance mid-typing (no remount).
           return (
-            <NameplateField key={field.key} model={suggestions} field={field} source={source}>
+            <NameplateField key={field.key} model={suggestions} field={field} source={source} onLeave={pending?.view === 'replace' ? () => turnDownOnLeave(field.key) : undefined}>
               {sheetField}
             </NameplateField>
           );

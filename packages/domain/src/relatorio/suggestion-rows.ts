@@ -200,6 +200,17 @@ export function compareSuggestion(cellValue: unknown, suggestionValue: unknown, 
 }
 
 /**
+ * Review 2026-10-08 (DG-2): whether a value the engineer committed deliberately turns the
+ * field's pending suggestion down (it is discarded): only under the replace line (`view`), only
+ * for a value (a cleared field makes it a fill again), and only for one other than the
+ * suggestion's (an equal value is the device's auto-confirm to make).
+ */
+export function typedTurnsDownSuggestion(view: 'fill' | 'replace' | 'none' | undefined, suggestionValue: unknown, next: unknown, fieldDef: Pick<FieldDef, 'kind'> | null): boolean {
+  if (view !== 'replace' || next === null || next === undefined) return false;
+  return compareSuggestion(next, suggestionValue, fieldDef) !== 'equal';
+}
+
+/**
  * How a pending suggestion shows on its field: an empty cell takes it as a fill (amber
  * field, "Confirmar"); a filled cell with a different value keeps the engineer's value and
  * shows the replace line; a filled cell with an equal value shows nothing (the device

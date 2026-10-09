@@ -92,7 +92,7 @@ export const copy = {
     // authored (review 2026-10-08, FLD-1; no mock draws it): the device-local wake-lock switch.
     screenHeading: 'Tela',
     keepScreenOnLabel: 'Manter a tela ligada',
-    keepScreenOnSub: 'Enquanto uma ficha, a câmera ou uma leitura estiver aberta. Depois de 10 minutos sem toque a tela volta a apagar sozinha.',
+    // The sub line names the idle time; it is the kernel's (`keepScreenOnSubText`).
     // Tema and Armazenamento from `mockups/prototype/screens/90-account.html`.
     themeHeading: 'Tema',
     themeNote: 'Segue a preferência do aparelho. Os dois temas mantêm o contraste para uso ao sol.',
@@ -779,10 +779,6 @@ export const copy = {
     // authored: a shot that could not be read or saved at all. Review 2026-10-08 (FLD-V1): the
     // open camera says it in `.cam-hint` until the next shot saves; a closed one, in a toast.
     failedToast: 'Não foi possível salvar a foto. Tente de novo.',
-    // authored (review 2026-10-08, DB-4): `.cam-count` from the shutter of a single shot, or from
-    // "Concluir" of a burst, until the view closes (the shots are being stored on the device).
-    savingOne: 'Salvando a foto…',
-    saving: 'Salvando as fotos…',
     // `60-ficha.html` NC row, verbatim.
     addPhoto: 'Adicionar foto',
     addPhotoReason: 'Recomendada para não conforme',

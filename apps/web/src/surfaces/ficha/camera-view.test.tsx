@@ -779,7 +779,9 @@ describe('R8CAP-UNIT review 2026-10-08 the open camera says its own failures, it
     await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
     await screen.findByRole('dialog', { name: 'Câmera' });
     await userEvent.click(screen.getByRole('button', { name: 'Disparar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Disparar' }));
     await userEvent.click(screen.getByRole('button', { name: 'Concluir fotos' }));
+    // Two shots: the plural (the kernel's `cameraSavingText`).
     await waitFor(() => expect(camera().querySelector('.cam-count')).toHaveTextContent('Salvando as fotos…'));
     expect(camera().querySelector('.cam-count')).toHaveAttribute('data-state', 'saving');
     expect(screen.getByRole('button', { name: 'Disparar' })).toBeDisabled();
@@ -804,7 +806,7 @@ describe('R8CAP-UNIT review 2026-10-08 the open camera says its own failures, it
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Câmera' })).toBeNull());
   });
 
-  it('closed by its close button while "Salvando as fotos…" and opened again, the new view stays open when the old saves end', async () => {
+  it('closed by its close button while saving and opened again, the new view stays open when the old saves end', async () => {
     const { media } = cameraStream();
     useStream(media);
     liveFrames();
@@ -816,7 +818,8 @@ describe('R8CAP-UNIT review 2026-10-08 the open camera says its own failures, it
     await screen.findByRole('dialog', { name: 'Câmera' });
     await userEvent.click(screen.getByRole('button', { name: 'Disparar' }));
     await userEvent.click(screen.getByRole('button', { name: 'Concluir fotos' }));
-    await waitFor(() => expect(camera().querySelector('.cam-count')).toHaveTextContent('Salvando as fotos…'));
+    // One shot in the burst: the singular.
+    await waitFor(() => expect(camera().querySelector('.cam-count')).toHaveTextContent('Salvando a foto…'));
     await userEvent.click(screen.getByRole('button', { name: 'Fechar a câmera sem concluir' }));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Câmera' })).toBeNull());
     await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
@@ -867,6 +870,105 @@ describe('R8CAP-UNIT review 2026-10-08 the open camera says its own failures, it
     expect(onShot).not.toHaveBeenCalled();
     report('saved');
     expect(onShot).toHaveBeenCalledExactlyOnceWith(target);
+  });
+
+  it('r8cap-camera-session-1: a single shot whose save fails while it closes says the failure after the close, never "Foto salva"', async () => {
+    const { media } = cameraStream();
+    useStream(media);
+    liveFrames();
+    let release: (value: boolean) => void = () => undefined;
+    capture.settle.mockImplementationOnce(() => new Promise<boolean>((resolve) => (release = resolve)));
+    renderCamera(true);
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    await screen.findByRole('dialog', { name: 'Câmera' });
+    await userEvent.click(screen.getByRole('button', { name: 'Disparar' }));
+    await waitFor(() => expect(capture.shoot).toHaveBeenCalledTimes(1));
+    const report = capture.shoot.mock.calls[0]![2] as (outcome: 'saved' | 'failed') => boolean;
+    // The hook shows its own failure toast when the camera does not say it.
+    expect(report('failed')).toBe(false);
+    release(true);
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Câmera' })).toBeNull());
+    expect(await screen.findByText('Não foi possível salvar a foto. Tente de novo.')).toBeVisible();
+    expect(screen.queryByText(/Foto salva/)).toBeNull();
+  });
+
+  it('r8cap-camera-session-1: a burst closed by "Concluir fotos" whose pending shot fails says the failure after the close, never "Fotos salvas"', async () => {
+    const { media } = cameraStream();
+    useStream(media);
+    liveFrames();
+    let release: (value: boolean) => void = () => undefined;
+    capture.settle.mockImplementationOnce(() => new Promise<boolean>((resolve) => (release = resolve)));
+    renderCamera();
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    await screen.findByRole('dialog', { name: 'Câmera' });
+    await userEvent.click(screen.getByRole('button', { name: 'Disparar' }));
+    await waitFor(() => expect(capture.shoot).toHaveBeenCalledTimes(1));
+    const report = capture.shoot.mock.calls[0]![2] as (outcome: 'saved' | 'failed') => boolean;
+    await userEvent.click(screen.getByRole('button', { name: 'Concluir fotos' }));
+    expect(report('failed')).toBe(false);
+    release(true);
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Câmera' })).toBeNull());
+    expect(await screen.findByText('Não foi possível salvar a foto. Tente de novo.')).toBeVisible();
+    expect(screen.queryByText(/Fotos salvas/)).toBeNull();
+  });
+
+  it('r8cap-camera-session-1: the no-camera fallback input whose shot fails keeps the failure toast, no done toast', async () => {
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: vi.fn(async () => Promise.reject(new DOMException('Requested device not found', 'NotFoundError'))) },
+    });
+    let release: (value: boolean) => void = () => undefined;
+    capture.settle.mockImplementationOnce(() => new Promise<boolean>((resolve) => (release = resolve)));
+    renderCamera(true);
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    await waitFor(() => expect(capture.prepare).toHaveBeenCalled());
+    fireEvent.change(screen.getByTestId('camera-fallback-input'), { target: { files: [new File(['x'], 'placa.jpg', { type: 'image/jpeg' })] } });
+    await waitFor(() => expect(capture.shoot).toHaveBeenCalledTimes(1));
+    const report = capture.shoot.mock.calls[0]![2] as (outcome: 'saved' | 'failed') => boolean;
+    expect(report('failed')).toBe(false);
+    release(true);
+    expect(await screen.findByText('Não foi possível salvar a foto. Tente de novo.')).toBeVisible();
+    expect(screen.queryByText(/Foto salva/)).toBeNull();
+  });
+
+  it('r8cap-camera-session-6: a throw from the host\'s onShot never makes the stored shot a failure', async () => {
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: vi.fn(async () => Promise.reject(new DOMException('Requested device not found', 'NotFoundError'))) },
+    });
+    capture.settle.mockResolvedValue(true);
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    function ThrowingHarness() {
+      const opener = useRef<HTMLButtonElement>(null);
+      const cam = useCamera('019966b0-0000-7000-8000-000000000001', () => ({ blockId: null, itemKey: null, caption: null }), opener, {
+        singleShot: true,
+        onShot: () => {
+          throw new Error('host failed');
+        },
+      });
+      return (
+        <>
+          <button type="button" ref={opener} onClick={cam.open}>
+            Abrir câmera
+          </button>
+          {cam.element}
+        </>
+      );
+    }
+    render(
+      <ToastProvider>
+        <ThrowingHarness />
+        <ToastOutlet />
+      </ToastProvider>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    await waitFor(() => expect(capture.prepare).toHaveBeenCalled());
+    fireEvent.change(screen.getByTestId('camera-fallback-input'), { target: { files: [new File(['x'], 'placa.jpg', { type: 'image/jpeg' })] } });
+    await waitFor(() => expect(capture.shoot).toHaveBeenCalledTimes(1));
+    const report = capture.shoot.mock.calls[0]![2] as (outcome: 'saved' | 'failed') => boolean;
+    expect(() => report('saved')).not.toThrow();
+    expect(errors).toHaveBeenCalledWith('camera onShot failed', expect.any(Error));
+    expect(await screen.findByText(/Foto salva/)).toBeVisible();
   });
 
   it('DE-2: closing the camera gives the focus back to the opener with preventScroll', async () => {

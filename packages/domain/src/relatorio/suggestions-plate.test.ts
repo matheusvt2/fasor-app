@@ -17,6 +17,8 @@ import {
   plateCropRegion,
   platePhotoOf,
   plateReadingView,
+  supersededPlatePhotos,
+  typedTurnsDownSuggestion,
   regionWithin,
   sugestoesProntasBannerText,
   suggestionGroupCounts,
@@ -276,5 +278,32 @@ describe('E78-R1 plateCropView', () => {
     const share = (view: readonly number[]) => (focused[3] - focused[1]) / (view[3]! - view[1]!);
     expect(share(zoomed)).toBeGreaterThan(0.4);
     expect(share(plateCropView(region, null, image, 670 / 160))).toBeLessThan(0.1);
+  });
+});
+
+describe('review 2026-10-08 the retake and the typed value (kernel rules)', () => {
+  it('CAPT-V1: the plate photos a retake supersedes are the live plate photos of the block but the new one', () => {
+    const photos = [
+      photo(PHOTO),
+      photo(OTHER_PHOTO),
+      photo('removed', { removed_at: '2026-10-08T12:00:00.000Z' }),
+      photo('display', { reading_kind: 'display' }),
+      photo('other-block', { block_id: 'other' }),
+    ];
+    expect(supersededPlatePhotos(photos, BLOCK, OTHER_PHOTO).map((row) => row.id)).toEqual([PHOTO]);
+    expect(supersededPlatePhotos(photos, BLOCK, null).map((row) => row.id)).toEqual([PHOTO, OTHER_PHOTO]);
+    expect(supersededPlatePhotos(photos, 'other', undefined).map((row) => row.id)).toEqual(['other-block']);
+  });
+
+  it('DG-2: a deliberately typed value turns a replace suggestion down only when it differs from it', () => {
+    const text = { kind: 'text' as const };
+    expect(typedTurnsDownSuggestion('replace', 'TSE-500/15', 'TIPO-B', text)).toBe(true);
+    // Equal (whitespace collapsed): the auto-confirm's, never a discard.
+    expect(typedTurnsDownSuggestion('replace', 'TSE-500/15', ' TSE-500/15 ', text)).toBe(false);
+    // A cleared field makes it a fill again; a fill or a none view is never turned down by typing.
+    expect(typedTurnsDownSuggestion('replace', 'TSE-500/15', null, text)).toBe(false);
+    expect(typedTurnsDownSuggestion('fill', 'TSE-500/15', 'TIPO-B', text)).toBe(false);
+    expect(typedTurnsDownSuggestion('none', 'TSE-500/15', 'TIPO-B', text)).toBe(false);
+    expect(typedTurnsDownSuggestion(undefined, 'TSE-500/15', 'TIPO-B', text)).toBe(false);
   });
 });

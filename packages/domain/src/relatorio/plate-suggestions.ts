@@ -27,6 +27,14 @@ export function platePhotoOf<T extends PlatePhotoLike>(photos: readonly T[], blo
   return best;
 }
 
+/**
+ * Review 2026-10-08 (CAPT-V1): the plate photos a retake supersedes, whose readings this
+ * device cancels: the live plate photos of `blockId`, the new shot (`keepId`) excepted.
+ */
+export function supersededPlatePhotos<T extends PlatePhotoLike>(photos: readonly T[], blockId: string, keepId: string | null | undefined): T[] {
+  return photos.filter((photo) => (photo.removed_at ?? null) === null && photo.reading_kind === 'plate' && photo.block_id === blockId && photo.id !== keepId);
+}
+
 export type PlateReadingView = 'queued' | 'running' | 'failed' | 'ready' | 'done' | 'empty';
 
 /**

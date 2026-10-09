@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { KEEP_SCREEN_ON_DEFAULT, keepScreenOnOf, keepScreenOnSchema, WAKE_LOCK_IDLE_MS, wakeLockWanted } from './wake-lock.ts';
+import { KEEP_SCREEN_ON_DEFAULT, keepScreenOnOf, keepScreenOnSchema, keepScreenOnSubText, WAKE_LOCK_IDLE_MS, wakeLockWanted } from './wake-lock.ts';
 
 /*
  * Review 2026-10-08 (FLD-1): the "Manter a tela ligada" vocabulary and the rule that decides
@@ -28,5 +28,10 @@ describe('R8CAP-UNIT the wake-lock preference and rule', () => {
     expect(wakeLockWanted({ ...base, visible: false })).toBe(false);
     expect(wakeLockWanted({ ...base, enabled: false })).toBe(false);
     expect(wakeLockWanted({ ...base, holders: 0 })).toBe(false);
+  });
+
+  it("Conta's sub line names the idle time derived from the limit", () => {
+    expect(keepScreenOnSubText()).toBe('Enquanto uma ficha, a câmera ou uma leitura estiver aberta. Depois de 10 minutos sem toque a tela volta a apagar sozinha.');
+    expect(keepScreenOnSubText(60_000)).toContain('Depois de 1 minuto sem toque');
   });
 });

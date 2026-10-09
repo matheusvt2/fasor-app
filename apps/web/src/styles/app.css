@@ -849,12 +849,9 @@ html { scroll-padding-bottom: var(--sticky-bar-covered, 0px); }
    shot is (mirrors `.cam-hint[data-state="refused"]` above). DB-4: "Concluir" disabled while the
    shots are saved reads as the disabled shutter (mirrors `.cam-shutter[data-disabled]`).
    CAPT-V1: the empty reading's line under a cell or field lays out as the failed one does
-   (mirrors `.reading-failed` in `ficha.css`). FLD-1: Conta's "Manter a tela ligada" row sits under
-   its section head with no rule of its own (mirrors `90-account.html`'s page-scoped
-   `[data-route="/account"] .toggle-row { border-top: 0; }`, as `.location-row` does). */
+   (mirrors `.reading-failed` in `ficha.css`). */
 .cam-hint[data-state="failed"] { color: #FFFFFF; font-weight: var(--t-label-weight); }
 .cam-bottom .cam-done[data-disabled] { opacity: .4; }
 [data-route="/relatorio/:id/ficha/:blockId"] .reading-empty { display: flex; flex-direction: column; gap: 0; min-width: 0; }
 [data-route="/relatorio/:id/ficha/:blockId"] .reading-empty .row-wrap { gap: 0 var(--sp-2); }
 [data-route="/relatorio/:id/ficha/:blockId"] .reading-empty .row-wrap .btn-text:first-child { margin-left: calc(-1 * var(--sp-3)); }
-.keep-screen-row .toggle-row { border-top: 0; }

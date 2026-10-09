@@ -1,4 +1,4 @@
-import { burstCountText, cameraContextText, cameraZoomText } from '@app/domain';
+import { burstCountText, cameraContextText, cameraSavingText, cameraZoomText } from '@app/domain';
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { Button as AriaButton, Dialog, Modal, ModalOverlay, ToggleButton } from 'react-aria-components';
 import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from '../../input/focus-restore.ts';
@@ -92,6 +92,15 @@ export interface CameraControl {
   opening: boolean;
   /** The camera view and the fallback input; render it beside the opener. */
   element: ReactNode;
+}
+
+/** The host's `onShot` for a stored shot; a throw there never makes the stored shot a failure. */
+function shotStored(onShot: CameraOptions['onShot'], target: CaptureTarget): void {
+  try {
+    onShot?.(target);
+  } catch (error) {
+    console.error('camera onShot failed', error);
+  }
 }
 
 /**
@@ -303,7 +312,11 @@ export function useCamera(
     (session: CameraSession | null) =>
     (outcome: 'saved' | 'failed'): boolean => {
       // Only the session the shot was taken in, while it is open and not closing.
-      if (!mounted.current || session === null || sessionRef.current !== session || finishing.current === session) return false;
+      if (!mounted.current || session === null || sessionRef.current !== session || finishing.current === session) {
+        // A failure the view did not say: its close says the failure, never "Fotos salvas".
+        if (outcome === 'failed' && session !== null) unsaidFailures.current.add(session);
+        return false;
+      }
       setShotFailed(outcome === 'failed');
       return true;
     };
@@ -325,7 +338,7 @@ export function useCamera(
         const onShot = options.onShot;
         // CAPT-V1: the shot counts once it is stored, never at the hand-over.
         capture.shoot(photo, target, (outcome) => {
-          if (outcome === 'saved') onShot?.(target);
+          if (outcome === 'saved') shotStored(onShot, target);
           return says(outcome);
         });
       },
@@ -348,6 +361,8 @@ export function useCamera(
 
   /** The session "Concluir" (or a single shot) is closing, while its saves are awaited; null when none. */
   const finishing = useRef<CameraSession | null>(null);
+  /** The sessions with a shot that failed while the view could not say it (closing or closed). */
+  const unsaidFailures = useRef(new WeakSet<CameraSession>());
 
   const end = (ending: CameraSession | null) => {
     setSaving(false);
@@ -386,7 +401,11 @@ export function useCamera(
         const current = sessionRef.current;
         if (current === ending) end(ending);
         if (current === ending || current === null) setBurst(0);
-        // A single shot whose frame could not be read already said so ("failedToast").
+        // A shot of this session failed while it was closing: the failure is what is said.
+        if (unsaidFailures.current.has(ending)) {
+          showToast(copy.photos.failedToast);
+          return;
+        }
         if (!allSaved) return;
         if (!single) showToast(reachable ? copy.photos.doneToastOnline : copy.photos.doneToast);
         else if (shotGrabbed.current) showToast(reachable ? copy.photos.doneOneToastOnline : copy.photos.doneOneToast);
@@ -399,14 +418,18 @@ export function useCamera(
     if (file === undefined || context === null) return;
     setBurst(1);
     const onShot = options.onShot;
+    let failed = false;
     capture.shoot(file, context, (outcome) => {
-      if (outcome === 'saved') onShot?.(context);
+      if (outcome === 'saved') shotStored(onShot, context);
+      else failed = true;
       // The camera view is not open: a failure is the toast.
       return false;
     });
     void capture.settle().then((allSaved) => {
       setBurst(0);
-      if (allSaved) showToast(single ? (reachable ? copy.photos.doneOneToastOnline : copy.photos.doneOneToast) : reachable ? copy.photos.doneToastOnline : copy.photos.doneToast);
+      // A failed shot keeps its failure toast, never replaced by the done one.
+      if (failed) showToast(copy.photos.failedToast);
+      else if (allSaved) showToast(single ? (reachable ? copy.photos.doneOneToastOnline : copy.photos.doneOneToast) : reachable ? copy.photos.doneToastOnline : copy.photos.doneToast);
       returnFocus();
     });
   };
@@ -796,8 +819,8 @@ function CameraView({
             </AriaButton>
           </div>
           <p className="cam-count" role="status" data-state={saving ? 'saving' : undefined}>
-            {/* DB-4: the words follow the mode (one shot or a burst), not the count. */}
-            {saving ? (single ? t.savingOne : t.saving) : count === 0 ? t.burstIdle : burstCountText(count, refused)}
+            {/* DB-4: the kernel names the shots being stored; none, the line keeps its words. */}
+            {(saving ? cameraSavingText(count) : null) ?? (count === 0 ? t.burstIdle : burstCountText(count, refused))}
           </p>
         </Dialog>
       </Modal>

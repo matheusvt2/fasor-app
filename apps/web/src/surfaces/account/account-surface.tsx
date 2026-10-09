@@ -4,6 +4,7 @@ import {
   pendingNotSentText,
   registrationOfUserRow,
   KEEP_SCREEN_ON_DEFAULT,
+  keepScreenOnSubText,
   registrationRowText,
   storageLine,
   type Registration,
@@ -314,7 +315,7 @@ export function AccountSurface() {
               </span>
               <br />
               <span className="toggle-sub" id={screenSubId}>
-                {copy.account.keepScreenOnSub}
+                {keepScreenOnSubText()}
               </span>
             </span>
             <Toggle isSelected={keepScreenOn} aria-labelledby={screenLabelId} aria-describedby={screenSubId} onChange={saveKeepScreenOn} />

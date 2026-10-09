@@ -19,8 +19,13 @@ import { useSession } from '../state/session.tsx';
  *
  * The Screen Wake Lock API is optional: absent, or a `request` that rejects or throws
  * (battery saver, a policy), shows nothing and is retried only on the next interaction or
- * visibility change.
+ * visibility change. A `request` that has not settled after `WAKE_LOCK_REQUEST_LIMIT_MS` counts
+ * as refused the same way; a sentinel it brings later is kept only while still wanted and none
+ * is held.
  */
+
+/** How long a `request` may hang before it counts as refused (the next touch asks again). */
+export const WAKE_LOCK_REQUEST_LIMIT_MS = 3_000;
 
 interface Sentinel {
   release: () => Promise<void>;
@@ -39,6 +44,9 @@ const state = {
   lastInteraction: now().getTime(),
   sentinel: null as Sentinel | null,
   requesting: false,
+  /** The request in flight, by number: a late answer to an abandoned one is told apart. */
+  request: 0,
+  requestTimer: undefined as ReturnType<typeof setTimeout> | undefined,
   idleTimer: undefined as ReturnType<typeof setTimeout> | undefined,
   listening: false,
 };
@@ -71,17 +79,27 @@ function acquire(): void {
   const lock = wakeLockApi();
   if (lock === null) return;
   state.requesting = true;
+  const id = ++state.request;
+  const settled = () => {
+    if (state.request !== id) return;
+    clearTimeout(state.requestTimer);
+    state.requesting = false;
+  };
   let request: Promise<Sentinel>;
   try {
     request = lock.request('screen');
   } catch {
-    state.requesting = false;
+    settled();
     return;
   }
+  // A hang counts as refused: the next touch or visibility change asks again.
+  clearTimeout(state.requestTimer);
+  state.requestTimer = setTimeout(settled, WAKE_LOCK_REQUEST_LIMIT_MS);
   request.then(
     (sentinel) => {
-      state.requesting = false;
-      // Released or no longer wanted while it was being asked for: given back at once.
+      settled();
+      // Released or no longer wanted while it was being asked for (or one is already held,
+      // a late answer to a request given up on): given back at once.
       if (!wanted() || state.sentinel !== null) {
         void sentinel.release().catch(() => undefined);
         return;
@@ -93,7 +111,7 @@ function acquire(): void {
     },
     () => {
       // Refused: nothing is shown; the next interaction or visibility change asks again.
-      state.requesting = false;
+      settled();
     },
   );
 }
@@ -133,6 +151,9 @@ function listen(on: boolean): void {
 
 /** One surface wants the screen on; the returned function gives it back. */
 export function holdScreenWakeLock(): () => void {
+  // The first holder came with a tap (the one that opened the sheet or the camera): it counts
+  // as an interaction, so a sheet opened long after the app loaded is not taken for idle.
+  if (state.holders === 0) state.lastInteraction = now().getTime();
   state.holders += 1;
   listen(true);
   evaluate();
@@ -157,8 +178,9 @@ export function setKeepScreenOn(on: boolean): void {
 /** Test seam: the manager back to a fresh page. */
 export function resetScreenWakeLockForTests(): void {
   clearTimeout(state.idleTimer);
+  clearTimeout(state.requestTimer);
   listen(false);
-  Object.assign(state, { holders: 0, enabled: null, lastInteraction: now().getTime(), sentinel: null, requesting: false, idleTimer: undefined, listening: false });
+  Object.assign(state, { holders: 0, enabled: null, lastInteraction: now().getTime(), sentinel: null, requesting: false, request: 0, requestTimer: undefined, idleTimer: undefined, listening: false });
 }
 
 /**

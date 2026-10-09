@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { devicePhotos, expectCameraOpen, openChaveSheet } from './support/photos.ts';
-import { holdPhotoBytes, openTransformerSheet, pushPlateSuggestions, pushReadingStatus, transformerPlateFields } from './support/reading-ops.ts';
+import { ackPhotoBytes, holdPhotoBytes, openTransformerSheet, photoAckedAt, pushPlateSuggestions, pushReadingStatus, transformerPlateFields } from './support/reading-ops.ts';
 import { syncNowAndReturn } from './support/sync.ts';
 
 /*
@@ -111,10 +111,10 @@ test('@p0 R8CAP-E2E-001 a plate reading that read nothing says so, "Preencher ma
   await expect(plateRow(page).locator('.photo-tile')).toHaveAttribute('data-photo-id', second);
   await expect(plateRow(page).getByText('Nada foi lido nesta foto')).toHaveCount(0);
   await expect(plateRow(page)).not.toHaveAttribute('data-reading', 'empty');
-  const keys = (await prefs(page)).map((row) => row.key);
-  expect(keys).toContain(`reading_cancelled:${first}`);
+  const keys = async () => (await prefs(page)).map((row) => row.key);
+  await expect.poll(keys).toContain(`reading_cancelled:${first}`);
   // The new photo's own reading is never cancelled.
-  expect(keys).not.toContain(`reading_cancelled:${second}`);
+  expect(await keys()).not.toContain(`reading_cancelled:${second}`);
 });
 
 test('@p0 R8CAP-E2E-002 a "Ler visor" reading that read nothing says so under its empty cell: "Digitar" focuses the cell, "Fotografar de novo" shoots the same target, and a typed value hides the line', async ({ page }) => {
@@ -202,19 +202,38 @@ test('@p1 R8CAP-E2E-004 a single plate shot says it is saving, the shutter disab
   await expect(cameraDialog(page)).toHaveCount(0, { timeout: 15_000 });
 });
 
-test('@p1 R8CAP-E2E-005 a plate photo whose bytes the server does not hold yet reads "Lendo…" with no age, no "Cancelar" and no note past 10 s from its capture (the count from the ack is the kernel and component units\' rule)', async ({ page }) => {
+test('@p0 R8CAP-E2E-005 a plate photo whose bytes the server does not hold yet reads "Lendo…" with no age and no "Cancelar", however long; once the bytes are acked the age counts from the ack', async ({ page }) => {
   test.setTimeout(180_000);
   await holdPhotoBytes(page);
   await openTransformerSheet(page, account, database);
   const plateId = await shootPlate(page);
   await syncNowAndReturn(page);
   const captured = Date.parse((await devicePhotos(page, database)).find((photo) => photo.id === plateId)!.captured_at);
-  // Past 10 s since the capture, the server still without the bytes.
-  await expect.poll(() => page.evaluate(() => Date.now()), { timeout: 20_000 }).toBeGreaterThan(captured + 11_000);
+  const pageNow = () => page.evaluate(() => Date.now());
+  // Past 10 s since the capture, the server still without the bytes (each PUT answered 409).
+  await expect.poll(pageNow, { timeout: 20_000 }).toBeGreaterThan(captured + 11_000);
   const line = plateRow(page).locator('.reading-wait .reading-line');
   await expect(line).toHaveText('Lendo…');
   await expect(plateRow(page).getByRole('button', { name: 'Cancelar' })).toHaveCount(0);
   await expect(plateRow(page).locator('.reading-note')).toHaveCount(0);
+
+  // The bytes are acked now (the server answers the PUT; no job starts, the reading stays waiting).
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await ackPhotoBytes(page);
+  await syncNowAndReturn(page);
+  await expect.poll(() => photoAckedAt(page, database, plateId), { timeout: 30_000 }).not.toBeNull();
+  const acked = Date.parse((await photoAckedAt(page, database, plateId))!);
+  // Under 10 s from the ack: "Lendo…" alone, although the capture is well past 10 s.
+  expect((await pageNow()) - acked).toBeLessThan(10_000);
+  await expect(line).toHaveText('Lendo…');
+  await expect(plateRow(page).getByRole('button', { name: 'Cancelar' })).toHaveCount(0);
+  // From 10 s after the ack: the age, counted from the ack, clearly below the age since the capture.
+  await expect(line).toHaveText(/^Lendo… \d+ s$/, { timeout: 20_000 });
+  const shown = Number(/(\d+) s$/.exec((await line.textContent())!)![1]);
+  const now = await pageNow();
+  expect(Math.abs(shown * 1_000 - (now - acked))).toBeLessThanOrEqual(3_000);
+  expect((now - captured) / 1_000 - shown).toBeGreaterThan(5);
+  await expect(plateRow(page).getByRole('button', { name: 'Cancelar' })).toBeVisible();
 });
 
 test('@p0 R8CAP-E2E-006 a reading landing on typed nameplate values: "Manter o digitado" discards it and keeps the value; a different typed value discards it in its own batch; the suggested value typed is left to the auto-confirm; the plate row then reads done', async ({ page, context }) => {
@@ -256,19 +275,31 @@ test('@p0 R8CAP-E2E-006 a reading landing on typed nameplate values: "Manter o d
   // Nothing was written over the typed value.
   expect((await outbox(page)).filter((op) => op.path === `sheet/${ids.blockId}/nameplate/n_serie`).map((op) => op.value)).toEqual(['SU-TYPED-1']);
 
-  // A different value typed over the other one: the put and the discard, one batch.
+  // A value being typed over the other one: the idle commit (500 ms, focus still in the field)
+  // writes the put but never turns the suggestion down; the line stays.
   await expect(field(page, 'tipo').locator('.suggestion-alt')).toContainText('TSE-500/15');
   const tipo = field(page, 'tipo').locator('input').first();
-  await tipo.fill('TIPO-B');
-  await tipo.press('Enter');
+  await tipo.fill('TIPO-');
+  await expect.poll(async () => (await outbox(page)).some((op) => op.path === `sheet/${ids.blockId}/nameplate/tipo` && op.value === 'TIPO-')).toBe(true);
+  await expect(tipo).toBeFocused();
+  expect((await outbox(page)).some((op) => op.path === `suggestion/${suggestions.tipo}/status`)).toBe(false);
+  await expect(field(page, 'tipo').locator('.suggestion-alt')).toContainText('TSE-500/15');
+  // Finished, and the field left for another one (Tab would first reach the line's own
+  // "Substituir", still inside the field): the value committed, then the discard alone in its
+  // own batch.
+  await tipo.press('End');
+  await tipo.pressSequentially('B');
+  await field(page, 'n_serie').locator('input').first().click();
   await expect(field(page, 'tipo').locator('.suggestion-alt')).toHaveCount(0);
   await expect.poll(async () => (await outbox(page)).some((op) => op.path === `suggestion/${suggestions.tipo}/status`)).toBe(true);
   const rows = await outbox(page);
   const put = rows.find((op) => op.path === `sheet/${ids.blockId}/nameplate/tipo` && op.value === 'TIPO-B')!;
-  const discard = rows.find((op) => op.path === `suggestion/${suggestions.tipo}/status`)!;
-  expect(discard.value).toBe('discarded');
-  expect(put.batch_id).not.toBeNull();
-  expect(discard.batch_id).toBe(put.batch_id);
+  const discards = rows.filter((op) => op.path === `suggestion/${suggestions.tipo}/status`);
+  expect(discards.map((op) => op.value)).toEqual(['discarded']);
+  expect(put).toBeDefined();
+  expect(rows.filter((op) => op.batch_id === discards[0]!.batch_id).map((op) => op.path)).toEqual([`suggestion/${suggestions.tipo}/status`]);
+  // The discard follows the put on the queue.
+  expect(rows.indexOf(discards[0]!)).toBeGreaterThan(rows.indexOf(put));
 
   // The suggested value typed exactly under its replace line: no discard in that batch; the
   // device's auto-confirm takes it after the next sync.
@@ -294,14 +325,45 @@ test('@p0 R8CAP-E2E-006 a reading landing on typed nameplate values: "Manter o d
   await expect(plateRow(page).getByRole('button', { name: 'Fotografar de novo' })).toHaveCount(0);
 });
 
-/** A fake Screen Wake Lock: every request and release is recorded on `window.__wakeLock`; `mode` grants or rejects. */
-async function fakeWakeLock(page: Page, mode: 'grant' | 'reject'): Promise<void> {
+test('@p0 R8CAP-E2E-010 a manufacturer the registry lacks, created with "Criar" under the replace line, writes the word, the value and the suggestion\'s discard in one batch', async ({ page }) => {
+  test.setTimeout(180_000);
+  await holdPhotoBytes(page);
+  const ids = await openTransformerSheet(page, account, database);
+  const plateId = await shootPlate(page);
+  // The engineer's own manufacturer first, created with "Criar".
+  await field(page, 'fabricacao').getByRole('combobox').fill('Fabricante R8CAP');
+  await page.getByRole('option', { name: 'Criar “Fabricante R8CAP”' }).click();
+  await expect.poll(async () => (await outbox(page)).some((op) => op.path === `sheet/${ids.blockId}/nameplate/fabricacao` && op.value === 'Fabricante R8CAP')).toBe(true);
+  await syncNowAndReturn(page);
+  const all = transformerPlateFields(['fabricacao']);
+  const suggestions = await pushPlateSuggestions(account.companyId, ids.relatorioId, { blockId: ids.blockId, photoId: plateId, fields: { fabricacao: all.fabricacao! } });
+  await pushReadingStatus(account.companyId, ids.relatorioId, plateId, 'done');
+  await syncNowAndReturn(page);
+  await expect(field(page, 'fabricacao').locator('.suggestion-alt')).toContainText('Celtta');
+
+  // Another name the registry lacks, created under the replace line.
+  await field(page, 'fabricacao').getByRole('combobox').fill('Megabras R8CAP');
+  await page.getByRole('option', { name: 'Criar “Megabras R8CAP”' }).click();
+  await expect(field(page, 'fabricacao').locator('.suggestion-alt')).toHaveCount(0);
+  await expect.poll(async () => (await outbox(page)).some((op) => op.path === `suggestion/${suggestions.fabricacao}/status`)).toBe(true);
+  const rows = await outbox(page);
+  const word = rows.find((op) => op.kind === 'create' && (op.value as { name?: string } | null)?.name === 'Megabras R8CAP')!;
+  const put = rows.find((op) => op.path === `sheet/${ids.blockId}/nameplate/fabricacao` && op.value === 'Megabras R8CAP')!;
+  const discards = rows.filter((op) => op.path === `suggestion/${suggestions.fabricacao}/status`);
+  expect(discards.map((op) => op.value)).toEqual(['discarded']);
+  expect(word.batch_id).not.toBeNull();
+  expect(new Set([word.batch_id, put.batch_id, discards[0]!.batch_id]).size).toBe(1);
+});
+
+/** A fake Screen Wake Lock: every request and release is recorded on `window.__wakeLock`; `mode` grants, rejects or never answers. */
+async function fakeWakeLock(page: Page, mode: 'grant' | 'reject' | 'hang'): Promise<void> {
   await page.addInitScript((how) => {
     const log = { requests: [] as string[], releases: 0, held: 0 };
     (window as unknown as { __wakeLock: typeof log }).__wakeLock = log;
     const request = (type: string) => {
       log.requests.push(type);
       if (how === 'reject') return Promise.reject(new DOMException('e2e: refused', 'NotAllowedError'));
+      if (how === 'hang') return new Promise<never>(() => undefined);
       const listeners: (() => void)[] = [];
       let released = false;
       log.held += 1;
@@ -381,7 +443,7 @@ test('@p0 R8CAP-E2E-007 an open sheet holds one screen wake lock and leaving it 
   await expect.poll(async () => (await wakeLog(page)).held, { timeout: 30_000 }).toBe(1);
 });
 
-test('@p0 R8CAP-E2E-008 with a Screen Wake Lock that refuses, the sheet, the camera and Conta work with nothing shown and no page error', async ({ page }) => {
+test('@p0 R8CAP-E2E-008 with a Screen Wake Lock that refuses, or that never answers, the sheet, the camera and Conta work with nothing shown and no page error', async ({ page, context }) => {
   test.setTimeout(180_000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -409,6 +471,25 @@ test('@p0 R8CAP-E2E-008 with a Screen Wake Lock that refuses, the sheet, the cam
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByTestId('toast')).toHaveCount(0);
   expect(errors).toEqual([]);
+
+  // A request that never answers (E13-A7's hang): the same sheet and camera, in a second tab.
+  const hung = await context.newPage();
+  hung.on('pageerror', (error) => errors.push(error.message));
+  await fakeWakeLock(hung, 'hang');
+  await hung.goto(`/relatorio/${ids.relatorioId}/ficha/${ids.blockId}`);
+  await expect(hung.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await expect.poll(async () => (await wakeLog(hung)).requests.length).toBeGreaterThan(0);
+  const t3 = hung.getByRole('textbox', { name: 'T3, Valor', exact: true });
+  await t3.fill('150G');
+  await t3.press('Enter');
+  await expect.poll(async () => (await outbox(hung)).some((op) => op.path.startsWith(`sheet/${ids.blockId}/test/`) && JSON.stringify(op.value).includes('150'))).toBe(true);
+  await hung.locator('.sticky-action-bar .camera-capture-btn').click();
+  const hungCamera = await expectCameraOpen(hung);
+  await hungCamera.getByRole('button', { name: 'Fechar a câmera sem concluir' }).click();
+  await expect(cameraDialog(hung)).toHaveCount(0, { timeout: 15_000 });
+  await expect(hung.getByTestId('toast')).toHaveCount(0);
+  expect(errors).toEqual([]);
+  await hung.close();
 });
 
 test('@p0 R8CAP-E2E-009 a thermo-hygrometer reading that read nothing says so under the first empty environment field, with "Fotografar de novo" and "Digitar"; the retake shoots the same target', async ({ page }) => {

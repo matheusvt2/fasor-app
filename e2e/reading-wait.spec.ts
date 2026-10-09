@@ -5,7 +5,7 @@ import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './su
 import { readStore } from './support/outbox.ts';
 import { devicePhotos, openChaveSheet } from './support/photos.ts';
 import { pushSuggestion } from './support/push-server-ops.ts';
-import { holdPhotoBytes, openTransformerSheet, pushReadingStatus, READING_ACTOR } from './support/reading-ops.ts';
+import { ackPhotoBytes, holdPhotoBytes, openTransformerSheet, pushReadingStatus, READING_ACTOR, uploadAckedBytes } from './support/reading-ops.ts';
 import { pushNewRelatorio } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNow, syncNowAndReturn } from './support/sync.ts';
@@ -15,9 +15,10 @@ import { syncNow, syncNowAndReturn } from './support/sync.ts';
  * cancels and never dead-ends, driven as a person does it.
  *
  * - The cancel pipeline runs the real reading job under the `fake` providers: the plate and
- *   the thermo-hygrometer photos are imported through the app with their bytes held on the
- *   device (`holdPhotoBytes`), so the reading waits past 10 s; "Cancelar" on each; the bytes
- *   are released, the job reads both, and every suggestion it writes is discarded by the
+ *   the thermo-hygrometer photos are imported through the app with their bytes acked at the
+ *   network but kept from the server (`ackPhotoBytes`, review 2026-10-08 DG-4: the wait counts
+ *   from the ack), so the reading waits past 10 s; "Cancelar" on each; the bytes are then
+ *   uploaded for real (`uploadAckedBytes`), the job reads both, and every suggestion it writes is discarded by the
  *   device's sweep through `discardSuggestionOp`. No server op is seeded there.
  * - A failed display reading on an empty cell offers "Tentar novamente" and "Digitar".
  * - A panel photo whose result dialog was left by navigation is reopened from the palette,
@@ -111,16 +112,12 @@ async function seenToasts(page: Page): Promise<string[]> {
 
 test('@p0 13.5-E2E-001 a plate and a thermo-hygrometer reading pending past 10 s show their age and "Cancelar"; cancelled, the photos stay and every suggestion the real job then writes is discarded, with no arrival toast', async ({ page }) => {
   test.setTimeout(240_000);
-  await holdPhotoBytes(page);
+  await ackPhotoBytes(page);
   const ids = await openTransformerSheet(page, account, database);
   const plateId = await importThrough(page, nameplate(page).locator('.camera-group').getByRole('button', { name: 'Fotografar placa' }), PLATE, 'placa.jpg');
   const termoId = await importThrough(page, env(page).locator('.ficha-amb-actions').getByRole('button', { name: 'Ler visor' }), TERMO, 'visor.jpg');
-  // The creates go out; the bytes stay here, so no job runs yet.
-  await syncNowAndReturn(page);
-  // Review 2026-10-08 (DG-4): the wait counts only once the server holds the photo; its
-  // `queued` status op (the queue's own word, nothing changes) says it does.
-  await pushReadingStatus(account.companyId, ids.relatorioId, plateId, 'queued');
-  await pushReadingStatus(account.companyId, ids.relatorioId, termoId, 'queued');
+  // The creates go out and the device takes its bytes as acked (DG-4: the wait counts from
+  // there); the server never got them, so no job runs yet.
   await syncNowAndReturn(page);
 
   // Under 10 s from the capture: "Lendo…" alone (the shot may already be older on a slow run).
@@ -146,7 +143,8 @@ test('@p0 13.5-E2E-001 a plate and a thermo-hygrometer reading pending past 10 s
   expect(prefs.map((row) => row.key)).toEqual(expect.arrayContaining([`reading_cancelled:${plateId}`, `reading_cancelled:${termoId}`]));
 
   // The bytes go up, the real job reads both photos; no "Sincronizar agora" needed past the first.
-  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await uploadAckedBytes(page, database, plateId);
+  await uploadAckedBytes(page, database, termoId);
   await syncNowAndReturn(page);
   const readFrom = async (photoId: string) => (await entities(page)).filter((record) => record.entity === 'suggestion' && record.row.source?.photo_id === photoId);
   // Eleven plate fields and the two environment values arrive, each discarded on this device.
@@ -215,14 +213,12 @@ test('@p0 13.5-E2E-002 a failed display reading on an empty cell offers "Tentar 
 
 test('@p0 13.5-E2E-006 review F-06/F-07/F-08: one line per thermo-hygrometer photo; the live region says only the transitions; a cancelled reading drops the fields note and offers "Ler de novo" (offline disabled with "Sem conexão"), which asks the reread route and brings the wait line back', async ({ page, context }) => {
   test.setTimeout(180_000);
-  await holdPhotoBytes(page);
-  const ids = await openTransformerSheet(page, account, database);
+  // Review 2026-10-08 (DG-4): the bytes acked at the network (the wait counts from the ack),
+  // never received by the server (the reread below answers `not_caught_up`).
+  await ackPhotoBytes(page);
+  await openTransformerSheet(page, account, database);
   const plateId = await importThrough(page, nameplate(page).locator('.camera-group').getByRole('button', { name: 'Fotografar placa' }), PLATE, 'placa.jpg');
   const termoId = await importThrough(page, env(page).locator('.ficha-amb-actions').getByRole('button', { name: 'Ler visor' }), TERMO, 'visor.jpg');
-  await syncNowAndReturn(page);
-  // Review 2026-10-08 (DG-4): the server holds both photos (their `queued` status op), so the waits count.
-  await pushReadingStatus(account.companyId, ids.relatorioId, plateId, 'queued');
-  await pushReadingStatus(account.companyId, ids.relatorioId, termoId, 'queued');
   await syncNowAndReturn(page);
 
   // F-08: the thermo-hygrometer photo has one line, under Temperatura, none under Umidade.
@@ -255,7 +251,7 @@ test('@p0 13.5-E2E-006 review F-06/F-07/F-08: one line per thermo-hygrometer pho
   await context.setOffline(false);
   await expect(again).not.toHaveAttribute('aria-disabled', 'true', { timeout: 15_000 });
 
-  // Online it asks the reread route (the bytes are still held: 409 not_caught_up, the reading is on its way).
+  // Online it asks the reread route (the server still lacks the bytes: 409 not_caught_up, the reading is on its way).
   const rereads: string[] = [];
   page.on('request', (request) => {
     const path = new URL(request.url()).pathname;

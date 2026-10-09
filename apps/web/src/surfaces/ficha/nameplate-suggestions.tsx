@@ -461,9 +461,52 @@ export function ReplaceLine({ model, field, suggestion }: { model: NameplateSugg
  * `data-state="confirmed"` with the crop shrunk to its glyph; otherwise only the field. The
  * element stays the same either way, so the field is never remounted when that changes.
  */
-export function NameplateField({ model, field, source, children }: { model: NameplateSuggestionsModel; field: FieldDef; source: SuggestionRow | null; children: ReactNode }) {
+export function NameplateField({
+  model,
+  field,
+  source,
+  onLeave,
+  children,
+}: {
+  model: NameplateSuggestionsModel;
+  field: FieldDef;
+  source: SuggestionRow | null;
+  /** DG-2: the focus left the field, or Enter was pressed in it (after the field's own commit, which handles the event first). */
+  onLeave?: (() => void) | undefined;
+  children: ReactNode;
+}) {
+  // DG-2: WebKit does not focus a tapped button, so the input's blur on a tap of the field's
+  // own "Substituir" or "Manter o digitado" has no `relatedTarget`. A press that started inside
+  // the field marks it until its pointerup or click (cleared a tick later, so a press on the
+  // input itself never swallows a later real blur); a blur meanwhile is not a leave.
+  const pressedInside = useRef(false);
+  const endPress = () => {
+    setTimeout(() => {
+      pressedInside.current = false;
+    }, 0);
+  };
   return (
     <div
+      onPointerDownCapture={
+        onLeave === undefined
+          ? undefined
+          : () => {
+              pressedInside.current = true;
+            }
+      }
+      onPointerUpCapture={onLeave === undefined ? undefined : endPress}
+      onClickCapture={onLeave === undefined ? undefined : endPress}
+      onBlur={
+        onLeave === undefined
+          ? undefined
+          : (event) => {
+              const next = event.relatedTarget;
+              if (next instanceof Node && event.currentTarget.contains(next)) return;
+              if (pressedInside.current) return;
+              onLeave();
+            }
+      }
+      onKeyDown={onLeave === undefined ? undefined : (event) => (event.key === 'Enter' ? onLeave() : undefined)}
       className={source === null ? 'ficha-nameplate-field' : 'ficha-nameplate-field suggestion-field ficha-suggestion-confirmed'}
       data-state={source === null ? undefined : 'confirmed'}
       data-suggestion-id={source?.id}
