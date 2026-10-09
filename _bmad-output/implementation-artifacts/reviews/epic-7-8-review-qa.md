@@ -20,7 +20,7 @@
 | `docker compose --profile ocr run --rm ocr pytest` | **16 passed** | 153 s | Same accuracy as PR #47: 43/43 words, 16/16 values, exact text 27/43, IoU 0.910 |
 
 - Machine load stayed between 1 and 3.6 during the gates. The MCP browser pass overlapped `verify`'s e2e phase and `test:e2e:full`, which still went green apart from 7.3-E2E-001.
-- 12.1-E2E-007 passed in every run where it appears: `ficha.spec.ts` (8.1 s) and `lost-taps.durability.spec.ts` (14.5 s) in `test:e2e:full`, and durability-desktop-chrome and durability-android-chrome in the matrix (webkit skips it by design). The item "fails even on a quiet machine" was not reproduced.
+- 12.1-E2E-007 passed in every run where it appears: `ficha.spec.ts` (8.1 s) *(2026-10-09: that case is 12.1-E2E-011 since PR #116, TST-V2; 12.1-E2E-007 is now only the `lost-taps.durability.spec.ts` race)* and `lost-taps.durability.spec.ts` (14.5 s) in `test:e2e:full`, and durability-desktop-chrome and durability-android-chrome in the matrix (webkit skips it by design). The item "fails even on a quiet machine" was not reproduced.
 
 ## Known items: confirmed or refuted
 
@@ -206,7 +206,7 @@ None of these has a dated line under its story yet: the Epic 7 and 8 story secti
 | --- | --- | --- |
 | Unit specs:<br>`parecer`, `sumario`, `engine`, `plate-photo`, `suggestions-plate`, `datetime`, `nameplate-copy`, `photo-store` | 8 files, 135 tests, all passed | 11 s |
 | Api specs:<br>`reading.integration`, `job.integration`, `files-reading.integration`, `docx-section-10`, `fake.test` | 6 files, 46 tests, all passed | 70 s |
-| E2E grep:<br>`E78-Q`, 7.3-E2E-001, 7.5-E2E-006, 8.4-E2E-001, 8.1-E2E-005, 8.2-E2E-002, 8.6-E2E-001, 8.6-E2E-003 | 8 of 8 passed: parallel 6, serial 2 | 112 s |
+| E2E grep:<br>`E78-Q`, 7.3-E2E-001, 7.5-E2E-006, 8.4-E2E-001, 8.1-E2E-005 *(2026-10-09: that test is 8.1-E2E-010 since PR #116, TST-V2, `e2e/nameplate-values.spec.ts:40`; 8.1-E2E-005 is now only `e2e/suggestions.spec.ts:279`)*, 8.2-E2E-002, 8.6-E2E-001, 8.6-E2E-003 | 8 of 8 passed: parallel 6, serial 2 | 112 s |
 
 ### Per finding
 

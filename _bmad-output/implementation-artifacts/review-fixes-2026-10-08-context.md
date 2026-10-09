@@ -6,7 +6,7 @@ Matheus asked on 2026-10-08 to investigate further and fix the problems found by
 
 - Scope (Matheus, 2026-10-08): four fix batches that need no product decision (photo failures, plate reading, emission and export, gate integrity) and two decided product changes (the conclusion text confirmed by "Concluir ficha"; NA for oil items on a dry transformer). Everything else in the report, including the rest of the proposed Epic 14 roadmap and every row of its section 10, stays out: do not change that behaviour.
 - Decision 1 (Matheus, 2026-10-08, source-deltas row of the same date): "Concluir ficha" and "Concluir e avançar" confirm the kernel-composed conclusion text in the same batch as the conclusion when the result and restriction pair is set and the text was not edited (`conclusion/text`, `text_status = confirmed`, `text_basis`); an edited text is untouched; a text whose basis no longer matches shows as stale through the existing rule. Story 5.8's separate text "Confirmar" stays available. Findings JRN-V1, AIB-1 (the stale row only; AIB-16's single print rule is out).
-- Decision 2 (Matheus, 2026-10-08, source-deltas row of the same date): on a block with no subtype, confirming a nameplate `TIPO DE ISOLAÇÃO` of EPÓXI or Á SECO (alone or through "Confirmar todos") writes, in the same undoable batch, the matching dry subtype's NA marks (`OIL_RELATED_ITEMS`, `packages/domain/src/seed/v1.ts:328-342`) on items that have no value yet, and `VOL. ÓLEO` stops counting as missing on a block whose subtype or confirmed insulation is dry. A value already marked is never overwritten. Findings H-4, MKT-7 (the subtype part of Story 14.16 only).
+- Decision 2 (Matheus, 2026-10-08, source-deltas row of the same date): on a block with no subtype, confirming a nameplate `TIPO DE ISOLAÇÃO` of EPÓXI or Á SECO (alone or through "Confirmar todos") ~~writes, in the same undoable batch, the matching dry subtype's NA marks (`OIL_RELATED_ITEMS`, `packages/domain/src/seed/v1.ts:328-342`) on items that have no value yet~~, and `VOL. ÓLEO` stops counting as missing on a block whose subtype or ~~confirmed~~ stored insulation is dry. *(2026-10-09, Matheus, after the independent review of PR #120: confirming writes no mark; a one-tap chip "Marcar N itens de óleo como NA" does, on a block with no subtype; `VOL. ÓLEO` reads the stored insulation; `source-deltas.md` row "Story 3.5 and FR-11".)* A value already marked is never overwritten. Findings H-4, MKT-7 (the subtype part of Story 14.16 only).
 - A finding whose fix would contradict a story AC or a dated note in `epics.md` or `source-deltas.md` is an open question, not a fix.
 - ~~No `MIN_CONTRACT_VERSION` raise in this round.~~ *(2026-10-09, Matheus: raised to 16 for PR #121's merge rule (the conclusion text), deployed as a release train in an evening window with the field asked to sync first, G2-5.)* `CONTRACT_VERSION` may rise for an additive shape; if a fix cannot avoid raising the minimum, stop and report it as an open question (G2-1: every minimum raise blocks capture on every online tablet within about 60 s).
 - New pt-BR copy goes in the three homes of AGENTS.md; text not taken from a mock is marked `// authored:` and listed in the PR body for Bruno's wording review.
@@ -42,3 +42,19 @@ Waves start from `origin/main` after every PR of the previous wave merged. Wave 
 - The coordinator's review stack `fasor-review` (port base 4) is stopped since the browser pass ended; at most two batch stacks run at a time.
 - Every Playwright run is under `lockf -t 20000 /tmp/fasor-verify.lock`, started with `nohup` and polled through a tagged log.
 - A new worktree reuses the existing images with `podman tag localhost/app-api-review:latest localhost/app-api-<tag>:latest` and `podman tag localhost/app-tools-review:latest localhost/app-tools-<tag>:latest` (the images of commit `e0efac7`).
+
+## Outcome (2026-10-09)
+
+| Tag | PR | Merge |
+|---|---|---|
+| r8read | #115 | e2527c8 |
+| r8gate | #116 | 66b4761 |
+| wave 1 gate fixes | #117 | 342911f |
+| r8cap | #118 | f0adf33 |
+| r8emit | #119 | f057f9b |
+| r8dry | #120 | 9027abf |
+| r8conc | #121 | 326e676 |
+| r8lay | #122 | 375c2d6 |
+| final gate fixes | #123 | 2e9f3ed |
+
+What each PR changed, the gates, the decisions taken during the round and the open questions it leaves are in section 14 of the report.
