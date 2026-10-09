@@ -121,6 +121,12 @@ function Harness({ sync, open = true }: { sync: SyncState; open?: boolean }) {
 
 const SESSION_EXPIRED = 'Sua sessão expirou. Entre de novo para enviar.';
 
+/**
+ * DF-6 (review fixes 2026-10-08): the fixture's client is named with no CNPJ ("CNPJ —") and the
+ * device has no Empresa (its whole line prints "—", so no CNPJ of it is named, but no logo either).
+ */
+const IDENTITY_GAPS = ', o CNPJ do contratante em branco e o logo da empresa não cadastrado';
+
 /** Counts the re-auth banner raises (`publishReAuth`) while `body` runs. */
 async function countReAuth(body: () => Promise<void>): Promise<number> {
   let raised = 0;
@@ -555,7 +561,7 @@ describe('Export dialog (Story 4.8)', () => {
     (sync.generate as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new SyncRequestError({ kind: 'network' }));
     await userEvent.click(within(modal).getByRole('button', { name: 'Tentar novamente' }));
     // F-03 (D1): the retry asks the same question before it issues again.
-    await within(modal).findByRole('group', { name: 'Emitir com 1 campo em branco?' });
+    await within(modal).findByRole('group', { name: `Emitir com 1 campo em branco${IDENTITY_GAPS}?` });
     await userEvent.click(within(modal).getByRole('button', { name: 'Emitir mesmo assim' }));
     await waitFor(() => expect(sync.generate).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(within(modal).getByRole('alert')).toBeInTheDocument());
@@ -882,7 +888,8 @@ describe('Export dialog (Story 7.5)', () => {
     await userEvent.click(within(list).getByRole('button', { name: 'Reenviar' }));
     expect(sync.resendDead).toHaveBeenCalledTimes(1);
     const count = [...list.querySelectorAll('li')].at(-1)!;
-    expect(count.querySelector('.pc-text')).toHaveTextContent(/^\d+ avisos? — estão nas linhas do sumário; nenhum impede gerar\.$/);
+    // XC-4 (review fixes 2026-10-08): the sentence agrees with the count.
+    expect(count.querySelector('.pc-text')).toHaveTextContent(/^(1 aviso — está na linha do sumário; não impede gerar|\d+ avisos — estão nas linhas do sumário; nenhum impede gerar)\.$/);
     await userEvent.click(within(count).getByRole('button', { name: 'Ver no sumário' }));
     expect(onSee).toHaveBeenCalledWith(expect.arrayContaining(['section_9']));
     // Document control: a dl of the kernel's rows, "Rev. 1" the next number, "—" for a missing value.
@@ -1300,7 +1307,7 @@ describe('F-03 (review 2026-10-06, D1): issuing with an empty sheet asks first',
     // The new info row is one of the dialog's own lines.
     expect(await within(dialog()).findByText('1 ficha vazia')).toBeVisible();
     await userEvent.click(generateButton());
-    const group = await within(dialog()).findByRole('group', { name: 'Emitir com 1 ficha vazia?' });
+    const group = await within(dialog()).findByRole('group', { name: `Emitir com 1 ficha vazia${IDENTITY_GAPS}?` });
     expect(within(group).getAllByRole('button').map((button) => button.textContent)).toEqual(['Pré-visualizar', 'Voltar', 'Emitir mesmo assim']);
     await userEvent.click(within(group).getByRole('button', { name: 'Voltar' }));
     await waitFor(() => expect(generateButton()).toHaveFocus());
@@ -1320,7 +1327,7 @@ describe('F-03 (review 2026-10-06, D1): issuing with an empty sheet asks first',
     const { rerender } = render(<Harness sync={sync} />);
     await within(dialog()).findByText('1 ficha vazia');
     await userEvent.click(generateButton());
-    await within(dialog()).findByRole('group', { name: 'Emitir com 1 ficha vazia?' });
+    await within(dialog()).findByRole('group', { name: `Emitir com 1 ficha vazia${IDENTITY_GAPS}?` });
     rerender(<Harness sync={syncState({ online: false, generate: sync.generate })} />);
     await waitFor(() => expect(within(dialog()).queryByRole('group', { name: /^Emitir com/ })).toBeNull());
     rerender(<Harness sync={syncState({ generate: sync.generate })} />);
@@ -1343,7 +1350,7 @@ describe('F-03 (review 2026-10-06, D1): issuing with an empty sheet asks first',
     });
     const retry = await within(dialog()).findByRole('button', { name: 'Tentar novamente' });
     await userEvent.click(retry);
-    expect(await within(dialog()).findByRole('group', { name: 'Emitir com 1 ficha vazia?' })).toBeVisible();
+    expect(await within(dialog()).findByRole('group', { name: `Emitir com 1 ficha vazia${IDENTITY_GAPS}?` })).toBeVisible();
     expect(sync.generate).toHaveBeenCalledTimes(1);
   });
 
@@ -1354,7 +1361,7 @@ describe('F-03 (review 2026-10-06, D1): issuing with an empty sheet asks first',
     // Pressed at once, before the snapshot is read (the document control is not drawn yet).
     expect(within(dialog()).queryByLabelText('Controle do documento — impresso após a capa')).toBeNull();
     await userEvent.click(generateButton());
-    const question = await within(dialog()).findByRole('group', { name: 'Emitir com 1 campo em branco?' });
+    const question = await within(dialog()).findByRole('group', { name: `Emitir com 1 campo em branco${IDENTITY_GAPS}?` });
     expect(sync.generate).not.toHaveBeenCalled();
     await userEvent.click(within(question).getByRole('button', { name: 'Emitir mesmo assim' }));
     await waitFor(() => expect(sync.generate).toHaveBeenCalledTimes(1));
@@ -1363,6 +1370,7 @@ describe('F-03 (review 2026-10-06, D1): issuing with an empty sheet asks first',
   });
 
   it('asks nothing when no sheet is empty and no field prints blank', async () => {
+    // DF-6 (review fixes 2026-10-08): the fixture's blank CNPJs and missing logo never ask on their own (D1).
     database = await freshDb();
     const sync = syncState();
     render(<Harness sync={sync} />);
@@ -1371,5 +1379,143 @@ describe('F-03 (review 2026-10-06, D1): issuing with an empty sheet asks first',
     await userEvent.click(generateButton());
     await waitFor(() => expect(sync.generate).toHaveBeenCalledTimes(1));
     expect(within(dialog()).queryByRole('group', { name: /^Emitir com/ })).toBeNull();
+  });
+});
+
+/** An outbox row of this device the server refused for good (`status: dead`), or one still `pending`. */
+function outboxRow(status: 'dead' | 'pending'): OutboxRow {
+  return {
+    ...parecerOp(),
+    device_id: 'tablet-1',
+    status,
+    error_code: status === 'dead' ? 'invalid_value' : null,
+    targets: [`relatorio:${REL}`],
+  } as unknown as OutboxRow;
+}
+
+describe('Review fixes 2026-10-08 (QW25): "Pré-visualizar" refuses a dead op and stops when the dialog closes', () => {
+  const DEAD_PREVIEW = 'Há alterações rejeitadas — resolva em Sincronização antes de pré-visualizar.';
+
+  it('with a dead op held, the press opens no tab, drains nothing and asks nothing; the refusal shows and the button stays enabled', async () => {
+    database = await freshDb();
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const sync = syncState({ counts: { dead: 1 } });
+    render(<Harness sync={sync} />);
+    const button = within(dialog()).getByRole('button', { name: 'Pré-visualizar' });
+    await userEvent.click(button);
+    expect(await within(dialog()).findByRole('alert')).toHaveTextContent(DEAD_PREVIEW);
+    expect(open).not.toHaveBeenCalled();
+    expect(sync.syncNow).not.toHaveBeenCalled();
+    expect(sync.preview).not.toHaveBeenCalled();
+    expect(button).not.toHaveAttribute('aria-disabled');
+    open.mockRestore();
+  });
+
+  it('a dead op found mid-drain closes the tab and asks nothing, with the same refusal', async () => {
+    database = await freshDb();
+    const db = database;
+    const tab = { location: { href: '' }, close: vi.fn(), opener: {} };
+    const open = vi.spyOn(window, 'open').mockImplementation(() => tab as unknown as Window);
+    // The cycle the drain runs comes back with a rejection.
+    const syncNow = vi.fn(async () => {
+      await db.outbox.put(outboxRow('dead'));
+      return 'ran' as const;
+    });
+    const sync = syncState({ syncNow });
+    render(<Harness sync={sync} />);
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+    expect(await within(dialog()).findByText(DEAD_PREVIEW)).toBeVisible();
+    expect(tab.close).toHaveBeenCalled();
+    expect(sync.preview).not.toHaveBeenCalled();
+    expect(within(dialog()).queryByText('Não foi possível gerar o rascunho. Os dados não foram alterados.')).toBeNull();
+    open.mockRestore();
+  });
+
+  it('closing the dialog while the press drains aborts it: no POST after, the tab closed, nothing failed on reopen', async () => {
+    database = await freshDb();
+    const db = database;
+    await db.outbox.put(outboxRow('pending'));
+    const tab = { location: { href: '' }, close: vi.fn(), opener: {} };
+    const open = vi.spyOn(window, 'open').mockImplementation(() => tab as unknown as Window);
+    const sync = syncState();
+    const { rerender } = render(<Harness sync={sync} />);
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+    await waitFor(() => expect(sync.syncNow).toHaveBeenCalled());
+    rerender(<Harness sync={sync} open={false} />);
+    // The outbox drains after the close: a press still running would now ask for the job.
+    await db.outbox.clear();
+    await new Promise((resolve) => setTimeout(resolve, TIMING.retryMs * 20));
+    expect(sync.preview).not.toHaveBeenCalled();
+    expect(tab.close).toHaveBeenCalled();
+    rerender(<Harness sync={sync} open />);
+    expect(within(dialog()).getByRole('button', { name: 'Pré-visualizar' })).toBeInTheDocument();
+    expect(within(dialog()).queryByText('Não foi possível gerar o rascunho. Os dados não foram alterados.')).toBeNull();
+    open.mockRestore();
+  });
+
+  it('the refusal goes once no dead op is left, and with the dialog; the next press checks again', async () => {
+    database = await freshDb();
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const blocked = syncState({ counts: { dead: 1 } });
+    const { rerender } = render(<Harness sync={blocked} />);
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+    expect(await within(dialog()).findByText(DEAD_PREVIEW)).toBeVisible();
+    // Resent and accepted: no dead op any more.
+    rerender(<Harness sync={syncState({ counts: { dead: 0 } })} />);
+    await waitFor(() => expect(within(dialog()).queryByText(DEAD_PREVIEW)).toBeNull());
+    // Refused again, then the dialog closes and reopens: nothing stays from before.
+    rerender(<Harness sync={blocked} />);
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+    expect(await within(dialog()).findByText(DEAD_PREVIEW)).toBeVisible();
+    rerender(<Harness sync={blocked} open={false} />);
+    rerender(<Harness sync={blocked} open />);
+    expect(within(dialog()).queryByText(DEAD_PREVIEW)).toBeNull();
+    expect(open).not.toHaveBeenCalled();
+    open.mockRestore();
+  });
+
+  it('a retry after a 409 turns an op dead: no second POST, the refusal shows', async () => {
+    database = await freshDb();
+    const db = database;
+    const tab = { location: { href: '' }, close: vi.fn(), opener: {} };
+    const open = vi.spyOn(window, 'open').mockImplementation(() => tab as unknown as Window);
+    let asked = 0;
+    const preview = vi.fn(async () => {
+      asked += 1;
+      throw new SyncRequestError({ kind: 'http', status: 409, code: 'not_caught_up', details: { missing_op: true, missing_files: [] } });
+    });
+    // The sync the 409 answers with comes back with a rejection.
+    const syncNow = vi.fn(async () => {
+      if (asked > 0) await db.outbox.put(outboxRow('dead'));
+      return 'ran' as const;
+    });
+    render(<Harness sync={syncState({ preview, syncNow })} />);
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+    expect(await within(dialog()).findByText(DEAD_PREVIEW)).toBeVisible();
+    expect(preview).toHaveBeenCalledTimes(1);
+    expect(tab.close).toHaveBeenCalled();
+    open.mockRestore();
+  });
+
+  it('a 401 that answers a press already aborted still raises the re-auth banner, and shows no failure', async () => {
+    database = await freshDb();
+    const tab = { location: { href: '' }, close: vi.fn(), opener: {} };
+    const open = vi.spyOn(window, 'open').mockImplementation(() => tab as unknown as Window);
+    let refuse: (error: unknown) => void = () => {};
+    const preview = vi.fn(() => new Promise<never>((_resolve, reject) => (refuse = reject)));
+    const sync = syncState({ preview });
+    const { rerender } = render(<Harness sync={sync} />);
+    const raised = await countReAuth(async () => {
+      await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+      await waitFor(() => expect(preview).toHaveBeenCalled());
+      rerender(<Harness sync={sync} open={false} />);
+      refuse(new SyncRequestError({ kind: 'http', status: 401 }));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(raised).toBe(1);
+    rerender(<Harness sync={sync} open />);
+    expect(within(dialog()).queryByText(SESSION_EXPIRED)).toBeNull();
+    expect(within(dialog()).queryByText('Não foi possível gerar o rascunho. Os dados não foram alterados.')).toBeNull();
+    open.mockRestore();
   });
 });

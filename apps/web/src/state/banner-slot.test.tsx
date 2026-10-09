@@ -133,7 +133,7 @@ describe('BannerSlot', () => {
     expect(document.querySelectorAll('.banner-slot > .banner')).toHaveLength(1);
     expect(document.querySelector('.banner')).toHaveAttribute('data-banner', 're-auth');
     // WCAG 2.5.3: the accessible name begins with the visible "+1".
-    const more = screen.getByRole('button', { name: '+1, outras condições — abrir status de sincronização' });
+    const more = screen.getByRole('button', { name: '+1, outra condição — abrir status de sincronização' });
     expect(more).toHaveClass('banner-more');
     expect(more).toHaveTextContent('+1');
     await userEvent.click(more);

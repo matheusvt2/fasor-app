@@ -1,4 +1,4 @@
-import { storageLow, storageLowBannerText, storageRefusedBannerText, type StorageReading } from '@app/domain';
+import { outrasCondicoesLabel, storageLow, storageLowBannerText, storageRefusedBannerText, type StorageReading } from '@app/domain';
 import { useId, type ReactNode } from 'react';
 import { copy } from '../copy/pt-br.ts';
 
@@ -168,7 +168,7 @@ export function BannerSlot({
             className="banner-more"
             // WCAG 2.5.3 Label in Name: the accessible name starts with the visible
             // "+N" so speech input can reach the control by what it reads.
-            aria-label={copy.banner.moreLabel(folded)}
+            aria-label={outrasCondicoesLabel(folded)}
             onClick={onOpenSync}
           >
             {`+${folded}`}

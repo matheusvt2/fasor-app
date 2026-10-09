@@ -153,9 +153,6 @@ export const copy = {
     offlineText: 'Sem conexão. Tudo fica salvo neste aparelho.',
     // Verbatim from Story 1.8's acceptance criterion (AD-8's 5-day rule).
     unsyncedText: 'Alterações sem envio há 5 dias',
-    // authored: WCAG 2.5.3 wants the accessible name to start with the visible label,
-    // which is the "+N" the chip prints.
-    moreLabel: (count: number) => `+${count}, outras condições — abrir status de sincronização`,
     // `key-sync-status.html` low-storage banner's action, verbatim; its sentence is the
     // kernel's `storageLowBannerText`.
     storageLowAction: 'Sincronizar',
@@ -481,6 +478,8 @@ export const copy = {
     offlineReason: 'Gerar relatório precisa de conexão. Conecte e tente de novo.',
     // authored: a dead op can never reach the server, so the barrier would never pass.
     deadOpsReason: 'Há alterações rejeitadas — resolva em Sincronização antes de gerar.',
+    // authored (review fixes 2026-10-08, XC-V2): "Pré-visualizar" refuses a dead op as "Gerar relatório" does.
+    deadOpsPreviewReason: 'Há alterações rejeitadas — resolva em Sincronização antes de pré-visualizar.',
     // authored: the mock always has a revision to list.
     noRevisions: 'Nenhuma revisão gerada ainda.',
     // authored: the server answered with a revision this device has not pulled yet; the
@@ -491,8 +490,6 @@ export const copy = {
     blockingWhere: ' — seção 10 ',
     blockingMeta: '(Apto · Apto com restrições · Não apto — escolha do engenheiro em Dados do relatório, obrigatória para emitir)',
     editInSetup: 'Editar em Dados do relatório',
-    // authored: the mock lists the kinds of its seven warnings; the app says where they are.
-    countMeta: ' — estão nas linhas do sumário; nenhum impede gerar.',
     seeInSumario: 'Ver no sumário',
     // authored: the Sync status surface's own word for resending rejected changes.
     resend: 'Reenviar',
@@ -1599,6 +1596,8 @@ export const copy = {
     running: 'Conferindo…',
     // authored: the run failed (provider error, timeout, a stale run); the button stays tappable.
     failed: 'Não foi possível conferir agora.',
+    // authored (review fixes 2026-10-08, XC-V2): the audit refuses a dead op as "Gerar relatório" does.
+    deadOpsReason: 'Há alterações rejeitadas — resolva em Sincronização antes de conferir.',
     // authored: why the button waits offline.
     offlineReason: 'Sem conexão: a conferência precisa do servidor.',
     // authored: why the button waits while a run is asked for and runs.

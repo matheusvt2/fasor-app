@@ -471,6 +471,21 @@ export interface ExportPrecheck {
   summarizedCount: number;
   /** "7 avisos", "1 aviso"; '' with none. */
   countText: string;
+  /**
+   * Review fixes 2026-10-08 (XC-4): what follows the count, agreeing with it: " — está na linha
+   * do sumário; não impede gerar." for one, " — estão nas linhas do sumário; nenhum impede gerar."
+   * for more; '' with none.
+   */
+  countMetaText: string;
+}
+
+/** The sentence after the Export dialog's warnings count, singular or plural with it; '' with none. */
+export function precheckCountMetaText(n: number): string {
+  if (n === 0) return '';
+  // authored: XC-4 (review 2026-10-08), the singular of the mock's count line.
+  if (n === 1) return ' — está na linha do sumário; não impede gerar.';
+  // authored: the mock lists the kinds of its seven warnings; the app says where they are.
+  return ' — estão nas linhas do sumário; nenhum impede gerar.';
 }
 
 /**
@@ -483,7 +498,13 @@ export function exportPrecheck(rows: readonly PreIssueRow[]): ExportPrecheck {
   const blocking = blockingRows(rows);
   const explicit = rows.filter((row) => row.severity !== 'blocking' && EXPLICIT_KINDS.has(row.kind));
   const summarizedCount = rows.length - blocking.length - explicit.length;
-  return { blocking, explicit, summarizedCount, countText: summarizedCount === 0 ? '' : plural(summarizedCount, 'aviso', 'avisos') };
+  return {
+    blocking,
+    explicit,
+    summarizedCount,
+    countText: summarizedCount === 0 ? '' : plural(summarizedCount, 'aviso', 'avisos'),
+    countMetaText: precheckCountMetaText(summarizedCount),
+  };
 }
 
 /**
@@ -506,7 +527,17 @@ export function parecerMissingReason(number: number, line: number | null): strin
 export interface IssueConfirmation {
   emptySheets: number;
   blankFields: number;
+  /**
+   * Review fixes 2026-10-08 (DF-6): the named parties whose CNPJ Controle do documento prints as
+   * "—" (`partyLine`'s "CNPJ —"; a missing party prints "—" whole and is not named here). Named in the question only when it is asked (empty sheets or blanks): they
+   * never ask on their own (D1, EXPERIENCE.md, the trigger is unchanged).
+   */
+  blankCnpjs: readonly ('contratante' | 'contratada')[];
+  /** DF-6: the company has no logo (`companyPreIssues`), so the cover and the header print none. */
+  logoMissing: boolean;
 }
+
+const blankText = (value: string | null | undefined): boolean => value === null || value === undefined || value.trim() === '';
 
 export function issueConfirmation(snapshot: RelatorioSnapshot, context: Pick<PreIssueContext, 'now'> = {}): IssueConfirmation {
   const blank = new Set<SectionVariable>();
@@ -519,17 +550,45 @@ export function issueConfirmation(snapshot: RelatorioSnapshot, context: Pick<Pre
       for (const name of resolveSectionText(row.value, variables).unresolved) if (!isOptionalSectionVariable(name)) blank.add(name);
     }
   }
-  return { emptySheets: emptySheetCount(snapshot.blocks), blankFields: blank.size };
+  const blankCnpjs: ('contratante' | 'contratada')[] = [];
+  // Exactly when `partyLine` prints "CNPJ —": the party is named and its CNPJ is blank (with no
+  // party at all the whole line prints "—", and the question does not name a CNPJ).
+  const cnpjDash = (party: { name: string; cnpj?: string | null } | null | undefined) => party != null && !blankText(party.name) && blankText(party.cnpj);
+  if (cnpjDash(snapshot.client)) blankCnpjs.push('contratante');
+  if (cnpjDash(snapshot.empresa)) blankCnpjs.push('contratada');
+  const logoMissing = snapshot.empresa === null || snapshot.empresa.logo_file_id === null;
+  return { emptySheets: emptySheetCount(snapshot.blocks), blankFields: blank.size, blankCnpjs, logoMissing };
 }
 
-/** "93 fichas vazias e 2 campos em branco", "1 campo em branco"; null when nothing is blank. */
-function issueBlanksText({ emptySheets, blankFields }: IssueConfirmation): string | null {
+/** DF-6: the identity gaps the question names after its counts. */
+function identityGapParts({ blankCnpjs, logoMissing }: Pick<IssueConfirmation, 'blankCnpjs' | 'logoMissing'>): string[] {
+  const parts: string[] = [];
+  const contratante = blankCnpjs.includes('contratante');
+  const contratada = blankCnpjs.includes('contratada');
+  // authored: DF-6 (review 2026-10-08), the CNPJs Controle do documento prints as "—".
+  if (contratante && contratada) parts.push('os CNPJs do contratante e da contratada em branco');
+  // authored: DF-6.
+  else if (contratante) parts.push('o CNPJ do contratante em branco');
+  // authored: DF-6.
+  else if (contratada) parts.push('o CNPJ da contratada em branco');
+  // authored: DF-6, the logo the cover and the header print without.
+  if (logoMissing) parts.push('o logo da empresa não cadastrado');
+  return parts;
+}
+
+/**
+ * "93 fichas vazias e 2 campos em branco", "1 campo em branco"; null when nothing is blank. With
+ * a count, DF-6 names the blank CNPJs and the missing logo after it ("93 fichas vazias, os CNPJs
+ * do contratante e da contratada em branco e o logo da empresa não cadastrado"); alone they never ask.
+ */
+function issueBlanksText(counts: IssueConfirmation): string | null {
+  const { emptySheets, blankFields } = counts;
   const parts = [
     ...(emptySheets > 0 ? [fichasVaziasText(emptySheets)] : []),
     // authored: F-03, the placeholders a section text prints.
     ...(blankFields > 0 ? [plural(blankFields, 'campo em branco', 'campos em branco')] : []),
   ];
-  return parts.length === 0 ? null : listPtBr(parts);
+  return parts.length === 0 ? null : listPtBr([...parts, ...identityGapParts(counts)]);
 }
 
 /** "Emitir com 93 fichas vazias e 2 campos em branco?"; null when both counts are zero (no confirmation). */

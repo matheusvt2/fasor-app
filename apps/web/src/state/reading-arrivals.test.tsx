@@ -2,10 +2,11 @@ import 'fake-indexeddb/auto';
 import type { SuggestionRow } from '@app/domain';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router';
+import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openDatabase, type AppDatabase } from '../db/schema.ts';
-import { CABINE_ID, COMPANY_ID, RELATORIO_ID as SMALL_RELATORIO, replaySmall } from '@app/domain/fixtures/replay-small';
+import { BLOCK_1_ID, BLOCK_2_ID, CABINE_ID, COMPANY_ID, RELATORIO_ID as SMALL_RELATORIO, replaySmall } from '@app/domain/fixtures/replay-small';
 import { applyPulled } from '../db/sync-store.ts';
 import { arrivalStep, arrivalTarget, ReadingArrivals } from './reading-arrivals.tsx';
 import { makeSyncState } from '../test/sync-state.ts';
@@ -191,5 +192,249 @@ describe('13.5-UNIT arrivalTarget and a panel suggestion', () => {
     const plate = await deviceWithPanelPhoto('arrivals-panel-3', { reading_kind: 'plate', reading_target: { block_id: CABINE_ID, block_type: 'chave_seccionadora' } });
     expect(await arrivalTarget(plate.db, SMALL_RELATORIO, plate.suggestion)).not.toContain('?panel=');
     plate.db.close();
+  });
+});
+
+describe('Review fixes 2026-10-08 (DC-4, DB-5, DE-5, DG-3): what an arrival announces, and when it leaves', () => {
+  const OTHER_BLOCK = '019966b0-0089-7000-8000-0000000000b1';
+
+  /** Moves the router to `to` when "Ir" is pressed. */
+  function Go({ to }: { to: string }) {
+    const navigate = useNavigate();
+    return (
+      <button type="button" onClick={() => void navigate(to)}>
+        Ir
+      </button>
+    );
+  }
+
+  async function mount(name: string, at: string, page: ReactNode = null, to = '/') {
+    const db = openDatabase(name);
+    await db.delete();
+    session.database = openDatabase(name);
+    render(
+      <SyncContext value={makeSyncState({ lastSyncAt: '2026-09-27T10:00:00.000Z' })}>
+        <MemoryRouter initialEntries={[at]}>
+          <ToastProvider>
+            <ReadingArrivals />
+            <ToastOutlet />
+            <Go to={to} />
+            {page}
+            <Routes>
+              <Route path="*" element={<Where />} />
+            </Routes>
+          </ToastProvider>
+        </MemoryRouter>
+      </SyncContext>,
+    );
+    // The first observation lands as baseline.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    return session.database;
+  }
+
+  const settle = () =>
+    act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    });
+
+  it('a reading for the open ficha announces nothing; one for another sheet does, and leaves once its sheet is open', async () => {
+    const db = await mount('reading-arrivals-screen-1', `/relatorio/${RELATORIO}/ficha/${PHOTO}`, null, `/relatorio/${RELATORIO}/ficha/${OTHER_BLOCK}`);
+    await act(async () => {
+      await put(db, row(nextId()));
+    });
+    await settle();
+    expect(screen.queryByTestId('toast')).toBeNull();
+
+    await act(async () => {
+      await put(db, row(nextId(), { target_path: `sheet/${OTHER_BLOCK}/nameplate/tipo` }));
+    });
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('1 leitura pronta para confirmar'));
+    await userEvent.click(screen.getByRole('button', { name: 'Ir' }));
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(`/relatorio/${RELATORIO}/ficha/${OTHER_BLOCK}`));
+    await waitFor(() => expect(screen.queryByTestId('toast')).toBeNull());
+  });
+
+  it('withdraws the announcement once none of its rows is pending', async () => {
+    const db = await mount('reading-arrivals-screen-2', '/');
+    const arrived = row(nextId());
+    await act(async () => {
+      await put(db, arrived);
+    });
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('1 leitura pronta para confirmar'));
+    await act(async () => {
+      await put(db, { ...arrived, status: 'confirmed' });
+    });
+    await waitFor(() => expect(screen.queryByTestId('toast')).toBeNull());
+  });
+
+  it('a caption arrival is its own toast, "N legendas sugeridas", whose "Ver" opens the gallery; none while the gallery is on screen', async () => {
+    const db = await mount('reading-arrivals-captions-1', '/');
+    // Both in one transaction: one pull, one observation.
+    await act(async () => {
+      const rows = [row(nextId(), { target_path: `file/${PHOTO}/caption` }), row(nextId(), { target_path: `file/${PHOTO}/caption` })];
+      await db.entities.bulkPut(rows.map((suggestion) => ({ entity: 'suggestion', id: suggestion.id, relatorio_id: suggestion.relatorio_id, project_id: null, removed_at: null, row: suggestion as never })));
+    });
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('2 legendas sugeridas'));
+    expect(screen.getByTestId('toast')).not.toHaveTextContent('leitura');
+    await userEvent.click(screen.getByRole('button', { name: 'Ver' }));
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(`/relatorio/${RELATORIO}/fotos`));
+    cleanup();
+    session.database?.close();
+
+    const gallery = await mount('reading-arrivals-captions-2', `/relatorio/${RELATORIO}/fotos`);
+    await act(async () => {
+      await put(gallery, row(nextId(), { target_path: `file/${PHOTO}/caption` }));
+    });
+    await settle();
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+
+  it('"Ver" on the address already shown scrolls to and focuses the first pending suggestion, with no navigation', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const page = (
+      <>
+        {/* A nameplate cell already confirmed keeps its suggestion id: never the one "Ver" leads to. */}
+        <div className="field" data-suggestion-id="s0" data-state="confirmed">
+          <button type="button">Confirmada</button>
+        </div>
+        <span className="suggestion-alt" data-suggestion-id="s1">
+          Sugerido: 15 kV
+          <button type="button">Substituir</button>
+        </span>
+      </>
+    );
+    // No relatório on this device: "Ver" leads to its Sumário, the address shown.
+    const db = await mount('reading-arrivals-ver-1', `/relatorio/${RELATORIO}`, page);
+    await act(async () => {
+      await put(db, row(nextId()));
+    });
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('1 leitura pronta para confirmar'));
+    await userEvent.click(screen.getByRole('button', { name: 'Ver' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Substituir' })).toHaveFocus());
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' });
+    expect(screen.getByTestId('where')).toHaveTextContent(`/relatorio/${RELATORIO}`);
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+});
+
+describe('Review fixes 2026-10-08 (DC-4): a toast names only its own rows; a ficha draws its cabine only while the block is open', () => {
+  const OTHER_BLOCK = '019966b0-0089-7000-8000-0000000000b2';
+  const ANOTHER_BLOCK = '019966b0-0089-7000-8000-0000000000b3';
+
+  async function smallDevice(name: string): Promise<AppDatabase> {
+    const old = openDatabase(name);
+    await old.delete();
+    const fresh = openDatabase(name);
+    await applyPulled(
+      fresh,
+      replaySmall.log.map((op, i) => ({ ...op, seq: i + 1 })),
+    );
+    return fresh;
+  }
+
+  it('an env reading for the open ficha\'s cabine is not announced (the cabine read off the device\'s relatório)', async () => {
+    const name = 'arrivals-env-cabine';
+    session.database = await smallDevice(name);
+    render(
+      <SyncContext value={makeSyncState({ lastSyncAt: '2026-09-27T10:00:00.000Z' })}>
+        <MemoryRouter initialEntries={[`/relatorio/${SMALL_RELATORIO}/ficha/${BLOCK_1_ID}`]}>
+          <ToastProvider>
+            <ReadingArrivals />
+            <ToastOutlet />
+          </ToastProvider>
+        </MemoryRouter>
+      </SyncContext>,
+    );
+    // The first observation of the fixture's store lands as baseline.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    });
+    // One pull brings two readings: one for the open ficha's own cabine (drawn on it) and one for
+    // a location it does not draw. Only the second is announced.
+    const env = (location: string) => row(nextId(), { relatorio_id: SMALL_RELATORIO, target_path: `location/${location}/env/temperature_c`, value: { raw: '24', unit: '°C', state: 'measured' } });
+    await act(async () => {
+      const rows = [env(CABINE_ID), env(OTHER_BLOCK)];
+      await session.database!.entities.bulkPut(rows.map((suggestion) => ({ entity: 'suggestion', id: suggestion.id, relatorio_id: suggestion.relatorio_id, project_id: null, removed_at: null, row: suggestion as never })));
+    });
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent(/^1 leitura pronta para confirmar/));
+  });
+
+  it('on another ficha of a complete cabine (its block collapsed, the env fields not drawn), an env reading for the cabine is announced', async () => {
+    const name = 'arrivals-env-collapsed';
+    const db = await smallDevice(name);
+    const m = (raw: string, unit: string) => ({ raw, unit, state: 'measured' });
+    const record = (await db.entities.get(['location', CABINE_ID]))!;
+    const cabine = record.row as Record<string, unknown>;
+    await db.entities.put({
+      ...record,
+      row: { ...cabine, se: { type: 'abrigada', primary_kv: m('13.8', 'kV'), secondary_kv: m('380', 'V'), installed_kva: m('500', 'kVA') }, env: { altitude_m: null, temperature_c: m('27', '°C'), humidity_pct: m('60', '%') } } as never,
+    });
+    session.database = db;
+    render(
+      <SyncContext value={makeSyncState({ lastSyncAt: '2026-09-27T10:00:00.000Z' })}>
+        <MemoryRouter initialEntries={[`/relatorio/${SMALL_RELATORIO}/ficha/${BLOCK_2_ID}`]}>
+          <ToastProvider>
+            <ReadingArrivals />
+            <ToastOutlet />
+          </ToastProvider>
+        </MemoryRouter>
+      </SyncContext>,
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    });
+    await act(async () => {
+      await put(db, row(nextId(), { relatorio_id: SMALL_RELATORIO, target_path: `location/${CABINE_ID}/env/temperature_c`, value: { raw: '24', unit: '°C', state: 'measured' } }));
+    });
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent(/^1 leitura pronta para confirmar/));
+  });
+
+  it('a same-text toast after a dismissed one names only its own rows: opening its sheet withdraws it', async () => {
+    const name = 'arrivals-same-text';
+    const old = openDatabase(name);
+    await old.delete();
+    session.database = openDatabase(name);
+    function Go() {
+      const navigate = useNavigate();
+      return (
+        <button type="button" onClick={() => void navigate(`/relatorio/${RELATORIO}/ficha/${ANOTHER_BLOCK}`)}>
+          Ir
+        </button>
+      );
+    }
+    render(
+      <SyncContext value={makeSyncState({ lastSyncAt: '2026-09-27T10:00:00.000Z' })}>
+        <MemoryRouter initialEntries={['/']}>
+          <ToastProvider>
+            <ReadingArrivals />
+            <ToastOutlet />
+            <Go />
+            <Routes>
+              <Route path="*" element={<Where />} />
+            </Routes>
+          </ToastProvider>
+        </MemoryRouter>
+      </SyncContext>,
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    await act(async () => {
+      await put(session.database!, row(nextId(), { target_path: `sheet/${OTHER_BLOCK}/nameplate/tipo` }));
+    });
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('1 leitura pronta para confirmar'));
+    await userEvent.click(screen.getByRole('button', { name: 'Fechar' }));
+    await waitFor(() => expect(screen.queryByTestId('toast')).toBeNull());
+    // The first reading stays pending off screen; a second one, same text, for another sheet.
+    await act(async () => {
+      await put(session.database!, row(nextId(), { target_path: `sheet/${ANOTHER_BLOCK}/nameplate/tipo` }));
+    });
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('1 leitura pronta para confirmar'));
+    await userEvent.click(screen.getByRole('button', { name: 'Ir' }));
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(`/relatorio/${RELATORIO}/ficha/${ANOTHER_BLOCK}`));
+    await waitFor(() => expect(screen.queryByTestId('toast')).toBeNull());
   });
 });
