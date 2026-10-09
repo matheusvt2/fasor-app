@@ -164,9 +164,22 @@ test('@p0 R8CAP-E2E-003 at 768 and at 390 px closing the camera from the Sticky 
   for (const width of [768, 390]) {
     await page.setViewportSize({ width, height: 900 });
     for (const close of ['Concluir fotos', 'Fechar a câmera sem concluir'] as const) {
-      await page.evaluate(() => window.scrollTo(0, 300));
-      await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
-      const y = await page.evaluate(() => window.scrollY);
+      // The sheet can still be growing after it opened (or reflowing after the resize), so each
+      // poll scrolls again, and the position counts once it and the page height hold still on
+      // two polls in a row.
+      let y = 0;
+      let previous = '';
+      await expect
+        .poll(async () => {
+          await page.evaluate(() => window.scrollTo(0, 300));
+          const now = await page.evaluate(() => ({ y: window.scrollY, height: document.documentElement.scrollHeight }));
+          const at = `${now.y},${now.height}`;
+          const settled = now.y > 200 && at === previous;
+          previous = at;
+          y = now.y;
+          return settled;
+        })
+        .toBe(true);
       // A finger's tap at the button (a locator click would first scroll it "into view", and the
       // sheet's scroll padding counts the Sticky action bar as covered).
       const box = (await opener.boundingBox())!;
