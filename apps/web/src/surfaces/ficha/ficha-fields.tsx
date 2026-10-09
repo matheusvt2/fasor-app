@@ -54,6 +54,56 @@ export function firstFocusable(root: HTMLElement): HTMLElement | null {
   return candidates.find((element) => element.getClientRects().length > 0 && !(element as HTMLButtonElement).disabled) ?? null;
 }
 
+/** The Sticky action bar's primary button of the sheet (`ficha-surface.tsx`), where an Enter run ends. */
+export const SHEET_PRIMARY_ID = 'ficha-primary';
+
+/**
+ * Review fixes 2026-10-08 (DB-7): the plate and cabine fields' Enter run, the readings' run
+ * (Story 13.4) carried to them. From the field `from` sits in, the focus moves to the next
+ * missing field drawn after it in document order -- the kernel's missing-field markers
+ * (`[data-missing-field]`, the ones "Concluir ficha" jumps to), so the next empty plate field,
+ * then the sheet's next missing field in a later step -- on its first focusable control, its
+ * text selected; with none left, the sheet's primary button. False when nothing took the focus.
+ */
+/** True while `focusNextMissingField` hands the focus on (read by the sheet's step tracking). */
+let enterRunMoving = false;
+
+/**
+ * Story 12.1 (a section completed by a keystroke inside it stays expanded; it collapses only on
+ * a stepper tap or the readings run): a focus the plate and cabine Enter run moves into another
+ * step makes that step current without leaving the one it came from (`use-ficha-steps.ts`).
+ */
+export function isEnterRunMoving(): boolean {
+  return enterRunMoving;
+}
+
+export function focusNextMissingField(from: HTMLElement, primaryId: string = SHEET_PRIMARY_ID): boolean {
+  const field = from.closest<HTMLElement>('[data-field-key]') ?? from;
+  const markers = [...document.querySelectorAll<HTMLElement>('[data-missing-field]')];
+  const next = markers.find(
+    (marker) =>
+      !field.contains(marker) &&
+      !marker.contains(field) &&
+      (field.compareDocumentPosition(marker) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0 &&
+      marker.getClientRects().length > 0,
+  );
+  const target = next === undefined ? document.getElementById(primaryId) : (firstFocusable(next) ?? next);
+  if (target === null) return false;
+  enterRunMoving = true;
+  try {
+    target.focus();
+  } finally {
+    enterRunMoving = false;
+  }
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) target.select();
+  return document.activeElement === target;
+}
+
+/** An Enter that runs on: not Shift+Enter and not the Enter that ends an IME composition. */
+function runsOn(event: { key: string; shiftKey: boolean; nativeEvent: KeyboardEvent }): boolean {
+  return event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing;
+}
+
 /**
  * A locally-echoed text value committed through `useFieldCommit` and offered back as a
  * draft while it differs from the committed value. `setup-surface.tsx`'s `useTextField`
@@ -200,8 +250,15 @@ function TextField({ field, value, commit, draft, missing, label, helper, after,
         aria-describedby={helper === undefined ? undefined : helperId}
         onChange={(event) => typed.change(event.target.value)}
         onBlur={typed.blur}
+        enterKeyHint="next"
         onKeyDown={(event) => {
-          if (event.key === 'Enter') typed.enter();
+          if (event.key !== 'Enter') return;
+          typed.enter();
+          // DB-7: a text is always valid; Enter commits, then runs on.
+          if (runsOn(event)) {
+            event.preventDefault();
+            focusNextMissingField(event.currentTarget);
+          }
         }}
       />
       {helper === undefined ? null : (
@@ -224,16 +281,30 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
   const helperId = useId();
   const unit = field.unit ?? null;
   const storedRaw = typeof value === 'object' && value !== null && 'raw' in value && (value as { state?: string }).state === 'measured' ? (value as { raw: string }).raw : null;
-  const number = useNumberInput({
+  const parseNumber = (text: string) => numberFieldValue(text, unit);
+  const number: ReturnType<typeof useNumberInput> = useNumberInput({
     // At rest a stored number reads grouped ("3.300"), the same after a blur and a reload.
     storedText: storedRaw === null ? fieldValueText(field, value) : formatDecimalGroupedPtBr(storedRaw),
     storedRaw,
-    parse: (text) => numberFieldValue(text, unit),
+    parse: parseNumber,
     commit: (parsed) => commit(parsed === null ? null : { raw: parsed.raw, unit, state: 'measured' }),
     echo: (parsed) => numberEchoText(parsed.raw, unit),
     format: (parsed) => formatDecimalGroupedPtBr(parsed.raw),
     draft: { surface: DRAFT_SURFACE, entityId: draft.entityId, field: draft.field },
     flushOnUnmount: flushOnUnmount === true,
+    // DB-7: Enter commits (`useNumberInput`), then runs on unless the text is no number (the
+    // helper shows and the focus stays) or an IME composition ends with it.
+    onEnter: (event) => {
+      if (parseNumber(event.currentTarget.value) === 'invalid' || event.nativeEvent.isComposing) return;
+      event.preventDefault();
+      focusNextMissingField(event.currentTarget);
+    },
+    // Shift+Enter commits only.
+    onKey: (event) => {
+      if (event.key !== 'Enter' || !event.shiftKey) return false;
+      number.commitNow();
+      return true;
+    },
   });
   const describedBy = [number.invalid ? helperId : null, number.echo === null ? null : `${helperId}-echo`].filter(Boolean).join(' ') || undefined;
   return (
@@ -246,6 +317,7 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
           id={id}
           className="mf-value"
           {...number.inputProps}
+          enterKeyHint="next"
           aria-invalid={number.invalid || undefined}
           aria-describedby={describedBy}
           data-missing-field={missing ? '' : undefined}
@@ -320,16 +392,18 @@ function DateTextField({ field, value, commit, missing, label, after, flushOnUnm
     const parsed = parsePlateDateText(typed);
     return parsed === null || !plateDateAccepted(parsed, now()) ? false : parsed;
   };
-  const submit = () => {
+  /** Commits the typed date; false when it is refused (the invalid helper shows). */
+  const submit = (): boolean => {
     const next = reading(text);
     pending.current = false;
-    if (next === undefined) return;
+    if (next === undefined) return true;
     if (next === false) {
       setInvalid(true);
-      return;
+      return false;
     }
     setInvalid(false);
     committer.immediate(next);
+    return true;
   };
   const latest = useRef({ text, on: flushOnUnmount === true, committer, reading });
   latest.current = { text, on: flushOnUnmount === true, committer, reading };
@@ -371,8 +445,14 @@ function DateTextField({ field, value, commit, missing, label, after, flushOnUnm
           committer.blur();
           onFocusChange(false);
         }}
+        enterKeyHint="next"
         onKeyDown={(event) => {
-          if (event.key === 'Enter') submit();
+          if (event.key !== 'Enter') return;
+          // DB-7: a date read commits, then runs on; a refused one keeps the focus with its helper.
+          if (submit() && runsOn(event)) {
+            event.preventDefault();
+            focusNextMissingField(event.currentTarget);
+          }
         }}
       />
       {invalid ? (

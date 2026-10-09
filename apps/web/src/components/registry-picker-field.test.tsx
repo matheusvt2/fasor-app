@@ -224,3 +224,90 @@ describe('RegistryPickerField', () => {
     expect(screen.queryByRole('option', { name: /Criar/ })).not.toBeInTheDocument();
   });
 });
+
+/*
+ * Review fixes 2026-10-08 (DH-1): a name typed under "Outro…" and left (a tap elsewhere, Tab,
+ * Escape then a tap) is kept as "Criar" would keep it: an entry it names is selected, a new
+ * name is created once.
+ */
+describe('R8LAY DH-1 typed text left in the field', () => {
+  function field(props: { onChange?: (id: string | null) => void; onCreate?: (text: string) => string | null | void; value?: string | null; options?: typeof OPTIONS }) {
+    return (
+      <>
+        <RegistryPickerField
+          label="Fabricante"
+          options={props.options ?? OPTIONS}
+          recentIds={[]}
+          value={props.value ?? null}
+          onChange={props.onChange ?? vi.fn()}
+          onCreate={props.onCreate ?? vi.fn()}
+        />
+        <button type="button">Nome</button>
+      </>
+    );
+  }
+
+  it('an unmatched name left with a tap elsewhere is created once, as "Criar" does', async () => {
+    const onCreate = vi.fn();
+    const { rerender } = render(field({ onCreate }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    const input = screen.getByRole('combobox', { name: 'Fabricante' });
+    await userEvent.keyboard('Megabras ');
+    await userEvent.click(screen.getByText('Nome'));
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    expect(onCreate).toHaveBeenCalledWith('Megabras');
+    expect(input).toHaveValue('Megabras');
+    // A later leave while the created entry has not landed creates nothing more.
+    await userEvent.click(input);
+    await userEvent.tab();
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    // Once it lands it is the field's selected entry; leaving again changes nothing.
+    rerender(field({ onCreate, value: 'megabras', options: [...OPTIONS, { id: 'megabras', label: 'Megabras' }] }));
+    await userEvent.click(input);
+    await userEvent.tab();
+    expect(onCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('"Criar" then leaving creates nothing a second time', async () => {
+    const onCreate = vi.fn();
+    render(field({ onCreate }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    await userEvent.keyboard('Megabras');
+    await userEvent.click(await screen.findByRole('option', { name: 'Criar “Megabras”' }));
+    await userEvent.click(screen.getByText('Nome'));
+    expect(onCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('Escape then a tap elsewhere behaves as leaving', async () => {
+    const onCreate = vi.fn();
+    render(field({ onCreate }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    await userEvent.keyboard('Megabras');
+    await userEvent.keyboard('{Escape}');
+    await userEvent.click(screen.getByText('Nome'));
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    expect(onCreate).toHaveBeenCalledWith('Megabras');
+  });
+
+  it('a name matching an entry whatever its case selects it, with no new word', async () => {
+    const onChange = vi.fn();
+    const onCreate = vi.fn();
+    render(field({ onChange, onCreate }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    const input = screen.getByRole('combobox', { name: 'Fabricante' });
+    await userEvent.keyboard('siemens');
+    await userEvent.click(screen.getByText('Nome'));
+    expect(onChange).toHaveBeenLastCalledWith('siemens');
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(input).toHaveValue('Siemens');
+  });
+
+  it('an emptied field keeps today\'s behaviour: nothing created', async () => {
+    const onCreate = vi.fn();
+    render(field({ onCreate }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    await userEvent.keyboard('Me{Backspace}{Backspace}');
+    await userEvent.click(screen.getByText('Nome'));
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+});

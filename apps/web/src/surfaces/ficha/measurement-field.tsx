@@ -9,7 +9,7 @@ import {
   type CellAddress,
   type EvaluatedCell,
 } from '@app/domain';
-import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { createContext, useContext, useId, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { OverflowMenu, TextButton } from '../../components/index.ts';
 import { SuggestionField } from '../../components/suggestion-field.tsx';
 import { useNumberInput } from '../../components/number-input.tsx';
@@ -37,6 +37,14 @@ export type RunDirection = 'next' | 'previous' | 'right';
 
 /** A dictated reading's value is a number cell (`suggestionValueText`). */
 const NUMBER_FIELD = { kind: 'number' } as const;
+
+/**
+ * Review fixes 2026-10-08 (DB-2): whether a pointer tap on a cell's unit control only puts the
+ * cell into editing (the kernel's `unitTapNeedsEdit` for the sheet's block). The Ensaios step
+ * provides it; outside it every tap cycles.
+ */
+const UnitTapGuardContext = createContext<(cell: EvaluatedCell) => boolean>(() => false);
+export const UnitTapGuardProvider = UnitTapGuardContext.Provider;
 
 /** The data attribute the continuous run finds a cell's input by. */
 export function cellKey(address: CellAddress): string {
@@ -151,6 +159,28 @@ export function MeasurementField({
   const keepFocus = (event: { preventDefault: () => void }) => {
     if (number.focused) event.preventDefault();
   };
+  // DB-2: a pointer press on the unit control that began while the input did not hold the
+  // focus, on a cell the kernel guards (a measured cell of a concluded sheet), only focuses the
+  // input; keyboard activation (no pointer press) and a press made while editing cycle at once.
+  const needsEdit = useContext(UnitTapGuardContext)(cell);
+  const pressedUnfocused = useRef(false);
+  const notePress = (event: { preventDefault: () => void }) => {
+    pressedUnfocused.current = !number.focused;
+    keepFocus(event);
+  };
+  const tapUnit = (event: { detail: number }) => {
+    // A click with no pointer behind it (`detail` 0: Enter or Space on the button) is never guarded.
+    const guarded = event.detail > 0 && pressedUnfocused.current && needsEdit;
+    pressedUnfocused.current = false;
+    if (guarded) {
+      // `useNumberInput` holds the input in a ref object.
+      const input = (number.inputProps.ref as RefObject<HTMLInputElement | null>).current;
+      input?.focus();
+      input?.select();
+      return;
+    }
+    chooseUnit(nextUnit(shownUnit));
+  };
 
   return (
     <div
@@ -174,9 +204,9 @@ export function MeasurementField({
             type="button"
             className="mf-unit is-control unit-cycle"
             aria-label={t.unitCycle(t.unitNames[shownUnit ?? ''] ?? shownUnit ?? '')}
-            onPointerDown={keepFocus}
+            onPointerDown={notePress}
             onMouseDown={keepFocus}
-            onClick={() => chooseUnit(nextUnit(shownUnit))}
+            onClick={tapUnit}
           >
             <span className="unit-text">{shownUnit}</span>
             <svg className="ico" aria-hidden="true">

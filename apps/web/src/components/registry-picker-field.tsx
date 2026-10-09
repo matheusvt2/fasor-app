@@ -91,6 +91,30 @@ export function RegistryPickerField({
     if (id !== null) setInputValue(byId.get(id)?.label ?? '');
     onChange(id);
   };
+  // DH-1 (review 2026-10-08): typed text the engineer leaves is never lost. When the focus leaves the
+  // field (not into its own list or chevron), text naming an entry selects it, and text naming none
+  // is created through `onCreate`, exactly as "Criar" would, once per text: a text "Criar" already
+  // created (or a leave already did) is not created again while its entry has not landed.
+  const latestText = useRef(inputValue);
+  latestText.current = inputValue;
+  const createdKeys = useRef(new Set<string>());
+  const create = (text: string) => {
+    createdKeys.current.add(matchKey(text));
+    const createdLabel = onCreate(text);
+    setInputValue(typeof createdLabel === 'string' ? createdLabel : text);
+  };
+  const commitLeft = () => {
+    const text = latestText.current.trim();
+    if (text === '') return;
+    const key = matchKey(text);
+    const match = options.find((option) => matchKey(option.label) === key);
+    if (match !== undefined) {
+      if (match.id !== value) choose(match.id);
+      else if (match.label !== latestText.current) setInputValue(match.label);
+      return;
+    }
+    if (!createdKeys.current.has(key)) create(text);
+  };
   const recentOptions = recentIds
     .map((id) => byId.get(id))
     .filter((option): option is ComboboxOption => option !== undefined)
@@ -115,7 +139,16 @@ export function RegistryPickerField({
           </div>
         </div>
       )}
-      <div className="rpf-combobox" hidden={!showCombobox} ref={comboboxHost}>
+      <div
+        className="rpf-combobox"
+        hidden={!showCombobox}
+        ref={comboboxHost}
+        onBlur={(event) => {
+          const next = event.relatedTarget;
+          if (next instanceof Element && (event.currentTarget.contains(next) || next.closest('.combobox-list') !== null)) return;
+          commitLeft();
+        }}
+      >
         <Combobox
           label={label}
           options={options}
@@ -126,10 +159,7 @@ export function RegistryPickerField({
           {...(exists
             ? {}
             : {
-                onCreate: (text: string) => {
-                  const createdLabel = onCreate(text.trim());
-                  setInputValue(typeof createdLabel === 'string' ? createdLabel : text.trim());
-                },
+                onCreate: (text: string) => create(text.trim()),
               })}
         />
       </div>

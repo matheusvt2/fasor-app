@@ -103,8 +103,9 @@ test('@p0 13.4-E2E-001 INP-1 and INP-3: plain keyboard on the code fields; an em
   await page.keyboard.press('Enter');
   const tpDate = `sheet/${tp.blockId}/nameplate/data_fabricacao`;
   await expect.poll(() => written(page, tpDate)).toEqual(['2024']);
-  // Enter kept the focus in the field.
-  await expect(year).toBeFocused();
+  // ~~Enter kept the focus in the field.~~ Review fixes 2026-10-08 (DB-7): Enter commits, then runs on
+  // to the next empty plate field.
+  await expect(field(page, 'tensao_nominal_at').locator('input')).toBeFocused();
   await expect(year).toHaveValue('2024');
   await page.reload();
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });

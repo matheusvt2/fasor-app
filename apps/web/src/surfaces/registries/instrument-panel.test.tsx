@@ -174,3 +174,35 @@ describe('InstrumentPanel — ledger 310, another device edits the open instrume
     session.database.close();
   });
 });
+
+describe('R8LAY DH-3 a stored manufacturer Fabricantes does not hold', () => {
+  it('shows the name and "Criar Hi-Tech?"; the tap writes the registry word only, then the chip is selected', async () => {
+    const user = userEvent.setup();
+    const name = '0a000000-0000-7000-8000-0000000000d3';
+    await openDatabase(name).delete();
+    session.database = openDatabase(name);
+    vi.mocked(commitBatch).mockClear();
+    render(
+      <ToastProvider>
+        <InstrumentPanel instrumentId={instrument.id} instrument={{ ...instrument, manufacturer: 'Hi-Tech' }} referenced={false} onClose={vi.fn()} />
+      </ToastProvider>,
+    );
+    const line = screen.getByText('Hi-Tech', { selector: '.word-unregistered-name' });
+    expect(line.closest('.word-unregistered')).toHaveClass('helper');
+    await user.click(screen.getByRole('button', { name: 'Criar Hi-Tech?' }));
+    expect(vi.mocked(commitBatch)).toHaveBeenCalledTimes(1);
+    const ops = vi.mocked(commitBatch).mock.calls[0]![1];
+    expect(ops).toHaveLength(1);
+    expect(ops[0]).toMatchObject({ kind: 'create', value: { kind: 'manufacturer', name: 'Hi-Tech' } });
+    expect(ops[0]!.path).toMatch(/^registry\/manufacturer\//);
+    expect(screen.queryByRole('button', { name: 'Criar Hi-Tech?' })).toBeNull();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Hi-Tech', pressed: true })).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Criar Hi-Tech?' })).toBeNull();
+    session.database.close();
+  });
+
+  it('a manufacturer the registry holds shows no such line', () => {
+    renderPanel(false);
+    expect(document.querySelector('.word-unregistered')).toBeNull();
+  });
+});

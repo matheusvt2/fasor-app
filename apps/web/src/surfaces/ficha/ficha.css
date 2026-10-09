@@ -121,24 +121,32 @@
 [data-route="/relatorio/:id/ficha/:blockId"] .mt-title-row .mt-source { margin: 0; flex-basis: auto; }
 /* Measurement cell */
 [data-route="/relatorio/:id/ficha/:blockId"] .ficha-cell { display: flex; flex-direction: column; gap: var(--sp-1); }
-/* the mock page rule's 300px value cell, from the tablet up only (E5-Q2) */
+/* the mock page rule's 300px value cell, from the tablet up only (E5-Q2); review fixes
+   2026-10-08 (DC-1): not on a ratio table, whose eight columns size by their content (below) */
 @media (min-width: 768px) {
-  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table td.cell-value { min-width: 300px; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td.cell-value { min-width: 300px; }
 }
 /* E5-Q2 and E5-R2, DESIGN.md "the value column taking the remaining width on phone", nothing
-   clipped: the non-TTR tables below 768px take the mock's narrow-table rules for the
-   connection columns -- `.measurement-table.is-wide th { white-space: normal }`,
-   `.measurement-table.is-wide td { overflow-wrap: anywhere }` (components.css) -- with the
-   cells' own `--sp-1` inset on both axes, and the value cell taking the remaining width
-   with an input that never falls under five digit widths, so "3.300" shows whole beside
-   the unit slot and the cell Overflow, on one line, inside a 358px content box. */
+   clipped: the non-TTR tables below 768px take the mock's narrow-table rule for the
+   connection columns -- `.measurement-table.is-wide th { white-space: normal }`
+   (components.css) -- with the cells' own `--sp-1` inset on both axes, and the value cell
+   taking the remaining width with an input that never falls under five digit widths, so
+   "3.300" shows whole beside the unit slot and the cell Overflow, on one line.
+   ~~`.measurement-table.is-wide td { overflow-wrap: anywhere }`~~ (2026-10-08, DB-3: it split
+   "Secundário" and "MΩ" mid-word): words wrap whole, so a cell is never narrower than its
+   longest word, and a table that then outgrows its box scrolls in its own `.mt-scroll` below. */
 @media (max-width: 767.98px) {
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) th { white-space: normal; }
-  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td { overflow-wrap: anywhere; }
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td:not(.cell-value),
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) th { padding-left: var(--sp-1); padding-right: var(--sp-1); }
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td.cell-value { width: auto; }
-  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td.cell-value .mf-value { padding-left: var(--sp-2); padding-right: var(--sp-2); min-width: calc(5ch + 2 * var(--sp-2) + 4px); }
+  /* 2026-10-08 (DB-3): with words whole the TP's narrow table (Fase R · Massa · — · value) measured
+     373 px in its 358 px box (E5-Q2). A row's point wraps between its words ("Fase" over "R";
+     `components.css` `td.cell-point { white-space: nowrap }` kept it on one line), and the value
+     keeps room for "3.300" whole, four digits and the point (`4.5ch`, was five digit widths), inside
+     a `--sp-1` inset (was `--sp-2`). */
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td.cell-point { white-space: normal; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td.cell-value .mf-value { padding-left: var(--sp-1); padding-right: var(--sp-1); min-width: calc(4.5ch + 2 * var(--sp-1) + 4px); }
 }
 /* Conclusion text */
 [data-route="/relatorio/:id/ficha/:blockId"] #ficha-conc .generated-actions { margin-top: var(--sp-2); }
@@ -151,6 +159,32 @@
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr { display: none; }
   /* mirrors `.frame-phone [data-route] .mt-title-row .mt-source` */
   [data-route="/relatorio/:id/ficha/:blockId"] .mt-title-row .mt-source { flex-basis: 100%; }
+}
+/* Review fixes 2026-10-08 (batch r8lay): DC-1, DB-3. authored, the measurement tables at their real
+   sizes, never a split word (UX-DR40 "nothing clipped"; `components.css` stays verbatim).
+   - `.ficha-mt` no longer scrolls (`components.css` `.ficha-mt { overflow-x: auto }` moved the title
+     row with the table); the table's own `.mt-scroll` box is the last-resort scroller, positioned so
+     the cells' absolutely placed parts (the spoken "calculado", a hidden label) scroll and clip
+     with the table instead of widening the page.
+   - A unit ("MΩ", "kV") and the "calc." mark never break inside themselves. */
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-mt { overflow-x: visible; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-mt > .mt-scroll { position: relative; max-width: 100%; overflow-x: auto; }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table .mf-unit,
+[data-route="/relatorio/:id/ficha/:blockId"] .calc-mark { white-space: nowrap; }
+/* DC-1: the ratio (TTR) table from 768 px. `components.css` fixes the layout of `.is-wide` with the
+   widths of the 6-column TP mock (`60-ficha.html` 729), which leave the transformer's columns 7-8
+   only their padding and squeeze every input to 24-36 px; here the table sizes by its content:
+   the six mock widths reset, words whole (`.is-wide td { overflow-wrap: anywhere }` undone), each
+   input keeping six digit widths ("34,512") beside its unit on one line, 48 px tall. Where the
+   eight columns still do not fit (657 px boxes) the table scrolls inside `.mt-scroll`. */
+@media (min-width: 768px) {
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr { table-layout: auto; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr th:nth-child(n) { width: auto; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr td { overflow-wrap: normal; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr td.cell-value { min-width: 0; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr td.cell-value .measurement-field { flex-wrap: nowrap; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr td.cell-value .mf-value { flex: 1 0 auto; width: calc(6ch + 2 * var(--sp-2)); min-width: calc(6ch + 2 * var(--sp-2)); min-height: var(--touch-min); padding-left: var(--sp-2); padding-right: var(--sp-2); }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr td.cell-calc { white-space: nowrap; }
 }
 /* mirrors `.frame-desktop [data-route] .ficha-ttr td.cell-dim, .frame-desktop [data-route] .ficha-ttr th` */
 @media (min-width: 1280px) {

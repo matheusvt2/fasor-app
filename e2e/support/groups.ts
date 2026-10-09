@@ -45,6 +45,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'review-layout-copy-3.spec.ts',
     why: 'measures the layout of what the page renders (sticky bars, focused fields, line boxes, popover edges) at fixed viewports, so it must not share the CPU with other workers',
   },
+  // Review fixes 2026-10-08, batch r8lay: tables, dialogs, bars and tree rows measured against the renders.
+  {
+    file: 'review-layout-interaction-2026-10-08.spec.ts',
+    why: 'measures the layout of what the page renders (table inputs and scrollers, dialogs, the Sticky action bar, tree rows, hit points under inputs) at fixed viewports, so it must not share the CPU with other workers',
+  },
   // Stories 11.9/11.10: 11.10-E2E-001 generates the DOCX its action-plan table is read from.
   {
     file: 'action-plan.spec.ts',

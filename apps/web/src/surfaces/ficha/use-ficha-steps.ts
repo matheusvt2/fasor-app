@@ -2,7 +2,7 @@ import { stepMayCollapse, type SheetProgress, type SheetStep } from '@app/domain
 import { useCallback, useState } from 'react';
 import { LIST_FOCUS_WATCH_FRAMES } from '../../input/focus-restore.ts';
 import { isPointerModality } from '../../input/press-hold.ts';
-import { firstFocusable } from './ficha-fields.tsx';
+import { firstFocusable, isEnterRunMoving } from './ficha-fields.tsx';
 
 export function isSheetStep(value: string | null): value is SheetStep {
   return value === 'placa' || value === 'verificacoes' || value === 'ensaios' || value === 'conclusao';
@@ -61,7 +61,9 @@ export function useFichaSteps(progress: SheetProgress, shown: readonly SheetStep
   );
 
   /** A focus arriving in `step`: leaving the previous step only when it came from the keyboard. */
-  const focusIn = (step: SheetStep) => setCurrent(step, !isPointerModality());
+  // Review fixes 2026-10-08 (DB-7): the plate and cabine Enter run is not the readings run, so a
+  // step it leaves stays expanded (Story 12.1 AC3); the step it lands in becomes current.
+  const focusIn = (step: SheetStep) => setCurrent(step, !isPointerModality() && !isEnterRunMoving());
   const collapsed = (step: SheetStep) => step !== current && left.has(step) && stepMayCollapse(progress, step);
 
   /** Scrolls to a step and expands it; with `missing`, focuses its first missing field. */

@@ -17,7 +17,7 @@ import {
 } from '@app/domain';
 import { Button as AriaButton } from 'react-aria-components';
 import { useSearchParams } from 'react-router';
-import { memo, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from 'react';
+import { Fragment, memo, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from 'react';
 import { ConfirmDialog, OverflowMenu, TextButton, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
@@ -660,6 +660,25 @@ function equipmentMenu(node: TreeEquipmentNode, shared: Shared, reorder: Reorder
   return { items, destructiveItems };
 }
 
+/**
+ * Review fixes 2026-10-08 (DA-6): a type label as its words, each unbreakable (`.s9-word`,
+ * `relatorio.css`), so the line breaks only between words and never inside one, a hyphen
+ * included ("Para-raio" never reads "Para-" over "raio"). The text is the label as it is.
+ */
+function WholeWords({ text }: { text: string }) {
+  const words = text.split(' ');
+  return (
+    <>
+      {words.map((word, i) => (
+        <Fragment key={i}>
+          {i === 0 ? null : ' '}
+          <span className="s9-word">{word}</span>
+        </Fragment>
+      ))}
+    </>
+  );
+}
+
 /** An equipment row: drag handle, Position box, the row body that opens the sheet, the Overflow, and the duplicate line. */
 const SumarioEquipment = memo(function SumarioEquipment({ node, shared }: { node: TreeEquipmentNode; shared: Shared }) {
   const t = copy.sumario.tree;
@@ -690,7 +709,9 @@ const SumarioEquipment = memo(function SumarioEquipment({ node, shared }: { node
       <PositionBox name={node.name} position={node.position} siblings={node.siblings} reorder={reorder} className="s9-pos" />
       <button type="button" className="s9-eq-open" data-tree-open onClick={() => shared.actions.openSheet(node.blockId)}>
         <span className="block-tag">{node.tag}</span>
-        <span className="s9-eq-name">{node.typeLabel}</span>
+        <span className="s9-eq-name">
+          <WholeWords text={node.typeLabel} />
+        </span>
         {current ? <span className="sum-here">{copy.sumario.here}</span> : null}
         <span className="s9-state" data-state={node.sumarioStateAttr}>
           <span aria-hidden="true">{node.glyph}</span> {node.stateText}
