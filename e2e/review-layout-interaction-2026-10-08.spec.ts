@@ -233,6 +233,17 @@ test('@p0 R8LAY-E2E-001 DC-1 the transformer TTR at 768, 1024 (rail open) and 12
     expect(geometry.inputs.map((input) => input.value)).toEqual(['13,8', '380', '34,512', '39,48', '34,51']);
     await expect(ttr.locator('table.ficha-ttr thead th')).toHaveText(['TAP nº', 'V primário', 'V secundário', 'Calculado', 'H1-H3 / X1-X0', 'H2-H1 / X2-X0', 'H3-H2 / X3-X0', 'Condição']);
     if (size.width === 1280) expect(geometry.scroller.scrollWidth, `1280: the table scroller scrolls: ${geometry.columns}`).toBeLessThanOrEqual(geometry.scroller.clientWidth);
+    else {
+      // Where the table scrolls, Enter on the last capture brings the row's Condição (its verdict) into the scroller's box.
+      await inputs.nth(4).focus();
+      await page.keyboard.press('Enter');
+      const verdict = await ttr.evaluate((el) => {
+        const box = el.querySelector(':scope > .mt-scroll')!.getBoundingClientRect();
+        const cell = el.querySelector('table.ficha-ttr tbody tr:first-child > td:last-child')!.getBoundingClientRect();
+        return { inside: cell.left >= box.left - 0.5 && cell.right <= box.right + 0.5, cell: [Math.round(cell.left), Math.round(cell.right)], box: [Math.round(box.left), Math.round(box.right)] };
+      });
+      expect(verdict.inside, `${where}: Condição ${verdict.cell.join('-')} outside the scroller ${verdict.box.join('-')}`).toBe(true);
+    }
   }
 });
 
@@ -276,13 +287,22 @@ test('@p0 R8LAY-E2E-002 DB-2 a concluded sheet: a unit tap with the input not fo
   await unit.click();
   await expect(input).toBeFocused();
   await expect(unit).toHaveText('GΩ');
-  await page.waitForTimeout(600);
-  expect((await outbox(page)).filter((row) => row.path === path)).toEqual([]);
 
-  // Tapped again, while the input holds the focus: the value is stored in TΩ.
+  // Tapped again, while the input holds the focus: the value is stored in TΩ, and that is the
+  // cell's only write (the positive control: the first tap wrote nothing).
   await unit.click();
   await expect(unit).toHaveText('TΩ');
-  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === path).at(-1)?.value).toEqual({ raw: '1.45', unit: 'TΩ', state: 'measured' });
+  const values = async () => (await outbox(page)).filter((row) => row.path === path).map((row) => row.value);
+  await expect.poll(values).toEqual([{ raw: '1.45', unit: 'TΩ', state: 'measured' }]);
+
+  // Keyboard activation (Space on the focused unit control) is never guarded: it cycles at once.
+  await unit.focus();
+  await page.keyboard.press('Space');
+  await expect(unit).toHaveText('MΩ');
+  await expect.poll(values).toEqual([
+    { raw: '1.45', unit: 'TΩ', state: 'measured' },
+    { raw: '1.45', unit: 'MΩ', state: 'measured' },
+  ]);
 
   // An open sheet: one tap cycles at once.
   await openSheet(page, built.relatorioId, open.blockId);

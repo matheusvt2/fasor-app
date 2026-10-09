@@ -17,7 +17,8 @@ import {
   type RelatorioSnapshot,
   type TestEvaluation,
 } from '@app/domain';
-import { Fragment, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
+import { WholeWords } from '../../components/whole-words.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
@@ -93,16 +94,32 @@ export function EnsaiosSection({
     return true;
   };
 
+  /**
+   * Review fixes 2026-10-08 (r8lay-layout-1): Enter leaving a ratio table's last capture cell
+   * brings the table's end into its own scroller, so the rows' Condição (the verdict, the last
+   * column) is in view where the table is wider than its box (657 px boxes).
+   */
+  const revealRatioEnd = (from: CellAddress) => {
+    const test = evaluations.find((t) => t.testKey === from.testKey);
+    const table = test?.tables.find((t) => t.rows.some((row) => row.cells.some((cell) => sameAddress(cell.address, from))));
+    if (table === undefined || !table.ratio) return;
+    const last = table.rows.at(-1)?.cells.filter((cell) => cell.role === 'capture').at(-1);
+    if (last === undefined || !sameAddress(last.address, from)) return;
+    const scroller = host.current?.querySelector<HTMLElement>(`.ficha-mt[data-table-key="${table.key}"] > .mt-scroll`);
+    if (scroller !== null && scroller !== undefined) scroller.scrollLeft = scroller.scrollWidth;
+  };
+
   const onRun = (from: CellAddress, direction: RunDirection): boolean => {
     const target = runTarget(evaluations, from, direction);
     if (target === null) return false;
+    let moved: boolean;
     if (target === 'end') {
       const primary = document.getElementById(primaryId);
-      if (primary === null) return false;
-      primary.focus();
-      return true;
-    }
-    return focusCell(target);
+      moved = primary !== null;
+      primary?.focus();
+    } else moved = focusCell(target);
+    if (moved && direction === 'next') revealRatioEnd(from);
+    return moved;
   };
 
   // DB-2: the kernel says which unit taps only put a cell into editing (a concluded sheet's measured cells).
@@ -239,24 +256,6 @@ function TestSection({
   );
 }
 
-/**
- * Review fixes 2026-10-08 (DC-1, DB-3): a header or connection text as its words, each unbreakable
- * (`.mt-word`, `ficha.css`): a line breaks only between words, never inside one at a hyphen
- * ("X3-" over "X0", "T1-" over "T2"). The text is the label as it is.
- */
-function WholeWords({ text }: { text: string }) {
-  return (
-    <>
-      {text.split(' ').map((word, i) => (
-        <Fragment key={i}>
-          {i === 0 ? null : ' '}
-          <span className="mt-word">{word}</span>
-        </Fragment>
-      ))}
-    </>
-  );
-}
-
 function MeasurementTable({
   api,
   test,
@@ -346,13 +345,13 @@ function MeasurementTable({
             <tr>
               {table.connectionHeaders.map((header, i) => (
                 <th key={`c${i}`} scope="col">
-                  <WholeWords text={screenLabel(header)} />
+                  <WholeWords className="mt-word" text={screenLabel(header)} />
                 </th>
               ))}
               {table.columns.map((column) => (
                 // DC-1: Condição is a word column (`60-ficha.html` draws its header without `col-value`).
                 <th key={column.col} scope="col" className={column.role === 'input' || column.derivedKind === 'condicao' ? undefined : 'col-value'}>
-                  <WholeWords text={screenLabel(column.header)} />
+                  <WholeWords className="mt-word" text={screenLabel(column.header)} />
                 </th>
               ))}
             </tr>
@@ -362,7 +361,7 @@ function MeasurementTable({
               <tr key={row.row}>
                 {row.connection.map((text, i) => (
                   <td key={`c${i}`} className={i === 0 ? 'cell-point' : 'cell-dim'}>
-                    {text === '' ? '—' : <WholeWords text={screenLabel(text)} />}
+                    {text === '' ? '—' : <WholeWords className="mt-word" text={screenLabel(text)} />}
                   </td>
                 ))}
                 {table.columns.map((column) => {

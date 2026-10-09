@@ -182,7 +182,7 @@ describe('R8LAY DH-3 a stored manufacturer Fabricantes does not hold', () => {
     await openDatabase(name).delete();
     session.database = openDatabase(name);
     vi.mocked(commitBatch).mockClear();
-    render(
+    const { unmount } = render(
       <ToastProvider>
         <InstrumentPanel instrumentId={instrument.id} instrument={{ ...instrument, manufacturer: 'Hi-Tech' }} referenced={false} onClose={vi.fn()} />
       </ToastProvider>,
@@ -198,6 +198,8 @@ describe('R8LAY DH-3 a stored manufacturer Fabricantes does not hold', () => {
     expect(screen.queryByRole('button', { name: 'Criar Hi-Tech?' })).toBeNull();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Hi-Tech', pressed: true })).toBeInTheDocument());
     expect(screen.queryByRole('button', { name: 'Criar Hi-Tech?' })).toBeNull();
+    // Unmounted first: the panel's live reads never meet the closed database.
+    unmount();
     session.database.close();
   });
 
@@ -207,7 +209,7 @@ describe('R8LAY DH-3 a stored manufacturer Fabricantes does not hold', () => {
     await openDatabase(name).delete();
     session.database = openDatabase(name);
     vi.mocked(commitBatch).mockClear();
-    render(
+    const { unmount } = render(
       <ToastProvider>
         <InstrumentPanel instrumentId={instrument.id} instrument={{ ...instrument, manufacturer: 'Hi-Tech' }} referenced={false} onClose={vi.fn()} />
       </ToastProvider>,
@@ -218,6 +220,8 @@ describe('R8LAY DH-3 a stored manufacturer Fabricantes does not hold', () => {
     await waitFor(() => expect(vi.mocked(commitBatch)).toHaveBeenCalledTimes(1));
     const creates = vi.mocked(commitBatch).mock.calls.flatMap((call) => call[1]).filter((op) => op.kind === 'create' && op.path.startsWith('registry/manufacturer/'));
     expect(creates).toHaveLength(1);
+    // Unmounted first: the panel's live reads never meet the closed database.
+    unmount();
     session.database.close();
   });
 

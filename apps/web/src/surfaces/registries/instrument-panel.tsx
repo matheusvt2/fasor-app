@@ -137,6 +137,7 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
   async function createManufacturer(name: string): Promise<void> {
     const base = opBase();
     if (base === null || name === '') return;
+    createdName.current = name;
     const id = newId();
     const row = { id, kind: 'manufacturer', name, gender: null, number: null, removed_at: null };
     await commitField('manufacturer', name, [{ ...base, kind: 'create', path: registryPath('manufacturer', id), value: row as never }]);
@@ -158,8 +159,16 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
   const manufacturerRow = wordRowByName(storedManufacturer, manufacturers);
   // One tap, one create: the line goes once tapped, until the row lands (or the name changes).
   const [registering, setRegistering] = useState<string | null>(null);
+  const createdName = useRef<string | null>(null);
   if (registering !== null && (manufacturerRow !== null || storedManufacturer !== registering)) setRegistering(null);
-  const unregistered = storedManufacturer !== null && storedManufacturer.trim() !== '' && manufacturerRow === null && registering === null ? storedManufacturer : null;
+  // r8lay-interaction-3: a name this panel just created (its "Criar" or a leave) lands on the
+  // instrument and in Fabricantes through two live reads; until its row is here it is not offered
+  // as unregistered (the sheet's `WordField` `created` guard).
+  if (createdName.current !== null && manufacturerRow !== null && storedManufacturer === createdName.current) createdName.current = null;
+  const unregistered =
+    storedManufacturer !== null && storedManufacturer.trim() !== '' && manufacturerRow === null && registering === null && storedManufacturer !== createdName.current
+      ? storedManufacturer
+      : null;
 
   /**
    * AC 2.2-3: the certificate opens from the row, from this device's own copy when it

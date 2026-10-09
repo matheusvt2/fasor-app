@@ -1562,10 +1562,10 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: debt
   state: open (owner: coordinator)
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
-  summary: Known open (review 2026-10-08 DB-7): every plate and cabine text, number and date-text field labels the keyboard's Enter key "next", including the last one before the sheet's primary (the readings' run computes "done" from the kernel's run; the plate has no such run in the kernel). Also: Enter in a select or a manufacturer / voltage class field does not run on.
+  summary: ~~Known open~~ Open question against Story 13.4 INP-2 (epics.md:2837-2839, "done" on the run's last input before the primary; independent review of PR #122, r8lay-rules-2, 2026-10-09) (review 2026-10-08 DB-7): every plate and cabine text, number and date-text field labels the keyboard's Enter key "next", including the last one before the sheet's primary (the readings' run computes "done" from the kernel's run; the plate has no such run in the kernel). Also: Enter in a select or a manufacturer / voltage class field does not run on.
   evidence: `apps/web/src/surfaces/ficha/ficha-fields.tsx` `focusNextMissingField`, `enterKeyHint="next"`.
   class: debt
-  state: open (owner: coordinator)
+  state: open (owner: coordinator, decision by Matheus: keep "next", or compute "done" when no missing-field marker follows the field, a dynamic target the plate run gained with DB-7)
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
   summary: Known open (review 2026-10-08 DH-1): an unreadable voltage class ("abc") typed and left in Classe de tensão creates nothing and stays as typed text, unsaved and unmarked (today's behaviour; `parseVoltageClassKv` returns null).
   evidence: `apps/web/src/surfaces/ficha/ficha-fields.tsx` `WordField` `onCreate`; `apps/web/src/components/registry-picker-field.tsx` `commitLeft`.
@@ -1576,6 +1576,26 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `e2e/review-layout-interaction-2026-10-08.spec.ts` R8LAY-E2E-001 and -009 (the 2026-10-09 measurement before the fix, one-line cells: TAP 44, V primário 210, V secundário 210, Calculado 113, captures 199/199/168, Condição 80; TP: 68, 210, 210, 127, 168, 162); `components.css` `.overflow-trigger`, `.mf-unit` (`min-width: var(--touch-min)`); `tokens.css` `--content-max: 880px`.
   class: debt
   state: resolved (2026-10-09)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: Planning documents to amend with a dated line (strike-through rule) for what PR #122 ships (independent review r8lay-rules-1, 2026-10-09): EXPERIENCE.md:125 (Units: "a tap cycles MΩ → GΩ → TΩ"; on a concluded sheet a pointer tap on a measured cell's unit only focuses the input, the kernel's `unitTapNeedsEdit`); EXPERIENCE.md:276 (Combobox: a name typed under "Outro…" and left is selected or created as "Criar" would, only text changed since the field took the focus); EXPERIENCE.md:307/:406 and source-deltas.md D-2 (Enter in a plate or cabine field commits and moves to the next missing field, then the primary; that run does not collapse the section it leaves, only the readings run does); DESIGN.md › Measurement table and `60-ficha.html` (each table in its own `.mt-scroll` box, the title row never scrolls; ratio tables by content from 768 px, the trailing parts under a six-digit input; Condição drawn `td.cell-dim`; phone point labels wrap between words, the phone value input 4.5ch); DESIGN.md › Form dialog (the dialog scrolls inside the scrim on phone, not full screen).
+  evidence: PR #122 body; `measurement-field.tsx` `tapUnit`; `registry-picker-field.tsx` `commitLeft`; `ficha-fields.tsx` `focusNextMissingField`; `use-ficha-steps.ts` `isEnterRunMoving`; `ficha.css` and `app.css` r8lay blocks.
+  class: docs
+  state: open (owner: coordinator)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: Deferred review finding (spec frontmatter `deferred:`, independent review r8lay-rules-3): a TAG wider than the phone Sumário row's room runs the page sideways at 390 px; the rail's F-07 ellipsis has no phone `.s9-eq` counterpart. Mostly pre-existing (`.sum-s9 .s9-eq-open`'s grid already gave an unbreakable TAG its min-content), now with the batch's `nowrap` TAG and `min-content` row.
+  evidence: `apps/web/src/surfaces/relatorio/relatorio.css` (block r8lay DA-6); TAGs are free text (`tag-dialogs.tsx`).
+  class: debt
+  state: open (owner: coordinator)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: Follow-up review recommended (spec `followup_review_recommended: true`, independent review r8lay-rules-3): check on real Android Chrome and iPadOS WebKit tablets (Inter at the value size) that the ratio tables' wrap and the 1280 fit hold, that `.mt-scroll`'s cue and the scroll to Condição show, and that the held-Enter swallow of the plate Enter run works with soft keyboards (which may not mark `repeat`). Never run in this batch (desktop Chrome only).
+  evidence: `ficha.css` r8lay TTR block; `ficha-fields.tsx` `focusNextMissingField`; R8LAY-E2E-001/009.
+  class: debt
+  state: open (owner: coordinator, at the integrated QA pass)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: Narrowing 8 of PR #122: the spec's task "scope the E9-Q4 phone wrap off a confirmed reading's cell" was not done (it put the crop glyph on the input's line and pushed the contact tables past their 358 px box, 9.4-E2E-011); the input and its unit control still share their line, asserted by R8LAY-E2E-010 and the 8 px hit test of R8LAY-E2E-002 on the real phone tables. A wider confirmed value or a narrower table could still wrap the unit off the line.
+  evidence: `apps/web/src/styles/app.css` (r8lay block, DB-2/DB-3 note); spec triage log (maybe-false row).
+  class: debt
+  state: open (owner: coordinator)
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-dry-transformer.md` (r8dry, Decision 2)
   summary: `conclusion.ts` `anyAnswered` counts any filled checklist result as an answer, so the oil items a dry TIPO DE ISOLAÇÃO marks NA count too: a no-subtype transformer whose only answers are those eight NA marks offers the amber conclusion pair as if the engineer had checked something. Whether a dry-insulation mark (or any NA) should count as an answer there is r8conc's file and call.
   evidence: `packages/domain/src/relatorio/conclusion.ts:66` (`anyAnswered`); `packages/domain/src/relatorio/dry-insulation.ts` `dryInsulationNaItems`; marks written by `apps/web/src/surfaces/ficha/{nameplate-section.tsx,nameplate-suggestions.tsx}`.

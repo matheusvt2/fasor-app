@@ -35,8 +35,9 @@ export interface FichaSteps {
 export function useFichaSteps(progress: SheetProgress, shown: readonly SheetStep[]): FichaSteps {
   // --- the steps: the current one, the ones left complete (collapsed), the jump -----------
   // D-2 (`source-deltas.md` 2026-09-24): a complete section collapses when the engineer
-  // leaves it (a stepper tap, or the keyboard -- Tab, the Enter run -- moving the focus into
-  // another section), never in reaction to a tap: a pointer focus arriving in another
+  // leaves it (a stepper tap, or the keyboard -- Tab, the readings' Enter run -- moving the focus
+  // into another section; the plate and cabine Enter run does not, Story 12.1 AC3, see `focusIn`),
+  // never in reaction to a tap: a pointer focus arriving in another
   // section makes it current but leaves the previous one open, and a section holding a
   // reading out of its criterion never collapses (`stepMayCollapse`, the kernel's rule).
   // E12-A7: it starts on a step the stepper shows (`shownSheetSteps`): the first incomplete

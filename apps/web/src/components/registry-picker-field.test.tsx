@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { RegistryPickerField } from './registry-picker-field.tsx';
@@ -321,6 +321,70 @@ describe('R8LAY DH-1 typed text left in the field', () => {
     await userEvent.keyboard('X');
     await userEvent.click(screen.getByText('Nome'));
     expect(onCreate).toHaveBeenCalledWith('Hi-TechX');
+  });
+
+  it('a window blur (lock, app switch) mid-typing creates nothing; back in the field, the finished name left creates one word', async () => {
+    const onCreate = vi.fn();
+    render(field({ onCreate }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    const input = screen.getByRole('combobox', { name: 'Fabricante' });
+    await userEvent.keyboard('Mega');
+    // The window loses the focus: a focusout with no related target while the input stays the active element.
+    fireEvent.blur(input, { relatedTarget: null });
+    expect(input).toHaveFocus();
+    expect(onCreate).not.toHaveBeenCalled();
+    // The window comes back: a focus with no related target, then the name finished and left.
+    fireEvent.focus(input, { relatedTarget: null });
+    await userEvent.keyboard('bras');
+    await userEvent.click(screen.getByText('Nome'));
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    expect(onCreate).toHaveBeenCalledWith('Megabras');
+  });
+
+  it('a new name typed over a registered one and left writes the create alone, never a clear first', async () => {
+    const onChange = vi.fn();
+    const onCreate = vi.fn();
+    render(field({ onChange, onCreate, value: 'siemens' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    const input = screen.getByRole('combobox', { name: 'Fabricante' });
+    await userEvent.clear(input);
+    await userEvent.keyboard('Megabras');
+    await userEvent.click(screen.getByText('Nome'));
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    expect(onCreate).toHaveBeenCalledWith('Megabras');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('a text whose create the caller refused (null) is tried again on the next leave', async () => {
+    const onCreate = vi.fn((): string | null => null);
+    render(field({ onCreate }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    const input = screen.getByRole('combobox', { name: 'Fabricante' });
+    await userEvent.keyboard('abc');
+    await userEvent.click(screen.getByText('Nome'));
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    await userEvent.click(input);
+    await userEvent.keyboard('d');
+    await userEvent.click(screen.getByText('Nome'));
+    expect(onCreate).toHaveBeenCalledTimes(2);
+    expect(onCreate).toHaveBeenLastCalledWith('abcd');
+  });
+
+  it('a created word that landed and left the list again is created again by the next leave', async () => {
+    const onCreate = vi.fn();
+    const { rerender } = render(field({ onCreate }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    const input = screen.getByRole('combobox', { name: 'Fabricante' });
+    await userEvent.keyboard('Megabras');
+    await userEvent.click(screen.getByText('Nome'));
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    rerender(field({ onCreate, options: [...OPTIONS, { id: 'megabras', label: 'Megabras' }] }));
+    // Archived elsewhere: gone from the list while the field stays mounted.
+    rerender(field({ onCreate }));
+    await userEvent.click(input);
+    await userEvent.keyboard(' ');
+    await userEvent.click(screen.getByText('Nome'));
+    expect(onCreate).toHaveBeenCalledTimes(2);
   });
 
   it('an emptied field keeps today\'s behaviour: nothing created', async () => {

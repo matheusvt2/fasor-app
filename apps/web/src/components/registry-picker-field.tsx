@@ -87,7 +87,17 @@ export function RegistryPickerField({
   const typed = matchKey(inputValue);
   const exists = inputValue.trim() === '' || options.some((option) => matchKey(option.label) === typed);
 
+  /** True from the capture of a real leave until its bubble (`commitLeft`) has decided. */
+  const leaving = useRef(false);
+  /** The null selection React Aria reported while leaving (its custom-value commit), held for `commitLeft`. */
+  const heldNull = useRef(false);
   const choose = (id: string | null) => {
+    // r8lay-interaction-2: a leave with typed text that it will select or create writes one batch,
+    // never a clear first.
+    if (id === null && leaving.current) {
+      heldNull.current = true;
+      return;
+    }
     if (id !== null) setInputValue(byId.get(id)?.label ?? '');
     onChange(id);
   };
@@ -98,10 +108,16 @@ export function RegistryPickerField({
   const latestText = useRef(inputValue);
   latestText.current = inputValue;
   const createdKeys = useRef(new Set<string>());
-  const create = (text: string) => {
-    createdKeys.current.add(matchKey(text));
+  // A created key whose entry has landed (or that left the list again) is free: the same text left
+  // later is matched or created again.
+  for (const key of [...createdKeys.current]) if (options.some((option) => matchKey(option.label) === key)) createdKeys.current.delete(key);
+  /** Creates the text's entry; false when the caller created nothing (`onCreate` returned null). */
+  const create = (text: string): boolean => {
     const createdLabel = onCreate(text);
+    if (createdLabel === null) return false;
+    createdKeys.current.add(matchKey(text));
     setInputValue(typeof createdLabel === 'string' ? createdLabel : text);
+    return true;
   };
   // Only text the engineer changed while the field held the focus is committed on leave: a stored
   // by-value name shown as it is (an unregistered "Hi-Tech", a copied manufacturer) focused and left
@@ -110,9 +126,15 @@ export function RegistryPickerField({
   const commitLeft = () => {
     const before = textOnFocus.current;
     textOnFocus.current = null;
-    if (before !== null && latestText.current === before) return;
+    const held = heldNull.current;
+    heldNull.current = false;
+    // The clear React Aria asked for goes out when the leave itself decides nothing.
+    const release = () => {
+      if (held) onChange(null);
+    };
+    if (before !== null && latestText.current === before) return release();
     const text = latestText.current.trim();
-    if (text === '') return;
+    if (text === '') return release();
     const key = matchKey(text);
     const match = options.find((option) => matchKey(option.label) === key);
     if (match !== undefined) {
@@ -120,8 +142,13 @@ export function RegistryPickerField({
       else if (match.label !== latestText.current) setInputValue(match.label);
       return;
     }
-    if (!createdKeys.current.has(key)) create(text);
+    if (createdKeys.current.has(key)) return;
+    if (!create(text)) release();
   };
+  /** A focusout that is not a leave: into the field's own list or chevron, or the window losing the focus (lock, app switch) while the input keeps it. */
+  const staysIn = (host: HTMLElement, next: EventTarget | null): boolean =>
+    (next instanceof Element && (host.contains(next) || next.closest('.combobox-list') !== null)) ||
+    (next === null && (host.contains(document.activeElement) || !document.hasFocus()));
   const recentOptions = recentIds
     .map((id) => byId.get(id))
     .filter((option): option is ComboboxOption => option !== undefined)
@@ -150,14 +177,21 @@ export function RegistryPickerField({
         className="rpf-combobox"
         hidden={!showCombobox}
         ref={comboboxHost}
-        onFocus={(event) => {
-          const from = event.relatedTarget;
-          if (from instanceof Element && (event.currentTarget.contains(from) || from.closest('.combobox-list') !== null)) return;
-          textOnFocus.current = latestText.current;
+        onFocus={() => {
+          // r8lay-interaction-1: the baseline is set when the focus arrives after a real leave (or
+          // the first time), so a window refocus keeps the text the field had when it took the focus.
+          if (textOnFocus.current === null) textOnFocus.current = latestText.current;
         }}
-        onBlur={(event) => {
-          const next = event.relatedTarget;
-          if (next instanceof Element && (event.currentTarget.contains(next) || next.closest('.combobox-list') !== null)) return;
+        onBlurCapture={(event) => {
+          leaving.current = !staysIn(event.currentTarget, event.relatedTarget);
+        }}
+        onBlur={() => {
+          const left = leaving.current;
+          leaving.current = false;
+          if (!left) {
+            heldNull.current = false;
+            return;
+          }
           commitLeft();
         }}
       >
@@ -171,7 +205,9 @@ export function RegistryPickerField({
           {...(exists
             ? {}
             : {
-                onCreate: (text: string) => create(text.trim()),
+                onCreate: (text: string) => {
+                  create(text.trim());
+                },
               })}
         />
       </div>

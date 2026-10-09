@@ -874,22 +874,22 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
 
 /* ---------- Review fixes 2026-10-08 (batch r8lay): layout and interaction ---------- */
 
-/* DB-2, DB-3: authored, a table value input is at least 48 px tall (`--touch-min`) wherever its
+/* DB-2, DB-3: authored, every table value input is at least 48 px tall (`--touch-min`), so where its
    field wraps (a suggested or confirmed reading's cell below 768 px under E9-Q4 above, `.is-wide`
-   cells), never the 29 px line a finger misses for the unit control under it. The E9-Q4 wrap stays
+   cells) it is never the 29 px line a finger misses for the unit control under it. The E9-Q4 wrap stays
    on a confirmed reading's cell: with the phone tables' words whole (`ficha.css`) the value column
    is at least as wide as a typed cell's input, unit and Overflow, so the confirmed cell's input and
    unit control share their line and only the crop glyph wraps (scoping the wrap off instead put the
    glyph on that line too and pushed the contact tables past their 358 px box, E9-Q4/9.4-E2E-011). */
 .measurement-table td.cell-value .measurement-field > input.mf-value { min-height: var(--touch-min); }
 
-/* DA-1: mirrors `export.css` `.export-dialog { max-height: calc(100dvh - 2 * var(--sp-5)); overflow-y: auto }`
-   (the precedent for a dialog taller than a short viewport) for the Form and Confirm dialogs: the
-   dialog stays inside the scrim's `--sp-5` padding (`components.css` `.dialog-scrim`) and scrolls in
-   itself, so "Criar relatório" is reachable at 390x700. Its parts keep their height (the
-   `relatorio.css` `.form-dialog.move-dialog > *` rule). `.rich-dialog`, `.defaults-dialog` and
-   `.move-dialog` keep their own rules. DESIGN.md › Form dialog asks for a full-screen phone dialog
-   (UX-DR60): open, listed in `deferred-work.md`. */
+/* DA-1: authored. DESIGN.md › Form dialog and UX-DR60 ask for the Form dialog full screen on phone;
+   this is the recorded narrowing (spec r8lay, `deferred-work.md`): the Form and Confirm dialogs stay
+   inside the scrim's `--sp-5` padding (`components.css` `.dialog-scrim`) and scroll in themselves,
+   so "Criar relatório" is reachable at 390x700. Precedents: `export.css` `.export-dialog { max-height:
+   calc(100dvh - 2 * var(--sp-5)); overflow-y: auto }` (the declarations used here) and `relatorio.css`
+   `.form-dialog.move-dialog > * { flex-shrink: 0 }` (its parts keep their height). `.rich-dialog`,
+   `.defaults-dialog` and `.move-dialog` keep their own rules. */
 .form-dialog:not(.rich-dialog, .defaults-dialog, .move-dialog), .confirm-dialog { max-height: calc(100dvh - 2 * var(--sp-5)); overflow-y: auto; }
 .form-dialog:not(.rich-dialog, .defaults-dialog, .move-dialog) > *, .confirm-dialog > * { flex-shrink: 0; }
 
@@ -902,7 +902,8 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
   .sticky-action-bar .bar-buttons { flex-wrap: wrap; }
 }
 
-/* DH-3: the E78-Q4 line of a stored manufacturer the registry does not hold, in the instrument panel
-   (Cadastros): declarations of `ficha.css` `.word-unregistered` and `.word-unregistered-name`. */
+/* DH-3: authored (no mock draws it), the E78-Q4 line of a stored manufacturer the registry does not
+   hold, in the instrument panel (Cadastros). Precedent: the sheet's own authored line, declarations
+   of `ficha.css` `.word-unregistered` and `.word-unregistered-name`. */
 .registry-panel .word-unregistered { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
 .registry-panel .word-unregistered-name { color: var(--ink-primary); font-weight: 600; }
