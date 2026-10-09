@@ -1,8 +1,6 @@
 import {
   camposCopiadosText,
   discardSuggestionOp,
-  drySubtypeOfInsulation,
-  dryInsulationNaItems,
   INSULATION_FIELD_KEY,
   lastNameplateCopy,
   nameplateMissingKeys,
@@ -10,6 +8,8 @@ import {
   nameplateIsEmpty,
   nameplateTagPrefill,
   oilItemsNaText,
+  oilNaChipItems,
+  oilNaChipText,
   PLATE_CAPTION,
   plateCropRegion,
   platePhotoOf,
@@ -33,7 +33,8 @@ import { useId, useMemo, useRef, useState, type FocusEvent } from 'react';
 import { Chip } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
-import { writeReadingCancelled } from '../../db/prefs.ts';
+import { useLiveQuery } from '../../db/live.ts';
+import { readOilNaUsed, writeOilNaUsed, writeReadingCancelled } from '../../db/prefs.ts';
 import { discardCancelledReadings } from '../../db/suggestion-store.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
@@ -75,10 +76,12 @@ import type { CaptureTarget } from './use-photo-capture.ts';
  * so whatever they bring, now or later, is discarded (CAPT-V1). A typed value that changes a
  * field under a replace line discards that suggestion in the same batch (DG-2).
  *
- * Review 2026-10-08, Decision 2 (H-4, MKT-7): a field's missing marker reads the kernel's
- * `nameplateMissingKeys` (VOL. ÓLEO is not missing on a dry block). TIPO DE ISOLAÇÃO picked
- * dry by hand writes, in the same batch, the oil items the kernel names NA
- * (`dryInsulationNaItems` of the fresh block), with "Desfazer".
+ * Review 2026-10-08, Decision 2 (H-4, MKT-7), amended 2026-10-09: a field's missing marker
+ * and "Preencher manualmente" read the kernel's `nameplateMissingKeys` (VOL. ÓLEO is not
+ * missing on a dry block). Under a dry TIPO DE ISOLAÇÃO, however it was written, the chip
+ * "Marcar N itens de óleo como NA" (`oilNaChipItems`) writes the NA marks of the oil items the
+ * fresh block still leaves unanswered, one batch with "Desfazer"; once used it is not offered
+ * again on this device (`oil_na_used:{block}`). No other write marks anything.
  */
 export function NameplateSection({
   api,
@@ -127,6 +130,10 @@ export function NameplateSection({
   const plateCancelled = useReadingCancelled(plate?.id ?? '');
   const region = plate === null || view !== 'ready' ? null : plateCropRegion(suggestions.pending, plate.id);
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
+  // Decision 2 (2026-10-09): the oil NA chip was used on this block here (the device flag, or
+  // a tap in flight); null while the flag is being read, when the chip waits.
+  const oilNaUsed = useLiveQuery(() => (db === null ? Promise.resolve(false) : readOilNaUsed(db, block.id)), [db, block.id], null);
+  const [oilNaTapped, setOilNaTapped] = useState(false);
   if (definition.nameplate.length === 0) return null;
   const grouped = !readOnly && suggestions.counts.fills > 0;
 
@@ -136,6 +143,7 @@ export function NameplateSection({
   const lastVisit = empty && !readOnly && own?.last_nameplate != null ? lastNameplateCopy(own, definition) : [];
   const tagPrefill = nameplateTagPrefill({ blocks: snapshot.blocks, equipment }, block.id);
   const missingKeys = nameplateMissingKeys({ blocks: snapshot.blocks, equipment }, block.id);
+  const oilNaItems = readOnly ? [] : oilNaChipItems(block, { used: oilNaTapped || oilNaUsed !== false });
 
   function copyFrom(fields: readonly { fieldKey: string; value: unknown }[], toast: (n: number) => string): void {
     if (fields.length === 0) return;
@@ -264,27 +272,34 @@ export function NameplateSection({
   }
 
   /**
-   * Decision 2: TIPO DE ISOLAÇÃO picked dry by hand. The put and the NA marks of the oil items
-   * still unanswered on the fresh block, one batch; "Desfazer" when marks were written. A
-   * refused write is toasted by the edit queue; the promise never rejects (the select drops it).
+   * Decision 2 (2026-10-09): the oil NA chip. Its marks are the oil items the fresh block still
+   * leaves unanswered (a C tapped a moment ago is never overwritten), one batch; once written
+   * the device flag is set and "Desfazer" offered. The focus goes to the TIPO DE ISOLAÇÃO select,
+   * as the chip leaves the page.
    */
-  function commitDryInsulation(next: unknown): Promise<void> {
+  function markOilItemsNa(): void {
+    if (oilNaTapped) return;
+    setOilNaTapped(true);
+    const select = document.querySelector<HTMLElement>(`#ficha-nameplate .nameplate-grid [data-field-key="${INSULATION_FIELD_KEY}"]`);
+    (select === null ? null : firstFocusable(select))?.focus();
     let marked = 0;
-    return api
+    void api
       .edit((blocks, by) => {
         const fresh = blocks.find((row) => row.id === block.id);
         if (fresh === undefined) return null;
-        const items = dryInsulationNaItems(fresh, next);
+        const items = oilNaChipItems(fresh, { used: false });
         marked = items.length;
-        return [
-          nameplateOp(by, api.relatorioId, block.id, INSULATION_FIELD_KEY, next),
-          ...items.map((itemKey) => checklistResultOp(by, api.relatorioId, block.id, itemKey, 'NA')),
-        ];
+        return items.length === 0 ? null : items.map((itemKey) => checklistResultOp(by, api.relatorioId, block.id, itemKey, 'NA'));
       })
-      .then((batch) => {
-        if (batch !== null && marked > 0) api.undoable(oilItemsNaText(marked), batch);
+      .then(async (batch) => {
+        if (batch === null) {
+          setOilNaTapped(false);
+          return;
+        }
+        if (db !== null) await writeOilNaUsed(db, block.id, toIso(now())).catch((error: unknown) => console.error('oil NA chip flag not written', error));
+        api.undoable(oilItemsNaText(marked), batch);
       })
-      .catch(() => undefined);
+      .catch(() => setOilNaTapped(false));
   }
 
   /** E78-Q4: "Criar ⟨nome⟩?" of a stored name the registry does not hold: the registry row alone. */
@@ -369,10 +384,20 @@ export function NameplateSection({
                 // discards that suggestion in the same batch (the engineer chose the typed one).
                 // DG-2: never a discard here (this may be the idle commit mid-typing); leaving
                 // the field or Enter turns the suggestion down (`turnDownOnLeave`).
-                if (field.key === INSULATION_FIELD_KEY && drySubtypeOfInsulation(definition, next) !== null) return commitDryInsulation(next);
                 return api.commit([nameplateOp(api.author, api.relatorioId, block.id, field.key, next)]);
               }}
-              after={after}
+              after={
+                field.key === INSULATION_FIELD_KEY && oilNaItems.length > 0 ? (
+                  <>
+                    {after}
+                    <div className="chip-row">
+                      <Chip onPress={markOilItemsNa}>{oilNaChipText(oilNaItems.length)}</Chip>
+                    </div>
+                  </>
+                ) : (
+                  after
+                )
+              }
               // F-01: a suggestion landing on this field while it holds uncommitted typing
               // swaps it out; the typed text is committed then, never replaced by the guess.
               flushOnUnmount

@@ -10,15 +10,16 @@ import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from '.
 import { syncNow, syncNowAndReturn } from './support/sync.ts';
 
 /*
- * Review 2026-10-08, Decision 2 (H-4, MKT-7): a dry transformador de força of the standard
- * template (no subtype) can be concluded. Confirming its TIPO DE ISOLAÇÃO as EPÓXI or Á SECO
- * ("Confirmar todos", one "Confirmar", the select picked by hand, a value typed over the
- * guess) writes the oil items still unanswered as NA in the same batch, with "Desfazer", and
- * VOL. ÓLEO stops counting as missing. The plate reading is seeded as the reading job writes
- * it (`pushPlateSuggestions`, without its photo); what no AC exercises (the cabine, the
- * readings, the non-oil checklist items, the conclusion pair) is seeded by office ops. Runs on
- * the durability projects (the matrix covers the commit path); each worker has its own
- * Empresa B (E6-Q7).
+ * Review 2026-10-08, Decision 2 (H-4, MKT-7), amended 2026-10-09 (Matheus): a dry transformador
+ * de força, TP or TC of the standard template (no subtype) can be concluded. Confirming,
+ * picking or copying a dry TIPO DE ISOLAÇÃO writes only what it wrote before; a stored EPÓXI or
+ * Á SECO, however written, offers the chip "Marcar N itens de óleo como NA", whose tap writes
+ * the oil items still unanswered as NA in one batch with "Desfazer", and VOL. ÓLEO stops counting
+ * as missing. Once used, the chip is not offered again on this device. The plate reading is
+ * seeded as the reading job writes it (`pushPlateSuggestions`, without its photo); what no AC
+ * exercises (the cabine, the readings, the non-oil checklist items, the conclusion pair, a
+ * source plate) is seeded by office ops. Runs on the durability projects (the matrix covers the
+ * commit path); each worker has its own Empresa B (E6-Q7).
  */
 
 let account: SeedAccount;
@@ -100,23 +101,23 @@ const seedConclusion = (scope: Scope, blockId: string): OpDraft[] => [
 ];
 
 /**
- * Resets Empresa B, signs in, pushes a standard relatório plus `seed` for its first
- * transformador de força sheet and, with `plate`, the reading job's suggestions of those plate
- * keys; opens the sheet by address once the device holds them. No subtype: the standard
- * template's transformer has none.
+ * Resets Empresa B, signs in, pushes a standard relatório plus `seed` and opens the first sheet
+ * of `type` (no subtype in the standard template) by address, with, given `plate`, the reading
+ * job's suggestions of those plate keys pulled.
  */
 async function setUp(
   page: Page,
   context: BrowserContext,
-  seed: (scope: Scope, sheet: SeededSheet, drafts: readonly OpDraft[]) => OpDraft[],
+  seed: (scope: Scope, sheet: SeededSheet, drafts: readonly OpDraft[], sheets: readonly SeededSheet[]) => OpDraft[],
   plate: readonly string[] = [],
+  type = 'transformador_forca',
 ): Promise<{ relatorioId: string; sheet: SeededSheet; suggestions: Record<string, string> }> {
   await resetEmpresaB(account, { standard: true });
   await signInForDurability(page, context, account.email);
   const built = newRelatorioDrafts(account);
   const scope = { relatorioId: built.relatorioId };
-  const sheet = built.sheets.find((s) => s.blockType === 'transformador_forca')!;
-  await pushDrafts(page, database, [...built.drafts, ...seed(scope, sheet, built.drafts)]);
+  const sheet = built.sheets.find((s) => s.blockType === type)!;
+  await pushDrafts(page, database, [...built.drafts, ...seed(scope, sheet, built.drafts, built.sheets)]);
   const all = transformerPlateFields();
   const suggestions =
     plate.length === 0
@@ -129,20 +130,21 @@ async function setUp(
   return { relatorioId: built.relatorioId, sheet, suggestions };
 }
 
-/** The outbox rows of the batch that wrote `path` (its latest op). */
+/** The outbox rows of the batch that wrote `path` (its latest op); the op alone when it has no batch. */
 async function batchOf(page: Page, path: string): Promise<OutboxRow[]> {
   const rows = await outbox(page);
   const op = rows.filter((r) => r.path === path).at(-1)!;
-  expect(op.batch_id).not.toBeNull();
-  return rows.filter((r) => r.batch_id === op.batch_id);
+  return op.batch_id === null ? [op] : rows.filter((r) => r.batch_id === op.batch_id);
 }
 
 const markPaths = (blockId: string, keys: readonly string[]) => keys.map((key) => `sheet/${blockId}/checklist/${key}/result`).sort();
+const chipNamed = (page: Page, n: number) => field(page, 'tipo_de_isolacao').getByRole('button', { name: `Marcar ${n} ${n === 1 ? 'item' : 'itens'} de óleo como NA` });
+const anyChip = (page: Page) => page.getByRole('button', { name: /itens? de óleo como NA$/ });
 
 /** The plate keys the reading suggests in R8DRY-E2E-001 (the manufacturer and TAP ATUAL are the office's). */
 const READ_KEYS = ['identificacao', 'n_serie', 'tipo', 'tipo_de_isolacao', 'potencia_nominal', 'data_fabricacao', 'tensao_nominal_at', 'tensao_nominal_bt', 'ligacao_secundaria'];
 
-test('@p0 R8DRY-E2E-001 a dry transformador with no subtype is concluded: "Confirmar todos" with EPÓXI marks the eight oil items NA in its batch, VOL. ÓLEO is never missing', async ({ page, context }) => {
+test('@p0 R8DRY-E2E-001 a dry transformador with no subtype is concluded: "Confirmar todos" writes the confirm pairs alone, the chip marks the eight oil items NA, VOL. ÓLEO is never missing', async ({ page, context }) => {
   test.setTimeout(240_000);
   const { relatorioId, sheet } = await setUp(
     page,
@@ -158,40 +160,45 @@ test('@p0 R8DRY-E2E-001 a dry transformador with no subtype is concluded: "Confi
     READ_KEYS,
   );
   const blockId = sheet.blockId;
-  for (const key of OIL) await expect(checked(page, key)).toHaveCount(0);
+  await expect(anyChip(page)).toHaveCount(0);
 
-  // "Confirmar todos (9)": the nine plate fields and the eight oil marks, one batch, with "Desfazer".
+  // "Confirmar todos (9)": the nine confirm pairs alone, the plain toast; then the chip.
   await section(page).locator('.suggestion-group-head').getByRole('button', { name: 'Confirmar todos (9)' }).click();
-  await expect(toast(page)).toContainText('9 campos confirmados · 8 itens de óleo marcados NA');
+  await expect(toast(page)).toContainText('9 campos confirmados');
+  await expect(toast(page)).not.toContainText('itens de óleo');
+  const confirmBatch = await batchOf(page, `sheet/${blockId}/nameplate/tipo_de_isolacao`);
+  expect(confirmBatch).toHaveLength(9 * 2);
+  expect(confirmBatch.some((r) => r.path.includes('/checklist/'))).toBe(false);
+  for (const key of OIL) await expect(checked(page, key)).toHaveCount(0);
+  await expect(missingMarker(page, 'vol_oleo')).toHaveCount(0);
+
+  // The chip: one batch of exactly the eight NA puts, "Desfazer", the chip gone.
+  await chipNamed(page, 8).click();
+  await expect(toast(page)).toContainText('8 itens de óleo marcados NA');
   await expect(toast(page).getByRole('button', { name: 'Desfazer' })).toBeVisible();
-  const batch = await batchOf(page, `sheet/${blockId}/nameplate/tipo_de_isolacao`);
-  expect(batch).toHaveLength(9 * 2 + 8);
-  const marks = batch.filter((r) => r.path.includes('/checklist/'));
+  await expect(anyChip(page)).toHaveCount(0);
+  const marks = await batchOf(page, `sheet/${blockId}/checklist/valvula_de_alivio/result`);
   expect(marks.map((r) => r.path).sort()).toEqual(markPaths(blockId, OIL));
   for (const mark of marks) expect(mark).toMatchObject({ kind: 'put', value: 'NA' });
   for (const key of OIL) await expect(checked(page, key)).toHaveAttribute('data-value', 'na');
-
-  // VOL. ÓLEO stays empty and is never marked missing; the plate step has nothing left.
-  await expect(missingMarker(page, 'vol_oleo')).toHaveCount(0);
   await expect(stepper(page).getByRole('button', { name: 'Placa, 0 faltando' })).toBeVisible();
   await expect(page.getByTestId('ficha-progress')).toHaveText('Ficha completa');
 
-  // "Concluir ficha" concludes.
+  // "Concluir ficha" concludes; no VOL. ÓLEO op was ever written.
   await page.getByRole('button', { name: `Mais opções da ficha ${sheet.tag}` }).click();
   await page.getByRole('menuitem', { name: 'Concluir ficha' }).click();
   await expect.poll(async () => (await outbox(page)).some((r) => r.path === `block/${blockId}/concluded_by`)).toBe(true);
-  const rows = await outbox(page);
-  expect(rows.some((r) => r.path === `sheet/${blockId}/nameplate/vol_oleo`)).toBe(false);
-  expect(rows.filter((r) => r.path.includes('/checklist/') && r.batch_id !== batch[0]!.batch_id).filter((r) => OIL.some((key) => r.path.includes(`/${key}/`)))).toHaveLength(0);
+  expect((await outbox(page)).some((r) => r.path === `sheet/${blockId}/nameplate/vol_oleo`)).toBe(false);
 
-  // Reopened from the store: concluded, the eight rows NA, VOL. ÓLEO empty and not marked.
+  // Reopened from the store: concluded, the eight rows NA, VOL. ÓLEO not marked, no chip.
   await page.goto(`/relatorio/${relatorioId}/ficha/${blockId}`);
   await expect(page.locator('.sheet-header .sheet-meta').filter({ hasText: /^Concluída por / })).toBeVisible({ timeout: 30_000 });
   for (const key of OIL) await expect(checked(page, key)).toHaveAttribute('data-value', 'na');
   await expect(missingMarker(page, 'vol_oleo')).toHaveCount(0);
+  await expect(anyChip(page)).toHaveCount(0);
 });
 
-test('@p0 R8DRY-E2E-002 one "Confirmar" on EPÓXI says the eight marks and offers "Desfazer", which puts the results, the insulation and the suggestion back; the inverse syncs', async ({ page, context }) => {
+test('@p0 R8DRY-E2E-002 the chip after "Confirmar" on EPÓXI: its "Desfazer" puts the eight results back, the insulation stays, the chip never comes back; the inverse syncs', async ({ page, context }) => {
   test.setTimeout(240_000);
   const { relatorioId, sheet, suggestions } = await setUp(page, context, (scope, _s, drafts) => seedCabines(scope, drafts), ['tipo_de_isolacao']);
   const blockId = sheet.blockId;
@@ -200,77 +207,96 @@ test('@p0 R8DRY-E2E-002 one "Confirmar" on EPÓXI says the eight marks and offer
   await expect(missingMarker(page, 'vol_oleo')).toHaveCount(1);
 
   await fill.getByRole('button', { name: 'Sugerido, EPÓXI, confirmar' }).click();
-  await expect(toast(page)).toContainText('— confirmado · 8 itens de óleo marcados NA');
-  const batch = await batchOf(page, `sheet/${blockId}/nameplate/tipo_de_isolacao`);
-  expect(batch).toHaveLength(2 + 8);
-  expect(batch.filter((r) => r.path.includes('/checklist/')).map((r) => r.path).sort()).toEqual(markPaths(blockId, OIL));
-  for (const key of OIL) await expect(checked(page, key)).toHaveAttribute('data-value', 'na');
+  await expect(toast(page)).toContainText('— confirmado');
+  const confirm = await batchOf(page, `suggestion/${suggestions.tipo_de_isolacao}/status`);
+  expect(confirm).toHaveLength(2);
   await expect(missingMarker(page, 'vol_oleo')).toHaveCount(0);
 
-  // "Desfazer": one inverse batch, the 8 results and the insulation to null, the suggestion pending.
+  await chipNamed(page, 8).click();
+  await expect(toast(page)).toContainText('8 itens de óleo marcados NA');
+  for (const key of OIL) await expect(checked(page, key)).toHaveAttribute('data-value', 'na');
+
+  // "Desfazer": one inverse batch, the 8 results to null; the insulation stays EPÓXI.
   await toast(page).getByRole('button', { name: 'Desfazer' }).click();
-  await expect.poll(async () => (await outbox(page)).some((r) => r.path === `suggestion/${suggestions.tipo_de_isolacao}/status` && r.value === 'pending')).toBe(true);
-  const inverse = await batchOf(page, `suggestion/${suggestions.tipo_de_isolacao}/status`);
-  expect(inverse).toHaveLength(2 + 8);
-  expect(inverse.find((r) => r.path === `sheet/${blockId}/nameplate/tipo_de_isolacao`)?.value ?? null).toBeNull();
-  const unmarks = inverse.filter((r) => r.path.includes('/checklist/'));
-  expect(unmarks.map((r) => r.path).sort()).toEqual(markPaths(blockId, OIL));
-  for (const unmark of unmarks) expect(unmark.value ?? null).toBeNull();
-
-  // The field shows the suggestion again, the rows read unset, VOL. ÓLEO is missing again.
-  await expect(fill).toBeVisible();
+  await expect.poll(async () => (await outbox(page)).filter((r) => r.path.endsWith('/valvula_de_alivio/result')).length).toBe(2);
+  const inverse = await batchOf(page, `sheet/${blockId}/checklist/valvula_de_alivio/result`);
+  expect(inverse.map((r) => r.path).sort()).toEqual(markPaths(blockId, OIL));
+  for (const unmark of inverse) expect(unmark.value ?? null).toBeNull();
   for (const key of OIL) await expect(checked(page, key)).toHaveCount(0);
-  await expect(missingMarker(page, 'vol_oleo')).toHaveCount(1);
+  await expect(field(page, 'tipo_de_isolacao').locator('select')).toHaveValue('EPÓXI');
+  await expect(missingMarker(page, 'vol_oleo')).toHaveCount(0);
+  await expect(anyChip(page)).toHaveCount(0);
 
-  // The inverse syncs and is accepted: no outbox row is dead; the state holds after a reload.
+  // The inverse syncs and is accepted: no outbox row is dead; after a reload the chip stays gone.
   await syncNow(page);
   expect((await outbox(page)).filter((r) => r.status === 'dead')).toHaveLength(0);
   await page.goto(`/relatorio/${relatorioId}/ficha/${blockId}`);
-  await expect(field(page, 'tipo_de_isolacao').locator('.field.suggestion-field')).toBeVisible({ timeout: 30_000 });
+  await expect(field(page, 'tipo_de_isolacao').locator('select')).toHaveValue('EPÓXI', { timeout: 30_000 });
   for (const key of OIL) await expect(checked(page, key)).toHaveCount(0);
+  await expect(anyChip(page)).toHaveCount(0);
 });
 
-test('@p0 R8DRY-E2E-003 Á SECO picked by hand marks the seven oil items left NA in one batch with "Desfazer"; the item tapped C before stays C', async ({ page, context }) => {
+test('@p0 R8DRY-E2E-003 Á SECO picked by hand writes the insulation alone; the chip counts seven and never marks the item tapped C before', async ({ page, context }) => {
   test.setTimeout(240_000);
-  const { sheet } = await setUp(page, context, (scope, _s, drafts) => seedCabines(scope, drafts));
+  const { relatorioId, sheet } = await setUp(page, context, (scope, _s, drafts) => seedCabines(scope, drafts));
   const blockId = sheet.blockId;
   await row(page, 'valvula_de_alivio').getByRole('radio', { name: 'Conforme', exact: true }).click();
   await expect(checked(page, 'valvula_de_alivio')).toHaveAttribute('data-value', 'c');
 
   await field(page, 'tipo_de_isolacao').locator('select').selectOption('Á SECO');
-  await expect(toast(page)).toHaveText(/7 itens de óleo marcados NA/);
-  await expect(toast(page).getByRole('button', { name: 'Desfazer' })).toBeVisible();
-  const batch = await batchOf(page, `sheet/${blockId}/nameplate/tipo_de_isolacao`);
-  expect(batch).toHaveLength(1 + 7);
-  expect(batch.find((r) => r.path === `sheet/${blockId}/nameplate/tipo_de_isolacao`)?.value).toBe('Á SECO');
-  expect(batch.filter((r) => r.path.includes('/checklist/')).map((r) => r.path).sort()).toEqual(markPaths(blockId, OIL.slice(1)));
-  expect(batch.some((r) => r.path.includes('/valvula_de_alivio/'))).toBe(false);
+  await expect.poll(async () => (await outbox(page)).some((r) => r.path === `sheet/${blockId}/nameplate/tipo_de_isolacao` && r.value === 'Á SECO')).toBe(true);
+  const pick = await batchOf(page, `sheet/${blockId}/nameplate/tipo_de_isolacao`);
+  expect(pick.map((r) => r.path)).toEqual([`sheet/${blockId}/nameplate/tipo_de_isolacao`]);
   await expect(missingMarker(page, 'vol_oleo')).toHaveCount(0);
 
-  await page.reload();
+  await chipNamed(page, 7).click();
+  await expect(toast(page)).toContainText('7 itens de óleo marcados NA');
+  const marks = await batchOf(page, `sheet/${blockId}/checklist/elemento_secante/result`);
+  expect(marks.map((r) => r.path).sort()).toEqual(markPaths(blockId, OIL.slice(1)));
+  expect(marks.some((r) => r.path.includes('/valvula_de_alivio/'))).toBe(false);
+
+  await toast(page).getByRole('button', { name: 'Desfazer' }).click();
+  for (const key of OIL.slice(1)) await expect(checked(page, key)).toHaveCount(0);
+  await expect(checked(page, 'valvula_de_alivio')).toHaveAttribute('data-value', 'c');
+
+  await page.goto(`/relatorio/${relatorioId}/ficha/${blockId}`);
   await expect(checked(page, 'valvula_de_alivio')).toHaveAttribute('data-value', 'c', { timeout: 30_000 });
-  for (const key of OIL.slice(1)) await expect(checked(page, key)).toHaveAttribute('data-value', 'na');
+  for (const key of OIL.slice(1)) await expect(checked(page, key)).toHaveCount(0);
   await expect(field(page, 'tipo_de_isolacao').locator('select')).toHaveValue('Á SECO');
 });
 
-test('@p1 R8DRY-E2E-004 Á SECO typed over a pending EPÓXI writes the put, the discard and the eight marks in one batch with "Desfazer"', async ({ page, context }) => {
+test('@p1 R8DRY-E2E-004 a TP whose plate is copied with "Igual à ⟨TAG⟩?" from a sheet holding EPÓXI: VOL. ÓLEO is not missing and the chip is offered', async ({ page, context }) => {
   test.setTimeout(240_000);
-  const { sheet, suggestions } = await setUp(page, context, (scope, _s, drafts) => seedCabines(scope, drafts), ['tipo_de_isolacao']);
+  let source: SeededSheet | null = null;
+  const { sheet } = await setUp(
+    page,
+    context,
+    (scope, target, _drafts, sheets) => {
+      source = sheets.find((s) => s.blockType === 'tp' && s.blockId !== target.blockId)!;
+      return [
+        officeDraft(account, scope, `sheet/${source.blockId}/nameplate/fabricacao`, 'WEG'),
+        officeDraft(account, scope, `sheet/${source.blockId}/nameplate/tipo`, 'TPU-15'),
+        officeDraft(account, scope, `sheet/${source.blockId}/nameplate/tipo_de_isolacao`, 'EPÓXI'),
+      ];
+    },
+    [],
+    'tp',
+  );
   const blockId = sheet.blockId;
-  const guess = field(page, 'tipo_de_isolacao').locator('.field.suggestion-field input.sv');
-  await expect(guess).toHaveValue('EPÓXI', { timeout: 30_000 });
-  await guess.fill('Á SECO');
-  await guess.press('Enter');
-  await expect(toast(page)).toHaveText(/8 itens de óleo marcados NA/);
-  await expect(toast(page).getByRole('button', { name: 'Desfazer' })).toBeVisible();
-  const batch = await batchOf(page, `sheet/${blockId}/nameplate/tipo_de_isolacao`);
-  expect(batch).toHaveLength(2 + 8);
-  expect(batch.find((r) => r.path === `sheet/${blockId}/nameplate/tipo_de_isolacao`)?.value).toBe('Á SECO');
-  expect(batch.find((r) => r.path === `suggestion/${suggestions.tipo_de_isolacao}/status`)?.value).toBe('discarded');
-  expect(batch.filter((r) => r.path.includes('/checklist/')).map((r) => r.path).sort()).toEqual(markPaths(blockId, OIL));
+  const from = source!;
+  await expect(missingMarker(page, 'vol_oleo')).toHaveCount(1);
+  await expect(anyChip(page)).toHaveCount(0);
+
+  await page.getByRole('button', { name: `Igual à ${from.tag}?` }).click();
+  await expect.poll(async () => (await outbox(page)).some((r) => r.path === `sheet/${blockId}/nameplate/tipo_de_isolacao` && r.value === 'EPÓXI')).toBe(true);
+  const copy = await batchOf(page, `sheet/${blockId}/nameplate/tipo_de_isolacao`);
+  expect(copy.some((r) => r.path.includes('/checklist/'))).toBe(false);
+  await expect(field(page, 'tipo_de_isolacao').locator('select')).toHaveValue('EPÓXI');
+  await expect(missingMarker(page, 'vol_oleo')).toHaveCount(0);
+  await expect(chipNamed(page, 8)).toBeVisible();
 });
 
-test('@p1 R8DRY-E2E-005 "Confirmar" on EPÓXI with every oil item already answered writes the confirm pair alone: a plain toast, no "Desfazer"', async ({ page, context }) => {
+test('@p1 R8DRY-E2E-005 "Confirmar" on EPÓXI with every oil item already answered: no chip, the confirm pair alone, a plain toast with no "Desfazer"', async ({ page, context }) => {
   test.setTimeout(240_000);
   const { sheet, suggestions } = await setUp(
     page,
@@ -289,6 +315,7 @@ test('@p1 R8DRY-E2E-005 "Confirmar" on EPÓXI with every oil item already answer
   await expect(toast(page).getByRole('button', { name: 'Desfazer' })).toHaveCount(0);
   const batch = await batchOf(page, `sheet/${blockId}/nameplate/tipo_de_isolacao`);
   expect(batch.map((r) => r.path).sort()).toEqual([`sheet/${blockId}/nameplate/tipo_de_isolacao`, `suggestion/${suggestions.tipo_de_isolacao}/status`].sort());
-  expect(batch.some((r) => r.path.includes('/checklist/'))).toBe(false);
+  await expect(field(page, 'tipo_de_isolacao').locator('select')).toHaveValue('EPÓXI');
+  await expect(anyChip(page)).toHaveCount(0);
   for (const key of OIL) await expect(checked(page, key)).toHaveAttribute('data-value', 'c');
 });

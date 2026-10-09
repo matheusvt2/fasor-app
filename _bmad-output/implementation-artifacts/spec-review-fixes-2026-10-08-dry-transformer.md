@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: a dry transformer can be concluded (one tap marks the oil items NA)'
 type: 'feature'
 created: '2026-10-08'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'f0adf337eda97a933a3881f29281dfd32be94141'
 amendment_baseline: '8e3761a' # merge of origin/main f057f9b (#119) before the 2026-10-09 amendment
 review_loop_iteration: 0

@@ -7,10 +7,8 @@ import {
   criarAnnouncement,
   criarText,
   discardSuggestionOp,
-  dryInsulationNaItems,
   fieldInputText,
   hasCreateHint,
-  isInsulationTarget,
   nameplateSuggestions,
   numberPhotos,
   parseFieldInput,
@@ -25,8 +23,6 @@ import {
   singleSourcePhotoId,
   suggestionValueText,
   unknownManufacturer,
-  withOilItemsNaText,
-  oilItemsNaText,
   type BlockRow,
   type EntityState,
   type FieldDef,
@@ -48,7 +44,7 @@ import { removePhoto, restorePhoto } from '../photos/photo-ops.ts';
 import { PhotoViewer } from '../photos/photo-viewer.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { firstFocusable, PLAIN_TEXT } from './ficha-fields.tsx';
-import { checklistResultOp, createWordOp, nameplateOp } from './ficha-ops.ts';
+import { createWordOp, nameplateOp } from './ficha-ops.ts';
 import { now } from '../../clock.ts';
 import { newId } from '../../ids.ts';
 
@@ -74,11 +70,6 @@ import { newId } from '../../ids.ts';
  * Review 2026-10-08 (DG-2): the replace line also offers "Manter o digitado", one tap that
  * discards the suggestion and keeps the typed value (a plate read by eye in a dark cubicle
  * must not be forced to take the AI's value).
- *
- * Review 2026-10-08, Decision 2 (H-4, MKT-7): a TIPO DE ISOLAÇÃO of EPÓXI or Á SECO written by
- * "Confirmar", "Substituir", "Confirmar todos" or a value typed over the guess carries, in the
- * same batch, the NA marks the kernel names on the fresh block (`dryInsulationNaItems`); the
- * confirmation then offers "Desfazer" and names the marks (`withOilItemsNaText`).
  */
 
 export type SuggestionCrop = Pick<SuggestionRow, 'source'>;
@@ -196,35 +187,23 @@ export function useNameplateSuggestions({
   const counts = useMemo(() => suggestionGroupCounts(block, pending, registry), [block, pending, registry]);
   const createsEntry = (s: SuggestionRow) => hasCreateHint(s, registry);
 
-  /** A confirmation said: a plain toast, or (Decision 2: oil items marked NA) one with "Desfazer" for its batch. */
-  const confirmed = (text: string, undoBatch: string | null = null) => {
-    if (undoBatch === null) showToast(text);
-    else api.undoable(text, undoBatch);
+  const confirmed = (text: string) => {
+    showToast(text);
     api.announce(text);
   };
   // F-25: a confirmation is said once the fields it confirmed are drawn confirmed (their
   // suggestions no longer pending on this device), never while a pill still shows.
-  const [saying, setSaying] = useState<readonly { ids: readonly string[]; text: string; undoBatch: string | null }[]>([]);
-  const sayWhenDrawn = (ids: readonly string[], text: string, undoBatch: string | null = null) => setSaying((current) => [...current, { ids, text, undoBatch }]);
+  const [saying, setSaying] = useState<readonly { ids: readonly string[]; text: string }[]>([]);
+  const sayWhenDrawn = (ids: readonly string[], text: string) => setSaying((current) => [...current, { ids, text }]);
   useEffect(() => {
     if (saying.length === 0) return;
     const waiting = new Set(pending.map((row) => row.id));
     const drawn = saying.filter((entry) => entry.ids.every((id) => !waiting.has(id)));
     if (drawn.length === 0) return;
     setSaying((current) => current.filter((entry) => !drawn.includes(entry)));
-    for (const entry of drawn) confirmed(entry.text, entry.undoBatch);
+    for (const entry of drawn) confirmed(entry.text);
     // `confirmed` reads the latest toast and announcer; the pending rows and the queue decide.
   }, [pending, saying]);
-
-  /**
-   * Decision 2: the NA puts a write of `value` into `s`'s target carries: on this block's
-   * TIPO DE ISOLAÇÃO only, the oil items the kernel names on the fresh block (`fresh`, read
-   * inside the edit, so a C tapped a moment ago is seen).
-   */
-  const oilMarks = (fresh: BlockRow | undefined, s: Pick<SuggestionRow, 'target_path'>, value: unknown, by: NonNullable<FichaApi['author']>) =>
-    fresh === undefined || !isInsulationTarget(block.id, s.target_path)
-      ? []
-      : dryInsulationNaItems(fresh, value).map((itemKey) => checklistResultOp(by, api.relatorioId, block.id, itemKey, 'NA'));
 
   // A second tap before the first confirm has landed (and the registry query caught up) writes
   // nothing: "Criar Celtta?" tapped twice never creates two manufacturers.
@@ -234,16 +213,11 @@ export function useNameplateSuggestions({
     inFlight.current.add(s.id);
     const text = confirmedFieldToastText(screenLabel(field.label), suggestionValueText(field, s.value));
     const hint = hasCreateHint(s, registry) ? s.hint!.create_registry_entry : null;
-    let marked = 0;
     void api
-      // "Criar Celtta?": the registry row and the confirm pair, one batch; a dry insulation's oil marks with them.
-      .edit((blocks, by) => {
-        const marks = oilMarks(blocks.find((row) => row.id === block.id), s, s.value, by);
-        marked = marks.length;
-        return [...(hint === null ? [] : [createWordOp(by, hint.kind, newId(), hint.name)]), ...confirmSuggestionOps(by, s), ...marks];
-      })
+      // "Criar Celtta?": the registry row and the confirm pair, one batch.
+      .edit((_blocks, by) => (hint === null ? confirmSuggestionOps(by, s) : [createWordOp(by, hint.kind, newId(), hint.name), ...confirmSuggestionOps(by, s)]))
       .then((batch) => {
-        if (batch !== null) sayWhenDrawn([s.id], withOilItemsNaText(text, marked), marked > 0 ? batch : null);
+        if (batch !== null) sayWhenDrawn([s.id], text);
       })
       .catch(() => undefined)
       .finally(() => inFlight.current.delete(s.id));
@@ -253,7 +227,6 @@ export function useNameplateSuggestions({
     let done = 0;
     let skipped = 0;
     let ids: string[] = [];
-    let marked = 0;
     void api
       .edit((blocks, by) => {
         // The freshest sheet decides: a field typed a moment ago is no longer a fill.
@@ -262,14 +235,10 @@ export function useNameplateSuggestions({
         done = picked.length;
         skipped = suggestionGroupCounts(fresh, pending, registry).verify;
         ids = picked.map((s) => s.id);
-        if (picked.length === 0) return null;
-        // Decision 2: the insulation among the picked carries its oil marks into the same batch.
-        const marks = picked.flatMap((s) => oilMarks(fresh, s, s.value, by));
-        marked = marks.length;
-        return [...picked.flatMap((s) => confirmSuggestionOps(by, s)), ...marks];
+        return picked.length === 0 ? null : picked.flatMap((s) => confirmSuggestionOps(by, s));
       })
       .then((batch) => {
-        if (batch !== null) sayWhenDrawn(ids, withOilItemsNaText(confirmedAllToastText(done, skipped), marked), marked > 0 ? batch : null);
+        if (batch !== null) sayWhenDrawn(ids, confirmedAllToastText(done, skipped));
       })
       .catch(() => undefined);
   };
@@ -282,24 +251,17 @@ export function useNameplateSuggestions({
     const value = parsed.value;
     // A manufacturer the registry does not hold is created with the typed put (one batch).
     const create = unknownManufacturer(field, value, registry);
-    let marked = 0;
     return api
-      .edit((blocks, by) => {
-        if (value === null) return [discardSuggestionOp(by, s)];
-        // Decision 2: a dry insulation typed over the guess carries its oil marks.
-        const marks = oilMarks(blocks.find((row) => row.id === block.id), s, value, by);
-        marked = marks.length;
-        return [
-          ...(create ? [createWordOp(by, 'manufacturer', newId(), value as string)] : []),
-          nameplateOp(by, api.relatorioId, block.id, field.key, value),
-          discardSuggestionOp(by, s),
-          ...marks,
-        ];
-      })
-      .then((batch) => {
-        if (batch !== null && marked > 0) api.undoable(oilItemsNaText(marked), batch);
-        return batch !== null;
-      })
+      .edit((_blocks, by) =>
+        value === null
+          ? [discardSuggestionOp(by, s)]
+          : [
+              ...(create ? [createWordOp(by, 'manufacturer', newId(), value as string)] : []),
+              nameplateOp(by, api.relatorioId, block.id, field.key, value),
+              discardSuggestionOp(by, s),
+            ],
+      )
+      .then((batch) => batch !== null)
       .catch(() => false);
   };
 

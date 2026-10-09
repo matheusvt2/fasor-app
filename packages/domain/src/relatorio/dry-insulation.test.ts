@@ -8,21 +8,21 @@ import { defaultBlockConfig } from '../seed/template.ts';
 import { opFactory } from '../test-support.ts';
 import {
   drySubtypeOfInsulation,
-  dryInsulationNaItems,
   INSULATION_FIELD_KEY,
   isDryBlock,
-  isInsulationTarget,
   nameplateMissingKeys,
   OIL_VOLUME_FIELD_KEY,
   oilItemsNaText,
-  withOilItemsNaText,
+  oilNaChipItems,
+  oilNaChipText,
 } from './dry-insulation.ts';
 import { sheetProgress } from './sheet-progress.ts';
 
 /*
- * Review 2026-10-08, Decision 2 (H-4, MKT-7): a dry transformador de força, TP or TC with no
- * subtype marks its oil items NA when its TIPO DE ISOLAÇÃO is confirmed dry, and VOL. ÓLEO
- * stops counting as missing on a dry block.
+ * Review 2026-10-08, Decision 2 (H-4, MKT-7), amended 2026-10-09: a dry transformador de força,
+ * TP or TC with no subtype offers the chip "Marcar N itens de óleo como NA" while its stored
+ * TIPO DE ISOLAÇÃO is dry, whatever wrote it, and VOL. ÓLEO stops counting as missing on a dry
+ * block.
  */
 
 const ID = '019966b0-d0a1-7000-8000-000000000001';
@@ -98,54 +98,68 @@ describe('drySubtypeOfInsulation', () => {
   });
 });
 
-describe('dryInsulationNaItems', () => {
-  it.each(TRANSFORMERS)('marks the eight oil items, in checklist order, on a fresh %s with no subtype', (type) => {
-    const b = block(type);
-    expect(dryInsulationNaItems(b, 'EPÓXI')).toEqual(OIL);
-    expect(dryInsulationNaItems(b, 'Á SECO')).toEqual(OIL);
+/** The block's stored insulation, as any path writes it (a copy chip's cell carries no `source_suggestion_id`). */
+const insulated = (value: unknown, sheet: Partial<Sheet> = {}): Partial<Sheet> => ({ ...sheet, nameplate: { [INSULATION_FIELD_KEY]: cell(value) } });
+const unused = { used: false };
+
+describe('oilNaChipItems', () => {
+  it.each(TRANSFORMERS)('offers the eight oil items, in checklist order, on %s with a stored EPÓXI or Á SECO and no subtype', (type) => {
+    expect(oilNaChipItems(block(type, insulated('EPÓXI')), unused)).toEqual(OIL);
+    expect(oilNaChipItems(block(type, insulated('Á SECO')), unused)).toEqual(OIL);
   });
 
-  it.each(TRANSFORMERS)('never writes over an answered item on %s (C, NC or NA), but does over a cleared one', (type) => {
-    const b = block(type, {
-      checklist: {
-        valvula_de_alivio: { result: cell('C') },
-        elemento_secante: { result: cell('NC') },
-        termometro: { result: cell('NA') },
-        registros_radiadores: { result: cell(null) },
-        ventiladores: { result: cell('C') },
-      },
-    });
-    expect(dryInsulationNaItems(b, 'EPÓXI')).toEqual(OIL.filter((key) => !['valvula_de_alivio', 'elemento_secante', 'termometro'].includes(key)));
+  it('whatever wrote the insulation: a confirmed cell and a copied one offer the same', () => {
+    const confirmed = block('tp', { nameplate: { [INSULATION_FIELD_KEY]: { ...cell('EPÓXI'), source_suggestion_id: OP } } });
+    expect(oilNaChipItems(confirmed, unused)).toEqual(OIL);
+    expect(oilNaChipItems(block('tp', insulated('EPÓXI')), unused)).toEqual(OIL);
   });
 
-  it('marks nothing once every oil item is answered', () => {
-    const b = block('transformador_forca', { checklist: Object.fromEntries(OIL.map((key) => [key, { result: cell('C') }])) });
-    expect(dryInsulationNaItems(b, 'EPÓXI')).toEqual([]);
+  it.each(TRANSFORMERS)('never counts an answered item on %s (C, NC or NA), but counts a cleared one', (type) => {
+    const b = block(
+      type,
+      insulated('EPÓXI', {
+        checklist: {
+          valvula_de_alivio: { result: cell('C') },
+          elemento_secante: { result: cell('NC') },
+          termometro: { result: cell('NA') },
+          registros_radiadores: { result: cell(null) },
+          ventiladores: { result: cell('C') },
+        },
+      }),
+    );
+    expect(oilNaChipItems(b, unused)).toEqual(OIL.filter((key) => !['valvula_de_alivio', 'elemento_secante', 'termometro'].includes(key)));
   });
 
-  it.each(TRANSFORMERS)('marks nothing on %s for a value that is not dry or cleared', (type) => {
-    const b = block(type);
-    for (const value of [null, '', 'ÓLEO MINERAL']) expect(dryInsulationNaItems(b, value)).toEqual([]);
+  it('offers nothing once every oil item is answered', () => {
+    const b = block('transformador_forca', insulated('EPÓXI', { checklist: Object.fromEntries(OIL.map((key) => [key, { result: cell('C') }])) }));
+    expect(oilNaChipItems(b, unused)).toEqual([]);
   });
 
-  it.each(TRANSFORMERS)('marks nothing on %s with a subtype (its na_defaults already display NA)', (type) => {
-    expect(dryInsulationNaItems(block(type, {}, { subtype: 'epoxi' }), 'EPÓXI')).toEqual([]);
-    expect(dryInsulationNaItems(block(type, {}, { subtype: 'a_seco' }), 'EPÓXI')).toEqual([]);
+  it('offers nothing once used on this block (the device flag)', () => {
+    expect(oilNaChipItems(block('tc', insulated('Á SECO')), { used: true })).toEqual([]);
   });
 
-  it('reads the checklist switch through enabledSubBlocksOf: the checklist is locked on, so a switched-off entry still marks', () => {
-    // `enabledSubBlocks` keeps `checklist` on for every equipment block whatever its entry says
-    // (Verificações always shows), so the items the rows display as unset are the ones marked.
-    expect(dryInsulationNaItems(block('transformador_forca', {}, { checklistOff: true }), 'EPÓXI')).toEqual(OIL);
+  it.each(TRANSFORMERS)('offers nothing on %s whose stored insulation is not dry, empty or cleared', (type) => {
+    expect(oilNaChipItems(block(type), unused)).toEqual([]);
+    for (const value of [null, '', 'ÓLEO MINERAL']) expect(oilNaChipItems(block(type, insulated(value)), unused)).toEqual([]);
   });
 
-  it('marks nothing on a block type without TIPO DE ISOLAÇÃO', () => {
-    expect(dryInsulationNaItems(block('disjuntor_mt'), 'EPÓXI')).toEqual([]);
-    expect(dryInsulationNaItems(block('chave_seccionadora'), 'Á SECO')).toEqual([]);
+  it.each(TRANSFORMERS)('offers nothing on %s with a subtype (its na_defaults already display NA)', (type) => {
+    expect(oilNaChipItems(block(type, insulated('EPÓXI'), { subtype: 'epoxi' }), unused)).toEqual([]);
+    expect(oilNaChipItems(block(type, insulated('EPÓXI'), { subtype: 'a_seco' }), unused)).toEqual([]);
+  });
+
+  it('a config claiming the checklist off still offers: the checklist is a locked sub-block', () => {
+    expect(oilNaChipItems(block('transformador_forca', insulated('EPÓXI'), { checklistOff: true }), unused)).toEqual(OIL);
+  });
+
+  it('offers nothing on a block type without TIPO DE ISOLAÇÃO', () => {
+    expect(oilNaChipItems(block('disjuntor_mt', insulated('EPÓXI')), unused)).toEqual([]);
+    expect(oilNaChipItems(block('chave_seccionadora', insulated('Á SECO')), unused)).toEqual([]);
   });
 });
 
-describe('isDryBlock and isInsulationTarget', () => {
+describe('isDryBlock', () => {
   it('reads the dry subtype or the stored insulation', () => {
     expect(isDryBlock(block('tp'))).toBe(false);
     expect(isDryBlock(block('tp', {}, { subtype: 'epoxi' }))).toBe(true);
@@ -153,12 +167,6 @@ describe('isDryBlock and isInsulationTarget', () => {
     expect(isDryBlock(block('transformador_forca', { nameplate: { [INSULATION_FIELD_KEY]: cell('Á SECO') } }))).toBe(true);
     expect(isDryBlock(block('transformador_forca', { nameplate: { [INSULATION_FIELD_KEY]: cell(null) } }))).toBe(false);
     expect(isDryBlock(block('transformador_forca', { nameplate: { [INSULATION_FIELD_KEY]: cell('OUTRO') } }))).toBe(false);
-  });
-
-  it("names this block's insulation path only", () => {
-    expect(isInsulationTarget(ID, `sheet/${ID}/nameplate/${INSULATION_FIELD_KEY}`)).toBe(true);
-    expect(isInsulationTarget(ID, `sheet/${ID}/nameplate/${OIL_VOLUME_FIELD_KEY}`)).toBe(false);
-    expect(isInsulationTarget(ID, `sheet/${OP}/nameplate/${INSULATION_FIELD_KEY}`)).toBe(false);
   });
 });
 
@@ -203,12 +211,11 @@ describe('nameplateMissingKeys', () => {
 });
 
 describe('the texts', () => {
-  it('counts the oil items marked NA', () => {
+  it('names the chip and counts the oil items marked NA', () => {
+    expect(oilNaChipText(1)).toBe('Marcar 1 item de óleo como NA');
+    expect(oilNaChipText(8)).toBe('Marcar 8 itens de óleo como NA');
     expect(oilItemsNaText(1)).toBe('1 item de óleo marcado NA');
-    expect(oilItemsNaText(8)).toBe('8 itens de óleo marcados NA');
-    expect(withOilItemsNaText('Tipo de isolação: EPÓXI — confirmado', 8)).toBe('Tipo de isolação: EPÓXI — confirmado · 8 itens de óleo marcados NA');
-    expect(withOilItemsNaText('9 campos confirmados', 7)).toBe('9 campos confirmados · 7 itens de óleo marcados NA');
-    expect(withOilItemsNaText('9 campos confirmados', 0)).toBe('9 campos confirmados');
+    expect(oilItemsNaText(7)).toBe('7 itens de óleo marcados NA');
   });
 });
 

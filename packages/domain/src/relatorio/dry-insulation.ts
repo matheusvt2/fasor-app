@@ -1,4 +1,3 @@
-import { sheetNameplatePath } from '../ops/path.ts';
 import type { BlockRow, EquipmentRow } from '../schemas/entities.ts';
 import { findDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition, SubtypeDef } from '../seed/schema.ts';
@@ -8,18 +7,21 @@ import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 
 /*
  * Review 2026-10-08, Decision 2 (`source-deltas.md` row "Story 3.5 and FR-11", findings H-4
- * and MKT-7): a dry transformador de força, TP or TC whose template carries no subtype.
+ * and MKT-7), amended 2026-10-09 (Matheus): a dry transformador de força, TP or TC whose
+ * template carries no subtype.
  *
- * - Confirming a nameplate TIPO DE ISOLAÇÃO of EPÓXI or Á SECO on a block with no subtype
- *   writes, in the same batch, the matching dry subtype's `na_defaults` as NA result cells on
- *   the oil items that have no value yet (`dryInsulationNaItems`). The items are the block's
- *   own seed definition's (`subtypes[*].na_defaults` of the subtype whose label is the value),
- *   never a second list. A cell holding C, NC or NA is never written; a cleared one is.
+ * - A block with no subtype whose stored TIPO DE ISOLAÇÃO is EPÓXI or Á SECO, whatever wrote
+ *   it, offers one chip, "Marcar N itens de óleo como NA" (`oilNaChipItems`, `oilNaChipText`),
+ *   while at least one of the dry subtype's oil items has no value yet and the chip was not
+ *   used on this block on this device. Confirming the insulation writes no mark by itself (seed
+ *   v1 offers no oil option, so an oil-filled unit is forced to pick a dry value). The items
+ *   are the block's own seed definition's (`subtypes[*].na_defaults` of the subtype whose label
+ *   is the value), never a second list; a cell holding C, NC or NA is never counted.
  * - VOL. ÓLEO stops counting as a missing nameplate field on a block whose subtype is dry or
  *   whose stored insulation is dry (`nameplateMissingKeys`, the one "missing" rule of the
  *   plate: `sheetProgress` and the field's missing marker both read it).
- * No marks on a block that has a subtype (its `na_defaults` already display NA), whose
- * checklist sub-block is disabled, or whose type has no TIPO DE ISOLAÇÃO.
+ * No chip on a block that has a subtype (its `na_defaults` already display NA) or whose type has
+ * no TIPO DE ISOLAÇÃO. The checklist is a locked sub-block, so its switch is never read here.
  */
 
 /** The nameplate field that names the insulation (`TIPO DE ISOLAÇÃO`, seed v1). */
@@ -64,25 +66,23 @@ export function isDryBlock(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_vers
 }
 
 /**
- * The oil items to mark NA when TIPO DE ISOLAÇÃO is set to `value` on `block` (read fresh,
- * inside the edit), in the definition's checklist order: the dry subtype's `na_defaults`
- * whose result cell is not filled. Empty when the value is not dry, the block has a subtype,
- * its checklist is disabled or its type has no TIPO DE ISOLAÇÃO.
+ * The oil items the chip "Marcar N itens de óleo como NA" would mark on `block` (read fresh,
+ * inside the edit, when it is tapped), in the definition's checklist order: the dry subtype's
+ * `na_defaults` whose result cell is not filled, on a block with no subtype whose stored TIPO
+ * DE ISOLAÇÃO is dry. Empty once `used` (the device flag of this block), and when the stored
+ * insulation is not dry, the block has a subtype or its type has no TIPO DE ISOLAÇÃO. The chip
+ * shows while this is non-empty.
  */
-export function dryInsulationNaItems(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>, value: unknown): string[] {
-  if (subtypeOf(block) !== null) return [];
-  if (!enabledSubBlocksOf(block).has('checklist')) return [];
+export function oilNaChipItems(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>, options: { used: boolean }): string[] {
+  if (options.used || subtypeOf(block) !== null) return [];
   const definition = definitionOf(block);
   if (definition === null || definition.checklist === null) return [];
-  const subtype = drySubtypeOfInsulation(definition, value);
+  const cell = block.sheet.nameplate[INSULATION_FIELD_KEY];
+  if (!isCellFilled(cell)) return [];
+  const subtype = drySubtypeOfInsulation(definition, cell!.value);
   if (subtype === null) return [];
   const marks = new Set<string>(subtype.na_defaults);
   return definition.checklist.filter((item) => marks.has(item.key) && !isCellFilled(block.sheet.checklist[item.key]?.result)).map((item) => item.key);
-}
-
-/** Whether a suggestion's `target_path` is this block's TIPO DE ISOLAÇÃO cell. */
-export function isInsulationTarget(blockId: string, targetPath: string): boolean {
-  return targetPath === sheetNameplatePath(blockId, INSULATION_FIELD_KEY);
 }
 
 /**
@@ -113,14 +113,14 @@ export function nameplateMissingKeys(
 
 // --- the texts ---------------------------------------------------------------------------
 
-// authored: the count of oil items a dry insulation marked NA (review 2026-10-08, Decision 2).
+// authored: the undo toast of the chip, the count of oil items it marked NA (review 2026-10-08, Decision 2).
 /** "1 item de óleo marcado NA", "8 itens de óleo marcados NA". */
 export function oilItemsNaText(n: number): string {
   return plural(n, 'item de óleo marcado NA', 'itens de óleo marcados NA');
 }
 
-// authored: a confirmation toast followed by its oil marks, "… — confirmado · 8 itens de óleo marcados NA".
-/** `text` with the oil marks appended (`text · 8 itens de óleo marcados NA`); `text` unchanged for 0. */
-export function withOilItemsNaText(text: string, n: number): string {
-  return n === 0 ? text : `${text} · ${oilItemsNaText(n)}`;
+// authored: the chip under TIPO DE ISOLAÇÃO on a dry block (amendment 2026-10-09).
+/** "Marcar 1 item de óleo como NA", "Marcar 8 itens de óleo como NA". */
+export function oilNaChipText(n: number): string {
+  return `Marcar ${plural(n, 'item de óleo', 'itens de óleo')} como NA`;
 }
