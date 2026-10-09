@@ -1576,3 +1576,23 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `e2e/review-layout-interaction-2026-10-08.spec.ts` R8LAY-E2E-001 and -009 (column widths: TAP 44, V primário 210, V secundário 210, Calculado 113, captures 199/199/168, Condição 80; TP: 68, 210, 210, 127, 168, 162); `components.css` `.overflow-trigger`, `.mf-unit` (`min-width: var(--touch-min)`); `tokens.css` `--content-max: 880px`.
   class: debt
   state: open (owner: coordinator, decision by Matheus and Bruno)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-dry-transformer.md` (r8dry, Decision 2)
+  summary: `conclusion.ts` `anyAnswered` counts any filled checklist result as an answer, so the oil items a dry TIPO DE ISOLAÇÃO marks NA count too: a no-subtype transformer whose only answers are those eight NA marks offers the amber conclusion pair as if the engineer had checked something. Whether a dry-insulation mark (or any NA) should count as an answer there is r8conc's file and call.
+  evidence: `packages/domain/src/relatorio/conclusion.ts:66` (`anyAnswered`); `packages/domain/src/relatorio/dry-insulation.ts` `dryInsulationNaItems`; marks written by `apps/web/src/surfaces/ficha/{nameplate-section.tsx,nameplate-suggestions.tsx}`.
+  class: debt
+  state: ~~open (owner: coordinator)~~ resolved 2026-10-09 (Matheus's amendment of Decision 2): the NA marks are now written only by the engineer's own tap on the chip "Marcar N itens de óleo como NA" (`oilNaChipItems`), so they are an answer and `anyAnswered` counting them is right; `dryInsulationNaItems` no longer exists.
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-dry-transformer.md` (r8dry, open question 1)
+  summary: Open question for Matheus and Bruno: should a copy chip ("Igual à ⟨TAG⟩?", "Copiar da última visita") that writes a dry TIPO DE ISOLAÇÃO also write the oil items' NA marks? Kept conservative: today only "Confirmar", "Substituir", "Confirmar todos", a value typed over the suggestion and the select picked by hand write them; the copy chips, the device auto-confirm sweep and another device's put do not. VOL. ÓLEO stops counting as missing whatever wrote the dry value.
+  evidence: `apps/web/src/surfaces/ficha/nameplate-section.tsx` `copyFrom`, `copySame`; `apps/web/src/db/suggestion-store.ts` (auto-confirm); `packages/domain/src/relatorio/dry-insulation.ts` `nameplateMissingKeys`.
+  class: question
+  state: ~~open (owner: coordinator)~~ resolved 2026-10-09 (Matheus's amendment of Decision 2): no write path marks anything by itself; the chip follows the stored value, so a copy chip, the auto-confirm sweep or another device's put offer the same chip as a confirm (R8DRY-E2E-004).
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-dry-transformer.md` (r8dry, amendment 2026-10-09; independent review of PR #120 r8dry-decision-1)
+  summary: Seed v1 offers TIPO DE ISOLAÇÃO only EPÓXI and Á SECO and the field is required, so an oil-filled unit must pick a dry value (and is then offered the oil NA chip and loses VOL. ÓLEO as a required field). An oil option waits for a new seed version.
+  evidence: `packages/domain/src/seed/v1.ts:42`; source-deltas row "Story 3.5 and FR-11", amended 2026-10-09; spec frontmatter `deferred`.
+  class: debt
+  state: open (owner: Matheus and Bruno)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-dry-transformer.md` (r8dry, amendment 2026-10-09; independent review r8dry-decision-3)
+  summary: Clearing or changing TIPO DE ISOLAÇÃO after the chip wrote the NA marks keeps those marks (the chip goes away and VOL. ÓLEO counts again). Whether clearing should offer to unmark them is an open question for Matheus.
+  evidence: `packages/domain/src/relatorio/dry-insulation.ts` `oilNaChipItems`, `nameplateMissingKeys`; `apps/web/src/surfaces/ficha/nameplate-section.tsx` `markOilItemsNa`; spec frontmatter `deferred`.
+  class: question
+  state: open (owner: Matheus)

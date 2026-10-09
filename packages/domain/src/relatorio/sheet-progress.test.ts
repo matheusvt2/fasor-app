@@ -340,3 +340,52 @@ describe('E12-A7 shownSheetSteps: the steps whose sub-block is enabled', () => {
     expect(sheetSummaryText(progressOf(b))).toMatch(/^Placa pronta/);
   });
 });
+
+describe('review 2026-10-08 Decision 2: VOL. ÓLEO on a dry transformador de força', () => {
+  const TF = getDefinition('v1', 'cabine_primaria', 'transformador_forca');
+  const tf = (sheet: Partial<Sheet>, subtype?: 'epoxi' | 'a_seco') =>
+    block(sheet, { block_type: 'transformador_forca', config: defaultBlockConfig('v1', 'transformador_forca', subtype === undefined ? {} : { subtype }) });
+  const plateWithout = (insulation: string | null): Sheet['nameplate'] =>
+    Object.fromEntries(
+      TF.nameplate
+        .filter((field) => field.key !== 'vol_oleo' && !(field.key === 'tipo_de_isolacao' && insulation === null))
+        .map((field) => [
+          field.key,
+          cell(field.key === 'tipo_de_isolacao' ? insulation : field.kind === 'number' ? { raw: '13.8', unit: field.unit ?? null, state: 'measured' } : 'X'),
+        ]),
+    );
+  const fullTests = (): Sheet['test'] => {
+    const out: Sheet['test'] = {};
+    for (const test of TF.tests) {
+      const cells: Record<string, Record<string, Cell>> = {};
+      for (const a of cellAddressesOf(TF, test.key as TestKey)) {
+        cells[String(a.row)] = { ...cells[String(a.row)], [String(a.col)]: cell({ raw: '100', unit: null, state: 'measured' }) };
+      }
+      out[test.key] = { cells };
+    }
+    return out;
+  };
+  const allTf = (value: 'C'): Sheet['checklist'] => Object.fromEntries(TF.checklist!.map((item) => [item.key, { result: cell(value) }]));
+
+  it('Placa is 0 with VOL. ÓLEO empty once the stored insulation is EPÓXI or Á SECO, or the subtype is dry', () => {
+    expect(progressOf(tf({ nameplate: plateWithout('EPÓXI') })).steps.placa.missing).toBe(0);
+    expect(progressOf(tf({ nameplate: plateWithout('Á SECO') })).steps.placa.missing).toBe(0);
+    expect(progressOf(tf({ nameplate: plateWithout(null) }, 'a_seco')).steps.placa.missing).toBe(1);
+    expect(progressOf(tf({ nameplate: plateWithout('EPÓXI') }, 'epoxi')).steps.placa.missing).toBe(0);
+  });
+
+  it('without either, VOL. ÓLEO counts as before', () => {
+    expect(progressOf(tf({ nameplate: plateWithout(null) })).steps.placa.missing).toBe(2);
+  });
+
+  it('the header sentence reads the plate ready and the sheet completes with VOL. ÓLEO empty', () => {
+    const b = tf({ nameplate: plateWithout('EPÓXI'), checklist: allTf('C'), conclusion: PAIR });
+    const partial = progressOf(b);
+    expect(sheetSummaryText(partial)).toMatch(/^Placa, verificações e conclusão prontas · faltam \d+ leituras$/);
+    const p = progressOf(tf({ nameplate: plateWithout('EPÓXI'), checklist: allTf('C'), test: fullTests(), conclusion: PAIR }));
+    expect(p.steps.placa.missing).toBe(0);
+    expect(p.steps.ensaios.missing).toBe(0);
+    expect(p.complete).toBe(true);
+    expect(sheetSummaryText(p)).toBe('Ficha completa');
+  });
+});

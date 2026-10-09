@@ -1,11 +1,15 @@
 import {
   camposCopiadosText,
   discardSuggestionOp,
-  isCellFilled,
+  INSULATION_FIELD_KEY,
   lastNameplateCopy,
+  nameplateMissingKeys,
   nameplateCopyFields,
   nameplateIsEmpty,
   nameplateTagPrefill,
+  oilItemsNaText,
+  oilNaChipItems,
+  oilNaChipText,
   PLATE_CAPTION,
   plateCropRegion,
   platePhotoOf,
@@ -29,14 +33,15 @@ import { useId, useMemo, useRef, useState, type FocusEvent } from 'react';
 import { Chip } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
-import { writeReadingCancelled } from '../../db/prefs.ts';
+import { useLiveQuery } from '../../db/live.ts';
+import { readOilNaUsed, writeOilNaUsed, writeReadingCancelled } from '../../db/prefs.ts';
 import { discardCancelledReadings } from '../../db/suggestion-store.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
 import { requestSyncCycle } from '../../state/sync.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { firstFocusable, ReadOnlyField, SheetField } from './ficha-fields.tsx';
-import { createWordOp, nameplateOp } from './ficha-ops.ts';
+import { checklistResultOp, createWordOp, nameplateOp } from './ficha-ops.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { NameplateField, ReplaceLine, SuggestionFill, SuggestionGroupHead, useNameplateSuggestions } from './nameplate-suggestions.tsx';
 import { useAiFeatures } from '../../state/ai-features.tsx';
@@ -70,6 +75,13 @@ import type { CaptureTarget } from './use-photo-capture.ts';
  * becomes the plate photo and the older plate photos' readings are cancelled on this device,
  * so whatever they bring, now or later, is discarded (CAPT-V1). A typed value that changes a
  * field under a replace line discards that suggestion in the same batch (DG-2).
+ *
+ * Review 2026-10-08, Decision 2 (H-4, MKT-7), amended 2026-10-09: a field's missing marker
+ * and "Preencher manualmente" read the kernel's `nameplateMissingKeys` (VOL. ÓLEO is not
+ * missing on a dry block). Under a dry TIPO DE ISOLAÇÃO, however it was written, the chip
+ * "Marcar N itens de óleo como NA" (`oilNaChipItems`) writes the NA marks of the oil items the
+ * fresh block still leaves unanswered, one batch with "Desfazer"; once used it is not offered
+ * again on this device (`oil_na_used:{block}`). No other write marks anything.
  */
 export function NameplateSection({
   api,
@@ -118,6 +130,10 @@ export function NameplateSection({
   const plateCancelled = useReadingCancelled(plate?.id ?? '');
   const region = plate === null || view !== 'ready' ? null : plateCropRegion(suggestions.pending, plate.id);
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
+  // Decision 2 (2026-10-09): the oil NA chip was used on this block here (the device flag, or
+  // a tap in flight); null while the flag is being read, when the chip waits.
+  const oilNaUsed = useLiveQuery(() => (db === null ? Promise.resolve(false) : readOilNaUsed(db, block.id)), [db, block.id], null);
+  const [oilNaTapped, setOilNaTapped] = useState(false);
   if (definition.nameplate.length === 0) return null;
   const grouped = !readOnly && suggestions.counts.fills > 0;
 
@@ -126,6 +142,8 @@ export function NameplateSection({
   const same = empty && !readOnly ? suggestNameplateCopy({ blocks: snapshot.blocks, equipment }, block.id) : null;
   const lastVisit = empty && !readOnly && own?.last_nameplate != null ? lastNameplateCopy(own, definition) : [];
   const tagPrefill = nameplateTagPrefill({ blocks: snapshot.blocks, equipment }, block.id);
+  const missingKeys = nameplateMissingKeys({ blocks: snapshot.blocks, equipment }, block.id);
+  const oilNaItems = readOnly ? [] : oilNaChipItems(block, { used: oilNaTapped || oilNaUsed !== false });
 
   function copyFrom(fields: readonly { fieldKey: string; value: unknown }[], toast: (n: number) => string): void {
     if (fields.length === 0) return;
@@ -200,8 +218,8 @@ export function NameplateSection({
   /** "Preencher manualmente": the first empty field of the plate takes the focus. */
   const fillManually = () => {
     // Every field filled: the first one (the engineer is taken to the plate either way).
-    const key =
-      definition.nameplate.find((field) => !isCellFilled(block.sheet.nameplate[field.key]) && !(field.key === 'tag' && tagPrefill !== null))?.key ?? definition.nameplate[0]?.key;
+    // The kernel's missing set (Decision 2: VOL. ÓLEO is not missing on a dry block).
+    const key = definition.nameplate.find((field) => missingKeys.has(field.key))?.key ?? definition.nameplate[0]?.key;
     if (key === undefined) return;
     const root = document.querySelector<HTMLElement>(`#ficha-nameplate .nameplate-grid [data-field-key="${key}"]`);
     const target = root === null ? null : firstFocusable(root);
@@ -251,6 +269,37 @@ export function NameplateSection({
         ...(replaced === null ? [] : [discardSuggestionOp(by, replaced)]),
       ])
       .catch(() => undefined);
+  }
+
+  /**
+   * Decision 2 (2026-10-09): the oil NA chip. Its marks are the oil items the fresh block still
+   * leaves unanswered (a C tapped a moment ago is never overwritten), one batch; once written
+   * the device flag is set and "Desfazer" offered. The focus goes to the TIPO DE ISOLAÇÃO select,
+   * as the chip leaves the page.
+   */
+  function markOilItemsNa(): void {
+    if (oilNaTapped) return;
+    setOilNaTapped(true);
+    const select = document.querySelector<HTMLElement>(`#ficha-nameplate .nameplate-grid [data-field-key="${INSULATION_FIELD_KEY}"]`);
+    (select === null ? null : firstFocusable(select))?.focus();
+    let marked = 0;
+    void api
+      .edit((blocks, by) => {
+        const fresh = blocks.find((row) => row.id === block.id);
+        if (fresh === undefined) return null;
+        const items = oilNaChipItems(fresh, { used: false });
+        marked = items.length;
+        return items.length === 0 ? null : items.map((itemKey) => checklistResultOp(by, api.relatorioId, block.id, itemKey, 'NA'));
+      })
+      .then(async (batch) => {
+        if (batch === null) {
+          setOilNaTapped(false);
+          return;
+        }
+        if (db !== null) await writeOilNaUsed(db, block.id, toIso(now())).catch((error: unknown) => console.error('oil NA chip flag not written', error));
+        api.undoable(oilItemsNaText(marked), batch);
+      })
+      .catch(() => setOilNaTapped(false));
   }
 
   /** E78-Q4: "Criar ⟨nome⟩?" of a stored name the registry does not hold: the registry row alone. */
@@ -321,7 +370,7 @@ export function NameplateSection({
               field={field}
               value={value}
               {...(helper === undefined ? {} : { helper })}
-              missing={!prefilled && !isCellFilled(stored)}
+              missing={missingKeys.has(field.key)}
               draft={{ entityId: block.id, field: `placa-${field.key.replace(/_/g, '-')}` }}
               invalidText={t.invalidNumber}
               selectEmpty={t.selectEmpty}
@@ -337,7 +386,18 @@ export function NameplateSection({
                 // the field or Enter turns the suggestion down (`turnDownOnLeave`).
                 return api.commit([nameplateOp(api.author, api.relatorioId, block.id, field.key, next)]);
               }}
-              after={after}
+              after={
+                field.key === INSULATION_FIELD_KEY && oilNaItems.length > 0 ? (
+                  <>
+                    {after}
+                    <div className="chip-row">
+                      <Chip onPress={markOilItemsNa}>{oilNaChipText(oilNaItems.length)}</Chip>
+                    </div>
+                  </>
+                ) : (
+                  after
+                )
+              }
               // F-01: a suggestion landing on this field while it holds uncommitted typing
               // swaps it out; the typed text is committed then, never replaced by the guess.
               flushOnUnmount

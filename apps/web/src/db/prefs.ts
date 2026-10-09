@@ -199,6 +199,24 @@ export async function clearReadingCancelled(db: AppDatabase, photoId: string): P
 }
 
 /**
+ * Review 2026-10-08, Decision 2 (amended 2026-10-09): the chip "Marcar N itens de óleo como NA"
+ * was used on this block on this device (`oil_na_used:{block_id}`), with the moment it was
+ * tapped. Once set the chip is not offered again on this device, also after its "Desfazer" and
+ * after a reload (`oilNaChipItems`' `used`). Device-local by design: the NA puts it wrote are
+ * what other devices see.
+ */
+const oilNaUsedKey = (blockId: string) => `oil_na_used:${blockId}`;
+
+/** Whether this device used the oil NA chip on the block. */
+export async function readOilNaUsed(db: AppDatabase, blockId: string): Promise<boolean> {
+  return (await db.local_prefs.get(oilNaUsedKey(blockId))) !== undefined;
+}
+
+export async function writeOilNaUsed(db: AppDatabase, blockId: string, at: string): Promise<void> {
+  await db.local_prefs.put({ key: oilNaUsedKey(blockId), value: { at } });
+}
+
+/**
  * Epic 13 re-check N-1: "Ler de novo" after a cancel, recorded per photo (`reread_at:{photo_id}`)
  * with the moment it was pressed, so the wait line counts from the press (`readingStartedAt`'s
  * `reread_at`) instead of from the capture or the earlier status op until the server's next one
