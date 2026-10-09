@@ -139,6 +139,27 @@ deferred:
   - `[low]` `[patch]` deferred-work.md: the resolved TTR entry's evidence still listed the pre-fix 1223/945 px column widths as current — patch (orchestrator): marked as the measurement before the fix.
 - every other loop patch re-checked as fixing its finding with no new defect (commit-on-leave, the held-Enter swallow, the TTR wrap and `.mt-word`, R8LAY-E2E-014, the IME tests, the doc comment).
 
+### 2026-10-09 — Independent review of PR #122 (coordinator, 17 findings kept)
+- verdicts: 17 findings — high 0, medium 3, low 14, false 0, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` r8lay-interaction-1: a window or app blur ran the commit on leave and created a registry word from half-typed text; the refocus reset the baseline — patch: a focusout with the input still active or the window unfocused is not a leave; the baseline resets only after a real leave; unit tests (mutation: guard removed, red).
+  - `[medium]` `[patch]` r8lay-tests-1: a fixed wait in R8LAY-E2E-002 and a misstated lint count — patch: the wait removed, the cell's outbox rows asserted exactly `[TΩ]`; lint back to main's 24 warnings.
+  - `[medium]` `[patch]` r8lay-tests-2: the gate left out specs on surfaces the global CSS reaches — patch: the final gate runs every e2e spec on both desktop projects (`test:e2e:full` scope).
+  - `[low]` `[patch]` r8lay-layout-1: at 657 px the verdict column starts off-screen — patch: Enter leaving a ratio table's last capture scrolls its `.mt-scroll` to the end; asserted at 768 and 1024. The shadow cue was not added (the opaque table covers the scroller's background).
+  - `[low]` `[patch]` r8lay-layout-2: a comment wider than its selector — patch: "every table value input"; the registry rules stay in app.css.
+  - `[low]` `[patch]` r8lay-interaction-2: a leave over a registered name wrote null, then the create — patch: the null selection of a leave is held and dropped when the leave selects or creates; unit test.
+  - `[low]` `[patch]` r8lay-interaction-3: "Criar ⟨nome⟩?" could flash for a name the panel just created — patch: a `createdName` guard.
+  - `[low]` `[patch]` r8lay-interaction-4: `createdKeys` never released — patch: not marked when onCreate returns null, cleared once the entry is in options; unit tests.
+  - `[low]` `[patch]` r8lay-interaction-5: the `use-ficha-steps.ts` comment contradicted the code — patch: comment fixed; the source-deltas D-2 line is listed in the docs ledger entry.
+  - `[low]` `[patch]` r8lay-tests-3: one isolated pass of R8CAP-E2E-003 — patch: 3 of 3 alone on the branch and 3 of 3 on origin/main 9027abf; its one-shot `scrollTo` ledgered.
+  - `[low]` `[patch]` r8lay-tests-4: no test of keyboard activation on a concluded sheet — patch: Space on the unit control cycles at once in R8LAY-E2E-002 (outbox `[TΩ, MΩ]`).
+  - `[low]` `[patch]` r8lay-rules-1: planning amendments not ledgered — patch: one `class: docs` entry (EXPERIENCE.md:125, :276, :307/:406, source-deltas D-2, DESIGN.md › Measurement table and Form dialog).
+  - `[low]` `[patch]` r8lay-rules-2: the always-"next" hint against Story 13.4 INP-2 — patch: the ledger entry is an open question, decision by Matheus.
+  - `[low]` `[patch]` r8lay-rules-3: the deferred finding and the follow-up review not in the ledger — patch: both ledgered with owners, plus narrowing 8.
+  - `[low]` `[patch]` r8lay-rules-4: two app.css comments without `authored` — patch: both say `authored`.
+  - `[low]` `[patch]` r8lay-rules-5: a @p0 13.4 assertion changed without a word in the PR — patch: PR body note.
+  - `[low]` `[patch]` r8lay-rules-6: two literals for the primary id — patch: `ficha-surface.tsx` uses `SHEET_PRIMARY_ID`; one shared `components/whole-words.tsx`.
+
 ## Design Notes
 
 At 657 px (768 portrait with the 48 px strip, 1024 with the 320 px rail) the 8-column TTR cannot hold five 48 px-tall inputs of five digits at the value size plus TAP, Calculado and Condição: its whole-word minimum is about 800 px, so it scrolls inside its own box there (UX-DR40 "horizontal scroll as a last resort") with the title row and page still; from about 880 px (1280 with the rail) it fits. Cards at tablet widths or an auto-collapsing rail would contradict UX-DR40 ("real table at every width") and UX-DR74 ("tables in full in landscape") and are an open question, not this batch's choice.
