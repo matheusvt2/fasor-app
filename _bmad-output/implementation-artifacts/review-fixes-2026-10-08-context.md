@@ -54,6 +54,6 @@ Waves start from `origin/main` after every PR of the previous wave merged. Wave 
 | r8emit | #119 | f057f9b |
 | r8dry | #120 | 9027abf |
 | r8conc | #121 | 326e676 |
-| r8lay | #122 | TODO-R8LAY-SHA |
+| r8lay | #122 | 375c2d6 |
 
 What each PR changed, the gates, the decisions taken during the round and the open questions it leaves are in section 14 of the report.

@@ -3300,7 +3300,7 @@ Matheus asked on 2026-10-08 to investigate the problems further and fix them. Th
 | #119 | r8emit | "Pré-visualizar" and "Conferir antes de emitir" stop on rejected changes, a lost session or a closed dialog, as "Gerar relatório" did, and say why. A toast reserves its height at the page's bottom and never covers the field just changed or the focused field. A pull announces only what the screen does not already show, captions get their own toast, and an arrival toast leaves once served. The Sumário foot bar is sticky. The issue question also names a blank CNPJ and a missing logo. | QW25 (XC-V2, XC-7, WEB-6, WDT-V1), WEB-3, XC-4, API-V1, H-7, FLD-7 (covering part), DC-4, DB-5, DE-5, DG-3, DE-6, DF-1, DF-6 |
 | #120 | r8dry | A dry transformer, TP or TC can be concluded: `VOL. ÓLEO` stops counting as missing when the subtype or the stored `TIPO DE ISOLAÇÃO` is dry, and a one-tap chip "Marcar 8 itens de óleo como NA" marks the oil items with "Desfazer". | H-4, MKT-7 (subtype part) |
 | #121 | r8conc | "Concluir ficha" and "Concluir e avançar" confirm the composed conclusion text when the verdict is set and the text was not edited; a confirmed text whose basis changed shows on Sumário row 9 ("Texto de conclusão desatualizado"). A concluded text arriving over another tablet's edited text is a conflict the Conflict view resolves, not a silent overwrite. Contract 16. | JRN-V1, AIB-1 (sheet part) |
-| #122 | r8lay | TODO-R8LAY | DB-1, DC-1, DG-1, DA-1, DA-8, DB-3, DA-6, DB-7, DB-2, DH-1, DH-3 |
+| #122 | r8lay | Each measurement table scrolls sideways inside its own box, never the page; from 768 px the TTR tables size by their content with six-digit 48 px inputs, so the transformer's third phase and Condição show (both TTRs fit with no scroll at 1280 px). The phone's "Novo relatório" dialog scrolls to "Criar relatório". With the rail open at 768 px nothing scrolls sideways. Phone tables and Sumário rows break only between whole words. Enter in the plate and cabine fields moves to the next missing field, then to the primary button. On a concluded sheet a stray tap on a unit only focuses the input. A manufacturer typed under "Outro…" is kept when the field is left, and the instrument panel offers "Criar ⟨nome⟩?" for a manufacturer missing from the registry. | DB-1, DC-1, DG-1, DA-1, DA-8, DB-3, DA-6, DB-7, DB-2, DH-1, DH-3 |
 
 Documentation PRs: #113 (this report and the round context), #114 (section 13 and wave 4), and the closing PR that adds this section.
 
@@ -3330,13 +3330,15 @@ For Matheus:
 - Should a blank CNPJ or a missing logo alone ask before issuing?
 - Should a reading-arrival toast expire on a timer, and should its "Ver" open the announced sheet first rather than the first sheet in tree order (Story 8.2)?
 - Should clearing or changing `TIPO DE ISOLAÇÃO` after the chip offer to unmark the oil items?
+- Should the last plate or cabine field before the primary button carry `enterkeyhint="done"` (Story 13.4 INP-2), now that the Enter run's target is computed? Today every field says "next".
+- Should a unit change on an open sheet get "Desfazer"? Today it rewrites the value at once; only a concluded sheet guards the first tap.
 
-For Matheus and Bruno: an oil option for `TIPO DE ISOLAÇÃO` in a new seed version, so an oil-filled unit no longer picks a dry value.
+For Matheus and Bruno: an oil option for `TIPO DE ISOLAÇÃO` in a new seed version, so an oil-filled unit no longer picks a dry value. The phone layout of three tables: the transformer TTR stays a table at tablet widths (UX-DR40, UX-DR74) and scrolls in a 657 px box; the phone Sumário rows keep the drag handle and Position box (about 100 px left for TAG, type and state); abbreviating or dropping the Linha, Terra and Guard columns would let the phone isolation tables fit.
 
-For Bruno's wording review: the copy each PR marked `// authored:` (listed in the PR bodies of #118 to #122); the conclusion helper "… depois de confirmar", which "Concluir ficha" now does; `conclusionStaleText` with no cap on the TAGs it names; one-line undo copy and a line cap for toasts at 390 px.
+For Bruno's wording review: the copy each PR marked `// authored:` (listed in the PR bodies of #118 to #122); the conclusion helper "… depois de confirmar", which "Concluir ficha" now does; `conclusionStaleText` with no cap on the TAGs it names; one-line undo copy and a line cap for toasts at 390 px; where the Combobox popover with 'Criar "…"' opens, since it still covers the next field (Nome in the instrument panel).
 
 ### 14.5 Still outside the round
 
-- The device verification of section 11.3 (iPad and Android in a real cabine, gloves, light, wake lock on hardware) is still owed. No PR of this round replaces it.
+- The device verification of section 11.3 (iPad and Android in a real cabine, gloves, light, wake lock on hardware) is still owed. No PR of this round replaces it; #122 adds its own items to it (the TTR widths and the Enter run with Inter at the value size on Android Chrome and iPadOS WebKit).
 - The rest of the roadmap in section 7 and every question of section 10 are unchanged; Epic 14 planning (010b0cd, 08b5c25) took them up separately.
 - The debt rows the round ledgered for the next carry-over batch stay in `deferred-work.md` under their `spec-review-fixes-2026-10-08-*` source specs.
