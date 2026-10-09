@@ -143,22 +143,26 @@ async function lastRowClearOfToast(page: Page, last: Locator, acted: () => Promi
   await expect
     .poll(
       async () => {
+        // Any pass that does not see the row clear breaks the run of two.
+        const notClear = (state: string): string => {
+          previous = '';
+          return state;
+        };
         await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
         const atEnd = await page.evaluate(() => Math.ceil(window.scrollY + window.innerHeight) >= document.documentElement.scrollHeight - 1);
-        if (!atEnd) return 'not at the end';
-        const box = await last.boundingBox();
-        if (box === null) return 'no row';
+        if (!atEnd) return notClear('not at the end');
+        if ((await toast(page).count()) === 0) return notClear('no toast');
+        const box = await last.boundingBox({ timeout: 1_000 });
+        const toastBox = await toast(page).boundingBox({ timeout: 1_000 });
+        if (box === null) return notClear('no row');
+        if (toastBox === null) return notClear('no toast');
         centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
         const own = await last.evaluate((row, at) => {
           const hit = document.elementFromPoint(at.x, at.y);
           return hit !== null && row.contains(hit) && hit.closest('[data-testid="toast"]') === null;
         }, centre);
-        const toastTop = (await toast(page).boundingBox())?.y ?? Number.POSITIVE_INFINITY;
-        if (!own || centre.y >= toastTop) {
-          previous = '';
-          return 'covered';
-        }
-        const at = `${centre.x},${centre.y}`;
+        if (!own || centre.y >= toastBox.y) return notClear('covered');
+        const at = `${centre.x},${centre.y},${toastBox.y}`;
         const settled = at === previous;
         previous = at;
         return settled ? 'own' : 'moving';
