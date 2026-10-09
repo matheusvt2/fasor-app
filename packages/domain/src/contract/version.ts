@@ -97,8 +97,9 @@
  * put may carry `meta.composed = true` (the text the app composed and confirms with
  * `text_status = confirmed`: "Concluir ficha", "Confirmar", "Substituir"); the fold makes a
  * concurrent flagged put over a standing `text_status = edited` a contradiction
- * (`cell.conflict`) instead of `latest_text`, and the Conflict view resolves the text, its
- * status and its basis as one unit (three puts). No new family, but the reducer changed:
+ * (`cell.conflict`) instead of `latest_text`, a concurrent `text_basis` put follows the text
+ * (sequential) unless the status is in contradiction, and the Conflict view resolves the
+ * text, its status and its basis as one unit (three puts). No new family, but the reducer changed:
  * `MIN_CONTRACT_VERSION` goes to 16 too; 2026-10-09, Matheus.
  */
 export const CONTRACT_VERSION = 16;

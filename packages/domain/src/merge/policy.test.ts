@@ -133,6 +133,16 @@ describe('mergePolicy', () => {
     expect(mergePolicy({ path: at(text), current: head, op: composed('b', head.op_id), textStatus: edited })).toEqual({ kind: 'sequential' });
   });
 
+  it('contract 16: a concurrent basis follows the text (sequential) unless the status is in contradiction', () => {
+    const { eduardo } = world();
+    const basis = `sheet/${BLOCK}/conclusion/text_basis`;
+    expect(mergePolicy({ path: at(basis), current: c('aaaaaaaa'), op: eduardo(basis, 'bbbbbbbb'), textStatus: c('edited') })).toEqual({ kind: 'sequential' });
+    expect(mergePolicy({ path: at(basis), current: c('aaaaaaaa'), op: eduardo(basis, 'bbbbbbbb') })).toEqual({ kind: 'sequential' });
+    const contradicted: Cell = { ...c('confirmed'), conflict: { op_id: '019966b0-0010-7000-8000-0000000000bb', value: 'edited', source_suggestion_id: null } };
+    expect(mergePolicy({ path: at(basis), current: c('aaaaaaaa'), op: eduardo(basis, 'bbbbbbbb'), textStatus: contradicted })).toEqual({ kind: 'contradiction' });
+    expect(mergePolicy({ path: at(basis), current: c('aaaaaaaa'), op: eduardo(basis, 'aaaaaaaa'), textStatus: contradicted })).toEqual({ kind: 'apply', rule: 'same_value' });
+  });
+
   it('keeps the NC device observation: the record says which device was NC', () => {
     const { eduardo, ana } = world();
     const ncKeptAway: Cell = { ...c('NC'), merge: { head_op_id: c('x').op_id, device_id: A_DEVICE, kept: true, rule: 'nc_over_c' } };
@@ -242,6 +252,9 @@ describe('the fold of two devices on one sheet', () => {
     // Conclude first: Eduardo's edit lands on a confirmed text and stands (latest free text).
     expect(concludeFirst.sheet.conclusion.text?.value).toBe(EDITED);
     expect(concludeFirst.sheet.conclusion.text?.conflict).toBeUndefined();
+    // The basis keeps its mark in both orders: the status is in contradiction when it lands.
+    expect(editFirst.sheet.conclusion.text_basis?.conflict?.value).toBe('aaaaaaaa');
+    expect(concludeFirst.sheet.conclusion.text_basis?.conflict?.value).toBe('bbbbbbbb');
   });
 
   it('contract 16: two concurrent edits of the conclusion text stay latest text, in either seq order', () => {
@@ -255,6 +268,24 @@ describe('the fold of two devices on one sheet', () => {
     expect(eFirst.conflict).toBeUndefined();
     expect(aFirst).toMatchObject({ value: 'Texto de Eduardo.', merge: { rule: 'latest_text' } });
     expect(aFirst.conflict).toBeUndefined();
+  });
+
+  it('contract 16: two concurrent edits or confirms on different bases leave no basis mark, in either seq order', () => {
+    const { create, eduardo, ana } = world();
+    const at = (field: string) => `sheet/${BLOCK}/conclusion/${field}`;
+    for (const status of ['edited', 'confirmed']) {
+      const e = [eduardo(at('text'), 'Texto de Eduardo.'), eduardo(at('text_status'), status), eduardo(at('text_basis'), 'aaaaaaaa')];
+      const a = [ana(at('text'), 'Texto de Ana.'), ana(at('text_status'), status), ana(at('text_basis'), 'bbbbbbbb')];
+      for (const [first, second] of [
+        [e, a],
+        [a, e],
+      ] as const) {
+        const conclusion = fold([create, ...first, ...second]).sheet.conclusion;
+        expect(conclusion.text_basis).toEqual({ value: second[2]!.value, source_suggestion_id: null, op_id: second[2]!.op_id });
+        expect(conclusion.text_status?.conflict).toBeUndefined();
+        expect(conclusion.text?.conflict).toBeUndefined();
+      }
+    }
   });
 
   it('10.2 a contradiction shows the seq-later op and marks the cell with the side it displaced', () => {

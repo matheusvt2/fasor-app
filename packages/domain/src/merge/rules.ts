@@ -23,7 +23,8 @@ export const MERGE_RULES = [
  * - `latest_text`: free text; the `seq`-later edit stands, the other is kept in the entry.
  *   Except (contract 16, PR #121 review 2026-10-09) a composed, confirmed conclusion text
  *   (`meta.composed`) over a standing edited one: a `contradiction`, a durable decision. Two
- *   concurrent edits stay `latest_text`.
+ *   concurrent edits stay `latest_text`. The basis follows the text (sequential) unless the
+ *   status is in contradiction; it is never a decision of its own.
  * - `contradiction`: two different filled values (Story 10.2 turns it into a conflict).
  * - `latest_edit`: a non-cell field (block, location, equipment, file, point, setup);
  *   last-writer-wins by `seq`.

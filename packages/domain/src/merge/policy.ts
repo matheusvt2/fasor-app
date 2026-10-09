@@ -48,7 +48,7 @@ export interface MergePolicyInput {
   op: Pick<Op, 'kind' | 'path' | 'prev_op_id' | 'device_id' | 'value'> & { meta?: Op['meta'] };
   /** For a checklist observation: the item's result cell, as it stands. */
   result?: Cell | null | undefined;
-  /** For the conclusion text: the sheet's `text_status` cell, as it stands. */
+  /** For the conclusion text and its basis: the sheet's `text_status` cell, as it stands. */
   textStatus?: Cell | null | undefined;
 }
 
@@ -86,12 +86,17 @@ function isNcDevice(result: Cell, deviceId: string): boolean {
  * 5.8's "Confirmar" and "Substituir") over a standing `text_status` of `edited` is a
  * contradiction, so a text the engineer edited is never replaced by a composed one without a
  * durable decision in the Conflict view. Every other concurrent text put stays latest free
- * text (FR-58, Story 10.1): two edits, or an edited text arriving over a confirmed one. A contradiction keeps the `seq`-later op's value on display and (Story
+ * text (FR-58, Story 10.1): two edits, or an edited text arriving over a confirmed one. The
+ * basis follows the text and is never a decision of its own: a concurrent `text_basis` put
+ * folds as sequential (the text's latest writer's basis stands, no record, no info entry)
+ * unless the `text_status` cell holds a `conflict` (every writer puts text, status, basis in
+ * that order, so a real contradiction keeps its basis mark). A contradiction keeps the `seq`-later op's value on display and (Story
  * 10.2) marks the cell with the side it displaced (`mergeCell`, the one branch).
  */
 export function mergePolicy(input: MergePolicyInput): MergeOutcome {
   const { path, current, op } = input;
   if (!isConcurrent(op, current)) return { kind: 'sequential' };
+  if (path.family === 'sheet/conclusion' && path.field === 'text_basis' && input.textStatus?.conflict === undefined) return { kind: 'sequential' };
   const mine = current.value;
   const theirs = op.value;
 
@@ -124,7 +129,7 @@ export interface MergeCellContext {
   path: OpPath;
   /** For a checklist observation: the item's result cell. */
   result?: Cell | null | undefined;
-  /** For the conclusion text: the sheet's `text_status` cell. */
+  /** For the conclusion text and its basis: the sheet's `text_status` cell. */
   textStatus?: Cell | null | undefined;
 }
 

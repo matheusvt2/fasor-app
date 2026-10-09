@@ -102,8 +102,9 @@ export function sheetCellAt(sheet: Sheet, path: OpPath): Cell | undefined {
  */
 function cellOf(block: BlockRow, op: Op, path: OpPath): Cell {
   const result = path.family === 'sheet/checklist' && path.field === 'observation' ? block.sheet.checklist[path.item_key]?.result : undefined;
-  // Contract 16: a composed conclusion text never replaces an edited one as latest free text.
-  const textStatus = path.family === 'sheet/conclusion' && path.field === 'text' ? block.sheet.conclusion.text_status : undefined;
+  // Contract 16: a composed conclusion text never replaces an edited one as latest free text,
+  // and the basis follows the text unless the status is in contradiction.
+  const textStatus = path.family === 'sheet/conclusion' && (path.field === 'text' || path.field === 'text_basis') ? block.sheet.conclusion.text_status : undefined;
   return mergeCell(sheetCellAt(block.sheet, path), op, { path, result, textStatus });
 }
 

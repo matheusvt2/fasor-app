@@ -156,6 +156,8 @@ const CONCLUSION_LABELS: Readonly<Record<string, string>> = {
  * values the cells show; the displaced side is each cell's `conflict` value, else its value,
  * except that a displaced `confirmed` status whose text has no `conflict` (an edited text
  * arrived later and stood as latest text) is the text the app composes now, with its basis.
+ * A text merged by filled over empty (an edited text emptied on one tablet) shows '' on its
+ * empty side.
  * Both sides' authors come from the first of the three cells holding a `conflict`.
  */
 function conclusionTextConflict(block: BlockRow, definition: BlockDefinition | null, tag: string, opOf: OpenDecisionsInput['opOf']): CellConflict | null {
@@ -165,6 +167,14 @@ function conclusionTextConflict(block: BlockRow, definition: BlockDefinition | n
   if (marked === undefined) return null;
   const standingValues = cells.map((cell) => cell?.value ?? null);
   const displacedValues = cells.map((cell) => (cell?.conflict === undefined ? (cell?.value ?? null) : cell.conflict.value));
+  // An emptied edited text ('' on blur) merged by filled over empty, with no `conflict`: the
+  // empty side is the displaced one when the filled text applied over it, the standing one
+  // when the empty put was kept out.
+  const textMerge = cells[0]?.merge;
+  if (textMerge?.rule === 'filled_over_empty') {
+    if (textMerge.kept) standingValues[0] = '';
+    else displacedValues[0] = '';
+  }
   if (displacedValues[1] === 'confirmed' && cells[0]?.conflict === undefined && definition !== null) {
     const composed = composeConclusion(block, definition, tag);
     displacedValues[0] = composed.text;
