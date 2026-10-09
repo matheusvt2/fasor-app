@@ -1,5 +1,6 @@
 import { getDefinition } from '@app/domain';
 import type { Page } from '@playwright/test';
+import { expectConcludeConfirmsText, lastTextStatus } from './support/conclude-batch.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { instrumentDraft, newRelatorioDrafts, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
@@ -171,6 +172,8 @@ test('@p1 12.3-E2E-004 J1, J3 and J2 at 768 px: a new plate, the second secciona
   await confirmPair(page, j1, 'Sem restrições');
   await conclude(page, j1, secEnel2.blockId);
   report('J1 SEC-ENEL', j1, ' (baseline 24 taps + 1 lost, 87 keystrokes)');
+  // Review 2026-10-08 Decision 1: the conclude confirmed the composed text (read after the counted tap).
+  await expectConcludeConfirmsText(page, database, secEnel.blockId, `A seccionadora ${secEnel.tag}`);
 
   // --- J3 SEC-ENEL-2: "Igual à", its own unit, "Repetir", the suggested instruments --------
   const j3 = tapCounter(page, EFFECT_MS);
@@ -194,6 +197,7 @@ test('@p1 12.3-E2E-004 J1, J3 and J2 at 768 px: a new plate, the second secciona
   await conclude(page, j3, after(built.sheets, secEnel2).blockId);
   const perUnit = j3.of('perUnit');
   report('J3 SEC-ENEL-2', j3, ` (${perUnit.taps} taps and ${perUnit.keys} keystrokes for the per-unit fields; baseline 9 taps + 2 lost, 36 keystrokes)`);
+  await expectConcludeConfirmsText(page, database, secEnel2.blockId, `A seccionadora ${secEnel2.tag}`);
 
   // --- J2: one NC on the next seccionadora, the sheet observation never typed ---------------
   await page.goto(`/relatorio/${built.relatorioId}/ficha/${ncSheet.blockId}`);
@@ -230,6 +234,8 @@ test('@p1 12.3-E2E-004 J1, J3 and J2 at 768 px: a new plate, the second secciona
   const typedInObservation = await observationInputs();
   await conclude(page, j2, after(built.sheets, ncSheet).blockId);
   report('J2 NC', j2, ` (${j2.of('ncChip').taps} chip, ${typedInObservation} keys or inputs received by the sheet observation)`);
+  // J2 confirmed the text with its own "Confirmar" first: the conclude left it as it was.
+  expect(await lastTextStatus(page, database, ncSheet.blockId)).toBe('confirmed');
 
   // Targets: J3 without its per-unit fields at most 5 taps, no instrument picker; J2 one chip, nothing typed in the observation.
   expect(j3.taps - perUnit.taps).toBeLessThanOrEqual(5);

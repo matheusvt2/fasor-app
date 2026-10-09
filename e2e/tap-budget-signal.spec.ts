@@ -1,6 +1,7 @@
 import { getDefinition, type OpDraft } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
+import { expectConcludeConfirmsText } from './support/conclude-batch.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { expectCameraOpen } from './support/photos.ts';
@@ -220,6 +221,8 @@ test('@p0 9.1-E2E-005 SM-3 with signal: a conforme seccionadora with a copied pl
   expect(counted, 'the page listener and the spec agree').toEqual({ taps: c.taps, keys: c.keys });
   expect(counted.taps).toBeLessThanOrEqual(SIGNAL_BUDGET.taps);
   expect(counted.keys).toBeLessThanOrEqual(SIGNAL_BUDGET.keys);
+  // Review 2026-10-08 Decision 1: the conclude confirmed the composed text (read after the counted tap).
+  await expectConcludeConfirmsText(page, database, secEnel.blockId, `A seccionadora ${secEnel.tag}`);
 
   // What was committed: every reading the display gave, with its provenance.
   const outbox = await readStore<{ path: string; value: unknown; meta: { source_suggestion_id?: string } | null }>(page, database, 'outbox');

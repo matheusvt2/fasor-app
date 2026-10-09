@@ -314,3 +314,24 @@ export function conclusionBasisMatches(block: BlockRow, definition: BlockDefinit
 export function conclusionStoredText(block: Pick<BlockRow, 'sheet'>): string | null {
   return storedText(block, 'text');
 }
+
+/**
+ * `source-deltas.md`, row of 2026-10-08 ("Story 5.8: the composed conclusion text …";
+ * review 2026-10-08 JRN-V1, Decision 1): what "Concluir ficha" and "Concluir e avançar"
+ * confirm with the conclusion, the way D-4 folds the suggested instruments into the same
+ * tap. Called on the fresh block inside the conclude's edit, so the text and its basis come
+ * from one composition of the values as they stand at the tap, including a reading whose
+ * commit landed after the render (Story 12.1); a text is never stored under a basis it was
+ * not composed from (E5-A4). Null, and nothing about the text is written, unless the sheet
+ * is tested, its conclusion sub-block is on, the result and restriction pair is set and no
+ * text was stored yet: a confirmed or edited text, stale or not, is never written by the
+ * conclude (a stale one shows as stale through `conclusionTextState`). Story 5.8's own
+ * "Confirmar" stays, and the D-7 sheet observation suggestion is not part of this fold.
+ */
+export function conclusionTextOnConclude(block: BlockRow, definition: BlockDefinition, equipmentTag: string): { text: string; basis: string } | null {
+  if (block.not_tested !== null) return null;
+  if (!enabledSubBlocksOf(block).has('conclusion')) return null;
+  if (!conclusionPairComplete(block) || conclusionTextStatusOf(block) !== null) return null;
+  const composed = composeConclusion(block, definition, equipmentTag);
+  return { text: composed.text, basis: composed.basis };
+}

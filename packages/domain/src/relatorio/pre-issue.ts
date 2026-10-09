@@ -9,7 +9,7 @@ import { artLabel } from '../print/document-control.ts';
 import { missingCertificates, section11Instruments } from '../print/section-11.ts';
 import type { SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findSeed, getSeed, sectionText, type SectionVariable } from '../seed/definitions.ts';
+import { findDefinition, findSeed, getSeed, sectionText, type SectionVariable } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
 import { rejectedText } from '../sync/counts.ts';
 import { isOptionalSectionVariable, resolveSectionText, SECTION_VARIABLE_LABELS } from '../templates/section-text.ts';
@@ -19,7 +19,8 @@ import { pointPhotoRemovedText, pointsSemAcaoText, pointsWithoutAction, pointsWi
 import { pointsSemPrazo, pointsSemPrazoText } from '../points/priority.ts';
 import { duplicateTagText } from './block-texts.ts';
 import { cabineMissingText, cabineProgress } from './cabine.ts';
-import { conclusionTextForPrint } from './conclusion.ts';
+import { composeConclusion, conclusionTextForPrint, conclusionTextState } from './conclusion.ts';
+import { sheetOrder } from './ficha.ts';
 import { relatorioSectionNumber, type RelatorioSectionType } from './instantiate.ts';
 import { integrityFindings } from './integrity.ts';
 import { parecerOf } from './parecer.ts';
@@ -64,6 +65,7 @@ export type PreIssueKind =
   | 'points_sem_prazo'
   | 'parecer_missing'
   | 'conclusion_unconfirmed'
+  | 'conclusion_stale'
   | 'suggestions_pending'
   | 'calibration'
   | 'certificate_missing'
@@ -185,6 +187,46 @@ export function sectionVariablesText(labels: readonly string[]): string {
 export function conclusionUnconfirmedText(n: number): string {
   // authored: the sheets whose conclusion text will not print (Story 5.8: nothing unconfirmed prints).
   return plural(n, 'ficha concluída sem texto de conclusão confirmado', 'fichas concluídas sem texto de conclusão confirmado');
+}
+
+/** "Texto de conclusão desatualizado: SEC-C05", "Textos de conclusão desatualizados: SEC-C05 e TR-01". */
+export function conclusionStaleText(names: readonly string[]): string {
+  // authored: review 2026-10-08 AIB-1, the concluded sheets whose stored text no longer matches their values.
+  return `${names.length === 1 ? 'Texto de conclusão desatualizado' : 'Textos de conclusão desatualizados'}: ${listPtBr(names)}`;
+}
+
+/**
+ * Review 2026-10-08 AIB-1 (the stale row): the live concluded sheets whose stored conclusion
+ * text (confirmed or edited) no longer matches the text their values compose
+ * (`conclusionTextState` reads `stale`), named in tree order by the TAG, else the type. A
+ * sheet with no printable text is `conclusion_unconfirmed`'s, never this row's; a sheet whose
+ * seed this device does not ship is skipped (nothing to compose it against).
+ */
+function staleConclusionNames(snapshot: RelatorioSnapshot): string[] {
+  const tags = new Map(snapshot.equipment.map((row) => [row.id, row.tag]));
+  const stale = new Set<string>();
+  for (const block of snapshot.blocks) {
+    // The cheap checks first; the composition runs only for a concluded sheet with a printable text.
+    if (block.removed_at !== null || !isEquipmentBlock(block) || sheetState(block) !== 'concluida') continue;
+    if (!enabledSubBlocksOf(block).has('conclusion') || conclusionTextForPrint(block) === null) continue;
+    const definition = findDefinition(block.seed_version, block.block_type);
+    if (definition === null) continue;
+    const tag = block.equipment_id === null ? '' : (tags.get(block.equipment_id) ?? '');
+    if (conclusionTextState(block, composeConclusion(block, definition, tag)) === 'stale') stale.add(block.id);
+  }
+  if (stale.size === 0) return [];
+  const names: string[] = [];
+  for (const node of sheetOrder(snapshot)) {
+    if (!stale.delete(node.blockId)) continue;
+    names.push(node.name);
+  }
+  // A sheet the tree does not draw (no live location) is still named, after the others.
+  for (const block of snapshot.blocks) {
+    if (!stale.has(block.id)) continue;
+    const tag = block.equipment_id === null ? '' : (tags.get(block.equipment_id) ?? '');
+    names.push(tag !== '' ? tag : (findDefinition(block.seed_version, block.block_type)?.label ?? block.block_type));
+  }
+  return names;
 }
 
 /** "3 com erro de envio": section 7's photos whose upload stopped with an error on this device. */
@@ -344,6 +386,12 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   ).length;
   if (unconfirmed > 0) {
     rows.push({ id: 'conclusion_unconfirmed', row: 'section_9', severity: 'pending', text: conclusionUnconfirmedText(unconfirmed), kind: 'conclusion_unconfirmed' });
+  }
+  // Review 2026-10-08 AIB-1: a concluded sheet whose stored text went stale (a value or the
+  // TAG changed since its confirm); "Substituir" on the sheet clears it.
+  const staleNames = staleConclusionNames(snapshot);
+  if (staleNames.length > 0) {
+    rows.push({ id: 'conclusion_stale', row: 'section_9', severity: 'pending', text: conclusionStaleText(staleNames), kind: 'conclusion_stale' });
   }
   for (const finding of integrityFindings({ equipment: snapshot.equipment })) {
     rows.push({

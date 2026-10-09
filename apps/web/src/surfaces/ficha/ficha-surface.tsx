@@ -120,6 +120,7 @@ function FichaBody({
     relatorioId,
     snapshot,
     block,
+    definition,
     progress,
     next,
     instruments,

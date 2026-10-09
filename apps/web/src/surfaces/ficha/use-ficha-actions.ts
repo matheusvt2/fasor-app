@@ -2,6 +2,7 @@ import {
   concludedByText,
   conclusionRestrictionOf,
   conclusionResultOf,
+  conclusionTextOnConclude,
   filledByText,
   formatTimeOfDay,
   moveTargets,
@@ -11,6 +12,7 @@ import {
   tagTakenText,
   tagVerdict,
   toIso,
+  type BlockDefinition,
   type BlockRow,
   type InstrumentRow,
   type NextSheet,
@@ -72,6 +74,7 @@ export function useFichaActions({
   relatorioId,
   snapshot,
   block,
+  definition,
   progress,
   next,
   instruments,
@@ -87,6 +90,7 @@ export function useFichaActions({
   relatorioId: string;
   snapshot: RelatorioSnapshot;
   block: BlockRow;
+  definition: BlockDefinition;
   progress: SheetProgress;
   next: NextSheet;
   instruments: InstrumentRow[];
@@ -118,6 +122,11 @@ export function useFichaActions({
    * jump to the first missing field; a primary still labelled "Próxima ficha" moves on.
    * Story 12.3 (D-4): the conclusion confirms every suggested instrument of the sheet, in
    * the same batch as `concluded_by` ("Próxima ficha" alone writes nothing).
+   * Review 2026-10-08 Decision 1 (JRN-V1, `source-deltas.md` row of 2026-10-08): the same
+   * batch also confirms the conclusion text the kernel composes from the fresh rows
+   * (`conclusionTextOnConclude`: `text`, `text_status = confirmed`, `text_basis`) when the
+   * pair is set and no text was stored yet; an edited or already confirmed text is left as
+   * it is, and the tap count does not change.
    */
   const conclude = (otherwise: 'jump' | 'next' = 'jump') => {
     if (block.concluded_by !== null) {
@@ -134,8 +143,18 @@ export function useFichaActions({
           firstMissing = freshProgress.firstIncompleteStep ?? 'placa';
           return null;
         }
+        // The TAG the ficha and section 9 compose with: the fresh equipment row's, '' when none.
+        const tag = fresh.equipment_id === null ? '' : (rows.equipment.find((row) => row.id === fresh.equipment_id)?.tag ?? '');
+        const text = conclusionTextOnConclude(fresh, definition, tag);
         return [
           ...suggestedInstruments({ blocks, instruments }, blockId).map((suggestion) => testInstrumentOp(by, relatorioId, blockId, suggestion.testKey, suggestion.header)),
+          ...(text === null
+            ? []
+            : [
+                conclusionOp(by, relatorioId, blockId, 'text', text.text),
+                conclusionOp(by, relatorioId, blockId, 'text_status', 'confirmed'),
+                conclusionOp(by, relatorioId, blockId, 'text_basis', text.basis),
+              ]),
           concludedByOp(by, relatorioId, blockId, toIso(now())),
         ];
       })
