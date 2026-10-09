@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: Concluir ficha confirms the composed conclusion text'
 type: 'feature'
 created: '2026-10-08'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'f0adf337eda97a933a3881f29281dfd32be94141'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -133,3 +133,23 @@ deferred:
 - `pnpm test:api` -- expected: green (no api change).
 - Under the host lock only (the orchestrator runs it): `pnpm exec tsx scripts/e2e.ts e2e/review-concluir-text.spec.ts e2e/tap-budget.spec.ts e2e/tap-budget-signal.spec.ts e2e/journey-taps.spec.ts e2e/journeys-12-3-12-4.spec.ts e2e/lost-taps.durability.spec.ts e2e/ficha.spec.ts e2e/sheet-knows-12-3-12-4.spec.ts e2e/review-field-defects-2.spec.ts --project desktop-chrome --project durability-desktop-chrome`, and `e2e/lost-taps.durability.spec.ts` on the three durability projects -- expected: green. The implementation subagent never runs Playwright outside the lock.
 - Mutation run (orchestrator, under the lock): drop the three text ops from `conclude()` → `e2e/tap-budget.spec.ts` and R8CONC-E2E-001 go red; restore.
+
+## Auto Run Result
+
+Status: done (2026-10-09, branch `fix/review-2026-10-08-concluir-text`).
+
+**Summary.** "Concluir e avançar" and the menu's "Concluir ficha" now confirm the kernel-composed conclusion text in the conclude batch (`text`, `text_status = confirmed`, `text_basis`, composed once from the fresh rows) when the pair is set and no text was confirmed or edited yet; an edited or confirmed text is untouched. A new section 9 pre-issue row `conclusion_stale` names, in tree order, the concluded sheets whose stored text went stale; the Sumário row 9 shows it and the Export dialog counts it. No print rule, contract or copy file changed.
+
+**Files.**
+- `packages/domain/src/relatorio/conclusion.ts` -- `conclusionTextOnConclude` (the fold rule).
+- `packages/domain/src/relatorio/pre-issue.ts` -- kind `conclusion_stale`, `conclusionStaleText` (authored), `staleConclusionNames`.
+- `apps/web/src/surfaces/ficha/use-ficha-actions.ts`, `ficha-surface.tsx` -- the three text ops in the conclude batch; `definition` passed in.
+- `packages/domain/src/relatorio/conclusion.test.ts`, `pre-issue-export.test.ts` -- the I/O matrix, apply and undo through `invertBatch`, the stale row (tree order, off-tree, removed, both rows exclusive).
+- `e2e/review-concluir-text.spec.ts` (R8CONC-E2E-001..003), `e2e/support/conclude-batch.ts`; outbox assertions in `tap-budget`, `tap-budget-signal`, `journey-taps`, `journeys-12-3-12-4` and `lost-taps.durability` specs.
+- `_bmad-output/implementation-artifacts/deferred-work.md` -- eight entries (open questions and known open).
+
+**Review.** Two layers (Edge Case Hunter, Verification Gap); Blind Hunter and Intent Alignment skipped for token economy. 12 findings: 6 patched (1 medium, 5 low), 1 deferred (low, EC-1 TAG source), 5 rejected (see the triage log). One review-fix loop; a re-check reviewer then read only the loop's patches: all five ok, two wording nits and one restored J2 assertion applied. Patched by verdict: high 0, medium 1, low 5. Follow-up review recommended: false (one medium patched, no high).
+
+**Verification (story gate, head 5ff621e, under the host lock, LOCKED_AFTER 0 s).** lint 0 errors (24 existing warnings; the first lint run failed only on a mutation scratch file inside the worktree, removed and re-run green); static green; test:api 574 passed; test:unit 3185 passed; touched specs on desktop-chrome and durability-desktop-chrome 66 passed (240 s); `lost-taps.durability.spec.ts` on durability-android-chrome and durability-webkit 13 passed, 1 skipped by design (12.1-E2E-007 on webkit). Mutation run: with the three text ops dropped from `conclude`, 5.1-E2E-001 (J1) and R8CONC-E2E-001 fail on "the conclude batch confirms the text"; restored.
+
+**Residual risks.** The conclude still has no UI undo (unchanged); the Export dialog counts the stale row rather than naming it (open question); the stale row's name list is uncapped; a live block with a removed equipment row composes with a TAG section 9 does not use (pre-existing).
