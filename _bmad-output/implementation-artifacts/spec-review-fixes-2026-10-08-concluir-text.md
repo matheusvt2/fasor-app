@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: Concluir ficha confirms the composed conclusion text'
 type: 'feature'
 created: '2026-10-08'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'f0adf337eda97a933a3881f29281dfd32be94141'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -172,3 +172,5 @@ Status: done (2026-10-09, branch `fix/review-2026-10-08-concluir-text`).
 - tests-3: `apps/web/src/surfaces/ficha/use-ficha-actions.test.tsx` runs the conclude's build on fresh rows that differ from the rendered block; mutation run in the PR body.
 - rules-2, decision-1, decision-2: D-7 comments amended; open questions recorded in deferred-work.md (owners Matheus, Bruno).
 - Gate note: the compose `api` dev server (`tsx watch`) does not reload `packages/domain` changes, so a first e2e run on the merged head met a server folding with the previous kernel (R8CONC-E2E-004 red, server cell `latest_text`). The api is restarted before every e2e run of the second gate.
+- `origin/main` 9027abf (#120) merged too (merge 3390670); r8dry's `anyAnswered` deferral no longer applies (Matheus's 2026-10-09 amendment of Decision 2: the oil NA marks come from a one-tap chip), so `anyAnswered` is unchanged.
+- Story gate on 3390670: lint, static, test:api 576, test:unit 3288, touched specs 82 passed (desktop-chrome and durability-desktop-chrome, api restarted first), matrix `lost-taps.durability.spec.ts` 13 passed and 1 skipped by design. Mutation runs (on 56e8df4, same mechanism files): fresh rows swapped for the rendered block turns `use-ficha-actions.test.tsx` red (12.1-E2E-004 stays green: timing-dependent, as the review predicted); the edited-text contradiction removed turns two `policy.test.ts` cases and R8CONC-E2E-004 red.
