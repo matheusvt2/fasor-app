@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: Concluir ficha confirms the composed conclusion text'
 type: 'feature'
 created: '2026-10-08'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'f0adf337eda97a933a3881f29281dfd32be94141'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -200,3 +200,7 @@ Status: done (2026-10-09, branch `fix/review-2026-10-08-concluir-text`).
 - `meta.composed` on a composed, confirmed conclusion text put (the conclude, "Confirmar", "Substituir"); `mergePolicy` makes only such a put over a standing `text_status = edited` a contradiction; two edits stay `latest_text`; the basis follows the text unless the status is in contradiction.
 - The Conflict view resolves text, status and basis as one "Texto da conclusão" decision (`conclusionTextConflict`, `applyPickOps` writes three puts; "Confirmado"/"Editado" in each side's meta).
 - `CONTRACT_VERSION` and `MIN_CONTRACT_VERSION` 16 with dated notes; `sync.integration.test.ts` answers a contract-15 pull 426; round context struck through and annotated; source-deltas row "FR-58 and Story 10.1"; `docs/kbs/log.md` line; deferred-work deploy entry (owner Matheus).
+
+### Fourth pass (2026-10-09, focused review of fd66fe3..fb95f81 and its re-check)
+
+- The unit row is built from EDITED and COMPOSED writer sides. Same-status rows pair each cell with its `conflict`. A third tablet's composed put keeps the open `conflict` (`protect`). Undo restores the text cell's `merge` record. The MIN 16 note now covers the basis rule. Gate on fbe88c1 (merged with 010b0cd): lint, static, test:api 577, test:unit 3304, e2e 85/85, matrix 13 passed and 1 skipped by design. a4aa2f1 merges docs-only 08b5c25.
