@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: Concluir ficha confirms the composed conclusion text'
 type: 'feature'
 created: '2026-10-08'
-status: 'done'
+status: 'in-progress'
 baseline_revision: 'f0adf337eda97a933a3881f29281dfd32be94141'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -102,13 +102,19 @@ deferred:
 ## Spec Change Log
 
 ### 2026-10-09 — independent review of PR #121 (coordinator)
-- Trigger: r8conc-consistency-1 (medium). Device B edits the conclusion text offline; device A, not having pulled it, concludes: A's composed `text` folds over B's under `latest_text` (B's text kept only in a session-only info entry) and the Conflict view cannot restore it. Amended: in the kernel merge (`packages/domain/src/merge/policy.ts` `mergePolicy`, fed by `ops/apply.ts` `cellOf`), a concurrent put on `sheet/{id}/conclusion/text` whose standing `text_status` cell reads `edited` is a `contradiction` (durable `conflict` carrying the displaced edited text; "Aplicar" restores it), not `latest_text`. No new op field, no new rule name, no contract change. Two concurrent *edits* of the text therefore also make a durable decision instead of `latest_text` (stricter, nothing lost). Known-bad state avoided: an edited text silently replaced by a composed one. Covered by kernel tests (both seq orders) and a two-device e2e.
+- Trigger: r8conc-consistency-1 (medium). Device B edits the conclusion text offline; device A, not having pulled it, concludes: A's composed `text` folds over B's under `latest_text` (B's text kept only in a session-only info entry) and the Conflict view cannot restore it. Amended: in the kernel merge (`packages/domain/src/merge/policy.ts` `mergePolicy`, fed by `ops/apply.ts` `cellOf`), a concurrent put on `sheet/{id}/conclusion/text` whose standing `text_status` cell reads `edited` is a `contradiction` (durable `conflict` carrying the displaced edited text; "Aplicar" restores it), not `latest_text`. No new op field, no new rule name, ~~no contract change~~. *(2026-10-09, focused review of 794757a: the reducer changed, so AD-13 needs a contract bump; see the third entry below.)* Two concurrent *edits* of the text therefore also make a durable decision instead of `latest_text` (stricter, nothing lost). Known-bad state avoided: an edited text silently replaced by a composed one. Covered by kernel tests (both seq orders) and a two-device e2e.
 - Trigger: r8conc-consistency-2 (low). The Conflict view words `text_status` as raw tokens: `CONCLUSION_WORDS` gains `confirmed` "Confirmado" and `edited` "Editado" (authored). `text_basis` rows still show the hash (known open).
 - Trigger: r8conc-tests-2 (low). Undo of the conclude batch through the commit path (`undoBatch`) with a D-4 instrument op in the batch, in `apps/web/src/db/commit.test.ts`.
 - Trigger: r8conc-tests-3 (low). A deterministic web unit test runs `conclude`'s build on fresh rows that differ from the rendered block and asserts the text and basis follow the fresh rows; mutation run (swap `fresh` for `block`) turns it red.
 - Trigger: r8conc-rules-1 (high, process). `origin/main` (#119) merged; the story gate re-runs on the merged head.
 - r8conc-decision-2, r8conc-decision-1, r8conc-rules-2 (low): behaviour kept; open questions and comment/deferred-entry wording only.
 - KEEP: `conclusionTextOnConclude` and its fresh-rows composition; the `conclusion_stale` row; every e2e and unit test of the first pass.
+
+### 2026-10-09 — focused review of 794757a (coordinator; decision by Matheus, 2026-10-09)
+- Trigger: the reducer changed without a contract bump (AD-13; `contract/version.ts` precedent at 9, 10, 12 and 13): a contract-15 bundle would fold the case as `latest_text` and diverge from the server. Matheus decided on 2026-10-09 to raise the contract for it: `CONTRACT_VERSION` and `MIN_CONTRACT_VERSION` go to 16 (dated note in `version.ts`; api integration test that a contract-15 pull gets 426; `contract.test.ts` pins updated). The round context's "No `MIN_CONTRACT_VERSION` raise" sentence is struck through with the dated decision (release train in an evening window, the field syncs first, G2-5), a source-deltas row records the merge rule, `docs/kbs/log.md` gains a line, and deferred-work.md a deploy entry (owner Matheus).
+- Trigger: r8conc-merge-2 (narrow the rule). The contradiction is only a composed, confirmed text against a standing edited one: the device stamps `meta.composed = true` on a `conclusion/text` put it writes with `text_status = confirmed` (the conclude fold, and Story 5.8's "Confirmar" and "Substituir", which write the same composed text), and `mergePolicy` makes a concurrent flagged put over a standing `text_status = edited` a `contradiction`. Two concurrent edits (and an edited text arriving over a confirmed one) stay `latest_text` (FR-58, Story 10.1). Kernel tests: both seq orders of composed-vs-edited and of edited-vs-edited.
+- Trigger: r8conc-merge-3 (one decision). The Conflict view shows `text`, `text_status` and `text_basis` as ONE "Texto da conclusão" row whenever any of the three holds a `conflict`; its two sides are (text, status, basis) triples, and "Aplicar" writes all three puts of the picked side (`applyPickOps`), so no resolution leaves an edited text marked confirmed or a composed text marked edited. A side whose status is `confirmed` but whose text has no durable `conflict` (an edited text that arrived later stood as `latest_text`) is the text the app composes now (`composeConclusion` on the block, its basis with it). Kernel test of each pick set; R8CONC-E2E-004 asserts the three cells after "Aplicar".
+- KEEP: everything of the earlier entries except the broader contradiction rule.
 
 ## Review Triage Log
 
@@ -166,7 +172,7 @@ Status: done (2026-10-09, branch `fix/review-2026-10-08-concluir-text`).
 ### Second pass (2026-10-09, independent review of PR #121)
 
 - `origin/main` f057f9b (#119) merged into the branch (merge fef4ba8; deferred-work.md resolved keeping every row of both sides).
-- consistency-1 fixed in the kernel: `mergePolicy` (`packages/domain/src/merge/policy.ts`) makes a concurrent put on `sheet/{id}/conclusion/text` a `contradiction` while the standing `text_status` reads `edited` (`ops/apply.ts` `cellOf` passes the cell as `textStatus`). The edited text stays as the cell's durable `conflict` (or stands), and "Aplicar" in the Conflict view restores it. No op field, rule name or contract version changed. Covered by `merge/policy.test.ts` (both seq orders) and the two-device `R8CONC-E2E-004` in `e2e/conflicts.spec.ts`.
+- consistency-1 fixed in the kernel: `mergePolicy` (`packages/domain/src/merge/policy.ts`) makes a concurrent put on `sheet/{id}/conclusion/text` a `contradiction` while the standing `text_status` reads `edited` (`ops/apply.ts` `cellOf` passes the cell as `textStatus`). The edited text stays as the cell's durable `conflict` (or stands), and "Aplicar" in the Conflict view restores it. ~~No op field, rule name or contract version changed.~~ *(2026-10-09, focused review of 794757a: the reducer changed, so AD-13 needs a contract bump; see the third entry below.)* Covered by `merge/policy.test.ts` (both seq orders) and the two-device `R8CONC-E2E-004` in `e2e/conflicts.spec.ts`.
 - consistency-2: `CONCLUSION_WORDS` reads `confirmed` "Confirmado" and `edited` "Editado" (authored); `text_basis` hashes stay (known open).
 - tests-2: `apps/web/src/db/commit.test.ts` undoes a conclude-shaped batch (D-4 instrument, three text ops, `concluded_by`) through `undoBatch`.
 - tests-3: `apps/web/src/surfaces/ficha/use-ficha-actions.test.tsx` runs the conclude's build on fresh rows that differ from the rendered block; mutation run in the PR body.
