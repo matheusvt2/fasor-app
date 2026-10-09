@@ -857,3 +857,15 @@ html { scroll-padding-bottom: calc(var(--sticky-bar-covered, 0px) + var(--toast-
 html[data-toast-up]:not(:has(main.screen .sticky-action-bar)) { scroll-padding-bottom: calc(var(--toast-clearance, 0px) + var(--touch-field) + var(--sp-5)); }
 html[data-toast-up] main.screen :has(+ .sticky-action-bar) { margin-bottom: var(--toast-clearance, 0px); }
 html[data-toast-up] main.screen:not(:has(.sticky-action-bar))::after { content: ''; display: block; flex: none; height: calc(var(--toast-clearance, 0px) + var(--touch-field) + var(--sp-5)); }
+
+/* r8cap (review 2026-10-08): the photo-failure fixes. authored, no mock draws these states.
+   FLD-V1: a shot the open camera could not read or save is said in `.cam-hint`, as the refused
+   shot is (mirrors `.cam-hint[data-state="refused"]` above). DB-4: "Concluir" disabled while the
+   shots are saved reads as the disabled shutter (mirrors `.cam-shutter[data-disabled]`).
+   CAPT-V1: the empty reading's line under a cell or field lays out as the failed one does
+   (mirrors `.reading-failed` in `ficha.css`). */
+.cam-hint[data-state="failed"] { color: #FFFFFF; font-weight: var(--t-label-weight); }
+.cam-bottom .cam-done[data-disabled] { opacity: .4; }
+[data-route="/relatorio/:id/ficha/:blockId"] .reading-empty { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+[data-route="/relatorio/:id/ficha/:blockId"] .reading-empty .row-wrap { gap: 0 var(--sp-2); }
+[data-route="/relatorio/:id/ficha/:blockId"] .reading-empty .row-wrap .btn-text:first-child { margin-left: calc(-1 * var(--sp-3)); }

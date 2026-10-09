@@ -1,5 +1,5 @@
-import { captionPhotoMetaText, plateCropView, PLATE_CAPTION, readingNeedsAi, readingStartedAt, regionWithin, type NormalizedBox, type PlateReadingView } from '@app/domain';
-import { useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
+import { captionPhotoMetaText, plateCropView, PLATE_CAPTION, readingNeedsAi, readingWaitStart, regionWithin, type NormalizedBox, type PlateReadingView } from '@app/domain';
+import { useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { useCropSource } from '../../components/crop-thumb.tsx';
 import { useObjectUrl } from '../../components/photo-row.tsx';
@@ -8,8 +8,9 @@ import type { PhotoTile } from '../../db/photo-store.ts';
 import { usePinchZoom } from '../../input/use-pinch-zoom.ts';
 import { useAiFeatures } from '../../state/ai-features.tsx';
 import { useServerReachable } from '../../state/sync.tsx';
+import { useCamera } from './camera-view.tsx';
 import { PlateCaptureTile } from './photo-openers.tsx';
-import { CancelledReading, FailedReading, ReadingWaitLine, useReadingCancelled, useRereadAt } from './reading-line.tsx';
+import { CancelledReading, EmptyReading, FailedReading, ReadingWaitLine, useReadingCancelled, useRereadAt } from './reading-line.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 
 /*
@@ -26,6 +27,13 @@ import type { CaptureTarget } from './use-photo-capture.ts';
  *
  * Which photo, which state and which region are the kernel's (`platePhotoOf`,
  * `plateReadingView`, `plateCropRegion`, `regionWithin`); this only draws them.
+ *
+ * Review 2026-10-08: a reading that ended with nothing read is "Nada foi lido nesta foto" with
+ * "Fotografar de novo" (one shot, the plate target; the row hosts its camera, so the view is
+ * never replaced when the new photo takes the row) and "Preencher manualmente" (CAPT-V1). The
+ * pending shot's row, before its photo is stored, is this row's pending variant
+ * (`PlatePendingRow`), on the same server-reachability rule (CAPT-V2, CAPT-16). The wait counts
+ * only once the server holds the bytes (DG-4, `readingWaitStart`).
  */
 
 /** No plate photo yet: the copy chips (if any) and the tile under them. */
@@ -33,9 +41,64 @@ export function PlateCameraGroup({ relatorioId, target, chips }: { relatorioId: 
   return (
     <div className="camera-group">
       {chips}
-      <PlateCaptureTile relatorioId={relatorioId} target={target} />
+      <PlateCaptureTile relatorioId={relatorioId} target={target} pendingRow={<PlatePendingRow />} />
     </div>
   );
+}
+
+/** The thumbnail box of a plate row: the stored thumb, else the placeholder. */
+function PlateThumb({ src, number }: { src: string | null; number: number | null }) {
+  return (
+    <span className="thumb">
+      {src === null ? <span className="thumb-fake" /> : <img className="thumb-img" src={src} alt="" />}
+      {number === null ? null : (
+        <span className="number-badge" aria-hidden="true">
+          {number}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * F-13, CAPT-16: the pending variant of the plate row, from the shutter until the photo's
+ * stored row replaces it: the placeholder, the caption and the reading state at once. CAPT-V2:
+ * the same rule as the stored row (`useServerReachable`): "Lendo…" only with the server
+ * reachable, the waiting words otherwise (a captive network reads `navigator.onLine` true).
+ */
+export function PlatePendingRow() {
+  const t = copy.ficha.nameplate;
+  const reachable = useServerReachable();
+  return (
+    <div className="photo-row ficha-np-photo" data-reading={reachable ? 'running' : 'queued'} data-pending-shot="">
+      <span className="photo-tile">
+        <PlateThumb src={null} number={null} />
+      </span>
+      <div className="photo-text">
+        <p className="photo-caption">{PLATE_CAPTION}</p>
+        {reachable ? (
+          <p className="reading-line" role="status">
+            {t.reading}
+          </p>
+        ) : (
+          <span className="queued-banner" role="status">
+            <svg className="ico" aria-hidden="true">
+              <use href="/sprite.svg#i-image" />
+            </svg>
+            {t.queued}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** CAPT-V1: what "Fotografar de novo" on an empty plate reading needs: the camera's relatório, the plate's shot target, and what a taken shot does to the older plate photos. */
+export interface PlateRetake {
+  relatorioId: string;
+  target: () => CaptureTarget;
+  /** The shot is stored (with `target`, whose `fileId` is the new photo's): the older plate photos' readings are cancelled here. */
+  onShot: (target: CaptureTarget) => void;
 }
 
 /** The plate photo's row: the tile (opens the viewer), its caption and meta, and the reading line. */
@@ -45,6 +108,7 @@ export function PlatePhotoRow({
   view,
   onOpen,
   onFillManually,
+  retake,
 }: {
   tile: PhotoTile;
   number: number | null;
@@ -52,10 +116,33 @@ export function PlatePhotoRow({
   onOpen: () => void;
   /** The failure's actions ("Tentar novamente", "Preencher manualmente"); none on a read-only sheet. */
   onFillManually: (() => void) | null;
+  /** CAPT-V1: the empty reading's "Fotografar de novo"; null (or absent) where it is not offered. */
+  retake?: PlateRetake | null;
 }) {
   const t = copy.ficha.nameplate;
   const aiFeatures = useAiFeatures();
   const src = useObjectUrl(tile.thumb);
+  // CAPT-V1: the retake camera lives here, in the row that stays mounted while the new shot
+  // replaces the photo (review F-01's precedent): its view and `<video>` are never replaced.
+  // The focus goes back to "Fotografar de novo", or to the row's tile once the line is gone.
+  const row = useRef<HTMLDivElement>(null);
+  const opener = useMemo<RefObject<HTMLElement | null>>(
+    () => ({
+      get current() {
+        const element = row.current;
+        return element?.querySelector<HTMLElement>('[data-retake]') ?? element?.querySelector<HTMLElement>('.photo-tile') ?? null;
+      },
+    }),
+    [],
+  );
+  const latestRetake = useRef(retake ?? null);
+  latestRetake.current = retake ?? null;
+  const camera = useCamera(
+    retake?.relatorioId ?? '',
+    () => latestRetake.current?.target() ?? { blockId: tile.block_id, itemKey: null, caption: PLATE_CAPTION },
+    opener,
+    { singleShot: true, onShot: (target) => latestRetake.current?.onShot(target) },
+  );
   // F-13: with the server reachable a queued reading is about to run: "Lendo…", never the
   // waiting words, which are for a device without signal, or a photo whose upload failed
   // (its reading cannot start until the bytes are on the server).
@@ -67,17 +154,18 @@ export function PlatePhotoRow({
   // Epic 13 re-check N-1: after "Ler de novo" the wait counts from the press.
   const rereadAt = useRereadAt(tile.id);
   const canRetry = aiFeatures || tile.reading_kind === null || !readingNeedsAi(tile.reading_kind);
+  // DG-4: "Lendo…" with no age and no "Cancelar" until the server holds the bytes.
+  const startedAt = readingWaitStart({
+    captured_at: tile.captured_at,
+    bytes_acked_at: tile.bytes_acked_at ?? null,
+    uploaded_at: tile.uploaded_at,
+    reading_status_at: tile.reading_status_at ?? null,
+    reread_at: rereadAt,
+  });
   return (
-    <div className="photo-row ficha-np-photo" data-reading={shown}>
+    <div className="photo-row ficha-np-photo" data-reading={shown} ref={row}>
       <AriaButton className="photo-tile" aria-label={t.plateTileLabel(number)} onPress={onOpen} data-photo-id={tile.id}>
-        <span className="thumb">
-          {src === null ? <span className="thumb-fake" /> : <img className="thumb-img" src={src} alt="" />}
-          {number === null ? null : (
-            <span className="number-badge" aria-hidden="true">
-              {number}
-            </span>
-          )}
-        </span>
+        <PlateThumb src={src} number={number} />
       </AriaButton>
       <div className="photo-text">
         <p className="photo-caption">{tile.caption ?? PLATE_CAPTION}</p>
@@ -92,12 +180,25 @@ export function PlatePhotoRow({
         ) : null}
         {/* Story 13.5: the age from 10 s, "Cancelar" and, past 120 s, the still-reading note. */}
         {cancelled === true && view !== 'failed' && onFillManually !== null ? <CancelledReading photoId={tile.id} canRetry={canRetry} /> : null}
-        {shown === 'running' && cancelled !== true ? (
-          <ReadingWaitLine
-            photoId={tile.id}
-            startedAt={readingStartedAt({ captured_at: tile.captured_at, bytes_acked_at: tile.bytes_acked_at ?? null, reading_status_at: tile.reading_status_at ?? null, reread_at: rereadAt })}
-            variant="plate"
+        {shown === 'running' && cancelled !== true ? <ReadingWaitLine photoId={tile.id} startedAt={startedAt} variant="plate" /> : null}
+        {/* CAPT-V1: nothing was read. A reading cancelled here keeps its "Ler de novo" alone. */}
+        {view === 'empty' && cancelled === false && onFillManually === null ? (
+          <p className="reading-line" role="status">
+            {copy.readingWait.empty}
+          </p>
+        ) : null}
+        {view === 'empty' && cancelled === false && onFillManually !== null ? (
+          <EmptyReading
+            onRetake={retake == null || !aiFeatures ? null : camera.open}
+            retakeOpening={camera.opening}
+            onFallback={onFillManually}
+            fallbackLabel={t.fillManually}
           />
+        ) : null}
+        {camera.denied ? (
+          <p className="camera-denied" role="status">
+            {copy.photos.denied}
+          </p>
         ) : null}
         {view === 'failed' && onFillManually === null ? (
           <p className="reading-line" role="status">
@@ -116,6 +217,7 @@ export function PlatePhotoRow({
           />
         ) : null}
       </div>
+      {camera.element}
     </div>
   );
 }

@@ -106,6 +106,7 @@ export * from './print/section-11.ts';
 export * from './print/group-for-print.ts';
 export * from './print/section-9.ts';
 export * from './prefs/theme.ts';
+export * from './prefs/wake-lock.ts';
 export * from './device/storage.ts';
 export * from './home/cards.ts';
 export * from './text/plural.ts';

@@ -20,6 +20,16 @@ export function burstCountText(n: number, held = false): string {
     : `${n} fotos nesta rajada · salvas neste aparelho com a legenda do contexto`;
 }
 
+/**
+ * Review 2026-10-08 (DB-4): `.cam-count` while the view waits for its shots to be stored, from
+ * the shutter of a single shot or from "Concluir" of a burst; null with no shot (the line keeps
+ * its normal words). authored: "Salvando a foto…" for one shot, "Salvando as fotos…" for more.
+ */
+export function cameraSavingText(count: number): string | null {
+  if (count <= 0) return null;
+  return count === 1 ? 'Salvando a foto…' : 'Salvando as fotos…';
+}
+
 /** The gallery header's count (Story 6.3): "3 fotos aguardando envio". */
 export function photosPendingText(n: number): string {
   return `${plural(n, 'foto', 'fotos')} aguardando envio`;

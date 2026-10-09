@@ -26,7 +26,7 @@ import {
   parseReadingPtBr,
   pendingSuggestions,
   readingNeedsAi,
-  readingStartedAt,
+  readingWaitStart,
   screenLabel,
   showsConfirmedGlyph,
   storedTestCell,
@@ -49,7 +49,7 @@ import {
   type RelatorioSnapshot,
   type SuggestionRow,
 } from '@app/domain';
-import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { CropThumb } from '../../components/crop-thumb.tsx';
 import { SuggestionField } from '../../components/suggestion-field.tsx';
@@ -64,7 +64,8 @@ import type { FichaApi } from './ficha-api.ts';
 import { cabineEnvOp, testCellOp } from './ficha-ops.ts';
 import { cellKey, MeasurementField, type RunDirection } from './measurement-field.tsx';
 import { useCropViewer } from './nameplate-suggestions.tsx';
-import { CancelledReading, DisplayFailedLine, ReadingWaitLine, useReadingCancelled, useRereadAt } from './reading-line.tsx';
+import { CancelledReading, DisplayEmptyLine, DisplayFailedLine, ReadingWaitLine, useReadingCancelled, useRereadAt } from './reading-line.tsx';
+import { useSheetReadOnly } from './sheet-read-only.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 
 /*
@@ -87,10 +88,23 @@ import type { CaptureTarget } from './use-photo-capture.ts';
  *
  * Every rule and text is the kernel's (`measurementSuggestions`, `displayBurst*`,
  * `displayMismatchText`, `displayQueuedCells`); this renders them and writes their batches.
+ *
+ * Review 2026-10-08: a reading that ended with nothing read, on an empty cell or field, is
+ * "Nada foi lido nesta foto" with "Fotografar de novo" (one shot of that photo's own target
+ * and caption; the line hosts its camera, which stays mounted when the new photo takes the
+ * line) and "Digitar" (CAPT-V1). The wait counts only once the server holds the bytes (DG-4).
  */
 
 type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
-type DisplayPhoto = Pick<PhotoFileRow, 'id' | 'reading_kind' | 'reading_target' | 'reading_status' | 'local_seq' | 'captured_at'> & { removed_at?: string | null };
+type DisplayPhoto = Pick<PhotoFileRow, 'id' | 'reading_kind' | 'reading_target' | 'reading_status' | 'local_seq' | 'captured_at' | 'block_id' | 'item_key' | 'caption'> & {
+  removed_at?: string | null;
+};
+
+/** CAPT-V1: what "Fotografar de novo" on an empty display reading needs: the relatório and the live photos (the one to retake is found by id). */
+export interface DisplayRetake {
+  relatorioId: string;
+  photos: readonly DisplayPhoto[];
+}
 
 /** The live display photos of the relatório on this device (the snapshot's photo rows). */
 function photosOf(snapshot: RelatorioSnapshot): DisplayPhoto[] {
@@ -142,6 +156,8 @@ export interface DisplayModel {
   openCrop: (s: SuggestionRow) => void;
   viewer: ReactNode;
   photos: readonly DisplayPhoto[];
+  /** CAPT-V1: the empty line's retake (the relatório and its photos). */
+  retake: DisplayRetake;
 }
 
 export function useDisplaySuggestions({
@@ -163,7 +179,9 @@ export function useDisplaySuggestions({
   const list = useMemo(() => measurementSuggestions(block, pending), [block, pending]);
   const entries = useMemo(() => new Map(list.map((entry) => [cellKey(entry.address), entry])), [list]);
   const photos = useMemo(() => photosOf(snapshot), [snapshot]);
-  const queued = useMemo(() => new Map(displayQueuedCells(photos, block.id, block).map((entry) => [cellKey(entry.address), entry])), [photos, block]);
+  // CAPT-V1: with every suggestion row of any status, a done reading that read nothing is `empty`.
+  const queued = useMemo(() => new Map(displayQueuedCells(photos, block.id, block, rows).map((entry) => [cellKey(entry.address), entry])), [photos, block, rows]);
+  const retake = useMemo<DisplayRetake>(() => ({ relatorioId: api.relatorioId, photos }), [api.relatorioId, photos]);
   const { openCrop, viewer, tiles } = useCropViewer({ api, snapshot, onCaptionPhoto });
 
   const said = (text: string) => {
@@ -232,7 +250,7 @@ export function useDisplaySuggestions({
   const confirmable = (testKey: string, tableKey: string, exclude: readonly CellAddress[]) => measurementConfirmAllCandidates(block, pending, testKey, tableKey, exclude).length;
   const sourceOf = (id: string) => rows.find((row) => row.id === id) ?? snapshot.suggestions.find((row) => row.id === id) ?? null;
 
-  return { block, entries, queued, tiles, sourceOf, relatorioStatus: snapshot.relatorio.status, confirm, type, keepTyped, confirmAll, confirmable, openCrop, viewer, photos };
+  return { block, entries, queued, tiles, sourceOf, relatorioStatus: snapshot.relatorio.status, confirm, type, keepTyped, confirmAll, confirmable, openCrop, viewer, photos, retake };
 }
 
 /**
@@ -243,43 +261,115 @@ export function useDisplaySuggestions({
  * shared wait line (its age from 10 s, "Cancelar", the still-reading note past 120 s), and a
  * failed reading on an empty target is the failed line with "Tentar novamente" and "Digitar".
  * Once the reading was cancelled on this device, only "Ler de novo" shows (review F-07).
+ *
+ * Review 2026-10-08: an empty reading on an empty target is the empty line with "Fotografar de
+ * novo" and "Digitar" (CAPT-V1); the retake's camera is hosted here, in one place whatever the
+ * line shows, so the new photo taking the line never replaces the open view. The wait counts
+ * from the moment the server holds the bytes, "Lendo…" alone before (DG-4).
  */
-export function QueuedBanner({ entry, tile }: { entry: DisplayQueuedEntry; tile: PhotoTile | null }) {
+export function QueuedBanner({ entry, tile, retake = null }: { entry: DisplayQueuedEntry; tile: PhotoTile | null; retake?: DisplayRetake | null }) {
   const t = copy.ficha.ensaios;
   // F-13 (review 2026-10-06): the plate row's rule, so both read alike on one sheet.
   const online = useServerReachable();
   const aiFeatures = useAiFeatures();
+  const readOnly = useSheetReadOnly();
   const cancelled = useReadingCancelled(entry.photoId);
   // Epic 13 re-check N-1: after "Ler de novo" the wait counts from the press.
   const rereadAt = useRereadAt(entry.photoId);
-  if (entry.state === 'failed') {
-    return <DisplayFailedLine photoId={entry.photoId} statusOpId={tile?.reading_status_op_id ?? null} canRetry={aiFeatures || !readingNeedsAi('display')} />;
+  const canRetry = aiFeatures || !readingNeedsAi('display');
+  // CAPT-V1: the retake's camera; the focus goes back to "Fotografar de novo", or to the cell's
+  // or field's input once the new photo has replaced the empty line.
+  const cellRoot = useRef<HTMLElement | null>(null);
+  const opener = useMemo<RefObject<HTMLElement | null>>(
+    () => ({
+      get current() {
+        const root = cellRoot.current;
+        if (root === null || !root.isConnected) return null;
+        return root.querySelector<HTMLElement>('[data-retake]') ?? root.querySelector<HTMLElement>('input');
+      },
+    }),
+    [],
+  );
+  const retakePhoto = retake?.photos.find((photo) => photo.id === entry.photoId) ?? null;
+  const retakeTarget = useRef<CaptureTarget | null>(null);
+  if (entry.state === 'empty' && retakePhoto !== null) {
+    retakeTarget.current = {
+      blockId: retakePhoto.block_id,
+      itemKey: retakePhoto.item_key,
+      caption: retakePhoto.caption,
+      reading: { kind: 'display', target: retakePhoto.reading_target as JsonValue },
+    };
   }
-  // Review F-07: a reading cancelled on this device offers "Ler de novo" instead of the line.
-  if (cancelled === true) return <CancelledReading photoId={entry.photoId} canRetry={aiFeatures || !readingNeedsAi('display')} />;
-  if (entry.state === 'queued' && (!online || tile?.upload_error)) {
-    return (
-      <span className="queued-banner">
-        <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-image" />
-        </svg>
-        {online ? t.displayRunning : t.displayQueued}
-      </span>
-    );
-  }
-  const startedAt = tile === null ? null : readingStartedAt({ captured_at: tile.captured_at, bytes_acked_at: tile.bytes_acked_at ?? null, reading_status_at: tile.reading_status_at ?? null, reread_at: rereadAt });
-  if (startedAt === null) {
-    // The photo's tile is not read yet: the plain line, nothing to count from.
-    return (
-      <span className="queued-banner">
-        <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-image" />
-        </svg>
-        {t.displayRunning}
-      </span>
-    );
-  }
-  return <ReadingWaitLine photoId={entry.photoId} startedAt={startedAt} variant="display" />;
+  const camera = useCamera(retake?.relatorioId ?? '', () => retakeTarget.current ?? { blockId: null, itemKey: null, caption: null }, opener, { singleShot: true });
+  const content = (() => {
+    if (entry.state === 'failed') return <DisplayFailedLine photoId={entry.photoId} statusOpId={tile?.reading_status_op_id ?? null} canRetry={canRetry} />;
+    // Review F-07: a reading cancelled on this device offers "Ler de novo" instead of the line.
+    if (cancelled === true) return <CancelledReading photoId={entry.photoId} canRetry={canRetry} />;
+    if (entry.state === 'empty') {
+      if (cancelled !== false) return null;
+      if (readOnly) {
+        return (
+          <p className="reading-line" role="status">
+            {copy.readingWait.empty}
+          </p>
+        );
+      }
+      return (
+        <DisplayEmptyLine
+          photoId={entry.photoId}
+          onRetake={
+            retake === null || retakePhoto === null || !canRetry
+              ? null
+              : (root) => {
+                  cellRoot.current = root;
+                  camera.open();
+                }
+          }
+          retakeOpening={camera.opening}
+        />
+      );
+    }
+    if (entry.state === 'queued' && (!online || tile?.upload_error)) {
+      return (
+        <span className="queued-banner">
+          <svg className="ico" aria-hidden="true">
+            <use href="/sprite.svg#i-image" />
+          </svg>
+          {online ? t.displayRunning : t.displayQueued}
+        </span>
+      );
+    }
+    if (tile === null) {
+      // The photo's tile is not read yet: the plain line, nothing to count from.
+      return (
+        <span className="queued-banner">
+          <svg className="ico" aria-hidden="true">
+            <use href="/sprite.svg#i-image" />
+          </svg>
+          {t.displayRunning}
+        </span>
+      );
+    }
+    const startedAt = readingWaitStart({
+      captured_at: tile.captured_at,
+      bytes_acked_at: tile.bytes_acked_at ?? null,
+      uploaded_at: tile.uploaded_at,
+      reading_status_at: tile.reading_status_at ?? null,
+      reread_at: rereadAt,
+    });
+    return <ReadingWaitLine photoId={entry.photoId} startedAt={startedAt} variant="display" />;
+  })();
+  return (
+    <>
+      {content}
+      {camera.denied ? (
+        <p className="camera-denied" role="status">
+          {copy.photos.denied}
+        </p>
+      ) : null}
+      {camera.element}
+    </>
+  );
 }
 
 /** The photo tile of a display line, when the device holds it. */
@@ -340,7 +430,7 @@ export function ReadingCell({
   const key = cellKey(cell.address);
   const entry = model.entries.get(key);
   const queued = model.queued.get(key);
-  const banner = queued === undefined ? null : <QueuedBanner entry={queued} tile={tileOf(model.tiles, queued.photoId)} />;
+  const banner = queued === undefined ? null : <QueuedBanner entry={queued} tile={tileOf(model.tiles, queued.photoId)} retake={model.retake} />;
   if (entry !== undefined && entry.view === 'fill') {
     return <SuggestedCell key={entry.suggestion.id} model={model} cell={cell} suggestion={entry.suggestion} label={label} missing={missing} onRun={onRun} after={banner} />;
   }
@@ -576,6 +666,8 @@ export function ConfirmTableButton({ model, testKey, tableKey, exclude }: { mode
 export interface EnvDisplayModel {
   entries: ReadonlyMap<string, EnvSuggestion>;
   queued: DisplayQueuedEntry | null;
+  /** CAPT-V1: the empty line's retake (the relatório and its photos); absent, no retake. */
+  retake?: DisplayRetake;
   tiles: readonly PhotoTile[];
   confirm: (s: SuggestionRow, label: string) => void;
   type: (s: SuggestionRow, field: FieldDef, text: string) => Promise<boolean> | 'invalid' | 'unchanged';
@@ -589,7 +681,10 @@ export function useEnvDisplay({ api, state, snapshot, cabine }: { api: FichaApi;
   const rows = useMemo(() => suggestionRowsOf(state, api.relatorioId), [state, api.relatorioId]);
   const pending = useMemo(() => pendingSuggestions(rows), [rows]);
   const entries = useMemo(() => new Map(envSuggestions(cabine, pending).map((entry) => [entry.field as string, entry])), [cabine, pending]);
-  const queued = useMemo(() => displayQueuedEnv(photosOf(snapshot), cabine.id), [snapshot, cabine.id]);
+  const photos = useMemo(() => photosOf(snapshot), [snapshot]);
+  // CAPT-V1: with every suggestion row of any status, a done reading that read nothing is `empty`.
+  const queued = useMemo(() => displayQueuedEnv(photos, cabine.id, rows), [photos, cabine.id, rows]);
+  const retake = useMemo<DisplayRetake>(() => ({ relatorioId: api.relatorioId, photos }), [api.relatorioId, photos]);
   const { openCrop, viewer, tiles } = useCropViewer({ api, snapshot });
   const said = (text: string) => {
     showToast(text);
@@ -625,7 +720,7 @@ export function useEnvDisplay({ api, state, snapshot, cabine }: { api: FichaApi;
         }),
     );
   };
-  return { entries, queued, tiles, confirm, type, keepTyped, openCrop, viewer };
+  return { entries, queued, retake, tiles, confirm, type, keepTyped, openCrop, viewer };
 }
 
 /** The thermo-hygrometer's "Ler visor" and its reason ("Termo-higrômetro"): one shot of the cabine's environment. */
@@ -685,7 +780,7 @@ export function envAfter(model: EnvDisplayModel, field: FieldDef, value: unknown
     entry !== undefined && entry.view === 'replace' ? (
       <MismatchLine value={value} suggestion={entry.suggestion} onVisor={() => model.confirm(entry.suggestion, label)} onTyped={() => model.keepTyped(entry.suggestion)} />
     ) : null;
-  const banner = model.queued === null || field.key !== lineField || !displayLineShown(model.queued, value) ? null : <QueuedBanner entry={model.queued} tile={tileOf(model.tiles, model.queued.photoId)} />;
+  const banner = model.queued === null || field.key !== lineField || !displayLineShown(model.queued, value) ? null : <QueuedBanner entry={model.queued} tile={tileOf(model.tiles, model.queued.photoId)} retake={model.retake ?? null} />;
   if (mismatch === null && banner === null) return undefined;
   return (
     <>

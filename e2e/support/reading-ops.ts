@@ -1,4 +1,4 @@
-import { makeOp, SERVER_DEVICE_ID, suggestionPath, type JsonValue, type OpInput, type SuggestionRow } from '@app/domain';
+import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, FILE_SHA256_HEADER, makeOp, SERVER_DEVICE_ID, suggestionPath, type FilePutResponse, type JsonValue, type OpInput, type SuggestionRow } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { loadConfig } from '../../apps/api/src/config.ts';
 import { createDb } from '../../apps/api/src/db/client.ts';
@@ -222,6 +222,87 @@ export async function holdPhotoBytes(page: Page): Promise<string[]> {
     },
   );
   return tried;
+}
+
+/** The header a page-side upload carries so `ackPhotoBytes`' route lets it through to the server. */
+const E2E_UPLOAD_HEADER = 'x-e2e-upload';
+
+/**
+ * Review 2026-10-08 (DG-4): the device's real signal that the server holds a photo, without a
+ * job. Every `PUT /api/files/{id}` of the device is answered 200 with a contract
+ * `FilePutResponse`, so the sync engine records the ack (`markBlobAcked`, the tile's
+ * `bytes_acked_at`) while the server never receives the bytes and starts no reading. A
+ * `uploadAckedBytes` put passes through. Returns the ids of the photos acked so.
+ */
+export async function ackPhotoBytes(page: Page): Promise<string[]> {
+  const acked: string[] = [];
+  await page.route(
+    (url) => url.pathname.startsWith('/api/files/'),
+    async (route) => {
+      if (route.request().method() !== 'PUT' || route.request().headers()[E2E_UPLOAD_HEADER] === '1') return route.continue();
+      const id = new URL(route.request().url()).pathname.split('/')[3] ?? '';
+      acked.push(id);
+      const body: FilePutResponse = { id, uploaded_at: new Date().toISOString(), variants: null };
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    },
+  );
+  return acked;
+}
+
+/**
+ * The real upload of a photo `ackPhotoBytes` acked without sending: the device's stored
+ * original, `PUT` from the page through the files route as the sync client sends it, so the
+ * server stores it and starts the reading job.
+ */
+export async function uploadAckedBytes(page: Page, database: string, photoId: string): Promise<void> {
+  const status = await page.evaluate(
+    async ({ name, id, headers, shaHeader }) => {
+      const open = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open(name);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const row = await new Promise<{ blob: Blob } | undefined>((resolve, reject) => {
+        const request = open.transaction('files', 'readonly').objectStore('files').get(id);
+        request.onsuccess = () => resolve(request.result as { blob: Blob } | undefined);
+        request.onerror = () => reject(request.error);
+      });
+      open.close();
+      if (row === undefined) throw new Error(`no stored original for ${id}`);
+      const digest = await crypto.subtle.digest('SHA-256', await row.blob.arrayBuffer());
+      const sha = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+      const response = await fetch(`/api/files/${id}`, {
+        method: 'PUT',
+        credentials: 'same-origin',
+        body: row.blob,
+        headers: { ...headers, accept: 'application/json', 'content-type': row.blob.type === '' ? 'application/octet-stream' : row.blob.type, [shaHeader]: sha },
+      });
+      return response.status;
+    },
+    { name: database, id: photoId, headers: { [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION), [E2E_UPLOAD_HEADER]: '1' }, shaHeader: FILE_SHA256_HEADER },
+  );
+  if (status !== 200) throw new Error(`upload of ${photoId} answered ${status}`);
+}
+
+/** When this device recorded the server's ack of the photo's bytes (`files.acked_at`), or null. */
+export async function photoAckedAt(page: Page, database: string, photoId: string): Promise<string | null> {
+  return page.evaluate(
+    async ({ name, id }) => {
+      const open = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open(name);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const row = await new Promise<{ acked_at?: string } | undefined>((resolve, reject) => {
+        const request = open.transaction('files', 'readonly').objectStore('files').get(id);
+        request.onsuccess = () => resolve(request.result as { acked_at?: string } | undefined);
+        request.onerror = () => reject(request.error);
+      });
+      open.close();
+      return row?.acked_at ?? null;
+    },
+    { name: database, id: photoId },
+  );
 }
 
 /**

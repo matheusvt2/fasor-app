@@ -1,5 +1,5 @@
 import { readingWait, toIso } from '@app/domain';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { TextButton } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -8,6 +8,8 @@ import { SyncRequestError } from '../../sync/client.ts';
 import { clearReadingCancelled, clearRereadAsked, readReadingCancelled, readRereadAsked, readRereadAt, writeReadingCancelled, writeRereadAsked, writeRereadAt } from '../../db/prefs.ts';
 import { discardCancelledReadings } from '../../db/suggestion-store.ts';
 import { newId } from '../../ids.ts';
+import { useScreenWakeLock } from '../../input/use-screen-wake-lock.ts';
+import { useNowIso } from '../../state/now-iso.ts';
 import { useSession } from '../../state/session.tsx';
 import { requestSyncCycle, useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
@@ -27,12 +29,21 @@ import { useToast } from '../../state/toast.tsx';
  * - `CancelledReading` (review F-07, Q-3): after "Cancelar", "Ler de novo" clears the cancel and
  *   asks the reread route; a reading still on its way (409 `reading_running`, `not_caught_up`)
  *   counts as asked, and the wait line returns.
+ * - `EmptyReading` (review 2026-10-08, CAPT-V1): a reading that ended `done` with nothing read
+ *   says "Nada foi lido nesta foto" with "Fotografar de novo" (a single shot of the same target)
+ *   and the way to type instead; `DisplayEmptyLine` is its cell and field form.
+ *
+ * Review 2026-10-08: the wait line keeps the screen awake while it shows (FLD-1), and counts
+ * only once the server holds the photo's bytes (DG-4, the kernel's `readingWaitStart`): before
+ * that it is "Lendo…" alone, with no age, no "Cancelar" and no still-reading note.
  */
 
 /** Whether this device cancelled the photo's reading: null until read. */
 export function useReadingCancelled(photoId: string): boolean | null {
   const db = useSession().database;
-  return useLiveQuery(() => (db === null ? Promise.resolve(false) : readReadingCancelled(db, photoId).then((at) => at !== undefined)), [db, photoId], null) ?? null;
+  const cancelled = useLiveQuery(() => (db === null ? Promise.resolve(false) : readReadingCancelled(db, photoId).then((at) => at !== undefined)), [db, photoId], null) ?? null;
+  // No device store: nothing can have been cancelled here.
+  return db === null ? false : cancelled;
 }
 
 /** Epic 13 re-check N-1: when "Ler de novo" was last pressed for the photo here (`readingStartedAt`'s `reread_at`), null when never or not read yet. */
@@ -41,20 +52,10 @@ export function useRereadAt(photoId: string): string | null {
   return useLiveQuery(() => (db === null ? Promise.resolve(undefined) : readRereadAt(db, photoId)), [db, photoId], undefined) ?? null;
 }
 
-/** The device clock as an ISO string, read again every `everyMs` while mounted. */
-function useNowIso(everyMs: number): string {
-  const [iso, setIso] = useState(() => toIso(now()));
-  useEffect(() => {
-    const timer = setInterval(() => setIso(toIso(now())), everyMs);
-    return () => clearInterval(timer);
-  }, [everyMs]);
-  return iso;
-}
-
 export interface ReadingWaitLineProps {
   photoId: string;
-  /** Where the age counts from (`readingStartedAt`). */
-  startedAt: string;
+  /** Where the age counts from (`readingWaitStart`); null while the server does not hold the bytes (no age, no "Cancelar"). */
+  startedAt: string | null;
   /** `plate`: the `.reading-line` under the photo; `display`: the `.queued-banner` under a cell or field. */
   variant: 'plate' | 'display';
 }
@@ -71,8 +72,11 @@ export function ReadingWaitLine({ photoId, startedAt, variant }: ReadingWaitLine
   const user = session.user;
   const cancelled = useReadingCancelled(photoId);
   const [hidden, setHidden] = useState(false);
-  const wait = readingWait(startedAt, useNowIso(1000));
-  if (hidden || cancelled === true) return null;
+  const shown = !hidden && cancelled !== true;
+  const wait = readingWait(startedAt, useNowIso(1000, shown && startedAt !== null));
+  // FLD-1: the ~30 s wait for a reading never lets the screen lock.
+  useScreenWakeLock(shown);
+  if (!shown) return null;
 
   const cancel = () => {
     setHidden(true);
@@ -258,6 +262,73 @@ export function DisplayFailedLine({ photoId, statusOpId, canRetry }: { photoId: 
     <div className="reading-failed" ref={host} data-photo-id={photoId}>
       {/* E78-Q5: keyed by the newest status op, so a tap waits for the next one. */}
       <FailedReading key={statusOpId ?? 'create'} photoId={photoId} statusOpId={statusOpId} canRetry={canRetry} onFallback={typeInstead} fallbackLabel={copy.readingWait.typeInstead} />
+    </div>
+  );
+}
+
+export interface EmptyReadingProps {
+  /** "Fotografar de novo": a single shot of the same target; null where it is not offered (read-only, AI features off). */
+  onRetake: (() => void) | null;
+  /** The camera is being asked for: the retake reads busy and does nothing. */
+  retakeOpening?: boolean;
+  /** The way to type instead: "Preencher manualmente" on the plate, "Digitar" on a cell. */
+  onFallback: () => void;
+  fallbackLabel: ReactNode;
+}
+
+/**
+ * Review 2026-10-08 (CAPT-V1): "Nada foi lido nesta foto" -- the reading ended and found
+ * nothing (a dark or blurred frame, most likely). The photo stays; "Fotografar de novo" takes
+ * one shot of the same target, and the fallback takes the engineer to typing.
+ */
+export function EmptyReading({ onRetake, retakeOpening = false, onFallback, fallbackLabel }: EmptyReadingProps) {
+  const t = copy.readingWait;
+  return (
+    <>
+      <p className="reading-line" role="status">
+        {t.empty}
+      </p>
+      <div className="row-wrap">
+        {onRetake === null ? null : (
+          // `data-retake`: the camera's host finds its opener by it, to give the focus back.
+          <TextButton data-retake="" onPress={onRetake} isDisabled={retakeOpening} disabledReason={retakeOpening ? copy.ficha.nameplate.opening : undefined}>
+            {t.retake}
+          </TextButton>
+        )}
+        <TextButton onPress={onFallback}>{fallbackLabel}</TextButton>
+      </div>
+    </>
+  );
+}
+
+/**
+ * Review 2026-10-08 (CAPT-V1): an empty display reading under its empty cell or environment
+ * field: the empty line with "Fotografar de novo" and "Digitar", which focuses the input of the
+ * cell or field the line sits in.
+ */
+export function DisplayEmptyLine({
+  photoId,
+  onRetake,
+  retakeOpening,
+}: {
+  photoId: string;
+  /** "Fotografar de novo", told the cell or field the line sits in (the camera gives the focus back there); null where not offered. */
+  onRetake: ((root: HTMLElement | null) => void) | null;
+  retakeOpening?: boolean;
+}) {
+  const host = useRef<HTMLDivElement>(null);
+  const root = () => host.current?.closest<HTMLElement>('.ficha-cell, [data-field-key]') ?? null;
+  const typeInstead = () => {
+    root()?.querySelector<HTMLInputElement>('input')?.focus();
+  };
+  return (
+    <div className="reading-empty" ref={host} data-photo-id={photoId}>
+      <EmptyReading
+        onRetake={onRetake === null ? null : () => onRetake(root())}
+        retakeOpening={retakeOpening ?? false}
+        onFallback={typeInstead}
+        fallbackLabel={copy.readingWait.typeInstead}
+      />
     </div>
   );
 }

@@ -35,6 +35,12 @@ export interface RestoreFocusOptions {
    * own target (batch A real-browser pass, 2026-09-24).
    */
   once?: boolean;
+  /**
+   * Review 2026-10-08 (DE-2): focus without scrolling the target into view. Opt-in: a control
+   * the sheet treats as covered (the Sticky action bar under `scroll-padding-bottom`) would
+   * otherwise scroll the page by half a screen when it takes the focus back.
+   */
+  preventScroll?: boolean;
 }
 
 function focusLost(): boolean {
@@ -47,19 +53,20 @@ function focusLost(): boolean {
  * query re-renders after the write. `target()` may return null until the change it waits
  * for has rendered.
  */
-export function restoreFocus(target: () => HTMLElement | null, { mode = 'if-lost', frames, once = false }: RestoreFocusOptions = {}): void {
+export function restoreFocus(target: () => HTMLElement | null, { mode = 'if-lost', frames, once = false, preventScroll = false }: RestoreFocusOptions = {}): void {
   const limit = frames ?? (mode === 'settled' ? LIST_FOCUS_WATCH_FRAMES : FOCUS_WATCH_FRAMES);
+  const focus = (element: HTMLElement) => (preventScroll ? element.focus({ preventScroll: true }) : element.focus());
   let watched = 0;
   const tick = () => {
     const element = target();
     if (element !== null && element.isConnected) {
       if (mode === 'settled') {
         if (document.querySelector('.dialog-scrim') === null) {
-          element.focus();
+          focus(element);
           return;
         }
       } else {
-        if (focusLost()) element.focus();
+        if (focusLost()) focus(element);
         if (once) return;
       }
     }

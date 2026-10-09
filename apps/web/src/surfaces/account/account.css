@@ -78,6 +78,12 @@
   border-top: 0;
 }
 
+/* Review 2026-10-08 (FLD-1): "Manter a tela ligada" sits under its section head the same way,
+   the mock's page-scoped `.toggle-row { border-top: 0; }` (no mock draws the row itself). */
+.keep-screen-row .toggle-row {
+  border-top: 0;
+}
+
 .location-row .helper {
   display: block;
 }

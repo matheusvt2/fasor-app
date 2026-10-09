@@ -217,9 +217,11 @@ export function displayBurstHintText(stop: DisplayBurstStop | null): string {
 
 /**
  * Where a display photo's reading stands on the cell it starts at: queued (no signal yet),
- * running, or (Story 13.5, WAIT-2) failed while the cell it targets is still empty.
+ * running, or (Story 13.5, WAIT-2) failed while the cell it targets is still empty. Review
+ * 2026-10-08 (CAPT-V1): `empty`, a done reading that read nothing (no suggestion row of any
+ * status cites the photo), shown like `failed`: only while the target is empty.
  */
-export type DisplayQueuedState = 'queued' | 'running' | 'failed';
+export type DisplayQueuedState = 'queued' | 'running' | 'failed' | 'empty';
 
 /** One display photo's line on its target: its state and the photo (the line's "Cancelar" and "Tentar novamente" act on it). */
 export interface DisplayQueuedEntry {
@@ -228,6 +230,9 @@ export interface DisplayQueuedEntry {
 }
 
 type DisplayReadingPhoto = DisplayPhotoLike & Pick<PhotoFileRow, 'id' | 'reading_status'> & Partial<Pick<PhotoFileRow, 'local_seq' | 'captured_at'>>;
+
+/** The suggestion rows `displayQueuedCells` and `displayQueuedEnv` read for the empty state: any status, only their source photo. */
+type ReadRow = Pick<SuggestionRow, 'source'>;
 
 /** Capture order (`local_seq`, then `captured_at`, then the order given): negative when `a` came first. */
 function captureOrder(a: { photo: DisplayReadingPhoto; at: number }, b: { photo: DisplayReadingPhoto; at: number }): number {
@@ -243,24 +248,29 @@ function captureOrder(a: { photo: DisplayReadingPhoto; at: number }, b: { photo:
  * The line of one target from the live display photos aimed at it: the newest one still
  * waiting (queued or running) wins; else the newest photo decides, and only a failed one has a
  * line (a later shot of the same target, whatever its state, supersedes an earlier failure).
+ * With the relatório's suggestion rows (`rows`), a newest photo whose reading is `done` with
+ * no row read from it is `empty`; without them, never.
  */
-function targetLine(shots: readonly { photo: DisplayReadingPhoto; at: number }[]): DisplayQueuedEntry | null {
+function targetLine(shots: readonly { photo: DisplayReadingPhoto; at: number }[], rows?: readonly ReadRow[]): DisplayQueuedEntry | null {
   const ordered = [...shots].sort(captureOrder);
   const waiting = ordered.filter(({ photo }) => photo.reading_status === 'queued' || photo.reading_status === 'running').at(-1);
   if (waiting !== undefined) return { state: waiting.photo.reading_status as 'queued' | 'running', photoId: waiting.photo.id };
   const newest = ordered.at(-1);
-  return newest !== undefined && newest.photo.reading_status === 'failed' ? { state: 'failed', photoId: newest.photo.id } : null;
+  if (newest === undefined) return null;
+  if (newest.photo.reading_status === 'failed') return { state: 'failed', photoId: newest.photo.id };
+  if (newest.photo.reading_status === 'done' && rows !== undefined && !rows.some((row) => row.source.photo_id === newest.photo.id)) return { state: 'empty', photoId: newest.photo.id };
+  return null;
 }
 
 const liveDisplay = (photo: DisplayReadingPhoto) => (photo.removed_at ?? null) === null && photo.reading_kind === 'display';
 
 /**
  * Story 13.5 (WAIT-2): whether a display photo's line shows on a target holding `value`. A
- * waiting reading always shows; a failed one only while the target is empty (a typed value
- * hides it: the engineer already did what the failure asks).
+ * waiting reading always shows; a failed or (review 2026-10-08) empty one only while the
+ * target is empty (a typed value hides it: the engineer already did what the line asks).
  */
 export function displayLineShown(entry: DisplayQueuedEntry, value: unknown): boolean {
-  if (entry.state !== 'failed') return true;
+  if (entry.state !== 'failed' && entry.state !== 'empty') return true;
   return !isCellFilled(value === null || value === undefined ? null : ({ value } as Cell));
 }
 
@@ -268,12 +278,15 @@ export function displayLineShown(entry: DisplayQueuedEntry, value: unknown): boo
  * The start cells of `blockId` whose display photo is still waiting for its reading: each
  * shows "Foto guardada — leitura quando houver sinal" (or "Lendo…") and stays typeable. With
  * the block's sheet (`block`), a failed reading is listed too while its start cell is empty
- * (Story 13.5); without it, never.
+ * (Story 13.5); without it, never. With the relatório's suggestion rows of any status
+ * (`rows`, review 2026-10-08), a done reading that read nothing is listed as `empty` under
+ * the same rule; without them, never.
  */
 export function displayQueuedCells(
   photos: readonly DisplayReadingPhoto[],
   blockId: string,
   block?: Pick<BlockRow, 'sheet'>,
+  rows?: readonly ReadRow[],
 ): (DisplayQueuedEntry & { address: CellAddress })[] {
   const byTarget = new Map<string, { address: CellAddress; shots: { photo: DisplayReadingPhoto; at: number }[] }>();
   photos.forEach((photo, at) => {
@@ -288,9 +301,9 @@ export function displayQueuedCells(
   });
   const out: (DisplayQueuedEntry & { address: CellAddress })[] = [];
   for (const { address, shots } of byTarget.values()) {
-    const entry = targetLine(shots);
+    const entry = targetLine(shots, block === undefined ? undefined : rows);
     if (entry === null) continue;
-    if (entry.state === 'failed' && (block === undefined || !displayLineShown(entry, storedTestCell(block, address)?.value ?? null))) continue;
+    if ((entry.state === 'failed' || entry.state === 'empty') && (block === undefined || !displayLineShown(entry, storedTestCell(block, address)?.value ?? null))) continue;
     out.push({ ...entry, address });
   }
   return out;
@@ -299,15 +312,17 @@ export function displayQueuedCells(
 /**
  * The line of a cabine's thermo-hygrometer photo still waiting, or failed, or null. A failed
  * one shows only under an empty environment field (`displayLineShown` with the field's value).
+ * With the relatório's suggestion rows (`rows`, review 2026-10-08), a done reading that read
+ * nothing is `empty`, shown under the same rule.
  */
-export function displayQueuedEnv(photos: readonly DisplayReadingPhoto[], locationId: string): DisplayQueuedEntry | null {
+export function displayQueuedEnv(photos: readonly DisplayReadingPhoto[], locationId: string, rows?: readonly ReadRow[]): DisplayQueuedEntry | null {
   const shots: { photo: DisplayReadingPhoto; at: number }[] = [];
   photos.forEach((photo, at) => {
     if (!liveDisplay(photo)) return;
     const target = photo.reading_target as { location_id?: unknown } | null;
     if (target !== null && typeof target === 'object' && target.location_id === locationId) shots.push({ photo, at });
   });
-  return targetLine(shots);
+  return targetLine(shots, rows);
 }
 
 /** One environment field as the cabine sheet draws it: its key, its stored value, and whether a suggestion fills it (no line there). */

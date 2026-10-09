@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cancelledReadingSuggestions, READING_CANCEL_AFTER_MS, READING_FAST_POLL_WINDOW_MS, readingStartedAt, readingWait } from './wait.ts';
+import { cancelledReadingSuggestions, READING_CANCEL_AFTER_MS, READING_FAST_POLL_WINDOW_MS, readingStartedAt, readingWait, readingWaitStart } from './wait.ts';
 
 /*
  * 13.5-UNIT: the wait line of a pending reading (WAIT-1) and the suggestions a cancel discards.
@@ -51,6 +51,25 @@ describe('13.5-UNIT the reading wait line', () => {
   it('a start ahead of the device clock (server stamp, skewed tablet) reads 0 s, never negative; an unreadable time reads 0 s', () => {
     expect(readingWait(at(30_000), T0)).toEqual({ text: 'Lendo…', cancellable: false, stillReading: false, announcement: 'Lendo…' });
     expect(readingWait('not a time', T0).text).toBe('Lendo…');
+  });
+
+  it('review 2026-10-08 (DG-4): no start while the server does not hold the bytes, so "Lendo…" with no age, no Cancelar, no note', () => {
+    // A shot taken offline three minutes ago, sent on reconnect: nothing says the server holds it.
+    expect(readingWaitStart({ captured_at: T0 })).toBeNull();
+    expect(readingWaitStart({ captured_at: T0, bytes_acked_at: null, uploaded_at: null, reading_status_at: null, reread_at: null })).toBeNull();
+    expect(readingWait(null, at(3 * 60_000))).toEqual({ text: 'Lendo…', cancellable: false, stillReading: false, announcement: 'Lendo…' });
+    // From the ack the age counts from it (the existing thresholds).
+    const acked = readingWaitStart({ captured_at: T0, bytes_acked_at: at(180_000) });
+    expect(acked).toBe(at(180_000));
+    expect(readingWait(acked, at(185_000)).text).toBe('Lendo…');
+    expect(readingWait(acked, at(192_000))).toMatchObject({ text: 'Lendo… 12 s', cancellable: true, stillReading: false });
+    // Another device's upload, a pulled status op or a reread asked here also mean the server holds it.
+    expect(readingWaitStart({ captured_at: T0, uploaded_at: at(5_000) })).toBe(at(5_000));
+    expect(readingWaitStart({ captured_at: T0, reading_status_at: at(7_000) })).toBe(at(7_000));
+    expect(readingWaitStart({ captured_at: T0, reread_at: at(9_000) })).toBe(at(9_000));
+    // The newest instant wins, never one before the capture.
+    expect(readingWaitStart({ captured_at: T0, bytes_acked_at: at(60_000), reading_status_at: at(65_000) })).toBe(at(65_000));
+    expect(readingWaitStart({ captured_at: T0, reading_status_at: at(-5_000) })).toBe(T0);
   });
 
   it('the start is the newest of the capture, the newest pulled status op and a reread asked here', () => {
