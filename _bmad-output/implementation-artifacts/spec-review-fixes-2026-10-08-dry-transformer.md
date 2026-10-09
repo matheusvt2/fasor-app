@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: a dry transformer can be concluded (one tap marks the oil items NA)'
 type: 'feature'
 created: '2026-10-08'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'f0adf337eda97a933a3881f29281dfd32be94141'
 amendment_baseline: '8e3761a' # merge of origin/main f057f9b (#119) before the 2026-10-09 amendment
 review_loop_iteration: 0
@@ -212,3 +212,9 @@ Status: done
 **Verification:** lint and static clean; unit suite green (dev run 1935 tests, new web test 7/7); `e2e/dry-transformer.durability.spec.ts` and `e2e/plate.spec.ts` under the lock green; the dry spec on the three matrix projects green (12/12 before R8DRY-E2E-005); mutation runs: marks removed turns R8DRY-E2E-001..004 red; rendered-block read turns 6 of 7 web unit tests red. The story gate runs after this.
 
 **Residual risks:** a "Desfazer" raised after the confirm is drawn (F-25) is not retired by a batch written in that one-render gap; `conclusion.ts` `anyAnswered` counts the marks (deferred, r8conc's file); copy chips write no marks (open question 1).
+
+### 2026-10-09 amendment result
+
+Status: done. Matheus's 2026-10-09 decision is implemented: confirming a dry insulation writes no marks; the chip "Marcar N itens de óleo como NA" (`oilNaChipItems(block, {used})`, `oilNaChipText`) under TIPO DE ISOLAÇÃO writes them in one undoable batch, offered from the stored insulation whatever wrote it, gone once used (device flag `oil_na_used:{blockId}`), undone, no longer dry or with every oil item answered. `nameplate-suggestions.tsx` and `plate.spec.ts` are back to main. The disabled-checklist guard is removed (checklist is locked). Independent review of PR #120: decision-1 decided by Matheus; tests-1, tests-2, tests-3, decision-7, rules-1, consistency-2 addressed; decision-3 an open question; decision-6 no longer applies; decision-2 and consistency-1 stated as the accepted project-wide merge rule.
+
+Verification on 9b4ba77 (merge of origin/main f057f9b included): lint 0 errors, static clean, test:unit 278 files / 3273 tests under the lock, test:api 77 files / 576 tests on 2ee91cf (9b4ba77 changes only a web unit test file), touched e2e 45/45, the dry durability spec on the matrix 15/15. Mutation: chip tap from the rendered block turns the fresh-block unit test red.
