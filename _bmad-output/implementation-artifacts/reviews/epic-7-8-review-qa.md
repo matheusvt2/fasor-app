@@ -206,7 +206,7 @@ None of these has a dated line under its story yet: the Epic 7 and 8 story secti
 | --- | --- | --- |
 | Unit specs:<br>`parecer`, `sumario`, `engine`, `plate-photo`, `suggestions-plate`, `datetime`, `nameplate-copy`, `photo-store` | 8 files, 135 tests, all passed | 11 s |
 | Api specs:<br>`reading.integration`, `job.integration`, `files-reading.integration`, `docx-section-10`, `fake.test` | 6 files, 46 tests, all passed | 70 s |
-| E2E grep:<br>`E78-Q`, 7.3-E2E-001, 7.5-E2E-006, 8.4-E2E-001, ~~8.1-E2E-005~~ 8.1-E2E-010 *(2026-10-09: renumbered by PR #116, TST-V2)*, 8.2-E2E-002, 8.6-E2E-001, 8.6-E2E-003 | 8 of 8 passed: parallel 6, serial 2 | 112 s |
+| E2E grep:<br>`E78-Q`, 7.3-E2E-001, 7.5-E2E-006, 8.4-E2E-001, 8.1-E2E-005 *(2026-10-09: that test is 8.1-E2E-010 since PR #116, TST-V2, `e2e/nameplate-values.spec.ts:40`; 8.1-E2E-005 is now only `e2e/suggestions.spec.ts:279`)*, 8.2-E2E-002, 8.6-E2E-001, 8.6-E2E-003 | 8 of 8 passed: parallel 6, serial 2 | 112 s |
 
 ### Per finding
 

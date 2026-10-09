@@ -163,7 +163,7 @@ deferred:
 ## Auto Run Result
 
 - `pnpm test:unit` (whole suite): 208 files, 2294 tests passed. `pnpm test:api` (whole suite): 39 files, 243 tests passed (the Porto Seguro structure golden unchanged). `pnpm lint` and `pnpm static` clean.
-- e2e, each alone on `desktop-chrome`: E78-Q1 7.5-E2E-006, `@p1` 7.3-E2E-001, E78-Q2 8.4-E2E-001, `@p1` E78-Q14 8.6-E2E-003, 8.2-E2E-002 (extended), 8.6-E2E-001, E78-Q3/Q4 ~~8.1-E2E-005~~ 8.1-E2E-010 *(2026-10-09: renumbered by PR #116, TST-V2; `e2e/nameplate-values.spec.ts:40`; 8.1-E2E-005 is now only `e2e/suggestions.spec.ts:279`)*: 7 passed, 0 failed.
+- e2e, each alone on `desktop-chrome`: E78-Q1 7.5-E2E-006, `@p1` 7.3-E2E-001, E78-Q2 8.4-E2E-001, `@p1` E78-Q14 8.6-E2E-003, 8.2-E2E-002 (extended), 8.6-E2E-001, E78-Q3/Q4 8.1-E2E-005 *(2026-10-09: that test is 8.1-E2E-010 since PR #116, TST-V2, `e2e/nameplate-values.spec.ts:40`; 8.1-E2E-005 is now only `e2e/suggestions.spec.ts:279`)*: 7 passed, 0 failed.
 - Mutation runs, each fix reverted at one point in the working tree, its test run, then restored:
   - Q1 (no virtual rows in `sumarioRows`): `sumario.test.ts` 4 failed.
   - Q5 route (no `reading_running` check, api restarted): `reading.integration.test.ts` E78-Q5 failed.
