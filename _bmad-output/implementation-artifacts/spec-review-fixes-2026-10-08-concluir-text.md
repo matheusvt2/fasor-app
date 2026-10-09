@@ -1,0 +1,108 @@
+---
+title: 'Review fixes 2026-10-08: Concluir ficha confirms the composed conclusion text'
+type: 'feature'
+created: '2026-10-08'
+status: 'in-progress'
+baseline_revision: 'f0adf337eda97a933a3881f29281dfd32be94141'
+review_loop_iteration: 0
+followup_review_recommended: false
+dev_model: 'opus'
+dev_effort: 'high'
+context:
+  - '{project-root}/_bmad-output/implementation-artifacts/review-fixes-2026-10-08-context.md'
+  - '{project-root}/AGENTS.md'
+warnings: ['batched', 'oversized']
+# batched: the coordinator cut one batch (r8conc) for Decision 1 of the 2026-10-08 review: JRN-V1 (the fold) and AIB-1's stale row ship together, because the fold makes every concluded sheet carry a confirmed text, which is exactly what can later go stale.
+deferred: []
+---
+
+<intent-contract>
+
+## Intent
+
+**Problem:** "Concluir ficha" and "Concluir e avançar" write the D-4 instruments and `concluded_by` but not the conclusion text, so a sheet concluded without the separate text "Confirmar" prints no conclusion paragraph (JRN-V1, about 94 hidden taps per job). And once a confirmed text goes stale (a value or the TAG changed after the confirm), section 9 silently drops it while the pre-issue list still counts it printable (AIB-1, stale-row part).
+
+**Approach:** Per the binding source-deltas row of 2026-10-08 ("Story 5.8: the composed conclusion text …"), the conclude batch also writes `conclusion/text`, `text_status = confirmed` and `text_basis` composed from the fresh rows, when the pair is set and no text was stored yet; a new kernel pre-issue row `conclusion_stale` on section 9 names the TAGs of concluded sheets whose stored text is stale, so the Sumário row and the Export dialog's pre-issue list say it.
+
+## Boundaries & Constraints
+
+**Always:**
+- The decision ("confirm the text or not") is a kernel rule (AD-1/AD-13): a new function in `packages/domain/src/relatorio/conclusion.ts`; `use-ficha-actions.ts` only turns its result into ops.
+- One batch: D-4 instrument ops, the three text ops and `concluded_by` share one `batch_id` (one `api.edit`).
+- The text and its basis come from ONE `composeConclusion` call on the fresh block inside the edit (the same fresh-rows rule Story 12.1 set for completeness), with the tag from the fresh equipment row (`rows.equipment`, `fresh.equipment_id`, `''` when none: the same tag the ficha and `print/section-9.ts` use). A text is never stored under a basis it was not composed from (E5-A4).
+- Fold only when ALL hold on the fresh block: `not_tested === null`, the `conclusion` sub-block is enabled (`enabledSubBlocksOf`), `conclusionPairComplete`, and `conclusionTextStatusOf === null`. A `confirmed` or `edited` text (stale or not) is never written by the conclude.
+- The stale row uses the existing rule only (`conclusionTextState(...) === 'stale'`, which covers confirmed and edited texts); no print rule changes: `print/section-9.ts`, `conclusionTextForPrint` and the goldens stay as they are.
+- New pt-BR copy lives in the kernel and is marked `// authored:`; no emoji; English code and comments.
+- Concluding stays the same number of taps (J1, J3 budgets unchanged in `TAP_BUDGET`).
+
+**Never:**
+- No change to Story 5.8's separate text "Confirmar", "Substituir" or "Editar", to the `conclusion_unconfirmed` rule, to `EXPLICIT_KINDS`, to section 10 or the parecer (no `parecer_stale`), to `CONTRACT_VERSION`/`MIN_CONTRACT_VERSION`, or to AIB-16's single print rule.
+- The conclude never writes the D-7 sheet observation suggestion (open question below), never overwrites a stored text, never adds a toast or a tap.
+- Do not edit files owned by r8dry (`nameplate-section.tsx`, `nameplate-suggestions.tsx`, `checklist-section.tsx`, `packages/domain/src/seed/`, `schemas/block-config.ts`) or r8emit's toast files, `sumario-surface.tsx`, `apps/web/src/copy/pt-br.ts`; never `.only`; test ids unique.
+
+## I/O & Edge-Case Matrix
+
+| Scenario | Fresh block at the Concluir tap | Conclude batch | Notes |
+|---|---|---|---|
+| Unconfirmed text, pair set | `text_status` null, result + restriction set | instruments + `text` (composed) + `text_status`=`confirmed` + `text_basis` (same composition) + `concluded_by` | JRN-V1 fixed |
+| Value typed right before the tap | the last reading's commit landed after this render | text/basis composed from the fresh rows (include the last reading); field reads `confirmed`, not stale, after reopening | 12.1 race |
+| Edited text | `text_status` = `edited` | instruments + `concluded_by` only | edited untouched |
+| Already confirmed (fresh or stale) | `text_status` = `confirmed` | instruments + `concluded_by` only | stale shows stale |
+| Conclusion sub-block off | `enabled` lacks `conclusion` | no text ops | |
+| Incomplete sheet | progress not complete | nothing written (jump, as today) | unchanged |
+| Undo of the conclude batch | `undoBatch`/`invertBatch` of that batch | text, text_status, text_basis, instruments, concluded_by back to their prior values (null) | exact restore |
+| Stale after conclude | concluded; TAG renamed or a reading changed | sheet: "Sugerido: texto atualizado — Substituir"; Sumário row 9 and pre-issue: `Texto de conclusão desatualizado: <TAG>` | "Substituir" clears the row |
+
+</intent-contract>
+
+## Code Map
+
+- `apps/web/src/surfaces/ficha/use-ficha-actions.ts:122-155` -- `conclude()`: the one path of the primary ("Concluir e avançar", `copy.ficha.concluir`) and the menu ("Concluir ficha"); its `api.edit` build returns `[...suggestedInstruments(...).map(testInstrumentOp), concludedByOp(...)]`. Build signature `(blocks, by, rows)` with `rows.equipment` (`apps/web/src/surfaces/relatorio/relatorio-editor.ts:22-30`). Needs `definition` as a new param.
+- `apps/web/src/surfaces/ficha/ficha-surface.tsx:76-83, 119-134` -- `definition` (`getDefinition(block.seed_version, 'cabine_primaria', block.block_type)`) is in `FichaBody`'s props; pass it to `useFichaActions`.
+- `apps/web/src/surfaces/ficha/ficha-ops.ts:100-108` -- `conclusionOp(author, relatorioId, blockId, 'text' | 'text_status' | 'text_basis', value)`: reuse.
+- `apps/web/src/surfaces/ficha/conclusao-section.tsx:228-256` -- `confirmText`: the existing confirm (read only, the pattern; it also writes the D-7 observation, which the conclude must not).
+- `packages/domain/src/relatorio/conclusion.ts` -- `composeConclusion` (191), `conclusionTextStatusOf` (267), `conclusionTextState` (278), `conclusionPairComplete` (288), `conclusionTextForPrint` (297); `enabledSubBlocksOf` from `./sheet-state.ts`. Add the fold rule here.
+- `packages/domain/src/relatorio/pre-issue.ts:61-71, 183-187, 334-347` -- `PreIssueKind`, `conclusionUnconfirmedText`, the `conclusion_unconfirmed` row: add `conclusion_stale` beside it (r8emit's #119 edits plurals in this file; keep the edit local).
+- `packages/domain/src/relatorio/ficha.ts:26` -- `sheetOrder(snapshot)` (tree order; `TreeEquipmentNode.name` is the TAG else the type label); `packages/domain/src/text/plural.ts:7` `listPtBr`.
+- `packages/domain/src/relatorio/sumario.ts:182-185` -- section 9's meta joins its own pre-issue rows: a new `section_9` row shows on the Sumário row with no web change.
+- `packages/domain/src/print/section-9.ts:543-555` -- the print rule (read only; drops a stale confirmed text, prints an edited one).
+- `packages/domain/src/ops/outbox.ts:82` `invertBatch`, `ops/apply.ts:468` `applyOp`; `apps/web/src/db/commit.ts:344` `undoBatch`, its tests `apps/web/src/db/commit.test.ts:280-330` -- for the undo test.
+- Tests to extend: `packages/domain/src/relatorio/conclusion.test.ts` (fixtures `SEC`, a block builder), `packages/domain/src/relatorio/pre-issue-export.test.ts:110-130` (the `conclusion_unconfirmed` cases), `apps/web/src/db/pre-issue-golden.test.ts` (check the golden still holds).
+- E2E: `e2e/tap-budget.spec.ts` (`conclude()` helper, J1 and J3, offline: the ops sit in the outbox; `readStore(page, database, 'outbox')` in `e2e/support/outbox.ts:188`), `e2e/journey-taps.spec.ts:128-146` and `e2e/journeys-12-3-12-4.spec.ts:96-124` (J1/J3 conclude helpers; J2 already taps the text "Confirmar" at :226), `e2e/tap-budget-signal.spec.ts:205-231` (SM-3), `e2e/lost-taps.durability.spec.ts:238-264` (12.1-E2E-004, Concluir right after Enter), `e2e/ficha.spec.ts:700-780` (the text confirm tests, for patterns: `textbox 'Texto da conclusão'`, outbox paths `sheet/{id}/conclusion/text_status`).
+
+## Tasks & Acceptance
+
+**Execution:**
+- `packages/domain/src/relatorio/conclusion.ts` -- add `conclusionTextOnConclude(block: BlockRow, definition: BlockDefinition, equipmentTag: string): { text: string; basis: string } | null`: the composed text and basis the conclude confirms, null unless all four conditions of Boundaries hold. JSDoc cites the source-deltas row of 2026-10-08 and D-4. -- the rule lives in the kernel.
+- `packages/domain/src/relatorio/pre-issue.ts` -- add kind `conclusion_stale` and `conclusionStaleText(names: readonly string[]): string` (`// authored:`; 1 name: `Texto de conclusão desatualizado: SEC-C05`; more: `Textos de conclusão desatualizados: SEC-C05 e TR-01` via `listPtBr`). In `preIssue`, right after the `conclusion_unconfirmed` row: the live equipment blocks with `sheetState === 'concluida'`, `conclusion` enabled, `conclusionTextForPrint(block) !== null`, a known definition (`findDefinition`; skip unknown seeds), and `conclusionTextState(block, composeConclusion(block, definition, tag)) === 'stale'` (tag from `snapshot.equipment` by `equipment_id`, `''` when none); compose only for those that pass the cheap checks first. Name them in `sheetOrder` order by the node's `name`; one row `{ id: 'conclusion_stale', row: 'section_9', severity: 'pending', kind: 'conclusion_stale' }`. A sheet is never in both rows (`conclusion_unconfirmed` keeps `conclusionTextForPrint === null`). -- AIB-1 stale row; Sumário and Export dialog draw it unchanged.
+- `apps/web/src/surfaces/ficha/use-ficha-actions.ts` -- take `definition`; in `conclude()`'s build, after the completeness check, compute `conclusionTextOnConclude(fresh, definition, tagOf(fresh))` and, when non-null, add `conclusionOp(… 'text', text)`, `(… 'text_status', 'confirmed')`, `(… 'text_basis', basis)` between the instrument ops and `concludedByOp`. Update the JSDoc of `conclude` (Decision 1). -- the fold.
+- `apps/web/src/surfaces/ficha/ficha-surface.tsx` -- pass `definition` to `useFichaActions`. -- wiring.
+- `packages/domain/src/relatorio/conclusion.test.ts` -- unit-test every row of the I/O matrix for `conclusionTextOnConclude` (unconfirmed + pair → text/basis equal to `composeConclusion`; edited, confirmed, confirmed-stale, pair incomplete, conclusion off, not tested → null); after applying the conclude ops (`applyOp`) `conclusionTextState` reads `confirmed` and `conclusionTextForPrint` returns the composed text (section 9 prints it); and the undo: apply the conclude ops (`applyOp`) to a block, invert them (`invertBatch` with the prior values), apply → the block's `sheet.conclusion` and `concluded_by` deep-equal the original. -- kernel coverage.
+- `packages/domain/src/relatorio/pre-issue-export.test.ts` -- `conclusion_stale`: one stale confirmed sheet named by TAG; two named in tree order with "e"; an edited stale text named; a fresh confirmed text, an unconcluded sheet and an incomplete pair produce no stale row; no sheet counted in both rows; `conclusionStaleText` singular and plural. -- AIB-1 coverage.
+- `e2e/review-concluir-text.spec.ts` (new, ids `R8CONC-E2E-001`…): (001 `@p0`) a complete seccionadora, pair confirmed from the suggestion, text never confirmed: "Concluir e avançar" → outbox `sheet/{id}/conclusion/text` (starts `A seccionadora <TAG>`), `text_status` `confirmed`, `text_basis` (8 hex) in the same `batch_id` as `block/{id}/concluded_by`; back on the sheet the Generated text field shows the confirmed helper and no "Confirmar"; the Sumário row 9 meta has no "sem texto de conclusão confirmado". (002 `@p0`) "Editar", type, blur, then the menu's "Concluir ficha" → the conclude batch carries no `conclusion/text*` op and the last `text_status` op stays `edited`. (003 `@p0`) after 001's conclude, rename the TAG from the sheet menu ("Renomear TAG") → the sheet shows "Sugerido: texto atualizado — Substituir"; the Sumário row 9 reads `Texto de conclusão desatualizado: <new TAG>`; "Substituir" on the sheet → the row is gone. Not a tap-timing spec (parallel group). -- the user-visible ACs.
+- `e2e/tap-budget.spec.ts` -- in `conclude()` (or right after it, for J1 and J3): the outbox holds `text`, `text_status` = `confirmed` and `text_basis` of the concluded block in the `concluded_by` batch; `TAP_BUDGET` unchanged; update the header comment (Decision 1, no added tap). -- launch prompt.
+- `e2e/journey-taps.spec.ts`, `e2e/journeys-12-3-12-4.spec.ts`, `e2e/tap-budget-signal.spec.ts` -- the same assertion after each J1/J3/SM-3 Concluir (for J2, which taps the text "Confirmar" first, assert only that the last `text_status` op is `confirmed`). These are tap-timing specs: reads happen after the counted tap, never add a tap. -- journeys.
+- `e2e/lost-taps.durability.spec.ts` -- in 12.1-E2E-004, after each Concluir: the conclude batch carries `text_status` `confirmed`; for the first delay, reopen the sheet and assert the Generated text field is confirmed, not stale (no "Sugerido: texto atualizado"), proving the text was composed from the fresh rows including the last reading. -- E10-A4 durability.
+- `_bmad-output/implementation-artifacts/deferred-work.md` -- append entries (format of the file, owner named): parecer stale row (AIB-1 parecer part, owner coordinator); Concluir and the D-7 observation (open question, owner Matheus); stale edited text print vs block (AIB-1, owner Matheus); the text helper copy now that Concluir confirms (owner Bruno). -- ledger.
+
+**Acceptance Criteria:**
+- Given a complete sheet whose pair is set and whose text was never confirmed, when the engineer taps "Concluir e avançar" or the menu's "Concluir ficha", then one batch holds the D-4 instruments, `conclusion/text`, `text_status = confirmed`, `text_basis` and `concluded_by`, and the sheet prints its conclusion paragraph with no extra tap.
+- Given an edited or already confirmed text, when the sheet is concluded, then no `conclusion/text*` op is written.
+- Given J1 and J3 of the tap budget, when they run, then they stay within `TAP_BUDGET` (9 and 7 taps) and assert `text_status = confirmed` in the conclude batch.
+- Given a concluded sheet whose stored text no longer matches its values, when the Sumário or the Export dialog is opened, then section 9's row reads "Texto de conclusão desatualizado: <TAG>" (plural form naming every TAG), the sheet shows "Sugerido: texto atualizado — Substituir", and "Substituir" removes the row.
+- Given the conclude batch, when it is undone through the commit path's undo, then every field it wrote is restored to its prior value.
+
+## Design Notes
+
+- Fresh composition, not the render's basis: the Concluir tap often lands before the last value's render (Story 12.1, `lost-taps` 12.1-E2E-004); comparing with the render's basis would drop the fold exactly in that case. The tap is the confirmation of what the kernel composes at that moment (D-4 confirms the instrument it computes on the fresh rows the same way); text and basis from one composition keep E5-A4's invariant.
+- Open questions (keep the conservative reading; list in the PR body): (1) the review's 14.3 lists "+ D-7 observation" in the conclude batch while the source-deltas row lists only text, status and basis: the conclude does not write the observation suggestion; (2) a stale edited text is named in the stale row but still prints (print vs block is Matheus's, AIB-1); (3) the text helper ("… Impresso na linha Conclusão da seção 9 depois de confirmar.") is mock copy and stays; Bruno may want "confirmado ao concluir a ficha" as the instrument picker says.
+- r8dry deferral (`anyAnswered` counting dry-insulation NA marks, PR #120): taken only if #120 is on `origin/main` when the batch finishes; the orchestrator decides at merge time.
+
+## Verification
+
+**Commands (inside the tools container, `podman compose --profile tools run --rm --user root tools …`):**
+- `pnpm lint`, `pnpm static` -- expected: no errors.
+- `pnpm test:unit -- packages/domain/src/relatorio apps/web/src/db apps/web/src/surfaces/ficha` while iterating, then `pnpm test:unit` -- expected: green.
+- `pnpm test:api` -- expected: green (no api change).
+- Under the host lock only (the orchestrator runs it): `pnpm exec tsx scripts/e2e.ts e2e/review-concluir-text.spec.ts e2e/tap-budget.spec.ts e2e/tap-budget-signal.spec.ts e2e/journey-taps.spec.ts e2e/journeys-12-3-12-4.spec.ts e2e/lost-taps.durability.spec.ts e2e/ficha.spec.ts e2e/sheet-knows-12-3-12-4.spec.ts e2e/review-field-defects-2.spec.ts --project desktop-chrome --project durability-desktop-chrome`, and `e2e/lost-taps.durability.spec.ts` on the three durability projects -- expected: green. The implementation subagent never runs Playwright outside the lock.
+- Mutation run (orchestrator, under the lock): drop the three text ops from `conclude()` → `e2e/tap-budget.spec.ts` and R8CONC-E2E-001 go red; restore.
