@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: Concluir ficha confirms the composed conclusion text'
 type: 'feature'
 created: '2026-10-08'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'f0adf337eda97a933a3881f29281dfd32be94141'
 review_loop_iteration: 0
 followup_review_recommended: false
