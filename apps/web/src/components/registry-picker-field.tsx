@@ -103,7 +103,14 @@ export function RegistryPickerField({
     const createdLabel = onCreate(text);
     setInputValue(typeof createdLabel === 'string' ? createdLabel : text);
   };
+  // Only text the engineer changed while the field held the focus is committed on leave: a stored
+  // by-value name shown as it is (an unregistered "Hi-Tech", a copied manufacturer) focused and left
+  // untouched writes nothing; its own "Criar ⟨nome⟩?" line registers it.
+  const textOnFocus = useRef<string | null>(null);
   const commitLeft = () => {
+    const before = textOnFocus.current;
+    textOnFocus.current = null;
+    if (before !== null && latestText.current === before) return;
     const text = latestText.current.trim();
     if (text === '') return;
     const key = matchKey(text);
@@ -143,6 +150,11 @@ export function RegistryPickerField({
         className="rpf-combobox"
         hidden={!showCombobox}
         ref={comboboxHost}
+        onFocus={(event) => {
+          const from = event.relatedTarget;
+          if (from instanceof Element && (event.currentTarget.contains(from) || from.closest('.combobox-list') !== null)) return;
+          textOnFocus.current = latestText.current;
+        }}
         onBlur={(event) => {
           const next = event.relatedTarget;
           if (next instanceof Element && (event.currentTarget.contains(next) || next.closest('.combobox-list') !== null)) return;

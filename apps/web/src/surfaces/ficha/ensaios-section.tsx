@@ -17,7 +17,7 @@ import {
   type RelatorioSnapshot,
   type TestEvaluation,
 } from '@app/domain';
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
@@ -239,6 +239,24 @@ function TestSection({
   );
 }
 
+/**
+ * Review fixes 2026-10-08 (DC-1, DB-3): a header or connection text as its words, each unbreakable
+ * (`.mt-word`, `ficha.css`): a line breaks only between words, never inside one at a hyphen
+ * ("X3-" over "X0", "T1-" over "T2"). The text is the label as it is.
+ */
+function WholeWords({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(' ').map((word, i) => (
+        <Fragment key={i}>
+          {i === 0 ? null : ' '}
+          <span className="mt-word">{word}</span>
+        </Fragment>
+      ))}
+    </>
+  );
+}
+
 function MeasurementTable({
   api,
   test,
@@ -328,13 +346,13 @@ function MeasurementTable({
             <tr>
               {table.connectionHeaders.map((header, i) => (
                 <th key={`c${i}`} scope="col">
-                  {screenLabel(header)}
+                  <WholeWords text={screenLabel(header)} />
                 </th>
               ))}
               {table.columns.map((column) => (
                 // DC-1: Condição is a word column (`60-ficha.html` draws its header without `col-value`).
                 <th key={column.col} scope="col" className={column.role === 'input' || column.derivedKind === 'condicao' ? undefined : 'col-value'}>
-                  {screenLabel(column.header)}
+                  <WholeWords text={screenLabel(column.header)} />
                 </th>
               ))}
             </tr>
@@ -344,7 +362,7 @@ function MeasurementTable({
               <tr key={row.row}>
                 {row.connection.map((text, i) => (
                   <td key={`c${i}`} className={i === 0 ? 'cell-point' : 'cell-dim'}>
-                    {text === '' ? '—' : screenLabel(text)}
+                    {text === '' ? '—' : <WholeWords text={screenLabel(text)} />}
                   </td>
                 ))}
                 {table.columns.map((column) => {

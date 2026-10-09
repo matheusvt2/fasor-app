@@ -57,14 +57,6 @@ export function firstFocusable(root: HTMLElement): HTMLElement | null {
 /** The Sticky action bar's primary button of the sheet (`ficha-surface.tsx`), where an Enter run ends. */
 export const SHEET_PRIMARY_ID = 'ficha-primary';
 
-/**
- * Review fixes 2026-10-08 (DB-7): the plate and cabine fields' Enter run, the readings' run
- * (Story 13.4) carried to them. From the field `from` sits in, the focus moves to the next
- * missing field drawn after it in document order -- the kernel's missing-field markers
- * (`[data-missing-field]`, the ones "Concluir ficha" jumps to), so the next empty plate field,
- * then the sheet's next missing field in a later step -- on its first focusable control, its
- * text selected; with none left, the sheet's primary button. False when nothing took the focus.
- */
 /** True while `focusNextMissingField` hands the focus on (read by the sheet's step tracking). */
 let enterRunMoving = false;
 
@@ -77,6 +69,17 @@ export function isEnterRunMoving(): boolean {
   return enterRunMoving;
 }
 
+/**
+ * Review fixes 2026-10-08 (DB-7): the plate and cabine fields' Enter run, the readings' run
+ * (Story 13.4) carried to them. From the field `from` sits in, the focus moves to the next
+ * missing field drawn after it in document order -- the kernel's missing-field markers
+ * (`[data-missing-field]`, the ones "Concluir ficha" jumps to), so the next empty plate field,
+ * then the sheet's next missing field in a later step -- on its first focusable control, its
+ * text selected; with none left, the sheet's primary button. False when nothing took the focus.
+ * Landing on a control that is not a text entry (a checklist segment, a chip, the primary), the
+ * held Enter's auto-repeat keydowns are swallowed there until that Enter's keyup, so they never
+ * press it (`swallowHeldEnter`).
+ */
 export function focusNextMissingField(from: HTMLElement, primaryId: string = SHEET_PRIMARY_ID): boolean {
   const field = from.closest<HTMLElement>('[data-field-key]') ?? from;
   const markers = [...document.querySelectorAll<HTMLElement>('[data-missing-field]')];
@@ -96,7 +99,36 @@ export function focusNextMissingField(from: HTMLElement, primaryId: string = SHE
     enterRunMoving = false;
   }
   if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) target.select();
+  else swallowHeldEnter(target);
   return document.activeElement === target;
+}
+
+/**
+ * The repeat keydowns of the Enter that just moved the focus onto `target` (a button) are not
+ * presses: each is cancelled before React or the browser activates the button, until the key
+ * goes up (or the focus leaves `target`).
+ */
+function swallowHeldEnter(target: HTMLElement): void {
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== 'Enter' || event.target !== target) return;
+    if (!event.repeat) {
+      stop();
+      return;
+    }
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+  const onKeyUp = (event: KeyboardEvent) => {
+    if (event.key === 'Enter') stop();
+  };
+  const stop = () => {
+    window.removeEventListener('keydown', onKeyDown, true);
+    window.removeEventListener('keyup', onKeyUp, true);
+    target.removeEventListener('blur', stop);
+  };
+  window.addEventListener('keydown', onKeyDown, true);
+  window.addEventListener('keyup', onKeyUp, true);
+  target.addEventListener('blur', stop);
 }
 
 /** An Enter that runs on: not Shift+Enter and not the Enter that ends an IME composition. */
@@ -379,11 +411,14 @@ function DateTextField({ field, value, commit, missing, label, after, flushOnUnm
   const committer = useFieldCommit<unknown>({ commit: (next) => commit(next) });
   /** Typed text not yet handed to the committer (F-01: flushed if the field leaves the page). */
   const pending = useRef(false);
+  /** The text the last Enter or blur committed: the same text left again writes nothing more. */
+  const submitted = useRef<string | null>(null);
   if (storedText !== shown.current) {
     shown.current = storedText;
     setText(storedText);
     setInvalid(false);
     pending.current = false;
+    submitted.current = null;
   }
   /** The value `typed` writes, `undefined` when nothing is to be written, `false` when it is refused. */
   const reading = (typed: string): unknown => {
@@ -394,6 +429,8 @@ function DateTextField({ field, value, commit, missing, label, after, flushOnUnm
   };
   /** Commits the typed date; false when it is refused (the invalid helper shows). */
   const submit = (): boolean => {
+    // Enter committed this text and moved the focus on: the blur that follows writes it no second time.
+    if (submitted.current === text) return true;
     const next = reading(text);
     pending.current = false;
     if (next === undefined) return true;
@@ -403,6 +440,7 @@ function DateTextField({ field, value, commit, missing, label, after, flushOnUnm
     }
     setInvalid(false);
     committer.immediate(next);
+    submitted.current = text;
     return true;
   };
   const latest = useRef({ text, on: flushOnUnmount === true, committer, reading });
@@ -437,6 +475,7 @@ function DateTextField({ field, value, commit, missing, label, after, flushOnUnm
           setText(event.target.value);
           setInvalid(false);
           pending.current = true;
+          submitted.current = null;
         }}
         onFocus={() => onFocusChange(true)}
         onBlur={() => {

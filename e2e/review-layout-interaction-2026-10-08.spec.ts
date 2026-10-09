@@ -1,4 +1,4 @@
-import type { OpDraft } from '@app/domain';
+import { getDefinition, type FieldDef, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -232,10 +232,7 @@ test('@p0 R8LAY-E2E-001 DC-1 the transformer TTR at 768, 1024 (rail open) and 12
     const geometry = await expectTableWhole(page, ttr, where, 72, inputs.nth(4));
     expect(geometry.inputs.map((input) => input.value)).toEqual(['13,8', '380', '34,512', '39,48', '34,51']);
     await expect(ttr.locator('table.ficha-ttr thead th')).toHaveText(['TAP nº', 'V primário', 'V secundário', 'Calculado', 'H1-H3 / X1-X0', 'H2-H1 / X2-X0', 'H3-H2 / X3-X0', 'Condição']);
-    // AC1's "at 1280 the table scroller does not scroll at all" is not asserted: measured on 2026-10-09 the
-    // transformer TTR's whole-word minimum is 1223 px (five 48 px "Não medido" triggers, two 48 px unit
-    // slots, inputs of six digits) against the 864 px the 880 px content column leaves; open question
-    // in `deferred-work.md`. At 1280 it holds the same invariants as at 768 and 1024.
+    if (size.width === 1280) expect(geometry.scroller.scrollWidth, `1280: the table scroller scrolls: ${geometry.columns}`).toBeLessThanOrEqual(geometry.scroller.clientWidth);
   }
 });
 
@@ -386,6 +383,36 @@ test('@p0 R8LAY-E2E-005 DB-7 on a cabine\'s first sheet Enter runs Tensão prim�
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await outbox(page)).some((row) => row.path.includes('/se/') && JSON.stringify(row.value) === JSON.stringify({ raw: '380', unit: 'V', state: 'measured' }))).toBe(true);
   await expect(page.getByLabel('Potência instalada', { exact: true })).toBeFocused();
+});
+
+/** A filled value of a plate field's kind, as the office would have typed it. */
+function plateValue(field: FieldDef): unknown {
+  if (field.kind === 'number') return { raw: '630', unit: field.unit ?? null, state: 'measured' };
+  if (field.kind === 'date') return '2020-01-01';
+  if (field.kind === 'select') return field.options![0];
+  return 'X';
+}
+
+test('@p0 R8LAY-E2E-014 DB-7 Enter in the plate\'s last empty field lands in Verificações and leaves the completed plate expanded (Story 12.1)', async ({ page }) => {
+  test.setTimeout(150_000);
+  const plate = getDefinition('v1', 'cabine_primaria', 'chave_seccionadora').nameplate;
+  const built = await setUp(page, { width: 1280, height: 800 }, (b) => {
+    const sheet = sheetOf(b, 'chave_seccionadora');
+    return plate.filter((field) => field.key !== 'n_serie').map((field) => officeDraft(account, { relatorioId: b.relatorioId }, `sheet/${sheet.blockId}/nameplate/${field.key}`, plateValue(field)));
+  });
+  const sheet = sheetOf(built, 'chave_seccionadora');
+  await openSheet(page, built.relatorioId, sheet.blockId);
+  const stepper = page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' });
+  await expect(stepper.getByRole('button', { name: 'Placa, 1 faltando' })).toBeVisible();
+  await plateInput(page, 'n_serie').click();
+  await page.keyboard.type('SN-R8LAY');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => page.evaluate(() => document.activeElement?.closest('#ficha-step-verificacoes') !== null)).toBe(true);
+  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `sheet/${sheet.blockId}/nameplate/n_serie`).map((row) => row.value)).toEqual(['SN-R8LAY']);
+  // The plate is complete now, and stays expanded: the run is not the readings run.
+  await expect(stepper.getByRole('button', { name: 'Placa, 0 faltando' })).toBeVisible();
+  await expect(page.locator('#ficha-step-placa')).not.toHaveClass(/is-collapsed/);
+  await expect(plateInput(page, 'n_serie')).toBeVisible();
 });
 
 /** Office drafts for Cadastros: the manufacturer Celtta, and instruments with no manufacturer and with an unregistered one. */
@@ -625,8 +652,8 @@ test('@p1 R8LAY-E2E-009 the TP ratio table at 768, 1024 and 1280, and both ratio
   for (const size of TABLET_SIZES) {
     await page.setViewportSize(size);
     await expect(ttr.locator('table.ficha-ttr')).toBeVisible();
-    // As R8LAY-E2E-001: the TP's minimum is 945 px at 1280 (864 px available), so "no scroll at 1280" is an open question.
-    await expectTableWhole(page, ttr, `TP ${size.width}`, 72, inputs.last());
+    const geometry = await expectTableWhole(page, ttr, `TP ${size.width}`, 72, inputs.last());
+    if (size.width === 1280) expect(geometry.scroller.scrollWidth, `TP 1280: the table scroller scrolls: ${geometry.columns}`).toBeLessThanOrEqual(geometry.scroller.clientWidth);
   }
   // At 390 both ratio tables are their cards.
   await page.setViewportSize({ width: 390, height: 844 });

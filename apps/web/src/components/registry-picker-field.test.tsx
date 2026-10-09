@@ -302,6 +302,27 @@ describe('R8LAY DH-1 typed text left in the field', () => {
     expect(input).toHaveValue('Siemens');
   });
 
+  it('a stored by-value name focused and left untouched creates and changes nothing', async () => {
+    const onChange = vi.fn();
+    const onCreate = vi.fn();
+    render(
+      <>
+        <RegistryPickerField label="Fabricante" options={OPTIONS} recentIds={[]} value={null} initialText="Hi-Tech" onChange={onChange} onCreate={onCreate} />
+        <button type="button">Nome</button>
+      </>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    expect(screen.getByRole('combobox', { name: 'Fabricante' })).toHaveValue('Hi-Tech');
+    await userEvent.click(screen.getByText('Nome'));
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+    // Typing is what makes it the engineer's text.
+    await userEvent.click(screen.getByRole('combobox', { name: 'Fabricante' }));
+    await userEvent.keyboard('X');
+    await userEvent.click(screen.getByText('Nome'));
+    expect(onCreate).toHaveBeenCalledWith('Hi-TechX');
+  });
+
   it('an emptied field keeps today\'s behaviour: nothing created', async () => {
     const onCreate = vi.fn();
     render(field({ onCreate }));

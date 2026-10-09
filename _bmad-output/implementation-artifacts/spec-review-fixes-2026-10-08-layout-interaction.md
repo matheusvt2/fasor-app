@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-10-08: layout and interaction (TTR table, phone dialog, mid-word breaks, Enter in plate fields, lost manufacturer)'
 type: 'bugfix'
 created: '2026-10-09'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'f057f9b8941cee18c412ca5afe38e320e92f2d4d'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/review-fixes-2026-10-08-context.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 # batched: the review-fixes round cuts its batches by surface (context row r8lay, wave 4, Matheus 2026-10-08); these items share app.css's translations and the sheet's tables, fields and dialogs.
-deferred: []
+deferred:
+  - summary: >-
+      A TAG wider than the phone Sumário row's room runs the page sideways at 390 px (no ellipsis as the rail's F-07 rule gives).
+    evidence: |-
+      Edge Case Hunter: `.s9-eq-open .block-tag { white-space: nowrap }` and `.s9-eq > .s9-eq-open { min-width: min-content }` (relatorio.css, block r8lay DA-6); before the batch `.sum-s9 .s9-eq-open` (grid, `1fr auto`) already gave an unbreakable TAG its min-content, so mostly pre-existing; TAGs are free text (rename dialog).
+    location: >-
+      apps/web/src/surfaces/relatorio/relatorio.css (r8lay DA-6 block)
+    severity: low
 ---
 
 <intent-contract>
@@ -98,6 +105,31 @@ deferred: []
 - AC9 (DA-8) Given a sheet at 768x1024 with the rail opened from its strip (and at 1024x768 rail open), then the document has no horizontal overflow and every Sticky action bar button lies inside the viewport with its whole label.
 - AC10 (DA-6) Given the Sumário at 390x844 with the tree open, then in every equipment row no word of the TAG, type or state splits, each state's glyph and word share one line, and the document has no horizontal overflow; the F-07 checks of `review-layout-copy-3.spec.ts` stay green.
 - AC11 Given the condição cell, its computed colour is `--ink-secondary` in light and dark themes.
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-10-09 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer (opus); Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them); two orchestrator rows from reading the diff.
+- verdicts: 16 findings — high 0, medium 9, low 6, false 0, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` VG: the plate/cabine Enter run's "leave a completed step expanded" guard (`use-ficha-steps.ts` `!isEnterRunMoving()`) has no observing test (R8LAY-E2E-003/004 never complete the plate; 12.1-E2E-011 tests Tab) — patch: a new e2e completing the plate with Enter and asserting `#ficha-step-placa` stays expanded.
+  - `[low]` `[patch]` VG: the IME `isComposing` branches and the date field's Shift+Enter have no tests — patch: unit cases in the R8LAY DB-7 describe.
+  - `[medium]` `[patch]` VG other: `DateTextField` Enter commits, the run's focus move blurs inside the handler and `onBlur` submits the same date again (`shown.current` not yet echoed; `immediate` does not dedupe), two identical ops per Enter — patch: the blur after an Enter commit writes nothing; test asserts one call. (Same root cause as the ECH row below.)
+  - `[medium]` `[patch]` VG other: `commitLeft` treats the stored `initialText` as typed, so focus-and-leave on an unregistered stored manufacturer or voltage class creates a registry word and rewrites the value, bypassing E78-Q4/DH-3's explicit "Criar" — patch: commit only text changed since the field took the focus; unit tests.
+  - `[medium]` `[patch]` ECH: same as the row above (Tab through Fabricante at 1280 creates the word) — grouped, same patch.
+  - `[medium]` `[patch]` ECH: Combobox focused then "Criar Hi-Tech?" tapped creates the word twice (blur create, then the click) — grouped with the `initialText` root cause; patch plus a panel test of one create.
+  - `[low]` `[reject]` ECH: `registerManufacturer` early return or rejected write leaves the line hidden with no toast — `commitField`/`createManufacturer` of the same panel have no catch either (pre-existing pattern); `db`/`opBase` are null only signed out; adding error branches is more than a direct correction for an unlikely case.
+  - `[medium]` `[patch]` ECH: `DateTextField` double op (same as the VG row) — grouped, same patch.
+  - `[medium]` `[patch]` ECH: the run lands on a checklist row's "C" segment (a native button); a held Enter's auto-repeat clicks it and commits an unchosen answer — patch: swallow repeated Enter keydowns on a non-text landing target until keyup; unit test.
+  - `[low]` `[defer]` ECH: a TAG wider than the phone Sumário row (now `nowrap`, row `min-content`) runs the page sideways at 390 — largely pre-existing (`.sum-s9 .s9-eq-open` grid gave the TAG its min-content before); the rail's F-07 ellipsis has no phone s9 counterpart; deferred.
+  - `[low]` `[reject]` ECH: a TTR value longer than six characters clips in the six-digit input — ratio and voltage values are at most seven characters ("120,135", typed in R8LAY-E2E-009 and asserted whole); `field-sizing` is not available on every target browser.
+  - `[low]` `[reject]` ECH: R8LAY-E2E-002 would throw a TypeError, not an assertion, if the seed had fewer than two seccionadoras — the standard template always has them (SEC-ENEL-1/2); cosmetic.
+  - `[medium]` `[patch]` ECH claim: AC1/AC2 "at 1280 the table scroller does not scroll" not met (transformer minimum 1223 px, TP 945 px, against 864 px) — grouped with the orchestrator row below.
+  - `[medium]` `[patch]` Orchestrator: the 1223 px minimum comes from `.measurement-field { flex-wrap: nowrap }` in ratio cells, which overrides the mock's own `.is-wide td.cell-value .measurement-field { flex-wrap: wrap }` and keeps input, static unit and the 48 px Overflow on one line — patch: drop the nowrap so the trailing parts wrap under the six-digit 48 px input, assert no scroll at 1280 in R8LAY-E2E-001/009 (or report the measured minimum), update the two deferred-work entries.
+  - `[maybe-false]` `[reject]` ECH claim (low confidence): the E9-Q4 wrap left on confirmed cells may wrap the unit off the input's line for a wider value or narrower table — AC3/AC4 assert the shared line and the 8 px hit test on the real phone tables; settling it needs a value or table the seed does not draw; if true it would be low (the DB-2 guard and 48 px input still hold).
+  - `[low]` `[patch]` Orchestrator: the DB-7 doc comment of `focusNextMissingField` sits above `let enterRunMoving` — patch: move it.
 
 ## Design Notes
 

@@ -171,20 +171,27 @@
 [data-route="/relatorio/:id/ficha/:blockId"] .ficha-mt > .mt-scroll { position: relative; max-width: 100%; overflow-x: auto; }
 [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table .mf-unit,
 [data-route="/relatorio/:id/ficha/:blockId"] .calc-mark { white-space: nowrap; }
+/* Each word of a header or connection text (`ensaios-section.tsx` `WholeWords`) is unbreakable: a
+   hyphen breaks a line too ("H3-H2 / X3-" over "X0"). */
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table .mt-word { white-space: nowrap; }
 /* DC-1: the ratio (TTR) table from 768 px. `components.css` fixes the layout of `.is-wide` with the
    widths of the 6-column TP mock (`60-ficha.html` 729), which leave the transformer's columns 7-8
    only their padding and squeeze every input to 24-36 px; here the table sizes by its content:
    the six mock widths reset, words whole (`.is-wide td { overflow-wrap: anywhere }` undone), each
-   input keeping six digit widths ("34,512") beside its unit on one line, 48 px tall. Where the
-   eight columns still do not fit (657 px boxes) the table scrolls inside `.mt-scroll`. */
+   input keeping six digit widths ("34,512"), 48 px tall; the mock's own wrap of the value cell
+   (`.is-wide td.cell-value .measurement-field { flex-wrap: wrap }`) puts the unit and the
+   "Não medido" trigger under the input when the column is narrow. Where the eight columns still
+   do not fit (657 px boxes) the table scrolls inside `.mt-scroll`. */
 @media (min-width: 768px) {
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr { table-layout: auto; }
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr th:nth-child(n) { width: auto; }
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr td { overflow-wrap: normal; }
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr td.cell-value { min-width: 0; }
-  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr td.cell-value .measurement-field { flex-wrap: nowrap; }
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr td.cell-value .mf-value { flex: 1 0 auto; width: calc(6ch + 2 * var(--sp-2)); min-width: calc(6ch + 2 * var(--sp-2)); min-height: var(--touch-min); padding-left: var(--sp-2); padding-right: var(--sp-2); }
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr td.cell-calc { white-space: nowrap; }
+  /* An out-of-criterion reading's "Marcar Com restrições" (`components.css` `.btn { white-space: nowrap }`)
+     wraps between its words under the reading, so it never widens its column past the input. */
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr td.cell-value .mf-helper .btn { white-space: normal; text-align: left; }
 }
 /* mirrors `.frame-desktop [data-route] .ficha-ttr td.cell-dim, .frame-desktop [data-route] .ficha-ttr th` */
 @media (min-width: 1280px) {

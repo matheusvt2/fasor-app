@@ -1,5 +1,5 @@
 import type { FieldDef } from '@app/domain';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { I18nProvider } from 'react-aria-components';
 import { useState } from 'react';
@@ -263,6 +263,8 @@ describe('R8LAY DB-7 the plate and cabine fields\' Enter run', () => {
     expect(screen.getByRole('textbox', { name: /fabrica/i })).toHaveFocus();
     await userEvent.keyboard('082024{Enter}');
     expect(commits.data_fabricacao).toHaveBeenCalledWith('2024-08');
+    // The blur of the move commits the date no second time.
+    expect(commits.data_fabricacao).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('textbox', { name: /tap/i })).toHaveFocus();
     await userEvent.keyboard('3{Enter}');
     expect(commits.tap_atual).toHaveBeenCalledWith('3');
@@ -294,6 +296,57 @@ describe('R8LAY DB-7 the plate and cabine fields\' Enter run', () => {
     await userEvent.type(serial, 'X{Shift>}{Enter}{/Shift}');
     expect(commits.n_serie).toHaveBeenCalledWith('X');
     expect(serial).toHaveFocus();
+  });
+
+  it('the Enter that ends an IME composition commits only: the text, number and date-text fields keep the focus', async () => {
+    const commits = { n_serie: vi.fn(), vol_oleo: vi.fn(), data_fabricacao: vi.fn() };
+    render(plate(commits));
+    for (const [name, text] of [[/série/i, 'PR2291'], [/óleo/i, '120'], [/fabrica/i, '2024']] as const) {
+      const input = screen.getByRole('textbox', { name });
+      await userEvent.type(input, text);
+      fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+      expect(input).toHaveFocus();
+    }
+    expect(commits.n_serie).toHaveBeenCalledWith('PR2291');
+    expect(commits.vol_oleo).toHaveBeenCalledWith({ raw: '120', unit: 'L', state: 'measured' });
+    expect(commits.data_fabricacao).toHaveBeenCalledWith('2024');
+  });
+
+  it('Shift+Enter on the date text commits once and keeps the focus', async () => {
+    const commits = { data_fabricacao: vi.fn() };
+    render(plate(commits));
+    const date = screen.getByRole('textbox', { name: /fabrica/i });
+    await userEvent.type(date, '082024{Shift>}{Enter}{/Shift}');
+    expect(date).toHaveFocus();
+    expect(commits.data_fabricacao).toHaveBeenCalledTimes(1);
+    expect(commits.data_fabricacao).toHaveBeenCalledWith('2024-08');
+  });
+
+  it('a held Enter that lands on a button never presses it with its repeats', async () => {
+    const commit = vi.fn();
+    const press = vi.fn();
+    render(
+      <I18nProvider locale="pt-BR">
+        <ToastProvider>
+          <SheetField field={TAP} value={null} missing commit={commit} draft={{ entityId: 'b', field: TAP.key }} invalidText="x" selectEmpty="Selecione" />
+          <ul>
+            <li className="checklist-row" data-missing-field="">
+              <button type="button" onClick={press}>
+                C
+              </button>
+            </li>
+          </ul>
+        </ToastProvider>
+      </I18nProvider>,
+    );
+    await userEvent.type(screen.getByRole('textbox', { name: /tap/i }), '3');
+    await userEvent.keyboard('{Enter>4/}');
+    expect(screen.getByRole('button', { name: 'C' })).toHaveFocus();
+    expect(commit).toHaveBeenCalledWith('3');
+    expect(press).not.toHaveBeenCalled();
+    // A new Enter, after the key went up, presses it as usual.
+    await userEvent.keyboard('{Enter}');
+    expect(press).toHaveBeenCalledTimes(1);
   });
 
   it('focusNextMissingField skips filled, hidden and earlier markers and selects the target\'s text', () => {

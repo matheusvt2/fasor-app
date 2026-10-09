@@ -201,6 +201,26 @@ describe('R8LAY DH-3 a stored manufacturer Fabricantes does not hold', () => {
     session.database.close();
   });
 
+  it('the Combobox focused, then "Criar Hi-Tech?" tapped: exactly one registry create', async () => {
+    const user = userEvent.setup();
+    const name = '0a000000-0000-7000-8000-0000000000d4';
+    await openDatabase(name).delete();
+    session.database = openDatabase(name);
+    vi.mocked(commitBatch).mockClear();
+    render(
+      <ToastProvider>
+        <InstrumentPanel instrumentId={instrument.id} instrument={{ ...instrument, manufacturer: 'Hi-Tech' }} referenced={false} onClose={vi.fn()} />
+      </ToastProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Outro…' }));
+    expect(screen.getByRole('combobox', { name: 'Fabricante' })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Criar Hi-Tech?' }));
+    await waitFor(() => expect(vi.mocked(commitBatch)).toHaveBeenCalledTimes(1));
+    const creates = vi.mocked(commitBatch).mock.calls.flatMap((call) => call[1]).filter((op) => op.kind === 'create' && op.path.startsWith('registry/manufacturer/'));
+    expect(creates).toHaveLength(1);
+    session.database.close();
+  });
+
   it('a manufacturer the registry holds shows no such line', () => {
     renderPanel(false);
     expect(document.querySelector('.word-unregistered')).toBeNull();
