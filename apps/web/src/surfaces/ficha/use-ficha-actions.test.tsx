@@ -136,6 +136,8 @@ describe('r8conc tests-3 the conclude composes the text from the fresh rows', ()
     expect(at('text_basis')).toBe(composed.basis);
     expect(at('text')).toBe(composed.text);
     expect(at('text_status')).toBe('confirmed');
+    // Contract 16: the composed text put is flagged for the merge.
+    expect(written!.find((op) => op.path === `sheet/${ID}/conclusion/text`)?.meta).toEqual({ composed: true });
     expect(written!.some((op) => op.path === `block/${ID}/concluded_by`)).toBe(true);
   });
 });

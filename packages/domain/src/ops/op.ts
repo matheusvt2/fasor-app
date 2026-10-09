@@ -73,6 +73,12 @@ export const opMetaSchema = z.looseObject({
   seen_conflict_op_id: uuidV7Schema.nullable().optional(),
   seen_modified_at: isoTimestampSchema.nullable().optional(),
   restore: restoreMarksSchema.optional(),
+  /**
+   * Contract 16 (PR #121 review, 2026-10-09): on a `sheet/{id}/conclusion/text` put, the text
+   * is the one the app composed and confirms with `text_status = confirmed` ("Concluir ficha",
+   * Story 5.8's "Confirmar" and "Substituir"); `mergePolicy` reads it. Never coalesced.
+   */
+  composed: z.boolean().optional(),
 });
 export type OpMeta = z.infer<typeof opMetaSchema>;
 

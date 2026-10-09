@@ -254,7 +254,8 @@ export function ConclusaoSection({
         }
         const observationOp = suggestedObservationOp(blocks, by);
         return [
-          conclusionOp(by, api.relatorioId, api.blockId, 'text', text),
+          // Contract 16: "Confirmar" and "Substituir" write the composed text, flagged for the merge.
+          conclusionOp(by, api.relatorioId, api.blockId, 'text', text, status === 'confirmed' ? { composed: true } : undefined),
           conclusionOp(by, api.relatorioId, api.blockId, 'text_status', status),
           conclusionOp(by, api.relatorioId, api.blockId, 'text_basis', basis),
           ...(observationOp === null ? [] : [observationOp]),

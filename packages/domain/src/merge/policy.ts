@@ -62,8 +62,8 @@ export function isEmptyValue(value: unknown): boolean {
 
 /**
  * The free-text cells: the latest edit wins and the other version is kept in the info entry.
- * Review 2026-10-09 (PR #121, r8conc-consistency-1): the conclusion text is the exception
- * while its standing `text_status` reads `edited` (`mergePolicy`).
+ * Contract 16 (PR #121 review, 2026-10-09): the one exception is a composed, confirmed
+ * conclusion text (`meta.composed`) over a standing edited one (`mergePolicy`).
  */
 function isFreeText(path: OpPath): boolean {
   if (path.family === 'sheet/observations') return true;
@@ -81,11 +81,12 @@ function isNcDevice(result: Cell, deviceId: string): boolean {
 /**
  * The rule for one concurrent pair, in the story's order: same value, filled over empty,
  * NC over C, the NC device's observation, latest free text, and anything else a
- * contradiction. Review 2026-10-09 (PR #121, r8conc-consistency-1): a concurrent put on the
- * conclusion text whose standing `text_status` is `edited` is a contradiction, not latest
- * free text, so a text the engineer edited is never replaced by another device's text
- * (another edit, or the composed text "Concluir ficha" confirms, Decision 1) without a
- * durable decision in the Conflict view. A contradiction keeps the `seq`-later op's value on display and (Story
+ * contradiction. Contract 16 (PR #121 review, 2026-10-09): a concurrent conclusion text put
+ * flagged `meta.composed` (the text the app composed and confirms: "Concluir ficha", Story
+ * 5.8's "Confirmar" and "Substituir") over a standing `text_status` of `edited` is a
+ * contradiction, so a text the engineer edited is never replaced by a composed one without a
+ * durable decision in the Conflict view. Every other concurrent text put stays latest free
+ * text (FR-58, Story 10.1): two edits, or an edited text arriving over a confirmed one. A contradiction keeps the `seq`-later op's value on display and (Story
  * 10.2) marks the cell with the side it displaced (`mergeCell`, the one branch).
  */
 export function mergePolicy(input: MergePolicyInput): MergeOutcome {
@@ -109,7 +110,7 @@ export function mergePolicy(input: MergePolicyInput): MergeOutcome {
       return { kind: isNcDevice(result, op.device_id) ? 'apply' : 'keep', rule: 'nc_observation' };
     }
   }
-  if (path.family === 'sheet/conclusion' && path.field === 'text' && input.textStatus?.value === 'edited') return { kind: 'contradiction' };
+  if (path.family === 'sheet/conclusion' && path.field === 'text' && op.meta?.composed === true && input.textStatus?.value === 'edited') return { kind: 'contradiction' };
   if (isFreeText(path)) return { kind: 'apply', rule: 'latest_text' };
   return { kind: 'contradiction' };
 }

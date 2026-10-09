@@ -438,7 +438,7 @@ describe('13.8-API-002 refusals', () => {
     expect(await runsOf(relatorioId)).toEqual([]);
   });
 
-  it('a version-14 pull is refused (426 contract_outdated): MIN_CONTRACT_VERSION is 15', async () => {
+  it('a version-14 pull is refused (426 contract_outdated): below MIN_CONTRACT_VERSION (15 at Story 13.8, 16 since PR #121)', async () => {
     const app = appWith([]);
     const res = await request(app, `/api/sync/relatorios/${newId()}?since=0`, {}, 14);
     expect(res.status).toBe(426);

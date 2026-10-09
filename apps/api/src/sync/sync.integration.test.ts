@@ -1053,6 +1053,16 @@ describe('1.5-API-005 contract skew', () => {
     for (const o of batch) written.opIds.add(o.op_id);
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
+
+  it('contract 16 (PR #121 review): a version-15 pull is refused with 426 contract_outdated, a version-16 pull is answered', async () => {
+    for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
+      const old = await pull(companyA, path, '15');
+      expect(old.status).toBe(426);
+      expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
+    }
+    const current = await pull(companyA, '/api/sync/company?since=0', '16');
+    expect(current.status).toBe(200);
+  });
 });
 
 /** A relatório-scoped file row of `kind` (a photo, or another relatório file such as a cover photo). */

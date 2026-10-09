@@ -92,8 +92,16 @@
  * `audit_run/{id}/{field}` put families are new (the `audit_run` row: status, findings,
  * prompt version, timestamps), and so are the route `POST /api/relatorios/{id}/audit` and the
  * error code `audit_running`.
+ *
+ * 16 (2026-10-09, PR #121 review): the conclusion text merge. A `sheet/{id}/conclusion/text`
+ * put may carry `meta.composed = true` (the text the app composed and confirms with
+ * `text_status = confirmed`: "Concluir ficha", "Confirmar", "Substituir"); the fold makes a
+ * concurrent flagged put over a standing `text_status = edited` a contradiction
+ * (`cell.conflict`) instead of `latest_text`, and the Conflict view resolves the text, its
+ * status and its basis as one unit (three puts). No new family, but the reducer changed:
+ * `MIN_CONTRACT_VERSION` goes to 16 too; 2026-10-09, Matheus.
  */
-export const CONTRACT_VERSION = 15;
+export const CONTRACT_VERSION = 16;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -155,8 +163,12 @@ export const CONTRACT_VERSION = 15;
  * pulled page fails (`invalid_response`) instead of the unknown family being skipped. A
  * relatório stream carries those ops once anyone taps "Conferir antes de emitir", so the
  * version-14 bundle updates too.
+ *
+ * 16 (2026-10-09, PR #121 review; Matheus): a version-15 bundle folds a composed conclusion
+ * text (`meta.composed`) over an edited one as `latest_text`, where a version-16 fold marks a
+ * contradiction, so its rows would diverge from the server's: it updates too.
  */
-export const MIN_CONTRACT_VERSION = 15;
+export const MIN_CONTRACT_VERSION = 16;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

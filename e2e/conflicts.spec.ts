@@ -811,6 +811,7 @@ test('@p0 R8CONC-E2E-004 an edited conclusion text and a concurrent "Concluir e 
     await editor.blur();
     await expect.poll(async () => String((await lastWritten(eduardo, textPath)).value)).toMatch(/ Texto de Eduardo\.$/);
     const eText = await lastWritten(eduardo, textPath);
+    const eBasis = await lastWritten(eduardo, `sheet/${blockId}/conclusion/text_basis`);
 
     // Ana, not having seen it: "Concluir e avançar" confirms the composed text in the conclude batch.
     await expect(ana.page.locator('#ficha-primary')).toHaveText(/Concluir e avançar/);
@@ -826,12 +827,14 @@ test('@p0 R8CONC-E2E-004 an edited conclusion text and a concurrent "Concluir e 
     const server = await expectConverged(devices, blockId);
     expect(server.sheet.conclusion.text).toMatchObject({ value: aText.value, conflict: { value: eText.value } });
 
-    // Ana's Conflict view lists "Texto da conclusão"; Eduardo's side picked in every group and applied.
+    // Ana's Conflict view: the text, its status and its basis are ONE "Texto da conclusão" row (contract 16).
     await openSheet(ana.page, relatorioId, blockId);
     await conflictBanner(ana.page).getByRole('button', { name: 'Ver', exact: true }).click();
     const view = conflictView(ana.page);
     await expect(view).toBeVisible();
     await expect(view.locator('.cv-cell .cc-name', { hasText: 'Texto da conclusão' })).toHaveCount(1);
+    await expect(view.locator('.cv-cell')).toHaveCount(1);
+    await expect(view.getByRole('radiogroup')).toHaveCount(1);
     for (const group of await view.getByRole('radiogroup').all()) {
       const theirs = group.getByRole('radio', { name: /A de Eduardo/ });
       await theirs.click();
@@ -845,8 +848,9 @@ test('@p0 R8CONC-E2E-004 an edited conclusion text and a concurrent "Concluir e 
     await syncNow(eduardo.page);
     const after = await expectConverged(devices, blockId);
     expect(after.sheet.conclusion.text?.value).toBe(eText.value);
-    expect(after.sheet.conclusion.text?.conflict).toBeUndefined();
     expect(after.sheet.conclusion.text_status?.value).toBe('edited');
+    expect(after.sheet.conclusion.text_basis?.value).toBe(eBasis.value);
+    for (const field of ['text', 'text_status', 'text_basis'] as const) expect(after.sheet.conclusion[field]?.conflict, field).toBeUndefined();
   } finally {
     await eduardo.context.close();
   }

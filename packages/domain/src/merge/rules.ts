@@ -21,9 +21,9 @@ export const MERGE_RULES = [
  * - `nc_over_c`: a checklist result NC against C; NC stands.
  * - `nc_observation`: the observation of an item merged to NC; the NC device's stands.
  * - `latest_text`: free text; the `seq`-later edit stands, the other is kept in the entry.
- *   Except (review 2026-10-09, r8conc-consistency-1) the conclusion text while its standing
- *   `text_status` is `edited`: a `contradiction`, so two concurrent edits, or an edit and a
- *   conclude's composed text, make a durable decision.
+ *   Except (contract 16, PR #121 review 2026-10-09) a composed, confirmed conclusion text
+ *   (`meta.composed`) over a standing edited one: a `contradiction`, a durable decision. Two
+ *   concurrent edits stay `latest_text`.
  * - `contradiction`: two different filled values (Story 10.2 turns it into a conflict).
  * - `latest_edit`: a non-cell field (block, location, equipment, file, point, setup);
  *   last-writer-wins by `seq`.

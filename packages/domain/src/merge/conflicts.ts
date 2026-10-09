@@ -3,6 +3,7 @@ import { entityKey, type EntityKey } from '../ops/apply.ts';
 import { formatPath, type OpPath } from '../ops/path.ts';
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { avatarInitial } from '../registration.ts';
+import { composeConclusion } from '../relatorio/conclusion.ts';
 import { sheetOrder, fieldValueText } from '../relatorio/ficha.ts';
 import { evaluateTest } from '../relatorio/reading-evaluation.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
@@ -60,6 +61,12 @@ export interface CellConflict {
   standing: DecisionSide;
   /** The side it displaced (`cell.conflict`). */
   displaced: DecisionSide;
+  /**
+   * Contract 16 (PR #121 review, 2026-10-09): the conclusion text is decided as one unit
+   * with its status and basis. These are the two other paths, with each side's value;
+   * "Aplicar" writes them with the text (`applyPickOps`).
+   */
+  companions?: { path: string; standing: unknown; displaced: unknown }[];
 }
 
 export interface CellDecision {
@@ -142,8 +149,40 @@ const CONCLUSION_LABELS: Readonly<Record<string, string>> = {
   text_basis: 'Base do texto',
 };
 
+/**
+ * Contract 16 (PR #121 review, 2026-10-09): the conclusion text, its status and its basis as
+ * ONE contradiction, when any of the three holds a `conflict`, so no pick leaves an edited
+ * text marked confirmed or a composed text marked edited. The standing side is the three
+ * values the cells show; the displaced side is each cell's `conflict` value, else its value,
+ * except that a displaced `confirmed` status whose text has no `conflict` (an edited text
+ * arrived later and stood as latest text) is the text the app composes now, with its basis.
+ * Both sides' authors come from the first of the three cells holding a `conflict`.
+ */
+function conclusionTextConflict(block: BlockRow, definition: BlockDefinition | null, tag: string, opOf: OpenDecisionsInput['opOf']): CellConflict | null {
+  const fields = ['text', 'text_status', 'text_basis'] as const;
+  const cells = fields.map((field) => block.sheet.conclusion[field]);
+  const marked = cells.find((cell) => cell?.conflict !== undefined);
+  if (marked === undefined) return null;
+  const standingValues = cells.map((cell) => cell?.value ?? null);
+  const displacedValues = cells.map((cell) => (cell?.conflict === undefined ? (cell?.value ?? null) : cell.conflict.value));
+  if (displacedValues[1] === 'confirmed' && cells[0]?.conflict === undefined && definition !== null) {
+    const composed = composeConclusion(block, definition, tag);
+    displacedValues[0] = composed.text;
+    displacedValues[2] = composed.basis;
+  }
+  const path = (field: (typeof fields)[number]) => formatPath({ family: 'sheet/conclusion', block_id: block.id, field });
+  return {
+    path: path('text'),
+    section: SECTION_CONCLUSION,
+    label: CONCLUSION_LABELS.text!,
+    standing: { ...sideOf(marked!, opOf), value: standingValues[0], source_suggestion_id: null },
+    displaced: { ...sideOf(marked!.conflict!, opOf), value: displacedValues[0], source_suggestion_id: null },
+    companions: [1, 2].map((i) => ({ path: path(fields[i]!), standing: standingValues[i], displaced: displacedValues[i] })),
+  };
+}
+
 /** Every cell of a block holding a `conflict`, in the sheet's order, with its section and name. */
-function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf']): CellConflict[] {
+function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf'], equipment: OpenDecisionsInput['equipment'] = []): CellConflict[] {
   const definition = definitionOf(block);
   const out: CellConflict[] = [];
   const push = (path: OpPath, cell: Cell | undefined, section: string, label: string) => {
@@ -196,9 +235,12 @@ function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf']): Cel
     }
   }
 
-  for (const field of ['result', 'restriction', 'text', 'text_status', 'text_basis'] as const) {
+  for (const field of ['result', 'restriction'] as const) {
     push({ family: 'sheet/conclusion', block_id: blockId, field }, sheet.conclusion[field], SECTION_CONCLUSION, CONCLUSION_LABELS[field]!);
   }
+  const tag = block.equipment_id === null ? '' : (equipment.find((row) => row.id === block.equipment_id)?.tag ?? '');
+  const text = conclusionTextConflict(block, definition, tag, opOf);
+  if (text !== null) out.push(text);
   push({ family: 'sheet/observations', block_id: blockId }, sheet.observations ?? undefined, SECTION_OBSERVATIONS, 'Observações da ficha');
   return out;
 }
@@ -232,7 +274,7 @@ export function openDecisions(input: OpenDecisionsInput): Decision[] {
   for (const block of sorted) {
     // A removed block's cells are not decided: its sheet is out of the tree (and a put on it
     // would mark a removal conflict); its removal decision, if any, comes first.
-    const conflicts = block.removed_at === null ? cellConflictsOf(block, input.opOf) : [];
+    const conflicts = block.removed_at === null ? cellConflictsOf(block, input.opOf, input.equipment) : [];
     if (conflicts.length > 0) cells.push({ kind: 'cell', relatorio_id: input.relatorioId, block_id: block.id, cells: conflicts });
     const mark = block.removal_conflict;
     if (mark !== undefined && block.removed_at !== null) {
@@ -390,18 +432,25 @@ export type ConflictPick = 'standing' | 'displaced';
  * "Aplicar": one put per cell, the picked side's value and (when it came from a reading)
  * its `source_suggestion_id`. The device stamps `prev_op_id` and `standing_op_id` at commit,
  * so the puts are sequential and clear each cell's `conflict`. Null until every cell has a pick.
+ * Contract 16: the conclusion text's pick also writes its companions (status and basis) with
+ * the same side's values; a text picked with a `confirmed` status is flagged `composed`.
  */
 export function applyPickOps(author: Author, decision: CellDecision, picks: Readonly<Record<string, ConflictPick>>): OpDraft[] | null {
   if (decision.cells.some((cell) => picks[cell.path] === undefined)) return null;
-  return decision.cells.map((cell) => {
-    const side = picks[cell.path] === 'standing' ? cell.standing : cell.displaced;
-    return {
-      ...relatorioOpEnvelope(author, decision.relatorio_id),
-      kind: 'put' as const,
-      path: cell.path,
-      value: side.value as JsonValue,
-      meta: side.source_suggestion_id === null ? null : { source_suggestion_id: side.source_suggestion_id },
-    };
+  const put = (path: string, value: unknown, meta: OpDraft['meta']): OpDraft => ({
+    ...relatorioOpEnvelope(author, decision.relatorio_id),
+    kind: 'put' as const,
+    path,
+    value: (value ?? null) as JsonValue,
+    meta,
+  });
+  return decision.cells.flatMap((cell) => {
+    const pick = picks[cell.path]!;
+    const side = pick === 'standing' ? cell.standing : cell.displaced;
+    const companions = (cell.companions ?? []).map((companion) => ({ path: companion.path, value: pick === 'standing' ? companion.standing : companion.displaced }));
+    const composed = companions.some((companion) => companion.path.endsWith('/text_status') && companion.value === 'confirmed');
+    const meta = side.source_suggestion_id !== null ? { source_suggestion_id: side.source_suggestion_id } : composed ? { composed: true } : null;
+    return [put(cell.path, side.value, meta), ...companions.map((companion) => put(companion.path, companion.value, null))];
   });
 }
 
@@ -537,6 +586,10 @@ export function conflictSideView(
   const mine = side.actor_id !== null && side.actor_id === context.viewerActorId;
   const name = context.users.find((row) => row.id === side.actor_id)?.name.trim() ?? '';
   const meta = [side.source_suggestion_id === null ? 'Digitado' : 'Ler visor'];
+  // Contract 16: the conclusion text's side says its status ("Confirmado", "Editado").
+  const status = cell.companions?.find((companion) => companion.path.endsWith('/text_status'));
+  const statusValue = status === undefined ? undefined : side === cell.displaced ? status.displaced : status.standing;
+  if (typeof statusValue === 'string' && CONCLUSION_WORDS[statusValue] !== undefined) meta.push(CONCLUSION_WORDS[statusValue]!);
   if (side.client_ts !== null) meta.push(formatShortDateTime(side.client_ts));
   if (side.device_id !== null && side.device_id === context.viewerDeviceId) meta.push('este aparelho');
   return {

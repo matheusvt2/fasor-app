@@ -152,7 +152,8 @@ export function useFichaActions({
           ...(text === null
             ? []
             : [
-                conclusionOp(by, relatorioId, blockId, 'text', text.text),
+                // Contract 16: the composed text, flagged for the merge (`mergePolicy`).
+                conclusionOp(by, relatorioId, blockId, 'text', text.text, { composed: true }),
                 conclusionOp(by, relatorioId, blockId, 'text_status', 'confirmed'),
                 conclusionOp(by, relatorioId, blockId, 'text_basis', text.basis),
               ]),

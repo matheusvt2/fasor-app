@@ -93,6 +93,8 @@ describe('E5-A4 the conclusion confirm guards its basis', () => {
       ['text_status', 'confirmed'],
       ['text_basis', composed.basis],
     ]);
+    // Contract 16: the composed text put is flagged for the merge; its status and basis are not.
+    expect(ops.map((op) => op.meta)).toEqual([{ composed: true }, null, null]);
   });
 
   it('a confirm whose block changed since the render writes nothing', async () => {
