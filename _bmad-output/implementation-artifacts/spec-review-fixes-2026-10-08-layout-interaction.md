@@ -2,10 +2,10 @@
 title: 'Review fixes 2026-10-08: layout and interaction (TTR table, phone dialog, mid-word breaks, Enter in plate fields, lost manufacturer)'
 type: 'bugfix'
 created: '2026-10-09'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'f057f9b8941cee18c412ca5afe38e320e92f2d4d'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -151,3 +151,19 @@ At 657 px (768 portrait with the 48 px strip, 1024 with the 320 px rail) the 8-c
 - `podman compose --profile tools run --rm --user root tools pnpm test:unit` -- expected: exit 0 (includes `styles.test.ts` byte-identity and `scripts/e2e.test.ts` duplicate-id and serial checks).
 - `podman compose --profile tools run --rm --user root tools pnpm test:api` -- expected: exit 0.
 - Under the host lock only (`nohup sh -c "lockf -t 20000 /tmp/fasor-verify.lock sh -c '...'; echo EXIT=\$?" > /tmp/gate-r8lay-<stage>.log 2>&1 &`, polled): `pnpm exec tsx scripts/e2e.ts e2e/review-layout-interaction-2026-10-08.spec.ts <touched specs> --project desktop-chrome --project durability-desktop-chrome` -- expected: every test passed.
+
+## Auto Run Result
+
+Status: done
+
+**Summary.** Every item of the r8lay row is fixed: the ratio tables size by content inside their own `.mt-scroll` (both fit at 1280, scroll inside the box at 657 px); form and confirm dialogs scroll inside the scrim; the Sticky action bar wraps from 768 to 1023 px; words never split in measurement tables or phone Sumário rows; Enter runs on through plate and cabine fields to the next missing field and then the primary; a pointer tap on a concluded sheet's measured unit only focuses the cell (`unitTapNeedsEdit`); a manufacturer typed and left is saved; a stored manufacturer missing from Fabricantes shows with "Criar ⟨nome⟩?" in the instrument panel.
+
+**Files.** `packages/domain/src/relatorio/{reading-run.ts,readings.ts,readings.test.ts}` (the guard); `apps/web/src/surfaces/ficha/{ensaios-section.tsx,measurement-field.tsx,ficha-fields.tsx,ficha-fields.test.tsx,ficha.css,use-ficha-steps.ts}` (tables, unit guard, Enter run); `apps/web/src/components/registry-picker-field{.tsx,.test.tsx}` (commit on leave); `apps/web/src/surfaces/registries/instrument-panel{.tsx,.test.tsx}` (unregistered line); `apps/web/src/surfaces/relatorio/{relatorio-tree.tsx,relatorio.css}` (whole words); `apps/web/src/styles/app.css` (r8lay block); `e2e/review-layout-interaction-2026-10-08.spec.ts` (R8LAY-E2E-001 to 014), `e2e/support/{word-split.ts,groups.ts}`, `e2e/{ficha,keyboard-salvo}.spec.ts` (assertions moved with the changed class and the Enter run); `deferred-work.md` (open questions).
+
+**Review.** One loop: 16 findings (medium 9, low 6, maybe-false 1); patched 5 medium entries (commit-on-leave of untyped text, the date's double op, the held Enter on a landed button, the TTR wrap to fit 1280, the collapse test) and 2 low (IME/Shift tests, a doc comment); 1 low deferred (long TAG on phone); rejected: `registerManufacturer` without a toast (the panel's pre-existing pattern), TTR values over six characters (none in practice), a seed assertion message, the confirmed-cell wrap claim (asserted on the real tables). Re-check of the loop's patches: 2 lows fixed by the orchestrator (blur-only skip in the date field; ledger evidence).
+
+**Follow-up review: true.** Five medium entries were patched in the loop; the unverified risk is the TTR's fit and wrap on real tablets (Android Chrome and WebKit metrics of Inter at the value size, never run here) and the held-Enter swallow on soft keyboards that do not mark `repeat`.
+
+**Verification.** Story gate on b6fc9e0 (lint, static, test:api 576, test:unit 3291 passed; 33 e2e specs on both projects, 269 of 271 passed); the two failures re-run alone on the same commit: R8CAP-E2E-003 passed (a load race: `scrollTo(0, 300)` landed at 0 under the parallel group), 6.6-E2E-011 passed 4 of 6 on the branch and 1 of 5 on origin/main 9027abf (the known flake: Escape after "Cancelar" reaches the page before the focus is back in the photo viewer). Mutation runs: DB-7 and DH-1 reverted turned 5 unit tests red; the DB-2 guard reverted turned R8LAY-E2E-002 red; the loop's three mechanism patches reverted turned 4 unit tests red.
+
+**Residual risks.** The TTR still scrolls sideways at 657 px boxes (about 825 px needed); the open questions in `deferred-work.md`.
