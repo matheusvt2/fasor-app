@@ -55,5 +55,6 @@ Waves start from `origin/main` after every PR of the previous wave merged. Wave 
 | r8dry | #120 | 9027abf |
 | r8conc | #121 | 326e676 |
 | r8lay | #122 | 375c2d6 |
+| final gate fixes | #123 | SHA-123 |
 
 What each PR changed, the gates, the decisions taken during the round and the open questions it leaves are in section 14 of the report.

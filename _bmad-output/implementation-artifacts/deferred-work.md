@@ -1650,7 +1650,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: R8CAP-E2E-003 scrolls once (`window.scrollTo(0, 300)`) and then polls `scrollY > 200` without scrolling again; when the sheet is not yet tall enough (`openChaveSheet` waits only for the title) the poll times out. Failed once under the load of PR #122's first gate; passed 3 of 3 alone on the branch and 3 of 3 on origin/main 9027abf. Retry the scroll inside the poll (independent review of PR #122, r8lay-tests-3).
   evidence: `e2e/review-photo-failures.spec.ts:165-166`; `e2e/support/photos.ts` `openChaveSheet`.
   class: debt
-  state: open (owner: coordinator)
+  state: ~~open (owner: coordinator)~~ resolved 2026-10-09 (PR #123, the final gate fix batch: the poll scrolls to 300 px again on every try)
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md` (r8conc second gate, 2026-10-09)
   summary: Process pitfall: the compose `api` service runs `tsx watch src/main.ts`, which does not reload a change under `packages/domain` (reached through the workspace link), so an e2e run after a kernel edit meets a server that still folds with the previous kernel; the web bundle is rebuilt by `scripts/e2e.ts` and is current. The r8conc gate met it: R8CONC-E2E-004 failed with the server cell merged `latest_text` while the device folded a `contradiction`. A batch that edits the fold (`ops/apply.ts`, `merge/`) restarts the api (`podman compose restart api`) before its e2e run; a gate step or a watch on `packages/domain` would settle it.
   evidence: `docker-compose.yml` api `command: pnpm --filter @app/api dev`; `apps/api/package.json` `"dev": "tsx watch src/main.ts"`; `/tmp/gate2-r8conc-e2e.log` (R8CONC-E2E-004 `expectConverged` diff).
@@ -1681,3 +1681,8 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `packages/domain/src/contract/version.ts` (16 paragraphs); `review-fixes-2026-10-08-context.md` (struck "No MIN raise" sentence); `source-deltas.md` row "FR-58 and Story 10.1".
   class: debt
   state: open (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/review-fixes-2026-10-08-context.md` (final gate fix batch, PR #123)
+  summary: `apps/web/src/components/quantity-stepper.test.tsx` "commits a typed number on blur or Enter, clamped to 99; anything else restores with no commit" is flaky: typing "150" after `userEvent.clear` sometimes loses the first keystroke ("50" stays, and the `waitFor` gives up at about 1.1 s). It failed once in #123's round-2 `test:unit` and 2 of 5 runs alone on main 375c2d6; the full suite passed on the re-run. Neither the component nor anything it imports changed since #99, so it predates the 2026-10-08 round.
+  evidence: `quantity-stepper.test.tsx:119-122`; PR #123 body (round 2 and the five runs alone).
+  class: debt
+  state: open (owner: the next carry-over batch)
