@@ -9,6 +9,7 @@ import {
   localDownloadTotals,
   mergeRowSecondaryText,
   mergeRuleText,
+  outrasCondicoesLabel,
   morePhotosText,
   pendingPhotoRows,
   pendingSheetRows,
@@ -266,5 +267,12 @@ describe('Decisões and merge rows', () => {
 
   it('has the row state words of the mock', () => {
     expect(SYNC_ROW_STATE_TEXT).toEqual({ sending: 'Enviando…', waiting: 'Aguardando envio', readingQueued: 'Leitura na fila', merged: 'Mesclado' });
+  });
+});
+
+describe('outrasCondicoesLabel (review fixes 2026-10-08, XC-4)', () => {
+  it('agrees with its count and starts with the visible "+N"', () => {
+    expect(outrasCondicoesLabel(1)).toBe('+1, outra condição — abrir status de sincronização');
+    expect(outrasCondicoesLabel(2)).toBe('+2, outras condições — abrir status de sincronização');
   });
 });

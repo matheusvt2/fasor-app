@@ -203,10 +203,22 @@ test('@p0 F-11 at 1280 x 800, Tab through the readings: every focused reading si
     expect(box.top, `${box.name} under the App bar`).toBeGreaterThanOrEqual(box.appBar - 1);
   }
   expect(checked).toBeGreaterThan(3);
-  // The padding is the height the bar covers, measured.
-  const padding = await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom);
-  const covered = await page.evaluate(() => window.innerHeight - document.querySelector('[data-route="/relatorio/:id/ficha/:blockId"] .sticky-action-bar')!.getBoundingClientRect().top);
-  expect(Math.abs(parseFloat(padding) - covered)).toBeLessThanOrEqual(1);
+  // The padding is the height the bar covers, measured, plus (review fixes 2026-10-08, H-7) the
+  // room a toast on screen reserves: its own height and the `--sp-3` gap (`--toast-clearance`).
+  // Polled: the bar drops its Bulk mirror row when the checklist leaves the screen, and the
+  // padding follows on the bar's next ResizeObserver frame (the likely cause of one r8emit gate failure).
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const root = document.documentElement;
+        const toast = document.querySelector('[data-testid="toast"]');
+        const padding = parseFloat(getComputedStyle(root).scrollPaddingBottom);
+        const covered = window.innerHeight - document.querySelector('[data-route="/relatorio/:id/ficha/:blockId"] .sticky-action-bar')!.getBoundingClientRect().top;
+        const toastRoom = toast === null ? 0 : Math.ceil(toast.getBoundingClientRect().height) + parseFloat(getComputedStyle(root).getPropertyValue('--sp-3'));
+        return Math.abs(padding - covered - toastRoom);
+      }),
+    )
+    .toBeLessThanOrEqual(1);
 });
 
 test('@p0 F-25 a priority picked on a point shows no toast; the Prazo it filled says "Sugerido" in view', async ({ page }) => {
