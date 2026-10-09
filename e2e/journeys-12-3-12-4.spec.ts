@@ -1,6 +1,6 @@
 import { getDefinition } from '@app/domain';
 import type { Page } from '@playwright/test';
-import { conclusionOpOf, concludeBatch, expectConcludeConfirmsText } from './support/conclude-batch.ts';
+import { conclusionOpOf, concludeBatch, expectConcludeConfirmsText, lastTextStatus } from './support/conclude-batch.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { instrumentDraft, newRelatorioDrafts, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
@@ -238,6 +238,7 @@ test('@p1 12.3-E2E-004 J1, J3 and J2 at 768 px: a new plate, the second secciona
   const j2Batch = await concludeBatch(page, database, ncSheet.blockId);
   expect(conclusionOpOf(j2Batch, ncSheet.blockId, 'text')).toBeUndefined();
   expect(conclusionOpOf(j2Batch, ncSheet.blockId, 'text_status')).toBeUndefined();
+  expect(await lastTextStatus(page, database, ncSheet.blockId)).toBe('confirmed');
 
   // Targets: J3 without its per-unit fields at most 5 taps, no instrument picker; J2 one chip, nothing typed in the observation.
   expect(j3.taps - perUnit.taps).toBeLessThanOrEqual(5);

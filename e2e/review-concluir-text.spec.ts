@@ -10,8 +10,9 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
  * Review fixes 2026-10-08, Decision 1 (`spec-review-fixes-2026-10-08-concluir-text.md`;
  * JRN-V1 and the stale row of AIB-1): "Concluir e avançar" and the menu's "Concluir ficha"
  * confirm the composed conclusion text in the conclude batch when the pair is set and no
- * text was stored; an edited text is left as it is; a stored text that went stale is named
- * on the Sumário's row 9 and in the Export dialog until "Substituir". Every test resets
+ * text was confirmed or edited yet (`text_status` null); an edited text is left as it is; a
+ * stored text that went stale is named on the Sumário's row 9 and counted in the Export
+ * dialog until "Substituir". Every test resets
  * Empresa B, pushes a standard relatório whose chave seccionadora is filled from an "office"
  * device (all but the conclusion) and drives the sheet as the engineer does.
  */

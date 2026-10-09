@@ -125,8 +125,8 @@ export function useFichaActions({
    * Review 2026-10-08 Decision 1 (JRN-V1, `source-deltas.md` row of 2026-10-08): the same
    * batch also confirms the conclusion text the kernel composes from the fresh rows
    * (`conclusionTextOnConclude`: `text`, `text_status = confirmed`, `text_basis`) when the
-   * pair is set and no text was stored yet; an edited or already confirmed text is left as
-   * it is, and the tap count does not change.
+   * pair is set and no text was confirmed or edited yet (`text_status` null); an edited or
+   * already confirmed text is left as it is, and the tap count does not change.
    */
   const conclude = (otherwise: 'jump' | 'next' = 'jump') => {
     if (block.concluded_by !== null) {
