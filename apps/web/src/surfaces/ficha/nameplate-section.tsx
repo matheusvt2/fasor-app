@@ -1,11 +1,16 @@
 import {
   camposCopiadosText,
   discardSuggestionOp,
+  drySubtypeOfInsulation,
+  dryInsulationNaItems,
+  INSULATION_FIELD_KEY,
   isCellFilled,
   lastNameplateCopy,
+  nameplateMissingKeys,
   nameplateCopyFields,
   nameplateIsEmpty,
   nameplateTagPrefill,
+  oilItemsNaText,
   PLATE_CAPTION,
   plateCropRegion,
   platePhotoOf,
@@ -36,7 +41,7 @@ import { useSession } from '../../state/session.tsx';
 import { requestSyncCycle } from '../../state/sync.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { firstFocusable, ReadOnlyField, SheetField } from './ficha-fields.tsx';
-import { createWordOp, nameplateOp } from './ficha-ops.ts';
+import { checklistResultOp, createWordOp, nameplateOp } from './ficha-ops.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { NameplateField, ReplaceLine, SuggestionFill, SuggestionGroupHead, useNameplateSuggestions } from './nameplate-suggestions.tsx';
 import { useAiFeatures } from '../../state/ai-features.tsx';
@@ -70,6 +75,11 @@ import type { CaptureTarget } from './use-photo-capture.ts';
  * becomes the plate photo and the older plate photos' readings are cancelled on this device,
  * so whatever they bring, now or later, is discarded (CAPT-V1). A typed value that changes a
  * field under a replace line discards that suggestion in the same batch (DG-2).
+ *
+ * Review 2026-10-08, Decision 2 (H-4, MKT-7): a field's missing marker reads the kernel's
+ * `nameplateMissingKeys` (VOL. ÓLEO is not missing on a dry block). TIPO DE ISOLAÇÃO picked
+ * dry by hand writes, in the same batch, the oil items the kernel names NA
+ * (`dryInsulationNaItems` of the fresh block), with "Desfazer".
  */
 export function NameplateSection({
   api,
@@ -126,6 +136,7 @@ export function NameplateSection({
   const same = empty && !readOnly ? suggestNameplateCopy({ blocks: snapshot.blocks, equipment }, block.id) : null;
   const lastVisit = empty && !readOnly && own?.last_nameplate != null ? lastNameplateCopy(own, definition) : [];
   const tagPrefill = nameplateTagPrefill({ blocks: snapshot.blocks, equipment }, block.id);
+  const missingKeys = nameplateMissingKeys({ blocks: snapshot.blocks, equipment }, block.id);
 
   function copyFrom(fields: readonly { fieldKey: string; value: unknown }[], toast: (n: number) => string): void {
     if (fields.length === 0) return;
@@ -253,6 +264,30 @@ export function NameplateSection({
       .catch(() => undefined);
   }
 
+  /**
+   * Decision 2: TIPO DE ISOLAÇÃO picked dry by hand. The put and the NA marks of the oil items
+   * still unanswered on the fresh block, one batch; "Desfazer" when marks were written. A
+   * refused write is toasted by the edit queue; the promise never rejects (the select drops it).
+   */
+  function commitDryInsulation(next: unknown): Promise<void> {
+    let marked = 0;
+    return api
+      .edit((blocks, by) => {
+        const fresh = blocks.find((row) => row.id === block.id);
+        if (fresh === undefined) return null;
+        const items = dryInsulationNaItems(fresh, next);
+        marked = items.length;
+        return [
+          nameplateOp(by, api.relatorioId, block.id, INSULATION_FIELD_KEY, next),
+          ...items.map((itemKey) => checklistResultOp(by, api.relatorioId, block.id, itemKey, 'NA')),
+        ];
+      })
+      .then((batch) => {
+        if (batch !== null && marked > 0) api.undoable(oilItemsNaText(marked), batch);
+      })
+      .catch(() => undefined);
+  }
+
   /** E78-Q4: "Criar ⟨nome⟩?" of a stored name the registry does not hold: the registry row alone. */
   function registerWord(kind: 'manufacturer' | 'voltage_class', name: string): void {
     void api.edit((_blocks, by) => [createWordOp(by, kind, newId(), name)]).catch(() => undefined);
@@ -321,7 +356,7 @@ export function NameplateSection({
               field={field}
               value={value}
               {...(helper === undefined ? {} : { helper })}
-              missing={!prefilled && !isCellFilled(stored)}
+              missing={missingKeys.has(field.key)}
               draft={{ entityId: block.id, field: `placa-${field.key.replace(/_/g, '-')}` }}
               invalidText={t.invalidNumber}
               selectEmpty={t.selectEmpty}
@@ -335,6 +370,7 @@ export function NameplateSection({
                 // discards that suggestion in the same batch (the engineer chose the typed one).
                 // DG-2: never a discard here (this may be the idle commit mid-typing); leaving
                 // the field or Enter turns the suggestion down (`turnDownOnLeave`).
+                if (field.key === INSULATION_FIELD_KEY && drySubtypeOfInsulation(definition, next) !== null) return commitDryInsulation(next);
                 return api.commit([nameplateOp(api.author, api.relatorioId, block.id, field.key, next)]);
               }}
               after={after}

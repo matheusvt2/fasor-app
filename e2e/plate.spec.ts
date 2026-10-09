@@ -214,16 +214,23 @@ test('@p0 8.6-E2E-001 Flow 2b: the arrival toast opens the sheet, the crop outli
   await expect(field(page, 'tensao_nominal_at').locator('.suggestion-alt').getByRole('button', { name: 'Substituir' })).toBeVisible();
 
   // "Confirmar todos (8)": the eight grounded fields without a hint in one batch; the
-  // replace, Verificar and Criar wait for their own taps.
+  // replace, Verificar and Criar wait for their own taps. Review 2026-10-08 Decision 2: the
+  // plate's EPÓXI marks the eight oil items NA in the same batch, with "Desfazer".
   await section(page).locator('.suggestion-group-head').getByRole('button', { name: 'Confirmar todos (8)' }).click();
-  await expect(toast(page)).toContainText('8 campos confirmados — 1 campo pede verificação');
+  await expect(toast(page)).toContainText('8 campos confirmados — 1 campo pede verificação · 8 itens de óleo marcados NA');
+  await expect(toast(page).getByRole('button', { name: 'Desfazer' })).toBeVisible();
   const eight = ['identificacao', 'n_serie', 'tipo', 'tipo_de_isolacao', 'potencia_nominal', 'data_fabricacao', 'tensao_nominal_bt', 'ligacao_secundaria'];
   await expect.poll(async () => (await outbox(page)).filter((row) => row.path.startsWith('suggestion/')).length).toBe(8);
   let rows = await outbox(page);
   const confirmAll = rows.filter((row) => eight.some((key) => row.path === `suggestion/${sid[key]}/status` || row.path === `sheet/${ids.blockId}/nameplate/${key}`));
   expect(confirmAll).toHaveLength(16);
   expect(new Set(confirmAll.map((row) => row.batch_id)).size).toBe(1);
-  expect(rows.filter((row) => row.batch_id === confirmAll[0]!.batch_id)).toHaveLength(16);
+  const confirmBatch = rows.filter((row) => row.batch_id === confirmAll[0]!.batch_id);
+  expect(confirmBatch).toHaveLength(24);
+  const marks = confirmBatch.filter((row) => row.path.startsWith(`sheet/${ids.blockId}/checklist/`));
+  expect(marks).toHaveLength(8);
+  for (const mark of marks) expect(mark).toMatchObject({ kind: 'put', value: 'NA' });
+  expect(marks.every((row) => row.path.endsWith('/result'))).toBe(true);
   for (const key of eight) expect(rows.find((row) => row.path === `sheet/${ids.blockId}/nameplate/${key}`)?.meta).toMatchObject({ source_suggestion_id: sid[key] });
   await expect(field(page, 'tensao_nominal_at').locator('.suggestion-alt')).toContainText('Sugerido: 15 kV');
   await expect(at).toHaveValue('13,8');

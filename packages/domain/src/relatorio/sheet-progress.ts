@@ -6,7 +6,7 @@ import type { BlockDefinition } from '../seed/schema.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { formatShortDateTime } from '../format/datetime.ts';
 import { cabineOf, cabineProgress } from './cabine.ts';
-import { nameplateTagPrefill } from './nameplate-copy.ts';
+import { nameplateMissingKeys } from './dry-insulation.ts';
 import { evaluatedCells, evaluateSheetReadings } from './readings.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 import { firstInTree } from './tree.ts';
@@ -18,8 +18,11 @@ import { firstInTree } from './tree.ts';
  * already owns that name (spec 5.1-5.4, Naming resolution).
  *
  * What counts as missing, step by step:
- * - `placa`: every nameplate field of the block's definition whose cell is not filled (a
- *   TAG field with no cell, shown prefilled from the block's TAG, is filled: Story 12.3);
+ * - `placa`: `nameplateMissingKeys` (`dry-insulation.ts`, the one rule the field's missing
+ *   marker also reads): every nameplate field of the block's definition whose cell is not
+ *   filled (a TAG field with no cell, shown prefilled from the block's TAG, is filled: Story
+ *   12.3; VOL. ÓLEO on a block whose subtype or stored TIPO DE ISOLAÇÃO is dry is not
+ *   missing: review 2026-10-08, Decision 2);
  *   plus, on the cabine's first sheet, every cabine field still empty (`cabineProgress`,
  *   J-03: the cabine block renders inside this step). Both need the snapshot's locations,
  *   equipment and relatório; a caller passing blocks alone counts the plate cells only.
@@ -121,12 +124,8 @@ export function isCabineFirstSheet(snapshot: Pick<RelatorioSnapshot, 'locations'
 }
 
 /** The Placa step's missing fields: the plate's own and, on the cabine's first sheet, the cabine's. */
-function placaMissing(snapshot: SheetProgressSnapshot, block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<SubBlockKey>): { plate: number; cabine: number } {
-  let plate = 0;
-  if (enabled.has('nameplate')) {
-    const prefilled = snapshot.equipment === undefined ? null : nameplateTagPrefill({ blocks: snapshot.blocks, equipment: snapshot.equipment }, block.id);
-    plate = definition.nameplate.filter((field) => !isCellFilled(block.sheet.nameplate[field.key]) && !(field.key === 'tag' && prefilled !== null)).length;
-  }
+function placaMissing(snapshot: SheetProgressSnapshot, block: BlockRow, enabled: ReadonlySet<SubBlockKey>): { plate: number; cabine: number } {
+  const plate = enabled.has('nameplate') ? nameplateMissingKeys(snapshot, block.id).size : 0;
   let cabineMissing = 0;
   const { relatorio, locations, equipment } = snapshot;
   if (relatorio !== undefined && locations !== undefined && equipment !== undefined && isCabineFirstSheet({ blocks: snapshot.blocks, locations, equipment }, block.id)) {
@@ -180,7 +179,7 @@ export function sheetProgress(snapshot: SheetProgressSnapshot, blockId: string):
   }
   if (block !== undefined && definition !== null) {
     const enabled = enabledSubBlocksOf(block);
-    const placa = placaMissing(snapshot, block, definition, enabled);
+    const placa = placaMissing(snapshot, block, enabled);
     steps.placa = { missing: placa.plate + placa.cabine, outOfLimit: 0, ...(placa.cabine > 0 ? { cabine: placa.cabine } : {}) };
     steps.verificacoes.missing = verificacoesMissing(block, definition, enabled);
     steps.ensaios = ensaiosCounts(block, definition);

@@ -1486,3 +1486,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `packages/domain/src/relatorio/plate-suggestions.ts` `plateReadingView`; `packages/domain/src/relatorio/measurement-suggestions.ts` `targetLine`; `apps/api/src/jobs/reading/job.ts:241-262` (each run writes its rows with its own `reading_run_id`).
   class: debt
   state: open (owner: coordinator)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-dry-transformer.md` (r8dry, Decision 2)
+  summary: `conclusion.ts` `anyAnswered` counts any filled checklist result as an answer, so the oil items a dry TIPO DE ISOLAÇÃO marks NA count too: a no-subtype transformer whose only answers are those eight NA marks offers the amber conclusion pair as if the engineer had checked something. Whether a dry-insulation mark (or any NA) should count as an answer there is r8conc's file and call.
+  evidence: `packages/domain/src/relatorio/conclusion.ts:66` (`anyAnswered`); `packages/domain/src/relatorio/dry-insulation.ts` `dryInsulationNaItems`; marks written by `apps/web/src/surfaces/ficha/{nameplate-section.tsx,nameplate-suggestions.tsx}`.
+  class: debt
+  state: open (owner: coordinator)
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-dry-transformer.md` (r8dry, open question 1)
+  summary: Open question for Matheus and Bruno: should a copy chip ("Igual à ⟨TAG⟩?", "Copiar da última visita") that writes a dry TIPO DE ISOLAÇÃO also write the oil items' NA marks? Kept conservative: today only "Confirmar", "Substituir", "Confirmar todos", a value typed over the suggestion and the select picked by hand write them; the copy chips, the device auto-confirm sweep and another device's put do not. VOL. ÓLEO stops counting as missing whatever wrote the dry value.
+  evidence: `apps/web/src/surfaces/ficha/nameplate-section.tsx` `copyFrom`, `copySame`; `apps/web/src/db/suggestion-store.ts` (auto-confirm); `packages/domain/src/relatorio/dry-insulation.ts` `nameplateMissingKeys`.
+  class: question
+  state: open (owner: coordinator)
