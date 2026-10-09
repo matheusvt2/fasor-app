@@ -107,7 +107,10 @@ test('@p0 R8E-E2E-001 with a dead op held, "Pré-visualizar" on the Sumário foo
   await expect(audit).not.toHaveAttribute('aria-disabled', 'true');
   await expect(modal.getByText('Não foi possível conferir agora.')).toHaveCount(0);
 
-  await page.waitForTimeout(2_000);
+  // A full sync cycle later, still nothing was asked and nothing opened.
+  await page.keyboard.press('Escape');
+  await expect(modal).toHaveCount(0);
+  await syncNow(page);
   expect(asked).toEqual([]);
   expect(popups).toEqual([]);
   expect(await statusOf()).toMatchObject({ status: 'dead', error_code: 'op_server_only' });

@@ -1,8 +1,8 @@
 import {
   arrivalServed,
-  arrivalsToAnnounce,
+  arrivalToAnnounce,
   arrivedReadingsCount,
-  cabineOf,
+  fichaArrivalScreen,
   firstSheetWithPendingSuggestions,
   legendasSugeridasText,
   leiturasProntasText,
@@ -94,7 +94,7 @@ export function arrivalStep(
  * result dialog still waits (live, `reading_kind: 'panel'`), the Sumário with `?panel={photo}`,
  * which reopens that dialog on the proposal.
  */
-export async function arrivalTarget(db: AppDatabase, relatorioId: string, newest?: SuggestionRow, announced?: ReadonlySet<string>): Promise<string> {
+export async function arrivalTarget(db: AppDatabase, relatorioId: string, newest?: SuggestionRow): Promise<string> {
   const state = await relatorioState(db, relatorioId);
   if (state === null) return `/relatorio/${relatorioId}`;
   if (newest !== undefined) {
@@ -107,12 +107,7 @@ export async function arrivalTarget(db: AppDatabase, relatorioId: string, newest
   }
   const snapshot = relatorioSnapshotOf(state, relatorioId);
   const equipment = [...state.entries()].filter(([key]) => key.startsWith('equipment:')).map(([, row]) => row as EquipmentRow);
-  const pending = pendingSuggestions(suggestionRowsOf(state, relatorioId));
-  const sheets = { ...snapshot, equipment };
-  // Review fixes 2026-10-08 (DC-4): the sheet the toast announced first (its rows still pending),
-  // so older suggestions of a sheet earlier in tree order never keep "Ver" away from it.
-  const own = announced === undefined ? null : firstSheetWithPendingSuggestions(sheets, pending.filter((row) => announced.has(row.id)));
-  const blockId = own ?? firstSheetWithPendingSuggestions(sheets, pending);
+  const blockId = firstSheetWithPendingSuggestions({ ...snapshot, equipment }, pendingSuggestions(suggestionRowsOf(state, relatorioId)));
   return blockId === null ? `/relatorio/${relatorioId}` : `/relatorio/${relatorioId}/ficha/${blockId}`;
 }
 
@@ -125,15 +120,13 @@ export function arrivalRoute(pathname: string): { kind: 'ficha'; relatorioId: st
   return { kind: 'other' };
 }
 
-/** What the screen at `pathname` draws, for the arrival rules: a ficha with its block's cabine. */
+/** What the screen at `pathname` draws, for the arrival rules (a ficha's cabine by the kernel's `fichaArrivalScreen`). */
 export async function arrivalScreen(db: AppDatabase, pathname: string): Promise<ArrivalScreen> {
   const route = arrivalRoute(pathname);
   if (route.kind !== 'ficha') return route;
   const state = await relatorioState(db, route.relatorioId);
   if (state === null) return { ...route, cabineId: null };
-  const snapshot = relatorioSnapshotOf(state, route.relatorioId);
-  const block = snapshot.blocks.find((row) => row.id === route.blockId);
-  return { ...route, cabineId: cabineOf(snapshot.locations, block?.location_id ?? null)?.id ?? null };
+  return fichaArrivalScreen(relatorioSnapshotOf(state, route.relatorioId), route.relatorioId, route.blockId);
 }
 
 const FOCUSABLE = 'button, input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -201,7 +194,8 @@ export function ReadingArrivals() {
         withdrawToast(text);
       }
       if (arrived.length === 0) return;
-      const { readings, captions } = arrivalsToAnnounce(arrived, screen);
+      const announcement = arrivalToAnnounce(arrived, screen);
+      if (announcement === null) return;
       const say = (text: string, rowsSaid: readonly SuggestionRow[], onPress: () => void) => {
         // The toast of this text now names these rows only (it replaces any earlier one of the same text).
         const ids = new Set(rowsSaid.map((row) => row.id));
@@ -215,18 +209,17 @@ export function ReadingArrivals() {
           },
         });
       };
-      if (readings.length > 0) {
-        const newest = readings.reduce((a, b) => (a.id > b.id ? a : b));
-        const announcedIds = new Set(readings.map((row) => row.id));
-        say(leiturasProntasText(arrivedReadingsCount(readings)), readings, () => {
-          void arrivalTarget(database, newest.relatorio_id, newest, announcedIds)
+      const { rows: said } = announcement;
+      if (announcement.kind === 'readings') {
+        const newest = said.reduce((a, b) => (a.id > b.id ? a : b));
+        say(leiturasProntasText(arrivedReadingsCount(said)), said, () => {
+          void arrivalTarget(database, newest.relatorio_id, newest)
             .then(open)
             .catch(() => undefined);
         });
-      } else if (captions.length > 0) {
-        // One toast at a time: with readings in the same pull, the gallery's own line names the captions.
-        const relatorioId = captions[0]!.relatorio_id;
-        say(legendasSugeridasText(captions.length), captions, () => open(`/relatorio/${relatorioId}/fotos`));
+      } else {
+        const relatorioId = said[0]!.relatorio_id;
+        say(legendasSugeridasText(said.length), said, () => open(`/relatorio/${relatorioId}/fotos`));
       }
     },
     [open, showToast, withdrawToast],

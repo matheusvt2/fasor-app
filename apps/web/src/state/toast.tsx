@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Toast, type ToastAction, type ToastMessage } from '../components/toast.tsx';
+import { useInRouterContext, useLocation } from 'react-router';
+import { dropToastRoom, Toast, type ToastAction, type ToastMessage } from '../components/toast.tsx';
 import type { Timers } from '../input/field-commit.ts';
 
 /*
@@ -202,18 +203,31 @@ export function useToast(): ToastState {
   return value;
 }
 
+/** A route change drops the bottom room a toast left behind (review fixes 2026-10-08, DE-6). */
+function RoomOnRouteChange() {
+  const { pathname } = useLocation();
+  useEffect(() => dropToastRoom(), [pathname]);
+  return null;
+}
+
 /** The one place a toast is drawn, rendered once by the app shell. */
 export function ToastOutlet() {
   const { toast, dismissToast } = useToast();
-  if (toast === null) return null;
+  const routed = useInRouterContext();
+  // One stable tree: the route watcher is never remounted when a toast comes or goes.
   return (
-    <Toast
-      toast={toast}
-      onClose={dismissToast}
-      onDismiss={() => {
-        toast.onDismiss?.();
-        dismissToast();
-      }}
-    />
+    <>
+      {routed ? <RoomOnRouteChange /> : null}
+      {toast === null ? null : (
+        <Toast
+          toast={toast}
+          onClose={dismissToast}
+          onDismiss={() => {
+            toast.onDismiss?.();
+            dismissToast();
+          }}
+        />
+      )}
+    </>
   );
 }

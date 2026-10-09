@@ -153,6 +153,24 @@ Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter, 
   - `[low]` `[patch]` ECH: with no client or no empresa the question names a blank CNPJ while the whole party prints "—" — named only for a party with a name and a blank CNPJ.
   - `[medium]` `[patch]` ECH: before the first outbox read `counts.dead` is 0, so a press right after load opens and closes a tab and R8E-E2E-001 can flake — the e2e waits for the Sync badge's `data-dead="1"`; the product race (a tab flash, the refusal still shown by the drain) is inherent to opening the tab inside the press.
 
+### 2026-10-08 — Independent review of PR #119 (coordinator, four lenses with adversarial verification)
+- verdicts: 19 kept findings — high 1, medium 3, low 15 (severities as corrected by the verifiers); 1 refuted.
+- findings:
+  - `[high]` `[patch]` r8emit-toast-1: an env reading on a non-first ficha of a complete cabine (block collapsed) was neither drawn nor announced, and an announcement made elsewhere was withdrawn there — kernel `fichaArrivalScreen` gives the cabine only on its first sheet or while it is incomplete; unit tests and R8E-E2E-009. This settles the frontmatter deferral "env reading on a collapsed cabine".
+  - `[medium]` `[patch]` r8emit-toast-3: dropping the toast's bottom room shifted a page scrolled to its end — the room (`--toast-room`, `data-toast-room`) is separate from the scroll padding and lingers until a scroll takes it out of view, a route change or the next toast; unit tests and R8E-E2E-010.
+  - `[medium]` `[patch]` r8emit-rules-4 with r8emit-correctness-tests-2: four new fixed waits, two before "announces nothing" checks — replaced by observable conditions (same-pull count, a recorded toast list ended by a positive control, a second `syncNow`); lint back to 24 warnings.
+  - `[medium]` `[docs]` r8emit-rules-1 with r8emit-correctness-tests-3 and r8emit-rules-7: narrowings, open questions, deferrals and residual risks entered in `deferred-work.md` with owners; the E13-A1 row naming E5-A2-E2E-003 carries a dated note on the test-side fix.
+  - `[low]` `[revert]` r8emit-rules-2: "Ver" opening the announced sheet first contradicted Story 8.2's AC and FR-42 — restored to the first sheet in tree order; raised as an open question (PR body, ledger).
+  - `[low]` `[patch]` r8emit-rules-8: the readings-over-captions precedence moved to the kernel (`arrivalToAnnounce`), with a mixed-pull unit test.
+  - `[low]` `[patch]` r8emit-toast-4: a toast leaving with the focus in it (not through its own controls) hands the focus back as Esc does.
+  - `[low]` `[patch]` r8emit-export-barrier-1: `guardBeforeAsk` (abort, session, dead op) before every POST, the 409 retries included.
+  - `[low]` `[patch]` r8emit-export-barrier-3: `publishReAuth` runs before the abort early-return.
+  - `[low]` `[patch]` r8emit-export-barrier-4: the Sumário foot shows `SessionExpiredNote` for an expired session.
+  - `[low]` `[docs]` r8emit-rules-5: a ledger row asks for dated EXPERIENCE.md amendments (:273, :337, :262/:379).
+  - `[low]` `[patch]` r8emit-rules-6: the DF-1 comment cites DESIGN.md › Sticky action bar and `ficha.css`; files outside the ownership row are listed in the PR body.
+  - `[low]` `[known open]` r8emit-toast-2 (nested scroller), r8emit-export-barrier-2 (poll ignores a gone session, pre-existing), r8emit-correctness-tests-1 (closing the dialog after the preview job was asked drops it): ledger row and PR body.
+  - `[low]` `[known open]` r8emit-rules-3: 6.6-E2E-011 red on the gate and on the base; waiver is the coordinator's (PR body).
+
 ## Design Notes
 
 - Open questions (report, do not decide): a timed expiry for arrival toasts; whether a blank CNPJ or a missing logo alone should ask before issuing; shortening undo copy to one line at 390 (DE-6, DC-4 "1-2 lines").

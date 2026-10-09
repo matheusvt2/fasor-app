@@ -1473,4 +1473,49 @@ describe('Review fixes 2026-10-08 (QW25): "Pré-visualizar" refuses a dead op an
     expect(open).not.toHaveBeenCalled();
     open.mockRestore();
   });
+
+  it('a retry after a 409 turns an op dead: no second POST, the refusal shows', async () => {
+    database = await freshDb();
+    const db = database;
+    const tab = { location: { href: '' }, close: vi.fn(), opener: {} };
+    const open = vi.spyOn(window, 'open').mockImplementation(() => tab as unknown as Window);
+    let asked = 0;
+    const preview = vi.fn(async () => {
+      asked += 1;
+      throw new SyncRequestError({ kind: 'http', status: 409, code: 'not_caught_up', details: { missing_op: true, missing_files: [] } });
+    });
+    // The sync the 409 answers with comes back with a rejection.
+    const syncNow = vi.fn(async () => {
+      if (asked > 0) await db.outbox.put(outboxRow('dead'));
+      return 'ran' as const;
+    });
+    render(<Harness sync={syncState({ preview, syncNow })} />);
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+    expect(await within(dialog()).findByText(DEAD_PREVIEW)).toBeVisible();
+    expect(preview).toHaveBeenCalledTimes(1);
+    expect(tab.close).toHaveBeenCalled();
+    open.mockRestore();
+  });
+
+  it('a 401 that answers a press already aborted still raises the re-auth banner, and shows no failure', async () => {
+    database = await freshDb();
+    const tab = { location: { href: '' }, close: vi.fn(), opener: {} };
+    const open = vi.spyOn(window, 'open').mockImplementation(() => tab as unknown as Window);
+    let refuse: (error: unknown) => void = () => {};
+    const preview = vi.fn(() => new Promise<never>((_resolve, reject) => (refuse = reject)));
+    const sync = syncState({ preview });
+    const { rerender } = render(<Harness sync={sync} />);
+    const raised = await countReAuth(async () => {
+      await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+      await waitFor(() => expect(preview).toHaveBeenCalled());
+      rerender(<Harness sync={sync} open={false} />);
+      refuse(new SyncRequestError({ kind: 'http', status: 401 }));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(raised).toBe(1);
+    rerender(<Harness sync={sync} open />);
+    expect(within(dialog()).queryByText(SESSION_EXPIRED)).toBeNull();
+    expect(within(dialog()).queryByText('Não foi possível gerar o rascunho. Os dados não foram alterados.')).toBeNull();
+    open.mockRestore();
+  });
 });

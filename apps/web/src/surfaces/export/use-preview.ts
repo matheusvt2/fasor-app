@@ -7,9 +7,9 @@ import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { previewPdfUrl, SyncRequestError } from '../../sync/client.ts';
 import { publishReAuth } from '../../api/auth-client.ts';
-import { isSessionExpired, isUnauthorized, SessionExpiredError } from './session-expired.tsx';
+import { isSessionExpired, isUnauthorized } from './session-expired.tsx';
 import { setPreviewTabStep, writePreviewTab } from './preview-tab.ts';
-import { DeadOpsError, drainForServerJob, isJobAborted, throwIfAborted, wait } from './server-job.ts';
+import { DeadOpsError, drainForServerJob, guardBeforeAsk, isJobAborted, throwIfAborted, wait } from './server-job.ts';
 import { DEFAULT_TIMING, type GenerateTiming } from './use-generate.ts';
 
 /*
@@ -113,8 +113,7 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
       let jobId: string | null = null;
       for (let attempt = 0; jobId === null; attempt++) {
         const [lastOpId, snapshot] = await Promise.all([lastOpIdFor(db, relatorioId), toSnapshot(db, relatorioId)]);
-        throwIfAborted(signal);
-        if (reAuthRequired.current) throw new SessionExpiredError();
+        await guardBeforeAsk(db, { signal, isSessionExpired: () => reAuthRequired.current });
         try {
           jobId = (await engine.preview(relatorioId, { last_op_id: lastOpId, file_ids_expected: expectedFileIds(snapshot) })).job_id;
         } catch (error) {
@@ -169,6 +168,8 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
         },
         (error: unknown) => {
           press.tab?.close();
+          // A 401 raises the re-auth banner even when the press was aborted meanwhile.
+          if (isUnauthorized(error)) publishReAuth();
           // An abort (the dialog closed, the surface went away) is never a failure.
           if (isJobAborted(error) || press.controller.signal.aborted) return;
           if (error instanceof DeadOpsError) {
@@ -178,7 +179,6 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
           console.error('preview failed', error);
           // F-12 / W-23: a 401 is a session that expired: the re-auth banner and its own words.
           const expired = isSessionExpired(error) || reAuthRequired.current;
-          if (isUnauthorized(error)) publishReAuth();
           if (own()) setPhase(expired ? { kind: 'failed', sessionExpired: true } : { kind: 'failed' });
         },
       )

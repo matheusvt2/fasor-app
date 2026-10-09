@@ -19,6 +19,7 @@ import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { GenerateAction } from './generate-action.tsx';
 import { SETTLE_TIMEOUT_MS } from './relatorio-editor.ts';
 import { RowBody } from './sumario-row.tsx';
+import { SyncRequestError } from '../../sync/client.ts';
 import { SumarioSurface } from './sumario-surface.tsx';
 
 /*
@@ -534,6 +535,21 @@ describe('4.3 SumarioSurface', () => {
     expect(open).toHaveBeenCalledTimes(1);
     unmount();
     expect(tab.close).toHaveBeenCalled();
+    open.mockRestore();
+  });
+
+  it('review fixes 2026-10-08: a foot preview refused because the session expired says so with "Entrar de novo", not the generic failure', async () => {
+    database = await seeded();
+    const tab = { location: { href: '' }, close: vi.fn(), opener: {} };
+    const open = vi.spyOn(window, 'open').mockImplementation(() => tab as unknown as Window);
+    const sync = syncState({ preview: vi.fn(async () => Promise.reject(new SyncRequestError({ kind: 'http', status: 401 }))) });
+    renderSumario(RELATORIO, sync);
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    const bar = document.querySelector('.sticky-action-bar') as HTMLElement;
+    await userEvent.click(within(bar).getByRole('button', { name: 'Pré-visualizar' }));
+    expect(await within(bar).findByText('Sua sessão expirou. Entre de novo para enviar.')).toBeVisible();
+    expect(within(bar).getByRole('button', { name: 'Entrar de novo' })).toBeVisible();
+    expect(within(bar).queryByText('Não foi possível gerar o rascunho. Os dados não foram alterados.')).toBeNull();
     open.mockRestore();
   });
 

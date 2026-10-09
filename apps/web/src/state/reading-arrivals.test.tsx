@@ -320,7 +320,7 @@ describe('Review fixes 2026-10-08 (DC-4, DB-5, DE-5, DG-3): what an arrival anno
   });
 });
 
-describe('Review fixes 2026-10-08 (DC-4): "Ver" leads to what the toast announced; a toast names only its own rows', () => {
+describe('Review fixes 2026-10-08 (DC-4): a toast names only its own rows; a ficha draws its cabine only while the block is open', () => {
   const OTHER_BLOCK = '019966b0-0089-7000-8000-0000000000b2';
   const ANOTHER_BLOCK = '019966b0-0089-7000-8000-0000000000b3';
 
@@ -334,22 +334,6 @@ describe('Review fixes 2026-10-08 (DC-4): "Ver" leads to what the toast announce
     );
     return fresh;
   }
-
-  it('arrivalTarget opens the announced sheet first, even when an older pending suggestion sits earlier in tree order', async () => {
-    const db = await smallDevice('arrivals-target-announced');
-    const one = row(nextId(), { relatorio_id: SMALL_RELATORIO, target_path: `sheet/${BLOCK_1_ID}/nameplate/n_serie` });
-    const two = row(nextId(), { relatorio_id: SMALL_RELATORIO, target_path: `sheet/${BLOCK_2_ID}/nameplate/n_serie` });
-    await put(db, one);
-    await put(db, two);
-    const plain = await arrivalTarget(db, SMALL_RELATORIO);
-    expect([`/relatorio/${SMALL_RELATORIO}/ficha/${BLOCK_1_ID}`, `/relatorio/${SMALL_RELATORIO}/ficha/${BLOCK_2_ID}`]).toContain(plain);
-    // The sheet that comes second in tree order is the one announced.
-    const [later, announced] = plain.endsWith(BLOCK_1_ID) ? [BLOCK_2_ID, two] : [BLOCK_1_ID, one];
-    expect(await arrivalTarget(db, SMALL_RELATORIO, announced, new Set([announced.id]))).toBe(`/relatorio/${SMALL_RELATORIO}/ficha/${later}`);
-    // Announced rows no longer pending: back to every pending row.
-    expect(await arrivalTarget(db, SMALL_RELATORIO, announced, new Set([nextId()]))).toBe(plain);
-    db.close();
-  });
 
   it('an env reading for the open ficha\'s cabine is not announced (the cabine read off the device\'s relatório)', async () => {
     const name = 'arrivals-env-cabine';
@@ -374,6 +358,36 @@ describe('Review fixes 2026-10-08 (DC-4): "Ver" leads to what the toast announce
     await act(async () => {
       const rows = [env(CABINE_ID), env(OTHER_BLOCK)];
       await session.database!.entities.bulkPut(rows.map((suggestion) => ({ entity: 'suggestion', id: suggestion.id, relatorio_id: suggestion.relatorio_id, project_id: null, removed_at: null, row: suggestion as never })));
+    });
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent(/^1 leitura pronta para confirmar/));
+  });
+
+  it('on another ficha of a complete cabine (its block collapsed, the env fields not drawn), an env reading for the cabine is announced', async () => {
+    const name = 'arrivals-env-collapsed';
+    const db = await smallDevice(name);
+    const m = (raw: string, unit: string) => ({ raw, unit, state: 'measured' });
+    const record = (await db.entities.get(['location', CABINE_ID]))!;
+    const cabine = record.row as Record<string, unknown>;
+    await db.entities.put({
+      ...record,
+      row: { ...cabine, se: { type: 'abrigada', primary_kv: m('13.8', 'kV'), secondary_kv: m('380', 'V'), installed_kva: m('500', 'kVA') }, env: { altitude_m: null, temperature_c: m('27', '°C'), humidity_pct: m('60', '%') } } as never,
+    });
+    session.database = db;
+    render(
+      <SyncContext value={makeSyncState({ lastSyncAt: '2026-09-27T10:00:00.000Z' })}>
+        <MemoryRouter initialEntries={[`/relatorio/${SMALL_RELATORIO}/ficha/${BLOCK_2_ID}`]}>
+          <ToastProvider>
+            <ReadingArrivals />
+            <ToastOutlet />
+          </ToastProvider>
+        </MemoryRouter>
+      </SyncContext>,
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    });
+    await act(async () => {
+      await put(db, row(nextId(), { relatorio_id: SMALL_RELATORIO, target_path: `location/${CABINE_ID}/env/temperature_c`, value: { raw: '24', unit: '°C', state: 'measured' } }));
     });
     await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent(/^1 leitura pronta para confirmar/));
   });

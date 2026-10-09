@@ -1,5 +1,8 @@
 import { captionSuggestionPhotoId } from '../photos/captions.ts';
 import type { SuggestionRow } from '../schemas/entities.ts';
+import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { cabineOf, cabineProgress } from './cabine.ts';
+import { isCabineFirstSheet } from './sheet-progress.ts';
 import { suggestionTarget } from './suggestion-rows.ts';
 
 /*
@@ -13,7 +16,10 @@ import { suggestionTarget } from './suggestion-rows.ts';
 
 /** What the device shows when suggestions arrive, as the arrival rules read it. */
 export type ArrivalScreen =
-  /** An equipment ficha: its own block's suggestions and its cabine's environment fields are drawn on it. */
+  /**
+   * An equipment ficha: its own block's suggestions are drawn on it, and its cabine's
+   * environment fields when the ficha draws them (`cabineId`; null when the cabine block is collapsed).
+   */
   | { kind: 'ficha'; relatorioId: string; blockId: string; cabineId: string | null }
   /** The photo gallery of a relatório: its caption suggestions are drawn on it. */
   | { kind: 'gallery'; relatorioId: string }
@@ -35,21 +41,44 @@ export function suggestionOnScreen(row: Pick<SuggestionRow, 'target_path' | 'rel
   return screen.cabineId !== null && target.location_id === screen.cabineId;
 }
 
-/** The arrivals to announce, split: the readings ("N leituras prontas para confirmar") and the captions ("N legendas sugeridas"). */
-export interface ArrivalAnnouncement {
-  readings: SuggestionRow[];
-  captions: SuggestionRow[];
+/**
+ * The ficha `blockId` as the arrival rules read it. Its cabine's environment fields are drawn
+ * only while the cabine block is open: on the cabine's first sheet, or while the cabine is
+ * incomplete (`cabine-block.tsx`). The block's own "Editar" state is not stored, so a collapsed
+ * block counts as off screen and its readings are announced.
+ */
+export function fichaArrivalScreen(
+  snapshot: Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'blocks' | 'equipment'>,
+  relatorioId: string,
+  blockId: string,
+): Extract<ArrivalScreen, { kind: 'ficha' }> {
+  const block = snapshot.blocks.find((row) => row.id === blockId);
+  const cabine = cabineOf(snapshot.locations, block?.location_id ?? null);
+  const drawn = cabine !== null && (isCabineFirstSheet(snapshot, blockId) || !cabineProgress(snapshot, cabine.id).complete);
+  return { kind: 'ficha', relatorioId, blockId, cabineId: drawn ? cabine.id : null };
 }
 
-/** The arrived rows not already on screen, readings and captions apart. */
-export function arrivalsToAnnounce(arrived: readonly SuggestionRow[], screen: ArrivalScreen): ArrivalAnnouncement {
+/** The one arrival toast to show: "N leituras prontas para confirmar" or "N legendas sugeridas", and the rows it names. */
+export interface ArrivalAnnouncement {
+  kind: 'readings' | 'captions';
+  rows: SuggestionRow[];
+}
+
+/**
+ * The announcement the arrived rows not already on screen make. One toast at a time: readings
+ * take it over captions in a mixed pull (the gallery's own line names the captions); null when
+ * nothing is left to announce.
+ */
+export function arrivalToAnnounce(arrived: readonly SuggestionRow[], screen: ArrivalScreen): ArrivalAnnouncement | null {
   const readings: SuggestionRow[] = [];
   const captions: SuggestionRow[] = [];
   for (const row of arrived) {
     if (suggestionOnScreen(row, screen)) continue;
     (isCaptionSuggestion(row) ? captions : readings).push(row);
   }
-  return { readings, captions };
+  if (readings.length > 0) return { kind: 'readings', rows: readings };
+  if (captions.length > 0) return { kind: 'captions', rows: captions };
+  return null;
 }
 
 /**

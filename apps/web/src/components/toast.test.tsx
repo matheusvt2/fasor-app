@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { keepClearOfToast, STICKY_BAR_COVERED, Toast, TOAST_CLEARANCE, TOAST_UP, useStickyBarScrollPadding, type ToastMessage } from './toast.tsx';
+import { dropToastRoom, keepClearOfToast, STICKY_BAR_COVERED, Toast, TOAST_CLEARANCE, TOAST_ROOM, TOAST_ROOM_UP, TOAST_UP, useStickyBarScrollPadding, type ToastMessage } from './toast.tsx';
 
 const message: ToastMessage = { id: 1, text: 'Rascunho encontrado', action: { label: 'Recuperar', onPress: () => undefined } };
 
@@ -248,5 +248,64 @@ describe('Review fixes 2026-10-08 (H-7, DE-6): a toast never covers the focused 
       spy.mockRestore();
       scrollBy.mockRestore();
     }
+  });
+});
+
+describe('Review fixes 2026-10-08 (DE-6): the bottom room outlives its toast only while it is in view', () => {
+  const root = document.documentElement;
+  function pageHeight(height: number) {
+    Object.defineProperty(root, 'scrollHeight', { value: height, configurable: true });
+  }
+
+  it('keeps the room after the toast while the page is at its end, and drops it once a scroll takes it out of view', () => {
+    pageHeight(window.innerHeight);
+    const { unmount } = render(<Toast toast={message} onClose={() => undefined} onDismiss={() => undefined} />);
+    expect(root.hasAttribute(TOAST_ROOM_UP)).toBe(true);
+    unmount();
+    // The scroll padding goes at once; the room stays under the reader at the end of the page.
+    expect(root.hasAttribute(TOAST_UP)).toBe(false);
+    expect(root.style.getPropertyValue(TOAST_CLEARANCE)).toBe('');
+    expect(root.hasAttribute(TOAST_ROOM_UP)).toBe(true);
+    expect(root.style.getPropertyValue(TOAST_ROOM)).not.toBe('');
+    // A scroll that leaves the end behind (the page grew longer than the room's reach) drops it.
+    pageHeight(window.innerHeight + 2000);
+    window.dispatchEvent(new Event('scroll'));
+    expect(root.hasAttribute(TOAST_ROOM_UP)).toBe(false);
+    expect(root.style.getPropertyValue(TOAST_ROOM)).toBe('');
+  });
+
+  it('drops the room at once when the page is away from its end, and on a route change (dropToastRoom)', () => {
+    pageHeight(window.innerHeight + 2000);
+    const away = render(<Toast toast={message} onClose={() => undefined} onDismiss={() => undefined} />);
+    away.unmount();
+    expect(root.hasAttribute(TOAST_ROOM_UP)).toBe(false);
+
+    pageHeight(window.innerHeight);
+    const atEnd = render(<Toast toast={message} onClose={() => undefined} onDismiss={() => undefined} />);
+    atEnd.unmount();
+    expect(root.hasAttribute(TOAST_ROOM_UP)).toBe(true);
+    dropToastRoom();
+    expect(root.hasAttribute(TOAST_ROOM_UP)).toBe(false);
+    pageHeight(0);
+  });
+});
+
+describe('Review fixes 2026-10-08: a toast that leaves with the focus in it hands the focus back', () => {
+  it('returns the focus to where it was when the toast is withdrawn under it, as Esc does', async () => {
+    function Host({ up }: { up: boolean }) {
+      return (
+        <main>
+          <button type="button">Antes</button>
+          {up ? <Toast toast={message} onClose={() => undefined} onDismiss={() => undefined} /> : null}
+        </main>
+      );
+    }
+    const { rerender } = render(<Host up />);
+    screen.getByRole('button', { name: 'Antes' }).focus();
+    await userEvent.tab();
+    expect(screen.getByRole('button', { name: 'Recuperar' })).toHaveFocus();
+    // Withdrawn (or expired, or advanced) while the keyboard is in it.
+    rerender(<Host up={false} />);
+    expect(screen.getByRole('button', { name: 'Antes' })).toHaveFocus();
   });
 });

@@ -44,6 +44,17 @@ export function Toast({
   useStickyBarClearance(element);
   useToastClearance(element);
   useFocusedClearOfToast(element, toast.id);
+  // Review fixes 2026-10-08: a toast withdrawn, expired or advanced while the keyboard focus is in
+  // it hands the focus back as Esc does; its own "Ver", "Fechar" and Esc decide for themselves.
+  const ownExit = useRef(false);
+  useLayoutEffect(() => {
+    ownExit.current = false;
+    const host = element.current;
+    return () => {
+      if (ownExit.current || host === null || !host.contains(document.activeElement)) return;
+      restoreFocus(returnTo.current);
+    };
+  }, [toast.id]);
 
   function onFocus(event: FocusEvent<HTMLDivElement>) {
     const from = event.relatedTarget;
@@ -54,6 +65,7 @@ export function Toast({
     if (event.key !== 'Escape') return;
     event.stopPropagation();
     const target = returnTo.current;
+    ownExit.current = true;
     onDismiss();
     restoreFocus(target);
   }
@@ -66,13 +78,20 @@ export function Toast({
           <AriaButton
             className="toast-action"
             onPress={() => {
+              ownExit.current = true;
               toast.action?.onPress();
               onClose();
             }}
           >
             {toast.action.label}
           </AriaButton>
-          <AriaButton className="toast-action" onPress={onDismiss}>
+          <AriaButton
+            className="toast-action"
+            onPress={() => {
+              ownExit.current = true;
+              onDismiss();
+            }}
+          >
             {ui.toast.dismiss}
           </AriaButton>
         </>
@@ -129,36 +148,87 @@ function useStickyBarClearance(element: { current: HTMLDivElement | null }): voi
   });
 }
 
-/** The root's custom property: the toast's own height plus the `--sp-3` gap, while a toast is up. */
+/** The root's custom property: the toast's own height plus the `--sp-3` gap, while a toast is up (the scroll padding). */
 export const TOAST_CLEARANCE = '--toast-clearance';
-/** The root's attribute while a toast is up (`app.css` gives a page with no Sticky action bar its bottom room). */
+/** The root's attribute while a toast is up (`app.css` adds the toast's own distance to a page with no Sticky action bar). */
 export const TOAST_UP = 'data-toast-up';
+/** The root's custom property and attribute for the bottom room after the content, which may outlive the toast a moment. */
+export const TOAST_ROOM = '--toast-room';
+export const TOAST_ROOM_UP = 'data-toast-room';
+
+/** The furthest the room reaches from the page's end: the toast's height, the gap and its own distance from the bottom. */
+const ROOM_SLACK_PX = 12 + 56 + 24;
+
+/** Ends a room left after its toast (a scroll took it out of view, a route change, a new toast). */
+let lingering: (() => void) | null = null;
+
+/** Drops the bottom room a toast left behind, now (a route change, a new toast). */
+export function dropToastRoom(): void {
+  lingering?.();
+}
+
+function removeRoom(root: HTMLElement): void {
+  root.style.removeProperty(TOAST_ROOM);
+  root.removeAttribute(TOAST_ROOM_UP);
+}
 
 /**
  * Review fixes 2026-10-08 (H-7, FLD-7's covering part, DE-6): a toast never covers the last rows
  * of a page nor a field Tab lands on. While a toast is up the root carries `--toast-clearance`,
  * the toast's own height plus the `--sp-3` gap, never its position (`--toast-bar` already
  * depends on the sticky bar, and a clearance derived from where the toast sits would move the
- * bar and feed back into itself). `app.css` adds it to the page's `scroll-padding-bottom` and
- * as room after the content, before the page's Sticky action bar. Re-measured when the toast's
- * text wraps to another line count.
+ * bar and feed back into itself). `app.css` adds it to the page's `scroll-padding-bottom`, which
+ * goes with the toast, and as the room after the content (`--toast-room`), before the page's
+ * Sticky action bar. Re-measured when the toast's text wraps to another line count.
+ *
+ * When the toast leaves with the page scrolled within the room's reach of its end, dropping the
+ * room would shrink the page under the reader and move what they look at; the room stays until a
+ * scroll takes it out of view (dropping it then moves nothing visible), a route changes or
+ * another toast comes. Anywhere else it goes at once. It is never kept beyond those.
  */
 function useToastClearance(element: { current: HTMLDivElement | null }): void {
   useLayoutEffect(() => {
     const toast = element.current;
     if (typeof window === 'undefined' || toast === null) return;
     const root = document.documentElement;
+    // A room left by the previous toast is this one's now.
+    if (lingering !== null) {
+      const end = lingering;
+      lingering = null;
+      end();
+    }
+    let height = 0;
     const place = () => {
-      root.style.setProperty(TOAST_CLEARANCE, `calc(${Math.ceil(toast.getBoundingClientRect().height)}px + var(--sp-3))`);
+      height = Math.ceil(toast.getBoundingClientRect().height);
+      const value = `calc(${height}px + var(--sp-3))`;
+      root.style.setProperty(TOAST_CLEARANCE, value);
+      root.style.setProperty(TOAST_ROOM, value);
     };
     place();
     root.setAttribute(TOAST_UP, '');
+    root.setAttribute(TOAST_ROOM_UP, '');
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
     observer?.observe(toast);
     return () => {
       observer?.disconnect();
       root.style.removeProperty(TOAST_CLEARANCE);
       root.removeAttribute(TOAST_UP);
+      const reach = height + ROOM_SLACK_PX;
+      const inView = () => window.scrollY + window.innerHeight > root.scrollHeight - reach;
+      if (!inView()) {
+        removeRoom(root);
+        return;
+      }
+      const onScroll = () => {
+        if (!inView()) end();
+      };
+      const end = () => {
+        window.removeEventListener('scroll', onScroll);
+        if (lingering === end) lingering = null;
+        removeRoom(root);
+      };
+      window.addEventListener('scroll', onScroll, { passive: true });
+      lingering = end;
     };
   }, [element]);
 }

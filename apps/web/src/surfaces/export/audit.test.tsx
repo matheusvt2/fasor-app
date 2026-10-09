@@ -414,4 +414,22 @@ describe('Review fixes 2026-10-08 (QW25): the audit\'s barrier guards', () => {
     expect(within(dialog()).queryByText(DEAD)).toBeNull();
     expect(blocked.audit).not.toHaveBeenCalled();
   });
+
+  it('a retry after a 409 turns an op dead: no second POST, the refusal shows', async () => {
+    database = await freshDb();
+    const db = database;
+    let asked = 0;
+    const audit = vi.fn(async () => {
+      asked += 1;
+      throw new SyncRequestError({ kind: 'http', status: 409, code: 'not_caught_up', details: { missing_op: true, missing_files: [] } });
+    });
+    const syncNow = vi.fn(async () => {
+      if (asked > 0) await db.outbox.put(outboxRow('dead'));
+      return 'ran' as const;
+    });
+    render(<Harness sync={syncState({ audit, syncNow })} />);
+    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Conferir antes de emitir' }));
+    expect(await within(dialog()).findByText(DEAD)).toBeVisible();
+    expect(audit).toHaveBeenCalledTimes(1);
+  });
 });

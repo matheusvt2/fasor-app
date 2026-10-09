@@ -92,3 +92,15 @@ export async function drainForServerJob(db: AppDatabase, engine: Pick<SyncState,
     await wait(retryMs, signal);
   }
 }
+
+/**
+ * Review fixes 2026-10-08: the checks before every ask of the server (the first and each retry
+ * after a `409`): no abort, no session known to be gone, no dead op. `lastOpIdFor` skips dead
+ * ops, so a retry without this check could pass the barrier without the refused edit.
+ */
+export async function guardBeforeAsk(db: AppDatabase, options: Pick<DrainOptions, 'signal' | 'isSessionExpired'>): Promise<void> {
+  throwIfAborted(options.signal);
+  if (options.isSessionExpired()) throw new SessionExpiredError();
+  if ((await deadOpCount(db)) > 0) throw new DeadOpsError();
+  throwIfAborted(options.signal);
+}

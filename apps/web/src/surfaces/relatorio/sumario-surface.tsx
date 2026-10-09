@@ -60,6 +60,7 @@ import { useLatestAuditRun } from '../../db/audit-store.ts';
 import { AuditFindings } from '../export/audit-findings.tsx';
 import { useIssueConfirmation, usePreIssue } from '../export/use-pre-issue.ts';
 import { usePreview } from '../export/use-preview.ts';
+import { SessionExpiredNote } from '../export/session-expired.tsx';
 import { AddSectionDialog } from './add-section-dialog.tsx';
 import { GenerateAction } from './generate-action.tsx';
 import { useProjectEquipment, useRelatorioEditor } from './relatorio-editor.ts';
@@ -449,9 +450,14 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             {copy.export.deadOpsPreviewReason}
           </span>
         ) : preview.phase.kind === 'failed' ? (
-          <span className="btn-reason" role="alert">
-            {copy.export.previewFailed}
-          </span>
+          // F-12 / W-23: a session that expired says so with "Entrar de novo", as the dialog does.
+          preview.phase.sessionExpired === true ? (
+            <SessionExpiredNote />
+          ) : (
+            <span className="btn-reason" role="alert">
+              {copy.export.previewFailed}
+            </span>
+          )
         ) : null}
         <div className="bar-buttons">
           <Button

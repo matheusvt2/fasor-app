@@ -8,8 +8,8 @@ import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { SyncRequestError } from '../../sync/client.ts';
 import { publishReAuth } from '../../api/auth-client.ts';
-import { isSessionExpired, isUnauthorized, SessionExpiredError } from './session-expired.tsx';
-import { DeadOpsError, drainForServerJob, isJobAborted, throwIfAborted, wait } from './server-job.ts';
+import { isSessionExpired, isUnauthorized } from './session-expired.tsx';
+import { DeadOpsError, drainForServerJob, guardBeforeAsk, isJobAborted, throwIfAborted, wait } from './server-job.ts';
 import { DEFAULT_TIMING, type GenerateTiming } from './use-generate.ts';
 
 /*
@@ -88,8 +88,7 @@ export function useAudit(relatorioId: string, timing: GenerateTiming = DEFAULT_T
       let runId: string | null = null;
       for (let attempt = 0; runId === null; attempt++) {
         const [lastOpId, snapshot] = await Promise.all([lastOpIdFor(db, relatorioId), toSnapshot(db, relatorioId)]);
-        throwIfAborted(signal);
-        if (reAuthRequired.current) throw new SessionExpiredError();
+        await guardBeforeAsk(db, { signal, isSessionExpired: () => reAuthRequired.current });
         try {
           runId = (await engine.audit(relatorioId, { last_op_id: lastOpId, file_ids_expected: expectedFileIds(snapshot) })).audit_run_id;
         } catch (error) {
@@ -159,6 +158,8 @@ export function useAudit(relatorioId: string, timing: GenerateTiming = DEFAULT_T
       .then(
         () => undefined,
         (error: unknown) => {
+          // A 401 raises the re-auth banner even when the tap was aborted meanwhile.
+          if (isUnauthorized(error)) publishReAuth();
           // An abort (the dialog closed, the surface went away) is never a failure.
           if (isJobAborted(error) || controller.signal.aborted || !own()) return;
           if (error instanceof DeadOpsError) {
@@ -166,7 +167,6 @@ export function useAudit(relatorioId: string, timing: GenerateTiming = DEFAULT_T
             return;
           }
           console.error('audit failed', error);
-          if (isUnauthorized(error)) publishReAuth();
           setSessionExpired(isSessionExpired(error) || reAuthRequired.current);
           setRequestFailed(true);
         },

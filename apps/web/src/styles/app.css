@@ -847,16 +847,18 @@ html { scroll-padding-bottom: var(--sticky-bar-covered, 0px); }
 /* Review fixes 2026-10-08 (batch r8emit): H-7, DE-6 */
 /* A toast never covers the field Tab lands on nor the last rows of a page. While a toast is up,
    `toast.tsx` writes its own height plus the `--sp-3` gap as `--toast-clearance` on the root
-   (never its position) and marks the root `data-toast-up`:
-   - the page's `scroll-padding-bottom` (F-11 above) adds it, so a focused field stops above the toast;
-   - the content before the page's Sticky action bar gets it as room, so the last rows scroll above
+   (never its position) and marks the root `data-toast-up`; the same value goes to `--toast-room`
+   with `data-toast-room`, which may outlive the toast while the room is in view (so leaving does
+   not shrink the page under the reader):
+   - the page's `scroll-padding-bottom` (F-11 above) adds the clearance, so a focused field stops above the toast;
+   - the content before the page's Sticky action bar gets the room, so the last rows scroll above
      the toast (room after the bar would not help: the sticky bar and the toast rise with it);
    - a page with no Sticky action bar gets the room after its content, plus the toast's own distance
      from the bottom (`.toast`'s `calc(var(--touch-field) + var(--sp-5))`, F-02 above). */
 html { scroll-padding-bottom: calc(var(--sticky-bar-covered, 0px) + var(--toast-clearance, 0px)); }
 html[data-toast-up]:not(:has(main.screen .sticky-action-bar)) { scroll-padding-bottom: calc(var(--toast-clearance, 0px) + var(--touch-field) + var(--sp-5)); }
-html[data-toast-up] main.screen :has(+ .sticky-action-bar) { margin-bottom: var(--toast-clearance, 0px); }
-html[data-toast-up] main.screen:not(:has(.sticky-action-bar))::after { content: ''; display: block; flex: none; height: calc(var(--toast-clearance, 0px) + var(--touch-field) + var(--sp-5)); }
+html[data-toast-room] main.screen :has(+ .sticky-action-bar) { margin-bottom: var(--toast-room, 0px); }
+html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content: ''; display: block; flex: none; height: calc(var(--toast-room, 0px) + var(--touch-field) + var(--sp-5)); }
 
 /* r8cap (review 2026-10-08): the photo-failure fixes. authored, no mock draws these states.
    FLD-V1: a shot the open camera could not read or save is said in `.cam-hint`, as the refused

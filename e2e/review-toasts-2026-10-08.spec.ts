@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { plainJpeg } from './fixtures/photos/synthetic.ts';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
+import { officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { devicePhotos, openChaveSheet } from './support/photos.ts';
 import { pushSuggestion } from './support/push-server-ops.ts';
 import { holdPhotoBytes, READING_ACTOR } from './support/reading-ops.ts';
@@ -28,11 +29,6 @@ interface EntityRecord<T = Record<string, unknown>> {
   row: T;
 }
 
-interface OutboxRow {
-  path: string;
-  value: unknown;
-}
-
 const toast = (page: Page) => page.getByTestId('toast');
 const strip = (page: Page) => page.getByRole('region', { name: /^Fotos da ficha \(\d+\)$/ });
 const stripRows = (page: Page) => strip(page).locator('.photo-list > .photo-row');
@@ -45,11 +41,52 @@ async function pullHere(page: Page): Promise<void> {
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
 }
 
-/** Waits until the device holds the suggestion `id` (its pull landed), then until the cycle is over. */
-async function landed(page: Page, id: string): Promise<void> {
-  await expect.poll(async () => (await entities(page)).some((record) => record.entity === 'suggestion' && record.id === id), { timeout: 30_000 }).toBe(true);
-  // The arrival is announced once the cycle that pulled it ends.
-  await page.waitForTimeout(2_000);
+/** Whether the device holds every suggestion of `ids`. */
+async function holds(page: Page, ids: readonly string[]): Promise<boolean> {
+  const stored = new Set((await entities(page)).filter((record) => record.entity === 'suggestion').map((record) => record.id));
+  return ids.every((id) => stored.has(id));
+}
+
+/**
+ * Runs sync cycles from the page (the `online` event, sent again while a cycle already running
+ * ignores it) until the device holds every suggestion of `ids`.
+ */
+async function pullUntilLanded(page: Page, ...ids: string[]): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        if (await holds(page, ids)) return true;
+        await pullHere(page);
+        return holds(page, ids);
+      },
+      { timeout: 60_000, intervals: [500, 1_000, 2_000] },
+    )
+    .toBe(true);
+}
+
+/** Records, in the page, every text a toast shows from now on (consecutive repeats once). */
+async function recordToasts(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const store = window as unknown as { __r8eToasts: string[] };
+    store.__r8eToasts = [];
+    const seen = () => {
+      const text = document.querySelector('[data-testid="toast"] > span')?.textContent ?? null;
+      const list = store.__r8eToasts;
+      if (text !== null && list[list.length - 1] !== text) list.push(text);
+    };
+    new MutationObserver(seen).observe(document.body, { subtree: true, childList: true, characterData: true });
+    seen();
+  });
+}
+
+const recordedToasts = (page: Page): Promise<string[]> => page.evaluate(() => (window as unknown as { __r8eToasts?: string[] }).__r8eToasts ?? []);
+
+/** An in-app navigation (no reload, so the device keeps what it has seen), as a link does. */
+async function goInApp(page: Page, path: string): Promise<void> {
+  await page.evaluate((to) => {
+    history.pushState({}, '', to);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }, path);
 }
 
 /** Another live Chave seccionadora of the relatório than `blockId`. */
@@ -99,7 +136,7 @@ async function viewerOpened(page: Page): Promise<void> {
  */
 async function lastRowClearOfToast(page: Page, last: Locator, acted: () => Promise<void> = () => viewerOpened(page)): Promise<void> {
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  await page.waitForTimeout(300);
+  await expect.poll(() => page.evaluate(() => Math.ceil(window.scrollY + window.innerHeight) >= document.documentElement.scrollHeight - 1)).toBe(true);
   const box = (await last.boundingBox())!;
   const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   const own = await last.evaluate((row, at) => {
@@ -167,8 +204,7 @@ test('@p0 R8E-E2E-004 a field focused where a toast appears scrolls clear of it:
 
   // A reading for another sheet arrives while the engineer is on this field.
   const id = await pushSuggestion(account.companyId, relatorioId, { targetPath: `sheet/${other}/nameplate/n_serie`, value: 'SN-R8E-004', actorId: READING_ACTOR });
-  await pullHere(page);
-  await landed(page, id);
+  await pullUntilLanded(page, id);
   await expect(toast(page)).toContainText('1 leitura pronta para confirmar', { timeout: 30_000 });
   await expect(input).toBeFocused();
   await expect
@@ -182,28 +218,24 @@ test('@p0 R8E-E2E-004 a field focused where a toast appears scrolls clear of it:
 
 test('@p0 R8E-E2E-005 a reading for the open ficha announces nothing; one for another sheet does, its "Ver" opens that sheet and the toast is gone there', async ({ page }) => {
   test.setTimeout(240_000);
-  const { relatorioId, blockId } = await openChaveSheet(page, account, database);
-  const other = await otherChave(page, relatorioId, blockId);
+  const { relatorioId, blockId: first } = await openChaveSheet(page, account, database);
+  // The open ficha is the second Chave; the other sheet (the first Chave) comes before it in tree order.
+  const open = await otherChave(page, relatorioId, first);
+  await goInApp(page, `/relatorio/${relatorioId}/ficha/${open}`);
+  await expect(page).toHaveURL(new RegExp(`/ficha/${open}$`));
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible();
 
-  // The open ficha's own reading: drawn on it, no toast over it.
-  const own = await pushSuggestion(account.companyId, relatorioId, { targetPath: `sheet/${blockId}/nameplate/n_serie`, value: 'SN-R8E-OWN', actorId: READING_ACTOR });
-  await pullHere(page);
-  await landed(page, own);
-  await expect(nameplateField(page, 'n_serie').locator('.field.suggestion-field')).toBeVisible();
-  await expect(toast(page)).toHaveCount(0);
-  // The engineer confirms it here: the cell holds the value, the suggestion is confirmed.
-  await nameplateField(page, 'n_serie').locator('.field.suggestion-field').getByRole('button', { name: /confirmar$/ }).click();
-  await expect
-    .poll(async () => (await readStore<OutboxRow>(page, database, 'outbox')).some((row) => row.path === `suggestion/${own}/status` && row.value === 'confirmed'))
-    .toBe(true);
-
-  // Another sheet's reading: announced, and "Ver" leads there.
-  const elsewhere = await pushSuggestion(account.companyId, relatorioId, { targetPath: `sheet/${other}/nameplate/n_serie`, value: 'SN-R8E-OTHER', actorId: READING_ACTOR });
-  await pullHere(page);
-  await landed(page, elsewhere);
+  // One pull brings two readings: the open ficha's own (drawn on it) and the other sheet's. The
+  // toast counts one: the open ficha's reading is not announced.
+  const own = await pushSuggestion(account.companyId, relatorioId, { targetPath: `sheet/${open}/nameplate/n_serie`, value: 'SN-R8E-OWN', actorId: READING_ACTOR });
+  const elsewhere = await pushSuggestion(account.companyId, relatorioId, { targetPath: `sheet/${first}/nameplate/n_serie`, value: 'SN-R8E-OTHER', actorId: READING_ACTOR });
+  await pullUntilLanded(page, own, elsewhere);
   await expect(toast(page)).toHaveText(/^1 leitura pronta para confirmar/, { timeout: 30_000 });
+  await expect(nameplateField(page, 'n_serie').locator('.field.suggestion-field')).toBeVisible();
+
+  // "Ver" leads to the first sheet in tree order with a pending suggestion, the other one, and the toast is gone there.
   await toast(page).getByRole('button', { name: 'Ver' }).click();
-  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/ficha/${other}$`));
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/ficha/${first}$`));
   await expect(nameplateField(page, 'n_serie').locator('.field.suggestion-field')).toBeVisible({ timeout: 30_000 });
   await expect(toast(page)).toHaveCount(0);
 });
@@ -240,8 +272,7 @@ test('@p1 R8E-E2E-006 a caption-only arrival reads "N legendas sugeridas", never
   const { relatorioId } = await openChaveSheet(page, account, database);
   const photoId = await generalPhoto(page);
   const id = await pushSuggestion(account.companyId, relatorioId, { targetPath: `file/${photoId}/caption`, value: 'Vista geral do Cubículo Enel', photoId, actorId: READING_ACTOR });
-  await pullHere(page);
-  await landed(page, id);
+  await pullUntilLanded(page, id);
   expect(await suggestionStatus(page, id)).toBe('pending');
   await expect(toast(page)).toHaveText(/^1 legenda sugerida/, { timeout: 30_000 });
   await expect(toast(page)).not.toContainText('leitura');
@@ -253,16 +284,73 @@ test('@p1 R8E-E2E-006 a caption-only arrival reads "N legendas sugeridas", never
 test('@p1 R8E-E2E-007 a caption arrival while the gallery is on screen announces nothing', async ({ page }) => {
   test.setTimeout(240_000);
   await holdPhotoBytes(page);
-  const { relatorioId } = await openChaveSheet(page, account, database);
-  await page.goto(`/relatorio/${relatorioId}/fotos`);
+  const { relatorioId, blockId } = await openChaveSheet(page, account, database);
+  const other = await otherChave(page, relatorioId, blockId);
+  await goInApp(page, `/relatorio/${relatorioId}/fotos`);
   await expect(page.getByRole('heading', { level: 2, name: /^Registro fotográfico \(\d+\)$/ })).toBeVisible({ timeout: 30_000 });
   const photoId = await generalPhoto(page);
-  // The page's own launch cycle is over before the reading lands (its first cycle after a load counts as baseline).
-  await page.waitForTimeout(3_000);
+  await recordToasts(page);
   const id = await pushSuggestion(account.companyId, relatorioId, { targetPath: `file/${photoId}/caption`, value: 'Vista geral', photoId, actorId: READING_ACTOR });
-  await pullHere(page);
-  await landed(page, id);
+  await pullUntilLanded(page, id);
   expect(await suggestionStatus(page, id)).toBe('pending');
   await expect(page.getByText('1 legenda sugerida').first()).toBeVisible();
-  await expect(toast(page)).toHaveCount(0);
+  // A later cycle brings a reading for a sheet: its toast shows, and no caption toast came before it.
+  const control = await pushSuggestion(account.companyId, relatorioId, { targetPath: `sheet/${other}/nameplate/n_serie`, value: 'SN-R8E-007', actorId: READING_ACTOR });
+  await pullUntilLanded(page, control);
+  await expect(toast(page)).toHaveText(/^1 leitura pronta para confirmar/, { timeout: 30_000 });
+  expect((await recordedToasts(page)).filter((text) => /legendas? sugeridas?|leituras? prontas?/.test(text))).toEqual(['1 leitura pronta para confirmar']);
+});
+
+test('@p0 R8E-E2E-009 on a ficha of a complete cabine that is not its first, the cabine block is collapsed: an env reading for the cabine is announced', async ({ page }) => {
+  test.setTimeout(240_000);
+  const { relatorioId } = await openChaveSheet(page, account, database);
+  const cabine = (await entities<{ name?: string; kind?: string; relatorio_id?: string; env?: Record<string, unknown> }>(page)).find(
+    (record) => record.entity === 'location' && record.row.kind === 'cabine' && record.row.name === 'Cubículo Enel' && record.row.relatorio_id === relatorioId,
+  )!;
+  const n = (raw: string, unit: string) => ({ raw, unit, state: 'measured' as const });
+  const scope = { relatorioId };
+  // The office completes the cabine; the open ficha (not the cabine's first) folds its block to one line.
+  await pushDrafts(page, database, [
+    officeDraft(account, scope, `location/${cabine.id}/se/type`, 'BLINDADA'),
+    officeDraft(account, scope, `location/${cabine.id}/se/primary_kv`, n('13.8', 'kV')),
+    officeDraft(account, scope, `location/${cabine.id}/se/secondary_kv`, n('380', 'V')),
+    officeDraft(account, scope, `location/${cabine.id}/se/installed_kva`, n('1500', 'kVA')),
+    officeDraft(account, scope, `location/${cabine.id}/env/temperature_c`, n('25', '°C')),
+    officeDraft(account, scope, `location/${cabine.id}/env/humidity_pct`, n('60', '%')),
+  ]);
+  await expect
+    .poll(
+      async () => {
+        await pullHere(page);
+        return (await entities<{ env?: { humidity_pct?: unknown } }>(page)).find((record) => record.entity === 'location' && record.id === cabine.id)?.row.env?.humidity_pct != null;
+      },
+      { timeout: 60_000, intervals: [500, 1_000, 2_000] },
+    )
+    .toBe(true);
+  await expect(page.locator('.cabine-line')).toBeVisible({ timeout: 30_000 });
+
+  // A thermo-hygrometer reading for the cabine: not drawn here, so it is announced.
+  const id = await pushSuggestion(account.companyId, relatorioId, { targetPath: `location/${cabine.id}/env/temperature_c`, value: n('24', '°C'), actorId: READING_ACTOR });
+  await pullUntilLanded(page, id);
+  await expect(toast(page)).toHaveText(/^1 leitura pronta para confirmar/, { timeout: 30_000 });
+});
+
+test('@p0 R8E-E2E-010 at 390 px a plain toast that leaves while the page is at its end leaves the last row where it was', async ({ page }) => {
+  test.setTimeout(240_000);
+  // The bytes stay on the device: each row keeps one upload state, so nothing else moves the rows.
+  await holdPhotoBytes(page);
+  await openChaveSheet(page, account, database, { width: 390 });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await addSheetPhotos(page, 4);
+  // "4 fotos adicionadas — legenda aplicada": a plain toast, gone by itself after 6 s.
+  await expect(toast(page)).toContainText('4 fotos adicionadas');
+  await expect(toast(page).getByRole('button')).toHaveCount(0);
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await expect.poll(() => page.evaluate(() => Math.ceil(window.scrollY + window.innerHeight) >= document.documentElement.scrollHeight - 1)).toBe(true);
+  const last = stripRows(page).last();
+  const before = (await last.boundingBox())!.y;
+  await expect(toast(page)).toHaveCount(0, { timeout: 20_000 });
+  await expect.poll(async () => Math.abs((await last.boundingBox())!.y - before)).toBeLessThanOrEqual(1);
+  // Still where it was a moment later (nothing dropped the room under the reader).
+  expect(Math.abs((await last.boundingBox())!.y - before)).toBeLessThanOrEqual(1);
 });
