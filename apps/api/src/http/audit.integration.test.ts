@@ -48,7 +48,7 @@ import { createApp } from './app.ts';
  * stream pulled at version 15 carries the run's create and its findings; a second POST while
  * the run is active answers 409 `audit_running` with its id and sends nothing; AI features
  * off answer 409 `ai_features_off` with no run and no job; the barrier and the 404 are the
- * preview's; a version-14 pull is refused (426, `MIN_CONTRACT_VERSION` 15). The `audit run`
+ * preview's; a version-14 pull is refused (426, below `MIN_CONTRACT_VERSION`: 15 at Story 13.8, 16 since contract 16). The `audit run`
  * log line carries the model, prompt version, tokens and USD, on `fake` and on Bedrock
  * through an injected client.
  */

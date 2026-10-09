@@ -365,21 +365,22 @@ describe('contract 16: the conclusion text, its status and its basis are one dec
       ana(at('text_status'), 'confirmed'),
       ana(at('text_basis'), 'bbbbbbbb'),
     ];
-    return { create, ana, e: [...e, e2], a, COMPOSED_A };
+    return { create, ana, eduardo, f, e: [...e, e2], a, COMPOSED_A };
   }
 
-  it('edit first, then the conclude: one row; Ana keeps her confirmed composed text, Eduardo his edited one, each with its own status and basis', () => {
+  it('edit first, then the conclude: one row; the composed side (the text the app composes now) stands, Eduardo his edited one, each with its own status and basis', () => {
     const { create, ana, e, a, COMPOSED_A } = editAndConclude();
     const log = [create, ...e, ...a];
     const row = fold(log);
-    expect(row.sheet.conclusion.text?.conflict?.value).toBe(EDITED);
-    const standing = resolve(log, row, 'standing', ana).triple;
-    expect(standing).toEqual({ text: COMPOSED_A, status: 'confirmed', basis: 'bbbbbbbb' });
+    expect(row.sheet.conclusion.text).toMatchObject({ value: COMPOSED_A, conflict: { value: EDITED } });
+    const now = composeConclusion(row, definition, TAG);
+    const standing = resolve(log, row, 'standing', ana);
+    expect(standing.triple).toEqual({ text: now.text, status: 'confirmed', basis: now.basis });
     const displaced = resolve(log, row, 'displaced', ana);
     expect(displaced.triple).toEqual({ text: EDITED, status: 'edited', basis: 'aaaaaaaa' });
-    for (const triple of [standing, displaced.triple]) expectCoherent(triple, [COMPOSED_A]);
-    // Only the confirmed side's text put is flagged composed.
-    expect(resolve(log, row, 'standing', ana).drafts[0]!.meta).toEqual({ composed: true });
+    for (const triple of [standing.triple, displaced.triple]) expectCoherent(triple, [now.text]);
+    // Only the composed side's text put is flagged composed.
+    expect(standing.drafts[0]!.meta).toEqual({ composed: true });
     expect(displaced.drafts[0]!.meta).toBeNull();
   });
 
@@ -427,7 +428,7 @@ describe('contract 16: the conclusion text, its status and its basis are one dec
     }
   });
 
-  it('data folded before contract 16 with a lone basis conflict is still one row, both sides edited', () => {
+  it('data folded before contract 16 with a lone basis conflict is still one row: the edited text with its basis, or the text composed now', () => {
     const { create, eduardo, ana } = world();
     const log = [
       create,
@@ -442,8 +443,9 @@ describe('contract 16: the conclusion text, its status and its basis are one dec
     const basis = folded.sheet.conclusion.text_basis!;
     // A version-15 fold marked the basis as a contradiction; the row still carries it.
     const row: BlockRow = { ...folded, sheet: { ...folded.sheet, conclusion: { ...folded.sheet.conclusion, text_basis: { ...basis, conflict: { op_id: log[3]!.op_id, value: 'aaaaaaaa', source_suggestion_id: null } } } } };
+    const now = composeConclusion(row, definition, TAG);
     expect(resolve(log, row, 'standing', ana).triple).toEqual({ text: 'Texto de Ana.', status: 'edited', basis: 'bbbbbbbb' });
-    expect(resolve(log, row, 'displaced', ana).triple).toEqual({ text: 'Texto de Ana.', status: 'edited', basis: 'aaaaaaaa' });
+    expect(resolve(log, row, 'displaced', ana).triple).toEqual({ text: now.text, status: 'confirmed', basis: now.basis });
   });
 
   it('an edited text emptied on blur against a concurrent conclude: the edited side is the empty text, in either seq order', () => {
@@ -452,11 +454,12 @@ describe('contract 16: the conclusion text, its status and its basis are one dec
     const e = [eduardo(at('text'), ''), eduardo(at('text_status'), 'edited'), eduardo(at('text_basis'), 'aaaaaaaa')];
     const a = [f.op({ path: at('text'), value: COMPOSED_A, actor_id: ANA, device_id: A_DEVICE, meta: { composed: true } }), ana(at('text_status'), 'confirmed'), ana(at('text_basis'), 'bbbbbbbb')];
 
-    // Edit first: the composed text applied over the empty one (filled over empty, not kept).
+    // Edit first: the composed text over the emptied edit is a contradiction (c16-2: before filled over empty).
     const editFirstLog = [create, ...e, ...a];
     const editFirst = fold(editFirstLog);
-    expect(editFirst.sheet.conclusion.text).toMatchObject({ value: COMPOSED_A, merge: { rule: 'filled_over_empty', kept: false } });
-    expect(resolve(editFirstLog, editFirst, 'standing', ana).triple).toEqual({ text: COMPOSED_A, status: 'confirmed', basis: 'bbbbbbbb' });
+    expect(editFirst.sheet.conclusion.text).toMatchObject({ value: COMPOSED_A, conflict: { value: '' } });
+    const nowA = composeConclusion(editFirst, definition, TAG);
+    expect(resolve(editFirstLog, editFirst, 'standing', ana).triple).toEqual({ text: nowA.text, status: 'confirmed', basis: nowA.basis });
     expect(resolve(editFirstLog, editFirst, 'displaced', ana).triple).toEqual({ text: '', status: 'edited', basis: 'aaaaaaaa' });
 
     // The conclude first: the empty put was kept out (filled over empty, kept); the edited status stands.
@@ -467,6 +470,92 @@ describe('contract 16: the conclusion text, its status and its basis are one dec
     const now = composeConclusion(concludeFirst, definition, TAG);
     expect(resolve(concludeFirstLog, concludeFirst, 'standing', ana).triple).toEqual({ text: '', status: 'edited', basis: 'aaaaaaaa' });
     expect(resolve(concludeFirstLog, concludeFirst, 'displaced', ana).triple).toEqual({ text: now.text, status: 'confirmed', basis: now.basis });
+  });
+
+  it('c16-1: edit, conclude, then an emptied edit, in either seq order: one edited side and one composed side, the flag only on the composed pick', () => {
+    const { create, ana, eduardo, e, a } = editAndConclude();
+    // Eduardo empties his field on blur before pulling: text '', edited, his basis, chained on his own ops.
+    // Stamped as the device commits them: what his rows held (his own ops), no conflict seen.
+    const own = (i: number) => ({ standing_op_id: e[i]!.op_id, seen_conflict_op_id: null });
+    const emptied = [
+      eduardo(at('text'), '', e[3]!.op_id, own(3)),
+      eduardo(at('text_status'), 'edited', e[1]!.op_id, own(1)),
+      eduardo(at('text_basis'), 'aaaaaaaa', e[2]!.op_id, own(2)),
+    ];
+    for (const [log, expected] of [
+      // Conclude after the edit, then the emptied edit: the text holds the edited text as its conflict.
+      [[create, ...e, ...a, ...emptied], { composedStands: true, edited: { text: EDITED, status: 'edited', basis: 'aaaaaaaa' } }],
+      // Conclude first: the edits chain on Eduardo's own head; his emptied text stands.
+      [[create, ...a, ...e, ...emptied], { composedStands: false, edited: { text: '', status: 'edited', basis: 'aaaaaaaa' } }],
+    ] as const) {
+      const row = fold([...log]);
+      const now = composeConclusion(row, definition, TAG);
+      const composedTriple = { text: now.text, status: 'confirmed', basis: now.basis };
+      const composedPick = expected.composedStands ? 'standing' : 'displaced';
+      const editedPick = expected.composedStands ? 'displaced' : 'standing';
+      const composed = resolve([...log], row, composedPick, ana);
+      const edited = resolve([...log], row, editedPick, ana);
+      expect(composed.triple).toEqual(composedTriple);
+      expect(edited.triple).toEqual(expected.edited);
+      expect(composed.drafts[0]!.meta).toEqual({ composed: true });
+      expect(edited.drafts[0]!.meta).toBeNull();
+      for (const triple of [composed.triple, edited.triple]) expectCoherent(triple, [now.text]);
+      const cell = decisionOf(row).cells[0]!;
+      expect(cell.composedSide).toBe(composedPick);
+    }
+  });
+
+  it('c16-2: a third tablet concludes while the text is in contradiction: the edited text stays the conflict and the view offers it', () => {
+    const { create, ana, f, e, a } = editAndConclude();
+    for (const text of ['A seccionadora SEC-01 apresentou o texto composto de Ana.', 'Texto composto da terceira.']) {
+      const third = [
+        f.op({ path: at('text'), value: text, actor_id: ANA, device_id: 'tablet-d', meta: { composed: true } }),
+        f.op({ path: at('text_status'), value: 'confirmed', actor_id: ANA, device_id: 'tablet-d' }),
+        f.op({ path: at('text_basis'), value: 'bbbbbbbb', actor_id: ANA, device_id: 'tablet-d' }),
+      ];
+      const log = [create, ...e, ...a, ...third];
+      const row = fold(log);
+      expect(row.sheet.conclusion.text).toMatchObject({ value: text, op_id: third[0]!.op_id, conflict: { value: EDITED, op_id: e[3]!.op_id } });
+      const cell = decisionOf(row).cells[0]!;
+      expect([cell.standing.value, cell.displaced.value]).toContain(EDITED);
+      const edited = resolve(log, row, cell.composedSide === 'standing' ? 'displaced' : 'standing', ana).triple;
+      expect(edited).toMatchObject({ text: EDITED, status: 'edited' });
+    }
+  });
+
+  it('c16-3: "Aplicar" then "Desfazer" on the emptied case brings back the same two sides', () => {
+    const { create, eduardo, ana, f } = world();
+    const e = [eduardo(at('text'), ''), eduardo(at('text_status'), 'edited'), eduardo(at('text_basis'), 'aaaaaaaa')];
+    const a = [f.op({ path: at('text'), value: 'Composto de Ana.', actor_id: ANA, device_id: A_DEVICE, meta: { composed: true } }), ana(at('text_status'), 'confirmed'), ana(at('text_basis'), 'bbbbbbbb')];
+    const log = [create, ...a, ...e];
+    const row = fold(log);
+    expect(row.sheet.conclusion.text?.merge).toMatchObject({ rule: 'filled_over_empty', kept: true });
+    const sides = (r: BlockRow) => {
+      const cell = decisionOf(r).cells[0]!;
+      return { standing: cell.standing.value, displaced: cell.displaced.value, companions: cell.companions, composedSide: cell.composedSide };
+    };
+    for (const pick of ['standing', 'displaced'] as const) {
+      const drafts = applyPickOps(author, decisionOf(row), { [at('text')]: pick })!;
+      const stamped = drafts.map((draft) => {
+        const field = draft.path.split('/').at(-1) as 'text' | 'text_status' | 'text_basis';
+        const cell = row.sheet.conclusion[field]!;
+        return ana(draft.path, draft.value, cell.merge?.head_op_id ?? cell.op_id, { ...(draft.meta ?? {}), standing_op_id: cell.op_id, seen_conflict_op_id: cell.conflict?.op_id ?? null });
+      });
+      // The device's commit path: the value each op replaced and the marks its apply cleared.
+      let state: EntityState = new Map([[entityKey('block', BLOCK), row]]);
+      const before = new Map<string, unknown>();
+      const marks = new Map<string, NonNullable<ReturnType<typeof clearedMarks>>>();
+      for (const op of stamped) {
+        before.set(op.op_id, readPath(state, op));
+        const cleared = clearedMarks(state, op);
+        if (cleared !== undefined) marks.set(op.op_id, cleared);
+        state = applyOp(state, op);
+      }
+      expect(marks.get(stamped[0]!.op_id)).toMatchObject({ merge: { rule: 'filled_over_empty', kept: true } });
+      const inverses = invertBatch(stamped, before, { newId: f.newId, now: new Date('2026-10-09T13:00:00.000Z') }, marks);
+      const undone = fold([...log, ...stamped, ...inverses]);
+      expect(sides(undone)).toEqual(sides(row));
+    }
   });
 
   it('each side of the row says its status in the view', () => {

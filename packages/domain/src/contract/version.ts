@@ -99,8 +99,12 @@
  * concurrent flagged put over a standing `text_status = edited` a contradiction
  * (`cell.conflict`) instead of `latest_text`, a concurrent `text_basis` put follows the text
  * (sequential) unless the status is in contradiction, and the Conflict view resolves the
- * text, its status and its basis as one unit (three puts). No new family, but the reducer changed:
- * `MIN_CONTRACT_VERSION` goes to 16 too; 2026-10-09, Matheus.
+ * text, its status and its basis as one unit (three puts). The focused review refined it
+ * before release (c16-1/2/3): the unit row is built from an edited and a composed writer
+ * side, a composed put over a text already in contradiction keeps that `conflict`, and the
+ * undo of "Aplicar" on the text also restores its cleared `merge` record (`meta.restore`).
+ * No new family, but the reducer changed: `MIN_CONTRACT_VERSION` goes to 16 too; 2026-10-09,
+ * Matheus.
  */
 export const CONTRACT_VERSION = 16;
 
@@ -167,7 +171,9 @@ export const CONTRACT_VERSION = 16;
  *
  * 16 (2026-10-09, PR #121 review; Matheus): a version-15 bundle folds a composed conclusion
  * text (`meta.composed`) over an edited one as `latest_text`, where a version-16 fold marks a
- * contradiction, so its rows would diverge from the server's: it updates too.
+ * contradiction, and it folds a concurrent differing `text_basis` as a contradiction where a
+ * version-16 fold follows the text (`sequential`), so its rows would diverge from the
+ * server's: it updates too.
  */
 export const MIN_CONTRACT_VERSION = 16;
 

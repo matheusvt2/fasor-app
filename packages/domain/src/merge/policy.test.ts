@@ -117,14 +117,20 @@ describe('mergePolicy', () => {
     });
   });
 
-  it('contract 16: a composed text over an edited one is a contradiction, after same value and filled over empty; any other text stays latest text', () => {
+  it('contract 16: a composed text over an edited one is a contradiction, before same value and filled over empty; over a text already in conflict it is protected; any other text stays latest text', () => {
     const { eduardo, f } = world();
     const text = `sheet/${BLOCK}/conclusion/text`;
     const composed = (value: string, prev: string | null = null) => f.op({ path: text, value, prev_op_id: prev, actor_id: ANA, device_id: A_DEVICE, meta: { composed: true } });
     const edited = c('edited');
     expect(mergePolicy({ path: at(text), current: c('meu texto'), op: composed('texto composto'), textStatus: edited })).toEqual({ kind: 'contradiction' });
-    expect(mergePolicy({ path: at(text), current: c('meu texto'), op: composed('meu texto'), textStatus: edited })).toEqual({ kind: 'apply', rule: 'same_value' });
-    expect(mergePolicy({ path: at(text), current: c(null), op: composed('texto composto'), textStatus: edited })).toEqual({ kind: 'apply', rule: 'filled_over_empty' });
+    // c16-2: checked before same value and filled over empty (an Editar left as composed, an emptied edit).
+    expect(mergePolicy({ path: at(text), current: c('meu texto'), op: composed('meu texto'), textStatus: edited })).toEqual({ kind: 'contradiction' });
+    expect(mergePolicy({ path: at(text), current: c(''), op: composed('texto composto'), textStatus: edited })).toEqual({ kind: 'contradiction' });
+    const inConflict: Cell = { ...c('texto composto'), conflict: { op_id: '019966b0-0010-7000-8000-0000000000cc', value: 'meu texto', source_suggestion_id: null } };
+    expect(mergePolicy({ path: at(text), current: inConflict, op: composed('texto composto'), textStatus: c('confirmed') })).toEqual({ kind: 'protect' });
+    expect(mergePolicy({ path: at(text), current: inConflict, op: composed('outro composto'), textStatus: c('confirmed') })).toEqual({ kind: 'protect' });
+    // An unflagged put over a text in conflict folds as before.
+    expect(mergePolicy({ path: at(text), current: inConflict, op: eduardo(text, 'texto composto') })).toEqual({ kind: 'apply', rule: 'same_value' });
     // An unflagged text (an edit) over an edited one, and a composed one over a confirmed one: latest text.
     expect(mergePolicy({ path: at(text), current: c('meu texto'), op: eduardo(text, 'outro texto'), textStatus: edited })).toEqual({ kind: 'apply', rule: 'latest_text' });
     expect(mergePolicy({ path: at(text), current: c('a'), op: composed('b'), textStatus: c('confirmed') })).toEqual({ kind: 'apply', rule: 'latest_text' });

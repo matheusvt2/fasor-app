@@ -10,7 +10,8 @@ import type { BlockRow } from '../schemas/entities.ts';
  * no mark: the other device's side was lost with no one asked.
  *
  * - a `sheet/*` put whose apply drops the cell's `conflict`: that `conflict` and the op whose
- *   value the cell showed (`shown_op_id ?? op_id`);
+ *   value the cell showed (`shown_op_id ?? op_id`); on `sheet/{id}/conclusion/text` also the
+ *   `merge` record the apply dropped (contract 16, c16-3);
  * - a `block/{id}/removed_at` write whose apply drops the block's `removal_conflict`: that
  *   mark and the block's `removed_by`.
  *
@@ -26,10 +27,19 @@ export function clearedMarks(state: EntityState, op: Op, next?: EntityState): Re
     const key = entityKey('block', (path as { block_id: string }).block_id);
     const before = state.get(key) as BlockRow | undefined;
     const cell = before === undefined ? undefined : sheetCellAt(before.sheet, path);
-    if (cell?.conflict === undefined) return undefined;
+    // Contract 16 (c16-3): on the conclusion text only, the `merge` record counts as a mark too
+    // (the emptied edit's `filled_over_empty` is what the conclusion row reads).
+    const conclusionText = path.family === 'sheet/conclusion' && path.field === 'text';
+    const merge = conclusionText ? cell?.merge : undefined;
+    if (cell === undefined || (cell.conflict === undefined && merge === undefined)) return undefined;
     const after = (next ?? applyOp(state, op)).get(key) as BlockRow | undefined;
-    if (after === undefined || sheetCellAt(after.sheet, path)?.conflict !== undefined) return undefined;
-    return { conflict: cell.conflict, shown_op_id: cell.shown_op_id ?? cell.op_id };
+    if (after === undefined) return undefined;
+    const afterCell = sheetCellAt(after.sheet, path);
+    const conflict = cell.conflict !== undefined && afterCell?.conflict === undefined ? cell.conflict : undefined;
+    const mergeCleared = merge !== undefined && afterCell?.merge === undefined ? merge : undefined;
+    if (cell.conflict !== undefined && conflict === undefined) return undefined;
+    if (conflict === undefined && mergeCleared === undefined) return undefined;
+    return { ...(conflict === undefined ? {} : { conflict }), ...(mergeCleared === undefined ? {} : { merge: mergeCleared }), shown_op_id: cell.shown_op_id ?? cell.op_id };
   }
   if (path.family === 'block/field' && path.field === 'removed_at') {
     const key = entityKey('block', path.id);

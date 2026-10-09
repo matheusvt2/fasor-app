@@ -38,7 +38,13 @@ export function isConcurrent(
 export type MergeOutcome =
   | { kind: 'sequential' }
   | { kind: 'apply' | 'keep'; rule: MergeRule }
-  | { kind: 'contradiction' };
+  | { kind: 'contradiction' }
+  /**
+   * Contract 16 (c16-2): a composed conclusion text over a text cell already holding a
+   * `conflict` (the edited text): the put's value stands and the cell keeps that `conflict`,
+   * so the edited side never drops out before "Aplicar". Internal to the fold.
+   */
+  | { kind: 'protect' };
 
 export interface MergePolicyInput {
   /** The parsed path of `op` (a `sheet/*` family). */
@@ -97,6 +103,14 @@ export function mergePolicy(input: MergePolicyInput): MergeOutcome {
   const { path, current, op } = input;
   if (!isConcurrent(op, current)) return { kind: 'sequential' };
   if (path.family === 'sheet/conclusion' && path.field === 'text_basis' && input.textStatus?.conflict === undefined) return { kind: 'sequential' };
+  // Contract 16 (c16-2): a composed text never replaces the edited one without a decision, so
+  // its check runs before same value and filled over empty: over a cell already holding a
+  // `conflict` (a third writer) the edited text stays the `conflict`; over a standing
+  // `edited` status the cell becomes a contradiction (an emptied edit included).
+  if (path.family === 'sheet/conclusion' && path.field === 'text' && op.meta?.composed === true) {
+    if (current.conflict !== undefined) return { kind: 'protect' };
+    if (input.textStatus?.value === 'edited') return { kind: 'contradiction' };
+  }
   const mine = current.value;
   const theirs = op.value;
 
@@ -115,7 +129,6 @@ export function mergePolicy(input: MergePolicyInput): MergeOutcome {
       return { kind: isNcDevice(result, op.device_id) ? 'apply' : 'keep', rule: 'nc_observation' };
     }
   }
-  if (path.family === 'sheet/conclusion' && path.field === 'text' && op.meta?.composed === true && input.textStatus?.value === 'edited') return { kind: 'contradiction' };
   if (isFreeText(path)) return { kind: 'apply', rule: 'latest_text' };
   return { kind: 'contradiction' };
 }
@@ -152,8 +165,15 @@ export function mergeCell(current: Cell | null | undefined, op: Op, context: Mer
     // E10-Q2 (contract 13): the undo of "Aplicar" puts the value back with the marks the
     // resolution cleared (`meta.restore`), so the decision is open again on every device.
     const restore = op.meta?.restore;
-    if (restore !== undefined && 'conflict' in restore) {
-      return { ...plainCell(op), conflict: restore.conflict, ...(restore.shown_op_id === null ? {} : { shown_op_id: restore.shown_op_id }) };
+    if (restore !== undefined && 'shown_op_id' in restore) {
+      // Contract 16 (c16-3): the conclusion text's restore may carry the `merge` record its
+      // apply cleared (an emptied edit kept out); it comes back naming the inverse as the head.
+      return {
+        ...plainCell(op),
+        ...(restore.conflict === undefined ? {} : { conflict: restore.conflict }),
+        ...(restore.merge === undefined ? {} : { merge: { ...restore.merge, head_op_id: op.op_id } }),
+        ...(restore.shown_op_id === null ? {} : { shown_op_id: restore.shown_op_id }),
+      };
     }
     // A sequential put clears a `conflict` it saw ("Aplicar"). One stamped with another (or
     // none: the device whose value shows rewrote its cell before pulling the mark) keeps it,
@@ -163,6 +183,7 @@ export function mergeCell(current: Cell | null | undefined, op: Op, context: Mer
     if (conflict !== undefined && seen !== undefined && (seen ?? null) !== conflict.op_id) return { ...plainCell(op), conflict };
     return plainCell(op);
   }
+  if (outcome.kind === 'protect') return { ...plainCell(op), conflict: current!.conflict! };
   if (outcome.kind === 'contradiction') {
     const displaced = current!;
     // The displaced side is named by the op whose value it showed (E10-Q2: `shown_op_id`).
