@@ -616,7 +616,9 @@ test('@p0 5.6-E2E-001 nine seccionadora readings with Enter only, the run ends o
   await expect(rowR.locator('td.cell-calc').first()).toContainText('calculado');
   await page.keyboard.type('120,135');
   await page.keyboard.press('Enter');
-  await expect(rowR.locator('td.cell-calc').nth(1)).toContainText('SATISFATÓRIO');
+  // Review fixes 2026-10-08 (DC-1): Condição is the mock's `td.cell-dim`, the row's last cell.
+  await expect(rowR.locator('td').last()).toHaveClass('cell-dim');
+  await expect(rowR.locator('td').last()).toContainText('SATISFATÓRIO');
   await expect.poll(async () => (await outbox(page)).find((row) => row.path === `sheet/${tp.blockId}/test/relacao_transformacao/cell/0/3`)?.value).toEqual({ raw: '120.135', unit: null, state: 'measured' });
   expect((await outbox(page)).some((row) => /relacao_transformacao\/cell\/\d+\/(2|4)$/.test(row.path))).toBe(false);
 });
@@ -1223,10 +1225,13 @@ test('@p1 E5-Q2 phone 390 x 844: the insulation value input, its unit slot and i
   await input.fill('3.300');
   expect(await fits()).toBe(true);
   // The table itself fits its box: no sideways scroll inside the wrapper either.
-  expect(await input.evaluate((element) => {
+  const tableFit = await input.evaluate((element) => {
     const table = element.closest('table')!;
-    return table.getBoundingClientRect().width <= table.parentElement!.getBoundingClientRect().width + 0.5;
-  })).toBe(true);
+    const widths = [...table.querySelectorAll('thead th')].map((th) => `${th.textContent}=${Math.round(th.getBoundingClientRect().width)}`).join(' ');
+    const parts = [...element.closest('td')!.querySelectorAll('input, .unit-cycle, .overflow-trigger')].map((part) => `${part.className.split(' ')[0]}=${Math.round(part.getBoundingClientRect().width)}`).join(' ');
+    return { fits: table.getBoundingClientRect().width <= table.parentElement!.getBoundingClientRect().width + 0.5, why: `table ${Math.round(table.getBoundingClientRect().width)} in ${Math.round(table.parentElement!.getBoundingClientRect().width)}: ${widths}; ${parts}` };
+  });
+  expect(tableFit.fits, tableFit.why).toBe(true);
   await input.press('Tab');
   await expect(input).toHaveValue('3.300');
   expect(await fits()).toBe(true);

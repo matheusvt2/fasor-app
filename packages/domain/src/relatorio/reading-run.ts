@@ -1,7 +1,9 @@
 import { canonicalDecimal, formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { scaleToUnit } from '../seed/criteria.ts';
+import type { BlockRow } from '../schemas/entities.ts';
 import type { CellAddress, EvaluatedCell, EvaluatedRow, EvaluatedTable, ReadingVerdict, TestEvaluation, TestKey } from './reading-cells.ts';
 import { deviationPct, sameAddress } from './reading-evaluation.ts';
+import { sheetState } from './sheet-state.ts';
 
 /*
  * E9-A7: what walks an evaluation -- the continuous Enter run (Story 5.6) and the worst
@@ -69,6 +71,18 @@ export function runTarget(evaluations: readonly TestEvaluation[], from: CellAddr
 export function runEnterKeyHint(evaluations: readonly TestEvaluation[], address: CellAddress): 'next' | 'done' {
   const target = runTarget(evaluations, address, 'next');
   return target === null || target === 'end' ? 'done' : 'next';
+}
+
+/**
+ * Review fixes 2026-10-08 (DB-2): whether a pointer tap on a cell's unit control must first put
+ * the cell into editing instead of rewriting its value in the next unit. True on a concluded
+ * sheet (`sheetState === 'concluida'`) for a cell holding a measured value: there a stray tap
+ * beside the input would flip a stored 1,45 GΩ to 1,45 TΩ and the verdict with it. The sheet
+ * stays editable until emission, so the tap only focuses the input; a second tap, made while
+ * the input holds the focus, cycles as on an open sheet.
+ */
+export function unitTapNeedsEdit(block: BlockRow, cell: Pick<EvaluatedCell, 'state'>): boolean {
+  return cell.state === 'measured' && sheetState(block) === 'concluida';
 }
 
 /** The first cell the run would stop at (the first empty one), or null when every cell holds a value. */

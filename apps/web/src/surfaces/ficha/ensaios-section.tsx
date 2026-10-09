@@ -5,6 +5,7 @@ import {
   runTarget,
   screenLabel,
   tableDictationLabel,
+  unitTapNeedsEdit,
   type BlockDefinition,
   type BlockRow,
   type CellAddress,
@@ -16,12 +17,13 @@ import {
   type RelatorioSnapshot,
   type TestEvaluation,
 } from '@app/domain';
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
+import { WholeWords } from '../../components/whole-words.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
-import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, type RunDirection } from './measurement-field.tsx';
+import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, UnitTapGuardProvider, type RunDirection } from './measurement-field.tsx';
 import { ConfirmTableButton, ReadDisplayButton, ReadingCell, useDisplaySuggestions, type DisplayModel } from './read-display.tsx';
 import { useTableDictation } from './sheet-observation-dictation.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
@@ -92,35 +94,56 @@ export function EnsaiosSection({
     return true;
   };
 
+  /**
+   * Review fixes 2026-10-08 (r8lay-layout-1): Enter leaving a ratio table's last capture cell
+   * brings the table's end into its own scroller, so the rows' Condição (the verdict, the last
+   * column) is in view where the table is wider than its box (657 px boxes).
+   */
+  const revealRatioEnd = (from: CellAddress) => {
+    const test = evaluations.find((t) => t.testKey === from.testKey);
+    const table = test?.tables.find((t) => t.rows.some((row) => row.cells.some((cell) => sameAddress(cell.address, from))));
+    if (table === undefined || !table.ratio) return;
+    const last = table.rows.at(-1)?.cells.filter((cell) => cell.role === 'capture').at(-1);
+    if (last === undefined || !sameAddress(last.address, from)) return;
+    const scroller = host.current?.querySelector<HTMLElement>(`.ficha-mt[data-table-key="${table.key}"] > .mt-scroll`);
+    if (scroller !== null && scroller !== undefined) scroller.scrollLeft = scroller.scrollWidth;
+  };
+
   const onRun = (from: CellAddress, direction: RunDirection): boolean => {
     const target = runTarget(evaluations, from, direction);
     if (target === null) return false;
+    let moved: boolean;
     if (target === 'end') {
       const primary = document.getElementById(primaryId);
-      if (primary === null) return false;
-      primary.focus();
-      return true;
-    }
-    return focusCell(target);
+      moved = primary !== null;
+      primary?.focus();
+    } else moved = focusCell(target);
+    if (moved && direction === 'next') revealRatioEnd(from);
+    return moved;
   };
+
+  // DB-2: the kernel says which unit taps only put a cell into editing (a concluded sheet's measured cells).
+  const unitTapGuard = useCallback((cell: EvaluatedCell) => unitTapNeedsEdit(block, cell), [block]);
 
   return (
     <div id="ficha-step-ensaios" ref={host} className={className} data-step="ensaios" tabIndex={-1} onFocus={onFocus}>
-      {evaluations.map((test) => (
-        <TestSection
-          key={test.testKey}
-          api={api}
-          snapshot={snapshot}
-          block={block}
-          definition={definition}
-          test={test}
-          instruments={instruments}
-          firstMissing={firstMissing}
-          onRun={onRun}
-          display={display}
-          targetFor={targetFor}
-        />
-      ))}
+      <UnitTapGuardProvider value={unitTapGuard}>
+        {evaluations.map((test) => (
+          <TestSection
+            key={test.testKey}
+            api={api}
+            snapshot={snapshot}
+            block={block}
+            definition={definition}
+            test={test}
+            instruments={instruments}
+            firstMissing={firstMissing}
+            onRun={onRun}
+            display={display}
+            targetFor={targetFor}
+          />
+        ))}
+      </UnitTapGuardProvider>
       {display.viewer}
     </div>
   );
@@ -314,52 +337,58 @@ function MeasurementTable({
           </div>
         )}
       </div>
-      <table className={table.ratio ? 'measurement-table ficha-ttr is-wide' : 'measurement-table'} aria-labelledby={table.title === null ? undefined : titleId} aria-label={table.title === null ? screenLabel(test.title) : undefined}>
-        <thead>
-          <tr>
-            {table.connectionHeaders.map((header, i) => (
-              <th key={`c${i}`} scope="col">
-                {screenLabel(header)}
-              </th>
-            ))}
-            {table.columns.map((column) => (
-              <th key={column.col} scope="col" className={column.role === 'input' ? undefined : 'col-value'}>
-                {screenLabel(column.header)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {table.rows.map((row) => (
-            <tr key={row.row}>
-              {row.connection.map((text, i) => (
-                <td key={`c${i}`} className={i === 0 ? 'cell-point' : 'cell-dim'}>
-                  {text === '' ? '—' : screenLabel(text)}
-                </td>
+      {/* Review fixes 2026-10-08 (DC-1, DB-3): authored, the table's own horizontal scroller, UX-DR40's
+          last resort: a table wider than its box scrolls inside it, never the title row or the page. */}
+      <div className="mt-scroll">
+        <table className={table.ratio ? 'measurement-table ficha-ttr is-wide' : 'measurement-table'} aria-labelledby={table.title === null ? undefined : titleId} aria-label={table.title === null ? screenLabel(test.title) : undefined}>
+          <thead>
+            <tr>
+              {table.connectionHeaders.map((header, i) => (
+                <th key={`c${i}`} scope="col">
+                  <WholeWords className="mt-word" text={screenLabel(header)} />
+                </th>
               ))}
-              {table.columns.map((column) => {
-                if (column.role === 'derived') {
+              {table.columns.map((column) => (
+                // DC-1: Condição is a word column (`60-ficha.html` draws its header without `col-value`).
+                <th key={column.col} scope="col" className={column.role === 'input' || column.derivedKind === 'condicao' ? undefined : 'col-value'}>
+                  <WholeWords className="mt-word" text={screenLabel(column.header)} />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((row) => (
+              <tr key={row.row}>
+                {row.connection.map((text, i) => (
+                  <td key={`c${i}`} className={i === 0 ? 'cell-point' : 'cell-dim'}>
+                    {text === '' ? '—' : <WholeWords className="mt-word" text={screenLabel(text)} />}
+                  </td>
+                ))}
+                {table.columns.map((column) => {
+                  if (column.role === 'derived') {
+                    return (
+                      // DC-1: Condição is the mock's `td.cell-dim` ("Satisfatório", `60-ficha.html`), the calculated value `td.cell-calc`.
+                      <td key={column.col} className={column.derivedKind === 'condicao' ? 'cell-dim' : 'cell-calc'}>
+                        {derivedText(row, column.derivedKind)}
+                        <span className="calc-mark" aria-hidden="true">
+                          {ui.measurementField.calcMark}
+                        </span>
+                        <span className="visually-hidden">{ui.measurementField.calcSpoken}</span>
+                      </td>
+                    );
+                  }
+                  const cell = cellOf(row, column.col);
                   return (
-                    <td key={column.col} className="cell-calc">
-                      {derivedText(row, column.derivedKind)}
-                      <span className="calc-mark" aria-hidden="true">
-                        {ui.measurementField.calcMark}
-                      </span>
-                      <span className="visually-hidden">{ui.measurementField.calcSpoken}</span>
+                    <td key={column.col} className="cell-value">
+                      {cell === undefined ? null : field(row, cell, 'table')}
                     </td>
                   );
-                }
-                const cell = cellOf(row, column.col);
-                return (
-                  <td key={column.col} className="cell-value">
-                    {cell === undefined ? null : field(row, cell, 'table')}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {table.ratio ? (
         <div className="ficha-cards">
           <div className="measurement-cards">

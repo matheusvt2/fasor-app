@@ -273,3 +273,24 @@
 @media (max-height: 479.98px) {
   [data-route="/relatorio/:id"] .sticky-action-bar { position: static; }
 }
+
+/* Review fixes 2026-10-08 (batch r8lay): DA-6. authored, the phone Sumário tree's equipment rows
+   (the F-07 rule of the rail, `app.css`, for `.s9-eq-open`): no word of the TAG, the type or the
+   state breaks inside itself. The TAG and the state (glyph and word, DESIGN.md › Relatório tree)
+   each stay on one line, each word of the type is unbreakable (`.s9-word`, `relatorio-tree.tsx`: a
+   hyphen breaks a line too, "Para-" over "raio") and the type is never narrower than its longest word, so when the row is
+   full its parts wrap to a new line (`.s9-eq-open { flex-wrap: wrap }`, `app.css`) instead.
+   Hiding the drag handle or the Position box on phone is an open question (`deferred-work.md`). */
+@media (max-width: 767.98px) {
+  [data-route="/relatorio/:id"] .s9-eq-open .block-tag,
+  [data-route="/relatorio/:id"] .s9-eq-open .s9-state { white-space: nowrap; }
+  [data-route="/relatorio/:id"] .s9-eq-open .s9-eq-name { min-width: min-content; overflow-wrap: normal; }
+  [data-route="/relatorio/:id"] .s9-eq-open .s9-eq-name .s9-word { white-space: nowrap; }
+  /* The row body is the wrapping flex row the mock's phone rule wraps (`app.css`, `.frame-phone ...
+     .s9-eq-open { flex-wrap: wrap }`, over this file's `display: flex`): `components.css`'s later
+     `.sum-s9 .s9-eq-open { display: grid; grid-template-columns: 1fr auto }` made that wrap a no-op
+     and squeezed the TAG into what the type left. Never narrower than its widest part, it moves
+     under the handle and Position box when the row has no room for it. */
+  [data-route="/relatorio/:id"] .sum-s9 .s9-eq-open { display: flex; }
+  [data-route="/relatorio/:id"] .s9-eq > .s9-eq-open { min-width: min-content; }
+}
