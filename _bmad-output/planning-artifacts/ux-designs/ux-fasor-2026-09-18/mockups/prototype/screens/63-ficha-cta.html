@@ -1,5 +1,6 @@
 <style data-screen="cta">
-/* Story 14.1 (2026-10-09): library-type sheet, /biblioteca/cta. Source: sprint-change-proposal-2026-10-08.md § 8.2–8.4; Story 14.5.
+/* Story 14.1 (2026-10-09, revised 2026-10-10): library-type sheet, /biblioteca/cta. Source: sprint-change-proposal-2026-10-08.md § 8.2, § 8.4 and § 10
+   (the CTA is the only library type; Geradores is a local with Função Distribuição); Story 14.5.
    Anatomy copied from screens/60-ficha.html (header, stepper, nameplate, checklist, measurement tables, conclusion);
    the rules below mirror that screen's page CSS under this route. Additions of this screen are marked "new". */
 [data-route="/biblioteca/cta"] .content { display: flex; flex-direction: column; gap: var(--sp-6); }
@@ -10,7 +11,7 @@
 [data-route="/biblioteca/cta"] .tests-stack { display: flex; flex-direction: column; gap: var(--sp-5); }
 /* new: "Tipo da biblioteca" pill in the header — declarations of 60-ficha's .ficha-da-cabine */
 [data-route="/biblioteca/cta"] .lib-pill { display: inline-flex; align-items: center; gap: var(--sp-1); min-height: 28px; padding: 0 var(--sp-3); border: 1.5px solid var(--border-strong); border-radius: var(--r-full); font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); white-space: nowrap; }
-/* new: nameplate group heading (No-break · Banco de baterias · Instalação) */
+/* new: group heading inside a field stack (E5 "Na Emergência, com carga") */
 [data-route="/biblioteca/cta"] .np-group { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-1) var(--sp-3); padding-top: var(--sp-3); margin-top: var(--sp-2); border-top: 1px solid var(--border-hairline); font-size: var(--t-body-size); font-weight: 600; }
 [data-route="/biblioteca/cta"] .np-group:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 [data-route="/biblioteca/cta"] .np-group .btn-reason { font-weight: var(--t-label-weight); }
@@ -116,7 +117,7 @@
 <div class="sheet-header">
   <div>
     <h2 class="sheet-title">Chave de transferência automática — <button class="tag-btn" data-go="#/relatorio/porto-seguro" aria-label="TAG CTA-GER — abrir no relatório">CTA-GER<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button><span class="lib-pill"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-book"/></svg>Tipo da biblioteca</span></h2>
-    <p class="sheet-meta">Geradores › Cabine de distribuição</p><p class="sheet-meta">Preenchido por Eduardo · <time datetime="2026-09-08T10:40">08/09 10:40</time></p>
+    <p class="sheet-meta">Geradores</p><p class="sheet-meta">Preenchido por Eduardo · <time datetime="2026-09-08T10:40">08/09 10:40</time></p>
   </div>
   <div class="ficha-head-side">
     <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>6 obrigatórios faltando</div>
@@ -378,7 +379,7 @@
 </section>
 <section class="section" aria-labelledby="cta-h-fotos">
 <div class="section-head"><h2 id="cta-h-fotos">Fotos da ficha</h2><button class="btn btn-secondary" data-toast="Adicionar fotos da galeria — não prototipado"><svg class="ico" aria-hidden="true"><use href="#i-image"/></svg>Adicionar fotos</button></div>
-<div class="photo-list"><div class="photo-row"><button class="photo-tile" data-go="#/relatorio/porto-seguro/fotos" aria-label="Foto 10, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">10</span></span></button><div class="photo-text"><p class="photo-caption">Vista frontal da chave de transferência automática CTA-GER — Cabine de distribuição <span class="helper">· legenda automática</span></p><p class="photo-meta">Nº provisório 10 · 08/09 10:05 · Eduardo · Enviada</p><button class="btn btn-text" data-go="#/relatorio/porto-seguro/legenda">Legendar</button></div></div><div class="photo-row"><button class="photo-tile" data-go="#/relatorio/porto-seguro/fotos" aria-label="Foto 11, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">11</span></span></button><div class="photo-text"><p class="photo-caption">Detalhe da tampa frontal da CTA-GER sem o aviso de transferência manual <span class="helper">· legenda automática</span></p><p class="photo-meta">Nº provisório 11 · 08/09 10:22 · Eduardo · Item 3 · NC</p><button class="btn btn-text" data-go="#/relatorio/porto-seguro/legenda">Legendar</button></div></div></div>
+<div class="photo-list"><div class="photo-row"><button class="photo-tile" data-go="#/relatorio/porto-seguro/fotos" aria-label="Foto 10, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">10</span></span></button><div class="photo-text"><p class="photo-caption">Vista frontal da chave de transferência automática CTA-GER — Geradores <span class="helper">· legenda automática</span></p><p class="photo-meta">Nº provisório 10 · 08/09 10:05 · Eduardo · Enviada</p><button class="btn btn-text" data-go="#/relatorio/porto-seguro/legenda">Legendar</button></div></div><div class="photo-row"><button class="photo-tile" data-go="#/relatorio/porto-seguro/fotos" aria-label="Foto 11, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">11</span></span></button><div class="photo-text"><p class="photo-caption">Detalhe da tampa frontal da CTA-GER sem o aviso de transferência manual <span class="helper">· legenda automática</span></p><p class="photo-meta">Nº provisório 11 · 08/09 10:22 · Eduardo · Item 3 · NC</p><button class="btn btn-text" data-go="#/relatorio/porto-seguro/legenda">Legendar</button></div></div></div>
 </section>
   </div><!-- /content -->
 <div class="sticky-action-bar">

@@ -2996,7 +2996,11 @@ So that the fastest input this market ships is on without a hidden privacy trade
 
 A masonry room is a local that holds its equipment with no coluna; every local carries its Verificações do local and prints them once *(2026-10-09: "local" in this epic means the room node — today's root cabine; the on-screen names of cabine and local follow Bruno's structure, Story 14.2)*; and the office adds the equipment types the base lacks, by copy, so a job with a no-break de comando or a chave ASCO is still one relatório. Source: `sprint-change-proposal-2026-10-08.md`. Waves: 14.1 alone (the mocks every later story matches, Definition of Ready item 4); 14.2 to 14.4 next; ~~14.5 to 14.7 last, behind the architecture settlement in Story 14.5's Definition of Ready~~. The 2026-10-08 story gate applies to every story. *(2026-10-09, John (PM) with Matheus: re-sliced. Library types ship before company types: the new Story 14.5 adds the measurement table and ships "Fonte auxiliar da proteção" and "Chave de transferência automática" as seed types, with AD-21 unchanged; the former 14.5, 14.6 and 14.7 became 14.6, 14.7 and 14.8 (wave 3); wave 3 starts only after two or three real jobs have used the library types, with the count of new-type and adjustment requests recorded; the editor frames moved from Story 14.1 to Story 14.7. Waves: 0 = 14.1; 1 = 14.2 to 14.4; 2 = 14.5; 3 = 14.6 to 14.8. `sprint-change-proposal-2026-10-08.md` § 9.)*
 
+*(2026-10-10, Bruno's answers with Matheus: each cabine is its own local, so the tree is **Local › Painel › Coluna** — a local holds equipment directly and zero or more painéis, a painel holds colunas, a coluna holds equipment, and a painel takes no equipment of its own; the no-break de comando is only one C · NC · NA item on the Disjuntor MT checklist, so the "Fonte auxiliar da proteção" library type is dropped and Story 14.5 ships only the Chave de transferência automática; the mufla stays an item of the cables checklist, as it already is; the site checklist items print in uppercase. `sprint-change-proposal-2026-10-08.md` § 10. Where an earlier line of this epic says Local › Cabine › Coluna or names the Fonte auxiliar, this note wins.)*
+
 ### Story 14.1: The mocks for locals, the site checklist and the type editor
+
+*(2026-10-10: the mocks approved on 2026-10-09 are redrawn for Local › Painel › Coluna; screen `62-ficha-fonte-auxiliar.html` is removed; the Disjuntor MT checklist in `60-ficha.html` gains the no-break item; the printed site table goes uppercase and loses the Fonte auxiliar sheet, with the CTA in "Outros equipamentos".)*
 
 *(2026-10-09: the type-editor frames moved to Story 14.7; this story draws the structure, the site checklist, its printed table and the library-type sheets of Story 14.5.)*
 
@@ -3036,6 +3040,8 @@ So that the stories that follow have a mock to match and Bruno approves the prin
 
 *(2026-10-09, Matheus approved the mocks: `prototype/screens/40`, `42`, `61`, `62`, `63`, the rail, and `key-print-section-9.html`. Bruno's answer on the checklist surface and the printed table is pending.)*
 
+*(2026-10-10, Bruno's answer recorded: one table per local is right, with each cabine its own local; items in uppercase; the tree is Local › Painel › Coluna; the no-break is a Disjuntor MT checklist item; the mufla stays on the cable sheet (`sprint-change-proposal-2026-10-08.md` § 10). The mocks were redrawn to it the same day; Matheus's look at the redrawn frames closes this story.)*
+
 ### Story 14.2: A local holds its equipment with no coluna
 
 **Dev model:** opus · **Effort:** ~~medium~~ high *(2026-10-09)* · ~~copy and composer and tree affordances; the kernel already allows a block on a root node (AD-6)~~ a third location kind in the kernel, the template skeleton, the composer, the tree and section 9 grouping (AD-6 amended 2026-10-09)
@@ -3068,7 +3074,23 @@ So that a transformation room with two transformers needs no invented coluna.
 
 **Definition of Done, in addition:** a Playwright spec walks the composer, the relatório tree and generation for a local with no coluna at 768 and 1280 px.
 
-**Acceptance Criteria added 2026-10-09 (Local › Cabine › Coluna):**
+**Acceptance Criteria added 2026-10-10 (Local › Painel › Coluna; these replace the 2026-10-09 block below, kept as the record):**
+
+**Given** the kernel
+**When** this story lands
+**Then** a location `kind` is `cabine`, `painel` or `coluna`; the cabine row stays the root, reads "local" on screen, keeps `se`, `env`, `agrupar_por_tipo` and gains `funcao` (Entrada · Primária · Transformação · Distribuição, or a typed name); a painel is a child of a cabine that only groups colunas; a coluna is a child of a painel; an equipment block sits on a cabine or a coluna, never on a painel; rows created before this story (coluna directly under a cabine) read, sync and print as before, and nothing is migrated (AD-6 amended 2026-10-10; CAP-8; FR-10, FR-24)
+
+**Given** the Template composer and the relatório tree
+**When** they render
+**Then** "Adicionar local" asks for the Função and adds a local; inside a local, "Adicionar equipamento" makes the local current for the palette and "Adicionar painel" adds a painel; inside a painel, "Adicionar coluna" adds a coluna, which takes equipment as today; a painel with no coluna says why it cannot take equipment; move, rename and remove work at each level by the four reorder ways, announcing as today; a coluna created before this story shows directly under its local (FR-10, FR-17, FR-18, FR-19; UX-DR29, UX-DR30, UX-DR70)
+
+**Given** a local with two transformers placed directly and one painel with three colunas
+**When** a relatório is created and generated
+**Then** every block is born in its place with its TAG, and section 9 prints the local with its CARACTERÍSTICAS DA SE and AMBIENTE DE ENSAIO, the painel as a heading over its colunas, and the direct equipment in the local, under both schemes (FR-68)
+
+**Definition of Done, in addition (2026-10-10):** the contract version bump and its MIN_CONTRACT_VERSION decision are written in the PR; a Playwright spec composes that local, creates the relatório, fills one sheet on the local and one in a coluna, and generates; the durability specs touched run on the matrix projects.
+
+~~**Acceptance Criteria added 2026-10-09 (Local › Cabine › Coluna):**~~ *(superseded 2026-10-10)*
 
 **Given** the kernel
 **When** this story lands
@@ -3100,7 +3122,7 @@ As a field engineer inside a room,
 I want to mark the room's safety, fire, lighting, grounding, signage and condition items once,
 So that the relatório records the room itself and an NC becomes a point of attention in one tap.
 
-*(Definition of Ready: Story 14.1's checklist frames are approved; the 19 items of `sprint-change-proposal-2026-10-08.md` § 4.1 are the list (Bruno, 2026-10-08); the NC chip phrases are authored in this story and reviewed by Bruno before the first real job, as the equipment chips were; 2026-10-09: Story 14.2 is merged, and the checklist belongs to the `kind = local` row, answered once for all its cabines — read "local" below as that row.)*
+*(Definition of Ready: Story 14.1's checklist frames are approved; the 19 items of `sprint-change-proposal-2026-10-08.md` § 4.1 are the list (Bruno, 2026-10-08); the NC chip phrases are authored in this story and reviewed by Bruno before the first real job, as the equipment chips were; 2026-10-09: Story 14.2 is merged, and the checklist belongs to the ~~`kind = local` row, answered once for all its cabines~~ *(2026-10-10)* local, which is the root `kind = cabine` row — read "local" below as that row; seed v4 also adds one item, NO-BREAK DE COMANDO with authored NC phrases, to the Disjuntor MT checklist, NA when the breaker has none (Bruno, 2026-10-10).)*
 
 **Acceptance Criteria:**
 
@@ -3144,7 +3166,7 @@ So that the client sees the room's condition beside its equipment.
 
 **Given** a relatório on v4 with answered site items
 **When** it is generated
-**Then** section 9 prints, for each local, a VERIFICAÇÕES DO LOCAL table (ÍTEM · C · NC · NA · OBSERVAÇÕES with group rows, as the approved mock) right after AMBIENTE DE ENSAIO *(2026-10-09: of the local's first cabine)*, once per local under both schemes, never per cabine *(2026-10-09)*, per coluna or per sheet (CAP-27; FR-68; AD-6, AD-16)
+**Then** section 9 prints, for each local, a VERIFICAÇÕES DO LOCAL table (ÍTEM · C · NC · NA · OBSERVAÇÕES with group rows, as the approved mock) right after AMBIENTE DE ENSAIO ~~*(2026-10-09: of the local's first cabine)*~~, once per local under both schemes, never ~~per cabine *(2026-10-09)*,~~ per painel *(2026-10-10)*, per coluna or per sheet; the item labels print in uppercase *(2026-10-10, Bruno)* (CAP-27; FR-68; AD-6, AD-16)
 
 **Given** a local with no equipment block
 **When** it is generated
@@ -3161,6 +3183,8 @@ So that the client sees the room's condition beside its equipment.
 **Definition of Done, in addition:** the DOCX and its PDF are checked against the approved print mock; the generate specs touched run serially per `e2e/support/groups.ts`.
 
 ### Story 14.5: The measurement table and two library types: Fonte auxiliar da proteção and Chave de transferência automática
+
+*(2026-10-10, Bruno and Matheus: the "Fonte auxiliar da proteção" type is dropped — the no-break is a Disjuntor MT checklist item, Story 14.3. This story ships the measurement table and **one** library type, the Chave de transferência automática: read every "two types", `fonte_auxiliar_protecao` and no-break below as struck. The measurement table keeps what the CTA needs: several value columns, yes/no and choice results, the limit relative to a column, equality to another cell and the E5 options; rows added on site and the derived Δ% are no longer required. Definition of Done: the Playwright spec places the CTA in a template, fills it offline with its E5 method chosen, generates the DOCX and checks its tables and the conclusion of an NC.)*
 
 *(Added 2026-10-09 by John (PM) with Matheus: the smallest increment that puts the no-break de comando and the chave ASCO in Bruno's hands, with no company-type machinery and AD-21 unchanged — the two types are seeded code.)*
 
@@ -3262,7 +3286,7 @@ So that the job's unusual equipment has a sheet before the visit.
 
 ### Story 14.8: Office types in templates, the field and the document: the no-break de comando end to end
 
-*(2026-10-09: renumbered from 14.7 when the library types moved to Story 14.5; this story now proves duplicate-and-adjust on a library type and a company type in use.)*
+*(2026-10-09: renumbered from 14.7 when the library types moved to Story 14.5; this story now proves duplicate-and-adjust on a library type and a company type in use. 2026-10-10: the library type is the CTA; the no-break is not a type.)*
 
 **Dev model:** opus · **Effort:** high · palettes, sheet rendering and section 9 for company types, proven on the first real case
 

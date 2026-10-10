@@ -2,7 +2,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PRODUTO — Seção 9 impressa por local</title>
 <link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="components.css">
-<style>/* Governs: Story 14.1 (2026-10-09) print mock; sprint-change-proposal-2026-10-08.md § 4.1, § 8.1, § 8.3; Story 14.5 (Outros equipamentos);
+<style>/* Governs: Story 14.1 print mock (2026-10-09, redrawn 2026-10-10); sprint-change-proposal-2026-10-08.md § 4.1, § 8.4 and § 10
+   (Local › Painel › Coluna, one VERIFICAÇÕES DO LOCAL table per local, items in uppercase); Story 14.5 (Outros equipamentos);
    FO.SERV-03 table style from ../imports/extract-fo-serv-03.md § 9 (Blocos A–E, CARACTERÍSTICAS DA SE, AMBIENTE DE ENSAIO).
    Page-only: the printed A4 page is paper, so it keeps black on white in every theme; no component of components.css draws a printed page. */
 .print-page { box-sizing: border-box; width: 794px; min-height: 1123px; padding: 30px 48px 22px; background: #fff; color: #111; box-shadow: 0 1px 4px rgba(0,0,0,.25);
@@ -15,7 +16,8 @@
 .pp-body { flex: 1; display: flex; flex-direction: column; gap: 7px; }
 .pp-foot { display: flex; justify-content: space-between; gap: 16px; margin-top: 14px; padding-top: 6px; border-top: 1px solid #000; font-size: 8.5px; color: #333; }
 .pp-h2 { margin: 0 0 2px; font-size: 13px; font-weight: 700; }
-.pp-cabine { margin: 6px 0 0; padding: 4px 8px; background: #404040; color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+.pp-body > .pp-h2:not(:first-child) { margin-top: 10px; }   /* the next local starting mid-page */
+.pp-painel { margin: 6px 0 0; padding: 4px 8px; background: #404040; color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .02em; }   /* painel: a heading bar over its colunas' sheets */
 .pp-group-h { margin: 6px 0 0; padding: 3px 0; border-bottom: 2px solid #000; font-size: 11px; font-weight: 700; }
 .pp-sheet { margin: 6px 0 0; padding: 4px 8px; background: #BFBFBF; border: 1px solid #000; font-size: 10.5px; font-weight: 700; text-align: center; }
 .pp-col { display: flex; flex-direction: column; gap: 8px; }
@@ -45,18 +47,17 @@
 .mock-note { font-size: 13px; color: #454B54; max-width: 794px; margin: var(--sp-2) 0 0; }
 </style></head>
 <body class="mock-page">
-<h1 class="mock-title">Seção 9 impressa — um local com duas cabines e o grupo Outros equipamentos</h1>
-<p class="mock-sub">Story 14.1 (2026-10-09), para Bruno aprovar no papel. Local › Cabine › Coluna (sprint-change-proposal-2026-10-08.md § 8.1): o local abre a seção, cada cabine imprime CARACTERÍSTICAS DA SE e AMBIENTE DE ENSAIO, e as VERIFICAÇÕES DO LOCAL saem uma vez, depois do ambiente da primeira cabine (§ 4.1, 19 itens em seis grupos). Os tipos da biblioteca saem no grupo OUTROS EQUIPAMENTOS, depois de Transformadores (Story 14.5). Faixas hachuradas marcam trechos omitidos só neste mock. Cabeçalho e rodapé vêm do cadastro da empresa; o logo é uma caixa cinza.</p>
+<h1 class="mock-title">Seção 9 impressa — dois locais, um painel e o grupo Outros equipamentos</h1>
+<p class="mock-sub">Story 14.1, redesenhada em 2026-10-10 com as respostas do Bruno (sprint-change-proposal-2026-10-08.md § 10), para ele aprovar no papel. A árvore é Local › Painel › Coluna: cada cabine é um local, que abre com o seu título numerado e imprime CARACTERÍSTICAS DA SE, AMBIENTE DE ENSAIO e a sua própria tabela VERIFICAÇÕES DO LOCAL (§ 4.1, 19 itens em seis grupos), com os itens em maiúsculas. O painel é só uma faixa de título sobre as fichas das suas colunas. O no-break de comando não tem ficha: é um item do checklist do Disjuntor MT. O tipo da biblioteca, a Chave de transferência automática, sai no grupo OUTROS EQUIPAMENTOS, depois de Transformadores (Story 14.5, § 8.4). Faixas hachuradas marcam trechos omitidos só neste mock. Cabeçalho e rodapé vêm do cadastro da empresa; o logo é uma caixa cinza.</p>
 <div class="mock-row is-print">
 <div class="mock-item">
-  <p class="mock-caption"><b>Seção 9 — 1° Subsolo, Cabine primária</b><span class="sep">·</span>A4 retrato, página 41 de 96: título do local, SE, ambiente e Verificações do local com 1 NC<span class="sep">·</span>FR-68 · CAP-27 · § 4.1, § 8.1</p>
+  <p class="mock-caption"><b>Seção 9 — o local Cabine primária — 1° Subsolo</b><span class="sep">·</span>A4 retrato, página 41 de 96: título do local, SE, ambiente e Verificações do local em maiúsculas, com 1 NC<span class="sep">·</span>FR-68 · CAP-27 · § 4.1, § 10</p>
   <div class="print-page"><header class="pp-head">
 <div class="pp-logo">Logo da contratada</div>
 <div class="pp-doc"><b>RELATÓRIO TÉCNICO DE CABINE PRIMÁRIA</b><span>Código: FO.SERV-03</span><span>Revisão 01</span></div>
 </header>
 <div class="pp-body">
-<h2 class="pp-h2">9.2 1° SUBSOLO</h2>
-<p class="pp-cabine">CABINE PRIMÁRIA</p>
+<h2 class="pp-h2">9.2 CABINE PRIMÁRIA — 1° SUBSOLO</h2>
 <div class="pp-two"><table class="pt"><thead><tr class="pt-title"><th colspan="2">CARACTERÍSTICAS DA SE</th></tr></thead><tbody>
 <tr><th scope="row">TIPO DE SE</th><td><span class="pp-opt"><span class="pbox"></span>SIMPLIFICADA - POSTE</span><span class="pp-opt"><span class="pbox"></span>ALVENARIA - CONVENCIONAL</span><span class="pp-opt"><span class="pbox is-on">X</span>BLINDADA</span></td></tr>
 <tr><th scope="row">TENSÃO PRIMÁRIA</th><td>13,8 kV</td></tr>
@@ -70,41 +71,42 @@
 <table class="pt pt-check"><thead><tr class="pt-title"><th colspan="5">VERIFICAÇÕES DO LOCAL</th></tr>
 <tr class="pt-cols"><th scope="col">ÍTEM</th><th scope="col">C</th><th scope="col">NC</th><th scope="col">NA</th><th scope="col">OBSERVAÇÕES</th></tr></thead><tbody>
 <tr class="pt-group"><th colspan="5" scope="colgroup">SEGURANÇA E EPC NO LOCAL</th></tr>
-<tr><td>1. Luvas isolantes compatíveis com a tensão, com ensaio dielétrico válido</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td>Classe 2, ensaio válido até 11/2026</td></tr>
-<tr><td>2. Tapete ou estrado isolante</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
-<tr><td>3. Vara de manobra com ensaio dielétrico válido</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
-<tr><td>4. Detector de tensão</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
-<tr><td>5. Conjunto de aterramento temporário</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
-<tr><td>6. EPI disponível</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
-<tr><td>7. Dispositivos de bloqueio e cartões de impedimento</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
+<tr><td>1. LUVAS ISOLANTES COMPATÍVEIS COM A TENSÃO, COM ENSAIO DIELÉTRICO VÁLIDO</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td>Classe 2, ensaio válido até 11/2026</td></tr>
+<tr><td>2. TAPETE OU ESTRADO ISOLANTE</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
+<tr><td>3. VARA DE MANOBRA COM ENSAIO DIELÉTRICO VÁLIDO</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
+<tr><td>4. DETECTOR DE TENSÃO</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
+<tr><td>5. CONJUNTO DE ATERRAMENTO TEMPORÁRIO</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
+<tr><td>6. EPI DISPONÍVEL</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
+<tr><td>7. DISPOSITIVOS DE BLOQUEIO E CARTÕES DE IMPEDIMENTO</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
 <tr class="pt-group"><th colspan="5" scope="colgroup">COMBATE A INCÊNDIO</th></tr>
-<tr><td>8. Extintor de incêndio carregado, lacrado, dentro da validade, sinalizado e desobstruído</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td>CO2 6 kg dentro da sala e PQS ABC 6 kg na porta, validade 03/2027</td></tr>
-<tr><td>9. Bacia de contenção de óleo</td><td class="pt-mark"></td><td class="pt-mark"></td><td class="pt-mark">X</td><td>Sem equipamento a óleo no local</td></tr>
+<tr><td>8. EXTINTOR DE INCÊNDIO CARREGADO, LACRADO, DENTRO DA VALIDADE, SINALIZADO E DESOBSTRUÍDO</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td>CO2 6 kg dentro da sala e PQS ABC 6 kg na porta, validade 03/2027</td></tr>
+<tr><td>9. BACIA DE CONTENÇÃO DE ÓLEO</td><td class="pt-mark"></td><td class="pt-mark"></td><td class="pt-mark">X</td><td>Sem equipamento a óleo no local</td></tr>
 <tr class="pt-group"><th colspan="5" scope="colgroup">ILUMINAÇÃO</th></tr>
-<tr><td>10. Iluminação normal</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
-<tr class="is-nc"><td>11. Iluminação de emergência (autonomia mínima de 2 h)</td><td class="pt-mark"></td><td class="pt-mark">X</td><td class="pt-mark"></td><td>Duas luminárias de emergência sem carga; autonomia de 2 h não atingida no teste</td></tr>
+<tr><td>10. ILUMINAÇÃO NORMAL</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
+<tr class="is-nc"><td>11. ILUMINAÇÃO DE EMERGÊNCIA (AUTONOMIA MÍNIMA DE 2 H)</td><td class="pt-mark"></td><td class="pt-mark">X</td><td class="pt-mark"></td><td>Duas luminárias de emergência sem carga; autonomia de 2 h não atingida no teste</td></tr>
 <tr class="pt-group"><th colspan="5" scope="colgroup">ATERRAMENTO</th></tr>
-<tr><td>12. Portas, telas e grades aterradas</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
-<tr><td>13. Pontos para aterramento temporário</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
+<tr><td>12. PORTAS, TELAS E GRADES ATERRADAS</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
+<tr><td>13. PONTOS PARA ATERRAMENTO TEMPORÁRIO</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
 <tr class="pt-group"><th colspan="5" scope="colgroup">SINALIZAÇÃO E DOCUMENTAÇÃO</th></tr>
-<tr><td>14. Placas de advertência na porta e nas grades</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
-<tr><td>15. Diagrama unifilar atualizado no local</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td>Emoldurado na porta da cabine primária</td></tr>
-<tr><td>16. Circuitos e equipamentos identificados</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
+<tr><td>14. PLACAS DE ADVERTÊNCIA NA PORTA E NAS GRADES</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
+<tr><td>15. DIAGRAMA UNIFILAR ATUALIZADO NO LOCAL</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td>Emoldurado na porta da cabine primária</td></tr>
+<tr><td>16. CIRCUITOS E EQUIPAMENTOS IDENTIFICADOS</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
 <tr class="pt-group"><th colspan="5" scope="colgroup">AMBIENTE</th></tr>
-<tr><td>17. Porta abrindo para fora, com fechadura</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
-<tr><td>18. Ventilação</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
-<tr><td>19. Limpeza e ausência de infiltração</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
+<tr><td>17. PORTA ABRINDO PARA FORA, COM FECHADURA</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
+<tr><td>18. VENTILAÇÃO</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
+<tr><td>19. LIMPEZA E AUSÊNCIA DE INFILTRAÇÃO</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
 </tbody></table>
 </div>
 <footer class="pp-foot"><span>Razão social, endereço, telefone e e-mail da contratada — do cadastro da empresa</span><span>Página 41 de 96</span></footer></div>
 </div>
 <div class="mock-item">
-  <p class="mock-caption"><b>Seção 9 — ficha comum e segunda cabine</b><span class="sep">·</span>A4 retrato, página 42 de 96: SEC-C05 resumida, Cabine de transformação sem repetir as verificações<span class="sep">·</span>FR-68 · § 8.1</p>
+  <p class="mock-caption"><b>Seção 9 — painel, ficha comum e o local seguinte</b><span class="sep">·</span>A4 retrato, página 42 de 96: faixa do painel, SEC-C05 resumida (Coluna 5), Cabine de transformação com a sua própria tabela de verificações<span class="sep">·</span>FR-68 · § 10</p>
   <div class="print-page"><header class="pp-head">
 <div class="pp-logo">Logo da contratada</div>
 <div class="pp-doc"><b>RELATÓRIO TÉCNICO DE CABINE PRIMÁRIA</b><span>Código: FO.SERV-03</span><span>Revisão 01</span></div>
 </header>
 <div class="pp-body">
+<p class="pp-painel">PAINEL DE MÉDIA TENSÃO</p>
 <p class="pp-sheet">CHAVE SECCIONADORA</p>
 <table class="pt pt-data"><thead><tr class="pt-title"><th colspan="4">DADOS DO EQUIPAMENTO</th></tr></thead><tbody>
 <tr><th scope="row">IDENTIFICAÇÃO</th><td>Coluna 5 — PTMT / alimentador TR1 (SEC-C05)</td><th scope="row">FABRICAÇÃO</th><td>Schneider</td></tr>
@@ -116,9 +118,7 @@
 <table class="pt pt-check"><thead><tr class="pt-title"><th colspan="5">VERIFICAÇÕES GERAIS</th></tr>
 <tr class="pt-cols"><th scope="col">ÍTEM</th><th scope="col">C</th><th scope="col">NC</th><th scope="col">NA</th><th scope="col">OBSERVAÇÕES</th></tr></thead><tbody>
 <tr><td>1. ABERTURA E FECHAMENTO MANUAL</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
-<tr><td>2. ABERTURA E FECHAMENTO ELÉTRICO</td><td class="pt-mark"></td><td class="pt-mark"></td><td class="pt-mark">X</td><td></td></tr>
-<tr><td>3. MECANISMO DE ACIONAMENTO</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
-<tr class="pp-omit"><td colspan="5">Trecho omitido no mock: itens 4 a 7</td></tr>
+<tr class="pp-omit"><td colspan="5">Trecho omitido no mock: itens 2 a 7</td></tr>
 <tr class="is-nc"><td>8. CONTATOS</td><td class="pt-mark"></td><td class="pt-mark">X</td><td class="pt-mark"></td><td>Contatos fixos com desgaste; substituir na próxima intervenção</td></tr>
 <tr class="pp-omit"><td colspan="5">Trecho omitido no mock: itens 9 a 14</td></tr>
 </tbody></table>
@@ -143,7 +143,7 @@
 <tr><td><span class="pbox is-on">X</span>APROVADO</td><td><span class="pbox"></span>REPROVADO</td><td><span class="pbox"></span>SEM RESTRIÇÕES</td><td><span class="pbox is-on">X</span>COM RESTRIÇÕES (VER OBSERVAÇÕES)</td></tr>
 <tr><td colspan="4"><b>CONCLUSÃO:</b> A seccionadora SEC-C05 (Schneider, 15 kV, 400 A) apresentou resistência de isolação mínima de 330 MΩ na fase C (critério: &gt;400 MΩ, aceitável na ficha) e contatos com desgaste (item 8, NC). Recomenda-se a substituição dos contatos antes da próxima manutenção.</td></tr>
 </tbody></table>
-<p class="pp-cabine">CABINE DE TRANSFORMAÇÃO</p>
+<h2 class="pp-h2">9.3 CABINE DE TRANSFORMAÇÃO — 1° SUBSOLO</h2>
 <div class="pp-two"><table class="pt"><thead><tr class="pt-title"><th colspan="2">CARACTERÍSTICAS DA SE</th></tr></thead><tbody>
 <tr><th scope="row">TIPO DE SE</th><td><span class="pp-opt"><span class="pbox"></span>SIMPLIFICADA - POSTE</span><span class="pp-opt"><span class="pbox is-on">X</span>ALVENARIA - CONVENCIONAL</span><span class="pp-opt"><span class="pbox"></span>BLINDADA</span></td></tr>
 <tr><th scope="row">TENSÃO PRIMÁRIA</th><td>13,8 kV</td></tr>
@@ -154,96 +154,77 @@
 <tr><th scope="row">TEMPERATURA</th><td>23 °C</td></tr>
 <tr><th scope="row">UMIDADE RELATIVA DO AR</th><td>60 %</td></tr>
 </tbody></table></div>
-<p class="pp-omit-line">As Verificações do local não se repetem: imprimem uma vez por local, depois do AMBIENTE DE ENSAIO da primeira cabine.</p>
+<table class="pt pt-check"><thead><tr class="pt-title"><th colspan="5">VERIFICAÇÕES DO LOCAL</th></tr>
+<tr class="pt-cols"><th scope="col">ÍTEM</th><th scope="col">C</th><th scope="col">NC</th><th scope="col">NA</th><th scope="col">OBSERVAÇÕES</th></tr></thead><tbody>
+<tr class="pp-omit"><td colspan="5">Trecho omitido no mock: grupo SEGURANÇA E EPC NO LOCAL, itens 1 a 7</td></tr>
+<tr class="pt-group"><th colspan="5" scope="colgroup">COMBATE A INCÊNDIO</th></tr>
+<tr><td>8. EXTINTOR DE INCÊNDIO CARREGADO, LACRADO, DENTRO DA VALIDADE, SINALIZADO E DESOBSTRUÍDO</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td>PQS ABC 6 kg na porta, validade 05/2027</td></tr>
+<tr><td>9. BACIA DE CONTENÇÃO DE ÓLEO</td><td class="pt-mark"></td><td class="pt-mark"></td><td class="pt-mark">X</td><td>Transformadores a seco</td></tr>
+<tr class="pp-omit"><td colspan="5">Trecho omitido no mock: itens 10 a 19 (ILUMINAÇÃO, ATERRAMENTO, SINALIZAÇÃO E DOCUMENTAÇÃO, AMBIENTE)</td></tr>
+</tbody></table>
 <p class="pp-group-h">TRANSFORMADORES</p>
-<p class="pp-omit-line">Trecho omitido no mock: CABOS DE ALIMENTAÇÃO TR1 a TR5 e TRANSFORMADOR DE FORÇA TR1 a TR5</p>
+<p class="pp-omit-line">Trecho omitido no mock: CABOS DE ALIMENTAÇÃO e TRANSFORMADOR DE FORÇA de cada transformador do local</p>
 </div>
 <footer class="pp-foot"><span>Razão social, endereço, telefone e e-mail da contratada — do cadastro da empresa</span><span>Página 42 de 96</span></footer></div>
 </div>
 <div class="mock-item">
-  <p class="mock-caption"><b>Seção 9 — Outros equipamentos</b><span class="sep">·</span>A4 retrato, página 43 de 96: FAP-C09 resumida, Δ% fora do critério com a palavra INVESTIGAR<span class="sep">·</span>FR-68 · CAP-28 · § 8.3</p>
+  <p class="mock-caption"><b>Seção 9 — Outros equipamentos</b><span class="sep">·</span>A4 retrato, página 89 de 96: CTA-GER resumida no local Geradores, polo fora do critério com a palavra INVESTIGAR, método ao lado dos tempos<span class="sep">·</span>FR-68 · CAP-28 · § 8.4</p>
   <div class="print-page"><header class="pp-head">
 <div class="pp-logo">Logo da contratada</div>
 <div class="pp-doc"><b>RELATÓRIO TÉCNICO DE CABINE PRIMÁRIA</b><span>Código: FO.SERV-03</span><span>Revisão 01</span></div>
 </header>
 <div class="pp-body">
+<p class="pp-omit-line">Trecho omitido no mock: título do local CABINE DE DISTRIBUIÇÃO — GERADORES, SE, ambiente, verificações do local e as fichas dos oito tipos</p>
 <p class="pp-group-h">OUTROS EQUIPAMENTOS</p>
-<p class="pp-sheet">FONTE AUXILIAR DA PROTEÇÃO — NO-BREAK DE COMANDO</p>
+<p class="pp-sheet">CHAVE DE TRANSFERÊNCIA AUTOMÁTICA</p>
 <table class="pt pt-data"><thead><tr class="pt-title"><th colspan="4">DADOS DO EQUIPAMENTO</th></tr></thead><tbody>
-<tr><th scope="row">IDENTIFICAÇÃO</th><td>Coluna 9 (FAP-C09)</td><th scope="row">FABRICANTE</th><td>NHS</td></tr>
-<tr><th scope="row">MODELO</th><td>SENOIDAL 1200</td><th scope="row">Nº SÉRIE</th><td>2203117845</td></tr>
-<tr><th scope="row">POTÊNCIA</th><td>1.200 VA / 840 W</td><th scope="row">TENSÃO ENTRADA / SAÍDA</th><td>115 V / 115 V CA</td></tr>
-<tr class="pt-group"><th colspan="4" scope="colgroup">BANCO DE BATERIAS</th></tr>
-<tr><th scope="row">FABRICANTE</th><td>MOURA 12MVA-7</td><th scope="row">TIPO</th><td>VRLA-AGM</td></tr>
-<tr><th scope="row">BLOCOS</th><td>6 × 12 V · 72 V</td><th scope="row">CAPACIDADE</th><td>7 Ah (C20)</td></tr>
-<tr><th scope="row">INSTALAÇÃO</th><td>03/2023 · VIDA ÚTIL 5 ANOS</td><th scope="row">R. INTERNA DE REFERÊNCIA</th><td>22,0 mΩ</td></tr>
+<tr><th scope="row">IDENTIFICAÇÃO</th><td>Geradores (CTA-GER)</td><th scope="row">FABRICANTE</th><td>ASCO</td></tr>
+<tr><th scope="row">SÉRIE</th><td>300</td><th scope="row">Nº DE CATÁLOGO</th><td>J300A4400N5XC</td></tr>
+<tr><th scope="row">Nº DE SÉRIE</th><td>514392-001</td><th scope="row">ANO</th><td>2019</td></tr>
+<tr><th scope="row">TENSÃO NOMINAL</th><td>380 V</td><th scope="row">CORRENTE NOMINAL</th><td>400 A</td></tr>
+<tr><th scope="row">FREQUÊNCIA</th><td>60 Hz</td><th scope="row">WCR</th><td>42 kA</td></tr>
+<tr><th scope="row">PROTEÇÃO A MONTANTE</th><td>Disjuntor 400 A do QGBT-G</td><th scope="row">CONTROLADOR E FIRMWARE</th><td>Group 5 · v6.2</td></tr>
+<tr><th scope="row">INVÓLUCRO</th><td>NEMA 1 · IP 31</td><th scope="row">TORQUE DOS TERMINAIS</th><td>42 N·m</td></tr>
+<tr class="pt-group"><th colspan="4" scope="colgroup">CONFIGURAÇÃO</th></tr>
+<tr><th scope="row">TENSÃO</th><td>BT</td><th scope="row">POLOS</th><td>4</td></tr>
+<tr><th scope="row">NEUTRO</th><td>CHAVEADO</td><th scope="row">TRANSIÇÃO</th><td>ABERTA</td></tr>
+<tr><th scope="row">BYPASS-ISOLATION</th><td>NÃO</td><td colspan="2"></td></tr>
 </tbody></table>
 <table class="pt pt-check"><thead><tr class="pt-title"><th colspan="5">VERIFICAÇÕES GERAIS</th></tr>
 <tr class="pt-cols"><th scope="col">ÍTEM</th><th scope="col">C</th><th scope="col">NC</th><th scope="col">NA</th><th scope="col">OBSERVAÇÕES</th></tr></thead><tbody>
-<tr><td>1. PLACAS LEGÍVEIS</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
-<tr class="pp-omit"><td colspan="5">Trecho omitido no mock: itens 2 a 11</td></tr>
-<tr class="is-nc"><td>12. BATERIAS SEM ESTUFAMENTO, TRINCA, VAZAMENTO OU CORROSÃO; ESTANTE, CABOS DE INTERLIGAÇÃO E TORQUE</td><td class="pt-mark"></td><td class="pt-mark">X</td><td class="pt-mark"></td><td>Bloco 5 com leve estufamento lateral; demais blocos sem anomalia. Interligações reapertadas.</td></tr>
-<tr class="pp-omit"><td colspan="5">Trecho omitido no mock: itens 13 a 16</td></tr>
+<tr><td>1. PLACA CONFERE COM O PROJETO</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
+<tr><td>2. INVÓLUCRO, FIXAÇÃO E CONTINUIDADE DO ATERRAMENTO DO PAINEL</td><td class="pt-mark">X</td><td class="pt-mark"></td><td class="pt-mark"></td><td></td></tr>
+<tr class="is-nc"><td>3. TAMPAS E BARREIRAS FIXADAS, AVISO DE TRANSFERÊNCIA MANUAL PRESENTE</td><td class="pt-mark"></td><td class="pt-mark">X</td><td class="pt-mark"></td><td>Aviso de transferência manual ausente na tampa frontal; tampas e barreiras fixadas.</td></tr>
+<tr class="pp-omit"><td colspan="5">Trecho omitido no mock: itens 4 a 17</td></tr>
 </tbody></table>
-<p class="pp-omit-line">Trecho omitido no mock: topologia, by-pass e instalação nos dados; E1 · modo rede</p>
 <div class="pp-two">
-<div class="pp-col">
-<table class="pt pt-meas"><thead><tr class="pt-title"><th colspan="2">E2 · MODO BATERIA (COM CARGA)</th></tr>
-<tr class="pt-inst"><td colspan="2"><b>ACEITÁVEL:</b> SAÍDA ±3 % · RELÉ: SIM</td></tr>
-<tr class="pt-cols"><th scope="col">GRANDEZA</th><th scope="col">MEDIDO</th></tr></thead><tbody>
-<tr><td>TENSÃO DE SAÍDA</td><td>114 V</td></tr>
-<tr><td>FREQUÊNCIA</td><td>60,0 Hz</td></tr>
-<tr><td>FORMA DE ONDA</td><td>SENOIDAL</td></tr>
-<tr><td>RELÉ PERMANECEU ENERGIZADO</td><td>SIM</td></tr>
+<table class="pt pt-meas"><thead><tr class="pt-title"><th colspan="3">E1 · RESISTÊNCIA DE CONTATO</th></tr>
+<tr class="pt-inst"><td colspan="3">MICROHMÍMETRO HTMO-10 · HI-TECH · Nº SÉRIE G282926 · RBC 37276/26 · <b>ACEITÁVEL:</b> ≤ 50 % ACIMA DO MENOR DO MESMO LADO</td></tr>
+<tr class="pt-cols"><th scope="col">POLO</th><th scope="col">LADO NORMAL (µΩ)</th><th scope="col">LADO EMERGÊNCIA (µΩ)</th></tr></thead><tbody>
+<tr><td>POLO A</td><td>38</td><td>40</td></tr>
+<tr><td>POLO B</td><td>41</td><td>39</td></tr>
+<tr><td>POLO C</td><td>36</td><td><b>63 · +62 % INVESTIGAR</b></td></tr>
+<tr><td>POLO N</td><td>52</td><td>42</td></tr>
+<tr class="pt-derived"><td>MENOR DO LADO</td><td>36</td><td>39</td></tr>
 </tbody></table>
-<table class="pt pt-meas"><thead><tr class="pt-title"><th colspan="2">E3 · FLUTUAÇÃO (T AMB 24 °C)</th></tr>
-<tr class="pt-inst"><td colspan="2"><b>ACEITÁVEL:</b> 13,40 A 13,80 V/BLOCO A 25 °C · ≤ 2,5 % DA MÉDIA</td></tr>
-<tr class="pt-cols"><th scope="col">BLOCO</th><th scope="col">TENSÃO (V)</th></tr></thead><tbody>
-<tr><td>1</td><td>13,62</td></tr>
-<tr><td>2</td><td>13,58</td></tr>
-<tr><td>3</td><td>13,65</td></tr>
-<tr><td>4</td><td>13,60</td></tr>
-<tr><td>5</td><td>13,49</td></tr>
-<tr><td>6</td><td>13,57</td></tr>
-<tr class="pt-derived"><td>TOTAL</td><td>81,51</td></tr>
-<tr class="pt-derived"><td>MÉDIA</td><td>13,59</td></tr>
-<tr class="pt-derived"><td>MENOR</td><td>13,49 (BLOCO 5)</td></tr>
-</tbody></table>
-<table class="pt pt-meas"><thead><tr class="pt-title"><th colspan="2">E6 · FUNCIONAL</th></tr>
-<tr class="pt-inst"><td colspan="2"><b>ACEITÁVEL:</b> ABRIU</td></tr>
-<tr class="pt-cols"><th scope="col">ENSAIO</th><th scope="col">RESULTADO</th></tr></thead><tbody>
-<tr><td>DISJUNTOR ABRIU ALIMENTADO SÓ PELA FONTE</td><td>ABRIU</td></tr>
+<table class="pt pt-meas"><thead><tr class="pt-title"><th colspan="3">E5 · TRANSFERÊNCIA</th></tr>
+<tr class="pt-inst"><td colspan="3"><b>MÉTODO:</b> FALTA REAL POR ABERTURA DO DISJUNTOR · COM CARGA (62 %) · TEMPOS POR INSTRUMENTO · <b>ACEITÁVEL:</b> ASSUMIR A CARGA ≤ 10 s</td></tr>
+<tr class="pt-cols"><th scope="col">ETAPA</th><th scope="col">AJUSTE</th><th scope="col">MEDIDO</th></tr></thead><tbody>
+<tr><td>FALHA DA NORMAL ATÉ PARTIDA</td><td>3 s (TD 1C)</td><td>3,2 s</td></tr>
+<tr><td>ATÉ CARGA NA EMERGÊNCIA</td><td>LIMITE 10 s</td><td>8,4 s</td></tr>
+<tr><td>RETRANSFERÊNCIA</td><td>5 min (TD 3A)</td><td>5,0 min</td></tr>
+<tr><td>RESFRIAMENTO</td><td>5 min (TD 2E)</td><td>5,0 min</td></tr>
+<tr><td>FALHA DA EMERGÊNCIA</td><td>—</td><td>0,9 s</td></tr>
+<tr class="pt-derived"><td>NA EMERGÊNCIA, COM CARGA</td><td colspan="2">381 V · 60,1 Hz · 248 A</td></tr>
 </tbody></table>
 </div>
-<div class="pp-col">
-<table class="pt pt-meas"><thead><tr class="pt-title"><th colspan="4">E4 · RESISTÊNCIA INTERNA</th></tr>
-<tr class="pt-inst"><td colspan="4"><b>ACEITÁVEL:</b> ≤ +20 % · &gt; +20 % INVESTIGAR · ≥ +50 % SUBSTITUIR</td></tr>
-<tr class="pt-cols"><th scope="col">BLOCO</th><th scope="col">MEDIDO (mΩ)</th><th scope="col">REF. (mΩ)</th><th scope="col">Δ%</th></tr></thead><tbody>
-<tr><td>1</td><td>23,1</td><td>22,0</td><td>+5 %</td></tr>
-<tr><td>2</td><td>22,6</td><td>22,0</td><td>+3 %</td></tr>
-<tr><td>3</td><td>23,8</td><td>22,0</td><td>+8 %</td></tr>
-<tr><td>4</td><td>22,9</td><td>22,0</td><td>+4 %</td></tr>
-<tr><td>5</td><td>28,4</td><td>22,0</td><td>+29 % INVESTIGAR</td></tr>
-<tr><td>6</td><td>23,0</td><td>22,0</td><td>+5 %</td></tr>
-</tbody></table>
-<table class="pt pt-meas"><thead><tr class="pt-title"><th colspan="2">E5 · AUTONOMIA</th></tr>
-<tr class="pt-inst"><td colspan="2"><b>ACEITÁVEL:</b> ≥ 2 h (NBR 14039 5.3.4.1)</td></tr>
-<tr class="pt-cols"><th scope="col">GRANDEZA</th><th scope="col">VALOR</th></tr></thead><tbody>
-<tr><td>CARGA</td><td>480 VA</td></tr>
-<tr><td>INÍCIO</td><td>09:10</td></tr>
-<tr><td>FIM</td><td>11:32</td></tr>
-<tr><td>TEMPO</td><td>2 h 22 min</td></tr>
-<tr><td>V DE CORTE</td><td>63,0 V</td></tr>
-<tr><td>CONDIÇÃO</td><td>SATISFATÓRIO</td></tr>
-</tbody></table>
-</div>
-</div>
+<p class="pp-omit-line">Trecho omitido no mock: E2 · isolamento principal, E3 · isolamento do controle, E4 · ajustes do controlador, E6 · termografia sob carga e observações</p>
 <table class="pt pt-conc"><thead><tr class="pt-title"><th colspan="4">CONCLUSÃO</th></tr></thead><tbody>
 <tr><td><span class="pbox is-on">X</span>APROVADO</td><td><span class="pbox"></span>REPROVADO</td><td><span class="pbox"></span>SEM RESTRIÇÕES</td><td><span class="pbox is-on">X</span>COM RESTRIÇÕES (VER OBSERVAÇÕES)</td></tr>
-<tr><td colspan="4"><b>CONCLUSÃO:</b> O no-break de comando FAP-C09 (NHS, 1.200 VA) manteve a saída em 114 V e o relé de proteção energizado em modo bateria com carga, com autonomia de 2 h 22 min (critério: ≥ 2 h, NBR 14039 5.3.4.1), e o disjuntor abriu alimentado só pela fonte. O bloco 5 apresentou estufamento lateral (item 12, NC) e resistência interna 29 % acima da referência; recomenda-se investigar o bloco e repetir a medição na próxima manutenção.</td></tr>
+<tr><td colspan="4"><b>CONCLUSÃO:</b> A chave de transferência automática CTA-GER (ASCO série 300, 400 A, 4 polos) assumiu a carga na Emergência em 8,4 s (critério: ≤ 10 s), com transferência ensaiada por falta real por abertura do disjuntor. O polo C do lado Emergência apresentou resistência de contato de 63 µΩ, 62 % acima do menor do lado (critério: ≤ 50 %), e falta o aviso de transferência manual na tampa (item 3, NC). Recomenda-se inspecionar os contatos do polo C e afixar o aviso.</td></tr>
 </tbody></table>
 </div>
-<footer class="pp-foot"><span>Razão social, endereço, telefone e e-mail da contratada — do cadastro da empresa</span><span>Página 43 de 96</span></footer></div>
+<footer class="pp-foot"><span>Razão social, endereço, telefone e e-mail da contratada — do cadastro da empresa</span><span>Página 89 de 96</span></footer></div>
 </div>
 </div>
 </body></html>

@@ -3,8 +3,10 @@
    no "Sem local" group (blocks are born in their column — Block Model › Template), cabine data read-only ("Da cabine", edited on the first sheet),
    and the FIELD Block palette: "Fotografar equipamento" first, then the 8 types with the TAG suggested inline (Smart Input › Equipment identity; Flow 3).
    The Relatório tree itself lives in the shell rail (rail-tree template in shell-foot.html).
-   2026-10-09 (Story 14.1): section 9 renders Local › Cabine › Coluna; a local row links to its Verificações do local (#/local/<slug>/verificacoes, CAP-27);
-   the field palette lists the two library types (Fonte auxiliar da proteção, Chave de transferência automática) after the eight.
+   2026-10-09 (Story 14.1) drew section 9 as Local › Cabine › Coluna. Superseded on 2026-10-10 (sprint-change-proposal-2026-10-08.md § 10): each cabine is its own
+   local, so section 9 renders Local › Painel › Coluna. A local row carries its Função and its Verificações do local (#/local/<slug>/verificacoes, CAP-27);
+   equipment placed directly on the local is listed under it, before its painéis; a painel row only groups its colunas.
+   The field palette lists the one library type (Chave de transferência automática) after the eight.
    Governs: EXPERIENCE.md § IA › Relatório overview, Block palette; § Block Model › Location; § Component Patterns › Block palette (field), Suggestion field; Flow 1 steps 6–7, Flow 3 steps 2–3. */
 [data-route="/relatorio/porto-seguro"] .overview-content { flex: 1; min-width: 0; padding: var(--sp-5) var(--gutter-tablet); }
 .frame-phone [data-route="/relatorio/porto-seguro"] .overview-content { padding: var(--sp-4) var(--gutter-phone); }
@@ -89,19 +91,20 @@
 [data-route="/relatorio/porto-seguro"] .sum-s9-head .tree-chevron { flex: none; }
 [data-route="/relatorio/porto-seguro"] .sum-s9 .tree-chevron .ico { transition: transform .15s; transform: rotate(-90deg); }
 [data-route="/relatorio/porto-seguro"] .sum-s9.is-open > .sum-s9-head .tree-chevron .ico,
-[data-route="/relatorio/porto-seguro"] .s9-cabine.is-open > .s9-cab-row .tree-chevron .ico { transform: none; }
-[data-route="/relatorio/porto-seguro"] .s9-cabine .tree-chevron .ico { transition: transform .15s; transform: rotate(-90deg); }
+[data-route="/relatorio/porto-seguro"] .s9-painel.is-open > .s9-pnl-row .tree-chevron .ico { transform: none; }
+[data-route="/relatorio/porto-seguro"] .s9-painel .tree-chevron .ico { transition: transform .15s; transform: rotate(-90deg); }
 [data-route="/relatorio/porto-seguro"] .s9-note, [data-route="/relatorio/porto-seguro"] .s9-tree { display: none; }
 [data-route="/relatorio/porto-seguro"] .sum-s9.is-open > .s9-note, [data-route="/relatorio/porto-seguro"] .sum-s9.is-open > .s9-tree { display: block; }
 [data-route="/relatorio/porto-seguro"] .s9-note { margin: 0 var(--sp-4) var(--sp-2) 104px; font-size: var(--t-meta-size); color: var(--ink-secondary); }
 [data-route="/relatorio/porto-seguro"] .s9-tree { list-style: none; margin: 0; padding: 0 0 var(--sp-2) 40px; }
-[data-route="/relatorio/porto-seguro"] .s9-cab-row { display: flex; align-items: center; gap: var(--sp-2); min-height: 56px; padding-right: var(--sp-3); border-top: 1px solid var(--border-hairline); }
-[data-route="/relatorio/porto-seguro"] .s9-cab-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-[data-route="/relatorio/porto-seguro"] .s9-cab-name { font-weight: 600; }
-[data-route="/relatorio/porto-seguro"] .s9-cab-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro"] .s9-pnl-row { display: flex; align-items: center; gap: var(--sp-2); min-height: 56px; padding-right: var(--sp-3); border-top: 1px solid var(--border-hairline); }
+[data-route="/relatorio/porto-seguro"] .s9-pnl-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+[data-route="/relatorio/porto-seguro"] .s9-pnl-name { font-weight: 600; }
+[data-route="/relatorio/porto-seguro"] .s9-pnl-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); }
 [data-route="/relatorio/porto-seguro"] .s9-eqs, [data-route="/relatorio/porto-seguro"] .s9-add { display: none; }
-[data-route="/relatorio/porto-seguro"] .s9-cabine.is-open > .s9-eqs { display: block; }
-[data-route="/relatorio/porto-seguro"] .s9-cabine.is-open > .s9-add { display: inline-flex; margin: 0 0 var(--sp-2) 72px; }
+[data-route="/relatorio/porto-seguro"] .s9-painel.is-open > .s9-eqs, [data-route="/relatorio/porto-seguro"] .s9-local.is-open > .s9-eqs { display: block; }
+[data-route="/relatorio/porto-seguro"] .s9-painel.is-open > .s9-add, [data-route="/relatorio/porto-seguro"] .s9-local.is-open > .s9-add { display: inline-flex; margin: 0 0 var(--sp-2) 72px; }
+[data-route="/relatorio/porto-seguro"] .s9-local.is-open > .s9-add { margin-left: 48px; }
 [data-route="/relatorio/porto-seguro"] .s9-eqs { list-style: none; margin: 0; padding: 0 var(--sp-3) 0 48px; }
 [data-route="/relatorio/porto-seguro"] .s9-col { padding: var(--sp-2) 0 var(--sp-1); font-size: var(--t-label-size); font-weight: 600; color: var(--ink-secondary); }
 [data-route="/relatorio/porto-seguro"] .s9-col-meta { font-weight: 400; margin-left: var(--sp-2); }
@@ -112,8 +115,8 @@
 [data-route="/relatorio/porto-seguro"] .s9-state { font-size: var(--t-meta-size); color: var(--ink-secondary); }
 [data-route="/relatorio/porto-seguro"] .s9-state[data-state="ok"] { color: var(--conforme); }
 [data-route="/relatorio/porto-seguro"] .s9-state[data-state="doing"] { color: var(--primary); }
-/* Local level (2026-10-09, Local › Cabine › Coluna): the local row carries its name, a meta line and the "Verificações do local" line;
-   its cabines indent one step under it. Collapsed locals keep the Verificações line visible. */
+/* Local level (2026-10-10, Local › Painel › Coluna): the local row carries its name, a meta line that opens with the Função and the "Verificações do local" line;
+   its direct equipment and its painéis indent one step under it. Collapsed locals keep the Verificações line visible. */
 [data-route="/relatorio/porto-seguro"] .s9-loc-row { display: flex; align-items: center; gap: var(--sp-2); min-height: 64px; padding-right: var(--sp-3); border-top: 1px solid var(--border-hairline); }
 [data-route="/relatorio/porto-seguro"] .s9-tree > .s9-local:first-child > .s9-loc-row { border-top: 0; }
 [data-route="/relatorio/porto-seguro"] .s9-loc-body { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; padding-top: var(--sp-2); }
@@ -122,9 +125,11 @@
 [data-route="/relatorio/porto-seguro"] .s9-verif { min-height: 44px; padding: 0; gap: var(--sp-1); font-size: var(--t-meta-size); }
 [data-route="/relatorio/porto-seguro"] .s9-local .tree-chevron .ico { transition: transform .15s; transform: rotate(-90deg); }
 [data-route="/relatorio/porto-seguro"] .s9-local.is-open > .s9-loc-row .tree-chevron .ico { transform: none; }
-[data-route="/relatorio/porto-seguro"] .s9-cabs { display: none; list-style: none; margin: 0; padding: 0 0 var(--sp-1) var(--sp-5); }
-[data-route="/relatorio/porto-seguro"] .s9-local.is-open > .s9-cabs { display: block; }
-.frame-phone [data-route="/relatorio/porto-seguro"] .s9-cabs { padding-left: var(--sp-3); }
+[data-route="/relatorio/porto-seguro"] .s9-pnls { display: none; list-style: none; margin: 0; padding: 0 0 var(--sp-1) var(--sp-5); }
+[data-route="/relatorio/porto-seguro"] .s9-local.is-open > .s9-pnls { display: block; }
+/* Painel row: mirrors components.css ".sum-s9 .s9-cabine" (the open rule on the left), declarations copied; the class is new because the cabine is now the local */
+[data-route="/relatorio/porto-seguro"] .sum-s9 .s9-painel { border-left: var(--sum-open-rule); margin-left: var(--sp-5); padding-left: var(--sp-3); }
+.frame-phone [data-route="/relatorio/porto-seguro"] .s9-pnls { padding-left: var(--sp-3); }
 .frame-phone [data-route="/relatorio/porto-seguro"] .s9-loc-row { flex-wrap: wrap; padding-right: var(--sp-2); }
 /* status-driven: Em revisão -> section 9 collapsed, rows with pendências lead the eye */
 [data-route="/relatorio/porto-seguro"] .sumario.is-review .sum-s9 > .s9-note,
@@ -133,16 +138,16 @@
 [data-route="/relatorio/porto-seguro"] .sumario.is-review .sum-row.has-pend { background: var(--surface-base); }
 [data-route="/relatorio/porto-seguro"] .sumario.is-review .sum-s9 > .sum-s9-head .tree-chevron .ico { transform: rotate(-90deg); }
 /* Playwright sweep fixes (2026-09-21): hit areas and phone layout of the Sumário */
-[data-route="/relatorio/porto-seguro"] .sum-s9 .tree-chevron, [data-route="/relatorio/porto-seguro"] .s9-cabine .tree-chevron, [data-route="/relatorio/porto-seguro"] .s9-local .tree-chevron { width: var(--touch-min); height: 56px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+[data-route="/relatorio/porto-seguro"] .sum-s9 .tree-chevron, [data-route="/relatorio/porto-seguro"] .s9-painel .tree-chevron, [data-route="/relatorio/porto-seguro"] .s9-local .tree-chevron { width: var(--touch-min); height: 56px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
 [data-route="/relatorio/porto-seguro"] .sum-summary .btn-text { min-height: 44px; }
 .frame-phone [data-route="/relatorio/porto-seguro"] .s9-tree { padding-left: 0; }
 .frame-phone [data-route="/relatorio/porto-seguro"] .s9-note { margin-left: var(--sp-4); }
-.frame-phone [data-route="/relatorio/porto-seguro"] .s9-cab-row { flex-wrap: wrap; padding-right: var(--sp-2); }
+.frame-phone [data-route="/relatorio/porto-seguro"] .s9-pnl-row { flex-wrap: wrap; padding-right: var(--sp-2); }
 .frame-phone [data-route="/relatorio/porto-seguro"] .s9-eqs { padding: 0 var(--sp-2) 0 var(--sp-4); }
 .frame-phone [data-route="/relatorio/porto-seguro"] .s9-eq-open { flex-wrap: wrap; gap: 2px var(--sp-2); padding: var(--sp-1) var(--sp-2); }
 .frame-phone [data-route="/relatorio/porto-seguro"] .s9-eq-name { flex: 1 1 60%; }
 .frame-phone [data-route="/relatorio/porto-seguro"] .sum-here { flex-basis: 100%; order: 9; }
-.frame-phone [data-route="/relatorio/porto-seguro"] .s9-cabine.is-open > .s9-add { margin-left: var(--sp-4); white-space: normal; text-align: left; }
+.frame-phone [data-route="/relatorio/porto-seguro"] .s9-painel.is-open > .s9-add, .frame-phone [data-route="/relatorio/porto-seguro"] .s9-local.is-open > .s9-add { margin-left: var(--sp-4); white-space: normal; text-align: left; }
 .frame-phone [data-route="/relatorio/porto-seguro"] .sum-open { gap: var(--sp-2); }
 </style>
 <section class="screen" data-route="/relatorio/porto-seguro" data-title="Porto Seguro · Torres A e B" data-shell="app" data-rail="false">
@@ -153,7 +158,7 @@
       <p class="sheet-meta"><span class="status-pill" data-status="em-campo">Em campo</span> 06–08/09/2026 · template Porto Seguro — Torres A e B · responsável Rafael Lamonde</p>
       <!-- S8: summary always visible in the header; each count opens its list -->
       <p class="sum-summary" role="group" aria-label="Resumo do relatório">
-        <button class="btn btn-text" data-go="#/relatorio/porto-seguro">42 de 94 fichas concluídas</button>
+        <button class="btn btn-text" data-go="#/relatorio/porto-seguro">42 de 95 fichas concluídas</button>
         <button class="btn btn-text" data-go="#/relatorio/porto-seguro/pontos">2 NC abertos</button>
         <button class="btn btn-text" data-go="#/ficha/DJ-C14">1 não ensaiada</button>
         <button class="btn btn-text" data-go="#/ficha/SEC-C05">12 sugestões por confirmar</button>
@@ -221,22 +226,25 @@
           <span class="sum-ctrls"><button class="overflow-trigger" data-open="#sum-menu" aria-label="Mais opções de Relatórios dos ensaios"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
         </div>
         <p class="s9-note">Organizados por local aqui; no documento, agrupados como no FO.SERV-03.</p>
-        <!-- 2026-10-09 (Story 14.1): three levels, Local › Cabine › Coluna (sprint-change-proposal-2026-10-08.md § 8.1).
-             A local row carries its "Verificações do local" line (CAP-27), a cabine row its Função and meta line; colunas and sheets as before. -->
+        <!-- 2026-10-10 (Story 14.1 redraw): three levels, Local › Painel › Coluna (sprint-change-proposal-2026-10-08.md § 10); each cabine is its own local.
+             A local row carries its Função in the meta line and its "Verificações do local" line (CAP-27); equipment placed directly on the local comes first,
+             then its painéis; a painel row only groups colunas; colunas and sheets as before. -->
         <ul class="s9-tree">
         <li class="s9-local">
-          <div class="s9-loc-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-local" aria-label="Expandir Cubículo Enel"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-loc-body"><span class="s9-loc-name">Cubículo Enel</span><span class="s9-loc-meta">1 cabine</span><button class="btn btn-text s9-verif" data-go="#/local/cubiculo-enel/verificacoes"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-check-all"/></svg>Verificações do local · 19 de 19</button></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>3 de 9</span><button class="overflow-trigger" data-open="#sum-menu-local" aria-label="Mais opções de Cubículo Enel"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
-          <ul class="s9-cabs" aria-label="Cabines de Cubículo Enel">
-            <li class="s9-cabine">
-              <div class="s9-cab-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-cabine" aria-label="Expandir Cabine de entrada"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-cab-body"><span class="s9-cab-name">Cabine de entrada</span><span class="s9-cab-meta">Entrada · Blindada · 13,8 kV · 19 °C · 67 %</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>3 de 9</span><button class="overflow-trigger" data-open="#sum-menu-cabine" aria-label="Mais opções de Cabine de entrada"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
+          <div class="s9-loc-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-local" aria-label="Expandir Cubículo Enel"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-loc-body"><span class="s9-loc-name">Cubículo Enel</span><span class="s9-loc-meta">Entrada · Blindada · 13,8 kV · 19 °C · 67 %</span><button class="btn btn-text s9-verif" data-go="#/local/cubiculo-enel/verificacoes"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-check-all"/></svg>Verificações do local · 19 de 19</button></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>3 de 9</span><button class="overflow-trigger" data-open="#sum-menu-local" aria-label="Mais opções de Cubículo Enel"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
+          <button class="btn btn-text s9-add" data-open="#lo-palette"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar equipamento no local</button>
+          <ul class="s9-pnls" aria-label="Painéis de Cubículo Enel">
+            <li class="s9-painel">
+              <div class="s9-pnl-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-painel" aria-label="Expandir Painel de entrada de Cubículo Enel"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-pnl-body"><span class="s9-pnl-name">Painel de entrada</span><span class="s9-pnl-meta">Painel · 1 coluna</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>3 de 9</span><button class="overflow-trigger" data-open="#sum-menu-painel" aria-label="Mais opções de Painel de entrada de Cubículo Enel"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
             </li>
           </ul>
         </li>
         <li class="s9-local is-open">
-          <div class="s9-loc-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-local" aria-label="Expandir 1° Subsolo"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-loc-body"><span class="s9-loc-name">1° Subsolo</span><span class="s9-loc-meta">2 cabines</span><button class="btn btn-text s9-verif" data-go="#/local/1-subsolo/verificacoes"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-check-all"/></svg>Verificações do local · 12 de 19</button></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>39 de 55</span><button class="overflow-trigger" data-open="#sum-menu-local" aria-label="Mais opções de 1° Subsolo"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
-          <ul class="s9-cabs" aria-label="Cabines de 1° Subsolo">
-            <li class="s9-cabine is-open">
-              <div class="s9-cab-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-cabine" aria-label="Expandir Cabine primária"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-cab-body"><span class="s9-cab-name">Cabine primária</span><span class="s9-cab-meta">Primária · PTMT e IM · 13,8 kV · agrupar por tipo</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>39 de 53</span><button class="overflow-trigger" data-open="#sum-menu-cabine" aria-label="Mais opções de Cabine primária"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
+          <div class="s9-loc-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-local" aria-label="Expandir Cabine primária — 1° Subsolo"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-loc-body"><span class="s9-loc-name">Cabine primária — 1° Subsolo</span><span class="s9-loc-meta">Primária · PTMT e IM · 13,8 kV · agrupar por tipo</span><button class="btn btn-text s9-verif" data-go="#/local/1-subsolo/verificacoes"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-check-all"/></svg>Verificações do local · 12 de 19</button></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>39 de 53</span><button class="overflow-trigger" data-open="#sum-menu-local" aria-label="Mais opções de Cabine primária — 1° Subsolo"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
+          <button class="btn btn-text s9-add" data-open="#lo-palette"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar equipamento no local</button>
+          <ul class="s9-pnls" aria-label="Painéis de Cabine primária — 1° Subsolo">
+            <li class="s9-painel is-open">
+              <div class="s9-pnl-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-painel" aria-label="Expandir Painel de média tensão de Cabine primária — 1° Subsolo"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-pnl-body"><span class="s9-pnl-name">Painel de média tensão</span><span class="s9-pnl-meta">Painel · 17 colunas</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>39 de 53</span><button class="overflow-trigger" data-open="#sum-menu-painel" aria-label="Mais opções de Painel de média tensão de Cabine primária — 1° Subsolo"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
               <ul class="s9-eqs">
                 <li class="s9-col">Coluna 4 <span class="s9-col-meta">4 de 4</span></li>
                 <li class="s9-eq"><button class="s9-eq-open" data-go="#/ficha/SEC-C05"><span class="block-tag">SEC-C04</span><span class="s9-eq-name">Chave seccionadora</span><span class="s9-state" data-state="ok">Concluída</span></button></li>
@@ -247,48 +255,58 @@
                 <li class="s9-eq"><button class="s9-eq-open" data-go="#/ficha/TP-C16"><span class="block-tag">TC-C05</span><span class="s9-eq-name">TC — proteção</span><span class="s9-state" data-state="empty">Vazia</span></button></li>
                 <li class="s9-col">Colunas 6 a 17 <span class="s9-col-meta">33 de 45 · 1 não ensaiada</span></li>
               </ul>
-              <button class="btn btn-text s9-add" data-open="#lo-palette"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar bloco em Cabine primária</button>
+              <button class="btn btn-text s9-add" data-open="#lo-palette"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar bloco em Painel de média tensão</button>
             </li>
-            <li class="s9-cabine is-open">
-              <div class="s9-cab-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-cabine" aria-label="Expandir Cabine de transformação"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-cab-body"><span class="s9-cab-name">Cabine de transformação</span><span class="s9-cab-meta">Transformação · Alvenaria · 13,8 kV · sem colunas</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 2</span><button class="overflow-trigger" data-open="#sum-menu-cabine" aria-label="Mais opções de Cabine de transformação"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
-              <!-- A cabine with no coluna: its sheets sit on the cabine, no coluna heading (Story 14.2) -->
-              <ul class="s9-eqs">
-                <li class="s9-eq"><button class="s9-eq-open" data-go="#/ficha/TR1"><span class="block-tag">TR1</span><span class="s9-eq-name">Transformador de força</span><span class="s9-state" data-state="empty">Vazia</span></button></li>
-                <li class="s9-eq"><button class="s9-eq-open" data-go="#/ficha/TR2"><span class="block-tag">TR2</span><span class="s9-eq-name">Transformador de força</span><span class="s9-state" data-state="empty">Vazia</span></button></li>
-              </ul>
-              <button class="btn btn-text s9-add" data-open="#lo-palette"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar equipamento em Cabine de transformação</button>
+          </ul>
+        </li>
+        <!-- A local with no painel (masonry room): its sheets sit directly on the local, under "Equipamentos no local", with no painel or coluna heading (Story 14.2) -->
+        <li class="s9-local is-open">
+          <div class="s9-loc-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-local" aria-label="Expandir Cabine de transformação — 1° Subsolo"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-loc-body"><span class="s9-loc-name">Cabine de transformação — 1° Subsolo</span><span class="s9-loc-meta">Transformação · Alvenaria · 13,8 kV · sem painéis</span><button class="btn btn-text s9-verif" data-toast="Só as verificações de Cubículo Enel e da Cabine primária — 1° Subsolo estão prototipadas"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-check-all"/></svg>Verificações do local · 0 de 19</button></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 2</span><button class="overflow-trigger" data-open="#sum-menu-local" aria-label="Mais opções de Cabine de transformação — 1° Subsolo"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
+          <ul class="s9-eqs" aria-label="Equipamentos direto em Cabine de transformação — 1° Subsolo">
+            <li class="s9-col">Equipamentos no local <span class="s9-col-meta">0 de 2</span></li>
+            <li class="s9-eq"><button class="s9-eq-open" data-go="#/ficha/TR1"><span class="block-tag">TR1</span><span class="s9-eq-name">Transformador de força</span><span class="s9-state" data-state="empty">Vazia</span></button></li>
+            <li class="s9-eq"><button class="s9-eq-open" data-go="#/ficha/TR2"><span class="block-tag">TR2</span><span class="s9-eq-name">Transformador de força</span><span class="s9-state" data-state="empty">Vazia</span></button></li>
+          </ul>
+          <button class="btn btn-text s9-add" data-open="#lo-palette"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar equipamento no local</button>
+        </li>
+        <li class="s9-local">
+          <div class="s9-loc-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-local" aria-label="Expandir Oxigênio"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-loc-body"><span class="s9-loc-name">Oxigênio</span><span class="s9-loc-meta">Transformação · Abrigada · 13,8 kV</span><button class="btn btn-text s9-verif" data-toast="Só as verificações de Cubículo Enel e da Cabine primária — 1° Subsolo estão prototipadas"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-check-all"/></svg>Verificações do local · 0 de 19</button></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 8</span><button class="overflow-trigger" data-open="#sum-menu-local" aria-label="Mais opções de Oxigênio"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
+          <button class="btn btn-text s9-add" data-open="#lo-palette"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar equipamento no local</button>
+          <ul class="s9-pnls" aria-label="Painéis de Oxigênio">
+            <li class="s9-painel">
+              <div class="s9-pnl-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-painel" aria-label="Expandir Painel de média tensão de Oxigênio"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-pnl-body"><span class="s9-pnl-name">Painel de média tensão</span><span class="s9-pnl-meta">Painel · 2 colunas</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 8</span><button class="overflow-trigger" data-open="#sum-menu-painel" aria-label="Mais opções de Painel de média tensão de Oxigênio"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
             </li>
           </ul>
         </li>
         <li class="s9-local">
-          <div class="s9-loc-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-local" aria-label="Expandir Oxigênio"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-loc-body"><span class="s9-loc-name">Oxigênio</span><span class="s9-loc-meta">1 cabine</span><button class="btn btn-text s9-verif" data-toast="Só as verificações de Cubículo Enel e 1° Subsolo estão prototipadas"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-check-all"/></svg>Verificações do local · 0 de 19</button></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 8</span><button class="overflow-trigger" data-open="#sum-menu-local" aria-label="Mais opções de Oxigênio"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
-          <ul class="s9-cabs" aria-label="Cabines de Oxigênio">
-            <li class="s9-cabine">
-              <div class="s9-cab-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-cabine" aria-label="Expandir Cabine de transformação"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-cab-body"><span class="s9-cab-name">Cabine de transformação</span><span class="s9-cab-meta">Transformação · Abrigada · 13,8 kV</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 8</span><button class="overflow-trigger" data-open="#sum-menu-cabine" aria-label="Mais opções de Cabine de transformação"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
+          <div class="s9-loc-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-local" aria-label="Expandir Cobertura Lado A"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-loc-body"><span class="s9-loc-name">Cobertura Lado A</span><span class="s9-loc-meta">Transformação · Abrigada · 13,8 kV</span><button class="btn btn-text s9-verif" data-toast="Só as verificações de Cubículo Enel e da Cabine primária — 1° Subsolo estão prototipadas"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-check-all"/></svg>Verificações do local · 0 de 19</button></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 7</span><button class="overflow-trigger" data-open="#sum-menu-local" aria-label="Mais opções de Cobertura Lado A"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
+          <button class="btn btn-text s9-add" data-open="#lo-palette"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar equipamento no local</button>
+          <ul class="s9-pnls" aria-label="Painéis de Cobertura Lado A">
+            <li class="s9-painel">
+              <div class="s9-pnl-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-painel" aria-label="Expandir Painel de média tensão de Cobertura Lado A"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-pnl-body"><span class="s9-pnl-name">Painel de média tensão</span><span class="s9-pnl-meta">Painel · 2 colunas</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 7</span><button class="overflow-trigger" data-open="#sum-menu-painel" aria-label="Mais opções de Painel de média tensão de Cobertura Lado A"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
             </li>
           </ul>
         </li>
         <li class="s9-local">
-          <div class="s9-loc-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-local" aria-label="Expandir Cobertura Lado A"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-loc-body"><span class="s9-loc-name">Cobertura Lado A</span><span class="s9-loc-meta">1 cabine</span><button class="btn btn-text s9-verif" data-toast="Só as verificações de Cubículo Enel e 1° Subsolo estão prototipadas"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-check-all"/></svg>Verificações do local · 0 de 19</button></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 7</span><button class="overflow-trigger" data-open="#sum-menu-local" aria-label="Mais opções de Cobertura Lado A"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
-          <ul class="s9-cabs" aria-label="Cabines de Cobertura Lado A">
-            <li class="s9-cabine">
-              <div class="s9-cab-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-cabine" aria-label="Expandir Cabine de transformação"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-cab-body"><span class="s9-cab-name">Cabine de transformação</span><span class="s9-cab-meta">Transformação · Abrigada · 13,8 kV</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 7</span><button class="overflow-trigger" data-open="#sum-menu-cabine" aria-label="Mais opções de Cabine de transformação"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
+          <div class="s9-loc-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-local" aria-label="Expandir Cobertura Lado B"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-loc-body"><span class="s9-loc-name">Cobertura Lado B</span><span class="s9-loc-meta">Transformação · Abrigada · 13,8 kV</span><button class="btn btn-text s9-verif" data-toast="Só as verificações de Cubículo Enel e da Cabine primária — 1° Subsolo estão prototipadas"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-check-all"/></svg>Verificações do local · 0 de 19</button></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 7</span><button class="overflow-trigger" data-open="#sum-menu-local" aria-label="Mais opções de Cobertura Lado B"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
+          <button class="btn btn-text s9-add" data-open="#lo-palette"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar equipamento no local</button>
+          <ul class="s9-pnls" aria-label="Painéis de Cobertura Lado B">
+            <li class="s9-painel">
+              <div class="s9-pnl-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-painel" aria-label="Expandir Painel de média tensão de Cobertura Lado B"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-pnl-body"><span class="s9-pnl-name">Painel de média tensão</span><span class="s9-pnl-meta">Painel · 2 colunas</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 7</span><button class="overflow-trigger" data-open="#sum-menu-painel" aria-label="Mais opções de Painel de média tensão de Cobertura Lado B"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
             </li>
           </ul>
         </li>
+        <!-- A local with both: the CTA (library type, Story 14.5) sits directly on the local, the eight sheets of the template in the colunas of its painel -->
         <li class="s9-local">
-          <div class="s9-loc-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-local" aria-label="Expandir Cobertura Lado B"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-loc-body"><span class="s9-loc-name">Cobertura Lado B</span><span class="s9-loc-meta">1 cabine</span><button class="btn btn-text s9-verif" data-toast="Só as verificações de Cubículo Enel e 1° Subsolo estão prototipadas"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-check-all"/></svg>Verificações do local · 0 de 19</button></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 7</span><button class="overflow-trigger" data-open="#sum-menu-local" aria-label="Mais opções de Cobertura Lado B"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
-          <ul class="s9-cabs" aria-label="Cabines de Cobertura Lado B">
-            <li class="s9-cabine">
-              <div class="s9-cab-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-cabine" aria-label="Expandir Cabine de transformação"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-cab-body"><span class="s9-cab-name">Cabine de transformação</span><span class="s9-cab-meta">Transformação · Abrigada · 13,8 kV</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 7</span><button class="overflow-trigger" data-open="#sum-menu-cabine" aria-label="Mais opções de Cabine de transformação"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
-            </li>
+          <div class="s9-loc-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-local" aria-label="Expandir Geradores"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-loc-body"><span class="s9-loc-name">Geradores</span><span class="s9-loc-meta">Distribuição · PTMG · 13,8 kV · agrupar por tipo</span><button class="btn btn-text s9-verif" data-toast="Só as verificações de Cubículo Enel e da Cabine primária — 1° Subsolo estão prototipadas"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-check-all"/></svg>Verificações do local · 0 de 19</button></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 9</span><button class="overflow-trigger" data-open="#sum-menu-local" aria-label="Mais opções de Geradores"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
+          <ul class="s9-eqs" aria-label="Equipamentos direto em Geradores">
+            <li class="s9-col">Equipamentos no local <span class="s9-col-meta">0 de 1</span></li>
+            <li class="s9-eq"><button class="s9-eq-open" data-go="#/biblioteca/cta"><span class="block-tag">CTA-GER</span><span class="s9-eq-name">Chave de transferência automática</span><span class="s9-state" data-state="doing">Em preenchimento</span></button></li>
           </ul>
-        </li>
-        <li class="s9-local">
-          <div class="s9-loc-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-local" aria-label="Expandir Geradores"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-loc-body"><span class="s9-loc-name">Geradores</span><span class="s9-loc-meta">1 cabine</span><button class="btn btn-text s9-verif" data-toast="Só as verificações de Cubículo Enel e 1° Subsolo estão prototipadas"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-check-all"/></svg>Verificações do local · 0 de 19</button></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 8</span><button class="overflow-trigger" data-open="#sum-menu-local" aria-label="Mais opções de Geradores"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
-          <ul class="s9-cabs" aria-label="Cabines de Geradores">
-            <li class="s9-cabine">
-              <div class="s9-cab-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-cabine" aria-label="Expandir Cabine de distribuição"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-cab-body"><span class="s9-cab-name">Cabine de distribuição</span><span class="s9-cab-meta">Distribuição · PTMG · 13,8 kV · agrupar por tipo</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 8</span><button class="overflow-trigger" data-open="#sum-menu-cabine" aria-label="Mais opções de Cabine de distribuição"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
+          <button class="btn btn-text s9-add" data-open="#lo-palette"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar equipamento no local</button>
+          <ul class="s9-pnls" aria-label="Painéis de Geradores">
+            <li class="s9-painel">
+              <div class="s9-pnl-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-painel" aria-label="Expandir Painel de média tensão de Geradores"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-pnl-body"><span class="s9-pnl-name">Painel de média tensão</span><span class="s9-pnl-meta">Painel · 2 colunas</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 8</span><button class="overflow-trigger" data-open="#sum-menu-painel" aria-label="Mais opções de Painel de média tensão de Geradores"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
             </li>
           </ul>
         </li>
@@ -324,27 +342,31 @@
       <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-toast="Seção removida deste relatório — numeração refeita" data-toast-action="Desfazer">Remover</button></div>
     </div>
   </div>
-  <!-- Overflow menu of a cabine row inside section 9 -->
-  <div class="dialog-scrim" id="sum-menu-cabine" hidden>
-    <div class="overflow-menu" role="menu" aria-label="Opções da cabine">
-      <button class="menu-item" role="menuitem" data-close data-go="#/ficha/CB-ENT">Abrir primeira ficha (dados da cabine)</button>
-      <button class="menu-item" role="menuitem" data-close data-toast="Agrupar por tipo na seção 9: alternado">Agrupar por tipo na seção 9</button>
+  <!-- Overflow menu of a painel row inside section 9 (until 2026-10-09 the cabine row's menu, #sum-menu-cabine; the SE data and Agrupar por tipo moved to the local) -->
+  <div class="dialog-scrim" id="sum-menu-painel" hidden>
+    <div class="overflow-menu" role="menu" aria-label="Opções do painel">
       <button class="menu-item" role="menuitem" data-close data-open="#lo-palette">Adicionar bloco</button>
-      <button class="menu-item" role="menuitem" data-close data-toast="Coluna adicionada na cabine — nomeie-a">Adicionar coluna</button>
-      <button class="menu-item" role="menuitem" data-close data-toast="Cabine movida uma posição acima — Desfazer">Subir</button>
-      <button class="menu-item" role="menuitem" data-close data-toast="Cabine movida uma posição abaixo — Desfazer">Descer</button>
-      <button class="menu-item" role="menuitem" data-close data-toast="Mover a cabine para outro local — não prototipado">Mover para outro local</button>
-      <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-toast="Cabine e suas fichas removidas — recuperável até a emissão" data-toast-action="Desfazer">Remover</button></div>
+      <button class="menu-item" role="menuitem" data-close data-toast="Coluna adicionada no painel — nomeie-a">Adicionar coluna</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Painel movido uma posição acima — Desfazer">Subir</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Painel movido uma posição abaixo — Desfazer">Descer</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Mover o painel para outro local — não prototipado">Mover para outro local</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Renomear painel — não prototipado">Renomear</button>
+      <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-toast="Painel, suas colunas e fichas removidos — recuperável até a emissão" data-toast-action="Desfazer">Remover</button></div>
     </div>
   </div>
-  <!-- Overflow menu of a local row inside section 9 (Local › Cabine › Coluna, 2026-10-09). "Adicionar cabine" asks the Função, as in the Template composer. -->
+  <!-- Overflow menu of a local row inside section 9 (Local › Painel › Coluna, 2026-10-10). The local is the cabine: it owns the SE data, Agrupar por tipo and its own equipment.
+       "Adicionar local abaixo" asks the Função, as in the Template composer. -->
   <div class="dialog-scrim" id="sum-menu-local" hidden>
     <div class="overflow-menu" role="menu" aria-label="Opções do local">
-      <button class="menu-item" role="menuitem" data-close data-toast="Nova cabine no local — escolha a função: entrada, primária, transformação, distribuição ou outra">Adicionar cabine</button>
+      <button class="menu-item" role="menuitem" data-close data-go="#/ficha/CB-ENT">Abrir primeira ficha (dados do local)</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Agrupar por tipo na seção 9: alternado">Agrupar por tipo na seção 9</button>
+      <button class="menu-item" role="menuitem" data-close data-open="#lo-palette">Adicionar equipamento</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Painel adicionado no local — nomeie-o e adicione a primeira coluna">Adicionar painel</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Novo local abaixo — escolha a função: entrada, primária, transformação, distribuição ou outra">Adicionar local abaixo</button>
       <button class="menu-item" role="menuitem" data-close data-toast="Local movido uma posição acima — Desfazer">Subir</button>
       <button class="menu-item" role="menuitem" data-close data-toast="Local movido uma posição abaixo — Desfazer">Descer</button>
-      <button class="menu-item" role="menuitem" data-close data-toast="Renomear local — não prototipado">Renomear</button>
-      <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-toast="Local, suas cabines e fichas removidos — recuperável até a emissão" data-toast-action="Desfazer">Remover</button></div>
+      <button class="menu-item" role="menuitem" data-close data-toast="Função e nome do local — não prototipado">Função e nome</button>
+      <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-toast="Local, seus painéis e fichas removidos — recuperável até a emissão" data-toast-action="Desfazer">Remover</button></div>
     </div>
   </div>
   <!-- Overflow menu of the relatório (header) -->
@@ -362,7 +384,7 @@
     <aside class="block-palette" role="dialog" aria-modal="true" aria-label="Adicionar bloco">
       <span class="sheet-grip" aria-hidden="true"></span>
       <div class="palette-head"><span>Adicionar bloco</span><button class="icon-btn" data-close aria-label="Fechar"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button></div>
-      <p class="palette-group" style="padding-top: var(--sp-3)">Em: 1° Subsolo › Cabine primária › Coluna 9 (última coluna aberta) · <button class="btn btn-text" style="padding:0; min-height:0" data-toast="Escolher outra coluna — não prototipado">Trocar</button></p>
+      <p class="palette-group" style="padding-top: var(--sp-3)">Em: Cabine primária — 1° Subsolo › Painel de média tensão › Coluna 9 (última coluna aberta) · <button class="btn btn-text" style="padding:0; min-height:0" data-toast="Escolher outro local ou outra coluna — não prototipado">Trocar</button></p>
 
       <div class="pal-camera" data-slice="out" data-slice-note=" · FR-38">
         <button class="camera-capture-tile" data-close data-open="#relatorio-dlg-detect" aria-describedby="lo-cam-sub"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Fotografar equipamento</button>
@@ -445,23 +467,13 @@
         </div>
       </div>
 
-      <!-- The two library types (Story 14.5) after the eight; printed under "Outros equipamentos" -->
+      <!-- The one library type (Story 14.5, sprint-change-proposal § 10) after the eight; printed under "Outros equipamentos" -->
       <p class="palette-group">Outros equipamentos</p>
-      <div class="lo-type" id="lo-type-fap">
-        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-fap" aria-expanded="false" aria-controls="lo-type-fap-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Fonte auxiliar da proteção</span><span class="pi-meta">16 itens · até 7 ensaios · FAP-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
-        <div class="type-confirm" id="lo-type-fap-confirm">
-          <div class="confirm-row">
-            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">FAP-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/biblioteca/fap" data-toast="FAP-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
-            <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
-          </div>
-          <span class="helper">Subtipo na ficha: no-break de comando, fonte capacitiva ou retificador + banco de baterias.</span>
-        </div>
-      </div>
       <div class="lo-type" id="lo-type-cta">
-        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-cta" aria-expanded="false" aria-controls="lo-type-cta-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Chave de transferência automática</span><span class="pi-meta">17 itens · até 6 ensaios · CTA-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-cta" aria-expanded="false" aria-controls="lo-type-cta-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Chave de transferência automática</span><span class="pi-meta">17 itens · até 6 ensaios · CTA-GER</span></span><span class="plus" aria-hidden="true">+</span></button>
         <div class="type-confirm" id="lo-type-cta-confirm">
           <div class="confirm-row">
-            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">CTA-GER · Geradores, cabine de distribuição</span><button class="confirm-btn" data-close data-go="#/biblioteca/cta" data-toast="CTA-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e local</span><div class="input"><span class="sv">CTA-GER · Geradores, direto no local</span><button class="confirm-btn" data-close data-go="#/biblioteca/cta" data-toast="CTA-GER criada em Geradores, direto no local">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
             <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
           </div>
           <span class="helper">Chave ASCO: tensão, polos, neutro e transição escolhidos na ficha.</span>
@@ -502,7 +514,7 @@
           <span class="field-label">Novo bloco</span>
           <div class="input">
             <button class="crop-thumb" data-toast="Ampliar recorte da foto — não prototipado" aria-label="Ver recorte da etiqueta"><i class="thumb-fake"></i></button>
-            <span class="sv"><span class="sv-main">SEC-C09 · Coluna 9</span><span class="sv-sub">Chave seccionadora · 1° Subsolo › Cabine primária</span></span>
+            <span class="sv"><span class="sv-main">SEC-C09 · Coluna 9</span><span class="sv-sub">Chave seccionadora · Cabine primária — 1° Subsolo › Painel de média tensão</span></span>
             <button class="confirm-btn" data-close data-go="#/ficha/SEC-C05" data-toast="SEC-C09 criada na Coluna 9">Confirmar</button>
           </div>
           <span class="suggested-pill">Sugerido</span>

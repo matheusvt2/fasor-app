@@ -534,3 +534,38 @@ John (PM) reviewed Epic 14 with Matheus on 2026-10-09 and asked, of each deliver
 - **Waves 1 and 2:** on the next real relatório, every local carries its Verificações do local and no equipment is recorded outside the sheets.
 - **Wave 3:** the counts recorded under Story 14.6 decide whether it is built and at what size.
 
+## 10. Bruno's answers of 2026-10-09 and 2026-10-10
+
+Bruno saw the Story 14.1 mocks and the printed section 9. He answered in three voice notes on 2026-10-09, transcribed in the session, and in a written reply on 2026-10-10. Matheus decided two open points on 2026-10-10.
+
+| Question | Bruno | Consequence |
+| --- | --- | --- |
+| Is the structure Local › Cabine › Coluna right? | "Cada cabine é um local separado." "Cada painel pode ter várias colunas, e cada coluna tem vários equipamentos." By voice: equipment also goes straight into the local. | The level above the cabine, decided on 2026-10-09 (§ 8.1), is dropped. The tree is **Local › Painel › Coluna** |
+| Is the site table printed once per local? | "É uma por local mesmo." He lists cabine primária, transformação and distribuição as locals. | One table per local, and the local is the cabine itself |
+| Should item labels be in sentence case or uppercase? | "Maiúsculo chama mais atenção." | The site items print in uppercase |
+| Should the no-break print in "Outros equipamentos"? | "O nobreak coloca apenas o item no disjuntor para checar (C/NC/NA)." | The "Fonte auxiliar da proteção" type (§ 8.3) is dropped. One item goes on the Disjuntor MT checklist in seed v4 |
+| Does the mufla get a sheet of its own? | "Mufla podemos deixar somente no cabo mesmo." | Nothing to do: MUFLA is already an item of the cables checklist (`seed/v1.ts:125`) |
+
+**Matheus, 2026-10-10:**
+- Equipment sits on the local or on a coluna. A painel only groups its colunas.
+- Story 14.5 stays, with the Chave de transferência automática as its only library type.
+
+**The structure:**
+
+| Level | Holds | Owns |
+| --- | --- | --- |
+| **Local** (the cabine; kernel `kind = cabine`) | Equipment directly, and zero or more painéis | Função, CARACTERÍSTICAS DA SE, AMBIENTE DE ENSAIO, *Agrupar por tipo*, the Verificações do local |
+| **Painel** | One or more colunas | Its name only |
+| **Coluna** | Equipment | — |
+
+Rows created before Story 14.2 (a coluna directly under a cabine) stay valid, and nothing is migrated.
+
+**What this changes in Epic 14:**
+- **Story 14.2:** it adds one grouping kind, `painel`, under the existing root, not a new root above it. Its effort stays high, because the print and the contract still change.
+- **Story 14.3:** the checklist sits on the root row again, as the 2026-10-08 architecture note first said. Seed v4 gains the 19 site items and the NO-BREAK DE COMANDO item on the Disjuntor MT checklist.
+- **Story 14.4:** the table prints once per local, after its own AMBIENTE DE ENSAIO, in uppercase.
+- **Story 14.5:** one library type, the CTA. The measurement table no longer needs rows added on site or the derived Δ%, which were only for the battery bank.
+- **Story 14.1:** the mocks approved on 2026-10-09 are redrawn, and screen 62 is removed.
+
+Sections 7.2 and 8.3 stay in this document as research. They become useful again if a job ever needs a sheet for the auxiliary supply.
+

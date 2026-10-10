@@ -151,3 +151,13 @@ Fonte: `sprint-change-proposal-2026-10-08.md` § 4.1, § 8, § 9; `source-deltas
 - Fora daqui: as telas do editor de tipos (Story 14.7).
 - Candidatos a promover para `components.css` quando a Story 14.5 for construída: os extras da tabela de medições, a option row fora de diálogo e a nota de ensaio desligado.
 
+### Revisão de 2026-10-10 (respostas do Bruno; `sprint-change-proposal-2026-10-08.md` § 10)
+
+Esta nota vence a seção acima onde as duas discordam.
+
+- **A árvore é Local › Painel › Coluna.** Cada cabine é um local: a raiz tem a Função, os dados da SE e as Verificações do local, recebe equipamento direto e zero ou mais painéis. O painel só agrupa colunas e não recebe equipamento. Botões: "Adicionar local" (com o diálogo de Função `#tc-dlg-local`, que substitui o `#tc-dlg-cabine` citado acima), "Adicionar equipamento" e "Adicionar painel" no local, "Adicionar coluna" no painel. Redesenhado em `42-template-composer.html`, `40-relatorio-overview.html` e no `rail-tree`.
+- **O no-break não é um tipo.** `62-ficha-fonte-auxiliar.html` foi removida. O no-break de comando é um item do checklist do Disjuntor MT em `60-ficha.html`.
+- **Um tipo da biblioteca:** `63-ficha-cta.html` (CTA-GER, no local Geradores). Nas paletas, só a Chave de transferência automática vem depois dos oito.
+- **`key-print-section-9.html`:** cada local imprime a sua tabela VERIFICAÇÕES DO LOCAL, com os itens em maiúsculas; o painel é uma faixa de título sobre as colunas; o grupo OUTROS EQUIPAMENTOS mostra a CTA.
+- **`61-verificacoes-local.html`:** o cabeçalho nomeia um local só ("Cabine primária · 1° Subsolo").
+

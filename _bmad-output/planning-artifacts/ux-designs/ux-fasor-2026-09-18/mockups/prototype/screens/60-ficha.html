@@ -6,6 +6,9 @@
    Prototype mechanics (no JS in fragments): confirmed state = class .is-confirmed / .all-confirmed (mirror of data-state="confirmed");
    OCR results = wrapper class .is-shot (set by the viewfinder shutter); stepper steps = <label for> an invisible anchor button (label
    activation focuses it and the browser scrolls it into view — a hash anchor would re-route). */
+/* 2026-10-10 (sprint-change-proposal-2026-10-08.md § 10): the sheet-meta path reads Local › Painel › Coluna, the local being the cabine
+   ("Cabine primária — 1° Subsolo › Painel de média tensão › Coluna 5"); the Disjuntor MT checklist (DJ-C14) gains item 16,
+   "No-break de comando", with three authored NC chips in its closed row-expand. */
 [data-route="/ficha/:tag"] [data-only-tag], [data-route="/ficha/:tag"] [data-not-tag] { display: none; }
 [data-route="/ficha/:tag"] [data-not-tag] { display: contents; }
 [data-route="/ficha/:tag"][data-param="CB-ENT"] [data-only-tag~="CB-ENT"] { display: contents; }
@@ -238,7 +241,7 @@
 <div class="sheet-header">
   <div>
     <h2 class="sheet-title">Chave seccionadora — <button class="tag-btn" data-go="#/relatorio/porto-seguro" aria-label="TAG SEC-C05 — abrir no relatório">SEC-C05<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
-    <p class="sheet-meta">Cubículo 1° Subsolo › Coluna 5</p>
+    <p class="sheet-meta">Cabine primária — 1° Subsolo › Painel de média tensão › Coluna 5</p>
     <p class="sheet-meta">Preenchido por Bruno · <time datetime="2026-09-07T14:32">07/09 14:32</time></p>
   </div>
   <div class="ficha-head-side">
@@ -251,7 +254,7 @@
 <div class="sheet-header">
   <div>
     <h2 class="sheet-title">Disjuntor MT — <button class="tag-btn" data-go="#/relatorio/porto-seguro" aria-label="TAG DJ-C14 — abrir no relatório">DJ-C14<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button><span class="not-tested-chip">Não ensaiado</span></h2>
-    <p class="sheet-meta">Cubículo 1° Subsolo › Coluna 14 (TIE — interligação dos barramentos)</p>
+    <p class="sheet-meta">Cabine primária — 1° Subsolo › Painel de média tensão › Coluna 14 (TIE — interligação dos barramentos)</p>
     <p class="sheet-meta">Marcado por Bruno · <time datetime="2026-09-07T11:48">07/09 11:48</time></p>
   </div>
   <div class="ficha-head-side">
@@ -264,7 +267,7 @@
 <div class="sheet-header">
   <div>
     <h2 class="sheet-title">TP — proteção — <button class="tag-btn" data-go="#/relatorio/porto-seguro" aria-label="TAG TP-C16 — abrir no relatório">TP-C16<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
-    <p class="sheet-meta">Cubículo 1° Subsolo › Coluna 16</p>
+    <p class="sheet-meta">Cabine primária — 1° Subsolo › Painel de média tensão › Coluna 16</p>
     <p class="sheet-meta">Preenchido por Eduardo · <time datetime="2026-09-08T16:05">08/09 16:05</time></p>
   </div>
   <div class="ficha-head-side">
@@ -453,6 +456,8 @@
 <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">13.</span>Condição geral dos mecanismos</span><div class="tri-state" role="radiogroup" aria-label="13. Condição geral dos mecanismos"><button class="seg" role="radio" data-value="c" aria-checked="false" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 13: Limpar · Observação — não prototipado" aria-label="Mais opções de Condição geral dos mecanismos"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></li>
 <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">14.</span>Relé de acionamento secundário ou prim.</span><div class="tri-state" role="radiogroup" aria-label="14. Relé de acionamento secundário ou prim."><button class="seg" role="radio" data-value="c" aria-checked="false" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 14: Limpar · Observação — não prototipado" aria-label="Mais opções de Relé de acionamento secundário ou prim."><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></li>
 <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">15.</span>Óleo isolante/indicador de nível</span><div class="tri-state" role="radiogroup" aria-label="15. Óleo isolante/indicador de nível"><button class="seg" role="radio" data-value="c" aria-checked="false" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 15: Limpar · Observação — não prototipado" aria-label="Mais opções de Óleo isolante/indicador de nível"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></li>
+<li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">16.</span>No-break de comando</span><div class="tri-state" role="radiogroup" aria-label="16. No-break de comando"><button class="seg" role="radio" data-value="c" aria-checked="false" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 16: Limpar · Observação — não prototipado" aria-label="Mais opções de No-break de comando"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
+<div class="row-expand"><div class="chip-row"><button class="chip" data-set-text="#ficha-obs-dj-16|No-break inoperante">No-break inoperante</button><button class="chip" data-set-text="#ficha-obs-dj-16|Bateria vencida ou estufada">Bateria vencida ou estufada</button><button class="chip" data-set-text="#ficha-obs-dj-16|Sem autonomia para o relé">Sem autonomia para o relé</button><button class="chip chip-other" data-toast="Abre a lista completa de observações deste item">Outro…</button></div><div class="field"><span class="field-label">Observação do item 16</span><div class="observation-field" id="ficha-obs-dj-16" role="textbox" aria-multiline="true" data-required aria-invalid="true" aria-describedby="ficha-obs-dj-16-reason" aria-label="Observação do item 16"><span class="placeholder">Obrigatória em item não conforme</span></div><span class="helper" data-tone="red" id="ficha-obs-dj-16-reason">Obrigatória em item não conforme</span></div></div></li>
 </ul>
 </section>
 
