@@ -290,13 +290,13 @@ test('@p0 12.2-E2E-003 J5 at 768: Home to the first sheet of a new relatório wi
   await expect(instrument).toBeChecked();
   await expect.poll(async () => (await instrumentIdOps()).length).toBe(1);
 
-  // Concluir goes forward: the Sumário, "Dados salvos", section 9 open.
+  // Concluir goes forward: the Sumário, the status said ("Relatório em campo", 2026-10-10), section 9 open.
   const complete = page.getByRole('button', { name: 'Concluir dados do relatório' });
   await expect(complete).not.toHaveAttribute('aria-disabled', 'true');
   await journey.tap(complete);
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
   await expectLanded(page);
-  await expect(page.getByTestId('toast')).toContainText('Dados salvos');
+  await expect(page.getByTestId('toast')).toContainText('Relatório em campo');
   await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Em campo');
   await expect(section9Chevron(page)).toHaveAttribute('aria-expanded', 'true');
 

@@ -47,7 +47,11 @@ test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first 
   page,
   seed,
 }) => {
-  const account = seed.companies[0];
+  // Status flow 2026-10-10: this worker's Empresa B, emptied first (as 1.6-E2E-002 does). The
+  // relatórios other specs leave behind are Em campo once a sheet of theirs was filled, and one
+  // of them would be the current card; with the company reset the test depends on no leftover.
+  const account = seed.companies[1];
+  await resetEmpresaB(account);
   const database = deviceDatabaseName(account.userId);
   await signIn(page, account.email);
   // The baseline is what the company already holds, so it is read once the launch pull

@@ -5,7 +5,7 @@ import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type Seed
 import { readStore } from './support/outbox.ts';
 import { pushCellSuggestion } from './support/reading-ops.ts';
 import { CLIENT, SITE } from './support/relatorio-flow.ts';
-import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
+import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNowAndReturn } from './support/sync.ts';
 import { splitWordsIn } from './support/word-split.ts';
@@ -56,7 +56,9 @@ async function setUp(page: Page, viewport: { width: number; height: number }, ex
   await signIn(page, account.email);
   const built = newRelatorioDrafts(account);
   const result = { relatorioId: built.relatorioId, projectId: built.projectId, sheets: built.sheets };
-  await pushDrafts(page, database, [...built.drafts, ...extra(result)]);
+  // Status flow 2026-10-10: Em campo from the start. On a Rascunho relatório the first value typed raises "Relatório em campo",
+  // and a field focused by the keyboard under any toast is scrolled clear of it (H-7), which moves what these tests measure.
+  await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId), ...extra(result)]);
   return result;
 }
 

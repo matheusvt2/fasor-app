@@ -8,6 +8,7 @@ import { applyOps } from '../../apps/api/src/sync/apply.ts';
 import { expect, signIn, type SeedAccount } from './merged-fixtures.ts';
 import { pushNewRelatorio } from './relatorio-seed.ts';
 import { resetEmpresaB } from './reset-empresa-b.ts';
+import { expandLocation } from './tree.ts';
 
 /*
  * Stories 8.2 and 8.6 (batch P): the reading job's own writes, made the way the job makes
@@ -321,15 +322,15 @@ export async function openSheetOfType(
   // The durability projects pass their own sign-in (`signInForDurability`), which works on WebKit.
   if (options.signIn === undefined) await signIn(page, account.email);
   else await options.signIn();
-  const { relatorioId } = await pushNewRelatorio(page, account, database);
+  // Status flow 2026-10-10: Em campo from the start, as a relatório being filled on site is.
+  const { relatorioId } = await pushNewRelatorio(page, account, database, { emCampo: true });
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   const tree = page.getByRole('list', { name: 'Locais do relatório' });
   await expect(tree).toBeVisible();
-  const expand = page.getByRole('button', { name: `Expandir ${options.cabine}`, exact: true });
-  if ((await expand.count()) > 0) await expand.click();
+  await expandLocation(page, options.cabine);
   const cabine = tree.locator(':scope > li.s9-cabine').filter({ has: page.locator(':scope > .s9-cab-row .s9-cab-name', { hasText: options.cabine }) });
   const name = new RegExp(`^${options.typeLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
   const row = cabine

@@ -3,6 +3,7 @@ import { expect, signIn, type SeedAccount } from './merged-fixtures.ts';
 import { readStore } from './outbox.ts';
 import { resetEmpresaB } from './reset-empresa-b.ts';
 import { pushNewRelatorio } from './relatorio-seed.ts';
+import { expandLocation } from './tree.ts';
 
 /*
  * Stories 6.1 and 6.2: the shared steps of the photo specs. Every spec resets Empresa B,
@@ -33,7 +34,8 @@ export async function openChaveSheet(
   await page.setViewportSize({ width: options.width ?? 1280, height: 900 });
   if (options.signIn === undefined) await signIn(page, account.email);
   else await options.signIn();
-  const { relatorioId } = await pushNewRelatorio(page, account, database);
+  // Status flow 2026-10-10: Em campo from the start, as a relatório being filled on site is.
+  const { relatorioId } = await pushNewRelatorio(page, account, database, { emCampo: true });
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', {
     timeout: 30_000,
@@ -41,8 +43,7 @@ export async function openChaveSheet(
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
-  const expand = page.getByRole('button', { name: 'Expandir Cubículo Enel' });
-  if ((await expand.count()) > 0) await expand.click();
+  await expandLocation(page, 'Cubículo Enel');
   const row = enelRows(page)
     .filter({ has: page.locator('.s9-eq-name', { hasText: /^Chave seccionadora$/ }) })
     .first();

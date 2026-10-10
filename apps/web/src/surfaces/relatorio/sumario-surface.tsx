@@ -8,11 +8,14 @@ import {
   generateReason,
   issuedBannerText,
   latestRevision,
+  MARK_SENT_LABEL,
   naoEnsaiadasText,
   ncAbertosText,
   pendingSuggestions,
   progress,
   restorableBlocks,
+  setupGapsText,
+  statusStepText,
   sugestoesText,
   sumarioMetaText,
   sumarioOpensExpanded,
@@ -59,6 +62,7 @@ import { useAiFeatures } from '../../state/ai-features.tsx';
 import { useLatestAuditRun } from '../../db/audit-store.ts';
 import { AuditFindings } from '../export/audit-findings.tsx';
 import { useIssueConfirmation, usePreIssue } from '../export/use-pre-issue.ts';
+import { useMarkSent } from '../export/use-mark-sent.ts';
 import { usePreview } from '../export/use-preview.ts';
 import { SessionExpiredNote } from '../export/session-expired.tsx';
 import { AddSectionDialog } from './add-section-dialog.tsx';
@@ -134,7 +138,17 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // The one pre-issue call the Export dialog makes too (photo upload errors, the clock reading).
   const issues = usePreIssue(db, snapshot, computed, pending);
   const confirmCounts = useIssueConfirmation(snapshot);
-  const rows = useMemo(() => sumarioRows(snapshot, issues, computed), [snapshot, issues, computed]);
+  // Status flow 2026-10-10: whether anything was edited since the newest revision (true until
+  // the first read lands), for the Controle row, the banner, the foot sentence and mark-as-sent.
+  // Until that read has landed nothing is said about edits: no banner, no revision part on the
+  // Controle row, no next step (an unedited relatório must never flash "há alterações").
+  const sent = useMarkSent(relatorioId, revisions);
+  const { edited, read: editedRead } = sent;
+  const controlStatus = snapshot.relatorio.status;
+  const rows = useMemo(
+    () => sumarioRows(snapshot, issues, computed, editedRead ? { revisions, edited, status: controlStatus } : null),
+    [snapshot, issues, computed, revisions, edited, editedRead, controlStatus],
+  );
   // Epic 4 retro item 29: "Restaurar" offers only what was removed after the last revision.
   const lastIssuedAt = latestRevision(revisions)?.created_at ?? null;
   const removable = useMemo(() => restorableBlocks(allBlocks, equipment, snapshot.locations, lastIssuedAt), [allBlocks, equipment, snapshot.locations, lastIssuedAt]);
@@ -180,7 +194,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const [restoring, setRestoring] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [confirmingBack, setConfirmingBack] = useState(false);
-  const bannerText = useMemo(() => issuedBannerText(relatorio.status, latestRevision(revisions)), [relatorio.status, revisions]);
+  const bannerText = useMemo(() => (editedRead ? issuedBannerText(relatorio.status, latestRevision(revisions), edited) : null), [relatorio.status, revisions, edited, editedRead]);
   const issuedBanner = useMemo<Banner | null>(
     () => (bannerText === null ? null : { kind: 'relatorio-exported' as const, variant: 'warning' as const, role: 'region' as const, text: bannerText }),
     [bannerText],
@@ -197,6 +211,12 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   );
   useExtraBanner(banner);
   const backMove = useMemo(() => backwardMoveLabel(relatorio.status), [relatorio.status]);
+  // M6, decision 5: the status's next step, its own sentence right under the status pill.
+  const stepId = useId();
+  const flow = useMemo(
+    () => ({ status: relatorio.status, latest: latestRevision(revisions)?.number ?? null, edited, setupGaps: setupGapsText(snapshot) }),
+    [relatorio.status, revisions, edited, snapshot],
+  );
   const listRef = useRef<HTMLOListElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
@@ -363,6 +383,12 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             <StatusPill status={relatorio.status} />{' '}
             {sumarioMetaText({ start: relatorio.setup.service_start, end: relatorio.setup.service_end, templateName, responsibleName })}
           </p>
+          {/* Status flow 2026-10-10 (decision 5): what the status asks next, at every width; never in the Sticky action bar. */}
+          {editedRead ? (
+            <p className="section-note" id={stepId} data-testid="status-next-step">
+              {statusStepText(flow)}
+            </p>
+          ) : null}
           <p className="sum-summary" role="group" aria-label={t.summaryLabel}>
             <TextButton onPress={() => openCount('concluded')}>{fichasConcluidasText(computed)}</TextButton>
             <TextButton onPress={() => openCount('nc_open')}>{ncAbertosText(computed.nc_open)}</TextButton>
@@ -471,6 +497,12 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             </svg>
             {preview.phase.kind === 'working' ? copy.export.previewing : t.preview}
           </Button>
+          {/* Decision 2 (2026-10-10): only in Em revisão with nothing edited since the latest revision. */}
+          {sent.offered ? (
+            <Button variant="secondary" aria-describedby={stepId} onPress={() => void sent.markSent()}>
+              {MARK_SENT_LABEL}
+            </Button>
+          ) : null}
           <GenerateAction relatorioId={relatorioId} reasonId={reasonId} onSeeInSumario={(keys) => setHighlighted(new Set(keys))} onSeeAuditTarget={(target) => seeAuditTarget(target, true)} />
         </div>
       </div>

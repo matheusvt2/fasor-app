@@ -327,3 +327,116 @@ describe('Epic 13 re-check R-1: a toast answering the user\'s own press is not q
     expect(shownText()).toContain('1 leitura pronta para confirmar');
   });
 });
+
+function StatusButtons() {
+  const { showToast, withdrawToast } = useToast();
+  return (
+    <>
+      <button type="button" onClick={() => showToast('Relatório em campo', { status: true, passive: true })}>
+        em campo
+      </button>
+      <button type="button" onClick={() => showToast('Relatório em revisão', { status: true })}>
+        em revisão
+      </button>
+      <button type="button" onClick={() => showToast('Seção removida deste relatório — numeração refeita', { action: { label: 'Desfazer', onPress: undone } })}>
+        remover
+      </button>
+      <button type="button" onClick={() => withdrawToast('Seção removida deste relatório — numeração refeita')}>
+        retirar desfazer
+      </button>
+      <button type="button" onClick={() => showToast('Foto salva')}>
+        foto
+      </button>
+      <button type="button" onClick={() => showToast('Revisão 1 pronta — DOCX e PDF', { outcome: true })}>
+        revisão
+      </button>
+    </>
+  );
+}
+
+describe('status flow 2026-10-10 (M3): a status toast never drops another toast', () => {
+  function renderStatus() {
+    const timers = fakeTimers();
+    render(
+      <ToastProvider timers={timers}>
+        <StatusButtons />
+        <ToastOutlet />
+      </ToastProvider>,
+    );
+    return timers;
+  }
+
+  it('with nothing on screen it shows at once and expires like a plain toast; an edit\'s is passive, other toasts are not', async () => {
+    const timers = renderStatus();
+    await userEvent.click(screen.getByText('foto'));
+    expect(screen.getByTestId('toast')).not.toHaveAttribute('data-passive');
+    act(() => timers.run());
+    await userEvent.click(screen.getByText('em campo'));
+    expect(shownText()).toContain('Relatório em campo');
+    // Never takes a pointer press (`app.css` `.toast[data-passive]`) nor scrolls the page as it appears.
+    expect(screen.getByTestId('toast')).toHaveAttribute('data-passive');
+    // A status toast that answers the user's own press (not passive) takes presses like any toast.
+    act(() => timers.run());
+    await userEvent.click(screen.getByText('em revisão'));
+    expect(shownText()).toContain('Relatório em revisão');
+    expect(screen.getByTestId('toast')).not.toHaveAttribute('data-passive');
+    act(() => timers.run());
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+
+  it('an undo toast on screen is not lost: the status toast waits and shows once the undo toast is gone', async () => {
+    undone.mockReset();
+    renderStatus();
+    await userEvent.click(screen.getByText('remover'));
+    await userEvent.click(screen.getByText('em campo'));
+    expect(screen.getAllByTestId('toast')).toHaveLength(1);
+    expect(shownText()).toContain('Seção removida deste relatório');
+    expect(screen.getByRole('button', { name: 'Desfazer' })).toBeInTheDocument();
+    // The undo toast is retired (a later edit, or the surface leaving): the status toast shows.
+    await userEvent.click(screen.getByText('retirar desfazer'));
+    expect(shownText()).toContain('Relatório em campo');
+  });
+
+  it('pressing "Desfazer" still undoes, and the waiting status toast shows after it', async () => {
+    undone.mockReset();
+    renderStatus();
+    await userEvent.click(screen.getByText('remover'));
+    await userEvent.click(screen.getByText('em campo'));
+    await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    expect(undone).toHaveBeenCalledTimes(1);
+    expect(shownText()).toContain('Relatório em campo');
+  });
+
+  it('showing first, an undo toast takes the slot and the status toast comes back after it, for its full time', async () => {
+    const timers = renderStatus();
+    await userEvent.click(screen.getByText('em campo'));
+    await userEvent.click(screen.getByText('remover'));
+    expect(shownText()).toContain('Seção removida deste relatório');
+    await userEvent.click(screen.getByText('retirar desfazer'));
+    expect(shownText()).toContain('Relatório em campo');
+    expect(timers.pending()).toBe(1);
+    act(() => timers.run());
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+
+  it('waits behind a plain toast and behind a job outcome, and two status toasts show one after the other', async () => {
+    const timers = renderStatus();
+    await userEvent.click(screen.getByText('foto'));
+    await userEvent.click(screen.getByText('em campo'));
+    await userEvent.click(screen.getByText('em revisão'));
+    // Asked twice, queued once.
+    await userEvent.click(screen.getByText('em campo'));
+    expect(shownText()).toContain('Foto salva');
+    act(() => timers.run());
+    expect(shownText()).toContain('Relatório em campo');
+    act(() => timers.run());
+    expect(shownText()).toContain('Relatório em revisão');
+    await userEvent.click(screen.getByText('revisão'));
+    expect(shownText()).toContain('Revisão 1 pronta — DOCX e PDF');
+    // The outcome took the slot from the status toast, which comes back after it.
+    act(() => timers.run());
+    expect(shownText()).toContain('Relatório em revisão');
+    act(() => timers.run());
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+});

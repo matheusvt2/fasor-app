@@ -254,6 +254,21 @@ export function certNumberMismatchText(code: string): string {
   return `${code}: nº de certificado da ficha difere do cadastro`;
 }
 
+/**
+ * Walk-through 2026-10-09 (m2): the pushes collapsed to one per user, each the user's newest
+ * `at`, in the order the users first appear. The sync contract keys `last_push_at` by
+ * `(user, device)` and carries no device label, so two devices of one user read as two
+ * identical "Último envio" lines until they are collapsed here.
+ */
+export function latestPushPerUser<T extends { user_id: string; at: string }>(pushes: readonly T[]): T[] {
+  const newest = new Map<string, T>();
+  for (const push of pushes) {
+    const held = newest.get(push.user_id);
+    if (held === undefined || push.at > held.at) newest.set(push.user_id, push);
+  }
+  return [...newest.values()];
+}
+
 /** "Último envio de Eduardo: 06/09 18:10". */
 export function lastSendText(name: string, at: string): string {
   // authored: the Sync status surface's "Último envio", as one line of the Export dialog.

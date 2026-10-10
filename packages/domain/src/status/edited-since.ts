@@ -1,7 +1,6 @@
 import type { Op } from '../ops/op.ts';
 import { safeParsePath, targetOf, type PathFamily } from '../ops/path.ts';
-import type { BlockRow, RelatorioStatus } from '../schemas/entities.ts';
-import { statusTable } from './table.ts';
+import type { BlockRow } from '../schemas/entities.ts';
 
 /*
  * AD-15: `editedSince(snapshot_seq)` is the one predicate for "was this relatório
@@ -58,6 +57,49 @@ export function countsAsEdit(op: EditCandidate): boolean {
     return (op.value as { kind?: unknown } | null | undefined)?.kind === 'photo';
   }
   return true;
+}
+
+/** The `block/{id}/{field}` fields that are a sheet's own state, not the tree's structure. */
+const BLOCK_CONTENT_FIELDS: ReadonlySet<string> = new Set(['not_tested', 'concluded_by']);
+/** The `point/{id}/{field}` and `file/{id}/{field}` fields that order or remove a row instead of filling it. */
+const ARRANGING_FIELDS: ReadonlySet<string> = new Set(['order_key', 'removed_at']);
+
+/**
+ * Status flow 2026-10-10, decision 3 (Matheus): the edits that are field **content**, the only
+ * ones that move a Rascunho relatório to Em campo (`advanceOnEdit`). Content is what is filled
+ * on site: a sheet value (`sheet/*`, and a sheet concluded or marked not tested), a cabine's
+ * data fields (CARACTERÍSTICAS DA SE and AMBIENTE DE ENSAIO: `location/se`, `location/env`), a
+ * photo (its create, its caption and what it shows) and a point of attention (its create and
+ * its fields). Structure is not: creating, removing, restoring, reordering, moving or renaming
+ * a location, a block, an equipment or a Sumário section (`location`, `location/field`,
+ * `location/agrupar_por_tipo`, `block`, the other `block/field`s including `config`,
+ * `equipment`, `equipment/field`), nor any `remove`, nor `relatorio/setup` (decision 1). The
+ * office prepares the tree in Rascunho. Always a subset of `countsAsEdit`.
+ */
+export function countsAsFieldContent(op: EditCandidate): boolean {
+  if (!countsAsEdit(op) || op.kind === 'remove') return false;
+  const parsed = safeParsePath(op.path);
+  if (parsed === null) return false;
+  switch (parsed.family) {
+    case 'sheet/nameplate':
+    case 'sheet/checklist':
+    case 'sheet/test':
+    case 'sheet/test/cell':
+    case 'sheet/conclusion':
+    case 'sheet/observations':
+    case 'location/se':
+    case 'location/env':
+    case 'file':
+    case 'point':
+      return true;
+    case 'block/field':
+      return BLOCK_CONTENT_FIELDS.has(parsed.field);
+    case 'file/field':
+    case 'point/field':
+      return !ARRANGING_FIELDS.has(parsed.field);
+    default:
+      return false;
+  }
 }
 
 /**
@@ -137,15 +179,4 @@ export function editedOnDevice(
 ): boolean {
   const own = <T extends StreamCandidate>(ops: readonly T[]) => (stream === undefined ? ops : ops.filter((op) => inRelatorioStream(op, stream)));
   return editedSince(own(pulled), snapshotSeq) || own(unsent).some(countsAsEdit);
-}
-
-/**
- * Epic 4 retro items 19 and 20: the status a revision's arrival moves the relatório to.
- * `statusTable(status, 'issue')` when nothing was edited after the revision's snapshot;
- * null when something was (the revision lacks that edit, so the relatório stays Em revisão
- * and the next generate allocates a new number).
- */
-export function issueOnRevision(status: RelatorioStatus, editedAfterSnapshot: boolean): RelatorioStatus | null {
-  if (editedAfterSnapshot) return null;
-  return statusTable(status, 'issue');
 }

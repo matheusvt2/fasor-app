@@ -1288,8 +1288,9 @@ export const copy = {
     backToExport: 'Voltar para Gerar relatório',
     // Sticky action bar.
     complete: 'Concluir dados do relatório',
-    // authored: once the relatório has left Rascunho, the sticky bar has nothing left to do;
-    // also the toast on the Sumário after "Concluir dados do relatório" (Story 12.2).
+    // authored: once the relatório has left Rascunho, the sticky bar has nothing left to do.
+    // (Until 2026-10-10 also the toast after "Concluir dados do relatório"; that toast is now
+    // the kernel's status sentence, `statusChangeToastText`.)
     completeDone: 'Dados salvos',
   },
   // The section text editor (`45-secao.html`, Story 4.7): plain text with variable chips,

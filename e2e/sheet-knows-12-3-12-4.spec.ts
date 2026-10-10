@@ -5,6 +5,7 @@ import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { instrumentDraft, newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 import { syncNowAndReturn } from './support/sync.ts';
+import { expandLocation } from './support/tree.ts';
 
 /*
  * Stories 12.3 and 12.4 (journey review J-02, J-03, J-07, J-08, J-09, J-10, J-16), driven
@@ -590,8 +591,7 @@ test('@p0 12.4-E2E-002 "Marcar não ensaiado" from the sheet menu and the tree m
   // From the tree row's menu: nothing preselected there either, even after a mark.
   await page.goto(`/relatorio/${relatorioId}`);
   await openSection9(page);
-  const expand = page.getByRole('button', { name: 'Expandir Cubículo Enel' });
-  if ((await expand.count()) > 0) await expand.click();
+  await expandLocation(page, 'Cubículo Enel');
   await page.getByRole('button', { name: `Mais opções de ${second.tag}`, exact: true }).click();
   await page.getByRole('menuitem', { name: 'Marcar não ensaiado' }).click();
   dialog = page.getByRole('dialog', { name: 'Marcar não ensaiado' });

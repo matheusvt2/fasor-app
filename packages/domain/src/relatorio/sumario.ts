@@ -2,7 +2,7 @@ import { dateRangeText } from '../format/datetime.ts';
 import { sortByOrderKey } from '../ops/order-key.ts';
 import { livePhotos } from '../photos/order.ts';
 import { photoCountText } from '../photos/text.ts';
-import type { BlockRow, EquipmentRow, LocationRow, RelatorioStatus } from '../schemas/entities.ts';
+import type { BlockRow, EquipmentRow, LocationRow, RelatorioStatus, RevisionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { isRelatorioSectionType, relatorioSectionNumber, type RelatorioSectionType } from './instantiate.ts';
 import { blockingRows, issueConfirmReason, preIssueRowsFor, type IssueConfirmation, type PreIssueRow, type SumarioRowKey } from './pre-issue.ts';
@@ -14,6 +14,8 @@ import { pointsSummary, pointsSummaryText } from '../points/summary.ts';
 import { parecerOf, parecerVerdictLabel } from './parecer.ts';
 import { certificatesAttachedText, instrumentsCountText, section11Instruments } from '../print/section-11.ts';
 import { getSeed } from '../seed/definitions.ts';
+import { idleRevisionNumber, latestRevision, revisionTitle } from '../print/revisions.ts';
+import { statusLabel } from '../status/table.ts';
 
 /*
  * Story 4.3: the Sumário as data (`40-relatorio-overview.html`): the relatório's own table
@@ -136,7 +138,8 @@ const join = (parts: readonly (string | null | undefined)[]) => parts.filter((p)
 const META = {
   capaFixed: 'sempre no início',
   controleFixed: 'montado sozinho',
-  controle: 'montado dos dados do relatório · Rev. 1 na primeira emissão',
+  controle: 'montado dos dados do relatório',
+  controleFirst: 'Rev. 1 na primeira emissão',
   setup: 'editado em Dados do relatório › Etapa 2',
   textDefault: 'texto padrão',
   // authored: the block carries the template's own boilerplate.
@@ -147,6 +150,31 @@ const META = {
   // authored: rows whose epic has not landed.
   pendingEpic: 'disponível em uma próxima etapa',
 } as const;
+
+/** What the Controle do documento row reads: the revisions, whether anything was edited since the newest, and the status. */
+export interface ControleRevisions {
+  revisions: readonly RevisionRow[];
+  edited: boolean;
+  status: RelatorioStatus;
+}
+
+/**
+ * The Controle do documento row's line (walk-through 2026-10-09, m1; decision 4 of 2026-10-10):
+ * "Rev. 1 na primeira emissão" before any revision (verbatim from the mock); "Rev. N+1 na
+ * próxima emissão" once something was edited since revision N; with nothing edited, "Rev. N
+ * emitida" only once the relatório is Emitido (the client has it) and "Rev. N gerada" in any
+ * other status. The number is `idleRevisionNumber`, the Export dialog's own "Rev." line.
+ */
+export function controleMetaText(control?: ControleRevisions | null): string {
+  // Not known yet (the device is still reading whether anything was edited): no revision part.
+  if (control === null) return META.controle;
+  const latest = control === undefined ? null : latestRevision(control.revisions);
+  if (control === undefined || latest === null) return join([META.controle, META.controleFirst]);
+  const title = revisionTitle(idleRevisionNumber(control.revisions, control.edited));
+  // authored: 2026-10-10, the three lines after the first revision.
+  const line = control.edited ? `${title} na próxima emissão` : control.status === 'emitido' ? `${title} emitida` : `${title} gerada`;
+  return join([META.controle, line]);
+}
 
 /** `.sum-ro` of the two fixed rows. */
 export function fixedRowNote(key: 'capa' | 'controle'): string {
@@ -226,7 +254,7 @@ function metaOfSection(block: Pick<BlockRow, 'block_type' | 'config'>, issues: r
  * block in `order_key` order, numbered by position. The metas come from the pre-issue rows
  * addressed to each row, else the row's own fixed line.
  */
-export function sumarioRows(snapshot: RelatorioSnapshot, issues: readonly PreIssueRow[], computed: Progress): SumarioRow[] {
+export function sumarioRows(snapshot: RelatorioSnapshot, issues: readonly PreIssueRow[], computed: Progress, control?: ControleRevisions | null): SumarioRow[] {
   const capaIssues = preIssueRowsFor(issues, 'capa');
   const controleIssues = preIssueRowsFor(issues, 'controle');
   const capaMeta = capaIssues.length > 0
@@ -255,7 +283,7 @@ export function sumarioRows(snapshot: RelatorioSnapshot, issues: readonly PreIss
       kind: 'fixed',
       number: null,
       title: SUMARIO_TITLES.controle,
-      meta: join([META.controle, ...controleIssues.map((r) => r.text)]),
+      meta: join([controleMetaText(control), ...controleIssues.map((r) => r.text)]),
       blocking: blockingRows(controleIssues).length > 0,
       pending: pendingRows(controleIssues).length > 0,
       blockId: null,
@@ -347,7 +375,8 @@ export function nextTextSection(snapshot: Pick<RelatorioSnapshot, 'blocks'>, blo
  * The foot's `.btn-reason`: nothing blocks, or the blocking rows named by line. E78-Q1: every
  * row a blocking pre-issue row addresses is named, the rows drawn blocking and the keys of
  * `issues` alike, so a blocker the Sumário has no row for is still named by its title. With
- * nothing blocking, `confirm` (F-03) adds what the issue confirmation will count.
+ * nothing blocking, `confirm` (F-03) adds what the issue confirmation will count. The status's
+ * next step is its own sentence, under the status pill (`statusStepText`, decision 5 of 2026-10-10).
  */
 export function generateReason(rows: readonly SumarioRow[], issues: readonly PreIssueRow[] = [], confirm?: IssueConfirmation): string {
   const drawn = rows.filter((row) => row.blocking);
@@ -365,6 +394,55 @@ export function generateReason(rows: readonly SumarioRow[], issues: readonly Pre
   ];
   if (named.length === 1) return `Só ${named[0]} impede gerar. O resto está escrito em cada linha.`;
   return `${named.join(', ')} impedem gerar. O resto está escrito em cada linha.`;
+}
+
+/** What the next-step sentence reads of the status flow. */
+export interface StatusFlow {
+  status: RelatorioStatus;
+  /** The newest revision's number, or null with none. */
+  latest: number | null;
+  /** Whether anything was edited since the newest revision (`editedSince`). */
+  edited: boolean;
+  /** The setup gaps as a list (`setupGapsText`), or null when Dados do relatório is complete. */
+  setupGaps?: string | null;
+}
+
+/** "Marcar como enviado ao cliente", the one name of the `issue` action (foot, Export dialog, sentences). */
+export const MARK_SENT_LABEL = 'Marcar como enviado ao cliente';
+
+/**
+ * Decision 2 of 2026-10-10 (Matheus): "Marcar como enviado ao cliente" is offered only in
+ * Em revisão, with a revision on record and nothing edited since it, so Emitido always means
+ * the client has the current content. The table (`statusTable(status, 'issue')`) still
+ * decides the transition itself.
+ */
+export function canMarkSent(flow: Pick<StatusFlow, 'status' | 'latest' | 'edited'>): boolean {
+  return flow.status === 'em_revisao' && flow.latest !== null && !flow.edited;
+}
+
+/**
+ * The status's next step (2026-10-10, M6): its own sentence in the Sumário header, right under
+ * the status pill at every width (decision 5), never in the Sticky action bar.
+ * authored: every sentence.
+ */
+export function statusStepText(flow: StatusFlow): string {
+  const { status, latest, edited } = flow;
+  const label = statusLabel(status);
+  if (status === 'rascunho') {
+    const gaps = flow.setupGaps ?? null;
+    return gaps === null
+      ? `${label}: concluir os dados do relatório ou preencher uma ficha passa o relatório a ${statusLabel('em_campo')}.`
+      : `${label}: falta ${gaps} em Dados do relatório. Preencher uma ficha passa o relatório a ${statusLabel('em_campo')}.`;
+  }
+  if (status === 'em_campo') return `${label}: gerar o relatório passa a ${statusLabel('em_revisao')}.`;
+  if (status === 'em_revisao') {
+    if (latest === null) return `${label}: gere a revisão 1 para enviar ao cliente.`;
+    if (edited) return `${label}: há alterações desde a revisão ${latest}. Gere a revisão ${latest + 1} antes de marcar como enviado ao cliente.`;
+    return `${label}: a revisão ${latest} ainda não foi enviada ao cliente. Depois de enviar, use "${MARK_SENT_LABEL}".`;
+  }
+  if (latest === null) return `${label}.`;
+  if (edited) return `${label}: há alterações desde a revisão ${latest}. Gerar cria a revisão ${latest + 1}.`;
+  return `${label}: nada mudou desde a revisão ${latest}.`;
 }
 
 export interface RestorableBlock {

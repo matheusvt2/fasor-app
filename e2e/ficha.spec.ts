@@ -3,6 +3,7 @@ import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { syncNowAndReturn } from './support/sync.ts';
+import { expandLocation } from './support/tree.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
 import { newRelatorioDrafts, officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
@@ -50,7 +51,9 @@ async function openRelatorio(page: Page, width: number): Promise<{ relatorioId: 
   await resetCompany(account, { standard: true });
   await page.setViewportSize({ width, height: 900 });
   await signIn(page, account.email);
-  const ids = await pushNewRelatorio(page, account, database);
+  // Status flow 2026-10-10: Em campo from the start, as a relatório being filled on site is
+  // (field work would move a Rascunho one there in its first batch, with a toast).
+  const ids = await pushNewRelatorio(page, account, database, { emCampo: true });
   await page.goto(`/relatorio/${ids.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   return ids;
@@ -61,8 +64,7 @@ async function openEnel(page: Page): Promise<void> {
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
-  const expand = page.getByRole('button', { name: 'Expandir Cubículo Enel' });
-  if ((await expand.count()) > 0) await expand.click();
+  await expandLocation(page, 'Cubículo Enel');
   await expect(enelRows(page).first()).toBeVisible();
 }
 

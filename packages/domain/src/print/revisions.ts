@@ -1,5 +1,5 @@
 import { formatDateTime } from '../format/datetime.ts';
-import type { GenerationJobRow, RevisionRow } from '../schemas/entities.ts';
+import type { GenerationJobRow, RelatorioStatus, RevisionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 
 /*
@@ -193,9 +193,19 @@ export function readyToast(number: number): string {
   return `Revisão ${number} pronta — DOCX e PDF`;
 }
 
-/** The note beside the status pill in the result block. */
-export function nextEditNote(number: number): string {
-  return `Qualquer alteração a partir de agora gera a revisão ${number + 1}.`;
+/**
+ * The note beside the status pill in the result block. 2026-10-10: a ready revision is not
+ * yet with the client, so while the relatório is Em revisão with nothing edited since that
+ * revision the note says so first; once marked as sent (Emitido) it says that. With edits
+ * since it (a revision already sent, then reopened by an edit) and in any other status, the
+ * mock's sentence stands alone: nothing is claimed about a revision that may have been sent.
+ */
+export function nextEditNote(number: number, state?: { status: RelatorioStatus; edited: boolean }): string {
+  const next = `Qualquer alteração a partir de agora gera a revisão ${number + 1}.`;
+  // authored: 2026-10-10, the two leading sentences.
+  if (state?.status === 'em_revisao' && !state.edited) return `Ainda não enviada ao cliente. ${next}`;
+  if (state?.status === 'emitido') return `Enviada ao cliente. ${next}`;
+  return next;
 }
 
 /**

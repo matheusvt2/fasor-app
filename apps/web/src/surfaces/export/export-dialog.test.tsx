@@ -348,7 +348,7 @@ describe('Export dialog (Story 4.8)', () => {
     await waitFor(() => expect(sync.syncRelatorio).toHaveBeenCalled());
   });
 
-  it('turns the pulled revision into the toast, the result block, the issue op, and lists it under Revisões', async () => {
+  it('turns the pulled revision into the toast and the result block, Em revisão and not yet sent; "Marcar como enviado ao cliente" writes the one issue op; lists it under Revisões', async () => {
     database = await freshDb();
     const sync = syncState();
     render(<Harness sync={sync} />);
@@ -373,10 +373,23 @@ describe('Export dialog (Story 4.8)', () => {
     // No share sheet in this browser: neither share button renders.
     expect(within(modal).queryByRole('button', { name: 'Compartilhar DOCX' })).toBeNull();
     expect(within(modal).queryByRole('button', { name: 'Compartilhar PDF' })).toBeNull();
-    expect(within(modal).getByText('Qualquer alteração a partir de agora gera a revisão 2.')).toBeInTheDocument();
-    // Em revisão --issue--> Emitido, the device's second op; the pill follows the row.
+    // Status flow 2026-10-10: the arrival issues nothing. The relatório stays Em revisão and
+    // the result says the revision is not yet with the client.
+    await waitFor(() => expect(modal.querySelector('.row-wrap .status-pill')).toHaveTextContent('Em revisão'));
+    // Said once the device has read that nothing was edited since revision 1.
+    expect(await within(modal).findByText('Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 2.')).toBeInTheDocument();
+    expect(await statusOps(database!)).toEqual(['em_revisao']);
+    // "Marcar como enviado ao cliente" stands above "Gerar de novo" (nothing edited since revision 1).
+    const markSent = await within(modal).findByRole('button', { name: 'Marcar como enviado ao cliente' });
+    const again = within(modal).getByRole('button', { name: 'Gerar de novo' });
+    expect(markSent.compareDocumentPosition(again) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(await axe(modal)).toHaveNoViolations();
+    await userEvent.click(markSent);
+    // Em revisão --issue--> Emitido, the device's second op, once; the pill follows the row.
     await waitFor(async () => expect(await statusOps(database!)).toEqual(['em_revisao', 'emitido']));
     await waitFor(() => expect(modal.querySelector('.row-wrap .status-pill')).toHaveTextContent('Emitido'));
+    expect(within(modal).getByText('Enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 2.')).toBeInTheDocument();
+    expect(within(modal).queryByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeNull();
 
     // The Revisões list: "Rev. 1 — dd/mm/aaaa hh:mm — Bento Braga" with a DOCX and a PDF button.
     const rowElement = modal.querySelector('.revision-row')!;
@@ -463,9 +476,13 @@ describe('Export dialog (Story 4.8)', () => {
 
     const modal = dialog();
     await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
-    // No `issue` op: the revision lacks the edit.
+    // No `issue` op, and none is offered (decision 2): the revision lacks the edit.
     await waitFor(() => expect(modal.querySelector('.row-wrap .status-pill')).toHaveTextContent('Em revisão'));
     expect(await statusOps(database!)).toEqual(['em_revisao']);
+    expect(within(modal).queryByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeNull();
+    // P3: with edits since the revision the note claims nothing about the sending.
+    expect(within(modal).getByText('Qualquer alteração a partir de agora gera a revisão 2.')).toBeInTheDocument();
+    expect(within(modal).queryByText(/Ainda não enviada ao cliente/)).toBeNull();
     await userEvent.click(within(modal).getByRole('button', { name: 'Gerar de novo' }));
     await waitFor(() => expect(within(modal).getByText('Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 2. Precisa de conexão.')).toBeInTheDocument());
   });
@@ -481,7 +498,7 @@ describe('Export dialog (Story 4.8)', () => {
     });
     const modal = dialog();
     await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
-    await waitFor(async () => expect(await statusOps(database!)).toEqual(['em_revisao', 'emitido']));
+    await waitFor(async () => expect(await statusOps(database!)).toEqual(['em_revisao']));
     await userEvent.click(within(modal).getByRole('button', { name: 'Gerar de novo' }));
     await waitFor(() => expect(within(modal).getByText('Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 1. Precisa de conexão.')).toBeInTheDocument());
     return modal;
@@ -514,7 +531,7 @@ describe('Export dialog (Story 4.8)', () => {
     await waitFor(() => expect(within(modal).getByText('Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 2. Precisa de conexão.')).toBeInTheDocument());
   });
 
-  it('Q11: the ready pill reads the status after the issue op, even when the revision lands before the relatório row is read', async () => {
+  it('Q11 (2026-10-10): a revision that lands before the relatório row is read is ready and stays Em revisão; no issue op', async () => {
     database = await freshDb();
     const sync = syncState();
     const { unmount } = render(<Harness sync={sync} />);
@@ -529,10 +546,9 @@ describe('Export dialog (Story 4.8)', () => {
     render(<Harness sync={sync} />);
     const modal = dialog();
     await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
-    // The ready state never shows the status before the issue op.
-    expect(modal.querySelector('.row-wrap .status-pill')).not.toHaveTextContent('Em revisão');
-    await waitFor(() => expect(modal.querySelector('.row-wrap .status-pill')).toHaveTextContent('Emitido'));
-    expect(await statusOps(database!)).toEqual(['em_revisao', 'emitido']);
+    await waitFor(() => expect(modal.querySelector('.row-wrap .status-pill')).toHaveTextContent('Em revisão'));
+    expect(await within(modal).findByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeVisible();
+    expect(await statusOps(database!)).toEqual(['em_revisao']);
   });
 
   it('shows the inline error with "Tentar novamente" when the job fails, and a network failure ends the same way', async () => {
@@ -582,7 +598,7 @@ describe('Export dialog (Story 4.8)', () => {
     await waitFor(async () => expect(await readGenerateAwaiting(database!, REL)).toBeNull());
   });
 
-  it('E4 retro item 20 (was: no op): "unchanged" answers the existing revision with no toast, and an Em campo relatório takes generate then issue, Emitido', async () => {
+  it('"unchanged" (2026-10-10): answers the existing revision with no ready toast; an Em campo relatório takes generate only and ends Em revisão, not Emitido', async () => {
     database = await freshDb();
     const { row, op } = revisionOf(1);
     await applyPulled(database, [...jobOps('done'), op]);
@@ -593,10 +609,12 @@ describe('Export dialog (Story 4.8)', () => {
     const modal = dialog();
     await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
     expect(screen.queryByTestId('toast')).toBeNull();
-    // The fixture is Em campo (moved back past Em revisão after an issue): the same table
-    // path as an arrived revision, Em campo --generate--> Em revisão --issue--> Emitido.
-    await waitFor(async () => expect(await statusOps(database!)).toEqual(['em_revisao', 'emitido']));
-    await waitFor(() => expect(modal.querySelector('.row-wrap .status-pill')).toHaveTextContent('Emitido'));
+    // The fixture is Em campo (moved back past Em revisão): Em campo --generate--> Em revisão,
+    // and nothing more. The revision is marked as sent only by the user.
+    await waitFor(async () => expect(await statusOps(database!)).toEqual(['em_revisao']));
+    await waitFor(() => expect(modal.querySelector('.row-wrap .status-pill')).toHaveTextContent('Em revisão'));
+    expect(await within(modal).findByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeVisible();
+    expect(await statusOps(database!)).toEqual(['em_revisao']);
     expect(modal.querySelectorAll('.revision-row')).toHaveLength(1);
   });
 
@@ -800,8 +818,9 @@ describe('Export dialog (Story 4.8)', () => {
     const modal = dialog();
     await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
     expect(screen.getByTestId('toast')).toHaveTextContent('Revisão 1 pronta — DOCX e PDF');
-    await waitFor(async () => expect(await statusOps(database!)).toEqual(['em_revisao', 'emitido']));
     await waitFor(async () => expect(await readGenerateAwaiting(database!, REL)).toBeNull());
+    // Status flow 2026-10-10: the finish writes no status; only the press's `generate` op exists.
+    expect(await statusOps(database!)).toEqual(['em_revisao']);
   });
 
   it('finishes with the newest revision when the job is done but no revision carries the waited number', async () => {
@@ -850,6 +869,32 @@ describe('Export dialog (Story 4.8)', () => {
     expect(within(modal).getByRole('button', { name: 'PDF — enviar ao cliente' })).not.toHaveAttribute('aria-disabled');
     expect(modal.querySelector('.result-row .btn-reason')).toBeNull();
     expect(modal.querySelector('p.t-meta')).toHaveTextContent('23/09/2026 09:00 · Bento Braga');
+  });
+
+  it('"unchanged" naming a revision this device does not hold (2026-10-10): it is pulled, and mark-as-sent is not offered of the older held one meanwhile', async () => {
+    database = await freshDb();
+    // Revision 1 is held; the relatório is Em revisão with nothing edited since it.
+    await applyPulled(database, [...jobOps('done'), revisionOf(1).op]);
+    const record = await database.entities.get(['relatorio', REL]);
+    await database.entities.put({ ...record!, row: { ...(record!.row as object), status: 'em_revisao' } as never });
+    // The server answers revision 2, cut on another device and not pulled here yet.
+    const { row, op } = revisionOf(2);
+    const answer: GenerateResponse = { outcome: 'unchanged', revision_id: row.id, revision_number: 2 };
+    const sync = syncState({ generate: vi.fn(async () => answer) });
+    render(<Harness sync={sync} />);
+    await userEvent.click(generateButton());
+    const modal = dialog();
+    await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 2 pronta' })).toBeInTheDocument());
+    expect(sync.syncRelatorio).toHaveBeenCalledWith(REL);
+    expect(within(modal).getByRole('button', { name: 'DOCX — abrir no Word' })).toHaveAttribute('aria-disabled', 'true');
+    expect(within(modal).queryByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeNull();
+    expect(await statusOps(database)).toEqual([]);
+
+    await act(async () => {
+      await applyPulled(database!, [op]);
+    });
+    await waitFor(() => expect(within(modal).getByRole('button', { name: 'DOCX — abrir no Word' })).not.toHaveAttribute('aria-disabled'));
+    expect(await within(modal).findByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeVisible();
   });
 
   it('resumes the working state from a job the server still runs, whoever asked for it', async () => {
@@ -1278,6 +1323,30 @@ describe('Export dialog (Story 7.5)', () => {
     });
     expect(within(list).getByText(/^Último envio de Eduardo: \d{2}\/\d{2} \d{2}:\d{2}$/)).toBeVisible();
     expect(within(list).queryByText(/Último envio de Bento/)).toBeNull();
+  });
+
+  it('m2 (2026-10-10): two other devices of one user are one "Último envio" line, the newest', async () => {
+    database = await freshDb();
+    const OTHER = '019966c1-0000-7000-8000-0000000000aa';
+    const sync = syncState({
+      deviceId: 'tablet-1',
+      userNames: { [USER]: 'Bento Braga', [OTHER]: 'Eduardo' },
+      lastPushAt: [
+        { user_id: OTHER, device_id: 'tablet-2', at: '2026-09-06T21:10:00.000Z' },
+        { user_id: OTHER, device_id: 'tablet-3', at: '2026-09-07T12:30:00.000Z' },
+        { user_id: USER, device_id: 'tablet-4', at: '2026-09-05T12:00:00.000Z' },
+      ],
+    });
+    render(<Harness sync={sync} />);
+    const list = await waitFor(() => {
+      const found = dialog().querySelector('ul.precheck');
+      expect(found).not.toBeNull();
+      return found as HTMLElement;
+    });
+    expect(within(list).getAllByText(/^Último envio de Eduardo/)).toHaveLength(1);
+    expect(within(list).getByText('Último envio de Eduardo: 07/09 09:30')).toBeVisible();
+    // The signed-in user's own other device is one line too.
+    expect(within(list).getAllByText(/^Último envio de Bento Braga/)).toHaveLength(1);
   });
 });
 

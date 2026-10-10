@@ -6,7 +6,7 @@ import { deviceDatabaseName, expect, test, type SeedAccount } from './support/me
 import { readStore } from './support/outbox.ts';
 import { pushPlateSuggestions, transformerPlateFields } from './support/reading-ops.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
-import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
+import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 import { syncNow, syncNowAndReturn } from './support/sync.ts';
 
 /*
@@ -117,7 +117,8 @@ async function setUp(
   const built = newRelatorioDrafts(account);
   const scope = { relatorioId: built.relatorioId };
   const sheet = built.sheets.find((s) => s.blockType === type)!;
-  await pushDrafts(page, database, [...built.drafts, ...seed(scope, sheet, built.drafts, built.sheets)]);
+  // Status flow 2026-10-10: Em campo from the start (field work would move a Rascunho relatório there in its first batch, with a toast).
+  await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId), ...seed(scope, sheet, built.drafts, built.sheets)]);
   const all = transformerPlateFields();
   const suggestions =
     plate.length === 0

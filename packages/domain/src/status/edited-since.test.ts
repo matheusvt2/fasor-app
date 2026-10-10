@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { idSequence, TEST_USER } from '../test-support.ts';
 import {
   countsAsEdit,
+  countsAsFieldContent,
   editedOnDevice,
   editedSince,
   EDITED_SINCE_FAMILIES,
   inRelatorioStream,
-  issueOnRevision,
   referencedEquipmentIds,
   relatorioEditedSince,
   type EditCandidate,
@@ -170,18 +170,118 @@ describe('E4 retro items 18, Q15: the relatório stream', () => {
   });
 });
 
-describe('E4 retro items 19, 20: issueOnRevision', () => {
-  it('item 20: nothing edited after the snapshot, Em revisão issues to Emitido', () => {
-    expect(issueOnRevision('em_revisao', false)).toBe('emitido');
+describe('2026-10-10 decision 3: countsAsFieldContent, per path family and kind', () => {
+  const A = '019966b0-0001-7000-8000-0000000000a1';
+  const user = '019966b0-0001-7000-8000-0000000000a2';
+  const op = (path: string, kind: 'create' | 'put' | 'remove' = 'put', value: unknown = 'x') => ({ path, actor_id: user, kind, value });
+
+  it('content: sheet values, a sheet concluded or not tested, a cabine\'s data, a photo, a point', () => {
+    const content = [
+      op(`sheet/${A}/nameplate/n_serie`),
+      op(`sheet/${A}/checklist/item_1/result`),
+      op(`sheet/${A}/checklist/item_1/observation`),
+      op(`sheet/${A}/test/isolacao/instrument`),
+      op(`sheet/${A}/test/isolacao/cell/0/0`),
+      op(`sheet/${A}/conclusion/result`),
+      op(`sheet/${A}/observations`),
+      op(`block/${A}/not_tested`),
+      op(`block/${A}/concluded_by`),
+      op(`location/${A}/se/primary_kv`),
+      op(`location/${A}/env/humidity_pct`),
+      op(`file/${A}`, 'create', { kind: 'photo' }),
+      op(`file/${A}/caption`),
+      op(`file/${A}/block_id`),
+      op(`point/${A}`, 'create', {}),
+      op(`point/${A}/text`),
+      op(`point/${A}/priority`),
+    ];
+    for (const candidate of content) {
+      expect(countsAsFieldContent(candidate), `${candidate.kind} ${candidate.path}`).toBe(true);
+      expect(countsAsEdit(candidate), `${candidate.kind} ${candidate.path}`).toBe(true);
+    }
   });
 
-  it('item 19: an edit after the snapshot keeps Em revisão (no issue)', () => {
-    expect(issueOnRevision('em_revisao', true)).toBeNull();
+  it('structure: create, remove, restore, reorder, move, rename and config of locations, blocks, equipment and sections', () => {
+    const structure = [
+      op(`location/${A}`, 'create', {}),
+      op(`location/${A}/name`),
+      op(`location/${A}/parent_id`),
+      op(`location/${A}/order_key`),
+      op(`location/${A}/removed_at`),
+      op(`location/${A}/agrupar_por_tipo`),
+      op(`block/${A}`, 'create', {}),
+      op(`block/${A}/location_id`),
+      op(`block/${A}/order_key`),
+      op(`block/${A}/removed_at`),
+      op(`block/${A}/config`),
+      op(`block/${A}/feeds_block_id`),
+      op(`equipment/${A}`, 'create', {}),
+      op(`equipment/${A}/tag`),
+      op(`equipment/${A}/removed_at`),
+      op(`point/${A}/order_key`),
+      op(`point/${A}/removed_at`),
+      op(`file/${A}/removed_at`),
+    ];
+    for (const candidate of structure) {
+      expect(countsAsFieldContent(candidate), `${candidate.kind} ${candidate.path}`).toBe(false);
+      // Each still counts as an edit of an issued relatório (AD-15, unchanged).
+      expect(countsAsEdit(candidate), `${candidate.kind} ${candidate.path}`).toBe(true);
+    }
   });
 
-  it('only the table row issues: Rascunho, Em campo and Emitido give no status', () => {
-    expect(issueOnRevision('rascunho', false)).toBeNull();
-    expect(issueOnRevision('em_campo', false)).toBeNull();
-    expect(issueOnRevision('emitido', false)).toBeNull();
+  it('never content: relatorio/setup, a remove, a non-photo file, a system op, a family outside editedSince', () => {
+    expect(countsAsFieldContent(op('relatorio/setup/local'))).toBe(false);
+    expect(countsAsFieldContent(op(`point/${A}`, 'remove', null))).toBe(false);
+    expect(countsAsFieldContent(op(`file/${A}`, 'create', { kind: 'certificate' }))).toBe(false);
+    expect(countsAsFieldContent({ ...op(`sheet/${A}/observations`), actor_id: 'system:reading' })).toBe(false);
+    expect(countsAsFieldContent(op(`suggestion/${A}/status`))).toBe(false);
+    expect(countsAsFieldContent(op('relatorio/status'))).toBe(false);
+    expect(countsAsFieldContent(op('not/a/path'))).toBe(false);
+  });
+});
+
+describe('P9: every editedSince family is decided as content or structure', () => {
+  /**
+   * The decision per family, written out. A family added to `EDITED_SINCE_FAMILIES` fails this
+   * test until someone lists it here, so it can never keep (or leave) Rascunho by the
+   * predicate's `default` alone. `mixed` families decide per field; one path of each side is given.
+   */
+  const A = '019966b0-0001-7000-8000-0000000000b1';
+  const DECIDED: Record<string, { content: string[]; structure: string[] }> = {
+    'relatorio/setup': { content: [], structure: ['relatorio/setup/local'] },
+    location: { content: [], structure: [`location/${A}`] },
+    'location/field': { content: [], structure: [`location/${A}/name`] },
+    'location/se': { content: [`location/${A}/se/primary_kv`], structure: [] },
+    'location/env': { content: [`location/${A}/env/temperature_c`], structure: [] },
+    'location/agrupar_por_tipo': { content: [], structure: [`location/${A}/agrupar_por_tipo`] },
+    block: { content: [], structure: [`block/${A}`] },
+    'block/field': { content: [`block/${A}/not_tested`, `block/${A}/concluded_by`], structure: [`block/${A}/config`, `block/${A}/order_key`] },
+    'sheet/nameplate': { content: [`sheet/${A}/nameplate/n_serie`], structure: [] },
+    'sheet/checklist': { content: [`sheet/${A}/checklist/item_1/result`], structure: [] },
+    'sheet/test': { content: [`sheet/${A}/test/isolacao/instrument`], structure: [] },
+    'sheet/test/cell': { content: [`sheet/${A}/test/isolacao/cell/0/0`], structure: [] },
+    'sheet/conclusion': { content: [`sheet/${A}/conclusion/result`], structure: [] },
+    'sheet/observations': { content: [`sheet/${A}/observations`], structure: [] },
+    file: { content: [`file/${A}`], structure: [] },
+    'file/field': { content: [`file/${A}/caption`], structure: [`file/${A}/removed_at`] },
+    point: { content: [`point/${A}`], structure: [] },
+    'point/field': { content: [`point/${A}/text`], structure: [`point/${A}/order_key`] },
+    equipment: { content: [], structure: [`equipment/${A}`] },
+    'equipment/field': { content: [], structure: [`equipment/${A}/tag`] },
+  };
+  const CREATES = new Set(['location', 'block', 'file', 'point', 'equipment']);
+  const candidate = (family: string, path: string) => ({ path, actor_id: 'u', kind: CREATES.has(family) ? ('create' as const) : ('put' as const), value: family === 'file' ? { kind: 'photo' } : 'x' });
+
+  it('the table lists exactly the families of EDITED_SINCE_FAMILIES', () => {
+    expect(Object.keys(DECIDED).sort()).toEqual([...EDITED_SINCE_FAMILIES].sort());
+  });
+
+  it('each family answers as the table says, with at least one path', () => {
+    for (const [family, { content, structure }] of Object.entries(DECIDED)) {
+      expect(content.length + structure.length, family).toBeGreaterThan(0);
+      for (const path of content) expect(countsAsFieldContent(candidate(family, path)), path).toBe(true);
+      for (const path of structure) expect(countsAsFieldContent(candidate(family, path)), path).toBe(false);
+      for (const path of [...content, ...structure]) expect(countsAsEdit(candidate(family, path)), path).toBe(true);
+    }
   });
 });

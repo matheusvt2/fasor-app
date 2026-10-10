@@ -8,7 +8,7 @@ import { findDefinition } from '../seed/definitions.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { instantiateTemplate } from './instantiate.ts';
-import { blockingRows, conclusionStaleText, exportPrecheck, issueConfirmation, issueConfirmReason, issueConfirmText, parecerMissingReason, preIssue, preIssueRowsFor, type PreIssueRow } from './pre-issue.ts';
+import { blockingRows, conclusionStaleText, exportPrecheck, issueConfirmation, issueConfirmReason, issueConfirmText, latestPushPerUser, parecerMissingReason, preIssue, preIssueRowsFor, type PreIssueRow } from './pre-issue.ts';
 import { composeConclusion } from './conclusion.ts';
 import { sheetOrder } from './ficha.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
@@ -350,6 +350,27 @@ describe('7.5-UNIT preIssue: the rows the story adds', () => {
       ['rejected', 'sync', 'pending', '2 alterações rejeitadas'],
       ['last_send', 'sync', 'info', 'Último envio de Eduardo: 06/09 18:10'],
     ]);
+  });
+});
+
+describe('2026-10-10 (m2) latestPushPerUser', () => {
+  it('two devices of one user are one push, the newest; users keep their first-seen order', () => {
+    const pushes = [
+      { user_id: 'u1', device_id: 'd1', at: '2026-09-06T21:10:00.000Z' },
+      { user_id: 'u2', device_id: 'd3', at: '2026-09-05T10:00:00.000Z' },
+      { user_id: 'u1', device_id: 'd2', at: '2026-09-07T09:00:00.000Z' },
+    ];
+    expect(latestPushPerUser(pushes)).toEqual([pushes[2], pushes[1]]);
+    expect(latestPushPerUser([])).toEqual([]);
+  });
+
+  it('collapsed, the Export dialog draws one "Último envio" line per user', () => {
+    const pushes = latestPushPerUser([
+      { user_id: 'u1', at: '2026-09-06T21:10:00.000Z' },
+      { user_id: 'u1', at: '2026-09-07T12:00:00.000Z' },
+    ]).map((push) => ({ name: 'Eduardo', at: push.at }));
+    const rows = preIssue(fresh(), undefined, { now: NOW, lastPushes: pushes });
+    expect(preIssueRowsFor(rows, 'sync').map((row) => row.text)).toEqual(['Último envio de Eduardo: 07/09 09:00']);
   });
 });
 

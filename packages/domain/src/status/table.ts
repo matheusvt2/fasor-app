@@ -59,23 +59,28 @@ export function statusPillId(status: RelatorioStatus): StatusPillId {
   return PILL_IDS[status] ?? 'rascunho';
 }
 
-/** The four events of AD-22's provisional table. */
+/** The four events of AD-22's table. */
 export type StatusEvent = 'setup_complete' | 'generate' | 'issue' | 'edit';
 
 export const STATUS_EVENTS = ['setup_complete', 'generate', 'issue', 'edit'] as const;
 
 /**
- * AD-22's four forward rows, and nothing else:
+ * AD-22's forward rows (table changed by Matheus on 2026-10-10), and nothing else:
  *   Rascunho  --setup_complete--> Em campo
+ *   Rascunho  --edit------------>  Em campo     (field content only: `countsAsFieldContent`)
+ *   Rascunho  --generate-------->  Em revisão
  *   Em campo  --generate-------->  Em revisão
- *   Em revisão --issue---------->  Emitido
+ *   Em revisão --issue---------->  Emitido      ("Marcar como enviado ao cliente")
  *   Emitido   --edit------------>  Em revisão
+ *
+ * Em revisão is informational: a revision was generated and not yet sent to the client.
+ * `issue` is never emitted by a revision's arrival; it is the explicit mark-as-sent.
  *
  * Every other `(state, event)` pair returns null — no transition, never a throw,
  * so a caller outside the union (a pulled row from a newer bundle) is inert.
  */
 const TABLE: Readonly<Record<RelatorioStatus, Partial<Record<StatusEvent, RelatorioStatus>>>> = {
-  rascunho: { setup_complete: 'em_campo' },
+  rascunho: { setup_complete: 'em_campo', edit: 'em_campo', generate: 'em_revisao' },
   em_campo: { generate: 'em_revisao' },
   em_revisao: { issue: 'emitido' },
   emitido: { edit: 'em_revisao' },

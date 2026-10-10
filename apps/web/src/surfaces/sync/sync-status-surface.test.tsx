@@ -129,6 +129,23 @@ describe('Sync status surface', () => {
     expect(known.container.querySelectorAll('[data-testid="sync-last-send-row"]')[0]).toHaveTextContent('Este aparelho');
   });
 
+  it('m2 (2026-10-10): two other devices of one user are one "Último envio" row, the newer; this device keeps its own', () => {
+    const { container } = renderWith(
+      state({
+        deviceId: 'tablet-1',
+        userNames: { 'u-bruno': 'Bruno', 'u-eduardo': 'Eduardo' },
+        lastPushAt: [
+          { user_id: 'u-bruno', device_id: 'tablet-1', at: '2026-09-07T17:32:00.000Z' },
+          { user_id: 'u-eduardo', device_id: 'phone-2', at: '2026-09-06T21:10:00.000Z' },
+          { user_id: 'u-eduardo', device_id: 'tablet-3', at: '2026-09-07T12:30:00.000Z' },
+        ],
+      }),
+    );
+    const rows = [...container.querySelectorAll('[data-testid="sync-last-send-row"]')];
+    expect(rows.map((row) => row.querySelector('.sr-primary')!.textContent)).toEqual(['Último envio de Bruno: 07/09 14:32', 'Último envio de Eduardo: 07/09 09:30']);
+    expect(rows.map((row) => row.querySelector('.sr-secondary')!.textContent)).toEqual(['Este aparelho', 'Outro aparelho']);
+  });
+
   it('offline the button is aria-disabled with "Sem conexão" beside it', () => {
     renderWith(state({ online: false, badgeState: 'offline' }));
     const button = screen.getByRole('button', { name: 'Sincronizar agora' });

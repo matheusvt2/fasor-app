@@ -21,6 +21,12 @@ import type { Timers } from '../input/field-commit.ts';
  * head of the queue and shows again, for its full 6 s, after it. A toast that arrived on its own
  * (`arrival`: a reading ready to confirm, a recovered draft) keeps waiting behind the outcome.
  *
+ * Status flow 2026-10-10 (M3): a status toast ("Relatório em campo", `status: true`) says a
+ * change the app made beside what the user did, so it never takes the slot from anything: with
+ * a toast on screen (an undo above all, which never expires) it waits in the queue, and when
+ * another toast is asked for while it is showing, it goes back to the head of the queue and
+ * shows again, for its full time, afterwards. An undo toast is never lost to it.
+ *
  * Review fixes 2026-10-08 (H-7, DE-6): the queue and its timers are unchanged (an action toast
  * still never expires on a timer). What changed is where a toast may sit: while one is up, the
  * toast itself (`components/toast.tsx`) reserves its own height plus the `--sp-3` gap at the
@@ -41,6 +47,17 @@ export interface ShowToastOptions {
    * action is the user's own and interrupts the outcome, which shows again after it.
    */
   arrival?: boolean;
+  /**
+   * A status change said beside the user's own action: it waits behind whatever is on screen
+   * and is put back in the queue, not dropped, when another toast takes the slot from it.
+   */
+  status?: boolean;
+  /**
+   * Arrived by itself beside what the user is doing (the status toast of an edit): it never
+   * scrolls the page as it appears and takes no pointer press. Never set for a toast that
+   * answers the user's own press.
+   */
+  passive?: boolean;
 }
 
 export interface ToastState {
@@ -112,7 +129,7 @@ export function ToastProvider({ children, timers = browserTimers }: { children: 
       clearTimer();
       const id = ++nextId.current;
       current.current = { id, entry };
-      setToast({ id, text: entry.text, action: entry.options.action, onDismiss: entry.options.onDismiss });
+      setToast({ id, text: entry.text, action: entry.options.action, onDismiss: entry.options.onDismiss, ...(entry.options.passive === true ? { passive: true } : {}) });
       // A toast with an action is a thing to act on; only a plain one (or an outcome) expires by itself.
       if (entry.options.action === undefined) {
         handle.current = timers.setTimeout(() => {
@@ -145,6 +162,17 @@ export function ToastProvider({ children, timers = browserTimers }: { children: 
       const entry: ToastEntry = { text, options };
       const on = current.current?.entry ?? null;
       const own = options.action !== undefined && options.arrival !== true && options.outcome !== true;
+      if (options.status === true && on !== null) {
+        // A status toast never takes the slot: it waits, once per text.
+        if (on.text !== text && !queue.current.some((queued) => queued.text === text)) queue.current.push(entry);
+        return;
+      }
+      if (on?.options.status === true && on.text !== text) {
+        // The status toast is not dropped unread: it shows again after the one taking the slot.
+        queue.current = [on, ...queue.current.filter((queued) => queued.text !== on.text && queued.text !== text)];
+        slot.display(entry);
+        return;
+      }
       if (on?.options.outcome === true && own) {
         // R-1: the user's own action toast shows now; the outcome it interrupts goes back to
         // the head of the queue and is shown again, for its full time, once this one is gone.

@@ -24,7 +24,9 @@ import {
 } from '@app/domain/fixtures/replay-small';
 import { describe, expect, it } from 'vitest';
 import { commitBatch, commitOps, oldestPendingClientTs, undoBatch } from './commit.ts';
+import { commitPhotoCapture } from './file-commit.ts';
 import { openDatabase, type AppDatabase } from './schema.ts';
+import { onStatusChange, type CommittedStatusChange } from './status-changes.ts';
 import { applyPulled } from './sync-store.ts';
 import { toSnapshot } from './snapshot.ts';
 
@@ -574,6 +576,159 @@ describe('4.6-INT advanceOnEdit wiring in buildBatch/commitBatch', () => {
     const { ops } = await commitBatch(db, [put('relatorio/export/scheme', 'ordem_de_campo')], deps());
     expect(ops).toHaveLength(1);
     expect(await statusOf(db)).toBe('emitido');
+    db.close();
+  });
+});
+
+describe('status flow 2026-10-10: Rascunho advances by field work, and every status change is published', () => {
+  async function statusOf(db: AppDatabase): Promise<string> {
+    const record = await db.entities.get(['relatorio', RELATORIO_ID]);
+    return (record!.row as { status: string }).status;
+  }
+  async function seededAt(status: string): Promise<AppDatabase> {
+    const db = await freshDb();
+    await seed(db);
+    const d = deps('019966b0-000d-7000-8000-');
+    await commitOps(db, [makeOp(put('relatorio/status', status), { newId: d.newId, now: d.now() })]);
+    return db;
+  }
+  /** Collects what `commit.ts` publishes while `body` runs. */
+  async function published(body: () => Promise<unknown>): Promise<CommittedStatusChange[]> {
+    const seen: CommittedStatusChange[] = [];
+    const stop = onStatusChange((change) => seen.push(change));
+    try {
+      await body();
+    } finally {
+      stop();
+    }
+    return seen;
+  }
+
+  it('a sheet edit in Rascunho carries em_campo in the same batch and publishes the change', async () => {
+    const db = await seededAt('rascunho');
+    let result: Awaited<ReturnType<typeof commitBatch>> | null = null;
+    const seen = await published(async () => {
+      result = await commitBatch(db, [put(FIELD, 'WEG')], deps());
+    });
+    const { batch_id, ops } = result!;
+    expect(ops.map((op) => op.path)).toEqual([FIELD, 'relatorio/status']);
+    expect(ops[1]).toMatchObject({ value: 'em_campo', batch_id });
+    expect(await statusOf(db)).toBe('em_campo');
+    expect(seen).toEqual([{ relatorioId: RELATORIO_ID, from: 'rascunho', to: 'em_campo', cause: 'edit' }]);
+    db.close();
+  });
+
+  it('decision 3: structure in Rascunho (a row reordered, removed, a location renamed, a TAG renamed) keeps Rascunho, with no status op and nothing published', async () => {
+    const db = await seededAt('rascunho');
+    const rename = put(`equipment/${EQUIPMENT_1_ID}/tag`, 'TR-01B', { scope: 'project', project_id: PROJECT_ID, relatorio_id: null });
+    const structure = [put(`block/${BLOCK_1_ID}/order_key`, 'a7'), put(`block/${BLOCK_1_ID}/removed_at`, '2026-09-21T15:00:00.000Z'), put(`location/${CABINE_ID}/name`, 'Cabine A'), rename];
+    for (const [i, draft] of structure.entries()) {
+      const seen = await published(async () => {
+        const { ops } = await commitBatch(db, [draft], deps(`019966b0-00${(0x20 + i).toString(16)}-7000-8000-`));
+        expect(ops.map((op) => op.path), draft.path).toEqual([draft.path]);
+      });
+      expect(seen, draft.path).toEqual([]);
+    }
+    expect(await statusOf(db)).toBe('rascunho');
+    db.close();
+  });
+
+  it('decision 1: a relatorio/setup edit in Rascunho keeps Rascunho and publishes nothing', async () => {
+    const db = await seededAt('rascunho');
+    const seen = await published(async () => {
+      const { ops } = await commitBatch(db, [put('relatorio/setup/local', 'Sala 2')], deps());
+      expect(ops).toHaveLength(1);
+    });
+    expect(await statusOf(db)).toBe('rascunho');
+    expect(seen).toEqual([]);
+    db.close();
+  });
+
+  it('an edit in Em campo or Em revisão moves nothing and publishes nothing', async () => {
+    for (const status of ['em_campo', 'em_revisao']) {
+      const db = await seededAt(status);
+      const seen = await published(() => commitBatch(db, [put(FIELD, 'WEG')], deps()));
+      expect(await statusOf(db)).toBe(status);
+      expect(seen).toEqual([]);
+      db.close();
+    }
+  });
+
+  it('an edit after Emitido publishes the reopening; a status the caller writes publishes as an action', async () => {
+    const db = await seededAt('emitido');
+    const reopened = await published(() => commitBatch(db, [put(FIELD, 'WEG')], deps()));
+    expect(reopened).toEqual([{ relatorioId: RELATORIO_ID, from: 'emitido', to: 'em_revisao', cause: 'edit' }]);
+    const sent = await published(() => commitBatch(db, [put('relatorio/status', 'emitido')], deps('019966b0-000e-7000-8000-')));
+    expect(sent).toEqual([{ relatorioId: RELATORIO_ID, from: 'em_revisao', to: 'emitido', cause: 'action' }]);
+    // The same status written again is no change.
+    const same = await published(() => commitBatch(db, [put('relatorio/status', 'emitido')], deps('019966b0-000f-7000-8000-')));
+    expect(same).toEqual([]);
+    db.close();
+  });
+
+  it('"Desfazer" of the edit that left Rascunho puts Rascunho back and publishes it as an undo', async () => {
+    const db = await seededAt('rascunho');
+    const { batch_id } = await commitBatch(db, [put(FIELD, 'WEG')], deps());
+    expect(await statusOf(db)).toBe('em_campo');
+    const seen = await published(() => undoBatch(db, batch_id, deps('019966b0-0010-7000-8000-')));
+    expect(await statusOf(db)).toBe('rascunho');
+    expect(seen).toEqual([{ relatorioId: RELATORIO_ID, from: 'em_campo', to: 'rascunho', cause: 'undo' }]);
+    db.close();
+  });
+
+  it('P7: a photo committed through commitPhotoBatch carries the status op in its batch and publishes it (Rascunho, then Emitido reopened)', async () => {
+    for (const [from, to, n] of [
+      ['rascunho', 'em_campo', 1],
+      ['emitido', 'em_revisao', 2],
+    ] as const) {
+      const db = await seededAt(from);
+      const fileId = `019966b0-0000-7000-8000-0000000007a${n}`;
+      let batchId = '';
+      const seen = await published(async () => {
+        // `commitPhotoCapture` builds the photo's create and commits it through `commitPhotoBatch`.
+        batchId = (
+          await commitPhotoCapture(
+            db,
+            {
+              companyId: COMPANY_ID,
+              relatorioId: RELATORIO_ID,
+              actorId: USER_ID,
+              fileId,
+              blockId: BLOCK_1_ID,
+              itemKey: null,
+              caption: null,
+              capturedAt: '2026-09-21T15:00:00.000Z',
+              tzOffset: -180,
+              coords: null,
+              original: new Blob(['orig'], { type: 'image/jpeg' }),
+              thumb: new Blob(['thumb'], { type: 'image/jpeg' }),
+              sha256: 'ab'.repeat(32),
+            },
+            deps(`019966b0-003${n}-7000-8000-`),
+          )
+        ).batch_id;
+      });
+      const batch = (await db.outbox.where('batch_id').equals(batchId).toArray()).map((row) => [row.path, row.path === 'relatorio/status' ? row.value : null]);
+      expect(batch).toHaveLength(2);
+      expect(batch).toContainEqual([`file/${fileId}`, null]);
+      expect(batch).toContainEqual(['relatorio/status', to]);
+      expect(await statusOf(db)).toBe(to);
+      expect(seen).toEqual([{ relatorioId: RELATORIO_ID, from, to, cause: 'edit' }]);
+      db.close();
+    }
+  });
+
+  it('a listener that throws never fails the write', async () => {
+    const db = await seededAt('rascunho');
+    const stop = onStatusChange(() => {
+      throw new Error('listener');
+    });
+    try {
+      await expect(commitBatch(db, [put(FIELD, 'WEG')], deps())).resolves.toBeDefined();
+    } finally {
+      stop();
+    }
+    expect(await statusOf(db)).toBe('em_campo');
     db.close();
   });
 });

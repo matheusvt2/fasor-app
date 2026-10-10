@@ -17,6 +17,9 @@ import {
 
 const ALLOWED: ReadonlyArray<[RelatorioStatus, StatusEvent, RelatorioStatus]> = [
   ['rascunho', 'setup_complete', 'em_campo'],
+  // 2026-10-10: field work and a generate also leave Rascunho.
+  ['rascunho', 'edit', 'em_campo'],
+  ['rascunho', 'generate', 'em_revisao'],
   ['em_campo', 'generate', 'em_revisao'],
   ['em_revisao', 'issue', 'emitido'],
   ['emitido', 'edit', 'em_revisao'],
@@ -46,6 +49,13 @@ describe('statusTable', () => {
   it('an edit after Emitido gives Em revisão, and an issue from Em campo does not skip', () => {
     expect(statusTable('emitido', 'edit')).toBe('em_revisao');
     expect(statusTable('em_campo', 'issue')).toBeNull();
+  });
+
+  it('2026-10-10: only Em revisão issues; an edit in Em campo or Em revisão moves nothing', () => {
+    expect(statusTable('rascunho', 'issue')).toBeNull();
+    expect(statusTable('em_campo', 'edit')).toBeNull();
+    expect(statusTable('em_revisao', 'edit')).toBeNull();
+    expect(statusTable('em_revisao', 'generate')).toBeNull();
   });
 
   it('a state or event outside the table returns null and never throws', () => {

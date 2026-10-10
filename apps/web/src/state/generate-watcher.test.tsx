@@ -15,10 +15,10 @@ import type { Timers } from '../input/field-commit.ts';
 import { ToastOutlet, ToastProvider, useToast, type ToastState } from './toast.tsx';
 
 /*
- * R4 (Story 7.5): the app-level watcher turns an awaited revision into the `issue` op and
- * the ready toast wherever the user is, once; a failed job clears the wait silently; the
- * Export dialog's finish goes through the same function, so a second finish of the same
- * revision writes and says nothing.
+ * R4 (Story 7.5): the app-level watcher turns an awaited revision into the ready toast
+ * wherever the user is, once; a failed job clears the wait silently; the Export dialog's
+ * finish goes through the same function, so a second finish of the same revision says
+ * nothing. Status flow 2026-10-10: the arrival writes no status op (no automatic `issue`).
  */
 
 const REL = portoSeguroSmall.relatorioId;
@@ -103,7 +103,7 @@ afterEach(() => {
 });
 
 describe('R4 GenerateWatcher', () => {
-  it('off the Sumário: the awaited revision arrives, the issue op is written and the toast raised, once', async () => {
+  it('off the Sumário: the awaited revision arrives and the toast is raised, once; no issue op is written (2026-10-10)', async () => {
     database = await freshDb();
     await writeGenerateAwaiting(database, REL, { number: 1, job_id: JOB });
     render(<Watching />);
@@ -112,13 +112,14 @@ describe('R4 GenerateWatcher', () => {
       await applyPulled(database!, [...job('done'), op]);
     });
     await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('Revisão 1 pronta — DOCX e PDF'));
-    await waitFor(async () => expect(await issueOps(database!)).toEqual(['emitido']));
     await waitFor(async () => expect(await readGenerateAwaiting(database!, REL)).toBeNull());
-    // A later pull re-renders the watcher: nothing is written twice.
+    // A later pull re-renders the watcher: still nothing is written.
     await act(async () => {
       await applyPulled(database!, [serverOp('put', `generation_job/${JOB}/error`, null)]);
     });
-    expect(await issueOps(database!)).toEqual(['emitido']);
+    expect(await issueOps(database!)).toEqual([]);
+    // The relatório stays Em revisão: generated, not yet sent to the client.
+    expect(((await database!.entities.get(['relatorio', REL]))!.row as { status: string }).status).toBe('em_revisao');
   });
 
   it('pulls an awaited relatório\'s stream while online', async () => {
@@ -150,22 +151,17 @@ describe('R4 GenerateWatcher', () => {
     expect(await issueOps(database!)).toEqual([]);
   });
 
-  it('finishGenerate is once per revision: the dialog and the watcher never both write or toast', async () => {
+  it('finishGenerate is once per revision: the dialog and the watcher never both toast, and neither writes a status', async () => {
     database = await freshDb();
     const { row, op } = revision(1);
     await applyPulled(database, [op]);
     const toasts: string[] = [];
-    const author = { id: USER, companyId: COMPANY };
     const db = database;
-    // Each caller reads the outbox the moment it resolves: the losing one waits for the
-    // winner's `issue` op, so neither goes ready on the pre-issue status.
-    const finish = () => finishGenerate(db, author, REL, row, (text) => toasts.push(text)).then(async (won) => ({ won, ops: await issueOps(db) }));
+    const finish = () => finishGenerate(db, REL, row, (text) => toasts.push(text));
     const [first, second] = await Promise.all([finish(), finish()]);
-    expect([first.won, second.won].sort()).toEqual([false, true]);
-    expect(first.ops).toEqual(['emitido']);
-    expect(second.ops).toEqual(['emitido']);
+    expect([first, second].sort()).toEqual([false, true]);
     expect(toasts).toEqual(['Revisão 1 pronta — DOCX e PDF']);
-    expect(await issueOps(database)).toEqual(['emitido']);
+    expect(await issueOps(database)).toEqual([]);
   });
 
   it('review F-04 (Q-1): the ready toast is a job outcome: a toast asked for meanwhile waits for its 6 s, then shows', async () => {
@@ -196,7 +192,7 @@ describe('R4 GenerateWatcher', () => {
     );
     const db = database;
     await act(async () => {
-      await finishGenerate(db, { id: USER, companyId: COMPANY }, REL, row, (text, options) => toastApi.current!.showToast(text, options));
+      await finishGenerate(db, REL, row, (text, options) => toastApi.current!.showToast(text, options));
     });
     expect(screen.getByTestId('toast')).toHaveTextContent('Revisão 1 pronta — DOCX e PDF');
     act(() => toastApi.current!.showToast('1 foto ficou como Geral, sem legenda'));

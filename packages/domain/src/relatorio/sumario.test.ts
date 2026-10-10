@@ -12,11 +12,15 @@ import { progress } from './progress.ts';
 import type { ProjectRow } from '../schemas/entities.ts';
 import {
   cabineMetaText,
+  canMarkSent,
+  controleMetaText,
   fixedRowNote,
   generateReason,
+  MARK_SENT_LABEL,
   printsSeedSections,
   restorableBlocks,
   sectionMovedText,
+  statusStepText,
   SUMARIO_TITLES,
   sumarioMetaText,
   sumarioOpensExpanded,
@@ -452,5 +456,75 @@ describe('4.1-UNIT project and relatório texts', () => {
     expect(templateBlocksText(1)).toBe('1 bloco');
     expect(templateHelperText(94)).toBe('Os 94 blocos nascem nas cabines e colunas do template, com a TAG final. Arquivados não aparecem.');
     expect(templateHelperText(null)).toBe('Os blocos nascem nas cabines e colunas do template, com a TAG final. Arquivados não aparecem.');
+  });
+});
+
+describe('2026-10-10 status flow: Controle do documento meta and the next-step sentence', () => {
+  const revision = (number: number) => ({
+    id: `019966b0-0057-7000-8000-00000000000${number}`,
+    relatorio_id: 'r',
+    number,
+    snapshot_seq: number * 10,
+    created_by: TEST_USER,
+    docx_file_id: 'd',
+    pdf_file_id: 'p',
+    created_at: '2026-09-10T12:00:00.000Z',
+  });
+
+  it('m1, decision 4: the Controle row follows the revisions and the status, with the Export dialog\'s own number', () => {
+    expect(controleMetaText()).toBe('montado dos dados do relatório · Rev. 1 na primeira emissão');
+    // Not read yet: the line without its revision part.
+    expect(controleMetaText(null)).toBe('montado dos dados do relatório');
+    expect(controleMetaText({ revisions: [], edited: true, status: 'em_campo' })).toBe('montado dos dados do relatório · Rev. 1 na primeira emissão');
+    // Generated and not yet sent: "gerada" in every status but Emitido.
+    for (const status of ['rascunho', 'em_campo', 'em_revisao'] as const) {
+      expect(controleMetaText({ revisions: [revision(1)], edited: false, status })).toBe('montado dos dados do relatório · Rev. 1 gerada');
+    }
+    expect(controleMetaText({ revisions: [revision(1)], edited: false, status: 'emitido' })).toBe('montado dos dados do relatório · Rev. 1 emitida');
+    expect(controleMetaText({ revisions: [revision(1)], edited: true, status: 'em_revisao' })).toBe('montado dos dados do relatório · Rev. 2 na próxima emissão');
+    expect(controleMetaText({ revisions: [revision(1)], edited: true, status: 'emitido' })).toBe('montado dos dados do relatório · Rev. 2 na próxima emissão');
+    expect(controleMetaText({ revisions: [revision(1), revision(2)], edited: false, status: 'emitido' })).toBe('montado dos dados do relatório · Rev. 2 emitida');
+  });
+
+  it('m1: sumarioRows draws it on the Controle row', () => {
+    const snapshot = fresh();
+    const computed = progress(snapshot);
+    const issues = preIssue(snapshot, computed);
+    const metaOf = (rows: SumarioRow[]) => rows.find((r) => r.rowKey === 'controle')!.meta;
+    expect(metaOf(sumarioRows(snapshot, issues, computed))).toBe('montado dos dados do relatório · Rev. 1 na primeira emissão');
+    expect(metaOf(sumarioRows(snapshot, issues, computed, { revisions: [revision(1)], edited: true, status: 'em_revisao' }))).toBe('montado dos dados do relatório · Rev. 2 na próxima emissão');
+    expect(metaOf(sumarioRows(snapshot, issues, computed, { revisions: [revision(1)], edited: false, status: 'em_revisao' }))).toBe('montado dos dados do relatório · Rev. 1 gerada');
+  });
+
+  it('M6: every status names its next step', () => {
+    expect(statusStepText({ status: 'rascunho', latest: null, edited: true })).toBe(
+      'Rascunho: concluir os dados do relatório ou preencher uma ficha passa o relatório a Em campo.',
+    );
+    expect(statusStepText({ status: 'rascunho', latest: null, edited: true, setupGaps: 'o número da ART e um instrumento' })).toBe(
+      'Rascunho: falta o número da ART e um instrumento em Dados do relatório. Preencher uma ficha passa o relatório a Em campo.',
+    );
+    expect(statusStepText({ status: 'em_campo', latest: null, edited: true })).toBe('Em campo: gerar o relatório passa a Em revisão.');
+    expect(statusStepText({ status: 'em_revisao', latest: null, edited: true })).toBe('Em revisão: gere a revisão 1 para enviar ao cliente.');
+    expect(statusStepText({ status: 'em_revisao', latest: 1, edited: false })).toBe(
+      'Em revisão: a revisão 1 ainda não foi enviada ao cliente. Depois de enviar, use "Marcar como enviado ao cliente".',
+    );
+    expect(statusStepText({ status: 'em_revisao', latest: 1, edited: true })).toBe(
+      'Em revisão: há alterações desde a revisão 1. Gere a revisão 2 antes de marcar como enviado ao cliente.',
+    );
+    expect(statusStepText({ status: 'emitido', latest: 2, edited: false })).toBe('Emitido: nada mudou desde a revisão 2.');
+    expect(statusStepText({ status: 'emitido', latest: 2, edited: true })).toBe('Emitido: há alterações desde a revisão 2. Gerar cria a revisão 3.');
+  });
+
+  it('decision 5: generateReason is the blocking sentence alone, whatever the status', () => {
+    expect(generateReason(rowsOf(fresh()))).toBe('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.');
+    expect(generateReason.length).toBeLessThanOrEqual(3);
+  });
+
+  it('decision 2: mark-as-sent only in Em revisão, with a revision and nothing edited since it', () => {
+    expect(MARK_SENT_LABEL).toBe('Marcar como enviado ao cliente');
+    expect(canMarkSent({ status: 'em_revisao', latest: 1, edited: false })).toBe(true);
+    expect(canMarkSent({ status: 'em_revisao', latest: 1, edited: true })).toBe(false);
+    expect(canMarkSent({ status: 'em_revisao', latest: null, edited: false })).toBe(false);
+    for (const status of ['rascunho', 'em_campo', 'emitido'] as const) expect(canMarkSent({ status, latest: 1, edited: false })).toBe(false);
   });
 });

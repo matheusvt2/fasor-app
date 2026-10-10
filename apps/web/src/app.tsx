@@ -6,6 +6,7 @@ import { copy } from './copy/pt-br.ts';
 import { BackTargetProvider } from './state/back-target.tsx';
 import { DraftProvider } from './state/drafts.tsx';
 import { GenerateWatcher } from './state/generate-watcher.tsx';
+import { StatusToaster } from './state/status-toaster.tsx';
 import { ExtraBannerProvider } from './state/extra-banner.tsx';
 import { PageTitleProvider } from './state/page-title.tsx';
 import { SessionProvider, useSession } from './state/session.tsx';
@@ -69,8 +70,10 @@ function RequireSession() {
     <SyncProvider>
       <ThemeProvider>
         <ToastProvider>
-          {/* R4 (Story 7.5): the ready toast and the issue op of a pressed "Gerar relatório" arrive on any surface. */}
+          {/* R4 (Story 7.5): the ready toast of a pressed "Gerar relatório" arrives on any surface. */}
           <GenerateWatcher />
+          {/* Status flow 2026-10-10: every status change this device writes is said, on any surface. */}
+          <StatusToaster />
           <DraftProvider>
             <BackTargetProvider>
               <PageTitleProvider>

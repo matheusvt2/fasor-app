@@ -754,6 +754,9 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
   bottom: max(calc(var(--touch-field) + var(--sp-5)), calc(var(--toast-bar, 0px) + var(--sp-3)));
   max-width: calc(100vw - 2 * var(--gutter-phone));
 }
+/* Status flow 2026-10-10: the status toast of an edit (`data-passive`, "Relatório em campo") arrives by
+   itself while the user works; it carries no control, so a press where it sits goes to what is under it. */
+.toast[data-passive] { pointer-events: none; }
 
 /* F-10: `components.css` `.tree-body` (`flex: 1; min-width: 0`) and `.tree-state` (`white-space: nowrap`):
    in the 320 px rail the label wraps inside its own column and the state keeps its width, so

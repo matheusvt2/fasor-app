@@ -10,6 +10,7 @@ import { serverRow } from './support/reading-ops.ts';
 import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 import { resetEmpresaB, withSeedDb } from './support/reset-empresa-b.ts';
 import { syncNow } from './support/sync.ts';
+import { expandLocation } from './support/tree.ts';
 
 /*
  * Story 11.2 (FR-20): "Mover para…" from the Sumário's Block card Overflow and from the sheet
@@ -98,8 +99,7 @@ async function openSubsolo(page: Page): Promise<void> {
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
-  const expand = page.getByRole('button', { name: 'Expandir 1° Subsolo' });
-  if ((await expand.count()) > 0) await expand.click();
+  await expandLocation(page, '1° Subsolo');
   await expect(coluna(page, 'Coluna 5')).toBeVisible();
 }
 

@@ -23,12 +23,14 @@ import {
   type Op,
   type OpDraft,
   type RelatorioRow,
+  type RelatorioStatus,
   type RestoreMarks,
 } from '@app/domain';
 import { blockRowsOf, relatoriosOfProject } from './home-store.ts';
 import { PHOTO_SEQ_PREF, targetKeysOf, type AppDatabase, type EntityRecord, type OutboxRow } from './schema.ts';
 import { newId as mintId } from '../ids.ts';
 import { deviceId } from './device-id.ts';
+import { publishStatusChanges, type CommittedStatusChange } from './status-changes.ts';
 
 /*
  * AD-1, AD-3: the only write path of apps/web for user changes. Every op is
@@ -159,12 +161,15 @@ export async function commitBatch(
   inputs: readonly OpDraft[],
   deps: CommitDeps,
 ): Promise<{ batch_id: string; ops: Op[] }> {
-  return db.transaction('rw', batchTables(db), async () => {
+  const { statusChanges, ...committed } = await db.transaction('rw', batchTables(db), async () => {
     // `buildBatch` stamped every op with this device's id; they are applied right here, in
     // this transaction, rather than through `commitOps` and a nested one.
-    const { batch_id, ops } = await buildBatch(db, inputs, deps);
-    return { batch_id, ops: await applyAll(db, ops) };
+    const { batch_id, ops, statusChanges } = await buildBatch(db, inputs, deps);
+    return { batch_id, ops: await applyAll(db, ops), statusChanges };
   });
+  // Status flow 2026-10-10: said only once the batch is committed (a rolled-back one says nothing).
+  publishStatusChanges(statusChanges);
+  return committed;
 }
 
 /** Applies a built batch in order; returns the ops as committed (stamped). */
@@ -187,11 +192,15 @@ export async function commitBatchIf(
   inputs: readonly OpDraft[],
   deps: CommitDeps,
 ): Promise<{ batch_id: string; ops: Op[] } | null> {
-  return db.transaction('rw', batchTables(db), async () => {
+  const result = await db.transaction('rw', batchTables(db), async () => {
     if (!(await stillValid())) return null;
-    const { batch_id, ops } = await buildBatch(db, inputs, deps);
-    return { batch_id, ops: await applyAll(db, ops) };
+    const { batch_id, ops, statusChanges } = await buildBatch(db, inputs, deps);
+    return { batch_id, ops: await applyAll(db, ops), statusChanges };
   });
+  if (result === null) return null;
+  const { statusChanges, ...committed } = result;
+  publishStatusChanges(statusChanges);
+  return committed;
 }
 
 /**
@@ -210,13 +219,14 @@ async function buildBatch(
   db: AppDatabase,
   inputs: readonly OpDraft[],
   deps: CommitDeps,
-): Promise<{ batch_id: string; ops: Op[] }> {
+): Promise<{ batch_id: string; ops: Op[]; statusChanges: CommittedStatusChange[] }> {
   const device_id = await deviceId(db, deps.newId);
   const batch_id = deps.newId();
   const now = deps.now();
   const built = inputs.map((input) => makeOp({ ...input, batch_id, device_id }, { newId: deps.newId, now }));
 
-  // AD-22: append the Emitido→Em revisão transition once per relatório this batch touches
+  // AD-22 (table of 2026-10-10): append the transition an edit causes (Emitido→Em revisão,
+  // and Rascunho→Em campo for field work) once per relatório this batch touches
   // (`advanceOnEdit`), computed here and nowhere else -- the one place every relatório-scoped
   // write path (setup fields, the Sumário's reorders, the tree, sheets) gets covered without
   // any surface deciding a status transition of its own (AD-1, AD-13). A project-scope
@@ -238,16 +248,23 @@ async function buildBatch(
       for (const op of equipmentOps) if (op.project_id === projectId && inRelatorioStream(op, stream)) touch(relatorio.id, op);
     }
   }
+  // Status flow 2026-10-10: every status this batch changes, for the toast said after the commit.
+  const statusChanges: CommittedStatusChange[] = [];
   for (const [relatorioId, relatorioOps] of byRelatorio) {
-    if (relatorioOps.some((op) => op.path === 'relatorio/status')) continue;
     const record = await db.entities.get(['relatorio', relatorioId]);
     const row = record?.row as RelatorioRow | undefined;
     if (row === undefined) continue;
+    const explicit = relatorioOps.filter((op) => op.path === 'relatorio/status' && op.kind === 'put').at(-1);
+    if (explicit !== undefined) {
+      if (typeof explicit.value === 'string') statusChanges.push({ relatorioId, from: row.status, to: explicit.value as RelatorioStatus, cause: 'action' });
+      continue;
+    }
     const next = advanceOnEdit(row.status, relatorioOps);
     if (next === null) continue;
     const trigger = relatorioOps[0]!;
     const draft = putRelatorioStatusOp({ id: trigger.actor_id, companyId: trigger.company_id }, relatorioId, next);
     built.push(makeOp({ ...draft, device_id, batch_id }, { newId: deps.newId, now }));
+    statusChanges.push({ relatorioId, from: row.status, to: next, cause: 'edit' });
   }
 
   const ops: Op[] = [];
@@ -261,7 +278,7 @@ async function buildBatch(
     lastInBatch.set(slot, chained.op_id);
     ops.push(chained);
   }
-  return { batch_id, ops };
+  return { batch_id, ops, statusChanges };
 }
 
 export interface FileBatchInput {
@@ -285,9 +302,9 @@ export async function commitFileBatch(
   input: FileBatchInput,
   deps: CommitDeps,
 ): Promise<{ batch_id: string; ops: Op[] }> {
-  return db.transaction('rw', [...batchTables(db), db.files], async () => {
+  const { statusChanges, ...committed } = await db.transaction('rw', [...batchTables(db), db.files], async () => {
     // `buildBatch` already stamped every op with this device's id (Epic 2 retro D-8).
-    const { batch_id, ops: built } = await buildBatch(db, input.ops, deps);
+    const { batch_id, ops: built, statusChanges } = await buildBatch(db, input.ops, deps);
     const created_at = toIso(deps.now());
     const ops = await applyAll(db, built);
     await db.files.put({
@@ -298,8 +315,10 @@ export async function commitFileBatch(
       created_at,
       ...(input.fileName === undefined ? {} : { name: input.fileName }),
     });
-    return { batch_id, ops };
+    return { batch_id, ops, statusChanges };
   });
+  publishStatusChanges(statusChanges);
+  return committed;
 }
 
 export interface PhotoBatchInput {
@@ -324,8 +343,8 @@ export async function commitPhotoBatch(
   deps: CommitDeps,
 ): Promise<{ batch_id: string; ops: Op[]; localSeq: number }> {
   const createPath = `file/${input.fileId}`;
-  return db.transaction('rw', [...batchTables(db), db.files, db.thumbs], async () => {
-    const { batch_id, ops: built } = await buildBatch(db, [input.create], deps);
+  const { statusChanges, ...committed } = await db.transaction('rw', [...batchTables(db), db.files, db.thumbs], async () => {
+    const { batch_id, ops: built, statusChanges } = await buildBatch(db, [input.create], deps);
     const created_at = toIso(deps.now());
     const pref = await db.local_prefs.get(PHOTO_SEQ_PREF);
     const localSeq = typeof pref?.value === 'number' && Number.isInteger(pref.value) && pref.value >= 0 ? pref.value + 1 : 1;
@@ -336,8 +355,10 @@ export async function commitPhotoBatch(
     const committed = await applyAll(db, ops);
     await db.files.put({ id: input.fileId, variant: 'original', blob: input.original, acked: false, created_at });
     await db.thumbs.put({ id: input.fileId, blob: input.thumb, source: 'device', created_at });
-    return { batch_id, ops: committed, localSeq };
+    return { batch_id, ops: committed, localSeq, statusChanges };
   });
+  publishStatusChanges(statusChanges);
+  return committed;
 }
 
 /** Undo: N inverse ops in a new batch, built from the outbox rows of the batch (dead rows never applied, AD-24). */
@@ -346,7 +367,17 @@ export async function undoBatch(db: AppDatabase, batchId: string, deps: CommitDe
   const before = new Map<string, unknown>(rows.map((row) => [row.op_id, row.prev_value]));
   const marks = new Map<string, RestoreMarks>(rows.flatMap((row) => (row.prev_marks === undefined ? [] : [[row.op_id, row.prev_marks] as const])));
   const inverses = invertBatch(rows.map(opOf), before, { newId: deps.newId, now: deps.now() }, marks);
-  return commitOps(db, inverses, deps);
+  // Status flow 2026-10-10: an undo that puts the status back (the edit that reopened an
+  // Emitido relatório, undone) is a status change like any other, and is said.
+  const statusChanges: CommittedStatusChange[] = [];
+  for (const inverse of inverses) {
+    if (inverse.path !== 'relatorio/status' || inverse.kind !== 'put' || inverse.relatorio_id == null || typeof inverse.value !== 'string') continue;
+    const row = (await db.entities.get(['relatorio', inverse.relatorio_id]))?.row as RelatorioRow | undefined;
+    if (row !== undefined) statusChanges.push({ relatorioId: inverse.relatorio_id, from: row.status, to: inverse.value as RelatorioStatus, cause: 'undo' });
+  }
+  const committed = await commitOps(db, inverses, deps);
+  publishStatusChanges(statusChanges);
+  return committed;
 }
 
 /**

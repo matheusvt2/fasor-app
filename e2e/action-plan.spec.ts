@@ -7,7 +7,7 @@ import { downloadBytes, downloadFrom } from './support/download.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { confirmIssue, setParecer, typeDate } from './support/relatorio-flow.ts';
-import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
+import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 
 /*
  * 11.9/11.10-E2E: the Priority picker, Prazo and Responsável of a point of attention, and the
@@ -66,7 +66,8 @@ async function setUp(
   const { drafts, rows } = pointDrafts(scope, options.texts ?? ['Plaquetas de identificação ausentes.']);
   const next = options.nextIntervention === undefined ? NEXT_INTERVENTION : options.nextIntervention;
   const setup = next === null ? [] : [officeDraft(account, scope, 'relatorio/setup/next_intervention_date', next)];
-  await pushDrafts(page, database, [...built.drafts, ...setup, ...drafts, ...(options.extra?.(scope, built.sheets) ?? [])]);
+  // Status flow 2026-10-10: Em campo from the start (field work would move a Rascunho relatório there in its first batch, with a toast).
+  await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId), ...setup, ...drafts, ...(options.extra?.(scope, built.sheets) ?? [])]);
   await page.goto(`/relatorio/${built.relatorioId}/pontos`);
   await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
   await expect(cards(page)).toHaveCount(rows.length, { timeout: 30_000 });

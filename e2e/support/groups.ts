@@ -50,6 +50,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'review-layout-interaction-2026-10-08.spec.ts',
     why: 'measures the layout of what the page renders (table inputs and scrollers, dialogs, the Sticky action bar, tree rows, hit points under inputs) at fixed viewports, so it must not share the CPU with other workers',
   },
+  // Status flow 2026-10-10: SF-E2E-002 generates a revision on the fixture.
+  {
+    file: 'status-flow-2026-10-10.spec.ts',
+    why: 'generates a revision through the shared queue and LibreOffice and loads the fixed-id Porto Seguro fixture',
+  },
   // Stories 11.9/11.10: 11.10-E2E-001 generates the DOCX its action-plan table is read from.
   {
     file: 'action-plan.spec.ts',

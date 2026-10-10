@@ -30,6 +30,7 @@ import { EnsaiosSection } from './ensaios-section.tsx';
 import { FichaDialogs } from './ficha-dialogs.tsx';
 import { FichaHeader } from './ficha-header.tsx';
 import { FichaRail, type RailState } from './ficha-rail.tsx';
+import { useFichaIssuedBanner } from './issued-banner.ts';
 import { NameplateSection } from './nameplate-section.tsx';
 import { NotTestedBand } from './not-tested-band.tsx';
 import { AddPhotosButton } from './photo-openers.tsx';
@@ -150,9 +151,11 @@ function FichaBody({
   // Story 10.2: the open sheet's contradicting cells, "SEC-C12: 1 célula em contradição" with
   // "Ver"; the conflict Banner outranks every other candidate of the one slot.
   const conflict = useConflictBanner({ relatorioId, blockId });
+  // Status flow 2026-10-10: on an Emitido relatório the sheet says that editing reopens it.
+  const issuedBanner = useFichaIssuedBanner(state, relatorioId, snapshot.relatorio.status);
   const banner = useMemo(
-    () => pickBanner([conflict.banner, suggestionsBanner].filter((row): row is Banner => row !== null)),
-    [conflict.banner, suggestionsBanner],
+    () => pickBanner([conflict.banner, suggestionsBanner, issuedBanner].filter((row): row is Banner => row !== null)),
+    [conflict.banner, suggestionsBanner, issuedBanner],
   );
   useExtraBanner(banner);
 
