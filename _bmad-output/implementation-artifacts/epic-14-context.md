@@ -191,7 +191,7 @@ time, stacked branches, one integrated review at the end.
 |---|---|---|---|---|
 | e14a | 14.2 (with the removal pass of 2026-10-13) | `story/14-2-local-painel-coluna`, from main | 17, no seed | PR #126, second pass running |
 | e14b | 14.3 and 14.4 (site checklist: capture and print, one data set) | `story/14-3-14-4-verificacoes-do-local`, stacked on e14a at `6493597` | 18, seed v4 | starts 2026-10-13 |
-| e14c | 14.5 (measurement table and the CTA type) | `story/14-5-measurement-table-cta`, stacked on e14b's first kernel commit | 19, seed v5 | starts when the e14a stack frees |
+| e14c | 14.5 (measurement table and the CTA type) | `story/14-5-measurement-table-cta`, stacked on e14b's first kernel commit | 19, seed v5 | ~~starts when the e14a stack frees~~ started 2026-10-13 from e14b kernel commit `fbcf432`, kernel phase first with no stack of its own; its stack comes up when the e14a stack stops |
 
 Rules for the lanes:
 
@@ -213,4 +213,9 @@ Rules for the lanes:
   review and the browser pass run once, on the integrated main after the last merge (playbook § 6), followed by one
   fix batch.
 - Wave gate (full `@p0`, `test:e2e:full`, the matrix) once, on the integrated main after e14c merges.
+- Settled for e14c (coordinator, 2026-10-13, from Matheus's "deixe configurável as opções" of 2026-10-09 and
+  `sprint-change-proposal-2026-10-08.md` § 8.4): the E5 options (método, carga with its % when "com carga", fonte
+  dos tempos) say how the test was run on site, so they are **sheet values chosen by the technician on the sheet**,
+  field content for the status flow, printed beside the E5 times. They are not `BlockConfig`. What stays block
+  config is what shapes the sheet before the visit: tensão BT/MT, polos, neutro, transição, bypass.
 
