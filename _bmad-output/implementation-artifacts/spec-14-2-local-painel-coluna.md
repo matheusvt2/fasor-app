@@ -2,7 +2,7 @@
 title: 'Story 14.2: Local › Painel › Coluna (a painel groups colunas, equipment on the local or on a coluna)'
 type: 'feature'
 created: '2026-10-13'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '9b42b262b1cd503cf8c4f834a5b9d74f42193746'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -124,6 +124,31 @@ E2E (`e2e/`): `templates.spec.ts`, `tree.spec.ts`, `ficha.spec.ts:273,316`, `she
 - Given each of the three levels on both surfaces, when a node is renamed or reordered by drag, Alt+arrow, menu and Position box, then the committed op is the existing `location/{id}/name` or `order_key` put (template: one `skeleton` put), the kernel announcement is spoken, and "Desfazer" restores the earlier value; the composer also removes at each level.
 - Given a relatório created from the template of the e2e, when it is generated under each scheme with *Agrupar por tipo* on and off, then section 9 follows the matrix, and a local with no painel and the Porto Seguro goldens are unchanged.
 - Given any device on contract 16, when it pulls, then it is told to update; given this bundle, when it pushes a painel tree, then both layers hold byte-equal rows.
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-10-13 — Review pass
+
+Layers run: Edge Case Hunter, Verification Gap Reviewer (opus). Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them.
+
+- verdicts: 14 findings — high 0, medium 2, low 10, false 1, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` `merge/info.ts` `LATEST_EDIT_FAMILIES` lacks `location/funcao` — verified at `packages/domain/src/merge/info.ts:35-45`: concurrent Função puts fold with no `latest_edit` entry, unlike the sibling location families; family added with a test.
+  - `[low]` `[patch]` `tree-actions.ts` `updateLocal` writes back the untouched field when a pull changed it while "Função e nome" was open — verified: the answer was compared with the fresh row; now compared with what the dialog opened on.
+  - `[low]` `[patch]` `template-composer.tsx` `onSubmitLocal` (edit mode), same defect on the skeleton — verified; same fix.
+  - `[low]` `[patch]` `skeleton-list.tsx`: "Adicionar painel" or "Adicionar coluna" from the Overflow of a collapsed card adds the node hidden — verified (`collapsed` set is never cleared on add); the parent expands on add.
+  - `[low]` `[reject]` `local-dialog.tsx` `funcaoOf`: "Outra" typed as a reserved label ("Primária") is stored as a typed name — real, reads the same on screen; unlikely in everyday use and the fix adds a mapping branch (spec Design Notes accept a typed text beside the keys).
+  - `[low]` `[reject]` `relatorio/panel.ts` `panelLocation`: a panel label read with the palette on a local matches no coluna inside a painel, so the block is proposed on the local (`matched: false`) — real; the conservative answer when two painéis may hold the same coluna number, and the fix needs an ambiguity rule the story does not give. Listed as known open.
+  - `[low]` `[patch]` `relatorio-tree.tsx` painel branch draws no equipment — verified: a block on a painel (accepted by the fold only when the painel was not in state) was counted and undrawn; the branch renders its equipment list. The other half (a painel under a non-local row) is rejected: no client writes it and the kernel tree still returns it.
+  - `[false]` `[reject]` `ops/apply.ts`: a block op applied before its painel row is in state is accepted — by design: the intent contract says a location not in state is not checked (replay safety, as depth was never enforced, AD-6); no client can name a painel another device has not synced.
+  - `[low]` `[patch]` `tree-actions.ts` `updateLocal` on a tombstoned local — verified (`removed_at` not read); the row is treated as gone.
+  - `[low]` `[reject]` `print/section-9.ts`: a bare numbered local heading, or a bare band, when every sheet under it fails to resolve — real only for a sheet `sheetOf` cannot build (an unknown seed version); unlikely, and the fix adds a second pass over the subsections.
+  - `[medium]` `[patch]` Regression gap: no tree test moves a location in a local holding a direct coluna and painéis (`tree-actions.ts:203` kind argument unobserved) — filed pre-verified; the mixed-local case added to `relatorio-tree-painel.test.tsx`.
+  - `[low]` `[patch]` Broken-verification gap: `e2e/tree.spec.ts` 5.2-E2E-004 asserted a rail line that no longer changes with the edit — filed pre-verified; the test now writes from the open sheet and asserts the rail line moves.
+  - `[maybe-false]` `[reject]` Thirteen specs the diff did not touch drive the redrawn section-9 rows and first meet them in the wave gate — no stale selector found by search; settled by running them: the orchestrator adds them to this batch's Playwright run (results in Auto Run Result).
+  - `[low]` `[reject]` `targetsOf` now names the location of a block create or `location_id` put, so the device's `targets` index is mixed across bundles and a pulled block create re-materializes its location — traced: no wrong row (server and device write changed rows only; a location replay ignores the block ops); extra work only, and a read-only ref list would be a new public surface. Listed as known open.
 
 ## Design Notes
 
