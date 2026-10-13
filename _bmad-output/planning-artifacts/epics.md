@@ -3236,6 +3236,12 @@ So that the client sees the room's condition beside its equipment.
 **When** it is generated
 **Then** the document is unchanged and the golden documents still match (AD-15)
 
+**Acceptance Criteria added 2026-10-13 (from the review of PR #126, Story 14.2):**
+
+**Given** a local with *Agrupar por tipo* on and two painéis that each hold sheets of the same type
+**When** the relatório is generated
+**Then** the ÍNDICE and the headings tell the two groups apart: today both print the same numbered title ("Seccionadoras dos Cubículos de MT da ⟨local⟩" twice, because the painel band is unnumbered and the group title names only the local). Recommended, pending Bruno's word on the title: the type-group title under a painel names the painel ("Seccionadoras dos Cubículos de MT do ⟨painel⟩ — ⟨local⟩"); a local with no painel keeps the FO.SERV-03 titles unchanged. And with the flag on and no equipment placed directly on the local, the local still prints its own numbered heading before its first painel, as it does with the flag off (FR-68; AD-6; `deferred-work.md`, Story 14.2 coordinator review, entry on the ÍNDICE)
+
 **Definition of Done, in addition:** the DOCX and its PDF are checked against the approved print mock; the generate specs touched run serially per `e2e/support/groups.ts`.
 
 ### Story 14.5: The measurement table and two library types: Fonte auxiliar da proteção and Chave de transferência automática
