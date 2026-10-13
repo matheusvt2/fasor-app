@@ -198,11 +198,68 @@ describe('3.4 composer: quantities per node', () => {
     expect(within(own).getByText('Equipamentos no local')).toBeVisible();
     expect(within(own).getByRole('group', { name: 'Para-raios, 2' })).toBeVisible();
     expect(within(own).getByRole('group', { name: 'Transformadores, 1' })).toBeVisible();
-    // A second press releases the local: the palette asks for a target again.
+    // Coordinator review 2026-10-13: with the palette in the drawer (not beside the composition), a press on
+    // the local that is already the target opens the drawer again and keeps the target; it never releases it.
     await userEvent.click(add);
-    expect(add).toHaveAttribute('aria-pressed', 'false');
-    expect(card).not.toHaveClass('is-current');
-    expect(palette().querySelector('.pal-target')).toHaveTextContent('Selecione um local ou uma coluna.');
+    const again = await screen.findByRole('dialog', { name: 'Cubículo Enel' });
+    expect(again.querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Cubículo Enel, direto no local');
+    expect(within(again).getByRole('group', { name: 'Transformadores, 1' })).toBeVisible();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(add).toHaveAttribute('aria-pressed', 'true');
+    expect(card).toHaveClass('is-current');
+  });
+
+  it('a local just added is the target already: one tap on its "Adicionar equipamento" opens the drawer on it, and one more after closing reopens it', async () => {
+    database = await freshDb(emptyTemplate(ID, 'v3'));
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: 'Adicionar local' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Adicionar local' });
+    await userEvent.click(within(dialog).getByRole('radio', { name: 'Transformação' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Adicionar local' }));
+    await waitFor(() => expect(announcer()).toHaveTextContent('Cabine de transformação adicionada'));
+    const card = (await screen.findByRole('button', { name: /^Local Cabine de transformação/ })).closest('li') as HTMLElement;
+    // The new local is the palette's target before anything is tapped on it.
+    await waitFor(() => expect(card).toHaveClass('is-current'));
+    const add = within(card).getByRole('button', { name: 'Adicionar equipamento' });
+    expect(add).toHaveAttribute('aria-pressed', 'true');
+    expect(palette().querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Cabine de transformação, direto no local');
+
+    // The first tap, then one more after the drawer was closed.
+    for (let tap = 0; tap < 2; tap++) {
+      await userEvent.click(add);
+      const drawer = await screen.findByRole('dialog', { name: 'Cabine de transformação' });
+      expect(drawer.querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Cabine de transformação, direto no local');
+      expect(within(drawer).getByRole('group', { name: 'Transformadores, 0' })).toBeVisible();
+      expect(card).toHaveClass('is-current');
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(add).toHaveAttribute('aria-pressed', 'true');
+    }
+  });
+
+  it('with the palette beside the composition (from 1024 px) a second press on the local releases it and no drawer opens: the mock toggle', async () => {
+    // jsdom lays nothing out, so every `offsetParent` is null; a laid-out page is stood in for here.
+    const offsetParent = vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockImplementation(() => document.body);
+    try {
+      database = await freshDb(standardTemplate({ id: ID }));
+      renderComposer();
+      const card = (await screen.findByRole('button', { name: /^Local Cubículo Enel/ })).closest('li') as HTMLElement;
+      const add = within(card).getByRole('button', { name: 'Adicionar equipamento' });
+      await userEvent.click(add);
+      expect(add).toHaveAttribute('aria-pressed', 'true');
+      expect(card).toHaveClass('is-current');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(palette().querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Cubículo Enel, direto no local');
+      // A second press releases the local: the palette asks for a target again.
+      await userEvent.click(add);
+      expect(add).toHaveAttribute('aria-pressed', 'false');
+      expect(card).not.toHaveClass('is-current');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(palette().querySelector('.pal-target')).toHaveTextContent('Selecione um local ou uma coluna.');
+    } finally {
+      offsetParent.mockRestore();
+    }
   });
 });
 

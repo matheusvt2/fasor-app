@@ -246,17 +246,22 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
       .catch(() => undefined);
   }
 
-  /** "Adicionar equipamento" on a local: it becomes the palette's target (a second press releases it). */
+  /**
+   * "Adicionar equipamento" on a local: it becomes the palette's target. From 1024 px the
+   * palette sits beside the composition (CSS alone decides, never a JS breakpoint) and a
+   * second press releases the local, the mock's toggle. Below, the palette is hidden, so
+   * every press opens the drawer on the local and keeps it the target: a local that is
+   * already current (one just added, or one whose drawer was closed) opens it in one tap.
+   */
   function onAddEquipamento(local: ComposerCabine): void {
-    if (currentRef === local.ref) {
+    const first = firstSection.current;
+    const inline = first !== null && first.offsetParent !== null;
+    if (inline && currentRef === local.ref) {
       setCurrentRef(null);
       return;
     }
     setCurrentRef(local.ref);
-    // From 1024 px the palette sits beside the composition (CSS alone decides); below, it is
-    // hidden, so the drawer opens on the local it now adds to.
-    const first = firstSection.current;
-    if (first === null || first.offsetParent === null) setPaletteOpen(true);
+    if (!inline) setPaletteOpen(true);
   }
 
   function onAddPainel(local: ComposerCabine): void {
