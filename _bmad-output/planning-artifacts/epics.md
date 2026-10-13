@@ -3104,7 +3104,7 @@ So that a transformation room with two transformers needs no invented coluna.
 
 **Given** a company template created before this story *(added 2026-10-09, readiness)*
 **When** it is opened in the composer or used to create a relatório
-**Then** each root cabine is wrapped in a local of the same name, written as template ops (the template's version moves, no relatório is touched), so every relatório created afterwards has locals; a relatório created before keeps its cabine roots
+**Then** ~~each root cabine is wrapped in a local of the same name, written as template ops (the template's version moves, no relatório is touched), so every relatório created afterwards has locals; a relatório created before keeps its cabine roots~~ *(2026-10-13: void since 2026-10-10 — the root cabine is itself the local, so nothing is wrapped or migrated)*
 
 **Given** the Template composer and the relatório tree
 **When** they render a v4 skeleton
@@ -3138,7 +3138,7 @@ So that the relatório records the room itself and an NC becomes a point of atte
 
 **Given** templates and relatórios that exist before this story
 **When** a relatório is created after it
-**Then** the seeded standard template and every live company template reach v4 without touching any relatório (the mechanism is settled in the story spec, never a rewrite of a relatório's `seed_version`), and a relatório on v1 to v3 shows and prints no site checklist (AD-21) *(readiness 2026-10-09: every such template already has locals from Story 14.2; a relatório on v4 created from a template with locals carries the checklist on each local)*
+**Then** the seeded standard template and every live company template reach v4 without touching any relatório (the mechanism is settled in the story spec, never a rewrite of a relatório's `seed_version`), and a relatório on v1 to v3 shows and prints no site checklist (AD-21) ~~*(readiness 2026-10-09: every such template already has locals from Story 14.2; a relatório on v4 created from a template with locals carries the checklist on each local)*~~ *(2026-10-13: void since 2026-10-10 — every root cabine is a local, so every relatório on v4 carries the checklist on each of its root rows)*
 
 **Given** a local of a relatório on v4
 **When** the user opens "Verificações do local" from the local's tree row or from the "Da cabine" line
