@@ -316,3 +316,5 @@ Layers run: Edge Case Hunter (kernel and op batches) and Verification Gap Review
   - `[answered]` The changed step of `relatorio-tree-edges.test.tsx` is stricter, and the file was red on the baseline (see "Existing tests changed").
   - `[answered]` The documents of task C were not in the reviewed range — written after the review (spine AD-6, the ledger, `docs/kbs`).
 
+**After the fix loop.** Signature changes for callers: `newLocation(locations, input)` expects every location row of the relatório, removed ones included (the web hands it `fresh.allLocations`); `restorableBlocks`' location rows carry `removed_at`; `openDecisions` and `DecisionTextContext` take the locations removed ones included. `locationRows` in `apps/web/src/db/home-store.ts` (live rows by their own `removed_at`) is left with test callers only: the editor and the decision store read `allLocationRows` and the kernel's liveness. Revert checks: every fix and every added test of the loop was run against its behaviour reverted and failed (F1 order and toast, F2 names and key, F3 the fallback, T1 a `removed_at IS NULL` filter in `apps/api/src/sync/snapshot.ts`, T4 both branches).
+
