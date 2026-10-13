@@ -139,6 +139,11 @@ const live = (location: LocationRow) => location.removed_at === null;
  * the column's two digits ("C09" is "Coluna 9"); else the palette location itself,
  * `matched: false` (no coluna is ever created). Null when the palette location is gone, or
  * is a painel (Story 14.2: a painel takes no block, and the palette never opens on one).
+ *
+ * With the palette on a local (coordinator review 2026-10-13), a number no coluna directly
+ * under the local carries is also looked for among the colunas of the local's live painéis:
+ * the only one of that number is taken; when more than one painel holds a coluna of that
+ * number, none is (the label does not say which painel), so the block is proposed on the local.
  */
 export function panelLocation(locations: readonly LocationRow[], paletteLocationId: string, column: number | null): PanelLocation | null {
   const palette = locations.find((location) => location.id === paletteLocationId && live(location));
@@ -147,11 +152,17 @@ export function panelLocation(locations: readonly LocationRow[], paletteLocation
   const group = palette.kind === 'cabine' ? palette : locations.find((location) => location.id === palette.parent_id && live(location));
   if (group !== undefined) {
     const code = `C${String(column).padStart(2, '0')}`;
-    const coluna = locations.find(
-      (location): location is Extract<LocationRow, { kind: 'coluna' }> =>
-        live(location) && location.kind === 'coluna' && location.parent_id === group.id && locationCode({ kind: location.kind, name: location.name }) === code,
-    );
+    const named = (parentId: string) =>
+      locations.filter(
+        (location): location is Extract<LocationRow, { kind: 'coluna' }> =>
+          live(location) && location.kind === 'coluna' && location.parent_id === parentId && locationCode({ kind: location.kind, name: location.name }) === code,
+      );
+    const [coluna] = named(group.id);
     if (coluna !== undefined) return { location: coluna, matched: true };
+    if (palette.kind === 'cabine') {
+      const inPaineis = locations.filter((location) => live(location) && location.kind === 'painel' && location.parent_id === palette.id).flatMap((painel) => named(painel.id));
+      if (inPaineis.length === 1) return { location: inPaineis[0]!, matched: true };
+    }
   }
   return { location: palette, matched: false };
 }

@@ -7,7 +7,6 @@ import { panelLocation } from './panel.ts';
 import { cabineSemEquipamentoText, preIssue } from './pre-issue.ts';
 import { cabineLocationIds, locationProgress, progressCounterText } from './progress.ts';
 import { cabineMetaText } from './sumario.ts';
-import { suggestTag } from './tag.ts';
 import {
   duplicateTagSuggestion,
   firstInTree,
@@ -330,14 +329,43 @@ describe('14.2-UNIT the palette, the choices and the move', () => {
     expect(items.find((item) => item.type === 'disjuntor_mt')!.tag).toBe('DJ-TRANSFORMACAO');
   });
 
-  it('matrix "TAG collision across painéis": two painéis each with a Coluna 5 give SEC-C05 then SEC-C05-2 from the palette', () => {
-    const taken: { tag: string; removed_at: null }[] = [];
-    const first = suggestTag('chave_seccionadora', { kind: 'coluna', name: 'Coluna 5' }, taken);
-    taken.push({ tag: first, removed_at: null });
-    const second = suggestTag('chave_seccionadora', { kind: 'coluna', name: 'Coluna 5' }, taken);
-    expect([first, second]).toEqual(['SEC-C05', 'SEC-C05-2']);
-    // The palette of the second painel's Coluna 5 reads the project's equipment: the painel never enters the TAG.
-    expect(paletteItems('v1', { kind: 'coluna', name: 'Coluna 5' }, [{ tag: 'SEC-C05', removed_at: null }]).find((item) => item.type === 'chave_seccionadora')!.tag).toBe('SEC-C05-2');
+  it('matrix "TAG collision across painéis": the palette opened on each of two painéis holding a "Coluna 5" gives SEC-C05 then SEC-C05-2, and the tree flags no duplicate', () => {
+    // One local, two painéis, a "Coluna 5" in each, no sheet yet: the palette path of the tree
+    // (`paletteLocationFor` on the painel, `paletteItems` on the coluna it gives, `newEquipmentBlock`).
+    const P_A = 7001;
+    const P_B = 7002;
+    const A_C5 = 7003;
+    const B_C5_NEW = 7004;
+    const locations: LocationRow[] = [
+      cabine(LOCAL, 'Cabine de transformação', 'a0'),
+      painel(P_A, 'Painel A', LOCAL, 'a0'),
+      painel(P_B, 'Painel B', LOCAL, 'a1'),
+      coluna(A_C5, 'Coluna 5', P_A, 'a0'),
+      coluna(B_C5_NEW, 'Coluna 5', P_B, 'a0'),
+    ];
+    const blocks: BlockRow[] = [];
+    const equipment: EquipmentRow[] = [];
+    const tapSeccionadora = (painelRef: number, n: number): string => {
+      const target = paletteLocationFor({ locations, blocks }, id(painelRef), null);
+      const row = locations.find((location) => location.id === target)!;
+      // The palette never opens on the painel itself: its coluna is the block's place and the only name in the TAG.
+      if (row.kind === 'painel') throw new Error('the palette target is a painel');
+      expect(row).toMatchObject({ kind: 'coluna', name: 'Coluna 5', parent_id: id(painelRef) });
+      const tag = paletteItems('v1', { kind: row.kind, name: row.name }, equipment).find((item) => item.type === 'chave_seccionadora')!.tag;
+      const pair = newEquipmentBlock({ blockId: id(8000 + n), equipmentId: id(8100 + n), relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: row.id, type: 'chave_seccionadora', tag, seedVersion: 'v1', orderKey: 'a0' });
+      blocks.push(pair.block);
+      equipment.push(pair.equipment);
+      return tag;
+    };
+    expect([tapSeccionadora(P_A, 1), tapSeccionadora(P_B, 2)]).toEqual(['SEC-C05', 'SEC-C05-2']);
+    expect(blocks.map((block) => block.location_id)).toEqual([id(A_C5), id(B_C5_NEW)]);
+    const drawn = treeNodes(locationTree({ locations, blocks, equipment })).filter((node): node is TreeEquipmentNode => node.kind === 'equipment');
+    expect(drawn.map((node) => [node.tag, node.locationId, node.duplicate])).toEqual([
+      ['SEC-C05', id(A_C5), false],
+      ['SEC-C05-2', id(B_C5_NEW), false],
+    ]);
+    // A third tap, on the first painel again, goes on counting across both.
+    expect(tapSeccionadora(P_A, 3)).toBe('SEC-C05-3');
   });
 
   it('panelLocation: a photo taken in a coluna of a painel finds the named coluna among that painel own colunas; a painel is never the place', () => {
@@ -346,6 +374,35 @@ describe('14.2-UNIT the palette, the choices and the move', () => {
     expect(panelLocation(snapshot.locations, id(B_C5), 6)).toMatchObject({ location: { id: id(B_C5) }, matched: false });
     expect(panelLocation(snapshot.locations, id(PNL_MT), 5)).toBeNull();
     expect(panelLocation(snapshot.locations, id(LOCAL), null)).toMatchObject({ location: { id: id(LOCAL) }, matched: false });
+  });
+
+  describe('panelLocation with the palette on a local (coordinator review 2026-10-13)', () => {
+    it('takes the only coluna of that number inside one of the local painéis', () => {
+      // Coluna 6 exists in Painel de média tensão alone.
+      expect(panelLocation(snapshot.locations, id(LOCAL), 6)).toMatchObject({ location: { id: id(MT_C6) }, matched: true });
+      // Another local never reads this local's painéis.
+      expect(panelLocation(snapshot.locations, id(ENEL), 6)).toMatchObject({ location: { id: id(ENEL) }, matched: false });
+    });
+
+    it('stays on the local, unmatched, when two painéis hold a coluna of that number; one left alone is taken', () => {
+      // Coluna 5 exists in Painel de média tensão and in Painel B: the label does not say which.
+      expect(panelLocation(snapshot.locations, id(LOCAL), 5)).toMatchObject({ location: { id: id(LOCAL) }, matched: false });
+      const removeRow = (n: number) => snapshot.locations.map((row) => (row.id === id(n) ? { ...row, removed_at: T0.toISOString() } : row));
+      // With Painel B's Coluna 5 removed, or Painel B itself removed, the one left is the only match.
+      expect(panelLocation(removeRow(B_C5), id(LOCAL), 5)).toMatchObject({ location: { id: id(MT_C5) }, matched: true });
+      expect(panelLocation(removeRow(PNL_B), id(LOCAL), 5)).toMatchObject({ location: { id: id(MT_C5) }, matched: true });
+    });
+
+    it('a coluna directly under the local still wins over the painéis, as before', () => {
+      const direct5 = coluna(9001, 'Coluna 5', LOCAL, 'a9');
+      const direct6 = coluna(9002, 'Coluna 6', LOCAL, 'a91');
+      const rows = [...snapshot.locations, direct5, direct6];
+      // Two painéis hold a Coluna 5 and one holds a Coluna 6: the local's own coluna is the place either way.
+      expect(panelLocation(rows, id(LOCAL), 5)).toMatchObject({ location: { id: direct5.id }, matched: true });
+      expect(panelLocation(rows, id(LOCAL), 6)).toMatchObject({ location: { id: direct6.id }, matched: true });
+      // From a coluna directly under the local the search is the local's direct colunas alone, as before.
+      expect(panelLocation(snapshot.locations, id(LEGADO), 6)).toMatchObject({ location: { id: id(LEGADO) }, matched: false });
+    });
   });
 });
 
