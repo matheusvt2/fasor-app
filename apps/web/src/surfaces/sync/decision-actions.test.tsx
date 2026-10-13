@@ -11,7 +11,7 @@ import { relatorioSnapshotOf } from '../../db/relatorio-snapshot.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
 import { applyPulled } from '../../db/sync-store.ts';
 import type { SessionState } from '../../state/session.tsx';
-import { ToastProvider } from '../../state/toast.tsx';
+import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { useDecisionActions } from './decision-actions.ts';
 
 /*
@@ -84,7 +84,12 @@ async function seeded(): Promise<AppDatabase> {
   return db;
 }
 
-const wrapper = ({ children }: { children: ReactNode }) => <ToastProvider>{children}</ToastProvider>;
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <ToastProvider>
+    {children}
+    <ToastOutlet />
+  </ToastProvider>
+);
 const outbox = async () =>
   (await database!.outbox.toArray())
     .sort((a, b) => (a.client_ts < b.client_ts ? -1 : a.client_ts > b.client_ts ? 1 : a.op_id < b.op_id ? -1 : 1))
@@ -111,6 +116,10 @@ describe('14.2 second pass: "Manter a ficha" of a sheet removed with its locatio
     await act(async () => {
       await result.current.keep(entry!, decision, context);
     });
+
+    // The decision's rows carry the removed locations, so the toast still names the sheet's place.
+    await waitFor(() => expect(document.querySelector('.toast')).toHaveTextContent('SEC-C05 mantido na Coluna 5 com as suas alterações'));
+    expect(entry!.locations.map((row) => row.id).sort()).toEqual([LOCAL, PAINEL, COLUNA_5, COLUNA_6].sort());
 
     const ops = await outbox();
     expect(ops.map((op) => [op.path, op.kind, op.value, op.scope])).toEqual([
