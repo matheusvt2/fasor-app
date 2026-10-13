@@ -27,7 +27,8 @@ export interface Fresh {
   /**
    * Every location row, removed ones included (Story 14.2, second pass). Only the removal and
    * restore plans read it (`locationRemovalPlan`, `locationRestorePlan`, `removedAncestorIds`):
-   * they tell which rows left together, and which removed rows sit above a sheet.
+   * they tell which rows left together, and which removed rows sit above a sheet; and
+   * `newLocation`, whose default name and order key must not repeat a removed sibling's.
    */
   allLocations: LocationRow[];
   equipment: EquipmentRow[];

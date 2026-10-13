@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { instantiateTemplate, newEquipmentBlock, standardTemplate, type BlockRow, type EquipmentRow, type LocationRow, type RelatorioSummary } from '@app/domain';
+import { instantiateTemplate, newEquipmentBlock, orderKeyBetween, standardTemplate, type BlockRow, type EquipmentRow, type LocationRow, type RelatorioSummary } from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -413,6 +413,53 @@ describe('14.2 second pass: an edit reads the kernel\'s live locations', () => {
     await waitFor(() => expect(toast()).toHaveTextContent('O local mudou em outro aparelho; nada foi alterado.'));
     expect(await outbox()).toHaveLength(0);
     expect((await stored<LocationRow>('location', PAINEL_B))!.name).toBe('Painel B');
+  });
+});
+
+describe('14.2 second pass: a new location beside a removed sibling', () => {
+  it('"Adicionar coluna" after a middle coluna was removed, and again after the last one was, writes a create whose name and order key no sibling holds, removed ones included', async () => {
+    database = await seeded();
+    // "Painel B" with three colunas added one after the other, under their default names.
+    const keys = [orderKeyBetween(null, null)];
+    keys.push(orderKeyBetween(keys[0]!, null));
+    keys.push(orderKeyBetween(keys[1]!, null));
+    const colunas = keys.map((order_key, i): LocationRow => ({ id: id(0x21 + i), relatorio_id: RELATORIO, parent_id: PAINEL_B, kind: 'coluna', name: `Coluna ${i + 1}`, order_key, removed_at: null }));
+    await database.entities.bulkPut(colunas.map((coluna) => toRecord(`location:${coluna.id}`, coluna)));
+    await openLocal();
+    const siblings = async () => (await database!.entities.where('entity').equals('location').toArray()).map((record) => record.row as LocationRow).filter((location) => location.parent_id === PAINEL_B);
+    const addColuna = async (): Promise<LocationRow> => {
+      const before = (await outbox()).length;
+      await userEvent.click(screen.getByRole('button', { name: PAINEL_B_MENU }));
+      await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar coluna' }));
+      await waitFor(async () => expect(await outbox()).toHaveLength(before + 1));
+      const op = (await outbox()).at(-1)!;
+      expect(op.kind).toBe('create');
+      const made = op.value as unknown as LocationRow;
+      expect(op.path).toBe(`location/${made.id}`);
+      await waitFor(() => expect(row(made.id)).not.toBeNull());
+      return made;
+    };
+
+    // The middle one leaves (no sheet on it: no Confirm).
+    await pressRemove('Mais opções de Coluna 2 de Painel B de Cabine de Testes');
+    await waitFor(() => expect(row(colunas[1]!.id)).toBeNull());
+    const first = await addColuna();
+    expect(first.name).toBe('Coluna 4');
+    let others = (await siblings()).filter((location) => location.id !== first.id);
+    expect(others).toHaveLength(3);
+    expect(others.map((location) => location.name)).not.toContain(first.name);
+    expect(others.map((location) => location.order_key)).not.toContain(first.order_key);
+
+    // The last one leaves: the number after the live ones ("Coluna 4") is the removed row's own.
+    await pressRemove('Mais opções de Coluna 4 de Painel B de Cabine de Testes');
+    await waitFor(() => expect(row(first.id)).toBeNull());
+    const second = await addColuna();
+    expect(second.name).toBe('Coluna 5');
+    others = (await siblings()).filter((location) => location.id !== second.id);
+    expect(others).toHaveLength(4);
+    expect(others.map((location) => location.name)).not.toContain(second.name);
+    expect(others.map((location) => location.order_key)).not.toContain(second.order_key);
+    expect(second.order_key > first.order_key).toBe(true);
   });
 });
 

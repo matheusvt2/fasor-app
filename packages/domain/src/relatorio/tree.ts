@@ -745,7 +745,7 @@ export interface NewLocationInput {
   kind: LocationRow['kind'];
   /** Null for a local (the root); the local's id for a painel; a painel's id, or a local's (the shape before the painel level), for a coluna. */
   parentId: string | null;
-  /** The name to store; the default of the kind otherwise ("Cabine n", "Painel n", "Coluna n" after its live siblings of that kind). */
+  /** The name to store; the default of the kind otherwise ("Cabine n", "Painel n", "Coluna n" after its live siblings of that kind, the first n no sibling of the kind already holds). */
   name?: string;
   /** A local's Função (a reserved key or a typed name); none when absent. Read for a local only. */
   funcao?: string | null;
@@ -759,11 +759,24 @@ export interface NewLocationInput {
  * stored default name keeps "Cabine": only the on-screen noun of the level is "local"). A
  * local is born with no SE data, no environment, "Agrupar por tipo" off and, when one was
  * chosen, its Função.
+ *
+ * `locations` are the relatório's rows, removed ones included (Story 14.2, second pass: a
+ * location can be removed and restored). The default number starts after the live siblings
+ * of the kind and skips every one whose default name a sibling of that kind already holds,
+ * live or removed: with "Coluna 2" of three removed the new one is "Coluna 4", not a second
+ * "Coluna 3", and a restored coluna never meets its own name. The `order_key` goes after the
+ * greatest one among every sibling, removed ones included, so a restored row keeps a place
+ * of its own. With no removed sibling and no default name taken ahead, both are as before.
  */
 export function newLocation(locations: readonly LocationRow[], input: NewLocationInput): LocationRow {
-  const all = siblingLocations(locations, input.parentId);
-  const n = all.filter((row) => row.kind === input.kind).length + 1;
-  const order_key = orderKeyBetween(all.at(-1)?.order_key ?? null, null);
+  const live = siblingLocations(locations, input.parentId);
+  const every = locations.filter((row) => row.parent_id === input.parentId);
+  const defaultName = input.kind === 'cabine' ? defaultCabineName : input.kind === 'painel' ? defaultPainelName : defaultColunaName;
+  const taken = new Set(every.filter((row) => row.kind === input.kind).map((row) => row.name.trim()));
+  let n = live.filter((row) => row.kind === input.kind).length + 1;
+  while (taken.has(defaultName(n))) n += 1;
+  const last = every.reduce<string | null>((greatest, row) => (greatest === null || row.order_key > greatest ? row.order_key : greatest), null);
+  const order_key = orderKeyBetween(last, null);
   const base = { id: input.id, relatorio_id: input.relatorioId, order_key, removed_at: null };
   if (input.kind === 'cabine') {
     if (input.parentId !== null) throw new Error('a local sits at the root: parentId must be null');
@@ -772,7 +785,7 @@ export function newLocation(locations: readonly LocationRow[], input: NewLocatio
       ...base,
       parent_id: null,
       kind: 'cabine',
-      name: input.name ?? defaultCabineName(n),
+      name: input.name ?? defaultName(n),
       se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null },
       env: { altitude_m: null, temperature_c: null, humidity_pct: null },
       agrupar_por_tipo: false,
@@ -781,6 +794,5 @@ export function newLocation(locations: readonly LocationRow[], input: NewLocatio
     };
   }
   if (input.parentId === null) throw new Error(`a ${input.kind} sits under another location: parentId must not be null`);
-  if (input.kind === 'painel') return { ...base, parent_id: input.parentId, kind: 'painel', name: input.name ?? defaultPainelName(n) };
-  return { ...base, parent_id: input.parentId, kind: 'coluna', name: input.name ?? defaultColunaName(n) };
+  return { ...base, parent_id: input.parentId, kind: input.kind, name: input.name ?? defaultName(n) };
 }

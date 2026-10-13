@@ -161,10 +161,13 @@ export async function locationRows(db: AppDatabase, relatorioId: string): Promis
 
 /**
  * Every location row of one relatório, removed ones included (Story 14.2, second pass). Only
- * what restores or plans a removal reads it: "Restaurar ficha removida" lists the removed
- * locations, and the kernel's removal and restore plans (`locationRemovalPlan`,
+ * what restores, plans a removal or decides one reads it: "Restaurar ficha removida" lists the
+ * removed locations, the kernel's removal and restore plans (`locationRemovalPlan`,
  * `locationRestorePlan`, `removedAncestorIds`) need the removed rows to tell which ones left
- * together. Every other reader takes the live rows (`locationRows`) or the snapshot.
+ * together, a new location's default name and order key must not repeat a removed sibling's
+ * (`newLocation`), and a removed-versus-edited decision names and orders a sheet that left
+ * with its location (`heldDecisions`). Every other reader takes the live rows
+ * (`locationRows`) or the snapshot.
  */
 export function allLocationRows(db: AppDatabase, relatorioId: string): Promise<LocationRow[]> {
   return rowsWhere<LocationRow>(db, 'location', 'relatorio_id', relatorioId);

@@ -538,7 +538,9 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
       const out: { created: { id: string; name: string; kind: 'cabine' | 'painel' | 'coluna' } | null } = { created: null };
       void edit((_blocks, by, fresh) => {
         if (parent !== null && !fresh.locations.some((row) => row.id === parent.id && row.removed_at === null)) return null;
-        const row = build(fresh.locations);
+        // Every location row, removed ones included: the kernel keeps the new row's default name
+        // and order key clear of a removed sibling's, which a restore brings back beside it.
+        const row = build(fresh.allLocations);
         out.created = { id: row.id, name: row.name, kind: row.kind };
         return [createLocationOp(by, relatorioId, row)];
       })
