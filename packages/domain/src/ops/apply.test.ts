@@ -619,6 +619,14 @@ describe('Story 14.2 (contract 17): the painel kind and a local Função', () =>
     expect(targetsOf(f.op({ kind: 'create', path: `block/${B2}`, value: { ...block(B2), location_id: null } })).map((r) => r.key)).toEqual([entityKey('block', B2)]);
     expect(targetsOf(f.op({ path: `block/${B1}/order_key`, value: 'a1' })).map((r) => r.key)).toEqual([entityKey('block', B1)]);
     expect(targetsOf(f.op({ path: `block/${B1}/location_id`, value: null })).map((r) => r.key)).toEqual([entityKey('block', B1)]);
+    // Coordinator review 2026-10-13: a value that is no uuid is never named (the server looks targets up by a uuid column);
+    // the block row's own schema refuses it, as before the story.
+    const stray = f.op({ path: `block/${B1}/location_id`, value: 'not-a-uuid' });
+    const strayCreate = { ...create, value: { ...block(B2), location_id: 'not-a-uuid' } } as unknown as Op;
+    expect(targetsOf(stray).map((r) => r.key)).toEqual([entityKey('block', B1)]);
+    expect(targetsOf(strayCreate).map((r) => r.key)).toEqual([entityKey('block', B2)]);
+    expect(() => applyOp(state([entityKey('block', B1), block(B1)]), stray)).toThrow(ZodError);
+    expect(() => applyOp(state(), strayCreate)).toThrow(ZodError);
     // The painel is not in state: the block is created and moved as before 17.
     const s = fold(state([entityKey('block', B1), block(B1)]), [create, move]);
     expect((s.get(entityKey('block', B2)) as BlockRow).location_id).toBe(PNL);

@@ -13,7 +13,7 @@ import {
   type RelatorioRow,
   type Sheet,
 } from '../schemas/entities.ts';
-import { SERVER_DEVICE_ID } from '../ids.ts';
+import { SERVER_DEVICE_ID, uuidV7Schema } from '../ids.ts';
 import { mergeCell } from '../merge/policy.ts';
 import { readingKindPutStatus } from '../reading/retarget.ts';
 import type { Op } from './op.ts';
@@ -69,14 +69,21 @@ function carriedBlockId(op: Op, path: OpPath): string | null {
 /**
  * Story 14.2: the location a block op places the block on, when the op itself names one: a
  * `block/{id}` create carrying `location_id`, or a `block/{id}/location_id` put.
+ *
+ * Only an id of the kernel's own shape is named (coordinator review 2026-10-13): `targetsOf`
+ * feeds the server's row lookup, whose id column is a uuid, so any other string would fail
+ * that query instead of being refused. Left unnamed, the value reaches the block row's own
+ * schema, which refuses it as it always did (`op_invalid`).
  */
 function carriedLocationId(op: Op, path: OpPath): string | null {
+  let carried: unknown = null;
   if (path.family === 'block' && op.kind === 'create') {
     const value = op.value as { location_id?: unknown } | null;
-    return value !== null && typeof value === 'object' && typeof value.location_id === 'string' ? value.location_id : null;
+    carried = value !== null && typeof value === 'object' ? value.location_id : null;
+  } else if (path.family === 'block/field' && path.field === 'location_id' && op.kind === 'put') {
+    carried = op.value;
   }
-  if (path.family === 'block/field' && path.field === 'location_id' && op.kind === 'put' && typeof op.value === 'string') return op.value;
-  return null;
+  return typeof carried === 'string' && uuidV7Schema.safeParse(carried).success ? carried : null;
 }
 
 /**

@@ -1337,6 +1337,29 @@ describe('Story 14.2 (contract 17): Local › Painel › Coluna through POST /ap
     expect(await rowOf('location', t.local)).toEqual({ ...(before.local as object), funcao: 'entrada' });
   });
 
+  it('coordinator review 2026-10-13: a block op naming a location id that is no uuid is refused as op_invalid, never a failed query; the rest of the push applies', async () => {
+    const t = await tree();
+    const held = newId();
+    expect((await pushOk(companyA, [blockAt(t.relatorio, held, t.coluna)])).rejected).toEqual([]);
+    const strayBlock = newId();
+    // Only a non-conforming client sends these: the entities id column is a uuid, so the value must never reach the row lookup.
+    const refused = [put(t.relatorio, `block/${held}/location_id`, 'not-a-uuid'), blockAt(t.relatorio, strayBlock, 'not-a-uuid')];
+    const good = put(t.relatorio, `location/${t.painel}/name`, 'Painel depois');
+    const res = await push(companyA, { ops: [...refused, good] });
+    expect(res.status, await res.clone().text()).toBe(200);
+    const result = syncPushResponseSchema.parse(await res.json());
+    written.opIds.add(good.op_id);
+    expect(result.rejected).toEqual(refused.map((o) => ({ op_id: o.op_id, code: 'op_invalid' })));
+    expect(result.applied.map((a) => a.op_id)).toEqual([good.op_id]);
+
+    const stored = await storedIds([...refused.map((o) => o.op_id), good.op_id]);
+    for (const o of refused) expect(stored.has(o.op_id), o.path).toBe(false);
+    expect(stored.has(good.op_id)).toBe(true);
+    expect(await rowOf('block', strayBlock)).toBeUndefined();
+    expect(await rowOf('block', held)).toMatchObject({ location_id: t.coluna });
+    expect(await rowOf('location', t.painel)).toMatchObject({ name: 'Painel depois' });
+  });
+
   it('a client batch holding a block on a painel is refused whole, as any batch with a permanent refusal is', async () => {
     const t = await tree();
     const batchId = newId();
