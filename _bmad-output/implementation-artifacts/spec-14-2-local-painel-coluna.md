@@ -2,10 +2,10 @@
 title: 'Story 14.2: Local › Painel › Coluna (a painel groups colunas, equipment on the local or on a coluna)'
 type: 'feature'
 created: '2026-10-13'
-status: 'in-review'
+status: 'done'
 baseline_revision: '9b42b262b1cd503cf8c4f834a5b9d74f42193746'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -168,3 +168,32 @@ Host rules: `podman compose` only (stack `fasor-e14a`, already up; api `:6030`, 
 - `podman compose --profile tools run --rm --user root tools pnpm test:unit` -- expected: green except the known host-only `theme.test.tsx` (and `export-dialog.test.tsx` under load, which passes alone)
 - `podman compose --profile tools run --rm --user root tools pnpm test:api` -- expected: green
 - Narrow runs while iterating: `pnpm exec vitest run --project @app/web <file>`, `pnpm exec vitest run packages/domain/src/<file>`.
+
+## Auto Run Result
+
+Status: done (2026-10-13). Code head `cd8d0ec`; this section is a document-only commit after the gate.
+
+**Summary.** The location tree is Local › Painel › Coluna. Kernel: `kind = painel`, the cabine field `funcao`, the put family `location/{id}/funcao`, `LocationKindError`, contract 17 (minimum 17), three-level tree, composer functions and print grouping with the painel as an unnumbered band. Api: the new refusal answers `op_invalid`; section 9 draws the band. Web: the shared Função dialog, the composer and the relatório tree in three levels, every on-screen string saying "local". E2E: `e2e/local-painel-coluna.spec.ts` (serial group) and the existing specs updated.
+
+**Files changed (main ones).**
+- `packages/domain/src/schemas/{entities,block-config}.ts`, `seed/template-rules.ts` -- the painel member, `funcao`, skeleton parent rules.
+- `packages/domain/src/ops/{path,apply}.ts`, `contract/version.ts`, `status/edited-since.ts`, `merge/info.ts` -- the family, the refusals, contract 17, status and merge decisions.
+- `packages/domain/src/relatorio/{local,tree,move,sumario,panel,progress,pre-issue,instantiate}.ts`, `templates/{compose,text,from-relatorio}.ts` -- tree, composer and texts for three levels.
+- `packages/domain/src/print/{group-for-print,section-9}.ts`, `apps/api/src/jobs/generate/sections/section-9.ts` -- runs, the painel subsection and its band.
+- `apps/api/src/sync/apply.ts` and its integration tests -- `LocationKindError` as a permanent refusal.
+- `apps/web/src/surfaces/templates/*`, `surfaces/relatorio/*`, `surfaces/ficha/cabine-block.tsx`, `copy/pt-br.ts`, `styles/app.css` -- the screens and copy.
+- `e2e/local-painel-coluna.spec.ts`, `e2e/support/{local,groups}.ts` and sixteen updated specs.
+- Spine AD-3, AD-6, AD-13, AD-15, AD-22 (dated notes), `docs/kbs/*`, `deferred-work.md`.
+
+**Review.** Two layers (Edge Case Hunter, Verification Gap Reviewer), one fix loop. 14 findings: 8 patched (2 medium, 6 low), 6 rejected with their reasons in the triage log (the typed reserved label; `panelLocation` inside a painel; a block op ahead of its painel row; the bare heading when no sheet resolves; the untouched specs, settled by running them; the device `targets` index). One of the untouched specs did fail on the redrawn rows (`parecer-export` 7.5-E2E-006, an `input` locator too wide) and was fixed in `cd8d0ec`.
+
+**Follow-up review recommended: true.** Patched this pass: medium 2, low 6. The risk to re-check in the integrated epic review: reordering and "Função e nome" on a local upgraded from the pre-painel shape (a direct coluna beside painéis) with a second device writing meanwhile; both were patched after review and are covered by unit tests only.
+
+**Verification (story gate, commit `cd8d0ec`, one lock hold, lock wait 0 s, 1296 s).**
+- `pnpm lint`: 0 errors, 25 warnings (13 s). `pnpm static`: clean (20 s). `pnpm test:api`: 77 files, 584 tests passed (193 s).
+- `pnpm test:unit`: 3527 of 3528 in the gate run; the one red is `quantity-stepper.test.tsx` "commits a typed number on blur or Enter", the flake already in the ledger (the first keystroke of "150" is lost after `userEvent.clear`; file and component untouched by this branch). Full re-run on the same commit: 287 files, 3528 tests passed (136 s). Alone on the same commit: 2 of 5 runs pass, as the ledger records for main (2 of 5 failing).
+- Playwright, 28 spec files on `desktop-chrome` and `durability-desktop-chrome` (the 15 touched and 13 untouched ones that drive the redrawn rows): 219 tests, 216 passed, 0 failed, 3 skipped, 0 flaky (892 s).
+- Durability on the two other matrix projects (`durability.spec.ts`, `move-block.durability.spec.ts` on android-chrome and webkit): 28 tests, 24 passed, 0 failed, 4 skipped (50 s).
+- Mutation runs (review fixes): with the `updateLocal` comparison and the `kind` argument of `siblingLocations` reverted, the stale-name test and the mixed-local move test fail; restored.
+
+**Residual risks.** The open questions O1 to O5 and the narrowings in `deferred-work.md`; contract 17 makes every version-16 device update on its next pull; the full `@p0`, `test:e2e:full` and the full matrix were not run (wave gate).
