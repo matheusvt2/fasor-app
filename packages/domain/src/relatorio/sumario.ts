@@ -408,6 +408,7 @@ export interface StatusFlow {
 }
 
 /** "Marcar como enviado ao cliente", the one name of the `issue` action (foot, Export dialog, sentences). */
+// authored: 2026-10-10 (no mock draws the action).
 export const MARK_SENT_LABEL = 'Marcar como enviado ao cliente';
 
 /**

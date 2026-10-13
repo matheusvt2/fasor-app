@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { FAMILIES, opPathSchema, type PathFamily } from '../ops/path.ts';
 import { idSequence, TEST_USER } from '../test-support.ts';
 import {
   countsAsEdit,
@@ -7,6 +8,7 @@ import {
   editedSince,
   EDITED_SINCE_FAMILIES,
   inRelatorioStream,
+  NEVER_EDIT_FAMILIES,
   referencedEquipmentIds,
   relatorioEditedSince,
   type EditCandidate,
@@ -283,5 +285,98 @@ describe('P9: every editedSince family is decided as content or structure', () =
       for (const path of structure) expect(countsAsFieldContent(candidate(family, path)), path).toBe(false);
       for (const path of [...content, ...structure]) expect(countsAsEdit(candidate(family, path)), path).toBe(true);
     }
+  });
+});
+
+describe('2026-10-13: every op path family is decided, an edit or never one', () => {
+  /** Every family the op path schema accepts, read from the schema itself. */
+  const schemaFamilies = opPathSchema.options.map((option) => option.shape.family.value as PathFamily);
+  /** Every family of the runtime table that parses and formats paths. */
+  const tableFamilies = FAMILIES.map((def) => def.family);
+
+  it('the schema and the family table name the same families, each once', () => {
+    expect(new Set(schemaFamilies).size).toBe(schemaFamilies.length);
+    expect(new Set(tableFamilies).size).toBe(tableFamilies.length);
+    expect([...schemaFamilies].sort()).toEqual([...tableFamilies].sort());
+  });
+
+  it('each family is in exactly one of EDITED_SINCE_FAMILIES and NEVER_EDIT_FAMILIES', () => {
+    for (const family of new Set([...schemaFamilies, ...tableFamilies])) {
+      const lists = Number(EDITED_SINCE_FAMILIES.has(family)) + Number(NEVER_EDIT_FAMILIES.has(family));
+      expect(
+        lists,
+        `The op path family "${family}" is in ${lists === 0 ? 'neither list' : 'both lists'}. Decide it in FAMILY_DECISIONS ` +
+          '(packages/domain/src/status/edited-since.ts): "edit" when an op of this family is a user edit of the relatório\'s ' +
+          'own content (AD-15: it then reopens an Emitido relatório and counts for the revision guard, and ' +
+          'countsAsFieldContent needs its answer for Rascunho), or never(reason) when it never is. No family is "not an ' +
+          'edit" by omission.',
+      ).toBe(1);
+    }
+  });
+
+  it('neither list names a family the op path schema does not have', () => {
+    const known = new Set<string>(schemaFamilies);
+    for (const family of [...EDITED_SINCE_FAMILIES, ...NEVER_EDIT_FAMILIES.keys()]) expect(known.has(family), family).toBe(true);
+    expect(EDITED_SINCE_FAMILIES.size + NEVER_EDIT_FAMILIES.size).toBe(schemaFamilies.length);
+  });
+
+  it('every never-edit family says why, and no server-only family is an edit', () => {
+    for (const [family, reason] of NEVER_EDIT_FAMILIES) expect(reason.trim().length, family).toBeGreaterThan(10);
+    for (const def of FAMILIES) {
+      if (def.serverOnly === true) expect(NEVER_EDIT_FAMILIES.has(def.family), def.family).toBe(true);
+    }
+  });
+
+  it('the classification of 2026-10-10 is unchanged: the twenty edit families and the twenty-two that never are', () => {
+    expect([...EDITED_SINCE_FAMILIES].sort()).toEqual(
+      [
+        'block',
+        'block/field',
+        'equipment',
+        'equipment/field',
+        'file',
+        'file/field',
+        'location',
+        'location/agrupar_por_tipo',
+        'location/env',
+        'location/field',
+        'location/se',
+        'point',
+        'point/field',
+        'relatorio/setup',
+        'sheet/checklist',
+        'sheet/conclusion',
+        'sheet/nameplate',
+        'sheet/observations',
+        'sheet/test',
+        'sheet/test/cell',
+      ].sort(),
+    );
+    expect([...NEVER_EDIT_FAMILIES.keys()].sort()).toEqual(
+      [
+        'audit_run',
+        'audit_run/field',
+        'equipment/last_nameplate',
+        'file/server',
+        'generation_job',
+        'generation_job/field',
+        'project',
+        'project/field',
+        'registry',
+        'registry/field',
+        'relatorio',
+        'relatorio/export/scheme',
+        'relatorio/preview_file_id',
+        'relatorio/status',
+        'revision',
+        'suggestion',
+        'suggestion/status',
+        'template',
+        'template/field',
+        'template/seed_version',
+        'user',
+        'user/field',
+      ].sort(),
+    );
   });
 });

@@ -618,6 +618,70 @@ describe('Export dialog (Story 4.8)', () => {
     expect(modal.querySelectorAll('.revision-row')).toHaveLength(1);
   });
 
+  const statusOnDevice = async (): Promise<unknown> => ((await database!.entities.get(['relatorio', REL]))?.row as { status?: unknown } | undefined)?.status;
+
+  /**
+   * Revision 1 held and marked as sent on another device: the status ops are pulled, so the
+   * fold itself reads Emitido (a later pull keeps it) and this device's outbox holds none.
+   */
+  async function emitidoWithRevisionOne(): Promise<RevisionRow> {
+    database = await freshDb();
+    const { row, op } = revisionOf(1);
+    await applyPulled(database, [
+      ...jobOps('done'),
+      op,
+      pulledEdit({ scope: 'relatorio', path: 'relatorio/status', value: 'em_revisao' }),
+      pulledEdit({ scope: 'relatorio', path: 'relatorio/status', value: 'emitido' }),
+    ]);
+    expect(await statusOnDevice()).toBe('emitido');
+    return row;
+  }
+
+  it('2026-10-13: a queued generate from Emitido reopens it as Em revisão; revision 2 is not yet sent and mark-as-sent is offered again', async () => {
+    await emitidoWithRevisionOne();
+    // Content the client does not have, and no status op with it: another device edited after
+    // revision 1, this device pulled the edit and its row still says Emitido.
+    await applyPulled(database!, [pulledEdit({ scope: 'relatorio', path: 'relatorio/setup/local', value: 'Outro local' })]);
+    const secondJob = '019966c1-0000-7000-8000-0000000000e2';
+    const sync = syncState({ generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: secondJob, revision_number: 2 })) });
+    render(<Harness sync={sync} />);
+    await waitFor(() => expect(within(dialog()).getByText('Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 2. Precisa de conexão.')).toBeInTheDocument());
+    // The pulled edit brought no status op: the row is still Emitido when the press comes.
+    expect(await statusOnDevice()).toBe('emitido');
+    expect(await statusOps(database!)).toEqual([]);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 2…'));
+    // Emitido --generate--> Em revisão, written with the press: a new revision is being built.
+    await waitFor(async () => expect(await statusOps(database!)).toEqual(['em_revisao']));
+
+    const { op } = revisionOf(2);
+    await act(async () => {
+      await applyPulled(database!, [...jobOps('done', secondJob), op]);
+    });
+    const modal = dialog();
+    await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 2 pronta' })).toBeInTheDocument());
+    await waitFor(() => expect(modal.querySelector('.row-wrap .status-pill')).toHaveTextContent('Em revisão'));
+    expect(await within(modal).findByText('Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 3.')).toBeInTheDocument();
+    expect(within(modal).queryByText(/^Enviada ao cliente/)).toBeNull();
+    expect(await within(modal).findByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeVisible();
+    expect(await statusOps(database!)).toEqual(['em_revisao']);
+  });
+
+  it('2026-10-13: an "unchanged" answer leaves an Emitido relatório Emitido: no status op, and the result says the revision was sent', async () => {
+    const row = await emitidoWithRevisionOne();
+    const answer: GenerateResponse = { outcome: 'unchanged', revision_id: row.id, revision_number: 1 };
+    render(<Harness sync={syncState({ generate: vi.fn(async () => answer) })} />);
+    await userEvent.click(generateButton());
+    const modal = dialog();
+    // The ready state is set only after the status write was decided (`use-generate.ts`).
+    await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
+    expect(await statusOps(database!)).toEqual([]);
+    await waitFor(() => expect(modal.querySelector('.row-wrap .status-pill')).toHaveTextContent('Emitido'));
+    expect(within(modal).getByText('Enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 2.')).toBeInTheDocument();
+    expect(within(modal).queryByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeNull();
+    expect(await statusOps(database!)).toEqual([]);
+  });
+
   it('sends the device\'s newest op and the files it expects: a committed setup put, and a pulled photo row left out (photos never block Gerar)', async () => {
     database = await freshDb();
     const put = await commitBatch(

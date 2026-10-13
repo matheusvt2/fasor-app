@@ -1,4 +1,5 @@
 import {
+  advanceOnGenerate,
   canMarkSent,
   expectedFileIds,
   idleRevisionNumber,
@@ -9,12 +10,11 @@ import {
   notCaughtUpDetailsSchema,
   notCaughtUpRetryable,
   putRelatorioStatusOp,
-  statusTable,
   toIso,
+  type GenerateOutcome,
   type GenerationJobRow,
   type RelatorioRow,
   type RevisionRow,
-  type StatusEvent,
 } from '@app/domain';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { now } from '../../clock.ts';
@@ -45,13 +45,17 @@ import { markSentNow } from './use-mark-sent.ts';
  * Story 4.8 (AD-15, UX-DR58): the Export dialog's state machine. "Gerar relatório" first
  * drains the outbox ("Enviando…"), stops on a dead op, then calls the generate barrier
  * with the device's newest op and the files it expects stored; a 409 is answered with a
- * sync and a retry; a 202 emits `relatorio/status` per `statusTable(status, 'generate')`,
+ * sync and a retry; a 202 emits `relatorio/status` per the kernel's `advanceOnGenerate`,
  * records the wait in `local_prefs` ("pode fechar": a closed dialog, a navigation or a
  * reload picks it up again) and polls the relatório stream until the revision arrives
  * (toast) or the job fails. Every sentence with a number is the kernel's; every write is an op.
  *
  * Status flow 2026-10-10 (AD-22): a revision's arrival writes no status; the relatório stays
  * Em revisão until "Marcar como enviado ao cliente" (`markSent`) writes the `issue` op.
+ *
+ * 2026-10-13 (AD-22, Matheus): a queued generate from Emitido reopens the relatório as
+ * Em revisão (revision N+1 is not with the client); an `unchanged` answer leaves Emitido alone.
+ * The rule is the kernel's (`advanceOnGenerate`), read here with the server's answer.
  */
 
 export type GeneratePhase =
@@ -152,18 +156,18 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
   }, [db, relatorioId]);
 
   /**
-   * One `relatorio/status` put when the table has a row for `(current status, event)`;
-   * nothing otherwise. The status is read from the device store at the moment of the write,
+   * One `relatorio/status` put when the kernel has a transition for `(current status, the
+   * server's answer)` (`advanceOnGenerate`); nothing otherwise. The status is read from the device store at the moment of the write,
    * never from the render that scheduled it (Q11): a revision can arrive in a render whose
    * live `relatorio` is still null (a reload) or one op behind, and the op would then be
    * computed from the wrong row, or skipped.
    */
   const emitStatus = useCallback(
-    async (event: StatusEvent) => {
+    async (outcome: GenerateOutcome) => {
       if (db === null || user === null) return;
       const current = await relatorioRow(db, relatorioId);
       if (current === null) return;
-      const next = statusTable(current.status, event);
+      const next = advanceOnGenerate(current.status, outcome);
       if (next === null) return;
       await commitBatch(db, [putRelatorioStatusOp({ id: user.id, companyId: user.companyId }, relatorioId, next)], { newId, now });
     },
@@ -245,7 +249,7 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
             await writeGenerateAwaiting(db, relatorioId, { number: answer.revision_number, job_id: answer.job_id }).catch(() => undefined);
             if (answer.outcome === 'queued') {
               try {
-                await emitStatusRef.current('generate');
+                await emitStatusRef.current('queued');
               } catch (error) {
                 console.error('generate status op failed', error);
               }
@@ -255,8 +259,9 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
             // `unchanged`: the server answered the revision it already holds. The same table
             // path as a queued press: a relatório moved back to Em campo or Rascunho takes
             // `generate` (Em revisão); nothing is issued (2026-10-10), so it ends Em revisão.
+            // An Emitido relatório stays Emitido (2026-10-13): the client has that revision.
             try {
-              await emitStatusRef.current('generate');
+              await emitStatusRef.current('unchanged');
             } catch (error) {
               console.error('generate status op failed', error);
             }

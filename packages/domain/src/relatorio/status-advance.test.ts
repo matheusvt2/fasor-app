@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { latestRevision } from '../print/revisions.ts';
 import type { EditCandidate } from '../status/edited-since.ts';
-import { advanceOnEdit, backwardMoveConsequenceText, backwardMoveLabel, fichaIssuedBannerText, issuedBannerText, statusChangeToastText } from './status-advance.ts';
+import { nextEditNote } from '../print/revisions.ts';
+import { RELATORIO_STATUSES, statusTable } from '../status/table.ts';
+import { advanceOnEdit, advanceOnGenerate, backwardMoveConsequenceText, backwardMoveLabel, fichaIssuedBannerText, issuedBannerText, statusChangeToastText } from './status-advance.ts';
+import { canMarkSent, controleMetaText, statusStepText } from './sumario.ts';
 
 const BLOCK_ID = '019966b0-0080-7000-8000-000000000001';
 const USER = '019966b0-0080-7000-8000-000000000002';
@@ -78,6 +81,45 @@ describe('4.6-UNIT advanceOnEdit', () => {
 
   it('does nothing when the batch already sets relatorio/status itself', () => {
     expect(advanceOnEdit('emitido', [editDraft(), { path: 'relatorio/status', actor_id: USER, kind: 'put' }])).toBeNull();
+  });
+});
+
+describe('2026-10-13 advanceOnGenerate', () => {
+  it('a queued generate is the table\'s generate row, in every status', () => {
+    expect(advanceOnGenerate('rascunho', 'queued')).toBe('em_revisao');
+    expect(advanceOnGenerate('em_campo', 'queued')).toBe('em_revisao');
+    expect(advanceOnGenerate('em_revisao', 'queued')).toBeNull();
+    expect(advanceOnGenerate('emitido', 'queued')).toBe('em_revisao');
+    for (const status of RELATORIO_STATUSES) expect(advanceOnGenerate(status, 'queued'), status).toBe(statusTable(status, 'generate'));
+  });
+
+  it('an unchanged answer is the same row, except that Emitido stays: the client has that revision', () => {
+    expect(advanceOnGenerate('rascunho', 'unchanged')).toBe('em_revisao');
+    expect(advanceOnGenerate('em_campo', 'unchanged')).toBe('em_revisao');
+    expect(advanceOnGenerate('em_revisao', 'unchanged')).toBeNull();
+    expect(advanceOnGenerate('emitido', 'unchanged')).toBeNull();
+  });
+
+  it('a status outside the table moves nothing and never throws', () => {
+    expect(advanceOnGenerate('arquivado' as Parameters<typeof advanceOnGenerate>[0], 'queued')).toBeNull();
+    expect(advanceOnGenerate('arquivado' as Parameters<typeof advanceOnGenerate>[0], 'unchanged')).toBeNull();
+  });
+
+  it('after Emitido --generate--> Em revisão every sentence says revision N+1 is not yet with the client', () => {
+    const revision = (number: number) => ({ id: `r${number}`, relatorio_id: 'x', number, snapshot_seq: number, created_by: USER, docx_file_id: `d${number}`, pdf_file_id: `p${number}`, created_at: '2026-09-10T12:00:00Z' });
+    // The press: the commit path publishes the caller's own status op as an `action`.
+    expect(statusChangeToastText({ from: 'emitido', to: 'em_revisao', cause: 'action', latestNumber: 1 })).toBe('Relatório voltou para Em revisão');
+    // While revision 2 is being built, revision 1 is the newest and the edit is still ahead of it.
+    expect(statusStepText({ status: 'em_revisao', latest: 1, edited: true })).toBe('Em revisão: há alterações desde a revisão 1. Gere a revisão 2 antes de marcar como enviado ao cliente.');
+    expect(canMarkSent({ status: 'em_revisao', latest: 1, edited: true })).toBe(false);
+    // Revision 2 arrived: generated, not sent, and mark-as-sent is offered again.
+    expect(statusStepText({ status: 'em_revisao', latest: 2, edited: false })).toBe(
+      'Em revisão: a revisão 2 ainda não foi enviada ao cliente. Depois de enviar, use "Marcar como enviado ao cliente".',
+    );
+    expect(controleMetaText({ revisions: [revision(1), revision(2)], edited: false, status: 'em_revisao' })).toContain('Rev. 2 gerada');
+    expect(nextEditNote(2, { status: 'em_revisao', edited: false })).toBe('Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 3.');
+    expect(issuedBannerText('em_revisao', revision(2))).toBe('Revisão 2 gerada em 10/09, ainda não enviada ao cliente.');
+    expect(canMarkSent({ status: 'em_revisao', latest: 2, edited: false })).toBe(true);
   });
 });
 

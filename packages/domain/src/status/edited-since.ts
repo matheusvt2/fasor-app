@@ -12,29 +12,85 @@ import type { BlockRow } from '../schemas/entities.ts';
  * `registry`, `template` and `user` families never count.
  */
 
+/**
+ * The decision of one path family: `edit`, an edit can come from it, or `never` with the
+ * one-line reason it is never one.
+ */
+type FamilyDecision = 'edit' | { readonly never: string };
+
+const never = (reason: string): FamilyDecision => ({ never: reason });
+
+/**
+ * Every op path family of `ops/path.ts`, decided once (2026-10-13, Matheus, review of PR #125):
+ * is an op of this family an edit of the relatório's content (AD-15), or never one. The map is
+ * typed over `PathFamily`, so a family added to `opPathSchema` fails `pnpm static` right here
+ * until someone writes its decision; `edited-since.test.ts` checks the same against the runtime
+ * family table. Nothing is "not an edit" by omission: a family left out would silently never
+ * reopen an Emitido relatório, never count for the revision guard, and never move Rascunho.
+ *
+ * Deciding `edit` is half of it: `countsAsFieldContent` below then needs the family's answer
+ * for Rascunho (content or structure), which its own test table forces.
+ */
+const FAMILY_DECISIONS = {
+  // AD-15's family set, expanded to `path.ts`'s granularity.
+  'relatorio/setup': 'edit',
+  location: 'edit',
+  'location/field': 'edit',
+  'location/se': 'edit',
+  'location/env': 'edit',
+  'location/agrupar_por_tipo': 'edit',
+  block: 'edit',
+  'block/field': 'edit',
+  'sheet/nameplate': 'edit',
+  'sheet/checklist': 'edit',
+  'sheet/test': 'edit',
+  'sheet/test/cell': 'edit',
+  'sheet/conclusion': 'edit',
+  'sheet/observations': 'edit',
+  file: 'edit',
+  'file/field': 'edit',
+  point: 'edit',
+  'point/field': 'edit',
+  equipment: 'edit',
+  'equipment/field': 'edit',
+
+  // Never an edit.
+  project: never('the obra row is created before any relatório of it; AD-15 names no project family'),
+  'project/field': never('the obra own fields (name, client, site) are project data, not the content of one relatório'),
+  relatorio: never('the relatório create comes before any revision of it, so it can never be an edit since one'),
+  'relatorio/status': never('the status itself: counting it would make every transition an edit and reopen what it just issued'),
+  'relatorio/export/scheme': never('the order the printed document lists the sheets in: a print choice, not content; AD-15 does not name it'),
+  'relatorio/preview_file_id': never('server-only: the preview job pointing at its own file'),
+  'equipment/last_nameplate': never('server-only: the last issued plate of an equipment, kept for "Copiar da última visita"'),
+  'file/server': never('server-only: the upload, the variants and the reading state of a file, written by the server'),
+  suggestion: never('server-only: the reading job proposing a value, which nobody has accepted yet'),
+  'suggestion/status': never('confirming or discarding a suggestion; a confirmed value lands as its own sheet op, which counts'),
+  registry: never('company registries (empresa, clients, instruments and the rest) are company scope, outside the relatório stream'),
+  'registry/field': never('company registries are company scope, outside the relatório stream'),
+  template: never('a template is company scope; a relatório keeps the content it was created with'),
+  'template/field': never('a template is company scope; a relatório keeps the content it was created with'),
+  'template/seed_version': never('server-only: the seed moving an unedited template to the current version'),
+  user: never('server-only: the provisioning projection of an identity user'),
+  'user/field': never('a user profile field is company scope, outside the relatório stream'),
+  generation_job: never('server-only: the generate job row'),
+  'generation_job/field': never('server-only: the generate job writing its own progress'),
+  revision: never('server-only: the revision row the generate job cuts'),
+  audit_run: never('server-only: the emission audit run row'),
+  'audit_run/field': never('server-only: the audit job writing its own fields; a finding is information, never an op'),
+} as const satisfies Record<PathFamily, FamilyDecision>;
+
+const DECIDED = Object.entries(FAMILY_DECISIONS) as ReadonlyArray<[PathFamily, FamilyDecision]>;
+
 /** The path families an edit can come from (AD-15), expanded to `path.ts`'s granularity. */
-export const EDITED_SINCE_FAMILIES: ReadonlySet<PathFamily> = new Set<PathFamily>([
-  'relatorio/setup',
-  'location',
-  'location/field',
-  'location/se',
-  'location/env',
-  'location/agrupar_por_tipo',
-  'block',
-  'block/field',
-  'sheet/nameplate',
-  'sheet/checklist',
-  'sheet/test',
-  'sheet/test/cell',
-  'sheet/conclusion',
-  'sheet/observations',
-  'file',
-  'file/field',
-  'point',
-  'point/field',
-  'equipment',
-  'equipment/field',
-]);
+export const EDITED_SINCE_FAMILIES: ReadonlySet<PathFamily> = new Set(DECIDED.filter(([, decision]) => decision === 'edit').map(([family]) => family));
+
+/**
+ * The path families that are never an edit, each with the reason. Together with
+ * `EDITED_SINCE_FAMILIES` it holds every family of `ops/path.ts` exactly once.
+ */
+export const NEVER_EDIT_FAMILIES: ReadonlyMap<PathFamily, string> = new Map(
+  DECIDED.flatMap(([family, decision]): Array<[PathFamily, string]> => (decision === 'edit' ? [] : [[family, decision.never]])),
+);
 
 /** What `countsAsEdit` reads of an op. */
 export type EditCandidate = Pick<Op, 'path' | 'actor_id'> & { kind?: Op['kind']; value?: unknown; seq?: number };

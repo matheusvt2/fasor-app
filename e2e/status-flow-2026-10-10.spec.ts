@@ -24,9 +24,14 @@ import { syncNowAndReturn } from './support/sync.ts';
  *   (Emitido); an `unchanged` generate after a backward move ends Em revisão, never Emitido;
  *   an Emitido relatório's sheet says that editing reopens it, and the edit does, in its batch;
  *   the Controle do documento row follows the Export dialog's "Rev." line.
+ * - SF-E2E-003 (2026-10-13, Matheus; AD-22's `Emitido --generate--> Em revisão` row), at
+ *   1280 px: an Emitido relatório regenerated with nothing edited (`unchanged`) stays Emitido;
+ *   once it holds content the client does not have and no status op came with it (another
+ *   device's edit, pulled here), "Gerar relatório" builds revision 2 and reopens it as
+ *   Em revisão, "Ainda não enviada ao cliente", with "Marcar como enviado ao cliente" offered.
  *
- * The second test generates through the one queue and LibreOffice, so the file runs in the
- * serial group (`support/groups.ts`).
+ * The second and third tests generate through the one queue and LibreOffice, so the file runs
+ * in the serial group (`support/groups.ts`).
  */
 
 let account: SeedAccount;
@@ -382,3 +387,75 @@ for (const viewport of WIDTHS) {
     await expect(dialog(page).getByRole('button', { name: MARK_SENT })).toHaveCount(0);
   });
 }
+
+test('@p0 SF-E2E-003 Emitido with content the client does not have: an unchanged generate keeps Emitido; a generate that builds revision 2 reopens it as Em revisão, not yet sent, and "Marcar como enviado ao cliente" is offered again', async ({
+  page,
+}) => {
+  test.setTimeout(480_000);
+  await resetEmpresaBWithFixture(account);
+  await signIn(page, account.email);
+  await openSumario(page, EXPORT_RELATORIO_ID);
+  await expect(headerPill(page)).toHaveText('Em campo', { timeout: 30_000 });
+  await setParecer(page, EXPORT_RELATORIO_ID);
+  await page.setViewportSize(WIDTHS[0]);
+  const pill = dialog(page).locator('.row-wrap .status-pill');
+  const note = dialog(page).locator('.row-wrap .t-meta');
+  const ready = (number: number) => dialog(page).getByRole('heading', { level: 2, name: `Revisão ${number} pronta` });
+
+  // Revision 1, marked as sent: Emitido.
+  await footGenerate(page).click();
+  await expect(idleReason(page)).toHaveText(IDLE_1);
+  await generateButton(page).click();
+  await expect(ready(1)).toBeVisible({ timeout: JOB_TIMEOUT });
+  await dialog(page).getByRole('button', { name: MARK_SENT }).click();
+  await expect(pill).toHaveText('Emitido');
+  expect(await statusValues(page, EXPORT_RELATORIO_ID)).toEqual(['em_revisao', 'emitido']);
+
+  // "Gerar de novo" with nothing edited: the server answers revision 1 (`unchanged`), which the
+  // client already has. Emitido stays, no status op is written and nothing asks to be sent.
+  await dialog(page).getByRole('button', { name: 'Gerar de novo' }).click();
+  await expect(idleReason(page)).toHaveText(IDLE_1);
+  await generateButton(page).click();
+  await expect(ready(1)).toBeVisible({ timeout: 30_000 });
+  await expect(dialog(page).locator('.revision-row')).toHaveCount(1);
+  await expect(pill).toHaveText('Emitido');
+  await expect(note).toHaveText('Enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 2.');
+  await expect(dialog(page).getByRole('button', { name: MARK_SENT })).toHaveCount(0);
+  expect(await statusValues(page, EXPORT_RELATORIO_ID)).toEqual(['em_revisao', 'emitido']);
+  await escapeDialog(page);
+
+  // Content the client does not have, with no status op: another device of this user edits
+  // the relatório and this device pulls the edit. Its row still says Emitido.
+  await syncNowAndReturn(page);
+  await pushFromDevice(page, 'office-c', officeDraft(account, { relatorioId: EXPORT_RELATORIO_ID }, 'relatorio/setup/local', 'Sala elétrica C'));
+  await syncNowAndReturn(page);
+  await openSumario(page, EXPORT_RELATORIO_ID);
+  await expect(headerPill(page)).toHaveText('Emitido');
+  await expect(step(page)).toHaveText('Emitido: há alterações desde a revisão 1. Gerar cria a revisão 2.', { timeout: 30_000 });
+  await expect(controle(page)).toContainText('Rev. 2 na próxima emissão');
+  await expect(footMarkSent(page)).toHaveCount(0);
+  expect(await statusValues(page, EXPORT_RELATORIO_ID)).toEqual(['em_revisao', 'emitido']);
+
+  // "Gerar relatório" is queued (revision 2 will be built): the press writes Em revisão, and
+  // the revision's arrival leaves it there. Nobody marked revision 2 as sent.
+  await footGenerate(page).click();
+  await expect(idleReason(page)).toHaveText(IDLE_2);
+  await generateButton(page).click();
+  await expect.poll(() => statusValues(page, EXPORT_RELATORIO_ID), { timeout: 30_000 }).toEqual(['em_revisao', 'emitido', 'em_revisao']);
+  await expect(ready(2)).toBeVisible({ timeout: JOB_TIMEOUT });
+  await expect(pill).toHaveText('Em revisão');
+  await expect(note).toHaveText('Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 3.');
+  await expect(dialog(page).getByRole('button', { name: MARK_SENT })).toBeVisible();
+  expect(await statusValues(page, EXPORT_RELATORIO_ID)).toEqual(['em_revisao', 'emitido', 'em_revisao']);
+  await escapeDialog(page);
+
+  // The Sumário says the same, and the action is offered in the bar: it issues revision 2.
+  await expect(headerPill(page)).toHaveText('Em revisão');
+  await expect(step(page)).toHaveText('Em revisão: a revisão 2 ainda não foi enviada ao cliente. Depois de enviar, use "Marcar como enviado ao cliente".');
+  await expect(banner(page)).toContainText(/Revisão 2 gerada em \d{2}\/\d{2}, ainda não enviada ao cliente\./);
+  await expect(controle(page)).toContainText('Rev. 2 gerada');
+  await footMarkSent(page).click();
+  await expect(headerPill(page)).toHaveText('Emitido');
+  await expect(controle(page)).toContainText('Rev. 2 emitida');
+  expect(await statusValues(page, EXPORT_RELATORIO_ID)).toEqual(['em_revisao', 'emitido', 'em_revisao', 'emitido']);
+});

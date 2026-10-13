@@ -7,8 +7,9 @@ import { safeParsePath } from '../ops/path.ts';
 /*
  * Story 4.6, AD-22 (table of 2026-10-10): the emitter that appends the status transition an
  * edit causes to any relatório-scoped batch (Emitido→Em revisão, and Rascunho→Em campo for
- * field work), and every sentence that says a status or a status change: the Sumário's and
- * the ficha's banners, the status toasts, and the header Overflow's backward move.
+ * field work), the transition a generate causes (`advanceOnGenerate`, 2026-10-13), and every
+ * sentence that says a status or a status change: the Sumário's and the ficha's banners, the
+ * status toasts, and the header Overflow's backward move.
  */
 
 /**
@@ -29,6 +30,26 @@ export function advanceOnEdit(status: RelatorioStatus, drafts: readonly EditCand
   const counts = status === 'rascunho' ? countsAsFieldContent : countsAsEdit;
   if (!drafts.some((draft) => counts(draft))) return null;
   return statusTable(status, 'edit');
+}
+
+/**
+ * How the server answered a generate: `queued`, a new revision will be built; `unchanged`,
+ * nothing was edited since the newest revision and the server answered that one.
+ */
+export type GenerateOutcome = 'queued' | 'unchanged';
+
+/**
+ * AD-22's generate emitter: the status a generate moves the relatório to, or null. `queued`
+ * is the table's `generate` row as it is. `unchanged` is the same row except from Emitido,
+ * which stays (2026-10-13, Matheus): the server answered the revision the client already has,
+ * so nothing new exists that was not sent. A queued generate from Emitido builds revision N+1,
+ * which nobody marked as sent, and reopens the relatório as Em revisão; "Marcar como enviado ao
+ * cliente" is offered again once that revision arrives. Called by the Export dialog's request
+ * (`use-generate.ts`), the one place a generate is asked for.
+ */
+export function advanceOnGenerate(status: RelatorioStatus, outcome: GenerateOutcome): RelatorioStatus | null {
+  if (outcome === 'unchanged' && status === 'emitido') return null;
+  return statusTable(status, 'generate');
 }
 
 type RevisionStamp = Pick<RevisionRow, 'number' | 'created_at'>;
