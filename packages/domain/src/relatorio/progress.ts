@@ -73,11 +73,26 @@ function scoped(blocks: readonly BlockRow[], pending: readonly SuggestionRow[] |
   return [own.length, blocksWithPendingSuggestions(own)];
 }
 
-/** The location ids of a cabine and the colunas under it. */
-export function cabineLocationIds(locations: readonly Pick<LocationRow, 'id' | 'parent_id'>[], cabineId: string): Set<string> {
+/**
+ * The location ids of a cabine (the local) and the locations a block of it can sit under:
+ * the locations directly under it and, Story 14.2, the colunas of its painéis. A row with no
+ * `kind` is read as before the painel level (direct children only).
+ */
+export function cabineLocationIds(locations: readonly (Pick<LocationRow, 'id' | 'parent_id'> & { kind?: LocationRow['kind'] })[], cabineId: string): Set<string> {
   const ids = new Set([cabineId]);
-  for (const location of locations) if (location.parent_id === cabineId) ids.add(location.id);
+  const paineis = new Set<string>();
+  for (const location of locations) {
+    if (location.parent_id !== cabineId) continue;
+    ids.add(location.id);
+    if (location.kind === 'painel') paineis.add(location.id);
+  }
+  if (paineis.size > 0) for (const location of locations) if (location.parent_id !== null && paineis.has(location.parent_id)) ids.add(location.id);
   return ids;
+}
+
+/** The progress over exactly these blocks (a local's own, for "Equipamentos no local · 0 de 2"), with the same pending-suggestion rule as `progress`. */
+export function blocksProgress(blocks: readonly BlockRow[], pending?: readonly SuggestionRow[]): Progress {
+  return over(blocks, ...scoped(blocks, pending));
 }
 
 /**

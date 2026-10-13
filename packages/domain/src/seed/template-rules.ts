@@ -6,8 +6,9 @@ import { LOCKED_SUB_BLOCKS } from './template.ts';
 /*
  * The rules of a Template row (AD-21), run by `templateRowSchema`'s `superRefine`: what a
  * block's `BlockConfig` may hold depends on its block type's definition under the row's
- * own `seed_version`, the skeleton's refs are unique and every coluna sits under a
- * cabine. Kept out of `schemas/entities.ts` so the seed stays a leaf that entities
+ * own `seed_version`, the skeleton's refs are unique, every painel sits under a cabine and
+ * every coluna under a painel or a cabine (Story 14.2; the coluna directly under a cabine
+ * is the shape every template had before the painel level). Kept out of `schemas/entities.ts` so the seed stays a leaf that entities
  * imports, never the other way round.
  *
  * Every rule here is judged within one field's value -- `blocks` alone or `skeleton`
@@ -35,8 +36,12 @@ export function checkTemplateRow(row: TemplateShape, ctx: z.RefinementCtx): void
     nodes.set(node.ref, node);
   });
   row.skeleton.forEach((node, i) => {
-    if (node.kind === 'coluna' && nodes.get(node.parent_ref)?.kind !== 'cabine') {
-      issue(['skeleton', i, 'parent_ref'], `coluna "${node.ref}" must sit under a cabine`);
+    const parentKind = node.kind === 'cabine' ? undefined : nodes.get(node.parent_ref)?.kind;
+    if (node.kind === 'painel' && parentKind !== 'cabine') {
+      issue(['skeleton', i, 'parent_ref'], `painel "${node.ref}" must sit under a cabine`);
+    }
+    if (node.kind === 'coluna' && parentKind !== 'cabine' && parentKind !== 'painel') {
+      issue(['skeleton', i, 'parent_ref'], `coluna "${node.ref}" must sit under a cabine or a painel`);
     }
   });
 

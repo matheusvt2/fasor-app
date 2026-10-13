@@ -277,6 +277,8 @@ export function tocLines(layout: Pick<DocumentLayout, 'toc' | 'sections'>): TocL
     const section = layout.sections.find((s) => s.number === entry.number);
     if (section?.kind !== 'sheets') continue;
     for (const subsection of section.subsections) {
+      // Story 14.2: a painel prints as an unnumbered band, never a line of the ÍNDICE.
+      if (subsection.painel === true) continue;
       const key = subsection.heading.split(' ', 1)[0]!;
       lines.push({ key, text: subsection.heading, level: 2 });
     }

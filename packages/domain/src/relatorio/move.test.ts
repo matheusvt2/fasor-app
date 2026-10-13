@@ -6,6 +6,7 @@ import { buildSnapshot } from '../schemas/snapshot.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { instantiateTemplate } from './instantiate.ts';
+import { takesBlocks } from './local.ts';
 import { blockMovedToText, moveTagQuestion, moveTagSuggestion, moveTargets, movePlan, renameToText } from './move.ts';
 import { locationBlocks } from './tree.ts';
 
@@ -18,7 +19,8 @@ function relatorio() {
   );
   const ops = drafts.map((d) => makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0052-7000-8000-'), now: T0 }));
   const snapshot = buildSnapshot(replay(ops.map((op, i) => ({ ...op, seq: i + 1 }))), relatorioId);
-  const byName = (name: string) => snapshot.locations.find((row) => row.name === name)!;
+  // The standard template holds cabines and colunas only: every location takes blocks.
+  const byName = (name: string) => snapshot.locations.filter(takesBlocks).find((row) => row.name === name)!;
   const tagOf = (block: BlockRow) => snapshot.equipment.find((row) => row.id === block.equipment_id)!.tag;
   return { snapshot, byName, tagOf };
 }

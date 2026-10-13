@@ -164,10 +164,14 @@ export function templateBlocksText(total: number): string {
   return total === 1 ? '1 bloco' : `${total} blocos`;
 }
 
-/** The dialog's helper under the template: "Os 94 blocos nascem nas cabines e colunas do template, com a TAG final. Arquivados não aparecem." */
+/**
+ * The dialog's helper under the template: "Os 94 blocos nascem nos locais e colunas do
+ * template, com a TAG final. Arquivados não aparecem." authored (Story 14.2): "locais" where
+ * the mock of the dialog still said "cabines".
+ */
 export function templateHelperText(total: number | null): string {
   const lead = total === null ? 'Os blocos' : `Os ${total} blocos`;
-  return `${lead} nascem nas cabines e colunas do template, com a TAG final. Arquivados não aparecem.`;
+  return `${lead} nascem nos locais e colunas do template, com a TAG final. Arquivados não aparecem.`;
 }
 
 /** The dialog's description: "Para ⟨cliente⟩ · ⟨obra⟩." (the bold part; the sentence after it is the surface's). */

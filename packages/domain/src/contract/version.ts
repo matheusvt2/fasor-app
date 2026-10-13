@@ -105,8 +105,18 @@
  * undo of "Aplicar" on the text also restores its cleared `merge` record (`meta.restore`).
  * No new family, but the reducer changed: `MIN_CONTRACT_VERSION` goes to 16 too; 2026-10-09,
  * Matheus.
+ *
+ * 17 (2026-10-13, Story 14.2): Local › Painel › Coluna. The location row's `kind` gains
+ * `painel` (a child of a cabine that only groups colunas: no data, no block), the cabine row
+ * gains the optional `funcao` (a reserved key of `FUNCAO_KEYS` or a typed name; absent and
+ * null both mean none), and the `location/{id}/funcao` put family is new. The template
+ * skeleton gains the same `painel` node and cabine `funcao`. The fold refuses what a kind
+ * never holds with `LocationKindError` (a block placed on a painel, `se`, `env`,
+ * `agrupar_por_tipo` or `funcao` on a painel, `funcao` on a coluna), which the push route
+ * answers `op_invalid`. A row written before 17 parses to the same bytes and nothing an
+ * existing log can contain starts to throw. `MIN_CONTRACT_VERSION` goes to 17 too.
  */
-export const CONTRACT_VERSION = 16;
+export const CONTRACT_VERSION = 17;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -174,8 +184,15 @@ export const CONTRACT_VERSION = 16;
  * contradiction, and it folds a concurrent differing `text_basis` as a contradiction where a
  * version-16 fold follows the text (`sequential`), so its rows would diverge from the
  * server's: it updates too.
+ *
+ * 17 (2026-10-13, Story 14.2): a version-16 (or older) bundle cannot parse a `location/{id}`
+ * create with `kind: 'painel'` (its row schema knows `cabine` and `coluna` only) nor a
+ * `location/{id}/funcao` put (an unknown path: its `opSchema` fails the whole pulled page,
+ * `invalid_response`), and its template schema refuses a skeleton holding a `painel` node. A
+ * relatório or company stream carries those as soon as anyone adds a painel or sets a
+ * local's Função, so the version-16 bundle updates too.
  */
-export const MIN_CONTRACT_VERSION = 16;
+export const MIN_CONTRACT_VERSION = 17;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

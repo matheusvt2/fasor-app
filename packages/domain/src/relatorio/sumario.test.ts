@@ -454,8 +454,8 @@ describe('4.1-UNIT project and relatório texts', () => {
   it('template option meta and helper', () => {
     expect(templateBlocksText(94)).toBe('94 blocos');
     expect(templateBlocksText(1)).toBe('1 bloco');
-    expect(templateHelperText(94)).toBe('Os 94 blocos nascem nas cabines e colunas do template, com a TAG final. Arquivados não aparecem.');
-    expect(templateHelperText(null)).toBe('Os blocos nascem nas cabines e colunas do template, com a TAG final. Arquivados não aparecem.');
+    expect(templateHelperText(94)).toBe('Os 94 blocos nascem nos locais e colunas do template, com a TAG final. Arquivados não aparecem.');
+    expect(templateHelperText(null)).toBe('Os blocos nascem nos locais e colunas do template, com a TAG final. Arquivados não aparecem.');
   });
 });
 

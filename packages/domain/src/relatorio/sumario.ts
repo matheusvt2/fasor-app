@@ -8,6 +8,7 @@ import { isRelatorioSectionType, relatorioSectionNumber, type RelatorioSectionTy
 import { blockingRows, issueConfirmReason, preIssueRowsFor, type IssueConfirmation, type PreIssueRow, type SumarioRowKey } from './pre-issue.ts';
 import { progressCounterText, type Progress } from './progress.ts';
 import { sectionTextEdited } from './section-variables.ts';
+import { funcaoLabel } from './local.ts';
 import { locationPathText } from './location-path.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
 import { pointsSummary, pointsSummaryText } from '../points/summary.ts';
@@ -115,14 +116,16 @@ function measure(value: { raw: string; unit: string | null } | null, unit: strin
 export const CABINE_META_NONE = '—';
 
 /**
- * `.s9-cab-meta` of a cabine row (DESIGN.md › Relatório tree: "SE · 13,8 kV · 19 °C · 67 %",
- * read-only), from the cabine's own data: its SE type, primary voltage, test temperature
- * and humidity, and "agrupar por tipo" when the flag is on; "—" when none is set. A coluna
- * has no data line and reads "".
+ * The data line of a local's row (`.s9-loc-meta`, `40-relatorio-overview.html`: "Entrada ·
+ * Blindada · 13,8 kV · 19 °C · 67 %", read-only), from the cabine row's own data: its Função
+ * first when it holds one (Story 14.2, `funcaoLabel`), then its SE type, primary voltage,
+ * test temperature and humidity, and "agrupar por tipo" when the flag is on; "—" when none
+ * is set. A painel or a coluna has no data line and reads "".
  */
 export function cabineMetaText(location: LocationRow): string {
   if (location.kind !== 'cabine') return '';
   const line = join([
+    funcaoLabel(location.funcao),
     location.se.type,
     measure(location.se.primary_kv, 'kV'),
     measure(location.env.temperature_c, '°C'),

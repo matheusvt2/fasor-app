@@ -6,6 +6,7 @@ import { emptyTemplate } from './list.ts';
 import {
   defaultCabineName,
   defaultColunaName,
+  defaultPainelName,
   moveAnnouncement,
   naDefaultsCountText,
   nodeSummaryText,
@@ -22,7 +23,7 @@ const standard = standardTemplate({ id: '019966b0-0035-7000-8000-000000000001' }
 
 describe('3.3-UNIT templateSummaryText', () => {
   it('reads the seed, the sections and the skeleton counts of the standard template', () => {
-    expect(templateSummaryText(standard, 0)).toBe('Semente v3 · 9 seções · 6 cabines · 17 colunas · 94 blocos de equipamento');
+    expect(templateSummaryText(standard, 0)).toBe('Semente v3 · 9 seções · 6 locais · 17 colunas · 94 blocos de equipamento');
   });
 
   it('adds the use at one and at many, and omits every zero part except the sections', () => {
@@ -31,7 +32,7 @@ describe('3.3-UNIT templateSummaryText', () => {
     expect(templateSummaryText(emptyTemplate('019966b0-0035-7000-8000-000000000002', 'v1'), 0)).toBe('Semente v1 · 0 seções');
     const one = { ...emptyTemplate('019966b0-0035-7000-8000-000000000002', 'v1'), skeleton: addCabine([], 'c', 'C') };
     const withBlock = { ...one, blocks: setQuantity(one, 'c', 'tp', 1) };
-    expect(templateSummaryText(withBlock, 0)).toBe('Semente v1 · 0 seções · 1 cabine · 1 bloco de equipamento');
+    expect(templateSummaryText(withBlock, 0)).toBe('Semente v1 · 0 seções · 1 local · 1 bloco de equipamento');
   });
 });
 
@@ -75,7 +76,7 @@ describe('3.4-UNIT totalsText and quantityLabel', () => {
 
 describe('3.4-UNIT composer headings and node summaries', () => {
   it('heads the skeleton with its counts, zeros omitted', () => {
-    expect(skeletonHeading(composerView(standard))).toBe('Esqueleto de locais · 6 cabines · 17 colunas · 94 blocos');
+    expect(skeletonHeading(composerView(standard))).toBe('Esqueleto de locais · 6 locais · 17 colunas · 94 blocos');
     expect(skeletonHeading(composerView({ blocks: [], skeleton: [] }))).toBe('Esqueleto de locais');
     expect(sectionsHeading(9)).toBe('Blocos · 9 seções');
     expect(sectionsHeading(1)).toBe('Blocos · 1 seção');
@@ -83,8 +84,9 @@ describe('3.4-UNIT composer headings and node summaries', () => {
 
   it('summarizes a cabine with its colunas and blocks, and a coluna with its own', () => {
     const view = composerView(standard);
+    // Story 14.2: a local nothing hangs under says so, as the mock's masonry room does.
     expect(nodeSummaryText(view.cabines[0]!)).toEqual({
-      flag: '9 blocos',
+      flag: 'sem painéis · 9 blocos',
       sum: '2 seccionadoras · 1 disjuntor · 1 TP · 1 TC · 1 cabo de entrada · 1 cabo de saída · 2 para-raios',
     });
     expect(nodeSummaryText(view.cabines[1]!).flag).toBe('17 colunas · 49 blocos');
@@ -96,11 +98,13 @@ describe('3.4-UNIT composer headings and node summaries', () => {
   it('announces a move and names new nodes', () => {
     expect(moveAnnouncement('coluna', 'Coluna 5', 3, 17)).toBe('Coluna 5 movida para a posição 3 de 17');
     expect(moveAnnouncement('coluna', 'Entrada', 1, 2)).toBe('Coluna Entrada movida para a posição 1 de 2');
-    expect(moveAnnouncement('cabine', 'Cubículo Enel', 1, 6)).toBe('Cabine Cubículo Enel movida para a posição 1 de 6');
+    expect(moveAnnouncement('cabine', 'Cubículo Enel', 1, 6)).toBe('Local Cubículo Enel movido para a posição 1 de 6');
     expect(moveAnnouncement('cabine', 'Cabine 2', 1, 6)).toBe('Cabine 2 movida para a posição 1 de 6');
     expect(moveAnnouncement('section', '2', 1, 9)).toBe('Seção 2 movida para a posição 1 de 9');
     expect(removedText('coluna', 'Coluna 3')).toBe('Coluna 3 removida');
-    expect(removedText('cabine', 'Geradores')).toBe('Cabine Geradores removida');
+    expect(removedText('cabine', 'Geradores')).toBe('Local Geradores removido');
+    expect(removedText('painel', 'Painel 2')).toBe('Painel 2 removido');
+    expect(defaultPainelName(2)).toBe('Painel 2');
     expect(removedText('section', '8')).toBe('Seção 8 removida');
     expect(defaultCabineName(1)).toBe('Cabine 1');
     expect(defaultColunaName(3)).toBe('Coluna 3');

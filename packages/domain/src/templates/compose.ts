@@ -20,13 +20,19 @@ import { defaultBlockConfig, LOCKED_SUB_BLOCKS, zeroTotals } from '../seed/templ
  * (never mutating its input), and each result is a value `templateRowSchema` accepts, so
  * the surface writes it as one `template/{id}/blocks` or `template/{id}/skeleton` put.
  *
- * `blocks` and `skeleton` are two last-writer-wins fields, so a block may point at a node
- * another device removed (an orphan). Nothing here or in the view counts one, and every
- * function that returns `blocks` from a whole composition starts from `withoutOrphans`,
- * so the composer's next write drops it (Design Notes, "Concurrency choice").
+ * Story 14.2: the skeleton is Local › Painel › Coluna. A `cabine` node is the local: it
+ * carries the Função and "Agrupar por tipo", takes equipment directly and holds zero or more
+ * painéis; a `painel` only groups colunas and takes no block; a `coluna` takes equipment. A
+ * coluna directly under a cabine (every template written before the painel level, the
+ * seeded standard one included) stays valid and is never rewritten into a painel.
  *
- * The kernel never mints an id: a new cabine or coluna ref is the caller's (the web's
- * uuidv7 `newId`, TC-2).
+ * `blocks` and `skeleton` are two last-writer-wins fields, so a block may point at a node
+ * another device removed (an orphan), or at a painel. Nothing here or in the view counts
+ * one, and every function that returns `blocks` from a whole composition starts from
+ * `withoutOrphans`, so the composer's next write drops it (Design Notes, "Concurrency choice").
+ *
+ * The kernel never mints an id: a new node's ref is the caller's (the web's uuidv7
+ * `newId`, TC-2).
  */
 
 /** The two fields a composition is made of. */
@@ -36,6 +42,7 @@ export type Composition = Pick<TemplateRow, 'blocks' | 'skeleton'>;
 export type SeededComposition = Pick<TemplateRow, 'blocks' | 'skeleton' | 'seed_version'>;
 
 type CabineNode = Extract<SkeletonNode, { kind: 'cabine' }>;
+type PainelNode = Extract<SkeletonNode, { kind: 'painel' }>;
 type ColunaNode = Extract<SkeletonNode, { kind: 'coluna' }>;
 
 /** A requested quantity brought into 0..MAX_QUANTITY (a fraction is floored). */
@@ -72,15 +79,44 @@ function cabinesOf(skeleton: readonly SkeletonNode[]): CabineNode[] {
   return skeleton.filter((node): node is CabineNode => node.kind === 'cabine');
 }
 
-function colunasOf(skeleton: readonly SkeletonNode[], cabineRef: string): ColunaNode[] {
-  return skeleton.filter((node): node is ColunaNode => node.kind === 'coluna' && node.parent_ref === cabineRef);
+/** The painéis of one cabine, in their current order. */
+function paineisOf(skeleton: readonly SkeletonNode[], cabineRef: string): PainelNode[] {
+  return skeleton.filter((node): node is PainelNode => node.kind === 'painel' && node.parent_ref === cabineRef);
 }
 
-/** Each cabine followed by its colunas, both in their current order. */
-function canonical(cabines: readonly CabineNode[], colunasOfCabine: (ref: string) => readonly ColunaNode[]): SkeletonNode[] {
+/** The colunas directly under one parent (a painel, or a cabine for the shape before the painel level), in their current order. */
+function colunasOf(skeleton: readonly SkeletonNode[], parentRef: string): ColunaNode[] {
+  return skeleton.filter((node): node is ColunaNode => node.kind === 'coluna' && node.parent_ref === parentRef);
+}
+
+/** The order of every sibling list of a skeleton: what an edit replaces one list of. */
+interface SkeletonOrder {
+  cabines: readonly CabineNode[];
+  paineisOf: (cabineRef: string) => readonly PainelNode[];
+  colunasOf: (parentRef: string) => readonly ColunaNode[];
+}
+
+function orderOf(skeleton: readonly SkeletonNode[]): SkeletonOrder {
+  return { cabines: cabinesOf(skeleton), paineisOf: (ref) => paineisOf(skeleton, ref), colunasOf: (ref) => colunasOf(skeleton, ref) };
+}
+
+/**
+ * The canonical order (Story 14.2): each cabine, the colunas directly under it, then each
+ * of its painéis followed by that painel's colunas; every sibling list in its current
+ * order. A skeleton with no painel comes out as before: each cabine followed by its colunas.
+ */
+function canonical(order: SkeletonOrder): SkeletonNode[] {
   const out: SkeletonNode[] = [];
-  for (const cabine of cabines) out.push(cabine, ...colunasOfCabine(cabine.ref));
+  for (const cabine of order.cabines) {
+    out.push(cabine, ...order.colunasOf(cabine.ref));
+    for (const painel of order.paineisOf(cabine.ref)) out.push(painel, ...order.colunasOf(painel.ref));
+  }
   return out;
+}
+
+/** The skeleton in canonical order: what `instantiateTemplate` and every reader walk. */
+export function canonicalSkeleton(skeleton: readonly SkeletonNode[]): SkeletonNode[] {
+  return canonical(orderOf(skeleton));
 }
 
 /**
@@ -105,19 +141,43 @@ function assertFreshRef(skeleton: readonly SkeletonNode[], ref: string): void {
   if (skeleton.some((n) => n.ref === ref)) throw new Error(`template skeleton already has a node "${ref}"`);
 }
 
-/** Appends a cabine (Agrupar por tipo off) after the last one. */
-export function addCabine(skeleton: readonly SkeletonNode[], ref: string, name: string): SkeletonNode[] {
+/**
+ * Appends a cabine (the local; Agrupar por tipo off) after the last one, with the Função
+ * the dialog chose (a reserved key of `FUNCAO_KEYS` or a typed name), none when absent.
+ */
+export function addCabine(skeleton: readonly SkeletonNode[], ref: string, name: string, funcao?: string | null): SkeletonNode[] {
   assertFreshRef(skeleton, ref);
-  const cabine: CabineNode = { ref, kind: 'cabine', parent_ref: null, name, agrupar_por_tipo: false };
-  return canonical([...cabinesOf(skeleton), cabine], (r) => colunasOf(skeleton, r));
+  const cabine: CabineNode = {
+    ref,
+    kind: 'cabine',
+    parent_ref: null,
+    name,
+    agrupar_por_tipo: false,
+    ...(funcao === undefined || funcao === null ? {} : { funcao }),
+  };
+  const order = orderOf(skeleton);
+  return canonical({ ...order, cabines: [...order.cabines, cabine] });
 }
 
-/** Appends a coluna after the last coluna of a cabine. */
-export function addColuna(skeleton: readonly SkeletonNode[], cabineRef: string, ref: string, name: string): SkeletonNode[] {
+/** Appends a painel after the last painel of a cabine. */
+export function addPainel(skeleton: readonly SkeletonNode[], cabineRef: string, ref: string, name: string): SkeletonNode[] {
   assertFreshRef(skeleton, ref);
   if (nodeOf(skeleton, cabineRef).kind !== 'cabine') throw new Error(`"${cabineRef}" is not a cabine`);
-  const coluna: ColunaNode = { ref, kind: 'coluna', parent_ref: cabineRef, name };
-  return canonical(cabinesOf(skeleton), (r) => (r === cabineRef ? [...colunasOf(skeleton, r), coluna] : colunasOf(skeleton, r)));
+  const painel: PainelNode = { ref, kind: 'painel', parent_ref: cabineRef, name };
+  const order = orderOf(skeleton);
+  return canonical({ ...order, paineisOf: (r) => (r === cabineRef ? [...order.paineisOf(r), painel] : order.paineisOf(r)) });
+}
+
+/**
+ * Appends a coluna after the last coluna of its parent: a painel, or, for the shape every
+ * template had before the painel level, a cabine.
+ */
+export function addColuna(skeleton: readonly SkeletonNode[], parentRef: string, ref: string, name: string): SkeletonNode[] {
+  assertFreshRef(skeleton, ref);
+  if (nodeOf(skeleton, parentRef).kind === 'coluna') throw new Error(`"${parentRef}" is a coluna: a coluna sits under a painel or a cabine`);
+  const coluna: ColunaNode = { ref, kind: 'coluna', parent_ref: parentRef, name };
+  const order = orderOf(skeleton);
+  return canonical({ ...order, colunasOf: (r) => (r === parentRef ? [...order.colunasOf(r), coluna] : order.colunasOf(r)) });
 }
 
 export function renameNode(skeleton: readonly SkeletonNode[], ref: string, name: string): SkeletonNode[] {
@@ -131,6 +191,22 @@ export function setAgruparPorTipo(skeleton: readonly SkeletonNode[], cabineRef: 
   return skeleton.map((node) => (node.ref === cabineRef && node.kind === 'cabine' ? { ...node, agrupar_por_tipo: value } : node));
 }
 
+/**
+ * Sets a cabine's Função (Story 14.2): a reserved key or a typed name; null takes it away,
+ * leaving the node as one that never held it. `instantiateTemplate` copies it onto the
+ * relatório's cabine row.
+ */
+export function setFuncao(skeleton: readonly SkeletonNode[], cabineRef: string, funcao: string | null): SkeletonNode[] {
+  if (nodeOf(skeleton, cabineRef).kind !== 'cabine') throw new Error(`"${cabineRef}" is not a cabine`);
+  return skeleton.map((node) => {
+    if (node.ref !== cabineRef || node.kind !== 'cabine') return node;
+    if (funcao !== null) return { ...node, funcao };
+    const rest: CabineNode = { ...node };
+    delete rest.funcao;
+    return rest;
+  });
+}
+
 function moveWithin<T>(items: readonly T[], from: number, toIndex: number): T[] {
   const out = [...items];
   const to = Math.min(out.length - 1, Math.max(0, Math.floor(toIndex)));
@@ -140,35 +216,62 @@ function moveWithin<T>(items: readonly T[], from: number, toIndex: number): T[] 
 }
 
 /**
- * Moves a node to `toIndex` (0-based, clamped to the ends) among its siblings: a cabine
- * among the cabines, a coluna among the colunas of its own cabine.
+ * Moves a node to `toIndex` (0-based, clamped to the ends) among its siblings of the same
+ * kind and parent: a cabine among the cabines, a painel among the painéis of its cabine, a
+ * coluna among the colunas of its own painel (or cabine).
  */
 export function moveNode(skeleton: readonly SkeletonNode[], ref: string, toIndex: number): SkeletonNode[] {
   const node = nodeOf(skeleton, ref);
+  const order = orderOf(skeleton);
   if (node.kind === 'cabine') {
-    const cabines = cabinesOf(skeleton);
-    return canonical(moveWithin(cabines, cabines.indexOf(node), toIndex), (r) => colunasOf(skeleton, r));
+    return canonical({ ...order, cabines: moveWithin(order.cabines, order.cabines.indexOf(node), toIndex) });
   }
-  const siblings = colunasOf(skeleton, node.parent_ref);
+  if (node.kind === 'painel') {
+    const siblings = order.paineisOf(node.parent_ref);
+    const moved = moveWithin(siblings, siblings.indexOf(node), toIndex);
+    return canonical({ ...order, paineisOf: (r) => (r === node.parent_ref ? moved : order.paineisOf(r)) });
+  }
+  const siblings = order.colunasOf(node.parent_ref);
   const moved = moveWithin(siblings, siblings.indexOf(node), toIndex);
-  return canonical(cabinesOf(skeleton), (r) => (r === node.parent_ref ? moved : colunasOf(skeleton, r)));
+  return canonical({ ...order, colunasOf: (r) => (r === node.parent_ref ? moved : order.colunasOf(r)) });
 }
 
-/** The composition's blocks with every orphan (a block on a node the skeleton lacks) dropped. */
+/**
+ * The composition's blocks with every orphan dropped: a block on a node the skeleton lacks
+ * and, Story 14.2, a block on a painel (a painel takes no block; one two devices folded
+ * into, or one written by hand, is ignored by every reader like any other orphan).
+ */
 export function withoutOrphans(template: Composition): TemplateBlock[] {
-  const nodes = new Set(template.skeleton.map((node) => node.ref));
+  const nodes = new Set(template.skeleton.filter((node) => node.kind !== 'painel').map((node) => node.ref));
   return template.blocks.filter(
     (block) => isSectionBlockType(block.block_type) || (block.skeleton_location_ref !== null && nodes.has(block.skeleton_location_ref)),
   );
 }
 
+/** A node's ref and the ref of every node under it: a cabine's colunas, painéis and their colunas; a painel's colunas. */
+function subtreeRefs(skeleton: readonly SkeletonNode[], ref: string): Set<string> {
+  const gone = new Set([ref]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const node of skeleton) {
+      if (node.parent_ref !== null && gone.has(node.parent_ref) && !gone.has(node.ref)) {
+        gone.add(node.ref);
+        grew = true;
+      }
+    }
+  }
+  return gone;
+}
+
 /**
- * Removes a node, and with a cabine its colunas, together with every block placed on any
- * of them. Both fields change, so the caller writes both in one batch (one undo).
+ * Removes a node with everything under it (a cabine's colunas, its painéis and their
+ * colunas; a painel's colunas), together with every block placed on any of them. Both
+ * fields change, so the caller writes both in one batch (one undo).
  */
 export function removeNode(template: Composition, ref: string): Composition {
-  const node = nodeOf(template.skeleton, ref);
-  const gone = new Set([ref, ...(node.kind === 'cabine' ? colunasOf(template.skeleton, ref).map((c) => c.ref) : [])]);
+  nodeOf(template.skeleton, ref);
+  const gone = subtreeRefs(template.skeleton, ref);
   const skeleton = template.skeleton.filter((n) => !gone.has(n.ref));
   const blocks = withoutOrphans(template).filter((b) => b.skeleton_location_ref === null || !gone.has(b.skeleton_location_ref));
   return { blocks, skeleton };
@@ -184,9 +287,12 @@ export function removeNode(template: Composition, ref: string): Composition {
  * entry that reaches zero. A type with no entry at the node gets a new one, placed after
  * the node's other blocks, with the type's config from its other placements
  * (`typeConfigFor`) or, for a type the template does not hold yet, `defaultBlockConfig`.
+ * The node is a cabine (the local itself) or a coluna; a painel throws.
  */
 export function setQuantity(template: SeededComposition, ref: string, type: EquipmentBlockType, n: number): TemplateBlock[] {
-  nodeOf(template.skeleton, ref);
+  // Story 14.2: a painel only groups colunas. Placing a block on one is a caller's bug, not a
+  // target another device removed, so it surfaces instead of being swallowed.
+  if (nodeOf(template.skeleton, ref).kind === 'painel') throw new Error(`"${ref}" is a painel: a painel takes no block`);
   const target = clampQuantity(n);
   const blocks = withoutOrphans(template);
   const entries = blocks.flatMap((block, i) => (block.block_type === type && block.skeleton_location_ref === ref ? [i] : []));
@@ -402,30 +508,53 @@ export function setSectionText(blocks: readonly TemplateBlock[], index: number, 
 interface ComposerNodeBase {
   ref: string;
   name: string;
-  /** 1-based position among its siblings, and how many siblings there are. */
+  /** 1-based position among its siblings of the same kind and parent, and how many there are. */
   position: number;
   siblings: number;
-  /** The equipment placed on this node itself, per type. */
-  quantities: Record<EquipmentBlockType, number>;
-  /** How many equipment blocks sit on this node itself. */
-  blockCount: number;
 }
 
 export interface ComposerColuna extends ComposerNodeBase {
   kind: 'coluna';
+  /** Its painel, or its cabine for a coluna directly under one. */
   parent_ref: string;
+  /** The equipment placed on this coluna, per type. */
+  quantities: Record<EquipmentBlockType, number>;
+  /** How many equipment blocks sit on this coluna. */
+  blockCount: number;
+}
+
+/** Story 14.2: a painel groups colunas and takes no block of its own. */
+export interface ComposerPainel extends ComposerNodeBase {
+  kind: 'painel';
+  /** Its cabine. */
+  parent_ref: string;
+  colunas: ComposerColuna[];
+  /** The blocks of its colunas, per type, and their sum. */
+  totals: Record<EquipmentBlockType, number>;
+  totalBlockCount: number;
 }
 
 export interface ComposerCabine extends ComposerNodeBase {
   kind: 'cabine';
   agrupar_por_tipo: boolean;
+  /** The local's Função as stored (a reserved key or a typed name); null when it holds none. */
+  funcao: string | null;
+  /** The equipment placed directly on the local, per type ("Equipamentos no local"). */
+  quantities: Record<EquipmentBlockType, number>;
+  /** How many equipment blocks sit directly on the local. */
+  blockCount: number;
+  /** The colunas directly under the cabine: the shape every template had before the painel level. */
   colunas: ComposerColuna[];
-  /** The cabine's own blocks plus those of its colunas, per type, and their sum. */
+  paineis: ComposerPainel[];
+  /** The cabine's own blocks plus those of every coluna under it (directly or in a painel), per type, and their sum. */
   totals: Record<EquipmentBlockType, number>;
   totalBlockCount: number;
 }
 
-export type ComposerNode = ComposerCabine | ComposerColuna;
+export type ComposerNode = ComposerCabine | ComposerPainel | ComposerColuna;
+
+/** A node a block can be placed on: the local itself or a coluna, never a painel. */
+export type ComposerBlockNode = ComposerCabine | ComposerColuna;
 
 export interface ComposerSection extends SectionRef {
   /**
@@ -447,6 +576,9 @@ export interface ComposerView {
   sections: ComposerSection[];
   totals: Record<EquipmentBlockType, number>;
   cabineCount: number;
+  /** Story 14.2: every painel of the skeleton. */
+  painelCount: number;
+  /** Every coluna of the skeleton, in a painel or directly under a cabine. */
   colunaCount: number;
   /** Every equipment block of the composition (the sum of every quantity). */
   blockCount: number;
@@ -457,52 +589,73 @@ function sum(totals: Record<EquipmentBlockType, number>): number {
 }
 
 /**
- * What the composer draws: the cabines in order, each with its colunas in order and the
- * quantities per type on every node; then the section blocks in order with their
- * FO.SERV-03 number. An orphan block counts nowhere.
+ * What the composer draws: the cabines (the locais) in order, each with the equipment
+ * placed directly on it, the colunas directly under it and its painéis with their colunas,
+ * all in order, and the quantities per type on every node that takes blocks; then the
+ * section blocks in order with their FO.SERV-03 number. An orphan block, and a block on a
+ * painel, counts nowhere.
  */
 export function composerView(template: Composition): ComposerView {
   const perNode = new Map<string, Record<EquipmentBlockType, number>>();
-  for (const node of template.skeleton) perNode.set(node.ref, zeroTotals());
+  for (const node of template.skeleton) if (node.kind !== 'painel') perNode.set(node.ref, zeroTotals());
   for (const block of template.blocks) {
     if (!isEquipmentBlockType(block.block_type) || block.skeleton_location_ref === null) continue;
     const quantities = perNode.get(block.skeleton_location_ref);
     if (quantities !== undefined) quantities[block.block_type] += block.quantity;
   }
 
+  const add = (into: Record<EquipmentBlockType, number>, from: Record<EquipmentBlockType, number>) => {
+    for (const type of EQUIPMENT_BLOCK_TYPES) into[type] += from[type];
+  };
+  const colunasView = (parentRef: string, into: Record<EquipmentBlockType, number>[]): ComposerColuna[] => {
+    const nodes = colunasOf(template.skeleton, parentRef);
+    return nodes.map((coluna, j): ComposerColuna => {
+      const quantities = perNode.get(coluna.ref)!;
+      for (const totals of into) add(totals, quantities);
+      return { kind: 'coluna', ref: coluna.ref, parent_ref: parentRef, name: coluna.name, position: j + 1, siblings: nodes.length, quantities, blockCount: sum(quantities) };
+    });
+  };
+
   const cabineNodes = cabinesOf(template.skeleton);
   const totals = zeroTotals();
   let colunaCount = 0;
+  let painelCount = 0;
   const cabines = cabineNodes.map((cabine, i): ComposerCabine => {
-    const colunaNodes = colunasOf(template.skeleton, cabine.ref);
-    colunaCount += colunaNodes.length;
     const own = perNode.get(cabine.ref)!;
     const cabineTotals = { ...own };
-    const colunas = colunaNodes.map((coluna, j): ComposerColuna => {
-      const quantities = perNode.get(coluna.ref)!;
-      for (const type of EQUIPMENT_BLOCK_TYPES) cabineTotals[type] += quantities[type];
+    const colunas = colunasView(cabine.ref, [cabineTotals]);
+    const painelNodes = paineisOf(template.skeleton, cabine.ref);
+    const paineis = painelNodes.map((painel, j): ComposerPainel => {
+      const painelTotals = zeroTotals();
+      const painelColunas = colunasView(painel.ref, [painelTotals, cabineTotals]);
+      colunaCount += painelColunas.length;
       return {
-        kind: 'coluna',
-        ref: coluna.ref,
+        kind: 'painel',
+        ref: painel.ref,
         parent_ref: cabine.ref,
-        name: coluna.name,
+        name: painel.name,
         position: j + 1,
-        siblings: colunaNodes.length,
-        quantities,
-        blockCount: sum(quantities),
+        siblings: painelNodes.length,
+        colunas: painelColunas,
+        totals: painelTotals,
+        totalBlockCount: sum(painelTotals),
       };
     });
-    for (const type of EQUIPMENT_BLOCK_TYPES) totals[type] += cabineTotals[type];
+    colunaCount += colunas.length;
+    painelCount += paineis.length;
+    add(totals, cabineTotals);
     return {
       kind: 'cabine',
       ref: cabine.ref,
       name: cabine.name,
       agrupar_por_tipo: cabine.agrupar_por_tipo,
+      funcao: cabine.funcao ?? null,
       position: i + 1,
       siblings: cabineNodes.length,
       quantities: own,
       blockCount: sum(own),
       colunas,
+      paineis,
       totals: cabineTotals,
       totalBlockCount: sum(cabineTotals),
     };
@@ -522,16 +675,21 @@ export function composerView(template: Composition): ComposerView {
     }),
   );
 
-  return { cabines, sections, totals, cabineCount: cabines.length, colunaCount, blockCount: sum(totals) };
+  return { cabines, sections, totals, cabineCount: cabines.length, painelCount, colunaCount, blockCount: sum(totals) };
 }
 
-/** A node of the view by its ref, or null. */
+/** A node of the view by its ref (a local, a painel, or a coluna at either depth), or null. */
 export function findComposerNode(view: ComposerView, ref: string | null): ComposerNode | null {
   if (ref === null) return null;
   for (const cabine of view.cabines) {
     if (cabine.ref === ref) return cabine;
     const coluna = cabine.colunas.find((c) => c.ref === ref);
     if (coluna !== undefined) return coluna;
+    for (const painel of cabine.paineis) {
+      if (painel.ref === ref) return painel;
+      const inner = painel.colunas.find((c) => c.ref === ref);
+      if (inner !== undefined) return inner;
+    }
   }
   return null;
 }

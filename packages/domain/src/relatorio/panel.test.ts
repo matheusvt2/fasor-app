@@ -31,7 +31,7 @@ const author = { id: '019966b0-0010-7000-8000-000000000009', companyId: '019966b
 
 function locations(): LocationRow[] {
   const rows: LocationRow[] = [];
-  const add = (id: string, parentId: string | null, name: string) => rows.push({ ...newLocation(rows, { id, relatorioId: RELATORIO, parentId }), name });
+  const add = (id: string, parentId: string | null, name: string) => rows.push(newLocation(rows, { id, relatorioId: RELATORIO, kind: parentId === null ? 'cabine' : 'coluna', parentId, name }));
   add(CABINE, null, '1° Subsolo');
   add(COL1, CABINE, 'Coluna 1');
   add(COL9, CABINE, 'Coluna 9');

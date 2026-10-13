@@ -18,20 +18,39 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
  * TC, leftovers after them; each transformer is preceded by the alimentação cables whose
  * `feeds_block_id` names it (never a match by name), and an alimentação cable that feeds no
  * live transformer of its cabine prints last in its group with an `integrity` warning.
+ *
+ * Story 14.2 (Local › Painel › Coluna): a cabine (the local) holding a painel with a sheet
+ * prints in runs. The direct run comes first: the local's own sheets and those of the
+ * colunas directly under it, in tree order. Then one run per painel holding a sheet, in tree
+ * order. In the base case the direct run is the local's `cabine` subsection (emitted even
+ * when it holds no sheet, so the local's heading stands over its painéis) and each painel is
+ * a `painel` subsection titled with its name. With "Agrupar por tipo" on, the direct run is
+ * split by type first, then each painel is a `painel` heading with no sheets followed by
+ * that painel's own type groups (the same title words, with the local's name). Pairing
+ * stays inside a run; a cable whose transformer prints in another run of the same cabine
+ * goes last in its run's group with no warning, since it does feed a live transformer of
+ * its cabine. A painel with no sheet emits nothing, and a cabine with no painel holding a
+ * sheet emits exactly what it did before the painel level.
  */
 
 export type PrintScheme = RelatorioRow['export']['scheme'];
 
-export type PrintGroupKind = 'cabine' | 'seccionadoras' | 'disjuntores' | 'tps_tcs' | 'transformadores';
+export type PrintGroupKind = 'cabine' | 'painel' | 'seccionadoras' | 'disjuntores' | 'tps_tcs' | 'transformadores';
 
 export interface PrintSubsection {
   /** The cabine (the tree's root location) the subsection belongs to. */
   cabineId: string;
   kind: PrintGroupKind;
-  /** "Cubículo Enel", "Seccionadoras dos Cubículos de MT do 1° Subsolo". */
+  /** "Cubículo Enel", "Seccionadoras dos Cubículos de MT do 1° Subsolo", "Painel de média tensão". */
   title: string;
-  /** The sheets, in print order. */
+  /** The sheets, in print order. Empty for a `painel` heading over its type groups, and for a local's `cabine` subsection whose sheets all sit in painéis. */
   blockIds: string[];
+  /**
+   * Story 14.2: the painel the subsection belongs to (the `painel` subsection itself and the
+   * type groups under it). Absent on a local's direct run and on every subsection of a local
+   * with no painel.
+   */
+  painelId?: string;
 }
 
 /** An alimentação cable that feeds no live transformer of its cabine: printed last in the transformer group. */
@@ -49,7 +68,7 @@ export interface PrintGrouping {
 }
 
 type GroupSnapshot = Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'blocks' | 'equipment'>;
-type TypeGroup = Exclude<PrintGroupKind, 'cabine'>;
+type TypeGroup = Exclude<PrintGroupKind, 'cabine' | 'painel'>;
 
 /**
  * The subsection titles of a cabine with "Agrupar por tipo" on, in their fixed order. The
@@ -82,18 +101,52 @@ export function blockRoleOf(block: Pick<BlockRow, 'config'>): Role | null {
   return parsed.success ? parsed.data : null;
 }
 
-/** The equipment rows under one root of the tree, depth first: its own blocks, then its colunas'. */
+/** The equipment rows under one node of the tree, depth first: its own blocks, then those of the locations under it. */
 function sheetsUnder(root: TreeLocationNode): TreeEquipmentNode[] {
   return treeNodes([root]).filter((node): node is TreeEquipmentNode => node.kind === 'equipment');
 }
 
-/** The base case: one subsection per root of the tree holding a sheet, in tree order. */
-function fieldOrder(tree: readonly TreeLocationNode[]): { subsection: PrintSubsection; nodes: TreeEquipmentNode[] }[] {
+/** One painel of a cabine holding a sheet, with its sheets in tree order. */
+interface PainelRun {
+  id: string;
+  title: string;
+  nodes: TreeEquipmentNode[];
+}
+
+/** What one root of the tree prints: its base subsection, its direct run and its painel runs. */
+interface RootRuns {
+  /** The cabine's base-case subsection: its `blockIds` are the direct run's. */
+  subsection: PrintSubsection;
+  /** The direct run: the root's own sheets and those under its non-painel children, in tree order. */
+  direct: TreeEquipmentNode[];
+  /** One run per painel holding a sheet, in tree order; empty for a cabine with none. */
+  paineis: PainelRun[];
+}
+
+/** The base case as data: one entry per root of the tree holding a sheet, in tree order. */
+function fieldOrder(tree: readonly TreeLocationNode[]): RootRuns[] {
   return tree.flatMap((root) => {
-    const nodes = sheetsUnder(root);
-    if (nodes.length === 0) return [];
-    return [{ subsection: { cabineId: root.id, kind: 'cabine' as const, title: root.name.trim(), blockIds: nodes.map((node) => node.blockId) }, nodes }];
+    // Only a cabine holds painéis; under any other root a painel is read as any location.
+    const paineis: PainelRun[] =
+      root.kind === 'cabine'
+        ? root.locations
+            .filter((child) => child.kind === 'painel')
+            .map((painel) => ({ id: painel.id, title: painel.name.trim(), nodes: sheetsUnder(painel) }))
+            .filter((run) => run.nodes.length > 0)
+        : [];
+    const inPainel = new Set(paineis.flatMap((run) => run.nodes.map((node) => node.blockId)));
+    const direct = sheetsUnder(root).filter((node) => !inPainel.has(node.blockId));
+    if (direct.length === 0 && paineis.length === 0) return [];
+    return [{ subsection: { cabineId: root.id, kind: 'cabine' as const, title: root.name.trim(), blockIds: direct.map((node) => node.blockId) }, direct, paineis }];
   });
+}
+
+/** The base case's subsections of one root: its `cabine` subsection, then one `painel` subsection per painel run. */
+function baseSubsections(root: RootRuns): PrintSubsection[] {
+  return [
+    root.subsection,
+    ...root.paineis.map((run): PrintSubsection => ({ cabineId: root.subsection.cabineId, kind: 'painel', title: run.title, blockIds: run.nodes.map((node) => node.blockId), painelId: run.id })),
+  ];
 }
 
 /** A location's n-th TP, then its n-th TC; the unpaired ones after them; locations in the order the tree reaches them. */
@@ -115,14 +168,17 @@ function tpTcPairs(nodes: readonly TreeEquipmentNode[]): string[] {
 }
 
 /**
- * The transformer group: each transformer after the cables feeding it (tree order), then the
- * cables that feed none of this cabine's live transformers, each with a warning.
+ * The transformer group of one run: each transformer after the cables feeding it (tree
+ * order), then the cables that feed none of this run's transformers. A warning is raised
+ * only for a cable that feeds no live transformer of its cabine (`cabineTransformers`): one
+ * whose transformer prints in another run of the same cabine goes last here with none.
  */
 function transformerPairs(
   transformers: readonly TreeEquipmentNode[],
   cables: readonly TreeEquipmentNode[],
   blocks: ReadonlyMap<string, BlockRow>,
   cabineId: string,
+  cabineTransformers: ReadonlySet<string>,
   warnings: PrintGroupWarning[],
 ): string[] {
   const live = new Set(transformers.map((node) => node.blockId));
@@ -134,17 +190,22 @@ function transformerPairs(
       fed.set(target, [...(fed.get(target) ?? []), cable.blockId]);
     } else {
       unpaired.push(cable.blockId);
-      warnings.push({ kind: 'integrity', code: 'unpaired_cable', blockId: cable.blockId, cabineId });
+      if (target === null || !cabineTransformers.has(target)) warnings.push({ kind: 'integrity', code: 'unpaired_cable', blockId: cable.blockId, cabineId });
     }
   }
   return [...transformers.flatMap((node) => [...(fed.get(node.blockId) ?? []), node.blockId]), ...unpaired];
 }
 
-/** A flagged cabine's sheets split into the fixed type groups, an empty group skipped. */
+/**
+ * One run of a flagged cabine (all of its sheets, its direct run, or one painel's) split
+ * into the fixed type groups, an empty group skipped. The titles carry the cabine's name
+ * (`base.title`) whatever the run.
+ */
 function byType(
   base: PrintSubsection,
   nodes: readonly TreeEquipmentNode[],
   blocks: ReadonlyMap<string, BlockRow>,
+  cabineTransformers: ReadonlySet<string>,
   warnings: PrintGroupWarning[],
 ): PrintSubsection[] {
   const seccionadoras: TreeEquipmentNode[] = [];
@@ -180,24 +241,38 @@ function byType(
     seccionadoras: seccionadoras.map((node) => node.blockId),
     disjuntores: disjuntores.map((node) => node.blockId),
     tps_tcs: tpTcPairs(tpsTcs),
-    transformadores: transformerPairs(transformers, cables, blocks, base.cabineId, warnings),
+    transformadores: transformerPairs(transformers, cables, blocks, base.cabineId, cabineTransformers, warnings),
   };
   return GROUP_WORDS.flatMap(({ kind, words }) =>
     ids[kind].length === 0 ? [] : [{ cabineId: base.cabineId, kind, title: `${words} ${ofCabine(base.title)}`, blockIds: ids[kind] }],
   );
 }
 
+/** A flagged cabine split by type: its direct run first, then each painel as a heading over its own type groups. */
+function byTypeRuns(root: RootRuns, blocks: ReadonlyMap<string, BlockRow>, warnings: PrintGroupWarning[]): PrintSubsection[] {
+  const all = [...root.direct, ...root.paineis.flatMap((run) => run.nodes)];
+  const cabineTransformers = new Set(all.filter((node) => node.blockType === 'transformador_forca').map((node) => node.blockId));
+  const { cabineId } = root.subsection;
+  return [
+    ...byType(root.subsection, root.direct, blocks, cabineTransformers, warnings),
+    ...root.paineis.flatMap((run): PrintSubsection[] => [
+      { cabineId, kind: 'painel', title: run.title, blockIds: [], painelId: run.id },
+      ...byType(root.subsection, run.nodes, blocks, cabineTransformers, warnings).map((group) => ({ ...group, painelId: run.id })),
+    ]),
+  ];
+}
+
 /**
  * Section 9's subsections for a snapshot under a scheme (the relatório's own by default).
  * `por_local_e_tipo` is `ordem_de_campo` with every flagged cabine split by type; a cabine
- * with the flag off keeps exactly its base-case subsection.
+ * with the flag off keeps exactly its base-case subsections.
  */
 export function groupForPrint(snapshot: GroupSnapshot, scheme: PrintScheme = snapshot.relatorio.export.scheme): PrintGrouping {
   const base = fieldOrder(locationTree(snapshot));
-  if (scheme === 'ordem_de_campo') return { scheme, subsections: base.map(({ subsection }) => subsection), warnings: [] };
+  if (scheme === 'ordem_de_campo') return { scheme, subsections: base.flatMap(baseSubsections), warnings: [] };
   const flagged = new Set(snapshot.locations.filter((location) => location.kind === 'cabine' && location.agrupar_por_tipo).map((location) => location.id));
   const blocks = new Map(snapshot.blocks.map((block) => [block.id, block]));
   const warnings: PrintGroupWarning[] = [];
-  const subsections = base.flatMap(({ subsection, nodes }) => (flagged.has(subsection.cabineId) ? byType(subsection, nodes, blocks, warnings) : [subsection]));
+  const subsections = base.flatMap((root) => (flagged.has(root.subsection.cabineId) ? byTypeRuns(root, blocks, warnings) : baseSubsections(root)));
   return { scheme, subsections, warnings };
 }

@@ -9,6 +9,7 @@ import { POINT_TITLE_GENERAL, pointTitle } from '../points/summary.ts';
 import { buildSnapshot } from '../schemas/snapshot.ts';
 import { locationPathText } from './location-path.ts';
 import { locationProgress, progressCounterState, progressCounterText } from './progress.ts';
+import { cabineMetaText } from './sumario.ts';
 import {
   blockHoldsData,
   blockTypeLabel,
@@ -29,6 +30,7 @@ import {
   railHeadText,
   SHEET_STATE_GLYPH,
   siblingLocations,
+  TREE_MAX_LEVEL,
   treeNodes,
   treePathTo,
   type TreeEquipmentNode,
@@ -125,10 +127,11 @@ describe('4.4-UNIT locationTree', () => {
     expect(eq(b)).toEqual(['CE-B']);
     expect(b.locations.map((node) => node.name)).toEqual(['Coluna 4', 'Coluna 5']);
     expect(eq(b.locations[1]!)).toEqual(['DJ-C05', 'SEC-C05']);
-    // Deeper locations nest generically; past the second level they indent as the second.
+    // Deeper locations nest generically; Story 14.2 draws three levels (`TREE_MAX_LEVEL`), past which they indent as the third.
     const nicho = b.locations[0]!.locations[0]!;
     expect(nicho).toMatchObject({ name: 'Nicho', kind: 'coluna', level: 2 });
-    expect(nicho.equipment[0]).toMatchObject({ tag: 'TP-NICHO', level: 2 });
+    expect(nicho.equipment[0]).toMatchObject({ tag: 'TP-NICHO', level: 3 });
+    expect(TREE_MAX_LEVEL).toBe(3);
     expect(b.level).toBe(0);
     expect(b.equipment[0]!.level).toBe(1);
     expect(b.locations[1]!.level).toBe(1);
@@ -214,7 +217,10 @@ describe('4.4-UNIT locationTree', () => {
     const tree = locationTree(relatorio());
     expect(tree[0]!.meta).toBe('SE · 13,8 kV · agrupar por tipo');
     expect(tree[0]!.agruparPorTipo).toBe(true);
-    expect(tree[2]!.meta).toBe('—');
+    // Story 14.2: a local nothing hangs under closes its line with "sem painéis" (alone when it holds no data).
+    expect(tree[2]!.meta).toBe('sem painéis');
+    expect(tree[1]!.meta).toBe('sem painéis');
+    expect(cabineMetaText(relatorio().locations.find((row) => row.name === 'Cabine Vazia')!)).toBe('—');
     // B: CE-B, SEC-C04, TP-NICHO, DJ-C05 (concluded), SEC-C05 (not tested) -> 2 of 5.
     expect(tree[0]!.counterText).toBe('2 de 5');
     expect(tree[0]!.counterState).toBe('pending');
@@ -327,10 +333,10 @@ describe('4.4/4.5-UNIT tree texts and writes', () => {
 
   it('newLocation names a coluna and a cabine after their live siblings, last among them', () => {
     const locations = relatorio().locations;
-    const col = newLocation(locations, { id: id(5001), relatorioId: TEST_RELATORIO, parentId: id(2) });
+    const col = newLocation(locations, { id: id(5001), relatorioId: TEST_RELATORIO, kind: 'coluna', parentId: id(2) });
     expect(col).toMatchObject({ kind: 'coluna', name: 'Coluna 3', parent_id: id(2) });
     expect(col.order_key > 'a1').toBe(true);
-    const cab = newLocation(locations, { id: id(5002), relatorioId: TEST_RELATORIO, parentId: null });
+    const cab = newLocation(locations, { id: id(5002), relatorioId: TEST_RELATORIO, kind: 'cabine', parentId: null });
     expect(cab).toMatchObject({ kind: 'cabine', name: 'Cabine 4', parent_id: null, agrupar_por_tipo: false, se: { type: null }, env: { temperature_c: null } });
     expect(siblingLocations(locations, null).map((l) => l.name)).toEqual(['Cabine B', 'Cabine A', 'Cabine Vazia']);
   });

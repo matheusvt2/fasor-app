@@ -180,13 +180,33 @@ export const templateBlockSchema = blockConfigSchema.extend({
 });
 export type TemplateBlock = z.infer<typeof templateBlockSchema>;
 
-/** A cabine, coluna or location name: any text, but never empty or blank (kept as written, not trimmed). */
+/** A local (cabine), painel, coluna or location name: any text, but never empty or blank (kept as written, not trimmed). */
 export const nodeNameSchema = z.string().refine((name) => name.trim().length > 0, { message: 'name is blank' });
 
 /**
- * One node of a Template's location skeleton: a `cabine` root or a `coluna` under one.
- * `agrupar_por_tipo` exists only on a cabine (AD-6); `ref` is a stable string the
- * template's blocks point at, turned into location ids by `instantiateTemplate` (Epic 4).
+ * Story 14.2 (AD-6): the reserved keys of a local's Função. `funcao` holds one of these or a
+ * typed name ("Medição"); the pt-BR label of either is `funcaoLabel` (`relatorio/local.ts`).
+ */
+export const FUNCAO_KEYS = ['entrada', 'primaria', 'transformacao', 'distribuicao'] as const;
+export type FuncaoKey = (typeof FUNCAO_KEYS)[number];
+
+/** The longest Função a row holds, a reserved key or a typed name. */
+export const FUNCAO_MAX_LENGTH = 80;
+
+/** A local's Função as stored: a reserved key or a typed name, never blank, at most 80 characters. */
+export const funcaoSchema = z
+  .string()
+  .max(FUNCAO_MAX_LENGTH)
+  .refine((funcao) => funcao.trim().length > 0, { message: 'funcao is blank' });
+
+/**
+ * One node of a Template's location skeleton (Story 14.2: Local › Painel › Coluna): a
+ * `cabine` root (the local), a `painel` under one, or a `coluna` under a painel. A coluna
+ * directly under a cabine is the shape every template had before the painel level and stays
+ * valid. `agrupar_por_tipo` and `funcao` exist only on a cabine (AD-6); `funcao` is optional,
+ * absent and null both meaning none, so a row written before it existed parses unchanged.
+ * `ref` is a stable string the template's blocks point at, turned into location ids by
+ * `instantiateTemplate` (Epic 4).
  */
 export const skeletonNodeSchema = z.discriminatedUnion('kind', [
   z.object({
@@ -195,10 +215,18 @@ export const skeletonNodeSchema = z.discriminatedUnion('kind', [
     parent_ref: z.null(),
     name: nodeNameSchema,
     agrupar_por_tipo: z.boolean(),
+    funcao: funcaoSchema.nullable().optional(),
   }),
   z.object({
     ref: z.string().min(1),
     kind: z.literal('coluna'),
+    parent_ref: z.string().min(1),
+    name: nodeNameSchema,
+  }),
+  // Appended (Story 14.2): a painel only groups colunas; it holds no data and no block.
+  z.object({
+    ref: z.string().min(1),
+    kind: z.literal('painel'),
     parent_ref: z.string().min(1),
     name: nodeNameSchema,
   }),

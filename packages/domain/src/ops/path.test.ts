@@ -35,6 +35,8 @@ const EXTRA_PATHS = [
   // Story 13.8 (contract 15): the emission audit's run.
   `audit_run/${ID}`,
   `audit_run/${ID}/findings`,
+  // Story 14.2 (contract 17): a local's Função.
+  `location/${ID}/funcao`,
 ];
 
 describe('1.4-UNIT-001 path round trip', () => {
@@ -50,7 +52,7 @@ describe('1.4-UNIT-001 path round trip', () => {
     const seen = new Set(paths.map((p) => parsePath(p).family));
     const missing = FAMILIES.map((f) => f.family).filter((f) => !seen.has(f));
     expect(missing).toEqual([]);
-    expect(FAMILIES.length).toBe(42);
+    expect(FAMILIES.length).toBe(43);
   });
 
   it('returns typed segments', () => {
@@ -189,6 +191,7 @@ describe('E5-A5 typed path builders round-trip through parsePath', () => {
     [builders.locationSePath(ID, 'type'), { family: 'location/se', id: ID, field: 'type' }],
     [builders.locationEnvPath(ID, 'humidity_pct'), { family: 'location/env', id: ID, field: 'humidity_pct' }],
     [builders.locationAgruparPath(ID), { family: 'location/agrupar_por_tipo', id: ID }],
+    [builders.locationFuncaoPath(ID), { family: 'location/funcao', id: ID }],
     [builders.blockPath(ID), { family: 'block', id: ID }],
     [builders.blockFieldPath(ID, 'not_tested'), { family: 'block/field', id: ID, field: 'not_tested' }],
     [builders.sheetNameplatePath(BLOCK, 'fabricante'), { family: 'sheet/nameplate', block_id: BLOCK, field_key: 'fabricante' }],

@@ -146,6 +146,8 @@ export const opPathSchema = z.discriminatedUnion('family', [
   // Story 13.8 (contract 15): the emission audit's server-only run row.
   z.object({ family: z.literal('audit_run'), id: uuidV7Schema }),
   z.object({ family: z.literal('audit_run/field'), id: uuidV7Schema, field: z.enum(AUDIT_RUN_FIELDS) }),
+  // Story 14.2 (contract 17): a local's Função, valid on a `kind = cabine` row only (`LocationKindError`).
+  z.object({ family: z.literal('location/funcao'), id: uuidV7Schema }),
 ]);
 
 export type OpPath = z.infer<typeof opPathSchema>;
@@ -298,6 +300,10 @@ export const FAMILIES: readonly FamilyDef[] = [
     serverOnly: true,
     segments: [lit('audit_run'), id(), en(AUDIT_RUN_FIELDS)],
   },
+  // Story 14.2 (contract 17): `location/{id}/funcao`, put only; a reserved key (`FUNCAO_KEYS`),
+  // a typed name, or null. Sits beside `location/agrupar_por_tipo` in meaning; appended here
+  // because the family list is append-only.
+  { family: 'location/funcao', entity: 'location', segments: [lit('location'), id(), lit('funcao')] },
 ];
 
 const BY_FAMILY: ReadonlyMap<PathFamily, FamilyDef> = new Map(FAMILIES.map((f) => [f.family, f]));
@@ -476,6 +482,7 @@ export const locationFieldPath = (id: string, field: (typeof LOCATION_FIELDS)[nu
 export const locationSePath = (id: string, field: string): string => formatPath({ family: 'location/se', id, field });
 export const locationEnvPath = (id: string, field: string): string => formatPath({ family: 'location/env', id, field });
 export const locationAgruparPath = (id: string): string => formatPath({ family: 'location/agrupar_por_tipo', id });
+export const locationFuncaoPath = (id: string): string => formatPath({ family: 'location/funcao', id });
 export const blockPath = (id: string): string => formatPath({ family: 'block', id });
 export const blockFieldPath = (id: string, field: (typeof BLOCK_FIELDS)[number]): string => formatPath({ family: 'block/field', id, field });
 export const sheetNameplatePath = (blockId: string, fieldKey: string): string =>

@@ -274,14 +274,14 @@ describe('12.5-UNIT sheetSummaryText (the Sheet header sentence, J-14)', () => {
     expect(sheetSummaryText(counts(0, 0, 0, 0))).toBe('Ficha completa');
   });
 
-  it('E12-Q10: the cabine fields counted on the Placa step are named "campos da cabine", apart from the plate\'s, the plate first', () => {
+  it('E12-Q10 and Story 14.2: the cabine fields counted on the Placa step are named "campos do local", apart from the plate\'s, the plate first', () => {
     const cabine = (plate: number, cabineFields: number, verificacoes = 14) => {
       const c = counts(plate + cabineFields, verificacoes, 9, 2);
       return { steps: { ...c.steps, placa: { missing: plate + cabineFields, outOfLimit: 0, cabine: cabineFields } } };
     };
-    expect(sheetSummaryText(cabine(0, 6))).toBe('Faltam 6 campos da cabine, 14 verificações, 9 leituras e a conclusão');
-    expect(sheetSummaryText(cabine(2, 6))).toBe('Faltam 2 campos da placa, 6 campos da cabine, 14 verificações, 9 leituras e a conclusão');
-    expect(sheetSummaryText(cabine(0, 1, 0))).toBe('Verificações prontas · falta 1 campo da cabine, 9 leituras e a conclusão');
+    expect(sheetSummaryText(cabine(0, 6))).toBe('Faltam 6 campos do local, 14 verificações, 9 leituras e a conclusão');
+    expect(sheetSummaryText(cabine(2, 6))).toBe('Faltam 2 campos da placa, 6 campos do local, 14 verificações, 9 leituras e a conclusão');
+    expect(sheetSummaryText(cabine(0, 1, 0))).toBe('Verificações prontas · falta 1 campo do local, 9 leituras e a conclusão');
   });
 
   it('E12-Q8: the parts join to the sentence, each missing count a "missing" part', () => {

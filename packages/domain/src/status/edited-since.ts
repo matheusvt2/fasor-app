@@ -39,6 +39,8 @@ const FAMILY_DECISIONS = {
   'location/se': 'edit',
   'location/env': 'edit',
   'location/agrupar_por_tipo': 'edit',
+  // Story 14.2: a local's Função is structure (the office prepares the tree), and an edit.
+  'location/funcao': 'edit',
   block: 'edit',
   'block/field': 'edit',
   'sheet/nameplate': 'edit',
@@ -128,9 +130,11 @@ const ARRANGING_FIELDS: ReadonlySet<string> = new Set(['order_key', 'removed_at'
  * photo (its create, its caption and what it shows) and a point of attention (its create and
  * its fields). Structure is not: creating, removing, restoring, reordering, moving or renaming
  * a location, a block, an equipment or a Sumário section (`location`, `location/field`,
- * `location/agrupar_por_tipo`, `block`, the other `block/field`s including `config`,
- * `equipment`, `equipment/field`), nor any `remove`, nor `relatorio/setup` (decision 1). The
- * office prepares the tree in Rascunho. Always a subset of `countsAsEdit`.
+ * `location/agrupar_por_tipo`, `location/funcao`, `block`, the other `block/field`s including
+ * `config`, `equipment`, `equipment/field`), nor any `remove`, nor `relatorio/setup` (decision
+ * 1). Story 14.2: a painel's create, rename, reorder and remove are `location` and
+ * `location/field` ops like any other location's, so they are structure too. The office
+ * prepares the tree in Rascunho. Always a subset of `countsAsEdit`.
  */
 export function countsAsFieldContent(op: EditCandidate): boolean {
   if (!countsAsEdit(op) || op.kind === 'remove') return false;

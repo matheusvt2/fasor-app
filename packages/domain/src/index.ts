@@ -58,6 +58,7 @@ export * from './relatorio/block-texts.ts';
 export * from './relatorio/move.ts';
 export * from './templates/from-relatorio.ts';
 export * from './relatorio/cabine.ts';
+export * from './relatorio/local.ts';
 export * from './relatorio/sheet-progress.ts';
 export * from './relatorio/screen-label.ts';
 export * from './relatorio/nameplate-copy.ts';

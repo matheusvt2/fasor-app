@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { FUNCAO_KEYS, FUNCAO_MAX_LENGTH } from './block-config.ts';
 import { ENTITIES, ENTITY_SCOPE, entityKeys, entityRowSchemas, registryKeys, type Entity } from './entities.ts';
 
 /** Every `*_id` key reachable in a schema, with its path, ignoring the given branches. */
@@ -89,5 +90,41 @@ describe('4.1-UNIT the Porto Seguro golden files still parse after location_id b
   it('accepts a section block with no location', () => {
     const golden = JSON.parse(readFileSync(fileURLToPath(new URL('../../fixtures/porto-seguro/small/snapshot.golden.json', import.meta.url)), 'utf8')) as { blocks: { location_id: string }[] };
     expect(entityRowSchemas.block.safeParse({ ...golden.blocks[0], location_id: null, equipment_id: null, block_type: 'section_2', config: {} }).success).toBe(true);
+  });
+});
+
+describe('Story 14.2 (contract 17): the location row gains the painel kind and the cabine Função', () => {
+  const base = { id: '019966d0-0000-7000-8000-000000000011', relatorio_id: '019966d0-0000-7000-8000-000000000012', name: 'X', order_key: 'a0', removed_at: null };
+  const PARENT = '019966d0-0000-7000-8000-000000000013';
+  const cabine = { ...base, parent_id: null, kind: 'cabine', se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null }, env: { altitude_m: null, temperature_c: null, humidity_pct: null }, agrupar_por_tipo: false };
+  const location = entityRowSchemas.location;
+
+  it('accepts the three kinds; a painel always has a parent; a coluna under a cabine stays valid', () => {
+    expect(location.safeParse(cabine).success).toBe(true);
+    expect(location.safeParse({ ...base, parent_id: PARENT, kind: 'painel' }).success).toBe(true);
+    expect(location.safeParse({ ...base, parent_id: PARENT, kind: 'coluna' }).success).toBe(true);
+    expect(location.safeParse({ ...base, parent_id: null, kind: 'painel' }).success).toBe(false);
+    expect(location.safeParse({ ...base, parent_id: PARENT, kind: 'andar' }).success).toBe(false);
+  });
+
+  it('funcao is a reserved key or a typed name on a cabine: never blank, at most 80 characters, null or absent for none', () => {
+    for (const funcao of [...FUNCAO_KEYS, 'Medição', 'x'.repeat(FUNCAO_MAX_LENGTH), null]) expect(location.safeParse({ ...cabine, funcao }).success, String(funcao)).toBe(true);
+    for (const funcao of ['', '  ', 'x'.repeat(FUNCAO_MAX_LENGTH + 1), 3, {}]) expect(location.safeParse({ ...cabine, funcao }).success, JSON.stringify(funcao)).toBe(false);
+    expect(FUNCAO_KEYS).toEqual(['entrada', 'primaria', 'transformacao', 'distribuicao']);
+  });
+
+  it('a row stored before the field parses to the same bytes: no funcao key appears, and a painel or coluna never carries one', () => {
+    expect(JSON.stringify(sortKeysDeep(location.parse(cabine)))).toBe(JSON.stringify(sortKeysDeep(cabine)));
+    expect(Object.keys(location.parse(cabine))).not.toContain('funcao');
+    expect(location.parse({ ...base, parent_id: PARENT, kind: 'painel', funcao: 'primaria', se: cabine.se })).toEqual({ ...base, parent_id: PARENT, kind: 'painel' });
+    expect(location.parse({ ...base, parent_id: PARENT, kind: 'coluna', funcao: 'primaria' })).toEqual({ ...base, parent_id: PARENT, kind: 'coluna' });
+    expect(entityKeys('location')).toContain('funcao');
+  });
+
+  it('the Porto Seguro golden locations parse to themselves (no stored row changes)', () => {
+    const path = fileURLToPath(new URL('../../fixtures/porto-seguro/snapshot.golden.json', import.meta.url));
+    const golden = JSON.parse(readFileSync(path, 'utf8')) as { locations: unknown[] };
+    expect(golden.locations.length).toBeGreaterThan(0);
+    for (const row of golden.locations) expect(JSON.stringify(sortKeysDeep(location.parse(row)))).toBe(JSON.stringify(row));
   });
 });

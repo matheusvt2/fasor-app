@@ -69,10 +69,10 @@ describe('3.4-UNIT skeleton edits', () => {
     valid({ ...emptyTemplate(ID, 'v1'), skeleton });
   });
 
-  it('refuses a duplicate ref and a coluna under anything but a cabine', () => {
+  it('refuses a duplicate ref and a coluna under a coluna (Story 14.2: its parent is a painel or a cabine)', () => {
     const skeleton = addColuna(addCabine([], 'a', 'A'), 'a', 'a1', 'Coluna 1');
     expect(() => addCabine(skeleton, 'a', 'Outra')).toThrow(/already has a node "a"/);
-    expect(() => addColuna(skeleton, 'a1', 'x', 'X')).toThrow(/not a cabine/);
+    expect(() => addColuna(skeleton, 'a1', 'x', 'X')).toThrow(/is a coluna/);
     expect(() => addColuna(skeleton, 'nowhere', 'x', 'X')).toThrow(TemplateTargetGoneError);
     expect(() => addColuna(skeleton, 'nowhere', 'x', 'X')).toThrow(/no node "nowhere"/);
     // A bug (a coluna named as a cabine) is a plain error, never "the target is gone".

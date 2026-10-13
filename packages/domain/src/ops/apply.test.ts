@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { ZodError } from 'zod';
 import { blockRowSchema, emptySheet, type BlockRow, type FileRow, type LocationRow } from '../schemas/entities.ts';
 import { opFactory, TEST_COMPANY, TEST_RELATORIO, TEST_USER } from '../test-support.ts';
-import { applyOp, entityKey, readPath, SeedPathError, targetsOf, type EntityState } from './apply.ts';
-import type { Op } from './op.ts';
+import { applyOp, entityKey, LocationKindError, readPath, SeedPathError, targetsOf, type EntityState } from './apply.ts';
+import { replay } from './replay.ts';
+import { opSchema, type Op } from './op.ts';
 
 const LOC = '019966b0-0004-7000-8000-000000000001';
 const COL = '019966b0-0004-7000-8000-000000000002';
@@ -554,5 +555,144 @@ describe('4.1-UNIT D-4 template.version follows content edits', () => {
     const f = opFactory();
     const s = fold(state([key, template()]), [companyPut(f, 'version', 7)]);
     expect((s.get(key) as { version: number }).version).toBe(7);
+  });
+});
+
+describe('Story 14.2 (contract 17): the painel kind and a local Função', () => {
+  const PNL = '019966b0-0004-7000-8000-000000000011';
+  const PCOL = '019966b0-0004-7000-8000-000000000012';
+  const painel = (): LocationRow => ({ id: PNL, relatorio_id: TEST_RELATORIO, parent_id: LOC, kind: 'painel', name: 'Painel de média tensão', order_key: 'a1', removed_at: null });
+  const colunaInPainel = (): LocationRow => ({ id: PCOL, relatorio_id: TEST_RELATORIO, parent_id: PNL, kind: 'coluna', name: 'Coluna 5', order_key: 'a0', removed_at: null });
+  const locKey = entityKey('location', LOC);
+  const pnlKey = entityKey('location', PNL);
+  const colKey = entityKey('location', COL);
+  const thrown = (run: () => unknown): unknown => {
+    try {
+      run();
+    } catch (error) {
+      return error;
+    }
+    return null;
+  };
+
+  it('matrix "Painel create": a painel under a cabine is stored, and so is a coluna under it; parent_id null fails the row schema', () => {
+    const f = opFactory();
+    const s = fold(state([locKey, cabine()]), [
+      f.op({ kind: 'create', path: `location/${PNL}`, value: painel() }),
+      f.op({ kind: 'create', path: `location/${PCOL}`, value: colunaInPainel() }),
+    ]);
+    expect(s.get(pnlKey)).toEqual(painel());
+    expect(s.get(entityKey('location', PCOL))).toEqual(colunaInPainel());
+    // A painel with no parent fails the row schema: at the push boundary (`opSchema`, answered `op_invalid`) and in the fold.
+    const ok = f.op({ kind: 'create', path: `location/${PNL}`, value: painel() });
+    const rootless = { ...ok, value: { ...painel(), parent_id: null } };
+    expect(opSchema.safeParse(rootless).success).toBe(false);
+    expect(opSchema.safeParse(ok).success).toBe(true);
+    expect(() => applyOp(state(), rootless as Op)).toThrow(ZodError);
+    // A painel carries no data: keys of a cabine are stripped, never stored.
+    const fat = applyOp(state(), f.op({ kind: 'create', path: `location/${PNL}`, value: { ...painel(), agrupar_por_tipo: true, funcao: 'primaria' } }));
+    expect(fat.get(pnlKey)).toEqual(painel());
+  });
+
+  it('matrix "Block on a painel": a block create or a location_id put naming a painel held in state throws LocationKindError, nothing written', () => {
+    const f = opFactory();
+    const held = state([pnlKey, painel()], [entityKey('block', B1), block(B1)]);
+    const create = f.op({ kind: 'create', path: `block/${B2}`, value: { ...block(B2), location_id: PNL } });
+    const move = f.op({ path: `block/${B1}/location_id`, value: PNL });
+    for (const op of [create, move]) {
+      const error = thrown(() => applyOp(held, op));
+      expect(error).toBeInstanceOf(LocationKindError);
+      expect((error as LocationKindError).path).toBe(op.path);
+      expect((error as LocationKindError).name).toBe('LocationKindError');
+    }
+    expect(held.has(entityKey('block', B2))).toBe(false);
+    expect((held.get(entityKey('block', B1)) as BlockRow).location_id).toBe(LOC);
+  });
+
+  it('a block op names its location as a target so the check sees it; a location not in state is not checked, as before', () => {
+    const f = opFactory();
+    const create = f.op({ kind: 'create', path: `block/${B2}`, value: { ...block(B2), location_id: PNL } });
+    const move = f.op({ path: `block/${B1}/location_id`, value: PNL });
+    expect(targetsOf(create).map((r) => r.key)).toEqual([entityKey('block', B2), pnlKey]);
+    expect(targetsOf(move).map((r) => r.key)).toEqual([entityKey('block', B1), pnlKey]);
+    // A section block (no location) and any other block put name the block alone.
+    expect(targetsOf(f.op({ kind: 'create', path: `block/${B2}`, value: { ...block(B2), location_id: null } })).map((r) => r.key)).toEqual([entityKey('block', B2)]);
+    expect(targetsOf(f.op({ path: `block/${B1}/order_key`, value: 'a1' })).map((r) => r.key)).toEqual([entityKey('block', B1)]);
+    expect(targetsOf(f.op({ path: `block/${B1}/location_id`, value: null })).map((r) => r.key)).toEqual([entityKey('block', B1)]);
+    // The painel is not in state: the block is created and moved as before 17.
+    const s = fold(state([entityKey('block', B1), block(B1)]), [create, move]);
+    expect((s.get(entityKey('block', B2)) as BlockRow).location_id).toBe(PNL);
+    expect((s.get(entityKey('block', B1)) as BlockRow).location_id).toBe(PNL);
+    // A block on a cabine or a coluna is placed as always, with the location in state.
+    const ok = fold(state([locKey, cabine()], [colKey, coluna()], [entityKey('block', B1), block(B1)]), [f.op({ path: `block/${B1}/location_id`, value: COL })]);
+    expect((ok.get(entityKey('block', B1)) as BlockRow).location_id).toBe(COL);
+  });
+
+  it('matrix "Data on a painel": se, env, agrupar_por_tipo and funcao on a painel throw; funcao on a coluna throws; se/env/agrupar on a coluna stay the silent no-op', () => {
+    const f = opFactory();
+    const onPainel = [
+      f.op({ path: `location/${PNL}/se/type`, value: 'abrigada' }),
+      f.op({ path: `location/${PNL}/env/temperature_c`, value: { raw: '25', unit: '°C', state: 'measured' } }),
+      f.op({ path: `location/${PNL}/agrupar_por_tipo`, value: true }),
+      f.op({ path: `location/${PNL}/funcao`, value: 'primaria' }),
+    ];
+    const held = state([pnlKey, painel()]);
+    for (const op of onPainel) {
+      const error = thrown(() => applyOp(held, op));
+      expect(error, op.path).toBeInstanceOf(LocationKindError);
+      expect((error as LocationKindError).path).toBe(op.path);
+    }
+    expect(held.get(pnlKey)).toEqual(painel());
+    const col = state([colKey, coluna()]);
+    expect(thrown(() => applyOp(col, f.op({ path: `location/${COL}/funcao`, value: 'entrada' })))).toBeInstanceOf(LocationKindError);
+    const before = col.get(colKey);
+    const after = fold(col, [f.op({ path: `location/${COL}/se/type`, value: 'x' }), f.op({ path: `location/${COL}/env/altitude_m`, value: null }), f.op({ path: `location/${COL}/agrupar_por_tipo`, value: true })]);
+    expect(after.get(colKey)).toBe(before);
+    // A painel's own fields are written as any location's.
+    const renamed = fold(held, [f.op({ path: `location/${PNL}/name`, value: 'Painel A' }), f.op({ path: `location/${PNL}/order_key`, value: 'a5' })]);
+    expect(renamed.get(pnlKey)).toMatchObject({ kind: 'painel', name: 'Painel A', order_key: 'a5' });
+  });
+
+  it('matrix "funcao put": a key, a typed name and null on a cabine; blank, non-string and over 80 characters fail the row schema', () => {
+    const f = opFactory();
+    const put = (value: unknown) => applyOp(state([locKey, cabine()]), f.op({ path: `location/${LOC}/funcao`, value: value as never })).get(locKey) as Extract<LocationRow, { kind: 'cabine' }>;
+    expect(put('primaria').funcao).toBe('primaria');
+    expect(put('Medição').funcao).toBe('Medição');
+    expect(put(null).funcao).toBeNull();
+    expect(put('x'.repeat(80)).funcao).toHaveLength(80);
+    for (const bad of ['', '   ', 7, 'x'.repeat(81), {}]) expect(() => put(bad), JSON.stringify(bad)).toThrow(ZodError);
+    // A row from before the field holds no `funcao` key, and a create without it stores none.
+    expect('funcao' in cabine()).toBe(false);
+    const created = applyOp(state(), f.op({ kind: 'create', path: `location/${LOC}`, value: cabine() })).get(locKey)!;
+    expect(Object.keys(created)).not.toContain('funcao');
+    const withFuncao = applyOp(state(), f.op({ kind: 'create', path: `location/${LOC}`, value: { ...cabine(), funcao: 'transformacao' } })).get(locKey);
+    expect(withFuncao).toEqual({ ...cabine(), funcao: 'transformacao' });
+  });
+
+  it('readPath gives the Função a put replaces: null for none (absent or null), undefined off a cabine', () => {
+    const f = opFactory();
+    const op = f.op({ path: `location/${LOC}/funcao`, value: 'entrada' });
+    expect(readPath(state([locKey, cabine()]), op)).toBeNull();
+    expect(readPath(state([locKey, { ...cabine(), funcao: 'primaria' }]), op)).toBe('primaria');
+    expect(readPath(state([pnlKey, painel()]), f.op({ path: `location/${PNL}/funcao`, value: 'x' }))).toBeUndefined();
+    expect(readPath(state(), op)).toBeUndefined();
+  });
+
+  it('a replayed log refuses a block on a painel too, and the undo pairs of a painel and a Função fold back', () => {
+    const f = opFactory();
+    const log = [
+      f.op({ kind: 'create', path: `location/${LOC}`, value: cabine() }),
+      f.op({ kind: 'create', path: `location/${PNL}`, value: painel() }),
+      f.op({ path: `location/${LOC}/funcao`, value: 'transformacao' }),
+      f.op({ kind: 'remove', path: `location/${PNL}/removed_at`, value: null }),
+    ];
+    const s = replay(log);
+    expect((s.get(pnlKey) as LocationRow).removed_at).toBe(log[3]!.client_ts);
+    expect((s.get(locKey) as { funcao?: string | null }).funcao).toBe('transformacao');
+    const undone = replay([...log, f.op({ path: `location/${PNL}/removed_at`, value: null }), f.op({ path: `location/${LOC}/funcao`, value: null })]);
+    expect((undone.get(pnlKey) as LocationRow).removed_at).toBeNull();
+    expect((undone.get(locKey) as { funcao?: string | null }).funcao).toBeNull();
+    const bad = f.op({ kind: 'create', path: `block/${B2}`, value: { ...block(B2), location_id: PNL } });
+    expect(() => replay([...log, bad])).toThrow(LocationKindError);
   });
 });

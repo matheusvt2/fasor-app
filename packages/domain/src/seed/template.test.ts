@@ -299,4 +299,30 @@ describe('templateRowSchema cross-field rules', () => {
     row.skeleton.push({ ref: 'orfa', kind: 'coluna', parent_ref: 'nenhum', name: 'Órfã' });
     rejects(row, /coluna "orfa" must sit under a cabine/);
   });
+
+  it('Story 14.2: a painel sits under a cabine, a coluna under a cabine or a painel; the standard template holds no painel and is untouched', () => {
+    expect(template.skeleton.some((node) => node.kind === 'painel')).toBe(false);
+    expect(template.skeleton.some((node) => node.kind === 'cabine' && 'funcao' in node)).toBe(false);
+    let row = clone();
+    row.skeleton.push({ ref: 'pnl', kind: 'painel', parent_ref: 'enel', name: 'Painel de entrada' }, { ref: 'pnl/c1', kind: 'coluna', parent_ref: 'pnl', name: 'Coluna 1' });
+    expect(templateRowSchema.safeParse(row).success).toBe(true);
+    row = clone();
+    row.skeleton.push({ ref: 'pnl', kind: 'painel', parent_ref: 'subsolo-1/coluna-1', name: 'Sob coluna' });
+    rejects(row, /painel "pnl" must sit under a cabine/);
+    row = clone();
+    row.skeleton.push({ ref: 'pnl', kind: 'painel', parent_ref: 'enel', name: 'P' }, { ref: 'pnl2', kind: 'painel', parent_ref: 'pnl', name: 'Sob painel' });
+    rejects(row, /painel "pnl2" must sit under a cabine/);
+    row = clone();
+    row.skeleton.push({ ref: 'solto', kind: 'painel', parent_ref: 'nenhum', name: 'Órfão' });
+    rejects(row, /painel "solto" must sit under a cabine/);
+  });
+
+  it('Story 14.2 matrix "Template block on a painel ref": the stored block parses, and every reader ignores it like an orphan', () => {
+    const row = clone();
+    row.skeleton.push({ ref: 'pnl', kind: 'painel', parent_ref: 'enel', name: 'Painel de entrada' });
+    firstOf(row, 'tp').skeleton_location_ref = 'pnl';
+    expect(templateRowSchema.safeParse(row).success).toBe(true);
+    expect(templateTotals(row).tp).toBe(templateTotals(template).tp - 1);
+    expect(templateBlockTotal(row)).toBe(templateBlockTotal(template) - 1);
+  });
 });
