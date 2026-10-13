@@ -1,4 +1,6 @@
 import {
+  colunaInLocalText,
+  colunaInPainelText,
   localSubText,
   nodeSummaryText,
   painelInLocalText,
@@ -265,7 +267,8 @@ function LocalCard({ cabine, ...props }: CardProps & { cabine: ComposerCabine })
           {cabine.colunas.length === 0 ? null : (
             <ul className="column-list" aria-label={copy.composer.columnListLabel(cabine.name)}>
               {cabine.colunas.map((coluna) => (
-                <ColunaRow key={coluna.ref} coluna={coluna} {...props} />
+                // A coluna directly under the local (the shape before the painel level) is named with it.
+                <ColunaRow key={coluna.ref} coluna={coluna} controlName={colunaInLocalText(coluna.name, cabine.name)} {...props} />
               ))}
             </ul>
           )}
@@ -346,7 +349,7 @@ function PainelCard({ painel, local, ...props }: CardProps & { painel: ComposerP
           ) : (
             <ul className="column-list" aria-label={copy.composer.columnListLabel(controlName)}>
               {painel.colunas.map((coluna) => (
-                <ColunaRow key={coluna.ref} coluna={coluna} {...props} />
+                <ColunaRow key={coluna.ref} coluna={coluna} controlName={colunaInPainelText(coluna.name, painel.name, local.name)} {...props} />
               ))}
             </ul>
           )}
@@ -365,7 +368,13 @@ function PainelCard({ painel, local, ...props }: CardProps & { painel: ComposerP
   );
 }
 
-function ColunaRow({ coluna, ...props }: CardProps & { coluna: ComposerColuna }) {
+/**
+ * A coluna row. Its drag handle, Position box and Overflow read `controlName`, the coluna
+ * named with what it sits in (the kernel's `colunaInPainelText` / `colunaInLocalText`): every
+ * painel's first coluna is "Coluna 1" by default, so the coluna alone would name the controls
+ * of two painéis alike. The row's head keeps the coluna's own name, as drawn.
+ */
+function ColunaRow({ coluna, controlName, ...props }: CardProps & { coluna: ComposerColuna; controlName: string }) {
   const { currentRef, onSelect, onMove, onSetQuantity } = props;
   const reorder = useReorder({
     itemKey: coluna.ref,
@@ -381,8 +390,8 @@ function ColunaRow({ coluna, ...props }: CardProps & { coluna: ComposerColuna })
   return (
     <li className={className} {...reorder.rowProps}>
       <div className="col-line">
-        <DragHandle name={coluna.name} reorder={reorder} />
-        <PositionBox name={coluna.name} position={coluna.position} siblings={coluna.siblings} reorder={reorder} />
+        <DragHandle name={controlName} reorder={reorder} />
+        <PositionBox name={controlName} position={coluna.position} siblings={coluna.siblings} reorder={reorder} />
         <button
           ref={headButton}
           type="button"
@@ -394,7 +403,7 @@ function ColunaRow({ coluna, ...props }: CardProps & { coluna: ComposerColuna })
           <span className="col-name">{coluna.name}</span>
           <span className="col-sum">{nodeSummaryText(coluna).sum}</span>
         </button>
-        <OverflowMenu name={coluna.name} items={menu.items} destructiveItems={menu.destructiveItems} />
+        <OverflowMenu name={controlName} items={menu.items} destructiveItems={menu.destructiveItems} />
       </div>
       {isOpen ? (
         <div className="col-body" id={bodyId}>

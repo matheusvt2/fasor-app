@@ -24,7 +24,7 @@ describe('4.5 restoreSheetOps', () => {
     const taker = pair(2, 'SEC-C05', 'a1');
     const blocks = [{ ...old.block, removed_at: removedAt }, taker.block];
 
-    const ops = restoreSheetOps(author, relatorioId, projectId, blocks, old.block.id, old.equipment.id, [{ ...old.equipment, removed_at: removedAt }]);
+    const ops = restoreSheetOps(author, relatorioId, projectId, blocks, old.block.id, old.equipment.id, [{ ...old.equipment, removed_at: removedAt }], [coluna]);
     expect(ops?.map((op) => [op.kind, op.path, op.value, op.scope])).toEqual([
       ['put', `block/${old.block.id}/removed_at`, null, 'relatorio'],
       ['put', `equipment/${old.equipment.id}/removed_at`, null, 'project'],
@@ -42,13 +42,13 @@ describe('4.5 restoreSheetOps', () => {
 
   it('writes nothing for a block that is already live', () => {
     const live = pair(3, 'SEC-C07', 'a0');
-    expect(restoreSheetOps(author, relatorioId, projectId, [live.block], live.block.id, live.equipment.id, [live.equipment])).toBeNull();
+    expect(restoreSheetOps(author, relatorioId, projectId, [live.block], live.block.id, live.equipment.id, [live.equipment], [coluna])).toBeNull();
   });
 
   it('Q4: restores only the block when its equipment stayed live (another relatório holds it)', () => {
     const removed = pair(4, 'SEC-C05', 'a0');
     const blocks = [{ ...removed.block, removed_at: '2026-09-24T10:00:00.000Z' }];
-    const ops = restoreSheetOps(author, relatorioId, projectId, blocks, removed.block.id, removed.equipment.id, [removed.equipment]);
+    const ops = restoreSheetOps(author, relatorioId, projectId, blocks, removed.block.id, removed.equipment.id, [removed.equipment], [coluna]);
     expect(ops?.map((op) => op.path)).toEqual([`block/${removed.block.id}/removed_at`]);
   });
 });

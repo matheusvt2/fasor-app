@@ -7,6 +7,9 @@ import {
   isEquipmentBlockType,
   locationBlocks,
   localUpdatedText,
+  locationControlName,
+  locationRemovalPlan,
+  locationRemovedText,
   moveAnnouncement,
   moveLandingIndex,
   movePlan,
@@ -16,6 +19,7 @@ import {
   orderKeyForMove,
   panelRetargetOps,
   panelSuggestionStatusOp,
+  removedAncestorIds,
   renamedText,
   siblingLocations,
   suggestTag,
@@ -25,6 +29,9 @@ import {
   toIso,
   type BlockRow,
   type EquipmentRow,
+  type LocationRemovalPlan,
+  type LocationRestorePlan,
+  type LocationRow,
   type MovePlan,
   type OpDraft,
   type RelatorioSummary,
@@ -50,6 +57,7 @@ import {
   createEquipmentOp,
   createLocationOp,
   equipmentRemovedOp,
+  locationRemovedOp,
   putAgruparOp,
   putBlockOp,
   putEquipmentTagOp,
@@ -62,9 +70,9 @@ import {
 /*
  * Stories 4.4 and 4.5: every write the location tree makes, through the relatório's one
  * edit queue (`useRelatorioEditor`): a block created from the palette or by "Duplicar", a
- * block or a location moved, a block removed, a TAG renamed, a location added or renamed,
- * the local's "Agrupar por tipo" and its "Função e nome" (Story 14.2: a local, a painel or a
- * coluna). Each is one batch, announced where it moves something and undoable from a toast;
+ * block or a location moved, a block removed, a TAG renamed, a location added, renamed or
+ * removed with everything under it (Story 14.2, second pass), the local's "Agrupar por tipo"
+ * and its "Função e nome" (Story 14.2: a local, a painel or a coluna). Each is one batch, announced where it moves something and undoable from a toast;
  * each hands the focus to a control on purpose (E3-A8).
  */
 
@@ -96,6 +104,12 @@ export interface TreeActions {
   moveToLocation: (node: TreeEquipmentNode, targetId: string, rename: boolean) => void;
   createBlock: (input: PaletteCreate) => void;
   removeBlock: (node: TreeEquipmentNode) => void;
+  /**
+   * Story 14.2, second pass: "Remover" of a coluna, a painel or a local. One batch tombstones
+   * the location, every live location under it, every live sheet on them and the equipment
+   * the removal frees (the kernel's `locationRemovalPlan` on the rows as they are at commit time).
+   */
+  removeLocation: (node: TreeLocationNode) => void;
   duplicateBlock: (node: TreeEquipmentNode, tag: string) => void;
   renameTag: (node: TreeEquipmentNode, tag: string) => void;
   markNotTested: (node: TreeEquipmentNode, reason: string, text: string | null) => void;
@@ -124,6 +138,16 @@ export function blockOpen(root: HTMLElement | null, blockId: string): HTMLElemen
 /** An equipment row's Overflow trigger. */
 export function blockTrigger(row: Element | null | undefined): HTMLElement | null {
   return row?.querySelector<HTMLElement>(':scope > .overflow-trigger, :scope > .s9-eq-ctrls .overflow-trigger') ?? null;
+}
+
+/** The `li` of a location row. */
+export function locationRow(root: HTMLElement | null, locationId: string): HTMLElement | null {
+  return root?.querySelector<HTMLElement>(`li[data-location-id="${esc(locationId)}"]`) ?? null;
+}
+
+/** A location row's own Overflow trigger (the Sumário presentation: a local, a painel or a coluna row). */
+export function locationTrigger(row: Element | null | undefined): HTMLElement | null {
+  return row?.querySelector<HTMLElement>(':scope > .s9-loc-row .overflow-trigger, :scope > .s9-pnl-row .overflow-trigger, :scope > .s9-col .overflow-trigger') ?? null;
 }
 
 /** A location's chevron. */
@@ -349,25 +373,29 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
     [createPair],
   );
 
+  // The obra's other relatórios on this device: a later relatório reuses the project's
+  // equipment (Q4), so a sheet's TAG is freed only when no other live block holds it,
+  // and only when every relatório of the obra is here to be asked (E9 sweep B15).
+  const readElsewhere = useCallback(
+    (): Promise<{ others: BlockRow[]; visibility: RelatorioVisibility }> =>
+      db === null
+        ? Promise.resolve({
+            others: [],
+            visibility: { companyDownloaded: false, summaries: [], heldRelatorioIds: [relatorioId], downloadedStreamIds: [] } satisfies RelatorioVisibility,
+          })
+        : Promise.all([projectBlockRows(db, projectId), relatorioVisibility(db)]).then(([rows, visibility]) => ({
+            others: rows.filter((row) => row.relatorio_id !== relatorioId),
+            visibility,
+          })),
+    [db, projectId, relatorioId],
+  );
+
   const removeBlock = useCallback(
     (node: TreeEquipmentNode) => {
       const root = host.root();
       const li = blockRow(root, node.blockId);
       const parentId = node.locationId;
-      // The obra's other relatórios on this device: a later relatório reuses the project's
-      // equipment (Q4), so a sheet's TAG is freed only when no other live block holds it,
-      // and only when every relatório of the obra is here to be asked (E9 sweep B15).
-      const elsewhere =
-        db === null
-          ? Promise.resolve({
-              others: [],
-              visibility: { companyDownloaded: false, summaries: [], heldRelatorioIds: [relatorioId], downloadedStreamIds: [] } satisfies RelatorioVisibility,
-            })
-          : Promise.all([projectBlockRows(db, projectId), relatorioVisibility(db)]).then(([rows, visibility]) => ({
-              others: rows.filter((row) => row.relatorio_id !== relatorioId),
-              visibility,
-            }));
-      void elsewhere
+      void readElsewhere()
         .then(({ others, visibility }) =>
           edit((blocks, by) => {
             const block = blocks.find((row) => row.id === node.blockId && row.removed_at === null);
@@ -395,7 +423,60 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
         })
         .catch(() => undefined);
     },
-    [host, db, edit, relatorioId, projectId, showToast, t.gone, t.removed, undoable],
+    [host, readElsewhere, edit, relatorioId, projectId, showToast, t.gone, t.removed, undoable],
+  );
+
+  const removeLocation = useCallback(
+    (node: TreeLocationNode) => {
+      const li = locationRow(host.root(), node.id);
+      const parentId = node.parentId;
+      const out: { plan: LocationRemovalPlan | null; name: string } = { plan: null, name: node.controlName };
+      void readElsewhere()
+        .then(({ others, visibility }) =>
+          edit((blocks, by, fresh) => {
+            // The plan on the rows as they are now, removed ones included: a location removed
+            // meanwhile, or one whose parent was, is not live and nothing is written.
+            const plan = locationRemovalPlan({ locations: fresh.allLocations, blocks, otherBlocks: others, locationId: node.id, projectId, relatorioId, visibility });
+            out.plan = plan;
+            if (plan === null) return null;
+            out.name = locationControlName(fresh.allLocations, node.id);
+            return removeLocationOps(by, relatorioId, projectId, plan);
+          }),
+        )
+        .then((batch) => {
+          const plan = out.plan;
+          if (batch === null || plan === null) {
+            showToast(t.locationGone);
+            return;
+          }
+          // The next row of the same list, else the one before it, else the parent's chevron,
+          // else (the last local left) the foot's "Adicionar local".
+          focusAfterRemoval(li, {
+            rows: (list) => [...list.children].filter((el): el is HTMLElement => el instanceof HTMLElement && el.matches('li[data-location-id]')),
+            focusOf: (row) => (row?.dataset.locationId === undefined ? null : locationChevron(host.root(), row.dataset.locationId)),
+            fallback: () => (parentId === null ? null : locationChevron(host.root(), parentId)) ?? host.addLocal(),
+            mode: 'settled',
+          });
+          // Said, and the toast shown, in the render that takes the row away (Q7). The toast is
+          // the surface's sentence per kind; the announcement names which location left.
+          settle(
+            () => locationRow(host.root(), node.id) === null,
+            locationRemovedText(plan.kind, out.name),
+            () =>
+              undoable(
+                t.locationRemoved[plan.kind],
+                batch,
+                // "Desfazer" puts every row back: the focus goes to the location's Overflow trigger.
+                () => locationTrigger(locationRow(host.root(), node.id)),
+                () => {
+                  if (parentId !== null) host.reveal(parentId);
+                },
+              ),
+          );
+        })
+        .catch(() => undefined);
+    },
+    [host, readElsewhere, edit, relatorioId, projectId, showToast, t.locationGone, t.locationRemoved, settle, undoable],
   );
 
   const renameTag = useCallback(
@@ -578,8 +659,8 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
   );
 
   return useMemo(
-    () => ({ openSheet, moveBlock, moveLocation, moveToLocation, createBlock, removeBlock, duplicateBlock, renameTag, markNotTested, addLocation, addLocal, updateLocal, renameLocation, toggleAgrupar }),
-    [openSheet, moveBlock, moveLocation, moveToLocation, createBlock, removeBlock, duplicateBlock, renameTag, markNotTested, addLocation, addLocal, updateLocal, renameLocation, toggleAgrupar],
+    () => ({ openSheet, moveBlock, moveLocation, moveToLocation, createBlock, removeBlock, removeLocation, duplicateBlock, renameTag, markNotTested, addLocation, addLocal, updateLocal, renameLocation, toggleAgrupar }),
+    [openSheet, moveBlock, moveLocation, moveToLocation, createBlock, removeBlock, removeLocation, duplicateBlock, renameTag, markNotTested, addLocation, addLocal, updateLocal, renameLocation, toggleAgrupar],
   );
 }
 
@@ -613,9 +694,40 @@ export function removeSheetOps(
 }
 
 /**
+ * Story 14.2, second pass: the batch of a location's removal, from the kernel's plan, in the
+ * order the spec fixes: the `location/{id}/removed_at` removes (the target first, then what
+ * is under it in tree order), the `block/{id}/removed_at` removes, the
+ * `equipment/{id}/removed_at` removes. One batch, so every tombstone carries one `client_ts`,
+ * which is how the restore tells the rows of one removal.
+ */
+export function removeLocationOps(author: Author, relatorioId: string, projectId: string, plan: LocationRemovalPlan): OpDraft[] {
+  return [
+    ...plan.locationIds.map((id) => locationRemovedOp(author, relatorioId, id, true)),
+    ...plan.blockIds.map((id) => removeBlockOp(author, relatorioId, id)),
+    ...plan.equipmentIds.map((id) => equipmentRemovedOp(author, projectId, id, true)),
+  ];
+}
+
+/**
+ * Story 14.2, second pass: the batch of a location's restore, from the kernel's plan: the
+ * `location/{id}/removed_at` puts of null (its removed ancestors root first, itself, then what
+ * left with it), the `block/{id}/removed_at` puts of null, the `equipment/{id}/removed_at`
+ * puts of null.
+ */
+export function restoreLocationOps(author: Author, relatorioId: string, projectId: string, plan: LocationRestorePlan): OpDraft[] {
+  return [
+    ...plan.locationIds.map((id) => locationRemovedOp(author, relatorioId, id, false)),
+    ...plan.blockIds.map((id) => putBlockOp(author, relatorioId, id, 'removed_at', null)),
+    ...plan.equipmentIds.map((id) => equipmentRemovedOp(author, projectId, id, false)),
+  ];
+}
+
+/**
  * "Restaurar" of an equipment sheet: the block and, when its removal freed it, its
  * equipment row come back in one batch. An equipment another sheet kept live (Q4) is left
- * as it is.
+ * as it is. Story 14.2, second pass: the removed locations above the sheet (its own and its
+ * ancestors, `removedAncestorIds` over `locations`, which carries the removed rows) come back
+ * first, root first, so a restored or kept sheet is never put back into a hidden location.
  */
 export function restoreSheetOps(
   author: Author,
@@ -625,9 +737,14 @@ export function restoreSheetOps(
   blockId: string,
   equipmentId: string | null,
   equipment: readonly Pick<EquipmentRow, 'id' | 'removed_at'>[],
+  locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'removed_at'>[],
 ): OpDraft[] | null {
-  if (!blocks.some((row) => row.id === blockId && row.removed_at !== null)) return null;
-  const ops: OpDraft[] = [putBlockOp(author, relatorioId, blockId, 'removed_at', null)];
+  const block = blocks.find((row) => row.id === blockId && row.removed_at !== null);
+  if (block === undefined) return null;
+  const ops: OpDraft[] = [
+    ...removedAncestorIds(locations, block.location_id).map((id) => locationRemovedOp(author, relatorioId, id, false)),
+    putBlockOp(author, relatorioId, blockId, 'removed_at', null),
+  ];
   const live = equipment.some((row) => row.id === equipmentId && row.removed_at === null);
   if (equipmentId !== null && !live) ops.push(equipmentRemovedOp(author, projectId, equipmentId, false));
   return ops;

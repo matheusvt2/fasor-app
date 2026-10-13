@@ -509,7 +509,12 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     renderComposer();
     const mt = await card(/^Painel Painel de média tensão/);
     const colunas = () => names(within(mt).getByRole('list', { name: 'Colunas de Painel de média tensão em Cabine de transformação' }), '.col-name');
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 3' }));
+    // Rule 9: the coluna's drag handle, Position box and Overflow name it with its painel and its local.
+    const coluna3 = [...within(mt).getByRole('list', { name: 'Colunas de Painel de média tensão em Cabine de transformação' }).querySelectorAll<HTMLElement>(':scope > li')][2]!;
+    expect(within(coluna3).getByRole('button', { name: 'Reordenar Coluna 3 em Painel de média tensão em Cabine de transformação' })).toHaveClass('drag-handle');
+    expect(within(coluna3).getByRole('textbox', { name: 'Posição de Coluna 3 em Painel de média tensão em Cabine de transformação' })).toHaveClass('pos-box');
+    expect(screen.queryByRole('button', { name: 'Mais opções de Coluna 3' })).toBeNull();
+    await userEvent.click(within(coluna3).getByRole('button', { name: 'Mais opções de Coluna 3 em Painel de média tensão em Cabine de transformação' }));
     expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Renomear', 'Subir', 'Remover']);
     await userEvent.click(screen.getByRole('menuitem', { name: 'Subir' }));
     await waitFor(() => expect(colunas()).toEqual(['Coluna 1', 'Coluna 3', 'Coluna 2']));

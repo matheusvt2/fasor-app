@@ -274,9 +274,11 @@ describe('4.4 location tree (Sumário presentation)', () => {
       'Adicionar coluna',
       'Função e nome',
       'Descer',
+      'Remover',
     ]);
-    expect(await itemsOf('Mais opções de Cabine Vazia')).toEqual(['Agrupar por tipo na seção 9', 'Adicionar equipamento', 'Adicionar painel', 'Função e nome', 'Subir']);
-    expect(await itemsOf('Mais opções de Coluna 1 de Cabine de Testes')).toEqual(['Adicionar bloco', 'Renomear']);
+    // Story 14.2, second pass: "Remover" closes the menu of a local and of a coluna, as it does a sheet's.
+    expect(await itemsOf('Mais opções de Cabine Vazia')).toEqual(['Agrupar por tipo na seção 9', 'Adicionar equipamento', 'Adicionar painel', 'Função e nome', 'Subir', 'Remover']);
+    expect(await itemsOf('Mais opções de Coluna 1 de Cabine de Testes')).toEqual(['Adicionar bloco', 'Renomear', 'Remover']);
     expect(await itemsOf('Mais opções de DJ-TEST')).toEqual(['Adicionar abaixo', 'Subir', 'Descer', 'Mover para…', 'Duplicar', 'Renomear TAG', 'Remover']);
 
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de Testes' }));

@@ -3,12 +3,17 @@ import {
   duplicateTagSuggestion,
   duplicateTagText,
   locationPathText,
+  locationRemovalConfirmLabel,
+  locationRemovalConfirmText,
+  locationRemovalConfirmTitle,
+  locationRemovalPlan,
   locationTree,
   moveTargets,
   paletteLocationFor,
   removeBlockTitle,
   treePathTo,
   type EquipmentRow,
+  type LocationRemovalPlan,
   type RelatorioSnapshot,
   type TreeEquipmentNode,
   type TreeLocationNode,
@@ -29,7 +34,7 @@ import { FieldPalette, type PaletteTarget } from './block-palette-field.tsx';
 import { PanelCapture, panelAwaitingRows, type PanelCaptureHandle } from './panel-capture.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useAiFeatures } from '../../state/ai-features.tsx';
-import { blockOpen, blockRow, blockTrigger, locationChevron, useTreeActions, type TreeActions, type TreeContext } from './tree-actions.ts';
+import { blockOpen, blockRow, blockTrigger, locationChevron, locationRow, locationTrigger, useTreeActions, type TreeActions, type TreeContext } from './tree-actions.ts';
 import { NameDialog, TagDialog } from './tag-dialogs.tsx';
 import { NotTestedDialog } from './not-tested-dialog.tsx';
 import { MoveBlockDialog } from './move-block-dialog.tsx';
@@ -49,10 +54,11 @@ import { LocalDialog } from '../templates/local-dialog.tsx';
  *   rows; equipment rows with the Position box, the drag handle, the state glyph and word
  *   and the Overflow; "Adicionar equipamento no local" under each open local, "Adicionar
  *   bloco em ⟨painel⟩" under each open painel, and "Adicionar local" (the Função dialog) at
- *   the foot. Everything that edits the tree lives here.
+ *   the foot. Everything that edits the tree lives here, "Remover" of a coluna, a painel or
+ *   a local included (Story 14.2, second pass).
  * - `rail`: the tree alone (`shell-foot.html` `.relatorio-tree`), locais, painéis, colunas
  *   and fichas, the current sheet `aria-current`; its local Overflow opens the first sheet
- *   and toggles "Agrupar por tipo", nothing more.
+ *   and toggles "Agrupar por tipo", nothing more (no removal).
  *
  * Rows are lists with `aria-expanded` chevrons, not an ARIA `tree`: each row holds a
  * Position box, buttons and a menu. Left/Right on a focused chevron or row body expand and
@@ -106,6 +112,8 @@ type Dialog =
   | { kind: 'not-tested'; node: TreeEquipmentNode }
   | { kind: 'move'; node: TreeEquipmentNode }
   | { kind: 'rename-location'; node: TreeLocationNode }
+  // Story 14.2, second pass: the Confirm of a location that takes sheets with it, with the plan it was opened on.
+  | { kind: 'remove-location'; node: TreeLocationNode; plan: LocationRemovalPlan }
   // Story 14.2: the Função dialog, adding a local or editing one ("Função e nome").
   | { kind: 'local-add' }
   | { kind: 'local-edit'; node: TreeLocationNode };
@@ -131,7 +139,16 @@ interface Shared {
   /** Story 11.2: another live location exists for the block to move to (the kernel's `moveTargets`). */
   canMove: (node: TreeEquipmentNode) => boolean;
   requestRemove: (node: TreeEquipmentNode) => void;
+  /** "Remover" of a location: asks first only when a sheet leaves with it. */
+  requestRemoveLocation: (node: TreeLocationNode) => void;
 }
+
+/**
+ * What the press of "Remover" reads the plan with: the Confirm needs the counts alone (the
+ * locations and the sheets under the target), which no other relatório changes. The batch
+ * is planned again on the fresh rows, with the obra's other relatórios, when it is written.
+ */
+const COUNTS_ONLY = { otherBlocks: [], visibility: { companyDownloaded: false, summaries: [], heldRelatorioIds: [], downloadedStreamIds: [] } } as const;
 
 const Chevron = () => (
   <svg className="ico" aria-hidden="true">
@@ -345,9 +362,24 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
         if (node.holdsData) setDialog({ kind: 'remove', node });
         else actions.removeBlock(node);
       },
+      requestRemoveLocation: (node) => {
+        const current = latestSnapshot.current;
+        const plan = locationRemovalPlan({
+          locations: current.locations,
+          blocks: current.blocks,
+          locationId: node.id,
+          projectId: context.projectId,
+          relatorioId: context.relatorioId,
+          ...COUNTS_ONLY,
+        });
+        // With a sheet underneath, the consequence is stated first; with none, the location
+        // leaves at once (a location gone meanwhile is answered by the action's own toast).
+        if (plan !== null && plan.counts.sheets > 0) setDialog({ kind: 'remove-location', node, plan });
+        else actions.removeLocation(node);
+      },
     }),
     // `locationsKey` is read through `latestSnapshot`; it is a dependency so a new path renews `shared`.
-    [presentation, expanded, lastSheetId, currentPath, actions, locationsKey],
+    [presentation, expanded, lastSheetId, currentPath, actions, locationsKey, context.projectId, context.relatorioId],
   );
 
   const closeDialog = (focusTo?: () => HTMLElement | null) => {
@@ -447,6 +479,24 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
             const node = dialog.node;
             setDialog(null);
             actions.removeBlock(node);
+          }}
+        />
+      ) : null}
+      {dialog?.kind === 'remove-location' ? (
+        <ConfirmDialog
+          isOpen
+          onOpenChange={(open) => {
+            if (!open) closeDialog(() => locationTrigger(locationRow(rootRef.current, dialog.node.id)));
+          }}
+          title={locationRemovalConfirmTitle(dialog.node.controlName)}
+          description={locationRemovalConfirmText(dialog.plan.kind, dialog.plan.counts)}
+          confirmLabel={locationRemovalConfirmLabel(dialog.plan.kind)}
+          cancelLabel={ui.confirmDialog.cancel}
+          isDestructive
+          onConfirm={() => {
+            const node = dialog.node;
+            setDialog(null);
+            actions.removeLocation(node);
           }}
         />
       ) : null}
@@ -555,10 +605,12 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
  * equipamento", "Adicionar painel", "Função e nome" and the moves. A painel: "Adicionar
  * bloco" (while it has a coluna to put it in), "Adicionar coluna", "Renomear" and the
  * moves. A coluna: "Adicionar bloco", "Renomear" and the moves. A local that already holds
- * colunas directly (a tree from before the painel level) keeps its "Adicionar coluna". The
- * rail keeps the local's first two and nothing else.
+ * colunas directly (a tree from before the painel level) keeps its "Adicionar coluna". Each
+ * of the three ends in "Remover", alone in the destructive group (the mock's red item on a
+ * local and a painel; EXPERIENCE.md extends it to the coluna). The rail keeps the local's
+ * first two and nothing else: it never removes.
  */
-function locationMenu(node: TreeLocationNode, shared: Shared, reorder: Reorder | null, trigger: () => HTMLElement | null): OverflowMenuAction[] {
+function locationMenu(node: TreeLocationNode, shared: Shared, reorder: Reorder | null, trigger: () => HTMLElement | null): { items: OverflowMenuAction[]; destructiveItems: OverflowMenuAction[] } {
   const t = copy.sumario.tree;
   const items: OverflowMenuAction[] = [];
   const local = node.kind === 'cabine';
@@ -569,7 +621,7 @@ function locationMenu(node: TreeLocationNode, shared: Shared, reorder: Reorder |
     }
     items.push({ id: 'agrupar', label: t.agrupar, checked: node.agruparPorTipo === true, onAction: () => shared.actions.toggleAgrupar(node) });
   }
-  if (shared.presentation === 'rail') return items;
+  if (shared.presentation === 'rail') return { items, destructiveItems: [] };
   const target = shared.paletteLocation(node);
   // A painel with no coluna takes no block: nothing to offer until it has one.
   // "Adicionar equipamento" only when the block goes on the local itself; a local that holds colunas
@@ -583,7 +635,7 @@ function locationMenu(node: TreeLocationNode, shared: Shared, reorder: Reorder |
   else items.push({ id: 'rename', label: t.rename, onAction: () => shared.openDialog({ kind: 'rename-location', node }) });
   if (reorder !== null && node.position > 1) items.push({ id: 'up', label: copy.sumario.moveUp, onAction: () => void reorder.moveTo(node.position - 2, trigger) });
   if (reorder !== null && node.position < node.siblings) items.push({ id: 'down', label: copy.sumario.moveDown, onAction: () => void reorder.moveTo(node.position, trigger) });
-  return items;
+  return { items, destructiveItems: [{ id: 'remove', label: copy.sumario.remove, onAction: () => shared.requestRemoveLocation(node) }] };
 }
 
 const PlusIcon = () => (
@@ -606,7 +658,7 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
     onMove: (to) => shared.actions.moveLocation(node, to),
     focusFrames: LIST_FOCUS_WATCH_FRAMES,
   });
-  const trigger = () => reorder.row()?.querySelector<HTMLElement>(':scope > .s9-loc-row .overflow-trigger, :scope > .s9-pnl-row .overflow-trigger, :scope > .s9-col .overflow-trigger') ?? null;
+  const trigger = () => locationTrigger(reorder.row());
   const menu = locationMenu(node, shared, reorder, trigger);
   // The root row is the local; a `cabine` row drawn under another location is read as a coluna row, as before.
   const local = node.kind === 'cabine' && node.level === 0;
@@ -704,7 +756,7 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
             <span className="dot" aria-hidden="true" />
             {node.counterText}
           </span>
-          <OverflowMenu name={node.controlName} items={menu} />
+          <OverflowMenu name={node.controlName} items={menu.items} destructiveItems={menu.destructiveItems} />
         </div>
         {/* The local's own sheets first, under their heading line (the mock's `.s9-col` of `.s9-eqs`). */}
         {open && node.equipment.length > 0 ? (
@@ -747,7 +799,7 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
             <span className="dot" aria-hidden="true" />
             {node.counterText}
           </span>
-          <OverflowMenu name={node.controlName} items={menu} />
+          <OverflowMenu name={node.controlName} items={menu.items} destructiveItems={menu.destructiveItems} />
         </div>
         {/* A painel takes no block, but a row can still sit on one (a block whose op was folded
             before the painel reached this device): it is counted, so it is drawn. A block never vanishes. */}
@@ -766,7 +818,9 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
           </>
         ) : null}
         {open && target !== null ? (
-          <AriaButton className="btn btn-text s9-add" onPress={() => shared.openPalette({ locationId: target, anchorBlockId: null })}>
+          // The visible words are the mock's; the name adds the painel's local ("… de Cubículo Enel"),
+          // so the first painel of two locals, "Painel 1" in each, never names two buttons alike.
+          <AriaButton className="btn btn-text s9-add" aria-label={t.addBlockIn(node.controlName)} onPress={() => shared.openPalette({ locationId: target, anchorBlockId: null })}>
             <PlusIcon />
             {t.addBlockIn(node.name)}
           </AriaButton>
@@ -781,7 +835,7 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
         {reorderControls}
         <span className="s9-col-name">{node.name}</span>
         <span className="s9-col-meta">{node.counterText}</span>
-        <OverflowMenu name={node.controlName} items={menu} />
+        <OverflowMenu name={node.controlName} items={menu.items} destructiveItems={menu.destructiveItems} />
       </div>
       {equipmentList}
       {colunaList}
@@ -890,7 +944,7 @@ const RailLocation = memo(function RailLocation({ node, shared }: { node: TreeLo
           {/* Story 14.2: the rail line of each level is the kernel's ("Local · Entrada · 1 painel · 3 de 9 fichas", "Painel · 1 coluna · 3 de 9"). */}
           <span className="tree-meta">{node.railMeta}</span>
         </div>
-        {menu.length > 0 ? <OverflowMenu name={node.controlName} items={menu} /> : null}
+        {menu.items.length > 0 ? <OverflowMenu name={node.controlName} items={menu.items} /> : null}
       </div>
       {open && hasChildren ? (
         <ul className="relatorio-tree" id={groupId}>

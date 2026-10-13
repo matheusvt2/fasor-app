@@ -273,7 +273,11 @@ describe('4.4/4.5 tree edge paths', () => {
     await database.local_prefs.put({ key: LAST_SHEET_PREF(RELATORIO), value: SEC_C01 });
     await openCabine();
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar equipamento' }));
+    // A local that holds colunas directly adds to its current coluna: the item reads "Adicionar
+    // bloco", and "Adicionar equipamento" is offered only when the block goes on the local itself (05d6fd7).
+    expect(await screen.findByRole('menuitem', { name: 'Adicionar bloco' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Adicionar equipamento' })).toBeNull();
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Adicionar bloco' }));
     let palette = await screen.findByRole('dialog', { name: 'Adicionar bloco' });
     expect(within(palette).getByText('Em: Cabine de Testes › Coluna 1')).toBeInTheDocument();
     await userEvent.click(within(palette).getByRole('button', { name: 'Fechar' }));
