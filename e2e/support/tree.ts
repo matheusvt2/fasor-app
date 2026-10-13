@@ -12,6 +12,8 @@ import { expect } from './merged-fixtures.ts';
 /**
  * Leaves the location row `name` of the relatório tree expanded, whatever state it was in and
  * whether or not it opens by itself meanwhile: retried until the row reads "Recolher ⟨name⟩".
+ * `name` is the row's control name: a local's or a coluna's own name, and for a painel its
+ * name with its local ("Painel 1 de Cubículo Enel"), as the chevron reads it.
  */
 export async function expandLocation(page: Page, name: string): Promise<void> {
   const expand = page.getByRole('button', { name: `Expandir ${name}`, exact: true });

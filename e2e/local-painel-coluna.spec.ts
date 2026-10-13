@@ -66,6 +66,12 @@ const painelCards = (page: Page, local: string) => page.getByRole('list', { name
 const painelCard = (page: Page, local: string, name: string) => painelCards(page, local).filter({ has: page.locator(':scope > .block-body .block-name', { hasText: new RegExp(`^${name}$`) }) });
 const colunaNames = (page: Page, parent: string) => page.getByRole('list', { name: `Colunas de ${parent}`, exact: true }).locator('.col-name');
 const menuOf = (page: Page, name: string) => page.getByRole('button', { name: `Mais opções de ${name}`, exact: true });
+/**
+ * The name a painel's controls read (coordinator review 2026-10-13): with its local, since every local's first painel is
+ * "Painel 1". The composer words it "⟨painel⟩ em ⟨local⟩" (mock 42), the relatório tree "⟨painel⟩ de ⟨local⟩" (mock 40).
+ */
+const painelInComposer = (name: string, localName: string) => `${name} em ${localName}`;
+const painelInTree = (name: string, localName: string) => `${name} de ${localName}`;
 
 async function openNewTemplate(page: Page): Promise<string> {
   await page.getByRole('link', { name: /Templates/ }).click();
@@ -254,7 +260,7 @@ test('@p0 14.2-E2E-001 at 1280: a template of one local (Transformação) with t
   await expect(page.getByRole('list', { name: `Equipamentos direto em ${LOCAL}` }).locator(':scope > li.s9-eq .block-tag')).toHaveText(['TR-1', 'TR-2']);
   await expect(painelNames(page, LOCAL)).toHaveText(['Painel 1']);
   await expect(painel(page, 'Painel 1').locator(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveText('Painel · 3 colunas');
-  await expandLocation(page, 'Painel 1');
+  await expandLocation(page, painelInTree('Painel 1', LOCAL));
   await expect(painel(page, 'Painel 1').locator(':scope > .s9-cols > li.s9-coluna > .s9-col .s9-col-name')).toHaveText(['Coluna 1', 'Coluna 2', 'Coluna 3']);
   await expandLocation(page, 'Coluna 1');
   await expect(coluna(page, 'Coluna 1').locator('.block-tag')).toHaveText(['SEC-C01']);
@@ -282,7 +288,7 @@ test('@p0 14.2-E2E-001 at 1280: a template of one local (Transformação) with t
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   await openSection9(page);
   await expandLocation(page, LOCAL);
-  await expandLocation(page, 'Painel 1');
+  await expandLocation(page, painelInTree('Painel 1', LOCAL));
   await expandLocation(page, 'Coluna 1');
   await expect(local(page, LOCAL).locator(':scope > .s9-loc-row .s9-loc-meta')).toContainText('Transformação · BLINDADA · 13,8 kV · 25 °C · 65 %');
   await expect(local(page, LOCAL).locator(':scope > .s9-loc-row .progress-counter')).toHaveText('2 de 5');
@@ -383,6 +389,25 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
   await expect(card.locator(':scope > .block-body .loc-flag')).toHaveText('sem painéis · 0 blocos');
   await expect(card.locator(':scope > .block-body .block-sub')).toHaveText('Função: primária · Agrupar por tipo: desativado');
 
+  // Below 1024 px the palette is a drawer. The local just added is already its target, so one tap on
+  // "Adicionar equipamento" opens it on that local, and one more after closing opens it again
+  // (coordinator review 2026-10-13: the tap used to release the target and open nothing).
+  const addEquipamento = card.getByRole('button', { name: 'Adicionar equipamento', exact: true });
+  await expect(palette(page)).toBeHidden();
+  await expect(card).toHaveClass(/is-current/);
+  await expect(addEquipamento).toHaveAttribute('aria-pressed', 'true');
+  const drawer = page.getByRole('dialog', { name: 'Cabine primária', exact: true });
+  for (let tap = 0; tap < 2; tap++) {
+    await addEquipamento.click();
+    await expect(drawer.locator('.pal-target')).toHaveText('Toque para adicionar em: Cabine primária, direto no local');
+    await expect(drawer.getByRole('group', { name: 'Transformadores, 0' })).toBeVisible();
+    await drawer.getByRole('button', { name: 'Fechar', exact: true }).click();
+    await expect(drawer).toBeHidden();
+    await expect(card).toHaveClass(/is-current/);
+    await expect(addEquipamento).toHaveAttribute('aria-pressed', 'true');
+    await expect(card.locator(':scope > .block-expand > .loc-direct .loc-current')).toBeVisible();
+  }
+
   // A painel: empty, it says why it takes no equipment; a coluna ends the note.
   await page.getByRole('button', { name: 'Adicionar painel' }).click();
   await expect(composerAnnouncer(page)).toHaveText('Painel 1 adicionado');
@@ -391,7 +416,9 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
   await expect(firstPainel.locator(':scope > .block-body .loc-flag')).toHaveText('sem colunas · 0 blocos');
   await firstPainel.getByRole('button', { name: 'Adicionar coluna' }).click();
   await expect(composerAnnouncer(page)).toHaveText('Coluna 1 adicionada');
-  await expect(colunaNames(page, 'Painel 1 em Cabine primária')).toHaveText(['Coluna 1']);
+  await expect(colunaNames(page, painelInComposer('Painel 1', 'Cabine primária'))).toHaveText(['Coluna 1']);
+  // The control that added the first coluna still holds the focus, drawn now as the text button.
+  await expect(firstPainel.getByRole('button', { name: 'Adicionar coluna' })).toBeFocused();
   await expect(firstPainel.getByRole('note')).toHaveCount(0);
   await expect(skeletonHeading(page)).toHaveText('Esqueleto de locais · 1 local · 1 painel · 1 coluna');
 
@@ -399,7 +426,7 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
   await menuOf(page, 'Cabine primária').click();
   await page.getByRole('menuitem', { name: 'Adicionar painel' }).click();
   await expect(composerAnnouncer(page)).toHaveText('Painel 2 adicionado');
-  await menuOf(page, 'Painel 2').click();
+  await menuOf(page, painelInComposer('Painel 2', 'Cabine primária')).click();
   await page.getByRole('menuitem', { name: 'Renomear' }).click();
   const renameCard = page.getByRole('dialog', { name: 'Renomear Painel 2' });
   await renameCard.getByRole('textbox', { name: 'Nome' }).fill('Média tensão');
@@ -416,14 +443,14 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
   await expect(composerAnnouncer(page)).toHaveText(moved(1));
   await expect(cardNames).toHaveText(['Média tensão', 'Painel 1']);
   await expect(second.locator(':scope > .block-body')).toBeFocused();
-  await menuOf(page, 'Média tensão').click();
+  await menuOf(page, painelInComposer('Média tensão', 'Cabine primária')).click();
   await page.getByRole('menuitem', { name: 'Descer' }).click();
   await expect(composerAnnouncer(page)).toHaveText(moved(2));
   await expect(cardNames).toHaveText(['Painel 1', 'Média tensão']);
-  await dragAbove(page, page.getByRole('button', { name: 'Reordenar Média tensão' }), second, painelCard(page, 'Cabine primária', 'Painel 1'));
+  await dragAbove(page, page.getByRole('button', { name: `Reordenar ${painelInComposer('Média tensão', 'Cabine primária')}`, exact: true }), second, painelCard(page, 'Cabine primária', 'Painel 1'));
   await expect(composerAnnouncer(page)).toHaveText(moved(1));
   await expect(cardNames).toHaveText(['Média tensão', 'Painel 1']);
-  const cardBox = page.getByRole('textbox', { name: 'Posição de Média tensão' });
+  const cardBox = page.getByRole('textbox', { name: 'Posição de Média tensão entre os painéis de Cabine primária', exact: true });
   await cardBox.fill('2');
   await cardBox.press('Enter');
   await expect(composerAnnouncer(page)).toHaveText(moved(2));
@@ -480,7 +507,7 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
   await expect(page.getByRole('menuitem', { name: 'Adicionar coluna' })).toHaveCount(0);
   await page.getByRole('menuitem', { name: 'Adicionar painel' }).click();
   await expect(toast(page)).toContainText('Painel 1 adicionado');
-  await expect(page.getByRole('button', { name: 'Recolher Painel 1', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: `Recolher ${painelInTree('Painel 1', NEW_LOCAL)}`, exact: true })).toBeFocused();
   const treePainel = painel(page, 'Painel 1');
   await expect(treePainel.locator(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveText('Painel · sem colunas');
   await expect(treePainel.getByRole('note')).toHaveText(PAINEL_EMPTY);
@@ -495,28 +522,28 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
   await menuOf(page, NEW_LOCAL).click();
   await page.getByRole('menuitem', { name: 'Adicionar painel' }).click();
   await expect(toast(page)).toContainText('Painel 2 adicionado');
-  await menuOf(page, 'Painel 2').click();
+  await menuOf(page, painelInTree('Painel 2', NEW_LOCAL)).click();
   await page.getByRole('menuitem', { name: 'Renomear' }).click();
   const renameRow = page.getByRole('dialog', { name: 'Renomear Painel 2' });
   await renameRow.getByRole('textbox', { name: 'Nome' }).fill('Média tensão');
   await renameRow.getByRole('button', { name: 'Salvar' }).click();
   await expect(treeAnnouncer(page)).toHaveText('Painel Média tensão renomeado');
-  await expect(page.getByRole('button', { name: 'Recolher Média tensão', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: `Recolher ${painelInTree('Média tensão', NEW_LOCAL)}`, exact: true })).toBeFocused();
   await expect(painelNames(page, NEW_LOCAL)).toHaveText(['Painel 1', 'Média tensão']);
 
   // The four ways to move it, each said.
-  await page.getByRole('button', { name: /^(Expandir|Recolher) Média tensão$/ }).focus();
+  await page.getByRole('button', { name: new RegExp(`^(Expandir|Recolher) ${painelInTree('Média tensão', NEW_LOCAL)}$`) }).focus();
   await page.keyboard.press('Alt+ArrowUp');
   await expect(treeAnnouncer(page)).toHaveText(moved(1));
   await expect(painelNames(page, NEW_LOCAL)).toHaveText(['Média tensão', 'Painel 1']);
-  await menuOf(page, 'Média tensão').click();
+  await menuOf(page, painelInTree('Média tensão', NEW_LOCAL)).click();
   await page.getByRole('menuitem', { name: 'Descer' }).click();
   await expect(treeAnnouncer(page)).toHaveText(moved(2));
   await expect(painelNames(page, NEW_LOCAL)).toHaveText(['Painel 1', 'Média tensão']);
-  await dragAbove(page, page.getByRole('button', { name: 'Reordenar Média tensão' }), painel(page, 'Média tensão'), painel(page, 'Painel 1'));
+  await dragAbove(page, page.getByRole('button', { name: `Reordenar ${painelInTree('Média tensão', NEW_LOCAL)}`, exact: true }), painel(page, 'Média tensão'), painel(page, 'Painel 1'));
   await expect(treeAnnouncer(page)).toHaveText(moved(1));
   await expect(painelNames(page, NEW_LOCAL)).toHaveText(['Média tensão', 'Painel 1']);
-  const rowBox = page.getByRole('textbox', { name: 'Posição de Média tensão' });
+  const rowBox = page.getByRole('textbox', { name: `Posição de ${painelInTree('Média tensão', NEW_LOCAL)}`, exact: true });
   await rowBox.fill('2');
   await rowBox.press('Enter');
   await expect(treeAnnouncer(page)).toHaveText(moved(2));
@@ -545,10 +572,70 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
   await expect(local(page, NEW_LOCAL).locator(':scope > .s9-loc-row .s9-loc-meta')).toHaveText('Distribuição');
   await expect(local(page, 'Cabine da rua')).toHaveCount(0);
 
-  // Every op of the tree walk is a location op: four creates, then names, Funções and order keys.
-  const ops = await locationOps();
-  expect(ops.every((op) => op.path.startsWith('location/'))).toBe(true);
-  expect(ops.filter((op) => op.kind === 'create').map((op) => (op.value as LocationRow).kind)).toEqual(['cabine', 'painel', 'coluna', 'painel']);
+  // A block born from each of the tree's new entry points (coordinator review 2026-10-13). Below 1280 px a tap on a type creates it at once.
+  const fieldPalette = page.getByRole('dialog', { name: 'Adicionar bloco' });
+  const painelId = (await treePainel.getAttribute('data-location-id'))!;
+  /** The location the device stores for the one live block whose equipment carries `tag`. */
+  const storedLocationOf = async (tag: string): Promise<string | null> => {
+    const records = await entities<BlockRow | EquipmentRow>(page);
+    const equipmentIds = records.filter((record) => record.entity === 'equipment' && (record.row as EquipmentRow).tag === tag).map((record) => record.id);
+    expect(equipmentIds, `equipment rows tagged ${tag}`).toHaveLength(1);
+    const blocks = records.filter((record) => record.entity === 'block' && (record.row as BlockRow).equipment_id === equipmentIds[0]).map((record) => record.row as BlockRow);
+    expect(blocks, `blocks of ${tag}`).toHaveLength(1);
+    return blocks[0]!.location_id;
+  };
+
+  // "Adicionar equipamento no local ⟨local⟩": the palette names the local, and the block is stored on the local itself.
+  await page.getByRole('button', { name: `Adicionar equipamento no local ${NEW_LOCAL}`, exact: true }).click();
+  await expect(fieldPalette.locator('.palette-where')).toHaveText(`Em: ${NEW_LOCAL}`);
+  const trafo = fieldPalette.getByRole('button', { name: /Transformador de força/ });
+  const trafoTag = (await trafo.locator('.pi-meta').innerText()).trim();
+  expect(trafoTag).toMatch(/^TR-\d+$/);
+  await trafo.click();
+  await expect(fieldPalette).toBeHidden();
+  await expect(toast(page)).toContainText(`${trafoTag} criada em ${NEW_LOCAL}`);
+  await expect(local(page, NEW_LOCAL).locator(':scope > .s9-col-direct .s9-col-name')).toHaveText('Equipamentos no local');
+  await expect(page.getByRole('list', { name: `Equipamentos direto em ${NEW_LOCAL}`, exact: true }).locator(':scope > li.s9-eq .block-tag')).toHaveText([trafoTag]);
+  expect(await storedLocationOf(trafoTag)).toBe(localId);
+
+  // "Adicionar bloco em ⟨painel⟩": the palette names the painel's last coluna, and the block is stored on that coluna, never on the painel.
+  await menuOf(page, painelInTree('Painel 1', NEW_LOCAL)).click();
+  await page.getByRole('menuitem', { name: 'Adicionar coluna' }).click();
+  await expect(toast(page)).toContainText('Coluna 2 adicionada');
+  const painelColunas = treePainel.locator(':scope > .s9-cols > li.s9-coluna');
+  await expect(painelColunas.locator(':scope > .s9-col .s9-col-name')).toHaveText(['Coluna 1', 'Coluna 2']);
+  const lastColunaId = (await painelColunas.last().getAttribute('data-location-id'))!;
+  await treePainel.getByRole('button', { name: 'Adicionar bloco em Painel 1', exact: true }).click();
+  await expect(fieldPalette.locator('.palette-where')).toHaveText(`Em: ${NEW_LOCAL} › Painel 1 › Coluna 2`);
+  const seccionadora = fieldPalette.getByRole('button', { name: /Chave seccionadora/ });
+  const seccionadoraTag = (await seccionadora.locator('.pi-meta').innerText()).trim();
+  // The TAG names the coluna alone, never the painel.
+  expect(seccionadoraTag).toMatch(/^SEC-C02(-\d+)?$/);
+  await seccionadora.click();
+  await expect(fieldPalette).toBeHidden();
+  await expect(toast(page)).toContainText(`${seccionadoraTag} criada na Coluna 2`);
+  await expect(painelColunas.last().locator('li.s9-eq .block-tag')).toHaveText([seccionadoraTag]);
+  expect(await storedLocationOf(seccionadoraTag)).toBe(lastColunaId);
+  expect(lastColunaId).not.toBe(painelId);
+  // The painel still holds no block of its own on the device, and its row counts the new sheet through its coluna.
+  expect((await entities<BlockRow>(page)).filter((record) => record.entity === 'block' && record.row.location_id === painelId)).toEqual([]);
+  await expect(treePainel.locator(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveText('Painel · 2 colunas');
+  await expect(treePainel.locator(':scope > .s9-pnl-row .progress-counter')).toHaveText('0 de 1');
+  await expect(treePainel.locator(':scope > .s9-eqs')).toHaveCount(0);
+
+  // Every op of the tree walk is a location op (five creates, then names, Funções and order keys),
+  // but for the two blocks born above: an equipment create and a block create each.
+  const treeOps = await locationOps();
+  const born = treeOps.filter((op) => !op.path.startsWith('location/'));
+  expect(born.map((op) => [op.path.split('/')[0], op.kind])).toEqual([
+    ['equipment', 'create'],
+    ['block', 'create'],
+    ['equipment', 'create'],
+    ['block', 'create'],
+  ]);
+  expect(born.filter((op) => op.path.startsWith('block/')).map((op) => (op.value as BlockRow).location_id)).toEqual([localId, lastColunaId]);
+  const ops = treeOps.filter((op) => op.path.startsWith('location/'));
+  expect(ops.filter((op) => op.kind === 'create').map((op) => (op.value as LocationRow).kind)).toEqual(['cabine', 'painel', 'coluna', 'painel', 'coluna']);
   expect(ops.find((op) => op.kind === 'create')!.value).toMatchObject({ kind: 'cabine', name: NEW_LOCAL, funcao: 'distribuicao', parent_id: null });
   expect([...new Set(ops.filter((op) => op.kind !== 'create').map((op) => op.path.split('/').slice(2).join('/')))].sort()).toEqual(['funcao', 'name', 'order_key']);
   expect(ops.filter((op) => op.path === `location/${localId}/funcao`).map((op) => op.value)).toEqual(['entrada', 'distribuicao']);
