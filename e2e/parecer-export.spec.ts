@@ -142,7 +142,8 @@ test('@p0 E78-Q1 7.5-E2E-006 a relatório with no section block (the Porto Segur
   const numbered = sumario(page).locator('li.sum-row[data-virtual]');
   await expect(numbered).toHaveCount(11);
   await expect(numbered.locator('.sum-pos')).toHaveText(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']);
-  await expect(numbered.locator('input')).toHaveCount(0);
+  // The section rows' own Position box (`input.sum-pos`); the location rows of row 9's tree keep theirs (`.s9-pos`, Story 14.2).
+  await expect(numbered.locator('input.sum-pos')).toHaveCount(0);
   // The rows' own controls (row 9's tree under it keeps its cabines' menus).
   await expect(numbered.locator(':scope > .sum-ctrls .overflow-trigger, :scope > .sum-s9-head > .sum-ctrls .overflow-trigger')).toHaveCount(0);
   const row10 = sumario(page).locator('li[data-row="section_10"]');
