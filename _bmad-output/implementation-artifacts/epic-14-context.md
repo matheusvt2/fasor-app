@@ -181,3 +181,36 @@ Matheus decided that Story 14.2 also removes and restores a coluna, a painel and
 - Story 14.4 prints nothing for a removed local, painel or coluna; its site table follows the local.
 - Contract stays 17 for this: no new path.
 
+## Added 2026-10-13: batch plan in two parallel lanes (Matheus: run this epic as the earlier ones, batched and in parallel)
+
+The wave table above ran the stories one by one, each waiting for the merge before it. From here the epic follows
+`epic-batch-orchestrator.md` § 6 as Epic 13 did: stories batched along data dependencies, two batch stacks at a
+time, stacked branches, one integrated review at the end.
+
+| Batch | Stories | Branch, base | Contract, seed | State |
+|---|---|---|---|---|
+| e14a | 14.2 (with the removal pass of 2026-10-13) | `story/14-2-local-painel-coluna`, from main | 17, no seed | PR #126, second pass running |
+| e14b | 14.3 and 14.4 (site checklist: capture and print, one data set) | `story/14-3-14-4-verificacoes-do-local`, stacked on e14a at `6493597` | 18, seed v4 | starts 2026-10-13 |
+| e14c | 14.5 (measurement table and the CTA type) | `story/14-5-measurement-table-cta`, stacked on e14b's first kernel commit | 19, seed v5 | starts when the e14a stack frees |
+
+Rules for the lanes:
+
+- Numbers are assigned here, not by merge order: e14b takes contract 18 and seed v4, e14c takes contract 19 and
+  seed v5 (v5 is v4 plus the CTA type and its "Outros equipamentos" group). Neither batch takes another number.
+- e14b pushes its kernel slice first (seed v4, the `location/{id}/checklist/...` family, the row fields, contract
+  18, the no-break item on the Disjuntor MT checklist) as its own early commit and tells the coordinator, so e14c
+  can stack on it.
+- A stacked PR is opened with `--base main` once the batch under it has merged; the batch merges `origin/main`
+  into its branch first, resolves, and runs its story gate on that merge. No gate runs on a base that is still
+  moving. Files both lanes edit and where conflicts are expected: `apps/web/src/copy/pt-br.ts`,
+  `packages/domain/src/status/edited-since.ts` (`FAMILY_DECISIONS`), `packages/domain/src/contract/version.ts`,
+  the seed index, `apps/web/src/surfaces/relatorio/relatorio-tree.tsx`, `apps/api/src/jobs/generate/sections/section-9.ts`,
+  `packages/domain/src/print/`, `deferred-work.md`, the spine and `docs/kbs/log.md`. Keep both sides.
+- Section 9 is shared by e14b (the site table after AMBIENTE DE ENSAIO, the type-group titles under a painel) and
+  e14c (the "Outros equipamentos" group after Transformadores): each batch touches only its own part and adds its
+  own golden or structure test; the Porto Seguro goldens match after each.
+- The coordinator's check of each PR is the PR body, the gate record and the cross-batch contracts; the four-lens
+  review and the browser pass run once, on the integrated main after the last merge (playbook § 6), followed by one
+  fix batch.
+- Wave gate (full `@p0`, `test:e2e:full`, the matrix) once, on the integrated main after e14c merges.
+
