@@ -35,8 +35,8 @@ import { blockTrigger, locationRow, locationTrigger, restoreLocationOps, restore
  * edit queue (`useRelatorioEditor`), the way `tree-actions.ts` holds the tree's: a section
  * moved, added or duplicated below a row, removed and restored (a section, an equipment
  * sheet, or a removed location with what left with it, Story 14.2 second pass), and the
- * header's backward status move. Each is one batch, undoable from a toast where the mock gives one, and each
- * hands the focus to a control on purpose (E3-A8).
+ * header's backward status move. Each is one batch, undoable from a toast where the mock
+ * gives one, and each hands the focus to a control on purpose (E3-A8).
  */
 
 export interface SumarioContext {
@@ -81,7 +81,6 @@ export const rowFocusTarget = (li: Element | null | undefined): HTMLElement | nu
 export function useSumarioActions(context: SumarioContext, host: SumarioHost): SumarioActions {
   const { relatorioId, projectId, seedVersion, editor, allBlocks } = context;
   const { edit, undoable, settle } = editor;
-  const tree = copy.sumario.tree;
   const navigate = useNavigate();
   const { showToast } = useToast();
   const t = copy.sumario;
@@ -233,7 +232,7 @@ export function useSumarioActions(context: SumarioContext, host: SumarioHost): S
       .then((batch) => {
         const plan = out.plan;
         if (batch === null || plan === null) {
-          showToast(tree.locationGone);
+          showToast(t.tree.locationGone);
           return;
         }
         // A location comes back in section 9: it opens, with the path down to the row.
@@ -246,7 +245,7 @@ export function useSumarioActions(context: SumarioContext, host: SumarioHost): S
         settle(
           () => row() !== null,
           locationRestoredText(plan.kind, out.name),
-          () => undoable(tree.locationRestored[plan.kind], batch, () => (row() !== null ? null : headerTrigger())),
+          () => undoable(t.tree.locationRestored[plan.kind], batch, () => (row() !== null ? null : headerTrigger())),
         );
       })
       .catch(() => undefined);

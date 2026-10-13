@@ -607,8 +607,8 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
  * moves. A coluna: "Adicionar bloco", "Renomear" and the moves. A local that already holds
  * colunas directly (a tree from before the painel level) keeps its "Adicionar coluna". Each
  * of the three ends in "Remover", alone in the destructive group (the mock's red item on a
- * local and a painel; EXPERIENCE.md extends it to the coluna). The rail keeps the local's
- * first two and nothing else: it never removes.
+ * local and a painel; the story's criterion of 2026-10-13 gives the coluna the same). The
+ * rail keeps the local's first two and nothing else: it never removes.
  */
 function locationMenu(node: TreeLocationNode, shared: Shared, reorder: Reorder | null, trigger: () => HTMLElement | null): { items: OverflowMenuAction[]; destructiveItems: OverflowMenuAction[] } {
   const t = copy.sumario.tree;

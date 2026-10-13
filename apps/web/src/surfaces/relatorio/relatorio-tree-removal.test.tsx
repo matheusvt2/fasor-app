@@ -394,6 +394,28 @@ describe('14.2 second pass: removing a location', () => {
   });
 });
 
+describe('14.2 second pass: an edit reads the kernel\'s live locations', () => {
+  it('a painel whose local was removed on another device is gone for an edit too: "Renomear" says the location changed and writes nothing', async () => {
+    database = await seeded();
+    await openLocal();
+    await userEvent.click(screen.getByRole('button', { name: PAINEL_B_MENU }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Renomear Painel B' });
+    const field = within(dialog).getByRole('textbox', { name: 'Nome' });
+    await userEvent.clear(field);
+    await userEvent.type(field, 'Painel C');
+    const save = within(dialog).getByRole('button', { name: 'Salvar' });
+    // The painel's own row stays live; only its local carries the tombstone.
+    const record = (await database.entities.get(['location', LOCAL]))!;
+    const at = '2026-10-12T10:00:00.000Z';
+    await database.entities.put({ ...record, removed_at: at, row: { ...(record.row as object), removed_at: at } as never });
+    fireEvent.click(save);
+    await waitFor(() => expect(toast()).toHaveTextContent('O local mudou em outro aparelho; nada foi alterado.'));
+    expect(await outbox()).toHaveLength(0);
+    expect((await stored<LocationRow>('location', PAINEL_B))!.name).toBe('Painel B');
+  });
+});
+
 describe('14.2 second pass: "Restaurar ficha removida" with removed locations', () => {
   const T0 = '2026-10-11T09:00:00.000Z';
   const T = '2026-10-12T10:00:00.000Z';

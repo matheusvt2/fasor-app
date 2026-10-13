@@ -55,7 +55,8 @@ describe('4.5 restoreSheetOps', () => {
 
 describe('14.2 second pass: restoreSheetOps puts back the removed locations above the sheet', () => {
   const T = '2026-10-12T10:00:00.000Z';
-  const local: LocationRow = { id: id(2), relatorio_id: relatorioId, parent_id: null, kind: 'cabine', name: 'Cabine', order_key: 'a0', removed_at: null };
+  // Only what the ancestor walk reads of the local (a full `cabine` row carries its SE and environment data).
+  const local = { id: id(2), parent_id: null, removed_at: null };
   const painel: LocationRow = { id: id(3), relatorio_id: relatorioId, parent_id: local.id, kind: 'painel', name: 'Painel 1', order_key: 'a0', removed_at: T };
   const inPainel: LocationRow = { ...coluna, parent_id: painel.id, removed_at: T };
   const sibling: LocationRow = { id: id(4), relatorio_id: relatorioId, parent_id: painel.id, kind: 'coluna', name: 'Coluna 6', order_key: 'a1', removed_at: T };
