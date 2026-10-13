@@ -1,4 +1,4 @@
-import type { LayoutSectionSheets, PrintCell, PrintPhoto, PrintRow, PrintSheet, PrintTable } from '@app/domain';
+import type { LayoutSectionSheets, PrintCell, PrintPhoto, PrintRow, PrintSheet, PrintTable, SheetPart } from '@app/domain';
 import {
   AlignmentType,
   BorderStyle,
@@ -33,6 +33,14 @@ import { CONTENT_WIDTH_TWIPS, image, sizedImage } from '../docx.ts';
  * type groups, or a local whose sheets all sit in painéis): its heading or band is drawn
  * alone, kept with what follows, and the subsection after it does not start a new page.
  *
+ * Story 14.4: a subsection may carry the local's own parts (`subsection.localParts`: SE,
+ * AMBIENTE DE ENSAIO, VERIFICAÇÕES DO LOCAL and the site items' photos). They are drawn right
+ * under the subsection's heading and before its first sheet, as `key-print-section-9.html`
+ * places them, with the tables and photo rows of a sheet. A group row of the site table
+ * (`row.group`) is one cell across the table on `F0F0F0` (`.pt-group`), kept with the row
+ * under it. A subsection that drew local parts and no sheet (a local with no equipment) is
+ * followed on the same page by its own painel band, and by a new page otherwise.
+ *
  * Borders, cell margins and the text size live on the table and on paragraph styles, not on
  * every cell and run: 94 sheets are tens of thousands of cells, and the XML each one carries
  * is what the `docx` library and LibreOffice spend their time on.
@@ -56,6 +64,9 @@ export const SECTION_9_PARAGRAPH_STYLES: readonly IParagraphStyleOptions[] = [
 const TITLE_TEXT = 20; // half-points: 10 pt
 const SHADE_FILL = 'D9D9D9';
 const shading = { type: ShadingType.CLEAR, color: 'auto', fill: SHADE_FILL } as const;
+/** Story 14.4: a group row inside a table, `.pt-group` of the print mock: bold on `F0F0F0`. */
+export const GROUP_ROW_FILL = 'F0F0F0';
+const groupShading = { type: ShadingType.CLEAR, color: 'auto', fill: GROUP_ROW_FILL } as const;
 /** Story 14.2: the painel band, `.pp-painel` of the print mock: 11 pt bold white on `404040`. */
 const PAINEL_BAND_TEXT = 22;
 export const PAINEL_BAND_FILL = '404040';
@@ -97,9 +108,9 @@ function cellParagraphs(cell: PrintCell, keepNext: boolean): Paragraph[] {
   );
 }
 
-/** One row: each cell as wide as the columns it spans; a title band or header row stays with the row under it. */
+/** One row: each cell as wide as the columns it spans; a title band, a header row or a group row stays with the row under it. */
 function drawRow(row: PrintRow, widths: readonly number[]): TableRow {
-  const keepNext = row.header === true || row.band === true;
+  const keepNext = row.header === true || row.band === true || row.group === true;
   let at = 0;
   return new TableRow({
     cantSplit: true,
@@ -110,7 +121,7 @@ function drawRow(row: PrintRow, widths: readonly number[]): TableRow {
       return new TableCell({
         width: { size: width, type: WidthType.DXA },
         ...(span > 1 ? { columnSpan: span } : {}),
-        ...(cell.shade === true ? { shading } : {}),
+        ...(row.group === true ? { shading: groupShading } : cell.shade === true ? { shading } : {}),
         children: cellParagraphs(cell, keepNext),
       });
     }),
@@ -173,7 +184,14 @@ async function sheetChildren(sheet: PrintSheet, photos: ReadonlyMap<string, Buff
     }),
   ];
   if (sheet.attribution !== null) out.push(new Paragraph({ style: SHEET_CAPTION, alignment: AlignmentType.RIGHT, keepNext: true, children: [new TextRun(sheet.attribution)] }));
-  for (const part of sheet.parts) {
+  out.push(...(await partsChildren(sheet.parts, photos)));
+  return out;
+}
+
+/** The parts of a sheet, or of a local (Story 14.4), in order: a paragraph, or a table or photo rows followed by the gap. */
+async function partsChildren(parts: readonly SheetPart[], photos: ReadonlyMap<string, Buffer>): Promise<(Paragraph | Table)[]> {
+  const out: (Paragraph | Table)[] = [];
+  for (const part of parts) {
     if (part.kind === 'paragraph') out.push(new Paragraph({ style: SHEET_CAPTION, children: [new TextRun(part.text)] }));
     else out.push(part.kind === 'table' ? drawTable(part.table) : await drawPhotos(part.photos, photos), gap());
   }
@@ -194,18 +212,24 @@ function painelBand(text: string, newPage: boolean): Paragraph {
 
 /**
  * Section 9's body under its Heading 1: every subsection's Heading 2 (a painel's band
- * instead) and sheets. A subsection starts a new page unless it is the first or the one
- * before it drew its heading alone (no sheet), which it then follows on the same page.
+ * instead), the local's own parts when it carries them (Story 14.4), and its sheets. A
+ * subsection starts a new page unless it is the first or the one before it drew no sheet:
+ * a heading or band drawn alone is followed on the same page, and so is a local that drew
+ * its parts and no sheet when what follows is its painel's band. After such a local any
+ * other subsection (the next local's heading) starts a new page.
  */
 export async function section9Children(section: LayoutSectionSheets, photos: ReadonlyMap<string, Buffer>): Promise<(Paragraph | Table)[]> {
   const out: (Paragraph | Table)[] = [];
   for (const [k, subsection] of section.subsections.entries()) {
-    const newPage = k > 0 && section.subsections[k - 1]!.sheets.length > 0;
+    const previous = k > 0 ? section.subsections[k - 1]! : null;
+    const afterLocalAlone = previous !== null && previous.sheets.length === 0 && (previous.localParts?.length ?? 0) > 0 && subsection.painel !== true;
+    const newPage = previous !== null && (previous.sheets.length > 0 || afterLocalAlone);
     out.push(
       subsection.painel === true
         ? painelBand(subsection.heading, newPage)
         : new Paragraph({ heading: HeadingLevel.HEADING_2, pageBreakBefore: newPage, children: [new TextRun(subsection.heading)] }),
     );
+    if (subsection.localParts !== undefined) out.push(...(await partsChildren(subsection.localParts, photos)));
     for (const [i, sheet] of subsection.sheets.entries()) out.push(...(await sheetChildren(sheet, photos, i > 0)));
   }
   return out;
