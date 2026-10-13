@@ -217,10 +217,90 @@ describe('14.2 second pass: "Remover" in the location Overflow', () => {
     await waitFor(() => expect(rail.querySelector(`li[data-location-id="${COLUNA_5}"]`)).not.toBeNull());
     expect(within(rail).queryByRole('button', { name: PAINEL_MENU })).toBeNull();
     expect(within(rail).queryByRole('button', { name: COLUNA_5_MENU })).toBeNull();
+    // No Overflow at all on a painel or a coluna of the rail, whatever its name; the local's row keeps its own.
+    for (const locationId of [PAINEL, PAINEL_B, COLUNA_5, COLUNA_6]) {
+      const railRow = rail.querySelector<HTMLElement>(`li[data-location-id="${locationId}"]`);
+      expect(railRow, locationId).not.toBeNull();
+      expect(railRow!.querySelectorAll('.overflow-trigger'), locationId).toHaveLength(0);
+    }
+    expect(rail.querySelectorAll(`li[data-location-id="${LOCAL}"] > .tree-row .overflow-trigger`)).toHaveLength(1);
+    // The rail's coluna chevron is named with its painel and its local, as in the Sumário: open with its local, then collapsed.
+    const chevron = within(rail).getByRole('button', { name: 'Recolher Coluna 5 de Painel de média tensão de Cabine de Testes' });
+    expect(chevron).toHaveAttribute('data-tree-chevron', COLUNA_5);
+    await userEvent.click(chevron);
+    expect(within(rail).getByRole('button', { name: 'Expandir Coluna 5 de Painel de média tensão de Cabine de Testes' })).toHaveAttribute('data-tree-chevron', COLUNA_5);
     await userEvent.click(within(rail).getByRole('button', { name: LOCAL_MENU }));
     const menu = await screen.findByRole('menu');
     expect([...menu.querySelectorAll('[role^="menuitem"]')].map((item) => item.textContent)).toEqual(['Abrir primeira ficha (dados do local)', 'Agrupar por tipo na seção 9']);
     expect(within(menu).queryByText('Remover')).toBeNull();
+  });
+});
+
+describe('14.2 second pass: the controls of a row are named apart when default names repeat', () => {
+  const PAINEL_1 = id(0x31);
+  const PAINEL_2 = id(0x33);
+  const ENEL = id(0x35);
+  const ENEL_PAINEL_1 = id(0x36);
+  const COLUNA_1 = [id(0x32), id(0x34), id(0x37)] as const;
+
+  it('two painéis each with a "Coluna 1", and two locals each with a "Painel 1" holding a "Coluna 1": every chevron, drag handle, Position box and Overflow name in the tree is unique, and so is each "Adicionar bloco em"', async () => {
+    database = await seeded();
+    const base = { relatorio_id: RELATORIO, removed_at: null };
+    const more: LocationRow[] = [
+      { ...base, id: PAINEL_1, parent_id: LOCAL, kind: 'painel', name: 'Painel 1', order_key: 'a2' },
+      { ...base, id: COLUNA_1[0], parent_id: PAINEL_1, kind: 'coluna', name: 'Coluna 1', order_key: 'a0' },
+      { ...base, id: PAINEL_2, parent_id: LOCAL, kind: 'painel', name: 'Painel 2', order_key: 'a3' },
+      { ...base, id: COLUNA_1[1], parent_id: PAINEL_2, kind: 'coluna', name: 'Coluna 1', order_key: 'a0' },
+      {
+        ...base,
+        id: ENEL,
+        parent_id: null,
+        kind: 'cabine',
+        name: 'Cubículo Enel',
+        order_key: 'z0',
+        se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null },
+        env: { altitude_m: null, temperature_c: null, humidity_pct: null },
+        agrupar_por_tipo: false,
+      },
+      { ...base, id: ENEL_PAINEL_1, parent_id: ENEL, kind: 'painel', name: 'Painel 1', order_key: 'a0' },
+      { ...base, id: COLUNA_1[2], parent_id: ENEL_PAINEL_1, kind: 'coluna', name: 'Coluna 1', order_key: 'a0' },
+    ];
+    await database.entities.bulkPut(more.map((location) => toRecord(`location:${location.id}`, location)));
+    await openLocal();
+    await userEvent.click(await screen.findByRole('button', { name: 'Expandir Cubículo Enel' }));
+    await waitFor(() => expect(COLUNA_1.every((locationId) => row(locationId) !== null)).toBe(true));
+
+    const tree = screen.getByRole('list', { name: 'Locais do relatório' });
+    const locations = tree.querySelectorAll('li[data-location-id]').length;
+    const sheets = tree.querySelectorAll('li.s9-eq').length;
+    expect(locations).toBe(12);
+    const names = (selector: string) => [...tree.querySelectorAll<HTMLElement>(selector)].map((control) => control.getAttribute('aria-label'));
+    // One chevron per location row; a handle, a Position box and an Overflow per location row and per sheet.
+    const chevrons = names('.tree-chevron');
+    expect(chevrons).toHaveLength(locations);
+    for (const [what, selector] of [['drag handle', '.drag-handle'], ['Position box', '.pos-box'], ['Overflow', '.overflow-trigger']] as const) {
+      const found = names(selector);
+      expect(found, what).toHaveLength(locations + sheets);
+      expect(found.every((name) => name !== null && name !== ''), what).toBe(true);
+      expect(new Set(found).size, what).toBe(found.length);
+    }
+    expect(chevrons.every((name) => name !== null && name !== '')).toBe(true);
+    expect(new Set(chevrons).size).toBe(chevrons.length);
+    // The three "Coluna 1" rows, by the names the kernel composes.
+    for (const where of ['Painel 1 de Cabine de Testes', 'Painel 2 de Cabine de Testes', 'Painel 1 de Cubículo Enel']) {
+      expect(within(tree).getByRole('button', { name: `Mais opções de Coluna 1 de ${where}` })).toBeInTheDocument();
+      expect(within(tree).getByRole('button', { name: `Reordenar Coluna 1 de ${where}` })).toBeInTheDocument();
+      expect(within(tree).getByRole('textbox', { name: `Posição de Coluna 1 de ${where}` })).toBeInTheDocument();
+    }
+
+    // The two "Painel 1" show the same words on their add button; their accessible names differ.
+    const first = within(tree).getByRole('button', { name: 'Adicionar bloco em Painel 1 de Cabine de Testes' });
+    const second = within(tree).getByRole('button', { name: 'Adicionar bloco em Painel 1 de Cubículo Enel' });
+    expect(first).not.toBe(second);
+    expect(first).toHaveTextContent(/^Adicionar bloco em Painel 1$/);
+    expect(second).toHaveTextContent(/^Adicionar bloco em Painel 1$/);
+    const adds = names('.s9-add').filter((name) => name !== null);
+    expect(new Set(adds).size).toBe(adds.length);
   });
 });
 
@@ -614,6 +694,101 @@ describe('14.2 second pass: "Restaurar ficha removida" with removed locations', 
     for (const [entity, entityId] of [['location', PAINEL], ['location', COLUNA_5], ['location', COLUNA_6], ['block', SEC_C05], ['equipment', SEC_C05_EQUIPMENT]] as const) {
       expect(await removedAt(entity, entityId), `${entity} ${entityId}`).toBe(T);
     }
+  });
+
+  it('a location restored on another device after the dialog opened: "Restaurar" says the location changed and writes nothing', async () => {
+    database = await removedPainel();
+    renderAt(`/relatorio/${RELATORIO}`);
+    await screen.findByRole('list', { name: 'Locais do relatório' });
+    const dialog = await openRestore();
+    const button = await within(dialog).findByRole('button', { name: 'Restaurar Painel de média tensão de Cabine de Testes — Painel · 2 colunas · 1 ficha' });
+    // The painel is live again, as another device's pull would leave it: there is no removal to restore.
+    const record = (await database.entities.get(['location', PAINEL]))!;
+    await database.entities.put({ ...record, removed_at: null, row: { ...(record.row as object), removed_at: null } as never });
+    fireEvent.click(button);
+    await waitFor(() => expect(toast()).toHaveTextContent('O local mudou em outro aparelho; nada foi alterado.'));
+    expect(toast()).not.toHaveTextContent('Painel restaurado');
+    expect(await outbox()).toHaveLength(0);
+    // Nothing else of the removal came back.
+    for (const [entity, entityId] of [['location', COLUNA_5], ['location', COLUNA_6], ['block', SEC_C05], ['equipment', SEC_C05_EQUIPMENT]] as const) {
+      expect(await removedAt(entity, entityId), `${entity} ${entityId}`).toBe(T);
+    }
+  });
+
+  describe('a coluna and a local come back as a painel does', () => {
+    /** The rows of one removal, tombstoned at T as its batch leaves them. */
+    async function removedTogether(locations: string[], blocks: string[]): Promise<{ db: AppDatabase; equipment: string[] }> {
+      const db = await seeded();
+      const equipment = await Promise.all(blocks.map((blockId) => equipmentOfIn(db, blockId)));
+      const rows = [...locations.map((entityId) => ['location', entityId] as const), ...blocks.map((entityId) => ['block', entityId] as const), ...equipment.map((entityId) => ['equipment', entityId] as const)];
+      for (const [entity, entityId] of rows) {
+        const record = (await db.entities.get([entity, entityId]))!;
+        await db.entities.put({ ...record, removed_at: T, row: { ...(record.row as object), removed_at: T } as never });
+      }
+      return { db, equipment };
+    }
+    const cases = [
+      {
+        kind: 'coluna',
+        target: COLUNA_5,
+        locations: [COLUNA_5],
+        blocks: [SEC_C05],
+        entry: 'Restaurar Coluna 5 de Painel de média tensão de Cabine de Testes — Coluna · 1 ficha',
+        toastText: 'Coluna restaurada',
+        said: 'Coluna 5 de Painel de média tensão de Cabine de Testes restaurada',
+        menu: COLUNA_5_MENU,
+        // The path down to the coluna is opened by the restore, and a coluna shows its sheets.
+        expand: null,
+      },
+      {
+        kind: 'local',
+        target: LOCAL,
+        // The plan's order: the local, then what is under it in tree order.
+        locations: [LOCAL, PAINEL, COLUNA_5, COLUNA_6, PAINEL_B],
+        blocks: [SEC_TEST, DJ_TEST, TR_TEST, SEC_C05],
+        entry: 'Restaurar Cabine de Testes — Local · 2 painéis · 2 colunas · 4 fichas',
+        toastText: 'Local restaurado',
+        said: 'Cabine de Testes restaurada',
+        menu: LOCAL_MENU,
+        // A local comes back as any local is first drawn, collapsed: what is under it shows once it is opened.
+        expand: 'Expandir Cabine de Testes',
+      },
+    ] as const;
+
+    it.each(cases)('restoring a $kind writes one batch from the plan, toasts "$toastText", says it and focuses the restored row', async ({ target, locations, blocks, entry, toastText, said, menu, expand }) => {
+      const seededRows = await removedTogether([...locations], [...blocks]);
+      database = seededRows.db;
+      renderAt(`/relatorio/${RELATORIO}`);
+      await screen.findByRole('button', { name: 'Mais opções do relatório' });
+      await waitFor(() => expect(document.querySelector('.sum-s9')).not.toBeNull());
+      expect(row(target)).toBeNull();
+
+      const dialog = await openRestore();
+      await userEvent.click(await within(dialog).findByRole('button', { name: entry }));
+      await waitFor(() => expect(row(target)).not.toBeNull());
+      expect(document.querySelector('.sum-s9')).toHaveClass('is-open');
+      await waitFor(() => expect(toast()).toHaveTextContent(toastText));
+      await waitFor(() => expect(announcer().textContent).toBe(said));
+      // The focus lands on the restored row: its Overflow trigger, inside that row.
+      await waitFor(() => expect(screen.getByRole('button', { name: menu })).toHaveFocus());
+      expect(row(target)!.contains(document.activeElement)).toBe(true);
+      expect(document.activeElement!.closest('li[data-location-id]')).toBe(row(target));
+      // Everything that left with it is drawn again.
+      if (expand !== null) await userEvent.click(screen.getByRole('button', { name: expand }));
+      for (const locationId of locations) await waitFor(() => expect(row(locationId), locationId).not.toBeNull());
+      for (const blockId of blocks) await waitFor(() => expect(eqRow(blockId), blockId).not.toBeNull());
+
+      const ops = await outbox();
+      expect(ops.map((op) => [op.path, op.kind, op.value, op.scope])).toEqual([
+        ...locations.map((locationId) => [`location/${locationId}/removed_at`, 'put', null, 'relatorio']),
+        ...blocks.map((blockId) => [`block/${blockId}/removed_at`, 'put', null, 'relatorio']),
+        ...seededRows.equipment.map((equipmentId) => [`equipment/${equipmentId}/removed_at`, 'put', null, 'project']),
+      ]);
+      expect(new Set(ops.map((op) => op.batch)).size).toBe(1);
+      for (const locationId of locations) expect(await removedAt('location', locationId), locationId).toBeNull();
+      for (const blockId of blocks) expect(await removedAt('block', blockId), blockId).toBeNull();
+      for (const equipmentId of seededRows.equipment) expect(await removedAt('equipment', equipmentId), equipmentId).toBeNull();
+    });
   });
 
   it('restoring a sheet still restores the sheet and its equipment alone when its location is live', async () => {
