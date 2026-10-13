@@ -1,5 +1,5 @@
 import { composeCaption, type CaptionParts, type SeedWord } from '@app/domain';
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { CaptionComposer, type CaptionComposerSources } from './caption-composer.tsx';
@@ -28,9 +28,19 @@ const sources: CaptionComposerSources = {
 
 const NOTE = 'Texto editado à mão. Desligue Editar texto para montar pelas opções.';
 
-function renderComposer(stored: string | null) {
+function renderComposer(stored: string | null, options: { prefill?: CaptionParts; prefillText?: string | null } = {}) {
   const onSave = vi.fn();
-  render(<CaptionComposer isOpen onClose={() => {}} prefill={prefill} stored={stored} sources={sources} onSave={onSave} />);
+  render(
+    <CaptionComposer
+      isOpen
+      onClose={() => {}}
+      prefill={options.prefill ?? prefill}
+      stored={stored}
+      sources={sources}
+      onSave={onSave}
+      {...(options.prefillText === undefined ? {} : { prefillText: options.prefillText })}
+    />,
+  );
   const dialog = screen.getByRole('dialog', { name: 'Legenda' });
   const chips = () => dialog.querySelectorAll('.caption-part .chip-row .chip');
   return { dialog, chips, onSave };
@@ -118,6 +128,28 @@ describe('E6-R2 the Caption composer chips while "Editar texto" is on', () => {
     expect(within(atividade).getByRole('button', { name: 'verificação de contatos' })).not.toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar legenda' }));
     expect(onSave).toHaveBeenCalledWith(stored, { atividade: isolacao, equipamento: chave, local: cubiculo });
+  });
+
+  it('14.3-UNIT: a site item\'s photo (no parts) opens on the kernel\'s caption for it: the stored one, or with none stored the one given, saved as it reads', async () => {
+    const NO_PARTS: CaptionParts = { atividade: null, equipamento: null, local: null };
+    const SITE = 'Verificação de iluminação de emergência (autonomia mínima de 2 h) do 1° Subsolo';
+    // Stored at capture: free text, since no chip composes it.
+    const first = renderComposer(SITE, { prefill: NO_PARTS, prefillText: SITE });
+    expect(within(first.dialog).getByRole('textbox', { name: 'Texto da legenda' })).toHaveValue(SITE);
+    expect(within(first.dialog).queryAllByText(NOTE).length).toBeGreaterThan(0);
+    cleanup();
+
+    // Cleared since: the composer offers the same caption again, and "Salvar legenda" stores it.
+    const again = renderComposer(null, { prefill: NO_PARTS, prefillText: SITE });
+    expect(within(again.dialog).getByRole('textbox', { name: 'Texto da legenda' })).toHaveValue(SITE);
+    await userEvent.click(within(again.dialog).getByRole('button', { name: 'Salvar legenda' }));
+    expect(again.onSave).toHaveBeenCalledWith(SITE, NO_PARTS);
+    cleanup();
+
+    // No caption and none to offer (a photo with no context): the rows, empty, as before.
+    const none = renderComposer(null, { prefill: NO_PARTS, prefillText: null });
+    expect(within(none.dialog).queryByRole('textbox', { name: 'Texto da legenda' })).toBeNull();
+    expect(none.dialog.querySelector('.caption-preview')).toHaveTextContent('');
   });
 
   it('a caption the rows compose opens on the rows, chips active, no note', () => {

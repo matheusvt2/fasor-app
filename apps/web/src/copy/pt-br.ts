@@ -1025,6 +1025,26 @@ export const copy = {
     notFound: 'Relatório não encontrado neste aparelho.',
     backToSumario: 'Voltar ao sumário',
   },
+  // Story 14.3: "Verificações do local" (`61-verificacoes-local.html`), the site checklist of
+  // one local. Its name, title, Função line, counters and sentences are the kernel's
+  // (`relatorio/site-checklist.ts`); the rows' own words are `ficha.checklist`'s.
+  local: {
+    // authored: an address naming no local with a site checklist on this device (a painel, a
+    // coluna, a relatório created before the checklist, an unknown id).
+    notFound: 'Verificações do local não encontradas neste relatório.',
+    // `.sheet-summary`, verbatim.
+    summary: 'Uma vez por local, vale para todos os equipamentos dele.',
+    // `.vl-intro .bulk-action-bar`, verbatim.
+    bulkLabel: 'Ações em lote das verificações do local',
+    // The Sticky action bar, verbatim.
+    verArvore: 'Ver árvore',
+    concluir: 'Concluir verificações',
+    // `60-ficha.html` `.ficha-local-line`: the entry under the sheet's "Do local" block.
+    open: 'Abrir',
+    // authored: the same entry named with its local on the tree's Sumário row and its rail row,
+    // so two locais never read alike (the visible words lead).
+    entryLabel: (text: string, name: string) => `${text} — ${name}`,
+  },
   ficha: {
     // authored: an address naming no equipment sheet of this relatório on this device.
     notFound: 'Ficha não encontrada neste relatório.',
@@ -1187,6 +1207,11 @@ export const copy = {
       // The row Overflow (`60-ficha.html` "Opções do item 1: Limpar · Observação").
       clear: 'Limpar',
       observation: 'Observação',
+      // Story 14.3, `61-verificacoes-local.html` `.vl-obs-line`: the observation of an answered
+      // C or NA row as one line ("Observação" is the Overflow's word above) with "Editar"; the
+      // button's name is the mock's own sentence for it ("Editar a observação do item 8").
+      obsLineEdit: 'Editar',
+      obsLineEditLabel: (n: number) => `Editar a observação do item ${n}`,
       // authored: the toast after "Repetir da ficha anterior do mesmo tipo".
       repeated: (tag: string) => `Padrão de ${tag} repetido`,
       // authored: nothing to repeat (the pattern already matches).

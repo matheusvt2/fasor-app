@@ -91,9 +91,11 @@
 [data-route="/relatorio/:id"] .s9-local.is-open > .s9-loc-row .tree-chevron .ico { transform: none; }
 [data-route="/relatorio/:id"] .s9-pnls { display: none; list-style: none; margin: 0; padding: 0 0 var(--sp-1) var(--sp-5); }
 [data-route="/relatorio/:id"] .s9-local.is-open > .s9-pnls { display: block; }
+[data-route="/relatorio/:id"] .s9-verif { min-height: 44px; padding: 0; gap: var(--sp-1); font-size: var(--t-meta-size); }
 /* authored: the mock's `.s9-loc-body` top padding makes room for the "Verificações do local" line
-   under the meta (Story 14.3); until that line exists the same space closes the row at the bottom. */
-[data-route="/relatorio/:id"] .s9-loc-body { padding-bottom: var(--sp-2); }
+   under the meta (Story 14.3, `.s9-verif` above); a local with no such line (a relatório on a seed
+   with no site list) closes the row with the same space at the bottom. */
+[data-route="/relatorio/:id"] .s9-loc-body:not(:has(.s9-verif)) { padding-bottom: var(--sp-2); }
 [data-route="/relatorio/:id"] .sum-here { font-size: var(--t-meta-size); color: var(--primary); font-weight: 600; }
 /* status-driven: Em revisão -> section 9 collapsed, rows with pendências lead the eye */
 [data-route="/relatorio/:id"] .sumario.is-review .sum-row:not(.has-pend) .sum-title { font-weight: 400; color: var(--ink-secondary); }

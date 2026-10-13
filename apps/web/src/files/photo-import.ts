@@ -53,6 +53,8 @@ export async function heicToJpeg(blob: Blob): Promise<Blob> {
 export interface ImportTarget {
   blockId: string | null;
   itemKey: string | null;
+  /** Story 14.3: the local of a site item's photos ("Verificações do local"); `blockId` is then null. */
+  locationId?: string | null;
   caption: string | null;
   /** Story 9.5: the reading the photos ask for (an NC row's `nc_obs`); omitted, the kernel's rule chooses. */
   reading?: PhotoCaptureInput['reading'];
@@ -113,6 +115,7 @@ export async function importPhotoFiles(files: readonly File[], target: ImportTar
         fileId,
         blockId: target.blockId,
         itemKey: target.itemKey,
+        ...(target.locationId == null ? {} : { locationId: target.locationId }),
         caption: target.caption,
         ...(target.reading === undefined ? {} : { reading: target.reading }),
         capturedAt: time.captured_at,

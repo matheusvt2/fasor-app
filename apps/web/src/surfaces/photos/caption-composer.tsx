@@ -68,6 +68,13 @@ export interface CaptionComposerProps {
   prefill: CaptionParts;
   /** The caption stored now: when it is not what the parts compose, the composer opens in "Editar texto". */
   stored: string | null;
+  /**
+   * Story 14.3: the caption the kernel composes for a photo whose context is not the three
+   * parts (a site item's photo: `siteCaption`, "Verificação de ⟨item⟩ do ⟨local⟩"). With no
+   * caption stored the composer opens on it, in "Editar texto", as it opens on a stored one
+   * the rows cannot compose. Null or absent for every other photo.
+   */
+  prefillText?: string | null;
   sources: CaptionComposerSources;
   onSave: (text: string | null, parts: CaptionParts) => void;
   /**
@@ -121,14 +128,16 @@ function PhotoPreview({ photo }: { photo: CaptionComposerPhoto }) {
   );
 }
 
-function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, photo, suggestion }: CaptionComposerProps & { headingId: string }) {
+function ComposerBody({ prefill, stored, prefillText = null, sources, onSave, onClose, headingId, photo, suggestion }: CaptionComposerProps & { headingId: string }) {
   const t = copy.captionComposer;
+  // Story 14.3: the text the composer opens on: the stored caption, else the kernel's own for this photo.
+  const openingText = stored ?? prefillText;
   // The parts the stored caption was composed of (`captionPartsOf`): a caption composed at
   // capture with an activity the prefill no longer carries opens on the rows with that
   // activity chosen; one the rows cannot compose (typed by hand) opens as free text; no
   // caption opens on the prefill.
   const [opening] = useState<CaptionParts | null>(() =>
-    captionPartsOf(stored, prefill, {
+    captionPartsOf(openingText, prefill, {
       atividades: sources.atividades.map(asWord),
       equipamentos: sources.equipamentos.map(asWord),
       locais: [
@@ -141,7 +150,7 @@ function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, ph
   const [parts, setParts] = useState<CaptionParts>(start);
   const generated = composeCaption(parts);
   const [editing, setEditing] = useState(() => opening === null);
-  const [text, setText] = useState(() => stored ?? composeCaption(start) ?? '');
+  const [text, setText] = useState(() => openingText ?? composeCaption(start) ?? '');
   // Story 9.4 (`71-legenda.html` 148-160): a dictated caption lands in the text as a suggestion;
   // "Salvar legenda" confirms it, typing makes it the engineer's own.
   const [dictated, setDictated] = useState(false);

@@ -50,6 +50,8 @@ export interface PointValues {
 export interface NewPointLink {
   equipmentId: string | null;
   origin: PointRow['origin'];
+  /** Story 14.3: the local of a point created from a site item ("Verificações do local"); absent or null otherwise. */
+  locationId?: string | null;
 }
 
 /** What a write did: `created` when it was the point's create op. */
@@ -66,7 +68,10 @@ export const ownerValue = actionValue;
 
 /** A new point's row from what the editor holds (its text, action and Responsável), with the priority and deadline picked before it was stored. */
 function newRow(relatorioId: string, pointId: string, values: PointValues, link: NewPointLink, fresh: readonly PointRow[], pending: PointPriorityWrites): PointRow {
-  const row = newPointRow({ id: pointId, relatorioId, text: values.text, equipmentId: link.equipmentId, origin: link.origin, action: actionValue(values.action) }, fresh);
+  const row = newPointRow(
+    { id: pointId, relatorioId, text: values.text, equipmentId: link.equipmentId, origin: link.origin, action: actionValue(values.action), locationId: link.locationId ?? null },
+    fresh,
+  );
   return { ...row, owner: ownerValue(values.owner), ...pending };
 }
 
@@ -242,5 +247,17 @@ export function pointDraftValue(value: unknown): PointDraftValue | null {
   if (v.origin !== 'manual' && v.origin !== 'not_tested') return null;
   // A draft written before Story 11.9 has no Responsável: it reads as blank.
   const owner = typeof v.owner === 'string' ? v.owner : '';
-  return { relatorio_id: v.relatorio_id, text: v.text, action: v.action, owner, is_new: v.is_new, equipmentId: v.equipmentId, origin: v.origin, pending: pendingValue(v.pending) };
+  // Story 14.3: a draft written before the field, or of a point of no local, has no `locationId`.
+  const locationId = typeof v.locationId === 'string' ? v.locationId : null;
+  return {
+    relatorio_id: v.relatorio_id,
+    text: v.text,
+    action: v.action,
+    owner,
+    is_new: v.is_new,
+    equipmentId: v.equipmentId,
+    origin: v.origin,
+    ...(locationId === null ? {} : { locationId }),
+    pending: pendingValue(v.pending),
+  };
 }

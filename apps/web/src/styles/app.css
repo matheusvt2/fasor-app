@@ -142,6 +142,8 @@ body {
   .checklist-row .row-main { flex-wrap: wrap; }
   .checklist-row .row-label { flex-basis: calc(100% - var(--touch-min) - var(--sp-3)); }
   .checklist-row .tri-state { width: 100%; display: grid; order: 3; }
+  /* `.frame-phone [data-route="/local/:id/verificacoes"] .vl-head-side` (61-verificacoes-local.html, Story 14.3) */
+  [data-route="/relatorio/:id/local/:locationId/verificacoes"] .vl-head-side { flex-wrap: wrap; }
   /* `.frame-phone .mt-title-row .mt-actions` */
   .mt-title-row .mt-actions { margin-left: 0; flex-basis: 100%; }
   /* authored (E9-Q4): "Ler visor", the Dictation button and "Confirmar todos (N)" are wider
