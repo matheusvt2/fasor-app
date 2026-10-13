@@ -213,4 +213,9 @@ Rules for the lanes:
   review and the browser pass run once, on the integrated main after the last merge (playbook § 6), followed by one
   fix batch.
 - Wave gate (full `@p0`, `test:e2e:full`, the matrix) once, on the integrated main after e14c merges.
+- Settled for e14c (coordinator, 2026-10-13, from Matheus's "deixe configurável as opções" of 2026-10-09 and
+  `sprint-change-proposal-2026-10-08.md` § 8.4): the E5 options (método, carga with its % when "com carga", fonte
+  dos tempos) say how the test was run on site, so they are **sheet values chosen by the technician on the sheet**,
+  field content for the status flow, printed beside the E5 times. They are not `BlockConfig`. What stays block
+  config is what shapes the sheet before the visit: tensão BT/MT, polos, neutro, transição, bypass.
 
