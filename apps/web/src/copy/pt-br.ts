@@ -340,6 +340,9 @@ export const copy = {
     // "Colunas de ⟨painel ou local⟩", "Painéis de ⟨local⟩": the lists inside a card.
     columnListLabel: (parent: string) => `Colunas de ${parent}`,
     painelListLabel: (local: string) => `Painéis de ${local}`,
+    // `42-template-composer.html` (a painel's `.pos-box`: "Posição de Painel de entrada entre os painéis de Cubículo Enel"); the
+    // typing hint the mock appends is left out, as on every Position box (`ui.reorder.position`).
+    painelPositionLabel: (painel: string, local: string) => `Posição de ${painel} entre os painéis de ${local}`,
     // `.level-kicker`: the word before a card's name.
     levelLocal: 'Local',
     levelPainel: 'Painel',

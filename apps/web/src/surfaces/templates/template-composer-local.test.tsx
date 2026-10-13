@@ -190,7 +190,7 @@ describe('14.2 composer: the three levels', () => {
     await waitFor(() => expect(announcer()).toHaveTextContent('Painel 2 adicionado'));
     expect(names(within(geradores).getByRole('list', { name: 'Painéis de Geradores' }), '.block-name')).toEqual(['Painel 1', 'Painel 2']);
     // The painel menu adds a coluna too.
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel 2' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel 2 em Geradores' }));
     expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Renomear', 'Subir', 'Adicionar coluna', 'Remover']);
     await userEvent.click(screen.getByRole('menuitem', { name: 'Adicionar coluna' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 1 adicionada'));
@@ -208,7 +208,7 @@ describe('14.2 composer: the three levels', () => {
     const painelB = await card(/^Painel Painel B/);
     await userEvent.click(within(painelB).getByRole('button', { name: /^Painel Painel B/ }));
     expect(painelB).not.toHaveClass('is-open');
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B em Cabine de transformação' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar coluna' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 1 adicionada'));
     expect(painelB).toHaveClass('is-open');
@@ -226,6 +226,80 @@ describe('14.2 composer: the three levels', () => {
     await waitFor(() => expect(announcer()).toHaveTextContent('Painel 1 adicionado'));
     expect(geradores).toHaveClass('is-open');
     expect(names(within(geradores).getByRole('list', { name: 'Painéis de Geradores' }), '.block-name')).toEqual(['Painel 1']);
+  });
+
+  it('names the drag handle, Position box and Overflow of a painel with its local, so the first painel of two locals never reads alike (coordinator review 2026-10-13)', async () => {
+    let skeleton = addCabine([], 'a', 'Cubículo Enel', 'entrada');
+    skeleton = addPainel(skeleton, 'a', 'pa', 'Painel 1');
+    skeleton = addCabine(skeleton, 'b', 'Geradores');
+    skeleton = addPainel(skeleton, 'b', 'pb', 'Painel 1');
+    skeleton = addColuna(skeleton, 'pb', 'cb', 'Coluna 1');
+    database = await freshDb({ ...emptyTemplate(ID, 'v3'), skeleton });
+    renderComposer();
+    const cards = (await screen.findAllByRole('button', { name: /^Painel Painel 1/ })).map((body) => body.closest('li') as HTMLElement);
+    expect(cards).toHaveLength(2);
+    for (const [i, local] of ['Cubículo Enel', 'Geradores'].entries()) {
+      const painel = within(cards[i]!);
+      expect(painel.getByRole('button', { name: `Reordenar Painel 1 em ${local}` })).toHaveClass('drag-handle');
+      expect(painel.getByRole('textbox', { name: `Posição de Painel 1 entre os painéis de ${local}` })).toHaveClass('pos-box');
+      expect(painel.getByRole('button', { name: `Mais opções de Painel 1 em ${local}` })).toHaveClass('overflow-trigger');
+    }
+    expect(within(cards[1]!).getByRole('list', { name: 'Colunas de Painel 1 em Geradores' })).toBeVisible();
+    // The painel's own name alone names no control; its rename dialog keeps it.
+    expect(screen.queryByRole('button', { name: 'Mais opções de Painel 1' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel 1 em Geradores' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
+    expect(await screen.findByRole('dialog', { name: 'Renomear Painel 1' })).toBeVisible();
+  });
+
+  it('the first coluna added from an empty painel leaves the focus on its "Adicionar coluna", never on the page (coordinator review 2026-10-13)', async () => {
+    database = await freshDb(composed());
+    renderComposer();
+    const painelB = await card(/^Painel Painel B/);
+    const add = within(painelB).getByRole('button', { name: 'Adicionar coluna' });
+    expect(add).toHaveClass('btn', 'btn-secondary');
+    add.focus();
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 1 adicionada'));
+    await waitFor(() => expect(within(painelB).queryByRole('note')).toBeNull());
+    // The painel has a coluna now: the control is drawn as the text button, and it still holds the focus.
+    const after = within(painelB).getByRole('button', { name: 'Adicionar coluna' });
+    expect(after).toHaveClass('btn', 'btn-text');
+    expect(after).not.toHaveClass('btn-secondary');
+    expect(after).toHaveFocus();
+    expect(document.body).not.toHaveFocus();
+    // A second coluna from the same control, without looking for it again.
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 2 adicionada'));
+    expect(within(painelB).getByRole('button', { name: 'Adicionar coluna' })).toHaveFocus();
+  });
+
+  it('a pointer tap on the chevron of a local or painel card toggles it; the chevron stays out of the accessibility tree and of the tab order (coordinator review 2026-10-13)', async () => {
+    database = await freshDb(composed());
+    renderComposer();
+    for (const name of [/^Painel Painel de média tensão/, /^Local Geradores/]) {
+      const li = await card(name);
+      const body = li.querySelector<HTMLElement>(':scope > .block-body')!;
+      const chevron = li.querySelector<HTMLElement>(':scope > .card-chev')!;
+      expect(chevron).toHaveAttribute('aria-hidden', 'true');
+      expect(chevron).not.toHaveAttribute('tabindex');
+      expect(chevron).not.toHaveAttribute('role');
+      expect(chevron.tagName).toBe('SPAN');
+      expect(li).toHaveClass('is-open');
+      expect(body).toHaveAttribute('aria-expanded', 'true');
+      await userEvent.click(chevron);
+      expect(li).not.toHaveClass('is-open');
+      expect(body).toHaveAttribute('aria-expanded', 'false');
+      expect(body).not.toHaveAttribute('aria-controls');
+      expect(li.querySelector(':scope > .block-expand')).toBeNull();
+      await userEvent.click(chevron);
+      expect(li).toHaveClass('is-open');
+      expect(body).toHaveAttribute('aria-expanded', 'true');
+      expect(body.getAttribute('aria-controls')).toBe(li.querySelector(':scope > .block-expand')!.id);
+    }
+    // The chevron of the local never toggled a painel inside it, nor the other way round.
+    expect(await card(/^Painel Painel B/)).toHaveClass('is-open');
+    expect(await outbox()).toEqual([]);
   });
 
   it('a local from before the painel level keeps its colunas directly under it and its "Adicionar coluna"; a local with none does not offer it', async () => {
@@ -251,7 +325,7 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     renderComposer();
     const local = await card(/^Local Cabine de transformação/);
     const paineis = () => names(within(local).getByRole('list', { name: 'Painéis de Cabine de transformação' }), '.block-name');
-    const posBox = within(await card(/^Painel Painel B/)).getByRole('textbox', { name: 'Posição de Painel B' });
+    const posBox = within(await card(/^Painel Painel B/)).getByRole('textbox', { name: 'Posição de Painel B entre os painéis de Cabine de transformação' });
     expect(posBox).toHaveValue('2');
 
     // Alt+Up from anywhere in the row.
@@ -268,14 +342,14 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     expect((await skeletonOf()).map((n) => n.ref)).toEqual(['loc', 'P1', 'c1', 'c2', 'c3', 'P2', 'ger']);
 
     // The Overflow: "Descer" on the first painel.
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel de média tensão' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel de média tensão em Cabine de transformação' }));
     expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Renomear', 'Descer', 'Adicionar coluna', 'Remover']);
     await userEvent.click(screen.getByRole('menuitem', { name: 'Descer' }));
     await waitFor(() => expect(paineis()).toEqual(['Painel B', 'Painel de média tensão']));
     await waitFor(() => expect(announcer()).toHaveTextContent('Painel de média tensão movido para a posição 2 de 2'));
 
     // The Position box: type a number and press Enter.
-    const box = within(await card(/^Painel Painel de média tensão/)).getByRole('textbox', { name: 'Posição de Painel de média tensão' });
+    const box = within(await card(/^Painel Painel de média tensão/)).getByRole('textbox', { name: 'Posição de Painel de média tensão entre os painéis de Cabine de transformação' });
     await userEvent.clear(box);
     await userEvent.type(box, '1{Enter}');
     await waitFor(() => expect(paineis()).toEqual(['Painel de média tensão', 'Painel B']));
@@ -307,7 +381,7 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     database = await freshDb(composed());
     renderComposer();
     await card(/^Painel Painel B/);
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B em Cabine de transformação' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
     const dialog = await screen.findByRole('dialog', { name: 'Renomear Painel B' });
     const field = within(dialog).getByRole('textbox', { name: 'Nome' });
@@ -396,7 +470,7 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     database = await freshDb(composed());
     renderComposer();
     await card(/^Painel Painel de média tensão/);
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel de média tensão' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel de média tensão em Cabine de transformação' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
     const painelDialog = await screen.findByRole('dialog', { name: 'Remover Painel de média tensão?' });
     expect(within(painelDialog).getByText('O painel e as colunas dele, com os equipamentos que elas levam, saem do template.')).toBeVisible();
@@ -410,7 +484,7 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     expect(ops.map((op) => op.path).sort()).toEqual([`template/${ID}/blocks`, `template/${ID}/skeleton`]);
     expect(new Set(ops.map((op) => op.batch_id)).size).toBe(1);
     // The focus went to the row now at its place.
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Mais opções de Painel B' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mais opções de Painel B em Cabine de transformação' })).toHaveFocus());
 
     await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
     await screen.findByRole('heading', { level: 2, name: 'Esqueleto de locais · 2 locais · 2 painéis · 3 colunas · 5 blocos' });

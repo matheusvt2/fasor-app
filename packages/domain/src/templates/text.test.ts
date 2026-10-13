@@ -8,6 +8,7 @@ import {
   defaultColunaName,
   defaultPainelName,
   localSubText,
+  painelInLocalText,
   paletteTargetText,
   moveAnnouncement,
   naDefaultsCountText,
@@ -191,5 +192,7 @@ describe('14.2-UNIT composer texts: Local › Painel › Coluna', () => {
     expect(paletteTargetText(view, findComposerNode(view, 'c5')!)).toBe('Coluna 5 · Painel de média tensão');
     expect(paletteTargetText(view, findComposerNode(view, 'v1')!)).toBe('Coluna 1 · 1° Subsolo');
     expect(paletteTargetText(view, findComposerNode(view, 'trafo')!)).toBe('Cabine de transformação, direto no local');
+    // Coordinator review 2026-10-13: a painel's controls name it with its local (mock 42: "Mais opções de Painel de entrada em Cubículo Enel").
+    expect(painelInLocalText('Painel 1', 'Cubículo Enel')).toBe('Painel 1 em Cubículo Enel');
   });
 });

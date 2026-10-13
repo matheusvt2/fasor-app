@@ -1,6 +1,7 @@
 import {
   localSubText,
   nodeSummaryText,
+  painelInLocalText,
   quantityLabel,
   skeletonHeading,
   TOTALS_ORDER,
@@ -13,6 +14,7 @@ import {
   type EquipmentBlockType,
 } from '@app/domain';
 import { useId, useRef, useState, type ReactNode } from 'react';
+import { Button as AriaButton } from 'react-aria-components';
 import { Button, OverflowMenu, QuantityStepper, TextButton, Toggle, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { restoreFocus } from '../../input/focus-restore.ts';
@@ -171,9 +173,14 @@ function QtyGrid({ node, onSetQuantity, head }: QtyGridProps) {
   );
 }
 
-/** `.card-chev`: the decorative chevron of a card whose body expands and collapses it. */
-const CardChevron = () => (
-  <span className="icon-btn card-chev" aria-hidden="true">
+/**
+ * `.card-chev`: the chevron of a card whose body expands and collapses it. In the mock a tap
+ * anywhere on the card's head toggles the card, and the chevron is drawn as a 44 px target, so
+ * a pointer tap on it toggles too. It stays out of the accessibility tree and of the tab
+ * order: the card's one accessible control is the body button, which carries `aria-expanded`.
+ */
+const CardChevron = ({ onToggle }: { onToggle: () => void }) => (
+  <span className="icon-btn card-chev" aria-hidden="true" onClick={onToggle}>
     <svg className="ico">
       <use href="/sprite.svg#i-chev-down" />
     </svg>
@@ -240,7 +247,7 @@ function LocalCard({ cabine, ...props }: CardProps & { cabine: ComposerCabine })
           onChange={(value) => onToggleAgrupar(cabine.ref, value)}
         />
       </span>
-      <CardChevron />
+      <CardChevron onToggle={() => expand.toggle(cabine.ref)} />
       <OverflowMenu name={cabine.name} items={menu.items} destructiveItems={menu.destructiveItems} />
       {open ? (
         <div className="block-expand" id={expandId}>
@@ -306,16 +313,18 @@ function PainelCard({ painel, local, ...props }: CardProps & { painel: ComposerP
   const menu = nodeMenu(painel, reorder, props);
   const empty = painel.colunas.length === 0;
   const className = ['block-card', 'painel-card', open && 'is-open', reorder.dragging && 'is-dragging'].filter(Boolean).join(' ');
-  const add = (
-    <>
-      <Plus />
-      {copy.composer.addColuna}
-    </>
-  );
+  // Every local's first painel is "Painel 1": its controls name it with its local, as the mock does.
+  const controlName = painelInLocalText(painel.name, local.name);
   return (
     <li className={className} {...reorder.rowProps}>
-      <DragHandle name={painel.name} reorder={reorder} />
-      <PositionBox name={painel.name} position={painel.position} siblings={painel.siblings} reorder={reorder} />
+      <DragHandle name={controlName} reorder={reorder} />
+      <PositionBox
+        name={controlName}
+        label={copy.composer.painelPositionLabel(painel.name, local.name)}
+        position={painel.position}
+        siblings={painel.siblings}
+        reorder={reorder}
+      />
       <CardBody
         kicker={copy.composer.levelPainel}
         name={painel.name}
@@ -325,8 +334,8 @@ function PainelCard({ painel, local, ...props }: CardProps & { painel: ComposerP
         controls={expandId}
         onToggle={() => expand.toggle(painel.ref)}
       />
-      <CardChevron />
-      <OverflowMenu name={painel.name} items={menu.items} destructiveItems={menu.destructiveItems} />
+      <CardChevron onToggle={() => expand.toggle(painel.ref)} />
+      <OverflowMenu name={controlName} items={menu.items} destructiveItems={menu.destructiveItems} />
       {open ? (
         <div className="block-expand" id={expandId}>
           {empty ? (
@@ -335,21 +344,20 @@ function PainelCard({ painel, local, ...props }: CardProps & { painel: ComposerP
               {copy.composer.painelEmpty}
             </p>
           ) : (
-            <ul className="column-list" aria-label={copy.composer.columnListLabel(`${painel.name} em ${local.name}`)}>
+            <ul className="column-list" aria-label={copy.composer.columnListLabel(controlName)}>
               {painel.colunas.map((coluna) => (
                 <ColunaRow key={coluna.ref} coluna={coluna} {...props} />
               ))}
             </ul>
           )}
           <div className="skeleton-actions">
-            {/* The mock draws the empty painel's as the secondary button, the others' as text. */}
-            {empty ? (
-              <Button variant="secondary" onPress={() => onAddColuna(painel)}>
-                {add}
-              </Button>
-            ) : (
-              <TextButton onPress={() => onAddColuna(painel)}>{add}</TextButton>
-            )}
+            {/* The mock draws the empty painel's as the secondary button, the others' as text. One
+                element whose class follows the state, never two components swapped in the slot:
+                the first coluna added from here leaves the focus on this control, not on `<body>`. */}
+            <AriaButton className={empty ? 'btn btn-secondary' : 'btn btn-text'} onPress={() => onAddColuna(painel)}>
+              <Plus />
+              {copy.composer.addColuna}
+            </AriaButton>
           </div>
         </div>
       ) : null}

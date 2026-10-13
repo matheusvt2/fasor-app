@@ -171,6 +171,16 @@ export function paletteTargetText(view: ComposerView, node: ComposerNode): strin
   return parent === null ? node.name : `${node.name}${SEP}${parent}`;
 }
 
+/**
+ * "Painel de entrada em Cubículo Enel": a painel named with its local, for the controls of
+ * its composer card (`42-template-composer.html`: "Reordenar …", "Mais opções de …",
+ * "Colunas de …"). Every local's first painel is "Painel 1" by default, so the painel alone
+ * would name the controls of two locals alike.
+ */
+export function painelInLocalText(painelName: string, localName: string): string {
+  return `${painelName} em ${localName}`;
+}
+
 function findParentName(view: ComposerView, ref: string): string | null {
   for (const cabine of view.cabines) {
     if (cabine.ref === ref) return cabine.name;
