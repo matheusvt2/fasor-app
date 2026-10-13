@@ -9,8 +9,11 @@ import { blockingRows, issueConfirmReason, preIssueRowsFor, type IssueConfirmati
 import { progressCounterText, type Progress } from './progress.ts';
 import { sectionTextEdited } from './section-variables.ts';
 import { funcaoLabel } from './local.ts';
+import { hiddenLocationIds } from './location-live.ts';
 import { locationPathText } from './location-path.ts';
+import { locationRestoreDetailText, locationRestorePlan } from './removal.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
+import { locationControlName } from './tree.ts';
 import { pointsSummary, pointsSummaryText } from '../points/summary.ts';
 import { parecerOf, parecerVerdictLabel } from './parecer.ts';
 import { certificatesAttachedText, instrumentsCountText, section11Instruments } from '../print/section-11.ts';
@@ -466,6 +469,51 @@ export interface RestorableBlock {
   removed_at: string;
 }
 
+/** A removed block of the restore list before its label: what `restorableBlocks` and `restorableEntries` both build. */
+type RestorableBlockRow = Omit<RestorableBlock, 'label'>;
+
+function restorableBlockRows(
+  blocks: readonly BlockRow[],
+  equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[],
+  locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'name'>[],
+  since: string | null,
+): RestorableBlockRow[] {
+  const tags = new Map(equipment.map((row) => [row.id, row.tag]));
+  return blocks
+    .filter((block): block is BlockRow & { removed_at: string } => block.removed_at !== null && (since === null || block.removed_at > since))
+    .map((block) => {
+      const sheet = isEquipmentBlock(block);
+      const name = sheet
+        ? ((block.equipment_id !== null && tags.get(block.equipment_id)) || block.block_type)
+        : join([relatorioSectionNumber(block.block_type)?.toString() ?? null, sectionRowTitle(block.block_type)]).replace(SEP, ' ');
+      const path = sheet ? locationPathText(locations, block.location_id) : '';
+      return { id: block.id, name, detail: path === '' ? null : path, equipmentId: sheet ? block.equipment_id : null, removed_at: block.removed_at };
+    });
+}
+
+/** Newest removal first; at one timestamp a location before a block, then by id. */
+function byNewestRemoval(a: { id: string; removed_at: string; kind?: string }, b: { id: string; removed_at: string; kind?: string }): number {
+  if (a.removed_at !== b.removed_at) return a.removed_at < b.removed_at ? 1 : -1;
+  const la = a.kind === 'location' ? 0 : 1;
+  const lb = b.kind === 'location' ? 0 : 1;
+  if (la !== lb) return la - lb;
+  return a.id < b.id ? -1 : 1;
+}
+
+/**
+ * Each row with the label no other row of the list shares (F-5): its name and its detail,
+ * with " (2)", " (3)" after the second and later identical ones in list order.
+ */
+function labelled<T extends { name: string; detail: string | null }>(rows: readonly T[]): (T & { label: string })[] {
+  const seen = new Map<string, number>();
+  return rows.map((row) => {
+    const base = row.detail === null ? row.name : `${row.name} — ${row.detail}`;
+    const n = (seen.get(base) ?? 0) + 1;
+    seen.set(base, n);
+    return { ...row, label: n === 1 ? base : `${base} (${n})` };
+  });
+}
+
 /**
  * The removed blocks "Restaurar ficha removida" offers, newest removal first, each with a
  * label unique in the list. `locations` are the relatório's, removed ones included, so a
@@ -479,25 +527,73 @@ export function restorableBlocks(
   locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'name'>[] = [],
   since: string | null = null,
 ): RestorableBlock[] {
-  const tags = new Map(equipment.map((row) => [row.id, row.tag]));
-  const rows = blocks
-    .filter((block): block is BlockRow & { removed_at: string } => block.removed_at !== null && (since === null || block.removed_at > since))
-    .map((block) => {
-      const sheet = isEquipmentBlock(block);
-      const name = sheet
-        ? ((block.equipment_id !== null && tags.get(block.equipment_id)) || block.block_type)
-        : join([relatorioSectionNumber(block.block_type)?.toString() ?? null, sectionRowTitle(block.block_type)]).replace(SEP, ' ');
-      const path = sheet ? locationPathText(locations, block.location_id) : '';
-      return { id: block.id, name, detail: path === '' ? null : path, equipmentId: sheet ? block.equipment_id : null, removed_at: block.removed_at };
-    })
-    .sort((a, b) => (a.removed_at < b.removed_at ? 1 : a.removed_at > b.removed_at ? -1 : a.id < b.id ? -1 : 1));
-  const seen = new Map<string, number>();
-  return rows.map((row) => {
-    const base = row.detail === null ? row.name : `${row.name} — ${row.detail}`;
-    const n = (seen.get(base) ?? 0) + 1;
-    seen.set(base, n);
-    return { ...row, label: n === 1 ? base : `${base} (${n})` };
-  });
+  return labelled(restorableBlockRows(blocks, equipment, locations, since).sort(byNewestRemoval));
+}
+
+/** A removed block in the restore list (`restorableBlocks`' row, told apart from a location). */
+export type RestorableBlockEntry = RestorableBlock & { kind: 'block' };
+
+/** A removed location in the restore list (Story 14.2, second pass). */
+export interface RestorableLocationEntry {
+  kind: 'location';
+  /** What it is: `cabine` is the local. */
+  locationKind: LocationRow['kind'];
+  id: string;
+  /** Its control name (`locationControlName`): "Coluna 1 de Painel 1 de Cubículo Enel". */
+  name: string;
+  /** Its kind and what comes back with it (`locationRestoreDetailText`): "Painel · 2 colunas · 5 fichas". */
+  detail: string;
+  /** The name no other row of the list shares: "Painel 1 de Cubículo Enel — Painel · 2 colunas · 5 fichas". */
+  label: string;
+  removed_at: string;
+}
+
+export type RestorableEntry = RestorableBlockEntry | RestorableLocationEntry;
+
+/**
+ * Everything "Restaurar ficha removida" offers (Story 14.2, second pass): the removed
+ * locations and the removed blocks in one list, newest removal first, each with a label
+ * unique across the whole list. `locations`, `blocks` and `equipment` carry the removed rows.
+ *
+ * A removed location is an entry only when it was removed after `since` (the newest
+ * revision's `created_at`; null offers every one) and its parent is null or live
+ * (`liveLocationIds`): a coluna that left with its painel comes back with the painel's
+ * entry, and one removed on its own under a painel removed later shows up once the painel
+ * is back. A removed block is an entry only when its location is null or live, for the same
+ * reason (a block naming a location the list does not hold is offered, as before).
+ */
+export function restorableEntries(input: {
+  blocks: readonly BlockRow[];
+  equipment: readonly Pick<EquipmentRow, 'id' | 'tag' | 'removed_at'>[];
+  locations: readonly LocationRow[];
+  since: string | null;
+}): RestorableEntry[] {
+  const { blocks, equipment, locations, since } = input;
+  const hidden = hiddenLocationIds(locations);
+  const blockRows = restorableBlockRows(
+    blocks.filter((block) => block.location_id === null || !hidden.has(block.location_id)),
+    equipment,
+    locations,
+    since,
+  ).map((row) => ({ ...row, kind: 'block' as const }));
+  const locationRows = locations
+    .filter((row): row is LocationRow & { removed_at: string } => row.removed_at !== null && (since === null || row.removed_at > since))
+    .filter((row) => row.parent_id === null || !hidden.has(row.parent_id))
+    .flatMap((row) => {
+      const plan = locationRestorePlan({ locations, blocks, equipment, locationId: row.id });
+      if (plan === null) return [];
+      return [
+        {
+          kind: 'location' as const,
+          locationKind: row.kind,
+          id: row.id,
+          name: locationControlName(locations, row.id),
+          detail: locationRestoreDetailText(row.kind, plan.counts),
+          removed_at: row.removed_at,
+        },
+      ];
+    });
+  return labelled<Omit<RestorableBlockEntry, 'label'> | Omit<RestorableLocationEntry, 'label'>>([...locationRows, ...blockRows].sort(byNewestRemoval)) as RestorableEntry[];
 }
 
 // --- the Sumário header (Story 4.3) -----------------------------------------------------

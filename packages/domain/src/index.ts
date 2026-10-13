@@ -52,6 +52,7 @@ export * from './relatorio/ops.ts';
 export * from './sync/streams.ts';
 export * from './relatorio/location-path.ts';
 export * from './relatorio/location-live.ts';
+export * from './relatorio/removal.ts';
 export * from './relatorio/tree.ts';
 export * from './relatorio/count-target.ts';
 export * from './relatorio/resume.ts';

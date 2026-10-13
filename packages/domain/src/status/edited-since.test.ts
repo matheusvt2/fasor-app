@@ -316,6 +316,56 @@ describe('Story 14.2: painel ops and a local Função are structure, and an edit
   });
 });
 
+describe('Story 14.2, second pass: removing and restoring a painel, a coluna and a local is structure, and an edit', () => {
+  const LOCAL = '019966b0-0001-7000-8000-0000000000c1';
+  const PAINEL = '019966b0-0001-7000-8000-0000000000c2';
+  const COLUNA = '019966b0-0001-7000-8000-0000000000c3';
+  const SHEET = '019966b0-0001-7000-8000-0000000000c4';
+  const EQUIPMENT_ROW = '019966b0-0001-7000-8000-0000000000c5';
+  const remove = (path: string) => ({ path, actor_id: 'u', kind: 'remove' as const, value: null });
+  const restore = (path: string) => ({ path, actor_id: 'u', kind: 'put' as const, value: null });
+  // The "Desfazer" of a restore puts the removal's timestamp back.
+  const undoRestore = (path: string) => ({ path, actor_id: 'u', kind: 'put' as const, value: '2026-10-13T12:00:00.000Z' });
+  const rows = [
+    { name: 'painel remove', op: remove(`location/${PAINEL}/removed_at`) },
+    { name: 'painel restore', op: restore(`location/${PAINEL}/removed_at`) },
+    { name: 'painel restore undone', op: undoRestore(`location/${PAINEL}/removed_at`) },
+    { name: 'coluna remove', op: remove(`location/${COLUNA}/removed_at`) },
+    { name: 'coluna restore', op: restore(`location/${COLUNA}/removed_at`) },
+    { name: 'coluna restore undone', op: undoRestore(`location/${COLUNA}/removed_at`) },
+    { name: 'local remove', op: remove(`location/${LOCAL}/removed_at`) },
+    { name: 'local restore', op: restore(`location/${LOCAL}/removed_at`) },
+    { name: 'local restore undone', op: undoRestore(`location/${LOCAL}/removed_at`) },
+    { name: 'a sheet leaving with its location', op: remove(`block/${SHEET}/removed_at`) },
+    { name: 'a sheet back with its location', op: restore(`block/${SHEET}/removed_at`) },
+    { name: 'the equipment the removal frees', op: remove(`equipment/${EQUIPMENT_ROW}/removed_at`) },
+    { name: 'the equipment back with its sheet', op: restore(`equipment/${EQUIPMENT_ROW}/removed_at`) },
+  ];
+
+  it.each(rows)('$name: countsAsEdit (an Emitido relatório reopens) and not countsAsFieldContent (a Rascunho one stays)', ({ op }) => {
+    expect(countsAsEdit(op)).toBe(true);
+    expect(countsAsFieldContent(op)).toBe(false);
+    expect(editedSince([{ ...op, seq: 8 }], 7)).toBe(true);
+    expect(editedSince([{ ...op, seq: 7 }], 7)).toBe(false);
+  });
+
+  it('the whole batch of a removal, and of its restore, carries no field content: no status op rides with it on a Rascunho relatório', () => {
+    const removal = [
+      remove(`location/${LOCAL}/removed_at`),
+      remove(`location/${PAINEL}/removed_at`),
+      remove(`location/${COLUNA}/removed_at`),
+      remove(`block/${SHEET}/removed_at`),
+      remove(`equipment/${EQUIPMENT_ROW}/removed_at`),
+    ];
+    const back = removal.map((op) => restore(op.path));
+    for (const batch of [removal, back]) {
+      expect(batch.some((op) => countsAsFieldContent(op))).toBe(false);
+      expect(batch.every((op) => countsAsEdit(op))).toBe(true);
+      expect(editedSince(batch.map((op, i) => ({ ...op, seq: 10 + i })), 9)).toBe(true);
+    }
+  });
+});
+
 describe('2026-10-13: every op path family is decided, an edit or never one', () => {
   /** Every family the op path schema accepts, read from the schema itself. */
   const schemaFamilies = opPathSchema.options.map((option) => option.shape.family.value as PathFamily);
