@@ -3090,6 +3090,20 @@ So that a transformation room with two transformers needs no invented coluna.
 
 **Definition of Done, in addition (2026-10-10):** the contract version bump and its MIN_CONTRACT_VERSION decision are written in the PR; a Playwright spec composes that local, creates the relatório, fills one sheet on the local and one in a coluna, and generates; the durability specs touched run on the matrix projects.
 
+**Acceptance Criteria added 2026-10-13 (definitions settled by Matheus):**
+
+**Given** a local with *Agrupar por tipo* on, equipment placed directly on it and two painéis
+**When** the relatório is generated
+**Then** the direct equipment prints first, grouped by type; each painel prints as a heading with its sheets grouped by type inside it; with *Agrupar por tipo* off each run prints in tree order; a local with no painel prints exactly as before this story, and the Porto Seguro golden documents still match (AD-6 note of 2026-10-13; FR-68)
+
+**Given** two painéis of one local, each with a "Coluna 5" holding a seccionadora
+**When** the blocks are born
+**Then** the TAGs are `SEC-C05` and `SEC-C05-2` by the existing rule; the painel never enters a TAG (`relatorio/tag.ts` unchanged)
+
+**Given** any on-screen surface
+**When** it names the root location
+**Then** it says "local": the sheet's block reads "Do local" and the chip reads "Copiar do local anterior" (authored, marked `// authored:` for Bruno), from the copy modules; the generated document keeps "cabine" and the FO.SERV-03 titles, and identifiers keep `cabine`
+
 **Acceptance Criteria added 2026-10-13 (status flow, review of PR #125):**
 
 **Given** the status flow of 2026-10-10 (AD-22; `packages/domain/src/status/edited-since.ts`)

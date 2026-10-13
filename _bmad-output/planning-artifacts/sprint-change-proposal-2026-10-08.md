@@ -569,3 +569,23 @@ Rows created before Story 14.2 (a coluna directly under a cabine) stay valid, an
 
 Sections 7.2 and 8.3 stay in this document as research. They become useful again if a job ever needs a sheet for the auxiliary supply.
 
+## 11. Definitions settled on 2026-10-13
+
+A check for conflicting definitions, after PR #125 (the status flow) was reviewed and merged, found three that needed Matheus's decision.
+
+| Conflict | Decision |
+| --- | --- |
+| *Agrupar por tipo* groups a local's sheets by type, while Story 14.2 prints a painel as a heading over its colunas | **Type inside the painel.** The painel is always a heading. With the option on, sheets are grouped by type inside each painel, and equipment placed directly on the local is grouped by type as its own run before the painéis. A local with no painel prints as today |
+| Two painéis of one local with the same coluna number give the same TAG | **The TAG rule does not change:** `SEC-C05`, then `SEC-C05-2`, editable. The painel never enters a TAG |
+| The root reads "local" on screen, while the sheet says "Da cabine" and "Copiar da cabine anterior" | **On screen: "Do local" and "Copiar do local anterior".** The printed relatório keeps "cabine" |
+
+**From the review of PR #125:**
+- Stories 14.2, 14.3 and 14.5 now say how their new operations count for the status flow.
+  - Painel and Função are structure.
+  - The site checklist and the measurement-table cells are field content and an edit.
+- AD-22 gained the row Emitido, generate, Em revisão.
+
+**Handled inside the stories, with no decision needed:**
+- The status step sentence "Preencher uma ficha passa o relatório a Em campo" gains the site items in Story 14.3.
+- The Disjuntor MT checklist goes from 15 to 16 items with seed v4.
+
