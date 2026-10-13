@@ -3042,6 +3042,8 @@ So that the stories that follow have a mock to match and Bruno approves the prin
 
 *(2026-10-10, Bruno's answer recorded: one table per local is right, with each cabine its own local; items in uppercase; the tree is Local › Painel › Coluna; the no-break is a Disjuntor MT checklist item; the mufla stays on the cable sheet (`sprint-change-proposal-2026-10-08.md` § 10). The mocks were redrawn to it the same day; Matheus's look at the redrawn frames closes this story.)*
 
+*(2026-10-13, Matheus approved the redrawn mocks, with the on-screen "Do local" labels of that day. Story closed. The printed mock does not yet draw type-inside-the-painel grouping; Story 14.2's criteria define it.)*
+
 ### Story 14.2: A local holds its equipment with no coluna
 
 **Dev model:** opus · **Effort:** ~~medium~~ high *(2026-10-09)* · ~~copy and composer and tree affordances; the kernel already allows a block on a root node (AD-6)~~ a third location kind in the kernel, the template skeleton, the composer, the tree and section 9 grouping (AD-6 amended 2026-10-09)
