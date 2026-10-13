@@ -1771,3 +1771,39 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `e2e/local-painel-coluna.spec.ts` `completeSheet`, `concludeSheet`.
   class: debt
   state: open (owner: the epic QA)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: Coordinator review 2026-10-13 (a). The painel refusal can be bypassed by op order, and the reducer never checks what a painel hangs under. `applyOp` refuses a block create or a `block/{id}/location_id` put naming a painel only when the painel row is already in state (a location not in state is not checked, for replay safety), so a block op applied before its painel's create is accepted and the block stays on the painel; the tree draws it under the painel and `templateFromRelatorio` and `instantiateTemplate` skip it. And a `location/{id}` create of kind `painel` is stored whatever its `parent_id` names: the row schema asks only for a non-null parent, so a painel under a coluna or under another painel is accepted by both layers (no client writes one; the kernel tree draws it under that parent). Decide whether the server refuses a block op whose location it does not hold, and whether the fold checks the parent's kind once the parent is in state.
+  evidence: `packages/domain/src/ops/apply.ts` (`carriedLocationId`, `targetsOf`, the `LocationKindError` checks; no parent-kind check in the location create); `packages/domain/src/schemas/entities.ts` `locationRowSchema`; `packages/domain/src/ops/apply.test.ts` "a location not in state is not checked, as before"; spec triage log, the `ops/apply.ts` finding (marked real on 2026-10-13).
+  class: question
+  state: open (owner: Matheus; the architect for the fold rule)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: Coordinator review 2026-10-13 (b). Since Story 14.2 `targetsOf` also names the location a block create or a `location_id` put points at, so the device's `targets` index (`outbox.targets`, `remote_ops.targets`) holds that location key for ops written by a contract-17 bundle and not for the block ops an earlier bundle stored: the index is mixed across bundles. Traced consequences: a pulled block create re-materializes its location (extra work, the same row), and `rematerialize` reads block ops for a location key and ignores them; no wrong row was found. The risk is a later reader that takes "every op whose targets hold this location key" to mean "every op on this location". A read-only ref list kept apart from the write targets would remove it, at the cost of a new public kernel surface.
+  evidence: `packages/domain/src/ops/apply.ts` `targetsOf`; `apps/web/src/db/commit.ts` (`targets` of an outbox row); `apps/web/src/db/sync-store.ts` `rematerialize`; `apps/web/src/db/decision-store.ts` `createFacts` (reads equipment keys only today).
+  class: debt
+  state: open (owner: the architect)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: Coordinator review 2026-10-13 (c). The panel reading accepts a painel as its target: `panelHandler.prepare` checks that the photo's `reading_target.location_id` names a live location of the photo's relatório and never its kind, so a panel photo whose target is a painel is read and a suggestion is stored, although a painel takes no block and the kernel's `panelLocation` returns null for it (the device then has nowhere to propose the block). No client writes such a target (the palette never opens on a painel); only a non-conforming one can. Refuse it as a permanent reading error, with a test beside the existing target checks.
+  evidence: `apps/api/src/jobs/reading/kinds/panel.ts:23-27` (`prepare`); `packages/domain/src/relatorio/panel.ts` `panelLocation` (null for a painel).
+  class: bug
+  state: open (owner: the next story touching `apps/api/src/jobs/reading`, else the epic 14 deferred sweep)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: Coordinator review 2026-10-13 (d). The Porto Seguro fixture's op log maps every skeleton node that is not a cabine to `kind: 'coluna'` (`locationRow`), which is right only while the standard template holds no painel: a painel added to that template would be written as a coluna, silently, and the goldens would be regenerated from a wrong tree. Make the mapping exhaustive over the three kinds (or throw on a painel) before the standard template ever gains one.
+  evidence: `packages/domain/fixtures/porto-seguro/op-log.ts:260-264` (`locationRow`, "The standard template holds cabines and colunas only").
+  class: debt
+  state: open (owner: whoever first changes the standard template's skeleton; Story 14.5 if it does)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: Coordinator review 2026-10-13 (e). Below 768 px the relatório tree's location rows hide the drag handle and the Position box (`display: none`), so a local, a painel or a coluna reorders there by the Overflow's "Subir" and "Descer" or by Alt+arrows only; EXPERIENCE.md says "drag, Position box, Overflow menu, or Alt+arrows" at every level and names no breakpoint. Decide whether phones keep the two ways (the row has no room for both controls beside the name and the counter), or the row is redrawn to carry them.
+  evidence: `apps/web/src/styles/app.css:263-265` (the three location rows, under the phone media query); `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` `reorderControls`; the ledger entry above on where EXPERIENCE.md won over the mock ("hidden below 768 px").
+  class: question
+  state: open (owner: Matheus's decision)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: Coordinator review 2026-10-13 (f). Section 9 with *Agrupar por tipo* on and painéis: (1) with two painéis of one local the type groups of each painel carry the same title (the FO.SERV-03 words with the local's name, as O3 records), so the ÍNDICE lists identical type-group titles twice, told apart only by their numbers, the painel band between them not being in the ÍNDICE; (2) with the flag on and an empty direct run (no block on the local itself nor in a coluna directly under it) the local emits no heading of its own: its first heading is the first painel's first type group, whereas with the flag off the `cabine` subsection is emitted even when its run is empty. Check both against the approved print mock and settle them with O3.
+  evidence: `packages/domain/src/print/group-for-print.ts` `byTypeRuns` (the painel heading subsection and its type groups; the direct run split by type first) and `baseSubsections`; `packages/domain/src/print/section-9.ts` `section9Layout`; `apps/api/src/jobs/generate/toc.ts`; spec I/O matrix rows "Print, flag off" and "Print, `por_local_e_tipo` and flag on".
+  class: question
+  state: open (owner: Story 14.4, checked against the print mock)
