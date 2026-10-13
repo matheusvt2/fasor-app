@@ -41,6 +41,8 @@ const FAMILY_DECISIONS = {
   'location/agrupar_por_tipo': 'edit',
   // Story 14.2: a local's Função is structure (the office prepares the tree), and an edit.
   'location/funcao': 'edit',
+  // Story 14.3: a site item's result or observation is filled on site: an edit, and field content.
+  'location/checklist': 'edit',
   block: 'edit',
   'block/field': 'edit',
   'sheet/nameplate': 'edit',
@@ -128,7 +130,9 @@ const ARRANGING_FIELDS: ReadonlySet<string> = new Set(['order_key', 'removed_at'
  * on site: a sheet value (`sheet/*`, and a sheet concluded or marked not tested), a cabine's
  * data fields (CARACTERÍSTICAS DA SE and AMBIENTE DE ENSAIO: `location/se`, `location/env`), a
  * photo (its create, its caption and what it shows) and a point of attention (its create and
- * its fields). Structure is not: creating, removing, restoring, reordering, moving or renaming
+ * its fields). Story 14.3: so is a local's site checklist (`location/checklist`, a result or an
+ * observation), and a site item's photo and the point created from it are a photo and a point
+ * like any other (`location_id` is one of their fields). Structure is not: creating, removing, restoring, reordering, moving or renaming
  * a location, a block, an equipment or a Sumário section (`location`, `location/field`,
  * `location/agrupar_por_tipo`, `location/funcao`, `block`, the other `block/field`s including
  * `config`, `equipment`, `equipment/field`), nor any `remove`, nor `relatorio/setup` (decision
@@ -149,6 +153,7 @@ export function countsAsFieldContent(op: EditCandidate): boolean {
     case 'sheet/observations':
     case 'location/se':
     case 'location/env':
+    case 'location/checklist':
     case 'file':
     case 'point':
       return true;

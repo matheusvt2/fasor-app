@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { materializeEntity } from '../ops/materialize.ts';
 import type { Op } from '../ops/op.ts';
-import { emptySheet, type BlockRow, type FileRow, type JsonValue } from '../schemas/entities.ts';
+import { emptySheet, type BlockRow, type FileRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
 import { getDefinition, SEED_VERSION } from '../seed/definitions.ts';
 import { opFactory, TEST_COMPANY, TEST_RELATORIO } from '../test-support.ts';
 import { syncCounts } from '../sync/counts.ts';
@@ -206,6 +206,134 @@ describe('mergeInfoOf', () => {
     const info = mergeInfoOf(c, nc, fold([create, nc, c]))!;
     expect(syncCounts([], {}, [info, info]).merged).toBe(1);
     expect(syncCounts([]).merged).toBe(0);
+  });
+});
+
+describe('Story 14.3: the merge entry of a local\'s site checklist cell', () => {
+  const SITE_ITEM = 'iluminacao_de_emergencia_autonomia_minima_de_2_h';
+  const siteResult = `location/${LOC}/checklist/${SITE_ITEM}/result`;
+  const siteObservation = `location/${LOC}/checklist/${SITE_ITEM}/observation`;
+  const localRow = (): LocationRow => ({
+    id: LOC,
+    relatorio_id: TEST_RELATORIO,
+    parent_id: null,
+    kind: 'cabine',
+    name: '1° Subsolo',
+    order_key: 'a0',
+    se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null },
+    env: { altitude_m: null, temperature_c: null, humidity_pct: null },
+    agrupar_por_tipo: false,
+    removed_at: null,
+  });
+  const sitePhoto: FileRow = { ...photo, block_id: null, item_key: SITE_ITEM, location_id: LOC };
+  const siteContext = (files: FileRow[] = [sitePhoto], held = true): MergeInfoContext => ({
+    ...context(files),
+    locations: held ? [{ id: LOC, name: '1° Subsolo' }] : [],
+    relatorios: [{ id: TEST_RELATORIO, seed_version: 'v4' }],
+  });
+  function site() {
+    const { f, e, a } = scenario();
+    const create = f.op({ kind: 'create', path: `location/${LOC}`, value: localRow(), device_id: 'office' });
+    const foldLocal = (log: Op[]) => materializeEntity({ entity: 'location', id: LOC }, seqd(log), []) as LocationRow;
+    return { create, e, a, foldLocal };
+  }
+
+  it('NC against C: the entry reports the rule like a sheet cell, with no block, and names the local and "Verificações do local · Item N"', () => {
+    const { create, e, a, foldLocal } = site();
+    const nc = e(siteResult, 'NC');
+    const c = a(siteResult, 'C');
+    const info = mergeInfoOf(c, nc, foldLocal([create, nc, c]))!;
+    expect(info).toMatchObject({ op_id: c.op_id, over_op_id: nc.op_id, block_id: null, rule: 'nc_over_c', relatorio_id: TEST_RELATORIO, path: siteResult });
+    expect(info.standing).toEqual({ value: 'NC', op_id: nc.op_id, actor_id: EDUARDO, client_ts: nc.client_ts });
+    expect(info.overridden).toEqual({ value: 'C', actor_id: ANA, client_ts: c.client_ts });
+    expect(mergeInfoText(info, siteContext())).toBe('1° Subsolo: Verificações do local · Item 11 NC de Eduardo (com foto) mesclado');
+    // The same words whichever side arrived first.
+    const other = site();
+    const c2 = other.a(siteResult, 'C');
+    const nc2 = other.e(siteResult, 'NC');
+    const applied = mergeInfoOf(nc2, c2, other.foldLocal([other.create, c2, nc2]))!;
+    expect(applied).toMatchObject({ rule: 'nc_over_c', block_id: null, standing: { value: 'NC', actor_id: EDUARDO } });
+    expect(mergeInfoText(applied, siteContext())).toBe('1° Subsolo: Verificações do local · Item 11 NC de Eduardo (com foto) mesclado');
+  });
+
+  it('"(com foto)" counts only a live photo of that item of that local with no block', () => {
+    const { create, e, a, foldLocal } = site();
+    const nc = e(siteResult, 'NC');
+    const c = a(siteResult, 'C');
+    const info = mergeInfoOf(c, nc, foldLocal([create, nc, c]))!;
+    const plain = '1° Subsolo: Verificações do local · Item 11 NC de Eduardo mesclado';
+    expect(mergeInfoText(info, siteContext([]))).toBe(plain);
+    expect(mergeInfoText(info, siteContext([{ ...sitePhoto, removed_at: '2026-09-21T13:00:00.000Z' }]))).toBe(plain);
+    expect(mergeInfoText(info, siteContext([{ ...sitePhoto, item_key: 'ventilacao' }]))).toBe(plain);
+    expect(mergeInfoText(info, siteContext([{ ...sitePhoto, location_id: EQUIPMENT }]))).toBe(plain);
+    // A photo carrying both a block and a local is its block's.
+    expect(mergeInfoText(info, siteContext([{ ...sitePhoto, block_id: BLOCK }]))).toBe(plain);
+    // The sheet photo of the same test file is no site photo.
+    expect(mergeInfoText(info, siteContext([photo]))).toBe(plain);
+  });
+
+  it('the observation entries: the NC device\'s kept, latest text with both versions, filled over empty', () => {
+    const { create, e, a, foldLocal } = site();
+    const nc = e(siteResult, 'NC');
+    const eObs = e(siteObservation, 'Luminária de emergência inoperante');
+    const c = a(siteResult, 'C');
+    const aObs = a(siteObservation, 'ok');
+    const kept = mergeInfoOf(aObs, eObs, foldLocal([create, nc, eObs, c, aObs]))!;
+    expect(kept).toMatchObject({ rule: 'nc_observation', block_id: null, standing: { value: 'Luminária de emergência inoperante', actor_id: EDUARDO } });
+    expect(mergeInfoText(kept, siteContext())).toBe('1° Subsolo: Verificações do local · Item 11, observação de Eduardo mantida (NC vence C)');
+
+    const text = site();
+    const first = text.e(siteObservation, 'Autonomia abaixo de 2 h');
+    const second = text.a(siteObservation, 'Sem iluminação de emergência');
+    const latest = mergeInfoOf(second, first, text.foldLocal([text.create, first, second]))!;
+    expect(latest.rule).toBe('latest_text');
+    expect(mergeInfoText(latest, siteContext())).toMatch(
+      /^1° Subsolo: Verificações do local · Item 11, observação — versão de Ana \(\d\d\/\d\d \d\d:\d\d\); a de Eduardo \(\d\d\/\d\d \d\d:\d\d\) era "Autonomia abaixo de 2 h"$/,
+    );
+
+    const empty = site();
+    const x = empty.a(siteObservation, 'Autonomia abaixo de 2 h');
+    const cleared = empty.a(siteObservation, null, x.op_id);
+    const typed = empty.e(siteObservation, 'Autonomia abaixo de 2 h, medida em 40 min', x.op_id);
+    const filled = mergeInfoOf(typed, cleared, empty.foldLocal([empty.create, x, cleared, typed]))!;
+    expect(filled).toMatchObject({ rule: 'filled_over_empty', overridden: null });
+    expect(mergeInfoText(filled, siteContext())).toBe('1° Subsolo: Verificações do local · Item 11, observação de Eduardo mantida (preenchido vence vazio)');
+  });
+
+  it('a local this device does not hold reads "Relatório"; the item number follows the relatório\'s seed version, the current seed\'s when it is not held', () => {
+    const { create, e, a, foldLocal } = site();
+    const nc = e(siteResult, 'NC');
+    const c = a(siteResult, 'C');
+    const info = mergeInfoOf(c, nc, foldLocal([create, nc, c]))!;
+    expect(mergeInfoText(info, siteContext([], false))).toBe('Relatório: Verificações do local · Item 11 NC de Eduardo mesclado');
+    expect(mergeInfoText(info, { ...context([]), locations: [{ id: LOC, name: '1° Subsolo' }] })).toBe('1° Subsolo: Verificações do local · Item 11 NC de Eduardo mesclado');
+    // A relatório whose seed version ships no site list names no item number.
+    expect(mergeInfoText(info, { ...siteContext([]), relatorios: [{ id: TEST_RELATORIO, seed_version: 'v3' }] })).toBe('1° Subsolo: Verificações do local NC de Eduardo mesclado');
+  });
+
+  it('is null for a same value, a contradiction (C against NA), one device, a later sequential put and a row that is no cabine', () => {
+    const { create, e, a, foldLocal } = site();
+    const nc = e(siteResult, 'NC');
+    const same = a(siteResult, 'NC');
+    expect(mergeInfoOf(same, nc, foldLocal([create, nc, same]))).toBeNull();
+    const c = e(siteResult, 'C');
+    const na = a(siteResult, 'NA');
+    expect(mergeInfoOf(na, c, foldLocal([create, c, na]))).toBeNull();
+    const again = e(siteResult, 'C');
+    expect(mergeInfoOf(again, nc, foldLocal([create, nc, again]))).toBeNull();
+    const merged = a(siteResult, 'C');
+    const later = a(siteResult, 'NA', merged.op_id);
+    expect(mergeInfoOf(merged, nc, foldLocal([create, nc, merged, later]))).toBeNull();
+    expect(mergeInfoOf(merged, nc, null)).toBeNull();
+    expect(mergeInfoOf(merged, nc, { id: LOC, kind: 'coluna' })).toBeNull();
+  });
+
+  it('is counted by syncCounts once per pair, as any other merge entry', () => {
+    const { create, e, a, foldLocal } = site();
+    const nc = e(siteResult, 'NC');
+    const c = a(siteResult, 'C');
+    const info = mergeInfoOf(c, nc, foldLocal([create, nc, c]))!;
+    expect(syncCounts([], {}, [info, info]).merged).toBe(1);
   });
 });
 

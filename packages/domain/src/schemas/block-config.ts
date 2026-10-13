@@ -131,10 +131,50 @@ export const ITEM_KEYS = [
   'buchas_primaria_secundarias',
   'termometro',
   'rele_de_temperatura_externo',
+  // Appended (seed v4, Story 14.3): the sixteenth Disjuntor MT item, NO-BREAK DE COMANDO.
+  'no_break_de_comando',
 ] as const;
 
 export const itemKeySchema = z.enum(ITEM_KEYS);
 export type ItemKey = z.infer<typeof itemKeySchema>;
+
+/**
+ * Story 14.3 (seed v4, contract 18): the 19 items of a local's site checklist, "Verificações
+ * do local", in the order they are answered and printed (`sprint-change-proposal-2026-10-08.md`
+ * § 4.1). A closed list like `ITEM_KEYS`: a key is the ASCII snake_case of its label, the list
+ * grows append-only with the seed, and `location/{id}/checklist/{item_key}/...` accepts no other
+ * key. Which of them a relatório offers is its seed version's `site_checklist` (`siteItems`).
+ */
+export const SITE_ITEM_KEYS = [
+  // Segurança e EPC no local
+  'luvas_isolantes_compativeis_com_a_tensao_com_ensaio_dieletrico_valido',
+  'tapete_ou_estrado_isolante',
+  'vara_de_manobra_com_ensaio_dieletrico_valido',
+  'detector_de_tensao',
+  'conjunto_de_aterramento_temporario',
+  'epi_disponivel',
+  'dispositivos_de_bloqueio_e_cartoes_de_impedimento',
+  // Combate a incêndio
+  'extintor_de_incendio_carregado_lacrado_dentro_da_validade_sinalizado_e_desobstruido',
+  'bacia_de_contencao_de_oleo',
+  // Iluminação
+  'iluminacao_normal',
+  'iluminacao_de_emergencia_autonomia_minima_de_2_h',
+  // Aterramento
+  'portas_telas_e_grades_aterradas',
+  'pontos_para_aterramento_temporario',
+  // Sinalização e documentação
+  'placas_de_advertencia_na_porta_e_nas_grades',
+  'diagrama_unifilar_atualizado_no_local',
+  'circuitos_e_equipamentos_identificados',
+  // Ambiente
+  'porta_abrindo_para_fora_com_fechadura',
+  'ventilacao',
+  'limpeza_e_ausencia_de_infiltracao',
+] as const;
+
+export const siteItemKeySchema = z.enum(SITE_ITEM_KEYS);
+export type SiteItemKey = z.infer<typeof siteItemKeySchema>;
 
 /** FR-11 subtypes: they only pre-mark checklist items NA, never remove one. */
 export const subtypeSchema = z.enum(['manual', 'epoxi', 'a_seco']);

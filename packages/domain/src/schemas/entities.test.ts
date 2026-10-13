@@ -2,8 +2,9 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { FUNCAO_KEYS, FUNCAO_MAX_LENGTH } from './block-config.ts';
+import { FUNCAO_KEYS, FUNCAO_MAX_LENGTH, ITEM_KEYS, SITE_ITEM_KEYS, siteItemKeySchema } from './block-config.ts';
 import { ENTITIES, ENTITY_SCOPE, entityKeys, entityRowSchemas, registryKeys, type Entity } from './entities.ts';
+import { snapshotFileSchema } from './snapshot.ts';
 
 /** Every `*_id` key reachable in a schema, with its path, ignoring the given branches. */
 function referenceKeys(schema: z.ZodType, path: string[] = [], skip: string[] = []): string[] {
@@ -127,4 +128,97 @@ describe('Story 14.2 (contract 17): the location row gains the painel kind and t
     expect(golden.locations.length).toBeGreaterThan(0);
     for (const row of golden.locations) expect(JSON.stringify(sortKeysDeep(location.parse(row)))).toBe(JSON.stringify(row));
   });
+});
+
+describe('Story 14.3 (contract 18): the cabine row gains `checklist`, the photo and the point rows `location_id`', () => {
+  const ID = '019966d0-0000-7000-8000-000000000021';
+  const RELATORIO = '019966d0-0000-7000-8000-000000000022';
+  const LOCAL = '019966d0-0000-7000-8000-000000000023';
+  const OP = '019966d0-0000-7000-8000-000000000024';
+  const base = { id: ID, relatorio_id: RELATORIO, name: 'X', order_key: 'a0', removed_at: null };
+  const cabine = { ...base, parent_id: null, kind: 'cabine', se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null }, env: { altitude_m: null, temperature_c: null, humidity_pct: null }, agrupar_por_tipo: false };
+  const cell = (value: unknown) => ({ value, source_suggestion_id: null, op_id: OP });
+  const location = entityRowSchemas.location;
+  const golden = (file: string) => JSON.parse(readFileSync(fileURLToPath(new URL(file, import.meta.url)), 'utf8')) as { locations: unknown[]; files: unknown[]; points: unknown[] };
+
+  it('SITE_ITEM_KEYS is the closed list of 19 keys, apart from the sheet item keys', () => {
+    expect(SITE_ITEM_KEYS).toHaveLength(19);
+    expect(new Set(SITE_ITEM_KEYS).size).toBe(19);
+    for (const key of SITE_ITEM_KEYS) expect(key, key).toMatch(/^[a-z0-9_]+$/);
+    expect(SITE_ITEM_KEYS.filter((key) => (ITEM_KEYS as readonly string[]).includes(key))).toEqual([]);
+    expect(siteItemKeySchema.safeParse('ventilacao').success).toBe(true);
+    expect(siteItemKeySchema.safeParse('limpeza').success).toBe(false);
+    expect(ITEM_KEYS[ITEM_KEYS.length - 1]).toBe('no_break_de_comando');
+  });
+
+  it('a cabine holds a cell-shaped entry per answered site item; any subset of the 19 keys, an empty entry and an empty checklist parse', () => {
+    const full = { ...cabine, checklist: { ventilacao: { result: cell('NC'), observation: cell('Exaustor inoperante') }, epi_disponivel: { result: cell(null) }, iluminacao_normal: {} } };
+    expect(location.parse(full)).toEqual(full);
+    expect(location.safeParse({ ...cabine, checklist: {} }).success).toBe(true);
+    // The entry is written result first, then observation, whatever order it came in.
+    const swapped = location.parse({ ...cabine, checklist: { ventilacao: { observation: cell('x'), result: cell('C') } } }) as { checklist: Record<string, object> };
+    expect(Object.keys(swapped.checklist.ventilacao!)).toEqual(['result', 'observation']);
+    expect(entityKeys('location')).toContain('checklist');
+  });
+
+  it('refuses a key outside the list, a value that is no cell, and a checklist that is no record', () => {
+    expect(location.safeParse({ ...cabine, checklist: { limpeza: { result: cell('C') } } }).success).toBe(false);
+    expect(location.safeParse({ ...cabine, checklist: { no_break_de_comando: {} } }).success).toBe(false);
+    expect(location.safeParse({ ...cabine, checklist: { ventilacao: { result: 'C' } } }).success).toBe(false);
+    expect(location.safeParse({ ...cabine, checklist: { ventilacao: { result: { value: 'C' } } } }).success).toBe(false);
+    expect(location.safeParse({ ...cabine, checklist: [] }).success).toBe(false);
+    expect(location.safeParse({ ...cabine, checklist: null }).success).toBe(false);
+  });
+
+  it('a painel and a coluna never carry one: the key is stripped', () => {
+    const checklist = { ventilacao: { result: cell('C') } };
+    expect(location.parse({ ...base, parent_id: LOCAL, kind: 'painel', checklist })).toEqual({ ...base, parent_id: LOCAL, kind: 'painel' });
+    expect(location.parse({ ...base, parent_id: LOCAL, kind: 'coluna', checklist })).toEqual({ ...base, parent_id: LOCAL, kind: 'coluna' });
+  });
+
+  it('`location_id` is optional and nullable on a photo and on a point; a brand file never carries it', () => {
+    // A snapshot file carries no `company_id` (AD-10): put one back to read it as a file row.
+    const snapshotPhoto = (golden('../../fixtures/porto-seguro/snapshot.golden.json').files as Record<string, unknown>[]).find((row) => row.kind === 'photo');
+    const [point] = golden('../../fixtures/porto-seguro/snapshot.golden.json').points as Record<string, unknown>[];
+    expect(snapshotPhoto).toBeDefined();
+    expect(point).toBeDefined();
+    const photo = { ...snapshotPhoto, company_id: RELATORIO };
+    for (const value of [LOCAL, null]) {
+      expect(entityRowSchemas.file.parse({ ...photo, location_id: value })).toMatchObject({ location_id: value });
+      expect(entityRowSchemas.point.parse({ ...point, location_id: value })).toMatchObject({ location_id: value });
+    }
+    for (const bad of ['not-a-uuid', 7, {}]) {
+      expect(entityRowSchemas.file.safeParse({ ...photo, location_id: bad }).success, JSON.stringify(bad)).toBe(false);
+      expect(entityRowSchemas.point.safeParse({ ...point, location_id: bad }).success, JSON.stringify(bad)).toBe(false);
+    }
+    expect(Object.keys(entityRowSchemas.file.parse({ ...photo, kind: 'logo', location_id: LOCAL }))).not.toContain('location_id');
+    expect(entityKeys('file')).toContain('location_id');
+    expect(entityKeys('point')).toContain('location_id');
+  });
+
+  it.each(['../../fixtures/porto-seguro/snapshot.golden.json', '../../fixtures/replay-small/snapshot.golden.json', '../../fixtures/porto-seguro/small/snapshot.golden.json'])(
+    'no stored row changes bytes: the locations, files and points of %s parse to themselves',
+    (file) => {
+      const rows = golden(file);
+      expect(rows.locations.length).toBeGreaterThan(0);
+      for (const row of rows.locations) {
+        const parsed = location.parse(row);
+        expect(Object.keys(parsed)).not.toContain('checklist');
+        expect(JSON.stringify(sortKeysDeep(parsed))).toBe(JSON.stringify(row));
+      }
+      for (const row of rows.files as Record<string, unknown>[]) {
+        // The snapshot's file shape (no `company_id`). `people_in_photo` is the one key a parse
+        // adds to a photo stored before Story 9.3 (a default, as it always did); `location_id` adds none.
+        const parsed = snapshotFileSchema.parse(row);
+        expect(Object.keys(parsed)).not.toContain('location_id');
+        const expected = row.kind === 'photo' ? { people_in_photo: false, ...row } : row;
+        expect(JSON.stringify(sortKeysDeep(parsed))).toBe(JSON.stringify(sortKeysDeep(expected)));
+      }
+      for (const row of rows.points) {
+        const parsed = entityRowSchemas.point.parse(row);
+        expect(Object.keys(parsed)).not.toContain('location_id');
+        expect(JSON.stringify(sortKeysDeep(parsed))).toBe(JSON.stringify(row));
+      }
+    },
+  );
 });

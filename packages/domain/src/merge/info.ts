@@ -1,11 +1,11 @@
 import { formatShortDateTime } from '../format/datetime.ts';
 import { SERVER_DEVICE_ID } from '../ids.ts';
-import { sheetCellAt } from '../ops/apply.ts';
+import { isCellFamily, sheetCellAt, siteCellAt } from '../ops/apply.ts';
 import type { Op } from '../ops/op.ts';
 import { safeParsePath, type OpPath } from '../ops/path.ts';
 import { blockTypeLabel } from '../relatorio/tree.ts';
-import type { BlockRow, Cell, EquipmentRow, FileRow } from '../schemas/entities.ts';
-import { findDefinition } from '../seed/definitions.ts';
+import type { BlockRow, Cell, EquipmentRow, FileRow, LocationRow } from '../schemas/entities.ts';
+import { findDefinition, SEED_VERSION, siteItems } from '../seed/definitions.ts';
 import { canonicalJson } from '../text/hash.ts';
 import { isEmptyValue } from './policy.ts';
 import type { MergeRule } from './rules.ts';
@@ -23,6 +23,7 @@ export interface MergeInfo {
   /** The op it landed on: the latest op on the path before it; null for a `block_added` entry (no pair). */
   over_op_id: string | null;
   relatorio_id: string | null;
+  /** Null off any block: a relatório or location field, and (Story 14.3) a local's site checklist cell. */
   block_id: string | null;
   path: string;
   rule: MergeRule;
@@ -67,6 +68,8 @@ function overriddenOf(op: OpSide): MergeInfo['overridden'] {
  * it), read against the row after the fold. Null when nothing merged by rule: a same value,
  * a contradiction (Story 10.2 owns it), a sequential write, two ops of one device, a server
  * op on either side, a family that is not merged, or a cell a later op has moved on from.
+ * Story 14.3: a site checklist cell (`location/{id}/checklist/...`, `rowAfter` its location
+ * row) reports its rule merge like a sheet cell, with `block_id: null`.
  */
 export function mergeInfoOf(
   op: Pick<Op, 'op_id' | 'path' | 'relatorio_id' | 'value' | 'actor_id' | 'device_id' | 'client_ts' | 'kind'>,
@@ -80,9 +83,10 @@ export function mergeInfoOf(
   if (path === null) return null;
   const base = { op_id: op.op_id, over_op_id: overOp.op_id, relatorio_id: op.relatorio_id ?? null, block_id: blockIdOf(path, rowAfter), path: op.path };
 
-  if (path.family.startsWith('sheet/')) {
+  if (isCellFamily(path.family)) {
     const sheet = (rowAfter as Pick<BlockRow, 'sheet'> | null | undefined)?.sheet;
-    const cell: Cell | undefined = sheet === undefined ? undefined : sheetCellAt(sheet, path);
+    const cell: Cell | undefined =
+      path.family === 'location/checklist' ? siteCellAt(rowAfter as LocationRow | null | undefined, path) : sheet === undefined ? undefined : sheetCellAt(sheet, path);
     const merge = cell?.merge;
     if (cell === undefined || merge === undefined || merge.head_op_id !== op.op_id) return null;
     const [standing, overridden] = merge.kept ? [overOp, op] : [op, overOp];
@@ -181,8 +185,13 @@ export interface MergeInfoContext {
   equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[];
   users: readonly { id: string; name: string }[];
   files: readonly FileRow[];
-  /** Story 10.3: the locations the blocks sit in (a `block_added` entry names its location); none when omitted. */
+  /**
+   * Story 10.3: the locations the blocks sit in (a `block_added` entry names its location); none when omitted.
+   * Story 14.3: also the local a site checklist entry names.
+   */
   locations?: readonly { id: string; name: string }[];
+  /** Story 14.3: the relatórios, for a site item's number under its own seed version; the current seed's numbering when omitted. */
+  relatorios?: readonly { id: string; seed_version: string }[];
 }
 
 /** The block as the sheet names it: its equipment's TAG, else its type's name. authored: "Relatório" off any block. */
@@ -223,6 +232,50 @@ function hasLivePhoto(blockId: string | null, itemKey: string, context: MergeInf
   return context.files.some((file) => file.kind === 'photo' && file.removed_at === null && file.block_id === blockId && file.item_key === itemKey);
 }
 
+/** Story 14.3: the site item's number under the entry's relatório seed version (the current seed's when the device does not hold it), or null. */
+function siteItemNumber(info: MergeInfo, itemKey: string, context: MergeInfoContext): number | null {
+  const seedVersion = context.relatorios?.find((row) => row.id === info.relatorio_id)?.seed_version ?? SEED_VERSION;
+  return siteItems(seedVersion).find((item) => item.key === itemKey)?.number ?? null;
+}
+
+/** Story 14.3: a live photo of one site item of one local (a photo on a block is its block's, never the local's). */
+function hasLiveSitePhoto(locationId: string, itemKey: string, context: MergeInfoContext): boolean {
+  return context.files.some(
+    (file) => file.kind === 'photo' && file.removed_at === null && file.block_id === null && (file.location_id ?? null) === locationId && file.item_key === itemKey,
+  );
+}
+
+/**
+ * Story 14.3: the Sync status row of a site checklist merge, the sheet's sentences with the
+ * local's name where the TAG stands and "Verificações do local · Item N" for the item:
+ * "1° Subsolo: Verificações do local · Item 11 NC de Eduardo (com foto) mesclado".
+ */
+function siteMergeInfoText(
+  info: MergeInfo,
+  path: Extract<OpPath, { family: 'location/checklist' }>,
+  context: MergeInfoContext,
+  who: string,
+  other: string | null,
+): string {
+  const local = context.locations?.find((row) => row.id === path.id)?.name.trim() ?? '';
+  // authored: "Relatório" when the device does not hold the local, as `blockName` says off any block.
+  const name = local === '' ? 'Relatório' : local;
+  const n = siteItemNumber(info, path.item_key, context);
+  // authored: how a site item is named in a merge entry.
+  const site = n === null ? 'Verificações do local' : `Verificações do local · Item ${n}`;
+  if (path.field === 'result') {
+    const photo = hasLiveSitePhoto(path.id, path.item_key, context) ? ' (com foto)' : '';
+    const value = typeof info.standing.value === 'string' ? `${info.standing.value} ` : '';
+    // authored: the sheet's NC/C sentence, for a site item.
+    return `${name}: ${site} ${value}de ${who}${photo} mesclado`;
+  }
+  // authored: the three observation sentences below.
+  if (info.rule === 'nc_observation') return `${name}: ${site}, observação de ${who} mantida (NC vence C)`;
+  if (info.rule === 'latest_text') return latestText(`${site}, observação`, info, name, who, other);
+  if (info.rule === 'filled_over_empty') return `${name}: ${site}, observação de ${who} mantida (preenchido vence vazio)`;
+  return `${name}: ${site}, alteração de ${who} mantida (a mais recente prevalece)`;
+}
+
 function quoted(value: unknown): string {
   return typeof value === 'string' ? `"${value.trim()}"` : '';
 }
@@ -247,6 +300,8 @@ export function mergeInfoText(info: MergeInfo, context: MergeInfoContext): strin
     const where = location === undefined || location.name.trim() === '' ? '' : ` em ${location.name.trim()}`;
     return `${who} adicionou ${name}${where}`;
   }
+
+  if (path.family === 'location/checklist') return siteMergeInfoText(info, path, context, who, other);
 
   if (path.family === 'sheet/checklist') {
     const n = itemNumber(info.block_id, path.item_key, context);

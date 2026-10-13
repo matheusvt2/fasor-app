@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { EQUIPMENT_BLOCK_TYPES, ITEM_KEYS } from '../schemas/block-config.ts';
+import { EQUIPMENT_BLOCK_TYPES, ITEM_KEYS, SITE_ITEM_KEYS } from '../schemas/block-config.ts';
 import { SEEDED_CRITERIA } from './criteria.ts';
 import {
   findDefinition,
@@ -13,6 +13,8 @@ import {
   sectionText,
   SEED_VERSION,
   SEED_VERSIONS,
+  siteChecklistOf,
+  siteItems,
 } from './definitions.ts';
 import { CABINE_PRIMARIA_V1 } from './v1.ts';
 import { fieldDefSchema, type BlockDefinition, type TableDef, type TestDef } from './schema.ts';
@@ -253,7 +255,7 @@ describe('seed v1: checklists (addendum §9.2)', () => {
     expect(getSeed('v1', 'cabine_primaria').checklist_columns).toEqual(['ÍTEM', 'C', 'NC', 'NA', 'OBSERVAÇÕES']);
   });
 
-  it('keys every item by the snake_case of its label, and the item enum is exactly their union', () => {
+  it('keys every item by the snake_case of its label, and the item enum is exactly their union plus what later versions appended', () => {
     const all = new Set<string>();
     for (const type of EQUIPMENT_BLOCK_TYPES) {
       for (const it of def(type).checklist!) {
@@ -261,7 +263,9 @@ describe('seed v1: checklists (addendum §9.2)', () => {
         all.add(it.key);
       }
     }
-    expect([...all].sort()).toEqual([...ITEM_KEYS].sort());
+    // Seed v4 (Story 14.3) appended one key to the enum; v1 itself lists what it always did.
+    expect([...all].sort()).toEqual(ITEM_KEYS.filter((key) => key !== 'no_break_de_comando').sort());
+    expect(all.size).toBe(44);
   });
 
   it('gives every item of every list three or four NC chip phrases', () => {
@@ -657,8 +661,7 @@ describe('seed v3 (Story 6.6): v2 plus the recurring-finding chips', () => {
   const v2 = getSeed('v2', 'cabine_primaria');
   const v3 = getSeed('v3', 'cabine_primaria');
 
-  it('is the version a new Template is created with', () => {
-    expect(SEED_VERSION).toBe('v3');
+  it('stays in the bundle once v4 is current (AR-20: append-only)', () => {
     expect(SEED_VERSIONS.v3!.version).toBe('v3');
   });
 
@@ -687,6 +690,175 @@ describe('seed v3 (Story 6.6): v2 plus the recurring-finding chips', () => {
     expect(recurringFindings('v1')).toEqual(v3.recurring_findings);
     expect(recurringFindings('v2')).toEqual(v3.recurring_findings);
     expect(recurringFindings('v99')).toEqual(v3.recurring_findings);
+    // v4 carries v3's chips unchanged, so the fallback reads the same list.
+    expect(recurringFindings(SEED_VERSION)).toEqual(v3.recurring_findings);
+  });
+});
+
+/** The content hash of seed v3 as merged (Story 6.6), pinned when v4 shipped; never updated after. */
+const V3_HASH = '9c0ba05dcdd1652629ba794d4762c5ec7adfd585bf5c2e853d3310425b67e4dc';
+
+describe('seed v4 (Story 14.3): v3 plus the site checklist and the NO-BREAK DE COMANDO item', () => {
+  const v3 = getSeed('v3', 'cabine_primaria');
+  const v4 = getSeed('v4', 'cabine_primaria');
+
+  /** The 19 site items in their six groups, written from `sprint-change-proposal-2026-10-08.md` § 4.1, not read back from the seed. */
+  const SITE_GROUPS: [string, string, [string, string][]][] = [
+    [
+      'seguranca_e_epc_no_local',
+      'Segurança e EPC no local',
+      [
+        ['luvas_isolantes_compativeis_com_a_tensao_com_ensaio_dieletrico_valido', 'Luvas isolantes compatíveis com a tensão, com ensaio dielétrico válido'],
+        ['tapete_ou_estrado_isolante', 'Tapete ou estrado isolante'],
+        ['vara_de_manobra_com_ensaio_dieletrico_valido', 'Vara de manobra com ensaio dielétrico válido'],
+        ['detector_de_tensao', 'Detector de tensão'],
+        ['conjunto_de_aterramento_temporario', 'Conjunto de aterramento temporário'],
+        ['epi_disponivel', 'EPI disponível'],
+        ['dispositivos_de_bloqueio_e_cartoes_de_impedimento', 'Dispositivos de bloqueio e cartões de impedimento'],
+      ],
+    ],
+    [
+      'combate_a_incendio',
+      'Combate a incêndio',
+      [
+        [
+          'extintor_de_incendio_carregado_lacrado_dentro_da_validade_sinalizado_e_desobstruido',
+          'Extintor de incêndio carregado, lacrado, dentro da validade, sinalizado e desobstruído',
+        ],
+        ['bacia_de_contencao_de_oleo', 'Bacia de contenção de óleo'],
+      ],
+    ],
+    [
+      'iluminacao',
+      'Iluminação',
+      [
+        ['iluminacao_normal', 'Iluminação normal'],
+        ['iluminacao_de_emergencia_autonomia_minima_de_2_h', 'Iluminação de emergência (autonomia mínima de 2 h)'],
+      ],
+    ],
+    [
+      'aterramento',
+      'Aterramento',
+      [
+        ['portas_telas_e_grades_aterradas', 'Portas, telas e grades aterradas'],
+        ['pontos_para_aterramento_temporario', 'Pontos para aterramento temporário'],
+      ],
+    ],
+    [
+      'sinalizacao_e_documentacao',
+      'Sinalização e documentação',
+      [
+        ['placas_de_advertencia_na_porta_e_nas_grades', 'Placas de advertência na porta e nas grades'],
+        ['diagrama_unifilar_atualizado_no_local', 'Diagrama unifilar atualizado no local'],
+        ['circuitos_e_equipamentos_identificados', 'Circuitos e equipamentos identificados'],
+      ],
+    ],
+    [
+      'ambiente',
+      'Ambiente',
+      [
+        ['porta_abrindo_para_fora_com_fechadura', 'Porta abrindo para fora, com fechadura'],
+        ['ventilacao', 'Ventilação'],
+        ['limpeza_e_ausencia_de_infiltracao', 'Limpeza e ausência de infiltração'],
+      ],
+    ],
+  ];
+
+  it('is the version a new Template is created with', () => {
+    expect(SEED_VERSION).toBe('v4');
+    expect(SEED_VERSIONS.v4!.version).toBe('v4');
+    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4']);
+  });
+
+  it('differs from v3 by exactly `site_checklist` and the sixteenth Disjuntor MT item, and v1 to v3 hash as they shipped', () => {
+    // Strip the two additions from v4: what is left is v3, byte for byte.
+    const stripped = structuredClone(v4) as typeof v4;
+    delete stripped.site_checklist;
+    stripped.blocks.disjuntor_mt.checklist = stripped.blocks.disjuntor_mt.checklist!.filter((item) => item.key !== 'no_break_de_comando');
+    expect(JSON.stringify(stripped)).toBe(JSON.stringify(v3));
+    for (const version of ['v1', 'v2', 'v3']) expect('site_checklist' in getSeed(version, 'cabine_primaria'), version).toBe(false);
+    const hash = (version: string) => createHash('sha256').update(JSON.stringify(SEED_VERSIONS[version])).digest('hex');
+    expect(hash('v1')).toBe(V1_HASH);
+    expect(hash('v2')).toBe(V2_HASH);
+    expect(hash('v3'), 'seed v3 changed after it shipped: add a new version instead').toBe(V3_HASH);
+  });
+
+  it('appends NO-BREAK DE COMANDO as the sixteenth Disjuntor MT item with the mock\'s three chips, on no other list and no earlier version', () => {
+    const list = v4.blocks.disjuntor_mt.checklist!;
+    expect(list).toHaveLength(16);
+    expect(list.slice(0, 15)).toEqual(v3.blocks.disjuntor_mt.checklist);
+    expect(list[15]).toEqual({
+      key: 'no_break_de_comando',
+      label: 'NO-BREAK DE COMANDO',
+      nc_phrases: ['No-break inoperante', 'Bateria vencida ou estufada', 'Sem autonomia para o relé'],
+    });
+    expect(list[15]!.key).toBe(snake(list[15]!.label));
+    for (const type of EQUIPMENT_BLOCK_TYPES) {
+      const has = v4.blocks[type].checklist!.some((item) => item.key === 'no_break_de_comando');
+      expect(has, type).toBe(type === 'disjuntor_mt');
+    }
+    for (const version of ['v1', 'v2', 'v3']) {
+      const earlier = getSeed(version, 'cabine_primaria').blocks.disjuntor_mt.checklist!;
+      expect(earlier, version).toHaveLength(15);
+      expect(earlier.some((item) => item.key === 'no_break_de_comando'), version).toBe(false);
+    }
+    // The item enum of every seeded list is exactly the union across the shipped versions.
+    const all = new Set<string>();
+    for (const bundle of Object.values(SEED_VERSIONS)) {
+      for (const definition of Object.values(bundle.report_types.cabine_primaria.blocks)) for (const item of definition.checklist ?? []) all.add(item.key);
+    }
+    expect([...all].sort()).toEqual([...ITEM_KEYS].sort());
+    // No subtype pre-marks the new item NA: it is answered on site (NA when the breaker has no no-break).
+    expect(v4.blocks.disjuntor_mt.subtypes.flatMap((subtype) => subtype.na_defaults)).not.toContain('no_break_de_comando');
+  });
+
+  it('ships the 19 site items in six groups of 7, 2, 2, 2, 3 and 3, by name and in order', () => {
+    const list = v4.site_checklist!;
+    expect(list.groups.map((group) => [group.key, group.label, group.items.map((item) => [item.key, item.label])])).toEqual(SITE_GROUPS);
+    expect(list.groups.map((group) => group.items.length)).toEqual([7, 2, 2, 2, 3, 3]);
+    const keys = list.groups.flatMap((group) => group.items.map((item) => item.key));
+    expect(keys).toEqual([...SITE_ITEM_KEYS]);
+    expect(keys).toHaveLength(19);
+    for (const group of list.groups) {
+      expect(group.key).toBe(snake(group.label));
+      for (const item of group.items) expect(item.key, item.label).toBe(snake(item.label));
+    }
+  });
+
+  it('gives every site item three or four distinct NC phrases, the emergency lighting item the mock\'s three', () => {
+    for (const item of v4.site_checklist!.groups.flatMap((group) => group.items)) {
+      expect(item.nc_phrases.length, item.key).toBeGreaterThanOrEqual(3);
+      expect(item.nc_phrases.length, item.key).toBeLessThanOrEqual(4);
+      expect(new Set(item.nc_phrases).size, item.key).toBe(item.nc_phrases.length);
+    }
+    const emergencia = v4.site_checklist!.groups[2]!.items[1]!;
+    expect(emergencia.nc_phrases).toEqual(['Luminária de emergência inoperante', 'Autonomia abaixo de 2 h', 'Sem iluminação de emergência']);
+  });
+
+  it('siteChecklistOf: the list on v4, null on v1 to v3 and on an unknown version', () => {
+    expect(siteChecklistOf('v4')).toBe(v4.site_checklist);
+    for (const version of ['v1', 'v2', 'v3', 'v99', 'toString', '']) expect(siteChecklistOf(version), version).toBeNull();
+  });
+
+  it('siteItems: flat, numbered 1 to 19 across the groups, each with its group and phrases; none where there is no list', () => {
+    const items = siteItems('v4');
+    expect(items.map((item) => item.number)).toEqual(Array.from({ length: 19 }, (_, i) => i + 1));
+    expect(items.map((item) => item.key)).toEqual([...SITE_ITEM_KEYS]);
+    expect(items[0]).toEqual({
+      key: 'luvas_isolantes_compativeis_com_a_tensao_com_ensaio_dieletrico_valido',
+      label: 'Luvas isolantes compatíveis com a tensão, com ensaio dielétrico válido',
+      groupKey: 'seguranca_e_epc_no_local',
+      number: 1,
+      nc_phrases: ['Luvas isolantes ausentes', 'Ensaio dielétrico das luvas vencido', 'Classe das luvas incompatível com a tensão', 'Luvas com furos ou ressecadas'],
+    });
+    expect(items[10]).toMatchObject({ key: 'iluminacao_de_emergencia_autonomia_minima_de_2_h', groupKey: 'iluminacao', number: 11 });
+    expect(items[18]).toMatchObject({ key: 'limpeza_e_ausencia_de_infiltracao', groupKey: 'ambiente', number: 19 });
+    expect(items.filter((item) => item.groupKey === 'seguranca_e_epc_no_local')).toHaveLength(7);
+    // The same frozen list every call, so a reader can hold it.
+    expect(siteItems('v4')).toBe(items);
+    expect(Object.isFrozen(items)).toBe(true);
+    expect(Object.isFrozen(items[0])).toBe(true);
+    for (const version of ['v1', 'v2', 'v3', 'v99']) expect(siteItems(version), version).toEqual([]);
   });
 });
 

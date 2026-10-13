@@ -81,6 +81,9 @@ Block types: `disjuntor_mt`.
 | 13 | CONDIÇÃO GERAL DOS MECANISMOS | `condicao_geral_dos_mecanismos` | mecanismo com folga · peças desgastadas · falta de lubrificação no mecanismo |
 | 14 | RELÉ DE ACIONAMENTO SECUNDÁRIO OU PRIM. | `rele_de_acionamento_secundario_ou_prim` | relé não atua · relé sem ajuste registrado · fiação do relé danificada |
 | 15 | ÓLEO ISOLANTE/INDICADOR DE NÍVEL | `oleo_isolante_indicador_de_nivel` | nível de óleo abaixo do mínimo · vazamento de óleo · indicador de nível ilegível |
+| 16 | NO-BREAK DE COMANDO | `no_break_de_comando` | No-break inoperante · Bateria vencida ou estufada · Sem autonomia para o relé |
+
+*(2026-10-13, Story 14.3: row 16 ships with seed `v4` only, in `packages/domain/src/seed/v4.ts`; seeds `v1` to `v3` keep the fifteen rows above. Its three phrases are the chips the approved mock draws on the item (`60-ficha.html`, item 16), pending Bruno's review like the rest. The NC phrases of the 19 "Verificações do local" items are in the same file and are listed for Bruno in the Story 14.3 pull request.)*
 
 ## TP, TC and Transformador de força (one shared list)
 

@@ -81,6 +81,61 @@ describe('isConcurrent', () => {
   });
 });
 
+describe('Story 14.3: a local\'s site checklist cell is judged and merged by the sheet checklist\'s rules', () => {
+  const at = (path: string) => parsePath(path);
+  const c = (value: JsonValue, op_id = '019966b0-0010-7000-8000-0000000000aa'): Cell => ({ value, source_suggestion_id: null, op_id });
+  const siteResult = `location/${LOC}/checklist/ventilacao/result`;
+  const siteObservation = `location/${LOC}/checklist/ventilacao/observation`;
+
+  it('isConcurrent: a site put that did not see the head is concurrent; every other location path stays off the merge', () => {
+    const { eduardo } = world();
+    const x = eduardo(siteResult, 'C');
+    const cellX: Cell = { value: 'C', source_suggestion_id: null, op_id: x.op_id };
+    expect(isConcurrent(eduardo(siteResult, 'NC'), cellX)).toBe(true);
+    expect(isConcurrent(eduardo(siteResult, 'NC', x.op_id), cellX)).toBe(false);
+    expect(isConcurrent(eduardo(siteResult, 'NC'), undefined)).toBe(false);
+    expect(isConcurrent({ ...eduardo(siteResult, 'NC'), device_id: SERVER_DEVICE_ID }, cellX)).toBe(false);
+    // The stamp closes the chain on its own head, as on a sheet.
+    expect(isConcurrent({ ...eduardo(siteResult, 'C', x.op_id), meta: { standing_op_id: '019966b0-0010-7000-8000-0000000000fe' } }, cellX)).toBe(true);
+    for (const path of [`location/${LOC}/funcao`, `location/${LOC}/name`, `location/${LOC}/se/type`, `location/${LOC}/agrupar_por_tipo`]) {
+      expect(isConcurrent(eduardo(path, 'x'), cellX), path).toBe(false);
+    }
+  });
+
+  it('mergePolicy: same value, filled over empty, NC over C, the NC device\'s observation, latest text, and C or NC against NA a contradiction', () => {
+    const { eduardo } = world();
+    expect(mergePolicy({ path: at(siteResult), current: c('C'), op: eduardo(siteResult, 'C') })).toEqual({ kind: 'apply', rule: 'same_value' });
+    expect(mergePolicy({ path: at(siteResult), current: c('NA'), op: eduardo(siteResult, null) })).toEqual({ kind: 'keep', rule: 'filled_over_empty' });
+    expect(mergePolicy({ path: at(siteResult), current: c(null), op: eduardo(siteResult, 'NA') })).toEqual({ kind: 'apply', rule: 'filled_over_empty' });
+    expect(mergePolicy({ path: at(siteResult), current: c('NC'), op: eduardo(siteResult, 'C') })).toEqual({ kind: 'keep', rule: 'nc_over_c' });
+    expect(mergePolicy({ path: at(siteResult), current: c('C'), op: eduardo(siteResult, 'NC') })).toEqual({ kind: 'apply', rule: 'nc_over_c' });
+    expect(mergePolicy({ path: at(siteResult), current: c('C'), op: eduardo(siteResult, 'NA') })).toEqual({ kind: 'contradiction' });
+    expect(mergePolicy({ path: at(siteResult), current: c('NC'), op: eduardo(siteResult, 'NA') })).toEqual({ kind: 'contradiction' });
+    expect(mergePolicy({ path: at(siteObservation), current: c('a'), op: eduardo(siteObservation, 'b') })).toEqual({ kind: 'apply', rule: 'latest_text' });
+    // The observation of an item merged to NC follows the NC device, whichever side the op is.
+    const ncKept: Cell = { ...c('NC'), merge: { head_op_id: '019966b0-0010-7000-8000-0000000000ab', device_id: A_DEVICE, kept: true, rule: 'nc_over_c' } };
+    expect(mergePolicy({ path: at(siteObservation), current: c('a'), op: eduardo(siteObservation, 'b'), result: ncKept })).toEqual({ kind: 'apply', rule: 'nc_observation' });
+    const ncApplied: Cell = { ...c('NC'), merge: { head_op_id: '019966b0-0010-7000-8000-0000000000ab', device_id: A_DEVICE, kept: false, rule: 'nc_over_c' } };
+    expect(mergePolicy({ path: at(siteObservation), current: c('a'), op: eduardo(siteObservation, 'b'), result: ncApplied })).toEqual({ kind: 'keep', rule: 'nc_observation' });
+    expect(mergePolicy({ path: at(siteResult), current: c('NC'), op: eduardo(siteResult, 'C', c('NC').op_id) })).toEqual({ kind: 'sequential' });
+  });
+
+  it('mergeCell writes the same cells a sheet checklist put would', () => {
+    const { eduardo } = world();
+    const current = c('NC');
+    const put = eduardo(siteResult, 'C');
+    expect(mergeCell(current, put, { path: at(siteResult) })).toEqual({ ...current, merge: { head_op_id: put.op_id, device_id: E_DEVICE, kept: true, rule: 'nc_over_c' } });
+    const na = eduardo(siteResult, 'NA');
+    expect(mergeCell(current, na, { path: at(siteResult) })).toEqual({
+      value: 'NA',
+      source_suggestion_id: null,
+      op_id: na.op_id,
+      conflict: { op_id: current.op_id, value: 'NC', source_suggestion_id: null },
+    });
+    expect(mergeCell(undefined, put, { path: at(siteResult) })).toEqual({ value: 'C', source_suggestion_id: null, op_id: put.op_id });
+  });
+});
+
 describe('mergePolicy', () => {
   const at = (path: string) => parsePath(path);
   const c = (value: JsonValue, op_id = '019966b0-0010-7000-8000-0000000000aa'): Cell => ({ value, source_suggestion_id: null, op_id });

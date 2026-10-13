@@ -1,4 +1,4 @@
-import { equipmentBlockTypeSchema, type EquipmentBlockType, type ItemKey, type Subtype } from '../schemas/block-config.ts';
+import { equipmentBlockTypeSchema, type EquipmentBlockType, type ItemKey, type SiteItemKey, type Subtype } from '../schemas/block-config.ts';
 import { SEEDED_CRITERIA } from './criteria.ts';
 import {
   dateSchema,
@@ -9,11 +9,13 @@ import {
   type RecurringFinding,
   type ReportType,
   type SeedBundle,
+  type SiteChecklist,
   type TextBlock,
 } from './schema.ts';
 import { CABINE_PRIMARIA_V1 } from './v1.ts';
 import { CABINE_PRIMARIA_V2 } from './v2.ts';
 import { CABINE_PRIMARIA_V3 } from './v3.ts';
+import { CABINE_PRIMARIA_V4 } from './v4.ts';
 
 /*
  * AD-21, AR-20: seed data is versioned code, resolved and never copied. A Template and a
@@ -24,10 +26,12 @@ import { CABINE_PRIMARIA_V3 } from './v3.ts';
  */
 
 /**
- * The version a new Template is created with. A Template, and every relatório made from
- * it, keeps the version it was created with: a v1 Template keeps producing v1 relatórios.
+ * The version a new Template is created with. A relatório keeps the version it was created
+ * with for as long as it exists. A Template keeps its own until the server's upgrade step
+ * moves it (`templateSeedUpgrade`, Story 14.3): every relatório made from it afterwards is
+ * born on the newer version, and none already made is touched.
  */
-export const SEED_VERSION = 'v3';
+export const SEED_VERSION = 'v4';
 
 /** The named variables section boilerplate may carry, resolved at generation. */
 export const SECTION_VARIABLES = ['empresa_executora', 'cliente', 'obra', 'escopo', 'datas', 'responsavel'] as const;
@@ -60,6 +64,7 @@ export const SEED_VERSIONS: Readonly<Record<string, SeedBundle>> = deepFreeze({
   v1: bundle('v1', CABINE_PRIMARIA_V1),
   v2: bundle('v2', CABINE_PRIMARIA_V2),
   v3: bundle('v3', CABINE_PRIMARIA_V3),
+  v4: bundle('v4', CABINE_PRIMARIA_V4),
 });
 
 /**
@@ -134,6 +139,45 @@ const definitionCache = new Map<string, BlockDefinition>();
 export function recurringFindings(seedVersion: string): readonly RecurringFinding[] {
   const own = Object.hasOwn(SEED_VERSIONS, seedVersion) ? SEED_VERSIONS[seedVersion]!.report_types.cabine_primaria.recurring_findings : undefined;
   return own ?? SEED_VERSIONS[SEED_VERSION]!.report_types.cabine_primaria.recurring_findings ?? [];
+}
+
+/**
+ * Story 14.3: the site checklist ("Verificações do local") of a seed version, or null when the
+ * version ships none (v1 to v3) or is unknown. Null means the relatório has no site checklist
+ * at all: nothing is shown, counted or printed, and the fold refuses a site item put.
+ */
+export function siteChecklistOf(seedVersion: string): SiteChecklist | null {
+  return findSeed(seedVersion)?.site_checklist ?? null;
+}
+
+/** One site item as every reader takes it: flat, with its group and its running number. */
+export interface SiteItem {
+  key: SiteItemKey;
+  label: string;
+  /** The key of the group the item sits in (`SiteChecklist.groups[].key`). */
+  groupKey: string;
+  /** 1-based, running across the groups: the number the surface and the printed table show. */
+  number: number;
+  nc_phrases: readonly string[];
+}
+
+const NO_SITE_ITEMS: readonly SiteItem[] = Object.freeze([]);
+const siteItemsCache = new Map<string, readonly SiteItem[]>();
+
+/** The site items of a seed version in order, numbered 1 to N across the groups; none when the version ships no list. */
+export function siteItems(seedVersion: string): readonly SiteItem[] {
+  const known = siteItemsCache.get(seedVersion);
+  if (known !== undefined) return known;
+  const list = siteChecklistOf(seedVersion);
+  if (list === null) return NO_SITE_ITEMS;
+  const items: SiteItem[] = [];
+  for (const group of list.groups) {
+    for (const item of group.items) items.push({ key: item.key, label: item.label, groupKey: group.key, number: items.length + 1, nc_phrases: item.nc_phrases });
+  }
+  // Only a resolved version is kept: the seeds are frozen and finite, so the cache is bounded.
+  const frozen = deepFreeze(items);
+  siteItemsCache.set(seedVersion, frozen);
+  return frozen;
 }
 
 /** FR-11: the item keys a subtype pre-marks NA, or none without a subtype. */

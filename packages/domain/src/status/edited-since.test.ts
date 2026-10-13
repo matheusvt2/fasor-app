@@ -196,6 +196,13 @@ describe('2026-10-10 decision 3: countsAsFieldContent, per path family and kind'
       op(`point/${A}`, 'create', {}),
       op(`point/${A}/text`),
       op(`point/${A}/priority`),
+      // Story 14.3: a site item's answer and observation, its photo and the point created from it.
+      op(`location/${A}/checklist/epi_disponivel/result`),
+      op(`location/${A}/checklist/epi_disponivel/observation`),
+      op(`file/${A}`, 'create', { kind: 'photo', block_id: null, location_id: A, item_key: 'epi_disponivel' }),
+      op(`file/${A}/location_id`),
+      op(`point/${A}`, 'create', { location_id: A, equipment_id: null }),
+      op(`point/${A}/location_id`),
     ];
     for (const candidate of content) {
       expect(countsAsFieldContent(candidate), `${candidate.kind} ${candidate.path}`).toBe(true);
@@ -258,6 +265,8 @@ describe('P9: every editedSince family is decided as content or structure', () =
     'location/env': { content: [`location/${A}/env/temperature_c`], structure: [] },
     'location/agrupar_por_tipo': { content: [], structure: [`location/${A}/agrupar_por_tipo`] },
     'location/funcao': { content: [], structure: [`location/${A}/funcao`] },
+    // Story 14.3: a site item's result and observation are filled on site.
+    'location/checklist': { content: [`location/${A}/checklist/ventilacao/result`, `location/${A}/checklist/ventilacao/observation`], structure: [] },
     block: { content: [], structure: [`block/${A}`] },
     'block/field': { content: [`block/${A}/not_tested`, `block/${A}/concluded_by`], structure: [`block/${A}/config`, `block/${A}/order_key`] },
     'sheet/nameplate': { content: [`sheet/${A}/nameplate/n_serie`], structure: [] },
@@ -267,9 +276,9 @@ describe('P9: every editedSince family is decided as content or structure', () =
     'sheet/conclusion': { content: [`sheet/${A}/conclusion/result`], structure: [] },
     'sheet/observations': { content: [`sheet/${A}/observations`], structure: [] },
     file: { content: [`file/${A}`], structure: [] },
-    'file/field': { content: [`file/${A}/caption`], structure: [`file/${A}/removed_at`] },
+    'file/field': { content: [`file/${A}/caption`, `file/${A}/location_id`], structure: [`file/${A}/removed_at`] },
     point: { content: [`point/${A}`], structure: [] },
-    'point/field': { content: [`point/${A}/text`], structure: [`point/${A}/order_key`] },
+    'point/field': { content: [`point/${A}/text`, `point/${A}/location_id`], structure: [`point/${A}/order_key`] },
     equipment: { content: [], structure: [`equipment/${A}`] },
     'equipment/field': { content: [], structure: [`equipment/${A}/tag`] },
   };
@@ -316,6 +325,48 @@ describe('Story 14.2: painel ops and a local Função are structure, and an edit
   });
 });
 
+describe('Story 14.3: a site item, its photo and its point are field content, and an edit', () => {
+  const LOCAL = '019966b0-0001-7000-8000-0000000000c1';
+  const FILE = '019966b0-0001-7000-8000-0000000000c2';
+  const POINT = '019966b0-0001-7000-8000-0000000000c3';
+  const RELATORIO = '019966b0-0001-7000-8000-0000000000c4';
+  const sitePhoto = { id: FILE, kind: 'photo', relatorio_id: RELATORIO, block_id: null, location_id: LOCAL, item_key: 'iluminacao_normal', reading_kind: null };
+  const sitePoint = { id: POINT, relatorio_id: RELATORIO, text: `Luminária queimada [[foto:${FILE}]]`, equipment_id: null, location_id: LOCAL, origin: 'manual', order_key: 'a0', removed_at: null };
+  const ops = [
+    { name: 'result C', op: { path: `location/${LOCAL}/checklist/iluminacao_normal/result`, actor_id: 'u', kind: 'put' as const, value: 'C' } },
+    { name: 'result NC', op: { path: `location/${LOCAL}/checklist/iluminacao_normal/result`, actor_id: 'u', kind: 'put' as const, value: 'NC' } },
+    { name: 'result NA', op: { path: `location/${LOCAL}/checklist/bacia_de_contencao_de_oleo/result`, actor_id: 'u', kind: 'put' as const, value: 'NA' } },
+    { name: 'result cleared', op: { path: `location/${LOCAL}/checklist/iluminacao_normal/result`, actor_id: 'u', kind: 'put' as const, value: null } },
+    { name: 'observation', op: { path: `location/${LOCAL}/checklist/iluminacao_normal/observation`, actor_id: 'u', kind: 'put' as const, value: 'Lâmpadas queimadas' } },
+    { name: 'site photo create', op: { path: `file/${FILE}`, actor_id: 'u', kind: 'create' as const, value: sitePhoto } },
+    { name: 'site photo location_id put', op: { path: `file/${FILE}/location_id`, actor_id: 'u', kind: 'put' as const, value: LOCAL } },
+    { name: 'site photo caption', op: { path: `file/${FILE}/caption`, actor_id: 'u', kind: 'put' as const, value: 'Verificação da iluminação normal do 1° Subsolo' } },
+    { name: 'site point create', op: { path: `point/${POINT}`, actor_id: 'u', kind: 'create' as const, value: sitePoint } },
+    { name: 'site point location_id put', op: { path: `point/${POINT}/location_id`, actor_id: 'u', kind: 'put' as const, value: LOCAL } },
+  ];
+
+  it.each(ops)('$name: countsAsEdit (an Emitido relatório reopens) and countsAsFieldContent (a Rascunho one goes to Em campo)', ({ op }) => {
+    expect(countsAsEdit(op)).toBe(true);
+    expect(countsAsFieldContent(op)).toBe(true);
+    expect(editedSince([{ ...op, seq: 8 }], 7)).toBe(true);
+    expect(editedSince([{ ...op, seq: 7 }], 7)).toBe(false);
+  });
+
+  it('removing a site photo or a site point is an edit and never content, as for any photo or point', () => {
+    for (const path of [`file/${FILE}/removed_at`, `point/${POINT}/removed_at`]) {
+      const remove = { path, actor_id: 'u', kind: 'remove' as const, value: null };
+      expect(countsAsEdit(remove), path).toBe(true);
+      expect(countsAsFieldContent(remove), path).toBe(false);
+    }
+  });
+
+  it('a system actor never counts, and a key outside the site list is no path at all', () => {
+    expect(countsAsEdit({ path: `location/${LOCAL}/checklist/ventilacao/result`, actor_id: 'system:sync', kind: 'put', value: 'C' })).toBe(false);
+    expect(countsAsEdit({ path: `location/${LOCAL}/checklist/limpeza/result`, actor_id: 'u', kind: 'put', value: 'C' })).toBe(false);
+    expect(countsAsFieldContent({ path: `location/${LOCAL}/checklist/limpeza/result`, actor_id: 'u', kind: 'put', value: 'C' })).toBe(false);
+  });
+});
+
 describe('2026-10-13: every op path family is decided, an edit or never one', () => {
   /** Every family the op path schema accepts, read from the schema itself. */
   const schemaFamilies = opPathSchema.options.map((option) => option.shape.family.value as PathFamily);
@@ -355,7 +406,7 @@ describe('2026-10-13: every op path family is decided, an edit or never one', ()
     }
   });
 
-  it('the classification of 2026-10-10 is unchanged, plus `location/funcao` (Story 14.2): the twenty-one edit families and the twenty-two that never are', () => {
+  it('the classification of 2026-10-10 is unchanged, plus `location/funcao` (Story 14.2) and `location/checklist` (Story 14.3): the twenty-two edit families and the twenty-two that never are', () => {
     expect([...EDITED_SINCE_FAMILIES].sort()).toEqual(
       [
         'block',
@@ -366,6 +417,7 @@ describe('2026-10-13: every op path family is decided, an edit or never one', ()
         'file/field',
         'location',
         'location/agrupar_por_tipo',
+        'location/checklist',
         'location/env',
         'location/field',
         'location/funcao',

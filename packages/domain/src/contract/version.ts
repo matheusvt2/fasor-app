@@ -115,8 +115,20 @@
  * `agrupar_por_tipo` or `funcao` on a painel, `funcao` on a coluna), which the push route
  * answers `op_invalid`. A row written before 17 parses to the same bytes and nothing an
  * existing log can contain starts to throw. `MIN_CONTRACT_VERSION` goes to 17 too.
+ *
+ * 18 (2026-10-13, Story 14.3): Verificações do local. The put family
+ * `location/{id}/checklist/{item_key}/{result|observation}` is new (`item_key` one of the
+ * closed `SITE_ITEM_KEYS`): a cell on the cabine row's optional `checklist`, folded through
+ * `mergeCell` with the sheet checklist's rules and stamped like a sheet put. The photo row and
+ * the point row gain the optional `location_id` (`file/{id}/location_id`,
+ * `point/{id}/location_id`; absent and null both mean none). Seed v4 ships (the site item list
+ * and the Disjuntor MT item `no_break_de_comando`, a new `ITEM_KEYS` value) and is the version
+ * of a new template. The fold refuses a site put on a painel or a coluna (`LocationKindError`)
+ * and one whose item the relatório's seed version does not offer (`SeedPathError`); both are
+ * answered `op_invalid`. A row written before 18 parses to the same bytes and nothing an
+ * existing log can contain starts to throw. `MIN_CONTRACT_VERSION` goes to 18 too.
  */
-export const CONTRACT_VERSION = 17;
+export const CONTRACT_VERSION = 18;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -191,8 +203,16 @@ export const CONTRACT_VERSION = 17;
  * `invalid_response`), and its template schema refuses a skeleton holding a `painel` node. A
  * relatório or company stream carries those as soon as anyone adds a painel or sets a
  * local's Função, so the version-16 bundle updates too.
+ *
+ * 18 (2026-10-13, Story 14.3): a version-17 (or older) bundle cannot parse a
+ * `location/{id}/checklist/...` put, a `file/{id}/location_id` put nor a
+ * `point/{id}/location_id` put (unknown paths: its `opSchema` fails the whole pulled page,
+ * `invalid_response`), and it cannot resolve seed v4: a template the server moved to v4, a
+ * relatório created on it, and a Disjuntor MT sheet's `no_break_de_comando` item are all
+ * outside what it ships. A relatório or company stream carries those as soon as the template
+ * upgrade runs or anyone answers a site item, so the version-17 bundle updates too.
  */
-export const MIN_CONTRACT_VERSION = 17;
+export const MIN_CONTRACT_VERSION = 18;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

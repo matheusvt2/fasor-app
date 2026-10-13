@@ -1,4 +1,4 @@
-import { findDefinition } from '../seed/definitions.ts';
+import { findDefinition, siteItems } from '../seed/definitions.ts';
 import type { TestDef } from '../seed/schema.ts';
 import {
   blockRowSchema,
@@ -87,8 +87,10 @@ function carriedLocationId(op: Op, path: OpPath): string | null {
 }
 
 /**
- * The rows an op may read or write: its target, plus the block a photo op carries and the
- * location a block op places its block on (read only, for `LocationKindError`).
+ * The rows an op may read or write: its target, plus the block a photo op carries, the
+ * location a block op places its block on (read only, for `LocationKindError`) and, Story
+ * 14.3, the relatório of a site checklist put (read only, for the seed check of
+ * `assertSiteItem`; named when the op carries `relatorio_id`, as every relatório-scope op does).
  */
 export function targetsOf(op: Op): ResolvedRef[] {
   const path = parsePath(op.path);
@@ -97,7 +99,30 @@ export function targetsOf(op: Op): ResolvedRef[] {
   if (blockId) refs.push(ref('block', blockId));
   const locationId = carriedLocationId(op, path);
   if (locationId) refs.push(ref('location', locationId));
+  if (path.family === 'location/checklist' && op.relatorio_id) refs.push(ref('relatorio', op.relatorio_id));
   return refs;
+}
+
+/** Story 14.3: the families whose value is a cell folded through `mergeCell`: every `sheet/*` one and a local's site checklist. */
+export function isCellFamily(family: OpPath['family']): boolean {
+  return family.startsWith('sheet/') || family === 'location/checklist';
+}
+
+/** Story 14.3: the cell a `location/{id}/checklist/...` path addresses on a location row, or undefined (no such cell, or not a cabine). */
+export function siteCellAt(location: LocationRow | null | undefined, path: OpPath): Cell | undefined {
+  if (path.family !== 'location/checklist' || location === null || location === undefined || location.kind !== 'cabine') return undefined;
+  return location.checklist?.[path.item_key]?.[path.field];
+}
+
+/**
+ * Story 14.3: the cell a cell-family path (`isCellFamily`) addresses in `state`, on the block
+ * or the location it targets; undefined when the row or the slot is absent.
+ */
+export function cellAt(state: EntityState, path: OpPath): Cell | undefined {
+  if (path.family === 'location/checklist') return siteCellAt(state.get(entityKey('location', path.id)) as LocationRow | undefined, path);
+  if (!path.family.startsWith('sheet/')) return undefined;
+  const block = state.get(entityKey('block', (path as { block_id: string }).block_id)) as BlockRow | undefined;
+  return block === undefined ? undefined : sheetCellAt(block.sheet, path);
 }
 
 /** The cell a `sheet/*` path addresses on a sheet, or undefined when the slot holds none. */
@@ -225,6 +250,9 @@ export class SeedPathError extends Error {
  * Replay safety: thrown only for shapes that could not exist before contract 17 (a `painel`
  * row, the `funcao` path). `se`, `env` and `agrupar_por_tipo` on a coluna stay the silent
  * no-op they always were, and a location that is not in `state` is not checked.
+ *
+ * Story 14.3 (contract 18): a site checklist put (`location/{id}/checklist/...`) on a painel
+ * or a coluna is refused the same way: the checklist exists only on a cabine, the local.
  */
 export class LocationKindError extends Error {
   readonly path: string;
@@ -241,6 +269,10 @@ function assertLocationKind(location: LocationRow, op: Op, path: OpPath): void {
     if (location.kind !== 'cabine') throw new LocationKindError(op.path, `funcao exists only on a cabine; location ${location.id} is a ${location.kind}`);
     return;
   }
+  if (path.family === 'location/checklist') {
+    if (location.kind !== 'cabine') throw new LocationKindError(op.path, `the site checklist exists only on a cabine; location ${location.id} is a ${location.kind}`);
+    return;
+  }
   if (path.family !== 'location/se' && path.family !== 'location/env' && path.family !== 'location/agrupar_por_tipo') return;
   if (location.kind === 'painel') throw new LocationKindError(op.path, `a painel holds no data; ${path.family} exists only on a cabine`);
 }
@@ -252,6 +284,27 @@ function assertBlockLocation(state: EntityState, op: Op, path: OpPath): void {
   const location = state.get(entityKey('location', locationId)) as LocationRow | undefined;
   if (location !== undefined && location.kind === 'painel') {
     throw new LocationKindError(op.path, `a painel takes no block; location ${location.id} only groups colunas`);
+  }
+}
+
+/**
+ * Story 14.3 (contract 18): refuses a site checklist put whose item the relatório's seed
+ * version does not offer: a relatório on v1 to v3 has no site checklist at all, and a later
+ * version may not ship every `SITE_ITEM_KEYS` key. `parsePath` already refused a key outside
+ * the closed list. The relatório row is the one `targetsOf` names from `op.relatorio_id`; an
+ * op naming another relatório than the location's own is refused too, since its seed could
+ * not be judged. A relatório row that is not in `state` is not checked (the device's
+ * re-materialization of one location folds without it): replay safety, as for
+ * `LocationKindError`. Thrown only for a path that could not exist before contract 18.
+ */
+function assertSiteItem(state: EntityState, location: LocationRow, op: Op, path: OpPath & { family: 'location/checklist' }): void {
+  if (op.relatorio_id != null && op.relatorio_id !== location.relatorio_id) {
+    throw new SeedPathError(op.path, `location/checklist: location ${location.id} is not of relatório ${op.relatorio_id}`);
+  }
+  const relatorio = state.get(entityKey('relatorio', location.relatorio_id)) as RelatorioRow | undefined;
+  if (relatorio === undefined) return;
+  if (!siteItems(relatorio.seed_version).some((item) => item.key === path.item_key)) {
+    throw new SeedPathError(op.path, `location/checklist: "${path.item_key}" is not a site item of seed_version "${relatorio.seed_version}"`);
   }
 }
 
@@ -420,6 +473,9 @@ export function readPath(state: EntityState, op: Op): unknown {
       const loc = row as LocationRow;
       return loc.kind === 'cabine' ? (loc.funcao ?? null) : undefined;
     }
+    case 'location/checklist':
+      // As a sheet cell: undefined for an item never answered.
+      return siteCellAt(row as LocationRow, path)?.value;
     case 'suggestion/status':
       return r.status;
     case 'equipment/last_nameplate':
@@ -489,6 +545,17 @@ function writeRow(row: EntityRow, op: Op, path: OpPath): EntityRow {
       const loc = row as LocationRow;
       return loc.kind === 'cabine' ? { ...loc, funcao: value as string | null } : row;
     }
+    case 'location/checklist': {
+      // Story 14.3: one cell of the site checklist, merged by the sheet checklist's own rules
+      // (`mergeCell`). `assertLocationKind` already refused any other kind; the row parse that
+      // follows validates the cell and writes the entry in its schema's key order.
+      const loc = row as LocationRow;
+      if (loc.kind !== 'cabine') return row;
+      const entry = loc.checklist?.[path.item_key];
+      const result = path.field === 'observation' ? entry?.result : undefined;
+      const cell = mergeCell(entry?.[path.field], op, { path, result });
+      return { ...loc, checklist: { ...loc.checklist, [path.item_key]: { ...entry, [path.field]: cell } } };
+    }
     case 'file/field': {
       const file = row as FileRow;
       if (file.kind !== 'photo' && path.field !== 'removed_at') return row;
@@ -542,7 +609,8 @@ function isSheetFamily(family: OpPath['family']): boolean {
  * result is a new map with the changed rows replaced (unchanged rows keep
  * their identity). A second create is a no-op; a put or remove on a missing
  * row is a no-op; an op whose value breaks the row schema throws, and so does
- * one that asks of a location what its kind never holds (`LocationKindError`). A `sheet/*`
+ * one that asks of a location what its kind never holds (`LocationKindError`) or of a
+ * relatório a site item its seed version does not offer (`SeedPathError`). A `sheet/*`
  * put validates what it writes (K-1); every other family re-parses the row.
  */
 export function applyOp(state: EntityState, op: Op): EntityState {
@@ -558,6 +626,7 @@ export function applyOp(state: EntityState, op: Op): EntityState {
   } else {
     if (!current) return next;
     if (target.entity === 'location') assertLocationKind(current as LocationRow, op, path);
+    if (path.family === 'location/checklist') assertSiteItem(state, current as LocationRow, op, path);
     assertBlockLocation(state, op, path);
     const written = writeRow(current, op, path);
     if (written === current) return next;

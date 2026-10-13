@@ -2,14 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { applyOp, type EntityState } from '../ops/apply.ts';
 import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
-import { blockConfigSchema, MAX_QUANTITY } from '../schemas/block-config.ts';
+import { blockConfigSchema, EQUIPMENT_BLOCK_TYPES, MAX_QUANTITY, SECTION_BLOCK_TYPES, type TemplateBlock } from '../schemas/block-config.ts';
 import { templateRowSchema, type BlockRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { standardTemplate } from '../seed/template.ts';
+import { SEED_VERSION, SEED_VERSIONS } from '../seed/definitions.ts';
+import { defaultBlockConfig, standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO, TEST_USER } from '../test-support.ts';
 import { instantiateTemplate } from '../relatorio/instantiate.ts';
 import { locationBlocks, newEquipmentBlock } from '../relatorio/tree.ts';
-import { templateFromRelatorio, templateSavedText } from './from-relatorio.ts';
+import { emptyTemplate } from './list.ts';
+import { templateFromRelatorio, templateSavedText, templateSeedUpgrade } from './from-relatorio.ts';
 
 const NEW_TEMPLATE = '019966b0-0060-7000-8000-000000000099';
 
@@ -49,8 +51,9 @@ describe('11.3-UNIT templateFromRelatorio over the standard relatório', () => {
   const { snapshot } = build();
   const template = templateFromRelatorio(snapshot, { id: NEW_TEMPLATE, name: 'Porto Seguro' });
 
-  it('parses with templateRowSchema at version 1 on the relatório seed', () => {
+  it('parses with templateRowSchema at version 1 on the relatório seed (the current one)', () => {
     expect(templateRowSchema.parse(template)).toBeTruthy();
+    expect(snapshot.relatorio.seed_version).toBe(SEED_VERSION);
     expect(template).toMatchObject({ id: NEW_TEMPLATE, name: 'Porto Seguro', version: 1, seed_version: snapshot.relatorio.seed_version, archived_at: null, removed_at: null });
   });
 
@@ -266,5 +269,78 @@ describe('14.2-UNIT templateFromRelatorio with painéis', () => {
     const placed = template.blocks.filter((block) => block.skeleton_location_ref !== null);
     expect(placed.every((block) => kinds.get(block.skeleton_location_ref!) !== 'painel')).toBe(true);
     expect(placed.reduce((sum, block) => sum + block.quantity, 0)).toBe(4);
+  });
+});
+
+describe('14.3-UNIT how templates reach the current seed version', () => {
+  const EARLIER = Object.keys(SEED_VERSIONS).filter((version) => version !== SEED_VERSION);
+  const TEMPLATE = '019966b0-0069-7000-8000-000000000001';
+
+  it('the bundle ships v1 to v3 before the current v4', () => {
+    expect(SEED_VERSION).toBe('v4');
+    expect(EARLIER).toEqual(['v1', 'v2', 'v3']);
+  });
+
+  it.each(['v1', 'v2', 'v3'])('templateSeedUpgrade: the standard template of %s validates on the current version and moves to it', (version) => {
+    const row = standardTemplate({ id: TEMPLATE, seedVersion: version });
+    expect(row.seed_version).toBe(version);
+    expect(templateSeedUpgrade(row)).toBe(SEED_VERSION);
+    // What the server step writes: the same row with only `seed_version` moved.
+    const moved = { ...row, seed_version: SEED_VERSION };
+    expect(templateRowSchema.safeParse(moved).success).toBe(true);
+    expect(templateRowSchema.parse(moved)).toEqual({ ...row, seed_version: SEED_VERSION });
+    expect(templateSeedUpgrade(moved)).toBeNull();
+  });
+
+  it.each(['v1', 'v2', 'v3'])('templateSeedUpgrade: every default config of %s, with each subtype and role, validates on the current version', (version) => {
+    const seed = SEED_VERSIONS[version]!.report_types.cabine_primaria;
+    const blocks: TemplateBlock[] = SECTION_BLOCK_TYPES.map((type) => ({ ...defaultBlockConfig(version, type), quantity: 1, skeleton_location_ref: null, section_text: null }));
+    for (const type of EQUIPMENT_BLOCK_TYPES) {
+      const variants = [{}, ...seed.blocks[type].subtypes.map((subtype) => ({ subtype: subtype.key })), { role: 'entrada' as const }, { role: 'saida' as const }, { role: 'alimentacao' as const }];
+      for (const options of variants) blocks.push({ ...defaultBlockConfig(version, type, options), quantity: 1, skeleton_location_ref: 'local', section_text: null });
+    }
+    const row = { ...emptyTemplate(TEMPLATE, version), blocks, skeleton: [{ ref: 'local', kind: 'cabine' as const, parent_ref: null, name: 'Local', agrupar_por_tipo: false }] };
+    expect(templateRowSchema.safeParse(row).success).toBe(true);
+    expect(blocks.length).toBeGreaterThan(SECTION_BLOCK_TYPES.length + EQUIPMENT_BLOCK_TYPES.length * 4);
+    expect(templateSeedUpgrade(row)).toBe(SEED_VERSION);
+  });
+
+  it('templateSeedUpgrade: null when already current, on a version this bundle does not ship, and when the row would not validate there', () => {
+    const current = standardTemplate({ id: TEMPLATE });
+    expect(templateSeedUpgrade(current)).toBeNull();
+    expect(templateSeedUpgrade({ ...current, seed_version: 'v99' })).toBeNull();
+    expect(templateSeedUpgrade({ ...current, seed_version: '' })).toBeNull();
+    expect(templateSeedUpgrade({ ...current, seed_version: 'toString' })).toBeNull();
+    // A row that fails the current version's row check stays where it is (the server step skips and logs it).
+    const v3 = standardTemplate({ id: TEMPLATE, seedVersion: 'v3' });
+    const broken = { ...v3, blocks: v3.blocks.map((block, i) => (i === v3.blocks.length - 1 ? { ...block, section_text: 'x' } : block)) };
+    expect(templateSeedUpgrade(broken)).toBeNull();
+    const orphanParent = { ...v3, skeleton: [...v3.skeleton, { ref: 'solta', kind: 'coluna' as const, parent_ref: 'ausente', name: 'Coluna solta' }] };
+    expect(templateSeedUpgrade(orphanParent)).toBeNull();
+    // An empty template and one with only a skeleton move too.
+    expect(templateSeedUpgrade(emptyTemplate(TEMPLATE, 'v1'))).toBe(SEED_VERSION);
+    expect(templateSeedUpgrade({ seed_version: 'v2', blocks: [], skeleton: v3.skeleton })).toBe(SEED_VERSION);
+  });
+
+  it.each(['v1', 'v2', 'v3'])('a template saved from a relatório on %s is born on the current version, with the same structure', (version) => {
+    const { snapshot } = build(standardTemplate({ id: '019966b0-0060-7000-8000-000000000001', seedVersion: version }), '019966b0-006a-7000-8000-');
+    expect(snapshot.relatorio.seed_version).toBe(version);
+    const saved = templateFromRelatorio(snapshot, { id: NEW_TEMPLATE, name: 'De um relatório antigo' });
+    expect(saved.seed_version).toBe(SEED_VERSION);
+    expect(templateRowSchema.safeParse(saved).success).toBe(true);
+    expect(saved.blocks.filter((block) => block.skeleton_location_ref !== null).reduce((sum, block) => sum + block.quantity, 0)).toBe(94);
+    // The relatório itself is not touched: its row and its blocks stay on the version they were made with.
+    expect(snapshot.relatorio.seed_version).toBe(version);
+    expect(new Set(snapshot.blocks.map((block) => block.seed_version))).toEqual(new Set([version]));
+    // A relatório made from the saved template is born on the current version.
+    const again = build(saved, '019966b0-006b-7000-8000-');
+    expect(again.snapshot.relatorio.seed_version).toBe(SEED_VERSION);
+    expect(structure(again.snapshot)).toEqual(structure(snapshot));
+  });
+
+  it('a relatório on a version this bundle does not ship keeps its own version on the saved template', () => {
+    const { snapshot } = build();
+    const saved = templateFromRelatorio({ ...snapshot, relatorio: { seed_version: 'v99' }, blocks: [] }, { id: NEW_TEMPLATE, name: 'Futuro' });
+    expect(saved.seed_version).toBe('v99');
   });
 });
