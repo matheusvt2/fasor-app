@@ -111,6 +111,14 @@ export interface TreeLocationNode {
   id: string;
   parentId: string | null;
   name: string;
+  /**
+   * The name the row's own controls read ("Expandir …", "Mais opções de …", "Reordenar …",
+   * "Posição de …"). A painel is named with its local, as `40-relatorio-overview.html` words
+   * it ("Painel de entrada de Cubículo Enel"): every local's first painel is "Painel 1" by
+   * default, so the painel alone would name the controls of two locals alike. Any other row
+   * reads its own name.
+   */
+  controlName: string;
   level: number;
   /** The local's Função as stored (a reserved key or a typed name); null when it holds none, and on a painel or a coluna. */
   funcao: string | null;
@@ -294,6 +302,11 @@ function childrenByParent(locations: readonly LocationRow[]): Map<string, Locati
   return out;
 }
 
+/** "Painel de entrada de Cubículo Enel": a painel named with its local (`40-relatorio-overview.html`, the painel row's chevron and Overflow). */
+export function painelOfLocalText(painelName: string, localName: string): string {
+  return `${painelName} de ${localName}`;
+}
+
 /*
  * K-17/K-2 (full review 2026-09-30): `locationTree` is memoized on the identity of what it
  * reads -- the `blocks`, `locations` and `equipment` arrays of the snapshot, the `equipment`
@@ -388,7 +401,7 @@ function buildLocationTree(
     };
   };
 
-  const build = (location: LocationRow, depth: number, position: number, siblings: number): TreeLocationNode => {
+  const build = (location: LocationRow, depth: number, position: number, siblings: number, parent: LocationRow | null = null): TreeLocationNode => {
     const own = blocksAt.get(location.id) ?? [];
     const children = drawingOrder(childrenOf.get(location.id) ?? []);
     // A child's reorder siblings are the children of its own kind (a painel among the painéis).
@@ -396,7 +409,7 @@ function buildLocationTree(
     for (const child of children) sameKind.set(child.kind, [...(sameKind.get(child.kind) ?? []), child]);
     const childNodes = children.map((child) => {
       const peers = sameKind.get(child.kind)!;
-      return build(child, depth + 1, peers.indexOf(child) + 1, peers.length);
+      return build(child, depth + 1, peers.indexOf(child) + 1, peers.length, location);
     });
     const counts = progressOf(location.id);
     const equipmentNodes = own.map((block, i) => equipmentNode(block, i + 1, own.length, Math.min(depth + 1, TREE_MAX_LEVEL)));
@@ -406,6 +419,7 @@ function buildLocationTree(
       id: location.id,
       parentId: location.parent_id,
       name: location.name,
+      controlName: location.kind === 'painel' && parent?.kind === 'cabine' ? painelOfLocalText(location.name, parent.name) : location.name,
       level: Math.min(depth, TREE_MAX_LEVEL),
       funcao: location.kind === 'cabine' ? (location.funcao ?? null) : null,
       meta: texts.meta,

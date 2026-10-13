@@ -572,7 +572,9 @@ function locationMenu(node: TreeLocationNode, shared: Shared, reorder: Reorder |
   if (shared.presentation === 'rail') return items;
   const target = shared.paletteLocation(node);
   // A painel with no coluna takes no block: nothing to offer until it has one.
-  if (target !== null) items.push({ id: 'add-block', label: local ? t.addEquipamento : t.addBlock, onAction: () => shared.openPalette({ locationId: target, anchorBlockId: null }) });
+  // "Adicionar equipamento" only when the block goes on the local itself; a local that holds colunas
+  // directly (every tree born from the standard template) adds to its current coluna, which is "Adicionar bloco".
+  if (target !== null) items.push({ id: 'add-block', label: local && target === node.id ? t.addEquipamento : t.addBlock, onAction: () => shared.openPalette({ locationId: target, anchorBlockId: null }) });
   if (local) items.push({ id: 'add-painel', label: t.addPainel, onAction: () => shared.actions.addLocation(node, 'painel') });
   if (node.kind === 'painel' || (local && node.locations.some((child) => child.kind === 'coluna'))) {
     items.push({ id: 'add-coluna', label: t.addColuna, onAction: () => shared.actions.addLocation(node, 'coluna') });
@@ -619,7 +621,7 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
       type="button"
       className="tree-chevron"
       data-tree-chevron={node.id}
-      aria-label={open ? t.collapse(node.name) : t.expand(node.name)}
+      aria-label={open ? t.collapse(node.controlName) : t.expand(node.controlName)}
       aria-expanded={open}
       aria-controls={open && controls !== '' ? controls : undefined}
       onClick={() => shared.setOpen(node, !open)}
@@ -629,11 +631,13 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
   );
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => treeKeys(event, open, (value) => shared.setOpen(node, value));
   // EXPERIENCE.md › Relatório tree: "drag, Position box, Overflow menu, or Alt+↑/↓" at every level
-  // (Story 14.2). The mock draws neither on a location row; the experience wins.
+  // (Story 14.2). The mock draws neither on a location row; the experience wins. Every control of
+  // the row reads the kernel's `controlName`: a painel is named with its local, as the mock's
+  // chevron and Overflow are ("Mais opções de Painel de entrada de Cubículo Enel").
   const reorderControls = (
     <>
-      <DragHandle name={node.name} reorder={reorder} />
-      <PositionBox name={node.name} position={node.position} siblings={node.siblings} reorder={reorder} className="s9-pos" />
+      <DragHandle name={node.controlName} reorder={reorder} />
+      <PositionBox name={node.controlName} position={node.position} siblings={node.siblings} reorder={reorder} className="s9-pos" />
     </>
   );
   const equipmentList =
@@ -700,7 +704,7 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
             <span className="dot" aria-hidden="true" />
             {node.counterText}
           </span>
-          <OverflowMenu name={node.name} items={menu} />
+          <OverflowMenu name={node.controlName} items={menu} />
         </div>
         {/* The local's own sheets first, under their heading line (the mock's `.s9-col` of `.s9-eqs`). */}
         {open && node.equipment.length > 0 ? (
@@ -743,7 +747,7 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
             <span className="dot" aria-hidden="true" />
             {node.counterText}
           </span>
-          <OverflowMenu name={node.name} items={menu} />
+          <OverflowMenu name={node.controlName} items={menu} />
         </div>
         {/* A painel takes no block, but a row can still sit on one (a block whose op was folded
             before the painel reached this device): it is counted, so it is drawn. A block never vanishes. */}
@@ -777,7 +781,7 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
         {reorderControls}
         <span className="s9-col-name">{node.name}</span>
         <span className="s9-col-meta">{node.counterText}</span>
-        <OverflowMenu name={node.name} items={menu} />
+        <OverflowMenu name={node.controlName} items={menu} />
       </div>
       {equipmentList}
       {colunaList}
@@ -870,7 +874,7 @@ const RailLocation = memo(function RailLocation({ node, shared }: { node: TreeLo
             type="button"
             className="tree-chevron"
             data-tree-chevron={node.id}
-            aria-label={open ? t.collapse(node.name) : t.expand(node.name)}
+            aria-label={open ? t.collapse(node.controlName) : t.expand(node.controlName)}
             aria-expanded={open}
             aria-controls={open ? groupId : undefined}
             onClick={() => shared.setOpen(node, !open)}
@@ -886,7 +890,7 @@ const RailLocation = memo(function RailLocation({ node, shared }: { node: TreeLo
           {/* Story 14.2: the rail line of each level is the kernel's ("Local · Entrada · 1 painel · 3 de 9 fichas", "Painel · 1 coluna · 3 de 9"). */}
           <span className="tree-meta">{node.railMeta}</span>
         </div>
-        {menu.length > 0 ? <OverflowMenu name={node.name} items={menu} /> : null}
+        {menu.length > 0 ? <OverflowMenu name={node.controlName} items={menu} /> : null}
       </div>
       {open && hasChildren ? (
         <ul className="relatorio-tree" id={groupId}>

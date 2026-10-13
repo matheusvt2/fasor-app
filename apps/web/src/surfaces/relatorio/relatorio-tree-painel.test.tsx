@@ -199,11 +199,11 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     expect(note).toHaveClass('pnl-empty');
     expect(note).toHaveTextContent('Este painel ainda não tem colunas. Um painel só agrupa colunas e não recebe equipamento direto: adicione uma coluna e coloque os equipamentos nela.');
     expect(within(painelB).queryByRole('button', { name: /Adicionar bloco/ })).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B de Cabine de Testes' }));
     expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Adicionar coluna', 'Renomear', 'Subir']);
     await userEvent.keyboard('{Escape}');
     // The painel with colunas offers "Adicionar bloco" too.
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel de média tensão' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel de média tensão de Cabine de Testes' }));
     expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Adicionar bloco', 'Adicionar coluna', 'Renomear', 'Descer']);
     await userEvent.keyboard('{Escape}');
 
@@ -227,7 +227,65 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     expect(sheet).not.toBeNull();
     expect(sheet.querySelector('.block-tag')).toHaveTextContent('DJ-9');
     // The chevron names the list it opens.
-    expect(within(painelB).getByRole('button', { name: 'Recolher Painel B' }).getAttribute('aria-controls')).toContain(painelB.querySelector(':scope > .s9-eqs')!.id);
+    expect(within(painelB).getByRole('button', { name: 'Recolher Painel B de Cabine de Testes' }).getAttribute('aria-controls')).toContain(painelB.querySelector(':scope > .s9-eqs')!.id);
+  });
+
+  it('names the chevron, drag handle, Position box and Overflow of a painel with its local, so the first painel of two locals never reads alike (coordinator review 2026-10-13)', async () => {
+    database = await seeded();
+    // A second local whose first painel carries the same default name as one under the first local.
+    const OTHER = id(0x41);
+    const TWIN_A = id(0x42);
+    const TWIN_B = id(0x43);
+    const local = (await locationRow(LOCAL))!;
+    const twins: LocationRow[] = [
+      { ...local, id: OTHER, name: 'Geradores', order_key: 'z0' },
+      { id: TWIN_A, relatorio_id: RELATORIO, parent_id: LOCAL, kind: 'painel', name: 'Painel 1', order_key: 'z1', removed_at: null },
+      { id: TWIN_B, relatorio_id: RELATORIO, parent_id: OTHER, kind: 'painel', name: 'Painel 1', order_key: 'a0', removed_at: null },
+    ];
+    await database.entities.bulkPut(twins.map((location) => toRecord(`location:${location.id}`, location)));
+    await openLocal();
+    await userEvent.click(await screen.findByRole('button', { name: 'Expandir Geradores' }));
+    await waitFor(() => expect(row(TWIN_B)).not.toBeNull());
+    for (const [painelId, where] of [
+      [TWIN_A, 'Painel 1 de Cabine de Testes'],
+      [TWIN_B, 'Painel 1 de Geradores'],
+    ] as const) {
+      const painel = within(row(painelId));
+      expect(painel.getByRole('button', { name: `Recolher ${where}` })).toHaveClass('tree-chevron');
+      expect(painel.getByRole('button', { name: `Reordenar ${where}` })).toHaveClass('drag-handle');
+      expect(painel.getByRole('textbox', { name: `Posição de ${where}` })).toHaveClass('pos-box');
+      expect(painel.getByRole('button', { name: `Mais opções de ${where}` })).toHaveClass('overflow-trigger');
+    }
+    // Each name is one control on the page; the painel's own name alone names none.
+    expect(screen.getAllByRole('button', { name: /^Mais opções de Painel 1/ })).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'Mais opções de Painel 1' })).toBeNull();
+    // What the row shows, and its rename dialog, keep the painel's own name.
+    expect(row(TWIN_B).querySelector('.s9-pnl-name')).toHaveTextContent(/^Painel 1$/);
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel 1 de Geradores' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
+    expect(await screen.findByRole('dialog', { name: 'Renomear Painel 1' })).toBeInTheDocument();
+  });
+
+  it('the local Overflow says "Adicionar equipamento" only when the block goes on the local itself; with colunas directly under it the item is "Adicionar bloco" and adds to its current coluna (coordinator review 2026-10-13)', async () => {
+    database = await seeded({ paineis: false });
+    await openLocal();
+    // No coluna under the local: the palette target is the local.
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
+    expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toContain('Adicionar equipamento');
+    expect(screen.queryByRole('menuitem', { name: 'Adicionar bloco' })).toBeNull();
+    await userEvent.keyboard('{Escape}');
+
+    // A coluna directly under it (the shape of every tree born from the standard template): the block goes into that coluna.
+    const DIRECT = id(0x51);
+    await database.entities.put(toRecord(`location:${DIRECT}`, { id: DIRECT, relatorio_id: RELATORIO, parent_id: LOCAL, kind: 'coluna', name: 'Coluna 9', order_key: 'a0', removed_at: null } satisfies LocationRow));
+    await waitFor(() => expect(row(DIRECT)).not.toBeNull());
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
+    const items = (await screen.findAllByRole('menuitem')).map((item) => item.textContent);
+    expect(items).toContain('Adicionar bloco');
+    expect(items).not.toContain('Adicionar equipamento');
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Adicionar bloco' }));
+    const palette = await screen.findByRole('dialog', { name: 'Adicionar bloco' });
+    expect(within(palette).getByText('Em: Cabine de Testes › Coluna 9')).toBeInTheDocument();
   });
 
   it('"Adicionar painel" creates a painel under the local, named after its siblings, opened with its note; "Desfazer" removes it', async () => {
@@ -247,7 +305,7 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     const painelId = create!.path.split('/')[1]!;
     await waitFor(() => expect(row(painelId)).toHaveClass('s9-painel', 'is-open'));
     expect(within(row(painelId)).getByRole('note')).toHaveClass('pnl-empty');
-    await waitFor(() => expect(within(row(painelId)).getByRole('button', { name: 'Recolher Painel 1' })).toHaveFocus());
+    await waitFor(() => expect(within(row(painelId)).getByRole('button', { name: 'Recolher Painel 1 de Cabine de Testes' })).toHaveFocus());
 
     await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
     await waitFor(() => expect(row(painelId)).toBeNull());
@@ -412,7 +470,7 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     await openLocal();
     const order = () => [...row(LOCAL).querySelectorAll(':scope > .s9-pnls > li.s9-painel .s9-pnl-name')].map((el) => el.textContent);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
     const dialog = await screen.findByRole('dialog', { name: 'Renomear Painel B' });
     const field = within(dialog).getByRole('textbox', { name: 'Nome' });
@@ -424,7 +482,7 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     await waitFor(async () => expect((await locationRow(PAINEL_B))!.name).toBe('Painel B'));
 
     // Alt+Up on the painel's chevron.
-    const chevron = await within(row(PAINEL_B)).findByRole('button', { name: 'Recolher Painel B' });
+    const chevron = await within(row(PAINEL_B)).findByRole('button', { name: 'Recolher Painel B de Cabine de Testes' });
     chevron.focus();
     fireEvent.keyDown(chevron, { key: 'ArrowUp', altKey: true });
     await waitFor(() => expect(announcer()).toHaveTextContent('Painel B movido para a posição 1 de 2'));
@@ -433,13 +491,13 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     await waitFor(() => expect(order()).toEqual(['Painel de média tensão', 'Painel B']));
 
     // The Overflow's "Descer" on the first painel.
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel de média tensão' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel de média tensão de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Descer' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Painel de média tensão movido para a posição 2 de 2'));
     await waitFor(() => expect(order()).toEqual(['Painel B', 'Painel de média tensão']));
 
     // The Position box (EXPERIENCE.md: drag, Position box, Overflow menu or Alt+arrows at every level).
-    const box = within(row(PAINEL)).getByRole('textbox', { name: 'Posição de Painel de média tensão' });
+    const box = within(row(PAINEL)).getByRole('textbox', { name: 'Posição de Painel de média tensão de Cabine de Testes' });
     expect(box).toHaveValue('2');
     await userEvent.clear(box);
     await userEvent.type(box, '1{Enter}');
@@ -476,11 +534,11 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     const colunas = () => [...row(LOCAL).querySelectorAll(':scope > .s9-cols > li.s9-coluna > .s9-col .s9-col-name')].map((el) => el.textContent);
     expect(paineis()).toEqual(['Painel de média tensão', 'Painel B']);
     expect(colunas()).toEqual(['Coluna 1', 'Coluna 2']);
-    expect(within(row(PAINEL_B)).getByRole('textbox', { name: 'Posição de Painel B' })).toHaveValue('2');
+    expect(within(row(PAINEL_B)).getByRole('textbox', { name: 'Posição de Painel B de Cabine de Testes' })).toHaveValue('2');
     expect(within(row(DIRECT_2)).getByRole('textbox', { name: 'Posição de Coluna 2' })).toHaveValue('2');
 
     // The painel: second of two painéis, whatever the colunas between them hold.
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Subir' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Painel B movido para a posição 1 de 2'));
     await waitFor(() => expect(paineis()).toEqual(['Painel B', 'Painel de média tensão']));
@@ -517,7 +575,7 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     // A local and a painel carry both controls too.
     expect(within(row(LOCAL)).getByRole('button', { name: 'Reordenar Cabine de Testes' })).toBeInTheDocument();
     expect(within(row(LOCAL)).getByRole('textbox', { name: 'Posição de Cabine de Testes' })).toHaveValue('1');
-    expect(within(row(PAINEL)).getByRole('button', { name: 'Reordenar Painel de média tensão' })).toBeInTheDocument();
+    expect(within(row(PAINEL)).getByRole('button', { name: 'Reordenar Painel de média tensão de Cabine de Testes' })).toBeInTheDocument();
   });
 
   it('"Adicionar local" at the foot asks the Função and the name and creates the cabine row with both', async () => {
@@ -559,7 +617,7 @@ describe('14.2 relatório tree: three levels (rail presentation)', () => {
     ]);
     // The rail edits nothing: no handle, no Position box, and only the local carries a menu.
     expect(rail.querySelector('.pos-box, .drag-handle')).toBeNull();
-    expect(within(rail).queryByRole('button', { name: 'Mais opções de Painel de média tensão' })).toBeNull();
+    expect(within(rail).queryByRole('button', { name: 'Mais opções de Painel de média tensão de Cabine de Testes' })).toBeNull();
     expect(within(rail).getByRole('button', { name: 'Mais opções de Cabine de Testes' })).toBeInTheDocument();
   });
 });

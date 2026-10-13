@@ -194,6 +194,21 @@ describe('14.2-UNIT locationTree: three levels', () => {
     expect(byName(tree, 'Coluna legado')).toMatchObject({ meta: '', railMeta: '0 de 1' });
   });
 
+  it('names the controls of a painel with its local ("Painel B de Cabine de transformação"); a local and a coluna read their own name (coordinator review 2026-10-13)', () => {
+    expect(byName(tree, 'Painel de média tensão').controlName).toBe('Painel de média tensão de Cabine de transformação');
+    expect(byName(tree, 'Painel B').controlName).toBe('Painel B de Cabine de transformação');
+    expect(local.controlName).toBe('Cabine de transformação');
+    expect(byName(tree, 'Coluna legado').controlName).toBe('Coluna legado');
+    expect(byName(tree, 'Coluna 6').controlName).toBe('Coluna 6');
+    // Two locals whose first painel is the default "Painel 1": the control names differ.
+    const twins = locationTree({
+      locations: [cabine(LOCAL, 'Cubículo Enel', 'a0'), cabine(ENEL, 'Geradores', 'a1'), painel(PNL_MT, 'Painel 1', LOCAL, 'a0'), painel(PNL_B, 'Painel 1', ENEL, 'a0')],
+      blocks: [],
+      equipment: [],
+    });
+    expect(twins.map((node) => node.locations.map((child) => child.controlName))).toEqual([['Painel 1 de Cubículo Enel'], ['Painel 1 de Geradores']]);
+  });
+
   it('a coluna whose name does not say "Coluna" is led by the word on the rail', () => {
     const snapshot = relatorio();
     const renamed = { ...snapshot, locations: snapshot.locations.map((row) => (row.id === id(MT_C5) ? { ...row, name: 'Entrada' } : row)) };

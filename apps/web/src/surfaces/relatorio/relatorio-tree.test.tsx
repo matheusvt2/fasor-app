@@ -263,11 +263,13 @@ describe('4.4 location tree (Sumário presentation)', () => {
       await userEvent.keyboard('{Escape}');
       return labels;
     };
-    // Story 14.2 (`#sum-menu-local`): a local that already holds a coluna directly keeps its "Adicionar coluna".
+    // Story 14.2 (`#sum-menu-local`): a local that already holds a coluna directly keeps its "Adicionar coluna",
+    // and its add item is "Adicionar bloco": the block goes into its current coluna, not on the local
+    // (coordinator review 2026-10-13). "Adicionar equipamento" is the item of a local that takes the block itself.
     expect(await itemsOf('Mais opções de Cabine de Testes')).toEqual([
       'Abrir primeira ficha (dados do local)',
       'Agrupar por tipo na seção 9',
-      'Adicionar equipamento',
+      'Adicionar bloco',
       'Adicionar painel',
       'Adicionar coluna',
       'Função e nome',
