@@ -102,7 +102,7 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   // Left on a leaf's body goes to its coluna's chevron.
   await sec.locator('.s9-eq-open').focus();
   await page.keyboard.press('ArrowLeft');
-  await expect(page.getByRole('button', { name: 'Recolher Coluna 1', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Recolher Coluna 1 de 1° Subsolo', exact: true })).toBeFocused();
   // Review F-3: "Adicionar bloco em ⟨cabine⟩" opens on the cabine's current coluna (its last, no sheet worked yet).
   await page.getByRole('button', { name: 'Adicionar bloco em 1° Subsolo' }).click();
   await expect(page.getByRole('dialog', { name: 'Adicionar bloco' }).getByText('Em: 1° Subsolo › Coluna 17')).toBeVisible();
@@ -151,15 +151,15 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   await page.keyboard.press('Escape');
   await menuOf(page, '1° Subsolo').click();
   await page.getByRole('menuitem', { name: 'Adicionar coluna' }).click();
-  await expect(page.getByRole('button', { name: 'Recolher Coluna 18', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Recolher Coluna 18 de 1° Subsolo', exact: true })).toBeFocused();
   await expect(toast(page)).toContainText('Coluna 18 adicionada');
-  await menuOf(page, 'Coluna 18').click();
+  await menuOf(page, 'Coluna 18 de 1° Subsolo').click();
   await page.getByRole('menuitem', { name: 'Renomear' }).click();
   const rename = page.getByRole('dialog', { name: 'Renomear Coluna 18' });
   await rename.getByRole('textbox', { name: 'Nome' }).fill('Entrada');
   await rename.getByRole('button', { name: 'Salvar' }).click();
   await expect(coluna(page, 'Entrada')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: 'Recolher Entrada' })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Recolher Entrada de 1° Subsolo' })).toBeFocused();
   await menuOf(page, 'Geradores').click();
   await page.getByRole('menuitem', { name: 'Subir' }).click();
   await expect(announcer(page)).toHaveText('Local Geradores movido para a posição 5 de 6');
@@ -194,7 +194,7 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
 
   // The field palette, as a right drawer, one tap, offline.
   await context.setOffline(true);
-  await menuOf(page, 'Coluna 1').click();
+  await menuOf(page, 'Coluna 1 de 1° Subsolo').click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   await expect(palette.getByText('Em: 1° Subsolo › Coluna 1')).toBeVisible();
@@ -324,7 +324,7 @@ test('@p0 4.5-E2E-002 at 1280: the office palette asks TAG and Local prefilled a
   await openRelatorio(page, 1280);
   await openSection9(page);
   await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
-  await menuOf(page, 'Coluna 1').click();
+  await menuOf(page, 'Coluna 1 de 1° Subsolo').click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   // From 1280 px each type opens its confirm instead of creating at once.

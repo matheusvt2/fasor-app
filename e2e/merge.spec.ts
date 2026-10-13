@@ -321,7 +321,7 @@ test('@p1 10.1-E2E-004 blocks added on each tablet are kept on both; the same bl
     await expect(tagsIn(p)).toContainText(['SEC-C01']);
   };
   const addBlock = async (p: Page, tag: string, count: number) => {
-    await p.getByRole('button', { name: 'Mais opções de Coluna 1', exact: true }).click();
+    await p.getByRole('button', { name: 'Mais opções de Coluna 1 de 1° Subsolo', exact: true }).click();
     await p.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
     const palette = p.getByRole('dialog', { name: 'Adicionar bloco' });
     await palette.locator('button.palette-item.pf-field').filter({ has: p.locator('.pi-meta', { hasText: new RegExp(`^${tag}$`) }) }).click();

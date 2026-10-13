@@ -262,7 +262,7 @@ test('@p0 3.4-E2E-001 builds a skeleton from "Novo template" and reorders a colu
   }
   await expect(colunaNames(page, COLUNAS_OF_PAINEL_1)).toHaveText(['Coluna 1', 'Coluna 2', 'Coluna 3']);
 
-  await page.getByRole('button', { name: 'Mais opções de Coluna 3' }).click();
+  await page.getByRole('button', { name: 'Mais opções de Coluna 3 em Painel 1 em Cabine 1' }).click();
   await page.getByRole('menuitem', { name: 'Renomear' }).click();
   const rename = page.getByRole('dialog', { name: 'Renomear Coluna 3' });
   await rename.getByRole('textbox', { name: 'Nome' }).fill('Coluna 5');
@@ -280,22 +280,22 @@ test('@p0 3.4-E2E-001 builds a skeleton from "Novo template" and reorders a colu
   await expect(announcer(page)).toHaveText('Coluna 5 movida para a posição 1 de 3');
 
   // Overflow "Descer".
-  await page.getByRole('button', { name: 'Mais opções de Coluna 5' }).click();
+  await page.getByRole('button', { name: 'Mais opções de Coluna 5 em Painel 1 em Cabine 1' }).click();
   await page.getByRole('menuitem', { name: 'Descer' }).click();
   await expect(colunaNames(page, COLUNAS_OF_PAINEL_1)).toHaveText(['Coluna 1', 'Coluna 5', 'Coluna 2']);
   await expect(announcer(page)).toHaveText('Coluna 5 movida para a posição 2 de 3');
 
   // The Position box.
-  const posBox = page.getByRole('textbox', { name: 'Posição de Coluna 5' });
+  const posBox = page.getByRole('textbox', { name: 'Posição de Coluna 5 em Painel 1 em Cabine 1' });
   await posBox.fill('3');
   await posBox.press('Enter');
   await expect(colunaNames(page, COLUNAS_OF_PAINEL_1)).toHaveText(['Coluna 1', 'Coluna 2', 'Coluna 5']);
   await expect(announcer(page)).toHaveText('Coluna 5 movida para a posição 3 de 3');
 
   // A mouse drag from the handle to the top.
-  const handle = page.getByRole('button', { name: 'Reordenar Coluna 5' });
+  const handle = page.getByRole('button', { name: 'Reordenar Coluna 5 em Painel 1 em Cabine 1' });
   const from = (await handle.boundingBox())!;
-  const top = (await page.getByRole('button', { name: 'Reordenar Coluna 1' }).boundingBox())!;
+  const top = (await page.getByRole('button', { name: 'Reordenar Coluna 1 em Painel 1 em Cabine 1' }).boundingBox())!;
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
   await page.mouse.down();
   await page.mouse.move(from.x + from.width / 2, top.y - 4, { steps: 8 });
@@ -499,7 +499,7 @@ test('@p0 3.4-E2E-005 a coluna removed on one device while a stale device sets q
     await expect(second.locator('.composer-meta')).toHaveText(/^26 seccionadoras · 22 disjuntores/);
 
     // Context 1 removes Coluna 9 and syncs FIRST.
-    await page.getByRole('button', { name: 'Mais opções de Coluna 9' }).click();
+    await page.getByRole('button', { name: 'Mais opções de Coluna 9 em 1° Subsolo' }).click();
     await page.getByRole('menuitem', { name: 'Remover' }).click();
     await page.getByRole('dialog', { name: 'Remover Coluna 9?' }).getByRole('button', { name: 'Remover' }).click();
     await expect(skeletonHeading(page)).toHaveText('Esqueleto de locais · 6 locais · 16 colunas · 94 blocos');
@@ -947,7 +947,8 @@ test('@p1 E3-A9-E2E-001 composer polish: a tap on a section card body opens "Edi
   // 14.2: "Renomear" is a coluna's and a painel's; a local's rename is "Função e nome".)
   const cabines = colunaNames(page, '1° Subsolo');
   const first = (await cabines.first().textContent())!;
-  await page.getByRole('button', { name: `Mais opções de ${first}`, exact: true }).click();
+  // A coluna's controls name it with its local (second pass, 2026-10-13); the rename dialog keeps the coluna's own name.
+  await page.getByRole('button', { name: `Mais opções de ${first} em 1° Subsolo`, exact: true }).click();
   await page.getByRole('menuitem', { name: 'Renomear' }).click();
   const rename = page.getByRole('dialog', { name: `Renomear ${first}`, exact: true });
   const field = rename.getByRole('textbox', { name: 'Nome' });
