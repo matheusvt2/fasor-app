@@ -171,3 +171,13 @@ DE COMANDO item; whether the section 3 sentence that excludes the no-break is re
 
 **To settle in a story spec, not decided here:** how templates reach seed v4 (14.3); the measurement table's exact
 path family, and whether the E5 options are sheet values (field content) or block config (structure today) (14.5).
+
+## Added 2026-10-13: location removal in the relatório tree (Story 14.2, review of PR #126)
+
+Matheus decided that Story 14.2 also removes and restores a coluna, a painel and a local in the relatório tree (`epics.md` Story 14.2, criteria block of 2026-10-13). What the later stories of this epic take from it:
+
+- A removed location is absent from the snapshot together with everything under it (`live()` in `packages/domain/src/schemas/snapshot.ts` gains an ancestor rule). Story 14.3's site checklist and its points of attention hang on a local: when the local is removed they leave the counters, the pre-issue list and section 8 with it, and come back with its restore. Story 14.3 states this in its spec and tests it; it adds no tombstone of its own for checklist values.
+- The removal batch is `location/{id}/removed_at` and `block/{id}/removed_at` writes only. Story 14.3's `location/{id}/checklist/...` ops on a removed local are folded (the row keeps the values) and hidden by the same rule.
+- Story 14.4 prints nothing for a removed local, painel or coluna; its site table follows the local.
+- Contract stays 17 for this: no new path.
+
