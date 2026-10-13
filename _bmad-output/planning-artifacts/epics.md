@@ -3112,6 +3112,28 @@ So that a transformation room with two transformers needs no invented coluna.
 **When** a painel is created, renamed, moved or removed, or a local's `funcao` is set
 **Then** the op counts as structure: it keeps a Rascunho relatório in Rascunho and is an edit for `editedSince` exactly as a location create or rename is today; `funcao` is a location field, never a `se` key; the kernel test that forces a decision for every op path family lists the new paths, and AD-22 gains a dated note
 
+**Acceptance Criteria added 2026-10-13 (location removal in the relatório tree; Matheus, review of PR #126):**
+
+*(The 2026-10-10 criterion says "move, rename and remove work at each level" on both surfaces. The first build removed locations in the Template composer only, because the relatório tree never removed a location before this story. Asked on 2026-10-13, Matheus chose to build the removal in this story and this pull request, not in a later one. The kernel already folds `location/{id}/removed_at` (family `location/field`), which the tree writes today as the "Desfazer" of a location create, so no new op path and no further contract bump are needed.)*
+
+**Given** a coluna, a painel or a local in the relatório tree (Sumário presentation)
+**When** the user picks "Remover", the last and destructive item of its Overflow menu
+**Then** one batch tombstones the location, every live location under it and every live sheet on them (`location/{id}/removed_at`, `block/{id}/removed_at`, and the equipment row when the removal frees it, exactly as a sheet removal does today); with at least one sheet underneath, a confirmation states the consequence with the kernel's counts and its button carries the verb; with none, the location leaves at once; the toast reads as the approved mock ("Painel, suas colunas e fichas removidos — recuperável até a emissão", "Local, seus painéis e fichas removidos — recuperável até a emissão"; the coluna's sentence is authored and marked `// authored:`) and its "Desfazer" inverts the batch; the rail offers no removal (FR-17, FR-19; UX-DR70; EXPERIENCE.md § block removal, extended to locations)
+
+**Given** a removed location
+**When** any surface or the generated document reads the relatório
+**Then** the location, the locations under it and their sheets are absent from the tree, the counters, the pre-issue list, the move and palette targets, section 9, section 11 and a template saved from the relatório; sibling positions close the gap; and a sheet that another device created in, or moved into, the removed location meanwhile is absent too, by one ancestor-liveness rule in the snapshot's `live()` (this closes the ledger entry on `block/{id}/location_id` under a removed location for every reader of the snapshot)
+
+**Given** the "Restaurar ficha removida" list of the Relatório overview
+**When** a location was removed after the newest revision
+**Then** the list carries one entry per removed location, told by its kind, name and what comes back with it; restoring it brings back the location, the locations and sheets that left in the same removal, and any removed ancestor it needs to be visible again; a sheet removed on its own before its location was removed stays removed, and is listed by itself only while its location is live; a restored TAG that was reused meanwhile is marked as a duplicate, as a restored sheet is today; after an emission the earlier removals leave the list, as sheets do
+
+**Given** the status flow and the merge rules
+**When** a location is removed or restored
+**Then** the ops count as structure (an edit, never field content: `FAMILY_DECISIONS`, with test rows for the painel, the coluna and the local); the removed-versus-edited conflict of each sheet fires as it does for a sheet removal, because every sheet carries its own tombstone; the location's own `removed_at` stays last-writer-wins
+
+**Definition of Done, in addition (2026-10-13):** kernel tests for the batch, the ancestor-liveness rule, the restore entries and the print without the removed painel; an api integration test of the batch through `POST /api/sync/ops`; a Playwright test at 768 px that removes a coluna holding a sheet and undoes it, removes a painel, reloads, restores it from the list with its colunas, sheets and TAGs, and removes a local, with the sync badge settled and the server holding the same rows; the durability specs touched run on the matrix projects; AD-6 gains a dated note on the removal (explicit tombstones in one batch plus the derived ancestor rule) and `deferred-work.md` closes O1 and the two `block/{id}/location_id` entries it answers.
+
 ~~**Acceptance Criteria added 2026-10-09 (Local › Cabine › Coluna):**~~ *(superseded 2026-10-10)*
 
 **Given** the kernel
