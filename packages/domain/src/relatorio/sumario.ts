@@ -515,19 +515,33 @@ function labelled<T extends { name: string; detail: string | null }>(rows: reado
 }
 
 /**
+ * The blocks the restore list may offer by their place (Story 14.2, second pass): on no
+ * location, or on one that is not hidden (`hiddenLocationIds`: removed, or under a removed
+ * row). A sheet on a hidden location comes back with that location's entry, or shows up
+ * once the location is back; one naming a location the rows do not hold is offered, since
+ * nothing says its location left.
+ */
+function onShownLocations(blocks: readonly BlockRow[], locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'removed_at'>[]): BlockRow[] {
+  const hidden = hiddenLocationIds(locations);
+  return blocks.filter((block) => block.location_id === null || !hidden.has(block.location_id));
+}
+
+/**
  * The removed blocks "Restaurar ficha removida" offers, newest removal first, each with a
- * label unique in the list. `locations` are the relatório's, removed ones included, so a
- * sheet still names the coluna it was in. Epic 4 retro item 29: `since` (the last
- * revision's `created_at`) cuts the list at the last issue: a block removed before it is
- * part of what was issued and is not offered; null (no revision) offers every one.
+ * label unique in the list: the block half of `restorableEntries`, by the same rule of
+ * place (`onShownLocations`). `locations` are the relatório's, removed ones included: a
+ * sheet names the coluna it was in, and one whose location is removed is not offered on its
+ * own. Epic 4 retro item 29: `since` (the last revision's `created_at`) cuts the list at
+ * the last issue: a block removed before it is part of what was issued and is not offered;
+ * null (no revision) offers every one.
  */
 export function restorableBlocks(
   blocks: readonly BlockRow[],
   equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[] = [],
-  locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'name'>[] = [],
+  locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'name' | 'removed_at'>[] = [],
   since: string | null = null,
 ): RestorableBlock[] {
-  return labelled(restorableBlockRows(blocks, equipment, locations, since).sort(byNewestRemoval));
+  return labelled(restorableBlockRows(onShownLocations(blocks, locations), equipment, locations, since).sort(byNewestRemoval));
 }
 
 /** A removed block in the restore list (`restorableBlocks`' row, told apart from a location). */
@@ -570,12 +584,7 @@ export function restorableEntries(input: {
 }): RestorableEntry[] {
   const { blocks, equipment, locations, since } = input;
   const hidden = hiddenLocationIds(locations);
-  const blockRows = restorableBlockRows(
-    blocks.filter((block) => block.location_id === null || !hidden.has(block.location_id)),
-    equipment,
-    locations,
-    since,
-  ).map((row) => ({ ...row, kind: 'block' as const }));
+  const blockRows = restorableBlockRows(onShownLocations(blocks, locations), equipment, locations, since).map((row) => ({ ...row, kind: 'block' as const }));
   const locationRows = locations
     .filter((row): row is LocationRow & { removed_at: string } => row.removed_at !== null && (since === null || row.removed_at > since))
     .filter((row) => row.parent_id === null || !hidden.has(row.parent_id))

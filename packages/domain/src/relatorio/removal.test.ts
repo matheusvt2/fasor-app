@@ -4,7 +4,10 @@ import type { Op } from '../ops/op.ts';
 import { invertBatch } from '../ops/outbox.ts';
 import type { BlockRow, EquipmentRow, LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot } from '../schemas/snapshot.ts';
-import { atMinutes, idSequence, T0, TEST_PROJECT } from '../test-support.ts';
+import { getDefinition } from '../seed/definitions.ts';
+import { holdsConflictMarks } from '../merge/conflicts.ts';
+import { stampSeen } from '../merge/stamp.ts';
+import { atMinutes, idSequence, opFactory, T0, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { integrityFindings } from './integrity.ts';
 import { ALL_HERE, blockIdOf, fold, locationId, removalFixture, removalOps, restoreOps, rowsIn, tagsOf, type RemovalFixture } from './removal.test-support.ts';
 import {
@@ -260,6 +263,97 @@ describe('14.2-UNIT a removal batch through applyOp', () => {
   });
 });
 
+describe('14.2-UNIT a location removal against another device (rule 10: nothing new in the merge)', () => {
+  const ANA = '019966b0-0156-7000-8000-000000000001';
+  const ANA_DEVICE = 'tablet-ana';
+  /** One checklist result typed on another device: an edit of the sheet, attributed to its author. */
+  function editOf(f: RemovalFixture, blockId: string, at: Date): Op {
+    const block = rowsIn(f.state).blocks.find((row) => row.id === blockId)!;
+    const item = getDefinition(block.seed_version, 'cabine_primaria', block.block_type).checklist![0]!.key;
+    return opFactory(at, idSequence('019966b0-0157-7000-8000-')).op({ path: `sheet/${blockId}/checklist/${item}/result`, value: 'C', relatorio_id: f.relatorioId, actor_id: ANA, device_id: ANA_DEVICE });
+  }
+  /** The removal batch of a painel as the commit path stamps it on the rows this device holds (`stampSeen`). */
+  function stampedRemoval(f: RemovalFixture, painel: string, at: Date): { plan: LocationRemovalPlan; ops: Op[] } {
+    const plan = planOf(f, painel)!;
+    return { plan, ops: removalOps(f.relatorioId, plan, at).map((op) => stampSeen(op, f.state)) };
+  }
+  const folded = (f: RemovalFixture, ops: readonly Op[]) => {
+    const state = new Map(f.state);
+    fold(state, ops);
+    return rowsIn(state);
+  };
+
+  it('a sheet edited on another device and removed with its painel carries the removed-versus-edited mark, in either order; the location rows are simply removed', () => {
+    const f = removalFixture();
+    const painel = locationId(f.state, 'Painel 1', 'Subestação');
+    const sheet = blockIdOf(f.state, 'SEC-C01');
+    // This device plans and stamps the batch on its own rows: it has not seen the edit.
+    const { plan, ops: removal } = stampedRemoval(f, painel, T2);
+    expect(plan.blockIds).toContain(sheet);
+    for (const op of removal) expect(op.meta, op.path).toEqual(op.path.startsWith('block/') ? { seen_modified_at: null } : null);
+    const edit = editOf(f, sheet, T1);
+    const mark = { removed_by: TEST_USER, removed_at: iso(T2), edited_by: ANA, edited_at: edit.client_ts };
+
+    // (a) The edit lands first: the block remove's stamp differs from the row's `last_modified_at`.
+    const editFirst = folded(f, [edit, ...removal]);
+    const marked = editFirst.blocks.find((row) => row.id === sheet)!;
+    expect(marked.last_modified_at).toBe(edit.client_ts);
+    expect(marked).toMatchObject({ removed_at: iso(T2), removed_by: TEST_USER, removal_conflict: mark });
+    expect(holdsConflictMarks(marked)).toBe(true);
+    // The edit is kept on the tombstoned sheet.
+    expect(Object.values(marked.sheet.checklist).map((cell) => cell.result?.value)).toEqual(['C']);
+    // Every other sheet of the batch is a plain removal, and so is every location.
+    for (const id of plan.blockIds.filter((id) => id !== sheet)) {
+      const row = editFirst.blocks.find((block) => block.id === id)!;
+      expect(row).toMatchObject({ removed_at: iso(T2), removed_by: TEST_USER });
+      expect(row.removal_conflict).toBeUndefined();
+    }
+    for (const id of plan.locationIds) {
+      const row = editFirst.locations.find((location) => location.id === id)!;
+      expect(row.removed_at).toBe(iso(T2));
+      expect(row).not.toHaveProperty('removal_conflict');
+      expect(row).not.toHaveProperty('removed_by');
+    }
+
+    // (b) The removal lands first: the edit on the tombstoned sheet sets the same mark; the rows are equal.
+    const removalFirst = folded(f, [...removal, edit]);
+    expect(removalFirst.blocks.find((row) => row.id === sheet)).toEqual(marked);
+    expect(removalFirst.locations).toEqual(editFirst.locations);
+    expect(removalFirst.blocks).toEqual(editFirst.blocks);
+  });
+
+  it('a removal that saw the edit is plain: the stamp is the row\'s `last_modified_at`', () => {
+    const f = removalFixture();
+    const painel = locationId(f.state, 'Painel 1', 'Subestação');
+    const sheet = blockIdOf(f.state, 'SEC-C01');
+    const edit = editOf(f, sheet, T1);
+    fold(f.state, [edit]);
+    const { ops: removal } = stampedRemoval(f, painel, T2);
+    expect(removal.find((op) => op.path === `block/${sheet}/removed_at`)!.meta).toEqual({ seen_modified_at: edit.client_ts });
+    const row = folded(f, removal).blocks.find((block) => block.id === sheet)!;
+    expect(row.removed_at).toBe(iso(T2));
+    expect(row.removal_conflict).toBeUndefined();
+  });
+
+  it('the location\'s own `removed_at` is last-writer-wins: of two removes, and of a remove and a restore, the later log position stands', () => {
+    const f = removalFixture();
+    const painel = locationId(f.state, 'Painel 1', 'Subestação');
+    const only = { locationIds: [painel], blockIds: [], equipmentIds: [] };
+    const painelIn = (ops: readonly Op[]) => folded(f, ops).locations.find((row) => row.id === painel)!;
+    // Two devices remove it; the one later in the log stands, whatever its clock says.
+    const here = removalOps(f.relatorioId, only, T2);
+    const there = removalOps(f.relatorioId, only, T1, ANA_DEVICE);
+    expect(painelIn([...here, ...there]).removed_at).toBe(iso(T1));
+    expect(painelIn([...there, ...here]).removed_at).toBe(iso(T2));
+    expect(painelIn([...here, ...there])).not.toHaveProperty('removal_conflict');
+    // A restore against a removal: again the later one in the log.
+    const back = restoreOps(f.relatorioId, only, T3, ANA_DEVICE);
+    expect(painelIn([...here, ...back]).removed_at).toBeNull();
+    expect(painelIn([...back, ...here]).removed_at).toBe(iso(T2));
+    expect(painelIn([...here, ...back, ...there]).removed_at).toBe(iso(T1));
+  });
+});
+
 describe('14.2-UNIT locationRestorePlan', () => {
   it('brings back the location, the locations and sheets that left in the same removal, and the equipment it freed', () => {
     const f = removalFixture();
@@ -496,6 +590,48 @@ describe('14.2-UNIT restorableEntries', () => {
     expect(entries(f)).toEqual([]);
   });
 
+  it('at one timestamp a location comes before a block whatever their ids, then each kind by id', () => {
+    const f = removalFixture();
+    // Two locations and two sheets on a live location, all removed at T1.
+    const coluna9 = locationId(f.state, 'Coluna 9', 'Subestação');
+    const geradores = locationId(f.state, 'Geradores');
+    remove(f, coluna9, T1);
+    remove(f, geradores, T1);
+    const tr1 = removeSheet(f, 'TR-1', T1);
+    const tr2 = removeSheet(f, 'TR-2', T1);
+    // A later removal still leads the list.
+    const painel2 = locationId(f.state, 'Painel 2', 'Subestação');
+    remove(f, painel2, T2);
+    const rows = rowsIn(f.state);
+    // TR-1 under an id below every location's: by id alone it would lead its timestamp.
+    const LOW = '00000000-0000-7000-8000-000000000001';
+    expect([coluna9, geradores].every((id) => LOW < id)).toBe(true);
+    const blocks = rows.blocks.map((row) => (row.id === tr1 ? { ...row, id: LOW } : row));
+    const listed = restorableEntries({ ...rows, blocks, since: null });
+    expect(listed.map((entry) => [entry.kind, entry.id])).toEqual([
+      ['location', painel2],
+      ...[coluna9, geradores].sort().map((id) => ['location', id]),
+      ...[LOW, tr2].sort().map((id) => ['block', id]),
+    ]);
+    expect(listed.map((entry) => entry.removed_at)).toEqual([iso(T2), iso(T1), iso(T1), iso(T1), iso(T1)]);
+  });
+
+  it('a removed sheet naming a location the rows do not hold is offered, with no place to name', () => {
+    const f = removalFixture();
+    const coluna9 = locationId(f.state, 'Coluna 9', 'Subestação');
+    const sheet = removeSheet(f, 'DJ-C09', T1);
+    const rows = rowsIn(f.state);
+    expect(rows.blocks.find((row) => row.id === sheet)!.location_id).toBe(coluna9);
+    // With its coluna among the rows it is listed with where it was.
+    expect(restorableEntries({ ...rows, since: null }).map((entry) => [entry.kind, entry.id, entry.name, entry.detail])).toEqual([['block', sheet, 'DJ-C09', 'Subestação › Coluna 9']]);
+    // A coluna this device never pulled: nothing says it left, so the sheet is still offered.
+    const without = rows.locations.filter((row) => row.id !== coluna9);
+    expect(restorableEntries({ ...rows, locations: without, since: null }).map((entry) => [entry.kind, entry.id, entry.name, entry.detail, entry.label])).toEqual([['block', sheet, 'DJ-C09', null, 'DJ-C09']]);
+    // The same coluna among the rows but removed: the sheet waits for it.
+    const removed = rows.locations.map((row) => (row.id === coluna9 ? { ...row, removed_at: iso(T2) } : row));
+    expect(restorableEntries({ ...rows, locations: removed, since: null }).map((entry) => [entry.kind, entry.id])).toEqual([['location', coluna9]]);
+  });
+
   it('cuts at the newest revision: a removal before it is part of what was issued, for a location as for a sheet', () => {
     const f = removalFixture();
     removeSheet(f, 'TR-2', T1);
@@ -522,6 +658,20 @@ describe('14.2-UNIT restorableEntries', () => {
     const rows = rowsIn(f.state);
     const blocksOnly = restorableBlocks(rows.blocks, rows.equipment, rows.locations, null);
     expect(entries(f).filter((entry) => entry.kind === 'block')).toEqual(blocksOnly.map((row) => ({ ...row, kind: 'block' })));
+  });
+
+  it('restorableBlocks is the block half by the same rule of place: a sheet on a removed location is not offered on its own', () => {
+    const f = removalFixture();
+    removeSheet(f, 'SEC-C01', T1);
+    removeSheet(f, 'TR-1', T2);
+    // The painel leaves afterwards with its colunas and their other three sheets.
+    remove(f, locationId(f.state, 'Painel 1', 'Subestação'), T3);
+    const rows = rowsIn(f.state);
+    const half = restorableBlocks(rows.blocks, rows.equipment, rows.locations, null);
+    expect(half.map((row) => [row.name, row.detail])).toEqual([['TR-1', 'Subestação']]);
+    expect(entries(f).filter((entry) => entry.kind === 'block')).toEqual(half.map((row) => ({ ...row, kind: 'block' })));
+    // With no location row to read, nothing says a location left: every removed block is listed, as before.
+    expect(restorableBlocks(rows.blocks, rows.equipment)).toHaveLength(5);
   });
 
   it('a restored TAG that was reused meanwhile is marked as a duplicate on both rows', () => {
