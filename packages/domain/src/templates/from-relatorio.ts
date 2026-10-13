@@ -10,6 +10,7 @@ import {
 } from '../schemas/block-config.ts';
 import type { BlockRow, LocationRow, RelatorioRow, TemplateRow } from '../schemas/entities.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
+import { liveLocationIds } from '../relatorio/location-live.ts';
 import { locationBlocks } from '../relatorio/tree.ts';
 
 /*
@@ -81,7 +82,9 @@ export function templateFromRelatorio(
   meta: { id: string; name: string },
 ): TemplateRow {
   const seedVersion = snapshot.relatorio.seed_version;
-  const live = sortByOrderKey(snapshot.locations.filter((row) => row.removed_at === null));
+  // Live by the tree's rule: a location under a removed one left the relatório with it.
+  const liveIds = liveLocationIds(snapshot.locations);
+  const live = sortByOrderKey(snapshot.locations.filter((row) => liveIds.has(row.id)));
 
   const skeleton: SkeletonNode[] = [];
   const colunasUnder = (parentId: string): SkeletonNode[] =>

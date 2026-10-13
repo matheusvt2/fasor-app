@@ -535,7 +535,7 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     expect(paineis()).toEqual(['Painel de média tensão', 'Painel B']);
     expect(colunas()).toEqual(['Coluna 1', 'Coluna 2']);
     expect(within(row(PAINEL_B)).getByRole('textbox', { name: 'Posição de Painel B de Cabine de Testes' })).toHaveValue('2');
-    expect(within(row(DIRECT_2)).getByRole('textbox', { name: 'Posição de Coluna 2' })).toHaveValue('2');
+    expect(within(row(DIRECT_2)).getByRole('textbox', { name: 'Posição de Coluna 2 de Cabine de Testes' })).toHaveValue('2');
 
     // The painel: second of two painéis, whatever the colunas between them hold.
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B de Cabine de Testes' }));
@@ -546,7 +546,7 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     expect((await outbox()).map((op) => [op.path, op.kind])).toEqual([[`location/${PAINEL_B}/order_key`, 'put']]);
 
     // The coluna: second of two colunas.
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 2' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 2 de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Subir' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 2 movida para a posição 1 de 2'));
     await waitFor(() => expect(colunas()).toEqual(['Coluna 2', 'Coluna 1']));
@@ -564,8 +564,8 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     database = await seeded();
     await openLocal();
     const coluna6 = row(COLUNA_6);
-    expect(within(coluna6).getByRole('button', { name: 'Reordenar Coluna 6' })).toHaveClass('drag-handle');
-    const box = within(coluna6).getByRole('textbox', { name: 'Posição de Coluna 6' });
+    expect(within(coluna6).getByRole('button', { name: 'Reordenar Coluna 6 de Painel de média tensão de Cabine de Testes' })).toHaveClass('drag-handle');
+    const box = within(coluna6).getByRole('textbox', { name: 'Posição de Coluna 6 de Painel de média tensão de Cabine de Testes' });
     expect(box).toHaveValue('2');
     await userEvent.clear(box);
     await userEvent.type(box, '1{Enter}');

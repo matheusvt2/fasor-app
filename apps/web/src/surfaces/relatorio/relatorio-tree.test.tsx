@@ -239,7 +239,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
     const open = eqRow(SEC_C01).querySelector<HTMLElement>('.s9-eq-open')!;
     open.focus();
     await userEvent.keyboard('{ArrowLeft}');
-    const colChevron = screen.getByRole('button', { name: 'Recolher Coluna 1' });
+    const colChevron = screen.getByRole('button', { name: 'Recolher Coluna 1 de Cabine de Testes' });
     expect(colChevron).toHaveFocus();
     await userEvent.keyboard('{ArrowLeft}');
     await waitFor(() => expect(colChevron).toHaveAttribute('aria-expanded', 'false'));
@@ -276,7 +276,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
       'Descer',
     ]);
     expect(await itemsOf('Mais opções de Cabine Vazia')).toEqual(['Agrupar por tipo na seção 9', 'Adicionar equipamento', 'Adicionar painel', 'Função e nome', 'Subir']);
-    expect(await itemsOf('Mais opções de Coluna 1')).toEqual(['Adicionar bloco', 'Renomear']);
+    expect(await itemsOf('Mais opções de Coluna 1 de Cabine de Testes')).toEqual(['Adicionar bloco', 'Renomear']);
     expect(await itemsOf('Mais opções de DJ-TEST')).toEqual(['Adicionar abaixo', 'Subir', 'Descer', 'Mover para…', 'Duplicar', 'Renomear TAG', 'Remover']);
 
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de Testes' }));

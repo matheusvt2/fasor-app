@@ -1,5 +1,6 @@
 import { isEquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, EquipmentRow, LocationRow } from '../schemas/entities.ts';
+import { liveLocationIds } from './location-live.ts';
 import { blockTypeLabel, locationChoices, newBlockOrderKey, type LocationChoice } from './tree.ts';
 import { normalizeTag, suggestTag, type TagLocation } from './tag.ts';
 
@@ -100,7 +101,8 @@ export function movePlan(input: {
 }): MovePlan {
   const block = input.blocks.find((row) => row.id === input.blockId && row.removed_at === null);
   if (block === undefined || block.location_id === null || !isEquipmentBlockType(block.block_type)) return { kind: 'refused', reason: 'gone' };
-  const target = input.locations.find((row) => row.id === input.targetId && row.removed_at === null);
+  // Live by the tree's rule: a target removed, or under a removed location, is gone.
+  const target = liveLocationIds(input.locations).has(input.targetId) ? input.locations.find((row) => row.id === input.targetId) : undefined;
   if (target === undefined) return { kind: 'refused', reason: 'location-gone' };
   if (target.kind === 'painel') return { kind: 'refused', reason: 'not-a-block-location' };
   if (block.location_id === target.id) return { kind: 'refused', reason: 'same-location' };

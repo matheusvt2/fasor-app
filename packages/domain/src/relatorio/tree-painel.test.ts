@@ -11,6 +11,7 @@ import {
   duplicateTagSuggestion,
   firstInTree,
   locationChoices,
+  locationControlName,
   locationTree,
   newEquipmentBlock,
   newLocation,
@@ -194,12 +195,13 @@ describe('14.2-UNIT locationTree: three levels', () => {
     expect(byName(tree, 'Coluna legado')).toMatchObject({ meta: '', railMeta: '0 de 1' });
   });
 
-  it('names the controls of a painel with its local ("Painel B de Cabine de transformação"); a local and a coluna read their own name (coordinator review 2026-10-13)', () => {
+  it('names the controls of a painel with its local ("Painel B de Cabine de transformação") and of a coluna with what it sits in; a local reads its own name (coordinator review 2026-10-13; second pass, rule 9)', () => {
     expect(byName(tree, 'Painel de média tensão').controlName).toBe('Painel de média tensão de Cabine de transformação');
     expect(byName(tree, 'Painel B').controlName).toBe('Painel B de Cabine de transformação');
     expect(local.controlName).toBe('Cabine de transformação');
-    expect(byName(tree, 'Coluna legado').controlName).toBe('Coluna legado');
-    expect(byName(tree, 'Coluna 6').controlName).toBe('Coluna 6');
+    // Second pass (rule 9): a coluna is named with its painel's control name, a legacy coluna with its local.
+    expect(byName(tree, 'Coluna legado').controlName).toBe('Coluna legado de Cabine de transformação');
+    expect(byName(tree, 'Coluna 6').controlName).toBe('Coluna 6 de Painel de média tensão de Cabine de transformação');
     // Two locals whose first painel is the default "Painel 1": the control names differ.
     const twins = locationTree({
       locations: [cabine(LOCAL, 'Cubículo Enel', 'a0'), cabine(ENEL, 'Geradores', 'a1'), painel(PNL_MT, 'Painel 1', LOCAL, 'a0'), painel(PNL_B, 'Painel 1', ENEL, 'a0')],
@@ -207,6 +209,35 @@ describe('14.2-UNIT locationTree: three levels', () => {
       equipment: [],
     });
     expect(twins.map((node) => node.locations.map((child) => child.controlName))).toEqual([['Painel 1 de Cubículo Enel'], ['Painel 1 de Geradores']]);
+  });
+
+  it('second pass (rule 9): the default "Coluna 1" of two painéis, and of the "Painel 1" of two locals, never share a control name', () => {
+    const locations = [
+      cabine(LOCAL, 'Cubículo Enel', 'a0'),
+      cabine(ENEL, 'Geradores', 'a1'),
+      painel(PNL_MT, 'Painel 1', LOCAL, 'a0'),
+      painel(PNL_B, 'Painel 2', LOCAL, 'a1'),
+      painel(PNL_VAZIO, 'Painel 1', ENEL, 'a0'),
+      coluna(MT_C5, 'Coluna 1', PNL_MT, 'a0'),
+      coluna(B_C5, 'Coluna 1', PNL_B, 'a0'),
+      coluna(MT_C6, 'Coluna 1', PNL_VAZIO, 'a0'),
+      coluna(LEGADO, 'Coluna 1', ENEL, 'a0'),
+    ];
+    const names = treeNodes(locationTree({ locations, blocks: [], equipment: [] }))
+      .filter((node): node is TreeLocationNode => node.kind === 'coluna')
+      .map((node) => node.controlName);
+    expect(names).toEqual(['Coluna 1 de Painel 1 de Cubículo Enel', 'Coluna 1 de Painel 2 de Cubículo Enel', 'Coluna 1 de Geradores', 'Coluna 1 de Painel 1 de Geradores']);
+    expect(new Set(names).size).toBe(names.length);
+    // The same name from the rows alone, for every drawn node and for a row the tree no longer draws.
+    for (const node of treeNodes(locationTree({ locations, blocks: [], equipment: [] }))) {
+      if (node.kind !== 'equipment') expect(locationControlName(locations, node.id)).toBe(node.controlName);
+    }
+    const removed = locations.map((row) => (row.id === id(PNL_MT) || row.id === id(MT_C5) ? { ...row, removed_at: T0.toISOString() } : row));
+    expect(locationControlName(removed, id(MT_C5))).toBe('Coluna 1 de Painel 1 de Cubículo Enel');
+    expect(locationControlName(removed, id(PNL_MT))).toBe('Painel 1 de Cubículo Enel');
+    // A parent the list does not hold ends the name there; an unknown id has none.
+    expect(locationControlName([coluna(MT_C5, 'Coluna 1', PNL_MT, 'a0')], id(MT_C5))).toBe('Coluna 1');
+    expect(locationControlName(locations, id(9999))).toBe('');
   });
 
   it('a coluna whose name does not say "Coluna" is led by the word on the rail', () => {
