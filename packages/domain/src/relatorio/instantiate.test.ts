@@ -7,7 +7,10 @@ import { blockConfigSchema, EQUIPMENT_BLOCK_TYPES, type EquipmentBlockType } fro
 import { blockRowSchema, type BlockRow, type EquipmentRow, type LocationRow, type RelatorioRow, type TemplateRow } from '../schemas/entities.ts';
 import { buildSnapshot } from '../schemas/snapshot.ts';
 import { standardTemplate, templateTotals } from '../seed/template.ts';
-import { setSectionText, setTypeDefaults, typeConfigFor } from '../templates/compose.ts';
+import { addCabine, addColuna, addPainel, setQuantity, setSectionText, setTypeDefaults, typeConfigFor } from '../templates/compose.ts';
+import { templateFromRelatorio } from '../templates/from-relatorio.ts';
+import { emptyTemplate } from '../templates/list.ts';
+import { LocationKindError } from '../ops/apply.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { instantiateTemplate, RELATORIO_SECTION_TYPES } from './instantiate.ts';
 import { integrityFindings } from './integrity.ts';
@@ -322,5 +325,106 @@ describe('4.1-UNIT FR-13: a template edited after instantiation leaves the relat
     expect((s2.config as { section_text: unknown }).section_text).toBeNull();
     const sec = snapshot.blocks.find((b) => b.block_type === 'chave_seccionadora')!;
     expect(blockConfigSchema.parse(sec.config).sub_blocks.nameplate).toEqual({ enabled: true });
+  });
+});
+
+describe('14.2-UNIT instantiateTemplate: Local › Painel › Coluna', () => {
+  /**
+   * The template of the story's end-to-end: one local (Função transformação) holding two
+   * transformers directly and one painel with three colunas, one seccionadora each; plus a
+   * second painel with its own "Coluna 5" for the TAG collision.
+   */
+  function template(): TemplateRow {
+    let skeleton = addCabine([], 'loc', 'Cabine de transformação', 'transformacao');
+    skeleton = addPainel(skeleton, 'loc', 'P1', 'Painel de média tensão');
+    for (const n of [1, 2, 3]) skeleton = addColuna(skeleton, 'P1', `P1/c${n}`, `Coluna ${n}`);
+    skeleton = addCabine(skeleton, 'outro', 'Geradores');
+    skeleton = addPainel(skeleton, 'outro', 'A', 'Painel A');
+    skeleton = addColuna(skeleton, 'A', 'A/c5', 'Coluna 5');
+    skeleton = addPainel(skeleton, 'outro', 'B', 'Painel B');
+    skeleton = addColuna(skeleton, 'B', 'B/c5', 'Coluna 5');
+    let row: TemplateRow = { ...emptyTemplate(TEMPLATE_ID, 'v3'), skeleton };
+    row = { ...row, blocks: setQuantity(row, 'loc', 'transformador_forca', 2) };
+    for (const ref of ['P1/c1', 'P1/c2', 'P1/c3', 'A/c5', 'B/c5']) row = { ...row, blocks: setQuantity(row, ref, 'chave_seccionadora', 1) };
+    return row;
+  }
+  const { relatorioId, drafts: all } = drafts(template());
+  const locations = valuesOf<LocationRow>(all, 'location');
+  const sheets = valuesOf<BlockRow>(all, 'block').filter((b) => b.location_id !== null);
+  const equipment = valuesOf<EquipmentRow>(all, 'equipment');
+  const named = (name: string, parent?: string) => locations.find((l) => l.name === name && (parent === undefined || l.parent_id === parent))!;
+  const tagOf = (block: BlockRow) => equipment.find((e) => e.id === block.equipment_id)!.tag;
+
+  it('creates the three kinds: each local, then its painéis with their colunas, a painel under its local and a coluna under its painel', () => {
+    expect(locations.map((l) => l.kind)).toEqual(['cabine', 'painel', 'coluna', 'coluna', 'coluna', 'cabine', 'painel', 'coluna', 'painel', 'coluna']);
+    const local = named('Cabine de transformação');
+    const p1 = named('Painel de média tensão');
+    expect(local.parent_id).toBeNull();
+    expect(p1).toEqual({ id: p1.id, relatorio_id: relatorioId, parent_id: local.id, name: 'Painel de média tensão', order_key: 'a0', removed_at: null, kind: 'painel' });
+    expect(sortByOrderKey(locations.filter((l) => l.parent_id === p1.id)).map((l) => [l.kind, l.name])).toEqual([
+      ['coluna', 'Coluna 1'],
+      ['coluna', 'Coluna 2'],
+      ['coluna', 'Coluna 3'],
+    ]);
+    const outro = named('Geradores');
+    expect(sortByOrderKey(locations.filter((l) => l.parent_id === outro.id)).map((l) => [l.kind, l.name])).toEqual([
+      ['painel', 'Painel A'],
+      ['painel', 'Painel B'],
+    ]);
+  });
+
+  it('carries the Função onto the cabine row, and stores no funcao key for a local that holds none', () => {
+    expect(named('Cabine de transformação')).toMatchObject({ kind: 'cabine', funcao: 'transformacao', agrupar_por_tipo: false });
+    expect(Object.keys(named('Geradores'))).not.toContain('funcao');
+  });
+
+  it('places each block on the local itself or on its coluna, never on a painel, with the TAGs of the kernel rule', () => {
+    const local = named('Cabine de transformação');
+    const p1 = named('Painel de média tensão');
+    const onLocal = sortByOrderKey(sheets.filter((b) => b.location_id === local.id));
+    expect(onLocal.map((b) => [b.block_type, tagOf(b)])).toEqual([
+      ['transformador_forca', 'TR-1'],
+      ['transformador_forca', 'TR-2'],
+    ]);
+    const colunas = sortByOrderKey(locations.filter((l) => l.parent_id === p1.id));
+    expect(colunas.map((c) => sheets.filter((b) => b.location_id === c.id).map(tagOf))).toEqual([['SEC-C01'], ['SEC-C02'], ['SEC-C03']]);
+    const paineis = new Set(locations.filter((l) => l.kind === 'painel').map((l) => l.id));
+    expect(sheets.some((b) => paineis.has(b.location_id!))).toBe(false);
+    expect(sheets).toHaveLength(7);
+  });
+
+  it('matrix "TAG collision across painéis": two painéis each with a "Coluna 5" seccionadora give SEC-C05 then SEC-C05-2', () => {
+    const a = named('Coluna 5', named('Painel A').id);
+    const b = named('Coluna 5', named('Painel B').id);
+    expect(sheets.filter((s) => s.location_id === a.id).map(tagOf)).toEqual(['SEC-C05']);
+    expect(sheets.filter((s) => s.location_id === b.id).map(tagOf)).toEqual(['SEC-C05-2']);
+    expect(integrityFindings({ equipment })).toEqual([]);
+  });
+
+  it('the drafts replay (no LocationKindError), and "Salvar como template" gives the same skeleton and placements back', () => {
+    const ops = all.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0045-7000-8000-'), now: T0 }), seq: i + 1 }));
+    const snapshot = buildSnapshot(replay(ops), relatorioId);
+    expect(snapshot.locations.map((l) => l.kind).sort()).toEqual(['cabine', 'cabine', 'coluna', 'coluna', 'coluna', 'coluna', 'coluna', 'painel', 'painel', 'painel']);
+    const saved = templateFromRelatorio(snapshot, { id: '019966b0-0046-7000-8000-000000000001', name: 'Salvo' });
+    const shape = (row: TemplateRow) => ({
+      skeleton: row.skeleton.map((n) => ({ kind: n.kind, name: n.name, funcao: n.kind === 'cabine' ? (n.funcao ?? null) : null })),
+      placed: row.blocks.filter((b) => b.skeleton_location_ref !== null).map((b) => [b.block_type, b.quantity, row.skeleton.find((n) => n.ref === b.skeleton_location_ref)!.name]),
+    });
+    expect(shape(saved)).toEqual(shape(template()));
+    // A cabine with no Função keeps the node shape from before the field.
+    expect(Object.keys(saved.skeleton.find((n) => n.name === 'Geradores')!)).not.toContain('funcao');
+    // And a relatório born from the saved template is the same tree again.
+    const again = instantiateTemplate(saved, project, inputs, deps());
+    expect(valuesOf<LocationRow>(again.drafts, 'location').map((l) => [l.kind, l.name])).toEqual(locations.map((l) => [l.kind, l.name]));
+  });
+
+  it('a stored template block on a painel ref is skipped, exactly as an orphan is', () => {
+    const row = template();
+    const stored: TemplateRow = { ...row, blocks: [...row.blocks, { ...row.blocks.at(-1)!, skeleton_location_ref: 'P1', quantity: 2 }] };
+    const made = instantiateTemplate(stored, project, inputs, deps());
+    expect(valuesOf<BlockRow>(made.drafts, 'block').filter((b) => b.location_id !== null)).toHaveLength(7);
+    // Had it been placed, the fold would have refused it.
+    const ops = made.drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0047-7000-8000-'), now: T0 }), seq: i + 1 }));
+    expect(() => replay(ops)).not.toThrow(LocationKindError);
   });
 });

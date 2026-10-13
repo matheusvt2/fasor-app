@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { getDefinition } from '../seed/definitions.ts';
 import { standardTemplate, templateTotals, zeroTotals } from '../seed/template.ts';
-import { addCabine, addColuna, composerView, setQuantity } from './compose.ts';
+import { addCabine, addColuna, addPainel, composerView, findComposerNode, setAgruparPorTipo, setQuantity } from './compose.ts';
 import { emptyTemplate } from './list.ts';
 import {
   defaultCabineName,
   defaultColunaName,
   defaultPainelName,
+  localSubText,
+  paletteTargetText,
   moveAnnouncement,
   naDefaultsCountText,
   nodeSummaryText,
@@ -139,5 +141,55 @@ describe('E3-A9 subBlockSummaryText', () => {
   it('is null for a sub-block with nothing to count', () => {
     expect(subBlockSummaryText(secc, 'observations')).toBeNull();
     expect(subBlockSummaryText(secc, 'conclusion')).toBeNull();
+  });
+});
+
+describe('14.2-UNIT composer texts: Local › Painel › Coluna', () => {
+  function composed() {
+    let skeleton = addCabine([], 'loc', 'Cabine primária — 1° Subsolo', 'primaria');
+    skeleton = addPainel(skeleton, 'loc', 'P1', 'Painel de média tensão');
+    skeleton = addColuna(skeleton, 'P1', 'c5', 'Coluna 5');
+    skeleton = addColuna(skeleton, 'P1', 'c6', 'Coluna 6');
+    skeleton = addPainel(skeleton, 'loc', 'P2', 'Painel 2');
+    skeleton = addCabine(skeleton, 'trafo', 'Cabine de transformação', 'Medição');
+    skeleton = addCabine(skeleton, 'velho', '1° Subsolo');
+    skeleton = addColuna(skeleton, 'velho', 'v1', 'Coluna 1');
+    skeleton = setAgruparPorTipo(skeleton, 'loc', true);
+    const base = { ...emptyTemplate('019966b0-0035-7000-8000-000000000009', 'v3'), skeleton };
+    let blocks = setQuantity(base, 'c5', 'chave_seccionadora', 1);
+    blocks = setQuantity({ ...base, blocks }, 'c6', 'disjuntor_mt', 2);
+    blocks = setQuantity({ ...base, blocks }, 'trafo', 'transformador_forca', 2);
+    return { ...base, blocks };
+  }
+  const view = composerView(composed());
+
+  it('heads the skeleton and the Templates row with the three counts, the painéis part only when there is one', () => {
+    expect(skeletonHeading(view)).toBe('Esqueleto de locais · 3 locais · 2 painéis · 3 colunas · 5 blocos');
+    expect(templateSummaryText(composed(), 0)).toBe('Semente v3 · 0 seções · 3 locais · 2 painéis · 3 colunas · 5 blocos de equipamento');
+    const one = { ...emptyTemplate('019966b0-0035-7000-8000-00000000000a', 'v3'), skeleton: addPainel(addCabine([], 'a', 'A'), 'a', 'p', 'Painel 1') };
+    expect(skeletonHeading(composerView(one))).toBe('Esqueleto de locais · 1 local · 1 painel');
+  });
+
+  it('summarizes a local (painéis, colunas, blocks), a painel (colunas, blocks), an empty painel and a local with none', () => {
+    expect(nodeSummaryText(view.cabines[0]!)).toEqual({ flag: '2 painéis · 2 colunas · 3 blocos', sum: '1 seccionadora · 2 disjuntores' });
+    expect(nodeSummaryText(view.cabines[0]!.paineis[0]!)).toEqual({ flag: '2 colunas · 3 blocos', sum: '1 seccionadora · 2 disjuntores' });
+    expect(nodeSummaryText(view.cabines[0]!.paineis[1]!)).toEqual({ flag: 'sem colunas · 0 blocos', sum: 'Nenhum equipamento' });
+    expect(nodeSummaryText(view.cabines[1]!)).toEqual({ flag: 'sem painéis · 2 blocos', sum: '2 trafos' });
+    // A local from before the painel level keeps its line.
+    expect(nodeSummaryText(view.cabines[2]!).flag).toBe('1 coluna · 0 blocos');
+    expect(nodeSummaryText(view.cabines[0]!.paineis[0]!.colunas[1]!)).toEqual({ flag: '2 blocos', sum: '2 disjuntores' });
+  });
+
+  it('writes the local sub-line: the Função in lower case when there is one, then Agrupar por tipo', () => {
+    expect(localSubText(view.cabines[0]!)).toBe('Função: primária · Agrupar por tipo: ativado');
+    expect(localSubText(view.cabines[1]!)).toBe('Função: medição · Agrupar por tipo: desativado');
+    expect(localSubText(view.cabines[2]!)).toBe('Agrupar por tipo: desativado');
+    expect(localSubText({ funcao: 'transformacao', agrupar_por_tipo: false })).toBe('Função: transformação · Agrupar por tipo: desativado');
+  });
+
+  it('names the palette target: a coluna with its painel (or its local), a local "direto no local"', () => {
+    expect(paletteTargetText(view, findComposerNode(view, 'c5')!)).toBe('Coluna 5 · Painel de média tensão');
+    expect(paletteTargetText(view, findComposerNode(view, 'v1')!)).toBe('Coluna 1 · 1° Subsolo');
+    expect(paletteTargetText(view, findComposerNode(view, 'trafo')!)).toBe('Cabine de transformação, direto no local');
   });
 });
