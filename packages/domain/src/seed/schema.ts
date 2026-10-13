@@ -1,11 +1,15 @@
 import { z } from 'zod';
 import {
+  BASE_EQUIPMENT_BLOCK_TYPES,
   equipmentBlockTypeSchema,
   itemKeySchema,
   siteItemKeySchema,
   subBlockKeySchema,
   subtypeSchema,
+  type BaseEquipmentBlockType,
+  type EquipmentBlockType,
 } from '../schemas/block-config.ts';
+import { checkMeasurementDefinition, configFieldSchema, measurementTestSchema } from './measurement.ts';
 
 /*
  * The shape of one seed version (AD-21). Seed data is code, validated once at module
@@ -112,17 +116,31 @@ export const subtypeDefSchema = z.object({
 });
 export type SubtypeDef = z.infer<typeof subtypeDefSchema>;
 
-export const blockDefinitionSchema = z.object({
-  block_type: equipmentBlockTypeSchema,
-  label: z.string().min(1),
-  nameplate: z.array(fieldDefSchema),
-  checklist: z.array(checklistItemSchema).nullable(),
-  tests: z.array(testDefSchema),
-  sub_blocks: z.array(subBlockKeySchema).min(1),
-  subtypes: z.array(subtypeDefSchema),
-  /** Every equipment sheet ends in the conclusion block, the transformer's too (FR-22). */
-  conclusion: z.literal(true),
-});
+export const blockDefinitionSchema = z
+  .object({
+    block_type: equipmentBlockTypeSchema,
+    label: z.string().min(1),
+    nameplate: z.array(fieldDefSchema),
+    checklist: z.array(checklistItemSchema).nullable(),
+    tests: z.array(testDefSchema),
+    sub_blocks: z.array(subBlockKeySchema).min(1),
+    subtypes: z.array(subtypeDefSchema),
+    /** Every equipment sheet ends in the conclusion block, the transformer's too (FR-22). */
+    conclusion: z.literal(true),
+    /*
+     * Story 14.5 (seed v5). The three keys below are optional and never defaulted, so the
+     * definitions of v1 to v4 parse to the bytes they shipped with (`seed.test.ts` pins their
+     * hashes); a definition without them has no measurement test, no configuration and is not
+     * a library type.
+     */
+    /** The tests of the measurement-table grammar (`seed/measurement.ts`), in sheet and print order. */
+    measurement_tests: z.array(measurementTestSchema).min(1).optional(),
+    /** The block's own configuration fields, stored in `BlockConfig.options`. */
+    config_fields: z.array(configFieldSchema).min(1).optional(),
+    /** A library type: offered after the eight under "Outros equipamentos" and printed in that group. */
+    library: z.literal(true).optional(),
+  })
+  .superRefine(checkMeasurementDefinition);
 export type BlockDefinition = z.infer<typeof blockDefinitionSchema>;
 
 /** `CARACTERÍSTICAS DA SE` and `AMBIENTE DE ENSAIO`: the cabine's own fields (AD-6). */
@@ -219,9 +237,25 @@ export const siteChecklistSchema = z
   );
 export type SiteChecklist = z.infer<typeof siteChecklistSchema>;
 
+/**
+ * The block definitions of one seed version, keyed by type. Story 14.5: a partial record over
+ * the closed type list, since a type may ship in a later version only (the CTA from v5); the
+ * eight FO.SERV-03 types are in every version, which the refinement holds. Keys parse in the
+ * order they are written, so v1 to v4 keep their bytes.
+ */
+const blocksSchema = z
+  .partialRecord(equipmentBlockTypeSchema, blockDefinitionSchema)
+  .refine((blocks) => BASE_EQUIPMENT_BLOCK_TYPES.every((type) => blocks[type] !== undefined), { message: 'a seed version ships the eight FO.SERV-03 block types' })
+  .refine((blocks) => Object.entries(blocks).every(([type, definition]) => definition === undefined || definition.block_type === type), {
+    message: 'a block definition is keyed by its own block_type',
+  });
+
+/** `blocks` as every reader takes it: the eight always there, any other type only where its version ships it. */
+export type SeedBlocks = Record<BaseEquipmentBlockType, BlockDefinition> & Partial<Record<Exclude<EquipmentBlockType, BaseEquipmentBlockType>, BlockDefinition>>;
+
 /** Everything one seed version holds for one report type. */
 export const reportSeedSchema = z.object({
-  blocks: z.record(equipmentBlockTypeSchema, blockDefinitionSchema),
+  blocks: blocksSchema,
   checklist_columns: z.array(z.string().min(1)).min(1),
   cabine: cabineDefinitionSchema,
   section_titles: z.record(z.string(), z.string().min(1)),
@@ -244,10 +278,10 @@ export const reportSeedSchema = z.object({
    */
   site_checklist: siteChecklistSchema.optional(),
 });
-export type ReportSeed = z.infer<typeof reportSeedSchema>;
+export type ReportSeed = Omit<z.infer<typeof reportSeedSchema>, 'blocks'> & { blocks: SeedBlocks };
 
 export const seedBundleSchema = z.object({
   version: z.string().min(1),
   report_types: z.record(reportTypeSchema, reportSeedSchema),
 });
-export type SeedBundle = z.infer<typeof seedBundleSchema>;
+export type SeedBundle = Omit<z.infer<typeof seedBundleSchema>, 'report_types'> & { report_types: Record<ReportType, ReportSeed> };

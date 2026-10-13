@@ -66,7 +66,13 @@ describe('contract examples (ADR readiness 1.4)', () => {
     const site = (ops: readonly { path: string }[]) => ops.filter((op) => /^location\/[^/]+\/checklist\//.test(op.path));
     expect(site(contractExamples.pushRequest.valid.ops)).toHaveLength(1);
     expect(site(contractExamples.pullResponse.valid.ops)).toHaveLength(1);
-    expect(contractExamples.pullResponse.valid.seq).toBe(45);
+  });
+
+  it('contract 19 (Story 14.5): the valid push and pull examples carry a measurement test value put', () => {
+    const values = (ops: readonly { path: string }[]) => ops.filter((op) => /^sheet\/[^/]+\/test\/[^/]+\/value\/[^/]+$/.test(op.path));
+    expect(values(contractExamples.pushRequest.valid.ops)).toHaveLength(1);
+    expect(values(contractExamples.pullResponse.valid.ops)).toHaveLength(1);
+    expect(contractExamples.pullResponse.valid.seq).toBe(46);
   });
 
   it('the push envelope accepts a malformed op (rejected per op) but not a batch over the limit', () => {
@@ -92,9 +98,9 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 18 and refuses version 17 (Story 14.3: a version-17 bundle cannot parse a site checklist put nor resolve seed v4)', () => {
-    expect(CONTRACT_VERSION).toBe(18);
-    expect(MIN_CONTRACT_VERSION).toBe(18);
+  it('speaks version 19 and refuses version 18 (Story 14.5: a version-18 bundle cannot parse a test value put, the ninth block type nor seed v5)', () => {
+    expect(CONTRACT_VERSION).toBe(19);
+    expect(MIN_CONTRACT_VERSION).toBe(19);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

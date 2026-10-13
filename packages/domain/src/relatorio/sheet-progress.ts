@@ -7,6 +7,7 @@ import { listPtBr, plural } from '../text/plural.ts';
 import { formatShortDateTime } from '../format/datetime.ts';
 import { cabineOf, cabineProgress } from './cabine.ts';
 import { nameplateMissingKeys } from './dry-insulation.ts';
+import { evaluateSheetMeasurements, measurementCounts } from './measurement-evaluation.ts';
 import { evaluatedCells, evaluateSheetReadings } from './readings.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 import { firstInTree } from './tree.ts';
@@ -32,7 +33,10 @@ import { firstInTree } from './tree.ts';
  * - `ensaios`: per address of the enabled tests (`evaluateSheetReadings`, the fixture's
  *   row/col addressing), every capture cell not filled (a "Não medido" is filled) plus every
  *   ratio input with no effective value (typed, or read from the nameplate); `print` and
- *   `derived` columns never count.
+ *   `derived` columns never count. Story 14.5: plus, per measurement test switched on and run
+ *   (`evaluateSheetMeasurements`), every typed cell of a shown row that is neither optional
+ *   nor fixed and holds nothing, and every shown, non-optional test value that holds nothing;
+ *   a test switched off, or one its own value says was not run, requires nothing.
  * - `conclusao`: 1 while the result is unset, 1 while the restriction is unset, and 1 while
  *   the restriction is Com restrições and the sheet observation is empty (Story 5.8 AC 2).
  *   The conclusion text never counts: an unconfirmed text does not block "Concluir ficha".
@@ -49,7 +53,19 @@ export const SHEET_STEPS: readonly SheetStep[] = ['placa', 'verificacoes', 'ensa
 const STEP_SUB_BLOCKS: Readonly<Record<SheetStep, readonly SubBlockKey[]>> = {
   placa: ['nameplate'],
   verificacoes: ['checklist'],
-  ensaios: ['isolacao', 'ia_ip_display', 'resistencia_contato', 'relacao_transformacao'],
+  ensaios: [
+    'isolacao',
+    'ia_ip_display',
+    'resistencia_contato',
+    'relacao_transformacao',
+    // Story 14.5: the measurement tests of the Chave de transferência automática.
+    'cta_resistencia_contato',
+    'cta_isolamento_principal',
+    'cta_isolamento_controle',
+    'cta_ajustes_controlador',
+    'cta_transferencia',
+    'cta_termografia',
+  ],
   conclusao: ['conclusion'],
 };
 
@@ -148,7 +164,11 @@ function verificacoesMissing(block: BlockRow, definition: BlockDefinition, enabl
 
 function ensaiosCounts(block: BlockRow, definition: BlockDefinition): SheetStepProgress {
   const cells = evaluatedCells(evaluateSheetReadings(block, definition));
-  return { missing: cells.filter((cell) => cell.missing).length, outOfLimit: cells.filter((cell) => cell.verdict === 'out').length };
+  const measurements = measurementCounts(evaluateSheetMeasurements(block, definition));
+  return {
+    missing: cells.filter((cell) => cell.missing).length + measurements.missing,
+    outOfLimit: cells.filter((cell) => cell.verdict === 'out').length + measurements.outOfLimit,
+  };
 }
 
 function conclusaoMissing(block: BlockRow, enabled: ReadonlySet<SubBlockKey>): number {

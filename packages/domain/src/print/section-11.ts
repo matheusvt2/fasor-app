@@ -56,7 +56,9 @@ function present(value: string | null | undefined): string | null {
 
 /** The block's test keys in the definition's order, then any other stored key. */
 function testKeysOf(block: BlockRow): string[] {
-  const defined: string[] = findDefinition(block.seed_version, block.block_type)?.tests.map((test) => test.key) ?? [];
+  const definition = findDefinition(block.seed_version, block.block_type);
+  // Story 14.5: a measurement test with a picker holds an instrument header like a seeded test.
+  const defined: string[] = [...(definition?.tests.map((test) => test.key) ?? []), ...(definition?.measurement_tests?.map((test) => test.key) ?? [])];
   return [...defined, ...Object.keys(block.sheet.test).filter((key) => !defined.includes(key))];
 }
 

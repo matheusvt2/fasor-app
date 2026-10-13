@@ -106,3 +106,29 @@ Block types: `tp`, `tc`, `transformador_forca`.
 | 13 | ÓLEO ISOLANTE/INDICADOR DE NÍVEL | `oleo_isolante_indicador_de_nivel` | nível de óleo abaixo do mínimo · óleo com coloração escura · indicador de nível ilegível |
 | 14 | CONEXÕES | `conexoes` | conexão frouxa · oxidação nos terminais · sinais de aquecimento na conexão |
 | 15 | RELÉ DE TEMPERATURA EXTERNO | `rele_de_temperatura_externo` | relé de temperatura inoperante · ajuste de alarme ou desligamento ausente · sensor de temperatura danificado |
+
+## Chave de transferência automática (library type, seed `v5`)
+
+Block types: `chave_transferencia_automatica`.
+
+| # | Item | Key | NC phrases |
+| --- | --- | --- | --- |
+| 1 | Placa confere com o projeto | `placa_confere_com_o_projeto` | Placa divergente do projeto · Placa ilegível · Placa ausente |
+| 2 | Invólucro, fixação e continuidade do aterramento do painel | `involucro_fixacao_e_continuidade_do_aterramento_do_painel` | Invólucro danificado · Fixação solta · Sem continuidade de aterramento |
+| 3 | Tampas e barreiras fixadas, aviso de transferência manual presente | `tampas_e_barreiras_fixadas_aviso_de_transferencia_manual_presente` | Aviso ausente · Barreira solta · Tampa sem parafusos |
+| 4 | Limpeza interna, aspirada, sem soprar | `limpeza_interna_aspirada_sem_soprar` | Acúmulo de poeira · Presença de umidade · Resíduos metálicos no interior |
+| 5 | Contatos principais, de arco e auxiliares (posição) sem pites ou superaquecimento | `contatos_principais_de_arco_e_auxiliares_posicao_sem_pites_ou_superaquecimento` | Pites nos contatos · Sinais de superaquecimento · Contato auxiliar fora de posição |
+| 6 | Isoladores e barramentos | `isoladores_e_barramentos` | Trinca no isolador · Barramento com sinais de aquecimento · Sujeira acumulada no isolador |
+| 7 | Reaperto da potência ao torque da etiqueta | `reaperto_da_potencia_ao_torque_da_etiqueta` | Terminal de potência frouxo · Torque abaixo do indicado na etiqueta · Sinais de aquecimento no terminal |
+| 8 | Reaperto da fiação de controle, chicote e fusíveis de comando | `reaperto_da_fiacao_de_controle_chicote_e_fusiveis_de_comando` | Borne de controle frouxo · Chicote mal encaixado · Fusível de comando queimado |
+| 9 | Lubrificação somente conforme o fabricante, sem óleo | `lubrificacao_somente_conforme_o_fabricante_sem_oleo` | Lubrificação ressecada · Lubrificante inadequado · Presença de óleo no mecanismo |
+| 10 | Operação manual com as fontes desenergizadas | `operacao_manual_com_as_fontes_desenergizadas` | Operação manual travada · Mecanismo com esforço excessivo · Manopla de operação ausente |
+| 11 | Intertravamento mecânico e elétrico N/E | `intertravamento_mecanico_e_eletrico_n_e` | Intertravamento mecânico inoperante · Intertravamento elétrico inoperante · Intertravamento desajustado |
+| 12 | Rotação de fases da Emergência igual à da Normal | `rotacao_de_fases_da_emergencia_igual_a_da_normal` | Rotação de fases invertida · Rotação de fases não verificada · Fases sem identificação |
+| 13 | Indicação de posição, LEDs e alarmes; leituras de V, I e f conferem com instrumento | `indicacao_de_posicao_leds_e_alarmes_leituras_de_v_i_e_f_conferem_com_instrumento` | LED de posição inoperante · Alarme inoperante · Leitura divergente do instrumento |
+| 14 | Registro de manobras e contador de transferências revisados | `registro_de_manobras_e_contador_de_transferencias_revisados` | Registro de manobras inacessível · Contador de transferências inoperante · Registro com falhas não tratadas |
+| 15 | Partida do gerador comandada pela chave; exercitador programado | `partida_do_gerador_comandada_pela_chave_exercitador_programado` | Gerador não parte pelo comando da chave · Exercitador não programado · Sinal de partida interrompido |
+| 16 | Aquecedor e ventilação, se houver | `aquecedor_e_ventilacao_se_houver` | Aquecedor inoperante · Ventilação inoperante · Termostato desajustado |
+| 17 | Gerador deixado em AUTOMÁTICO ao final | `gerador_deixado_em_automatico_ao_final` | Gerador deixado em MANUAL · Gerador deixado em DESLIGADO · Chave seletora sem identificação |
+
+*(2026-10-13, Story 14.5: this list ships with seed `v5` only, in `packages/domain/src/seed/v5.ts`; seeds `v1` to `v4` have no such block type. The 17 items are those of `sprint-change-proposal-2026-10-08.md` § 8.4, written in sentence case as the sheet shows them (the document prints them in caps). The three phrases of item 3 are the chips the approved mock draws on it (`63-ficha-cta.html`); the rest were authored after them and are pending Bruno's review like every other list here. A change after the merge ships as a later seed version.)*

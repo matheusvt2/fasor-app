@@ -272,7 +272,9 @@ describe('P9: every editedSince family is decided as content or structure', () =
     'sheet/nameplate': { content: [`sheet/${A}/nameplate/n_serie`], structure: [] },
     'sheet/checklist': { content: [`sheet/${A}/checklist/item_1/result`], structure: [] },
     'sheet/test': { content: [`sheet/${A}/test/isolacao/instrument`], structure: [] },
-    'sheet/test/cell': { content: [`sheet/${A}/test/isolacao/cell/0/0`], structure: [] },
+    // Story 14.5: a measurement table's cell (a number or a choice) and a test value are filled on site.
+    'sheet/test/cell': { content: [`sheet/${A}/test/isolacao/cell/0/0`, `sheet/${A}/test/cta_resistencia_contato/cell/2/1`], structure: [] },
+    'sheet/test/value': { content: [`sheet/${A}/test/cta_transferencia/value/metodo`, `sheet/${A}/test/cta_termografia/value/temperatura_ambiente`], structure: [] },
     'sheet/conclusion': { content: [`sheet/${A}/conclusion/result`], structure: [] },
     'sheet/observations': { content: [`sheet/${A}/observations`], structure: [] },
     file: { content: [`file/${A}`], structure: [] },
@@ -406,7 +408,7 @@ describe('2026-10-13: every op path family is decided, an edit or never one', ()
     }
   });
 
-  it('the classification of 2026-10-10 is unchanged, plus `location/funcao` (Story 14.2) and `location/checklist` (Story 14.3): the twenty-two edit families and the twenty-two that never are', () => {
+  it('the classification of 2026-10-10 is unchanged, plus `location/funcao` (Story 14.2), `location/checklist` (Story 14.3) and `sheet/test/value` (Story 14.5): the twenty-three edit families and the twenty-two that never are', () => {
     expect([...EDITED_SINCE_FAMILIES].sort()).toEqual(
       [
         'block',
@@ -431,8 +433,11 @@ describe('2026-10-13: every op path family is decided, an edit or never one', ()
         'sheet/observations',
         'sheet/test',
         'sheet/test/cell',
+        'sheet/test/value',
       ].sort(),
     );
+    expect(EDITED_SINCE_FAMILIES.size).toBe(23);
+    expect(NEVER_EDIT_FAMILIES.size).toBe(22);
     expect([...NEVER_EDIT_FAMILIES.keys()].sort()).toEqual(
       [
         'audit_run',

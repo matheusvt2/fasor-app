@@ -78,6 +78,8 @@ export function enabledCells(block: BlockRow): Cell[] {
     if ((SUB_BLOCK_KEYS as readonly string[]).includes(key) && !enabled.has(key as SubBlockKey)) continue;
     for (const c of [test.instrument, test.criterion_override]) if (c) cells.push(c);
     for (const row of Object.values(test.cells)) cells.push(...Object.values(row));
+    // Story 14.5: a measurement test's values outside its table.
+    cells.push(...Object.values(test.values ?? {}));
   }
   if (enabled.has('conclusion')) cells.push(...Object.values(s.conclusion).filter((c): c is Cell => c !== undefined));
   if (enabled.has('observations') && s.observations) cells.push(s.observations);

@@ -35,6 +35,8 @@ export const SCREEN_LABEL_ACRONYMS: readonly string[] = [
   'TΩ',
   'kΩ',
   'VA',
+  // Seed v5 (Story 14.5): the withstand and closing rating of a transfer switch, a nameplate field.
+  'WCR',
 ];
 
 const ACRONYM_BY_UPPER: ReadonlyMap<string, string> = new Map(SCREEN_LABEL_ACRONYMS.map((word) => [word.toUpperCase(), word]));
@@ -55,12 +57,32 @@ const WORD = /[\p{L}\p{N}]+(?:['’]\p{L}+)?/gu;
 const ONE_LETTER_WORDS: ReadonlySet<string> = new Set(['E']);
 
 /**
+ * Whether a label is already written in sentence case: it holds a word of two or more
+ * letters with a lower-case letter that is not an acronym of the list ("kV" in "TENSÃO (kV)"
+ * does not make that label sentence case; "de" in "Nº de catálogo" does). An apostrophe
+ * suffix is not the word ("TP's" is a caps word).
+ */
+function isSentenceCase(label: string): boolean {
+  for (const [word] of label.matchAll(WORD)) {
+    const stem = word.split(/['’]/)[0]!;
+    if ([...stem].length >= 2 && /\p{Ll}/u.test(stem) && screenAcronym(stem) === null) return true;
+  }
+  return false;
+}
+
+/**
  * A seed label's screen form: sentence case, the acronyms of `SCREEN_LABEL_ACRONYMS` kept,
  * a word holding a digit kept ("SF6", "H1-H2", "50/51"), a single phase or unit letter
  * kept, and a word already holding a lower-case letter left as it is ("Cabos de entrada"
  * is unchanged). Only the first word, when this function lowered it, is capitalised.
+ *
+ * Seed v5 (Story 14.5): a label already written in sentence case is left exactly as written,
+ * its capitals included: the library type's labels hold capitals a caps label could not give
+ * back ("Intertravamento mecânico e elétrico N/E", "Gerador deixado em AUTOMÁTICO ao final",
+ * "Proteção a montante"). The document still prints every label in caps.
  */
 export function screenLabel(label: string): string {
+  if (isSentenceCase(label)) return label;
   let first = true;
   return label.replace(WORD, (word) => {
     const isFirst = first;

@@ -1,8 +1,9 @@
 import { headNounAgreement } from '../photos/caption.ts';
-import { locationTree, treeNodes, type TreeEquipmentNode, type TreeLocationNode } from '../relatorio/tree.ts';
+import { LIBRARY_GROUP_LABEL, locationTree, treeNodes, type TreeEquipmentNode, type TreeLocationNode } from '../relatorio/tree.ts';
 import { roleSchema, type Role } from '../schemas/block-config.ts';
 import type { BlockRow, RelatorioRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { isLibraryType } from '../seed/definitions.ts';
 
 /*
  * Story 7.1 (FR-68, FR-72, AR-15; EXPERIENCE.md › Section 9 default scheme): the order and
@@ -12,7 +13,9 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
  * and splits only the cabines with "Agrupar por tipo" on, into the fixed groups Seccionadoras
  * › Disjuntores › TP's e TC's › Transformadores e Cabos de Alimentação, an empty group
  * skipped. Grouping only filters and pairs: the tree is never reordered, every sheet prints
- * once, and inside a group the sheets keep their tree order.
+ * once, and inside a group the sheets keep their tree order. Story 14.5: a fifth group,
+ * "Outros equipamentos", holds the sheets of the library types (the Chave de transferência
+ * automática) after Transformadores; a run with none of them emits exactly the four it did.
  *
  * Pairing: a location's (a coluna's, or the cabine's own) n-th TP is followed by its n-th
  * TC, leftovers after them; each transformer is preceded by the alimentação cables whose
@@ -35,7 +38,7 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 
 export type PrintScheme = RelatorioRow['export']['scheme'];
 
-export type PrintGroupKind = 'cabine' | 'painel' | 'seccionadoras' | 'disjuntores' | 'tps_tcs' | 'transformadores';
+export type PrintGroupKind = 'cabine' | 'painel' | 'seccionadoras' | 'disjuntores' | 'tps_tcs' | 'transformadores' | 'outros';
 
 export interface PrintSubsection {
   /** The cabine (the tree's root location) the subsection belongs to. */
@@ -80,6 +83,8 @@ const GROUP_WORDS: readonly { kind: TypeGroup; words: string }[] = [
   { kind: 'disjuntores', words: 'Disjuntores dos Cubículos de MT' },
   { kind: 'tps_tcs', words: "TP's e TC's dos Cubículos de MT" },
   { kind: 'transformadores', words: 'Transformadores e Cabos de Alimentação' },
+  // Story 14.5: the library types, after the four groups of the eight ("Outros equipamentos dos Geradores").
+  { kind: 'outros', words: LIBRARY_GROUP_LABEL },
 ];
 
 /** A leading ordinal or number ("1°", "2ª", "3") is not the head noun of a cabine name. */
@@ -213,7 +218,14 @@ function byType(
   const tpsTcs: TreeEquipmentNode[] = [];
   const transformers: TreeEquipmentNode[] = [];
   const cables: TreeEquipmentNode[] = [];
+  const outros: TreeEquipmentNode[] = [];
   for (const node of nodes) {
+    // Story 14.5: a library type of the block's own seed version prints in "Outros equipamentos".
+    const row = blocks.get(node.blockId);
+    if (row !== undefined && isLibraryType(row.seed_version, node.blockType)) {
+      outros.push(node);
+      continue;
+    }
     switch (node.blockType) {
       case 'disjuntor_mt':
         disjuntores.push(node);
@@ -242,6 +254,7 @@ function byType(
     disjuntores: disjuntores.map((node) => node.blockId),
     tps_tcs: tpTcPairs(tpsTcs),
     transformadores: transformerPairs(transformers, cables, blocks, base.cabineId, cabineTransformers, warnings),
+    outros: outros.map((node) => node.blockId),
   };
   return GROUP_WORDS.flatMap(({ kind, words }) =>
     ids[kind].length === 0 ? [] : [{ cabineId: base.cabineId, kind, title: `${words} ${ofCabine(base.title)}`, blockIds: ids[kind] }],

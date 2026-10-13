@@ -102,6 +102,8 @@ export function blockConfigOf(block: TemplateBlock): JsonValue {
     ...(block.role === undefined ? {} : { role: block.role }),
     sub_blocks: structuredClone(block.sub_blocks),
     na_defaults: [...block.na_defaults],
+    // Story 14.5: the block's own configuration, when the template holds one.
+    ...(block.options === undefined ? {} : { options: { ...block.options } }),
     ...(isSectionBlockType(block.block_type) ? { section_text: block.section_text } : {}),
   } as JsonValue;
 }

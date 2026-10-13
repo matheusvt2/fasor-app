@@ -35,9 +35,18 @@ const NOUNS: Readonly<Record<EquipmentBlockType, TypeNouns>> = {
   cabos_entrada: { one: 'cabo de entrada', many: 'cabos de entrada', label: 'Cabos de entrada' },
   cabos_saida: { one: 'cabo de saída', many: 'cabos de saída', label: 'Cabos de saída' },
   para_raio: { one: 'para-raio', many: 'para-raios', label: 'Para-raios' },
+  // authored (Story 14.5): the library type, named in full (no mock abbreviates it).
+  chave_transferencia_automatica: {
+    one: 'chave de transferência automática',
+    many: 'chaves de transferência automática',
+    label: 'Chaves de transferência automática',
+  },
 };
 
-/** The order the mock lists the per-type totals in ("25 seccionadoras · 21 disjuntores · …"). */
+/**
+ * The order the mock lists the per-type totals in ("25 seccionadoras · 21 disjuntores · …").
+ * Story 14.5: the library type comes after the eight, as in both palettes.
+ */
 export const TOTALS_ORDER: readonly EquipmentBlockType[] = [
   'chave_seccionadora',
   'disjuntor_mt',
@@ -47,6 +56,7 @@ export const TOTALS_ORDER: readonly EquipmentBlockType[] = [
   'cabos_entrada',
   'cabos_saida',
   'para_raio',
+  'chave_transferencia_automatica',
 ];
 
 // authored: no mock draws a node or a template with no equipment yet.

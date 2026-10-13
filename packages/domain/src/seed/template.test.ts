@@ -16,9 +16,9 @@ const quantities = (ref: string) => {
 };
 
 describe('standardTemplate', () => {
-  it('is a valid template row named "Cabine primária — padrão" on the current seed (v4 since Story 14.3)', () => {
+  it('is a valid template row named "Cabine primária — padrão" on the current seed (v5 since Story 14.5)', () => {
     expect(templateRowSchema.parse(template)).toEqual(template);
-    expect(template).toMatchObject({ id: ID, name: STANDARD_TEMPLATE_NAME, version: 1, seed_version: 'v4', removed_at: null });
+    expect(template).toMatchObject({ id: ID, name: STANDARD_TEMPLATE_NAME, version: 1, seed_version: 'v5', removed_at: null });
     expect(STANDARD_TEMPLATE_NAME).toBe('Cabine primária — padrão');
   });
 
@@ -83,6 +83,8 @@ describe('standardTemplate', () => {
       cabos_entrada: 4,
       cabos_saida: 9,
       para_raio: 5,
+      // The standard template stays without the library type (Story 14.5).
+      chave_transferencia_automatica: 0,
     });
     expect(templateBlockTotal(template)).toBe(94);
     // A block whose node left the skeleton is not counted, in the total either.

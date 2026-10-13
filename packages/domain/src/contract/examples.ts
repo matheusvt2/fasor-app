@@ -15,6 +15,8 @@ const OP_3 = '019966b0-0004-7000-8000-000000000003';
 const OP_4 = '019966b0-0004-7000-8000-000000000004';
 const OP_5 = '019966b0-0004-7000-8000-000000000005';
 const OP_6 = '019966b0-0004-7000-8000-000000000006';
+const OP_7 = '019966b0-0004-7000-8000-000000000007';
+const CTA_BLOCK_ID = '019966b0-0003-7000-8000-000000000008';
 const LOCAL_ID = '019966b0-0003-7000-8000-000000000006';
 const PAINEL_ID = '019966b0-0003-7000-8000-000000000007';
 
@@ -130,9 +132,19 @@ const siteResultPut = {
   client_ts: '2026-09-21T12:04:00.000Z',
 };
 
+/** Contract 19 (Story 14.5): one value of a measurement test outside its table, how the E5 transfer was run. */
+const testValuePut = {
+  ...relatorioEnvelope,
+  op_id: OP_7,
+  kind: 'put',
+  path: `sheet/${CTA_BLOCK_ID}/test/cta_transferencia/value/metodo`,
+  value: { raw: 'falta_real', unit: null, state: 'measured' },
+  client_ts: '2026-09-21T12:05:00.000Z',
+};
+
 export const contractExamples = {
   pushRequest: {
-    valid: { ops: [clientCreate, relatorioCreate, painelCreate, funcaoPut, siteResultPut] },
+    valid: { ops: [clientCreate, relatorioCreate, painelCreate, funcaoPut, siteResultPut, testValuePut] },
     /** `ops` is not an array. */
     invalid: { ops: clientCreate },
   },
@@ -155,8 +167,9 @@ export const contractExamples = {
         { ...painelCreate, seq: 43 },
         { ...funcaoPut, seq: 44 },
         { ...siteResultPut, seq: 45 },
+        { ...testValuePut, seq: 46 },
       ],
-      seq: 45,
+      seq: 46,
       summary: {
         last_push_at: [{ user_id: USER_ID, device_id: 'tablet-example', at: '2026-09-21T12:05:00.000Z' }],
         relatorios: [

@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { applyOp, type EntityState } from '../ops/apply.ts';
 import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
-import { blockConfigSchema, EQUIPMENT_BLOCK_TYPES, MAX_QUANTITY, SECTION_BLOCK_TYPES, type TemplateBlock } from '../schemas/block-config.ts';
+import { blockConfigSchema, MAX_QUANTITY, SECTION_BLOCK_TYPES, type TemplateBlock } from '../schemas/block-config.ts';
 import { templateRowSchema, type BlockRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { SEED_VERSION, SEED_VERSIONS } from '../seed/definitions.ts';
+import { equipmentTypesOf, getDefinition, SEED_VERSION, SEED_VERSIONS } from '../seed/definitions.ts';
 import { defaultBlockConfig, standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO, TEST_USER } from '../test-support.ts';
 import { instantiateTemplate } from '../relatorio/instantiate.ts';
@@ -276,12 +276,12 @@ describe('14.3-UNIT how templates reach the current seed version', () => {
   const EARLIER = Object.keys(SEED_VERSIONS).filter((version) => version !== SEED_VERSION);
   const TEMPLATE = '019966b0-0069-7000-8000-000000000001';
 
-  it('the bundle ships v1 to v3 before the current v4', () => {
-    expect(SEED_VERSION).toBe('v4');
-    expect(EARLIER).toEqual(['v1', 'v2', 'v3']);
+  it('the bundle ships v1 to v4 before the current v5', () => {
+    expect(SEED_VERSION).toBe('v5');
+    expect(EARLIER).toEqual(['v1', 'v2', 'v3', 'v4']);
   });
 
-  it.each(['v1', 'v2', 'v3'])('templateSeedUpgrade: the standard template of %s validates on the current version and moves to it', (version) => {
+  it.each(['v1', 'v2', 'v3', 'v4'])('templateSeedUpgrade: the standard template of %s validates on the current version and moves to it', (version) => {
     const row = standardTemplate({ id: TEMPLATE, seedVersion: version });
     expect(row.seed_version).toBe(version);
     expect(templateSeedUpgrade(row)).toBe(SEED_VERSION);
@@ -292,16 +292,17 @@ describe('14.3-UNIT how templates reach the current seed version', () => {
     expect(templateSeedUpgrade(moved)).toBeNull();
   });
 
-  it.each(['v1', 'v2', 'v3'])('templateSeedUpgrade: every default config of %s, with each subtype and role, validates on the current version', (version) => {
-    const seed = SEED_VERSIONS[version]!.report_types.cabine_primaria;
+  it.each(['v1', 'v2', 'v3', 'v4'])('templateSeedUpgrade: every default config of %s, with each subtype and role, validates on the current version', (version) => {
     const blocks: TemplateBlock[] = SECTION_BLOCK_TYPES.map((type) => ({ ...defaultBlockConfig(version, type), quantity: 1, skeleton_location_ref: null, section_text: null }));
-    for (const type of EQUIPMENT_BLOCK_TYPES) {
-      const variants = [{}, ...seed.blocks[type].subtypes.map((subtype) => ({ subtype: subtype.key })), { role: 'entrada' as const }, { role: 'saida' as const }, { role: 'alimentacao' as const }];
+    // Every type the version ships: the eight on v1 to v4 (Story 14.5: v5 is their superset).
+    expect(equipmentTypesOf(version)).toHaveLength(8);
+    for (const type of equipmentTypesOf(version)) {
+      const variants = [{}, ...getDefinition(version, 'cabine_primaria', type).subtypes.map((subtype) => ({ subtype: subtype.key })), { role: 'entrada' as const }, { role: 'saida' as const }, { role: 'alimentacao' as const }];
       for (const options of variants) blocks.push({ ...defaultBlockConfig(version, type, options), quantity: 1, skeleton_location_ref: 'local', section_text: null });
     }
     const row = { ...emptyTemplate(TEMPLATE, version), blocks, skeleton: [{ ref: 'local', kind: 'cabine' as const, parent_ref: null, name: 'Local', agrupar_por_tipo: false }] };
     expect(templateRowSchema.safeParse(row).success).toBe(true);
-    expect(blocks.length).toBeGreaterThan(SECTION_BLOCK_TYPES.length + EQUIPMENT_BLOCK_TYPES.length * 4);
+    expect(blocks.length).toBeGreaterThan(SECTION_BLOCK_TYPES.length + equipmentTypesOf(version).length * 4);
     expect(templateSeedUpgrade(row)).toBe(SEED_VERSION);
   });
 

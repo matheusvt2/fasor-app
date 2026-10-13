@@ -5,6 +5,7 @@ import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { avatarInitial } from '../registration.ts';
 import { composeConclusion } from '../relatorio/conclusion.ts';
 import { sheetOrder, fieldValueText } from '../relatorio/ficha.ts';
+import { measurementCellLabel, measurementTestTitle, measurementValueLabel } from '../relatorio/measurement-evaluation.ts';
 import { evaluateTest } from '../relatorio/reading-evaluation.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import { sheetState, sheetStateLabel } from '../relatorio/sheet-state.ts';
@@ -283,13 +284,14 @@ function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf'], equi
   }
 
   const tests = definition?.tests ?? [];
-  const testKeys = [...tests.map((test) => test.key), ...Object.keys(sheet.test)];
-  for (const key of new Set(testKeys)) {
+  // Story 14.5: the measurement tests follow the seeded ones, in the definition's order.
+  const testKeys = [...tests.map((test) => test.key), ...(definition?.measurement_tests ?? []).map((test) => test.key), ...Object.keys(sheet.test)];
+  for (const key of new Set<string>(testKeys)) {
     const stored = sheet.test[key];
     if (stored === undefined) continue;
     const test = tests.find((row) => row.key === key);
     const evaluation = test === undefined ? null : evaluateTest(block, definition!, test);
-    const title = evaluation?.title ?? key;
+    const title = evaluation?.title ?? measurementTestTitle(definition, key) ?? key;
     push({ family: 'sheet/test', block_id: blockId, test_key: key, field: 'instrument' }, stored.instrument, title, 'Instrumento');
     push({ family: 'sheet/test', block_id: blockId, test_key: key, field: 'criterion_override' }, stored.criterion_override, title, 'Critério');
     const rows = Object.keys(stored.cells).map(Number).sort((a, b) => a - b);
@@ -298,9 +300,19 @@ function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf'], equi
       for (const col of cols) {
         const evaluated = evaluation?.tables.flatMap((table) => table.rows).find((r) => r.row === row);
         const cell = evaluated?.cells.find((c) => c.address.col === col);
-        const label = evaluated === undefined || cell === undefined ? `Linha ${row + 1} · coluna ${col + 1}` : [evaluated.label, cell.column].filter((part) => part !== '').join(' · ');
+        const label =
+          evaluated === undefined || cell === undefined
+            ? (measurementCellLabel(definition, key, row, col) ?? `Linha ${row + 1} · coluna ${col + 1}`)
+            : [evaluated.label, cell.column].filter((part) => part !== '').join(' · ');
         push({ family: 'sheet/test/cell', block_id: blockId, test_key: key, row, col }, stored.cells[String(row)]?.[String(col)], title, label);
       }
+    }
+    // Story 14.5: a measurement test's values outside its table, in the definition's order, then any other stored key.
+    const values = stored.values ?? {};
+    const declared = (definition?.measurement_tests ?? []).find((row) => row.key === key)?.values?.map((value) => value.key) ?? [];
+    const valueKeys = [...declared.filter((valueKey) => valueKey in values), ...Object.keys(values).filter((valueKey) => !declared.includes(valueKey)).sort()];
+    for (const valueKey of valueKeys) {
+      push({ family: 'sheet/test/value', block_id: blockId, test_key: key, value_key: valueKey }, values[valueKey], title, measurementValueLabel(definition, key, valueKey) ?? valueKey);
     }
   }
 
@@ -387,7 +399,8 @@ function sheetCells(block: Pick<BlockRow, 'sheet'>): Cell[] {
   const cells: (Cell | undefined | null)[] = [
     ...Object.values(sheet.nameplate),
     ...Object.values(sheet.checklist).flatMap((entry) => [entry.result, entry.observation]),
-    ...Object.values(sheet.test).flatMap((test) => [test.instrument, test.criterion_override, ...Object.values(test.cells).flatMap((row) => Object.values(row))]),
+    // Story 14.5: a measurement test's values outside its table are cells of the sheet too.
+    ...Object.values(sheet.test).flatMap((test) => [test.instrument, test.criterion_override, ...Object.values(test.cells).flatMap((row) => Object.values(row)), ...Object.values(test.values ?? {})]),
     ...Object.values(sheet.conclusion),
     sheet.observations,
   ];

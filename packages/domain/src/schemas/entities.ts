@@ -406,6 +406,14 @@ export const sheetSchema = z.object({
       instrument: cellSchema.optional(),
       criterion_override: cellSchema.optional(),
       cells: z.record(z.string(), cellMap),
+      /**
+       * Story 14.5 (contract 19): the test's values outside its table, keyed by the value key
+       * of its measurement test (the E5 método, carga and fonte dos tempos), written only
+       * through `sheet/{block_id}/test/{test_key}/value/{value_key}`. Optional and never
+       * defaulted: a test entry that never took a value holds no key, so no stored row
+       * changes bytes.
+       */
+      values: cellMap.optional(),
     }),
   ),
   conclusion: z.object({

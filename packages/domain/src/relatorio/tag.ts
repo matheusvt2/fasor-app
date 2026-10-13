@@ -19,6 +19,8 @@ export const TAG_PREFIX: Readonly<Record<EquipmentBlockType, string>> = {
   tc: 'TC',
   cabos_saida: 'CS',
   transformador_forca: 'TR',
+  // Story 14.5 (seed v5): the Chave de transferência automática, "CTA-C05", "CTA-GER".
+  chave_transferencia_automatica: 'CTA',
 };
 
 /** What `suggestTag` needs of the location a block is placed on. */

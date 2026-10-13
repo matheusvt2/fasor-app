@@ -2,7 +2,8 @@
 title: 'Story 14.5: the measurement table and the Chave de transferência automática (seed v5)'
 type: 'feature'
 created: '2026-10-13'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: 'e72fbe41ee808acd28fa96c9f5fcd43d01bf9d24'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'
@@ -175,6 +176,32 @@ picker (the registry has no flag for them). The CTA criteria do not appear in th
 (Bruno). E4 has the eight sensor rows of § 8.4, the mock draws five (Bruno). A switched-off test prints nothing,
 as a disabled sub-block does today; § 8.4 says "marked NA" (Bruno). How an out cell prints: the existing
 convention of the seeded tables, not the mock's "INVESTIGAR" word (Bruno).
+
+## Execution environment (this host; read before running anything)
+
+- Work only inside this worktree (`/Users/matheusvilella/Documents/estudos/fasor-app-e14c`), on the checked-out
+  branch `story/14-5-measurement-table-cta`. Never touch the sibling checkouts `fasor-app`, `fasor-app-e14a`,
+  `fasor-app-e14b`. Never run pnpm, node or a service on the host. Never commit: the orchestrator commits.
+- Container engine is podman. A one-off tools run that needs no database:
+  `podman compose --profile tools run --rm --user root --no-deps tools pnpm exec vitest run <paths>` (also
+  `pnpm lint`, `pnpm static`). Never build an image, never pass `-v`, never `pkill` by pattern.
+- Phase 1 runs with NO stack: do not bring up postgres, minio, api or web. Phase 2 starts only when the
+  orchestrator says the stack is up (`podman compose up -d` is the orchestrator's call); the api container does
+  not reload on kernel edits (`podman compose restart api` before an api integration or Playwright run).
+- Every Playwright run and every full `test:unit` or `test:api` run goes under the host lock, never blocking a
+  tool call on it: start with `nohup lockf -t 20000 /tmp/fasor-verify.lock sh -c '<command>' > .scratch-e14c/<name>.log 2>&1 &`
+  writing an `EXIT=$?` line, then poll the log with calls of at most 60 s. A focused Vitest file may run without
+  the lock. Spec paths go before `--project` when calling `scripts/e2e.ts`.
+- Never let full test output into your context: redirect to `.scratch-e14c/` and read the tail; grep failures only
+  when it failed. Scratch files carry the tag `e14c`. Read files with offset/limit; grep mocks, never read them whole.
+- Known reds that are NOT yours and must not be fixed here: `apps/api/src/sync/sync.integration.test.ts` about
+  lines 1061-1071 (contract pin, batch e14b) and `apps/web/src/surfaces/relatorio/relatorio-tree-edges.test.tsx`
+  ("Adicionar equipamento" menuitem, batch e14a); the unit test "commits a typed number on blur or Enter, clamped
+  to 99" in `quantity-stepper.test.tsx` is a known flake.
+- No emoji anywhere. Code, comments and documents in English; pt-BR only in UI copy and seed labels. Nothing from
+  `docs/context/`, `docs/media/` or `docs/concorrentes/` enters a tracked file; no manufacturer document is copied.
+- Planning documents are append-only: strike with `~~...~~` and add dated text. Do not edit `epics.md` or
+  `sprint-status.yaml`.
 
 ## Verification
 

@@ -1,4 +1,12 @@
-import { equipmentBlockTypeSchema, type EquipmentBlockType, type ItemKey, type SiteItemKey, type Subtype } from '../schemas/block-config.ts';
+import {
+  BASE_EQUIPMENT_BLOCK_TYPES,
+  EQUIPMENT_BLOCK_TYPES,
+  equipmentBlockTypeSchema,
+  type EquipmentBlockType,
+  type ItemKey,
+  type SiteItemKey,
+  type Subtype,
+} from '../schemas/block-config.ts';
 import { SEEDED_CRITERIA } from './criteria.ts';
 import {
   dateSchema,
@@ -16,6 +24,7 @@ import { CABINE_PRIMARIA_V1 } from './v1.ts';
 import { CABINE_PRIMARIA_V2 } from './v2.ts';
 import { CABINE_PRIMARIA_V3 } from './v3.ts';
 import { CABINE_PRIMARIA_V4 } from './v4.ts';
+import { CABINE_PRIMARIA_V5 } from './v5.ts';
 
 /*
  * AD-21, AR-20: seed data is versioned code, resolved and never copied. A Template and a
@@ -31,7 +40,7 @@ import { CABINE_PRIMARIA_V4 } from './v4.ts';
  * moves it (`templateSeedUpgrade`, Story 14.3): every relatório made from it afterwards is
  * born on the newer version, and none already made is touched.
  */
-export const SEED_VERSION = 'v4';
+export const SEED_VERSION = 'v5';
 
 /** The named variables section boilerplate may carry, resolved at generation. */
 export const SECTION_VARIABLES = ['empresa_executora', 'cliente', 'obra', 'escopo', 'datas', 'responsavel'] as const;
@@ -47,12 +56,21 @@ function deepFreeze<T>(value: T): T {
 
 /** Validated once, at module load: a malformed seed fails every consumer's first import. */
 function bundle(version: string, cabinePrimaria: ReportSeed): SeedBundle {
-  const parsed = seedBundleSchema.parse({ version, report_types: { cabine_primaria: cabinePrimaria } });
+  // The schema's refinement holds that the eight are there, which is what `SeedBundle` types.
+  const parsed = seedBundleSchema.parse({ version, report_types: { cabine_primaria: cabinePrimaria } }) as SeedBundle;
   const criterionKeys = new Set(SEEDED_CRITERIA.map((c) => c.key));
   for (const definition of Object.values(parsed.report_types.cabine_primaria.blocks)) {
     for (const test of definition.tests) {
       if (!criterionKeys.has(test.criterion_key)) {
         throw new Error(`seed ${version}: ${definition.block_type}/${test.key} names unknown criterion "${test.criterion_key}"`);
+      }
+    }
+    // Story 14.5: a measurement criterion that reads a seeded one names one that exists.
+    for (const test of definition.measurement_tests ?? []) {
+      for (const criterion of test.criteria) {
+        if (criterion.type === 'absolute' && criterion.seeded !== undefined && !criterionKeys.has(criterion.seeded)) {
+          throw new Error(`seed ${version}: ${definition.block_type}/${test.key} names unknown criterion "${criterion.seeded}"`);
+        }
       }
     }
   }
@@ -65,6 +83,7 @@ export const SEED_VERSIONS: Readonly<Record<string, SeedBundle>> = deepFreeze({
   v2: bundle('v2', CABINE_PRIMARIA_V2),
   v3: bundle('v3', CABINE_PRIMARIA_V3),
   v4: bundle('v4', CABINE_PRIMARIA_V4),
+  v5: bundle('v5', CABINE_PRIMARIA_V5),
 });
 
 /**
@@ -89,13 +108,40 @@ export function getSeed(seedVersion: string, reportType: string): ReportSeed {
 /**
  * The definition of one equipment block type (fields, checklist, test grammars, sub-blocks,
  * subtypes) as the given seed version shipped it. Section block types have no definition
- * here: their text resolves through `sectionText`.
+ * here: their text resolves through `sectionText`. Story 14.5: a type the version does not
+ * ship (the Chave de transferência automática before v5) throws too, naming both.
  */
 export function getDefinition(seedVersion: string, reportType: string, blockType: string): BlockDefinition {
   const seed = getSeed(seedVersion, reportType);
   const type = equipmentBlockTypeSchema.safeParse(blockType);
   if (!type.success) throw new Error(`getDefinition: unknown block_type "${blockType}"`);
-  return seed.blocks[type.data as EquipmentBlockType];
+  const definition = seed.blocks[type.data as EquipmentBlockType];
+  if (definition === undefined) throw new Error(`getDefinition: block_type "${blockType}" is not in seed_version "${seedVersion}"`);
+  return definition;
+}
+
+/**
+ * Story 14.5: the equipment block types a seed version ships, in `EQUIPMENT_BLOCK_TYPES`
+ * order: the eight on v1 to v4, the eight then the Chave de transferência automática on v5.
+ * Every list of types a surface offers reads this, so a relatório or a template never offers
+ * a type its own version has no definition of. A version this bundle does not ship answers
+ * the eight, which every version holds.
+ */
+export function equipmentTypesOf(seedVersion: string): readonly EquipmentBlockType[] {
+  const known = typesCache.get(seedVersion);
+  if (known !== undefined) return known;
+  const seed = Object.hasOwn(SEED_VERSIONS, seedVersion) ? SEED_VERSIONS[seedVersion]!.report_types.cabine_primaria : undefined;
+  if (seed === undefined) return BASE_EQUIPMENT_BLOCK_TYPES;
+  const types = Object.freeze(EQUIPMENT_BLOCK_TYPES.filter((type) => seed.blocks[type] !== undefined));
+  typesCache.set(seedVersion, types);
+  return types;
+}
+
+const typesCache = new Map<string, readonly EquipmentBlockType[]>();
+
+/** Story 14.5: whether `blockType` is a library type of the seed version (offered and printed under "Outros equipamentos"). */
+export function isLibraryType(seedVersion: string, blockType: string): boolean {
+  return findDefinition(seedVersion, blockType)?.library === true;
 }
 
 /**

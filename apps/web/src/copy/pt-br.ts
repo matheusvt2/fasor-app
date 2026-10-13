@@ -422,6 +422,14 @@ export const copy = {
       relacao_transformacao: 'Relação de transformação',
       observations: 'Observações',
       conclusion: 'Conclusão',
+      // Story 14.5 (seed v5): the six measurement tests of the Chave de transferência
+      // automática, as the kernel titles them (`measurementTestTitle`).
+      cta_resistencia_contato: 'E1 · Resistência de contato',
+      cta_isolamento_principal: 'E2 · Isolamento principal',
+      cta_isolamento_controle: 'E3 · Isolamento do controle',
+      cta_ajustes_controlador: 'E4 · Ajustes do controlador',
+      cta_transferencia: 'E5 · Transferência',
+      cta_termografia: 'E6 · Termografia sob carga',
     },
     // Story 3.6: the section text editor, a Form dialog from the section card's Overflow.
     editText: 'Editar texto',
@@ -476,6 +484,8 @@ export const copy = {
       tc: 'TC — proteção',
       cabos_saida: 'Cabos de saída / alimentação TRn',
       transformador_forca: 'Transformador de força',
+      // Story 14.5 (seed v5): the library type, verbatim from the mock's "Outros equipamentos" group.
+      chave_transferencia_automatica: 'Chave de transferência automática',
     },
   },
   // Export dialog (`73-exportar.html`, Story 4.8). Every sentence that carries a revision

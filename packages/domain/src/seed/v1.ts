@@ -1,4 +1,4 @@
-import type { ItemKey } from '../schemas/block-config.ts';
+import type { BaseEquipmentBlockType, ItemKey } from '../schemas/block-config.ts';
 import type {
   BlockDefinition,
   CabineDefinition,
@@ -498,7 +498,7 @@ const TRANSFORMADOR_RATIO = ratio({
 
 const SINGLE_TABLE_TAIL = ['checklist', 'isolacao', 'ia_ip_display'] as const;
 
-const BLOCKS: Record<BlockDefinition['block_type'], BlockDefinition> = {
+const BLOCKS: Record<BaseEquipmentBlockType, BlockDefinition> = {
   cabos_entrada: {
     block_type: 'cabos_entrada',
     label: 'Cabos de entrada',

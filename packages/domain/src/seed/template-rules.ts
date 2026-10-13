@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 import { isSectionBlockType, type SkeletonNode, type SubBlockKey, type TemplateBlock } from '../schemas/block-config.ts';
-import { getDefinition, SEED_VERSIONS } from './definitions.ts';
+import { findDefinition, SEED_VERSIONS } from './definitions.ts';
 import { LOCKED_SUB_BLOCKS } from './template.ts';
 
 /*
@@ -55,6 +55,7 @@ export function checkTemplateRow(row: TemplateShape, ctx: z.RefinementCtx): void
       if (block.role !== undefined) issue(at('role'), 'a section block has no role');
       if (Object.keys(block.sub_blocks).length > 0) issue(at('sub_blocks'), 'a section block has no sub-blocks');
       if (block.na_defaults.length > 0) issue(at('na_defaults'), 'a section block has no NA defaults');
+      if (block.options !== undefined) issue(at('options'), 'a section block has no configuration');
       if (block.skeleton_location_ref !== null) issue(at('skeleton_location_ref'), 'a section block sits outside the skeleton');
       return;
     }
@@ -66,7 +67,13 @@ export function checkTemplateRow(row: TemplateShape, ctx: z.RefinementCtx): void
     }
     if (!knownVersion) return;
 
-    const definition = getDefinition(row.seed_version, 'cabine_primaria', block.block_type);
+    // Story 14.5: a type the row's seed version does not ship (the Chave de transferência
+    // automática before v5) is an issue of the row, never a throw out of the schema.
+    const definition = findDefinition(row.seed_version, block.block_type);
+    if (definition === null) {
+      issue(at('block_type'), `${block.block_type} is not a block type of seed_version "${row.seed_version}"`);
+      return;
+    }
     if (block.subtype !== undefined && !definition.subtypes.some((s) => s.key === block.subtype)) {
       issue(at('subtype'), `${block.block_type} has no subtype "${block.subtype}"`);
     }
@@ -85,5 +92,11 @@ export function checkTemplateRow(row: TemplateShape, ctx: z.RefinementCtx): void
     block.na_defaults.forEach((key, j) => {
       if (!items.has(key)) issue(['blocks', i, 'na_defaults', j], `"${key}" is not an item of ${block.block_type}`);
     });
+    // Story 14.5: `options` holds only config fields of the type, each with one of its options.
+    for (const [key, value] of Object.entries(block.options ?? {})) {
+      const field = (definition.config_fields ?? []).find((candidate) => candidate.key === key);
+      if (field === undefined) issue(['blocks', i, 'options', key], `${block.block_type} has no config field "${key}"`);
+      else if (!field.options.some((option) => option.key === value)) issue(['blocks', i, 'options', key], `"${value}" is not an option of "${key}"`);
+    }
   });
 }
