@@ -1,16 +1,26 @@
 import {
   accountResponseSchema,
+  buildSnapshot,
   canonicalJson,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
   entityKey,
   errorResponseSchema,
+  locationRemovalPlan,
+  locationRestorePlan,
   makeOp,
   MIN_CONTRACT_VERSION,
+  progress,
   replay,
+  serializeSnapshot,
+  splitEntityKey,
   syncPullResponseSchema,
   syncPushResponseSchema,
   userRowSchema,
+  type BlockRow,
+  type EntityState,
+  type EquipmentRow,
+  type LocationRow,
   type Op,
   type OpInput,
   type SyncPullResponse,
@@ -28,6 +38,7 @@ import { findUserProfile } from '../db/repositories/users.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { entities, ops, syncDevicePush } from '../db/schema.ts';
 import { newId } from '../ids.ts';
+import { toSnapshot } from './snapshot.ts';
 
 /**
  * 1.5-API-001..005 over the compose api with the two seeded users (TC-9). Every id is
@@ -1376,5 +1387,173 @@ describe('Story 14.2 (contract 17): Local › Painel › Coluna through POST /ap
     expect(await rowOf('location', novo)).toBeUndefined();
     expect(await rowOf('block', blockId)).toBeUndefined();
     expect(await rowOf('location', t.painel)).toMatchObject({ name: 'Painel renomeado' });
+  });
+});
+
+describe('Story 14.2, second pass: a location removal batch and its restore through POST /api/sync/ops', () => {
+  const blankSe = { type: null, primary_kv: null, secondary_kv: null, installed_kva: null };
+  const blankEnv = { altitude_m: null, temperature_c: null, humidity_pct: null };
+  const scoped = (relatorioId: string) => ({ scope: 'relatorio' as const, relatorio_id: relatorioId });
+
+  function locationCreate(relatorioId: string, id: string, kind: 'cabine' | 'painel' | 'coluna', parentId: string | null, name: string, orderKey: string): Op {
+    written.entityIds.add(id);
+    const base = { id, relatorio_id: relatorioId, parent_id: parentId, kind, name, order_key: orderKey, removed_at: null };
+    return op(idsA, { ...scoped(relatorioId), kind: 'create', path: `location/${id}`, value: kind === 'cabine' ? { ...base, se: blankSe, env: blankEnv, agrupar_por_tipo: false } : base });
+  }
+  function equipmentWith(projectId: string, id: string, tag: string): Op {
+    const base = equipmentCreate(idsA, id, projectId);
+    return { ...base, value: { ...(base.value as Record<string, unknown>), tag, type: 'chave_seccionadora' } as Op['value'] };
+  }
+  function sheetAt(relatorioId: string, id: string, locationId: string, equipmentId: string, orderKey: string): Op {
+    const base = blockCreate(idsA, relatorioId, id, 'chave_seccionadora');
+    return { ...base, value: { ...(base.value as Record<string, unknown>), location_id: locationId, equipment_id: equipmentId, order_key: orderKey } as Op['value'] };
+  }
+  /** One client batch: every op carries the same `batch_id` and the same `client_ts`, as the device's commit stamps it. */
+  function batchOf(relatorioId: string, projectId: string, kind: 'remove' | 'put', ids: { locationIds: string[]; blockIds: string[]; equipmentIds: string[] }, at: string): Op[] {
+    const batchId = newId();
+    const one = (input: Parameters<typeof op>[1]): Op => ({ ...op(idsA, { ...input, batch_id: batchId }), client_ts: at });
+    return [
+      ...ids.locationIds.map((id) => one({ ...scoped(relatorioId), kind, path: `location/${id}/removed_at`, value: null })),
+      ...ids.blockIds.map((id) => one({ ...scoped(relatorioId), kind, path: `block/${id}/removed_at`, value: null })),
+      ...ids.equipmentIds.map((id) => one({ kind, scope: 'project', project_id: projectId, path: `equipment/${id}/removed_at`, value: null })),
+    ];
+  }
+  /** Every location, block and equipment row of a kernel state, removed ones included: what a device hands the plans. */
+  function rowsIn(state: EntityState): { locations: LocationRow[]; blocks: BlockRow[]; equipment: EquipmentRow[] } {
+    const out = { locations: [] as LocationRow[], blocks: [] as BlockRow[], equipment: [] as EquipmentRow[] };
+    for (const [key, row] of state) {
+      const entity = splitEntityKey(key).entity;
+      if (entity === 'location') out.locations.push(row as LocationRow);
+      else if (entity === 'block') out.blocks.push(row as BlockRow);
+      else if (entity === 'equipment') out.equipment.push(row as EquipmentRow);
+    }
+    return out;
+  }
+  const stored = async (entity: string, id: string) =>
+    (await db.select({ row: entities.row, removed_at: entities.removed_at }).from(entities).where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, entity), eq(entities.id, id))))[0];
+  const sheetsInSummary = async (relatorioId: string) => (await pullOk(companyA, '/api/sync/company?since=0')).summary!.relatorios.find((row) => row.id === relatorioId)?.progress?.sheets;
+
+  it('a painel with two colunas and their sheets leaves in one batch and comes back in one: the stored rows, the server snapshot and the summary agree with the kernel', async () => {
+    const projectId = newId();
+    const relatorioId = newId();
+    const local = newId();
+    const painel = newId();
+    const [coluna1, coluna2, outra] = [newId(), newId(), newId()];
+    const equipment = { a: newId(), b: newId(), shared: newId(), fora: newId() };
+    const sheets = { a: newId(), b: newId(), shared: newId(), keeper: newId(), fora: newId() };
+    for (const id of Object.values(equipment)) written.entityIds.add(id);
+    const created = [
+      projectCreate(idsA, projectId),
+      relatorioCreate(idsA, relatorioId, projectId),
+      locationCreate(relatorioId, local, 'cabine', null, 'Subestação', 'a0'),
+      locationCreate(relatorioId, painel, 'painel', local, 'Painel 1', 'a0'),
+      locationCreate(relatorioId, coluna1, 'coluna', painel, 'Coluna 1', 'a0'),
+      locationCreate(relatorioId, coluna2, 'coluna', painel, 'Coluna 2', 'a1'),
+      // A coluna directly under the local: it stays, with one sheet of its own and one holding the shared equipment.
+      locationCreate(relatorioId, outra, 'coluna', local, 'Coluna 9', 'a1'),
+      equipmentWith(projectId, equipment.a, 'SEC-C01'),
+      equipmentWith(projectId, equipment.b, 'SEC-C02'),
+      equipmentWith(projectId, equipment.shared, 'SEC-C02-2'),
+      equipmentWith(projectId, equipment.fora, 'SEC-C09'),
+      sheetAt(relatorioId, sheets.a, coluna1, equipment.a, 'a0'),
+      sheetAt(relatorioId, sheets.b, coluna2, equipment.b, 'a0'),
+      sheetAt(relatorioId, sheets.shared, coluna2, equipment.shared, 'a1'),
+      sheetAt(relatorioId, sheets.keeper, outra, equipment.shared, 'a0'),
+      sheetAt(relatorioId, sheets.fora, outra, equipment.fora, 'a1'),
+    ];
+    const first = await pushOk(companyA, created);
+    expect(first.rejected).toEqual([]);
+
+    const log: Op[] = created.map((o, i) => ({ ...o, seq: i + 1 }));
+    const pushed = (batch: Op[]) => log.push(...batch.map((o, i) => ({ ...o, seq: log.length + i + 1 })));
+    /** The server snapshot against the kernel replay of the same log. The company's own `empresa` row is not this log's. */
+    const snapshotsAgree = async () => {
+      const kernel = buildSnapshot(replay(log), relatorioId);
+      const server = await toSnapshot(db, asCompanyId(companyA.companyId), relatorioId);
+      expect(serializeSnapshot({ ...server, empresa: null })).toBe(serializeSnapshot({ ...kernel, empresa: null }));
+      return kernel;
+    };
+    const before = await snapshotsAgree();
+    expect(progress(before).sheets_total).toBe(5);
+    expect(await sheetsInSummary(relatorioId)).toBe(5);
+
+    // The removal, planned by the kernel on the rows a device holds: the painel, its two colunas, their three
+    // sheets, and two of the three equipment rows (the third is held by a sheet outside the removal).
+    const visibility = { companyDownloaded: true, summaries: [], heldRelatorioIds: [], downloadedStreamIds: [] };
+    const held = rowsIn(replay(log));
+    const plan = locationRemovalPlan({ locations: held.locations, blocks: held.blocks, otherBlocks: [], locationId: painel, projectId, relatorioId, visibility })!;
+    expect(plan).toEqual({
+      kind: 'painel',
+      locationId: painel,
+      locationIds: [painel, coluna1, coluna2],
+      blockIds: [sheets.a, sheets.b, sheets.shared],
+      equipmentIds: [equipment.a, equipment.b],
+      counts: { paineis: 0, colunas: 2, sheets: 3 },
+    });
+    const removedAt = '2026-10-13T15:00:00.000Z';
+    const removal = batchOf(relatorioId, projectId, 'remove', plan, removedAt);
+    const removed = await pushOk(companyA, removal);
+    expect(removed.rejected).toEqual([]);
+    expect(removed.applied.map((a) => a.op_id)).toEqual(removal.map((o) => o.op_id));
+    pushed(removal);
+
+    // Every row of the batch carries the batch's one timestamp; the rows outside it are untouched.
+    const tombstoned: [string, string][] = [
+      ...plan.locationIds.map((id): [string, string] => ['location', id]),
+      ...plan.blockIds.map((id): [string, string] => ['block', id]),
+      ...plan.equipmentIds.map((id): [string, string] => ['equipment', id]),
+    ];
+    for (const [entity, id] of tombstoned) {
+      const record = await stored(entity, id);
+      expect(record?.row, `${entity} ${id}`).toMatchObject({ removed_at: removedAt });
+      expect(record?.removed_at, `${entity} ${id}`).not.toBeNull();
+    }
+    const kept: [string, string][] = [['location', local], ['location', outra], ['block', sheets.keeper], ['block', sheets.fora], ['equipment', equipment.shared], ['equipment', equipment.fora]];
+    for (const [entity, id] of kept) expect((await stored(entity, id))?.row, `${entity} ${id}`).toMatchObject({ removed_at: null });
+    const pure = replay(log);
+    for (const [entity, id] of [...tombstoned, ...kept]) {
+      expect(canonicalJson((await stored(entity, id))!.row as never), `${entity} ${id}`).toBe(canonicalJson(pure.get(entityKey(entity as never, id)) as never));
+    }
+
+    const after = await snapshotsAgree();
+    expect(after.locations.map((row) => row.id).sort()).toEqual([local, outra].sort());
+    expect(after.blocks.map((row) => row.id).sort()).toEqual([sheets.keeper, sheets.fora].sort());
+    expect(after.equipment.map((row) => row.id).sort()).toEqual([equipment.shared, equipment.fora].sort());
+    expect(progress(after).sheets_total).toBe(2);
+    expect(await sheetsInSummary(relatorioId)).toBe(2);
+
+    // The relatório's stream hands the whole batch to every other device in the order it was written (it
+    // carries its project's ops too); the project's stream carries the equipment tombstones (AD-5).
+    const inBatch = (page: SyncPullResponse) => (page.ops as Op[]).filter((o) => o.batch_id === removal[0]!.batch_id);
+    const streamed = inBatch(await pullOk(companyA, `/api/sync/relatorios/${relatorioId}?since=0`));
+    expect(streamed.map((o) => o.path)).toEqual(removal.map((o) => o.path));
+    expect(streamed.map((o) => o.kind)).toEqual(removal.map(() => 'remove'));
+    expect(new Set(streamed.map((o) => o.client_ts))).toEqual(new Set([removedAt]));
+    const onProject = inBatch(await pullOk(companyA, `/api/sync/projects/${projectId}?since=0`));
+    expect(onProject.map((o) => o.path)).toEqual(plan.equipmentIds.map((id) => `equipment/${id}/removed_at`));
+
+    // The restore, planned on the rows after the removal: the same rows come back in one batch.
+    const afterRows = rowsIn(replay(log));
+    const back = locationRestorePlan({ ...afterRows, locationId: painel })!;
+    expect(back).toMatchObject({ locationIds: plan.locationIds, blockIds: plan.blockIds, equipmentIds: plan.equipmentIds, counts: { paineis: 0, colunas: 2, sheets: 3 } });
+    const restore = batchOf(relatorioId, projectId, 'put', back, '2026-10-13T15:05:00.000Z');
+    const restored = await pushOk(companyA, restore);
+    expect(restored.rejected).toEqual([]);
+    expect(restored.applied.map((a) => a.op_id)).toEqual(restore.map((o) => o.op_id));
+    pushed(restore);
+
+    for (const [entity, id] of tombstoned) {
+      const record = await stored(entity, id);
+      expect(record?.row, `${entity} ${id}`).toMatchObject({ removed_at: null });
+      expect(record?.removed_at, `${entity} ${id}`).toBeNull();
+    }
+    const again = replay(log);
+    for (const [entity, id] of [...tombstoned, ...kept]) {
+      expect(canonicalJson((await stored(entity, id))!.row as never), `${entity} ${id}`).toBe(canonicalJson(again.get(entityKey(entity as never, id)) as never));
+    }
+    const restoredSnapshot = await snapshotsAgree();
+    expect(serializeSnapshot(restoredSnapshot)).toBe(serializeSnapshot(before));
+    expect(progress(restoredSnapshot).sheets_total).toBe(5);
+    expect(await sheetsInSummary(relatorioId)).toBe(5);
   });
 });
