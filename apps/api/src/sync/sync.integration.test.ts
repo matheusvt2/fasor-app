@@ -1556,4 +1556,66 @@ describe('Story 14.2, second pass: a location removal batch and its restore thro
     expect(progress(restoredSnapshot).sheets_total).toBe(5);
     expect(await sheetsInSummary(relatorioId)).toBe(5);
   });
+
+  it('a sheet another device moves into, and one it creates in, a removed coluna are accepted and stay out of the server snapshot, as in the kernel replay', async () => {
+    const projectId = newId();
+    const relatorioId = newId();
+    const [local, painel, coluna, outra] = [newId(), newId(), newId(), newId()];
+    const equipment = { inside: newId(), mover: newId(), fica: newId(), nova: newId() };
+    const sheets = { inside: newId(), mover: newId(), fica: newId(), nova: newId() };
+    for (const id of Object.values(equipment)) written.entityIds.add(id);
+    const created = [
+      projectCreate(idsA, projectId),
+      relatorioCreate(idsA, relatorioId, projectId),
+      locationCreate(relatorioId, local, 'cabine', null, 'Subestação', 'a0'),
+      locationCreate(relatorioId, painel, 'painel', local, 'Painel 1', 'a0'),
+      locationCreate(relatorioId, coluna, 'coluna', painel, 'Coluna 1', 'a0'),
+      locationCreate(relatorioId, outra, 'coluna', local, 'Coluna 9', 'a1'),
+      equipmentWith(projectId, equipment.inside, 'SEC-C01'),
+      equipmentWith(projectId, equipment.mover, 'SEC-C09'),
+      equipmentWith(projectId, equipment.fica, 'SEC-C09-2'),
+      sheetAt(relatorioId, sheets.inside, coluna, equipment.inside, 'a0'),
+      sheetAt(relatorioId, sheets.mover, outra, equipment.mover, 'a0'),
+      sheetAt(relatorioId, sheets.fica, outra, equipment.fica, 'a1'),
+    ];
+    expect((await pushOk(companyA, created)).rejected).toEqual([]);
+    const log: Op[] = created.map((o, i) => ({ ...o, seq: i + 1 }));
+    const pushed = (batch: Op[]) => log.push(...batch.map((o, i) => ({ ...o, seq: log.length + i + 1 })));
+
+    // The painel leaves with its coluna and the sheet on it, planned by the kernel.
+    const visibility = { companyDownloaded: true, summaries: [], heldRelatorioIds: [], downloadedStreamIds: [] };
+    const held = rowsIn(replay(log));
+    const plan = locationRemovalPlan({ locations: held.locations, blocks: held.blocks, otherBlocks: [], locationId: painel, projectId, relatorioId, visibility })!;
+    expect(plan).toMatchObject({ locationIds: [painel, coluna], blockIds: [sheets.inside], equipmentIds: [equipment.inside] });
+    const removal = batchOf(relatorioId, projectId, 'remove', plan, '2026-10-13T16:00:00.000Z');
+    expect((await pushOk(companyA, removal)).rejected).toEqual([]);
+    pushed(removal);
+
+    // Another device, which has not pulled the removal: it moves a live sheet into the coluna and creates one there.
+    const tablet: Ids = { ...idsA, device: `${DEVICE_A}-outro` };
+    const move = op(tablet, { ...scoped(relatorioId), kind: 'put', path: `block/${sheets.mover}/location_id`, value: coluna });
+    const novoEquipamento = equipmentCreate(tablet, equipment.nova, projectId);
+    const novaBase = blockCreate(tablet, relatorioId, sheets.nova, 'chave_seccionadora');
+    const late = [
+      move,
+      { ...novoEquipamento, value: { ...(novoEquipamento.value as Record<string, unknown>), tag: 'SEC-C01-2', type: 'chave_seccionadora' } as Op['value'] },
+      { ...novaBase, value: { ...(novaBase.value as Record<string, unknown>), location_id: coluna, equipment_id: equipment.nova, order_key: 'a1' } as Op['value'] },
+    ];
+    const result = await pushOk(companyA, late);
+    expect(result.rejected).toEqual([]);
+    expect(result.applied.map((a) => a.op_id)).toEqual(late.map((o) => o.op_id));
+    pushed(late);
+
+    // Both rows are stored live on the removed coluna: no tombstone of their own hides them.
+    for (const id of [sheets.mover, sheets.nova]) expect((await stored('block', id))?.row, id).toMatchObject({ location_id: coluna, removed_at: null });
+    expect((await stored('location', coluna))?.row).toMatchObject({ removed_at: '2026-10-13T16:00:00.000Z' });
+
+    // The server snapshot reads the removed location rows, so the kernel's one liveness rule drops both sheets.
+    const kernel = buildSnapshot(replay(log), relatorioId);
+    const server = await toSnapshot(db, asCompanyId(companyA.companyId), relatorioId);
+    expect(server.blocks.map((row) => row.id)).toEqual([sheets.fica]);
+    expect(server.blocks.some((row) => row.id === sheets.mover || row.id === sheets.nova)).toBe(false);
+    expect(server.locations.map((row) => row.id).sort()).toEqual([local, outra].sort());
+    expect(serializeSnapshot({ ...server, empresa: null })).toBe(serializeSnapshot({ ...kernel, empresa: null }));
+  });
 });
