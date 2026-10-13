@@ -38,6 +38,8 @@ const LATEST_EDIT_FAMILIES: ReadonlySet<OpPath['family']> = new Set([
   'location/se',
   'location/env',
   'location/agrupar_por_tipo',
+  // Story 14.2: a local's Função, like the cabine's other own fields.
+  'location/funcao',
   'equipment/field',
   'file/field',
   'point/field',

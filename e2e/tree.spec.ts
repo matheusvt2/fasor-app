@@ -489,7 +489,7 @@ test('@p0 5.9-E2E-003 "Marcar não ensaiado" from a Block card Overflow: the rea
   await expect(railRow.locator('.tree-meta')).toHaveText(`${firstTag} · Solicitação do cliente`);
 });
 
-test('@p0 5.2-E2E-004 (AC2 leftover) cabineMetaText updates live, with no reload, in the Sumário row once "Do local" is filled; the rail row reads its own line', async ({ page }) => {
+test('@p0 5.2-E2E-004 (AC2 leftover) cabineMetaText updates live, with no reload, in the Sumário row once "Do local" is filled; the rail row reads its own line, which follows the sheet live', async ({ page }) => {
   test.setTimeout(120_000);
   await openRelatorio(page, 1280);
   await openSection9(page);
@@ -511,7 +511,19 @@ test('@p0 5.2-E2E-004 (AC2 leftover) cabineMetaText updates live, with no reload
   // data line; it reads the level, what hangs under the local and its sheets ("Local · … fichas").
   // The data line is the Sumário row's, checked live below.
   const railCabine = page.locator('aside.rail li[data-location-id]').filter({ has: page.locator(':scope > .tree-row > .tree-body > span', { hasText: /^Cubículo Enel$/ }) });
-  await expect(railCabine.locator(':scope > .tree-row > .tree-body > .tree-meta')).toHaveText('Local · sem painéis · 0 de 9 fichas');
+  const railLine = railCabine.locator(':scope > .tree-row > .tree-body > .tree-meta');
+  await expect(railLine).toHaveText('Local · sem painéis · 0 de 9 fichas');
+  // The rail beside the sheet (on screen at 1280) reads live, no reload: the open sheet marked
+  // not tested is one sheet settled, and the local's line counts it while the rail stays mounted.
+  const openTag = (await page.locator('.sheet-header .tag-btn').textContent())!.trim();
+  await page.getByRole('button', { name: `Mais opções da ficha ${openTag}` }).click();
+  await page.getByRole('menuitem', { name: 'Marcar não ensaiado' }).click();
+  const notTested = page.getByRole('dialog', { name: 'Marcar não ensaiado' });
+  await notTested.getByRole('radio', { name: 'Solicitação do cliente' }).click();
+  await notTested.getByRole('button', { name: 'Marcar não ensaiado' }).click();
+  await expect(notTested).toBeHidden();
+  await expect(page.locator('.sheet-title .not-tested-chip')).toHaveText('Não ensaiado');
+  await expect(railLine).toHaveText('Local · sem painéis · 1 de 9 fichas');
 
   // Back on the Sumário, the same value with no reload.
   await page.goBack();

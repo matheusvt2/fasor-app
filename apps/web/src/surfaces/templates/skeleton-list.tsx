@@ -68,7 +68,8 @@ export function SkeletonList(props: SkeletonListProps) {
       if (!next.delete(ref)) next.add(ref);
       return next;
     });
-  const expand: Expand = { isOpen: (ref) => !collapsed.has(ref), toggle };
+  const open = (ref: string) => setCollapsed((current) => (current.has(ref) ? new Set([...current].filter((held) => held !== ref)) : current));
+  const expand: Expand = { isOpen: (ref) => !collapsed.has(ref), toggle, open };
   return (
     <section className="section" aria-labelledby={headingId}>
       <div className="section-head">
@@ -99,6 +100,8 @@ export function SkeletonList(props: SkeletonListProps) {
 interface Expand {
   isOpen: (ref: string) => boolean;
   toggle: (ref: string) => void;
+  /** Opens a collapsed card; an open one stays as it is. */
+  open: (ref: string) => void;
 }
 
 type CardProps = SkeletonListProps & { expand: Expand };
@@ -111,7 +114,7 @@ type CardProps = SkeletonListProps & { expand: Expand };
 function nodeMenu(
   node: ComposerNode,
   reorder: ReturnType<typeof useReorder>,
-  props: Pick<SkeletonListProps, 'onRename' | 'onRemove' | 'onAddPainel' | 'onAddColuna'>,
+  props: Pick<SkeletonListProps, 'onRename' | 'onRemove' | 'onAddPainel' | 'onAddColuna'> & { expand: Expand },
 ): { items: OverflowMenuAction[]; destructiveItems: OverflowMenuAction[] } {
   const trigger = () => reorder.row()?.querySelector<HTMLElement>(':scope > .overflow-trigger, :scope > .col-line > .overflow-trigger') ?? null;
   const items: OverflowMenuAction[] = [
@@ -123,8 +126,13 @@ function nodeMenu(
   if (node.position < node.siblings) {
     items.push({ id: 'down', label: copy.composer.moveDown, onAction: () => void reorder.moveTo(node.position, trigger) });
   }
-  if (node.kind === 'cabine') items.push({ id: 'add-painel', label: copy.composer.addPainel, onAction: () => props.onAddPainel(node) });
-  if (node.kind === 'painel') items.push({ id: 'add-coluna', label: copy.composer.addColuna, onAction: () => props.onAddColuna(node) });
+  // What the Overflow adds is born inside the card: a collapsed card opens, so the new painel or coluna is in view.
+  const addUnder = (add: () => void) => () => {
+    props.expand.open(node.ref);
+    add();
+  };
+  if (node.kind === 'cabine') items.push({ id: 'add-painel', label: copy.composer.addPainel, onAction: addUnder(() => props.onAddPainel(node)) });
+  if (node.kind === 'painel') items.push({ id: 'add-coluna', label: copy.composer.addColuna, onAction: addUnder(() => props.onAddColuna(node)) });
   return { items, destructiveItems: [{ id: 'remove', label: copy.composer.remove, onAction: () => props.onRemove(node) }] };
 }
 
@@ -349,7 +357,7 @@ function PainelCard({ painel, local, ...props }: CardProps & { painel: ComposerP
   );
 }
 
-function ColunaRow({ coluna, ...props }: SkeletonListProps & { coluna: ComposerColuna }) {
+function ColunaRow({ coluna, ...props }: CardProps & { coluna: ComposerColuna }) {
   const { currentRef, onSelect, onMove, onSetQuantity } = props;
   const reorder = useReorder({
     itemKey: coluna.ref,

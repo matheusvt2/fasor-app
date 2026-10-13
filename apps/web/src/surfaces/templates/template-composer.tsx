@@ -221,18 +221,25 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
       return;
     }
     const ref = dialog.node.ref;
+    const opened = dialog.node;
+    let saidName = result.name;
     void edit((fresh) => {
       const node = fresh.skeleton.find((n) => n.ref === ref);
       if (node === undefined || node.kind !== 'cabine') throw new TemplateTargetGoneError(`template skeleton has no local "${ref}"`);
       let skeleton = fresh.skeleton;
+      // Only what the user changed in the dialog is applied, on the fresh skeleton: each answer is
+      // compared with what the dialog opened on, never with the fresh node, so a field left
+      // untouched does not put its stale dialog value over an edit pulled meanwhile.
       // With no Função chosen (a local that held none), the Função stays as it is.
-      if (result.funcao !== null && result.funcao !== (node.funcao ?? null)) skeleton = setFuncao(skeleton, ref, result.funcao);
-      if (result.name !== node.name) skeleton = renameNode(skeleton, ref, result.name);
+      if (result.funcao !== null && result.funcao !== (opened.funcao ?? null)) skeleton = setFuncao(skeleton, ref, result.funcao);
+      if (result.name !== opened.name) skeleton = renameNode(skeleton, ref, result.name);
+      // A name left untouched is the node's own, which is what the announcement names.
+      else saidName = node.name;
       return skeleton === fresh.skeleton ? null : [['skeleton', skeleton]];
     })
       .then((batch) => {
         if (batch === null) return;
-        const text = localUpdatedText(result.name);
+        const text = localUpdatedText(saidName);
         announce(text);
         undoable(text, batch);
       })

@@ -216,6 +216,20 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     expect(create!.path).toMatch(/^location\/[0-9a-f-]{36}$/);
   });
 
+  it('a block that sits on a painel is drawn under it, as it is counted: a block never vanishes', async () => {
+    database = await seeded();
+    const stray = newEquipmentBlock({ blockId: id(0x21), equipmentId: id(0x22), relatorioId: RELATORIO, projectId: PROJECT, locationId: PAINEL_B, type: 'disjuntor_mt', tag: 'DJ-9', seedVersion: 'v1', orderKey: 'a0' });
+    await database.entities.bulkPut([toRecord(`equipment:${stray.equipment.id}`, stray.equipment), toRecord(`block:${stray.block.id}`, stray.block)]);
+    await openLocal();
+    const painelB = row(PAINEL_B);
+    expect(painelB.querySelector(':scope > .s9-pnl-row .progress-counter')).toHaveTextContent('0 de 1');
+    const sheet = painelB.querySelector<HTMLElement>(`:scope > .s9-eqs > li.s9-eq[data-block-id="${stray.block.id}"]`)!;
+    expect(sheet).not.toBeNull();
+    expect(sheet.querySelector('.block-tag')).toHaveTextContent('DJ-9');
+    // The chevron names the list it opens.
+    expect(within(painelB).getByRole('button', { name: 'Recolher Painel B' }).getAttribute('aria-controls')).toContain(painelB.querySelector(':scope > .s9-eqs')!.id);
+  });
+
   it('"Adicionar painel" creates a painel under the local, named after its siblings, opened with its note; "Desfazer" removes it', async () => {
     database = await seeded({ paineis: false });
     await openLocal();
@@ -323,6 +337,76 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     expect(Object.keys((await locationRow(LOCAL))!)).not.toContain('funcao');
   });
 
+  /** An op of another device on the local, as a pull brings it. */
+  const pulledOnLocal = (n: number, kind: 'put' | 'remove', field: string, value: string | null) => ({
+    op_id: id(0x900 + n),
+    kind,
+    scope: 'relatorio' as const,
+    company_id: COMPANY,
+    project_id: null,
+    relatorio_id: RELATORIO,
+    path: `location/${LOCAL}/${field}`,
+    value,
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: USER,
+    device_id: 'tablet-escritorio',
+    client_ts: `2026-10-13T12:0${n}:00.000Z`,
+    seq: 90_000 + n,
+  });
+  const openFuncaoENome = async (localName: string) => {
+    await userEvent.click(screen.getByRole('button', { name: `Mais opções de ${localName}` }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Função e nome' }));
+    return screen.findByRole('dialog', { name: 'Função e nome' });
+  };
+
+  it('"Função e nome" writes only the field the user changed: a name pulled while the dialog was open stays, and a local removed meanwhile is gone', async () => {
+    database = await seeded();
+    await openLocal();
+    let dialog = await openFuncaoENome('Cabine de Testes');
+    // Another device renames the local while the dialog is open.
+    await applyPulled(database, [pulledOnLocal(1, 'put', 'name', 'Subestação Norte')]);
+    await waitFor(() => expect(row(LOCAL).querySelector('.s9-loc-name')).toHaveTextContent('Subestação Norte'));
+    expect(within(dialog).getByRole('textbox', { name: 'Nome' })).toHaveValue('Cabine de Testes');
+    await userEvent.click(within(dialog).getByRole('radio', { name: 'Transformação' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+
+    // The Função alone is written; the name the dialog opened on is not put back.
+    await waitFor(() => expect(announcer()).toHaveTextContent('Local Subestação Norte atualizado'));
+    expect((await outbox()).map((op) => [op.path, op.value])).toEqual([[`location/${LOCAL}/funcao`, 'transformacao']]);
+    expect(await locationRow(LOCAL)).toMatchObject({ name: 'Subestação Norte', funcao: 'transformacao' });
+
+    // Removed on another device while the dialog is open: nothing is written, and it is said.
+    dialog = await openFuncaoENome('Subestação Norte');
+    await applyPulled(database, [pulledOnLocal(2, 'remove', 'removed_at', null)]);
+    await waitFor(async () => expect((await locationRow(LOCAL))!.removed_at).not.toBeNull());
+    const name = within(dialog).getByRole('textbox', { name: 'Nome' });
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Subestação Sul');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+    expect(await screen.findByText('O local mudou em outro aparelho; nada foi alterado.', { selector: '.toast, .toast *' })).toBeInTheDocument();
+    expect(await outbox()).toHaveLength(1);
+  });
+
+  it('"Função e nome" with the name alone changed keeps a Função pulled while the dialog was open', async () => {
+    database = await seeded();
+    await applyPulled(database, [pulledOnLocal(1, 'put', 'funcao', 'primaria')]);
+    await openLocal();
+    const dialog = await openFuncaoENome('Cabine de Testes');
+    expect(within(dialog).getByRole('radio', { name: 'Primária' })).toHaveAttribute('aria-checked', 'true');
+    await applyPulled(database, [pulledOnLocal(2, 'put', 'funcao', 'entrada')]);
+    await waitFor(() => expect(row(LOCAL).querySelector('.s9-loc-meta')).toHaveTextContent(/^Entrada · /));
+    const name = within(dialog).getByRole('textbox', { name: 'Nome' });
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Subestação');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+
+    await waitFor(() => expect(announcer()).toHaveTextContent('Local Subestação atualizado'));
+    expect((await outbox()).map((op) => [op.path, op.value])).toEqual([[`location/${LOCAL}/name`, 'Subestação']]);
+    expect(await locationRow(LOCAL)).toMatchObject({ name: 'Subestação', funcao: 'entrada' });
+  });
+
   it('renames a painel ("Painel … renomeado", masculine) and moves it by Alt+arrow, the menu and the Position box: one location op each, said, undone by "Desfazer"', async () => {
     database = await seeded();
     await openLocal();
@@ -373,6 +457,49 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     ]);
     // The sheets never moved: no block op at all.
     expect((await outbox()).some((op) => op.path.startsWith('block/'))).toBe(false);
+  });
+
+  it('in a local holding painéis and colunas directly, a painel moves among the painéis and a coluna among the colunas: the total said and the one order_key put are of its own kind', async () => {
+    database = await seeded();
+    // A tree from before the painel level that gained painéis: two colunas directly under the
+    // local, the first keyed between the two painéis ("a0" and "a1"), the second after both.
+    const DIRECT_1 = id(0x31);
+    const DIRECT_2 = id(0x32);
+    const base = { relatorio_id: RELATORIO, removed_at: null, parent_id: LOCAL, kind: 'coluna' as const };
+    const direct: LocationRow[] = [
+      { ...base, id: DIRECT_1, name: 'Coluna 1', order_key: 'a0V' },
+      { ...base, id: DIRECT_2, name: 'Coluna 2', order_key: 'a2' },
+    ];
+    await database.entities.bulkPut(direct.map((location) => toRecord(`location:${location.id}`, location)));
+    await openLocal();
+    const paineis = () => [...row(LOCAL).querySelectorAll(':scope > .s9-pnls > li.s9-painel > .s9-pnl-row .s9-pnl-name')].map((el) => el.textContent);
+    const colunas = () => [...row(LOCAL).querySelectorAll(':scope > .s9-cols > li.s9-coluna > .s9-col .s9-col-name')].map((el) => el.textContent);
+    expect(paineis()).toEqual(['Painel de média tensão', 'Painel B']);
+    expect(colunas()).toEqual(['Coluna 1', 'Coluna 2']);
+    expect(within(row(PAINEL_B)).getByRole('textbox', { name: 'Posição de Painel B' })).toHaveValue('2');
+    expect(within(row(DIRECT_2)).getByRole('textbox', { name: 'Posição de Coluna 2' })).toHaveValue('2');
+
+    // The painel: second of two painéis, whatever the colunas between them hold.
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Subir' }));
+    await waitFor(() => expect(announcer()).toHaveTextContent('Painel B movido para a posição 1 de 2'));
+    await waitFor(() => expect(paineis()).toEqual(['Painel B', 'Painel de média tensão']));
+    expect(colunas()).toEqual(['Coluna 1', 'Coluna 2']);
+    expect((await outbox()).map((op) => [op.path, op.kind])).toEqual([[`location/${PAINEL_B}/order_key`, 'put']]);
+
+    // The coluna: second of two colunas.
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 2' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Subir' }));
+    await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 2 movida para a posição 1 de 2'));
+    await waitFor(() => expect(colunas()).toEqual(['Coluna 2', 'Coluna 1']));
+    expect(paineis()).toEqual(['Painel B', 'Painel de média tensão']);
+    expect((await outbox()).map((op) => [op.path, op.kind])).toEqual([
+      [`location/${PAINEL_B}/order_key`, 'put'],
+      [`location/${DIRECT_2}/order_key`, 'put'],
+    ]);
+    // Each key landed among the rows of its own kind: the coluna before the other coluna, the painel before the other painel.
+    expect((await locationRow(DIRECT_2))!.order_key < 'a0V').toBe(true);
+    expect((await locationRow(PAINEL_B))!.order_key < 'a0').toBe(true);
   });
 
   it('a coluna inside a painel moves among the colunas of its own painel, with its drag handle and Position box drawn', async () => {

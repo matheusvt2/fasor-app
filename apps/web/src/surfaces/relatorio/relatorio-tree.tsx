@@ -745,6 +745,9 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
           </span>
           <OverflowMenu name={node.name} items={menu} />
         </div>
+        {/* A painel takes no block, but a row can still sit on one (a block whose op was folded
+            before the painel reached this device): it is counted, so it is drawn. A block never vanishes. */}
+        {equipmentList}
         {colunaList}
         {open && colunas.length === 0 ? (
           // A painel only groups colunas: with none, it says why it takes no equipment.

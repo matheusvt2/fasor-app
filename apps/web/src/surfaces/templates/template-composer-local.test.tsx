@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { addCabine, addColuna, addPainel, emptyTemplate, setQuantity, standardTemplate, type TemplateRow } from '@app/domain';
+import { addCabine, addColuna, addPainel, emptyTemplate, renameNode, setFuncao, setQuantity, standardTemplate, type SkeletonNode, type TemplateRow } from '@app/domain';
 import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
@@ -201,6 +201,33 @@ describe('14.2 composer: the three levels', () => {
     ]);
   });
 
+  it('"Adicionar painel" and "Adicionar coluna" chosen from the Overflow of a collapsed card open it, so what was added is in view', async () => {
+    database = await freshDb(composed());
+    renderComposer();
+    // A collapsed painel: its Overflow adds a coluna, and the card opens on it.
+    const painelB = await card(/^Painel Painel B/);
+    await userEvent.click(within(painelB).getByRole('button', { name: /^Painel Painel B/ }));
+    expect(painelB).not.toHaveClass('is-open');
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar coluna' }));
+    await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 1 adicionada'));
+    expect(painelB).toHaveClass('is-open');
+    const added = within(painelB).getByRole('list', { name: 'Colunas de Painel B em Cabine de transformação' });
+    expect(names(added, '.col-name')).toEqual(['Coluna 1']);
+    // The new coluna is the palette's target, and it is drawn open.
+    expect(added.querySelector(':scope > li.column-row')).toHaveClass('is-open');
+
+    // A collapsed local: its Overflow adds a painel, and the card opens on it.
+    const geradores = await card(/^Local Geradores/);
+    await userEvent.click(within(geradores).getByRole('button', { name: /^Local Geradores/ }));
+    expect(geradores).not.toHaveClass('is-open');
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Geradores' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar painel' }));
+    await waitFor(() => expect(announcer()).toHaveTextContent('Painel 1 adicionado'));
+    expect(geradores).toHaveClass('is-open');
+    expect(names(within(geradores).getByRole('list', { name: 'Painéis de Geradores' }), '.block-name')).toEqual(['Painel 1']);
+  });
+
   it('a local from before the painel level keeps its colunas directly under it and its "Adicionar coluna"; a local with none does not offer it', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
@@ -322,6 +349,47 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de transformação' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Função e nome' }));
     expect(within(await screen.findByRole('dialog', { name: 'Função e nome' })).getByRole('radio', { name: 'Transformação' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('"Função e nome" applies only the field the user changed on the fresh skeleton: a name or a Função that changed while the dialog was open stays', async () => {
+    database = await freshDb(composed());
+    renderComposer();
+    /** The skeleton as another device left it, landed on this one while the dialog is open. */
+    const pulled = async (change: (skeleton: readonly SkeletonNode[]) => SkeletonNode[]) => {
+      const row = (await templateRow(database!, ID))!;
+      await database!.entities.put(toRecord(`template:${ID}`, { ...row, skeleton: change(row.skeleton) }));
+    };
+    const open = async (name: string) => {
+      await userEvent.click(screen.getByRole('button', { name: `Mais opções de ${name}` }));
+      await userEvent.click(await screen.findByRole('menuitem', { name: 'Função e nome' }));
+      return screen.findByRole('dialog', { name: 'Função e nome' });
+    };
+
+    // The name changes elsewhere; the user changes the Função alone.
+    await card(/^Local Cabine de transformação/);
+    let dialog = await open('Cabine de transformação');
+    // The page behind the open dialog is hidden from the roles, so the first local card is read off the document.
+    const firstLocal = () => document.querySelector<HTMLElement>('.local-card > .block-body')!;
+    await pulled((skeleton) => renameNode(skeleton, 'loc', 'Subestação Norte'));
+    await waitFor(() => expect(firstLocal().querySelector('.block-name')).toHaveTextContent('Subestação Norte'));
+    expect(within(dialog).getByRole('textbox', { name: 'Nome' })).toHaveValue('Cabine de transformação');
+    await userEvent.click(within(dialog).getByRole('radio', { name: 'Primária' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+    await waitFor(() => expect(announcer()).toHaveTextContent('Local Subestação Norte atualizado'));
+    expect((await skeletonOf()).find((n) => n.ref === 'loc')).toMatchObject({ name: 'Subestação Norte', funcao: 'primaria' });
+
+    // The Função changes elsewhere; the user changes the name alone.
+    dialog = await open('Subestação Norte');
+    expect(within(dialog).getByRole('radio', { name: 'Primária' })).toHaveAttribute('aria-checked', 'true');
+    await pulled((skeleton) => setFuncao(skeleton, 'loc', 'entrada'));
+    await waitFor(() => expect(firstLocal().querySelector('.block-sub')).toHaveTextContent('Função: entrada'));
+    const name = within(dialog).getByRole('textbox', { name: 'Nome' });
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Subestação Sul');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+    await waitFor(() => expect(announcer()).toHaveTextContent('Local Subestação Sul atualizado'));
+    expect((await skeletonOf()).find((n) => n.ref === 'loc')).toMatchObject({ name: 'Subestação Sul', funcao: 'entrada' });
+    expect((await outbox()).map((op) => op.path)).toEqual([`template/${ID}/skeleton`, `template/${ID}/skeleton`]);
   });
 
   it('removes a painel with its colunas and their blocks after its own Confirm, and a local with everything under it; "Desfazer" restores both fields', async () => {

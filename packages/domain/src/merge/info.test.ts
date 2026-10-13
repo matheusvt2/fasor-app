@@ -174,6 +174,22 @@ describe('mergeInfoOf', () => {
     expect(mergeInfoText(info, context())).toBe('SEC-C12: alteração de Ana mantida (a mais recente prevalece)');
   });
 
+  it("a local's Função put concurrently on two devices is last-writer-wins and reported as latest_edit (Story 14.2)", () => {
+    const { e, a } = scenario();
+    const path = `location/${LOC}/funcao`;
+    const first = e(path, 'primaria');
+    const second = a(path, 'transformacao');
+    expect(mergeInfoOf(second, first, null)).toMatchObject({
+      rule: 'latest_edit',
+      path,
+      block_id: null,
+      standing: { value: 'transformacao', actor_id: ANA },
+      overridden: { value: 'primaria', actor_id: EDUARDO },
+    });
+    // The same Função on both sides is no merge.
+    expect(mergeInfoOf(a(path, 'primaria'), first, null)).toBeNull();
+  });
+
   it('a non-cell pair that wrote the same value (or removed on both sides) is no merge', () => {
     const { e, a, f } = scenario();
     const path = `block/${BLOCK}/order_key`;

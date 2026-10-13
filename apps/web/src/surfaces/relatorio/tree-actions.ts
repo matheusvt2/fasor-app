@@ -494,17 +494,22 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
 
   const updateLocal = useCallback(
     (node: TreeLocationNode, chosen: { funcao: string | null; name: string }) => {
-      const out = { gone: false };
+      const out = { gone: false, name: chosen.name };
       void edit((_blocks, by, fresh) => {
         const row = fresh.locations.find((l) => l.id === node.id);
-        if (row === undefined || row.kind !== 'cabine') {
+        if (row === undefined || row.kind !== 'cabine' || row.removed_at !== null) {
           out.gone = true;
           return null;
         }
         const ops: OpDraft[] = [];
+        // Only what the user changed in the dialog is written: each answer is compared with what
+        // the dialog opened on (`node`), never with the fresh row, so a field left untouched does
+        // not write its stale dialog value over an edit pulled from another device meanwhile.
         // With no Função chosen (a local that held none), the stored one stays as it is.
-        if (chosen.funcao !== null && chosen.funcao !== (row.funcao ?? null)) ops.push(putFuncaoOp(by, relatorioId, node.id, chosen.funcao));
-        if (chosen.name !== row.name) ops.push(putLocationOp(by, relatorioId, node.id, 'name', chosen.name));
+        if (chosen.funcao !== null && chosen.funcao !== (node.funcao ?? null)) ops.push(putFuncaoOp(by, relatorioId, node.id, chosen.funcao));
+        if (chosen.name !== node.name) ops.push(putLocationOp(by, relatorioId, node.id, 'name', chosen.name));
+        // A name left untouched is the row's own, which is what the toast names.
+        else out.name = row.name;
         return ops.length === 0 ? null : ops;
       })
         .then((batch) => {
@@ -513,7 +518,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
             return;
           }
           restoreFocus(() => locationChevron(host.root(), node.id), { mode: 'settled' });
-          const text = localUpdatedText(chosen.name);
+          const text = localUpdatedText(out.name);
           if (batch !== null) announce(text);
           undoable(text, batch, () => locationChevron(host.root(), node.id));
         })
