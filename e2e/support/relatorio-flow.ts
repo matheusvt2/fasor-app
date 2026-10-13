@@ -37,15 +37,17 @@ export async function createProjectFromHome(page: Page): Promise<void> {
 /**
  * The Project's "Novo relatório" dialog, already open for a project born on Home: dates
  * typed over today's, Criar. Criar opens Relatório setup at Etapa 1 with the focus on its band heading
- * (Epic 4 QA Q1); `whileOnSetup` runs there, then "Voltar" leads to the Sumário. Returns
- * the relatório id.
+ * (Epic 4 QA Q1); `whileOnSetup` runs there, then "Voltar" leads to the Sumário. `template`
+ * names the template the dialog must hold when it is not the standard one. Returns the
+ * relatório id.
  */
-export async function createRelatorio(page: Page, options: { whileOnSetup?: () => Promise<void> } = {}): Promise<string> {
+export async function createRelatorio(page: Page, options: { whileOnSetup?: () => Promise<void>; template?: string } = {}): Promise<string> {
   // F-28 (D3): the second step is named apart from Home's first.
   const dialog = page.getByRole('dialog', { name: 'Novo relatório — tipo e datas', exact: true });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('radio', { name: /Cabine primária/ })).toHaveAttribute('aria-checked', 'true');
-  await expect(dialog.getByRole('combobox', { name: 'Template' })).toHaveValue(STANDARD_TEMPLATE_NAME);
+  // The company's only pickable template is preselected: the standard one, or the spec's own (`template`).
+  await expect(dialog.getByRole('combobox', { name: 'Template' })).toHaveValue(options.template ?? STANDARD_TEMPLATE_NAME);
   const create = dialog.getByRole('button', { name: 'Criar relatório' });
   // Story 12.2 (J-12): both dates open on today (America/Sao_Paulo), so Criar is ready.
   const [year, month, day] = calendarDateOfInstant(new Date()).split('-');

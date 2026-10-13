@@ -331,7 +331,7 @@ export async function openSheetOfType(
   const tree = page.getByRole('list', { name: 'Locais do relatório' });
   await expect(tree).toBeVisible();
   await expandLocation(page, options.cabine);
-  const cabine = tree.locator(':scope > li.s9-cabine').filter({ has: page.locator(':scope > .s9-cab-row .s9-cab-name', { hasText: options.cabine }) });
+  const cabine = tree.locator(':scope > li.s9-local').filter({ has: page.locator(':scope > .s9-loc-row .s9-loc-name', { hasText: options.cabine }) });
   const name = new RegExp(`^${options.typeLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
   const row = cabine
     .locator(':scope > .s9-eqs > li.s9-eq')

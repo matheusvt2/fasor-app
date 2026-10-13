@@ -180,7 +180,7 @@ test('@p1 12.5-E2E-003 E12-A7 at 390 px: the section 9 header fits a cabine with
   await expect(head.locator('.sum-title')).toBeVisible({ timeout: 30_000 });
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
-  await expect(page.locator('.s9-cab-name', { hasText: LONG })).toBeVisible();
+  await expect(page.locator('.s9-loc-name', { hasText: LONG })).toBeVisible();
 
   const fits = (locator: typeof head) => locator.evaluate((element) => element.scrollWidth <= element.clientWidth);
   expect(await fits(head)).toBe(true);

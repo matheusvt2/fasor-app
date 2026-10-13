@@ -173,7 +173,7 @@ test('@p1 9.1-E2E-003 typed first, the display reading checks the typed values: 
   await expect(closed.getByRole('button', { name: /^Confirmar todos/ })).toHaveCount(0);
 });
 
-test('@p1 9.1-E2E-004 the thermo-hygrometer: one shot in "Da cabine" fills temperature and humidity as suggestions', async ({ page }) => {
+test('@p1 9.1-E2E-004 the thermo-hygrometer: one shot in "Do local" fills temperature and humidity as suggestions', async ({ page }) => {
   test.setTimeout(240_000);
   await openChaveSheet(page, account, database);
   const env = page.locator('section.ficha-amb');

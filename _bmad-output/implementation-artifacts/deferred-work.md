@@ -1703,3 +1703,71 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: Event log of 2026-10-10 inside the test: "Cancelar" at 334 ms, focus on `BODY` at 339 ms, `Escape` at 342 ms on `BODY`, focus back on the viewer's "Remover" at 347 ms; passing runs have the focus back before the key. Same failure (`.dialog-scrim.scrim-viewer intercepts pointer events` on "Foto 2, abrir") with every tracked file of the status-flow story reverted to `80f3d08`: 8, 3 and 5 failures of 10 in three runs, against 2 and 4 of 10 on the story's tree. Settle in the product (the viewer closes on `Escape` while it is the top dialog, wherever the focus is during the hand-back) or, if a key pressed in that gap is judged not a user case, wait for the focus in the test.
   class: bug
   state: open
+
+## Deferred from: Story 14.2, Local › Painel › Coluna (2026-10-13)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: O1. No location can be removed in the relatório tree, so the painel's "Remover … recuperável até a emissão" of the approved mock (`40-relatorio-overview.html`) is not built: a painel is removed only as the "Desfazer" of its own create, and at the fold level. A coluna and a local have no removal there either. Decide whether location removal (with its restore list) enters the tree, and for which kinds.
+  evidence: `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` `locationMenu` (no destructive group); the ledger entry on `block/{id}/location_id`; spec Design notes O1.
+  class: question
+  state: open (owner: Matheus)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: O2. The mock's location Overflow items "Mover para outro local" (a painel or coluna moved to another parent), "Duplicar" and "Adicionar abaixo" are not built on either surface; a location moves only among the siblings of its own parent and kind (`moveNode`, `moveLocation`).
+  evidence: `packages/domain/src/templates/compose.ts` `moveNode`; `apps/web/src/surfaces/relatorio/tree-actions.ts` `moveLocation`; spec Never list and O2.
+  class: question
+  state: open (owner: Matheus)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: O3. Inside a painel with `agrupar_por_tipo` on, the type-group titles keep the FO.SERV-03 words with the local's name as numbered subsections ("9.2 Seccionadoras dos Cubículos de MT da ⟨local⟩") under the unnumbered painel band, which is not in the ÍNDICE; the approved print mock draws unnumbered group headings under one numbered local heading. Story 14.4 checks the print against that mock and settles the titles.
+  evidence: `packages/domain/src/print/group-for-print.ts` `byTypeRuns`; `packages/domain/src/print/section-9.ts`; `apps/api/src/jobs/generate/docx.test.ts` "flag on".
+  class: question
+  state: open (owner: Story 14.4)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: O4. Announcement and toast wording for the three levels is authored: noun-led sentences with agreement ("Local Geradores movido para a posição 4 de 6", "Painel 2 adicionado", "Coluna 5 movida"), a local whose name leads with "Cabine" read by its name alone in the feminine ("Cabine de transformação adicionada", "Cabine primária atualizada"), and "⟨local⟩ atualizado" after "Função e nome". The mock's toasts carry hints and bare names. Also authored and to review: the dialog's "Escolha a função", "Informe a função", the list names "Equipamentos direto em ⟨local⟩" and "Painéis de ⟨local⟩", and the pre-issue row "Local ⟨nome⟩ sem equipamento".
+  evidence: `packages/domain/src/templates/text.ts` `itemPhrase`, `said`, `localUpdatedText`; `apps/web/src/copy/pt-br.ts` `localDialog`, `sumario.tree`; `packages/domain/src/relatorio/pre-issue.ts` `cabineSemEquipamentoText`.
+  class: docs
+  state: open (owner: Bruno's copy review)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: O5. A local that already holds colunas directly (every tree and template from before the painel level) keeps the "current coluna" palette target and its "Adicionar bloco em ⟨local⟩" button, and keeps offering "Adicionar coluna" on both surfaces; only a local with no direct coluna shows "Adicionar equipamento no local". Decide whether such a local should also take equipment directly, or be converted (its colunas moved under a painel).
+  evidence: `packages/domain/src/relatorio/tree.ts` `paletteLocationFor`; `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` `locationMenu`; `apps/web/src/surfaces/templates/skeleton-list.tsx` `LocalCard`.
+  class: question
+  state: open (owner: Matheus)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: Narrowed: the rail's local row reads "Local · ⟨Função⟩ · N painéis · N fichas" as the approved rail mock (`shell-foot.html`) draws it, and no longer shows the cabine data line; DESIGN.md still says "Both: Cabine rows show meta …" for the rail and the Sumário. The spec was followed; DESIGN.md needs the sentence struck and dated, or the rail needs the data line back.
+  evidence: `packages/domain/src/relatorio/tree.ts` `locationMetaTexts` (`railMeta`); `DESIGN.md` "Both: Cabine rows show meta"; `e2e/tree.spec.ts` 5.2-E2E-004.
+  class: docs
+  state: open (owner: Matheus)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: Narrowed, tree texts with no mock: (a) the Sumário's local data line ends with "sem painéis" only when nothing hangs under the local, and a local with direct colunas counts them in the rail ("N colunas"); (b) the rail's coluna row keeps its progress counter ("Coluna · 1 de 3" when the name does not say Coluna) where the mock writes "N fichas"; (c) a painel with no coluna reads "Painel · sem colunas" and shows the composer's empty-painel note in the tree.
+  evidence: `packages/domain/src/relatorio/tree.ts` `locationMetaTexts`; `packages/domain/src/relatorio/tree-painel.test.ts`.
+  class: docs
+  state: open (owner: Bruno's copy review)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: Narrowed, where EXPERIENCE.md won over the mock: the Template composer keeps the "Agrupar por tipo" Toggle on the local card beside the mock's sub-line ("Função: primária · Agrupar por tipo: ativado"), local and painel cards open by default, and the relatório tree's location rows carry a drag handle and a Position box ("drag, Position box, Overflow menu, or Alt+arrows" at every level), hidden below 768 px. The mock draws none of the three; confirm or redraw.
+  evidence: `apps/web/src/surfaces/templates/skeleton-list.tsx` `LocalCard`; `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` `reorderControls`; `apps/web/src/styles/app.css` (tree rows).
+  class: question
+  state: open (owner: Matheus)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: Not touched: a photo's caption and the gallery name where a photo was taken as coluna plus local, without the painel's name, while the sheet header names the whole path ("⟨local⟩ › ⟨painel⟩ › ⟨coluna⟩"). Decide whether the painel enters the photo's place text.
+  evidence: `packages/domain/src/photos/` (the place part of a caption); `packages/domain/src/relatorio/location-path.ts` `locationPathText`.
+  class: question
+  state: open (owner: Matheus)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: Deploy: Story 14.2 raises `CONTRACT_VERSION` and `MIN_CONTRACT_VERSION` to 17 (the `painel` kind and `location/{id}/funcao`), so every device on a version-16 bundle gets 426 on its next pull and must update before it syncs again. Ship it as the earlier MIN raises were: an evening window, the field asked to sync first.
+  evidence: `packages/domain/src/contract/version.ts` (paragraph 17); `apps/api/src/sync/sync.integration.test.ts` (contract-17 pull test).
+  class: debt
+  state: open (owner: Matheus)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: `e2e/local-painel-coluna.spec.ts` 14.2-E2E-001 seeds the content of the two sheets it concludes (plate, checklist, readings, the conclusion pair) and the local's own fields by office ops, as 5.1-E2E-003 does, and concludes each by the tap; typing a whole transformer sheet through the UI is covered by the ficha specs, not repeated there.
+  evidence: `e2e/local-painel-coluna.spec.ts` `completeSheet`, `concludeSheet`.
+  class: debt
+  state: open (owner: the epic QA)

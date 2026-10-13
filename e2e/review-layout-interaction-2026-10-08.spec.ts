@@ -391,7 +391,7 @@ test('@p0 R8LAY-E2E-005 DB-7 on a cabine\'s first sheet Enter runs Tensão prim�
   await expect(chevron).toBeVisible({ timeout: 30_000 });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await page.getByRole('button', { name: 'Mais opções de Cubículo Enel' }).click();
-  await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }).click();
+  await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados do local)' }).click();
   await expect(page.getByRole('heading', { name: 'Características da SE' })).toBeVisible({ timeout: 30_000 });
   const primaria = page.getByLabel('Tensão primária', { exact: true });
   const secundaria = page.getByLabel('Tensão secundária', { exact: true });

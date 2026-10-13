@@ -9,6 +9,7 @@ import {
   syncBadge,
   test,
 } from './support/merged-fixtures.ts';
+import { addLocal } from './support/local.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { SYNC_CYCLE_TIMEOUT, syncNowAndReturn } from './support/sync.ts';
 
@@ -49,13 +50,15 @@ async function outboxPaths(page: Page, userId: string): Promise<string[]> {
 
 const palette = (page: Page) => page.getByRole('complementary', { name: 'Paleta de blocos' });
 const announcer = (page: Page) => page.getByTestId('composer-announcer');
-const colunaNames = (page: Page, cabine: string) => page.getByRole('list', { name: `Colunas de ${cabine}` }).locator('.col-name');
+/** The colunas of a list by its name: "Colunas de ⟨local⟩" for the ones directly under a local, "Colunas de ⟨painel⟩ em ⟨local⟩" for a painel's. */
+const colunaNames = (page: Page, parent: string) => page.getByRole('list', { name: `Colunas de ${parent}`, exact: true }).locator('.col-name');
+const COLUNAS_OF_PAINEL_1 = 'Painel 1 em Cabine 1';
 const skeletonHeading = (page: Page) => page.locator('.composer-main h2').first();
 
 /** The standard template's Coluna 9 of 1° Subsolo, which holds no equipment. */
 const ORPHAN_REF = 'subsolo-1/coluna-9';
 const EMPTY = 'Nenhum template. Crie um a partir do relatório padrão FO.SERV-03.';
-const STANDARD_SUMMARY = `Semente ${SEED_VERSION} · 9 seções · 6 cabines · 17 colunas · 94 blocos de equipamento`;
+const STANDARD_SUMMARY = `Semente ${SEED_VERSION} · 9 seções · 6 locais · 17 colunas · 94 blocos de equipamento`;
 const STANDARD_TOTALS =
   '25 seccionadoras · 21 disjuntores · 11 TP · 11 TC · 8 trafos · 4 cabos de entrada · 9 cabos de saída · 5 para-raios';
 
@@ -247,43 +250,46 @@ test('@p0 3.4-E2E-001 builds a skeleton from "Novo template" and reorders a colu
   await expect(page).toHaveURL(/\/templates\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('textbox', { name: 'Nome do template' })).toHaveValue('Novo template');
 
-  await page.getByRole('button', { name: 'Adicionar cabine' }).click();
-  await expect(page.getByRole('list', { name: 'Cabines do template' }).locator('.block-name')).toHaveText(['Cabine 1']);
+  // Story 14.2: a local is added through the Função dialog, its colunas inside a painel.
+  await addLocal(page, { funcao: 'Primária', name: 'Cabine 1' });
+  await expect(page.getByRole('list', { name: 'Locais do template' }).locator('.block-name')).toHaveText(['Cabine 1']);
+  await page.getByRole('button', { name: 'Adicionar painel' }).click();
+  await expect(announcer(page)).toHaveText('Painel 1 adicionado');
   const addColuna = page.getByRole('button', { name: 'Adicionar coluna' });
   for (const n of [1, 2, 3]) {
     await addColuna.click();
-    await expect(colunaNames(page, 'Cabine 1')).toHaveCount(n);
+    await expect(colunaNames(page, COLUNAS_OF_PAINEL_1)).toHaveCount(n);
   }
-  await expect(colunaNames(page, 'Cabine 1')).toHaveText(['Coluna 1', 'Coluna 2', 'Coluna 3']);
+  await expect(colunaNames(page, COLUNAS_OF_PAINEL_1)).toHaveText(['Coluna 1', 'Coluna 2', 'Coluna 3']);
 
   await page.getByRole('button', { name: 'Mais opções de Coluna 3' }).click();
   await page.getByRole('menuitem', { name: 'Renomear' }).click();
   const rename = page.getByRole('dialog', { name: 'Renomear Coluna 3' });
   await rename.getByRole('textbox', { name: 'Nome' }).fill('Coluna 5');
   await rename.getByRole('button', { name: 'Salvar' }).click();
-  await expect(colunaNames(page, 'Cabine 1')).toHaveText(['Coluna 1', 'Coluna 2', 'Coluna 5']);
+  await expect(colunaNames(page, COLUNAS_OF_PAINEL_1)).toHaveText(['Coluna 1', 'Coluna 2', 'Coluna 5']);
 
   // Alt+Up twice, focus staying in the row.
   await page.getByRole('button', { name: /^Coluna 5/ }).focus();
   await page.keyboard.press('Alt+ArrowUp');
-  await expect(colunaNames(page, 'Cabine 1')).toHaveText(['Coluna 1', 'Coluna 5', 'Coluna 2']);
+  await expect(colunaNames(page, COLUNAS_OF_PAINEL_1)).toHaveText(['Coluna 1', 'Coluna 5', 'Coluna 2']);
   await expect(announcer(page)).toHaveText('Coluna 5 movida para a posição 2 de 3');
   await expect(page.getByRole('button', { name: /^Coluna 5/ })).toBeFocused();
   await page.keyboard.press('Alt+ArrowUp');
-  await expect(colunaNames(page, 'Cabine 1')).toHaveText(['Coluna 5', 'Coluna 1', 'Coluna 2']);
+  await expect(colunaNames(page, COLUNAS_OF_PAINEL_1)).toHaveText(['Coluna 5', 'Coluna 1', 'Coluna 2']);
   await expect(announcer(page)).toHaveText('Coluna 5 movida para a posição 1 de 3');
 
   // Overflow "Descer".
   await page.getByRole('button', { name: 'Mais opções de Coluna 5' }).click();
   await page.getByRole('menuitem', { name: 'Descer' }).click();
-  await expect(colunaNames(page, 'Cabine 1')).toHaveText(['Coluna 1', 'Coluna 5', 'Coluna 2']);
+  await expect(colunaNames(page, COLUNAS_OF_PAINEL_1)).toHaveText(['Coluna 1', 'Coluna 5', 'Coluna 2']);
   await expect(announcer(page)).toHaveText('Coluna 5 movida para a posição 2 de 3');
 
   // The Position box.
   const posBox = page.getByRole('textbox', { name: 'Posição de Coluna 5' });
   await posBox.fill('3');
   await posBox.press('Enter');
-  await expect(colunaNames(page, 'Cabine 1')).toHaveText(['Coluna 1', 'Coluna 2', 'Coluna 5']);
+  await expect(colunaNames(page, COLUNAS_OF_PAINEL_1)).toHaveText(['Coluna 1', 'Coluna 2', 'Coluna 5']);
   await expect(announcer(page)).toHaveText('Coluna 5 movida para a posição 3 de 3');
 
   // A mouse drag from the handle to the top.
@@ -294,11 +300,11 @@ test('@p0 3.4-E2E-001 builds a skeleton from "Novo template" and reorders a colu
   await page.mouse.down();
   await page.mouse.move(from.x + from.width / 2, top.y - 4, { steps: 8 });
   await page.mouse.up();
-  await expect(colunaNames(page, 'Cabine 1')).toHaveText(['Coluna 5', 'Coluna 1', 'Coluna 2']);
+  await expect(colunaNames(page, COLUNAS_OF_PAINEL_1)).toHaveText(['Coluna 5', 'Coluna 1', 'Coluna 2']);
   await expect(announcer(page)).toHaveText('Coluna 5 movida para a posição 1 de 3');
 
   await page.reload();
-  await expect(colunaNames(page, 'Cabine 1')).toHaveText(['Coluna 5', 'Coluna 1', 'Coluna 2']);
+  await expect(colunaNames(page, COLUNAS_OF_PAINEL_1)).toHaveText(['Coluna 5', 'Coluna 1', 'Coluna 2']);
 
   // 3.4-E2E-004: every op of this whole edit is a template op.
   const paths = await outboxPaths(page, account.userId);
@@ -317,11 +323,13 @@ test('@p0 3.4-E2E-002 sets quantities per node with the palette stepper; the col
   await signIn(page, account.email);
   await openTemplates(page);
   await page.getByRole('button', { name: 'Novo template' }).click();
-  await page.getByRole('button', { name: 'Adicionar cabine' }).click();
+  await addLocal(page, { funcao: 'Primária', name: 'Cabine 1' });
+  await page.getByRole('button', { name: 'Adicionar painel' }).click();
   await page.getByRole('button', { name: 'Adicionar coluna' }).click();
-  await expect(colunaNames(page, 'Cabine 1')).toHaveText(['Coluna 1']);
-  await page.getByRole('button', { name: /^Coluna 1/ }).click();
-  await expect(palette(page).getByText('Equipamentos · quantidade em Coluna 1')).toBeVisible();
+  await expect(colunaNames(page, COLUNAS_OF_PAINEL_1)).toHaveText(['Coluna 1']);
+  // The new coluna is open: the palette says where it adds (Story 14.2, `.pal-target`).
+  await expect(page.locator('.column-row.is-open .col-name')).toHaveText('Coluna 1');
+  await expect(palette(page).locator('.pal-target')).toHaveText('Toque para adicionar em: Coluna 1 · Painel 1');
 
   const stepper = (n: number) => palette(page).getByRole('group', { name: `Seccionadoras, ${n}` });
   const count = palette(page).locator('.palette-item', { hasText: 'Chave seccionadora' }).getByRole('textbox', { name: 'Quantidade' });
@@ -368,13 +376,15 @@ test('@p0 3.4-E2E-002 sets quantities per node with the palette stepper; the col
   await expect(body.getByRole('group', { name: /^Seccionadoras/ })).toHaveCount(0);
   await expect(page.locator('.composer-meta')).toHaveText('1 disjuntor');
 
-  // Blocks placed on the cabine itself, with no coluna, count and show.
-  await page.getByRole('button', { name: /^Cabine 1/ }).click();
-  await expect(palette(page).getByText('Equipamentos · quantidade em Cabine 1')).toBeVisible();
+  // Blocks placed on the local itself, with no coluna, count and show: "Adicionar equipamento" makes it the palette's target.
+  await page.getByRole('button', { name: 'Adicionar equipamento' }).click();
+  await expect(palette(page).locator('.pal-target')).toHaveText('Toque para adicionar em: Cabine 1, direto no local');
   await palette(page).getByRole('group', { name: 'Cabos de entrada, 0' }).getByRole('button', { name: 'Mais um' }).click();
-  await expect(page.locator('.cabine-card.is-open > .block-expand > .col-body').getByRole('group', { name: 'Cabos de entrada, 1' })).toBeVisible();
+  const direct = page.locator('.local-card.is-current > .block-expand > .loc-direct');
+  await expect(direct.getByText('Equipamentos no local')).toBeVisible();
+  await expect(direct.getByRole('group', { name: 'Cabos de entrada, 1' })).toBeVisible();
   await expect(page.locator('.composer-meta')).toHaveText('1 disjuntor · 1 cabo de entrada');
-  await expect(skeletonHeading(page)).toHaveText('Esqueleto de locais · 1 cabine · 1 coluna · 2 blocos');
+  await expect(skeletonHeading(page)).toHaveText('Esqueleto de locais · 1 local · 1 painel · 1 coluna · 2 blocos');
 
   const paths = await outboxPaths(page, account.userId);
   expect(paths.every((path) => path.startsWith('template/'))).toBe(true);
@@ -492,7 +502,7 @@ test('@p0 3.4-E2E-005 a coluna removed on one device while a stale device sets q
     await page.getByRole('button', { name: 'Mais opções de Coluna 9' }).click();
     await page.getByRole('menuitem', { name: 'Remover' }).click();
     await page.getByRole('dialog', { name: 'Remover Coluna 9?' }).getByRole('button', { name: 'Remover' }).click();
-    await expect(skeletonHeading(page)).toHaveText('Esqueleto de locais · 6 cabines · 16 colunas · 94 blocos');
+    await expect(skeletonHeading(page)).toHaveText('Esqueleto de locais · 6 locais · 16 colunas · 94 blocos');
     await syncNowAndReturn(page);
 
     // Context 2 comes back and syncs LAST: its blocks, built on the old row, win on the server.
@@ -514,7 +524,7 @@ test('@p0 3.4-E2E-005 a coluna removed on one device while a stale device sets q
     await syncNowAndReturn(second);
     for (const p of [page, second]) {
       await expect(syncBadge(p)).toHaveAttribute('data-state', 'ok');
-      await expect(skeletonHeading(p)).toHaveText('Esqueleto de locais · 6 cabines · 16 colunas · 94 blocos');
+      await expect(skeletonHeading(p)).toHaveText('Esqueleto de locais · 6 locais · 16 colunas · 94 blocos');
       await expect(p.locator('.composer-meta')).toHaveText(STANDARD_TOTALS);
       await expect(p.getByRole('button', { name: /^Coluna 9/ })).toHaveCount(0);
     }
@@ -558,7 +568,7 @@ test('@p1 3.4-E2E-006 the palette sits beside the composition from 1024px, in a 
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await horizontalOverflow(page), 'composer at 390px').toBeLessThanOrEqual(0);
   // "Agrupar por tipo" wraps to its own line on a phone, inset from the card's border.
-  const card = page.locator('.cabine-card').first();
+  const card = page.locator('.local-card').first();
   const cardBox = (await card.boundingBox())!;
   const agruparBox = (await card.locator('.cabine-toggle label').boundingBox())!;
   expect(agruparBox.y, 'Agrupar por tipo on its own line at 390px').toBeGreaterThan(cardBox.y + 40);
@@ -933,12 +943,13 @@ test('@p1 E3-A9-E2E-001 composer polish: a tap on a section card body opens "Edi
   // A section with no text has a plain body: nothing to open.
   await expect(page.getByRole('button', { name: 'Editar texto de 8 Pontos de atenção' })).toHaveCount(0);
 
-  // A blank rename is refused in place: the message under the field, the dialog open.
-  const cabines = page.getByRole('list', { name: 'Cabines do template' }).locator(':scope > li .block-name');
+  // A blank rename is refused in place: the message under the field, the dialog open. (Story
+  // 14.2: "Renomear" is a coluna's and a painel's; a local's rename is "Função e nome".)
+  const cabines = colunaNames(page, '1° Subsolo');
   const first = (await cabines.first().textContent())!;
-  await page.getByRole('button', { name: `Mais opções de ${first}` }).click();
+  await page.getByRole('button', { name: `Mais opções de ${first}`, exact: true }).click();
   await page.getByRole('menuitem', { name: 'Renomear' }).click();
-  const rename = page.getByRole('dialog', { name: `Renomear ${first}` });
+  const rename = page.getByRole('dialog', { name: `Renomear ${first}`, exact: true });
   const field = rename.getByRole('textbox', { name: 'Nome' });
   await field.fill('   ');
   await rename.getByRole('button', { name: 'Salvar' }).click();

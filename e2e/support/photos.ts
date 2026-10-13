@@ -16,8 +16,8 @@ type Account = SeedAccount;
 const tree = (page: Page) => page.getByRole('list', { name: 'Locais do relatório' });
 const enel = (page: Page) =>
   tree(page)
-    .locator(':scope > li.s9-cabine')
-    .filter({ has: page.locator(':scope > .s9-cab-row .s9-cab-name', { hasText: 'Cubículo Enel' }) });
+    .locator(':scope > li.s9-local')
+    .filter({ has: page.locator(':scope > .s9-loc-row .s9-loc-name', { hasText: 'Cubículo Enel' }) });
 const enelRows = (page: Page) => enel(page).locator(':scope > .s9-eqs > li.s9-eq');
 
 /**

@@ -4,6 +4,7 @@ import { newId } from '../apps/api/src/ids.ts';
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readDeviceId, readStore } from './support/outbox.ts';
+import { addLocal } from './support/local.ts';
 import { createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 import { officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
@@ -182,7 +183,8 @@ for (const viewport of WIDTHS) {
     await expect(toast(page).filter({ hasText: 'Relatório em campo' })).toHaveCount(0);
 
     // Decision 3: the tree's structure keeps Rascunho too. A section removed (its own "Desfazer"
-    // toast and nothing else), a cabine added and renamed: no status op, no status toast.
+    // toast and nothing else), a local added, its Função and name changed (Story 14.2: `funcao` is
+    // structure): no status op, no status toast.
     await page.getByRole('button', { name: 'Mais opções de Definições' }).click();
     await page.getByRole('menuitem', { name: 'Remover' }).click();
     await expect(toast(page)).toContainText('Seção removida deste relatório — numeração refeita');
@@ -190,15 +192,23 @@ for (const viewport of WIDTHS) {
     await expect(toast(page)).toHaveCount(0);
     const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
     if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
-    await page.getByRole('button', { name: 'Adicionar cabine' }).click();
+    await addLocal(page, { funcao: 'Primária', name: 'Cabine 7' });
     await expect(page.getByRole('button', { name: /^(Expandir|Recolher) Cabine 7$/ })).toBeVisible();
     await page.getByRole('button', { name: 'Mais opções de Cabine 7', exact: true }).click();
-    await page.getByRole('menuitem', { name: 'Renomear' }).click();
-    const rename = page.getByRole('dialog', { name: 'Renomear Cabine 7' });
-    await rename.getByRole('textbox').fill('Cabine nova');
+    await page.getByRole('menuitem', { name: 'Função e nome' }).click();
+    const rename = page.getByRole('dialog', { name: 'Função e nome' });
+    await rename.getByRole('radio', { name: 'Transformação' }).click();
+    await rename.getByRole('textbox', { name: 'Nome', exact: true }).fill('Cabine nova');
     await rename.getByRole('button', { name: 'Salvar' }).click();
     await expect(page.getByRole('button', { name: /^(Expandir|Recolher) Cabine nova$/ })).toBeVisible();
-    await expect.poll(async () => (await outbox(page)).filter((op) => op.path.startsWith('location/')).length).toBeGreaterThanOrEqual(2);
+    // The new local's own ops: its create, then the `funcao` and `name` puts of "Função e nome".
+    await expect
+      .poll(async () => {
+        const ops = (await outbox(page)).filter((op) => op.path.startsWith('location/'));
+        const created = ops.find((op) => /^location\/[^/]+$/.test(op.path) && (op.value as { name?: string } | null)?.name === 'Cabine 7');
+        return created === undefined ? [] : ops.filter((op) => op.path.startsWith(created.path)).map((op) => op.path.slice(created.path.length)).sort();
+      })
+      .toEqual(['', '/funcao', '/name']);
     await expect(headerPill(page)).toHaveText('Rascunho');
     expect(await statusValues(page, relatorioId)).toEqual([]);
     await expect(toast(page).filter({ hasText: 'Relatório em campo' })).toHaveCount(0);
@@ -377,7 +387,7 @@ for (const viewport of WIDTHS) {
     await expect(headerPill(page)).toHaveText('Emitido');
     const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
     if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
-    await page.getByRole('button', { name: 'Adicionar cabine' }).click();
+    await addLocal(page, { funcao: 'Primária' });
     await expect(headerPill(page)).toHaveText('Em revisão');
     await expect(step(page)).toHaveText('Em revisão: há alterações desde a revisão 2. Gere a revisão 3 antes de marcar como enviado ao cliente.');
     await footGenerate(page).click();

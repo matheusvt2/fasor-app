@@ -125,8 +125,8 @@ async function openSection9(page: Page): Promise<void> {
   const locais = page.getByRole('list', { name: 'Locais do relatório' });
   await expect(locais).toBeVisible();
   // The first cabine open too, so its equipment rows (`.s9-eq-open`) are measured.
-  const cabine = locais.locator(':scope > li.s9-cabine').first();
-  const toggle = cabine.locator(':scope > .s9-cab-row .tree-chevron');
+  const cabine = locais.locator(':scope > li.s9-local').first();
+  const toggle = cabine.locator(':scope > .s9-loc-row .tree-chevron');
   if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
   await expect(cabine.locator('.s9-eq-open').first()).toBeVisible();
 }
