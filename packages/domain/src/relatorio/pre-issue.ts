@@ -28,6 +28,7 @@ import { cabineLocationIds, emptySheetCount, fichasVaziasText, naoEnsaiadasText,
 import { section3Blocks, sectionVariables } from './section-variables.ts';
 import { setupGaps, type SetupGap } from './setup-complete.ts';
 import { enabledSubBlocksOf, isEquipmentBlock, sheetState } from './sheet-state.ts';
+import { siteUnanswered, siteUnansweredText } from './site-checklist.ts';
 import { blocksWithPendingSuggestions, fichasComSugestoesText, livePendingSuggestions } from './suggestions.ts';
 import { sectionBlocks } from './sumario.ts';
 
@@ -54,6 +55,7 @@ export type PreIssueKind =
   | 'not_tested'
   | 'cabine_sem_equipamento'
   | 'cabine_incompleta'
+  | 'site_checklist_unanswered'
   | 'company'
   | 'client'
   | 'photos_uncaptioned'
@@ -445,6 +447,13 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
         kind: 'cabine_incompleta',
       });
     }
+  }
+
+  // Story 14.3: one row naming every live local with unanswered site items and its count;
+  // pending, never blocking. A relatório whose seed ships no site list raises none.
+  const siteText = siteUnansweredText(siteUnanswered(snapshot));
+  if (siteText !== null) {
+    rows.push({ id: 'site_checklist_unanswered', row: 'section_9', severity: 'pending', text: siteText, kind: 'site_checklist_unanswered' });
   }
 
   // Story 7.4/7.5: the one blocking row, only while section 10 prints: a live `section_10`

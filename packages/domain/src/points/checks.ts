@@ -51,12 +51,19 @@ export interface NewPointInput {
   equipmentId: string | null;
   origin: PointRow['origin'];
   action: string | null;
+  /**
+   * Story 14.3: the local of a point created from a site item ("Verificações do local"); its
+   * `equipmentId` is then null. Absent or null: the row carries no `location_id` key, so a
+   * point of an equipment or a general one keeps the row shape from before the field existed.
+   */
+  locationId?: string | null;
 }
 
 /** A new point, placed after every live point (the end of the manual part of section 8). */
 export function newPointRow(input: NewPointInput, points: readonly PointRow[]): PointRow {
   const live = livePoints(points);
   const last = live.at(-1);
+  const locationId = input.locationId ?? null;
   return {
     id: input.id,
     relatorio_id: input.relatorioId,
@@ -69,6 +76,7 @@ export function newPointRow(input: NewPointInput, points: readonly PointRow[]): 
     priority: null,
     deadline: null,
     owner: null,
+    ...(locationId === null ? {} : { location_id: locationId }),
   };
 }
 
@@ -106,17 +114,32 @@ export function photoCitedByText(positions: readonly number[]): string | null {
     : `Ela é citada nos pontos de atenção ${listPtBr(positions.map(String))}, que passam a mostrar Foto removida.`;
 }
 
+/** What an NC row belongs to: a sheet's equipment, or (Story 14.3) the local of a site item. */
+export interface NcRowOwner {
+  equipmentId?: string | null;
+  locationId?: string | null;
+}
+
 /**
  * E6-Q11: the live points an NC row already has, by section 8 position. A point stores no
  * checklist item, so the row matches by what "Criar ponto de atenção" put in it: the
  * sheet's equipment and the item's photos -- the points of that equipment citing one of the
  * item's photos. An item with no photo gets no mark: nothing tells its point from another
  * NC item's of the same sheet.
+ *
+ * Story 14.3: a site item's row matches the same way by its local: the manual points whose
+ * `location_id` is that local, citing one of the item's photos. `owner` is the sheet's
+ * equipment id (as before) or an `NcRowOwner` naming the equipment or the local.
  */
-export function ncRowPointPositions(points: readonly PointRow[], equipmentId: string | null, itemPhotoIds: readonly string[]): number[] {
-  if (equipmentId === null || itemPhotoIds.length === 0) return [];
+export function ncRowPointPositions(points: readonly PointRow[], owner: string | null | NcRowOwner, itemPhotoIds: readonly string[]): number[] {
+  const equipmentId = typeof owner === 'string' ? owner : (owner?.equipmentId ?? null);
+  const locationId = owner === null || typeof owner === 'string' ? null : (owner.locationId ?? null);
+  if ((equipmentId === null && locationId === null) || itemPhotoIds.length === 0) return [];
   return livePoints(points).flatMap((point, i) => {
-    if (point.equipment_id !== equipmentId || point.origin !== 'manual') return [];
+    if (point.origin !== 'manual') return [];
+    const ofEquipment = equipmentId !== null && point.equipment_id === equipmentId;
+    const ofLocal = locationId !== null && (point.location_id ?? null) === locationId;
+    if (!ofEquipment && !ofLocal) return [];
     return extractPhotoRefs(point.text).some((id) => itemPhotoIds.includes(id)) ? [i + 1] : [];
   });
 }

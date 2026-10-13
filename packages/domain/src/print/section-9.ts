@@ -22,12 +22,13 @@ import { nameplateTagPrefill } from '../relatorio/nameplate-copy.ts';
 import { evaluateSheetReadings, type EvaluatedCell, type EvaluatedRow, type EvaluatedTable, type TestEvaluation, type TestKey } from '../relatorio/readings.ts';
 import { checklistResultOf } from '../relatorio/sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from '../relatorio/sheet-state.ts';
+import { SITE_CHECKLIST_LABEL, siteObservationOf, siteResultOf } from '../relatorio/site-checklist.ts';
 import { blockTypeLabel, notTestedReasonText } from '../relatorio/tree.ts';
 import type { SubBlockKey } from '../schemas/block-config.ts';
 import type { BlockRow, UserRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findDefinition, getSeed } from '../seed/definitions.ts';
-import type { BlockDefinition, CabineDefinition, ColumnDef, FieldDef, TableDef, TestDef } from '../seed/schema.ts';
+import { findDefinition, findSeed, getSeed } from '../seed/definitions.ts';
+import type { BlockDefinition, CabineDefinition, ColumnDef, FieldDef, ReportSeed, SiteChecklist, TableDef, TestDef } from '../seed/schema.ts';
 import { blockRoleOf, groupForPrint, type PrintGroupWarning } from './group-for-print.ts';
 
 /*
@@ -67,6 +68,12 @@ export interface PrintRow {
   header?: boolean;
   /** A title band across the table: kept with the row under it. */
   band?: boolean;
+  /**
+   * Story 14.4: a group row inside a table (VERIFICAÇÕES DO LOCAL's "SEGURANÇA E EPC NO
+   * LOCAL"): one bold cell across the table on a lighter fill than a band's (`.pt-group` of
+   * `key-print-section-9.html`), kept with the row under it.
+   */
+  group?: boolean;
 }
 
 export interface PrintTable {
@@ -105,6 +112,15 @@ export interface PrintSheetSubsection {
   sheets: PrintSheet[];
   /** Story 14.2: the subsection is a painel's band. Absent on every other subsection. */
   painel?: true;
+  /**
+   * Story 14.4: what the local itself prints, right under this heading and before any sheet:
+   * CARACTERÍSTICAS DA SE, AMBIENTE DE ENSAIO, the VERIFICAÇÕES DO LOCAL table, then the site
+   * items' photos. Set on the first subsection printed for a local of a relatório whose seed
+   * ships a site list (v4 or later), exactly once per local; the local's sheets then carry no
+   * cabine parts. Absent on every other subsection and on every relatório on v1 to v3, where
+   * the cabine's two tables stay inside its first sheet.
+   */
+  localParts?: SheetPart[];
 }
 
 export interface LayoutSectionSheets {
@@ -121,6 +137,8 @@ export interface LayoutSectionSheets {
 // Verbatim from FO.SERV-03 (`imports/extract-fo-serv-03.md` §2 blocks A-E, §3 T3-T13).
 const CABINE_SE_TITLE = 'CARACTERÍSTICAS DA SE';
 const CABINE_ENV_TITLE = 'AMBIENTE DE ENSAIO';
+/** The site checklist's title band, as `key-print-section-9.html` prints it. */
+const SITE_CHECKLIST_TITLE = SITE_CHECKLIST_LABEL.toLocaleUpperCase('pt-BR');
 const NAMEPLATE_TITLE = 'DADOS DO EQUIPAMENTO';
 const CHECKLIST_TITLE = 'VERIFICAÇÕES GERAIS';
 const OBSERVATIONS_TITLE = 'OBSERVAÇÕES';
@@ -221,12 +239,17 @@ interface Context {
   actors: ReadonlyMap<string, UserRow>;
   numbers: ReadonlyMap<string, number>;
   photos: ReadonlyMap<string, SnapshotPhoto[]>;
+  /** Story 14.4: the photos of each local's site items (no block, a `location_id`), in capture order. */
+  sitePhotos: ReadonlyMap<string, SnapshotPhoto[]>;
 }
 
 function contextOf(snapshot: RelatorioSnapshot): Context {
   const photos = new Map<string, SnapshotPhoto[]>();
+  const sitePhotos = new Map<string, SnapshotPhoto[]>();
   for (const photo of livePhotos(snapshot)) {
+    // A row carrying both a block and a local is read as its block's.
     if (photo.block_id !== null) photos.set(photo.block_id, [...(photos.get(photo.block_id) ?? []), photo]);
+    else if ((photo.location_id ?? null) !== null) sitePhotos.set(photo.location_id!, [...(sitePhotos.get(photo.location_id!) ?? []), photo]);
   }
   return {
     snapshot,
@@ -235,6 +258,7 @@ function contextOf(snapshot: RelatorioSnapshot): Context {
     actors: new Map(snapshot.actors.map((user) => [user.id, user])),
     numbers: numberPhotos(snapshot.files),
     photos,
+    sitePhotos,
   };
 }
 
@@ -344,6 +368,62 @@ function checklistPart(block: BlockRow, definition: BlockDefinition, columns: re
     columns.map((column, c) => (c === 0 ? 5 : column === 'C' || column === 'NC' || column === 'NA' ? 0.6 : 3.4)),
     rows,
   );
+}
+
+// --- VERIFICAÇÕES DO LOCAL ----------------------------------------------------------------------
+
+const isMarkColumn = (column: string): boolean => column === 'C' || column === 'NC' || column === 'NA';
+
+/**
+ * Story 14.4 (`key-print-section-9.html` `.pt-check`): the local's site checklist under the
+ * seed's normalized columns (ÍTEM · C · NC · NA · OBSERVAÇÕES). A group row before each
+ * group, its label in caps; each item "⟨n⟩. ⟨ITEM⟩" in caps with n running 1 to 19 across the
+ * groups, an X in the chosen box and the observation as typed. An unanswered item prints
+ * with no mark.
+ */
+function siteChecklistPart(cabine: CabineLocation, list: SiteChecklist, columns: readonly string[]): SheetPart {
+  const last = columns.length - 1;
+  const rows: PrintRow[] = [bandRow(SITE_CHECKLIST_TITLE, columns.length), headerRow(columns.map(printLabel))];
+  let number = 0;
+  for (const group of list.groups) {
+    rows.push({ group: true, cells: [{ text: printLabel(group.label), span: columns.length, bold: true, align: 'left' }] });
+    for (const item of group.items) {
+      number += 1;
+      const result = siteResultOf(cabine, item.key);
+      const observation = siteObservationOf(cabine, item.key) ?? '';
+      rows.push({
+        cells: columns.map((column, c): PrintCell => {
+          if (c === 0) return { text: `${number}. ${printLabel(item.label)}`, align: 'left' };
+          if (isMarkColumn(column)) return valueCell(result === column ? MARK : '');
+          return c === last ? { text: observation, align: 'left' } : valueCell('');
+        }),
+      });
+    }
+  }
+  return table(
+    columns.map((column, c) => (c === 0 ? 5 : isMarkColumn(column) ? 0.6 : 3.4)),
+    rows,
+  );
+}
+
+/**
+ * Story 14.4: what a local prints under its first heading on a relatório with a site list:
+ * its SE and environment tables, its VERIFICAÇÕES DO LOCAL table, then the photos taken on
+ * its site items (in capture order, numbered as section 7 numbers them).
+ */
+function localPartsOf(ctx: Context, cabine: CabineLocation, seed: ReportSeed, list: SiteChecklist): SheetPart[] {
+  const keys = new Set<string>(list.groups.flatMap((group) => group.items.map((item) => item.key)));
+  const photos: PrintPhoto[] = [];
+  for (const photo of ctx.sitePhotos.get(cabine.id) ?? []) {
+    const number = ctx.numbers.get(photo.id);
+    if (number === undefined || photo.item_key === null || !keys.has(photo.item_key)) continue;
+    photos.push({ fileId: photo.id, number, caption: photoLine(number, photo.caption) });
+  }
+  return [
+    ...cabineParts(cabine, seed.cabine, ctx.snapshot.relatorio.setup.site_altitude_m),
+    siteChecklistPart(cabine, list, seed.checklist_columns),
+    ...photosPart(photos),
+  ];
 }
 
 // --- one test ----------------------------------------------------------------------------------
@@ -643,31 +723,45 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
  * on purpose (that band over its type groups, or a local whose sheets all sit in painéis)
  * keeps its heading alone. Null when the relatório holds no sheet to print (the section
  * keeps its note).
+ *
+ * Story 14.4: on a relatório whose seed ships a site list (v4 or later) the local prints its
+ * own parts instead: the first subsection of each local carries `localParts` (SE, AMBIENTE
+ * DE ENSAIO, VERIFICAÇÕES DO LOCAL, the site items' photos), once per local under either
+ * scheme, and no sheet of that local repeats the cabine's tables. A local with no sheet
+ * still prints its heading and those parts, so the section is null only when it prints no
+ * sheet and no local part. A relatório on v1 to v3 prints exactly as before.
  */
 export function section9Layout(snapshot: RelatorioSnapshot, number: number, title: string): LayoutSectionSheets | null {
   const grouping = groupForPrint(snapshot);
   const ctx = contextOf(snapshot);
   const cabines = new Map(snapshot.locations.filter((location): location is CabineLocation => location.kind === 'cabine').map((location) => [location.id, location]));
+  const seed = findSeed(snapshot.relatorio.seed_version);
+  const siteList = seed?.site_checklist ?? null;
   const seen = new Set<string>();
   const subsections: PrintSheetSubsection[] = [];
   let numbered = 0;
   let printed = 0;
   for (const subsection of grouping.subsections) {
+    // The local's own parts, once: on the first subsection `groupForPrint` emits for it.
+    const cabine = cabines.get(subsection.cabineId) ?? null;
+    const localParts = seed !== null && siteList !== null && cabine !== null && !seen.has(subsection.cabineId) ? localPartsOf(ctx, cabine, seed, siteList) : null;
+    if (localParts !== null) seen.add(subsection.cabineId);
     const sheets: PrintSheet[] = [];
     for (const blockId of subsection.blockIds) {
       const first = !seen.has(subsection.cabineId);
       seen.add(subsection.cabineId);
-      const sheet = sheetOf(ctx, blockId, first ? (cabines.get(subsection.cabineId) ?? null) : null);
+      const sheet = sheetOf(ctx, blockId, first ? cabine : null);
       if (sheet !== null) sheets.push(sheet);
     }
-    // A subsection whose every sheet failed to resolve is dropped, as before; one emitted empty on purpose stands.
-    if (sheets.length === 0 && subsection.blockIds.length > 0) continue;
-    printed += sheets.length;
+    // A subsection whose every sheet failed to resolve is dropped, as before; one emitted empty on purpose, or carrying the local's parts, stands.
+    if (sheets.length === 0 && subsection.blockIds.length > 0 && localParts === null) continue;
+    printed += sheets.length + (localParts === null ? 0 : 1);
+    const local = localParts === null ? {} : { localParts };
     if (subsection.kind === 'painel') {
-      subsections.push({ heading: subsection.title.toLocaleUpperCase('pt-BR'), sheets, painel: true });
+      subsections.push({ heading: subsection.title.toLocaleUpperCase('pt-BR'), sheets, painel: true, ...local });
     } else {
       numbered += 1;
-      subsections.push({ heading: `${number}.${numbered} ${subsection.title}`, sheets });
+      subsections.push({ heading: `${number}.${numbered} ${subsection.title}`, sheets, ...local });
     }
   }
   if (printed === 0) return null;

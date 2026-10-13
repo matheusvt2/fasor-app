@@ -3,6 +3,7 @@ import { locationTree, treeNodes, type TreeEquipmentNode, type TreeLocationNode 
 import { roleSchema, type Role } from '../schemas/block-config.ts';
 import type { BlockRow, RelatorioRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { siteChecklistOf } from '../seed/definitions.ts';
 
 /*
  * Story 7.1 (FR-68, FR-72, AR-15; EXPERIENCE.md › Section 9 default scheme): the order and
@@ -31,6 +32,18 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
  * goes last in its run's group with no warning, since it does feed a live transformer of
  * its cabine. A painel with no sheet emits nothing, and a cabine with no painel holding a
  * sheet emits exactly what it did before the painel level.
+ *
+ * Stories 14.3 and 14.4 (2026-10-13):
+ * - On a relatório whose seed version ships a site list (v4 or later) every live root cabine
+ *   prints: one holding no sheet at all still emits its `cabine` subsection, with no sheets,
+ *   under both schemes, so its heading, its cabine data and its VERIFICAÇÕES DO LOCAL table
+ *   have somewhere to stand (`section9Layout`). On v1 to v3 such a cabine emits nothing, as
+ *   before.
+ * - With "Agrupar por tipo" on, a type group under a painel is titled with the painel and the
+ *   local (`painelTypeGroupTitle`), so two painéis each holding seccionadoras no longer print
+ *   the same numbered title; and a local whose sheets all sit in painéis emits its own
+ *   `cabine` subsection (no sheets) before its first painel, as it does with the flag off. A
+ *   local with no painel keeps the FO.SERV-03 titles byte for byte.
  */
 
 export type PrintScheme = RelatorioRow['export']['scheme'];
@@ -41,9 +54,13 @@ export interface PrintSubsection {
   /** The cabine (the tree's root location) the subsection belongs to. */
   cabineId: string;
   kind: PrintGroupKind;
-  /** "Cubículo Enel", "Seccionadoras dos Cubículos de MT do 1° Subsolo", "Painel de média tensão". */
+  /** "Cubículo Enel", "Seccionadoras dos Cubículos de MT do 1° Subsolo", "Painel de média tensão", "Seccionadoras dos Cubículos de MT do Painel de média tensão — Cabine primária". */
   title: string;
-  /** The sheets, in print order. Empty for a `painel` heading over its type groups, and for a local's `cabine` subsection whose sheets all sit in painéis. */
+  /**
+   * The sheets, in print order. Empty for a `painel` heading over its type groups, for a
+   * local's `cabine` subsection whose sheets all sit in painéis and (Story 14.3, a relatório
+   * with a site list) for a local holding no sheet at all.
+   */
   blockIds: string[];
   /**
    * Story 14.2: the painel the subsection belongs to (the `painel` subsection itself and the
@@ -93,6 +110,17 @@ function ofCabine(name: string): string {
   return `d${agreement.gender === 'f' ? 'a' : 'o'}${agreement.number === 'plural' ? 's' : ''} ${name}`;
 }
 
+/**
+ * Story 14.4 (2026-10-13, from the review of PR #126): the title of a type group under a
+ * painel, "Seccionadoras dos Cubículos de MT do Painel de média tensão — Cabine primária":
+ * the group's words, the painel with its contraction, then the local. `words` is one of
+ * `GROUP_WORDS`.
+ */
+export function painelTypeGroupTitle(words: string, painelName: string, localName: string): string {
+  // authored: the wording recommended in Story 14.4's criterion, pending Bruno's word on the title.
+  return `${words} ${ofCabine(painelName.trim())} — ${localName.trim()}`;
+}
+
 /** A block's role (`BlockConfig.role`), or null when its config names none. */
 export function blockRoleOf(block: Pick<BlockRow, 'config'>): Role | null {
   const config = block.config;
@@ -123,8 +151,12 @@ interface RootRuns {
   paineis: PainelRun[];
 }
 
-/** The base case as data: one entry per root of the tree holding a sheet, in tree order. */
-function fieldOrder(tree: readonly TreeLocationNode[]): RootRuns[] {
+/**
+ * The base case as data: one entry per root of the tree holding a sheet, in tree order. With
+ * `everyLocal` (a relatório whose seed ships a site list), a root cabine holding no sheet is
+ * kept too, its subsection empty.
+ */
+function fieldOrder(tree: readonly TreeLocationNode[], everyLocal: boolean): RootRuns[] {
   return tree.flatMap((root) => {
     // Only a cabine holds painéis; under any other root a painel is read as any location.
     const paineis: PainelRun[] =
@@ -136,7 +168,7 @@ function fieldOrder(tree: readonly TreeLocationNode[]): RootRuns[] {
         : [];
     const inPainel = new Set(paineis.flatMap((run) => run.nodes.map((node) => node.blockId)));
     const direct = sheetsUnder(root).filter((node) => !inPainel.has(node.blockId));
-    if (direct.length === 0 && paineis.length === 0) return [];
+    if (direct.length === 0 && paineis.length === 0 && !(everyLocal && root.kind === 'cabine')) return [];
     return [{ subsection: { cabineId: root.id, kind: 'cabine' as const, title: root.name.trim(), blockIds: direct.map((node) => node.blockId) }, direct, paineis }];
   });
 }
@@ -198,8 +230,9 @@ function transformerPairs(
 
 /**
  * One run of a flagged cabine (all of its sheets, its direct run, or one painel's) split
- * into the fixed type groups, an empty group skipped. The titles carry the cabine's name
- * (`base.title`) whatever the run.
+ * into the fixed type groups, an empty group skipped. The direct run's titles carry the
+ * cabine's name (`base.title`), FO.SERV-03's own; a painel's run names the painel and then
+ * the cabine (`painelTypeGroupTitle`).
  */
 function byType(
   base: PrintSubsection,
@@ -207,6 +240,7 @@ function byType(
   blocks: ReadonlyMap<string, BlockRow>,
   cabineTransformers: ReadonlySet<string>,
   warnings: PrintGroupWarning[],
+  painelTitle: string | null = null,
 ): PrintSubsection[] {
   const seccionadoras: TreeEquipmentNode[] = [];
   const disjuntores: TreeEquipmentNode[] = [];
@@ -244,20 +278,28 @@ function byType(
     transformadores: transformerPairs(transformers, cables, blocks, base.cabineId, cabineTransformers, warnings),
   };
   return GROUP_WORDS.flatMap(({ kind, words }) =>
-    ids[kind].length === 0 ? [] : [{ cabineId: base.cabineId, kind, title: `${words} ${ofCabine(base.title)}`, blockIds: ids[kind] }],
+    ids[kind].length === 0
+      ? []
+      : [{ cabineId: base.cabineId, kind, title: painelTitle === null ? `${words} ${ofCabine(base.title)}` : painelTypeGroupTitle(words, painelTitle, base.title), blockIds: ids[kind] }],
   );
 }
 
-/** A flagged cabine split by type: its direct run first, then each painel as a heading over its own type groups. */
+/**
+ * A flagged cabine split by type: its direct run first, then each painel as a heading over
+ * its own type groups. A cabine with no direct sheet emits its own `cabine` subsection (no
+ * sheets) instead of the direct run's groups: its numbered heading stands before its first
+ * painel as with the flag off (Story 14.4), and it is what a local holding no sheet at all
+ * emits on a relatório with a site list.
+ */
 function byTypeRuns(root: RootRuns, blocks: ReadonlyMap<string, BlockRow>, warnings: PrintGroupWarning[]): PrintSubsection[] {
   const all = [...root.direct, ...root.paineis.flatMap((run) => run.nodes)];
   const cabineTransformers = new Set(all.filter((node) => node.blockType === 'transformador_forca').map((node) => node.blockId));
   const { cabineId } = root.subsection;
   return [
-    ...byType(root.subsection, root.direct, blocks, cabineTransformers, warnings),
+    ...(root.direct.length === 0 ? [root.subsection] : byType(root.subsection, root.direct, blocks, cabineTransformers, warnings)),
     ...root.paineis.flatMap((run): PrintSubsection[] => [
       { cabineId, kind: 'painel', title: run.title, blockIds: [], painelId: run.id },
-      ...byType(root.subsection, run.nodes, blocks, cabineTransformers, warnings).map((group) => ({ ...group, painelId: run.id })),
+      ...byType(root.subsection, run.nodes, blocks, cabineTransformers, warnings, run.title).map((group) => ({ ...group, painelId: run.id })),
     ]),
   ];
 }
@@ -265,10 +307,11 @@ function byTypeRuns(root: RootRuns, blocks: ReadonlyMap<string, BlockRow>, warni
 /**
  * Section 9's subsections for a snapshot under a scheme (the relatório's own by default).
  * `por_local_e_tipo` is `ordem_de_campo` with every flagged cabine split by type; a cabine
- * with the flag off keeps exactly its base-case subsections.
+ * with the flag off keeps exactly its base-case subsections. On a relatório whose seed ships
+ * a site list no live root cabine is dropped: one with no sheet emits its `cabine` subsection.
  */
 export function groupForPrint(snapshot: GroupSnapshot, scheme: PrintScheme = snapshot.relatorio.export.scheme): PrintGrouping {
-  const base = fieldOrder(locationTree(snapshot));
+  const base = fieldOrder(locationTree(snapshot), siteChecklistOf(snapshot.relatorio.seed_version) !== null);
   if (scheme === 'ordem_de_campo') return { scheme, subsections: base.flatMap(baseSubsections), warnings: [] };
   const flagged = new Set(snapshot.locations.filter((location) => location.kind === 'cabine' && location.agrupar_por_tipo).map((location) => location.id));
   const blocks = new Map(snapshot.blocks.map((block) => [block.id, block]));
