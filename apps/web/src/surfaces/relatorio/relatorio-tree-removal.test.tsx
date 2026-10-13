@@ -66,6 +66,17 @@ const session = (): SessionState => ({
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
 
+// The read of every location row (removed ones included) can be held unresolved, for the one
+// test of the restore list before it lands; every other test reads through to the store.
+const pendingRead = vi.hoisted(() => ({ held: false }));
+vi.mock('../../db/home-store.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../db/home-store.ts')>();
+  return {
+    ...actual,
+    allLocationRows: (...args: Parameters<typeof actual.allLocationRows>) => (pendingRead.held ? new Promise<LocationRow[]>(() => {}) : actual.allLocationRows(...args)),
+  };
+});
+
 // E7-A2: DOM waits for a store round trip get a load-independent ceiling, and the tests a budget to match.
 loadIndependentWaits();
 
@@ -174,6 +185,7 @@ const COLUNA_6_MENU = 'Mais opções de Coluna 6 de Painel de média tensão de 
 const LOCAL_MENU = 'Mais opções de Cabine de Testes';
 
 afterEach(() => {
+  pendingRead.held = false;
   database?.close();
   database = null;
 });
@@ -536,6 +548,18 @@ describe('14.2 second pass: "Restaurar ficha removida" with removed locations', 
     // Neither the colunas and the sheet that left with the painel nor the sheet removed before it, under it.
     for (const hidden of [COLUNA_5, COLUNA_6]) expect(dialog.querySelector(`li[data-location-id="${hidden}"]`)).toBeNull();
     for (const hidden of [SEC_C05, OLD]) expect(dialog.querySelector(`li[data-block-id="${hidden}"]`)).toBeNull();
+  });
+
+  it('offers nothing while the read of every location row has not landed: never the sheets of a removed painel one by one', async () => {
+    database = await removedPainel();
+    pendingRead.held = true;
+    renderAt(`/relatorio/${RELATORIO}`);
+    await screen.findByRole('list', { name: 'Locais do relatório' });
+    const dialog = await openRestore();
+    // With the live rows standing in, SEC-C05 and SEC-OLD (their coluna unknown to the list) would each be offered alone.
+    expect(within(dialog).getByText('Nenhuma ficha removida para restaurar')).toBeVisible();
+    expect(dialog.querySelector('.restore-list')).toBeNull();
+    expect(within(dialog).queryAllByRole('button', { name: /^Restaurar / })).toHaveLength(0);
   });
 
   it('restoring a painel writes one batch from the plan (locations, sheets, equipment), opens section 9 on the restored row, says it, and marks a TAG reused meanwhile as a duplicate; "Desfazer" removes the same rows again', async () => {

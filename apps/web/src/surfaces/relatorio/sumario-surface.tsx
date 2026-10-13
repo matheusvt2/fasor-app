@@ -85,6 +85,8 @@ import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 const NO_TEMPLATES: TemplateRow[] = [];
 const NO_USERS: UserRow[] = [];
 const NO_HIGHLIGHT: ReadonlySet<SumarioRowKey> = new Set();
+/** The restore list while the read of every location row has not landed: nothing is known yet, so nothing is offered. */
+const NO_RESTORABLE: RestorableEntry[] = [];
 
 /**
  * `/relatorio/:id` (`40-relatorio-overview.html`, Story 4.3): the Sumário of the relatório
@@ -153,13 +155,14 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const lastIssuedAt = latestRevision(revisions)?.created_at ?? null;
   // Story 14.2, second pass: the list also offers the removed locations, so it reads every
   // location row of the relatório, removed ones included (nothing else on this surface does:
-  // the tree, the counters and the rows read the snapshot's live ones). Until the read lands,
-  // the live ones stand in.
+  // the tree, the counters and the rows read the snapshot's live ones). Until the read lands
+  // nothing is offered: with the live rows standing in, the kernel would see no removed
+  // location and list the sheets of a removed painel one by one, and restoring one of them
+  // would bring its ancestors back alone and split the group.
   const everyLocation = useLiveQuery(() => (db === null ? undefined : allLocationRows(db, relatorioId)), [db, relatorioId]);
-  const restoreLocations = everyLocation ?? snapshot.locations;
   const removable = useMemo(
-    () => restorableEntries({ blocks: allBlocks, equipment, locations: restoreLocations, since: lastIssuedAt }),
-    [allBlocks, equipment, restoreLocations, lastIssuedAt],
+    () => (everyLocation === undefined ? NO_RESTORABLE : restorableEntries({ blocks: allBlocks, equipment, locations: everyLocation, since: lastIssuedAt })),
+    [allBlocks, equipment, everyLocation, lastIssuedAt],
   );
   const preview = usePreview(relatorioId);
   // Story 7.5: "Ver no sumário" marks the rows the dialog's warnings stand on, until the next tap.
