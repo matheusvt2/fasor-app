@@ -3090,6 +3090,12 @@ So that a transformation room with two transformers needs no invented coluna.
 
 **Definition of Done, in addition (2026-10-10):** the contract version bump and its MIN_CONTRACT_VERSION decision are written in the PR; a Playwright spec composes that local, creates the relatório, fills one sheet on the local and one in a coluna, and generates; the durability specs touched run on the matrix projects.
 
+**Acceptance Criteria added 2026-10-13 (status flow, review of PR #125):**
+
+**Given** the status flow of 2026-10-10 (AD-22; `packages/domain/src/status/edited-since.ts`)
+**When** a painel is created, renamed, moved or removed, or a local's `funcao` is set
+**Then** the op counts as structure: it keeps a Rascunho relatório in Rascunho and is an edit for `editedSince` exactly as a location create or rename is today; `funcao` is a location field, never a `se` key; the kernel test that forces a decision for every op path family lists the new paths, and AD-22 gains a dated note
+
 ~~**Acceptance Criteria added 2026-10-09 (Local › Cabine › Coluna):**~~ *(superseded 2026-10-10)*
 
 **Given** the kernel
@@ -3152,6 +3158,18 @@ So that the relatório records the room itself and an NC becomes a point of atte
 
 **Definition of Done, in addition:** the contract version is bumped with its MIN_CONTRACT_VERSION decision written in the PR; a Playwright spec answers all 19 items offline, creates a point from an NC item with a photo, reloads and syncs; the durability specs touched run on the matrix projects (the 2026-10-08 story gate).
 
+**Acceptance Criteria added 2026-10-13 (status flow, review of PR #125):**
+
+**Given** the status flow of 2026-10-10 (AD-22)
+**When** a site item is answered, or its observation or photo is written
+**Then** `location/{id}/checklist/...` is field content and an edit: it is in `EDITED_SINCE_FAMILIES`, `countsAsFieldContent` returns true for it, and the family-decision kernel test pins it; the first item answered on a Rascunho relatório carries the Em campo status op in the same batch and says "Relatório em campo"; an item answered on an Emitido relatório reopens it as Em revisão, withdraws "Marcar como enviado ao cliente" and makes the next generate build a new revision instead of answering `unchanged` (AD-15); a photo or a point with `location_id` counts the same way
+
+**Given** an Emitido relatório
+**When** the Verificações do local surface opens
+**Then** it shows the issued banner the sheet shows, with its own kernel sentence (the sheet's says "esta ficha")
+
+**Definition of Done, in addition (2026-10-13):** the Playwright spec also covers the first item answered in Rascunho (status op in the batch, the toast) and an item answered in Emitido (reopened, mark-as-sent withdrawn); AD-22, AD-15 and `docs/kbs/architecture/kernel-and-seed.md` gain dated notes.
+
 ### Story 14.4: Verificações do local: the printed table
 
 **Dev model:** opus · **Effort:** high · a section 9 part in the renderer and its golden comparison
@@ -3185,6 +3203,8 @@ So that the client sees the room's condition beside its equipment.
 ### Story 14.5: The measurement table and two library types: Fonte auxiliar da proteção and Chave de transferência automática
 
 *(2026-10-10, Bruno and Matheus: the "Fonte auxiliar da proteção" type is dropped — the no-break is a Disjuntor MT checklist item, Story 14.3. This story ships the measurement table and **one** library type, the Chave de transferência automática: read every "two types", `fonte_auxiliar_protecao` and no-break below as struck. The measurement table keeps what the CTA needs: several value columns, yes/no and choice results, the limit relative to a column, equality to another cell and the E5 options; rows added on site and the derived Δ% are no longer required. Definition of Done: the Playwright spec places the CTA in a template, fills it offline with its E5 method chosen, generates the DOCX and checks its tables and the conclusion of an NC.)*
+
+*(2026-10-13, status flow, review of PR #125: every new `sheet/...` op family the measurement table adds is decided in `packages/domain/src/status/edited-since.ts` as field content and an edit, and pinned by the family-decision kernel test; a CTA value typed on a Rascunho relatório moves it to Em campo, and one typed on an Emitido relatório reopens it.)*
 
 *(Added 2026-10-09 by John (PM) with Matheus: the smallest increment that puts the no-break de comando and the chave ASCO in Bruno's hands, with no company-type machinery and AD-21 unchanged — the two types are seeded code.)*
 
