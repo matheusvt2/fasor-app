@@ -6,9 +6,9 @@ import { blockConfigSchema, MAX_QUANTITY } from '../schemas/block-config.ts';
 import { templateRowSchema, type BlockRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { standardTemplate } from '../seed/template.ts';
-import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
+import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO, TEST_USER } from '../test-support.ts';
 import { instantiateTemplate } from '../relatorio/instantiate.ts';
-import { locationBlocks } from '../relatorio/tree.ts';
+import { locationBlocks, newEquipmentBlock } from '../relatorio/tree.ts';
 import { templateFromRelatorio, templateSavedText } from './from-relatorio.ts';
 
 const NEW_TEMPLATE = '019966b0-0060-7000-8000-000000000099';
@@ -175,5 +175,96 @@ describe('11.3-UNIT what is carried and what is not', () => {
 
   it('templateSavedText', () => {
     expect(templateSavedText('Porto Seguro')).toBe('Template Porto Seguro salvo');
+  });
+});
+
+/*
+ * Story 14.2, coordinator review 2026-10-13: the three branches the painel level added to
+ * `templateFromRelatorio`, on a hand-built relatório:
+ *
+ *   Cabine de transformação (local)        two transformers directly on it
+ *     Painel de média tensão  (a0)         Coluna 5 (one seccionadora), plus one block on the painel itself
+ *     Coluna legado           (a1)         a coluna directly under the local, keyed AFTER the painel; one disjuntor
+ *   Cabine removida (local, removed)
+ *     Painel órfão                         Coluna 1 (one seccionadora)
+ */
+describe('14.2-UNIT templateFromRelatorio with painéis', () => {
+  const id = (n: number) => `019966b0-0068-7000-8000-${n.toString(16).padStart(12, '0')}`;
+  const LOCAL = 1;
+  const PAINEL = 2;
+  const LEGADO = 3;
+  const COLUNA_5 = 4;
+  const REMOVIDA = 5;
+  const ORFAO = 6;
+  const ORFAO_C1 = 7;
+  const cabine = (n: number, name: string, order_key: string, removed_at: string | null = null): LocationRow => ({
+    id: id(n),
+    relatorio_id: TEST_RELATORIO,
+    parent_id: null,
+    kind: 'cabine',
+    name,
+    order_key,
+    removed_at,
+    se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null },
+    env: { altitude_m: null, temperature_c: null, humidity_pct: null },
+    agrupar_por_tipo: false,
+    funcao: 'transformacao',
+  });
+  const child = (n: number, kind: 'painel' | 'coluna', name: string, parent: number, order_key: string): LocationRow => ({ id: id(n), relatorio_id: TEST_RELATORIO, parent_id: id(parent), kind, name, order_key, removed_at: null });
+  const sheet = (n: number, location: number, type: 'transformador_forca' | 'chave_seccionadora' | 'disjuntor_mt', order_key: string): BlockRow =>
+    newEquipmentBlock({ blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: id(location), type, tag: `T-${n}`, seedVersion: 'v1', orderKey: order_key }).block;
+
+  const locations: LocationRow[] = [
+    cabine(LOCAL, 'Cabine de transformação', 'a0'),
+    child(PAINEL, 'painel', 'Painel de média tensão', LOCAL, 'a0'),
+    child(LEGADO, 'coluna', 'Coluna legado', LOCAL, 'a1'),
+    child(COLUNA_5, 'coluna', 'Coluna 5', PAINEL, 'a0'),
+    cabine(REMOVIDA, 'Cabine removida', 'a1', T0.toISOString()),
+    child(ORFAO, 'painel', 'Painel órfão', REMOVIDA, 'a0'),
+    child(ORFAO_C1, 'coluna', 'Coluna 1', ORFAO, 'a0'),
+  ];
+  const blocks: BlockRow[] = [
+    sheet(1, LOCAL, 'transformador_forca', 'a0'),
+    sheet(2, LOCAL, 'transformador_forca', 'a1'),
+    sheet(3, LEGADO, 'disjuntor_mt', 'a0'),
+    sheet(4, COLUNA_5, 'chave_seccionadora', 'a0'),
+    // A block the fold let through on the painel itself (its location was not in state when the op was applied).
+    sheet(5, PAINEL, 'chave_seccionadora', 'a0'),
+    sheet(6, ORFAO_C1, 'chave_seccionadora', 'a0'),
+  ];
+  const template = templateFromRelatorio({ relatorio: { seed_version: 'v1' }, locations, blocks }, { id: NEW_TEMPLATE, name: 'Com painéis' });
+  const placedOn = (ref: number) => template.blocks.filter((block) => block.skeleton_location_ref === id(ref)).map((block) => [block.block_type, block.quantity]);
+
+  it('parses, and carries the Função of the local', () => {
+    expect(templateRowSchema.safeParse(template).success).toBe(true);
+    expect(template.skeleton[0]).toMatchObject({ kind: 'cabine', name: 'Cabine de transformação', funcao: 'transformacao' });
+  });
+
+  it('a coluna directly under the local keyed after a painel still comes before the painel: local, its colunas, then each painel with its colunas', () => {
+    expect(template.skeleton.map((node) => [node.kind, node.name, node.parent_ref])).toEqual([
+      ['cabine', 'Cabine de transformação', null],
+      ['coluna', 'Coluna legado', id(LOCAL)],
+      ['painel', 'Painel de média tensão', id(LOCAL)],
+      ['coluna', 'Coluna 5', id(PAINEL)],
+    ]);
+    expect(placedOn(LOCAL)).toEqual([['transformador_forca', 2]]);
+    expect(placedOn(LEGADO)).toEqual([['disjuntor_mt', 1]]);
+    expect(placedOn(COLUNA_5)).toEqual([['chave_seccionadora', 1]]);
+  });
+
+  it('a painel whose cabine is removed is skipped with its colunas and their blocks', () => {
+    const refs = template.skeleton.map((node) => node.ref);
+    for (const gone of [REMOVIDA, ORFAO, ORFAO_C1]) expect(refs).not.toContain(id(gone));
+    expect(placedOn(ORFAO_C1)).toEqual([]);
+    expect(placedOn(ORFAO)).toEqual([]);
+  });
+
+  it('a block sitting on a painel is dropped: a painel node never takes one', () => {
+    expect(placedOn(PAINEL)).toEqual([]);
+    // Every placed block names the local or a coluna, and the five live sheets off the painel are all there.
+    const kinds = new Map(template.skeleton.map((node) => [node.ref, node.kind]));
+    const placed = template.blocks.filter((block) => block.skeleton_location_ref !== null);
+    expect(placed.every((block) => kinds.get(block.skeleton_location_ref!) !== 'painel')).toBe(true);
+    expect(placed.reduce((sum, block) => sum + block.quantity, 0)).toBe(4);
   });
 });

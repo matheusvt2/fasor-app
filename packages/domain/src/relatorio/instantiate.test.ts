@@ -10,7 +10,6 @@ import { standardTemplate, templateTotals } from '../seed/template.ts';
 import { addCabine, addColuna, addPainel, setQuantity, setSectionText, setTypeDefaults, typeConfigFor } from '../templates/compose.ts';
 import { templateFromRelatorio } from '../templates/from-relatorio.ts';
 import { emptyTemplate } from '../templates/list.ts';
-import { LocationKindError } from '../ops/apply.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { instantiateTemplate, RELATORIO_SECTION_TYPES } from './instantiate.ts';
 import { integrityFindings } from './integrity.ts';
@@ -425,6 +424,6 @@ describe('14.2-UNIT instantiateTemplate: Local › Painel › Coluna', () => {
     expect(valuesOf<BlockRow>(made.drafts, 'block').filter((b) => b.location_id !== null)).toHaveLength(7);
     // Had it been placed, the fold would have refused it.
     const ops = made.drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0047-7000-8000-'), now: T0 }), seq: i + 1 }));
-    expect(() => replay(ops)).not.toThrow(LocationKindError);
+    expect(() => replay(ops)).not.toThrow();
   });
 });
