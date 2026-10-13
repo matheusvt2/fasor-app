@@ -133,6 +133,22 @@ export async function lastOpIdFor(db: AppDatabase, relatorioId: string): Promise
   return candidates.sort(byClientTsThenOpId).at(-1)?.op_id ?? null;
 }
 
+/**
+ * `useEditedSince` with whether its read has landed for this very snapshot (status flow
+ * 2026-10-10): a surface that says "há alterações" must not say it of a relatório nobody
+ * edited while the first read is still on its way. `read` is true at once with no snapshot
+ * (there is nothing to compare against); until it is true, `edited` is the cautious `true`.
+ */
+export function useEditedSinceRead(db: AppDatabase | null, relatorioId: string, snapshotSeq: number | null): { edited: boolean; read: boolean } {
+  const result = useLiveQuery(
+    async () => (db === null || snapshotSeq === null ? { seq: snapshotSeq, edited: true } : { seq: snapshotSeq, edited: await editedSinceSnapshot(db, relatorioId, snapshotSeq) }),
+    [db, relatorioId, snapshotSeq],
+  );
+  if (snapshotSeq === null) return { edited: true, read: true };
+  const read = db !== null && result !== undefined && result.seq === snapshotSeq;
+  return { edited: read ? result.edited : true, read };
+}
+
 export function useRelatorio(db: AppDatabase | null, relatorioId: string): RelatorioRow | null {
   return useLiveQuery(() => (db === null ? Promise.resolve(null) : relatorioRow(db, relatorioId)), [db, relatorioId], null);
 }

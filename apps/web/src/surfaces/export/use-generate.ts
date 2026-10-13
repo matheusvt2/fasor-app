@@ -1,4 +1,6 @@
 import {
+  advanceOnGenerate,
+  canMarkSent,
   expectedFileIds,
   idleRevisionNumber,
   isJobActive,
@@ -8,13 +10,11 @@ import {
   notCaughtUpDetailsSchema,
   notCaughtUpRetryable,
   putRelatorioStatusOp,
-  statusTable,
   toIso,
+  type GenerateOutcome,
   type GenerationJobRow,
   type RelatorioRow,
-  type RelatorioStatus,
   type RevisionRow,
-  type StatusEvent,
 } from '@app/domain';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { now } from '../../clock.ts';
@@ -32,23 +32,30 @@ import {
 import { clearGenerateAwaiting, readGenerateAwaiting, writeGenerateAwaiting } from '../../db/prefs.ts';
 import { toSnapshot } from '../../db/snapshot.ts';
 import { newId } from '../../ids.ts';
-import { emitIssueFor, finishGenerate } from '../../state/generate-watcher.tsx';
+import { finishGenerate } from '../../state/generate-watcher.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { SyncRequestError } from '../../sync/client.ts';
 import { publishReAuth } from '../../api/auth-client.ts';
 import { isSessionExpired, isUnauthorized } from './session-expired.tsx';
+import { markSentNow } from './use-mark-sent.ts';
 
 /*
  * Story 4.8 (AD-15, UX-DR58): the Export dialog's state machine. "Gerar relatório" first
  * drains the outbox ("Enviando…"), stops on a dead op, then calls the generate barrier
  * with the device's newest op and the files it expects stored; a 409 is answered with a
- * sync and a retry; a 202 emits `relatorio/status` per `statusTable(status, 'generate')`,
+ * sync and a retry; a 202 emits `relatorio/status` per the kernel's `advanceOnGenerate`,
  * records the wait in `local_prefs` ("pode fechar": a closed dialog, a navigation or a
  * reload picks it up again) and polls the relatório stream until the revision arrives
- * (toast, `issue` op) or the job fails. Every sentence with a number is the kernel's;
- * every write is an op.
+ * (toast) or the job fails. Every sentence with a number is the kernel's; every write is an op.
+ *
+ * Status flow 2026-10-10 (AD-22): a revision's arrival writes no status; the relatório stays
+ * Em revisão until "Marcar como enviado ao cliente" (`markSent`) writes the `issue` op.
+ *
+ * 2026-10-13 (AD-22, Matheus): a queued generate from Emitido reopens the relatório as
+ * Em revisão (revision N+1 is not with the client); an `unchanged` answer leaves Emitido alone.
+ * The rule is the kernel's (`advanceOnGenerate`), read here with the server's answer.
  */
 
 export type GeneratePhase =
@@ -64,17 +71,7 @@ export type GeneratePhase =
    * will bring them (E9 sweep B14), so the request failed without retrying.
    */
   | { kind: 'failed'; missingFiles?: number; sessionExpired?: boolean }
-  | {
-      kind: 'ready';
-      number: number;
-      revisionId: string | null;
-      unchanged: boolean;
-      /**
-       * The relatório's status as the store held it once the `issue` op was written (Q11),
-       * shown until the live row re-renders; from then on the live row speaks.
-       */
-      status?: RelatorioStatus;
-    };
+  | { kind: 'ready'; number: number; revisionId: string | null; unchanged: boolean };
 
 export interface GenerateTiming {
   /** How often the relatório stream is pulled while a job runs. */
@@ -103,6 +100,12 @@ export interface GenerateState {
   /** Names of the users this device knows, for "who" on a revision row. */
   userNames: Readonly<Record<string, string>>;
   online: boolean;
+  /** Whether anything was edited since the newest revision (true until the first read lands). */
+  edited: boolean;
+  /** Decision 2 (2026-10-10): Em revisão, a revision on record, nothing edited since it. */
+  canMarkSent: boolean;
+  /** "Marcar como enviado ao cliente": one `issue` op when the kernel still offers it at the write. */
+  markSent: () => Promise<void>;
   start: () => void;
   reset: () => void;
 }
@@ -153,18 +156,18 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
   }, [db, relatorioId]);
 
   /**
-   * One `relatorio/status` put when the table has a row for `(current status, event)`;
-   * nothing otherwise. The status is read from the device store at the moment of the write,
+   * One `relatorio/status` put when the kernel has a transition for `(current status, the
+   * server's answer)` (`advanceOnGenerate`); nothing otherwise. The status is read from the device store at the moment of the write,
    * never from the render that scheduled it (Q11): a revision can arrive in a render whose
-   * live `relatorio` is still null (a reload) or one op behind, and the `issue` op would
-   * then be computed from the wrong row, or skipped.
+   * live `relatorio` is still null (a reload) or one op behind, and the op would then be
+   * computed from the wrong row, or skipped.
    */
   const emitStatus = useCallback(
-    async (event: StatusEvent) => {
+    async (outcome: GenerateOutcome) => {
       if (db === null || user === null) return;
       const current = await relatorioRow(db, relatorioId);
       if (current === null) return;
-      const next = statusTable(current.status, event);
+      const next = advanceOnGenerate(current.status, outcome);
       if (next === null) return;
       await commitBatch(db, [putRelatorioStatusOp({ id: user.id, companyId: user.companyId }, relatorioId, next)], { newId, now });
     },
@@ -174,64 +177,31 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
   emitStatusRef.current = emitStatus;
 
   /**
-   * Epic 4 retro items 19, 20: the `issue` op for a revision that arrived (or an
-   * `unchanged` answer naming one), decided by the kernel at the moment of the write:
-   * `issueOnRevision` gives no status when anything of the relatório's stream was edited
-   * after the revision's snapshot (the revision lacks that edit, so the relatório stays
-   * Em revisão and the next press allocates a new number).
-   */
-  const emitIssue = useCallback(
-    async (revision: Pick<RevisionRow, 'snapshot_seq'>) => {
-      if (db === null || user === null) return;
-      await emitIssueFor(db, { id: user.id, companyId: user.companyId }, relatorioId, revision);
-    },
-    [db, user, relatorioId],
-  );
-  const emitIssueRef = useRef(emitIssue);
-  emitIssueRef.current = emitIssue;
-
-  /**
-   * The revision arrived: R4 (Story 7.5), the app-level watcher's `finishGenerate` writes
-   * the `issue` op, raises the toast and clears the recorded wait, once per revision
-   * whichever of the two sees it first; then the ready state. Ready waits for the op (Q11)
-   * so the result block's pill reads the status after the issue (Emitido), never the one
-   * before it.
+   * The revision arrived: R4 (Story 7.5), the app-level watcher's `finishGenerate` raises the
+   * toast and clears the recorded wait, once per revision whichever of the two sees it
+   * first; then the ready state. No status is written (2026-10-10): the result block's pill
+   * reads the live row, Em revisão until the user marks the revision as sent.
    */
   const finishing = useRef<string | null>(null);
-  /** The live relatório row rendered last, and the one rendered when ready was set. */
-  const renderedRelatorio = useRef(relatorio);
-  renderedRelatorio.current = relatorio;
-  const readyBasis = useRef<RelatorioRow | null>(null);
   const finishReady = useCallback(
     (revision: RevisionRow) => {
-      // Once per revision while its issue op is being written (the live queries re-emit
-      // meanwhile); released once ready is set, so a later finish of the same revision (the
-      // job-done branch after "Gerar de novo") is not stranded in working.
+      // Once per revision while its finish runs (the live queries re-emit meanwhile); released
+      // once ready is set, so a later finish of the same revision (the job-done branch after
+      // "Gerar de novo") is not stranded in working.
       if (finishing.current === revision.id) return;
       finishing.current = revision.id;
-      const ready = async () => {
-        const stored = db === null ? null : await relatorioRow(db, relatorioId).catch(() => null);
-        readyBasis.current = renderedRelatorio.current;
-        if (mounted.current) {
-          setPhase({ kind: 'ready', number: revision.number, revisionId: revision.id, unchanged: false, ...(stored === null ? {} : { status: stored.status }) });
-        }
+      const ready = () => {
+        if (mounted.current) setPhase({ kind: 'ready', number: revision.number, revisionId: revision.id, unchanged: false });
         finishing.current = null;
       };
-      const author = user === null ? null : { id: user.id, companyId: user.companyId };
-      void (db === null ? Promise.resolve(false) : finishGenerate(db, author, relatorioId, revision, showToast))
+      void (db === null ? Promise.resolve(false) : finishGenerate(db, relatorioId, revision, showToast))
         .catch((error: unknown) => console.error('generate finish failed', error))
         .then(ready);
     },
-    [db, user, relatorioId, showToast],
+    [db, relatorioId, showToast],
   );
 
-  // Once the live row re-renders after ready was set, it speaks for the status again.
-  useEffect(() => {
-    if (phase.kind !== 'ready' || phase.status === undefined) return;
-    if (relatorio !== readyBasis.current) setPhase({ ...phase, status: undefined });
-  }, [phase, relatorio]);
-
-  // Resume. A wait this device recorded wins: revision present -> ready (toast, issue op);
+  // Resume. A wait this device recorded wins: revision present -> ready (toast);
   // its job failed -> failed; its job still active -> working; anything else -> the entry
   // is stale and dropped. Without one, a job the server still runs (pulled) means the
   // dialog is working, whoever asked for it.
@@ -279,43 +249,28 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
             await writeGenerateAwaiting(db, relatorioId, { number: answer.revision_number, job_id: answer.job_id }).catch(() => undefined);
             if (answer.outcome === 'queued') {
               try {
-                await emitStatusRef.current('generate');
+                await emitStatusRef.current('queued');
               } catch (error) {
                 console.error('generate status op failed', error);
               }
             }
             if (mounted.current) setPhase({ kind: 'working', number: answer.revision_number, jobId: answer.job_id });
           } else {
-            // `unchanged` (item 20): the same `issue` path as an arrived revision, so a
-            // relatório moved back to Em revisão with nothing edited is Emitido again. The
-            // revision row is pulled first when this device does not hold it yet.
-            const answered = async () => (await revisionRows(db, relatorioId)).find((row) => row.id === answer.revision_id);
-            let revision = await answered();
-            if (revision === undefined) {
+            // `unchanged`: the server answered the revision it already holds. The same table
+            // path as a queued press: a relatório moved back to Em campo or Rascunho takes
+            // `generate` (Em revisão); nothing is issued (2026-10-10), so it ends Em revisão.
+            // An Emitido relatório stays Emitido (2026-10-13): the client has that revision.
+            try {
+              await emitStatusRef.current('unchanged');
+            } catch (error) {
+              console.error('generate status op failed', error);
+            }
+            // The answered revision is pulled when this device does not hold it yet (a fresh
+            // device), so the result block has its files and the right revision to speak of.
+            if (!(await revisionRows(db, relatorioId)).some((row) => row.id === answer.revision_id)) {
               await sync.syncRelatorio(relatorioId).catch(() => undefined);
-              revision = await answered();
             }
-            if (revision !== undefined) {
-              // The same table path as a queued press then an arrived revision: an Em campo
-              // relatório (moved back past Em revisão) takes `generate` first, then `issue`.
-              try {
-                await emitStatusRef.current('generate');
-              } catch (error) {
-                console.error('generate status op failed', error);
-              }
-              await emitIssueRef.current(revision).catch((error: unknown) => console.error('issue status op failed', error));
-            }
-            const stored = await relatorioRow(db, relatorioId).catch(() => null);
-            if (mounted.current) {
-              readyBasis.current = renderedRelatorio.current;
-              setPhase({
-                kind: 'ready',
-                number: answer.revision_number,
-                revisionId: answer.revision_id,
-                unchanged: true,
-                ...(stored === null ? {} : { status: stored.status }),
-              });
-            }
+            if (mounted.current) setPhase({ kind: 'ready', number: answer.revision_number, revisionId: answer.revision_id, unchanged: true });
           }
           return;
         } catch (error) {
@@ -474,5 +429,14 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
 
   const reset = useCallback(() => setPhase({ kind: 'idle' }), []);
 
-  return { phase, relatorio, revisions, latestJob, nextNumber, idleNumber, userNames: sync.userNames, online: sync.online, start, reset };
+  const markSent = useCallback(async () => {
+    if (db === null || user === null) return;
+    await markSentNow(db, { id: user.id, companyId: user.companyId }, relatorioId).catch((error: unknown) => console.error('issue status op failed', error));
+  }, [db, user, relatorioId]);
+  // Never offered in the ready phase while the revision it shows is not on this device: the
+  // newest held one would be an older revision, and marking that as sent would be wrong.
+  const readyHeld = phase.kind !== 'ready' || revisions.some((row) => (phase.revisionId === null ? row.number === phase.number : row.id === phase.revisionId));
+  const sendable = relatorio !== null && readyHeld && canMarkSent({ status: relatorio.status, latest: latestRevision(revisions)?.number ?? null, edited });
+
+  return { phase, relatorio, revisions, latestJob, nextNumber, idleNumber, userNames: sync.userNames, online: sync.online, edited, canMarkSent: sendable, markSent, start, reset };
 }

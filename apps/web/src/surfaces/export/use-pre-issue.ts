@@ -1,4 +1,4 @@
-import { issueConfirmation, preIssue, progress, type IssueConfirmation, type PreIssueRow, type Progress, type RelatorioSnapshot, type SuggestionRow } from '@app/domain';
+import { issueConfirmation, latestPushPerUser, preIssue, progress, type IssueConfirmation, type PreIssueRow, type Progress, type RelatorioSnapshot, type SuggestionRow } from '@app/domain';
 import { useMemo } from 'react';
 import { now } from '../../clock.ts';
 import { uploadErrorIds } from '../../db/file-store.ts';
@@ -28,7 +28,8 @@ export function usePreIssue(
   const photoErrors = useLiveQuery(() => (db === null ? Promise.resolve(NO_ERRORS) : uploadErrorIds(db)), [db], NO_ERRORS);
   const { counts, lastPushAt, userNames, deviceId } = sync;
   const lastPushes = useMemo(
-    () => lastPushAt.filter((push) => push.device_id !== deviceId).map((push) => ({ name: userNames[push.user_id] ?? push.user_id, at: push.at })),
+    // Walk-through 2026-10-09 (m2): one line per user, the newest of that user's other devices.
+    () => latestPushPerUser(lastPushAt.filter((push) => push.device_id !== deviceId)).map((push) => ({ name: userNames[push.user_id] ?? push.user_id, at: push.at })),
     [lastPushAt, userNames, deviceId],
   );
   return useMemo(

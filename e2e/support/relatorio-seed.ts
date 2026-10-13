@@ -12,7 +12,7 @@ type Account = SeedAccount;
  * with the page's own session — so a spec opens `/relatorio/:id` and the Sumário pulls it
  * on open. Returns the relatório and project ids.
  */
-export async function pushNewRelatorio(page: Page, account: Account, database: string): Promise<{ relatorioId: string; projectId: string }> {
+export async function pushNewRelatorio(page: Page, account: Account, database: string, options: { emCampo?: boolean } = {}): Promise<{ relatorioId: string; projectId: string }> {
   const projectId = newId();
   const project: OpDraft = {
     kind: 'create',
@@ -33,8 +33,19 @@ export async function pushNewRelatorio(page: Page, account: Account, database: s
     { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
-  await pushDrafts(page, database, [project, ...drafts]);
+  await pushDrafts(page, database, [project, ...drafts, ...(options.emCampo === true ? [emCampoDraft(account, relatorioId)] : [])]);
   return { relatorioId, projectId };
+}
+
+/**
+ * Status flow 2026-10-10: field work moves a Rascunho relatório to Em campo in the edit's own
+ * batch and says so in a toast ("Relatório em campo"). A spec whose subject is the sheet itself
+ * (what one batch holds, which toast an action raises, where the page scrolls) seeds its
+ * relatório already Em campo, as one being filled on site is: this draft, pushed beside the
+ * creation drafts (`pushNewRelatorio`'s `emCampo`, or a spec's own list).
+ */
+export function emCampoDraft(account: Account, relatorioId: string): OpDraft {
+  return officeDraft(account, { relatorioId }, 'relatorio/status', 'em_campo');
 }
 
 /** Pushes drafts as one batch from an "office" device of this account, through the page's session. */

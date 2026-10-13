@@ -199,6 +199,13 @@ describe('4.3 SumarioSurface', () => {
     expect(capa!.querySelector('.sum-status')).toHaveTextContent('Fim da parada em branco');
     const reason = 'Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.';
     expect(screen.getByText(reason)).toHaveClass('btn-reason');
+    // Status flow 2026-10-10 (M6, decision 5): the status's next step, right under the status pill.
+    const step = screen.getByTestId('status-next-step');
+    expect(step).toHaveTextContent('Em campo: gerar o relatório passa a Em revisão.');
+    expect(container.querySelector('.sheet-meta')!.nextElementSibling).toBe(step);
+    expect(container.querySelector('.sticky-action-bar')).not.toContainElement(step);
+    // m1: no revision yet.
+    expect(controle!.querySelector('.sum-status')).toHaveTextContent('montado dos dados do relatório · Rev. 1 na primeira emissão');
     // Story 7.5: the preview is live; "Gerar relatório" opens the dialog, where the block stops it.
     expect(screen.getByRole('button', { name: 'Pré-visualizar' })).not.toHaveAttribute('aria-disabled');
     expect(screen.getByRole('button', { name: 'Gerar relatório' })).toHaveAccessibleDescription(reason);
@@ -769,6 +776,113 @@ describe('4.6 SumarioSurface: status transitions and the issued banner', () => {
     renderSumario();
     await waitFor(() => expect(rows()).toHaveLength(13));
     expect(screen.queryByText(/Relatório emitido em/)).toBeNull();
+  });
+});
+
+describe('status flow 2026-10-10: the Sumário says the status and its next step, under the status pill', () => {
+  /** The relatório at `status`, with revision `number` whose snapshot is past every op this device holds (nothing edited since) or before them (edited). */
+  async function at(status: RelatorioRow['status'], revision: { number: number; edited: boolean } | null): Promise<void> {
+    database = await seeded();
+    const record = await database.entities.get(['relatorio', RELATORIO]);
+    await database.entities.put({ ...record!, row: { ...(record!.row as RelatorioRow), status } });
+    if (revision === null) return;
+    await database.entities.put(
+      toRecord(`revision:019966c1-000f-7000-8000-000000000001`, {
+        id: '019966c1-000f-7000-8000-000000000001',
+        relatorio_id: RELATORIO,
+        number: revision.number,
+        snapshot_seq: revision.edited ? 0 : 9_000_000,
+        created_by: USER,
+        docx_file_id: '019966c1-000f-7000-8000-000000000002',
+        pdf_file_id: '019966c1-000f-7000-8000-000000000003',
+        created_at: '2026-09-10T12:00:00.000Z',
+      } as never),
+    );
+  }
+  const step = () => screen.getByTestId('status-next-step');
+  const foot = () => document.querySelector('.sticky-action-bar .btn-reason')!;
+  const controleMeta = () => rows()[1]!.querySelector('.sum-status')!;
+  const statusOps = async () => (await database!.outbox.where('path').equals('relatorio/status').toArray()).map((row) => row.value);
+
+  it('Rascunho: the foot names what is missing in Dados do relatório and that field work moves it', async () => {
+    await at('rascunho', null);
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    expect(step()).toHaveTextContent(/^Rascunho: falta .*a data de fim.* em Dados do relatório\. Preencher uma ficha passa o relatório a Em campo\.$/);
+    // Decision 5: the bar's reason is the blocking sentence alone.
+    expect(foot()).toHaveTextContent(/^Só Conclusão e parecer \(linha 10\) impede gerar\. O resto está escrito em cada linha\.$/);
+    expect(screen.queryByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeNull();
+  });
+
+  it('Em revisão, nothing edited since revision 1: banner and next step say "not yet sent", the Controle row "Rev. 1 gerada" then "emitida", and "Marcar como enviado ao cliente" writes one issue op', async () => {
+    await at('em_revisao', { number: 1, edited: false });
+    const { container } = renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    expect(await screen.findByText('Revisão 1 gerada em 10/09, ainda não enviada ao cliente.')).toBeVisible();
+    const mark = await screen.findByRole('button', { name: 'Marcar como enviado ao cliente' });
+    expect(step()).toHaveTextContent(/^Em revisão: a revisão 1 ainda não foi enviada ao cliente\. Depois de enviar, use "Marcar como enviado ao cliente"\.$/);
+    // The action is described by the next-step sentence; it sits in the bar, the sentence does not.
+    expect(mark).toHaveAccessibleDescription(step().textContent!);
+    expect(mark.closest('.sticky-action-bar')).not.toBeNull();
+    expect(foot()).toHaveTextContent(/^Só Conclusão e parecer \(linha 10\) impede gerar\. O resto está escrito em cada linha\.$/);
+    // Decision 4: generated, not yet with the client.
+    await waitFor(() => expect(controleMeta()).toHaveTextContent('montado dos dados do relatório · Rev. 1 gerada'));
+    expect(await axe(container)).toHaveNoViolations();
+
+    await userEvent.click(mark);
+    await waitFor(async () => expect(await statusOps()).toEqual(['emitido']));
+    await waitFor(() => expect(container.querySelector('.sheet-meta')).toHaveTextContent('Emitido'));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeNull());
+    expect(step()).toHaveTextContent(/^Emitido: nada mudou desde a revisão 1\.$/);
+    expect(controleMeta()).toHaveTextContent('montado dos dados do relatório · Rev. 1 emitida');
+    expect(await screen.findByText('Relatório emitido em 10/09 (revisão 1). Alterações geram a revisão 2.')).toBeVisible();
+  });
+
+  it('decision 2: Em revisão with edits since revision 1 offers no mark-as-sent; the next step asks for revision 2 and the Controle row promises it', async () => {
+    await at('em_revisao', { number: 1, edited: true });
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    expect(await screen.findByText('Há alterações desde a revisão 1 (10/09). Elas entram na revisão 2.')).toBeVisible();
+    expect(step()).toHaveTextContent(/^Em revisão: há alterações desde a revisão 1\. Gere a revisão 2 antes de marcar como enviado ao cliente\.$/);
+    expect(controleMeta()).toHaveTextContent('montado dos dados do relatório · Rev. 2 na próxima emissão');
+    expect(screen.queryByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeNull();
+  });
+
+  it('P5: an unedited Em revisão or Emitido relatório never flashes "há alterações", "Rev. N+1" or the edited next step while the first read is on its way', async () => {
+    for (const status of ['em_revisao', 'emitido'] as const) {
+      await at(status, { number: 1, edited: false });
+      // Every text the page ever drew, from the first render on.
+      const drawn: string[] = [];
+      const observer = new MutationObserver(() => drawn.push(document.body.textContent ?? ''));
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+      const { unmount } = renderSumario();
+      try {
+        await waitFor(() => expect(controleMeta()).toHaveTextContent(status === 'emitido' ? 'Rev. 1 emitida' : 'Rev. 1 gerada'));
+        await waitFor(() => expect(step()).toHaveTextContent(status === 'emitido' ? 'Emitido: nada mudou desde a revisão 1.' : /ainda não foi enviada ao cliente/));
+        drawn.push(document.body.textContent ?? '');
+        expect(drawn.length).toBeGreaterThan(1);
+        for (const text of drawn) {
+          expect(text).not.toContain('Há alterações desde');
+          expect(text).not.toContain('na próxima emissão');
+          expect(text).not.toContain('há alterações desde a revisão');
+          expect(text).not.toContain('Rev. 1 na primeira emissão');
+        }
+      } finally {
+        observer.disconnect();
+        unmount();
+        database?.close();
+        database = null;
+      }
+    }
+  });
+
+  it('Emitido with nothing edited: the next step says nothing changed since the revision, and no mark-as-sent', async () => {
+    await at('emitido', { number: 2, edited: false });
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    await waitFor(() => expect(step()).toHaveTextContent(/^Emitido: nada mudou desde a revisão 2\.$/));
+    expect(controleMeta()).toHaveTextContent('montado dos dados do relatório · Rev. 2 emitida');
+    expect(screen.queryByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeNull();
   });
 });
 

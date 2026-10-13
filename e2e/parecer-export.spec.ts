@@ -63,6 +63,8 @@ test('@p0 7.4-E2E-001 a relatório with no parecer: row 10 and the dialog say "P
   const row10 = sumario(page).getByRole('listitem').nth(11);
   await expect(row10.locator('.sum-status.is-blocking')).toHaveText('Parecer não preenchido');
   await expect(page.locator('.sticky-action-bar .btn-reason').first()).toHaveText('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.');
+  // Status flow 2026-10-10 (M6, decision 5): the status's next step, under the status pill.
+  await expect(page.getByTestId('status-next-step')).toHaveText(/^Rascunho: falta .+ em Dados do relatório\. Preencher uma ficha passa o relatório a Em campo\.$/);
   await footButton(page).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}\\?exportar=1$`));
   const blocking = dialog(page).locator('.precheck li.is-blocking');
@@ -166,6 +168,7 @@ test('@p0 E78-Q1 7.5-E2E-006 a relatório with no section block (the Porto Segur
   await expect(row10.locator('.sum-status')).toHaveText('Apto com restrições');
   await expect(row10.locator('.sum-status.is-blocking')).toHaveCount(0);
   await expect(reason).toHaveText('Nada impede gerar.');
+  await expect(page.getByTestId('status-next-step')).toHaveText('Em campo: gerar o relatório passa a Em revisão.');
   await footButton(page).click();
   await expect(dialog(page).locator('.precheck li.is-blocking')).toHaveCount(0);
   await expect(generateButton(page)).toBeEnabled();
@@ -173,7 +176,7 @@ test('@p0 E78-Q1 7.5-E2E-006 a relatório with no section block (the Porto Segur
   await page.keyboard.press('Escape');
 });
 
-test('@p0 7.4-E2E-002 with a parecer set, "Gerar relatório" issues revision 1: section 10 prints the box, the bullets, the validity line and the signature, and the relatório is Emitido', async ({
+test('@p0 7.4-E2E-002 with a parecer set, "Gerar relatório" issues revision 1: section 10 prints the box, the bullets, the validity line and the signature; the relatório is Em revisão until marked as sent, then Emitido', async ({
   page,
 }) => {
   test.setTimeout(300_000);
@@ -186,6 +189,9 @@ test('@p0 7.4-E2E-002 with a parecer set, "Gerar relatório" issues revision 1: 
   await expect(dialog(page).locator('.generate-row .btn-reason')).toHaveText(IDLE_1);
   await generateButton(page).click();
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
+  // Status flow 2026-10-10: the arrival leaves it Em revisão; "Marcar como enviado ao cliente" issues.
+  await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Em revisão');
+  await dialog(page).getByRole('button', { name: 'Marcar como enviado ao cliente' }).click();
   await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
   await page.keyboard.press('Escape');
   await expect(headerPill(page)).toHaveText('Emitido');
@@ -307,7 +313,7 @@ test('@p0 7.5-E2E-002 E5-Q18b: after revision 1 of project P, a second relatóri
   await expect(page.getByRole('button', { name: /^Copiar da última visita/ })).toHaveCount(0);
 });
 
-test('@p1 7.5-E2E-003 R4: pressed and left for Home, the ready toast and the issue op arrive there, once', async ({ page }) => {
+test('@p1 7.5-E2E-003 R4: pressed and left for Home, the ready toast arrives there, once, and no issue op is written (2026-10-10)', async ({ page }) => {
   test.setTimeout(300_000);
   await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
@@ -323,10 +329,11 @@ test('@p1 7.5-E2E-003 R4: pressed and left for Home, the ready toast and the iss
   await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
-  await expect.poll(async () => (await outboxOps(page, 'relatorio/status')).map((op) => op.value)).toEqual(['em_revisao', 'emitido']);
-  // A while later, still once.
+  // Status flow 2026-10-10: the arrival writes no status; the press's own `generate` op is the only one.
+  await expect.poll(async () => (await outboxOps(page, 'relatorio/status')).map((op) => op.value)).toEqual(['em_revisao']);
+  // A while later, still the one toast and no issue op.
   await page.waitForTimeout(4_000);
-  expect((await outboxOps(page, 'relatorio/status')).map((op) => op.value)).toEqual(['em_revisao', 'emitido']);
+  expect((await outboxOps(page, 'relatorio/status')).map((op) => op.value)).toEqual(['em_revisao']);
 });
 
 test('@p1 7.5-E2E-004 Epic 4 item 29: "Restaurar" lists only the block removed after the last revision', async ({ page }) => {

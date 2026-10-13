@@ -362,13 +362,34 @@ test('@p1 12.1-E2E-006 lost tap: an NC observation chip right after Enter in the
       return [...seedPlate(scope, blockId, 'n_serie'), officeDraft(account, scope, `sheet/${blockId}/checklist/${first.key}/result`, 'NC')];
     }),
   );
+  // Status flow 2026-10-10 (the no-lost-tap AC): the relatório is Rascunho, so the first
+  // keystroke below is its first field content and raises "Relatório em campo" around the tap.
+  await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Rascunho');
+  expect((await outbox(page)).filter((row) => row.path === 'relatorio/status')).toEqual([]);
   for (const [i, delay] of DELAYS.entries()) {
     const sheet = target(secc, i);
     await openSheet(page, relatorioId, sheet.blockId);
+    // Records every toast text the page shows from here to the end of this iteration.
+    if (i === 0) {
+      await page.evaluate(() => {
+        const w = window as unknown as { __toasts: string[] };
+        w.__toasts = [];
+        const read = () => {
+          const text = document.querySelector('[data-testid="toast"]')?.textContent;
+          if (text != null && w.__toasts.at(-1) !== text) w.__toasts.push(text);
+        };
+        new MutationObserver(read).observe(document.body, { childList: true, subtree: true, characterData: true });
+      });
+    }
     const since = await typeLastPlateValueAndEnter(page, `SN-${delay}`);
     const chip = checklistRow(page, 1).getByRole('group', { name: 'Observações sugeridas do item 1' }).getByRole('button', { name: phrase });
     await humanTap(page, chip, info, () => waitUntil(page, since, delay));
     await expect(page.getByLabel('Observação do item 1', { exact: true }), `chip at ${delay} ms`).toHaveValue(phrase, { timeout: EFFECT_MS });
+    if (i === 0) {
+      // The status toast was up during this iteration, and the edit carried Em campo.
+      await expect.poll(() => page.evaluate(() => (window as unknown as { __toasts: string[] }).__toasts)).toContain('Relatório em campo');
+      expect((await outbox(page)).filter((row) => row.path === 'relatorio/status').map((row) => row.value)).toEqual(['em_campo']);
+    }
     await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `sheet/${sheet.blockId}/checklist/${first.key}/observation`).map((row) => row.value)).toEqual([phrase]);
   }
 });

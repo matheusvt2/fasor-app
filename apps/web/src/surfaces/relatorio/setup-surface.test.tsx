@@ -11,6 +11,7 @@ import { toRecord } from '../../db/commit.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
 import { applyPulled } from '../../db/sync-store.ts';
 import type { SessionState } from '../../state/session.tsx';
+import { StatusToaster } from '../../state/status-toaster.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { SetupSurface } from './setup-surface.tsx';
 import { loadIndependentWaits, untilStored } from '../../test/load.ts';
@@ -99,6 +100,8 @@ function tree(id: string, search = '') {
     <I18nProvider locale="pt-BR">
       <MemoryRouter initialEntries={[`/relatorio/${id}/setup${search}`]}>
         <ToastProvider>
+          {/* The shell's status toaster: what "Concluir" says is the status change itself. */}
+          <StatusToaster />
           <Routes>
             <Route path="/relatorio/:id/setup" element={<SetupSurface />} />
             <Route path="/relatorio/:id" element={<Probe testId="sumario-route" />} />
@@ -256,14 +259,15 @@ describe('4.2 SetupSurface', () => {
     expect((relatorio!.row as RelatorioRow).setup.instrument_ids).toContain(INSTRUMENT_MEGOHMETRO_ID);
   });
 
-  it('"Concluir dados do relatório" is aria-disabled while a gap remains (service_end, this fixture)', async () => {
+  it('"Concluir dados do relatório" is aria-disabled while a gap remains, and its reason names every gap at once (M2, 2026-10-10)', async () => {
     database = await seeded();
     const relatorioRecord = await database.entities.get(['relatorio', RELATORIO]);
     await database.entities.put({ ...relatorioRecord!, row: { ...(relatorioRecord!.row as RelatorioRow), status: 'rascunho' } });
     renderSetup();
     const button = await screen.findByRole('button', { name: 'Concluir dados do relatório' });
     await waitFor(() => expect(button).toHaveAttribute('aria-disabled'));
-    expect(screen.getByText('Concluir dados do relatório: falta a data de fim')).toBeVisible();
+    // This fixture lacks the end date, the ART/TRT number and an instrument: all three are named.
+    expect(screen.getByText(/^Concluir dados do relatório: falta a data de fim, o número d[ao] (ART|TRT|ART\/TRT) e um instrumento$/)).toBeVisible();
   });
 
   it('commits the Rascunho→Em campo transition once every gap is closed', async () => {
@@ -284,9 +288,11 @@ describe('4.2 SetupSurface', () => {
     await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (row) => {
       expect((row!.row as RelatorioRow).status).toBe('em_campo');
     });
-    // Story 12.2 (J-06): forward to the Sumário with section 9 open, and the toast says it saved.
+    // Story 12.2 (J-06): forward to the Sumário with section 9 open. Status flow 2026-10-10:
+    // the toast says the status change, no longer "Dados salvos".
     expect(await screen.findByTestId('sumario-route')).toHaveTextContent(`/relatorio/${RELATORIO} {"openSection9":true}`);
-    expect(await screen.findByText('Dados salvos')).toBeVisible();
+    expect(await screen.findByText('Relatório em campo')).toBeVisible();
+    expect(screen.queryByText('Dados salvos')).toBeNull();
   });
 
   it('12.2: with no instrument registered, Etapa 4 says so and "Cadastrar instrumento" opens Cadastros on a new instrument, returning here', async () => {
@@ -738,13 +744,25 @@ describe('4.2 SetupSurface', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Mais opções da exclusão 1' })).toHaveFocus());
   });
 
-  it('E4 retro item 12: "Concluir" follows the kernel table: offered on Rascunho only, "Dados salvos" otherwise', async () => {
+  it('E4 retro item 12: "Concluir" follows the kernel table: offered on Rascunho only; past it, the bar names the gaps still open (2026-10-10), and "Dados salvos" only with none', async () => {
     database = await seeded();
     const record = await database.entities.get(['relatorio', RELATORIO]);
     await database.entities.put({ ...record!, row: { ...(record!.row as RelatorioRow), status: 'emitido' } });
+    const first = renderSetup();
+    // This fixture lacks the end date, the ART/TRT number and an instrument.
+    expect(await screen.findByText(/^Falta a data de fim, o número d[ao] (ART|TRT|ART\/TRT) e um instrumento\.$/)).toBeVisible();
+    expect(screen.queryByText('Dados salvos')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Concluir dados do relatório' })).toBeNull();
+    first.unmount();
+
+    const row = record!.row as RelatorioRow;
+    await database.entities.put({
+      ...record!,
+      row: { ...row, status: 'emitido', setup: { ...row.setup, service_end: '2026-09-08', art_trt_number: '2620262602583', instrument_ids: [INSTRUMENT_MEGOHMETRO_ID] } },
+    });
     renderSetup();
     expect(await screen.findByText('Dados salvos')).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Concluir dados do relatório' })).toBeNull();
+    expect(screen.queryByText(/^Falta /)).toBeNull();
   });
 
   it('?etapa= scrolls to and focuses the named band\'s heading, once on mount', async () => {
@@ -754,6 +772,8 @@ describe('4.2 SetupSurface', () => {
     render(
       <MemoryRouter initialEntries={[`/relatorio/${RELATORIO}/setup?etapa=3`]}>
         <ToastProvider>
+          {/* The shell's status toaster: what "Concluir" says is the status change itself. */}
+          <StatusToaster />
           <Routes>
             <Route path="/relatorio/:id/setup" element={<SetupSurface />} />
           </Routes>

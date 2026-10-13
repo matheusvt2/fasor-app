@@ -5,6 +5,7 @@ import { devicePhotos, expectCameraOpen, openChaveSheet, shoot } from './support
 import { pushSuggestion } from './support/push-server-ops.ts';
 import { holdPhotoBytes } from './support/reading-ops.ts';
 import { syncNowAndReturn } from './support/sync.ts';
+import { expandLocation } from './support/tree.ts';
 
 /*
  * Story 11.8 follow-up (AI_FEATURES): a server whose AI features are off. `GET /api/account` is
@@ -106,8 +107,7 @@ test('@p0 11.8-E2E-001 AI features off: no plate, panel or NC-draft entry; "Ler 
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
-  const expand = page.getByRole('button', { name: 'Expandir Cubículo Enel' });
-  if ((await expand.count()) > 0) await expand.click();
+  await expandLocation(page, 'Cubículo Enel');
   await page.getByRole('button', { name: 'Adicionar bloco em Cubículo Enel' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   // E11-Q6: no camera row, so no orphan "Ou" before the heading.

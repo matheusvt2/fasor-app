@@ -18,7 +18,7 @@ Full text: `_bmad-output/specs/spec-fasor/glossary.md` (48 lines, cheap to read 
 - **Ficha**: the equipment sheet, on screen and printed. Eight types: cabos_entrada, para_raio, chave_seccionadora, disjuntor_mt, tp, tc, cabos_saida, transformador_forca.
 - **TAG**: stable equipment identity, unique within the Project, suggested from type plus column.
 - **Sumário**: the relatório overview as its own table of contents (capa, controle, sections 1-11).
-- **Sheet state**: Vazia, Em preenchimento, Concluída, Não ensaiada. **Relatório status**: Rascunho, Em campo, Em revisão, Emitido.
+- **Sheet state**: Vazia, Em preenchimento, Concluída, Não ensaiada. **Relatório status**: Rascunho, Em campo, Em revisão (a revision was generated and not yet sent to the client), Emitido (marked as sent; since 2026-10-10, see [kernel-and-seed](/architecture/kernel-and-seed.md) AD-22).
 - **C / NC / NA**: conforme, não conforme, não se aplica; NC requires an observation.
 - **Suggestion**: a value proposed but not confirmed; never written, counted or printed until confirmed. **Verificar**: lower trust, confirmable only by tapping that field. **Copy/default**: plain value with undo, not a Suggestion.
 - **Reading**: one backend pass over a photo: plate, display, caption, panel, nc_obs.

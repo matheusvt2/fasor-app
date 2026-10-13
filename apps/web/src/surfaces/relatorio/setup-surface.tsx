@@ -2,6 +2,7 @@ import {
   putRelatorioStatusOp,
   relatorioOpEnvelope,
   relatorioSetupPath,
+  setupGapsNote,
   setupIncompleteReason,
   statusTable,
   type BlockRow,
@@ -23,7 +24,6 @@ import { localUsers } from '../../db/sync-store.ts';
 import { newId } from '../../ids.ts';
 import { useForgetArrivalState } from '../../state/arrival-state.ts';
 import { useSession } from '../../state/session.tsx';
-import { useToast } from '../../state/toast.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
 import { Etapa1Capa } from './setup/etapa1-capa.tsx';
 import { Etapa2Escopo } from './setup/etapa2-escopo.tsx';
@@ -92,7 +92,6 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
   const user = useSession().user;
   const [search] = useSearchParams();
   const navigate = useNavigate();
-  const { showToast } = useToast();
   const t = copy.setup;
   const relatorio = snapshot.relatorio;
   const setup = relatorio.setup;
@@ -199,9 +198,9 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
       .catch(() => null);
     if (batchId === null) return;
     // Story 12.2 (J-06): the path goes forward, to the Sumário with section 9 open on the
-    // sheets. The shell's toast, not the page's: the page is leaving.
+    // sheets. Status flow 2026-10-10: what is said there is the status change itself
+    // ("Relatório em campo"), raised by the shell's `StatusToaster` from the commit above.
     void navigate(`/relatorio/${relatorioId}`, { state: { openSection9: true } });
-    showToast(t.completeDone);
   }
 
   return (
@@ -247,7 +246,8 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
             {t.complete}
           </Button>
         ) : (
-          <p className="section-note">{t.completeDone}</p>
+          // Status flow 2026-10-10: a relatório that left Rascunho with gaps open still says them.
+          <p className="section-note">{setupGapsNote(snapshot) ?? t.completeDone}</p>
         )}
       </div>
     </div>

@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import { dropToastRoom, keepClearOfToast, STICKY_BAR_COVERED, Toast, TOAST_CLEARANCE, TOAST_ROOM, TOAST_ROOM_UP, TOAST_UP, useStickyBarScrollPadding, type ToastMessage } from './toast.tsx';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { dropToastRoom, forgetPointerPress, keepClearOfToast, STICKY_BAR_COVERED, Toast, TOAST_CLEARANCE, TOAST_ROOM, TOAST_ROOM_UP, TOAST_UP, useStickyBarScrollPadding, type ToastMessage } from './toast.tsx';
 
 const message: ToastMessage = { id: 1, text: 'Rascunho encontrado', action: { label: 'Recuperar', onPress: () => undefined } };
 
@@ -31,6 +31,9 @@ function Screen({ onDismiss, withOpener = true }: { onDismiss: () => void; withO
     </>
   );
 }
+
+// A press made by an earlier test is not the next one's (the focus rule skips a press's own focus).
+beforeEach(() => forgetPointerPress());
 
 describe('Toast Esc (B4)', () => {
   it('returns focus to the element focused before focus entered the toast', async () => {
@@ -247,6 +250,84 @@ describe('Review fixes 2026-10-08 (H-7, DE-6): a toast never covers the focused 
     } finally {
       spy.mockRestore();
       scrollBy.mockRestore();
+    }
+  });
+});
+
+describe('status flow 2026-10-10 (the lost tap of 12.1-E2E-006): a toast never moves what a finger is on', () => {
+  /** A covered control and a toast, with the toast's and the control's boxes overlapping. */
+  function covered(toast: ToastMessage) {
+    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+    const original = HTMLElement.prototype.getBoundingClientRect;
+    const spy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.dataset.testid === 'toast') return rect(700, 60);
+      if (this.dataset.under === '') return rect(690, 48);
+      return original.call(this);
+    });
+    const view = (withToast: boolean) => (
+      <main>
+        <button type="button" data-under="">
+          Coberto
+        </button>
+        <input aria-label="Outro" />
+        {withToast ? <Toast toast={toast} onClose={() => undefined} onDismiss={() => undefined} /> : null}
+      </main>
+    );
+    const { rerender } = render(view(false));
+    return {
+      scrollBy,
+      show: () => rerender(view(true)),
+      restore: () => {
+        spy.mockRestore();
+        scrollBy.mockRestore();
+      },
+    };
+  }
+  const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+
+  it('a focus given by a pointer press does not scroll the pressed control clear of the toast; a keyboard focus still does', async () => {
+    const page = covered(message);
+    try {
+      const button = screen.getByRole('button', { name: 'Coberto' });
+      // The press starts before the toast is up, and the toast appears under it (the WebKit
+      // order: `pointerdown`, the toast, then `mousedown` and the focus it gives).
+      button.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      page.show();
+      expect(page.scrollBy).not.toHaveBeenCalled();
+      button.focus();
+      await frame();
+      expect(page.scrollBy).not.toHaveBeenCalled();
+      button.dispatchEvent(new Event('pointerup', { bubbles: true }));
+      // A touch tap focuses its target right after the pointer came up: still the press's own focus.
+      screen.getByRole('textbox', { name: 'Outro' }).focus();
+      button.focus();
+      await frame();
+      expect(page.scrollBy).not.toHaveBeenCalled();
+      // Long after the press, the keyboard moves the focus there: the rule applies.
+      const real = performance.now.bind(performance);
+      const now = vi.spyOn(performance, 'now').mockImplementation(() => real() + 5_000);
+      try {
+        screen.getByRole('textbox', { name: 'Outro' }).focus();
+        button.focus();
+        await frame();
+        expect(page.scrollBy).toHaveBeenCalledWith({ top: 50, behavior: 'instant' });
+      } finally {
+        now.mockRestore();
+      }
+    } finally {
+      page.restore();
+    }
+  });
+
+  it('a passive toast (an edit\'s status toast) does not scroll the page when it appears, and is marked so no press lands on it', () => {
+    const page = covered({ id: 9, text: 'Relatório em campo', passive: true });
+    try {
+      screen.getByRole('button', { name: 'Coberto' }).focus();
+      page.show();
+      expect(page.scrollBy).not.toHaveBeenCalled();
+      expect(screen.getByTestId('toast')).toHaveAttribute('data-passive');
+    } finally {
+      page.restore();
     }
   });
 });

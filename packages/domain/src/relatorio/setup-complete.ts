@@ -1,5 +1,6 @@
 import { artOrTrtLabel } from '../registration.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { listPtBr } from '../text/plural.ts';
 
 /*
  * Story 4.2, AR-21: whether the relatório's office-side setup is complete enough to leave
@@ -60,15 +61,35 @@ export function siteAltitudeText(m: number): string {
 }
 
 /**
- * "Concluir dados do relatório: falta ⟨o quê⟩", or null once every gap is closed. The
- * ART/TRT gap names the responsible's own document once their council is known (Epic 4 QA
- * Q12): "o número da ART" (CREA) or "o número da TRT" (CRT), both feminine; "o número do
- * ART/TRT" only while the council is unknown.
+ * Every setup gap as a pt-BR list, "o número da ART, um instrumento e a data de fim" (in
+ * `setupGaps` order), or null once every gap is closed. The ART/TRT gap names the
+ * responsible's own document once their council is known (Epic 4 QA Q12): "o número da ART"
+ * (CREA) or "o número da TRT" (CRT), both feminine; "o número do ART/TRT" only while the
+ * council is unknown.
+ */
+export function setupGapsText(snapshot: RelatorioSnapshot): string | null {
+  const gaps = setupGaps(snapshot);
+  if (gaps.length === 0) return null;
+  const council = snapshot.responsible?.council ?? null;
+  return listPtBr(gaps.map((gap) => (gap === 'art_trt_number' && council !== null ? `o número da ${artOrTrtLabel(council)}` : GAP_TEXTS[gap])));
+}
+
+/**
+ * The setup page's note once the relatório has left Rascunho with gaps still open (field work
+ * or a generate moved it, status flow 2026-10-10): "Falta ⟨o quê⟩." in `setupGaps` order, or
+ * null once every gap is closed.
+ */
+export function setupGapsNote(snapshot: RelatorioSnapshot): string | null {
+  const text = setupGapsText(snapshot);
+  // authored: 2026-10-10.
+  return text === null ? null : `Falta ${text}.`;
+}
+
+/**
+ * "Concluir dados do relatório: falta ⟨o quê⟩", or null once every gap is closed. Walk-through
+ * 2026-10-09 (M2): every gap is named at once (`setupGapsText`), never one at a time.
  */
 export function setupIncompleteReason(snapshot: RelatorioSnapshot): string | null {
-  const gap = firstSetupGap(snapshot);
-  if (gap === null) return null;
-  const council = snapshot.responsible?.council ?? null;
-  const text = gap === 'art_trt_number' && council !== null ? `o número da ${artOrTrtLabel(council)}` : GAP_TEXTS[gap];
-  return `Concluir dados do relatório: falta ${text}`;
+  const text = setupGapsText(snapshot);
+  return text === null ? null : `Concluir dados do relatório: falta ${text}`;
 }

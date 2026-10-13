@@ -3,7 +3,7 @@ import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { pushCellSuggestion } from './support/reading-ops.ts';
-import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
+import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
 /*
@@ -51,7 +51,8 @@ async function setUp(
   await page.setViewportSize(viewport);
   await signIn(page, account.email);
   const built = newRelatorioDrafts(account);
-  await pushDrafts(page, database, [...edit(built.drafts, built), ...extra({ relatorioId: built.relatorioId }, built)]);
+  // Status flow 2026-10-10: Em campo from the start (field work would move a Rascunho relatório there in its first batch, with a toast).
+  await pushDrafts(page, database, [...edit(built.drafts, built), emCampoDraft(account, built.relatorioId), ...extra({ relatorioId: built.relatorioId }, built)]);
   await openSumario(page, built.relatorioId);
   return built;
 }

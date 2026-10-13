@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import type { RelatorioSetup, UserRow } from '../schemas/entities.ts';
-import { firstSetupGap, setupGaps, setupIncompleteReason, siteAltitudeText } from './setup-complete.ts';
+import { firstSetupGap, setupGaps, setupGapsNote, setupGapsText, setupIncompleteReason, siteAltitudeText } from './setup-complete.ts';
 
 const RESPONSIBLE: UserRow = {
   id: '019966b0-0061-7000-8000-000000000003',
@@ -92,6 +92,24 @@ describe('4.2-UNIT firstSetupGap / setupIncompleteReason', () => {
     expect(setupIncompleteReason(snapshotWith(gap))).toBe('Concluir dados do relatório: falta o número da ART');
     expect(setupIncompleteReason(snapshotWith({ ...gap, responsible: { ...RESPONSIBLE, council: 'crt' } }))).toBe('Concluir dados do relatório: falta o número da TRT');
     expect(setupIncompleteReason(snapshotWith({ ...gap, responsible: { ...RESPONSIBLE, council: null } }))).toBe('Concluir dados do relatório: falta o número do ART/TRT');
+  });
+});
+
+describe('2026-10-10 (M2): the reason names every gap at once', () => {
+  it('three gaps are one pt-BR list in the fixed order, the ART named by the council', () => {
+    const snapshot = snapshotWith({ setup: { service_end: null, art_trt_number: null, instrument_ids: [] } });
+    expect(setupGapsText(snapshot)).toBe('a data de fim, o número da ART e um instrumento');
+    expect(setupIncompleteReason(snapshot)).toBe('Concluir dados do relatório: falta a data de fim, o número da ART e um instrumento');
+  });
+
+  it('two gaps join with "e"; none gives null', () => {
+    expect(setupIncompleteReason(snapshotWith({ client: null, setup: { instrument_ids: [] } }))).toBe('Concluir dados do relatório: falta o cliente e um instrumento');
+    expect(setupGapsText(snapshotWith({}))).toBeNull();
+  });
+
+  it('setupGapsNote: the note of a relatório that left Rascunho with gaps open; null with none', () => {
+    expect(setupGapsNote(snapshotWith({ setup: { service_end: null, instrument_ids: [] } }))).toBe('Falta a data de fim e um instrumento.');
+    expect(setupGapsNote(snapshotWith({}))).toBeNull();
   });
 });
 

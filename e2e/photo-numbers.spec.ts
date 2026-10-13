@@ -126,6 +126,9 @@ test('@p0 7.2-E2E-001 an issued revision freezes the gallery numbers; a photo ad
   // parecer is the one blocking row since Story 7.4, so it is set first (and opens the Sumário).
   await setParecer(page, EXPORT_RELATORIO_ID);
   await generateRevision(page, 1);
+  // Status flow 2026-10-10: the revision is marked as sent by the user; that is what issues it.
+  await dialog(page).getByRole('button', { name: 'Marcar como enviado ao cliente' }).click();
+  await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
   await closeDialog(page);
   await expect(headerPill(page)).toHaveText('Emitido', { timeout: 30_000 });
 
@@ -148,7 +151,10 @@ test('@p0 7.2-E2E-001 an issued revision freezes the gallery numbers; a photo ad
 
   // The Sumário's banner names the next revision.
   await openSumario(page);
-  await expect(banner(page)).toContainText('(revisão 1). Alterações geram a revisão 2.');
+  // 2026-10-10: the photo reopened the relatório (Em revisão), and the banner says where it goes.
+  await expect(headerPill(page)).toHaveText('Em revisão');
+  await expect(banner(page)).toContainText('Há alterações desde a revisão 1');
+  await expect(banner(page)).toContainText('Elas entram na revisão 2.');
 });
 
 test('@p1 7.3-E2E-001 the DOCX prints "Imagem 1:" in section 7, the point citing it as "Imagem 1" in section 8, and the certificate checked at setup as rasterized pages in section 11', async ({ page }) => {

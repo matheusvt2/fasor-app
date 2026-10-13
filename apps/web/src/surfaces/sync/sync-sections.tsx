@@ -2,6 +2,7 @@ import {
   avatarInitial,
   decisionsCountText,
   lastSendText,
+  latestPushPerUser,
   leiturasNaFilaText,
   morePhotosText,
   sendingCounts,
@@ -201,9 +202,15 @@ export function DownloadingSection({ rows }: { rows: readonly DownloadRow[] }) {
   );
 }
 
-/** "Último envio": one row per `(user, device)` with the kernel's sentence. */
+/**
+ * "Último envio": this device's own row, and one row per user for their other devices, the
+ * newest (`latestPushPerUser`, walk-through 2026-10-09 m2: the contract carries no device
+ * label, so two other devices of one user read as two identical lines).
+ */
 export function LastSendSection({ sync }: { sync: SyncState }) {
   const headingId = useId();
+  const others = new Set(latestPushPerUser(sync.lastPushAt.filter((push) => push.device_id !== sync.deviceId)));
+  const pushes = sync.lastPushAt.filter((push) => push.device_id === sync.deviceId || others.has(push));
   return (
     <section className="section" aria-labelledby={headingId}>
       <div className="section-head">
@@ -214,7 +221,7 @@ export function LastSendSection({ sync }: { sync: SyncState }) {
         <p className="section-note">{copy.sync.noPushYet}</p>
       ) : (
         <ul className="sync-list">
-          {sync.lastPushAt.map((push) => {
+          {pushes.map((push) => {
             const name = sync.userNames[push.user_id] ?? push.user_id;
             const mine = push.device_id === sync.deviceId;
             return (

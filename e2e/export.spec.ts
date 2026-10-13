@@ -19,7 +19,8 @@ import { pushDrafts } from './support/relatorio-seed.ts';
  *
  * Two starting points: a relatório born from Home a moment before (223 ops still on
  * their way when the dialog asks for them), and the small Porto Seguro fixture seeded onto
- * Empresa B (Em campo, so the status ops `generate` and `issue` both apply).
+ * Empresa B (Em campo, so the status op `generate` applies; `issue` is the explicit
+ * "Marcar como enviado ao cliente" since the status flow of 2026-10-10).
  */
 
 let account: SeedAccount;
@@ -36,6 +37,11 @@ const dialog = (page: Page) => page.getByRole('dialog', { name: 'Gerar relatóri
 const generateButton = (page: Page) => dialog(page).locator('.generate-row').getByRole('button', { name: /^(Gerar relatório|Gerando…)$/ });
 const reason = (page: Page) => dialog(page).locator('.generate-row .btn-reason');
 const headerPill = (page: Page) => page.locator('.sheet-meta .status-pill');
+
+/** Status flow 2026-10-10: the one emitter of `issue`, in the result block and on the Sumário's foot. */
+const MARK_SENT = 'Marcar como enviado ao cliente';
+const NOT_SENT_2 = 'Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 2.';
+const SENT_2 = 'Enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 2.';
 
 const IDLE_1 = 'Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 1. Precisa de conexão.';
 const OFFLINE = 'Gerar relatório precisa de conexão. Conecte e tente de novo.';
@@ -138,9 +144,11 @@ test('@p0 4.8-E2E-001 11.1-E2E-001 a relatório born on Home: the Sumário\'s "G
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   await expect(modal.getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeVisible();
   await expect(modal.locator('.t-meta time')).toHaveText(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/);
-  // A Rascunho relatório has no `generate` row in the status table: the pill stays.
-  await expect(modal.locator('.row-wrap .status-pill')).toHaveText('Rascunho');
-  await expect(modal.locator('.row-wrap .t-meta')).toHaveText('Qualquer alteração a partir de agora gera a revisão 2.');
+  // Status flow 2026-10-10 (B1): `statusTable(Rascunho, generate)` is Em revisão, and the
+  // revision's arrival leaves it there, saying it is not yet with the client.
+  await expect(modal.locator('.row-wrap .status-pill')).toHaveText('Em revisão');
+  await expect(modal.locator('.row-wrap .t-meta')).toHaveText(NOT_SENT_2);
+  await expect(modal.getByRole('button', { name: MARK_SENT })).toBeVisible();
   const row = modal.locator('.revision-row');
   await expect(row).toHaveCount(1);
   await expect(row.locator('.rev-text')).toHaveText(new RegExp(`^Rev\\. 1 — \\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2} — ${account.name}$`));
@@ -204,7 +212,7 @@ test('@p0 4.8-E2E-001 11.1-E2E-001 a relatório born on Home: the Sumário\'s "G
   await expect(dialog(page).locator('.revision-row')).toHaveCount(1);
 });
 
-test('@p0 4.8-E2E-004 an Em campo relatório: generate moves it to Em revisão, the dialog closed and the page reloaded, the revision still issues it', async ({
+test('@p0 4.8-E2E-004 an Em campo relatório: generate moves it to Em revisão, the dialog closed and the page reloaded, the revision arrives and it stays Em revisão until marked as sent', async ({
   page,
 }) => {
   test.setTimeout(300_000);
@@ -227,13 +235,24 @@ test('@p0 4.8-E2E-004 an Em campo relatório: generate moves it to Em revisão, 
   // Story 12.5 (J-17): the App bar names the relatório; the Sumário list says where we are.
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
 
-  // The revision lands with nobody watching the dialog: the toast, and `statusTable(Em revisão, issue)`.
+  // The revision lands with nobody watching the dialog: the toast, and no status change
+  // (2026-10-10: a revision's arrival never issues).
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
-  await expect(headerPill(page)).toHaveText('Emitido');
+  await expect(headerPill(page)).toHaveText('Em revisão');
   await footButton(page).click();
   await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeVisible();
-  await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
+  await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Em revisão');
+  await expect(dialog(page).locator('.row-wrap .t-meta')).toHaveText(NOT_SENT_2);
   await expect(dialog(page).locator('.revision-row')).toHaveCount(1);
+  // "Marcar como enviado ao cliente": one `issue` op, Emitido in the dialog and behind it.
+  await dialog(page).getByRole('button', { name: MARK_SENT }).click();
+  await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
+  await expect(dialog(page).locator('.row-wrap .t-meta')).toHaveText(SENT_2);
+  await expect(dialog(page).getByRole('button', { name: MARK_SENT })).toHaveCount(0);
+  await expect(headerPill(page)).toHaveText('Emitido');
+  await expect
+    .poll(async () => (await readStore<{ path: string; value: unknown }>(page, database, 'outbox')).filter((op) => op.path === 'relatorio/status').map((op) => op.value))
+    .toEqual(['em_revisao', 'emitido']);
   // Nothing edited since: "Gerar de novo" promises revision 1 again (Q11).
   await dialog(page).getByRole('button', { name: 'Gerar de novo' }).click();
   await expect(reason(page)).toHaveText(IDLE_1);
@@ -286,11 +305,12 @@ test('@p1 4.8-E2E-005 a failed request says nothing changed and no revision was 
   await alert.getByRole('button', { name: 'Tentar novamente' }).click();
   await expect(dialog(page).locator('.gen-progress')).toContainText('Gerando revisão 1…', { timeout: 60_000 });
   await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeVisible({ timeout: JOB_TIMEOUT });
-  // Q11: the job landed with the dialog open on an Em campo relatório: the ready block's
-  // pill reads the status after the issue op, Emitido, never the Em revisão before it.
+  // Status flow 2026-10-10: the job landed with the dialog open on an Em campo relatório:
+  // the ready block's pill reads Em revisão (generated, not yet sent), never Emitido.
   const pill = dialog(page).locator('.row-wrap .status-pill');
-  expect(await pill.textContent()).not.toBe('Em revisão');
-  await expect(pill).toHaveText('Emitido');
+  await expect(pill).toHaveText('Em revisão');
+  await expect(dialog(page).locator('.row-wrap .t-meta')).toHaveText(NOT_SENT_2);
+  await expect(dialog(page).getByRole('button', { name: MARK_SENT })).toBeVisible();
 });
 
 // --- Epic 4 carry-over (E4-A1, E4-A2, E4-A3) -------------------------------------------
@@ -318,7 +338,7 @@ async function moveBackTo(page: Page, to: string): Promise<void> {
   await expect(headerPill(page)).toHaveText(to);
 }
 
-test('@p0 E4-E2E-001 generate, edit, Em revisão, generate revision 2: listed and Emitido; moved back with no edit, Gerar answers revision 2 and Emitido again', async ({
+test('@p0 E4-E2E-001 generate, mark as sent, edit, Em revisão, generate revision 2: listed, marked as sent, Emitido; moved back with no edit, Gerar answers revision 2 and it stays Em revisão until marked again', async ({
   page,
 }) => {
   test.setTimeout(480_000);
@@ -327,14 +347,17 @@ test('@p0 E4-E2E-001 generate, edit, Em revisão, generate revision 2: listed an
   await openFixtureSumario(page);
   await setParecer(page, EXPORT_RELATORIO_ID);
 
-  // Revision 1 from Em campo: the relatório is issued.
+  // Revision 1 from Em campo: Em revisão until it is marked as sent, then Emitido.
   await footButton(page).click();
   await expect(reason(page)).toHaveText(IDLE_1);
   await generateButton(page).click();
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
+  await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Em revisão');
+  await dialog(page).getByRole('button', { name: MARK_SENT }).click();
   await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
   await escapeDialog(page);
   await expect(headerPill(page)).toHaveText('Emitido');
+  await expect(banner(page)).toContainText('(revisão 1). Alterações geram a revisão 2.');
 
   // An edit in the setup, typed as a person would: the status advances to Em revisão and
   // the Sumário's banner promises revision 2.
@@ -349,25 +372,35 @@ test('@p0 E4-E2E-001 generate, edit, Em revisão, generate revision 2: listed an
   // Story 12.5 (J-17): the App bar names the relatório; the Sumário list says where we are.
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible();
   await expect(headerPill(page)).toHaveText('Em revisão');
-  await expect(banner(page)).toContainText('(revisão 1). Alterações geram a revisão 2.');
+  // 2026-10-10: Em revisão with edits since revision 1 says where they go, never "emitido".
+  await expect(banner(page)).toContainText('Há alterações desde a revisão 1');
+  await expect(banner(page)).toContainText('Elas entram na revisão 2.');
+  // Decision 2: with newer edits, mark-as-sent is not offered; the next step (under the pill) asks for revision 2 first.
+  await expect(page.locator('.sticky-action-bar').getByRole('button', { name: MARK_SENT })).toHaveCount(0);
+  await expect(page.getByTestId('status-next-step')).toHaveText('Em revisão: há alterações desde a revisão 1. Gere a revisão 2 antes de marcar como enviado ao cliente.');
   await page.reload();
   // Story 12.5 (J-17): the App bar names the relatório; the Sumário list says where we are.
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   await expect(headerPill(page)).toHaveText('Em revisão');
 
-  // Revision 2: listed with revision 1, and the relatório is Emitido again.
+  // Revision 2: listed with revision 1; marked as sent from the Sumário's foot, Emitido again.
   await footButton(page).click();
   await expect(reason(page)).toHaveText(IDLE_2);
   await generateButton(page).click();
   await expect(page.getByTestId('toast')).toHaveText('Revisão 2 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 2 pronta' })).toBeVisible();
   await expect(dialog(page).locator('.revision-row')).toHaveCount(2);
-  await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
+  await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Em revisão');
   await escapeDialog(page);
+  await expect(headerPill(page)).toHaveText('Em revisão');
+  await expect(banner(page)).toContainText('Revisão 2 gerada em');
+  await expect(banner(page)).toContainText('ainda não enviada ao cliente.');
+  await page.locator('.sticky-action-bar').getByRole('button', { name: MARK_SENT }).click();
   await expect(headerPill(page)).toHaveText('Emitido');
+  await expect(page.locator('.sticky-action-bar').getByRole('button', { name: MARK_SENT })).toHaveCount(0);
 
-  // Item 20: moved back to Em revisão with nothing edited, "Gerar relatório" answers the
-  // same revision and issues it again.
+  // Moved back to Em revisão with nothing edited, "Gerar relatório" answers the same
+  // revision; nothing is issued by that (2026-10-10), and mark-as-sent is offered again.
   await moveBackTo(page, 'Em revisão');
   await footButton(page).click();
   const again = dialog(page).getByRole('button', { name: 'Gerar de novo' });
@@ -378,6 +411,8 @@ test('@p0 E4-E2E-001 generate, edit, Em revisão, generate revision 2: listed an
   await generateButton(page).click();
   await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 2 pronta' })).toBeVisible({ timeout: 30_000 });
   await expect(dialog(page).locator('.revision-row')).toHaveCount(2);
+  await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Em revisão');
+  await dialog(page).getByRole('button', { name: MARK_SENT }).click();
   await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
   await escapeDialog(page);
   await expect(headerPill(page)).toHaveText('Emitido');

@@ -121,6 +121,12 @@ describe('4.8-UNIT-004 revision numbering and rows', () => {
     expect(readyTitle(3)).toBe('Revisão 3 pronta');
     expect(readyToast(3)).toBe('Revisão 3 pronta — DOCX e PDF');
     expect(nextEditNote(3)).toBe('Qualquer alteração a partir de agora gera a revisão 4.');
+    // 2026-10-10: a ready revision is not yet with the client; marked as sent, it says so.
+    expect(nextEditNote(3, { status: 'em_revisao', edited: false })).toBe('Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 4.');
+    expect(nextEditNote(3, { status: 'emitido', edited: false })).toBe('Enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 4.');
+    expect(nextEditNote(3, { status: 'em_campo', edited: false })).toBe('Qualquer alteração a partir de agora gera a revisão 4.');
+    // Sent, then reopened by an edit: Em revisão with edits claims nothing about the sending.
+    expect(nextEditNote(3, { status: 'em_revisao', edited: true })).toBe('Qualquer alteração a partir de agora gera a revisão 4.');
   });
 });
 

@@ -16,6 +16,13 @@ export interface ToastMessage {
    * expires, is replaced or closes through its action.
    */
   onDismiss?: () => void;
+  /**
+   * Status flow 2026-10-10: the status toast of an edit ("Relatório em campo", "Relatório
+   * reaberto em revisão") arrives by itself beside what the user is doing, so it is passive: it
+   * never scrolls the page when it appears and never takes a pointer press (`data-passive`,
+   * `app.css`). A status toast that answers the user's own press is an ordinary toast.
+   */
+  passive?: boolean;
 }
 
 /**
@@ -43,7 +50,7 @@ export function Toast({
   const element = useRef<HTMLDivElement>(null);
   useStickyBarClearance(element);
   useToastClearance(element);
-  useFocusedClearOfToast(element, toast.id);
+  useFocusedClearOfToast(element, toast.id, toast.passive === true);
   // Review fixes 2026-10-08: a toast withdrawn, expired or advanced while the keyboard focus is in
   // it hands the focus back as Esc does; its own "Ver", "Fechar" and Esc decide for themselves.
   const ownExit = useRef(false);
@@ -71,7 +78,7 @@ export function Toast({
   }
 
   return (
-    <div ref={element} className="toast" role="status" data-testid="toast" onKeyDown={onKeyDown} onFocus={onFocus}>
+    <div ref={element} className="toast" role="status" data-testid="toast" data-passive={toast.passive === true ? '' : undefined} onKeyDown={onKeyDown} onFocus={onFocus}>
       <span>{toast.text}</span>
       {toast.action === undefined ? null : (
         <>
@@ -262,19 +269,63 @@ export function keepClearOfToast(target: Element | null, toast: HTMLElement): vo
   window.scrollBy({ top: by, behavior: 'instant' });
 }
 
-/** Runs the focused-element rule when a toast is displayed and whenever the focus moves while it is up. */
-function useFocusedClearOfToast(element: { current: HTMLDivElement | null }, toastId: number): void {
+/** How long after a pointer came up a focus is still that press's own (a touch tap focuses its target after `pointerup`). */
+const POINTER_FOCUS_MS = 500;
+
+/**
+ * Whether a pointer is pressed now, or came up a moment ago. Watched for the page's whole life,
+ * not only while a toast is up: a toast can appear between a press and the focus that press
+ * gives (WebKit sends `mousedown`, and the focus with it, some 60 ms after `pointerdown`), and
+ * a watch started with the toast would have missed the press.
+ */
+const pointer = { down: false, upAt: Number.NEGATIVE_INFINITY, watched: false };
+function watchPointer(): void {
+  if (pointer.watched || typeof document === 'undefined') return;
+  pointer.watched = true;
+  const end = () => {
+    pointer.down = false;
+    pointer.upAt = performance.now();
+  };
+  document.addEventListener('pointerdown', () => (pointer.down = true), true);
+  document.addEventListener('pointerup', end, true);
+  document.addEventListener('pointercancel', end, true);
+}
+watchPointer();
+/** Forgets the last press (tests: a press of an earlier test is not this one's). */
+export function forgetPointerPress(): void {
+  pointer.down = false;
+  pointer.upAt = Number.NEGATIVE_INFINITY;
+}
+const focusIsOfAPress = (): boolean => pointer.down || performance.now() - pointer.upAt < POINTER_FOCUS_MS;
+
+/**
+ * Runs the focused-element rule when a toast is displayed and whenever the focus moves while it
+ * is up.
+ *
+ * Status flow 2026-10-10 (the lost tap of 12.1-E2E-006 on WebKit): the rule is for a focus the
+ * keyboard moved (Tab, the Enter run). A focus that a pointer press gave is left alone: the
+ * element is under the finger, and scrolling it clear of the toast between the press and its
+ * release moves it away, so the release lands on something else and the tap is lost (WebKit
+ * focuses a button on `mousedown`; with "Relatório em campo" up, the pressed chip moved 46 px).
+ * And a passive toast (an edit's status toast, which arrives by itself) does not scroll the page when
+ * it appears either: nothing the user did asked for the page to move.
+ */
+function useFocusedClearOfToast(element: { current: HTMLDivElement | null }, toastId: number, passive: boolean): void {
   useLayoutEffect(() => {
     const toast = element.current;
-    if (typeof window === 'undefined' || toast === null) return;
+    // Nor does any toast scroll what a finger is pressing as it appears.
+    if (typeof window === 'undefined' || toast === null || passive || focusIsOfAPress()) return;
     keepClearOfToast(document.activeElement, toast);
-  }, [element, toastId]);
+  }, [element, toastId, passive]);
   useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
     let frame: number | null = null;
     // After the browser's own scroll of the focus into view, which runs with the focus itself.
     const onFocusIn = (event: globalThis.FocusEvent) => {
       if (frame !== null) cancelAnimationFrame(frame);
+      frame = null;
+      // A press's own focus: the element stays where the finger is.
+      if (focusIsOfAPress()) return;
       const target = event.target instanceof Element ? event.target : null;
       frame = requestAnimationFrame(() => {
         frame = null;

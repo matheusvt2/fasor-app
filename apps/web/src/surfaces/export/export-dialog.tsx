@@ -7,6 +7,8 @@ import {
   generatingText,
   idleReason,
   issueConfirmText,
+  latestRevision,
+  MARK_SENT_LABEL,
   missingFilesText,
   nextEditNote,
   parecerMissingReason,
@@ -337,10 +339,19 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
         </div>
         {fileError('result:docx', 'share:docx', 'result:pdf', 'share:pdf')}
         <div className="row-wrap">
-          {/* The status after the issue op (Q11): the hook's until the live row re-renders. */}
-          {phase.status !== undefined ? <StatusPill status={phase.status} /> : relatorio === null ? null : <StatusPill status={relatorio.status} />}
-          <span className="t-meta ink-secondary">{nextEditNote(phase.number)}</span>
+          {/* Status flow 2026-10-10: the live row, Em revisão until the revision is marked as sent. */}
+          {relatorio === null ? null : <StatusPill status={relatorio.status} />}
+          {/* "Ainda não enviada" only of the newest revision with nothing edited since it. */}
+          <span className="t-meta ink-secondary">
+            {nextEditNote(phase.number, relatorio === null ? undefined : { status: relatorio.status, edited: state.edited || latestRevision(revisions)?.number !== phase.number })}
+          </span>
         </div>
+        {/* Decision 2 (2026-10-10): offered only in Em revisão with nothing edited since the latest revision. */}
+        {state.canMarkSent ? (
+          <Button variant="primary" block onPress={() => void state.markSent()}>
+            {MARK_SENT_LABEL}
+          </Button>
+        ) : null}
         <Button variant="secondary" block onPress={state.reset}>
           {copy.export.generateAgain}
         </Button>

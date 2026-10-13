@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { latestRevision } from '../print/revisions.ts';
 import type { EditCandidate } from '../status/edited-since.ts';
-import { advanceOnEdit, backwardMoveConsequenceText, backwardMoveLabel, issuedBannerText } from './status-advance.ts';
+import { nextEditNote } from '../print/revisions.ts';
+import { RELATORIO_STATUSES, statusTable } from '../status/table.ts';
+import { advanceOnEdit, advanceOnGenerate, backwardMoveConsequenceText, backwardMoveLabel, fichaIssuedBannerText, issuedBannerText, statusChangeToastText } from './status-advance.ts';
+import { canMarkSent, controleMetaText, statusStepText } from './sumario.ts';
 
 const BLOCK_ID = '019966b0-0080-7000-8000-000000000001';
 const USER = '019966b0-0080-7000-8000-000000000002';
@@ -15,10 +18,60 @@ describe('4.6-UNIT advanceOnEdit', () => {
     expect(advanceOnEdit('emitido', [editDraft()])).toBe('em_revisao');
   });
 
-  it('does nothing for a non-Emitido status', () => {
-    for (const status of ['rascunho', 'em_campo', 'em_revisao'] as const) {
+  it('does nothing in Em campo or Em revisão', () => {
+    for (const status of ['em_campo', 'em_revisao'] as const) {
       expect(advanceOnEdit(status, [editDraft()])).toBeNull();
     }
+  });
+
+  const ID = '019966b0-0080-7000-8000-000000000009';
+
+  it('2026-10-10 decision 3: field content moves Rascunho to Em campo', () => {
+    const content: EditCandidate[] = [
+      editDraft({ path: `sheet/${BLOCK_ID}/observations` }),
+      editDraft({ path: `sheet/${BLOCK_ID}/nameplate/n_serie` }),
+      editDraft({ path: `location/${ID}/se/primary_kv` }),
+      editDraft({ path: `location/${ID}/env/temperature_c` }),
+      editDraft({ path: `point/${ID}/text` }),
+      editDraft({ path: `block/${BLOCK_ID}/not_tested` }),
+      { path: `file/${ID}`, actor_id: USER, kind: 'create', value: { kind: 'photo' } },
+      { path: `point/${ID}`, actor_id: USER, kind: 'create', value: {} },
+    ];
+    for (const draft of content) expect(advanceOnEdit('rascunho', [draft]), draft.path).toBe('em_campo');
+  });
+
+  it('2026-10-10 decision 3: structure keeps Rascunho, and still reopens an Emitido relatório', () => {
+    const structure: EditCandidate[] = [
+      editDraft({ path: `block/${BLOCK_ID}/order_key` }),
+      editDraft({ path: `block/${BLOCK_ID}/removed_at` }),
+      editDraft({ path: `block/${BLOCK_ID}/location_id` }),
+      editDraft({ path: `block/${BLOCK_ID}/config` }),
+      editDraft({ path: `location/${ID}/name` }),
+      editDraft({ path: `location/${ID}/order_key` }),
+      editDraft({ path: `location/${ID}/agrupar_por_tipo` }),
+      editDraft({ path: `equipment/${ID}/tag` }),
+      { path: `block/${ID}`, actor_id: USER, kind: 'create', value: {} },
+      { path: `location/${ID}`, actor_id: USER, kind: 'create', value: {} },
+      { path: `equipment/${ID}`, actor_id: USER, kind: 'create', value: {} },
+    ];
+    for (const draft of structure) {
+      expect(advanceOnEdit('rascunho', [draft]), draft.path).toBeNull();
+      expect(advanceOnEdit('emitido', [draft]), draft.path).toBe('em_revisao');
+    }
+    // A sheet created with a value in the same batch is content.
+    expect(advanceOnEdit('rascunho', [structure[8]!, editDraft({ path: `sheet/${BLOCK_ID}/observations` })])).toBe('em_campo');
+  });
+
+  it('2026-10-10 decision 1: a relatorio/setup edit keeps Rascunho, and still reopens an Emitido relatório', () => {
+    const setup = editDraft({ path: 'relatorio/setup/local' });
+    expect(advanceOnEdit('rascunho', [setup])).toBeNull();
+    expect(advanceOnEdit('rascunho', [setup, editDraft({ path: `sheet/${BLOCK_ID}/observations` })])).toBe('em_campo');
+    expect(advanceOnEdit('emitido', [setup])).toBe('em_revisao');
+  });
+
+  it('a non-photo file and a system op are not field work', () => {
+    expect(advanceOnEdit('rascunho', [{ path: `file/${ID}`, actor_id: USER, kind: 'create', value: { kind: 'certificate' } }])).toBeNull();
+    expect(advanceOnEdit('rascunho', [editDraft({ path: `sheet/${BLOCK_ID}/observations`, actor_id: 'system:files' })])).toBeNull();
   });
 
   it('does nothing for a non-edit op', () => {
@@ -31,14 +84,56 @@ describe('4.6-UNIT advanceOnEdit', () => {
   });
 });
 
+describe('2026-10-13 advanceOnGenerate', () => {
+  it('a queued generate is the table\'s generate row, in every status', () => {
+    expect(advanceOnGenerate('rascunho', 'queued')).toBe('em_revisao');
+    expect(advanceOnGenerate('em_campo', 'queued')).toBe('em_revisao');
+    expect(advanceOnGenerate('em_revisao', 'queued')).toBeNull();
+    expect(advanceOnGenerate('emitido', 'queued')).toBe('em_revisao');
+    for (const status of RELATORIO_STATUSES) expect(advanceOnGenerate(status, 'queued'), status).toBe(statusTable(status, 'generate'));
+  });
+
+  it('an unchanged answer is the same row, except that Emitido stays: the client has that revision', () => {
+    expect(advanceOnGenerate('rascunho', 'unchanged')).toBe('em_revisao');
+    expect(advanceOnGenerate('em_campo', 'unchanged')).toBe('em_revisao');
+    expect(advanceOnGenerate('em_revisao', 'unchanged')).toBeNull();
+    expect(advanceOnGenerate('emitido', 'unchanged')).toBeNull();
+  });
+
+  it('a status outside the table moves nothing and never throws', () => {
+    expect(advanceOnGenerate('arquivado' as Parameters<typeof advanceOnGenerate>[0], 'queued')).toBeNull();
+    expect(advanceOnGenerate('arquivado' as Parameters<typeof advanceOnGenerate>[0], 'unchanged')).toBeNull();
+  });
+
+  it('after Emitido --generate--> Em revisão every sentence says revision N+1 is not yet with the client', () => {
+    const revision = (number: number) => ({ id: `r${number}`, relatorio_id: 'x', number, snapshot_seq: number, created_by: USER, docx_file_id: `d${number}`, pdf_file_id: `p${number}`, created_at: '2026-09-10T12:00:00Z' });
+    // The press: the commit path publishes the caller's own status op as an `action`.
+    expect(statusChangeToastText({ from: 'emitido', to: 'em_revisao', cause: 'action', latestNumber: 1 })).toBe('Relatório voltou para Em revisão');
+    // While revision 2 is being built, revision 1 is the newest and the edit is still ahead of it.
+    expect(statusStepText({ status: 'em_revisao', latest: 1, edited: true })).toBe('Em revisão: há alterações desde a revisão 1. Gere a revisão 2 antes de marcar como enviado ao cliente.');
+    expect(canMarkSent({ status: 'em_revisao', latest: 1, edited: true })).toBe(false);
+    // Revision 2 arrived: generated, not sent, and mark-as-sent is offered again.
+    expect(statusStepText({ status: 'em_revisao', latest: 2, edited: false })).toBe(
+      'Em revisão: a revisão 2 ainda não foi enviada ao cliente. Depois de enviar, use "Marcar como enviado ao cliente".',
+    );
+    expect(controleMetaText({ revisions: [revision(1), revision(2)], edited: false, status: 'em_revisao' })).toContain('Rev. 2 gerada');
+    expect(nextEditNote(2, { status: 'em_revisao', edited: false })).toBe('Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 3.');
+    expect(issuedBannerText('em_revisao', revision(2))).toBe('Revisão 2 gerada em 10/09, ainda não enviada ao cliente.');
+    expect(canMarkSent({ status: 'em_revisao', latest: 2, edited: false })).toBe(true);
+  });
+});
+
 describe('4.6-UNIT issuedBannerText / latestRevision', () => {
   it('names the issue date (dd/mm, no year, UX-DR11) and the next revision number', () => {
     expect(issuedBannerText('emitido', { number: 2, created_at: '2026-09-10T12:00:00Z' })).toBe(
       'Relatório emitido em 10/09 (revisão 2). Alterações geram a revisão 3.',
     );
-    expect(issuedBannerText('em_revisao', { number: 2, created_at: '2026-09-10T12:00:00Z' })).toBe(
-      'Relatório emitido em 10/09 (revisão 2). Alterações geram a revisão 3.',
-    );
+  });
+
+  it('2026-10-10: Em revisão says the revision was generated and not yet sent, never "emitido"', () => {
+    const revision = { number: 2, created_at: '2026-09-10T12:00:00Z' };
+    expect(issuedBannerText('em_revisao', revision)).toBe('Revisão 2 gerada em 10/09, ainda não enviada ao cliente.');
+    expect(issuedBannerText('em_revisao', revision, true)).toBe('Há alterações desde a revisão 2 (10/09). Elas entram na revisão 3.');
   });
 
   it('is null with no revision (an ordinary first Em campo → Em revisão pass)', () => {
@@ -76,5 +171,55 @@ describe('4.6-UNIT backwardMoveLabel / backwardMoveConsequenceText', () => {
     expect(backwardMoveConsequenceText('em_revisao', 'em_campo')).toBe(
       'O relatório volta de Em revisão para Em campo. Nada preenchido em campo é apagado.',
     );
+  });
+});
+
+describe('2026-10-10 fichaIssuedBannerText', () => {
+  it('says that editing reopens an Emitido relatório as Em revisão and generates the next revision', () => {
+    expect(fichaIssuedBannerText('emitido', { number: 1 })).toBe(
+      'Relatório emitido (revisão 1). Editar esta ficha reabre o relatório como Em revisão e gera a revisão 2.',
+    );
+  });
+
+  it('is null in every other status and with no revision', () => {
+    for (const status of ['rascunho', 'em_campo', 'em_revisao'] as const) expect(fichaIssuedBannerText(status, { number: 1 })).toBeNull();
+    expect(fichaIssuedBannerText('emitido', null)).toBeNull();
+  });
+});
+
+describe('2026-10-10 statusChangeToastText', () => {
+  type Change = Parameters<typeof statusChangeToastText>[0];
+  const change = (from: Change['from'], to: Change['to'], cause: Change['cause'] = 'action', latestNumber: number | null = null) =>
+    statusChangeToastText({ from, to, cause, latestNumber });
+
+  it('says every forward move', () => {
+    expect(change('rascunho', 'em_campo', 'edit')).toBe('Relatório em campo');
+    expect(change('rascunho', 'em_campo')).toBe('Relatório em campo');
+    expect(change('rascunho', 'em_revisao')).toBe('Relatório em revisão');
+    expect(change('em_campo', 'em_revisao')).toBe('Relatório em revisão');
+    expect(change('em_revisao', 'emitido', 'action', 2)).toBe('Revisão 2 marcada como enviada ao cliente. Relatório emitido.');
+    expect(change('em_revisao', 'emitido')).toBe('Relatório emitido');
+  });
+
+  it('an edit after Emitido says it reopened and names the next revision', () => {
+    expect(change('emitido', 'em_revisao', 'edit', 1)).toBe('Relatório reaberto em revisão. A próxima emissão gera a revisão 2.');
+    expect(change('emitido', 'em_revisao', 'edit')).toBe('Relatório reaberto em revisão');
+  });
+
+  it('a manual backward move names the status it went back to', () => {
+    expect(change('emitido', 'em_revisao', 'action', 1)).toBe('Relatório voltou para Em revisão');
+    expect(change('em_revisao', 'em_campo')).toBe('Relatório voltou para Em campo');
+    expect(change('em_campo', 'rascunho')).toBe('Relatório voltou para Rascunho');
+  });
+
+  it('an undo names the status it put back, never a mark-as-sent', () => {
+    expect(change('em_revisao', 'emitido', 'undo', 1)).toBe('Relatório voltou para Emitido');
+    expect(change('em_campo', 'rascunho', 'undo')).toBe('Relatório voltou para Rascunho');
+  });
+
+  it('says nothing when the status did not change, nor for a status it has no sentence for', () => {
+    expect(change('em_campo', 'em_campo')).toBeNull();
+    expect(change('em_campo', 'arquivado' as Change['to'])).toBeNull();
+    expect(change('rascunho', 'arquivado' as Change['to'], 'edit')).toBeNull();
   });
 });
