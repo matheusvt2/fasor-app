@@ -265,7 +265,7 @@ export function useFichaActions({
       .then(({ batch, plan }) => {
         if (batch === null || plan.kind !== 'move') {
           // Already there (another device moved it first): nothing to write, nothing to say.
-          if (plan.kind === 'refused' && plan.reason !== 'same-location') showToast(plan.reason === 'location-gone' ? copy.sumario.tree.locationGone : copy.sumario.tree.gone);
+          if (plan.kind === 'refused' && plan.reason !== 'same-location') showToast(plan.reason === 'gone' ? copy.sumario.tree.gone : copy.sumario.tree.locationGone);
           return;
         }
         // The header's cabine line reads the moved block's location live; the sentence is said and undoable.

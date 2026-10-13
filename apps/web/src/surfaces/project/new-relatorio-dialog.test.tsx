@@ -123,7 +123,7 @@ describe('4.1 NewRelatorioDialog', () => {
     expect(radio).toHaveAttribute('aria-checked', 'true');
     expect(radio).toHaveClass('option-row', 'is-selected');
     expect(within(dialog()).getByRole('combobox', { name: 'Template' })).toHaveValue('Cabine primária — padrão');
-    expect(within(dialog()).getByText('Os 94 blocos nascem nas cabines e colunas do template, com a TAG final. Arquivados não aparecem.')).toHaveClass('helper');
+    expect(within(dialog()).getByText('Os 94 blocos nascem nos locais e colunas do template, com a TAG final. Arquivados não aparecem.')).toHaveClass('helper');
     // Story 12.2 (J-12): today in America/Sao_Paulo, both dates.
     const [year, month, day] = calendarDateOfInstant(new Date()).split('-');
     expect(segments('Início da parada').map((seg) => seg.textContent)).toEqual([day, month, year]);

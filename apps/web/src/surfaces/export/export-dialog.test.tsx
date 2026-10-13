@@ -1009,7 +1009,7 @@ describe('Export dialog (Story 7.5)', () => {
     expect(pairs[1]![1]).toBe('Rev. 1');
     // F-15: the fixture has no Empresa: the note under the table says where to fill it in.
     expect(modal.querySelector('.export-empresa-missing')).toHaveTextContent('Cadastre a empresa em Cadastros › Empresa');
-    expect(modal.querySelector('.export-sec9-note')).toHaveTextContent('Seção 9 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag Agrupar por tipo de cada cabine).');
+    expect(modal.querySelector('.export-sec9-note')).toHaveTextContent('Seção 9 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag Agrupar por tipo de cada local).');
     expect(await axe(modal)).toHaveNoViolations();
   });
 

@@ -3,7 +3,7 @@ import {
   quantityLabel,
   SECTION_BLOCK_TYPES,
   sectionNumber,
-  type ComposerNode,
+  type ComposerBlockNode,
   type EquipmentBlockType,
   type SectionBlockType,
 } from '@app/domain';
@@ -18,8 +18,10 @@ export function sectionName(type: SectionBlockType): string {
 }
 
 export interface BlockPaletteProps {
-  /** The node whose quantities the equipment steppers set, or null when none is current. */
-  current: ComposerNode | null;
+  /** The node whose quantities the equipment steppers set (a local or a coluna, never a painel), or null when none is current. */
+  current: ComposerBlockNode | null;
+  /** The kernel's name of that target (`paletteTargetText`: "Coluna 5 · Painel de média tensão", "Cubículo Enel, direto no local"); null with none. */
+  targetText: string | null;
   onAddSection: (type: SectionBlockType) => void;
   onSetQuantity: (type: EquipmentBlockType, n: number) => Promise<void>;
   /** The section a "Adicionar abaixo" is waiting to place the next tapped section under. */
@@ -39,11 +41,14 @@ export interface BlockPaletteProps {
  * The office Block palette of the Template composer (DESIGN.md › Block palette, office
  * variant; `42-template-composer.html` `aside.block-palette.composer-palette`): headed by
  * the current node ("Coluna 5", "Blocos" when none is current), a "Seções" group whose tap adds one section block, and an "Equipamentos"
- * group headed by the current node, one row per equipment type with a Quantity stepper
- * for that node. With no current node the steppers are disabled and say why.
+ * group with the `.pal-target` line naming where the palette adds (Story 14.2: the open
+ * coluna or the local made current by "Adicionar equipamento"), one row per equipment type
+ * with a Quantity stepper for that node. With no current node the steppers are disabled and
+ * the line says why ("Selecione um local ou uma coluna.").
  */
 export function BlockPaletteContent({
   current,
+  targetText,
   onAddSection,
   onSetQuantity,
   insertBelow,
@@ -91,14 +96,18 @@ export function BlockPaletteContent({
           </button>
         ))}
 
-        <p className="palette-group">
-          {current === null ? copy.composer.paletteEquipmentNone : copy.composer.paletteEquipment(current.name)}
+        <p className="palette-group">{copy.composer.paletteEquipment}</p>
+        {/* The mock swaps `.pal-now` and `.pal-none` with CSS `:has()`; here one of them is rendered. A polite region: the target is said when it changes. */}
+        <p className="palette-group pal-target" aria-live="polite" id={reasonId}>
+          {current === null || targetText === null ? (
+            <span className="pal-none">{copy.composer.selectNode}</span>
+          ) : (
+            <span className="pal-now">
+              {copy.composer.paletteTargetLead}
+              <b>{targetText}</b>
+            </span>
+          )}
         </p>
-        {current === null ? (
-          <p className="palette-note" id={reasonId}>
-            {copy.composer.selectNode}
-          </p>
-        ) : null}
         {EQUIPMENT_BLOCK_TYPES.map((type) => (
           <PaletteEquipmentRow
             // A new node is a new stepper: no count carries over from the previous one.

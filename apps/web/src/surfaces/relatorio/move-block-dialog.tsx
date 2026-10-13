@@ -1,4 +1,4 @@
-import { moveTagSuggestion, moveTargets, type BlockRow, type EquipmentRow, type LocationRow } from '@app/domain';
+import { moveTagSuggestion, moveTargets, takesBlocks, type BlockRow, type EquipmentRow, type LocationRow } from '@app/domain';
 import { useState } from 'react';
 import { Button, Checkbox, FilterChipGroup, FormDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -31,7 +31,8 @@ export function MoveBlockDialog({ name, blockId, locations, blocks, equipment, o
   const [rename, setRename] = useState(false);
   const block = blocks.find((row) => row.id === blockId);
   const targets = block === undefined ? [] : moveTargets([...locations], block);
-  const target = targetId === null ? undefined : locations.find((row) => row.id === targetId);
+  // `moveTargets` offers only locations that take blocks (never a painel).
+  const target = targetId === null ? undefined : locations.filter(takesBlocks).find((row) => row.id === targetId);
   const own = block?.equipment_id == null ? undefined : equipment.find((row) => row.id === block.equipment_id && row.removed_at === null);
   const suggestion = block === undefined || target === undefined ? null : moveTagSuggestion(block, own, target, equipment);
   const disabledReason = targetId === null ? t.movePickReason : undefined;

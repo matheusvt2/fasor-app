@@ -338,7 +338,7 @@ describe('4.3 SumarioSurface', () => {
     expect(chevron).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('Organizados por local aqui; no documento, agrupados como no FO.SERV-03.')).toHaveClass('s9-note');
     const tree = screen.getByRole('list', { name: 'Locais do relatório' });
-    const cabines = () => [...tree.querySelectorAll<HTMLElement>(':scope > li.s9-cabine')];
+    const cabines = () => [...tree.querySelectorAll<HTMLElement>(':scope > li.s9-local')];
     expect(cabines()).toHaveLength(1);
     // The last-sheet pref is its own live query and lands a tick after the rows; the path to
     // it opens and its row says "você parou aqui".
@@ -353,8 +353,8 @@ describe('4.3 SumarioSurface', () => {
     await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' });
     expect(scrollIntoView.mock.instances[0]).toBe(current);
-    expect(cabines()[0]!.querySelector('.s9-cab-row .progress-counter')).toHaveTextContent('1 de 3');
-    expect(cabines()[0]!.querySelector('.s9-cab-name')).toHaveTextContent('Cabine de Testes');
+    expect(cabines()[0]!.querySelector('.s9-loc-row .progress-counter')).toHaveTextContent('1 de 3');
+    expect(cabines()[0]!.querySelector('.s9-loc-name')).toHaveTextContent('Cabine de Testes');
     // The chevron collapses it; a header count that counts no sheet opens it again and moves the
     // focus to the chevron (F-24: a count that counts one focuses that sheet's row instead).
     await userEvent.click(chevron);
@@ -375,9 +375,9 @@ describe('4.3 SumarioSurface', () => {
     // Opened collapsed: nothing scrolls, not even after an expand by hand; the cabine stays
     // collapsed and says "você parou aqui" for its row.
     await userEvent.click(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' }));
-    await waitFor(() => expect(second.container.querySelector('.s9-cabine.is-current')).not.toBeNull());
-    expect(second.container.querySelector('.s9-cabine.is-current')).not.toHaveClass('is-open');
-    expect(second.container.querySelector('.s9-cabine.is-current .s9-cab-name .sum-here')).toHaveTextContent('você parou aqui');
+    await waitFor(() => expect(second.container.querySelector('.s9-local.is-current')).not.toBeNull());
+    expect(second.container.querySelector('.s9-local.is-current')).not.toHaveClass('is-open');
+    expect(second.container.querySelector('.s9-local.is-current .s9-loc-name .sum-here')).toHaveTextContent('você parou aqui');
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
     // @ts-expect-error jsdom's Element has no scrollIntoView; the mock above added it.
     delete Element.prototype.scrollIntoView;
@@ -463,15 +463,15 @@ describe('4.3 SumarioSurface', () => {
     const { container } = renderSumario();
     await waitFor(() => expect(rows()).toHaveLength(13));
     const tree = screen.getByRole('list', { name: 'Locais do relatório' });
-    expect(tree.querySelectorAll(':scope > li.s9-cabine')).toHaveLength(2);
-    await waitFor(() => expect(container.querySelectorAll('.s9-cabine.is-current')).toHaveLength(1));
-    expect(container.querySelector('.s9-cabine.is-current')).toHaveAttribute('data-location-id', cabineId);
+    expect(tree.querySelectorAll(':scope > li.s9-local')).toHaveLength(2);
+    await waitFor(() => expect(container.querySelectorAll('.s9-local.is-current')).toHaveLength(1));
+    expect(container.querySelector('.s9-local.is-current')).toHaveAttribute('data-location-id', cabineId);
     // The path opens down to the coluna, whose row holds the last sheet.
     await waitFor(() => expect(tree.querySelector('li.s9-eq.is-current')).not.toBeNull());
     const here = within(tree.querySelector<HTMLElement>('li.s9-eq.is-current')!).getByText('você parou aqui');
     expect(here.closest('li')).toHaveAttribute('data-block-id', chaveBlockId);
     expect(here.closest('li.s9-coluna')).toHaveAttribute('data-location-id', COLUNA);
-    expect(here.closest('li.s9-cabine')).toHaveAttribute('data-location-id', cabineId);
+    expect(here.closest('li.s9-local')).toHaveAttribute('data-location-id', cabineId);
   });
 
   it('"Restaurar ficha removida" names a removed sheet by its TAG and gives every Restaurar its own name', async () => {

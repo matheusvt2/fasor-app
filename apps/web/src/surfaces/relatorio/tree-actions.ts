@@ -6,6 +6,7 @@ import {
   equipmentFreedByRemoval,
   isEquipmentBlockType,
   locationBlocks,
+  localUpdatedText,
   moveAnnouncement,
   moveLandingIndex,
   movePlan,
@@ -52,6 +53,7 @@ import {
   putAgruparOp,
   putBlockOp,
   putEquipmentTagOp,
+  putFuncaoOp,
   putLocationOp,
   removeBlockOp,
   type Author,
@@ -61,8 +63,9 @@ import {
  * Stories 4.4 and 4.5: every write the location tree makes, through the relatório's one
  * edit queue (`useRelatorioEditor`): a block created from the palette or by "Duplicar", a
  * block or a location moved, a block removed, a TAG renamed, a location added or renamed,
- * the cabine's "Agrupar por tipo". Each is one batch, announced where it moves something
- * and undoable from a toast; each hands the focus to a control on purpose (E3-A8).
+ * the local's "Agrupar por tipo" and its "Função e nome" (Story 14.2: a local, a painel or a
+ * coluna). Each is one batch, announced where it moves something and undoable from a toast;
+ * each hands the focus to a control on purpose (E3-A8).
  */
 
 export interface TreeContext {
@@ -81,8 +84,8 @@ export interface TreeHost {
   reveal: (locationId: string) => void;
   /** The location a block sits in, as the tree's snapshot holds it (drawn or not). */
   locationOf: (blockId: string) => string | null;
-  /** The foot's "Adicionar cabine" (the focus target once an added cabine is undone). */
-  addCabine: () => HTMLElement | null;
+  /** The foot's "Adicionar local" (the focus target once an added local is undone). */
+  addLocal: () => HTMLElement | null;
 }
 
 export interface TreeActions {
@@ -96,7 +99,12 @@ export interface TreeActions {
   duplicateBlock: (node: TreeEquipmentNode, tag: string) => void;
   renameTag: (node: TreeEquipmentNode, tag: string) => void;
   markNotTested: (node: TreeEquipmentNode, reason: string, text: string | null) => void;
-  addLocation: (parent: TreeLocationNode | null) => void;
+  /** "Adicionar painel" under a local; "Adicionar coluna" under a painel, or under a local that already holds colunas directly. */
+  addLocation: (parent: TreeLocationNode, kind: 'painel' | 'coluna') => void;
+  /** The foot's "Adicionar local", with what the Função dialog chose. */
+  addLocal: (chosen: { funcao: string | null; name: string }) => void;
+  /** "Função e nome": the local's `funcao` and `name` puts in one batch. A null Função leaves the stored one as it is. */
+  updateLocal: (node: TreeLocationNode, chosen: { funcao: string | null; name: string }) => void;
   renameLocation: (node: TreeLocationNode, name: string) => void;
   toggleAgrupar: (node: TreeLocationNode) => void;
 }
@@ -191,7 +199,8 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
       let present = true;
       let total = node.siblings;
       const batch = await edit((_blocks, by, fresh) => {
-        const siblings = siblingLocations(fresh.locations, node.parentId);
+        // Story 14.2: a painel moves among the painéis of its local, a coluna among the colunas of its parent.
+        const siblings = siblingLocations(fresh.locations, node.parentId, node.parentId === null ? undefined : node.kind);
         if (!siblings.some((row) => row.id === node.id)) {
           present = false;
           return null;
@@ -205,7 +214,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
         return;
       }
       const to = moveLandingIndex(total, toIndex);
-      const text = moveAnnouncement(node.kind === 'cabine' ? 'cabine' : 'coluna', node.name, to + 1, total);
+      const text = moveAnnouncement(node.kind, node.name, to + 1, total);
       settle(
         () => {
           const row = host.root()?.querySelector<HTMLElement>(`li[data-location-id="${esc(node.id)}"]`) ?? null;
@@ -224,7 +233,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
         .then(({ batch, plan }) => {
           if (batch === null || plan.kind !== 'move') {
             // Already there (another device moved it first): nothing to write, nothing to say.
-            if (plan.kind === 'refused' && plan.reason !== 'same-location') showToast(plan.reason === 'location-gone' ? t.locationGone : t.gone);
+            if (plan.kind === 'refused' && plan.reason !== 'same-location') showToast(plan.reason === 'gone' ? t.gone : t.locationGone);
             return;
           }
           host.reveal(targetId);
@@ -264,7 +273,8 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
       const out: { refusal: string | null; created: { tag: string; blockId: string; location: { kind: 'cabine' | 'coluna'; name: string } } | null } = { refusal: null, created: null };
       void edit((blocks, by, fresh) => {
         const location = fresh.locations.find((row) => row.id === input.locationId);
-        if (location === undefined || !isEquipmentBlockType(input.type)) {
+        // A painel takes no block (the kernel's fold refuses one): the palette never opens on it.
+        if (location === undefined || location.kind === 'painel' || !isEquipmentBlockType(input.type)) {
           out.refusal = t.locationGone;
           return null;
         }
@@ -441,12 +451,13 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
     [edit, relatorioId, showToast, t.gone],
   );
 
-  const addLocation = useCallback(
-    (parent: TreeLocationNode | null) => {
-      const out: { created: { id: string; name: string; kind: 'cabine' | 'coluna' } | null } = { created: null };
+  /** One location create, with its toast, its focus and its undo. */
+  const createLocation = useCallback(
+    (parent: TreeLocationNode | null, build: (locations: Parameters<typeof newLocation>[0]) => ReturnType<typeof newLocation>) => {
+      const out: { created: { id: string; name: string; kind: 'cabine' | 'painel' | 'coluna' } | null } = { created: null };
       void edit((_blocks, by, fresh) => {
-        if (parent !== null && !fresh.locations.some((row) => row.id === parent.id)) return null;
-        const row = newLocation(fresh.locations, { id: newId(), relatorioId, parentId: parent?.id ?? null });
+        if (parent !== null && !fresh.locations.some((row) => row.id === parent.id && row.removed_at === null)) return null;
+        const row = build(fresh.locations);
         out.created = { id: row.id, name: row.name, kind: row.kind };
         return [createLocationOp(by, relatorioId, row)];
       })
@@ -457,15 +468,58 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
             return;
           }
           if (parent !== null) host.reveal(parent.id);
+          // A new painel opens, so its "this painel has no coluna yet" note and "Adicionar coluna" are in view.
+          if (made.kind === 'painel') host.reveal(made.id);
           restoreFocus(() => locationChevron(host.root(), made.id), { mode: 'settled' });
-          // "Desfazer" removes the new location: the focus goes to its cabine's chevron, or to "Adicionar cabine".
+          // "Desfazer" removes the new location: the focus goes to its parent's chevron, or to "Adicionar local".
           undoable(addedText(made.kind, made.name), batch, () =>
-            locationChevron(host.root(), made.id) !== null ? null : parent !== null ? locationChevron(host.root(), parent.id) : host.addCabine(),
+            locationChevron(host.root(), made.id) !== null ? null : parent !== null ? locationChevron(host.root(), parent.id) : host.addLocal(),
           );
         })
         .catch(() => undefined);
     },
     [edit, relatorioId, showToast, t.locationGone, host, undoable],
+  );
+
+  const addLocation = useCallback(
+    (parent: TreeLocationNode, kind: 'painel' | 'coluna') => createLocation(parent, (locations) => newLocation(locations, { id: newId(), relatorioId, kind, parentId: parent.id })),
+    [createLocation, relatorioId],
+  );
+
+  const addLocal = useCallback(
+    (chosen: { funcao: string | null; name: string }) =>
+      createLocation(null, (locations) => newLocation(locations, { id: newId(), relatorioId, kind: 'cabine', parentId: null, name: chosen.name, funcao: chosen.funcao })),
+    [createLocation, relatorioId],
+  );
+
+  const updateLocal = useCallback(
+    (node: TreeLocationNode, chosen: { funcao: string | null; name: string }) => {
+      const out = { gone: false };
+      void edit((_blocks, by, fresh) => {
+        const row = fresh.locations.find((l) => l.id === node.id);
+        if (row === undefined || row.kind !== 'cabine') {
+          out.gone = true;
+          return null;
+        }
+        const ops: OpDraft[] = [];
+        // With no Função chosen (a local that held none), the stored one stays as it is.
+        if (chosen.funcao !== null && chosen.funcao !== (row.funcao ?? null)) ops.push(putFuncaoOp(by, relatorioId, node.id, chosen.funcao));
+        if (chosen.name !== row.name) ops.push(putLocationOp(by, relatorioId, node.id, 'name', chosen.name));
+        return ops.length === 0 ? null : ops;
+      })
+        .then((batch) => {
+          if (out.gone) {
+            showToast(t.locationGone);
+            return;
+          }
+          restoreFocus(() => locationChevron(host.root(), node.id), { mode: 'settled' });
+          const text = localUpdatedText(chosen.name);
+          if (batch !== null) announce(text);
+          undoable(text, batch, () => locationChevron(host.root(), node.id));
+        })
+        .catch(() => undefined);
+    },
+    [edit, relatorioId, host, undoable, announce, showToast, t.locationGone],
   );
 
   const renameLocation = useCallback(
@@ -486,11 +540,13 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
             return;
           }
           restoreFocus(() => locationChevron(host.root(), node.id), { mode: 'settled' });
-          undoable(renamedText(node.kind === 'cabine' ? 'cabine' : 'coluna', name), batch, () => locationChevron(host.root(), node.id));
+          const text = renamedText(node.kind, name);
+          if (batch !== null) announce(text);
+          undoable(text, batch, () => locationChevron(host.root(), node.id));
         })
         .catch(() => undefined);
     },
-    [edit, relatorioId, host, undoable, showToast, t.locationGone],
+    [edit, relatorioId, host, undoable, announce, showToast, t.locationGone],
   );
 
   const toggleAgrupar = useCallback(
@@ -517,8 +573,8 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
   );
 
   return useMemo(
-    () => ({ openSheet, moveBlock, moveLocation, moveToLocation, createBlock, removeBlock, duplicateBlock, renameTag, markNotTested, addLocation, renameLocation, toggleAgrupar }),
-    [openSheet, moveBlock, moveLocation, moveToLocation, createBlock, removeBlock, duplicateBlock, renameTag, markNotTested, addLocation, renameLocation, toggleAgrupar],
+    () => ({ openSheet, moveBlock, moveLocation, moveToLocation, createBlock, removeBlock, duplicateBlock, renameTag, markNotTested, addLocation, addLocal, updateLocal, renameLocation, toggleAgrupar }),
+    [openSheet, moveBlock, moveLocation, moveToLocation, createBlock, removeBlock, duplicateBlock, renameTag, markNotTested, addLocation, addLocal, updateLocal, renameLocation, toggleAgrupar],
   );
 }
 

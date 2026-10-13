@@ -104,7 +104,8 @@ describe('3.4 composer: quantities per node', () => {
     database = await freshDb(standardTemplate({ id: ID }));
     const { container } = renderComposer();
     await userEvent.click(await screen.findByRole('button', { name: /^Coluna 9/ }));
-    expect(within(palette()).getByText('Equipamentos · quantidade em Coluna 9')).toBeVisible();
+    // Story 14.2 (`.pal-target`): the palette names where it adds, the coluna with what holds it.
+    expect(palette().querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Coluna 9 · 1° Subsolo');
 
     const stepper = within(palette()).getByRole('group', { name: 'Seccionadoras, 0' });
     await userEvent.click(within(stepper).getByRole('button', { name: 'Mais um' }));
@@ -169,14 +170,39 @@ describe('3.4 composer: quantities per node', () => {
     expect(screen.queryByText('Não foi possível salvar. Tente de novo.')).toBeNull();
   });
 
-  it('a cabine made current holds blocks with no coluna, and lists them', async () => {
+  it('a local made current by "Adicionar equipamento" holds blocks with no coluna, and lists them under "Equipamentos no local"', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     const { container } = renderComposer();
-    await userEvent.click(await screen.findByRole('button', { name: /^Cubículo Enel/ }));
-    expect(within(palette()).getByText('Equipamentos · quantidade em Cubículo Enel')).toBeVisible();
-    expect(within(palette()).getByRole('group', { name: 'Para-raios, 2' })).toBeVisible();
-    const own = container.querySelector('.cabine-card.is-open > .block-expand > .col-body') as HTMLElement;
+    const card = (await screen.findByRole('button', { name: /^Local Cubículo Enel/ })).closest('li') as HTMLElement;
+    const add = within(card).getByRole('button', { name: 'Adicionar equipamento' });
+    expect(add).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(add);
+    // jsdom lays nothing out, so the inline palette counts as hidden and the drawer opens on the local.
+    const drawer = await screen.findByRole('dialog', { name: 'Cubículo Enel' });
+    expect(drawer.querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Cubículo Enel, direto no local');
+    expect(within(drawer).getByRole('group', { name: 'Para-raios, 2' })).toBeVisible();
+    // A new type lands on the local itself: one `blocks` put, the block's ref the local's.
+    const stepper = within(drawer).getByRole('group', { name: 'Transformadores, 0' });
+    await userEvent.click(within(stepper).getByRole('button', { name: 'Mais um' }));
+    await waitFor(() => expect(within(drawer).getByRole('group', { name: 'Transformadores, 1' })).toBeVisible());
+    const row = await templateRow(database, ID);
+    expect(row!.blocks.filter((b) => b.block_type === 'transformador_forca' && b.skeleton_location_ref === 'enel').map((b) => b.quantity)).toEqual([1]);
+    expect(await outboxPaths()).toEqual([`template/${ID}/blocks`]);
+
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(add).toHaveAttribute('aria-pressed', 'true');
+    expect(card).toHaveClass('is-current');
+    expect(palette().querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Cubículo Enel, direto no local');
+    const own = container.querySelector('.local-card.is-current > .block-expand > .loc-direct') as HTMLElement;
+    expect(within(own).getByText('Equipamentos no local')).toBeVisible();
     expect(within(own).getByRole('group', { name: 'Para-raios, 2' })).toBeVisible();
+    expect(within(own).getByRole('group', { name: 'Transformadores, 1' })).toBeVisible();
+    // A second press releases the local: the palette asks for a target again.
+    await userEvent.click(add);
+    expect(add).toHaveAttribute('aria-pressed', 'false');
+    expect(card).not.toHaveClass('is-current');
+    expect(palette().querySelector('.pal-target')).toHaveTextContent('Selecione um local ou uma coluna.');
   });
 });
 
@@ -239,7 +265,7 @@ describe('3.4 composer: concurrent edits', () => {
     const row = templateRowSchema.parse({ ...base, blocks: [...base.blocks, orphan] });
     database = await freshDb(row);
     renderComposer();
-    expect(await screen.findByRole('heading', { level: 2, name: 'Esqueleto de locais · 6 cabines · 17 colunas · 94 blocos' })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Esqueleto de locais · 6 locais · 17 colunas · 94 blocos' })).toBeVisible();
 
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de 1 Objetivo' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Descer' }));

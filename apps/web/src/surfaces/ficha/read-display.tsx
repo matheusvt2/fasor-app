@@ -76,7 +76,7 @@ import type { CaptureTarget } from './use-photo-capture.ts';
  * - The opener on each Measurement table's title row opens the burst camera; each shot is a
  *   sheet photo created with the display reading of one row (`displayCellTarget`), the hint
  *   naming the next row, until "Concluir" or the sheet's last row. The thermo-hygrometer's
- *   opener in "Da cabine" takes one shot of the cabine's environment.
+ *   opener in "Do local" takes one shot of the cabine's environment.
  * - Until its reading runs the start cell shows "Foto guardada — leitura quando houver sinal"
  *   and stays typeable.
  * - A reading on an empty cell is a suggested (or "Verificar") cell: its crop, the editable

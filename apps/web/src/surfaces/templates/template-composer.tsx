@@ -1,18 +1,23 @@
 import {
   addCabine,
   addColuna,
+  addedText,
+  addPainel,
   addSection,
   addSectionBelow,
   composerView,
-  defaultCabineName,
   defaultColunaName,
+  defaultPainelName,
   defaultSectionText,
   duplicateSection,
   EQUIPMENT_BLOCK_TYPES,
   findComposerNode,
+  localUpdatedText,
   moveAnnouncement,
   moveNode,
+  paletteTargetText,
   removedText,
+  renamedText,
   moveSection,
   removeNode,
   removeSection,
@@ -21,6 +26,7 @@ import {
   isSectionBlockType,
   SECTION_BLOCK_TYPES,
   setAgruparPorTipo,
+  setFuncao,
   setQuantity,
   sameRichText,
   setSectionText,
@@ -29,7 +35,10 @@ import {
   totalsText,
   typeConfigFor,
   withoutOrphans,
+  type ComposerBlockNode,
+  type ComposerCabine,
   type ComposerNode,
+  type ComposerPainel,
   type ComposerSection,
   type EquipmentBlockType,
   type OpDraft,
@@ -52,6 +61,7 @@ import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
 import { BlockPaletteContent, PaletteDrawer, sectionName } from './block-palette.tsx';
+import { LocalDialog, type LocalDialogResult } from './local-dialog.tsx';
 import { SectionList } from './section-list.tsx';
 import { SectionTextDialog } from './section-text-dialog.tsx';
 import { SkeletonList } from './skeleton-list.tsx';
@@ -87,7 +97,7 @@ export function TemplateComposerSurface() {
 
 type Confirming = { title: string; body: string; run: () => Promise<void> };
 
-/** A reorderable row's Overflow trigger (a cabine card's, a coluna row's, a section card's). */
+/** A reorderable row's Overflow trigger (a local or painel card's, a coluna row's, a section card's). */
 const overflowOf = (row: Element | undefined): HTMLElement | null =>
   row?.querySelector<HTMLElement>(':scope > .overflow-trigger, :scope > .col-line > .overflow-trigger') ?? null;
 
@@ -95,7 +105,7 @@ const overflowOf = (row: Element | undefined): HTMLElement | null =>
  * Names where the focus goes once the row `li` has left its list: the Overflow the Confirm
  * dialog returned the focus to leaves with it, which would drop the focus to `<body>`. The
  * row now at its place takes it, else the one before it, else `fallback` (the list's
- * heading, or the cabine a coluna belonged to).
+ * heading, or the card a painel or a coluna belonged to).
  */
 function focusRowAfterRemoval(li: HTMLElement | null, fallback: HTMLElement | null): void {
   focusAfterRemoval(li, { focusOf: overflowOf, fallback: () => fallback, frames: LIST_FOCUS_WATCH_FRAMES, once: true });
@@ -119,11 +129,15 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   const edits = useUndoableEdits();
   const view = useMemo(() => composerView(row), [row]);
   const [currentRef, setCurrentRef] = useState<string | null>(null);
-  const current = findComposerNode(view, currentRef);
+  // The palette's target is a local or a coluna, never a painel (it takes no block).
+  const found = findComposerNode(view, currentRef);
+  const current: ComposerBlockNode | null = found === null || found.kind === 'painel' ? null : found;
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [insertBelow, setInsertBelow] = useState<ComposerSection | null>(null);
   const [confirming, setConfirming] = useState<Confirming | null>(null);
   const [renaming, setRenaming] = useState<ComposerNode | null>(null);
+  // Story 14.2: the Função dialog, adding a local or editing one ("Função e nome").
+  const [localDialog, setLocalDialog] = useState<{ mode: 'add' } | { mode: 'edit'; node: ComposerCabine } | null>(null);
   const [editingType, setEditingType] = useState<EquipmentBlockType | null>(null);
   const [editingText, setEditingText] = useState<ComposerSection | null>(null);
   const [announcement, setAnnouncement] = useState('');
@@ -188,53 +202,115 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
       }).then(() => undefined),
   });
 
-  // --- skeleton ----------------------------------------------------------------------
-  const cabineOf = (node: ComposerNode | null): string | null =>
-    node === null ? null : node.kind === 'cabine' ? node.ref : node.parent_ref;
-  const targetCabine = cabineOf(current);
-  const addColunaReason =
-    view.cabines.length === 0 ? copy.composer.addColunaNoCabine : targetCabine === null ? copy.composer.selectNode : undefined;
-
-  function onAddCabine(): void {
-    const ref = newId();
-    void edit((fresh) => [['skeleton', addCabine(fresh.skeleton, ref, defaultCabineName(composerView(fresh).cabineCount + 1))]])
+  // --- skeleton (Story 14.2: Local › Painel › Coluna) ----------------------------------
+  /** "Adicionar local" and "Função e nome": the Função dialog's answer, one `skeleton` put. */
+  function onSubmitLocal(result: LocalDialogResult): void {
+    const dialog = localDialog;
+    setLocalDialog(null);
+    if (dialog === null) return;
+    if (dialog.mode === 'add') {
+      const ref = newId();
+      void edit((fresh) => [['skeleton', addCabine(fresh.skeleton, ref, result.name, result.funcao)]])
+        .then((batch) => {
+          if (batch === null) return;
+          // The new local is the palette's target: equipment goes directly on it until a painel is added.
+          setCurrentRef(ref);
+          announce(addedText('cabine', result.name));
+        })
+        .catch(() => undefined);
+      return;
+    }
+    const ref = dialog.node.ref;
+    void edit((fresh) => {
+      const node = fresh.skeleton.find((n) => n.ref === ref);
+      if (node === undefined || node.kind !== 'cabine') throw new TemplateTargetGoneError(`template skeleton has no local "${ref}"`);
+      let skeleton = fresh.skeleton;
+      // With no Função chosen (a local that held none), the Função stays as it is.
+      if (result.funcao !== null && result.funcao !== (node.funcao ?? null)) skeleton = setFuncao(skeleton, ref, result.funcao);
+      if (result.name !== node.name) skeleton = renameNode(skeleton, ref, result.name);
+      return skeleton === fresh.skeleton ? null : [['skeleton', skeleton]];
+    })
       .then((batch) => {
-        if (batch !== null) setCurrentRef(ref);
+        if (batch === null) return;
+        const text = localUpdatedText(result.name);
+        announce(text);
+        undoable(text, batch);
       })
       .catch(() => undefined);
   }
 
-  function onAddColuna(): void {
-    if (targetCabine === null) return;
+  /** "Adicionar equipamento" on a local: it becomes the palette's target (a second press releases it). */
+  function onAddEquipamento(local: ComposerCabine): void {
+    if (currentRef === local.ref) {
+      setCurrentRef(null);
+      return;
+    }
+    setCurrentRef(local.ref);
+    // From 1024 px the palette sits beside the composition (CSS alone decides); below, it is
+    // hidden, so the drawer opens on the local it now adds to.
+    const first = firstSection.current;
+    if (first === null || first.offsetParent === null) setPaletteOpen(true);
+  }
+
+  function onAddPainel(local: ComposerCabine): void {
     const ref = newId();
-    const cabine = targetCabine;
+    let name = '';
     void edit((fresh) => {
-      const count = composerView(fresh).cabines.find((c) => c.ref === cabine)?.colunas.length ?? 0;
-      return [['skeleton', addColuna(fresh.skeleton, cabine, ref, defaultColunaName(count + 1))]];
+      const count = composerView(fresh).cabines.find((c) => c.ref === local.ref)?.paineis.length ?? 0;
+      name = defaultPainelName(count + 1);
+      return [['skeleton', addPainel(fresh.skeleton, local.ref, ref, name)]];
     })
       .then((batch) => {
-        if (batch !== null) setCurrentRef(ref);
+        if (batch !== null) announce(addedText('painel', name));
+      })
+      .catch(() => undefined);
+  }
+
+  /** "Adicionar coluna" of a painel, or of a local that already holds colunas directly. */
+  function onAddColuna(parent: ComposerCabine | ComposerPainel): void {
+    const ref = newId();
+    let name = '';
+    void edit((fresh) => {
+      const node = findComposerNode(composerView(fresh), parent.ref);
+      const count = node === null || node.kind === 'coluna' ? 0 : node.colunas.length;
+      name = defaultColunaName(count + 1);
+      return [['skeleton', addColuna(fresh.skeleton, parent.ref, ref, name)]];
+    })
+      .then((batch) => {
+        if (batch === null) return;
+        // The new coluna is open: the palette adds to it.
+        setCurrentRef(ref);
+        announce(addedText('coluna', name));
       })
       .catch(() => undefined);
   }
 
   async function onMoveNode(node: ComposerNode, toIndex: number): Promise<void> {
     const batch = await edit((fresh) => [['skeleton', moveNode(fresh.skeleton, node.ref, toIndex)]]).catch(() => null);
-    if (batch !== null) announce(moveAnnouncement(node.kind, node.name, toIndex + 1, node.siblings));
+    if (batch === null) return;
+    const text = moveAnnouncement(node.kind, node.name, toIndex + 1, node.siblings);
+    announce(text);
+    undoable(text, batch);
+  }
+
+  /** "Renomear" of a painel or a coluna; a local's rename is "Função e nome" (the Função dialog). */
+  function onRenameNode(node: ComposerNode): void {
+    if (node.kind === 'cabine') setLocalDialog({ mode: 'edit', node });
+    else setRenaming(node);
   }
 
   function onRemoveNode(node: ComposerNode): void {
     setConfirming({
       title: copy.composer.removeConfirmTitle(node.name),
-      body: node.kind === 'cabine' ? copy.composer.removeCabineBody : copy.composer.removeColunaBody,
+      body: node.kind === 'cabine' ? copy.composer.removeLocalBody : node.kind === 'painel' ? copy.composer.removePainelBody : copy.composer.removeColunaBody,
       run: async () => {
         const li =
           mainRef.current?.querySelector<HTMLElement>(`[data-composer-list="skeleton"] [data-reorder-key="${CSS.escape(node.ref)}"]`) ?? null;
-        // A cabine's list is the skeleton (its heading last); a coluna's is its cabine's.
+        // A local's list is the skeleton (its heading last); a painel's or a coluna's is the card it sits in.
         const fallback =
           node.kind === 'cabine'
             ? (li?.closest('section')?.querySelector<HTMLElement>('h2') ?? null)
-            : (li?.closest('.cabine-card')?.querySelector<HTMLElement>(':scope > .block-body') ?? null);
+            : (li?.parentElement?.closest('.block-card')?.querySelector<HTMLElement>(':scope > .block-body') ?? null);
         const batch = await edit((fresh) => {
           const next = removeNode(fresh, node.ref);
           return [
@@ -394,6 +470,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
 
   const paletteProps = {
     current,
+    targetText: current === null ? null : paletteTargetText(view, current),
     placedTypes,
     onEditDefaults: setEditingType,
     onAddSection,
@@ -451,12 +528,13 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
               void edit((fresh) => [['skeleton', setAgruparPorTipo(fresh.skeleton, ref, value)]]).catch(() => undefined)
             }
             onMove={onMoveNode}
-            onRename={setRenaming}
+            onRename={onRenameNode}
             onRemove={onRemoveNode}
             onSetQuantity={onSetQuantity}
-            onAddCabine={onAddCabine}
+            onAddLocal={() => setLocalDialog({ mode: 'add' })}
+            onAddEquipamento={onAddEquipamento}
+            onAddPainel={onAddPainel}
             onAddColuna={onAddColuna}
-            addColunaReason={addColunaReason}
           />
 
           <SectionList
@@ -525,10 +603,26 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
           node={renaming}
           onClose={() => setRenaming(null)}
           onSave={(value) => {
-            const ref = renaming.ref;
+            const { ref, kind } = renaming;
             setRenaming(null);
-            void edit((fresh) => [['skeleton', renameNode(fresh.skeleton, ref, value)]]).catch(() => undefined);
+            void edit((fresh) => [['skeleton', renameNode(fresh.skeleton, ref, value)]])
+              .then((batch) => {
+                if (batch === null) return;
+                const text = renamedText(kind, value);
+                announce(text);
+                undoable(text, batch);
+              })
+              .catch(() => undefined);
           }}
+        />
+      )}
+
+      {localDialog === null ? null : (
+        <LocalDialog
+          mode={localDialog.mode}
+          {...(localDialog.mode === 'edit' ? { initial: { funcao: localDialog.node.funcao, name: localDialog.node.name } } : {})}
+          onClose={() => setLocalDialog(null)}
+          onSubmit={onSubmitLocal}
         />
       )}
     </>
@@ -536,7 +630,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
 }
 
 /**
- * A cabine's or a coluna's "Renomear": one "Nome" field. E3-A9: a blank name is refused with
+ * A painel's or a coluna's "Renomear": one "Nome" field (a local's is "Função e nome", the Função dialog). E3-A9: a blank name is refused with
  * "Informe o nome" under the field and the dialog stays open; the name is unchanged.
  */
 function RenameDialog({ node, onClose, onSave }: { node: ComposerNode; onClose: () => void; onSave: (name: string) => void }) {

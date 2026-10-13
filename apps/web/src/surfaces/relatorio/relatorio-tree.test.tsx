@@ -178,9 +178,11 @@ describe('4.4 location tree (Sumário presentation)', () => {
     database = await seeded();
     const { container } = renderAt(`/relatorio/${RELATORIO}`);
     const list = await screen.findByRole('list', { name: 'Locais do relatório' });
-    const cabines = [...list.querySelectorAll<HTMLElement>(':scope > li.s9-cabine')];
-    expect(cabines.map((li) => li.querySelector('.s9-cab-name')?.textContent)).toEqual(['Cabine de Testes', 'Cabine Vazia']);
-    expect(cabines[0]!.querySelector('.s9-cab-meta')).toHaveTextContent('ALVENARIA - CONVENCIONAL · 13,8 kV · 20 °C · 60 %');
+    const cabines = [...list.querySelectorAll<HTMLElement>(':scope > li.s9-local')];
+    expect(cabines.map((li) => li.querySelector('.s9-loc-name')?.textContent)).toEqual(['Cabine de Testes', 'Cabine Vazia']);
+    expect(cabines[0]!.querySelector('.s9-loc-meta')).toHaveTextContent('ALVENARIA - CONVENCIONAL · 13,8 kV · 20 °C · 60 %');
+    // Story 14.2: a local nothing hangs under closes its line with "sem painéis".
+    expect(cabines[1]!.querySelector('.s9-loc-meta')).toHaveTextContent('ALVENARIA - CONVENCIONAL · 13,8 kV · 20 °C · 60 % · sem painéis');
     expect(cabines[0]!.querySelector('.progress-counter')).toHaveTextContent('1 de 4');
     expect(cabines[1]!.querySelector('.progress-counter')).toHaveTextContent('0 de 0');
     // Collapsed: no children drawn.
@@ -191,6 +193,11 @@ describe('4.4 location tree (Sumário presentation)', () => {
     await userEvent.click(chevron);
     expect(within(cabines[0]!).getByRole('button', { name: 'Recolher Cabine de Testes' })).toHaveAttribute('aria-expanded', 'true');
     expect(tags(cabines[0]!)).toEqual(['SEC-TEST', 'DJ-TEST', 'TR-TEST']);
+    // Story 14.2: the local's own sheets sit under "Equipamentos no local", with their own counter.
+    const direct = cabines[0]!.querySelector(':scope > .s9-col-direct')!;
+    expect(direct).toHaveTextContent('Equipamentos no local');
+    expect(direct.querySelector('.s9-col-meta')).toHaveTextContent('1 de 3');
+    expect(within(cabines[0]!).getByRole('list', { name: 'Equipamentos direto em Cabine de Testes' })).toHaveClass('s9-eqs');
     // The coluna opens with its cabine.
     const coluna = cabines[0]!.querySelector<HTMLElement>('li.s9-coluna')!;
     expect(coluna).toHaveClass('is-open');
@@ -207,9 +214,10 @@ describe('4.4 location tree (Sumário presentation)', () => {
     expect(state(SEC_C01)).toHaveTextContent('○ Vazia');
     for (const blockId of [SEC_TEST, DJ_TEST, SEC_C01]) expect(state(blockId).querySelector('[aria-hidden="true"]')?.textContent).toMatch(/^[✓●○⊘]$/);
     expect(eqRow(SEC_TEST).querySelector('.s9-eq-name')).toHaveTextContent('Chave seccionadora');
-    // "Adicionar bloco em ⟨cabine⟩" under the open cabine; "Adicionar cabine" at the foot.
+    // A local that holds a coluna directly keeps "Adicionar bloco em ⟨local⟩" (its current coluna); "Adicionar local" at the foot.
     expect(within(cabines[0]!).getByRole('button', { name: 'Adicionar bloco em Cabine de Testes' })).toHaveClass('s9-add');
-    expect(screen.getByRole('button', { name: 'Adicionar cabine' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Adicionar local' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Adicionar cabine' })).toBeNull();
     // Story 11.2: "Mover para…" lives in the equipment Overflow only, never drawn on the row.
     expect(screen.queryByText(/Mover para/)).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
@@ -255,20 +263,22 @@ describe('4.4 location tree (Sumário presentation)', () => {
       await userEvent.keyboard('{Escape}');
       return labels;
     };
+    // Story 14.2 (`#sum-menu-local`): a local that already holds a coluna directly keeps its "Adicionar coluna".
     expect(await itemsOf('Mais opções de Cabine de Testes')).toEqual([
-      'Abrir primeira ficha (dados da cabine)',
+      'Abrir primeira ficha (dados do local)',
       'Agrupar por tipo na seção 9',
-      'Adicionar bloco',
+      'Adicionar equipamento',
+      'Adicionar painel',
       'Adicionar coluna',
-      'Renomear',
+      'Função e nome',
       'Descer',
     ]);
-    expect(await itemsOf('Mais opções de Cabine Vazia')).toEqual(['Agrupar por tipo na seção 9', 'Adicionar bloco', 'Adicionar coluna', 'Renomear', 'Subir']);
+    expect(await itemsOf('Mais opções de Cabine Vazia')).toEqual(['Agrupar por tipo na seção 9', 'Adicionar equipamento', 'Adicionar painel', 'Função e nome', 'Subir']);
     expect(await itemsOf('Mais opções de Coluna 1')).toEqual(['Adicionar bloco', 'Renomear']);
     expect(await itemsOf('Mais opções de DJ-TEST')).toEqual(['Adicionar abaixo', 'Subir', 'Descer', 'Mover para…', 'Duplicar', 'Renomear TAG', 'Remover']);
 
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Abrir primeira ficha (dados do local)' }));
     // Story 5.1: the cabine's first sheet opens, and it is the last sheet worked on here.
     expect(await screen.findByTestId('ficha-probe')).toHaveTextContent(SEC_TEST);
     await waitFor(async () => expect((await database!.local_prefs.get(LAST_SHEET_PREF(RELATORIO)))?.value).toBe(SEC_TEST));
@@ -286,7 +296,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
     await userEvent.click(toggle);
     await waitFor(() => expect(announcer()).toHaveTextContent('Agrupar por tipo ativado em Cabine de Testes'));
     expect(await outbox()).toEqual([expect.objectContaining({ path: `location/${CABINE}/agrupar_por_tipo`, kind: 'put', value: true, scope: 'relatorio' })]);
-    await waitFor(() => expect(tree().querySelector('.s9-cab-meta')).toHaveTextContent('agrupar por tipo'));
+    await waitFor(() => expect(tree().querySelector('.s9-loc-meta')).toHaveTextContent('agrupar por tipo'));
   });
 
   it('moves a block by Position box (clamped), Alt+Arrow and Overflow, one order_key op each, announced with Desfazer', async () => {
@@ -296,7 +306,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
     await userEvent.clear(box);
     await userEvent.type(box, '9{Enter}');
     await waitFor(() => expect(announcer()).toHaveTextContent('SEC-TEST movido para a posição 3 de 3'));
-    await waitFor(() => expect(tags(tree().querySelector('li.s9-cabine')!)).toEqual(['DJ-TEST', 'TR-TEST', 'SEC-TEST']));
+    await waitFor(() => expect(tags(tree().querySelector('li.s9-local')!)).toEqual(['DJ-TEST', 'TR-TEST', 'SEC-TEST']));
     await waitFor(() => expect(document.querySelector('.toast')).toHaveTextContent('SEC-TEST movido para a posição 3 de 3'));
     expect(screen.getByRole('button', { name: 'Desfazer' })).toBeInTheDocument();
     let ops = await outbox();
@@ -328,7 +338,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
     eqRow(SEC_TEST).querySelector<HTMLElement>('.s9-eq-open')!.focus();
     await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}');
     await waitFor(() => expect(announcer()).toHaveTextContent('SEC-TEST movido para a posição 2 de 3'), { timeout: SETTLE_TIMEOUT_MS / 2 });
-    expect(tags(tree().querySelector('li.s9-cabine')!)).toEqual(['DJ-TEST', 'SEC-TEST', 'TR-TEST']);
+    expect(tags(tree().querySelector('li.s9-local')!)).toEqual(['DJ-TEST', 'SEC-TEST', 'TR-TEST']);
     expect(document.querySelector('.toast')).toHaveTextContent('SEC-TEST movido para a posição 2 de 3');
   });
 
@@ -361,7 +371,12 @@ describe('4.4 rail presentation (/relatorio/:id/arvore)', () => {
     expect(rail.textContent).not.toContain('Objetivo');
     await userEvent.click(within(rail).getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
     const menu = await screen.findByRole('menu');
-    expect([...menu.querySelectorAll('[role^="menuitem"]')].map((i) => i.textContent)).toEqual(['Abrir primeira ficha (dados da cabine)', 'Agrupar por tipo na seção 9']);
+    expect([...menu.querySelectorAll('[role^="menuitem"]')].map((i) => i.textContent)).toEqual(['Abrir primeira ficha (dados do local)', 'Agrupar por tipo na seção 9']);
+    // Story 14.2: the rail line of each level is the kernel's.
+    const metaOf = (name: string) => [...rail.querySelectorAll<HTMLElement>('.tree-row')].find((row) => row.querySelector('.tree-body > span')?.textContent === name)!.querySelector('.tree-meta')!.textContent;
+    expect(metaOf('Cabine de Testes')).toBe('Local · 1 coluna · 1 de 4 fichas');
+    expect(metaOf('Cabine Vazia')).toBe('Local · sem painéis · 0 de 0 fichas');
+    expect(metaOf('Coluna 1')).toBe('0 de 1');
     await userEvent.keyboard('{Escape}');
 
     const body = container.querySelector('.arvore-body')!;

@@ -58,36 +58,57 @@
 [data-route="/relatorio/:id"] .sum-pos-empty { display: block; }
 /* section 9: the mock's `<li class="sum-row sum-s9" style="display:block">` */
 [data-route="/relatorio/:id"] .sum-s9 { display: block; padding: 0; }
-/* the mock draws a closed cabine's rule in hairline (inline `border-left-color`); only the open one is `primary` */
-[data-route="/relatorio/:id"] .sum-s9 .s9-cabine:not(.is-open) { border-left-color: var(--border-hairline); }
+/* Story 14.2 (`40-relatorio-overview.html`): "Painel row: mirrors components.css `.sum-s9 .s9-cabine`
+   (the open rule on the left), declarations copied; the class is new because the cabine is now the local". */
+[data-route="/relatorio/:id"] .sum-s9 .s9-painel { border-left: var(--sum-open-rule); margin-left: var(--sp-5); padding-left: var(--sp-3); }
+/* authored, carried from the cabine row of `key-relatorio-overview-v09.html` (a closed row's rule
+   in hairline, inline `border-left-color`): only the open painel's rule is `primary`. */
+[data-route="/relatorio/:id"] .sum-s9 .s9-painel:not(.is-open) { border-left-color: var(--border-hairline); }
 [data-route="/relatorio/:id"] .sum-s9-head { display: flex; align-items: center; gap: var(--sp-2); min-height: 64px; padding: var(--sp-2) var(--sp-3) var(--sp-2) 0; }
 [data-route="/relatorio/:id"] .sum-s9-head .tree-chevron { flex: none; }
 [data-route="/relatorio/:id"] .sum-s9 .tree-chevron .ico { transition: transform .15s; transform: rotate(-90deg); }
 [data-route="/relatorio/:id"] .sum-s9.is-open > .sum-s9-head .tree-chevron .ico,
-[data-route="/relatorio/:id"] .s9-cabine.is-open > .s9-cab-row .tree-chevron .ico { transform: none; }
-[data-route="/relatorio/:id"] .s9-cabine .tree-chevron .ico { transition: transform .15s; transform: rotate(-90deg); }
+[data-route="/relatorio/:id"] .s9-painel.is-open > .s9-pnl-row .tree-chevron .ico { transform: none; }
+[data-route="/relatorio/:id"] .s9-painel .tree-chevron .ico { transition: transform .15s; transform: rotate(-90deg); }
 [data-route="/relatorio/:id"] .s9-note, [data-route="/relatorio/:id"] .s9-tree { display: none; }
 [data-route="/relatorio/:id"] .sum-s9.is-open > .s9-note, [data-route="/relatorio/:id"] .sum-s9.is-open > .s9-tree { display: block; }
 [data-route="/relatorio/:id"] .s9-note { margin: 0 var(--sp-4) var(--sp-2) 104px; font-size: var(--t-meta-size); color: var(--ink-secondary); }
-/* v0.9: the tree starts flush; each cabine carries its own 24 px inset and rule (`.sum-s9 .s9-cabine`, the mock's inline `.s9-tree { padding: 0 }`) */
-[data-route="/relatorio/:id"] .s9-tree { list-style: none; margin: 0; padding: 0 0 var(--sp-2) 0; }
-[data-route="/relatorio/:id"] .s9-cab-row { display: flex; align-items: center; gap: var(--sp-2); min-height: 56px; padding-right: var(--sp-3); border-top: 1px solid var(--border-hairline); }
-[data-route="/relatorio/:id"] .s9-cab-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-[data-route="/relatorio/:id"] .s9-cab-name { font-weight: 600; }
-[data-route="/relatorio/:id"] .s9-cab-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+/* Story 14.2 (`40-relatorio-overview.html`, redrawn 2026-10-10): the tree is inset once and the
+   local rows carry no rule; each painel under them carries the open rule (`.sum-s9 .s9-painel`). */
+[data-route="/relatorio/:id"] .s9-tree { list-style: none; margin: 0; padding: 0 0 var(--sp-2) 40px; }
+[data-route="/relatorio/:id"] .s9-pnl-row { display: flex; align-items: center; gap: var(--sp-2); min-height: 56px; padding-right: var(--sp-3); border-top: 1px solid var(--border-hairline); }
+[data-route="/relatorio/:id"] .s9-pnl-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+[data-route="/relatorio/:id"] .s9-pnl-name { font-weight: 600; }
+[data-route="/relatorio/:id"] .s9-pnl-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+/* Local level (2026-10-10, Local › Painel › Coluna): the local row carries its name and a meta line
+   that opens with the Função; its direct equipment and its painéis indent one step under it. */
+[data-route="/relatorio/:id"] .s9-loc-row { display: flex; align-items: center; gap: var(--sp-2); min-height: 64px; padding-right: var(--sp-3); border-top: 1px solid var(--border-hairline); }
+[data-route="/relatorio/:id"] .s9-tree > .s9-local:first-child > .s9-loc-row { border-top: 0; }
+[data-route="/relatorio/:id"] .s9-loc-body { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; padding-top: var(--sp-2); }
+[data-route="/relatorio/:id"] .s9-loc-name { font-weight: 700; }
+[data-route="/relatorio/:id"] .s9-loc-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/relatorio/:id"] .s9-local .tree-chevron .ico { transition: transform .15s; transform: rotate(-90deg); }
+[data-route="/relatorio/:id"] .s9-local.is-open > .s9-loc-row .tree-chevron .ico { transform: none; }
+[data-route="/relatorio/:id"] .s9-pnls { display: none; list-style: none; margin: 0; padding: 0 0 var(--sp-1) var(--sp-5); }
+[data-route="/relatorio/:id"] .s9-local.is-open > .s9-pnls { display: block; }
+/* authored: the mock's `.s9-loc-body` top padding makes room for the "Verificações do local" line
+   under the meta (Story 14.3); until that line exists the same space closes the row at the bottom. */
+[data-route="/relatorio/:id"] .s9-loc-body { padding-bottom: var(--sp-2); }
 [data-route="/relatorio/:id"] .sum-here { font-size: var(--t-meta-size); color: var(--primary); font-weight: 600; }
 /* status-driven: Em revisão -> section 9 collapsed, rows with pendências lead the eye */
 [data-route="/relatorio/:id"] .sumario.is-review .sum-row:not(.has-pend) .sum-title { font-weight: 400; color: var(--ink-secondary); }
 [data-route="/relatorio/:id"] .sumario.is-review .sum-row.has-pend { background: var(--surface-base); }
 /* Playwright sweep fixes (2026-09-21): hit areas and phone layout of the Sumário */
-[data-route="/relatorio/:id"] .sum-s9 .tree-chevron, [data-route="/relatorio/:id"] .s9-cabine .tree-chevron { width: var(--touch-min); height: 56px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
-/* authored: a collapsed cabine holding the last sheet takes the mock's `.s9-eq.is-current` look,
-   since its row is not drawn; once open, the sheet's own row carries it (Story 4.4). */
-[data-route="/relatorio/:id"] .s9-cabine.is-current:not(.is-open) > .s9-cab-row { background: var(--focus-fill); box-shadow: inset 4px 0 0 var(--primary); }
-/* ---------- section 9's location tree (Stories 4.4, 4.5; 40-relatorio-overview.html) ---------- */
+[data-route="/relatorio/:id"] .sum-s9 .tree-chevron, [data-route="/relatorio/:id"] .s9-painel .tree-chevron, [data-route="/relatorio/:id"] .s9-local .tree-chevron { width: var(--touch-min); height: 56px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+/* authored: a collapsed local or painel holding the last sheet takes the mock's `.s9-eq.is-current`
+   look, since its row is not drawn; once open, the sheet's own row carries it (Story 4.4). */
+[data-route="/relatorio/:id"] .s9-local.is-current:not(.is-open) > .s9-loc-row,
+[data-route="/relatorio/:id"] .s9-painel.is-current:not(.is-open) > .s9-pnl-row { background: var(--focus-fill); box-shadow: inset 4px 0 0 var(--primary); }
+/* ---------- section 9's location tree (Stories 4.4, 4.5, 14.2; 40-relatorio-overview.html) ---------- */
 [data-route="/relatorio/:id"] .s9-eqs, [data-route="/relatorio/:id"] .s9-add { display: none; }
-[data-route="/relatorio/:id"] .s9-cabine.is-open > .s9-eqs { display: block; }
-[data-route="/relatorio/:id"] .s9-cabine.is-open > .s9-add { display: inline-flex; margin: 0 0 var(--sp-2) 72px; }
+[data-route="/relatorio/:id"] .s9-painel.is-open > .s9-eqs, [data-route="/relatorio/:id"] .s9-local.is-open > .s9-eqs { display: block; }
+[data-route="/relatorio/:id"] .s9-painel.is-open > .s9-add, [data-route="/relatorio/:id"] .s9-local.is-open > .s9-add { display: inline-flex; margin: 0 0 var(--sp-2) 72px; }
+[data-route="/relatorio/:id"] .s9-local.is-open > .s9-add { margin-left: 48px; }
 [data-route="/relatorio/:id"] .s9-eqs { list-style: none; margin: 0; padding: 0 var(--sp-3) 0 48px; }
 [data-route="/relatorio/:id"] .s9-col { padding: var(--sp-2) 0 var(--sp-1); font-size: var(--t-label-size); font-weight: 600; color: var(--ink-secondary); }
 [data-route="/relatorio/:id"] .s9-col-meta { font-weight: 400; margin-left: var(--sp-2); }
@@ -100,9 +121,10 @@
 /* authored (DESIGN.md › Relatório tree): the fourth state, ⊘ Não ensaiada in `nao-ensaiado`; the mock draws three. */
 [data-route="/relatorio/:id"] .s9-state[data-state="nao-ensaiada"] { color: var(--nao-ensaiado); }
 /* authored (DESIGN.md › Relatório tree wins over the mock's compact list): every row is 56 px
-   tall, indented 24 px per level (two levels drawn; a deeper one indents as the second), and
-   each chevron is a 48×56 px target apart from the row body. The mock's `.s9-col` is a
-   heading line; here a coluna is a row with its chevron, counter and Overflow. */
+   tall, indented 24 px per level (Story 14.2: three levels drawn, local › painel › coluna; a
+   deeper one indents as the last), and each chevron is a 48×56 px target apart from the row
+   body. The mock's `.s9-col` is a heading line; here a coluna is a row with its chevron,
+   counter and Overflow. */
 [data-route="/relatorio/:id"] .s9-eqs, [data-route="/relatorio/:id"] .s9-cols { list-style: none; margin: 0; padding: 0 0 0 24px; }
 [data-route="/relatorio/:id"] .s9-coluna.is-open > .s9-eqs { display: block; }
 [data-route="/relatorio/:id"] .s9-coluna[data-level="2"] > .s9-eqs, [data-route="/relatorio/:id"] .s9-coluna[data-level="2"] > .s9-cols { padding-left: 0; }
@@ -111,6 +133,27 @@
 [data-route="/relatorio/:id"] .s9-coluna.is-open > .s9-col .tree-chevron .ico { transform: none; }
 [data-route="/relatorio/:id"] .s9-col { display: flex; align-items: center; gap: var(--sp-2); min-height: 56px; padding: 0 var(--sp-3) 0 0; }
 [data-route="/relatorio/:id"] .s9-col-name { flex: 1; min-width: 0; color: var(--ink-primary); }
+/* authored (Story 14.2): inside a painel the coluna list is flush with the painel's own inset
+   (its rule and padding are the level's indent), and a coluna's sheets indent one step under it. */
+[data-route="/relatorio/:id"] .s9-painel > .s9-cols { padding-left: 0; }
+[data-route="/relatorio/:id"] .s9-painel > .s9-cols > .s9-coluna > .s9-eqs { padding-left: 24px; }
+/* authored (Story 14.2): "Equipamentos no local", the mock's `.s9-col` heading line over a local's own
+   sheets. It is a paragraph before the list, not an item of it (the list holds only the rows that
+   reorder), at the list's own inset so it reads as the heading of the rows under it. */
+[data-route="/relatorio/:id"] .s9-col.s9-col-direct { margin: 0; min-height: 40px; padding-left: calc(24px + var(--sp-3)); }
+[data-route="/relatorio/:id"] .s9-col.s9-col-direct .s9-col-name { flex: none; color: inherit; }
+[data-route="/relatorio/:id"] .s9-local:not(.is-open) > .s9-col-direct { display: none; }
+/* authored (Story 14.2; EXPERIENCE.md › Relatório tree: order is set by "drag, Position box, Overflow
+   menu, or Alt+↑/↓"): a local, painel or coluna row carries the drag handle and the Position box
+   (`.s9-pos`, borderless until hover or focus as the sheet rows' is) between its chevron and its
+   body; the mock draws neither on a location row. A row being dragged rises above its siblings. */
+[data-route="/relatorio/:id"] .s9-loc-row > .drag-handle, [data-route="/relatorio/:id"] .s9-loc-row > .pos-box,
+[data-route="/relatorio/:id"] .s9-pnl-row > .drag-handle, [data-route="/relatorio/:id"] .s9-pnl-row > .pos-box,
+[data-route="/relatorio/:id"] .s9-col > .drag-handle, [data-route="/relatorio/:id"] .s9-col > .pos-box { flex: none; }
+[data-route="/relatorio/:id"] .s9-tree .drag-handle { cursor: grab; }
+[data-route="/relatorio/:id"] .s9-local.is-dragging, [data-route="/relatorio/:id"] .s9-painel.is-dragging, [data-route="/relatorio/:id"] .s9-coluna.is-dragging { position: relative; z-index: 5; background: var(--surface-raised); box-shadow: var(--shadow-float); }
+/* authored (Story 14.2): the note of a painel with no coluna, inset as the painel's rows are. */
+[data-route="/relatorio/:id"] .s9-painel > .pnl-empty { margin: 0 var(--sp-3) var(--sp-2) var(--touch-min); }
 [data-route="/relatorio/:id"] .s9-eq { display: flex; align-items: center; flex-wrap: wrap; gap: 0 var(--sp-1); min-height: 56px; }
 [data-route="/relatorio/:id"] .s9-eq.is-dragging { position: relative; z-index: 5; background: var(--surface-raised); box-shadow: var(--shadow-float); }
 [data-route="/relatorio/:id"] .s9-eq > .s9-eq-open { flex: 1; width: auto; min-width: 0; min-height: 56px; }
@@ -122,7 +165,7 @@
 [data-route="/relatorio/:id"] .s9-pos:hover, [data-route="/relatorio/:id"] .s9-pos:focus { border-color: var(--border-strong); background: var(--surface-raised); color: var(--ink-primary); }
 /* authored: the duplicate line (`key-sheet-states.html` duplicated row) under the row body, amber like a warning helper. */
 [data-route="/relatorio/:id"] .s9-dup { flex-basis: 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 0 var(--sp-2); margin: 0 0 var(--sp-1); padding-left: 112px; font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--fora-do-limite); }
-/* authored: "Adicionar cabine" at the foot of the tree, shown with it. */
+/* authored: "Adicionar local" at the foot of the tree, shown with it. */
 [data-route="/relatorio/:id"] .s9-foot { display: none; }
 [data-route="/relatorio/:id"] .sum-s9.is-open > .s9-foot { display: block; padding: 0 var(--sp-3) var(--sp-2) 40px; }
 /* authored: the mock's row is an `<li>` with the number as `<input>`; the App bar's back

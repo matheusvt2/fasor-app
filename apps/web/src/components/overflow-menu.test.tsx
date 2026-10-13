@@ -81,7 +81,7 @@ describe('OverflowMenu', () => {
       <OverflowMenu
         name="1° Subsolo"
         items={[
-          { id: 'open', label: 'Abrir primeira ficha (dados da cabine)', onAction: onOpen },
+          { id: 'open', label: 'Abrir primeira ficha (dados do local)', onAction: onOpen },
           { id: 'agrupar', label: 'Agrupar por tipo na seção 9', onAction: onToggle, checked: true },
           { id: 'up', label: 'Subir', onAction: vi.fn() },
         ]}
@@ -90,7 +90,7 @@ describe('OverflowMenu', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de 1° Subsolo' }));
     const menu = screen.getByRole('menu');
     expect([...menu.querySelectorAll('[role^="menuitem"]')].map((item) => item.textContent)).toEqual([
-      'Abrir primeira ficha (dados da cabine)',
+      'Abrir primeira ficha (dados do local)',
       'Agrupar por tipo na seção 9',
       'Subir',
     ]);
