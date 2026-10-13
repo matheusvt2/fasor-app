@@ -203,6 +203,23 @@ convention of the seeded tables, not the mock's "INVESTIGAR" word (Bruno).
 - Planning documents are append-only: strike with `~~...~~` and add dated text. Do not edit `epics.md` or
   `sprint-status.yaml`.
 
+## Phase 1 result (kernel slice, commit `44bfedb0`; what phase 2 builds on)
+
+- Kernel exports (all from `@fasor/domain` index; read their doc comments before use): `equipmentTypesOf(seedVersion)`,
+  `isLibraryType(seedVersion, blockType)`, `BASE_EQUIPMENT_BLOCK_TYPES`; `sheetTestValuePath(blockId, testKey, valueKey)`;
+  `evaluateSheetMeasurements(block, definition): readonly MeasurementTestEvaluation[]`, `measurementCells`,
+  `measurementValues`, `measurementCounts(evals): {missing, outOfLimit}`, `worstMeasurements(evals)`;
+  `configFieldsOf(block, definition): ConfigFieldView[]`, `configOptionsOf`, `blockConfigWithOption(config, fieldKey, optionKey)`,
+  `blockConfigWithSubBlock(config, key, enabled)`, `choiceValue(optionKey)`; `measurementTestTitle`, `measurementCellLabel`,
+  `measurementValueLabel`, `measurementStoredText`; `LIBRARY_GROUP_LABEL`, `paletteTypeGroups(seedVersion): PaletteTypeGroup[]`,
+  `libraryTypeSummaryText(seedVersion, blockType)`, `PaletteItem.library` and `.summary`, `panelFields(seedVersion)`.
+- Files: `packages/domain/src/seed/measurement.ts` (grammar), `seed/v5.ts` (content), `relatorio/measurement-evaluation.ts`
+  (view model: read it whole before drawing the sheet), `relatorio/measurement-test-support.ts` (test builders).
+- Left for phase 2 by phase 1: both web palettes still list the CTA ungrouped (switch them to `paletteTypeGroups`); the api
+  still asks `PANEL_FIELDS` (eight types) where `panelFields(seedVersion)` exists; the TAG of a CTA on a local named
+  "Geradores" is `CTA-GERADORES` by the existing rule (keep it; the mock's `CTA-GER` is example data); E5 with método
+  "não realizado" still prints its title, method line and ACEITÁVEL line, only the table is dropped.
+
 ## Verification
 
 **Commands (inside the tools container, podman):**
