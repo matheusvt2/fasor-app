@@ -27,6 +27,12 @@ import { CONTENT_WIDTH_TWIPS, image, sizedImage } from '../docx.ts';
  * row at half width with their line beneath. A photo whose bytes are missing or unreadable
  * keeps its line and leaves its image cell empty; the document never fails for it.
  *
+ * Story 14.2: a painel subsection (`subsection.painel`) is not a Heading 2 but a band, bold
+ * white on dark grey (`.pp-painel` of `key-print-section-9.html`), so it is no line of the
+ * ÍNDICE and no entry of the PDF outline. A subsection may hold no sheet (that band over its
+ * type groups, or a local whose sheets all sit in painéis): its heading or band is drawn
+ * alone, kept with what follows, and the subsection after it does not start a new page.
+ *
  * Borders, cell margins and the text size live on the table and on paragraph styles, not on
  * every cell and run: 94 sheets are tens of thousands of cells, and the XML each one carries
  * is what the `docx` library and LibreOffice spend their time on.
@@ -50,6 +56,11 @@ export const SECTION_9_PARAGRAPH_STYLES: readonly IParagraphStyleOptions[] = [
 const TITLE_TEXT = 20; // half-points: 10 pt
 const SHADE_FILL = 'D9D9D9';
 const shading = { type: ShadingType.CLEAR, color: 'auto', fill: SHADE_FILL } as const;
+/** Story 14.2: the painel band, `.pp-painel` of the print mock: 11 pt bold white on `404040`. */
+const PAINEL_BAND_TEXT = 22;
+export const PAINEL_BAND_FILL = '404040';
+export const PAINEL_BAND_COLOR = 'FFFFFF';
+const painelShading = { type: ShadingType.CLEAR, color: 'auto', fill: PAINEL_BAND_FILL } as const;
 
 const rule: IBorderOptions = { style: BorderStyle.SINGLE, size: 4, color: '404040' };
 const ruledTable = { top: rule, bottom: rule, left: rule, right: rule, insideHorizontal: rule, insideVertical: rule };
@@ -169,11 +180,32 @@ async function sheetChildren(sheet: PrintSheet, photos: ReadonlyMap<string, Buff
   return out;
 }
 
-/** Section 9's body under its Heading 1: every subsection's Heading 2 and sheets. */
+/** Story 14.2: a painel's band over its sheets (or over its type groups): never a heading, so never in the ÍNDICE. */
+function painelBand(text: string, newPage: boolean): Paragraph {
+  return new Paragraph({
+    pageBreakBefore: newPage,
+    keepNext: true,
+    shading: painelShading,
+    spacing: { before: 120, after: 80 },
+    indent: { left: 80 },
+    children: [new TextRun({ text, bold: true, color: PAINEL_BAND_COLOR, size: PAINEL_BAND_TEXT })],
+  });
+}
+
+/**
+ * Section 9's body under its Heading 1: every subsection's Heading 2 (a painel's band
+ * instead) and sheets. A subsection starts a new page unless it is the first or the one
+ * before it drew its heading alone (no sheet), which it then follows on the same page.
+ */
 export async function section9Children(section: LayoutSectionSheets, photos: ReadonlyMap<string, Buffer>): Promise<(Paragraph | Table)[]> {
   const out: (Paragraph | Table)[] = [];
   for (const [k, subsection] of section.subsections.entries()) {
-    out.push(new Paragraph({ heading: HeadingLevel.HEADING_2, pageBreakBefore: k > 0, children: [new TextRun(subsection.heading)] }));
+    const newPage = k > 0 && section.subsections[k - 1]!.sheets.length > 0;
+    out.push(
+      subsection.painel === true
+        ? painelBand(subsection.heading, newPage)
+        : new Paragraph({ heading: HeadingLevel.HEADING_2, pageBreakBefore: newPage, children: [new TextRun(subsection.heading)] }),
+    );
     for (const [i, sheet] of subsection.sheets.entries()) out.push(...(await sheetChildren(sheet, photos, i > 0)));
   }
   return out;

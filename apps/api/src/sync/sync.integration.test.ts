@@ -1,9 +1,13 @@
 import {
   accountResponseSchema,
+  canonicalJson,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
+  entityKey,
   errorResponseSchema,
   makeOp,
+  MIN_CONTRACT_VERSION,
+  replay,
   syncPullResponseSchema,
   syncPushResponseSchema,
   userRowSchema,
@@ -1054,14 +1058,23 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 
-  it('contract 16 (PR #121 review): a version-15 pull is refused with 426 contract_outdated, a version-16 pull is answered', async () => {
+  it('contract 17 (Story 14.2, matrix "Old client"): a version-16 pull is refused with 426 contract_outdated on every stream, a version-17 pull is answered', async () => {
+    expect(MIN_CONTRACT_VERSION).toBe(17);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
-      const old = await pull(companyA, path, '15');
-      expect(old.status).toBe(426);
-      expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
+      // 16 is the last version that cannot parse a painel create nor the funcao path; 15 stays refused as since PR #121.
+      for (const version of ['16', '15']) {
+        const old = await pull(companyA, path, version);
+        expect(old.status, `${path} at ${version}`).toBe(426);
+        expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
+      }
     }
-    const current = await pull(companyA, '/api/sync/company?since=0', '16');
+    const current = await pull(companyA, '/api/sync/company?since=0', '17');
     expect(current.status).toBe(200);
+    // An outdated client keeps pushing (AD-13): only the pull is refused.
+    const batch = [clientCreate(idsA, newId())];
+    const pushed = await push(companyA, { ops: batch }, '16');
+    expect(pushed.status).toBe(200);
+    for (const o of batch) written.opIds.add(o.op_id);
   });
 });
 
@@ -1196,5 +1209,149 @@ describe('6.3/6.5-API-001 a photo caption and removal through the sync route', (
     const page = await pullOk(companyA, `/api/sync/relatorios/${relatorioId}?since=0`);
     expect((page.ops as Op[]).map((o) => o.op_id)).toEqual([created.applied[0]!.op_id, create.op_id, caption.op_id, removed.op_id, restore.op_id]);
     expect((page.ops as Op[]).map((o) => o.path).slice(1)).toEqual([`file/${photoId}`, `file/${photoId}/caption`, `file/${photoId}/removed_at`, `file/${photoId}/removed_at`]);
+  });
+});
+
+describe('Story 14.2 (contract 17): Local › Painel › Coluna through POST /api/sync/ops', () => {
+  const blankSe = { type: null, primary_kv: null, secondary_kv: null, installed_kva: null };
+  const blankEnv = { altitude_m: null, temperature_c: null, humidity_pct: null };
+  const scoped = (relatorioId: string) => ({ scope: 'relatorio' as const, relatorio_id: relatorioId });
+
+  function localCreate(relatorioId: string, id: string, extra: Record<string, unknown> = {}): Op {
+    written.entityIds.add(id);
+    return op(idsA, {
+      ...scoped(relatorioId),
+      kind: 'create',
+      path: `location/${id}`,
+      value: { id, relatorio_id: relatorioId, parent_id: null, kind: 'cabine', name: 'Cabine de transformação', order_key: 'a0', removed_at: null, se: blankSe, env: blankEnv, agrupar_por_tipo: false, ...extra },
+    });
+  }
+  function childCreate(relatorioId: string, id: string, kind: 'painel' | 'coluna', parentId: string | null, name: string, orderKey = 'a0'): Op {
+    written.entityIds.add(id);
+    // Built by hand past `makeOp` for the row the schema refuses (a painel with no parent): the route must answer it, not the helper.
+    const good = op(idsA, { ...scoped(relatorioId), kind: 'create', path: `location/${id}`, value: { id, relatorio_id: relatorioId, parent_id: newId(), kind, name, order_key: orderKey, removed_at: null } });
+    return { ...good, value: { ...(good.value as Record<string, unknown>), parent_id: parentId } as Op['value'] };
+  }
+  function blockAt(relatorioId: string, id: string, locationId: string): Op {
+    const base = blockCreate(idsA, relatorioId, id, 'chave_seccionadora');
+    return { ...base, value: { ...(base.value as Record<string, unknown>), location_id: locationId } as Op['value'] };
+  }
+  const put = (relatorioId: string, path: string, value: unknown, kind: 'put' | 'remove' = 'put'): Op => op(idsA, { ...scoped(relatorioId), kind, path, value: value as Op['value'] });
+  const rowOf = async (entity: string, id: string) =>
+    (await db.select({ row: entities.row }).from(entities).where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, entity), eq(entities.id, id))))[0]?.row;
+
+  /** A relatório with one local, one painel under it and one coluna in the painel; a coluna directly under the local too. */
+  async function tree() {
+    const ids = { relatorio: newId(), local: newId(), painel: newId(), coluna: newId(), legado: newId() };
+    const log = [
+      relatorioCreate(idsA, ids.relatorio, newId()),
+      localCreate(ids.relatorio, ids.local),
+      childCreate(ids.relatorio, ids.painel, 'painel', ids.local, 'Painel de média tensão'),
+      childCreate(ids.relatorio, ids.coluna, 'coluna', ids.painel, 'Coluna 5'),
+      childCreate(ids.relatorio, ids.legado, 'coluna', ids.local, 'Coluna 1', 'a1'),
+    ];
+    const result = await pushOk(companyA, log);
+    expect(result.rejected).toEqual([]);
+    return { ...ids, log, seqs: result.applied.map((a) => a.seq) };
+  }
+
+  it('accepts a painel tree with a Função, and the server rows equal the kernel replay of the same log, byte for byte', async () => {
+    const t = await tree();
+    const onLocal = newId();
+    const onColuna = newId();
+    const edits = [
+      put(t.relatorio, `location/${t.local}/funcao`, 'transformacao'),
+      blockAt(t.relatorio, onLocal, t.local),
+      blockAt(t.relatorio, onColuna, t.coluna),
+      put(t.relatorio, `location/${t.painel}/name`, 'Painel A'),
+      put(t.relatorio, `location/${t.painel}/order_key`, 'a5'),
+      put(t.relatorio, `location/${t.painel}/removed_at`, null, 'remove'),
+      put(t.relatorio, `location/${t.painel}/removed_at`, null),
+      put(t.relatorio, `block/${onLocal}/location_id`, t.legado),
+      put(t.relatorio, `location/${t.local}/funcao`, 'Medição'),
+    ];
+    const result = await pushOk(companyA, edits);
+    expect(result.rejected).toEqual([]);
+    expect(result.applied.map((a) => a.op_id)).toEqual(edits.map((o) => o.op_id));
+
+    const log = [...t.log, ...edits].map((o, i) => ({ ...o, seq: i + 1 }));
+    const pure = replay(log);
+    const checks: [string, string][] = [
+      ['location', t.local],
+      ['location', t.painel],
+      ['location', t.coluna],
+      ['location', t.legado],
+      ['block', onLocal],
+      ['block', onColuna],
+    ];
+    for (const [entity, id] of checks) {
+      const server = await rowOf(entity, id);
+      expect(server, `${entity} ${id}`).toBeDefined();
+      expect(canonicalJson(server as never)).toBe(canonicalJson(pure.get(entityKey(entity as never, id)) as never));
+    }
+    expect(await rowOf('location', t.painel)).toMatchObject({ kind: 'painel', parent_id: t.local, name: 'Painel A', order_key: 'a5', removed_at: null });
+    expect(await rowOf('location', t.local)).toMatchObject({ kind: 'cabine', funcao: 'Medição' });
+    expect(await rowOf('block', onLocal)).toMatchObject({ location_id: t.legado });
+
+    // The stream carries the painel create and the funcao puts for every device on contract 17.
+    const page = await pullOk(companyA, `/api/sync/relatorios/${t.relatorio}?since=0`);
+    const paths = (page.ops as Op[]).map((o) => o.path);
+    expect(paths).toContain(`location/${t.painel}`);
+    expect(paths.filter((path) => path === `location/${t.local}/funcao`)).toHaveLength(2);
+  });
+
+  it('matrix "Block on a painel" and "Data on a painel": every refusal answers op_invalid, 200, and writes nothing; the rest of the push applies', async () => {
+    const t = await tree();
+    const before = { painel: await rowOf('location', t.painel), coluna: await rowOf('location', t.coluna), local: await rowOf('location', t.local) };
+    const held = newId();
+    expect((await pushOk(companyA, [blockAt(t.relatorio, held, t.coluna)])).rejected).toEqual([]);
+    const strayBlock = newId();
+    const refused = [
+      blockAt(t.relatorio, strayBlock, t.painel),
+      put(t.relatorio, `block/${held}/location_id`, t.painel),
+      put(t.relatorio, `location/${t.painel}/se/type`, 'BLINDADA'),
+      put(t.relatorio, `location/${t.painel}/env/temperature_c`, { raw: '25', unit: '°C', state: 'measured' }),
+      put(t.relatorio, `location/${t.painel}/agrupar_por_tipo`, true),
+      put(t.relatorio, `location/${t.painel}/funcao`, 'primaria'),
+      put(t.relatorio, `location/${t.coluna}/funcao`, 'primaria'),
+      // A blank or non-string Função fails the row schema.
+      put(t.relatorio, `location/${t.local}/funcao`, '   '),
+      put(t.relatorio, `location/${t.local}/funcao`, 7),
+      // A painel with no parent fails the row schema.
+      childCreate(t.relatorio, newId(), 'painel', null, 'Sem local'),
+    ];
+    const good = put(t.relatorio, `location/${t.local}/funcao`, 'entrada');
+    // On a coluna, se/env/agrupar_por_tipo stay the silent no-op they always were: applied, nothing changed.
+    const silent = [put(t.relatorio, `location/${t.coluna}/se/type`, 'X'), put(t.relatorio, `location/${t.coluna}/agrupar_por_tipo`, true)];
+    const result = await pushOk(companyA, [...refused, good, ...silent]);
+    expect(result.rejected).toEqual(refused.map((o) => ({ op_id: o.op_id, code: 'op_invalid' })));
+    expect(result.applied.map((a) => a.op_id)).toEqual([good.op_id, ...silent.map((o) => o.op_id)]);
+
+    const stored = await storedIds([...refused.map((o) => o.op_id), good.op_id]);
+    for (const o of refused) expect(stored.has(o.op_id), o.path).toBe(false);
+    expect(stored.has(good.op_id)).toBe(true);
+    expect(await rowOf('block', strayBlock)).toBeUndefined();
+    expect(await rowOf('block', held)).toMatchObject({ location_id: t.coluna });
+    expect(await rowOf('location', t.painel)).toEqual(before.painel);
+    expect(await rowOf('location', t.coluna)).toEqual(before.coluna);
+    expect(await rowOf('location', t.local)).toEqual({ ...(before.local as object), funcao: 'entrada' });
+  });
+
+  it('a client batch holding a block on a painel is refused whole, as any batch with a permanent refusal is', async () => {
+    const t = await tree();
+    const batchId = newId();
+    const novo = newId();
+    const blockId = newId();
+    const batch = [
+      { ...childCreate(t.relatorio, novo, 'painel', t.local, 'Painel 2', 'a2'), batch_id: batchId },
+      { ...blockAt(t.relatorio, blockId, novo), batch_id: batchId },
+    ];
+    const alone = put(t.relatorio, `location/${t.painel}/name`, 'Painel renomeado');
+    const result = await pushOk(companyA, [...batch, alone]);
+    expect(result.rejected).toEqual(batch.map((o) => ({ op_id: o.op_id, code: 'op_invalid' })));
+    expect(result.applied.map((a) => a.op_id)).toEqual([alone.op_id]);
+    expect(await rowOf('location', novo)).toBeUndefined();
+    expect(await rowOf('block', blockId)).toBeUndefined();
+    expect(await rowOf('location', t.painel)).toMatchObject({ name: 'Painel renomeado' });
   });
 });
