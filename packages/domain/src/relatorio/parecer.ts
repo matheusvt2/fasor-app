@@ -138,7 +138,8 @@ export function parecerHintText(suggestion: ParecerVerdict | null, snapshot: Rel
   // E78-Q9: the counts `composeParecer` states, so the hint and the Critérios line never disagree.
   const counts = parecerCounts(snapshot);
   const parts = [
-    `${counts.concluded} de ${counts.total} fichas concluídas`,
+    // 2026-10-14: with no live sheet (only a site NC can suggest then) the sheet count is left out.
+    counts.total === 0 ? null : `${counts.concluded} de ${counts.total} fichas concluídas`,
     counts.withRestriction.length > 0 ? `${counts.withRestriction.length} com restrições` : null,
     counts.notTested.length > 0 ? naoEnsaiadasText(counts.notTested.length) : null,
     // authored: 2026-10-14, the site NC count (open for Bruno).

@@ -414,8 +414,20 @@ describe('Story 14.5 (contract 19): the Chave de transferência automática thro
     expect(Object.keys(server.sheet.test[E1]!.values!)).toEqual(['corrente_ensaio']);
     const pure = replay([...t.log, good].map((o, i) => ({ ...o, seq: i + 1 })));
     expect(canonicalJson(server as never)).toBe(canonicalJson(pure.get(entityKey('block', t.block)) as never));
-    // A test with no N-T row refuses a cell past its seven rows (2026-10-14).
+  });
+
+  it('C1 (2026-10-14): E2 has no N-T row, so a cell at row index 7 (past Linha-carga, the old eighth row) is op_invalid, 200, and the sheet is untouched', async () => {
     expect(testOf(E2).rows.map((row) => row.key)).not.toContain('n_t');
-    expect(testOf(E2).rows).toHaveLength(7);
+    expect(testOf(E2).rows.map((row) => row.key).at(-1)).toBe('linha_carga');
+    const rows = testOf(E2).rows.length;
+    const t = await relatorio('v5');
+    const pastLast = put(t.relatorio, sheetTestCellPath(t.block, E2, rows, colOf(E2, 'aberta')), num('12.4', 'GΩ'));
+    const good = put(t.relatorio, cellPath(t.block, E2, 'linha_carga', 'aberta'), num('18.6', 'GΩ'));
+    const result = await pushOk([pastLast, good]);
+    expect(result.rejected).toEqual([{ op_id: pastLast.op_id, code: 'op_invalid' }]);
+    expect(result.applied.map((a) => a.op_id)).toEqual([good.op_id]);
+    expect((await storedIds([pastLast.op_id])).size).toBe(0);
+    const server = (await rowOfEntity('block', t.block)) as BlockRow;
+    expect(Object.keys(server.sheet.test[E2]!.cells)).toEqual([String(rowOf(E2, 'linha_carga'))]);
   });
 });

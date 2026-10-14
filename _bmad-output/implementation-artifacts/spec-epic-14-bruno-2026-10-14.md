@@ -94,3 +94,8 @@ Story gate (playbook § 2, 2026-10-08): `lint`, `static`, `test:unit`, `test:api
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-10-14 — Review pass (Edge Case Hunter, Verification Gap; Blind Hunter and Intent Alignment skipped: token economy, the integrated epic review covers them)
+
+- Patched (one loop): ECH-1 hint with no sheet drops "0 de 0 fichas concluídas"; ECH-2 a site focus request with no drawn local falls back to section 9; VG-1 the confirmed parecer text with the site sentence asserted in the outbox, and the hint after removal; VG-2 E2's rows read from the kernel, N-T asserted absent; VG-3 an E2 `n_t` cell refused through `POST /api/sync/ops`; VG-4 full composed text with sheet and site NC; VG-5 E1 switched off with a typed current; VG-6 an out E2 cell prints plainly; VG-7 `suggestParecer` after a restore and on v3.
+- Known open: VG-8 (no e2e where a sheet NC earlier in tree order wins over a site NC, no second-tap e2e on a site target; the kernel order is unit-tested). ECH-3 (a development store holding a v5 CTA sheet from before the edit keeps `n_t` cells and loses its concluded state to the new required value; accepted by the 2026-10-14 source-deltas row, v5 never left development).

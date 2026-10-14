@@ -322,7 +322,9 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
   useEffect(() => {
     if (focusSeeded.current) return;
     // A local's site row sits in its header row, drawn whenever section 9 is: nothing to open.
+    // Only a root this tree draws with a site row is a target; anything else asks for nothing.
     if (focusLocationId !== null) {
+      if (!tree.some((node) => node.id === focusLocationId && node.site !== null)) return;
       focusSeeded.current = true;
       focusPending.current = true;
       return;

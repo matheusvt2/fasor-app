@@ -407,12 +407,24 @@ describe('section9Layout: a Chave de transferência automática', () => {
     ]);
   });
 
-  it('C2 edge: E1 switched off with no test current typed prints nothing of E1, and the current is not missing', () => {
+  it('C2 edge: E1 switched off prints nothing of E1, a test current typed before included', () => {
     const { state, f } = ctaState();
-    const off = applyOp(state, f.op({ path: blockFieldPath(CTA_BLOCK, 'config'), value: blockConfigWithSubBlock(blockOf(state).config, E1, false) }));
+    const typed = writeSheet(state, f, [{ test: E1, key: 'corrente_ensaio', value: { raw: '100', unit: 'A', state: 'measured' } }]);
+    expect(texts(titled(printed(blockOf(typed)).sheet, 'E1 · RESISTÊNCIA DE CONTATO'))[2]).toEqual(['CORRENTE DE ENSAIO: 100 A']);
+    const off = applyOp(typed, f.op({ path: blockFieldPath(CTA_BLOCK, 'config'), value: blockConfigWithSubBlock(blockOf(typed).config, E1, false) }));
     const sheet = printed(blockOf(off)).sheet;
     expect(bands(sheet)).not.toContain('E1 · RESISTÊNCIA DE CONTATO');
     expect(tablesOf(sheet.parts).some((table) => table.rows.some((row) => row.cells.some((cell) => cell.text.includes('CORRENTE DE ENSAIO'))))).toBe(false);
+  });
+
+  it('C4: an out-of-criterion E2 cell prints its plain value, with no mark and no extra cell', () => {
+    const { state, f } = filled();
+    // BT asks ≥ 100 MΩ: 0,05 GΩ is out.
+    const out = writeSheet(state, f, [{ test: E2, row: 'a_t', col: 'normal_fechada', value: { raw: '0.05', unit: 'GΩ', state: 'measured' } }]);
+    const e2 = titled(printed(blockOf(out)).sheet, 'E2 · ISOLAMENTO PRINCIPAL');
+    expect(texts(e2).find((row) => row[0] === 'A-T')).toEqual(['A-T', '0,05', '12,4', '12,4']);
+    expect(e2.columns).toHaveLength(4);
+    expect(e2.rows.every((row) => row.cells.length <= 4)).toBe(true);
   });
 
   it('CONCLUSÃO: the pair marked and the confirmed text with its criteria line', () => {

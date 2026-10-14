@@ -840,7 +840,12 @@ test('@p0 14.3-E2E-008 2026-10-14 (Bruno): a site item answered NC counts in "NC
   const field = page.locator('.suggestion-field.is-generated');
   await expect(field.locator('.generated-text')).toContainText(sentence);
   await expect(field.locator('.criteria-line')).toContainText(`verificações do local, item ${item.number} NC (1)`);
-  await expect.poll(async () => (await outbox(page)).filter((op) => op.path === 'relatorio/setup/parecer').at(-1)?.value).toMatchObject({ verdict: 'apto_com_restricoes' });
+  // Confirmed: the stored summary carries the site sentence.
+  await field.getByRole('button', { name: 'Confirmar' }).click();
+  await expect(field).toHaveAttribute('data-state', 'confirmed');
+  await expect
+    .poll(async () => (await outbox(page)).filter((op) => op.path === 'relatorio/setup/parecer').at(-1)?.value)
+    .toMatchObject({ verdict: 'apto_com_restricoes', text_status: 'confirmed', text: expect.stringContaining(sentence) });
 
   // The local removed: its site items count nowhere.
   await openSumario(page, relatorioId);
@@ -855,9 +860,14 @@ test('@p0 14.3-E2E-008 2026-10-14 (Bruno): a site item answered NC counts in "NC
   await expect(summary.getByRole('button', { name: '0 NC abertos', exact: true })).toBeVisible();
   await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
-  await expect(page.locator('.suggestion-field.is-generated .generated-text')).toBeVisible();
-  await expect(page.locator('.suggestion-field.is-generated .generated-text')).not.toContainText('Verificações do local');
-  await expect(page.getByText('1 NC nas verificações do local')).toHaveCount(0);
+  // No sheet and no site NC left: nothing to suggest, so no hint at all; the confirmed summary
+  // (which named the item) is now stale; the criteria line is the recomposed one, without the item.
+  await expect(page.locator('.suggestion-alt')).toContainText('Sugerido: texto atualizado');
+  await expect(page.locator('.conclusion-hint')).toHaveCount(0);
+  await expect(page.getByText('NC nas verificações do local')).toHaveCount(0);
+  await expect(field.locator('.generated-text')).toContainText(sentence);
+  await expect(field.locator('.criteria-line')).toBeVisible();
+  await expect(field.locator('.criteria-line')).not.toContainText('verificações do local');
 });
 
 test('@p1 14.3-E2E-005 a coluna and a relatório on seed v3 offer no entry: no tree button, no rail row, no line on the sheet, and the address says the checklist was not found', async ({ page }) => {

@@ -259,9 +259,17 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
   await expect(tableRow(page, E1, 'polo_n')).toHaveCount(0);
   await configuracao(page).getByRole('radiogroup', { name: 'Polos' }).getByRole('radio', { name: '4', exact: true }).click();
   await expect(tableRow(page, E1, 'polo_n')).toBeVisible();
-  // 2026-10-14 (Bruno): with four poles and the neutral, E2 still has no N-T row: § 8.4's seven.
-  await expect(testSection(page, E2).locator('tr[data-row-key]')).toHaveCount(7);
-  expect(await testSection(page, E2).locator('tr[data-row-key]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-row-key')))).toEqual(['a_t', 'b_t', 'c_t', 'a_b', 'b_c', 'c_a', 'linha_carga']);
+  // 2026-10-14 (Bruno): with four poles E2 draws the rows the kernel shows for the stored configuration, and no N-T row.
+  const e2Shown = async (): Promise<string[]> => {
+    const block = (await entities<BlockRow>(page)).find((record) => record.entity === 'block' && record.id === blockId)!.row;
+    return evaluateSheetMeasurements(block, DEFINITION).find((test) => test.testKey === E2)!.rows.map((row) => row.key);
+  };
+  await expect.poll(async () => (await entities<BlockRow>(page)).find((record) => record.entity === 'block' && record.id === blockId)!.row.config).toMatchObject({ options: { polos: '4' } });
+  const e2Keys = await e2Shown();
+  // Every pole row of the seed is shown at four poles: the drawn list is the seed's list.
+  expect(e2Keys).toEqual(testOf(E2).rows.map((row) => row.key));
+  expect(await testSection(page, E2).locator('tr[data-row-key]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-row-key')))).toEqual(e2Keys);
+  expect(e2Keys).not.toContain('n_t');
   await expect(tableRow(page, E2, 'n_t')).toHaveCount(0);
   await expect(testSection(page, E2).locator('tr', { hasText: 'N-T' })).toHaveCount(0);
   for (const [testKey, name] of [

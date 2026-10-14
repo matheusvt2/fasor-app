@@ -230,6 +230,29 @@ describe('2026-10-14 (Bruno) an NC site item counts in the parecer (N4, N5)', ()
     expect(suggestParecer(withSiteNc(withSheets(0), 0, [1]))).toBe('apto_com_restricoes');
   });
 
+  it('the hint: no "0 de 0 fichas" with no sheet; one sheet and no site NC as before; one sheet and two site NC', () => {
+    const none = withSiteNc(withSheets(0), 0, [1]);
+    expect(parecerHintText(suggestParecer(none), none)).toBe('Sugerido pelas contagens: Apto com restrições? — 1 NC nas verificações do local. A escolha é sua: um toque.');
+    const one = mapSheets(withSheets(1), (b) => conclude(b, 'aprovado', 'sem_restricoes'));
+    expect(parecerHintText(suggestParecer(one), one)).toBe('Sugerido pelas contagens: Apto? — 1 de 1 fichas concluídas. A escolha é sua: um toque.');
+    const two = withSiteNc(one, 0, [1, 2]);
+    expect(parecerHintText(suggestParecer(two), two)).toBe(
+      'Sugerido pelas contagens: Apto com restrições? — 1 de 1 fichas concluídas, 2 NC nas verificações do local. A escolha é sua: um toque.',
+    );
+  });
+
+  it('the whole summary with a sheet NC and a site NC: the site sentence right after "Itens não conformes"', () => {
+    const base = withSheets(1);
+    const block = base.blocks.filter(isEquipmentBlock)[0]!;
+    const key = Object.keys(block.sheet.checklist)[0] ?? 'limpeza';
+    const sheetNc = mapSheets(base, (b) => conclude(withNc(b, key), 'aprovado', 'com_restricoes'));
+    const snapshot = withSiteNc(sheetNc, 0, [3]);
+    const sheetText = composeParecer(sheetNc).text;
+    const site = `Verificações do local não conformes: item 3 (${items[2]!.label.toLocaleLowerCase('pt-BR')}) em 1 local.`;
+    expect(sheetText).toContain('Itens não conformes: ');
+    expect(composeParecer(snapshot).text).toBe(`${sheetText} ${site}`);
+  });
+
   it('N5: the summary names each site item with its locals count, a Critérios item per item, and the basis changes', () => {
     const base = allApto();
     const roots = base.locations.filter((row) => row.kind === 'cabine' && row.parent_id === null);
@@ -260,7 +283,12 @@ describe('2026-10-14 (Bruno) an NC site item counts in the parecer (N4, N5)', ()
     const removed = { ...snapshot, locations: snapshot.locations.map((row) => (row.kind === 'cabine' && Object.keys(row.checklist ?? {}).length > 0 ? { ...row, removed_at: AT } : row)) };
     expect(suggestParecer(removed)).toBe('apto');
     expect(composeParecer(removed).text).not.toContain('Verificações do local');
+    // Restored, it counts again.
+    const restored = { ...removed, locations: removed.locations.map((row) => ({ ...row, removed_at: null })) };
+    expect(suggestParecer(restored)).toBe('apto_com_restricoes');
     const v3 = { ...snapshot, relatorio: { ...snapshot.relatorio, seed_version: 'v3' } };
+    // A v3 relatório carrying a site-shaped checklist is not restricted by it.
+    expect(suggestParecer(v3)).toBe('apto');
     expect(parecerCounts(v3).siteNc).toBe(0);
     expect(composeParecer(v3).criteriaItems.some((item) => item.startsWith('verificações do local'))).toBe(false);
   });

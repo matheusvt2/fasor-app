@@ -355,8 +355,11 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
    */
   const [countFocus, setCountFocus] = useState<{ target: CountTarget; n: number } | null>(null);
   function openCount(kind: SumarioCountKind): void {
-    const target = firstCountedTarget(locationTree(snapshot, equipment, pending), snapshot.blocks, kind, pending);
-    if (target === null) {
+    const tree = locationTree(snapshot, equipment, pending);
+    const target = firstCountedTarget(tree, snapshot.blocks, kind, pending);
+    // A site target is a root the tree draws with its site row (the finder returns only those); else as with none.
+    const drawn = target === null || target.kind === 'block' || tree.some((node) => node.id === target.locationId && node.site !== null);
+    if (target === null || !drawn) {
       openSection9();
       return;
     }
