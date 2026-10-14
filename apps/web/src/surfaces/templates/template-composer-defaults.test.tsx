@@ -166,6 +166,64 @@ describe('3.5 composer: sub-block defaults per type', () => {
     expect(await outboxPaths()).toEqual([`template/${ID}/blocks`, `template/${ID}/blocks`]);
   });
 
+  it('14.5: a measurement test that is not switchable (E4, E5 of the Chave de transferência automática) reads "Sempre" and offers no switch; the other four are switches', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: /^Coluna 9/ }));
+    const stepper = within(palette()).getByRole('group', { name: 'Chaves de transferência automática, 0' });
+    await userEvent.click(within(stepper).getByRole('button', { name: 'Mais um' }));
+    await userEvent.click(await within(palette()).findByRole('button', { name: 'Editar padrões de Chave de transferência automática' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Padrões de Chave de transferência automática' });
+    const placed = async () => (await templateRow(database!, ID))!.blocks.filter((b) => b.block_type === 'chave_transferencia_automatica');
+    const before = await placed();
+    expect(before).toHaveLength(1);
+    const puts = (await outboxPaths()).length;
+
+    // Every row of the type, in the definition's order: the two always-on tests are locked rows like the checklist and the conclusion.
+    const alwaysOn = ['Verificações gerais', 'E4 · Ajustes do controlador', 'E5 · Transferência', 'Conclusão'];
+    const switched = ['Dados de placa', 'E1 · Resistência de contato', 'E2 · Isolamento principal', 'E3 · Isolamento do controle', 'E6 · Termografia sob carga', 'Observações'];
+    expect([...dialog.querySelectorAll('.toggle-row .toggle-label')].map((el) => el.textContent)).toEqual([
+      'Dados de placa',
+      'Verificações gerais',
+      'E1 · Resistência de contato',
+      'E2 · Isolamento principal',
+      'E3 · Isolamento do controle',
+      'E4 · Ajustes do controlador',
+      'E5 · Transferência',
+      'E6 · Termografia sob carga',
+      'Observações',
+      'Conclusão',
+    ]);
+    for (const name of alwaysOn) {
+      // No switch under the bare name: the only control of the row is the locked one.
+      expect(within(dialog).queryByRole('switch', { name })).toBeNull();
+      const toggle = within(dialog).getByRole('switch', { name: `${name}, sempre ativado` });
+      expect(toggle).toHaveAttribute('aria-disabled', 'true');
+      expect(toggle).toHaveAttribute('aria-checked', 'true');
+      expect(toggle).toHaveTextContent('Sempre');
+      expect([...toggle.closest('.toggle-row')!.querySelectorAll('.toggle-sub')].at(-1)).toHaveTextContent('Sempre na ficha');
+      // A press on the switch or on its label writes nothing.
+      await userEvent.click(toggle);
+      await userEvent.click(within(dialog).getByText(name, { selector: 'label' }));
+      expect(toggle).toHaveAttribute('aria-checked', 'true');
+    }
+    expect(await placed()).toEqual(before);
+    expect((await outboxPaths()).length).toBe(puts);
+    for (const name of switched) {
+      const toggle = within(dialog).getByRole('switch', { name });
+      expect(toggle).not.toHaveAttribute('aria-disabled', 'true');
+      expect(toggle).toHaveAttribute('aria-checked', 'true');
+    }
+    expect(await axe(dialog)).toHaveNoViolations();
+
+    // A switchable test still switches, on every placement of the type.
+    await userEvent.click(within(dialog).getByText('E1 · Resistência de contato', { selector: 'label' }));
+    await waitFor(async () => expect((await placed()).every((b) => b.sub_blocks.cta_resistencia_contato?.enabled === false)).toBe(true));
+    const after = (await placed())[0]!;
+    expect(after.sub_blocks.cta_ajustes_controlador?.enabled).toBe(true);
+    expect(after.sub_blocks.cta_transferencia?.enabled).toBe(true);
+  });
+
   it('"Á SECO" on the TP pre-marks the seed\'s 8 items, and a new TP placement follows the type', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();

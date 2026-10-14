@@ -2,7 +2,7 @@
 title: 'Story 14.5: the measurement table and the Chave de transferência automática (seed v5)'
 type: 'feature'
 created: '2026-10-13'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'e72fbe41ee808acd28fa96c9f5fcd43d01bf9d24'
 review_loop_iteration: 0
 followup_review_recommended: false

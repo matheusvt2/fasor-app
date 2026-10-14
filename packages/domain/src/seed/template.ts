@@ -13,6 +13,7 @@ import {
 } from '../schemas/block-config.ts';
 import type { TemplateRow } from '../schemas/entities.ts';
 import { getDefinition, naDefaultsFor, SEED_VERSION } from './definitions.ts';
+import type { BlockDefinition } from './schema.ts';
 
 /*
  * Story 3.2: the seeded "Cabine primária — padrão" template, built once here and used by
@@ -32,6 +33,18 @@ export const DEFAULT_OFF_SUB_BLOCKS: readonly SubBlockKey[] = ['ia_ip_display'];
 
 /** Sub-blocks every sheet carries, shown as "Sempre" rather than a toggle (Story 3.5). */
 export const LOCKED_SUB_BLOCKS: readonly SubBlockKey[] = ['checklist', 'conclusion'];
+
+/**
+ * Story 14.5: the sub-blocks of one type's definition that every sheet of it carries, in the
+ * definition's order: the locked two plus each measurement test the seed does not declare
+ * `switchable` (the CTA's E4 and E5), which no config can switch off (`evaluateSheetMeasurements`
+ * reads them as always on). The template's type dialog shows these as "Sempre", never a switch.
+ */
+export function lockedSubBlocksOf(definition: Pick<BlockDefinition, 'sub_blocks' | 'measurement_tests'>): SubBlockKey[] {
+  const always = new Set<SubBlockKey>(LOCKED_SUB_BLOCKS);
+  for (const test of definition.measurement_tests ?? []) if (test.switchable === undefined) always.add(test.key);
+  return definition.sub_blocks.filter((key) => always.has(key));
+}
 
 export interface BlockConfigOptions {
   subtype?: Subtype;

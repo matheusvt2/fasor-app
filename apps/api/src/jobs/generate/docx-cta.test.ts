@@ -251,9 +251,10 @@ describe('14.5-UNIT section 9 in the DOCX: a Chave de transferência automática
     ]);
     const toc = structure.paragraphs.filter((p) => p.endsWith(`\t${TOC_PLACEHOLDER}`));
     expect(toc.filter((p) => p.startsWith('9.'))).toEqual([`${TRANSFORMADORES}\t${TOC_PLACEHOLDER}`, `${OUTROS}\t${TOC_PLACEHOLDER}`]);
-    // The local's SE and environment print once, on the first sheet emitted for it (the transformer's).
-    expect(section.filter((p) => p === 'CARACTERÍSTICAS DA SE')).toHaveLength(1);
-    expect(ascending(order(section, ['TRANSFORMADOR DE FORÇA TR-1', 'CARACTERÍSTICAS DA SE', OUTROS]))).toBe(true);
+    // Story 14.4 (seed v4 or later): the local prints its own parts once, under its first heading and before
+    // any sheet (SE, environment, the site table); the "Outros equipamentos" group repeats none of them.
+    for (const title of ['CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', 'VERIFICAÇÕES DO LOCAL']) expect(section.filter((p) => p === title), title).toHaveLength(1);
+    expect(ascending(order(section, [TRANSFORMADORES, 'CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', 'VERIFICAÇÕES DO LOCAL', 'TRANSFORMADOR DE FORÇA TR-1', OUTROS, CTA_TITLE]))).toBe(true);
   }, 60_000);
 
   it('the sheet prints its parts in order: the plate, CONFIGURAÇÃO, the checklist, E1 to E6 and the conclusion', async () => {

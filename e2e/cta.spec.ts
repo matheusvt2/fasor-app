@@ -1,4 +1,17 @@
-import { getDefinition, SEED_VERSION, type BlockRow, type EquipmentRow, type LocationRow, type MeasurementTest, type TemplateRow } from '@app/domain';
+import {
+  evaluateSheetMeasurements,
+  getDefinition,
+  measurementCounts,
+  SEED_VERSION,
+  sheetProgress,
+  stepMissingLabel,
+  type BlockRow,
+  type EquipmentRow,
+  type LocationRow,
+  type MeasurementTest,
+  type SheetStep,
+  type TemplateRow,
+} from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
@@ -8,7 +21,7 @@ import { readStore } from './support/outbox.ts';
 import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
-import { SYNC_CYCLE_TIMEOUT, syncNowAndReturn } from './support/sync.ts';
+import { syncNow, syncNowAndReturn } from './support/sync.ts';
 import { expandLocation } from './support/tree.ts';
 
 /*
@@ -115,6 +128,15 @@ async function openSection9(page: Page): Promise<void> {
 // --- the sheet ---------------------------------------------------------------------------
 
 const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' });
+/**
+ * Taps a step of the Section stepper and waits for the sheet to land on it: the surface scrolls to
+ * the step and gives it the focus a few frames after the tap, and a list opened before that scroll
+ * closes with it (React Aria closes a popover on any scroll of its trigger's ancestors).
+ */
+async function goToStep(page: Page, name: string, step: SheetStep): Promise<void> {
+  await stepper(page).getByRole('button', { name: new RegExp(`^${name},`) }).click();
+  await expect(page.locator(`#ficha-step-${step}`)).toBeFocused();
+}
 const field = (page: Page, key: string) => page.locator(`#ficha-nameplate [data-field-key="${key}"]`);
 const checklistRow = (page: Page, n: number) => page.locator('#ficha-step-verificacoes li.checklist-row').nth(n - 1);
 const configuracao = (page: Page) => page.locator('section[data-section="configuracao"]');
@@ -179,7 +201,8 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
   const template = (await entities<TemplateRow>(page)).find((record) => record.entity === 'template' && record.id === templateId)!.row;
   expect(template.seed_version).toBe(SEED_VERSION);
   expect(template.blocks.filter((block) => block.block_type === CTA).map((block) => block.quantity)).toEqual([1]);
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: SYNC_CYCLE_TIMEOUT });
+  // The template reaches the server by "Sincronizar agora" (decision of record C-4), never by waiting for the 60 s tick.
+  await syncNow(page);
 
   // --- a relatório from it: the CTA is born on the local with the kernel's TAG ---
   await page.goto('/');
@@ -257,8 +280,18 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
     .toMatchObject({ options: { polos: '4' }, sub_blocks: { [E1]: { enabled: true }, [E2]: { enabled: false }, [E3]: { enabled: false }, [E6]: { enabled: false } } });
   expect(await statusValues(page, relatorioId)).toEqual([]);
   await expect(toast(page).filter({ hasText: 'Relatório em campo' })).toHaveCount(0);
-  // What is left to read: E1 at four poles (8), E4 (14 rows by Projeto, Encontrado, Deixado) and E5 (3 options, 5 times).
-  await expect(stepper(page).getByRole('button', { name: 'Ensaios, 58 faltando' })).toBeVisible();
+  // What is left to read (E1 at four poles, E4 and E5; the three tests switched off ask for nothing) is the
+  // kernel's count over the block as the device store holds it, never a number written in this spec.
+  const ensaiosLeft = async (): Promise<number> => {
+    const block = (await entities<BlockRow>(page)).find((record) => record.entity === 'block' && record.id === blockId)!.row;
+    const left = measurementCounts(evaluateSheetMeasurements(block, DEFINITION)).missing;
+    // The Ensaios step of a sheet with measurement tests only is that count.
+    expect(sheetProgress({ blocks: [block] }, blockId).steps.ensaios.missing).toBe(left);
+    return left;
+  };
+  const leftBefore = await ensaiosLeft();
+  expect(leftBefore).toBeGreaterThan(1);
+  await expect(stepper(page).getByRole('button', { name: stepMissingLabel('Ensaios', leftBefore) })).toBeVisible();
 
   // The first reading on a Rascunho relatório carries Em campo in its own batch, and says so.
   await typeCell(page, E1, 'polo_a', 'lado_normal', '38');
@@ -272,6 +305,9 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
     expect(edit.batch_id).not.toBeNull();
     expect(status!.batch_id).toBe(edit.batch_id);
   }
+  // One required cell fewer, in the store and on the stepper.
+  expect(await ensaiosLeft()).toBe(leftBefore - 1);
+  await expect(stepper(page).getByRole('button', { name: stepMissingLabel('Ensaios', leftBefore - 1) })).toBeVisible();
 
   // E1: Lado Normal all within; on Lado Emergência the 63 of Polo C is 62 % above the 39 of Polo B.
   const e1: Record<string, [string, string]> = { polo_a: ['38', '40'], polo_b: ['41', '39'], polo_c: ['36', '63'], polo_n: ['52', '42'] };
@@ -295,7 +331,7 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
   await expect(testSection(page, E1).locator('.mt-criterion')).toHaveText('≤ 50 % acima do menor do mesmo lado');
 
   // The plate: every field typed (the TAG comes from the block).
-  await stepper(page).getByRole('button', { name: /^Placa,/ }).click();
+  await goToStep(page, 'Placa', 'placa');
   await field(page, 'fabricante').getByRole('combobox').fill('Fabricante CTA');
   await page.getByRole('option', { name: 'Criar “Fabricante CTA”' }).click();
   const plate: Record<string, string> = {
@@ -325,7 +361,7 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
   // The checklist: item 3 NC with a chip of the seed, then "Marcar os restantes como Conforme".
   const items = DEFINITION.checklist!;
   expect(items).toHaveLength(17);
-  await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
+  await goToStep(page, 'Verificações', 'verificacoes');
   await checklistRow(page, 3).getByRole('radiogroup', { name: `3. ${items[2]!.label}` }).getByRole('radio', { name: 'Não conforme' }).click();
   const phrase = items[2]!.nc_phrases[0]!;
   await checklistRow(page, 3).getByRole('group', { name: 'Observações sugeridas do item 3' }).getByRole('button', { name: phrase }).click();
@@ -339,7 +375,7 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
   // E4: every setting by Projeto, Encontrado and Deixado; a number with its row's unit, a
   // two-option row by its Segmented control, a four-option row by its select. TD 3A is found
   // and first left at the factory's 30 min, against the project's 5.
-  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  await goToStep(page, 'Ensaios', 'ensaios');
   for (const row of testOf(E4).rows) {
     for (const columnKey of ['projeto', 'encontrado', 'deixado']) {
       const name = `${row.label}, ${columnKey.charAt(0).toUpperCase()}${columnKey.slice(1)}`;
@@ -412,7 +448,7 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
   await expect(stepper(page).getByRole('button', { name: 'Ensaios, 0 faltando' })).toBeVisible({ timeout: 15_000 });
 
   // The conclusion: suggested from the NC item and the out reading; its text names both.
-  await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
+  await goToStep(page, 'Conclusão', 'conclusao');
   const suggestion = page.getByRole('group', { name: 'Sugestão' });
   await expect(suggestion).toContainText('Aprovado · Com restrições?');
   await suggestion.getByRole('button', { name: 'Confirmar' }).click();
