@@ -3220,6 +3220,18 @@ So that the relatório records the room itself and an NC becomes a point of atte
 
 **Definition of Done, in addition (2026-10-13):** the Playwright spec also covers the first item answered in Rascunho (status op in the batch, the toast) and an item answered in Emitido (reopened, mark-as-sent withdrawn); AD-22, AD-15 and `docs/kbs/architecture/kernel-and-seed.md` gain dated notes.
 
+**As built, 2026-10-13 (Stories 14.3 and 14.4 in one batch, PR #127, merged as `f1f7ec9`; contract 18, minimum 18; seed v4):**
+
+- Templates reach seed v4 by a server step at every api start (`upgradeTemplateSeeds`) that moves each live template's `seed_version` only; no relatório is rewritten. *(accepted)* A relatório created offline from a template row the device has not pulled since the move is born on the old seed and has no checklist.
+- *(narrowing)* The capture surface (`/relatorio/:id/local/:locationId/verificacoes`) is one column with no relatório rail beside it, and has no read-only state.
+- *(narrowing)* An NC site row is the sheet's checklist row: no photo tile inside the expansion, no photo count in the reason, no "Outro…" chip; beside a denied camera "Adicionar fotos" saves the picked files at once; the Caption composer opens a site photo as free text.
+- *(narrowing)* The type-group titles under a painel read "⟨grupo⟩ do ⟨painel⟩ — ⟨local⟩" (the recommended wording, authored, pending Bruno); the print mock's unnumbered group headings were not built; a relatório on v3 that already holds painéis prints the new titles too.
+- *(narrowing)* A site-item key outside the closed list is answered `op_path_unknown`; a wrong kind or a wrong seed is answered `op_invalid`.
+- *(open, Matheus)* O1 "Concluir verificações" stores nothing (it names what is missing or returns to the tree); O2 a C or NC against NA contradiction on a site item is not a decision in the Conflict view; O3 NC site items are not in "NC abertos" and a local's counter stays sheets-only; O4 no photo-read NC draft on a site item.
+- *(open, Bruno)* the NC phrases of the 19 items and of the no-break item, and the other authored copy listed in the PR body.
+- Gate: the story gate was green on the touched specs; the widened Playwright runs kept two reds on untouched specs, both open in `deferred-work.md` (`points` 6.6-E2E-011; WebKit `ficha.durability` F-11). The wave gate on the integrated main rechecks both.
+- Known open, in `deferred-work.md` under Stories 14.3 and 14.4: the boot wiring of `upgradeTemplateSeeds` has no test; "Legendar" on a site photo is untested; `location_id` is unchecked at the fold.
+
 ### Story 14.4: Verificações do local: the printed table
 
 **Dev model:** opus · **Effort:** high · a section 9 part in the renderer and its golden comparison
