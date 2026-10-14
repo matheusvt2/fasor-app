@@ -2,10 +2,10 @@
 title: 'Story 14.5: the measurement table and the Chave de transferência automática (seed v5)'
 type: 'feature'
 created: '2026-10-13'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'e72fbe41ee808acd28fa96c9f5fcd43d01bf9d24'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -180,6 +180,56 @@ integrated epic review covers them). One review-fix loop, as the batch playbook 
   - `[medium]` `[patch]` Other (gap layer): the Conflict view prints option keys — the same defect, third filing; fixed above.
   - `[low]` `[patch]` Other (gap layer): `checkTemplateRow` and the config put still accept E4/E5 switched off — made harmless by the `enabledSubBlocks` rule above (every reader treats them as on).
   - `[low]` `[reject]` Other (gap layer): `subBlockSummaryText` answers null for the six `cta_*` sub-blocks, so the type dialog shows no "what it holds" line — cosmetic, and the line would be new authored copy; recorded on ledger W4.
+
+## Auto Run Result
+
+Status: done (branch pushed, PR not opened: the batch under this one, e14b, has not merged yet).
+
+**Summary.** The kernel gained a generic measurement-table grammar (`seed/measurement.ts`) and seed v5, v4 plus the
+one library type `chave_transferencia_automatica` (`seed/v5.ts`); contract 19 with minimum 19; the put family
+`sheet/test/value`; the print kind `outros` ("Outros equipamentos") after `transformadores`. The sheet draws
+Configuração, the six measurement tests, their switches, values and the E5 options on the existing sheet surface;
+both palettes list the type after the eight on seed v5 only; section 9 prints it with native tables.
+
+**Files.** Kernel: `seed/measurement.ts`, `seed/v5.ts`, `relatorio/measurement-evaluation.ts` (new), and the seed,
+schema, op path, fold, status, merge, snapshot, print, tag, text and palette modules of the Code Map. Web:
+`surfaces/ficha/configuracao-section.tsx`, `measurement-test-section.tsx` (new), the ficha wiring, `ficha.css`,
+`app.css`, both palettes, the type-defaults dialog, copy. Api: the CTA plate fixture, `panelFields`,
+`jobs/generate/docx-cta.test.ts`, `sync/sync-cta.integration.test.ts`, the contract pin at 19. E2E:
+`e2e/cta.spec.ts` (in `SERIAL_SPECS`), `e2e/cta.durability.spec.ts`, `plate-every-type.spec.ts`, `relatorio.spec.ts`.
+Documents: spine notes on AD-3, AD-15, AD-21; the ledger section "Story 14.5"; `docs/nc-chip-phrases.md`;
+`docs/kbs/architecture/measurement-table.md` and `log.md`.
+
+**Review.** 18 findings: 10 patched (4 distinct medium entries, the rest low), 1 false, 4 rejected as low, 3
+deferred (frontmatter `deferred`; ledger R1, R2, R5). Rejected: the relatorio_id mismatch (refuted, `opSchema`
+refuses it); foreign unit or unknown option accepted by the fold (unreachable from the sheet, ledger R3); hidden
+rows listed by the Conflict view (ledger R4); select instead of Segmented control (a recorded narrowing, W1);
+no summary line for the `cta_*` sub-blocks in the type dialog (cosmetic, ledger W4).
+
+**Follow-up review: recommended.** Four medium entries were patched in the one allowed loop and the patches were
+verified by their focused tests and the gate, not re-reviewed: the instrument header and suggestion of a
+measurement test (`measurementInstrumentHeaderOf`, `suggestedInstruments`) and the `enabledSubBlocks` lock, which
+reads the locked keys at `SEED_VERSION` rather than at the block's own seed version. The integrated epic review
+is the place.
+
+**Verification** (story gate on `1e889b89`, this batch plus e14b at `b243d620`, one run under the host lock, wait 1 s,
+651 s in all):
+- `pnpm lint` exit 0 (14 s); `pnpm static` exit 0 (22 s).
+- `pnpm test:api`: 81 files, 621 passed (219 s).
+- `pnpm test:unit`: 298 files, 3937 passed, 1 failed (193 s). The one red is the base red named at launch,
+  `apps/web/src/surfaces/relatorio/relatorio-tree-edges.test.tsx` ("Adicionar equipamento" menuitem): batch e14a
+  fixed it in PR #126, which is on `origin/main` and not yet on this branch's base.
+- Playwright, `cta.spec.ts`, `cta.durability.spec.ts`, `plate-every-type.spec.ts`, `relatorio.spec.ts` on
+  `desktop-chrome` and `durability-desktop-chrome`: 23 passed (12 parallel, 11 serial), 178 s.
+- Playwright, `cta.durability.spec.ts` on `durability-android-chrome` and `durability-webkit`: 2 passed, 25 s.
+- Matrix audit: every row of the I/O matrix has a kernel, api or Playwright test that ran in these stages.
+
+**Residual risks.**
+- `origin/main` (Story 14.2 squash-merged with its removal pass) is NOT merged: it conflicts in 56 files, almost
+  all between that pass and e14b's work, so e14b resolves it first. After e14b merges, this branch merges
+  `origin/main`, re-runs the story gate and only then gets its PR (ledger R7). The removal rule of `live()` then
+  covers the CTA sheet with no code of this batch: nothing here filters locations on its own.
+- The content of the type is a draft to adjust after first use; v5 freezes at merge, so a change is a new version.
 
 ## Design Notes
 
