@@ -429,7 +429,9 @@ export function keepClearOfStickyBar(target: Element | null): void {
   const top = appBar !== null && getComputedStyle(appBar).position === 'sticky' ? Math.max(0, appBar.getBoundingClientRect().bottom) : 0;
   const floor = window.innerHeight - stickyBarCovered(true);
   let by = 0;
-  if (box.bottom > floor) by = Math.max(0, Math.min(Math.ceil(box.bottom - floor), Math.floor(box.top - top)));
+  // Never past the element's own top: one taller than the room scrolls until its top is just
+  // below the App bar, up when that top is hidden under it.
+  if (box.bottom > floor) by = Math.min(Math.ceil(box.bottom - floor), Math.floor(box.top - top));
   else if (box.top < top) by = Math.floor(box.top - top);
   if (by !== 0) window.scrollBy({ top: by, behavior: 'instant' });
 }
