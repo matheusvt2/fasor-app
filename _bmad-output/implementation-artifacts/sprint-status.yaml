@@ -908,7 +908,7 @@ action_items:
     epic: 13
     action: "E13-A5 Playbook: WIP commit, push and HANDOFF.md update at every phase boundary (spec ready, review done, gate started), and a coordinator resume procedure from HANDOFF.md, after three classifier stalls killed orchestrators in Epic 13; target a stalled Epic 14 batch resumes with no rework beyond its last phase"
     owner: "coordinator (playbook)"
-    status: open
+    status: done  # 2026-10-14: folded into E14-A6 (epic-batch-orchestrator.md section 3)
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-105-e13-a6-capture-refactor"
     epic: 13
@@ -956,7 +956,7 @@ action_items:
     epic: 14
     action: "E14-A3 Playbook: a batch that adds a value to a closed list other specs assert (block type, palette row, enum value, seed version) runs every spec asserting that list (found by grep) beside its touched specs; specs read such lists from the kernel (e2e/support/palette.ts), never a literal; target next wave gate 0 reds from stale expectations"
     owner: "coordinator (playbook)"
-    status: open
+    status: done  # 2026-10-14: rule in epic-batch-orchestrator.md section 4
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-113-e14-a4-dor-capability-check"
     epic: 14
@@ -968,13 +968,13 @@ action_items:
     epic: 14
     action: "E14-A5 Playbook: a review-loop patch to an evaluation, verdict or lock rule ships with a boundary test (zero, negative, equal, at limit) and is listed in the PR body under patched, not re-reviewed, which the integrated review reads first (Q-3, Q-12 came from such patches); target every PR body carries the list, QA finds 0 defects in listed patches"
     owner: "coordinator (playbook)"
-    status: open
+    status: done  # 2026-10-14: rule in epic-batch-orchestrator.md section 4
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-115-e14-a6-orchestrator-handback-and-handoff"
     epic: 14
     action: "E14-A6 Playbook: land E13-A5 (WIP commit, push and HANDOFF.md at every phase boundary, coordinator resume from it); an orchestrator never hands back while a child it launched still runs and its final message states every child; add the stacked-merge recipe (take main for files the batch did not change, re-apply its delta); target 0 coordinator resumes of a handed-back orchestrator in the next epic"
     owner: "coordinator (playbook)"
-    status: open
+    status: done  # 2026-10-14: rules in epic-batch-orchestrator.md sections 3 and 4 (folds E13-A5)
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-116-e14-a7-carry-over-batch-first"
     epic: 14
@@ -1016,5 +1016,5 @@ action_items:
     epic: 14
     action: "E14-A13 Stop the _tmp_13_* files pnpm 12.5.1's link probe leaves in bind-mounted worktrees: a .gitignore rule plus an install cleanup, or a pnpm package-import-method that skips the probe; target a batch worktree shows no _tmp_* file after install"
     owner: "coordinator (tooling)"
-    status: open
+    status: open  # 2026-10-14: .gitignore rule added; the probe itself still runs (install cleanup or package-import-method open)
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"

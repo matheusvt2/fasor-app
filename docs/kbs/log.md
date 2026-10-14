@@ -64,3 +64,4 @@ timestamp: 2026-09-30T00:00:00Z
 - 2026-10-14: PR #129 merged (69d7d05): Epic 14 QA fixes. `epics.md` gains the QA block before Story 14.6 and the dated correction of the CTA configuration line (Q-15).
 - 2026-10-14: Epic 14 QA re-check on main e5fd141: full `@p0` 278 of 278 and the eight specs PR #129 touched 45 of 45; Q-1 to Q-7 and 14.2 (h) confirmed fixed in the browser. Section "Re-check 2026-10-14" added to the QA report.
 - 2026-10-14: Epic 14 retrospective (headless) written: `implementation-artifacts/epic-14-retro-2026-10-14.md`, action items E14-A1 to E14-A13 in sprint-status.
+- 2026-10-14: Epic 14 retro items E14-A3, E14-A5 and E14-A6 (with E13-A5) landed in `epic-batch-orchestrator.md`; the stale "do not build on another batch's unmerged branch" and "down -v" lines struck; `.gitignore` ignores the pnpm `_tmp_` probe files (E14-A13, partial).

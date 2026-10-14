@@ -192,6 +192,11 @@ overrides (they win over the workflow text):
   ISO timestamps with `find -newermt '2026-09-26T12:00:00'`; this box's find is bfs) and finish the work yourself or
   resume the child with a precise remainder.
 - A report file a subagent writes goes inside the worktree (the tools refuse other paths).
+- (2026-10-14, E14-A6, folds E13-A5) At every phase boundary (spec ready, implementation returned, review loop
+  done, gate done) commit a WIP checkpoint, push it, and rewrite `<worktree>/.scratch-<tag>/HANDOFF.md` with the
+  remaining steps, so the coordinator can resume the batch from it.
+- (2026-10-14, E14-A6) Never hand back while a child you launched is still running: wait for its report and act on
+  it first. Your final message states each child's state (returned, resumed, abandoned and why).
 
 ## 4. Scope and decisions
 
@@ -209,9 +214,19 @@ overrides (they win over the workflow text):
 - Do not edit `sprint-status.yaml`. Do not edit `epics.md` unless your launch prompt says so.
 - A new op family bumps `CONTRACT_VERSION` (and `MIN_CONTRACT_VERSION` when old clients must stop) and gets an api
   integration test through the sync route.
+- (2026-10-14, E14-A3) A batch that adds a value to a closed list other specs assert (block type, palette row, enum
+  value, seed version) finds every spec asserting that list (`grep -rln` over `e2e/`) and runs them beside its
+  touched specs. A spec reads such a list from the kernel, as `e2e/support/palette.ts` does, never as a literal.
+- (2026-10-14, E14-A5) A review-loop patch to an evaluation, verdict or lock rule ships with a boundary test (zero,
+  negative, equal, at the limit), and the PR body lists every such patch under "Patched, not re-reviewed"; the
+  integrated review reads that list first.
 - No emoji anywhere. Code, comments, commits and documents in English; UI copy pt-BR verbatim from the mocks.
 - The repository is public: never copy material from `docs/context/` or `docs/media/`.
-- Do not build on another batch's unmerged branch. A gate test that fails under load but passes alone is reported
+- ~~Do not build on another batch's unmerged branch.~~ *(2026-10-13, Matheus, Epic 14: a batch may be stacked on
+  another batch's branch or early kernel commit when the launch prompt says so; the epic context assigns contract and
+  seed numbers up front.)* Merging main into a stacked branch after the batch under it squash-merged (E14-A6, R14-4):
+  for every file this batch did not change take main's version whole, then re-apply this batch's own delta; check
+  `git diff origin/main --stat` lists only this batch's files; run the gate on that merge. A gate test that fails under load but passes alone is reported
   as a known flake with its passing isolated run.
 
 ## 5. Finish
@@ -223,7 +238,7 @@ overrides (they win over the workflow text):
    launch prompt. Body: summary per story or item, narrowings, open questions, known-open review findings, mutation
    runs, and the last ~40 lines of the green `pnpm verify` output in a code block. End the body with the line
    `Generated with [Claude Code](https://claude.com/claude-code)` (no emoji). Do not merge.
-4. `docker compose down -v` in the worktree to free the machine (images stay).
+4. ~~`docker compose down -v` in the worktree to free the machine (images stay).~~ *(2026-10-14: never pass `-v`, AGENTS.md and the 2026-10-08 load rules; on this host)* `podman compose stop` in the worktree to free the machine.
 5. Final message, under 250 words: PR URL, branch, head commit, verify result (counts and wall time), narrowings,
    open questions, known-open findings, and every cross-batch contract you implemented (op paths, kernel function
    names and signatures, endpoints, env vars) so the next batches can rely on them.
