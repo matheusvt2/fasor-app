@@ -142,7 +142,7 @@ function draw(shown: BlockRow, current: BlockRow = shown, rows: readonly Suggest
       committed.push(drafts);
     }),
     edit: vi.fn(async (build: Build) => {
-      const ops = build([current], AUTHOR, { blocks: [current], locations: [], equipment: [] });
+      const ops = build([current], AUTHOR, { blocks: [current], locations: [], allLocations: [], equipment: [] });
       if (ops === null) return null;
       built.push(ops);
       return 'b1';

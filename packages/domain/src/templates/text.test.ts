@@ -7,6 +7,8 @@ import {
   defaultCabineName,
   defaultColunaName,
   defaultPainelName,
+  colunaInLocalText,
+  colunaInPainelText,
   localSubText,
   painelInLocalText,
   paletteTargetText,
@@ -15,6 +17,7 @@ import {
   nodeSummaryText,
   quantityLabel,
   removedText,
+  restoredText,
   sectionsHeading,
   skeletonHeading,
   subBlockSummaryText,
@@ -194,5 +197,26 @@ describe('14.2-UNIT composer texts: Local › Painel › Coluna', () => {
     expect(paletteTargetText(view, findComposerNode(view, 'trafo')!)).toBe('Cabine de transformação, direto no local');
     // Coordinator review 2026-10-13: a painel's controls name it with its local (mock 42: "Mais opções de Painel de entrada em Cubículo Enel").
     expect(painelInLocalText('Painel 1', 'Cubículo Enel')).toBe('Painel 1 em Cubículo Enel');
+  });
+
+  it('second pass (rule 9): a coluna\'s controls name it with its painel and its local, a coluna directly under a local with that local', () => {
+    expect(colunaInPainelText('Coluna 1', 'Painel de média tensão', 'Cabine primária')).toBe('Coluna 1 em Painel de média tensão em Cabine primária');
+    expect(colunaInLocalText('Coluna 5', '1° Subsolo')).toBe('Coluna 5 em 1° Subsolo');
+    // The default "Painel 1 › Coluna 1" of two locals, and the "Coluna 1" of two painéis of one local, read apart.
+    const names = [
+      colunaInPainelText('Coluna 1', 'Painel 1', 'Cubículo Enel'),
+      colunaInPainelText('Coluna 1', 'Painel 1', 'Geradores'),
+      colunaInPainelText('Coluna 1', 'Painel 2', 'Cubículo Enel'),
+      colunaInLocalText('Coluna 1', 'Cubículo Enel'),
+    ];
+    expect(names).toEqual(['Coluna 1 em Painel 1 em Cubículo Enel', 'Coluna 1 em Painel 1 em Geradores', 'Coluna 1 em Painel 2 em Cubículo Enel', 'Coluna 1 em Cubículo Enel']);
+    expect(new Set(names).size).toBe(4);
+  });
+
+  it('second pass: a location back in the relatório reads as its removal does, the participle agreeing with its kind', () => {
+    expect(restoredText('coluna', 'Coluna 3')).toBe('Coluna 3 restaurada');
+    expect(restoredText('painel', 'Painel 2')).toBe('Painel 2 restaurado');
+    expect(restoredText('cabine', 'Geradores')).toBe('Local Geradores restaurado');
+    expect(restoredText('cabine', 'Cabine de transformação')).toBe('Cabine de transformação restaurada');
   });
 });

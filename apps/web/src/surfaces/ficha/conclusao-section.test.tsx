@@ -62,7 +62,7 @@ function renderSection(shown: BlockRow, current?: BlockRow) {
     commit: vi.fn(async () => undefined),
     edit: vi.fn(async (build: Build) => {
       builds.push(build);
-      if (current !== undefined) build([current], AUTHOR, { blocks: [], locations: [], equipment: [] });
+      if (current !== undefined) build([current], AUTHOR, { blocks: [], locations: [], allLocations: [], equipment: [] });
       return null;
     }),
     undoable: vi.fn(),
@@ -78,7 +78,7 @@ function renderSection(shown: BlockRow, current?: BlockRow) {
   return builds;
 }
 
-const fresh = { blocks: [], locations: [], equipment: [] };
+const fresh = { blocks: [], locations: [], allLocations: [], equipment: [] };
 
 describe('E5-A4 the conclusion confirm guards its basis', () => {
   it('a fresh confirm writes the text, its status and its basis in one batch', async () => {

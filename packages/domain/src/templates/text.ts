@@ -181,6 +181,28 @@ export function painelInLocalText(painelName: string, localName: string): string
   return `${painelName} em ${localName}`;
 }
 
+/**
+ * "Coluna 1 em Painel de média tensão em Cabine primária": a coluna of a painel named with
+ * its painel and its local, for the controls of its composer row ("Reordenar …", "Mais
+ * opções de …", "Posição de …"). authored: the composer's join of the mock's two namings
+ * (`42-template-composer.html` words the Position box "Posição de Coluna 1 em Painel de média
+ * tensão" and the Overflow "Mais opções de Coluna 1 em Cabine primária"); the painel's part
+ * is `painelInLocalText`, since default names repeat across locals ("Painel 1 › Coluna 1" in
+ * each), so the painel alone would name the colunas of two locals alike.
+ */
+export function colunaInPainelText(colunaName: string, painelName: string, localName: string): string {
+  return `${colunaName} em ${painelInLocalText(painelName, localName)}`;
+}
+
+/**
+ * "Coluna 5 em 1° Subsolo": a coluna directly under a local (the shape before the painel
+ * level) named with its local, for the controls of its composer row (the mock's Overflow
+ * wording, "Mais opções de Coluna 1 em Cabine primária").
+ */
+export function colunaInLocalText(colunaName: string, localName: string): string {
+  return `${colunaName} em ${localName}`;
+}
+
 function findParentName(view: ComposerView, ref: string): string | null {
   for (const cabine of view.cabines) {
     if (cabine.ref === ref) return cabine.name;
@@ -242,6 +264,15 @@ export function moveAnnouncement(kind: ComposerItemKind, name: string, position:
 /** The toast of a composer removal: "Coluna 3 removida", "Local Geradores removido", "Painel 2 removido", "Seção 8 removida". */
 export function removedText(kind: ComposerItemKind, name: string): string {
   return said(kind, name, 'removid');
+}
+
+/**
+ * A location back in the relatório (Story 14.2, second pass): "Coluna 3 restaurada", "Painel
+ * 2 restaurado", "Local Geradores restaurado". authored: the restore's counterpart of
+ * `removedText`; no mock words it.
+ */
+export function restoredText(kind: ComposerItemKind, name: string): string {
+  return said(kind, name, 'restaurad');
 }
 
 /** The toast of a location added (Story 4.4, 14.2): "Coluna 18 adicionada", "Painel 2 adicionado", "Local Geradores adicionado", "Cabine de transformação adicionada". */

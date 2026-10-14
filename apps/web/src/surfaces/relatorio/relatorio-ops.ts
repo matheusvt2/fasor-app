@@ -19,8 +19,9 @@ import {
 /*
  * The ops the Sumário and its location tree write (Stories 4.3, 4.4, 4.5):
  * `block/{id}/{order_key|removed_at}` puts and `block/{id}` creates, `location/{id}`
- * creates (a local, a painel or a coluna, Story 14.2) and `name`/`order_key`/
- * `agrupar_por_tipo`/`funcao` puts (relatório scope), and the
+ * creates (a local, a painel or a coluna, Story 14.2), `name`/`order_key`/
+ * `agrupar_por_tipo`/`funcao` puts and the `removed_at` remove and its put of null (a
+ * location removed and restored, Story 14.2 second pass) (relatório scope), and the
  * project-scope `equipment/{id}` create and `tag`/`removed_at` writes. The relatório row
  * itself is born by `instantiateTemplate` (Story 4.1) and never touched here. The envelope,
  * the `relatorio/status` put and the `block/{id}/{field}` put are the kernel's (Epic 4 retro
@@ -54,6 +55,14 @@ export function createLocationOp(author: Author, relatorioId: string, row: Locat
 /** `location/{id}/{name|order_key}` put. */
 export function putLocationOp(author: Author, relatorioId: string, locationId: string, field: 'name' | 'order_key', value: string): OpDraft {
   return { ...envelope(author, relatorioId), kind: 'put', path: locationFieldPath(locationId, field), value };
+}
+
+/**
+ * `location/{id}/removed_at` remove (Story 14.2, second pass: the location is tombstoned; the
+ * rows under it carry their own tombstones in the same batch), or a put of null that restores it.
+ */
+export function locationRemovedOp(author: Author, relatorioId: string, locationId: string, removed: boolean): OpDraft {
+  return { ...envelope(author, relatorioId), kind: removed ? 'remove' : 'put', path: locationFieldPath(locationId, 'removed_at'), value: null };
 }
 
 /** `location/{id}/agrupar_por_tipo` put (the cabine's flag; the family has no field segment). */

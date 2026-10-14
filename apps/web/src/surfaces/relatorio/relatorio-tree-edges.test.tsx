@@ -262,7 +262,7 @@ describe('4.4/4.5 tree edge paths', () => {
     await waitFor(() => expect(document.querySelector('.toast')).toHaveTextContent('PR-C01 criada na Coluna 1'));
     await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
     await waitFor(() => expect(tags(coluna())).toEqual(['SEC-C01']));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 1' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 1 de Cabine de Testes' })).toHaveFocus());
   });
 
   it('the cabine\'s "Adicionar bloco" follows the last sheet\'s coluna; a cabine with no coluna takes the block itself, "criada em ⟨cabine⟩"', async () => {
@@ -273,7 +273,11 @@ describe('4.4/4.5 tree edge paths', () => {
     await database.local_prefs.put({ key: LAST_SHEET_PREF(RELATORIO), value: SEC_C01 });
     await openCabine();
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar equipamento' }));
+    // A local that holds colunas directly adds to its current coluna: the item reads "Adicionar
+    // bloco", and "Adicionar equipamento" is offered only when the block goes on the local itself (05d6fd7).
+    expect(await screen.findByRole('menuitem', { name: 'Adicionar bloco' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Adicionar equipamento' })).toBeNull();
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Adicionar bloco' }));
     let palette = await screen.findByRole('dialog', { name: 'Adicionar bloco' });
     expect(within(palette).getByText('Em: Cabine de Testes › Coluna 1')).toBeInTheDocument();
     await userEvent.click(within(palette).getByRole('button', { name: 'Fechar' }));
@@ -318,9 +322,9 @@ describe('4.4/4.5 tree edge paths', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar coluna' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 2' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 2 de Cabine de Testes' })).toHaveFocus());
     await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Recolher Coluna 2' })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Recolher Coluna 2 de Cabine de Testes' })).toBeNull());
     await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Cabine de Testes' })).toHaveFocus());
   });
 
@@ -342,7 +346,7 @@ describe('4.5 field palette (Sumário)', () => {
   it('opens from a coluna row, lists the eight types with the suggested TAG, and one tap creates equipment + block in one batch', async () => {
     database = await seeded();
     await openCabine();
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 1' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 1 de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar bloco' }));
     const palette = await screen.findByRole('dialog', { name: 'Adicionar bloco' });
     expect(within(palette).getByText('Em: Cabine de Testes › Coluna 1')).toBeInTheDocument();

@@ -17,7 +17,7 @@ import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitBatch } from '../../db/commit.ts';
 import type { HeldDecisions } from '../../db/decision-store.ts';
-import { blockRowsOf, equipmentRows, projectBlockRows } from '../../db/home-store.ts';
+import { allLocationRows, blockRowsOf, equipmentRows, projectBlockRows } from '../../db/home-store.ts';
 import { relatorioVisibility } from '../../db/sync-store.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
@@ -57,7 +57,7 @@ export function useDecisionTextContext(entry: HeldDecisions | null): DecisionTex
 export interface DecisionActions {
   /** "Aplicar": one put per cell with the picked side. Resolves once written (or refused). */
   apply: (decision: CellDecision, picks: Readonly<Record<string, ConflictPick>>) => Promise<void>;
-  /** "Manter": the block and its freed equipment come back (`restoreSheetOps`). */
+  /** "Manter": the block, its freed equipment and any removed location above it come back (`restoreSheetOps`). */
   keep: (entry: HeldDecisions, decision: BlockRemovalDecision, context: DecisionTextContext) => Promise<void>;
   /** "Remover": the block is removed again, now having seen the edit (`removeSheetOps`). */
   remove: (entry: HeldDecisions, decision: BlockRemovalDecision, context: DecisionTextContext) => Promise<void>;
@@ -111,10 +111,13 @@ export function useDecisionActions(): DecisionActions {
     async (entry: HeldDecisions, decision: BlockRemovalDecision, context: DecisionTextContext) => {
       if (author === null || db === null) return;
       await run(async () => {
-        const [blocks, equipment] = await Promise.all([blockRowsOf(db, entry.relatorioId), equipmentRows(db, entry.projectId)]);
+        // Story 14.2, second pass: every location row, removed ones included. A sheet that left
+        // with its coluna, painel or local is kept together with the removed rows above it, so
+        // it never comes back into a location the tree does not show.
+        const [blocks, equipment, locations] = await Promise.all([blockRowsOf(db, entry.relatorioId), equipmentRows(db, entry.projectId), allLocationRows(db, entry.relatorioId)]);
         const block = blocks.find((row) => row.id === decision.block_id && row.removed_at !== null && row.removal_conflict !== undefined);
         if (block === undefined) return null;
-        const ops = restoreSheetOps(author, entry.relatorioId, entry.projectId, blocks, block.id, block.equipment_id, equipment);
+        const ops = restoreSheetOps(author, entry.relatorioId, entry.projectId, blocks, block.id, block.equipment_id, equipment, locations);
         return ops === null ? null : { ops, text: removalKeptText(decision, context) };
       });
     },
