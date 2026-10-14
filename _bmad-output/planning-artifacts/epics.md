@@ -3134,6 +3134,18 @@ So that a transformation room with two transformers needs no invented coluna.
 
 **Definition of Done, in addition (2026-10-13):** kernel tests for the batch, the ancestor-liveness rule, the restore entries and the print without the removed painel; an api integration test of the batch through `POST /api/sync/ops`; a Playwright test at 768 px that removes a coluna holding a sheet and undoes it, removes a painel, reloads, restores it from the list with its colunas, sheets and TAGs, and removes a local, with the sync badge settled and the server holding the same rows; the durability specs touched run on the matrix projects; AD-6 gains a dated note on the removal (explicit tombstones in one batch plus the derived ancestor rule) and `deferred-work.md` closes O1 and the two `block/{id}/location_id` entries it answers.
 
+**As built, 2026-10-13 (PR #126, merged as `cbce841`; contract 17, minimum 17; no seed version):**
+
+- *(narrowing)* The rail's local row reads "Local · ⟨Função⟩ · N painéis · N de M fichas" with no SE data line (Matheus, 2026-10-13; `DESIGN.md` dated strike).
+- *(narrowing)* A local that already holds colunas directly (every tree and template from before this story, the seeded standard template included) keeps the current-coluna palette target, its menu item reads "Adicionar bloco" and it still offers "Adicionar coluna"; "Adicionar equipamento no local" shows only on a local with no direct coluna.
+- *(narrowing)* The mock's menu items "Mover para outro local", "Duplicar" and "Adicionar abaixo" for locations are not built on either surface.
+- *(narrowing)* Below 768 px a location row reorders by the Overflow and Alt+arrows only (no drag handle, no Position box).
+- *(narrowing)* A photo's place text names coluna and local without the painel.
+- *(narrowing)* The Playwright spec seeds the two sheets' content by office ops and concludes them by tap, and generates at 1280 px with *Agrupar por tipo* off; the other print combinations are kernel and DOCX tests. A location with no sheet underneath is removed with no confirmation.
+- *(open, Matheus)* (h) a sheet another device created in, or moved into, a location whose removal is older than the newest revision stays hidden with no restore entry; (k) an undone "Adicionar coluna / painel / local" is offered in "Restaurar ficha removida" until the next emission, as an undone "Adicionar bloco" already is.
+- *(open, Bruno)* the authored copy listed in the PR body (O4 and the removal texts); the type-group titles under a painel (criterion added to Story 14.4).
+- Known open, in `deferred-work.md` under Story 14.2: entries (a) to (k).
+
 ~~**Acceptance Criteria added 2026-10-09 (Local › Cabine › Coluna):**~~ *(superseded 2026-10-10)*
 
 **Given** the kernel
