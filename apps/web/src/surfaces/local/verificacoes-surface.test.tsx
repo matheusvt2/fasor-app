@@ -429,7 +429,8 @@ describe('14.3 "Verificações do local": the surface', () => {
     expect(photos).toHaveTextContent('Verificação de iluminação de emergência (autonomia mínima de 2 h) da Cabine de Testes');
     expect(row.querySelector('.nc-point-ref')).toBeNull();
 
-    await userEvent.click(within(row).getByRole('button', { name: 'Criar ponto de atenção' }));
+    const createButton = within(row).getByRole('button', { name: 'Criar ponto de atenção' });
+    await userEvent.click(createButton);
     const dialog = await screen.findByRole('dialog');
     // The point is this local's: its title is the kernel's, never an equipment's nor "Geral".
     expect(dialog).toHaveTextContent('Cabine de Testes · Verificações do local');
@@ -439,6 +440,10 @@ describe('14.3 "Verificações do local": the surface', () => {
     const point = create.value as unknown as PointRow;
     expect(point).toMatchObject({ relatorio_id: RELATORIO, location_id: LOCAL, equipment_id: null, origin: 'manual', text: `[[foto:${PHOTO}]]` });
     await waitFor(() => expect(rowOf(EMERGENCIA).querySelector('.nc-point-ref')).toHaveTextContent('Ponto de atenção 1'));
+    // The dialog hands the focus back to the button that opened it, still the same element of the row.
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(within(rowOf(EMERGENCIA)).getByRole('button', { name: 'Criar ponto de atenção' })).toBe(createButton);
+    await waitFor(() => expect(createButton).toHaveFocus());
     await waitFor(() => expect(toastText()).toContain('Ponto de atenção'));
   });
 
