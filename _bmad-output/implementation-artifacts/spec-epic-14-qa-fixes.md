@@ -2,7 +2,7 @@
 title: 'Epic 14 QA fixes: nine-type specs, removed-local seams, site NC before issue, CTA zero readings, seed upgrade on push'
 type: 'bugfix'
 created: '2026-10-14'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'd9028aca45306c2369d6957ae8a1fed4af5daa64'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -13,7 +13,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-14-context.md'
 warnings: ['batched']
 # batched: the Epic 14 integrated QA leaves one fix batch (playbook section 6); its findings share the kernel's removal, site-checklist and measurement modules.
-deferred: []
+deferred:
+  - summary: >-
+      The push-time template seed step's invalid-row and refused-move branches (log, savepoint, cache clear) run in no test through POST /api/sync/ops.
+    evidence: |-
+      template-seed-push.integration.test.ts covers the invalid answer only at templateSeedDecision; a push cannot store a template row that fails the current seed (every v1-v4 type exists on v5), so the branches are defensive. Edge Case Hunter and Verification Gap, 2026-10-14.
+    location: >-
+      apps/api/src/sync/apply.ts upgradePushedTemplates
+    severity: low
 ---
 
 <intent-contract>
@@ -110,3 +117,32 @@ field (contract bump): not built.
 ## Verification
 
 Commands from the worktree root (podman; never on the host): `podman compose --profile tools run --rm --user root tools pnpm test:unit -- <path>`; after a kernel edit `podman compose restart api`; every Playwright, full unit or api run under `lockf -t 20000 /tmp/fasor-verify.lock sh -c '...'`, started with `nohup` into `.scratch-e14fix/<name>.log`, polled. Targeted e2e: `pnpm exec tsx scripts/e2e.ts e2e/<spec>.ts --project desktop-chrome --grep <id>`.
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-10-14 — Review pass
+Layers: Edge Case Hunter and Verification Gap Reviewer (opus). Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them. One review-fix loop.
+- verdicts: 11 findings — high 0, medium 4, low 5, false 2, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` ECH: a stranded-sheet restore puts back removed ancestors whose `order_key` a live sibling took (Q-13 hole on this path) — ancestor `order_key` puts from the kernel rule.
+  - `[medium]` `[patch]` ECH: `restoreSheetOps` restores removed ancestors with no `order_key` check — same fix, same root cause as the row above.
+  - `[low]` `[patch]` ECH: `countSiteWork` counts a file carrying both `block_id` and `location_id` as a site photo, while `entities.ts` reads such a row as its block's — count only files with no `block_id`.
+  - `[false]` `[reject]` ECH: site answers count checklist keys outside the seed list — the fold accepts only the relatório seed's item keys (`block-config.ts:182`, `location/{id}/checklist/{item_key}` refused otherwise), so no such key is stored.
+  - `[medium]` `[patch]` ECH: the SE and AMBIENTE fields on the Verificações route miss the ficha's route-scoped field rules (focus ring, invalid border, select, combobox chevron) — `ficha.css` rules copied for the route.
+  - `[low]` `[defer]` VG (other): same claim as the next row, from the other layer — see it.
+  - `[low]` `[defer]` ECH: Q-7's "invalid row is left and logged" is tested only at `templateSeedDecision`, not through a push; the push's invalid and refused-move branches run in no test — a push cannot write a row that fails the current seed (every v1-v4 type exists on v5), so the branches are defensive; known open in the PR body.
+  - `[false]` `[reject]` ECH: (h) drops a stranded sheet when one of its removed ancestors is offered as its own entry — that entry's restore makes the ancestors live, so the live sheet comes back with it; listing it twice would offer two restores of one thing. The spec's "whatever the cut" is about the cut, and an ancestor entry exists only after the cut.
+  - `[medium]` `[patch]` VG: the neutral "Conferir" helper of a stored zero is not rendered in any web test — `measurement-test-section.test.tsx` case added.
+  - `[low]` `[patch]` VG: Q-6's site photo and point counts are proven only in the kernel; the web wiring (`relatorio-tree.tsx`, `sumario-surface.tsx` `siteWork`) is unasserted — e2e assertion added.
+  - `[low]` `[patch]` VG: the block `order_key` put of `restoreSheetOps` (Q-13) fires in no test — `tree-actions.test.ts` case added.
+
+## Auto Run Result
+
+Status: done. One spec, implementation by `bmad-dev-opus-high`, two review layers, one review-fix loop.
+- Implemented: Q-1 to Q-7, Q-11 to Q-14, Q-17, ledger (h), R1, and the ledger entries (Q-4 counter and parecer, Q-8, Q-9, Q-10, Q-15, Q-16, Q-18, R1 per-key family, `_tmp_13_*`). Contract stays 19.
+- Review: 7 patched (4 medium, 3 low), 2 rejected (false), 2 deferred (one claim from two layers, low, frontmatter `deferred`).
+- Follow-up review recommended: false; no high was patched, and the integrated QA re-check covers the medium ones. Patched by verdict: medium 4, low 3.
+- Open question: a local with no equipment still raises no "cabine incompleta" pre-issue row, although Q-5 now gives its fields a screen; today's behaviour is kept.
+- Verification: the story gate, recorded in the PR body.
