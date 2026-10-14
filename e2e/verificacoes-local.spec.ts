@@ -90,6 +90,7 @@ const MARK_SENT = 'Marcar como enviado ao cliente';
 /** The job's own time: flush, queue pick-up, two LibreOffice passes. */
 const JOB_TIMEOUT = 150_000;
 const NOT_FOUND = 'Verificações do local não encontradas neste relatório.';
+const NC_WITHOUT_POINT = 'Verificações do local com NC sem ponto de atenção: Cubículo Enel';
 
 const outbox = (page: Page) => readStore<OutboxRow>(page, database, 'outbox');
 /** Not acknowledged by the server yet: waiting to be pushed, or pushed with no answer. */
@@ -412,6 +413,14 @@ test('@p0 14.3-E2E-001 at 768 px: a v4 relatório, the surface opened from the l
   await expect(page.locator('.content > section.vl-group .section-head .btn-reason')).toHaveText(['7 de 7', '2 de 2', '2 de 2', '2 de 2', '3 de 3', '3 de 3']);
   await expect(bulk(page)).toHaveAttribute('aria-disabled', 'true');
 
+  // Epic 14 QA Q-4: the NC item has no point of attention yet, so one pending row before issue
+  // names the local on section 9 of the Sumário; it goes once the point exists (below).
+  await bar(page).getByRole('button', { name: 'Concluir verificações' }).click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
+  await expect(sumario(page).locator('li.sum-s9 .sum-status').first()).toContainText(NC_WITHOUT_POINT);
+  await siteButton(page, ENEL).click();
+  await expect(title(page)).toHaveText('Verificações do local — Cubículo Enel');
+
   // "Criar ponto de atenção" on the NC item: a point of this local, citing the item's photo.
   const create = nc.getByRole('button', { name: 'Criar ponto de atenção' });
   await create.click();
@@ -498,6 +507,8 @@ test('@p0 14.3-E2E-001 at 768 px: a v4 relatório, the surface opened from the l
     'Verificações do local sem resposta: 1° Subsolo (19 itens), Oxigênio (19 itens), Cobertura A (19 itens), Cobertura B (19 itens), Geradores (19 itens) e Sala dos painéis (19 itens)',
   );
   await expect(row9).not.toContainText('Cubículo Enel (');
+  // Epic 14 QA Q-4: the NC item has its point now: no row names it.
+  await expect(row9).not.toContainText(NC_WITHOUT_POINT);
   await expect(row9).not.toHaveClass(/is-blocking/);
   await expect(sumario(page).locator('.sum-status.is-blocking')).toHaveText(['Parecer não preenchido']);
   // Section 8 names the point by its local.
@@ -757,6 +768,42 @@ test('@p1 14.3-E2E-004 no sideways scroll at 390, 768 and 1280 px, with an NC ro
   await expect(editor).toHaveCount(0);
   await expect(create).toBeFocused();
   expect((await outbox(page)).filter((op) => op.path.startsWith('point/'))).toEqual([]);
+});
+
+test('@p0 14.3-E2E-007 Epic 14 QA Q-5: a local with no equipment fills its CARACTERÍSTICAS DA SE and AMBIENTE DE ENSAIO on the Verificações surface; the location ops are in the outbox, back after a reload, and the block fits at 390 px', async ({ page }) => {
+  test.setTimeout(180_000);
+  const { relatorioId, enelId } = await setUp(page, 390);
+  await openSurface(page, relatorioId, enelId);
+  // The "Do local" block, expanded above the intro and the items, with no line back to this surface.
+  const se = page.locator('.content > section.se-block').filter({ has: page.getByRole('heading', { name: 'Características da SE' }) });
+  const env = page.locator('.content > section.se-block').filter({ has: page.getByRole('heading', { name: 'Ambiente de ensaio' }) });
+  await expect(se.locator('.ficha-da-cabine')).toHaveText('Do local · Cubículo Enel');
+  await expect(env.locator('.ficha-da-cabine')).toHaveText('Do local · Cubículo Enel');
+  expect(await se.evaluate((section) => section.compareDocumentPosition(document.querySelector('.content > .vl-intro')!) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
+  await expect(page.locator('.ficha-local-line')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Ler visor' })).toHaveCount(0);
+
+  const primaria = se.getByLabel('Tensão primária', { exact: true });
+  await primaria.fill('13,8');
+  await primaria.press('Tab');
+  const temperatura = env.getByLabel('Temperatura', { exact: true });
+  await temperatura.fill('19');
+  await temperatura.press('Tab');
+  await expect
+    .poll(async () => (await outbox(page)).filter((op) => op.path.startsWith(`location/${enelId}/se/`) || op.path.startsWith(`location/${enelId}/env/`)).map((op) => [op.path, op.value]))
+    .toEqual([
+      [`location/${enelId}/se/primary_kv`, { raw: '13.8', unit: 'kV', state: 'measured' }],
+      [`location/${enelId}/env/temperature_c`, { raw: '19', unit: '°C', state: 'measured' }],
+    ]);
+  expect((await outbox(page)).some((op) => op.path.startsWith('sheet/'))).toBe(false);
+  expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
+  const widest = await page.locator('.content > section.se-block').evaluateAll((elements) => Math.max(...elements.map((element) => element.getBoundingClientRect().right)));
+  expect(widest).toBeLessThanOrEqual(390 + 0.5);
+
+  await page.reload();
+  await expect(title(page)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByLabel('Tensão primária', { exact: true })).toHaveValue('13,8');
+  await expect(page.getByLabel('Temperatura', { exact: true })).toHaveValue('19');
 });
 
 test('@p1 14.3-E2E-005 a coluna and a relatório on seed v3 offer no entry: no tree button, no rail row, no line on the sheet, and the address says the checklist was not found', async ({ page }) => {

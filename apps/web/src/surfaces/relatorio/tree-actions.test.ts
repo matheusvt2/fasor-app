@@ -92,7 +92,8 @@ describe('14.2 second pass: the batches of a location removal and restore', () =
     locationIds: [id(40), id(41), id(42)],
     blockIds: [id(50), id(51)],
     equipmentIds: [id(60)],
-    counts: { paineis: 0, colunas: 2, sheets: 2 },
+    orderKeys: [] as { id: string; orderKey: string }[],
+    counts: { paineis: 0, colunas: 2, sheets: 2, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 },
   };
 
   it('removeLocationOps: the location removes in the plan\'s order, then the block removes, then the equipment removes (project scope)', () => {
@@ -115,6 +116,12 @@ describe('14.2 second pass: the batches of a location removal and restore', () =
       ['put', `block/${id(51)}/removed_at`, null, 'relatorio'],
       ['put', `equipment/${id(60)}/removed_at`, null, 'project'],
     ]);
+  });
+
+  it('Epic 14 QA Q-13: restoreLocationOps ends with the order_key put of a location whose key a live sibling took', () => {
+    const ops = restoreLocationOps(author, relatorioId, projectId, { ...plan, orderKeys: [{ id: id(40), orderKey: 'a1V' }] });
+    expect(ops.at(-1)).toMatchObject({ kind: 'put', path: `location/${id(40)}/order_key`, value: 'a1V', scope: 'relatorio' });
+    expect(ops).toHaveLength(7);
   });
 });
 

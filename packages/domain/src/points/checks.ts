@@ -1,5 +1,6 @@
 import { initialOrderKey, orderKeyAfter, orderKeyForMove, sortByOrderKey } from '../ops/order-key.ts';
-import type { PointRow } from '../schemas/entities.ts';
+import { pointsOnLiveLocals } from '../relatorio/location-live.ts';
+import type { LocationRow, PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { extractPhotoRefs } from './refs.ts';
@@ -13,6 +14,16 @@ import { extractPhotoRefs } from './refs.ts';
 /** The live points of a relatório in `order_key` order: the manual part of section 8, reorderable. */
 export function livePoints(points: readonly PointRow[]): PointRow[] {
   return sortByOrderKey(points.filter((point) => point.removed_at === null));
+}
+
+/**
+ * Epic 14 QA Q-2: the points section 8 draws, from raw rows: the live points in `order_key`
+ * order, less those on a local that is not live (`pointsOnLiveLocals`, the snapshot's rule).
+ * `locations` are the relatório's location rows, removed ones included, so a removed ancestor
+ * is seen. The reorder key and the "N de M" place read this, as the list reads the snapshot.
+ */
+export function livePointsOfLocals(points: readonly PointRow[], locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'removed_at'>[]): PointRow[] {
+  return pointsOnLiveLocals(livePoints(points), locations);
 }
 
 /** Whether a live point written from an untested sheet already stands for this equipment (it replaces the derived entry). */
@@ -80,9 +91,17 @@ export function newPointRow(input: NewPointInput, points: readonly PointRow[]): 
   };
 }
 
-/** The key a live point takes when moved to `toIndex` (0-based) among the live points; null when it stays. */
-export function pointMoveOrderKey(points: readonly PointRow[], id: string, toIndex: number): string | null {
-  return orderKeyForMove(livePoints(points), id, toIndex);
+/**
+ * The key a live point takes when moved to `toIndex` (0-based) among the points section 8
+ * draws (`livePointsOfLocals`: a point on a removed local holds no slot); null when it stays.
+ */
+export function pointMoveOrderKey(
+  points: readonly PointRow[],
+  locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'removed_at'>[],
+  id: string,
+  toIndex: number,
+): string | null {
+  return orderKeyForMove(livePointsOfLocals(points, locations), id, toIndex);
 }
 
 /** The announcement of a move: "Ponto de atenção movido: 1 de 3 na seção 8". */

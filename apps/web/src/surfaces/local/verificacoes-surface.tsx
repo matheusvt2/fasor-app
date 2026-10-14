@@ -37,7 +37,9 @@ import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
+import { CabineBlock } from '../ficha/cabine-block.tsx';
 import { BulkActionBar, ChecklistRow, type ChecklistPhotos, type ChecklistRowApi, type ChecklistRowTarget } from '../ficha/checklist-section.tsx';
+import type { LocalApi } from '../ficha/ficha-api.ts';
 import { useLocalIssuedBanner } from '../ficha/issued-banner.ts';
 import { useDirectPicker } from '../ficha/photo-openers.tsx';
 import type { CaptureTarget } from '../ficha/use-photo-capture.ts';
@@ -66,6 +68,12 @@ import './verificacoes.css';
  * (the checklist is complete when every item is answered): "Concluir verificações" names what
  * is missing and goes to the first unanswered row, or returns to the tree. A local has no
  * read-only state of its own: the sheet's only one is "não ensaiado", which is a sheet's.
+ *
+ * Epic 14 QA Q-5: above the items, the local's "Do local" block (CARACTERÍSTICAS DA SE and
+ * AMBIENTE DE ENSAIO, `CabineBlock`) expanded and editable as on the local's first sheet, so a
+ * local with no equipment can fill what section 9 prints under its heading. Left out here: the
+ * "Observações rápidas" chips (they write `sheet/{id}/observations`) and the thermo-hygrometer's
+ * "Ler visor" (its photo is a sheet's: the shot is filed on the sheet open).
  */
 export function VerificacoesSurface() {
   const { id = '', locationId = '' } = useParams();
@@ -142,6 +150,19 @@ function VerificacoesBody({
   const api: ChecklistRowApi = useMemo(
     () => ({ relatorioId, author: editor.author, commit: (drafts: OpDraft[]) => editor.commit(drafts), edit: (build: Build) => editor.edit(build) }),
     [relatorioId, editor],
+  );
+  // Epic 14 QA Q-5: the "Do local" block writes through the same edit queue, with no sheet.
+  const localApi: LocalApi = useMemo(
+    () => ({
+      relatorioId,
+      projectId: relatorio.project_id,
+      author: editor.author,
+      commit: (drafts: OpDraft[]) => editor.commit(drafts),
+      edit: (build: Build) => editor.edit(build),
+      undoable: editor.undoable,
+      announce: editor.announce,
+    }),
+    [relatorioId, relatorio.project_id, editor],
   );
 
   // --- the header's attribution line, as the sheet composes its own: who last wrote a cell, and when
@@ -264,6 +285,7 @@ function VerificacoesBody({
       </div>
 
       <div className="content" ref={content}>
+        <CabineBlock api={localApi} state={state} snapshot={snapshot} cabine={location} first siteLine={false} />
         <div className="vl-intro">
           {/* The mock's reason line under the bar is its prototype's toggle; the action's toast carries "Desfazer". */}
           <BulkActionBar bulk={{ unset, markRest }} single label={t.bulkLabel} />

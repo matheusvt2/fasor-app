@@ -33,6 +33,8 @@ import type { Db } from '../db/client.ts';
 import type { CompanyId } from '../db/repositories/company-id.ts';
 import { entities, ops } from '../db/schema.ts';
 import { newId } from '../ids.ts';
+import { log, logError, type LogFields } from '../log.ts';
+import { templateSeedDecision, templateSeedMoveOp } from './template-seed-step.ts';
 
 /*
  * AD-3, AD-4, AD-24: the server materializer. One transaction per push
@@ -64,6 +66,8 @@ export type ApplyDeps = {
    * as the writes). Whatever it throws rolls the push back and propagates as is.
    */
   before?: (tx: Tx) => Promise<void>;
+  /** Epic 14 QA Q-7: where the push's template seed step says what it did; the api's log by default. */
+  templateSeedLog?: { info: (msg: string, fields?: LogFields) => void; error: (msg: string, fields?: LogFields) => void };
 } & ({ origin: 'client'; actorId: string } | { origin: 'server' });
 
 /** A valid op carries its parsed path, so the apply path parses it once (A-23). */
@@ -730,6 +734,56 @@ export async function applyOps(
         result.rejected.push({ op_id: step.op.op_id, code: 'op_invalid' });
       }
     }
+    // Epic 14 QA Q-7: a template a device pushed (created, duplicated, restored or otherwise
+    // written) on an older seed version reaches the current one in this same transaction.
+    if (deps.origin === 'client') await upgradePushedTemplates(tx, companyId, steps, result, deps, cache);
   });
   return result;
+}
+
+/**
+ * Epic 14 QA Q-7: after a client push is folded and before it commits, every template an
+ * applied op of it wrote is read again under the push's lock and, when the kernel says so
+ * (`templateSeedDecision`, the boot pass's own answer), moved to the current seed version by
+ * one server op (`system:identity`, a batch of its own) under a savepoint: the pull carries
+ * it like any server op, and it is not part of the push's answer (the device acks its own
+ * ops only). A removed row is left; one that would not validate on the current version, or
+ * that the server refuses, is left and logged. The boot pass (`upgradeTemplateSeeds`) stays.
+ */
+async function upgradePushedTemplates(tx: Tx, companyId: CompanyId, steps: readonly Step[], result: ApplyResult, deps: ApplyDeps, cache: RegistryNames): Promise<void> {
+  const applied = new Set(result.applied.map((entry) => entry.op_id));
+  const ids: string[] = [];
+  for (const step of steps) {
+    if (!step.ok || !applied.has(step.op.op_id)) continue;
+    const [entity, id] = step.op.path.split('/');
+    if (entity === 'template' && id !== undefined && !ids.includes(id)) ids.push(id);
+  }
+  if (ids.length === 0) return;
+  const info = deps.templateSeedLog?.info ?? log;
+  const error = deps.templateSeedLog?.error ?? logError;
+  for (const id of ids) {
+    const [current] = await tx
+      .select({ row: entities.row, removed_at: entities.removed_at })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'template'), eq(entities.id, id)));
+    const decision = templateSeedDecision(current?.row, current?.removed_at ?? null);
+    if (decision.kind === 'none') continue;
+    if (decision.kind === 'invalid') {
+      error('template seed upgrade on push skipped: the row does not validate on the current seed version', { company_id: companyId, template_id: id, seed_version: decision.from ?? null });
+      continue;
+    }
+    const validation = validate(templateSeedMoveOp(companyId, id, decision.target, deps.now()), companyId, { now: deps.now, origin: 'server' });
+    if (!validation.ok) {
+      error('template seed upgrade on push skipped: the move did not validate', { company_id: companyId, template_id: id, code: validation.code });
+      continue;
+    }
+    try {
+      await tx.transaction((savepoint) => applyOneIn(savepoint, companyId, validation, toIso(deps.now()), 'server', cache));
+      info('template seed upgraded on push', { company_id: companyId, template_id: id, from: decision.from ?? null, to: decision.target });
+    } catch (failure) {
+      if (!isPermanentRefusal(failure)) throw failure;
+      cache.clear();
+      error('template seed upgrade on push skipped: the server refused the move', { company_id: companyId, template_id: id, seed_version: decision.from ?? null, target: decision.target, code: 'op_invalid' });
+    }
+  }
 }

@@ -28,6 +28,7 @@ import {
   tagVerdict,
   templateFromRelatorio,
   templateSavedText,
+  splitEntityKey,
   type AuditTarget,
   type BlockRow,
   type DuplicateTagDecision,
@@ -36,6 +37,7 @@ import {
   type RestorableEntry,
   type RevisionRow,
   type SectionBlockType,
+  type SiteWorkRow,
   type SumarioCountKind,
   type SumarioRow,
   type SumarioRowKey,
@@ -122,6 +124,19 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
 
   const snapshot: RelatorioSnapshot = useRelatorioSnapshot(state, relatorioId);
   const allBlocks = useMemo(() => [...state.values()].filter((row): row is BlockRow => 'sheet' in row && (row as BlockRow).relatorio_id === relatorioId), [state, relatorioId]);
+  // Epic 14 QA Q-6: the relatório's file and point rows as the device holds them (the snapshot
+  // drops the points of a removed local), for the site work a removed local's restore entry names.
+  const siteWork = useMemo(() => {
+    const files: SiteWorkRow[] = [];
+    const points: SiteWorkRow[] = [];
+    for (const [key, row] of state) {
+      if ((row as { relatorio_id?: string | null }).relatorio_id !== relatorioId) continue;
+      const entity = splitEntityKey(key).entity;
+      if (entity === 'file') files.push(row as SiteWorkRow);
+      else if (entity === 'point') points.push(row as SiteWorkRow);
+    }
+    return { files, points };
+  }, [state, relatorioId]);
   // Every equipment row of the project, removed sheets' included: the snapshot keeps only
   // the equipment of live blocks, and "Restaurar ficha removida" names a sheet by its TAG.
   const equipment = useProjectEquipment(state, snapshot.relatorio.project_id);
@@ -161,8 +176,8 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // would bring its ancestors back alone and split the group.
   const everyLocation = useLiveQuery(() => (db === null ? undefined : allLocationRows(db, relatorioId)), [db, relatorioId]);
   const removable = useMemo(
-    () => (everyLocation === undefined ? NO_RESTORABLE : restorableEntries({ blocks: allBlocks, equipment, locations: everyLocation, since: lastIssuedAt })),
-    [allBlocks, equipment, everyLocation, lastIssuedAt],
+    () => (everyLocation === undefined ? NO_RESTORABLE : restorableEntries({ blocks: allBlocks, equipment, locations: everyLocation, since: lastIssuedAt, ...siteWork })),
+    [allBlocks, equipment, everyLocation, lastIssuedAt, siteWork],
   );
   const preview = usePreview(relatorioId);
   // Story 7.5: "Ver no sumário" marks the rows the dialog's warnings stand on, until the next tap.

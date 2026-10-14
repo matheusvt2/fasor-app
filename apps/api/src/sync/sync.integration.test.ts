@@ -1379,6 +1379,26 @@ describe('Story 14.2 (contract 17): Local › Painel › Coluna through POST /ap
     expect(await rowOf('location', t.painel)).toMatchObject({ name: 'Painel depois' });
   });
 
+  it('Epic 14 QA Q-11: a file op naming a block id that is no uuid is refused as op_invalid, never a failed query; the rest of the push applies', async () => {
+    const t = await tree();
+    const photo = newId();
+    expect((await pushOk(companyA, [relatorioFileCreate(idsA, t.relatorio, photo, 'photo')])).rejected).toEqual([]);
+    const strayPhoto = newId();
+    const strayCreate = relatorioFileCreate(idsA, t.relatorio, strayPhoto, 'photo');
+    const refused = [put(t.relatorio, `file/${photo}/block_id`, 'not-a-uuid'), { ...strayCreate, value: { ...(strayCreate.value as object), block_id: 'not-a-uuid' } as Op['value'] }];
+    const good = put(t.relatorio, `location/${t.painel}/name`, 'Painel com foto');
+    const res = await push(companyA, { ops: [...refused, good] });
+    expect(res.status, await res.clone().text()).toBe(200);
+    const result = syncPushResponseSchema.parse(await res.json());
+    written.opIds.add(good.op_id);
+    expect(result.rejected).toEqual(refused.map((o) => ({ op_id: o.op_id, code: 'op_invalid' })));
+    expect(result.applied.map((a) => a.op_id)).toEqual([good.op_id]);
+    const stored = await storedIds(refused.map((o) => o.op_id));
+    for (const o of refused) expect(stored.has(o.op_id), o.path).toBe(false);
+    expect(await rowOf('file', strayPhoto)).toBeUndefined();
+    expect(await rowOf('file', photo)).toMatchObject({ block_id: null });
+  });
+
   it('a client batch holding a block on a painel is refused whole, as any batch with a permanent refusal is', async () => {
     const t = await tree();
     const batchId = newId();
@@ -1781,7 +1801,7 @@ describe('Story 14.2, second pass: a location removal batch and its restore thro
       locationIds: [painel, coluna1, coluna2],
       blockIds: [sheets.a, sheets.b, sheets.shared],
       equipmentIds: [equipment.a, equipment.b],
-      counts: { paineis: 0, colunas: 2, sheets: 3 },
+      counts: { paineis: 0, colunas: 2, sheets: 3, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 },
     });
     const removedAt = '2026-10-13T15:00:00.000Z';
     const removal = batchOf(relatorioId, projectId, 'remove', plan, removedAt);
@@ -1828,7 +1848,7 @@ describe('Story 14.2, second pass: a location removal batch and its restore thro
     // The restore, planned on the rows after the removal: the same rows come back in one batch.
     const afterRows = rowsIn(replay(log));
     const back = locationRestorePlan({ ...afterRows, locationId: painel })!;
-    expect(back).toMatchObject({ locationIds: plan.locationIds, blockIds: plan.blockIds, equipmentIds: plan.equipmentIds, counts: { paineis: 0, colunas: 2, sheets: 3 } });
+    expect(back).toMatchObject({ locationIds: plan.locationIds, blockIds: plan.blockIds, equipmentIds: plan.equipmentIds, counts: { paineis: 0, colunas: 2, sheets: 3, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 } });
     const restore = batchOf(relatorioId, projectId, 'put', back, '2026-10-13T15:05:00.000Z');
     const restored = await pushOk(companyA, restore);
     expect(restored.rejected).toEqual([]);

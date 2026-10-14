@@ -1,6 +1,6 @@
 import {
   createPointOp,
-  livePoints,
+  livePointsOfLocals,
   newPointRow,
   priorityPickWrites,
   putPointOp,
@@ -12,7 +12,7 @@ import {
 } from '@app/domain';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
-import { pointRowsOf, relatorioRow } from '../../db/home-store.ts';
+import { allLocationRows, pointRowsOf, relatorioRow } from '../../db/home-store.ts';
 import type { AppDatabase } from '../../db/schema.ts';
 import { newId } from '../../ids.ts';
 
@@ -212,7 +212,8 @@ export function writeReplaceDeadline(
 
 /** A live point's 1-based place in section 8 and how many live points there are; null when it is not live. */
 export async function pointPlace(db: AppDatabase, relatorioId: string, pointId: string): Promise<{ position: number; total: number } | null> {
-  const live = livePoints(await pointRowsOf(db, relatorioId));
+  // Epic 14 QA Q-2: the place among the points section 8 draws, as the list counts them.
+  const live = livePointsOfLocals(await pointRowsOf(db, relatorioId), await allLocationRows(db, relatorioId));
   const at = live.findIndex((row) => row.id === pointId);
   return at === -1 ? null : { position: at + 1, total: live.length };
 }

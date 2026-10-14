@@ -28,7 +28,7 @@ import { cabineLocationIds, emptySheetCount, fichasVaziasText, naoEnsaiadasText,
 import { section3Blocks, sectionVariables } from './section-variables.ts';
 import { setupGaps, type SetupGap } from './setup-complete.ts';
 import { enabledSubBlocksOf, isEquipmentBlock, sheetState } from './sheet-state.ts';
-import { siteUnanswered, siteUnansweredText } from './site-checklist.ts';
+import { siteNcWithoutPoint, siteNcWithoutPointText, siteUnanswered, siteUnansweredText } from './site-checklist.ts';
 import { blocksWithPendingSuggestions, fichasComSugestoesText, livePendingSuggestions } from './suggestions.ts';
 import { sectionBlocks } from './sumario.ts';
 
@@ -56,6 +56,7 @@ export type PreIssueKind =
   | 'cabine_sem_equipamento'
   | 'cabine_incompleta'
   | 'site_checklist_unanswered'
+  | 'site_checklist_nc_without_point'
   | 'company'
   | 'client'
   | 'photos_uncaptioned'
@@ -454,6 +455,12 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   const siteText = siteUnansweredText(siteUnanswered(snapshot));
   if (siteText !== null) {
     rows.push({ id: 'site_checklist_unanswered', row: 'section_9', severity: 'pending', text: siteText, kind: 'site_checklist_unanswered' });
+  }
+  // Epic 14 QA Q-4: one row naming the locals whose NC site items outnumber their points of
+  // attention, after the unanswered row; pending, never blocking.
+  const ncText = siteNcWithoutPointText(siteNcWithoutPoint(snapshot));
+  if (ncText !== null) {
+    rows.push({ id: 'site_checklist_nc_without_point', row: 'section_9', severity: 'pending', text: ncText, kind: 'site_checklist_nc_without_point' });
   }
 
   // Story 7.4/7.5: the one blocking row, only while section 10 prints: a live `section_10`

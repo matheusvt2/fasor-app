@@ -15,12 +15,26 @@ afterEach(cleanup);
 function open(props: Partial<Parameters<typeof LocalDialog>[0]> = {}) {
   const onSubmit = vi.fn<(result: LocalDialogResult) => void>();
   const onClose = vi.fn();
-  const view = render(<LocalDialog mode="add" onSubmit={onSubmit} onClose={onClose} {...props} />);
+  const view = render(<LocalDialog mode="add" seedVersion="v5" onSubmit={onSubmit} onClose={onClose} {...props} />);
   return { ...view, onSubmit, onClose };
 }
 
 const radios = () => screen.getAllByRole('radio');
 const name = () => screen.getByRole('textbox', { name: 'Nome' });
+
+describe('Epic 14 QA Q-17: the description follows the seed version', () => {
+  it('names the Verificações do local on a seed with site items (mock 42), and leaves them out on v1 to v3', () => {
+    open();
+    expect(screen.getByText(/^Cada cabine é um local\./)).toHaveTextContent(
+      'Cada cabine é um local. O local guarda a função, as características da SE, o ambiente de ensaio, o agrupamento por tipo e as Verificações do local. Os equipamentos ficam direto no local ou nas colunas de um painel.',
+    );
+    cleanup();
+    open({ seedVersion: 'v3' });
+    expect(screen.getByText(/^Cada cabine é um local\./)).toHaveTextContent(
+      'Cada cabine é um local. O local guarda a função, as características da SE, o ambiente de ensaio e o agrupamento por tipo. Os equipamentos ficam direto no local ou nas colunas de um painel.',
+    );
+  });
+});
 
 describe('14.2 LocalDialog: "Adicionar local"', () => {
   it('asks the Função in a radiogroup of five, nothing chosen, and holds the primary with its reason until one is', async () => {

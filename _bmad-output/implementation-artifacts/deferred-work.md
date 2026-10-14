@@ -1810,7 +1810,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
   summary: Second pass 2026-10-13 (g). The ancestor-liveness rule lives in the snapshot; readers of raw rows do not apply it. A sheet another device left live under a removed location (created there or moved in before it pulled the removal) is hidden from every snapshot reader but is still counted or held by: the api's pull summary totals, the Home card's on-device counter, the obra's "n de N fichas", the TAG checks (its TAG stays taken, or reads as a duplicate with no visible holder, and its equipment is never freed) and the panel reading's target check. Nothing is wrong while every sheet under a removed location carries its own tombstone, which is what a removal writes; the gap is only the concurrent case. Either filter those readers by `hiddenLocationIds`, or surface the hidden sheet as a decision (see (h)).
-  evidence: `apps/api/src/sync/pull.ts` `relatorioTotals` (SQL by the row's own `removed_at`); `packages/domain/src/home/cards.ts:223`; `apps/web/src/surfaces/project/project-surface.tsx:56`; `packages/domain/src/relatorio/tag.ts:71` and `tree.ts` (`equipmentSharedElsewhere`, the duplicate set); `apps/api/src/jobs/reading/kinds/panel.ts:26`. Edge Case Hunter finding 7 and Verification Gap finding 2 of the second pass.
+  evidence: `apps/api/src/sync/pull.ts` `relatorioTotals` (SQL by the row's own `removed_at`); `packages/domain/src/home/cards.ts:223`; `apps/web/src/surfaces/project/project-surface.tsx:56`; `packages/domain/src/relatorio/tag.ts:71` and `tree.ts` (`equipmentSharedElsewhere`, the duplicate set); `apps/api/src/jobs/reading/kinds/panel.ts:26`. Edge Case Hunter finding 7 and Verification Gap finding 2 of the second pass. *(2026-10-14, Epic 14 QA Q-10, source `_bmad-output/implementation-artifacts/spec-epic-14-qa-fixes.md`: three more raw-row readers see such a sheet in the concurrent case: the Conflict view's decisions (`packages/domain/src/merge/conflicts.ts:367`, `:376`, fed by `apps/web/src/db/decision-store.ts:96-118`), Sync status "Leituras" (`apps/web/src/db/suggestion-store.ts:245`) and "Repetir da ficha anterior" (`apps/web/src/surfaces/ficha/checklist-section.tsx:136`); the same fix applies: read them through the snapshot or `hiddenLocationIds`.)*
   class: debt
   state: open (owner: the architect; Story 14.3 touches the same counters for the site checklist)
 
@@ -1818,7 +1818,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Second pass 2026-10-13 (h). A sheet created in, or moved into, a location by an offline device, when another device removed that location and the relatório was issued before the first one synced, is stranded: the sheet is live (no tombstone, no removed-versus-edited mark, since the fold marks only an edit on a removed block), hidden by the ancestor rule, and its location is no longer offered in "Restaurar ficha removida" because the removal is older than the newest revision. Without an emission in between the location's entry brings it back, but the device that wrote the sheet gets no sign that it is hidden. Decide: keep a removed location in the list past the cut while a live row sits under it, or raise a decision for the hidden sheet (a new mark in the fold, so a contract bump).
   evidence: `packages/domain/src/schemas/snapshot.ts` (the block filter); `packages/domain/src/relatorio/sumario.ts` `restorableEntries` (the `since` cut); `packages/domain/src/ops/apply.ts` `attributed`. Edge Case Hunter finding 1 of the second pass (it also corrects the spec's rule 6, see the triage log).
   class: question
-  state: open (owner: Matheus)
+  state: ~~open (owner: Matheus)~~ closed (2026-10-14, Epic 14 QA fix batch, `_bmad-output/implementation-artifacts/spec-epic-14-qa-fixes.md`, recommendation R-2 of `epic-14-qa-2026-10-13.md`: every live sheet whose location is hidden is its own entry of "Restaurar ficha removida" whatever the cut (`strandedSheetRows`, detail "⟨lugar⟩ · restaura ⟨locais⟩"), and its restore puts back only its removed ancestors (`removedAncestorIds`, `restoreStrandedSheetOps`); the sheets the removal tombstoned stay removed. Kernel: `removal-readers.test.ts` (ledger (h)); e2e: `local-painel-coluna.spec.ts` 14.2-E2E-006. No new mark in the fold, no contract bump. The site work of such a local, Q-8 below, stays open)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
   summary: Second pass 2026-10-13 (i). The cut of "Restaurar ficha removida" compares a row's `removed_at` (the removing device's clock, `client_ts`) with the newest revision's `created_at` (the server's clock). A removal made offline before an emission and synced after it, or made on a device whose clock runs slow, falls before the cut although the issued document still holds the rows, and is never offered. The rule is the sheets' own since Epic 4 (retro item 29); location removal makes a miss cost a whole painel or local.
@@ -1964,7 +1964,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
   summary: 2026-10-13, gate of batch e14b. Two open failures of main showed in this batch's widened Playwright run, on specs it did not touch: `points.spec.ts` 6.6-E2E-011 failed once in the 28-file run and passed 4 of 5 alone on `ec9140b0` (the status-flow story's entry above: `Escape` on `BODY` before the focus returns to the photo viewer), and `ficha.durability.spec.ts` F-11 on `durability-webkit` failed in the run and 2 of 2 alone (the E13-A1 wave gate entry above: a reading focused by Tab lands under the Sticky action bar on WebKit). Neither was changed here; both keep the wave gate red on this host until settled.
-  evidence: `test-results/e14b/gate.log`, `points-alone.log` and `webkit-f11.log` in the e14b worktree (git-ignored); the PR body of Stories 14.3 and 14.4.
+  evidence: `test-results/e14b/gate.log`, `points-alone.log` and `webkit-f11.log` in the e14b worktree (git-ignored); the PR body of Stories 14.3 and 14.4. *(2026-10-14, Epic 14 QA Q-18, source `_bmad-output/implementation-artifacts/spec-epic-14-qa-fixes.md`: a third one joins them: `parecer-export.spec.ts` 7.5-E2E-003 (`@p1`, serial) failed once in the wave's `test:e2e:full` under load, a dialog scrim intercepting "Voltar" after Escape before the dialog held the focus (the E9-Q13 pattern), and passed 3 of 3 alone; `epic-14-qa-2026-10-13.md` § 1.)*
   class: debt
   state: open (owner: the next carry-over batch, with the two entries it points at)
 
@@ -2105,15 +2105,15 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
   summary: R1, review finding left open. A CTA's configuration and its test switches are written as one whole `block/{id}/config` put, so two devices editing the same sheet offline (one sets polos, the other switches E6 off) end with the last writer's whole config and the other choice silently reverted. The eight types never wrote config from the sheet, so the last-writer rule was not reachable there.
-  evidence: `apps/web/src/surfaces/ficha/configuracao-section.tsx` (`blockConfigWithOption`), `measurement-test-section.tsx` (`blockConfigWithSubBlock`); `packages/domain/src/ops/path.ts` `BLOCK_FIELDS` (`config`). Edge Case Hunter, review of 2026-10-13.
+  evidence: `apps/web/src/surfaces/ficha/configuracao-section.tsx` (`blockConfigWithOption`), `measurement-test-section.tsx` (`blockConfigWithSubBlock`); `packages/domain/src/ops/path.ts` `BLOCK_FIELDS` (`config`). Edge Case Hunter, review of 2026-10-13. *(2026-10-14, Epic 14 QA fix batch, recommendation R-1, source `_bmad-output/implementation-artifacts/spec-epic-14-qa-fixes.md`: the cheap signal is built: a reported concurrent `block/{id}/config` pair now names the keys whose values differ with the kernel's labels, "CTA-C01: configuração de Ana mantida (a mais recente prevalece); diferem: polos, E6" (`packages/domain/src/merge/info.ts` `configDifferences`, `info.test.ts`). The whole-config last-writer rule itself is unchanged: the per-key family stays the architect's, a contract bump to 20 before Wave 3.)*
   class: bug
   state: open (owner: the architect with Story 14.6: per-key config paths are a new op family and a contract bump, outside this story's numbers)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
-  summary: R2, open question from the review. `block/{id}/config` is structure for the status flow (`countsAsFieldContent` answers false), as `epic-14-context.md` settles for what shapes the sheet before the visit. On a CTA the Configuração section and the test switches can also be changed on a concluded sheet of an Emitido relatório: tensão changes the E2 criterion and polos the required rows, the verdicts move, and the relatório stays Emitido (the change still counts for `editedSince`, so the next generate is a new revision). Built as the context says.
-  evidence: `packages/domain/src/status/edited-since.ts` `countsAsFieldContent`; `apps/web/src/surfaces/ficha/configuracao-section.tsx` (read-only only when the sheet is marked not tested). Edge Case Hunter, review of 2026-10-13.
+  summary: R2, open question from the review. `block/{id}/config` is structure for the status flow (`countsAsFieldContent` answers false), as `epic-14-context.md` settles for what shapes the sheet before the visit. On a CTA the Configuração section and the test switches can also be changed on a concluded sheet of an Emitido relatório: tensão changes the E2 criterion and polos the required rows, the verdicts move, ~~and the relatório stays Emitido (the change still counts for `editedSince`, so the next generate is a new revision). Built as the context says.~~ *(2026-10-14, Epic 14 QA Q-15, source `_bmad-output/implementation-artifacts/spec-epic-14-qa-fixes.md`: that reading was wrong.)* and the kernel reopens the relatório as Em revisão: a config change on an Emitido relatório is an edit, and the status step moves Emitido to Em revisão on any edit (`packages/domain/src/relatorio/status-advance.ts:30`), pinned for `block/{id}/config` by `status-advance.test.ts:43-62`; only a Rascunho relatório stays where it is, since config is structure. The 14.5 "As built" line in `epics.md` says the same wrong thing and is left to the coordinator (this batch does not edit `epics.md`).
+  evidence: `packages/domain/src/status/edited-since.ts` `countsAsFieldContent`; `apps/web/src/surfaces/ficha/configuracao-section.tsx` (read-only only when the sheet is marked not tested). Edge Case Hunter, review of 2026-10-13. `packages/domain/src/relatorio/status-advance.ts:30`; `status-advance.test.ts:43-62` (2026-10-14).
   class: question
-  state: open (owner: Matheus: either a CTA config change after emission reopens the relatório as Em revisão, or Configuração is read-only once the sheet is concluded)
+  state: open (owner: Matheus: ~~either a CTA config change after emission reopens the relatório as Em revisão, or Configuração is read-only once the sheet is concluded~~ (2026-10-14) the first is what the kernel does today: is it wanted, or should Configuração be read-only once the sheet is concluded?)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
   summary: R3, review finding rejected as unreachable from the product, recorded. The fold accepts a measurement cell whose unit is foreign to its row (a `min` on a row in `s`), a number on a choice cell or an option key outside the list; the evaluation then gives the cell no verdict. The sheet writes only the row's own unit and its listed options, so only a hand-written op reaches it.
@@ -2144,3 +2144,37 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `git merge origin/main` at `6cdba8cc` (aborted); the launch prompt's rule "no gate runs on a base that is still moving".
   class: process
   state: ~~open (owner: the coordinator, with this batch's orchestrator: merge main after e14b merges, gate, open the PR)~~ closed (2026-10-14: PR #126 and PR #127 merged; this branch merged `origin/main` at `3acbddb`, taking main's version of every file the batch did not change and re-applying the Story 14.5 delta on the 114 it did, and gated on that merge)
+
+
+## Deferred from: Epic 14 QA fix batch (2026-10-14)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-14-qa-fixes.md`
+  summary: Q-8. Site work written offline on a local another device removed disappears with no sign: device B answers the 19 items and adds a point offline, device A removes the local and syncs first; on B's next pull the answers are hidden with the local, the Verificações route says "não encontradas", no merge entry or decision is raised (the edit-on-removed mark exists for blocks only), and after the next emission the local's entry is cut from "Restaurar ficha removida", so nothing brings the answers back. The fix batch closed ledger (h) for sheets (a stranded live sheet is its own restore entry); site answers, site photos and site points have no such entry.
+  evidence: `packages/domain/src/ops/apply.ts:190-202`; `apps/web/src/surfaces/local/verificacoes-surface.tsx:84-91`; `packages/domain/src/relatorio/sumario.ts` `restorableEntries` (the `since` cut, `strandedSheetRows`); `epic-14-qa-2026-10-13.md` Q-8 and R-2.
+  class: question
+  state: open (owner: Matheus, joins ledger (h): either a local holding site work written after its removal stays offered past the cut, or the site work raises a decision, which is a new mark in the fold and a contract bump)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-14-qa-fixes.md`
+  summary: Q-9. The site photos of a removed local still print in section 7 ("Imagem 1: Verificação de … da Sala dos trafos") and the Sumário still counts them, while section 9 drops the local; once an emission cuts the local from the restore list the photo prints for good. This is how removed sheets' photos already behave, and it contradicts the context line "Story 14.4 prints nothing for a removed local".
+  evidence: `packages/domain/src/schemas/snapshot.ts:161`, `:356` (files are not filtered by the location rule); `packages/domain/src/print/section-7.ts:55-71`; `epic-14-context.md` "Added 2026-10-13: location removal".
+  class: question
+  state: open (owner: Matheus: hide a removed local's site photos from section 7 and the counts, or keep the sheets' behaviour)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-14-qa-fixes.md`
+  summary: Q-4, the part left out. The fix batch added the pending pre-issue row "Verificações do local com NC sem ponto de atenção: …" (a local whose NC site items outnumber its live points). Not built: whether a site NC enters "NC abertos" (`Progress.nc_open`) and its list on the Sumário header, and whether it counts as a restriction in the parecer suggestion; both were kept out by the coordinator (the spec's Never list).
+  evidence: `packages/domain/src/relatorio/progress.ts` (`nc_open`); `packages/domain/src/relatorio/parecer.ts:85-97`; `packages/domain/src/relatorio/site-checklist.ts` `siteNcWithoutPoint`; `epic-14-qa-2026-10-13.md` R-3.
+  class: question
+  state: open (owners: Matheus for the counter, Bruno for the parecer wording)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-14-qa-fixes.md`
+  summary: Q-16. Story 14.4's DoD asks that the DOCX and its PDF are checked against the approved print mock; no PDF check exists in the repository. The QA pass read the text of revision 1's PDF (14 pages, VERIFICAÇÕES DO LOCAL twice, both painel bands, E5) but not its layout against `key-print-section-9.html`.
+  evidence: `epic-14-qa-2026-10-13.md` Q-16 and § 3 (the 14.4 PDF row, "partial"); `mockups/key-print-section-9.html`.
+  class: test-gap
+  state: open (owner: the next print story)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-14-qa-fixes.md`
+  summary: Tooling. The `install` container leaves `_tmp_13_*` files behind: pnpm 12.5.1's link probe, outside this repository's code. They are not ours to fix here.
+  evidence: the `install` service of `docker-compose.yml`; pnpm 12.5.1.
+  class: debt
+  state: open (owner: tooling)
+

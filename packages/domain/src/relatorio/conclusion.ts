@@ -83,6 +83,8 @@ export function suggestConclusionPair(block: BlockRow): ConclusionPair | null {
   const cells = evaluatedCells(evaluateSheetReadings(block, definition));
   // Story 14.5: the cells of the measurement tests count as the seeded tables' captures do.
   const tableCells = measurementCells(evaluateSheetMeasurements(block, definition));
+  // Epic 14 QA Q-3: a zero or negative reading the criterion cannot judge stands: no suggestion until it is checked.
+  if (tableCells.some((cell) => cell.toCheck)) return null;
   const measured = cells.some((cell) => cell.role === 'capture' && cell.state === 'measured') || tableCells.some((cell) => cell.state === 'measured');
   if (!measured && !anyAnswered(block)) return null;
   const restricted = ncItems(block, definition).length > 0 || cells.some((cell) => cell.verdict === 'out') || tableCells.some((cell) => cell.verdict === 'out');
@@ -233,7 +235,11 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   const measured = cells.some((cell) => cell.role === 'capture' && cell.state === 'measured') || tableCells.some((cell) => cell.state === 'measured');
   // authored (OQ-3 placeholder): measured, no criterion applied.
   const unjudged = 'valores medidos sem comparação com o critério de aceitação';
-  const readings = outClauses.length > 0 ? listPtBr(outClauses) : judged ? 'valores medidos dentro dos critérios de aceitação' : unjudged;
+  // Epic 14 QA Q-3: a zero or negative reading to check is never "within the criteria".
+  // authored: Epic 14 QA Q-3 (open for Bruno).
+  const toCheck = 'valores medidos com leitura a conferir';
+  const readings =
+    outClauses.length > 0 ? listPtBr(outClauses) : tableCells.some((cell) => cell.toCheck) ? toCheck : judged ? 'valores medidos dentro dos critérios de aceitação' : unjudged;
   const hasReadings = judged || measured;
   const ncs = ncItems(block, definition);
   const conformes = anyConforme(block, definition);

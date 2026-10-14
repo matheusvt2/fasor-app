@@ -22,3 +22,9 @@ export interface FichaApi {
   undoable: RelatorioEditor['undoable'];
   announce: (text: string) => void;
 }
+
+/**
+ * Epic 14 QA Q-5: what the local's own data writes through where no sheet is open (the
+ * "Do local" block on the Verificações do local surface): the sheet's api without its block.
+ */
+export type LocalApi = Omit<FichaApi, 'blockId'>;

@@ -634,6 +634,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
       {localDialog === null ? null : (
         <LocalDialog
           mode={localDialog.mode}
+          seedVersion={row.seed_version}
           {...(localDialog.mode === 'edit' ? { initial: { funcao: localDialog.node.funcao, name: localDialog.node.name } } : {})}
           onClose={() => setLocalDialog(null)}
           onSubmit={onSubmitLocal}

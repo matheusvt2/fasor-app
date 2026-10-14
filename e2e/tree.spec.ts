@@ -1,9 +1,11 @@
+import { equipmentTypesOf, LIBRARY_GROUP_LABEL, SEED_VERSION } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { addLocal } from './support/local.ts';
 import { syncNowAndReturn } from './support/sync.ts';
 import { readStore } from './support/outbox.ts';
+import { paletteTypes, relatorioSeedVersion, typeRows } from './support/palette.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
 import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 import { pushRevision } from './support/push-server-ops.ts';
@@ -202,7 +204,16 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
   // A right drawer at the rail width, against the right edge (a scrollbar may take its width).
   expect(Math.round(paletteBox.width)).toBe(320);
   expect(paletteBox.x).toBeGreaterThan(768 - 320 - 24);
-  await expect(palette.locator('.pf-field .pi-meta')).toHaveText(['CE-C01', 'PR-C01', 'SEC-C01-2', 'DJ-C01', 'TP-C01', 'TC-C01', 'CS-C01', 'TR-9']);
+  // The eight FO.SERV-03 types with their TAGs, then (Epic 14 QA Q-1) each library type the
+  // relatório's seed ships under its heading, read from the kernel, never a literal count.
+  const types = paletteTypes(await relatorioSeedVersion(page, database, relatorioId));
+  await expect(typeRows(palette, types.seeded).locator('.pi-meta')).toHaveText(['CE-C01', 'PR-C01', 'SEC-C01-2', 'DJ-C01', 'TP-C01', 'TC-C01', 'CS-C01', 'TR-9']);
+  await expect(palette.locator('.pf-field')).toHaveCount(types.seeded.length + types.library.length);
+  if (types.library.length > 0) {
+    await expect(palette.locator('.palette-library')).toHaveText(LIBRARY_GROUP_LABEL);
+    const order = await palette.locator('.palette-library, .palette-type').evaluateAll((nodes) => nodes.map((node) => (node instanceof HTMLElement && node.dataset.blockType !== undefined ? node.dataset.blockType : 'heading')));
+    expect(order).toEqual([...types.seeded, 'heading', ...types.library]);
+  }
   await palette.getByRole('button', { name: /Disjuntor MT/ }).click();
   await expect(palette).toBeHidden();
   await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'DJ-C01']);
@@ -328,7 +339,7 @@ test('@p0 4.5-E2E-002 at 1280: the office palette asks TAG and Local prefilled a
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   // From 1280 px each type opens its confirm instead of creating at once.
-  await expect(palette.locator('.pf-field')).toHaveCount(8);
+  await expect(palette.locator('.pf-field')).toHaveCount(equipmentTypesOf(SEED_VERSION).length);
   await expect(palette.locator('.pf-field').first()).toBeHidden();
   const type = palette.locator('.pf-office').filter({ hasText: 'Chave seccionadora' });
   await type.locator('.palette-item').click();

@@ -3,6 +3,7 @@ import { SERVER_DEVICE_ID } from '../ids.ts';
 import { isCellFamily, sheetCellAt, siteCellAt } from '../ops/apply.ts';
 import type { Op } from '../ops/op.ts';
 import { safeParsePath, type OpPath } from '../ops/path.ts';
+import { screenLabel } from '../relatorio/screen-label.ts';
 import { blockTypeLabel } from '../relatorio/tree.ts';
 import type { BlockRow, Cell, EquipmentRow, FileRow, LocationRow } from '../schemas/entities.ts';
 import { findDefinition, SEED_VERSION, siteItems } from '../seed/definitions.ts';
@@ -325,8 +326,85 @@ export function mergeInfoText(info: MergeInfo, context: MergeInfoContext): strin
     // authored
     return `${name}: valor de ${who} mantido (preenchido vence vazio)`;
   }
+  // Epic 14 QA R1: a concurrent `block/{id}/config` pair names the keys whose values differ.
+  if (path.family === 'block/field' && path.field === 'config' && info.overridden !== null) {
+    const keys = configDifferences(info.standing.value, info.overridden.value, info.block_id, context);
+    // authored: Epic 14 QA R1 (open for Bruno).
+    if (keys.length > 0) return `${name}: configuração de ${who} mantida (a mais recente prevalece); diferem: ${keys.join(', ')}`;
+  }
   // authored: `latest_edit` and anything else.
   return `${name}: alteração de ${who} mantida (a mais recente prevalece)`;
+}
+
+/** authored (Epic 14 QA R1): the parts of a sheet's config that are not a test or an option, as the merge line names them. */
+const CONFIG_PART_WORDS: Readonly<Record<string, string>> = {
+  nameplate: 'placa',
+  checklist: 'verificações',
+  ia_ip_display: 'IA e IP lidos do visor',
+  observations: 'observações',
+  conclusion: 'conclusão',
+  subtype: 'subtipo',
+  role: 'função',
+  na_defaults: 'itens NA padrão',
+};
+
+function record(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function lowerFirst(text: string): string {
+  return text.charAt(0).toLocaleLowerCase('pt-BR') + text.slice(1);
+}
+
+/**
+ * Epic 14 QA R1: the parts of two `block/{id}/config` values that differ, each once, named with
+ * the kernel's labels for the block's own seed version: a configuration option by its field's
+ * label ("polos"), a measurement test switched by its number ("E6"), a seeded test by its
+ * label, any other part by its word. An option or a switch with no entry reads its default
+ * (an option its field's default, a sub-block on), so a key written only on one side is a
+ * difference only when it changes what the sheet shows. Option fields first, in the
+ * definition's order, then the sub-blocks in `sub_blocks` order of the definition.
+ */
+function configDifferences(standing: unknown, overridden: unknown, blockId: string | null, context: MergeInfoContext): string[] {
+  const block = blockId === null ? undefined : context.blocks.find((row) => row.id === blockId);
+  const a = record(standing);
+  const b = record(overridden);
+  const blockType = typeof a.block_type === 'string' ? a.block_type : typeof b.block_type === 'string' ? b.block_type : (block?.block_type ?? '');
+  const definition = findDefinition(block?.seed_version ?? SEED_VERSION, blockType);
+  const out: string[] = [];
+  const push = (label: string) => {
+    if (!out.includes(label)) out.push(label);
+  };
+
+  const optionsA = record(a.options);
+  const optionsB = record(b.options);
+  const fields = definition?.config_fields ?? [];
+  const optionOf = (options: Record<string, unknown>, key: string) => {
+    const value = options[key];
+    const field = fields.find((candidate) => candidate.key === key);
+    return typeof value === 'string' && (field === undefined || field.options.some((option) => option.key === value)) ? value : (field?.default ?? null);
+  };
+  const optionKeys = [...fields.map((field) => field.key), ...[...Object.keys(optionsA), ...Object.keys(optionsB)].filter((key) => !fields.some((field) => field.key === key))];
+  for (const key of optionKeys) {
+    if (optionOf(optionsA, key) === optionOf(optionsB, key)) continue;
+    const field = fields.find((candidate) => candidate.key === key);
+    push(field === undefined ? key : lowerFirst(field.label));
+  }
+
+  const subA = record(a.sub_blocks);
+  const subB = record(b.sub_blocks);
+  const enabled = (subs: Record<string, unknown>, key: string) => record(subs[key]).enabled !== false;
+  const order = [...(definition?.sub_blocks ?? []), ...[...Object.keys(subA), ...Object.keys(subB)].filter((key) => !(definition?.sub_blocks ?? []).includes(key as never))];
+  for (const key of order) {
+    if (enabled(subA, key) === enabled(subB, key)) continue;
+    const measurement = (definition?.measurement_tests ?? []).findIndex((test) => test.key === key);
+    const seeded = definition?.tests.find((test) => test.key === key);
+    push(measurement !== -1 ? `E${measurement + 1}` : seeded !== undefined ? lowerFirst(screenLabel(seeded.label)) : (CONFIG_PART_WORDS[key] ?? key));
+  }
+
+  for (const key of ['subtype', 'role'] as const) if ((a[key] ?? null) !== (b[key] ?? null)) push(CONFIG_PART_WORDS[key]!);
+  if (canonicalJson(a.na_defaults ?? []) !== canonicalJson(b.na_defaults ?? [])) push(CONFIG_PART_WORDS.na_defaults!);
+  return out;
 }
 
 /** authored: "SEC-C12: observações da ficha — versão de Ana (07/09 14:20); a de Eduardo (07/09 14:05) era "…"". */

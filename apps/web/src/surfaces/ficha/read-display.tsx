@@ -60,7 +60,7 @@ import { useAiFeatures } from '../../state/ai-features.tsx';
 import { useServerReachable } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { useCamera } from './camera-view.tsx';
-import type { FichaApi } from './ficha-api.ts';
+import type { FichaApi, LocalApi } from './ficha-api.ts';
 import { cabineEnvOp, testCellOp } from './ficha-ops.ts';
 import { cellKey, MeasurementField, type RunDirection } from './measurement-field.tsx';
 import { useCropViewer } from './nameplate-suggestions.tsx';
@@ -676,7 +676,7 @@ export interface EnvDisplayModel {
   viewer: ReactNode;
 }
 
-export function useEnvDisplay({ api, state, snapshot, cabine }: { api: FichaApi; state: EntityState; snapshot: RelatorioSnapshot; cabine: Cabine }): EnvDisplayModel {
+export function useEnvDisplay({ api, state, snapshot, cabine }: { api: LocalApi; state: EntityState; snapshot: RelatorioSnapshot; cabine: Cabine }): EnvDisplayModel {
   const { showToast } = useToast();
   const rows = useMemo(() => suggestionRowsOf(state, api.relatorioId), [state, api.relatorioId]);
   const pending = useMemo(() => pendingSuggestions(rows), [rows]);

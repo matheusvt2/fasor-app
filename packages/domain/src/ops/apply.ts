@@ -58,14 +58,21 @@ function targetRef(op: Op, path: OpPath): ResolvedRef {
   return ref(target.entity, id);
 }
 
-/** The block a photo file op attributes to, when the op itself carries `block_id`. */
+/**
+ * The block a photo file op attributes to, when the op itself carries `block_id`. Epic 14 QA
+ * Q-11: only an id of the kernel's own shape is named, as `carriedLocationId` does: any other
+ * string would fail the server's uuid row lookup (a 500, retried forever) instead of reaching
+ * the file row's schema, which refuses it (`op_invalid`).
+ */
 function carriedBlockId(op: Op, path: OpPath): string | null {
+  let carried: unknown = null;
   if (path.family === 'file' && op.kind === 'create') {
-    const value = op.value as { kind?: string; block_id?: string | null };
-    return value.kind === 'photo' && typeof value.block_id === 'string' ? value.block_id : null;
+    const value = op.value as { kind?: string; block_id?: string | null } | null;
+    carried = value !== null && typeof value === 'object' && value.kind === 'photo' ? value.block_id : null;
+  } else if (path.family === 'file/field' && path.field === 'block_id') {
+    carried = op.value;
   }
-  if (path.family === 'file/field' && path.field === 'block_id' && typeof op.value === 'string') return op.value;
-  return null;
+  return typeof carried === 'string' && uuidV7Schema.safeParse(carried).success ? carried : null;
 }
 
 /**

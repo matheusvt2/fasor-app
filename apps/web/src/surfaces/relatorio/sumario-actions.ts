@@ -28,7 +28,7 @@ import type { RelatorioEditor } from './relatorio-editor.ts';
 import { createBlockOp, putBlockOp, putRelatorioStatusOp, removeBlockOp } from './relatorio-ops.ts';
 import type { RelatorioTreeHandle } from './relatorio-tree.tsx';
 import type { RowActions } from './sumario-row.tsx';
-import { blockTrigger, locationRow, locationTrigger, restoreLocationOps, restoreSheetOps } from './tree-actions.ts';
+import { blockTrigger, locationRow, locationTrigger, restoreLocationOps, restoreSheetOps, restoreStrandedSheetOps } from './tree-actions.ts';
 
 /*
  * Story 4.3 (E4-A7(2)): every write the Sumário's rows make, through the relatório's one
@@ -259,11 +259,14 @@ export function useSumarioActions(context: SumarioContext, host: SumarioHost): S
   function restoreBlock(block: RestorableBlockEntry): void {
     const locationId = allBlocks.find((row) => row.id === block.id)?.location_id ?? null;
     void edit((fresh, by, rows) =>
-      locationId === null
-        ? fresh.some((row) => row.id === block.id && row.removed_at !== null)
-          ? [putBlockOp(by, relatorioId, block.id, 'removed_at', null)]
-          : null
-        : restoreSheetOps(by, relatorioId, projectId, fresh, block.id, block.equipmentId, rows.equipment, rows.allLocations),
+      // Ledger (h): a live sheet under a removed location brings back only the locations above it.
+      block.stranded === true
+        ? restoreStrandedSheetOps(by, relatorioId, fresh, block.id, rows.allLocations)
+        : locationId === null
+          ? fresh.some((row) => row.id === block.id && row.removed_at !== null)
+            ? [putBlockOp(by, relatorioId, block.id, 'removed_at', null)]
+            : null
+          : restoreSheetOps(by, relatorioId, projectId, fresh, block.id, block.equipmentId, rows.equipment, rows.allLocations),
     )
       .then((batch) => {
         if (batch === null) {

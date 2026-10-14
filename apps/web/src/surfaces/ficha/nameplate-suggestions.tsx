@@ -42,7 +42,7 @@ import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { removePhoto, restorePhoto } from '../photos/photo-ops.ts';
 import { PhotoViewer } from '../photos/photo-viewer.tsx';
-import type { FichaApi } from './ficha-api.ts';
+import type { FichaApi, LocalApi } from './ficha-api.ts';
 import { firstFocusable, PLAIN_TEXT } from './ficha-fields.tsx';
 import { createWordOp, nameplateOp } from './ficha-ops.ts';
 import { now } from '../../clock.ts';
@@ -117,7 +117,7 @@ export interface CropViewer {
 }
 
 /** The Photo viewer opened from a crop, zoomed on its region, when the photo is on this device. */
-export function useCropViewer({ api, snapshot, onCaptionPhoto }: { api: FichaApi; snapshot: RelatorioSnapshot; onCaptionPhoto?: ((tile: PhotoTile) => void) | undefined }): CropViewer {
+export function useCropViewer({ api, snapshot, onCaptionPhoto }: { api: LocalApi; snapshot: RelatorioSnapshot; onCaptionPhoto?: ((tile: PhotoTile) => void) | undefined }): CropViewer {
   const { showToast } = useToast();
   const db = useSession().database;
   const tiles = useRelatorioPhotoTiles(db, api.relatorioId);

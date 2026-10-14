@@ -1,5 +1,6 @@
 import { blockConfigSchema, isEquipmentBlockType, SUB_BLOCK_KEYS, type SubBlockKey } from '../schemas/block-config.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
+import { SEED_VERSION } from '../seed/definitions.ts';
 import { enabledSubBlocks } from '../templates/compose.ts';
 
 /*
@@ -43,23 +44,33 @@ export function isCellFilled(cell: Cell | null | undefined): boolean {
  * it changes, and a sheet put keeps the block's `config` object), so the parsed config's
  * enabled sub-blocks are kept per `config` object and a block's state per block object.
  */
-const enabledByConfig = new WeakMap<object, ReadonlySet<SubBlockKey>>();
+const enabledByConfig = new WeakMap<object, Map<string, ReadonlySet<SubBlockKey>>>();
 const stateByBlock = new WeakMap<BlockRow, SheetState>();
 
-function parseEnabled(config: unknown): ReadonlySet<SubBlockKey> {
+function parseEnabled(config: unknown, seedVersion: string): ReadonlySet<SubBlockKey> {
   const parsed = blockConfigSchema.safeParse(config);
   if (!parsed.success) return new Set(SUB_BLOCK_KEYS);
-  return new Set(enabledSubBlocks(parsed.data));
+  return new Set(enabledSubBlocks(parsed.data, seedVersion));
 }
 
-/** The sub-blocks the block's own config enables; every one when the config does not parse. */
-export function enabledSubBlocksOf(block: Pick<BlockRow, 'config'>): ReadonlySet<SubBlockKey> {
+/**
+ * The sub-blocks the block's own config enables; every one when the config does not parse.
+ * Epic 14 QA Q-12: the type's locked tests are read at the block's own `seed_version` (the
+ * current one for a caller that hands no block row, which carries one at run time).
+ */
+export function enabledSubBlocksOf(block: Pick<BlockRow, 'config'> & Partial<Pick<BlockRow, 'seed_version'>>): ReadonlySet<SubBlockKey> {
   const config = block.config;
-  if (typeof config !== 'object' || config === null) return parseEnabled(config);
-  let out = enabledByConfig.get(config);
+  const seedVersion = typeof block.seed_version === 'string' ? block.seed_version : SEED_VERSION;
+  if (typeof config !== 'object' || config === null) return parseEnabled(config, seedVersion);
+  let byVersion = enabledByConfig.get(config);
+  if (byVersion === undefined) {
+    byVersion = new Map();
+    enabledByConfig.set(config, byVersion);
+  }
+  let out = byVersion.get(seedVersion);
   if (out === undefined) {
-    out = parseEnabled(config);
-    enabledByConfig.set(config, out);
+    out = parseEnabled(config, seedVersion);
+    byVersion.set(seedVersion, out);
   }
   return out;
 }

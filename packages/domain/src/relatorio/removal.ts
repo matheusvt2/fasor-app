@@ -1,10 +1,11 @@
 import type { RelatorioSummary } from '../contract/sync.ts';
-import { sortByOrderKey } from '../ops/order-key.ts';
+import { orderKeyAfter, sortByOrderKey } from '../ops/order-key.ts';
 import type { BlockRow, EquipmentRow, LocationRow } from '../schemas/entities.ts';
 import { removedText, restoredText } from '../templates/text.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { liveLocationIds } from './location-live.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
+import { siteResultOf } from './site-checklist.ts';
 import { equipmentFreedByRemoval } from './tree.ts';
 
 /*
@@ -35,6 +36,42 @@ export interface LocationRemovalCounts {
   paineis: number;
   colunas: number;
   sheets: number;
+  /**
+   * Epic 14 QA Q-6: the site work of the locals among them (Story 14.3), which leaves and comes
+   * back with the local: its answered site items, the photos of its site items (live `file`
+   * rows carrying its `location_id`) and its live points of attention (`location_id`). Zero
+   * on a painel or a coluna, which hold none.
+   */
+  siteAnswers: number;
+  sitePhotos: number;
+  sitePoints: number;
+}
+
+/** Epic 14 QA Q-6: a file or a point as the counts read it: whether it is live, and the local it names. */
+export interface SiteWorkRow {
+  removed_at: string | null;
+  location_id?: string | null;
+}
+
+const NO_COUNTS = (): LocationRemovalCounts => ({ paineis: 0, colunas: 0, sheets: 0, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 });
+
+/** Adds the site work of the locations `ids` (answers on their rows, live photos and points naming them) to `counts`. */
+function countSiteWork(counts: LocationRemovalCounts, rows: readonly LocationRow[], ids: ReadonlySet<string>, files: readonly SiteWorkRow[], points: readonly SiteWorkRow[]): void {
+  for (const row of rows) {
+    if (!ids.has(row.id) || row.kind !== 'cabine') continue;
+    counts.siteAnswers += Object.keys(row.checklist ?? {}).filter((key) => siteResultOf(row, key) !== null).length;
+  }
+  const names = (row: SiteWorkRow) => row.removed_at === null && (row.location_id ?? null) !== null && ids.has(row.location_id!);
+  counts.sitePhotos += files.filter(names).length;
+  counts.sitePoints += points.filter(names).length;
+}
+
+/**
+ * Epic 14 QA Q-6: whether "Remover" of a location asks first: when it takes a sheet, or a
+ * local's site answers, site photos or points; a location holding none of these leaves at once.
+ */
+export function locationRemovalAsks(counts: LocationRemovalCounts): boolean {
+  return counts.sheets > 0 || counts.siteAnswers > 0 || counts.sitePhotos > 0 || counts.sitePoints > 0;
 }
 
 /**
@@ -97,13 +134,16 @@ export function locationRemovalPlan(input: {
   projectId: string;
   relatorioId: string;
   visibility: RemovalVisibility;
+  /** Epic 14 QA Q-6: the relatório's files and points, for the site work the counts name (none when absent). */
+  files?: readonly SiteWorkRow[];
+  points?: readonly SiteWorkRow[];
 }): LocationRemovalPlan | null {
   const liveIds = liveLocationIds(input.locations);
   const target = liveIds.has(input.locationId) ? input.locations.find((row) => row.id === input.locationId) : undefined;
   if (target === undefined) return null;
   const live = input.locations.filter((row) => liveIds.has(row.id));
 
-  const counts: LocationRemovalCounts = { paineis: 0, colunas: 0, sheets: 0 };
+  const counts = NO_COUNTS();
   const locationIds: string[] = [];
   const seen = new Set<string>();
   const walk = (location: LocationRow, under: boolean) => {
@@ -114,6 +154,7 @@ export function locationRemovalPlan(input: {
     for (const child of childrenInTreeOrder(live, location.id)) walk(child, true);
   };
   walk(target, false);
+  countSiteWork(counts, live, new Set(locationIds), input.files ?? [], input.points ?? []);
 
   const removed = locationIds.flatMap((id) => sortByOrderKey(input.blocks.filter((block) => block.removed_at === null && block.location_id === id)));
   counts.sheets = removed.filter((block) => isEquipmentBlock(block)).length;
@@ -167,8 +208,27 @@ export interface LocationRestorePlan {
   blockIds: string[];
   /** The equipment of those blocks that is not live, each once: one `equipment/{id}/removed_at` put of null each. */
   equipmentIds: string[];
+  /**
+   * Epic 14 QA Q-13: the restored locations whose `order_key` a live sibling took meanwhile
+   * (a move into the hole the removal left mints the same key), each with the key that places
+   * it right after that sibling: one `location/{id}/order_key` put each, in the same batch.
+   */
+  orderKeys: { id: string; orderKey: string }[];
   /** What becomes visible under the location: the locations by kind (restored, and live ones the removal hid) and the sheets on them and on it. */
   counts: LocationRemovalCounts;
+}
+
+/**
+ * Epic 14 QA Q-13: the key a row coming back takes when a live sibling holds its `order_key`
+ * (a move landed in the hole its removal left, between the same two neighbours, and minted
+ * the same key): right after the last sibling holding it. Null when no live sibling holds it,
+ * so the row keeps its own. `siblings` are the rows beside it (removed ones are skipped).
+ */
+export function restoredOrderKey<T extends { id: string; order_key: string; removed_at: string | null }>(siblings: readonly T[], row: { id: string; order_key: string }): string | null {
+  const live = sortByOrderKey(siblings.filter((sibling) => sibling.id !== row.id && sibling.removed_at === null));
+  const holders = live.filter((sibling) => sibling.order_key === row.order_key);
+  if (holders.length === 0) return null;
+  return orderKeyAfter(live, holders.at(-1)!.id);
 }
 
 /**
@@ -189,12 +249,15 @@ export function locationRestorePlan(input: {
   blocks: readonly BlockRow[];
   equipment: readonly Pick<EquipmentRow, 'id' | 'removed_at'>[];
   locationId: string;
+  /** Epic 14 QA Q-6: the relatório's files and points, for the site work the counts name (none when absent). */
+  files?: readonly SiteWorkRow[];
+  points?: readonly SiteWorkRow[];
 }): LocationRestorePlan | null {
   const target = input.locations.find((row) => row.id === input.locationId);
   if (target === undefined || target.removed_at === null) return null;
   const at = target.removed_at;
 
-  const counts: LocationRemovalCounts = { paineis: 0, colunas: 0, sheets: 0 };
+  const counts = NO_COUNTS();
   const locationIds = removedAncestorIds(input.locations, target.id);
   const reached = [target.id];
   const seen = new Set(reached);
@@ -211,6 +274,7 @@ export function locationRestorePlan(input: {
     }
   };
   walk(target.id);
+  countSiteWork(counts, input.locations, new Set(reached), input.files ?? [], input.points ?? []);
 
   const blockIds: string[] = [];
   const equipmentIds: string[] = [];
@@ -224,7 +288,21 @@ export function locationRestorePlan(input: {
       if (block.equipment_id !== null && !liveEquipment.has(block.equipment_id) && !equipmentIds.includes(block.equipment_id)) equipmentIds.push(block.equipment_id);
     }
   }
-  return { kind: target.kind, locationId: target.id, locationIds, blockIds, equipmentIds, counts };
+  // Q-13: a restored location whose key a live sibling took is placed right after it.
+  // The rows already back (with their final key) count as live siblings of the next ones.
+  const restored = new Set(locationIds);
+  const back = new Map<string, string>();
+  const orderKeys: { id: string; orderKey: string }[] = [];
+  for (const id of locationIds) {
+    const row = input.locations.find((candidate) => candidate.id === id)!;
+    const siblings = input.locations
+      .filter((candidate) => candidate.parent_id === row.parent_id && (!restored.has(candidate.id) || back.has(candidate.id)))
+      .map((candidate) => (back.has(candidate.id) ? { ...candidate, order_key: back.get(candidate.id)!, removed_at: null } : candidate));
+    const key = restoredOrderKey(siblings, row);
+    back.set(id, key ?? row.order_key);
+    if (key !== null) orderKeys.push({ id, orderKey: key });
+  }
+  return { kind: target.kind, locationId: target.id, locationIds, blockIds, equipmentIds, orderKeys, counts };
 }
 
 // --- the texts -------------------------------------------------------------------------
@@ -241,12 +319,20 @@ const KIND_WORDS: Readonly<Record<LocationKind, { subject: string; noun: string;
   coluna: { subject: 'A coluna', noun: 'coluna', title: 'Coluna' },
 };
 
-/** "1 painel", "2 colunas", "5 fichas": the parts that are not zero, in that order. */
+/**
+ * "1 painel", "2 colunas", "5 fichas", then (Epic 14 QA Q-6) the local's site work: "19
+ * respostas das verificações", "1 foto", "1 ponto de atenção"; the parts that are not zero, in
+ * that order.
+ */
 function countParts(counts: LocationRemovalCounts): string[] {
   const parts: string[] = [];
   if (counts.paineis > 0) parts.push(plural(counts.paineis, 'painel', 'painéis'));
   if (counts.colunas > 0) parts.push(plural(counts.colunas, 'coluna', 'colunas'));
   if (counts.sheets > 0) parts.push(plural(counts.sheets, 'ficha', 'fichas'));
+  // authored: Epic 14 QA Q-6 (open for Bruno).
+  if (counts.siteAnswers > 0) parts.push(plural(counts.siteAnswers, 'resposta das verificações', 'respostas das verificações'));
+  if (counts.sitePhotos > 0) parts.push(plural(counts.sitePhotos, 'foto', 'fotos'));
+  if (counts.sitePoints > 0) parts.push(plural(counts.sitePoints, 'ponto de atenção', 'pontos de atenção'));
   return parts;
 }
 

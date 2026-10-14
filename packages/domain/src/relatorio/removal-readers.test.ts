@@ -16,7 +16,8 @@ import { panelLocation } from './panel.ts';
 import { preIssue } from './pre-issue.ts';
 import { locationProgress, locationProgressIndex, progress, progressCounterText } from './progress.ts';
 import { ALL_HERE, blockIdOf, fold, locationId, removalFixture, removalOps, restoreOps, rowsIn, type RemovalFixture } from './removal.test-support.ts';
-import { locationRemovalPlan, locationRestorePlan } from './removal.ts';
+import { locationRemovalPlan, locationRestorePlan, removedAncestorIds } from './removal.ts';
+import { restorableEntries, strandedSheetDetailText } from './sumario.ts';
 import { firstInTree, locationChoices, locationTree, newEquipmentBlock, paletteLocationFor, siblingLocations, treeNodes, type TreeLocationNode } from './tree.ts';
 
 /*
@@ -377,5 +378,63 @@ describe('14.2-UNIT templateFromRelatorio skips a removed location and what hang
     expect(templateFromRelatorio(rawInput(f), META)).toEqual(fromSnapshot);
     expect(fromSnapshot.skeleton.map((node) => node.name)).toEqual(['Geradores']);
     expect(fromSnapshot.blocks.map((block) => [block.block_type, block.quantity])).toEqual([['cabos_entrada', 1]]);
+  });
+});
+
+describe('Epic 14 QA ledger (h): a live sheet stranded under a location removed before the newest revision', () => {
+  it('is its own restore entry whatever the cut; restoring it brings back only its removed ancestors, the sheets the removal tombstoned stay removed', () => {
+    const f = removalFixture();
+    const painel = painel1(f);
+    const coluna1 = locationId(f.state, 'Coluna 1', 'Painel 1');
+    // Device A removes the painel (every row it saw tombstoned) at T1.
+    removeByPlan(f, painel, T1);
+    // Device B, offline, had created a sheet in Coluna 1; it syncs after A, at T2.
+    const ops = opFactory(T2);
+    const created = newEquipmentBlock({
+      blockId: '019966b0-0157-7000-8000-000000000001',
+      equipmentId: '019966b0-0157-7000-8000-000000000002',
+      relatorioId: f.relatorioId,
+      projectId: TEST_PROJECT,
+      locationId: coluna1,
+      type: 'tc',
+      tag: 'TC-C01',
+      seedVersion: 'v3',
+      orderKey: 'z0',
+    });
+    fold(f.state, [
+      ops.op({ kind: 'create', scope: 'project', path: equipmentPath(created.equipment.id), value: created.equipment as unknown as JsonValue, device_id: 'tablet-other' }),
+      ops.op({ kind: 'create', relatorio_id: f.relatorioId, path: blockPath(created.block.id), value: created.block as unknown as JsonValue, device_id: 'tablet-other' }),
+    ]);
+    // A revision is emitted between (its created_at after the removal): the painel's own entry is cut.
+    const since = atMinutes(T0, 25).toISOString();
+    const rows = rowsIn(f.state);
+    const entries = restorableEntries({ ...rows, since });
+    expect(entries.some((entry) => entry.kind === 'location')).toBe(false);
+    expect(entries).toEqual([
+      {
+        kind: 'block',
+        stranded: true,
+        id: created.block.id,
+        name: 'TC-C01',
+        detail: 'Subestação › Painel 1 › Coluna 1 · restaura Painel 1 › Coluna 1',
+        label: 'TC-C01 — Subestação › Painel 1 › Coluna 1 · restaura Painel 1 › Coluna 1',
+        equipmentId: created.equipment.id,
+        removed_at: T1.toISOString(),
+      },
+    ]);
+    // With no cut the painel's own entry is offered and brings the sheet back with it: listed once.
+    expect(restorableEntries({ ...rows, since: null }).map((entry) => [entry.kind, entry.id])).toEqual([['location', painel]]);
+    expect(locationRestorePlan({ ...rows, locationId: painel })!.counts.sheets).toBe(PAINEL_1_TAGS.length + 1);
+    // Its restore: the removed painel and coluna above it, root first, nothing else.
+    expect(removedAncestorIds(rows.locations, coluna1)).toEqual([painel, coluna1]);
+    fold(f.state, restoreOps(f.relatorioId, { locationIds: removedAncestorIds(rows.locations, coluna1), blockIds: [], equipmentIds: [] }, T3));
+    const back = buildSnapshot(f.state, f.relatorioId);
+    expect(back.blocks.some((block) => block.id === created.block.id)).toBe(true);
+    // The sheets the removal tombstoned stay removed, and Coluna 2 with them.
+    expect(tagsIn(back)).toEqual([...REST_TAGS, 'TC-C01'].sort());
+    expect(back.locations.some((row) => row.id === locationId(f.state, 'Coluna 2', 'Painel 1'))).toBe(false);
+    // Nothing stranded is left to offer.
+    expect(restorableEntries({ ...rowsIn(f.state), since }).filter((entry) => entry.kind === 'block' && entry.stranded === true)).toEqual([]);
+    expect(strandedSheetDetailText('Sala dos trafos', ['Sala dos trafos'])).toBe('Sala dos trafos · restaura Sala dos trafos');
   });
 });

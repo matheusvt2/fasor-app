@@ -368,13 +368,14 @@ function typeConfigOf(config: TypeConfig): TypeConfig {
  * `lockedSubBlocksOf`) is in too, whatever its entry says or lacks: the one rule every reader
  * shares with `evaluateSheetMeasurements`, so a stored `enabled: false` on such a test can
  * never drop its cells from the sheet's state or its step while the test is still required
- * and printed. A config carries no seed version, so the type's lock is read from the current
- * one (`SEED_VERSION`, the only one shipping measurement tests); a later version that makes
- * such a test switchable has to bring the block's version here.
+ * and printed. Epic 14 QA Q-12: the lock is read at the block's own seed version
+ * (`seedVersion`, the block row's; `enabledSubBlocksOf` passes it), so a later version that
+ * makes such a test switchable changes no sheet born on an earlier one; a version that does
+ * not ship the type reads the current one.
  */
-export function enabledSubBlocks(config: Pick<BlockConfig, 'block_type' | 'sub_blocks'>): SubBlockKey[] {
+export function enabledSubBlocks(config: Pick<BlockConfig, 'block_type' | 'sub_blocks'>, seedVersion: string = SEED_VERSION): SubBlockKey[] {
   if (!isEquipmentBlockType(config.block_type)) return [];
-  const definition = findDefinition(SEED_VERSION, config.block_type);
+  const definition = findDefinition(seedVersion, config.block_type) ?? findDefinition(SEED_VERSION, config.block_type);
   const always = definition === null ? [] : lockedSubBlocksOf(definition);
   return SUB_BLOCK_KEYS.filter((key) => {
     if (LOCKED_SUB_BLOCKS.includes(key) || always.includes(key)) return true;

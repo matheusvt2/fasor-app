@@ -286,6 +286,43 @@ export function siteUnansweredText(locals: readonly SiteUnanswered[]): string | 
   return `${SITE_CHECKLIST_LABEL} sem resposta: ${listPtBr(locals.map((local) => `${local.name} (${plural(local.missing, 'item', 'itens')})`))}`;
 }
 
+/** Epic 14 QA Q-4: one local with more site items answered NC than live points of attention naming it. */
+export interface SiteNcWithoutPoint {
+  locationId: string;
+  name: string;
+  /** Its site items answered NC. */
+  nc: number;
+  /** The live points that carry its `location_id`. */
+  points: number;
+}
+
+/**
+ * Epic 14 QA Q-4: every live local whose NC site items outnumber the live points created for
+ * it, in tree order. A point carries the local (`location_id`) but not the item, so "an NC
+ * item with no point" is read as more NC items than points with that `location_id`. A removed
+ * local is not among the snapshot's locals (nor are its points), so it raises nothing; a
+ * relatório with no site list (v1 to v3) neither.
+ */
+export function siteNcWithoutPoint(snapshot: Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'points'>): SiteNcWithoutPoint[] {
+  const items = siteItems(snapshot.relatorio.seed_version);
+  return siteLocals(snapshot).flatMap((location) => {
+    const nc = items.filter((item) => siteResultOf(location, item.key) === 'NC').length;
+    if (nc === 0) return [];
+    const points = snapshot.points.filter((point) => point.removed_at === null && (point.location_id ?? null) === location.id).length;
+    return nc > points ? [{ locationId: location.id, name: location.name.trim(), nc, points }] : [];
+  });
+}
+
+/**
+ * The pre-issue row of those locals: "Verificações do local com NC sem ponto de atenção: Sala
+ * dos trafos e Geradores"; null with none.
+ */
+export function siteNcWithoutPointText(locals: readonly SiteNcWithoutPoint[]): string | null {
+  if (locals.length === 0) return null;
+  // authored: Epic 14 QA Q-4, worded like `siteUnansweredText` (open for Bruno).
+  return `${SITE_CHECKLIST_LABEL} com NC sem ponto de atenção: ${listPtBr(locals.map((local) => local.name))}`;
+}
+
 /**
  * The surface's banner on an Emitido relatório: editing reopens it. The sheet's sentence
  * (`fichaIssuedBannerText`) with "estas verificações" where it says "esta ficha". Null in
