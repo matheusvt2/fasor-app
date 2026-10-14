@@ -214,8 +214,9 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // M6, decision 5: the status's next step, its own sentence right under the status pill.
   const stepId = useId();
   const flow = useMemo(
-    () => ({ status: relatorio.status, latest: latestRevision(revisions)?.number ?? null, edited, setupGaps: setupGapsText(snapshot) }),
-    [relatorio.status, revisions, edited, snapshot],
+    // Story 14.3: the seed version, so the Rascunho sentence of a relatório with a site checklist names it.
+    () => ({ status: relatorio.status, latest: latestRevision(revisions)?.number ?? null, edited, setupGaps: setupGapsText(snapshot), seedVersion: relatorio.seed_version }),
+    [relatorio.status, relatorio.seed_version, revisions, edited, snapshot],
   );
   const listRef = useRef<HTMLOListElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);

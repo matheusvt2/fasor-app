@@ -382,7 +382,8 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
 
   // The next sheet: one line, the values, "Editar".
   await page.locator('#ficha-primary').click();
-  const line = page.getByRole('group', { name: 'Do local' });
+  // Story 14.3: exact, since the sheet draws a second group under this one, "Verificações do local".
+  const line = page.getByRole('group', { name: 'Do local', exact: true });
   await expect(line).toBeVisible();
   await expect(line.locator('.cl-name')).toHaveText('Cubículo Enel');
   await expect(line.locator('.cl-values')).toHaveText('BLINDADA · 13,8 kV · 380 V · 1.500 kVA · 25 °C · 65 %');

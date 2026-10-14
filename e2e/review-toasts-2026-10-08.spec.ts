@@ -353,7 +353,8 @@ test('@p0 R8E-E2E-009 on a ficha of a complete cabine that is not its first, the
       { timeout: 60_000, intervals: [500, 1_000, 2_000] },
     )
     .toBe(true);
-  await expect(page.locator('.cabine-line')).toBeVisible({ timeout: 30_000 });
+  // Story 14.3: the sheet draws a second `.cabine-line` under this one (the entry to "Verificações do local"); this is the "Do local" one.
+  await expect(page.locator('.cabine-line:not(.ficha-local-line)')).toBeVisible({ timeout: 30_000 });
 
   // A thermo-hygrometer reading for the cabine: not drawn here, so it is announced.
   const id = await pushSuggestion(account.companyId, relatorioId, { targetPath: `location/${cabine.id}/env/temperature_c`, value: n('24', '°C'), actorId: READING_ACTOR });

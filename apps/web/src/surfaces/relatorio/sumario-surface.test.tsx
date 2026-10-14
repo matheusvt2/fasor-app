@@ -814,6 +814,22 @@ describe('status flow 2026-10-10: the Sumário says the status and its next step
     expect(screen.queryByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeNull();
   });
 
+  it('Story 14.3: on a relatório whose seed ships the site checklist the Rascunho sentence names it, and row 9 names the locals with unanswered items without blocking', async () => {
+    await at('rascunho', null);
+    const record = await database!.entities.get(['relatorio', RELATORIO]);
+    await database!.entities.put({ ...record!, row: { ...(record!.row as RelatorioRow), seed_version: 'v4' } });
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    expect(step()).toHaveTextContent(/^Rascunho: falta .*a data de fim.* em Dados do relatório\. Preencher uma ficha ou as verificações do local passa o relatório a Em campo\.$/);
+    const row9 = document.querySelector('li.sum-s9')!;
+    expect(row9.querySelector('.sum-status')).toHaveTextContent('Verificações do local sem resposta: Cabine de Testes (19 itens)');
+    expect(row9.querySelector('.sum-status')).not.toHaveClass('is-blocking');
+    expect(row9).toHaveClass('has-pend');
+    // The parecer stays the one blocking row.
+    expect(foot()).toHaveTextContent(/^Só Conclusão e parecer \(linha 10\) impede gerar\. O resto está escrito em cada linha\.$/);
+    expect(document.querySelectorAll('.sum-status.is-blocking')).toHaveLength(1);
+  });
+
   it('Em revisão, nothing edited since revision 1: banner and next step say "not yet sent", the Controle row "Rev. 1 gerada" then "emitida", and "Marcar como enviado ao cliente" writes one issue op', async () => {
     await at('em_revisao', { number: 1, edited: false });
     const { container } = renderSumario();

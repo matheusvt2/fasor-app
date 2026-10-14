@@ -39,6 +39,9 @@
 @media (max-height: 479.98px) {
   [data-route="/relatorio/:id/local/:locationId/verificacoes"] .sticky-action-bar { position: static; }
 }
+/* authored: "Editar" on the observation line keeps the mock's zero padding, so its word alone
+   would be narrower than DESIGN.md's touch target; the button is at least 48 px wide (`--touch-min`). */
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .vl-obs-line .btn-text { min-width: var(--touch-min); }
 /* authored (E6-Q11): the NC row names the point it already has beside its actions, in the
    meta style of the row's other secondary text (`ficha.css`'s rule, for this route). */
 [data-route="/relatorio/:id/local/:locationId/verificacoes"] .nc-point-ref { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }

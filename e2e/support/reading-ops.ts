@@ -35,7 +35,7 @@ async function applyAsServer(companyId: string, inputs: readonly OpInput[], what
 }
 
 /** E9-Q3: the row the server holds for `entity`/`id` in `companyId`, or undefined. */
-export async function serverRow(companyId: string, entity: 'file' | 'suggestion' | 'block' | 'equipment', id: string): Promise<Record<string, unknown> | undefined> {
+export async function serverRow(companyId: string, entity: 'file' | 'suggestion' | 'block' | 'equipment' | 'location' | 'point', id: string): Promise<Record<string, unknown> | undefined> {
   const config = loadConfig();
   const { sql } = createDb(config.DATABASE_URL);
   try {
