@@ -2,6 +2,7 @@ import {
   composeParecer,
   PARECER_VERDICTS,
   parecerBoxText,
+  parecerAbsentTexts,
   parecerBoxTone,
   parecerHintText,
   parecerTextState,
@@ -61,6 +62,8 @@ export function Etapa6Parecer({
   const hint = useMemo(() => parecerHintText(suggestion, snapshot), [suggestion, snapshot]);
   const composed = useMemo(() => composeParecer(snapshot), [snapshot]);
   const textState = parecerTextState(parecer, composed);
+  // p020 P-1b: a relatório without section 10 says the parecer does not print (the kernel's texts).
+  const absent = useMemo(() => parecerAbsentTexts(snapshot), [snapshot]);
 
   const setVerdict = (next: ParecerVerdict | null) => {
     // A verdict is never cleared: the parecer only moves between the three.
@@ -108,7 +111,7 @@ export function Etapa6Parecer({
             <TextButton onPress={onBackToExport}>{t.backToExport}</TextButton>
           </div>
         )}
-        <p className="section-note">{t.parecerNote}</p>
+        <p className="section-note">{absent?.note ?? t.parecerNote}</p>
 
         <div className="field">
           <span className="field-label" id={labelId}>
@@ -158,18 +161,18 @@ export function Etapa6Parecer({
             text={textState === 'unconfirmed' ? composed.text : (parecer.text ?? '')}
             criteriaItems={composed.criteriaItems}
             state={textState}
-            onConfirm={() => void writeText(composed.text, 'confirmed', t.parecerConfirmedToast).catch(() => undefined)}
+            onConfirm={() => void writeText(composed.text, 'confirmed', absent?.toast ?? t.parecerConfirmedToast).catch(() => undefined)}
             onReplace={() => void writeText(composed.text, 'confirmed').catch(() => undefined)}
             onEdit={(text) => writeText(text, 'edited')}
             draft={{ surface: 'setup', entityId: relatorioId, field: 'parecer-text' }}
             helper={t.parecerHelper}
-            confirmedHelper={t.parecerConfirmed}
+            confirmedHelper={absent?.confirmedHelper ?? t.parecerConfirmed}
           />
         )}
 
         {parecer === null ? null : (
           <div className="parecer-box" role="status" aria-live="polite" data-verdict={parecerBoxTone(parecer.verdict)}>
-            <span className="pb-kicker">{t.parecerKicker}</span>
+            <span className="pb-kicker">{absent?.kicker ?? t.parecerKicker}</span>
             <span className="pb-verdict">{parecerVerdictLabel(parecer.verdict)}</span>
             <span className="pb-text">{parecerBoxText(snapshot)}</span>
           </div>

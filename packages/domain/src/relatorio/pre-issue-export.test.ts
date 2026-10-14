@@ -140,7 +140,9 @@ describe('7.5-UNIT preIssue: the rows the story adds', () => {
     const concludedWith = (snapshot: RelatorioSnapshot, b: BlockRow, status: 'confirmed' | 'edited', fresh: boolean, conclusion: BlockRow['sheet']['conclusion'] = pair): BlockRow => {
       const sheetBlock = { ...b, concluded_by: { actor_id: TEST_USER, at: AT }, sheet: { ...b.sheet, conclusion } };
       const composed = composeConclusion(sheetBlock, findDefinition(b.seed_version, b.block_type)!, tagOf(snapshot, b));
-      const text = { text: cell(status === 'edited' ? 'Texto próprio' : composed.text), text_status: cell(status), text_basis: cell(fresh ? composed.basis : 'deadbeef') };
+      // p020 P-3: a stale text is one the values no longer compose (an equal text is never stale).
+      const stored = status === 'edited' ? 'Texto próprio' : fresh ? composed.text : 'Texto composto antes da mudança';
+      const text = { text: cell(stored), text_status: cell(status), text_basis: cell(fresh ? composed.basis : 'deadbeef') };
       return { ...sheetBlock, sheet: { ...sheetBlock.sheet, conclusion: { ...conclusion, ...text } } };
     };
     const withBlocks = (snapshot: RelatorioSnapshot, change: ReadonlyMap<string, (b: BlockRow) => BlockRow>): RelatorioSnapshot => ({
@@ -460,10 +462,10 @@ describe('F-03 (review 2026-10-06, D1): empty sheets and blank fields ask before
     expect(labels.has('Responsável')).toBe(false);
     expect(counts).toEqual({ emptySheets: 94, blankFields: labels.size + 1, blankCnpjs: [], logoMissing: true });
     expect(labels.size).toBeGreaterThan(1);
-    expect(issueConfirmText({ emptySheets: 93, blankFields: 2, ...NO_GAPS })).toBe('Emitir com 93 fichas vazias e 2 campos em branco?');
-    expect(issueConfirmText({ emptySheets: 1, blankFields: 0, ...NO_GAPS })).toBe('Emitir com 1 ficha vazia?');
-    expect(issueConfirmText({ emptySheets: 0, blankFields: 1, ...NO_GAPS })).toBe('Emitir com 1 campo em branco?');
-    expect(issueConfirmReason({ emptySheets: 93, blankFields: 0, ...NO_GAPS })).toBe('Emitir pede confirmação: 93 fichas vazias.');
+    expect(issueConfirmText({ emptySheets: 93, blankFields: 2, ...NO_GAPS })).toBe('Gerar com 93 fichas vazias e 2 campos em branco?');
+    expect(issueConfirmText({ emptySheets: 1, blankFields: 0, ...NO_GAPS })).toBe('Gerar com 1 ficha vazia?');
+    expect(issueConfirmText({ emptySheets: 0, blankFields: 1, ...NO_GAPS })).toBe('Gerar com 1 campo em branco?');
+    expect(issueConfirmReason({ emptySheets: 93, blankFields: 0, ...NO_GAPS })).toBe('Gerar pede confirmação: 93 fichas vazias.');
   });
 
   it('counts a blank required cover row ("[Responsável]") and stops once the responsible is set', () => {
@@ -482,14 +484,14 @@ describe('F-03 (review 2026-10-06, D1): empty sheets and blank fields ask before
   it('names the blank CNPJs and the missing logo after the counts when the question is asked', () => {
     const both = { blankCnpjs: ['contratante', 'contratada'] as const, logoMissing: true };
     expect(issueConfirmText({ emptySheets: 93, blankFields: 2, ...both })).toBe(
-      'Emitir com 93 fichas vazias, 2 campos em branco, os CNPJs do contratante e da contratada em branco e o logo da empresa não cadastrado?',
+      'Gerar com 93 fichas vazias, 2 campos em branco, os CNPJs do contratante e da contratada em branco e o logo da empresa não cadastrado?',
     );
     expect(issueConfirmReason({ emptySheets: 93, blankFields: 2, ...both })).toBe(
-      'Emitir pede confirmação: 93 fichas vazias, 2 campos em branco, os CNPJs do contratante e da contratada em branco e o logo da empresa não cadastrado.',
+      'Gerar pede confirmação: 93 fichas vazias, 2 campos em branco, os CNPJs do contratante e da contratada em branco e o logo da empresa não cadastrado.',
     );
-    expect(issueConfirmText({ emptySheets: 1, blankFields: 0, blankCnpjs: ['contratante'], logoMissing: false })).toBe('Emitir com 1 ficha vazia e o CNPJ do contratante em branco?');
-    expect(issueConfirmText({ emptySheets: 0, blankFields: 1, blankCnpjs: ['contratada'], logoMissing: false })).toBe('Emitir com 1 campo em branco e o CNPJ da contratada em branco?');
-    expect(issueConfirmText({ emptySheets: 2, blankFields: 0, blankCnpjs: [], logoMissing: true })).toBe('Emitir com 2 fichas vazias e o logo da empresa não cadastrado?');
+    expect(issueConfirmText({ emptySheets: 1, blankFields: 0, blankCnpjs: ['contratante'], logoMissing: false })).toBe('Gerar com 1 ficha vazia e o CNPJ do contratante em branco?');
+    expect(issueConfirmText({ emptySheets: 0, blankFields: 1, blankCnpjs: ['contratada'], logoMissing: false })).toBe('Gerar com 1 campo em branco e o CNPJ da contratada em branco?');
+    expect(issueConfirmText({ emptySheets: 2, blankFields: 0, blankCnpjs: [], logoMissing: true })).toBe('Gerar com 2 fichas vazias e o logo da empresa não cadastrado?');
   });
 
   it('never asks for the CNPJs or the logo alone: the trigger stays the empty sheets and the blanks (D1)', () => {

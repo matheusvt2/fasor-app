@@ -74,13 +74,13 @@ export async function createRelatorio(page: Page, options: { whileOnSetup?: () =
 
 /**
  * F-03 (review 2026-10-06, D1): "Gerar relatório" on a relatório with empty sheets or fields
- * printed blank asks first, naming the counts ("Emitir com 94 fichas vazias e 2 campos em
- * branco?"); "Emitir mesmo assim" issues. `question` is what the confirmation must say.
+ * printed blank asks first, naming the counts ("Gerar com 94 fichas vazias e 2 campos em
+ * branco?"); "Gerar mesmo assim" issues. `question` is what the confirmation must say.
  */
-export async function confirmIssue(dialog: Locator, question: RegExp = /^Emitir com \d+ fichas? vazias?/): Promise<void> {
+export async function confirmIssue(dialog: Locator, question: RegExp = /^Gerar com \d+ fichas? vazias?/): Promise<void> {
   const group = dialog.getByRole('group', { name: question });
   await expect(group).toBeVisible();
-  await group.getByRole('button', { name: 'Emitir mesmo assim' }).click();
+  await group.getByRole('button', { name: 'Gerar mesmo assim' }).click();
 }
 
 /** The three verdicts of the parecer band, as its segments read. */

@@ -396,7 +396,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
         ) : null}
         {asking ? (
           // F-03 (D1): the question names what prints blank; "Pré-visualizar" is offered first,
-          // "Voltar" issues nothing, and only "Emitir mesmo assim" issues.
+          // "Voltar" issues nothing, and only "Gerar mesmo assim" generates.
           <div className="issue-confirm" role="group" aria-labelledby={confirmId}>
             <p className="t-body" id={confirmId}>
               {confirmText}

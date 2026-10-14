@@ -118,6 +118,23 @@ export function skeletonHeading(view: ComposerView): string {
   return parts.join(SEP);
 }
 
+/**
+ * p020 P-1a: the composer's warning over its sections list, from the template's section
+ * types: no FO.SERV-03 text section at all, or section 8 or section 10 missing; null with
+ * both 8 and 10 present. A relatório made from the template prints only its own sections
+ * (plus the generated 7 and 9), so this says what it will lack.
+ */
+export function composerSectionsWarning(sectionTypes: readonly string[]): string | null {
+  // authored: p020 P-1a, the four warnings of the composer's sections list.
+  if (sectionTypes.length === 0) return 'Este template não tem seções de texto: os relatórios saem só com as seções 7 e 9, sem pontos de atenção, parecer e assinatura.';
+  const no8 = !sectionTypes.includes('section_8');
+  const no10 = !sectionTypes.includes('section_10');
+  if (no8 && no10) return 'Sem as seções 8 e 10, os pontos de atenção, o parecer e a assinatura não saem nos relatórios deste template.';
+  if (no8) return 'Sem a seção 8, os pontos de atenção não saem nos relatórios deste template.';
+  if (no10) return 'Sem a seção 10, o parecer e a assinatura não saem nos relatórios deste template.';
+  return null;
+}
+
 /** The composer's section-block heading, adapted from the mock's "Blocos · 9 seções + …". */
 export function sectionsHeading(count: number): string {
   return `Blocos${SEP}${plural(count, 'seção', 'seções')}`;

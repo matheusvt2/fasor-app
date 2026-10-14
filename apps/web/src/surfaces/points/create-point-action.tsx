@@ -1,4 +1,4 @@
-import { pointSavedText, type RelatorioSnapshot } from '@app/domain';
+import { pointSavedText, printsSection, type RelatorioSnapshot } from '@app/domain';
 import { useState } from 'react';
 import { Button } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -51,7 +51,7 @@ export function CreatePointAction({
           onDone={(saved) => {
             setOpen(null);
             // E6-Q2: Esc and the scrim store what was typed as "Concluir" does, and say so.
-            if (saved !== null) showToast(pointSavedText(saved.position, saved.total));
+            if (saved !== null) showToast(pointSavedText(saved.position, saved.total, printsSection(snapshot, 8)));
             if (saved !== null && focusAfterSave !== undefined) restoreFocus(focusAfterSave, { frames: LIST_FOCUS_WATCH_FRAMES, once: true });
           }}
         />

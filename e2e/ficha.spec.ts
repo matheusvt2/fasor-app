@@ -779,7 +779,8 @@ test('@p0 5.8-E2E-001 one tap on the suggestion sets both pairs, the composed te
   await restrictionGroup(page).getByRole('radio', { name: 'Com restrições' }).click();
   await expect(page.getByText('Obrigatória com restrições')).toBeVisible();
   await expect(page.getByLabel('Observações da ficha')).toHaveAttribute('data-required', '');
-  await expect(page.getByTestId('ficha-progress')).toHaveText('Placa, verificações e leituras prontas · falta a conclusão');
+  // p020 P-4: only the observation is missing, and the header names it.
+  await expect(page.getByTestId('ficha-progress')).toHaveText('Placa, verificações e leituras prontas · faltam as observações');
   await page.getByLabel('Observações da ficha').fill('Isolação T1 abaixo do aceitável.');
   await page.getByLabel('Observações da ficha').press('Tab');
   await expect(page.getByText('Obrigatória com restrições')).toHaveCount(0);

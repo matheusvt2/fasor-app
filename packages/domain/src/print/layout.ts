@@ -189,6 +189,14 @@ export function printedSections(snapshot: RelatorioSnapshot): { section: number;
 }
 
 /**
+ * p020 P-1b: whether the document prints FO.SERV-03 section `section` (8, 10, ...): one of
+ * `printedSections`, the one rule (a live section block, or the seed's eleven when none).
+ */
+export function printsSection(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'relatorio'>, section: number): boolean {
+  return printedSections(snapshot as RelatorioSnapshot).some((entry) => entry.section === section);
+}
+
+/**
  * The printed document's data for one frozen snapshot. Never throws for a snapshot the
  * schema accepts: a null Empresa prints empty header and footer lines, a missing value
  * prints `—` in the document control and `[Label]` in a section body.

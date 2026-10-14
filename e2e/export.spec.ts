@@ -124,7 +124,7 @@ test('@p0 4.8-E2E-001 11.1-E2E-001 a relatório born on Home: the Sumário\'s "G
   // ("Enviando…", asserted in jsdom), then the working state. F-03 (D1): its 94 sheets are
   // empty, so the issue is confirmed first.
   await generateButton(page).click();
-  await confirmIssue(modal, /^Emitir com 94 fichas vazias/);
+  await confirmIssue(modal, /^Gerar com 94 fichas vazias/);
   await expect(modal.locator('.gen-progress[role="status"]')).toContainText('Gerando revisão 1…', { timeout: 60_000 });
   await expect(modal.locator('.gen-progress')).toContainText('pode fechar — o aviso chega quando terminar');
   await expect(generateButton(page)).toHaveAttribute('aria-disabled', 'true');
@@ -207,7 +207,7 @@ test('@p0 4.8-E2E-001 11.1-E2E-001 a relatório born on Home: the Sumário\'s "G
   await dialog(page).getByRole('button', { name: 'Gerar de novo' }).click();
   await expect(reason(page)).toHaveText(IDLE_1);
   await generateButton(page).click();
-  await confirmIssue(dialog(page), /^Emitir com 94 fichas vazias/);
+  await confirmIssue(dialog(page), /^Gerar com 94 fichas vazias/);
   await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeVisible({ timeout: 30_000 });
   await expect(dialog(page).locator('.revision-row')).toHaveCount(1);
 });

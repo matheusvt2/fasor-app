@@ -312,7 +312,7 @@ test('@p0 14.2-E2E-001 at 1280: a template of one local (Transformação) with t
   const generate = modal.locator('.generate-row').getByRole('button', { name: 'Gerar relatório' });
   await expect(generate).toBeEnabled({ timeout: 30_000 });
   await generate.click();
-  await confirmIssue(modal, /^Emitir com 3 fichas vazias/);
+  await confirmIssue(modal, /^Gerar com 3 fichas vazias/);
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   const download = await downloadFrom(page, () => modal.getByRole('button', { name: 'DOCX — abrir no Word' }).click());
   expect(download.suggestedFilename()).toBe('relatorio-rev-1.docx');

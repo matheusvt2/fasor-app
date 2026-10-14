@@ -6,6 +6,7 @@ import { captionSuggestions, legendasSugeridasText } from '../photos/captions.ts
 import { livePhotos } from '../photos/order.ts';
 import { photosAwaitingText, photosUncaptionedText } from '../photos/text.ts';
 import { artLabel } from '../print/document-control.ts';
+import { printsSection } from '../print/layout.ts';
 import { missingCertificates, section11Instruments } from '../print/section-11.ts';
 import type { SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
@@ -465,12 +466,8 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
 
   // Story 7.4/7.5: the one blocking row, only while section 10 prints: a live `section_10`
   // block, or no live section block at all (the legacy snapshot prints the seed's eleven,
-  // `print/layout.ts` `printedSections`).
-  const printedSectionTypes = sectionBlocks(snapshot.blocks)
-    .filter((block) => relatorioSectionNumber(block.block_type) !== null)
-    .map((block) => block.block_type);
-  const section10Prints = printedSectionTypes.length === 0 || printedSectionTypes.includes('section_10');
-  if (section10Prints && parecerOf(snapshot) === null) {
+  // `print/layout.ts` `printedSections`). p020 P-1b: through the one rule, `printsSection`.
+  if (printsSection(snapshot, 10) && parecerOf(snapshot) === null) {
     rows.push({ id: 'parecer_missing', row: 'section_10', severity: 'blocking', text: PARECER_MISSING_TEXT, kind: 'parecer_missing' });
   }
 
@@ -672,16 +669,17 @@ function issueBlanksText(counts: IssueConfirmation): string | null {
   return parts.length === 0 ? null : listPtBr([...parts, ...identityGapParts(counts)]);
 }
 
-/** "Emitir com 93 fichas vazias e 2 campos em branco?"; null when both counts are zero (no confirmation). */
+/** "Gerar com 93 fichas vazias e 2 campos em branco?"; null when both counts are zero (no confirmation). */
 export function issueConfirmText(counts: IssueConfirmation): string | null {
   const blanks = issueBlanksText(counts);
-  // authored: F-03 (D1), the question "Gerar relatório" asks before issuing.
-  return blanks === null ? null : `Emitir com ${blanks}?`;
+  // authored: F-03 (D1), the question "Gerar relatório" asks before generating. p020 P-5: the
+  // verb is the button's (`73-exportar.html` "Gerar relatório"), it only generates a revision.
+  return blanks === null ? null : `Gerar com ${blanks}?`;
 }
 
-/** The foot's line when nothing blocks but issuing asks first: "Nada impede gerar. Emitir pede confirmação: 93 fichas vazias." */
+/** The foot's line when nothing blocks but generating asks first: "Nada impede gerar. Gerar pede confirmação: 93 fichas vazias." */
 export function issueConfirmReason(counts: IssueConfirmation): string | null {
   const blanks = issueBlanksText(counts);
-  // authored: F-03 (D1).
-  return blanks === null ? null : `Emitir pede confirmação: ${blanks}.`;
+  // authored: F-03 (D1); p020 P-5 "Gerar".
+  return blanks === null ? null : `Gerar pede confirmação: ${blanks}.`;
 }

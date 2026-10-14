@@ -91,6 +91,11 @@ export interface SheetStepProgress {
    * first sheet counts them in this step); absent everywhere else.
    */
   cabine?: number;
+  /**
+   * p020 P-4: on `conclusao` only, the share of `missing` that is the sheet observation
+   * Com restrições requires (0 or 1); absent everywhere else and when it is not missing.
+   */
+  observation?: number;
 }
 
 export interface SheetProgress {
@@ -171,14 +176,15 @@ function ensaiosCounts(block: BlockRow, definition: BlockDefinition): SheetStepP
   };
 }
 
-function conclusaoMissing(block: BlockRow, enabled: ReadonlySet<SubBlockKey>): number {
-  if (!enabled.has('conclusion')) return 0;
+function conclusaoMissing(block: BlockRow, enabled: ReadonlySet<SubBlockKey>): { missing: number; observation: number } {
+  if (!enabled.has('conclusion')) return { missing: 0, observation: 0 };
   const { result, restriction } = block.sheet.conclusion;
   let missing = 0;
+  let observation = 0;
   if (!isCellFilled(result)) missing += 1;
   if (!isCellFilled(restriction)) missing += 1;
-  else if (restriction!.value === COM_RESTRICOES && enabled.has('observations') && !isCellFilled(block.sheet.observations)) missing += 1;
-  return missing;
+  else if (restriction!.value === COM_RESTRICOES && enabled.has('observations') && !isCellFilled(block.sheet.observations)) observation = 1;
+  return { missing: missing + observation, observation };
 }
 
 /** One sheet's progress; every step empty-handed (0) for a block that is not an equipment sheet. */
@@ -203,7 +209,8 @@ export function sheetProgress(snapshot: SheetProgressSnapshot, blockId: string):
     steps.placa = { missing: placa.plate + placa.cabine, outOfLimit: 0, ...(placa.cabine > 0 ? { cabine: placa.cabine } : {}) };
     steps.verificacoes.missing = verificacoesMissing(block, definition, enabled);
     steps.ensaios = ensaiosCounts(block, definition);
-    steps.conclusao.missing = conclusaoMissing(block, enabled);
+    const conclusao = conclusaoMissing(block, enabled);
+    steps.conclusao = { missing: conclusao.missing, outOfLimit: 0, ...(conclusao.observation > 0 ? { observation: conclusao.observation } : {}) };
   }
   const firstIncompleteStep = SHEET_STEPS.find((step) => steps[step].missing > 0) ?? null;
   return { steps, complete: firstIncompleteStep === null, firstIncompleteStep };
@@ -250,7 +257,7 @@ export interface SheetSummaryPart {
 }
 
 /** The per-step counts the Sheet header sentence reads (the Placa step with its cabine share). */
-type SummaryCounts = { steps: Record<SheetStep, { missing: number; cabine?: number }> };
+type SummaryCounts = { steps: Record<SheetStep, { missing: number; cabine?: number; observation?: number }> };
 
 /** A count and its noun, the count its own part: "9" + " leituras". */
 function countParts(n: number, one: string, many: string): SheetSummaryPart[] {
@@ -265,7 +272,7 @@ function countParts(n: number, one: string, many: string): SheetSummaryPart[] {
  * Placa step names its plate fields and its cabine fields apart (E12-Q10), the plate first:
  * "2 campos da placa, 6 campos do local".
  */
-function summaryMissingParts(step: SheetStep, counts: { missing: number; cabine?: number }): SheetSummaryPart[][] {
+function summaryMissingParts(step: SheetStep, counts: { missing: number; cabine?: number; observation?: number }): SheetSummaryPart[][] {
   switch (step) {
     case 'placa': {
       const cabine = Math.min(counts.cabine ?? 0, counts.missing);
@@ -280,8 +287,15 @@ function summaryMissingParts(step: SheetStep, counts: { missing: number; cabine?
       return [countParts(counts.missing, 'verificação', 'verificações')];
     case 'ensaios':
       return [countParts(counts.missing, 'leitura', 'leituras')];
-    case 'conclusao':
+    case 'conclusao': {
+      // p020 P-4: the pair, the observation Com restrições requires, or both.
+      const observation = Math.min(counts.observation ?? 0, counts.missing);
+      const pair = counts.missing - observation;
+      // authored: p020 P-4, "as observações" (the sheet's Observações field).
+      if (pair === 0) return [[{ text: 'as observações', kind: 'text' }]];
+      if (observation > 0) return [[{ text: 'a conclusão', kind: 'text' }], [{ text: 'as observações', kind: 'text' }]];
       return [[{ text: 'a conclusão', kind: 'text' }]];
+    }
   }
 }
 
@@ -316,7 +330,8 @@ export function sheetSummaryParts(p: SummaryCounts, shown: readonly SheetStep[] 
   const items = missing.flatMap((step) => summaryMissingParts(step, p.steps[step]));
   // The verb agrees with the first thing missing: a count of 1 or "a conclusão" is singular.
   const lead = items[0]![0]!;
-  const verb = lead.kind === 'text' || lead.text === '1' ? 'falta' : 'faltam';
+  // p020 P-4: "as observações" alone is plural ("faltam as observações").
+  const verb = (lead.kind === 'text' && !lead.text.startsWith('as ')) || lead.text === '1' ? 'falta' : 'faltam';
   const missingParts = joinPartsPtBr(items);
   if (done.length === 0) return [{ text: `${capitalise(verb)} `, kind: 'text' }, ...missingParts];
   const adjective = done.length === 1 && SUMMARY_DONE[done[0]!].singular ? 'pronta' : 'prontas';
