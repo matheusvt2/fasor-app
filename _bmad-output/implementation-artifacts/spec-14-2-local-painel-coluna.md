@@ -318,3 +318,15 @@ Layers run: Edge Case Hunter (kernel and op batches) and Verification Gap Review
 
 **After the fix loop.** Signature changes for callers: `newLocation(locations, input)` expects every location row of the relatório, removed ones included (the web hands it `fresh.allLocations`); `restorableBlocks`' location rows carry `removed_at`; `openDecisions` and `DecisionTextContext` take the locations removed ones included. `locationRows` in `apps/web/src/db/home-store.ts` (live rows by their own `removed_at`) is left with test callers only: the editor and the decision store read `allLocationRows` and the kernel's liveness. Revert checks: every fix and every added test of the loop was run against its behaviour reverted and failed (F1 order and toast, F2 names and key, F3 the fallback, T1 a `removed_at IS NULL` filter in `apps/api/src/sync/snapshot.ts`, T4 both branches).
 
+### Gate record, second pass (2026-10-13)
+
+Story gate on `3df30813` (the merge of `origin/main` `809f0ab4`, documents only, onto the code head `7b860f8d` and the document commits), one lock hold: lock wait 15 s, 2056 s. The commit after it only adds this record. Two other batch stacks (e14b, e14c) were running focused suites on the machine during the run, which is why the stages took longer than in the first pass.
+
+- `pnpm lint`: 0 errors, 25 warnings, as before (22 s). `pnpm static`: clean (39 s).
+- `pnpm test:unit`: 293 files, 3650 tests passed (401 s); the known `quantity-stepper` flake did not fire, so no re-run was needed. Before the gate, the fix loop's own three full runs at host load 12 to 22 had 2, 8 and 8 timeouts (15 s test timeouts and `findBy` misses in `template-composer*`, `relatorio-tree-edges`, `nameplate-dry-insulation` and others); every failed file passed alone and in a 46-file run of the touched web directories (485 tests), and the gate run was green on the same code.
+- `pnpm test:api`: 77 files, 587 tests passed (301 s).
+- Playwright, the 28 spec files of the first gate (the ten this pass touched are among them) on `desktop-chrome` and `durability-desktop-chrome`: 220 tests, 217 passed, 0 failed, 3 skipped, 0 flaky (1221 s; parallel 172 tests in 626 s, serial 48 in 586 s).
+- Durability on the two other matrix projects (`durability.spec.ts`, `move-block.durability.spec.ts` on android-chrome and webkit): 28 tests, 24 passed, 0 failed, 4 skipped (65 s).
+- Before the gate, 14.2-E2E-004 ran three times in a row alone: passed in 18.3 s, 18.8 s and 18.4 s, 0 flaky.
+- Not run (wave gate): the full `@p0`, `test:e2e:full`, the full matrix.
+
