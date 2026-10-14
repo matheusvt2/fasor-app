@@ -51,6 +51,12 @@ x-app-env: &app-env
   # `on` turns them on locally. Their sizes and the JSON body cap default in config.ts.
   RATE_LIMIT: ${RATE_LIMIT:-}
   npm_config_store_dir: /pnpm-store
+  # E14-A13: pnpm 12 reads its settings from `pnpm_config_*` only, so the line above is
+  # ignored and every pnpm call looked for a store itself, writing `_tmp_<pid>_*` link-probe
+  # files into the bind-mounted worktree root (left behind when a run is cut short). An
+  # explicit store skips that probe. It names the store the probe already picked (the root
+  # `node_modules` volume), so the installed packages and their hard links stay as they are.
+  pnpm_config_store_dir: /workspace/node_modules/.pnpm-store
 
 # The api's health check, shared by `api` and `api-prod` (ECS declares its own, ecs.tf).
 x-api-healthcheck: &api-healthcheck

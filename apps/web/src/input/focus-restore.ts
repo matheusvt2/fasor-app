@@ -41,6 +41,15 @@ export interface RestoreFocusOptions {
    * otherwise scroll the page by half a screen when it takes the focus back.
    */
   preventScroll?: boolean;
+  /**
+   * E14-A7, `if-lost` only: `moved` ends the watch on the first frame, once the target is
+   * there, where the focus sits on a connected element other than the target and not on
+   * `<body>`: someone moved it on purpose (a dialog opened over the target), so a later loss
+   * is that control's to restore, not the target's. A loss while the target holds the focus
+   * (`<body>` after a re-render, E6-Q6) is still taken back. Opt-in: without it the watch runs
+   * its frames whatever holds the focus.
+   */
+  until?: 'moved';
 }
 
 function focusLost(): boolean {
@@ -53,7 +62,7 @@ function focusLost(): boolean {
  * query re-renders after the write. `target()` may return null until the change it waits
  * for has rendered.
  */
-export function restoreFocus(target: () => HTMLElement | null, { mode = 'if-lost', frames, once = false, preventScroll = false }: RestoreFocusOptions = {}): void {
+export function restoreFocus(target: () => HTMLElement | null, { mode = 'if-lost', frames, once = false, preventScroll = false, until }: RestoreFocusOptions = {}): void {
   const limit = frames ?? (mode === 'settled' ? LIST_FOCUS_WATCH_FRAMES : FOCUS_WATCH_FRAMES);
   const focus = (element: HTMLElement) => (preventScroll ? element.focus({ preventScroll: true }) : element.focus());
   let watched = 0;
@@ -67,6 +76,7 @@ export function restoreFocus(target: () => HTMLElement | null, { mode = 'if-lost
         }
       } else {
         if (focusLost()) focus(element);
+        else if (until === 'moved' && document.activeElement !== element) return;
         if (once) return;
       }
     }
