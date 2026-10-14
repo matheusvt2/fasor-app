@@ -758,6 +758,69 @@ export function worstMeasurements(evaluations: readonly MeasurementTestEvaluatio
   return out;
 }
 
+// --- the continuous Enter run ---------------------------------------------------------------------
+
+function sameMeasurementAddress(a: MeasurementAddress, b: MeasurementAddress): boolean {
+  return a.testKey === b.testKey && a.row === b.row && a.col === b.col;
+}
+
+/** One column of one test, its typed number cells in the rows shown: the run's unit of "down". A choice or a fixed cell is never a stop. */
+function measurementRunBlocks(evaluations: readonly MeasurementTestEvaluation[]): EvaluatedMeasurementCell[][] {
+  const blocks: EvaluatedMeasurementCell[][] = [];
+  for (const test of liveTests(evaluations)) {
+    for (const column of test.columns) {
+      const cells = test.rows.flatMap((row) => {
+        const cell = row.cells[column.col];
+        return cell !== undefined && cell.fixed === null && cell.kind === 'number' ? [cell] : [];
+      });
+      if (cells.length > 0) blocks.push(cells);
+    }
+  }
+  return blocks;
+}
+
+/**
+ * The continuous Enter run over a sheet's measurement tests, the rule `runTarget` holds for
+ * the seeded tables (EXPERIENCE.md › Measurement table, Keyboard): `next` moves down the
+ * column and, after its last typed row, to the first empty typed cell of what follows (the
+ * table's next column, then the next tests), `'end'` when nothing empty follows (the primary
+ * action takes the focus); `previous` goes back one cell; `right` is the next typed cell of
+ * the same row. Only number cells of the tests switched on and run are stops. Null where
+ * there is nowhere to go, or when `from` is no stop.
+ */
+export function measurementRunTarget(
+  evaluations: readonly MeasurementTestEvaluation[],
+  from: MeasurementAddress,
+  direction: 'next' | 'previous' | 'right',
+): MeasurementAddress | 'end' | null {
+  const blocks = measurementRunBlocks(evaluations);
+  const b = blocks.findIndex((block) => block.some((cell) => sameMeasurementAddress(cell.address, from)));
+  if (b === -1) return null;
+  const block = blocks[b]!;
+  const at = block.findIndex((cell) => sameMeasurementAddress(cell.address, from));
+  if (direction === 'right') {
+    const next = blocks.slice(b + 1).find((later) => later[0]!.address.testKey === from.testKey && later.some((cell) => cell.address.row === from.row));
+    return next?.find((cell) => cell.address.row === from.row)?.address ?? null;
+  }
+  if (direction === 'previous') {
+    if (at > 0) return block[at - 1]!.address;
+    const before = blocks[b - 1];
+    return before === undefined ? null : before[before.length - 1]!.address;
+  }
+  if (at < block.length - 1) return block[at + 1]!.address;
+  for (const later of blocks.slice(b + 1)) {
+    const empty = later.find((cell) => cell.state === 'empty');
+    if (empty !== undefined) return empty.address;
+  }
+  return 'end';
+}
+
+/** The mobile keyboard's Enter key label of a run cell (`runEnterKeyHint`'s rule): `next` while Enter moves to another cell, else `done`. */
+export function measurementRunEnterKeyHint(evaluations: readonly MeasurementTestEvaluation[], address: MeasurementAddress): 'next' | 'done' {
+  const target = measurementRunTarget(evaluations, address, 'next');
+  return target === null || target === 'end' ? 'done' : 'next';
+}
+
 // --- lookups by address (the Conflict view, the fold's refusals share the geometry) ------------------
 
 function testOf(definition: Pick<BlockDefinition, 'measurement_tests'> | null, testKey: string): { test: MeasurementTest; number: number } | null {

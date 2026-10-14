@@ -11,6 +11,7 @@ timestamp: 2026-09-30T00:00:00Z
 - [ops-and-local-first](/architecture/ops-and-local-first.md) AD-1, AD-3, AD-4, AD-20: UI reads IndexedDB, every write is an op, applyOp, ids, soft delete. Open for any write path or new entity.
 - [sync](/architecture/sync.md) AD-8, AD-9, AD-10, AD-24: sync cycle, rejection, rebase, offline shell, session, tenant scoping. Open for sync, auth or multi-tenant work.
 - [kernel-and-seed](/architecture/kernel-and-seed.md) AD-2, AD-11, AD-13, AD-21, AD-22: what must live once in the domain package, field kinds, contract, seed versions, status table.
+- [measurement-table](/architecture/measurement-table.md) Story 14.5, seed v5: the measurement-table grammar, the library type Chave de transferência automática, its keys, the `sheet/test/value` family, what is not built. Open for the CTA sheet or another type on that grammar.
 - [data-model](/architecture/data-model.md) AD-5, AD-6, AD-18, AD-19, AD-25: ownership, location tree, sheet state, registry references, equipment scope.
 - [files-and-photos](/architecture/files-and-photos.md) AD-7, AD-17: file entity, upload durability, variants, photo time, coordinates and numbering.
 - [suggestions-and-reading](/architecture/suggestions-and-reading.md) AD-12, AD-14: Suggestion lifecycle, reading pipeline, OCR and LLM providers.

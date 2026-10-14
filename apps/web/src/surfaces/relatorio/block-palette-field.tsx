@@ -1,4 +1,5 @@
 import {
+  LIBRARY_GROUP_LABEL,
   locationChoices,
   locationPathText,
   paletteItems,
@@ -24,7 +25,11 @@ import { tagReason, tagRefusalText, TagField } from './tag-dialogs.tsx';
  * bottom sheet below 768 px and a right drawer from 768 px (the Template composer's
  * `PaletteDrawer` shell and its `app.css` placement), headed by where the block goes, then
  * the eight equipment types with the TAG each would be born with. No sections and no
- * sub-block toggles (the office's, EXPERIENCE.md).
+ * sub-block toggles (the office's, EXPERIENCE.md). Story 14.5: on a relatório whose seed
+ * version ships library types they come after the eight under the kernel's "Outros
+ * equipamentos" heading, each row saying what the type holds before its TAG
+ * ("17 itens · até 6 ensaios · CTA-GER"); the rows are the kernel's (`paletteItems`), so
+ * nothing here knows which version has which type, and the palette works offline.
  *
  * Below 1280 px a tap creates the block at once (EXPERIENCE.md: one-tap accept; the TAG is
  * edited afterwards through "Renomear TAG"). From 1280 px (the desktop, office variant)
@@ -109,6 +114,25 @@ export function FieldPalette({ target, seedVersion, locations, blocks, equipment
   const [openType, setOpenType] = useState<EquipmentBlockType | null>(null);
   if (location === null) return null;
   const items = paletteItems(seedVersion, location, equipment);
+  const seeded = items.filter((item) => !item.library);
+  const library = items.filter((item) => item.library);
+  const typeRow = (item: PaletteItem) => (
+    <div key={item.type} className="palette-type" data-block-type={item.type}>
+      <button type="button" className="palette-item pf-field" onClick={() => onCreate({ type: item.type, locationId: location.id, anchorBlockId: target.anchorBlockId, tag: null })}>
+        <ItemBody item={item} />
+      </button>
+      <OfficeType
+        item={item}
+        isOpen={openType === item.type}
+        onToggle={() => setOpenType((open) => (open === item.type ? null : item.type))}
+        target={target}
+        locations={locations}
+        blocks={blocks}
+        equipment={equipment}
+        onCreate={onCreate}
+      />
+    </div>
+  );
   return (
     <DialogShell
       className="block-palette field-palette"
@@ -172,27 +196,9 @@ export function FieldPalette({ target, seedVersion, locations, blocks, equipment
         )}
         {/* E11-Q6: the "Ou" answers the camera row above; without it the heading stands alone. */}
         <p className="palette-group">{onPhotograph === undefined ? t.chooseTypeOnly : t.chooseType}</p>
-        {items.map((item) => (
-          <div key={item.type} className="palette-type">
-            <button
-              type="button"
-              className="palette-item pf-field"
-              onClick={() => onCreate({ type: item.type, locationId: location.id, anchorBlockId: target.anchorBlockId, tag: null })}
-            >
-              <ItemBody item={item} />
-            </button>
-            <OfficeType
-              item={item}
-              isOpen={openType === item.type}
-              onToggle={() => setOpenType((open) => (open === item.type ? null : item.type))}
-              target={target}
-              locations={locations}
-              blocks={blocks}
-              equipment={equipment}
-              onCreate={onCreate}
-            />
-          </div>
-        ))}
+        {seeded.map(typeRow)}
+        {library.length === 0 ? null : <p className="palette-group palette-library">{LIBRARY_GROUP_LABEL}</p>}
+        {library.map(typeRow)}
         <p className="office-note">{t.officeNote}</p>
       </div>
     </DialogShell>
@@ -207,7 +213,7 @@ function ItemBody({ item }: { item: PaletteItem }) {
       </svg>
       <span className="pi-text">
         <span>{item.label}</span>
-        <span className="pi-meta">{item.tag}</span>
+        <span className="pi-meta">{item.summary === null ? item.tag : copy.sumario.palette.libraryMeta(item.summary, item.tag)}</span>
       </span>
       <span className="plus" aria-hidden="true">
         +

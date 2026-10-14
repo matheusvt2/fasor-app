@@ -63,3 +63,16 @@ describe('13.4 INP-4 FichaHeader saved line', () => {
     expect(getByTestId('ficha-saved')).toHaveTextContent('Salvo neste aparelho às 14:32');
   });
 });
+
+describe('14.5 FichaHeader library pill', () => {
+  it('says "Tipo da biblioteca" beside the TAG on the sheet of a library type, and nothing on the eight', () => {
+    const library = render(
+      <FichaHeader typeName="Chave de transferência automática" tag="CTA-GER" locationText="Geradores" filledBy={null} concludedBy={null} progress={progress} shown={[]} menu={[]} onRename={null} library />,
+    );
+    const pill = library.container.querySelector('.sheet-title .lib-pill');
+    expect(pill).toHaveTextContent('Tipo da biblioteca');
+    expect(pill!.querySelector('use')).toHaveAttribute('href', '/sprite.svg#i-book');
+    library.unmount();
+    expect(header(null).container.querySelector('.lib-pill')).toBeNull();
+  });
+});

@@ -47,6 +47,44 @@ function renderPalette(onCreate = vi.fn(), onClose = vi.fn()) {
   return { onCreate, onClose };
 }
 
+describe('14.5 FieldPalette: the library type after the eight', () => {
+  const renderOn = (seedVersion: string, onCreate = vi.fn()) => {
+    render(
+      <FieldPalette target={{ locationId: col9.id, anchorBlockId: null }} seedVersion={seedVersion} locations={[cabine, col5, col9]} blocks={[]} equipment={[]} onCreate={onCreate} onClose={vi.fn()} />,
+    );
+    return onCreate;
+  };
+
+  it('a relatório on seed v5 lists the eight, then "Outros equipamentos" with the Chave de transferência automática and what it holds before its TAG', async () => {
+    const onCreate = renderOn('v5');
+    const palette = screen.getByRole('dialog', { name: 'Adicionar bloco' });
+    const rows = [...palette.querySelectorAll<HTMLElement>('.pf-field')];
+    expect(rows).toHaveLength(9);
+    const heading = within(palette).getByText('Outros equipamentos');
+    expect(heading).toHaveClass('palette-group');
+    // The heading sits between the eighth type and the library type.
+    const types = [...palette.querySelectorAll<HTMLElement>('.palette-type')];
+    expect(types[7]!.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(heading.compareDocumentPosition(types[8]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(types[8]).toHaveAttribute('data-block-type', 'chave_transferencia_automatica');
+    expect(rows[8]!.querySelector('.pi-text > span:first-child')).toHaveTextContent('Chave de transferência automática');
+    expect(rows[8]!.querySelector('.pi-meta')).toHaveTextContent('17 itens · até 6 ensaios · CTA-C09');
+    // The eight keep the TAG alone.
+    expect(rows[2]!.querySelector('.pi-meta')).toHaveTextContent(/^SEC-C09$/);
+    expect(await axe(palette)).toHaveNoViolations();
+    await userEvent.click(rows[8]!);
+    expect(onCreate).toHaveBeenCalledWith({ type: 'chave_transferencia_automatica', locationId: col9.id, anchorBlockId: null, tag: null });
+  });
+
+  it('a relatório on seed v4 lists the eight and no "Outros equipamentos"', () => {
+    renderOn('v4');
+    const palette = screen.getByRole('dialog', { name: 'Adicionar bloco' });
+    expect(palette.querySelectorAll('.pf-field')).toHaveLength(8);
+    expect(within(palette).queryByText('Outros equipamentos')).toBeNull();
+    expect(within(palette).queryByText('Chave de transferência automática')).toBeNull();
+  });
+});
+
 describe('4.5 FieldPalette', () => {
   it('heads with where the block goes and lists the eight types with the suggested TAG in meta; a tap asks for the suggestion', async () => {
     const { onCreate } = renderPalette();

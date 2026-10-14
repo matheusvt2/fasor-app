@@ -1807,3 +1807,137 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `packages/domain/src/print/group-for-print.ts` `byTypeRuns` (the painel heading subsection and its type groups; the direct run split by type first) and `baseSubsections`; `packages/domain/src/print/section-9.ts` `section9Layout`; `apps/api/src/jobs/generate/toc.ts`; spec I/O matrix rows "Print, flag off" and "Print, `por_local_e_tipo` and flag on".
   class: question
   state: open (owner: Story 14.4, checked against the print mock)
+
+## Deferred from: Story 14.5, the measurement table and the Chave de transferência automática (2026-10-13)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: N1, narrowed. E6 (termografia): the columns ΔT similares and ΔT ambiente are typed by the technician (optional numbers in °C, never counted as missing), and the Classe is chosen from its four options (a select in the cell, see W1 below); the verdict comes from the Classe alone (`choice_pass`, only Normal passes). The approved mock draws the two ΔT cells as calculated (`.cell-calc`, from the temperatures and the ambient value) and the Classe as text derived from them. Left out: any computed cell. Why: the grammar has no derived column ("no derived column" is the decision recorded in the spec's Never list and in `epic-14-context.md`, Dropped). Lifted by a derived column kind in the grammar, shipped as a later seed version. Revisit after the first real job with a CTA.
+  evidence: spec Design Notes, Narrowings; `packages/domain/src/seed/v5.ts` `E6_TERMOGRAFIA`; `packages/domain/src/seed/measurement.ts` (the column kinds); mock `mockups/prototype/screens/63-ficha-cta.html:326-335`.
+  class: question
+  state: open (owner: Matheus, product decision on a derived column; Bruno says after the first job whether typing the ΔT is acceptable)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: N2, narrowed. E5 (transferência): the Ajuste column is typed (optional), with two fixed cells ("limite 10 s" on "Até carga na Emergência", a dash on "Falha da Emergência"). The mock draws every Ajuste cell as dim text echoed from E4's retardos ("3 s (TD 1C)", "5 min (TD 3A)", "5 min (TD 2E)"). Left out: reading E4's Deixado into E5. Why: a cell of this grammar cannot refer to another test; the spec keeps the grammar to what one table holds. Lifted by a cross-test reference in the grammar (a later seed version), or dropped if the technicians find typing it fine. Revisit after the first real job with a CTA.
+  evidence: spec Design Notes, Narrowings; `packages/domain/src/seed/v5.ts` `E5_TRANSFERENCIA` (column `ajuste`, the two `fixed` rows); mock `63-ficha-cta.html:305-309`.
+  class: question
+  state: open (owner: Matheus, product decision; Bruno's answer after the first job)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: N3, narrowed. The mock's row note under "Falha da Normal até partida" (`.cta-skip`, shown when the método is the controller's test button) is not built. In its place the método option itself carries the wording in the test's values line, on the sheet and in the printed MÉTODO line (the option's `phrase`, which says the engine-start delay TD 1C is skipped), as § 8.4 asks ("the sheet notes the method beside the times"). Left out: a helper text on one row that depends on a test value. Why: the grammar has no row note. Lifted by a row note conditional on a value (a later seed version) if the line beside the times proves not enough.
+  evidence: spec Design Notes, Narrowings; `packages/domain/src/seed/v5.ts` `E5_TRANSFERENCIA.values` (`metodo`, option `botao_teste`); `packages/domain/src/print/section-9.ts` `measurementTestPart` (the values line); mock `63-ficha-cta.html:107-108, 305`; `sprint-change-proposal-2026-10-08.md` § 8.4, the sentence under "Options of E5".
+  class: question
+  state: open (owner: Bruno, after the first real job with a CTA: is the method line enough, and is its wording right)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: N4, narrowed. The E5 limit is the seeded 10 s for every CTA: one `absolute` criterion (`<= 10 s`) on the Medido cell of "Até carga na Emergência", the Ajuste cell of that row fixed at "limite 10 s", and a `criterion_override` put on a measurement test refused by the fold. § 8.4 words it as "the design limit (default 10 s)", so a job whose design asks another time cannot say so on the sheet. The deviation of every other step from its Ajuste is recorded only, with no verdict, as § 8.4 says. Left out: a per-sheet or per-relatório limit. Lifted by duplicating the type with another limit once company types exist (§ 8.5 item 3; Stories 14.6 to 14.8), or by a per-sheet override if Matheus decides one sooner.
+  evidence: spec Design Notes, Narrowings; I/O matrix row "Absolute"; `packages/domain/src/seed/v5.ts` `E5_TRANSFERENCIA.criteria`; `packages/domain/src/ops/apply.ts` `assertSeedPath` (a measurement test holds no criterion override); `sprint-change-proposal-2026-10-08.md` § 8.4 (E5 row) and § 8.5 item 3.
+  class: question
+  state: open (owner: Bruno says whether a real job has a design limit other than 10 s; lifted by Stories 14.6 to 14.8, company types)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: N5, narrowed. The CTA's configuration (tensão, polos, neutro, transição, bypass) is set on the sheet, in its Configuração section, through `block/{id}/config`; a block added from either palette starts on the seed defaults (BT, 3 polos, neutro sólido, transição aberta, sem bypass). The Template composer adds the type with the Quantity stepper only: its type dialog asks nothing about the configuration, because the approved composer mock draws no such step. Left out: preparing the configuration in the office, in the template. Lifted by a configuration step in the composer (needs a mock first).
+  evidence: spec Design Notes, Narrowings and Keys; `packages/domain/src/relatorio/measurement-evaluation.ts` `configFieldsOf`, `blockConfigWithOption`; `apps/web/src/surfaces/ficha/configuracao-section.tsx`; mock `mockups/prototype/screens/42-template-composer.html:186-188, 283`.
+  class: question
+  state: open (owner: Matheus, product decision and a mock; revisit after the first real job with a CTA)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: N6, narrowed. Only E1 (the instruments registered for resistência de contato) and E2 and E3 (those for isolação) offer the instrument picker and print an instrument line. E4 (ajustes do controlador), E5 (transferência) and E6 (termografia) offer none and print none, and an instrument put on them is refused. Why: an instrument in the registry is flagged for the seeded test kinds only, and the spec forbids a new registry field in this story. Left out: naming the timer or analyser of E5 and the thermal camera of E6 on the relatório. Lifted by a registry flag for those uses and `instrument_of` gaining the values.
+  evidence: spec Design Notes, Narrowings, and Never list ("No new instrument-registry field"); `packages/domain/src/seed/measurement.ts` `instrumentOfSchema`; `packages/domain/src/seed/v5.ts` (`instrument_of` on E1 to E3 only); `packages/domain/src/print/section-9.ts` `measurementTestPart`.
+  class: question
+  state: open (owner: Matheus for the registry field; Bruno says which instruments the relatório must name, after the first real job with a CTA)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: N7, narrowed. The CTA's criteria are not listed in the Critérios de aceitação tab of Cadastros: the tab still shows the three seeded criteria (`SEEDED_CRITERIA`, unchanged). Each CTA criterion lives in the type's seed definition with its source and is shown where it is applied: the test's caption on the sheet and the ACEITÁVEL line of the printed table. Left out: a place in the office that lists what a library type is judged by. Lifted with company types, whose editor shows and edits a type's criteria (Story 14.7), or sooner by a read-only list per library type on that tab.
+  evidence: spec Design Notes, Narrowings, and Never list ("no change to the Critérios de aceitação tab"); `packages/domain/src/seed/criteria.ts` `SEEDED_CRITERIA`; `packages/domain/src/seed/v5.ts` (the `criteria` of each test).
+  class: question
+  state: open (owner: Matheus; lifted by Story 14.7, the type editor)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: Q1, open question. E2 (isolamento principal) has eight rows: the seven of § 8.4 plus N-T, which the approved mock draws for a four-pole switch. Built as the mock: the row N-T exists only with polos = 4 and is hidden, not counted and not printed otherwise. If Bruno says the row does not belong, removing it is a later seed version (v5 is frozen once merged) and the values already typed in it stay on their sheets.
+  evidence: spec Design Notes, Open questions; `packages/domain/src/seed/v5.ts` `E2_ISOLAMENTO_PRINCIPAL.rows` (`n_t`, `when` polos 4); mock `63-ficha-cta.html:212, 225`; `sprint-change-proposal-2026-10-08.md` § 8.4 (E2 row).
+  class: question
+  state: open (owner: Bruno, before or after the first real job with a CTA)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: Q2, open question. E4 (ajustes do controlador) has the eight sensor rows of § 8.4 (pickup and dropout of tensão and of frequência, for Normal and for Emergência), then Falta de fase, TD 1C, TD 2B, TD 3A, TD 2E and Exercitador: 14 rows, each asking Projeto, Encontrado and Deixado. The approved mock draws five sensor rows (no dropout de frequência of the Normal, no dropout of the Emergência), so the built sheet asks for three rows more than the mock. Built as § 8.4, the fuller list. If Bruno wants the mock's five, the change is a later seed version.
+  evidence: spec Design Notes, Open questions; `packages/domain/src/seed/v5.ts` `E4_AJUSTES_CONTROLADOR.rows`; mock `63-ficha-cta.html:262-300`; `sprint-change-proposal-2026-10-08.md` § 8.4 (E4 row).
+  class: question
+  state: open (owner: Bruno, after the first real job with a CTA)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: Q3, open question. A test switched off on the sheet (E1, E2, E3 or E6) prints nothing in section 9, as a disabled sub-block of the eight types prints nothing today (AD-21, renderer rule). § 8.4 says of these tests "Each one is marked NA when the switch cannot be de-energized", which can be read as the table printed with an NA mark, so the reader of the relatório sees that the test exists and was not run. Built: the conservative reading, nothing printed; the off note on the sheet tells the technician to mark NA. Left out: a printed NA table or line for a test switched off.
+  evidence: spec Design Notes, Open questions; I/O matrix row "Test switched off"; `packages/domain/src/print/section-9.ts` `measurementTestPart` (null for a test switched off); `sprint-change-proposal-2026-10-08.md` § 8.4, "Defaults".
+  class: question
+  state: open (owner: Bruno: should a test switched off print as NA)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: Q4, open question. A cell out of its criterion prints as any other cell, the convention of the seeded tables of FO.SERV-03; the out reading is named in the sheet's conclusion text. The approved print mock writes the percent above the lowest and the word "INVESTIGAR" inside the E1 cell. Built: the existing convention, no word and no percent in the cell. Left out: any mark of an out-of-criterion cell in the printed table.
+  evidence: spec Design Notes, Open questions; `packages/domain/src/print/section-9.ts` `measurementText` and the file's header comment ("An out-of-criterion cell prints as any other"); mock `mockups/key-print-section-9.html:206`.
+  class: question
+  state: open (owner: Bruno: how an out cell prints, for the CTA and, if changed, for the seeded tables too)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: Left by the kernel slice (a). E5 with the método "Não realizado" drops only its table: section 9 still prints the test's title, the MÉTODO line and the ACEITÁVEL line (criterion and source) with no rows under them, and the sheet asks for none of the E5 cells. The spec's matrix says the table is "not required and not printed" and says nothing about the three lines. Decide whether a transfer test that was not run prints those lines, prints one "não realizado" line, or prints nothing.
+  evidence: spec "Phase 1 result", last bullet; `packages/domain/src/seed/v5.ts` `E5_TRANSFERENCIA.skip_when`; `packages/domain/src/print/section-9.ts` `measurementTestPart` (`test.skipped`).
+  class: question
+  state: open (owner: Bruno, with Q3: what the relatório shows for a test not run)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: Left by the kernel slice (b). The suggested TAG of a CTA follows the existing rule with the new prefix only (`CTA`): on a coluna it is "CTA-C05", and placed directly on a local named "Geradores" it is "CTA-GERADORES". The approved mocks show "CTA-GER" there, which is example data: no rule abbreviates a local's name, and the TAG rule is unchanged by decision (`epic-14-context.md`, shared item "TAG rule"). The technician can type any TAG. Decide only if short TAGs for equipment placed directly on a local are wanted; that would be a change to the rule for all nine types.
+  evidence: spec "Phase 1 result", last bullet; `packages/domain/src/relatorio/tag.ts` (prefix map, rule untouched); mocks `63-ficha-cta.html:116-124`, `40-relatorio-overview.html:304`, `mockups/key-print-section-9.html:171`.
+  class: question
+  state: open (owner: Matheus; no action unless the first real job asks for it)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: § 8.5 item 1, as it reaches the CTA. With tensão = MT the E2 criterion of a CTA is the firm's own seeded insulation criterion (the `isolacao` entry of `SEEDED_CRITERIA`, "> 400 MΩ", source "aceitável na ficha"), read from there and never repeated in the type, so one relatório judges all its MV equipment by one criterion. `sprint-change-proposal-2026-10-08.md` § 8.5 item 1 records that this value is well below the NETA figure for the 15 kV class and that the matter concerns every MV sheet, not only the CTA; it changes nothing now. If the firm's criterion changes, the CTA in MT follows it with no change to the type. With tensão = BT the criterion is the type's own (`>= 100 MΩ` at 1.000 Vcc).
+  evidence: `packages/domain/src/seed/v5.ts` `E2_ISOLAMENTO_PRINCIPAL.criteria` (`seeded: 'isolacao'`, `when` tensão mt); `packages/domain/src/seed/criteria.ts`; spec I/O matrix row "Absolute"; `sprint-change-proposal-2026-10-08.md` § 8.4 (E2 row) and § 8.5 items 1 and 2.
+  class: question
+  state: open (owner: Bruno; recorded, to adjust after first use)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: Authored pt-BR copy of Story 14.5 awaiting Bruno's review. No FO.SERV-03 text exists for this type, so these were written for the story and are marked `// authored:` in the seed: the three NC chip phrases of each of the 17 checklist items (item 3's are the mock's chips), the wording of every criterion, the two off notes of a test switched off, every option label and phrase of the configuration and of the E5 options, the configuration defaults, and the labels with no § 8.4 source. The sources of the criteria are § 8.4's, read second hand; a maker's manual is named as "manual do fabricante". v5 is frozen once Story 14.5 merges, so every correction ships as a later seed version.
+  evidence: `docs/nc-chip-phrases.md`, section "Chave de transferência automática (library type, seed `v5`)" (verified item by item against the seed on 2026-10-13); `packages/domain/src/seed/v5.ts` (the `// authored:` comments); `epic-14-context.md`, "Open with Bruno".
+  class: docs
+  state: open (owner: Bruno's copy review, before the first real job with a CTA)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: W1, narrowed in the web slice. A choice cell with two options (E4 "Falta de fase": Ligado, Desligado) is a Segmented control in the mock's `td.cell-yn`, as the spec's task says. A choice cell with more than two options (E4 "Exercitador", E6 "Classe": four each) is the sheet's select (`select.input`), with "Selecione" (clears the cell) and "Não medido" among its options. Why: four segments in each of four columns fit no tablet side by side, and the approved CTA mock draws these cells as a value box, not as segments. Left out: a Segmented control for every choice cell, as the spec's task line reads literally. Decide whether the select stands.
+  evidence: spec Tasks, phase 2, first bullet ("choice cells as Segmented control"); `apps/web/src/surfaces/ficha/measurement-test-section.tsx` `ChoiceCell` (`SEGMENTED_OPTIONS`); mock `mockups/prototype/screens/63-ficha-cta.html` (the "Falta de fase" and "Exercitador" rows; page rule `td.cell-yn`); `mockups/MOCK-GUIDE.md` ("linha sim/não como segmentado").
+  class: question
+  state: open (owner: Matheus, at the browser pass on the integrated main)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: W2, narrowed in the web slice. Text the mock draws and the sheet does not: the helper lines under Tensão ("BT: E2 a 1.000 Vcc ...") and Polos ("4 polos: E1 e E2 ganham a linha do neutro (N)") in Configuração, the helper under the E5 Método, the section notes of E3 and E4, the table titles (`.mt-title`: "Polo × lado", "Tempos") and the prose after each criterion source. Why: each restates a fact the seed owns (a criterion value, which rows a configuration shows) or is example data, and the grammar carries no helper, note or table title, so the web would hold a second copy that a later seed version could contradict. The criterion text and its source are the kernel's and are shown. Lifted by `helper` and `note` fields on the grammar's config field, value and test (a later seed version) if the technicians miss them.
+  evidence: `apps/web/src/surfaces/ficha/configuracao-section.tsx`, `apps/web/src/surfaces/ficha/measurement-test-section.tsx`; `packages/domain/src/seed/measurement.ts` (`configFieldSchema`, `measurementValueSchema`, `measurementTestSchema`); mock `63-ficha-cta.html` (the `.helper`, `.section-note` and `.mt-title` elements of the Configuração and E1 to E6 sections).
+  class: question
+  state: open (owner: Bruno for the wording, Matheus for adding the fields; after the first real job with a CTA)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: W3, the spec's first acceptance criterion against an older narrowing. The criterion says that after the composer adds a CTA "the node shows it with the suggested TAG". The Template composer has never drawn the mock's `.qty-tag` line ("TAG ao criar: CTA-C05") for any type: Stories 3.3 and 3.4 left it out and Story 14.2 kept it out. Built: the node lists the type by name with its stepper and the template totals name it; the suggested TAG is shown where the app shows suggested TAGs, on the field palette's row ("17 itens · até 6 ensaios · CTA-GERADORES") and on the block at creation. Left out: `.qty-tag` on the composer's quantity rows, which would be for all nine types and touches the composer of batch e14a.
+  evidence: spec Acceptance Criteria, first bullet; `_bmad-output/implementation-artifacts/spec-3-3-3-4-templates-list-and-composer.md:67` ("no ... TAG suggestions (`.qty-tag`)"); `apps/web/src/surfaces/templates/templates.css:17`; `apps/web/src/surfaces/templates/skeleton-list.tsx` `QtyGrid`; `apps/web/src/surfaces/relatorio/block-palette-field.tsx` `ItemBody`; mock `mockups/prototype/screens/42-template-composer.html:283`.
+  class: question
+  state: open (owner: Matheus: draw `.qty-tag` in the composer for every type, or reword the criterion)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: W4, found in the web slice, not changed. The composer's "Editar padrões" dialog of a type lists every sub-block of its definition with a switch. For the CTA that includes E4 (ajustes do controlador) and E5 (transferência), which the sheet cannot switch off: the kernel treats a test with no `switchable` as always on, so a template that switches one of them off changes nothing on the sheet, in the counts or in the document. The dialog also shows no line of what a measurement test holds (`subBlockSummaryText` answers null for it). Left as is: the story's composer task is the palette group, and the fix is a kernel rule (which sub-blocks of a definition are locked) the dialog reads, beside `LOCKED_SUB_BLOCKS`.
+  evidence: `apps/web/src/surfaces/templates/type-defaults-dialog.tsx:82-110`; `packages/domain/src/seed/template.ts` `LOCKED_SUB_BLOCKS`; `packages/domain/src/relatorio/measurement-evaluation.ts` `evaluate` (`enabled`); `packages/domain/src/templates/text.ts` `subBlockSummaryText`.
+  class: bug
+  state: open (owner: Matheus; small kernel and dialog change, or Story 14.7 when the type editor redraws this dialog)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: W5, narrowed in the web slice. A measurement test's table has no "Ler visor" and no Dictation button, and its Instrument picker (E1 to E3) shows no "Sugerido" instrument and "Concluir ficha" writes none: the display-reading fixtures, the table utterance parser and `suggestedInstruments` are the four seeded grammars'. The picker lists the registry instruments that fit the seeded test kind the seed names (`instrument_of`), the one last used for that kind in the relatório first, and stores the header under the measurement test's own key. Every cell is typed. Left out: the three assists on a library type's tables.
+  evidence: `apps/web/src/surfaces/ficha/measurement-test-section.tsx` (no `.mt-actions`); `apps/web/src/surfaces/ficha/instrument-picker.tsx` (`instrumentOf`); `packages/domain/src/relatorio/instrument-pick.ts` `suggestedInstruments` (walks `definition.tests`); `apps/web/src/surfaces/ficha/ensaios-section.tsx` (the seeded `TestSection` carries the three).
+  class: question
+  state: open (owner: Matheus; after the first real job with a CTA says which assist is missed)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: W6, a reading taken in the web slice. Below 768 px a measurement table of one or two value columns stays a table (E1, E3, E5) and one of more stacks into a card per row (E2, E4, E6), the rule EXPERIENCE.md states for the Measurement table. The approved mock stacks every table of this sheet on phone. Built: EXPERIENCE.md, which wins over a mock; the spec's phone criterion names E4 only. To check at the browser pass: E1 and E5 at 390 px, where each row holds two fields with their unit and Overflow, and E4 on a tablet, whose four columns and unbroken row labels make the table scroll inside its own box (never the page) below about 1100 px of content width.
+  evidence: `EXPERIENCE.md` › Measurement table ("With one or two value columns the table stays a table on phone"); `apps/web/src/surfaces/ficha/measurement-test-section.tsx` (`TABLE_COLUMNS_ON_PHONE`); `apps/web/src/styles/app.css` (the `.lib-cards` and `.has-cards` translations); mock `63-ficha-cta.html:93-95`; spec Acceptance Criteria, the 390 px bullet.
+  class: question
+  state: open (owner: the integrated review's browser pass at 390, 768 and 1280 px; Matheus decides if E1 and E5 should stack too)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: W7, added to the kernel in the web slice. The continuous Enter run of the sheet's readings (EXPERIENCE.md › Measurement table, Keyboard) had no rule for a measurement test, so `measurementRunTarget` and `measurementRunEnterKeyHint` were added to `packages/domain/src/relatorio/measurement-evaluation.ts` after the kernel slice was committed: down the column over the typed number cells of the rows shown, then the first empty one of what follows, then the primary; a choice or a fixed cell is never a stop. Kernel tests cover it. Not covered by a Playwright spec: the run across a measurement test is asserted in the kernel and in the web unit test only (the walk of `e2e/cta.spec.ts` leaves each cell with Tab).
+  evidence: `packages/domain/src/relatorio/measurement-evaluation.ts` `measurementRunTarget`; `packages/domain/src/relatorio/measurement-evaluation.test.ts` ("the continuous Enter run over the measurement tests"); `apps/web/src/surfaces/ficha/ensaios-section.tsx` `onMeasurementRun`.
+  class: test-gap
+  state: open (owner: the story gate once the stack is up: one Enter-run step in `e2e/cta.spec.ts` or `e2e/cta.durability.spec.ts`)

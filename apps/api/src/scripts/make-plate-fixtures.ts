@@ -6,10 +6,15 @@ import sharp from 'sharp';
 
 /*
  * Story 13.7 (E78-Q2 closed): the synthetic plates of the five nameplate block types that had
- * no default fixture (para_raio, chave_seccionadora, disjuntor_mt, tp, tc). A one-off,
+ * no default fixture (para_raio, chave_seccionadora, disjuntor_mt, tp, tc). Story 14.5 adds the
+ * plate of the first library type (chave_transferencia_automatica, seed v5). A one-off,
  * re-runnable generator, never run by `pnpm verify` (no test glob matches it):
  *
- *   docker compose --profile tools run --rm tools pnpm exec tsx apps/api/src/scripts/make-plate-fixtures.ts
+ *   docker compose --profile tools run --rm tools pnpm exec tsx apps/api/src/scripts/make-plate-fixtures.ts [block_type ...]
+ *
+ * With no argument it makes every plate; with block types as arguments it makes only those
+ * (a new type's plate is generated alone, so the committed images and fixtures of the others
+ * are never rewritten); a block type with no plate here is an error and nothing is written.
  *
  * For each type it lays out a plate (a header with the type's label, then one row per field:
  * the seed label's words at the left, the value's tokens at the right), draws it as an inline
@@ -41,7 +46,7 @@ interface PlateRow {
 }
 
 interface PlateSpec {
-  blockType: 'para_raio' | 'chave_seccionadora' | 'disjuntor_mt' | 'tp' | 'tc';
+  blockType: 'para_raio' | 'chave_seccionadora' | 'disjuntor_mt' | 'tp' | 'tc' | 'chave_transferencia_automatica';
   file: string;
   rows: PlateRow[];
 }
@@ -130,6 +135,27 @@ const PLATES: PlateSpec[] = [
       { key: 'exatidao', tokens: ['10B100'], value: '10B100' },
     ],
   },
+  {
+    // Story 14.5: every nameplate field of the seed v5 definition but the TAG, in definition order.
+    blockType: 'chave_transferencia_automatica',
+    file: 'plate-chave-transferencia-automatica.png',
+    rows: [
+      { key: 'identificacao', tokens: ['CTA-01'], value: 'CTA-01' },
+      { key: 'fabricante', tokens: ['Dalvenor'], value: 'Dalvenor' },
+      { key: 'serie', tokens: ['TRX-300'], value: 'TRX-300' },
+      { key: 'n_de_catalogo', tokens: ['TRX3-0400-N4'], value: 'TRX3-0400-N4' },
+      { key: 'n_de_serie', tokens: ['CT-448120'], value: 'CT-448120' },
+      { key: 'ano', tokens: ['2021'], value: '2021' },
+      { key: 'tensao_nominal', tokens: ['440', 'V'], value: num('440', 'V') },
+      { key: 'corrente_nominal', tokens: ['400', 'A'], value: num('400', 'A') },
+      { key: 'frequencia', tokens: ['60', 'Hz'], value: num('60', 'Hz') },
+      { key: 'wcr', tokens: ['42', 'kA'], value: num('42', 'kA') },
+      { key: 'protecao_a_montante', tokens: ['DISJUNTOR', '400', 'A'], value: 'DISJUNTOR 400 A' },
+      { key: 'controlador_e_firmware', tokens: ['CG-7', 'v2.14'], value: 'CG-7 v2.14' },
+      { key: 'involucro', tokens: ['IP54'], value: 'IP54' },
+      { key: 'torque_dos_terminais', tokens: ['45', 'N·m'], value: num('45', 'N·m') },
+    ],
+  },
 ];
 
 interface Token {
@@ -209,7 +235,15 @@ async function make(plate: PlateSpec): Promise<string> {
   return sha;
 }
 
-for (const plate of PLATES) {
+/** The plates to make: every one, or only the block types named as arguments. */
+function selected(args: readonly string[]): PlateSpec[] {
+  if (args.length === 0) return PLATES;
+  const unknown = args.filter((arg) => !PLATES.some((plate) => plate.blockType === arg));
+  if (unknown.length > 0) throw new Error(`no plate for block type ${unknown.join(', ')}; known: ${PLATES.map((plate) => plate.blockType).join(', ')}`);
+  return PLATES.filter((plate) => args.includes(plate.blockType));
+}
+
+for (const plate of selected(process.argv.slice(2))) {
   const sha = await make(plate);
   console.log(`${plate.blockType} ${plate.file} ${sha}`);
 }

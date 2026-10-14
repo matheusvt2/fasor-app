@@ -6,6 +6,8 @@ import {
   instantiateTemplate,
   makeOp,
   objectKey,
+  panelFields,
+  PANEL_FIELDS,
   plateReadingTarget,
   registryPath,
   standardTemplate,
@@ -87,11 +89,11 @@ function companyDraft(path: string, value: unknown, owner = companyId): OpDraft 
   return { kind: 'create', scope: 'company', company_id: owner, project_id: null, relatorio_id: null, path, value: value as never, prev_op_id: null, batch_id: null, meta: null, actor_id: ACTOR };
 }
 
-/** A standard-template relatório of the throwaway company; returns its id and blocks. */
-async function relatorio(): Promise<{ relatorioId: string; blocks: BlockRow[] }> {
+/** A standard-template relatório of the throwaway company (on the current seed version unless told otherwise); returns its id and blocks. */
+async function relatorio(seedVersion?: string): Promise<{ relatorioId: string; blocks: BlockRow[] }> {
   const projectId = newId();
   const { relatorioId, drafts } = instantiateTemplate(
-    standardTemplate({ id: newId() }),
+    standardTemplate({ id: newId(), ...(seedVersion === undefined ? {} : { seedVersion }) }),
     { id: projectId },
     { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
     { newId, actorId: ACTOR, companyId },
@@ -826,6 +828,48 @@ describe('9.2-INT the panel reading', () => {
     });
     const [run] = await runs(id);
     expect(run).toMatchObject({ outcome: 'ok', reading_kind: 'panel', model: 'fake' });
+  }, 60_000);
+
+  it('14.5: the structuring step is asked for the types of the relatório\'s seed version: the library type on v5, the eight on v1', async () => {
+    /** The `fields` the structuring step received for a panel photo of `relatorioId`. */
+    const fieldsAsked = async (relatorioId: string, blocks: BlockRow[]): Promise<unknown[]> => {
+      const asked: unknown[][] = [];
+      const capturing: ReadingJobDeps = {
+        ...deps,
+        providers: (ctx) => {
+          const real = deps.providers(ctx);
+          return {
+            ...real,
+            structuring: {
+              async structure(input) {
+                asked.push([...input.fields]);
+                return real.structuring.structure(input);
+              },
+            },
+          };
+        },
+      };
+      const coluna = blocks.find((b) => b.block_type === 'chave_seccionadora')!.location_id!;
+      const id = await panelPhoto(relatorioId, { location_id: coluna });
+      await runReadingJob(capturing, { company_id: companyId, photo_id: id, reading_kind: 'panel' }, { jobId: 'direct-panel-fields', attempt: 1, lastAttempt: false });
+      expect(await status(id)).toBe('done');
+      expect(asked).toHaveLength(1);
+      return asked[0]!;
+    };
+
+    const current = await relatorio('v5');
+    expect((await row<{ seed_version: string }>('relatorio', current.relatorioId))?.seed_version).toBe('v5');
+    const onV5 = await fieldsAsked(current.relatorioId, current.blocks);
+    expect(onV5).toEqual([...panelFields('v5')]);
+    expect((onV5[0] as { options: string[] }).options).toHaveLength(9);
+    expect((onV5[0] as { options: string[] }).options.at(-1)).toBe('chave_transferencia_automatica');
+
+    const old = await relatorio('v1');
+    expect((await row<{ seed_version: string }>('relatorio', old.relatorioId))?.seed_version).toBe('v1');
+    const onV1 = await fieldsAsked(old.relatorioId, old.blocks);
+    expect(onV1).toEqual([...PANEL_FIELDS]);
+    expect((onV1[0] as { options: string[] }).options).toHaveLength(8);
+    expect((onV1[0] as { options: string[] }).options).not.toContain('chave_transferencia_automatica');
   }, 60_000);
 
   it('a photo re-targeted to plate before its panel job runs: the panel job ends superseded, writing neither failed nor done', async () => {

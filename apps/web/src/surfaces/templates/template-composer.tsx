@@ -10,7 +10,7 @@ import {
   defaultPainelName,
   defaultSectionText,
   duplicateSection,
-  EQUIPMENT_BLOCK_TYPES,
+  equipmentTypesOf,
   findComposerNode,
   localUpdatedText,
   moveAnnouncement,
@@ -405,8 +405,9 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   // --- sub-block defaults per type (Story 3.5) -----------------------------------
   const liveBlocks = useMemo(() => withoutOrphans(row), [row]);
   const placedTypes = useMemo(
-    () => new Set(EQUIPMENT_BLOCK_TYPES.filter((type) => typeConfigFor(liveBlocks, type) !== null)),
-    [liveBlocks],
+    // Story 14.5: the types the template's seed version ships (the library type only from v5).
+    () => new Set(equipmentTypesOf(row.seed_version).filter((type) => typeConfigFor(liveBlocks, type) !== null)),
+    [liveBlocks, row.seed_version],
   );
   const editingConfig = editingType === null ? null : typeConfigFor(liveBlocks, editingType);
   // The type left the template (its last placement went to zero, here or on another device):
@@ -481,6 +482,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   }
 
   const paletteProps = {
+    seedVersion: row.seed_version,
     current,
     targetText: current === null ? null : paletteTargetText(view, current),
     placedTypes,

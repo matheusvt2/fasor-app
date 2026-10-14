@@ -137,6 +137,8 @@ describe('seedStandardTemplate', () => {
       expect(row).toEqual(standardTemplate({ id: id! }));
       expect(row).toMatchObject({ name: STANDARD_TEMPLATE_NAME, seed_version: SEED_VERSION, removed_at: null });
       expect(templateTotals(row)).toMatchObject({ chave_seccionadora: 25, disjuntor_mt: 21 });
+      // Story 14.5: a newly seeded standard template holds no Chave de transferência automática.
+      expect(templateTotals(row).chave_transferencia_automatica).toBe(0);
 
       expect(await templateCreates(companyId)).toEqual([
         { path: `template/${id}`, kind: 'create', actor_id: 'system:identity', device_id: 'server' },
@@ -342,6 +344,11 @@ describe('seedStandardTemplate on a database seeded before the current seed vers
       const row = templateRowSchema.parse(rows[0]!.row);
       expect(row).toEqual(standardTemplate({ id: templateId }));
       expect(row).toMatchObject({ seed_version: SEED_VERSION, version: 1 });
+      // Story 14.5: seed v5 offers the Chave de transferência automática in the palettes, and the
+      // standard template still places none: the upgrade carries the version, never a library type.
+      expect(row.blocks.some((block) => block.block_type === 'chave_transferencia_automatica')).toBe(false);
+      expect(templateTotals(row).chave_transferencia_automatica).toBe(0);
+      expect(templateTotals(row)).toMatchObject({ chave_seccionadora: 25, disjuntor_mt: 21 });
 
       const added = (await templateOps(companyId)).slice(before);
       expect(added.map((op) => op.path)).toEqual([

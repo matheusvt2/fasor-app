@@ -9,6 +9,8 @@ export interface ToggleProps {
   'aria-label'?: string;
   'aria-labelledby'?: string;
   'aria-describedby'?: string;
+  /** A class beside `toggle` (the mock's `toggle lib-test-switch`, `63-ficha-cta.html`). */
+  className?: string;
 }
 
 /**
@@ -25,13 +27,13 @@ export interface ToggleProps {
  * Keyboard (APG switch): Tab reaches it; Space and Enter toggle it (a `<button>` raises
  * `click` for both).
  */
-export function Toggle({ isSelected, onChange, ...rest }: ToggleProps) {
+export function Toggle({ isSelected, onChange, className, ...rest }: ToggleProps) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={isSelected}
-      className="toggle"
+      className={className === undefined ? 'toggle' : `toggle ${className}`}
       onClick={() => onChange?.(!isSelected)}
       {...rest}
     >

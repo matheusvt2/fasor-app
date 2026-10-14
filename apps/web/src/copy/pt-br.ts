@@ -776,6 +776,9 @@ export const copy = {
       photograph: 'Fotografar equipamento',
       photographSub: 'Uma foto da frente do painel: tipo, coluna e TAG sugeridos; a mesma foto vira a placa da ficha.',
       officeNote: 'Seções de texto e sub-blocos (ensaios, placa, itens) são do escritório: Compositor de template e paleta aberta de dentro da ficha no desktop.',
+      // Story 14.5 (`40-relatorio-overview.html` line 474, the library type's `.pi-meta`): what the
+      // type holds (the kernel's summary), then the TAG it would be born with: "17 itens · até 6 ensaios · CTA-GER".
+      libraryMeta: (summary: string, tag: string) => `${summary} · ${tag}`,
       // The office confirm (EXPERIENCE.md › Block palette, office variant: TAG and location, prefilled);
       // its "TAG" is the dialogs' `tagDialogs.tagLabel`.
       localLabel: 'Local',
@@ -1239,6 +1242,23 @@ export const copy = {
       mismatchLabel: 'Leitura do visor diferente do valor digitado',
       // authored: the toast after picking the typed value over the display's.
       typedKept: 'Valor digitado mantido',
+    },
+    // Story 14.5 (`63-ficha-cta.html` `.lib-pill`): the header pill of a library type's sheet, verbatim.
+    libraryPill: 'Tipo da biblioteca',
+    // Story 14.5 (`63-ficha-cta.html`, the "Configuração" section of a library type's sheet), verbatim.
+    configuracao: {
+      title: 'Configuração',
+      note: 'Escolhas desta chave: definem as linhas dos ensaios e o critério de isolamento. Imprimem no cabeçalho da ficha.',
+    },
+    // Story 14.5: a measurement test of a library type's sheet (`63-ficha-cta.html` `.lib-test`).
+    // Its title, criterion, off note, labels and helper texts are the kernel's.
+    measurement: {
+      // The test switch's name, verbatim: "E1 · Resistência de contato nesta ficha".
+      switchLabel: (title: string) => `${title} nesta ficha`,
+      // The phone card's line of read-only parts, as the mock writes it
+      // ("Lado Normal: 36 µΩ · Lado Emergência: 39 µΩ", "Normal fechada: — · Emergência fechada: —").
+      cardPart: (column: string, text: string) => `${column}: ${text}`,
+      cardSeparator: ' · ',
     },
     // The "Conclusão" step (Story 5.8): the Conclusion control, its suggestion row, the
     // sheet Observation field and the Generated text field.

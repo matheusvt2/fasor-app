@@ -14,12 +14,15 @@ import {
   measurementCellLabel,
   measurementCells,
   measurementCounts,
+  measurementRunEnterKeyHint,
+  measurementRunTarget,
   measurementStoredText,
   measurementTestTitle,
   measurementValueLabel,
   measurementValues,
   worstMeasurements,
   type EvaluatedMeasurementCell,
+  type MeasurementAddress,
   type MeasurementTestEvaluation,
 } from './measurement-evaluation.ts';
 import {
@@ -733,5 +736,60 @@ describe('the conclusion reads the measurement tests', () => {
 
   it('a sheet with nothing measured and nothing answered still composes, naming only its identity', () => {
     expect(composeConclusion(ctaBlock(), definition, '').text).toBe('A chave de transferência automática não apresentou valores medidos nem itens verificados registrados.');
+  });
+});
+
+describe('the continuous Enter run over the measurement tests', () => {
+  const at = (test: string, row: string, col: string): MeasurementAddress => ({ testKey: test as MeasurementAddress['testKey'], row: rowOf(test, row), col: colOf(test, col) });
+  const evaluationsOf = (options: Record<string, string>, writes: readonly SheetWrite[] = []) => evaluateSheetMeasurements(ctaBlock(options, writes), ctaDefinition());
+
+  it('Enter moves down the column over the rows shown, then to the first empty cell of the next column', () => {
+    const evaluations = evaluationsOf({ polos: '3' });
+    expect(measurementRunTarget(evaluations, at(E1, 'polo_a', 'lado_normal'), 'next')).toEqual(at(E1, 'polo_b', 'lado_normal'));
+    // Three poles: Polo N is hidden, so Polo C ends the column.
+    expect(measurementRunTarget(evaluations, at(E1, 'polo_c', 'lado_normal'), 'next')).toEqual(at(E1, 'polo_a', 'lado_emergencia'));
+    expect(measurementRunEnterKeyHint(evaluations, at(E1, 'polo_c', 'lado_normal'))).toBe('next');
+    // A hidden row is no stop.
+    expect(measurementRunTarget(evaluations, at(E1, 'polo_n', 'lado_normal'), 'next')).toBeNull();
+  });
+
+  it('after the last column of a test it goes to the first empty typed cell of the tests that follow, a filled one passed over', () => {
+    const micro = (raw: string) => num(raw, 'µΩ');
+    const evaluations = evaluationsOf({ polos: '3' }, [{ test: E2, row: 'a_t', col: 'normal_fechada', value: num('12', 'GΩ') }, ...column(E1, 'lado_emergencia', { polo_a: micro('40') })]);
+    expect(measurementRunTarget(evaluations, at(E1, 'polo_c', 'lado_emergencia'), 'next')).toEqual(at(E2, 'b_t', 'normal_fechada'));
+    // From the end of the first column the filled Polo A of the second is passed over.
+    expect(measurementRunTarget(evaluations, at(E1, 'polo_c', 'lado_normal'), 'next')).toEqual(at(E1, 'polo_b', 'lado_emergencia'));
+  });
+
+  it('a fixed cell and a choice cell are never a stop; Shift+Enter goes back one cell and Tab to the next typed cell of the row', () => {
+    const evaluations = evaluationsOf({ polos: '3' });
+    // E2: Linha-carga is fixed under the two closed columns, so C-A ends them.
+    expect(measurementRunTarget(evaluations, at(E2, 'c_a', 'normal_fechada'), 'next')).toEqual(at(E2, 'a_t', 'emergencia_fechada'));
+    expect(measurementRunTarget(evaluations, at(E2, 'linha_carga', 'normal_fechada'), 'next')).toBeNull();
+    // E4: Falta de fase is a choice row, between the last sensor row and TD 1C.
+    expect(measurementRunTarget(evaluations, at(E4, 'emergencia_dropout_de_frequencia', 'projeto'), 'next')).toEqual(at(E4, 'td_1c', 'projeto'));
+    expect(measurementRunTarget(evaluations, at(E4, 'falta_de_fase', 'projeto'), 'next')).toBeNull();
+    expect(measurementRunTarget(evaluations, at(E1, 'polo_a', 'lado_emergencia'), 'previous')).toEqual(at(E1, 'polo_c', 'lado_normal'));
+    expect(measurementRunTarget(evaluations, at(E1, 'polo_a', 'lado_normal'), 'previous')).toBeNull();
+    expect(measurementRunTarget(evaluations, at(E1, 'polo_b', 'lado_normal'), 'right')).toEqual(at(E1, 'polo_b', 'lado_emergencia'));
+    expect(measurementRunTarget(evaluations, at(E1, 'polo_b', 'lado_emergencia'), 'right')).toBeNull();
+    // E5: Tab from a typed Ajuste goes to the row's Medido.
+    expect(measurementRunTarget(evaluations, at(E5, 'falha_da_normal_ate_partida', 'ajuste'), 'right')).toEqual(at(E5, 'falha_da_normal_ate_partida', 'medido'));
+  });
+
+  it('a test switched off or not run is left out, and the last empty cell of the sheet ends the run', () => {
+    const { state, f } = ctaState({ polos: '3' });
+    const config = blockConfigWithSubBlock(blockOf(state).config, E2, false);
+    const off = applyOp(state, f.op({ path: blockFieldPath(CTA_BLOCK, 'config'), value: config }));
+    const skipped = writeSheet(off, f, [{ test: E5, key: 'metodo', value: choice('nao_realizado') }]);
+    const evaluations = evaluateSheetMeasurements(blockOf(skipped), ctaDefinition());
+    // E2 is off: the run leaves E1 for E3.
+    expect(measurementRunTarget(evaluations, at(E1, 'polo_c', 'lado_emergencia'), 'next')).toEqual(at(E3, 'fiacao_terra', 'valor'));
+    // E5 was not run: the last column of E4 hands over to E6, and a cell of E5 is no stop.
+    expect(measurementRunTarget(evaluations, at(E4, 'td_2e', 'deixado'), 'next')).toEqual(at(E6, 'normal_a', 'temperatura'));
+    expect(measurementRunTarget(evaluations, at(E5, 'resfriamento', 'medido'), 'next')).toBeNull();
+    const last = at(E6, 'carga_c', 'delta_t_ambiente');
+    expect(measurementRunTarget(evaluations, last, 'next')).toBe('end');
+    expect(measurementRunEnterKeyHint(evaluations, last)).toBe('done');
   });
 });
