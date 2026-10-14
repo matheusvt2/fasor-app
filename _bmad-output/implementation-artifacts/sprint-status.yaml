@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 10-14-2026 12:00
+last_updated: 10-14-2026 14:50
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -163,7 +163,7 @@ development_status:
   13-8-the-emission-audit-one-ai-pass-before-emitir-that-points-nev: done  # PR #107; fixes PR #109
   13-9-dictation-on-behind-one-line-of-consent: backlog  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus
   epic-13-retrospective: done  # epic-13-retro-2026-10-08.md; machine verdict rejected (13-9 deferred); overridden to accepted-with-open-items by Matheus 2026-10-08 after the E13-A1 wave gate
-  epic-14: in-progress  # sprint-change-proposal-2026-10-08.md; Bruno 2026-10-08; re-sliced 2026-10-09: waves 14.1 | 14.2-14.4 | 14.5 | 14.6-14.8 (after real use)
+  epic-14: in-progress  # 14.1-14.5 done and deployed to production as v0.2.0 (2a5a81e) on 2026-10-14; 14.6-14.8 wait for 2-3 real jobs (E14-A12); sprint-change-proposal-2026-10-08.md; Bruno 2026-10-08; re-sliced 2026-10-09: waves 14.1 | 14.2-14.4 | 14.5 | 14.6-14.8 (after real use)
   14-1-the-mocks-for-locals-the-site-checklist-and-the-type-editor: done  # commits 08b5c25, 6a0bfc6, 5e53d99 (no PR, pushed to main by Matheus's instruction); approved by Matheus 2026-10-09 and, redrawn for Local > Painel > Coluna, 2026-10-13; Bruno answered 2026-10-10
   14-2-a-local-holds-its-equipment-with-no-coluna: done  # PR #126 merged 2026-10-13 as cbce841 (contract 17; location removal and restore in the tree built in the same PR);  # batch e14a started 2026-10-13, branch story/14-2-local-painel-coluna; DoR: 14.1 composer and tree frames approved; 2026-10-10 scope: Local > Painel > Coluna (each cabine is a local), effort high
   14-3-verificações-do-local-capture: done  # PR #127 merged 2026-10-13 as f1f7ec9 (contract 18, seed v4);  # batch e14b (with 14.4) started 2026-10-13, branch story/14-3-14-4-verificacoes-do-local, stacked on the 14.2 branch (Matheus: parallel lanes);  # DoR: 14.1 checklist frames approved, 14.2 merged; NC chips reviewed by Bruno before the first real job

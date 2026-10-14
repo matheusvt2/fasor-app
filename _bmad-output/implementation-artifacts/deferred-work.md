@@ -2178,3 +2178,17 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: debt
   state: open (owner: tooling)
 
+
+## Deferred from: production deploy v0.2.0 (2026-10-14)
+
+- source_spec: `infra/PUBLISHING.md`
+  summary: `infra/bin/check` fails `terraform init -backend=false` for both stacks on this machine ("No valid credential sources found", the S3 backend asking for credentials) even with a live `fasor-admin` session, while `validate`, `fmt`, tflint, ShellCheck and the real `plan` pass. Separately, the cached provider binaries under `infra/*/.terraform/providers` had lost their execute bit (plan failed with "permission denied" until `chmod u+x`).
+  evidence: deploy of 2026-10-14; `infra/bin/check` output; `infra/bin/tf` runs `hashicorp/terraform:1.16.4` with `--user $(id -u):$(id -g)` over a bind mount.
+  class: debt
+  state: open (owner: the next infra change)
+
+- source_spec: `infra/PUBLISHING.md`
+  summary: The production log of the first start of v0.2.0 says "template seeds upgraded, moved: 0" with no "skipped" line, so no live template moved from its seed to v5. Either production holds no live template, or every template was already on the current seed. Not verified against the database; if a template is on v3, relatórios created from it are born on v3 and have no Verificações do local or CTA.
+  evidence: `/fasor/production/api` log lines at 17:24:55Z and 17:40:44Z; `apps/api/src/db/template-seed-upgrade.ts`.
+  class: verification-gap
+  state: open (owner: coordinator, with Matheus: open the Template list in production and read each template's seed)
