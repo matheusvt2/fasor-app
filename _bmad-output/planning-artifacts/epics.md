@@ -3232,6 +3232,12 @@ So that the relatório records the room itself and an NC becomes a point of atte
 - Gate: the story gate was green on the touched specs; the widened Playwright runs kept two reds on untouched specs, both open in `deferred-work.md` (`points` 6.6-E2E-011; WebKit `ficha.durability` F-11). The wave gate on the integrated main rechecks both.
 - Known open, in `deferred-work.md` under Stories 14.3 and 14.4: the boot wiring of `upgradeTemplateSeeds` has no test; "Legendar" on a site photo is untested; `location_id` is unchecked at the fold.
 
+**Acceptance Criteria added 2026-10-14 (Bruno's answers, relayed by Matheus):**
+
+**Given** a local with a site item answered NC
+**When** the Sumário and the parecer step read the relatório
+**Then** the item counts in "NC abertos" like an NC sheet item, and the suggested parecer is "com restrições" with the item named among the restrictions, as an NC sheet item is; the non-blocking pre-issue row of the QA fix stays (FR-48; `source-deltas.md` 2026-10-14)
+
 ### Story 14.4: Verificações do local: the printed table
 
 **Dev model:** opus · **Effort:** high · a section 9 part in the renderer and its golden comparison
@@ -3320,6 +3326,12 @@ So that the next job with a no-break or a chave ASCO is recorded in the relatór
 - Known open, in `deferred-work.md` under Story 14.5: R1 (two devices changing one CTA's configuration: the whole config is last-writer-wins), R5 (an unasserted status-flow family row); the review patches were not re-reviewed (integrated review).
 
 **Epic 14 QA, 2026-10-14 (report `implementation-artifacts/epic-14-qa-2026-10-13.md`; fixes in PR #129, merged as `69d7d05`, contract 19):** the nine specs that expected eight equipment types now read the types from the kernel; reordering points with a removed local, a zero CTA reading (refused at input, a stored one shows "Conferir" and holds back the suggested conclusion), the "Do local" block on the Verificações screen for a local with no equipment, the confirmation and restore text of a local holding only site work, the seed upgrade of a template pushed after the api started, and a sheet stranded under a hidden location (now its own restore entry) are fixed. A pre-issue row names a local whose NC site items outnumber the points created from them. *(open, Matheus and Bruno)* whether site NCs count in "NC abertos" and in the suggested parecer; site photos of a removed local still print in section 7 (Q-9); offline site answers on a local another device removed vanish with no sign (Q-8); a local with no equipment raises no "cabine incompleta" row; the per-key CTA configuration op (R1) waits for the architect.
+
+**Acceptance Criteria added 2026-10-14 (Bruno's answers, relayed by Matheus; seed v5 edited in place before its first deploy, `source-deltas.md` 2026-10-14):**
+
+**Given** the CTA sheet on seed v5
+**When** it renders and prints
+**Then** E2 (isolamento principal) has no N-T row; E1 (resistência de contato) records the test current in A; a test that was not done (switched off, or E5 with método "Não realizado") disappears from the printed relatório entirely, title, method and criterion lines included; an out-of-criterion value prints plainly with no mark beside it, and its observation reaches the composed conclusion text; E4 (ajustes do controlador) carries only the rows Bruno keeps (pending his list; until it arrives E4 keeps its rows)
 
 ### Story 14.6: Company equipment types in the kernel
 
