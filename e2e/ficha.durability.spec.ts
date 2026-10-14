@@ -238,12 +238,17 @@ test('@p1 E5-A2-E2E-003 the Sticky action bar with the on-screen keyboard: above
 /**
  * Review fixes 2026-10-06 (F-11): moves the focus through the Ensaios step `steps` times with
  * `key` and, after each move that lands on a reading, checks that the browser scrolled it
- * clear of the Sticky action bar and of the App bar. Returns how many readings it checked.
+ * clear of the Sticky action bar and of the App bar, three frames after the key. Returns how many readings it checked.
  */
 async function walkReadings(page: Page, key: 'Tab' | 'Enter', steps: number): Promise<number> {
   let checked = 0;
   for (let i = 0; i < steps; i++) {
     await page.keyboard.press(key);
+    // Carry-over co14a: measured on the frames a person sees, not in the same task as the key.
+    // The reading left commits on blur and its row can grow, and the Bulk mirror can join the
+    // bar as the checklist scrolls into view; both land a frame later, as does the app's clear
+    // of them (`keepClearOfStickyBar`), and WebKit has no scroll anchoring to hide the first.
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))));
     const box = await page.evaluate(() => {
       const active = document.activeElement;
       if (!(active instanceof HTMLInputElement) || active.closest('#ficha-step-ensaios .measurement-field') === null) return null;

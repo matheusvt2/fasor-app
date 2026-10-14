@@ -405,6 +405,14 @@ function watchKeyMoves(): void {
 const focusIsOfAKeyMove = (): boolean => performance.now() - keyMove.at < KEY_FOCUS_MS;
 
 /**
+ * How long after a keyboard focus a layout change still clears that field again: the reading
+ * just left commits on blur and can grow a line above the new one (its hint), which pushes the
+ * focused field down under the bar where the browser has no scroll anchoring (WebKit); a Sticky
+ * action bar can grow too (the Bulk mirror).
+ */
+const LAYOUT_SETTLE_MS = 1500;
+
+/**
  * Carry-over co14a (F-11 on WebKit): the field the keyboard moved the focus to, when its box is
  * under the band the page's Sticky action bar covers or under a sticky App bar, scrolls until it
  * is clear of both. Chrome's own focus scroll already honours the page's `scroll-padding-bottom`
@@ -436,11 +444,16 @@ function useFocusedClearOfStickyBar(): void {
     if (typeof window === 'undefined') return;
     watchKeyMoves();
     let frame: number | null = null;
+    // The last field the keyboard focused, and when: a layout change a moment later (see
+    // `LAYOUT_SETTLE_MS`) clears it again.
+    let keyFocused: { target: Element; at: number } | null = null;
     const onFocusIn = (event: globalThis.FocusEvent) => {
       if (frame !== null) cancelAnimationFrame(frame);
       frame = null;
+      keyFocused = null;
       if (!focusIsOfAKeyMove()) return;
       const target = event.target instanceof Element ? event.target : null;
+      if (target !== null) keyFocused = { target, at: performance.now() };
       // Now, so the field is clear in the same task as the key (whichever side of the focus
       // event the browser's own reveal runs, it then finds the field in view), and once more
       // on the next frame for a layout the focus itself changed.
@@ -451,8 +464,15 @@ function useFocusedClearOfStickyBar(): void {
       });
     };
     document.addEventListener('focusin', onFocusIn);
+    const onLayout = () => {
+      if (keyFocused === null || document.activeElement !== keyFocused.target || performance.now() - keyFocused.at > LAYOUT_SETTLE_MS) return;
+      keepClearOfStickyBar(keyFocused.target);
+    };
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(onLayout);
+    for (const watched of document.querySelectorAll<HTMLElement>('main, .sticky-action-bar')) observer?.observe(watched);
     return () => {
       document.removeEventListener('focusin', onFocusIn);
+      observer?.disconnect();
       if (frame !== null) cancelAnimationFrame(frame);
     };
   }, []);
