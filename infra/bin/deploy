@@ -106,7 +106,11 @@ migrate_family="$(output migrate_task_family fasor-production-migrate)"
 migrate_log_group="$(output migrate_log_group /fasor/production/migrate)"
 image_tag_parameter="$(output image_tag_parameter /fasor/production/image-tag)"
 public_url="$(output public_url https://203.0.113.10)"
-echo "platform $platform, cluster $cluster, services: $services, url $public_url"
+# With app_domain set, Caddy holds a certificate for that name only, so a verified request to
+# the bare address fails TLS: the health check goes to app_url when there is one (2026-10-14).
+app_url="$(output app_url '')"
+health_url="${app_url:-$public_url}"
+echo "platform $platform, cluster $cluster, services: $services, url $health_url"
 read -r -a service_list <<<"$services"
 
 # --- build and push ------------------------------------------------------------------
@@ -217,14 +221,14 @@ run "${tf[@]}" apply -input=false -auto-approve -var "image_tag=$tag"
 run "${aws[@]}" ecs wait services-stable --cluster "$cluster" --services "${service_list[@]}"
 
 # --- health --------------------------------------------------------------------------
-step "health: GET $public_url/api/health until every component is up"
+step "health: GET $health_url/api/health until every component is up"
 if [ "$dry_run" = 1 ]; then
-  printf 'DRY-RUN: curl -fsS %q  -> {"status":"up","db":"up","queue":"up","storage":"up","libreoffice":"up"}\n' "$public_url/api/health"
+  printf 'DRY-RUN: curl -fsS %q  -> {"status":"up","db":"up","queue":"up","storage":"up","libreoffice":"up"}\n' "$health_url/api/health"
 else
   # The first deploy waits for Caddy's first certificate, so give it a few minutes.
   for attempt in $(seq 1 60); do
     # No -f: a 503 "degraded" body names the component that is down.
-    body="$(curl -sS --max-time 10 "$public_url/api/health" 2>/dev/null || true)"
+    body="$(curl -sS --max-time 10 "$health_url/api/health" 2>/dev/null || true)"
     if [[ "$body" == *'"status":"up"'* ]]; then
       echo "$body"
       break
@@ -238,4 +242,4 @@ fi
 step "record $tag as the deployed tag"
 run "${aws[@]}" ssm put-parameter --name "$image_tag_parameter" --value "$tag" --overwrite
 
-printf '\ndeployed %s to %s\n' "$tag" "$public_url"
+printf '\ndeployed %s to %s\n' "$tag" "$health_url"
