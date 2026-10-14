@@ -131,3 +131,22 @@ top dialog is a product change with its own risks; it is recorded as an open que
 - `pnpm test:api` -- exit 0
 - `pnpm exec tsx scripts/e2e.ts e2e/points.spec.ts e2e/parecer-export.spec.ts e2e/ficha.durability.spec.ts e2e/export.spec.ts e2e/cta.spec.ts e2e/status-flow-2026-10-10.spec.ts e2e/verificacoes-local.spec.ts --project desktop-chrome --project durability-desktop-chrome` -- green
 - `pnpm exec tsx scripts/e2e.ts e2e/ficha.durability.spec.ts --project durability-desktop-chrome --project durability-android-chrome --project durability-webkit` (names from `playwright.config.ts`) -- green
+
+## Auto Run Result
+
+Status: in-review (story gate red on test:unit, so the PR is held per the coordinator)
+
+- Implemented Items 1-4 as in Tasks 1-8. Files:
+  - `panel.ts` + `job.integration.test.ts`: painel target refused.
+  - `quantity-stepper.tsx` + its test: the focus select is cancelled by typing.
+  - `toast.tsx` + `toast.test.tsx`: the F-11 WebKit focus clearance.
+  - `e2e/support/dialogs.ts` and six specs: the shared `escapeDialog`.
+  - `ficha.durability.spec.ts`: `walkReadings` measures three frames after the key.
+  - `plate-photo-reread.test.tsx`: state waits.
+  - `measurement-test-section.test.tsx`: axe split out, 60 s budget.
+  - `deferred-work.md`: rows closed.
+- Review: 11 findings; 2 patched (the stickybar unit tests, a tall field's own top), 1 deferred (the 60 s axe budget), 8 rejected with reasons in the triage log. Follow-up review: false.
+- Verification:
+  - On 5e431096: test:api 632/632; touched specs 51/51 on desktop-chrome and durability-desktop-chrome; F-11 on webkit 5/5; mutations red.
+  - On 4e66f18d (gate 1588 s, load average 11-15, stacks fasor, fasor-p020 and fasor-co14a up): lint 0, static 0, ficha.durability on the matrix green. test:unit was red twice: run 1 had 5 timeouts in 4 files (629 s), run 2 had 3 timeouts in 2 files (675 s), all `Test timed out in 15000ms`, all in files this batch did not touch (`relatorio-tree-edges`, `template-composer-defaults`, `-local`, `-palette`). Each of those files passed 3 of 3 alone under the lock.
+- Residual risk: test:unit cannot reach exit 0 on this host while three stacks share the VM; the remaining reds are load timeouts, not defects found.
