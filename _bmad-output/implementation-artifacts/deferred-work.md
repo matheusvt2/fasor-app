@@ -1922,7 +1922,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: `apps/web/src/surfaces/relatorio/relatorio-tree-edges.test.tsx` "the cabine's \"Adicionar bloco\" follows the last sheet's coluna; a cabine with no coluna takes the block itself, \"criada em ⟨cabine⟩\"" fails on this batch's base (`f60fd938`, Story 14.2's branch) with no change of this batch: it finds no menu item named "Adicionar equipamento" (`Unable to find role="menuitem" and name "Adicionar equipamento"`). It was left as found; the full `test:unit` of this batch is green apart from it (3724 of 3725 on 2026-10-13).
   evidence: `apps/web/src/surfaces/relatorio/relatorio-tree-edges.test.tsx`; `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` `locationMenu` (`add-block` label); `test-results/e14b/unit.log` of 2026-10-13.
   class: bug
-  state: open (owner: batch e14a, Story 14.2; else the coordinator before the wave gate)
+  state: open (owner: batch e14a, Story 14.2; else the coordinator before the wave gate) *(2026-10-13, batch e14b gate: closed. The test passes on the merge of Story 14.2's second pass, `50e4afff`: `pnpm test:unit` shows no failure in `relatorio-tree-edges.test.tsx`.)*
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
   summary: Found while writing 14.3-E2E-001, in the Checklist row both the sheet and "Verificações do local" draw: for 180 frames (about 3 s) after the camera view closes, the camera's opener ("Adicionar foto") takes the focus back whenever it finds the focus lost (`returnFocus`, E6-Q6). A point dialog opened from the same row and closed inside that window ("Criar ponto de atenção", "Concluir") therefore hands the focus to "Adicionar foto" instead of the button that opened it: the opener's watch runs in the frame where the dialog's own restore has not landed yet. A person rarely shoots, opens and saves a point in 3 s; a test does. The e2e asserts the focus return on a row where no camera was opened (14.3-E2E-004); the sheet's 6.6-E2E-002 never opens the camera first.
@@ -1961,3 +1961,10 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `packages/domain/src/print/group-for-print.ts` (the Stories 14.3 and 14.4 note); `packages/domain/src/print/section-9.test.ts` (matrix "Type titles under a painel", the v3 half).
   class: question
   state: open (owner: Matheus, for information)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
+  summary: 2026-10-13, gate of batch e14b. Two open failures of main showed in this batch's widened Playwright run, on specs it did not touch: `points.spec.ts` 6.6-E2E-011 failed once in the 28-file run and passed 4 of 5 alone on `ec9140b0` (the status-flow story's entry above: `Escape` on `BODY` before the focus returns to the photo viewer), and `ficha.durability.spec.ts` F-11 on `durability-webkit` failed in the run and 2 of 2 alone (the E13-A1 wave gate entry above: a reading focused by Tab lands under the Sticky action bar on WebKit). Neither was changed here; both keep the wave gate red on this host until settled.
+  evidence: `test-results/e14b/gate.log`, `points-alone.log` and `webkit-f11.log` in the e14b worktree (git-ignored); the PR body of Stories 14.3 and 14.4.
+  class: debt
+  state: open (owner: the next carry-over batch, with the two entries it points at)
+

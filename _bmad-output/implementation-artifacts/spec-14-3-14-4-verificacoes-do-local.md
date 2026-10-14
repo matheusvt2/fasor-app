@@ -2,17 +2,31 @@
 title: 'Stories 14.3 and 14.4: Verificações do local, captured per local and printed once in section 9'
 type: 'feature'
 created: '2026-10-13'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'f60fd938a573ca8222aeff5c17887605e687a044'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
   - '{project-root}/AGENTS.md'
   - '{project-root}/_bmad-output/implementation-artifacts/epic-14-context.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
-deferred: []
+deferred:
+  - summary: >-
+      The boot wiring of upgradeTemplateSeeds (main.ts, migrate-cli.ts) is exercised by no test.
+    evidence: |-
+      Verification Gap Reviewer, filed pre-verified: the integration test calls the function directly and the e2e seed creates templates on the current seed, so deleting the call in main.ts fails nothing. Ledger: deferred-work.md, review of batch e14b, first entry (owner: the coordinator's wave gate).
+    location: >-
+      apps/api/src/main.ts:45
+    severity: low
+  - summary: >-
+      "Legendar" on a site photo is opened by no test.
+    evidence: |-
+      Verification Gap Reviewer, filed pre-verified: no test references PhotoCaptionDialog with a site photo; deleting either prefillText prop fails nothing. Ledger: deferred-work.md, review of batch e14b, second entry (owner: the epic QA).
+    location: >-
+      apps/web/src/surfaces/photos/photo-caption-dialog.tsx:36
+    severity: low
 ---
 
 Batched: Stories 14.3 and 14.4 are one data set (the site checklist of a local, captured and printed), so one spec, one review, one gate and one PR (batch `e14b`, branch `story/14-3-14-4-verificacoes-do-local`, stacked on Story 14.2's branch).
@@ -174,3 +188,34 @@ Another batch shares the lock: wait for it, never skip it, never `pkill` by patt
 - `pnpm exec vitest run packages/domain/src/<file>`, `pnpm exec vitest run --project @app/web <file>` -- narrow runs while iterating.
 - `pnpm test:unit`, `pnpm test:api` (under the lock) -- expected: green; `quantity-stepper.test.tsx` "commits a typed number on blur or Enter" is a known flake (re-run once).
 - The new specs and every spec changed, on `desktop-chrome`; the durability spec also on `durability-desktop-chrome`.
+
+## Auto Run Result
+
+Status: done (2026-10-13). Code head `ec9140b0` (the merge of main is `50e4afff`); this section is a document-only commit after the gate.
+
+**Summary.** Every local of a relatório on seed v4 carries its "Verificações do local": 19 items in six groups, answered once on the root `cabine` row, captured on a surface built from mock 61 on the sheet checklist's own row, and printed once per local right after AMBIENTE DE ENSAIO. Kernel: seed v4 (v3 plus the site list and NO-BREAK DE COMANDO on the Disjuntor MT checklist), the cell family `location/{id}/checklist/{itemKey}/{result|observation}` folded through `mergeCell`, `location_id` on photo and point rows, contract 18 (minimum 18), `relatorio/site-checklist.ts`, the pre-issue row, the removed-local rule on points, `localParts` in section 9 and the painel wording of the type-group titles. Api: the renderer draws the local's parts, `upgradeTemplateSeeds` moves every live template at start, sync refusals. Web: the surface, its three entry points, site photos and points.
+
+**Files changed (main ones).**
+- `packages/domain/src/seed/{v4,schema,definitions}.ts`, `schemas/{block-config,entities}.ts` -- seed v4, `SITE_ITEM_KEYS`, the row fields.
+- `packages/domain/src/ops/{path,apply}.ts`, `merge/{policy,info,stamp,restore}.ts`, `status/edited-since.ts`, `contract/version.ts` -- the family, its fold, merge and status decisions, contract 18.
+- `packages/domain/src/relatorio/{site-checklist,tree,pre-issue,sumario}.ts`, `points/{checks,summary}.ts`, `photos/{gallery,caption}.ts`, `schemas/snapshot.ts`, `audit/input.ts` -- readers, texts, the removed-local rule.
+- `packages/domain/src/print/{group-for-print,section-9,section-7,section-8}.ts`, `apps/api/src/jobs/generate/sections/section-9.ts` -- the printed table and the painel titles.
+- `packages/domain/src/templates/from-relatorio.ts`, `apps/api/src/db/template-seed-upgrade.ts`, `apps/api/src/{main.ts,db/migrate-cli.ts}` -- how templates reach v4.
+- `apps/web/src/surfaces/local/*`, `surfaces/ficha/{checklist-section,cabine-block,issued-banner}.tsx`, `surfaces/relatorio/{relatorio-tree,tree-actions}.ts*`, `surfaces/points/*`, `surfaces/photos/*`, `db/{photo-store,file-commit}.ts`, `copy/pt-br.ts` -- the surface and its entry points.
+- `e2e/verificacoes-local.spec.ts`, `e2e/verificacoes-local.durability.spec.ts`, six updated specs, `e2e/support/groups.ts`.
+- Spine AD-3, AD-6, AD-13, AD-15, AD-21, AD-22 (dated notes), `docs/kbs/*`, `deferred-work.md`.
+
+**Review.** Two layers (Edge Case Hunter, Verification Gap Reviewer), one fix loop (`c49e84d9`, then `ec9140b0` for a kernel assertion the fix made stale). 14 findings: 11 patched (3 medium in 2 entries, 8 low), 2 deferred (the boot wiring and "Legendar", both test gaps), 1 rejected (`MergeInfoContext.relatorios` has no production caller: harmless while every seed ships the same site list; ledger entry). The fold check of `location_id` on a file or point was rejected inside its patched row (no client writes it; ledger entry).
+
+**Follow-up review recommended: true.** Patched this pass: medium 2 entries, low 8. The risk to re-check in the integrated epic review: the document audit's input on a v4 relatório (it lost the cabine tables until the fix; covered by one kernel test, no audit run end to end), and the merge with Story 14.2's second pass in `schemas/snapshot.ts` (site points now follow the ancestor rule `liveStructure` gives; covered by the kernel tests of each side, none of the two together).
+
+**Merge.** PR #126 was merged by squash (`cbce841b`) while this batch ran. The 14.2 branch tip `9afb99ef` (same tree as the squash) was merged first (8 conflicts, both sides kept), the squash recorded as merged, then `origin/main` (`c4ae8c02`).
+
+**Verification (story gate, one lock hold on `50e4afff`, lock wait 0 s, 1522 s; re-runs on `ec9140b0`).**
+- `pnpm lint`: 0 errors, 25 warnings (13 s). `pnpm static`: clean (22 s). `pnpm test:api`: 79 files passed (209 s).
+- `pnpm test:unit`: 3839 of 3840 on `50e4afff`. The red was `ops/site-checklist.test.ts`, an assertion of the kernel slice that `clearedMarks` ignores a site cell, which the review fix deliberately changed and whose own run did not include that file; the assertion now pins the new behaviour (`ec9140b0`). Full re-run on `ec9140b0` (lock wait 1074 s behind this batch's own gate): 299 files, 3840 tests passed (170 s). The base failure in `relatorio-tree-edges.test.tsx` went away with the merge of Story 14.2's second pass.
+- Playwright, 28 spec files on `desktop-chrome` and `durability-desktop-chrome` (the 8 this batch created or changed and 20 untouched ones that drive the lifted checklist row, the tree, photos, points, merge and generation): 260 tests, 256 passed, 1 failed, 3 skipped, 0 flaky (923 s). Every spec this batch touched passed. The red is `points.spec.ts` 6.6-E2E-011, the open ledger entry of the status-flow story (`Escape` lands on `BODY` before React Aria hands the focus back to the photo viewer; 20 to 80 percent alone on main); alone on `ec9140b0`: 4 of 5 passed.
+- Durability on `durability-android-chrome` and `durability-webkit`, five specs: 56 tests, 50 passed, 1 failed, 5 skipped (195 s). `verificacoes-local.durability.spec.ts`, the one this batch owes, passed on both. The red is `ficha.durability.spec.ts` F-11 on WebKit, an untouched spec added to this run by choice; it is one of the open failures of integrated main (ledger, E13-A1 wave gate entry) and fails alone on `ec9140b0` (2 of 2).
+- Not run (wave gate): the full `@p0`, `test:e2e:full`, the full matrix.
+
+**Residual risks.** The open questions O1 to O6 and the narrowings in `deferred-work.md`; contract 18 makes every version-17 device update on its next pull; every live template moves to seed v4 at the first start of this build; a v3 relatório that already holds painéis prints the new painel titles.
