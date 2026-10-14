@@ -203,7 +203,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
     await waitFor(() => expect(document.querySelector(`li[data-block-id="${SEC_C01}"]`)).toBeNull());
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(await screen.findByText('Ficha removida')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 1' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 1 de Cabine de Testes' })).toHaveFocus());
     const ops = await outbox();
     expect(ops.map((op) => [op.path, op.kind, op.scope])).toEqual([
       [`block/${SEC_C01}/removed_at`, 'remove', 'relatorio'],
@@ -336,12 +336,12 @@ describe('4.4 location tree (Sumário presentation)', () => {
     await openCabine();
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar coluna' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 2' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 2 de Cabine de Testes' })).toHaveFocus());
     expect(await screen.findByText('Coluna 2 adicionada')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 2' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 2 de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Subir' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 2 movida para a posição 1 de 2'));
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 2' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 2 de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
     const dialog = await screen.findByRole('dialog', { name: 'Renomear Coluna 2' });
     const field = within(dialog).getByRole('textbox', { name: 'Nome' });
@@ -349,7 +349,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
     expect(within(dialog).getByRole('button', { name: 'Salvar' })).toHaveAttribute('aria-disabled', 'true');
     expect(within(dialog).getByText('Salvar: falta o nome')).toBeInTheDocument();
     await userEvent.type(field, 'Entrada{Enter}');
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Entrada' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Entrada de Cabine de Testes' })).toBeInTheDocument());
     // Story 14.2: "Adicionar local" asks the Função and the name first.
     await userEvent.click(screen.getByRole('button', { name: 'Adicionar local' }));
     const add = await screen.findByRole('dialog', { name: 'Adicionar local' });

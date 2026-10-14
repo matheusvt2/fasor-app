@@ -112,7 +112,11 @@ export interface OpenDecisionsInput {
   relatorioId: string;
   /** The relatório's blocks, removed ones included. */
   blocks: readonly BlockRow[];
-  /** The relatório's locations (tree order). */
+  /**
+   * The relatório's locations, removed ones included (Story 14.2, second pass): a sheet whose
+   * removal is the decision may have left with its coluna, painel or local, and it is still
+   * ordered where it stood.
+   */
   locations: readonly LocationRow[];
   /** The project's equipment, removed rows included. */
   equipment: readonly EquipmentRow[];
@@ -343,9 +347,14 @@ function byCreateOrder(a: OpFacts, b: OpFacts): number {
  */
 export function openDecisions(input: OpenDecisionsInput): Decision[] {
   const own = input.blocks.filter((block) => block.relatorio_id === input.relatorioId);
-  // Tree order, the removed blocks placed where they stood.
+  // Tree order, the removed blocks placed where they stood, and so the removed locations: a
+  // sheet that left with its coluna, painel or local keeps the rank of its place in the tree.
   const order = new Map(
-    sheetOrder({ locations: [...input.locations], blocks: own.map((block) => ({ ...block, removed_at: null })), equipment: [...input.equipment] }).map((node, i) => [node.blockId, i]),
+    sheetOrder({
+      locations: input.locations.map((location) => ({ ...location, removed_at: null })),
+      blocks: own.map((block) => ({ ...block, removed_at: null })),
+      equipment: [...input.equipment],
+    }).map((node, i) => [node.blockId, i]),
   );
   const rank = (block: BlockRow) => order.get(block.id) ?? Number.MAX_SAFE_INTEGER;
   const sorted = [...own].sort((a, b) => rank(a) - rank(b));
@@ -548,6 +557,7 @@ export function applyPickOps(author: Author, decision: CellDecision, picks: Read
 export interface DecisionTextContext {
   blocks: readonly Pick<BlockRow, 'id' | 'equipment_id' | 'block_type' | 'seed_version' | 'location_id'>[];
   equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[];
+  /** The relatório's locations, removed ones included: a decision on a sheet that left with its location still names the place. */
   locations: readonly Pick<LocationRow, 'id' | 'name'>[];
   users: readonly { id: string; name: string }[];
   /** The signed-in user ("você", "A minha"). */

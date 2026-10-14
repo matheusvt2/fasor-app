@@ -427,8 +427,20 @@ describe('K-16/K-17/K-2 (full review 2026-09-30) one tree build per input, the s
 
   it('every counter equals locationProgress of its node, a removed location in between included', () => {
     const base = relatorio();
-    // Coluna 4 removed: the Nicho under it is drawn as a root and still counts under Cabine B.
+    // Coluna 4 removed. Changed 2026-10-13 (Story 14.2, second pass, rule 2): this test used
+    // to say the Nicho under it is drawn as a root and still counts under Cabine B; the
+    // criterion of 2026-10-13 says the locations under a removed location are absent from the
+    // tree and the counters, so the Nicho is not drawn and its sheet is out of Cabine B's counter.
     const locations = base.locations.map((row) => (row.id === id(4) ? { ...row, removed_at: '2026-09-07T12:00:00.000Z' } : row));
+    const cut = { ...base, locations };
+    const drawn = locationNodes(locationTree(cut)).map((node) => node.id);
+    expect(drawn).toEqual([id(2), id(3), id(1), id(6)]);
+    expect(treeNodes(locationTree(cut)).some((node) => node.kind === 'equipment' && node.tag === 'TP-NICHO')).toBe(false);
+    // Cabine B: CE-B and the two live sheets of Coluna 5 (DJ-C05 concluded, SEC-C05 not tested); SEC-C04 and TP-NICHO left with Coluna 4.
+    expect(locationNodes(locationTree(base)).find((node) => node.id === id(2))!.counterText).toBe('2 de 5');
+    expect(locationNodes(locationTree(cut)).find((node) => node.id === id(2))!.counterText).toBe('2 de 3');
+    expect(locationProgress(cut, id(4))).toMatchObject({ sheets_total: 0 });
+    expect(locationProgress(cut, id(5))).toMatchObject({ sheets_total: 0 });
     const pending = [{ id: id(7001), status: 'pending', target_path: `sheet/${id(1003)}/nameplate/fabricante` } as unknown as SuggestionRow];
     for (const snapshot of [base, { ...base, locations }, porto]) {
       for (const held of [undefined, pending]) {

@@ -7,8 +7,8 @@ import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncBadge, test
 import { readStore } from './support/outbox.ts';
 import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 import { emCampoDraft, officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
-import { resetEmpresaB } from './support/reset-empresa-b.ts';
-import { SYNC_CYCLE_TIMEOUT, syncNowAndReturn } from './support/sync.ts';
+import { resetEmpresaB, withSeedDb } from './support/reset-empresa-b.ts';
+import { SYNC_CYCLE_TIMEOUT, syncNowAndReturn, waitForCompanyPull } from './support/sync.ts';
 import { expandLocation } from './support/tree.ts';
 
 /*
@@ -21,6 +21,9 @@ import { expandLocation } from './support/tree.ts';
  * readings and the conclusion pair of the two sheets it concludes, and the local's own
  * fields) is seeded by office ops, as 5.1-E2E-003 does; the conclude itself is the tap.
  * Each test resets this worker's own Empresa B (E6-Q7).
+ *
+ * 14.2-E2E-004 (second pass, 2026-10-13) removes and restores locations in the relatório tree
+ * and ends on the rows themselves: the device's `entities` store against the server's.
  */
 
 let account: SeedAccount;
@@ -72,6 +75,8 @@ const menuOf = (page: Page, name: string) => page.getByRole('button', { name: `M
  */
 const painelInComposer = (name: string, localName: string) => `${name} em ${localName}`;
 const painelInTree = (name: string, localName: string) => `${name} de ${localName}`;
+/** The name a coluna's controls read in the relatório tree (second pass, 2026-10-13): with its painel and its local, since every painel's first coluna is "Coluna 1". */
+const colunaInTree = (name: string, painelName: string, localName: string) => `${name} de ${painelInTree(painelName, localName)}`;
 
 async function openNewTemplate(page: Page): Promise<string> {
   await page.getByRole('link', { name: /Templates/ }).click();
@@ -262,7 +267,7 @@ test('@p0 14.2-E2E-001 at 1280: a template of one local (Transformação) with t
   await expect(painel(page, 'Painel 1').locator(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveText('Painel · 3 colunas');
   await expandLocation(page, painelInTree('Painel 1', LOCAL));
   await expect(painel(page, 'Painel 1').locator(':scope > .s9-cols > li.s9-coluna > .s9-col .s9-col-name')).toHaveText(['Coluna 1', 'Coluna 2', 'Coluna 3']);
-  await expandLocation(page, 'Coluna 1');
+  await expandLocation(page, colunaInTree('Coluna 1', 'Painel 1', LOCAL));
   await expect(coluna(page, 'Coluna 1').locator('.block-tag')).toHaveText(['SEC-C01']);
 
   // The creation reaches the server; the office fills one sheet on the local and one in a coluna.
@@ -289,7 +294,7 @@ test('@p0 14.2-E2E-001 at 1280: a template of one local (Transformação) with t
   await openSection9(page);
   await expandLocation(page, LOCAL);
   await expandLocation(page, painelInTree('Painel 1', LOCAL));
-  await expandLocation(page, 'Coluna 1');
+  await expandLocation(page, colunaInTree('Coluna 1', 'Painel 1', LOCAL));
   await expect(local(page, LOCAL).locator(':scope > .s9-loc-row .s9-loc-meta')).toContainText('Transformação · BLINDADA · 13,8 kV · 25 °C · 65 %');
   await expect(local(page, LOCAL).locator(':scope > .s9-loc-row .progress-counter')).toHaveText('2 de 5');
   await expect(local(page, LOCAL).locator(':scope > .s9-col-direct .s9-col-meta')).toHaveText('1 de 2');
@@ -518,7 +523,7 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
   await expect(toast(page)).toContainText('Coluna 1 adicionada');
   await expect(treePainel.getByRole('note')).toHaveCount(0);
   await expect(treePainel.locator(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveText('Painel · 1 coluna');
-  await expect(treePainel.getByRole('button', { name: 'Adicionar bloco em Painel 1' })).toBeVisible();
+  await expect(treePainel.getByRole('button', { name: `Adicionar bloco em ${painelInTree('Painel 1', NEW_LOCAL)}` })).toBeVisible();
 
   // A second painel, renamed.
   await menuOf(page, NEW_LOCAL).click();
@@ -607,7 +612,7 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
   const painelColunas = treePainel.locator(':scope > .s9-cols > li.s9-coluna');
   await expect(painelColunas.locator(':scope > .s9-col .s9-col-name')).toHaveText(['Coluna 1', 'Coluna 2']);
   const lastColunaId = (await painelColunas.last().getAttribute('data-location-id'))!;
-  await treePainel.getByRole('button', { name: 'Adicionar bloco em Painel 1', exact: true }).click();
+  await treePainel.getByRole('button', { name: `Adicionar bloco em ${painelInTree('Painel 1', NEW_LOCAL)}`, exact: true }).click();
   await expect(fieldPalette.locator('.palette-where')).toHaveText(`Em: ${NEW_LOCAL} › Painel 1 › Coluna 2`);
   const seccionadora = fieldPalette.getByRole('button', { name: /Chave seccionadora/ });
   const seccionadoraTag = (await seccionadora.locator('.pi-meta').innerText()).trim();
@@ -704,4 +709,291 @@ test('@p1 14.2-E2E-003 at 390 the composer with a local, a painel and a coluna, 
   expect(await horizontalOverflow(page), 'composer with a painel and a coluna at 390px').toBeLessThanOrEqual(0);
   await fitsViewport(localCard(page, LOCAL), 'the local card');
   await fitsViewport(painelCard(page, LOCAL, 'Painel 1'), 'the painel card');
+});
+
+// --- 14.2-E2E-004 ------------------------------------------------------------------------
+
+type TreeRow = LocationRow | BlockRow | EquipmentRow;
+const TREE_ENTITIES = ['location', 'block', 'equipment'];
+const RECOVERABLE = 'Dá para recuperar até a emissão, em "Restaurar ficha removida".';
+
+/** The location, block and equipment rows this device holds, keyed "entity/id". */
+async function deviceTreeRows(page: Page): Promise<Map<string, TreeRow>> {
+  const records = await entities<TreeRow>(page);
+  return new Map(records.filter((record) => TREE_ENTITIES.includes(record.entity)).map((record) => [`${record.entity}/${record.id}`, record.row]));
+}
+
+/** The rows the server holds for `ids` in this worker's company, keyed "entity/id" (`serverRow` of `support/reading-ops.ts`, many at once). */
+function serverTreeRows(ids: readonly string[]): Promise<Map<string, unknown>> {
+  return withSeedDb(async (db) => {
+    const found = await db.query.entities.findMany({
+      columns: { entity: true, id: true, row: true },
+      where: (t, { and, eq, inArray }) => and(eq(t.company_id, account.companyId), inArray(t.id, [...ids])),
+    });
+    return new Map(found.map((record) => [`${record.entity}/${record.id}`, record.row as unknown]));
+  });
+}
+
+/** The whole batch the one `kind` op on `path` belongs to, in the order it was written. */
+async function batchOf(page: Page, path: string, kind: string): Promise<OutboxRow[]> {
+  const rows = await outbox(page);
+  const lead = rows.filter((op) => op.path === path && op.kind === kind);
+  expect(lead, `one ${kind} on ${path}`).toHaveLength(1);
+  expect(lead[0]!.batch_id).not.toBeNull();
+  return rows.filter((op) => op.batch_id === lead[0]!.batch_id);
+}
+
+test('@p0 14.2-E2E-004 at 768: a coluna holding a sheet is removed after its confirm, in one batch, and undone; a painel is removed, stays gone on reload and comes back from "Restaurar ficha removida" as one entry with its colunas, sheets and TAGs; a local is removed; after "Sincronizar agora" the device and the server hold the same rows', async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await signIn(page, account.email);
+  const { relatorioId } = await pushNewRelatorio(page, account, database);
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
+  // A removal frees an equipment only once this device holds the whole company stream (`equipmentFreedByRemoval`).
+  await waitForCompanyPull(page, database);
+  await openSection9(page);
+
+  // The standard relatório: six locals, 94 sheets. Oxigênio holds five sheets itself; 1° Subsolo holds ten, and seventeen colunas.
+  const PAINEL_LOCAL = 'Oxigênio';
+  const OTHER_LOCAL = '1° Subsolo';
+  const PAINEL = painelInTree('Painel 1', PAINEL_LOCAL);
+  const COLUNA_1 = colunaInTree('Coluna 1', 'Painel 1', PAINEL_LOCAL);
+  const COLUNA_2 = colunaInTree('Coluna 2', 'Painel 1', PAINEL_LOCAL);
+  const total = (sheets: number) => page.getByRole('button', { name: `0 de ${sheets} fichas concluídas`, exact: true });
+  const localCounter = (name: string) => local(page, name).locator(':scope > .s9-loc-row .progress-counter');
+  const directTags = page.getByRole('list', { name: `Equipamentos direto em ${PAINEL_LOCAL}`, exact: true }).locator(':scope > li.s9-eq .block-tag');
+  await expect(tree(page).locator(':scope > li.s9-local')).toHaveCount(6);
+  await expect(total(94)).toBeVisible();
+
+  // A painel under Oxigênio with two colunas, a sheet in each, as a person builds it. Below 1280 px a tap on a type creates it at once.
+  await menuOf(page, PAINEL_LOCAL).click();
+  await page.getByRole('menuitem', { name: 'Adicionar painel' }).click();
+  await expect(toast(page)).toContainText('Painel 1 adicionado');
+  const treePainel = painel(page, 'Painel 1');
+  const painelColunas = treePainel.locator(':scope > .s9-cols > li.s9-coluna');
+  const painelCounter = treePainel.locator(':scope > .s9-pnl-row .progress-counter');
+  const painelMeta = treePainel.locator(':scope > .s9-pnl-row .s9-pnl-meta');
+  const colunaTags = (name: string) => painelColunas.filter({ has: page.locator(':scope > .s9-col .s9-col-name', { hasText: new RegExp(`^${name}$`) }) }).locator(':scope > .s9-eqs > li.s9-eq .block-tag');
+  const fieldPalette = page.getByRole('dialog', { name: 'Adicionar bloco' });
+  /** Taps "Disjuntor MT" in the open palette and returns the TAG it proposed, which the new sheet carries. */
+  const addDisjuntor = async (where: string, colunaName: string): Promise<string> => {
+    await expect(fieldPalette.locator('.palette-where')).toHaveText(`Em: ${where}`);
+    const item = fieldPalette.getByRole('button', { name: /Disjuntor MT/ });
+    const tag = (await item.locator('.pi-meta').innerText()).trim();
+    expect(tag).toMatch(/^DJ-C0\d(-\d+)?$/);
+    await item.click();
+    await expect(fieldPalette).toBeHidden();
+    await expect(toast(page)).toContainText(`${tag} criada na ${colunaName}`);
+    return tag;
+  };
+  await treePainel.getByRole('button', { name: 'Adicionar coluna' }).click();
+  await expect(toast(page)).toContainText('Coluna 1 adicionada');
+  await menuOf(page, COLUNA_1).click();
+  await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
+  const tag1 = await addDisjuntor(`${PAINEL_LOCAL} › Painel 1 › Coluna 1`, 'Coluna 1');
+  await menuOf(page, PAINEL).click();
+  await page.getByRole('menuitem', { name: 'Adicionar coluna' }).click();
+  await expect(toast(page)).toContainText('Coluna 2 adicionada');
+  await treePainel.getByRole('button', { name: `Adicionar bloco em ${PAINEL}`, exact: true }).click();
+  const tag2 = await addDisjuntor(`${PAINEL_LOCAL} › Painel 1 › Coluna 2`, 'Coluna 2');
+  expect(tag2).not.toBe(tag1);
+
+  // What stands before any removal: the local's own five sheets, the painel with its two colunas, each sheet with its TAG.
+  await expandLocation(page, COLUNA_1);
+  await expandLocation(page, COLUNA_2);
+  await expect(directTags).toHaveCount(5);
+  await expect(painelColunas.locator(':scope > .s9-col .s9-col-name')).toHaveText(['Coluna 1', 'Coluna 2']);
+  await expect(colunaTags('Coluna 1')).toHaveText([tag1]);
+  await expect(colunaTags('Coluna 2')).toHaveText([tag2]);
+  await expect(painelMeta).toHaveText('Painel · 2 colunas');
+  await expect(painelCounter).toHaveText('0 de 2');
+  await expect(localCounter(PAINEL_LOCAL)).toHaveText('0 de 7');
+  await expect(total(96)).toBeVisible();
+  const painelId = (await treePainel.getAttribute('data-location-id'))!;
+  const colunaIds = await painelColunas.evaluateAll((rows) => rows.map((row) => row.getAttribute('data-location-id')));
+  expect(colunaIds).toEqual([expect.any(String), expect.any(String)]);
+  const coluna1Id = colunaIds[0]!;
+  const coluna2Id = colunaIds[1]!;
+  const block1Id = (await eqRow(page, tag1).getAttribute('data-block-id'))!;
+  const block2Id = (await eqRow(page, tag2).getAttribute('data-block-id'))!;
+  const built = await deviceTreeRows(page);
+  const equipment1Id = (built.get(`block/${block1Id}`) as BlockRow).equipment_id!;
+  const equipment2Id = (built.get(`block/${block2Id}`) as BlockRow).equipment_id!;
+  expect((built.get(`block/${block1Id}`) as BlockRow).location_id).toBe(coluna1Id);
+  expect((built.get(`block/${block2Id}`) as BlockRow).location_id).toBe(coluna2Id);
+  expect((built.get(`equipment/${equipment1Id}`) as EquipmentRow).tag).toBe(tag1);
+  expect((built.get(`equipment/${equipment2Id}`) as EquipmentRow).tag).toBe(tag2);
+  const painelKeys = [
+    `location/${painelId}`,
+    `location/${coluna1Id}`,
+    `location/${coluna2Id}`,
+    `block/${block1Id}`,
+    `block/${block2Id}`,
+    `equipment/${equipment1Id}`,
+    `equipment/${equipment2Id}`,
+  ];
+  const coluna1Keys = [`location/${coluna1Id}`, `block/${block1Id}`, `equipment/${equipment1Id}`];
+  const removedAtOf = async (keys: readonly string[]) => {
+    const rows = await deviceTreeRows(page);
+    return keys.map((key) => rows.get(key)!.removed_at);
+  };
+
+  // --- a coluna holding a sheet: the confirm names the count; one batch; "Desfazer" ---
+  await menuOf(page, COLUNA_1).click();
+  await page.getByRole('menuitem', { name: 'Remover', exact: true }).click();
+  const confirmColuna = page.getByRole('dialog', { name: `Remover ${COLUNA_1}?`, exact: true });
+  await expect(confirmColuna).toHaveAccessibleDescription(`A coluna e 1 ficha saem do relatório. ${RECOVERABLE}`);
+  await expect(confirmColuna.getByRole('button', { name: 'Cancelar', exact: true })).toBeFocused();
+  await confirmColuna.getByRole('button', { name: 'Remover coluna', exact: true }).click();
+  await expect(confirmColuna).toBeHidden();
+  await expect(toast(page)).toContainText('Coluna e suas fichas removidas — recuperável até a emissão');
+  await expect(treeAnnouncer(page)).toHaveText(`${COLUNA_1} removida`);
+  // The row and its sheet leave; the painel's and the local's counters close up.
+  await expect(painelColunas.locator(':scope > .s9-col .s9-col-name')).toHaveText(['Coluna 2']);
+  await expect(eqRow(page, tag1)).toHaveCount(0);
+  await expect(painelMeta).toHaveText('Painel · 1 coluna');
+  await expect(painelCounter).toHaveText('0 de 1');
+  await expect(localCounter(PAINEL_LOCAL)).toHaveText('0 de 6');
+  await expect(total(95)).toBeVisible();
+  // The focus goes to the row now in its slot.
+  await expect(page.getByRole('button', { name: new RegExp(`^(Expandir|Recolher) ${COLUNA_2}$`) })).toBeFocused();
+  // One batch: the coluna, its sheet and the equipment the sheet frees, each a tombstone.
+  const colunaBatch = await batchOf(page, `location/${coluna1Id}/removed_at`, 'remove');
+  expect(colunaBatch.map((op) => [op.path, op.kind])).toEqual([
+    [`location/${coluna1Id}/removed_at`, 'remove'],
+    [`block/${block1Id}/removed_at`, 'remove'],
+    [`equipment/${equipment1Id}/removed_at`, 'remove'],
+  ]);
+  const colunaRemovedAt = await removedAtOf(coluna1Keys);
+  expect(colunaRemovedAt[0]).toEqual(expect.any(String));
+  expect(new Set(colunaRemovedAt).size).toBe(1);
+  // "Desfazer" brings the coluna, its sheet and its TAG back; the focus goes to the coluna's Overflow.
+  await toast(page).getByRole('button', { name: 'Desfazer' }).click();
+  await expect(painelColunas.locator(':scope > .s9-col .s9-col-name')).toHaveText(['Coluna 1', 'Coluna 2']);
+  await expect(menuOf(page, COLUNA_1)).toBeFocused();
+  await expandLocation(page, COLUNA_1);
+  await expect(colunaTags('Coluna 1')).toHaveText([tag1]);
+  await expect(painelCounter).toHaveText('0 de 2');
+  await expect(localCounter(PAINEL_LOCAL)).toHaveText('0 de 7');
+  await expect(total(96)).toBeVisible();
+  expect(await removedAtOf(coluna1Keys)).toEqual([null, null, null]);
+
+  // --- the painel: confirmed, gone, and still gone after a reload ---
+  await menuOf(page, PAINEL).click();
+  await page.getByRole('menuitem', { name: 'Remover', exact: true }).click();
+  const confirmPainel = page.getByRole('dialog', { name: `Remover ${PAINEL}?`, exact: true });
+  await expect(confirmPainel).toHaveAccessibleDescription(`O painel, 2 colunas e 2 fichas saem do relatório. ${RECOVERABLE}`);
+  await confirmPainel.getByRole('button', { name: 'Remover painel', exact: true }).click();
+  await expect(confirmPainel).toBeHidden();
+  await expect(toast(page)).toContainText('Painel, suas colunas e fichas removidos — recuperável até a emissão');
+  await expect(treeAnnouncer(page)).toHaveText(`${PAINEL} removido`);
+  await expect(treePainel).toHaveCount(0);
+  // One batch: the painel first, its colunas in tree order, their sheets, the equipment they free.
+  const painelBatch = await batchOf(page, `location/${painelId}/removed_at`, 'remove');
+  expect(painelBatch.map((op) => [op.path, op.kind])).toEqual(painelKeys.map((key) => [`${key}/removed_at`, 'remove']));
+  const painelRemovedAt = await removedAtOf(painelKeys);
+  expect(painelRemovedAt[0]).toEqual(expect.any(String));
+  expect(new Set(painelRemovedAt).size).toBe(1);
+
+  await page.reload();
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
+  await openSection9(page);
+  await expandLocation(page, PAINEL_LOCAL);
+  // The local shows its own five sheets and nothing else; its counter and the relatório's total exclude the painel's two.
+  await expect(directTags).toHaveCount(5);
+  await expect(local(page, PAINEL_LOCAL).locator('li.s9-painel')).toHaveCount(0);
+  await expect(local(page, PAINEL_LOCAL).locator('li.s9-coluna')).toHaveCount(0);
+  await expect(eqRow(page, tag1)).toHaveCount(0);
+  await expect(eqRow(page, tag2)).toHaveCount(0);
+  await expect(localCounter(PAINEL_LOCAL)).toHaveText('0 de 5');
+  await expect(total(94)).toBeVisible();
+  expect(await removedAtOf(painelKeys)).toEqual(painelRemovedAt);
+
+  // --- "Restaurar ficha removida": the painel is one entry, and comes back whole ---
+  await page.getByRole('button', { name: 'Mais opções do relatório' }).click();
+  await page.getByRole('menuitem', { name: 'Restaurar ficha removida' }).click();
+  const restore = page.getByRole('dialog', { name: 'Restaurar ficha removida' });
+  const entries = restore.locator('.restore-list > li');
+  // Its colunas and sheets are not listed one by one: they come back with it.
+  await expect(entries).toHaveCount(1);
+  await expect(entries).toHaveAttribute('data-location-id', painelId);
+  await expect(entries.locator('.rr-primary')).toHaveText(PAINEL);
+  await expect(entries.locator('.rr-secondary')).toHaveText('Painel · 2 colunas · 2 fichas');
+  await restore.getByRole('button', { name: `Restaurar ${PAINEL} — Painel · 2 colunas · 2 fichas`, exact: true }).click();
+  await expect(restore).toBeHidden();
+  await expect(toast(page)).toContainText('Painel restaurado');
+  await expect(treeAnnouncer(page)).toHaveText(`${PAINEL} restaurado`);
+  await expect(menuOf(page, PAINEL)).toBeFocused();
+  await expandLocation(page, PAINEL);
+  await expect(painelColunas.locator(':scope > .s9-col .s9-col-name')).toHaveText(['Coluna 1', 'Coluna 2']);
+  await expandLocation(page, COLUNA_1);
+  await expandLocation(page, COLUNA_2);
+  // The same sheets with the same TAGs as before.
+  await expect(colunaTags('Coluna 1')).toHaveText([tag1]);
+  await expect(colunaTags('Coluna 2')).toHaveText([tag2]);
+  expect(await eqRow(page, tag1).getAttribute('data-block-id')).toBe(block1Id);
+  expect(await eqRow(page, tag2).getAttribute('data-block-id')).toBe(block2Id);
+  await expect(painelMeta).toHaveText('Painel · 2 colunas');
+  await expect(painelCounter).toHaveText('0 de 2');
+  await expect(localCounter(PAINEL_LOCAL)).toHaveText('0 de 7');
+  await expect(total(96)).toBeVisible();
+  expect(await removedAtOf(painelKeys)).toEqual(painelKeys.map(() => null));
+
+  // --- a local: 1° Subsolo, with its seventeen colunas and every sheet under it ---
+  const standing = await deviceTreeRows(page);
+  const rowsOf = <T extends TreeRow>(entity: string) => [...standing].filter(([key]) => key.startsWith(`${entity}/`)).map(([, row]) => row as T);
+  const otherLocal = rowsOf<LocationRow>('location').find((row) => row.relatorio_id === relatorioId && row.parent_id === null && row.name === OTHER_LOCAL)!;
+  const otherColunas = rowsOf<LocationRow>('location').filter((row) => row.parent_id === otherLocal.id);
+  expect(otherColunas.map((row) => [row.kind, row.removed_at])).toEqual(Array.from({ length: 17 }, () => ['coluna', null]));
+  const otherLocationIds = [otherLocal.id, ...otherColunas.map((row) => row.id)];
+  const otherBlocks = rowsOf<BlockRow>('block').filter((row) => row.location_id !== null && otherLocationIds.includes(row.location_id));
+  expect(otherBlocks.every((row) => row.removed_at === null && row.equipment_id !== null)).toBe(true);
+  const otherEquipmentIds = otherBlocks.map((row) => row.equipment_id!);
+  expect(new Set(otherEquipmentIds).size).toBe(otherBlocks.length);
+  // The standard template's own numbers: ten sheets on the local, thirty-nine in its colunas.
+  const sheets = 49;
+  expect(otherBlocks).toHaveLength(sheets);
+  await expect(localCounter(OTHER_LOCAL)).toHaveText(`0 de ${sheets}`);
+  const otherKeys = [...otherLocationIds.map((id) => `location/${id}`), ...otherBlocks.map((row) => `block/${row.id}`), ...otherEquipmentIds.map((id) => `equipment/${id}`)];
+
+  await menuOf(page, OTHER_LOCAL).click();
+  await page.getByRole('menuitem', { name: 'Remover', exact: true }).click();
+  const confirmLocal = page.getByRole('dialog', { name: `Remover ${OTHER_LOCAL}?`, exact: true });
+  await expect(confirmLocal).toHaveAccessibleDescription(`O local, 17 colunas e ${sheets} fichas saem do relatório. ${RECOVERABLE}`);
+  await confirmLocal.getByRole('button', { name: 'Remover local', exact: true }).click();
+  await expect(confirmLocal).toBeHidden();
+  await expect(toast(page)).toContainText('Local, seus painéis e fichas removidos — recuperável até a emissão');
+  await expect(treeAnnouncer(page)).toHaveText(`Local ${OTHER_LOCAL} removido`);
+  await expect(local(page, OTHER_LOCAL)).toHaveCount(0);
+  await expect(tree(page).locator(':scope > li.s9-local')).toHaveCount(5);
+  await expect(total(96 - sheets)).toBeVisible();
+  // One batch of tombstones: the local first, then its colunas, then every sheet, then every equipment they free.
+  const localBatch = await batchOf(page, `location/${otherLocal.id}/removed_at`, 'remove');
+  expect(localBatch.every((op) => op.kind === 'remove')).toBe(true);
+  const localPaths = localBatch.map((op) => op.path);
+  expect(localPaths[0]).toBe(`location/${otherLocal.id}/removed_at`);
+  expect(localPaths.map((path) => path.split('/')[0])).toEqual([...otherLocationIds.map(() => 'location'), ...otherBlocks.map(() => 'block'), ...otherEquipmentIds.map(() => 'equipment')]);
+  expect([...localPaths].sort()).toEqual(otherKeys.map((key) => `${key}/removed_at`).sort());
+
+  // --- "Sincronizar agora": the badge settles, and the server holds what the device holds ---
+  await syncNowAndReturn(page);
+  const device = await deviceTreeRows(page);
+  const server = await serverTreeRows([...otherKeys, ...painelKeys].map((key) => key.split('/')[1]!));
+  const held = (rows: ReadonlyMap<string, unknown>, keys: readonly string[]) => Object.fromEntries(keys.map((key) => [key, rows.get(key)]));
+  const removedAts = (rows: ReadonlyMap<string, unknown>, keys: readonly string[]) => [...new Set(keys.map((key) => (rows.get(key) as TreeRow | undefined)?.removed_at))];
+  // The removed local, its colunas, their sheets and equipment: one `removed_at`, the removal's own, on both sides.
+  const localRemovedAt = removedAts(device, otherKeys);
+  expect(localRemovedAt).toEqual([expect.any(String)]);
+  expect(removedAts(server, otherKeys)).toEqual(localRemovedAt);
+  expect(held(server, otherKeys)).toEqual(held(device, otherKeys));
+  // The restored painel, its colunas, sheets and equipment: live on both sides, with the TAGs they had.
+  expect(removedAts(device, painelKeys)).toEqual([null]);
+  expect(removedAts(server, painelKeys)).toEqual([null]);
+  expect(held(server, painelKeys)).toEqual(held(device, painelKeys));
+  expect([equipment1Id, equipment2Id].map((id) => (server.get(`equipment/${id}`) as EquipmentRow).tag)).toEqual([tag1, tag2]);
+  expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 });

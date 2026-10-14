@@ -1200,7 +1200,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: A `block/{id}/location_id` put is not checked against the relatório's live locations: a target coluna removed on another device while a move is pending leaves the block under a removed location, hidden from the tree until moved back or restored.
   evidence: `packages/domain/src/ops/apply.ts` `block/field` branch writes any id; the device refuses a gone target at commit (`movePlan`), but a concurrent removal is not caught. A fold or push refusal would be a reducer change and a contract bump. Edge Case Hunter review of Stories 11.2/11.3. Severity medium (unverified).
   class: debt
-  state: ~~open (owner: Epic 11 integrated review)~~ re-owned 2026-09-30 (E11-Q8): owner Matheus, latent until a relatório can remove a location. A relatório has no location-removal op today (`apps/web/src/surfaces/relatorio/relatorio-ops.ts` offers only the `location/{id}` create, `name`/`order_key` puts and `agrupar_por_tipo`; the only removal is the Template composer's), so no UI path produces the state (`reviews/epic-11-review-qa.md` E11-Q8)
+  state: ~~open (owner: Epic 11 integrated review)~~ re-owned 2026-09-30 (E11-Q8): owner Matheus, latent until a relatório can remove a location. A relatório has no location-removal op today (`apps/web/src/surfaces/relatorio/relatorio-ops.ts` offers only the `location/{id}` create, `name`/`order_key` puts and `agrupar_por_tipo`; the only removal is the Template composer's), so no UI path produces the state (`reviews/epic-11-review-qa.md` E11-Q8) *(closed 2026-10-13 by Story 14.2's second pass, PR #126: a relatório can now remove a location, and the state is answered for every reader of the snapshot by one ancestor-liveness rule, `liveLocationIds` in `packages/domain/src/relatorio/location-live.ts`, read by `buildSnapshot` and `createSnapshotBuilder`: a block whose location is removed, or sits under a removed location, is absent from the tree, the counters, the pre-issue list, sections 9 and 11 and a saved template, and comes back when the location is restored. No fold or push refusal was added and the contract stays 17. Tests: `packages/domain/src/relatorio/removal-readers.test.ts` (a sheet created under, and one moved into, a removed location by another device), `apps/api/src/sync/sync.integration.test.ts` (the same through `POST /api/sync/ops`). What the rule does not reach, the readers of raw rows, is entry (g) under Story 14.2 below.)*
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-9-11-10-priority-deadline-and-action-plan.md`
   summary: 11.10-PDF (2026-09-30): the action-plan table in the downloaded PDF is not asserted. The PDF is LibreOffice's conversion of the same DOCX, so the table is already in it, but there is no download route for it until Story 11.1 (`GET /api/revisions/{id}/pdf`).
@@ -1710,7 +1710,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: O1. No location can be removed in the relatório tree, so the painel's "Remover … recuperável até a emissão" of the approved mock (`40-relatorio-overview.html`) is not built: a painel is removed only as the "Desfazer" of its own create, and at the fold level. A coluna and a local have no removal there either. Decide whether location removal (with its restore list) enters the tree, and for which kinds.
   evidence: `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` `locationMenu` (no destructive group); the ledger entry on `block/{id}/location_id`; spec Design notes O1.
   class: question
-  state: open (owner: Matheus)
+  state: ~~open (owner: Matheus)~~ closed 2026-10-13: Matheus decided in the review of PR #126 that removal and restore of a coluna, a painel and a local are built in Story 14.2 (`epics.md` Story 14.2, criteria block of 2026-10-13). Built in the story's second pass: "Remover" in the Sumário tree's Overflow of the three kinds (none in the rail), one batch of explicit tombstones planned by `locationRemovalPlan`, the restore entries of `restorableEntries` in "Restaurar ficha removida"; spec section "Second pass, 2026-10-13"; `e2e/local-painel-coluna.spec.ts` 14.2-E2E-004.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
   summary: O2. The mock's location Overflow items "Mover para outro local" (a painel or coluna moved to another parent), "Duplicar" and "Adicionar abaixo" are not built on either surface; a location moves only among the siblings of its own parent and kind (`moveNode`, `moveLocation`).
@@ -1808,6 +1808,36 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: question
   state: open (owner: Story 14.4, checked against the print mock)
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: Second pass 2026-10-13 (g). The ancestor-liveness rule lives in the snapshot; readers of raw rows do not apply it. A sheet another device left live under a removed location (created there or moved in before it pulled the removal) is hidden from every snapshot reader but is still counted or held by: the api's pull summary totals, the Home card's on-device counter, the obra's "n de N fichas", the TAG checks (its TAG stays taken, or reads as a duplicate with no visible holder, and its equipment is never freed) and the panel reading's target check. Nothing is wrong while every sheet under a removed location carries its own tombstone, which is what a removal writes; the gap is only the concurrent case. Either filter those readers by `hiddenLocationIds`, or surface the hidden sheet as a decision (see (h)).
+  evidence: `apps/api/src/sync/pull.ts` `relatorioTotals` (SQL by the row's own `removed_at`); `packages/domain/src/home/cards.ts:223`; `apps/web/src/surfaces/project/project-surface.tsx:56`; `packages/domain/src/relatorio/tag.ts:71` and `tree.ts` (`equipmentSharedElsewhere`, the duplicate set); `apps/api/src/jobs/reading/kinds/panel.ts:26`. Edge Case Hunter finding 7 and Verification Gap finding 2 of the second pass.
+  class: debt
+  state: open (owner: the architect; Story 14.3 touches the same counters for the site checklist)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: Second pass 2026-10-13 (h). A sheet created in, or moved into, a location by an offline device, when another device removed that location and the relatório was issued before the first one synced, is stranded: the sheet is live (no tombstone, no removed-versus-edited mark, since the fold marks only an edit on a removed block), hidden by the ancestor rule, and its location is no longer offered in "Restaurar ficha removida" because the removal is older than the newest revision. Without an emission in between the location's entry brings it back, but the device that wrote the sheet gets no sign that it is hidden. Decide: keep a removed location in the list past the cut while a live row sits under it, or raise a decision for the hidden sheet (a new mark in the fold, so a contract bump).
+  evidence: `packages/domain/src/schemas/snapshot.ts` (the block filter); `packages/domain/src/relatorio/sumario.ts` `restorableEntries` (the `since` cut); `packages/domain/src/ops/apply.ts` `attributed`. Edge Case Hunter finding 1 of the second pass (it also corrects the spec's rule 6, see the triage log).
+  class: question
+  state: open (owner: Matheus)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: Second pass 2026-10-13 (i). The cut of "Restaurar ficha removida" compares a row's `removed_at` (the removing device's clock, `client_ts`) with the newest revision's `created_at` (the server's clock). A removal made offline before an emission and synced after it, or made on a device whose clock runs slow, falls before the cut although the issued document still holds the rows, and is never offered. The rule is the sheets' own since Epic 4 (retro item 29); location removal makes a miss cost a whole painel or local.
+  evidence: `packages/domain/src/relatorio/sumario.ts` (`removed_at > since` for blocks and for locations); `apps/web/src/surfaces/relatorio/sumario-surface.tsx` (`latestRevision(revisions)?.created_at`). Edge Case Hunter finding 2 of the second pass. A cut by log position (the remove op's `seq` against the revision's snapshot `seq`) would not depend on clocks.
+  class: debt
+  state: open (owner: the architect)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: Second pass 2026-10-13 (j). Two fold behaviours a location removal now sweeps many sheets through, both older than this story and both reducer changes (a contract bump) to alter. (1) A `remove` of a row that is already removed re-stamps its `removed_at`: a device that removes a coluna it has not yet seen removed with its painel moves the coluna and its sheets to its own timestamp, so the painel's restore leaves them out; they are then offered on their own once the painel is back, so nothing is lost, but the painel's entry counted them. (2) A `block/{id}/removed_at` remove that lands on a block already removed and holding an undecided removed-versus-edited mark drops the mark (`writeRemovedAt`): an offline device removing the local above sends such a remove for every sheet it still saw live, and the pending decision disappears with nobody choosing.
+  evidence: `packages/domain/src/ops/apply.ts` `writeRow` (the default branch writes `client_ts` whatever the row held) and `writeRemovedAt` (`block.removed_at !== null` returns the plain removal); `apps/api/src/sync/marks.ts` (guards only a mark-blind client). Edge Case Hunter findings 3 and 4 of the second pass.
+  class: question
+  state: open (owner: the architect, then Matheus if the fold changes)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
+  summary: Second pass 2026-10-13 (k). Three product choices left as built. (1) The "Desfazer" of "Adicionar coluna", "Adicionar painel" or "Adicionar local" writes a removal, so the undone, empty location is offered in "Restaurar ficha removida" until the next emission, as an undone "Adicionar bloco" already is for a sheet. (2) A location with no sheet is removed with no confirmation (the criterion's rule); a sheet that reaches it between the press and the commit leaves with it, recoverable by the toast's "Desfazer" or the restore entry. (3) The photos and points of a sheet removed with its location follow the sheet exactly as they do for a sheet removed alone; the removal writes no tombstone of its own for them.
+  evidence: `packages/domain/src/ops/outbox.ts` `invertBatch` (a create is undone by a remove); `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` (the confirm rule); `packages/domain/src/relatorio/removal.ts` `locationRemovalPlan`. Edge Case Hunter finding 10 of the second pass.
+  class: question
+  state: open (owner: Matheus; Bruno for whether an empty undone location should be listed)
+
 ## Deferred from: Stories 14.3 and 14.4, Verificações do local (2026-10-13)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
@@ -1892,13 +1922,52 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: `apps/web/src/surfaces/relatorio/relatorio-tree-edges.test.tsx` "the cabine's \"Adicionar bloco\" follows the last sheet's coluna; a cabine with no coluna takes the block itself, \"criada em ⟨cabine⟩\"" fails on this batch's base (`f60fd938`, Story 14.2's branch) with no change of this batch: it finds no menu item named "Adicionar equipamento" (`Unable to find role="menuitem" and name "Adicionar equipamento"`). It was left as found; the full `test:unit` of this batch is green apart from it (3724 of 3725 on 2026-10-13).
   evidence: `apps/web/src/surfaces/relatorio/relatorio-tree-edges.test.tsx`; `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` `locationMenu` (`add-block` label); `test-results/e14b/unit.log` of 2026-10-13.
   class: bug
-  state: open (owner: batch e14a, Story 14.2; else the coordinator before the wave gate)
+  state: open (owner: batch e14a, Story 14.2; else the coordinator before the wave gate) *(2026-10-13, batch e14b gate: closed. The test passes on the merge of Story 14.2's second pass, `50e4afff`: `pnpm test:unit` shows no failure in `relatorio-tree-edges.test.tsx`.)*
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
   summary: Found while writing 14.3-E2E-001, in the Checklist row both the sheet and "Verificações do local" draw: for 180 frames (about 3 s) after the camera view closes, the camera's opener ("Adicionar foto") takes the focus back whenever it finds the focus lost (`returnFocus`, E6-Q6). A point dialog opened from the same row and closed inside that window ("Criar ponto de atenção", "Concluir") therefore hands the focus to "Adicionar foto" instead of the button that opened it: the opener's watch runs in the frame where the dialog's own restore has not landed yet. A person rarely shoots, opens and saves a point in 3 s; a test does. The e2e asserts the focus return on a row where no camera was opened (14.3-E2E-004); the sheet's 6.6-E2E-002 never opens the camera first.
   evidence: `apps/web/src/surfaces/ficha/camera-view.tsx` `returnFocus` (`restoreFocus` with `LIST_FOCUS_WATCH_FRAMES`, no `once`); `apps/web/src/components/dialog-shell.tsx` `useReturnFocus`; the run of 2026-10-13 (`document.activeElement` after "Concluir" was the row's "Adicionar foto").
   class: bug
   state: open (owner: the next story touching `camera-view.tsx`; else the epic 14 deferred sweep)
+
+## Deferred from: review of batch e14b, Stories 14.3 and 14.4 (2026-10-13)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
+  summary: 2026-10-13, review of batch e14b. The boot wiring of `upgradeTemplateSeeds` in `main.ts` and `migrate-cli.ts` is exercised by no test: the integration tests call the function, never the start that calls it. Check at the wave gate that a v3 template pushed before a restart reads v4 after it.
+  evidence: `apps/api/src/main.ts` (`withRetry('template seeds', ...)`); `apps/api/src/db/migrate-cli.ts`; `apps/api/src/db/template-seed-upgrade.ts`.
+  class: debt
+  state: open (owner: the coordinator's wave gate)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
+  summary: 2026-10-13, review of batch e14b. "Legendar" on a site photo is opened by no test: the caption of a site item's photo is covered in the kernel and at capture, but no unit or Playwright test opens the caption editor on one.
+  evidence: `apps/web/src/surfaces/local/` (the site rows' photo list); `e2e/` (no spec presses "Legendar" on a site photo).
+  class: debt
+  state: open (owner: the epic QA)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
+  summary: 2026-10-13, review of batch e14b. `location_id` on a file or a point is not checked at the fold: an id naming a painel, a coluna or no location is accepted. A point naming a location that is not in the snapshot is left out of it with no trace (`pointsOfLiveLocals`); one naming a live painel or coluna stays and reads "Geral" (`pointTitle`, since this review). No client writes either: every writer takes the id of a live root cabine.
+  evidence: `packages/domain/src/ops/apply.ts` (no branch reads the row a file's or a point's `location_id` names; `carriedLocationId` covers blocks only); `packages/domain/src/schemas/snapshot.ts` `pointsOfLiveLocals`; `packages/domain/src/relatorio/site-checklist.ts` `siteLocalOf`; `packages/domain/src/points/summary.ts` `pointTitle`.
+  class: question
+  state: open (owner: the integrated epic review)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
+  summary: 2026-10-13, review of batch e14b. `MergeInfoContext.relatorios` has no production caller (`mergeTextContext` in `apps/web/src/db/sync-store.ts` passes none), so a site merge entry numbers its item by the current seed and not by its relatório's. Harmless while every seed ships the same site list.
+  evidence: `packages/domain/src/merge/info.ts` (`MergeInfoContext.relatorios`); `apps/web/src/db/sync-store.ts` `mergeTextContext`.
+  class: debt
+  state: open (owner: the story that first changes the site list)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
+  summary: 2026-10-13, review of batch e14b. A relatório on v3 that already holds painéis with *Agrupar por tipo* on prints the new painel type-group titles and the local's own heading before its first painel, since the 2026-10-13 criterion is not tied to a seed. A local with no painel prints unchanged on every seed.
+  evidence: `packages/domain/src/print/group-for-print.ts` (the Stories 14.3 and 14.4 note); `packages/domain/src/print/section-9.test.ts` (matrix "Type titles under a painel", the v3 half).
+  class: question
+  state: open (owner: Matheus, for information)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
+  summary: 2026-10-13, gate of batch e14b. Two open failures of main showed in this batch's widened Playwright run, on specs it did not touch: `points.spec.ts` 6.6-E2E-011 failed once in the 28-file run and passed 4 of 5 alone on `ec9140b0` (the status-flow story's entry above: `Escape` on `BODY` before the focus returns to the photo viewer), and `ficha.durability.spec.ts` F-11 on `durability-webkit` failed in the run and 2 of 2 alone (the E13-A1 wave gate entry above: a reading focused by Tab lands under the Sticky action bar on WebKit). Neither was changed here; both keep the wave gate red on this host until settled.
+  evidence: `test-results/e14b/gate.log`, `points-alone.log` and `webkit-f11.log` in the e14b worktree (git-ignored); the PR body of Stories 14.3 and 14.4.
+  class: debt
+  state: open (owner: the next carry-over batch, with the two entries it points at)
+
 
 ## Deferred from: Story 14.5, the measurement table and the Chave de transferência automática (2026-10-13)
 
@@ -2074,4 +2143,4 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: R7, process. At the gate of this batch `origin/main` held Story 14.2 squash-merged with its removal pass (PR #126) and the batch under this one (e14b, branch `story/14-3-14-4-verificacoes-do-local`) had not merged it yet. Merging main here conflicted in 56 files, almost all between the removal pass and e14b's own work, so the resolution belongs to e14b; this branch was gated on its own work plus e14b's latest head and must merge `origin/main` and re-run its story gate after e14b merges.
   evidence: `git merge origin/main` at `6cdba8cc` (aborted); the launch prompt's rule "no gate runs on a base that is still moving".
   class: process
-  state: open (owner: the coordinator, with this batch's orchestrator: merge main after e14b merges, gate, open the PR)
+  state: ~~open (owner: the coordinator, with this batch's orchestrator: merge main after e14b merges, gate, open the PR)~~ closed (2026-10-14: PR #126 and PR #127 merged; this branch merged `origin/main` at `3acbddb`, taking main's version of every file the batch did not change and re-applying the Story 14.5 delta on the 114 it did, and gated on that merge)

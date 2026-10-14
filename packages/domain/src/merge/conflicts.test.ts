@@ -4,7 +4,7 @@ import { applyOp, entityKey, readPath, type EntityKey, type EntityState } from '
 import { invertBatch } from '../ops/outbox.ts';
 import { materializeEntity } from '../ops/materialize.ts';
 import type { Op } from '../ops/op.ts';
-import { emptySheet, type BlockRow, type EquipmentRow, type JsonValue } from '../schemas/entities.ts';
+import { emptySheet, type BlockRow, type EquipmentRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
 import { getDefinition, SEED_VERSION } from '../seed/definitions.ts';
 import { syncBadgeState, syncCounts } from '../sync/counts.ts';
 import { composeConclusion, conclusionTextState } from '../relatorio/conclusion.ts';
@@ -23,6 +23,7 @@ import {
   keepBothTag,
   keptBothText,
   openDecisions,
+  removalCardLines,
   removalColumnTitles,
   removalKeptText,
   removalRemovedText,
@@ -716,6 +717,53 @@ describe('openDecisions and its words', () => {
     expect(decisions.map((decision) => decision.kind)).toEqual(['block_removal']);
   });
 
+  it('14.2 second pass: a sheet whose removal decision stands under a removed coluna of a removed painel keeps its tree rank, and its words name the coluna', () => {
+    const T = '2026-10-12T10:00:00.000Z';
+    const LOCAL = '019966b0-0012-7000-8000-000000000011';
+    const PAINEL_1 = '019966b0-0012-7000-8000-000000000012';
+    const COLUNA_5 = '019966b0-0012-7000-8000-000000000013';
+    const PAINEL_2 = '019966b0-0012-7000-8000-000000000014';
+    const COLUNA_9 = '019966b0-0012-7000-8000-000000000015';
+    const under = (id: string, parent: string, kind: 'painel' | 'coluna', name: string, order_key: string, removed_at: string | null): LocationRow => ({ id, relatorio_id: TEST_RELATORIO, parent_id: parent, kind, name, order_key, removed_at });
+    const locations: LocationRow[] = [
+      {
+        id: LOCAL,
+        relatorio_id: TEST_RELATORIO,
+        parent_id: null,
+        kind: 'cabine',
+        name: 'Cabine primária',
+        order_key: 'a0',
+        removed_at: null,
+        se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null },
+        env: { altitude_m: null, temperature_c: null, humidity_pct: null },
+        agrupar_por_tipo: false,
+      },
+      // The first painel left with its coluna (one removal, one timestamp); the second one is live.
+      under(PAINEL_1, LOCAL, 'painel', 'Painel 1', 'a0', T),
+      under(COLUNA_5, PAINEL_1, 'coluna', 'Coluna 5', 'a0', T),
+      under(PAINEL_2, LOCAL, 'painel', 'Painel 2', 'a1', null),
+      under(COLUNA_9, PAINEL_2, 'coluna', 'Coluna 9', 'a0', null),
+    ];
+    const mark = { removed_by: EDUARDO, removed_at: T, edited_by: ANA, edited_at: '2026-10-12T09:59:00.000Z' };
+    const gone: BlockRow = { ...blockRow(BLOCK, EQUIPMENT), location_id: COLUNA_5, removed_at: T, removed_by: EDUARDO, removal_conflict: mark };
+    const later: BlockRow = { ...blockRow(BLOCK_2, EQUIPMENT_2), location_id: COLUNA_9, removed_at: T, removed_by: EDUARDO, removal_conflict: mark };
+    const equipment = [equipmentRow(EQUIPMENT, 'SEC-C05'), equipmentRow(EQUIPMENT_2, 'SEC-C09')];
+
+    // Given last, listed first: the sheet of the removed coluna stands where its coluna stood, before Painel 2.
+    const decisions = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [later, gone], locations, equipment, opOf: () => undefined, createOpOf: () => undefined });
+    expect(decisions.map((decision) => [decision.kind, decision.kind === 'block_removal' ? decision.block_id : null])).toEqual([
+      ['block_removal', BLOCK],
+      ['block_removal', BLOCK_2],
+    ]);
+
+    const decision = decisions[0]!;
+    if (decision.kind !== 'block_removal') throw new Error('expected a removal');
+    const words: DecisionTextContext = { blocks: [later, gone], equipment, locations, users, viewerActorId: ANA, viewerDeviceId: A_DEVICE };
+    expect(conflictViewTitle(BLOCK, words)).toBe('SEC-C05 · Chave seccionadora · Coluna 5');
+    expect(removalCardLines(decision, gone, words).removed).toEqual(['SEC-C05', 'Coluna 5', 'Ficha removida']);
+    expect(removalKeptText(decision, words)).toBe('SEC-C05 mantido na Coluna 5 com as suas alterações');
+  });
+
   it('a duplicate TAG held by two relatórios of one project is counted and listed once', () => {
     const tag = { kind: 'duplicate_tag' as const, relatorio_id: TEST_RELATORIO, tag: 'SEC-C09', earlier_equipment_id: EQUIPMENT, later_equipment_id: EQUIPMENT_2, later_block_id: null, earlier: { actor_id: ANA, device_id: A_DEVICE, client_ts: '2026-09-21T11:40:00.000Z' }, later: { actor_id: EDUARDO, device_id: E_DEVICE, client_ts: '2026-09-21T11:55:00.000Z' } };
     const cell: CellDecision = { kind: 'cell', relatorio_id: TEST_RELATORIO, block_id: BLOCK, cells: [] };
@@ -872,6 +920,54 @@ describe('E10-Q2 the undo of a resolution brings the decision back (contract 13)
     const again = stampSeen(ana(reading, measured('3300'), undo.op_id), new Map([[key, row]]));
     expect(clearedMarks(new Map([[key, row]]), again)).toEqual({ conflict: row.sheet.test[TEST]!.cells['0']!['0']!.conflict, shown_op_id: e.op_id });
     expect(fold([...log, again]).sheet.test[TEST]?.cells['0']?.['0']).toEqual({ value: measured('3300'), source_suggestion_id: null, op_id: again.op_id });
+  });
+
+  it('Story 14.3 (review 2026-10-13): a site checklist put over a cell holding `conflict`, then its "Desfazer": the mark and the displayed side come back; device and server fold alike', () => {
+    const { eduardo, ana, f } = world();
+    const siteResult = `location/${LOC}/checklist/ventilacao/result`;
+    const siteKey = entityKey('location', LOC);
+    const local: LocationRow = {
+      id: LOC,
+      relatorio_id: TEST_RELATORIO,
+      parent_id: null,
+      kind: 'cabine',
+      name: '1° Subsolo',
+      order_key: 'a0',
+      se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null },
+      env: { altitude_m: null, temperature_c: null, humidity_pct: null },
+      agrupar_por_tipo: false,
+      removed_at: null,
+    };
+    const create = f.op({ kind: 'create', path: `location/${LOC}`, value: local as unknown as JsonValue, device_id: 'office' });
+    const foldLocal = (log: readonly Op[], pending: readonly Op[] = []) =>
+      materializeEntity({ entity: 'location', id: LOC }, log.map((op, i) => ({ ...op, seq: i + 1 })), pending) as Extract<LocationRow, { kind: 'cabine' }>;
+    const cellOf = (row: Extract<LocationRow, { kind: 'cabine' }>) => row.checklist?.ventilacao?.result;
+
+    // C against NA is a contradiction: NA shows, C is the displaced side.
+    const a = ana(siteResult, 'C');
+    const e = eduardo(siteResult, 'NA');
+    const marked: EntityState = new Map([[siteKey, foldLocal([create, a, e])]]);
+    const displaced = { op_id: a.op_id, value: 'C', source_suggestion_id: null };
+    expect(cellOf(foldLocal([create, a, e]))).toEqual({ value: 'NA', source_suggestion_id: null, op_id: e.op_id, conflict: displaced });
+
+    // Ana answers C again on the marked cell: the stamp names the mark she saw, and the put clears it.
+    const pick = stampSeen(ana(siteResult, 'C', e.op_id), marked);
+    expect(pick.meta).toEqual({ standing_op_id: e.op_id, seen_conflict_op_id: a.op_id });
+    expect(cellOf(foldLocal([create, a, e, pick]))).toEqual({ value: 'C', source_suggestion_id: null, op_id: pick.op_id });
+    expect(clearedMarks(marked, pick)).toEqual({ conflict: displaced, shown_op_id: e.op_id });
+    // A put that did not see the mark clears nothing, and neither does a put on another item.
+    expect(clearedMarks(marked, ana(siteResult, 'C', e.op_id, { standing_op_id: e.op_id, seen_conflict_op_id: null }))).toBeUndefined();
+    expect(clearedMarks(marked, ana(`location/${LOC}/checklist/limpeza_e_ausencia_de_infiltracao/result`, 'C'))).toBeUndefined();
+
+    // "Desfazer": the inverse carries the marks, and the fold writes them back.
+    const next = applyOp(marked, pick);
+    const marks = clearedMarks(marked, pick, next)!;
+    const [inverse] = invertBatch([pick], new Map([[pick.op_id, readPath(marked, pick)]]), { newId: f.newId, now: new Date('2026-09-21T15:00:00.000Z') }, new Map([[pick.op_id, marks]]));
+    const undo = stampSeen(inverse!, next);
+    expect(undo).toMatchObject({ path: siteResult, value: 'NA', meta: { restore: { conflict: displaced, shown_op_id: e.op_id } } });
+    const restored = foldLocal([create, a, e, pick, undo]);
+    expect(cellOf(restored)).toEqual({ value: 'NA', source_suggestion_id: null, op_id: undo.op_id, shown_op_id: e.op_id, conflict: displaced });
+    expect(foldLocal([create, a, e, pick], [undo])).toEqual(restored);
   });
 
   it('a restored cell (`shown_op_id`) then a contradicting write from a third device: the displaced side is the shown op, named by its author', () => {

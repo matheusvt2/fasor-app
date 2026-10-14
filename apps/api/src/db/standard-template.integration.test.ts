@@ -372,7 +372,7 @@ describe('seedStandardTemplate on a database seeded before the current seed vers
     }
   }, 60_000);
 
-  it('leaves an edited v1 template (version above 1) at v1, with no op', async () => {
+  it('the seed path alone (`seedStandardTemplate`) leaves an edited v1 template (version above 1) at v1, with no op; on a started server the boot step has already moved it', async () => {
     const { companyId, templateId } = await companyWithV1Template('editado');
     try {
       const v1 = standardTemplate({ id: templateId, seedVersion: 'v1' });

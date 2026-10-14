@@ -452,6 +452,15 @@ describe('14.3 a point created from a site item', () => {
     expect(pointsSummary(snapshot)).toMatchObject({ total: 1, semAcao: 1 });
   });
 
+  it('review 2026-10-13: the title resolves the local as every site reader does: a painel or a coluna id, and any id on a relatório with no site list, read "Geral"', () => {
+    const snapshot = snapshotOf(baseState());
+    expect(pointTitle({ equipment_id: null, location_id: SUBSOLO }, snapshot)).toBe('1° Subsolo · Verificações do local');
+    expect(pointTitle({ equipment_id: null, location_id: PAINEL }, snapshot)).toBe(POINT_TITLE_GENERAL);
+    expect(pointTitle({ equipment_id: null, location_id: COLUNA }, snapshot)).toBe(POINT_TITLE_GENERAL);
+    expect(resolveActionPlan({ ...snapshot, points: [sitePoint({ location_id: PAINEL })] }, new Map())[0]).toMatchObject({ local: '—' });
+    expect(pointTitle({ equipment_id: null, location_id: SUBSOLO }, snapshotOf(baseState('v3')))).toBe(POINT_TITLE_GENERAL);
+  });
+
   it('matrix "Removed local": both snapshot builders leave the point out while its local is removed, and bring it back on restore; a point naming no local is always kept', () => {
     const f = opFactory(new Date('2026-09-23T12:00:00.000Z'));
     const general = newPointRow({ id: OTHER_PHOTO, relatorioId: TEST_RELATORIO, text: 'Ponto geral', equipmentId: null, origin: 'manual', action: null }, [sitePoint()]);

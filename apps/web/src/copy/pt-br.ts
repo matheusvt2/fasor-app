@@ -740,6 +740,21 @@ export const copy = {
       // authored: the sheet or the location the action names changed on another device.
       gone: 'A ficha mudou em outro aparelho; nada foi alterado.',
       locationGone: 'O local mudou em outro aparelho; nada foi alterado.',
+      // Story 14.2, second pass: the toast of a location removed with what is under it, by kind
+      // (`cabine` is the local). `40-relatorio-overview.html` `#sum-menu-local` and
+      // `#sum-menu-painel`, verbatim; the menu item is the Sumário's own "Remover" above.
+      locationRemoved: {
+        cabine: 'Local, seus painéis e fichas removidos — recuperável até a emissão',
+        painel: 'Painel, suas colunas e fichas removidos — recuperável até a emissão',
+        // authored: the mock draws no "Remover" on a coluna; the sentence of the other two, for a coluna.
+        coluna: 'Coluna e suas fichas removidas — recuperável até a emissão',
+      },
+      // authored: the toast after a location is restored from "Restaurar ficha removida", by kind.
+      locationRestored: {
+        cabine: 'Local restaurado',
+        painel: 'Painel restaurado',
+        coluna: 'Coluna restaurada',
+      },
       // `60-ficha.html` sheet Overflow (Story 11.2): the Block card and the sheet header share it.
       moveTo: 'Mover para…',
       // authored: the Move dialog's title, its target group, its primary and the primary's reason.

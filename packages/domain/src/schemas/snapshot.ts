@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { canonicalJson } from '../text/hash.ts';
 import { entityKey, splitEntityKey, type EntityState } from '../ops/apply.ts';
+import { hiddenLocationIds } from '../relatorio/location-live.ts';
 import {
   blockRowSchema,
   equipmentRowSchema,
@@ -18,6 +19,7 @@ import {
   type Entity,
   type EntityRow,
   type EntityRowOf,
+  type LocationRow,
   type ProjectRow,
   type RegistryRow,
   type RelatorioRow,
@@ -28,6 +30,11 @@ import {
  * AD-15: the frozen, kernel-typed view the renderer and the checks read.
  * Tombstones are excluded; `company_id` is stripped from files (AD-10);
  * suggestions are exactly those a current cell references.
+ *
+ * Story 14.2, second pass (2026-10-13; AD-6): a location under a removed location is
+ * excluded with it, and so is a block sitting on a location that is not live
+ * (`liveStructure`), so a sheet another device created in, or moved into, a removed
+ * location is absent from every reader of the snapshot.
  */
 
 export const snapshotFileSchema = z.discriminatedUnion('kind', [
@@ -83,6 +90,22 @@ function pointsOfLiveLocals<P extends { location_id?: string | null }>(points: P
   return points.filter((point) => (point.location_id ?? null) === null || liveIds.has(point.location_id!));
 }
 
+/**
+ * The locations and blocks a snapshot keeps, from every location and block row of the
+ * relatório in the state (removed ones included, so a removed ancestor is seen): a location
+ * only when it is live (`liveLocationIds`: not removed, no removed row above it), a block
+ * only when it is not removed and its `location_id` is null, names a live location, or
+ * names a row the state does not hold (an unknown id is kept, as before the rule). Both
+ * snapshot builders read this one, each in `order_key` order.
+ */
+function liveStructure(locationRows: LocationRow[], blockRows: BlockRow[]): { locations: LocationRow[]; blocks: BlockRow[] } {
+  const hidden = hiddenLocationIds(locationRows);
+  return {
+    locations: live(locationRows).filter((row) => !hidden.has(row.id)),
+    blocks: live(blockRows).filter((row) => row.location_id === null || !hidden.has(row.location_id)),
+  };
+}
+
 function cellsOf(block: BlockRow): { value: unknown; source_suggestion_id: string | null }[] {
   const s = block.sheet;
   const cells = [...Object.values(s.nameplate)];
@@ -134,8 +157,7 @@ export function buildSnapshot(state: EntityState, relatorioId: string): Relatori
   };
   const inRelatorio = (row: { relatorio_id?: string | null }) => row.relatorio_id === relatorioId;
 
-  const locations = live(rowsOf('location', inRelatorio));
-  const blocks = live(rowsOf('block', inRelatorio));
+  const { locations, blocks } = liveStructure(rowsOf('location', inRelatorio), rowsOf('block', inRelatorio));
   const files = live(rowsOf('file', inRelatorio)).map((file) => {
     const stripped: Partial<typeof file> = { ...file };
     delete stripped.company_id;
@@ -290,7 +312,7 @@ export function createSnapshotBuilder(): SnapshotBuilder {
       else if (entity === 'registry') registryRows.push(row as RegistryRow);
     }
 
-    const liveBlocks = live(blockRows);
+    const { locations: liveLocations, blocks: liveBlocks } = liveStructure(locationRows, blockRows);
     const equipmentIds = new Set(liveBlocks.map((b) => b.equipment_id).filter((id): id is string => id !== null));
     const suggestionIds = new Set<string>();
     const instrumentIds = new Set<string>(relatorioRaw.setup.instrument_ids);
@@ -308,7 +330,6 @@ export function createSnapshotBuilder(): SnapshotBuilder {
     const responsibleRaw = responsibleId === null ? null : ((state.get(entityKey('user', responsibleId)) as UserRow | undefined) ?? null);
     const actorRaws = actorRows(liveBlocks, state);
 
-    const liveLocationRows = live(locationRows);
     const prev = previous.get(relatorioId);
     const next: RelatorioSnapshot = {
       relatorio: parsed('relatorio', relatorioRowSchema, relatorioRaw),
@@ -324,7 +345,7 @@ export function createSnapshotBuilder(): SnapshotBuilder {
         prev?.equipment,
       ),
       locations: same(
-        liveLocationRows.map((row) => parsed('location', locationRowSchema, row)),
+        liveLocations.map((row) => parsed('location', locationRowSchema, row)),
         prev?.locations,
       ),
       blocks: same(
@@ -336,7 +357,7 @@ export function createSnapshotBuilder(): SnapshotBuilder {
         prev?.files,
       ),
       points: same(
-        pointsOfLiveLocals(live(pointRows), liveLocationRows).map((row) => parsed('point', pointRowSchema, row)),
+        pointsOfLiveLocals(live(pointRows), liveLocations).map((row) => parsed('point', pointRowSchema, row)),
         prev?.points,
       ),
       suggestions: same(

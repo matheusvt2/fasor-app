@@ -38,7 +38,7 @@ function renderSection(block: BlockRow, { readOnly = false, current = block, def
     author: AUTHOR,
     commit: vi.fn(async () => undefined),
     edit: vi.fn(async (build: Build) => {
-      const drafts = build([current], AUTHOR, { blocks: [], locations: [], equipment: [] });
+      const drafts = build([current], AUTHOR, { blocks: [], locations: [], allLocations: [], equipment: [] });
       if (drafts === null) return null;
       edits.push(drafts);
       return 'batch';

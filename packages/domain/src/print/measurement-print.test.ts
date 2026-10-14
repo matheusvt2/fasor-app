@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { portoSeguroSmall } from '../../fixtures/porto-seguro/small/op-log.ts';
-import { applyOp } from '../ops/apply.ts';
+import { applyOp, entityKey } from '../ops/apply.ts';
 import { blockFieldPath, sheetConclusionPath, sheetObservationsPath, sheetTestPath } from '../ops/path.ts';
 import { replay } from '../ops/replay.ts';
 import { blockConfigWithSubBlock } from '../relatorio/measurement-evaluation.ts';
 import { blockOf, choice, CTA, CTA_BLOCK, ctaFilledWrites, ctaRows, ctaState, E1, E2, E5, writeSheet } from '../relatorio/measurement-test-support.ts';
-import { LIBRARY_GROUP_LABEL, newEquipmentBlock } from '../relatorio/tree.ts';
+import { progress } from '../relatorio/progress.ts';
+import { LIBRARY_GROUP_LABEL, locationTree, newEquipmentBlock, treeNodes } from '../relatorio/tree.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, EquipmentRow, LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
@@ -128,6 +129,54 @@ describe('groupForPrint: "Outros equipamentos" after Transformadores', () => {
       { kind: 'disjuntores', title: 'Disjuntores dos Cubículos de MT do Painel de média tensão — Geradores', blockIds: [block(2)], painelId: id(10) },
       { kind: 'outros', title: 'Outros equipamentos do Painel de média tensão — Geradores', blockIds: [block(3)], painelId: id(10) },
     ]);
+  });
+});
+
+// --- a CTA under a removed location (Story 14.2's removal rule, read by Story 14.5) ---------------------
+
+describe('a Chave de transferência automática under a removed painel', () => {
+  // Only the painel's own row carries the tombstone (the backstop shape): its coluna and the
+  // CTA under it are live rows, hidden by the one ancestor rule every reader shares.
+  const tree = [local(1, 'Geradores', 'a0', true), painel(10, 'Painel de média tensão', 1, 'a0'), coluna(11, 'Coluna 1', 10, 'a0')];
+  const sheets = [sheet(1, 1, CTA, 'a0', 'CTA-GER'), sheet(3, 11, CTA, 'a1', 'CTA-C01')];
+  const whole = snapshotOf(tree, sheets);
+  const removed = snapshotOf(
+    tree.map((row) => (row.id === id(10) ? { ...row, removed_at: '2026-10-13T12:00:00.000Z' } : row)),
+    sheets,
+  );
+  const tags = (snapshot: RelatorioSnapshot) =>
+    treeNodes(locationTree(snapshot)).flatMap((node) => (node.kind === 'equipment' ? [node.tag] : []));
+
+  const counter = (snapshot: RelatorioSnapshot) => locationTree(snapshot).find((root) => root.id === id(1))!.counterText;
+
+  it('is absent from the tree, the local\'s counter and section 9 read from the raw rows, and the CTA on the local stays', () => {
+    expect(tags(whole)).toEqual(['CTA-GER', 'CTA-C01']);
+    expect(counter(whole)).toBe('0 de 2');
+
+    expect(tags(removed)).toEqual(['CTA-GER']);
+    expect(treeNodes(locationTree(removed)).some((node) => node.kind !== 'equipment' && node.id === id(10))).toBe(false);
+    expect(counter(removed)).toBe('0 de 1');
+    expect(summary(groupForPrint(removed).subsections)).toEqual([{ kind: 'outros', title: 'Outros equipamentos dos Geradores', blockIds: [block(1)] }]);
+    const layout = section9Layout(removed, 9, TITLE)!;
+    expect(layout.subsections.flatMap((s) => s.sheets.map((candidate) => candidate.blockId))).toEqual([block(1)]);
+  });
+
+  it('is out of the snapshot both builders hand every reader, so the relatório\'s progress counts one sheet less', () => {
+    const stateOf = (snapshot: RelatorioSnapshot) => {
+      const state = new Map(replay(portoSeguroSmall.log, { deadOpIds: portoSeguroSmall.deadOpIds }));
+      for (const row of snapshot.locations) state.set(entityKey('location', row.id), row);
+      for (const row of snapshot.blocks) state.set(entityKey('block', row.id), row);
+      for (const row of snapshot.equipment) state.set(entityKey('equipment', row.id), row);
+      return state;
+    };
+    const before = buildSnapshot(stateOf(whole), RELATORIO);
+    const after = buildSnapshot(stateOf(removed), RELATORIO);
+    expect(before.blocks.map((row) => row.id)).toEqual(expect.arrayContaining([block(1), block(3)]));
+    expect(after.blocks.map((row) => row.id)).toContain(block(1));
+    expect(after.blocks.map((row) => row.id)).not.toContain(block(3));
+    expect(after.locations.map((row) => row.id)).not.toEqual(expect.arrayContaining([id(10)]));
+    expect(after.locations.map((row) => row.id)).not.toContain(id(11));
+    expect(progress(after).sheets_total).toBe(progress(before).sheets_total - 1);
   });
 });
 

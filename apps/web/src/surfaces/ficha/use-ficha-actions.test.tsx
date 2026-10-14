@@ -99,7 +99,7 @@ describe('r8conc tests-3 the conclude composes the text from the fresh rows', ()
       author: AUTHOR,
       commit: vi.fn(async () => undefined),
       edit: vi.fn(async (build: Build) => {
-        written = build([fresh], AUTHOR, { blocks: [fresh], locations: [], equipment: [equipment] });
+        written = build([fresh], AUTHOR, { blocks: [fresh], locations: [], allLocations: [], equipment: [equipment] });
         return written === null ? null : 'batch';
       }),
       undoable: vi.fn(),

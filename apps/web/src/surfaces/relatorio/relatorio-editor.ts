@@ -1,9 +1,9 @@
-import type { BlockRow, EntityState, EquipmentRow, LocationRow, OpDraft } from '@app/domain';
+import { liveLocationIds, type BlockRow, type EntityState, type EquipmentRow, type LocationRow, type OpDraft } from '@app/domain';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitBatch } from '../../db/commit.ts';
-import { blockRowsOf, equipmentRows, locationRows } from '../../db/home-store.ts';
+import { allLocationRows, blockRowsOf, equipmentRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
@@ -22,7 +22,15 @@ import type { Author } from './relatorio-ops.ts';
 /** The rows an edit's builder reads fresh: the relatório's blocks (removed ones included), its live locations and the project's equipment. */
 export interface Fresh {
   blocks: BlockRow[];
+  /** The live locations, by the kernel's one rule (`liveLocationIds`): not removed, and under no removed location. */
   locations: LocationRow[];
+  /**
+   * Every location row, removed ones included (Story 14.2, second pass). Only the removal and
+   * restore plans read it (`locationRemovalPlan`, `locationRestorePlan`, `removedAncestorIds`):
+   * they tell which rows left together, and which removed rows sit above a sheet; and
+   * `newLocation`, whose default name and order key must not repeat a removed sibling's.
+   */
+  allLocations: LocationRow[];
   equipment: EquipmentRow[];
 }
 
@@ -93,10 +101,14 @@ export function useRelatorioEditor(relatorioId: string, projectId: string): Rela
     (build: Build): Promise<string | null> =>
       write(async () => {
         if (db === null || author === null) return null;
-        const [blocks, locations, equipment] = await Promise.all([blockRowsOf(db, relatorioId), locationRows(db, relatorioId), equipmentRows(db, projectId)]);
+        const [blocks, allLocations, equipment] = await Promise.all([blockRowsOf(db, relatorioId), allLocationRows(db, relatorioId), equipmentRows(db, projectId)]);
+        // One read, and the kernel says which rows are live: a row another device left under a
+        // removed location is as gone for an edit as it is for the tree.
+        const live = liveLocationIds(allLocations);
+        const locations = allLocations.filter((row) => live.has(row.id));
         let drafts: OpDraft[] | null;
         try {
-          drafts = build(blocks, author, { blocks, locations, equipment });
+          drafts = build(blocks, author, { blocks, locations, allLocations, equipment });
         } catch (error) {
           // The row the edit names is gone: nothing to write, nothing to say.
           if (error instanceof RangeError) return null;

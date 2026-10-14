@@ -6,6 +6,7 @@ import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import { equipmentTypesOf } from '../seed/definitions.ts';
 import type { BlockRow, JsonValue, LocationRow, PhotoFileRow, SuggestionRow } from '../schemas/entities.ts';
 import type { BlockLocationRow } from './local.ts';
+import { liveLocationIds } from './location-live.ts';
 import { locationPathText } from './location-path.ts';
 import { relatorioOpEnvelope, type Author } from './ops.ts';
 import { discardSuggestionOp, PLATE_CAPTION } from './suggestions.ts';
@@ -132,8 +133,6 @@ export interface PanelLocation {
   matched: boolean;
 }
 
-const live = (location: LocationRow) => location.removed_at === null;
-
 /**
  * The palette location's group (itself when it is a local; else its parent: a painel, or a
  * local for a coluna directly under one) and that group's live coluna whose code is `C` plus
@@ -147,6 +146,9 @@ const live = (location: LocationRow) => location.removed_at === null;
  * number, none is (the label does not say which painel), so the block is proposed on the local.
  */
 export function panelLocation(locations: readonly LocationRow[], paletteLocationId: string, column: number | null): PanelLocation | null {
+  // Live by the tree's rule (`liveLocationIds`): a coluna of a removed painel is never matched.
+  const liveIds = liveLocationIds(locations);
+  const live = (location: LocationRow) => liveIds.has(location.id);
   const palette = locations.find((location) => location.id === paletteLocationId && live(location));
   if (palette === undefined || palette.kind === 'painel') return null;
   if (column === null) return { location: palette, matched: false };

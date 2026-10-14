@@ -9,6 +9,7 @@ import { defaultCabineName, defaultColunaName, defaultPainelName } from '../temp
 import { plural } from '../text/plural.ts';
 import { integrityFindings } from './integrity.ts';
 import { funcaoLabel } from './local.ts';
+import { liveLocationIds } from './location-live.ts';
 import { locationPathText } from './location-path.ts';
 import { blocksProgress, fichasCountText, locationProgressIndex, progressCounterState, progressCounterText, type Progress } from './progress.ts';
 import { isEquipmentBlock, sheetState, sheetStateLabel, type SheetState } from './sheet-state.ts';
@@ -114,10 +115,12 @@ export interface TreeLocationNode {
   name: string;
   /**
    * The name the row's own controls read ("Expandir …", "Mais opções de …", "Reordenar …",
-   * "Posição de …"). A painel is named with its local, as `40-relatorio-overview.html` words
-   * it ("Painel de entrada de Cubículo Enel"): every local's first painel is "Painel 1" by
-   * default, so the painel alone would name the controls of two locals alike. Any other row
-   * reads its own name.
+   * "Posição de …"), `locationControlName`. A painel is named with its local, as
+   * `40-relatorio-overview.html` words it ("Painel de entrada de Cubículo Enel"): every
+   * local's first painel is "Painel 1" by default, so the painel alone would name the
+   * controls of two locals alike. A coluna is named with what it sits in, for the same
+   * reason ("Coluna 1 de Painel 1 de Cubículo Enel"; directly under a local, "Coluna 5 de
+   * 1° Subsolo"). A local reads its own name.
    */
   controlName: string;
   level: number;
@@ -246,9 +249,13 @@ export function equipmentFreedByRemoval(input: {
   );
 }
 
-/** The live locations of a relatório in `order_key` order. */
+/**
+ * The live locations of a relatório in `order_key` order: not removed and under no removed
+ * location (`liveLocationIds`, the snapshot's own rule), so raw rows and a snapshot's read alike.
+ */
 function liveLocations(locations: readonly LocationRow[]): LocationRow[] {
-  return sortByOrderKey(locations.filter((location) => location.removed_at === null));
+  const live = liveLocationIds(locations);
+  return sortByOrderKey(locations.filter((location) => live.has(location.id)));
 }
 
 /**
@@ -332,6 +339,49 @@ function childrenByParent(locations: readonly LocationRow[]): Map<string, Locati
 /** "Painel de entrada de Cubículo Enel": a painel named with its local (`40-relatorio-overview.html`, the painel row's chevron and Overflow). */
 export function painelOfLocalText(painelName: string, localName: string): string {
   return `${painelName} de ${localName}`;
+}
+
+/**
+ * "Coluna 1 de Painel 1 de Cubículo Enel", "Coluna 5 de 1° Subsolo": a coluna named with the
+ * control name of what it sits in (its painel's, which carries the local, or its local's).
+ * authored: the tree's join of the mock's two namings (`42-template-composer.html` names a
+ * coluna with its painel in one place and with its local in another); default names repeat
+ * across painéis and locals, so either alone would name two colunas alike.
+ */
+export function colunaOfParentText(colunaName: string, parentControlName: string): string {
+  return `${colunaName} de ${parentControlName}`;
+}
+
+/**
+ * A location's control name given the row above it and that row's control name (null at a
+ * root): the one composition `TreeLocationNode.controlName` and `locationControlName` share.
+ * A painel under a local and a coluna under a painel or a local are named with the parent;
+ * any other row (a local, or a shape no client writes) reads its own name.
+ */
+function controlNameUnder(location: Pick<LocationRow, 'kind' | 'name'>, parent: { kind: LocationRow['kind']; controlName: string } | null): string {
+  if (parent === null) return location.name;
+  if (location.kind === 'painel' && parent.kind === 'cabine') return painelOfLocalText(location.name, parent.controlName);
+  if (location.kind === 'coluna' && (parent.kind === 'painel' || parent.kind === 'cabine')) return colunaOfParentText(location.name, parent.controlName);
+  return location.name;
+}
+
+/**
+ * The name a location's controls read, from its rows alone (`TreeLocationNode.controlName`
+ * for a drawn node; this one also names a location the tree no longer draws: the confirm,
+ * the announcement and the restore entry of a removal). `locations` may hold removed rows:
+ * a removed coluna still names its painel and its local. A parent the list does not hold
+ * ends the name there; an id it does not hold yields "".
+ */
+export function locationControlName(locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'kind' | 'name'>[], locationId: string): string {
+  const byId = new Map(locations.map((location) => [location.id, location]));
+  const seen = new Set<string>();
+  const nameOf = (id: string): { kind: LocationRow['kind']; controlName: string } | null => {
+    const location = byId.get(id);
+    if (location === undefined || seen.has(id)) return null;
+    seen.add(id);
+    return { kind: location.kind, controlName: controlNameUnder(location, location.parent_id === null ? null : nameOf(location.parent_id)) };
+  };
+  return nameOf(locationId)?.controlName ?? '';
 }
 
 /*
@@ -446,15 +496,16 @@ function buildLocationTree(
     };
   };
 
-  const build = (location: LocationRow, depth: number, position: number, siblings: number, parent: LocationRow | null = null): TreeLocationNode => {
+  const build = (location: LocationRow, depth: number, position: number, siblings: number, parent: { kind: LocationRow['kind']; controlName: string } | null = null): TreeLocationNode => {
     const own = blocksAt.get(location.id) ?? [];
+    const controlName = controlNameUnder(location, parent);
     const children = drawingOrder(childrenOf.get(location.id) ?? []);
     // A child's reorder siblings are the children of its own kind (a painel among the painéis).
     const sameKind = new Map<LocationRow['kind'], LocationRow[]>();
     for (const child of children) sameKind.set(child.kind, [...(sameKind.get(child.kind) ?? []), child]);
     const childNodes = children.map((child) => {
       const peers = sameKind.get(child.kind)!;
-      return build(child, depth + 1, peers.indexOf(child) + 1, peers.length, location);
+      return build(child, depth + 1, peers.indexOf(child) + 1, peers.length, { kind: location.kind, controlName });
     });
     const counts = progressOf(location.id);
     const equipmentNodes = own.map((block, i) => equipmentNode(block, i + 1, own.length, Math.min(depth + 1, TREE_MAX_LEVEL)));
@@ -464,7 +515,7 @@ function buildLocationTree(
       id: location.id,
       parentId: location.parent_id,
       name: location.name,
-      controlName: location.kind === 'painel' && parent?.kind === 'cabine' ? painelOfLocalText(location.name, parent.name) : location.name,
+      controlName,
       level: Math.min(depth, TREE_MAX_LEVEL),
       funcao: location.kind === 'cabine' ? (location.funcao ?? null) : null,
       meta: texts.meta,
@@ -484,8 +535,10 @@ function buildLocationTree(
     };
   };
 
-  // A location whose parent is not live (never on this device, or removed) is drawn as a
-  // root, so its blocks never vanish from the tree.
+  // A location whose parent is absent from the input (never on this device: an op applied
+  // before its parent's row arrived) is drawn as a root, so its blocks never vanish from the
+  // tree. A location under a removed parent is not live (`liveLocationIds`) and is not drawn
+  // at all: it left the relatório with its parent.
   const roots = locations.filter((location) => location.parent_id === null || !liveIds.has(location.parent_id));
   return roots.map((root, i) => build(root, 0, i + 1, roots.length));
 }
@@ -524,8 +577,8 @@ export function treePathTo(tree: readonly TreeLocationNode[], target: { blockId?
  * K-2 (full review 2026-09-30): each tree node's `firstBlockId` found by one direct scan
  * with no tree build -- a location's own live equipment blocks by `order_key`, then its live
  * child locations by `order_key`, depth first, from the tree's roots -- memoized on the
- * `blocks` and `locations` arrays. A location the tree does not draw (removed, or in a parent
- * cycle no root reaches) has none.
+ * `blocks` and `locations` arrays. A location the tree does not draw (removed, under a
+ * removed location, or in a parent cycle no root reaches) has none.
  */
 const firstMemo = new WeakMap<object, WeakMap<object, Map<string, string | null>>>();
 
@@ -552,6 +605,7 @@ function firstBlockIndex(blocks: readonly BlockRow[], rawLocations: readonly Loc
     index.set(location.id, first);
     return first;
   };
+  // The roots are the tree's: a live location with no parent, or with one absent from the input.
   for (const root of locations) if (root.parent_id === null || !liveIds.has(root.parent_id)) visit(root);
   byLocations.set(rawLocations, index);
   return index;
@@ -596,7 +650,7 @@ export function paletteLocationFor(
   locationId: string,
   lastSheetId: string | null,
 ): string | null {
-  const location = snapshot.locations.find((row) => row.id === locationId && row.removed_at === null);
+  const location = liveLocationIds(snapshot.locations).has(locationId) ? snapshot.locations.find((row) => row.id === locationId) : undefined;
   if (location === undefined) return null;
   const colunas = siblingLocations(snapshot.locations, locationId, 'coluna');
   const last = lastSheetId === null ? undefined : snapshot.blocks.find((block) => block.id === lastSheetId && block.removed_at === null);
@@ -792,7 +846,7 @@ export interface NewLocationInput {
   kind: LocationRow['kind'];
   /** Null for a local (the root); the local's id for a painel; a painel's id, or a local's (the shape before the painel level), for a coluna. */
   parentId: string | null;
-  /** The name to store; the default of the kind otherwise ("Cabine n", "Painel n", "Coluna n" after its live siblings of that kind). */
+  /** The name to store; the default of the kind otherwise ("Cabine n", "Painel n", "Coluna n" after its live siblings of that kind, the first n no sibling of the kind already holds). */
   name?: string;
   /** A local's Função (a reserved key or a typed name); none when absent. Read for a local only. */
   funcao?: string | null;
@@ -806,11 +860,24 @@ export interface NewLocationInput {
  * stored default name keeps "Cabine": only the on-screen noun of the level is "local"). A
  * local is born with no SE data, no environment, "Agrupar por tipo" off and, when one was
  * chosen, its Função.
+ *
+ * `locations` are the relatório's rows, removed ones included (Story 14.2, second pass: a
+ * location can be removed and restored). The default number starts after the live siblings
+ * of the kind and skips every one whose default name a sibling of that kind already holds,
+ * live or removed: with "Coluna 2" of three removed the new one is "Coluna 4", not a second
+ * "Coluna 3", and a restored coluna never meets its own name. The `order_key` goes after the
+ * greatest one among every sibling, removed ones included, so a restored row keeps a place
+ * of its own. With no removed sibling and no default name taken ahead, both are as before.
  */
 export function newLocation(locations: readonly LocationRow[], input: NewLocationInput): LocationRow {
-  const all = siblingLocations(locations, input.parentId);
-  const n = all.filter((row) => row.kind === input.kind).length + 1;
-  const order_key = orderKeyBetween(all.at(-1)?.order_key ?? null, null);
+  const live = siblingLocations(locations, input.parentId);
+  const every = locations.filter((row) => row.parent_id === input.parentId);
+  const defaultName = input.kind === 'cabine' ? defaultCabineName : input.kind === 'painel' ? defaultPainelName : defaultColunaName;
+  const taken = new Set(every.filter((row) => row.kind === input.kind).map((row) => row.name.trim()));
+  let n = live.filter((row) => row.kind === input.kind).length + 1;
+  while (taken.has(defaultName(n))) n += 1;
+  const last = every.reduce<string | null>((greatest, row) => (greatest === null || row.order_key > greatest ? row.order_key : greatest), null);
+  const order_key = orderKeyBetween(last, null);
   const base = { id: input.id, relatorio_id: input.relatorioId, order_key, removed_at: null };
   if (input.kind === 'cabine') {
     if (input.parentId !== null) throw new Error('a local sits at the root: parentId must be null');
@@ -819,7 +886,7 @@ export function newLocation(locations: readonly LocationRow[], input: NewLocatio
       ...base,
       parent_id: null,
       kind: 'cabine',
-      name: input.name ?? defaultCabineName(n),
+      name: input.name ?? defaultName(n),
       se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null },
       env: { altitude_m: null, temperature_c: null, humidity_pct: null },
       agrupar_por_tipo: false,
@@ -828,6 +895,5 @@ export function newLocation(locations: readonly LocationRow[], input: NewLocatio
     };
   }
   if (input.parentId === null) throw new Error(`a ${input.kind} sits under another location: parentId must not be null`);
-  if (input.kind === 'painel') return { ...base, parent_id: input.parentId, kind: 'painel', name: input.name ?? defaultPainelName(n) };
-  return { ...base, parent_id: input.parentId, kind: 'coluna', name: input.name ?? defaultColunaName(n) };
+  return { ...base, parent_id: input.parentId, kind: input.kind, name: input.name ?? defaultName(n) };
 }

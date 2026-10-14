@@ -107,7 +107,7 @@ function renderTests(block: BlockRow, { readOnly = false, instruments = [], othe
     }),
     // The build runs against the block the store holds, as the relatório's edit queue runs it.
     edit: vi.fn(async (build: Build) => {
-      const drafts = build([block], AUTHOR, { blocks: [], locations: [], equipment: [] });
+      const drafts = build([block], AUTHOR, { blocks: [], locations: [], allLocations: [], equipment: [] });
       if (drafts === null) return null;
       edits.push(drafts);
       return 'batch';

@@ -171,7 +171,8 @@ describe('3.4 composer: skeleton', () => {
     const colunas = 'Painel 1 em Cabine de transformação';
     expect(colunaNames(colunas)).toEqual(['Coluna 1', 'Coluna 2', 'Coluna 3']);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 3' }));
+    // Rule 9: a coluna's controls name it with its painel and its local ("Coluna 1" is the default first coluna of every painel).
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 3 em Painel 1 em Cabine de transformação' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
     const dialog = await screen.findByRole('dialog', { name: 'Renomear Coluna 3' });
     const field = within(dialog).getByRole('textbox', { name: 'Nome' });
@@ -183,7 +184,11 @@ describe('3.4 composer: skeleton', () => {
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 5 renomeada'));
 
     // Alt+Up from anywhere in the row.
-    const posBox = screen.getByRole('textbox', { name: 'Posição de Coluna 5' });
+    const posBox = screen.getByRole('textbox', { name: 'Posição de Coluna 5 em Painel 1 em Cabine de transformação' });
+    expect(screen.getByRole('button', { name: 'Reordenar Coluna 5 em Painel 1 em Cabine de transformação' })).toHaveClass('drag-handle');
+    // The coluna's own name alone names no control.
+    expect(screen.queryByRole('textbox', { name: 'Posição de Coluna 5' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mais opções de Coluna 5' })).toBeNull();
     posBox.focus();
     fireEvent.keyDown(posBox, { key: 'ArrowUp', altKey: true });
     await waitFor(() => expect(colunaNames(colunas)).toEqual(['Coluna 1', 'Coluna 5', 'Coluna 2']));
@@ -196,7 +201,7 @@ describe('3.4 composer: skeleton', () => {
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 5 movida para a posição 1 de 3'));
 
     // The Overflow: "Subir" is not offered at the top; "Descer" moves one down.
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 5' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 5 em Painel 1 em Cabine de transformação' }));
     expect(screen.queryByRole('menuitem', { name: 'Subir' })).toBeNull();
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Descer' }));
     await waitFor(() => expect(colunaNames(colunas)).toEqual(['Coluna 1', 'Coluna 5', 'Coluna 2']));
@@ -237,7 +242,7 @@ describe('3.4 composer: skeleton', () => {
   it('a later edit takes the undo of a removal away, so "Desfazer" can never discard it', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
-    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 3' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 3 em 1° Subsolo' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Remover Coluna 3?' })).getByRole('button', { name: 'Remover' }));
     expect(await screen.findByText('Coluna 3 removida')).toBeVisible();
@@ -257,7 +262,7 @@ describe('3.4 composer: skeleton', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Cubículo Enel' }));
     expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Função e nome', 'Descer', 'Adicionar painel', 'Remover']);
     await userEvent.keyboard('{Escape}');
-    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 1' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 1 em 1° Subsolo' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
     const dialog = await screen.findByRole('dialog', { name: 'Renomear Coluna 1' });
     const field = within(dialog).getByRole('textbox', { name: 'Nome' });

@@ -406,7 +406,7 @@ async function openTreeForPalette(page: Page, relatorioId: string): Promise<void
 
 /** Adds a block of the palette item `tag` under Coluna 1 of the open tree. */
 async function addBlock(page: Page, tag: string): Promise<void> {
-  await page.getByRole('button', { name: 'Mais opções de Coluna 1', exact: true }).click();
+  await page.getByRole('button', { name: 'Mais opções de Coluna 1 de 1° Subsolo', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   await palette.locator('button.palette-item.pf-field').filter({ has: page.locator('.pi-meta', { hasText: new RegExp(`^${tag}$`) }) }).click();

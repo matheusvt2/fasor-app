@@ -4,7 +4,7 @@ import { applyOp } from '../ops/apply.ts';
 import { templateRowSchema } from '../schemas/entities.ts';
 import { blockConfigSchema } from '../schemas/block-config.ts';
 import { EQUIPMENT_BLOCK_TYPES } from '../schemas/block-config.ts';
-import { equipmentTypesOf, getDefinition } from './definitions.ts';
+import { equipmentTypesOf, getDefinition, SEED_VERSION, SEED_VERSIONS } from './definitions.ts';
 import { defaultBlockConfig, LOCKED_SUB_BLOCKS, lockedSubBlocksOf, STANDARD_TEMPLATE_NAME, standardTemplate, templateBlockTotal, templateTotals } from './template.ts';
 
 const ID = '019966b0-0000-7000-8000-0000000000f1';
@@ -26,6 +26,23 @@ describe('standardTemplate', () => {
 
   it('is pure: the same id builds the same row', () => {
     expect(standardTemplate({ id: ID })).toEqual(template);
+  });
+
+  // Review of batch e14b (2026-10-13): the server's boot step (`upgradeTemplateSeeds`) moves a
+  // template's `seed_version` alone. That loses nothing for an unedited standard template only
+  // while every shipped version builds the same content; a version that changes it must make
+  // the boot step write the blocks and the skeleton too.
+  it('builds the same blocks and skeleton at every shipped seed version, so moving `seed_version` alone equals a rebuild', () => {
+    const versions = Object.keys(SEED_VERSIONS);
+    expect(versions).toContain(SEED_VERSION);
+    expect(versions.length).toBeGreaterThan(1);
+    for (const version of versions) {
+      const built = standardTemplate({ id: ID, seedVersion: version });
+      expect(built.seed_version, version).toBe(version);
+      expect(built.blocks, version).toEqual(template.blocks);
+      expect(built.skeleton, version).toEqual(template.skeleton);
+      expect({ ...built, seed_version: SEED_VERSION }, version).toEqual(template);
+    }
   });
 
   it('starts with the section blocks 1-6, 8, 10 and 11 in order, outside the skeleton', () => {

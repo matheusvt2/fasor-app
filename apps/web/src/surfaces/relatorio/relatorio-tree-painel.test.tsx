@@ -180,7 +180,10 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     expect(sheet.querySelector('.block-tag')).toHaveTextContent('SEC-C05');
     // "Adicionar equipamento no local" under the local's own sheets; "Adicionar bloco em ⟨painel⟩" under the painel.
     expect(within(local).getByRole('button', { name: 'Adicionar equipamento no local Cabine de Testes' })).toHaveClass('s9-add');
-    expect(within(painel).getByRole('button', { name: 'Adicionar bloco em Painel de média tensão' })).toHaveClass('s9-add');
+    // Its accessible name adds the painel's local (rule 9); the visible words stay the mock's.
+    const addInPainel = within(painel).getByRole('button', { name: 'Adicionar bloco em Painel de média tensão de Cabine de Testes' });
+    expect(addInPainel).toHaveClass('s9-add');
+    expect(addInPainel).toHaveTextContent(/^Adicionar bloco em Painel de média tensão$/);
     expect(screen.getByRole('button', { name: 'Adicionar local' })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     // No label of the tree calls the root "cabine" (the stored names are the user's own, so they are left out).
@@ -200,17 +203,17 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     expect(note).toHaveTextContent('Este painel ainda não tem colunas. Um painel só agrupa colunas e não recebe equipamento direto: adicione uma coluna e coloque os equipamentos nela.');
     expect(within(painelB).queryByRole('button', { name: /Adicionar bloco/ })).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B de Cabine de Testes' }));
-    expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Adicionar coluna', 'Renomear', 'Subir']);
+    expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Adicionar coluna', 'Renomear', 'Subir', 'Remover']);
     await userEvent.keyboard('{Escape}');
     // The painel with colunas offers "Adicionar bloco" too.
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel de média tensão de Cabine de Testes' }));
-    expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Adicionar bloco', 'Adicionar coluna', 'Renomear', 'Descer']);
+    expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Adicionar bloco', 'Adicionar coluna', 'Renomear', 'Descer', 'Remover']);
     await userEvent.keyboard('{Escape}');
 
     await userEvent.click(within(painelB).getByRole('button', { name: 'Adicionar coluna' }));
     expect(await screen.findByText('Coluna 1 adicionada')).toBeInTheDocument();
     await waitFor(() => expect(within(row(PAINEL_B)).queryByRole('note')).toBeNull());
-    expect(within(row(PAINEL_B)).getByRole('button', { name: 'Adicionar bloco em Painel B' })).toBeInTheDocument();
+    expect(within(row(PAINEL_B)).getByRole('button', { name: 'Adicionar bloco em Painel B de Cabine de Testes' })).toHaveTextContent(/^Adicionar bloco em Painel B$/);
     const [create] = await outbox();
     expect(create).toMatchObject({ kind: 'create', value: { kind: 'coluna', parent_id: PAINEL_B, name: 'Coluna 1' } });
     expect(create!.path).toMatch(/^location\/[0-9a-f-]{36}$/);
@@ -297,6 +300,7 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
       'Adicionar equipamento',
       'Adicionar painel',
       'Função e nome',
+      'Remover',
     ]);
     await userEvent.click(screen.getByRole('menuitem', { name: 'Adicionar painel' }));
     expect(await screen.findByText('Painel 1 adicionado')).toBeInTheDocument();
@@ -320,7 +324,7 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
   it('the painel "Adicionar bloco" puts the block in its current coluna, and the local "Adicionar equipamento no local" on the local itself, each with the TAG of the kernel rule', async () => {
     database = await seeded();
     await openLocal();
-    await userEvent.click(within(row(PAINEL)).getByRole('button', { name: 'Adicionar bloco em Painel de média tensão' }));
+    await userEvent.click(within(row(PAINEL)).getByRole('button', { name: 'Adicionar bloco em Painel de média tensão de Cabine de Testes' }));
     let palette = await screen.findByRole('dialog', { name: 'Adicionar bloco' });
     // No last sheet in this painel: its last coluna.
     expect(within(palette).getByText('Em: Cabine de Testes › Painel de média tensão › Coluna 6')).toBeInTheDocument();
@@ -535,7 +539,7 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     expect(paineis()).toEqual(['Painel de média tensão', 'Painel B']);
     expect(colunas()).toEqual(['Coluna 1', 'Coluna 2']);
     expect(within(row(PAINEL_B)).getByRole('textbox', { name: 'Posição de Painel B de Cabine de Testes' })).toHaveValue('2');
-    expect(within(row(DIRECT_2)).getByRole('textbox', { name: 'Posição de Coluna 2' })).toHaveValue('2');
+    expect(within(row(DIRECT_2)).getByRole('textbox', { name: 'Posição de Coluna 2 de Cabine de Testes' })).toHaveValue('2');
 
     // The painel: second of two painéis, whatever the colunas between them hold.
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B de Cabine de Testes' }));
@@ -546,7 +550,7 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     expect((await outbox()).map((op) => [op.path, op.kind])).toEqual([[`location/${PAINEL_B}/order_key`, 'put']]);
 
     // The coluna: second of two colunas.
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 2' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 2 de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Subir' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 2 movida para a posição 1 de 2'));
     await waitFor(() => expect(colunas()).toEqual(['Coluna 2', 'Coluna 1']));
@@ -564,8 +568,8 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     database = await seeded();
     await openLocal();
     const coluna6 = row(COLUNA_6);
-    expect(within(coluna6).getByRole('button', { name: 'Reordenar Coluna 6' })).toHaveClass('drag-handle');
-    const box = within(coluna6).getByRole('textbox', { name: 'Posição de Coluna 6' });
+    expect(within(coluna6).getByRole('button', { name: 'Reordenar Coluna 6 de Painel de média tensão de Cabine de Testes' })).toHaveClass('drag-handle');
+    const box = within(coluna6).getByRole('textbox', { name: 'Posição de Coluna 6 de Painel de média tensão de Cabine de Testes' });
     expect(box).toHaveValue('2');
     await userEvent.clear(box);
     await userEvent.type(box, '1{Enter}');
@@ -592,7 +596,7 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     await waitFor(() => expect(row(localId).querySelector('.s9-loc-meta')).toHaveTextContent('Transformação · sem painéis'));
     // A local with nothing under it takes equipment itself: no "Adicionar coluna" is offered.
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de transformação' }));
-    expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Adicionar equipamento', 'Adicionar painel', 'Função e nome', 'Subir']);
+    expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Adicionar equipamento', 'Adicionar painel', 'Função e nome', 'Subir', 'Remover']);
   });
 });
 

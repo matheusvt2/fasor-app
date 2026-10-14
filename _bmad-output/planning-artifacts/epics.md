@@ -3134,6 +3134,18 @@ So that a transformation room with two transformers needs no invented coluna.
 
 **Definition of Done, in addition (2026-10-13):** kernel tests for the batch, the ancestor-liveness rule, the restore entries and the print without the removed painel; an api integration test of the batch through `POST /api/sync/ops`; a Playwright test at 768 px that removes a coluna holding a sheet and undoes it, removes a painel, reloads, restores it from the list with its colunas, sheets and TAGs, and removes a local, with the sync badge settled and the server holding the same rows; the durability specs touched run on the matrix projects; AD-6 gains a dated note on the removal (explicit tombstones in one batch plus the derived ancestor rule) and `deferred-work.md` closes O1 and the two `block/{id}/location_id` entries it answers.
 
+**As built, 2026-10-13 (PR #126, merged as `cbce841`; contract 17, minimum 17; no seed version):**
+
+- *(narrowing)* The rail's local row reads "Local · ⟨Função⟩ · N painéis · N de M fichas" with no SE data line (Matheus, 2026-10-13; `DESIGN.md` dated strike).
+- *(narrowing)* A local that already holds colunas directly (every tree and template from before this story, the seeded standard template included) keeps the current-coluna palette target, its menu item reads "Adicionar bloco" and it still offers "Adicionar coluna"; "Adicionar equipamento no local" shows only on a local with no direct coluna.
+- *(narrowing)* The mock's menu items "Mover para outro local", "Duplicar" and "Adicionar abaixo" for locations are not built on either surface.
+- *(narrowing)* Below 768 px a location row reorders by the Overflow and Alt+arrows only (no drag handle, no Position box).
+- *(narrowing)* A photo's place text names coluna and local without the painel.
+- *(narrowing)* The Playwright spec seeds the two sheets' content by office ops and concludes them by tap, and generates at 1280 px with *Agrupar por tipo* off; the other print combinations are kernel and DOCX tests. A location with no sheet underneath is removed with no confirmation.
+- *(open, Matheus)* (h) a sheet another device created in, or moved into, a location whose removal is older than the newest revision stays hidden with no restore entry; (k) an undone "Adicionar coluna / painel / local" is offered in "Restaurar ficha removida" until the next emission, as an undone "Adicionar bloco" already is.
+- *(open, Bruno)* the authored copy listed in the PR body (O4 and the removal texts); the type-group titles under a painel (criterion added to Story 14.4).
+- Known open, in `deferred-work.md` under Story 14.2: entries (a) to (k).
+
 ~~**Acceptance Criteria added 2026-10-09 (Local › Cabine › Coluna):**~~ *(superseded 2026-10-10)*
 
 **Given** the kernel
@@ -3207,6 +3219,18 @@ So that the relatório records the room itself and an NC becomes a point of atte
 **Then** it shows the issued banner the sheet shows, with its own kernel sentence (the sheet's says "esta ficha")
 
 **Definition of Done, in addition (2026-10-13):** the Playwright spec also covers the first item answered in Rascunho (status op in the batch, the toast) and an item answered in Emitido (reopened, mark-as-sent withdrawn); AD-22, AD-15 and `docs/kbs/architecture/kernel-and-seed.md` gain dated notes.
+
+**As built, 2026-10-13 (Stories 14.3 and 14.4 in one batch, PR #127, merged as `f1f7ec9`; contract 18, minimum 18; seed v4):**
+
+- Templates reach seed v4 by a server step at every api start (`upgradeTemplateSeeds`) that moves each live template's `seed_version` only; no relatório is rewritten. *(accepted)* A relatório created offline from a template row the device has not pulled since the move is born on the old seed and has no checklist.
+- *(narrowing)* The capture surface (`/relatorio/:id/local/:locationId/verificacoes`) is one column with no relatório rail beside it, and has no read-only state.
+- *(narrowing)* An NC site row is the sheet's checklist row: no photo tile inside the expansion, no photo count in the reason, no "Outro…" chip; beside a denied camera "Adicionar fotos" saves the picked files at once; the Caption composer opens a site photo as free text.
+- *(narrowing)* The type-group titles under a painel read "⟨grupo⟩ do ⟨painel⟩ — ⟨local⟩" (the recommended wording, authored, pending Bruno); the print mock's unnumbered group headings were not built; a relatório on v3 that already holds painéis prints the new titles too.
+- *(narrowing)* A site-item key outside the closed list is answered `op_path_unknown`; a wrong kind or a wrong seed is answered `op_invalid`.
+- *(open, Matheus)* O1 "Concluir verificações" stores nothing (it names what is missing or returns to the tree); O2 a C or NC against NA contradiction on a site item is not a decision in the Conflict view; O3 NC site items are not in "NC abertos" and a local's counter stays sheets-only; O4 no photo-read NC draft on a site item.
+- *(open, Bruno)* the NC phrases of the 19 items and of the no-break item, and the other authored copy listed in the PR body.
+- Gate: the story gate was green on the touched specs; the widened Playwright runs kept two reds on untouched specs, both open in `deferred-work.md` (`points` 6.6-E2E-011; WebKit `ficha.durability` F-11). The wave gate on the integrated main rechecks both.
+- Known open, in `deferred-work.md` under Stories 14.3 and 14.4: the boot wiring of `upgradeTemplateSeeds` has no test; "Legendar" on a site photo is untested; `location_id` is unchecked at the fold.
 
 ### Story 14.4: Verificações do local: the printed table
 

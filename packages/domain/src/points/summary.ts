@@ -1,7 +1,7 @@
 import type { PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { naoEnsaiadasText } from '../relatorio/progress.ts';
-import { sitePointTitle } from '../relatorio/site-checklist.ts';
+import { siteLocalOf, sitePointTitle } from '../relatorio/site-checklist.ts';
 import { locationTree, treeNodes, type TreeEquipmentNode, type TreeLocationNode } from '../relatorio/tree.ts';
 import { plural } from '../text/plural.ts';
 import { derivedPoints, equipmentPointTitle, type DerivedPoint } from './derived.ts';
@@ -54,10 +54,14 @@ function equipmentNodeIndex(tree: readonly TreeLocationNode[]): Map<string, Tree
  * Coluna 12"); Story 14.3: for a point created from a site item, its local ("1° Subsolo ·
  * Verificações do local", `sitePointTitle`) while that local is live; else "Geral" (also for
  * equipment no live sheet of this relatório holds, and for a local that is not live here).
+ *
+ * 2026-10-13 (review of batch e14b): the local is resolved as every site reader resolves it
+ * (`siteLocalOf`): a live root cabine of a relatório whose seed ships a site list. A
+ * `location_id` naming a painel, a coluna or no location reads "Geral".
  */
 export function pointTitle(
   point: Pick<PointRow, 'equipment_id'> & { location_id?: string | null },
-  snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'>,
+  snapshot: Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'blocks' | 'equipment'>,
 ): string {
   if (point.equipment_id !== null) {
     const node = equipmentNodeIndex(locationTree(snapshot)).get(point.equipment_id);
@@ -65,8 +69,8 @@ export function pointTitle(
   }
   const locationId = point.location_id ?? null;
   if (locationId !== null) {
-    const local = snapshot.locations.find((row) => row.id === locationId && row.removed_at === null);
-    if (local !== undefined) return sitePointTitle(local.name);
+    const local = siteLocalOf(snapshot, locationId);
+    if (local !== null) return sitePointTitle(local.name);
   }
   return POINT_TITLE_GENERAL;
 }
