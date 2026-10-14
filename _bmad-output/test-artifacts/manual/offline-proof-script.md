@@ -159,6 +159,65 @@ secure context.
 Complete the result file, put the screenshots beside it, and link it from the pull request
 of whichever story this run gates.
 
+### Epic 13 capture and entry steps (added 2026-10-14, E13-A3)
+
+Steps 9 to 13 owe the device evidence of Stories 13.1 to 13.6 (`epics.md`: the 13.1 and
+13.2 Definitions of Done, and the 13.3 and 13.6 narrowings that left the iPad and WebKit
+legs to this script). Run them in the same sitting as steps 1-4 and 6-8, online unless a
+step says otherwise, and file them in the same result file and step 8 link. They run
+together with the device items E6-A5, E8-A7, E9-A10, E10-A7 and E12-A3.
+
+### 9. Record the capture size per path (Story 13.1)
+
+On each device, open a ficha, take one plate shot and one ficha photo from the in-app
+camera, and, where the browser offers it, one through the system camera fallback
+(`<input capture>`). From a connected desktop inspector, read each stored photo's pixel
+width and height and its byte size.
+
+**Record:** per device and per path (`ImageCapture.takePhoto()`, video-frame grab, `<input
+capture>`): the long edge in pixels, the byte size, and which path the app took. Android
+Chrome is expected to use `takePhoto()`; iPadOS Safari the video-frame grab. A long edge
+above 2560 px or a path other than the expected one is a fail.
+
+### 10. Torch, zoom and tap-to-focus in a dark cubicle (Story 13.2, Android)
+
+On the Android tablet, in a dark cubicle or a room with the lights off, open the camera
+on a plate. Turn the torch on, zoom in with pinch and with the visible control, tap a
+point of the preview to focus, take the shot, then leave the camera and open it again.
+
+**Record:** whether the torch lit, whether both zoom inputs worked, whether tap-to-focus
+changed focus, whether the plate is legible in the stored photo, and whether the torch was
+off on reopening. On the iPad, record only that the torch, zoom and focus controls are
+hidden (not disabled) where the capability is absent, and that the shutter and "Concluir
+fotos" stay uncovered.
+
+### 11. Pinch-zoom a photo on the iPad (Story 13.3)
+
+On the iPad, open a stored plate photo in the viewer. Pinch in, pan to a corner, double-tap,
+then use the visible zoom buttons and "Ajustar à tela".
+
+**Record:** whether the pinch and pan followed the fingers without the page itself zooming,
+whether the double-tap toggled zoom, and whether "Ajustar à tela" showed the whole photo.
+
+### 12. Commit a decimal by tap on iOS (Story 13.4)
+
+On the iPad (and on an iPhone if one is at hand), in a ficha numeric cell, type a decimal
+value with the on-screen decimal pad, then tap the next cell instead of pressing Return.
+
+**Record:** whether the value was kept after the tap (reopen the ficha to check), whether
+the sheet showed "Salvo", and which key the keyboard showed in place of Return.
+
+### 13. The WebKit legs on the iPad (Stories 13.3 and 13.6)
+
+Playwright WebKit cannot store a photo Blob, so these two legs run here. Still on the iPad:
+
+1. Story 13.3: step 11 is this leg; nothing more to do.
+2. Story 13.6: fill the device storage until a shot is refused for quota (or, where that is
+   not practical, record that and skip), close the tab, reopen the app, and open the ficha.
+
+**Record:** whether the refused shot is still offered after reopening (it survives the
+tab), and that no other photo was lost.
+
 ---
 
 ## Filing a partial run

@@ -48,6 +48,11 @@ so a PARTIAL run says plainly what has and has not happened.
 | 6 | Storage figures read | | | |
 | 7 | Camera opens from a page and the photo reaches it | | | |
 | 8 | Result filed and linked from the pull request | | | |
+| 9 | Capture size per path: long edge, bytes, path taken (expected video-frame grab) | | | |
+| 10 | Torch, zoom and focus controls hidden where absent; shutter and "Concluir fotos" uncovered | | | |
+| 11 | Pinch, pan, double-tap and "Ajustar à tela" on a stored photo | | | |
+| 12 | Decimal typed on the decimal pad kept after a tap on the next cell | | | |
+| 13 | A quota-refused shot survives closing the tab | | | |
 
 ## Steps — Android tablet (Chrome)
 
@@ -61,6 +66,8 @@ so a PARTIAL run says plainly what has and has not happened.
 | 6 | Storage figures read | | | |
 | 7 | Camera opens from a page and the photo reaches it | | | |
 | 8 | Result filed and linked from the pull request | | | |
+| 9 | Capture size per path: long edge, bytes, path taken (expected `takePhoto()`) | | | |
+| 10 | Dark cubicle: torch, pinch and control zoom, tap-to-focus, plate legible, torch off on reopen | | | |
 
 ### Values from step 3, and what was still there in step 4
 

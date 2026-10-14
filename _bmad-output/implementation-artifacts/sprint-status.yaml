@@ -896,13 +896,13 @@ action_items:
     epic: 13
     action: "E13-A3 Add the Epic 13 device steps to test-artifacts/manual/offline-proof-script.md (13.1 capture size per path on Android and iPad, 13.2 torch/zoom/focus in a dark cubicle, 13.3 iPad pinch, 13.4 iOS decimal pad commit by tap, 13.3/13.6 WebKit legs), meeting the 13.1/13.2 DoD as written; run with E6-A5, E8-A7, E9-A10, E10-A7, E12-A3; evidence in test-artifacts/manual"
     owner: "coordinator (script lines); Matheus (device run)"
-    status: open
+    status: done  # 2026-10-14: steps 9-13 in test-artifacts/manual/offline-proof-script.md and rows in its result template; the device run itself is Matheus's, with the other device items
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-103-e13-a4-ledger-cleanup"
     epic: 13
     action: "E13-A4 deferred-work: close the EXPERIENCE.md Salvo row (landed #109); re-own the panel wait-text/cancel-order test row and the audit worker invalid-payload test row to the next carry-over batch; record the 2026-10-07 every-device decision on the panel palette row and route or accept the two-device double-confirm risk; target 0 rows owned by a finished batch"
     owner: "coordinator"
-    status: open
+    status: done  # 2026-10-14: deferred-work Salvo row closed (#109), panel palette decision recorded and the double-confirm risk routed, wait-text and ?panel= rows re-owned
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-104-e13-a5-handoff-every-phase"
     epic: 13
@@ -920,7 +920,7 @@ action_items:
     epic: 13
     action: "E13-A7 Playbook test rules: a story adopting a browser API with a fallback ships an e2e on the real surface stubbing the API to reject and to hang (plate-shot-fallback.spec.ts pattern); an e2e that captures asserts a property of the captured file (its size), not only that it exists"
     owner: "coordinator (playbook)"
-    status: open
+    status: done  # 2026-10-14: rules in epic-batch-orchestrator.md section 4
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-107-e13-a8-epic-13-product-questions"
     epic: 13
@@ -938,7 +938,7 @@ action_items:
     epic: 13
     action: "E13-A10 Measure the 2026-10-08 story gate and load rules on Epic 14's first wave from the PR bodies (lock wait, gate wall time, reruns per batch); fold in E11-A3 lock-holder visibility if a wait exceeds 60 min; target every lock wait under 60 min, at most one rerun per batch"
     owner: "coordinator"
-    status: open
+    status: done  # 2026-10-14: measured on PRs #126-#130 in epic-14-retro-2026-10-14.md (longest lock wait 1074 s, gate wall 10-34 min, #127 two reruns); E11-A3 not folded (no wait over 60 min)
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-14-retro-item-110-e14-a1-full-and-matrix-on-62db6c2"
     epic: 14
@@ -950,7 +950,7 @@ action_items:
     epic: 14
     action: "E14-A2 deferred-work: close or re-own the ten Epic 14 rows owned by a finished event (epic QA, integrated review, wave gate, browser pass, unscheduled epic 14 deferred sweep, batch e14a), close the boot-wiring and relatorio-tree-edges rows, fold in the E13-A4 leftovers (1382, 1403); target 0 rows owned by a finished batch, review, QA, gate or unscheduled sweep"
     owner: "coordinator"
-    status: open
+    status: done  # 2026-10-14: deferred-work rows owned by finished events closed or re-owned (boot-wiring and relatorio-tree-edges closed); the rows held by co14a/co14b left to them
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-112-e14-a3-closed-list-spec-rule"
     epic: 14
@@ -962,7 +962,7 @@ action_items:
     epic: 14
     action: "E14-A4 Definition of Ready check: every verb a criterion asks of a surface (remove, move, restore) is checked against what the surface does today and against the ledger; a missing capability becomes named scope with its own criteria before the build (14.2 removal gap, deferred-work 1203); target 0 scope additions at PR review in the next epic"
     owner: "Matheus (with John at story writing); coordinator (DoR check)"
-    status: open
+    status: done  # 2026-10-14: rule in epic-batch-orchestrator.md section 6 and docs/kbs/workflow/story-delivery.md
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-114-e14-a5-patched-not-re-reviewed"
     epic: 14
