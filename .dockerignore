@@ -1,2 +1,9 @@
 # Local credentials never enter an image build context
 secrets/
+
+# 2026-10-14: a checkout that ran the dev stack holds empty, owner-only node_modules folders
+# under apps/* and packages/* (the compose volumes' mount points). `COPY apps/api/ apps/api/`
+# in apps/api/Dockerfile.prod copied that empty folder over the installed dependencies, so the
+# migration task could not find ./node_modules/.bin/tsx. Dependencies are installed inside the
+# image; none come from the build context.
+**/node_modules
