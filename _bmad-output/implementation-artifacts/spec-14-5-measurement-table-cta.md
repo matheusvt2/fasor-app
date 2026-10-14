@@ -231,6 +231,20 @@ is the place.
   covers the CTA sheet with no code of this batch: nothing here filters locations on its own.
 - The content of the type is a draft to adjust after first use; v5 freezes at merge, so a change is a new version.
 
+### 2026-10-14: merged onto main, gated, PR opened
+
+After PR #126 and PR #127 merged, `origin/main` (`3acbddb`) was merged at `5020a894`: main's version whole for
+every file this batch did not change, the Story 14.5 delta re-applied over main on the 114 it did (four conflicts,
+both sides kept). `git diff origin/main` is those 114 files. A kernel test was added for a CTA sheet under a
+removed painel (`packages/domain/src/print/measurement-print.test.ts`), and two ficha tests took main's `Fresh`
+shape (`allLocations`). This supersedes the residual risk about `origin/main` above and closes ledger R7.
+
+Story gate on `5020a894`, one run under the host lock (wait 0 s, 581 s): `lint` 0 (14 s); `static` 0 (22 s);
+`test:api` 81 files, 623 passed (214 s); `test:unit` 4054 of 4055 (147 s), the one red the ledger's known flake
+`quantity-stepper.test.tsx` "clamped to 99", green on the re-run on the same commit, 305 files and 4055 passed
+(146 s); the four touched specs on `desktop-chrome` and `durability-desktop-chrome`, 23 passed (160 s);
+`cta.durability.spec.ts` on `durability-android-chrome` and `durability-webkit`, 2 passed (24 s).
+
 ## Design Notes
 
 **Keys (cross-batch contract).** Block type `chave_transferencia_automatica`. Test and sub-block keys
