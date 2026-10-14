@@ -2,7 +2,7 @@
 title: 'Epic 14 carry-over B: camera and relatorio tree split, camera focus return, pnpm probe files'
 type: 'refactor'
 created: '2026-10-14'
-status: 'in-review'
+status: 'done'
 baseline_revision: '0335616287d78c8348b452be13bdc7a91df727b0'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -108,3 +108,14 @@ Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter, 
   - `[medium]` `[patch]` (ECH 2) Focus on a soon-removed row at the first frame ends the watch — same root cause and fix as the row above.
   - `[low]` `[reject]` (ECH 3) `npm_config_store_dir` and the `pnpm_store` volume are left unused — the new compose comment says pnpm 12 ignores that line; removing the volume and the Dockerfile mount points is wider than this item and changes no behavior. Listed as known open in the PR.
   - `[false]` `[reject]` (ECH 4) Moving the store into the `node_modules_root` volume means wiping node_modules wipes the store — the store was already there: in `fasor-co14b-api-1`, `/workspace/node_modules/.pnpm-store/v11` exists and `/pnpm-store` is empty, so the setting names the store pnpm already used.
+
+## Auto Run Result
+
+Status: done (2026-10-14, batch co14b)
+
+- Summary: `camera-view.tsx` (992 lines) split into `camera-session.tsx` 288, `camera-stream.ts` 173, `camera-controls.ts` 243, `camera-dialog.tsx` 194, `camera-single-shot.tsx` 154, `camera-view.tsx` 43 (re-exports); one pointer core `input/pointer-gesture.ts` 104 used by `use-pinch-zoom.ts` (310) and the camera controls; `relatorio-tree.tsx` 1057 -> 533 with `relatorio-tree-shared.tsx` 149, `relatorio-tree-sumario.tsx` 299, `relatorio-tree-rail.tsx` 107. `restoreFocus` gains opt-in `until: 'moved'` (ends the watch on a deliberate move after the target held the focus); the camera's `returnFocus` uses it. `docker-compose.yml` `x-app-env` sets `pnpm_config_store_dir`, which skips pnpm's store probe (no `_tmp_*` after a fresh install).
+- Tests: new `pointer-gesture.test.ts`, `focus-restore.test.ts`, one drag-vs-tap case in `camera-view.test.tsx`, `@p0 E14-CO-B-E2E-001` in `e2e/verificacoes-local.spec.ts`. No existing assertion changed.
+- Review: 5 findings; 3 patched (2 medium focus-watch rows as one fix, 1 medium test gap), 1 low rejected, 1 false. No deferrals.
+- Follow-up review recommended: false (patched counts: medium 3, high 0; first pass; the focus patch has a boundary unit test and the e2e re-ran green).
+- Verification: lint 0, static 0, test:api 0; test:unit 4109/4110 (the one red, `measurement-test-section.test.tsx` axe test timeout, untouched by this batch, passes alone 25/25); touched specs 248/255 on the first run under load, the 4+5 load reds green on an isolated one-worker rerun (31/31). Mutation run: E14-CO-B-E2E-001 red without `until: 'moved'`, green with it.
+- Residual risks: the `npm_config_store_dir` line and the empty `pnpm_store` volume are now dead config (left in place).
