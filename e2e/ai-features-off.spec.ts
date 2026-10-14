@@ -1,3 +1,4 @@
+import { equipmentTypesOf, SEED_VERSION } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -102,7 +103,7 @@ test('@p0 11.8-E2E-001 AI features off: no plate, panel or NC-draft entry; "Ler 
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
   await expect(contatos.getByRole('group', { name: 'Rascunho da observação do item 8' })).toBeVisible({ timeout: 30_000 });
 
-  // The Sumário's field palette: the eight types, no "Fotografar equipamento".
+  // The Sumário's field palette: every type the seed ships (Epic 14 QA Q-1: from the kernel), no "Fotografar equipamento".
   await page.goto(`/relatorio/${ids.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
@@ -113,7 +114,7 @@ test('@p0 11.8-E2E-001 AI features off: no plate, panel or NC-draft entry; "Ler 
   // E11-Q6: no camera row, so no orphan "Ou" before the heading.
   await expect(palette.getByText('Escolha o tipo · TAG sugerida por tipo + coluna', { exact: true })).toBeVisible();
   await expect(palette.getByText(/^Ou escolha/)).toHaveCount(0);
-  await expect(palette.locator('.pf-field')).toHaveCount(8);
+  await expect(palette.locator('.pf-field')).toHaveCount(equipmentTypesOf(SEED_VERSION).length);
   await expect(palette.locator('.pal-camera')).toHaveCount(0);
   await expect(palette.getByRole('button', { name: /Fotografar equipamento/ })).toHaveCount(0);
   await page.keyboard.press('Escape');

@@ -14,7 +14,7 @@ import { sheetOrder } from '../relatorio/ficha.ts';
 import { numberPhotos, photoRefLabel } from '../photos/numbering.ts';
 import { extractPhotoRefs, photoToken, pointTextTokens } from './refs.ts';
 import { derivedPointReasonText, derivedPoints, groupDerivedPoints, notTestedPointText, type DerivedPoint } from './derived.ts';
-import { livePoints, ncRowPointPositions, ncRowPointsText, newPointRow, photoCitedByText, pointMoveOrderKey, pointsCitingPhoto, pointsWithRemovedPhotos } from './checks.ts';
+import { livePoints, livePointsOfLocals, ncRowPointPositions, ncRowPointsText, newPointRow, photoCitedByText, pointMoveOrderKey, pointsCitingPhoto, pointsWithRemovedPhotos } from './checks.ts';
 import { pointOrderText, pointsHeadingText, pointsSummary, pointsSummaryText, pointTitle, sectionEightEntries } from './summary.ts';
 
 const A = '019966b0-0070-7000-8000-00000000000a';
@@ -285,9 +285,9 @@ describe('6.6-UNIT new points and moves', () => {
     const three = point(withPoints(base, one, two), {});
     const points = [three, one, two];
     expect(livePoints(points).map((row) => row.id)).toEqual([one.id, two.id, three.id]);
-    const key = pointMoveOrderKey(points, two.id, 0)!;
+    const key = pointMoveOrderKey(points, base.locations, two.id, 0)!;
     expect(livePoints([three, one, { ...two, order_key: key }]).map((row) => row.id)).toEqual([two.id, one.id, three.id]);
-    expect(pointMoveOrderKey(points, one.id, 0)).toBeNull();
+    expect(pointMoveOrderKey(points, base.locations, one.id, 0)).toBeNull();
     expect(newPointRow({ id: A, relatorioId: base.relatorio.id, text: '', equipmentId: null, origin: 'manual', action: null }, [])).toMatchObject({
       order_key: 'a0',
       action: null,
@@ -350,5 +350,34 @@ describe('E6-Q11 the points a photo or an NC row already has', () => {
     expect(ncRowPointsText([])).toBeNull();
     expect(ncRowPointsText([1])).toBe('Ponto de atenção 1');
     expect(ncRowPointsText([1, 2, 4])).toBe('Pontos de atenção 1, 2 e 4');
+  });
+});
+
+describe('Epic 14 QA Q-2: a point on a removed local holds no slot', () => {
+  const base = fresh();
+  // A root local with a coluna under it.
+  const local = base.locations.find((location) => location.parent_id === null && base.locations.some((child) => child.parent_id === location.id))!;
+  // H is a site point created first on the local; A and B are manual points after it.
+  const site = point(base, { location_id: local.id });
+  const a = point(withPoints(base, site), {});
+  const b = point(withPoints(base, site, a), {});
+  const points = [site, a, b];
+  const removed = base.locations.map((location) => (location.id === local.id ? { ...location, removed_at: T0.toISOString() } : location));
+
+  it('reads the points section 8 draws from raw rows: the snapshot rule over the location rows', () => {
+    expect(livePointsOfLocals(points, base.locations).map((row) => row.id)).toEqual([site.id, a.id, b.id]);
+    expect(livePointsOfLocals(points, removed).map((row) => row.id)).toEqual([a.id, b.id]);
+    // A coluna under the removed local is hidden too, and so is a point naming it.
+    const coluna = base.locations.find((location) => location.parent_id === local.id)!;
+    expect(livePointsOfLocals([{ ...site, location_id: coluna.id }, a], removed).map((row) => row.id)).toEqual([a.id]);
+  });
+
+  it('moves A down past B while the removed local still holds H: one key, A lands 2 de 2', () => {
+    const key = pointMoveOrderKey(points, removed, a.id, 1);
+    expect(key).not.toBeNull();
+    const moved = livePointsOfLocals([site, { ...a, order_key: key! }, b], removed).map((row) => row.id);
+    expect(moved).toEqual([b.id, a.id]);
+    // With the local live, the same move is a different slot (H holds the first one).
+    expect(pointMoveOrderKey(points, base.locations, a.id, 1)).toBeNull();
   });
 });

@@ -1,10 +1,9 @@
-import { SEED_VERSION, SYSTEM_IDENTITY_ACTOR, templateSeedUpgrade, toIso, type TemplateRow } from '@app/domain';
+import { SEED_VERSION } from '@app/domain';
 import { and, eq, isNull } from 'drizzle-orm';
 import { now } from '../clock.ts';
-import { newId } from '../ids.ts';
 import { log, logError, type LogFields } from '../log.ts';
 import { applyServerBatch, ServerBatchRejectedError, type Tx } from '../sync/apply.ts';
-import { serverOp } from '../sync/server-op.ts';
+import { templateSeedMoveOp, templateSeedTarget, templateSeedVersionOf } from '../sync/template-seed-step.ts';
 import type { Db } from './client.ts';
 import { asCompanyId, type CompanyId } from './repositories/company-id.ts';
 import { entities } from './schema.ts';
@@ -26,6 +25,10 @@ import { entities } from './schema.ts';
  * under its company's lock, with the row read again there: a device edit, a removal or
  * another instance's move that landed after the scan is never overwritten. Idempotent: a
  * second run finds nothing to move and writes no op.
+ *
+ * Epic 14 QA Q-7: the per-template step (the kernel's answer, the op) is
+ * `sync/template-seed-step.ts`, which the push also runs for a template a device created,
+ * duplicated or restored on an older version after this pass (`applyOps`). This pass stays.
  */
 
 /** Thrown inside the batch's lock when the row no longer needs this move: rolls back, then skipped. */
@@ -37,30 +40,11 @@ export interface TemplateSeedUpgradeDeps {
   error?: (msg: string, fields?: LogFields) => void;
 }
 
-/** The version a stored template row should move to (`templateSeedUpgrade`), or null; a row that is no object, or carries no `seed_version` string, has none. */
-function targetOf(row: unknown): string | null {
-  if (typeof row !== 'object' || row === null) return null;
-  const { seed_version, blocks, skeleton } = row as Partial<Pick<TemplateRow, 'seed_version' | 'blocks' | 'skeleton'>>;
-  if (typeof seed_version !== 'string') return null;
-  return templateSeedUpgrade({ seed_version, blocks: blocks as TemplateRow['blocks'], skeleton: skeleton as TemplateRow['skeleton'] });
-}
-
-function seedVersionOf(row: unknown): unknown {
-  return typeof row === 'object' && row !== null ? (row as { seed_version?: unknown }).seed_version : undefined;
-}
+const targetOf = templateSeedTarget;
+const seedVersionOf = templateSeedVersionOf;
 
 async function moveOne(db: Db, companyId: CompanyId, id: string, target: string): Promise<boolean> {
-  const op = serverOp({
-    opId: newId(),
-    companyId,
-    actorId: SYSTEM_IDENTITY_ACTOR,
-    clientTs: toIso(now()),
-    kind: 'put',
-    path: `template/${id}/seed_version`,
-    value: target,
-    scope: 'company',
-    batchId: newId(),
-  });
+  const op = templateSeedMoveOp(companyId, id, target);
   try {
     await applyServerBatch(db, companyId, [op], {
       now,

@@ -28,7 +28,7 @@ import { Button, ConfirmDialog, OverflowMenu, TextButton, type OverflowMenuActio
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitBatch } from '../../db/commit.ts';
-import { pointRowsOf } from '../../db/home-store.ts';
+import { allLocationRows, pointRowsOf } from '../../db/home-store.ts';
 import { useRelatorioPhotoTiles, type PhotoTile } from '../../db/photo-store.ts';
 import { newId } from '../../ids.ts';
 import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from '../../input/focus-restore.ts';
@@ -101,7 +101,8 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
     const landing = moveLandingIndex(live.length, toIndex);
     const batch = await edits
       .write(async () => {
-        const key = pointMoveOrderKey(await pointRowsOf(db, relatorioId), point.id, toIndex);
+        // Epic 14 QA Q-2: the key counts the points the list draws (a point on a removed local holds no slot).
+        const key = pointMoveOrderKey(await pointRowsOf(db, relatorioId), await allLocationRows(db, relatorioId), point.id, toIndex);
         if (key === null) return null;
         return (await commitBatch(db, [putPointOp(author, relatorioId, point.id, 'order_key', key)], { newId, now })).batch_id;
       })

@@ -1,5 +1,6 @@
 import { FUNCAO_KEYS, type FuncaoKey } from '../schemas/block-config.ts';
 import type { LocationRow } from '../schemas/entities.ts';
+import { siteChecklistOf } from '../seed/definitions.ts';
 
 /*
  * Story 14.2 (Local › Painel › Coluna): the Função of a local. On screen the root location
@@ -71,4 +72,32 @@ export type BlockLocationRow = Exclude<LocationRow, { kind: 'painel' }>;
 /** True for a location a block can sit on (see `BlockLocationRow`); a painel only groups colunas. */
 export function takesBlocks<T extends { kind: LocationRow['kind'] }>(location: T): location is T & { kind: 'cabine' | 'coluna' } {
   return location.kind !== 'painel';
+}
+
+/**
+ * Epic 14 QA Q-17: the "Adicionar local" dialog's description for a template or relatório on
+ * `seedVersion`. On a seed with site items (v4 or later) it is the mock's sentence
+ * (`42-template-composer.html` `#tc-local-desc`), which names the Verificações do local; on
+ * v1 to v3, where a local has none, the same sentence without that part.
+ */
+export function localDialogDescription(seedVersion: string): string {
+  return siteChecklistOf(seedVersion) === null
+    ? // authored (Story 14.2): the mock's sentence without its "Verificações do local" part.
+      'Cada cabine é um local. O local guarda a função, as características da SE, o ambiente de ensaio e o agrupamento por tipo. Os equipamentos ficam direto no local ou nas colunas de um painel.'
+    : 'Cada cabine é um local. O local guarda a função, as características da SE, o ambiente de ensaio, o agrupamento por tipo e as Verificações do local. Os equipamentos ficam direto no local ou nas colunas de um painel.';
+}
+
+/**
+ * Epic 14 QA Q-17: the note under the "Do local" block (`60-ficha.html` CB-ENT), saying where
+ * CARACTERÍSTICAS DA SE and AMBIENTE DE ENSAIO print on `seedVersion` (`section9Layout`): on
+ * v4 or later once under the local's own heading, before its sheets; on v1 to v3 inside the
+ * local's first sheet.
+ */
+export function cabineDataNoteText(seedVersion: string): string {
+  // authored (Story 14.2): CB-ENT's note, "cabine" reworded to "local".
+  const edit = 'Editar aqui altera o local — todas as fichas do local passam a mostrar o mesmo valor.';
+  return siteChecklistOf(seedVersion) === null
+    ? `Impressas uma vez, na primeira ficha do local. ${edit}`
+    : // authored: Epic 14 QA Q-17 (open for Bruno).
+      `Impressas uma vez, sob o título do local, antes das fichas. ${edit}`;
 }

@@ -1,9 +1,10 @@
 import {
   formatDecimalGroupedPtBr,
   isInsulationFamily,
+  measurementReadingRefusal,
   nextUnit,
   numberEchoText,
-  parseReadingPtBr,
+  parseMeasurementReadingPtBr,
   suggestionAnnouncement,
   suggestionValueText,
   type CellAddress,
@@ -51,6 +52,8 @@ export type FieldCell<Address extends FieldAddress = FieldAddress> = Pick<Evalua
   address: Address;
   fallback?: EvaluatedCell['fallback'];
   outlier?: EvaluatedCell['outlier'];
+  /** Epic 14 QA Q-3: the kernel's message for a zero or negative reading on a cell that takes only a positive one; absent or null elsewhere. */
+  positiveOnlyText?: string | null;
 };
 
 /** A dictated reading's value is a number cell (`suggestionValueText`). */
@@ -120,7 +123,8 @@ export function MeasurementField<Address extends FieldAddress>({
     // typed over it is not read as "-5".
     storedText: cell.state === 'empty' || cell.state === 'not_measured' ? '' : cell.displayText,
     storedRaw: cell.state === 'measured' ? cell.raw : null,
-    parse: (text) => parseReadingPtBr(text, { units: cell.units, defaultUnit: slotUnit }),
+    // Epic 14 QA Q-3: the kernel refuses a zero or negative reading where the criterion compares with the lowest.
+    parse: (text) => parseMeasurementReadingPtBr(text, cell, slotUnit),
     commit: (value) => {
       const result = write(value === null ? null : { raw: value.raw, unit: value.unit, state: 'measured' });
       if (value !== null && value.unit !== cell.unit) setUnitChoice(value.unit);
@@ -268,13 +272,19 @@ export function MeasurementField<Address extends FieldAddress>({
       ) : null}
       {number.invalid ? (
         <span className="helper" id={helperId}>
-          {t.invalid}
+          {measurementReadingRefusal(number.text, cell, slotUnit) ?? t.invalid}
         </span>
       ) : null}
-      {!number.focused && !number.invalid && cell.helperText !== null ? (
+      {!number.focused && !number.invalid && cell.helperText !== null && out ? (
         <div className="mf-helper" role="status" id={helperId}>
           {cell.helperText}
           <TextButton onPress={markRestricted}>{t.markRestricted}</TextButton>
+        </div>
+      ) : null}
+      {/* Epic 14 QA Q-3: a helper with no verdict (a zero reading to check) is neutral and offers no "Com restrições". */}
+      {!number.focused && !number.invalid && cell.helperText !== null && !out ? (
+        <div className="outlier-helper" role="status" id={helperId}>
+          {cell.helperText}
         </div>
       ) : null}
       {!number.focused && !number.invalid && outlier !== null ? (
@@ -304,7 +314,7 @@ export function DictatedMeasurementField({
   onRun,
 }: {
   api: FichaApi;
-  cell: EvaluatedCell;
+  cell: EvaluatedCell & Pick<FieldCell, 'positiveOnlyText'>;
   label: string;
   reading: { raw: string; unit: string | null };
   /** The dictation is over (written or dropped). */
@@ -318,7 +328,7 @@ export function DictatedMeasurementField({
   const { address } = cell;
   const initial = formatDecimalGroupedPtBr(reading.raw);
   const [text, setText] = useState(initial);
-  const [invalid, setInvalid] = useState(false);
+  const [invalid, setInvalid] = useState<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
   /** While a value is being written, a second blur or tap writes nothing. */
   const written = useRef(false);
@@ -336,9 +346,9 @@ export function DictatedMeasurementField({
   const commitTyped = (): boolean => {
     if (written.current) return true;
     if (text === initial) return false;
-    const parsed = parseReadingPtBr(text, { units: cell.units, defaultUnit: reading.unit });
+    const parsed = parseMeasurementReadingPtBr(text, cell, reading.unit);
     if (parsed === 'invalid') {
-      setInvalid(true);
+      setInvalid(measurementReadingRefusal(text, cell, reading.unit) ?? t.invalid);
       return false;
     }
     if (parsed === null) {
@@ -352,6 +362,12 @@ export function DictatedMeasurementField({
   /** "Confirmar" and Enter: the reading as heard when unchanged, else what was typed. */
   const confirm = (): boolean => {
     if (text !== initial) return commitTyped();
+    // Epic 14 QA Q-3: a reading heard at or below zero on a positive-only cell is refused as a typed one is.
+    const refusal = measurementReadingRefusal(initial, cell, reading.unit);
+    if (refusal !== null) {
+      setInvalid(refusal);
+      return false;
+    }
     write(reading);
     return true;
   };
@@ -366,9 +382,9 @@ export function DictatedMeasurementField({
         announcement={suggestionAnnouncement('suggested', valueText)}
         onConfirm={() => void confirm()}
         after={
-          invalid ? (
+          invalid !== null ? (
             <span className="helper" id={helperId}>
-              {t.invalid}
+              {invalid}
             </span>
           ) : null
         }
@@ -376,14 +392,14 @@ export function DictatedMeasurementField({
         <input
           className="mf-value"
           aria-labelledby={labelId}
-          aria-invalid={invalid || undefined}
-          aria-describedby={invalid ? helperId : undefined}
+          aria-invalid={invalid !== null || undefined}
+          aria-describedby={invalid !== null ? helperId : undefined}
           inputMode="decimal"
           value={text}
           data-cell-input={cellKey(address)}
           onChange={(event) => {
             setText(event.target.value);
-            if (invalid) setInvalid(false);
+            if (invalid !== null) setInvalid(null);
           }}
           onBlur={(event) => {
             // A tap on this field's "Confirmar" decides on its own, never twice.

@@ -3,6 +3,7 @@ import {
   duplicateTagSuggestion,
   duplicateTagText,
   locationPathText,
+  locationRemovalAsks,
   locationRemovalConfirmLabel,
   locationRemovalConfirmText,
   locationRemovalConfirmTitle,
@@ -371,11 +372,15 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
           locationId: node.id,
           projectId: context.projectId,
           relatorioId: context.relatorioId,
+          // Epic 14 QA Q-6: a local's site photos and points count, as its site answers do.
+          files: current.files,
+          points: current.points,
           ...COUNTS_ONLY,
         });
-        // With a sheet underneath, the consequence is stated first; with none, the location
-        // leaves at once (a location gone meanwhile is answered by the action's own toast).
-        if (plan !== null && plan.counts.sheets > 0) setDialog({ kind: 'remove-location', node, plan });
+        // With a sheet or a local's site work underneath (`locationRemovalAsks`), the consequence
+        // is stated first; with none, the location leaves at once (a location gone meanwhile is
+        // answered by the action's own toast).
+        if (plan !== null && locationRemovalAsks(plan.counts)) setDialog({ kind: 'remove-location', node, plan });
         else actions.removeLocation(node);
       },
     }),
@@ -563,6 +568,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
       {dialog?.kind === 'local-add' ? (
         <LocalDialog
           mode="add"
+          seedVersion={context.seedVersion}
           onClose={() => closeDialog(() => footRef.current?.querySelector<HTMLElement>('button') ?? null)}
           onSubmit={(chosen) => {
             setDialog(null);
@@ -573,6 +579,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
       {dialog?.kind === 'local-edit' ? (
         <LocalDialog
           mode="edit"
+          seedVersion={context.seedVersion}
           initial={{ funcao: dialog.node.funcao, name: dialog.node.name }}
           onClose={() => closeDialog(() => locationChevron(rootRef.current, dialog.node.id))}
           onSubmit={(chosen) => {

@@ -119,7 +119,7 @@ export const ALL_HERE: RemovalVisibility = { companyDownloaded: true, summaries:
 const opIds = idSequence('019966b0-0153-7000-8000-');
 
 /** One batch: every op carries the same `batch_id` and the same `client_ts`, as `buildBatch` stamps it. */
-function batch(relatorioId: string, at: Date, drafts: readonly { kind: 'remove' | 'put'; path: string; scope: 'relatorio' | 'project' }[], device: string): Op[] {
+function batch(relatorioId: string, at: Date, drafts: readonly { kind: 'remove' | 'put'; path: string; scope: 'relatorio' | 'project'; value?: string }[], device: string): Op[] {
   const batch_id = opIds();
   return drafts.map((draft) =>
     opSchema.parse({
@@ -130,7 +130,7 @@ function batch(relatorioId: string, at: Date, drafts: readonly { kind: 'remove' 
       project_id: draft.scope === 'project' ? TEST_PROJECT : null,
       relatorio_id: draft.scope === 'relatorio' ? relatorioId : null,
       path: draft.path,
-      value: null,
+      value: draft.value ?? null,
       prev_op_id: null,
       batch_id,
       meta: null,
@@ -155,8 +155,13 @@ export function removalOps(relatorioId: string, plan: Pick<LocationRemovalPlan, 
   );
 }
 
-/** A restore's batch from its plan: `removed_at` puts of null on the locations, the blocks and the equipment. */
-export function restoreOps(relatorioId: string, plan: Pick<LocationRestorePlan, 'locationIds' | 'blockIds' | 'equipmentIds'>, at: Date, device: string = TEST_DEVICE): Op[] {
+/** A restore's batch from its plan: `removed_at` puts of null on the locations, the blocks and the equipment, then (Q-13) the `order_key` puts. */
+export function restoreOps(
+  relatorioId: string,
+  plan: Pick<LocationRestorePlan, 'locationIds' | 'blockIds' | 'equipmentIds'> & Partial<Pick<LocationRestorePlan, 'orderKeys'>>,
+  at: Date,
+  device: string = TEST_DEVICE,
+): Op[] {
   return batch(
     relatorioId,
     at,
@@ -164,6 +169,7 @@ export function restoreOps(relatorioId: string, plan: Pick<LocationRestorePlan, 
       ...plan.locationIds.map((id) => ({ kind: 'put' as const, scope: 'relatorio' as const, path: locationFieldPath(id, 'removed_at') })),
       ...plan.blockIds.map((id) => ({ kind: 'put' as const, scope: 'relatorio' as const, path: blockFieldPath(id, 'removed_at') })),
       ...plan.equipmentIds.map((id) => ({ kind: 'put' as const, scope: 'project' as const, path: equipmentFieldPath(id, 'removed_at') })),
+      ...(plan.orderKeys ?? []).map(({ id, orderKey }) => ({ kind: 'put' as const, scope: 'relatorio' as const, path: locationFieldPath(id, 'order_key'), value: orderKey })),
     ],
     device,
   );

@@ -1,11 +1,13 @@
-import { cellAddressesOf, getDefinition, SEED_VERSION, type BlockRow, type EquipmentRow, type FieldDef, type LocationRow, type OpDraft, type TemplateRow } from '@app/domain';
+import { cellAddressesOf, getDefinition, newEquipmentBlock, newPointRow, SEED_VERSION, SITE_ITEM_KEYS, type BlockRow, type EquipmentRow, type FieldDef, type LocationRow, type OpDraft, type TemplateRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { extractStructure, paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
+import { newId } from '../apps/api/src/ids.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { addLocal } from './support/local.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
+import { pushRevision } from './support/push-server-ops.ts';
 import { emCampoDraft, officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 import { resetEmpresaB, withSeedDb } from './support/reset-empresa-b.ts';
 import { SYNC_CYCLE_TIMEOUT, syncNowAndReturn, waitForCompanyPull } from './support/sync.ts';
@@ -996,4 +998,149 @@ test('@p0 14.2-E2E-004 at 768: a coluna holding a sheet is removed after its con
   expect(held(server, painelKeys)).toEqual(held(device, painelKeys));
   expect([equipment1Id, equipment2Id].map((id) => (server.get(`equipment/${id}`) as EquipmentRow).tag)).toEqual([tag1, tag2]);
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
+});
+
+/** Opens "Restaurar ficha removida" from the relatório's Overflow and returns the dialog. */
+async function openRestore(page: Page): Promise<Locator> {
+  await page.getByRole('button', { name: 'Mais opções do relatório' }).click();
+  await page.getByRole('menuitem', { name: 'Restaurar ficha removida' }).click();
+  const restore = page.getByRole('dialog', { name: 'Restaurar ficha removida' });
+  await expect(restore).toBeVisible();
+  return restore;
+}
+
+test('@p1 14.2-E2E-005 Epic 14 QA Q-6: a local holding only its site work (answers, a photo, a point) asks before it leaves; the sentence and the restore entry name them', async ({ page }) => {
+  test.setTimeout(240_000);
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await signIn(page, account.email);
+  const { relatorioId } = await pushNewRelatorio(page, account, database, { emCampo: true });
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
+  await openSection9(page);
+
+  // A local with no equipment, its 19 site items answered on its Verificações surface.
+  const NAME = 'Sala só de verificações';
+  await addLocal(page, { funcao: 'Distribuição', name: NAME });
+  await local(page, NAME).locator(':scope > .s9-loc-row .s9-loc-body .s9-verif').click();
+  await expect(page.locator('.sheet-header .sheet-title')).toHaveText(`Verificações do local — ${NAME}`, { timeout: 30_000 });
+  await page.getByRole('group', { name: 'Ações em lote das verificações do local' }).getByRole('button', { name: 'Marcar os restantes como Conforme' }).click();
+  await expect(page.getByTestId('local-progress')).toHaveText('19 de 19');
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Ver árvore' }).click();
+  await expect(tree(page)).toBeVisible({ timeout: 30_000 });
+
+  // A photo of one of its site items and the point made from it, written on another device and pulled.
+  const localId = [...(await deviceTreeRows(page))].map(([, row]) => row as LocationRow).find((row) => row.relatorio_id === relatorioId && row.name === NAME)!.id;
+  const itemKey = SITE_ITEM_KEYS[0];
+  const photoId = newId();
+  const scope = { relatorioId };
+  const photo = {
+    id: photoId,
+    company_id: account.companyId,
+    relatorio_id: relatorioId,
+    kind: 'photo',
+    sha256: 'e'.repeat(64),
+    mime: 'image/jpeg',
+    size: 1000,
+    uploaded_at: null,
+    variants: null,
+    removed_at: null,
+    captured_at: '2026-09-07T12:00:00.000Z',
+    tz_offset: -180,
+    coords: null,
+    local_seq: 1,
+    block_id: null,
+    item_key: itemKey,
+    location_id: localId,
+    caption: null,
+    reading_kind: null,
+    reading_target: null,
+    reading_status: 'none',
+  };
+  const point = newPointRow({ id: newId(), relatorioId, text: 'Extintor vencido', equipmentId: null, origin: 'manual', action: 'Trocar', locationId: localId }, []);
+  await pushDrafts(page, database, [officeDraft(account, scope, `file/${photoId}`, photo, 'create'), officeDraft(account, scope, `point/${point.id}`, point, 'create')]);
+  await syncNowAndReturn(page);
+  await expect.poll(async () => (await entities<{ id: string }>(page)).filter((record) => record.id === photoId || record.id === point.id).length, { timeout: 30_000 }).toBe(2);
+  await openSection9(page);
+
+  // "Remover" asks first now, and names what leaves with the local.
+  await menuOf(page, NAME).click();
+  await page.getByRole('menuitem', { name: 'Remover', exact: true }).click();
+  const confirm = page.getByRole('dialog', { name: `Remover ${NAME}?`, exact: true });
+  await expect(confirm).toHaveAccessibleDescription(`O local, 19 respostas das verificações, 1 foto e 1 ponto de atenção saem do relatório. ${RECOVERABLE}`);
+  await expect(confirm.getByRole('button', { name: 'Cancelar', exact: true })).toBeFocused();
+  await confirm.getByRole('button', { name: 'Remover local', exact: true }).click();
+  await expect(confirm).toBeHidden();
+  await expect(local(page, NAME)).toHaveCount(0);
+
+  // The restore entry says what comes back.
+  const restore = await openRestore(page);
+  const entry = restore.locator('.restore-list > li').filter({ has: page.locator('.rr-primary', { hasText: NAME }) });
+  const detail = 'Local · 19 respostas das verificações · 1 foto · 1 ponto de atenção';
+  await expect(entry.locator('.rr-secondary')).toHaveText(detail);
+  await restore.getByRole('button', { name: `Restaurar ${NAME} — ${detail}`, exact: true }).click();
+  await expect(restore).toBeHidden();
+  await expect(local(page, NAME).locator(':scope > .s9-loc-row .s9-loc-body .s9-verif')).toHaveText('Verificações do local · 19 de 19');
+});
+
+test('@p1 14.2-E2E-006 Epic 14 QA ledger (h): a sheet another device created in a local removed before the newest revision is its own restore entry, and restoring it brings back only that local', async ({ page }) => {
+  test.setTimeout(240_000);
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await signIn(page, account.email);
+  const { relatorioId, projectId } = await pushNewRelatorio(page, account, database, { emCampo: true });
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
+  await waitForCompanyPull(page, database);
+  await openSection9(page);
+
+  // This device removes Geradores (its own sheet goes with it) and syncs.
+  const GERADORES = 'Geradores';
+  const rows = [...(await deviceTreeRows(page))];
+  const geradores = rows.filter(([key]) => key.startsWith('location/')).map(([, row]) => row as LocationRow).find((row) => row.relatorio_id === relatorioId && row.parent_id === null && row.name === GERADORES)!;
+  const ownSheets = rows.filter(([key]) => key.startsWith('block/')).map(([, row]) => row as BlockRow).filter((row) => row.location_id === geradores.id);
+  expect(ownSheets.length).toBeGreaterThan(0);
+  await menuOf(page, GERADORES).click();
+  await page.getByRole('menuitem', { name: 'Remover', exact: true }).click();
+  await page.getByRole('dialog', { name: `Remover ${GERADORES}?`, exact: true }).getByRole('button', { name: 'Remover local', exact: true }).click();
+  await expect(local(page, GERADORES)).toHaveCount(0);
+  await syncNowAndReturn(page);
+
+  // A revision is issued after the removal: the local's own entry is cut from the list.
+  await pushRevision(account.companyId, relatorioId, { number: 1, createdBy: account.userId, createdAt: new Date(Date.now() + 1_000) });
+
+  // A second device that had not seen the removal pushes a sheet it created on Geradores.
+  const created = newEquipmentBlock({
+    blockId: newId(),
+    equipmentId: newId(),
+    relatorioId,
+    projectId,
+    locationId: geradores.id,
+    type: 'tc',
+    tag: 'TC-GER-B',
+    seedVersion: SEED_VERSION,
+    orderKey: 'z0',
+  });
+  await pushDrafts(page, database, [
+    officeDraft(account, { projectId }, `equipment/${created.equipment.id}`, created.equipment, 'create'),
+    officeDraft(account, { relatorioId }, `block/${created.block.id}`, created.block, 'create'),
+  ]);
+  await syncNowAndReturn(page);
+  await openSection9(page);
+  await expect(local(page, GERADORES)).toHaveCount(0);
+
+  // The stranded sheet is its own entry, naming where it is and what its restore brings back.
+  const restore = await openRestore(page);
+  const label = 'TC-GER-B — Geradores · restaura Geradores';
+  await expect(restore.getByRole('button', { name: `Restaurar ${label}`, exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(restore.locator('.restore-list > li').filter({ has: page.locator('.rr-primary', { hasText: GERADORES }) })).toHaveCount(0);
+  await restore.getByRole('button', { name: `Restaurar ${label}`, exact: true }).click();
+  await expect(restore).toBeHidden();
+
+  // Geradores is back with that sheet alone: the sheets the removal tombstoned stay removed.
+  await expandLocation(page, GERADORES);
+  await expect(local(page, GERADORES).locator('li.s9-eq .block-tag')).toHaveText(['TC-GER-B']);
+  const after = await deviceTreeRows(page);
+  expect((after.get(`location/${geradores.id}`) as LocationRow).removed_at).toBeNull();
+  for (const sheet of ownSheets) expect((after.get(`block/${sheet.id}`) as BlockRow).removed_at).toEqual(expect.any(String));
 });

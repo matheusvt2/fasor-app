@@ -493,3 +493,41 @@ describe('14.3 "Verificações do local": the surface', () => {
     expect(phone).toContain('.checklist-row .tri-state { width: 100%; display: grid; order: 3; }');
   });
 });
+
+describe('Epic 14 QA Q-5: the local\'s "Do local" block above the items', () => {
+  it('draws CARACTERÍSTICAS DA SE and AMBIENTE DE ENSAIO expanded before the intro, with no "Ler visor", no line to this surface and no quick notes', async () => {
+    const { container } = await open();
+    const content = container.querySelector('.content')!;
+    const blocks = [...content.querySelectorAll(':scope > section.se-block')];
+    expect(blocks.map((section) => section.querySelector('.section-head h2')!.textContent)).toEqual(['Características da SE', 'Ambiente de ensaio']);
+    // Above the items: both sections come before the intro and the first group.
+    const intro = content.querySelector(':scope > .vl-intro')!;
+    for (const section of blocks) expect(section.compareDocumentPosition(intro) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(blocks[0]!.querySelector('.ficha-da-cabine')).toHaveTextContent('Do local · Cabine de Testes');
+    // v4: SE and AMBIENTE print under the local's heading (`cabineDataNoteText`).
+    expect(blocks[0]!.querySelector('.section-note')).toHaveTextContent('Impressas uma vez, sob o título do local, antes das fichas.');
+    expect(within(content as HTMLElement).queryByRole('button', { name: 'Ler visor' })).toBeNull();
+    expect(content.querySelector('.ficha-local-line')).toBeNull();
+    expect(content.querySelector('.ficha-quick-notes')).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('an SE and an AMBIENTE value are location/{id}/se/* and env/* puts on the local, never a sheet op', async () => {
+    await open();
+    const primaria = screen.getByLabelText('Tensão primária', { exact: true });
+    await userEvent.clear(primaria);
+    await userEvent.type(primaria, '11,95');
+    await userEvent.tab();
+    const temperatura = screen.getByLabelText('Temperatura', { exact: true });
+    await userEvent.clear(temperatura);
+    await userEvent.type(temperatura, '31');
+    await userEvent.tab();
+    await waitFor(async () => expect((await outbox()).map((op) => op.path)).toEqual([`location/${LOCAL}/se/primary_kv`, `location/${LOCAL}/env/temperature_c`]));
+    const ops = await outbox();
+    expect(ops.map((op) => [op.kind, op.value])).toEqual([
+      ['put', { raw: '11.95', unit: 'kV', state: 'measured' }],
+      ['put', { raw: '31', unit: '°C', state: 'measured' }],
+    ]);
+    await waitFor(async () => expect((await localRow()).se.primary_kv).toEqual({ raw: '11.95', unit: 'kV', state: 'measured' }));
+  });
+});

@@ -34,6 +34,8 @@ import {
   siteRailMetaText,
   siteResultOf,
   siteRowText,
+  siteNcWithoutPoint,
+  siteNcWithoutPointText,
   siteUnanswered,
   siteUnansweredText,
   siteUnsetItems,
@@ -569,5 +571,41 @@ describe('14.3 a photo taken on a site item', () => {
     expect(section7Photos(removed).map((row) => [row.number, row.itemLine])).toEqual([[1, null]]);
     const restored = snapshotOf(fold(state(), [remove, f.op({ path: locationFieldPath(SUBSOLO, 'removed_at'), value: null, prev_op_id: remove.op_id })]));
     expect(section7Photos(restored)[0]!.itemLine).toBe('Item 11 · Iluminação de emergência (autonomia mínima de 2 h) · NC');
+  });
+});
+
+describe('Epic 14 QA Q-4: a site NC with no point of attention raises one pending row before issue', () => {
+  const ncOn = (locationId: string, keys: readonly string[], f = opFactory()): Op[] => keys.map((key) => f.op({ path: locationChecklistPath(locationId, key, 'result'), value: 'NC' }));
+  const ncRow = (snapshot: RelatorioSnapshot) => preIssue(snapshot).filter((row) => row.kind === 'site_checklist_nc_without_point');
+
+  it('names every local with more NC items than points naming it, after the unanswered row; pending, never blocking', () => {
+    const state = fold(baseState(), [...ncOn(SUBSOLO, [EMERGENCIA, EXTINTOR]), ...ncOn(ENEL, [EPI])]);
+    // 1° Subsolo: two NC items and one point; Cubículo Enel: one NC and none.
+    const snapshot = snapshotOf(withRows(state, [[entityKey('point', POINT), sitePoint()]]));
+    expect(siteNcWithoutPoint(snapshot)).toEqual([
+      { locationId: ENEL, name: 'Cubículo Enel', nc: 1, points: 0 },
+      { locationId: SUBSOLO, name: '1° Subsolo', nc: 2, points: 1 },
+    ]);
+    const rows = preIssue(snapshot);
+    expect(ncRow(snapshot)).toEqual([
+      { id: 'site_checklist_nc_without_point', row: 'section_9', severity: 'pending', text: 'Verificações do local com NC sem ponto de atenção: Cubículo Enel e 1° Subsolo', kind: 'site_checklist_nc_without_point' },
+    ]);
+    const kinds = rows.map((row) => row.kind);
+    expect(kinds.indexOf('site_checklist_nc_without_point')).toBe(kinds.indexOf('site_checklist_unanswered') + 1);
+    expect(blockingRows(rows).map((row) => row.kind)).toEqual(['parecer_missing']);
+  });
+
+  it('the row goes once each NC item has its point; a removed point or a removed local counts nothing; v1 to v3 raise none', () => {
+    const state = fold(baseState(), ncOn(SUBSOLO, [EMERGENCIA]));
+    expect(ncRow(snapshotOf(state)).map((row) => row.text)).toEqual(['Verificações do local com NC sem ponto de atenção: 1° Subsolo']);
+    expect(ncRow(snapshotOf(withRows(state, [[entityKey('point', POINT), sitePoint()]])))).toEqual([]);
+    expect(ncRow(snapshotOf(withRows(state, [[entityKey('point', POINT), sitePoint({ removed_at: '2026-09-23T12:00:00.000Z' })]])))).toHaveLength(1);
+    // A point of another local does not answer this one's NC.
+    expect(ncRow(snapshotOf(withRows(state, [[entityKey('point', POINT), sitePoint({ location_id: ENEL })]])))).toHaveLength(1);
+    const f = opFactory(new Date('2026-09-23T12:00:00.000Z'));
+    const removed = fold(state, [f.op({ path: locationFieldPath(SUBSOLO, 'removed_at'), value: '2026-09-23T12:00:00.000Z' })]);
+    expect(ncRow(snapshotOf(removed))).toEqual([]);
+    for (const version of ['v1', 'v2', 'v3']) expect(ncRow(snapshotOf(baseState(version)))).toEqual([]);
+    expect(siteNcWithoutPointText([])).toBeNull();
   });
 });

@@ -1,5 +1,6 @@
 import {
   appendObservation,
+  cabineDataNoteText,
   cabineLineText,
   cabineProgress,
   getSeed,
@@ -20,7 +21,7 @@ import { Chip, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { cabineEnvOp, cabineSeOp, sheetObservationsOp } from './ficha-ops.ts';
 import { firstFocusable, ReadOnlyField, SheetField } from './ficha-fields.tsx';
-import type { FichaApi } from './ficha-api.ts';
+import type { FichaApi, LocalApi } from './ficha-api.ts';
 import { envAfter, envLineField, EnvReadDisplayButton, EnvSuggestionFill, useEnvDisplay } from './read-display.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
@@ -47,6 +48,12 @@ type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
  * Story 14.3 (`60-ficha.html` `.cabine-line.ficha-local-line`): under the block, in either
  * shape, the line that opens the local's "Verificações do local" with its counter; none on a
  * relatório whose seed ships no site list.
+ *
+ * Epic 14 QA Q-5: the Verificações do local surface draws the same block above its items, so a
+ * local with no equipment can be filled (`location/{id}/se/*`, `env/*`, the same ops). There
+ * no sheet is open: it takes no block (`LocalApi`), draws no line to the surface it is on
+ * (`siteLine` false) and no "Ler visor" (no `envTarget`: the thermo-hygrometer's shot is a
+ * photo of a sheet); the readings such a shot left still arrive as Suggestion fields.
  */
 export function CabineBlock({
   api,
@@ -55,15 +62,18 @@ export function CabineBlock({
   cabine,
   first,
   envTarget,
+  siteLine: withSiteLine = true,
 }: {
-  api: FichaApi;
+  api: LocalApi;
   /** Story 9.1: the device's rows, for the thermo-hygrometer suggestions. */
   state: EntityState;
   snapshot: RelatorioSnapshot;
   cabine: Cabine;
   first: boolean;
-  /** Story 9.1: the capture target of the thermo-hygrometer shot. */
-  envTarget: () => CaptureTarget;
+  /** Story 9.1: the capture target of the thermo-hygrometer shot; without one (no sheet open) no "Ler visor" is drawn. */
+  envTarget?: () => CaptureTarget;
+  /** Story 14.3: the line to the local's "Verificações do local"; false on that surface itself. */
+  siteLine?: boolean;
 }) {
   const t = copy.ficha.cabine;
   const seHeading = useId();
@@ -92,7 +102,7 @@ export function CabineBlock({
   const altitude = snapshot.relatorio.setup.site_altitude_m;
   const altitudeField = definition.env.find((field) => field.key === 'altitude_m');
 
-  const siteLine = <SiteLine relatorioId={api.relatorioId} snapshot={snapshot} cabineId={cabine.id} />;
+  const siteLine = withSiteLine ? <SiteLine relatorioId={api.relatorioId} snapshot={snapshot} cabineId={cabine.id} /> : null;
 
   if (!expanded) {
     return (
@@ -156,7 +166,7 @@ export function CabineBlock({
           <h2 id={seHeading}>{t.seTitle}</h2>
           <DaCabine name={cabine.name} />
         </div>
-        <p className="section-note">{t.seNote}</p>
+        <p className="section-note">{cabineDataNoteText(snapshot.relatorio.seed_version)}</p>
         <div className="nameplate-grid">{definition.se.map((field) => fieldOf('se', field))}</div>
       </section>
       <section className={sectionClass('ficha-amb')} aria-labelledby={envHeading} onFocus={keepOpen}>
@@ -173,7 +183,7 @@ export function CabineBlock({
               {t.copyPrevious}
             </Chip>
           )}
-          <EnvReadDisplayButton relatorioId={api.relatorioId} cabineId={cabine.id} target={envTarget} />
+          {envTarget === undefined ? null : <EnvReadDisplayButton relatorioId={api.relatorioId} cabineId={cabine.id} target={envTarget} />}
         </div>
         <div className="nameplate-grid">
           {envFields.map((field) => {

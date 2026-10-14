@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FUNCAO_KEYS } from '../schemas/block-config.ts';
-import { defaultLocalName, FUNCAO_OPTIONS, funcaoLabel, takesBlocks } from './local.ts';
+import { cabineDataNoteText, defaultLocalName, FUNCAO_OPTIONS, funcaoLabel, localDialogDescription, takesBlocks } from './local.ts';
 
 /*
  * 14.2-UNIT: a local's Função as the surfaces read it. One function gives the label
@@ -52,5 +52,28 @@ describe('14.2-UNIT takesBlocks', () => {
     expect(takesBlocks({ kind: 'cabine' })).toBe(true);
     expect(takesBlocks({ kind: 'coluna' })).toBe(true);
     expect(takesBlocks({ kind: 'painel' })).toBe(false);
+  });
+});
+
+describe('Epic 14 QA Q-17: the local\'s copy follows the seed version', () => {
+  it('"Adicionar local" names the Verificações do local on a seed with site items (mock 42) and leaves them out on v1 to v3', () => {
+    for (const version of ['v4', 'v5']) {
+      expect(localDialogDescription(version)).toBe(
+        'Cada cabine é um local. O local guarda a função, as características da SE, o ambiente de ensaio, o agrupamento por tipo e as Verificações do local. Os equipamentos ficam direto no local ou nas colunas de um painel.',
+      );
+    }
+    for (const version of ['v1', 'v2', 'v3']) {
+      expect(localDialogDescription(version)).toBe(
+        'Cada cabine é um local. O local guarda a função, as características da SE, o ambiente de ensaio e o agrupamento por tipo. Os equipamentos ficam direto no local ou nas colunas de um painel.',
+      );
+    }
+  });
+
+  it('the "Do local" note says where SE and AMBIENTE print: under the local\'s heading from v4, on its first sheet before', () => {
+    const edit = 'Editar aqui altera o local — todas as fichas do local passam a mostrar o mesmo valor.';
+    expect(cabineDataNoteText('v5')).toBe(`Impressas uma vez, sob o título do local, antes das fichas. ${edit}`);
+    expect(cabineDataNoteText('v4')).toBe(`Impressas uma vez, sob o título do local, antes das fichas. ${edit}`);
+    expect(cabineDataNoteText('v3')).toBe(`Impressas uma vez, na primeira ficha do local. ${edit}`);
+    expect(cabineDataNoteText('v1')).toBe(`Impressas uma vez, na primeira ficha do local. ${edit}`);
   });
 });

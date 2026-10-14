@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { materializeEntity } from '../ops/materialize.ts';
 import type { Op } from '../ops/op.ts';
 import { emptySheet, type BlockRow, type FileRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
+import { blockConfigWithOption, blockConfigWithSubBlock } from '../relatorio/measurement-evaluation.ts';
 import { getDefinition, SEED_VERSION } from '../seed/definitions.ts';
+import { defaultBlockConfig } from '../seed/template.ts';
 import { opFactory, TEST_COMPANY, TEST_RELATORIO } from '../test-support.ts';
 import { syncCounts } from '../sync/counts.ts';
 import { mergeInfoOf, mergeInfoText, pulledMergePairs, type MergeInfoContext } from './info.ts';
@@ -349,5 +351,46 @@ describe('pulledMergePairs', () => {
     expect(pulledMergePairs([nc, c], [c], E_DEVICE)).toEqual([]);
     // No op before it on the path: nothing to merge with.
     expect(pulledMergePairs([], [c], E_DEVICE)).toEqual([]);
+  });
+});
+
+describe('Epic 14 QA R1: a concurrent block/{id}/config pair names the keys that differ', () => {
+  const CTA = 'chave_transferencia_automatica';
+  const ctaContext = (): MergeInfoContext => ({
+    ...context([]),
+    blocks: [{ ...blockRow(), block_type: CTA, seed_version: 'v5' }],
+    equipment: [{ id: EQUIPMENT, tag: 'CTA-C01' }],
+  });
+  const path = `block/${BLOCK}/config`;
+  const base = defaultBlockConfig('v5', CTA) as unknown as JsonValue;
+
+  it('A sets polos 4, B switches E6 off: the line names polos and E6 with the kernel labels', () => {
+    const { e, a } = scenario();
+    const eduardo = e(path, blockConfigWithSubBlock(base, 'cta_termografia', false));
+    const ana = a(path, blockConfigWithOption(base, 'polos', '4'));
+    const info = mergeInfoOf(ana, eduardo, null)!;
+    expect(info).toMatchObject({ rule: 'latest_edit', block_id: BLOCK });
+    expect(mergeInfoText(info, ctaContext())).toBe('CTA-C01: configuração de Ana mantida (a mais recente prevalece); diferem: polos, E6');
+  });
+
+  it('an option written on one side only at its default is no difference; identical configs keep the line as today', () => {
+    const { e, a } = scenario();
+    const atDefault = e(path, blockConfigWithOption(base, 'polos', '3'));
+    const same = a(path, base);
+    // The option at its default on one side only: the two configs show the same sheet, worded as before.
+    const info = mergeInfoOf(same, atDefault, null)!;
+    expect(mergeInfoText(info, ctaContext())).toBe('CTA-C01: alteração de Ana mantida (a mais recente prevalece)');
+    const tensao = a(path, blockConfigWithOption(base, 'tensao', 'mt'));
+    const both = mergeInfoOf(tensao, atDefault, null)!;
+    expect(mergeInfoText(both, ctaContext())).toBe('CTA-C01: configuração de Ana mantida (a mais recente prevalece); diferem: tensão');
+  });
+
+  it('a seeded type names a switched test by its label', () => {
+    const { e, a } = scenario();
+    const seeded = defaultBlockConfig(SEED_VERSION, 'chave_seccionadora') as unknown as JsonValue;
+    const first = e(path, blockConfigWithSubBlock(seeded, 'resistencia_contato', false));
+    const second = a(path, seeded);
+    const info = mergeInfoOf(second, first, null)!;
+    expect(mergeInfoText(info, context())).toBe('SEC-C12: configuração de Ana mantida (a mais recente prevalece); diferem: ensaio de resistência ôhmica de contato');
   });
 });

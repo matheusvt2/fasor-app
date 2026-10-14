@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import type { Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
+import { paletteRowOrder, relatorioSeedVersion, typeLabels } from './support/palette.ts';
 import { devicePhotos } from './support/photos.ts';
 import { pushSuggestion } from './support/push-server-ops.ts';
 import { holdPhotoBytes, pushReadingStatus, READING_ACTOR, serverRow } from './support/reading-ops.ts';
@@ -23,6 +24,8 @@ import { syncNow } from './support/sync.ts';
 
 let account: SeedAccount;
 let database: string;
+/** The opened relatório's seed version: the palette rows and the chips come from it (Epic 14 QA Q-1). */
+let seedVersion: string;
 test.beforeEach(({ seed }) => {
   account = seed.companies[1];
   database = deviceDatabaseName(account.userId);
@@ -64,6 +67,7 @@ async function openRelatorio(page: Page, width: number): Promise<{ relatorioId: 
   const ids = await pushNewRelatorio(page, account, database);
   await page.goto(`/relatorio/${ids.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
+  seedVersion = await relatorioSeedVersion(page, database, ids.relatorioId);
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
@@ -80,11 +84,12 @@ async function openPalette(page: Page): Promise<Locator> {
   const tile = palette.locator('.pal-camera .camera-capture-tile');
   await expect(tile).toHaveText('Fotografar equipamento');
   await expect(tile).toHaveAccessibleDescription('Uma foto da frente do painel: tipo, coluna e TAG sugeridos; a mesma foto vira a placa da ficha.');
-  // The camera row comes first, above "Ou escolha o tipo" and the eight types.
+  // The camera row comes first, above "Ou escolha o tipo", the eight types and each later group
+  // the seed ships ("Outros equipamentos" and its library types from v5), read from the kernel.
   const order = await palette.locator('.pal-camera, .palette-group:not(.palette-where), .pf-field').evaluateAll((nodes) =>
     nodes.map((node) => (node.classList.contains('pal-camera') ? 'camera' : node.classList.contains('palette-group') ? node.textContent : 'type')),
   );
-  expect(order).toEqual(['camera', 'Ou escolha o tipo · TAG sugerida por tipo + coluna', ...Array(8).fill('type')]);
+  expect(order).toEqual(['camera', ...paletteRowOrder(seedVersion, 'Ou escolha o tipo · TAG sugerida por tipo + coluna')]);
   return palette;
 }
 
@@ -128,7 +133,7 @@ test('@p0 9.2-E2E-001 online: the panel suggestion reads "Criar SEC-C09-2 · Cha
   await expect(dialog).toBeVisible();
   // Online, the server reads the photo; the chips are usable meanwhile.
   await expect(dialog.getByRole('status')).toHaveText('Lendo a foto…');
-  await expect(dialog.locator('.chip-row .chip')).toHaveCount(8);
+  await expect(dialog.locator('.chip-row .chip')).toHaveText(typeLabels(seedVersion));
   await expect(dialog.locator('.suggestion-field')).toHaveCount(0);
   const created = await photoRecord(page, photoId);
   expect(created).toMatchObject({ reading_kind: 'panel', reading_status: 'queued', block_id: null, reading_target: { location_id: expect.any(String) } });
@@ -193,7 +198,7 @@ test('@p0 9.2-E2E-002 offline: the type chips alone create the block (type plus 
   await expect(dialog.locator('.btn-reason')).toHaveText('Sem sinal, a foto fica guardada: o bloco é criado pelo tipo e a foto já vira a placa dele.');
   await expect(dialog.getByText('Toque no tipo do equipamento')).toBeVisible();
   const chips = dialog.locator('.chip-row.chips-recent .chip');
-  await expect(chips).toHaveCount(8);
+  await expect(chips).toHaveText(typeLabels(seedVersion));
   await expect(dialog.locator('.chip-other')).toHaveCount(0);
   // Nothing is proposed until a type is tapped.
   await expect(dialog.locator('.suggestion-field')).toHaveCount(0);
@@ -219,7 +224,7 @@ test('@p0 9.2-E2E-002 offline: the type chips alone create the block (type plus 
   expect(await photoRecord(page, photoId)).toMatchObject({ reading_kind: 'plate', reading_status: 'queued', block_id: blockId });
 });
 
-test('@p0 9.2-E2E-003 at 390 px the result dialog and its eight chips fit with no horizontal overflow; "Cancelar" removes the unconfirmed photo', async ({ page, context }) => {
+test('@p0 9.2-E2E-003 at 390 px the result dialog and every type chip fit with no horizontal overflow; "Cancelar" removes the unconfirmed photo', async ({ page, context }) => {
   test.setTimeout(120_000);
   await openRelatorio(page, 390);
   await context.setOffline(true);
@@ -233,6 +238,8 @@ test('@p0 9.2-E2E-003 at 390 px the result dialog and its eight chips fit with n
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(390 + 0.5);
   const row = dialog.locator('.chip-row');
+  // Every type the seed ships (nine on v5), each inside the 390 px width.
+  await expect(row.locator('.chip')).toHaveText(typeLabels(seedVersion));
   expect(await row.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(0);
   for (const chip of await row.locator('.chip').all()) {
     const chipBox = (await chip.boundingBox())!;

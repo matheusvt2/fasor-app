@@ -1,4 +1,4 @@
-import { defaultLocalName, FUNCAO_MAX_LENGTH, FUNCAO_OPTIONS, type FuncaoKey } from '@app/domain';
+import { defaultLocalName, FUNCAO_MAX_LENGTH, FUNCAO_OPTIONS, localDialogDescription, type FuncaoKey } from '@app/domain';
 import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import { Button, FormDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -28,6 +28,8 @@ export interface LocalDialogProps {
   mode: 'add' | 'edit';
   /** The local's stored Função and name when editing. */
   initial?: { funcao: string | null; name: string };
+  /** Epic 14 QA Q-17: the template's or relatório's seed version, for the description (`localDialogDescription`). */
+  seedVersion: string;
   onSubmit: (result: LocalDialogResult) => void;
   onClose: () => void;
 }
@@ -37,7 +39,7 @@ type Choice = FuncaoKey | typeof OUTRA | null;
 
 const isKey = (value: string): value is FuncaoKey => FUNCAO_OPTIONS.some((option) => option.key === value);
 
-export function LocalDialog({ mode, initial, onSubmit, onClose }: LocalDialogProps) {
+export function LocalDialog({ mode, initial, seedVersion, onSubmit, onClose }: LocalDialogProps) {
   const t = copy.localDialog;
   const stored = initial?.funcao ?? null;
   const [choice, setChoice] = useState<Choice>(stored === null ? null : isKey(stored) ? stored : OUTRA);
@@ -132,7 +134,7 @@ export function LocalDialog({ mode, initial, onSubmit, onClose }: LocalDialogPro
       className="tc-local-dialog"
     >
       <p className="t-body" id={descriptionId}>
-        {t.description}
+        {localDialogDescription(seedVersion)}
       </p>
       <div className="field" role="radiogroup" aria-labelledby={funcaoLabelId} aria-describedby={descriptionId}>
         <span className="field-label" id={funcaoLabelId}>

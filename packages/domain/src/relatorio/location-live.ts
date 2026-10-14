@@ -64,3 +64,18 @@ export function hiddenLocationIds(locations: readonly LivenessRow[]): Set<string
   for (const location of locations) if (!live.has(location.id)) hidden.add(location.id);
   return hidden;
 }
+
+/**
+ * Story 14.3, Epic 14 QA Q-2: the points kept on live locals. A point created from a site item
+ * names its local (`location_id`); while that local is not live among `locations` (removed,
+ * under a removed row, or a row the input does not hold) the point is out of every count,
+ * list and move with it, and comes back with the local's restore. A point naming no location
+ * is kept. The snapshot and every reader of raw point rows (the reorder key, the "N de M"
+ * place) read this one rule, so the list drawn and the key written count the same points.
+ * Order and liveness of the points themselves are the caller's.
+ */
+export function pointsOnLiveLocals<P extends { location_id?: string | null }>(points: readonly P[], locations: readonly LivenessRow[]): P[] {
+  if (!points.some((point) => (point.location_id ?? null) !== null)) return [...points];
+  const liveIds = liveLocationIds(locations);
+  return points.filter((point) => (point.location_id ?? null) === null || liveIds.has(point.location_id!));
+}

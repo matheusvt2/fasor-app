@@ -20,6 +20,8 @@ import {
   panelRetargetOps,
   panelSuggestionStatusOp,
   removedAncestorIds,
+  restoredLocationOrderKeys,
+  restoredOrderKey,
   renamedText,
   siblingLocations,
   suggestTag,
@@ -726,6 +728,8 @@ export function restoreLocationOps(author: Author, relatorioId: string, projectI
     ...plan.locationIds.map((id) => locationRemovedOp(author, relatorioId, id, false)),
     ...plan.blockIds.map((id) => putBlockOp(author, relatorioId, id, 'removed_at', null)),
     ...plan.equipmentIds.map((id) => equipmentRemovedOp(author, projectId, id, false)),
+    // Epic 14 QA Q-13: a location whose key a live sibling took comes back right after it.
+    ...plan.orderKeys.map(({ id, orderKey }) => putLocationOp(author, relatorioId, id, 'order_key', orderKey)),
   ];
 }
 
@@ -744,17 +748,50 @@ export function restoreSheetOps(
   blockId: string,
   equipmentId: string | null,
   equipment: readonly Pick<EquipmentRow, 'id' | 'removed_at'>[],
-  locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'removed_at'>[],
+  locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'order_key' | 'removed_at'>[],
 ): OpDraft[] | null {
   const block = blocks.find((row) => row.id === blockId && row.removed_at !== null);
   if (block === undefined) return null;
+  const ancestors = removedAncestorIds(locations, block.location_id);
   const ops: OpDraft[] = [
-    ...removedAncestorIds(locations, block.location_id).map((id) => locationRemovedOp(author, relatorioId, id, false)),
+    ...ancestors.map((id) => locationRemovedOp(author, relatorioId, id, false)),
+    // Epic 14 QA Q-13: a removed ancestor whose key a live sibling took comes back right after it.
+    ...restoredLocationOrderKeys(locations, ancestors).map(({ id, orderKey }) => putLocationOp(author, relatorioId, id, 'order_key', orderKey)),
     putBlockOp(author, relatorioId, blockId, 'removed_at', null),
   ];
+  // Epic 14 QA Q-13: a live sibling that took its key meanwhile keeps its place; the sheet comes back right after it.
+  const key = restoredOrderKey(
+    blocks.filter((row) => row.location_id === block.location_id),
+    block,
+  );
+  if (key !== null) ops.push(putBlockOp(author, relatorioId, blockId, 'order_key', key));
   const live = equipment.some((row) => row.id === equipmentId && row.removed_at === null);
   if (equipmentId !== null && !live) ops.push(equipmentRemovedOp(author, projectId, equipmentId, false));
   return ops;
+}
+
+/**
+ * Ledger (h), Epic 14 QA: "Restaurar" of a live sheet left under a removed location (a
+ * stranded sheet of the restore list): the removed locations above it come back, root first
+ * (`removedAncestorIds`), and nothing else: the sheets that removal tombstoned stay removed.
+ * Null when the sheet is gone or no longer under a removed location.
+ */
+export function restoreStrandedSheetOps(
+  author: Author,
+  relatorioId: string,
+  blocks: readonly BlockRow[],
+  blockId: string,
+  locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'order_key' | 'removed_at'>[],
+): OpDraft[] | null {
+  const block = blocks.find((row) => row.id === blockId && row.removed_at === null);
+  if (block === undefined) return null;
+  const back = removedAncestorIds(locations, block.location_id);
+  if (back.length === 0) return null;
+  return [
+    ...back.map((id) => locationRemovedOp(author, relatorioId, id, false)),
+    // Epic 14 QA Q-13: a removed ancestor whose key a live sibling took comes back right after it.
+    ...restoredLocationOrderKeys(locations, back).map(({ id, orderKey }) => putLocationOp(author, relatorioId, id, 'order_key', orderKey)),
+  ];
 }
 
 /**

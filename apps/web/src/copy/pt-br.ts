@@ -591,8 +591,7 @@ export const copy = {
     addTitle: 'Adicionar local',
     // The local Overflow's item, as the dialog's title when it edits.
     editTitle: 'Função e nome',
-    // The mock's sentence without its "Verificações do local" part, which Story 14.3 brings.
-    description: 'Cada cabine é um local. O local guarda a função, as características da SE, o ambiente de ensaio e o agrupamento por tipo. Os equipamentos ficam direto no local ou nas colunas de um painel.',
+    // The description is the kernel's, by seed version (Epic 14 QA Q-17: `localDialogDescription`).
     funcaoLabel: 'Função',
     outra: 'Outra',
     otherLabel: 'Qual função',
@@ -1143,8 +1142,7 @@ export const copy = {
       envTitle: 'Ambiente de ensaio',
       // authored (Story 14.2): the group's name with its local.
       daCabine: (name: string) => `Do local · ${name}`,
-      // authored (Story 14.2): `60-ficha.html` CB-ENT's note, "cabine" reworded to "local"; shown on the local's first sheet only.
-      seNote: 'Impressas uma vez, na primeira ficha do local. Editar aqui altera o local — todas as fichas do local passam a mostrar o mesmo valor.',
+      // The note under the SE title is the kernel's, by seed version (Epic 14 QA Q-17: `cabineDataNoteText`).
       // authored: the altitude is confirmed once in the relatório setup (Etapa 5).
       altitudeHelper: 'Do setup do relatório',
       // authored (Story 14.2; open with Bruno): the chip said "Copiar da cabine anterior".

@@ -14,12 +14,15 @@ import {
   measurementCellLabel,
   measurementCells,
   measurementCounts,
+  measurementReadingRefusal,
   measurementRunEnterKeyHint,
   measurementRunTarget,
   measurementStoredText,
   measurementTestTitle,
   measurementValueLabel,
   measurementValues,
+  anyMeasurementToCheck,
+  parseMeasurementReadingPtBr,
   worstMeasurements,
   type EvaluatedMeasurementCell,
   type MeasurementAddress,
@@ -116,7 +119,8 @@ describe('matrix "Relative limit": E1, at most 50 % above the lowest of the same
   it('exactly 50 % above is within; a "Não medido" cell is filled, never judged and never the lowest', () => {
     const edge = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: micro('40'), polo_b: micro('60'), polo_c: micro('60.01') }));
     expect(verdicts(edge, E1, 'lado_normal')).toEqual(['within', 'within', 'out']);
-    expect(cellOf(edge, E1, 'polo_c', 'lado_normal').helperText).toBe('50 % acima do menor do lado (40 µΩ) — critério ≤ 50 %');
+    // Epic 14 QA Q-14: 50,025 % is out, so the helper never rounds it to a percentage within the limit.
+    expect(cellOf(edge, E1, 'polo_c', 'lado_normal').helperText).toBe('50,03 % acima do menor do lado (40 µΩ) — critério ≤ 50 %');
     const notMeasured = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: { raw: '', unit: 'µΩ', state: 'not_measured' }, polo_b: micro('40'), polo_c: micro('70') }));
     expect(cellOf(notMeasured, E1, 'polo_a', 'lado_normal')).toMatchObject({ state: 'not_measured', displayText: '-', verdict: null, missing: false });
     expect(verdicts(notMeasured, E1, 'lado_normal')).toEqual([null, 'within', 'out']);
@@ -137,6 +141,65 @@ describe('matrix "Relative limit": E1, at most 50 % above the lowest of the same
     // Nothing positive: no reference.
     const none = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: micro('0'), polo_b: micro('0') }));
     expect(testOf(none, E1).reference!.cells[0]!.text).toBeNull();
+  });
+});
+
+describe('Epic 14 QA Q-3: a zero or negative reading on E1 is refused at input, and one already stored is to check', () => {
+  const POSITIVE = 'Informe um valor maior que zero: o critério compara com o menor do lado';
+  const CHECK = 'Conferir: valor zero ou negativo, sem comparação com o menor do lado';
+
+  it('0, 40, 41 on Lado Normal: the 0 has no verdict, the "Conferir" helper, and the sheet suggests nothing nor "dentro dos critérios"', () => {
+    const block = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: micro('0'), polo_b: micro('40'), polo_c: micro('41') }));
+    expect(cellOf(block, E1, 'polo_a', 'lado_normal')).toMatchObject({ verdict: null, toCheck: true, helperText: CHECK, positiveOnlyText: POSITIVE });
+    expect(cellOf(block, E1, 'polo_b', 'lado_normal')).toMatchObject({ verdict: 'within', toCheck: false, helperText: null, positiveOnlyText: POSITIVE });
+    expect(testOf(block, E1).reference!.cells[0]!.text).toBe('40 µΩ');
+    expect(anyMeasurementToCheck(evaluate(block))).toBe(true);
+    expect(suggestConclusionPair(block)).toBeNull();
+    const text = composeConclusion(block, definition, CTA_TAG).text;
+    expect(text).not.toMatch(/dentro dos critérios/);
+    expect(text).toMatch(/valores medidos com leitura a conferir/);
+    // The 0 corrected: the suggestion and the "within" wording come back.
+    const fixed = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: micro('39'), polo_b: micro('40'), polo_c: micro('41') }));
+    expect(anyMeasurementToCheck(evaluate(fixed))).toBe(false);
+    expect(conclusionSuggestionText(suggestConclusionPair(fixed)!)).toBe('Aprovado · Sem restrições?');
+    expect(composeConclusion(fixed, definition, CTA_TAG).text).toMatch(/dentro dos critérios/);
+  });
+
+  it('0, 0, 900 and a negative: every non-positive cell is to check, the one positive left unjudged, no suggestion', () => {
+    const zeros = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: micro('0'), polo_b: micro('0'), polo_c: micro('900') }));
+    expect(testOf(zeros, E1).rows.map((row) => row.cells[0]!.toCheck)).toEqual([true, true, false]);
+    expect(verdicts(zeros, E1, 'lado_normal')).toEqual([null, null, null]);
+    expect(suggestConclusionPair(zeros)).toBeNull();
+    const negative = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: micro('-3'), polo_b: micro('40'), polo_c: micro('41') }));
+    expect(cellOf(negative, E1, 'polo_a', 'lado_normal')).toMatchObject({ verdict: null, toCheck: true, helperText: CHECK });
+    expect(suggestConclusionPair(negative)).toBeNull();
+    // A test switched off judges nothing: nothing to check either.
+    const off: BlockRow = { ...zeros, config: blockConfigWithSubBlock(zeros.config, 'cta_resistencia_contato', false) };
+    expect(anyMeasurementToCheck(evaluate(off))).toBe(false);
+  });
+
+  it('the field\'s parse refuses 0 and below on an E1 cell with the kernel message; an E2 cell (absolute) takes 0', () => {
+    const e1 = cellOf(ctaBlock({ polos: '3' }), E1, 'polo_a', 'lado_normal');
+    expect(parseMeasurementReadingPtBr('0', e1, 'µΩ')).toBe('invalid');
+    expect(parseMeasurementReadingPtBr('0,0', e1, 'µΩ')).toBe('invalid');
+    expect(parseMeasurementReadingPtBr('40', e1, 'µΩ')).toEqual({ raw: '40', unit: 'µΩ' });
+    expect(parseMeasurementReadingPtBr('', e1, 'µΩ')).toBeNull();
+    expect(measurementReadingRefusal('0', e1, 'µΩ')).toBe(POSITIVE);
+    expect(measurementReadingRefusal('-5', e1, 'µΩ')).toBe(POSITIVE);
+    expect(measurementReadingRefusal('abc', e1, 'µΩ')).toBeNull();
+    expect(measurementReadingRefusal('41', e1, 'µΩ')).toBeNull();
+    const e2 = cellOf(ctaBlock(), E2, 'a_t', 'aberta');
+    expect(e2.positiveOnlyText).toBeNull();
+    expect(parseMeasurementReadingPtBr('0', e2, 'MΩ')).toEqual({ raw: '0', unit: 'MΩ' });
+    expect(measurementReadingRefusal('0', e2, 'MΩ')).toBeNull();
+  });
+});
+
+describe('Epic 14 QA Q-14: the E1 helper never reads within the limit for an out cell', () => {
+  it('150,4 against 100 reads "50,4 %", 162 against 100 still reads whole', () => {
+    const block = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: micro('100'), polo_b: micro('150.4'), polo_c: micro('162') }));
+    expect(cellOf(block, E1, 'polo_b', 'lado_normal')).toMatchObject({ verdict: 'out', helperText: '50,4 % acima do menor do lado (100 µΩ) — critério ≤ 50 %' });
+    expect(cellOf(block, E1, 'polo_c', 'lado_normal')).toMatchObject({ verdict: 'out', helperText: '62 % acima do menor do lado (100 µΩ) — critério ≤ 50 %' });
   });
 });
 

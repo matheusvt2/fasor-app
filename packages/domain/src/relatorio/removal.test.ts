@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { entityKey, readPath } from '../ops/apply.ts';
 import type { Op } from '../ops/op.ts';
 import { invertBatch } from '../ops/outbox.ts';
+import { sortByOrderKey } from '../ops/order-key.ts';
 import type { BlockRow, EquipmentRow, LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot } from '../schemas/snapshot.ts';
 import { getDefinition } from '../seed/definitions.ts';
@@ -11,6 +12,7 @@ import { atMinutes, idSequence, opFactory, T0, TEST_PROJECT, TEST_USER } from '.
 import { integrityFindings } from './integrity.ts';
 import { ALL_HERE, blockIdOf, fold, locationId, removalFixture, removalOps, restoreOps, rowsIn, tagsOf, type RemovalFixture } from './removal.test-support.ts';
 import {
+  locationRemovalAsks,
   locationRemovalConfirmLabel,
   locationRemovalConfirmText,
   locationRemovalConfirmTitle,
@@ -20,6 +22,7 @@ import {
   locationRestoredText,
   locationRestorePlan,
   removedAncestorIds,
+  restoredOrderKey,
   RESTORE_REMOVED_LABEL,
   type LocationRemovalPlan,
 } from './removal.ts';
@@ -84,7 +87,7 @@ describe('14.2-UNIT locationRemovalPlan', () => {
     expect(names(f, plan.locationIds)).toEqual(['Painel 1 de Subestação', 'Coluna 1 de Painel 1 de Subestação', 'Coluna 2 de Painel 1 de Subestação']);
     expect(tagsOf(f.state, plan.blockIds)).toEqual(['SEC-C01', 'SEC-C01-2', 'DJ-C02', 'TP-C02']);
     expect(equipmentTags(f, plan.equipmentIds)).toEqual(['SEC-C01', 'SEC-C01-2', 'DJ-C02', 'TP-C02']);
-    expect(plan.counts).toEqual({ paineis: 0, colunas: 2, sheets: 4 });
+    expect(plan.counts).toEqual({ paineis: 0, colunas: 2, sheets: 4, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 });
   });
 
   it('a local with sheets directly on it, a coluna directly under it and painéis: the local first, then tree order', () => {
@@ -102,7 +105,7 @@ describe('14.2-UNIT locationRemovalPlan', () => {
     ]);
     expect(tagsOf(f.state, plan.blockIds)).toEqual(['TR-1', 'TR-2', 'DJ-C09', 'SEC-C01', 'SEC-C01-2', 'DJ-C02', 'TP-C02', 'SEC-C01-3']);
     expect(plan.equipmentIds).toHaveLength(8);
-    expect(plan.counts).toEqual({ paineis: 2, colunas: 4, sheets: 8 });
+    expect(plan.counts).toEqual({ paineis: 2, colunas: 4, sheets: 8, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 });
     // The other local is untouched.
     expect(plan.locationIds).not.toContain(locationId(f.state, 'Geradores'));
     expect(plan.blockIds).not.toContain(blockIdOf(f.state, 'CE-GERADORES'));
@@ -111,15 +114,15 @@ describe('14.2-UNIT locationRemovalPlan', () => {
   it('a coluna of a painel and a coluna directly under a local: the coluna and its sheets alone', () => {
     const f = removalFixture();
     const legacy = planOf(f, locationId(f.state, 'Coluna 9', 'Subestação'))!;
-    expect(legacy).toMatchObject({ kind: 'coluna', counts: { paineis: 0, colunas: 0, sheets: 1 } });
+    expect(legacy).toMatchObject({ kind: 'coluna', counts: { paineis: 0, colunas: 0, sheets: 1, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 } });
     expect(names(f, legacy.locationIds)).toEqual(['Coluna 9 de Subestação']);
     expect(tagsOf(f.state, legacy.blockIds)).toEqual(['DJ-C09']);
     const inPainel = planOf(f, locationId(f.state, 'Coluna 2', 'Painel 1'))!;
-    expect(inPainel).toMatchObject({ kind: 'coluna', counts: { paineis: 0, colunas: 0, sheets: 2 } });
+    expect(inPainel).toMatchObject({ kind: 'coluna', counts: { paineis: 0, colunas: 0, sheets: 2, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 } });
     expect(tagsOf(f.state, inPainel.blockIds)).toEqual(['DJ-C02', 'TP-C02']);
     // A location with nothing under it and no sheet: itself alone, every count zero.
     fold(f.state, removalOps(f.relatorioId, { locationIds: [], blockIds: [blockIdOf(f.state, 'CE-GERADORES')], equipmentIds: [] }, T1));
-    expect(planOf(f, locationId(f.state, 'Geradores'))).toMatchObject({ kind: 'cabine', blockIds: [], equipmentIds: [], counts: { paineis: 0, colunas: 0, sheets: 0 } });
+    expect(planOf(f, locationId(f.state, 'Geradores'))).toMatchObject({ kind: 'cabine', blockIds: [], equipmentIds: [], counts: { paineis: 0, colunas: 0, sheets: 0, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 } });
   });
 
   it('a sheet and a coluna already removed inside are skipped: they left before and keep their own timestamp', () => {
@@ -133,7 +136,7 @@ describe('14.2-UNIT locationRemovalPlan', () => {
     expect(tagsOf(f.state, plan.blockIds)).toEqual(['SEC-C01']);
     expect(plan.blockIds).not.toContain(gone);
     expect(equipmentTags(f, plan.equipmentIds)).toEqual(['SEC-C01']);
-    expect(plan.counts).toEqual({ paineis: 0, colunas: 1, sheets: 1 });
+    expect(plan.counts).toEqual({ paineis: 0, colunas: 1, sheets: 1, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 });
   });
 
   it('null for a location that is not live: removed, under a removed location, or unknown', () => {
@@ -366,7 +369,7 @@ describe('14.2-UNIT locationRestorePlan', () => {
     expect(plan.locationIds).toEqual(removal.locationIds);
     expect(plan.blockIds).toEqual(removal.blockIds);
     expect(plan.equipmentIds).toEqual(removal.equipmentIds);
-    expect(plan.counts).toEqual({ paineis: 0, colunas: 2, sheets: 4 });
+    expect(plan.counts).toEqual({ paineis: 0, colunas: 2, sheets: 4, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 });
     // The restore's batch folded: the starting rows again.
     fold(f.state, restoreOps(f.relatorioId, plan, T2));
     for (const [key, row] of start) expect(f.state.get(key), key).toEqual(row);
@@ -383,7 +386,7 @@ describe('14.2-UNIT locationRestorePlan', () => {
     expect(names(f, plan.locationIds)).toEqual(['Painel 1 de Subestação', 'Coluna 1 de Painel 1 de Subestação']);
     expect(tagsOf(f.state, plan.blockIds)).toEqual(['SEC-C01']);
     expect(equipmentTags(f, plan.equipmentIds)).toEqual(['SEC-C01']);
-    expect(plan.counts).toEqual({ paineis: 0, colunas: 1, sheets: 1 });
+    expect(plan.counts).toEqual({ paineis: 0, colunas: 1, sheets: 1, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 });
     fold(f.state, restoreOps(f.relatorioId, plan, T4));
     const rows = rowsIn(f.state);
     expect(rows.locations.find((row) => row.id === painel)!.removed_at).toBeNull();
@@ -411,7 +414,7 @@ describe('14.2-UNIT locationRestorePlan', () => {
     // The painel comes back alone, root first; Coluna 2 left in the painel's removal and stays out.
     expect(plan.locationIds).toEqual([painel, coluna1]);
     expect(tagsOf(f.state, plan.blockIds)).toEqual(['SEC-C01', 'SEC-C01-2']);
-    expect(plan.counts).toEqual({ paineis: 0, colunas: 0, sheets: 2 });
+    expect(plan.counts).toEqual({ paineis: 0, colunas: 0, sheets: 2, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 });
     fold(f.state, restoreOps(f.relatorioId, plan, T3));
     const snapshot = buildSnapshot(f.state, f.relatorioId);
     expect(snapshot.locations.filter((row) => row.parent_id === painel).map((row) => row.id)).toEqual([coluna1]);
@@ -440,7 +443,7 @@ describe('14.2-UNIT locationRestorePlan', () => {
     expect(plan.blockIds).toHaveLength(4);
     expect(plan.blockIds).not.toContain(a.block.id);
     expect(plan.blockIds).not.toContain(b.block.id);
-    expect(plan.counts).toEqual({ paineis: 0, colunas: 3, sheets: 6 });
+    expect(plan.counts).toEqual({ paineis: 0, colunas: 3, sheets: 6, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 });
   });
 
   it('an equipment another sheet kept live is left as it is; null for a location that is not removed', () => {
@@ -486,13 +489,13 @@ describe('14.2-UNIT the texts of a location removal', () => {
     expect(locationRemovalConfirmTitle('Coluna 1 de Painel 1 de Cubículo Enel')).toBe('Remover Coluna 1 de Painel 1 de Cubículo Enel?');
     const tail = ' do relatório. Dá para recuperar até a emissão, em "Restaurar ficha removida".';
     expect(RESTORE_REMOVED_LABEL).toBe('Restaurar ficha removida');
-    expect(locationRemovalConfirmText('painel', { paineis: 0, colunas: 2, sheets: 5 })).toBe(`O painel, 2 colunas e 5 fichas saem${tail}`);
-    expect(locationRemovalConfirmText('coluna', { paineis: 0, colunas: 0, sheets: 1 })).toBe(`A coluna e 1 ficha saem${tail}`);
-    expect(locationRemovalConfirmText('cabine', { paineis: 1, colunas: 2, sheets: 7 })).toBe(`O local, 1 painel, 2 colunas e 7 fichas saem${tail}`);
-    expect(locationRemovalConfirmText('cabine', { paineis: 2, colunas: 1, sheets: 0 })).toBe(`O local, 2 painéis e 1 coluna saem${tail}`);
+    expect(locationRemovalConfirmText('painel', { paineis: 0, colunas: 2, sheets: 5, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 })).toBe(`O painel, 2 colunas e 5 fichas saem${tail}`);
+    expect(locationRemovalConfirmText('coluna', { paineis: 0, colunas: 0, sheets: 1, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 })).toBe(`A coluna e 1 ficha saem${tail}`);
+    expect(locationRemovalConfirmText('cabine', { paineis: 1, colunas: 2, sheets: 7, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 })).toBe(`O local, 1 painel, 2 colunas e 7 fichas saem${tail}`);
+    expect(locationRemovalConfirmText('cabine', { paineis: 2, colunas: 1, sheets: 0, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 })).toBe(`O local, 2 painéis e 1 coluna saem${tail}`);
     // A zero part is left out; with nothing under it the verb is singular.
-    expect(locationRemovalConfirmText('cabine', { paineis: 0, colunas: 0, sheets: 3 })).toBe(`O local e 3 fichas saem${tail}`);
-    expect(locationRemovalConfirmText('painel', { paineis: 0, colunas: 0, sheets: 0 })).toBe(`O painel sai${tail}`);
+    expect(locationRemovalConfirmText('cabine', { paineis: 0, colunas: 0, sheets: 3, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 })).toBe(`O local e 3 fichas saem${tail}`);
+    expect(locationRemovalConfirmText('painel', { paineis: 0, colunas: 0, sheets: 0, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 })).toBe(`O painel sai${tail}`);
     expect(locationRemovalConfirmLabel('coluna')).toBe('Remover coluna');
     expect(locationRemovalConfirmLabel('painel')).toBe('Remover painel');
     expect(locationRemovalConfirmLabel('cabine')).toBe('Remover local');
@@ -510,11 +513,11 @@ describe('14.2-UNIT the texts of a location removal', () => {
   });
 
   it('the restore entry detail: the kind, then what comes back with it', () => {
-    expect(locationRestoreDetailText('painel', { paineis: 0, colunas: 2, sheets: 5 })).toBe('Painel · 2 colunas · 5 fichas');
-    expect(locationRestoreDetailText('coluna', { paineis: 0, colunas: 0, sheets: 3 })).toBe('Coluna · 3 fichas');
-    expect(locationRestoreDetailText('coluna', { paineis: 0, colunas: 0, sheets: 1 })).toBe('Coluna · 1 ficha');
-    expect(locationRestoreDetailText('cabine', { paineis: 1, colunas: 2, sheets: 7 })).toBe('Local · 1 painel · 2 colunas · 7 fichas');
-    expect(locationRestoreDetailText('cabine', { paineis: 0, colunas: 0, sheets: 0 })).toBe('Local');
+    expect(locationRestoreDetailText('painel', { paineis: 0, colunas: 2, sheets: 5, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 })).toBe('Painel · 2 colunas · 5 fichas');
+    expect(locationRestoreDetailText('coluna', { paineis: 0, colunas: 0, sheets: 3, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 })).toBe('Coluna · 3 fichas');
+    expect(locationRestoreDetailText('coluna', { paineis: 0, colunas: 0, sheets: 1, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 })).toBe('Coluna · 1 ficha');
+    expect(locationRestoreDetailText('cabine', { paineis: 1, colunas: 2, sheets: 7, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 })).toBe('Local · 1 painel · 2 colunas · 7 fichas');
+    expect(locationRestoreDetailText('cabine', { paineis: 0, colunas: 0, sheets: 0, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 })).toBe('Local');
   });
 });
 
@@ -709,5 +712,97 @@ describe('14.2-UNIT restorableEntries', () => {
     const after = duplicates();
     expect(after.marked.sort()).toEqual([original, reused.block.id].sort());
     expect(after.findings).toHaveLength(1);
+  });
+});
+
+describe('Epic 14 QA Q-6: a local holding site work asks first, and its sentence and restore entry name what leaves', () => {
+  const OP = '019966b0-0153-7000-8000-000000000001';
+  const cell = (value: string) => ({ value, source_suggestion_id: null, op_id: OP });
+  // Two answered site items (one with an observation) and one observation with no answer.
+  const CHECKLIST = {
+    epi_disponivel: { result: cell('C') },
+    tapete_ou_estrado_isolante: { result: cell('NC'), observation: cell('Tapete rasgado') },
+    bacia_de_contencao_de_oleo: { observation: cell('Sem óleo') },
+  };
+  const withChecklist = (locations: readonly LocationRow[], id: string): LocationRow[] =>
+    locations.map((row) => (row.id === id && row.kind === 'cabine' ? ({ ...row, checklist: CHECKLIST } as unknown as LocationRow) : row));
+
+  it('counts the answered items, the live site photos and the live points naming the local; a local with only that asks', () => {
+    const f = removalFixture();
+    const ger = locationId(f.state, 'Geradores');
+    removeSheet(f, 'CE-GERADORES', T1);
+    const files = [
+      { removed_at: null, location_id: ger },
+      { removed_at: iso(T1), location_id: ger },
+      { removed_at: null, location_id: null },
+      // A file that also names a block is that block's photo, never a site photo.
+      { removed_at: null, location_id: ger, block_id: OP },
+    ];
+    const points = [{ removed_at: null, location_id: ger }, { removed_at: null }];
+    const rows = rowsIn(f.state);
+    const plan = planOf(f, ger, { locations: withChecklist(rows.locations, ger), files, points })!;
+    expect(plan.counts).toEqual({ paineis: 0, colunas: 0, sheets: 0, siteAnswers: 2, sitePhotos: 1, sitePoints: 1 });
+    expect(locationRemovalAsks(plan.counts)).toBe(true);
+    expect(locationRemovalConfirmText('cabine', plan.counts)).toBe(
+      'O local, 2 respostas das verificações, 1 foto e 1 ponto de atenção saem do relatório. Dá para recuperar até a emissão, em "Restaurar ficha removida".',
+    );
+    // An empty local still leaves at once; a painel or a coluna holds no site work.
+    expect(locationRemovalAsks(planOf(f, ger)!.counts)).toBe(false);
+    expect(planOf(f, locationId(f.state, 'Painel 1', 'Subestação'), { files, points })!.counts).toMatchObject({ siteAnswers: 0, sitePhotos: 0, sitePoints: 0 });
+    // One answer alone is enough to ask.
+    expect(locationRemovalAsks({ paineis: 0, colunas: 0, sheets: 0, siteAnswers: 1, sitePhotos: 0, sitePoints: 0 })).toBe(true);
+  });
+
+  it('the restore entry of the removed local names its site work, which comes back with it', () => {
+    const f = removalFixture();
+    const ger = locationId(f.state, 'Geradores');
+    remove(f, ger, T2);
+    const rows = rowsIn(f.state);
+    const files = [{ removed_at: null, location_id: ger }];
+    const points = [
+      { removed_at: null, location_id: ger },
+      { removed_at: null, location_id: ger },
+    ];
+    const entry = restorableEntries({ ...rows, locations: withChecklist(rows.locations, ger), since: null, files, points }).find((row) => row.id === ger)!;
+    expect(entry).toMatchObject({ kind: 'location', detail: 'Local · 1 ficha · 2 respostas das verificações · 1 foto · 2 pontos de atenção' });
+    expect(locationRestoreDetailText('cabine', { paineis: 0, colunas: 0, sheets: 0, siteAnswers: 19, sitePhotos: 2, sitePoints: 1 })).toBe('Local · 19 respostas das verificações · 2 fotos · 1 ponto de atenção');
+  });
+});
+
+describe('Epic 14 QA Q-13: a restored row whose order key a live sibling took comes back right after it', () => {
+  const R = 'rel';
+  const id = (n: number) => `019966b0-0158-7000-8000-${String(n).padStart(12, '0')}`;
+  const [PAINEL, A, B, C, D] = [1, 2, 3, 4, 5].map(id) as [string, string, string, string, string];
+  const coluna = (rowId: string, name: string, orderKey: string, removedAt: string | null = null): LocationRow => ({ id: rowId, relatorio_id: R, parent_id: PAINEL, kind: 'coluna', name, order_key: orderKey, removed_at: removedAt });
+  // The painel's local is not among the rows: an ancestor the input does not hold is not removed.
+  const painel: LocationRow = { id: PAINEL, relatorio_id: R, parent_id: id(6), kind: 'painel', name: 'Painel 1', order_key: 'a0', removed_at: null };
+
+  it('C moved between A and B, removed; D moved to the same place; C restored: one order_key put places C after D, no two live colunas share a key', () => {
+    // A a0, C a1 (its move minted the key between A and B), B a2; C removed at T1; D moved into the hole mints a1 too.
+    const locations = [painel, coluna(A, 'A', 'a0'), coluna(B, 'B', 'a2'), coluna(C, 'C', 'a1', iso(T1)), coluna(D, 'D', 'a1')];
+    const plan = locationRestorePlan({ locations, blocks: [], equipment: [], locationId: C })!;
+    expect(plan.locationIds).toEqual([C]);
+    expect(plan.orderKeys).toHaveLength(1);
+    const key = plan.orderKeys[0]!;
+    expect(key.id).toBe(C);
+    const after = locations.map((row) => (row.id === C ? { ...row, removed_at: null, order_key: key.orderKey } : row));
+    const live = sortByOrderKey(after.filter((row) => row.parent_id === PAINEL && row.removed_at === null));
+    expect(live.map((row) => row.name)).toEqual(['A', 'D', 'C', 'B']);
+    expect(new Set(live.map((row) => row.order_key)).size).toBe(live.length);
+    // With nothing in its slot, the row keeps its own key and no put is written.
+    const free = locations.filter((row) => row.id !== D);
+    expect(locationRestorePlan({ locations: free, blocks: [], equipment: [], locationId: C })!.orderKeys).toEqual([]);
+  });
+
+  it('restoredOrderKey: the block restore reads the same rule (null when the key is free; removed siblings never hold it)', () => {
+    const siblings = [
+      { id: A, order_key: 'a0', removed_at: null },
+      { id: D, order_key: 'a1', removed_at: null },
+      { id: B, order_key: 'a2', removed_at: null },
+    ];
+    const key = restoredOrderKey(siblings, { id: C, order_key: 'a1' })!;
+    expect(key > 'a1' && key < 'a2').toBe(true);
+    expect(restoredOrderKey(siblings, { id: C, order_key: 'a3' })).toBeNull();
+    expect(restoredOrderKey([{ id: D, order_key: 'a1', removed_at: iso(T1) }], { id: C, order_key: 'a1' })).toBeNull();
   });
 });

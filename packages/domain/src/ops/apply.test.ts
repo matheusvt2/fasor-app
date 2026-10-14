@@ -636,6 +636,20 @@ describe('Story 14.2 (contract 17): the painel kind and a local Função', () =>
     expect((ok.get(entityKey('block', B1)) as BlockRow).location_id).toBe(COL);
   });
 
+  it('Epic 14 QA Q-11: a photo op names its block only when the id has the kernel\'s shape; the file row refuses any other string', () => {
+    const f = opFactory();
+    const put = f.op({ path: `file/${PHOTO}/block_id`, value: B1 });
+    const stray = f.op({ path: `file/${PHOTO}/block_id`, value: 'not-a-uuid' });
+    const create = f.op({ kind: 'create', path: `file/${PHOTO}`, value: photo(B1) as never });
+    const strayCreate = { ...create, value: photo('not-a-uuid') } as unknown as Op;
+    expect(targetsOf(put).map((r) => r.key)).toEqual([entityKey('file', PHOTO), entityKey('block', B1)]);
+    expect(targetsOf(create).map((r) => r.key)).toEqual([entityKey('file', PHOTO), entityKey('block', B1)]);
+    expect(targetsOf(stray).map((r) => r.key)).toEqual([entityKey('file', PHOTO)]);
+    expect(targetsOf(strayCreate).map((r) => r.key)).toEqual([entityKey('file', PHOTO)]);
+    expect(() => applyOp(state([entityKey('file', PHOTO), photo(null)]), stray)).toThrow(ZodError);
+    expect(() => applyOp(state(), strayCreate)).toThrow(ZodError);
+  });
+
   it('matrix "Data on a painel": se, env, agrupar_por_tipo and funcao on a painel throw; funcao on a coluna throws; se/env/agrupar on a coluna stay the silent no-op', () => {
     const f = opFactory();
     const onPainel = [

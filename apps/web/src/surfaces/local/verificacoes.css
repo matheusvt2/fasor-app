@@ -30,6 +30,25 @@
 [data-route="/relatorio/:id/local/:locationId/verificacoes"] .vl-obs-line .vl-obs-text { color: var(--ink-primary); font-variant-numeric: tabular-nums; }
 [data-route="/relatorio/:id/local/:locationId/verificacoes"] .vl-obs-line .btn-text { min-height: var(--touch-min); padding: 0; }
 
+/* ---------- 60-ficha.html, the "Do local" block (Epic 14 QA Q-5) ---------- */
+/* The local's CARACTERÍSTICAS DA SE and AMBIENTE DE ENSAIO are drawn above the items here too
+   (`CabineBlock`); the sheet's page rules for that block (`ficha.css`, from `60-ficha.html`'s
+   `<style data-screen="ficha">`), declarations copied verbatim, for this route. The mock has no
+   `.frame-*` rule for them. */
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .nameplate-grid { display: flex; flex-direction: column; gap: var(--sp-3); }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .ficha-da-cabine { display: inline-flex; align-items: center; gap: var(--sp-1); min-height: 28px; padding: 0 var(--sp-3); border: 1.5px solid var(--border-strong); border-radius: var(--r-full); font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); white-space: nowrap; }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .ficha-amb-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-3); }
+/* The fields of that block (`SheetField`): `ficha.css`'s field rules, declarations copied verbatim, for this route. */
+/* `ficha.css` "the app puts a real input there, which fills the value slot (`.mf-value`)" */
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .measurement-field input.mf-value { width: 100%; text-align: right; }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .measurement-field input:focus-visible { outline: none; }
+/* `ficha.css`: mirrors `.measurement-field.is-focus` for the real input's focus */
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .measurement-field:focus-within { border: 3px solid var(--focus); background: var(--focus-fill); }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .measurement-field[aria-invalid="true"] { border-color: var(--nao-conforme); }
+/* `ficha.css`: a native select in the mock's `.field.combobox` box: the chevron sits over the box, not the label. */
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] select.input { appearance: none; padding-right: var(--touch-min); cursor: pointer; }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .field.combobox > .combobox-chevron { top: calc(var(--t-label-size) * var(--t-label-lh) + var(--sp-1)); bottom: auto; height: var(--touch-field); pointer-events: none; }
+
 /* ---------- authored ---------- */
 
 /* DESIGN.md › Sticky action bar: always within the thumb's reach and above the keyboard;

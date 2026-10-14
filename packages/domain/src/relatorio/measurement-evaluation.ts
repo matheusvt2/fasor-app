@@ -1,4 +1,4 @@
-import { formatDecimalGroupedPtBr, INSULATION_UNITS } from '../parse/pt-br-number.ts';
+import { formatDecimalGroupedPtBr, INSULATION_UNITS, parseReadingPtBr, type ParsedReading } from '../parse/pt-br-number.ts';
 import type { SubBlockKey } from '../schemas/block-config.ts';
 import type { BlockRow, Cell, JsonValue } from '../schemas/entities.ts';
 import { formatCriterionValue, scaleToUnit, SEEDED_CRITERIA } from '../seed/criteria.ts';
@@ -151,6 +151,18 @@ export interface EvaluatedMeasurementCell {
   excess: number;
   /** Counted by `sheetProgress`: a typed, non-optional cell with nothing stored. */
   missing: boolean;
+  /**
+   * Epic 14 QA Q-3: a number cell a `relative_to_lowest` criterion in force judges takes only
+   * a reading above zero (a zero or negative one has no percentage above the lowest). The
+   * message the field shows when such a value is typed ("Informe um valor maior que zero: …"),
+   * else null: the field refuses it at input (`parseMeasurementReadingPtBr`).
+   */
+  positiveOnlyText: string | null;
+  /**
+   * Epic 14 QA Q-3: a stored zero or negative reading on such a cell (an older op): no verdict,
+   * a "Conferir" helper, and the sheet's suggestion withheld while it stands.
+   */
+  toCheck: boolean;
 }
 
 export interface EvaluatedMeasurementRow {
@@ -430,8 +442,45 @@ function applyRelative(
       const pct = roundPct(((value - found.lowest.value) / found.lowest.value) * 100);
       const within = pct <= criterion.max_percent;
       // authored: after `63-ficha-cta.html` ("62 % acima do menor do lado (39 µΩ) — critério ≤ 50 %").
-      const helper = `${numberText(Math.round(pct))} % acima do ${lowerFirst(criterion.reference_label)} (${lowestText}) — critério ≤ ${numberText(criterion.max_percent)} %`;
+      const helper = `${numberText(shownPercent(pct, criterion.max_percent, within))} % acima do ${lowerFirst(criterion.reference_label)} (${lowestText}) — critério ≤ ${numberText(criterion.max_percent)} %`;
       mark(cell, within, criterion, helper, within ? 0 : pct / criterion.max_percent - 1);
+    }
+  }
+}
+
+/**
+ * Epic 14 QA Q-14: the percentage an E1 helper shows. Whole, as the mock draws it, unless the
+ * rounding would read within the limit for a cell that is out (150,4 against 100 is 50,4 %,
+ * never "50 %" under "critério ≤ 50 %"): then the fewest decimals that still read above it.
+ */
+function shownPercent(pct: number, maxPercent: number, within: boolean): number {
+  if (within) return Math.round(pct);
+  for (let decimals = 0; decimals <= 4; decimals += 1) {
+    const factor = 10 ** decimals;
+    const shown = Math.round(pct * factor) / factor;
+    if (shown > maxPercent) return shown;
+  }
+  return Math.ceil(pct * 1e4) / 1e4;
+}
+
+/**
+ * Epic 14 QA Q-3: the cells a `relative_to_lowest` criterion in force covers take only a
+ * reading above zero (`positiveOnlyText`); on a test that counts, one already stored at zero
+ * or below (an older op, a hand-written one) is marked to check: no verdict of its own (unless
+ * another criterion put it out), the "Conferir" helper, and `suggestConclusionPair` withheld.
+ */
+function markPositiveOnly(rows: readonly EvaluatedMeasurementRow[], criterion: Extract<MeasurementCriterion, { type: 'relative_to_lowest' }>, live: boolean): void {
+  const reference = lowerFirst(criterion.reference_label);
+  for (const row of rows) {
+    for (const cell of row.cells) {
+      if (cell.kind !== 'number' || cell.fixed !== null) continue;
+      // authored: Epic 14 QA Q-3 (open for Bruno).
+      cell.positiveOnlyText = `Informe um valor maior que zero: o critério compara com o ${reference}`;
+      if (!live || !judged(cell) || Number(cell.raw) > 0 || cell.verdict === 'out') continue;
+      cell.toCheck = true;
+      cell.verdict = null;
+      // authored: Epic 14 QA Q-3 (open for Bruno).
+      cell.helperText = `Conferir: valor zero ou negativo, sem comparação com o ${reference}`;
     }
   }
 }
@@ -523,6 +572,8 @@ function evaluateRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, con
         sourceName: null,
         excess: 0,
         missing: fixed === null && column.optional !== true && state === 'empty',
+        positiveOnlyText: null,
+        toCheck: false,
       };
     });
     rows.push({ row: index, key: row.key, label: row.label, cells });
@@ -639,7 +690,10 @@ function evaluate(block: Pick<BlockRow, 'config' | 'sheet'>, test: MeasurementTe
     for (const row of rows) for (const cell of row.cells) cell.missing = false;
   }
   const relative = criteria.find((criterion) => criterion.type === 'relative_to_lowest');
-  if (relative !== undefined && relative.type === 'relative_to_lowest') reference = referenceOf(rows, columns, relative);
+  if (relative !== undefined && relative.type === 'relative_to_lowest') {
+    reference = referenceOf(rows, columns, relative);
+    markPositiveOnly(rows, relative, live);
+  }
   for (const value of values) {
     // The value that says the test was not run is the one thing a skipped test still asks for; it is filled by definition.
     if (!enabled || skipped) value.missing = false;
@@ -681,6 +735,41 @@ export function evaluateSheetMeasurements(block: Pick<BlockRow, 'config' | 'shee
   if (tests === undefined) return NONE;
   const config = configOptionsOf(block, definition);
   return tests.map((test, index) => evaluate(block, test, index + 1, config));
+}
+
+/**
+ * Epic 14 QA Q-3: a typed reading of a measurement cell, read as `parseReadingPtBr` reads it,
+ * and refused (`'invalid'`) at or below zero on a cell that takes only a positive reading
+ * (`positiveOnlyText`), so nothing is committed for it.
+ */
+export function parseMeasurementReadingPtBr(
+  text: string,
+  cell: { units: readonly string[]; positiveOnlyText?: string | null },
+  defaultUnit: string | null,
+): ParsedReading | null | 'invalid' {
+  const parsed = parseReadingPtBr(text, { units: cell.units, defaultUnit });
+  if (parsed === null || parsed === 'invalid') return parsed;
+  return (cell.positiveOnlyText ?? null) !== null && !(Number(parsed.raw) > 0) ? 'invalid' : parsed;
+}
+
+/**
+ * Epic 14 QA Q-3: why a typed reading is refused when it is a number at or below zero on a
+ * positive-only cell (the cell's `positiveOnlyText`, "-5" included); null for any other text,
+ * where the field shows its generic "not a number" message.
+ */
+export function measurementReadingRefusal(text: string, cell: { units: readonly string[]; positiveOnlyText?: string | null }, defaultUnit: string | null): string | null {
+  const message = cell.positiveOnlyText ?? null;
+  if (message === null) return null;
+  const trimmed = text.trim();
+  const negative = trimmed.startsWith('-');
+  const parsed = parseReadingPtBr(negative ? trimmed.slice(1) : trimmed, { units: cell.units, defaultUnit });
+  if (parsed === null || parsed === 'invalid') return null;
+  return negative || !(Number(parsed.raw) > 0) ? message : null;
+}
+
+/** Epic 14 QA Q-3: whether a counted measurement cell holds a zero or negative reading to check (`toCheck`). */
+export function anyMeasurementToCheck(evaluations: readonly MeasurementTestEvaluation[]): boolean {
+  return measurementCells(evaluations).some((cell) => cell.toCheck);
 }
 
 /** The tests that count: switched on and run. */

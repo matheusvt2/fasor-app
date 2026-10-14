@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { locationTree, newEquipmentBlock, treeNodes, type LocationRow, type TreeEquipmentNode } from '@app/domain';
 import { describe, expect, it } from 'vitest';
-import { removeLocationOps, removeSheetOps, restoreLocationOps, restoreSheetOps } from './tree-actions.ts';
+import { removeLocationOps, removeSheetOps, restoreLocationOps, restoreSheetOps, restoreStrandedSheetOps } from './tree-actions.ts';
 
 /*
  * 4.5 matrix row "Desfazer / Restaurar": a sheet whose TAG a live row took meanwhile is
@@ -51,12 +51,25 @@ describe('4.5 restoreSheetOps', () => {
     const ops = restoreSheetOps(author, relatorioId, projectId, blocks, removed.block.id, removed.equipment.id, [removed.equipment], [coluna]);
     expect(ops?.map((op) => op.path)).toEqual([`block/${removed.block.id}/removed_at`]);
   });
+
+  it('Epic 14 QA Q-13: a live sibling at the same location holding its key keeps its place; the sheet comes back right after it', () => {
+    const removed = pair(5, 'SEC-C08', 'a1');
+    const holder = pair(6, 'SEC-C09', 'a1');
+    const next = pair(7, 'SEC-C10', 'a2');
+    // A block at another location holding the same key does not count.
+    const elsewhere = { ...pair(8, 'SEC-C11', 'a1').block, location_id: id(99) };
+    const blocks = [{ ...removed.block, removed_at: '2026-09-24T10:00:00.000Z' }, holder.block, next.block, elsewhere];
+    const ops = restoreSheetOps(author, relatorioId, projectId, blocks, removed.block.id, removed.equipment.id, [removed.equipment], [coluna])!;
+    expect(ops.map((op) => op.path)).toEqual([`block/${removed.block.id}/removed_at`, `block/${removed.block.id}/order_key`]);
+    const key = ops[1]!.value as string;
+    expect(key > 'a1' && key < 'a2').toBe(true);
+  });
 });
 
 describe('14.2 second pass: restoreSheetOps puts back the removed locations above the sheet', () => {
   const T = '2026-10-12T10:00:00.000Z';
   // Only what the ancestor walk reads of the local (a full `cabine` row carries its SE and environment data).
-  const local = { id: id(2), parent_id: null, removed_at: null };
+  const local = { id: id(2), parent_id: null, order_key: 'a0', removed_at: null };
   const painel: LocationRow = { id: id(3), relatorio_id: relatorioId, parent_id: local.id, kind: 'painel', name: 'Painel 1', order_key: 'a0', removed_at: T };
   const inPainel: LocationRow = { ...coluna, parent_id: painel.id, removed_at: T };
   const sibling: LocationRow = { id: id(4), relatorio_id: relatorioId, parent_id: painel.id, kind: 'coluna', name: 'Coluna 6', order_key: 'a1', removed_at: T };
@@ -79,6 +92,25 @@ describe('14.2 second pass: restoreSheetOps puts back the removed locations abov
     expect(ops?.map((op) => op.path)).toEqual([`location/${painel.id}/removed_at`, `block/${sheet.block.id}/removed_at`, `equipment/${sheet.equipment.id}/removed_at`]);
   });
 
+  it('Epic 14 QA Q-13: a removed ancestor whose key a live sibling took comes back right after it, on both sheet restores', () => {
+    // The painel left at a0; a live painel took a0 meanwhile, and a1 follows it.
+    const taker: LocationRow = { ...painel, id: id(5), name: 'Painel 2', removed_at: null };
+    const after: LocationRow = { ...painel, id: id(6), name: 'Painel 3', order_key: 'a1', removed_at: null };
+    const locations = [local, painel, { ...inPainel, removed_at: null }, taker, after];
+    for (const ops of [
+      restoreSheetOps(author, relatorioId, projectId, removed, sheet.block.id, sheet.equipment.id, freed, locations)!,
+      restoreStrandedSheetOps(author, relatorioId, [{ ...sheet.block, location_id: inPainel.id }], sheet.block.id, locations)!,
+    ]) {
+      const keyOps = ops.filter((op) => op.path.endsWith('/order_key'));
+      expect(keyOps.map((op) => op.path)).toEqual([`location/${painel.id}/order_key`]);
+      const key = keyOps[0]!.value as string;
+      expect(key > 'a0' && key < 'a1').toBe(true);
+      expect(ops.findIndex((op) => op.path === `location/${painel.id}/order_key`)).toBeGreaterThan(ops.findIndex((op) => op.path === `location/${painel.id}/removed_at`));
+    }
+    // With no sibling in its slot, no order_key put.
+    expect(restoreSheetOps(author, relatorioId, projectId, removed, sheet.block.id, sheet.equipment.id, freed, [local, painel, inPainel])!.some((op) => op.path.endsWith('/order_key'))).toBe(false);
+  });
+
   it('a sheet on a live location writes no location op', () => {
     const ops = restoreSheetOps(author, relatorioId, projectId, removed, sheet.block.id, sheet.equipment.id, freed, [local, { ...painel, removed_at: null }, { ...inPainel, removed_at: null }]);
     expect(ops?.map((op) => op.path)).toEqual([`block/${sheet.block.id}/removed_at`, `equipment/${sheet.equipment.id}/removed_at`]);
@@ -92,7 +124,8 @@ describe('14.2 second pass: the batches of a location removal and restore', () =
     locationIds: [id(40), id(41), id(42)],
     blockIds: [id(50), id(51)],
     equipmentIds: [id(60)],
-    counts: { paineis: 0, colunas: 2, sheets: 2 },
+    orderKeys: [] as { id: string; orderKey: string }[],
+    counts: { paineis: 0, colunas: 2, sheets: 2, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 },
   };
 
   it('removeLocationOps: the location removes in the plan\'s order, then the block removes, then the equipment removes (project scope)', () => {
@@ -115,6 +148,12 @@ describe('14.2 second pass: the batches of a location removal and restore', () =
       ['put', `block/${id(51)}/removed_at`, null, 'relatorio'],
       ['put', `equipment/${id(60)}/removed_at`, null, 'project'],
     ]);
+  });
+
+  it('Epic 14 QA Q-13: restoreLocationOps ends with the order_key put of a location whose key a live sibling took', () => {
+    const ops = restoreLocationOps(author, relatorioId, projectId, { ...plan, orderKeys: [{ id: id(40), orderKey: 'a1V' }] });
+    expect(ops.at(-1)).toMatchObject({ kind: 'put', path: `location/${id(40)}/order_key`, value: 'a1V', scope: 'relatorio' });
+    expect(ops).toHaveLength(7);
   });
 });
 

@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import type { Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
+import { relatorioSeedVersion, typeLabels } from './support/palette.ts';
 import { devicePhotos } from './support/photos.ts';
 import { pushNewRelatorio } from './support/relatorio-seed.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
@@ -64,7 +65,8 @@ test('@p1 9.2-E2E-004 the panel is read by the real job, the corrected type is c
   const line = dialog.locator('.suggestion-field .sv-main');
   await expect(line).toHaveText(/^Criar SEC-C09(-\d+)? · Chave seccionadora · Coluna 9\?$/, { timeout: 90_000 });
   await dialog.getByRole('button', { name: 'Outro…' }).click();
-  await expect(dialog.locator('.chip-row .chip')).toHaveCount(8);
+  // Every type the relatório's seed ships, by name (Epic 14 QA Q-1: from the kernel, nine on v5).
+  await expect(dialog.locator('.chip-row .chip')).toHaveText(typeLabels(await relatorioSeedVersion(page, database, relatorioId)));
   await dialog.getByRole('button', { name: 'Transformador de força' }).click();
   await expect(line).toHaveText(/^Criar TR-\d+ · Transformador de força · Coluna 9\?$/);
   const tag = /^Criar (TR-\d+) /.exec((await line.textContent()) ?? '')![1]!;

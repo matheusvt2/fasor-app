@@ -677,6 +677,21 @@ test('@p0 14.5-E2E-002 at 768 then 390: offline, the field palette lists the eig
   await page.keyboard.press('Enter');
   await expect(cellInput(page, E1, 'polo_a', 'lado_emergencia')).toBeFocused();
   await expect.poll(async () => lastWritten(page, cellPath(blockId, E1, 'polo_c', 'lado_normal'))).toEqual(measured('36', 'µΩ'));
+  // Epic 14 QA Q-3: a zero is refused at input on E1 (the criterion compares with the lowest of
+  // the side): the field is invalid with the kernel's message and nothing is written.
+  const emergencia = cellInput(page, E1, 'polo_a', 'lado_emergencia');
+  const written = (await outbox(page)).length;
+  await page.keyboard.type('0');
+  await page.keyboard.press('Tab');
+  await expect(emergencia).toHaveAttribute('aria-invalid', 'true');
+  await expect(cellBox(page, E1, 'polo_a', 'lado_emergencia').locator('.helper')).toHaveText('Informe um valor maior que zero: o critério compara com o menor do lado');
+  expect((await outbox(page)).length).toBe(written);
+  expect((await outbox(page)).some((op) => op.path === cellPath(blockId, E1, 'polo_a', 'lado_emergencia'))).toBe(false);
+  await emergencia.fill('');
+  await emergencia.press('Tab');
+  await expect(emergencia).not.toHaveAttribute('aria-invalid', 'true');
+  // No reading of that cell was ever written: the zero never reached the outbox.
+  expect((await outbox(page)).filter((op) => op.path === cellPath(blockId, E1, 'polo_a', 'lado_emergencia')).every((op) => op.value === null)).toBe(true);
 
   // At 768 the E4 table is a table; at 390 it is one card per setting, and the page never scrolls sideways.
   const e4 = testSection(page, E4);

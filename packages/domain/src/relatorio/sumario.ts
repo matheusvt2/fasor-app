@@ -11,7 +11,7 @@ import { sectionTextEdited } from './section-variables.ts';
 import { funcaoLabel } from './local.ts';
 import { hiddenLocationIds } from './location-live.ts';
 import { locationPathText } from './location-path.ts';
-import { locationRestoreDetailText, locationRestorePlan } from './removal.ts';
+import { locationRestoreDetailText, locationRestorePlan, removedAncestorIds, type SiteWorkRow } from './removal.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
 import { locationControlName } from './tree.ts';
 import { pointsSummary, pointsSummaryText } from '../points/summary.ts';
@@ -556,8 +556,14 @@ export function restorableBlocks(
   return labelled(restorableBlockRows(onShownLocations(blocks, locations), equipment, locations, since).sort(byNewestRemoval));
 }
 
-/** A removed block in the restore list (`restorableBlocks`' row, told apart from a location). */
-export type RestorableBlockEntry = RestorableBlock & { kind: 'block' };
+/**
+ * A removed block in the restore list (`restorableBlocks`' row, told apart from a location).
+ * Ledger (h), Epic 14 QA: `stranded` marks a live sheet left under a removed location (another
+ * device created it there, or kept it, while the location was removed); its restore puts back
+ * only the removed locations above it (`removedAncestorIds`), its `removed_at` being the newest
+ * of theirs.
+ */
+export type RestorableBlockEntry = RestorableBlock & { kind: 'block'; stranded?: true };
 
 /** A removed location in the restore list (Story 14.2, second pass). */
 export interface RestorableLocationEntry {
@@ -593,6 +599,9 @@ export function restorableEntries(input: {
   equipment: readonly Pick<EquipmentRow, 'id' | 'tag' | 'removed_at'>[];
   locations: readonly LocationRow[];
   since: string | null;
+  /** Epic 14 QA Q-6: the relatório's file and point rows, for the site work a local's entry names. */
+  files?: readonly SiteWorkRow[];
+  points?: readonly SiteWorkRow[];
 }): RestorableEntry[] {
   const { blocks, equipment, locations, since } = input;
   const hidden = hiddenLocationIds(locations);
@@ -601,7 +610,7 @@ export function restorableEntries(input: {
     .filter((row): row is LocationRow & { removed_at: string } => row.removed_at !== null && (since === null || row.removed_at > since))
     .filter((row) => row.parent_id === null || !hidden.has(row.parent_id))
     .flatMap((row) => {
-      const plan = locationRestorePlan({ locations, blocks, equipment, locationId: row.id });
+      const plan = locationRestorePlan({ locations, blocks, equipment, locationId: row.id, files: input.files ?? [], points: input.points ?? [] });
       if (plan === null) return [];
       return [
         {
@@ -614,7 +623,59 @@ export function restorableEntries(input: {
         },
       ];
     });
-  return labelled<Omit<RestorableBlockEntry, 'label'> | Omit<RestorableLocationEntry, 'label'>>([...locationRows, ...blockRows].sort(byNewestRemoval)) as RestorableEntry[];
+  // Ledger (h): a stranded sheet whose removed location is offered comes back with that entry; it is listed alone otherwise.
+  const offered = new Set(locationRows.map((row) => row.id));
+  const strandedRows = strandedSheetRows(blocks, equipment, locations, hidden).filter(
+    (row) => !removedAncestorIds(locations, blocks.find((block) => block.id === row.id)?.location_id ?? null).some((id) => offered.has(id)),
+  );
+  return labelled<Omit<RestorableBlockEntry, 'label'> | Omit<RestorableLocationEntry, 'label'>>([...locationRows, ...blockRows, ...strandedRows].sort(byNewestRemoval)) as RestorableEntry[];
+}
+
+/**
+ * Ledger (h), Epic 14 QA: every live equipment sheet whose location is hidden (removed, or
+ * under a removed row) is its own entry, whatever `since`: nothing else can reach it (it is
+ * not removed, and its location may have left before the newest revision). While one of its
+ * removed locations is offered itself (`restorableEntries`), that entry brings it back and the
+ * sheet is not listed twice. Its detail names
+ * where it is and the removed locations its restore brings back, root first; the sheets that
+ * removal tombstoned stay removed.
+ */
+function strandedSheetRows(
+  blocks: readonly BlockRow[],
+  equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[],
+  locations: readonly LocationRow[],
+  hidden: ReadonlySet<string>,
+): Omit<RestorableBlockEntry, 'label'>[] {
+  const tags = new Map(equipment.map((row) => [row.id, row.tag]));
+  const byId = new Map(locations.map((row) => [row.id, row]));
+  return blocks.flatMap((block) => {
+    if (block.removed_at !== null || block.location_id === null || !hidden.has(block.location_id) || !isEquipmentBlock(block)) return [];
+    const back = removedAncestorIds(locations, block.location_id);
+    const stamps = back.map((id) => byId.get(id)?.removed_at ?? null).filter((at): at is string => at !== null);
+    if (back.length === 0 || stamps.length === 0) return [];
+    const name = (block.equipment_id !== null && tags.get(block.equipment_id)) || block.block_type;
+    return [
+      {
+        kind: 'block' as const,
+        stranded: true as const,
+        id: block.id,
+        name,
+        detail: strandedSheetDetailText(locationPathText(locations, block.location_id), back.map((id) => byId.get(id)?.name.trim() ?? '')),
+        equipmentId: block.equipment_id,
+        removed_at: stamps.reduce((newest, at) => (at > newest ? at : newest)),
+      },
+    ];
+  });
+}
+
+/**
+ * Ledger (h): the detail of a stranded sheet in the restore list: where it is, then the
+ * removed locations its restore brings back, "Sala dos trafos › Coluna 1 · restaura Sala dos
+ * trafos › Coluna 1".
+ */
+export function strandedSheetDetailText(path: string, restored: readonly string[]): string {
+  // authored: Epic 14 QA ledger (h) (open for Bruno).
+  return `${path}${SEP}restaura ${restored.join(' › ')}`;
 }
 
 // --- the Sumário header (Story 4.3) -----------------------------------------------------

@@ -1,4 +1,4 @@
-import { getDefinition, newPointRow, photoToken, type OpDraft, type PointRow } from '@app/domain';
+import { getDefinition, newPointRow, photoToken, type LocationRow, type OpDraft, type PointRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -680,4 +680,47 @@ test('@p1 6.6-E2E-007 a card dragged by its handle lands where it is dropped, wi
   await page.mouse.up();
   await expect(texts()).toHaveText(['Terceiro', 'Primeiro', 'Segundo']);
   expect((await outbox(page)).map((op) => op.path)).toEqual([`point/${rows[2]!.id}/order_key`]);
+});
+
+test('@p1 6.6-E2E-015 Epic 14 QA Q-2: while a removed local holds a site point, Alt+ArrowDown on the first manual point writes its order_key and announces 2 de 2', async ({ page }) => {
+  test.setTimeout(150_000);
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  const built = newRelatorioDrafts(account);
+  const scope = { relatorioId: built.relatorioId };
+  const local = built.drafts
+    .filter((draft) => draft.kind === 'create' && draft.path.startsWith('location/'))
+    .map((draft) => draft.value as LocationRow)
+    .find((row) => row.parent_id === null && row.name === 'Cubículo Enel')!;
+  // The site point is created first (it holds the first order key), then two manual points.
+  const site = newPointRow({ id: newId(), relatorioId: scope.relatorioId, text: 'Extintor vencido', equipmentId: null, origin: 'manual', action: 'Trocar', locationId: local.id }, []);
+  const first = newPointRow({ id: newId(), relatorioId: scope.relatorioId, text: 'Primeiro', equipmentId: null, origin: 'manual', action: 'A' }, [site]);
+  const second = newPointRow({ id: newId(), relatorioId: scope.relatorioId, text: 'Segundo', equipmentId: null, origin: 'manual', action: 'B' }, [site, first]);
+  await pushDrafts(page, database, [
+    ...built.drafts,
+    ...[site, first, second].map((row) => officeDraft(account, scope, `point/${row.id}`, row, 'create')),
+    // The local is removed on the office device: its site point leaves the list with it.
+    officeDraft(account, scope, `location/${local.id}/removed_at`, '2026-09-07T12:00:00.000Z'),
+  ]);
+  await page.goto(`/relatorio/${built.relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
+  await openPoints(page);
+  const texts = () => cards(page).locator('.poa-text');
+  await expect(texts()).toHaveText(['Primeiro', 'Segundo']);
+
+  await page.getByRole('button', { name: 'Editar o ponto 1, Geral' }).focus();
+  await page.keyboard.press('Alt+ArrowDown');
+  await expect(texts()).toHaveText(['Segundo', 'Primeiro']);
+  await expect(page.getByTestId('points-announcer')).toHaveText('Ponto de atenção movido: 2 de 2 na seção 8');
+  expect((await outbox(page)).map((op) => op.path)).toEqual([`point/${first.id}/order_key`]);
+  await page.reload();
+  await expect(texts()).toHaveText(['Segundo', 'Primeiro'], { timeout: 30_000 });
+
+  // The saved toast places the point among the two the list draws, not the hidden one.
+  await page.getByRole('button', { name: 'Editar o ponto 2, Geral' }).click();
+  const editor = page.getByRole('article', { name: 'Ponto de atenção 2 em edição' });
+  await editor.getByRole('textbox', { name: 'Ação recomendada' }).fill('A revisada');
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(toast(page)).toContainText('Ponto de atenção salvo · 2 de 2 na seção 8');
 });
