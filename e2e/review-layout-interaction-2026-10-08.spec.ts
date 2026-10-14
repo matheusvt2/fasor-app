@@ -642,6 +642,8 @@ test('@p0 P020-E2E-003 P-2 a tap on a registry combobox\'s chevron opens its lis
   const meio = page.locator('#ficha-step-placa .field.combobox[data-field-key="meio_de_extincao"]');
   const decorative = meio.locator(':scope > span.combobox-chevron');
   await expect(decorative).toHaveCSS('pointer-events', 'none');
+  // Centred, so neither the App bar nor the Sticky action bar covers the point measured.
+  await meio.evaluate((element) => element.scrollIntoView({ block: 'center' }));
   const box = (await decorative.boundingBox())!;
   const hit = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.tagName ?? null, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
   expect(hit).toBe('SELECT');

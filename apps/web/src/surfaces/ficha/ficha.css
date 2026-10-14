@@ -149,12 +149,6 @@
      a `--sp-1` inset (was `--sp-2`). */
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td.cell-point { white-space: normal; }
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td.cell-value .mf-value { padding-left: var(--sp-1); padding-right: var(--sp-1); min-width: calc(4.5ch + 2 * var(--sp-1) + 4px); }
-  /* p020 P-6 (v0.2.0 production check, a CTA at 390 px measured 400): an out-of-criterion reading's
-     "Marcar Com restrições" (`components.css` `.btn { white-space: nowrap }`) set the value column's
-     minimum, and that minimum widened the page past its box (the min-content reaches the screen
-     column through `.mt-scroll`, which scrolls only what exceeds its own width). It wraps between its
-     words under the reading, as the ratio table's does from 768 px (below). */
-  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td.cell-value .mf-helper .btn { white-space: normal; text-align: left; }
 }
 /* Conclusion text */
 [data-route="/relatorio/:id/ficha/:blockId"] #ficha-conc .generated-actions { margin-top: var(--sp-2); }
