@@ -131,13 +131,15 @@ async function openSection9(page: Page): Promise<void> {
   await expect(cabine.locator('.s9-eq-open').first()).toBeVisible();
 }
 
-test('@p0 ERGO-E2E-001 glove targets at 390 and 768 px: every control at least 48 x 48, the glove-filled ones at least 56 tall (Home, Sumário with section 9 open, the tree, a sheet)', async ({ page }) => {
+test('@p0 ERGO-E2E-001 glove targets at 390 and 768 px: every control at least 48 x 48, the glove-filled ones at least 56 tall (Home, Sumário with section 9 open, the tree, a sheet, Verificações do local)', async ({ page }) => {
   test.setTimeout(240_000);
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize(VIEWPORTS[1]);
   await signIn(page, account.email);
   const built = newRelatorioDrafts(account);
   const sheet = built.sheets.find((s) => s.blockType === 'chave_seccionadora' && s.locationName === 'Cubículo Enel')!;
+  // Story 14.3: that sheet's local, whose "Verificações do local" is swept too.
+  const enel = built.drafts.map((draft) => draft.value as { id?: string; kind?: string; name?: string } | null).find((row) => row?.kind === 'cabine' && row.name === 'Cubículo Enel')!;
   await pushDrafts(page, database, built.drafts);
   await page.goto(`/relatorio/${built.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
@@ -168,6 +170,12 @@ test('@p0 ERGO-E2E-001 glove targets at 390 and 768 px: every control at least 4
     await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
     await expect(page.locator('.se-block').first()).toBeVisible();
     await sweep(page, `Ficha ${at}`, found, measured);
+
+    // Story 14.3: the site checklist of that local (the 19 rows, the bulk action, the Sticky action bar).
+    await page.goto(`/relatorio/${built.relatorioId}/local/${enel.id}/verificacoes`);
+    await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('li.checklist-row')).toHaveCount(19);
+    await sweep(page, `Verificações do local ${at}`, found, measured);
   }
 
   const counts = [...measured.entries()].map(([surface, n]) => `${surface}: ${n}`).join(', ');
@@ -176,7 +184,7 @@ test('@p0 ERGO-E2E-001 glove targets at 390 and 768 px: every control at least 4
   test.info().annotations.push({ type: 'ERGO misses', description: list.length === 0 ? 'none' : list.join('\n') });
   console.log(`ERGO-E2E-001: measured ${counts}; ${list.length} misses${list.length === 0 ? '' : `\n${list.join('\n')}`}`);
   // Never a vacuous pass: every surface put real targets in front of the check.
-  expect(measured.size).toBe(7);
+  expect(measured.size).toBe(9);
   for (const [surface, n] of measured) expect(n, `${surface} measured`).toBeGreaterThan(5);
   expect(list).toEqual([]);
 });

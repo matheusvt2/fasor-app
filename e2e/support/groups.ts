@@ -65,6 +65,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'local-painel-coluna.spec.ts',
     why: 'generates a revision through the shared queue and LibreOffice to read the painel band and the order of section 9 from the DOCX',
   },
+  // Stories 14.3/14.4: 14.3-E2E-001 and 14.3-E2E-002 generate the DOCX the site table is read from.
+  {
+    file: 'verificacoes-local.spec.ts',
+    why: 'generates revisions through the shared queue and LibreOffice to read VERIFICAÇÕES DO LOCAL, the site photo and the site point from the DOCX',
+  },
   // Test-speed batch (2026-09-27): the specs that time a tap against a render (`humanTap`,
   // `touchPressAcross`, `tapCounter` in `taps.ts`). They measure the device, and the device
   // is the one thing the per-worker pairs cannot separate: beside two other browsers the

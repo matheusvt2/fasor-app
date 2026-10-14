@@ -64,7 +64,8 @@ test('@p0 7.4-E2E-001 a relatório with no parecer: row 10 and the dialog say "P
   await expect(row10.locator('.sum-status.is-blocking')).toHaveText('Parecer não preenchido');
   await expect(page.locator('.sticky-action-bar .btn-reason').first()).toHaveText('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.');
   // Status flow 2026-10-10 (M6, decision 5): the status's next step, under the status pill.
-  await expect(page.getByTestId('status-next-step')).toHaveText(/^Rascunho: falta .+ em Dados do relatório\. Preencher uma ficha passa o relatório a Em campo\.$/);
+  // Story 14.3: this relatório is born on seed v4, so the sentence names the site checklist too.
+  await expect(page.getByTestId('status-next-step')).toHaveText(/^Rascunho: falta .+ em Dados do relatório\. Preencher uma ficha ou as verificações do local passa o relatório a Em campo\.$/);
   await footButton(page).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}\\?exportar=1$`));
   const blocking = dialog(page).locator('.precheck li.is-blocking');
