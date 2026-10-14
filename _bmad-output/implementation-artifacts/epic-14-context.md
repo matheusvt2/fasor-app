@@ -219,3 +219,4 @@ Rules for the lanes:
   field content for the status flow, printed beside the E5 times. They are not `BlockConfig`. What stays block
   config is what shapes the sheet before the visit: tensão BT/MT, polos, neutro, transição, bypass.
 
+All three batches are merged (2026-10-13): 14.2 as `cbce841`, 14.3 and 14.4 as `f1f7ec9`, 14.5 as `1d46f08`. Next: the wave gate and the one integrated review with a browser pass on the integrated main, then one fix batch.

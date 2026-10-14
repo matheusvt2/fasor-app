@@ -3308,6 +3308,17 @@ So that the next job with a no-break or a chave ASCO is recorded in the relatór
 
 **Definition of Done, in addition:** a Playwright spec places both types in a template, fills a no-break de comando with four battery blocks added on site and a CTA with its E5 method chosen, offline, generates the DOCX and checks both tables and the conclusion of an NC; the durability specs touched run on the matrix projects.
 
+**As built, 2026-10-13 (Story 14.5, PR #128, merged as `1d46f08`; contract 19, minimum 19; seed v5):**
+
+- One library type, `chave_transferencia_automatica` (TAG prefix `CTA`): 15 nameplate fields, 17 checks, tests E1 to E6 on the generic measurement table; cells reuse `sheet/{b}/test/{testKey}/cell/{row}/{col}` and the E5 options are sheet values on the new family `sheet/{b}/test/{testKey}/value/{valueKey}` (field content). Configuration (tensão, polos, neutro, transição, bypass) and the test switches are `block/{id}/config` puts (structure). Templates reach v5 through the 14.3 server step.
+- *(narrowing)* E6's ΔT columns and E5's Ajuste are typed, not derived; the E5 limit is the seeded 10 s with no per-sheet override; a choice with more than two options is a select.
+- *(narrowing)* Configuration is set on the sheet, not in the composer's type dialog; the composer node shows no "TAG ao criar" line.
+- *(narrowing)* E4 to E6 offer no instrument picker; the CTA criteria are not in the Critérios de aceitação tab; no "Ler visor" and no Dictation on a measurement table; below 768 px only tables of more than two columns stack into cards.
+- *(narrowing)* E5 with método "Não realizado" drops only its table; a switched-off test prints nothing.
+- *(open, Matheus)* a configuration change on a concluded CTA sheet of an Emitido relatório does not reopen it (config is structure); whether the CTA criteria belong in the Critérios tab; typed ΔT.
+- *(open, Bruno)* the N-T row of E2; E4's 14 rows; a switched-off test printing nothing against "marked NA"; an out cell printing plainly; whether E1 to E3 print a test current or voltage; the authored copy listed in the PR body (51 NC phrases, criteria wording and sources, option labels, defaults).
+- Known open, in `deferred-work.md` under Story 14.5: R1 (two devices changing one CTA's configuration: the whole config is last-writer-wins), R5 (an unasserted status-flow family row); the review patches were not re-reviewed (integrated review).
+
 ### Story 14.6: Company equipment types in the kernel
 
 *(2026-10-09: renumbered from 14.5. Wave 3 gate (John with Matheus): this story starts only after two or three real jobs have used the library types of Story 14.5, with the count of new-type requests and of adjustments to existing types recorded here with dates; that count sets the editor's scope. The measurement table and the criteria vocabulary already exist from Story 14.5; this story makes types company data.)*
