@@ -71,6 +71,11 @@ export interface PhotoCaptureInput {
   fileId: string;
   blockId: string | null;
   itemKey: string | null;
+  /**
+   * Story 14.3: the local of a site-item photo ("Verificações do local"), with `itemKey` and
+   * no `blockId`. Absent or null: the row carries no `location_id` key, as before the field.
+   */
+  locationId?: string | null;
   /** The kernel's `contextCaption`, stored as a plain editable value (null: no context). */
   caption: string | null;
   capturedAt: string;
@@ -95,7 +100,8 @@ export interface PhotoCaptureInput {
  * Story 6.1 (AD-7, AR-6, AR-16): one shot. The `file/{id}` create of kind `photo` in
  * relatório scope, with the full photo row, goes in one transaction with the original, the
  * device thumb and the bumped `photo_seq` (`commitPhotoBatch`). No owner op: a photo points
- * at its sheet through its own `block_id` / `item_key`.
+ * at its sheet through its own `block_id` / `item_key`, and (Story 14.3) a site item's photo
+ * at its local through `location_id` / `item_key`.
  */
 export async function commitPhotoCapture(
   db: AppDatabase,
@@ -121,6 +127,8 @@ export function photoCreateDraft(input: Omit<PhotoCaptureInput, 'thumb'>, localS
   // Story 11.8 follow-up: while the server's AI features are off (the session's `aiFeatures`),
   // a kind that needs the LLM step is not asked for; the photo is saved with no reading.
   const reading = asked !== undefined && readingNeedsAi(asked.kind) && !aiFeaturesOn() ? undefined : asked;
+  // Story 14.3: written only for a site item's photo, so every other photo row keeps its shape.
+  const locationId = input.locationId ?? null;
   return {
     scope: 'relatorio',
     company_id: input.companyId,
@@ -154,6 +162,7 @@ export function photoCreateDraft(input: Omit<PhotoCaptureInput, 'thumb'>, localS
       reading_target: reading?.target ?? null,
       reading_status: reading === undefined ? 'none' : 'queued',
       people_in_photo: peopleInPhoto,
+      ...(locationId === null ? {} : { location_id: locationId }),
     } as never,
   };
 }

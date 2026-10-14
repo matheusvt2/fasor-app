@@ -365,6 +365,16 @@ async function heldOp(db: AppDatabase, opId: string): Promise<Op | undefined> {
 }
 
 /**
+ * Story 14.3: who wrote an op this device holds and when (its `actor_id` and `client_ts`), or
+ * null when it holds no such op: the attribution line of "Verificações do local" reads the op
+ * that last wrote one of the checklist's cells.
+ */
+export async function opStamp(db: AppDatabase, opId: string): Promise<{ actor_id: string; client_ts: string } | null> {
+  const op = await heldOp(db, opId);
+  return op === undefined ? null : { actor_id: op.actor_id, client_ts: op.client_ts };
+}
+
+/**
  * Story 10.1: the kernel's entry of each op pair, read against the rows this device now
  * holds (`mergeInfoOf`). A pair whose ops are not both here yet comes back unresolved.
  */

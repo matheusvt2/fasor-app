@@ -125,8 +125,8 @@ describe('groupForPrint: "Outros equipamentos" after Transformadores', () => {
     expect(summary(groupForPrint(snapshotOf(tree, sheets)).subsections)).toEqual([
       { kind: 'outros', title: 'Outros equipamentos dos Geradores', blockIds: [block(1)] },
       { kind: 'painel', title: 'Painel de média tensão', blockIds: [], painelId: id(10) },
-      { kind: 'disjuntores', title: 'Disjuntores dos Cubículos de MT dos Geradores', blockIds: [block(2)], painelId: id(10) },
-      { kind: 'outros', title: 'Outros equipamentos dos Geradores', blockIds: [block(3)], painelId: id(10) },
+      { kind: 'disjuntores', title: 'Disjuntores dos Cubículos de MT do Painel de média tensão — Geradores', blockIds: [block(2)], painelId: id(10) },
+      { kind: 'outros', title: 'Outros equipamentos do Painel de média tensão — Geradores', blockIds: [block(3)], painelId: id(10) },
     ]);
   });
 });

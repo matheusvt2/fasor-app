@@ -1,0 +1,44 @@
+/*
+ * Page-only layout of "Verificações do local" (Story 14.3), copied from the mock's own
+ * `<style data-screen="verificacoes-local">` (`prototype/screens/61-verificacoes-local.html`)
+ * -- screen-scoped in the mock too, not part of components.css -- the same pattern as
+ * `ficha.css`. The mock scopes the screen to its prototype route `/local/:id/verificacoes`;
+ * the app renders it on `/relatorio/:id/local/:locationId/verificacoes`, so that
+ * `[data-route]` value stands for it. Left out: the prototype's own mechanics (the
+ * `.vl-when-*` example switch, the `.all-c` toggle and its reason line, the `.row-expand`
+ * rules that open a row on its checked NC segment, which the row component does itself) and
+ * `.vl-photo-row`, which the app does not draw (an item's photos are the sheet checklist's
+ * Photo tile rows under the row). The `.frame-phone` rule lives in `app.css` (AGENTS.md
+ * "Mock container selectors").
+ */
+
+/* ---------- 61-verificacoes-local.html ---------- */
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .content { display: flex; flex-direction: column; gap: var(--sp-6); }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .content .section { margin-top: 0; }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .vl-head-side { display: flex; align-items: center; gap: var(--sp-2); flex: none; }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .vl-intro .bulk-action-bar { margin-bottom: var(--sp-2); }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .vl-intro .checklist-legend { margin: 0; }
+/* Group heading: one step below the sheet's section h2 (mirrors .section-head h2 at label size) */
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .vl-group .section-head { margin-bottom: var(--sp-2); }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .vl-group-title { font-size: var(--t-body-size); font-weight: 600; line-height: var(--t-body-lh); color: var(--ink-primary); }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .row-expand .chip-row { padding-bottom: 0; }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .row-expand .dictation { align-self: center; }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .chip { cursor: pointer; }
+/* Observation on an answered C or NA row (optional, from the row's Overflow menu; the extinguisher row carries type, charge and validity here) */
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .vl-obs-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--sp-2); padding: 0 0 var(--sp-1) 0; font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .vl-obs-line .vl-obs-label { font-weight: 600; }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .vl-obs-line .vl-obs-text { color: var(--ink-primary); font-variant-numeric: tabular-nums; }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .vl-obs-line .btn-text { min-height: var(--touch-min); padding: 0; }
+
+/* ---------- authored ---------- */
+
+/* DESIGN.md › Sticky action bar: always within the thumb's reach and above the keyboard;
+   below a 480 px viewport height it unsticks and flows after the content (`ficha.css`'s rule
+   for the sheet, for this route). */
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .sticky-action-bar { position: sticky; bottom: 0; margin-top: auto; }
+@media (max-height: 479.98px) {
+  [data-route="/relatorio/:id/local/:locationId/verificacoes"] .sticky-action-bar { position: static; }
+}
+/* authored (E6-Q11): the NC row names the point it already has beside its actions, in the
+   meta style of the row's other secondary text (`ficha.css`'s rule, for this route). */
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .nc-point-ref { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }

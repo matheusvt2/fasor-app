@@ -82,6 +82,8 @@ export interface PointSeed {
   text: string;
   equipmentId: string | null;
   origin: PointRow['origin'];
+  /** Story 14.3: the local of a point created from a site item; its `equipmentId` is then null. */
+  locationId?: string | null;
 }
 
 /** Where a point the editor wrote to sits in section 8 once it closed. */
@@ -142,7 +144,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   // --- E6-Q2: autosave ---------------------------------------------------------------------
   const [pointId] = useState(() => point?.id ?? newPointId ?? newId());
   /** A new point's link; null when editing a stored one (a missing row is then `gone`). */
-  const [link] = useState<NewPointLink | null>(() => (point === null ? { equipmentId: seed.equipmentId, origin: seed.origin } : null));
+  const [link] = useState<NewPointLink | null>(() => (point === null ? { equipmentId: seed.equipmentId, origin: seed.origin, locationId: seed.locationId ?? null } : null));
   /** What the fields hold now (read by the commits, the draft source and the close). */
   const values = useRef<PointValues>({ text: initialText, action: point?.action ?? '', owner: point?.owner ?? '' });
   /** What the store holds, as far as this editor wrote or read it. */
@@ -406,6 +408,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
         action: now.action,
         owner: now.owner,
         equipmentId: link?.equipmentId ?? point?.equipment_id ?? null,
+        ...((link?.locationId ?? point?.location_id ?? null) === null ? {} : { locationId: link?.locationId ?? point?.location_id ?? null }),
         origin: link?.origin ?? point?.origin ?? 'manual',
         is_new: link !== null,
       };
@@ -484,7 +487,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   const refs = useMemo(() => extractPhotoRefs(text), [text]);
   const tileOf = useMemo(() => new Map(tiles.map((tile) => [tile.id, tile])), [tiles]);
   const findings = recurringFindings(snapshot.relatorio.seed_version);
-  const equipmentTitle = pointTitle({ equipment_id: point?.equipment_id ?? seed.equipmentId }, snapshot);
+  const equipmentTitle = pointTitle({ equipment_id: point?.equipment_id ?? seed.equipmentId, location_id: point?.location_id ?? seed.locationId ?? null }, snapshot);
 
   const textLabelId = useId();
   const helperId = useId();

@@ -34,6 +34,8 @@ export interface CaptureTarget {
   /** The sheet, or null for a gallery shot ("Geral", Story 6.3). */
   blockId: string | null;
   itemKey: string | null;
+  /** Story 14.3: the local of a site item's shot ("Verificações do local"); `blockId` is then null. */
+  locationId?: string | null;
   /** The kernel's `contextCaption`, fixed when the camera opened (null: no context). */
   caption: string | null;
   /**
@@ -157,6 +159,7 @@ export function usePhotoCapture(relatorioId: string): PhotoCapture {
             fileId: target.fileId ?? newId(),
             blockId: target.blockId,
             itemKey: target.itemKey,
+            ...(target.locationId == null ? {} : { locationId: target.locationId }),
             caption: target.caption,
             capturedAt: time.captured_at,
             tzOffset: time.tz_offset,

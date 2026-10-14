@@ -682,7 +682,8 @@ describe('14.2 section9Layout: a painel is an unnumbered band over its sheets', 
     expect(section.subsections.map((s) => [s.heading, s.painel ?? false, s.sheets.map((x) => x.blockId)])).toEqual([
       ['9.1 Transformadores e Cabos de Alimentação da Cabine de transformação', false, [block(1), block(2)]],
       ['PAINEL DE MÉDIA TENSÃO', true, []],
-      ['9.2 Seccionadoras dos Cubículos de MT da Cabine de transformação', false, [block(3), block(4), block(5)]],
+      // Story 14.4 (2026-10-13): a type group under a painel names the painel, then the local.
+      ['9.2 Seccionadoras dos Cubículos de MT do Painel de média tensão — Cabine de transformação', false, [block(3), block(4), block(5)]],
       ['9.3 Cubículo Enel', false, [block(6)]],
     ]);
     expect(sheetsOf(section).filter(hasCabineBlock).map((s) => s.blockId)).toEqual([block(1), block(6)]);
@@ -693,7 +694,7 @@ describe('14.2 section9Layout: a painel is an unnumbered band over its sheets', 
     const lines = tocLines(spec).filter((line) => line.level === 2);
     expect(lines.map((line) => line.text)).toEqual([
       '9.1 Transformadores e Cabos de Alimentação da Cabine de transformação',
-      '9.2 Seccionadoras dos Cubículos de MT da Cabine de transformação',
+      '9.2 Seccionadoras dos Cubículos de MT do Painel de média tensão — Cabine de transformação',
       '9.3 Cubículo Enel',
     ]);
     expect(lines.map((line) => line.key)).toEqual(['9.1', '9.2', '9.3']);
@@ -705,5 +706,236 @@ describe('14.2 section9Layout: a painel is an unnumbered band over its sheets', 
     expect(section.subsections.map((s) => s.heading)).toEqual(['9.1 Geradores', 'PAINEL DE DISTRIBUIÇÃO — AÇÃO']);
     // No sheet at all: null, as before.
     expect(section9Layout(fieldOrder(snapshotOf(locs, [])), 9, TITLE)).toBeNull();
+  });
+});
+
+describe('14.4 section9Layout: VERIFICAÇÕES DO LOCAL, once per local, right after AMBIENTE DE ENSAIO', () => {
+  type CabineRow = Extract<LocationRow, { kind: 'cabine' }>;
+  const painel = (n: number, name: string, parent: number, orderKey: string): LocationRow => ({ id: id(n), relatorio_id: RELATORIO, parent_id: id(parent), kind: 'painel', name, order_key: orderKey, removed_at: null });
+  const coluna = (n: number, name: string, parent: number, orderKey: string): LocationRow => ({ id: id(n), relatorio_id: RELATORIO, parent_id: id(parent), kind: 'coluna', name, order_key: orderKey, removed_at: null });
+  const se = { type: 'ALVENARIA - CONVENCIONAL', primary_kv: measured('13.8', 'kV'), secondary_kv: null, installed_kva: measured('1500', 'kVA') };
+  const env = { altitude_m: null, temperature_c: measured('21', '°C'), humidity_pct: measured('62', '%') };
+  const EMERGENCIA = 'iluminacao_de_emergencia_autonomia_minima_de_2_h';
+  const EXTINTOR = 'extintor_de_incendio_carregado_lacrado_dentro_da_validade_sinalizado_e_desobstruido';
+  const checklist: CabineRow['checklist'] = {
+    luvas_isolantes_compativeis_com_a_tensao_com_ensaio_dieletrico_valido: { result: cell('C'), observation: cell(' Classe 2, ensaio válido até 11/2026 ') },
+    [EXTINTOR]: { result: cell('C') },
+    bacia_de_contencao_de_oleo: { result: cell('NA'), observation: cell('Sem equipamento a óleo no local') },
+    [EMERGENCIA]: { result: cell('NC'), observation: cell('Duas luminárias de emergência sem carga') },
+    // Answered, then cleared: unanswered again.
+    ventilacao: { result: cell(null) },
+  };
+  /** The relatório on `seedVersion` under `scheme`; the sheets stay on their own block seed. */
+  const on = (snapshot: RelatorioSnapshot, seedVersion: string, scheme: 'ordem_de_campo' | 'por_local_e_tipo' = 'por_local_e_tipo'): RelatorioSnapshot => ({
+    ...snapshot,
+    relatorio: { ...snapshot.relatorio, seed_version: seedVersion, export: { scheme } },
+  });
+  const sitePhoto = (n: number, location: number, itemKey: string | null, capturedAt: string, over: { block_id?: string; caption?: string } = {}): RelatorioSnapshot['files'][number] => {
+    const row = photo(n, { item_key: itemKey, captured_at: capturedAt, block_id: over.block_id ?? null, caption: over.caption ?? null });
+    if (row.kind !== 'photo') throw new Error('not a photo row');
+    return { ...row, location_id: id(location) };
+  };
+  const localPartNames = (section: LayoutSectionSheets): (string[] | null)[] => section.subsections.map((s) => (s.localParts === undefined ? null : s.localParts.map(partName)));
+  const hasCabineBlock = (sheet: PrintSheet) => sheet.parts.some((p) => partName(p) === 'CARACTERÍSTICAS DA SE' || partName(p) === 'AMBIENTE DE ENSAIO');
+  const siteTable = (parts: readonly SheetPart[]): PrintTable => {
+    const part = parts.find((p): p is Extract<SheetPart, { kind: 'table' }> => p.kind === 'table' && p.table.rows[0]!.cells[0]!.text === 'VERIFICAÇÕES DO LOCAL');
+    if (part === undefined) throw new Error('no site table');
+    return part.table;
+  };
+
+  /**
+   * Local 1 "Cabine primária" (answers; two transformers directly on it; a painel with two
+   * seccionadoras), then local 2 "Cubículo Enel" with no equipment at all.
+   */
+  const locations = (agrupar: boolean): LocationRow[] => [
+    cabine(1, 'Cabine primária', 'a0', { agrupar_por_tipo: agrupar, se, env, funcao: 'primaria', checklist }),
+    painel(10, 'Painel de média tensão', 1, 'a0'),
+    coluna(11, 'Coluna 1', 10, 'a0'),
+    coluna(12, 'Coluna 2', 10, 'a1'),
+    cabine(2, 'Cubículo Enel', 'a1', { agrupar_por_tipo: agrupar }),
+  ];
+  const sheets = [sheet(1, 1, 'transformador_forca', 'a0', 'TR-1'), sheet(2, 1, 'transformador_forca', 'a1', 'TR-2'), sheet(3, 11, 'chave_seccionadora', 'a0', 'SEC-C01'), sheet(4, 12, 'chave_seccionadora', 'a0', 'SEC-C02')];
+  const LOCAL_PARTS = ['CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', 'VERIFICAÇÕES DO LOCAL'];
+
+  it('matrix "Print, v4" with the flag off: under the local first heading, SE, AMBIENTE, then the table; the painel band carries none; no sheet repeats the cabine tables', () => {
+    for (const scheme of ['ordem_de_campo', 'por_local_e_tipo'] as const) {
+      const section = layoutOf(on(snapshotOf(locations(false), sheets), 'v4', scheme));
+      expect(section.subsections.map((s) => [s.heading, s.painel ?? false, s.sheets.map((x) => x.blockId)])).toEqual([
+        ['9.1 Cabine primária', false, [block(1), block(2)]],
+        ['PAINEL DE MÉDIA TENSÃO', true, [block(3), block(4)]],
+        ['9.2 Cubículo Enel', false, []],
+      ]);
+      expect(localPartNames(section)).toEqual([LOCAL_PARTS, null, LOCAL_PARTS]);
+      expect(sheetsOf(section).some(hasCabineBlock)).toBe(false);
+      // Only a subsection that prints the local carries the key.
+      expect(Object.keys(section.subsections[1]!)).not.toContain('localParts');
+    }
+  });
+
+  it('matrix "Print, v4" with the flag on: the first type group of the local carries its parts, exactly once; the groups under the painel name the painel', () => {
+    const section = layoutOf(on(snapshotOf(locations(true), sheets), 'v4'));
+    expect(section.subsections.map((s) => [s.heading, s.sheets.map((x) => x.blockId)])).toEqual([
+      ['9.1 Transformadores e Cabos de Alimentação da Cabine primária', [block(1), block(2)]],
+      ['PAINEL DE MÉDIA TENSÃO', []],
+      ['9.2 Seccionadoras dos Cubículos de MT do Painel de média tensão — Cabine primária', [block(3), block(4)]],
+      ['9.3 Cubículo Enel', []],
+    ]);
+    expect(localPartNames(section)).toEqual([LOCAL_PARTS, null, null, LOCAL_PARTS]);
+    expect(sheetsOf(section).some(hasCabineBlock)).toBe(false);
+    // Under ordem_de_campo the flag is ignored and the table still prints once per local.
+    expect(localPartNames(layoutOf(on(snapshotOf(locations(true), sheets), 'v4', 'ordem_de_campo')))).toEqual([LOCAL_PARTS, null, LOCAL_PARTS]);
+  });
+
+  it('matrix "Type titles under a painel": two painéis each with seccionadoras print two different numbered titles; with no direct equipment the local own heading (empty, with its parts) comes before the first painel band', () => {
+    const locs = [
+      cabine(1, 'Cabine primária', 'a0', { agrupar_por_tipo: true, se, env, checklist }),
+      painel(10, 'Painel de entrada', 1, 'a0'),
+      coluna(11, 'Coluna 1', 10, 'a0'),
+      painel(20, 'Painel de saída', 1, 'a1'),
+      coluna(21, 'Coluna 1', 20, 'a0'),
+    ];
+    const inPaineis = [sheet(3, 11, 'chave_seccionadora', 'a0', 'SEC-C01'), sheet(4, 21, 'chave_seccionadora', 'a0', 'SEC-C01-2')];
+    const expected = [
+      ['9.1 Cabine primária', false, []],
+      ['PAINEL DE ENTRADA', true, []],
+      ['9.2 Seccionadoras dos Cubículos de MT do Painel de entrada — Cabine primária', false, [block(3)]],
+      ['PAINEL DE SAÍDA', true, []],
+      ['9.3 Seccionadoras dos Cubículos de MT do Painel de saída — Cabine primária', false, [block(4)]],
+    ];
+    const v4 = layoutOf(on(snapshotOf(locs, inPaineis), 'v4'));
+    expect(v4.subsections.map((s) => [s.heading, s.painel ?? false, s.sheets.map((x) => x.blockId)])).toEqual(expected);
+    expect(localPartNames(v4)).toEqual([LOCAL_PARTS, null, null, null, null]);
+    expect(sheetsOf(v4).some(hasCabineBlock)).toBe(false);
+    // The headings do not depend on the seed: on v3 the same tree prints them, with no local part and the cabine tables on the first sheet.
+    const v3 = layoutOf(on(snapshotOf(locs, inPaineis), 'v3'));
+    expect(v3.subsections.map((s) => [s.heading, s.painel ?? false, s.sheets.map((x) => x.blockId)])).toEqual(expected);
+    expect(localPartNames(v3)).toEqual([null, null, null, null, null]);
+    expect(sheetsOf(v3).filter(hasCabineBlock).map((s) => s.blockId)).toEqual([block(3)]);
+    // The ÍNDICE tells the two groups apart.
+    const lines = tocLines(layoutSpec(on(snapshotOf(locs, inPaineis), 'v4'), { revisionNumber: 1, issuedAt: ISSUED_AT })).filter((line) => line.level === 2);
+    expect(lines.map((line) => line.text)).toEqual(expected.filter((row) => row[1] === false).map((row) => row[0]));
+  });
+
+  it('draws the table as the print mock: the title band, the seed columns, a group row before each group, "N. LABEL" in upper case running 1 to 19, an X in the chosen box, the observation as typed', () => {
+    const section = layoutOf(on(snapshotOf(locations(false), sheets), 'v4'));
+    const printed = siteTable(section.subsections[0]!.localParts!);
+    const rows = texts(printed);
+    expect(printed.columns).toEqual([5, 0.6, 0.6, 0.6, 3.4]);
+    expect(rows[0]).toEqual(['VERIFICAÇÕES DO LOCAL']);
+    expect(printed.rows[0]).toMatchObject({ band: true, cells: [{ span: 5, bold: true, shade: true }] });
+    expect(rows[1]).toEqual(['ÍTEM', 'C', 'NC', 'NA', 'OBSERVAÇÕES']);
+    expect(printed.rows[1]!.header).toBe(true);
+    // 2 head rows + 6 group rows + 19 items.
+    expect(rows).toHaveLength(27);
+    const groups = printed.rows.filter((row) => row.group === true);
+    expect(groups.map((row) => row.cells)).toEqual(
+      ['SEGURANÇA E EPC NO LOCAL', 'COMBATE A INCÊNDIO', 'ILUMINAÇÃO', 'ATERRAMENTO', 'SINALIZAÇÃO E DOCUMENTAÇÃO', 'AMBIENTE'].map((text) => [{ text, span: 5, bold: true, align: 'left' }]),
+    );
+    // A group row is neither a band nor a header: the renderer shades it on its own fill.
+    expect(groups.every((row) => row.band === undefined && row.header === undefined)).toBe(true);
+    expect(printed.rows.map((row) => row.group === true).flatMap((isGroup, i) => (isGroup ? [i] : []))).toEqual([2, 10, 13, 16, 19, 23]);
+    const items = printed.rows.filter((row) => row.group !== true).slice(2).map((row) => row.cells.map((c) => c.text));
+    expect(items.map((row) => row[0])).toEqual([
+      '1. LUVAS ISOLANTES COMPATÍVEIS COM A TENSÃO, COM ENSAIO DIELÉTRICO VÁLIDO',
+      '2. TAPETE OU ESTRADO ISOLANTE',
+      '3. VARA DE MANOBRA COM ENSAIO DIELÉTRICO VÁLIDO',
+      '4. DETECTOR DE TENSÃO',
+      '5. CONJUNTO DE ATERRAMENTO TEMPORÁRIO',
+      '6. EPI DISPONÍVEL',
+      '7. DISPOSITIVOS DE BLOQUEIO E CARTÕES DE IMPEDIMENTO',
+      '8. EXTINTOR DE INCÊNDIO CARREGADO, LACRADO, DENTRO DA VALIDADE, SINALIZADO E DESOBSTRUÍDO',
+      '9. BACIA DE CONTENÇÃO DE ÓLEO',
+      '10. ILUMINAÇÃO NORMAL',
+      '11. ILUMINAÇÃO DE EMERGÊNCIA (AUTONOMIA MÍNIMA DE 2 H)',
+      '12. PORTAS, TELAS E GRADES ATERRADAS',
+      '13. PONTOS PARA ATERRAMENTO TEMPORÁRIO',
+      '14. PLACAS DE ADVERTÊNCIA NA PORTA E NAS GRADES',
+      '15. DIAGRAMA UNIFILAR ATUALIZADO NO LOCAL',
+      '16. CIRCUITOS E EQUIPAMENTOS IDENTIFICADOS',
+      '17. PORTA ABRINDO PARA FORA, COM FECHADURA',
+      '18. VENTILAÇÃO',
+      '19. LIMPEZA E AUSÊNCIA DE INFILTRAÇÃO',
+    ]);
+    expect(items[0]).toEqual([items[0]![0], 'X', '', '', 'Classe 2, ensaio válido até 11/2026']);
+    expect(items[7]).toEqual([items[7]![0], 'X', '', '', '']);
+    expect(items[8]).toEqual([items[8]![0], '', '', 'X', 'Sem equipamento a óleo no local']);
+    expect(items[10]).toEqual([items[10]![0], '', 'X', '', 'Duas luminárias de emergência sem carga']);
+    // Unanswered (never answered, and answered then cleared): no mark, no text.
+    expect(items[1]).toEqual([items[1]![0], '', '', '', '']);
+    expect(items[17]).toEqual([items[17]![0], '', '', '', '']);
+    // The cabine tables stand before it, as on a v1 to v3 first sheet.
+    const [seTable, envTable] = section.subsections[0]!.localParts!.map((part) => (part.kind === 'table' ? texts(part.table) : []));
+    expect(seTable![2]).toEqual(['ALVENARIA - CONVENCIONAL', '13,8 kV', '-', '1.500 kVA']);
+    expect(envTable![0]).toEqual(['AMBIENTE DE ENSAIO']);
+    // A local with nothing answered prints the 19 rows with no mark.
+    const empty = siteTable(section.subsections[2]!.localParts!);
+    expect(empty.rows.filter((row) => row.group !== true).slice(2).every((row) => row.cells.slice(1).every((c) => c.text === ''))).toBe(true);
+  });
+
+  it('matrix "Print, v4, no equipment": a local with no sheet prints its numbered heading and its parts; the section prints even when no local holds a sheet', () => {
+    for (const scheme of ['ordem_de_campo', 'por_local_e_tipo'] as const) {
+      for (const agrupar of [false, true]) {
+        const section = section9Layout(on(snapshotOf(locations(agrupar), []), 'v4', scheme), 9, TITLE);
+        expect(section).not.toBeNull();
+        expect(section!.subsections.map((s) => [s.heading, s.sheets.length])).toEqual([
+          ['9.1 Cabine primária', 0],
+          ['9.2 Cubículo Enel', 0],
+        ]);
+        expect(localPartNames(section!)).toEqual([LOCAL_PARTS, LOCAL_PARTS]);
+      }
+    }
+    // The ÍNDICE lists both headings.
+    const lines = tocLines(layoutSpec(on(snapshotOf(locations(false), []), 'v4'), { revisionNumber: 1, issuedAt: ISSUED_AT })).filter((line) => line.level === 2);
+    expect(lines.map((line) => line.text)).toEqual(['9.1 Cabine primária', '9.2 Cubículo Enel']);
+    // No local at all: null, the section keeps its note.
+    expect(section9Layout(on(snapshotOf([], []), 'v4'), 9, TITLE)).toBeNull();
+  });
+
+  it('prints the site item photos after the table, in capture order with their section 7 numbers; a photo with no site item, one of another local and one on a block stay out', () => {
+    const files = [
+      photo(1, { captured_at: '2026-09-06T08:00:00.000Z' }), // 1: a general photo
+      sitePhoto(2, 1, EMERGENCIA, '2026-09-06T10:00:00.000Z', { caption: 'Verificação de iluminação de emergência (autonomia mínima de 2 h) da Cabine primária' }), // 3
+      sitePhoto(3, 1, EXTINTOR, '2026-09-06T09:00:00.000Z'), // 2
+      sitePhoto(4, 1, null, '2026-09-06T11:00:00.000Z'), // 4: a photo of the local, on no item
+      sitePhoto(5, 2, EMERGENCIA, '2026-09-06T12:00:00.000Z'), // 5: the other local's
+      sitePhoto(6, 1, EMERGENCIA, '2026-09-06T13:00:00.000Z', { block_id: block(1) }), // 6: carries both, read as its block's
+      sitePhoto(7, 1, 'contatos', '2026-09-06T14:00:00.000Z'), // 7: an item key outside the site list
+      sitePhoto(8, 99, EMERGENCIA, '2026-09-06T15:00:00.000Z'), // 8: a local that is not live
+    ];
+    const section = layoutOf(on(snapshotOf(locations(false), sheets, { files }), 'v4'));
+    expect(localPartNames(section)).toEqual([[...LOCAL_PARTS, 'photos 2 3'], null, [...LOCAL_PARTS, 'photos 5']]);
+    const photos = section.subsections[0]!.localParts!.find((part) => part.kind === 'photos') as Extract<SheetPart, { kind: 'photos' }>;
+    expect(photos.photos).toEqual([
+      { fileId: id(3003), number: 2, caption: 'Imagem 2.' },
+      { fileId: id(3002), number: 3, caption: 'Imagem 3: Verificação de iluminação de emergência (autonomia mínima de 2 h) da Cabine primária.' },
+    ]);
+    // The photo carrying both prints on its block's sheet, as any photo of that sheet.
+    expect(sheetOf(section, block(1)).parts.some((part) => part.kind === 'photos' && part.photos.some((p) => p.fileId === id(3006)))).toBe(true);
+    // The numbers are section 7's.
+    expect(numberPhotos(files).get(id(3003))).toBe(2);
+  });
+
+  it('matrix "Removed local": a local absent from the snapshot prints nothing, its site photos included', () => {
+    const files = [sitePhoto(2, 2, EMERGENCIA, '2026-09-06T10:00:00.000Z')];
+    const live = locations(false).filter((row) => row.id !== id(2));
+    const section = layoutOf(on(snapshotOf(live, sheets, { files }), 'v4'));
+    expect(section.subsections.map((s) => s.heading)).toEqual(['9.1 Cabine primária', 'PAINEL DE MÉDIA TENSÃO']);
+    expect(JSON.stringify(section)).not.toContain(id(3002));
+  });
+
+  it('matrix "Print, v1 to v3": no local part anywhere, the cabine tables on the first sheet, a local with no sheet dropped, and the layout equal across the three versions', () => {
+    const files = [sitePhoto(2, 1, EMERGENCIA, '2026-09-06T10:00:00.000Z')];
+    const layouts = ['v1', 'v2', 'v3'].map((version) => layoutOf(on(snapshotOf(locations(false), sheets, { files }), version)));
+    for (const section of layouts) {
+      expect(section.subsections.map((s) => [s.heading, s.sheets.map((x) => x.blockId)])).toEqual([
+        ['9.1 Cabine primária', [block(1), block(2)]],
+        ['PAINEL DE MÉDIA TENSÃO', [block(3), block(4)]],
+      ]);
+      expect(section.subsections.every((s) => !('localParts' in s))).toBe(true);
+      expect(sheetsOf(section).filter(hasCabineBlock).map((s) => s.blockId)).toEqual([block(1)]);
+      expect(JSON.stringify(section)).not.toContain('VERIFICAÇÕES DO LOCAL');
+      expect(section).toEqual(layouts[0]);
+    }
+    expect(section9Layout(on(snapshotOf(locations(false), []), 'v3'), 9, TITLE)).toBeNull();
   });
 });

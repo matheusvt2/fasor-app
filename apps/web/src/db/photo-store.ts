@@ -20,6 +20,8 @@ export interface PhotoTile {
   id: string;
   block_id: string | null;
   item_key: string | null;
+  /** Story 14.3: the local of a site item's photo; absent or null on every other photo. */
+  location_id?: string | null;
   caption: string | null;
   captured_at: string;
   local_seq: number;
@@ -80,6 +82,7 @@ async function photoTiles(db: AppDatabase, relatorioId: string, keep: (row: Phot
     id: row.id,
     block_id: row.block_id,
     item_key: row.item_key,
+    ...(row.location_id == null ? {} : { location_id: row.location_id }),
     caption: row.caption,
     captured_at: row.captured_at,
     local_seq: row.local_seq,
@@ -100,6 +103,15 @@ async function photoTiles(db: AppDatabase, relatorioId: string, keep: (row: Phot
 /** The live photos of one sheet (every checklist item's and the sheet's own), in capture order. */
 export async function photoTilesOfBlock(db: AppDatabase, relatorioId: string, blockId: string): Promise<PhotoTile[]> {
   return photoTiles(db, relatorioId, (row) => row.block_id === blockId);
+}
+
+/**
+ * Story 14.3: the live photos of one local's site items ("Verificações do local"), in capture
+ * order. A row carrying both a block and a local is its block's (the kernel's rule), so it is
+ * not one of these.
+ */
+export async function photoTilesOfLocation(db: AppDatabase, relatorioId: string, locationId: string): Promise<PhotoTile[]> {
+  return photoTiles(db, relatorioId, (row) => row.block_id === null && (row.location_id ?? null) === locationId);
 }
 
 /** Stories 6.3/6.6: every live photo of a relatório, in capture order (the gallery, the point editor's picker). */
@@ -172,6 +184,17 @@ export function useBlockPhotoTiles(db: AppDatabase | null, relatorioId: string, 
     useLiveQuery(
       () => (db === null ? Promise.resolve(NO_TILES) : photoTilesOfBlock(db, relatorioId, blockId)),
       [db, relatorioId, blockId],
+      NO_TILES,
+    ) ?? NO_TILES
+  );
+}
+
+/** Story 14.3: the photo tiles of one local's site items. */
+export function useLocationPhotoTiles(db: AppDatabase | null, relatorioId: string, locationId: string): PhotoTile[] {
+  return (
+    useLiveQuery(
+      () => (db === null ? Promise.resolve(NO_TILES) : photoTilesOfLocation(db, relatorioId, locationId)),
+      [db, relatorioId, locationId],
       NO_TILES,
     ) ?? NO_TILES
   );

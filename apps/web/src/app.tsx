@@ -1,4 +1,4 @@
-import { PRODUTO } from '@app/domain';
+import { PRODUTO, SITE_CHECKLIST_LABEL } from '@app/domain';
 import { I18nProvider } from 'react-aria-components';
 import { LoadingNote } from './components/index.ts';
 import { createBrowserRouter, Navigate, Outlet, RouterProvider, type RouteObject } from 'react-router';
@@ -22,6 +22,7 @@ import { EvictionRecoverySurface } from './surfaces/eviction-recovery-surface.ts
 import { FichaSurface } from './surfaces/ficha/ficha-surface.tsx';
 import { FieldFixtureSurface } from './surfaces/fixtures/field-fixture-surface.tsx';
 import { HomeSurface } from './surfaces/home/home-surface.tsx';
+import { VerificacoesSurface } from './surfaces/local/verificacoes-surface.tsx';
 import { LoginSurface } from './surfaces/login/login-surface.tsx';
 import { PointsSurface } from './surfaces/points/points-surface.tsx';
 import { ProjectSurface } from './surfaces/project/project-surface.tsx';
@@ -168,6 +169,19 @@ const router = createBrowserRouter([
                 to: `/relatorio/${params.id ?? ''}`,
                 state: { openSection9: true, focusBlockId: params.blockId ?? null },
               }),
+            },
+          },
+          // Story 14.3: "Verificações do local", the site checklist of one local (the mock's
+          // `/local/:id/verificacoes`), opened from the local's tree row and from the sheet's
+          // "Do local" line. Back goes where the sheet's goes: the tree surface on a phone, the
+          // Sumário with section 9 open from 768 px.
+          {
+            path: '/relatorio/:id/local/:locationId/verificacoes',
+            element: <VerificacoesSurface />,
+            handle: {
+              title: SITE_CHECKLIST_LABEL,
+              back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}/arvore`,
+              backWide: (params: Record<string, string | undefined>) => ({ to: `/relatorio/${params.id ?? ''}`, state: { openSection9: true } }),
             },
           },
           // Story 6.3: the gallery, reached from Sumário row 7.

@@ -1,6 +1,7 @@
 import type { PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { naoEnsaiadasText } from '../relatorio/progress.ts';
+import { sitePointTitle } from '../relatorio/site-checklist.ts';
 import { locationTree, treeNodes, type TreeEquipmentNode, type TreeLocationNode } from '../relatorio/tree.ts';
 import { plural } from '../text/plural.ts';
 import { derivedPoints, equipmentPointTitle, type DerivedPoint } from './derived.ts';
@@ -50,13 +51,24 @@ function equipmentNodeIndex(tree: readonly TreeLocationNode[]): Map<string, Tree
 
 /**
  * A point's card title: its linked equipment as section 8 names it ("SEC-C12 · 1° Subsolo ›
- * Coluna 12"), else "Geral" (also for equipment no live sheet of this relatório holds).
+ * Coluna 12"); Story 14.3: for a point created from a site item, its local ("1° Subsolo ·
+ * Verificações do local", `sitePointTitle`) while that local is live; else "Geral" (also for
+ * equipment no live sheet of this relatório holds, and for a local that is not live here).
  */
-export function pointTitle(point: Pick<PointRow, 'equipment_id'>, snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'>): string {
-  if (point.equipment_id === null) return POINT_TITLE_GENERAL;
-  const node = equipmentNodeIndex(locationTree(snapshot)).get(point.equipment_id);
-  if (node === undefined) return POINT_TITLE_GENERAL;
-  return equipmentPointTitle(node, snapshot);
+export function pointTitle(
+  point: Pick<PointRow, 'equipment_id'> & { location_id?: string | null },
+  snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'>,
+): string {
+  if (point.equipment_id !== null) {
+    const node = equipmentNodeIndex(locationTree(snapshot)).get(point.equipment_id);
+    if (node !== undefined) return equipmentPointTitle(node, snapshot);
+  }
+  const locationId = point.location_id ?? null;
+  if (locationId !== null) {
+    const local = snapshot.locations.find((row) => row.id === locationId && row.removed_at === null);
+    if (local !== undefined) return sitePointTitle(local.name);
+  }
+  return POINT_TITLE_GENERAL;
 }
 
 export interface PointsSummary {

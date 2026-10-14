@@ -7,6 +7,7 @@ import {
   moveTargets,
   paletteLocationFor,
   removeBlockTitle,
+  SITE_CHECKLIST_LABEL,
   treePathTo,
   type EquipmentRow,
   type RelatorioSnapshot,
@@ -699,6 +700,15 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
                 <span className="cl-missing">{node.metaMissing}</span>
               </span>
             )}
+            {/* Story 14.3 (`40-relatorio-overview.html` `.s9-verif`): the local's site checklist and its counter, the kernel's text. */}
+            {node.site === null ? null : (
+              <AriaButton className="btn btn-text s9-verif" aria-label={copy.local.entryLabel(node.site.text, node.name)} onPress={() => shared.actions.openVerificacoes(node.id)}>
+                <svg className="ico ico-sm" aria-hidden="true">
+                  <use href="/sprite.svg#i-check-all" />
+                </svg>
+                {node.site.text}
+              </AriaButton>
+            )}
           </span>
           <span className="progress-counter" data-state={node.counterState}>
             <span className="dot" aria-hidden="true" />
@@ -865,7 +875,9 @@ const RailLocation = memo(function RailLocation({ node, shared }: { node: TreeLo
   const open = shared.isOpen(node);
   const groupId = useId();
   const menu = locationMenu(node, shared, null, () => null);
-  const hasChildren = node.equipment.length > 0 || node.locations.length > 0;
+  // Story 14.3: a local opens on its "Verificações do local" row, so it always has something below.
+  const site = node.site;
+  const hasChildren = site !== null || node.equipment.length > 0 || node.locations.length > 0;
   return (
     <li data-location-id={node.id}>
       <div className="tree-row" data-level={node.level} onKeyDown={(event) => treeKeys(event, hasChildren ? open : null, (value) => shared.setOpen(node, value))}>
@@ -894,6 +906,26 @@ const RailLocation = memo(function RailLocation({ node, shared }: { node: TreeLo
       </div>
       {open && hasChildren ? (
         <ul className="relatorio-tree" id={groupId}>
+          {/* Story 14.3 (`shell-foot.html`): the local's site checklist first, one level under it. */}
+          {site === null ? null : (
+            <li data-site-of={node.id}>
+              <div className="tree-row" data-level={node.level + 1} onKeyDown={(event) => treeKeys(event, null, () => undefined)}>
+                <span className="tree-chevron" aria-hidden="true">
+                  <svg className="ico" aria-hidden="true">
+                    <use href="/sprite.svg#i-check-all" />
+                  </svg>
+                </span>
+                <button type="button" className="tree-body" data-tree-open aria-label={copy.local.entryLabel(SITE_CHECKLIST_LABEL, node.name)} onClick={() => shared.actions.openVerificacoes(node.id)}>
+                  <span>{SITE_CHECKLIST_LABEL}</span>
+                  <span className="tree-meta">{site.railMeta}</span>
+                </button>
+                <span className="tree-state" data-state={site.railStateAttr}>
+                  <span aria-hidden="true">{site.glyph}</span>
+                  {site.railCounter}
+                </span>
+              </div>
+            </li>
+          )}
           {node.equipment.map((row) => (
             <RailEquipment key={row.blockId} node={row} shared={shared} />
           ))}

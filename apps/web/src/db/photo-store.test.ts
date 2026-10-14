@@ -16,7 +16,7 @@ import {
   setUploadError,
   thumbsToRefresh,
 } from './file-store.ts';
-import { photoTilesOfBlock, pushCaptionRecents, readCaptionRecents } from './photo-store.ts';
+import { photoTilesOfBlock, photoTilesOfLocation, pushCaptionRecents, readCaptionRecents } from './photo-store.ts';
 import { openDatabase, PHOTO_SEQ_PREF, type AppDatabase } from './schema.ts';
 
 /*
@@ -110,6 +110,31 @@ describe('6.1-UNIT-006 commitPhotoCapture', () => {
     expect(row).toMatchObject({ reading_kind: 'plate', reading_target: target, reading_status: 'queued' });
     const [create] = await db.outbox.where('path').equals(`file/${PHOTO_C}`).toArray();
     expect(create!.value).toMatchObject({ reading_kind: 'plate', reading_target: target, reading_status: 'queued' });
+    db.close();
+  });
+
+  it('14.3-UNIT: a site item\'s shot carries location_id and item_key with no block and no reading; it is its local\'s tile, never a sheet\'s', async () => {
+    const db = await freshDb();
+    const LOCAL = '019966b0-0000-7000-8000-00000000a001';
+    const OTHER = '019966b0-0000-7000-8000-00000000a002';
+    const item = 'iluminacao_de_emergencia_autonomia_minima_de_2_h';
+    const site = { blockId: null, itemKey: item, locationId: LOCAL, caption: 'Verificação de iluminação de emergência (autonomia mínima de 2 h) do 1° Subsolo', reading: null };
+    await commitPhotoCapture(db, shot(PHOTO_A, '2026-09-25T11:00:00.000Z', site), { newId, now });
+    await commitPhotoCapture(db, shot(PHOTO_B, '2026-09-25T11:01:00.000Z'), { newId, now });
+    // A row carrying both a block and a local is its block's.
+    await commitPhotoCapture(db, shot(PHOTO_C, '2026-09-25T11:02:00.000Z', { locationId: LOCAL, itemKey: item }), { newId, now });
+
+    const row = photoFileRowSchema.parse((await db.entities.get(['file', PHOTO_A]))!.row);
+    expect(row).toMatchObject({ block_id: null, item_key: item, location_id: LOCAL, reading_kind: null, reading_status: 'none', caption: site.caption });
+    const [create] = await db.outbox.where('path').equals(`file/${PHOTO_A}`).toArray();
+    expect(create!.value).toMatchObject({ block_id: null, item_key: item, location_id: LOCAL, reading_kind: null });
+    // A sheet's photo keeps the row shape from before the field: no `location_id` key at all.
+    expect(Object.keys((await db.entities.get(['file', PHOTO_B]))!.row as object)).not.toContain('location_id');
+
+    expect((await photoTilesOfLocation(db, RELATORIO_ID, LOCAL)).map((tile) => [tile.id, tile.item_key, tile.location_id])).toEqual([[PHOTO_A, item, LOCAL]]);
+    expect(await photoTilesOfLocation(db, RELATORIO_ID, OTHER)).toEqual([]);
+    expect((await photoTilesOfBlock(db, RELATORIO_ID, BLOCK_1_ID)).map((tile) => tile.id)).toEqual([PHOTO_B, PHOTO_C]);
+    expect((await photoTilesOfBlock(db, RELATORIO_ID, BLOCK_1_ID)).every((tile) => tile.id === PHOTO_C || !('location_id' in tile))).toBe(true);
     db.close();
   });
 
