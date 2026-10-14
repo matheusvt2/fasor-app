@@ -992,13 +992,13 @@ action_items:
     epic: 14
     action: "E14-A9 Decide before the first real job: site NCs in NC abertos and the parecer suggestion plus an item link on a point (Q-4, count-based blind spot), Q-8 offline site work on a removed local, Q-9 site photos of a removed local in section 7, Q-15/R2 CTA config change on Emitido, 14.3 O1/O2/O4, cabine incompleta row for a local with no equipment, 14.5 W1 select vs segmented and W6 E1/E5 stacking on phone; target dated answers under Stories 14.3-14.5"
     owner: "Matheus"
-    status: open
+    status: open  # 2026-10-14: partly answered by Bruno, PR #130 (b6765c2): Q-4 settled (a site NC counts in NC abertos, the tap focuses its local, the parecer suggests Apto com restricoes naming the item). Still open: the item link on a point, Q-8, Q-9, Q-15/R2, 14.3 O1/O2/O4, cabine incompleta row, 14.5 W1 and W6
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-119-e14-a10-bruno-copy-review"
     epic: 14
     action: "E14-A10 Bruno's copy review before the first real job: NC phrases of the 19 site items, NO-BREAK DE COMANDO and the 51 CTA phrases (docs/nc-chip-phrases.md), criteria wording and sources, the // authored: strings of PRs #126-#129; target dated answers, 0 rows marked before the first real job open when it starts"
     owner: "Matheus (Bruno for wording)"
-    status: open
+    status: open  # 2026-10-14: not yet reviewed; PR #130 added more // authored: strings (site NC hint, summary and Criterios lines, Corrente de ensaio label) and E4 waits for Bruno's list of rows
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-120-e14-a11-story-14-4-pdf-dod"
     epic: 14
