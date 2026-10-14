@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EquipmentRow } from '../schemas/entities.ts';
-import { addedText, moveAnnouncement, renamedText } from '../templates/text.ts';
+import { addedText, localUpdatedText, moveAnnouncement, renamedText } from '../templates/text.ts';
 import {
   agruparToggledText,
   blockCreatedText,
@@ -37,10 +37,20 @@ describe('4.5-UNIT block texts', () => {
 
   it('names location moves, additions and renames (moveAnnouncement is the composer one)', () => {
     expect(moveAnnouncement('coluna', 'Coluna 5', 1, 17)).toBe('Coluna 5 movida para a posição 1 de 17');
-    expect(moveAnnouncement('cabine', 'Geradores', 2, 6)).toBe('Cabine Geradores movida para a posição 2 de 6');
+    // Story 14.2: on screen the root is the "local" (masculine); a name leading with "Cabine" is read by itself.
+    expect(moveAnnouncement('cabine', 'Geradores', 2, 6)).toBe('Local Geradores movido para a posição 2 de 6');
+    expect(moveAnnouncement('painel', 'Painel 2', 1, 3)).toBe('Painel 2 movido para a posição 1 de 3');
+    expect(moveAnnouncement('painel', 'Média tensão', 2, 2)).toBe('Painel Média tensão movido para a posição 2 de 2');
     expect(addedText('coluna', 'Coluna 18')).toBe('Coluna 18 adicionada');
     expect(addedText('cabine', 'Cabine 7')).toBe('Cabine 7 adicionada');
+    expect(addedText('cabine', 'Cabine de transformação')).toBe('Cabine de transformação adicionada');
+    expect(addedText('cabine', 'Geradores')).toBe('Local Geradores adicionado');
+    expect(addedText('painel', 'Painel 2')).toBe('Painel 2 adicionado');
     expect(renamedText('coluna', 'Entrada')).toBe('Coluna Entrada renomeada');
+    expect(renamedText('painel', 'Painel de média tensão')).toBe('Painel de média tensão renomeado');
+    expect(renamedText('cabine', 'Geradores Norte')).toBe('Local Geradores Norte renomeado');
+    expect(localUpdatedText('Geradores')).toBe('Local Geradores atualizado');
+    expect(localUpdatedText('Cabine primária')).toBe('Cabine primária atualizada');
   });
 
   it('tagVerdict: empty, taken by another live row (trimmed, any case), never by the row itself or a removed one', () => {

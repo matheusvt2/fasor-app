@@ -108,7 +108,7 @@ test('@p0 11.8-E2E-001 AI features off: no plate, panel or NC-draft entry; "Ler 
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expandLocation(page, 'Cubículo Enel');
-  await page.getByRole('button', { name: 'Adicionar bloco em Cubículo Enel' }).click();
+  await page.getByRole('button', { name: 'Adicionar equipamento no local Cubículo Enel' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   // E11-Q6: no camera row, so no orphan "Ou" before the heading.
   await expect(palette.getByText('Escolha o tipo · TAG sugerida por tipo + coluna', { exact: true })).toBeVisible();

@@ -95,9 +95,16 @@ export interface PrintSheet {
 }
 
 export interface PrintSheetSubsection {
-  /** "9.1 Cubículo Enel": printed as Heading 2. */
+  /**
+   * "9.1 Cubículo Enel": printed as Heading 2. On a painel subsection (`painel: true`), the
+   * painel's name in upper case with no number ("PAINEL DE MÉDIA TENSÃO"): a band over its
+   * sheets, never a heading of the ÍNDICE.
+   */
   heading: string;
+  /** May be empty: a painel band over its type groups, or a local whose sheets all sit in painéis (the heading stands alone). */
   sheets: PrintSheet[];
+  /** Story 14.2: the subsection is a painel's band. Absent on every other subsection. */
+  painel?: true;
 }
 
 export interface LayoutSectionSheets {
@@ -631,7 +638,11 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
 /**
  * Section 9 of the layout spec: `groupForPrint`'s subsections numbered "N.k" across the
  * section, each with its sheets; the first sheet each cabine gets carries the cabine's SE and
- * environment. Null when the relatório holds no sheet to print (the section keeps its note).
+ * environment. Story 14.2: a painel subsection is an unnumbered band (its name in upper
+ * case) that the "N.k" counter skips, and a subsection `groupForPrint` emitted with no sheet
+ * on purpose (that band over its type groups, or a local whose sheets all sit in painéis)
+ * keeps its heading alone. Null when the relatório holds no sheet to print (the section
+ * keeps its note).
  */
 export function section9Layout(snapshot: RelatorioSnapshot, number: number, title: string): LayoutSectionSheets | null {
   const grouping = groupForPrint(snapshot);
@@ -639,6 +650,8 @@ export function section9Layout(snapshot: RelatorioSnapshot, number: number, titl
   const cabines = new Map(snapshot.locations.filter((location): location is CabineLocation => location.kind === 'cabine').map((location) => [location.id, location]));
   const seen = new Set<string>();
   const subsections: PrintSheetSubsection[] = [];
+  let numbered = 0;
+  let printed = 0;
   for (const subsection of grouping.subsections) {
     const sheets: PrintSheet[] = [];
     for (const blockId of subsection.blockIds) {
@@ -647,9 +660,16 @@ export function section9Layout(snapshot: RelatorioSnapshot, number: number, titl
       const sheet = sheetOf(ctx, blockId, first ? (cabines.get(subsection.cabineId) ?? null) : null);
       if (sheet !== null) sheets.push(sheet);
     }
-    if (sheets.length > 0) subsections.push({ heading: `${number}.${subsections.length + 1} ${subsection.title}`, sheets });
+    // A subsection whose every sheet failed to resolve is dropped, as before; one emitted empty on purpose stands.
+    if (sheets.length === 0 && subsection.blockIds.length > 0) continue;
+    printed += sheets.length;
+    if (subsection.kind === 'painel') {
+      subsections.push({ heading: subsection.title.toLocaleUpperCase('pt-BR'), sheets, painel: true });
+    } else {
+      numbered += 1;
+      subsections.push({ heading: `${number}.${numbered} ${subsection.title}`, sheets });
+    }
   }
-  if (subsections.length === 0) return null;
+  if (printed === 0) return null;
   return { number, title, kind: 'sheets', subsections, warnings: grouping.warnings };
 }
-

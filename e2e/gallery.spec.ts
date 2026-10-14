@@ -162,9 +162,9 @@ test('@p0 6.3-E2E-001 Sumário row 7 opens the gallery in capture order with num
   }
   expect(photos.map((photo) => photo.caption)).toEqual([NC_CAPTION, SHEET_CAPTION, 'Detalhe da chave seccionadora SEC-OXIGENIO do Oxigênio']);
 
-  // The cabine filter: "Todas" first, then the cabines in tree order.
-  const filter = page.getByRole('radiogroup', { name: 'Filtrar por cabine' });
-  await expect(filter.getByRole('radio')).toHaveText(['Todas', 'Cubículo Enel', 'Oxigênio']);
+  // The local filter (Story 14.2: "Todos" agrees with "locais"): "Todos" first, then the locais in tree order.
+  const filter = page.getByRole('radiogroup', { name: 'Filtrar por local' });
+  await expect(filter.getByRole('radio')).toHaveText(['Todos', 'Cubículo Enel', 'Oxigênio']);
   await filter.getByRole('radio', { name: 'Cubículo Enel' }).click();
   await expect(items).toHaveCount(2);
   await expect(page.getByTestId('gallery-filter-status')).toHaveText('Mostrando 2 fotos do Cubículo Enel');
@@ -172,7 +172,7 @@ test('@p0 6.3-E2E-001 Sumário row 7 opens the gallery in capture order with num
   await expect(items).toHaveCount(1);
   await expect(items.first().locator('.number-badge')).toHaveText('3');
   await expect(page.getByTestId('gallery-filter-status')).toHaveText('Mostrando 1 foto do Oxigênio');
-  await filter.getByRole('radio', { name: 'Todas' }).click();
+  await filter.getByRole('radio', { name: 'Todos' }).click();
   await expect(items).toHaveCount(3);
   await expect(page.getByTestId('gallery-filter-status')).toHaveText('Mostrando 3 fotos');
 

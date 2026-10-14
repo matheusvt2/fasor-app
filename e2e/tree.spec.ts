@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { addLocal } from './support/local.ts';
 import { syncNowAndReturn } from './support/sync.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
@@ -29,7 +30,7 @@ test.beforeEach(({ seed }) => {
 const announcer = (page: Page) => page.getByTestId('sumario-announcer');
 const toast = (page: Page) => page.locator('.toast');
 const tree = (page: Page) => page.getByRole('list', { name: 'Locais do relatório' });
-const cabine = (page: Page, name: string) => tree(page).locator(':scope > li.s9-cabine').filter({ has: page.locator(':scope > .s9-cab-row .s9-cab-name', { hasText: name }) });
+const cabine = (page: Page, name: string) => tree(page).locator(':scope > li.s9-local').filter({ has: page.locator(':scope > .s9-loc-row .s9-loc-name', { hasText: name }) });
 const coluna = (page: Page, name: string) => page.locator('li.s9-coluna').filter({ has: page.locator(':scope > .s9-col .s9-col-name', { hasText: new RegExp(`^${name}$`) }) });
 const tagsIn = (li: Locator) => li.locator(':scope > .s9-eqs > li.s9-eq .block-tag');
 const eqRow = (page: Page, tag: string) => page.locator('li.s9-eq').filter({ has: page.locator('.block-tag', { hasText: new RegExp(`^${tag}$`) }) });
@@ -64,7 +65,7 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   test.setTimeout(120_000);
   await openRelatorio(page, 1280);
   await openSection9(page);
-  await expect(tree(page).locator(':scope > li.s9-cabine')).toHaveCount(6);
+  await expect(tree(page).locator(':scope > li.s9-local')).toHaveCount(6);
   await expect(page.getByText('Organizados por local aqui; no documento, agrupados como no FO.SERV-03.')).toBeVisible();
 
   // DESIGN.md: 56 px rows and a 48×56 chevron target apart from the row body.
@@ -73,10 +74,11 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   expect(Math.round(box.width)).toBe(48);
   expect(Math.round(box.height)).toBe(56);
   // Story 12.3: an empty cabine's row also says what its data lacks, after the data line.
-  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('faltam 6 campos');
-  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta .cl-missing')).toHaveText('faltam 6 campos');
-  await expect(cabine(page, '1° Subsolo').locator('.s9-cab-meta')).toHaveText('agrupar por tipo · faltam 6 campos');
-  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-row .progress-counter')).toHaveText('0 de 9');
+  // Story 14.2: a local nothing hangs under (Cubículo Enel holds its sheets itself) closes its line with "sem painéis".
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-loc-meta')).toHaveText('sem painéis · faltam 6 campos');
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-loc-meta .cl-missing')).toHaveText('faltam 6 campos');
+  await expect(cabine(page, '1° Subsolo').locator('.s9-loc-meta')).toHaveText('agrupar por tipo · faltam 6 campos');
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-loc-row .progress-counter')).toHaveText('0 de 9');
 
   // Left/Right on the chevron.
   await enelChevron.focus();
@@ -100,7 +102,7 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   // Left on a leaf's body goes to its coluna's chevron.
   await sec.locator('.s9-eq-open').focus();
   await page.keyboard.press('ArrowLeft');
-  await expect(page.getByRole('button', { name: 'Recolher Coluna 1', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Recolher Coluna 1 de 1° Subsolo', exact: true })).toBeFocused();
   // Review F-3: "Adicionar bloco em ⟨cabine⟩" opens on the cabine's current coluna (its last, no sheet worked yet).
   await page.getByRole('button', { name: 'Adicionar bloco em 1° Subsolo' }).click();
   await expect(page.getByRole('dialog', { name: 'Adicionar bloco' }).getByText('Em: 1° Subsolo › Coluna 17')).toBeVisible();
@@ -117,7 +119,7 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   // "Abrir primeira ficha" opens the cabine's first sheet (Story 5.1: the App bar names its
   // TAG); back on the Sumário its row is the last sheet worked on.
   await menuOf(page, 'Cubículo Enel').click();
-  await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }).click();
+  await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados do local)' }).click();
   await expect(page).toHaveURL(/\/ficha\//);
   const tagButton = page.locator('.sheet-header .tag-btn');
   await expect(tagButton).not.toHaveText('');
@@ -135,37 +137,45 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   await expect(agrupar).toHaveAttribute('aria-checked', 'false');
   await agrupar.click();
   await expect(announcer(page)).toHaveText('Agrupar por tipo ativado em Cubículo Enel');
-  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('agrupar por tipo · faltam 6 campos');
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-loc-meta')).toHaveText('agrupar por tipo · sem painéis · faltam 6 campos');
   await page.reload();
   await openSection9(page);
-  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('agrupar por tipo · faltam 6 campos');
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-loc-meta')).toHaveText('agrupar por tipo · sem painéis · faltam 6 campos');
 
-  // "Adicionar coluna", "Renomear", and a cabine moved up by the Overflow.
+  // "Adicionar coluna", "Renomear", and a local moved up by the Overflow. Story 14.2: a local
+  // that already holds colunas directly (1° Subsolo) keeps adding them; one with none (Cubículo
+  // Enel) offers "Adicionar painel" instead (`local-painel-coluna.spec.ts` walks that path).
   await menuOf(page, 'Cubículo Enel').click();
+  await expect(page.getByRole('menuitem', { name: 'Adicionar painel' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Adicionar coluna' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await menuOf(page, '1° Subsolo').click();
   await page.getByRole('menuitem', { name: 'Adicionar coluna' }).click();
-  await expect(page.getByRole('button', { name: 'Recolher Coluna 1', exact: true })).toBeFocused();
-  await expect(toast(page)).toContainText('Coluna 1 adicionada');
-  await menuOf(page, 'Coluna 1').click();
+  await expect(page.getByRole('button', { name: 'Recolher Coluna 18 de 1° Subsolo', exact: true })).toBeFocused();
+  await expect(toast(page)).toContainText('Coluna 18 adicionada');
+  await menuOf(page, 'Coluna 18 de 1° Subsolo').click();
   await page.getByRole('menuitem', { name: 'Renomear' }).click();
-  const rename = page.getByRole('dialog', { name: 'Renomear Coluna 1' });
+  const rename = page.getByRole('dialog', { name: 'Renomear Coluna 18' });
   await rename.getByRole('textbox', { name: 'Nome' }).fill('Entrada');
   await rename.getByRole('button', { name: 'Salvar' }).click();
   await expect(coluna(page, 'Entrada')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: 'Recolher Entrada' })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Recolher Entrada de 1° Subsolo' })).toBeFocused();
   await menuOf(page, 'Geradores').click();
   await page.getByRole('menuitem', { name: 'Subir' }).click();
-  await expect(announcer(page)).toHaveText('Cabine Geradores movida para a posição 5 de 6');
-  await expect(tree(page).locator(':scope > li.s9-cabine .s9-cab-name')).toHaveText(['Cubículo Enel', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Geradores', 'Cobertura B']);
+  await expect(announcer(page)).toHaveText('Local Geradores movido para a posição 5 de 6');
+  // Cubículo Enel is collapsed and holds the last sheet worked on, so its row says it.
+  await expect(tree(page).locator(':scope > li.s9-local .s9-loc-name')).toHaveText(['Cubículo Enel você parou aqui', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Geradores', 'Cobertura B']);
   await expect(page.getByRole('button', { name: 'Desfazer' })).toBeVisible();
   // Alt+ArrowUp on its chevron moves it again.
   await page.getByRole('button', { name: /^(Expandir|Recolher) Geradores$/ }).focus();
   await page.keyboard.press('Alt+ArrowUp');
-  await expect(announcer(page)).toHaveText('Cabine Geradores movida para a posição 4 de 6');
+  await expect(announcer(page)).toHaveText('Local Geradores movido para a posição 4 de 6');
 
-  // "Adicionar cabine" at the foot.
-  await page.getByRole('button', { name: 'Adicionar cabine' }).click();
+  // "Adicionar local" at the foot (Story 14.2: it asks the Função and the name).
+  await addLocal(page, { funcao: 'Primária', name: 'Cabine 7' });
   await expect(page.getByRole('button', { name: 'Expandir Cabine 7' })).toBeFocused();
-  await expect(tree(page).locator(':scope > li.s9-cabine')).toHaveCount(7);
+  await expect(toast(page)).toContainText('Cabine 7 adicionada');
+  await expect(tree(page).locator(':scope > li.s9-local')).toHaveCount(7);
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 
   // Every op of the whole edit is a location op (no block moved between locations).
@@ -184,7 +194,7 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
 
   // The field palette, as a right drawer, one tap, offline.
   await context.setOffline(true);
-  await menuOf(page, 'Coluna 1').click();
+  await menuOf(page, 'Coluna 1 de 1° Subsolo').click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   await expect(palette.getByText('Em: 1° Subsolo › Coluna 1')).toBeVisible();
@@ -314,7 +324,7 @@ test('@p0 4.5-E2E-002 at 1280: the office palette asks TAG and Local prefilled a
   await openRelatorio(page, 1280);
   await openSection9(page);
   await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
-  await menuOf(page, 'Coluna 1').click();
+  await menuOf(page, 'Coluna 1 de 1° Subsolo').click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   // From 1280 px each type opens its confirm instead of creating at once.
@@ -479,13 +489,13 @@ test('@p0 5.9-E2E-003 "Marcar não ensaiado" from a Block card Overflow: the rea
   await expect(railRow.locator('.tree-meta')).toHaveText(`${firstTag} · Solicitação do cliente`);
 });
 
-test('@p0 5.2-E2E-004 (AC2 leftover) cabineMetaText updates live, with no reload, in the Sumário row and the rail once "Da cabine" is filled', async ({ page }) => {
+test('@p0 5.2-E2E-004 (AC2 leftover) cabineMetaText updates live, with no reload, in the Sumário row once "Do local" is filled; the rail row reads its own line, which follows the sheet live', async ({ page }) => {
   test.setTimeout(120_000);
   await openRelatorio(page, 1280);
   await openSection9(page);
-  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('faltam 6 campos');
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-loc-meta')).toHaveText('sem painéis · faltam 6 campos');
   await menuOf(page, 'Cubículo Enel').click();
-  await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }).click();
+  await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados do local)' }).click();
   await expect(page).toHaveURL(/\/ficha\//);
 
   await page.getByLabel('Tipo de SE', { exact: true }).selectOption('BLINDADA');
@@ -497,15 +507,29 @@ test('@p0 5.2-E2E-004 (AC2 leftover) cabineMetaText updates live, with no reload
   await umidade.fill('67');
   await umidade.press('Enter');
 
-  // The rail beside the sheet (already on screen at 1280) reads live, no reload.
+  // Story 14.2 (the redrawn rail of `shell-foot.html`): the rail's local row no longer repeats the
+  // data line; it reads the level, what hangs under the local and its sheets ("Local · … fichas").
+  // The data line is the Sumário row's, checked live below.
   const railCabine = page.locator('aside.rail li[data-location-id]').filter({ has: page.locator(':scope > .tree-row > .tree-body > span', { hasText: /^Cubículo Enel$/ }) });
-  await expect(railCabine.locator(':scope > .tree-row > .tree-body > .tree-meta')).toHaveText('BLINDADA · 13,8 kV · 19 °C · 67 %');
+  const railLine = railCabine.locator(':scope > .tree-row > .tree-body > .tree-meta');
+  await expect(railLine).toHaveText('Local · sem painéis · 0 de 9 fichas');
+  // The rail beside the sheet (on screen at 1280) reads live, no reload: the open sheet marked
+  // not tested is one sheet settled, and the local's line counts it while the rail stays mounted.
+  const openTag = (await page.locator('.sheet-header .tag-btn').textContent())!.trim();
+  await page.getByRole('button', { name: `Mais opções da ficha ${openTag}` }).click();
+  await page.getByRole('menuitem', { name: 'Marcar não ensaiado' }).click();
+  const notTested = page.getByRole('dialog', { name: 'Marcar não ensaiado' });
+  await notTested.getByRole('radio', { name: 'Solicitação do cliente' }).click();
+  await notTested.getByRole('button', { name: 'Marcar não ensaiado' }).click();
+  await expect(notTested).toBeHidden();
+  await expect(page.locator('.sheet-title .not-tested-chip')).toHaveText('Não ensaiado');
+  await expect(railLine).toHaveText('Local · sem painéis · 1 de 9 fichas');
 
   // Back on the Sumário, the same value with no reload.
   await page.goBack();
   await openSection9(page);
   // Story 12.3: the secondary voltage and the power are still empty.
-  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('BLINDADA · 13,8 kV · 19 °C · 67 % · faltam 2 campos');
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-loc-meta')).toHaveText('BLINDADA · 13,8 kV · 19 °C · 67 % · sem painéis · faltam 2 campos');
 });
 
 test('@p1 4.6-E2E-006 an Emitido relatório whose block references an equipment moves to Em revisão when that TAG is renamed from the tree, in the rename\'s batch', async ({ page }) => {

@@ -532,7 +532,7 @@ test('@p1 4.5-E2E-004 phone width: the palette is a bottom sheet, a tap creates 
   await expect(tags).toHaveText(['SEC-C01']);
 
   // The palette from the coluna row: a bottom sheet across the phone.
-  await page.getByRole('button', { name: 'Mais opções de Coluna 1', exact: true }).tap();
+  await page.getByRole('button', { name: 'Mais opções de Coluna 1 de 1° Subsolo', exact: true }).tap();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).tap();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   await expect(palette.locator('.sheet-grip')).toBeVisible();

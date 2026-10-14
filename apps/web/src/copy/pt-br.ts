@@ -334,15 +334,36 @@ export const copy = {
     notFound: 'Template não encontrado.',
     // authored: the way back from the not-found sentence.
     backToList: 'Voltar para Templates',
-    skeletonNote: 'Cada bloco do relatório nasce na sua coluna, com a TAG final (tipo + coluna)',
-    skeletonListLabel: 'Cabines do template',
-    columnListLabel: (cabine: string) => `Colunas de ${cabine}`,
+    // Story 14.2 (`42-template-composer.html` `.section-note`): Local › Painel › Coluna.
+    skeletonNote: 'Local › painel › coluna. Cada bloco nasce no local ou na sua coluna, com a TAG final',
+    skeletonListLabel: 'Locais do template',
+    // "Colunas de ⟨painel ou local⟩", "Painéis de ⟨local⟩": the lists inside a card.
+    columnListLabel: (parent: string) => `Colunas de ${parent}`,
+    painelListLabel: (local: string) => `Painéis de ${local}`,
+    // `42-template-composer.html` (a painel's `.pos-box`: "Posição de Painel de entrada entre os painéis de Cubículo Enel"); the
+    // typing hint the mock appends is left out, as on every Position box (`ui.reorder.position`).
+    painelPositionLabel: (painel: string, local: string) => `Posição de ${painel} entre os painéis de ${local}`,
+    // `.level-kicker`: the word before a card's name.
+    levelLocal: 'Local',
+    levelPainel: 'Painel',
     agruparPorTipo: 'Agrupar por tipo',
     addColuna: 'Adicionar coluna',
-    addCabine: 'Adicionar cabine',
-    // authored: the reasons beside "Adicionar coluna" when it has no cabine to add to.
-    addColunaNoCabine: 'Adicione uma cabine primeiro.',
-    selectNode: 'Selecione uma cabine ou coluna.',
+    addLocal: 'Adicionar local',
+    // `.skeleton-actions` of a local card and of a painel card, and the menus' items.
+    addEquipamento: 'Adicionar equipamento',
+    addPainel: 'Adicionar painel',
+    // The foot's `.btn-reason`, verbatim.
+    skeletonFootNote: 'Locais, painéis e colunas podem ser renomeados depois, no relatório, pela árvore',
+    // `.loc-direct`: the local's own equipment.
+    locDirectTitle: 'Equipamentos no local',
+    locCurrent: '· selecionado: a paleta adiciona aqui',
+    locNone: 'Nenhum equipamento direto neste local. Toque em um tipo da paleta para adicionar.',
+    // `.pnl-empty` and the sub-line of a painel with no coluna, verbatim.
+    painelEmpty: 'Este painel ainda não tem colunas. Um painel só agrupa colunas e não recebe equipamento direto: adicione uma coluna e coloque os equipamentos nela.',
+    painelNewSub: 'Novo · nomeie-o pelo menu e adicione a primeira coluna',
+    // `.pal-target`, verbatim: the palette's current target, or the prompt with none.
+    paletteTargetLead: 'Toque para adicionar em: ',
+    selectNode: 'Selecione um local ou uma coluna.',
     // Review fixes 2026-10-06 (F-24, D11): the list shows each section's number beside its Position box
     // (EXPERIENCE.md keeps both); authored: the second sentence says why 7 and 9 are not in it.
     sectionsNote: 'Ordem inicial da árvore; o engenheiro reordena no relatório. 7 Registro fotográfico e 9 Relatórios dos ensaios entram sozinhos no relatório.',
@@ -351,16 +372,16 @@ export const copy = {
     paletteLabel: 'Paleta de blocos',
     paletteTitle: 'Blocos',
     paletteSections: 'Seções',
-    // authored: the mock's "Equipamentos · toque para adicionar à coluna selecionada
-    // (Coluna 5)", adapted to the stepper rows that set the quantity at the current node.
-    paletteEquipment: (node: string) => `Equipamentos · quantidade em ${node}`,
-    paletteEquipmentNone: 'Equipamentos',
+    // The palette group's name; the `.pal-target` line under it names where it adds (Story 14.2).
+    paletteEquipment: 'Equipamentos',
     // authored: "Adicionar abaixo" places the next section tapped in the palette under
     // the card it was chosen on (EXPERIENCE.md › Block card).
     paletteInsertBelow: (section: string) => `A próxima seção tocada entra abaixo de ${section}.`,
     closePalette: 'Fechar',
     // Overflow items (EXPERIENCE.md › Block card, in this order).
     rename: 'Renomear',
+    // `#tc-dlg-loc-menu`: a local's rename opens the Função dialog filled in.
+    funcaoENome: 'Função e nome',
     moveUp: 'Subir',
     moveDown: 'Descer',
     addBelow: 'Adicionar abaixo',
@@ -426,7 +447,10 @@ export const copy = {
     close: 'Fechar',
     // authored: the Confirm dialogs of a removal, one sentence of consequence each.
     removeConfirmTitle: (name: string) => `Remover ${name}?`,
-    removeCabineBody: 'A cabine, as colunas dela e os equipamentos que elas levam saem do template.',
+    // authored (Story 14.2): the mock's toasts say "Local removido com os seus equipamentos,
+    // painéis e colunas" and "Painel removido com as suas colunas".
+    removeLocalBody: 'O local, os equipamentos, os painéis e as colunas dele saem do template.',
+    removePainelBody: 'O painel e as colunas dele, com os equipamentos que elas levam, saem do template.',
     removeColunaBody: 'A coluna e os equipamentos que ela leva saem do template.',
     removeSectionBody: 'A seção sai do template.',
     undo: 'Desfazer',
@@ -499,7 +523,8 @@ export const copy = {
     docControlAria: 'Controle do documento — impresso após a capa',
     sec9NoteBefore: 'Seção 9 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag ',
     sec9NoteFlag: 'Agrupar por tipo',
-    sec9NoteAfter: ' de cada cabine).',
+    // authored (Story 14.2): on screen the root is the "local".
+    sec9NoteAfter: ' de cada local).',
     preview: 'Pré-visualizar',
     previewing: 'Gerando rascunho…',
     // authored: the preview job failed or the tab could not be filled; nothing changed.
@@ -549,6 +574,30 @@ export const copy = {
   // The "Novo relatório" Form dialog (`30-project.html` `#proj-dlg-novo`). The reason
   // beside "Criar relatório" and the template helper are the kernel's (`newRelatorioReason`,
   // `templateHelperText`, `templateBlocksText`).
+  // Story 14.2: the Função dialog (`42-template-composer.html` `#tc-dlg-local`), shared by the
+  // Template composer and the relatório tree: "Adicionar local", and "Função e nome" filled in.
+  // The Função labels and the proposed name are the kernel's (`FUNCAO_OPTIONS`, `defaultLocalName`).
+  localDialog: {
+    addTitle: 'Adicionar local',
+    // The local Overflow's item, as the dialog's title when it edits.
+    editTitle: 'Função e nome',
+    // The mock's sentence without its "Verificações do local" part, which Story 14.3 brings.
+    description: 'Cada cabine é um local. O local guarda a função, as características da SE, o ambiente de ensaio e o agrupamento por tipo. Os equipamentos ficam direto no local ou nas colunas de um painel.',
+    funcaoLabel: 'Função',
+    outra: 'Outra',
+    otherLabel: 'Qual função',
+    otherHelper: 'Escrita como deve aparecer na árvore e no relatório.',
+    nameLabel: 'Nome',
+    nameHelper: 'Vem da função; complete com o lugar, como em "Cabine primária — 1° Subsolo".',
+    cancel: 'Cancelar',
+    add: 'Adicionar local',
+    // authored: the primary of the dialog when it edits.
+    save: 'Salvar',
+    // authored: the primary's visible reasons while a field refuses.
+    pickFuncao: 'Escolha a função',
+    missingOther: 'Informe a função',
+    missingName: 'Informe o nome',
+  },
   newRelatorio: {
     // authored (F-28, D3, Matheus 2026-10-06): the second step after Home's "Novo relatório"
     // (client and obra) is named apart, never the same title twice in a row.
@@ -632,11 +681,14 @@ export const copy = {
       expand: (name: string) => `Expandir ${name}`,
       // authored: the chevron of an open node names what a press does.
       collapse: (name: string) => `Recolher ${name}`,
-      // The cabine Overflow, verbatim from `#sum-menu-cabine`.
-      openFirst: 'Abrir primeira ficha (dados da cabine)',
+      // The local Overflow, verbatim from `#sum-menu-local` (Story 14.2).
+      openFirst: 'Abrir primeira ficha (dados do local)',
       agrupar: 'Agrupar por tipo na seção 9',
       addBlock: 'Adicionar bloco',
-      // authored: Story 4.4 adds a coluna and renames a location from the tree.
+      addEquipamento: 'Adicionar equipamento',
+      addPainel: 'Adicionar painel',
+      funcaoENome: 'Função e nome',
+      // `#sum-menu-painel`, and a local that already holds colunas directly (Story 4.4).
       addColuna: 'Adicionar coluna',
       // A location's Overflow item and the duplicate line's action (`key-sheet-states.html` duplicated row).
       // Subir, Descer, Adicionar abaixo, Duplicar and Remover are the Sumário's own keys above.
@@ -656,10 +708,19 @@ export const copy = {
       notTestedTextReason: 'Descreva o motivo',
       // authored: the duplicate line's "Renomear" named with its row, so two duplicated rows never read alike.
       renameDuplicateLabel: (tag: string, path: string) => `Renomear TAG ${tag} em ${path}`,
-      // `40-relatorio-overview.html` `.s9-add`.
+      // `40-relatorio-overview.html` `.s9-add`: under a painel, and under a local.
       addBlockIn: (name: string) => `Adicionar bloco em ${name}`,
-      // authored: the foot of section 9's tree.
-      addCabine: 'Adicionar cabine',
+      addEquipamentoNoLocal: 'Adicionar equipamento no local',
+      // authored: the same button named with its local, so two locais never read alike (the visible words lead).
+      addEquipamentoNoLocalLabel: (name: string) => `Adicionar equipamento no local ${name}`,
+      // `.s9-col` over a local's own sheets, and its list's name ("Equipamentos direto em ⟨local⟩").
+      locDirectTitle: 'Equipamentos no local',
+      locDirectLabel: (name: string) => `Equipamentos direto em ${name}`,
+      painelListLabel: (name: string) => `Painéis de ${name}`,
+      // The note of a painel with no coluna in the tree: the composer's `.pnl-empty`, verbatim.
+      painelEmpty: 'Este painel ainda não tem colunas. Um painel só agrupa colunas e não recebe equipamento direto: adicione uma coluna e coloque os equipamentos nela.',
+      // The foot of section 9's tree (Story 14.2: it opens the Função dialog).
+      addLocal: 'Adicionar local',
       // `key-sheet-states.html` (e) and (e'): the remove Confirm and its toast.
       removeDescription: 'Dá para desfazer em seguida e restaurar em "Restaurar ficha removida" até o relatório ser emitido.',
       removeConfirm: 'Remover ficha',
@@ -669,6 +730,21 @@ export const copy = {
       // authored: the sheet or the location the action names changed on another device.
       gone: 'A ficha mudou em outro aparelho; nada foi alterado.',
       locationGone: 'O local mudou em outro aparelho; nada foi alterado.',
+      // Story 14.2, second pass: the toast of a location removed with what is under it, by kind
+      // (`cabine` is the local). `40-relatorio-overview.html` `#sum-menu-local` and
+      // `#sum-menu-painel`, verbatim; the menu item is the Sumário's own "Remover" above.
+      locationRemoved: {
+        cabine: 'Local, seus painéis e fichas removidos — recuperável até a emissão',
+        painel: 'Painel, suas colunas e fichas removidos — recuperável até a emissão',
+        // authored: the mock draws no "Remover" on a coluna; the sentence of the other two, for a coluna.
+        coluna: 'Coluna e suas fichas removidas — recuperável até a emissão',
+      },
+      // authored: the toast after a location is restored from "Restaurar ficha removida", by kind.
+      locationRestored: {
+        cabine: 'Local restaurado',
+        painel: 'Painel restaurado',
+        coluna: 'Coluna restaurada',
+      },
       // `60-ficha.html` sheet Overflow (Story 11.2): the Block card and the sheet header share it.
       moveTo: 'Mover para…',
       // authored: the Move dialog's title, its target group, its primary and the primary's reason.
@@ -804,7 +880,8 @@ export const copy = {
     // `key-photos.html` line 105, verbatim.
     note: 'Ordem cronológica de captura. Os números são provisórios até a exportação (seção 7 do relatório). A hora e o pino vêm da captura; sem permissão de localização no aparelho, só a hora.',
     // `70-fotos.html` `.chip-row` aria-label, verbatim.
-    filterLabel: 'Filtrar por cabine',
+    // authored (Story 14.2): `70-fotos.html` says "Filtrar por cabine"; on screen the root is the "local".
+    filterLabel: 'Filtrar por local',
     // authored: the list of tile rows.
     listLabel: 'Fotos do relatório',
     // Spec I/O matrix "Empty gallery", verbatim.
@@ -1025,16 +1102,20 @@ export const copy = {
     // The rail beside the sheet (`shell-head.html`): the Sumário's `rail` words are reused.
     cabine: {
       // `key-equipment-sheet-v09.html` `.cabine-line` (Story 12.3): the group's name and its action.
-      lineLabel: 'Da cabine',
+      // authored (Story 14.2; open with Bruno): `key-equipment-sheet-v09.html` `.cabine-line` said
+      // "Da cabine". On screen the root location is the "local"; the document still says cabine.
+      lineLabel: 'Do local',
       editar: 'Editar',
       seTitle: 'Características da SE',
       envTitle: 'Ambiente de ensaio',
-      daCabine: (name: string) => `Da cabine · ${name}`,
-      // `60-ficha.html` CB-ENT, shown on the cabine's first sheet only.
-      seNote: 'Impressas uma vez, na primeira ficha da cabine. Editar aqui altera a cabine — todas as fichas da cabine passam a mostrar o mesmo valor.',
+      // authored (Story 14.2): the group's name with its local.
+      daCabine: (name: string) => `Do local · ${name}`,
+      // authored (Story 14.2): `60-ficha.html` CB-ENT's note, "cabine" reworded to "local"; shown on the local's first sheet only.
+      seNote: 'Impressas uma vez, na primeira ficha do local. Editar aqui altera o local — todas as fichas do local passam a mostrar o mesmo valor.',
       // authored: the altitude is confirmed once in the relatório setup (Etapa 5).
       altitudeHelper: 'Do setup do relatório',
-      copyPrevious: 'Copiar da cabine anterior',
+      // authored (Story 14.2; open with Bruno): the chip said "Copiar da cabine anterior".
+      copyPrevious: 'Copiar do local anterior',
       // "Copiado de ⟨cabine⟩ — Desfazer" (Story 5.2 AC 3); "Desfazer" is the toast action.
       copiedFrom: (name: string) => `Copiado de ${name}`,
       // authored: the select's empty option.

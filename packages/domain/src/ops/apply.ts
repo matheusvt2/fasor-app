@@ -13,7 +13,7 @@ import {
   type RelatorioRow,
   type Sheet,
 } from '../schemas/entities.ts';
-import { SERVER_DEVICE_ID } from '../ids.ts';
+import { SERVER_DEVICE_ID, uuidV7Schema } from '../ids.ts';
 import { mergeCell } from '../merge/policy.ts';
 import { readingKindPutStatus } from '../reading/retarget.ts';
 import type { Op } from './op.ts';
@@ -66,12 +66,37 @@ function carriedBlockId(op: Op, path: OpPath): string | null {
   return null;
 }
 
-/** The rows an op may read or write: its target, plus the block a photo op carries. */
+/**
+ * Story 14.2: the location a block op places the block on, when the op itself names one: a
+ * `block/{id}` create carrying `location_id`, or a `block/{id}/location_id` put.
+ *
+ * Only an id of the kernel's own shape is named (coordinator review 2026-10-13): `targetsOf`
+ * feeds the server's row lookup, whose id column is a uuid, so any other string would fail
+ * that query instead of being refused. Left unnamed, the value reaches the block row's own
+ * schema, which refuses it as it always did (`op_invalid`).
+ */
+function carriedLocationId(op: Op, path: OpPath): string | null {
+  let carried: unknown = null;
+  if (path.family === 'block' && op.kind === 'create') {
+    const value = op.value as { location_id?: unknown } | null;
+    carried = value !== null && typeof value === 'object' ? value.location_id : null;
+  } else if (path.family === 'block/field' && path.field === 'location_id' && op.kind === 'put') {
+    carried = op.value;
+  }
+  return typeof carried === 'string' && uuidV7Schema.safeParse(carried).success ? carried : null;
+}
+
+/**
+ * The rows an op may read or write: its target, plus the block a photo op carries and the
+ * location a block op places its block on (read only, for `LocationKindError`).
+ */
 export function targetsOf(op: Op): ResolvedRef[] {
   const path = parsePath(op.path);
   const refs = [targetRef(op, path)];
   const blockId = carriedBlockId(op, path);
   if (blockId) refs.push(ref('block', blockId));
+  const locationId = carriedLocationId(op, path);
+  if (locationId) refs.push(ref('location', locationId));
   return refs;
 }
 
@@ -186,6 +211,47 @@ export class SeedPathError extends Error {
     super(`invalid op path "${path}": ${detail}`);
     this.name = 'SeedPathError';
     this.path = path;
+  }
+}
+
+/**
+ * Story 14.2 (AD-6): an op that asks of a location something its `kind` never holds. A
+ * `painel` only groups colunas: a block placed on one (`block/{id}` create or a
+ * `block/{id}/location_id` put naming it) and any `se`, `env`, `agrupar_por_tipo` or `funcao`
+ * put on it are refused; so is a `funcao` put on a coluna. A permanent refusal like
+ * `SeedPathError`: the api answers it `op_invalid`, so the device drops the op instead of
+ * retrying it forever.
+ *
+ * Replay safety: thrown only for shapes that could not exist before contract 17 (a `painel`
+ * row, the `funcao` path). `se`, `env` and `agrupar_por_tipo` on a coluna stay the silent
+ * no-op they always were, and a location that is not in `state` is not checked.
+ */
+export class LocationKindError extends Error {
+  readonly path: string;
+  constructor(path: string, detail: string) {
+    super(`invalid op path "${path}": ${detail}`);
+    this.name = 'LocationKindError';
+    this.path = path;
+  }
+}
+
+/** Story 14.2: refuses a data put on a location whose kind never holds that data (see `LocationKindError`). */
+function assertLocationKind(location: LocationRow, op: Op, path: OpPath): void {
+  if (path.family === 'location/funcao') {
+    if (location.kind !== 'cabine') throw new LocationKindError(op.path, `funcao exists only on a cabine; location ${location.id} is a ${location.kind}`);
+    return;
+  }
+  if (path.family !== 'location/se' && path.family !== 'location/env' && path.family !== 'location/agrupar_por_tipo') return;
+  if (location.kind === 'painel') throw new LocationKindError(op.path, `a painel holds no data; ${path.family} exists only on a cabine`);
+}
+
+/** Story 14.2: refuses a block placed on a painel held in `state`; a location not in state is not checked. */
+function assertBlockLocation(state: EntityState, op: Op, path: OpPath): void {
+  const locationId = carriedLocationId(op, path);
+  if (locationId === null) return;
+  const location = state.get(entityKey('location', locationId)) as LocationRow | undefined;
+  if (location !== undefined && location.kind === 'painel') {
+    throw new LocationKindError(op.path, `a painel takes no block; location ${location.id} only groups colunas`);
   }
 }
 
@@ -349,6 +415,11 @@ export function readPath(state: EntityState, op: Op): unknown {
     }
     case 'location/agrupar_por_tipo':
       return (row as LocationRow).kind === 'cabine' ? (row as { agrupar_por_tipo: boolean }).agrupar_por_tipo : undefined;
+    case 'location/funcao': {
+      // Absent and null both mean none: an undo of the first put writes null back.
+      const loc = row as LocationRow;
+      return loc.kind === 'cabine' ? (loc.funcao ?? null) : undefined;
+    }
     case 'suggestion/status':
       return r.status;
     case 'equipment/last_nameplate':
@@ -413,6 +484,11 @@ function writeRow(row: EntityRow, op: Op, path: OpPath): EntityRow {
       const loc = row as LocationRow;
       return loc.kind === 'cabine' ? { ...loc, agrupar_por_tipo: value as boolean } : row;
     }
+    case 'location/funcao': {
+      // `assertLocationKind` already refused any other kind.
+      const loc = row as LocationRow;
+      return loc.kind === 'cabine' ? { ...loc, funcao: value as string | null } : row;
+    }
     case 'file/field': {
       const file = row as FileRow;
       if (file.kind !== 'photo' && path.field !== 'removed_at') return row;
@@ -465,7 +541,8 @@ function isSheetFamily(family: OpPath['family']): boolean {
  * The single reducer. `state` holds the rows named by `targetsOf(op)`; the
  * result is a new map with the changed rows replaced (unchanged rows keep
  * their identity). A second create is a no-op; a put or remove on a missing
- * row is a no-op; an op whose value breaks the row schema throws. A `sheet/*`
+ * row is a no-op; an op whose value breaks the row schema throws, and so does
+ * one that asks of a location what its kind never holds (`LocationKindError`). A `sheet/*`
  * put validates what it writes (K-1); every other family re-parses the row.
  */
 export function applyOp(state: EntityState, op: Op): EntityState {
@@ -476,9 +553,12 @@ export function applyOp(state: EntityState, op: Op): EntityState {
 
   if (op.kind === 'create') {
     if (current) return next;
+    assertBlockLocation(state, op, path);
     next.set(target.key, createRow(target.entity, target.id, op));
   } else {
     if (!current) return next;
+    if (target.entity === 'location') assertLocationKind(current as LocationRow, op, path);
+    assertBlockLocation(state, op, path);
     const written = writeRow(current, op, path);
     if (written === current) return next;
     next.set(target.key, isSheetFamily(path.family) ? written : entityRowSchemas[target.entity].parse(written));

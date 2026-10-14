@@ -73,7 +73,7 @@ async function openRelatorio(page: Page, width: number): Promise<{ relatorioId: 
 
 /** Opens the field palette on Coluna 1 and checks its first row is the camera tile. */
 async function openPalette(page: Page): Promise<Locator> {
-  await menuOf(page, 'Coluna 1').click();
+  await menuOf(page, 'Coluna 1 de 1° Subsolo').click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   await expect(palette.getByText('Em: 1° Subsolo › Coluna 1')).toBeVisible();
@@ -117,7 +117,7 @@ test('@p0 9.2-E2E-001 online: the panel suggestion reads "Criar SEC-C09-2 · Cha
   test.setTimeout(150_000);
   const { relatorioId } = await openRelatorio(page, 768);
   // SEC-C09 is taken first (a Chave seccionadora placed on Coluna 9 from its palette), so the read one is SEC-C09-2.
-  await menuOf(page, 'Coluna 9').click();
+  await menuOf(page, 'Coluna 9 de 1° Subsolo').click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   await page.getByRole('dialog', { name: 'Adicionar bloco' }).getByRole('button', { name: /^Chave seccionadora/ }).click();
   await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SEC-C09']);

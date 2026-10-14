@@ -216,8 +216,11 @@ body {
   [data-route="/relatorio/:id"] .s9-tree { padding-left: 0; }
   /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-note` */
   [data-route="/relatorio/:id"] .s9-note { margin-left: var(--sp-4); }
-  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-cab-row` */
-  [data-route="/relatorio/:id"] .s9-cab-row { flex-wrap: wrap; padding-right: var(--sp-2); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-loc-row` and `... .s9-pnl-row` (Story 14.2) */
+  [data-route="/relatorio/:id"] .s9-loc-row { flex-wrap: wrap; padding-right: var(--sp-2); }
+  [data-route="/relatorio/:id"] .s9-pnl-row { flex-wrap: wrap; padding-right: var(--sp-2); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-pnls` (Story 14.2) */
+  [data-route="/relatorio/:id"] .s9-pnls { padding-left: var(--sp-3); }
   /* `.frame-phone [data-route="/relatorio/porto-seguro"] .sum-here` */
   [data-route="/relatorio/:id"] .sum-here { flex-basis: 100%; order: 9; }
   /* `.frame-phone [data-route="/relatorio/porto-seguro"] .sum-open` */
@@ -244,11 +247,25 @@ body {
   [data-route="/relatorio/:id"] .s9-eq-open { flex-wrap: wrap; gap: 2px var(--sp-2); padding: var(--sp-1) var(--sp-2); }
   /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-eq-name` */
   [data-route="/relatorio/:id"] .s9-eq-name { flex: 1 1 60%; }
-  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-cabine.is-open > .s9-add` */
-  [data-route="/relatorio/:id"] .s9-cabine.is-open > .s9-add { margin-left: var(--sp-4); white-space: normal; text-align: left; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-painel.is-open > .s9-add, ... .s9-local.is-open > .s9-add` (Story 14.2) */
+  [data-route="/relatorio/:id"] .s9-painel.is-open > .s9-add, [data-route="/relatorio/:id"] .s9-local.is-open > .s9-add { margin-left: var(--sp-4); white-space: normal; text-align: left; }
   /* authored: the coluna list follows the mock's phone indent of the equipment list (16 px a
      level instead of 24), and the duplicate line the row's narrower inset. */
   [data-route="/relatorio/:id"] .s9-cols { padding-left: var(--sp-4); }
+  /* authored (Story 14.2): the same 16 px step for the sheets of a painel's coluna and for the
+     "Equipamentos no local" line over the local's own. */
+  [data-route="/relatorio/:id"] .s9-painel > .s9-cols { padding-left: 0; }
+  [data-route="/relatorio/:id"] .s9-painel > .s9-cols > .s9-coluna > .s9-eqs { padding-left: var(--sp-4); }
+  [data-route="/relatorio/:id"] .s9-col.s9-col-direct { padding-left: calc(var(--sp-4) + var(--sp-3)); }
+  /* authored (Story 14.2): a location row keeps its name readable on a phone: its drag handle and
+     Position box are not drawn there, and the Overflow's "Subir · Descer" and Alt+↑/↓ move it (the
+     sheet rows keep both controls, and so does every row from 768 px). */
+  [data-route="/relatorio/:id"] .s9-loc-row > .drag-handle, [data-route="/relatorio/:id"] .s9-loc-row > .pos-box,
+  [data-route="/relatorio/:id"] .s9-pnl-row > .drag-handle, [data-route="/relatorio/:id"] .s9-pnl-row > .pos-box,
+  [data-route="/relatorio/:id"] .s9-col > .drag-handle, [data-route="/relatorio/:id"] .s9-col > .pos-box { display: none; }
+  /* authored (Story 14.2): on a phone the painel's own inset (its rule, 24 px of margin and 12 px
+     of padding) would leave a sheet row too narrow for its TAG; the margin closes. */
+  [data-route="/relatorio/:id"] .sum-s9 .s9-painel { margin-left: 0; }
   [data-route="/relatorio/:id"] .s9-dup { padding-left: var(--sp-2); }
   /* `.frame-tablet [data-route="/project/porto-seguro"] .project-head .btn, .frame-phone ... .btn`
      (30-project.html); the tablet half is under "Tablet" below. authored: `.btn` is
@@ -287,12 +304,24 @@ body {
   [data-route="/templates/:id"] .composer-main { padding: var(--sp-4) var(--gutter-phone); }
   /* `.frame-phone [data-route="/templates/porto-seguro"] .block-card .block-expand` (42-template-composer.html) */
   [data-route="/templates/:id"] .block-card .block-expand { padding-left: var(--sp-3); padding-right: var(--sp-3); }
-  /* authored: the app's cabine card draws "Agrupar por tipo" and its switch beside the card
+  /* authored: the app's local card draws "Agrupar por tipo" and its switch beside the card
      body (the mock shows it only as a flag in the sub line). On a phone that pair wraps to a
      line of its own, where `.block-card`'s zero left padding (its drag handle stands in for
      it) left it flush against the border; it takes the inset the mock's phone
      `.block-expand` rule above gives the card's other full-width line. */
-  [data-route="/templates/:id"] .cabine-card > .cabine-toggle { padding-left: var(--sp-3); }
+  [data-route="/templates/:id"] .local-card > .cabine-toggle { padding-left: var(--sp-3); }
+  /* `.frame-phone [data-route="/templates/porto-seguro"] .block-card .card-chev` (42-template-composer.html, Story 14.2) */
+  [data-route="/templates/:id"] .block-card .card-chev { display: none; }
+  /* `.frame-phone [data-route="/templates/porto-seguro"] .pos-box` */
+  [data-route="/templates/:id"] .pos-box { width: 48px; padding: 0 var(--sp-1); }
+  /* `.frame-phone [data-route="/templates/porto-seguro"] .local-card > .block-expand, ... .painel-card > .block-expand` */
+  [data-route="/templates/:id"] .local-card > .block-expand, [data-route="/templates/:id"] .painel-card > .block-expand { padding-left: var(--sp-2); padding-right: var(--sp-2); }
+  /* `.frame-phone [data-route="/templates/porto-seguro"] .tc-fn-options` (Story 14.2; the Função
+     dialog is portaled out of the route and shared with the relatório tree, so the route scope is dropped) */
+  .tc-local-dialog .tc-fn-options { grid-template-columns: 1fr; }
+  /* `.frame-phone [data-route="/templates/porto-seguro"] .tc-local-dialog .dialog-actions` and `... .dialog-actions .btn` */
+  .tc-local-dialog .dialog-actions { flex-direction: column-reverse; }
+  .tc-local-dialog .dialog-actions .btn { width: 100%; }
   /* authored: the app's coluna row adds a drag handle and a Position box beside the mock's
      `.col-head`, so on a phone its `.col-sum` goes under the name instead of into a
      one-word-wide column. */
@@ -578,7 +607,7 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
    `.cabine-line` and its parts are drawn by `components.css` since Story 12.5 folded v0.9 in.
    The Sumário cabine row's "falta a umidade": `.cabine-line .cl-missing`'s declarations
    (the same color and weight `key-relatorio-overview-v09.html` draws inline on its `.cl-missing`). */
-.s9-cab-meta .cl-missing { color: var(--fora-do-limite); font-weight: 600; }
+.s9-loc-meta .cl-missing { color: var(--fora-do-limite); font-weight: 600; }
 
 /* ---------- Collapsed rail strip beside the sheet (E12-Q14) ----------
    `components.css` `.screen-body` is a flex row that stretches its children, so the mock's
@@ -806,6 +835,10 @@ html { scroll-padding-bottom: var(--sticky-bar-covered, 0px); }
    A name with no break opportunity at all still breaks rather than run past the rail
    (`break-word`, not `anywhere`, which would shrink the min-content and defeat the wrap), and a
    TAG wider than its column ends in an ellipsis. */
+/* Story 14.2 (`shell-foot.html` `rail-tree`): "Level-3 rows (fichas inside a coluna) carry an inline
+   indent: components.css indents data-level 0 to 2 only". The mock's inline
+   `style="padding-left: calc(3 * var(--sp-5))"`, as the rule it stands for. */
+.relatorio-tree .tree-row[data-level="3"] { padding-left: calc(3 * var(--sp-5)); }
 .relatorio-tree .tree-body { overflow-wrap: break-word; hyphens: manual; }
 .relatorio-tree .tree-row:has(> .tree-state) { flex-wrap: wrap; }
 .relatorio-tree .tree-row:has(> .tree-state) > .tree-body { flex: 1 1 10rem; }

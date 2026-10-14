@@ -242,11 +242,12 @@ export function zeroTotals(): Record<EquipmentBlockType, number> {
 
 /**
  * Per-type totals of a template's equipment blocks, e.g. 25 chave_seccionadora. A block
- * whose node is gone from the skeleton (an orphan two devices folded into, Story 3.4) is
- * not counted: it is not part of the composition any reader shows or instantiates.
+ * whose node is gone from the skeleton (an orphan two devices folded into, Story 3.4), or
+ * is a painel (Story 14.2), is not counted: it is not part of the composition any reader shows or instantiates.
  */
 export function templateTotals(template: Pick<TemplateRow, 'blocks' | 'skeleton'>): Record<EquipmentBlockType, number> {
-  const nodes = new Set(template.skeleton.map((node) => node.ref));
+  // Story 14.2: a painel takes no block, so a block naming one counts like an orphan.
+  const nodes = new Set(template.skeleton.filter((node) => node.kind !== 'painel').map((node) => node.ref));
   const totals = zeroTotals();
   for (const block of template.blocks) {
     if (!isEquipmentBlockType(block.block_type)) continue;

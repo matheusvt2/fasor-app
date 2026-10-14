@@ -291,7 +291,7 @@ async function openSumario(page: Page, relatorioId: string): Promise<void> {
 
 /** The field palette on Coluna 1. */
 async function openPalette(page: Page): Promise<Locator> {
-  await page.getByRole('button', { name: 'Mais opções de Coluna 1', exact: true }).click();
+  await page.getByRole('button', { name: 'Mais opções de Coluna 1 de 1° Subsolo', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   await expect(palette.getByText('Em: 1° Subsolo › Coluna 1')).toBeVisible();

@@ -85,9 +85,9 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 16 and refuses version 15 (PR #121 review: a version-15 bundle folds a composed conclusion text over an edited one as latest text)', () => {
-    expect(CONTRACT_VERSION).toBe(16);
-    expect(MIN_CONTRACT_VERSION).toBe(16);
+  it('speaks version 17 and refuses version 16 (Story 14.2: a version-16 bundle cannot parse a painel create nor the funcao path)', () => {
+    expect(CONTRACT_VERSION).toBe(17);
+    expect(MIN_CONTRACT_VERSION).toBe(17);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

@@ -5,6 +5,7 @@ import {
   equipmentPath,
   locationAgruparPath,
   locationFieldPath,
+  locationFuncaoPath,
   locationPath,
   relatorioOpEnvelope,
   type Author,
@@ -18,7 +19,9 @@ import {
 /*
  * The ops the Sumário and its location tree write (Stories 4.3, 4.4, 4.5):
  * `block/{id}/{order_key|removed_at}` puts and `block/{id}` creates, `location/{id}`
- * creates and `name`/`order_key`/`agrupar_por_tipo` puts (relatório scope), and the
+ * creates (a local, a painel or a coluna, Story 14.2), `name`/`order_key`/
+ * `agrupar_por_tipo`/`funcao` puts and the `removed_at` remove and its put of null (a
+ * location removed and restored, Story 14.2 second pass) (relatório scope), and the
  * project-scope `equipment/{id}` create and `tag`/`removed_at` writes. The relatório row
  * itself is born by `instantiateTemplate` (Story 4.1) and never touched here. The envelope,
  * the `relatorio/status` put and the `block/{id}/{field}` put are the kernel's (Epic 4 retro
@@ -44,7 +47,7 @@ export function createBlockOp(author: Author, relatorioId: string, row: BlockRow
   return { ...envelope(author, relatorioId), kind: 'create', path: blockPath(row.id), value: row as unknown as JsonValue };
 }
 
-/** `location/{id}` create of a whole row (a coluna or a cabine added from the tree). */
+/** `location/{id}` create of a whole row (a local, a painel or a coluna added from the tree). */
 export function createLocationOp(author: Author, relatorioId: string, row: LocationRow): OpDraft {
   return { ...envelope(author, relatorioId), kind: 'create', path: locationPath(row.id), value: row as unknown as JsonValue };
 }
@@ -54,9 +57,22 @@ export function putLocationOp(author: Author, relatorioId: string, locationId: s
   return { ...envelope(author, relatorioId), kind: 'put', path: locationFieldPath(locationId, field), value };
 }
 
+/**
+ * `location/{id}/removed_at` remove (Story 14.2, second pass: the location is tombstoned; the
+ * rows under it carry their own tombstones in the same batch), or a put of null that restores it.
+ */
+export function locationRemovedOp(author: Author, relatorioId: string, locationId: string, removed: boolean): OpDraft {
+  return { ...envelope(author, relatorioId), kind: removed ? 'remove' : 'put', path: locationFieldPath(locationId, 'removed_at'), value: null };
+}
+
 /** `location/{id}/agrupar_por_tipo` put (the cabine's flag; the family has no field segment). */
 export function putAgruparOp(author: Author, relatorioId: string, locationId: string, value: boolean): OpDraft {
   return { ...envelope(author, relatorioId), kind: 'put', path: locationAgruparPath(locationId), value };
+}
+
+/** `location/{id}/funcao` put (Story 14.2): a local's Função, a reserved key or a typed name; null for none. */
+export function putFuncaoOp(author: Author, relatorioId: string, locationId: string, value: string | null): OpDraft {
+  return { ...envelope(author, relatorioId), kind: 'put', path: locationFuncaoPath(locationId), value };
 }
 
 /** `equipment/{id}` create, project scope. */

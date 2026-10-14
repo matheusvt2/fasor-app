@@ -8,6 +8,9 @@ import { opFactory } from '../test-support.ts';
 import {
   addCabine,
   addColuna,
+  addPainel,
+  canonicalSkeleton,
+  setFuncao,
   addSection,
   addSectionBelow,
   clampQuantity,
@@ -69,10 +72,10 @@ describe('3.4-UNIT skeleton edits', () => {
     valid({ ...emptyTemplate(ID, 'v1'), skeleton });
   });
 
-  it('refuses a duplicate ref and a coluna under anything but a cabine', () => {
+  it('refuses a duplicate ref and a coluna under a coluna (Story 14.2: its parent is a painel or a cabine)', () => {
     const skeleton = addColuna(addCabine([], 'a', 'A'), 'a', 'a1', 'Coluna 1');
     expect(() => addCabine(skeleton, 'a', 'Outra')).toThrow(/already has a node "a"/);
-    expect(() => addColuna(skeleton, 'a1', 'x', 'X')).toThrow(/not a cabine/);
+    expect(() => addColuna(skeleton, 'a1', 'x', 'X')).toThrow(/is a coluna/);
     expect(() => addColuna(skeleton, 'nowhere', 'x', 'X')).toThrow(TemplateTargetGoneError);
     expect(() => addColuna(skeleton, 'nowhere', 'x', 'X')).toThrow(/no node "nowhere"/);
     // A bug (a coluna named as a cabine) is a plain error, never "the target is gone".
@@ -482,5 +485,142 @@ describe('3.5/3.6-UNIT a template edit never touches a relatório made from it (
     expect(changed).toEqual([entityKey('template', ID)]);
     expect(state.get(entityKey('relatorio', RELATORIO))).toBe(before.get(entityKey('relatorio', RELATORIO)));
     expect(templateRowSchema.parse(state.get(entityKey('template', ID))).blocks[0]!.section_text).toBe('Outro objetivo para {cliente}.');
+  });
+});
+
+describe('14.2-UNIT skeleton edits: Local › Painel › Coluna', () => {
+  /**
+   * loc (Função transformação) › [legado], P1 › [p1c1, p1c2], P2 › [p2c1]; outro (no painel).
+   * Two transformers directly on `loc`, one seccionadora on each coluna.
+   */
+  function composed(): TemplateRow {
+    let skeleton = addCabine([], 'loc', 'Cabine de transformação', 'transformacao');
+    skeleton = addColuna(skeleton, 'loc', 'legado', 'Coluna 1');
+    skeleton = addPainel(skeleton, 'loc', 'P1', 'Painel 1');
+    skeleton = addColuna(skeleton, 'P1', 'p1c1', 'Coluna 1');
+    skeleton = addColuna(skeleton, 'P1', 'p1c2', 'Coluna 2');
+    skeleton = addPainel(skeleton, 'loc', 'P2', 'Painel 2');
+    skeleton = addColuna(skeleton, 'P2', 'p2c1', 'Coluna 1');
+    skeleton = addCabine(skeleton, 'outro', 'Geradores');
+    let row: TemplateRow = { ...emptyTemplate(ID, 'v3'), skeleton };
+    row = { ...row, blocks: setQuantity(row, 'loc', 'transformador_forca', 2) };
+    for (const ref of ['legado', 'p1c1', 'p1c2', 'p2c1']) row = { ...row, blocks: setQuantity(row, ref, 'chave_seccionadora', 1) };
+    return row;
+  }
+  const refs = (skeleton: readonly SkeletonNode[]) => skeleton.map((n) => n.ref);
+
+  it('adds a local with its Função, a painel under it and a coluna under the painel, in canonical order, never mutating the input', () => {
+    let skeleton = frozen(addCabine([], 'loc', 'Cabine primária', 'primaria'));
+    expect(skeleton[0]).toEqual({ ref: 'loc', kind: 'cabine', parent_ref: null, name: 'Cabine primária', agrupar_por_tipo: false, funcao: 'primaria' });
+    // No Função chosen: the node keeps the shape from before the field.
+    expect(Object.keys(addCabine([], 'x', 'X')[0]!)).not.toContain('funcao');
+    expect(Object.keys(addCabine([], 'x', 'X', null)[0]!)).not.toContain('funcao');
+    skeleton = frozen(addPainel(skeleton, 'loc', 'P1', 'Painel 1'));
+    expect(skeleton[1]).toEqual({ ref: 'P1', kind: 'painel', parent_ref: 'loc', name: 'Painel 1' });
+    skeleton = frozen(addColuna(skeleton, 'P1', 'p1c1', 'Coluna 1'));
+    expect(skeleton[2]).toEqual({ ref: 'p1c1', kind: 'coluna', parent_ref: 'P1', name: 'Coluna 1' });
+    // Canonical: the local, its direct colunas, then each painel with its colunas, whatever the order they were added in.
+    skeleton = frozen(addPainel(skeleton, 'loc', 'P2', 'Painel 2'));
+    skeleton = frozen(addColuna(skeleton, 'loc', 'legado', 'Coluna 1'));
+    skeleton = addColuna(skeleton, 'P1', 'p1c2', 'Coluna 2');
+    expect(refs(skeleton)).toEqual(['loc', 'legado', 'P1', 'p1c1', 'p1c2', 'P2']);
+    valid({ ...emptyTemplate(ID, 'v3'), skeleton });
+    // A stored skeleton in any node order reads canonically: each sibling list keeps its own order.
+    expect(refs(canonicalSkeleton([...skeleton].reverse()))).toEqual(['loc', 'legado', 'P2', 'P1', 'p1c2', 'p1c1']);
+  });
+
+  it('refuses a painel under anything but a cabine, a coluna under a coluna, and a duplicate ref', () => {
+    const { skeleton } = composed();
+    expect(() => addPainel(skeleton, 'P1', 'x', 'X')).toThrow(/not a cabine/);
+    expect(() => addPainel(skeleton, 'p1c1', 'x', 'X')).toThrow(/not a cabine/);
+    expect(() => addPainel(skeleton, 'nowhere', 'x', 'X')).toThrow(TemplateTargetGoneError);
+    expect(() => addColuna(skeleton, 'p1c1', 'x', 'X')).toThrow(/is a coluna/);
+    expect(() => addPainel(skeleton, 'loc', 'P1', 'De novo')).toThrow(/already has a node "P1"/);
+  });
+
+  it('setFuncao writes a key or a typed name on a cabine, and null leaves the node as one that never held it', () => {
+    const { skeleton } = composed();
+    const typed = setFuncao(frozen(skeleton), 'loc', 'Medição');
+    expect(typed.find((n) => n.ref === 'loc')).toMatchObject({ funcao: 'Medição' });
+    const cleared = setFuncao(typed, 'loc', null);
+    expect(Object.keys(cleared.find((n) => n.ref === 'loc')!)).not.toContain('funcao');
+    expect(setFuncao(skeleton, 'outro', 'distribuicao').find((n) => n.ref === 'outro')).toMatchObject({ funcao: 'distribuicao' });
+    expect(() => setFuncao(skeleton, 'P1', 'primaria')).toThrow(/not a cabine/);
+    expect(() => setFuncao(skeleton, 'p1c1', 'primaria')).toThrow(/not a cabine/);
+    expect(() => setFuncao(skeleton, 'nowhere', 'primaria')).toThrow(TemplateTargetGoneError);
+    valid({ ...composed(), skeleton: typed });
+  });
+
+  it('moves a node among its siblings of the same kind and parent only, everything under it travelling with it', () => {
+    const { skeleton } = composed();
+    // A painel among the painéis of its local.
+    expect(refs(moveNode(frozen(skeleton), 'P2', 0))).toEqual(['loc', 'legado', 'P2', 'p2c1', 'P1', 'p1c1', 'p1c2', 'outro']);
+    expect(refs(moveNode(skeleton, 'P1', 99))).toEqual(['loc', 'legado', 'P2', 'p2c1', 'P1', 'p1c1', 'p1c2', 'outro']);
+    // A coluna among the colunas of its own painel; the other painel and the legacy coluna stay.
+    expect(refs(moveNode(skeleton, 'p1c2', 0))).toEqual(['loc', 'legado', 'P1', 'p1c2', 'p1c1', 'P2', 'p2c1', 'outro']);
+    expect(refs(moveNode(skeleton, 'p2c1', 5))).toEqual(refs(skeleton));
+    // A local among the locais, with its colunas, painéis and their colunas.
+    expect(refs(moveNode(skeleton, 'outro', 0))).toEqual(['outro', 'loc', 'legado', 'P1', 'p1c1', 'p1c2', 'P2', 'p2c1']);
+    valid({ ...composed(), skeleton: moveNode(skeleton, 'P2', 0) });
+  });
+
+  it('removes a painel with its colunas and their blocks; a local with everything under it; a coluna alone', () => {
+    const row = composed();
+    const noP1 = removeNode(frozen(structuredClone(row)), 'P1');
+    expect(refs(noP1.skeleton)).toEqual(['loc', 'legado', 'P2', 'p2c1', 'outro']);
+    expect(noP1.blocks.map((b) => b.skeleton_location_ref)).toEqual(['loc', 'legado', 'p2c1']);
+    const noLocal = removeNode(row, 'loc');
+    expect(refs(noLocal.skeleton)).toEqual(['outro']);
+    expect(noLocal.blocks).toEqual([]);
+    const noColuna = removeNode(row, 'p1c2');
+    expect(refs(noColuna.skeleton)).toEqual(['loc', 'legado', 'P1', 'p1c1', 'P2', 'p2c1', 'outro']);
+    expect(noColuna.blocks.map((b) => b.skeleton_location_ref)).toEqual(['loc', 'legado', 'p1c1', 'p2c1']);
+    valid({ ...row, ...noP1 });
+    expect(() => removeNode(row, 'nowhere')).toThrow(TemplateTargetGoneError);
+  });
+
+  it('matrix "Template block on a painel ref": setQuantity throws for a painel, and a stored block on one is ignored like an orphan', () => {
+    const row = composed();
+    expect(() => setQuantity(row, 'P1', 'chave_seccionadora', 1)).toThrow(/is a painel/);
+    expect(() => setQuantity(row, 'P1', 'chave_seccionadora', 1)).not.toThrow(TemplateTargetGoneError);
+    const stored: TemplateRow = { ...row, blocks: [...row.blocks, { ...row.blocks.at(-1)!, skeleton_location_ref: 'P1', quantity: 3 }] };
+    valid(stored);
+    expect(withoutOrphans(stored)).toEqual(row.blocks);
+    expect(composerView(stored).blockCount).toBe(composerView(row).blockCount);
+    expect(templateTotals(stored)).toEqual(templateTotals(row));
+    // The composer's next blocks write drops it.
+    expect(setQuantity(stored, 'p1c1', 'chave_seccionadora', 2).some((b) => b.skeleton_location_ref === 'P1')).toBe(false);
+  });
+
+  it('composerView gives each local its Função, its direct quantities, its legacy colunas and its painéis with their colunas, and counts the three levels', () => {
+    const view = composerView(composed());
+    expect(view).toMatchObject({ cabineCount: 2, painelCount: 2, colunaCount: 4, blockCount: 6 });
+    const loc = view.cabines[0]!;
+    expect(loc).toMatchObject({ kind: 'cabine', ref: 'loc', funcao: 'transformacao', agrupar_por_tipo: false, position: 1, siblings: 2, blockCount: 2, totalBlockCount: 6 });
+    expect(loc.quantities.transformador_forca).toBe(2);
+    expect(loc.totals).toMatchObject({ transformador_forca: 2, chave_seccionadora: 4 });
+    expect(loc.colunas.map((c) => [c.ref, c.parent_ref, c.position, c.siblings, c.blockCount])).toEqual([['legado', 'loc', 1, 1, 1]]);
+    expect(loc.paineis.map((p) => [p.kind, p.ref, p.parent_ref, p.position, p.siblings, p.totalBlockCount])).toEqual([
+      ['painel', 'P1', 'loc', 1, 2, 2],
+      ['painel', 'P2', 'loc', 2, 2, 1],
+    ]);
+    expect(loc.paineis[0]!.colunas.map((c) => [c.ref, c.parent_ref, c.position, c.siblings])).toEqual([
+      ['p1c1', 'P1', 1, 2],
+      ['p1c2', 'P1', 2, 2],
+    ]);
+    expect(loc.paineis[0]!.totals.chave_seccionadora).toBe(2);
+    expect(view.cabines[1]).toMatchObject({ ref: 'outro', funcao: null, colunas: [], paineis: [], totalBlockCount: 0 });
+    expect(findComposerNode(view, 'P2')).toMatchObject({ kind: 'painel', name: 'Painel 2' });
+    expect(findComposerNode(view, 'p2c1')).toMatchObject({ kind: 'coluna', parent_ref: 'P2' });
+    expect(findComposerNode(view, 'legado')).toMatchObject({ kind: 'coluna', parent_ref: 'loc' });
+    expect(findComposerNode(view, 'loc')).toBe(loc);
+    expect(findComposerNode(view, 'nowhere')).toBeNull();
+  });
+
+  it('a skeleton with no painel reads exactly as before: the standard template has 6 locais, 17 colunas, no painel', () => {
+    const view = composerView(standard);
+    expect(view).toMatchObject({ cabineCount: 6, painelCount: 0, colunaCount: 17, blockCount: 94 });
+    expect(view.cabines.every((c) => c.paineis.length === 0 && c.funcao === null)).toBe(true);
+    expect(canonicalSkeleton(standard.skeleton)).toEqual(standard.skeleton);
   });
 });

@@ -126,7 +126,7 @@ describe('3.4 composer: address', () => {
     expect(container.querySelector('.composer-meta')).toHaveTextContent(
       '25 seccionadoras · 21 disjuntores · 11 TP · 11 TC · 8 trafos · 4 cabos de entrada · 9 cabos de saída · 5 para-raios',
     );
-    expect(screen.getByRole('heading', { level: 2, name: 'Esqueleto de locais · 6 cabines · 17 colunas · 94 blocos' })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Esqueleto de locais · 6 locais · 17 colunas · 94 blocos' })).toBeVisible();
     expect(screen.getByRole('heading', { level: 2, name: 'Blocos · 9 seções' })).toBeVisible();
     expect(screen.getByText('Alterações são salvas automaticamente e não alteram relatórios já criados deste template.')).toBeVisible();
     const tags = [...container.querySelectorAll('.block-list[aria-label="Blocos do template"] .block-tag')].map((el) => el.textContent);
@@ -135,7 +135,7 @@ describe('3.4 composer: address', () => {
     expect(
       screen.getByText('Ordem inicial da árvore; o engenheiro reordena no relatório. 7 Registro fotográfico e 9 Relatórios dos ensaios entram sozinhos no relatório.'),
     ).toHaveClass('section-note');
-    expect(within(palette()).getByText('Selecione uma cabine ou coluna.')).toBeVisible();
+    expect(within(palette()).getByText('Selecione um local ou uma coluna.')).toBeVisible();
     // No Save bar: every edit saves itself.
     expect(screen.queryByRole('button', { name: 'Salvar template' })).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
@@ -145,52 +145,77 @@ describe('3.4 composer: address', () => {
 });
 
 describe('3.4 composer: skeleton', () => {
-  it('adds a cabine and three colunas, renames one and reorders it every keyboard way, announcing each move', async () => {
+  it('adds a local through the Função dialog, a painel and three colunas, renames one and reorders it every keyboard way, announcing each move', async () => {
     database = await freshDb(emptyTemplate(ID, 'v1'));
     renderComposer();
-    const addColuna = await screen.findByRole('button', { name: 'Adicionar coluna' });
-    expect(addColuna).toHaveAccessibleDescription('Adicione uma cabine primeiro.');
+    // With no local there is nothing to add a painel or a coluna to: only "Adicionar local" is offered.
+    const addLocal = await screen.findByRole('button', { name: 'Adicionar local' });
+    expect(screen.queryByRole('button', { name: 'Adicionar coluna' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Adicionar painel' })).toBeNull();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Adicionar cabine' }));
-    await screen.findByRole('list', { name: 'Cabines do template' });
+    await userEvent.click(addLocal);
+    const add = await screen.findByRole('dialog', { name: 'Adicionar local' });
+    await userEvent.click(within(add).getByRole('radio', { name: 'Transformação' }));
+    expect(within(add).getByRole('textbox', { name: 'Nome' })).toHaveValue('Cabine de transformação');
+    await userEvent.click(within(add).getByRole('button', { name: 'Adicionar local' }));
+    await screen.findByRole('list', { name: 'Locais do template' });
+    await waitFor(() => expect(announcer()).toHaveTextContent('Cabine de transformação adicionada'));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Adicionar painel' }));
+    await waitFor(() => expect(announcer()).toHaveTextContent('Painel 1 adicionado'));
+    const painel = (await screen.findByRole('button', { name: /^Painel Painel 1/ })).closest('li') as HTMLElement;
     for (let i = 0; i < 3; i++) {
-      await waitFor(() => expect(addColuna).not.toHaveAttribute('aria-disabled'));
-      await userEvent.click(addColuna);
+      await userEvent.click(within(painel).getByRole('button', { name: 'Adicionar coluna' }));
       await waitFor(() => expect(screen.queryAllByText(`Coluna ${i + 1}`).length).toBeGreaterThan(0));
     }
-    expect(colunaNames('Cabine 1')).toEqual(['Coluna 1', 'Coluna 2', 'Coluna 3']);
+    const colunas = 'Painel 1 em Cabine de transformação';
+    expect(colunaNames(colunas)).toEqual(['Coluna 1', 'Coluna 2', 'Coluna 3']);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 3' }));
+    // Rule 9: a coluna's controls name it with its painel and its local ("Coluna 1" is the default first coluna of every painel).
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 3 em Painel 1 em Cabine de transformação' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
     const dialog = await screen.findByRole('dialog', { name: 'Renomear Coluna 3' });
     const field = within(dialog).getByRole('textbox', { name: 'Nome' });
     await userEvent.clear(field);
     await userEvent.type(field, 'Coluna 5');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
-    await waitFor(() => expect(colunaNames('Cabine 1')).toEqual(['Coluna 1', 'Coluna 2', 'Coluna 5']));
+    await waitFor(() => expect(colunaNames(colunas)).toEqual(['Coluna 1', 'Coluna 2', 'Coluna 5']));
+    // Story 14.2: a rename is said, and offers "Desfazer".
+    await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 5 renomeada'));
 
     // Alt+Up from anywhere in the row.
-    const posBox = screen.getByRole('textbox', { name: 'Posição de Coluna 5' });
+    const posBox = screen.getByRole('textbox', { name: 'Posição de Coluna 5 em Painel 1 em Cabine de transformação' });
+    expect(screen.getByRole('button', { name: 'Reordenar Coluna 5 em Painel 1 em Cabine de transformação' })).toHaveClass('drag-handle');
+    // The coluna's own name alone names no control.
+    expect(screen.queryByRole('textbox', { name: 'Posição de Coluna 5' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mais opções de Coluna 5' })).toBeNull();
     posBox.focus();
     fireEvent.keyDown(posBox, { key: 'ArrowUp', altKey: true });
-    await waitFor(() => expect(colunaNames('Cabine 1')).toEqual(['Coluna 1', 'Coluna 5', 'Coluna 2']));
+    await waitFor(() => expect(colunaNames(colunas)).toEqual(['Coluna 1', 'Coluna 5', 'Coluna 2']));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 5 movida para a posição 2 de 3'));
 
     // The Position box: type a number and press Enter.
     await userEvent.clear(posBox);
     await userEvent.type(posBox, '1{Enter}');
-    await waitFor(() => expect(colunaNames('Cabine 1')).toEqual(['Coluna 5', 'Coluna 1', 'Coluna 2']));
+    await waitFor(() => expect(colunaNames(colunas)).toEqual(['Coluna 5', 'Coluna 1', 'Coluna 2']));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 5 movida para a posição 1 de 3'));
 
     // The Overflow: "Subir" is not offered at the top; "Descer" moves one down.
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 5' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 5 em Painel 1 em Cabine de transformação' }));
     expect(screen.queryByRole('menuitem', { name: 'Subir' })).toBeNull();
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Descer' }));
-    await waitFor(() => expect(colunaNames('Cabine 1')).toEqual(['Coluna 1', 'Coluna 5', 'Coluna 2']));
+    await waitFor(() => expect(colunaNames(colunas)).toEqual(['Coluna 1', 'Coluna 5', 'Coluna 2']));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 5 movida para a posição 2 de 3'));
 
     const row = await templateRow(database, ID);
-    expect(row!.skeleton.map((n) => n.name)).toEqual(['Cabine 1', 'Coluna 1', 'Coluna 5', 'Coluna 2']);
+    expect(row!.skeleton.map((n) => [n.kind, n.name])).toEqual([
+      ['cabine', 'Cabine de transformação'],
+      ['painel', 'Painel 1'],
+      ['coluna', 'Coluna 1'],
+      ['coluna', 'Coluna 5'],
+      ['coluna', 'Coluna 2'],
+    ]);
+    expect(row!.skeleton[0]).toMatchObject({ funcao: 'transformacao' });
     expect((await outboxPaths()).every((path) => path === `template/${ID}/skeleton`)).toBe(true);
   });
 
@@ -198,7 +223,7 @@ describe('3.4 composer: skeleton', () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
     const cabines = () =>
-      [...screen.getByRole('list', { name: 'Cabines do template' }).querySelectorAll(':scope > li .block-name')].map((el) => el.textContent);
+      [...screen.getByRole('list', { name: 'Locais do template' }).querySelectorAll(':scope > li .block-name')].map((el) => el.textContent);
     const before = await waitFor(() => {
       const names = cabines();
       expect(names).toHaveLength(6);
@@ -217,7 +242,7 @@ describe('3.4 composer: skeleton', () => {
   it('a later edit takes the undo of a removal away, so "Desfazer" can never discard it', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
-    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 3' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 3 em 1° Subsolo' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Remover Coluna 3?' })).getByRole('button', { name: 'Remover' }));
     expect(await screen.findByText('Coluna 3 removida')).toBeVisible();
@@ -233,16 +258,20 @@ describe('3.4 composer: skeleton', () => {
   it('E3-A9: a blank rename says "Informe o nome", keeps the dialog open and writes nothing', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
+    // Story 14.2: a local's rename is "Função e nome" (the Função dialog); "Renomear" is a painel's and a coluna's.
     await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Cubículo Enel' }));
+    expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Função e nome', 'Descer', 'Adicionar painel', 'Remover']);
+    await userEvent.keyboard('{Escape}');
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 1 em 1° Subsolo' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Renomear Cubículo Enel' });
+    const dialog = await screen.findByRole('dialog', { name: 'Renomear Coluna 1' });
     const field = within(dialog).getByRole('textbox', { name: 'Nome' });
     await userEvent.clear(field);
     await userEvent.type(field, '   ');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
     expect(within(dialog).getByRole('alert')).toHaveTextContent('Informe o nome');
     expect(field).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByRole('dialog', { name: 'Renomear Cubículo Enel' })).toBeVisible();
+    expect(screen.getByRole('dialog', { name: 'Renomear Coluna 1' })).toBeVisible();
     // Enter refuses the same way; typing takes the message away.
     await userEvent.type(field, '{Enter}');
     expect(within(dialog).getByRole('alert')).toHaveTextContent('Informe o nome');
@@ -250,7 +279,7 @@ describe('3.4 composer: skeleton', () => {
     expect(within(dialog).queryByRole('alert')).toBeNull();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(screen.getByRole('list', { name: 'Cabines do template' }).querySelector(':scope > li .block-name')).toHaveTextContent('Cubículo Enel');
+    expect(colunaNames('1° Subsolo')[0]).toBe('Coluna 1');
     expect(await outboxPaths()).toEqual([]);
   });
 });

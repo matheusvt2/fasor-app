@@ -1,5 +1,6 @@
 import { isEquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, EquipmentRow, LocationRow } from '../schemas/entities.ts';
+import { liveLocationIds } from './location-live.ts';
 import { blockTypeLabel, locationChoices, newBlockOrderKey, type LocationChoice } from './tree.ts';
 import { normalizeTag, suggestTag, type TagLocation } from './tag.ts';
 
@@ -13,8 +14,9 @@ import { normalizeTag, suggestTag, type TagLocation } from './tag.ts';
  */
 
 /**
- * The locations a block can move to: every live cabine and coluna in tree order, labelled
- * by its path ("1° Subsolo › Coluna 9"), the block's own location left out.
+ * The locations a block can move to: every live local and coluna in tree order, labelled
+ * by its path ("1° Subsolo › Coluna 9"), the block's own location left out. A painel is
+ * never one (`locationChoices`): it only groups colunas.
  */
 export function moveTargets(locations: readonly LocationRow[], block: Pick<BlockRow, 'location_id'>): LocationChoice[] {
   return locationChoices(locations).filter((choice) => choice.id !== block.location_id);
@@ -79,11 +81,12 @@ export type MovePlan =
       /** The announcement and toast, naming the TAG the block has after the move. */
       text: string;
     }
-  | { kind: 'refused'; reason: 'gone' | 'location-gone' | 'same-location' };
+  | { kind: 'refused'; reason: 'gone' | 'location-gone' | 'same-location' | 'not-a-block-location' };
 
 /**
  * The move of `blockId` to `targetId` on fresh rows: refused when the block is no longer a
- * live equipment block, when the target is no longer a live location, or when the block
+ * live equipment block, when the target is no longer a live location, when the target is a
+ * painel (`not-a-block-location`, Story 14.2: a painel takes no block), or when the block
  * already sits there; otherwise its new `order_key` and, with `rename`, the TAG suggestion
  * recomputed now (a TAG taken meanwhile yields the next free one; none left to offer, no
  * rename).
@@ -98,8 +101,10 @@ export function movePlan(input: {
 }): MovePlan {
   const block = input.blocks.find((row) => row.id === input.blockId && row.removed_at === null);
   if (block === undefined || block.location_id === null || !isEquipmentBlockType(block.block_type)) return { kind: 'refused', reason: 'gone' };
-  const target = input.locations.find((row) => row.id === input.targetId && row.removed_at === null);
+  // Live by the tree's rule: a target removed, or under a removed location, is gone.
+  const target = liveLocationIds(input.locations).has(input.targetId) ? input.locations.find((row) => row.id === input.targetId) : undefined;
   if (target === undefined) return { kind: 'refused', reason: 'location-gone' };
+  if (target.kind === 'painel') return { kind: 'refused', reason: 'not-a-block-location' };
   if (block.location_id === target.id) return { kind: 'refused', reason: 'same-location' };
   const own = block.equipment_id === null ? undefined : input.equipment.find((row) => row.id === block.equipment_id && row.removed_at === null);
   const suggestion = input.rename ? moveTagSuggestion(block, own, target, input.equipment) : null;

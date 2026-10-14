@@ -64,6 +64,26 @@ describe('K5 skeleton node and location name guards', () => {
   });
 });
 
+describe('Story 14.2: the skeleton gains the painel node and the cabine Função', () => {
+  const cabine = { ref: 'loc', kind: 'cabine', parent_ref: null, name: 'Cabine de transformação', agrupar_por_tipo: false };
+
+  it('parses a painel under a ref and a cabine with a Função; a painel has no data of its own', () => {
+    expect(skeletonNodeSchema.parse({ ref: 'p1', kind: 'painel', parent_ref: 'loc', name: 'Painel 1' })).toEqual({ ref: 'p1', kind: 'painel', parent_ref: 'loc', name: 'Painel 1' });
+    expect(skeletonNodeSchema.parse({ ref: 'p1', kind: 'painel', parent_ref: 'loc', name: 'Painel 1', agrupar_por_tipo: true, funcao: 'entrada' })).toEqual({ ref: 'p1', kind: 'painel', parent_ref: 'loc', name: 'Painel 1' });
+    expect(skeletonNodeSchema.safeParse({ ref: 'p1', kind: 'painel', parent_ref: null, name: 'Painel 1' }).success).toBe(false);
+    expect(skeletonNodeSchema.safeParse({ ref: 'p1', kind: 'painel', parent_ref: 'loc', name: ' ' }).success).toBe(false);
+    expect(skeletonNodeSchema.parse({ ...cabine, funcao: 'transformacao' })).toEqual({ ...cabine, funcao: 'transformacao' });
+    expect(skeletonNodeSchema.parse({ ...cabine, funcao: 'Medição' })).toMatchObject({ funcao: 'Medição' });
+    expect(skeletonNodeSchema.parse({ ...cabine, funcao: null })).toMatchObject({ funcao: null });
+    expect(skeletonNodeSchema.safeParse({ ...cabine, funcao: '  ' }).success).toBe(false);
+    expect(skeletonNodeSchema.safeParse({ ...cabine, funcao: 'x'.repeat(81) }).success).toBe(false);
+  });
+
+  it('a cabine node written before the field parses to the same bytes', () => {
+    expect(JSON.stringify(skeletonNodeSchema.parse(cabine))).toBe(JSON.stringify(cabine));
+  });
+});
+
 describe('K4 not_tested.reason is a seed key', () => {
   const notTested = (reason: string) => ({ reason, text: null, at: '2026-09-06T08:00:00.000Z', by: '019966d0-0000-7000-8000-000000000004' });
 

@@ -243,7 +243,7 @@ function countParts(n: number, one: string, many: string): SheetSummaryPart[] {
 /**
  * How each step reads in the Sheet header sentence while something in it is missing. The
  * Placa step names its plate fields and its cabine fields apart (E12-Q10), the plate first:
- * "2 campos da placa, 6 campos da cabine".
+ * "2 campos da placa, 6 campos do local".
  */
 function summaryMissingParts(step: SheetStep, counts: { missing: number; cabine?: number }): SheetSummaryPart[][] {
   switch (step) {
@@ -252,7 +252,8 @@ function summaryMissingParts(step: SheetStep, counts: { missing: number; cabine?
       const plate = counts.missing - cabine;
       const parts: SheetSummaryPart[][] = [];
       if (plate > 0) parts.push(countParts(plate, 'campo da placa', 'campos da placa'));
-      if (cabine > 0) parts.push(countParts(cabine, 'campo da cabine', 'campos da cabine'));
+      // authored (Story 14.2): on screen the root location is the "local".
+      if (cabine > 0) parts.push(countParts(cabine, 'campo do local', 'campos do local'));
       return parts;
     }
     case 'verificacoes':

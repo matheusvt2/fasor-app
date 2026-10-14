@@ -1,0 +1,17 @@
+/*
+ * Story 14.2: the Função dialog's page rules, copied from `42-template-composer.html`'s own
+ * `<style data-screen="template-composer">` block. A dialog renders in a portal at the end
+ * of `<body>`, outside `[data-route]`, and this one opens from two surfaces (the Template
+ * composer and the relatório tree), so the rules are scoped by the dialog's own class
+ * instead of the mock's route. The `.frame-phone` variants live in `app.css` (AGENTS.md
+ * "Mock container selectors"). The mock's `#tc-dlg-local .tc-fn-other` show/hide pair has no
+ * rule here: the field is rendered only while "Outra" is the choice.
+ */
+.tc-local-dialog .tc-fn-options { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.tc-local-dialog .tc-fn-options .option-row { cursor: pointer; }
+.tc-local-dialog .tc-fn-options .option-row[aria-checked="true"] .radio { border-color: var(--primary); }
+.tc-local-dialog .tc-fn-options .option-row[aria-checked="true"] .radio::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--primary); }
+/* The mock's `.tc-local-dialog` rule (its route scope outranked `.form-dialog`; the doubled class does the same here). */
+.form-dialog.tc-local-dialog { max-height: 100%; overflow: auto; }
+/* authored: an option row is a `<button role="radio">`, so it takes the row's own text alignment and width. */
+.tc-local-dialog .tc-fn-options .option-row { width: 100%; text-align: left; background: var(--surface-raised); }

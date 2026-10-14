@@ -8,6 +8,7 @@ import {
   normalizeRegistryName,
   opSchema,
   parsePath,
+  LocationKindError,
   PathError,
   rowIndexColumns,
   rowRemovedAt,
@@ -524,11 +525,19 @@ export interface ServerBatchDeps {
 
 /**
  * A refusal no retry can fix: a row schema failure, a seed key or cell outside the block's
- * definition (E5-Q1, `SeedPathError`), an op_id another company holds, or a client
- * `reading_kind` put its photo does not allow (E9-Q2). Each is `op_invalid`.
+ * definition (E5-Q1, `SeedPathError`), an op that asks of a location what its kind never
+ * holds (Story 14.2, `LocationKindError`: a block on a painel, data on a painel, `funcao` on
+ * a coluna), an op_id another company holds, or a client `reading_kind` put its photo does
+ * not allow (E9-Q2). Each is `op_invalid`.
  */
 export function isPermanentRefusal(error: unknown): boolean {
-  return error instanceof ZodError || error instanceof SeedPathError || error instanceof ForeignOpIdError || error instanceof ReadingKindPutRefusedError;
+  return (
+    error instanceof ZodError ||
+    error instanceof SeedPathError ||
+    error instanceof LocationKindError ||
+    error instanceof ForeignOpIdError ||
+    error instanceof ReadingKindPutRefusedError
+  );
 }
 
 /**

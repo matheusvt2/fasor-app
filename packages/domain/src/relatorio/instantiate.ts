@@ -1,7 +1,7 @@
 import type { NewId } from '../ids.ts';
 import type { OpDraft } from '../ops/op.ts';
 import { initialOrderKey } from '../ops/order-key.ts';
-import { isEquipmentBlockType, isSectionBlockType, type SkeletonNode, type TemplateBlock } from '../schemas/block-config.ts';
+import { isEquipmentBlockType, isSectionBlockType, type TemplateBlock } from '../schemas/block-config.ts';
 import {
   emptySheet,
   type BlockRow,
@@ -12,7 +12,7 @@ import {
   type RelatorioRow,
   type TemplateRow,
 } from '../schemas/entities.ts';
-import { sectionNumber, withoutOrphans } from '../templates/compose.ts';
+import { canonicalSkeleton, sectionNumber, withoutOrphans } from '../templates/compose.ts';
 import { normalizeTag, suggestTag, type TagEquipment } from './tag.ts';
 
 /*
@@ -106,16 +106,6 @@ export function blockConfigOf(block: TemplateBlock): JsonValue {
   } as JsonValue;
 }
 
-/** Cabines in skeleton order, each followed by its colunas in skeleton order. */
-function canonicalNodes(skeleton: readonly SkeletonNode[]): SkeletonNode[] {
-  const out: SkeletonNode[] = [];
-  for (const cabine of skeleton) {
-    if (cabine.kind !== 'cabine') continue;
-    out.push(cabine, ...skeleton.filter((node) => node.kind === 'coluna' && node.parent_ref === cabine.ref));
-  }
-  return out;
-}
-
 function blockRow(id: string, relatorioId: string, seedVersion: string, fields: Pick<BlockRow, 'location_id' | 'equipment_id' | 'block_type' | 'config' | 'order_key'>): BlockRow {
   return {
     id,
@@ -136,8 +126,9 @@ function blockRow(id: string, relatorioId: string, seedVersion: string, fields: 
 
 /**
  * The drafts of one relatório created from `template` in `project`: the `relatorio`
- * create, one `location` per skeleton node (cabines then their colunas, `order_key` per
- * sibling), the section blocks in FO.SERV-03 number order (the template's, plus 7 and 9
+ * create, one `location` per skeleton node (Story 14.2: each cabine, the colunas directly
+ * under it, then each of its painéis with its colunas; `order_key` per sibling, the cabine
+ * carrying its `funcao` when the template sets one), the section blocks in FO.SERV-03 number order (the template's, plus 7 and 9
  * synthesized with `section_text: null`), then per template block in skeleton order its
  * `block` create in its column: bound to the project's live equipment of the same base TAG
  * and type when one is free, else preceded by one `equipment` create (project scope, tag
@@ -197,7 +188,7 @@ export function instantiateTemplate(
   drafts.push({ ...relatorioScope, kind: 'create', path: `relatorio/${relatorioId}`, value: relatorio as unknown as JsonValue });
 
   // Locations: every node gets its id first (a coluna names its cabine's id), in canonical order.
-  const nodes = canonicalNodes(template.skeleton);
+  const nodes = canonicalSkeleton(template.skeleton);
   const locationIdOf = new Map<string, string>();
   for (const node of nodes) locationIdOf.set(node.ref, deps.newId());
   const siblingCount = new Map<string | null, number>();
@@ -206,16 +197,21 @@ export function instantiateTemplate(
     siblingCount.set(node.parent_ref, n + 1);
     const id = locationIdOf.get(node.ref)!;
     const base = { id, relatorio_id: relatorioId, parent_id: node.parent_ref === null ? null : locationIdOf.get(node.parent_ref)!, name: node.name, order_key: initialOrderKey(n), removed_at: null };
+    // A cabine with no Função keeps the row shape from before the field existed (Story 14.2).
+    const funcao = node.kind === 'cabine' ? (node.funcao ?? null) : null;
     const row: LocationRow =
       node.kind === 'coluna'
         ? { ...base, kind: 'coluna' }
-        : {
-            ...base,
-            kind: 'cabine',
-            se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null },
-            env: { altitude_m: null, temperature_c: null, humidity_pct: null },
-            agrupar_por_tipo: node.agrupar_por_tipo,
-          };
+        : node.kind === 'painel'
+          ? { ...base, parent_id: base.parent_id!, kind: 'painel' }
+          : {
+              ...base,
+              kind: 'cabine',
+              se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null },
+              env: { altitude_m: null, temperature_c: null, humidity_pct: null },
+              agrupar_por_tipo: node.agrupar_por_tipo,
+              ...(funcao === null ? {} : { funcao }),
+            };
     drafts.push({ ...relatorioScope, kind: 'create', path: `location/${id}`, value: row as unknown as JsonValue });
   }
 
@@ -250,6 +246,8 @@ export function instantiateTemplate(
   const taken: TagEquipment[] = [...inputs.existingEquipment];
   const blockCount = new Map<string, number>();
   for (const node of nodes) {
+    // A painel takes no block: `withoutOrphans` already dropped any block naming one.
+    if (node.kind === 'painel') continue;
     const locationId = locationIdOf.get(node.ref)!;
     const location = { kind: node.kind, name: node.name };
     for (const block of liveBlocks) {

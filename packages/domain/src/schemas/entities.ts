@@ -4,7 +4,7 @@ import { actorIdSchema, uuidV7Schema } from '../ids.ts';
 import { CELL_MERGE_RULES } from '../merge/rules.ts';
 import { NOT_TESTED_REASON_KEYS } from '../seed/definitions.ts';
 import { checkTemplateRow } from '../seed/template-rules.ts';
-import { nodeNameSchema, skeletonNodeSchema, templateBlockSchema } from './block-config.ts';
+import { funcaoSchema, nodeNameSchema, skeletonNodeSchema, templateBlockSchema } from './block-config.ts';
 import { councilSchema } from './council.ts';
 import { AUDIT_RUN_STATUSES, auditFindingSchema } from '../audit/schema.ts';
 
@@ -349,7 +349,15 @@ const locationBase = {
   removed_at: nullableIso,
 };
 
-/** AD-6: `se`, `env` and `agrupar_por_tipo` exist only on `kind = cabine`. */
+/**
+ * AD-6: `se`, `env`, `agrupar_por_tipo` and `funcao` exist only on `kind = cabine`.
+ *
+ * Story 14.2 (Local › Painel › Coluna): the cabine row is the root, the local. A `painel` is
+ * a child of a cabine, so its `parent_id` is never null; it carries no data and takes no
+ * block (`LocationKindError`, `ops/apply.ts`). A `coluna` is a child of a painel, or, as every
+ * row written before the painel level, of a cabine. `funcao` is optional: absent and null
+ * both mean none, so a row stored before the field existed parses to the same bytes.
+ */
 export const locationRowSchema = z.discriminatedUnion('kind', [
   z.object({
     ...locationBase,
@@ -357,8 +365,11 @@ export const locationRowSchema = z.discriminatedUnion('kind', [
     se: locationSeSchema,
     env: locationEnvSchema,
     agrupar_por_tipo: z.boolean(),
+    funcao: funcaoSchema.nullable().optional(),
   }),
   z.object({ ...locationBase, kind: z.literal('coluna') }),
+  // Appended (Story 14.2).
+  z.object({ ...locationBase, parent_id: uuidV7Schema, kind: z.literal('painel') }),
 ]);
 
 /** FR-31: `reason` is a seed `not_tested_reasons` key, never its pt-BR label (which the seed resolves). */

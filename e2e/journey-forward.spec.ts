@@ -27,7 +27,7 @@ test.beforeEach(({ seed }) => {
 });
 
 const tree = (page: Page) => page.getByRole('list', { name: 'Locais do relatório' });
-const firstCabine = (page: Page) => tree(page).locator(':scope > li.s9-cabine').first();
+const firstCabine = (page: Page) => tree(page).locator(':scope > li.s9-local').first();
 const section9Chevron = (page: Page) => page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
 const currentCard = (page: Page) => page.locator('.relatorio-card.is-current');
 
@@ -67,7 +67,7 @@ async function emCampoRelatorio(page: Page, width: number): Promise<string> {
 /** Section 9 open (Em campo opens it) and the first cabine expanded; its equipment rows. */
 async function firstCabineRows(page: Page): Promise<Locator> {
   if ((await section9Chevron(page).getAttribute('aria-expanded')) !== 'true') await section9Chevron(page).click();
-  const chevron = firstCabine(page).locator(':scope > .s9-cab-row [data-tree-chevron]');
+  const chevron = firstCabine(page).locator(':scope > .s9-loc-row [data-tree-chevron]');
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   const rows = firstCabine(page).locator(':scope > .s9-eqs > li.s9-eq');
   await expect(rows.first()).toBeVisible();
@@ -301,7 +301,7 @@ test('@p0 12.2-E2E-003 J5 at 768: Home to the first sheet of a new relatório wi
   await expect(section9Chevron(page)).toHaveAttribute('aria-expanded', 'true');
 
   // The first sheet: its cabine, then its row.
-  await journey.tap(firstCabine(page).locator(':scope > .s9-cab-row [data-tree-chevron]'));
+  await journey.tap(firstCabine(page).locator(':scope > .s9-loc-row [data-tree-chevron]'));
   const row = firstCabine(page).locator(':scope > .s9-eqs > li.s9-eq').first();
   const blockId = (await row.getAttribute('data-block-id'))!;
   await journey.tap(row.locator('.s9-eq-open'));

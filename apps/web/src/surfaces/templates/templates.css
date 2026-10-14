@@ -10,6 +10,12 @@
  * renders it on `/templates/:id`, so `[data-route="/templates/:id"]` stands for it. Rules
  * for parts this story does not render (the Rich text dialog, the sub-block defaults
  * grid, the subtype combobox, the "Repetir nas colunas" chips) are left out.
+ *
+ * Story 14.2: the skeleton is Local › Painel › Coluna, with the mock's redrawn class names
+ * (`.local-card`, `.painel-card`, `.painel-list`, `.level-kicker`, `.loc-flag`,
+ * `.loc-direct`, `.loc-current`, `.loc-none`, `.pnl-empty`, `.pal-target`). The mock's
+ * `.column-row .col-current`, `.qty-tag`, the "Verificações do local" sub-line part (Story
+ * 14.3) and the palette's "Outros equipamentos" entry (Story 14.5) are not rendered.
  */
 
 /* ---------- 41-templates.html ---------- */
@@ -26,8 +32,20 @@
 
 /* ---------- 42-template-composer.html ---------- */
 [data-route="/templates/:id"] .skeleton-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
-[data-route="/templates/:id"] .cabine-card .block-expand { padding-left: var(--sp-4); min-width: 0; max-width: 100%; }
-[data-route="/templates/:id"] .cabine-card .block-line .cabine-flag { font-size: var(--t-label-size); font-weight: var(--t-label-weight); }
+[data-route="/templates/:id"] .local-card > .block-expand, [data-route="/templates/:id"] .painel-card > .block-expand { padding-left: var(--sp-4); min-width: 0; max-width: 100%; }
+/* Nested cards (a painel inside its local) sit on the sunken surface so the two levels read apart */
+[data-route="/templates/:id"] .painel-list > .painel-card { background: var(--surface-base); }
+[data-route="/templates/:id"] .skeleton-list .block-line .level-kicker { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+/* A local made current by "Adicionar equipamento": primary edge plus the word, like an open column */
+[data-route="/templates/:id"] .local-card.is-current { box-shadow: inset 4px 0 0 var(--primary); }
+[data-route="/templates/:id"] .loc-current { display: none; font-weight: 400; color: var(--primary); }
+[data-route="/templates/:id"] .local-card.is-current .loc-current { display: inline; }
+[data-route="/templates/:id"] .loc-direct .table-title { margin-bottom: 0; }
+/* A local with no direct equipment shows the "Equipamentos no local" block only while it is the palette's target */
+[data-route="/templates/:id"] .loc-direct.is-empty { display: none; }
+[data-route="/templates/:id"] .local-card.is-current > .block-expand > .loc-direct.is-empty { display: block; }
+[data-route="/templates/:id"] .loc-direct .loc-none, [data-route="/templates/:id"] .painel-card .pnl-empty { margin: 0; }
+[data-route="/templates/:id"] .skeleton-list .block-line .loc-flag { font-size: var(--t-label-size); font-weight: var(--t-label-weight); }
 [data-route="/templates/:id"] .column-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-hairline); }
 [data-route="/templates/:id"] .column-row { border-bottom: 1px solid var(--border-hairline); }
 [data-route="/templates/:id"] .column-row .col-head { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--touch-field); width: 100%; text-align: left; padding: 0 var(--sp-2) 0 0; cursor: pointer; }
@@ -45,7 +63,7 @@
 [data-route="/templates/:id"] .column-row .col-body, [data-route="/templates/:id"] .column-row { min-width: 0; }
 [data-route="/templates/:id"] .qty-row .quantity-stepper .step { cursor: pointer; }
 [data-route="/templates/:id"] .skeleton-actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-3); }
-[data-route="/templates/:id"] .cabine-card .cabine-flag { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/templates/:id"] .skeleton-list .loc-flag { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--t-meta-size); color: var(--ink-secondary); }
 [data-route="/templates/:id"] .composer-layout { display: flex; align-items: stretch; flex: 1; }
 [data-route="/templates/:id"] .composer-palette { width: 400px; flex: none; border-left: 0; border-right: 1px solid var(--border-hairline); }
 [data-route="/templates/:id"] .composer-main { flex: 1; min-width: 0; padding: var(--sp-5) var(--gutter-desktop); }
@@ -56,6 +74,9 @@
 [data-route="/templates/:id"] .block-card .block-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); }
 [data-route="/templates/:id"] .block-card .block-expand { flex-basis: 100%; border-top: 1px solid var(--border-hairline); margin-top: var(--sp-3); padding: var(--sp-4) var(--sp-4) var(--sp-2) var(--touch-min); display: flex; flex-direction: column; gap: var(--sp-4); cursor: default; }
 [data-route="/templates/:id"] .block-card.is-open { border-color: var(--primary); }
+[data-route="/templates/:id"] .block-card .card-chev .ico { transition: transform .12s ease; }
+[data-route="/templates/:id"] .block-card.is-open > .card-chev .ico { transform: rotate(180deg); }
+[data-route="/templates/:id"] .table-title { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-primary); margin: 0 0 var(--sp-2); }
 [data-route="/templates/:id"] .name-field { max-width: 560px; margin-bottom: var(--sp-5); }
 [data-route="/templates/:id"] .composer-main .section-head .section-note { margin: 0; }
 
@@ -67,17 +88,19 @@
 [data-route="/templates/:id"] .composer-head .name-field { flex: 1 1 320px; margin-bottom: 0; }
 [data-route="/templates/:id"] .composer-meta { flex-basis: 100%; margin: 0; font-size: var(--t-meta-size); color: var(--ink-secondary); }
 
-/* A cabine card's parts beside its body: the Agrupar por tipo label and toggle. */
+/* A local card's parts beside its body: the Agrupar por tipo label and toggle (EXPERIENCE.md ›
+   Toggle keeps the switch on the row; the mock shows the flag in the sub line, which stays too). */
 [data-route="/templates/:id"] .cabine-toggle { display: inline-flex; align-items: center; gap: var(--sp-2); flex: none; }
-/* The block body of a cabine is its "make current" button: it keeps the mock's column layout. */
+/* The block body of a local or painel card is the button that expands and collapses it (the
+   mock toggles on a tap anywhere on the card): it keeps the mock's column layout. */
 [data-route="/templates/:id"] .block-card button.block-body { text-align: left; cursor: pointer; align-items: stretch; }
 
 /* A coluna row: the drag handle and the Position box before the mock's `.col-head` button,
    the Overflow after it. */
 [data-route="/templates/:id"] .column-row .col-line { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
 [data-route="/templates/:id"] .column-row .col-line .col-head { flex: 1; min-width: 0; }
-/* The current cabine's own quantities (blocks placed on the cabine with no coluna). */
-[data-route="/templates/:id"] .cabine-card > .block-expand > .col-body { padding: 0; }
+/* A local's actions sit under its painéis; the foot's note beside "Adicionar local" wraps under it on a narrow screen. */
+[data-route="/templates/:id"] .skeleton-actions { align-items: center; }
 
 /* A row being dragged rises above its siblings while it follows the pointer. */
 [data-route="/templates/:id"] [data-reorder-key].is-dragging { position: relative; z-index: 2; box-shadow: var(--shadow-float); }
@@ -89,6 +112,13 @@
 @media (max-height: 479.98px) {
   [data-route="/templates/:id"] .composer-layout > .composer-palette { top: 0; max-height: 100dvh; }
 }
+/* Palette target (`.pal-target`): the open coluna or the current local; with none, "Selecione um
+   local ou uma coluna." The mock swaps the two spans with `:has()`; the app renders one of them,
+   so the mock's revealed-`.pal-none` declarations apply to it as drawn. The palette also opens
+   as a drawer portaled out of the route, so the rules are scoped by the palette's own class. */
+.composer-palette .pal-target { padding-top: 0; font-weight: 400; }
+.composer-palette .pal-target b { color: var(--primary); }
+.composer-palette .pal-target .pal-none { display: inline; color: var(--ink-primary); font-weight: 600; }
 /* The palette's equipment rows hold a stepper, not a "+": the row is not itself a button. */
 .composer-palette .palette-item.is-stepper { cursor: default; }
 .composer-palette .palette-note { padding: var(--sp-2) var(--sp-4); margin: 0; font-size: var(--t-meta-size); color: var(--ink-secondary); }

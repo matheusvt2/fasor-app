@@ -50,7 +50,7 @@ test('@p1 9.2-E2E-004 the panel is read by the real job, the corrected type is c
   await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
   const before = await tagsIn(coluna(page, 'Coluna 9')).allTextContents();
 
-  await page.getByRole('button', { name: 'Mais opções de Coluna 1', exact: true }).click();
+  await page.getByRole('button', { name: 'Mais opções de Coluna 1 de 1° Subsolo', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   const chooser = page.waitForEvent('filechooser');

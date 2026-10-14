@@ -1,6 +1,7 @@
 import type { BlockRow, LocationRow, SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { plural } from '../text/plural.ts';
+import { hiddenLocationIds } from './location-live.ts';
 import { enabledCells, isCellFilled, isEquipmentBlock, sheetState } from './sheet-state.ts';
 import { blocksWithPendingSuggestions, livePendingSuggestions } from './suggestions.ts';
 
@@ -73,16 +74,33 @@ function scoped(blocks: readonly BlockRow[], pending: readonly SuggestionRow[] |
   return [own.length, blocksWithPendingSuggestions(own)];
 }
 
-/** The location ids of a cabine and the colunas under it. */
-export function cabineLocationIds(locations: readonly Pick<LocationRow, 'id' | 'parent_id'>[], cabineId: string): Set<string> {
+/**
+ * The location ids of a cabine (the local) and the locations a block of it can sit under:
+ * the locations directly under it and, Story 14.2, the colunas of its painéis. A row with no
+ * `kind` is read as before the painel level (direct children only).
+ */
+export function cabineLocationIds(locations: readonly (Pick<LocationRow, 'id' | 'parent_id'> & { kind?: LocationRow['kind'] })[], cabineId: string): Set<string> {
   const ids = new Set([cabineId]);
-  for (const location of locations) if (location.parent_id === cabineId) ids.add(location.id);
+  const paineis = new Set<string>();
+  for (const location of locations) {
+    if (location.parent_id !== cabineId) continue;
+    ids.add(location.id);
+    if (location.kind === 'painel') paineis.add(location.id);
+  }
+  if (paineis.size > 0) for (const location of locations) if (location.parent_id !== null && paineis.has(location.parent_id)) ids.add(location.id);
   return ids;
+}
+
+/** The progress over exactly these blocks (a local's own, for "Equipamentos no local · 0 de 2"), with the same pending-suggestion rule as `progress`. */
+export function blocksProgress(blocks: readonly BlockRow[], pending?: readonly SuggestionRow[]): Progress {
+  return over(blocks, ...scoped(blocks, pending));
 }
 
 /**
  * The location ids of a node and every location under it, at any depth (Story 4.4: a
  * block may attach to any node, and the tree's coluna counters count what hangs below).
+ * Structural: removed rows count as any other (`locationRemovalPlan` reads the whole
+ * subtree); `locationProgress` leaves the ones that are not live out of its counts.
  */
 export function descendantLocationIds(locations: readonly Pick<LocationRow, 'id' | 'parent_id'>[], locationId: string): Set<string> {
   const ids = new Set([locationId]);
@@ -99,10 +117,16 @@ export function descendantLocationIds(locations: readonly Pick<LocationRow, 'id'
   return ids;
 }
 
-/** One location's progress: the blocks on it and on every location under it (the tree's coluna counter). */
+/**
+ * One location's progress: the blocks on it and on every location under it (the tree's
+ * coluna counter). Story 14.2, second pass: only blocks on live locations count
+ * (`hiddenLocationIds`): a location that is removed, or under a removed one, is not drawn,
+ * so what sits on it is out of every counter above it, and its own progress is empty.
+ */
 export function locationProgress(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations'>, locationId: string, pending?: readonly SuggestionRow[]): Progress {
   const ids = descendantLocationIds(snapshot.locations, locationId);
-  const blocks = snapshot.blocks.filter((block) => block.location_id !== null && ids.has(block.location_id));
+  const hidden = hiddenLocationIds(snapshot.locations);
+  const blocks = snapshot.blocks.filter((block) => block.location_id !== null && ids.has(block.location_id) && !hidden.has(block.location_id));
   return over(blocks, ...scoped(blocks, pending));
 }
 
@@ -112,15 +136,17 @@ export function locationProgress(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'l
  * location's progress is the sum of its subtree's buckets (every count of `Progress` adds up
  * over disjoint sets of blocks, and a pending suggestion names one block), with the subtree
  * read exactly as `descendantLocationIds` reads it (every location of the input, removed ones
- * included). The answer for an id equals `locationProgress(snapshot, id, pending)`.
+ * included) and the blocks on a location that is not live left out, as `locationProgress`
+ * leaves them. The answer for an id equals `locationProgress(snapshot, id, pending)`.
  */
 export function locationProgressIndex(
   snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations'>,
   pending?: readonly SuggestionRow[],
 ): (locationId: string) => Progress {
+  const hidden = hiddenLocationIds(snapshot.locations);
   const blocksAt = new Map<string, BlockRow[]>();
   for (const block of snapshot.blocks) {
-    if (block.location_id === null) continue;
+    if (block.location_id === null || hidden.has(block.location_id)) continue;
     const bucket = blocksAt.get(block.location_id);
     if (bucket === undefined) blocksAt.set(block.location_id, [block]);
     else bucket.push(block);

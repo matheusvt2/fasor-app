@@ -32,7 +32,7 @@ type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
  * "Editar" is tapped or a field inside took the focus (for this visit of the sheet). The
  * cabine is not the sheet's data: on a sheet marked not tested it stays editable and keeps
  * "Editar", so a cabine whose sheets are all not tested can still be filled. The altitude is the
- * relatório setup's own, read-only everywhere. "Copiar da cabine anterior" writes the
+ * relatório setup's own, read-only everywhere. "Copiar do local anterior" (Story 14.2: on screen the cabine row is the "local") writes the
  * previous cabine's temperature and humidity as plain ops with an undo.
  *
  * Story 9.1: "Ler visor" on the thermo-hygrometer (`60-ficha.html` `.ficha-amb-actions`, with

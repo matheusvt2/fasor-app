@@ -252,10 +252,12 @@ describe('P9: every editedSince family is decided as content or structure', () =
   const DECIDED: Record<string, { content: string[]; structure: string[] }> = {
     'relatorio/setup': { content: [], structure: ['relatorio/setup/local'] },
     location: { content: [], structure: [`location/${A}`] },
-    'location/field': { content: [], structure: [`location/${A}/name`] },
+    // Story 14.2: a painel's rename, reorder and remove are these same paths.
+    'location/field': { content: [], structure: [`location/${A}/name`, `location/${A}/order_key`, `location/${A}/removed_at`, `location/${A}/parent_id`] },
     'location/se': { content: [`location/${A}/se/primary_kv`], structure: [] },
     'location/env': { content: [`location/${A}/env/temperature_c`], structure: [] },
     'location/agrupar_por_tipo': { content: [], structure: [`location/${A}/agrupar_por_tipo`] },
+    'location/funcao': { content: [], structure: [`location/${A}/funcao`] },
     block: { content: [], structure: [`block/${A}`] },
     'block/field': { content: [`block/${A}/not_tested`, `block/${A}/concluded_by`], structure: [`block/${A}/config`, `block/${A}/order_key`] },
     'sheet/nameplate': { content: [`sheet/${A}/nameplate/n_serie`], structure: [] },
@@ -284,6 +286,82 @@ describe('P9: every editedSince family is decided as content or structure', () =
       for (const path of content) expect(countsAsFieldContent(candidate(family, path)), path).toBe(true);
       for (const path of structure) expect(countsAsFieldContent(candidate(family, path)), path).toBe(false);
       for (const path of [...content, ...structure]) expect(countsAsEdit(candidate(family, path)), path).toBe(true);
+    }
+  });
+});
+
+describe('Story 14.2: painel ops and a local Função are structure, and an edit', () => {
+  const A = '019966b0-0001-7000-8000-0000000000b1';
+  const LOCAL = '019966b0-0001-7000-8000-0000000000b2';
+  const painel = { id: A, relatorio_id: '019966b0-0001-7000-8000-0000000000b3', parent_id: LOCAL, name: 'Painel 1', order_key: 'a0', removed_at: null, kind: 'painel' };
+  const ops = [
+    { name: 'painel create', op: { path: `location/${A}`, actor_id: 'u', kind: 'create' as const, value: painel } },
+    { name: 'painel rename', op: { path: `location/${A}/name`, actor_id: 'u', kind: 'put' as const, value: 'Painel de média tensão' } },
+    { name: 'painel reorder', op: { path: `location/${A}/order_key`, actor_id: 'u', kind: 'put' as const, value: 'a1' } },
+    { name: 'painel remove', op: { path: `location/${A}/removed_at`, actor_id: 'u', kind: 'remove' as const, value: null } },
+    { name: 'painel restore', op: { path: `location/${A}/removed_at`, actor_id: 'u', kind: 'put' as const, value: null } },
+    { name: 'funcao put (a key)', op: { path: `location/${LOCAL}/funcao`, actor_id: 'u', kind: 'put' as const, value: 'primaria' } },
+    { name: 'funcao put (typed)', op: { path: `location/${LOCAL}/funcao`, actor_id: 'u', kind: 'put' as const, value: 'Medição' } },
+    { name: 'funcao put (none)', op: { path: `location/${LOCAL}/funcao`, actor_id: 'u', kind: 'put' as const, value: null } },
+  ];
+
+  it.each(ops)('$name: countsAsEdit (an Emitido relatório reopens) and not countsAsFieldContent (a Rascunho one stays)', ({ op }) => {
+    expect(countsAsEdit(op)).toBe(true);
+    expect(countsAsFieldContent(op)).toBe(false);
+    expect(editedSince([{ ...op, seq: 8 }], 7)).toBe(true);
+  });
+
+  it('a system actor never counts, as for every other family', () => {
+    expect(countsAsEdit({ path: `location/${LOCAL}/funcao`, actor_id: 'system:identity', kind: 'put', value: 'primaria' })).toBe(false);
+  });
+});
+
+describe('Story 14.2, second pass: removing and restoring a painel, a coluna and a local is structure, and an edit', () => {
+  const LOCAL = '019966b0-0001-7000-8000-0000000000c1';
+  const PAINEL = '019966b0-0001-7000-8000-0000000000c2';
+  const COLUNA = '019966b0-0001-7000-8000-0000000000c3';
+  const SHEET = '019966b0-0001-7000-8000-0000000000c4';
+  const EQUIPMENT_ROW = '019966b0-0001-7000-8000-0000000000c5';
+  const remove = (path: string) => ({ path, actor_id: 'u', kind: 'remove' as const, value: null });
+  const restore = (path: string) => ({ path, actor_id: 'u', kind: 'put' as const, value: null });
+  // The "Desfazer" of a restore puts the removal's timestamp back.
+  const undoRestore = (path: string) => ({ path, actor_id: 'u', kind: 'put' as const, value: '2026-10-13T12:00:00.000Z' });
+  const rows = [
+    { name: 'painel remove', op: remove(`location/${PAINEL}/removed_at`) },
+    { name: 'painel restore', op: restore(`location/${PAINEL}/removed_at`) },
+    { name: 'painel restore undone', op: undoRestore(`location/${PAINEL}/removed_at`) },
+    { name: 'coluna remove', op: remove(`location/${COLUNA}/removed_at`) },
+    { name: 'coluna restore', op: restore(`location/${COLUNA}/removed_at`) },
+    { name: 'coluna restore undone', op: undoRestore(`location/${COLUNA}/removed_at`) },
+    { name: 'local remove', op: remove(`location/${LOCAL}/removed_at`) },
+    { name: 'local restore', op: restore(`location/${LOCAL}/removed_at`) },
+    { name: 'local restore undone', op: undoRestore(`location/${LOCAL}/removed_at`) },
+    { name: 'a sheet leaving with its location', op: remove(`block/${SHEET}/removed_at`) },
+    { name: 'a sheet back with its location', op: restore(`block/${SHEET}/removed_at`) },
+    { name: 'the equipment the removal frees', op: remove(`equipment/${EQUIPMENT_ROW}/removed_at`) },
+    { name: 'the equipment back with its sheet', op: restore(`equipment/${EQUIPMENT_ROW}/removed_at`) },
+  ];
+
+  it.each(rows)('$name: countsAsEdit (an Emitido relatório reopens) and not countsAsFieldContent (a Rascunho one stays)', ({ op }) => {
+    expect(countsAsEdit(op)).toBe(true);
+    expect(countsAsFieldContent(op)).toBe(false);
+    expect(editedSince([{ ...op, seq: 8 }], 7)).toBe(true);
+    expect(editedSince([{ ...op, seq: 7 }], 7)).toBe(false);
+  });
+
+  it('the whole batch of a removal, and of its restore, carries no field content: no status op rides with it on a Rascunho relatório', () => {
+    const removal = [
+      remove(`location/${LOCAL}/removed_at`),
+      remove(`location/${PAINEL}/removed_at`),
+      remove(`location/${COLUNA}/removed_at`),
+      remove(`block/${SHEET}/removed_at`),
+      remove(`equipment/${EQUIPMENT_ROW}/removed_at`),
+    ];
+    const back = removal.map((op) => restore(op.path));
+    for (const batch of [removal, back]) {
+      expect(batch.some((op) => countsAsFieldContent(op))).toBe(false);
+      expect(batch.every((op) => countsAsEdit(op))).toBe(true);
+      expect(editedSince(batch.map((op, i) => ({ ...op, seq: 10 + i })), 9)).toBe(true);
     }
   });
 });
@@ -327,7 +405,7 @@ describe('2026-10-13: every op path family is decided, an edit or never one', ()
     }
   });
 
-  it('the classification of 2026-10-10 is unchanged: the twenty edit families and the twenty-two that never are', () => {
+  it('the classification of 2026-10-10 is unchanged, plus `location/funcao` (Story 14.2): the twenty-one edit families and the twenty-two that never are', () => {
     expect([...EDITED_SINCE_FAMILIES].sort()).toEqual(
       [
         'block',
@@ -340,6 +418,7 @@ describe('2026-10-13: every op path family is decided, an edit or never one', ()
         'location/agrupar_por_tipo',
         'location/env',
         'location/field',
+        'location/funcao',
         'location/se',
         'point',
         'point/field',

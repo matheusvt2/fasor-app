@@ -4,6 +4,8 @@ import { panelReadingTarget, panelSuggestionValueSchema, type PanelSuggestionVal
 import { plateReadingTarget } from '../reading/target.ts';
 import { EQUIPMENT_BLOCK_TYPES, type EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, JsonValue, LocationRow, PhotoFileRow, SuggestionRow } from '../schemas/entities.ts';
+import type { BlockLocationRow } from './local.ts';
+import { liveLocationIds } from './location-live.ts';
 import { locationPathText } from './location-path.ts';
 import { relatorioOpEnvelope, type Author } from './ops.ts';
 import { discardSuggestionOp, PLATE_CAPTION } from './suggestions.ts';
@@ -126,28 +128,43 @@ function sameTarget(value: unknown, expected: string): boolean {
 
 /** Where the proposal puts the block, and whether it is the coluna the label named. */
 export interface PanelLocation {
-  location: LocationRow;
+  location: BlockLocationRow;
   matched: boolean;
 }
 
-const live = (location: LocationRow) => location.removed_at === null;
-
 /**
- * The palette location's cabine (itself, or its parent) and its live coluna whose code is
- * `C` plus the column's two digits ("C09" is "Coluna 9"); else the palette location itself,
- * `matched: false` (no coluna is ever created). Null when the palette location is gone.
+ * The palette location's group (itself when it is a local; else its parent: a painel, or a
+ * local for a coluna directly under one) and that group's live coluna whose code is `C` plus
+ * the column's two digits ("C09" is "Coluna 9"); else the palette location itself,
+ * `matched: false` (no coluna is ever created). Null when the palette location is gone, or
+ * is a painel (Story 14.2: a painel takes no block, and the palette never opens on one).
+ *
+ * With the palette on a local (coordinator review 2026-10-13), a number no coluna directly
+ * under the local carries is also looked for among the colunas of the local's live painéis:
+ * the only one of that number is taken; when more than one painel holds a coluna of that
+ * number, none is (the label does not say which painel), so the block is proposed on the local.
  */
 export function panelLocation(locations: readonly LocationRow[], paletteLocationId: string, column: number | null): PanelLocation | null {
+  // Live by the tree's rule (`liveLocationIds`): a coluna of a removed painel is never matched.
+  const liveIds = liveLocationIds(locations);
+  const live = (location: LocationRow) => liveIds.has(location.id);
   const palette = locations.find((location) => location.id === paletteLocationId && live(location));
-  if (palette === undefined) return null;
+  if (palette === undefined || palette.kind === 'painel') return null;
   if (column === null) return { location: palette, matched: false };
-  const cabine = palette.kind === 'cabine' ? palette : locations.find((location) => location.id === palette.parent_id && live(location));
-  if (cabine !== undefined) {
+  const group = palette.kind === 'cabine' ? palette : locations.find((location) => location.id === palette.parent_id && live(location));
+  if (group !== undefined) {
     const code = `C${String(column).padStart(2, '0')}`;
-    const coluna = locations.find(
-      (location) => live(location) && location.kind === 'coluna' && location.parent_id === cabine.id && locationCode({ kind: location.kind, name: location.name }) === code,
-    );
+    const named = (parentId: string) =>
+      locations.filter(
+        (location): location is Extract<LocationRow, { kind: 'coluna' }> =>
+          live(location) && location.kind === 'coluna' && location.parent_id === parentId && locationCode({ kind: location.kind, name: location.name }) === code,
+      );
+    const [coluna] = named(group.id);
     if (coluna !== undefined) return { location: coluna, matched: true };
+    if (palette.kind === 'cabine') {
+      const inPaineis = locations.filter((location) => live(location) && location.kind === 'painel' && location.parent_id === palette.id).flatMap((painel) => named(painel.id));
+      if (inPaineis.length === 1) return { location: inPaineis[0]!, matched: true };
+    }
   }
   return { location: palette, matched: false };
 }
@@ -190,7 +207,7 @@ export interface PanelProposalInput {
 export interface PanelProposal {
   type: EquipmentBlockType;
   typeLabel: string;
-  location: LocationRow;
+  location: BlockLocationRow;
   /** "1° Subsolo › Coluna 9". */
   locationPath: string;
   tag: string;

@@ -13,7 +13,7 @@ import {
   ncAbertosText,
   pendingSuggestions,
   progress,
-  restorableBlocks,
+  restorableEntries,
   setupGapsText,
   statusStepText,
   sugestoesText,
@@ -33,7 +33,7 @@ import {
   type DuplicateTagDecision,
   type EntityState,
   type RelatorioSnapshot,
-  type RestorableBlock,
+  type RestorableEntry,
   type RevisionRow,
   type SectionBlockType,
   type SumarioCountKind,
@@ -46,7 +46,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Button, ConfirmDialog, OverflowMenu, StatusPill, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
-import { templateRows } from '../../db/home-store.ts';
+import { allLocationRows, templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { readLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
@@ -85,6 +85,8 @@ import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 const NO_TEMPLATES: TemplateRow[] = [];
 const NO_USERS: UserRow[] = [];
 const NO_HIGHLIGHT: ReadonlySet<SumarioRowKey> = new Set();
+/** The restore list while the read of every location row has not landed: nothing is known yet, so nothing is offered. */
+const NO_RESTORABLE: RestorableEntry[] = [];
 
 /**
  * `/relatorio/:id` (`40-relatorio-overview.html`, Story 4.3): the Sumário of the relatório
@@ -151,7 +153,17 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   );
   // Epic 4 retro item 29: "Restaurar" offers only what was removed after the last revision.
   const lastIssuedAt = latestRevision(revisions)?.created_at ?? null;
-  const removable = useMemo(() => restorableBlocks(allBlocks, equipment, snapshot.locations, lastIssuedAt), [allBlocks, equipment, snapshot.locations, lastIssuedAt]);
+  // Story 14.2, second pass: the list also offers the removed locations, so it reads every
+  // location row of the relatório, removed ones included (nothing else on this surface does:
+  // the tree, the counters and the rows read the snapshot's live ones). Until the read lands
+  // nothing is offered: with the live rows standing in, the kernel would see no removed
+  // location and list the sheets of a removed painel one by one, and restoring one of them
+  // would bring its ancestors back alone and split the group.
+  const everyLocation = useLiveQuery(() => (db === null ? undefined : allLocationRows(db, relatorioId)), [db, relatorioId]);
+  const removable = useMemo(
+    () => (everyLocation === undefined ? NO_RESTORABLE : restorableEntries({ blocks: allBlocks, equipment, locations: everyLocation, since: lastIssuedAt })),
+    [allBlocks, equipment, everyLocation, lastIssuedAt],
+  );
   const preview = usePreview(relatorioId);
   // Story 7.5: "Ver no sumário" marks the rows the dialog's warnings stand on, until the next tap.
   const [highlighted, setHighlighted] = useState<ReadonlySet<SumarioRowKey>>(NO_HIGHLIGHT);
@@ -307,9 +319,9 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
       .catch(() => undefined);
   }
 
-  function onRestore(block: RestorableBlock): void {
+  function onRestore(entry: RestorableEntry): void {
     setRestoring(false);
-    restore(block);
+    restore(entry);
   }
 
   /** A header count: opens section 9 and moves the focus to its row. */
@@ -522,7 +534,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
           }}
         />
       ) : null}
-      {restoring ? <RestoreDialog blocks={removable} onRestore={onRestore} onClose={() => setRestoring(false)} /> : null}
+      {restoring ? <RestoreDialog entries={removable} onRestore={onRestore} onClose={() => setRestoring(false)} /> : null}
       {conflict.dialog}
       {renaming === undefined ? null : (
         <TagDialog

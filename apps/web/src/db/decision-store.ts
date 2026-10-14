@@ -12,7 +12,7 @@ import {
   type OpFacts,
   type RelatorioRow,
 } from '@app/domain';
-import { locationRows } from './home-store.ts';
+import { allLocationRows } from './home-store.ts';
 import type { AppDatabase } from './schema.ts';
 
 /*
@@ -30,6 +30,11 @@ export interface HeldDecisions {
   decisions: Decision[];
   /** The relatório's blocks, removed ones included. */
   blocks: BlockRow[];
+  /**
+   * The relatório's locations, removed ones included (Story 14.2, second pass): the decisions
+   * read them for a sheet's place only (its rank in tree order and its name in the words), and
+   * a sheet removed with its coluna, painel or local still has one.
+   */
   locations: LocationRow[];
   /** The project's equipment, removed rows included. */
   equipment: EquipmentRow[];
@@ -103,7 +108,7 @@ export async function heldDecisions(db: AppDatabase): Promise<HeldDecisions[]> {
     const [ops, creates, locations] = await Promise.all([
       opFacts(db, conflictOpIds(own)),
       createFacts(db, duplicates.map((id) => entityKey('equipment', id))),
-      locationRows(db, relatorio.id),
+      allLocationRows(db, relatorio.id),
     ]);
     const decisions = openDecisions({
       relatorioId: relatorio.id,

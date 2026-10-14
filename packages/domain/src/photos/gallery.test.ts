@@ -135,9 +135,9 @@ describe('6.3-UNIT-004 the cabine filter', () => {
     photo({ block_id: null }),
   ];
 
-  it('offers "Todas" first, then the cabines holding photos, in tree order', () => {
+  it('offers "Todos" first (Story 14.2: the locais), then the locais holding photos, in tree order', () => {
     expect(galleryCabineOptions(base, photos)).toEqual([
-      { id: GALLERY_ALL, label: 'Todas' },
+      { id: GALLERY_ALL, label: 'Todos' },
       { id: cabine('Cubículo Enel').id, label: 'Cubículo Enel' },
       { id: cabine('Oxigênio').id, label: 'Oxigênio' },
     ]);

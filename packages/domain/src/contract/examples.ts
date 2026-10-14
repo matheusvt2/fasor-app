@@ -12,6 +12,10 @@ const CLIENT_ID = '019966b0-0003-7000-8000-000000000005';
 const OP_1 = '019966b0-0004-7000-8000-000000000001';
 const OP_2 = '019966b0-0004-7000-8000-000000000002';
 const OP_3 = '019966b0-0004-7000-8000-000000000003';
+const OP_4 = '019966b0-0004-7000-8000-000000000004';
+const OP_5 = '019966b0-0004-7000-8000-000000000005';
+const LOCAL_ID = '019966b0-0003-7000-8000-000000000006';
+const PAINEL_ID = '019966b0-0003-7000-8000-000000000007';
 
 const clientCreate = {
   op_id: OP_1,
@@ -83,9 +87,41 @@ const relatorioCreate = {
   client_ts: '2026-09-21T12:01:00.000Z',
 };
 
+const relatorioEnvelope = {
+  scope: 'relatorio',
+  company_id: COMPANY_ID,
+  project_id: PROJECT_ID,
+  relatorio_id: RELATORIO_ID,
+  prev_op_id: null,
+  batch_id: null,
+  meta: null,
+  actor_id: USER_ID,
+  device_id: 'tablet-example',
+} as const;
+
+/** Contract 17 (Story 14.2): a painel, a child of a cabine row that only groups colunas. */
+const painelCreate = {
+  ...relatorioEnvelope,
+  op_id: OP_4,
+  kind: 'create',
+  path: `location/${PAINEL_ID}`,
+  value: { id: PAINEL_ID, relatorio_id: RELATORIO_ID, parent_id: LOCAL_ID, name: 'Painel de média tensão', order_key: 'a0', removed_at: null, kind: 'painel' },
+  client_ts: '2026-09-21T12:02:00.000Z',
+};
+
+/** Contract 17 (Story 14.2): a local's Função, a reserved key or a typed name. */
+const funcaoPut = {
+  ...relatorioEnvelope,
+  op_id: OP_5,
+  kind: 'put',
+  path: `location/${LOCAL_ID}/funcao`,
+  value: 'transformacao',
+  client_ts: '2026-09-21T12:03:00.000Z',
+};
+
 export const contractExamples = {
   pushRequest: {
-    valid: { ops: [clientCreate, relatorioCreate] },
+    valid: { ops: [clientCreate, relatorioCreate, painelCreate, funcaoPut] },
     /** `ops` is not an array. */
     invalid: { ops: clientCreate },
   },
@@ -103,8 +139,12 @@ export const contractExamples = {
   },
   pullResponse: {
     valid: {
-      ops: [{ ...clientCreate, seq: 41 }],
-      seq: 42,
+      ops: [
+        { ...clientCreate, seq: 41 },
+        { ...painelCreate, seq: 43 },
+        { ...funcaoPut, seq: 44 },
+      ],
+      seq: 44,
       summary: {
         last_push_at: [{ user_id: USER_ID, device_id: 'tablet-example', at: '2026-09-21T12:05:00.000Z' }],
         relatorios: [

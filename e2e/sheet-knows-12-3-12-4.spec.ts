@@ -39,7 +39,7 @@ const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da fic
 const field = (page: Page, key: string) => page.locator(`[data-field-key="${key}"]`);
 const checklistRow = (page: Page, n: number) => page.locator('#ficha-step-verificacoes li.checklist-row').nth(n - 1);
 const cabineRow = (page: Page, name: string) =>
-  page.getByRole('list', { name: 'Locais do relatório' }).locator(':scope > li.s9-cabine').filter({ has: page.locator(':scope > .s9-cab-row .s9-cab-name', { hasText: name }) });
+  page.getByRole('list', { name: 'Locais do relatório' }).locator(':scope > li.s9-local').filter({ has: page.locator(':scope > .s9-loc-row .s9-loc-name', { hasText: name }) });
 
 /** The count a step's accessible name reads ("Placa, 3 faltando"). */
 async function stepMissing(page: Page, step: string): Promise<number> {
@@ -324,12 +324,12 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
 
   // The Sumário names what the cabine lacks, on its row and in the section 9 pending line.
   await openSection9(page);
-  await expect(cabineRow(page, 'Cubículo Enel').locator('.s9-cab-meta .cl-missing')).toHaveText('faltam 6 campos');
+  await expect(cabineRow(page, 'Cubículo Enel').locator('.s9-loc-meta .cl-missing')).toHaveText('faltam 6 campos');
   await expect(page.locator('li.sum-s9 .sum-status')).toContainText('Cubículo Enel: faltam 6 campos');
 
   // The first sheet counts the six fields in Placa; "Concluir ficha" lands on the first one.
   await page.getByRole('button', { name: 'Mais opções de Cubículo Enel' }).click();
-  await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }).click();
+  await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados do local)' }).click();
   await expect(page).toHaveURL(/\/ficha\//);
   const firstUrl = page.url();
   await expect(page.getByRole('heading', { name: 'Características da SE' })).toBeVisible();
@@ -338,7 +338,7 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
   // E12-Q10: the cabine's first sheet holds no plate field left, and the header names the six as the cabine's;
   // E12-Q8: the count in `.n-missing`.
   expect(withCabine).toBe(6);
-  await expect(page.getByTestId('ficha-progress')).toHaveText(/^Faltam 6 campos da cabine, /);
+  await expect(page.getByTestId('ficha-progress')).toHaveText(/^Faltam 6 campos do local, /);
   await expect(page.getByTestId('ficha-progress').locator('.n-missing').first()).toHaveText('6');
   const tag = (await page.locator('.sheet-header .tag-btn').textContent())!.trim();
   await page.getByRole('button', { name: `Mais opções da ficha ${tag}` }).click();
@@ -361,7 +361,7 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
   // The Sumário row now says the one field left.
   await page.goto(`/relatorio/${relatorioId}`);
   await openSection9(page);
-  await expect(cabineRow(page, 'Cubículo Enel').locator('.s9-cab-meta .cl-missing')).toHaveText('falta a umidade');
+  await expect(cabineRow(page, 'Cubículo Enel').locator('.s9-loc-meta .cl-missing')).toHaveText('falta a umidade');
   await expect(page.locator('li.sum-s9 .sum-status')).toContainText('Cubículo Enel: falta a umidade');
 
   // A later sheet of the incomplete cabine: expanded and editable, not counted there.
@@ -382,7 +382,7 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
 
   // The next sheet: one line, the values, "Editar".
   await page.locator('#ficha-primary').click();
-  const line = page.getByRole('group', { name: 'Da cabine' });
+  const line = page.getByRole('group', { name: 'Do local' });
   await expect(line).toBeVisible();
   await expect(line.locator('.cl-name')).toHaveText('Cubículo Enel');
   await expect(line.locator('.cl-values')).toHaveText('BLINDADA · 13,8 kV · 380 V · 1.500 kVA · 25 °C · 65 %');
@@ -399,7 +399,8 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
   // Complete: the Sumário row has its values and nothing missing; the first sheet shows the edit.
   await page.goto(`/relatorio/${relatorioId}`);
   await openSection9(page);
-  await expect(cabineRow(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('BLINDADA · 13,8 kV · 26 °C · 65 %');
+  // Story 14.2: a local nothing hangs under closes its data line with "sem painéis".
+  await expect(cabineRow(page, 'Cubículo Enel').locator('.s9-loc-meta')).toHaveText('BLINDADA · 13,8 kV · 26 °C · 65 % · sem painéis');
   await expect(cabineRow(page, 'Cubículo Enel').locator('.cl-missing')).toHaveCount(0);
   await expect(page.locator('li.sum-s9 .sum-status')).not.toContainText('Cubículo Enel:');
   await page.goto(firstUrl);
@@ -430,10 +431,10 @@ test('@p0 12.3-E2E-005 a cabine first sheet complete but one cabine field: "Pró
   // It is the cabine's first sheet: the one empty cabine field is the one thing it lacks.
   await openSection9(page);
   await page.getByRole('button', { name: 'Mais opções de Cubículo Enel' }).click();
-  await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }).click();
+  await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados do local)' }).click();
   await expect(page).toHaveURL(new RegExp(`/ficha/${first.blockId}$`));
   // E12-Q10: the field is the cabine's, and the sentence names it so; E12-Q8: its count in `.n-missing`.
-  await expect(page.getByTestId('ficha-progress')).toHaveText('Verificações, leituras e conclusão prontas · falta 1 campo da cabine');
+  await expect(page.getByTestId('ficha-progress')).toHaveText('Verificações, leituras e conclusão prontas · falta 1 campo do local');
   await expect(page.getByTestId('ficha-progress').locator('.n-missing')).toHaveText(['1']);
   expect(await stepMissing(page, 'Placa')).toBe(1);
 

@@ -203,7 +203,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
     await waitFor(() => expect(document.querySelector(`li[data-block-id="${SEC_C01}"]`)).toBeNull());
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(await screen.findByText('Ficha removida')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 1' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 1 de Cabine de Testes' })).toHaveFocus());
     const ops = await outbox();
     expect(ops.map((op) => [op.path, op.kind, op.scope])).toEqual([
       [`block/${SEC_C01}/removed_at`, 'remove', 'relatorio'],
@@ -336,12 +336,12 @@ describe('4.4 location tree (Sumário presentation)', () => {
     await openCabine();
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar coluna' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 2' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 2 de Cabine de Testes' })).toHaveFocus());
     expect(await screen.findByText('Coluna 2 adicionada')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 2' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 2 de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Subir' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 2 movida para a posição 1 de 2'));
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 2' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 2 de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
     const dialog = await screen.findByRole('dialog', { name: 'Renomear Coluna 2' });
     const field = within(dialog).getByRole('textbox', { name: 'Nome' });
@@ -349,10 +349,19 @@ describe('4.4 location tree (Sumário presentation)', () => {
     expect(within(dialog).getByRole('button', { name: 'Salvar' })).toHaveAttribute('aria-disabled', 'true');
     expect(within(dialog).getByText('Salvar: falta o nome')).toBeInTheDocument();
     await userEvent.type(field, 'Entrada{Enter}');
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Entrada' })).toBeInTheDocument());
-    await userEvent.click(screen.getByRole('button', { name: 'Adicionar cabine' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Entrada de Cabine de Testes' })).toBeInTheDocument());
+    // Story 14.2: "Adicionar local" asks the Função and the name first.
+    await userEvent.click(screen.getByRole('button', { name: 'Adicionar local' }));
+    const add = await screen.findByRole('dialog', { name: 'Adicionar local' });
+    await userEvent.click(within(add).getByRole('radio', { name: 'Distribuição' }));
+    const localName = within(add).getByRole('textbox', { name: 'Nome' });
+    expect(localName).toHaveValue('Cabine de distribuição');
+    await userEvent.clear(localName);
+    await userEvent.type(localName, 'Cabine 3');
+    await userEvent.click(within(add).getByRole('button', { name: 'Adicionar local' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Expandir Cabine 3' })).toHaveFocus());
-    // Alt+ArrowUp on the new cabine's chevron moves it.
+    expect(await screen.findByText('Cabine 3 adicionada')).toBeInTheDocument();
+    // Alt+ArrowUp on the new local's chevron moves it.
     await userEvent.keyboard('{Alt>}{ArrowUp}{/Alt}');
     await waitFor(() => expect(announcer()).toHaveTextContent('Cabine 3 movida para a posição 2 de 3'));
     const ops = await database.outbox.toArray();
@@ -365,7 +374,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
     ]);
     const created = ops[0]!.value as LocationRow;
     expect(created).toMatchObject({ kind: 'coluna', parent_id: CABINE, name: 'Coluna 2' });
-    expect(ops[3]!.value).toMatchObject({ kind: 'cabine', parent_id: null, name: 'Cabine 3', agrupar_por_tipo: false });
+    expect(ops[3]!.value).toMatchObject({ kind: 'cabine', parent_id: null, name: 'Cabine 3', agrupar_por_tipo: false, funcao: 'distribuicao' });
     expect(ops.some((op) => op.path.startsWith('block/'))).toBe(false);
   });
 });

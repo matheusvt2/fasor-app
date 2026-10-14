@@ -72,18 +72,21 @@ describe('4.3-UNIT preIssue', () => {
     expect(blockingRows(preIssue(withOne)).map((r) => r.kind)).toEqual(['parecer_missing']);
   });
 
-  it('Q9: never says "Cabine" twice, whatever the case or accents of the name', () => {
-    expect(cabineSemEquipamentoText('Geradores')).toBe('Cabine Geradores sem equipamento');
-    expect(cabineSemEquipamentoText('1° Subsolo')).toBe('Cabine 1° Subsolo sem equipamento');
+  it('Q9 and Story 14.2: says "Local" before a bare name, and never before a name that already says Cabine or Local, whatever its case or accents', () => {
+    expect(cabineSemEquipamentoText('Geradores')).toBe('Local Geradores sem equipamento');
+    expect(cabineSemEquipamentoText('1° Subsolo')).toBe('Local 1° Subsolo sem equipamento');
+    expect(cabineSemEquipamentoText('Local 2')).toBe('Local 2 sem equipamento');
+    expect(cabineSemEquipamentoText('Localidade Norte')).toBe('Local Localidade Norte sem equipamento');
+    expect(cabineSemEquipamentoText('Cabine de transformação')).toBe('Cabine de transformação sem equipamento');
     expect(cabineSemEquipamentoText('Cabine QA')).toBe('Cabine QA sem equipamento');
     expect(cabineSemEquipamentoText('Cabine 7')).toBe('Cabine 7 sem equipamento');
     expect(cabineSemEquipamentoText('CABINE norte')).toBe('CABINE norte sem equipamento');
     expect(cabineSemEquipamentoText('Cabíne A')).toBe('Cabíne A sem equipamento');
     expect(cabineSemEquipamentoText('Cabine-7')).toBe('Cabine-7 sem equipamento');
     expect(cabineSemEquipamentoText('Cabine7')).toBe('Cabine7 sem equipamento');
-    expect(cabineSemEquipamentoText('  Geradores ')).toBe('Cabine Geradores sem equipamento');
+    expect(cabineSemEquipamentoText('  Geradores ')).toBe('Local Geradores sem equipamento');
     // A word that only starts with the letters is not the prefix.
-    expect(cabineSemEquipamentoText('Cabinet')).toBe('Cabine Cabinet sem equipamento');
+    expect(cabineSemEquipamentoText('Cabinet')).toBe('Local Cabinet sem equipamento');
   });
 
   it('over the Porto Seguro fixture: the client has no warning beyond its CNPJ, sheets and not-tested rows on section 9', () => {

@@ -10,12 +10,14 @@ import {
 } from '../schemas/block-config.ts';
 import type { BlockRow, LocationRow, RelatorioRow, TemplateRow } from '../schemas/entities.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
+import { liveLocationIds } from '../relatorio/location-live.ts';
 import { locationBlocks } from '../relatorio/tree.ts';
 
 /*
  * Story 11.3 (FR-14): "Salvar como template" projects a relatório's structure into a
  * Template row, the inverse of `instantiateTemplate`: the live cabines (with their
- * "Agrupar por tipo") each followed by their live colunas, every live equipment block's
+ * "Agrupar por tipo" and, Story 14.2, their Função) each followed by the live colunas
+ * directly under them and then by their live painéis with their colunas, every live equipment block's
  * `BlockConfig` (sub-block and subtype overrides included) placed on its node with the
  * quantity of each run of equal configs, and the live section blocks with their own text.
  * Nothing the relatório holds as data is carried: no sheet value, no not-tested mark, no
@@ -71,23 +73,38 @@ function sameConfig(a: unknown, b: unknown): boolean {
 
 /**
  * The Template row "Salvar como template" creates from `snapshot`, under `id` and `name`,
- * on the relatório's seed version, at version 1, live and not archived. A coluna whose
- * cabine is not live is skipped with its blocks (a template's coluna always sits under a
- * cabine), and so is a location nested under a coluna.
+ * on the relatório's seed version, at version 1, live and not archived. A coluna or a
+ * painel whose parent is not live is skipped with its blocks (a template's node always sits
+ * under a live one), and so is a location nested under a coluna.
  */
 export function templateFromRelatorio(
   snapshot: { relatorio: Pick<RelatorioRow, 'seed_version'>; locations: readonly LocationRow[]; blocks: readonly BlockRow[] },
   meta: { id: string; name: string },
 ): TemplateRow {
   const seedVersion = snapshot.relatorio.seed_version;
-  const live = sortByOrderKey(snapshot.locations.filter((row) => row.removed_at === null));
+  // Live by the tree's rule: a location under a removed one left the relatório with it.
+  const liveIds = liveLocationIds(snapshot.locations);
+  const live = sortByOrderKey(snapshot.locations.filter((row) => liveIds.has(row.id)));
 
   const skeleton: SkeletonNode[] = [];
+  const colunasUnder = (parentId: string): SkeletonNode[] =>
+    live.filter((row) => row.kind === 'coluna' && row.parent_id === parentId).map((row) => ({ ref: row.id, kind: 'coluna', parent_ref: parentId, name: row.name }));
   for (const cabine of live) {
     if (cabine.kind !== 'cabine' || cabine.parent_id !== null) continue;
-    skeleton.push({ ref: cabine.id, kind: 'cabine', parent_ref: null, name: cabine.name, agrupar_por_tipo: cabine.agrupar_por_tipo });
-    for (const coluna of live) {
-      if (coluna.kind === 'coluna' && coluna.parent_id === cabine.id) skeleton.push({ ref: coluna.id, kind: 'coluna', parent_ref: cabine.id, name: coluna.name });
+    const funcao = cabine.funcao ?? null;
+    skeleton.push({
+      ref: cabine.id,
+      kind: 'cabine',
+      parent_ref: null,
+      name: cabine.name,
+      agrupar_por_tipo: cabine.agrupar_por_tipo,
+      // A cabine with no Função keeps the node shape from before the field existed.
+      ...(funcao === null ? {} : { funcao }),
+    });
+    skeleton.push(...colunasUnder(cabine.id));
+    for (const painel of live) {
+      if (painel.kind !== 'painel' || painel.parent_id !== cabine.id) continue;
+      skeleton.push({ ref: painel.id, kind: 'painel', parent_ref: cabine.id, name: painel.name }, ...colunasUnder(painel.id));
     }
   }
 
@@ -106,6 +123,8 @@ export function templateFromRelatorio(
   }
 
   for (const node of skeleton) {
+    // A painel takes no block; one the fold let through (its location not yet on the server) is not carried.
+    if (node.kind === 'painel') continue;
     let run: { entry: TemplateBlock; config: BlockConfig } | null = null;
     for (const block of locationBlocks(snapshot.blocks, node.ref)) {
       if (!isEquipmentBlockType(block.block_type)) continue;

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { locationTree, newEquipmentBlock, treeNodes, type LocationRow, type TreeEquipmentNode } from '@app/domain';
 import { describe, expect, it } from 'vitest';
-import { removeSheetOps, restoreSheetOps } from './tree-actions.ts';
+import { removeLocationOps, removeSheetOps, restoreLocationOps, restoreSheetOps } from './tree-actions.ts';
 
 /*
  * 4.5 matrix row "Desfazer / Restaurar": a sheet whose TAG a live row took meanwhile is
@@ -24,7 +24,7 @@ describe('4.5 restoreSheetOps', () => {
     const taker = pair(2, 'SEC-C05', 'a1');
     const blocks = [{ ...old.block, removed_at: removedAt }, taker.block];
 
-    const ops = restoreSheetOps(author, relatorioId, projectId, blocks, old.block.id, old.equipment.id, [{ ...old.equipment, removed_at: removedAt }]);
+    const ops = restoreSheetOps(author, relatorioId, projectId, blocks, old.block.id, old.equipment.id, [{ ...old.equipment, removed_at: removedAt }], [coluna]);
     expect(ops?.map((op) => [op.kind, op.path, op.value, op.scope])).toEqual([
       ['put', `block/${old.block.id}/removed_at`, null, 'relatorio'],
       ['put', `equipment/${old.equipment.id}/removed_at`, null, 'project'],
@@ -42,14 +42,79 @@ describe('4.5 restoreSheetOps', () => {
 
   it('writes nothing for a block that is already live', () => {
     const live = pair(3, 'SEC-C07', 'a0');
-    expect(restoreSheetOps(author, relatorioId, projectId, [live.block], live.block.id, live.equipment.id, [live.equipment])).toBeNull();
+    expect(restoreSheetOps(author, relatorioId, projectId, [live.block], live.block.id, live.equipment.id, [live.equipment], [coluna])).toBeNull();
   });
 
   it('Q4: restores only the block when its equipment stayed live (another relatório holds it)', () => {
     const removed = pair(4, 'SEC-C05', 'a0');
     const blocks = [{ ...removed.block, removed_at: '2026-09-24T10:00:00.000Z' }];
-    const ops = restoreSheetOps(author, relatorioId, projectId, blocks, removed.block.id, removed.equipment.id, [removed.equipment]);
+    const ops = restoreSheetOps(author, relatorioId, projectId, blocks, removed.block.id, removed.equipment.id, [removed.equipment], [coluna]);
     expect(ops?.map((op) => op.path)).toEqual([`block/${removed.block.id}/removed_at`]);
+  });
+});
+
+describe('14.2 second pass: restoreSheetOps puts back the removed locations above the sheet', () => {
+  const T = '2026-10-12T10:00:00.000Z';
+  // Only what the ancestor walk reads of the local (a full `cabine` row carries its SE and environment data).
+  const local = { id: id(2), parent_id: null, removed_at: null };
+  const painel: LocationRow = { id: id(3), relatorio_id: relatorioId, parent_id: local.id, kind: 'painel', name: 'Painel 1', order_key: 'a0', removed_at: T };
+  const inPainel: LocationRow = { ...coluna, parent_id: painel.id, removed_at: T };
+  const sibling: LocationRow = { id: id(4), relatorio_id: relatorioId, parent_id: painel.id, kind: 'coluna', name: 'Coluna 6', order_key: 'a1', removed_at: T };
+  const sheet = pair(30, 'SEC-C05', 'a0');
+  const removed = [{ ...sheet.block, removed_at: T }];
+  const freed = [{ ...sheet.equipment, removed_at: T }];
+
+  it('a sheet under a removed coluna of a removed painel: the painel, then the coluna, then the sheet and its equipment, and nothing else of the painel', () => {
+    const ops = restoreSheetOps(author, relatorioId, projectId, removed, sheet.block.id, sheet.equipment.id, freed, [local, painel, inPainel, sibling]);
+    expect(ops?.map((op) => [op.kind, op.path, op.value, op.scope])).toEqual([
+      ['put', `location/${painel.id}/removed_at`, null, 'relatorio'],
+      ['put', `location/${inPainel.id}/removed_at`, null, 'relatorio'],
+      ['put', `block/${sheet.block.id}/removed_at`, null, 'relatorio'],
+      ['put', `equipment/${sheet.equipment.id}/removed_at`, null, 'project'],
+    ]);
+  });
+
+  it('only the removed rows on the way up come back: a live coluna under a removed painel restores the painel alone', () => {
+    const ops = restoreSheetOps(author, relatorioId, projectId, removed, sheet.block.id, sheet.equipment.id, freed, [local, painel, { ...inPainel, removed_at: null }]);
+    expect(ops?.map((op) => op.path)).toEqual([`location/${painel.id}/removed_at`, `block/${sheet.block.id}/removed_at`, `equipment/${sheet.equipment.id}/removed_at`]);
+  });
+
+  it('a sheet on a live location writes no location op', () => {
+    const ops = restoreSheetOps(author, relatorioId, projectId, removed, sheet.block.id, sheet.equipment.id, freed, [local, { ...painel, removed_at: null }, { ...inPainel, removed_at: null }]);
+    expect(ops?.map((op) => op.path)).toEqual([`block/${sheet.block.id}/removed_at`, `equipment/${sheet.equipment.id}/removed_at`]);
+  });
+});
+
+describe('14.2 second pass: the batches of a location removal and restore', () => {
+  const plan = {
+    kind: 'painel' as const,
+    locationId: id(40),
+    locationIds: [id(40), id(41), id(42)],
+    blockIds: [id(50), id(51)],
+    equipmentIds: [id(60)],
+    counts: { paineis: 0, colunas: 2, sheets: 2 },
+  };
+
+  it('removeLocationOps: the location removes in the plan\'s order, then the block removes, then the equipment removes (project scope)', () => {
+    expect(removeLocationOps(author, relatorioId, projectId, plan).map((op) => [op.kind, op.path, op.value, op.scope, op.relatorio_id ?? null, op.project_id ?? null])).toEqual([
+      ['remove', `location/${id(40)}/removed_at`, null, 'relatorio', relatorioId, null],
+      ['remove', `location/${id(41)}/removed_at`, null, 'relatorio', relatorioId, null],
+      ['remove', `location/${id(42)}/removed_at`, null, 'relatorio', relatorioId, null],
+      ['remove', `block/${id(50)}/removed_at`, null, 'relatorio', relatorioId, null],
+      ['remove', `block/${id(51)}/removed_at`, null, 'relatorio', relatorioId, null],
+      ['remove', `equipment/${id(60)}/removed_at`, null, 'project', null, projectId],
+    ]);
+  });
+
+  it('restoreLocationOps: puts of null in the same order', () => {
+    expect(restoreLocationOps(author, relatorioId, projectId, plan).map((op) => [op.kind, op.path, op.value, op.scope])).toEqual([
+      ['put', `location/${id(40)}/removed_at`, null, 'relatorio'],
+      ['put', `location/${id(41)}/removed_at`, null, 'relatorio'],
+      ['put', `location/${id(42)}/removed_at`, null, 'relatorio'],
+      ['put', `block/${id(50)}/removed_at`, null, 'relatorio'],
+      ['put', `block/${id(51)}/removed_at`, null, 'relatorio'],
+      ['put', `equipment/${id(60)}/removed_at`, null, 'project'],
+    ]);
   });
 });
 

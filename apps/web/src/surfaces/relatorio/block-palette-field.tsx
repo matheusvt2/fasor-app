@@ -4,6 +4,7 @@ import {
   paletteItems,
   suggestTag,
   tagVerdict,
+  takesBlocks,
   type BlockRow,
   type EquipmentBlockType,
   type EquipmentRow,
@@ -103,7 +104,8 @@ export function FieldPalette({ target, seedVersion, locations, blocks, equipment
     });
     return () => cancelAnimationFrame(frame);
   }, []);
-  const location = locations.find((row) => row.id === target.locationId) ?? null;
+  // A painel takes no block: the palette opens on a local or a coluna only (kernel `paletteLocationFor`).
+  const location = locations.filter(takesBlocks).find((row) => row.id === target.locationId) ?? null;
   const [openType, setOpenType] = useState<EquipmentBlockType | null>(null);
   if (location === null) return null;
   const items = paletteItems(seedVersion, location, equipment);
@@ -243,7 +245,8 @@ function OfficeType({ item, isOpen, onToggle, target, locations, blocks, equipme
 
   const changeLocation = (id: string) => {
     setLocationId(id);
-    const next = locations.find((row) => row.id === id);
+    // `locationChoices` offers only locations that take blocks (never a painel).
+    const next = locations.filter(takesBlocks).find((row) => row.id === id);
     if (!edited && next !== undefined) setTag(suggestTag(item.type, { kind: next.kind, name: next.name }, equipment));
   };
   const confirm = () => {

@@ -3,12 +3,17 @@ import {
   duplicateTagSuggestion,
   duplicateTagText,
   locationPathText,
+  locationRemovalConfirmLabel,
+  locationRemovalConfirmText,
+  locationRemovalConfirmTitle,
+  locationRemovalPlan,
   locationTree,
   moveTargets,
   paletteLocationFor,
   removeBlockTitle,
   treePathTo,
   type EquipmentRow,
+  type LocationRemovalPlan,
   type RelatorioSnapshot,
   type TreeEquipmentNode,
   type TreeLocationNode,
@@ -17,7 +22,7 @@ import {
 } from '@app/domain';
 import { Button as AriaButton } from 'react-aria-components';
 import { useSearchParams } from 'react-router';
-import { memo, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from 'react';
+import { memo, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type Ref } from 'react';
 import { WholeWords } from '../../components/whole-words.tsx';
 import { ConfirmDialog, OverflowMenu, TextButton, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -29,29 +34,37 @@ import { FieldPalette, type PaletteTarget } from './block-palette-field.tsx';
 import { PanelCapture, panelAwaitingRows, type PanelCaptureHandle } from './panel-capture.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useAiFeatures } from '../../state/ai-features.tsx';
-import { blockOpen, blockRow, blockTrigger, locationChevron, useTreeActions, type TreeActions, type TreeContext } from './tree-actions.ts';
+import { blockOpen, blockRow, blockTrigger, locationChevron, locationRow, locationTrigger, useTreeActions, type TreeActions, type TreeContext } from './tree-actions.ts';
 import { NameDialog, TagDialog } from './tag-dialogs.tsx';
 import { NotTestedDialog } from './not-tested-dialog.tsx';
 import { MoveBlockDialog } from './move-block-dialog.tsx';
+import { LocalDialog } from '../templates/local-dialog.tsx';
 
 /*
  * Stories 4.4 and 4.5: the location tree, ONE component in two presentations
  * (EXPERIENCE.md › Relatório tree).
  *
+ * Story 14.2: three levels, Local › Painel › Coluna. A local (the `kind = cabine` row) holds
+ * equipment directly and zero or more painéis; a painel only groups colunas; a coluna
+ * directly under a local (a tree from before the painel level) is drawn directly under it.
+ *
  * - `sumario`: section 9's expansion on the Sumário (`40-relatorio-overview.html`
- *   `.s9-tree`): cabine rows with their data line, counter and Overflow; coluna rows;
- *   equipment rows with the Position box, the drag handle, the state glyph and word and the
- *   Overflow; "Adicionar bloco em ⟨cabine⟩" under each open cabine and "Adicionar cabine"
- *   at the foot. Everything that edits the tree lives here.
- * - `rail`: the tree alone (`shell-foot.html` `.relatorio-tree`), cabines and fichas, the
- *   current sheet `aria-current`; its cabine Overflow opens the first sheet and toggles
- *   "Agrupar por tipo", nothing more.
+ *   `.s9-tree`): `.s9-local` rows with their Função-led data line, counter and Overflow,
+ *   their own sheets under "Equipamentos no local", then their `.s9-painel` rows; coluna
+ *   rows; equipment rows with the Position box, the drag handle, the state glyph and word
+ *   and the Overflow; "Adicionar equipamento no local" under each open local, "Adicionar
+ *   bloco em ⟨painel⟩" under each open painel, and "Adicionar local" (the Função dialog) at
+ *   the foot. Everything that edits the tree lives here, "Remover" of a coluna, a painel or
+ *   a local included (Story 14.2, second pass).
+ * - `rail`: the tree alone (`shell-foot.html` `.relatorio-tree`), locais, painéis, colunas
+ *   and fichas, the current sheet `aria-current`; its local Overflow opens the first sheet
+ *   and toggles "Agrupar por tipo", nothing more (no removal).
  *
  * Rows are lists with `aria-expanded` chevrons, not an ARIA `tree`: each row holds a
  * Position box, buttons and a menu. Left/Right on a focused chevron or row body expand and
  * collapse, and Left on a leaf or a collapsed node goes to its parent's chevron. Expand
- * state is local to the mount and never persisted: cabines start collapsed (the path to
- * the last sheet opens when the Sumário opens on it), colunas open with their cabine.
+ * state is local to the mount and never persisted: locais start collapsed (the path to
+ * the last sheet opens when the Sumário opens on it), painéis and colunas open with their local.
  *
  * Rendering (Epic 4 QA Q7): every committed op re-reads the relatório and rebuilds the
  * tree's nodes, and a move also re-renders the Sumário for its announcement and its toast.
@@ -98,7 +111,12 @@ type Dialog =
   | { kind: 'rename-tag'; node: TreeEquipmentNode }
   | { kind: 'not-tested'; node: TreeEquipmentNode }
   | { kind: 'move'; node: TreeEquipmentNode }
-  | { kind: 'rename-location'; node: TreeLocationNode };
+  | { kind: 'rename-location'; node: TreeLocationNode }
+  // Story 14.2, second pass: the Confirm of a location that takes sheets with it, with the plan it was opened on.
+  | { kind: 'remove-location'; node: TreeLocationNode; plan: LocationRemovalPlan }
+  // Story 14.2: the Função dialog, adding a local or editing one ("Função e nome").
+  | { kind: 'local-add' }
+  | { kind: 'local-edit'; node: TreeLocationNode };
 
 /** What every row of one render shares. */
 interface Shared {
@@ -109,15 +127,28 @@ interface Shared {
   currentPath: ReadonlySet<string>;
   actions: TreeActions;
   openPalette: (target: PaletteTarget) => void;
-  /** Where the palette opened on a location puts the block: a cabine's current coluna (kernel `paletteLocationFor`), else the location itself. */
-  paletteLocation: (node: TreeLocationNode) => string;
+  /**
+   * Where the palette opened on a location puts the block (kernel `paletteLocationFor`): a
+   * local's or a painel's current coluna, the local itself when it has none, the coluna itself;
+   * null for a painel with no coluna (it takes no block).
+   */
+  paletteLocation: (node: TreeLocationNode) => string | null;
   /** "1° Subsolo › Coluna 5": a location's path (the duplicate line's accessible name). */
   pathOf: (locationId: string) => string;
   openDialog: (dialog: Dialog) => void;
   /** Story 11.2: another live location exists for the block to move to (the kernel's `moveTargets`). */
   canMove: (node: TreeEquipmentNode) => boolean;
   requestRemove: (node: TreeEquipmentNode) => void;
+  /** "Remover" of a location: asks first only when a sheet leaves with it. */
+  requestRemoveLocation: (node: TreeLocationNode) => void;
 }
+
+/**
+ * What the press of "Remover" reads the plan with: the Confirm needs the counts alone (the
+ * locations and the sheets under the target), which no other relatório changes. The batch
+ * is planned again on the fresh rows, with the obra's other relatórios, when it is written.
+ */
+const COUNTS_ONLY = { otherBlocks: [], visibility: { companyDownloaded: false, summaries: [], heldRelatorioIds: [], downloadedStreamIds: [] } } as const;
 
 const Chevron = () => (
   <svg className="ico" aria-hidden="true">
@@ -239,7 +270,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
       root: () => rootRef.current,
       reveal,
       locationOf: (blockId: string) => blockLocations.current.get(blockId) ?? null,
-      addCabine: () => footRef.current?.querySelector<HTMLElement>('button') ?? null,
+      addLocal: () => footRef.current?.querySelector<HTMLElement>('button') ?? null,
     }),
     [reveal],
   );
@@ -322,7 +353,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
       currentPath,
       actions,
       openPalette: setPalette,
-      paletteLocation: (node) => (node.kind === 'cabine' ? paletteLocationFor(latestSnapshot.current, node.id, lastSheetId) : node.id),
+      paletteLocation: (node) => (node.kind === 'coluna' ? node.id : paletteLocationFor(latestSnapshot.current, node.id, lastSheetId)),
       pathOf: (locationId) => locationPathText(latestSnapshot.current.locations, locationId),
       openDialog: setDialog,
       canMove: (node) => moveTargets(latestSnapshot.current.locations, { location_id: node.locationId }).length > 0,
@@ -331,9 +362,24 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
         if (node.holdsData) setDialog({ kind: 'remove', node });
         else actions.removeBlock(node);
       },
+      requestRemoveLocation: (node) => {
+        const current = latestSnapshot.current;
+        const plan = locationRemovalPlan({
+          locations: current.locations,
+          blocks: current.blocks,
+          locationId: node.id,
+          projectId: context.projectId,
+          relatorioId: context.relatorioId,
+          ...COUNTS_ONLY,
+        });
+        // With a sheet underneath, the consequence is stated first; with none, the location
+        // leaves at once (a location gone meanwhile is answered by the action's own toast).
+        if (plan !== null && plan.counts.sheets > 0) setDialog({ kind: 'remove-location', node, plan });
+        else actions.removeLocation(node);
+      },
     }),
     // `locationsKey` is read through `latestSnapshot`; it is a dependency so a new path renews `shared`.
-    [presentation, expanded, lastSheetId, currentPath, actions, locationsKey],
+    [presentation, expanded, lastSheetId, currentPath, actions, locationsKey, context.projectId, context.relatorioId],
   );
 
   const closeDialog = (focusTo?: () => HTMLElement | null) => {
@@ -351,11 +397,11 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
             ))}
           </ul>
           <div className="s9-foot" ref={footRef}>
-            <TextButton onPress={() => actions.addLocation(null)}>
+            <TextButton onPress={() => setDialog({ kind: 'local-add' })}>
               <svg className="ico" aria-hidden="true">
                 <use href="/sprite.svg#i-plus" />
               </svg>
-              {t.addCabine}
+              {t.addLocal}
             </TextButton>
           </div>
         </>
@@ -436,6 +482,24 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
           }}
         />
       ) : null}
+      {dialog?.kind === 'remove-location' ? (
+        <ConfirmDialog
+          isOpen
+          onOpenChange={(open) => {
+            if (!open) closeDialog(() => locationTrigger(locationRow(rootRef.current, dialog.node.id)));
+          }}
+          title={locationRemovalConfirmTitle(dialog.node.controlName)}
+          description={locationRemovalConfirmText(dialog.plan.kind, dialog.plan.counts)}
+          confirmLabel={locationRemovalConfirmLabel(dialog.plan.kind)}
+          cancelLabel={ui.confirmDialog.cancel}
+          isDestructive
+          onConfirm={() => {
+            const node = dialog.node;
+            setDialog(null);
+            actions.removeLocation(node);
+          }}
+        />
+      ) : null}
       {dialog?.kind === 'duplicate' ? (
         <TagDialog
           title={copy.sumario.tagDialogs.duplicateTitle(dialog.node.name)}
@@ -495,6 +559,28 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
           }}
         />
       ) : null}
+      {dialog?.kind === 'local-add' ? (
+        <LocalDialog
+          mode="add"
+          onClose={() => closeDialog(() => footRef.current?.querySelector<HTMLElement>('button') ?? null)}
+          onSubmit={(chosen) => {
+            setDialog(null);
+            actions.addLocal(chosen);
+          }}
+        />
+      ) : null}
+      {dialog?.kind === 'local-edit' ? (
+        <LocalDialog
+          mode="edit"
+          initial={{ funcao: dialog.node.funcao, name: dialog.node.name }}
+          onClose={() => closeDialog(() => locationChevron(rootRef.current, dialog.node.id))}
+          onSubmit={(chosen) => {
+            const node = dialog.node;
+            setDialog(null);
+            actions.updateLocal(node, chosen);
+          }}
+        />
+      ) : null}
       {dialog?.kind === 'rename-location' ? (
         <NameDialog
           title={copy.sumario.tagDialogs.renameTitle(dialog.node.name)}
@@ -513,31 +599,58 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
 
 // --- the Sumário presentation ----------------------------------------------------------
 
-function locationMenu(node: TreeLocationNode, shared: Shared, reorder: Reorder | null, trigger: () => HTMLElement | null): OverflowMenuAction[] {
+/**
+ * A location's Overflow, by kind (`40-relatorio-overview.html` `#sum-menu-local`,
+ * `#sum-menu-painel`). A local: its first sheet, "Agrupar por tipo", "Adicionar
+ * equipamento", "Adicionar painel", "Função e nome" and the moves. A painel: "Adicionar
+ * bloco" (while it has a coluna to put it in), "Adicionar coluna", "Renomear" and the
+ * moves. A coluna: "Adicionar bloco", "Renomear" and the moves. A local that already holds
+ * colunas directly (a tree from before the painel level) keeps its "Adicionar coluna". Each
+ * of the three ends in "Remover", alone in the destructive group (the mock's red item on a
+ * local and a painel; the story's criterion of 2026-10-13 gives the coluna the same). The
+ * rail keeps the local's first two and nothing else: it never removes.
+ */
+function locationMenu(node: TreeLocationNode, shared: Shared, reorder: Reorder | null, trigger: () => HTMLElement | null): { items: OverflowMenuAction[]; destructiveItems: OverflowMenuAction[] } {
   const t = copy.sumario.tree;
   const items: OverflowMenuAction[] = [];
-  if (node.kind === 'cabine') {
+  const local = node.kind === 'cabine';
+  if (local) {
     if (node.firstBlockId !== null) {
       const first = node.firstBlockId;
       items.push({ id: 'open-first', label: t.openFirst, onAction: () => shared.actions.openSheet(first) });
     }
     items.push({ id: 'agrupar', label: t.agrupar, checked: node.agruparPorTipo === true, onAction: () => shared.actions.toggleAgrupar(node) });
   }
-  if (shared.presentation === 'rail') return items;
-  items.push({ id: 'add-block', label: t.addBlock, onAction: () => shared.openPalette({ locationId: shared.paletteLocation(node), anchorBlockId: null }) });
-  if (node.kind === 'cabine') items.push({ id: 'add-coluna', label: t.addColuna, onAction: () => shared.actions.addLocation(node) });
-  items.push({ id: 'rename', label: t.rename, onAction: () => shared.openDialog({ kind: 'rename-location', node }) });
+  if (shared.presentation === 'rail') return { items, destructiveItems: [] };
+  const target = shared.paletteLocation(node);
+  // A painel with no coluna takes no block: nothing to offer until it has one.
+  // "Adicionar equipamento" only when the block goes on the local itself; a local that holds colunas
+  // directly (every tree born from the standard template) adds to its current coluna, which is "Adicionar bloco".
+  if (target !== null) items.push({ id: 'add-block', label: local && target === node.id ? t.addEquipamento : t.addBlock, onAction: () => shared.openPalette({ locationId: target, anchorBlockId: null }) });
+  if (local) items.push({ id: 'add-painel', label: t.addPainel, onAction: () => shared.actions.addLocation(node, 'painel') });
+  if (node.kind === 'painel' || (local && node.locations.some((child) => child.kind === 'coluna'))) {
+    items.push({ id: 'add-coluna', label: t.addColuna, onAction: () => shared.actions.addLocation(node, 'coluna') });
+  }
+  if (local) items.push({ id: 'funcao-nome', label: t.funcaoENome, onAction: () => shared.openDialog({ kind: 'local-edit', node }) });
+  else items.push({ id: 'rename', label: t.rename, onAction: () => shared.openDialog({ kind: 'rename-location', node }) });
   if (reorder !== null && node.position > 1) items.push({ id: 'up', label: copy.sumario.moveUp, onAction: () => void reorder.moveTo(node.position - 2, trigger) });
   if (reorder !== null && node.position < node.siblings) items.push({ id: 'down', label: copy.sumario.moveDown, onAction: () => void reorder.moveTo(node.position, trigger) });
-  return items;
+  return { items, destructiveItems: [{ id: 'remove', label: copy.sumario.remove, onAction: () => shared.requestRemoveLocation(node) }] };
 }
 
-/** A cabine row, or a coluna row (any location below a cabine), with what hangs under it when open. */
+const PlusIcon = () => (
+  <svg className="ico" aria-hidden="true">
+    <use href="/sprite.svg#i-plus" />
+  </svg>
+);
+
+/** A local row, a painel row or a coluna row, with what hangs under it when open. */
 const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: TreeLocationNode; shared: Shared }) {
   const t = copy.sumario.tree;
   const open = shared.isOpen(node);
   const eqsId = useId();
   const colsId = useId();
+  const pnlsId = useId();
   const reorder = useReorder({
     itemKey: node.id,
     position: node.position,
@@ -545,18 +658,22 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
     onMove: (to) => shared.actions.moveLocation(node, to),
     focusFrames: LIST_FOCUS_WATCH_FRAMES,
   });
-  const trigger = () => reorder.row()?.querySelector<HTMLElement>(':scope > .s9-cab-row .overflow-trigger, :scope > .s9-col .overflow-trigger') ?? null;
+  const trigger = () => locationTrigger(reorder.row());
   const menu = locationMenu(node, shared, reorder, trigger);
-  const cabine = node.kind === 'cabine' && node.level === 0;
+  // The root row is the local; a `cabine` row drawn under another location is read as a coluna row, as before.
+  const local = node.kind === 'cabine' && node.level === 0;
+  const painel = node.kind === 'painel';
   const current = shared.currentPath.has(node.id);
-  const controls = [node.equipment.length > 0 ? eqsId : null, node.locations.length > 0 ? colsId : null].filter(Boolean).join(' ');
+  const colunas = node.locations.filter((child) => child.kind !== 'painel');
+  const paineis = node.locations.filter((child) => child.kind === 'painel');
+  const controls = [node.equipment.length > 0 ? eqsId : null, colunas.length > 0 ? colsId : null, paineis.length > 0 ? pnlsId : null].filter(Boolean).join(' ');
 
   const chevron = (
     <button
       type="button"
       className="tree-chevron"
       data-tree-chevron={node.id}
-      aria-label={open ? t.collapse(node.name) : t.expand(node.name)}
+      aria-label={open ? t.collapse(node.controlName) : t.expand(node.controlName)}
       aria-expanded={open}
       aria-controls={open && controls !== '' ? controls : undefined}
       onClick={() => shared.setOpen(node, !open)}
@@ -565,47 +682,70 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
     </button>
   );
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => treeKeys(event, open, (value) => shared.setOpen(node, value));
-  const children: ReactNode = open ? (
+  // EXPERIENCE.md › Relatório tree: "drag, Position box, Overflow menu, or Alt+↑/↓" at every level
+  // (Story 14.2). The mock draws neither on a location row; the experience wins. Every control of
+  // the row reads the kernel's `controlName`: a painel is named with its local, as the mock's
+  // chevron and Overflow are ("Mais opções de Painel de entrada de Cubículo Enel").
+  const reorderControls = (
     <>
-      {node.equipment.length > 0 ? (
-        <ul className="s9-eqs" id={eqsId}>
-          {node.equipment.map((row) => (
-            <SumarioEquipment key={row.blockId} node={row} shared={shared} />
-          ))}
-        </ul>
-      ) : null}
-      {node.locations.length > 0 ? (
-        <ul className="s9-cols" id={colsId}>
-          {node.locations.map((child) => (
-            <SumarioLocation key={child.id} node={child} shared={shared} />
-          ))}
-        </ul>
-      ) : null}
+      <DragHandle name={node.controlName} reorder={reorder} />
+      <PositionBox name={node.controlName} position={node.position} siblings={node.siblings} reorder={reorder} className="s9-pos" />
     </>
-  ) : null;
+  );
+  const equipmentList =
+    open && node.equipment.length > 0 ? (
+      <ul className="s9-eqs" id={eqsId} aria-label={local ? t.locDirectLabel(node.name) : undefined}>
+        {node.equipment.map((row) => (
+          <SumarioEquipment key={row.blockId} node={row} shared={shared} />
+        ))}
+      </ul>
+    ) : null;
+  const colunaList =
+    open && colunas.length > 0 ? (
+      <ul className="s9-cols" id={colsId}>
+        {colunas.map((child) => (
+          <SumarioLocation key={child.id} node={child} shared={shared} />
+        ))}
+      </ul>
+    ) : null;
+  const target = shared.paletteLocation(node);
 
-  if (cabine) {
-    const className = ['s9-cabine', open && 'is-open', current && 'is-current'].filter(Boolean).join(' ');
+  if (local) {
+    const className = ['s9-local', open && 'is-open', current && 'is-current', reorder.dragging && 'is-dragging'].filter(Boolean).join(' ');
+    // The palette opened here adds to the local itself, or to its current coluna when it holds colunas directly.
+    const onLocal = target === node.id;
+    const addButton =
+      open && target !== null ? (
+        <AriaButton
+          className="btn btn-text s9-add"
+          aria-label={onLocal ? t.addEquipamentoNoLocalLabel(node.name) : undefined}
+          onPress={() => shared.openPalette({ locationId: target, anchorBlockId: null })}
+        >
+          <PlusIcon />
+          {onLocal ? t.addEquipamentoNoLocal : t.addBlockIn(node.name)}
+        </AriaButton>
+      ) : null;
     return (
       <li className={className} data-location-id={node.id} {...reorder.rowProps}>
-        <div className="s9-cab-row" onKeyDown={onKeyDown}>
+        <div className="s9-loc-row" onKeyDown={onKeyDown}>
           {chevron}
-          <span className="s9-cab-body">
-            <span className="s9-cab-name">
+          {reorderControls}
+          <span className="s9-loc-body">
+            <span className="s9-loc-name">
               {node.name}
-              {/* The last sheet's row says it when drawn; a collapsed cabine says it for it. */}
+              {/* The last sheet's row says it when drawn; a collapsed local says it for it. */}
               {current && !open ? <span className="sum-here"> {copy.sumario.here}</span> : null}
             </span>
             {/* Story 12.3 (`key-relatorio-overview-v09.html`): "falta a umidade" after the data
-                line; alone, with no "—" before it, when the cabine holds no data yet. */}
+                line; alone, with no "—" before it, when the local holds no data yet. */}
             {node.metaMissing === null ? (
-              <span className="s9-cab-meta">{node.meta}</span>
+              <span className="s9-loc-meta">{node.meta}</span>
             ) : node.meta === CABINE_META_NONE ? (
-              <span className="s9-cab-meta">
+              <span className="s9-loc-meta">
                 <span className="cl-missing">{node.metaMissing}</span>
               </span>
             ) : (
-              <span className="s9-cab-meta">
+              <span className="s9-loc-meta">
                 {node.meta}
                 {' · '}
                 <span className="cl-missing">{node.metaMissing}</span>
@@ -616,14 +756,72 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
             <span className="dot" aria-hidden="true" />
             {node.counterText}
           </span>
-          <OverflowMenu name={node.name} items={menu} />
+          <OverflowMenu name={node.controlName} items={menu.items} destructiveItems={menu.destructiveItems} />
         </div>
-        {children}
-        {open ? (
-          <AriaButton className="btn btn-text s9-add" onPress={() => shared.openPalette({ locationId: shared.paletteLocation(node), anchorBlockId: null })}>
-            <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-plus" />
-            </svg>
+        {/* The local's own sheets first, under their heading line (the mock's `.s9-col` of `.s9-eqs`). */}
+        {open && node.equipment.length > 0 ? (
+          <p className="s9-col s9-col-direct">
+            <span className="s9-col-name">{t.locDirectTitle}</span>
+            <span className="s9-col-meta">{node.ownCounterText}</span>
+          </p>
+        ) : null}
+        {equipmentList}
+        {/* The mock draws "Adicionar equipamento no local" right under the local's own sheets;
+            a local that holds colunas directly keeps "Adicionar bloco em ⟨local⟩" after them, as before. */}
+        {onLocal ? addButton : null}
+        {colunaList}
+        {onLocal ? null : addButton}
+        {open && paineis.length > 0 ? (
+          <ul className="s9-pnls" id={pnlsId} aria-label={t.painelListLabel(node.name)}>
+            {paineis.map((child) => (
+              <SumarioLocation key={child.id} node={child} shared={shared} />
+            ))}
+          </ul>
+        ) : null}
+      </li>
+    );
+  }
+  if (painel) {
+    const className = ['s9-painel', open && 'is-open', current && 'is-current', reorder.dragging && 'is-dragging'].filter(Boolean).join(' ');
+    return (
+      <li className={className} data-location-id={node.id} data-level={node.level} {...reorder.rowProps}>
+        <div className="s9-pnl-row" onKeyDown={onKeyDown}>
+          {chevron}
+          {reorderControls}
+          <span className="s9-pnl-body">
+            <span className="s9-pnl-name">
+              {node.name}
+              {current && !open ? <span className="sum-here"> {copy.sumario.here}</span> : null}
+            </span>
+            <span className="s9-pnl-meta">{node.meta}</span>
+          </span>
+          <span className="progress-counter" data-state={node.counterState}>
+            <span className="dot" aria-hidden="true" />
+            {node.counterText}
+          </span>
+          <OverflowMenu name={node.controlName} items={menu.items} destructiveItems={menu.destructiveItems} />
+        </div>
+        {/* A painel takes no block, but a row can still sit on one (a block whose op was folded
+            before the painel reached this device): it is counted, so it is drawn. A block never vanishes. */}
+        {equipmentList}
+        {colunaList}
+        {open && colunas.length === 0 ? (
+          // A painel only groups colunas: with none, it says why it takes no equipment.
+          <>
+            <p className="section-note pnl-empty" role="note">
+              {t.painelEmpty}
+            </p>
+            <AriaButton className="btn btn-text s9-add" onPress={() => shared.actions.addLocation(node, 'coluna')}>
+              <PlusIcon />
+              {t.addColuna}
+            </AriaButton>
+          </>
+        ) : null}
+        {open && target !== null ? (
+          // The visible words are the mock's; the name adds the painel's local ("… de Cubículo Enel"),
+          // so the first painel of two locals, "Painel 1" in each, never names two buttons alike.
+          <AriaButton className="btn btn-text s9-add" aria-label={t.addBlockIn(node.controlName)} onPress={() => shared.openPalette({ locationId: target, anchorBlockId: null })}>
+            <PlusIcon />
             {t.addBlockIn(node.name)}
           </AriaButton>
         ) : null}
@@ -631,14 +829,16 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
     );
   }
   return (
-    <li className={open ? 's9-coluna is-open' : 's9-coluna'} data-location-id={node.id} data-level={node.level} {...reorder.rowProps}>
+    <li className={['s9-coluna', open && 'is-open', reorder.dragging && 'is-dragging'].filter(Boolean).join(' ')} data-location-id={node.id} data-level={node.level} {...reorder.rowProps}>
       <div className="s9-col" onKeyDown={onKeyDown}>
         {chevron}
+        {reorderControls}
         <span className="s9-col-name">{node.name}</span>
         <span className="s9-col-meta">{node.counterText}</span>
-        <OverflowMenu name={node.name} items={menu} />
+        <OverflowMenu name={node.controlName} items={menu.items} destructiveItems={menu.destructiveItems} />
       </div>
-      {children}
+      {equipmentList}
+      {colunaList}
     </li>
   );
 }, sameRow);
@@ -728,7 +928,7 @@ const RailLocation = memo(function RailLocation({ node, shared }: { node: TreeLo
             type="button"
             className="tree-chevron"
             data-tree-chevron={node.id}
-            aria-label={open ? t.collapse(node.name) : t.expand(node.name)}
+            aria-label={open ? t.collapse(node.controlName) : t.expand(node.controlName)}
             aria-expanded={open}
             aria-controls={open ? groupId : undefined}
             onClick={() => shared.setOpen(node, !open)}
@@ -736,14 +936,15 @@ const RailLocation = memo(function RailLocation({ node, shared }: { node: TreeLo
             <Chevron />
           </button>
         ) : (
-          // Nothing hangs below (an empty cabine, a new coluna): no control that expands to nothing.
+          // Nothing hangs below (an empty local, a new painel or coluna): no control that expands to nothing.
           <span className="tree-chevron" aria-hidden="true" />
         )}
         <div className="tree-body">
           <span>{node.name}</span>
-          <span className="tree-meta">{node.kind === 'cabine' && node.level === 0 ? node.meta : node.counterText}</span>
+          {/* Story 14.2: the rail line of each level is the kernel's ("Local · Entrada · 1 painel · 3 de 9 fichas", "Painel · 1 coluna · 3 de 9"). */}
+          <span className="tree-meta">{node.railMeta}</span>
         </div>
-        {menu.length > 0 ? <OverflowMenu name={node.name} items={menu} /> : null}
+        {menu.items.length > 0 ? <OverflowMenu name={node.controlName} items={menu.items} /> : null}
       </div>
       {open && hasChildren ? (
         <ul className="relatorio-tree" id={groupId}>

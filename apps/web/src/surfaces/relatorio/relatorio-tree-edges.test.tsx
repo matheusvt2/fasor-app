@@ -240,9 +240,9 @@ describe('4.4/4.5 tree edge paths', () => {
     const palette = await screen.findByRole('dialog', { name: 'Adicionar bloco' });
     expect(within(palette).getByText('Em: Cabine de Testes')).toBeInTheDocument();
     await userEvent.click([...palette.querySelectorAll<HTMLElement>('.pf-field')][1]!);
-    await waitFor(() => expect(tags(tree().querySelector('li.s9-cabine')!)).toEqual(['SEC-TEST', 'PR-TESTES', 'DJ-TEST', 'TR-TEST']));
+    await waitFor(() => expect(tags(tree().querySelector('li.s9-local')!)).toEqual(['SEC-TEST', 'PR-TESTES', 'DJ-TEST', 'TR-TEST']));
     await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
-    await waitFor(() => expect(tags(tree().querySelector('li.s9-cabine')!)).toEqual(['SEC-TEST', 'DJ-TEST', 'TR-TEST']));
+    await waitFor(() => expect(tags(tree().querySelector('li.s9-local')!)).toEqual(['SEC-TEST', 'DJ-TEST', 'TR-TEST']));
     await waitFor(() => expect(eqRow(SEC_TEST).querySelector('.s9-eq-open')).toHaveFocus());
   });
 
@@ -258,11 +258,11 @@ describe('4.4/4.5 tree edge paths', () => {
     await userEvent.click([...palette.querySelectorAll<HTMLElement>('.pf-field')][1]!);
     const coluna = () => tree().querySelector('li.s9-coluna')!;
     await waitFor(() => expect(tags(coluna())).toEqual(['SEC-C01', 'PR-C01']));
-    expect(tags(tree().querySelector('li.s9-cabine')!)).toEqual(['SEC-TEST', 'DJ-TEST', 'TR-TEST']);
+    expect(tags(tree().querySelector('li.s9-local')!)).toEqual(['SEC-TEST', 'DJ-TEST', 'TR-TEST']);
     await waitFor(() => expect(document.querySelector('.toast')).toHaveTextContent('PR-C01 criada na Coluna 1'));
     await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
     await waitFor(() => expect(tags(coluna())).toEqual(['SEC-C01']));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 1' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 1 de Cabine de Testes' })).toHaveFocus());
   });
 
   it('the cabine\'s "Adicionar bloco" follows the last sheet\'s coluna; a cabine with no coluna takes the block itself, "criada em ⟨cabine⟩"', async () => {
@@ -273,13 +273,20 @@ describe('4.4/4.5 tree edge paths', () => {
     await database.local_prefs.put({ key: LAST_SHEET_PREF(RELATORIO), value: SEC_C01 });
     await openCabine();
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar bloco' }));
+    // A local that holds colunas directly adds to its current coluna: the item reads "Adicionar
+    // bloco", and "Adicionar equipamento" is offered only when the block goes on the local itself (05d6fd7).
+    expect(await screen.findByRole('menuitem', { name: 'Adicionar bloco' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Adicionar equipamento' })).toBeNull();
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Adicionar bloco' }));
     let palette = await screen.findByRole('dialog', { name: 'Adicionar bloco' });
     expect(within(palette).getByText('Em: Cabine de Testes › Coluna 1')).toBeInTheDocument();
     await userEvent.click(within(palette).getByRole('button', { name: 'Fechar' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await userEvent.click(screen.getByRole('button', { name: 'Expandir Cabine Vazia' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Adicionar bloco em Cabine Vazia' }));
+    // Story 14.2: a local with no coluna takes the block itself, "Adicionar equipamento no local" (named with its local).
+    const addOnLocal = screen.getByRole('button', { name: 'Adicionar equipamento no local Cabine Vazia' });
+    expect(addOnLocal).toHaveTextContent(/^Adicionar equipamento no local$/);
+    await userEvent.click(addOnLocal);
     palette = await screen.findByRole('dialog', { name: 'Adicionar bloco' });
     expect(within(palette).getByText('Em: Cabine Vazia')).toBeInTheDocument();
     await userEvent.click([...palette.querySelectorAll<HTMLElement>('.pf-field')][3]!);
@@ -310,14 +317,14 @@ describe('4.4/4.5 tree edge paths', () => {
     await userEvent.type(box, '2{Enter}');
     await waitFor(() => expect(announcer()).toHaveTextContent('SEC-TEST movido para a posição 2 de 3'));
     await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
-    await waitFor(() => expect(tags(tree().querySelector('li.s9-cabine')!)).toEqual(['SEC-TEST', 'DJ-TEST', 'TR-TEST']));
+    await waitFor(() => expect(tags(tree().querySelector('li.s9-local')!)).toEqual(['SEC-TEST', 'DJ-TEST', 'TR-TEST']));
     await waitFor(() => expect(within(eqRow(SEC_TEST)).getByRole('textbox', { name: 'Posição de SEC-TEST' })).toHaveFocus());
 
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar coluna' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 2' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 2 de Cabine de Testes' })).toHaveFocus());
     await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Recolher Coluna 2' })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Recolher Coluna 2 de Cabine de Testes' })).toBeNull());
     await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Cabine de Testes' })).toHaveFocus());
   });
 
@@ -339,7 +346,7 @@ describe('4.5 field palette (Sumário)', () => {
   it('opens from a coluna row, lists the eight types with the suggested TAG, and one tap creates equipment + block in one batch', async () => {
     database = await seeded();
     await openCabine();
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 1' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Coluna 1 de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar bloco' }));
     const palette = await screen.findByRole('dialog', { name: 'Adicionar bloco' });
     expect(within(palette).getByText('Em: Cabine de Testes › Coluna 1')).toBeInTheDocument();

@@ -12,7 +12,7 @@ import type { BlockRow, Cell, EquipmentRow, LocationRow, SuggestionRow, UserRow 
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import { TEST_PROJECT } from '../test-support.ts';
-import { EMPTY_SECTION_NOTE, layoutSpec } from './layout.ts';
+import { EMPTY_SECTION_NOTE, layoutSpec, tocLines } from './layout.ts';
 import { section9Layout, type LayoutSectionSheets, type PrintSheet, type PrintTable, type SheetPart } from './section-9.ts';
 
 /*
@@ -624,5 +624,86 @@ describe('7.1 NFR-17: section 9 of the Porto Seguro fixture and its Sumário row
       "9.11 TP's e TC's dos Cubículos de MT dos Geradores",
     ]);
     expect(section.subsections.map((s) => s.sheets.length)).toEqual([9, 13, 14, 12, 10, 5, 6, 6, 7, 4, 8]);
+  });
+});
+
+describe('14.2 section9Layout: a painel is an unnumbered band over its sheets', () => {
+  const painel = (n: number, name: string, parent: number, orderKey: string): LocationRow => ({ id: id(n), relatorio_id: RELATORIO, parent_id: id(parent), kind: 'painel', name, order_key: orderKey, removed_at: null });
+  const coluna = (n: number, name: string, parent: number, orderKey: string): LocationRow => ({ id: id(n), relatorio_id: RELATORIO, parent_id: id(parent), kind: 'coluna', name, order_key: orderKey, removed_at: null });
+  const se = { type: 'ALVENARIA', primary_kv: measured('13.8', 'kV'), secondary_kv: null, installed_kva: measured('1500', 'kVA') };
+  const env = { altitude_m: null, temperature_c: measured('25', '°C'), humidity_pct: measured('65', '%') };
+  const fieldOrder = (snapshot: RelatorioSnapshot): RelatorioSnapshot => ({ ...snapshot, relatorio: { ...snapshot.relatorio, export: { scheme: 'ordem_de_campo' } } });
+  const hasCabineBlock = (sheet: PrintSheet) => sheet.parts.some((p) => partName(p) === 'CARACTERÍSTICAS DA SE');
+
+  /** A local with two transformers directly on it and one painel with three colunas, one seccionadora each; then a second local with no painel. */
+  const locations = (agrupar: boolean) => [
+    cabine(1, 'Cabine de transformação', 'a0', { agrupar_por_tipo: agrupar, se, env, funcao: 'transformacao' }),
+    painel(10, 'Painel de média tensão', 1, 'a0'),
+    coluna(11, 'Coluna 1', 10, 'a0'),
+    coluna(12, 'Coluna 2', 10, 'a1'),
+    coluna(13, 'Coluna 3', 10, 'a2'),
+    cabine(2, 'Cubículo Enel', 'a1'),
+  ];
+  const sheets = [
+    sheet(1, 1, 'transformador_forca', 'a0', 'TR-1'),
+    sheet(2, 1, 'transformador_forca', 'a1', 'TR-2'),
+    sheet(3, 11, 'chave_seccionadora', 'a0', 'SEC-C01'),
+    sheet(4, 12, 'chave_seccionadora', 'a0', 'SEC-C02'),
+    sheet(5, 13, 'chave_seccionadora', 'a0', 'SEC-C03'),
+    sheet(6, 2, 'tp', 'a0', 'TP-ENEL'),
+  ];
+
+  it('flag off: the local heading with the direct sheets, the painel band (its name in upper case, no number) over its sheets, and the counter skipping the band', () => {
+    const section = layoutOf(fieldOrder(snapshotOf(locations(false), sheets)));
+    expect(section.subsections.map((s) => [s.heading, s.painel ?? false, s.sheets.map((x) => x.blockId)])).toEqual([
+      ['9.1 Cabine de transformação', false, [block(1), block(2)]],
+      ['PAINEL DE MÉDIA TENSÃO', true, [block(3), block(4), block(5)]],
+      ['9.2 Cubículo Enel', false, [block(6)]],
+    ]);
+    // Only a painel subsection carries the mark.
+    expect(Object.keys(section.subsections[0]!)).not.toContain('painel');
+  });
+
+  it('the cabine SE and environment print once, on the first sheet emitted for the cabine: the first direct sheet, never again under the painel', () => {
+    const section = layoutOf(fieldOrder(snapshotOf(locations(false), sheets)));
+    expect(sheetsOf(section).filter(hasCabineBlock).map((s) => s.blockId)).toEqual([block(1), block(6)]);
+    // With nothing directly on the local, its heading stands alone and the first sheet of the painel carries the cabine block.
+    const onlyInPainel = layoutOf(fieldOrder(snapshotOf(locations(false), sheets.filter((s) => s.block.location_id !== id(1)))));
+    expect(onlyInPainel.subsections.map((s) => [s.heading, s.sheets.map((x) => x.blockId)])).toEqual([
+      ['9.1 Cabine de transformação', []],
+      ['PAINEL DE MÉDIA TENSÃO', [block(3), block(4), block(5)]],
+      ['9.2 Cubículo Enel', [block(6)]],
+    ]);
+    expect(sheetsOf(onlyInPainel).filter(hasCabineBlock).map((s) => s.blockId)).toEqual([block(3), block(6)]);
+  });
+
+  it('flag on: the direct run by type, then the band alone followed by the painel own type groups, numbered across the section without the band', () => {
+    const section = layoutOf(snapshotOf(locations(true), sheets));
+    expect(section.subsections.map((s) => [s.heading, s.painel ?? false, s.sheets.map((x) => x.blockId)])).toEqual([
+      ['9.1 Transformadores e Cabos de Alimentação da Cabine de transformação', false, [block(1), block(2)]],
+      ['PAINEL DE MÉDIA TENSÃO', true, []],
+      ['9.2 Seccionadoras dos Cubículos de MT da Cabine de transformação', false, [block(3), block(4), block(5)]],
+      ['9.3 Cubículo Enel', false, [block(6)]],
+    ]);
+    expect(sheetsOf(section).filter(hasCabineBlock).map((s) => s.blockId)).toEqual([block(1), block(6)]);
+  });
+
+  it('the ÍNDICE never lists a painel band: its lines are the numbered subsections only', () => {
+    const spec = layoutSpec(snapshotOf(locations(true), sheets), { revisionNumber: 1, issuedAt: ISSUED_AT });
+    const lines = tocLines(spec).filter((line) => line.level === 2);
+    expect(lines.map((line) => line.text)).toEqual([
+      '9.1 Transformadores e Cabos de Alimentação da Cabine de transformação',
+      '9.2 Seccionadoras dos Cubículos de MT da Cabine de transformação',
+      '9.3 Cubículo Enel',
+    ]);
+    expect(lines.map((line) => line.key)).toEqual(['9.1', '9.2', '9.3']);
+  });
+
+  it('a painel name is upper-cased the pt-BR way, and a relatório holding sheets only in painéis still prints', () => {
+    const locs = [cabine(1, 'Geradores', 'a0'), painel(10, 'painel de distribuição — ação', 1, 'a0'), coluna(11, 'Coluna 1', 10, 'a0')];
+    const section = layoutOf(fieldOrder(snapshotOf(locs, [sheet(1, 11, 'disjuntor_mt', 'a0')])));
+    expect(section.subsections.map((s) => s.heading)).toEqual(['9.1 Geradores', 'PAINEL DE DISTRIBUIÇÃO — AÇÃO']);
+    // No sheet at all: null, as before.
+    expect(section9Layout(fieldOrder(snapshotOf(locs, [])), 9, TITLE)).toBeNull();
   });
 });

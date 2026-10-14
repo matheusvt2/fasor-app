@@ -1,10 +1,25 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { ACTION_PLAN_COLUMNS, buildSnapshot, layoutSpec, livePoints, numberPhotos, PHOTO_UNAVAILABLE_TEXT, replay, tocLines, type LayoutSection, type RelatorioSnapshot } from '@app/domain';
+import {
+  ACTION_PLAN_COLUMNS,
+  buildSnapshot,
+  layoutSpec,
+  livePoints,
+  newEquipmentBlock,
+  numberPhotos,
+  PHOTO_UNAVAILABLE_TEXT,
+  replay,
+  tocLines,
+  type EquipmentBlockType,
+  type LayoutSection,
+  type LocationRow,
+  type RelatorioSnapshot,
+} from '@app/domain';
 import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import { buildDocx, TOC_PLACEHOLDER } from './docx.ts';
+import { PAINEL_BAND_COLOR, PAINEL_BAND_FILL } from './sections/section-9.ts';
 import { extractStructure, paragraphText, readZipEntries, type DocxStructure } from './docx-structure.test-support.ts';
 import { placeholderPages } from './toc.ts';
 
@@ -242,6 +257,135 @@ describe('7.1-UNIT section 9 in the DOCX', () => {
       expect([...entries.keys()].filter((name) => name.startsWith('word/media/') && !name.endsWith('/'))).toHaveLength(0);
       expect(extractStructure(docx).paragraphs).toContain(`Imagem ${number}: ${caption}`);
     }
+  }, 60_000);
+});
+
+describe('14.2-UNIT section 9 in the DOCX: a painel is a band over its sheets', () => {
+  const id = (n: number) => `019966b0-0148-7000-8000-${n.toString(16).padStart(12, '0')}`;
+  const SECTION_9 = '9 RELATÓRIOS DOS ENSAIOS';
+  const measured = (raw: string, unit: string) => ({ raw, unit, state: 'measured' as const });
+
+  /**
+   * The Porto Seguro snapshot with its tree replaced: one local (Função transformação) with
+   * two transformers directly on it and one painel of three colunas, a seccionadora in each.
+   */
+  function snapshotWithPainel(agrupar: boolean, scheme: 'ordem_de_campo' | 'por_local_e_tipo'): RelatorioSnapshot {
+    const base = fixtureSnapshot();
+    const relatorioId = base.relatorio.id;
+    const local: LocationRow = {
+      id: id(1),
+      relatorio_id: relatorioId,
+      parent_id: null,
+      kind: 'cabine',
+      name: 'Cabine de transformação',
+      order_key: 'a0',
+      removed_at: null,
+      se: { type: 'ALVENARIA', primary_kv: measured('13.8', 'kV'), secondary_kv: measured('380', 'V'), installed_kva: measured('1500', 'kVA') },
+      env: { altitude_m: null, temperature_c: measured('25', '°C'), humidity_pct: measured('65', '%') },
+      agrupar_por_tipo: agrupar,
+      funcao: 'transformacao',
+    };
+    const painel: LocationRow = { id: id(2), relatorio_id: relatorioId, parent_id: id(1), kind: 'painel', name: 'Painel de média tensão', order_key: 'a0', removed_at: null };
+    const colunas: LocationRow[] = [1, 2, 3].map((n) => ({ id: id(10 + n), relatorio_id: relatorioId, parent_id: id(2), kind: 'coluna', name: `Coluna ${n}`, order_key: `a${n}`, removed_at: null }));
+    const sheet = (n: number, location: string, type: EquipmentBlockType, tag: string) =>
+      newEquipmentBlock({ blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId, projectId: base.relatorio.project_id, locationId: location, type, tag, seedVersion: base.relatorio.seed_version, orderKey: `a${n}` });
+    const sheets = [
+      sheet(1, id(1), 'transformador_forca', 'TR-1'),
+      sheet(2, id(1), 'transformador_forca', 'TR-2'),
+      sheet(3, id(11), 'chave_seccionadora', 'SEC-C01'),
+      sheet(4, id(12), 'chave_seccionadora', 'SEC-C02'),
+      sheet(5, id(13), 'chave_seccionadora', 'SEC-C03'),
+    ];
+    return {
+      ...base,
+      relatorio: { ...base.relatorio, export: { scheme } },
+      locations: [local, painel, ...colunas],
+      // The section blocks stay, so the document keeps its eleven sections.
+      blocks: [...base.blocks.filter((block) => block.location_id === null), ...sheets.map((s) => s.block)],
+      equipment: sheets.map((s) => s.equipment),
+      files: base.files.filter((file) => file.kind !== 'photo'),
+      points: [],
+      suggestions: [],
+    };
+  }
+
+  async function render(snapshot: RelatorioSnapshot) {
+    const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: ISSUED_AT });
+    const docx = await buildDocx(layout, { tocPages: placeholderPages(layout) });
+    const structure = extractStructure(docx);
+    const document = readZipEntries(docx).get('word/document.xml')!.toString('utf8');
+    // Everything is read from section 9's own heading on, up to the next section's.
+    const from = structure.paragraphs.lastIndexOf(SECTION_9);
+    const to = structure.paragraphs.findIndex((p, i) => i > from && p.startsWith('10 CONCLUSÃO'));
+    expect(from).toBeGreaterThan(-1);
+    expect(to).toBeGreaterThan(from);
+    const paragraphXml = (text: string) => [...document.matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)].map((match) => match[0]).filter((xml) => paragraphText(xml) === text);
+    return { structure, section: structure.paragraphs.slice(from, to), paragraphXml };
+  }
+  const order = (section: readonly string[], texts: readonly string[]) => texts.map((text) => section.indexOf(text));
+  const ascending = (indexes: readonly number[]) => indexes.every((at, i) => at > -1 && (i === 0 || at > indexes[i - 1]!));
+
+  it('flag off: the local Heading 2 with the direct sheets, then the band (bold white on dark grey, its name in upper case) over the painel sheets', async () => {
+    const { structure, section, paragraphXml } = await render(snapshotWithPainel(false, 'ordem_de_campo'));
+    expect(
+      ascending(
+        order(section, [
+          SECTION_9,
+          '9.1 Cabine de transformação',
+          'TRANSFORMADOR DE FORÇA TR-1',
+          'TRANSFORMADOR DE FORÇA TR-2',
+          'PAINEL DE MÉDIA TENSÃO',
+          'CHAVE SECCIONADORA SEC-C01',
+          'CHAVE SECCIONADORA SEC-C02',
+          'CHAVE SECCIONADORA SEC-C03',
+        ]),
+      ),
+    ).toBe(true);
+    // The band is not a heading: section 9 has one Heading 2 and the ÍNDICE one line under it.
+    expect(structure.headings.filter((h) => h.level === 2)).toEqual([{ level: 2, text: '9.1 Cabine de transformação' }]);
+    const toc = structure.paragraphs.filter((p) => p.endsWith(`\t${TOC_PLACEHOLDER}`));
+    expect(toc.filter((p) => p.startsWith('9.'))).toEqual([`9.1 Cabine de transformação\t${TOC_PLACEHOLDER}`]);
+    expect(toc.some((p) => p.toLocaleUpperCase('pt-BR').includes('PAINEL'))).toBe(false);
+    const [band, ...more] = paragraphXml('PAINEL DE MÉDIA TENSÃO');
+    expect(more).toEqual([]);
+    expect(band).toContain(`w:fill="${PAINEL_BAND_FILL}"`);
+    expect(band).toContain(`<w:color w:val="${PAINEL_BAND_COLOR}"/>`);
+    expect(band).toMatch(/<w:b\/>/);
+    expect(band).toContain('<w:keepNext/>');
+    expect(band).not.toContain('<w:pStyle w:val="Heading2"/>');
+    expect([PAINEL_BAND_FILL, PAINEL_BAND_COLOR]).toEqual(['404040', 'FFFFFF']);
+    // It starts a page, as a subsection does after one that printed sheets.
+    expect(band).toContain('<w:pageBreakBefore/>');
+  }, 60_000);
+
+  it('CARACTERÍSTICAS DA SE and AMBIENTE DE ENSAIO print once, on the first sheet emitted for the local, before the band', async () => {
+    const { section } = await render(snapshotWithPainel(false, 'ordem_de_campo'));
+    expect(section.filter((p) => p === 'CARACTERÍSTICAS DA SE')).toHaveLength(1);
+    expect(section.filter((p) => p === 'AMBIENTE DE ENSAIO')).toHaveLength(1);
+    expect(ascending(order(section, ['TRANSFORMADOR DE FORÇA TR-1', 'CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', 'TRANSFORMADOR DE FORÇA TR-2', 'PAINEL DE MÉDIA TENSÃO']))).toBe(true);
+    expect(section).toContain('ALVENARIA');
+  }, 60_000);
+
+  it('flag on: the direct run by type, then the band alone followed on the same page by the painel own type group, numbered across the section', async () => {
+    const { structure, section, paragraphXml } = await render(snapshotWithPainel(true, 'por_local_e_tipo'));
+    const first = '9.1 Transformadores e Cabos de Alimentação da Cabine de transformação';
+    const second = '9.2 Seccionadoras dos Cubículos de MT da Cabine de transformação';
+    expect(ascending(order(section, [SECTION_9, first, 'TRANSFORMADOR DE FORÇA TR-1', 'TRANSFORMADOR DE FORÇA TR-2', 'PAINEL DE MÉDIA TENSÃO', second, 'CHAVE SECCIONADORA SEC-C01', 'CHAVE SECCIONADORA SEC-C03']))).toBe(true);
+    expect(structure.headings.filter((h) => h.level === 2).map((h) => h.text)).toEqual([first, second]);
+    // The band starts the page; the heading right after it (a subsection with no sheet before it) stays with it.
+    expect(paragraphXml('PAINEL DE MÉDIA TENSÃO')[0]).toContain('<w:pageBreakBefore/>');
+    expect(paragraphXml(second)[0]).not.toContain('<w:pageBreakBefore/>');
+    expect(paragraphXml(first)[0]).not.toContain('<w:pageBreakBefore/>');
+    expect(section.filter((p) => p === 'CARACTERÍSTICAS DA SE')).toHaveLength(1);
+  }, 60_000);
+
+  it('a local whose sheets all sit in the painel: its heading stands alone, the band follows on the same page and the first painel sheet carries the SE and the environment', async () => {
+    const snapshot = snapshotWithPainel(false, 'ordem_de_campo');
+    const onlyInPainel = { ...snapshot, blocks: snapshot.blocks.filter((block) => block.location_id !== id(1)) };
+    const { section, paragraphXml } = await render(onlyInPainel);
+    expect(ascending(order(section, [SECTION_9, '9.1 Cabine de transformação', 'PAINEL DE MÉDIA TENSÃO', 'CHAVE SECCIONADORA SEC-C01', 'CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', 'CHAVE SECCIONADORA SEC-C02']))).toBe(true);
+    expect(paragraphXml('PAINEL DE MÉDIA TENSÃO')[0]).not.toContain('<w:pageBreakBefore/>');
+    expect(section.filter((p) => p === 'CARACTERÍSTICAS DA SE')).toHaveLength(1);
   }, 60_000);
 });
 

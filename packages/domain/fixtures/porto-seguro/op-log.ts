@@ -260,7 +260,8 @@ const locationOrderKeyOf = new Map<string, string>();
 function locationRow(node: SkeletonNode) {
   const id = locationIdOf.get(node.ref)!;
   const parent_id = node.parent_ref ? locationIdOf.get(node.parent_ref)! : null;
-  if (node.kind === 'coluna') {
+  // The standard template holds cabines and colunas only (no painel, Story 14.2): typed narrowing, same rows.
+  if (node.kind !== 'cabine') {
     return { id, relatorio_id: RELATORIO_ID, parent_id, kind: 'coluna' as const, name: node.name, order_key: locationOrderKeyOf.get(node.ref)!, removed_at: null };
   }
   const cabine = CABINE_DATA[node.ref];

@@ -62,6 +62,29 @@ describe('4.6-UNIT advanceOnEdit', () => {
     expect(advanceOnEdit('rascunho', [structure[8]!, editDraft({ path: `sheet/${BLOCK_ID}/observations` })])).toBe('em_campo');
   });
 
+  it('Story 14.2 matrix "Status": a painel create, rename, reorder, remove and a local Função keep Rascunho, and reopen an Emitido relatório as Em revisão', () => {
+    const painel = { id: ID, relatorio_id: BLOCK_ID, parent_id: USER, name: 'Painel 1', order_key: 'a0', removed_at: null, kind: 'painel' };
+    const structure: EditCandidate[] = [
+      { path: `location/${ID}`, actor_id: USER, kind: 'create', value: painel },
+      editDraft({ path: `location/${ID}/name`, value: 'Painel de média tensão' }),
+      editDraft({ path: `location/${ID}/order_key`, value: 'a1' }),
+      { path: `location/${ID}/removed_at`, actor_id: USER, kind: 'remove', value: null },
+      editDraft({ path: `location/${ID}/removed_at`, value: null }),
+      editDraft({ path: `location/${ID}/funcao`, value: 'primaria' }),
+      editDraft({ path: `location/${ID}/funcao`, value: 'Medição' }),
+      editDraft({ path: `location/${ID}/funcao`, value: null }),
+    ];
+    for (const draft of structure) {
+      expect(advanceOnEdit('rascunho', [draft]), draft.path).toBeNull();
+      expect(advanceOnEdit('emitido', [draft]), draft.path).toBe('em_revisao');
+      expect(advanceOnEdit('em_campo', [draft]), draft.path).toBeNull();
+    }
+    // "Função e nome" is one batch of two puts: still structure, still one transition.
+    const funcaoENome = [editDraft({ path: `location/${ID}/funcao`, value: 'primaria' }), editDraft({ path: `location/${ID}/name`, value: 'Cabine primária' })];
+    expect(advanceOnEdit('rascunho', funcaoENome)).toBeNull();
+    expect(advanceOnEdit('emitido', funcaoENome)).toBe('em_revisao');
+  });
+
   it('2026-10-10 decision 1: a relatorio/setup edit keeps Rascunho, and still reopens an Emitido relatório', () => {
     const setup = editDraft({ path: 'relatorio/setup/local' });
     expect(advanceOnEdit('rascunho', [setup])).toBeNull();

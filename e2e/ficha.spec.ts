@@ -38,7 +38,7 @@ interface OutboxRow {
 const PARA_RAIO = getDefinition('v1', 'cabine_primaria', 'para_raio');
 const toast = (page: Page) => page.getByTestId('toast');
 const tree = (page: Page) => page.getByRole('list', { name: 'Locais do relatório' });
-const enel = (page: Page) => tree(page).locator(':scope > li.s9-cabine').filter({ has: page.locator(':scope > .s9-cab-row .s9-cab-name', { hasText: 'Cubículo Enel' }) });
+const enel = (page: Page) => tree(page).locator(':scope > li.s9-local').filter({ has: page.locator(':scope > .s9-loc-row .s9-loc-name', { hasText: 'Cubículo Enel' }) });
 const enelRows = (page: Page) => enel(page).locator(':scope > .s9-eqs > li.s9-eq');
 const rowOfType = (page: Page, type: string, nth = 0) => enelRows(page).filter({ has: page.locator('.s9-eq-name', { hasText: new RegExp(`^${type}$`) }) }).nth(nth);
 const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' });
@@ -260,17 +260,17 @@ test('@p0 5.4-E2E-001 the checklist by mouse and keyboard: C/NC/NA, Delete clear
   await expect(page.getByLabel('Observação do item 4', { exact: true })).toHaveValue('abcdef');
 });
 
-test('@p0 5.2-E2E-001 the cabine block: edited on the cabine first sheet as location ops, the same values on the next sheet, the humidity note, "Copiar da cabine anterior" with undo', async ({ page }) => {
+test('@p0 5.2-E2E-001 the cabine block: edited on the cabine first sheet as location ops, the same values on the next sheet, the humidity note, "Copiar do local anterior" with undo', async ({ page }) => {
   test.setTimeout(150_000);
   const { relatorioId } = await openRelatorio(page, 1280);
   await openEnel(page);
   const first = await rowIds(enelRows(page).first());
   await page.getByRole('button', { name: 'Mais opções de Cubículo Enel' }).click();
-  await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }).click();
+  await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados do local)' }).click();
   await expect(page).toHaveURL(new RegExp(`/ficha/${first.blockId}$`));
 
   await expect(page.getByRole('heading', { name: 'Características da SE' })).toBeVisible();
-  await expect(page.locator('.ficha-da-cabine').first()).toHaveText('Da cabine · Cubículo Enel');
+  await expect(page.locator('.ficha-da-cabine').first()).toHaveText('Do local · Cubículo Enel');
   await page.getByLabel('Tipo de SE', { exact: true }).selectOption('BLINDADA');
   const primaria = page.getByLabel('Tensão primária', { exact: true });
   await primaria.fill('13,8');
@@ -311,9 +311,9 @@ test('@p0 5.2-E2E-001 the cabine block: edited on the cabine first sheet as loca
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await page.getByRole('button', { name: 'Mais opções de 1° Subsolo' }).click();
-  await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }).click();
+  await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados do local)' }).click();
   await expect(page).toHaveURL(/\/ficha\//);
-  await page.getByRole('button', { name: 'Copiar da cabine anterior' }).click();
+  await page.getByRole('button', { name: 'Copiar do local anterior' }).click();
   await expect(toast(page)).toContainText('Copiado de Cubículo Enel');
   await expect(page.getByLabel('Temperatura', { exact: true })).toHaveValue('19');
   await expect(page.getByLabel('Umidade relativa do ar', { exact: true })).toHaveValue('85');

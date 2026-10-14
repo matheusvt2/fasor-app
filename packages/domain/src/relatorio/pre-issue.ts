@@ -110,14 +110,16 @@ export function setupGapText(gap: SetupGap, snapshot: Pick<RelatorioSnapshot, 'r
 }
 
 /**
- * "Cabine ⟨nome⟩ sem equipamento", or "⟨nome⟩ sem equipamento" when the name already says
- * Cabine ("Cabine 7", "Cabine-7", "CABINE QA", "Cabíne A"): never "Cabine Cabine QA" (Epic 4 QA Q9).
+ * "Local ⟨nome⟩ sem equipamento", or "⟨nome⟩ sem equipamento" when the name already says
+ * what it is ("Cabine 7", "Cabine-7", "CABINE QA", "Cabíne A", "Local 2"): never "Local
+ * Cabine QA" nor "Local Local 2" (Epic 4 QA Q9). Story 14.2: on screen the root is the
+ * "local". authored.
  */
 export function cabineSemEquipamentoText(name: string): string {
   const trimmed = name.trim();
-  // "Cabine" as a word at the start ("Cabine 7", "Cabine-7", "Cabine7"), never "Cabinet".
-  const saysCabine = /^cabine(?![a-z])/.test(normalizeRegistryName(trimmed));
-  return saysCabine ? `${trimmed} sem equipamento` : `Cabine ${trimmed} sem equipamento`;
+  // "Cabine" or "Local" as a word at the start ("Cabine 7", "Cabine-7", "Cabine7"), never "Cabinet" nor "Localidade".
+  const saysWhat = /^(cabine|local)(?![a-z])/.test(normalizeRegistryName(trimmed));
+  return saysWhat ? `${trimmed} sem equipamento` : `Local ${trimmed} sem equipamento`;
 }
 
 /** What the device knows beside the snapshot, for the rules that read it. */

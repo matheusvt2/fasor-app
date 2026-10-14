@@ -1,12 +1,26 @@
 import {
   accountResponseSchema,
+  buildSnapshot,
+  canonicalJson,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
+  entityKey,
   errorResponseSchema,
+  locationRemovalPlan,
+  locationRestorePlan,
   makeOp,
+  MIN_CONTRACT_VERSION,
+  progress,
+  replay,
+  serializeSnapshot,
+  splitEntityKey,
   syncPullResponseSchema,
   syncPushResponseSchema,
   userRowSchema,
+  type BlockRow,
+  type EntityState,
+  type EquipmentRow,
+  type LocationRow,
   type Op,
   type OpInput,
   type SyncPullResponse,
@@ -24,6 +38,7 @@ import { findUserProfile } from '../db/repositories/users.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { entities, ops, syncDevicePush } from '../db/schema.ts';
 import { newId } from '../ids.ts';
+import { toSnapshot } from './snapshot.ts';
 
 /**
  * 1.5-API-001..005 over the compose api with the two seeded users (TC-9). Every id is
@@ -1054,14 +1069,23 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 
-  it('contract 16 (PR #121 review): a version-15 pull is refused with 426 contract_outdated, a version-16 pull is answered', async () => {
+  it('contract 17 (Story 14.2, matrix "Old client"): a version-16 pull is refused with 426 contract_outdated on every stream, a version-17 pull is answered', async () => {
+    expect(MIN_CONTRACT_VERSION).toBe(17);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
-      const old = await pull(companyA, path, '15');
-      expect(old.status).toBe(426);
-      expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
+      // 16 is the last version that cannot parse a painel create nor the funcao path; 15 stays refused as since PR #121.
+      for (const version of ['16', '15']) {
+        const old = await pull(companyA, path, version);
+        expect(old.status, `${path} at ${version}`).toBe(426);
+        expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
+      }
     }
-    const current = await pull(companyA, '/api/sync/company?since=0', '16');
+    const current = await pull(companyA, '/api/sync/company?since=0', '17');
     expect(current.status).toBe(200);
+    // An outdated client keeps pushing (AD-13): only the pull is refused.
+    const batch = [clientCreate(idsA, newId())];
+    const pushed = await push(companyA, { ops: batch }, '16');
+    expect(pushed.status).toBe(200);
+    for (const o of batch) written.opIds.add(o.op_id);
   });
 });
 
@@ -1196,5 +1220,402 @@ describe('6.3/6.5-API-001 a photo caption and removal through the sync route', (
     const page = await pullOk(companyA, `/api/sync/relatorios/${relatorioId}?since=0`);
     expect((page.ops as Op[]).map((o) => o.op_id)).toEqual([created.applied[0]!.op_id, create.op_id, caption.op_id, removed.op_id, restore.op_id]);
     expect((page.ops as Op[]).map((o) => o.path).slice(1)).toEqual([`file/${photoId}`, `file/${photoId}/caption`, `file/${photoId}/removed_at`, `file/${photoId}/removed_at`]);
+  });
+});
+
+describe('Story 14.2 (contract 17): Local › Painel › Coluna through POST /api/sync/ops', () => {
+  const blankSe = { type: null, primary_kv: null, secondary_kv: null, installed_kva: null };
+  const blankEnv = { altitude_m: null, temperature_c: null, humidity_pct: null };
+  const scoped = (relatorioId: string) => ({ scope: 'relatorio' as const, relatorio_id: relatorioId });
+
+  function localCreate(relatorioId: string, id: string, extra: Record<string, unknown> = {}): Op {
+    written.entityIds.add(id);
+    return op(idsA, {
+      ...scoped(relatorioId),
+      kind: 'create',
+      path: `location/${id}`,
+      value: { id, relatorio_id: relatorioId, parent_id: null, kind: 'cabine', name: 'Cabine de transformação', order_key: 'a0', removed_at: null, se: blankSe, env: blankEnv, agrupar_por_tipo: false, ...extra },
+    });
+  }
+  function childCreate(relatorioId: string, id: string, kind: 'painel' | 'coluna', parentId: string | null, name: string, orderKey = 'a0'): Op {
+    written.entityIds.add(id);
+    // Built by hand past `makeOp` for the row the schema refuses (a painel with no parent): the route must answer it, not the helper.
+    const good = op(idsA, { ...scoped(relatorioId), kind: 'create', path: `location/${id}`, value: { id, relatorio_id: relatorioId, parent_id: newId(), kind, name, order_key: orderKey, removed_at: null } });
+    return { ...good, value: { ...(good.value as Record<string, unknown>), parent_id: parentId } as Op['value'] };
+  }
+  function blockAt(relatorioId: string, id: string, locationId: string): Op {
+    const base = blockCreate(idsA, relatorioId, id, 'chave_seccionadora');
+    return { ...base, value: { ...(base.value as Record<string, unknown>), location_id: locationId } as Op['value'] };
+  }
+  const put = (relatorioId: string, path: string, value: unknown, kind: 'put' | 'remove' = 'put'): Op => op(idsA, { ...scoped(relatorioId), kind, path, value: value as Op['value'] });
+  const rowOf = async (entity: string, id: string) =>
+    (await db.select({ row: entities.row }).from(entities).where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, entity), eq(entities.id, id))))[0]?.row;
+
+  /** A relatório with one local, one painel under it and one coluna in the painel; a coluna directly under the local too. */
+  async function tree() {
+    const ids = { relatorio: newId(), local: newId(), painel: newId(), coluna: newId(), legado: newId() };
+    const log = [
+      relatorioCreate(idsA, ids.relatorio, newId()),
+      localCreate(ids.relatorio, ids.local),
+      childCreate(ids.relatorio, ids.painel, 'painel', ids.local, 'Painel de média tensão'),
+      childCreate(ids.relatorio, ids.coluna, 'coluna', ids.painel, 'Coluna 5'),
+      childCreate(ids.relatorio, ids.legado, 'coluna', ids.local, 'Coluna 1', 'a1'),
+    ];
+    const result = await pushOk(companyA, log);
+    expect(result.rejected).toEqual([]);
+    return { ...ids, log, seqs: result.applied.map((a) => a.seq) };
+  }
+
+  it('accepts a painel tree with a Função, and the server rows equal the kernel replay of the same log, byte for byte', async () => {
+    const t = await tree();
+    const onLocal = newId();
+    const onColuna = newId();
+    const edits = [
+      put(t.relatorio, `location/${t.local}/funcao`, 'transformacao'),
+      blockAt(t.relatorio, onLocal, t.local),
+      blockAt(t.relatorio, onColuna, t.coluna),
+      put(t.relatorio, `location/${t.painel}/name`, 'Painel A'),
+      put(t.relatorio, `location/${t.painel}/order_key`, 'a5'),
+      put(t.relatorio, `location/${t.painel}/removed_at`, null, 'remove'),
+      put(t.relatorio, `location/${t.painel}/removed_at`, null),
+      put(t.relatorio, `block/${onLocal}/location_id`, t.legado),
+      put(t.relatorio, `location/${t.local}/funcao`, 'Medição'),
+    ];
+    const result = await pushOk(companyA, edits);
+    expect(result.rejected).toEqual([]);
+    expect(result.applied.map((a) => a.op_id)).toEqual(edits.map((o) => o.op_id));
+
+    const log = [...t.log, ...edits].map((o, i) => ({ ...o, seq: i + 1 }));
+    const pure = replay(log);
+    const checks: [string, string][] = [
+      ['location', t.local],
+      ['location', t.painel],
+      ['location', t.coluna],
+      ['location', t.legado],
+      ['block', onLocal],
+      ['block', onColuna],
+    ];
+    for (const [entity, id] of checks) {
+      const server = await rowOf(entity, id);
+      expect(server, `${entity} ${id}`).toBeDefined();
+      expect(canonicalJson(server as never)).toBe(canonicalJson(pure.get(entityKey(entity as never, id)) as never));
+    }
+    expect(await rowOf('location', t.painel)).toMatchObject({ kind: 'painel', parent_id: t.local, name: 'Painel A', order_key: 'a5', removed_at: null });
+    expect(await rowOf('location', t.local)).toMatchObject({ kind: 'cabine', funcao: 'Medição' });
+    expect(await rowOf('block', onLocal)).toMatchObject({ location_id: t.legado });
+
+    // The stream carries the painel create and the funcao puts for every device on contract 17.
+    const page = await pullOk(companyA, `/api/sync/relatorios/${t.relatorio}?since=0`);
+    const paths = (page.ops as Op[]).map((o) => o.path);
+    expect(paths).toContain(`location/${t.painel}`);
+    expect(paths.filter((path) => path === `location/${t.local}/funcao`)).toHaveLength(2);
+  });
+
+  it('matrix "Block on a painel" and "Data on a painel": every refusal answers op_invalid, 200, and writes nothing; the rest of the push applies', async () => {
+    const t = await tree();
+    const before = { painel: await rowOf('location', t.painel), coluna: await rowOf('location', t.coluna), local: await rowOf('location', t.local) };
+    const held = newId();
+    expect((await pushOk(companyA, [blockAt(t.relatorio, held, t.coluna)])).rejected).toEqual([]);
+    const strayBlock = newId();
+    const refused = [
+      blockAt(t.relatorio, strayBlock, t.painel),
+      put(t.relatorio, `block/${held}/location_id`, t.painel),
+      put(t.relatorio, `location/${t.painel}/se/type`, 'BLINDADA'),
+      put(t.relatorio, `location/${t.painel}/env/temperature_c`, { raw: '25', unit: '°C', state: 'measured' }),
+      put(t.relatorio, `location/${t.painel}/agrupar_por_tipo`, true),
+      put(t.relatorio, `location/${t.painel}/funcao`, 'primaria'),
+      put(t.relatorio, `location/${t.coluna}/funcao`, 'primaria'),
+      // A blank or non-string Função fails the row schema.
+      put(t.relatorio, `location/${t.local}/funcao`, '   '),
+      put(t.relatorio, `location/${t.local}/funcao`, 7),
+      // A painel with no parent fails the row schema.
+      childCreate(t.relatorio, newId(), 'painel', null, 'Sem local'),
+    ];
+    const good = put(t.relatorio, `location/${t.local}/funcao`, 'entrada');
+    // On a coluna, se/env/agrupar_por_tipo stay the silent no-op they always were: applied, nothing changed.
+    const silent = [put(t.relatorio, `location/${t.coluna}/se/type`, 'X'), put(t.relatorio, `location/${t.coluna}/agrupar_por_tipo`, true)];
+    const result = await pushOk(companyA, [...refused, good, ...silent]);
+    expect(result.rejected).toEqual(refused.map((o) => ({ op_id: o.op_id, code: 'op_invalid' })));
+    expect(result.applied.map((a) => a.op_id)).toEqual([good.op_id, ...silent.map((o) => o.op_id)]);
+
+    const stored = await storedIds([...refused.map((o) => o.op_id), good.op_id]);
+    for (const o of refused) expect(stored.has(o.op_id), o.path).toBe(false);
+    expect(stored.has(good.op_id)).toBe(true);
+    expect(await rowOf('block', strayBlock)).toBeUndefined();
+    expect(await rowOf('block', held)).toMatchObject({ location_id: t.coluna });
+    expect(await rowOf('location', t.painel)).toEqual(before.painel);
+    expect(await rowOf('location', t.coluna)).toEqual(before.coluna);
+    expect(await rowOf('location', t.local)).toEqual({ ...(before.local as object), funcao: 'entrada' });
+  });
+
+  it('coordinator review 2026-10-13: a block op naming a location id that is no uuid is refused as op_invalid, never a failed query; the rest of the push applies', async () => {
+    const t = await tree();
+    const held = newId();
+    expect((await pushOk(companyA, [blockAt(t.relatorio, held, t.coluna)])).rejected).toEqual([]);
+    const strayBlock = newId();
+    // Only a non-conforming client sends these: the entities id column is a uuid, so the value must never reach the row lookup.
+    const refused = [put(t.relatorio, `block/${held}/location_id`, 'not-a-uuid'), blockAt(t.relatorio, strayBlock, 'not-a-uuid')];
+    const good = put(t.relatorio, `location/${t.painel}/name`, 'Painel depois');
+    const res = await push(companyA, { ops: [...refused, good] });
+    expect(res.status, await res.clone().text()).toBe(200);
+    const result = syncPushResponseSchema.parse(await res.json());
+    written.opIds.add(good.op_id);
+    expect(result.rejected).toEqual(refused.map((o) => ({ op_id: o.op_id, code: 'op_invalid' })));
+    expect(result.applied.map((a) => a.op_id)).toEqual([good.op_id]);
+
+    const stored = await storedIds([...refused.map((o) => o.op_id), good.op_id]);
+    for (const o of refused) expect(stored.has(o.op_id), o.path).toBe(false);
+    expect(stored.has(good.op_id)).toBe(true);
+    expect(await rowOf('block', strayBlock)).toBeUndefined();
+    expect(await rowOf('block', held)).toMatchObject({ location_id: t.coluna });
+    expect(await rowOf('location', t.painel)).toMatchObject({ name: 'Painel depois' });
+  });
+
+  it('a client batch holding a block on a painel is refused whole, as any batch with a permanent refusal is', async () => {
+    const t = await tree();
+    const batchId = newId();
+    const novo = newId();
+    const blockId = newId();
+    const batch = [
+      { ...childCreate(t.relatorio, novo, 'painel', t.local, 'Painel 2', 'a2'), batch_id: batchId },
+      { ...blockAt(t.relatorio, blockId, novo), batch_id: batchId },
+    ];
+    const alone = put(t.relatorio, `location/${t.painel}/name`, 'Painel renomeado');
+    const result = await pushOk(companyA, [...batch, alone]);
+    expect(result.rejected).toEqual(batch.map((o) => ({ op_id: o.op_id, code: 'op_invalid' })));
+    expect(result.applied.map((a) => a.op_id)).toEqual([alone.op_id]);
+    expect(await rowOf('location', novo)).toBeUndefined();
+    expect(await rowOf('block', blockId)).toBeUndefined();
+    expect(await rowOf('location', t.painel)).toMatchObject({ name: 'Painel renomeado' });
+  });
+});
+
+describe('Story 14.2, second pass: a location removal batch and its restore through POST /api/sync/ops', () => {
+  const blankSe = { type: null, primary_kv: null, secondary_kv: null, installed_kva: null };
+  const blankEnv = { altitude_m: null, temperature_c: null, humidity_pct: null };
+  const scoped = (relatorioId: string) => ({ scope: 'relatorio' as const, relatorio_id: relatorioId });
+
+  function locationCreate(relatorioId: string, id: string, kind: 'cabine' | 'painel' | 'coluna', parentId: string | null, name: string, orderKey: string): Op {
+    written.entityIds.add(id);
+    const base = { id, relatorio_id: relatorioId, parent_id: parentId, kind, name, order_key: orderKey, removed_at: null };
+    return op(idsA, { ...scoped(relatorioId), kind: 'create', path: `location/${id}`, value: kind === 'cabine' ? { ...base, se: blankSe, env: blankEnv, agrupar_por_tipo: false } : base });
+  }
+  function equipmentWith(projectId: string, id: string, tag: string): Op {
+    const base = equipmentCreate(idsA, id, projectId);
+    return { ...base, value: { ...(base.value as Record<string, unknown>), tag, type: 'chave_seccionadora' } as Op['value'] };
+  }
+  function sheetAt(relatorioId: string, id: string, locationId: string, equipmentId: string, orderKey: string): Op {
+    const base = blockCreate(idsA, relatorioId, id, 'chave_seccionadora');
+    return { ...base, value: { ...(base.value as Record<string, unknown>), location_id: locationId, equipment_id: equipmentId, order_key: orderKey } as Op['value'] };
+  }
+  /** One client batch: every op carries the same `batch_id` and the same `client_ts`, as the device's commit stamps it. */
+  function batchOf(relatorioId: string, projectId: string, kind: 'remove' | 'put', ids: { locationIds: string[]; blockIds: string[]; equipmentIds: string[] }, at: string): Op[] {
+    const batchId = newId();
+    const one = (input: Parameters<typeof op>[1]): Op => ({ ...op(idsA, { ...input, batch_id: batchId }), client_ts: at });
+    return [
+      ...ids.locationIds.map((id) => one({ ...scoped(relatorioId), kind, path: `location/${id}/removed_at`, value: null })),
+      ...ids.blockIds.map((id) => one({ ...scoped(relatorioId), kind, path: `block/${id}/removed_at`, value: null })),
+      ...ids.equipmentIds.map((id) => one({ kind, scope: 'project', project_id: projectId, path: `equipment/${id}/removed_at`, value: null })),
+    ];
+  }
+  /** Every location, block and equipment row of a kernel state, removed ones included: what a device hands the plans. */
+  function rowsIn(state: EntityState): { locations: LocationRow[]; blocks: BlockRow[]; equipment: EquipmentRow[] } {
+    const out = { locations: [] as LocationRow[], blocks: [] as BlockRow[], equipment: [] as EquipmentRow[] };
+    for (const [key, row] of state) {
+      const entity = splitEntityKey(key).entity;
+      if (entity === 'location') out.locations.push(row as LocationRow);
+      else if (entity === 'block') out.blocks.push(row as BlockRow);
+      else if (entity === 'equipment') out.equipment.push(row as EquipmentRow);
+    }
+    return out;
+  }
+  const stored = async (entity: string, id: string) =>
+    (await db.select({ row: entities.row, removed_at: entities.removed_at }).from(entities).where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, entity), eq(entities.id, id))))[0];
+  const sheetsInSummary = async (relatorioId: string) => (await pullOk(companyA, '/api/sync/company?since=0')).summary!.relatorios.find((row) => row.id === relatorioId)?.progress?.sheets;
+
+  it('a painel with two colunas and their sheets leaves in one batch and comes back in one: the stored rows, the server snapshot and the summary agree with the kernel', async () => {
+    const projectId = newId();
+    const relatorioId = newId();
+    const local = newId();
+    const painel = newId();
+    const [coluna1, coluna2, outra] = [newId(), newId(), newId()];
+    const equipment = { a: newId(), b: newId(), shared: newId(), fora: newId() };
+    const sheets = { a: newId(), b: newId(), shared: newId(), keeper: newId(), fora: newId() };
+    for (const id of Object.values(equipment)) written.entityIds.add(id);
+    const created = [
+      projectCreate(idsA, projectId),
+      relatorioCreate(idsA, relatorioId, projectId),
+      locationCreate(relatorioId, local, 'cabine', null, 'Subestação', 'a0'),
+      locationCreate(relatorioId, painel, 'painel', local, 'Painel 1', 'a0'),
+      locationCreate(relatorioId, coluna1, 'coluna', painel, 'Coluna 1', 'a0'),
+      locationCreate(relatorioId, coluna2, 'coluna', painel, 'Coluna 2', 'a1'),
+      // A coluna directly under the local: it stays, with one sheet of its own and one holding the shared equipment.
+      locationCreate(relatorioId, outra, 'coluna', local, 'Coluna 9', 'a1'),
+      equipmentWith(projectId, equipment.a, 'SEC-C01'),
+      equipmentWith(projectId, equipment.b, 'SEC-C02'),
+      equipmentWith(projectId, equipment.shared, 'SEC-C02-2'),
+      equipmentWith(projectId, equipment.fora, 'SEC-C09'),
+      sheetAt(relatorioId, sheets.a, coluna1, equipment.a, 'a0'),
+      sheetAt(relatorioId, sheets.b, coluna2, equipment.b, 'a0'),
+      sheetAt(relatorioId, sheets.shared, coluna2, equipment.shared, 'a1'),
+      sheetAt(relatorioId, sheets.keeper, outra, equipment.shared, 'a0'),
+      sheetAt(relatorioId, sheets.fora, outra, equipment.fora, 'a1'),
+    ];
+    const first = await pushOk(companyA, created);
+    expect(first.rejected).toEqual([]);
+
+    const log: Op[] = created.map((o, i) => ({ ...o, seq: i + 1 }));
+    const pushed = (batch: Op[]) => log.push(...batch.map((o, i) => ({ ...o, seq: log.length + i + 1 })));
+    /** The server snapshot against the kernel replay of the same log. The company's own `empresa` row is not this log's. */
+    const snapshotsAgree = async () => {
+      const kernel = buildSnapshot(replay(log), relatorioId);
+      const server = await toSnapshot(db, asCompanyId(companyA.companyId), relatorioId);
+      expect(serializeSnapshot({ ...server, empresa: null })).toBe(serializeSnapshot({ ...kernel, empresa: null }));
+      return kernel;
+    };
+    const before = await snapshotsAgree();
+    expect(progress(before).sheets_total).toBe(5);
+    expect(await sheetsInSummary(relatorioId)).toBe(5);
+
+    // The removal, planned by the kernel on the rows a device holds: the painel, its two colunas, their three
+    // sheets, and two of the three equipment rows (the third is held by a sheet outside the removal).
+    const visibility = { companyDownloaded: true, summaries: [], heldRelatorioIds: [], downloadedStreamIds: [] };
+    const held = rowsIn(replay(log));
+    const plan = locationRemovalPlan({ locations: held.locations, blocks: held.blocks, otherBlocks: [], locationId: painel, projectId, relatorioId, visibility })!;
+    expect(plan).toEqual({
+      kind: 'painel',
+      locationId: painel,
+      locationIds: [painel, coluna1, coluna2],
+      blockIds: [sheets.a, sheets.b, sheets.shared],
+      equipmentIds: [equipment.a, equipment.b],
+      counts: { paineis: 0, colunas: 2, sheets: 3 },
+    });
+    const removedAt = '2026-10-13T15:00:00.000Z';
+    const removal = batchOf(relatorioId, projectId, 'remove', plan, removedAt);
+    const removed = await pushOk(companyA, removal);
+    expect(removed.rejected).toEqual([]);
+    expect(removed.applied.map((a) => a.op_id)).toEqual(removal.map((o) => o.op_id));
+    pushed(removal);
+
+    // Every row of the batch carries the batch's one timestamp; the rows outside it are untouched.
+    const tombstoned: [string, string][] = [
+      ...plan.locationIds.map((id): [string, string] => ['location', id]),
+      ...plan.blockIds.map((id): [string, string] => ['block', id]),
+      ...plan.equipmentIds.map((id): [string, string] => ['equipment', id]),
+    ];
+    for (const [entity, id] of tombstoned) {
+      const record = await stored(entity, id);
+      expect(record?.row, `${entity} ${id}`).toMatchObject({ removed_at: removedAt });
+      expect(record?.removed_at, `${entity} ${id}`).not.toBeNull();
+    }
+    const kept: [string, string][] = [['location', local], ['location', outra], ['block', sheets.keeper], ['block', sheets.fora], ['equipment', equipment.shared], ['equipment', equipment.fora]];
+    for (const [entity, id] of kept) expect((await stored(entity, id))?.row, `${entity} ${id}`).toMatchObject({ removed_at: null });
+    const pure = replay(log);
+    for (const [entity, id] of [...tombstoned, ...kept]) {
+      expect(canonicalJson((await stored(entity, id))!.row as never), `${entity} ${id}`).toBe(canonicalJson(pure.get(entityKey(entity as never, id)) as never));
+    }
+
+    const after = await snapshotsAgree();
+    expect(after.locations.map((row) => row.id).sort()).toEqual([local, outra].sort());
+    expect(after.blocks.map((row) => row.id).sort()).toEqual([sheets.keeper, sheets.fora].sort());
+    expect(after.equipment.map((row) => row.id).sort()).toEqual([equipment.shared, equipment.fora].sort());
+    expect(progress(after).sheets_total).toBe(2);
+    expect(await sheetsInSummary(relatorioId)).toBe(2);
+
+    // The relatório's stream hands the whole batch to every other device in the order it was written (it
+    // carries its project's ops too); the project's stream carries the equipment tombstones (AD-5).
+    const inBatch = (page: SyncPullResponse) => (page.ops as Op[]).filter((o) => o.batch_id === removal[0]!.batch_id);
+    const streamed = inBatch(await pullOk(companyA, `/api/sync/relatorios/${relatorioId}?since=0`));
+    expect(streamed.map((o) => o.path)).toEqual(removal.map((o) => o.path));
+    expect(streamed.map((o) => o.kind)).toEqual(removal.map(() => 'remove'));
+    expect(new Set(streamed.map((o) => o.client_ts))).toEqual(new Set([removedAt]));
+    const onProject = inBatch(await pullOk(companyA, `/api/sync/projects/${projectId}?since=0`));
+    expect(onProject.map((o) => o.path)).toEqual(plan.equipmentIds.map((id) => `equipment/${id}/removed_at`));
+
+    // The restore, planned on the rows after the removal: the same rows come back in one batch.
+    const afterRows = rowsIn(replay(log));
+    const back = locationRestorePlan({ ...afterRows, locationId: painel })!;
+    expect(back).toMatchObject({ locationIds: plan.locationIds, blockIds: plan.blockIds, equipmentIds: plan.equipmentIds, counts: { paineis: 0, colunas: 2, sheets: 3 } });
+    const restore = batchOf(relatorioId, projectId, 'put', back, '2026-10-13T15:05:00.000Z');
+    const restored = await pushOk(companyA, restore);
+    expect(restored.rejected).toEqual([]);
+    expect(restored.applied.map((a) => a.op_id)).toEqual(restore.map((o) => o.op_id));
+    pushed(restore);
+
+    for (const [entity, id] of tombstoned) {
+      const record = await stored(entity, id);
+      expect(record?.row, `${entity} ${id}`).toMatchObject({ removed_at: null });
+      expect(record?.removed_at, `${entity} ${id}`).toBeNull();
+    }
+    const again = replay(log);
+    for (const [entity, id] of [...tombstoned, ...kept]) {
+      expect(canonicalJson((await stored(entity, id))!.row as never), `${entity} ${id}`).toBe(canonicalJson(again.get(entityKey(entity as never, id)) as never));
+    }
+    const restoredSnapshot = await snapshotsAgree();
+    expect(serializeSnapshot(restoredSnapshot)).toBe(serializeSnapshot(before));
+    expect(progress(restoredSnapshot).sheets_total).toBe(5);
+    expect(await sheetsInSummary(relatorioId)).toBe(5);
+  });
+
+  it('a sheet another device moves into, and one it creates in, a removed coluna are accepted and stay out of the server snapshot, as in the kernel replay', async () => {
+    const projectId = newId();
+    const relatorioId = newId();
+    const [local, painel, coluna, outra] = [newId(), newId(), newId(), newId()];
+    const equipment = { inside: newId(), mover: newId(), fica: newId(), nova: newId() };
+    const sheets = { inside: newId(), mover: newId(), fica: newId(), nova: newId() };
+    for (const id of Object.values(equipment)) written.entityIds.add(id);
+    const created = [
+      projectCreate(idsA, projectId),
+      relatorioCreate(idsA, relatorioId, projectId),
+      locationCreate(relatorioId, local, 'cabine', null, 'Subestação', 'a0'),
+      locationCreate(relatorioId, painel, 'painel', local, 'Painel 1', 'a0'),
+      locationCreate(relatorioId, coluna, 'coluna', painel, 'Coluna 1', 'a0'),
+      locationCreate(relatorioId, outra, 'coluna', local, 'Coluna 9', 'a1'),
+      equipmentWith(projectId, equipment.inside, 'SEC-C01'),
+      equipmentWith(projectId, equipment.mover, 'SEC-C09'),
+      equipmentWith(projectId, equipment.fica, 'SEC-C09-2'),
+      sheetAt(relatorioId, sheets.inside, coluna, equipment.inside, 'a0'),
+      sheetAt(relatorioId, sheets.mover, outra, equipment.mover, 'a0'),
+      sheetAt(relatorioId, sheets.fica, outra, equipment.fica, 'a1'),
+    ];
+    expect((await pushOk(companyA, created)).rejected).toEqual([]);
+    const log: Op[] = created.map((o, i) => ({ ...o, seq: i + 1 }));
+    const pushed = (batch: Op[]) => log.push(...batch.map((o, i) => ({ ...o, seq: log.length + i + 1 })));
+
+    // The painel leaves with its coluna and the sheet on it, planned by the kernel.
+    const visibility = { companyDownloaded: true, summaries: [], heldRelatorioIds: [], downloadedStreamIds: [] };
+    const held = rowsIn(replay(log));
+    const plan = locationRemovalPlan({ locations: held.locations, blocks: held.blocks, otherBlocks: [], locationId: painel, projectId, relatorioId, visibility })!;
+    expect(plan).toMatchObject({ locationIds: [painel, coluna], blockIds: [sheets.inside], equipmentIds: [equipment.inside] });
+    const removal = batchOf(relatorioId, projectId, 'remove', plan, '2026-10-13T16:00:00.000Z');
+    expect((await pushOk(companyA, removal)).rejected).toEqual([]);
+    pushed(removal);
+
+    // Another device, which has not pulled the removal: it moves a live sheet into the coluna and creates one there.
+    const tablet: Ids = { ...idsA, device: `${DEVICE_A}-outro` };
+    const move = op(tablet, { ...scoped(relatorioId), kind: 'put', path: `block/${sheets.mover}/location_id`, value: coluna });
+    const novoEquipamento = equipmentCreate(tablet, equipment.nova, projectId);
+    const novaBase = blockCreate(tablet, relatorioId, sheets.nova, 'chave_seccionadora');
+    const late = [
+      move,
+      { ...novoEquipamento, value: { ...(novoEquipamento.value as Record<string, unknown>), tag: 'SEC-C01-2', type: 'chave_seccionadora' } as Op['value'] },
+      { ...novaBase, value: { ...(novaBase.value as Record<string, unknown>), location_id: coluna, equipment_id: equipment.nova, order_key: 'a1' } as Op['value'] },
+    ];
+    const result = await pushOk(companyA, late);
+    expect(result.rejected).toEqual([]);
+    expect(result.applied.map((a) => a.op_id)).toEqual(late.map((o) => o.op_id));
+    pushed(late);
+
+    // Both rows are stored live on the removed coluna: no tombstone of their own hides them.
+    for (const id of [sheets.mover, sheets.nova]) expect((await stored('block', id))?.row, id).toMatchObject({ location_id: coluna, removed_at: null });
+    expect((await stored('location', coluna))?.row).toMatchObject({ removed_at: '2026-10-13T16:00:00.000Z' });
+
+    // The server snapshot reads the removed location rows, so the kernel's one liveness rule drops both sheets.
+    const kernel = buildSnapshot(replay(log), relatorioId);
+    const server = await toSnapshot(db, asCompanyId(companyA.companyId), relatorioId);
+    expect(server.blocks.map((row) => row.id)).toEqual([sheets.fica]);
+    expect(server.blocks.some((row) => row.id === sheets.mover || row.id === sheets.nova)).toBe(false);
+    expect(server.locations.map((row) => row.id).sort()).toEqual([local, outra].sort());
+    expect(serializeSnapshot({ ...server, empresa: null })).toBe(serializeSnapshot({ ...kernel, empresa: null }));
   });
 });

@@ -1,6 +1,9 @@
 import {
   defaultBlockConfig,
   emptySheet,
+  locationControlName,
+  locationRestoredText,
+  locationRestorePlan,
   moveAnnouncement,
   moveLandingIndex,
   orderKeyAfter,
@@ -8,8 +11,11 @@ import {
   sectionBlocks,
   sectionMovedText,
   type BlockRow,
+  type LocationRestorePlan,
   type RelatorioStatus,
-  type RestorableBlock,
+  type RestorableBlockEntry,
+  type RestorableEntry,
+  type RestorableLocationEntry,
   type SectionBlockType,
   type SumarioRow,
 } from '@app/domain';
@@ -22,14 +28,15 @@ import type { RelatorioEditor } from './relatorio-editor.ts';
 import { createBlockOp, putBlockOp, putRelatorioStatusOp, removeBlockOp } from './relatorio-ops.ts';
 import type { RelatorioTreeHandle } from './relatorio-tree.tsx';
 import type { RowActions } from './sumario-row.tsx';
-import { blockTrigger, restoreSheetOps } from './tree-actions.ts';
+import { blockTrigger, locationRow, locationTrigger, restoreLocationOps, restoreSheetOps } from './tree-actions.ts';
 
 /*
  * Story 4.3 (E4-A7(2)): every write the Sumário's rows make, through the relatório's one
  * edit queue (`useRelatorioEditor`), the way `tree-actions.ts` holds the tree's: a section
- * moved, added or duplicated below a row, removed and restored, and the header's backward
- * status move. Each is one batch, undoable from a toast where the mock gives one, and each
- * hands the focus to a control on purpose (E3-A8).
+ * moved, added or duplicated below a row, removed and restored (a section, an equipment
+ * sheet, or a removed location with what left with it, Story 14.2 second pass), and the
+ * header's backward status move. Each is one batch, undoable from a toast where the mock
+ * gives one, and each hands the focus to a control on purpose (E3-A8).
  */
 
 export interface SumarioContext {
@@ -61,8 +68,8 @@ export interface SumarioActions {
   rows: RowActions;
   /** The palette's pick: a new section of `type` right under `below`. */
   addSection: (below: SumarioRow, type: SectionBlockType) => void;
-  /** "Restaurar" of a removed block (a section, or an equipment sheet with its TAG). */
-  restore: (block: RestorableBlock) => void;
+  /** "Restaurar" of an entry of the restore list: a section, an equipment sheet with its TAG, or a removed location with what left with it. */
+  restore: (entry: RestorableEntry) => void;
   /** The header's backward move Confirm: one `relatorio/status` put. */
   moveBack: (to: RelatorioStatus) => void;
 }
@@ -203,14 +210,60 @@ export function useSumarioActions(context: SumarioContext, host: SumarioHost): S
   const undoneRestoreFocus = (blockId: string) => () =>
     host.list()?.querySelector(`[data-block-id="${CSS.escape(blockId)}"]`) != null ? null : headerTrigger();
 
-  function restore(block: RestorableBlock): void {
+  /**
+   * Story 14.2, second pass: "Restaurar" of a removed coluna, painel or local. The kernel's
+   * `locationRestorePlan` runs on the fresh rows (removed ones included): the location, the
+   * locations and sheets that left in the same removal, the equipment that removal freed and
+   * any removed ancestor come back in one batch. A TAG reused meanwhile is not refused: the
+   * tree's duplicate mark shows on both rows.
+   */
+  function restoreLocation(entry: RestorableLocationEntry): void {
+    const out: { plan: LocationRestorePlan | null; name: string; path: string[] } = { plan: null, name: entry.name, path: [] };
+    void edit((fresh, by, rows) => {
+      const plan = locationRestorePlan({ locations: rows.allLocations, blocks: fresh, equipment: rows.equipment, locationId: entry.id });
+      out.plan = plan;
+      if (plan === null) return null;
+      out.name = locationControlName(rows.allLocations, entry.id);
+      // The locations above it, nearest first: the tree opens them so the row is drawn.
+      const byId = new Map(rows.allLocations.map((row) => [row.id, row]));
+      for (let at = byId.get(entry.id)?.parent_id ?? null; at !== null && !out.path.includes(at); at = byId.get(at)?.parent_id ?? null) out.path.push(at);
+      return restoreLocationOps(by, relatorioId, projectId, plan);
+    })
+      .then((batch) => {
+        const plan = out.plan;
+        if (batch === null || plan === null) {
+          showToast(t.tree.locationGone);
+          return;
+        }
+        // A location comes back in section 9: it opens, with the path down to the row.
+        host.expandSection9();
+        for (const id of out.path) host.tree()?.reveal(id);
+        const row = () => locationRow(host.list(), entry.id);
+        restoreFocus(() => locationTrigger(row()), { mode: 'settled' });
+        // Said, and the toast shown, in the render that draws the row again (Q7). "Desfazer"
+        // tombstones it again: the focus goes back to the header's Overflow once the row is gone.
+        settle(
+          () => row() !== null,
+          locationRestoredText(plan.kind, out.name),
+          () => undoable(t.tree.locationRestored[plan.kind], batch, () => (row() !== null ? null : headerTrigger())),
+        );
+      })
+      .catch(() => undefined);
+  }
+
+  function restore(entry: RestorableEntry): void {
+    if (entry.kind === 'location') restoreLocation(entry);
+    else restoreBlock(entry);
+  }
+
+  function restoreBlock(block: RestorableBlockEntry): void {
     const locationId = allBlocks.find((row) => row.id === block.id)?.location_id ?? null;
     void edit((fresh, by, rows) =>
       locationId === null
         ? fresh.some((row) => row.id === block.id && row.removed_at !== null)
           ? [putBlockOp(by, relatorioId, block.id, 'removed_at', null)]
           : null
-        : restoreSheetOps(by, relatorioId, projectId, fresh, block.id, block.equipmentId, rows.equipment),
+        : restoreSheetOps(by, relatorioId, projectId, fresh, block.id, block.equipmentId, rows.equipment, rows.allLocations),
     )
       .then((batch) => {
         if (batch === null) {

@@ -159,6 +159,20 @@ export async function locationRows(db: AppDatabase, relatorioId: string): Promis
   return (await rowsWhere<LocationRow>(db, 'location', 'relatorio_id', relatorioId)).filter((row) => row.removed_at === null);
 }
 
+/**
+ * Every location row of one relatório, removed ones included (Story 14.2, second pass). Only
+ * what restores, plans a removal or decides one reads it: "Restaurar ficha removida" lists the
+ * removed locations, the kernel's removal and restore plans (`locationRemovalPlan`,
+ * `locationRestorePlan`, `removedAncestorIds`) need the removed rows to tell which ones left
+ * together, a new location's default name and order key must not repeat a removed sibling's
+ * (`newLocation`), and a removed-versus-edited decision names and orders a sheet that left
+ * with its location (`heldDecisions`). Every other reader takes the live rows
+ * (`locationRows`) or the snapshot.
+ */
+export function allLocationRows(db: AppDatabase, relatorioId: string): Promise<LocationRow[]> {
+  return rowsWhere<LocationRow>(db, 'location', 'relatorio_id', relatorioId);
+}
+
 /** Story 6.6: every point of one relatório, removed ones included (a new point's order key is read from the live ones). */
 export function pointRowsOf(db: AppDatabase, relatorioId: string): Promise<PointRow[]> {
   return rowsWhere<PointRow>(db, 'point', 'relatorio_id', relatorioId);
@@ -186,8 +200,8 @@ export function equipmentRows(db: AppDatabase, projectId: string): Promise<Equip
 
 /**
  * The rows `buildSnapshot(state, relatorioId)` needs, as an `EntityState`: the relatório,
- * its project, its locations and blocks, the project's equipment and the company registry
- * rows. Null when this device holds no live relatório of that id. Read in one place so the
+ * its project, its locations and blocks (removed ones included), the project's equipment and
+ * the company registry rows. Null when this device holds no live relatório of that id. Read in one place so the
  * Sumário renders exactly what the kernel's snapshot says (AD-1, AD-15).
  */
 export async function relatorioState(db: AppDatabase, relatorioId: string): Promise<EntityState | null> {
@@ -229,7 +243,11 @@ export async function relatorioState(db: AppDatabase, relatorioId: string): Prom
   const projectRecord = await db.entities.get(['project', relatorio.project_id]);
   const project = projectRecord === undefined || projectRecord.removed_at !== null ? null : parse<ProjectRow>(projectRecord);
   if (project !== null) put('project', project);
-  for (const row of parsedOf<LocationRow>('location')) if (row.removed_at === null) put('location', row);
+  // Story 14.2, second pass: removed locations stay in the state, so the kernel's one liveness
+  // rule (`liveLocationIds`, in the snapshot builders) sees a removed ancestor and drops what
+  // another device left under it. No surface reads a location off this state: every one reads
+  // the snapshot, which keeps the live ones only.
+  for (const row of parsedOf<LocationRow>('location')) put('location', row);
   for (const row of parsedOf<BlockRow>('block')) put('block', row);
   const projectRecords = await db.entities.where('project_id').equals(relatorio.project_id).toArray();
   for (const record of projectRecords) {
