@@ -513,7 +513,7 @@ describe('stampSeen on a site put: what the device saw, as on a sheet put', () =
     expect(row.checklist![ITEM]!.result!.merge).toEqual({ head_op_id: again.op_id, device_id: A_DEVICE, kept: true, rule: 'nc_over_c' });
   });
 
-  it('a sequential put that saw the conflict clears it; one that did not keeps it; the Conflict view\'s restore marks stay a sheet matter', () => {
+  it('a sequential put that saw the conflict clears it; one that did not keeps it; the put that cleared it carries the marks its undo puts back', () => {
     const { createLocal, eduardo, ana } = world();
     const c = ana(result, 'C');
     const na = eduardo(result, 'NA');
@@ -523,8 +523,9 @@ describe('stampSeen on a site put: what the device saw, as on a sheet put', () =
     expect(fold([createLocal, c, na, saw]).checklist![ITEM]!.result).toEqual(plain(saw));
     const unseen = eduardo(result, 'NC', na.op_id, { standing_op_id: na.op_id, seen_conflict_op_id: null });
     expect(fold([createLocal, c, na, unseen]).checklist![ITEM]!.result).toEqual({ ...plain(unseen), conflict: { op_id: c.op_id, value: 'C', source_suggestion_id: null } });
-    // O2: a site cell's conflict is no Conflict-view decision, so its apply carries no restore marks.
-    expect(clearedMarks(held, saw)).toBeUndefined();
+    // Review of batch e14b (2026-10-13): the mark is listed in no Conflict view yet (O2), but a put
+    // that clears it carries the restore marks as a sheet put does, so its "Desfazer" puts it back.
+    expect(clearedMarks(held, saw)).toEqual({ conflict: { op_id: c.op_id, value: 'C', source_suggestion_id: null }, shown_op_id: na.op_id });
   });
 });
 
