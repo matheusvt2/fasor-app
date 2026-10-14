@@ -2192,3 +2192,9 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `/fasor/production/api` log lines at 17:24:55Z and 17:40:44Z; `apps/api/src/db/template-seed-upgrade.ts`.
   class: verification-gap
   state: ~~open (owner: coordinator, with Matheus: open the Template list in production and read each template's seed)~~ closed 2026-10-14 (coordinator): the migration task of the deploy moved them first. `/fasor/production/migrate` stream `migrate/migrate/5003ceed49a14dbe83a2a92d1984f9ca` at 17:24:06Z logs three templates of one company moved from v3 to v5 ("moved":3), so every later start finds nothing to move. No defect.
+
+- source_spec: `infra/PUBLISHING.md`
+  summary: The Home card and the Sumário disagree on the same relatório: the card reads "2 de 12 fichas" and the Sumário "0 de 12 fichas concluídas". Since Story 8.1 the Sumário counts a sheet holding a pending suggestion as not concluded (`progress()` with the device's pending rows, `held`), while the Home and obra cards call `progress({ blocks, suggestions: [] })` and count it concluded. Seen in production on 2026-10-14 (a relatório with 18 suggestions waiting). Older than Epic 14; not a deploy defect.
+  evidence: `packages/domain/src/home/cards.ts` `counterOf`; `packages/domain/src/relatorio/progress.ts` `over` and `progress`; production browser check of v0.2.0.
+  class: defect
+  state: open (owner: Matheus decides which count the card shows; then the next carry-over batch)
