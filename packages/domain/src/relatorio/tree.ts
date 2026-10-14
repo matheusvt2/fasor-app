@@ -3,7 +3,7 @@ import { orderKeyBetween, sortByOrderKey } from '../ops/order-key.ts';
 import { EQUIPMENT_BLOCK_TYPES, isEquipmentBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
 import { emptySheet, type BlockRow, type EquipmentRow, type JsonValue, type LocationRow, type SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findDefinition, findSeed } from '../seed/definitions.ts';
+import { findDefinition, findSeed, siteItems } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import { defaultCabineName, defaultColunaName, defaultPainelName } from '../templates/text.ts';
 import { plural } from '../text/plural.ts';
@@ -13,6 +13,7 @@ import { liveLocationIds } from './location-live.ts';
 import { locationPathText } from './location-path.ts';
 import { blocksProgress, fichasCountText, locationProgressIndex, progressCounterState, progressCounterText, type Progress } from './progress.ts';
 import { isEquipmentBlock, sheetState, sheetStateLabel, type SheetState } from './sheet-state.ts';
+import { siteCounterText, siteLocals, siteRailMetaText, siteResultOf, siteRowText } from './site-checklist.ts';
 import { cabineMissingText, cabineProgress } from './cabine.ts';
 import { CABINE_META_NONE, cabineMetaText } from './sumario.ts';
 import { suggestTag, type TagEquipment, type TagLocation } from './tag.ts';
@@ -155,11 +156,37 @@ export interface TreeLocationNode {
   agruparPorTipo: boolean | null;
   /** The first equipment block under this node in tree order, or null when it holds none. */
   firstBlockId: string | null;
+  /**
+   * Story 14.3: the local's site checklist ("Verificações do local"); null on a painel, a
+   * coluna, a location drawn as a root that is not a cabine, and on every node of a relatório
+   * whose seed version ships no site list (or when the caller gave no relatório row).
+   */
+  site: TreeSiteNode | null;
   /** The node's own blocks, in `order_key` order. */
   equipment: TreeEquipmentNode[];
   /** The locations under it in drawing order: the colunas directly under it, then its painéis, each in `order_key` order. */
   locations: TreeLocationNode[];
 }
+
+/** Story 14.3: a local's site checklist as its Sumário row and its rail row draw it (`40-relatorio-overview.html` `.s9-verif`, `shell-foot.html`). */
+export interface TreeSiteNode {
+  answered: number;
+  total: number;
+  /** "Verificações do local · 12 de 19": the Sumário row's button. */
+  text: string;
+  /** "12 de 19": the rail row's `.tree-state` text. */
+  railCounter: string;
+  /** "19 itens · uma vez por local": the rail row's `.tree-meta`. */
+  railMeta: string;
+  /** Nothing answered, some answered, every item answered. Derived, never stored. */
+  state: 'vazia' | 'pending' | 'concluida';
+  /** The rail's `.tree-state[data-state]` value of `state`. */
+  railStateAttr: TreeStateAttr;
+  /** The glyph before the rail counter (`aria-hidden` where drawn): the sheet states' own. */
+  glyph: string;
+}
+
+const SITE_STATE: Readonly<Record<TreeSiteNode['state'], SheetState>> = { vazia: 'vazia', pending: 'em_preenchimento', concluida: 'concluida' };
 
 export type TreeNode = TreeLocationNode | TreeEquipmentNode;
 
@@ -420,6 +447,24 @@ function buildLocationTree(
   const childrenOf = childrenByParent(locations);
   const progressOf = locationProgressIndex(snapshot, pending);
 
+  // Story 14.3: the locals holding a site checklist (none without the relatório row, or on a seed with no site list).
+  const siteList = relatorio === undefined ? [] : siteItems(relatorio.seed_version);
+  const siteIds = new Set(relatorio === undefined ? [] : siteLocals({ relatorio, locations }).map((location) => location.id));
+  const siteNode = (location: LocationRow): TreeSiteNode | null => {
+    if (location.kind !== 'cabine' || !siteIds.has(location.id)) return null;
+    const counts = { answered: siteList.filter((item) => siteResultOf(location, item.key) !== null).length, total: siteList.length };
+    const state = counts.answered === 0 ? 'vazia' : counts.answered >= counts.total ? 'concluida' : 'pending';
+    return {
+      ...counts,
+      text: siteRowText(counts),
+      railCounter: siteCounterText(counts),
+      railMeta: siteRailMetaText(counts.total),
+      state,
+      railStateAttr: STATE_ATTR[SITE_STATE[state]],
+      glyph: SHEET_STATE_GLYPH[SITE_STATE[state]],
+    };
+  };
+
   const equipmentNode = (block: BlockRow, position: number, siblings: number, level: number): TreeEquipmentNode => {
     const state = sheetState(block);
     const word = sheetStateLabel(state);
@@ -484,6 +529,7 @@ function buildLocationTree(
       siblings,
       agruparPorTipo: location.kind === 'cabine' ? location.agrupar_por_tipo : null,
       firstBlockId: equipmentNodes[0]?.blockId ?? childNodes.find((child) => child.firstBlockId !== null)?.firstBlockId ?? null,
+      site: siteNode(location),
       equipment: equipmentNodes,
       locations: childNodes,
     };

@@ -5,6 +5,7 @@ import { loadConfigOrExit, rateLimitEnabled, requestLimits } from './config.ts';
 import { bedrockClientSource } from './ai/bedrock.ts';
 import { createDb } from './db/client.ts';
 import { migrate } from './db/migrate.ts';
+import { upgradeTemplateSeeds } from './db/template-seed-upgrade.ts';
 import { createApp } from './http/app.ts';
 import { now } from './clock.ts';
 import { newId } from './ids.ts';
@@ -39,6 +40,10 @@ async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
 // nothing below (queue, auth) sees a database without its tables.
 await withRetry('database', () => migrate(db));
 log('migrations applied');
+// Story 14.3 (AD-21): every live template moves to the current seed version, so a relatório
+// created from here on is born on it; no relatório already made is touched. Idempotent.
+// Retried as its neighbours are: a transient database error at boot must not end the process.
+log('template seeds upgraded', { moved: await withRetry('template seeds', () => upgradeTemplateSeeds(db)) });
 // Story 11.8: ensure the bucket against a local endpoint, only probe it on AWS.
 await withRetry('storage', () => prepareStorage(config, s3));
 const boss = await withRetry('queue', () => startQueue(config.DATABASE_URL));

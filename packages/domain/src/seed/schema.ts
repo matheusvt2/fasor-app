@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   equipmentBlockTypeSchema,
   itemKeySchema,
+  siteItemKeySchema,
   subBlockKeySchema,
   subtypeSchema,
 } from '../schemas/block-config.ts';
@@ -185,6 +186,39 @@ export const recurringFindingSchema = z.object({
 });
 export type RecurringFinding = z.infer<typeof recurringFindingSchema>;
 
+/** Story 14.3 (seed v4): one item of a local's site checklist, with the NC phrases of its chips. */
+export const siteItemDefSchema = z.object({
+  key: siteItemKeySchema,
+  label: z.string().min(1),
+  nc_phrases: z.array(z.string().min(1)).min(3).max(4),
+});
+export type SiteItemDef = z.infer<typeof siteItemDefSchema>;
+
+/** A group of site items: a heading on the capture surface and a shaded row in the printed table. */
+export const siteGroupSchema = z.object({
+  key: seedKey,
+  label: z.string().min(1),
+  items: z.array(siteItemDefSchema).min(1),
+});
+export type SiteGroup = z.infer<typeof siteGroupSchema>;
+
+/**
+ * Story 14.3 (seed v4): "Verificações do local", answered once per local (the root `cabine`
+ * row) and printed once in section 9. Labels are sentence case as approved; the printed table
+ * upper-cases them.
+ */
+export const siteChecklistSchema = z
+  .object({ groups: z.array(siteGroupSchema).min(1) })
+  .refine((list) => new Set(list.groups.map((group) => group.key)).size === list.groups.length, { message: 'a site group key repeats' })
+  .refine(
+    (list) => {
+      const keys = list.groups.flatMap((group) => group.items.map((item) => item.key));
+      return new Set(keys).size === keys.length;
+    },
+    { message: 'a site item key repeats' },
+  );
+export type SiteChecklist = z.infer<typeof siteChecklistSchema>;
+
 /** Everything one seed version holds for one report type. */
 export const reportSeedSchema = z.object({
   blocks: z.record(equipmentBlockTypeSchema, blockDefinitionSchema),
@@ -203,6 +237,12 @@ export const reportSeedSchema = z.object({
    * `recurringFindings` reads an absent list as none.
    */
   recurring_findings: z.array(recurringFindingSchema).min(1).optional(),
+  /**
+   * Story 14.3 (seed v4): the site checklist of a local. Optional like `recurring_findings`,
+   * so v1 to v3 parse to the bytes they shipped with; a version without it has no site
+   * checklist at all (`siteChecklistOf` answers null: nothing shown, counted or printed).
+   */
+  site_checklist: siteChecklistSchema.optional(),
 });
 export type ReportSeed = z.infer<typeof reportSeedSchema>;
 

@@ -14,6 +14,19 @@ import type { CellMergeRule, MergeRule } from './rules.ts';
 
 export type { MergeRule } from './rules.ts';
 
+/** Story 14.3: `location/{id}/checklist/...`, the one cell family outside `sheet/*`. */
+const SITE_CELL_PATH = /^location\/[^/]+\/checklist\//;
+
+/** The paths whose value is a cell merged here: every `sheet/*` one and a local's site checklist. */
+function isCellPath(path: string): boolean {
+  return path.startsWith('sheet/') || SITE_CELL_PATH.test(path);
+}
+
+/** A checklist cell of a sheet or (Story 14.3) of a local's site checklist: one set of rules for both. */
+function isChecklistPath(path: OpPath): path is Extract<OpPath, { family: 'sheet/checklist' | 'location/checklist' }> {
+  return path.family === 'sheet/checklist' || path.family === 'location/checklist';
+}
+
 /**
  * A `put` on a `sheet/*` path, from a device (never the server), onto a cell that exists,
  * that did not see the value it lands on: its `prev_op_id` is not the cell's head op, or
@@ -22,13 +35,14 @@ export type { MergeRule } from './rules.ts';
  * `prev_op_id` cannot tell apart: a device whose own put was merged away writes again (or
  * undoes it) before it pulls, chaining on its own head. An op without the stamp (fixtures,
  * server ops) is judged by `prev_op_id` alone. Everything else folds as before.
+ * Story 14.3 (contract 18): a put on a local's site checklist is judged the same way.
  */
 export function isConcurrent(
   op: Pick<Op, 'kind' | 'path' | 'prev_op_id' | 'device_id'> & { meta?: Op['meta'] },
   cell: Cell | null | undefined,
 ): cell is Cell {
   if (cell === null || cell === undefined) return false;
-  if (op.kind !== 'put' || !op.path.startsWith('sheet/')) return false;
+  if (op.kind !== 'put' || !isCellPath(op.path)) return false;
   if (op.device_id === SERVER_DEVICE_ID) return false;
   if ((op.prev_op_id ?? null) !== (cell.merge?.head_op_id ?? cell.op_id)) return true;
   const standing = op.meta?.standing_op_id;
@@ -47,7 +61,7 @@ export type MergeOutcome =
   | { kind: 'protect' };
 
 export interface MergePolicyInput {
-  /** The parsed path of `op` (a `sheet/*` family). */
+  /** The parsed path of `op` (a `sheet/*` family, or `location/checklist`). */
   path: OpPath;
   /** The cell at the path before `op`; absent when the path holds nothing yet. */
   current: Cell | null | undefined;
@@ -73,7 +87,7 @@ export function isEmptyValue(value: unknown): boolean {
  */
 function isFreeText(path: OpPath): boolean {
   if (path.family === 'sheet/observations') return true;
-  if (path.family === 'sheet/checklist') return path.field === 'observation';
+  if (isChecklistPath(path)) return path.field === 'observation';
   if (path.family === 'sheet/conclusion') return path.field === 'text';
   return false;
 }
@@ -119,11 +133,11 @@ export function mergePolicy(input: MergePolicyInput): MergeOutcome {
   if (canonicalJson(mine) === canonicalJson(theirs) || (emptyMine && emptyTheirs)) return { kind: 'apply', rule: 'same_value' };
   if (emptyMine !== emptyTheirs) return { kind: emptyTheirs ? 'keep' : 'apply', rule: 'filled_over_empty' };
 
-  if (path.family === 'sheet/checklist' && path.field === 'result') {
+  if (isChecklistPath(path) && path.field === 'result') {
     const pair = new Set([mine, theirs]);
     if (pair.has('NC') && pair.has('C')) return { kind: theirs === 'NC' ? 'apply' : 'keep', rule: 'nc_over_c' };
   }
-  if (path.family === 'sheet/checklist' && path.field === 'observation') {
+  if (isChecklistPath(path) && path.field === 'observation') {
     const result = input.result;
     if (result !== null && result !== undefined && result.value === 'NC' && result.merge !== undefined) {
       return { kind: isNcDevice(result, op.device_id) ? 'apply' : 'keep', rule: 'nc_observation' };
@@ -147,7 +161,7 @@ export interface MergeCellContext {
 }
 
 /**
- * The cell `applyOp` writes for a `sheet/*` put.
+ * The cell `applyOp` writes for a `sheet/*` put, and (Story 14.3) for a site checklist put.
  * - Sequential: the op's own cell, with no `merge` record; it drops `conflict` unless its
  *   `meta.seen_conflict_op_id` names another one (the "Aplicar" of the Conflict view, which
  *   saw it, resolves this way). E10-Q2: one carrying `meta.restore` (the undo of "Aplicar")

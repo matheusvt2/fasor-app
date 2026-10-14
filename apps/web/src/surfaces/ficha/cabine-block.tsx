@@ -6,12 +6,16 @@ import {
   humidityNoteSurfaced,
   previousCabineEnv,
   quickNotes,
+  SITE_CHECKLIST_LABEL,
+  siteChecklistProgress,
+  siteCounterText,
   type EntityState,
   type FieldDef,
   type LocationRow,
   type RelatorioSnapshot,
 } from '@app/domain';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router';
 import { Chip, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { cabineEnvOp, cabineSeOp, sheetObservationsOp } from './ficha-ops.ts';
@@ -39,6 +43,10 @@ type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
  * its reason "Termo-higrômetro") takes one shot of the cabine's environment; its temperature
  * and humidity arrive as Suggestion fields (`read-display.tsx`), the queued line under the
  * fields while the photo waits for signal.
+ *
+ * Story 14.3 (`60-ficha.html` `.cabine-line.ficha-local-line`): under the block, in either
+ * shape, the line that opens the local's "Verificações do local" with its counter; none on a
+ * relatório whose seed ships no site list.
  */
 export function CabineBlock({
   api,
@@ -84,20 +92,25 @@ export function CabineBlock({
   const altitude = snapshot.relatorio.setup.site_altitude_m;
   const altitudeField = definition.env.find((field) => field.key === 'altitude_m');
 
+  const siteLine = <SiteLine relatorioId={api.relatorioId} snapshot={snapshot} cabineId={cabine.id} />;
+
   if (!expanded) {
     return (
-      <div className="cabine-line" role="group" aria-label={t.lineLabel}>
-        <span className="cl-name">{cabine.name}</span>
-        <span className="cl-values">{cabineLineText(cabine)}</span>
-        <TextButton
-          onPress={() => {
-            focusFirst.current = true;
-            setEditing(true);
-          }}
-        >
-          {t.editar}
-        </TextButton>
-      </div>
+      <>
+        <div className="cabine-line" role="group" aria-label={t.lineLabel}>
+          <span className="cl-name">{cabine.name}</span>
+          <span className="cl-values">{cabineLineText(cabine)}</span>
+          <TextButton
+            onPress={() => {
+              focusFirst.current = true;
+              setEditing(true);
+            }}
+          >
+            {t.editar}
+          </TextButton>
+        </div>
+        {siteLine}
+      </>
     );
   }
 
@@ -177,7 +190,25 @@ export function CabineBlock({
         </div>
         {envDisplay.viewer}
       </section>
+      {siteLine}
     </>
+  );
+}
+
+/** Story 14.3: "Verificações do local · 12 de 19 · Abrir", the entry to the local's site checklist; nothing when the local has none. */
+function SiteLine({ relatorioId, snapshot, cabineId }: { relatorioId: string; snapshot: RelatorioSnapshot; cabineId: string }) {
+  const navigate = useNavigate();
+  const progress = siteChecklistProgress(snapshot, cabineId);
+  if (progress === null) return null;
+  return (
+    <div className="cabine-line ficha-local-line" role="group" aria-label={SITE_CHECKLIST_LABEL}>
+      <svg className="ico ico-sm" aria-hidden="true">
+        <use href="/sprite.svg#i-check-all" />
+      </svg>
+      <span className="cl-name">{SITE_CHECKLIST_LABEL}</span>
+      <span className="cl-values">{siteCounterText(progress)}</span>
+      <TextButton onPress={() => void navigate(`/relatorio/${relatorioId}/local/${cabineId}/verificacoes`)}>{copy.local.open}</TextButton>
+    </div>
   );
 }
 

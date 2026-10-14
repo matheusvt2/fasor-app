@@ -156,7 +156,8 @@ for (const viewport of WIDTHS) {
     // relatório; the bar keeps the blocking sentence alone; Controle, the first revision.
     const document = artOrTrtLabel('crt');
     const gaps = `a data de fim, o número da ${document} e um instrumento`;
-    await expect(step(page)).toHaveText(`Rascunho: falta ${gaps} em Dados do relatório. Preencher uma ficha passa o relatório a Em campo.`, { timeout: 30_000 });
+    // Story 14.3: a relatório born on seed v4 has the site checklist, and the sentence names it.
+    await expect(step(page)).toHaveText(`Rascunho: falta ${gaps} em Dados do relatório. Preencher uma ficha ou as verificações do local passa o relatório a Em campo.`, { timeout: 30_000 });
     await expect(page.locator('.sheet-meta + [data-testid="status-next-step"]')).toHaveCount(1);
     await expect(bar(page).getByTestId('status-next-step')).toHaveCount(0);
     await expect(foot(page)).toHaveText('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.');

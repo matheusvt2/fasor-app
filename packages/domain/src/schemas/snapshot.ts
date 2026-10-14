@@ -79,6 +79,18 @@ function live<T extends EntityRow>(rows: T[]): T[] {
 }
 
 /**
+ * Story 14.3: the points a snapshot holds. A point created from a site item names its local
+ * (`location_id`); when that local is not among the snapshot's locations (removed, or under a
+ * removed one) the point is left out, so it leaves every count, every list and section 8 with
+ * its local and comes back with the local's restore. A point naming no location is kept as before.
+ */
+function pointsOfLiveLocals<P extends { location_id?: string | null }>(points: P[], locations: readonly { id: string }[]): P[] {
+  if (!points.some((point) => (point.location_id ?? null) !== null)) return points;
+  const liveIds = new Set(locations.map((location) => location.id));
+  return points.filter((point) => (point.location_id ?? null) === null || liveIds.has(point.location_id!));
+}
+
+/**
  * The locations and blocks a snapshot keeps, from every location and block row of the
  * relatório in the state (removed ones included, so a removed ancestor is seen): a location
  * only when it is live (`liveLocationIds`: not removed, no removed row above it), a block
@@ -149,7 +161,7 @@ export function buildSnapshot(state: EntityState, relatorioId: string): Relatori
     delete stripped.company_id;
     return stripped;
   });
-  const points = live(rowsOf('point', inRelatorio));
+  const points = pointsOfLiveLocals(live(rowsOf('point', inRelatorio)), locations);
 
   const equipmentIds = new Set(blocks.map((b) => b.equipment_id).filter((id): id is string => id !== null));
   const equipment = live(rowsOf('equipment', (row) => equipmentIds.has(row.id)));
@@ -343,7 +355,7 @@ export function createSnapshotBuilder(): SnapshotBuilder {
         prev?.files,
       ),
       points: same(
-        live(pointRows).map((row) => parsed('point', pointRowSchema, row)),
+        pointsOfLiveLocals(live(pointRows), liveLocations).map((row) => parsed('point', pointRowSchema, row)),
         prev?.points,
       ),
       suggestions: same(

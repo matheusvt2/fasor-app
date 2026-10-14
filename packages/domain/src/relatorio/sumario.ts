@@ -17,7 +17,7 @@ import { locationControlName } from './tree.ts';
 import { pointsSummary, pointsSummaryText } from '../points/summary.ts';
 import { parecerOf, parecerVerdictLabel } from './parecer.ts';
 import { certificatesAttachedText, instrumentsCountText, section11Instruments } from '../print/section-11.ts';
-import { getSeed } from '../seed/definitions.ts';
+import { getSeed, siteChecklistOf } from '../seed/definitions.ts';
 import { idleRevisionNumber, latestRevision, revisionTitle } from '../print/revisions.ts';
 import { statusLabel } from '../status/table.ts';
 
@@ -411,6 +411,12 @@ export interface StatusFlow {
   edited: boolean;
   /** The setup gaps as a list (`setupGapsText`), or null when Dados do relatório is complete. */
   setupGaps?: string | null;
+  /**
+   * Story 14.3: the relatório's seed version. On one that ships a site list (v4 or later) the
+   * Rascunho sentences also name the site items, which move it to Em campo like a sheet value.
+   * Absent or a version with no site list: the sentences as they were.
+   */
+  seedVersion?: string | null;
 }
 
 /** "Marcar como enviado ao cliente", the one name of the `issue` action (foot, Export dialog, sentences). */
@@ -437,6 +443,12 @@ export function statusStepText(flow: StatusFlow): string {
   const label = statusLabel(status);
   if (status === 'rascunho') {
     const gaps = flow.setupGaps ?? null;
+    if (flow.seedVersion != null && siteChecklistOf(flow.seedVersion) !== null) {
+      // authored: 2026-10-13 (Story 14.3), the two Rascunho sentences of a relatório with a site checklist.
+      return gaps === null
+        ? `${label}: concluir os dados do relatório, ou preencher uma ficha ou as verificações do local, passa o relatório a ${statusLabel('em_campo')}.`
+        : `${label}: falta ${gaps} em Dados do relatório. Preencher uma ficha ou as verificações do local passa o relatório a ${statusLabel('em_campo')}.`;
+    }
     return gaps === null
       ? `${label}: concluir os dados do relatório ou preencher uma ficha passa o relatório a ${statusLabel('em_campo')}.`
       : `${label}: falta ${gaps} em Dados do relatório. Preencher uma ficha passa o relatório a ${statusLabel('em_campo')}.`;

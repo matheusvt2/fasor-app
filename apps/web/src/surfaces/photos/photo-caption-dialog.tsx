@@ -1,4 +1,4 @@
-import { contextCaptionParts, numberPhotos, type RelatorioSnapshot } from '@app/domain';
+import { contextCaptionParts, numberPhotos, siteCaption, type RelatorioSnapshot } from '@app/domain';
 import { useMemo } from 'react';
 import { CaptionComposer } from './caption-composer.tsx';
 import { useCaptionSources } from './use-caption-sources.ts';
@@ -8,6 +8,8 @@ import { useCaptionSources } from './use-caption-sources.ts';
  * is open (the sheet mounts it on "Legendar", so its live queries and word lists never run
  * behind the readings). The rows open on the photo's context parts; the stored caption
  * decides whether it opens in "Editar texto". E6-Q3: the photo itself heads the composer.
+ * Story 14.3: a site item's photo (a local, no sheet) has no parts to open on; with no
+ * caption stored it opens on the kernel's own caption for it (`siteCaption`).
  */
 export function PhotoCaptionDialog({
   relatorioId,
@@ -18,7 +20,7 @@ export function PhotoCaptionDialog({
 }: {
   relatorioId: string;
   snapshot: RelatorioSnapshot;
-  photo: { id: string; block_id: string | null; item_key: string | null; caption: string | null; captured_at: string; thumb: Blob | null };
+  photo: { id: string; block_id: string | null; item_key: string | null; location_id?: string | null; caption: string | null; captured_at: string; thumb: Blob | null };
   onClose: () => void;
   onSave: (text: string | null) => void;
 }) {
@@ -31,6 +33,7 @@ export function PhotoCaptionDialog({
       onClose={onClose}
       photo={{ thumb: photo.thumb, number, capturedAt: photo.captured_at }}
       prefill={contextCaptionParts(photo, snapshot, meta)}
+      prefillText={photo.block_id === null ? siteCaption(photo, snapshot, meta) : null}
       stored={photo.caption}
       sources={sources}
       onSave={(text) => onSave(text)}

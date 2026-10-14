@@ -120,6 +120,19 @@ describe('6.4-UNIT-001 importPhotoFiles', () => {
     expect(committed[2]!.reading).toBeNull();
   });
 
+  it('14.3: a site item target (a local and its item, no sheet) commits the photo with both, so it is never an orphan; a sheet target carries no local', async () => {
+    const { value, committed } = deps();
+    const LOCAL = '019966b0-0067-7000-8000-0000000000aa';
+    const site = { blockId: null, locationId: LOCAL, itemKey: 'ventilacao', caption: 'Verificação de ventilação do Cubículo Enel' };
+    const result = await importPhotoFiles([new File([jpegWithExif()], 'local.jpg', { type: 'image/jpeg' })], site, value);
+    expect(result).toEqual({ saved: [committed[0]!.fileId], skipped: 0 });
+    expect(committed[0]).toMatchObject({ blockId: null, locationId: LOCAL, itemKey: 'ventilacao', caption: site.caption });
+    await importPhotoFiles([new File([jpegWithExif()], 'ficha.jpg', { type: 'image/jpeg' })], target, value);
+    expect(committed[1]).not.toHaveProperty('locationId');
+    await importPhotoFiles([new File([jpegWithExif()], 'nulo.jpg', { type: 'image/jpeg' })], { ...target, locationId: null }, value);
+    expect(committed[2]).not.toHaveProperty('locationId');
+  });
+
   it('with photo locations off (FR-8), the EXIF GPS is not kept; the EXIF time still is', async () => {
     const { value, committed } = deps({ withLocation: false });
     await importPhotoFiles([new File([jpegWithExif()], 'com-exif.jpg', { type: 'image/jpeg' })], target, value);

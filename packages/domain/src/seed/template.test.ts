@@ -3,6 +3,7 @@ import { makeOp } from '../ops/op.ts';
 import { applyOp } from '../ops/apply.ts';
 import { templateRowSchema } from '../schemas/entities.ts';
 import { blockConfigSchema } from '../schemas/block-config.ts';
+import { SEED_VERSION, SEED_VERSIONS } from './definitions.ts';
 import { defaultBlockConfig, STANDARD_TEMPLATE_NAME, standardTemplate, templateBlockTotal, templateTotals } from './template.ts';
 
 const ID = '019966b0-0000-7000-8000-0000000000f1';
@@ -16,14 +17,31 @@ const quantities = (ref: string) => {
 };
 
 describe('standardTemplate', () => {
-  it('is a valid template row named "Cabine primária — padrão" on the current seed (v3 since Story 6.6)', () => {
+  it('is a valid template row named "Cabine primária — padrão" on the current seed (v4 since Story 14.3)', () => {
     expect(templateRowSchema.parse(template)).toEqual(template);
-    expect(template).toMatchObject({ id: ID, name: STANDARD_TEMPLATE_NAME, version: 1, seed_version: 'v3', removed_at: null });
+    expect(template).toMatchObject({ id: ID, name: STANDARD_TEMPLATE_NAME, version: 1, seed_version: 'v4', removed_at: null });
     expect(STANDARD_TEMPLATE_NAME).toBe('Cabine primária — padrão');
   });
 
   it('is pure: the same id builds the same row', () => {
     expect(standardTemplate({ id: ID })).toEqual(template);
+  });
+
+  // Review of batch e14b (2026-10-13): the server's boot step (`upgradeTemplateSeeds`) moves a
+  // template's `seed_version` alone. That loses nothing for an unedited standard template only
+  // while every shipped version builds the same content; a version that changes it must make
+  // the boot step write the blocks and the skeleton too.
+  it('builds the same blocks and skeleton at every shipped seed version, so moving `seed_version` alone equals a rebuild', () => {
+    const versions = Object.keys(SEED_VERSIONS);
+    expect(versions).toContain(SEED_VERSION);
+    expect(versions.length).toBeGreaterThan(1);
+    for (const version of versions) {
+      const built = standardTemplate({ id: ID, seedVersion: version });
+      expect(built.seed_version, version).toBe(version);
+      expect(built.blocks, version).toEqual(template.blocks);
+      expect(built.skeleton, version).toEqual(template.skeleton);
+      expect({ ...built, seed_version: SEED_VERSION }, version).toEqual(template);
+    }
   });
 
   it('starts with the section blocks 1-6, 8, 10 and 11 in order, outside the skeleton', () => {

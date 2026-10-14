@@ -8,7 +8,8 @@ import {
   type SkeletonNode,
   type TemplateBlock,
 } from '../schemas/block-config.ts';
-import type { BlockRow, LocationRow, RelatorioRow, TemplateRow } from '../schemas/entities.ts';
+import { templateRowSchema, type BlockRow, type LocationRow, type RelatorioRow, type TemplateRow } from '../schemas/entities.ts';
+import { SEED_VERSION, SEED_VERSIONS } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import { liveLocationIds } from '../relatorio/location-live.ts';
 import { locationBlocks } from '../relatorio/tree.ts';
@@ -71,11 +72,42 @@ function sameConfig(a: unknown, b: unknown): boolean {
   return keysA.every((key) => sameConfig((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
 }
 
+/** A placeholder id for judging a template's content under another seed version; never stored. */
+const PROBE_TEMPLATE_ID = '00000000-0000-7000-8000-000000000000';
+
+/**
+ * Story 14.3 (how templates reach a new seed version): the seed version a template row should
+ * move to, or null. It is the current `SEED_VERSION` when the row sits on an earlier shipped
+ * version and its blocks and skeleton validate there (`checkTemplateRow` under the new
+ * version: every sub-block, subtype and NA default still exists); null when the row is
+ * already current, sits on a version this bundle does not ship (it cannot be judged), or
+ * would not validate. Only `seed_version` moves: `version`, `blocks` and `skeleton` stay as
+ * they are, and no relatório already made from the template is touched (AR-20).
+ */
+export function templateSeedUpgrade(row: Pick<TemplateRow, 'seed_version' | 'blocks' | 'skeleton'>): string | null {
+  const shipped = Object.keys(SEED_VERSIONS);
+  const at = shipped.indexOf(row.seed_version);
+  if (at === -1 || at >= shipped.indexOf(SEED_VERSION)) return null;
+  const moved = templateRowSchema.safeParse({
+    id: PROBE_TEMPLATE_ID,
+    name: '',
+    version: 0,
+    seed_version: SEED_VERSION,
+    blocks: row.blocks,
+    skeleton: row.skeleton,
+    archived_at: null,
+    removed_at: null,
+  });
+  return moved.success ? SEED_VERSION : null;
+}
+
 /**
  * The Template row "Salvar como template" creates from `snapshot`, under `id` and `name`,
- * on the relatório's seed version, at version 1, live and not archived. A coluna or a
- * painel whose parent is not live is skipped with its blocks (a template's node always sits
- * under a live one), and so is a location nested under a coluna.
+ * at version 1, live and not archived. Story 14.3: on the current `SEED_VERSION` when the
+ * relatório sits on an earlier shipped one (`templateSeedUpgrade`), so a template saved from
+ * an older relatório is born current; otherwise on the relatório's own seed version. A coluna
+ * or a painel whose parent is not live is skipped with its blocks (a template's node always
+ * sits under a live one), and so is a location nested under a coluna.
  */
 export function templateFromRelatorio(
   snapshot: { relatorio: Pick<RelatorioRow, 'seed_version'>; locations: readonly LocationRow[]; blocks: readonly BlockRow[] },
@@ -138,5 +170,7 @@ export function templateFromRelatorio(
     }
   }
 
-  return { id: meta.id, name: meta.name, version: 1, seed_version: seedVersion, blocks, skeleton, archived_at: null, removed_at: null };
+  const row: TemplateRow = { id: meta.id, name: meta.name, version: 1, seed_version: seedVersion, blocks, skeleton, archived_at: null, removed_at: null };
+  const upgraded = templateSeedUpgrade(row);
+  return upgraded === null ? row : { ...row, seed_version: upgraded };
 }

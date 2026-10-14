@@ -60,7 +60,7 @@ export interface LayoutSectionPoints {
   table: ActionPlanRow[];
 }
 
-type Section8Snapshot = Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment' | 'points'>;
+type Section8Snapshot = Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'blocks' | 'equipment' | 'points'>;
 
 /** A cell value: trimmed, "—" when blank or missing. */
 function cell(value: string | null | undefined): string {
@@ -190,9 +190,9 @@ function pointImages(point: Pick<PointRow, 'text' | 'action'>, numbering: Readon
   return numbers.length === 0 ? ACTION_PLAN_NONE : numbers.join(', ');
 }
 
-/** Where a point sits: its equipment as section 8 names it ("SEC-C12 · 1° Subsolo › Coluna 12"); "—" for a general point. */
-function pointLocal(point: Pick<PointRow, 'equipment_id'>, snapshot: Section8Snapshot): string {
-  if (point.equipment_id === null) return ACTION_PLAN_NONE;
+/** Where a point sits: its equipment as section 8 names it ("SEC-C12 · 1° Subsolo › Coluna 12"), or (Story 14.3) the local of a site item's point ("1° Subsolo · Verificações do local"); "—" for a general point. */
+function pointLocal(point: Pick<PointRow, 'equipment_id' | 'location_id'>, snapshot: Section8Snapshot): string {
+  if (point.equipment_id === null && (point.location_id ?? null) === null) return ACTION_PLAN_NONE;
   const title = pointTitle(point, snapshot);
   return title === POINT_TITLE_GENERAL ? ACTION_PLAN_NONE : title;
 }

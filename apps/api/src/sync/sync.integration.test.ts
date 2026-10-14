@@ -6,13 +6,18 @@ import {
   CONTRACT_VERSION_HEADER,
   entityKey,
   errorResponseSchema,
+  generateResponseSchema,
+  locationChecklistPath,
   locationRemovalPlan,
   locationRestorePlan,
   makeOp,
   MIN_CONTRACT_VERSION,
+  photoToken,
   progress,
   replay,
+  revisionRowSchema,
   serializeSnapshot,
+  SITE_ITEM_KEYS,
   splitEntityKey,
   syncPullResponseSchema,
   syncPushResponseSchema,
@@ -38,6 +43,7 @@ import { findUserProfile } from '../db/repositories/users.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { entities, ops, syncDevicePush } from '../db/schema.ts';
 import { newId } from '../ids.ts';
+import { extractStructure } from '../jobs/generate/docx-structure.test-support.ts';
 import { toSnapshot } from './snapshot.ts';
 
 /**
@@ -1069,21 +1075,22 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 
-  it('contract 17 (Story 14.2, matrix "Old client"): a version-16 pull is refused with 426 contract_outdated on every stream, a version-17 pull is answered', async () => {
-    expect(MIN_CONTRACT_VERSION).toBe(17);
+  it('contract 18 (Story 14.3, matrix "Old client"): a version-17 pull is refused with 426 contract_outdated on every stream, a version-18 pull is answered', async () => {
+    expect(CONTRACT_VERSION).toBe(18);
+    expect(MIN_CONTRACT_VERSION).toBe(18);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
-      // 16 is the last version that cannot parse a painel create nor the funcao path; 15 stays refused as since PR #121.
-      for (const version of ['16', '15']) {
+      // 17 is the last version that cannot parse `location/{id}/checklist/...` nor resolve seed v4; 16 stays refused as since Story 14.2.
+      for (const version of ['17', '16']) {
         const old = await pull(companyA, path, version);
         expect(old.status, `${path} at ${version}`).toBe(426);
         expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
       }
     }
-    const current = await pull(companyA, '/api/sync/company?since=0', '17');
+    const current = await pull(companyA, '/api/sync/company?since=0', '18');
     expect(current.status).toBe(200);
     // An outdated client keeps pushing (AD-13): only the pull is refused.
     const batch = [clientCreate(idsA, newId())];
-    const pushed = await push(companyA, { ops: batch }, '16');
+    const pushed = await push(companyA, { ops: batch }, '17');
     expect(pushed.status).toBe(200);
     for (const o of batch) written.opIds.add(o.op_id);
   });
@@ -1388,6 +1395,291 @@ describe('Story 14.2 (contract 17): Local › Painel › Coluna through POST /ap
     expect(await rowOf('block', blockId)).toBeUndefined();
     expect(await rowOf('location', t.painel)).toMatchObject({ name: 'Painel renomeado' });
   });
+});
+
+describe('Story 14.3 (contract 18): Verificações do local through POST /api/sync/ops', () => {
+  const blankSe = { type: null, primary_kv: null, secondary_kv: null, installed_kva: null };
+  const blankEnv = { altitude_m: null, temperature_c: null, humidity_pct: null };
+  const scoped = (relatorioId: string) => ({ scope: 'relatorio' as const, relatorio_id: relatorioId });
+  /** A second tablet of the same user, for the two-device rows of the matrix. */
+  const idsA2: Ids = { ...idsA, device: 'tablet-test-a2' };
+  const EMERGENCIA = 'iluminacao_de_emergencia_autonomia_minima_de_2_h';
+  const EXTINTOR = 'extintor_de_incendio_carregado_lacrado_dentro_da_validade_sinalizado_e_desobstruido';
+  const [LUVAS, TAPETE, VARA] = SITE_ITEM_KEYS;
+  /** What a device stamps on a put over an empty cell (`stampSeen`): it saw nothing standing. */
+  const SAW_EMPTY = { standing_op_id: null, seen_conflict_op_id: null };
+
+  const put = (relatorioId: string, path: string, value: unknown, extra: Partial<OpInput> = {}, ids: Ids = idsA): Op =>
+    op(ids, { ...scoped(relatorioId), kind: 'put', path, value: value as Op['value'], ...extra });
+  const sitePut = (relatorioId: string, locationId: string, itemKey: string, field: 'result' | 'observation', value: unknown, extra: Partial<OpInput> = {}, ids: Ids = idsA): Op =>
+    put(relatorioId, locationChecklistPath(locationId, itemKey, field), value, { meta: SAW_EMPTY, ...extra }, ids);
+  const rowOf = async (entity: string, id: string) =>
+    (await db.select({ row: entities.row }).from(entities).where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, entity), eq(entities.id, id))))[0]?.row;
+
+  function relatorioOn(seedVersion: string, relatorioId: string, projectId: string, status = 'rascunho'): Op {
+    const base = relatorioCreate(idsA, relatorioId, projectId);
+    return { ...base, value: { ...(base.value as Record<string, unknown>), seed_version: seedVersion, status } as Op['value'] };
+  }
+  function locationCreate(relatorioId: string, id: string, kind: 'cabine' | 'painel' | 'coluna', parentId: string | null, name: string): Op {
+    written.entityIds.add(id);
+    const base = { id, relatorio_id: relatorioId, parent_id: parentId, kind, name, order_key: 'a0', removed_at: null };
+    return op(idsA, { ...scoped(relatorioId), kind: 'create', path: `location/${id}`, value: kind === 'cabine' ? { ...base, se: blankSe, env: blankEnv, agrupar_por_tipo: false } : base });
+  }
+
+  /** A relatório on `seedVersion` with one local, one painel under it and one coluna in the painel. */
+  async function site(seedVersion = 'v4', status = 'rascunho') {
+    const ids = { relatorio: newId(), project: newId(), local: newId(), painel: newId(), coluna: newId() };
+    const log = [
+      projectCreate(idsA, ids.project),
+      relatorioOn(seedVersion, ids.relatorio, ids.project, status),
+      locationCreate(ids.relatorio, ids.local, 'cabine', null, 'Cabine de transformação'),
+      locationCreate(ids.relatorio, ids.painel, 'painel', ids.local, 'Painel de média tensão'),
+      locationCreate(ids.relatorio, ids.coluna, 'coluna', ids.painel, 'Coluna 1'),
+    ];
+    const result = await pushOk(companyA, log);
+    expect(result.rejected).toEqual([]);
+    return { ...ids, log };
+  }
+
+  /** Everything the server holds of one relatório stream, removed after a test that let the server write into it (jobs, files, revisions). */
+  async function dropRelatorio(relatorioId: string): Promise<void> {
+    await db.delete(ops).where(and(eq(ops.company_id, companyA.companyId), eq(ops.relatorio_id, relatorioId)));
+    await db.delete(entities).where(and(eq(entities.company_id, companyA.companyId), eq(entities.relatorio_id, relatorioId)));
+  }
+
+  it('matrix "Item answered", "Two devices, same item", "Site photo" and "NC to point": the batch is accepted and the server rows equal the kernel replay of the same log, byte for byte', async () => {
+    const t = await site();
+    const photoId = newId();
+    const pointId = newId();
+    written.entityIds.add(photoId).add(pointId);
+    const c = sitePut(t.relatorio, t.local, LUVAS!, 'result', 'C');
+    const photoBase = relatorioFileCreate(idsA, t.relatorio, photoId, 'photo');
+    const edits = [
+      c,
+      // Sequential on one device: C, then NC over it, with its observation.
+      sitePut(t.relatorio, t.local, LUVAS!, 'result', 'NC', { prev_op_id: c.op_id, meta: { standing_op_id: c.op_id, seen_conflict_op_id: null } }),
+      sitePut(t.relatorio, t.local, LUVAS!, 'observation', 'Luvas com furos ou ressecadas'),
+      sitePut(t.relatorio, t.local, EXTINTOR, 'result', 'C'),
+      sitePut(t.relatorio, t.local, EXTINTOR, 'observation', 'CO2 6 kg dentro da sala, validade 03/2027'),
+      sitePut(t.relatorio, t.local, 'bacia_de_contencao_de_oleo', 'result', 'NA'),
+      // Two devices, the same item, neither saw the other: C lands first, NC stands.
+      sitePut(t.relatorio, t.local, EMERGENCIA, 'result', 'C'),
+      sitePut(t.relatorio, t.local, EMERGENCIA, 'result', 'NC', {}, idsA2),
+      sitePut(t.relatorio, t.local, EMERGENCIA, 'observation', 'Luminária de emergência inoperante', {}, idsA2),
+      // The other order: NC lands first, the concurrent C does not displace it.
+      sitePut(t.relatorio, t.local, TAPETE!, 'result', 'NC', {}, idsA2),
+      sitePut(t.relatorio, t.local, TAPETE!, 'result', 'C'),
+      // Different items on two devices both stand.
+      sitePut(t.relatorio, t.local, VARA!, 'result', 'C', {}, idsA2),
+      // An answer, then cleared (the undo of a put): unanswered again.
+      sitePut(t.relatorio, t.local, 'ventilacao', 'result', null),
+      // A photo on the NC item and the point created from it.
+      { ...photoBase, value: { ...(photoBase.value as Record<string, unknown>), item_key: EMERGENCIA, location_id: t.local } as Op['value'] },
+      put(t.relatorio, `file/${photoId}/caption`, 'Verificação de iluminação de emergência (autonomia mínima de 2 h) da Cabine de transformação'),
+      op(idsA, {
+        ...scoped(t.relatorio),
+        kind: 'create',
+        path: `point/${pointId}`,
+        value: {
+          id: pointId,
+          relatorio_id: t.relatorio,
+          text: `Luminária de emergência inoperante ${photoToken(photoId)}`,
+          equipment_id: null,
+          origin: 'manual',
+          order_key: 'a0',
+          removed_at: null,
+          action: null,
+          priority: null,
+          deadline: null,
+          owner: null,
+          location_id: t.local,
+        },
+      }),
+    ];
+    const result = await pushOk(companyA, edits);
+    expect(result.rejected).toEqual([]);
+    expect(result.applied.map((a) => a.op_id)).toEqual(edits.map((o) => o.op_id));
+
+    const pure = replay([...t.log, ...edits].map((o, i) => ({ ...o, seq: i + 1 })));
+    const checks: [string, string][] = [
+      ['location', t.local],
+      ['location', t.painel],
+      ['location', t.coluna],
+      ['file', photoId],
+      ['point', pointId],
+      ['relatorio', t.relatorio],
+    ];
+    for (const [entity, id] of checks) {
+      const server = await rowOf(entity, id);
+      expect(server, `${entity} ${id}`).toBeDefined();
+      expect(canonicalJson(server as never), `${entity} ${id}`).toBe(canonicalJson(pure.get(entityKey(entity as never, id)) as never));
+    }
+    const local = (await rowOf('location', t.local)) as unknown as { checklist: Record<string, { result?: { value: unknown; merge?: { rule: string } }; observation?: { value: unknown } }> };
+    expect(local.checklist[LUVAS!]).toMatchObject({ result: { value: 'NC' }, observation: { value: 'Luvas com furos ou ressecadas' } });
+    expect(local.checklist[EXTINTOR]).toMatchObject({ result: { value: 'C' }, observation: { value: 'CO2 6 kg dentro da sala, validade 03/2027' } });
+    expect(local.checklist.bacia_de_contencao_de_oleo).toMatchObject({ result: { value: 'NA' } });
+    // NC stands over a concurrent C whichever landed first (`nc_over_c`), with the NC device's observation.
+    expect(local.checklist[EMERGENCIA]).toMatchObject({ result: { value: 'NC', merge: { rule: 'nc_over_c' } }, observation: { value: 'Luminária de emergência inoperante' } });
+    expect(local.checklist[TAPETE!]).toMatchObject({ result: { value: 'NC', merge: { rule: 'nc_over_c' } } });
+    expect(local.checklist[VARA!]).toMatchObject({ result: { value: 'C' } });
+    expect(local.checklist.ventilacao).toMatchObject({ result: { value: null } });
+    expect(await rowOf('file', photoId)).toMatchObject({ location_id: t.local, item_key: EMERGENCIA, block_id: null });
+    expect(await rowOf('point', pointId)).toMatchObject({ location_id: t.local, equipment_id: null });
+    // A painel and a coluna hold no checklist.
+    expect(await rowOf('location', t.painel)).not.toHaveProperty('checklist');
+
+    // The stream carries the site puts for every device on contract 18.
+    const page = await pullOk(companyA, `/api/sync/relatorios/${t.relatorio}?since=0`);
+    const paths = (page.ops as Op[]).map((o) => o.path);
+    expect(paths.filter((path) => path.startsWith(`location/${t.local}/checklist/`))).toHaveLength(13);
+    expect(paths).toContain(locationChecklistPath(t.local, EMERGENCIA, 'result'));
+  });
+
+  it('matrix "Wrong kind" and "Wrong key or seed": every refusal is answered per op with 200 and writes nothing (op_invalid for a wrong kind or seed, op_path_unknown for a path no family parses, as every such path); the rest of the push applies', async () => {
+    const t = await site();
+    const old = await site('v3');
+    const before = { local: await rowOf('location', t.local), painel: await rowOf('location', t.painel), coluna: await rowOf('location', t.coluna), oldLocal: await rowOf('location', old.local) };
+    const good = sitePut(t.relatorio, t.local, EMERGENCIA, 'result', 'NC');
+    /** A well-formed op whose path is replaced after `makeOp`: the route must answer it, not the helper. */
+    const withPath = (path: string): Op => ({ ...sitePut(t.relatorio, t.local, EMERGENCIA, 'result', 'C'), path });
+    const invalid = [
+      // Wrong kind: the checklist lives on the local, never on a painel or a coluna (`LocationKindError`).
+      sitePut(t.relatorio, t.painel, EMERGENCIA, 'result', 'C'),
+      sitePut(t.relatorio, t.coluna, EMERGENCIA, 'observation', 'x'),
+      // Wrong seed: a relatório on v3 ships no site list (`SeedPathError`).
+      sitePut(old.relatorio, old.local, EMERGENCIA, 'result', 'C'),
+      sitePut(old.relatorio, old.local, EXTINTOR, 'observation', 'x'),
+      // Put only: the family takes no remove.
+      { ...sitePut(t.relatorio, t.local, EMERGENCIA, 'result', null), kind: 'remove' as const },
+    ];
+    // Wrong key: a sheet item key, a key no list holds, and a field the family does not have.
+    // `parsePath` knows no such path, so the route answers what it answers every unknown path.
+    const unknown = [
+      withPath(`location/${t.local}/checklist/contatos/result`),
+      withPath(`location/${t.local}/checklist/item_inexistente/observation`),
+      withPath(`location/${t.local}/checklist/${EMERGENCIA}/photo`),
+    ];
+    const refused = [...invalid, ...unknown];
+    const result = await pushOk(companyA, [...refused, good]);
+    expect(result.rejected).toEqual([
+      ...invalid.map((o) => ({ op_id: o.op_id, code: 'op_invalid' })),
+      ...unknown.map((o) => ({ op_id: o.op_id, code: 'op_path_unknown' })),
+    ]);
+    expect(result.applied.map((a) => a.op_id)).toEqual([good.op_id]);
+
+    const stored = await storedIds([...refused.map((o) => o.op_id), good.op_id]);
+    for (const o of refused) expect(stored.has(o.op_id), `${o.kind} ${o.path}`).toBe(false);
+    expect(stored.has(good.op_id)).toBe(true);
+    expect(await rowOf('location', t.painel)).toEqual(before.painel);
+    expect(await rowOf('location', t.coluna)).toEqual(before.coluna);
+    expect(await rowOf('location', old.local)).toEqual(before.oldLocal);
+    // Only the good put changed the local.
+    expect(await rowOf('location', t.local)).toEqual({ ...(before.local as object), checklist: { [EMERGENCIA]: { result: { value: 'NC', source_suggestion_id: null, op_id: good.op_id } } } });
+  });
+
+  it('a client batch holding one refused site put is refused whole, as any batch with a permanent refusal is', async () => {
+    const t = await site();
+    const batchId = newId();
+    const batch = [
+      sitePut(t.relatorio, t.local, EMERGENCIA, 'result', 'C', { batch_id: batchId }),
+      sitePut(t.relatorio, t.painel, EMERGENCIA, 'result', 'C', { batch_id: batchId }),
+    ];
+    const alone = sitePut(t.relatorio, t.local, EXTINTOR, 'result', 'NA');
+    const result = await pushOk(companyA, [...batch, alone]);
+    expect(result.rejected).toEqual(batch.map((o) => ({ op_id: o.op_id, code: 'op_invalid' })));
+    expect(result.applied.map((a) => a.op_id)).toEqual([alone.op_id]);
+    expect(await rowOf('location', t.local)).toMatchObject({ checklist: { [EXTINTOR]: { result: { value: 'NA' } } } });
+    expect(((await rowOf('location', t.local)) as unknown as { checklist: Record<string, unknown> }).checklist[EMERGENCIA]).toBeUndefined();
+  });
+
+  it(
+    'matrix "Edit in Emitido": with nothing edited the generate answers unchanged; a site put on the Emitido relatório makes the next generate build revision 2, whose document prints the answer',
+    async () => {
+      const t = await site('v4', 'em_revisao');
+      const generate = (lastOpId: string | null) =>
+        authed(companyA, `/api/relatorios/${t.relatorio}/generate`, { method: 'POST', body: JSON.stringify({ last_op_id: lastOpId, file_ids_expected: [] }) });
+      /** Every op of the relatório stream, page by page. */
+      const pullAll = async (): Promise<Op[]> => {
+        const all: Op[] = [];
+        let since = 0;
+        for (;;) {
+          const page = await pullOk(companyA, `/api/sync/relatorios/${t.relatorio}?since=${since}`);
+          const pageOps = page.ops as Op[];
+          all.push(...pageOps);
+          const last = pageOps.at(-1)?.seq;
+          if (last === undefined || last === null || last >= page.seq) return all;
+          since = last;
+        }
+      };
+      /** Polls the stream until the revision with `number` exists, or the job failed. */
+      const waitForRevision = async (jobId: string, number: number) => {
+        const deadline = Date.now() + 150_000;
+        for (;;) {
+          const pulled = await pullAll();
+          if (pulled.some((o) => o.path === `generation_job/${jobId}/status` && o.value === 'failed')) {
+            throw new Error(`generate job ${jobId} failed: ${String(pulled.find((o) => o.path === `generation_job/${jobId}/error`)?.value)}`);
+          }
+          const created = pulled.find((o) => o.kind === 'create' && o.path.startsWith('revision/') && (o.value as { number: number }).number === number);
+          if (created !== undefined && pulled.some((o) => o.path === `generation_job/${jobId}/result`)) return revisionRowSchema.parse(created.value);
+          if (Date.now() > deadline) throw new Error(`revision ${number} did not arrive`);
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
+      };
+      try {
+        // In the field: one site answer and the parecer (the only blocking pre-issue row).
+        const answered = sitePut(t.relatorio, t.local, EXTINTOR, 'result', 'C');
+        const parecer = setupPut(idsA, t.relatorio, 'parecer', { verdict: 'apto_com_restricoes', text: null, text_status: null, text_basis: null });
+        expect((await pushOk(companyA, [answered, parecer])).rejected).toEqual([]);
+
+        const first = await generate(parecer.op_id);
+        expect(first.status, await first.clone().text()).toBe(202);
+        const queued = generateResponseSchema.parse(await first.json());
+        if (queued.outcome !== 'queued') throw new Error(`expected queued, got ${queued.outcome}`);
+        expect(queued.revision_number).toBe(1);
+        const revision1 = await waitForRevision(queued.job_id, 1);
+
+        // "Marcar como enviado ao cliente": Emitido. The status itself is never an edit, so the generate answers the revision it has.
+        const issued = put(t.relatorio, 'relatorio/status', 'emitido');
+        expect((await pushOk(companyA, [issued])).rejected).toEqual([]);
+        expect(await rowOf('relatorio', t.relatorio)).toMatchObject({ status: 'emitido' });
+        const same = await generate(issued.op_id);
+        expect(same.status, await same.clone().text()).toBe(200);
+        expect(generateResponseSchema.parse(await same.json())).toEqual({ outcome: 'unchanged', revision_id: revision1.id, revision_number: 1 });
+
+        // A site item answered on the Emitido relatório, in the batch the device writes: the put and the Em revisão status op.
+        const batchId = newId();
+        const nc = sitePut(t.relatorio, t.local, EMERGENCIA, 'result', 'NC', { batch_id: batchId });
+        const observation = sitePut(t.relatorio, t.local, EMERGENCIA, 'observation', 'Duas luminárias de emergência sem carga', { batch_id: batchId });
+        const reopened = put(t.relatorio, 'relatorio/status', 'em_revisao', { batch_id: batchId, prev_op_id: issued.op_id });
+        expect((await pushOk(companyA, [nc, observation, reopened])).rejected).toEqual([]);
+        expect(await rowOf('relatorio', t.relatorio)).toMatchObject({ status: 'em_revisao' });
+
+        const second = await generate(reopened.op_id);
+        expect(second.status, await second.clone().text()).toBe(202);
+        const requeued = generateResponseSchema.parse(await second.json());
+        if (requeued.outcome !== 'queued') throw new Error(`expected queued, got ${requeued.outcome}`);
+        expect(requeued.revision_number).toBe(2);
+        const revision2 = await waitForRevision(requeued.job_id, 2);
+        expect(revision2.number).toBe(2);
+        expect(revision2.id).not.toBe(revision1.id);
+        expect(revision2.snapshot_seq).toBeGreaterThan(revision1.snapshot_seq);
+
+        // The document of revision 2 prints the local with its site table and the answers, though the local holds no equipment.
+        const res = await authed(companyA, `/api/revisions/${revision2.id}/docx`);
+        expect(res.status).toBe(200);
+        const structure = extractStructure(Buffer.from(await res.arrayBuffer()));
+        expect(structure.headings.filter((h) => h.level === 2).map((h) => h.text)).toEqual(['9.1 Cabine de transformação']);
+        const tables = structure.tables.filter((table) => table[0]![0] === 'VERIFICAÇÕES DO LOCAL');
+        expect(tables).toHaveLength(1);
+        expect(tables[0]).toContainEqual(['8. EXTINTOR DE INCÊNDIO CARREGADO, LACRADO, DENTRO DA VALIDADE, SINALIZADO E DESOBSTRUÍDO', 'X', '', '', '']);
+        expect(tables[0]).toContainEqual(['11. ILUMINAÇÃO DE EMERGÊNCIA (AUTONOMIA MÍNIMA DE 2 H)', '', 'X', '', 'Duas luminárias de emergência sem carga']);
+        expect(structure.tables[1]![1]).toEqual(['Revisão do documento', 'Rev. 2']);
+      } finally {
+        await dropRelatorio(t.relatorio);
+      }
+    },
+    360_000,
+  );
 });
 
 describe('Story 14.2, second pass: a location removal batch and its restore through POST /api/sync/ops', () => {

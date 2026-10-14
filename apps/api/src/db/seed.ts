@@ -267,6 +267,12 @@ export async function seedUser(
  * the older version. When nobody has edited it (`version` still the seeded 1), the seed moves
  * it to the current version in one server batch (`upgradeStandardTemplate`); an edited one
  * keeps its version (AR-20), and so does every relatório already made from it.
+ *
+ * 2026-10-13 (Story 14.3, review of batch e14b): this describes the seed path alone. The
+ * server's boot step (`upgradeTemplateSeeds`, `template-seed-upgrade.ts`) now moves the
+ * `seed_version` of every live template that validates on the current version, edited ones
+ * included, before this ever runs; on a started server the upgrade below finds nothing to do.
+ * It stays for a database seeded with no server start in between.
  */
 export async function seedStandardTemplate(db: Db, companyId: CompanyId): Promise<string | null> {
   const existing = await seededTemplate(db, companyId);
@@ -438,7 +444,16 @@ async function upgradeStandardTemplate(
   }
 }
 
-/** An unedited seeded template (`version` still 1) at an older seed version. */
+/**
+ * An unedited seeded template (`version` still 1) at an older seed version.
+ *
+ * 2026-10-13 (review of batch e14b): false for every template the boot step
+ * (`upgradeTemplateSeeds`) already moved, which is every live one that validates on the
+ * current version, edited or not. That step writes `seed_version` alone, so the refresh of
+ * blocks and skeleton above no longer runs for them; nothing is lost while `standardTemplate`
+ * builds the same blocks and skeleton at every shipped version (pinned in the kernel's
+ * `seed/template.test.ts`). A version that changes them must make the boot step write them.
+ */
 function needsUpgrade(row: { seed_version?: unknown; version?: unknown }): boolean {
   return row.seed_version !== SEED_VERSION && row.version === 1;
 }

@@ -4,7 +4,8 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { cabineOf } from '../relatorio/cabine.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import type { SheetStep } from '../relatorio/sheet-progress.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { siteLocalOf } from '../relatorio/site-checklist.ts';
+import { getDefinition, siteItems } from '../seed/definitions.ts';
 import type { SeedWord } from '../seed/schema.ts';
 
 /*
@@ -267,15 +268,54 @@ export function captionPartsOf(
 }
 
 /**
+ * A site item's label as a caption noun. The seed stores these labels in sentence case, so
+ * only the first letter is lowered ("Iluminação normal" gives "iluminação normal"), and a
+ * leading acronym is kept ("EPI disponível").
+ */
+function siteItemNoun(label: string): string {
+  const first = label.trim().split(/\s+/)[0] ?? '';
+  const acronym = first.length > 1 && first === first.toLocaleUpperCase('pt-BR') && /\p{L}/u.test(first);
+  const text = label.trim();
+  return acronym ? text : text.charAt(0).toLocaleLowerCase('pt-BR') + text.slice(1);
+}
+
+/**
+ * Story 14.3: the caption a site-item photo is born with, "Verificação de ⟨item⟩ d⟨o/a⟩(s)
+ * ⟨local⟩" ("Verificação de iluminação de emergência (autonomia mínima de 2 h) do 1° Subsolo"):
+ * the item's label as a caption noun and the live local it was answered on, agreeing with the
+ * local's name as every caption does. Null when the photo names no site item of the relatório's
+ * list or no live local. Its own sentence, not `composeCaption`'s grammar: nothing is "realizado"
+ * on an equipment here, the item is a condition of the room.
+ */
+export function siteCaption(
+  photo: { item_key: string | null; location_id?: string | null },
+  snapshot: Pick<RelatorioSnapshot, 'relatorio' | 'locations'>,
+  meta: Pick<ContextCaptionMeta, 'words' | 'registry'>,
+): string | null {
+  const locationId = photo.location_id ?? null;
+  if (locationId === null || photo.item_key === null) return null;
+  const local = siteLocalOf(snapshot, locationId);
+  const item = siteItems(snapshot.relatorio.seed_version).find((row) => row.key === photo.item_key);
+  if (local === null || item === undefined) return null;
+  const name = local.name.trim();
+  // authored: 2026-10-13, the wording of the batch spec's matrix (open for Bruno).
+  const head = `Verificação de ${siteItemNoun(item.label)}`;
+  return name === '' ? head : `${head} d${article(locationAgreement(name, meta))} ${name}`;
+}
+
+/**
  * The caption of a photo taken where the engineer stands: equipment and location from its
- * sheet, activity from the section on screen (an NC row's item, or the test table). Null
- * when no part is known (a photo with no sheet).
+ * sheet, activity from the section on screen (an NC row's item, or the test table). Story
+ * 14.3: a photo of a site item (no sheet, a `location_id` and an `item_key`) reads
+ * `siteCaption`; a row carrying both a block and a local is its block's. Null when no part is
+ * known (a photo with no sheet and no site item).
  */
 export function contextCaption(
-  photo: { block_id: string | null; item_key: string | null },
+  photo: { block_id: string | null; item_key: string | null; location_id?: string | null },
   snapshot: RelatorioSnapshot,
   meta: ContextCaptionMeta,
 ): string | null {
+  if (photo.block_id === null) return siteCaption(photo, snapshot, meta);
   return composeCaption(contextCaptionParts(photo, snapshot, meta));
 }
 

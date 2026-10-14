@@ -4,7 +4,7 @@ import { actorIdSchema, uuidV7Schema } from '../ids.ts';
 import { CELL_MERGE_RULES } from '../merge/rules.ts';
 import { NOT_TESTED_REASON_KEYS } from '../seed/definitions.ts';
 import { checkTemplateRow } from '../seed/template-rules.ts';
-import { funcaoSchema, nodeNameSchema, skeletonNodeSchema, templateBlockSchema } from './block-config.ts';
+import { funcaoSchema, nodeNameSchema, siteItemKeySchema, skeletonNodeSchema, templateBlockSchema } from './block-config.ts';
 import { councilSchema } from './council.ts';
 import { AUDIT_RUN_STATUSES, auditFindingSchema } from '../audit/schema.ts';
 
@@ -92,6 +92,14 @@ export const cellSchema = z.object({
 export type Cell = z.infer<typeof cellSchema>;
 
 const cellMap = z.record(z.string(), cellSchema);
+
+/**
+ * One checklist item as a row holds it: its C · NC · NA result and its observation, each a
+ * cell. The one shape of a sheet's `VERIFICAÇÕES GERAIS` item and (Story 14.3) of a local's
+ * site item, so one merge policy (`merge/policy.ts`) serves both.
+ */
+export const checklistEntrySchema = z.object({ result: cellSchema.optional(), observation: cellSchema.optional() });
+export type ChecklistEntry = z.infer<typeof checklistEntrySchema>;
 
 // --- company scope ---------------------------------------------------------
 
@@ -357,6 +365,12 @@ const locationBase = {
  * block (`LocationKindError`, `ops/apply.ts`). A `coluna` is a child of a painel, or, as every
  * row written before the painel level, of a cabine. `funcao` is optional: absent and null
  * both mean none, so a row stored before the field existed parses to the same bytes.
+ *
+ * Story 14.3 (contract 18): `checklist` is the local's site checklist ("Verificações do
+ * local"), one entry per answered `SITE_ITEM_KEYS` item, written only through
+ * `location/{id}/checklist/{item_key}/{result|observation}` and only on a cabine. Optional
+ * like `funcao`: a row that never took an answer holds no key, so no stored row changes bytes.
+ * Which relatórios have a checklist at all is their seed version's (`siteChecklistOf`).
  */
 export const locationRowSchema = z.discriminatedUnion('kind', [
   z.object({
@@ -366,6 +380,7 @@ export const locationRowSchema = z.discriminatedUnion('kind', [
     env: locationEnvSchema,
     agrupar_por_tipo: z.boolean(),
     funcao: funcaoSchema.nullable().optional(),
+    checklist: z.partialRecord(siteItemKeySchema, checklistEntrySchema).optional(),
   }),
   z.object({ ...locationBase, kind: z.literal('coluna') }),
   // Appended (Story 14.2).
@@ -384,10 +399,7 @@ export const concludedBySchema = z.object({ actor_id: actorIdSchema, at: isoTime
 
 export const sheetSchema = z.object({
   nameplate: cellMap,
-  checklist: z.record(
-    z.string(),
-    z.object({ result: cellSchema.optional(), observation: cellSchema.optional() }),
-  ),
+  checklist: z.record(z.string(), checklistEntrySchema),
   test: z.record(
     z.string(),
     z.object({
@@ -502,6 +514,13 @@ export const photoFileRowSchema = z.object({
    * marked photo is never sent to the prose provider; a row written before the mark reads false.
    */
   people_in_photo: z.boolean().default(false),
+  /**
+   * Story 14.3 (contract 18): the local a site-item photo belongs to, beside `block_id`; with
+   * `item_key` it names one item of that local's "Verificações do local". Optional: absent and
+   * null both mean none, so a row stored before the field existed parses to the same bytes. A
+   * row carrying both `block_id` and `location_id` is read as its block's.
+   */
+  location_id: nullableId.optional(),
 });
 
 export const otherFileKindSchema = z.enum([
@@ -541,6 +560,12 @@ export const pointRowSchema = z.object({
   priority: pointPrioritySchema.nullable().default(null),
   deadline: dateValueSchema.nullable().default(null),
   owner: nullableString.default(null),
+  /**
+   * Story 14.3 (contract 18): the local a point created from a site item belongs to (its
+   * `equipment_id` is null). Optional: absent and null both mean none, so a row stored before
+   * the field existed parses to the same bytes. Written at create or through `point/{id}/location_id`.
+   */
+  location_id: nullableId.optional(),
 });
 
 /**

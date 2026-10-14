@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { opLog } from '../../fixtures/replay-small/op-log.ts';
-import { FAMILIES, formatPath, isServerOnly, opPathSchema, parsePath, PathError, targetOf, type OpPath } from './path.ts';
+import { SITE_ITEM_KEYS } from '../schemas/block-config.ts';
+import { opFactory } from '../test-support.ts';
+import { opSchema } from './op.ts';
+import { FAMILIES, FILE_FIELDS, formatPath, isCreateFamily, isServerOnly, opPathSchema, parsePath, pathField, PathError, safeParsePath, targetOf, type OpPath } from './path.ts';
 import * as builders from './path.ts';
 
 const ID = '019966b0-0000-7000-8000-0000000000aa';
@@ -37,6 +40,11 @@ const EXTRA_PATHS = [
   `audit_run/${ID}/findings`,
   // Story 14.2 (contract 17): a local's Função.
   `location/${ID}/funcao`,
+  // Story 14.3 (contract 18): a local's site checklist, and the local of a site photo and of a site point.
+  `location/${ID}/checklist/epi_disponivel/result`,
+  `location/${ID}/checklist/epi_disponivel/observation`,
+  `file/${ID}/location_id`,
+  `point/${ID}/location_id`,
 ];
 
 describe('1.4-UNIT-001 path round trip', () => {
@@ -52,7 +60,7 @@ describe('1.4-UNIT-001 path round trip', () => {
     const seen = new Set(paths.map((p) => parsePath(p).family));
     const missing = FAMILIES.map((f) => f.family).filter((f) => !seen.has(f));
     expect(missing).toEqual([]);
-    expect(FAMILIES.length).toBe(43);
+    expect(FAMILIES.length).toBe(44);
   });
 
   it('returns typed segments', () => {
@@ -224,6 +232,16 @@ describe('E5-A5 typed path builders round-trip through parsePath', () => {
     [builders.templatePath(ID), { family: 'template', id: ID }],
     [builders.templateFieldPath(ID, 'archived_at'), { family: 'template/field', id: ID, field: 'archived_at' }],
     [builders.userFieldPath(ID, 'council'), { family: 'user/field', id: ID, field: 'council' }],
+    [
+      builders.locationChecklistPath(ID, 'iluminacao_normal', 'result'),
+      { family: 'location/checklist', id: ID, item_key: 'iluminacao_normal', field: 'result' },
+    ],
+    [
+      builders.locationChecklistPath(ID, 'ventilacao', 'observation'),
+      { family: 'location/checklist', id: ID, item_key: 'ventilacao', field: 'observation' },
+    ],
+    [builders.fileFieldPath(ID, 'location_id'), { family: 'file/field', id: ID, field: 'location_id' }],
+    [builders.pointFieldPath(ID, 'location_id'), { family: 'point/field', id: ID, field: 'location_id' }],
   ];
 
   it.each(cases)('%s parses back to its family and segments', (path, expected) => {
@@ -235,6 +253,61 @@ describe('E5-A5 typed path builders round-trip through parsePath', () => {
     const built = new Set(cases.map(([path]) => parsePath(path).family));
     const deviceFamilies = FAMILIES.filter((def) => def.serverOnly !== true).map((def) => def.family);
     expect([...built].sort()).toEqual([...deviceFamilies].sort());
+  });
+});
+
+describe('Story 14.3 (contract 18): location/{id}/checklist/{item_key}/{result|observation}', () => {
+  const path = (itemKey: string, field: string) => `location/${ID}/checklist/${itemKey}/${field}`;
+
+  it('parses every one of the 19 site item keys on both fields, round-trips and targets the location row', () => {
+    expect(SITE_ITEM_KEYS).toHaveLength(19);
+    for (const itemKey of SITE_ITEM_KEYS) {
+      for (const field of ['result', 'observation'] as const) {
+        const parsed = parsePath(path(itemKey, field));
+        expect(parsed).toEqual({ family: 'location/checklist', id: ID, item_key: itemKey, field });
+        expect(formatPath(parsed)).toBe(path(itemKey, field));
+        expect(builders.locationChecklistPath(ID, itemKey, field)).toBe(path(itemKey, field));
+        expect(targetOf(parsed)).toEqual({ entity: 'location', id: ID });
+        expect(pathField(parsed)).toBe(field);
+        expect(isCreateFamily(parsed)).toBe(false);
+        expect(isServerOnly(parsed)).toBe(false);
+      }
+    }
+  });
+
+  it('matrix "Wrong key": an item key outside SITE_ITEM_KEYS fails parsePath, a sheet item key included', () => {
+    for (const itemKey of ['extintor', 'limpeza', 'no_break_de_comando', 'item_1', 'EPI_DISPONIVEL', '*']) {
+      expect(() => parsePath(path(itemKey, 'result')), itemKey).toThrow(PathError);
+      expect(safeParsePath(path(itemKey, 'observation')), itemKey).toBeNull();
+    }
+    expect(() => parsePath(path('epi_disponivel', 'photo'))).toThrow(/unknown field "photo" for location/);
+    expect(() => parsePath(`location/${ID}/checklist/epi_disponivel`)).toThrow(PathError);
+    expect(() => parsePath(`location/${ID}/checklist/epi_disponivel/result/extra`)).toThrow(PathError);
+    expect(() => parsePath('location/not-a-uuid/checklist/epi_disponivel/result')).toThrow(/not a uuidv7/);
+    // A hand-built path object is checked by the schema too.
+    expect(opPathSchema.safeParse({ family: 'location/checklist', id: ID, item_key: 'limpeza', field: 'result' }).success).toBe(false);
+    expect(opPathSchema.safeParse({ family: 'location/checklist', id: ID, item_key: 'ventilacao', field: 'result' }).success).toBe(true);
+  });
+
+  it('is put only at the push boundary: a create and a remove fail opSchema, and so does a put with a key outside the list', () => {
+    const f = opFactory();
+    const put = f.op({ path: path('ventilacao', 'result'), value: 'NC' });
+    expect(opSchema.safeParse(put).success).toBe(true);
+    expect(opSchema.safeParse({ ...put, value: null }).success).toBe(true);
+    expect(opSchema.safeParse({ ...put, kind: 'remove', value: null }).success).toBe(false);
+    expect(opSchema.safeParse({ ...put, kind: 'create' }).success).toBe(false);
+    expect(opSchema.safeParse({ ...put, path: path('limpeza', 'result') }).success).toBe(false);
+    // A location row is relatório scope: the op names its relatório.
+    expect(opSchema.safeParse({ ...put, relatorio_id: null }).success).toBe(false);
+    expect(opSchema.safeParse({ ...put, scope: 'company', relatorio_id: null }).success).toBe(false);
+  });
+
+  it('`location_id` is a writable field of a photo and of a point, appended to FILE_FIELDS', () => {
+    expect(FILE_FIELDS[FILE_FIELDS.length - 1]).toBe('location_id');
+    expect(parsePath(`file/${ID}/location_id`)).toEqual({ family: 'file/field', id: ID, field: 'location_id' });
+    expect(parsePath(`point/${ID}/location_id`)).toEqual({ family: 'point/field', id: ID, field: 'location_id' });
+    // A location's own `checklist` is never a plain `location/field`: only the cell family writes it.
+    expect(() => parsePath(`location/${ID}/checklist`)).toThrow(PathError);
   });
 });
 

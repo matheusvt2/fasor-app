@@ -10,6 +10,7 @@ import {
   type Entity,
   type RegistryKind,
 } from '../schemas/entities.ts';
+import { SITE_ITEM_KEYS, siteItemKeySchema } from '../schemas/block-config.ts';
 
 /*
  * AD-3: `OpPath` is a discriminated union of families, read and written only
@@ -50,8 +51,9 @@ export const EQUIPMENT_FIELDS = ['tag', 'removed_at'] as const;
  * "Fotografar equipamento" confirm re-targets its panel photo to the new block's plate (a
  * `reading_kind` put re-queues the reading, `ops/apply.ts`).
  * Story 9.3 (contract 8): `people_in_photo`, the "Pessoas na foto" mark.
+ * Story 14.3 (contract 18): `location_id`, the local of a site-item photo, beside `block_id`.
  */
-export const FILE_FIELDS = ['caption', 'block_id', 'item_key', 'removed_at', 'reading_kind', 'reading_target', 'people_in_photo'] as const;
+export const FILE_FIELDS = ['caption', 'block_id', 'item_key', 'removed_at', 'reading_kind', 'reading_target', 'people_in_photo', 'location_id'] as const;
 export const FILE_SERVER_FIELDS = ['uploaded_at', 'variants', 'reading_status'] as const;
 export const GENERATION_JOB_FIELDS = ['status', 'error', 'result_file_id', 'result', 'started_at'] as const;
 /** Story 13.8 (contract 15): the fields the audit job writes on its `audit_run` row. */
@@ -148,6 +150,13 @@ export const opPathSchema = z.discriminatedUnion('family', [
   z.object({ family: z.literal('audit_run/field'), id: uuidV7Schema, field: z.enum(AUDIT_RUN_FIELDS) }),
   // Story 14.2 (contract 17): a local's Função, valid on a `kind = cabine` row only (`LocationKindError`).
   z.object({ family: z.literal('location/funcao'), id: uuidV7Schema }),
+  // Story 14.3 (contract 18): one cell of a local's site checklist, valid on a `kind = cabine` row only.
+  z.object({
+    family: z.literal('location/checklist'),
+    id: uuidV7Schema,
+    item_key: siteItemKeySchema,
+    field: z.enum(CHECKLIST_FIELDS),
+  }),
 ]);
 
 export type OpPath = z.infer<typeof opPathSchema>;
@@ -304,6 +313,16 @@ export const FAMILIES: readonly FamilyDef[] = [
   // a typed name, or null. Sits beside `location/agrupar_por_tipo` in meaning; appended here
   // because the family list is append-only.
   { family: 'location/funcao', entity: 'location', segments: [lit('location'), id(), lit('funcao')] },
+  // Story 14.3 (contract 18): `location/{id}/checklist/{item_key}/{result|observation}`, put
+  // only: one cell of a local's "Verificações do local", folded through `mergeCell` like a
+  // sheet's checklist cell. `item_key` is one of the closed `SITE_ITEM_KEYS`; whether the
+  // relatório's seed version offers it is `applyOp`'s check (`SeedPathError`), and the row
+  // must be a cabine (`LocationKindError`).
+  {
+    family: 'location/checklist',
+    entity: 'location',
+    segments: [lit('location'), id(), lit('checklist'), en(SITE_ITEM_KEYS, 'item_key'), en(CHECKLIST_FIELDS)],
+  },
 ];
 
 const BY_FAMILY: ReadonlyMap<PathFamily, FamilyDef> = new Map(FAMILIES.map((f) => [f.family, f]));
@@ -483,6 +502,9 @@ export const locationSePath = (id: string, field: string): string => formatPath(
 export const locationEnvPath = (id: string, field: string): string => formatPath({ family: 'location/env', id, field });
 export const locationAgruparPath = (id: string): string => formatPath({ family: 'location/agrupar_por_tipo', id });
 export const locationFuncaoPath = (id: string): string => formatPath({ family: 'location/funcao', id });
+/** Story 14.3: one cell of a local's site checklist. `formatPath` only joins: an `itemKey` outside `SITE_ITEM_KEYS` fails where every op is checked (`opSchema`). */
+export const locationChecklistPath = (id: string, itemKey: string, field: (typeof CHECKLIST_FIELDS)[number]): string =>
+  formatPath({ family: 'location/checklist', id, item_key: itemKey as (typeof SITE_ITEM_KEYS)[number], field });
 export const blockPath = (id: string): string => formatPath({ family: 'block', id });
 export const blockFieldPath = (id: string, field: (typeof BLOCK_FIELDS)[number]): string => formatPath({ family: 'block/field', id, field });
 export const sheetNameplatePath = (blockId: string, fieldKey: string): string =>

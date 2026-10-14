@@ -1,13 +1,14 @@
 import { formatDateTime, formatShortDateTime } from '../format/datetime.ts';
-import { cabineOf } from '../relatorio/cabine.ts';
+import { cabineOf, type CabineLocation } from '../relatorio/cabine.ts';
 import { sheetOrder } from '../relatorio/ficha.ts';
 import { locationPathText } from '../relatorio/location-path.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import { checklistResultOf } from '../relatorio/sheet-progress.ts';
+import { siteLocalOf, siteResultOf } from '../relatorio/site-checklist.ts';
 import { locationTree } from '../relatorio/tree.ts';
 import type { RevisionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { getDefinition, siteItems } from '../seed/definitions.ts';
 import { plural } from '../text/plural.ts';
 import type { CaptionWord } from './caption.ts';
 import { legendasSugeridasText } from './captions.ts';
@@ -51,9 +52,46 @@ export interface PhotoItemLine {
   nc: boolean;
 }
 
-/** The checklist item a photo was taken on, as the viewer and section 7 name it; null off an item. */
-export function photoItemLine(photo: { block_id: string | null; item_key: string | null }, snapshot: Pick<RelatorioSnapshot, 'blocks'>): PhotoItemLine | null {
-  if (photo.block_id === null || photo.item_key === null) return null;
+/** What a photo row says about where it was taken: its sheet and item, or (Story 14.3) its local and site item. */
+export interface PhotoPlace {
+  block_id: string | null;
+  item_key: string | null;
+  /** Story 14.3: the local of a site-item photo; absent and null both mean none. */
+  location_id?: string | null;
+}
+
+/**
+ * Story 14.3: the local a site-item photo belongs to, or null: a photo on a block (a row
+ * carrying both `block_id` and `location_id` is read as its block's), a photo with no
+ * `location_id`, a local that is not live in the snapshot (the photo then reads as one whose
+ * block is absent), or a relatório with no site list.
+ */
+export function photoSiteLocal(photo: Pick<PhotoPlace, 'block_id' | 'location_id'>, snapshot: Partial<Pick<RelatorioSnapshot, 'relatorio' | 'locations'>>): CabineLocation | null {
+  const locationId = photo.location_id ?? null;
+  if (photo.block_id !== null || locationId === null) return null;
+  const { relatorio, locations } = snapshot;
+  if (relatorio === undefined || locations === undefined) return null;
+  return siteLocalOf({ relatorio, locations }, locationId);
+}
+
+/**
+ * The checklist item a photo was taken on, as the viewer and section 7 name it; null off an
+ * item. Story 14.3: a site-item photo (`location_id`, `item_key`) resolves against the
+ * relatório's site list and its live local: "Item 11 · Iluminação de emergência (autonomia
+ * mínima de 2 h) · NC". That needs the snapshot's relatório and locations; a caller passing
+ * blocks alone resolves sheet items only.
+ */
+export function photoItemLine(photo: PhotoPlace, snapshot: Pick<RelatorioSnapshot, 'blocks'> & Partial<Pick<RelatorioSnapshot, 'relatorio' | 'locations'>>): PhotoItemLine | null {
+  if (photo.item_key === null) return null;
+  if (photo.block_id === null) {
+    const local = photoSiteLocal(photo, snapshot);
+    if (local === null) return null;
+    const item = siteItems(snapshot.relatorio!.seed_version).find((row) => row.key === photo.item_key);
+    if (item === undefined) return null;
+    const head = `Item ${item.number}${SEP}${item.label}`;
+    const result = siteResultOf(local, item.key);
+    return { head, result, nc: result === 'NC', text: result === null ? head : `${head}${SEP}${result}` };
+  }
   const block = snapshot.blocks.find((row) => row.id === photo.block_id);
   if (block === undefined) return null;
   let checklist: readonly { key: string; label: string }[] | null;
@@ -69,9 +107,15 @@ export function photoItemLine(photo: { block_id: string | null; item_key: string
   return { head, result, nc: result === 'NC', text: result === null ? head : `${head}${SEP}${result}` };
 }
 
-/** The cabine a photo's sheet sits in, or null (a photo with no sheet, or a sheet off the tree). */
-export function photoCabineId(photo: { block_id: string | null }, snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations'>): string | null {
-  if (photo.block_id === null) return null;
+/**
+ * The cabine a photo's sheet sits in, or (Story 14.3) the local of a site-item photo; null
+ * for a photo with no sheet and no live local, or a sheet off the tree.
+ */
+export function photoCabineId(
+  photo: { block_id: string | null; location_id?: string | null },
+  snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations'> & Partial<Pick<RelatorioSnapshot, 'relatorio'>>,
+): string | null {
+  if (photo.block_id === null) return photoSiteLocal(photo, snapshot)?.id ?? null;
   const block = snapshot.blocks.find((row) => row.id === photo.block_id);
   if (block === undefined) return null;
   return cabineOf(snapshot.locations, block.location_id)?.id ?? null;
@@ -90,8 +134,8 @@ export interface GalleryFilterOption {
  * sheet, in tree order. authored (Story 14.2): "Todos" agrees with "locais".
  */
 export function galleryCabineOptions(
-  snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations' | 'equipment'>,
-  photos: readonly { block_id: string | null }[],
+  snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations' | 'equipment'> & Partial<Pick<RelatorioSnapshot, 'relatorio'>>,
+  photos: readonly { block_id: string | null; location_id?: string | null }[],
 ): GalleryFilterOption[] {
   const holding = new Set(photos.map((photo) => photoCabineId(photo, snapshot)).filter((id): id is string => id !== null));
   const options: GalleryFilterOption[] = [{ id: GALLERY_ALL, label: 'Todos' }];

@@ -14,6 +14,7 @@ const OP_2 = '019966b0-0004-7000-8000-000000000002';
 const OP_3 = '019966b0-0004-7000-8000-000000000003';
 const OP_4 = '019966b0-0004-7000-8000-000000000004';
 const OP_5 = '019966b0-0004-7000-8000-000000000005';
+const OP_6 = '019966b0-0004-7000-8000-000000000006';
 const LOCAL_ID = '019966b0-0003-7000-8000-000000000006';
 const PAINEL_ID = '019966b0-0003-7000-8000-000000000007';
 
@@ -119,9 +120,19 @@ const funcaoPut = {
   client_ts: '2026-09-21T12:03:00.000Z',
 };
 
+/** Contract 18 (Story 14.3): one answer of a local's site checklist ("Verificações do local"). */
+const siteResultPut = {
+  ...relatorioEnvelope,
+  op_id: OP_6,
+  kind: 'put',
+  path: `location/${LOCAL_ID}/checklist/iluminacao_normal/result`,
+  value: 'C',
+  client_ts: '2026-09-21T12:04:00.000Z',
+};
+
 export const contractExamples = {
   pushRequest: {
-    valid: { ops: [clientCreate, relatorioCreate, painelCreate, funcaoPut] },
+    valid: { ops: [clientCreate, relatorioCreate, painelCreate, funcaoPut, siteResultPut] },
     /** `ops` is not an array. */
     invalid: { ops: clientCreate },
   },
@@ -143,8 +154,9 @@ export const contractExamples = {
         { ...clientCreate, seq: 41 },
         { ...painelCreate, seq: 43 },
         { ...funcaoPut, seq: 44 },
+        { ...siteResultPut, seq: 45 },
       ],
-      seq: 44,
+      seq: 45,
       summary: {
         last_push_at: [{ user_id: USER_ID, device_id: 'tablet-example', at: '2026-09-21T12:05:00.000Z' }],
         relatorios: [

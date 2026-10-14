@@ -40,6 +40,8 @@ describe('4.3-UNIT preIssue', () => {
       // F-03 (review 2026-10-06): the empty sheets are named apart, as information.
       ['sheets_empty', '94 fichas vazias'],
       ...CABINES.map((name) => ['cabine_incompleta', `${name}: faltam 6 campos`]),
+      // Story 14.3: a new relatório is on seed v4, so every local still owes its 19 site items (one row, pending).
+      ['site_checklist_unanswered', `Verificações do local sem resposta: ${CABINES.slice(0, -1).map((name) => `${name} (19 itens)`).join(', ')} e Geradores (19 itens)`],
     ]);
     expect(preIssueRowsFor(rows, 'section_11').map((r) => [r.kind, r.text])).toEqual([['setup_missing', 'Nenhum instrumento em Dados do relatório']]);
     expect(blockingRows(rows).map((r) => [r.kind, r.row, r.text])).toEqual([['parecer_missing', 'section_10', 'Parecer não preenchido']]);
@@ -51,7 +53,15 @@ describe('4.3-UNIT preIssue', () => {
     const geradores = snapshot.locations.find((l) => l.name === 'Geradores')!;
     const without = { ...snapshot, blocks: snapshot.blocks.filter((b) => b.location_id !== geradores.id) };
     const rows = preIssue(without);
-    expect(preIssueRowsFor(rows, 'section_9').filter((r) => r.kind !== 'cabine_incompleta').map((r) => r.text)).toEqual(['0 de 75', '75 fichas vazias', cabineSemEquipamentoText('Geradores')]);
+    expect(
+      preIssueRowsFor(rows, 'section_9')
+        .filter((r) => r.kind !== 'cabine_incompleta' && r.kind !== 'site_checklist_unanswered')
+        .map((r) => r.text),
+    ).toEqual(['0 de 75', '75 fichas vazias', cabineSemEquipamentoText('Geradores')]);
+    // Story 14.3: a local with no equipment still owes its site items, in the one row that names them.
+    expect(rows.filter((r) => r.kind === 'site_checklist_unanswered').map((r) => r.text)).toEqual([
+      `Verificações do local sem resposta: ${CABINES.slice(0, -1).map((name) => `${name} (19 itens)`).join(', ')} e Geradores (19 itens)`,
+    ]);
     expect(rows.find((r) => r.kind === 'cabine_sem_equipamento')).toMatchObject({ id: `cabine_sem_equipamento:${geradores.id}`, severity: 'pending' });
     // A cabine with no sheet to fill its data on is named once, by the row above.
     expect(rows.some((r) => r.id === `cabine_incompleta:${geradores.id}`)).toBe(false);

@@ -1,7 +1,7 @@
 import { photoRefLabel } from '../photos/numbering.ts';
 import { printedSections, sectionHeading, type DocumentLayout, type LayoutSection } from '../print/layout.ts';
 import { ACTION_PLAN_COLUMNS } from '../print/section-8.ts';
-import type { PrintRow, PrintSheet } from '../print/section-9.ts';
+import type { PrintRow, PrintSheet, SheetPart } from '../print/section-9.ts';
 import { isRelatorioSectionType } from '../relatorio/instantiate.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import { SUMARIO_TITLES } from '../relatorio/sumario.ts';
@@ -93,11 +93,13 @@ function rowHasValues(row: PrintRow): boolean {
   });
 }
 
-function sheetLines(snapshot: RelatorioSnapshot, sheet: PrintSheet, photoRefs: Map<string, AuditRef>): Line[] {
-  const sheetLabel = sheetLabelOf(snapshot, sheet);
-  const target: AuditTarget = { kind: 'sheet', blockId: sheet.blockId };
-  const lines: Line[] = [{ text: `[sheet:${sheet.blockId}] ${sheet.title}`, ref: { id: `sheet:${sheet.blockId}`, label: sheetLabel, target } }];
-  sheet.parts.forEach((part, p) => {
+/**
+ * The lines of printed parts: a paragraph, a photo line per photo, and a table's bands, heads
+ * and the rows holding a value. `rowRef` gives the ref a data row is cited by, or none.
+ */
+function partLines(parts: readonly SheetPart[], photoRefs: Map<string, AuditRef>, rowRef: (part: number, row: number, firstCell: string) => AuditRef | undefined): Line[] {
+  const lines: Line[] = [];
+  parts.forEach((part, p) => {
     if (part.kind === 'paragraph') {
       lines.push({ text: `  ${part.text}` });
       return;
@@ -117,12 +119,20 @@ function sheetLines(snapshot: RelatorioSnapshot, sheet: PrintSheet, photoRefs: M
         return;
       }
       if (!rowHasValues(row)) return;
-      const id = `row:${sheet.blockId}:${p}:${r}`;
-      const label = auditRowLabel(sheetLabel, texts[0] ?? '', r);
-      lines.push({ text: `  [${id}] ${texts.join(SEP)}`, ref: { id, label, target } });
+      const ref = rowRef(p, r, texts[0] ?? '');
+      lines.push(ref === undefined ? { text: `  ${texts.join(SEP)}` } : { text: `  [${ref.id}] ${texts.join(SEP)}`, ref });
     });
   });
   return lines;
+}
+
+function sheetLines(snapshot: RelatorioSnapshot, sheet: PrintSheet, photoRefs: Map<string, AuditRef>): Line[] {
+  const sheetLabel = sheetLabelOf(snapshot, sheet);
+  const target: AuditTarget = { kind: 'sheet', blockId: sheet.blockId };
+  return [
+    { text: `[sheet:${sheet.blockId}] ${sheet.title}`, ref: { id: `sheet:${sheet.blockId}`, label: sheetLabel, target } },
+    ...partLines(sheet.parts, photoRefs, (p, r, firstCell) => ({ id: `row:${sheet.blockId}:${p}:${r}`, label: auditRowLabel(sheetLabel, firstCell, r), target })),
+  ];
 }
 
 /** Review F-10: a first cell that is only placeholder dashes ("-", "–", "—") or blank names nothing. */
@@ -191,6 +201,10 @@ function sectionLines(snapshot: RelatorioSnapshot, section: LayoutSection, rowKe
     case 'sheets':
       for (const subsection of section.subsections) {
         lines.push({ text: subsection.heading });
+        // Story 14.4: what the local itself prints under this heading (SE, AMBIENTE DE ENSAIO, the
+        // site table and the site photos, on a relatório with a site list). The rows belong to
+        // no sheet, so they carry no ref of their own: the model cites their section.
+        if (subsection.localParts !== undefined) lines.push(...partLines(subsection.localParts, photoRefs, () => undefined));
         for (const sheet of subsection.sheets) lines.push(...sheetLines(snapshot, sheet, photoRefs));
       }
       break;

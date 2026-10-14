@@ -8,7 +8,8 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
  * frozen snapshot, in the `numberPhotos` order `(captured_at, local_seq, id)` and with its
  * number, two per row in the document. Under each photo: the bold label "Imagem 5:" and
  * the caption as a sentence, the full Photo stamp and, for a photo taken on a checklist
- * row, that row's line ("Item 8 · Contatos · NC"). A photo linked to a sheet prints here
+ * row (a sheet's, or a local's site item since Story 14.3), that row's line ("Item 8 ·
+ * Contatos · NC"). A photo linked to a sheet prints here
  * too, with the same number, so a "conforme Imagem 5" of section 8 always finds it. The
  * renderer (`apps/api/src/jobs/generate/sections/section-7.ts`) embeds the `print`
  * variant and composes nothing: every string below is printed as given.
@@ -37,6 +38,13 @@ export interface LayoutSectionPhotos {
   photos: LayoutPhoto[];
 }
 
+/**
+ * What section 7 reads. The relatório row and the locations are what a site-item photo's line
+ * needs (Story 14.3, "Item 11 · Iluminação de emergência (autonomia mínima de 2 h) · NC");
+ * without them only a sheet item's line is printed.
+ */
+type Section7Snapshot = Pick<RelatorioSnapshot, 'files' | 'blocks'> & Partial<Pick<RelatorioSnapshot, 'relatorio' | 'locations'>>;
+
 /** A caption as a printed sentence: trimmed, with a final period unless it already ends in ".", "!" or "?". */
 export function captionSentence(caption: string): string {
   const text = caption.trim();
@@ -44,7 +52,7 @@ export function captionSentence(caption: string): string {
 }
 
 /** The photos of section 7 in print order, numbered; empty when the relatório holds no live photo. */
-export function section7Photos(snapshot: Pick<RelatorioSnapshot, 'files' | 'blocks'>): LayoutPhoto[] {
+export function section7Photos(snapshot: Section7Snapshot): LayoutPhoto[] {
   const numbers = numberPhotos(snapshot.files);
   return livePhotos(snapshot)
     .map((photo) => {
@@ -63,7 +71,7 @@ export function section7Photos(snapshot: Pick<RelatorioSnapshot, 'files' | 'bloc
 }
 
 /** Section 7's layout under its heading; null when there is no live photo (the section prints the empty note). */
-export function section7Layout(snapshot: Pick<RelatorioSnapshot, 'files' | 'blocks'>, heading: { number: number; title: string }): LayoutSectionPhotos | null {
+export function section7Layout(snapshot: Section7Snapshot, heading: { number: number; title: string }): LayoutSectionPhotos | null {
   const photos = section7Photos(snapshot);
   return photos.length === 0 ? null : { number: heading.number, title: heading.title, kind: 'photos', photos };
 }

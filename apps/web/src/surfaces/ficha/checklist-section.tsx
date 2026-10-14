@@ -18,6 +18,7 @@ import {
   type BlockRow,
   type ChecklistItem,
   type EquipmentRow,
+  type OpDraft,
   type RelatorioSnapshot,
   type SuggestionRow,
 } from '@app/domain';
@@ -32,6 +33,8 @@ import { RowPhotoAction, RowPhotoList } from './photo-openers.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 import { checklistObservationOp, checklistResultOp } from './ficha-ops.ts';
 import { CreatePointAction } from '../points/create-point-action.tsx';
+import type { PointSeed } from '../points/point-editor.tsx';
+import type { Author } from '../relatorio/relatorio-ops.ts';
 import { DictatedSuggestion, DictationButton, useProseDictation, useSpeechAvailable } from '../../speech/dictation.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 
@@ -55,6 +58,13 @@ import { useSheetReadOnly } from './sheet-read-only.tsx';
  * "Usar" writes the observation with its `source_suggestion_id`; the first keystroke or chip
  * insert discards the draft and keeps what was typed. Which draft shows is the kernel's
  * (`ncDraftFor`: the row NC, its observation blank).
+ *
+ * Story 14.3: the row is not tied to a sheet. `ChecklistRow` draws and writes through a
+ * `ChecklistRowTarget` (the entity holding the cells, the two op builders, the NC draft or
+ * none, the point seed, the row's point mark, the recents), which the sheet supplies here
+ * (`sheetRowTarget`) and "Verificações do local" supplies for a local
+ * (`surfaces/local/verificacoes-surface.tsx`). `BulkActionBar` draws the first action alone
+ * for a list with nothing to repeat from (`single`).
  */
 
 /** Story 6.1: what the checklist rows need to shoot and show their photos. */
@@ -136,25 +146,44 @@ export function useChecklistBulk(api: FichaApi, snapshot: RelatorioSnapshot, blo
   };
 }
 
-/** The Bulk action bar; `compact` is the Sticky action bar's mirror (the first action only). */
-export function BulkActionBar({ bulk, compact = false }: { bulk: ChecklistBulk; compact?: boolean }) {
+/** What the Bulk action bar needs of a list: how many rows the first action would set, and the action. */
+export type BulkMarkRest = Pick<ChecklistBulk, 'unset' | 'markRest'>;
+
+/**
+ * The Bulk action bar; `compact` is the Sticky action bar's mirror (the first action only).
+ * Story 14.3: `single` draws the first action alone at the head of a list that has no
+ * "Repetir" (the site checklist, `61-verificacoes-local.html` `.vl-intro`), under `label`.
+ */
+export function BulkActionBar({
+  bulk,
+  compact = false,
+  single = false,
+  label,
+}: {
+  bulk: BulkMarkRest & Partial<Pick<ChecklistBulk, 'source' | 'repeat'>>;
+  compact?: boolean;
+  single?: boolean;
+  /** The group's name; the sheet's own when omitted. */
+  label?: string;
+}) {
   const t = copy.ficha.checklist;
+  const repeat = bulk.repeat;
   const markIcon = (
     <svg className="ico" aria-hidden="true">
       <use href="/sprite.svg#i-check-all" />
     </svg>
   );
   return (
-    <div className={compact ? 'bulk-action-bar is-compact' : 'bulk-action-bar'} role="group" aria-label={t.bulkLabel}>
+    <div className={compact ? 'bulk-action-bar is-compact' : 'bulk-action-bar'} role="group" aria-label={label ?? t.bulkLabel}>
       <div className="bulk-action">
         <TextButton onPress={bulk.markRest} isDisabled={bulk.unset === 0} disabledReason={t.allMarked}>
           {markIcon}
           {t.markRest}
         </TextButton>
       </div>
-      {compact ? null : (
+      {compact || single || repeat === undefined ? null : (
         <div className="bulk-action">
-          <TextButton onPress={bulk.repeat} isDisabled={bulk.source === null} disabledReason={t.noConcluded}>
+          <TextButton onPress={repeat} isDisabled={(bulk.source ?? null) === null} disabledReason={t.noConcluded}>
             <svg className="ico" aria-hidden="true">
               <use href="/sprite.svg#i-repeat" />
             </svg>
@@ -213,14 +242,13 @@ export function ChecklistSection({
           <ChecklistRow
             key={item.key}
             api={api}
-            block={block}
+            target={sheetRowTarget(snapshot, block, item, pending)}
             item={item}
+            label={screenLabel(item.label)}
             number={index + 1}
-            recents={recentChecklistObservations(snapshot, item.key, item.nc_phrases, block.id)}
             readOnly={readOnly}
             photos={photos}
             snapshot={snapshot}
-            pending={pending}
           />
         ))}
       </ul>
@@ -236,45 +264,99 @@ function DictationRow({ children }: { children: ReactNode }) {
   return <div className="row-wrap">{children}</div>;
 }
 
-function ChecklistRow({
+/**
+ * Story 14.3: what a Checklist row reads and writes, whatever holds its cells: a sheet's
+ * block (`sheetRowTarget`) or a local ("Verificações do local"). Everything a row took from
+ * its block comes through here, so the row itself knows neither.
+ */
+export interface ChecklistRowTarget {
+  /** The entity whose row holds the cells (the block, the local): the typed observation's draft key. */
+  entityId: string;
+  /** The result the row shows (a sheet's `na_defaults` row shows NA with no cell of its own). */
+  result: TriStateValue | null;
+  /** The shown result is a stored cell: an uncommitted one still commits on its first tap. */
+  committed: boolean;
+  /** The stored observation, '' when none. */
+  observation: string;
+  resultOp: (by: Author, value: TriStateValue | null) => OpDraft;
+  observationOp: (by: Author, value: string | null) => OpDraft;
+  /** Story 9.5: the row's photo-read NC draft the kernel holds now, or null (a site item never has one). */
+  ncDraft: SuggestionRow | null;
+  /** What "Criar ponto de atenção" starts with, given the ids of the item's photos. */
+  pointSeed: (photoIds: readonly string[]) => PointSeed;
+  /** E6-Q11: the row's point mark ("Ponto de atenção 3"), given the ids of the item's photos; null with none. */
+  pointMark: (photoIds: readonly string[]) => string | null;
+  /** The chips after the item's own phrases: the recent observations of this item elsewhere in the relatório. */
+  recents: readonly string[];
+}
+
+/** The target of one item of a sheet's checklist: its cells on the block, its ops on `sheet/{blockId}/checklist/…`. */
+export function sheetRowTarget(snapshot: RelatorioSnapshot, block: BlockRow, item: ChecklistItem, pending: readonly SuggestionRow[]): ChecklistRowTarget {
+  const observationCell = block.sheet.checklist[item.key]?.observation;
+  return {
+    entityId: block.id,
+    result: checklistResultOf(block, item.key),
+    // A `na_defaults` row shows NA with no cell of its own (checklistResultOf's display
+    // default) -- the first tap on it must still commit a real cell (spec Design Notes).
+    committed: block.sheet.checklist[item.key]?.result !== undefined,
+    observation: typeof observationCell?.value === 'string' ? observationCell.value : '',
+    resultOp: (by, value) => checklistResultOp(by, block.relatorio_id, block.id, item.key, value),
+    observationOp: (by, value) => checklistObservationOp(by, block.relatorio_id, block.id, item.key, value),
+    ncDraft: ncDraftFor(block, item.key, pending),
+    pointSeed: (photoIds) => ({ text: photoIds.map((id) => photoToken(id)).join(' '), equipmentId: block.equipment_id, origin: 'manual' }),
+    pointMark: (photoIds) => ncRowPointsText(ncRowPointPositions(snapshot.points, block.equipment_id, photoIds)),
+    recents: recentChecklistObservations(snapshot, item.key, item.nc_phrases, block.id),
+  };
+}
+
+/** What a row writes through: the relatório, the author and the two write paths of `FichaApi`. */
+export type ChecklistRowApi = Pick<FichaApi, 'relatorioId' | 'author' | 'commit' | 'edit'>;
+
+/**
+ * One Checklist row (`60-ficha.html`, `61-verificacoes-local.html`). `observationLine`
+ * (Story 14.3, the site checklist's page rule `.vl-obs-line`): an answered C or NA row that
+ * holds an observation shows it as one line with "Editar" instead of the open field; the
+ * field opens from "Editar" or the Overflow's "Observação", for the rest of the visit.
+ */
+export function ChecklistRow({
   api,
-  block,
+  target,
   item,
+  label,
   number,
-  recents,
   readOnly,
   photos,
   snapshot,
-  pending,
+  observationLine = false,
 }: {
-  api: FichaApi;
-  block: BlockRow;
-  item: ChecklistItem;
+  api: ChecklistRowApi;
+  target: ChecklistRowTarget;
+  /** The item's key (the row's photos and its draft key go by it) and its NC phrases, the chips of an NC row. */
+  item: { key: string; nc_phrases: readonly string[] };
+  /** The item's label as the screen shows it. */
+  label: string;
   number: number;
-  recents: readonly string[];
   readOnly: boolean;
   photos?: ChecklistPhotos;
   snapshot: RelatorioSnapshot;
-  pending: readonly SuggestionRow[];
+  observationLine?: boolean;
 }) {
   const t = copy.ficha.checklist;
-  const result = checklistResultOf(block, item.key);
-  // A `na_defaults` row shows NA with no cell of its own (checklistResultOf's display
-  // default) -- the first tap on it must still commit a real cell (spec Design Notes).
-  const resultCommitted = block.sheet.checklist[item.key]?.result !== undefined;
-  const observationCell = block.sheet.checklist[item.key]?.observation;
-  const stored = typeof observationCell?.value === 'string' ? observationCell.value : '';
+  const result = target.result;
+  const resultCommitted = target.committed;
+  const stored = target.observation;
+  const recents = target.recents;
+  const photoIds = (photos?.tiles ?? []).filter((tile) => tile.item_key === item.key).map((tile) => tile.id);
   const [observationOpen, setObservationOpen] = useState(false);
   const area = useRef<HTMLTextAreaElement | null>(null);
   const fieldId = useId();
   const reasonId = useId();
-  const label = screenLabel(item.label);
   const name = `${number}. ${label}`;
   const typed = useTypedText(
     stored,
     (text) =>
-      api.author === null ? undefined : api.commit([checklistObservationOp(api.author, api.relatorioId, block.id, item.key, text.trim() === '' ? null : text)]),
-    { entityId: block.id, field: `obs-${item.key.replace(/_/g, '-')}` },
+      api.author === null ? undefined : api.commit([target.observationOp(api.author, text.trim() === '' ? null : text)]),
+    { entityId: target.entityId, field: `obs-${item.key.replace(/_/g, '-')}` },
   );
   // Story 9.4: a dictated observation, held until "Usar"; a keystroke into the field discards it.
   const dictation = useProseDictation();
@@ -282,10 +364,10 @@ function ChecklistRow({
   const empty = typed.text.trim() === '';
   // Story 9.5: the row's NC draft, while nothing is typed; a draft discarded here is not shown again before its echo.
   const [discardedId, setDiscardedId] = useState<string | null>(null);
-  const kernelDraft = readOnly || !empty ? null : ncDraftFor(block, item.key, pending);
+  const kernelDraft = readOnly || !empty ? null : target.ncDraft;
   const draft = kernelDraft !== null && kernelDraft.id === discardedId ? null : kernelDraft;
   const discardDraft = () => {
-    const held = readOnly ? null : ncDraftFor(block, item.key, pending);
+    const held = readOnly ? null : target.ncDraft;
     if (held === null || api.author === null || discardedId === held.id) return;
     setDiscardedId(held.id);
     // A refused write leaves the draft pending: it shows again.
@@ -298,19 +380,17 @@ function ChecklistRow({
   // The reason line goes once text exists (EXPERIENCE.md › Observation field); a
   // not-tested row is read-only end to end (AR-17), so nothing on it is ever required.
   const required = !readOnly && nc && empty;
-  const expanded = nc || observationOpen || stored.trim() !== '';
-  const rowPoints = nc
-    ? ncRowPointsText(
-        ncRowPointPositions(
-          snapshot.points,
-          block.equipment_id,
-          (photos?.tiles ?? []).filter((tile) => tile.item_key === item.key).map((tile) => tile.id),
-        ),
-      )
-    : null;
+  const expanded = nc || observationOpen || (stored.trim() !== '' && !observationLine);
+  const rowPoints = nc ? target.pointMark(photoIds) : null;
+  // Story 14.3: the observation of an answered C or NA row as one line, until its field is opened.
+  const obsLine = observationLine && !nc && !observationOpen && stored.trim() !== '';
+  const openObservation = () => {
+    setObservationOpen(true);
+    requestAnimationFrame(() => area.current?.focus());
+  };
 
   const choose = (value: TriStateValue | null) => {
-    void api.edit((_blocks, by) => [checklistResultOp(by, api.relatorioId, block.id, item.key, value)]).catch(() => undefined);
+    void api.edit((_blocks, by) => [target.resultOp(by, value)]).catch(() => undefined);
   };
 
   /** "Usar": the dictated text appended at the end, as a chip inserts. */
@@ -340,14 +420,7 @@ function ChecklistRow({
 
   const menu: OverflowMenuAction[] = [];
   if (result !== null) menu.push({ id: 'clear', label: t.clear, onAction: () => choose(null) });
-  menu.push({
-    id: 'observation',
-    label: t.observation,
-    onAction: () => {
-      setObservationOpen(true);
-      requestAnimationFrame(() => area.current?.focus());
-    },
-  });
+  menu.push({ id: 'observation', label: t.observation, onAction: openObservation });
 
   return (
     <li className="checklist-row" data-item-key={item.key} data-missing-field={result === null ? '' : undefined}>
@@ -359,6 +432,17 @@ function ChecklistRow({
         <TriStateControl value={result} onChange={choose} committed={resultCommitted} aria-label={name} readOnly={readOnly} />
         <OverflowMenu name={label} items={menu} />
       </div>
+      {obsLine ? (
+        <div className="vl-obs-line">
+          <span className="vl-obs-label">{t.observation}</span>
+          <span className="vl-obs-text">{stored.trim()}</span>
+          {readOnly ? null : (
+            <TextButton aria-label={t.obsLineEditLabel(number)} onPress={openObservation}>
+              {t.obsLineEdit}
+            </TextButton>
+          )}
+        </div>
+      ) : null}
       {expanded ? (
         <div className="row-expand">
           {nc && !readOnly ? (
@@ -424,14 +508,7 @@ function ChecklistRow({
               {readOnly ? null : <CreatePointAction
                 relatorioId={api.relatorioId}
                 snapshot={snapshot}
-                seed={() => ({
-                  text: (photos?.tiles ?? [])
-                    .filter((tile) => tile.item_key === item.key)
-                    .map((tile) => photoToken(tile.id))
-                    .join(' '),
-                  equipmentId: block.equipment_id,
-                  origin: 'manual',
-                })}
+                seed={() => target.pointSeed(photoIds)}
               />}
               {/* E6-Q11: the point this row already has, so a second tap is a choice, not a duplicate. */}
               {rowPoints === null ? null : <span className="nc-point-ref">{rowPoints}</span>}

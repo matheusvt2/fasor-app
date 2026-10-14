@@ -126,7 +126,13 @@ describe('4.3-UNIT sumarioRows', () => {
     expect(meta.section_2).toBe('texto padrão');
     // Story 12.3: every cabine of a new relatório still asks its six fields (pending, never blocking).
     expect(meta.section_9).toBe(
-      ['0 de 94', '94 fichas vazias', ...['Cubículo Enel', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores'].map((name) => `${name}: faltam 6 campos`)].join(' · '),
+      [
+        '0 de 94',
+        '94 fichas vazias',
+        ...['Cubículo Enel', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores'].map((name) => `${name}: faltam 6 campos`),
+        // Story 14.3: a new relatório is on seed v4 and every local owes its 19 site items.
+        'Verificações do local sem resposta: Cubículo Enel (19 itens), 1° Subsolo (19 itens), Oxigênio (19 itens), Cobertura A (19 itens), Cobertura B (19 itens) e Geradores (19 itens)',
+      ].join(' · '),
     );
     // Stories 6.3/6.5: section 7 counts its photos (none yet).
     expect(meta.section_7).toBe('Nenhuma foto');

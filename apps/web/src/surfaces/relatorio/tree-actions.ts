@@ -98,6 +98,8 @@ export interface TreeHost {
 
 export interface TreeActions {
   openSheet: (blockId: string) => void;
+  /** Story 14.3: opens a local's "Verificações do local". */
+  openVerificacoes: (locationId: string) => void;
   moveBlock: (node: TreeEquipmentNode, toIndex: number) => Promise<void>;
   moveLocation: (node: TreeLocationNode, toIndex: number) => Promise<void>;
   /** Story 11.2: "Mover para…" to another location, with the TAG re-suggested when `rename`. */
@@ -176,6 +178,9 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
     },
     [db, relatorioId, navigate],
   );
+
+  // Story 14.3: a local's Sumário row and its rail row open its site checklist.
+  const openVerificacoes = useCallback((locationId: string) => void navigate(`/relatorio/${relatorioId}/local/${locationId}/verificacoes`), [relatorioId, navigate]);
 
   const moveBlock = useCallback(
     async (node: TreeEquipmentNode, toIndex: number) => {
@@ -661,8 +666,8 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
   );
 
   return useMemo(
-    () => ({ openSheet, moveBlock, moveLocation, moveToLocation, createBlock, removeBlock, removeLocation, duplicateBlock, renameTag, markNotTested, addLocation, addLocal, updateLocal, renameLocation, toggleAgrupar }),
-    [openSheet, moveBlock, moveLocation, moveToLocation, createBlock, removeBlock, removeLocation, duplicateBlock, renameTag, markNotTested, addLocation, addLocal, updateLocal, renameLocation, toggleAgrupar],
+    () => ({ openSheet, openVerificacoes, moveBlock, moveLocation, moveToLocation, createBlock, removeBlock, removeLocation, duplicateBlock, renameTag, markNotTested, addLocation, addLocal, updateLocal, renameLocation, toggleAgrupar }),
+    [openSheet, openVerificacoes, moveBlock, moveLocation, moveToLocation, createBlock, removeBlock, removeLocation, duplicateBlock, renameTag, markNotTested, addLocation, addLocal, updateLocal, renameLocation, toggleAgrupar],
   );
 }
 

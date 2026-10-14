@@ -922,6 +922,54 @@ describe('E10-Q2 the undo of a resolution brings the decision back (contract 13)
     expect(fold([...log, again]).sheet.test[TEST]?.cells['0']?.['0']).toEqual({ value: measured('3300'), source_suggestion_id: null, op_id: again.op_id });
   });
 
+  it('Story 14.3 (review 2026-10-13): a site checklist put over a cell holding `conflict`, then its "Desfazer": the mark and the displayed side come back; device and server fold alike', () => {
+    const { eduardo, ana, f } = world();
+    const siteResult = `location/${LOC}/checklist/ventilacao/result`;
+    const siteKey = entityKey('location', LOC);
+    const local: LocationRow = {
+      id: LOC,
+      relatorio_id: TEST_RELATORIO,
+      parent_id: null,
+      kind: 'cabine',
+      name: '1° Subsolo',
+      order_key: 'a0',
+      se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null },
+      env: { altitude_m: null, temperature_c: null, humidity_pct: null },
+      agrupar_por_tipo: false,
+      removed_at: null,
+    };
+    const create = f.op({ kind: 'create', path: `location/${LOC}`, value: local as unknown as JsonValue, device_id: 'office' });
+    const foldLocal = (log: readonly Op[], pending: readonly Op[] = []) =>
+      materializeEntity({ entity: 'location', id: LOC }, log.map((op, i) => ({ ...op, seq: i + 1 })), pending) as Extract<LocationRow, { kind: 'cabine' }>;
+    const cellOf = (row: Extract<LocationRow, { kind: 'cabine' }>) => row.checklist?.ventilacao?.result;
+
+    // C against NA is a contradiction: NA shows, C is the displaced side.
+    const a = ana(siteResult, 'C');
+    const e = eduardo(siteResult, 'NA');
+    const marked: EntityState = new Map([[siteKey, foldLocal([create, a, e])]]);
+    const displaced = { op_id: a.op_id, value: 'C', source_suggestion_id: null };
+    expect(cellOf(foldLocal([create, a, e]))).toEqual({ value: 'NA', source_suggestion_id: null, op_id: e.op_id, conflict: displaced });
+
+    // Ana answers C again on the marked cell: the stamp names the mark she saw, and the put clears it.
+    const pick = stampSeen(ana(siteResult, 'C', e.op_id), marked);
+    expect(pick.meta).toEqual({ standing_op_id: e.op_id, seen_conflict_op_id: a.op_id });
+    expect(cellOf(foldLocal([create, a, e, pick]))).toEqual({ value: 'C', source_suggestion_id: null, op_id: pick.op_id });
+    expect(clearedMarks(marked, pick)).toEqual({ conflict: displaced, shown_op_id: e.op_id });
+    // A put that did not see the mark clears nothing, and neither does a put on another item.
+    expect(clearedMarks(marked, ana(siteResult, 'C', e.op_id, { standing_op_id: e.op_id, seen_conflict_op_id: null }))).toBeUndefined();
+    expect(clearedMarks(marked, ana(`location/${LOC}/checklist/limpeza_e_ausencia_de_infiltracao/result`, 'C'))).toBeUndefined();
+
+    // "Desfazer": the inverse carries the marks, and the fold writes them back.
+    const next = applyOp(marked, pick);
+    const marks = clearedMarks(marked, pick, next)!;
+    const [inverse] = invertBatch([pick], new Map([[pick.op_id, readPath(marked, pick)]]), { newId: f.newId, now: new Date('2026-09-21T15:00:00.000Z') }, new Map([[pick.op_id, marks]]));
+    const undo = stampSeen(inverse!, next);
+    expect(undo).toMatchObject({ path: siteResult, value: 'NA', meta: { restore: { conflict: displaced, shown_op_id: e.op_id } } });
+    const restored = foldLocal([create, a, e, pick, undo]);
+    expect(cellOf(restored)).toEqual({ value: 'NA', source_suggestion_id: null, op_id: undo.op_id, shown_op_id: e.op_id, conflict: displaced });
+    expect(foldLocal([create, a, e, pick], [undo])).toEqual(restored);
+  });
+
   it('a restored cell (`shown_op_id`) then a contradicting write from a third device: the displaced side is the shown op, named by its author', () => {
     const { create, eduardo, ana, f } = world();
     const a = ana(reading, measured('3300'));

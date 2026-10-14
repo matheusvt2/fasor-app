@@ -332,12 +332,14 @@ test('@p0 14.2-E2E-001 at 1280: a template of one local (Transformação) with t
   expect(to).toBeGreaterThan(from);
   const section = structure.paragraphs.slice(from, to);
   const heading = `${number}.1 ${LOCAL}`;
-  // The local heading, its own sheets (the first one carrying the SE and the environment), then the band over the painel's sheets.
+  // The local heading, the local's own parts (Story 14.4, seed v4: the SE, the environment and the site table, once, before
+  // any sheet), its own sheets, then the band over the painel's sheets.
   const expected = [
     heading,
-    'TRANSFORMADOR DE FORÇA TR-1',
     'CARACTERÍSTICAS DA SE',
     'AMBIENTE DE ENSAIO',
+    'VERIFICAÇÕES DO LOCAL',
+    'TRANSFORMADOR DE FORÇA TR-1',
     'TRANSFORMADOR DE FORÇA TR-2',
     'PAINEL 1',
     'CHAVE SECCIONADORA SEC-C01',
@@ -347,7 +349,7 @@ test('@p0 14.2-E2E-001 at 1280: a template of one local (Transformação) with t
   const at = expected.map((text) => section.indexOf(text));
   expect(at.every((index) => index > -1), `every part of section 9 is printed: ${JSON.stringify(at)}`).toBe(true);
   expect([...at].sort((a, b) => a - b)).toEqual(at);
-  for (const once of [heading, 'CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', 'PAINEL 1']) expect(section.filter((text) => text === once), once).toHaveLength(1);
+  for (const once of [heading, 'CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', 'VERIFICAÇÕES DO LOCAL', 'PAINEL 1']) expect(section.filter((text) => text === once), once).toHaveLength(1);
   expect(section).toContain('BLINDADA');
   // The band is not a heading: the section has the local's Heading 2 alone, and the ÍNDICE no line for the painel.
   expect(structure.headings.filter((h) => h.level === 2 && h.text.startsWith(`${number}.`))).toEqual([{ level: 2, text: heading }]);

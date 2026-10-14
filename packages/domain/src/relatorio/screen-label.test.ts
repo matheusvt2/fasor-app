@@ -102,6 +102,8 @@ const SCREEN_FORMS: Record<string, string> = {
   VENTILADORES: 'Ventiladores',
   'VÁLVULA DE ALÍVIO': 'Válvula de alívio',
   'ÓLEO ISOLANTE/INDICADOR DE NÍVEL': 'Óleo isolante/indicador de nível',
+  // Seed v4 (Story 14.3): the sixteenth Disjuntor MT item, as `60-ficha.html` writes it.
+  'NO-BREAK DE COMANDO': 'No-break de comando',
   // tests and table titles
   'ENSAIO DE ISOLAÇÃO': 'Ensaio de isolação',
   'ENSAIO DE RELAÇÃO DE TRANSFORMAÇÃO': 'Ensaio de relação de transformação',
@@ -196,7 +198,7 @@ function seedScreenLabels(): Set<string> {
 }
 
 describe('12.5-UNIT screenLabel (D-9: sentence case on screen, caps in the document)', () => {
-  it('lists every seed label of v1 and v2', () => {
+  it('lists every seed label of every shipped version', () => {
     expect([...seedScreenLabels()].filter((label) => !(label in SCREEN_FORMS))).toEqual([]);
   });
 
