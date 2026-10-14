@@ -2,9 +2,9 @@
 title: "Epic 14: Bruno's answers of 2026-10-14 (site NC in the parecer, CTA sheet adjustments)"
 type: 'feature'
 created: '2026-10-14'
-status: 'ready-for-dev'
+status: 'done'
 baseline_revision: '93496eb9'
-review_loop_iteration: 0
+review_loop_iteration: 1
 dev_model: 'opus'
 dev_effort: 'medium'
 context:
@@ -99,3 +99,7 @@ Story gate (playbook § 2, 2026-10-08): `lint`, `static`, `test:unit`, `test:api
 
 - Patched (one loop): ECH-1 hint with no sheet drops "0 de 0 fichas concluídas"; ECH-2 a site focus request with no drawn local falls back to section 9; VG-1 the confirmed parecer text with the site sentence asserted in the outbox, and the hint after removal; VG-2 E2's rows read from the kernel, N-T asserted absent; VG-3 an E2 `n_t` cell refused through `POST /api/sync/ops`; VG-4 full composed text with sheet and site NC; VG-5 E1 switched off with a typed current; VG-6 an out E2 cell prints plainly; VG-7 `suggestParecer` after a restore and on v3.
 - Known open: VG-8 (no e2e where a sheet NC earlier in tree order wins over a site NC, no second-tap e2e on a site target; the kernel order is unit-tested). ECH-3 (a development store holding a v5 CTA sheet from before the edit keeps `n_t` cells and loses its concluded state to the new required value; accepted by the 2026-10-14 source-deltas row, v5 never left development).
+
+## Auto Run Result
+
+2026-10-14, head c763a8d: story gate green. lint 0 (22 s), static 0 (25 s), test:api 82 files / 631 tests (236 s), test:unit 306 files / 4098 tests (241 s); touched and E14-A3 specs on desktop-chrome and durability-desktop-chrome 41 of 42 (308 s, lock wait 0 s), the one red `parecer-export` 7.5-E2E-004 (an overflow trigger not yet stable after the generate toast, under load) passed isolated twice and the whole spec passed 8 of 8 on the same commit; durability specs on android-chrome and webkit 4 of 4 (35 s). E4 unchanged: Bruno's list of rows not received.
