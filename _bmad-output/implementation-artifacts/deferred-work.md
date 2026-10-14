@@ -2179,3 +2179,23 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: debt
   state: open (owner: tooling)
 
+
+## Deferred from: production deploy v0.2.0 (2026-10-14)
+
+- source_spec: `infra/PUBLISHING.md`
+  summary: `infra/bin/check` fails `terraform init -backend=false` for both stacks on this machine ("No valid credential sources found", the S3 backend asking for credentials) even with a live `fasor-admin` session, while `validate`, `fmt`, tflint, ShellCheck and the real `plan` pass. Separately, the cached provider binaries under `infra/*/.terraform/providers` had lost their execute bit (plan failed with "permission denied" until `chmod u+x`).
+  evidence: deploy of 2026-10-14; `infra/bin/check` output; `infra/bin/tf` runs `hashicorp/terraform:1.16.4` with `--user $(id -u):$(id -g)` over a bind mount.
+  class: debt
+  state: open (owner: the next infra change)
+
+- source_spec: `infra/PUBLISHING.md`
+  summary: The production log of the first start of v0.2.0 says "template seeds upgraded, moved: 0" with no "skipped" line, so no live template moved from its seed to v5. Either production holds no live template, or every template was already on the current seed. Not verified against the database; if a template is on v3, relatórios created from it are born on v3 and have no Verificações do local or CTA.
+  evidence: `/fasor/production/api` log lines at 17:24:55Z and 17:40:44Z; `apps/api/src/db/template-seed-upgrade.ts`.
+  class: verification-gap
+  state: ~~open (owner: coordinator, with Matheus: open the Template list in production and read each template's seed)~~ closed 2026-10-14 (coordinator): the migration task of the deploy moved them first. `/fasor/production/migrate` stream `migrate/migrate/5003ceed49a14dbe83a2a92d1984f9ca` at 17:24:06Z logs three templates of one company moved from v3 to v5 ("moved":3), so every later start finds nothing to move. No defect.
+
+- source_spec: `infra/PUBLISHING.md`
+  summary: The Home card and the Sumário disagree on the same relatório: the card reads "2 de 12 fichas" and the Sumário "0 de 12 fichas concluídas". Since Story 8.1 the Sumário counts a sheet holding a pending suggestion as not concluded (`progress()` with the device's pending rows, `held`), while the Home and obra cards call `progress({ blocks, suggestions: [] })` and count it concluded. Seen in production on 2026-10-14 (a relatório with 18 suggestions waiting). Older than Epic 14; not a deploy defect.
+  evidence: `packages/domain/src/home/cards.ts` `counterOf`; `packages/domain/src/relatorio/progress.ts` `over` and `progress`; production browser check of v0.2.0.
+  class: defect
+  state: open (owner: Matheus decides which count the card shows; then the next carry-over batch)
