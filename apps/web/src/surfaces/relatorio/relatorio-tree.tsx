@@ -99,7 +99,12 @@ export interface RelatorioTreeProps {
    * scrolled into view and its open button takes the focus.
    */
   focusBlockId?: string | null;
-  /** F-24: a new value asks for `focusBlockId` again (a Sumário header count tapped once more). */
+  /**
+   * F-24, 2026-10-14: "NC abertos" landing on a local's NC site items: that local's
+   * "Verificações do local" button (`.s9-verif`) takes the focus. Wins over `focusBlockId`.
+   */
+  focusLocationId?: string | null;
+  /** F-24: a new value asks for `focusBlockId` (or `focusLocationId`) again (a Sumário header count tapped once more). */
   focusToken?: number;
   context: TreeContext;
   ref?: Ref<RelatorioTreeHandle>;
@@ -178,6 +183,11 @@ function sameData(a: unknown, b: unknown): boolean {
   return true;
 }
 
+/** A local's "Verificações do local" button (`.s9-verif`) in its own header row, or null while not drawn. */
+function siteRowButton(root: HTMLElement | null, locationId: string): HTMLElement | null {
+  return root?.querySelector<HTMLElement>(`li[data-location-id="${CSS.escape(locationId)}"] > .s9-loc-row .s9-verif`) ?? null;
+}
+
 /** A row redraws only when its node's content or the shared row context changed. */
 function sameRow<N>(prev: { node: N; shared: Shared }, next: { node: N; shared: Shared }): boolean {
   return prev.shared === next.shared && sameData(prev.node, next.node);
@@ -211,7 +221,7 @@ function treeKeys(event: KeyboardEvent<HTMLElement>, open: boolean | null, setOp
   else focusParentChevron(target);
 }
 
-export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, id, expandToLastSheet = false, focusBlockId = null, focusToken = 0, context, ref, pending }: RelatorioTreeProps) {
+export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, id, expandToLastSheet = false, focusBlockId = null, focusLocationId = null, focusToken = 0, context, ref, pending }: RelatorioTreeProps) {
   const t = copy.sumario.tree;
   const tree = useMemo(() => locationTree(snapshot, equipment, pending), [snapshot, equipment, pending]);
   const rootRef = useRef<HTMLUListElement>(null);
@@ -310,15 +320,33 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
     focusSeeded.current = false;
   }, [focusToken]);
   useEffect(() => {
-    if (focusSeeded.current || focusBlockId === null) return;
+    if (focusSeeded.current) return;
+    // A local's site row sits in its header row, drawn whenever section 9 is: nothing to open.
+    // Only a root this tree draws with a site row is a target; anything else asks for nothing.
+    if (focusLocationId !== null) {
+      if (!tree.some((node) => node.id === focusLocationId && node.site !== null)) return;
+      focusSeeded.current = true;
+      focusPending.current = true;
+      return;
+    }
+    if (focusBlockId === null) return;
     const path = treePathTo(tree, { blockId: focusBlockId });
     if (path.length === 0) return;
     focusSeeded.current = true;
     focusPending.current = true;
     reveal(path.at(-1)!);
-  }, [focusBlockId, focusToken, tree, reveal]);
+  }, [focusBlockId, focusLocationId, focusToken, tree, reveal]);
   useEffect(() => {
-    if (!focusPending.current || focusBlockId === null) return;
+    if (!focusPending.current) return;
+    if (focusLocationId !== null) {
+      const verif = siteRowButton(rootRef.current, focusLocationId);
+      if (verif === null) return;
+      focusPending.current = false;
+      verif.scrollIntoView?.({ block: 'center' });
+      verif.focus({ preventScroll: true });
+      return;
+    }
+    if (focusBlockId === null) return;
     const open = blockOpen(rootRef.current, focusBlockId);
     if (open === null) return;
     focusPending.current = false;

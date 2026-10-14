@@ -111,6 +111,8 @@ function filledWrites(): [string, JsonValue][] {
   for (const [row, [normal, emergencia]] of Object.entries(e1)) {
     writes.push([cellPath(E1, row, 'lado_normal'), num(normal, 'µΩ')], [cellPath(E1, row, 'lado_emergencia'), num(emergencia, 'µΩ')]);
   }
+  // 2026-10-14 (Bruno): E1's test current.
+  writes.push([sheetTestValuePath(CTA_BLOCK, E1, 'corrente_ensaio'), num('100', 'A')]);
   for (const row of testOf(E2).rows) {
     for (const column of testOf(E2).columns) if (row.fixed?.[column.key] === undefined) writes.push([cellPath(E2, row.key, column.key), num('12.4', 'GΩ')]);
   }
@@ -150,7 +152,7 @@ function filledWrites(): [string, JsonValue][] {
  * (grouped by type), holding a transformer and, unless `cta` is false, the filled Chave de
  * transferência automática; `off` switches those tests off after the sheet was filled.
  */
-function snapshotOf(options: { cta?: boolean; off?: readonly (typeof E1 | typeof E6)[] } = {}): RelatorioSnapshot {
+function snapshotOf(options: { cta?: boolean; off?: readonly (typeof E1 | typeof E6)[]; e5NotRun?: boolean } = {}): RelatorioSnapshot {
   const snapshot = base();
   const relatorio = { ...snapshot.relatorio, seed_version: 'v5', export: { scheme: 'por_local_e_tipo' as const } };
   const local: LocationRow = {
@@ -206,6 +208,7 @@ function snapshotOf(options: { cta?: boolean; off?: readonly (typeof E1 | typeof
   state = applyOp(state, op('put', sheetConclusionPath(CTA_BLOCK, 'text_status'), 'confirmed'));
   state = applyOp(state, op('put', sheetConclusionPath(CTA_BLOCK, 'text_basis'), confirmed.basis));
   for (const key of options.off ?? []) state = applyOp(state, op('put', blockFieldPath(CTA_BLOCK, 'config'), blockConfigWithSubBlock(blockOf().config, key, false)));
+  if (options.e5NotRun === true) state = applyOp(state, op('put', sheetTestValuePath(CTA_BLOCK, E5, 'metodo'), choiceValue('nao_realizado')));
 
   const sheets = options.cta === false ? [transformer] : [transformer, { block: blockOf(), equipment: cta.equipment }];
   return {
@@ -316,6 +319,7 @@ describe('14.5-UNIT section 9 in the DOCX: a Chave de transferência automática
       [
         ['E1 · RESISTÊNCIA DE CONTATO'],
         ['INSTRUMENTO: -'],
+        ['CORRENTE DE ENSAIO: 100 A'],
         ['ACEITÁVEL: ≤ 50 % acima do menor do mesmo lado · NETA 7.22.3 (fonte secundária)'],
         ['POLO', 'LADO NORMAL (µΩ)', 'LADO EMERGÊNCIA (µΩ)'],
         ['POLO A', '38', '40'],
@@ -358,6 +362,8 @@ describe('14.5-UNIT section 9 in the DOCX: a Chave de transferência automática
       ['A-T', '12,4', '12,4', '12,4'],
     ]);
     expect(e2!.at(-1)).toEqual(['LINHA-CARGA', '—', '—', '12,4']);
+    // C1: four poles and a switched neutral, and no N-T row (2026-10-14).
+    expect(e2!.slice(4).map((row) => row[0])).toEqual(['A-T', 'B-T', 'C-T', 'A-B', 'B-C', 'C-A', 'LINHA-CARGA']);
     expect(titled('E3 · ISOLAMENTO DO CONTROLE')).toEqual([
       [
         ['E3 · ISOLAMENTO DO CONTROLE'],
@@ -418,6 +424,14 @@ describe('14.5-UNIT section 9 in the DOCX: a Chave de transferência automática
     // The values changed under the confirmed conclusion text (two tests left it), so it is stale and does not print (AR-11).
     expect(titled('CONCLUSÃO').at(-1)).toHaveLength(2);
     expect(section).not.toContain(CONCLUSION_TEXT);
+  }, 60_000);
+
+  it('C3: E5 "Não realizado" prints nothing of E5 (no title, method or criterion line), and E6 keeps its title', async () => {
+    const { titled, section } = await render(snapshotOf({ e5NotRun: true }));
+    expect(titled('E5 · TRANSFERÊNCIA')).toEqual([]);
+    const sheet = section.slice(section.indexOf(CTA_TITLE));
+    expect(sheet.some((p) => p.includes('NÃO REALIZADO') || p.includes('Assumir a carga') || p.startsWith('E5 '))).toBe(false);
+    expect(titled('E6 · TERMOGRAFIA SOB CARGA')).toHaveLength(1);
   }, 60_000);
 
   it('a relatório with no such equipment has no "Outros equipamentos" heading, band or ÍNDICE line', async () => {

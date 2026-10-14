@@ -1,4 +1,4 @@
-import { photoToken, SITE_ITEM_KEYS, type BlockRow, type LocationRow, type OpDraft, type PointRow } from '@app/domain';
+import { photoToken, SEED_VERSION, SITE_ITEM_KEYS, siteItems, type BlockRow, type LocationRow, type OpDraft, type PointRow } from '@app/domain';
 import type { BrowserContext, Page, Route } from '@playwright/test';
 import { paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
@@ -804,6 +804,70 @@ test('@p0 14.3-E2E-007 Epic 14 QA Q-5: a local with no equipment fills its CARAC
   await expect(title(page)).toBeVisible({ timeout: 30_000 });
   await expect(page.getByLabel('Tensão primária', { exact: true })).toHaveValue('13,8');
   await expect(page.getByLabel('Temperatura', { exact: true })).toHaveValue('19');
+});
+
+test('@p0 14.3-E2E-008 2026-10-14 (Bruno): a site item answered NC counts in "NC abertos", the tap focuses the local\'s site row, Etapa 6 suggests Apto com restrições and the summary names the item; the local removed, neither carries it', async ({ page }) => {
+  test.setTimeout(180_000);
+  // One local, Cubículo Enel, with no equipment: the only NC the relatório can hold is a site item.
+  const { relatorioId, enelId } = await setUp(page, 1280);
+  const summary = page.getByRole('group', { name: 'Resumo do relatório' });
+  await expect(summary.getByRole('button', { name: '0 NC abertos', exact: true })).toBeVisible();
+
+  await openSurface(page, relatorioId, enelId);
+  await seg(page, EMERGENCIA, 'Não conforme').click();
+  await expect(seg(page, EMERGENCIA, 'Não conforme')).toHaveAttribute('aria-checked', 'true');
+  await expect.poll(async () => (await outbox(page)).filter((op) => op.path === resultPath(enelId, EMERGENCIA)).at(-1)?.value).toBe('NC');
+
+  // The Sumário counts it; the tap opens section 9 and moves the focus to the local's "Verificações do local".
+  await openSumario(page, relatorioId);
+  const nc = summary.getByRole('button', { name: '1 NC aberto', exact: true });
+  await expect(nc).toBeVisible();
+  await nc.click();
+  await expect(tree(page)).toBeVisible();
+  await expect(siteButton(page, ENEL)).toBeFocused();
+
+  // Etapa 6: the suggestion and its hint count the site NC; the composed summary names the item.
+  const item = siteItems(SEED_VERSION).find((entry) => entry.key === EMERGENCIA)!;
+  const sentence = `Verificações do local não conformes: item ${item.number} (${item.label.toLocaleLowerCase('pt-BR')}) em 1 local.`;
+  await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
+  const hint = page.locator('.conclusion-hint').first();
+  await expect(hint).toContainText('Sugerido pelas contagens: Apto com restrições?');
+  await expect(hint).toContainText('1 NC nas verificações do local');
+  const verdict = page.getByRole('radiogroup', { name: 'Parecer' }).getByRole('radio', { name: 'Apto com restrições', exact: true });
+  await verdict.click();
+  await expect(verdict).toHaveAttribute('aria-checked', 'true');
+  const field = page.locator('.suggestion-field.is-generated');
+  await expect(field.locator('.generated-text')).toContainText(sentence);
+  await expect(field.locator('.criteria-line')).toContainText(`verificações do local, item ${item.number} NC (1)`);
+  // Confirmed: the stored summary carries the site sentence.
+  await field.getByRole('button', { name: 'Confirmar' }).click();
+  await expect(field).toHaveAttribute('data-state', 'confirmed');
+  await expect
+    .poll(async () => (await outbox(page)).filter((op) => op.path === 'relatorio/setup/parecer').at(-1)?.value)
+    .toMatchObject({ verdict: 'apto_com_restricoes', text_status: 'confirmed', text: expect.stringContaining(sentence) });
+
+  // The local removed: its site items count nowhere.
+  await openSumario(page, relatorioId);
+  await openSection9(page);
+  await page.getByRole('button', { name: `Mais opções de ${ENEL}`, exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Remover', exact: true }).click();
+  const confirm = page.getByRole('dialog', { name: `Remover ${ENEL}?`, exact: true });
+  await confirm.getByRole('button', { name: 'Remover local', exact: true }).click();
+  await expect(confirm).toBeHidden();
+  await expect(local(page, ENEL)).toHaveCount(0);
+  await expect.poll(async () => (await outbox(page)).some((op) => op.path === `location/${enelId}/removed_at` && op.kind === 'remove')).toBe(true);
+  await expect(summary.getByRole('button', { name: '0 NC abertos', exact: true })).toBeVisible();
+  await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
+  // No sheet and no site NC left: nothing to suggest, so no hint at all; the confirmed summary
+  // (which named the item) is now stale; the criteria line is the recomposed one, without the item.
+  await expect(page.locator('.suggestion-alt')).toContainText('Sugerido: texto atualizado');
+  await expect(page.locator('.conclusion-hint')).toHaveCount(0);
+  await expect(page.getByText('NC nas verificações do local')).toHaveCount(0);
+  await expect(field.locator('.generated-text')).toContainText(sentence);
+  await expect(field.locator('.criteria-line')).toBeVisible();
+  await expect(field.locator('.criteria-line')).not.toContainText('verificações do local');
 });
 
 test('@p1 14.3-E2E-005 a coluna and a relatório on seed v3 offer no entry: no tree button, no rail row, no line on the sheet, and the address says the checklist was not found', async ({ page }) => {

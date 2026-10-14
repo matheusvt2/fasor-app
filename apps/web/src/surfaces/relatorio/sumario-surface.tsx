@@ -2,7 +2,7 @@ import {
   backwardMoveConsequenceText,
   backwardMoveLabel,
   fichasConcluidasText,
-  firstCountedBlock,
+  firstCountedTarget,
   firstSheetWithPendingSuggestions,
   locationTree,
   generateReason,
@@ -38,6 +38,7 @@ import {
   type RevisionRow,
   type SectionBlockType,
   type SiteWorkRow,
+  type CountTarget,
   type SumarioCountKind,
   type SumarioRow,
   type SumarioRowKey,
@@ -348,18 +349,22 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
 
   /**
    * F-24: a sheet count ("fichas concluídas", "NC abertos", "não ensaiadas") opens section 9
-   * on the first sheet it counts (`firstCountedBlock`), its path expanded, the row scrolled
-   * into view and focused; with none, section 9's own row.
+   * on the first item it counts (`firstCountedTarget`): a sheet's row, its path expanded, or
+   * (2026-10-14, "NC abertos") a local's "Verificações do local" button; the row scrolled into
+   * view and focused; with none, section 9's own row.
    */
-  const [countFocus, setCountFocus] = useState<{ blockId: string; n: number } | null>(null);
+  const [countFocus, setCountFocus] = useState<{ target: CountTarget; n: number } | null>(null);
   function openCount(kind: SumarioCountKind): void {
-    const blockId = firstCountedBlock(locationTree(snapshot, equipment, pending), snapshot.blocks, kind, pending);
-    if (blockId === null) {
+    const tree = locationTree(snapshot, equipment, pending);
+    const target = firstCountedTarget(tree, snapshot.blocks, kind, pending);
+    // A site target is a root the tree draws with its site row (the finder returns only those); else as with none.
+    const drawn = target === null || target.kind === 'block' || tree.some((node) => node.id === target.locationId && node.site !== null);
+    if (target === null || !drawn) {
       openSection9();
       return;
     }
     setExpanded(true);
-    setCountFocus((current) => ({ blockId, n: (current?.n ?? 0) + 1 }));
+    setCountFocus((current) => ({ target, n: (current?.n ?? 0) + 1 }));
   }
 
   /** "N sugestões por confirmar": the first sheet holding one, section 9 when none does. */
@@ -471,7 +476,8 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
                     lastSheetId={lastSheet}
                     id={treeId}
                     expandToLastSheet={openedByStatus}
-                    focusBlockId={countFocus?.blockId ?? arrival.focusBlockId}
+                    focusBlockId={countFocus === null ? arrival.focusBlockId : countFocus.target.kind === 'block' ? countFocus.target.blockId : null}
+                    focusLocationId={countFocus?.target.kind === 'site' ? countFocus.target.locationId : null}
                     focusToken={countFocus?.n ?? 0}
                     context={treeContext}
                     ref={treeRef}

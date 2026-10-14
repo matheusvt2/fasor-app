@@ -8,6 +8,7 @@ import { listPtBr, plural } from '../text/plural.ts';
 import { conclusionRestrictionOf, conclusionResultOf } from './conclusion.ts';
 import { naoEnsaiadasText } from './progress.ts';
 import { checklistResultOf } from './sheet-progress.ts';
+import { siteNcCount, siteNcItems } from './site-checklist.ts';
 import { enabledSubBlocksOf, isEquipmentBlock, sheetState } from './sheet-state.ts';
 import { locationTree, treeNodes } from './tree.ts';
 
@@ -110,11 +111,13 @@ function notTestedReason(block: BlockRow): string | null {
 
 /**
  * The verdict the counts suggest (FR-71): "Apto com restrições" once any sheet is Com
- * restrições, holds an NC row or is marked not tested; "Apto" when every live sheet is
+ * restrições, holds an NC row or is marked not tested, and (2026-10-14, Bruno) once a live
+ * local holds an NC site item, with or without any sheet; "Apto" when every live sheet is
  * concluded Aprovado · Sem restrições; otherwise none (no sheet, sheets still open with no
  * restriction, or a Reprovado with no restriction). Never Não apto, never written.
  */
 export function suggestParecer(snapshot: RelatorioSnapshot): ParecerVerdict | null {
+  if (siteNcCount(snapshot) > 0) return 'apto_com_restricoes';
   const sheets = countedSheets(snapshot);
   if (sheets.length === 0) return null;
   if (sheets.some(({ block }) => restricted(block))) return 'apto_com_restricoes';
@@ -128,16 +131,19 @@ export function suggestParecer(snapshot: RelatorioSnapshot): ParecerVerdict | nu
  * `.conclusion-hint` under the verdict segments (mock `#setup-parecer-hint`): "Sugerido pelas
  * contagens: Apto com restrições? — 93 de 94 fichas concluídas, 2 com restrições, 1 não
  * ensaiada. A escolha é sua: um toque." The counts that are zero are left out; null with no
- * suggestion.
+ * suggestion. 2026-10-14: the live locals' NC site items add "2 NC nas verificações do local".
  */
 export function parecerHintText(suggestion: ParecerVerdict | null, snapshot: RelatorioSnapshot): string | null {
   if (suggestion === null) return null;
   // E78-Q9: the counts `composeParecer` states, so the hint and the Critérios line never disagree.
   const counts = parecerCounts(snapshot);
   const parts = [
-    `${counts.concluded} de ${counts.total} fichas concluídas`,
+    // 2026-10-14: with no live sheet (only a site NC can suggest then) the sheet count is left out.
+    counts.total === 0 ? null : `${counts.concluded} de ${counts.total} fichas concluídas`,
     counts.withRestriction.length > 0 ? `${counts.withRestriction.length} com restrições` : null,
     counts.notTested.length > 0 ? naoEnsaiadasText(counts.notTested.length) : null,
+    // authored: 2026-10-14, the site NC count (open for Bruno).
+    counts.siteNc > 0 ? `${plural(counts.siteNc, 'NC', 'NC')} nas verificações do local` : null,
   ].filter((part): part is string => part !== null);
   return `Sugerido pelas contagens: ${parecerVerdictLabel(suggestion)}? — ${parts.join(', ')}. A escolha é sua: um toque.`;
 }
@@ -155,6 +161,8 @@ export interface ParecerCounts {
   open: number;
   /** The TAGs of the tested sheets with a restriction, in tree order. */
   withRestriction: string[];
+  /** 2026-10-14: the site items answered NC on the live locals (`siteNcCount`). */
+  siteNc: number;
 }
 
 /**
@@ -166,7 +174,7 @@ export function parecerCounts(snapshot: RelatorioSnapshot): ParecerCounts {
   const concluded = sheets.filter(({ block }) => sheetState(block) === 'concluida').length;
   const notTested = sheets.filter(({ block }) => block.not_tested !== null).map(({ block, name }) => ({ name, reason: notTestedReason(block) }));
   const withRestriction = sheets.filter(({ block }) => block.not_tested === null && restricted(block)).map(({ name }) => name);
-  return { total: sheets.length, concluded, notTested, open: sheets.length - concluded - notTested.length, withRestriction };
+  return { total: sheets.length, concluded, notTested, open: sheets.length - concluded - notTested.length, withRestriction, siteNc: siteNcCount(snapshot) };
 }
 
 // --- the composed summary -------------------------------------------------------------------
@@ -190,8 +198,9 @@ function ncItemName(item: { n: number; label: string }): string {
 /**
  * FR-71: the summary the engineer confirms, edits or replaces, composed from the relatório's
  * own counts: fichas concluídas of the total, not tested sheets with TAG and reason, sheets
- * with restrictions by TAG, NC rows grouped by checklist item, and the points of attention.
- * No priority counts (source-deltas row 29), no verdict sentence.
+ * with restrictions by TAG, NC rows grouped by checklist item, the live locals' NC site items
+ * (2026-10-14) grouped by item, and the points of attention. No priority counts (source-deltas
+ * row 29), no verdict sentence.
  */
 export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
   const sheets = countedSheets(snapshot);
@@ -207,6 +216,7 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
     }
   }
   const nc = [...ncGroups.values()].sort((a, b) => a.n - b.n || (a.label < b.label ? -1 : 1));
+  const site = siteNcItems(snapshot).map((item) => ({ n: item.number, label: item.label, locals: item.locals.length }));
   const points = pointsSummary(snapshot).total;
 
   // authored (open question for Bruno): the summary states counts only, never a verdict.
@@ -231,6 +241,10 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
       sentences.push(`Itens não conformes: ${listPtBr(nc.map((group) => `${ncItemName(group)} em ${plural(group.sheets, 'ficha', 'fichas')}`))}.`);
     }
   }
+  if (site.length > 0) {
+    // authored: 2026-10-14, the site NC sentence (open for Bruno).
+    sentences.push(`Verificações do local não conformes: ${listPtBr(site.map((item) => `${ncItemName(item)} em ${plural(item.locals, 'local', 'locais')}`))}.`);
+  }
   if (points > 0) sentences.push(`${points === 1 ? 'Foi registrado 1 ponto de atenção' : `Foram registrados ${points} pontos de atenção`} na seção 8.`);
   const text = sentences.join(' ');
 
@@ -240,10 +254,13 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
     ...(notTested.length > 0 ? [`${naoEnsaiadasText(notTested.length)} (${notTested.map((entry) => entry.name).join(', ')})`] : []),
     ...(withRestriction.length > 0 ? [`${withRestriction.length} com restrições (${withRestriction.join(', ')})`] : []),
     ...nc.map((group) => `item ${group.n} NC (${group.sheets})`),
+    // authored: 2026-10-14, a Critérios item per NC site item (open for Bruno).
+    ...site.map((item) => `verificações do local, item ${item.n} NC (${item.locals})`),
     ...(points > 0 ? [plural(points, 'ponto de atenção', 'pontos de atenção')] : []),
   ];
 
-  const basis = fnv1a(canonicalJson({ total, concluded, open, notTested, withRestriction, nc, points }));
+  // The key is added only when non-empty, so a relatório with no site NC keeps its basis byte-identical.
+  const basis = fnv1a(canonicalJson({ total, concluded, open, notTested, withRestriction, nc, points, ...(site.length > 0 ? { site } : {}) }));
   return { text, criteriaItems, criteriaLine: criteriaItems.join(' · '), basis };
 }
 

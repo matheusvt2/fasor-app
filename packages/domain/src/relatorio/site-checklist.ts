@@ -342,3 +342,39 @@ export function sitePointTitle(localName: string): string {
   // authored: no mock draws a point of a local (open for Bruno).
   return `${localName.trim()}${SEP}${SITE_CHECKLIST_LABEL}`;
 }
+
+/**
+ * 2026-10-14 (Bruno, source-deltas): an NC site item counts as an NC. How many site items are
+ * answered NC over the live locals (`siteLocals`): a removed local, or a relatório on a seed
+ * with no site list (v1 to v3), adds nothing. What `Progress.nc_open` adds to the sheets' NCs.
+ */
+export function siteNcCount(snapshot: SiteSnapshot): number {
+  const items = siteItems(snapshot.relatorio.seed_version);
+  return siteLocals(snapshot).reduce((sum, location) => sum + items.filter((item) => siteResultOf(location, item.key) === 'NC').length, 0);
+}
+
+/** A local's NC site items, for the F-24 finder: 0 for anything that has no site checklist. */
+export function siteNcOf(snapshot: SiteSnapshot, locationId: string): number {
+  const location = siteLocalOf(snapshot, locationId);
+  if (location === null) return 0;
+  return siteItems(snapshot.relatorio.seed_version).filter((item) => siteResultOf(location, item.key) === 'NC').length;
+}
+
+/** One site item answered NC on at least one live local, as the parecer names it. */
+export interface SiteNcItem {
+  /** 1 to 19, running across the groups. */
+  number: number;
+  /** The seed's label. */
+  label: string;
+  /** The names of the live locals answering it NC, trimmed, in tree order. */
+  locals: string[];
+}
+
+/** 2026-10-14: every site item answered NC on a live local, in the list's order, with those locals; empty with none. */
+export function siteNcItems(snapshot: SiteSnapshot): SiteNcItem[] {
+  const locals = siteLocals(snapshot);
+  return siteItems(snapshot.relatorio.seed_version).flatMap((item) => {
+    const names = locals.filter((location) => siteResultOf(location, item.key) === 'NC').map((location) => location.name.trim());
+    return names.length === 0 ? [] : [{ number: item.number, label: item.label, locals: names }];
+  });
+}

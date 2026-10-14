@@ -53,9 +53,9 @@ import { blockRoleOf, groupForPrint, type PrintGroupWarning } from './group-for-
  * tests: its title, its instrument line where it has a picker, how it was run (the values
  * line), the ACEITÁVEL line (criterion and source), the rows the configuration shows, the
  * lowest-of-column row where its criterion has one, and its grouped values. A test switched
- * off prints nothing, as a disabled sub-block does; one its own value says was not run prints
- * its title, that value and the ACEITÁVEL line, with no rows. An out-of-criterion cell prints
- * as any other, the seeded tables' convention.
+ * off prints nothing, as a disabled sub-block does, and (2026-10-14, Bruno) so does one its
+ * own value says was not run (E5 "Não realizado"). An out-of-criterion cell prints as any
+ * other, the plain value with no mark, the seeded tables' convention.
  */
 
 // --- the print model ---------------------------------------------------------------------
@@ -694,9 +694,13 @@ function measurementText(cell: EvaluatedMeasurementCell, headerUnit: string | nu
   return headerUnit === null ? withUnit(cell.displayText, cell.unit) : cell.displayText;
 }
 
-/** One measurement test as one table; null for a test switched off. */
+/**
+ * One measurement test as one table; null for a test switched off and (2026-10-14, Bruno) for
+ * one marked not run (`skipped`, E5's método "Não realizado"): neither prints a title, a
+ * method or a criterion line. The other tests keep their numbers ("E6 · …").
+ */
 function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation): SheetPart | null {
-  if (!test.enabled) return null;
+  if (!test.enabled || test.skipped) return null;
   const width = 1 + test.columns.length;
   const rows: PrintRow[] = [bandRow(printLabel(test.title), width)];
   if (test.instrumentOf !== null) rows.push(lineRow(instrumentLine(block, test.testKey), width));
@@ -704,24 +708,22 @@ function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation): 
     rows.push(lineRow(test.valuesLine.parts.map((part) => `${printLabel(part.label)}: ${part.kind === 'choice' ? printLabel(part.text) : part.text}`).join(SEP), width));
   }
   rows.push(lineRow(`${ACCEPTABLE_LABEL}: ${test.criterionText}${SEP}${test.sourceName}`, width));
-  if (!test.skipped) {
-    const units = test.columns.map((column) => sharedUnit(test, column.col));
-    rows.push(headerRow([printLabel(test.rowHeader), ...test.columns.map((column, c) => (units[c] === null ? printLabel(column.label) : `${printLabel(column.label)} (${units[c]})`))]));
-    for (const row of test.rows) {
-      rows.push({ cells: [valueCell(printLabel(row.label)), ...row.cells.map((cell, c) => valueCell(measurementText(cell, units[c] ?? null)))] });
-    }
-    if (test.reference !== null && test.reference.cells.some((cell) => cell.text !== null)) {
-      rows.push({
-        cells: [
-          { text: printLabel(test.reference.label), bold: true, align: 'center' },
-          ...test.reference.cells.map((cell, c) => valueCell(cell.text === null ? DASH : units[c] !== null && units[c] === cell.unit ? cell.value! : cell.text)),
-        ],
-      });
-    }
-    for (const group of test.groups) {
-      if (group.text === '') continue;
-      rows.push({ cells: [{ text: printLabel(group.label), bold: true, align: 'center' }, { text: group.text, span: test.columns.length, align: 'center' }] });
-    }
+  const units = test.columns.map((column) => sharedUnit(test, column.col));
+  rows.push(headerRow([printLabel(test.rowHeader), ...test.columns.map((column, c) => (units[c] === null ? printLabel(column.label) : `${printLabel(column.label)} (${units[c]})`))]));
+  for (const row of test.rows) {
+    rows.push({ cells: [valueCell(printLabel(row.label)), ...row.cells.map((cell, c) => valueCell(measurementText(cell, units[c] ?? null)))] });
+  }
+  if (test.reference !== null && test.reference.cells.some((cell) => cell.text !== null)) {
+    rows.push({
+      cells: [
+        { text: printLabel(test.reference.label), bold: true, align: 'center' },
+        ...test.reference.cells.map((cell, c) => valueCell(cell.text === null ? DASH : units[c] !== null && units[c] === cell.unit ? cell.value! : cell.text)),
+      ],
+    });
+  }
+  for (const group of test.groups) {
+    if (group.text === '') continue;
+    rows.push({ cells: [{ text: printLabel(group.label), bold: true, align: 'center' }, { text: group.text, span: test.columns.length, align: 'center' }] });
   }
   return { kind: 'table', table: { columns: fittedColumns(rows, width), rows } };
 }

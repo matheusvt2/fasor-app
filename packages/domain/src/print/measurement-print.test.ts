@@ -273,6 +273,8 @@ describe('section9Layout: a Chave de transferência automática', () => {
     expect(texts(e1)).toEqual([
       ['E1 · RESISTÊNCIA DE CONTATO'],
       ['INSTRUMENTO: HTMO-10 · Hi-Tech · Nº SÉRIE G282926 · RBC 37276/26'],
+      // 2026-10-14 (Bruno): the test current on the values line.
+      ['CORRENTE DE ENSAIO: 100 A'],
       ['ACEITÁVEL: ≤ 50 % acima do menor do mesmo lado · NETA 7.22.3 (fonte secundária)'],
       ['POLO', 'LADO NORMAL (µΩ)', 'LADO EMERGÊNCIA (µΩ)'],
       ['POLO A', '38', '40'],
@@ -282,10 +284,13 @@ describe('section9Layout: a Chave de transferência automática', () => {
       ['POLO N', '52', '42'],
       ['MENOR DO LADO', '36', '39'],
     ]);
+    // C4: the out cell (Polo C, Lado Emergência) is the plain value: no mark, no extra cell.
     expect(e1.columns).toHaveLength(3);
+    expect(e1.rows.every((row) => row.cells.length <= 3)).toBe(true);
+    expect(e1.rows.find((row) => row.cells[0]!.text === 'POLO C')!.cells.map((cell) => cell.text)).toEqual(['POLO C', '36', '63']);
     expect(e1.rows[0]).toMatchObject({ band: true, cells: [{ span: 3, shade: true }] });
     expect(e1.rows[1]!.cells[0]).toMatchObject({ span: 3, align: 'left' });
-    expect(e1.rows[3]!.header).toBe(true);
+    expect(e1.rows[4]!.header).toBe(true);
     // No instrument picked: the line says so.
     expect(texts(titled(printed(blockOf(state)).sheet, 'E1 · RESISTÊNCIA DE CONTATO'))[1]).toEqual(['INSTRUMENTO: -']);
     // A megôhmetro on E2: the line never carries a test parameter, so no "5 kV" beside the criterion's "1.000 Vcc".
@@ -304,7 +309,8 @@ describe('section9Layout: a Chave de transferência automática', () => {
       ['MEDIÇÃO', 'NORMAL FECHADA (GΩ)', 'EMERGÊNCIA FECHADA (GΩ)', 'ABERTA (GΩ)'],
       ['A-T', '12,4', '12,4', '12,4'],
     ]);
-    expect(e2.map((row) => row[0]).slice(4)).toEqual(['A-T', 'B-T', 'C-T', 'N-T', 'A-B', 'B-C', 'C-A', 'LINHA-CARGA']);
+    // C1: four poles and a neutral, and no N-T row (2026-10-14).
+    expect(e2.map((row) => row[0]).slice(4)).toEqual(['A-T', 'B-T', 'C-T', 'A-B', 'B-C', 'C-A', 'LINHA-CARGA']);
     expect(e2[e2.length - 1]).toEqual(['LINHA-CARGA', '—', '—', '12,4']);
     expect(texts(titled(cta, 'E3 · ISOLAMENTO DO CONTROLE'))).toEqual([
       ['E3 · ISOLAMENTO DO CONTROLE'],
@@ -386,14 +392,39 @@ describe('section9Layout: a Chave de transferência automática', () => {
     ]);
   });
 
-  it('matrix "E5 options": "não realizado" prints the E5 title, the method and the criterion, and no time', () => {
+  it('C3, matrix "E5 options": "não realizado" prints nothing of E5 (2026-10-14); E6 keeps its number', () => {
     const { state, f } = filled();
     const skipped = writeSheet(state, f, [{ test: E5, key: 'metodo', value: choice('nao_realizado') }]);
-    expect(texts(titled(printed(blockOf(skipped)).sheet, 'E5 · TRANSFERÊNCIA'))).toEqual([
-      ['E5 · TRANSFERÊNCIA'],
-      ['MÉTODO: NÃO REALIZADO'],
-      ['ACEITÁVEL: Assumir a carga ≤ 10 s · NFPA 110 nível 1; OVG, SEDI Goiás, BCB e NFPA 70B A.39.2'],
+    const sheet = printed(blockOf(skipped)).sheet;
+    expect(bands(sheet).some((band) => band.startsWith('E5'))).toBe(false);
+    expect(tablesOf(sheet.parts).some((table) => table.rows.some((row) => row.cells.some((cell) => cell.text.includes('NÃO REALIZADO') || cell.text.includes('Assumir a carga'))))).toBe(false);
+    expect(bands(sheet).filter((band) => /^E\d · /.test(band))).toEqual([
+      'E1 · RESISTÊNCIA DE CONTATO',
+      'E2 · ISOLAMENTO PRINCIPAL',
+      'E3 · ISOLAMENTO DO CONTROLE',
+      'E4 · AJUSTES DO CONTROLADOR',
+      'E6 · TERMOGRAFIA SOB CARGA',
     ]);
+  });
+
+  it('C2 edge: E1 switched off prints nothing of E1, a test current typed before included', () => {
+    const { state, f } = ctaState();
+    const typed = writeSheet(state, f, [{ test: E1, key: 'corrente_ensaio', value: { raw: '100', unit: 'A', state: 'measured' } }]);
+    expect(texts(titled(printed(blockOf(typed)).sheet, 'E1 · RESISTÊNCIA DE CONTATO'))[2]).toEqual(['CORRENTE DE ENSAIO: 100 A']);
+    const off = applyOp(typed, f.op({ path: blockFieldPath(CTA_BLOCK, 'config'), value: blockConfigWithSubBlock(blockOf(typed).config, E1, false) }));
+    const sheet = printed(blockOf(off)).sheet;
+    expect(bands(sheet)).not.toContain('E1 · RESISTÊNCIA DE CONTATO');
+    expect(tablesOf(sheet.parts).some((table) => table.rows.some((row) => row.cells.some((cell) => cell.text.includes('CORRENTE DE ENSAIO'))))).toBe(false);
+  });
+
+  it('C4: an out-of-criterion E2 cell prints its plain value, with no mark and no extra cell', () => {
+    const { state, f } = filled();
+    // BT asks ≥ 100 MΩ: 0,05 GΩ is out.
+    const out = writeSheet(state, f, [{ test: E2, row: 'a_t', col: 'normal_fechada', value: { raw: '0.05', unit: 'GΩ', state: 'measured' } }]);
+    const e2 = titled(printed(blockOf(out)).sheet, 'E2 · ISOLAMENTO PRINCIPAL');
+    expect(texts(e2).find((row) => row[0] === 'A-T')).toEqual(['A-T', '0,05', '12,4', '12,4']);
+    expect(e2.columns).toHaveLength(4);
+    expect(e2.rows.every((row) => row.cells.length <= 4)).toBe(true);
   });
 
   it('CONCLUSÃO: the pair marked and the confirmed text with its criteria line', () => {

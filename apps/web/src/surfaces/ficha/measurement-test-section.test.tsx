@@ -168,7 +168,8 @@ describe('14.5 MeasurementTests: what the sheet draws', () => {
     cleanup();
     const four = renderTests(cta({ options: { polos: '4', tensao: 'mt' } }));
     expect(rowLabels(section(four.container, E1))).toEqual(['Polo A', 'Polo B', 'Polo C', 'Polo N']);
-    expect(rowLabels(section(four.container, E2))).toContain('N-T');
+    // 2026-10-14 (Bruno): no N-T row, even at four poles.
+    expect(rowLabels(section(four.container, E2))).toEqual(['A-T', 'B-T', 'C-T', 'A-B', 'B-C', 'C-A', 'Linha-carga']);
     expect(section(four.container, E2).querySelector('.mt-criterion')).toHaveTextContent('>400 MΩ');
   });
 
@@ -193,8 +194,10 @@ describe('14.5 MeasurementTests: what the sheet draws', () => {
 
   it('marks the required empty cells and values as missing, never an optional column or a fixed cell', () => {
     const { container } = renderTests(cta());
-    // E1 at three poles: six cells.
-    expect(section(container, E1).querySelectorAll('[data-missing-field]')).toHaveLength(6);
+    // E1 at three poles: six cells, and its test current (2026-10-14).
+    expect(section(container, E1).querySelectorAll('table [data-missing-field]')).toHaveLength(6);
+    expect(section(container, E1).querySelectorAll('.test-fields [data-missing-field]')).toHaveLength(1);
+    expect(within(section(container, E1)).getByRole('textbox', { name: /Corrente de ensaio/ })).toHaveAttribute('data-missing-field');
     const e5 = section(container, E5);
     // Método, carga and fonte dos tempos, and the five Medido; the Ajuste column is optional.
     expect(e5.querySelectorAll('.test-options [data-missing-field]')).toHaveLength(3);

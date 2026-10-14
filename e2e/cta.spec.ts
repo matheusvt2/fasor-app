@@ -259,6 +259,19 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
   await expect(tableRow(page, E1, 'polo_n')).toHaveCount(0);
   await configuracao(page).getByRole('radiogroup', { name: 'Polos' }).getByRole('radio', { name: '4', exact: true }).click();
   await expect(tableRow(page, E1, 'polo_n')).toBeVisible();
+  // 2026-10-14 (Bruno): with four poles E2 draws the rows the kernel shows for the stored configuration, and no N-T row.
+  const e2Shown = async (): Promise<string[]> => {
+    const block = (await entities<BlockRow>(page)).find((record) => record.entity === 'block' && record.id === blockId)!.row;
+    return evaluateSheetMeasurements(block, DEFINITION).find((test) => test.testKey === E2)!.rows.map((row) => row.key);
+  };
+  await expect.poll(async () => (await entities<BlockRow>(page)).find((record) => record.entity === 'block' && record.id === blockId)!.row.config).toMatchObject({ options: { polos: '4' } });
+  const e2Keys = await e2Shown();
+  // Every pole row of the seed is shown at four poles: the drawn list is the seed's list.
+  expect(e2Keys).toEqual(testOf(E2).rows.map((row) => row.key));
+  expect(await testSection(page, E2).locator('tr[data-row-key]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-row-key')))).toEqual(e2Keys);
+  expect(e2Keys).not.toContain('n_t');
+  await expect(tableRow(page, E2, 'n_t')).toHaveCount(0);
+  await expect(testSection(page, E2).locator('tr', { hasText: 'N-T' })).toHaveCount(0);
   for (const [testKey, name] of [
     [E2, 'E2 · Isolamento principal nesta ficha'],
     [E3, 'E3 · Isolamento do controle nesta ficha'],
@@ -321,6 +334,11 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
       return Object.keys(e1).flatMap((rowKey) => ['lado_normal', 'lado_emergencia'].map((columnKey) => (ops.filter((op) => op.path === cellPath(blockId, E1, rowKey, columnKey)).at(-1)?.value as { raw?: string } | undefined)?.raw));
     })
     .toEqual(['38', '40', '41', '39', '36', '63', '52', '42']);
+  // 2026-10-14 (Bruno): E1's test current, a value of the test written on its own path.
+  const corrente = testValue(page, E1, 'corrente_ensaio').locator('input');
+  await corrente.fill('100');
+  await corrente.press('Tab');
+  await expect.poll(async () => lastWritten(page, valuePath(blockId, E1, 'corrente_ensaio'))).toEqual(measured('100', 'A'));
   const outCells = testSection(page, E1).locator('.measurement-field[data-state="out-of-limit"]');
   await expect(outCells).toHaveCount(1);
   await expect(cellBox(page, E1, 'polo_c', 'lado_emergencia').locator('.measurement-field')).toHaveAttribute('data-state', 'out-of-limit');
@@ -464,8 +482,13 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
   // The counter of required fields is at zero.
   await expect(page.getByTestId('ficha-progress')).toHaveText('Ficha completa', { timeout: 15_000 });
 
-  // --- back online: sync, generate, and read the DOCX ---
+  // --- back online: the test current (in the outbox on its path, above) survives a reload; then sync, generate, and read the DOCX ---
   await context.setOffline(false);
+  await page.reload();
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await expect(testValue(page, E1, 'corrente_ensaio').locator('input')).toHaveValue('100');
+  // The device store holds it after the reload (the outbox may have pushed it by now).
+  expect((await entities<BlockRow>(page)).find((record) => record.entity === 'block' && record.id === blockId)!.row.sheet.test[E1]?.values?.['corrente_ensaio']?.value).toEqual(measured('100', 'A'));
   await openSumario(page, relatorioId);
   await syncNowAndReturn(page);
   await expect(headerPill(page)).toHaveText('Em campo');
@@ -525,6 +548,7 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
     [
       ['E1 · RESISTÊNCIA DE CONTATO'],
       ['INSTRUMENTO: -'],
+      ['CORRENTE DE ENSAIO: 100 A'],
       ['ACEITÁVEL: ≤ 50 % acima do menor do mesmo lado · NETA 7.22.3 (fonte secundária)'],
       ['POLO', 'LADO NORMAL (µΩ)', 'LADO EMERGÊNCIA (µΩ)'],
       ['POLO A', '38', '40'],

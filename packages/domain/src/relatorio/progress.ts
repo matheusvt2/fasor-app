@@ -2,6 +2,7 @@ import type { BlockRow, LocationRow, SuggestionRow } from '../schemas/entities.t
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { plural } from '../text/plural.ts';
 import { hiddenLocationIds } from './location-live.ts';
+import { siteNcCount } from './site-checklist.ts';
 import { enabledCells, isCellFilled, isEquipmentBlock, sheetState } from './sheet-state.ts';
 import { blocksWithPendingSuggestions, livePendingSuggestions } from './suggestions.ts';
 
@@ -15,7 +16,12 @@ import { blocksWithPendingSuggestions, livePendingSuggestions } from './suggesti
 export interface Progress {
   sheets_concluded: number;
   sheets_total: number;
-  /** Checklist items answered NC on live sheets. Epic 6's points of attention close them. */
+  /**
+   * Checklist items answered NC on live sheets. Epic 6's points of attention close them.
+   * 2026-10-14 (Bruno): in `progress()` given the relatório and its locations, the site items
+   * answered NC on its live locals too (`siteNcCount`); `blocksProgress` and the location
+   * counters stay sheets-only.
+   */
   nc_open: number;
   not_tested: number;
   /**
@@ -60,11 +66,19 @@ function over(blocks: readonly BlockRow[], suggestionsPending: number, held: Rea
  * The whole relatório's progress over its live equipment blocks. `pending` is the device's
  * pending suggestion rows of the relatório (`pendingSuggestions(suggestionRowsOf(...))`):
  * `suggestions_pending` is the number of those waiting on a live block, and a block holding
- * any is not concluded.
+ * any is not concluded. 2026-10-14 (Bruno): a snapshot that carries `relatorio` and
+ * `locations` adds its live locals' NC site items to `nc_open` (none on v1 to v3); one that
+ * passes blocks only (the Home and obra cards) counts the sheets alone, as before.
  */
-export function progress(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'suggestions'>, pending?: readonly SuggestionRow[]): Progress {
-  if (pending === undefined) return over(snapshot.blocks, snapshot.suggestions.filter((s) => s.status === 'pending').length);
-  return over(snapshot.blocks, ...scoped(snapshot.blocks, pending));
+export function progress(
+  snapshot: Pick<RelatorioSnapshot, 'blocks' | 'suggestions'> & Partial<Pick<RelatorioSnapshot, 'relatorio' | 'locations'>>,
+  pending?: readonly SuggestionRow[],
+): Progress {
+  const sheets =
+    pending === undefined ? over(snapshot.blocks, snapshot.suggestions.filter((s) => s.status === 'pending').length) : over(snapshot.blocks, ...scoped(snapshot.blocks, pending));
+  const { relatorio, locations } = snapshot;
+  if (relatorio === undefined || locations === undefined) return sheets;
+  return { ...sheets, nc_open: sheets.nc_open + siteNcCount({ relatorio, locations }) };
 }
 
 /** The pending rows waiting on a live block of `blocks` (`livePendingSuggestions`), and those blocks' ids. */

@@ -164,6 +164,8 @@ export function ctaFilledWrites(): SheetWrite[] {
   // Lado Normal all within; on Lado Emergência the 63 of Polo C is 62 % above the 39 of Polo B.
   writes.push(...column(E1, 'lado_normal', { polo_a: micro('38'), polo_b: micro('41'), polo_c: micro('36'), polo_n: micro('52') }));
   writes.push(...column(E1, 'lado_emergencia', { polo_a: micro('40'), polo_b: micro('39'), polo_c: micro('63'), polo_n: micro('42') }));
+  // 2026-10-14 (Bruno): E1's test current.
+  writes.push({ test: E1, key: 'corrente_ensaio', value: num('100', 'A') });
   for (const row of ctaTest(E2).rows) {
     for (const col of ctaTest(E2).columns) if (row.fixed?.[col.key] === undefined) writes.push({ test: E2, row: row.key, col: col.key, value: num('12.4', 'GΩ') });
   }
