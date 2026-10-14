@@ -2,7 +2,7 @@
 title: 'Stories 14.3 and 14.4: Verificações do local, captured per local and printed once in section 9'
 type: 'feature'
 created: '2026-10-13'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'f60fd938a573ca8222aeff5c17887605e687a044'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -130,7 +130,30 @@ E2E: `e2e/ficha.spec.ts:172,1362` (checklist, `context.setOffline`), `e2e/photos
 
 ## Spec Change Log
 
+- 2026-10-13, review pass: the matrix row "Wrong key or seed" names `op_invalid` for a key outside `SITE_ITEM_KEYS`. The path does fail `parsePath` as the row says, and the sync route answers an unparseable path with `op_path_unknown`, its standing rule for every family; only the wrong kind and the wrong seed answer `op_invalid`. The row's intent (refused, nothing written) is what was built and tested; the code name in its last cell was the spec author's slip. The intent contract is left as written. KEEP: the route's rule for unparseable paths is not changed for this family.
+
 ## Review Triage Log
+
+### 2026-10-13 — Review pass
+
+Layers run: Edge Case Hunter, Verification Gap Reviewer (opus). Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them. One fix loop (commit `c49e84d9`).
+
+- verdicts: 14 findings — high 0, medium 2, low 12, false 0, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` `audit/input.ts` `sheets` branch never reads `localParts`, so on a seeded relatório the document audit loses CARACTERÍSTICAS DA SE and AMBIENTE DE ENSAIO and never sees the site table (Edge Case Hunter) — verified at `packages/domain/src/audit/input.ts:191-196`; the branch now emits the local's lines after the heading, with a v4 case in `audit.test.ts`; the v1 audit text is byte-equal.
+  - `[low]` `[patch]` Claim "a relatório on v1 to v3 prints exactly as before" is false for a v3 relatório that already holds painéis with *Agrupar por tipo* on (new painel titles, the local's heading before its first painel) — verified at `print/group-for-print.ts` `byTypeRuns`: neither rule reads the seed, as the 2026-10-13 criterion of Story 14.4 asks ("a local with no painel keeps the FO.SERV-03 titles"); the behaviour stands, the comments in `section-9.ts` and `group-for-print.ts` now say it precisely, and the ledger carries the note (entry e).
+  - `[low]` `[patch]` The boot step moves `seed_version` alone, after which `upgradeStandardTemplate`'s refresh of blocks and skeleton never fires for an unedited standard template — verified in `apps/api/src/db/seed.ts` `needsUpgrade`; a new kernel pin shows `standardTemplate` builds equal `blocks` and `skeleton` at every shipped version, so nothing is lost; dated notes on both comments.
+  - `[low]` `[patch]` `merge/restore.ts` `clearedMarks` handles only `sheet/*`, so the undo of a site put that cleared a cell's `conflict` does not put the mark back — verified at `restore.ts:25`; site cells go through `cellAt`, kernel test added.
+  - `[low]` `[patch]` `location_id` on a file or point is not checked at the fold; `pointTitle` titled a point by a painel or coluna row — the title half verified and fixed (`pointTitle` resolves the local through `siteLocalOf`, else "Geral"); the fold check is rejected: no client writes such an op and the guard needs a new read ref on two families. Ledger entry (c).
+  - `[medium]` `[patch]` `apps/api/src/main.ts:45` runs `upgradeTemplateSeeds` outside `withRetry`, so a transient database error at boot kills the process — verified; wrapped as its neighbours.
+  - `[low]` `[patch]` Claim "each refusal answers `op_invalid`": a key outside `SITE_ITEM_KEYS` or an unknown field fails `parsePath` and the route answers `op_path_unknown` (the route's standing rule for an unparseable path) — verified in `sync.integration.test.ts:1527`; the matrix's "Error Handling" cell named the wrong code for that one row (the refusal itself, nothing written, is as specified); the contract-18 comment now names both codes. Recorded in the Spec Change Log.
+  - `[medium]` `[patch]` Missing-adoption gap: the audit input on a v4 relatório (Verification Gap Reviewer) — filed pre-verified; same root cause as the first row, fixed with it.
+  - `[low]` `[defer]` Regression gap: the boot wiring of `upgradeTemplateSeeds` (`main.ts`, `migrate-cli.ts`) is exercised by no test — filed pre-verified with disposition defer; the entry points have no harness; ledger entry (a), a wave-gate check.
+  - `[low]` `[patch]` Regression gap: the denied-camera import of a site photo drops no test when `locationId` is lost — filed pre-verified; one case in `photo-import.test.ts`, failing without the spread.
+  - `[low]` `[patch]` Regression gap: a recovered point draft of a site item is not checked to keep its local — filed pre-verified; new `point-draft-recovery.test.tsx`, failing without the line.
+  - `[low]` `[defer]` Regression gap: "Legendar" on a site photo is never opened in a test — filed pre-verified with disposition defer (only a cleared caption is affected); ledger entry (b).
+  - `[low]` `[patch]` Two template-upgrade rules coexist and `standard-template.integration.test.ts:369` with the `seed.ts` comment describe a rule production no longer follows — verified; same root cause as the third row: the test title says what it pins (the seed path alone) and the comments carry dated notes.
+  - `[low]` `[reject]` `MergeInfoContext.relatorios` has no production caller, so a site merge entry numbers its item by the current seed — verified (`mergeTextContext` passes none); harmless while every seed ships the same site list, and wiring it adds a store read to the merge text path. Ledger entry (d).
 
 ## Design Notes
 
