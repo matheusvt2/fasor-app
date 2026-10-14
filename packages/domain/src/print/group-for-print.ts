@@ -43,7 +43,10 @@ import { siteChecklistOf } from '../seed/definitions.ts';
  *   local (`painelTypeGroupTitle`), so two painéis each holding seccionadoras no longer print
  *   the same numbered title; and a local whose sheets all sit in painéis emits its own
  *   `cabine` subsection (no sheets) before its first painel, as it does with the flag off. A
- *   local with no painel keeps the FO.SERV-03 titles byte for byte.
+ *   local with no painel keeps the FO.SERV-03 titles byte for byte. This item is not tied to
+ *   a seed: it applies to every relatório, v1 to v3 included, so one of those that already
+ *   holds painéis with the flag on prints the new titles and the local's heading. Unchanged
+ *   on every seed: a local with no painel.
  */
 
 export type PrintScheme = RelatorioRow['export']['scheme'];

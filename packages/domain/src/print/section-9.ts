@@ -729,7 +729,12 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
  * DE ENSAIO, VERIFICAÇÕES DO LOCAL, the site items' photos), once per local under either
  * scheme, and no sheet of that local repeats the cabine's tables. A local with no sheet
  * still prints its heading and those parts, so the section is null only when it prints no
- * sheet and no local part. A relatório on v1 to v3 prints exactly as before.
+ * sheet and no local part. A relatório on v1 to v3 carries no local part and keeps the
+ * cabine's tables on the first sheet of each cabine; for a local with no painel it prints
+ * exactly as before. The one change that reaches every relatório, whatever its seed, comes
+ * from `groupForPrint` (the 2026-10-13 criterion is not tied to a seed): with "Agrupar por
+ * tipo" on, a type group under a painel is titled with the painel and the local, and a local
+ * whose sheets all sit in painéis prints its own heading before its first painel.
  */
 export function section9Layout(snapshot: RelatorioSnapshot, number: number, title: string): LayoutSectionSheets | null {
   const grouping = groupForPrint(snapshot);

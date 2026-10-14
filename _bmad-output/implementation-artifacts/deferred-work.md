@@ -1899,3 +1899,35 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `apps/web/src/surfaces/ficha/camera-view.tsx` `returnFocus` (`restoreFocus` with `LIST_FOCUS_WATCH_FRAMES`, no `once`); `apps/web/src/components/dialog-shell.tsx` `useReturnFocus`; the run of 2026-10-13 (`document.activeElement` after "Concluir" was the row's "Adicionar foto").
   class: bug
   state: open (owner: the next story touching `camera-view.tsx`; else the epic 14 deferred sweep)
+
+## Deferred from: review of batch e14b, Stories 14.3 and 14.4 (2026-10-13)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
+  summary: 2026-10-13, review of batch e14b. The boot wiring of `upgradeTemplateSeeds` in `main.ts` and `migrate-cli.ts` is exercised by no test: the integration tests call the function, never the start that calls it. Check at the wave gate that a v3 template pushed before a restart reads v4 after it.
+  evidence: `apps/api/src/main.ts` (`withRetry('template seeds', ...)`); `apps/api/src/db/migrate-cli.ts`; `apps/api/src/db/template-seed-upgrade.ts`.
+  class: debt
+  state: open (owner: the coordinator's wave gate)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
+  summary: 2026-10-13, review of batch e14b. "Legendar" on a site photo is opened by no test: the caption of a site item's photo is covered in the kernel and at capture, but no unit or Playwright test opens the caption editor on one.
+  evidence: `apps/web/src/surfaces/local/` (the site rows' photo list); `e2e/` (no spec presses "Legendar" on a site photo).
+  class: debt
+  state: open (owner: the epic QA)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
+  summary: 2026-10-13, review of batch e14b. `location_id` on a file or a point is not checked at the fold: an id naming a painel, a coluna or no location is accepted. A point naming a location that is not in the snapshot is left out of it with no trace (`pointsOfLiveLocals`); one naming a live painel or coluna stays and reads "Geral" (`pointTitle`, since this review). No client writes either: every writer takes the id of a live root cabine.
+  evidence: `packages/domain/src/ops/apply.ts` (no branch reads the row a file's or a point's `location_id` names; `carriedLocationId` covers blocks only); `packages/domain/src/schemas/snapshot.ts` `pointsOfLiveLocals`; `packages/domain/src/relatorio/site-checklist.ts` `siteLocalOf`; `packages/domain/src/points/summary.ts` `pointTitle`.
+  class: question
+  state: open (owner: the integrated epic review)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
+  summary: 2026-10-13, review of batch e14b. `MergeInfoContext.relatorios` has no production caller (`mergeTextContext` in `apps/web/src/db/sync-store.ts` passes none), so a site merge entry numbers its item by the current seed and not by its relatório's. Harmless while every seed ships the same site list.
+  evidence: `packages/domain/src/merge/info.ts` (`MergeInfoContext.relatorios`); `apps/web/src/db/sync-store.ts` `mergeTextContext`.
+  class: debt
+  state: open (owner: the story that first changes the site list)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
+  summary: 2026-10-13, review of batch e14b. A relatório on v3 that already holds painéis with *Agrupar por tipo* on prints the new painel type-group titles and the local's own heading before its first painel, since the 2026-10-13 criterion is not tied to a seed. A local with no painel prints unchanged on every seed.
+  evidence: `packages/domain/src/print/group-for-print.ts` (the Stories 14.3 and 14.4 note); `packages/domain/src/print/section-9.test.ts` (matrix "Type titles under a painel", the v3 half).
+  class: question
+  state: open (owner: Matheus, for information)

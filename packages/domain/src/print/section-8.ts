@@ -60,7 +60,7 @@ export interface LayoutSectionPoints {
   table: ActionPlanRow[];
 }
 
-type Section8Snapshot = Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment' | 'points'>;
+type Section8Snapshot = Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'blocks' | 'equipment' | 'points'>;
 
 /** A cell value: trimmed, "—" when blank or missing. */
 function cell(value: string | null | undefined): string {

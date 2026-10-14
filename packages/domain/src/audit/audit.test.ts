@@ -325,3 +325,96 @@ describe('review F-10 a row named by a placeholder first cell', () => {
     expect(auditRowLabel('Chave seccionadora SEC-TEST', '-10', 0)).toBe('Chave seccionadora SEC-TEST · -10');
   });
 });
+
+describe('14.4 auditInput on a relatório with a site list (v4): the local parts are in the text', () => {
+  const SITE_PHOTO_ID = '019966c1-0000-7000-8000-00000000f001';
+  const EMERGENCIA = 'iluminacao_de_emergencia_autonomia_minima_de_2_h';
+  const cell = (value: string) => ({ value, source_suggestion_id: null, op_id: '019966c1-0001-7000-8000-00000000f002' });
+
+  /** The small fixture moved to v4: its one local answers two site items and holds a photo on one. */
+  function v4Snapshot(): RelatorioSnapshot {
+    const base = smallSnapshot();
+    const [local] = base.locations;
+    if (local === undefined || local.kind !== 'cabine') throw new Error('the small fixture holds one cabine');
+    return {
+      ...base,
+      relatorio: { ...base.relatorio, seed_version: 'v4' },
+      locations: [
+        {
+          ...local,
+          checklist: {
+            tapete_ou_estrado_isolante: { result: cell('C') },
+            [EMERGENCIA]: { result: cell('NC'), observation: cell('Duas luminárias de emergência sem carga') },
+          },
+        },
+      ],
+      files: [
+        {
+          id: SITE_PHOTO_ID,
+          relatorio_id: base.relatorio.id,
+          kind: 'photo',
+          sha256: 'ab',
+          mime: 'image/jpeg',
+          size: 1,
+          uploaded_at: null,
+          variants: null,
+          removed_at: null,
+          captured_at: '2026-09-06T10:00:00.000Z',
+          tz_offset: -180,
+          coords: null,
+          local_seq: 1,
+          block_id: null,
+          location_id: local.id,
+          item_key: EMERGENCIA,
+          caption: 'Luminária de emergência sem carga',
+          reading_kind: null,
+          reading_target: null,
+          reading_status: 'none',
+          people_in_photo: false,
+        },
+      ],
+    };
+  }
+
+  const snapshot = v4Snapshot();
+  const input = auditInput(draft(snapshot), snapshot);
+  const lines = input.text.split('\n');
+  const section9 = lines.slice(lines.findIndex((line) => line.startsWith('[section:9] ')));
+
+  it('sends the SE and AMBIENTE rows, the site table rows and the site photo line, under the local heading and before its sheets', () => {
+    const at = (text: string) => section9.findIndex((line) => line.includes(text));
+    const heading = at('Cabine de Testes');
+    const firstSheet = section9.findIndex((line) => line.startsWith('[sheet:'));
+    const inLocal = (text: string) => {
+      const index = at(text);
+      expect(index, text).toBeGreaterThan(heading);
+      expect(index, text).toBeLessThan(firstSheet);
+    };
+    expect(heading).toBeGreaterThanOrEqual(0);
+    inLocal('== CARACTERÍSTICAS DA SE ==');
+    inLocal('ALVENARIA - CONVENCIONAL | 13,8 kV');
+    inLocal('== AMBIENTE DE ENSAIO ==');
+    inLocal('20 °C');
+    inLocal('== VERIFICAÇÕES DO LOCAL ==');
+    inLocal('# ÍTEM | C | NC | NA | OBSERVAÇÕES');
+    inLocal('2. TAPETE OU ESTRADO ISOLANTE | X |  |  | ');
+    inLocal('11. ILUMINAÇÃO DE EMERGÊNCIA (AUTONOMIA MÍNIMA DE 2 H) |  | X |  | Duas luminárias de emergência sem carga');
+    inLocal(`[photo:${SITE_PHOTO_ID}] Imagem 1: Luminária de emergência sem carga.`);
+    // An unanswered item holds no value: no line, as a sheet's empty row.
+    expect(at('4. DETECTOR DE TENSÃO')).toBe(-1);
+  });
+
+  it('offers the site photo by its ref and no row ref for a row of the local, and no sheet repeats the cabine tables', () => {
+    expect(input.refs.find((ref) => ref.id === `photo:${SITE_PHOTO_ID}`)).toEqual({ id: `photo:${SITE_PHOTO_ID}`, label: 'Imagem 1', target: { kind: 'photos' } });
+    for (const ref of input.refs) expect(lines.some((line) => line.trimStart().startsWith(`[${ref.id}] `))).toBe(true);
+    expect(lines.filter((line) => line.includes('CARACTERÍSTICAS DA SE'))).toHaveLength(1);
+    expect(lines.filter((line) => line.includes('TAPETE OU ESTRADO ISOLANTE')).every((line) => !line.includes('[row:'))).toBe(true);
+  });
+
+  it('leaves the v1 text as it was: the same snapshot on its own seed carries no site table, and its cabine tables stay on a row ref of the first sheet', () => {
+    const v1 = smallSnapshot();
+    const text = auditInput(draft(v1), v1).text;
+    expect(text).not.toContain('VERIFICAÇÕES DO LOCAL');
+    expect(text.split('\n').some((line) => line.includes('[row:') && line.includes('ALVENARIA - CONVENCIONAL'))).toBe(true);
+  });
+});

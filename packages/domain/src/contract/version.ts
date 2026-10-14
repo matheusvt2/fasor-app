@@ -125,8 +125,11 @@
  * and the Disjuntor MT item `no_break_de_comando`, a new `ITEM_KEYS` value) and is the version
  * of a new template. The fold refuses a site put on a painel or a coluna (`LocationKindError`)
  * and one whose item the relatório's seed version does not offer (`SeedPathError`); both are
- * answered `op_invalid`. A row written before 18 parses to the same bytes and nothing an
- * existing log can contain starts to throw. `MIN_CONTRACT_VERSION` goes to 18 too.
+ * answered `op_invalid`. A site put whose `item_key` is outside `SITE_ITEM_KEYS`, or whose
+ * field is neither `result` nor `observation`, never reaches the fold: the path does not
+ * parse (`parsePath`) and the push route answers `op_path_unknown`. A row written before 18
+ * parses to the same bytes and nothing an existing log can contain starts to throw.
+ * `MIN_CONTRACT_VERSION` goes to 18 too.
  */
 export const CONTRACT_VERSION = 18;
 

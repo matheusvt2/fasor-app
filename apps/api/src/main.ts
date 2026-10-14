@@ -42,7 +42,8 @@ await withRetry('database', () => migrate(db));
 log('migrations applied');
 // Story 14.3 (AD-21): every live template moves to the current seed version, so a relatório
 // created from here on is born on it; no relatório already made is touched. Idempotent.
-log('template seeds upgraded', { moved: await upgradeTemplateSeeds(db) });
+// Retried as its neighbours are: a transient database error at boot must not end the process.
+log('template seeds upgraded', { moved: await withRetry('template seeds', () => upgradeTemplateSeeds(db)) });
 // Story 11.8: ensure the bucket against a local endpoint, only probe it on AWS.
 await withRetry('storage', () => prepareStorage(config, s3));
 const boss = await withRetry('queue', () => startQueue(config.DATABASE_URL));
