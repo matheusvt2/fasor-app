@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { replaySmall } from '../../fixtures/replay-small/op-log.ts';
-import { conflictOpIds, holdsConflictMarks, openDecisions } from '../merge/conflicts.ts';
+import { conflictOpIds, conflictSideView, conflictValueText, holdsConflictMarks, openDecisions } from '../merge/conflicts.ts';
 import { stampSeen } from '../merge/stamp.ts';
 import {
   blockOf,
@@ -416,6 +416,15 @@ describe('two devices on one cell or value', () => {
       [deixado, 'E4 · Ajustes do controlador', 'TD 3A · retransferência · Deixado'],
       [metodo, 'E5 · Transferência', 'Método'],
     ]);
+    // Each side reads as the sheet shows it: a number with its unit, a choice by its option's label, never its key.
+    const context = { blocks: [block], locations: [ctaLocal()], equipment: [ctaRows().equipment], users: [], viewerActorId: TEST_USER, viewerDeviceId: 'tablet-ana' };
+    expect(cells.map((cell) => [conflictSideView(cell, cell.standing, context, block).value, conflictSideView(cell, cell.displaced, context, block).value])).toEqual([
+      ['30 min', '5 min'],
+      ['Botão de teste do controlador', 'Falta real por abertura do disjuntor'],
+    ]);
+    expect(conflictValueText(cells[1]!, choice('nao_realizado'), block)).toBe('Não realizado');
+    // Without the block there is no definition to read the option from: the stored key, as before.
+    expect(conflictValueText(cells[1]!, choice('botao_teste'))).toBe('botao_teste');
   });
 });
 

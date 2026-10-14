@@ -660,6 +660,24 @@ test('@p0 14.5-E2E-002 at 768 then 390: offline, the field palette lists the eig
   await metodo.getByRole('radio', { name: 'Falta real por abertura do disjuntor' }).click();
   await expect(testSection(page, E5)).not.toHaveAttribute('data-skipped', '');
 
+  // The continuous Enter run at 768, on the E1 table: Enter commits the reading and moves down the
+  // column over the three poles the configuration shows, then to the first empty cell of the next column.
+  const poloA = cellInput(page, E1, 'polo_a', 'lado_normal');
+  await poloA.scrollIntoViewIfNeeded();
+  await poloA.click();
+  await expect(poloA).toHaveAccessibleName('Polo A, Lado Normal');
+  await poloA.fill('38');
+  await poloA.press('Enter');
+  await expect(cellInput(page, E1, 'polo_b', 'lado_normal')).toBeFocused();
+  await expect.poll(async () => lastWritten(page, cellPath(blockId, E1, 'polo_a', 'lado_normal'))).toEqual(measured('38', 'µΩ'));
+  await page.keyboard.type('41');
+  await page.keyboard.press('Enter');
+  await expect(cellInput(page, E1, 'polo_c', 'lado_normal')).toBeFocused();
+  await page.keyboard.type('36');
+  await page.keyboard.press('Enter');
+  await expect(cellInput(page, E1, 'polo_a', 'lado_emergencia')).toBeFocused();
+  await expect.poll(async () => lastWritten(page, cellPath(blockId, E1, 'polo_c', 'lado_normal'))).toEqual(measured('36', 'µΩ'));
+
   // At 768 the E4 table is a table; at 390 it is one card per setting, and the page never scrolls sideways.
   const e4 = testSection(page, E4);
   await e4.scrollIntoViewIfNeeded();
@@ -674,6 +692,23 @@ test('@p0 14.5-E2E-002 at 768 then 390: offline, the field palette lists the eig
   // A card field writes the same cell the table writes.
   await typeCell(page, E4, 'td_1c', 'projeto', '3');
   await expect.poll(async () => lastWritten(page, cellPath(blockId, E4, 'td_1c', 'projeto'))).toEqual(measured('3', 's'));
+  // The Enter run on the cards: from the Projeto of one setting to the Projeto of the next, the
+  // drawn input being the card's; past the last typed setting (the Exercitador is a choice, never
+  // a stop) it goes to the first empty cell of the next column.
+  const td2b = cellInput(page, E4, 'td_2b', 'projeto');
+  await td2b.click();
+  await td2b.fill('1');
+  await td2b.press('Enter');
+  const td3a = cellInput(page, E4, 'td_3a', 'projeto');
+  await expect(td3a).toBeFocused();
+  expect(await td3a.evaluate((input) => input.closest('.lib-cards .measurement-card') !== null)).toBe(true);
+  await expect.poll(async () => lastWritten(page, cellPath(blockId, E4, 'td_2b', 'projeto'))).toEqual(measured('1', 's'));
+  await page.keyboard.type('5');
+  await page.keyboard.press('Enter');
+  await expect(cellInput(page, E4, 'td_2e', 'projeto')).toBeFocused();
+  await page.keyboard.type('5');
+  await page.keyboard.press('Enter');
+  await expect(cellInput(page, E4, 'normal_pickup_de_tensao', 'encontrado')).toBeFocused();
   // A table of two value columns stays a table on phone (EXPERIENCE.md › Measurement table).
   const e1 = testSection(page, E1);
   await e1.scrollIntoViewIfNeeded();

@@ -657,7 +657,11 @@ function configPart(block: BlockRow, definition: BlockDefinition): SheetPart | n
 /** One line across a measurement test's table, left-aligned. */
 const lineRow = (text: string, span: number): PrintRow => ({ cells: [{ text, span, align: 'left' }] });
 
-/** "INSTRUMENTO: HTMO-10 · Hi-Tech · Nº SÉRIE G282926 · RBC 37276/26", "INSTRUMENTO: -" while none was picked. */
+/**
+ * "INSTRUMENTO: HTMO-10 · Hi-Tech · Nº SÉRIE G282926 · RBC 37276/26", "INSTRUMENTO: -" while none
+ * was picked. The line carries no test parameter, whatever the stored header holds: the test
+ * voltage of a measurement test is the one its ACEITÁVEL line states.
+ */
 function instrumentLine(block: BlockRow, testKey: string): string {
   const header = storedInstrumentHeader(block.sheet.test[testKey]?.instrument?.value);
   const present = (value: string | null | undefined): value is string => value !== null && value !== undefined && value.trim() !== '';
@@ -666,7 +670,6 @@ function instrumentLine(block: BlockRow, testKey: string): string {
     header?.manufacturer,
     present(header?.serial) ? `${INSTRUMENT_LABELS[2]} ${header.serial}` : null,
     present(header?.cert_number) ? `${INSTRUMENT_LABELS[3]} ${header.cert_number}` : null,
-    header?.test_parameter,
   ].filter(present);
   return `${INSTRUMENT_PREFIX}: ${parts.length === 0 ? DASH : parts.join(SEP)}`;
 }

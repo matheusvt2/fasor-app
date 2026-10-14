@@ -4,11 +4,14 @@ import {
   choiceValue,
   evaluateSheetMeasurements,
   getDefinition,
+  instrumentHeaderOf,
+  measurementInstrumentHeaderOf,
   newEquipmentBlock,
   sheetTestCellPath,
   sheetTestValuePath,
   type BlockRow,
   type Cell,
+  type InstrumentRow,
   type JsonValue,
   type OpDraft,
   type RelatorioSnapshot,
@@ -89,7 +92,7 @@ function cta({ options = {}, off = [], cells = {}, values = {} }: Filled = {}): 
   return { ...block, config: config as BlockRow['config'], sheet: { ...block.sheet, test } };
 }
 
-function renderTests(block: BlockRow, { readOnly = false } = {}) {
+function renderTests(block: BlockRow, { readOnly = false, instruments = [], others = [] }: { readOnly?: boolean; instruments?: InstrumentRow[]; others?: BlockRow[] } = {}) {
   const commits: OpDraft[][] = [];
   const edits: OpDraft[][] = [];
   const announced: string[] = [];
@@ -114,12 +117,12 @@ function renderTests(block: BlockRow, { readOnly = false } = {}) {
       announced.push(text);
     }),
   };
-  const snapshot = { relatorio: { setup: { service_end: null, instrument_ids: [] } }, blocks: [block] } as unknown as RelatorioSnapshot;
+  const snapshot = { relatorio: { setup: { service_end: null, instrument_ids: [] } }, blocks: [block, ...others] } as unknown as RelatorioSnapshot;
   const view = render(
     <MemoryRouter>
       <ToastProvider>
         <SheetReadOnlyProvider value={readOnly}>
-          <MeasurementTests api={api} snapshot={snapshot} block={block} evaluations={evaluateSheetMeasurements(block, DEFINITION)} instruments={[]} onRun={onRun} />
+          <MeasurementTests api={api} snapshot={snapshot} block={block} evaluations={evaluateSheetMeasurements(block, DEFINITION)} instruments={instruments} onRun={onRun} />
         </SheetReadOnlyProvider>
       </ToastProvider>
     </MemoryRouter>,
@@ -424,6 +427,56 @@ describe('14.5 MeasurementTests: a test switched off, the instrument, a sheet no
   it('the Instrument picker is drawn where the seed names whose instruments it offers: E1 to E3, never E4 to E6', () => {
     const { container } = renderTests(cta());
     expect([E1, E2, 'cta_isolamento_controle', E4, E5, E6].map((key) => section(container, key).querySelector('.instrument-picker') !== null)).toEqual([true, true, true, false, false, false]);
+  });
+
+  it('a pick on E1 or E2 is one put on the test\'s instrument with the registry header and no test parameter', async () => {
+    // A registry default for both kinds: neither is copied onto a measurement test.
+    const row = {
+      id: id(20),
+      kind: 'instrument',
+      code: '3M',
+      name: 'Microhmímetro',
+      manufacturer: 'Hi-Tech',
+      model: 'HTMO-10',
+      serial: 'G282926',
+      cert_number: '37276/26',
+      laboratory: null,
+      calibrated_at: '2026-08-28',
+      calibration_interval_months: 12,
+      rbc_accredited: true,
+      test_isolacao: { raw: '5', unit: 'kV' },
+      test_resistencia_contato: { raw: '10', unit: 'A' },
+      test_relacao_transformacao: null,
+      certificate_file_id: null,
+      removed_at: null,
+    } as InstrumentRow;
+    const { container, edits } = renderTests(cta(), { instruments: [row] });
+    for (const key of [E1, E2]) {
+      const picker = within(section(container, key));
+      await userEvent.click(picker.getByRole('button', { name: 'Instrumento Selecione o instrumento' }));
+      await userEvent.click(picker.getByRole('radio', { name: /3M/ }));
+    }
+    const header = { ...instrumentHeaderOf(row, 'resistencia_contato'), test_parameter: null };
+    expect(instrumentHeaderOf(row, 'resistencia_contato').test_parameter).toBe('10 A');
+    expect(measurementInstrumentHeaderOf(row)).toEqual(header);
+    expect(edits).toEqual([
+      [expect.objectContaining({ kind: 'put', path: `sheet/${BLOCK}/test/${E1}/instrument`, value: header })],
+      [expect.objectContaining({ kind: 'put', path: `sheet/${BLOCK}/test/${E2}/instrument`, value: header })],
+    ]);
+  });
+
+  it('E1 to E3 show the instrument last used for their kind in the relatório as "Sugerido", like a seeded test', () => {
+    const row = { id: id(20), kind: 'instrument', code: '3M', name: 'Microhmímetro', manufacturer: null, model: null, serial: null, cert_number: null, laboratory: null, calibrated_at: null, calibration_interval_months: null, rbc_accredited: false, test_isolacao: null, test_resistencia_contato: null, test_relacao_transformacao: null, certificate_file_id: null, removed_at: null } as unknown as InstrumentRow;
+    const { block: other } = newEquipmentBlock({ blockId: id(30), equipmentId: id(31), relatorioId: RELATORIO, projectId: id(5), locationId: id(3), type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v5', orderKey: 'a1' });
+    const used: BlockRow = { ...other, sheet: { ...other.sheet, test: { resistencia_contato: { cells: {}, instrument: stored(instrumentHeaderOf(row, 'resistencia_contato') as unknown as JsonValue) } } } };
+    const { container } = renderTests(cta(), { instruments: [row], others: [used] });
+    const e1 = section(container, E1).querySelector('.instrument-picker')!;
+    expect(e1).toHaveAttribute('data-state', 'suggested');
+    expect(e1).toHaveClass('suggestion-field');
+    expect(e1.querySelector('.suggested-pill')).toHaveTextContent('Sugerido');
+    expect(within(e1 as HTMLElement).getByRole('button')).toHaveAccessibleName('Instrumento 3M — Microhmímetro');
+    // Nothing was used for isolação: E2 suggests none.
+    expect(section(container, E2).querySelector('.instrument-picker')).not.toHaveAttribute('data-state');
   });
 
   it('on a sheet marked not tested every test is read-only: no switch, no input, the stored values as text', () => {

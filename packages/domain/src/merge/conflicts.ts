@@ -1,11 +1,11 @@
 import { formatShortDateTime } from '../format/datetime.ts';
 import { entityKey, type EntityKey } from '../ops/apply.ts';
-import { formatPath, type OpPath } from '../ops/path.ts';
+import { formatPath, safeParsePath, type OpPath } from '../ops/path.ts';
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { avatarInitial } from '../registration.ts';
 import { composeConclusion } from '../relatorio/conclusion.ts';
 import { sheetOrder, fieldValueText } from '../relatorio/ficha.ts';
-import { measurementCellLabel, measurementTestTitle, measurementValueLabel } from '../relatorio/measurement-evaluation.ts';
+import { measurementCellLabel, measurementStoredText, measurementTestTitle, measurementValueLabel } from '../relatorio/measurement-evaluation.ts';
 import { evaluateTest } from '../relatorio/reading-evaluation.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import { sheetState, sheetStateLabel } from '../relatorio/sheet-state.ts';
@@ -629,13 +629,27 @@ const CONCLUSION_WORDS: Readonly<Record<string, string>> = {
   edited: 'Editado',
 };
 
-/** A side's value as the sheet displays it ("3.300 MΩ", "Conforme", "Aprovado"); "—" when empty. */
+/**
+ * Story 14.5: a measurement test's cell or value as its sheet shows it, a choice by its option's
+ * label ("Botão de teste", never the stored key); null for any other path or a seeded test.
+ */
+function measurementValueText(path: string, value: unknown, block: Pick<BlockRow, 'seed_version' | 'block_type'>): string | null {
+  const parsed = safeParsePath(path);
+  if (parsed === null) return null;
+  if (parsed.family === 'sheet/test/cell') return measurementStoredText(definitionOf(block), parsed.test_key, { row: parsed.row, col: parsed.col }, value);
+  if (parsed.family === 'sheet/test/value') return measurementStoredText(definitionOf(block), parsed.test_key, { valueKey: parsed.value_key }, value);
+  return null;
+}
+
+/** A side's value as the sheet displays it ("3.300 MΩ", "Conforme", "Aprovado", a choice's label); "—" when empty. */
 export function conflictValueText(cell: Pick<CellConflict, 'path'>, value: unknown, block?: Pick<BlockRow, 'seed_version' | 'block_type'>): string {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'object' && !Array.isArray(value) && 'raw' in value) {
     const number = value as { raw: string; unit?: string | null; state?: string };
     if (number.state === 'empty') return '—';
     if (number.state === 'not_measured') return '-';
+    const measurement = block === undefined ? null : measurementValueText(cell.path, value, block);
+    if (measurement !== null) return measurement;
     const unit = typeof number.unit === 'string' && number.unit !== '' ? ` ${number.unit}` : '';
     return `${formatDecimalGroupedPtBr(number.raw)}${unit}`;
   }

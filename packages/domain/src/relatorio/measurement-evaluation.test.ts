@@ -52,7 +52,7 @@ import {
 } from './measurement-test-support.ts';
 import { evaluateSheetReadings } from './readings.ts';
 import { sheetMissingTotal, sheetProgress, sheetProgressText, sheetSummaryText, shownSheetSteps, stepMayCollapse } from './sheet-progress.ts';
-import { sheetState } from './sheet-state.ts';
+import { enabledCells, enabledSubBlocksOf, sheetState } from './sheet-state.ts';
 
 /*
  * Story 14.5: the evaluation of the measurement tests, one group of tests per row of the
@@ -120,9 +120,23 @@ describe('matrix "Relative limit": E1, at most 50 % above the lowest of the same
     const notMeasured = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: { raw: '', unit: 'µΩ', state: 'not_measured' }, polo_b: micro('40'), polo_c: micro('70') }));
     expect(cellOf(notMeasured, E1, 'polo_a', 'lado_normal')).toMatchObject({ state: 'not_measured', displayText: '-', verdict: null, missing: false });
     expect(verdicts(notMeasured, E1, 'lado_normal')).toEqual([null, 'within', 'out']);
-    // A zero or negative lowest gives no percentage: nothing is judged.
-    const zero = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: micro('0'), polo_b: micro('40'), polo_c: micro('70') }));
-    expect(verdicts(zero, E1, 'lado_normal')).toEqual([null, null, null]);
+  });
+
+  it('a reading of zero or below is no reference and gets no verdict; the positive ones are still judged against the lowest positive', () => {
+    for (const raw of ['0', '-3']) {
+      const block = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: micro(raw), polo_b: micro('40'), polo_c: micro('70') }));
+      expect(verdicts(block, E1, 'lado_normal')).toEqual([null, 'within', 'out']);
+      expect(cellOf(block, E1, 'polo_c', 'lado_normal').helperText).toBe('75 % acima do menor do lado (40 µΩ) — critério ≤ 50 %');
+      expect(testOf(block, E1).reference!.cells[0]!.text).toBe('40 µΩ');
+      expect(measurementCounts(evaluate(block)).outOfLimit).toBe(1);
+    }
+    // One positive reading beside a zero: nothing to compare it with, and it is the reference.
+    const alone = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: micro('0'), polo_b: micro('40') }));
+    expect(verdicts(alone, E1, 'lado_normal')).toEqual([null, null, null]);
+    expect(testOf(alone, E1).reference!.cells[0]!.text).toBe('40 µΩ');
+    // Nothing positive: no reference.
+    const none = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: micro('0'), polo_b: micro('0') }));
+    expect(testOf(none, E1).reference!.cells[0]!.text).toBeNull();
   });
 });
 
@@ -454,6 +468,32 @@ describe('matrix "Test switched off"', () => {
     // A config that says E4 or E5 is off does not switch them off.
     const forced = off(off(ctaBlock(), E4), E5);
     expect(evaluate(forced).map((test) => test.enabled)).toEqual([true, true, true, true, true, true]);
+  });
+
+  it('a stored "off" on E4 or E5 is ignored by every reader alike: the sub-blocks, the cells of the state, the step and its counts', () => {
+    const plain = ctaBlock({ polos: '4' });
+    const forced = off(off(plain, E4), E5);
+    expect(enabledSubBlocksOf(forced).has(E4 as never)).toBe(true);
+    expect(enabledSubBlocksOf(forced).has(E5 as never)).toBe(true);
+    expect([...enabledSubBlocksOf(forced)].sort()).toEqual([...enabledSubBlocksOf(plain)].sort());
+    // The config with no entry at all for the two reads the same.
+    const rest = Object.fromEntries(Object.entries((plain.config as { sub_blocks: Record<string, JsonValue> }).sub_blocks).filter(([key]) => key !== E4 && key !== E5));
+    const bare: BlockRow = { ...plain, config: { ...(plain.config as Record<string, JsonValue>), sub_blocks: rest } };
+    expect(enabledSubBlocksOf(bare).has(E4 as never)).toBe(true);
+    expect(enabledSubBlocksOf(bare).has(E5 as never)).toBe(true);
+    // A switchable test still follows its entry.
+    expect(enabledSubBlocksOf(off(plain, E1)).has(E1 as never)).toBe(false);
+
+    // One cell of E4 and one value of E5, on a sheet whose config says both are off.
+    const { state, f } = ctaState({ polos: '4' });
+    const written = blockOf(writeSheet(state, f, [{ test: E4, row: 'td_3a', col: 'projeto', value: num('5', 'min') }, { test: E5, key: 'metodo', value: choice('falta_real') }]));
+    const typed = off(off(written, E4), E5);
+    const held = [typed.sheet.test[E4]!.cells[String(rowOf(E4, 'td_3a'))]![String(colOf(E4, 'projeto'))]!, typed.sheet.test[E5]!.values!['metodo']!];
+    expect(enabledCells(typed)).toEqual(expect.arrayContaining(held));
+    expect(enabledCells(typed)).toEqual(enabledCells(written));
+    expect(sheetState(typed)).toBe('em_preenchimento');
+    expect(measurementCounts(evaluate(typed))).toEqual(measurementCounts(evaluate(written)));
+    expect(shownSheetSteps(off(off(off(off(off(off(plain, E1), E2), E3), E6), E4), E5))).toContain('ensaios');
   });
 
   it('a test switched off requires nothing and judges nothing; switched on again it reads what it held', () => {

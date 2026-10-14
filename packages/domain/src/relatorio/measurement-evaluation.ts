@@ -399,17 +399,20 @@ function applyAbsolute(rows: readonly EvaluatedMeasurementRow[], criterion: Extr
   }
 }
 
-/** The measured number cells of one column in the column's base unit, with the lowest of them; null with none or a lowest that is not positive. */
+/**
+ * The measured positive number cells of one column in the column's base unit, with the lowest of them; null with
+ * none. A reading of zero or below is no reference and has no percentage above one, so it stays out and gets no
+ * verdict, and the other cells of the column are still judged against the lowest positive one.
+ */
 function columnLowest(rows: readonly EvaluatedMeasurementRow[], column: EvaluatedMeasurementColumn): { cells: { cell: EvaluatedMeasurementCell; value: number }[]; lowest: { cell: EvaluatedMeasurementCell; value: number } } | null {
   const cells = rows.flatMap((row) => {
     const cell = row.cells.find((candidate) => candidate.address.col === column.col);
     if (cell === undefined || cell.kind !== 'number' || !judged(cell)) return [];
     const value = scaleToUnit(Number(cell.raw), cell.unit, column.unit ?? cell.unit);
-    return value === null ? [] : [{ cell, value }];
+    return value === null || !(value > 0) ? [] : [{ cell, value }];
   });
   if (cells.length === 0) return null;
-  const lowest = cells.reduce((least, entry) => (entry.value < least.value ? entry : least));
-  return lowest.value > 0 ? { cells, lowest } : null;
+  return { cells, lowest: cells.reduce((least, entry) => (entry.value < least.value ? entry : least)) };
 }
 
 function applyRelative(
@@ -420,7 +423,7 @@ function applyRelative(
   for (const column of columns) {
     if (column.kind !== 'number') continue;
     const found = columnLowest(rows, column);
-    // Fewer than two measured cells: nothing to compare the one with.
+    // Fewer than two measured positive cells: nothing to compare the one with.
     if (found === null || found.cells.length < 2) continue;
     const lowestText = withUnit(found.lowest.cell.displayText, found.lowest.cell.unit);
     for (const { cell, value } of found.cells) {

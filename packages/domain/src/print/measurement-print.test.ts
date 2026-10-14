@@ -5,7 +5,7 @@ import { applyOp } from '../ops/apply.ts';
 import { blockFieldPath, sheetConclusionPath, sheetObservationsPath, sheetTestPath } from '../ops/path.ts';
 import { replay } from '../ops/replay.ts';
 import { blockConfigWithSubBlock } from '../relatorio/measurement-evaluation.ts';
-import { blockOf, choice, CTA, CTA_BLOCK, ctaFilledWrites, ctaRows, ctaState, E1, E5, writeSheet } from '../relatorio/measurement-test-support.ts';
+import { blockOf, choice, CTA, CTA_BLOCK, ctaFilledWrites, ctaRows, ctaState, E1, E2, E5, writeSheet } from '../relatorio/measurement-test-support.ts';
 import { LIBRARY_GROUP_LABEL, newEquipmentBlock } from '../relatorio/tree.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, EquipmentRow, LocationRow } from '../schemas/entities.ts';
@@ -239,6 +239,10 @@ describe('section9Layout: a Chave de transferência automática', () => {
     expect(e1.rows[3]!.header).toBe(true);
     // No instrument picked: the line says so.
     expect(texts(titled(printed(blockOf(state)).sheet, 'E1 · RESISTÊNCIA DE CONTATO'))[1]).toEqual(['INSTRUMENTO: -']);
+    // A megôhmetro on E2: the line never carries a test parameter, so no "5 kV" beside the criterion's "1.000 Vcc".
+    const megohmetro = { ...instrument, model: 'DMG10Ki', manufacturer: 'Instrum', serial: 'IN919021', cert_number: '37428/26', test_parameter: '5 kV' };
+    const e2 = texts(titled(printed(blockOf(applyOp(state, f.op({ path: sheetTestPath(CTA_BLOCK, E2, 'instrument'), value: megohmetro })))).sheet, 'E2 · ISOLAMENTO PRINCIPAL'));
+    expect(e2.slice(1, 3)).toEqual([['INSTRUMENTO: DMG10Ki · Instrum · Nº SÉRIE IN919021 · RBC 37428/26'], ['ACEITÁVEL: 1.000 Vcc · ≥ 100 MΩ · NETA tabela 100.1 (fonte secundária)']]);
   });
 
   it('E2 and E3: GΩ in the headers, the fixed cells as written, the criterion of the tensão', () => {

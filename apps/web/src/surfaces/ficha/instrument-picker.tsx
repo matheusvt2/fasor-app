@@ -6,6 +6,7 @@ import {
   instrumentOptionOf,
   instrumentPickerOrder,
   lastInstrumentIdFor,
+  measurementInstrumentHeaderOf,
   storedInstrumentHeader,
   suggestedInstrument,
   type BlockRow,
@@ -51,9 +52,9 @@ export function InstrumentPicker({
   /** The test whose `instrument` cell holds the header: a seeded test or (Story 14.5) a measurement test. */
   testKey: TestKey | MeasurementTestKey;
   /**
-   * Story 14.5: on a measurement test, the seeded test kind whose registry instruments and
-   * default parameter the picker offers (the seed's `instrument_of`). A measurement test always
-   * passes it; a seeded test is its own kind.
+   * Story 14.5: on a measurement test, the seeded test kind whose registry instruments the
+   * picker offers (the seed's `instrument_of`); the header it writes carries no test parameter.
+   * A measurement test always passes it; a seeded test is its own kind.
    */
   instrumentOf?: TestKey;
   instruments: readonly InstrumentRow[];
@@ -79,9 +80,9 @@ export function InstrumentPicker({
   const kind: TestKey = instrumentOf ?? (testKey as TestKey);
   const header = storedInstrumentHeader(block.sheet.test[testKey]?.instrument?.value);
   // Story 12.3 (D-4): with nothing stored, the kernel's suggestion (the last one used for
-  // this test kind in the relatório) shows amber "Sugerido"; "Concluir ficha" writes it. The
-  // kernel suggests for the seeded tests only, so a measurement test shows none.
-  const suggestion = header === null && !readOnly && instrumentOf === undefined ? suggestedInstrument({ blocks, instruments }, block.id, kind) : null;
+  // this test kind in the relatório) shows amber "Sugerido"; "Concluir ficha" writes it. A
+  // measurement test is suggested the same way, through its `instrument_of`.
+  const suggestion = header === null && !readOnly ? suggestedInstrument({ blocks, instruments }, block.id, testKey) : null;
   const shown = header ?? suggestion;
   const at = now();
   const registryRow = shown === null ? undefined : instruments.find((row) => row.id === shown.instrument_id);
@@ -128,7 +129,9 @@ export function InstrumentPicker({
     close();
     const row = ordered.find((r) => r.id === id);
     if (row === undefined || header?.instrument_id === id) return;
-    void api.edit((_blocks, by) => [testInstrumentOp(by, api.relatorioId, api.blockId, testKey, instrumentHeaderOf(row, kind))]).catch(() => undefined);
+    // A measurement test's criterion states its own test voltage: its header carries no registry default.
+    const picked = instrumentOf === undefined ? instrumentHeaderOf(row, kind) : measurementInstrumentHeaderOf(row);
+    void api.edit((_blocks, by) => [testInstrumentOp(by, api.relatorioId, api.blockId, testKey, picked)]).catch(() => undefined);
   };
 
   const onOptionKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
