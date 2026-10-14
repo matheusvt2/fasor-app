@@ -2,7 +2,8 @@
 title: 'Epic 14 carry-over B: camera and relatorio tree split, camera focus return, pnpm probe files'
 type: 'refactor'
 created: '2026-10-14'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '0335616287d78c8348b452be13bdc7a91df727b0'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus
@@ -89,7 +90,7 @@ A plain object/class without React state is acceptable; the zoom keeps its pan/d
 
 ## Verification
 
-All inside containers; Playwright only under `lockf -t 20000 /tmp/fasor-verify.lock`, started with nohup, logs tagged `co14b`.
+Environment (this host): work only in this worktree (`/Users/matheusvilella/Documents/estudos/fasor-app-co14b`); its `.env` sets compose project `fasor-co14b`, port base 32. `docker` is absent: use `podman compose`; run the tools container as `podman compose --profile tools run --rm --user root tools <cmd>`. Never run pnpm/node on the host, never build images (`app-api-co14b`/`app-tools-co14b` are pre-tagged), never touch containers not named `fasor-co14b-*`, never touch `infra/` or AWS, never commit on main. Every Playwright run goes under the host lock, started with nohup and polled: `nohup sh -c "lockf -t 20000 /tmp/fasor-verify.lock podman compose --profile tools run --rm --user root tools <cmd>; echo EXIT=\$?" > /tmp/<name>-co14b.log 2>&1 &`, then poll the log with short calls (at most 60 s each). Redirect long outputs to tagged logs and read their tail. Bring the stack up with `podman compose up -d` once before api/e2e runs.
 
 **Commands:**
 - `podman compose --profile tools run --rm --user root tools pnpm lint` / `static` / `test:unit` / `test:api` -- expected: exit 0 (co14a-owned reds excepted, named).
