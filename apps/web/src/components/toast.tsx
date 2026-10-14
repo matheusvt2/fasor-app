@@ -354,6 +354,7 @@ export const STICKY_BAR_COVERED = '--sticky-bar-covered';
  * the padding exists exactly while a bar does.
  */
 export function useStickyBarScrollPadding(): void {
+  useFocusedClearOfStickyBar();
   useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
     let last: string | null = null;
@@ -383,4 +384,76 @@ function restoreFocus(target: HTMLElement | null) {
   if (!(main instanceof HTMLElement)) return;
   if (!main.hasAttribute('tabindex')) main.setAttribute('tabindex', '-1');
   main.focus();
+}
+
+/** How long after a Tab or an Enter a focus is still that key's move (the Enter run focuses the next reading a few frames later). */
+const KEY_FOCUS_MS = 500;
+
+/** When a Tab or an Enter was last pressed anywhere; watched for the page's whole life, as `pointer` is. */
+const keyMove = { at: Number.NEGATIVE_INFINITY, watched: false };
+function watchKeyMoves(): void {
+  if (keyMove.watched || typeof document === 'undefined') return;
+  keyMove.watched = true;
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if (event.key === 'Tab' || event.key === 'Enter') keyMove.at = performance.now();
+    },
+    { capture: true },
+  );
+}
+const focusIsOfAKeyMove = (): boolean => performance.now() - keyMove.at < KEY_FOCUS_MS;
+
+/**
+ * Carry-over co14a (F-11 on WebKit): the field the keyboard moved the focus to, when its box is
+ * under the band the page's Sticky action bar covers or under a sticky App bar, scrolls until it
+ * is clear of both. Chrome's own focus scroll already honours the page's `scroll-padding-bottom`
+ * (`app.css`), so there this finds nothing to do; WebKit's focus scroll ignores the padding and
+ * leaves the reading under the bar. An element taller than the room keeps its top in view.
+ * Elements inside a Sticky action bar or a dialog are left alone.
+ */
+export function keepClearOfStickyBar(target: Element | null): void {
+  if (!(target instanceof HTMLElement) || target === document.body || target === document.documentElement) return;
+  if (target.closest('.sticky-action-bar, [role="dialog"], [role="alertdialog"]') !== null) return;
+  const box = target.getBoundingClientRect();
+  if (box.width === 0 && box.height === 0) return;
+  const appBar = document.querySelector<HTMLElement>('.app-bar');
+  const top = appBar !== null && getComputedStyle(appBar).position === 'sticky' ? Math.max(0, appBar.getBoundingClientRect().bottom) : 0;
+  const floor = window.innerHeight - stickyBarCovered(true);
+  let by = 0;
+  if (box.bottom > floor) by = Math.max(0, Math.min(Math.ceil(box.bottom - floor), Math.floor(box.top - top)));
+  else if (box.top < top) by = Math.floor(box.top - top);
+  if (by !== 0) window.scrollBy({ top: by, behavior: 'instant' });
+}
+
+/**
+ * Runs `keepClearOfStickyBar` on a focus the keyboard moved (Tab,
+ * the Enter run). A focus the app gives with `preventScroll` (an arrival, a step jump) or a press
+ * gives is not the keyboard's and stays where it is.
+ */
+function useFocusedClearOfStickyBar(): void {
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return;
+    watchKeyMoves();
+    let frame: number | null = null;
+    const onFocusIn = (event: globalThis.FocusEvent) => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = null;
+      if (!focusIsOfAKeyMove()) return;
+      const target = event.target instanceof Element ? event.target : null;
+      // Now, so the field is clear in the same task as the key (whichever side of the focus
+      // event the browser's own reveal runs, it then finds the field in view), and once more
+      // on the next frame for a layout the focus itself changed.
+      keepClearOfStickyBar(target);
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        if (target !== null && document.activeElement === target) keepClearOfStickyBar(target);
+      });
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => {
+      document.removeEventListener('focusin', onFocusIn);
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, []);
 }

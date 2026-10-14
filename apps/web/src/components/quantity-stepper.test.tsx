@@ -132,6 +132,43 @@ describe('QuantityStepper (UX-DR30)', () => {
     }
   });
 
+  it('typing that lands before the focus select frame is kept: the deferred select never overrides it (carry-over co14a)', async () => {
+    // The frames are queued and flushed by hand, so the keystroke lands before the select frame on every run.
+    const frames = new Map<number, FrameRequestCallback>();
+    let nextFrame = 1;
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.set(nextFrame, callback);
+      return nextFrame++;
+    });
+    const caf = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((handle) => {
+      frames.delete(handle);
+    });
+    const flush = () =>
+      act(() => {
+        const queued = [...frames.values()];
+        frames.clear();
+        for (const callback of queued) callback(performance.now());
+      });
+    try {
+      const onCommit = vi.fn();
+      render(<Harness initial={4} onCommit={onCommit} />);
+      act(() => count().focus());
+      expect(frames.size).toBe(1);
+      await userEvent.clear(count());
+      await userEvent.type(count(), '1', { skipClick: true });
+      flush();
+      expect(count()).toHaveValue('1');
+      await userEvent.type(count(), '50', { skipClick: true });
+      expect(count()).toHaveValue('150');
+      await userEvent.keyboard('{Enter}');
+      await waitFor(() => expect(count()).toHaveValue('99'));
+      expect(onCommit).toHaveBeenLastCalledWith(99);
+    } finally {
+      raf.mockRestore();
+      caf.mockRestore();
+    }
+  });
+
   it('a touch tap on "+" steps once on release and commits once', async () => {
     const onCommit = vi.fn();
     render(<Harness onCommit={onCommit} />);

@@ -2,6 +2,7 @@ import { DOCX_MIME, instantiateTemplate, PDF_MIME, standardTemplate, type OpDraf
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
+import { escapeDialog } from './support/dialogs.ts';
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { syncNow } from './support/sync.ts';
@@ -319,17 +320,6 @@ const IDLE_2 = 'Gera o DOCX e o PDF juntos, a partir dos dados do app, como a re
 const sumarioList = (page: Page) => page.getByRole('list', { name: 'Sumário do relatório' });
 const banner = (page: Page) => page.locator('.banner-slot .banner');
 
-/**
- * E9-Q13: Escape reaches the dialog only from a focused element inside it. Under load the
- * dialog's "pronta" render can land a moment after its text, with the focus still on its way,
- * so the key waits until the focus is in the dialog, then the dialog must close.
- */
-async function escapeDialog(page: Page): Promise<void> {
-  await expect.poll(() => dialog(page).evaluate((element) => element.contains(document.activeElement))).toBe(true);
-  await page.keyboard.press('Escape');
-  await expect(dialog(page)).toBeHidden();
-}
-
 /** Opens the header Overflow and confirms the one-step backward move to `to`. */
 async function moveBackTo(page: Page, to: string): Promise<void> {
   await page.getByRole('button', { name: 'Mais opções do relatório' }).click();
@@ -355,7 +345,7 @@ test('@p0 E4-E2E-001 generate, mark as sent, edit, Em revisão, generate revisio
   await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Em revisão');
   await dialog(page).getByRole('button', { name: MARK_SENT }).click();
   await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
-  await escapeDialog(page);
+  await escapeDialog(page, dialog(page));
   await expect(headerPill(page)).toHaveText('Emitido');
   await expect(banner(page)).toContainText('(revisão 1). Alterações geram a revisão 2.');
 
@@ -391,7 +381,7 @@ test('@p0 E4-E2E-001 generate, mark as sent, edit, Em revisão, generate revisio
   await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 2 pronta' })).toBeVisible();
   await expect(dialog(page).locator('.revision-row')).toHaveCount(2);
   await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Em revisão');
-  await escapeDialog(page);
+  await escapeDialog(page, dialog(page));
   await expect(headerPill(page)).toHaveText('Em revisão');
   await expect(banner(page)).toContainText('Revisão 2 gerada em');
   await expect(banner(page)).toContainText('ainda não enviada ao cliente.');
@@ -414,7 +404,7 @@ test('@p0 E4-E2E-001 generate, mark as sent, edit, Em revisão, generate revisio
   await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Em revisão');
   await dialog(page).getByRole('button', { name: MARK_SENT }).click();
   await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
-  await escapeDialog(page);
+  await escapeDialog(page, dialog(page));
   await expect(headerPill(page)).toHaveText('Emitido');
 });
 

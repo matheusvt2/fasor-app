@@ -962,6 +962,25 @@ describe('9.2-INT the panel reading', () => {
     expect((await runs(id))[0]!.error).toContain('target location was removed');
     expect(await status(id)).toBe('failed');
   }, 60_000);
+
+  it('a target that is a live painel of the relatório fails permanently: a painel takes no block (carry-over co14a)', async () => {
+    const own = await relatorio();
+    // The painel goes under the local (cabine) that holds the seccionadora's location.
+    let local = (await row<{ id: string; kind: string; parent_id: string | null }>('location', own.blocks.find((b) => b.block_type === 'chave_seccionadora')!.location_id!))!;
+    while (local.kind !== 'cabine') local = (await row<typeof local>('location', local.parent_id!))!;
+    const painel = newId();
+    await apply([
+      { ...relatorioPut(own.relatorioId, `location/${painel}`, null), kind: 'create', value: { id: painel, relatorio_id: own.relatorioId, parent_id: local.id, kind: 'painel', name: 'Painel A', order_key: 'z0', removed_at: null } as never },
+    ]);
+    expect(await row('location', painel)).toMatchObject({ kind: 'painel', removed_at: null });
+    const id = await panelPhoto(own.relatorioId, { location_id: painel });
+    await runPanel(id);
+    const rows = await runs(id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.error).toContain('target location takes no block');
+    expect(await status(id)).toBe('failed');
+    expect((await suggestions(own.relatorioId)).filter((s) => s.source.photo_id === id)).toEqual([]);
+  }, 60_000);
 });
 
 describe('11.6-INT the bedrock provider through an injected client (nothing reaches AWS)', () => {

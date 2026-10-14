@@ -1,4 +1,4 @@
-import { buildPanelSuggestion, locationRowSchema, PANEL_FIELDS, panelFields, panelReadingTargetSchema, relatorioRowSchema } from '@app/domain';
+import { buildPanelSuggestion, locationRowSchema, PANEL_FIELDS, panelFields, panelReadingTargetSchema, relatorioRowSchema, takesBlocks } from '@app/domain';
 import { PermanentReadingError } from '../providers/errors.ts';
 import { entityRecord, readOcr } from './shared.ts';
 import type { ReadingKindHandler } from './types.ts';
@@ -30,6 +30,8 @@ export const panelHandler: ReadingKindHandler = {
     if (record === null || row === null || !row.success) throw new PermanentReadingError('the target location does not exist');
     if (record.removed_at !== null || row.data.removed_at !== null) throw new PermanentReadingError('the target location was removed');
     if (row.data.relatorio_id !== relatorioId) throw new PermanentReadingError('the target location is not of the photo relatorio');
+    // A painel only groups colunas (kernel `takesBlocks`): a suggestion there could never be composed.
+    if (!takesBlocks(row.data)) throw new PermanentReadingError('the target location takes no block');
     // The job already refused a missing or removed relatório; this read is for its seed version only.
     const relatorio = await entityRecord(db, companyId, 'relatorio', relatorioId);
     const relatorioRow = relatorio === null ? null : relatorioRowSchema.safeParse(relatorio.row);

@@ -2,7 +2,8 @@
 title: 'Epic 14 carry-over A: recurring unit failures, open e2e reds, panel reading target'
 type: 'bugfix'
 created: '2026-10-14'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '77d70bb5ff42a38a1508b1f0f9d297c01bc00053'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus
@@ -98,6 +99,8 @@ then asserts the dialog closes, which it did not assert before. Making `Escape` 
 top dialog is a product change with its own risks; it is recorded as an open question, not built.
 
 ## Verification
+
+**Environment:** this worktree's stack is compose project `fasor-co14a` (already up; `podman compose up -d postgres minio api` if not). `.scratch-co14a/run.sh <name> <cmd...>` runs `<cmd>` in the tools container under the host lock and writes `/tmp/<name>-co14a.log` ending in `EXIT=<code>`; start it with `nohup ... &` and poll the log with short calls (no `timeout` binary on this host; loop on `sleep 5`). Never stop or touch containers not named `fasor-co14a-*`.
 
 **Commands (tools container, `podman compose --profile tools run --rm --user root tools ...`, under `lockf -t 20000 /tmp/fasor-verify.lock`):**
 - `pnpm lint && pnpm static` -- exit 0
