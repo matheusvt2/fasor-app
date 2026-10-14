@@ -164,6 +164,39 @@ const SCREEN_FORMS: Record<string, string> = {
   EPÓXI: 'Epóxi',
   MANUAL: 'Manual',
   'Á SECO': 'Á seco',
+  // Seed v5 (Story 14.5): the Chave de transferência automática. Its labels are written in
+  // sentence case (they hold capitals a caps label could not give back) and render as written.
+  'Chave de transferência automática': 'Chave de transferência automática',
+  Fabricante: 'Fabricante',
+  'Série': 'Série',
+  'Nº de catálogo': 'Nº de catálogo',
+  'Nº de série': 'Nº de série',
+  Ano: 'Ano',
+  'Tensão nominal': 'Tensão nominal',
+  'Corrente nominal': 'Corrente nominal',
+  'Frequência': 'Frequência',
+  WCR: 'WCR',
+  'Proteção a montante': 'Proteção a montante',
+  'Controlador e firmware': 'Controlador e firmware',
+  'Invólucro': 'Invólucro',
+  'Torque dos terminais': 'Torque dos terminais',
+  'Placa confere com o projeto': 'Placa confere com o projeto',
+  'Invólucro, fixação e continuidade do aterramento do painel': 'Invólucro, fixação e continuidade do aterramento do painel',
+  'Tampas e barreiras fixadas, aviso de transferência manual presente': 'Tampas e barreiras fixadas, aviso de transferência manual presente',
+  'Limpeza interna, aspirada, sem soprar': 'Limpeza interna, aspirada, sem soprar',
+  'Contatos principais, de arco e auxiliares (posição) sem pites ou superaquecimento': 'Contatos principais, de arco e auxiliares (posição) sem pites ou superaquecimento',
+  'Isoladores e barramentos': 'Isoladores e barramentos',
+  'Reaperto da potência ao torque da etiqueta': 'Reaperto da potência ao torque da etiqueta',
+  'Reaperto da fiação de controle, chicote e fusíveis de comando': 'Reaperto da fiação de controle, chicote e fusíveis de comando',
+  'Lubrificação somente conforme o fabricante, sem óleo': 'Lubrificação somente conforme o fabricante, sem óleo',
+  'Operação manual com as fontes desenergizadas': 'Operação manual com as fontes desenergizadas',
+  'Intertravamento mecânico e elétrico N/E': 'Intertravamento mecânico e elétrico N/E',
+  'Rotação de fases da Emergência igual à da Normal': 'Rotação de fases da Emergência igual à da Normal',
+  'Indicação de posição, LEDs e alarmes; leituras de V, I e f conferem com instrumento': 'Indicação de posição, LEDs e alarmes; leituras de V, I e f conferem com instrumento',
+  'Registro de manobras e contador de transferências revisados': 'Registro de manobras e contador de transferências revisados',
+  'Partida do gerador comandada pela chave; exercitador programado': 'Partida do gerador comandada pela chave; exercitador programado',
+  'Aquecedor e ventilação, se houver': 'Aquecedor e ventilação, se houver',
+  'Gerador deixado em AUTOMÁTICO ao final': 'Gerador deixado em AUTOMÁTICO ao final',
 };
 
 /** Every label of every shipped seed version that renders on screen. */
@@ -228,5 +261,53 @@ describe('12.5-UNIT screenLabel (D-9: sentence case on screen, caps in the docum
   it('leaves a sentence-case label unchanged', () => {
     expect(screenLabel('Cabos de entrada')).toBe('Cabos de entrada');
     expect(screenLabel('Se houver')).toBe('Se houver');
+  });
+
+  it('Story 14.5: a label already in sentence case keeps its capitals, a single letter and a caps word included', () => {
+    expect(screenLabel('Intertravamento mecânico e elétrico N/E')).toBe('Intertravamento mecânico e elétrico N/E');
+    expect(screenLabel('Gerador deixado em AUTOMÁTICO ao final')).toBe('Gerador deixado em AUTOMÁTICO ao final');
+    expect(screenLabel('Proteção a montante')).toBe('Proteção a montante');
+    expect(screenLabel('Indicação de posição, LEDs e alarmes; leituras de V, I e f conferem com instrumento')).toBe(
+      'Indicação de posição, LEDs e alarmes; leituras de V, I e f conferem com instrumento',
+    );
+    expect(screenLabel('EPI disponível')).toBe('EPI disponível');
+    // The same words in a caps label are still turned into sentence case.
+    expect(screenLabel('PROTEÇÃO A MONTANTE')).toBe('Proteção A montante');
+    expect(screenLabel('GERADOR DEIXADO EM AUTOMÁTICO')).toBe('Gerador deixado em automático');
+    // An acronym or a unit with a lower-case letter does not make a caps label sentence case.
+    expect(screenLabel('TENSÃO (kV)')).toBe('Tensão (kV)');
+    expect(screenLabel('TP\'s E TC\'s')).toBe('TP\'s e TC\'s');
+    // A one-word caps label that is an acronym of the list stays as written.
+    expect(screenLabel('WCR')).toBe('WCR');
+  });
+
+  it('Story 14.5: every label of the measurement tests and the configuration of a library type renders as the seed writes it', () => {
+    const labels = new Set<string>();
+    for (const bundle of Object.values(SEED_VERSIONS)) {
+      for (const definition of Object.values(bundle.report_types.cabine_primaria.blocks)) {
+        for (const field of definition.config_fields ?? []) {
+          labels.add(field.label);
+          for (const option of field.options) labels.add(option.label);
+        }
+        for (const test of definition.measurement_tests ?? []) {
+          labels.add(test.label).add(test.row_header);
+          for (const column of test.columns) {
+            labels.add(column.label);
+            for (const option of column.options ?? []) labels.add(option.label);
+          }
+          for (const row of test.rows) {
+            labels.add(row.label);
+            for (const option of row.options ?? []) labels.add(option.label);
+          }
+          for (const value of test.values ?? []) {
+            labels.add(value.label);
+            if (value.group !== undefined) labels.add(value.group);
+            for (const option of value.options ?? []) labels.add(option.label);
+          }
+        }
+      }
+    }
+    expect(labels.size).toBeGreaterThan(80);
+    for (const label of labels) expect(screenLabel(label), label).toBe(label);
   });
 });

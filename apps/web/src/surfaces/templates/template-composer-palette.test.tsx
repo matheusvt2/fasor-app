@@ -130,6 +130,44 @@ describe('3.4 composer: quantities per node', () => {
     expect((await outboxPaths()).every((path) => path === `template/${ID}/blocks`)).toBe(true);
   });
 
+  it('14.5: on seed v5 the palette lists the eight, then "Outros equipamentos" with the Chave de transferência automática; one from its stepper lands on the coluna and in the totals', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    const { container } = renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: /^Coluna 9/ }));
+    const groups = [...palette().querySelectorAll('.palette-group')].map((group) => group.textContent);
+    expect(groups.indexOf('Outros equipamentos')).toBeGreaterThan(groups.indexOf('Equipamentos'));
+    const rows = [...palette().querySelectorAll<HTMLElement>('.palette-item.is-stepper')];
+    expect(rows).toHaveLength(9);
+    // The library type is the last row, after the heading, and says what it holds.
+    const heading = within(palette()).getByText('Outros equipamentos');
+    expect(rows[7]!.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(heading.compareDocumentPosition(rows[8]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(rows[8]!.querySelector('.pi-text > span:first-child')).toHaveTextContent('Chave de transferência automática');
+    expect(rows[8]!.querySelector('.pi-meta')).toHaveTextContent('17 itens · até 6 ensaios');
+    expect(rows[0]!.querySelector('.pi-meta')).toBeNull();
+    // The standard template holds none.
+    expect(container.querySelector('.composer-meta')).not.toHaveTextContent('chave de transferência automática');
+
+    const stepper = within(palette()).getByRole('group', { name: 'Chaves de transferência automática, 0' });
+    await userEvent.click(within(stepper).getByRole('button', { name: 'Mais um' }));
+    await waitFor(() => expect(within(palette()).getByRole('group', { name: 'Chaves de transferência automática, 1' })).toBeVisible());
+    const body = container.querySelector('.column-row.is-open .col-body')!;
+    await waitFor(() => expect(body.querySelector('.qty-row[data-type="chave_transferencia_automatica"] .qty-name')).toHaveTextContent('Chave de transferência automática'));
+    expect(container.querySelector('.composer-meta')).toHaveTextContent(/1 chave de transferência automática$/);
+    const row = (await templateRow(database, ID))!;
+    expect(row.blocks.filter((block) => block.block_type === 'chave_transferencia_automatica')).toEqual([expect.objectContaining({ quantity: 1, skeleton_location_ref: expect.any(String) })]);
+    expect((await outboxPaths()).every((path) => path === `template/${ID}/blocks`)).toBe(true);
+  });
+
+  it('14.5: a template on seed v4 offers the eight and no library type', async () => {
+    database = await freshDb(standardTemplate({ id: ID, seedVersion: 'v4' }));
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: /^Coluna 9/ }));
+    expect(palette().querySelectorAll('.palette-item.is-stepper')).toHaveLength(8);
+    expect(within(palette()).queryByText('Outros equipamentos')).toBeNull();
+    expect(within(palette()).queryByRole('group', { name: /^Chaves de transferência automática/ })).toBeNull();
+  });
+
   it('heads the palette with the current node', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     const { container } = renderComposer();

@@ -650,7 +650,11 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
   expect(relatorioRow.row.setup).toMatchObject({ site_altitude_m: 820, site_altitude_confirmed: true });
 });
 
-/** The seed v1 equipment block types (`packages/domain/src/seed/v1.ts`); every one has an `isolacao` test. */
+/**
+ * The eight FO.SERV-03 equipment block types (`packages/domain/src/seed/v1.ts`); every one has an
+ * `isolacao` test. The library type of seed v5 (Story 14.5) is left out on purpose: it has no
+ * seeded `isolacao` test, and the standard template places none.
+ */
 const EQUIPMENT_BLOCK_TYPES = ['cabos_entrada', 'para_raio', 'chave_seccionadora', 'disjuntor_mt', 'tp', 'tc', 'cabos_saida', 'transformador_forca'];
 
 test('@p1 4.2-E2E-002 an instrument still referenced by a sheet cannot be unchecked', async ({ page }) => {

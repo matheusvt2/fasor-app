@@ -1,4 +1,6 @@
+import { BASE_EQUIPMENT_BLOCK_TYPES, isEquipmentBlockType } from '../schemas/block-config.ts';
 import { findDefinition, siteItems } from '../seed/definitions.ts';
+import type { MeasurementTest } from '../seed/measurement.ts';
 import type { TestDef } from '../seed/schema.ts';
 import {
   blockRowSchema,
@@ -87,10 +89,25 @@ function carriedLocationId(op: Op, path: OpPath): string | null {
 }
 
 /**
+ * Story 14.5: the block type a `block/{id}` create carries when it is one that only some seed
+ * versions ship (any equipment type outside the eight: the Chave de transferência automática),
+ * else null. The eight are in every version and are never judged.
+ */
+function carriedLibraryType(op: Op, path: OpPath): string | null {
+  if (path.family !== 'block' || op.kind !== 'create') return null;
+  const value = op.value as { block_type?: unknown } | null;
+  const type = value !== null && typeof value === 'object' ? value.block_type : null;
+  if (typeof type !== 'string' || !isEquipmentBlockType(type)) return null;
+  return (BASE_EQUIPMENT_BLOCK_TYPES as readonly string[]).includes(type) ? null : type;
+}
+
+/**
  * The rows an op may read or write: its target, plus the block a photo op carries, the
  * location a block op places its block on (read only, for `LocationKindError`) and, Story
  * 14.3, the relatório of a site checklist put (read only, for the seed check of
  * `assertSiteItem`; named when the op carries `relatorio_id`, as every relatório-scope op does).
+ * Story 14.5: the relatório of a block create of a type only some seed versions ship (read
+ * only, for `assertBlockType`); a create of one of the eight names nothing more than before.
  */
 export function targetsOf(op: Op): ResolvedRef[] {
   const path = parsePath(op.path);
@@ -100,6 +117,7 @@ export function targetsOf(op: Op): ResolvedRef[] {
   const locationId = carriedLocationId(op, path);
   if (locationId) refs.push(ref('location', locationId));
   if (path.family === 'location/checklist' && op.relatorio_id) refs.push(ref('relatorio', op.relatorio_id));
+  if (carriedLibraryType(op, path) !== null && op.relatorio_id) refs.push(ref('relatorio', op.relatorio_id));
   return refs;
 }
 
@@ -136,6 +154,8 @@ export function sheetCellAt(sheet: Sheet, path: OpPath): Cell | undefined {
       return sheet.test[path.test_key]?.[path.field];
     case 'sheet/test/cell':
       return sheet.test[path.test_key]?.cells[String(path.row)]?.[String(path.col)];
+    case 'sheet/test/value':
+      return sheet.test[path.test_key]?.values?.[path.value_key];
     case 'sheet/conclusion':
       return sheet.conclusion[path.field];
     case 'sheet/observations':
@@ -309,19 +329,49 @@ function assertSiteItem(state: EntityState, location: LocationRow, op: Op, path:
 }
 
 /**
+ * Story 14.5 (contract 19): refuses a `block/{id}` create of a type its seed version does not
+ * ship. Only a type outside the eight is judged (`carriedLibraryType`: the Chave de
+ * transferência automática, in no version before v5), against the block's own `seed_version`
+ * and against the relatório's when `targetsOf` loaded that row: a CTA on a v1 to v4 relatório
+ * has no definition to be filled or printed by. A permanent refusal (`SeedPathError`, answered
+ * `op_invalid`). Replay safety: thrown only for a block type that could not exist before
+ * contract 19; a relatório row that is not in `state` is not checked.
+ */
+function assertBlockType(state: EntityState, op: Op, path: OpPath): void {
+  const type = carriedLibraryType(op, path);
+  if (type === null) return;
+  const value = op.value as { seed_version?: unknown; relatorio_id?: unknown };
+  if (typeof value.seed_version === 'string' && findDefinition(value.seed_version, type) === null) {
+    throw new SeedPathError(op.path, `block: block_type "${type}" is not in seed_version "${value.seed_version}"`);
+  }
+  const relatorioId = typeof value.relatorio_id === 'string' ? value.relatorio_id : op.relatorio_id;
+  const relatorio = relatorioId == null ? undefined : (state.get(entityKey('relatorio', relatorioId)) as RelatorioRow | undefined);
+  if (relatorio !== undefined && findDefinition(relatorio.seed_version, type) === null) {
+    throw new SeedPathError(op.path, `block: block_type "${type}" is not in the relatório's seed_version "${relatorio.seed_version}"`);
+  }
+}
+
+/**
  * E3-A3 (Epic 3 retro G-2): rejects a `sheet/*` write whose seed-defined key -- nameplate
  * `field_key`, checklist `item_key`, `test_key` -- is not present in the block's own
  * definition at its `seed_version`. `parsePath` checks these segments structurally only
  * (`seedKey`, a bare `[a-z0-9_]+`); it has no block state to check them against
  * `getDefinition`, so the check runs here, where the target block is already loaded.
  * `sheet/conclusion` and `sheet/observations` carry no seed-defined key and are not checked.
+ *
+ * Story 14.5 (contract 19): a `test_key` may also name a measurement test of the definition
+ * (`measurement_tests`). Its table cells are `sheet/test/cell` (`assertMeasurementCell`), its
+ * values `sheet/test/value` (a key the test does not declare is refused; a seeded test has
+ * none). `sheet/test` on a measurement test writes its instrument only, and only when the
+ * test offers a picker (`instrument_of`); there is no criterion override.
  */
 function assertSeedPath(block: BlockRow, path: OpPath): void {
   if (
     path.family !== 'sheet/nameplate' &&
     path.family !== 'sheet/checklist' &&
     path.family !== 'sheet/test' &&
-    path.family !== 'sheet/test/cell'
+    path.family !== 'sheet/test/cell' &&
+    path.family !== 'sheet/test/value'
   ) {
     return;
   }
@@ -342,8 +392,39 @@ function assertSeedPath(block: BlockRow, path: OpPath): void {
     }
   } else {
     const test = definition.tests.find((t) => t.key === path.test_key);
-    if (test === undefined) throw new SeedPathError(formatPath(path), `${path.family}: "${path.test_key}" is not a test of ${block.block_type}`);
-    if (path.family === 'sheet/test/cell') assertCellGeometry(block, test, path);
+    if (test !== undefined) {
+      if (path.family === 'sheet/test/cell') assertCellGeometry(block, test, path);
+      if (path.family === 'sheet/test/value') {
+        throw new SeedPathError(formatPath(path), `sheet/test/value: ${block.block_type}/${test.key} declares no value "${path.value_key}"`);
+      }
+      return;
+    }
+    const measurement = (definition.measurement_tests ?? []).find((t) => t.key === path.test_key);
+    if (measurement === undefined) throw new SeedPathError(formatPath(path), `${path.family}: "${path.test_key}" is not a test of ${block.block_type}`);
+    if (path.family === 'sheet/test/cell') assertMeasurementCell(block, measurement, path);
+    else if (path.family === 'sheet/test/value') {
+      if (!(measurement.values ?? []).some((value) => value.key === path.value_key)) {
+        throw new SeedPathError(formatPath(path), `sheet/test/value: ${block.block_type}/${measurement.key} declares no value "${path.value_key}"`);
+      }
+    } else if (path.field !== 'instrument' || measurement.instrument_of === undefined) {
+      throw new SeedPathError(formatPath(path), `sheet/test: ${block.block_type}/${measurement.key} holds no ${path.field}`);
+    }
+  }
+}
+
+/**
+ * Story 14.5: a cell address of a measurement test: `row` is the index in the test's `rows`
+ * (a row the configuration hides keeps its index and stays writable: the configuration may
+ * change under a put) and `col` the index in its `columns`. A row or column outside that
+ * geometry is refused, and so is a fixed cell, which is drawn as text and never typed.
+ */
+function assertMeasurementCell(block: BlockRow, test: MeasurementTest, path: OpPath & { family: 'sheet/test/cell' }): void {
+  const row = test.rows[path.row];
+  if (row === undefined) throw new SeedPathError(formatPath(path), `sheet/test/cell: row ${path.row} is outside ${block.block_type}/${test.key}`);
+  const column = test.columns[path.col];
+  if (column === undefined) throw new SeedPathError(formatPath(path), `sheet/test/cell: column ${path.col} is outside ${block.block_type}/${test.key} row ${path.row}`);
+  if (row.fixed?.[column.key] !== undefined) {
+    throw new SeedPathError(formatPath(path), `sheet/test/cell: ${row.key}/${column.key} of ${block.block_type}/${test.key} is fixed, never written`);
   }
 }
 
@@ -420,6 +501,12 @@ function putSheet(block: BlockRow, path: OpPath, cell: Cell): BlockRow {
         };
       });
     }
+    case 'sheet/test/value':
+      return withSheet(block, (s) => {
+        const test = s.test[path.test_key];
+        const entry = { cells: {}, ...test, values: { ...test?.values, [path.value_key]: cell } };
+        return { ...s, test: { ...s.test, [path.test_key]: inShapeOrder(entry, TEST_ENTRY_KEYS) } };
+      });
     case 'sheet/conclusion':
       return withSheet(block, (s) => ({ ...s, conclusion: inShapeOrder({ ...s.conclusion, [path.field]: cell }, CONCLUSION_KEYS) }));
     case 'sheet/observations':
@@ -484,6 +571,7 @@ export function readPath(state: EntityState, op: Op): unknown {
     case 'sheet/checklist':
     case 'sheet/test':
     case 'sheet/test/cell':
+    case 'sheet/test/value':
     case 'sheet/conclusion':
     case 'sheet/observations':
       return sheetCellAt((row as BlockRow).sheet, path)?.value;
@@ -577,6 +665,7 @@ function writeRow(row: EntityRow, op: Op, path: OpPath): EntityRow {
     case 'sheet/checklist':
     case 'sheet/test':
     case 'sheet/test/cell':
+    case 'sheet/test/value':
     case 'sheet/conclusion':
     case 'sheet/observations':
       return writeSheet(row as BlockRow, op, path);
@@ -610,7 +699,8 @@ function isSheetFamily(family: OpPath['family']): boolean {
  * their identity). A second create is a no-op; a put or remove on a missing
  * row is a no-op; an op whose value breaks the row schema throws, and so does
  * one that asks of a location what its kind never holds (`LocationKindError`) or of a
- * relatório a site item its seed version does not offer (`SeedPathError`). A `sheet/*`
+ * relatório a site item its seed version does not offer (`SeedPathError`), or creates a block
+ * of a type its seed version does not ship (Story 14.5, `SeedPathError`). A `sheet/*`
  * put validates what it writes (K-1); every other family re-parses the row.
  */
 export function applyOp(state: EntityState, op: Op): EntityState {
@@ -622,6 +712,7 @@ export function applyOp(state: EntityState, op: Op): EntityState {
   if (op.kind === 'create') {
     if (current) return next;
     assertBlockLocation(state, op, path);
+    assertBlockType(state, op, path);
     next.set(target.key, createRow(target.entity, target.id, op));
   } else {
     if (!current) return next;

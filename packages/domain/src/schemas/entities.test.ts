@@ -148,7 +148,8 @@ describe('Story 14.3 (contract 18): the cabine row gains `checklist`, the photo 
     expect(SITE_ITEM_KEYS.filter((key) => (ITEM_KEYS as readonly string[]).includes(key))).toEqual([]);
     expect(siteItemKeySchema.safeParse('ventilacao').success).toBe(true);
     expect(siteItemKeySchema.safeParse('limpeza').success).toBe(false);
-    expect(ITEM_KEYS[ITEM_KEYS.length - 1]).toBe('no_break_de_comando');
+    // The 45th sheet item key; seed v5 (Story 14.5) appended its 17 after it.
+    expect(ITEM_KEYS[44]).toBe('no_break_de_comando');
   });
 
   it('a cabine holds a cell-shaped entry per answered site item; any subset of the 19 keys, an empty entry and an empty checklist parse', () => {

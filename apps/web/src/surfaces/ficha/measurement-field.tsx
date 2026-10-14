@@ -35,6 +35,24 @@ import { conclusionOp, testCellOp } from './ficha-ops.ts';
 
 export type RunDirection = 'next' | 'previous' | 'right';
 
+/** The address a Measurement field writes to and runs from: a seeded test's cell or (Story 14.5) a measurement test's. */
+export interface FieldAddress {
+  testKey: string;
+  row: number;
+  col: number;
+}
+
+/**
+ * What the field reads of an evaluated cell. `EvaluatedCell` (the four seeded grammars) and
+ * the kernel's `EvaluatedMeasurementCell` (Story 14.5, the measurement-table grammar) both
+ * fit: the second has no nameplate fallback and no outlier, so the two are optional here.
+ */
+export type FieldCell<Address extends FieldAddress = FieldAddress> = Pick<EvaluatedCell, 'state' | 'raw' | 'unit' | 'units' | 'displayText' | 'verdict' | 'helperText'> & {
+  address: Address;
+  fallback?: EvaluatedCell['fallback'];
+  outlier?: EvaluatedCell['outlier'];
+};
+
 /** A dictated reading's value is a number cell (`suggestionValueText`). */
 const NUMBER_FIELD = { kind: 'number' } as const;
 
@@ -43,15 +61,15 @@ const NUMBER_FIELD = { kind: 'number' } as const;
  * cell into editing (the kernel's `unitTapNeedsEdit` for the sheet's block). The Ensaios step
  * provides it; outside it every tap cycles.
  */
-const UnitTapGuardContext = createContext<(cell: EvaluatedCell) => boolean>(() => false);
+const UnitTapGuardContext = createContext<(cell: Pick<EvaluatedCell, 'state'>) => boolean>(() => false);
 export const UnitTapGuardProvider = UnitTapGuardContext.Provider;
 
 /** The data attribute the continuous run finds a cell's input by. */
-export function cellKey(address: CellAddress): string {
+export function cellKey(address: FieldAddress): string {
   return `${address.testKey}:${address.row}:${address.col}`;
 }
 
-export function MeasurementField({
+export function MeasurementField<Address extends FieldAddress>({
   api,
   cell,
   label,
@@ -62,14 +80,14 @@ export function MeasurementField({
   after,
 }: {
   api: FichaApi;
-  cell: EvaluatedCell;
+  cell: FieldCell<Address>;
   /** The accessible name: row + column ("Fase A, 1 minuto"). */
   label: string;
   presentation: 'table' | 'card';
   /** Marked for "Concluir ficha"'s jump to the first missing field. */
   missing: boolean;
   /** Moves the focus along the continuous run; false when there is nowhere to go. */
-  onRun: (from: CellAddress, direction: RunDirection) => boolean;
+  onRun: (from: Address, direction: RunDirection) => boolean;
   /** Story 9.1: the source crop of a value a display reading filled (the confirmed glyph). */
   confirmedCrop?: ReactNode;
   /** Story 9.1: lines under the cell (the mismatch line, the queued photo). */
@@ -155,7 +173,8 @@ export function MeasurementField({
       .catch(() => undefined);
   };
 
-  const describedBy = [number.echo === null ? null : echoId, number.invalid || (!number.focused && (cell.helperText !== null || cell.outlier !== null)) ? helperId : null].filter(Boolean).join(' ') || undefined;
+  const outlier = cell.outlier ?? null;
+  const describedBy = [number.echo === null ? null : echoId, number.invalid || (!number.focused && (cell.helperText !== null || outlier !== null)) ? helperId : null].filter(Boolean).join(' ') || undefined;
   const keepFocus = (event: { preventDefault: () => void }) => {
     if (number.focused) event.preventDefault();
   };
@@ -258,9 +277,9 @@ export function MeasurementField({
           <TextButton onPress={markRestricted}>{t.markRestricted}</TextButton>
         </div>
       ) : null}
-      {!number.focused && !number.invalid && cell.outlier !== null ? (
+      {!number.focused && !number.invalid && outlier !== null ? (
         <div className="outlier-helper" role="status" id={cell.helperText === null ? helperId : undefined}>
-          {cell.outlier.text}
+          {outlier.text}
         </div>
       ) : null}
       {after}
@@ -398,7 +417,7 @@ export function DictatedMeasurementField({
  * cycle, "Não medido" Overflow or "Marcar Com restrições". It carries no `data-cell-input`,
  * so the continuous run never lands on it.
  */
-export function ReadOnlyMeasurementField({ cell, label }: { cell: EvaluatedCell; label: string }) {
+export function ReadOnlyMeasurementField({ cell, label }: { cell: FieldCell; label: string }) {
   const t = ui.measurementField;
   const empty = cell.state === 'empty';
   const text = empty ? (cell.fallback?.text ?? cell.displayText) : cell.displayText;
@@ -413,7 +432,7 @@ export function ReadOnlyMeasurementField({ cell, label }: { cell: EvaluatedCell;
         )}
       </div>
       {cell.helperText === null ? null : <div className="mf-helper">{cell.helperText}</div>}
-      {cell.outlier === null ? null : <div className="outlier-helper">{cell.outlier.text}</div>}
+      {cell.outlier === null || cell.outlier === undefined ? null : <div className="outlier-helper">{cell.outlier.text}</div>}
     </div>
   );
 }

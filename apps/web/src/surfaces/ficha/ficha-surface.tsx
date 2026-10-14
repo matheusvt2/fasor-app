@@ -25,6 +25,7 @@ import { RelatorioGate } from '../relatorio/relatorio-gate.tsx';
 import '../relatorio/relatorio.css';
 import { CabineBlock, QuickNotes } from './cabine-block.tsx';
 import { BulkActionBar, ChecklistSection, useChecklistBulk } from './checklist-section.tsx';
+import { ConfiguracaoSection } from './configuracao-section.tsx';
 import { ConclusaoSection } from './conclusao-section.tsx';
 import { EnsaiosSection } from './ensaios-section.tsx';
 import { FichaDialogs } from './ficha-dialogs.tsx';
@@ -175,6 +176,7 @@ function FichaBody({
             shown={shownSteps}
             menu={menu}
             notTested={block.not_tested !== null}
+            library={definition.library === true}
             onRename={block.equipment_id === null ? null : () => setRenaming(true)}
             savedAt={savedAt}
           />
@@ -187,6 +189,8 @@ function FichaBody({
                 {cabine === null ? null : (
                   <CabineBlock api={api} state={state} snapshot={snapshot} cabine={cabine} first={cabineFirst} envTarget={() => photos.targetFor('placa', null)} />
                 )}
+                {/* Story 14.5: a library type's configuration, above its nameplate (`63-ficha-cta.html`); nothing for the eight. */}
+                <ConfiguracaoSection api={api} block={block} definition={definition} />
                 {enabled.has('nameplate') ? (
                   <NameplateSection
                     api={api}

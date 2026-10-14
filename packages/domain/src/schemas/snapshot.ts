@@ -113,6 +113,8 @@ function cellsOf(block: BlockRow): { value: unknown; source_suggestion_id: strin
   for (const test of Object.values(s.test)) {
     for (const c of [test.instrument, test.criterion_override]) if (c) cells.push(c);
     for (const row of Object.values(test.cells)) cells.push(...Object.values(row));
+    // Story 14.5: a measurement test's values outside its table.
+    cells.push(...Object.values(test.values ?? {}));
   }
   cells.push(...Object.values(s.conclusion));
   if (s.observations) cells.push(s.observations);

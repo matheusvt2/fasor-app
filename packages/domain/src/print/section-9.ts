@@ -18,6 +18,7 @@ import {
 } from '../relatorio/conclusion.ts';
 import { fieldValueText } from '../relatorio/ficha.ts';
 import { storedInstrumentHeader } from '../relatorio/instrument-pick.ts';
+import { configFieldsOf, evaluateSheetMeasurements, type EvaluatedMeasurementCell, type MeasurementTestEvaluation } from '../relatorio/measurement-evaluation.ts';
 import { nameplateTagPrefill } from '../relatorio/nameplate-copy.ts';
 import { evaluateSheetReadings, type EvaluatedCell, type EvaluatedRow, type EvaluatedTable, type TestEvaluation, type TestKey } from '../relatorio/readings.ts';
 import { checklistResultOf } from '../relatorio/sheet-progress.ts';
@@ -46,6 +47,15 @@ import { blockRoleOf, groupForPrint, type PrintGroupWarning } from './group-for-
  * "-". A Não ensaiada sheet prints its plate and a reason band, nothing else. Labels are
  * the seed's strings in caps (the screen shows them sentence-cased); values print as stored.
  * Cells hold only confirmed values, so no suggestion is ever read.
+ *
+ * Story 14.5: a type with a configuration prints it as a CONFIGURAÇÃO table after DADOS DO
+ * EQUIPAMENTO, and each measurement test switched on prints as one table after the seeded
+ * tests: its title, its instrument line where it has a picker, how it was run (the values
+ * line), the ACEITÁVEL line (criterion and source), the rows the configuration shows, the
+ * lowest-of-column row where its criterion has one, and its grouped values. A test switched
+ * off prints nothing, as a disabled sub-block does; one its own value says was not run prints
+ * its title, that value and the ACEITÁVEL line, with no rows. An out-of-criterion cell prints
+ * as any other, the seeded tables' convention.
  */
 
 // --- the print model ---------------------------------------------------------------------
@@ -143,6 +153,10 @@ const NAMEPLATE_TITLE = 'DADOS DO EQUIPAMENTO';
 const CHECKLIST_TITLE = 'VERIFICAÇÕES GERAIS';
 const OBSERVATIONS_TITLE = 'OBSERVAÇÕES';
 const CONCLUSION_TITLE = 'CONCLUSÃO';
+// authored (Story 14.5): the title of a sheet's configuration table (`key-print-section-9.html`)
+// and the prefix of a measurement test's instrument line.
+const CONFIG_TITLE = 'CONFIGURAÇÃO';
+const INSTRUMENT_PREFIX = 'INSTRUMENTO';
 const INSTRUMENT_LABELS = ['INSTRUM./FABRIC.', 'TIPO', 'Nº SÉRIE', 'RBC'] as const;
 const ACCEPTABLE_LABEL = 'ACEITÁVEL';
 /** The instrument header's test-parameter column: TENSÃO ENSAIO (isolação), CORRENTE (contato); none for relação. */
@@ -614,6 +628,112 @@ function testParts(block: BlockRow, definition: BlockDefinition, evaluation: Tes
   ];
 }
 
+// --- CONFIGURAÇÃO and the measurement tests (Story 14.5) ----------------------------------------
+
+/** Label and value pairs, three to a row, under one title band: the nameplate's shape. */
+function pairsTable(title: string, pairs: readonly { label: string; value: string }[]): SheetPart {
+  const rows: PrintRow[] = [bandRow(title, 6)];
+  for (let i = 0; i < pairs.length; i += 3) {
+    const cells: PrintCell[] = pairs.slice(i, i + 3).flatMap((pair) => [
+      { text: pair.label, bold: true, align: 'left' as const },
+      { text: pair.value, align: 'left' as const },
+    ]);
+    while (cells.length < 6) cells.push({ text: '', align: 'left' });
+    rows.push({ cells });
+  }
+  return table([1.6, 1.7, 1.6, 1.7, 1.6, 1.7], rows);
+}
+
+/** The block's configuration in force (the stored options, else the defaults), or null for a type with none. */
+function configPart(block: BlockRow, definition: BlockDefinition): SheetPart | null {
+  const fields = configFieldsOf(block, definition);
+  if (fields.length === 0) return null;
+  return pairsTable(
+    CONFIG_TITLE,
+    fields.map((field) => ({ label: printLabel(field.label), value: printLabel(field.valueLabel) })),
+  );
+}
+
+/** One line across a measurement test's table, left-aligned. */
+const lineRow = (text: string, span: number): PrintRow => ({ cells: [{ text, span, align: 'left' }] });
+
+/**
+ * "INSTRUMENTO: HTMO-10 · Hi-Tech · Nº SÉRIE G282926 · RBC 37276/26", "INSTRUMENTO: -" while none
+ * was picked. The line carries no test parameter, whatever the stored header holds: the test
+ * voltage of a measurement test is the one its ACEITÁVEL line states.
+ */
+function instrumentLine(block: BlockRow, testKey: string): string {
+  const header = storedInstrumentHeader(block.sheet.test[testKey]?.instrument?.value);
+  const present = (value: string | null | undefined): value is string => value !== null && value !== undefined && value.trim() !== '';
+  const parts = [
+    header?.model,
+    header?.manufacturer,
+    present(header?.serial) ? `${INSTRUMENT_LABELS[2]} ${header.serial}` : null,
+    present(header?.cert_number) ? `${INSTRUMENT_LABELS[3]} ${header.cert_number}` : null,
+  ].filter(present);
+  return `${INSTRUMENT_PREFIX}: ${parts.length === 0 ? DASH : parts.join(SEP)}`;
+}
+
+/** The one unit every number cell of a column shows, which its header then carries; null when they differ or none is a number. */
+function sharedUnit(test: MeasurementTestEvaluation, col: number): string | null {
+  const units = new Set<string | null>();
+  for (const row of test.rows) {
+    const cell = row.cells[col]!;
+    if (cell.fixed === null && cell.kind === 'number') units.add(cell.unit);
+  }
+  const [unit] = [...units];
+  return units.size === 1 && unit !== null && unit !== undefined ? unit : null;
+}
+
+/** A cell as printed: a fixed text as written, a choice's option in caps, a number (with its unit unless the header carries it), "-" when empty. */
+function measurementText(cell: EvaluatedMeasurementCell, headerUnit: string | null): string {
+  if (cell.fixed !== null) return cell.fixed;
+  if (cell.state === 'invalid') return cell.raw.trim() === '' ? DASH : cell.raw;
+  if (cell.state !== 'measured') return DASH;
+  if (cell.kind === 'choice') return printLabel(cell.displayText);
+  return headerUnit === null ? withUnit(cell.displayText, cell.unit) : cell.displayText;
+}
+
+/** One measurement test as one table; null for a test switched off. */
+function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation): SheetPart | null {
+  if (!test.enabled) return null;
+  const width = 1 + test.columns.length;
+  const rows: PrintRow[] = [bandRow(printLabel(test.title), width)];
+  if (test.instrumentOf !== null) rows.push(lineRow(instrumentLine(block, test.testKey), width));
+  if (test.valuesLine !== null) {
+    rows.push(lineRow(test.valuesLine.parts.map((part) => `${printLabel(part.label)}: ${part.kind === 'choice' ? printLabel(part.text) : part.text}`).join(SEP), width));
+  }
+  rows.push(lineRow(`${ACCEPTABLE_LABEL}: ${test.criterionText}${SEP}${test.sourceName}`, width));
+  if (!test.skipped) {
+    const units = test.columns.map((column) => sharedUnit(test, column.col));
+    rows.push(headerRow([printLabel(test.rowHeader), ...test.columns.map((column, c) => (units[c] === null ? printLabel(column.label) : `${printLabel(column.label)} (${units[c]})`))]));
+    for (const row of test.rows) {
+      rows.push({ cells: [valueCell(printLabel(row.label)), ...row.cells.map((cell, c) => valueCell(measurementText(cell, units[c] ?? null)))] });
+    }
+    if (test.reference !== null && test.reference.cells.some((cell) => cell.text !== null)) {
+      rows.push({
+        cells: [
+          { text: printLabel(test.reference.label), bold: true, align: 'center' },
+          ...test.reference.cells.map((cell, c) => valueCell(cell.text === null ? DASH : units[c] !== null && units[c] === cell.unit ? cell.value! : cell.text)),
+        ],
+      });
+    }
+    for (const group of test.groups) {
+      if (group.text === '') continue;
+      rows.push({ cells: [{ text: printLabel(group.label), bold: true, align: 'center' }, { text: group.text, span: test.columns.length, align: 'center' }] });
+    }
+  }
+  return { kind: 'table', table: { columns: fittedColumns(rows, width), rows } };
+}
+
+/** The measurement tests of a sheet that print, in the definition's order. */
+function measurementParts(block: BlockRow, definition: BlockDefinition): SheetPart[] {
+  return evaluateSheetMeasurements(block, definition).flatMap((test) => {
+    const part = measurementTestPart(block, test);
+    return part === null ? [] : [part];
+  });
+}
+
 // --- OBSERVAÇÕES and CONCLUSÃO ----------------------------------------------------------------
 
 function observationsPart(block: BlockRow): SheetPart | null {
@@ -701,11 +821,14 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   }
   if (definition === null) return sheet;
 
+  const config = configPart(block, definition);
+  if (config !== null) parts.push(config);
   const checklist = enabled.has('checklist') && seed !== null ? checklistPart(block, definition, seed.checklistColumns) : null;
   const photos = sheetPhotos(ctx, blockId, checklist !== null);
   parts.push(...photosPart(photos.plate));
   if (checklist !== null) parts.push(checklist, ...photosPart(photos.items));
   for (const evaluation of evaluateSheetReadings(block, definition)) parts.push(...testParts(block, definition, evaluation, enabled));
+  parts.push(...measurementParts(block, definition));
   parts.push(...photosPart(photos.other));
   const observations = enabled.has('observations') ? observationsPart(block) : null;
   if (observations !== null) parts.push(observations);

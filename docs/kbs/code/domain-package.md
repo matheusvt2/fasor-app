@@ -13,6 +13,7 @@ sources: [packages/domain/src]
 - `relatorio/` sheet and relatório logic: `ficha`, `cabine`, `conclusion`, `parecer`, `progress`, `pre-issue`, `integrity`, `instantiate`, `move`, `readings`, `reading-evaluation`, `nameplate-copy`, `resume`, suggestion builders.
 - `status/` status table, `edited-since`. `merge/` policy, rules, conflicts (multi-device). `sync/` counts, status, streams.
 - `seed/` versioned definitions (`v1`..`v3`, `criteria`, `sections-v1`, `template*`). `templates/`, `registry/`, `registration.ts`.
+  *(2026-10-13: `seed/` holds `v1`..`v5` and `measurement.ts` (the measurement-table grammar, Story 14.5); `relatorio/measurement-evaluation.ts` evaluates it; `ops/path.ts` gains the family `sheet/test/value`; `CONTRACT_VERSION` is 19. See [measurement-table](/architecture/measurement-table.md).)*
 - `print/` `group-for-print`, `section-7..11`, `document-control`, `layout`, `revisions`, `last-nameplate`, `sm-c1`.
 - `parse/` and `format/` pt-BR numbers, dates, units (the only place). `text/` plural and composed texts (derived pt-BR lives here, see [copy-homes](/ux/copy-homes.md)). `home/`, `points/`, `photos/`, `files/`, `drafts/`, `device/`, `prefs/`, `reading/`, `checks/`.
 - `ids.ts` UUIDv7, `clock.ts`, `product.ts` (the `PRODUTO` constant).

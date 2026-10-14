@@ -5,6 +5,7 @@ import { findDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr } from '../text/plural.ts';
+import { evaluateSheetMeasurements, measurementCells, worstMeasurements, type WorstMeasurement } from './measurement-evaluation.ts';
 import { evaluatedCells, evaluateSheetReadings, worstReadings, type TestKey, type WorstReading } from './readings.ts';
 import { checklistResultOf } from './sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
@@ -80,9 +81,11 @@ export function suggestConclusionPair(block: BlockRow): ConclusionPair | null {
   const definition = definitionOf(block);
   if (definition === null) return null;
   const cells = evaluatedCells(evaluateSheetReadings(block, definition));
-  const measured = cells.some((cell) => cell.role === 'capture' && cell.state === 'measured');
+  // Story 14.5: the cells of the measurement tests count as the seeded tables' captures do.
+  const tableCells = measurementCells(evaluateSheetMeasurements(block, definition));
+  const measured = cells.some((cell) => cell.role === 'capture' && cell.state === 'measured') || tableCells.some((cell) => cell.state === 'measured');
   if (!measured && !anyAnswered(block)) return null;
-  const restricted = ncItems(block, definition).length > 0 || cells.some((cell) => cell.verdict === 'out');
+  const restricted = ncItems(block, definition).length > 0 || cells.some((cell) => cell.verdict === 'out') || tableCells.some((cell) => cell.verdict === 'out');
   return { result: 'aprovado', restriction: restricted ? 'com_restricoes' : 'sem_restricoes' };
 }
 
@@ -137,6 +140,7 @@ const NOUNS: Readonly<Record<EquipmentBlockType, { noun: string; plural: boolean
   tc: { noun: 'O TC', plural: false },
   cabos_saida: { noun: 'Os cabos de saída', plural: true },
   transformador_forca: { noun: 'O transformador', plural: false },
+  chave_transferencia_automatica: { noun: 'A chave de transferência automática', plural: false },
 };
 
 // authored: the recommendation that follows a restricted or failed result.
@@ -187,6 +191,13 @@ function readingClause(reading: WorstReading): string {
   return `${TEST_WORDS[reading.testKey].phrase} ${reading.valueText} em ${reading.where} (critério: ${reading.criterionText}, ${reading.sourceName})`;
 }
 
+// authored (Story 14.5): how an out reading of a measurement test is named, whatever its
+// criterion: "resistência de contato fora do critério em Polo C, Lado Emergência (63 µΩ;
+// critério: ≤ 50 % acima do menor do mesmo lado, NETA 7.22.3 (fonte secundária))".
+function measurementClause(reading: WorstMeasurement): string {
+  return `${reading.label.toLocaleLowerCase('pt-BR')} fora do critério em ${reading.where} (${reading.valueText}; critério: ${reading.criterionText}, ${reading.sourceName})`;
+}
+
 // The basis hash lives in `text/hash.ts` (shared with the parecer, Story 7.4).
 
 /**
@@ -199,7 +210,8 @@ function readingClause(reading: WorstReading): string {
  */
 export function composeConclusion(block: BlockRow, definition: BlockDefinition, equipmentTag: string): ComposedConclusion {
   const noun = NOUNS[definition.block_type];
-  const fabricacao = identityPart(block, definition, ['fabricacao']);
+  // The maker: FABRICAÇÃO on the eight, Fabricante on the Chave de transferência automática.
+  const fabricacao = identityPart(block, definition, ['fabricacao', 'fabricante']);
   const tensao = identityPart(block, definition, VOLTAGE_KEYS);
   const corrente = identityPart(block, definition, ['corrente_nominal']);
   const identity = [fabricacao, tensao, corrente].filter((part): part is string => part !== null && part !== '');
@@ -210,13 +222,18 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   const cells = evaluatedCells(evaluations);
   const worst = worstReadings(evaluations);
   const out = worst.filter((reading) => reading.verdict === 'out');
+  // Story 14.5: the measurement tests (none on the eight FO.SERV-03 types), read as the seeded tables are.
+  const measurements = evaluateSheetMeasurements(block, definition);
+  const tableCells = measurementCells(measurements);
+  const tableOut = worstMeasurements(measurements);
+  const outClauses = [...out.map(readingClause), ...tableOut.map(measurementClause)];
   // E5-Q4: "within the criteria" only when a capture was judged; "conformes" only with a C row.
-  const judged = out.length > 0 || cells.some((cell) => cell.role === 'capture' && cell.verdict !== null);
+  const judged = outClauses.length > 0 || cells.some((cell) => cell.role === 'capture' && cell.verdict !== null) || tableCells.some((cell) => cell.verdict !== null);
   // A capture measured but never judged (a TTR row with no VAL CALCULADO) is still a measurement.
-  const measured = cells.some((cell) => cell.role === 'capture' && cell.state === 'measured');
+  const measured = cells.some((cell) => cell.role === 'capture' && cell.state === 'measured') || tableCells.some((cell) => cell.state === 'measured');
   // authored (OQ-3 placeholder): measured, no criterion applied.
   const unjudged = 'valores medidos sem comparação com o critério de aceitação';
-  const readings = out.length > 0 ? listPtBr(out.map(readingClause)) : judged ? 'valores medidos dentro dos critérios de aceitação' : unjudged;
+  const readings = outClauses.length > 0 ? listPtBr(outClauses) : judged ? 'valores medidos dentro dos critérios de aceitação' : unjudged;
   const hasReadings = judged || measured;
   const ncs = ncItems(block, definition);
   const conformes = anyConforme(block, definition);
@@ -241,6 +258,7 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
 
   const criteriaItems = [
     ...worst.map((reading) => `${TEST_WORDS[reading.testKey].symbol} ${reading.where} ${reading.valueText} · critério ${reading.criterionText}`),
+    ...tableOut.map((reading) => `E${measurements.find((test) => test.testKey === reading.testKey)!.number} ${reading.where} ${reading.valueText} · critério ${reading.criterionText}`),
     ...ncs.map((item) => `item ${item.n} NC`),
   ];
 
@@ -253,6 +271,18 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
       conformes,
       readings: cells.map((cell) => ({ a: cell.address, s: cell.state, r: cell.raw, u: cell.unit, f: cell.fallback?.raw ?? null, v: cell.verdict })),
       nc: ncs,
+      // Story 14.5: only a type with measurement tests adds its key, so the basis of every
+      // sheet of the eight (and every `text_basis` already stored) is the bytes it always was.
+      ...(measurements.length === 0
+        ? {}
+        : {
+            tables: measurements.map((test) => ({
+              k: test.testKey,
+              e: test.enabled,
+              x: test.skipped,
+              c: test.rows.flatMap((row) => row.cells.filter((cell) => cell.fixed === null).map((cell) => ({ a: cell.address, s: cell.state, r: cell.raw, u: cell.unit, v: cell.verdict }))),
+            })),
+          }),
     }),
   );
 

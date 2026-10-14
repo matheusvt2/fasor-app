@@ -1,12 +1,14 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { EQUIPMENT_BLOCK_TYPES, ITEM_KEYS, SITE_ITEM_KEYS } from '../schemas/block-config.ts';
+import { BASE_EQUIPMENT_BLOCK_TYPES, EQUIPMENT_BLOCK_TYPES, ITEM_KEYS, SITE_ITEM_KEYS, SUB_BLOCK_KEYS } from '../schemas/block-config.ts';
 import { SEEDED_CRITERIA } from './criteria.ts';
 import {
+  equipmentTypesOf,
   findDefinition,
   findSeed,
   getDefinition,
   getSeed,
+  isLibraryType,
   naDefaultsFor,
   recurringFindings,
   SECTION_VARIABLES,
@@ -17,13 +19,17 @@ import {
   siteItems,
 } from './definitions.ts';
 import { CABINE_PRIMARIA_V1 } from './v1.ts';
-import { fieldDefSchema, type BlockDefinition, type TableDef, type TestDef } from './schema.ts';
+import { measurementCriterionSchema, measurementTestSchema, type MeasurementTest } from './measurement.ts';
+import { blockDefinitionSchema, fieldDefSchema, reportSeedSchema, type BlockDefinition, type TableDef, type TestDef } from './schema.ts';
 
 /*
  * Story 3.1/3.2 seed tests. The golden lists below are written from `addendum.md` §9
  * (the decoded FO.SERV-03), not read back from the seed, so a transcription slip in
  * `v1.ts` fails here.
  */
+
+/** The eight FO.SERV-03 types: what v1 to v4 ship. `EQUIPMENT_BLOCK_TYPES` holds a ninth since seed v5 (Story 14.5). */
+const EIGHT = BASE_EQUIPMENT_BLOCK_TYPES;
 
 const def = (type: string): BlockDefinition => getDefinition('v1', 'cabine_primaria', type);
 const labels = (type: string) => def(type).nameplate.map((f) => f.label);
@@ -89,7 +95,7 @@ const OIL_EIGHT = [
 
 describe('seed v1: nameplate fields (addendum §9.1)', () => {
   it('has the decoded field counts', () => {
-    const counts = Object.fromEntries(EQUIPMENT_BLOCK_TYPES.map((t) => [t, def(t).nameplate.length]));
+    const counts = Object.fromEntries(EIGHT.map((t) => [t, def(t).nameplate.length]));
     expect(counts).toEqual({
       cabos_entrada: 0,
       para_raio: 5,
@@ -137,7 +143,7 @@ describe('seed v1: nameplate fields (addendum §9.1)', () => {
   });
 
   it('gives every field one of the six AD-11 kinds, a unit only on number or voltage_class, options only on select', () => {
-    for (const type of EQUIPMENT_BLOCK_TYPES) {
+    for (const type of EIGHT) {
       for (const field of def(type).nameplate) {
         expect(['text', 'number', 'date', 'select', 'manufacturer', 'voltage_class']).toContain(field.kind);
         expect(fieldDefSchema.safeParse(field).success).toBe(true);
@@ -196,7 +202,7 @@ describe('seed v1: selects and subtypes (FR-11)', () => {
   });
 
   it('never removes an item: every NA default is an item of the block type checklist', () => {
-    for (const type of EQUIPMENT_BLOCK_TYPES) {
+    for (const type of EIGHT) {
       const keys = def(type).checklist!.map((i) => i.key);
       for (const subtype of def(type).subtypes) for (const na of subtype.na_defaults) expect(keys).toContain(na);
     }
@@ -257,19 +263,21 @@ describe('seed v1: checklists (addendum §9.2)', () => {
 
   it('keys every item by the snake_case of its label, and the item enum is exactly their union plus what later versions appended', () => {
     const all = new Set<string>();
-    for (const type of EQUIPMENT_BLOCK_TYPES) {
+    for (const type of EIGHT) {
       for (const it of def(type).checklist!) {
         expect(it.key).toBe(snake(it.label));
         all.add(it.key);
       }
     }
-    // Seed v4 (Story 14.3) appended one key to the enum; v1 itself lists what it always did.
-    expect([...all].sort()).toEqual(ITEM_KEYS.filter((key) => key !== 'no_break_de_comando').sort());
+    // Seed v4 (Story 14.3) appended one key to the enum and seed v5 (Story 14.5) seventeen; v1 itself lists what it always did.
+    expect([...all].sort()).toEqual(ITEM_KEYS.slice(0, 44).sort());
     expect(all.size).toBe(44);
+    expect(ITEM_KEYS[44]).toBe('no_break_de_comando');
+    expect(ITEM_KEYS).toHaveLength(62);
   });
 
   it('gives every item of every list three or four NC chip phrases', () => {
-    for (const type of EQUIPMENT_BLOCK_TYPES) {
+    for (const type of EIGHT) {
       for (const it of def(type).checklist!) {
         expect(it.nc_phrases.length, `${type}/${it.key}`).toBeGreaterThanOrEqual(3);
         expect(it.nc_phrases.length, `${type}/${it.key}`).toBeLessThanOrEqual(4);
@@ -409,7 +417,7 @@ describe('seed v1: test grammars (addendum §9.3)', () => {
 
   it('binds every test to a criterion seeded by Story 2.6', () => {
     const keys = SEEDED_CRITERIA.map((c) => c.key);
-    for (const type of EQUIPMENT_BLOCK_TYPES) {
+    for (const type of EIGHT) {
       for (const t of def(type).tests) {
         expect(keys).toContain(t.criterion_key);
         expect(t.criterion_key).toBe(t.key);
@@ -420,7 +428,7 @@ describe('seed v1: test grammars (addendum §9.3)', () => {
 
 describe('seed v1: sub-blocks and the conclusion', () => {
   it('lists the sub-blocks per type', () => {
-    const subBlocks = Object.fromEntries(EQUIPMENT_BLOCK_TYPES.map((t) => [t, def(t).sub_blocks]));
+    const subBlocks = Object.fromEntries(EIGHT.map((t) => [t, def(t).sub_blocks]));
     const single = ['checklist', 'isolacao', 'ia_ip_display'];
     const contact = ['nameplate', 'checklist', 'isolacao', 'resistencia_contato', 'observations', 'conclusion'];
     const withRatio = ['nameplate', ...single, 'relacao_transformacao', 'observations', 'conclusion'];
@@ -437,7 +445,7 @@ describe('seed v1: sub-blocks and the conclusion', () => {
   });
 
   it('ends every sheet in the conclusion, the transformer included', () => {
-    for (const type of EQUIPMENT_BLOCK_TYPES) {
+    for (const type of EIGHT) {
       expect(def(type).conclusion).toBe(true);
       expect(def(type).sub_blocks).toContain('conclusion');
     }
@@ -565,11 +573,12 @@ describe('seed v1: section boilerplate (Story 3.2)', () => {
 });
 
 describe('getDefinition', () => {
-  it('resolves every block type of every shipped version', () => {
+  it('resolves every block type each shipped version holds: the eight on all of them', () => {
     for (const version of Object.keys(SEED_VERSIONS)) {
-      for (const type of EQUIPMENT_BLOCK_TYPES) {
+      for (const type of EIGHT) {
         expect(getDefinition(version, 'cabine_primaria', type).block_type).toBe(type);
       }
+      for (const type of equipmentTypesOf(version)) expect(getDefinition(version, 'cabine_primaria', type).block_type).toBe(type);
     }
     expect(Object.keys(SEED_VERSIONS)).toContain(SEED_VERSION);
   });
@@ -628,13 +637,13 @@ describe('seed v2 (Stories 12.3, 12.4): v1 plus the per-unit flags and the third
   });
 
   it('flags IDENTIFICAÇÃO, Nº SÉRIE and TAG per unit on every block type that carries them, and nothing else', () => {
-    for (const type of EQUIPMENT_BLOCK_TYPES) {
+    for (const type of EIGHT) {
       for (const field of v2.blocks[type].nameplate) {
         expect(field.per_unit === true, `${type}/${field.key}`).toBe(['identificacao', 'n_serie', 'tag'].includes(field.key));
       }
     }
     // Every type with a plate (the cables have none) carries Nº SÉRIE; the seccionadora carries all three.
-    const withPlate = EQUIPMENT_BLOCK_TYPES.filter((type) => v2.blocks[type].nameplate.length > 0);
+    const withPlate = EIGHT.filter((type) => v2.blocks[type].nameplate.length > 0);
     expect(withPlate).toHaveLength(6);
     expect(withPlate.every((type) => v2.blocks[type].nameplate.some((field) => field.key === 'n_serie' && field.per_unit === true))).toBe(true);
     expect(v2.blocks.chave_seccionadora.nameplate.filter((field) => field.per_unit === true).map((field) => field.label)).toEqual(['IDENTIFICAÇÃO', 'Nº SÉRIE', 'TAG']);
@@ -764,10 +773,9 @@ describe('seed v4 (Story 14.3): v3 plus the site checklist and the NO-BREAK DE C
     ],
   ];
 
-  it('is the version a new Template is created with', () => {
-    expect(SEED_VERSION).toBe('v4');
+  it('stays in the bundle once v5 is current (AR-20: append-only)', () => {
     expect(SEED_VERSIONS.v4!.version).toBe('v4');
-    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4']);
+    expect(Object.keys(SEED_VERSIONS).slice(0, 4)).toEqual(['v1', 'v2', 'v3', 'v4']);
   });
 
   it('differs from v3 by exactly `site_checklist` and the sixteenth Disjuntor MT item, and v1 to v3 hash as they shipped', () => {
@@ -793,7 +801,7 @@ describe('seed v4 (Story 14.3): v3 plus the site checklist and the NO-BREAK DE C
       nc_phrases: ['No-break inoperante', 'Bateria vencida ou estufada', 'Sem autonomia para o relé'],
     });
     expect(list[15]!.key).toBe(snake(list[15]!.label));
-    for (const type of EQUIPMENT_BLOCK_TYPES) {
+    for (const type of EIGHT) {
       const has = v4.blocks[type].checklist!.some((item) => item.key === 'no_break_de_comando');
       expect(has, type).toBe(type === 'disjuntor_mt');
     }
@@ -859,6 +867,396 @@ describe('seed v4 (Story 14.3): v3 plus the site checklist and the NO-BREAK DE C
     expect(Object.isFrozen(items)).toBe(true);
     expect(Object.isFrozen(items[0])).toBe(true);
     for (const version of ['v1', 'v2', 'v3', 'v99']) expect(siteItems(version), version).toEqual([]);
+  });
+});
+
+/** The content hash of seed v4 as merged (Story 14.3), pinned from the untouched tree before Story 14.5 touched a schema; never updated after. */
+const V4_HASH = '1dff2361abf1e04467d3e3fcc2e3857fe0bda55d11776bc97030f429255cfd69';
+
+describe('seed v5 (Story 14.5): v4 plus one block type, the Chave de transferência automática', () => {
+  const v4 = getSeed('v4', 'cabine_primaria');
+  const v5 = getSeed('v5', 'cabine_primaria');
+  const CTA = 'chave_transferencia_automatica';
+  const cta = getDefinition('v5', 'cabine_primaria', CTA);
+  const tests = cta.measurement_tests!;
+  const test = (key: string): MeasurementTest => tests.find((candidate) => candidate.key === key)!;
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(SEED_VERSIONS[version])).digest('hex');
+
+  /** The 17 checks, written from `sprint-change-proposal-2026-10-08.md` § 8.4, not read back from the seed. */
+  const ITEMS = [
+    'Placa confere com o projeto',
+    'Invólucro, fixação e continuidade do aterramento do painel',
+    'Tampas e barreiras fixadas, aviso de transferência manual presente',
+    'Limpeza interna, aspirada, sem soprar',
+    'Contatos principais, de arco e auxiliares (posição) sem pites ou superaquecimento',
+    'Isoladores e barramentos',
+    'Reaperto da potência ao torque da etiqueta',
+    'Reaperto da fiação de controle, chicote e fusíveis de comando',
+    'Lubrificação somente conforme o fabricante, sem óleo',
+    'Operação manual com as fontes desenergizadas',
+    'Intertravamento mecânico e elétrico N/E',
+    'Rotação de fases da Emergência igual à da Normal',
+    'Indicação de posição, LEDs e alarmes; leituras de V, I e f conferem com instrumento',
+    'Registro de manobras e contador de transferências revisados',
+    'Partida do gerador comandada pela chave; exercitador programado',
+    'Aquecedor e ventilação, se houver',
+    'Gerador deixado em AUTOMÁTICO ao final',
+  ];
+
+  /** The 13 plate fields of § 8.4 with their units. */
+  const PLATE: [string, string, string | null][] = [
+    ['Fabricante', 'manufacturer', null],
+    ['Série', 'text', null],
+    ['Nº de catálogo', 'text', null],
+    ['Nº de série', 'text', null],
+    ['Ano', 'text', null],
+    ['Tensão nominal', 'number', 'V'],
+    ['Corrente nominal', 'number', 'A'],
+    ['Frequência', 'number', 'Hz'],
+    ['WCR', 'number', 'kA'],
+    ['Proteção a montante', 'text', null],
+    ['Controlador e firmware', 'text', null],
+    ['Invólucro', 'text', null],
+    ['Torque dos terminais', 'number', 'N·m'],
+  ];
+
+  it('is the version a new Template is created with', () => {
+    expect(SEED_VERSION).toBe('v5');
+    expect(SEED_VERSIONS.v5!.version).toBe('v5');
+    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5']);
+  });
+
+  it('differs from v4 by exactly the CTA block type, and v1 to v4 hash as they shipped', () => {
+    // Strip the one addition from v5: what is left is v4, byte for byte.
+    const stripped = structuredClone(v5) as typeof v5;
+    delete stripped.blocks.chave_transferencia_automatica;
+    expect(JSON.stringify(stripped)).toBe(JSON.stringify(v4));
+    expect(Object.keys(v5.blocks)).toEqual([...EIGHT, CTA]);
+    expect(Object.keys(v5.blocks)).toEqual([...EQUIPMENT_BLOCK_TYPES]);
+    for (const version of ['v1', 'v2', 'v3', 'v4']) {
+      const seed = getSeed(version, 'cabine_primaria');
+      expect(Object.keys(seed.blocks), version).toEqual([...EIGHT]);
+      // None of the eight gained a key of the new grammar: nothing was parsed into them.
+      for (const definition of Object.values(seed.blocks)) {
+        for (const key of ['measurement_tests', 'config_fields', 'library']) expect(key in definition, `${version}/${definition.block_type}/${key}`).toBe(false);
+      }
+    }
+    for (const type of EIGHT) expect(JSON.stringify(v5.blocks[type]), type).toBe(JSON.stringify(v4.blocks[type]));
+    expect(hash('v1')).toBe(V1_HASH);
+    expect(hash('v2')).toBe(V2_HASH);
+    expect(hash('v3')).toBe(V3_HASH);
+    expect(hash('v4'), 'seed v4 changed after it shipped: add a new version instead').toBe(V4_HASH);
+  });
+
+  it('the type exists on v5 only: getDefinition throws naming both on v1 to v4, findDefinition answers null', () => {
+    expect(cta.block_type).toBe(CTA);
+    expect(cta.label).toBe('Chave de transferência automática');
+    expect(cta.library).toBe(true);
+    expect(cta.conclusion).toBe(true);
+    expect(cta.tests).toEqual([]);
+    expect(cta.subtypes).toEqual([]);
+    for (const version of ['v1', 'v2', 'v3', 'v4']) {
+      expect(() => getDefinition(version, 'cabine_primaria', CTA), version).toThrow(new RegExp(`block_type "${CTA}" is not in seed_version "${version}"`));
+      expect(findDefinition(version, CTA), version).toBeNull();
+      expect(isLibraryType(version, CTA), version).toBe(false);
+      expect(() => naDefaultsFor(version, CTA, undefined), version).not.toThrow();
+    }
+    expect(findDefinition('v5', CTA)).toBe(cta);
+    expect(isLibraryType('v5', CTA)).toBe(true);
+    for (const type of EIGHT) expect(isLibraryType('v5', type), type).toBe(false);
+  });
+
+  it('equipmentTypesOf: the eight on v1 to v4, the eight then the CTA on v5, the eight for a version this bundle does not ship', () => {
+    for (const version of ['v1', 'v2', 'v3', 'v4']) expect(equipmentTypesOf(version), version).toEqual([...EIGHT]);
+    expect(equipmentTypesOf('v5')).toEqual([...EIGHT, CTA]);
+    expect(equipmentTypesOf('v5')).toBe(equipmentTypesOf('v5'));
+    for (const version of ['v99', 'toString', '']) expect(equipmentTypesOf(version), version).toEqual([...EIGHT]);
+  });
+
+  it('carries the 17 checks of § 8.4 by name and in order, each keyed by the snake_case of its label and with three or four distinct NC phrases', () => {
+    const list = cta.checklist!;
+    expect(list.map((item) => item.label)).toEqual(ITEMS);
+    expect(list).toHaveLength(17);
+    for (const item of list) {
+      expect(item.key, item.label).toBe(snake(item.label));
+      expect(item.nc_phrases.length, item.key).toBeGreaterThanOrEqual(3);
+      expect(item.nc_phrases.length, item.key).toBeLessThanOrEqual(4);
+      expect(new Set(item.nc_phrases).size, item.key).toBe(item.nc_phrases.length);
+    }
+    // The 17 keys are the tail of the closed item enum, in the same order.
+    expect(list.map((item) => item.key)).toEqual(ITEM_KEYS.slice(45));
+    // The chips `63-ficha-cta.html` draws on item 3.
+    expect(list[2]!.nc_phrases).toEqual(['Aviso ausente', 'Barreira solta', 'Tampa sem parafusos']);
+    // None of the eight shares an item with it.
+    for (const type of EIGHT) {
+      const keys = new Set(v5.blocks[type].checklist!.map((item) => item.key));
+      expect(list.filter((item) => keys.has(item.key)), type).toEqual([]);
+    }
+  });
+
+  it('carries the 13 plate fields of § 8.4 plus the identity fields the eight carry (IDENTIFICAÇÃO and TAG)', () => {
+    const own = cta.nameplate.filter((field) => field.key !== 'identificacao' && field.key !== 'tag');
+    expect(own.map((field) => [field.label, field.kind, field.unit ?? null])).toEqual(PLATE);
+    expect(cta.nameplate).toHaveLength(15);
+    expect(cta.nameplate[0]).toEqual({ key: 'identificacao', label: 'IDENTIFICAÇÃO', kind: 'text', per_unit: true });
+    // The two identity fields are the seccionadora's own definitions, as seed v2 flagged them.
+    const seccionadora = v5.blocks.chave_seccionadora.nameplate;
+    expect(cta.nameplate.find((field) => field.key === 'identificacao')).toEqual(seccionadora.find((field) => field.key === 'identificacao'));
+    expect(cta.nameplate.find((field) => field.key === 'tag')).toEqual(seccionadora.find((field) => field.key === 'tag'));
+    for (const field of cta.nameplate) {
+      expect(field.key, field.label).toBe(snake(field.label));
+      expect(fieldDefSchema.safeParse(field).success, field.key).toBe(true);
+    }
+    // The fields of one physical unit are never copied by "Igual à ⟨TAG⟩?".
+    expect(cta.nameplate.filter((field) => field.per_unit === true).map((field) => field.key)).toEqual(['identificacao', 'n_de_serie', 'tag']);
+    expect(new Set(cta.nameplate.map((field) => field.key)).size).toBe(15);
+  });
+
+  it('configures tensão, polos, neutro, transição and bypass, with the defaults BT, 3, sólido, aberta, não', () => {
+    expect(cta.config_fields!.map((field) => [field.key, field.label, field.options.map((option) => option.key), field.default])).toEqual([
+      ['tensao', 'Tensão', ['bt', 'mt'], 'bt'],
+      ['polos', 'Polos', ['2', '3', '4'], '3'],
+      ['neutro', 'Neutro', ['solido', 'chaveado', 'sobreposto'], 'solido'],
+      ['transicao', 'Transição', ['aberta', 'retardada', 'fechada'], 'aberta'],
+      ['bypass', 'Bypass-isolation', ['sim', 'nao'], 'nao'],
+    ]);
+  });
+
+  it('holds six measurement tests, E1 to E6, each a sub-block; E4 and E5 cannot be switched off, E1 to E3 offer an instrument', () => {
+    const keys = ['cta_resistencia_contato', 'cta_isolamento_principal', 'cta_isolamento_controle', 'cta_ajustes_controlador', 'cta_transferencia', 'cta_termografia'];
+    expect(tests.map((candidate) => candidate.key)).toEqual(keys);
+    expect(tests.map((candidate) => candidate.label)).toEqual([
+      'Resistência de contato',
+      'Isolamento principal',
+      'Isolamento do controle',
+      'Ajustes do controlador',
+      'Transferência',
+      'Termografia sob carga',
+    ]);
+    expect(cta.sub_blocks).toEqual(['nameplate', 'checklist', ...keys, 'observations', 'conclusion']);
+    expect(SUB_BLOCK_KEYS.slice(-6)).toEqual(keys);
+    expect(tests.map((candidate) => candidate.switchable !== undefined)).toEqual([true, true, true, false, false, true]);
+    expect(tests.map((candidate) => candidate.instrument_of ?? null)).toEqual(['resistencia_contato', 'isolacao', 'isolacao', null, null, null]);
+    for (const candidate of tests) expect(measurementTestSchema.safeParse(candidate).success, candidate.key).toBe(true);
+  });
+
+  it('E1 to E3: the rows, columns and units of § 8.4, the pole rows by configuration, Linha-carga fixed under the two closed columns', () => {
+    const e1 = test('cta_resistencia_contato');
+    expect(e1.row_header).toBe('Polo');
+    expect(e1.columns.map((column) => [column.key, column.label, column.kind, column.unit])).toEqual([
+      ['lado_normal', 'Lado Normal', 'number', 'µΩ'],
+      ['lado_emergencia', 'Lado Emergência', 'number', 'µΩ'],
+    ]);
+    expect(e1.rows.map((row) => [row.label, row.when?.in ?? null])).toEqual([
+      ['Polo A', null],
+      ['Polo B', null],
+      ['Polo C', ['3', '4']],
+      ['Polo N', ['4']],
+    ]);
+    const e2 = test('cta_isolamento_principal');
+    expect(e2.columns.map((column) => [column.label, column.unit])).toEqual([
+      ['Normal fechada', 'MΩ'],
+      ['Emergência fechada', 'MΩ'],
+      ['Aberta', 'MΩ'],
+    ]);
+    expect(e2.rows.map((row) => [row.label, row.when?.in ?? null])).toEqual([
+      ['A-T', null],
+      ['B-T', null],
+      ['C-T', ['3', '4']],
+      ['N-T', ['4']],
+      ['A-B', null],
+      ['B-C', ['3', '4']],
+      ['C-A', ['3', '4']],
+      ['Linha-carga', null],
+    ]);
+    expect(e2.rows[7]!.fixed).toEqual({ normal_fechada: '—', emergencia_fechada: '—' });
+    for (const row of [...e1.rows, ...e2.rows]) if (row.when !== undefined) expect(row.when.config).toBe('polos');
+    const e3 = test('cta_isolamento_controle');
+    expect(e3.rows.map((row) => row.label)).toEqual(['Fiação × terra']);
+    expect(e3.columns.map((column) => [column.label, column.unit])).toEqual([['Valor', 'MΩ']]);
+  });
+
+  it('E4: pickup and dropout of tensão and frequência for Normal and Emergência, falta de fase, the four delays and the exercitador, across Fábrica (optional), Projeto, Encontrado and Deixado', () => {
+    const e4 = test('cta_ajustes_controlador');
+    expect(e4.columns.map((column) => [column.key, column.label, column.optional ?? false])).toEqual([
+      ['fabrica', 'Fábrica', true],
+      ['projeto', 'Projeto', false],
+      ['encontrado', 'Encontrado', false],
+      ['deixado', 'Deixado', false],
+    ]);
+    expect(e4.rows.map((row) => [row.label, row.kind, row.unit ?? row.options!.map((option) => option.label)])).toEqual([
+      ['Normal · pickup de tensão', 'number', '%'],
+      ['Normal · dropout de tensão', 'number', '%'],
+      ['Normal · pickup de frequência', 'number', '%'],
+      ['Normal · dropout de frequência', 'number', '%'],
+      ['Emergência · pickup de tensão', 'number', '%'],
+      ['Emergência · dropout de tensão', 'number', '%'],
+      ['Emergência · pickup de frequência', 'number', '%'],
+      ['Emergência · dropout de frequência', 'number', '%'],
+      ['Falta de fase', 'choice', ['Ligado', 'Desligado']],
+      ['TD 1C · retardo de partida', 'number', 's'],
+      ['TD 2B · transferência', 'number', 's'],
+      ['TD 3A · retransferência', 'number', 'min'],
+      ['TD 2E · resfriamento', 'number', 'min'],
+      ['Exercitador', 'choice', ['Desligado', 'Semanal', 'Quinzenal', 'Mensal']],
+    ]);
+    expect(e4.criteria).toHaveLength(1);
+    expect(e4.criteria[0]).toMatchObject({ type: 'equals_column', column: 'deixado', reference: 'projeto' });
+  });
+
+  it('E5: the five steps across Ajuste (optional, fixed on two rows) and Medido, the options as test values, "não realizado" skipping the table', () => {
+    const e5 = test('cta_transferencia');
+    expect(e5.columns.map((column) => [column.key, column.optional ?? false])).toEqual([
+      ['ajuste', true],
+      ['medido', false],
+    ]);
+    expect(e5.rows.map((row) => [row.label, row.unit, row.fixed ?? null])).toEqual([
+      ['Falha da Normal até partida', 's', null],
+      ['Até carga na Emergência', 's', { ajuste: 'limite 10 s' }],
+      ['Retransferência', 'min', null],
+      ['Resfriamento', 'min', null],
+      ['Falha da Emergência', 's', { ajuste: '—' }],
+    ]);
+    expect(e5.values!.map((value) => [value.key, value.kind, value.unit ?? value.options?.map((option) => option.key), value.when?.equals ?? null, value.optional ?? false])).toEqual([
+      ['metodo', 'choice', ['falta_real', 'botao_teste', 'nao_realizado'], null, false],
+      ['carga', 'choice', ['sem_carga', 'com_carga'], null, false],
+      ['carga_percentual', 'number', '%', 'com_carga', false],
+      ['fonte_tempos', 'choice', ['instrumento', 'registro_controlador'], null, false],
+      ['tensao', 'number', 'V', 'com_carga', true],
+      ['frequencia', 'number', 'Hz', 'com_carga', true],
+      ['corrente', 'number', 'A', 'com_carga', true],
+    ]);
+    expect(e5.values!.filter((value) => value.group !== undefined).map((value) => [value.key, value.group])).toEqual([
+      ['tensao', 'Na Emergência, com carga'],
+      ['frequencia', 'Na Emergência, com carga'],
+      ['corrente', 'Na Emergência, com carga'],
+    ]);
+    expect(e5.skip_when).toEqual({ value: 'metodo', equals: 'nao_realizado' });
+    expect(e5.criteria[0]).toMatchObject({ type: 'absolute', operator: '<=', value: 10, unit: 's', rows: ['ate_carga_na_emergencia'], columns: ['medido'] });
+  });
+
+  it('E6: Normal, Emergência and Carga by phase, the temperature, the two typed ΔT (optional) and the class, with the ambient temperature as a value', () => {
+    const e6 = test('cta_termografia');
+    expect(e6.rows.map((row) => row.label)).toEqual(['Normal · A', 'Normal · B', 'Normal · C', 'Emergência · A', 'Emergência · B', 'Emergência · C', 'Carga · A', 'Carga · B', 'Carga · C']);
+    expect(e6.rows.filter((row) => row.when !== undefined).map((row) => row.key)).toEqual(['normal_c', 'emergencia_c', 'carga_c']);
+    expect(e6.columns.map((column) => [column.label, column.kind, column.unit ?? null, column.optional ?? false])).toEqual([
+      ['Temperatura', 'number', '°C', false],
+      ['ΔT similares', 'number', '°C', true],
+      ['ΔT ambiente', 'number', '°C', true],
+      ['Classe', 'choice', null, false],
+    ]);
+    expect(e6.columns[3]!.options!.map((option) => option.label)).toEqual(['Normal', 'Possível deficiência', 'Provável deficiência', 'Grave']);
+    expect(e6.values!.map((value) => [value.key, value.unit])).toEqual([['temperatura_ambiente', '°C']]);
+    expect(e6.criteria[0]).toMatchObject({ type: 'choice_pass', column: 'classe', pass: ['normal'] });
+  });
+
+  it('every criterion names its source, and the two absolute criteria of E2 follow the tensão: BT its own limit, MT the seeded isolação', () => {
+    for (const candidate of tests) {
+      expect(candidate.criteria.length, candidate.key).toBeGreaterThanOrEqual(1);
+      for (const criterion of candidate.criteria) expect(criterion.source.name.trim().length, candidate.key).toBeGreaterThan(3);
+    }
+    expect(test('cta_resistencia_contato').criteria[0]).toMatchObject({ type: 'relative_to_lowest', max_percent: 50, reference_label: 'Menor do lado' });
+    const [bt, mt] = test('cta_isolamento_principal').criteria;
+    expect(bt).toMatchObject({ type: 'absolute', operator: '>=', value: 100, unit: 'MΩ', when: { config: 'tensao', in: ['bt'] } });
+    expect(mt).toMatchObject({ type: 'absolute', seeded: 'isolacao', when: { config: 'tensao', in: ['mt'] }, source: { name: 'aceitável na ficha' } });
+    expect(mt).not.toHaveProperty('value');
+    expect(SEEDED_CRITERIA.find((criterion) => criterion.key === 'isolacao')).toMatchObject({ operator: '>', value: 400, unit: 'MΩ' });
+    expect(test('cta_isolamento_controle').criteria[0]).toMatchObject({ type: 'absolute', operator: '>=', value: 2, unit: 'MΩ' });
+  });
+
+  it('names no manufacturer or brand anywhere', () => {
+    expect(JSON.stringify(cta)).not.toMatch(/asco/i);
+  });
+
+  it('the kernel schema rejects a criterion without its source, whatever its type', () => {
+    const source = { name: 'NETA 7.22.3 (fonte secundária)', edition: null };
+    const criteria = [
+      { type: 'absolute', operator: '>=', value: 100, unit: 'MΩ', text: '≥ 100 MΩ', source },
+      { type: 'absolute', seeded: 'isolacao', source },
+      { type: 'relative_to_lowest', max_percent: 50, reference_label: 'Menor do lado', text: '≤ 50 %', source },
+      { type: 'equals_column', column: 'deixado', reference: 'projeto', text: 'Deixado = projeto', source },
+      { type: 'choice_pass', column: 'classe', pass: ['normal'], text: 'Classe Normal', source },
+    ];
+    for (const criterion of criteria) {
+      expect(measurementCriterionSchema.safeParse(criterion).success, criterion.type).toBe(true);
+      const withoutSource = Object.fromEntries(Object.entries(criterion).filter(([key]) => key !== 'source'));
+      expect(measurementCriterionSchema.safeParse(withoutSource).success, criterion.type).toBe(false);
+      expect(measurementCriterionSchema.safeParse({ ...criterion, source: { name: '', edition: null } }).success, criterion.type).toBe(false);
+      expect(measurementCriterionSchema.safeParse({ ...criterion, source: { edition: null } }).success, criterion.type).toBe(false);
+    }
+    // And so does the whole test, and the whole seed, that carries one.
+    const e1 = structuredClone(test('cta_resistencia_contato')) as MeasurementTest;
+    delete (e1.criteria[0] as { source?: unknown }).source;
+    expect(measurementTestSchema.safeParse(e1).success).toBe(false);
+    const seed = structuredClone(v5) as typeof v5;
+    delete (seed.blocks.chave_transferencia_automatica!.measurement_tests![0]!.criteria[0] as { source?: unknown }).source;
+    expect(reportSeedSchema.safeParse(seed).success).toBe(false);
+    expect(reportSeedSchema.safeParse(structuredClone(v5)).success).toBe(true);
+  });
+
+  it('the grammar refuses what it cannot mean', () => {
+    const e1 = () => structuredClone(test('cta_resistencia_contato')) as MeasurementTest;
+    const e5 = () => structuredClone(test('cta_transferencia')) as MeasurementTest;
+    const bad = (candidate: MeasurementTest) => expect(measurementTestSchema.safeParse(candidate).success).toBe(false);
+    // An absolute criterion is its own limit and text, or a seeded one, never both and never neither.
+    const source = { name: 'fonte', edition: null };
+    expect(measurementCriterionSchema.safeParse({ type: 'absolute', seeded: 'isolacao', operator: '>', value: 400, unit: 'MΩ', text: '>400 MΩ', source }).success).toBe(false);
+    expect(measurementCriterionSchema.safeParse({ type: 'absolute', source }).success).toBe(false);
+    expect(measurementCriterionSchema.safeParse({ type: 'absolute', operator: '>=', value: 100, unit: 'MΩ', source }).success).toBe(false);
+    expect(measurementCriterionSchema.safeParse({ type: 'between', min: 1, max: 2, text: 'x', source }).success).toBe(false);
+    // A choice lists its options; a number never does.
+    const noOptions = e5();
+    delete noOptions.values![0]!.options;
+    bad(noOptions);
+    const numberWithOptions = e1();
+    numberWithOptions.columns[0]!.options = [
+      { key: 'a', label: 'A' },
+      { key: 'b', label: 'B' },
+    ];
+    bad(numberWithOptions);
+    // Keys are unique and what a rule names exists.
+    const twoColumns = e1();
+    twoColumns.columns[1]!.key = twoColumns.columns[0]!.key;
+    bad(twoColumns);
+    const twoRows = e1();
+    twoRows.rows[1]!.key = twoRows.rows[0]!.key;
+    bad(twoRows);
+    const fixedNowhere = e5();
+    fixedNowhere.rows[1]!.fixed = { nenhuma: 'x' };
+    bad(fixedNowhere);
+    const criterionRow = e5();
+    (criterionRow.criteria[0] as { rows?: string[] }).rows = ['nenhuma'];
+    bad(criterionRow);
+    const whenValue = e5();
+    whenValue.values![2]!.when = { value: 'carga', equals: 'nenhuma' };
+    bad(whenValue);
+    const skip = e5();
+    skip.skip_when = { value: 'nenhum', equals: 'x' };
+    bad(skip);
+    // Across the definition: a row's configuration and the test's sub-block exist.
+    const definition = () => structuredClone(cta) as BlockDefinition;
+    expect(blockDefinitionSchema.safeParse(definition()).success).toBe(true);
+    const noField = definition();
+    noField.measurement_tests![0]!.rows[2]!.when = { config: 'fases', in: ['3'] };
+    expect(blockDefinitionSchema.safeParse(noField).success).toBe(false);
+    const noOption = definition();
+    noOption.measurement_tests![0]!.rows[2]!.when = { config: 'polos', in: ['5'] };
+    expect(blockDefinitionSchema.safeParse(noOption).success).toBe(false);
+    const noSubBlock = definition();
+    noSubBlock.sub_blocks = noSubBlock.sub_blocks.filter((key) => key !== 'cta_termografia');
+    expect(blockDefinitionSchema.safeParse(noSubBlock).success).toBe(false);
+    const badDefault = definition();
+    badDefault.config_fields![0]!.default = 'at';
+    expect(blockDefinitionSchema.safeParse(badDefault).success).toBe(false);
+  });
+
+  it('a seed version always ships the eight, each keyed by its own type', () => {
+    const missing = structuredClone(v5) as { blocks: Record<string, unknown> };
+    delete missing.blocks.tp;
+    expect(reportSeedSchema.safeParse(missing).success).toBe(false);
+    const swapped = structuredClone(v5) as { blocks: Record<string, unknown> };
+    swapped.blocks.tp = swapped.blocks.tc;
+    expect(reportSeedSchema.safeParse(swapped).success).toBe(false);
   });
 });
 

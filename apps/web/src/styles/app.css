@@ -201,6 +201,14 @@ body {
   .export-dialog dl.doc-control dd { border-top: 0; }
   /* `.frame-phone .pos-box` */
   .pos-box { width: 48px; }
+  /* `.frame-phone [data-route="/biblioteca/cta"] .field .segmented.is-wrap` (+ `.seg + .seg`) (63-ficha-cta.html, Story 14.5) */
+  [data-route="/relatorio/:id/ficha/:blockId"] .field .segmented.is-wrap { grid-auto-flow: row; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .field .segmented.is-wrap .seg + .seg { border-left: 0; border-top: 2px solid var(--border-strong); }
+  /* `.frame-phone [data-route="/biblioteca/cta"] .lib-cards` and `... .measurement-table.has-cards` (63-ficha-cta.html).
+     `.screen` on the selector: `ficha.css` loads after this file and its base `.lib-cards { display: none }`
+     has the specificity the mock's own base rule has, so the phone rule keeps the mock's extra class of weight. */
+  .screen[data-route="/relatorio/:id/ficha/:blockId"] .lib-cards { display: block; }
+  .screen[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.has-cards { display: none; }
   /* `.frame-phone [data-route="/relatorio/porto-seguro"] .overview-content` (40-relatorio-overview.html) */
   [data-route="/relatorio/:id"] .overview-content { padding: var(--sp-4) var(--gutter-phone); }
   /* `.frame-phone [data-route="/relatorio/porto-seguro"] .header-side` */

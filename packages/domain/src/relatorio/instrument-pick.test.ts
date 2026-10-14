@@ -12,8 +12,11 @@ import {
   instrumentOptionOf,
   instrumentPickerOrder,
   lastInstrumentIdFor,
+  measurementInstrumentHeaderOf,
   storedInstrumentHeader,
 } from './instrument-pick.ts';
+import { blockConfigWithSubBlock } from './measurement-evaluation.ts';
+import { ctaBlock, E1, E2, E3, E4 } from './measurement-test-support.ts';
 
 const now = new Date('2026-09-22T12:00:00.000Z');
 
@@ -164,6 +167,37 @@ describe('12.3-UNIT suggestedInstrument (J-07, D-4)', () => {
   }
 
   const instruments = [instrument(), instrument({ id: Y, code: '3M', name: 'Microhmímetro', test_isolacao: null })];
+
+  it('Story 14.5: a measurement test with a picker is suggested through its instrument_of, with no test parameter', () => {
+    const used = sec(1, { isolacao: picked(X, 1), resistencia_contato: picked(Y, 2) });
+    const cta = ctaBlock();
+    const snapshot = { blocks: [used, cta], instruments };
+    expect(measurementInstrumentHeaderOf(instruments[0]!)).toEqual({ ...instrumentHeaderOf(instruments[0]!, 'isolacao'), test_parameter: null });
+    expect(suggestedInstrument(snapshot, cta.id, E1)).toEqual(measurementInstrumentHeaderOf(instruments[1]!));
+    // The megôhmetro's registry default (5 kV) is not carried: the criterion of E2 states its own test voltage.
+    expect(suggestedInstrument(snapshot, cta.id, E2)).toEqual({ ...instrumentHeaderOf(instruments[0]!, 'isolacao'), test_parameter: null });
+    // A test with no picker has none.
+    expect(suggestedInstrument(snapshot, cta.id, E4)).toBeNull();
+    // "Concluir ficha" writes them like a seeded sheet's.
+    expect(suggestedInstruments(snapshot, cta.id).map((s) => [s.testKey, s.header.instrument_id, s.header.test_parameter])).toEqual([
+      [E1, Y, null],
+      [E2, X, null],
+      [E3, X, null],
+    ]);
+    // Switched off, already picked, or concluded: none.
+    const off: BlockRow = { ...cta, config: blockConfigWithSubBlock(cta.config, E1, false) };
+    expect(suggestedInstrument({ blocks: [used, off], instruments }, off.id, E1)).toBeNull();
+    expect(suggestedInstruments({ blocks: [used, { ...cta, concluded_by: { actor_id: 'u', at: '2026-09-06T12:00:00.000Z' } }], instruments }, cta.id)).toEqual([]);
+    // A pick on E2 is the last one used for isolação: E3 of the same sheet and a seccionadora follow it.
+    const pickedCta: BlockRow = { ...cta, sheet: { ...cta.sheet, test: { ...cta.sheet.test, [E2]: { cells: {}, instrument: picked(Y, 9) } } } };
+    const fresh = sec(3);
+    const after = { blocks: [used, pickedCta, fresh], instruments };
+    expect(lastInstrumentIdFor(after.blocks, 'isolacao')).toBe(Y);
+    expect(lastInstrumentIdFor(after.blocks, 'resistencia_contato')).toBe(Y);
+    expect(suggestedInstrument(after, pickedCta.id, E2)).toBeNull();
+    expect(suggestedInstrument(after, pickedCta.id, E3)?.instrument_id).toBe(Y);
+    expect(suggestedInstrument(after, fresh.id, 'isolacao')).toEqual(instrumentHeaderOf(instruments[1]!, 'isolacao'));
+  });
 
   it('suggests the instrument last used for the test kind in the relatório, from its live registry row', () => {
     const earlier = sec(1, { isolacao: picked(Y, 1) });

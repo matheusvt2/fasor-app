@@ -2,7 +2,8 @@ import { fileFieldPath, suggestionStatusPath } from '../ops/path.ts';
 import type { OpDraft } from '../ops/op.ts';
 import { panelReadingTarget, panelSuggestionValueSchema, type PanelSuggestionValue } from '../reading/panel.ts';
 import { plateReadingTarget } from '../reading/target.ts';
-import { EQUIPMENT_BLOCK_TYPES, type EquipmentBlockType } from '../schemas/block-config.ts';
+import type { EquipmentBlockType } from '../schemas/block-config.ts';
+import { equipmentTypesOf } from '../seed/definitions.ts';
 import type { BlockRow, JsonValue, LocationRow, PhotoFileRow, SuggestionRow } from '../schemas/entities.ts';
 import type { BlockLocationRow } from './local.ts';
 import { liveLocationIds } from './location-live.ts';
@@ -177,13 +178,16 @@ export interface PanelTypeChip {
 
 /**
  * The type chips of the result dialog: collapsed, the read type and the next three in seed
- * order (wrapping), then "Outro…" (`other`); expanded, or with no type read, all eight.
+ * order (wrapping), then "Outro…" (`other`); expanded, or with no type read, every type the
+ * relatório's seed version ships (the eight; Story 14.5: on v5 the library type after them).
+ * A read type the version does not ship is no type read.
  */
 export function panelTypeChips(seedVersion: string, first: EquipmentBlockType | null, expanded: boolean): { chips: PanelTypeChip[]; other: boolean } {
+  const all = equipmentTypesOf(seedVersion);
   const chip = (type: EquipmentBlockType): PanelTypeChip => ({ type, label: blockTypeLabel(seedVersion, type) });
-  if (first === null || expanded) return { chips: EQUIPMENT_BLOCK_TYPES.map(chip), other: false };
-  const at = EQUIPMENT_BLOCK_TYPES.indexOf(first);
-  const types = [0, 1, 2, 3].map((offset) => EQUIPMENT_BLOCK_TYPES[(at + offset) % EQUIPMENT_BLOCK_TYPES.length]!);
+  const at = first === null ? -1 : all.indexOf(first);
+  if (at === -1 || expanded) return { chips: all.map(chip), other: false };
+  const types = [0, 1, 2, 3].map((offset) => all[(at + offset) % all.length]!);
   return { chips: types.map(chip), other: true };
 }
 
@@ -222,7 +226,9 @@ export interface PanelProposal {
 
 /** The block one tap would create, or null while no type is known (no "Criar" line) or the palette location is gone. */
 export function panelProposal(input: PanelProposalInput): PanelProposal | null {
-  const suggested = input.suggestion?.value.block_type ?? null;
+  // Story 14.5: a type the relatório's seed version does not ship was never read as far as the proposal goes.
+  const read = input.suggestion?.value.block_type ?? null;
+  const suggested = read !== null && equipmentTypesOf(input.seedVersion).includes(read) ? read : null;
   const type = input.pickedType ?? suggested;
   if (type === null) return null;
   const where = panelLocation(input.locations, input.paletteLocationId, input.suggestion?.value.column ?? null);

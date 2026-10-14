@@ -345,7 +345,7 @@ describe('4.4/4.5-UNIT tree texts and writes', () => {
     const snapshot = relatorio();
     const items = paletteItems('v1', { kind: 'coluna', name: 'Coluna 5' }, snapshot.equipment);
     expect(items).toHaveLength(8);
-    expect(items.find((i) => i.type === 'chave_seccionadora')).toEqual({ type: 'chave_seccionadora', label: 'Chave seccionadora', tag: 'SEC-C05-2' });
+    expect(items.find((i) => i.type === 'chave_seccionadora')).toEqual({ type: 'chave_seccionadora', label: 'Chave seccionadora', tag: 'SEC-C05-2', library: false, summary: null });
     expect(items.find((i) => i.type === 'para_raio')!.tag).toBe('PR-C05');
     expect(locationChoices(snapshot.locations).map((c) => c.label)).toEqual([
       'Cabine B',

@@ -45,6 +45,8 @@ const EXTRA_PATHS = [
   `location/${ID}/checklist/epi_disponivel/observation`,
   `file/${ID}/location_id`,
   `point/${ID}/location_id`,
+  // Story 14.5 (contract 19): a value of a measurement test outside its table.
+  `sheet/${BLOCK}/test/cta_transferencia/value/metodo`,
 ];
 
 describe('1.4-UNIT-001 path round trip', () => {
@@ -60,7 +62,7 @@ describe('1.4-UNIT-001 path round trip', () => {
     const seen = new Set(paths.map((p) => parsePath(p).family));
     const missing = FAMILIES.map((f) => f.family).filter((f) => !seen.has(f));
     expect(missing).toEqual([]);
-    expect(FAMILIES.length).toBe(44);
+    expect(FAMILIES.length).toBe(45);
   });
 
   it('returns typed segments', () => {
@@ -242,6 +244,10 @@ describe('E5-A5 typed path builders round-trip through parsePath', () => {
     ],
     [builders.fileFieldPath(ID, 'location_id'), { family: 'file/field', id: ID, field: 'location_id' }],
     [builders.pointFieldPath(ID, 'location_id'), { family: 'point/field', id: ID, field: 'location_id' }],
+    [
+      builders.sheetTestValuePath(ID, 'cta_transferencia', 'metodo'),
+      { family: 'sheet/test/value', block_id: ID, test_key: 'cta_transferencia', value_key: 'metodo' },
+    ],
   ];
 
   it.each(cases)('%s parses back to its family and segments', (path, expected) => {

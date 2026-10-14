@@ -1,6 +1,6 @@
 import {
   getDefinition,
-  LOCKED_SUB_BLOCKS,
+  lockedSubBlocksOf,
   naDefaultsCountText,
   naDefaultsFor,
   screenLabel,
@@ -32,7 +32,9 @@ export interface TypeDefaultsDialogProps {
  * card in `42-template-composer.html`, opened here from the palette's equipment row). Every
  * sub-block of the type's definition is a Toggle row with its state word, except checklist
  * and conclusion, which read "Sempre" and are not controls; under each label, the kernel's
- * line of what the sub-block holds (E3-A9, `subBlockSummaryText`); a type with subtypes in the
+ * line of what the sub-block holds (E3-A9, `subBlockSummaryText`); a measurement test the seed
+ * does not declare switchable (Story 14.5: E4 and E5 of the Chave de transferência automática)
+ * is on every sheet too, so it reads "Sempre" as those two do; a type with subtypes in the
  * seed gets the subtype select, which pre-marks that subtype's items NA and removes none.
  * Every change autosaves and reaches every placement of the type.
  */
@@ -40,6 +42,8 @@ export function TypeDefaultsDialog({ type, seedVersion, config, onChange, onClos
   const definition = getDefinition(seedVersion, 'cabine_primaria', type);
   const typeName = copy.composer.equipmentNames[type];
   const rowIdPrefix = useId();
+  // The kernel says which sub-blocks no config switches off.
+  const lockedKeys = lockedSubBlocksOf(definition);
 
   const setEnabled = (key: SubBlockKey, enabled: boolean) =>
     onChange((current) => ({ ...current, sub_blocks: { ...current.sub_blocks, [key]: { ...current.sub_blocks[key], enabled } } }));
@@ -81,7 +85,7 @@ export function TypeDefaultsDialog({ type, seedVersion, config, onChange, onClos
         <p className="table-title">{copy.composer.subBlocksTitle}</p>
         {definition.sub_blocks.map((key) => {
           const label = copy.composer.subBlockLabels[key];
-          const locked = LOCKED_SUB_BLOCKS.includes(key);
+          const locked = lockedKeys.includes(key);
           const toggleId = `${rowIdPrefix}-${key}`;
           const summary = subBlockSummaryText(definition, key);
           return (

@@ -39,9 +39,10 @@ has the sha256 of a committed image. A photo with no fixture named after its own
 back to the default fixture of its target block type (`DEFAULT_FIXTURE_BY_BLOCK_TYPE` in
 `providers/fake.ts`):
 
-- every block type with a nameplate (Story 13.7): `transformador_forca` replays the synthetic
-  transformer plate below, and `para_raio`, `chave_seccionadora`, `disjuntor_mt`, `tp` and
-  `tc` the synthetic plates of "The synthetic plates of the other types". The OCR boxes are
+- every block type with a nameplate (Story 13.7; Story 14.5 for the library type of seed v5):
+  `transformador_forca` replays the synthetic transformer plate below, and `para_raio`,
+  `chave_seccionadora`, `disjuntor_mt`, `tp`, `tc` and `chave_transferencia_automatica` the
+  synthetic plates of "The synthetic plates of the other types". The OCR boxes are
   scaled to the width and height of the image the job sends (read with sharp), so the job's
   size check passes whatever size the device's re-encode gave the photo, and the type's
   suggestions arrive. This is how the local stack, `e2e/plate-reading.spec.ts` and
@@ -66,6 +67,7 @@ the thermo-hygrometer has no block type and the table key `env`.
 | plate | `disjuntor_mt` | - | `images/plate-disjuntor-mt.png` |
 | plate | `tp` | - | `images/plate-tp.png` |
 | plate | `tc` | - | `images/plate-tc.png` |
+| plate | `chave_transferencia_automatica` | - | `images/plate-chave-transferencia-automatica.png` |
 | display | `transformador_forca` | `isolacao` | `display-tres-valores.jpg` (1,20 / 1,45 / 1,80 GΩ: only 1 MINUTO is suggested) |
 | display | any | `isolacao` | `display-isolacao.jpg` (147 GΩ) |
 | display | any | `resistencia_contato` | `display-microhmimetro.jpg` (87 µΩ, read at 0.17: Verificar) |
@@ -120,9 +122,10 @@ does not, so the server makes it `verify` whatever the model says. A cell filled
 run gets `mode: replace`; a manufacturer the company already registered as `Celtta` stores
 the registry's spelling and no hint.
 
-## The synthetic plates of the other types (Story 13.7)
+## The synthetic plates of the other types (Story 13.7; Story 14.5)
 
-Five plates, one per nameplate type besides the transformer, each a 1200 x 900 PNG in
+Six plates, one per nameplate type besides the transformer (the five of Story 13.7 and, since
+Story 14.5, the Chave de transferência automática of seed v5), each a 1200 x 900 PNG in
 `images/` (the `print` variant keeps that size, so a photo of the committed image replays its
 own fixture unscaled). Each draws a header with the type's label, then one row per field: the
 seed label's words at the left, the value at the right. The values are invented, valid for
@@ -132,7 +135,10 @@ the registries each value is a pending `suggested` suggestion, except a `voltage
 (TENSÃO NOMINAL, TENSÃO DE PLACA), which is `verify` unless the company registered that class
 (Story 8.5); every new manufacturer carries `create_registry_entry`. Every nameplate key of the
 type is covered except `tag` and `vol_oleo`. Tokens are `t0..`, confidence 0.99,
-`preprocessing_applied: false`; each value's confidence is 0.97.
+`preprocessing_applied: false`; each value's confidence is 0.97. The Chave de transferência
+automática has no `voltage_class` field (its TENSÃO NOMINAL is a number in V), and its
+FREQUÊNCIA and TORQUE DOS TERMINAIS carry units the reading unit table does not hold (Hz,
+N·m): the value is kept as printed under the field's own unit.
 
 | Image | Fixture | Tokens | Values (field: value, cited tokens) |
 |---|---|---|---|
@@ -141,15 +147,18 @@ type is covered except `tag` and `vol_oleo`. Tokens are `t0..`, confidence 0.99,
 | `plate-disjuntor-mt.png` | `b0b6f663...json` | 40 | identificacao `DJ-01` (t3); fabricacao `Tensilda` (t5); n_serie `DJ-210587` (t8); tipo `VBX-17` (t10); meio_de_extincao `SF6` (t14); corrente_nominal `{raw: 630, unit: A}` (t17 t18); capacidade_interruptor `{raw: 25, unit: kA}` (t21 t22); data_de_fabricacao `2021-06` (t26); tensao_nominal `15 kV` (t29 t30, verify unless registered); aj_bobina `220 Vcc` (t33 t34); aj_rele_50_51 `120 A` (t38 t39) |
 | `plate-tp.png` | `008145d0...json` | 37 | identificacao `TP-01` (t2); fabricacao `Ondarel` (t4); n_serie `TP-118204` (t7); tipo `UTE-15` (t9); tipo_de_isolacao `EPÓXI` (t13); potencia_nominal `{raw: 500, unit: VA}` (t16 t17); tap_atual `2` (t20); data_fabricacao `2020` (t23, a bare year as printed, AIR-V1); tensao_nominal_at the model's `{raw: 13800, unit: V}` (t27 t28, prints `13.800 V`), stored `{raw: 13.8, unit: kV}` suggested (AIR-1: moved into the field's unit, the digit rule on the printed raw); tensao_nominal_bt `{raw: 115, unit: V}` (t32 t33); ligacao_secundaria `Y` (t36) |
 | `plate-tc.png` | `0b5dce48...json` | 43 | identificacao `TC-01` (t2); fabricacao `Velquor` (t4); n_serie `TC-305117` (t7); tipo `UCE-15` (t9); tipo_de_isolacao `Á SECO` (t13 t14); potencia_nominal `{raw: 25, unit: VA}` (t17 t18); tap_atual `1` (t21); data_fabricacao `2022-02` (t24); tensao_nominal_at `{raw: 15, unit: kV}` (t28 t29); tensao_nominal_bt `{raw: 220, unit: V}` (t33 t34); ligacao_secundaria `Y` (t37); relacao `200-5 A` (t39 t40); exatidao `10B100` (t42) |
+| `plate-chave-transferencia-automatica.png` | `05598e68...json` | 52 | identificacao `CTA-01` (t5); fabricante `Dalvenor` (t7); serie `TRX-300` (t9); n_de_catalogo `TRX3-0400-N4` (t13); n_de_serie `CT-448120` (t17); ano `2021` (t19); tensao_nominal `{raw: 440, unit: V}` (t22 t23); corrente_nominal `{raw: 400, unit: A}` (t26 t27); frequencia `{raw: 60, unit: Hz}` (t29 t30); wcr `{raw: 42, unit: kA}` (t32 t33); protecao_a_montante `DISJUNTOR 400 A` (t37 t38 t39); controlador_e_firmware `CG-7 v2.14` (t43 t44); involucro `IP54` (t46); torque_dos_terminais `{raw: 45, unit: N·m}` (t50 t51) |
 
 The images and fixtures are generated, never edited by hand, by
 `apps/api/src/scripts/make-plate-fixtures.ts` in the `tools` container:
 
 ```sh
 docker compose --profile tools run --rm tools pnpm exec tsx apps/api/src/scripts/make-plate-fixtures.ts
+docker compose --profile tools run --rm tools pnpm exec tsx apps/api/src/scripts/make-plate-fixtures.ts chave_transferencia_automatica
 ```
 
-It lays each plate out from a table of values and the type's seed `FieldDef`s, draws it as an
+With no argument it makes every plate; with block types as arguments it makes only those, which
+is how a new type's plate is added without rewriting the others (Story 14.5). It lays each plate out from a table of values and the type's seed `FieldDef`s, draws it as an
 inline SVG (font DejaVu Sans) rendered by sharp, and measures every token box by drawing the
 token alone at its position on a white page and trimming the page to its ink. It writes the
 PNG and `<sha256>.json` and prints the shas, which `kinds/plate.ts` lists in `fakeDefaults`.

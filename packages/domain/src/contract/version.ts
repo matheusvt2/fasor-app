@@ -130,8 +130,24 @@
  * parse (`parsePath`) and the push route answers `op_path_unknown`. A row written before 18
  * parses to the same bytes and nothing an existing log can contain starts to throw.
  * `MIN_CONTRACT_VERSION` goes to 18 too.
+ *
+ * 19 (2026-10-13, Story 14.5): the measurement table and the first library type. The put
+ * family `sheet/{block_id}/test/{test_key}/value/{value_key}` is new: a cell stored at
+ * `sheet.test[test_key].values[value_key]` (the optional `values` map of a test entry), folded
+ * through `mergeCell` and stamped like every `sheet/*` put. `sheet/test/cell` now also
+ * addresses a measurement test (`row` the index in the test's rows, `col` in its columns), and
+ * a choice is stored as `{raw: optionKey, unit: null, state: 'measured'}`. The block type
+ * `chave_transferencia_automatica` is a new `EQUIPMENT_BLOCK_TYPES` value, with six new
+ * `SUB_BLOCK_KEYS` (its tests, `cta_*`) and 17 new `ITEM_KEYS`; `BlockConfig` gains the
+ * optional `options` (the block's own configuration, written whole with `block/{id}/config`).
+ * Seed v5 ships (v4 plus that one type) and is the version of a new template. The fold
+ * refuses a block create of that type on a seed version that does not ship it, a table cell
+ * outside the test's geometry or on a fixed cell, a value key the test does not declare, and
+ * an instrument or a criterion override a measurement test does not hold (`SeedPathError`,
+ * answered `op_invalid`). A row written before 19 parses to the same bytes and nothing an
+ * existing log can contain starts to throw. `MIN_CONTRACT_VERSION` goes to 19 too.
  */
-export const CONTRACT_VERSION = 18;
+export const CONTRACT_VERSION = 19;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -214,8 +230,16 @@ export const CONTRACT_VERSION = 18;
  * relatório created on it, and a Disjuntor MT sheet's `no_break_de_comando` item are all
  * outside what it ships. A relatório or company stream carries those as soon as the template
  * upgrade runs or anyone answers a site item, so the version-17 bundle updates too.
+ *
+ * 19 (2026-10-13, Story 14.5): a version-18 (or older) bundle cannot parse a
+ * `sheet/{block_id}/test/{test_key}/value/{value_key}` put (an unknown path: its `opSchema`
+ * fails the whole pulled page, `invalid_response`), and it cannot resolve the ninth block
+ * type nor seed v5: a template the server moved to v5, a relatório created on it and a Chave
+ * de transferência automática block are all outside what it ships, so it would stall on pull
+ * or draw a sheet it has no definition of. A stream carries those as soon as the template
+ * upgrade runs or anyone adds that type, so the version-18 bundle updates too.
  */
-export const MIN_CONTRACT_VERSION = 18;
+export const MIN_CONTRACT_VERSION = 19;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

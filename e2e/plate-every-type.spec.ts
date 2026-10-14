@@ -2,11 +2,14 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Page } from '@playwright/test';
-import { EQUIPMENT_BLOCK_TYPES, getDefinition, SEED_VERSION } from '@app/domain';
-import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { BASE_EQUIPMENT_BLOCK_TYPES, getDefinition, initialOrderKey, newEquipmentBlock, SEED_VERSION } from '@app/domain';
+import { newId } from '../apps/api/src/ids.ts';
+import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { devicePhotos } from './support/photos.ts';
 import { openSheetOfType } from './support/reading-ops.ts';
+import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts } from './support/relatorio-seed.ts';
+import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
 /*
  * Story 13.7 (E8-A3, E78-Q2 closed): the plate tile on every block type, over the real reading
@@ -16,6 +19,11 @@ import { openSheetOfType } from './support/reading-ops.ts';
  * read it), and the type's suggestions arrive without a "Sincronizar agora". The two cable
  * types have no nameplate in FO.SERV-03 (addendum §9): their sheets show
  * neither the nameplate nor the tile (spec OQ-1).
+ *
+ * Story 14.5: the library type of seed v5 (the Chave de transferência automática) has a
+ * nameplate and its own synthetic plate too. The standard template places none, so its sheet
+ * is created on the local Geradores by office ops, as the palette creates it, and read the
+ * same way (14.5-E2E-004).
  */
 
 let account: SeedAccount;
@@ -65,7 +73,42 @@ interface EntityRecord {
 
 const section = (page: Page) => page.locator('#ficha-nameplate');
 
-for (const type of EQUIPMENT_BLOCK_TYPES) {
+/** "Fotografar placa" on the open sheet of `type`: the committed plate goes through the system picker, the real job reads it, and its suggestions arrive without a manual sync. */
+async function readPlateThroughTheTile(page: Page, type: string, image: string, blockId: string): Promise<void> {
+  const bytes = readFileSync(image);
+  const values = fixtureValues(bytes);
+
+  // No camera on this device: the tile opens the system picker, which gets the plate.
+  const chooser = page.waitForEvent('filechooser');
+  await section(page).locator('.camera-group').getByRole('button', { name: 'Fotografar placa' }).click();
+  const mimeType = image.endsWith('.png') ? 'image/png' : 'image/jpeg';
+  await (await chooser).setFiles({ name: image.endsWith('.png') ? 'placa.png' : 'placa.jpg', mimeType, buffer: bytes });
+  await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(1);
+  const photoId = (await devicePhotos(page, database))[0]!.id;
+  const create = (await readStore<{ kind: string; path: string; value: { reading_target: { block_id: string; block_type: string } } }>(page, database, 'outbox')).find(
+    (op) => op.kind === 'create' && op.path === `file/${photoId}`,
+  )!;
+  expect(create.value.reading_target).toMatchObject({ block_id: blockId, block_type: type });
+
+  // No "Sincronizar agora" from here: the upload, the job and the pulls run on their own.
+  const first = values[0]!;
+  const suggested = page.locator(`#ficha-nameplate [data-field-key="${first.key}"] .field.suggestion-field`);
+  await expect(suggested).toBeVisible({ timeout: 30_000 });
+  if (typeof first.value === 'string') await expect(suggested.locator('input')).toHaveValue(first.value);
+
+  await expect
+    .poll(async () => {
+      const records = await readStore<EntityRecord>(page, database, 'entities');
+      return {
+        status: records.find((record) => record.entity === 'file' && record.id === photoId)?.row.reading_status,
+        pending: records.filter((record) => record.entity === 'suggestion' && record.row.status === 'pending' && record.row.source?.photo_id === photoId).length,
+      };
+    })
+    .toEqual({ status: 'done', pending: values.length });
+}
+
+// The eight FO.SERV-03 types: the ones the standard template places.
+for (const type of BASE_EQUIPMENT_BLOCK_TYPES) {
   const label = getDefinition(SEED_VERSION, 'cabine_primaria', type).label;
   const plate = PLATES[type];
 
@@ -82,36 +125,55 @@ for (const type of EQUIPMENT_BLOCK_TYPES) {
 
   test(`@p1 13.7-E2E-002 ${type}: a plate imported through "Fotografar placa" is read by the real job and its suggestions arrive without a manual sync`, async ({ page }) => {
     test.setTimeout(180_000);
-    const bytes = readFileSync(plate.image);
-    const values = fixtureValues(bytes);
     const { blockId } = await openSheetOfType(page, account, database, { cabine: plate.cabine, typeLabel: label });
-
-    // No camera on this device: the tile opens the system picker, which gets the plate.
-    const chooser = page.waitForEvent('filechooser');
-    await section(page).locator('.camera-group').getByRole('button', { name: 'Fotografar placa' }).click();
-    const mimeType = plate.image.endsWith('.png') ? 'image/png' : 'image/jpeg';
-    await (await chooser).setFiles({ name: plate.image.endsWith('.png') ? 'placa.png' : 'placa.jpg', mimeType, buffer: bytes });
-    await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(1);
-    const photoId = (await devicePhotos(page, database))[0]!.id;
-    const create = (await readStore<{ kind: string; path: string; value: { reading_target: { block_id: string; block_type: string } } }>(page, database, 'outbox')).find(
-      (op) => op.kind === 'create' && op.path === `file/${photoId}`,
-    )!;
-    expect(create.value.reading_target).toMatchObject({ block_id: blockId, block_type: type });
-
-    // No "Sincronizar agora" from here: the upload, the job and the pulls run on their own.
-    const first = values[0]!;
-    const suggested = page.locator(`#ficha-nameplate [data-field-key="${first.key}"] .field.suggestion-field`);
-    await expect(suggested).toBeVisible({ timeout: 30_000 });
-    if (typeof first.value === 'string') await expect(suggested.locator('input')).toHaveValue(first.value);
-
-    await expect
-      .poll(async () => {
-        const records = await readStore<EntityRecord>(page, database, 'entities');
-        return {
-          status: records.find((record) => record.entity === 'file' && record.id === photoId)?.row.reading_status,
-          pending: records.filter((record) => record.entity === 'suggestion' && record.row.status === 'pending' && record.row.source?.photo_id === photoId).length,
-        };
-      })
-      .toEqual({ status: 'done', pending: values.length });
+    await readPlateThroughTheTile(page, type, plate.image, blockId);
   });
 }
+
+// Story 14.5: the library type of seed v5.
+const LIBRARY_TYPE = 'chave_transferencia_automatica';
+const LIBRARY_PLATE = resolve(FIXTURES, 'images/plate-chave-transferencia-automatica.png');
+
+/**
+ * Resets Empresa B, signs in, pushes a relatório of the standard template with one sheet of the
+ * library type created on the local `cabine` from the office (the standard template places
+ * none), and opens that sheet by its address.
+ */
+async function openLibrarySheet(page: Page, cabine: string): Promise<{ blockId: string }> {
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  const built = newRelatorioDrafts(account);
+  const local = built.drafts.find((draft) => draft.kind === 'create' && draft.path.startsWith('location/') && (draft.value as { name?: string }).name === cabine)!.value as { id: string };
+  const { equipment, block } = newEquipmentBlock({
+    blockId: newId(),
+    equipmentId: newId(),
+    relatorioId: built.relatorioId,
+    projectId: built.projectId,
+    locationId: local.id,
+    type: LIBRARY_TYPE,
+    tag: 'CTA-GERADORES',
+    seedVersion: SEED_VERSION,
+    // After the local's own blocks.
+    orderKey: initialOrderKey(999),
+  });
+  // Status flow 2026-10-10: Em campo from the start, as a relatório being filled on site is.
+  await pushDrafts(page, database, [
+    ...built.drafts,
+    emCampoDraft(account, built.relatorioId),
+    officeDraft(account, { projectId: built.projectId }, `equipment/${equipment.id}`, equipment, 'create'),
+    officeDraft(account, { relatorioId: built.relatorioId }, `block/${block.id}`, block, 'create'),
+  ]);
+  await page.goto(`/relatorio/${built.relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
+  await page.goto(`/relatorio/${built.relatorioId}/ficha/${block.id}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toContainText(getDefinition(SEED_VERSION, 'cabine_primaria', LIBRARY_TYPE).label, { timeout: 30_000 });
+  return { blockId: block.id };
+}
+
+test(`@p1 14.5-E2E-004 ${LIBRARY_TYPE}: the library type's plate imported through "Fotografar placa" is read by the real job and its suggestions arrive without a manual sync`, async ({ page }) => {
+  test.setTimeout(180_000);
+  const { blockId } = await openLibrarySheet(page, 'Geradores');
+  await expect(section(page)).toBeVisible();
+  await readPlateThroughTheTile(page, LIBRARY_TYPE, LIBRARY_PLATE, blockId);
+});

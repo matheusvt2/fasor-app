@@ -3,8 +3,9 @@ import { makeOp } from '../ops/op.ts';
 import { applyOp } from '../ops/apply.ts';
 import { templateRowSchema } from '../schemas/entities.ts';
 import { blockConfigSchema } from '../schemas/block-config.ts';
-import { SEED_VERSION, SEED_VERSIONS } from './definitions.ts';
-import { defaultBlockConfig, STANDARD_TEMPLATE_NAME, standardTemplate, templateBlockTotal, templateTotals } from './template.ts';
+import { EQUIPMENT_BLOCK_TYPES } from '../schemas/block-config.ts';
+import { equipmentTypesOf, getDefinition, SEED_VERSION, SEED_VERSIONS } from './definitions.ts';
+import { defaultBlockConfig, LOCKED_SUB_BLOCKS, lockedSubBlocksOf, STANDARD_TEMPLATE_NAME, standardTemplate, templateBlockTotal, templateTotals } from './template.ts';
 
 const ID = '019966b0-0000-7000-8000-0000000000f1';
 const template = standardTemplate({ id: ID });
@@ -17,9 +18,9 @@ const quantities = (ref: string) => {
 };
 
 describe('standardTemplate', () => {
-  it('is a valid template row named "Cabine primária — padrão" on the current seed (v4 since Story 14.3)', () => {
+  it('is a valid template row named "Cabine primária — padrão" on the current seed (v5 since Story 14.5)', () => {
     expect(templateRowSchema.parse(template)).toEqual(template);
-    expect(template).toMatchObject({ id: ID, name: STANDARD_TEMPLATE_NAME, version: 1, seed_version: 'v4', removed_at: null });
+    expect(template).toMatchObject({ id: ID, name: STANDARD_TEMPLATE_NAME, version: 1, seed_version: 'v5', removed_at: null });
     expect(STANDARD_TEMPLATE_NAME).toBe('Cabine primária — padrão');
   });
 
@@ -101,6 +102,8 @@ describe('standardTemplate', () => {
       cabos_entrada: 4,
       cabos_saida: 9,
       para_raio: 5,
+      // The standard template stays without the library type (Story 14.5).
+      chave_transferencia_automatica: 0,
     });
     expect(templateBlockTotal(template)).toBe(94);
     // A block whose node left the skeleton is not counted, in the total either.
@@ -202,6 +205,26 @@ describe('standardTemplate', () => {
     );
     const state = applyOp(new Map(), op);
     expect(state.get(`template:${ID}`)).toEqual(template);
+  });
+});
+
+describe('lockedSubBlocksOf (Story 14.5)', () => {
+  it('is the locked two for each of the eight seeded types, on every seed version', () => {
+    for (const version of ['v1', 'v4', 'v5']) {
+      for (const type of equipmentTypesOf(version).filter((candidate) => candidate !== 'chave_transferencia_automatica')) {
+        expect(lockedSubBlocksOf(getDefinition(version, 'cabine_primaria', type)), `${version} ${type}`).toEqual([...LOCKED_SUB_BLOCKS]);
+      }
+    }
+    expect(EQUIPMENT_BLOCK_TYPES).toContain('chave_transferencia_automatica');
+  });
+
+  it('adds the measurement tests the seed does not declare switchable: E4 and E5 of the Chave de transferência automática', () => {
+    const definition = getDefinition('v5', 'cabine_primaria', 'chave_transferencia_automatica');
+    expect(lockedSubBlocksOf(definition)).toEqual(['checklist', 'cta_ajustes_controlador', 'cta_transferencia', 'conclusion']);
+    // The other four tests are switched on the sheet, so they stay controls.
+    const switchable = definition.measurement_tests!.filter((test) => test.switchable !== undefined).map((test) => test.key);
+    expect(switchable).toEqual(['cta_resistencia_contato', 'cta_isolamento_principal', 'cta_isolamento_controle', 'cta_termografia']);
+    for (const key of switchable) expect(lockedSubBlocksOf(definition)).not.toContain(key);
   });
 });
 

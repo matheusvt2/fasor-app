@@ -51,7 +51,8 @@ describe('3.7-UNIT-001 Porto Seguro fixture: full log', () => {
     const totals = templateTotals(standardTemplate({ id: portoSeguro.companyId }));
     const byType: Partial<Record<EquipmentBlockType, number>> = {};
     for (const block of snapshot.blocks) byType[block.block_type as EquipmentBlockType] = (byType[block.block_type as EquipmentBlockType] ?? 0) + 1;
-    expect(byType).toEqual(totals);
+    // The totals name every equipment type, the ones the template does not hold at zero (the library type of seed v5).
+    expect(byType).toEqual(Object.fromEntries(Object.entries(totals).filter(([, count]) => count > 0)));
     expect(Object.values(totals).reduce((a, b) => a + b, 0)).toBe(94);
     expect(totals).toEqual({
       chave_seccionadora: 25,
@@ -62,6 +63,7 @@ describe('3.7-UNIT-001 Porto Seguro fixture: full log', () => {
       cabos_entrada: 4,
       cabos_saida: 9,
       para_raio: 5,
+      chave_transferencia_automatica: 0,
     });
   });
 

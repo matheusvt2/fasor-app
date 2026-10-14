@@ -12,7 +12,8 @@ import {
   type TemplateBlock,
 } from '../schemas/block-config.ts';
 import type { TemplateRow } from '../schemas/entities.ts';
-import { defaultBlockConfig, LOCKED_SUB_BLOCKS, zeroTotals } from '../seed/template.ts';
+import { findDefinition, SEED_VERSION } from '../seed/definitions.ts';
+import { defaultBlockConfig, LOCKED_SUB_BLOCKS, lockedSubBlocksOf, zeroTotals } from '../seed/template.ts';
 
 /*
  * Story 3.4: the Template composer's edits, as pure functions over the two fields a
@@ -362,11 +363,21 @@ function typeConfigOf(config: TypeConfig): TypeConfig {
  * equipment block whatever their entry says. A section block carries none. The
  * renderer, `progress` and `groupForPrint` (Epic 4+) read a sheet's parts through this,
  * so a switched-off sub-block is omitted, never printed empty (FR-11).
+ *
+ * Story 14.5: a measurement test its type does not declare `switchable` (the CTA's E4 and E5,
+ * `lockedSubBlocksOf`) is in too, whatever its entry says or lacks: the one rule every reader
+ * shares with `evaluateSheetMeasurements`, so a stored `enabled: false` on such a test can
+ * never drop its cells from the sheet's state or its step while the test is still required
+ * and printed. A config carries no seed version, so the type's lock is read from the current
+ * one (`SEED_VERSION`, the only one shipping measurement tests); a later version that makes
+ * such a test switchable has to bring the block's version here.
  */
 export function enabledSubBlocks(config: Pick<BlockConfig, 'block_type' | 'sub_blocks'>): SubBlockKey[] {
   if (!isEquipmentBlockType(config.block_type)) return [];
+  const definition = findDefinition(SEED_VERSION, config.block_type);
+  const always = definition === null ? [] : lockedSubBlocksOf(definition);
   return SUB_BLOCK_KEYS.filter((key) => {
-    if (LOCKED_SUB_BLOCKS.includes(key)) return true;
+    if (LOCKED_SUB_BLOCKS.includes(key) || always.includes(key)) return true;
     const entry = config.sub_blocks[key];
     return entry !== undefined && entry.enabled !== false;
   });

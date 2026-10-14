@@ -14,6 +14,7 @@ const SHEET_FAMILIES: ReadonlySet<string> = new Set([
   'sheet/checklist',
   'sheet/test',
   'sheet/test/cell',
+  'sheet/test/value',
   'sheet/conclusion',
   'sheet/observations',
 ]);

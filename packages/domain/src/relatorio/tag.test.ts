@@ -42,6 +42,7 @@ describe('4.1-UNIT suggestTag', () => {
       'cabos_entrada',
       'cabos_saida',
       'chave_seccionadora',
+      'chave_transferencia_automatica',
       'disjuntor_mt',
       'para_raio',
       'tc',

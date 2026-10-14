@@ -1,9 +1,9 @@
 import type { RelatorioSummary } from '../contract/sync.ts';
 import { orderKeyBetween, sortByOrderKey } from '../ops/order-key.ts';
-import { EQUIPMENT_BLOCK_TYPES, isEquipmentBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
+import { isEquipmentBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
 import { emptySheet, type BlockRow, type EquipmentRow, type JsonValue, type LocationRow, type SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findDefinition, findSeed, siteItems } from '../seed/definitions.ts';
+import { equipmentTypesOf, findDefinition, findSeed, isLibraryType, siteItems } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import { defaultCabineName, defaultColunaName, defaultPainelName } from '../templates/text.ts';
 import { plural } from '../text/plural.ts';
@@ -701,20 +701,75 @@ export function locationChoices(locations: readonly LocationRow[]): LocationChoi
   return out;
 }
 
+/**
+ * Story 14.5: the heading of the library types, after the eight, in both palettes
+ * (`42-template-composer.html`, `40-relatorio-overview.html`) and the words of their print
+ * group in section 9 (`groupForPrint`, kind `outros`).
+ */
+export const LIBRARY_GROUP_LABEL = 'Outros equipamentos';
+
+/**
+ * The equipment types a palette offers under a seed version, in the groups it draws them in:
+ * the eight FO.SERV-03 types first, under no heading, then the library types the version
+ * ships under `LIBRARY_GROUP_LABEL` (none before v5, so that group is left out). Both
+ * palettes read this, so neither offers a type its seed version has no definition of.
+ */
+export interface PaletteTypeGroup {
+  key: 'seeded' | 'library';
+  /** The group's heading, or null for the eight. */
+  label: string | null;
+  types: EquipmentBlockType[];
+}
+
+export function paletteTypeGroups(seedVersion: string): PaletteTypeGroup[] {
+  const types = equipmentTypesOf(seedVersion);
+  const library = types.filter((type) => isLibraryType(seedVersion, type));
+  const groups: PaletteTypeGroup[] = [{ key: 'seeded', label: null, types: types.filter((type) => !library.includes(type)) }];
+  if (library.length > 0) groups.push({ key: 'library', label: LIBRARY_GROUP_LABEL, types: library });
+  return groups;
+}
+
 /** One equipment type of the field palette: its seed name and the TAG it would be born with here. */
 export interface PaletteItem {
   type: EquipmentBlockType;
   label: string;
   tag: string;
+  /** Story 14.5: a library type, drawn after the eight under `LIBRARY_GROUP_LABEL`. */
+  library: boolean;
+  /** Story 14.5: what a library type holds, "17 itens · até 6 ensaios"; null on the eight. */
+  summary: string | null;
 }
 
-/** The field palette's eight rows for a location: each type with its suggested TAG (`suggestTag`, the instantiation's scheme). */
+/**
+ * The field palette's rows for a location: every type the seed version ships (the eight, then
+ * its library types), each with its suggested TAG (`suggestTag`, the instantiation's scheme).
+ */
 export function paletteItems(seedVersion: string, location: TagLocation, equipment: readonly TagEquipment[]): PaletteItem[] {
-  return EQUIPMENT_BLOCK_TYPES.map((type) => ({
-    type,
-    label: blockTypeLabel(seedVersion, type),
-    tag: suggestTag(type, { kind: location.kind, name: location.name }, equipment),
-  }));
+  return paletteTypeGroups(seedVersion).flatMap((group) =>
+    group.types.map((type) => ({
+      type,
+      label: blockTypeLabel(seedVersion, type),
+      tag: suggestTag(type, { kind: location.kind, name: location.name }, equipment),
+      library: group.key === 'library',
+      summary: group.key === 'library' ? libraryTypeSummaryText(seedVersion, type) : null,
+    })),
+  );
+}
+
+/**
+ * Story 14.5: the meta line of a library type in a palette, "17 itens · até 6 ensaios"
+ * (`40-relatorio-overview.html`): its checklist's item count and how many measurement tests
+ * it can hold ("até": some are switched off on the sheet). Null for a type that is not one.
+ */
+export function libraryTypeSummaryText(seedVersion: string, blockType: string): string | null {
+  const definition = findDefinition(seedVersion, blockType);
+  if (definition === null || definition.library !== true) return null;
+  const tests = definition.tests.length + (definition.measurement_tests?.length ?? 0);
+  const parts = [
+    definition.checklist === null ? null : plural(definition.checklist.length, 'item', 'itens'),
+    tests === 0 ? null : `até ${plural(tests, 'ensaio', 'ensaios')}`,
+  ];
+  return parts.filter((part): part is string => part !== null).join(SEP);
 }
 
 export interface NewEquipmentBlockInput {

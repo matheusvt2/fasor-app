@@ -12,6 +12,11 @@ export interface SegmentedControlProps<Value extends string> {
   'aria-label'?: string;
   'aria-labelledby'?: string;
   'aria-describedby'?: string;
+  /**
+   * Story 14.5 (`63-ficha-cta.html` `.field .segmented.is-wrap`): the segments stack into rows
+   * below 768 px (`app.css`), for a choice whose labels do not fit side by side on a phone.
+   */
+  wrap?: boolean;
 }
 
 /**
@@ -42,6 +47,7 @@ export function SegmentedControl<Value extends string>({
   value,
   onChange,
   options,
+  wrap = false,
   ...rest
 }: SegmentedControlProps<Value>) {
   const segments = useRef(new Map<Value, HTMLButtonElement | null>());
@@ -84,7 +90,7 @@ export function SegmentedControl<Value extends string>({
   }
 
   return (
-    <div className="segmented" role="radiogroup" {...rest}>
+    <div className={wrap ? 'segmented is-wrap' : 'segmented'} role="radiogroup" {...rest}>
       {options.map((option, index) => (
         <button
           key={option.value}

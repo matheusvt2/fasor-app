@@ -50,9 +50,10 @@ async function liveRegistry(db: Db, companyId: CompanyId): Promise<{ manufacture
 
 export const plateHandler: ReadingKindHandler = {
   kind: 'plate',
-  // E78-Q2 and Story 13.7: one synthetic plate per block type with a nameplate (the cables
-  // have none). The transformer's is `services/ocr/tests/fixtures/plate-transformador.jpg`; the
-  // five others are `fixtures/images/plate-<type>.png`, made by `scripts/make-plate-fixtures.ts`.
+  // E78-Q2, Story 13.7 and Story 14.5: one synthetic plate per block type with a nameplate, seven
+  // now (the cables have none; the seventh is the library type of seed v5). The transformer's is
+  // `services/ocr/tests/fixtures/plate-transformador.jpg`; the six others are
+  // `fixtures/images/plate-<type>.png`, made by `scripts/make-plate-fixtures.ts`.
   fakeDefaults: [
     { block_type: 'transformador_forca', sha256: 'a1eac9106f186a29ca82e896741922794eda7f86a231c4dcf942031d14dc26ac' },
     // images/plate-para-raio.png
@@ -65,6 +66,8 @@ export const plateHandler: ReadingKindHandler = {
     { block_type: 'tp', sha256: '008145d0ff9770712dacc52395bee359f34dcd5ec4c7cc4d4f9b416216e5b11b' },
     // images/plate-tc.png
     { block_type: 'tc', sha256: '0b5dce48ef09a2a08b164d75a69208fb645ba112302a1631cd299ef3d94618a5' },
+    // images/plate-chave-transferencia-automatica.png
+    { block_type: 'chave_transferencia_automatica', sha256: '05598e686249d191e2c9e899b149d562c9c6057e237cc7fb61a086035b6df293' },
   ],
 
   async prepare({ db, companyId, relatorioId, photo }) {

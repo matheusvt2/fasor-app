@@ -6,10 +6,12 @@ import {
   instrumentOptionOf,
   instrumentPickerOrder,
   lastInstrumentIdFor,
+  measurementInstrumentHeaderOf,
   storedInstrumentHeader,
   suggestedInstrument,
   type BlockRow,
   type InstrumentRow,
+  type MeasurementTestKey,
   type TestKey,
 } from '@app/domain';
 import { useEffect, useId, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
@@ -37,6 +39,7 @@ export function InstrumentPicker({
   block,
   blocks,
   testKey,
+  instrumentOf,
   instruments,
   serviceEnd,
   setupInstrumentIds = [],
@@ -46,7 +49,14 @@ export function InstrumentPicker({
   block: BlockRow;
   /** The relatório's blocks: the last instrument used per test type is remembered across them. */
   blocks: readonly BlockRow[];
-  testKey: TestKey;
+  /** The test whose `instrument` cell holds the header: a seeded test or (Story 14.5) a measurement test. */
+  testKey: TestKey | MeasurementTestKey;
+  /**
+   * Story 14.5: on a measurement test, the seeded test kind whose registry instruments the
+   * picker offers (the seed's `instrument_of`); the header it writes carries no test parameter.
+   * A measurement test always passes it; a seeded test is its own kind.
+   */
+  instrumentOf?: TestKey;
   instruments: readonly InstrumentRow[];
   serviceEnd: string | null;
   /** F-27: the instruments ticked in setup Etapa 4 (`setup.instrument_ids`), listed first when they fit. */
@@ -66,16 +76,19 @@ export function InstrumentPicker({
   const host = useRef<HTMLDivElement | null>(null);
   const options = useRef(new Map<string, HTMLButtonElement | null>());
 
+  // The test kind the registry is read for: the measurement test's `instrument_of`, else the seeded test itself.
+  const kind: TestKey = instrumentOf ?? (testKey as TestKey);
   const header = storedInstrumentHeader(block.sheet.test[testKey]?.instrument?.value);
   // Story 12.3 (D-4): with nothing stored, the kernel's suggestion (the last one used for
-  // this test kind in the relatório) shows amber "Sugerido"; "Concluir ficha" writes it.
+  // this test kind in the relatório) shows amber "Sugerido"; "Concluir ficha" writes it. A
+  // measurement test is suggested the same way, through its `instrument_of`.
   const suggestion = header === null && !readOnly ? suggestedInstrument({ blocks, instruments }, block.id, testKey) : null;
   const shown = header ?? suggestion;
   const at = now();
   const registryRow = shown === null ? undefined : instruments.find((row) => row.id === shown.instrument_id);
   const expired = shown === null ? null : instrumentExpiredText(shown, serviceEnd, at);
   // F-27: the ones that fit this test and were ticked in setup first (the kernel's order).
-  const ordered = instrumentPickerOrder(instruments, lastInstrumentIdFor(blocks, testKey), { testKey, setupIds: setupInstrumentIds });
+  const ordered = instrumentPickerOrder(instruments, lastInstrumentIdFor(blocks, kind), { testKey: kind, setupIds: setupInstrumentIds });
   const list = ordered.map((row) => instrumentOptionOf(row, serviceEnd, at));
   const selectedIndex = header === null ? -1 : list.findIndex((option) => option.id === header.instrument_id);
   const tabbable = selectedIndex === -1 ? 0 : selectedIndex;
@@ -116,7 +129,9 @@ export function InstrumentPicker({
     close();
     const row = ordered.find((r) => r.id === id);
     if (row === undefined || header?.instrument_id === id) return;
-    void api.edit((_blocks, by) => [testInstrumentOp(by, api.relatorioId, api.blockId, testKey, instrumentHeaderOf(row, testKey))]).catch(() => undefined);
+    // A measurement test's criterion states its own test voltage: its header carries no registry default.
+    const picked = instrumentOf === undefined ? instrumentHeaderOf(row, kind) : measurementInstrumentHeaderOf(row);
+    void api.edit((_blocks, by) => [testInstrumentOp(by, api.relatorioId, api.blockId, testKey, picked)]).catch(() => undefined);
   };
 
   const onOptionKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {

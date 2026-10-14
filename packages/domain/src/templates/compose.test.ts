@@ -211,6 +211,7 @@ describe('3.4-UNIT quantities per node', () => {
       tc: 17,
       cabos_saida: 0,
       transformador_forca: 0,
+      chave_transferencia_automatica: 0,
     });
     valid({ ...template, blocks });
   });

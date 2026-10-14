@@ -30,7 +30,7 @@ sources: [_bmad-output/planning-artifacts/architecture/architecture-fasor-2026-0
 | 18 | Sheet state precedence and attribution | [data](/architecture/data-model.md) |
 | 19 | Registry refs: Instruments and Clients by id, rest by value | [data](/architecture/data-model.md) |
 | 20 | Soft delete with tombstones | [ops](/architecture/ops-and-local-first.md) |
-| 21 | Seed is versioned code; BlockConfig only thing copied | [kernel](/architecture/kernel-and-seed.md) |
+| 21 | Seed is versioned code; BlockConfig only thing copied | [kernel](/architecture/kernel-and-seed.md); seed v5 and its grammar (2026-10-13): [measurement-table](/architecture/measurement-table.md) |
 | 22 | Status table has one home in the kernel | [kernel](/architecture/kernel-and-seed.md) |
 | 23 | Mockup CSS is the design system; React Aria behavior | [ui](/architecture/ui-system.md) |
 | 24 | Sync cycle, rebase, rejection semantics | [sync](/architecture/sync.md) |

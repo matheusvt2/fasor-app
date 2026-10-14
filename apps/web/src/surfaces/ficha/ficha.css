@@ -273,3 +273,78 @@
    on the crop, which opens the viewer. */
 .plate-crop .region { pointer-events: none; }
 .plate-crop[data-zoom-scale]:not([data-zoom-scale="1"]) { cursor: grab; }
+
+/* ---------- 63-ficha-cta.html (Story 14.5): the sheet of a library type ---------- */
+/* The mock scopes this screen to its prototype route `/biblioteca/cta`; the app draws a library
+   type on the sheet route, so that `[data-route]` value stands for it. Most of the mock's page
+   CSS mirrors `60-ficha.html` and is already above; these are the rules it marks "new", for the
+   parts the app draws. Left out, with what they style: `.calc-word` and `td.cell-calc.is-out`
+   (no derived column), `.mt-add` (no rows added on site), `.cta-skip` and the `[data-m]` swaps
+   (the method line is the kernel's one sentence), the `.all-c`, `.lib-conc` and `.lib-dlg-menu`
+   prototype states (the checklist, the conclusion and the header menu are the sheet's own). */
+[data-route="/relatorio/:id/ficha/:blockId"] .tests-stack { display: flex; flex-direction: column; gap: var(--sp-5); }
+/* new: "Tipo da biblioteca" pill in the header — declarations of 60-ficha's .ficha-da-cabine */
+[data-route="/relatorio/:id/ficha/:blockId"] .lib-pill { display: inline-flex; align-items: center; gap: var(--sp-1); min-height: 28px; padding: 0 var(--sp-3); border: 1.5px solid var(--border-strong); border-radius: var(--r-full); font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); white-space: nowrap; }
+/* new: group heading inside a field stack (E5 "Na Emergência, com carga") */
+[data-route="/relatorio/:id/ficha/:blockId"] .np-group { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-1) var(--sp-3); padding-top: var(--sp-3); margin-top: var(--sp-2); border-top: 1px solid var(--border-hairline); font-size: var(--t-body-size); font-weight: 600; }
+[data-route="/relatorio/:id/ficha/:blockId"] .np-group:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+[data-route="/relatorio/:id/ficha/:blockId"] .np-group .btn-reason { font-weight: var(--t-label-weight); }
+/* new: configurable choices drawn as Segmented controls inside a field; wrap on phone (`app.css`) */
+[data-route="/relatorio/:id/ficha/:blockId"] .field .segmented { grid-auto-columns: minmax(0, 1fr); }
+/* new: the test's own options above its table (E5 método · carga · fonte dos tempos) */
+[data-route="/relatorio/:id/ficha/:blockId"] .test-options { display: flex; flex-direction: column; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+[data-route="/relatorio/:id/ficha/:blockId"] .test-options .segmented { max-width: 480px; }
+[data-route="/relatorio/:id/ficha/:blockId"] .test-fields { display: flex; flex-direction: column; gap: var(--sp-3); }
+/* new: generic measurement table (Story 14.5) — several value columns share the width; yes/no cells */
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.is-multi td.cell-value { width: auto; min-width: 120px; }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.is-multi th.col-value { white-space: nowrap; }
+/* new: three or more value columns — the value drops to body size so the row stays on screen */
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.is-compact td.cell-value { min-width: 88px; }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.is-compact td.cell-value .mf-value { font-size: var(--t-body-size); padding: 0 var(--sp-2); }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.is-compact td.cell-value .mf-unit { min-width: 0; padding: 0 var(--sp-2) 0 0; }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.is-compact td.cell-calc { font-size: var(--t-body-size); }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.is-compact th.col-value { white-space: normal; }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table td.cell-yn { padding: var(--sp-1); min-width: 168px; }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table tr.row-derived td { background: var(--surface-base); }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table tr.row-derived td.cell-point { font-weight: 600; }
+/* new: a test sub-block switched off (by subtype or per sheet): its body goes, the reason stays */
+[data-route="/relatorio/:id/ficha/:blockId"] .lib-test .lib-off-note { display: none; }
+[data-route="/relatorio/:id/ficha/:blockId"] .lib-test:has(.lib-test-switch[aria-checked="false"]) .lib-test-body { display: none; }
+[data-route="/relatorio/:id/ficha/:blockId"] .lib-test:has(.lib-test-switch[aria-checked="false"]) .lib-off-note { display: flex; }
+[data-route="/relatorio/:id/ficha/:blockId"] .lib-off-note > span { flex: 1 1 200px; }
+[data-route="/relatorio/:id/ficha/:blockId"] .lib-off-note { flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); padding: var(--sp-3) var(--sp-4); border: 1px dashed var(--border-strong); border-radius: var(--r-sm); color: var(--ink-secondary); font-size: var(--t-meta-size); line-height: var(--t-meta-lh); }
+[data-route="/relatorio/:id/ficha/:blockId"] .lib-test:has(.lib-test-switch[aria-checked="false"]) .section-head h2 { color: var(--ink-secondary); }
+/* mirrors the two `:has(.lib-test-switch[aria-checked="false"])` rules above for a sheet marked
+   not tested, which draws no switch: the section carries the state (`data-off`). */
+[data-route="/relatorio/:id/ficha/:blockId"] .lib-test[data-off] .lib-off-note { display: flex; }
+[data-route="/relatorio/:id/ficha/:blockId"] .lib-test[data-off] .section-head h2 { color: var(--ink-secondary); }
+/* Measurement tables → stacked cards on the phone (`app.css` shows them below 768 px) */
+[data-route="/relatorio/:id/ficha/:blockId"] .lib-cards { display: none; }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-card .field + .field { margin-top: var(--sp-2); }
+/* new: E5 método — a radiogroup of option rows outside a dialog; declarations mirror .export-dialog .option-row and .radio.is-on */
+[data-route="/relatorio/:id/ficha/:blockId"] .cta-options { display: flex; flex-direction: column; gap: var(--sp-2); max-width: 560px; }
+[data-route="/relatorio/:id/ficha/:blockId"] .cta-options .option-row { display: flex; align-items: center; gap: var(--sp-3); width: 100%; min-height: var(--touch-field); padding: 0 var(--sp-3); background: var(--surface-raised); border: 2px solid var(--border-strong); border-radius: var(--r-md); font-size: var(--t-body-size); text-align: left; }
+[data-route="/relatorio/:id/ficha/:blockId"] .cta-options .option-row[aria-checked="true"] { border-color: var(--primary); background: var(--focus-fill); }
+[data-route="/relatorio/:id/ficha/:blockId"] .cta-options .option-row[aria-checked="true"] .radio { border-color: var(--primary); }
+[data-route="/relatorio/:id/ficha/:blockId"] .cta-options .option-row[aria-checked="true"] .radio::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--primary); }
+/* new: method beside the times */
+[data-route="/relatorio/:id/ficha/:blockId"] .cta-method-tag { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+/* mirrors `[data-route]:has(.cta-options [data-value="nao"][aria-checked="true"]) .cta-e5-table { opacity: .45 }`:
+   the table of a test its own value says was not run; the section carries the kernel's answer (`data-skipped`). */
+[data-route="/relatorio/:id/ficha/:blockId"] .lib-test[data-skipped] .ficha-mt { opacity: .45; }
+
+/* ---------- authored (Story 14.5) ---------- */
+/* The mock sets these two gaps inline on its `.test-fields` (`style="margin-bottom: var(--sp-3)"`
+   above the E6 table, `style="margin-top: var(--sp-3)"` under the E5 one). */
+[data-route="/relatorio/:id/ficha/:blockId"] .lib-test-body > .test-fields:has(~ .ficha-mt) { margin-bottom: var(--sp-3); }
+[data-route="/relatorio/:id/ficha/:blockId"] .lib-test-body > .ficha-mt ~ .test-fields { margin-top: var(--sp-3); }
+/* The option rows are real buttons. */
+[data-route="/relatorio/:id/ficha/:blockId"] .cta-options .option-row { cursor: pointer; }
+/* A two-option choice cell: its Segmented control with the cell's Overflow beside it, as a number
+   cell carries its own inside `.measurement-field`. Layout only. */
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-choice { display: flex; align-items: center; gap: var(--sp-1); }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-choice > .segmented { flex: 1 1 auto; }
+/* A choice of more than two options is the sheet's select, drawn in a cell with no `.field.combobox`
+   around it, so no chevron is laid over it: it keeps the browser's own arrow (the sheet's
+   `select.input { appearance: none }` above is undone for it). */
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-cell > select.input { width: 100%; appearance: auto; padding-right: var(--sp-3); }

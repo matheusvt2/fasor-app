@@ -1,10 +1,11 @@
 import { formatShortDateTime } from '../format/datetime.ts';
 import { entityKey, type EntityKey } from '../ops/apply.ts';
-import { formatPath, type OpPath } from '../ops/path.ts';
+import { formatPath, safeParsePath, type OpPath } from '../ops/path.ts';
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { avatarInitial } from '../registration.ts';
 import { composeConclusion } from '../relatorio/conclusion.ts';
 import { sheetOrder, fieldValueText } from '../relatorio/ficha.ts';
+import { measurementCellLabel, measurementStoredText, measurementTestTitle, measurementValueLabel } from '../relatorio/measurement-evaluation.ts';
 import { evaluateTest } from '../relatorio/reading-evaluation.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import { sheetState, sheetStateLabel } from '../relatorio/sheet-state.ts';
@@ -287,13 +288,14 @@ function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf'], equi
   }
 
   const tests = definition?.tests ?? [];
-  const testKeys = [...tests.map((test) => test.key), ...Object.keys(sheet.test)];
-  for (const key of new Set(testKeys)) {
+  // Story 14.5: the measurement tests follow the seeded ones, in the definition's order.
+  const testKeys = [...tests.map((test) => test.key), ...(definition?.measurement_tests ?? []).map((test) => test.key), ...Object.keys(sheet.test)];
+  for (const key of new Set<string>(testKeys)) {
     const stored = sheet.test[key];
     if (stored === undefined) continue;
     const test = tests.find((row) => row.key === key);
     const evaluation = test === undefined ? null : evaluateTest(block, definition!, test);
-    const title = evaluation?.title ?? key;
+    const title = evaluation?.title ?? measurementTestTitle(definition, key) ?? key;
     push({ family: 'sheet/test', block_id: blockId, test_key: key, field: 'instrument' }, stored.instrument, title, 'Instrumento');
     push({ family: 'sheet/test', block_id: blockId, test_key: key, field: 'criterion_override' }, stored.criterion_override, title, 'Critério');
     const rows = Object.keys(stored.cells).map(Number).sort((a, b) => a - b);
@@ -302,9 +304,19 @@ function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf'], equi
       for (const col of cols) {
         const evaluated = evaluation?.tables.flatMap((table) => table.rows).find((r) => r.row === row);
         const cell = evaluated?.cells.find((c) => c.address.col === col);
-        const label = evaluated === undefined || cell === undefined ? `Linha ${row + 1} · coluna ${col + 1}` : [evaluated.label, cell.column].filter((part) => part !== '').join(' · ');
+        const label =
+          evaluated === undefined || cell === undefined
+            ? (measurementCellLabel(definition, key, row, col) ?? `Linha ${row + 1} · coluna ${col + 1}`)
+            : [evaluated.label, cell.column].filter((part) => part !== '').join(' · ');
         push({ family: 'sheet/test/cell', block_id: blockId, test_key: key, row, col }, stored.cells[String(row)]?.[String(col)], title, label);
       }
+    }
+    // Story 14.5: a measurement test's values outside its table, in the definition's order, then any other stored key.
+    const values = stored.values ?? {};
+    const declared = (definition?.measurement_tests ?? []).find((row) => row.key === key)?.values?.map((value) => value.key) ?? [];
+    const valueKeys = [...declared.filter((valueKey) => valueKey in values), ...Object.keys(values).filter((valueKey) => !declared.includes(valueKey)).sort()];
+    for (const valueKey of valueKeys) {
+      push({ family: 'sheet/test/value', block_id: blockId, test_key: key, value_key: valueKey }, values[valueKey], title, measurementValueLabel(definition, key, valueKey) ?? valueKey);
     }
   }
 
@@ -396,7 +408,8 @@ function sheetCells(block: Pick<BlockRow, 'sheet'>): Cell[] {
   const cells: (Cell | undefined | null)[] = [
     ...Object.values(sheet.nameplate),
     ...Object.values(sheet.checklist).flatMap((entry) => [entry.result, entry.observation]),
-    ...Object.values(sheet.test).flatMap((test) => [test.instrument, test.criterion_override, ...Object.values(test.cells).flatMap((row) => Object.values(row))]),
+    // Story 14.5: a measurement test's values outside its table are cells of the sheet too.
+    ...Object.values(sheet.test).flatMap((test) => [test.instrument, test.criterion_override, ...Object.values(test.cells).flatMap((row) => Object.values(row)), ...Object.values(test.values ?? {})]),
     ...Object.values(sheet.conclusion),
     sheet.observations,
   ];
@@ -626,13 +639,27 @@ const CONCLUSION_WORDS: Readonly<Record<string, string>> = {
   edited: 'Editado',
 };
 
-/** A side's value as the sheet displays it ("3.300 MΩ", "Conforme", "Aprovado"); "—" when empty. */
+/**
+ * Story 14.5: a measurement test's cell or value as its sheet shows it, a choice by its option's
+ * label ("Botão de teste", never the stored key); null for any other path or a seeded test.
+ */
+function measurementValueText(path: string, value: unknown, block: Pick<BlockRow, 'seed_version' | 'block_type'>): string | null {
+  const parsed = safeParsePath(path);
+  if (parsed === null) return null;
+  if (parsed.family === 'sheet/test/cell') return measurementStoredText(definitionOf(block), parsed.test_key, { row: parsed.row, col: parsed.col }, value);
+  if (parsed.family === 'sheet/test/value') return measurementStoredText(definitionOf(block), parsed.test_key, { valueKey: parsed.value_key }, value);
+  return null;
+}
+
+/** A side's value as the sheet displays it ("3.300 MΩ", "Conforme", "Aprovado", a choice's label); "—" when empty. */
 export function conflictValueText(cell: Pick<CellConflict, 'path'>, value: unknown, block?: Pick<BlockRow, 'seed_version' | 'block_type'>): string {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'object' && !Array.isArray(value) && 'raw' in value) {
     const number = value as { raw: string; unit?: string | null; state?: string };
     if (number.state === 'empty') return '—';
     if (number.state === 'not_measured') return '-';
+    const measurement = block === undefined ? null : measurementValueText(cell.path, value, block);
+    if (measurement !== null) return measurement;
     const unit = typeof number.unit === 'string' && number.unit !== '' ? ` ${number.unit}` : '';
     return `${formatDecimalGroupedPtBr(number.raw)}${unit}`;
   }

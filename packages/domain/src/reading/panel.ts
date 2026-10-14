@@ -2,7 +2,8 @@ import { z } from 'zod';
 import type { OcrReadResult, OcrToken, StructuringOutput, StructuringValue } from '../contract/ocr.ts';
 import { uuidV7Schema, type NewId } from '../ids.ts';
 import { fileFieldPath } from '../ops/path.ts';
-import { EQUIPMENT_BLOCK_TYPES, equipmentBlockTypeSchema, isEquipmentBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
+import { BASE_EQUIPMENT_BLOCK_TYPES, equipmentBlockTypeSchema, isEquipmentBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
+import { equipmentTypesOf } from '../seed/definitions.ts';
 import { suggestionRowSchema, type SuggestionRow } from '../schemas/entities.ts';
 import type { FieldDef } from '../seed/schema.ts';
 import { normalizeBox, unionBox } from './boxes.ts';
@@ -29,11 +30,22 @@ export function panelReadingTarget(locationId: string): PanelReadingTarget {
 /** Below this confidence a kept value is shown as a guess flagged "Verificar". */
 export const PANEL_MIN_CONFIDENCE = 0.5;
 
-/** The two values the structuring step is asked for on a panel photo. */
-export const PANEL_FIELDS: readonly FieldDef[] = [
-  { key: 'block_type', label: 'Tipo do equipamento', kind: 'select', options: [...EQUIPMENT_BLOCK_TYPES] },
+const panelFieldsOf = (types: readonly EquipmentBlockType[]): readonly FieldDef[] => [
+  { key: 'block_type', label: 'Tipo do equipamento', kind: 'select', options: [...types] },
   { key: 'column', label: 'Coluna', kind: 'text' },
 ];
+
+/**
+ * The two values the structuring step is asked for on a panel photo, with the eight
+ * FO.SERV-03 types as the options of the first: the ones every seed version ships. A caller
+ * that knows the relatório's seed version asks `panelFields` instead.
+ */
+export const PANEL_FIELDS: readonly FieldDef[] = panelFieldsOf(BASE_EQUIPMENT_BLOCK_TYPES);
+
+/** Story 14.5: `PANEL_FIELDS` with the types the relatório's seed version ships (on v5, the library type too). */
+export function panelFields(seedVersion: string): readonly FieldDef[] {
+  return panelFieldsOf(equipmentTypesOf(seedVersion));
+}
 
 /** The value of a panel suggestion: the type read (null when not one of the eight), the column number and its label as printed. */
 export const panelSuggestionValueSchema = z.object({

@@ -21,6 +21,7 @@ export function FichaHeader({
   shown = SHEET_STEPS,
   menu,
   notTested = false,
+  library = false,
   onRename,
   savedAt = null,
 }: {
@@ -35,6 +36,8 @@ export function FichaHeader({
   menu: OverflowMenuAction[];
   /** `key-sheet-states.html` frame (a): the chip beside the TAG once the sheet is not tested. */
   notTested?: boolean;
+  /** Story 14.5 (`63-ficha-cta.html` `.lib-pill`): the sheet of a library type says so beside its TAG. */
+  library?: boolean;
   onRename: (() => void) | null;
   /** Story 13.4 (INP-4): the instant the last save landed, null before the first save of this session. */
   savedAt?: string | null;
@@ -56,6 +59,14 @@ export function FichaHeader({
               </svg>
             </button>
           )}
+          {library ? (
+            <span className="lib-pill">
+              <svg className="ico ico-sm" aria-hidden="true">
+                <use href="/sprite.svg#i-book" />
+              </svg>
+              {t.libraryPill}
+            </span>
+          ) : null}
           {notTested ? <span className="not-tested-chip">{t.notTestedChip}</span> : null}
         </h2>
         {locationText === '' ? null : <p className="sheet-meta">{locationText}</p>}

@@ -86,14 +86,22 @@ describe('9.2-UNIT the panel proposal', () => {
     expect(panelLocation(rows, '019966b0-0010-7000-8000-0000000000ff', 9)).toBeNull();
   });
 
-  it('shows the read type and the next three in seed order, then Outro; all eight expanded or with no type', () => {
+  it('shows the read type and the next three in seed order, then Outro; every type of the seed version expanded or with no type', () => {
     const collapsed = panelTypeChips(seed, 'chave_seccionadora', false);
     expect(collapsed.chips.map((chip) => chip.label)).toEqual(['Chave seccionadora', 'Disjuntor MT', expect.stringMatching(/^TP/), expect.stringMatching(/^TC/)]);
     expect(collapsed.other).toBe(true);
-    expect(panelTypeChips(seed, 'transformador_forca', false).chips.map((chip) => chip.type)).toEqual(['transformador_forca', 'cabos_entrada', 'para_raio', 'chave_seccionadora']);
-    expect(panelTypeChips(seed, null, false)).toMatchObject({ other: false });
-    expect(panelTypeChips(seed, null, false).chips).toHaveLength(8);
-    expect(panelTypeChips(seed, 'tp', true).chips).toHaveLength(8);
+    // A relatório on v1 to v4 offers the eight, wrapping from the last to the first.
+    expect(panelTypeChips('v4', 'transformador_forca', false).chips.map((chip) => chip.type)).toEqual(['transformador_forca', 'cabos_entrada', 'para_raio', 'chave_seccionadora']);
+    expect(panelTypeChips('v4', null, false)).toMatchObject({ other: false });
+    expect(panelTypeChips('v4', null, false).chips).toHaveLength(8);
+    expect(panelTypeChips('v1', 'tp', true).chips).toHaveLength(8);
+    // Story 14.5: on v5 the library type follows the eight.
+    expect(panelTypeChips('v5', 'transformador_forca', false).chips.map((chip) => chip.type)).toEqual(['transformador_forca', 'chave_transferencia_automatica', 'cabos_entrada', 'para_raio']);
+    expect(panelTypeChips('v5', null, false).chips.map((chip) => chip.label)).toHaveLength(9);
+    expect(panelTypeChips('v5', null, false).chips[8]).toEqual({ type: 'chave_transferencia_automatica', label: 'Chave de transferência automática' });
+    // A type the version does not ship is no type read: every chip, no "Outro…".
+    expect(panelTypeChips('v4', 'chave_transferencia_automatica', false)).toMatchObject({ other: false });
+    expect(panelTypeChips('v4', 'chave_transferencia_automatica', false).chips).toHaveLength(8);
   });
 
   it('composes "Criar SEC-C09-2 · Chave seccionadora · Coluna 9?" with SEC-C09 taken, and confirms the suggestion', () => {

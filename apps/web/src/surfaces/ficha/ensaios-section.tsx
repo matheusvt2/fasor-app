@@ -1,6 +1,10 @@
 import {
+  evaluateSheetMeasurements,
   evaluateSheetReadings,
   evaluatedCells,
+  measurementCells,
+  measurementRunEnterKeyHint,
+  measurementRunTarget,
   runEnterKeyHint,
   runTarget,
   screenLabel,
@@ -14,6 +18,8 @@ import {
   type EvaluatedRow,
   type EvaluatedTable,
   type InstrumentRow,
+  type MeasurementAddress,
+  type MeasurementTestEvaluation,
   type RelatorioSnapshot,
   type TestEvaluation,
 } from '@app/domain';
@@ -23,7 +29,8 @@ import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
-import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, UnitTapGuardProvider, type RunDirection } from './measurement-field.tsx';
+import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, UnitTapGuardProvider, type FieldAddress, type RunDirection } from './measurement-field.tsx';
+import { MeasurementTests } from './measurement-test-section.tsx';
 import { ConfirmTableButton, ReadDisplayButton, ReadingCell, useDisplaySuggestions, type DisplayModel } from './read-display.tsx';
 import { useTableDictation } from './sheet-observation-dictation.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
@@ -48,6 +55,10 @@ import { DictationButton } from '../../speech/dictation.tsx';
  * marked not tested (Story 5.9)
  * every section is `.is-readonly` with the reason line: the cells show their stored
  * readings as read-only text and the Instrument picker its stored instrument, unchangeable.
+ * Story 14.5: after the seeded tests come the measurement tests of a library type
+ * (`measurement-test-section.tsx`, the kernel's `evaluateSheetMeasurements`), in the same
+ * step: their number cells run on Enter by the kernel's `measurementRunTarget` (down the
+ * column, then the first empty cell of what follows, then the primary).
  */
 export function EnsaiosSection({
   api,
@@ -78,14 +89,16 @@ export function EnsaiosSection({
   onCaptionPhoto?: Parameters<typeof useDisplaySuggestions>[0]['onCaptionPhoto'];
 }) {
   const evaluations = useMemo(() => evaluateSheetReadings(block, definition), [block, definition]);
+  // Story 14.5: the measurement tests of a library type; none on the eight FO.SERV-03 types.
+  const measurements = useMemo(() => evaluateSheetMeasurements(block, definition), [block, definition]);
   const display = useDisplaySuggestions({ api, state, snapshot, block, onCaptionPhoto });
   const host = useRef<HTMLDivElement | null>(null);
   const firstMissing = useMemo(() => evaluatedCells(evaluations).find((cell) => cell.missing)?.address ?? null, [evaluations]);
 
-  useRunEnterKeyHints(host, evaluations);
+  useRunEnterKeyHints(host, evaluations, measurements);
 
-  /** Focuses the visible input of a cell (the table or, for a TTR on phone, its card). */
-  const focusCell = (address: CellAddress): boolean => {
+  /** Focuses the visible input of a cell (the table or, for a table stacked on phone, its card). */
+  const focusCell = (address: FieldAddress): boolean => {
     const inputs = host.current?.querySelectorAll<HTMLInputElement>(`[data-cell-input="${cellKey(address)}"]`) ?? [];
     const visible = [...inputs].find((input) => input.getClientRects().length > 0);
     if (visible === undefined) return false;
@@ -122,8 +135,18 @@ export function EnsaiosSection({
     return moved;
   };
 
+  /** Story 14.5: the same run over the measurement tests, by the kernel's `measurementRunTarget`. */
+  const onMeasurementRun = (from: MeasurementAddress, direction: RunDirection): boolean => {
+    const target = measurementRunTarget(measurements, from, direction);
+    if (target === null) return false;
+    if (target !== 'end') return focusCell(target);
+    const primary = document.getElementById(primaryId);
+    primary?.focus();
+    return primary !== null;
+  };
+
   // DB-2: the kernel says which unit taps only put a cell into editing (a concluded sheet's measured cells).
-  const unitTapGuard = useCallback((cell: EvaluatedCell) => unitTapNeedsEdit(block, cell), [block]);
+  const unitTapGuard = useCallback((cell: Pick<EvaluatedCell, 'state'>) => unitTapNeedsEdit(block, cell), [block]);
 
   return (
     <div id="ficha-step-ensaios" ref={host} className={className} data-step="ensaios" tabIndex={-1} onFocus={onFocus}>
@@ -143,6 +166,7 @@ export function EnsaiosSection({
             targetFor={targetFor}
           />
         ))}
+        <MeasurementTests api={api} snapshot={snapshot} block={block} evaluations={measurements} instruments={instruments} onRun={onMeasurementRun} />
       </UnitTapGuardProvider>
       {display.viewer}
     </div>
@@ -161,8 +185,18 @@ export function EnsaiosSection({
  * swapping to its suggested or dictated form). Only the attribute changes, so the observer,
  * watching the child list, never feeds itself.
  */
-function useRunEnterKeyHints(host: { current: HTMLDivElement | null }, evaluations: readonly TestEvaluation[]): void {
-  const hints = useMemo(() => new Map(evaluatedCells(evaluations).map((cell) => [cellKey(cell.address), runEnterKeyHint(evaluations, cell.address)])), [evaluations]);
+function useRunEnterKeyHints(host: { current: HTMLDivElement | null }, evaluations: readonly TestEvaluation[], measurements: readonly MeasurementTestEvaluation[]): void {
+  const hints = useMemo(
+    () =>
+      new Map([
+        ...evaluatedCells(evaluations).map((cell) => [cellKey(cell.address), runEnterKeyHint(evaluations, cell.address)] as const),
+        // Story 14.5: the measurement tests' number cells, by the kernel's own run.
+        ...measurementCells(measurements)
+          .filter((cell) => cell.kind === 'number')
+          .map((cell) => [cellKey(cell.address), measurementRunEnterKeyHint(measurements, cell.address)] as const),
+      ]),
+    [evaluations, measurements],
+  );
   const latest = useRef(hints);
   latest.current = hints;
   useLayoutEffect(() => {

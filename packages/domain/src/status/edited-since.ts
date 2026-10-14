@@ -49,6 +49,8 @@ const FAMILY_DECISIONS = {
   'sheet/checklist': 'edit',
   'sheet/test': 'edit',
   'sheet/test/cell': 'edit',
+  // Story 14.5: a measurement test's value (how the test was run on site) is filled on site: an edit, and field content.
+  'sheet/test/value': 'edit',
   'sheet/conclusion': 'edit',
   'sheet/observations': 'edit',
   file: 'edit',
@@ -132,7 +134,10 @@ const ARRANGING_FIELDS: ReadonlySet<string> = new Set(['order_key', 'removed_at'
  * photo (its create, its caption and what it shows) and a point of attention (its create and
  * its fields). Story 14.3: so is a local's site checklist (`location/checklist`, a result or an
  * observation), and a site item's photo and the point created from it are a photo and a point
- * like any other (`location_id` is one of their fields). Structure is not: creating, removing, restoring, reordering, moving or renaming
+ * like any other (`location_id` is one of their fields). Story 14.5: so is every value of a
+ * measurement table, a cell (`sheet/test/cell`) or a test value (`sheet/test/value`: the E5
+ * método, carga and fonte dos tempos say how the test was run on site); the block's own
+ * configuration (tensão, polos: `block/{id}/config`) stays structure. Structure is not: creating, removing, restoring, reordering, moving or renaming
  * a location, a block, an equipment or a Sumário section (`location`, `location/field`,
  * `location/agrupar_por_tipo`, `location/funcao`, `block`, the other `block/field`s including
  * `config`, `equipment`, `equipment/field`), nor any `remove`, nor `relatorio/setup` (decision
@@ -149,6 +154,7 @@ export function countsAsFieldContent(op: EditCandidate): boolean {
     case 'sheet/checklist':
     case 'sheet/test':
     case 'sheet/test/cell':
+    case 'sheet/test/value':
     case 'sheet/conclusion':
     case 'sheet/observations':
     case 'location/se':

@@ -1,5 +1,6 @@
 import {
-  EQUIPMENT_BLOCK_TYPES,
+  libraryTypeSummaryText,
+  paletteTypeGroups,
   quantityLabel,
   SECTION_BLOCK_TYPES,
   sectionNumber,
@@ -7,7 +8,7 @@ import {
   type EquipmentBlockType,
   type SectionBlockType,
 } from '@app/domain';
-import { useId, type Ref } from 'react';
+import { Fragment, useId, type Ref } from 'react';
 import { QuantityStepper } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { copy } from '../../copy/pt-br.ts';
@@ -18,6 +19,8 @@ export function sectionName(type: SectionBlockType): string {
 }
 
 export interface BlockPaletteProps {
+  /** The template's seed version: the palette offers the equipment types that version ships (`paletteTypeGroups`). */
+  seedVersion: string;
   /** The node whose quantities the equipment steppers set (a local or a coluna, never a painel), or null when none is current. */
   current: ComposerBlockNode | null;
   /** The kernel's name of that target (`paletteTargetText`: "Coluna 5 · Painel de média tensão", "Cubículo Enel, direto no local"); null with none. */
@@ -45,8 +48,14 @@ export interface BlockPaletteProps {
  * coluna or the local made current by "Adicionar equipamento"), one row per equipment type
  * with a Quantity stepper for that node. With no current node the steppers are disabled and
  * the line says why ("Selecione um local ou uma coluna.").
+ *
+ * Story 14.5: the types are the ones the template's seed version ships, in the kernel's
+ * groups: the eight under "Equipamentos", then, on a version that has library types, the
+ * "Outros equipamentos" heading with the Chave de transferência automática, its row saying
+ * what the type holds ("17 itens · até 6 ensaios").
  */
 export function BlockPaletteContent({
+  seedVersion,
   current,
   targetText,
   onAddSection,
@@ -108,17 +117,23 @@ export function BlockPaletteContent({
             </span>
           )}
         </p>
-        {EQUIPMENT_BLOCK_TYPES.map((type) => (
-          <PaletteEquipmentRow
-            // A new node is a new stepper: no count carries over from the previous one.
-            key={`${current?.ref ?? ''}:${type}`}
-            type={type}
-            value={current === null ? 0 : current.quantities[type]}
-            isDisabled={current === null}
-            disabledReasonId={reasonId}
-            onCommit={(n) => onSetQuantity(type, n)}
-            {...(placedTypes.has(type) ? { onEditDefaults: () => onEditDefaults(type) } : {})}
-          />
+        {paletteTypeGroups(seedVersion).map((group) => (
+          <Fragment key={group.key}>
+            {group.label === null ? null : <p className="palette-group palette-library">{group.label}</p>}
+            {group.types.map((type) => (
+              <PaletteEquipmentRow
+                // A new node is a new stepper: no count carries over from the previous one.
+                key={`${current?.ref ?? ''}:${type}`}
+                type={type}
+                meta={group.key === 'library' ? libraryTypeSummaryText(seedVersion, type) : null}
+                value={current === null ? 0 : current.quantities[type]}
+                isDisabled={current === null}
+                disabledReasonId={reasonId}
+                onCommit={(n) => onSetQuantity(type, n)}
+                {...(placedTypes.has(type) ? { onEditDefaults: () => onEditDefaults(type) } : {})}
+              />
+            ))}
+          </Fragment>
         ))}
       </div>
     </>
@@ -127,6 +142,8 @@ export function BlockPaletteContent({
 
 export interface PaletteEquipmentRowProps {
   type: EquipmentBlockType;
+  /** Story 14.5: what a library type holds (`.pi-meta`, the kernel's `libraryTypeSummaryText`); null on the eight. */
+  meta?: string | null;
   value: number;
   isDisabled: boolean;
   disabledReasonId: string;
@@ -139,7 +156,7 @@ export interface PaletteEquipmentRowProps {
  * One equipment type of the palette with its stepper and, once the template holds the type,
  * the "Editar padrões" icon button that opens its sub-block defaults (Story 3.5).
  */
-export function PaletteEquipmentRow({ type, value, isDisabled, disabledReasonId, onCommit, onEditDefaults }: PaletteEquipmentRowProps) {
+export function PaletteEquipmentRow({ type, meta = null, value, isDisabled, disabledReasonId, onCommit, onEditDefaults }: PaletteEquipmentRowProps) {
   const name = copy.composer.equipmentNames[type];
   return (
     <div className="palette-item is-stepper">
@@ -148,6 +165,7 @@ export function PaletteEquipmentRow({ type, value, isDisabled, disabledReasonId,
       </svg>
       <span className="pi-text">
         <span>{name}</span>
+        {meta === null ? null : <span className="pi-meta">{meta}</span>}
       </span>
       {onEditDefaults === undefined ? null : (
         <button type="button" className="icon-btn" aria-label={copy.composer.editDefaults(name)} onClick={onEditDefaults}>

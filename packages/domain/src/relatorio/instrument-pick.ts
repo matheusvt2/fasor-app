@@ -4,7 +4,8 @@ import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { instrumentRegistryRowText, type InstrumentRow } from '../registry/instrument-row.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import type { SubBlockKey } from '../schemas/block-config.ts';
+import { findDefinition, getDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import type { TestKey } from './readings.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
@@ -30,10 +31,12 @@ export interface InstrumentHeader {
   test_parameter: string | null;
 }
 
-/** The header of `row` for the test `testKey`: its registry values and its per-test default. */
-export function instrumentHeaderOf(row: InstrumentRow, testKey: TestKey): InstrumentHeader {
-  const parameter = row[`test_${testKey}`];
-  const raw = parameter?.raw ?? null;
+/**
+ * Story 14.5: the header of `row` for a measurement test: its registry values and no test
+ * parameter. A measurement test's criterion states its own test voltage ("1.000 Vcc", "500 Vcc"),
+ * so the registry's default for the kind (a megôhmetro's "5 kV") is never copied beside it.
+ */
+export function measurementInstrumentHeaderOf(row: InstrumentRow): InstrumentHeader {
   return {
     instrument_id: row.id,
     code: row.code,
@@ -43,6 +46,16 @@ export function instrumentHeaderOf(row: InstrumentRow, testKey: TestKey): Instru
     cert_number: row.cert_number,
     calibrated_at: row.calibrated_at,
     valid_until: calibrationValidUntil(row.calibrated_at, row.calibration_interval_months),
+    test_parameter: null,
+  };
+}
+
+/** The header of `row` for the seeded test `testKey`: its registry values and its per-test default. */
+export function instrumentHeaderOf(row: InstrumentRow, testKey: TestKey): InstrumentHeader {
+  const parameter = row[`test_${testKey}`];
+  const raw = parameter?.raw ?? null;
+  return {
+    ...measurementInstrumentHeaderOf(row),
     test_parameter: raw === null || raw.trim() === '' ? null : [formatDecimalGroupedPtBr(raw), parameter?.unit ?? null].filter((part) => part !== null && part !== '').join(' '),
   };
 }
@@ -116,17 +129,41 @@ export function instrumentOptionOf(row: InstrumentRow, serviceEnd: string | null
   };
 }
 
-/** The instrument most recently picked for `testKey` on any sheet of the relatório (the cell with the greatest op id), or null. */
-export function lastInstrumentIdFor(blocks: readonly Pick<BlockRow, 'sheet' | 'removed_at'>[], testKey: TestKey): string | null {
+/**
+ * The instrument most recently picked for the test kind `testKey` on any sheet of the relatório
+ * (the cell with the greatest op id), or null. Story 14.5: a pick on a measurement test counts
+ * for the kind its `instrument_of` names (the megôhmetro of a CTA's E2 is the last one used
+ * for isolação), read from the definition of a block that says its type and seed version.
+ */
+export function lastInstrumentIdFor(
+  blocks: readonly (Pick<BlockRow, 'sheet' | 'removed_at'> & Partial<Pick<BlockRow, 'seed_version' | 'block_type'>>)[],
+  testKey: TestKey,
+): string | null {
   let best: { opId: string; id: string } | null = null;
   for (const block of blocks) {
     if (block.removed_at !== null) continue;
-    const cell = block.sheet.test[testKey]?.instrument;
-    const header = storedInstrumentHeader(cell?.value);
-    if (cell === undefined || header === null) continue;
-    if (best === null || cell.op_id > best.opId) best = { opId: cell.op_id, id: header.instrument_id };
+    const definition = block.seed_version === undefined || block.block_type === undefined ? null : findDefinition(block.seed_version, block.block_type);
+    const keys: string[] = [testKey, ...(definition?.measurement_tests ?? []).filter((test) => test.instrument_of === testKey).map((test) => test.key)];
+    for (const key of keys) {
+      const cell = block.sheet.test[key]?.instrument;
+      const header = storedInstrumentHeader(cell?.value);
+      if (cell === undefined || header === null) continue;
+      if (best === null || cell.op_id > best.opId) best = { opId: cell.op_id, id: header.instrument_id };
+    }
   }
   return best?.id ?? null;
+}
+
+/**
+ * The test kind whose registry instruments fit a test of `definition`: a seeded test is its own
+ * kind, a measurement test (Story 14.5) the one its `instrument_of` names. Null for a key the
+ * definition does not hold and for a measurement test with no picker.
+ */
+function instrumentKindOf(definition: BlockDefinition, testKey: string): { kind: TestKey; measurement: boolean } | null {
+  const seeded = definition.tests.find((test) => test.key === testKey);
+  if (seeded !== undefined) return { kind: seeded.key, measurement: false };
+  const kind = (definition.measurement_tests ?? []).find((test) => test.key === testKey)?.instrument_of;
+  return kind === undefined ? null : { kind, measurement: true };
 }
 
 /** What the suggestion reads: `Pick<RelatorioSnapshot, 'blocks' | 'instruments'>`, read-only. */
@@ -139,24 +176,33 @@ export type InstrumentSnapshot = { readonly [K in 'blocks' | 'instruments']: rea
  * test header and written only by "Concluir ficha" (or replaced by a pick); nothing prints
  * while it is a suggestion. Null on a sheet marked not tested or already concluded (nothing
  * would confirm it), for a test the block does not have enabled, or with no prior use.
+ *
+ * Story 14.5: `testKey` may name a measurement test with a picker (the CTA's E1 to E3): the
+ * suggestion is the instrument last used for the kind its `instrument_of` names, with the
+ * header a pick on it writes (`measurementInstrumentHeaderOf`, no test parameter).
  */
-export function suggestedInstrument(snapshot: InstrumentSnapshot, blockId: string, testKind: TestKey): InstrumentHeader | null {
+export function suggestedInstrument(snapshot: InstrumentSnapshot, blockId: string, testKey: string): InstrumentHeader | null {
   const block = snapshot.blocks.find((row) => row.id === blockId);
   if (block === undefined || block.removed_at !== null || block.not_tested !== null || block.concluded_by !== null) return null;
   const definition = definitionOf(block);
-  if (definition === null || !definition.tests.some((test) => test.key === testKind) || !enabledSubBlocksOf(block).has(testKind)) return null;
-  if (isCellFilled(block.sheet.test[testKind]?.instrument)) return null;
-  const lastId = lastInstrumentIdFor(snapshot.blocks, testKind);
+  const of = definition === null ? null : instrumentKindOf(definition, testKey);
+  if (of === null || !enabledSubBlocksOf(block).has(testKey as SubBlockKey)) return null;
+  if (isCellFilled(block.sheet.test[testKey]?.instrument)) return null;
+  const lastId = lastInstrumentIdFor(snapshot.blocks, of.kind);
   const row = lastId === null ? undefined : snapshot.instruments.find((candidate) => candidate.id === lastId && candidate.removed_at === null);
-  return row === undefined ? null : instrumentHeaderOf(row, testKind);
+  if (row === undefined) return null;
+  return of.measurement ? measurementInstrumentHeaderOf(row) : instrumentHeaderOf(row, of.kind);
 }
 
-/** Every enabled test of the block that has a suggestion, in the definition's order: what "Concluir ficha" writes. */
-export function suggestedInstruments(snapshot: InstrumentSnapshot, blockId: string): { testKey: TestKey; header: InstrumentHeader }[] {
+/**
+ * Every enabled test of the block that has a suggestion, the seeded tests then the measurement
+ * tests, each in the definition's order: what "Concluir ficha" writes.
+ */
+export function suggestedInstruments(snapshot: InstrumentSnapshot, blockId: string): { testKey: string; header: InstrumentHeader }[] {
   const block = snapshot.blocks.find((row) => row.id === blockId);
   const definition = block === undefined ? null : definitionOf(block);
   if (definition === null) return [];
-  return definition.tests.flatMap((test) => {
+  return [...definition.tests, ...(definition.measurement_tests ?? [])].flatMap((test) => {
     const header = suggestedInstrument(snapshot, blockId, test.key);
     return header === null ? [] : [{ testKey: test.key, header }];
   });

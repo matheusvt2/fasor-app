@@ -1,4 +1,5 @@
 import {
+  choiceValue,
   locationEnvPath,
   locationSePath,
   putBlockOp,
@@ -10,6 +11,7 @@ import {
   sheetObservationsPath,
   sheetTestCellPath,
   sheetTestPath,
+  sheetTestValuePath,
   type Author,
   type InstrumentHeader,
   type JsonValue,
@@ -90,6 +92,23 @@ export function testCellOp(
   value: { raw: string; unit: string | null; state: 'measured' | 'not_measured' } | null,
 ): OpDraft {
   return put(author, relatorioId, sheetTestCellPath(blockId, testKey, row, col), value);
+}
+
+/**
+ * Story 14.5: a choice cell of a measurement test, the same cell family holding the kernel's
+ * `choiceValue` (`{raw: optionKey, unit: null, state: 'measured'}`).
+ */
+export function testChoiceCellOp(author: Author, relatorioId: string, blockId: string, testKey: string, row: number, col: number, optionKey: string): OpDraft {
+  return put(author, relatorioId, sheetTestCellPath(blockId, testKey, row, col), choiceValue(optionKey));
+}
+
+/**
+ * Story 14.5: `sheet/{blockId}/test/{testKey}/value/{valueKey}` put, a value of a measurement
+ * test outside its table (the E5 método, carga and fonte dos tempos): a number as `{raw, unit,
+ * state}`, a choice as the kernel's `choiceValue`, null to clear.
+ */
+export function testValueOp(author: Author, relatorioId: string, blockId: string, testKey: string, valueKey: string, value: JsonValue | null): OpDraft {
+  return put(author, relatorioId, sheetTestValuePath(blockId, testKey, valueKey), value);
 }
 
 /** `sheet/{blockId}/test/{testKey}/instrument` put: the instrument header copied by value (Story 5.7, AR-18). */

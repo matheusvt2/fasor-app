@@ -12,8 +12,8 @@ import { z } from 'zod';
  * block type appends its key here, and every earlier key keeps parsing.
  */
 
-/** The eight FO.SERV-03 equipment block types (glossary, addendum §9). */
-export const EQUIPMENT_BLOCK_TYPES = [
+/** The eight FO.SERV-03 equipment block types (glossary, addendum §9): every seed version ships all of them. */
+export const BASE_EQUIPMENT_BLOCK_TYPES = [
   'cabos_entrada',
   'para_raio',
   'chave_seccionadora',
@@ -23,6 +23,16 @@ export const EQUIPMENT_BLOCK_TYPES = [
   'cabos_saida',
   'transformador_forca',
 ] as const;
+export type BaseEquipmentBlockType = (typeof BASE_EQUIPMENT_BLOCK_TYPES)[number];
+
+/**
+ * Every equipment block type any seed version ships: the eight, then (seed v5, Story 14.5,
+ * contract 19) the Chave de transferência automática. A closed, append-only list; which of
+ * them a relatório or a template offers is its seed version's (`equipmentTypesOf`): a type
+ * its version does not ship has no definition there (`getDefinition` throws, `findDefinition`
+ * answers null) and the fold refuses a block of it.
+ */
+export const EQUIPMENT_BLOCK_TYPES = [...BASE_EQUIPMENT_BLOCK_TYPES, 'chave_transferencia_automatica'] as const;
 
 /**
  * The FO.SERV-03 sections a Template carries as blocks. Sections 7 (photos) and 9
@@ -71,6 +81,14 @@ export const SUB_BLOCK_KEYS = [
   'relacao_transformacao',
   'observations',
   'conclusion',
+  // Appended (seed v5, Story 14.5): the six measurement tests of the Chave de transferência
+  // automática, E1 to E6. A test's key is its sub-block key, so its switch is `sub_blocks[key]`.
+  'cta_resistencia_contato',
+  'cta_isolamento_principal',
+  'cta_isolamento_controle',
+  'cta_ajustes_controlador',
+  'cta_transferencia',
+  'cta_termografia',
 ] as const;
 
 export const subBlockKeySchema = z.enum(SUB_BLOCK_KEYS);
@@ -133,6 +151,25 @@ export const ITEM_KEYS = [
   'rele_de_temperatura_externo',
   // Appended (seed v4, Story 14.3): the sixteenth Disjuntor MT item, NO-BREAK DE COMANDO.
   'no_break_de_comando',
+  // Appended (seed v5, Story 14.5): the 17 items of the Chave de transferência automática
+  // (`sprint-change-proposal-2026-10-08.md` § 8.4), in the order they are answered and printed.
+  'placa_confere_com_o_projeto',
+  'involucro_fixacao_e_continuidade_do_aterramento_do_painel',
+  'tampas_e_barreiras_fixadas_aviso_de_transferencia_manual_presente',
+  'limpeza_interna_aspirada_sem_soprar',
+  'contatos_principais_de_arco_e_auxiliares_posicao_sem_pites_ou_superaquecimento',
+  'isoladores_e_barramentos',
+  'reaperto_da_potencia_ao_torque_da_etiqueta',
+  'reaperto_da_fiacao_de_controle_chicote_e_fusiveis_de_comando',
+  'lubrificacao_somente_conforme_o_fabricante_sem_oleo',
+  'operacao_manual_com_as_fontes_desenergizadas',
+  'intertravamento_mecanico_e_eletrico_n_e',
+  'rotacao_de_fases_da_emergencia_igual_a_da_normal',
+  'indicacao_de_posicao_leds_e_alarmes_leituras_de_v_i_e_f_conferem_com_instrumento',
+  'registro_de_manobras_e_contador_de_transferencias_revisados',
+  'partida_do_gerador_comandada_pela_chave_exercitador_programado',
+  'aquecedor_e_ventilacao_se_houver',
+  'gerador_deixado_em_automatico_ao_final',
 ] as const;
 
 export const itemKeySchema = z.enum(ITEM_KEYS);
@@ -198,6 +235,15 @@ export const blockConfigSchema = z.object({
   sub_blocks: z.partialRecord(subBlockKeySchema, subBlockConfigSchema),
   /** Each item once: a repeat would pre-mark nothing new and only hide a writer's bug. */
   na_defaults: z.array(itemKeySchema).refine((keys) => new Set(keys).size === keys.length, { message: 'na_defaults repeats an item' }),
+  /**
+   * Story 14.5 (contract 19): the block's own configuration, one option key per config field of
+   * its definition (`config_fields`: the CTA's tensão, polos, neutro, transição, bypass). It is
+   * structure, written whole with the config (`block/{id}/config`), and shapes the sheet: which
+   * rows a measurement test shows and which criterion applies. Optional and never defaulted:
+   * a config written before the key existed parses to the same bytes, and a field with no
+   * entry reads its definition's default (`configOptionsOf`).
+   */
+  options: z.record(z.string(), z.string()).optional(),
 });
 export type BlockConfig = z.infer<typeof blockConfigSchema>;
 

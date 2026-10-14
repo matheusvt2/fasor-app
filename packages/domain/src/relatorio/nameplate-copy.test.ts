@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EQUIPMENT_BLOCK_TYPES } from '../schemas/block-config.ts';
+import { BASE_EQUIPMENT_BLOCK_TYPES } from '../schemas/block-config.ts';
 import { emptySheet, type BlockRow, type Cell, type EquipmentRow } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import type { FieldDef } from '../seed/schema.ts';
@@ -136,7 +136,7 @@ describe('12.3-UNIT per-unit fields and the TAG prefill (D-3, J-09)', () => {
   const PER_UNIT = ['identificacao', 'n_serie', 'tag'];
 
   it('"Igual à" over each of the eight v2 block types never copies IDENTIFICAÇÃO, Nº SÉRIE or TAG and copies every other filled field', () => {
-    for (const type of EQUIPMENT_BLOCK_TYPES) {
+    for (const type of BASE_EQUIPMENT_BLOCK_TYPES) {
       const definition = getDefinition('v2', 'cabine_primaria', type);
       const source = block(1, Object.fromEntries(definition.nameplate.map((field) => [field.key, sample(field)])), { block_type: type, seed_version: 'v2' });
       // The flag sits exactly on the per-unit keys the type carries.

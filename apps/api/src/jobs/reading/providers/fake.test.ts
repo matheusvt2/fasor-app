@@ -153,10 +153,12 @@ describe('13.7-API every block type with a nameplate has its plate default', () 
     disjuntor_mt: 'plate-disjuntor-mt.png',
     tp: 'plate-tp.png',
     tc: 'plate-tc.png',
+    // Story 14.5: the library type of seed v5.
+    chave_transferencia_automatica: 'plate-chave-transferencia-automatica.png',
   };
 
-  it('the plate defaults are exactly the six nameplate types, and no cable type', () => {
-    expect(nameplateTypes).toHaveLength(6);
+  it('the plate defaults are exactly the seven nameplate types, and no cable type', () => {
+    expect(nameplateTypes).toHaveLength(7);
     expect(Object.keys(DEFAULT_FIXTURE_BY_BLOCK_TYPE).sort()).toEqual([...nameplateTypes].sort());
     for (const cable of ['cabos_entrada', 'cabos_saida']) {
       expect(DEFAULT_FIXTURE_BY_BLOCK_TYPE[cable]).toBeUndefined();
@@ -168,7 +170,7 @@ describe('13.7-API every block type with a nameplate has its plate default', () 
     }
   });
 
-  for (const type of ['para_raio', 'chave_seccionadora', 'disjuntor_mt', 'tp', 'tc', 'transformador_forca']) {
+  for (const type of ['para_raio', 'chave_seccionadora', 'disjuntor_mt', 'tp', 'tc', 'chave_transferencia_automatica', 'transformador_forca']) {
     it(`${type}: the scaled replay keeps the tokens inside the image, and every value is a ${type} nameplate key whose digits its cited tokens print`, async () => {
       const sha = DEFAULT_FIXTURE_BY_BLOCK_TYPE[type]!;
       const own = await fakeOcrProvider(DEFAULT_FIXTURES_DIR, sha).read(image);

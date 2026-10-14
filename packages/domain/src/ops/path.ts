@@ -157,6 +157,13 @@ export const opPathSchema = z.discriminatedUnion('family', [
     item_key: siteItemKeySchema,
     field: z.enum(CHECKLIST_FIELDS),
   }),
+  // Story 14.5 (contract 19): one value of a measurement test outside its table (the E5 método).
+  z.object({
+    family: z.literal('sheet/test/value'),
+    block_id: uuidV7Schema,
+    test_key: seedKey,
+    value_key: seedKey,
+  }),
 ]);
 
 export type OpPath = z.infer<typeof opPathSchema>;
@@ -322,6 +329,17 @@ export const FAMILIES: readonly FamilyDef[] = [
     family: 'location/checklist',
     entity: 'location',
     segments: [lit('location'), id(), lit('checklist'), en(SITE_ITEM_KEYS, 'item_key'), en(CHECKLIST_FIELDS)],
+  },
+  // Story 14.5 (contract 19): `sheet/{block_id}/test/{test_key}/value/{value_key}`, put only:
+  // a value of a measurement test outside its table, a cell folded through `mergeCell` like
+  // every `sheet/*` put and stored at `sheet.test[test_key].values[value_key]`. Both keys are
+  // structural here; that the block's definition declares the test and the value is
+  // `applyOp`'s check (`SeedPathError`). A table cell of a measurement test reuses
+  // `sheet/test/cell`, `row` the index in the test's rows and `col` in its columns.
+  {
+    family: 'sheet/test/value',
+    entity: 'block',
+    segments: [lit('sheet'), id('block_id'), lit('test'), key('test_key'), lit('value'), key('value_key')],
   },
 ];
 
@@ -515,6 +533,9 @@ export const sheetTestPath = (blockId: string, testKey: string, field: (typeof T
   formatPath({ family: 'sheet/test', block_id: blockId, test_key: testKey, field });
 export const sheetTestCellPath = (blockId: string, testKey: string, row: number, col: number): string =>
   formatPath({ family: 'sheet/test/cell', block_id: blockId, test_key: testKey, row, col });
+/** Story 14.5: one value of a measurement test outside its table (`sheet.test[testKey].values[valueKey]`). */
+export const sheetTestValuePath = (blockId: string, testKey: string, valueKey: string): string =>
+  formatPath({ family: 'sheet/test/value', block_id: blockId, test_key: testKey, value_key: valueKey });
 export const sheetConclusionPath = (blockId: string, field: (typeof CONCLUSION_FIELDS)[number]): string =>
   formatPath({ family: 'sheet/conclusion', block_id: blockId, field });
 export const sheetObservationsPath = (blockId: string): string => formatPath({ family: 'sheet/observations', block_id: blockId });

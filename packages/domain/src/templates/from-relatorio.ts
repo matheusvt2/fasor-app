@@ -38,13 +38,15 @@ function equipmentConfigOf(block: BlockRow, seedVersion: string): BlockConfig {
     typeof config === 'object' && config !== null && !Array.isArray(config) ? { ...config, block_type: block.block_type } : null,
   );
   if (parsed.success) {
-    const { block_type, subtype, role, sub_blocks, na_defaults } = parsed.data;
+    const { block_type, subtype, role, sub_blocks, na_defaults, options } = parsed.data;
     return {
       block_type,
       ...(subtype === undefined ? {} : { subtype }),
       ...(role === undefined ? {} : { role }),
       sub_blocks: structuredClone(sub_blocks),
       na_defaults: [...na_defaults],
+      // Story 14.5: the block's own configuration (the CTA's tensão, polos, ...) goes with it.
+      ...(options === undefined ? {} : { options: { ...options } }),
     };
   }
   return defaultBlockConfig(block.seed_version || seedVersion, block.block_type as BlockConfig['block_type']);

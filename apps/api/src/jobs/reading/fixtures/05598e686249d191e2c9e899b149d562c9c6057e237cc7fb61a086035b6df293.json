@@ -1,0 +1,728 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "CHAVE",
+        "bbox": [
+          72,
+          70,
+          217,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "DE",
+        "bbox": [
+          230,
+          70,
+          285,
+          100
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "TRANSFERÊNCIA",
+        "bbox": [
+          295,
+          62,
+          668,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "AUTOMÁTICA",
+        "bbox": [
+          678,
+          62,
+          971,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "IDENTIFICAÇÃO",
+        "bbox": [
+          72,
+          152,
+          270,
+          181
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "CTA-01",
+        "bbox": [
+          641,
+          156,
+          741,
+          177
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "Fabricante",
+        "bbox": [
+          72,
+          205,
+          205,
+          226
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "Dalvenor",
+        "bbox": [
+          642,
+          205,
+          772,
+          226
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "Série",
+        "bbox": [
+          71,
+          253,
+          135,
+          275
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "TRX-300",
+        "bbox": [
+          640,
+          254,
+          760,
+          275
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t10",
+        "text": "Nº",
+        "bbox": [
+          72,
+          303,
+          101,
+          323
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t11",
+        "text": "de",
+        "bbox": [
+          112,
+          303,
+          143,
+          324
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t12",
+        "text": "catálogo",
+        "bbox": [
+          154,
+          302,
+          264,
+          329
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t13",
+        "text": "TRX3-0400-N4",
+        "bbox": [
+          640,
+          303,
+          849,
+          324
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t14",
+        "text": "Nº",
+        "bbox": [
+          72,
+          352,
+          101,
+          372
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t15",
+        "text": "de",
+        "bbox": [
+          112,
+          352,
+          143,
+          373
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t16",
+        "text": "série",
+        "bbox": [
+          154,
+          351,
+          215,
+          373
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t17",
+        "text": "CT-448120",
+        "bbox": [
+          641,
+          352,
+          791,
+          373
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t18",
+        "text": "Ano",
+        "bbox": [
+          70,
+          402,
+          119,
+          422
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t19",
+        "text": "2021",
+        "bbox": [
+          642,
+          401,
+          711,
+          422
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t20",
+        "text": "Tensão",
+        "bbox": [
+          69,
+          449,
+          158,
+          471
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t21",
+        "text": "nominal",
+        "bbox": [
+          170,
+          450,
+          271,
+          471
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t22",
+        "text": "440",
+        "bbox": [
+          641,
+          450,
+          693,
+          471
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t23",
+        "text": "V",
+        "bbox": [
+          703,
+          451,
+          723,
+          470
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t24",
+        "text": "Corrente",
+        "bbox": [
+          71,
+          499,
+          182,
+          520
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t25",
+        "text": "nominal",
+        "bbox": [
+          194,
+          499,
+          295,
+          520
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t26",
+        "text": "400",
+        "bbox": [
+          641,
+          499,
+          693,
+          520
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t27",
+        "text": "A",
+        "bbox": [
+          703,
+          500,
+          723,
+          519
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t28",
+        "text": "Frequência",
+        "bbox": [
+          72,
+          547,
+          210,
+          574
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t29",
+        "text": "60",
+        "bbox": [
+          641,
+          548,
+          675,
+          569
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t30",
+        "text": "Hz",
+        "bbox": [
+          687,
+          549,
+          721,
+          568
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t31",
+        "text": "WCR",
+        "bbox": [
+          71,
+          597,
+          131,
+          618
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t32",
+        "text": "42",
+        "bbox": [
+          641,
+          597,
+          674,
+          617
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t33",
+        "text": "kA",
+        "bbox": [
+          686,
+          597,
+          721,
+          617
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t34",
+        "text": "Proteção",
+        "bbox": [
+          72,
+          645,
+          183,
+          671
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t35",
+        "text": "a",
+        "bbox": [
+          194,
+          651,
+          207,
+          667
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t36",
+        "text": "montante",
+        "bbox": [
+          219,
+          647,
+          343,
+          667
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t37",
+        "text": "DISJUNTOR",
+        "bbox": [
+          642,
+          646,
+          802,
+          672
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t38",
+        "text": "400",
+        "bbox": [
+          813,
+          646,
+          865,
+          667
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t39",
+        "text": "A",
+        "bbox": [
+          875,
+          647,
+          895,
+          666
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t40",
+        "text": "Controlador",
+        "bbox": [
+          71,
+          695,
+          223,
+          716
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t41",
+        "text": "e",
+        "bbox": [
+          234,
+          700,
+          248,
+          716
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t42",
+        "text": "firmware",
+        "bbox": [
+          258,
+          695,
+          372,
+          716
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t43",
+        "text": "CG-7",
+        "bbox": [
+          641,
+          695,
+          708,
+          716
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t44",
+        "text": "v2.14",
+        "bbox": [
+          718,
+          695,
+          798,
+          715
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t45",
+        "text": "Invólucro",
+        "bbox": [
+          72,
+          743,
+          188,
+          765
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t46",
+        "text": "IP54",
+        "bbox": [
+          642,
+          745,
+          704,
+          765
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t47",
+        "text": "Torque",
+        "bbox": [
+          69,
+          794,
+          156,
+          819
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t48",
+        "text": "dos",
+        "bbox": [
+          167,
+          793,
+          211,
+          814
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t49",
+        "text": "terminais",
+        "bbox": [
+          221,
+          793,
+          342,
+          814
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t50",
+        "text": "45",
+        "bbox": [
+          641,
+          794,
+          675,
+          814
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t51",
+        "text": "N·m",
+        "bbox": [
+          687,
+          794,
+          742,
+          813
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "identificacao",
+        "value": "CTA-01",
+        "ocr_token_ids": [
+          "t5"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "fabricante",
+        "value": "Dalvenor",
+        "ocr_token_ids": [
+          "t7"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "serie",
+        "value": "TRX-300",
+        "ocr_token_ids": [
+          "t9"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "n_de_catalogo",
+        "value": "TRX3-0400-N4",
+        "ocr_token_ids": [
+          "t13"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "n_de_serie",
+        "value": "CT-448120",
+        "ocr_token_ids": [
+          "t17"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "ano",
+        "value": "2021",
+        "ocr_token_ids": [
+          "t19"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_nominal",
+        "value": {
+          "raw": "440",
+          "unit": "V",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t22",
+          "t23"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "corrente_nominal",
+        "value": {
+          "raw": "400",
+          "unit": "A",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t26",
+          "t27"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "frequencia",
+        "value": {
+          "raw": "60",
+          "unit": "Hz",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t29",
+          "t30"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "wcr",
+        "value": {
+          "raw": "42",
+          "unit": "kA",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t32",
+          "t33"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "protecao_a_montante",
+        "value": "DISJUNTOR 400 A",
+        "ocr_token_ids": [
+          "t37",
+          "t38",
+          "t39"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "controlador_e_firmware",
+        "value": "CG-7 v2.14",
+        "ocr_token_ids": [
+          "t43",
+          "t44"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "involucro",
+        "value": "IP54",
+        "ocr_token_ids": [
+          "t46"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "torque_dos_terminais",
+        "value": {
+          "raw": "45",
+          "unit": "N·m",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t50",
+          "t51"
+        ],
+        "confidence": 0.97
+      }
+    ]
+  }
+}
