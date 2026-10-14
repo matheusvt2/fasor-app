@@ -2014,13 +2014,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: W4, found in the web slice, not changed. The composer's "Editar padrões" dialog of a type lists every sub-block of its definition with a switch. For the CTA that includes E4 (ajustes do controlador) and E5 (transferência), which the sheet cannot switch off: the kernel treats a test with no `switchable` as always on, so a template that switches one of them off changes nothing on the sheet, in the counts or in the document. The dialog also shows no line of what a measurement test holds (`subBlockSummaryText` answers null for it). Left as is: the story's composer task is the palette group, and the fix is a kernel rule (which sub-blocks of a definition are locked) the dialog reads, beside `LOCKED_SUB_BLOCKS`.
   evidence: `apps/web/src/surfaces/templates/type-defaults-dialog.tsx:82-110`; `packages/domain/src/seed/template.ts` `LOCKED_SUB_BLOCKS`; `packages/domain/src/relatorio/measurement-evaluation.ts` `evaluate` (`enabled`); `packages/domain/src/templates/text.ts` `subBlockSummaryText`.
   class: bug
-  state: open (owner: Matheus; small kernel and dialog change, or Story 14.7 when the type editor redraws this dialog)
+  state: ~~open (owner: Matheus; small kernel and dialog change, or Story 14.7 when the type editor redraws this dialog)~~ closed (2026-10-13, review patch of this story: `lockedSubBlocksOf` in `packages/domain/src/seed/template.ts` locks a measurement test that is not `switchable`; the dialog draws E4 and E5 as "Sempre" and `enabledSubBlocks` in `packages/domain/src/templates/compose.ts` keeps them enabled for every reader. Still open under the same owner: `subBlockSummaryText` answers null for the six `cta_*` sub-blocks, so the dialog shows no "what it holds" line for them)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
   summary: W5, narrowed in the web slice. A measurement test's table has no "Ler visor" and no Dictation button, and its Instrument picker (E1 to E3) shows no "Sugerido" instrument and "Concluir ficha" writes none: the display-reading fixtures, the table utterance parser and `suggestedInstruments` are the four seeded grammars'. The picker lists the registry instruments that fit the seeded test kind the seed names (`instrument_of`), the one last used for that kind in the relatório first, and stores the header under the measurement test's own key. Every cell is typed. Left out: the three assists on a library type's tables.
   evidence: `apps/web/src/surfaces/ficha/measurement-test-section.tsx` (no `.mt-actions`); `apps/web/src/surfaces/ficha/instrument-picker.tsx` (`instrumentOf`); `packages/domain/src/relatorio/instrument-pick.ts` `suggestedInstruments` (walks `definition.tests`); `apps/web/src/surfaces/ficha/ensaios-section.tsx` (the seeded `TestSection` carries the three).
   class: question
-  state: open (owner: Matheus; after the first real job with a CTA says which assist is missed)
+  state: ~~open (owner: Matheus; after the first real job with a CTA says which assist is missed)~~ partly closed (2026-10-13, review patch of this story: E1 to E3 take the "Sugerido" instrument through `instrument_of`, `suggestedInstrument`/`suggestedInstruments` in `packages/domain/src/relatorio/instrument-pick.ts`). Open (owner: Matheus, after the first real job with a CTA): "Ler visor" and Dictation on a measurement table
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
   summary: W6, a reading taken in the web slice. Below 768 px a measurement table of one or two value columns stays a table (E1, E3, E5) and one of more stacks into a card per row (E2, E4, E6), the rule EXPERIENCE.md states for the Measurement table. The approved mock stacks every table of this sheet on phone. Built: EXPERIENCE.md, which wins over a mock; the spec's phone criterion names E4 only. To check at the browser pass: E1 and E5 at 390 px, where each row holds two fields with their unit and Overflow, and E4 on a tablet, whose four columns and unbroken row labels make the table scroll inside its own box (never the page) below about 1100 px of content width.
@@ -2032,4 +2032,46 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: W7, added to the kernel in the web slice. The continuous Enter run of the sheet's readings (EXPERIENCE.md › Measurement table, Keyboard) had no rule for a measurement test, so `measurementRunTarget` and `measurementRunEnterKeyHint` were added to `packages/domain/src/relatorio/measurement-evaluation.ts` after the kernel slice was committed: down the column over the typed number cells of the rows shown, then the first empty one of what follows, then the primary; a choice or a fixed cell is never a stop. Kernel tests cover it. Not covered by a Playwright spec: the run across a measurement test is asserted in the kernel and in the web unit test only (the walk of `e2e/cta.spec.ts` leaves each cell with Tab).
   evidence: `packages/domain/src/relatorio/measurement-evaluation.ts` `measurementRunTarget`; `packages/domain/src/relatorio/measurement-evaluation.test.ts` ("the continuous Enter run over the measurement tests"); `apps/web/src/surfaces/ficha/ensaios-section.tsx` `onMeasurementRun`.
   class: test-gap
-  state: open (owner: the story gate once the stack is up: one Enter-run step in `e2e/cta.spec.ts` or `e2e/cta.durability.spec.ts`)
+  state: ~~open (owner: the story gate once the stack is up: one Enter-run step in `e2e/cta.spec.ts` or `e2e/cta.durability.spec.ts`)~~ closed (2026-10-13: `e2e/cta.spec.ts` 14.5-E2E-002 presses Enter on E1 at 768 px and on the E4 cards at 390 px and asserts the focused cell)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: R1, review finding left open. A CTA's configuration and its test switches are written as one whole `block/{id}/config` put, so two devices editing the same sheet offline (one sets polos, the other switches E6 off) end with the last writer's whole config and the other choice silently reverted. The eight types never wrote config from the sheet, so the last-writer rule was not reachable there.
+  evidence: `apps/web/src/surfaces/ficha/configuracao-section.tsx` (`blockConfigWithOption`), `measurement-test-section.tsx` (`blockConfigWithSubBlock`); `packages/domain/src/ops/path.ts` `BLOCK_FIELDS` (`config`). Edge Case Hunter, review of 2026-10-13.
+  class: bug
+  state: open (owner: the architect with Story 14.6: per-key config paths are a new op family and a contract bump, outside this story's numbers)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: R2, open question from the review. `block/{id}/config` is structure for the status flow (`countsAsFieldContent` answers false), as `epic-14-context.md` settles for what shapes the sheet before the visit. On a CTA the Configuração section and the test switches can also be changed on a concluded sheet of an Emitido relatório: tensão changes the E2 criterion and polos the required rows, the verdicts move, and the relatório stays Emitido (the change still counts for `editedSince`, so the next generate is a new revision). Built as the context says.
+  evidence: `packages/domain/src/status/edited-since.ts` `countsAsFieldContent`; `apps/web/src/surfaces/ficha/configuracao-section.tsx` (read-only only when the sheet is marked not tested). Edge Case Hunter, review of 2026-10-13.
+  class: question
+  state: open (owner: Matheus: either a CTA config change after emission reopens the relatório as Em revisão, or Configuração is read-only once the sheet is concluded)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: R3, review finding rejected as unreachable from the product, recorded. The fold accepts a measurement cell whose unit is foreign to its row (a `min` on a row in `s`), a number on a choice cell or an option key outside the list; the evaluation then gives the cell no verdict. The sheet writes only the row's own unit and its listed options, so only a hand-written op reaches it.
+  evidence: `packages/domain/src/ops/apply.ts` `assertMeasurementCell`; `packages/domain/src/relatorio/measurement-evaluation.ts` (`scaleToUnit` null). Edge Case Hunter, review of 2026-10-13.
+  class: bug
+  state: open (owner: Story 14.6, when company types make cell kinds data: a fold refusal with its sync-route test)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: R4, review finding rejected as low, recorded. The Conflict view and `enabledCells` enumerate every row and value of a measurement test, the rows hidden by polos, the values hidden by `when` and a skipped E5 table included, so a conflict on a cell the sheet no longer draws is still listed for a decision.
+  evidence: `packages/domain/src/merge/conflicts.ts` (measurement enumeration), `packages/domain/src/relatorio/sheet-state.ts` `enabledCells`. Edge Case Hunter, review of 2026-10-13.
+  class: bug
+  state: open (owner: Matheus; low: needs two devices and a polos change between them)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: R5, test gap deferred by the review. `sheet/test/value` was added to the SM-C1 suggestion metric's families with no assertion; no suggestion source writes a test value today, so the metric cannot differ yet.
+  evidence: `packages/domain/src/print/sm-c1.ts:17`; `packages/domain/src/print/section-10.test.ts` (no value path). Verification Gap Reviewer, review of 2026-10-13.
+  class: test-gap
+  state: open (owner: the story that first suggests a test value)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: R6, open question from a review patch. A measurement test stores no test parameter in its instrument header and prints none on its instrument line (`measurementInstrumentHeaderOf`): the registry's default for the megôhmetro (for example 5 kV) would print beside a criterion that names 1.000 Vcc or 500 Vcc. The E1 line therefore prints no test current either.
+  evidence: `packages/domain/src/relatorio/instrument-pick.ts` `measurementInstrumentHeaderOf`; `packages/domain/src/print/section-9.ts` `instrumentLine`.
+  class: question
+  state: open (owner: Bruno: whether E1 to E3 should print a test current or voltage typed on the sheet)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
+  summary: R7, process. At the gate of this batch `origin/main` held Story 14.2 squash-merged with its removal pass (PR #126) and the batch under this one (e14b, branch `story/14-3-14-4-verificacoes-do-local`) had not merged it yet. Merging main here conflicted in 56 files, almost all between the removal pass and e14b's own work, so the resolution belongs to e14b; this branch was gated on its own work plus e14b's latest head and must merge `origin/main` and re-run its story gate after e14b merges.
+  evidence: `git merge origin/main` at `6cdba8cc` (aborted); the launch prompt's rule "no gate runs on a base that is still moving".
+  class: process
+  state: open (owner: the coordinator, with this batch's orchestrator: merge main after e14b merges, gate, open the PR)

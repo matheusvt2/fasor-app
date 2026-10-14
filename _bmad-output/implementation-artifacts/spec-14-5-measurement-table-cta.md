@@ -12,7 +12,28 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-14-context.md'
   - '{project-root}/_bmad-output/planning-artifacts/sprint-change-proposal-2026-10-08.md'
 warnings: ['batched', 'oversized']
-deferred: []
+deferred:
+  - summary: >-
+      A CTA's configuration and test switches are one whole block/{id}/config put, so two devices editing the same sheet offline lose one of the two choices.
+    evidence: |-
+      configuracao-section.tsx and measurement-test-section.tsx write the whole config; BLOCK_FIELDS has only `config`. Fix is a per-key family and a contract bump. Ledger R1.
+    location: >-
+      apps/web/src/surfaces/ficha/configuracao-section.tsx
+    severity: medium
+  - summary: >-
+      A CTA config change on a concluded sheet of an Emitido relatório changes criteria and required rows without reopening the relatório.
+    evidence: |-
+      countsAsFieldContent answers false for block/{id}/config, as epic-14-context.md settles. Open question for Matheus. Ledger R2.
+    location: >-
+      packages/domain/src/status/edited-since.ts
+    severity: low
+  - summary: >-
+      SM-C1 counts the family sheet/test/value with no assertion.
+    evidence: |-
+      packages/domain/src/print/sm-c1.ts:17; no suggestion source writes a test value yet. Ledger R5.
+    location: >-
+      packages/domain/src/print/sm-c1.ts:17
+    severity: low
 ---
 
 Batched: one story, built in two phases (kernel first with no stack, then api, web and Playwright), stacked on
@@ -133,6 +154,32 @@ Content: `sprint-change-proposal-2026-10-08.md` § 8.4; mocks `63-ficha-cta.html
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-10-13 — Review pass
+
+Layers: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent Alignment skipped (token economy; the
+integrated epic review covers them). One review-fix loop, as the batch playbook allows.
+
+- verdicts: 18 findings — high 0, medium 6, low 9, false 1, maybe-false 0 (two of the 18 are the same defect filed by both layers)
+- findings:
+  - `[medium]` `[patch]` Edge: one zero or negative reading makes a column lose every verdict and its "Menor do lado" — `columnLowest` now takes the lowest positive reading; a non-positive cell gets no verdict; kernel test.
+  - `[false]` `[reject]` Edge: a CTA create whose `value.relatorio_id` differs from the op's skips the seed check — `opSchema` already refuses the mismatch (`packages/domain/src/ops/op.ts:148-157`, tested at `op.test.ts:52`) and the sync route answers `op_invalid` (`apps/api/src/sync/apply.ts:151`).
+  - `[medium]` `[patch]` Edge: a stored `enabled: false` on E4 or E5 is ignored by the evaluation and honoured by `enabledCells` and the stepper — `enabledSubBlocks` keeps every key of `lockedSubBlocksOf` enabled; kernel test; the type dialog draws them as "Sempre".
+  - `[medium]` `[patch]` Edge: the Conflict view shows a choice's option key — `conflictValueText` routes measurement cells and values through `measurementStoredText`; both sides asserted in the two-device kernel test.
+  - `[medium]` `[patch]` Edge: a megôhmetro picked on E2 or E3 prints the registry's default test voltage beside a criterion naming another — `measurementInstrumentHeaderOf` stores no parameter and the line prints none; ledger R6 asks Bruno.
+  - `[low]` `[patch]` Edge: E1 to E3 get no suggested instrument, so a sheet concludes with "INSTRUMENTO: -" — `suggestedInstrument(s)` cover a measurement test through `instrument_of`; kernel and component tests.
+  - `[low]` `[reject]` Edge: the fold accepts a foreign unit, a number on a choice cell or an unknown option — unreachable from the sheet (it writes the row's unit and listed options only) and the fix is a new fold refusal; ledger R3.
+  - `[medium]` `[defer]` Edge: whole-config put, last writer wins between two devices — real, and its fix is a per-key config family (a new path and a contract number this batch does not hold); known open, ledger R1.
+  - `[low]` `[defer]` Edge: a config change on a concluded sheet of an Emitido relatório does not reopen it — built as `epic-14-context.md` settles (config is structure); open question for Matheus, ledger R2.
+  - `[low]` `[reject]` Edge: conflicts and `enabledCells` list rows hidden by polos — needs two devices and a polos change between them; the fix adds branches to two enumerations; ledger R4.
+  - `[low]` `[reject]` Edge (claim): choice cells with more than two options are a select, not a Segmented control — a recorded narrowing (ledger W1), not a defect.
+  - `[medium]` `[patch]` Gap: no test asserts the Conflict view's text for a choice — same defect as the Edge finding above; fixed and asserted there.
+  - `[low]` `[patch]` Gap: the picker's `instrument_of` path is exercised by no test — component test added: a pick on E1 and on E2 writes `sheet/{b}/test/{key}/instrument` with the header of the right kind.
+  - `[low]` `[patch]` Gap: the continuous Enter run over measurement cells is exercised by no test — `e2e/cta.spec.ts` 14.5-E2E-002 presses Enter at 768 px (E1) and 390 px (E4 cards) and asserts focus.
+  - `[low]` `[defer]` Gap: SM-C1 counts `sheet/test/value` with no assertion — no suggestion source writes a test value yet; ledger R5.
+  - `[medium]` `[patch]` Other (gap layer): the Conflict view prints option keys — the same defect, third filing; fixed above.
+  - `[low]` `[patch]` Other (gap layer): `checkTemplateRow` and the config put still accept E4/E5 switched off — made harmless by the `enabledSubBlocks` rule above (every reader treats them as on).
+  - `[low]` `[reject]` Other (gap layer): `subBlockSummaryText` answers null for the six `cta_*` sub-blocks, so the type dialog shows no "what it holds" line — cosmetic, and the line would be new authored copy; recorded on ledger W4.
 
 ## Design Notes
 
