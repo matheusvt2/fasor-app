@@ -1053,6 +1053,8 @@ describe('seed v5 (Story 14.5): v4 plus one block type, the Chave de transferên
       ['Polo C', ['3', '4']],
       ['Polo N', ['4']],
     ]);
+    // 2026-10-14 (Bruno): E1 records its test current, required as E6's ambient temperature.
+    expect(e1.values!.map((value) => [value.key, value.label, value.kind, value.unit, value.optional ?? false])).toEqual([['corrente_ensaio', 'Corrente de ensaio', 'number', 'A', false]]);
     const e2 = test('cta_isolamento_principal');
     expect(e2.columns.map((column) => [column.label, column.unit])).toEqual([
       ['Normal fechada', 'MΩ'],
@@ -1063,13 +1065,14 @@ describe('seed v5 (Story 14.5): v4 plus one block type, the Chave de transferên
       ['A-T', null],
       ['B-T', null],
       ['C-T', ['3', '4']],
-      ['N-T', ['4']],
+      // 2026-10-14 (Bruno): no N-T row; § 8.4's seven.
       ['A-B', null],
       ['B-C', ['3', '4']],
       ['C-A', ['3', '4']],
       ['Linha-carga', null],
     ]);
-    expect(e2.rows[7]!.fixed).toEqual({ normal_fechada: '—', emergencia_fechada: '—' });
+    expect(e2.rows.some((row) => row.key === 'n_t' || row.label === 'N-T')).toBe(false);
+    expect(e2.rows[6]!.fixed).toEqual({ normal_fechada: '—', emergencia_fechada: '—' });
     for (const row of [...e1.rows, ...e2.rows]) if (row.when !== undefined) expect(row.when.config).toBe('polos');
     const e3 = test('cta_isolamento_controle');
     expect(e3.rows.map((row) => row.label)).toEqual(['Fiação × terra']);

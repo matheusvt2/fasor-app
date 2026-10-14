@@ -20,6 +20,7 @@ import {
   suggestConclusionPair,
   suggestedSheetObservation,
 } from './conclusion.ts';
+import { blockOf, CTA_TAG, ctaDefinition, ctaFilledWrites, ctaState, E2, num, writeSheet } from './measurement-test-support.ts';
 import { evaluateSheetReadings } from './readings.ts';
 
 const ID = '019966b0-0051-7000-8000-000000000001';
@@ -394,5 +395,21 @@ describe('R8CONC-UNIT conclusionTextOnConclude (review 2026-10-08 Decision 1, JR
     expect(undone.concluded_by).toEqual(original.concluded_by);
     expect(conclusionTextState(undone, composeConclusion(undone, SEC, 'SEC-C05'))).toBe('unconfirmed');
     expect(conclusionTextForPrint(undone)).toBeNull();
+  });
+});
+
+describe('C4 (2026-10-14): the composed conclusion of a Chave de transferência automática names each test\'s worst out reading', () => {
+  it('two E2 readings out: only the lowest is named, with its criterion; E1 out: its own', () => {
+    const { state, f } = ctaState({ polos: '4' });
+    const filled = writeSheet(state, f, ctaFilledWrites());
+    // E2 at BT asks ≥ 100 MΩ: 0,05 GΩ and 0,08 GΩ are both out, the first the worst.
+    const out = writeSheet(filled, f, [
+      { test: E2, row: 'a_t', col: 'normal_fechada', value: num('0.05', 'GΩ') },
+      { test: E2, row: 'b_t', col: 'normal_fechada', value: num('0.08', 'GΩ') },
+    ]);
+    const text = composeConclusion(blockOf(out), ctaDefinition(), CTA_TAG).text;
+    expect(text).toContain('resistência de contato fora do critério em Polo C, Lado Emergência (63 µΩ;');
+    expect(text).toContain('isolamento principal fora do critério em A-T, Normal fechada (');
+    expect(text).not.toContain('B-T, Normal fechada');
   });
 });

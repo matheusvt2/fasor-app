@@ -178,6 +178,8 @@ export interface TreeSiteNode {
   railCounter: string;
   /** "19 itens · uma vez por local": the rail row's `.tree-meta`. */
   railMeta: string;
+  /** 2026-10-14: the items answered NC, which `Progress.nc_open` counts and the F-24 finder reaches. */
+  nc: number;
   /** Nothing answered, some answered, every item answered. Derived, never stored. */
   state: 'vazia' | 'pending' | 'concluida';
   /** The rail's `.tree-state[data-state]` value of `state`. */
@@ -459,6 +461,7 @@ function buildLocationTree(
       text: siteRowText(counts),
       railCounter: siteCounterText(counts),
       railMeta: siteRailMetaText(counts.total),
+      nc: siteList.filter((item) => siteResultOf(location, item.key) === 'NC').length,
       state,
       railStateAttr: STATE_ATTR[SITE_STATE[state]],
       glyph: SHEET_STATE_GLYPH[SITE_STATE[state]],

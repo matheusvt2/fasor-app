@@ -164,6 +164,8 @@ const E1_RESISTENCIA_CONTATO: MeasurementTest = {
     { key: 'lado_emergencia', label: 'Lado Emergência', kind: 'number', unit: 'µΩ' },
   ],
   rows: [row('polo_a', 'Polo A'), row('polo_b', 'Polo B'), row('polo_c', 'Polo C', { when: FASE_C }), row('polo_n', 'Polo N', { when: NEUTRO })],
+  // authored: 2026-10-14 (Bruno), the test current of the micro-ohmmeter; required, as E6's ambient temperature.
+  values: [{ key: 'corrente_ensaio', label: 'Corrente de ensaio', kind: 'number', unit: 'A' }],
   criteria: [
     {
       type: 'relative_to_lowest',
@@ -190,8 +192,6 @@ const E2_ISOLAMENTO_PRINCIPAL: MeasurementTest = {
     row('a_t', 'A-T'),
     row('b_t', 'B-T'),
     row('c_t', 'C-T', { when: FASE_C }),
-    // Open question (Bruno): N-T is the mock's row; § 8.4 lists seven without it.
-    row('n_t', 'N-T', { when: NEUTRO }),
     row('a_b', 'A-B'),
     row('b_c', 'B-C', { when: FASE_C }),
     row('c_a', 'C-A', { when: FASE_C }),

@@ -3,7 +3,7 @@ import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { replay } from '../ops/replay.ts';
 import { emptySheet, type BlockRow, type Cell } from '../schemas/entities.ts';
 import { buildSnapshot } from '../schemas/snapshot.ts';
-import { firstCountedBlock } from './count-target.ts';
+import { firstCountedTarget } from './count-target.ts';
 import { sheetState } from './sheet-state.ts';
 import { locationTree, type TreeLocationNode } from './tree.ts';
 
@@ -20,7 +20,7 @@ function treeOrder(tree: readonly TreeLocationNode[]): string[] {
   return out;
 }
 
-describe('F-24 firstCountedBlock', () => {
+describe('F-24 firstCountedTarget', () => {
   const tree = locationTree(snapshot);
   const order = treeOrder(tree);
   const byId = new Map(snapshot.blocks.map((block) => [block.id, block]));
@@ -28,18 +28,18 @@ describe('F-24 firstCountedBlock', () => {
   it('"não ensaiadas" and "concluídas" land on the first sheet in tree order the count counts', () => {
     const notTested = order.find((id) => sheetState(byId.get(id)!) === 'nao_ensaiada');
     expect(notTested).toBeDefined();
-    expect(firstCountedBlock(tree, snapshot.blocks, 'not_tested')).toBe(notTested);
+    expect(firstCountedTarget(tree, snapshot.blocks, 'not_tested')).toEqual({ kind: 'block', blockId: notTested });
     // The fixture's concluded sheets are its three not-tested ones.
-    expect(firstCountedBlock(tree, snapshot.blocks, 'concluded')).toBe(notTested);
+    expect(firstCountedTarget(tree, snapshot.blocks, 'concluded')).toEqual({ kind: 'block', blockId: notTested });
   });
 
   it('"NC abertos" lands on the first sheet holding an NC answer; none when no sheet holds one', () => {
-    expect(firstCountedBlock(tree, snapshot.blocks, 'nc_open')).toBeNull();
+    expect(firstCountedTarget(tree, snapshot.blocks, 'nc_open')).toBeNull();
     // A sheet of the type whose checklist has "limpeza" (the fixture's first block), past the first rows.
     const target = byId.get(order.find((id, i) => i > 3 && byId.get(id)!.block_type === snapshot.blocks[0]!.block_type)!)!;
     const cell: Cell = { value: 'NC', source_suggestion_id: null, op_id: '019966b0-0050-7000-8000-000000000001' };
     const withNc: BlockRow = { ...target, sheet: { ...emptySheet(), checklist: { limpeza: { result: cell } } } };
     const blocks = snapshot.blocks.map((block) => (block.id === target.id ? withNc : block));
-    expect(firstCountedBlock(locationTree({ ...snapshot, blocks }), blocks, 'nc_open')).toBe(target.id);
+    expect(firstCountedTarget(locationTree({ ...snapshot, blocks }), blocks, 'nc_open')).toEqual({ kind: 'block', blockId: target.id });
   });
 });

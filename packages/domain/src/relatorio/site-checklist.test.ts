@@ -11,11 +11,13 @@ import { section7Photos } from '../print/section-7.ts';
 import { resolveActionPlan, resolveSection8 } from '../print/section-8.ts';
 import { numberPhotos } from '../photos/numbering.ts';
 import { SITE_ITEM_KEYS } from '../schemas/block-config.ts';
-import { relatorioRowSchema, type FileRow, type LocationRow, type PointRow, type RelatorioRow } from '../schemas/entities.ts';
+import { emptySheet, relatorioRowSchema, type BlockRow, type FileRow, type LocationRow, type PointRow, type RelatorioRow } from '../schemas/entities.ts';
 import { buildSnapshot, createSnapshotBuilder, serializeSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { siteItems } from '../seed/definitions.ts';
 import { opFactory, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO } from '../test-support.ts';
+import { firstCountedTarget } from './count-target.ts';
 import { preIssue, preIssueRowsFor, blockingRows } from './pre-issue.ts';
+import { blocksProgress, progress } from './progress.ts';
 import {
   localIssuedBannerText,
   recentSiteObservations,
@@ -34,6 +36,9 @@ import {
   siteRailMetaText,
   siteResultOf,
   siteRowText,
+  siteNcCount,
+  siteNcItems,
+  siteNcOf,
   siteNcWithoutPoint,
   siteNcWithoutPointText,
   siteUnanswered,
@@ -326,6 +331,8 @@ describe('14.3 the tree: a local node carries its site checklist', () => {
       text: 'Verificações do local · 12 de 19',
       railCounter: '12 de 19',
       railMeta: '19 itens · uma vez por local',
+      // 2026-10-14: item 11 of the mock is NC.
+      nc: 1,
       state: 'pending',
       railStateAttr: 'em-preenchimento',
       glyph: '●',
@@ -607,5 +614,97 @@ describe('Epic 14 QA Q-4: a site NC with no point of attention raises one pendin
     expect(ncRow(snapshotOf(removed))).toEqual([]);
     for (const version of ['v1', 'v2', 'v3']) expect(ncRow(snapshotOf(baseState(version)))).toEqual([]);
     expect(siteNcWithoutPointText([])).toBeNull();
+  });
+});
+
+describe('2026-10-14 (Bruno): an NC site item counts as an NC (N1, N2, N3)', () => {
+  const ncOn = (locationId: string, keys: readonly string[], f: ReturnType<typeof opFactory>): Op[] =>
+    keys.map((key) => f.op({ path: locationChecklistPath(locationId, key, 'result'), value: 'NC' }));
+  /** A Disjuntor MT sheet on Cubículo Enel with its first checklist item answered NC. */
+  const ncSheet = (): BlockRow => {
+    const first = 'limpeza';
+    return {
+      id: BLOCK,
+      relatorio_id: TEST_RELATORIO,
+      location_id: ENEL,
+      equipment_id: null,
+      block_type: 'chave_seccionadora',
+      config: {},
+      seed_version: 'v4',
+      order_key: 'a0',
+      feeds_block_id: null,
+      not_tested: null,
+      concluded_by: null,
+      sheet: { ...emptySheet(), checklist: { [first]: { result: { value: 'NC', source_suggestion_id: null, op_id: '019966b0-0143-7000-8000-000000000099' } } } },
+      created_by: null,
+      first_edited_at: null,
+      last_modified_by: null,
+      last_modified_at: null,
+      removed_at: null,
+    };
+  };
+  /** N1: two site items NC on 1° Subsolo, one sheet item NC on Cubículo Enel. */
+  const n1 = (f = opFactory()) => withRows(fold(baseState(), ncOn(SUBSOLO, [EMERGENCIA, EXTINTOR], f)), [[entityKey('block', BLOCK), ncSheet()]]);
+
+  it('N1: progress counts the sheet NC and the live locals\' site NCs; blocks-only callers count the sheets alone', () => {
+    const snapshot = snapshotOf(n1());
+    expect(siteNcCount(snapshot)).toBe(2);
+    expect(progress(snapshot).nc_open).toBe(3);
+    // The Home and obra cards pass blocks only: unchanged.
+    expect(progress({ blocks: snapshot.blocks, suggestions: [] }).nc_open).toBe(1);
+    expect(blocksProgress(snapshot.blocks).nc_open).toBe(1);
+    expect(siteNcOf(snapshot, SUBSOLO)).toBe(2);
+    expect(siteNcOf(snapshot, ENEL)).toBe(0);
+    expect(siteNcOf(snapshot, PAINEL)).toBe(0);
+  });
+
+  it('boundaries: 0 site NC adds nothing, 1 adds one, C and NA add nothing, v1 to v3 add nothing', () => {
+    expect(siteNcCount(snapshotOf(baseState()))).toBe(0);
+    expect(progress(snapshotOf(fold(baseState(), ncOn(ENEL, [EPI], opFactory())))).nc_open).toBe(1);
+    // The mock state: one NC (item 11) among C and NA answers.
+    expect(siteNcCount(mockSnapshot())).toBe(1);
+    for (const version of ['v1', 'v2', 'v3']) {
+      const rows = withRows(baseState(version), [[entityKey('location', ENEL), cabine(ENEL, 'Cubículo Enel', 'a0', { checklist: { [EPI]: { result: { value: 'NC', source_suggestion_id: null, op_id: '019966b0-0143-7000-8000-000000000098' } } } })]]);
+      expect(siteNcCount(snapshotOf(rows))).toBe(0);
+      expect(siteNcItems(snapshotOf(rows))).toEqual([]);
+    }
+  });
+
+  it('N2: a removed local counts nowhere; restored, it counts again', () => {
+    const f = opFactory();
+    const state = n1(f);
+    const removed = fold(state, [f.op({ path: locationFieldPath(SUBSOLO, 'removed_at'), value: '2026-09-23T12:00:00.000Z' })]);
+    expect(progress(snapshotOf(removed)).nc_open).toBe(1);
+    expect(siteNcItems(snapshotOf(removed))).toEqual([]);
+    const restored = fold(removed, [f.op({ path: locationFieldPath(SUBSOLO, 'removed_at'), value: null })]);
+    expect(progress(snapshotOf(restored)).nc_open).toBe(3);
+  });
+
+  it('siteNcItems: per item in list order, with the live locals answering it NC in tree order', () => {
+    const f = opFactory();
+    const snapshot = snapshotOf(fold(baseState(), [...ncOn(SUBSOLO, [EXTINTOR, EPI], f), ...ncOn(ENEL, [EPI], f)]));
+    const number = (key: string) => siteItems('v4').find((item) => item.key === key)!;
+    const expected = [EPI, EXTINTOR]
+      .map((key) => number(key))
+      .sort((a, b) => a.number - b.number)
+      .map((item) => ({ number: item.number, label: item.label, locals: item.key === EPI ? ['Cubículo Enel', '1° Subsolo'] : ['1° Subsolo'] }));
+    expect(siteNcItems(snapshot)).toEqual(expected);
+  });
+
+  it('N3: "NC abertos" lands on a local\'s site row before its equipment; a sheet NC first in order lands on its row', () => {
+    const f = opFactory();
+    // Cubículo Enel (first in tree order) holds the NC sheet; 1° Subsolo the site NCs: the sheet comes first.
+    const sheetFirst = snapshotOf(n1(f));
+    expect(firstCountedTarget(locationTree(sheetFirst), sheetFirst.blocks, 'nc_open')).toEqual({ kind: 'block', blockId: BLOCK });
+    // A site NC on Cubículo Enel itself: its site row comes before its own equipment.
+    const siteFirst = snapshotOf(fold(n1(f), ncOn(ENEL, [EPI], f)));
+    expect(firstCountedTarget(locationTree(siteFirst), siteFirst.blocks, 'nc_open')).toEqual({ kind: 'site', locationId: ENEL });
+    const enelNode = locationTree(siteFirst).find((node) => node.id === ENEL)!;
+    expect(enelNode.site?.nc).toBe(1);
+    // Site NCs only: the local holding them. The other counts never reach a site row.
+    const siteOnly = snapshotOf(fold(baseState(), ncOn(SUBSOLO, [EPI], f)));
+    expect(firstCountedTarget(locationTree(siteOnly), siteOnly.blocks, 'nc_open')).toEqual({ kind: 'site', locationId: SUBSOLO });
+    expect(firstCountedTarget(locationTree(siteOnly), siteOnly.blocks, 'not_tested')).toBeNull();
+    expect(firstCountedTarget(locationTree(siteOnly), siteOnly.blocks, 'concluded')).toBeNull();
   });
 });

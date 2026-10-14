@@ -356,10 +356,11 @@ describe('matrix "Config rows": the rows follow the polos', () => {
     expect(rows(four, E1)).toEqual(['polo_a', 'polo_b', 'polo_c', 'polo_n']);
     expect(rows(two, E2)).toEqual(['a_t', 'b_t', 'a_b', 'linha_carga']);
     expect(rows(three, E2)).toEqual(['a_t', 'b_t', 'c_t', 'a_b', 'b_c', 'c_a', 'linha_carga']);
-    expect(rows(four, E2)).toEqual(['a_t', 'b_t', 'c_t', 'n_t', 'a_b', 'b_c', 'c_a', 'linha_carga']);
-    expect(indexes(two, E2)).toEqual([0, 1, 4, 7]);
-    expect(indexes(three, E2)).toEqual([0, 1, 2, 4, 5, 6, 7]);
-    expect(indexes(four, E2)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    // 2026-10-14 (Bruno): no N-T row, so E2 shows the same seven rows at three and four poles.
+    expect(rows(four, E2)).toEqual(['a_t', 'b_t', 'c_t', 'a_b', 'b_c', 'c_a', 'linha_carga']);
+    expect(indexes(two, E2)).toEqual([0, 1, 3, 6]);
+    expect(indexes(three, E2)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(indexes(four, E2)).toEqual([0, 1, 2, 3, 4, 5, 6]);
     expect(rows(two, E6)).toEqual(['normal_a', 'normal_b', 'emergencia_a', 'emergencia_b', 'carga_a', 'carga_b']);
     expect(rows(four, E6)).toHaveLength(9);
     // The default is three poles, and the tests that have no pole rows never change.
@@ -378,8 +379,8 @@ describe('matrix "Config rows": the rows follow the polos', () => {
     const block = blockOf(three);
     expect(testOf(block, E1).rows.map((row) => row.key)).toEqual(['polo_a', 'polo_b', 'polo_c']);
     expect(measurementCounts(evaluate(block)).outOfLimit).toBe(0);
-    // Hidden at three: Polo N's other cell (1) and N-T's three.
-    expect(measurementCounts(evaluate(block)).missing).toBe(missingAtFour - 1 - 3);
+    // Hidden at three: Polo N's other cell (1); E2 has no N-T row since 2026-10-14.
+    expect(measurementCounts(evaluate(block)).missing).toBe(missingAtFour - 1);
     expect(block.sheet.test[E1]!.cells['3']!['0']!.value).toEqual({ raw: '300', unit: 'µΩ', state: 'measured' });
     expect(measurementCells(evaluate(block)).some((cell) => cell.rowKey === 'polo_n')).toBe(false);
   });
@@ -569,8 +570,10 @@ describe('matrix "Test switched off"', () => {
     expect(e1.rows.flatMap((row) => row.cells).every((cell) => !cell.missing && cell.verdict === null)).toBe(true);
     expect(measurementCounts(evaluate(switched)).outOfLimit).toBe(0);
     expect(measurementCells(evaluate(switched)).some((cell) => cell.address.testKey === E1)).toBe(false);
-    // The eight cells of E1 at four poles are no longer asked for.
-    expect(measurementCounts(evaluate(off(ctaBlock({ polos: '4' }), E1))).missing).toBe(before - 8);
+    // The eight cells of E1 at four poles and its test current (2026-10-14) are no longer asked for.
+    expect(measurementCounts(evaluate(off(ctaBlock({ polos: '4' }), E1))).missing).toBe(before - 9);
+    expect(measurementValues(evaluate(ctaBlock())).find((value) => value.key === 'corrente_ensaio')).toMatchObject({ missing: true });
+    expect(measurementValues(evaluate(off(ctaBlock(), E1))).some((value) => value.key === 'corrente_ensaio')).toBe(false);
     // E6 off: its 9 temperatures, 9 classes and the ambient temperature.
     expect(measurementCounts(evaluate(off(ctaBlock({ polos: '4' }), E6))).missing).toBe(before - 19);
     expect(measurementValues(evaluate(off(ctaBlock(), E6))).some((value) => value.key === 'temperatura_ambiente')).toBe(false);
@@ -713,20 +716,20 @@ describe('the evaluation as a whole', () => {
 describe('sheetProgress counts the measurement tests in the Ensaios step', () => {
   const progressOf = (block: BlockRow) => sheetProgress({ blocks: [block] }, block.id);
 
-  it('a new sheet at three poles asks for 95 readings: 6, 19, 1, 42, 8 and 19', () => {
+  it('a new sheet at three poles asks for 96 readings: 7 (with the test current), 19, 1, 42, 8 and 19', () => {
     const block = ctaBlock();
     const perTest = evaluate(block).map((test) => measurementCounts([test]).missing);
-    expect(perTest).toEqual([6, 19, 1, 42, 8, 19]);
+    expect(perTest).toEqual([7, 19, 1, 42, 8, 19]);
     const progress = progressOf(block);
-    expect(progress.steps.ensaios).toEqual({ missing: 95, outOfLimit: 0 });
+    expect(progress.steps.ensaios).toEqual({ missing: 96, outOfLimit: 0 });
     expect(progress.steps.placa.missing).toBe(15);
     expect(progress.steps.verificacoes.missing).toBe(17);
     expect(progress.steps.conclusao.missing).toBe(2);
     expect(shownSheetSteps(block)).toEqual(['placa', 'verificacoes', 'ensaios', 'conclusao']);
-    expect(sheetProgressText(progress)).toBe('129 obrigatórios faltando');
-    // Four poles add Polo N (2), N-T (3); two poles take Polo C (2), the three C rows of E2 (9) and of E6 (6).
-    expect(progressOf(ctaBlock({ polos: '4' })).steps.ensaios.missing).toBe(100);
-    expect(progressOf(ctaBlock({ polos: '2' })).steps.ensaios.missing).toBe(78);
+    expect(sheetProgressText(progress)).toBe('130 obrigatórios faltando');
+    // Four poles add Polo N (2), and no N-T row (2026-10-14); two poles take Polo C (2), the three C rows of E2 (9) and of E6 (6).
+    expect(progressOf(ctaBlock({ polos: '4' })).steps.ensaios.missing).toBe(98);
+    expect(progressOf(ctaBlock({ polos: '2' })).steps.ensaios.missing).toBe(79);
     expect(sheetState(block)).toBe('vazia');
   });
 

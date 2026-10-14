@@ -3,7 +3,9 @@ import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
 import type { BlockRow, Cell, RelatorioParecer, UserRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { siteItems } from '../seed/definitions.ts';
 import { standardTemplate } from '../seed/template.ts';
+import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { instantiateTemplate } from './instantiate.ts';
 import {
@@ -190,5 +192,76 @@ describe('7.4-UNIT parecer text states and print', () => {
     );
     expect(parecerBoxText({ ...withArt, responsible: { ...responsible, council: 'crt' } })).toContain('(TRT 2620262602583)');
     expect(parecerBoxText(s)).toBe('Seguido do resumo confirmado acima e, depois, dos itens fixos da conclusão e da assinatura do responsável técnico.');
+  });
+});
+
+describe('2026-10-14 (Bruno) an NC site item counts in the parecer (N4, N5)', () => {
+  const items = siteItems('v5');
+  const ncCell = (n: number): Cell => ({ value: 'NC', source_suggestion_id: null, op_id: `019966b0-0074-7000-8000-0000000001${String(n).padStart(2, '0')}` });
+  /** `snapshot` with the 1-based site items `numbers` answered NC on its root local number `local` (0-based). */
+  function withSiteNc(snapshot: RelatorioSnapshot, local: number, numbers: readonly number[]): RelatorioSnapshot {
+    const roots = snapshot.locations.filter((row) => row.kind === 'cabine' && row.parent_id === null);
+    const target = roots[local]!;
+    return {
+      ...snapshot,
+      locations: snapshot.locations.map((row) => {
+        if (row.id !== target.id || row.kind !== 'cabine') return row;
+        const checklist = { ...row.checklist };
+        for (const n of numbers) checklist[items[n - 1]!.key] = { result: ncCell(n) };
+        return { ...row, checklist };
+      }),
+    };
+  }
+  const rootName = (snapshot: RelatorioSnapshot, local: number) => snapshot.locations.filter((row) => row.kind === 'cabine' && row.parent_id === null)[local]!.name.trim();
+  const allApto = () => mapSheets(withSheets(3), (b) => conclude(b, 'aprovado', 'sem_restricoes'));
+
+  it('N4: a site NC with every sheet Aprovado · Sem restrições suggests Apto com restrições, and the hint counts it', () => {
+    const snapshot = withSiteNc(allApto(), 0, [3]);
+    expect(suggestParecer(allApto())).toBe('apto');
+    expect(suggestParecer(snapshot)).toBe('apto_com_restricoes');
+    expect(parecerHintText('apto_com_restricoes', snapshot)).toBe(
+      'Sugerido pelas contagens: Apto com restrições? — 3 de 3 fichas concluídas, 1 NC nas verificações do local. A escolha é sua: um toque.',
+    );
+    expect(parecerHintText('apto_com_restricoes', withSiteNc(snapshot, 0, [3, 5]))).toContain('2 NC nas verificações do local');
+  });
+
+  it('N4 edge: with no sheet at all, a site NC still suggests Apto com restrições; with none, no suggestion', () => {
+    expect(suggestParecer(withSheets(0))).toBeNull();
+    expect(suggestParecer(withSiteNc(withSheets(0), 0, [1]))).toBe('apto_com_restricoes');
+  });
+
+  it('N5: the summary names each site item with its locals count, a Critérios item per item, and the basis changes', () => {
+    const base = allApto();
+    const roots = base.locations.filter((row) => row.kind === 'cabine' && row.parent_id === null);
+    expect(roots.length).toBeGreaterThan(1);
+    const snapshot = withSiteNc(withSiteNc(base, 0, [3, 7]), 1, [3]);
+    const composed = composeParecer(snapshot);
+    const label = (n: number) => items[n - 1]!.label.toLocaleLowerCase('pt-BR');
+    expect(composed.text).toContain(`Verificações do local não conformes: item 3 (${label(3)}) em 2 locais e item 7 (${label(7)}) em 1 local.`);
+    expect(composed.criteriaItems).toEqual([...composeParecer(base).criteriaItems, 'verificações do local, item 3 NC (2)', 'verificações do local, item 7 NC (1)']);
+    expect(composed.basis).not.toBe(composeParecer(base).basis);
+    expect(rootName(snapshot, 0)).not.toBe('');
+  });
+
+  it('N5 edge: with no site NC the text, Critérios and basis are as before (no `site` key in the basis)', () => {
+    const base = allApto();
+    const composed = composeParecer(base);
+    const { total, concluded, open, notTested, withRestriction } = parecerCounts(base);
+    expect(composed.basis).toBe(fnv1a(canonicalJson({ total, concluded, open, notTested, withRestriction, nc: [], points: 0 })));
+    expect(composed.text).not.toContain('Verificações do local');
+    // An answer other than NC counts nowhere.
+    const conforme = { ...base, locations: base.locations.map((row) => (row.kind === 'cabine' && row.parent_id === null ? { ...row, checklist: { [items[0]!.key]: { result: cell('C') } } } : row)) };
+    expect(composeParecer(conforme).basis).toBe(composed.basis);
+    expect(suggestParecer(conforme)).toBe('apto');
+  });
+
+  it('N2: a removed local carries nothing; a relatório on v3 has no site list', () => {
+    const snapshot = withSiteNc(allApto(), 0, [3]);
+    const removed = { ...snapshot, locations: snapshot.locations.map((row) => (row.kind === 'cabine' && Object.keys(row.checklist ?? {}).length > 0 ? { ...row, removed_at: AT } : row)) };
+    expect(suggestParecer(removed)).toBe('apto');
+    expect(composeParecer(removed).text).not.toContain('Verificações do local');
+    const v3 = { ...snapshot, relatorio: { ...snapshot.relatorio, seed_version: 'v3' } };
+    expect(parecerCounts(v3).siteNc).toBe(0);
+    expect(composeParecer(v3).criteriaItems.some((item) => item.startsWith('verificações do local'))).toBe(false);
   });
 });

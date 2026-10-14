@@ -370,9 +370,10 @@ describe('Story 14.5 (contract 19): the Chave de transferência automática thro
     const t = await relatorio('v5');
     const before = await rowOfEntity('block', t.block);
     const refused = [
-      // A value key the test does not declare; a value on a test that declares none.
+      // A value key the test does not declare (E1 declares only its test current since 2026-10-14); a value on a test that declares none.
       put(t.relatorio, sheetTestValuePath(t.block, E5, 'duracao'), choiceValue('falta_real')),
       put(t.relatorio, sheetTestValuePath(t.block, E1, 'metodo'), choiceValue('falta_real')),
+      put(t.relatorio, sheetTestValuePath(t.block, 'cta_isolamento_controle', 'corrente_ensaio'), num('100', 'A')),
       // The fixed cells: E5 "Até carga na Emergência" under Ajuste, E2 Linha-carga under Normal fechada.
       put(t.relatorio, cellPath(t.block, E5, 'ate_carga_na_emergencia', 'ajuste'), num('10', 's')),
       put(t.relatorio, cellPath(t.block, E2, 'linha_carga', 'normal_fechada'), num('12.4', 'GΩ')),
@@ -396,5 +397,25 @@ describe('Story 14.5 (contract 19): the Chave de transferência automática thro
     const pure = replay([...t.log, good].map((o, i) => ({ ...o, seq: i + 1 })));
     expect(canonicalJson(server as never)).toBe(canonicalJson(pure.get(entityKey('block', t.block)) as never));
     expect((before as BlockRow).sheet.test).toEqual({});
+  });
+
+  it('C2 (2026-10-14): E1\'s test current is accepted on its value path and lands where the kernel replay puts it; an unknown E1 value key is still refused', async () => {
+    const t = await relatorio('v5');
+    const current = sheetTestValuePath(t.block, E1, 'corrente_ensaio');
+    expect(current).toBe(`sheet/${t.block}/test/cta_resistencia_contato/value/corrente_ensaio`);
+    const good = put(t.relatorio, current, num('100', 'A'));
+    const unknown = put(t.relatorio, sheetTestValuePath(t.block, E1, 'corrente_de_teste'), num('100', 'A'));
+    const result = await pushOk([good, unknown]);
+    expect(result.rejected).toEqual([{ op_id: unknown.op_id, code: 'op_invalid' }]);
+    expect(result.applied.map((a) => a.op_id)).toEqual([good.op_id]);
+    expect((await storedIds([unknown.op_id])).size).toBe(0);
+    const server = (await rowOfEntity('block', t.block)) as BlockRow;
+    expect(server.sheet.test[E1]!.values!.corrente_ensaio!.value).toEqual({ raw: '100', unit: 'A', state: 'measured' });
+    expect(Object.keys(server.sheet.test[E1]!.values!)).toEqual(['corrente_ensaio']);
+    const pure = replay([...t.log, good].map((o, i) => ({ ...o, seq: i + 1 })));
+    expect(canonicalJson(server as never)).toBe(canonicalJson(pure.get(entityKey('block', t.block)) as never));
+    // A test with no N-T row refuses a cell past its seven rows (2026-10-14).
+    expect(testOf(E2).rows.map((row) => row.key)).not.toContain('n_t');
+    expect(testOf(E2).rows).toHaveLength(7);
   });
 });
