@@ -415,4 +415,16 @@ describe('p020 P-4 the header names the Observações Com restrições requires'
     // With the observation typed the step is complete.
     expect(progressOf(ready(comRestricoes, cell('Polo C acima do critério.'))).complete).toBe(true);
   });
+
+  it('the verb follows the plural flag carried on the first part, not its wording', () => {
+    const parts = sheetSummaryParts(progressOf(ready(comRestricoes)));
+    expect(parts.at(-1)).toEqual({ text: 'as observações', kind: 'text', plural: true });
+    const both = sheetSummaryParts(progressOf(ready({ restriction: cell('com_restricoes') })));
+    expect(both.slice(-3)).toEqual([
+      { text: 'a conclusão', kind: 'text' },
+      { text: ' e ', kind: 'text' },
+      { text: 'as observações', kind: 'text', plural: true },
+    ]);
+    expect(both[0]!.text.endsWith('· falta ')).toBe(true);
+  });
 });

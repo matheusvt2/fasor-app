@@ -316,6 +316,11 @@ export function conclusionTextStatusOf(block: Pick<BlockRow, 'sheet'>): Conclusi
  * basis says: the basis hashes inputs the paragraph does not show (every cell of every
  * table, a within-criterion reading, a skipped test's cells), so a basis moved by such an
  * input offered "Substituir" with the very same text. Stale means the text would change.
+ * The production case was not reproduced in the kernel (the conclude batch, the fold and a
+ * JSON round trip give an equal basis). Two unconfirmed hypotheses from the p020 review: a
+ * reading committed on blur after the conclude batch composed its basis
+ * (`apps/web/src/surfaces/ficha/use-ficha-actions.ts:149`), and the merge folding a
+ * concurrent `text_basis` put as sequential (`merge/policy.ts:119`).
  */
 export function conclusionTextState(block: Pick<BlockRow, 'sheet'>, composed: Pick<ComposedConclusion, 'basis' | 'text'>): ConclusionTextState {
   const status = conclusionTextStatusOf(block);

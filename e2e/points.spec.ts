@@ -735,8 +735,10 @@ test('@p0 P020-E2E-002 a relatório without sections 8 and 10: the saved point\'
   const TEXT_SECTIONS = new Set(['section_1', 'section_2', 'section_3', 'section_4', 'section_5', 'section_6', 'section_8', 'section_10', 'section_11']);
   const drafts = built.drafts.filter((draft) => !(draft.kind === 'create' && draft.path.startsWith('block/') && TEXT_SECTIONS.has((draft.value as { block_type: string }).block_type)));
   expect(drafts.length).toBe(built.drafts.length - TEXT_SECTIONS.size);
-  await pushDrafts(page, database, drafts);
   const relatorioId = built.relatorioId;
+  // One point already written on the office device, so the one saved here is the second.
+  const office = pointDrafts({ relatorioId }, [{ text: 'Primeiro', action: 'A' }]);
+  await pushDrafts(page, database, [...drafts, ...office.drafts]);
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   await expect(row8(page)).toHaveCount(0);
@@ -756,11 +758,18 @@ test('@p0 P020-E2E-002 a relatório without sections 8 and 10: the saved point\'
   await page.keyboard.type('Detector de tensão inoperante.');
   await editor.getByRole('button', { name: 'Concluir' }).click();
   await expect(editor).toHaveCount(0);
-  await expect(toast(page)).toContainText('Ponto de atenção salvo · 1 de 1 · não sai no documento: o relatório não tem a seção 8');
+  await expect(toast(page)).toContainText('Ponto de atenção salvo · 2 de 2 · não sai no documento: o relatório não tem a seção 8');
   await expect(toast(page)).not.toContainText('na seção 8');
   // The committed state: one point, its text stored.
   const pointId = expectOnePointAutosaved(await outbox(page));
   await expect.poll(async () => (await storedPoints(page)).find((point) => point.id === pointId)?.text).toContain('Detector de tensão inoperante.');
+
+  // A move is announced without section 8 too, and written as one order_key op.
+  await page.getByRole('button', { name: 'Editar o ponto 2, Geral' }).focus();
+  await page.keyboard.press('Alt+ArrowUp');
+  await expect(cards(page).locator('.poa-text').first()).toContainText('Detector de tensão inoperante.');
+  await expect(page.getByTestId('points-announcer')).toHaveText('Ponto de atenção movido: 1 de 2 · não sai no documento: o relatório não tem a seção 8');
+  await expect.poll(async () => (await outbox(page)).filter((op) => op.path === `point/${pointId}/order_key`)).toHaveLength(1);
 
   // Etapa 6: the note says the parecer does not print, and the box's kicker too once a verdict is set.
   await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
@@ -770,4 +779,10 @@ test('@p0 P020-E2E-002 a relatório without sections 8 and 10: the saved point\'
   await verdict.click();
   await expect(verdict).toHaveAttribute('aria-checked', 'true');
   await expect(page.locator('.parecer-box .pb-kicker')).toHaveText('Não sai no documento (sem seção 10)');
+  // "Confirmar" on the summary: the toast and the confirmed helper name no section 10.
+  const field = page.locator('.suggestion-field.is-generated');
+  await field.getByRole('button', { name: 'Confirmar' }).click();
+  await expect(field).toHaveAttribute('data-state', 'confirmed');
+  await expect(toast(page).locator(':scope > span').first()).toHaveText('Resumo do parecer confirmado');
+  await expect(field.locator('.helper').filter({ hasText: 'Confirmado' })).toHaveText('Confirmado · não sai no documento: o relatório não tem a seção 10');
 });

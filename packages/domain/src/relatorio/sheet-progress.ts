@@ -254,6 +254,12 @@ const SUMMARY_DONE: Record<SheetStep, { noun: string; singular: boolean }> = {
 export interface SheetSummaryPart {
   text: string;
   kind: 'text' | 'missing';
+  /**
+   * p020 P-4: on a `text` part that names what is missing, true when the noun is plural ("as
+   * observações"), so the verb agrees ("faltam"); absent reads singular ("a conclusão"). A
+   * `missing` count agrees by its own number.
+   */
+  plural?: boolean;
 }
 
 /** The per-step counts the Sheet header sentence reads (the Placa step with its cabine share). */
@@ -292,8 +298,8 @@ function summaryMissingParts(step: SheetStep, counts: { missing: number; cabine?
       const observation = Math.min(counts.observation ?? 0, counts.missing);
       const pair = counts.missing - observation;
       // authored: p020 P-4, "as observações" (the sheet's Observações field).
-      if (pair === 0) return [[{ text: 'as observações', kind: 'text' }]];
-      if (observation > 0) return [[{ text: 'a conclusão', kind: 'text' }], [{ text: 'as observações', kind: 'text' }]];
+      if (pair === 0) return [[{ text: 'as observações', kind: 'text', plural: true }]];
+      if (observation > 0) return [[{ text: 'a conclusão', kind: 'text' }], [{ text: 'as observações', kind: 'text', plural: true }]];
       return [[{ text: 'a conclusão', kind: 'text' }]];
     }
   }
@@ -328,10 +334,11 @@ export function sheetSummaryParts(p: SummaryCounts, shown: readonly SheetStep[] 
   const missing = steps.filter((step) => p.steps[step].missing > 0);
   if (missing.length === 0) return [{ text: 'Ficha completa', kind: 'text' }];
   const items = missing.flatMap((step) => summaryMissingParts(step, p.steps[step]));
-  // The verb agrees with the first thing missing: a count of 1 or "a conclusão" is singular.
+  // The verb agrees with the first thing missing: a count of 1, or a noun part not flagged
+  // plural ("a conclusão"), is singular; p020 P-4: "as observações" carries `plural`.
   const lead = items[0]![0]!;
-  // p020 P-4: "as observações" alone is plural ("faltam as observações").
-  const verb = (lead.kind === 'text' && !lead.text.startsWith('as ')) || lead.text === '1' ? 'falta' : 'faltam';
+  const singular = lead.kind === 'missing' ? lead.text === '1' : lead.plural !== true;
+  const verb = singular ? 'falta' : 'faltam';
   const missingParts = joinPartsPtBr(items);
   if (done.length === 0) return [{ text: `${capitalise(verb)} `, kind: 'text' }, ...missingParts];
   const adjective = done.length === 1 && SUMMARY_DONE[done[0]!].singular ? 'pronta' : 'prontas';

@@ -28,6 +28,7 @@ Out of scope: the Home card counter difference (ledger).
 | P-3 | After "Concluir e avançar" on a CTA sheet the Sumário row 9 reads "Texto de conclusão desatualizado" and the sheet offers "Substituir" with an identical text. | A stored text whose basis was composed from the same values is never `stale`; root cause found and fixed in the kernel. |
 | P-4 | Aprovado + Com restrições + empty Observações: header "… faltam … e a conclusão". | The conclusao part names what is missing: the pair ("a conclusão"), the observation ("as observações"), or both ("a conclusão e as observações"); the verb agrees as today ("falta"/"faltam"). Stepper count unchanged. |
 | P-5 | The generate confirmation says "Emitir com …?", the foot "Emitir pede confirmação: …", the button "Emitir mesmo assim", though it only generates a revision (status flow 2026-10-10). | The mock `73-exportar.html` names the action "Gerar relatório" / "Gerar de novo": "Gerar com …?", "Gerar pede confirmação: …", "Gerar mesmo assim". "Emitir" stays for issuing. EXPERIENCE.md line 337 gets a struck-through old wording and a dated new one (AGENTS.md convention). |
+| P-6 | (added by the coordinator, 2026-10-14) On a seed-v5 CTA sheet at 390 x 844 the page scrolls 10 px horizontally (`scrollWidth` 400 vs `clientWidth` 390); every element past 390 sits inside a `.mt-scroll` (E1's and E5's `.measurement-table.is-multi`, right 458 and 511). | No page-level horizontal overflow at 390 on the CTA sheet; the tables keep scrolling inside their own `.mt-scroll`. Fix in `apps/web` CSS (`ficha.css` or `app.css`, never `tokens.css`/`components.css`). Observation only, no change: at 768 the E4 table scrolls inside its box (1388 of 672 px) and its column headers leave the view (for Bruno and Matheus). |
 
 Authored copy (pt-BR, each marked `// authored: p020 …` where it lives; list them all in the report):
 
@@ -63,4 +64,5 @@ Open questions (keep the conservative reading, list in the PR): the Sumário war
 - Given a relatório that prints the seed's eleven or has sections 8 and 10, then every text is as before.
 - Given a CTA sheet as in Task 1 concluded with "Concluir e avançar", then no stale row and no "Substituir"; given a value changed after the conclude, then stale as before.
 - Given Aprovado, Com restrições and empty Observações, then the header names "as observações", not "a conclusão".
+- Given a seed-v5 CTA sheet at 390 px, then `document.documentElement.scrollWidth` equals `clientWidth` (`e2e/cta.spec.ts`, the `horizontalOverflow` helper).
 - Given empty sheets, when "Gerar relatório" asks first, then it asks "Gerar com …?" and the button reads "Gerar mesmo assim".
