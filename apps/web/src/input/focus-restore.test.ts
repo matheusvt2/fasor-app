@@ -86,6 +86,20 @@ describe('restoreFocus until moved', () => {
     expect(document.activeElement).toBe(target);
   });
 
+  it('does not end the watch on a control that holds the focus before the target ever held it', () => {
+    const target = button('opener');
+    const row = button('row control');
+    row.focus();
+    restoreFocus(() => target, { frames: 10, until: 'moved' });
+    frame();
+    expect(document.activeElement).toBe(row);
+    expect(frames).toHaveLength(1);
+    // The row re-renders away: the focus is lost, and the target takes it.
+    row.remove();
+    frame();
+    expect(document.activeElement).toBe(target);
+  });
+
   it('keeps watching whatever holds the focus without the option (the default is unchanged)', () => {
     const target = button('opener');
     const other = button('dialog opener');

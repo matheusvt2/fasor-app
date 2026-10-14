@@ -2,7 +2,7 @@
 title: 'Epic 14 carry-over B: camera and relatorio tree split, camera focus return, pnpm probe files'
 type: 'refactor'
 created: '2026-10-14'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '0335616287d78c8348b452be13bdc7a91df727b0'
 review_loop_iteration: 0
 followup_review_recommended: false
