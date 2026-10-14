@@ -248,6 +248,18 @@ describe('14.5 MeasurementTests: number cells', () => {
     expect([...reference.querySelectorAll('td.cell-calc')].map((cell) => cell.textContent)).toEqual(['36 µΩ', '39 µΩ']);
   });
 
+  it('Epic 14 QA Q-3: a stored zero on E1 is to check: the neutral "Conferir" helper, no amber state, no "Marcar Com restrições"', () => {
+    const micro = (raw: string) => num(raw, 'µΩ');
+    const { container } = renderTests(cta({ cells: { [E1]: { polo_a: { lado_normal: micro('0') }, polo_b: { lado_normal: micro('40') }, polo_c: { lado_normal: micro('41') } } } }));
+    const e1 = section(container, E1);
+    const zero = within(e1).getByRole('textbox', { name: 'Polo A, Lado Normal' }).closest('.ficha-cell')!;
+    expect(zero.querySelector('.outlier-helper')).toHaveTextContent('Conferir: valor zero ou negativo, sem comparação com o menor do lado');
+    expect(zero.querySelector('.measurement-field')).not.toHaveAttribute('data-state', 'out-of-limit');
+    expect(e1.querySelector('.mf-helper')).toBeNull();
+    expect(e1.querySelectorAll('.measurement-field[data-state="out-of-limit"]')).toHaveLength(0);
+    expect(within(e1).queryByRole('button', { name: 'Marcar Com restrições' })).toBeNull();
+  });
+
   it('"Não medido" in a cell Overflow writes the not-measured value on that cell', async () => {
     const { commits, container } = renderTests(cta());
     await userEvent.click(within(section(container, E1)).getAllByRole('button', { name: 'Mais opções de Polo A, Lado Normal' })[0]!);

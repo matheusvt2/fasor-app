@@ -1,4 +1,4 @@
-import { cellAddressesOf, getDefinition, newEquipmentBlock, SEED_VERSION, type BlockRow, type EquipmentRow, type FieldDef, type LocationRow, type OpDraft, type TemplateRow } from '@app/domain';
+import { cellAddressesOf, getDefinition, newEquipmentBlock, newPointRow, SEED_VERSION, SITE_ITEM_KEYS, type BlockRow, type EquipmentRow, type FieldDef, type LocationRow, type OpDraft, type TemplateRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { extractStructure, paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { newId } from '../apps/api/src/ids.ts';
@@ -1009,7 +1009,7 @@ async function openRestore(page: Page): Promise<Locator> {
   return restore;
 }
 
-test('@p1 14.2-E2E-005 Epic 14 QA Q-6: a local holding only its site answers asks before it leaves; the sentence and the restore entry name them', async ({ page }) => {
+test('@p1 14.2-E2E-005 Epic 14 QA Q-6: a local holding only its site work (answers, a photo, a point) asks before it leaves; the sentence and the restore entry name them', async ({ page }) => {
   test.setTimeout(240_000);
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 768, height: 1024 });
@@ -1029,11 +1029,45 @@ test('@p1 14.2-E2E-005 Epic 14 QA Q-6: a local holding only its site answers ask
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Ver árvore' }).click();
   await expect(tree(page)).toBeVisible({ timeout: 30_000 });
 
+  // A photo of one of its site items and the point made from it, written on another device and pulled.
+  const localId = [...(await deviceTreeRows(page))].map(([, row]) => row as LocationRow).find((row) => row.relatorio_id === relatorioId && row.name === NAME)!.id;
+  const itemKey = SITE_ITEM_KEYS[0];
+  const photoId = newId();
+  const scope = { relatorioId };
+  const photo = {
+    id: photoId,
+    company_id: account.companyId,
+    relatorio_id: relatorioId,
+    kind: 'photo',
+    sha256: 'e'.repeat(64),
+    mime: 'image/jpeg',
+    size: 1000,
+    uploaded_at: null,
+    variants: null,
+    removed_at: null,
+    captured_at: '2026-09-07T12:00:00.000Z',
+    tz_offset: -180,
+    coords: null,
+    local_seq: 1,
+    block_id: null,
+    item_key: itemKey,
+    location_id: localId,
+    caption: null,
+    reading_kind: null,
+    reading_target: null,
+    reading_status: 'none',
+  };
+  const point = newPointRow({ id: newId(), relatorioId, text: 'Extintor vencido', equipmentId: null, origin: 'manual', action: 'Trocar', locationId: localId }, []);
+  await pushDrafts(page, database, [officeDraft(account, scope, `file/${photoId}`, photo, 'create'), officeDraft(account, scope, `point/${point.id}`, point, 'create')]);
+  await syncNowAndReturn(page);
+  await expect.poll(async () => (await entities<{ id: string }>(page)).filter((record) => record.id === photoId || record.id === point.id).length, { timeout: 30_000 }).toBe(2);
+  await openSection9(page);
+
   // "Remover" asks first now, and names what leaves with the local.
   await menuOf(page, NAME).click();
   await page.getByRole('menuitem', { name: 'Remover', exact: true }).click();
   const confirm = page.getByRole('dialog', { name: `Remover ${NAME}?`, exact: true });
-  await expect(confirm).toHaveAccessibleDescription(`O local e 19 respostas das verificações saem do relatório. ${RECOVERABLE}`);
+  await expect(confirm).toHaveAccessibleDescription(`O local, 19 respostas das verificações, 1 foto e 1 ponto de atenção saem do relatório. ${RECOVERABLE}`);
   await expect(confirm.getByRole('button', { name: 'Cancelar', exact: true })).toBeFocused();
   await confirm.getByRole('button', { name: 'Remover local', exact: true }).click();
   await expect(confirm).toBeHidden();
@@ -1042,8 +1076,9 @@ test('@p1 14.2-E2E-005 Epic 14 QA Q-6: a local holding only its site answers ask
   // The restore entry says what comes back.
   const restore = await openRestore(page);
   const entry = restore.locator('.restore-list > li').filter({ has: page.locator('.rr-primary', { hasText: NAME }) });
-  await expect(entry.locator('.rr-secondary')).toHaveText('Local · 19 respostas das verificações');
-  await restore.getByRole('button', { name: `Restaurar ${NAME} — Local · 19 respostas das verificações`, exact: true }).click();
+  const detail = 'Local · 19 respostas das verificações · 1 foto · 1 ponto de atenção';
+  await expect(entry.locator('.rr-secondary')).toHaveText(detail);
+  await restore.getByRole('button', { name: `Restaurar ${NAME} — ${detail}`, exact: true }).click();
   await expect(restore).toBeHidden();
   await expect(local(page, NAME).locator(':scope > .s9-loc-row .s9-loc-body .s9-verif')).toHaveText('Verificações do local · 19 de 19');
 });
