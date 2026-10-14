@@ -51,6 +51,8 @@ export interface LocationRemovalCounts {
 export interface SiteWorkRow {
   removed_at: string | null;
   location_id?: string | null;
+  /** A file's sheet: one that names a block is that block's photo, never a site photo. */
+  block_id?: string | null;
 }
 
 const NO_COUNTS = (): LocationRemovalCounts => ({ paineis: 0, colunas: 0, sheets: 0, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 });
@@ -62,7 +64,8 @@ function countSiteWork(counts: LocationRemovalCounts, rows: readonly LocationRow
     counts.siteAnswers += Object.keys(row.checklist ?? {}).filter((key) => siteResultOf(row, key) !== null).length;
   }
   const names = (row: SiteWorkRow) => row.removed_at === null && (row.location_id ?? null) !== null && ids.has(row.location_id!);
-  counts.sitePhotos += files.filter(names).length;
+  // A file that also names a block is read as its block's (`entities.ts`), never as a site photo.
+  counts.sitePhotos += files.filter((row) => names(row) && (row.block_id ?? null) === null).length;
   counts.sitePoints += points.filter(names).length;
 }
 
@@ -289,20 +292,34 @@ export function locationRestorePlan(input: {
     }
   }
   // Q-13: a restored location whose key a live sibling took is placed right after it.
-  // The rows already back (with their final key) count as live siblings of the next ones.
-  const restored = new Set(locationIds);
+  return { kind: target.kind, locationId: target.id, locationIds, blockIds, equipmentIds, orderKeys: restoredLocationOrderKeys(input.locations, locationIds), counts };
+}
+
+/**
+ * Epic 14 QA Q-13: the `order_key` puts a batch that puts the locations `ids` back live needs
+ * (in that order: a restore plan's, or the removed ancestors a sheet restore brings back): one
+ * for each whose key a live sibling took meanwhile (`restoredOrderKey`), placing it right
+ * after that sibling. The rows already back, with their final key, count as live siblings of
+ * the next ones. `locations` carry the removed rows.
+ */
+export function restoredLocationOrderKeys(
+  locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'order_key' | 'removed_at'>[],
+  ids: readonly string[],
+): { id: string; orderKey: string }[] {
+  const restored = new Set(ids);
   const back = new Map<string, string>();
   const orderKeys: { id: string; orderKey: string }[] = [];
-  for (const id of locationIds) {
-    const row = input.locations.find((candidate) => candidate.id === id)!;
-    const siblings = input.locations
+  for (const id of ids) {
+    const row = locations.find((candidate) => candidate.id === id);
+    if (row === undefined) continue;
+    const siblings = locations
       .filter((candidate) => candidate.parent_id === row.parent_id && (!restored.has(candidate.id) || back.has(candidate.id)))
       .map((candidate) => (back.has(candidate.id) ? { ...candidate, order_key: back.get(candidate.id)!, removed_at: null } : candidate));
     const key = restoredOrderKey(siblings, row);
     back.set(id, key ?? row.order_key);
     if (key !== null) orderKeys.push({ id, orderKey: key });
   }
-  return { kind: target.kind, locationId: target.id, locationIds, blockIds, equipmentIds, orderKeys, counts };
+  return orderKeys;
 }
 
 // --- the texts -------------------------------------------------------------------------

@@ -735,6 +735,8 @@ describe('Epic 14 QA Q-6: a local holding site work asks first, and its sentence
       { removed_at: null, location_id: ger },
       { removed_at: iso(T1), location_id: ger },
       { removed_at: null, location_id: null },
+      // A file that also names a block is that block's photo, never a site photo.
+      { removed_at: null, location_id: ger, block_id: OP },
     ];
     const points = [{ removed_at: null, location_id: ger }, { removed_at: null }];
     const rows = rowsIn(f.state);

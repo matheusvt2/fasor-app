@@ -20,6 +20,7 @@ import {
   panelRetargetOps,
   panelSuggestionStatusOp,
   removedAncestorIds,
+  restoredLocationOrderKeys,
   restoredOrderKey,
   renamedText,
   siblingLocations,
@@ -747,12 +748,15 @@ export function restoreSheetOps(
   blockId: string,
   equipmentId: string | null,
   equipment: readonly Pick<EquipmentRow, 'id' | 'removed_at'>[],
-  locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'removed_at'>[],
+  locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'order_key' | 'removed_at'>[],
 ): OpDraft[] | null {
   const block = blocks.find((row) => row.id === blockId && row.removed_at !== null);
   if (block === undefined) return null;
+  const ancestors = removedAncestorIds(locations, block.location_id);
   const ops: OpDraft[] = [
-    ...removedAncestorIds(locations, block.location_id).map((id) => locationRemovedOp(author, relatorioId, id, false)),
+    ...ancestors.map((id) => locationRemovedOp(author, relatorioId, id, false)),
+    // Epic 14 QA Q-13: a removed ancestor whose key a live sibling took comes back right after it.
+    ...restoredLocationOrderKeys(locations, ancestors).map(({ id, orderKey }) => putLocationOp(author, relatorioId, id, 'order_key', orderKey)),
     putBlockOp(author, relatorioId, blockId, 'removed_at', null),
   ];
   // Epic 14 QA Q-13: a live sibling that took its key meanwhile keeps its place; the sheet comes back right after it.
@@ -777,12 +781,17 @@ export function restoreStrandedSheetOps(
   relatorioId: string,
   blocks: readonly BlockRow[],
   blockId: string,
-  locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'removed_at'>[],
+  locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'order_key' | 'removed_at'>[],
 ): OpDraft[] | null {
   const block = blocks.find((row) => row.id === blockId && row.removed_at === null);
   if (block === undefined) return null;
   const back = removedAncestorIds(locations, block.location_id);
-  return back.length === 0 ? null : back.map((id) => locationRemovedOp(author, relatorioId, id, false));
+  if (back.length === 0) return null;
+  return [
+    ...back.map((id) => locationRemovedOp(author, relatorioId, id, false)),
+    // Epic 14 QA Q-13: a removed ancestor whose key a live sibling took comes back right after it.
+    ...restoredLocationOrderKeys(locations, back).map(({ id, orderKey }) => putLocationOp(author, relatorioId, id, 'order_key', orderKey)),
+  ];
 }
 
 /**
