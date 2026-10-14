@@ -65,3 +65,4 @@ timestamp: 2026-09-30T00:00:00Z
 - 2026-10-14: Epic 14 QA re-check on main e5fd141: full `@p0` 278 of 278 and the eight specs PR #129 touched 45 of 45; Q-1 to Q-7 and 14.2 (h) confirmed fixed in the browser. Section "Re-check 2026-10-14" added to the QA report.
 - 2026-10-14: Epic 14 retrospective (headless) written: `implementation-artifacts/epic-14-retro-2026-10-14.md`, action items E14-A1 to E14-A13 in sprint-status.
 - 2026-10-14: Epic 14 retro items E14-A3, E14-A5 and E14-A6 (with E13-A5) landed in `epic-batch-orchestrator.md`; the stale "do not build on another batch's unmerged branch" and "down -v" lines struck; `.gitignore` ignores the pnpm `_tmp_` probe files (E14-A13, partial).
+- 2026-10-14: E14-A1 done on main f2c0bb8: `test:e2e:full` 480 of 485 (1 failed: points 6.6-E2E-011) and `test:e2e:matrix` 102 of 114 (1 failed: WebKit ficha.durability F-11); both known, owned by the next carry-over batch (E14-A7).

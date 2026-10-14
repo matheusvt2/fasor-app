@@ -944,7 +944,7 @@ action_items:
     epic: 14
     action: "E14-A1 Run test:e2e:full and the full test:e2e:matrix on main 62db6c2 before the next epic, under the lock with the main stack stopped; a red stage becomes a fix batch; target both green or only failures also red on 4bce905, each with a ledger row"
     owner: "coordinator"
-    status: open
+    status: done  # 2026-10-14 on main f2c0bb8 (lock wait 0 s): test:e2e:full 480 of 485 passed, 1 failed, 4 skipped (1847 s); test:e2e:matrix 102 of 114 passed, 1 failed, 11 skipped (358 s). The two reds are the known points 6.6-E2E-011 and WebKit ficha.durability F-11, both in E14-A7 (carry-over); no Epic 14 red
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-111-e14-a2-ledger-cleanup"
     epic: 14
