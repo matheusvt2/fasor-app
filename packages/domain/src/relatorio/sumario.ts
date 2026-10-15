@@ -383,8 +383,14 @@ export function nextTextSection(snapshot: Pick<RelatorioSnapshot, 'blocks'>, blo
  * `issues` alike, so a blocker the Sumário has no row for is still named by its title. With
  * nothing blocking, `confirm` (F-03) adds what the issue confirmation will count. The status's
  * next step is its own sentence, under the status pill (`statusStepText`, decision 5 of 2026-10-10).
+ * p020 P-1b: `absent` (`absentSectionsSentence`, what will not print) ends the line, after one space.
  */
-export function generateReason(rows: readonly SumarioRow[], issues: readonly PreIssueRow[] = [], confirm?: IssueConfirmation): string {
+export function generateReason(rows: readonly SumarioRow[], issues: readonly PreIssueRow[] = [], confirm?: IssueConfirmation, absent: string | null = null): string {
+  const reason = blockingReason(rows, issues, confirm);
+  return absent === null ? reason : `${reason} ${absent}`;
+}
+
+function blockingReason(rows: readonly SumarioRow[], issues: readonly PreIssueRow[], confirm: IssueConfirmation | undefined): string {
   const drawn = rows.filter((row) => row.blocking);
   // A blocking pre-issue row whose Sumário row is not drawn blocking (or not drawn at all).
   const unnamed = [...new Set(blockingRows(issues).map((issue) => issue.row))].filter((key) => !drawn.some((row) => row.rowKey === key));

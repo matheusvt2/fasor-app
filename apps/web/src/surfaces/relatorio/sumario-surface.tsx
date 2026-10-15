@@ -1,4 +1,5 @@
 import {
+  absentSectionsSentence,
   backwardMoveConsequenceText,
   backwardMoveLabel,
   fichasConcluidasText,
@@ -155,6 +156,8 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const computed = useMemo(() => progress(snapshot, pending), [snapshot, pending]);
   // The one pre-issue call the Export dialog makes too (photo upload errors, the clock reading).
   const issues = usePreIssue(db, snapshot, computed, pending);
+  // p020 P-1b: the reason line ends with what will not print (no section 8 or 10).
+  const absentSentence = useMemo(() => absentSectionsSentence(snapshot), [snapshot]);
   const confirmCounts = useIssueConfirmation(snapshot);
   // Status flow 2026-10-10: whether anything was edited since the newest revision (true until
   // the first read lands), for the Controle row, the banner, the foot sentence and mark-as-sent.
@@ -503,7 +506,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
 
       <div className="sticky-action-bar">
         <span className="btn-reason" id={reasonId}>
-          {generateReason(rows, issues, confirmCounts ?? undefined)}
+          {generateReason(rows, issues, confirmCounts ?? undefined, absentSentence)}
         </span>
         {preview.phase.kind === 'blocked' ? (
           <span className="btn-reason" role="alert">

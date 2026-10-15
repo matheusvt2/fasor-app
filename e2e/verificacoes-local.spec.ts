@@ -199,10 +199,10 @@ async function generateRevision(page: Page, n: number): Promise<void> {
   if (await again.isVisible()) await again.click();
   await expect(generate).toBeEnabled({ timeout: 30_000 });
   await generate.click();
-  const question = modal.getByRole('group', { name: /^Emitir com / });
+  const question = modal.getByRole('group', { name: /^Gerar com / });
   const ready = modal.getByRole('heading', { level: 2, name: `Revisão ${n} pronta` });
   await expect(question.or(ready).or(modal.locator('.gen-progress')).first()).toBeVisible({ timeout: 30_000 });
-  if (await question.isVisible()) await question.getByRole('button', { name: 'Emitir mesmo assim' }).click();
+  if (await question.isVisible()) await question.getByRole('button', { name: 'Gerar mesmo assim' }).click();
   await expect(toast(page)).toHaveText(`Revisão ${n} pronta — DOCX e PDF`, { timeout: JOB_TIMEOUT });
   await expect(ready).toBeVisible();
 }
@@ -518,7 +518,7 @@ test('@p0 14.3-E2E-001 at 768 px: a v4 relatório, the surface opened from the l
   const generate = modal.locator('.generate-row').getByRole('button', { name: 'Gerar relatório' });
   await expect(generate).toBeEnabled({ timeout: 30_000 });
   await generate.click();
-  await confirmIssue(modal, /^Emitir com 94 fichas vazias/);
+  await confirmIssue(modal, /^Gerar com 94 fichas vazias/);
   await expect(toast(page)).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   const document = await downloadDocx(page, 1);
 

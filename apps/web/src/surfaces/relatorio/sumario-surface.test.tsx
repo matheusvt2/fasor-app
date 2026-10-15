@@ -156,6 +156,27 @@ afterEach(() => {
   syncRelatorio.mockClear();
 });
 
+describe('p020 P-1b: the reason line says what will not print', () => {
+  it('a relatório without sections 8 and 10 ends the foot reason with one sentence; with them, none', async () => {
+    const db = await freshDb();
+    await applyPulled(db, portoSeguroSmall.log);
+    const kept = sectionBlocksFor(RELATORIO).filter((b) => b.block_type !== 'section_8' && b.block_type !== 'section_10');
+    await db.entities.bulkPut(kept.map((b) => toRecord(`block:${b.id}`, b)));
+    database = db;
+    renderSumario();
+    const sentence = 'Sem as seções 8 e 10, os pontos de atenção, o parecer e a assinatura não saem no documento.';
+    await waitFor(() => expect(document.querySelector('.sticky-action-bar .btn-reason')!.textContent).toMatch(/ Sem as seções 8 e 10, .* não saem no documento\.$/));
+    const text = document.querySelector('.sticky-action-bar .btn-reason')!.textContent!;
+    expect(text.split(sentence)).toHaveLength(2);
+    cleanup();
+    database.close();
+    database = await seeded();
+    renderSumario();
+    await waitFor(() => expect(document.querySelector('.sticky-action-bar .btn-reason')).toHaveTextContent('Só Conclusão e parecer (linha 10) impede gerar.'));
+    expect(document.querySelector('.sticky-action-bar .btn-reason')!.textContent).not.toContain('não saem no documento');
+  });
+});
+
 describe('4.3 SumarioSurface', () => {
   it('lists the 13 rows in FO.SERV-03 order with the kernel titles, metas and notes', async () => {
     database = await seeded();

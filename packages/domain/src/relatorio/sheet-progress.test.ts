@@ -389,3 +389,42 @@ describe('review 2026-10-08 Decision 2: VOL. ÓLEO on a dry transformador de for
     expect(sheetSummaryText(p)).toBe('Ficha completa');
   });
 });
+
+describe('p020 P-4 the header names the Observações Com restrições requires', () => {
+  const ready = (conclusion: Sheet['conclusion'], observations: Cell | null = null) =>
+    block({ nameplate: fullNameplate(), checklist: allChecklist('C'), test: testCells({ isolacao: 6, resistencia_contato: 3 }), conclusion, observations });
+  const comRestricoes = { result: cell('aprovado'), restriction: cell('com_restricoes') };
+
+  it('Aprovado + Com restrições + empty Observações: "falta as observações" is "faltam as observações", the count unchanged', () => {
+    const p = progressOf(ready(comRestricoes));
+    expect(p.steps.conclusao).toEqual({ missing: 1, outOfLimit: 0, observation: 1 });
+    expect(sheetMissingTotal(p)).toBe(1);
+    expect(sheetSummaryText(p)).toBe('Placa, verificações e leituras prontas · faltam as observações');
+    expect(sheetSummaryText(p)).not.toContain('a conclusão');
+  });
+
+  it('the pair alone, or the pair and the observation', () => {
+    expect(sheetSummaryText(progressOf(ready({ result: cell('aprovado') })))).toBe('Placa, verificações e leituras prontas · falta a conclusão');
+    expect(progressOf(ready({ result: cell('aprovado') })).steps.conclusao).toEqual({ missing: 1, outOfLimit: 0 });
+    const both = progressOf(ready({ restriction: cell('com_restricoes') }));
+    expect(both.steps.conclusao).toEqual({ missing: 2, outOfLimit: 0, observation: 1 });
+    expect(sheetSummaryText(both)).toBe('Placa, verificações e leituras prontas · falta a conclusão e as observações');
+    // After a count the verb follows the count, as before.
+    const counts = { ...both, steps: { ...both.steps, ensaios: { missing: 9, outOfLimit: 0 } } };
+    expect(sheetSummaryText(counts)).toBe('Placa e verificações prontas · faltam 9 leituras, a conclusão e as observações');
+    // With the observation typed the step is complete.
+    expect(progressOf(ready(comRestricoes, cell('Polo C acima do critério.'))).complete).toBe(true);
+  });
+
+  it('the verb follows the plural flag carried on the first part, not its wording', () => {
+    const parts = sheetSummaryParts(progressOf(ready(comRestricoes)));
+    expect(parts.at(-1)).toEqual({ text: 'as observações', kind: 'text', plural: true });
+    const both = sheetSummaryParts(progressOf(ready({ restriction: cell('com_restricoes') })));
+    expect(both.slice(-3)).toEqual([
+      { text: 'a conclusão', kind: 'text' },
+      { text: ' e ', kind: 'text' },
+      { text: 'as observações', kind: 'text', plural: true },
+    ]);
+    expect(both[0]!.text.endsWith('· falta ')).toBe(true);
+  });
+});

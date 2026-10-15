@@ -390,6 +390,44 @@ test('@p0 3.4-E2E-002 sets quantities per node with the palette stepper; the col
   expect(paths.every((path) => path.startsWith('template/'))).toBe(true);
 });
 
+test('@p0 P020-E2E-001 a template with no section warns over its sections list; "Adicionar seção" opens the palette\'s sections, a tap appends, and with 8 and 10 the warning goes', async ({
+  page,
+  seed,
+}) => {
+  await resetEmpresaB(seed.companies[1]);
+  const account = seed.companies[1];
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  await openTemplates(page);
+  await page.getByRole('button', { name: 'Novo template' }).click();
+  await expect(page).toHaveURL(/\/templates\/[0-9a-f-]{36}$/);
+  const templateId = /\/templates\/([0-9a-f-]{36})$/.exec(page.url())![1]!;
+  const warning = page.locator('.composer-sections-warning');
+  await expect(warning.locator('.banner-text')).toHaveText(
+    'Este template não tem seções de texto: os relatórios saem só com as seções 7 e 9, sem pontos de atenção, parecer e assinatura.',
+  );
+
+  // From 1024 px the palette sits beside the composition: the focus moves into its sections.
+  await warning.getByRole('button', { name: 'Adicionar seção' }).click();
+  await expect(palette(page).getByRole('button', { name: '1 Objetivo' })).toBeFocused();
+  await palette(page).getByRole('button', { name: '8 Pontos de atenção' }).click();
+  const tags = page.getByRole('list', { name: 'Blocos do template' }).locator('.block-tag');
+  await expect(tags).toHaveText(['8']);
+  await expect(warning.locator('.banner-text')).toHaveText('Sem a seção 10, o parecer e a assinatura não saem nos relatórios deste template.');
+  await palette(page).getByRole('button', { name: '10 Conclusão' }).click();
+  await expect(tags).toHaveText(['8', '10']);
+  await expect(warning).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Adicionar seção' })).toHaveCount(0);
+
+  // The committed state: the template's last blocks put holds both sections, in that order.
+  await expect
+    .poll(async () => {
+      const ops = (await readStore<{ path: string; value: unknown }>(page, deviceDatabaseName(account.userId), 'outbox')).filter((op) => op.path === `template/${templateId}/blocks`);
+      return ((ops.at(-1)?.value ?? []) as { block_type: string }[]).map((block) => block.block_type).filter((type) => type.startsWith('section_'));
+    })
+    .toEqual(['section_8', 'section_10']);
+});
+
 test('@p0 3.4-E2E-003 section blocks reorder, duplicate and remove with undo; Agrupar por tipo survives reload and sync', async ({
   page,
   browser,

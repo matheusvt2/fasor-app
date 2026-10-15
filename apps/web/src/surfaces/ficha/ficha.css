@@ -106,7 +106,9 @@
 [data-route="/relatorio/:id/ficha/:blockId"] textarea.observation-field:focus-visible { outline: none; border: 3px solid var(--focus); background: var(--focus-fill); }
 /* A native select in the mock's `.field.combobox` box: the chevron sits over the box, not the label. */
 [data-route="/relatorio/:id/ficha/:blockId"] select.input { appearance: none; padding-right: var(--touch-min); cursor: pointer; }
-[data-route="/relatorio/:id/ficha/:blockId"] .field.combobox > .combobox-chevron { top: calc(var(--t-label-size) * var(--t-label-lh) + var(--sp-1)); bottom: auto; height: var(--touch-field); pointer-events: none; }
+[data-route="/relatorio/:id/ficha/:blockId"] .field.combobox > .combobox-chevron { top: calc(var(--t-label-size) * var(--t-label-lh) + var(--sp-1)); bottom: auto; height: var(--touch-field); }
+/* p020 P-2: only the decorative chevron (the `<span aria-hidden>` beside a native select or a suggestion field) lets a tap through; the React Aria chevron Button opens its list. */
+[data-route="/relatorio/:id/ficha/:blockId"] .field.combobox > span.combobox-chevron { pointer-events: none; }
 
 /* ---------- 60-ficha.html: the Ensaios and Conclusão steps (Stories 5.5-5.8) ---------- */
 [data-route="/relatorio/:id/ficha/:blockId"] .tests-two { display: flex; flex-direction: column; gap: var(--sp-5); }

@@ -368,6 +368,8 @@ export const copy = {
     // (EXPERIENCE.md keeps both); authored: the second sentence says why 7 and 9 are not in it.
     sectionsNote: 'Ordem inicial da árvore; o engenheiro reordena no relatório. 7 Registro fotográfico e 9 Relatórios dos ensaios entram sozinhos no relatório.',
     sectionsListLabel: 'Blocos do template',
+    // authored: p020 P-1a, the sections warning's action (opens the palette's "Seções" group).
+    addSectionAction: 'Adicionar seção',
     // The palette (`aside.block-palette.composer-palette`).
     paletteLabel: 'Paleta de blocos',
     paletteTitle: 'Blocos',
@@ -561,7 +563,8 @@ export const copy = {
     // authored (F-03, D1, review 2026-10-06): the confirmation "Gerar relatório" asks while
     // sheets are empty or fields print blank; the question is the kernel's (`issueConfirmText`).
     issueConfirmBack: 'Voltar',
-    issueConfirmIssue: 'Emitir mesmo assim',
+    // p020 P-5: "Gerar", the action only generates a revision ("Emitir" stays for issuing).
+    issueConfirmIssue: 'Gerar mesmo assim',
   },
   // Project (`30-project.html`, Story 4.1). The heading's count, the row lines, the
   // dates and the counter are the kernel's (`projectRelatoriosHeading`, `relatorioTitle`,

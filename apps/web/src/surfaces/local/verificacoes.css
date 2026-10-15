@@ -47,7 +47,9 @@
 [data-route="/relatorio/:id/local/:locationId/verificacoes"] .measurement-field[aria-invalid="true"] { border-color: var(--nao-conforme); }
 /* `ficha.css`: a native select in the mock's `.field.combobox` box: the chevron sits over the box, not the label. */
 [data-route="/relatorio/:id/local/:locationId/verificacoes"] select.input { appearance: none; padding-right: var(--touch-min); cursor: pointer; }
-[data-route="/relatorio/:id/local/:locationId/verificacoes"] .field.combobox > .combobox-chevron { top: calc(var(--t-label-size) * var(--t-label-lh) + var(--sp-1)); bottom: auto; height: var(--touch-field); pointer-events: none; }
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .field.combobox > .combobox-chevron { top: calc(var(--t-label-size) * var(--t-label-lh) + var(--sp-1)); bottom: auto; height: var(--touch-field); }
+/* p020 P-2: only the decorative chevron (the `<span aria-hidden>` beside a native select or a suggestion field) lets a tap through; the React Aria chevron Button opens its list. */
+[data-route="/relatorio/:id/local/:locationId/verificacoes"] .field.combobox > span.combobox-chevron { pointer-events: none; }
 
 /* ---------- authored ---------- */
 

@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { applyOp, entityKey, readPath, type EntityState } from '../ops/apply.ts';
 import type { Op } from '../ops/op.ts';
 import { invertBatch } from '../ops/outbox.ts';
-import { blockFieldPath, sheetConclusionPath } from '../ops/path.ts';
-import { idSequence, opFactory, T1 } from '../test-support.ts';
-import { emptySheet, type BlockRow, type Cell, type Sheet } from '../schemas/entities.ts';
+import { blockFieldPath, sheetConclusionPath, sheetObservationsPath, sheetTestPath } from '../ops/path.ts';
+import type { InstrumentRow } from '../registry/instrument-row.ts';
+import { buildSnapshot } from '../schemas/snapshot.ts';
+import { idSequence, opFactory, T1, TEST_RELATORIO } from '../test-support.ts';
+import { emptySheet, type BlockRow, type Cell, type JsonValue, type Sheet } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import {
@@ -20,7 +22,9 @@ import {
   suggestConclusionPair,
   suggestedSheetObservation,
 } from './conclusion.ts';
-import { blockOf, CTA_TAG, ctaDefinition, ctaFilledWrites, ctaState, E2, num, writeSheet } from './measurement-test-support.ts';
+import { measurementInstrumentHeaderOf } from './instrument-pick.ts';
+import { blockOf, choice, CTA_BLOCK, CTA_TAG, ctaDefinition, ctaFilledWrites, ctaState, E1, E2, E3, E5, num, writeSheet } from './measurement-test-support.ts';
+import { preIssue } from './pre-issue.ts';
 import { evaluateSheetReadings } from './readings.ts';
 
 const ID = '019966b0-0051-7000-8000-000000000001';
@@ -218,11 +222,22 @@ describe('5.8-UNIT the text lifecycle', () => {
     expect(conclusionTextState(confirmed, composeConclusion(confirmed, SEC, 'SEC-C05'))).toBe('confirmed');
     expect(conclusionTextForPrint(confirmed)).toBe(composed.text);
 
+    // p020 P-3: a reading that moves the basis but not the paragraph keeps the text confirmed.
+    const within148 = within();
+    within148.isolacao!.cells['1'] = { '0': measured('148', 'GΩ') };
+    const same = { ...confirmed, sheet: { ...confirmed.sheet, test: within148 } };
+    const sameText = composeConclusion(same, SEC, 'SEC-C05');
+    expect(sameText.basis).not.toBe(composed.basis);
+    expect(sameText.text).toBe(composed.text);
+    expect(conclusionTextState(same, sameText)).toBe('confirmed');
+
+    // A reading that changes the paragraph (now out of criterion) makes it stale.
     const changed = within();
-    changed.isolacao!.cells['1'] = { '0': measured('148', 'GΩ') };
+    changed.isolacao!.cells['1'] = { '0': measured('0.3', 'GΩ') };
     const later = { ...confirmed, sheet: { ...confirmed.sheet, test: changed } };
     const recomposed = composeConclusion(later, SEC, 'SEC-C05');
     expect(recomposed.basis).not.toBe(composed.basis);
+    expect(recomposed.text).not.toBe(composed.text);
     expect(conclusionTextState(later, recomposed)).toBe('stale');
     expect(conclusionTextForPrint(later)).toBe(composed.text);
 
@@ -411,5 +426,114 @@ describe('C4 (2026-10-14): the composed conclusion of a Chave de transferência 
     expect(text).toContain('resistência de contato fora do critério em Polo C, Lado Emergência (63 µΩ;');
     expect(text).toContain('isolamento principal fora do critério em A-T, Normal fechada (');
     expect(text).not.toContain('B-T, Normal fechada');
+  });
+});
+
+describe('p020 P-3 (v0.2.0 production check): a CTA concluded with "Concluir e avançar" is never stale with its own text', () => {
+  const pathOf = (field: 'text' | 'text_status' | 'text_basis') => sheetConclusionPath(CTA_BLOCK, field);
+  const registryInstrument = (id: string, code: string) =>
+    ({
+      id,
+      kind: 'instrument',
+      code,
+      name: code,
+      manufacturer: 'Instrum',
+      model: 'M1',
+      serial: `S-${code}`,
+      cert_number: '1/26',
+      laboratory: null,
+      calibrated_at: '2026-08-28',
+      calibration_interval_months: 12,
+      rbc_accredited: true,
+      test_isolacao: null,
+      test_resistencia_contato: null,
+      test_relacao_transformacao: null,
+      certificate_file_id: null,
+      removed_at: null,
+    }) as InstrumentRow;
+
+  /**
+   * The report's sheet: 4 polos (Polo N), MT, E1 with Polo C out on Lado Emergência, E2
+   * filled, E5 "Não realizado", Aprovado with Com restrições and an observation, the plate's
+   * Fabricante and Tensão nominal. Then the conclude batch as `use-ficha-actions.ts` builds it
+   * (the instrument headers, the text, its status and basis, `concluded_by`), through `applyOp`.
+   */
+  function concluded(): { state: EntityState; f: ReturnType<typeof ctaState>['f'] } {
+    const { state, f } = ctaState({ polos: '4', tensao: 'mt' });
+    const writes = ctaFilledWrites().filter((write) => !('test' in write && write.test === E5));
+    let s = writeSheet(state, f, [
+      ...writes,
+      { field: 'fabricante', value: 'WEG' },
+      { field: 'tensao_nominal', value: num('380', 'V') },
+      { test: E5, key: 'metodo', value: choice('nao_realizado') },
+    ]);
+    for (const [field, value] of [
+      ['result', 'aprovado'],
+      ['restriction', 'com_restricoes'],
+    ] as const)
+      s = applyOp(s, f.op({ path: sheetConclusionPath(CTA_BLOCK, field), value }));
+    s = applyOp(s, f.op({ path: sheetObservationsPath(CTA_BLOCK), value: 'Polo C da emergência acima do critério.' }));
+    const fresh = blockOf(s);
+    const text = conclusionTextOnConclude(fresh, ctaDefinition(), CTA_TAG)!;
+    expect(text).not.toBeNull();
+    const instruments = [registryInstrument('019966b0-0204-7000-8000-000000000001', 'MI-01'), registryInstrument('019966b0-0204-7000-8000-000000000002', 'MG-01')];
+    const batch_id = '019966b0-0204-7000-8000-0000000000ff';
+    const ops = [
+      f.op({ path: sheetTestPath(CTA_BLOCK, E1, 'instrument'), value: measurementInstrumentHeaderOf(instruments[0]!) as unknown as JsonValue, batch_id }),
+      f.op({ path: sheetTestPath(CTA_BLOCK, E2, 'instrument'), value: measurementInstrumentHeaderOf(instruments[1]!) as unknown as JsonValue, batch_id }),
+      f.op({ path: sheetTestPath(CTA_BLOCK, E3, 'instrument'), value: measurementInstrumentHeaderOf(instruments[1]!) as unknown as JsonValue, batch_id }),
+      f.op({ path: pathOf('text'), value: text.text, meta: { composed: true }, batch_id }),
+      f.op({ path: pathOf('text_status'), value: 'confirmed', batch_id }),
+      f.op({ path: pathOf('text_basis'), value: text.basis, batch_id }),
+      f.op({ path: blockFieldPath(CTA_BLOCK, 'concluded_by'), value: { actor_id: ID, at: '2026-09-06T12:00:00.000Z' }, batch_id }),
+    ];
+    for (const op of ops) s = applyOp(s, op);
+    return { state: s, f };
+  }
+
+  /** The block as the server pull stores it: a JSON round trip. */
+  const pulled = (state: EntityState): EntityState => {
+    const key = entityKey('block', CTA_BLOCK);
+    return new Map(state).set(key, JSON.parse(JSON.stringify(state.get(key))) as BlockRow);
+  };
+  const staleRows = (state: EntityState) => preIssue(buildSnapshot(state, TEST_RELATORIO)).filter((row) => row.kind === 'conclusion_stale');
+
+  it('the conclude batch, then the pull: confirmed, no stale row, the stored text prints', () => {
+    const { state } = concluded();
+    for (const s of [state, pulled(state)]) {
+      const b = blockOf(s);
+      const composed = composeConclusion(b, ctaDefinition(), CTA_TAG);
+      expect(b.sheet.conclusion.text_basis?.value).toBe(composed.basis);
+      expect(conclusionTextState(b, composed)).toBe('confirmed');
+      expect(conclusionTextForPrint(b)).toBe(composed.text);
+      expect(staleRows(s)).toEqual([]);
+    }
+  });
+
+  it('a value the text does not show moves the basis, not the state: no "Substituir" with the same text', () => {
+    const { state, f } = concluded();
+    // An E2 reading still within its criterion: the paragraph does not change, the basis does.
+    const moved = writeSheet(state, f, [{ test: E2, row: 'a_t', col: 'normal_fechada', value: num('13', 'GΩ') }]);
+    const b = blockOf(moved);
+    const composed = composeConclusion(b, ctaDefinition(), CTA_TAG);
+    expect(composed.basis).not.toBe(b.sheet.conclusion.text_basis?.value);
+    expect(composed.text).toBe(b.sheet.conclusion.text?.value);
+    expect(conclusionTextState(b, composed)).toBe('confirmed');
+    expect(staleRows(moved)).toEqual([]);
+  });
+
+  it('a value changed after the conclude that changes the text: stale, as before', () => {
+    const { state, f } = concluded();
+    const changed = writeSheet(state, f, [{ test: E1, row: 'polo_c', col: 'lado_emergencia', value: num('70', 'µΩ') }]);
+    const b = blockOf(changed);
+    const composed = composeConclusion(b, ctaDefinition(), CTA_TAG);
+    expect(composed.text).not.toBe(b.sheet.conclusion.text?.value);
+    expect(conclusionTextState(b, composed)).toBe('stale');
+    expect(staleRows(changed).map((row) => row.text)).toEqual([`Texto de conclusão desatualizado: ${CTA_TAG}`]);
+  });
+
+  it('the basis of a sheet of the eight keeps its bytes (a pinned seccionadora basis)', () => {
+    const b = block({ checklist: allC(), test: within(), nameplate: plate, conclusion: { result: cell('aprovado'), restriction: cell('sem_restricoes') } });
+    expect(composeConclusion(b, SEC, 'SEC-C05').basis).toBe('230b4355');
   });
 });
