@@ -273,6 +273,10 @@ body {
   [data-route="/relatorio/:id"] .s9-loc-row > .drag-handle, [data-route="/relatorio/:id"] .s9-loc-row > .pos-box,
   [data-route="/relatorio/:id"] .s9-pnl-row > .drag-handle, [data-route="/relatorio/:id"] .s9-pnl-row > .pos-box,
   [data-route="/relatorio/:id"] .s9-col > .drag-handle, [data-route="/relatorio/:id"] .s9-col > .pos-box { display: none; }
+  /* authored (v0.2.0 production check, P-6): on a phone the sheet's "Do local" line keeps its SE
+     data inside the screen when the local's name is long: `.cl-values` is squeezed by the name and
+     a long word ("CONVENCIONAL") ran past it, scrolling the page sideways. */
+  .cabine-line .cl-name, .cabine-line .cl-values { overflow-wrap: anywhere; }
   /* authored (Story 14.2): on a phone the painel's own inset (its rule, 24 px of margin and 12 px
      of padding) would leave a sheet row too narrow for its TAG; the margin closes. */
   [data-route="/relatorio/:id"] .sum-s9 .s9-painel { margin-left: 0; }
