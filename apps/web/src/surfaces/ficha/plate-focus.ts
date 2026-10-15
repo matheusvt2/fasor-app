@@ -31,10 +31,16 @@ export function plateScopeOf(element: Element | null): HTMLElement | null {
   return element.closest<HTMLElement>('#ficha-nameplate') ?? element.parentElement?.closest<HTMLElement>('section') ?? element.parentElement;
 }
 
-/** Watches the focus onto the plate's return target for `LIST_FOCUS_WATCH_FRAMES`, only while it is lost. */
+/**
+ * Watches the focus onto the plate's return target for `LIST_FOCUS_WATCH_FRAMES`, only while it
+ * is lost, and only until the user moved it on (E14-A7 `until: 'moved'`): a dialog opened from
+ * another control within the watch ("Adicionar fotos", the Photo viewer from "Fotos da ficha")
+ * restores its own opener when it closes, and the plate never takes that loss (fix of the
+ * 11.11-E2E-001 regression: a 3 s watch took the focus from the viewer's tile on Esc).
+ */
 export function watchPlateFocus(scope: ParentNode | null): void {
   if (scope === null) return;
-  restoreFocus(() => plateFocusTarget(scope), { mode: 'if-lost', frames: LIST_FOCUS_WATCH_FRAMES, preventScroll: true });
+  restoreFocus(() => plateFocusTarget(scope), { mode: 'if-lost', frames: LIST_FOCUS_WATCH_FRAMES, preventScroll: true, until: 'moved' });
 }
 
 function focusLost(): boolean {
