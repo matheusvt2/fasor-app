@@ -2,8 +2,8 @@
 title: 'Story 14.10 part 6: production smoke after every deploy, on a dedicated test company'
 type: 'feature'
 created: '2026-10-15'
-status: 'ready-for-dev'
-baseline_revision: 'fe7a7a60'
+status: 'in-progress'
+baseline_revision: 'fe7a7a60693c95e6068ebfd546d9d610e6cf066e'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus

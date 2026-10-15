@@ -1,9 +1,10 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { join, resolve } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 import { ESLint } from 'eslint';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import type { E2eLeak } from '../apps/api/src/db/e2e-leak-check.ts';
+import { missingSmokeVariables, readSmokeEnv } from '../e2e/production/smoke-env.ts';
 import { assertNoLeaks } from '../e2e/support/global-teardown.ts';
 import { assertWorkersAllowed, NON_SERIAL_SPEC_PATTERN, SERIAL_SPEC_PATTERN, SERIAL_SPECS, type E2eGroup } from '../e2e/support/groups.ts';
 import playwrightConfig from '../playwright.config.ts';
@@ -518,5 +519,59 @@ describe('scripts/e2e.ts after the preflight (Story 14.10 part 1)', () => {
     expect(await e2eAfterPreflight(async () => 0, () => { ran += 1; return 0; }, () => {})).toBe(0);
     expect(await e2eAfterPreflight(async () => 0, () => { ran += 1; return 1; }, () => {})).toBe(1);
     expect(ran).toBe(2);
+  });
+});
+
+/*
+ * Story 14.10 part 6: the production smoke (`e2e/production/*.smoke.ts`) runs only from
+ * `infra/bin/deploy`, against the deployed URL. No local command may collect it: the root
+ * config sets no `testMatch`, so Playwright's default (`*.@(spec|test).?(c|m)[jt]s?(x)`) applies
+ * to its desktop project and the durability projects match `durability.spec.ts` only.
+ */
+describe('the production smoke stays out of every local run (Story 14.10 part 6)', () => {
+  const smokes = e2eFiles().filter((path) => path.endsWith('.smoke.ts'));
+  const DEFAULT_TEST_MATCH = /\.(?:spec|test)\.[cm]?[jt]sx?$/;
+
+  it('finds the one smoke suite under e2e/production', () => {
+    expect(smokes.map((path) => relative(root, path))).toEqual(['e2e/production/production.smoke.ts']);
+  });
+
+  it('the root config collects none of them, in any project', () => {
+    expect(playwrightConfig.testMatch).toBeUndefined();
+    for (const path of smokes) expect(DEFAULT_TEST_MATCH.test(basename(path)), path).toBe(false);
+    for (const project of playwrightConfig.projects ?? []) {
+      for (const pattern of [project.testMatch ?? []].flat()) {
+        // Every project pattern is a RegExp today; a glob added later must be checked here too.
+        expect(pattern, project.name).toBeInstanceOf(RegExp);
+        for (const path of smokes) expect((pattern as RegExp).test(path), `${project.name}: ${path}`).toBe(false);
+      }
+    }
+  });
+
+  it('the smoke config collects only them, on one worker with no retries, no web server and no global setup', async () => {
+    vi.stubEnv('SMOKE_BASE_URL', 'https://203.0.113.10/');
+    vi.stubEnv('SMOKE_EMAIL', 'smoke@example.com');
+    vi.stubEnv('SMOKE_PASSWORD', 'unused');
+    const config = (await import('../e2e/production/playwright.config.ts')).default;
+    expect(config.testMatch).toBeInstanceOf(RegExp);
+    for (const path of smokes) expect((config.testMatch as RegExp).test(path)).toBe(true);
+    for (const path of e2eFiles().filter((file) => file.endsWith('.spec.ts'))) expect((config.testMatch as RegExp).test(path), path).toBe(false);
+    expect(config).toMatchObject({ testDir: '.', workers: 1, retries: 0 });
+    expect(config.webServer).toBeUndefined();
+    expect(config.globalSetup).toBeUndefined();
+    expect(config.globalTeardown).toBeUndefined();
+    expect(config.use?.baseURL).toBe('https://203.0.113.10');
+    // A trace would record the password typed into the sign-in form.
+    expect(config.use?.trace).toBe('off');
+  });
+
+  it('names every missing variable before a browser starts', () => {
+    expect(missingSmokeVariables({})).toEqual(['SMOKE_BASE_URL', 'SMOKE_EMAIL', 'SMOKE_PASSWORD']);
+    expect(missingSmokeVariables({ SMOKE_BASE_URL: 'https://x', SMOKE_EMAIL: ' ', SMOKE_PASSWORD: 'p' })).toEqual(['SMOKE_EMAIL']);
+    expect(() => readSmokeEnv({ SMOKE_EMAIL: 'smoke@example.com' })).toThrow('production smoke: missing SMOKE_BASE_URL, SMOKE_PASSWORD');
+  });
+
+  afterAll(() => {
+    vi.unstubAllEnvs();
   });
 });

@@ -32,8 +32,9 @@ beforeAll(() => {
 
 afterAll(() => rmSync(stubs, { recursive: true, force: true }));
 
+/** Runs the deploy with stderr folded into stdout, so the output reads in the order it was written. */
 function run(args: string[], env: Record<string, string> = {}) {
-  const result = spawnSync('bash', [deploy, ...args], {
+  const result = spawnSync('bash', ['-c', 'exec bash "$@" 2>&1', 'deploy', deploy, ...args], {
     encoding: 'utf8',
     env: { PATH: `${stubs}:/usr/bin:/bin`, HOME: tmpdir(), ...env },
   });
@@ -93,7 +94,9 @@ describe('Story 11.8 infra/bin/deploy --dry-run', () => {
     const { status, out } = run(['--dry-run'], { DEPLOY_DRY_RUN_MIGRATION_EXIT: '1' });
     expect(status).toBe(1);
     expect(out).toContain("the migration task exited with '1'; the services were not rolled");
+    expect(out).toContain('its log: group /fasor/production/migrate, stream migrate/migrate/0123456789abcdef0123456789abcdef');
     expect(headers(out).some((step) => step.startsWith('roll the services'))).toBe(false);
+    expect(headers(out).some((step) => step.startsWith('smoke'))).toBe(false);
     expect(out).not.toMatch(/ssm put-parameter/);
   });
 
@@ -115,5 +118,72 @@ describe('Story 11.8 infra/bin/deploy --dry-run', () => {
     expect(status).toBe(1);
     expect(out).toContain('uncommitted changes');
     expect(out).not.toContain('stub must not run');
+  });
+});
+
+/*
+ * Story 14.10 part 6: the production smoke after the record step. The suite's password comes
+ * from Secrets Manager into the deploy's environment and reaches the container by name only,
+ * so no line of a run (dry or not) ever holds it; the dry run prints `<secret>` in its place.
+ */
+describe('Story 14.10 part 6 infra/bin/deploy --dry-run, the production smoke', () => {
+  const SMOKE_STEPS = ['smoke: reset the test company', 'smoke: run the production suite', 'smoke: clean up the test company'];
+  const SUITE = /^DRY-RUN: (?:(?:lockf|flock) -[tw] 1800 \/tmp\/fasor-verify\.lock )?docker compose --profile tools run --rm --no-deps -e SMOKE_BASE_URL -e SMOKE_EMAIL -e SMOKE_PASSWORD tools pnpm smoke:production$/m;
+  /** The lines between one step header and the next. */
+  const section = (out: string, title: string) => out.split(/^==> \d+\. /m).find((part) => part.startsWith(title)) ?? '';
+
+  it('runs the reset, the suite and the cleanup after the record step, each printing its command, and never prints a password', () => {
+    // An operator's shell that happens to hold the variable: the deploy never prints it either.
+    const { status, out } = run(['--dry-run'], { SMOKE_PASSWORD: 'leak-check-password-0001' });
+    expect(status, out).toBe(0);
+    const steps = headers(out);
+    const record = steps.findIndex((step) => step.startsWith('record'));
+    expect(record).toBeGreaterThan(-1);
+    expect(steps.slice(record + 1)).toEqual(SMOKE_STEPS);
+    for (const title of [SMOKE_STEPS[0]!, SMOKE_STEPS[2]!]) {
+      expect(section(out, title)).toMatch(/^DRY-RUN: \S+ ecs run-task --cluster fasor-production --launch-type EC2 --task-definition fasor-production-smoke-seed /m);
+    }
+    const suite = section(out, SMOKE_STEPS[1]!);
+    expect(suite).toMatch(/^DRY-RUN: \S+ secretsmanager get-secret-value --secret-id fasor-production\/smoke-user-password --query SecretString --output text {2}-> <secret>$/m);
+    expect(suite).toMatch(SUITE);
+    expect(out).not.toContain('leak-check-password-0001');
+    expect(out).not.toMatch(/SMOKE_PASSWORD=/);
+    // The previous tag is read before the new one is recorded, for the rollback hint.
+    expect(section(out, 'record')).toMatch(/ssm get-parameter --name \/fasor\/production\/image-tag[^\n]*\n[^\n]*ssm put-parameter/);
+    expect(out).toMatch(/production smoke passed$/m);
+    expect(out).not.toContain('stub must not run');
+  });
+
+  it('a red suite still cleans up, names the failing step and the rollback to the previous tag, and exits 1', () => {
+    const { status, out } = run(['--dry-run'], { DEPLOY_DRY_RUN_SMOKE_EXIT: '1' });
+    expect(status, out).toBe(1);
+    expect(headers(out).slice(-3)).toEqual(SMOKE_STEPS);
+    expect(section(out, SMOKE_STEPS[2]!)).toMatch(/--task-definition fasor-production-smoke-seed /);
+    expect(out).toContain('deploy: smoke failed at step: smoke: run the production suite');
+    expect(out).toMatch(/deploy: report: \S+\/test-results\/production-smoke /);
+    expect(out).toContain('deploy: to roll back: infra/bin/deploy --skip-build --tag fedcba9876543210fedcba9876543210fedcba98');
+    expect(out).not.toMatch(/production smoke passed/);
+  });
+
+  it('a failed reset skips the suite, still runs the cleanup, and reports both failures', () => {
+    const { status, out } = run(['--dry-run'], { DEPLOY_DRY_RUN_SMOKE_SEED_EXIT: '1' });
+    expect(status, out).toBe(1);
+    expect(headers(out).slice(-3)).toEqual(SMOKE_STEPS);
+    expect(section(out, SMOKE_STEPS[1]!)).toContain('not run: the reset failed');
+    expect(section(out, SMOKE_STEPS[1]!)).not.toMatch(SUITE);
+    expect(out).toContain("deploy: the smoke-seed task exited with '1'");
+    expect(out).toContain('its log: group /fasor/production/smoke, stream smoke/smoke-seed/0123456789abcdef0123456789abcdef');
+    expect(out).toContain('deploy: smoke failed at step: smoke: reset the test company');
+    expect(out).toContain('deploy: smoke failed at step: smoke: clean up the test company');
+    expect(out).toContain('deploy: to roll back: infra/bin/deploy --skip-build --tag fedcba9876543210fedcba9876543210fedcba98');
+  });
+
+  it('--skip-smoke prints the three steps as skipped and runs none of them', () => {
+    const { status, out } = run(['--dry-run', '--skip-smoke']);
+    expect(status, out).toBe(0);
+    expect(headers(out).slice(-3)).toEqual(SMOKE_STEPS);
+    for (const title of SMOKE_STEPS) expect(section(out, title).trim()).toMatch(/^[^\n]*\nskipped by --skip-smoke/);
+    expect(out).not.toMatch(/--task-definition fasor-production-smoke-seed|secretsmanager get-secret-value|pnpm smoke:production/);
+    expect(out).toMatch(/smoke skipped by --skip-smoke\)$/m);
   });
 });

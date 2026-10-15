@@ -2,16 +2,21 @@
 # Deploys the committed HEAD to the production stack (Story 11.8): builds the api, ocr and
 # caddy images for the instance's platform, pushes them to ECR tagged with the commit SHA,
 # runs the migrations as a one-shot ECS task, rolls the services and waits for
-# GET /api/health over HTTPS to report every component up. Everything runs in containers
-# (infra/bin/tf, infra/bin/aws, docker buildx, or podman build where there is no docker);
-# the AWS login session of AWS_PROFILE
-# (default fasor-admin) must be active for a real run.
+# GET /api/health over HTTPS to report every component up, records the tag, then runs the
+# production smoke (Story 14.10 part 6): the smoke-seed task resets the test company, the
+# Playwright suite under e2e/production/ runs against the deployed URL in the tools
+# container, and the smoke-seed task runs again as the cleanup, always. A red smoke exits 1
+# naming the failing step and the rollback command; nothing rolls back by itself. Everything
+# runs in containers (infra/bin/tf, infra/bin/aws, docker buildx, or podman build where there
+# is no docker); the AWS login session of AWS_PROFILE (default fasor-admin) must be active
+# for a real run.
 #
-#   infra/bin/deploy [--dry-run] [--skip-build] [--tag <sha>]
+#   infra/bin/deploy [--dry-run] [--skip-build] [--skip-smoke] [--tag <sha>]
 #
 #   --dry-run     print every step's command, prefixed DRY-RUN:, with placeholder outputs;
 #                 touches nothing (no build, no push, no AWS or Terraform call)
 #   --skip-build  deploy images already in ECR under the tag (no build, no push)
+#   --skip-smoke  deploy without the production smoke (its three steps say so)
 #   --tag <sha>   the tag to deploy; default the HEAD commit. Building needs it to be HEAD.
 set -euo pipefail
 
@@ -23,15 +28,17 @@ stack=production
 
 dry_run=0
 skip_build=0
+skip_smoke=0
 tag=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) dry_run=1 ;;
     --skip-build) skip_build=1 ;;
+    --skip-smoke) skip_smoke=1 ;;
     --tag)
       [ $# -ge 2 ] || { echo "deploy: --tag needs a value" >&2; exit 2; }
       tag="$2"; shift ;;
-    -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,21p' "$0"; exit 0 ;;
     *) echo "deploy: unknown argument '$1'" >&2; exit 2 ;;
   esac
   shift
@@ -105,6 +112,10 @@ services="$(output service_names 'api caddy ocr')"
 migrate_family="$(output migrate_task_family fasor-production-migrate)"
 migrate_log_group="$(output migrate_log_group /fasor/production/migrate)"
 image_tag_parameter="$(output image_tag_parameter /fasor/production/image-tag)"
+smoke_family="$(output smoke_task_family fasor-production-smoke-seed)"
+smoke_log_group="$(output smoke_log_group /fasor/production/smoke)"
+smoke_secret_id="$(output smoke_secret_id fasor-production/smoke-user-password)"
+smoke_email="$(output smoke_user_email smoke-producao@teste.local)"
 public_url="$(output public_url https://203.0.113.10)"
 # With app_domain set, Caddy holds a certificate for that name only, so a verified request to
 # the bare address fails TLS: the health check goes to app_url when there is one (2026-10-14).
@@ -174,46 +185,69 @@ fi
 # --- migrate -------------------------------------------------------------------------
 step "migrate: one-shot ECS task on the new api image"
 run "${tf[@]}" apply -input=false -auto-approve -var "image_tag=$tag" -target=aws_ecs_task_definition.migrate
-# After a night stop or on the first deploy the instance may still be joining the cluster.
-if [ "$dry_run" = 1 ]; then
-  printf 'DRY-RUN: wait until %q ecs list-container-instances --cluster %q lists one instance\n' "$bin/aws" "$cluster"
-else
-  for attempt in $(seq 1 60); do
-    # A stopped instance stays ACTIVE with its agent disconnected; only a connected agent counts.
-    count="$("${aws[@]}" ecs list-container-instances --cluster "$cluster" --status ACTIVE --filter 'agentConnected==true' --query 'length(containerInstanceArns)' --output text)"
-    [ "$count" -ge 1 ] && break
-    [ "$attempt" = 60 ] && fail "no container instance joined $cluster in 10 minutes (is the instance stopped?)"
-    sleep 10
-  done
-fi
-task_arn="$(capture "arn:aws:ecs:us-east-1:673409896745:task/$cluster/0123456789abcdef0123456789abcdef" \
-  "${aws[@]}" ecs run-task --cluster "$cluster" --launch-type EC2 --task-definition "$migrate_family" \
-  --started-by "deploy-${tag:0:12}" --query 'tasks[0].taskArn' --output text)"
-if [ -z "$task_arn" ] || [ "$task_arn" = "None" ]; then
-  fail "the migration task did not start (aws ecs run-task returned no task; see its failures)"
-fi
-# Own wait instead of `ecs wait tasks-stopped` (which gives up after about 10 minutes while
-# the migration keeps running, so a rerun would start a second one): up to 30 minutes.
-if [ "$dry_run" = 1 ]; then
-  printf 'DRY-RUN: wait until %q ecs describe-tasks --cluster %q --tasks %q reports STOPPED\n' "$bin/aws" "$cluster" "$task_arn"
-else
-  for attempt in $(seq 1 180); do
-    last_status="$("${aws[@]}" ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" --query 'tasks[0].lastStatus' --output text)"
-    [ "$last_status" = "STOPPED" ] && break
-    [ "$attempt" = 180 ] && fail "the migration task ${task_arn##*/} is still $last_status after 30 minutes; do not rerun the deploy until it stops (its log: group $migrate_log_group)"
-    sleep 10
-  done
-fi
-# DEPLOY_DRY_RUN_MIGRATION_EXIT: the placeholder exit code of a dry run (default 0), so the
-# gate below can be exercised without AWS (scripts/deploy.test.ts).
-exit_code="$(capture "${DEPLOY_DRY_RUN_MIGRATION_EXIT:-0}" "${aws[@]}" ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" \
-  --query 'tasks[0].containers[0].exitCode' --output text)"
-if [ "$exit_code" != "0" ]; then
-  echo "deploy: the migration task exited with '$exit_code'; the services were not rolled" >&2
-  echo "deploy: its log: group $migrate_log_group, stream migrate/migrate/${task_arn##*/}" >&2
-  exit 1
-fi
-echo "migrations applied (task ${task_arn##*/})"
+# run_one_shot <label> <family> <log group> <stream prefix> <dry-run exit code> [<consequence>]:
+# runs one task of the family on the instance (EC2 launch type) and waits for it to stop. Sets
+# one_shot_task (the task id) and one_shot_exit (the container's exit code); returns 1, after
+# printing why and where its log is, when it did not start, did not stop in 30 minutes or
+# exited non-zero (the consequence, if any, ends that last message).
+# The dry-run exit code stands in for the container's (DEPLOY_DRY_RUN_*_EXIT), so the gates
+# after it can be exercised without AWS (scripts/deploy.test.ts).
+run_one_shot() {
+  local label="$1" family="$2" log_group="$3" stream_prefix="$4" dry_exit="$5" consequence="${6:-}" task_arn last_status attempt count
+  one_shot_task=""
+  one_shot_exit=""
+  # After a night stop or on the first deploy the instance may still be joining the cluster.
+  if [ "$dry_run" = 1 ]; then
+    printf 'DRY-RUN: wait until %q ecs list-container-instances --cluster %q lists one instance\n' "$bin/aws" "$cluster"
+  else
+    for attempt in $(seq 1 60); do
+      # A stopped instance stays ACTIVE with its agent disconnected; only a connected agent counts.
+      count="$("${aws[@]}" ecs list-container-instances --cluster "$cluster" --status ACTIVE --filter 'agentConnected==true' --query 'length(containerInstanceArns)' --output text)"
+      [ "$count" -ge 1 ] && break
+      if [ "$attempt" = 60 ]; then
+        echo "deploy: no container instance joined $cluster in 10 minutes (is the instance stopped?)" >&2
+        return 1
+      fi
+      sleep 10
+    done
+  fi
+  task_arn="$(capture "arn:aws:ecs:us-east-1:673409896745:task/$cluster/0123456789abcdef0123456789abcdef" \
+    "${aws[@]}" ecs run-task --cluster "$cluster" --launch-type EC2 --task-definition "$family" \
+    --started-by "deploy-${tag:0:12}" --query 'tasks[0].taskArn' --output text)" || task_arn=""
+  if [ -z "$task_arn" ] || [ "$task_arn" = "None" ]; then
+    echo "deploy: the $label task did not start (aws ecs run-task returned no task; see its failures)" >&2
+    return 1
+  fi
+  one_shot_task="${task_arn##*/}"
+  # Own wait instead of `ecs wait tasks-stopped` (which gives up after about 10 minutes while
+  # the task keeps running, so a rerun would start a second one): up to 30 minutes.
+  if [ "$dry_run" = 1 ]; then
+    printf 'DRY-RUN: wait until %q ecs describe-tasks --cluster %q --tasks %q reports STOPPED\n' "$bin/aws" "$cluster" "$task_arn"
+  else
+    for attempt in $(seq 1 180); do
+      last_status="$("${aws[@]}" ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" --query 'tasks[0].lastStatus' --output text)"
+      [ "$last_status" = "STOPPED" ] && break
+      if [ "$attempt" = 180 ]; then
+        echo "deploy: the $label task $one_shot_task is still $last_status after 30 minutes; do not rerun the deploy until it stops (its log: group $log_group)" >&2
+        return 1
+      fi
+      sleep 10
+    done
+  fi
+  one_shot_exit="$(capture "$dry_exit" "${aws[@]}" ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" \
+    --query 'tasks[0].containers[0].exitCode' --output text)" || one_shot_exit="unknown"
+  if [ "$one_shot_exit" != "0" ]; then
+    echo "deploy: the $label task exited with '$one_shot_exit'$consequence" >&2
+    echo "deploy: its log: group $log_group, stream $stream_prefix/$one_shot_task" >&2
+    return 1
+  fi
+}
+
+# DEPLOY_DRY_RUN_MIGRATION_EXIT: the placeholder exit code of a dry run (default 0). A failed
+# migration stops the deploy before any roll.
+run_one_shot migration "$migrate_family" "$migrate_log_group" migrate/migrate "${DEPLOY_DRY_RUN_MIGRATION_EXIT:-0}" \
+  "; the services were not rolled" || exit 1
+echo "migrations applied (task $one_shot_task)"
 
 # --- roll ----------------------------------------------------------------------------
 step "roll the services to $tag"
@@ -238,8 +272,119 @@ else
   done
 fi
 
-# Only a healthy roll becomes the tag a later plain `terraform apply` keeps (ssm.tf).
+# Only a healthy roll becomes the tag a later plain `terraform apply` keeps (ssm.tf). The tag
+# it replaces is read first: the smoke's rollback hint names it.
 step "record $tag as the deployed tag"
+previous_tag="$(capture fedcba9876543210fedcba9876543210fedcba98 "${aws[@]}" ssm get-parameter --name "$image_tag_parameter" \
+  --query Parameter.Value --output text)" || previous_tag=""
 run "${aws[@]}" ssm put-parameter --name "$image_tag_parameter" --value "$tag" --overwrite
 
-printf '\ndeployed %s to %s\n' "$tag" "$health_url"
+# --- smoke ---------------------------------------------------------------------------
+# Story 14.10 part 6. The suite signs in as the smoke user (smoke.tf) and writes only into
+# that company; the smoke-seed task resets it before and cleans it up after, always, also
+# after a red suite. No automatic rollback (open question Q-1, 2026-10-15).
+smoke_dir="$root/test-results/production-smoke"
+smoke_reset="smoke: reset the test company"
+smoke_suite="smoke: run the production suite"
+smoke_cleanup="smoke: clean up the test company"
+if [ "$skip_smoke" = 1 ]; then
+  for name in "$smoke_reset" "$smoke_suite" "$smoke_cleanup"; do
+    step "$name"
+    echo "skipped by --skip-smoke"
+  done
+  printf '\ndeployed %s to %s (smoke skipped by --skip-smoke)\n' "$tag" "$health_url"
+  exit 0
+fi
+
+smoke_failed=""
+step "$smoke_reset"
+if run_one_shot smoke-seed "$smoke_family" "$smoke_log_group" smoke/smoke-seed "${DEPLOY_DRY_RUN_SMOKE_SEED_EXIT:-0}"; then
+  echo "test company reset (task $one_shot_task)"
+else
+  smoke_failed="$smoke_reset"
+fi
+
+step "$smoke_suite"
+if [ -n "$smoke_failed" ]; then
+  echo "not run: the reset failed"
+else
+  # The password goes from Secrets Manager into this shell's environment and from there to the
+  # container by name (-e SMOKE_PASSWORD): never on a command line, never printed.
+  if ! SMOKE_PASSWORD="$(capture '<secret>' "${aws[@]}" secretsmanager get-secret-value --secret-id "$smoke_secret_id" \
+    --query SecretString --output text)"; then
+    echo "deploy: could not read the smoke user's password from Secrets Manager ($smoke_secret_id)" >&2
+    smoke_failed="$smoke_suite"
+  fi
+fi
+if [ -z "$smoke_failed" ]; then
+  export SMOKE_PASSWORD
+  export SMOKE_BASE_URL="$health_url" SMOKE_EMAIL="$smoke_email"
+  # AGENTS.md: no Playwright run outside the host lock, when this host has one (up to 30 min).
+  lock=()
+  if command -v lockf >/dev/null 2>&1; then
+    lock=(lockf -t 1800 /tmp/fasor-verify.lock)
+  elif command -v flock >/dev/null 2>&1; then
+    lock=(flock -w 1800 /tmp/fasor-verify.lock)
+  else
+    echo "neither lockf nor flock on this host: the suite runs without the host lock /tmp/fasor-verify.lock"
+  fi
+  # The operator's checkout already holds the tools image and its node_modules volumes from a
+  # gate run (infra/PUBLISHING.md); --no-deps keeps the local stack down.
+  suite=("$CTR" compose --profile tools run --rm --no-deps)
+  [ "$CTR" = podman ] && suite+=(--user root)
+  suite+=(-e SMOKE_BASE_URL -e SMOKE_EMAIL -e SMOKE_PASSWORD tools pnpm smoke:production)
+  [ "$dry_run" = 1 ] || rm -rf "$smoke_dir"
+  suite_exit=0
+  if [ "$dry_run" = 1 ]; then
+    (cd "$root" && run ${lock[@]+"${lock[@]}"} "${suite[@]}")
+    # DEPLOY_DRY_RUN_SMOKE_EXIT: the suite's placeholder exit code (default 0), for the red path.
+    suite_exit="${DEPLOY_DRY_RUN_SMOKE_EXIT:-0}"
+  else
+    (cd "$root" && run ${lock[@]+"${lock[@]}"} "${suite[@]}") || suite_exit=$?
+  fi
+  unset SMOKE_PASSWORD
+  if [ "$suite_exit" = 0 ]; then
+    echo "production suite passed"
+  else
+    smoke_failed="$smoke_suite"
+  fi
+fi
+
+# The cleanup runs whatever happened above: the test company never keeps a run's writes.
+cleanup_failed=0
+step "$smoke_cleanup"
+if run_one_shot smoke-seed "$smoke_family" "$smoke_log_group" smoke/smoke-seed "${DEPLOY_DRY_RUN_SMOKE_SEED_EXIT:-0}"; then
+  echo "test company cleaned up (task $one_shot_task)"
+else
+  cleanup_failed=1
+fi
+
+if [ -n "$smoke_failed" ] || [ "$cleanup_failed" = 1 ]; then
+  printf '\n' >&2
+  if [ -n "$smoke_failed" ]; then
+    echo "deploy: smoke failed at step: $smoke_failed" >&2
+    if [ "$smoke_failed" = "$smoke_suite" ]; then
+      # Each step of the suite appends its name when it starts: the last one is where it stopped.
+      if [ -s "$smoke_dir/progress.txt" ]; then
+        echo "deploy: the suite stopped in: $(tail -n 1 "$smoke_dir/progress.txt")" >&2
+      fi
+      echo "deploy: report: $smoke_dir (report.json, progress.txt, screenshots under artifacts/)" >&2
+    else
+      echo "deploy: its log: group $smoke_log_group" >&2
+    fi
+  fi
+  if [ "$cleanup_failed" = 1 ]; then
+    echo "deploy: smoke failed at step: $smoke_cleanup; the test company still holds this run's writes (the next deploy's reset empties it)" >&2
+  fi
+  if [ -n "$smoke_failed" ]; then
+    echo "deploy: $tag is deployed and recorded; nothing was rolled back" >&2
+    if [ -n "$previous_tag" ] && [ "$previous_tag" != "none" ] && [ "$previous_tag" != "$tag" ]; then
+      echo "deploy: to roll back: infra/bin/deploy --skip-build --tag $previous_tag" >&2
+    else
+      echo "deploy: no earlier tag was recorded to roll back to; fix forward" >&2
+    fi
+  fi
+  exit 1
+fi
+
+printf '\ndeployed %s to %s; production smoke passed\n' "$tag" "$health_url"

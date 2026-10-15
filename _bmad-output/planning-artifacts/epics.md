@@ -3588,6 +3588,8 @@ So that the next real jobs meet a tool that is honest and quick, and a deploy is
 **When** the smoke runs
 **Then** it runs only after a deploy, never in the story gate or `pnpm verify`; it makes at most one real plate reading and no emission audit per run, its cost per run is estimated in the PR and stays inside the USD 100 per month ceiling; any infrastructure it needs (the test account's secret, a log group) is Terraform in `infra/`; no paid API key is read by any test before deploy
 
+*(2026-10-15, batch co16a, `spec-14-10-carry-over-2-c.md`: built as Matheus's option (a): a dedicated test company and user declared in `infra/production/smoke.tf` (password in Secrets Manager), the one-shot `smoke-seed` task resets and re-seeds that company before the suite and again as the cleanup ("deletes what it created" reads as "resets the company"; the S3 objects of a run stay, AD-7), and the suite is `e2e/production/production.smoke.ts`. Open: Q-1 no automatic rollback (the deploy exits 1 and prints the rollback command), Q-2 Secrets Manager rather than SSM for the one secret, Q-3 about 3-5 MB of S3 objects kept per run.)*
+
 *Part 7, focus after a plate shot.*
 
 **Given** a plate shot that closes the camera by itself (one shot, "Fotografar placa")

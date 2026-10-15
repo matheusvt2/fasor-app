@@ -16,4 +16,5 @@ sources: [AGENTS.md, scripts/verify.ts]
 - Never merge on a red or partial verify, even for flakes.
 - On a shared machine one gate at a time: wrap `verify`, `test:e2e:full`, `test:e2e:matrix` and multi-worker runs in `flock /tmp/fasor-verify.lock`.
 - `pnpm audit --prod` is not part of verify; its known advisory is tracked in `_bmad-output/implementation-artifacts/deferred-work.md`.
+- The production smoke (`e2e/production/*.smoke.ts`, `pnpm smoke:production`, 2026-10-15) is not part of `verify`, the story gate or any `test:e2e*` command; the root Playwright config never collects it (`scripts/e2e.test.ts`). Only `infra/bin/deploy` runs it, after a deploy.
 - No CI. AWS Budget and deploy are separate: [infra-aws](/architecture/infra-aws.md).
