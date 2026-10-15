@@ -9,6 +9,7 @@ import { assertWorkersAllowed, NON_SERIAL_SPEC_PATTERN, SERIAL_SPEC_PATTERN, SER
 import playwrightConfig from '../playwright.config.ts';
 import {
   combine,
+  e2eAfterPreflight,
   groupArgs,
   PLAYWRIGHT_TEST_OPTIONS,
   readReport,
@@ -501,5 +502,21 @@ describe('the e2e groups', () => {
     const fixed = /TEST_SEED|test-seed\.ts|@teste\.local|0a000000-|0b000000-|e2e00000-/;
     const offenders = e2eFiles().filter((path) => fixed.test(readFileSync(path, 'utf8')));
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('scripts/e2e.ts after the preflight (Story 14.10 part 1)', () => {
+  it('a preflight answering 1 builds nothing, runs no group and exits 1 with one line', async () => {
+    const lines: string[] = [];
+    let ran = 0;
+    const code = await e2eAfterPreflight(async () => 1, () => { ran += 1; return 0; }, (line) => lines.push(line));
+    expect({ code, ran, lines }).toEqual({ code: 1, ran: 0, lines: ['[e2e] the preflight found a looping container; no group ran'] });
+  });
+
+  it('a preflight answering 0 runs the command, whose exit is the result', async () => {
+    let ran = 0;
+    expect(await e2eAfterPreflight(async () => 0, () => { ran += 1; return 0; }, () => {})).toBe(0);
+    expect(await e2eAfterPreflight(async () => 0, () => { ran += 1; return 1; }, () => {})).toBe(1);
+    expect(ran).toBe(2);
   });
 });

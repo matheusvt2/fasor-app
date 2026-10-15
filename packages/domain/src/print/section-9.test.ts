@@ -705,8 +705,11 @@ describe('14.2 section9Layout: a painel is an unnumbered band over its sheets', 
       ['9.1 Transformadores e Cabos de Alimentação da Cabine de transformação', false, [block(1), block(2)]],
       ['PAINEL DE MÉDIA TENSÃO', true, []],
       // Story 14.4 (2026-10-13): a type group under a painel names the painel, then the local.
-      ['9.2 Seccionadoras dos Cubículos de MT do Painel de média tensão — Cabine de transformação', false, [block(3), block(4), block(5)]],
-      ['9.3 Cubículo Enel', false, [block(6)]],
+      // Story 14.10 part 8 (2026-10-15): one set of type groups per coluna, each naming its coluna.
+      ['9.2 Seccionadoras dos Cubículos de MT da Coluna 1 do Painel de média tensão — Cabine de transformação', false, [block(3)]],
+      ['9.3 Seccionadoras dos Cubículos de MT da Coluna 2 do Painel de média tensão — Cabine de transformação', false, [block(4)]],
+      ['9.4 Seccionadoras dos Cubículos de MT da Coluna 3 do Painel de média tensão — Cabine de transformação', false, [block(5)]],
+      ['9.5 Cubículo Enel', false, [block(6)]],
     ]);
     expect(sheetsOf(section).filter(hasCabineBlock).map((s) => s.blockId)).toEqual([block(1), block(6)]);
   });
@@ -716,10 +719,18 @@ describe('14.2 section9Layout: a painel is an unnumbered band over its sheets', 
     const lines = tocLines(spec).filter((line) => line.level === 2);
     expect(lines.map((line) => line.text)).toEqual([
       '9.1 Transformadores e Cabos de Alimentação da Cabine de transformação',
-      '9.2 Seccionadoras dos Cubículos de MT do Painel de média tensão — Cabine de transformação',
-      '9.3 Cubículo Enel',
+      '9.2 Seccionadoras dos Cubículos de MT da Coluna 1 do Painel de média tensão — Cabine de transformação',
+      '9.3 Seccionadoras dos Cubículos de MT da Coluna 2 do Painel de média tensão — Cabine de transformação',
+      '9.4 Seccionadoras dos Cubículos de MT da Coluna 3 do Painel de média tensão — Cabine de transformação',
+      '9.5 Cubículo Enel',
     ]);
-    expect(lines.map((line) => line.key)).toEqual(['9.1', '9.2', '9.3']);
+    expect(lines.map((line) => line.key)).toEqual(['9.1', '9.2', '9.3', '9.4', '9.5']);
+    // Story 14.10 part 8: the ÍNDICE lines are the section's own numbered headings, word for word.
+    expect(lines.map((line) => line.text)).toEqual(
+      layoutOf(snapshotOf(locations(true), sheets))
+        .subsections.filter((s) => s.painel !== true)
+        .map((s) => s.heading),
+    );
   });
 
   it('a painel name is upper-cased the pt-BR way, and a relatório holding sheets only in painéis still prints', () => {
@@ -794,15 +805,17 @@ describe('14.4 section9Layout: VERIFICAÇÕES DO LOCAL, once per local, right af
     }
   });
 
-  it('matrix "Print, v4" with the flag on: the first type group of the local carries its parts, exactly once; the groups under the painel name the painel', () => {
+  it('matrix "Print, v4" with the flag on: the first type group of the local carries its parts, exactly once; the groups under the painel name the coluna and the painel', () => {
     const section = layoutOf(on(snapshotOf(locations(true), sheets), 'v4'));
     expect(section.subsections.map((s) => [s.heading, s.sheets.map((x) => x.blockId)])).toEqual([
       ['9.1 Transformadores e Cabos de Alimentação da Cabine primária', [block(1), block(2)]],
       ['PAINEL DE MÉDIA TENSÃO', []],
-      ['9.2 Seccionadoras dos Cubículos de MT do Painel de média tensão — Cabine primária', [block(3), block(4)]],
-      ['9.3 Cubículo Enel', []],
+      // Story 14.10 part 8: one group per coluna.
+      ['9.2 Seccionadoras dos Cubículos de MT da Coluna 1 do Painel de média tensão — Cabine primária', [block(3)]],
+      ['9.3 Seccionadoras dos Cubículos de MT da Coluna 2 do Painel de média tensão — Cabine primária', [block(4)]],
+      ['9.4 Cubículo Enel', []],
     ]);
-    expect(localPartNames(section)).toEqual([LOCAL_PARTS, null, null, LOCAL_PARTS]);
+    expect(localPartNames(section)).toEqual([LOCAL_PARTS, null, null, null, LOCAL_PARTS]);
     expect(sheetsOf(section).some(hasCabineBlock)).toBe(false);
     // Under ordem_de_campo the flag is ignored and the table still prints once per local.
     expect(localPartNames(layoutOf(on(snapshotOf(locations(true), sheets), 'v4', 'ordem_de_campo')))).toEqual([LOCAL_PARTS, null, LOCAL_PARTS]);
@@ -820,9 +833,9 @@ describe('14.4 section9Layout: VERIFICAÇÕES DO LOCAL, once per local, right af
     const expected = [
       ['9.1 Cabine primária', false, []],
       ['PAINEL DE ENTRADA', true, []],
-      ['9.2 Seccionadoras dos Cubículos de MT do Painel de entrada — Cabine primária', false, [block(3)]],
+      ['9.2 Seccionadoras dos Cubículos de MT da Coluna 1 do Painel de entrada — Cabine primária', false, [block(3)]],
       ['PAINEL DE SAÍDA', true, []],
-      ['9.3 Seccionadoras dos Cubículos de MT do Painel de saída — Cabine primária', false, [block(4)]],
+      ['9.3 Seccionadoras dos Cubículos de MT da Coluna 1 do Painel de saída — Cabine primária', false, [block(4)]],
     ];
     const v4 = layoutOf(on(snapshotOf(locs, inPaineis), 'v4'));
     expect(v4.subsections.map((s) => [s.heading, s.painel ?? false, s.sheets.map((x) => x.blockId)])).toEqual(expected);

@@ -86,6 +86,16 @@ export interface GenerateJobDeps {
   timeoutMs?: number;
   /** Section 11's PDF rasterizer; default pdftoppm (`rasterizePdfPages`). Tests inject a failing or counting one. */
   rasterize?: Rasterizer;
+  /** Story 14.10 part 4: called with the job's stage times where its `generate timing` line is logged. */
+  onTiming?: (timing: GenerateTiming) => void;
+}
+
+/** Story 14.10 part 4: one job's wall time per stage (ms), as its `generate timing` line logs it. */
+export interface GenerateTiming {
+  kind: GenerateKind;
+  outcome: 'done' | 'failed';
+  total_ms: number;
+  stages_ms: Record<string, number>;
 }
 
 /** The PDF outline lacks a section heading, so the TOC cannot be written (never silently `00`). */
@@ -116,6 +126,33 @@ export interface RenderOptions {
   jobId: string;
   timeoutMs?: number;
   fault?: GenerateFault | undefined;
+  /** Story 14.10 part 4: times each pass's DOCX build, conversion and outline read. */
+  clock?: StageClock;
+}
+
+/**
+ * Story 14.10 part 4 (2026-10-15): the wall time of each stage of one job, in ms. A stage
+ * timed twice (a step of the TOC pass loop is named by its pass) adds up. Logged as one
+ * `generate timing` line per job and handed to `GenerateJobDeps.onTiming`.
+ */
+export interface StageClock {
+  readonly stages: Record<string, number>;
+  time<T>(stage: string, work: () => Promise<T> | T): Promise<T>;
+}
+
+export function stageClock(now: () => number = () => performance.now()): StageClock {
+  const stages: Record<string, number> = {};
+  return {
+    stages,
+    async time(stage, work) {
+      const started = now();
+      try {
+        return await work();
+      } finally {
+        stages[stage] = (stages[stage] ?? 0) + Math.max(0, Math.round(now() - started));
+      }
+    },
+  };
 }
 
 function sha256(bytes: Buffer): string {
@@ -176,15 +213,31 @@ async function readOriginal(deps: GenerateJobDeps, companyId: CompanyId, files: 
 }
 
 /**
+ * Story 14.10 part 4 (2026-10-15): the layout one TOC pass renders. Pass 1 exists only for
+ * its PDF outline (the pages of the headings); its DOCX and PDF are thrown away, so the
+ * preview's RASCUNHO image, which floats behind the text and moves no line, prints nothing
+ * there and is left out: measured on the production shape (76 sheets, 86 pages), it tripled
+ * the pass's LibreOffice time (6.3 s against 2.1 s). Every later pass, the one whose files
+ * are kept among them, renders the layout whole; and should the image ever move a heading,
+ * pass 2 sees it and the loop takes its third pass, as for any moved heading.
+ */
+export function passLayout(layout: DocumentLayout, pass: number): DocumentLayout {
+  return pass === 1 && layout.watermark !== null ? { ...layout, watermark: null } : layout;
+}
+
+/**
  * AD-15's pass loop: pass 1 with placeholders, pass 2 with the outline's pages, a third
  * pass only when pass-2 moved a heading. Returns the last pass's DOCX and PDF.
  */
 export async function renderDocument(layout: DocumentLayout, images: DocxImages, options: RenderOptions): Promise<RenderedDocument> {
   const convert = (docx: Buffer) => convertToPdf(docx, { jobId: options.jobId, timeoutMs: options.timeoutMs ?? DEFAULT_CONVERT_TIMEOUT_MS, fault: options.fault });
+  const clock = options.clock ?? stageClock();
+  let passes = 0;
   const pass = async (tocPages: TocPages) => {
-    const docx = await buildDocx(layout, { tocPages, images });
-    const pdf = await convert(docx);
-    const outline = await readOutline(pdf);
+    passes += 1;
+    const docx = await clock.time(`docx_${passes}`, () => buildDocx(passLayout(layout, passes), { tocPages, images }));
+    const pdf = await clock.time(`convert_${passes}`, () => convert(docx));
+    const outline = await clock.time(`outline_${passes}`, () => readOutline(pdf));
     const pages = headingPages(outline, layout);
     const missing = missingHeadings(pages);
     if (missing.length > 0) throw new TocOutlineMissingError(missing);
@@ -197,6 +250,38 @@ export async function renderDocument(layout: DocumentLayout, images: DocxImages,
   }
   const third = await pass(second.pages);
   return { docx: third.docx, pdf: third.pdf, pages: third.pageCount, tocPasses: 3, tocConverged: tocConverged(third.pages, second.pages) };
+}
+
+export interface TimingReporterInput {
+  fields: { company_id: string; relatorio_id: string; job_id: string };
+  kind: GenerateKind;
+  started: number;
+  clock: StageClock;
+  onTiming?: ((timing: GenerateTiming) => void) | undefined;
+  now?: () => number;
+}
+
+/**
+ * Story 14.10 part 4: reports a job's stage times once. The first call logs the one
+ * `generate timing` line and hands the timing to `onTiming`; any later call (a throw after
+ * the `done` report reaching the job's catch) does nothing, so a job never logs a second,
+ * `failed` line. A throwing `onTiming` is logged and never fails the job, which may already
+ * be committed.
+ */
+export function timingReporter(input: TimingReporterInput): (outcome: GenerateTiming['outcome']) => void {
+  const now = input.now ?? Date.now;
+  let reported = false;
+  return (outcome) => {
+    if (reported) return;
+    reported = true;
+    const timing: GenerateTiming = { kind: input.kind, outcome, total_ms: now() - input.started, stages_ms: { ...input.clock.stages } };
+    log('generate timing', { ...input.fields, ...timing });
+    try {
+      input.onTiming?.(timing);
+    } catch (error) {
+      logError('generate timing hook failed', { ...input.fields, error: String(error) });
+    }
+  };
 }
 
 function errorCodeOf(error: unknown): GenerateErrorCode {
@@ -217,65 +302,81 @@ export async function runGenerateJob(deps: GenerateJobDeps, payload: GeneratePay
     if (result.rejected.length > 0) logError('generate job field op rejected', { ...fields, rejected: result.rejected });
   };
   const kind: GenerateKind = payload.kind ?? 'issue';
+  const clock = stageClock();
+  /** One structured line per job with every stage's time (Story 14.10 part 4). */
+  const logTiming = timingReporter({ fields, kind, started, clock, onTiming: deps.onTiming });
   try {
     // R7: the running put carries `started_at`, the instant a running job's expiry counts from.
     const startedAt = stamp();
     await putJobFields([jobPut(payload, startedAt, deps.newId, 'status', 'running'), jobPut(payload, startedAt, deps.newId, 'started_at', startedAt)]);
 
-    const frozen = await deps.db.transaction(async (tx: Tx) => {
-      await lockCompany(tx, companyId);
-      const { snapshot, snapshotSeq } = await freezeSnapshot(tx, companyId, payload.relatorio_id);
-      const number = nextRevisionNumber(await liveRevisions(tx, companyId, payload.relatorio_id));
-      return { snapshot, snapshotSeq, number };
-    });
+    const frozen = await clock.time('freeze', () =>
+      deps.db.transaction(async (tx: Tx) => {
+        await lockCompany(tx, companyId);
+        const { snapshot, snapshotSeq } = await freezeSnapshot(tx, companyId, payload.relatorio_id);
+        const number = nextRevisionNumber(await liveRevisions(tx, companyId, payload.relatorio_id));
+        return { snapshot, snapshotSeq, number };
+      }),
+    );
     const issuedAt = stamp();
-    const layout = layoutSpec(frozen.snapshot, {
-      revisionNumber: frozen.number,
-      issuedAt,
-      art: frozen.snapshot.relatorio.setup.art_trt_number,
-      draft: kind === 'preview',
-    });
+    const layout = await clock.time('layout', () =>
+      layoutSpec(frozen.snapshot, {
+        revisionNumber: frozen.number,
+        issuedAt,
+        art: frozen.snapshot.relatorio.setup.art_trt_number,
+        draft: kind === 'preview',
+      }),
+    );
     const certificatesSection = layout.sections.find((section): section is LayoutSectionCertificates => section.kind === 'certificates');
-    const files = await findFileRows(deps.db, companyId, fileIdsToLoad(frozen.snapshot, certificatesSection));
+    const files = await clock.time('file_rows', () => findFileRows(deps.db, companyId, fileIdsToLoad(frozen.snapshot, certificatesSection)));
     const images: DocxImages = {};
-    const logo = await printVariant(deps, companyId, files, frozen.snapshot.empresa?.logo_file_id ?? null);
-    if (logo !== undefined) images.logo = logo;
-    const cover = await printVariant(deps, companyId, files, frozen.snapshot.relatorio.setup.cover_photo_file_id);
-    if (cover !== undefined) images.cover = cover;
+    await clock.time('logo_cover', async () => {
+      const logo = await printVariant(deps, companyId, files, frozen.snapshot.empresa?.logo_file_id ?? null);
+      if (logo !== undefined) images.logo = logo;
+      const cover = await printVariant(deps, companyId, files, frozen.snapshot.relatorio.setup.cover_photo_file_id);
+      if (cover !== undefined) images.cover = cover;
+    });
     // Stories 7.2/7.3: the photos' print bytes and the certificates' page images, loaded
     // once before the passes. The loaders log and skip what the server does not hold or
     // cannot decode; a read that throws, or certificate pages not produced in time, fail
     // the job (A-4; Matheus 2026-09-30), never issue without them.
-    images.photos = await loadPhotoImages(frozen.snapshot, (fileId) => printVariant(deps, companyId, files, fileId), fields);
-    images.certificates = await loadCertificatePages(certificatesSection, (fileId) => readOriginal(deps, companyId, files, fileId), {
-      jobId: payload.job_id,
-      context: fields,
-      cache: s3PagesCache(deps.s3, deps.bucket, companyId),
-      ...(deps.rasterize === undefined ? {} : { rasterize: deps.rasterize }),
-    });
+    images.photos = await clock.time('photos', () => loadPhotoImages(frozen.snapshot, (fileId) => printVariant(deps, companyId, files, fileId), fields));
+    images.certificates = await clock.time('certificates', () =>
+      loadCertificatePages(certificatesSection, (fileId) => readOriginal(deps, companyId, files, fileId), {
+        jobId: payload.job_id,
+        context: fields,
+        cache: s3PagesCache(deps.s3, deps.bucket, companyId),
+        ...(deps.rasterize === undefined ? {} : { rasterize: deps.rasterize }),
+      }),
+    );
     // A-24: a preview's RASCUNHO image is drawn once per job, not once per TOC pass.
-    if (layout.watermark !== null) images.watermark = await watermarkPng(layout.watermark);
+    const watermark = layout.watermark;
+    if (watermark !== null) images.watermark = await clock.time('watermark', () => watermarkPng(watermark));
 
-    const rendered = await renderDocument(layout, images, { jobId: payload.job_id, timeoutMs: deps.timeoutMs, fault: deps.fault });
+    const rendered = await renderDocument(layout, images, { jobId: payload.job_id, timeoutMs: deps.timeoutMs, fault: deps.fault, clock });
 
     if (kind === 'preview') {
       const previewId = deps.newId();
-      await putObject(deps.s3, deps.bucket, objectKey(companyId, 'preview', previewId), rendered.pdf, PDF_MIME);
+      await clock.time('upload', () => putObject(deps.s3, deps.bucket, objectKey(companyId, 'preview', previewId), rendered.pdf, PDF_MIME));
       const durationMs = Date.now() - started;
       const result: GenerationResult = { toc_passes: rendered.tocPasses, toc_converged: rendered.tocConverged, pages: rendered.pages, duration_ms: durationMs };
-      await commitPreview(deps, payload, companyId, { previewId, pdf: rendered.pdf, result });
+      await clock.time('commit', () => commitPreview(deps, payload, companyId, { previewId, pdf: rendered.pdf, result }));
       log('generate preview done', { ...fields, duration_ms: durationMs, toc_passes: rendered.tocPasses, pages: rendered.pages });
+      logTiming('done');
       return 'done';
     }
 
     const docxId = deps.newId();
     const pdfId = deps.newId();
-    await putObject(deps.s3, deps.bucket, objectKey(companyId, 'docx', docxId), rendered.docx, DOCX_MIME);
-    await putObject(deps.s3, deps.bucket, objectKey(companyId, 'pdf', pdfId), rendered.pdf, PDF_MIME);
+    await clock.time('upload', async () => {
+      await putObject(deps.s3, deps.bucket, objectKey(companyId, 'docx', docxId), rendered.docx, DOCX_MIME);
+      await putObject(deps.s3, deps.bucket, objectKey(companyId, 'pdf', pdfId), rendered.pdf, PDF_MIME);
+    });
 
     const durationMs = Date.now() - started;
     const result: GenerationResult = { toc_passes: rendered.tocPasses, toc_converged: rendered.tocConverged, pages: rendered.pages, duration_ms: durationMs };
-    await commitRevision(deps, payload, companyId, frozen, { docxId, pdfId, docx: rendered.docx, pdf: rendered.pdf, result });
+    await clock.time('commit', () => commitRevision(deps, payload, companyId, frozen, { docxId, pdfId, docx: rendered.docx, pdf: rendered.pdf, result }));
+    logTiming('done');
 
     log('generate done', { ...fields, duration_ms: durationMs, toc_passes: rendered.tocPasses, toc_converged: rendered.tocConverged, pages: rendered.pages, revision_number: frozen.number });
     await logSmC1(deps, companyId, payload, frozen.number);
@@ -283,6 +384,7 @@ export async function runGenerateJob(deps: GenerateJobDeps, payload: GeneratePay
   } catch (error) {
     const code = errorCodeOf(error);
     logError('generate failed', { ...fields, error: code, detail: String(error), duration_ms: Date.now() - started });
+    logTiming('failed');
     await putJobFields([jobPut(payload, stamp(), deps.newId, 'status', 'failed'), jobPut(payload, stamp(), deps.newId, 'error', code)]).catch(
       (applyError: unknown) => logError('generate failure could not be recorded', { ...fields, error: String(applyError) }),
     );

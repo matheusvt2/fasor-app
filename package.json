@@ -7,10 +7,10 @@
     "node": ">=24"
   },
   "scripts": {
-    "lint": "eslint .",
-    "static": "pnpm -r --parallel run typecheck && tsc -p tsconfig.json",
-    "test:unit": "vitest run",
-    "test:api": "pnpm --filter @app/api run test:fast",
+    "lint": "tsx scripts/preflight.ts && eslint .",
+    "static": "tsx scripts/preflight.ts && pnpm -r --parallel run typecheck && tsc -p tsconfig.json",
+    "test:unit": "tsx scripts/preflight.ts && vitest run",
+    "test:api": "tsx scripts/preflight.ts && pnpm --filter @app/api run test:fast",
     "test:e2e": "tsx scripts/e2e.ts --grep @p0 --project desktop-chrome --project durability-desktop-chrome",
     "test:e2e:full": "tsx scripts/e2e.ts --project desktop-chrome --project durability-desktop-chrome",
     "test:e2e:matrix": "tsx scripts/e2e.ts --project durability-desktop-chrome --project durability-android-chrome --project durability-webkit",

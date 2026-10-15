@@ -145,7 +145,12 @@ services:
       # E9-A9: default `none`; `webspeech` sends audio to the browser vendor and stays opt-in
       # until Matheus approves vendor audio (Q18).
       VITE_SPEECH_ENGINE: ${VITE_SPEECH_ENGINE:-none}
-    command: pnpm --filter @app/web dev
+    # Story 14.10 part 1 (2026-10-15): Vite's default config loader ('bundle') writes the
+    # bundled config into `apps/web/node_modules/.vite-temp`, a directory of the shared
+    # node_modules volume. A tools run as root (vitest over the web project) left it root
+    # owned, and this container (user `node`) then crash-looped on EACCES (co14b: 6137
+    # restarts). The 'runner' loader evaluates the config in memory and writes nothing there.
+    command: pnpm --filter @app/web dev --configLoader runner
     restart: unless-stopped
     # Security review 2026-09-30: loopback only. Vite listens on every interface inside the
     # container (`host: true`, which the published port needs), and a tablet on the LAN
@@ -235,6 +240,29 @@ services:
       <<: *app-env
       # The Playwright-started `vite preview` on 5200 proxies /api through this, exactly as `web` does.
       API_PROXY_TARGET: http://api:3000
+      # Story 14.10 part 1: the gate preflight (scripts/preflight.ts) reads the containers of
+      # this compose project through the engine socket below.
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-fasor}
+    volumes:
+      # The workspace mounts of `x-workspace`, repeated because a service-level `volumes`
+      # replaces the anchor's list.
+      - .:/workspace
+      - node_modules_root:/workspace/node_modules
+      - node_modules_domain:/workspace/packages/domain/node_modules
+      - node_modules_api:/workspace/apps/api/node_modules
+      - node_modules_web:/workspace/apps/web/node_modules
+      - pnpm_store:/pnpm-store
+      # Story 14.10 part 1: the container engine's socket (Docker Engine API; on this podman
+      # host the VM's /run/podman/podman.sock, linked at /var/run/docker.sock). The preflight
+      # only reads it: GET requests for the project's containers, their state and their last
+      # log; it never creates, stops or changes a container. ENGINE_SOCKET_HOST names
+      # another socket path on the engine's host.
+      - ${ENGINE_SOCKET_HOST:-/var/run/docker.sock}:/var/run/engine.sock
+    # SELinux (the podman machine VM enforces it) denies a container the engine socket's
+    # label; label separation is turned off for this one-off gate container only, not
+    # relabelled with `:z`, which would rewrite the socket's label on the host.
+    security_opt:
+      - label=disable
     depends_on:
       install: { condition: service_completed_successfully }
       postgres: { condition: service_healthy }

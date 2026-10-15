@@ -3,6 +3,7 @@ import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import { buildDocx } from './docx.ts';
+import { passLayout } from './job.ts';
 import { extractStructure, readZipEntries } from './docx-structure.test-support.ts';
 import { placeholderPages } from './toc.ts';
 import { watermarkPng, WATERMARK_SIZE_PX } from './watermark.ts';
@@ -127,5 +128,28 @@ describe('A-24 the watermark drawn once per job', () => {
     const given = readZipEntries(await buildDocx(layout, { tocPages: placeholderPages(layout), images: { watermark: await watermarkPng('RASCUNHO') } }));
     expect([...given.keys()].sort()).toEqual([...own.keys()].sort());
     for (const name of own.keys()) if (name.startsWith('word/media/') || name === headerName(own)) expect(given.get(name)!.equals(own.get(name)!), name).toBe(true);
+  }, 60_000);
+});
+
+/*
+ * Story 14.10 part 4 (2026-10-15): TOC pass 1 is rendered only for its PDF outline, so a
+ * preview's pass 1 leaves the RASCUNHO image out (it tripled the pass's LibreOffice time on
+ * the production shape). The image floats behind the text in the header: the body, which is
+ * what paginates, is the same with or without it, and every later pass renders it.
+ */
+describe('14.10 the first TOC pass of a preview leaves the watermark out', () => {
+  it('pass 1 of a draft has no drawing and the same body; pass 2 and later, and an issued document, render the layout whole', async () => {
+    const draft = layoutSpec(fixture(), { revisionNumber: 1, issuedAt: ISSUED_AT, draft: true });
+    expect(passLayout(draft, 1).watermark).toBeNull();
+    expect(passLayout(draft, 2)).toBe(draft);
+    expect(passLayout(draft, 3)).toBe(draft);
+    const issued = layoutSpec(fixture(), { revisionNumber: 1, issuedAt: ISSUED_AT });
+    expect(passLayout(issued, 1)).toBe(issued);
+    const first = readZipEntries(await buildDocx(passLayout(draft, 1), { tocPages: placeholderPages(draft) }));
+    const kept = readZipEntries(await buildDocx(passLayout(draft, 2), { tocPages: placeholderPages(draft) }));
+    expect(xml(first, headerName(first))).not.toContain('<w:drawing');
+    expect(xml(kept, headerName(kept))).toContain('<w:drawing');
+    expect(stripDrawings(xml(kept, headerName(kept)))).toBe(xml(first, headerName(first)));
+    expect(maskDates(xml(first, 'word/document.xml'))).toBe(maskDates(xml(kept, 'word/document.xml')));
   }, 60_000);
 });

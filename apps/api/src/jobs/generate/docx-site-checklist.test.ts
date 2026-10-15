@@ -237,12 +237,12 @@ describe('14.4 VERIFICAÇÕES DO LOCAL in the DOCX: once per local, right after 
     expect(paragraphXml('TRANSFORMADOR DE FORÇA TR-2')[0]).toContain('<w:pageBreakBefore/>');
   }, 60_000);
 
-  it('por_local_e_tipo, flag on: the first type group of the local carries the table; the groups under the two painéis name their painel', async () => {
+  it('por_local_e_tipo, flag on: the first type group of the local carries the table; the groups under the two painéis name their coluna and painel (Story 14.10 part 8)', async () => {
     const { structure, section, siteTables } = await render(snapshotOf({ scheme: 'por_local_e_tipo', agrupar: true }));
     const headings = [
       '9.1 Transformadores e Cabos de Alimentação da Cabine primária',
-      '9.2 Seccionadoras dos Cubículos de MT do Painel de entrada — Cabine primária',
-      '9.3 Seccionadoras dos Cubículos de MT do Painel de saída — Cabine primária',
+      '9.2 Seccionadoras dos Cubículos de MT da Coluna 1 do Painel de entrada — Cabine primária',
+      '9.3 Seccionadoras dos Cubículos de MT da Coluna 1 do Painel de saída — Cabine primária',
       '9.4 Cubículo Enel',
     ];
     expect(structure.headings.filter((h) => h.level === 2).map((h) => h.text)).toEqual(headings);
@@ -271,8 +271,8 @@ describe('14.4 VERIFICAÇÕES DO LOCAL in the DOCX: once per local, right after 
     const { structure, section, siteTables, paragraphXml } = await render(snapshotOf({ scheme: 'por_local_e_tipo', agrupar: true, direct: false }));
     expect(structure.headings.filter((h) => h.level === 2).map((h) => h.text)).toEqual([
       '9.1 Cabine primária',
-      '9.2 Seccionadoras dos Cubículos de MT do Painel de entrada — Cabine primária',
-      '9.3 Seccionadoras dos Cubículos de MT do Painel de saída — Cabine primária',
+      '9.2 Seccionadoras dos Cubículos de MT da Coluna 1 do Painel de entrada — Cabine primária',
+      '9.3 Seccionadoras dos Cubículos de MT da Coluna 1 do Painel de saída — Cabine primária',
       '9.4 Cubículo Enel',
     ]);
     expect(ascending(section, ['9.1 Cabine primária', ...LOCAL_BLOCK, PHOTO_LINE, 'PAINEL DE ENTRADA', 'CHAVE SECCIONADORA SEC-C01', 'PAINEL DE SAÍDA', '9.4 Cubículo Enel', ...LOCAL_BLOCK])).toBe(true);

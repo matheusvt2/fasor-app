@@ -2219,3 +2219,17 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `apps/web/src/sync/engine.ts` `probeServer`; `apps/web/src/surfaces/relatorio/setup/etapa5-local.tsx`.
   class: question
   state: open (owner: Matheus, listed in the PR)
+
+## Deferred from: Story 14.10 lane A, carry-over 2 (2026-10-15)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-10-carry-over-2-a.md`
+  summary: Part 6 (the production smoke of the carry-over) is not built in lane A: which test company and which relatório a smoke may write to in production is Matheus's decision, and lane A touches no `infra/` and no AWS.
+  evidence: spec Boundaries ("Never: Part 6 (production smoke), `infra/`..."); the production check of 2026-10-15 ran by hand on Bruno's account (relatório "TESTE v0.2.0 — apagar").
+  class: debt
+  state: open (owner: Matheus decides the production test company; then a batch builds the smoke)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-10-carry-over-2-a.md`
+  summary: The `tools` service now mounts the container engine socket (read with GET requests only by `scripts/preflight.ts`) with SELinux label separation off for that one-off container, which gives a gate container engine access on a local stack. A read-only socket proxy in front of it would remove that access; open question 3 of the spec.
+  evidence: `docker-compose.yml` `tools` service (`/var/run/engine.sock`, `security_opt: label=disable`); `scripts/preflight.ts`. The api suite's `generation-time.integration.test.ts` reads the api's `generate timing` log lines through the same socket (`serviceLog`, GET only) for its per-stage targets. With no socket it asserts the totals only.
+  class: decision
+  state: ~~open (owner: Matheus: keep the direct mount or put a read-only proxy in front)~~ decided 2026-10-15 (Matheus): keep the direct mount; it serves the local gate only
