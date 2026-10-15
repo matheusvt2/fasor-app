@@ -1,6 +1,6 @@
 # NC chip phrases for review
 
-**Status:** pending review by Bruno, via Matheus (entry dated 2026-09-22). Seed version `v1`.
+**Status:** pending review by Bruno, via Matheus ~~(entry dated 2026-09-22). Seed version `v1`.~~ *(2026-10-15)* for the Quadros elétricos draft at the end only (seed `v6`, Story 14.9) (entry dated 2026-10-15). Every phrase of seeds `v1` to `v5` (the equipment items, NO-BREAK DE COMANDO, the 19 Verificações do local items and the 51 CTA phrases) was reviewed and accepted as it is by Bruno, via Matheus, on 2026-10-15 ("de acordo").
 
 ## What this is
 
@@ -132,3 +132,29 @@ Block types: `chave_transferencia_automatica`.
 | 17 | Gerador deixado em AUTOMÁTICO ao final | `gerador_deixado_em_automatico_ao_final` | Gerador deixado em MANUAL · Gerador deixado em DESLIGADO · Chave seletora sem identificação |
 
 *(2026-10-13, Story 14.5: this list ships with seed `v5` only, in `packages/domain/src/seed/v5.ts`; seeds `v1` to `v4` have no such block type. The 17 items are those of `sprint-change-proposal-2026-10-08.md` § 8.4, written in sentence case as the sheet shows them (the document prints them in caps). The three phrases of item 3 are the chips the approved mock draws on it (`63-ficha-cta.html`); the rest were authored after them and are pending Bruno's review like every other list here. A change after the merge ships as a later seed version.)*
+
+## Quadros elétricos, QGBT/QD (draft for seed `v6`, Story 14.9)
+
+Block types: `quadro_eletrico`.
+
+*(2026-10-15, draft, authored for Bruno's review: the 17 items of the "Quadros Elétricos" sheet of the original form (`docs/context/FO.SERV-03 Relatórios-Complemento.xlsx`, git-ignored), labels verbatim. The type is not seeded yet; the block type key and the item keys are proposed and settled in the Story 14.9 spec, and `scripts/nc-chip-phrases.test.ts` checks these rows once the type ships. Item 17 is printed as a second "16" in the original (open question 1 of Story 14.9).)*
+
+| # | Item | Key | NC phrases |
+| --- | --- | --- | --- |
+| 1 | LIMPEZA INTERNA E EXTERNA | `limpeza_interna_e_externa` | acúmulo de poeira e sujeira · presença de umidade · resíduos no interior do quadro |
+| 2 | PINTURA, CORROSÃO DA CAIXA | `pintura_corrosao_da_caixa` | pontos de corrosão na caixa · pintura descascada · caixa amassada ou danificada |
+| 3 | RESISTÊNCIA DE AQUECIMENTO | `resistencia_de_aquecimento` | resistência de aquecimento inoperante · termostato desajustado · resistência ausente |
+| 4 | ILUMINAÇÃO INTERNA | `iluminacao_interna` | iluminação interna inoperante · lâmpada queimada · interruptor de porta danificado |
+| 5 | LÂMPADAS DE SINALIZAÇÃO | `lampadas_de_sinalizacao` | lâmpada de sinalização queimada · sinalização incoerente com o estado do circuito · lente danificada ou ausente |
+| 6 | RELÉS E CONTATORES | `reles_e_contatores` | relé ou contator inoperante · contatos com sinais de desgaste · ruído anormal no contator |
+| 7 | FUSÍVEIS | `fusiveis` | fusível queimado · fusível com capacidade divergente · porta-fusível danificado |
+| 8 | DISJUNTORES TERMOMAGNÉTICOS | `disjuntores_termomagneticos` | disjuntor não liga ou não desliga · disjuntor não atua no trip · sinais de aquecimento no disjuntor |
+| 9 | ATERRAMENTO | `aterramento` | aterramento desconectado · cordoalha de aterramento danificada · oxidação na conexão de terra |
+| 10 | INSTRUMENTOS DE MEDIÇÃO | `instrumentos_de_medicao` | instrumento inoperante · leitura divergente do instrumento de referência · visor do instrumento danificado |
+| 11 | BARRAMENTOS | `barramentos` | sinais de aquecimento no barramento · oxidação no barramento · barramento sem proteção contra contato |
+| 12 | ISOLADORES | `isoladores` | trinca no isolador · sujeira acumulada no isolador · sinais de descarga no isolador |
+| 13 | FIAÇÃO INTERNA | `fiacao_interna` | isolação da fiação danificada · sinais de aquecimento na fiação · fiação sem fixação adequada |
+| 14 | REAPERTO GERAL | `reaperto_geral` | conexão frouxa encontrada · sinais de aquecimento na conexão · terminal oxidado |
+| 15 | PLACAS DE SINALIZAÇÃO | `placas_de_sinalizacao` | placa de sinalização ausente · placa ilegível · placa sem advertência de risco elétrico |
+| 16 | ORGANIZAÇÃO INTERNA | `organizacao_interna` | cabos fora da canaleta · canaleta sem tampa · chicote desorganizado |
+| 17 | IDENTIFICAÇÃO DE CIRCUITOS | `identificacao_de_circuitos` | circuitos sem identificação · identificação ilegível · identificação divergente do diagrama |
