@@ -42,16 +42,16 @@
 }
 
 /* Shared: the controls hang off the field they act on (no field-gap above them) */
-.opt-a .opt-a-tray, .opt-b .opt-b-choices, .opt-c .opt-c-row { margin-top: calc(-1 * var(--field-gap)); }
+.opt-a .suggestion-tray, .opt-b .opt-b-choices, .opt-c .opt-c-row { margin-top: calc(-1 * var(--field-gap)); }
 
 /* Option A: an amber tray joined to the field's rule; two Button secondary, side by side, wrapping on phone */
-.opt-a-tray { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4) var(--sp-4);
+.suggestion-tray { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4) var(--sp-4);
   background: var(--fora-do-limite-fill); border: 2px solid var(--fora-do-limite); border-top: 0; border-radius: 0 0 var(--r-md) var(--r-md); }
-.opt-a-text { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--fora-do-limite); }
-.opt-a-text b { font-size: var(--t-body-size); color: var(--ink-primary); font-weight: 600; }
-.opt-a-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); }
-.opt-a-actions .btn { flex: 1 1 140px; }
-.frame-tablet .opt-a-actions .btn { flex: 0 0 auto; min-width: 200px; }
+.suggestion-tray-text { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--fora-do-limite); }
+.suggestion-tray-text b { font-size: var(--t-body-size); color: var(--ink-primary); font-weight: 600; }
+.suggestion-tray-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); }
+.suggestion-tray-actions .btn { flex: 1 1 140px; }
+.frame-tablet .suggestion-tray-actions .btn { flex: 0 0 auto; min-width: 200px; }
 
 /* Option B: the two values as two full-width choices; each row is one 56px button saying what stays in the field */
 .opt-b-choices { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3); background: var(--fora-do-limite-fill);
@@ -130,7 +130,7 @@
           <div class="section-head"><h2>Placa de identificação</h2></div>
           <div class="nameplate-grid">
             <div class="field"><span class="field-label">Fabricante</span><div class="input">Schneider</div></div>
-            <div class="field opt-a"><span class="field-label">Nº de série</span><div class="input">240815-07</div><div class="opt-a-tray" role="group" aria-label="Nº de série: a leitura difere do digitado"><p class="opt-a-text">Sugerido: <b>240815-01</b></p><div class="opt-a-actions"><button class="btn btn-secondary" aria-label="Substituir Nº de série por 240815-01">Substituir</button><button class="btn btn-secondary" aria-label="Manter o digitado em Nº de série, 240815-07">Manter o digitado</button></div></div></div>
+            <div class="field opt-a"><span class="field-label">Nº de série</span><div class="input">240815-07</div><div class="suggestion-tray" role="group" aria-label="Nº de série: a leitura difere do digitado"><p class="suggestion-tray-text">Sugerido: <b>240815-01</b></p><div class="suggestion-tray-actions"><button class="btn btn-secondary" aria-label="Substituir Nº de série por 240815-01">Substituir</button><button class="btn btn-secondary" aria-label="Manter o digitado em Nº de série, 240815-07">Manter o digitado</button></div></div></div>
             <div class="field"><span class="field-label">Tipo</span><div class="input">Manual</div></div>
           </div>
         </section>
@@ -224,7 +224,7 @@
           <div class="section-head"><h2>Placa de identificação</h2></div>
           <div class="nameplate-grid">
             <div class="field"><span class="field-label">Fabricante</span><div class="input">Schneider</div></div>
-            <div class="field opt-a"><span class="field-label">Nº de série</span><div class="input">240815-07</div><div class="opt-a-tray" role="group" aria-label="Nº de série: a leitura difere do digitado"><p class="opt-a-text">Sugerido: <b>240815-01</b></p><div class="opt-a-actions"><button class="btn btn-secondary" aria-label="Substituir Nº de série por 240815-01">Substituir</button><button class="btn btn-secondary" aria-label="Manter o digitado em Nº de série, 240815-07">Manter o digitado</button></div></div></div>
+            <div class="field opt-a"><span class="field-label">Nº de série</span><div class="input">240815-07</div><div class="suggestion-tray" role="group" aria-label="Nº de série: a leitura difere do digitado"><p class="suggestion-tray-text">Sugerido: <b>240815-01</b></p><div class="suggestion-tray-actions"><button class="btn btn-secondary" aria-label="Substituir Nº de série por 240815-01">Substituir</button><button class="btn btn-secondary" aria-label="Manter o digitado em Nº de série, 240815-07">Manter o digitado</button></div></div></div>
             <div class="field"><span class="field-label">Tipo</span><div class="input">Manual</div></div>
           </div>
         </section>
