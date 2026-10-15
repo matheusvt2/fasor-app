@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Leitura ao lado de um valor digitado (opções)</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Governs: Story 14.10 part 11 (epics.md, DoR item 4), Bruno's voice note 2026-10-15 ("ficam meio separados, parece que não é
+   clicável, mas é"). DESIGN.md § Components › Suggestion field ("Sugerido: 15 kV — Substituir"), Button (secondary, text),
+   spacing.touch-min 48px; EXPERIENCE.md § Component Patterns › Suggestion field; 60-ficha.html "Tensão de placa".
+   Proposal only: the current look plus options A, B and C for the same field, phone 390 and tablet 768. Not part of the
+   navigable prototype (a standalone page, not a fragment). Option CSS below is local to this mock; whichever option is picked
+   ~~moves into components.css (Suggestion field block) with the DESIGN.md strike, never from here.~~
+   (2026-10-15, Matheus: option A picked. Its rules go to apps/web/src/styles/app.css with a comment naming this mock, since
+   tokens.css and components.css stay byte-identical (AGENTS.md); DESIGN.md Suggestion field carries the dated strike.
+   Moved from prototype/screens/60b-suggestion-options.html: build.py copies every screens/*.html as a fragment.) */
+
+/* Page layout */
+.opt-frame { min-height: 0 !important; }
+.nameplate-grid { display: flex; flex-direction: column; gap: var(--sp-3); }
+@media (max-width: 767.98px) {
+  .mock-page { padding: 0; }
+  .mock-page > .mock-title, .mock-page > .mock-sub { padding: 0 16px; }
+  .mock-page > .mock-title { padding-top: 16px; }
+  .mock-row.is-tablet { display: none; }
+  .mock-row { flex-direction: column; gap: var(--sp-5); }
+  .mock-row .mock-item { width: 100%; }
+  .mock-caption { padding: 0 16px; }
+  .frame.frame-phone { width: 100%; border: 0; border-radius: 0; }
+}
+@media (min-width: 768px) and (max-width: 1599.98px) {
+  .mock-page { padding: 0; }
+  .mock-page > .mock-title, .mock-page > .mock-sub { padding: 0 16px; }
+  .mock-page > .mock-title { padding-top: 16px; }
+  .mock-row.is-phone { display: none; }
+  .mock-row { flex-direction: column; gap: var(--sp-5); }
+  .mock-row .mock-item { width: 100%; }
+  .mock-caption { padding: 0 16px; }
+  .frame.frame-tablet { width: 100%; max-width: 768px; border: 0; border-radius: 0; }
+}
+
+/* Shared: the controls hang off the field they act on (no field-gap above them) */
+.opt-a .opt-a-tray, .opt-b .opt-b-choices, .opt-c .opt-c-row { margin-top: calc(-1 * var(--field-gap)); }
+
+/* Option A: an amber tray joined to the field's rule; two Button secondary, side by side, wrapping on phone */
+.opt-a-tray { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  background: var(--fora-do-limite-fill); border: 2px solid var(--fora-do-limite); border-top: 0; border-radius: 0 0 var(--r-md) var(--r-md); }
+.opt-a-text { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--fora-do-limite); }
+.opt-a-text b { font-size: var(--t-body-size); color: var(--ink-primary); font-weight: 600; }
+.opt-a-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); }
+.opt-a-actions .btn { flex: 1 1 140px; }
+.frame-tablet .opt-a-actions .btn { flex: 0 0 auto; min-width: 200px; }
+
+/* Option B: the two values as two full-width choices; each row is one 56px button saying what stays in the field */
+.opt-b-choices { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3); background: var(--fora-do-limite-fill);
+  border: 2px solid var(--fora-do-limite); border-top: 0; border-radius: 0 0 var(--r-md) var(--r-md); }
+.opt-b-choice { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--sp-3); min-height: 56px; width: 100%;
+  padding: 0 var(--sp-4); background: var(--surface-raised); border: 2px solid var(--primary); border-radius: var(--r-btn); text-align: left; }
+
+.opt-b-pair { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--sp-3); min-width: 0; padding: var(--sp-1) 0; }
+.frame-phone .opt-b-pair { flex-direction: column; }
+.opt-b-kind { font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
+.frame-tablet .opt-b-kind { min-width: 72px; }
+.opt-b-value { font-size: var(--t-body-size); line-height: var(--t-body-lh); color: var(--ink-primary); font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
+.opt-b-choice.is-reading 
+.opt-b-pair { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--sp-3); min-width: 0; padding: var(--sp-1) 0; }
+.frame-phone .opt-b-pair { flex-direction: column; }
+.opt-b-kind { color: var(--fora-do-limite); }
+.opt-b-action { color: var(--primary); font-weight: 600; font-size: var(--t-body-size); white-space: nowrap; }
+
+/* Option C: the reading as one amber Suggestion-field row under the value; the two actions are .confirm-btn segments */
+.opt-c-row { display: flex; flex-wrap: wrap; align-items: stretch; min-height: var(--touch-field); background: var(--fora-do-limite-fill);
+  border: 2px solid var(--fora-do-limite); border-top: 0; border-radius: 0 0 var(--r-md) var(--r-md); }
+.opt-c-value { display: flex; align-items: center; gap: var(--sp-2); flex: 1 1 auto; min-height: var(--touch-field); padding: 0 var(--sp-3) 0 var(--sp-4);
+  font-size: var(--t-meta-size); color: var(--fora-do-limite); }
+.opt-c-value b { font-size: var(--t-body-size); color: var(--ink-primary); font-weight: 600; }
+.opt-c-value .crop-thumb { margin-left: 0; }
+.opt-c-actions { display: flex; flex: 0 0 auto; }
+.opt-c-actions .confirm-btn { min-height: var(--touch-field); }
+.frame-phone .opt-c-actions { flex: 1 1 100%; border-top: 2px solid var(--fora-do-limite); }
+.frame-phone .opt-c-actions .confirm-btn { flex: 1; justify-content: center; margin-left: 0; }
+.frame-phone .opt-c-actions .confirm-btn:first-child { border-left: 0; }
+</style>
+</head>
+<body class="mock-page">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+</svg>
+<h1 class="mock-title">Leitura ao lado de um valor digitado — opções</h1>
+<p class="mock-sub">Story 14.10 parte 11. Nº de série digitado offline “240815-07”; a foto da placa leu “240815-01”. Hoje, A, B e C no mesmo campo.</p>
+<div class="mock-row is-phone">
+  <div class="mock-item">
+    <p class="mock-caption"><b>Hoje</b><span class="sep">·</span>telefone 390<span class="sep">·</span>linha meta âmbar com dois botões de texto (DESIGN.md › Suggestion field; 60-ficha.html “Tensão de placa”)</p>
+    <div class="frame frame-phone opt-frame" data-theme="light">
+      <header class="app-bar">
+        <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+        <h1 class="app-bar-title">SEC-ENT</h1>
+        <div class="app-bar-right">
+          <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span><span class="sync-long">Sincronizado</span><span class="sync-short">Sinc.</span></span></button>
+          <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+        </div>
+      </header>
+      <div class="screen-body"><main class="screen"><div class="content">
+        <section class="section">
+          <div class="section-head"><h2>Placa de identificação</h2></div>
+          <div class="nameplate-grid">
+            <div class="field"><span class="field-label">Fabricante</span><div class="input">Schneider</div></div>
+            <div class="field"><span class="field-label">Nº de série</span><div class="input">240815-07</div><span class="suggestion-alt">Sugerido: 240815-01<button class="btn btn-text" aria-label="Substituir Nº de série por 240815-01">Substituir</button><button class="btn btn-text" aria-label="Manter o digitado em Nº de série, 240815-07">Manter o digitado</button></span></div>
+            <div class="field"><span class="field-label">Tipo</span><div class="input">Manual</div></div>
+          </div>
+        </section>
+      </div></main></div>
+    </div>
+  </div>
+  <div class="mock-item">
+    <p class="mock-caption"><b>Opção A — bandeja com dois botões secundários</b><span class="sep">·</span>telefone 390<span class="sep">·</span>a leitura numa faixa âmbar colada ao campo; “Substituir” e “Manter o digitado” como Button secondary, 48 px</p>
+    <div class="frame frame-phone opt-frame" data-theme="light">
+      <header class="app-bar">
+        <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+        <h1 class="app-bar-title">SEC-ENT</h1>
+        <div class="app-bar-right">
+          <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span><span class="sync-long">Sincronizado</span><span class="sync-short">Sinc.</span></span></button>
+          <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+        </div>
+      </header>
+      <div class="screen-body"><main class="screen"><div class="content">
+        <section class="section">
+          <div class="section-head"><h2>Placa de identificação</h2></div>
+          <div class="nameplate-grid">
+            <div class="field"><span class="field-label">Fabricante</span><div class="input">Schneider</div></div>
+            <div class="field opt-a"><span class="field-label">Nº de série</span><div class="input">240815-07</div><div class="opt-a-tray" role="group" aria-label="Nº de série: a leitura difere do digitado"><p class="opt-a-text">Sugerido: <b>240815-01</b></p><div class="opt-a-actions"><button class="btn btn-secondary" aria-label="Substituir Nº de série por 240815-01">Substituir</button><button class="btn btn-secondary" aria-label="Manter o digitado em Nº de série, 240815-07">Manter o digitado</button></div></div></div>
+            <div class="field"><span class="field-label">Tipo</span><div class="input">Manual</div></div>
+          </div>
+        </section>
+      </div></main></div>
+    </div>
+  </div>
+  <div class="mock-item">
+    <p class="mock-caption"><b>Opção B — escolher entre os dois valores</b><span class="sep">·</span>telefone 390<span class="sep">·</span>duas linhas tocáveis, cada uma com o valor que fica no campo; rótulos “Leitura” e “Digitado” authored</p>
+    <div class="frame frame-phone opt-frame" data-theme="light">
+      <header class="app-bar">
+        <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+        <h1 class="app-bar-title">SEC-ENT</h1>
+        <div class="app-bar-right">
+          <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span><span class="sync-long">Sincronizado</span><span class="sync-short">Sinc.</span></span></button>
+          <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+        </div>
+      </header>
+      <div class="screen-body"><main class="screen"><div class="content">
+        <section class="section">
+          <div class="section-head"><h2>Placa de identificação</h2></div>
+          <div class="nameplate-grid">
+            <div class="field"><span class="field-label">Fabricante</span><div class="input">Schneider</div></div>
+            <div class="field opt-b"><span class="field-label">Nº de série</span><div class="input">240815-07</div><div class="opt-b-choices" role="group" aria-label="Nº de série: a leitura difere do digitado"><button class="opt-b-choice is-reading" aria-label="Substituir Nº de série por 240815-01"><span class="opt-b-pair"><span class="opt-b-kind">Leitura</span><span class="opt-b-value">240815-01</span></span><span class="opt-b-action">Substituir</span></button><button class="opt-b-choice" aria-label="Manter o digitado em Nº de série, 240815-07"><span class="opt-b-pair"><span class="opt-b-kind">Digitado</span><span class="opt-b-value">240815-07</span></span><span class="opt-b-action">Manter o digitado</span></button></div></div>
+            <div class="field"><span class="field-label">Tipo</span><div class="input">Manual</div></div>
+          </div>
+        </section>
+      </div></main></div>
+    </div>
+  </div>
+  <div class="mock-item">
+    <p class="mock-caption"><b>Opção C — a mesma faixa do “Confirmar”</b><span class="sep">·</span>telefone 390<span class="sep">·</span>a leitura como uma linha de Suggestion field colada sob o valor, com os botões separados por fio como o .confirm-btn</p>
+    <div class="frame frame-phone opt-frame" data-theme="light">
+      <header class="app-bar">
+        <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+        <h1 class="app-bar-title">SEC-ENT</h1>
+        <div class="app-bar-right">
+          <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span><span class="sync-long">Sincronizado</span><span class="sync-short">Sinc.</span></span></button>
+          <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+        </div>
+      </header>
+      <div class="screen-body"><main class="screen"><div class="content">
+        <section class="section">
+          <div class="section-head"><h2>Placa de identificação</h2></div>
+          <div class="nameplate-grid">
+            <div class="field"><span class="field-label">Fabricante</span><div class="input">Schneider</div></div>
+            <div class="field opt-c"><span class="field-label">Nº de série</span><div class="input">240815-07</div><div class="opt-c-row" role="group" aria-label="Nº de série: a leitura difere do digitado"><span class="opt-c-value"><button class="crop-thumb" aria-label="Ver recorte da placa — Nº de série"><i class="thumb-fake"></i></button><span>Sugerido: <b>240815-01</b></span></span><span class="opt-c-actions"><button class="confirm-btn" aria-label="Substituir Nº de série por 240815-01">Substituir</button><button class="confirm-btn" aria-label="Manter o digitado em Nº de série, 240815-07">Manter o digitado</button></span></div></div>
+            <div class="field"><span class="field-label">Tipo</span><div class="input">Manual</div></div>
+          </div>
+        </section>
+      </div></main></div>
+    </div>
+  </div>
+</div>
+<div class="mock-row is-tablet">
+  <div class="mock-item">
+    <p class="mock-caption"><b>Hoje</b><span class="sep">·</span>tablet 768<span class="sep">·</span>linha meta âmbar com dois botões de texto (DESIGN.md › Suggestion field; 60-ficha.html “Tensão de placa”)</p>
+    <div class="frame frame-tablet opt-frame" data-theme="light">
+      <header class="app-bar">
+        <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+        <h1 class="app-bar-title">SEC-ENT</h1>
+        <div class="app-bar-right">
+          <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span><span class="sync-long">Sincronizado</span><span class="sync-short">Sinc.</span></span></button>
+          <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+        </div>
+      </header>
+      <div class="screen-body"><main class="screen"><div class="content">
+        <section class="section">
+          <div class="section-head"><h2>Placa de identificação</h2></div>
+          <div class="nameplate-grid">
+            <div class="field"><span class="field-label">Fabricante</span><div class="input">Schneider</div></div>
+            <div class="field"><span class="field-label">Nº de série</span><div class="input">240815-07</div><span class="suggestion-alt">Sugerido: 240815-01<button class="btn btn-text" aria-label="Substituir Nº de série por 240815-01">Substituir</button><button class="btn btn-text" aria-label="Manter o digitado em Nº de série, 240815-07">Manter o digitado</button></span></div>
+            <div class="field"><span class="field-label">Tipo</span><div class="input">Manual</div></div>
+          </div>
+        </section>
+      </div></main></div>
+    </div>
+  </div>
+  <div class="mock-item">
+    <p class="mock-caption"><b>Opção A — bandeja com dois botões secundários</b><span class="sep">·</span>tablet 768<span class="sep">·</span>a leitura numa faixa âmbar colada ao campo; “Substituir” e “Manter o digitado” como Button secondary, 48 px</p>
+    <div class="frame frame-tablet opt-frame" data-theme="light">
+      <header class="app-bar">
+        <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+        <h1 class="app-bar-title">SEC-ENT</h1>
+        <div class="app-bar-right">
+          <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span><span class="sync-long">Sincronizado</span><span class="sync-short">Sinc.</span></span></button>
+          <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+        </div>
+      </header>
+      <div class="screen-body"><main class="screen"><div class="content">
+        <section class="section">
+          <div class="section-head"><h2>Placa de identificação</h2></div>
+          <div class="nameplate-grid">
+            <div class="field"><span class="field-label">Fabricante</span><div class="input">Schneider</div></div>
+            <div class="field opt-a"><span class="field-label">Nº de série</span><div class="input">240815-07</div><div class="opt-a-tray" role="group" aria-label="Nº de série: a leitura difere do digitado"><p class="opt-a-text">Sugerido: <b>240815-01</b></p><div class="opt-a-actions"><button class="btn btn-secondary" aria-label="Substituir Nº de série por 240815-01">Substituir</button><button class="btn btn-secondary" aria-label="Manter o digitado em Nº de série, 240815-07">Manter o digitado</button></div></div></div>
+            <div class="field"><span class="field-label">Tipo</span><div class="input">Manual</div></div>
+          </div>
+        </section>
+      </div></main></div>
+    </div>
+  </div>
+  <div class="mock-item">
+    <p class="mock-caption"><b>Opção B — escolher entre os dois valores</b><span class="sep">·</span>tablet 768<span class="sep">·</span>duas linhas tocáveis, cada uma com o valor que fica no campo; rótulos “Leitura” e “Digitado” authored</p>
+    <div class="frame frame-tablet opt-frame" data-theme="light">
+      <header class="app-bar">
+        <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+        <h1 class="app-bar-title">SEC-ENT</h1>
+        <div class="app-bar-right">
+          <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span><span class="sync-long">Sincronizado</span><span class="sync-short">Sinc.</span></span></button>
+          <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+        </div>
+      </header>
+      <div class="screen-body"><main class="screen"><div class="content">
+        <section class="section">
+          <div class="section-head"><h2>Placa de identificação</h2></div>
+          <div class="nameplate-grid">
+            <div class="field"><span class="field-label">Fabricante</span><div class="input">Schneider</div></div>
+            <div class="field opt-b"><span class="field-label">Nº de série</span><div class="input">240815-07</div><div class="opt-b-choices" role="group" aria-label="Nº de série: a leitura difere do digitado"><button class="opt-b-choice is-reading" aria-label="Substituir Nº de série por 240815-01"><span class="opt-b-pair"><span class="opt-b-kind">Leitura</span><span class="opt-b-value">240815-01</span></span><span class="opt-b-action">Substituir</span></button><button class="opt-b-choice" aria-label="Manter o digitado em Nº de série, 240815-07"><span class="opt-b-pair"><span class="opt-b-kind">Digitado</span><span class="opt-b-value">240815-07</span></span><span class="opt-b-action">Manter o digitado</span></button></div></div>
+            <div class="field"><span class="field-label">Tipo</span><div class="input">Manual</div></div>
+          </div>
+        </section>
+      </div></main></div>
+    </div>
+  </div>
+  <div class="mock-item">
+    <p class="mock-caption"><b>Opção C — a mesma faixa do “Confirmar”</b><span class="sep">·</span>tablet 768<span class="sep">·</span>a leitura como uma linha de Suggestion field colada sob o valor, com os botões separados por fio como o .confirm-btn</p>
+    <div class="frame frame-tablet opt-frame" data-theme="light">
+      <header class="app-bar">
+        <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+        <h1 class="app-bar-title">SEC-ENT</h1>
+        <div class="app-bar-right">
+          <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span><span class="sync-long">Sincronizado</span><span class="sync-short">Sinc.</span></span></button>
+          <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+        </div>
+      </header>
+      <div class="screen-body"><main class="screen"><div class="content">
+        <section class="section">
+          <div class="section-head"><h2>Placa de identificação</h2></div>
+          <div class="nameplate-grid">
+            <div class="field"><span class="field-label">Fabricante</span><div class="input">Schneider</div></div>
+            <div class="field opt-c"><span class="field-label">Nº de série</span><div class="input">240815-07</div><div class="opt-c-row" role="group" aria-label="Nº de série: a leitura difere do digitado"><span class="opt-c-value"><button class="crop-thumb" aria-label="Ver recorte da placa — Nº de série"><i class="thumb-fake"></i></button><span>Sugerido: <b>240815-01</b></span></span><span class="opt-c-actions"><button class="confirm-btn" aria-label="Substituir Nº de série por 240815-01">Substituir</button><button class="confirm-btn" aria-label="Manter o digitado em Nº de série, 240815-07">Manter o digitado</button></span></div></div>
+            <div class="field"><span class="field-label">Tipo</span><div class="input">Manual</div></div>
+          </div>
+        </section>
+      </div></main></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
