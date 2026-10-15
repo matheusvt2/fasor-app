@@ -422,7 +422,7 @@ const LAYOUT_SETTLE_MS = 1500;
  */
 export function keepClearOfStickyBar(target: Element | null): void {
   if (!(target instanceof HTMLElement) || target === document.body || target === document.documentElement) return;
-  if (target.closest('.sticky-action-bar, [role="dialog"], [role="alertdialog"]') !== null) return;
+  if (target.closest('.sticky-action-bar, [role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]') !== null) return;
   const box = target.getBoundingClientRect();
   if (box.width === 0 && box.height === 0) return;
   const appBar = document.querySelector<HTMLElement>('.app-bar');
