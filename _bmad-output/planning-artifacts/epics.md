@@ -3489,7 +3489,7 @@ So that the boards I already inspect on a job are recorded in the relatório, an
 
 **Given** the seed
 **When** this story lands
-**Then** seed v6 is v5 plus one library type, `quadro_eletrico` (key settled in the story spec), with the 9 nameplate fields, the 17 checklist items with 3 or 4 NC phrases each (the reviewed list of `docs/nc-chip-phrases.md`), the insulation test of one point on the seeded grammar and its seeded criterion; `SEED_VERSION` is v6; v1 to v5 stay frozen and resolvable; the closed type enum gains the key; TAG prefix, the noun with its gender for the conclusion and caption texts, and template totals come from the kernel; a kernel test pins that v6 differs from v5 only by this type (AR-20; AD-21)
+**Then** seed v6 is v5 plus one library type, `quadro_eletrico` (key settled in the story spec), with the 9 nameplate fields, the 17 checklist items with 3 or 4 NC phrases each (the reviewed list of `docs/nc-chip-phrases.md`), the insulation test of one point on the seeded grammar and its seeded criterion; `SEED_VERSION` is v6; v1 to v5 stay frozen and resolvable; the closed type enum gains the key; TAG prefix, the noun with its gender for the conclusion and caption texts, and template totals come from the kernel; a kernel test pins that v6 differs from v5 only by this type ~~(AR-20; AD-21)~~ *(2026-10-15: and by Story 14.11's option lists and oil rule; one v6 and one contract number for both stories, see Story 14.11)* (AR-20; AD-21)
 
 **Given** templates and relatórios that exist before this story
 **When** the api starts after it
@@ -3536,7 +3536,7 @@ As the team shipping Releng,
 I want the gate to fail fast on a broken stack, the audit and the sync line to tell the truth, the document to be fast, production to be smoke-tested after each deploy, and Bruno's two changes in,
 So that the next real jobs meet a tool that is honest and quick, and a deploy is proven by a test, not by hand.
 
-*(Definition of Ready: (1) Matheus agrees the production test company of part 6 (its name, the account the smoke signs in with, where its secret lives: a secret declared in Terraform under `infra/`, never a key in the repository) and that the smoke runs only from `infra/bin/deploy` after a deploy; (2) part 10 stays out of scope until Matheus decides which count the Home card shows (deferred-work 2026-10-14); (3) parts 8 and 9 build Bruno's answers of 2026-10-15 recorded under Stories 14.3, 14.4 and 13.4 and in `source-deltas.md`; the exact title wording of part 8 is authored and stays open for Bruno.)*
+*(Definition of Ready, item 4 added 2026-10-15: Matheus picks the look of part 11's controls (for example a secondary or tertiary Button row under the value), since `DESIGN.md` and the mock draw today's text-button line. Items 1 to 3:)* *(Definition of Ready: (1) Matheus agrees the production test company of part 6 (its name, the account the smoke signs in with, where its secret lives: a secret declared in Terraform under `infra/`, never a key in the repository) and that the smoke runs only from `infra/bin/deploy` after a deploy; (2) part 10 stays out of scope until Matheus decides which count the Home card shows (deferred-work 2026-10-14); (3) parts 8 and 9 build Bruno's answers of 2026-10-15 recorded under Stories 14.3, 14.4 and 13.4 and in `source-deltas.md`; the exact title wording of part 8 is authored and stays open for Bruno.)*
 
 **Acceptance Criteria:**
 
@@ -3610,6 +3610,67 @@ So that the next real jobs meet a tool that is honest and quick, and a deploy is
 
 The Home and obra cards count a sheet with a pending suggestion as concluded while the Sumário does not (`deferred-work.md`, production deploy v0.2.0, entry of 2026-10-14). Matheus decides which count the card shows; the decision then becomes a criterion of a later carry-over, not of this story.
 
+*Part 11, the reading's controls beside a typed value (added 2026-10-15, Bruno, voice note 2026-10-15, relayed by Matheus).* Bruno: "Quando bato as fotos e ele puxa as informações — em campo eu estava sem internet, digitei manualmente, mas bati a foto mesmo assim. No escritório, ao revisar, aparece o valor que ele leu e os botões confirmar ou substituir. Esses botões não estão legais: ficam meio separados, parece que não é clicável, mas é." Today a differing reading beside a value the engineer typed renders as the `.suggestion-alt` line "Sugerido: ⟨valor⟩" with "Substituir" and "Manter o digitado" as text buttons (`apps/web/src/components/suggestion-field.tsx`; copy `apps/web/src/copy/ui.ts` `suggestionField`). That look is what both `DESIGN.md` (Suggestion field: "a `meta` line 'Sugerido: 15 kV — Substituir'") and the mock (`prototype/screens/60-ficha.html`, field "Tensão de placa"; `mockups/components.css` `.suggestion-alt`) draw, so the new look is an open question for Matheus (DoR item 4), and `DESIGN.md` gains a dated strike with the answer before the build.
+
+**Given** a nameplate or measurement field holding a typed value and a differing reading that arrived later (typed offline, photo taken anyway, reading run once online)
+**When** the sheet renders at 390, 768 and 1280 px
+**Then** "Substituir" and "Manter o digitado" (and "Confirmar" where it shows) read as buttons in a `DESIGN.md` button style (the style Matheus picks), sit inside the field they act on, directly under its value with no gap that detaches them, keep their 48 px touch targets, and name the field in their accessible names; nothing else in the Suggestion field changes
+
+**Given** the typed-then-read case
+**When** an e2e types a value offline, takes the plate photo, goes online and lets the fake reading arrive with a different value
+**Then** it asserts the two controls are visible inside the field's box at 390, 768 and 1280 px, taps "Substituir" on one field and "Manter o digitado" on another, reloads and asserts the stored values and that no suggestion is left
+
 **Definition of Done, in addition:** each part closes its `deferred-work.md` entry or adds one; the story gate plus every touched spec is pasted in each batch's PR; part 1 ships with a mutation run (the probe disabled, a looping container left running, the gate shown to hang or time out); part 3's and part 8's kernel changes run every spec that asserts audit text or section 9 titles (E14-A3); `docs/kbs/workflow/` (gate and story delivery) and `docs/kbs/log.md` gain dated notes.
 
-**Batch plan (suggested, two lanes):** lane A, "gate, document and deploy" (co15a): parts 1, 2, 4, 6 and 8, touching `scripts/verify.ts`, `scripts/e2e.ts` and its support, `docker-compose.yml`, `epic-batch-orchestrator.md`, `apps/api/src/` render and jobs code, the section 9 title composition in `packages/domain` (document layout), `infra/bin/deploy`, `infra/` Terraform and a new `e2e/production/` suite. Lane B, "field and audit" (co15b): parts 3, 5, 7 and 9, touching `packages/domain/src/audit/`, `packages/domain/src/sync/counts.ts`, the export dialog's audit section, the Sync status, the plate section of `apps/web/src/surfaces/ficha/` with `apps/web/src/input/focus-restore.ts`, `etapa5-local.tsx`, and their specs. The lanes share only `apps/web/src/copy/pt-br.ts` (new keys in separate blocks) and `packages/domain` exports; lane B reads the document layout for the audit but does not change it. They merge under part 2's rule: the second PR takes the first and runs both lanes' touched specs.
+**Batch plan (suggested, two lanes):** lane A, "gate, document and deploy" (co15a): parts 1, 2, 4, 6 and 8, touching `scripts/verify.ts`, `scripts/e2e.ts` and its support, `docker-compose.yml`, `epic-batch-orchestrator.md`, `apps/api/src/` render and jobs code, the section 9 title composition in `packages/domain` (document layout), `infra/bin/deploy`, `infra/` Terraform and a new `e2e/production/` suite. Lane B, "field and audit" (co15b): parts 3, 5, 7 and 9 *(2026-10-15: and part 11, adding `apps/web/src/components/suggestion-field.tsx`, its `app.css` rules if any and the plate e2e)*, touching `packages/domain/src/audit/`, `packages/domain/src/sync/counts.ts`, the export dialog's audit section, the Sync status, the plate section of `apps/web/src/surfaces/ficha/` with `apps/web/src/input/focus-restore.ts`, `etapa5-local.tsx`, and their specs. The lanes share only `apps/web/src/copy/pt-br.ts` (new keys in separate blocks) and `packages/domain` exports; lane B reads the document layout for the audit but does not change it. They merge under part 2's rule: the second PR takes the first and runs both lanes' touched specs.
+
+### Story 14.11: The insulation and the extinction medium drive the oil items
+
+*(Added 2026-10-15 by Matheus, from Bruno, voice note 2026-10-15, relayed by Matheus: "Transformador, disjuntor, os itens que são a seco, epóxi ou óleo: quando eu seleciono que o transformador é a óleo, aparecem as informações de óleo (quantidade de óleo, indicador de nível); quando coloco epóxi ou a seco, não aparecem mais essas coisas — ou tira esses itens ou já coloca não aplicável de cara." This replaces the stopgap of 2026-10-09 (`source-deltas.md` row "Story 3.5 and FR-11": the "Marcar N itens de óleo como NA" chip, "an oil option for TIPO DE ISOLAÇÃO comes later in a new seed version, with Bruno").)*
+
+**Dev model:** opus · **Effort:** high · seed v6 option lists, a kernel rule from one nameplate value to the oil items and fields, sheet and print
+
+As Bruno filling a transformer, TP, TC or disjuntor sheet,
+I want choosing óleo, epóxi or a seco (or the breaker's extinction medium) to decide the oil items and fields for me,
+So that a dry unit never asks about oil and an oil unit never hides it.
+
+**Today (verified 2026-10-15):** `packages/domain/src/seed/v1.ts:40` `MEIO_DE_EXTINCAO` offers only AR and SF6 (used by the seccionadora at `:65` and the disjuntor at `:78`, whose `VOL_OLEO` is at `:79`); `:42` `TIPO_DE_ISOLACAO` offers only EPÓXI and Á SECO, no ÓLEO; `:43` `VOL_OLEO`; `:328-343` `OIL_RELATED_ITEMS` (eight items) and `DRY_SUBTYPES`, the subtypes of TP, TC and Transformador de força; the disjuntor's own oil item is `oleo_isolante_indicador_de_nivel` at `:252`. `packages/domain/src/relatorio/dry-insulation.ts` offers the "Marcar N itens de óleo como NA" chip on a block with no subtype whose stored insulation is dry (its comment: seed v1 offers no oil option, so an oil-filled unit is forced to pick a dry value) and stops counting VOL. ÓLEO as missing on a dry block.
+
+**Seed coordination with Story 14.9:** both stories ship in the one seed version **v6** and under one contract number, fixed before either batch starts (the next free number then: 20 unless the E14-A8 per-key config family takes it first) and written in both story specs. Whichever merges second rebases on the first's v6 and extends it, and v6 freezes at the first production deploy after both. If one story is not ready when the other is, the coordinator decides with Matheus whether the ready one ships v6 alone and the other takes v7; no partial v6 is deployed.
+
+*(Definition of Ready: Bruno's answers to the open questions below are recorded under this story with their date, or Matheus accepts the proposed default of each with a dated line; Story 14.9's batch and this one agree the v6 and contract numbers.)*
+
+**Open questions for Bruno:**
+
+1. Dry unit: hide the oil items and fields, or show them already marked NA (and printed NA)? Proposed: show them marked NA, so the printed table keeps the FO.SERV-03 rows.
+2. The disjuntor's (and seccionadora's) MEIO DE EXTINÇÃO list: óleo (PVO, GVO), vácuo, SF6, ar? Which value counts as oil?
+3. Do TP and TC also get the ÓLEO insulation option (the same list as the transformer)?
+4. When the insulation or the medium changes after items were answered: keep the answers (proposed: an item already holding C, NC or NA is never overwritten, as today), or clear the oil items?
+
+**Acceptance Criteria:**
+
+**Given** seed v6
+**When** it lands
+**Then** `TIPO DE ISOLAÇÃO` on Transformador de força (and TP and TC per Bruno's answer 3) offers ÓLEO beside EPÓXI and Á SECO, and `MEIO DE EXTINÇÃO` offers the media of Bruno's answer 2; v1 to v5 stay frozen and resolvable, and a kernel test pins the difference with v5 (AR-20; AD-21)
+
+**Given** a sheet on v6 whose insulation (or, on a disjuntor, extinction medium) is a dry or non-oil value, whether typed, picked, read from the plate and confirmed, or set by the template subtype
+**When** the sheet renders and is counted
+**Then** the oil items (`OIL_RELATED_ITEMS`; on the disjuntor `oleo_isolante_indicador_de_nivel`) are hidden or shown as NA per Bruno's answer 1, without a chip and without a tap; VOL. ÓLEO (and any other oil field) is hidden or excused and never counts as missing; the rule is one kernel function in `packages/domain` read by the sheet, progress, pre-issue, the conclusion text and the renderer, never derived in `apps/*` (AD-2)
+
+**Given** ÓLEO (or an oil medium)
+**When** it is chosen
+**Then** every oil item and field shows and counts as on an oil unit today
+
+**Given** the insulation or medium changes after answers exist
+**When** the sheet re-evaluates
+**Then** answers follow Bruno's answer 4, and a two-device test shows both devices converge on the same items and marks (AD-3); if the NA marks are written as ops rather than derived, they are written in one undoable batch and pinned by the replay test
+
+**Given** a relatório on v1 to v5
+**When** it is opened and generated
+**Then** the chip of `dry-insulation.ts` and today's rules stay as they are, and the golden documents still match (AD-15)
+
+**Given** generation on v6
+**When** a dry unit prints
+**Then** its oil items print as NA (or are absent, per answer 1) and its oil fields print "-" or are absent, the same choice on the sheet and in the document
+
+**Definition of Done, in addition:** the contract version decision is written in the PR with Story 14.9's; a Playwright spec picks Á SECO on a transformer and sees the oil items handled with no tap, switches to ÓLEO and sees them back, does the same on a disjuntor's medium, reloads and syncs; the durability specs touched run on the matrix projects; `source-deltas.md` row "Story 3.5 and FR-11" gains a dated strike for v6 when this lands; `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` gain dated notes.
