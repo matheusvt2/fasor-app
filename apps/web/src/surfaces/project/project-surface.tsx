@@ -1,15 +1,14 @@
 import {
   dateRangeText,
-  fichasCountText,
-  progress,
-  progressCounterState,
   projectRelatoriosHeading,
   projectLabel,
   projectRelatoriosMeta,
   relatoriosOfProject as orderRelatorios,
+  relatorioCounter,
   relatorioSubText,
   relatorioTitle,
   type BlockRow,
+  type SuggestionRow,
   type ClientRow,
   type RelatorioRow,
   type TemplateRow,
@@ -18,14 +17,14 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { Button, LoadingNote, StatusPill } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
-import { blockRowsOf, clientRows, projectRow, relatoriosOfProject, templateRows } from '../../db/home-store.ts';
+import { blockRowsOf, clientRows, projectRow, relatoriosOfProject, suggestionRowsOfRelatorio, templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useSession } from '../../state/session.tsx';
 import { NewRelatorioDialog } from './new-relatorio-dialog.tsx';
 import '../relatorio/relatorio.css';
 
 const NO_CLIENTS: ClientRow[] = [];
-const NO_BLOCKS: Record<string, BlockRow[]> = {};
+const NO_SHEETS: Record<string, { blocks: BlockRow[]; suggestions: SuggestionRow[] }> = {};
 
 /**
  * `/project/:id` (`30-project.html`, Story 4.1): the obra's head (crumbs, site, "Novo
@@ -47,17 +46,22 @@ export function ProjectSurface() {
   // Undefined until read: the dialog preselects the template from this list, so it waits for it.
   const templates: TemplateRow[] | undefined = useLiveQuery(() => (db === null ? undefined : templateRows(db)), [db]);
   const relatorios: RelatorioRow[] | undefined = useLiveQuery(() => (db === null ? undefined : relatoriosOfProject(db, id)), [db, id]);
-  // The sheets of every relatório of the obra, for the "n de N fichas" counters.
-  const blocksByRelatorio = useLiveQuery(
+  // The sheets of every relatório of the obra and its suggestion rows, for the "n de N fichas"
+  // counters (Story 14.10 part 10: a sheet holding a pending suggestion is not concluded, the
+  // Sumário's rule, `relatorioCounter`).
+  const sheetsByRelatorio = useLiveQuery(
     async () => {
-      if (db === null) return NO_BLOCKS;
+      if (db === null) return NO_SHEETS;
       const rows = await relatoriosOfProject(db, id);
-      const out: Record<string, BlockRow[]> = {};
-      for (const row of rows) out[row.id] = (await blockRowsOf(db, row.id)).filter((block) => block.removed_at === null);
+      const out: Record<string, { blocks: BlockRow[]; suggestions: SuggestionRow[] }> = {};
+      for (const row of rows) {
+        const [blocks, suggestions] = await Promise.all([blockRowsOf(db, row.id), suggestionRowsOfRelatorio(db, row.id)]);
+        out[row.id] = { blocks: blocks.filter((block) => block.removed_at === null), suggestions };
+      }
       return out;
     },
     [db, id],
-    NO_BLOCKS,
+    NO_SHEETS,
   );
 
   const client = useMemo(() => (project === null || project === undefined ? null : (clients.find((row) => row.id === project.client_id) ?? null)), [clients, project]);
@@ -165,7 +169,8 @@ export function ProjectSurface() {
               </div>
               <ul className="relatorio-list" aria-label={t.listLabel}>
                 {ordered.map((row) => {
-                  const counts = progress({ blocks: blocksByRelatorio[row.id] ?? [], suggestions: [] });
+                  const sheets = sheetsByRelatorio[row.id];
+                  const counter = relatorioCounter(sheets?.blocks ?? [], sheets?.suggestions);
                   return (
                     <li key={row.id} data-relatorio={row.id}>
                       <Link className="relatorio-row" to={`/relatorio/${row.id}`}>
@@ -178,9 +183,9 @@ export function ProjectSurface() {
                         </span>
                         <span className="lr-dates">{dateRangeText(row.setup.service_start, row.setup.service_end)}</span>
                         <span className="lr-template lr-meta">{templateName(row) ?? ''}</span>
-                        <span className="progress-counter" data-state={progressCounterState(counts)}>
+                        <span className="progress-counter" data-state={counter.state}>
                           <span className="dot" aria-hidden="true" />
-                          {fichasCountText(counts)}
+                          {counter.text}
                         </span>
                         <span className="lr-chev">
                           <svg className="ico" aria-hidden="true">

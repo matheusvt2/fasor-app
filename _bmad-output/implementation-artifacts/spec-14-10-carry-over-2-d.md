@@ -2,7 +2,8 @@
 title: 'Story 14.10 parts 10 and 11: one concluded-sheet rule on Home and Sumário; suggestion tray with real buttons'
 type: 'feature'
 created: '2026-10-15'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: 'afafe9812a974113f0bcea3639ce91332b513b2a'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus

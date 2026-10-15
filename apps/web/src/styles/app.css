@@ -966,3 +966,23 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
    of `ficha.css` `.word-unregistered` and `.word-unregistered-name`. */
 .registry-panel .word-unregistered { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
 .registry-panel .word-unregistered-name { color: var(--ink-primary); font-weight: 600; }
+
+/* Story 14.10 part 11: `key-suggestion-options.html` option A, the amber tray under a nameplate
+   field whose reading differs from the typed value (DESIGN.md › Suggestion field). Declarations
+   verbatim from the mock's lines 44-54. The mock's `.opt-a .suggestion-tray` (the controls hang
+   off the field they act on, no field-gap above them) becomes `.suggestion-tray`: the app has no
+   `.opt-a` wrapper. */
+.suggestion-tray { margin-top: calc(-1 * var(--field-gap)); }
+.suggestion-tray { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  background: var(--fora-do-limite-fill); border: 2px solid var(--fora-do-limite); border-top: 0; border-radius: 0 0 var(--r-md) var(--r-md); }
+.suggestion-tray-text { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--fora-do-limite); }
+.suggestion-tray-text b { font-size: var(--t-body-size); color: var(--ink-primary); font-weight: 600; }
+.suggestion-tray-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); }
+.suggestion-tray-actions .btn { flex: 1 1 140px; }
+/* `.frame-tablet .suggestion-tray-actions .btn` -> 768 px and up. The mock draws no desktop frame;
+   authored: from 1280 px the tablet rule applies too, mirroring `components.css`
+   `.frame-desktop .sticky-action-bar .bar-buttons .btn { flex: 0 0 auto; min-width: 200px }`, so the
+   query is widened from (min-width: 768px) and (max-width: 1279.98px) to (min-width: 768px). */
+@media (min-width: 768px) {
+  .suggestion-tray-actions .btn { flex: 0 0 auto; min-width: 200px; }
+}

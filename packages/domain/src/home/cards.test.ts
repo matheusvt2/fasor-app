@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { RelatorioSummary } from '../contract/sync.ts';
-import type { ProjectRow, RegistryRow, RelatorioRow, RelatorioStatus, TemplateRow } from '../schemas/entities.ts';
+import { emptySheet, type BlockRow, type ProjectRow, type RegistryRow, type RelatorioRow, type RelatorioStatus, type SuggestionRow, type TemplateRow } from '../schemas/entities.ts';
+import { fichasCountText, progress } from '../relatorio/progress.ts';
+import { pendingSuggestions } from '../relatorio/suggestions.ts';
+import { defaultBlockConfig } from '../seed/template.ts';
 import { sumarioTitle } from '../relatorio/project.ts';
 import { idSequence } from '../test-support.ts';
 import {
@@ -400,5 +403,61 @@ describe('shortcut sub-lines', () => {
 
   it('names the registries the mock names', () => {
     expect(CADASTROS_SUBLINE).toBe('Empresa · Clientes · Instrumentos · Fabricantes · Classes de tensão · Critérios');
+  });
+});
+
+describe('homeCards: the counter follows the Sumário rule (14.10 part 10)', () => {
+  const at = '2026-10-15T10:00:00.000Z';
+  const sheet = (id: string, relatorioId: string, concluded: boolean): BlockRow => ({
+    id,
+    relatorio_id: relatorioId,
+    location_id: ids(),
+    equipment_id: ids(),
+    block_type: 'chave_seccionadora',
+    config: defaultBlockConfig('v1', 'chave_seccionadora', { subtype: 'manual' }),
+    seed_version: 'v1',
+    order_key: 'a0',
+    feeds_block_id: null,
+    not_tested: null,
+    concluded_by: concluded ? { actor_id: 'u1', at } : null,
+    sheet: emptySheet(),
+    created_by: null,
+    first_edited_at: null,
+    last_modified_by: null,
+    last_modified_at: null,
+    removed_at: null,
+  });
+  const suggestion = (blockId: string, relatorioId: string, status: SuggestionRow['status'] = 'pending'): SuggestionRow => ({
+    id: ids(),
+    relatorio_id: relatorioId,
+    target_path: `sheet/${blockId}/nameplate/fabricante`,
+    value: 'ABB',
+    trust: 'suggested',
+    mode: 'replace',
+    source: { photo_id: ids(), bbox: [0, 0, 1, 1], ocr_token_ids: [], reading_run_id: ids() },
+    status,
+    prompt_version: 'v1',
+    hint: null,
+  });
+  const A = ids();
+  const B = ids();
+  const C = ids();
+  const blocks = [sheet(A, R_FIELD_HERE, true), sheet(B, R_FIELD_HERE, true), sheet(C, R_FIELD_HERE, false)];
+  const counter = (suggestions: SuggestionRow[] | undefined) =>
+    homeCards(input({ relatorios: [relatorio(R_FIELD_HERE, 'em_campo')], syncStates: [onDevice(R_FIELD_HERE)], blocks, suggestions }))[0]!.counter;
+
+  it('a concluded sheet holding a pending suggestion is not counted; without rows read, the sheets alone', () => {
+    expect(counter(undefined)).toEqual({ text: '2 de 3 fichas', state: 'pending' });
+    expect(counter([])).toEqual({ text: '2 de 3 fichas', state: 'pending' });
+    expect(counter([suggestion(A, R_FIELD_HERE)])).toEqual({ text: '1 de 3 fichas', state: 'pending' });
+  });
+
+  it("confirmed and discarded rows and another relatório's rows hold nothing", () => {
+    expect(counter([suggestion(A, R_FIELD_HERE, 'confirmed'), suggestion(B, R_FIELD_HERE, 'discarded'), suggestion(A, R_FIELD_AWAY)])!.text).toBe('2 de 3 fichas');
+  });
+
+  it("the card's text is the Sumário's count over the same rows", () => {
+    const rows = [suggestion(B, R_FIELD_HERE), suggestion(A, R_FIELD_HERE, 'discarded')];
+    expect(counter(rows)!.text).toBe(fichasCountText(progress({ blocks, suggestions: [] }, pendingSuggestions(rows))));
   });
 });

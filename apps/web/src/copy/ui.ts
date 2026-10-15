@@ -113,6 +113,11 @@ export const ui = {
     replace: 'Substituir',
     // authored (review 2026-10-08, DG-2): beside "Substituir", discards the suggestion and keeps the typed value.
     keepTyped: 'Manter o digitado',
+    // Story 14.10 part 11, `key-suggestion-options.html` option A: the tray under a nameplate
+    // field whose reading differs from the typed value, and its two buttons' accessible names.
+    trayLabel: (label: string) => `${label}: a leitura difere do digitado`,
+    replaceLabel: (label: string, suggested: string) => `Substituir ${label} por ${suggested}`,
+    keepTypedLabel: (label: string, typed: string) => `Manter o digitado em ${label}, ${typed}`,
     // `60-ficha.html` `.crop-thumb` aria-label; EXPERIENCE.md › Suggestion field: the crop's alt.
     cropLabel: (label: string) => `Ver recorte da placa — ${label}`,
     cropAlt: 'Recorte da placa',
