@@ -2,7 +2,7 @@
 title: 'Story 14.10 lane A: gate preflight, cross-batch merge rule, generation time, coluna in the group titles'
 type: 'feature'
 created: '2026-10-15'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'f7d88b5d7ed5c20af56b5b6a0688a37ae66812a6'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -99,6 +99,25 @@ deferred: []
 - Given the production shape generated locally, when the timing is on, then the PR body records each stage's time for preview and generate, before and after the skips, and the api timing test fails when a stage exceeds the target.
 - Given the Porto Seguro fixture and the goldens, when the api suite runs, then the goldens still match.
 - Given a local with the flag on and a painel holding sheets in its colunas, when the relatório is generated, then the ÍNDICE and section 9 carry one type group per coluna titled with the coluna, the painel and the local.
+
+## Review Triage Log
+
+*(2026-10-15, pass 1: Edge Case Hunter and Verification Gap Reviewer on opus; Blind Hunter and Intent Alignment skipped, token economy, the integrated epic review covers them.)* Verdicts: 9 patch, 5 defer, 0 false.
+
+- patch: gate wiring checked only by source text -> exported preflight-then-run entry, tested with a failing fake preflight (verify, e2e).
+- patch: `onTiming` throwing after commit, and a second `generate timing` line after `logTiming('done')` -> once-only flag, guarded hook.
+- patch: preflight with zero project containers passes silently -> one-line note.
+- patch: inspect 404 between list and inspect skips the whole probe -> allSettled, row dropped.
+- patch: missing `StartedAt` reads the whole log -> `tail=20`.
+- patch: non-numeric `PREFLIGHT_INTERVAL_MS` -> 10000.
+- patch: no overall deadline, a loaded engine can take past 15 s -> overall 15 s deadline.
+- patch: empty coluna name -> painel-only title.
+- patch (doc): a host with no `/var/run/docker.sock` sets `ENGINE_SOCKET_HOST`.
+- defer: `renderDocument` using `passLayout` not pinned by a test (needs a seam; costs speed only, output identical).
+- defer: per-stage targets skipped without a socket (documented, tied to the socket-proxy open question).
+- defer: two colunas of one painel with the same typed name print identical titles (default names are unique; open with Bruno with the wording).
+- defer: non-coluna children between colunas of a painel (no client writes that shape).
+- defer: compose mount on a host without the socket path (rootless podman refuses to start tools; Docker creates a directory, which the probe reads as no socket).
 
 ## Design Notes
 

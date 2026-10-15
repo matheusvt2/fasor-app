@@ -252,6 +252,38 @@ export async function renderDocument(layout: DocumentLayout, images: DocxImages,
   return { docx: third.docx, pdf: third.pdf, pages: third.pageCount, tocPasses: 3, tocConverged: tocConverged(third.pages, second.pages) };
 }
 
+export interface TimingReporterInput {
+  fields: { company_id: string; relatorio_id: string; job_id: string };
+  kind: GenerateKind;
+  started: number;
+  clock: StageClock;
+  onTiming?: ((timing: GenerateTiming) => void) | undefined;
+  now?: () => number;
+}
+
+/**
+ * Story 14.10 part 4: reports a job's stage times once. The first call logs the one
+ * `generate timing` line and hands the timing to `onTiming`; any later call (a throw after
+ * the `done` report reaching the job's catch) does nothing, so a job never logs a second,
+ * `failed` line. A throwing `onTiming` is logged and never fails the job, which may already
+ * be committed.
+ */
+export function timingReporter(input: TimingReporterInput): (outcome: GenerateTiming['outcome']) => void {
+  const now = input.now ?? Date.now;
+  let reported = false;
+  return (outcome) => {
+    if (reported) return;
+    reported = true;
+    const timing: GenerateTiming = { kind: input.kind, outcome, total_ms: now() - input.started, stages_ms: { ...input.clock.stages } };
+    log('generate timing', { ...input.fields, ...timing });
+    try {
+      input.onTiming?.(timing);
+    } catch (error) {
+      logError('generate timing hook failed', { ...input.fields, error: String(error) });
+    }
+  };
+}
+
 function errorCodeOf(error: unknown): GenerateErrorCode {
   if (error instanceof LibreOfficeTimeoutError) return 'libreoffice_timeout';
   if (error instanceof TocOutlineMissingError) return 'toc_outline_missing';
@@ -272,11 +304,7 @@ export async function runGenerateJob(deps: GenerateJobDeps, payload: GeneratePay
   const kind: GenerateKind = payload.kind ?? 'issue';
   const clock = stageClock();
   /** One structured line per job with every stage's time (Story 14.10 part 4). */
-  const logTiming = (outcome: 'done' | 'failed') => {
-    const timing: GenerateTiming = { kind, outcome, total_ms: Date.now() - started, stages_ms: { ...clock.stages } };
-    log('generate timing', { ...fields, ...timing });
-    deps.onTiming?.(timing);
-  };
+  const logTiming = timingReporter({ fields, kind, started, clock, onTiming: deps.onTiming });
   try {
     // R7: the running put carries `started_at`, the instant a running job's expiry counts from.
     const startedAt = stamp();

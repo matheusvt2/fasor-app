@@ -141,10 +141,13 @@ export function painelTypeGroupTitle(words: string, painelName: string, localNam
  * "Seccionadoras dos Cubículos de MT da Coluna 1 do Painel 1 — Cabine primária": the group's
  * words, the coluna (a coluna is feminine, so always "da"), the painel with its contraction,
  * then the local. A coluna name that does not already say "Coluna" is prefixed with it
- * ("Entrada" reads "Coluna Entrada"). `words` is one of `GROUP_WORDS`.
+ * ("Entrada" reads "Coluna Entrada"); a blank name falls back to `painelTypeGroupTitle`. `words`
+ * is one of `GROUP_WORDS`.
  */
 export function colunaTypeGroupTitle(words: string, colunaName: string, painelName: string, localName: string): string {
   const coluna = colunaName.trim();
+  // A blank name (no client writes one: `nodeNameSchema` refuses it) names no coluna: the painel-only title.
+  if (coluna === '') return painelTypeGroupTitle(words, painelName, localName);
   // authored: Story 14.10 part 8, open for Bruno (the wording, one group per coluna, and "Coluna ⟨name⟩" for a name without "Coluna").
   return `${words} da ${saysColuna(coluna) ? coluna : `Coluna ${coluna}`} ${ofCabine(painelName.trim())} — ${localName.trim()}`;
 }

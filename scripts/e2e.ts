@@ -334,6 +334,19 @@ export function combine(groups: readonly GroupSummary[], durationMs: number, fil
   return { exitCode: failed ? 1 : 0, total, titles: Object.keys(results).sort(), unmatched };
 }
 
+/**
+ * Story 14.10 part 1: the command after its preflight. A preflight answering non-zero (a
+ * looping container) builds nothing and runs no group, and the command exits 1 with one
+ * line; zero runs it.
+ */
+export async function e2eAfterPreflight(probe: () => Promise<number>, command: () => number, log: (line: string) => void = console.error): Promise<number> {
+  if ((await probe()) !== 0) {
+    log('[e2e] the preflight found a looping container; no group ran');
+    return 1;
+  }
+  return command();
+}
+
 function run(command: string, args: string[], env: NodeJS.ProcessEnv): number {
   const result = spawnSync(command, args, { cwd: root, env, stdio: 'inherit' });
   return result.status ?? 1;
@@ -357,19 +370,15 @@ function line(summary: Pick<GroupSummary, 'tests' | 'passed' | 'failed' | 'skipp
   return `${summary.tests} tests: ${summary.passed} passed, ${summary.failed} failed, ${summary.skipped} skipped, ${summary.flaky} flaky, ${(summary.durationMs / 1000).toFixed(1)} s`;
 }
 
-async function main(): Promise<void> {
+function main(): number {
   const args = process.argv.slice(2);
   const started = Date.now();
-  if ((await preflight()) !== 0) {
-    console.error('[e2e] the preflight found a looping container; no group ran');
-    process.exit(1);
-  }
   mkdirSync(REPORT_DIR, { recursive: true });
 
   console.log('[e2e] building the web bundle once for both groups (build:e2e)');
   if (run('pnpm', ['--filter', '@app/web', 'run', 'build:e2e'], process.env) !== 0) {
     console.error('[e2e] build:e2e failed; no group ran');
-    process.exit(1);
+    return 1;
   }
 
   // Sequential on purpose: the serial group starts only once the parallel run has exited.
@@ -390,7 +399,9 @@ async function main(): Promise<void> {
   if (total.tests === total.skipped) console.log('[e2e]   no group ran a test');
   for (const filter of unmatched) console.log(`[e2e]   spec path ran no test: ${filter}`);
   console.log(`[e2e]   report: ${summaryFile}`);
-  process.exit(failed ? 1 : 0);
+  return failed ? 1 : 0;
 }
 
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) void main();
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void e2eAfterPreflight(() => preflight(), main).then((code) => process.exit(code));
+}

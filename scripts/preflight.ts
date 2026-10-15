@@ -107,6 +107,19 @@ const REQUEST_TIMEOUT_MS = 5_000;
 
 class NoSocketError extends Error {}
 
+/** The engine answered a status over 299 (a 404: the container went away between the list and its inspect). */
+class EngineStatusError extends Error {
+  constructor(
+    path: string,
+    readonly status: number,
+  ) {
+    super(`GET ${path.split('?')[0]} answered ${status}`);
+  }
+}
+
+/** The probe's overall deadline passed before the engine answered. */
+class DeadlineError extends Error {}
+
 /** One GET on the engine socket; the body as a buffer. Rejects on a status over 299 or after 5 s. */
 function get(socketPath: string, path: string): Promise<Buffer> {
   return new Promise((resolveGet, rejectGet) => {
@@ -115,7 +128,7 @@ function get(socketPath: string, path: string): Promise<Buffer> {
       res.on('data', (chunk: Buffer) => chunks.push(chunk));
       res.on('end', () => {
         const body = Buffer.concat(chunks);
-        if ((res.statusCode ?? 500) > 299) rejectGet(new Error(`GET ${path.split('?')[0]} answered ${res.statusCode}`));
+        if ((res.statusCode ?? 500) > 299) rejectGet(new EngineStatusError(path, res.statusCode ?? 500));
         else resolveGet(body);
       });
       res.on('error', rejectGet);
@@ -152,7 +165,13 @@ export function socketEngine(socketPath: string, project: string): Engine {
     async sample() {
       const filters = encodeURIComponent(JSON.stringify({ label: [`com.docker.compose.project=${project}`] }));
       const listed = JSON.parse((await get(socketPath, `/containers/json?all=1&filters=${filters}`)).toString('utf8')) as ListedContainer[];
-      const inspected = await Promise.all(listed.map(async (row) => JSON.parse((await get(socketPath, `/containers/${row.Id}/json`)).toString('utf8')) as InspectedContainer));
+      // A container removed between the list and its inspect (404) is dropped; any other failure fails the sample.
+      const settled = await Promise.allSettled(listed.map(async (row) => JSON.parse((await get(socketPath, `/containers/${row.Id}/json`)).toString('utf8')) as InspectedContainer));
+      const inspected: InspectedContainer[] = [];
+      for (const result of settled) {
+        if (result.status === 'fulfilled') inspected.push(result.value);
+        else if (!(result.reason instanceof EngineStatusError && result.reason.status === 404)) throw result.reason;
+      }
       return inspected.map((row): ContainerSample => {
         const labels = row.Config?.Labels ?? {};
         if (row.State?.StartedAt !== undefined) startedAt.set(row.Id, row.State.StartedAt);
@@ -169,10 +188,11 @@ export function socketEngine(socketPath: string, project: string): Engine {
     },
     async lastLog(container) {
       const started = Date.parse(startedAt.get(container.id) ?? '');
-      const since = Number.isFinite(started) && started > 0 ? `&since=${Math.floor(started / 1000)}` : '';
       const read = async (query: string) => firstLine(decodeLogFrames(await get(socketPath, `/containers/${container.id}/logs?stdout=1&stderr=1${query}`)));
+      // With no readable start time, the last lines of the log, never the whole of it.
+      if (!Number.isFinite(started) || started <= 0) return read('&tail=20');
       // The last run's log; when it is empty (the run had not printed yet), the last lines of any run.
-      return (await read(since)) ?? (await read('&tail=20'));
+      return (await read(`&since=${Math.floor(started / 1000)}`)) ?? (await read('&tail=20'));
     },
   };
 }
@@ -203,6 +223,19 @@ export interface PreflightOptions {
   intervalMs?: number;
   sleep?: (ms: number) => Promise<void>;
   log?: (line: string) => void;
+  /** The whole probe's budget; default `PREFLIGHT_DEADLINE_MS`. */
+  deadlineMs?: number;
+}
+
+export const DEFAULT_INTERVAL_MS = 10_000;
+/** The probe ends within 15 s, the gate's promise: 14 s for the engine, the rest for the process. */
+export const PREFLIGHT_DEADLINE_MS = 14_000;
+
+/** `PREFLIGHT_INTERVAL_MS` as a wait: a whole number of ms, zero included; anything else (unset, not a number, negative) is the default. */
+export function intervalFrom(raw: string | undefined): number {
+  if (raw === undefined || raw.trim() === '') return DEFAULT_INTERVAL_MS;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : DEFAULT_INTERVAL_MS;
 }
 
 /** Runs the probe: 0 to go on, 1 when a container loops (its message already printed). */
@@ -216,29 +249,45 @@ export async function preflight(options: PreflightOptions = {}): Promise<number>
     return 0;
   }
   const engine = options.engine ?? socketEngine(env.ENGINE_SOCKET ?? '/var/run/engine.sock', project);
-  const intervalMs = options.intervalMs ?? Number(env.PREFLIGHT_INTERVAL_MS ?? 10_000);
+  const intervalMs = options.intervalMs ?? intervalFrom(env.PREFLIGHT_INTERVAL_MS);
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((done) => setTimeout(done, ms)));
+  const deadlineMs = options.deadlineMs ?? PREFLIGHT_DEADLINE_MS;
+  const deadline = Date.now() + deadlineMs;
+  /** `work`, or a `DeadlineError` once the probe's budget is spent. */
+  const within = <T>(work: Promise<T>): Promise<T> => {
+    let timer: NodeJS.Timeout | undefined;
+    const late = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new DeadlineError(`the probe's ${deadlineMs / 1000} s deadline passed`)), Math.max(0, deadline - Date.now()));
+    });
+    return Promise.race([work, late]).finally(() => clearTimeout(timer));
+  };
+  let decision: PreflightDecision;
   try {
-    const first = await engine.sample();
-    let decision = decide(first);
+    const first = await within(engine.sample());
+    if (watched(first).length === 0) {
+      log(`preflight: no containers for project ${project}, skipped`);
+      return 0;
+    }
+    decision = decide(first);
     if (decision.verdict === 'ok' && needsSecondSample(first)) {
-      await sleep(intervalMs);
-      decision = decide(first, await engine.sample());
+      await within(sleep(Math.min(intervalMs, Math.max(0, deadline - Date.now()))));
+      decision = decide(first, await within(engine.sample()));
     }
-    if (decision.verdict === 'ok') return 0;
-    let lastLog: string | null;
-    try {
-      lastLog = await engine.lastLog(decision.container);
-    } catch {
-      lastLog = null;
-    }
-    log(loopMessage(decision.container, lastLog));
-    return 1;
   } catch (error) {
     if (error instanceof NoSocketError) log('preflight: no container engine socket, skipped');
     else log(`preflight: engine error, skipped: ${error instanceof Error ? error.message : String(error)}`);
     return 0;
   }
+  if (decision.verdict === 'ok') return 0;
+  // A loop was seen: the run stops whatever the log read does, with what it has.
+  let lastLog: string | null;
+  try {
+    lastLog = await within(engine.lastLog(decision.container));
+  } catch {
+    lastLog = null;
+  }
+  log(loopMessage(decision.container, lastLog));
+  return 1;
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -86,6 +86,18 @@ export function summaryLines(results: readonly StageResult[], totalMs: number): 
   return [...lines, `[verify]   total      ${seconds(totalMs)}`];
 }
 
+/**
+ * Story 14.10 part 1: the gate after its preflight. A preflight answering non-zero (a looping
+ * container) starts no stage and the gate exits 1 with one line; zero runs the gate.
+ */
+export async function verifyAfterPreflight(probe: () => Promise<number>, gate: () => Promise<number>, log: (line: string) => void = console.log): Promise<number> {
+  if ((await probe()) !== 0) {
+    log('[verify] FAILED: the preflight found a looping container; no stage ran');
+    return 1;
+  }
+  return gate();
+}
+
 const root = resolve(import.meta.dirname, '..');
 const LOG_DIR = resolve(root, 'test-results/verify');
 
@@ -118,12 +130,8 @@ const runPnpm: StageRunner = (stage, signal, alone) =>
     });
   });
 
-async function main(): Promise<void> {
+async function runGate(): Promise<number> {
   const started = Date.now();
-  if ((await preflight()) !== 0) {
-    console.log('[verify] FAILED: the preflight found a looping container; no stage ran');
-    process.exit(1);
-  }
   mkdirSync(LOG_DIR, { recursive: true });
   for (const phase of PHASES) console.log(`[verify] phase: ${phase.join(' + ')}`);
   const streamed = new Set(PHASES.filter((phase) => phase.length === 1).flat());
@@ -144,7 +152,9 @@ async function main(): Promise<void> {
   for (const line of summaryLines(results, Date.now() - started)) console.log(line);
   if (skipped.length > 0) console.log(`[verify]   not run (an earlier phase failed): ${skipped.join(', ')}`);
   console.log(`[verify] ${exitCode === 0 ? 'PASSED' : 'FAILED'}`);
-  process.exit(exitCode);
+  return exitCode;
 }
 
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) void main();
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void verifyAfterPreflight(() => preflight(), runGate).then((code) => process.exit(code));
+}

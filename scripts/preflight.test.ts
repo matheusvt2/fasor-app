@@ -1,7 +1,9 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { createServer, type Server } from 'node:http';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { decide, decodeLogFrames, firstLine, loopMessage, needsSecondSample, preflight, serviceLog, type ContainerSample, type Engine } from './preflight.ts';
+import { decide, decodeLogFrames, DEFAULT_INTERVAL_MS, firstLine, intervalFrom, loopMessage, needsSecondSample, preflight, serviceLog, type ContainerSample, type Engine } from './preflight.ts';
 
 /*
  * Story 14.10 part 1: the gate preflight's decision on fake container lists, its message,
@@ -165,12 +167,134 @@ describe('scripts/preflight.ts the probe', () => {
   });
 });
 
+describe('scripts/preflight.ts review fixes (2026-10-15)', () => {
+  const quiet = { COMPOSE_PROJECT_NAME: 'fasor-co15a' };
+  const run = async (engine: Engine, extra: { deadlineMs?: number } = {}) => {
+    const lines: string[] = [];
+    const code = await preflight({ env: quiet, engine, intervalMs: 10_000, sleep: async () => {}, log: (line) => lines.push(line), ...extra });
+    return { code, lines };
+  };
+  const engineOf = (sample: () => Promise<ContainerSample[]>, lastLog: () => Promise<string | null> = async () => 'Error: boom'): Engine => ({ sample, lastLog });
+
+  it('(a) no container of the project (or only the gate\'s own one-off): one line, exit 0', async () => {
+    expect(await run(engineOf(async () => []))).toEqual({ code: 0, lines: ['preflight: no containers for project fasor-co15a, skipped'] });
+    const tools = container('fasor-co15a-tools-run-1', { service: 'tools', oneoff: true });
+    expect(await run(engineOf(async () => [tools]))).toEqual({ code: 0, lines: ['preflight: no containers for project fasor-co15a, skipped'] });
+    // One watched container is enough to probe.
+    expect(await run(engineOf(async () => [tools, container('fasor-co15a-api-1')]))).toEqual({ code: 0, lines: [] });
+  });
+
+  it('(d) PREFLIGHT_INTERVAL_MS: a whole number of ms from zero up; unset, empty, not a number or negative is the default', () => {
+    expect(DEFAULT_INTERVAL_MS).toBe(10_000);
+    for (const raw of [undefined, '', '  ', 'abc', '-1', '-0.5', 'NaN', 'Infinity']) expect(intervalFrom(raw), String(raw)).toBe(10_000);
+    expect(intervalFrom('0')).toBe(0);
+    expect(intervalFrom('2500')).toBe(2_500);
+    expect(intervalFrom('10000')).toBe(10_000);
+  });
+
+  it('(e) an engine that never answers: the deadline ends the probe with one engine-error line, exit 0, on time', async () => {
+    const started = Date.now();
+    const result = await run(engineOf(() => new Promise(() => {})), { deadlineMs: 50 });
+    expect(result).toEqual({ code: 0, lines: ["preflight: engine error, skipped: the probe's 0.05 s deadline passed"] });
+    expect(Date.now() - started).toBeLessThan(2_000);
+    // A second sample past the deadline is the same engine error.
+    let calls = 0;
+    const second = await run(
+      engineOf(() => (++calls === 1 ? Promise.resolve([container('fasor-co15a-web-1', { restartCount: 1 })]) : new Promise(() => {}))),
+      { deadlineMs: 50 },
+    );
+    expect(second).toEqual({ code: 0, lines: ["preflight: engine error, skipped: the probe's 0.05 s deadline passed"] });
+  });
+
+  it('(e) a loop already seen when the deadline passes still fails, with what it has', async () => {
+    const web = container('fasor-co15a-web-1', { state: 'restarting', restarting: true, restartCount: 7 });
+    const result = await run(engineOf(async () => [web], () => new Promise(() => {})), { deadlineMs: 50 });
+    expect(result).toEqual({ code: 1, lines: ['preflight: fasor-co15a-web-1 is restarting (restarts: 7); last log: (none)'] });
+  });
+
+  /** A fake engine on a unix socket: `routes` answers each GET path (without its query); every URL asked is kept. */
+  async function fakeEngine(routes: Record<string, { status?: number; body: unknown }>): Promise<{ socket: string; urls: string[]; server: Server }> {
+    const socket = join(mkdtempSync(join(tmpdir(), 'preflight-')), 'engine.sock');
+    const urls: string[] = [];
+    const server = createServer((req, res) => {
+      urls.push(req.url ?? '');
+      const route = routes[(req.url ?? '').split('?')[0]!];
+      res.statusCode = route?.status ?? (route === undefined ? 404 : 200);
+      res.end(route === undefined ? '{}' : Buffer.isBuffer(route.body) ? route.body : JSON.stringify(route.body));
+    });
+    await new Promise<void>((done) => server.listen(socket, done));
+    return { socket, urls, server };
+  }
+  const frame = (text: string) => {
+    const payload = Buffer.from(text);
+    const header = Buffer.alloc(8);
+    header[0] = 2;
+    header.writeUInt32BE(payload.length, 4);
+    return Buffer.concat([header, payload]);
+  };
+  const inspect = (id: string, over: Record<string, unknown> = {}) => ({
+    Id: id,
+    Name: `/fasor-co15a-${id}-1`,
+    RestartCount: 3,
+    State: { Status: 'restarting', Restarting: true },
+    Config: { Labels: { 'com.docker.compose.service': id } },
+    ...over,
+  });
+
+  it('(b) a container gone between the list and its inspect (404) is dropped; (c) with no start time the log read is the last 20 lines', async () => {
+    const { socket, urls, server } = await fakeEngine({
+      '/containers/json': { body: [{ Id: 'web' }, { Id: 'gone' }] },
+      '/containers/web/json': { body: inspect('web') },
+      '/containers/gone/json': { status: 404, body: { message: 'no such container' } },
+      '/containers/web/logs': { body: frame('failed to load config from /workspace/apps/web/vite.config.ts\n') },
+    });
+    try {
+      const lines: string[] = [];
+      const code = await preflight({ env: { COMPOSE_PROJECT_NAME: 'fasor-co15a', ENGINE_SOCKET: socket }, log: (line) => lines.push(line) });
+      expect({ code, lines }).toEqual({ code: 1, lines: ['preflight: fasor-co15a-web-1 is restarting (restarts: 3); last log: failed to load config from /workspace/apps/web/vite.config.ts'] });
+      const logReads = urls.filter((url) => url.startsWith('/containers/web/logs'));
+      expect(logReads).toEqual(['/containers/web/logs?stdout=1&stderr=1&tail=20']);
+      expect(urls.every((url) => !url.includes('since='))).toBe(true);
+    } finally {
+      server.close();
+    }
+  });
+
+  it('(b) any other failed inspect is an engine error: one line, exit 0; (c) a parseable start time reads that run\'s log', async () => {
+    const failing = await fakeEngine({
+      '/containers/json': { body: [{ Id: 'web' }] },
+      '/containers/web/json': { status: 500, body: { message: 'boom' } },
+    });
+    try {
+      const lines: string[] = [];
+      const code = await preflight({ env: { COMPOSE_PROJECT_NAME: 'fasor-co15a', ENGINE_SOCKET: failing.socket }, log: (line) => lines.push(line) });
+      expect({ code, lines }).toEqual({ code: 0, lines: ['preflight: engine error, skipped: GET /containers/web/json answered 500'] });
+    } finally {
+      failing.server.close();
+    }
+    const started = await fakeEngine({
+      '/containers/json': { body: [{ Id: 'web' }] },
+      '/containers/web/json': { body: inspect('web', { State: { Status: 'restarting', Restarting: true, StartedAt: '2026-10-15T13:43:10.5Z' } }) },
+      '/containers/web/logs': { body: frame('Error: EACCES\n') },
+    });
+    try {
+      const code = await preflight({ env: { COMPOSE_PROJECT_NAME: 'fasor-co15a', ENGINE_SOCKET: started.socket }, log: () => {} });
+      expect(code).toBe(1);
+      expect(started.urls.filter((url) => url.startsWith('/containers/web/logs'))).toEqual([`/containers/web/logs?stdout=1&stderr=1&since=${Math.floor(Date.parse('2026-10-15T13:43:10.5Z') / 1000)}`]);
+    } finally {
+      started.server.close();
+    }
+  });
+});
+
 describe('where the preflight runs', () => {
   it('each single stage script runs it first; verify and e2e call it themselves', () => {
     const scripts = (JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as { scripts: Record<string, string> }).scripts;
     for (const stage of ['lint', 'static', 'test:unit', 'test:api']) expect(scripts[stage]).toMatch(/^tsx scripts\/preflight\.ts && /);
-    expect(readFileSync(resolve(root, 'scripts/verify.ts'), 'utf8')).toContain("GATE_PREFLIGHT_DONE: '1'");
-    expect(readFileSync(resolve(root, 'scripts/e2e.ts'), 'utf8')).toMatch(/await preflight\(\)/);
+    const verify = readFileSync(resolve(root, 'scripts/verify.ts'), 'utf8');
+    expect(verify).toContain("GATE_PREFLIGHT_DONE: '1'");
+    expect(verify).toContain('verifyAfterPreflight(() => preflight(), runGate)');
+    expect(readFileSync(resolve(root, 'scripts/e2e.ts'), 'utf8')).toContain('e2eAfterPreflight(() => preflight(), main)');
   });
 
   it('the probe sends GET requests only', () => {

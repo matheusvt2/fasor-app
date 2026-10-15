@@ -392,6 +392,13 @@ describe('14.2-UNIT groupForPrint: a painel is a heading over its colunas', () =
       expect(colunaTypeGroupTitle('Seccionadoras dos Cubículos de MT', 'Entrada', 'Painel 1', 'Cabine primária')).toBe('Seccionadoras dos Cubículos de MT da Coluna Entrada do Painel 1 — Cabine primária');
     });
 
+    it('colunaTypeGroupTitle: an empty or blank coluna name falls back to the painel-only title; one character is a name', () => {
+      for (const blank of ['', ' ', '\t\n ']) {
+        expect(colunaTypeGroupTitle('Seccionadoras dos Cubículos de MT', blank, 'Painel 1', 'Cabine primária')).toBe(painelTypeGroupTitle('Seccionadoras dos Cubículos de MT', 'Painel 1', 'Cabine primária'));
+      }
+      expect(colunaTypeGroupTitle('Seccionadoras dos Cubículos de MT', ' A ', 'Painel 1', 'Cabine primária')).toBe('Seccionadoras dos Cubículos de MT da Coluna A do Painel 1 — Cabine primária');
+    });
+
     it('matrix "One coluna in a painel, flag on": the painel heading, then the coluna\'s group titled with the coluna, the painel and the local', () => {
       const grouping = groupForPrint(snapshotOf(primaria([coluna(11, 'Coluna 1', 10, 'a0')]), [sheet(1, 11, 'chave_seccionadora', 'a0')]), 'por_local_e_tipo');
       expect(full(grouping.subsections)).toEqual([
