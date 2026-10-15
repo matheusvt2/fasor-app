@@ -41,12 +41,15 @@ const READ = { n_serie: '240815-07', tipo: 'TSE-500/15' } as const;
 
 /** Types each value into its nameplate field and waits for its cell on the device. */
 async function typeValues(page: Page, blockId: string, values: Record<string, string>): Promise<void> {
+  // Typed offline (Bruno's case: no signal on site), the reading arriving once back online.
+  await page.context().setOffline(true);
   for (const [key, value] of Object.entries(values)) {
     const input = field(page, key).locator('input').first();
     await input.fill(value);
     await input.press('Enter');
     await expect.poll(async () => (await outbox(page)).some((op) => op.path === `sheet/${blockId}/nameplate/${key}` && op.value === value)).toBe(true);
   }
+  await page.context().setOffline(false);
 }
 
 /** The field's tray, its two buttons by the field-named accessible names, and the field's label. */

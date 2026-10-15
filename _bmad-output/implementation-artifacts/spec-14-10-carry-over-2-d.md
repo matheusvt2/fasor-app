@@ -2,7 +2,7 @@
 title: 'Story 14.10 parts 10 and 11: one concluded-sheet rule on Home and Sumário; suggestion tray with real buttons'
 type: 'feature'
 created: '2026-10-15'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'afafe9812a974113f0bcea3639ce91332b513b2a'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -97,6 +97,16 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-10-15 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 5 findings — high 0, medium 1, low 2, false 0, maybe-false 0 (plus 2 scope notes)
+- findings:
+  - `[low]` `[reject]` "Manter o digitado" accessible name reads the stored typed value while a new draft is still inside the 500 ms idle commit — transient, the label catches up on the commit; the fix (draft text plumbing) adds complexity for a sub-second window.
+  - `[low]` `[defer]` a helper between the input and the tray (tag prefill helper, invalid number, unregistered word) puts the joined tray under the helper rather than the input — cosmetic, still inside the field; known open in the PR.
+  - `[medium]` `[patch]` `relatorioCounter` counted blocks on hidden locations (removed, or under a removed one) that the Sumário's snapshot drops (`snapshot.ts` `liveStructure`), so Home/Project and the Sumário could still disagree — patched: `relatorioCounter` takes the relatório's location rows (removed included) and applies the same `hiddenLocationIds` filter; Home and Project pass them; boundary tests added.
+  - (verification-gap) no verification gaps; scope note: the visor mismatch line and the Prazo line keep `.suggestion-alt` (open question in the PR).
+  - (verification-gap) uncommitted working-tree changes (phone rule, offline typing) — committed with the story.
 
 ## Verification
 

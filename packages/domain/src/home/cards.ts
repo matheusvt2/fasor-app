@@ -3,7 +3,7 @@ import { formatDateOfInstant, formatServiceDates, formatShortDateTime, formatTim
 import type { Op } from '../ops/op.ts';
 import { relatorioCounter } from '../relatorio/progress.ts';
 import { sumarioTitle } from '../relatorio/project.ts';
-import type { BlockRow, ProjectRow, RegistryRow, RelatorioRow, RelatorioStatus, SuggestionRow, TemplateRow } from '../schemas/entities.ts';
+import type { BlockRow, LocationRow, ProjectRow, RegistryRow, RelatorioRow, RelatorioStatus, SuggestionRow, TemplateRow } from '../schemas/entities.ts';
 import { RELATORIO_STATUSES, statusPillId, type StatusPillId } from '../status/table.ts';
 import { activeTemplates } from '../templates/list.ts';
 import {
@@ -87,6 +87,12 @@ export interface HomeCardsInput {
    * (`relatorioCounter`). Omitted (not read yet) means the sheets alone.
    */
   suggestions?: readonly SuggestionRow[];
+  /**
+   * Story 14.10 part 10 (review): every location row this device holds, removed ones included,
+   * so a sheet on a hidden location is out of the counter as it is out of the Sumário
+   * (`relatorioCounter`). Omitted (not read yet) keeps every live block.
+   */
+  locations?: readonly LocationRow[];
   /**
    * Story 10.4 (ledger 166): the file rows this device holds, so a downloading card counts its
    * live photos against the summary's `progress`. Omitted (with `blocks`) means the bare word.
@@ -232,9 +238,19 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
     if (bucket === undefined) suggestionsByRelatorio.set(row.relatorio_id, [row]);
     else bucket.push(row);
   }
+  const locationsByRelatorio = new Map<string, LocationRow[]>();
+  for (const row of input.locations ?? []) {
+    const bucket = locationsByRelatorio.get(row.relatorio_id);
+    if (bucket === undefined) locationsByRelatorio.set(row.relatorio_id, [row]);
+    else bucket.push(row);
+  }
   const counterOf = (id: string, device: HomeCardDevice): HomeCard['counter'] => {
     if (input.blocks === undefined || device.kind !== 'on-device') return null;
-    return relatorioCounter(blocksByRelatorio.get(id) ?? [], input.suggestions === undefined ? undefined : (suggestionsByRelatorio.get(id) ?? []));
+    return relatorioCounter(
+      blocksByRelatorio.get(id) ?? [],
+      input.suggestions === undefined ? undefined : (suggestionsByRelatorio.get(id) ?? []),
+      input.locations === undefined ? undefined : (locationsByRelatorio.get(id) ?? []),
+    );
   };
 
   const cards: HomeCard[] = [];

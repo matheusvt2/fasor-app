@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RelatorioSummary } from '../contract/sync.ts';
-import { emptySheet, type BlockRow, type ProjectRow, type RegistryRow, type RelatorioRow, type RelatorioStatus, type SuggestionRow, type TemplateRow } from '../schemas/entities.ts';
+import { emptySheet, type BlockRow, type LocationRow, type ProjectRow, type RegistryRow, type RelatorioRow, type RelatorioStatus, type SuggestionRow, type TemplateRow } from '../schemas/entities.ts';
 import { fichasCountText, progress } from '../relatorio/progress.ts';
 import { pendingSuggestions } from '../relatorio/suggestions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
@@ -454,6 +454,16 @@ describe('homeCards: the counter follows the Sumário rule (14.10 part 10)', () 
 
   it("confirmed and discarded rows and another relatório's rows hold nothing", () => {
     expect(counter([suggestion(A, R_FIELD_HERE, 'confirmed'), suggestion(B, R_FIELD_HERE, 'discarded'), suggestion(A, R_FIELD_AWAY)])!.text).toBe('2 de 3 fichas');
+  });
+
+  it('a sheet on a removed location is out of the counter; locations not read yet keep it (review)', () => {
+    const removed: LocationRow = { id: ids(), relatorio_id: R_FIELD_HERE, parent_id: null, name: 'Coluna removida', order_key: 'a0', removed_at: at, kind: 'coluna' };
+    const other: LocationRow = { ...removed, id: ids(), relatorio_id: R_FIELD_AWAY, removed_at: null };
+    const onRemoved = { ...sheet(ids(), R_FIELD_HERE, true), location_id: removed.id };
+    const card = (locations: LocationRow[] | undefined) =>
+      homeCards(input({ relatorios: [relatorio(R_FIELD_HERE, 'em_campo')], syncStates: [onDevice(R_FIELD_HERE)], blocks: [...blocks, onRemoved], suggestions: [], locations }))[0]!.counter;
+    expect(card(undefined)!.text).toBe('3 de 4 fichas');
+    expect(card([removed, other])!.text).toBe('2 de 3 fichas');
   });
 
   it("the card's text is the Sumário's count over the same rows", () => {

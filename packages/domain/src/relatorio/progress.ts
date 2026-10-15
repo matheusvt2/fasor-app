@@ -227,14 +227,20 @@ export function fichasCountText(p: Pick<Progress, 'sheets_concluded' | 'sheets_t
  * are the device's suggestion rows of this relatório, any status; the pending ones waiting on
  * a live block (`livePendingSuggestions`) keep that block out of the concluded count, exactly
  * as `progress(snapshot, pendingSuggestions(rows))` does for the Sumário. Undefined (rows not
- * read yet) counts the sheets alone.
+ * read yet) counts the sheets alone. `locations` are the relatório's location rows, removed
+ * ones included: a block on a hidden location (removed, or under a removed one,
+ * `hiddenLocationIds`) is left out, as the snapshot's `liveStructure` leaves it out of the
+ * Sumário; undefined (not read yet) keeps every live block.
  */
 export function relatorioCounter(
   blocks: readonly BlockRow[],
   suggestionRows: readonly SuggestionRow[] | undefined,
+  locations?: readonly Pick<LocationRow, 'id' | 'parent_id' | 'removed_at'>[],
 ): { text: string; state: 'complete' | 'pending' } {
+  const hidden = locations === undefined ? null : hiddenLocationIds(locations);
+  const shown = hidden === null ? blocks : blocks.filter((block) => block.location_id === null || !hidden.has(block.location_id));
   // `progress({ blocks, suggestions: [] }, pending)` without the copy: the same `over` and `scoped`.
-  const p = over(blocks, ...scoped(blocks, suggestionRows === undefined ? undefined : pendingSuggestions(suggestionRows)));
+  const p = over(shown, ...scoped(shown, suggestionRows === undefined ? undefined : pendingSuggestions(suggestionRows)));
   return { text: fichasCountText(p), state: progressCounterState(p) };
 }
 

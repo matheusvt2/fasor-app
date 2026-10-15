@@ -115,6 +115,21 @@ export function suggestionRows(db: AppDatabase): Promise<SuggestionRow[]> {
   return rows<SuggestionRow>(db, 'suggestion');
 }
 
+/**
+ * Story 14.10 part 10 (review): every location row this device holds, removed ones included,
+ * so the Home card leaves a sheet on a hidden location out of its counter as the Sumário's
+ * snapshot does (`homeCards`'s `locations`, `relatorioCounter`, `hiddenLocationIds`).
+ */
+export async function locationRowsOnDevice(db: AppDatabase): Promise<LocationRow[]> {
+  const records = await db.entities.where('entity').equals('location').toArray();
+  const parsed: LocationRow[] = [];
+  for (const record of records) {
+    const result = entityRowSchemas.location.safeParse(record.row);
+    if (result.success) parsed.push(result.data as LocationRow);
+  }
+  return parsed;
+}
+
 export function templateRows(db: AppDatabase): Promise<TemplateRow[]> {
   return rows<TemplateRow>(db, 'template');
 }

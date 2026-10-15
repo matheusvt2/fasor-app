@@ -8,6 +8,7 @@ import {
   relatorioSubText,
   relatorioTitle,
   type BlockRow,
+  type LocationRow,
   type SuggestionRow,
   type ClientRow,
   type RelatorioRow,
@@ -17,14 +18,14 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { Button, LoadingNote, StatusPill } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
-import { blockRowsOf, clientRows, projectRow, relatoriosOfProject, suggestionRowsOfRelatorio, templateRows } from '../../db/home-store.ts';
+import { allLocationRows, blockRowsOf, clientRows, projectRow, relatoriosOfProject, suggestionRowsOfRelatorio, templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useSession } from '../../state/session.tsx';
 import { NewRelatorioDialog } from './new-relatorio-dialog.tsx';
 import '../relatorio/relatorio.css';
 
 const NO_CLIENTS: ClientRow[] = [];
-const NO_SHEETS: Record<string, { blocks: BlockRow[]; suggestions: SuggestionRow[] }> = {};
+const NO_SHEETS: Record<string, { blocks: BlockRow[]; suggestions: SuggestionRow[]; locations: LocationRow[] }> = {};
 
 /**
  * `/project/:id` (`30-project.html`, Story 4.1): the obra's head (crumbs, site, "Novo
@@ -47,16 +48,17 @@ export function ProjectSurface() {
   const templates: TemplateRow[] | undefined = useLiveQuery(() => (db === null ? undefined : templateRows(db)), [db]);
   const relatorios: RelatorioRow[] | undefined = useLiveQuery(() => (db === null ? undefined : relatoriosOfProject(db, id)), [db, id]);
   // The sheets of every relatório of the obra and its suggestion rows, for the "n de N fichas"
-  // counters (Story 14.10 part 10: a sheet holding a pending suggestion is not concluded, the
-  // Sumário's rule, `relatorioCounter`).
+  // counters (Story 14.10 part 10: a sheet holding a pending suggestion, or on a hidden location
+  // (the location rows read with the removed ones), is not concluded, the Sumário's rule,
+  // `relatorioCounter`).
   const sheetsByRelatorio = useLiveQuery(
     async () => {
       if (db === null) return NO_SHEETS;
       const rows = await relatoriosOfProject(db, id);
-      const out: Record<string, { blocks: BlockRow[]; suggestions: SuggestionRow[] }> = {};
+      const out: Record<string, { blocks: BlockRow[]; suggestions: SuggestionRow[]; locations: LocationRow[] }> = {};
       for (const row of rows) {
-        const [blocks, suggestions] = await Promise.all([blockRowsOf(db, row.id), suggestionRowsOfRelatorio(db, row.id)]);
-        out[row.id] = { blocks: blocks.filter((block) => block.removed_at === null), suggestions };
+        const [blocks, suggestions, locations] = await Promise.all([blockRowsOf(db, row.id), suggestionRowsOfRelatorio(db, row.id), allLocationRows(db, row.id)]);
+        out[row.id] = { blocks: blocks.filter((block) => block.removed_at === null), suggestions, locations };
       }
       return out;
     },
@@ -170,7 +172,7 @@ export function ProjectSurface() {
               <ul className="relatorio-list" aria-label={t.listLabel}>
                 {ordered.map((row) => {
                   const sheets = sheetsByRelatorio[row.id];
-                  const counter = relatorioCounter(sheets?.blocks ?? [], sheets?.suggestions);
+                  const counter = relatorioCounter(sheets?.blocks ?? [], sheets?.suggestions, sheets?.locations);
                   return (
                     <li key={row.id} data-relatorio={row.id}>
                       <Link className="relatorio-row" to={`/relatorio/${row.id}`}>

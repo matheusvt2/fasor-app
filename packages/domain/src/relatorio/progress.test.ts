@@ -15,7 +15,9 @@ import {
   relatorioCounter,
   sugestoesText,
 } from './progress.ts';
-import { pendingSuggestions } from './suggestions.ts';
+import { pendingSuggestions, suggestionRowsOf } from './suggestions.ts';
+import { entityKey, splitEntityKey } from '../ops/apply.ts';
+import type { LocationRow } from '../schemas/entities.ts';
 
 const snapshot = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
 
@@ -128,6 +130,50 @@ describe('14.10-UNIT relatorioCounter: the Sumário rule on every list counter (
     const all = [sheet(1, concluded), sheet(2, concluded), sheet(3, notTested)];
     expect(relatorioCounter(all, [])).toEqual({ text: '3 de 3 fichas', state: 'complete' });
     expect(relatorioCounter(all, [suggestion(bid(2))])).toEqual({ text: '2 de 3 fichas', state: 'pending' });
+  });
+
+  describe('a sheet on a hidden location is out, as the snapshot leaves it out of the Sumário (review)', () => {
+    const lid = (n: number) => `019966b0-0052-7000-8000-${String(n).padStart(12, '0')}`;
+    const loc = (n: number, parent: number | null, removed = false) => ({ id: lid(n), parent_id: parent === null ? null : lid(parent), removed_at: removed ? at : null });
+    // Cabine 1 live with a painel 2 removed and its coluna 3; cabine 4 removed; cabine 5 live.
+    const locations = [loc(1, null), loc(2, 1, true), loc(3, 2), loc(4, null, true), loc(5, null)];
+    const on = (n: number, location: number | null, over: Partial<BlockRow> = {}) => sheet(n, { location_id: location === null ? null : lid(location), ...over });
+
+    it('a concluded sheet on a removed location is not counted, nor its total', () => {
+      expect(relatorioCounter([on(1, 5, concluded), on(2, 4, concluded)], [], locations).text).toBe('1 de 1 fichas');
+    });
+
+    it('a sheet under a removed painel (its coluna live but hidden) is out too', () => {
+      expect(relatorioCounter([on(1, 1, concluded), on(2, 3, concluded), on(3, 2)], [], locations).text).toBe('1 de 1 fichas');
+    });
+
+    it('a block with no location is kept', () => {
+      expect(relatorioCounter([on(1, null, concluded), on(2, 4)], [], locations)).toEqual({ text: '1 de 1 fichas', state: 'complete' });
+    });
+
+    it('locations not read yet (undefined) keep every live block', () => {
+      expect(relatorioCounter([on(1, 5, concluded), on(2, 4, concluded)], [], undefined).text).toBe('2 de 2 fichas');
+    });
+
+    it("agrees with the Sumário's snapshot over the Porto Seguro fixture with a location removed and a held sheet", () => {
+      const state = new Map(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }));
+      const rowsOf = <T>(entity: string) =>
+        [...state].filter(([key, row]) => splitEntityKey(key).entity === entity && (row as { relatorio_id?: string }).relatorio_id === portoSeguro.relatorioId).map(([, row]) => row as T);
+      const blocks = rowsOf<BlockRow>('block');
+      // One not-tested (concluded) sheet is held; the location of another one is removed.
+      const notTested = blocks.filter((b) => b.removed_at === null && b.not_tested !== null);
+      const heldSheet = notTested[0]!;
+      const goneSheet = notTested.find((b) => b.location_id !== heldSheet.location_id)!;
+      const gone = rowsOf<LocationRow>('location').find((l) => l.id === goneSheet.location_id)!;
+      state.set(entityKey('location', gone.id), { ...gone, removed_at: at });
+      const held = suggestion(heldSheet.id, 'pending', portoSeguro.relatorioId);
+      state.set(entityKey('suggestion', held.id), held);
+      const rows = suggestionRowsOf(state, portoSeguro.relatorioId);
+      const sumario = fichasCountText(progress(buildSnapshot(state, portoSeguro.relatorioId), pendingSuggestions(rows)));
+      const home = relatorioCounter(rowsOf<BlockRow>('block').filter((b) => b.removed_at === null), rows, rowsOf<LocationRow>('location')).text;
+      expect(home).toBe(sumario);
+      expect(home).not.toBe(relatorioCounter(rowsOf<BlockRow>('block').filter((b) => b.removed_at === null), rows).text);
+    });
   });
 
   it("agrees with the Sumário's count over the same rows", () => {

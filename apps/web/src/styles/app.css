@@ -986,3 +986,8 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
 @media (min-width: 768px) {
   .suggestion-tray-actions .btn { flex: 0 0 auto; min-width: 200px; }
 }
+/* authored: on phone the two buttons always stack, full width, as the mock's 390 px frame draws them
+   (`key-suggestion-options-390.png`); the mock gets there by wrapping, which depends on the font's widths. */
+@media (max-width: 767.98px) {
+  .suggestion-tray-actions .btn { flex-basis: 100%; }
+}
