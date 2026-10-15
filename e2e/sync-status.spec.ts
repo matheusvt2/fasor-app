@@ -398,6 +398,9 @@ test('@p0 10.4-E2E-009 a push that never reached the server leaves its sheet "Ag
   // The server cannot be reached: every push fails at the network, after the device marked its rows sent.
   const pushRoute = (url: URL) => url.pathname === '/api/sync/ops';
   await page.route(pushRoute, (route) => route.abort('connectionrefused'));
+  // Story 14.10 lane B: nor does its health check, so this stays "Sem conexão", not "Tentando de novo".
+  const healthRoute = (url: URL) => url.pathname === '/api/health';
+  await page.route(healthRoute, (route) => route.abort('connectionrefused'));
   await markFirst(page, 'Conforme');
 
   await openSyncStatus(page);
@@ -414,6 +417,7 @@ test('@p0 10.4-E2E-009 a push that never reached the server leaves its sheet "Ag
 
   // The server is back: the next cycle sends it and the row goes.
   await page.unroute(pushRoute);
+  await page.unroute(healthRoute);
   await syncNow(page);
   await expect(sheetRows(page)).toHaveCount(0);
   expect((await mine()).every((record) => record.status === 'acked')).toBe(true);

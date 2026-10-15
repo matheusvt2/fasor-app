@@ -2,7 +2,7 @@
 title: 'Story 14.10 lane B: honest emission audit, sync retry wording, focus after a plate shot, Hoje on Proxima intervencao'
 type: 'bugfix'
 created: '2026-10-15'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'fd7c26ff0d5fb5898e4d7c1c7a93e91ecb4d01d8'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -100,3 +100,25 @@ Open questions (kept conservative, listed in the PR): whether a sync request sti
 - `podman compose --profile tools run --rm --user root tools pnpm test:unit -- packages/domain/src/audit packages/domain/src/sync` -- green
 - `podman compose --profile tools run --rm --user root tools pnpm test:api -- jobs/audit` -- green
 - story gate: `pnpm lint`, `pnpm static`, `pnpm test:unit`, `pnpm test:api`, then `pnpm exec tsx scripts/e2e.ts e2e/emission-audit.spec.ts e2e/sync-status.spec.ts e2e/plate-shot-fallback.spec.ts e2e/plate.spec.ts e2e/keyboard-salvo.spec.ts --project desktop-chrome --project durability-desktop-chrome` under the host lock (the orchestrator runs it).
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-10-15 — Review pass
+Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter, Intent Alignment (token economy; the integrated epic review covers them).
+- verdicts: 13 findings — high 1, medium 5, low 7, false 0, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` VG: engine keep-previous-probe-answer rule not pinned; title claims an offline case — deferred probe in the test, offline case added.
+  - `[medium]` `[patch]` VG: retake focus return unasserted — focus assertion added to R8CAP-E2E-001.
+  - `[medium]` `[patch]` VG: stored-row-to-crop focus hand-off never exercised — e2e variant with a finished reading.
+  - `[high]` `[patch]` VG: 10.4-E2E-009 refuses only the sync route while health answers, now the retrying case — the test also refuses /api/health.
+  - `[low]` `[patch]` VG/EC: `.sync-headline[data-tone="retrying"]` uncolored — pending tone mirrored in app.css.
+  - `[medium]` `[patch]` EC: Home card badges ignore serverAnswers ("Off" beside "Tentando de novo") — threaded through homeCards.
+  - `[medium]` `[patch]` EC: a 503 degraded health answer read as no answer — any HTTP response counts.
+  - `[low]` `[patch]` EC: cause note chosen from badgeState hides retrying under conflict/error — chosen from serverAnswers.
+  - `[low]` `[patch]` EC: headline tone (duplicate root cause of the VG row above, same patch).
+  - `[low]` `[patch]` EC: rejecting health() would be an unhandled rejection — try/catch, false.
+  - `[medium]` `[patch]` EC: a sheet with only photos is `vazia` and goes to the tail — a live photo makes it non-empty, kernel test.
+  - `[low]` `[reject]` EC: a cut right after a `[sheet:]` line counts the sheet as sent with no rows — rare (one sheet at the boundary) and the fix adds look-ahead bookkeeping; the model did receive the sheet's name.
+  - `[low]` `[reject]` EC: onBlur with a null relatedTarget (tab switch) keeps the hand-off armed — unlikely in field use; the guard adds document-focus branching.

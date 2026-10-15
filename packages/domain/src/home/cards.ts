@@ -75,6 +75,8 @@ export interface HomeCardsInput {
   online: boolean;
   /** The server answered the last finished cycle (`syncBadgeState`); omitted means true. */
   reachable?: boolean;
+  /** Story 14.10 lane B: the health probe answered after an unreachable cycle (`syncBadgeState`'s `retrying`); omitted means false. */
+  serverAnswers?: boolean;
   /** Injected, never read from a clock here (TC-1): decides whether a card's stamp needs its date. */
   now: Date;
   /** Every block this device holds (Story 12.2): the counter of an on-device card. Omitted means no counter. */
@@ -249,7 +251,7 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
       title,
       meta,
       device,
-      badgeState: syncBadgeState(counts, { online: input.online, reachable: input.reachable }),
+      badgeState: syncBadgeState(counts, { online: input.online, reachable: input.reachable, serverAnswers: input.serverAnswers }),
       badgeCounts: counts,
       isCurrent: false,
       isUnavailable: device.kind === 'absent-offline',

@@ -657,7 +657,12 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
    */
   async function probeServer(failure: SyncFailure): Promise<void> {
     if (deps.client.health === undefined) return;
-    const answers = await deps.client.health();
+    let answers: boolean;
+    try {
+      answers = await deps.client.health();
+    } catch {
+      answers = false;
+    }
     if (stopped || status.lastFailure !== failure || status.serverAnswers === answers) return;
     status.serverAnswers = answers;
     emit();

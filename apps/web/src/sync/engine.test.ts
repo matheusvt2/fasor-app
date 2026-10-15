@@ -556,40 +556,55 @@ describe('sync engine', () => {
     h.db.close();
   });
 
-  it('14.10: after an unreachable cycle it asks the health probe; an answer reads serverAnswers true, a clean cycle resets it, offline sends no probe', async () => {
+  it('14.10: after an unreachable cycle it asks the health probe; the previous answer stands until the next probe answers, a clean cycle resets it, offline sends no probe', async () => {
     const h = await harness();
     await commitOps(h.db, seedLog());
-    let answers = true;
+    let next: () => Promise<boolean> = async () => true;
     let probes = 0;
     Object.assign(h.server, {
-      health: async () => {
+      health: () => {
         probes += 1;
-        return answers;
+        return next();
       },
     });
+    const failThrice = async (failure: SyncFailure, first: number) => {
+      h.server.failNext.pushes = [failure, failure, failure];
+      const cycle = h.engine.runCycle();
+      await waitFor(() => h.server.pushAttempts === first, 'the first attempt');
+      await h.clock.advance(1_000);
+      await waitFor(() => h.server.pushAttempts === first + 1, 'the second attempt');
+      await h.clock.advance(2_000);
+      expect(await cycle).toBe('ran');
+    };
     const unavailable: SyncFailure = { kind: 'http', status: 503 };
-    h.server.failNext.pushes = [unavailable, unavailable, unavailable];
-    const first = h.engine.runCycle();
-    await waitFor(() => h.server.pushAttempts === 1, 'the first attempt');
-    await h.clock.advance(1_000);
-    await waitFor(() => h.server.pushAttempts === 2, 'the second attempt');
-    await h.clock.advance(2_000);
-    expect(await first).toBe('ran');
+    await failThrice(unavailable, 1);
     await waitFor(() => h.engine.status().serverAnswers === true, 'the probe answer');
     expect(probes).toBe(1);
     expect(h.engine.status().lastFailure).toEqual(unavailable);
 
-    // The server stops answering: the next unreachable cycle's probe says so.
-    answers = false;
-    h.server.failNext.pushes = [{ kind: 'network' }, { kind: 'network' }, { kind: 'network' }];
-    const second = h.engine.runCycle();
-    await waitFor(() => h.server.pushAttempts === 4, 'the next cycle attempt');
-    await h.clock.advance(1_000);
-    await waitFor(() => h.server.pushAttempts === 5, 'its second attempt');
-    await h.clock.advance(2_000);
-    expect(await second).toBe('ran');
+    // The server stops answering: until the next probe answers, the previous answer stands.
+    let answer: (value: boolean) => void = () => undefined;
+    next = () => new Promise<boolean>((resolve) => (answer = resolve));
+    await failThrice({ kind: 'network' }, 4);
+    await waitFor(() => probes === 2, 'the second probe');
+    expect(h.engine.status().lastFailure).toEqual({ kind: 'network' });
+    expect(h.engine.status().serverAnswers).toBe(true);
+    answer(false);
     await waitFor(() => h.engine.status().serverAnswers === false, 'the second probe answer');
+
+    // A cycle that fails, then ends with the device offline, keeps its unreachable verdict and sends no probe.
+    next = async () => true;
+    h.server.failNext.pushes = [{ kind: 'network' }];
+    const offline = h.engine.runCycle();
+    await waitFor(() => h.server.pushAttempts === 7, 'the offline cycle attempt');
+    h.online.value = false;
+    await h.clock.advance(10_000);
+    expect(await offline).toBe('ran');
+    await settle();
+    expect(h.engine.status().lastFailure).toEqual({ kind: 'network' });
     expect(probes).toBe(2);
+    expect(h.engine.status().serverAnswers).toBe(false);
+    h.online.value = true;
 
     // A clean cycle resets it and sends no probe.
     expect(await h.engine.runCycle()).toBe('ran');

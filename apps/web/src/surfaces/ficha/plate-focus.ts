@@ -39,8 +39,8 @@ export function watchPlateFocus(scope: ParentNode | null): void {
 
 /**
  * A plate row that leaves the sheet while it holds the focus (the pending shot's row replaced
- * by the stored one, the stored row replaced by the crop once the reading is ready) hands the
- * focus on to the next target, so it never lands on `<body>` while the reading settles. The
+ * by the stored one, the stored row replaced by the crop once the reading is ready), or redraws
+ * the line that held it, hands the focus on to the next target, so it never lands on `<body>` while the reading settles. The
  * row tracks whether it holds the focus with its own focus events: a focus moved to another
  * control clears it, so a row leaving later takes nothing back.
  */
@@ -53,6 +53,13 @@ export function usePlateRowFocusHandoff(row: RefObject<HTMLElement | null>): { o
     },
     [],
   );
+  // The row stays but redraws its line ("Lendo…" giving way to the queued words when the upload
+  // fails or the signal goes): the focused line left with it, so the focus moves on too.
+  useEffect(() => {
+    if (!holds.current) return;
+    const active = document.activeElement;
+    if (active === null || active === document.body || !active.isConnected) watchPlateFocus(scope.current);
+  });
   return {
     onFocus: () => {
       holds.current = true;

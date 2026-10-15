@@ -548,6 +548,24 @@ describe('14.10-UNIT-001 auditInput sends the filled sheets first and counts the
     expect(sheetLine(input.text, BLOCK_CHAVE_ID)).toBe(`[sheet:${BLOCK_CHAVE_ID}] CHAVE SECCIONADORA SEC-TEST`);
   });
 
+  it('a sheet holding only a captioned photo goes with the filled ones, not to the tail', () => {
+    const bare = blockOf(ctaState().state);
+    const photoOnly: RelatorioSnapshot = {
+      ...snapshot,
+      blocks: snapshot.blocks.map((block) => (block.id === CTA_BLOCK ? { ...bare, relatorio_id: RELATORIO, location_id: LOCAL, order_key: 'z1' } : block)),
+    };
+    expect(sheetState(photoOnly.blocks.find((block) => block.id === CTA_BLOCK)!)).toBe('vazia');
+    const order = auditInput(draft(photoOnly), photoOnly, Number.MAX_SAFE_INTEGER)
+      .text.split('\n')
+      .filter((line) => line.startsWith('[sheet:'));
+    expect(order.findIndex((line) => line.startsWith(`[sheet:${CTA_BLOCK}]`))).toBeLessThanOrEqual(1);
+    const removed: RelatorioSnapshot = { ...photoOnly, files: photoOnly.files.map((file) => ({ ...file, removed_at: '2026-10-15T11:00:00.000Z' })) };
+    const tail = auditInput(draft(removed), removed, Number.MAX_SAFE_INTEGER)
+      .text.split('\n')
+      .filter((line) => line.startsWith('[sheet:'));
+    expect(tail.findIndex((line) => line.startsWith(`[sheet:${CTA_BLOCK}]`))).toBeGreaterThan(1);
+  });
+
   it('every sheet line of the full fixture names its sheet as the screen does, beside the printed title when that differs', () => {
     const full = fullSnapshot();
     const input = auditInput(draft(full), full);

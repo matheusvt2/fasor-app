@@ -4,6 +4,7 @@ import { readStore } from './support/outbox.ts';
 import { devicePhotos, expectCameraOpen, openChaveSheet } from './support/photos.ts';
 import { ackPhotoBytes, holdPhotoBytes, openTransformerSheet, photoAckedAt, pushPlateSuggestions, pushReadingStatus, transformerPlateFields } from './support/reading-ops.ts';
 import { syncNowAndReturn } from './support/sync.ts';
+import { plateFocusPlace, samplePlateFocus } from './support/plate-focus.ts';
 
 /*
  * R8CAP-E2E (review 2026-10-08, "no photo fails silently"): driven as a person does it, with the
@@ -105,6 +106,9 @@ test('@p0 R8CAP-E2E-001 a plate reading that read nothing says so, "Preencher ma
   await retake.click();
   const second = await shootOnce(page, before);
   expect(second).not.toBe(first);
+  // Story 14.10 lane B: the retake's camera hands the focus back to the plate row, never to BODY.
+  await expect.poll(() => plateFocusPlace(page), { timeout: 5_000 }).toBe('plate');
+  expect((await samplePlateFocus(page, 3_000)).filter((place) => place !== 'plate')).toEqual([]);
   const create = (await outbox(page)).find((op) => op.kind === 'create' && op.path === `file/${second}`);
   expect(create?.value).toMatchObject({ kind: 'photo', block_id: ids.blockId, reading_kind: 'plate', reading_status: 'queued', caption: 'placa de identificação' });
   // The new photo is the plate photo now: the empty line is gone, the old reading is cancelled here.

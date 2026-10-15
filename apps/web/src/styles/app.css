@@ -533,6 +533,9 @@ body {
    `components.css` `.sync-badge[data-state="pending"]` verbatim: work waits to go out, the
    device keeps it, nothing for the user to fix. */
 .sync-badge[data-state="retrying"]  { color: var(--sync-pending); }
+/* Story 14.10 lane B: the Sync status headline in that state mirrors `components.css`
+   `.sync-headline[data-tone="pending"] .sh-state` verbatim. */
+.sync-headline[data-tone="retrying"] .sh-state { color: var(--sync-pending); }
 
 /* The status board tile is a filter, not a link (UX-DR63, EXPERIENCE.md › Home), so it
    carries `aria-pressed`. `components.css` has `.status-board`, `.status-tile` and

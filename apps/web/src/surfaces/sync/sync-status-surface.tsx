@@ -96,7 +96,7 @@ export function SyncStatusSurface() {
           {/* The badge reads "Sem conexão" for both causes (kernel); this line names the real one. Story 14.10 lane B: "Tentando de novo" has its own line. */}
           {sync.online && sync.unreachable !== null ? (
             <p className="section-note sync-cause" data-testid="sync-unreachable">
-              {sync.unreachable === 'session' ? copy.sync.sessionExpired : sync.badgeState === 'retrying' ? copy.sync.serverRetrying : copy.sync.serverUnreachable}
+              {sync.unreachable === 'session' ? copy.sync.sessionExpired : sync.serverAnswers === true ? copy.sync.serverRetrying : copy.sync.serverUnreachable}
             </p>
           ) : null}
 

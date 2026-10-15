@@ -29,6 +29,7 @@ export function makeSyncState(overrides: SyncStateOverrides = {}): SyncState {
     lastResult: 'ran',
     lastFailure: null,
     unreachable: null,
+    serverAnswers: false,
     lastSyncAt: null,
     lastPushAt: [],
     // The provider derives these from the counts (kernel); a test with decisions supplies its own.

@@ -1,7 +1,9 @@
 import type { Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { devicePhotos, expectCameraOpen, openChaveSheet } from './support/photos.ts';
-import { holdPhotoBytes } from './support/reading-ops.ts';
+import { readStore } from './support/outbox.ts';
+import { plateFocusPlace, samplePlateFocus, startPlateFocusSampler, stopPlateFocusSampler } from './support/plate-focus.ts';
+import { holdPhotoBytes, openTransformerSheet, pushPlateSuggestions, pushReadingStatus, transformerPlateFields } from './support/reading-ops.ts';
 
 /*
  * Review F-01 (Epic 13 QA, High): a single shot on the "Fotografar placa" tile is never lost
@@ -103,15 +105,6 @@ for (const mode of ['reject', 'slow'] as const) {
   });
 }
 
-/** Where the focus is: `plate` inside the plate's row or crop, `BODY` when lost, else the element's tag and class. */
-const focusPlace = (page: Page) =>
-  page.evaluate(() => {
-    const active = document.activeElement;
-    if (active === null || active === document.body) return 'BODY';
-    if (active.closest('#ficha-nameplate .ficha-np-photo, #ficha-nameplate .plate-crop-open') !== null) return 'plate';
-    return `${active.tagName}.${active.className}`;
-  });
-
 for (const width of [390, 768]) {
   test(`@p0 14.10-E2E-003 at ${width} px, after a one-shot "Fotografar placa" the focus lands in the plate row, never on BODY while the reading waits`, async ({ page }) => {
     test.setTimeout(150_000);
@@ -123,7 +116,7 @@ for (const width of [390, 768]) {
     await expect(page.getByRole('dialog', { name: 'Câmera' })).toHaveCount(0, { timeout: 15_000 });
 
     // The camera closed: the focus is on the plate row (its reading line, else its tile).
-    await expect.poll(() => focusPlace(page), { timeout: 5_000 }).toBe('plate');
+    await expect.poll(() => plateFocusPlace(page), { timeout: 5_000 }).toBe('plate');
     const focused = await page.evaluate(() => {
       const active = document.activeElement as HTMLElement;
       return { reading: active.matches('.reading-line, .queued-banner'), tile: active.matches('.photo-tile') };
@@ -132,23 +125,44 @@ for (const width of [390, 768]) {
 
     // It stays there while the stored row replaces the pending one and the reading waits: sampled every 50 ms for 6 s,
     // twice the focus watch of the camera.
-    const samples = await page.evaluate(
-      () =>
-        new Promise<string[]>((resolve) => {
-          const seen: string[] = [];
-          const timer = setInterval(() => {
-            const active = document.activeElement;
-            seen.push(active === null || active === document.body ? 'BODY' : active.closest('#ficha-nameplate .ficha-np-photo, #ficha-nameplate .plate-crop-open') !== null ? 'plate' : 'other');
-          }, 50);
-          setTimeout(() => {
-            clearInterval(timer);
-            resolve(seen);
-          }, 6_000);
-        }),
-    );
+    const samples = await samplePlateFocus(page, 6_000);
     expect(samples.length).toBeGreaterThan(50);
     expect(samples.filter((place) => place !== 'plate')).toEqual([]);
     await expect(nameplate(page).locator('.photo-row.ficha-np-photo:not([data-pending-shot])')).toBeVisible({ timeout: 15_000 });
-    expect(await focusPlace(page)).toBe('plate');
+    expect(await plateFocusPlace(page)).toBe('plate');
   });
 }
+
+test('@p0 14.10-E2E-005 once the plate reading is ready, the focus held by the plate row moves to the plate crop, never to BODY', async ({ page }) => {
+  test.setTimeout(180_000);
+  await stubTakePhoto(page, 'reject');
+  await holdPhotoBytes(page);
+  const ids = await openTransformerSheet(page, account, database);
+  await shootPlate(page);
+  await expect(page.getByRole('dialog', { name: 'Câmera' })).toHaveCount(0, { timeout: 15_000 });
+  await expect.poll(() => plateFocusPlace(page), { timeout: 5_000 }).toBe('plate');
+  const [photo] = (await devicePhotos(page, database)).filter((row) => row.removed_at === null);
+  // The photo's create reaches the server (the engine pushes it after the commit; an acked row may be pruned).
+  await expect
+    .poll(
+      async () => {
+        const row = (await readStore<{ path: string; status: string }>(page, database, 'outbox')).find((record) => record.path === `file/${photo!.id}`);
+        return row === undefined || row.status === 'acked';
+      },
+      { timeout: 60_000 },
+    )
+    .toBe(true);
+
+  await startPlateFocusSampler(page);
+  // The reading job's run, written as the server writes it; an `online` event makes the engine pull it now, on the sheet.
+  await pushPlateSuggestions(account.companyId, ids.relatorioId, { blockId: ids.blockId, photoId: photo!.id, fields: transformerPlateFields() });
+  await pushReadingStatus(account.companyId, ids.relatorioId, photo!.id, 'done');
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  const crop = nameplate(page).locator('.plate-crop-open');
+  await expect(crop).toBeVisible({ timeout: 60_000 });
+  await expect(nameplate(page).locator('.photo-row.ficha-np-photo')).toHaveCount(0);
+  await expect(crop).toBeFocused({ timeout: 5_000 });
+  const samples = await stopPlateFocusSampler(page);
+  expect(samples.length).toBeGreaterThan(0);
+  expect(samples.filter((place) => place !== 'plate')).toEqual([]);
+});

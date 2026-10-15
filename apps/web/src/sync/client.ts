@@ -104,8 +104,8 @@ export interface SyncClient {
   audit?(relatorioId: string, body: AuditRequest): Promise<AuditResponse>;
   /**
    * Story 14.10 lane B: whether the server answers at all, `GET /api/health` (public, no
-   * session), aborted after `HEALTH_PROBE_TIMEOUT_MS`. True on a 2xx; false on any other
-   * answer, a network failure or the abort. Never throws. The engine asks it after a cycle
+   * session), aborted after `HEALTH_PROBE_TIMEOUT_MS`. True on any HTTP answer (a 503
+   * "degraded" is the server answering too); false on a network failure or the abort. Never throws. The engine asks it after a cycle
    * that ended unreachable, so the badge can tell "Tentando de novo" from "Sem conexão".
    * Optional in the type only so the test doubles built before it existed still type-check.
    */
@@ -273,8 +273,8 @@ export function createSyncClient(deps: { fetch: FetchLike }): SyncClient {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), HEALTH_PROBE_TIMEOUT_MS);
       try {
-        const response = await deps.fetch(HEALTH_PATH, { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { accept: 'application/json' }, signal: controller.signal });
-        return response.ok;
+        await deps.fetch(HEALTH_PATH, { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { accept: 'application/json' }, signal: controller.signal });
+        return true;
       } catch {
         return false;
       } finally {

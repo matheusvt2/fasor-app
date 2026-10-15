@@ -32,8 +32,8 @@ import type { AuditTarget } from './schema.ts';
  * text ends with `AUDIT_TRUNCATED_MARKER`, and a ref whose line was cut is not offered.
  *
  * Story 14.10 lane B (production finding of 2026-10-15): inside the sheets section the sheets
- * holding a value go first, each subsection's heading and local parts with them; the empty
- * sheets (`sheetState` `vazia`) follow, under their subsection's heading again. A 76-sheet
+ * holding a value or a live photo go first, each subsection's heading and local parts with them;
+ * the empty sheets (`sheetState` `vazia` and no photo) follow, under their subsection's heading again. A 76-sheet
  * relatório with 2 filled ones keeps those 2 inside the cut. A sheet's line carries the screen
  * label beside its printed title ("CHAVE DE TRANSFERÊNCIA AUTOMÁTICA CTA-APAGAR" next to
  * "(Chave de transferência automática CTA-APAGAR)") when the two differ, so a caption naming
@@ -222,9 +222,11 @@ function sectionLines(snapshot: RelatorioSnapshot, section: LayoutSection, rowKe
       // Story 14.10: the sheets holding a value first, every subsection's heading and local
       // parts with them; then the empty sheets, under their subsection's heading again.
       const blocks = new Map(snapshot.blocks.map((row) => [row.id, row]));
+      // A sheet holding only photos (a caption the model reads against the sheets) is not empty either.
+      const photographed = new Set(snapshot.files.flatMap((file) => (file.kind === 'photo' && file.removed_at === null && file.block_id !== null ? [file.block_id] : [])));
       const empty = (sheet: PrintSheet): boolean => {
         const block = blocks.get(sheet.blockId);
-        return block !== undefined && sheetState(block) === 'vazia';
+        return block !== undefined && !photographed.has(sheet.blockId) && sheetState(block) === 'vazia';
       };
       for (const subsection of section.subsections) {
         lines.push({ text: subsection.heading });
