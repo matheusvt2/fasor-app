@@ -440,6 +440,28 @@ describe('7.1 section9Layout: the I/O matrix', () => {
         expect(criteria).toBeNull();
       }
     });
+
+    // p020 P-3: a stored text equal to the composed one is never stale, so it prints.
+    const composedText = composeConclusion(FULL_CHAVE.block, definition, 'SEC-01').text;
+    const withStored = (text: string) =>
+      edit(FULL_CHAVE, (b) => {
+        b.sheet.conclusion.text = cell(text);
+        b.sheet.conclusion.text_status = cell('confirmed');
+        b.sheet.conclusion.text_basis = cell('stale-basis');
+        return b;
+      });
+
+    it('p020 P-3: confirmed, basis moved, text equal to the composed one: prints', () => {
+      const { rows, criteria } = conclusionOf(withStored(composedText));
+      expect(rows[2]).toEqual([composedText.trim()]);
+      expect(criteria).toBe(criteriaLine);
+    });
+
+    it('p020 P-3: confirmed, basis moved, text differs from the composed one: not printed (as before)', () => {
+      const { rows, criteria } = conclusionOf(withStored(`${composedText} Texto anterior.`));
+      expect(rows).toHaveLength(2);
+      expect(criteria).toBeNull();
+    });
   });
 
   it('Mixed units: a VALORES header with more than one measured unit reads "VALORES"; each cell keeps its own unit', () => {

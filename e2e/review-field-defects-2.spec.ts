@@ -217,7 +217,7 @@ test('@p0 F-03 F-04 issuing with 93 empty sheets asks first, naming the counts; 
   await expect(row9.locator('.sum-status').first()).toContainText('93 fichas vazias', { timeout: 30_000 });
   // DF-6 (review fixes 2026-10-08): this client is named with no CNPJ; the worker seed has no Empresa (no CNPJ named for it) and no logo.
   await expect(page.locator('.sticky-action-bar .btn-reason').first()).toHaveText(
-    /^Nada impede gerar\. Emitir pede confirmação: 93 fichas vazias, \d+ campos? em branco, o CNPJ do contratante em branco e o logo da empresa não cadastrado\.$/,
+    /^Nada impede gerar\. Gerar pede confirmação: 93 fichas vazias, \d+ campos? em branco, o CNPJ do contratante em branco e o logo da empresa não cadastrado\.$/,
   );
 
   // The dialog's own line, then the question with "Pré-visualizar" first.
@@ -226,10 +226,10 @@ test('@p0 F-03 F-04 issuing with 93 empty sheets asks first, naming the counts; 
   const statusBefore = (await outbox(page)).filter((row) => row.path === 'relatorio/status').length;
   await generateButton(page).click();
   const question = exportDialog(page).getByRole('group', {
-    name: /^Emitir com 93 fichas vazias, \d+ campos? em branco, o CNPJ do contratante em branco e o logo da empresa não cadastrado\?$/,
+    name: /^Gerar com 93 fichas vazias, \d+ campos? em branco, o CNPJ do contratante em branco e o logo da empresa não cadastrado\?$/,
   });
   await expect(question).toBeVisible();
-  await expect(question.getByRole('button')).toHaveText(['Pré-visualizar', 'Voltar', 'Emitir mesmo assim']);
+  await expect(question.getByRole('button')).toHaveText(['Pré-visualizar', 'Voltar', 'Gerar mesmo assim']);
 
   // "Voltar": nothing issued, no request, no status op; the focus back on "Gerar relatório".
   await question.getByRole('button', { name: 'Voltar' }).click();
@@ -239,9 +239,9 @@ test('@p0 F-03 F-04 issuing with 93 empty sheets asks first, naming the counts; 
   expect(generateRequests).toEqual([]);
   expect((await outbox(page)).filter((row) => row.path === 'relatorio/status').length).toBe(statusBefore);
 
-  // "Emitir mesmo assim" issues revision 1.
+  // "Gerar mesmo assim" issues revision 1.
   await generateButton(page).click();
-  await exportDialog(page).getByRole('button', { name: 'Emitir mesmo assim' }).click();
+  await exportDialog(page).getByRole('button', { name: 'Gerar mesmo assim' }).click();
   await expect(toast(page)).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   expect(generateRequests.length).toBeGreaterThanOrEqual(1);
   const revision = (await entities<{ id: string; number: number; relatorio_id: string }>(page)).find(

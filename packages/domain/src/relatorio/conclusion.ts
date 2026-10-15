@@ -312,11 +312,21 @@ export function conclusionTextStatusOf(block: Pick<BlockRow, 'sheet'>): Conclusi
  * Where the Generated text field stands (AR-11): `unconfirmed` (the composed text shows and
  * recomposes), `confirmed` or `edited` (the stored text shows), `stale` (stored, but the
  * values changed since: "Sugerido: texto atualizado — Substituir", never an overwrite).
+ * p020 P-3: a stored text equal to the text composed now is never `stale`, whatever its
+ * basis says: the basis hashes inputs the paragraph does not show (every cell of every
+ * table, a within-criterion reading, a skipped test's cells), so a basis moved by such an
+ * input offered "Substituir" with the very same text. Stale means the text would change.
+ * The production case was not reproduced in the kernel (the conclude batch, the fold and a
+ * JSON round trip give an equal basis). Two unconfirmed hypotheses from the p020 review: a
+ * reading committed on blur after the conclude batch composed its basis
+ * (`apps/web/src/surfaces/ficha/use-ficha-actions.ts:149`), and the merge folding a
+ * concurrent `text_basis` put as sequential (`merge/policy.ts:119`).
  */
-export function conclusionTextState(block: Pick<BlockRow, 'sheet'>, composed: Pick<ComposedConclusion, 'basis'>): ConclusionTextState {
+export function conclusionTextState(block: Pick<BlockRow, 'sheet'>, composed: Pick<ComposedConclusion, 'basis' | 'text'>): ConclusionTextState {
   const status = conclusionTextStatusOf(block);
   if (status === null) return 'unconfirmed';
-  return storedText(block, 'text_basis') === composed.basis ? status : 'stale';
+  if (storedText(block, 'text_basis') === composed.basis) return status;
+  return storedText(block, 'text') === composed.text ? status : 'stale';
 }
 
 /**

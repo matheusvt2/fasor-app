@@ -560,7 +560,7 @@ describe('Export dialog (Story 4.8)', () => {
     // confirmation is asked deterministically: the fixture's cover prints "[Responsável]".
     await within(dialog()).findByLabelText('Controle do documento — impresso após a capa');
     await userEvent.click(generateButton());
-    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Emitir mesmo assim' }));
+    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Gerar mesmo assim' }));
     await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
     await act(async () => {
       await applyPulled(database!, jobOps('failed'));
@@ -577,8 +577,8 @@ describe('Export dialog (Story 4.8)', () => {
     (sync.generate as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new SyncRequestError({ kind: 'network' }));
     await userEvent.click(within(modal).getByRole('button', { name: 'Tentar novamente' }));
     // F-03 (D1): the retry asks the same question before it issues again.
-    await within(modal).findByRole('group', { name: `Emitir com 1 campo em branco${IDENTITY_GAPS}?` });
-    await userEvent.click(within(modal).getByRole('button', { name: 'Emitir mesmo assim' }));
+    await within(modal).findByRole('group', { name: `Gerar com 1 campo em branco${IDENTITY_GAPS}?` });
+    await userEvent.click(within(modal).getByRole('button', { name: 'Gerar mesmo assim' }));
     await waitFor(() => expect(sync.generate).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(within(modal).getByRole('alert')).toBeInTheDocument());
   });
@@ -1432,7 +1432,7 @@ async function withResponsible(db: AppDatabase): Promise<void> {
 }
 
 describe('F-03 (review 2026-10-06, D1): issuing with an empty sheet asks first', () => {
-  it('names the count, offers "Pré-visualizar" first; "Voltar" issues nothing; "Emitir mesmo assim" issues', async () => {
+  it('names the count, offers "Pré-visualizar" first; "Voltar" issues nothing; "Gerar mesmo assim" issues', async () => {
     database = await freshDb();
     await applyPulled(database, [emptySheetOp()]);
     const sync = syncState();
@@ -1440,8 +1440,8 @@ describe('F-03 (review 2026-10-06, D1): issuing with an empty sheet asks first',
     // The new info row is one of the dialog's own lines.
     expect(await within(dialog()).findByText('1 ficha vazia')).toBeVisible();
     await userEvent.click(generateButton());
-    const group = await within(dialog()).findByRole('group', { name: `Emitir com 1 ficha vazia${IDENTITY_GAPS}?` });
-    expect(within(group).getAllByRole('button').map((button) => button.textContent)).toEqual(['Pré-visualizar', 'Voltar', 'Emitir mesmo assim']);
+    const group = await within(dialog()).findByRole('group', { name: `Gerar com 1 ficha vazia${IDENTITY_GAPS}?` });
+    expect(within(group).getAllByRole('button').map((button) => button.textContent)).toEqual(['Pré-visualizar', 'Voltar', 'Gerar mesmo assim']);
     await userEvent.click(within(group).getByRole('button', { name: 'Voltar' }));
     await waitFor(() => expect(generateButton()).toHaveFocus());
     await new Promise((resolve) => setTimeout(resolve, TIMING.retryMs * 3));
@@ -1449,7 +1449,7 @@ describe('F-03 (review 2026-10-06, D1): issuing with an empty sheet asks first',
     expect(await statusOps(database)).toEqual([]);
 
     await userEvent.click(generateButton());
-    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Emitir mesmo assim' }));
+    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Gerar mesmo assim' }));
     await waitFor(() => expect(sync.generate).toHaveBeenCalledTimes(1));
   });
 
@@ -1460,12 +1460,12 @@ describe('F-03 (review 2026-10-06, D1): issuing with an empty sheet asks first',
     const { rerender } = render(<Harness sync={sync} />);
     await within(dialog()).findByText('1 ficha vazia');
     await userEvent.click(generateButton());
-    await within(dialog()).findByRole('group', { name: `Emitir com 1 ficha vazia${IDENTITY_GAPS}?` });
+    await within(dialog()).findByRole('group', { name: `Gerar com 1 ficha vazia${IDENTITY_GAPS}?` });
     rerender(<Harness sync={syncState({ online: false, generate: sync.generate })} />);
-    await waitFor(() => expect(within(dialog()).queryByRole('group', { name: /^Emitir com/ })).toBeNull());
+    await waitFor(() => expect(within(dialog()).queryByRole('group', { name: /^Gerar com/ })).toBeNull());
     rerender(<Harness sync={syncState({ generate: sync.generate })} />);
     await waitFor(() => expect(generateButton()).not.toHaveAttribute('aria-disabled'));
-    expect(within(dialog()).queryByRole('group', { name: /^Emitir com/ })).toBeNull();
+    expect(within(dialog()).queryByRole('group', { name: /^Gerar com/ })).toBeNull();
     expect(sync.generate).not.toHaveBeenCalled();
   });
 
@@ -1476,27 +1476,27 @@ describe('F-03 (review 2026-10-06, D1): issuing with an empty sheet asks first',
     render(<Harness sync={sync} />);
     await within(dialog()).findByText('1 ficha vazia');
     await userEvent.click(generateButton());
-    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Emitir mesmo assim' }));
+    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Gerar mesmo assim' }));
     await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
     await act(async () => {
       await applyPulled(database!, jobOps('failed'));
     });
     const retry = await within(dialog()).findByRole('button', { name: 'Tentar novamente' });
     await userEvent.click(retry);
-    expect(await within(dialog()).findByRole('group', { name: `Emitir com 1 ficha vazia${IDENTITY_GAPS}?` })).toBeVisible();
+    expect(await within(dialog()).findByRole('group', { name: `Gerar com 1 ficha vazia${IDENTITY_GAPS}?` })).toBeVisible();
     expect(sync.generate).toHaveBeenCalledTimes(1);
   });
 
-  it('a press before the relatório is read waits for the counts, then asks; "Emitir mesmo assim" issues once', async () => {
+  it('a press before the relatório is read waits for the counts, then asks; "Gerar mesmo assim" issues once', async () => {
     database = await freshDb({ responsible: false });
     const sync = syncState();
     render(<Harness sync={sync} />);
     // Pressed at once, before the snapshot is read (the document control is not drawn yet).
     expect(within(dialog()).queryByLabelText('Controle do documento — impresso após a capa')).toBeNull();
     await userEvent.click(generateButton());
-    const question = await within(dialog()).findByRole('group', { name: `Emitir com 1 campo em branco${IDENTITY_GAPS}?` });
+    const question = await within(dialog()).findByRole('group', { name: `Gerar com 1 campo em branco${IDENTITY_GAPS}?` });
     expect(sync.generate).not.toHaveBeenCalled();
-    await userEvent.click(within(question).getByRole('button', { name: 'Emitir mesmo assim' }));
+    await userEvent.click(within(question).getByRole('button', { name: 'Gerar mesmo assim' }));
     await waitFor(() => expect(sync.generate).toHaveBeenCalledTimes(1));
     await new Promise((resolve) => setTimeout(resolve, TIMING.retryMs * 3));
     expect(sync.generate).toHaveBeenCalledTimes(1);
@@ -1511,7 +1511,7 @@ describe('F-03 (review 2026-10-06, D1): issuing with an empty sheet asks first',
     await within(dialog()).findByLabelText('Controle do documento — impresso após a capa');
     await userEvent.click(generateButton());
     await waitFor(() => expect(sync.generate).toHaveBeenCalledTimes(1));
-    expect(within(dialog()).queryByRole('group', { name: /^Emitir com/ })).toBeNull();
+    expect(within(dialog()).queryByRole('group', { name: /^Gerar com/ })).toBeNull();
   });
 });
 
