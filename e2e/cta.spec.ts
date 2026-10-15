@@ -814,10 +814,34 @@ test('@p0 P020-E2E-004 P-6 at 390: a CTA with 4 polos, an E1 reading out of its 
     ...e1.map(([row, column, raw]) => officeDraft(account, scope, cellPath(block.id, E1, row, column), micro(raw))),
     ...e2.map(([row, column]) => officeDraft(account, scope, cellPath(block.id, E2, row, column), measured('12.4', 'GΩ'))),
     officeDraft(account, scope, valuePath(block.id, E5, 'metodo'), chosen('nao_realizado')),
+    // The production check's local: a long name beside its SE data squeezed the "Do local" line's
+    // values, and "CONVENCIONAL" ran past the screen (P-6).
+    officeDraft(account, scope, `location/${geradores.id}/name`, 'Cabine de transformação — 2° subsolo, bloco B'),
+    officeDraft(account, scope, `location/${geradores.id}/se/type`, 'ALVENARIA - CONVENCIONAL'),
+    officeDraft(account, scope, `location/${geradores.id}/se/primary_kv`, measured('13.8', 'kV')),
+    officeDraft(account, scope, `location/${geradores.id}/se/secondary_kv`, measured('220', 'V')),
+    officeDraft(account, scope, `location/${geradores.id}/se/installed_kva`, measured('500', 'kVA')),
+    officeDraft(account, scope, `location/${geradores.id}/env/temperature_c`, measured('25', '°C')),
+    officeDraft(account, scope, `location/${geradores.id}/env/humidity_pct`, measured('60', '%')),
   ]);
   await openSumario(page, built.relatorioId);
   await openSheet(page, built.relatorioId, block.id);
   await expect(page.locator(`.lib-test[data-test-key="${E1}"] h2`)).toHaveText('E1 · Resistência de contato');
+  await expect(page.locator('.cabine-line .cl-name').first()).toHaveText('Cabine de transformação — 2° subsolo, bloco B');
+  // Layout probe (P-6): the line breaks differently with each name, so the SE data must stay
+  // inside the screen whatever room the name leaves it, from a full row down to a sliver.
+  const sideways = await page.evaluate(() => {
+    const name = document.querySelector<HTMLElement>('.cabine-line .cl-name')!;
+    const original = name.textContent;
+    const worst: number[] = [];
+    for (let length = 8; length <= 48; length += 2) {
+      name.textContent = 'Cabine de transformação, subsolo, bloco B, ala norte'.slice(0, length);
+      worst.push(document.documentElement.scrollWidth - window.innerWidth);
+    }
+    name.textContent = original;
+    return Math.max(...worst);
+  });
+  expect(sideways).toBeLessThanOrEqual(0);
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 
   // E1: Polo N drawn, the out reading's helper with "Marcar Com restrições" under it.
