@@ -220,6 +220,11 @@ overrides (they win over the workflow text):
 - (2026-10-14, E14-A5) A review-loop patch to an evaluation, verdict or lock rule ships with a boundary test (zero,
   negative, equal, at the limit), and the PR body lists every such patch under "Patched, not re-reviewed"; the
   integrated review reads that list first.
+- (2026-10-14, E13-A7) A story that adopts a browser API with a fallback (camera capabilities, torch, zoom,
+  `ImageCapture`, any API a browser may lack or stall) ships an e2e on the real surface that stubs the API twice, once
+  to reject and once to hang, and asserts the fallback in both (the `e2e/plate-shot-fallback.spec.ts` pattern). An
+  e2e that captures a file (photo, plate shot, export) asserts a property of the captured file, such as its size or
+  dimensions, not only that a file exists.
 - No emoji anywhere. Code, comments, commits and documents in English; UI copy pt-BR verbatim from the mocks.
 - The repository is public: never copy material from `docs/context/` or `docs/media/`.
 - ~~Do not build on another batch's unmerged branch.~~ *(2026-10-13, Matheus, Epic 14: a batch may be stacked on
@@ -260,3 +265,9 @@ overrides (they win over the workflow text):
   (cached context); then a headless `bmad-retrospective -H` in a subagent (E4-A8).
 - QA screenshots: at most about ten, only for defects and the key states of each story (images are costly).
 - Every narrowing reported in a PR body gets a dated line under its story in `epics.md` when the PR merges.
+- (2026-10-14, E14-A4) Definition of Ready capability check, before a story or item enters a batch: for every verb a
+  criterion asks of a surface (add, remove, move, restore, reorder, rename), check what the surface does today (the
+  code and its specs) and the open rows of `deferred-work.md`. A missing capability becomes named scope with its own
+  acceptance criteria under the story in `epics.md` before the build, never a scope addition at PR review (the
+  Story 14.2 location-removal gap, the `deferred-work.md` row latent "until a relatório can remove a location", is
+  the precedent).
