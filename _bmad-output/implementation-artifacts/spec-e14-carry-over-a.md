@@ -2,7 +2,7 @@
 title: 'Epic 14 carry-over A: recurring unit failures, open e2e reds, panel reading target'
 type: 'bugfix'
 created: '2026-10-14'
-status: 'in-review'
+status: 'done'
 baseline_revision: '77d70bb5ff42a38a1508b1f0f9d297c01bc00053'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -134,7 +134,7 @@ top dialog is a product change with its own risks; it is recorded as an open que
 
 ## Auto Run Result
 
-Status: in-review (story gate red on test:unit, so the PR is held per the coordinator)
+Status: done (2026-10-15: story gate green on the quiet host after merging origin/main 7d04ab13; the 2026-10-14 red runs below are kept for the record)
 
 - Implemented Items 1-4 as in Tasks 1-8. Files:
   - `panel.ts` + `job.integration.test.ts`: painel target refused.
@@ -150,3 +150,4 @@ Status: in-review (story gate red on test:unit, so the PR is held per the coordi
   - On 5e431096: test:api 632/632; touched specs 51/51 on desktop-chrome and durability-desktop-chrome; F-11 on webkit 5/5; mutations red.
   - On 4e66f18d (gate 1588 s, load average 11-15, stacks fasor, fasor-p020 and fasor-co14a up): lint 0, static 0, ficha.durability on the matrix green. test:unit was red twice: run 1 had 5 timeouts in 4 files (629 s), run 2 had 3 timeouts in 2 files (675 s), all `Test timed out in 15000ms`, all in files this batch did not touch (`relatorio-tree-edges`, `template-composer-defaults`, `-local`, `-palette`). Each of those files passed 3 of 3 alone under the lock.
 - Residual risk: test:unit cannot reach exit 0 on this host while three stacks share the VM; the remaining reds are load timeouts, not defects found.
+- 2026-10-15 story gate on the merge of origin/main 7d04ab13 (lock wait 0 s, 1184 s total, main stack stopped): lint 0, static 0, test:unit 307 files and 4122 tests passed (386 s), test:api 632/632, touched specs plus the specs #134 touched 53/53 on desktop-chrome and durability-desktop-chrome, and ficha.durability 15/15 on the three matrix projects.
