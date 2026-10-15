@@ -2,7 +2,7 @@
 title: 'Story 14.10 part 6: production smoke after every deploy, on a dedicated test company'
 type: 'feature'
 created: '2026-10-15'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'fe7a7a60693c95e6068ebfd546d9d610e6cf066e'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -141,3 +141,13 @@ Cost per run (estimate for the PR): one plate reading on Bedrock about USD 0.007
 - `pnpm exec playwright test -c e2e/production/playwright.config.ts --list` -- one test listed.
 - `infra/bin/check` and `infra/bin/deploy --dry-run` (host, containers only) -- green; smoke steps visible.
 - `infra/bin/tf production plan` (coordinator-approved read-only) -- summary pasted in the PR.
+
+## Auto Run Result
+
+Status: done. Implemented: Terraform test company and user (`infra/production/smoke.tf`, password in Secrets Manager), the `smoke-seed` one-shot task (`apps/api/src/db/smoke-seed.ts`, `smoke-seed-cli.ts`), the smoke steps in `infra/bin/deploy` (reset, suite, cleanup always; red exits 1 with the failing step and a `--skip-build --skip-smoke --tag <previous>` hint; `--skip-smoke`), the suite `e2e/production/` (`pnpm smoke:production`), tests in `scripts/deploy.test.ts`, `scripts/e2e.test.ts`, `smoke-seed.test.ts`, `smoke-seed.integration.test.ts`; docs (infra README/PUBLISHING, KB), deferred-work part-6 row closed, one epics line.
+
+Review: 13 findings; 8 patched (5 medium, 3 low counted per row, 2 duplicate rows), 2 deferred (low), 3 rejected (see the triage log). Follow-up review recommended: false (no high patched; the medium patches are covered by dry-run tests).
+
+Verification: lint, static, test:api green; test:unit 1 load timeout in `template-composer-defaults.test.tsx` (unrelated surface), full rerun 4198/4198 green; `infra/bin/check` green; deploy dry run green and red paths; smoke `--list` 1 test, root config none; local rehearsal of the suite against the compose stack 8/8 steps (11 plate fields, DOCX 105 KB, PDF 450 KB); `infra/bin/tf production plan`: 5 to add, 1 to change, 0 to destroy.
+
+Residual risks: the suite has never run against production; traces are off (they would record the password); pg-boss jobs survive the reset.
