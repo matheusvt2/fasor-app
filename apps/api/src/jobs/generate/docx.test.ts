@@ -366,16 +366,27 @@ describe('14.2-UNIT section 9 in the DOCX: a painel is a band over its sheets', 
     expect(section).toContain('ALVENARIA');
   }, 60_000);
 
-  it('flag on: the direct run by type, then the band alone followed on the same page by the painel own type group, numbered across the section', async () => {
+  it('flag on: the direct run by type, then the band alone followed on the same page by the painel colunas\' type groups, numbered across the section', async () => {
     const { structure, section, paragraphXml } = await render(snapshotWithPainel(true, 'por_local_e_tipo'));
     const first = '9.1 Transformadores e Cabos de Alimentação da Cabine de transformação';
     // Story 14.4 (2026-10-13): a type group under a painel names the painel, then the local.
-    const second = '9.2 Seccionadoras dos Cubículos de MT do Painel de média tensão — Cabine de transformação';
-    expect(ascending(order(section, [SECTION_9, first, 'TRANSFORMADOR DE FORÇA TR-1', 'TRANSFORMADOR DE FORÇA TR-2', 'PAINEL DE MÉDIA TENSÃO', second, 'CHAVE SECCIONADORA SEC-C01', 'CHAVE SECCIONADORA SEC-C03']))).toBe(true);
-    expect(structure.headings.filter((h) => h.level === 2).map((h) => h.text)).toEqual([first, second]);
+    // Story 14.10 part 8 (2026-10-15): one type group per coluna, naming the coluna first.
+    const second = '9.2 Seccionadoras dos Cubículos de MT da Coluna 1 do Painel de média tensão — Cabine de transformação';
+    const third = '9.3 Seccionadoras dos Cubículos de MT da Coluna 2 do Painel de média tensão — Cabine de transformação';
+    const fourth = '9.4 Seccionadoras dos Cubículos de MT da Coluna 3 do Painel de média tensão — Cabine de transformação';
+    expect(
+      ascending(
+        order(section, [SECTION_9, first, 'TRANSFORMADOR DE FORÇA TR-1', 'TRANSFORMADOR DE FORÇA TR-2', 'PAINEL DE MÉDIA TENSÃO', second, 'CHAVE SECCIONADORA SEC-C01', third, 'CHAVE SECCIONADORA SEC-C02', fourth, 'CHAVE SECCIONADORA SEC-C03']),
+      ),
+    ).toBe(true);
+    expect(structure.headings.filter((h) => h.level === 2).map((h) => h.text)).toEqual([first, second, third, fourth]);
+    // The ÍNDICE lines are the headings, word for word.
+    expect(structure.paragraphs.filter((p) => p.startsWith('9.') && p.endsWith(`\t${TOC_PLACEHOLDER}`))).toEqual([first, second, third, fourth].map((text) => `${text}\t${TOC_PLACEHOLDER}`));
     // The band starts the page; the heading right after it (a subsection with no sheet before it) stays with it.
     expect(paragraphXml('PAINEL DE MÉDIA TENSÃO')[0]).toContain('<w:pageBreakBefore/>');
     expect(paragraphXml(second)[0]).not.toContain('<w:pageBreakBefore/>');
+    // The next coluna's group follows a subsection that printed a sheet: it starts its page.
+    expect(paragraphXml(third)[0]).toContain('<w:pageBreakBefore/>');
     expect(paragraphXml(first)[0]).not.toContain('<w:pageBreakBefore/>');
     expect(section.filter((p) => p === 'CARACTERÍSTICAS DA SE')).toHaveLength(1);
   }, 60_000);

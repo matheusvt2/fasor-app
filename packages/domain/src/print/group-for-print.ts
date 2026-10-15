@@ -1,5 +1,5 @@
 import { headNounAgreement } from '../photos/caption.ts';
-import { LIBRARY_GROUP_LABEL, locationTree, treeNodes, type TreeEquipmentNode, type TreeLocationNode } from '../relatorio/tree.ts';
+import { LIBRARY_GROUP_LABEL, locationTree, saysColuna, treeNodes, type TreeEquipmentNode, type TreeLocationNode } from '../relatorio/tree.ts';
 import { roleSchema, type Role } from '../schemas/block-config.ts';
 import type { BlockRow, RelatorioRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
@@ -49,6 +49,14 @@ import { isLibraryType, siteChecklistOf } from '../seed/definitions.ts';
  *   a seed: it applies to every relatório, v1 to v3 included, so one of those that already
  *   holds painéis with the flag on prints the new titles and the local's heading. Unchanged
  *   on every seed: a local with no painel.
+ *
+ * Story 14.10 part 8 (2026-10-15, Bruno's question 5): with "Agrupar por tipo" on, a painel
+ * run is split by coluna. After the painel's heading, each coluna holding a sheet (tree
+ * order) gets its own type groups, titled with the coluna, the painel and the local
+ * (`colunaTypeGroupTitle`): two colunas of one painel never share a group, even with one
+ * type. A sheet under the painel outside any coluna (no client writes one) keeps the
+ * painel-only title (`painelTypeGroupTitle`). Pairing stays inside a coluna. With the flag
+ * off nothing changes: the coluna is not a subsection.
  */
 
 export type PrintScheme = RelatorioRow['export']['scheme'];
@@ -128,6 +136,22 @@ export function painelTypeGroupTitle(words: string, painelName: string, localNam
   return `${words} ${ofCabine(painelName.trim())} — ${localName.trim()}`;
 }
 
+/**
+ * Story 14.10 part 8 (2026-10-15): the title of a type group under a coluna of a painel,
+ * "Seccionadoras dos Cubículos de MT da Coluna 1 do Painel 1 — Cabine primária": the group's
+ * words, the coluna (a coluna is feminine, so always "da"), the painel with its contraction,
+ * then the local. A coluna name that does not already say "Coluna" is prefixed with it
+ * ("Entrada" reads "Coluna Entrada"); a blank name falls back to `painelTypeGroupTitle`. `words`
+ * is one of `GROUP_WORDS`.
+ */
+export function colunaTypeGroupTitle(words: string, colunaName: string, painelName: string, localName: string): string {
+  const coluna = colunaName.trim();
+  // A blank name (no client writes one: `nodeNameSchema` refuses it) names no coluna: the painel-only title.
+  if (coluna === '') return painelTypeGroupTitle(words, painelName, localName);
+  // authored: Story 14.10 part 8, open for Bruno (the wording, one group per coluna, and "Coluna ⟨name⟩" for a name without "Coluna").
+  return `${words} da ${saysColuna(coluna) ? coluna : `Coluna ${coluna}`} ${ofCabine(painelName.trim())} — ${localName.trim()}`;
+}
+
 /** A block's role (`BlockConfig.role`), or null when its config names none. */
 export function blockRoleOf(block: Pick<BlockRow, 'config'>): Role | null {
   const config = block.config;
@@ -141,11 +165,39 @@ function sheetsUnder(root: TreeLocationNode): TreeEquipmentNode[] {
   return treeNodes([root]).filter((node): node is TreeEquipmentNode => node.kind === 'equipment');
 }
 
+/**
+ * One part of a painel run (Story 14.10 part 8): the sheets of one coluna of the painel
+ * (`coluna` its name), or those under the painel outside any coluna (`coluna` null).
+ */
+interface ColunaRun {
+  coluna: string | null;
+  nodes: TreeEquipmentNode[];
+}
+
 /** One painel of a cabine holding a sheet, with its sheets in tree order. */
 interface PainelRun {
   id: string;
   title: string;
   nodes: TreeEquipmentNode[];
+  /** The same sheets cut by coluna, in tree order, each part holding a sheet; joined they are `nodes`. */
+  colunas: ColunaRun[];
+}
+
+/**
+ * A painel's sheets cut by coluna, in tree order: its own blocks (none in practice) and those
+ * under a child that is not a coluna go in a part with no coluna; consecutive such parts merge.
+ */
+function colunaRuns(painel: TreeLocationNode): ColunaRun[] {
+  const parts: ColunaRun[] = [];
+  const push = (coluna: string | null, nodes: TreeEquipmentNode[]) => {
+    if (nodes.length === 0) return;
+    const last = parts.at(-1);
+    if (coluna === null && last !== undefined && last.coluna === null) last.nodes.push(...nodes);
+    else parts.push({ coluna, nodes: [...nodes] });
+  };
+  push(null, painel.equipment);
+  for (const child of painel.locations) push(child.kind === 'coluna' ? child.name : null, sheetsUnder(child));
+  return parts;
 }
 
 /** What one root of the tree prints: its base subsection, its direct run and its painel runs. */
@@ -170,7 +222,7 @@ function fieldOrder(tree: readonly TreeLocationNode[], everyLocal: boolean): Roo
       root.kind === 'cabine'
         ? root.locations
             .filter((child) => child.kind === 'painel')
-            .map((painel) => ({ id: painel.id, title: painel.name.trim(), nodes: sheetsUnder(painel) }))
+            .map((painel) => ({ id: painel.id, title: painel.name.trim(), nodes: sheetsUnder(painel), colunas: colunaRuns(painel) }))
             .filter((run) => run.nodes.length > 0)
         : [];
     const inPainel = new Set(paineis.flatMap((run) => run.nodes.map((node) => node.blockId)));
@@ -236,10 +288,11 @@ function transformerPairs(
 }
 
 /**
- * One run of a flagged cabine (all of its sheets, its direct run, or one painel's) split
- * into the fixed type groups, an empty group skipped. The direct run's titles carry the
- * cabine's name (`base.title`), FO.SERV-03's own; a painel's run names the painel and then
- * the cabine (`painelTypeGroupTitle`).
+ * One run of a flagged cabine (all of its sheets, its direct run, or one coluna of a painel)
+ * split into the fixed type groups, an empty group skipped. The direct run's titles carry the
+ * cabine's name (`base.title`), FO.SERV-03's own; a coluna's run names the coluna, the painel
+ * and then the cabine (`colunaTypeGroupTitle`); sheets of a painel outside any coluna name
+ * the painel and the cabine (`painelTypeGroupTitle`).
  */
 function byType(
   base: PrintSubsection,
@@ -247,7 +300,7 @@ function byType(
   blocks: ReadonlyMap<string, BlockRow>,
   cabineTransformers: ReadonlySet<string>,
   warnings: PrintGroupWarning[],
-  painelTitle: string | null = null,
+  painel: { title: string; coluna: string | null } | null = null,
 ): PrintSubsection[] {
   const seccionadoras: TreeEquipmentNode[] = [];
   const disjuntores: TreeEquipmentNode[] = [];
@@ -292,16 +345,17 @@ function byType(
     transformadores: transformerPairs(transformers, cables, blocks, base.cabineId, cabineTransformers, warnings),
     outros: outros.map((node) => node.blockId),
   };
-  return GROUP_WORDS.flatMap(({ kind, words }) =>
-    ids[kind].length === 0
-      ? []
-      : [{ cabineId: base.cabineId, kind, title: painelTitle === null ? `${words} ${ofCabine(base.title)}` : painelTypeGroupTitle(words, painelTitle, base.title), blockIds: ids[kind] }],
-  );
+  const titleOf = (words: string): string => {
+    if (painel === null) return `${words} ${ofCabine(base.title)}`;
+    return painel.coluna === null ? painelTypeGroupTitle(words, painel.title, base.title) : colunaTypeGroupTitle(words, painel.coluna, painel.title, base.title);
+  };
+  return GROUP_WORDS.flatMap(({ kind, words }) => (ids[kind].length === 0 ? [] : [{ cabineId: base.cabineId, kind, title: titleOf(words), blockIds: ids[kind] }]));
 }
 
 /**
  * A flagged cabine split by type: its direct run first, then each painel as a heading over
- * its own type groups. A cabine with no direct sheet emits its own `cabine` subsection (no
+ * its colunas' type groups (Story 14.10 part 8: one set of type groups per coluna, in tree
+ * order). A cabine with no direct sheet emits its own `cabine` subsection (no
  * sheets) instead of the direct run's groups: its numbered heading stands before its first
  * painel as with the flag off (Story 14.4), and it is what a local holding no sheet at all
  * emits on a relatório with a site list.
@@ -314,7 +368,9 @@ function byTypeRuns(root: RootRuns, blocks: ReadonlyMap<string, BlockRow>, warni
     ...(root.direct.length === 0 ? [root.subsection] : byType(root.subsection, root.direct, blocks, cabineTransformers, warnings)),
     ...root.paineis.flatMap((run): PrintSubsection[] => [
       { cabineId, kind: 'painel', title: run.title, blockIds: [], painelId: run.id },
-      ...byType(root.subsection, run.nodes, blocks, cabineTransformers, warnings, run.title).map((group) => ({ ...group, painelId: run.id })),
+      ...run.colunas.flatMap((part) =>
+        byType(root.subsection, part.nodes, blocks, cabineTransformers, warnings, { title: run.title, coluna: part.coluna }).map((group) => ({ ...group, painelId: run.id })),
+      ),
     ]),
   ];
 }

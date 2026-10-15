@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { PHASES, runPhases, stagesOf, summaryLines, type StageRunner } from './verify.ts';
+import { PHASES, runPhases, stagesOf, summaryLines, verifyAfterPreflight, type StageRunner } from './verify.ts';
 
 /*
  * Test-speed batch (2026-09-27): `pnpm verify` runs its stages in phases. These pin that it
@@ -93,5 +93,22 @@ describe('scripts/verify.ts', () => {
       '[verify]   test:unit  stopped          2.1 s',
       '[verify]   total      3.0 s',
     ]);
+  });
+});
+
+describe('scripts/verify.ts after the preflight (Story 14.10 part 1)', () => {
+  it('a preflight answering 1 starts no stage and the gate exits 1 with one line', async () => {
+    const lines: string[] = [];
+    let ran = 0;
+    const code = await verifyAfterPreflight(async () => 1, async () => { ran += 1; return 0; }, (line) => lines.push(line));
+    expect({ code, ran, lines }).toEqual({ code: 1, ran: 0, lines: ['[verify] FAILED: the preflight found a looping container; no stage ran'] });
+  });
+
+  it('a preflight answering 0 runs the gate, whose exit is the result', async () => {
+    const lines: string[] = [];
+    let ran = 0;
+    expect(await verifyAfterPreflight(async () => 0, async () => { ran += 1; return 0; }, (line) => lines.push(line))).toBe(0);
+    expect(await verifyAfterPreflight(async () => 0, async () => { ran += 1; return 1; }, (line) => lines.push(line))).toBe(1);
+    expect({ ran, lines }).toEqual({ ran: 2, lines: [] });
   });
 });

@@ -1,4 +1,20 @@
-import { cellAddressesOf, getDefinition, newEquipmentBlock, newPointRow, SEED_VERSION, SITE_ITEM_KEYS, type BlockRow, type EquipmentRow, type FieldDef, type LocationRow, type OpDraft, type TemplateRow } from '@app/domain';
+import {
+  cellAddressesOf,
+  defaultBlockConfig,
+  getDefinition,
+  instantiateTemplate,
+  newEquipmentBlock,
+  newPointRow,
+  SEED_VERSION,
+  SITE_ITEM_KEYS,
+  standardTemplate,
+  type BlockRow,
+  type EquipmentRow,
+  type FieldDef,
+  type LocationRow,
+  type OpDraft,
+  type TemplateRow,
+} from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { extractStructure, paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { newId } from '../apps/api/src/ids.ts';
@@ -26,6 +42,11 @@ import { expandLocation } from './support/tree.ts';
  *
  * 14.2-E2E-004 (second pass, 2026-10-13) removes and restores locations in the relatório tree
  * and ends on the rows themselves: the device's `entities` store against the server's.
+ *
+ * 14.10-E2E-001 (Story 14.10 part 8, 2026-10-15) turns "Agrupar por tipo" on for a local whose
+ * painel holds a seccionadora in each of two colunas, generates, and reads the type-group
+ * titles of section 9 and the ÍNDICE: one group per coluna, naming the coluna, the painel and
+ * the local. It generates too, in the same serial group.
  */
 
 let account: SeedAccount;
@@ -361,6 +382,120 @@ test('@p0 14.2-E2E-001 at 1280: a template of one local (Transformação) with t
   expect(band[0]).toContain(`w:fill="${BAND_FILL}"`);
   expect(band[0]).toContain(`<w:color w:val="${BAND_COLOR}"/>`);
   expect(band[0]).not.toContain('<w:pStyle w:val="Heading2"/>');
+});
+
+// --- 14.10-E2E-001 -----------------------------------------------------------------------
+
+/**
+ * A relatório of one local ("Cabine primária") holding a painel ("Painel 1") of two colunas,
+ * one seccionadora in each, born on "another device" from a template built off the standard
+ * one (its section blocks kept), as `pushNewRelatorio` does.
+ */
+async function pushPainelRelatorio(page: Page): Promise<{ relatorioId: string }> {
+  const standard = standardTemplate({ id: newId() });
+  const seccionadora = (ref: string) => ({ ...defaultBlockConfig(SEED_VERSION, 'chave_seccionadora'), quantity: 1, skeleton_location_ref: ref, section_text: null });
+  const template: TemplateRow = {
+    ...standard,
+    skeleton: [
+      { ref: 'local', kind: 'cabine', parent_ref: null, name: 'Cabine primária', agrupar_por_tipo: false, funcao: 'primaria' },
+      { ref: 'painel', kind: 'painel', parent_ref: 'local', name: 'Painel 1' },
+      { ref: 'coluna-1', kind: 'coluna', parent_ref: 'painel', name: 'Coluna 1' },
+      { ref: 'coluna-2', kind: 'coluna', parent_ref: 'painel', name: 'Coluna 2' },
+    ],
+    blocks: [...standard.blocks.filter((block) => block.skeleton_location_ref === null), seccionadora('coluna-1'), seccionadora('coluna-2')],
+  };
+  const projectId = newId();
+  const project: OpDraft = {
+    kind: 'create',
+    scope: 'company',
+    company_id: account.companyId,
+    project_id: null,
+    relatorio_id: null,
+    path: `project/${projectId}`,
+    value: { id: projectId, client_id: null, name: 'Obra do painel', site: 'Obra do painel', removed_at: null },
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: account.userId,
+  };
+  const { relatorioId, drafts } = instantiateTemplate(
+    template,
+    { id: projectId },
+    { service_start: '2026-10-14', service_end: '2026-10-15', existingEquipment: [], responsible_user_id: null },
+    { newId, actorId: account.userId, companyId: account.companyId },
+  );
+  // Born Em campo, as a relatório being filled on site is (status flow 2026-10-10).
+  await pushDrafts(page, database, [project, ...drafts, emCampoDraft(account, relatorioId)]);
+  return { relatorioId };
+}
+
+test('@p0 14.10-E2E-001 at 1280: "Agrupar por tipo" on a local whose painel holds a seccionadora in each of two colunas, stored on the device; the DOCX prints one type group per coluna titled with the coluna, the painel and the local, and the ÍNDICE lines equal those headings', async ({
+  page,
+}) => {
+  test.setTimeout(360_000);
+  const LOCAL_NAME = 'Cabine primária';
+  await resetEmpresaB(account);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  const { relatorioId } = await pushPainelRelatorio(page);
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+  await openSection9(page);
+  await expect(local(page, LOCAL_NAME)).toBeVisible({ timeout: 30_000 });
+
+  // The local's overflow turns the flag on, as a person does; the tree says so.
+  await menuOf(page, LOCAL_NAME).click();
+  const agrupar = page.getByRole('menuitemcheckbox', { name: 'Agrupar por tipo na seção 9' });
+  await expect(agrupar).toHaveAttribute('aria-checked', 'false');
+  await agrupar.click();
+  await expect(treeAnnouncer(page)).toHaveText(`Agrupar por tipo ativado em ${LOCAL_NAME}`);
+
+  // Stored on the device: the outbox holds the put, the local's row holds the flag.
+  const localRow = (await entities<LocationRow>(page)).map((record) => record.row).find((row) => row.relatorio_id === relatorioId && row.kind === 'cabine')!;
+  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `location/${localRow.id}/agrupar_por_tipo`).map((row) => row.value)).toEqual([true]);
+  await expect
+    .poll(async () => (await entities<LocationRow>(page)).find((record) => record.entity === 'location' && record.id === localRow.id)?.row)
+    .toMatchObject({ kind: 'cabine', agrupar_por_tipo: true });
+  await syncNowAndReturn(page);
+
+  // "Gerar relatório": revision 1, its DOCX read back.
+  await setParecer(page, relatorioId);
+  const modal = page.getByRole('dialog', { name: 'Gerar relatório' });
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
+  await expect(modal).toBeVisible();
+  const generate = modal.locator('.generate-row').getByRole('button', { name: 'Gerar relatório' });
+  await expect(generate).toBeEnabled({ timeout: 30_000 });
+  await generate.click();
+  await confirmIssue(modal, /^Gerar com 2 fichas vazias/);
+  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
+  const download = await downloadFrom(page, () => modal.getByRole('button', { name: 'DOCX — abrir no Word' }).click());
+  const structure = extractStructure(await downloadBytes(download));
+
+  // Section 9 from its own heading to the next section's (E7-A6: never by position).
+  const level1 = structure.headings.filter((h) => h.level === 1).map((h) => h.text);
+  const tests = level1.find((text) => /^\d+ RELATÓRIOS DOS ENSAIOS$/.test(text));
+  expect(tests, `the Heading 1 list: ${JSON.stringify(level1)}`).toBeDefined();
+  const number = tests!.split(' ')[0]!;
+  const next = level1[level1.indexOf(tests!) + 1];
+  const from = structure.paragraphs.lastIndexOf(tests!);
+  const to = next === undefined ? structure.paragraphs.length : structure.paragraphs.lastIndexOf(next);
+  expect(to).toBeGreaterThan(from);
+  const section = structure.paragraphs.slice(from, to);
+  // authored: Story 14.10 part 8, open for Bruno.
+  const coluna1 = `${number}.2 Seccionadoras dos Cubículos de MT da Coluna 1 do Painel 1 — ${LOCAL_NAME}`;
+  const coluna2 = `${number}.3 Seccionadoras dos Cubículos de MT da Coluna 2 do Painel 1 — ${LOCAL_NAME}`;
+  const headings = [`${number}.1 ${LOCAL_NAME}`, coluna1, coluna2];
+  expect(structure.headings.filter((h) => h.level === 2 && h.text.startsWith(`${number}.`)).map((h) => h.text)).toEqual(headings);
+  const expected = [headings[0]!, 'VERIFICAÇÕES DO LOCAL', 'PAINEL 1', coluna1, 'CHAVE SECCIONADORA SEC-C01', coluna2, 'CHAVE SECCIONADORA SEC-C02'];
+  const at = expected.map((text) => section.indexOf(text));
+  expect(at.every((index) => index > -1), `every part of section 9 is printed: ${JSON.stringify(at)}`).toBe(true);
+  expect([...at].sort((a, b) => a - b)).toEqual(at);
+  // The ÍNDICE: its section 9 lines (text, a tab, the page) are the headings, word for word.
+  const toc = structure.paragraphs
+    .slice(0, from)
+    .filter((text) => text.startsWith(`${number}.`) && text.includes('\t'))
+    .map((text) => text.split('\t')[0]);
+  expect(toc).toEqual(headings);
 });
 
 // --- 14.2-E2E-002 ------------------------------------------------------------------------

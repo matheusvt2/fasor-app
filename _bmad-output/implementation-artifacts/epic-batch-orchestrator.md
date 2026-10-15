@@ -158,6 +158,13 @@ overrides (they win over the workflow text):
   on EACCES and its restarts load the VM until every gate times out (co14b: 6137 restarts, test:unit 1506 s). Keep a
   batch's `web` service stopped unless a spec needs the dev server (`scripts/e2e.ts` builds its own bundle), and
   check `podman ps` for a restarting container before reading a timeout as a defect.
+  *(2026-10-15, Story 14.10 part 1: this crash loop cannot recur. The `web` service starts Vite with
+  `--configLoader runner`, which evaluates `vite.config.ts` in memory and writes nothing into
+  `apps/web/node_modules/.vite-temp`, so a root-owned `.vite-temp` left by a tools run no longer stops it (proved on
+  co15a: a root-owned `.vite-temp`, `web` serving with 0 restarts). And every gate entry (`pnpm verify`, a stage run
+  alone, `scripts/e2e.ts`) first runs `scripts/preflight.ts`, which reads the engine socket mounted into `tools`
+  (GET only) and exits non-zero within 15 s naming any project container that is restarting or whose restart count
+  grows, with its count and the first line of its last log; with no socket it says so in one line and goes on.)*
 - Read files with offset/limit; do not re-read a file you just edited; do not cat whole large files.
 - No Playwright MCP browser pass in the batch (the integrated QA after the last merge does the human-style pass).
   The batch still covers each story's main ACs with Playwright specs tagged `@p0` (as a human would: clicks,
@@ -268,6 +275,13 @@ overrides (they win over the workflow text):
   `test:e2e:matrix`, a Playwright MCP pass over every AC at 390, 768 and 1280 px), its report written inside its
   worktree and copied by the coordinator; one fix batch; a re-check by the same QA agent through SendMessage
   (cached context); then a headless `bmad-retrospective -H` in a subagent (E4-A8).
+- (2026-10-15, Story 14.10 part 2, cross-batch merge rule) Two batch PRs of one wave never merge on their own
+  gates alone. Before merging the second, the coordinator merges the first batch's branch (or main, once the first
+  has merged) into the second, runs both batches' touched specs on that merge result under the host lock, and merges
+  only when both sets are green; the second PR's body names the merge commit and both spec lists. Reason: PRs #137
+  (co14a, the sticky-bar focus scroll) and #133 (co14b, the camera and relatorio tree split) were each green alone,
+  and together turned 14.2-E2E-002 red on the wave gate of 0b67a20 (a menu item scrolled under the pointer), which
+  cost a fix PR (#138) after both had merged.
 - QA screenshots: at most about ten, only for defects and the key states of each story (images are costly).
 - Every narrowing reported in a PR body gets a dated line under its story in `epics.md` when the PR merges.
 - (2026-10-14, E14-A4) Definition of Ready capability check, before a story or item enters a batch: for every verb a

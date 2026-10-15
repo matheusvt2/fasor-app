@@ -3,7 +3,7 @@ type: Runbook
 title: Running the stack
 description: Docker compose commands, ports, health endpoint and the tools container. Open before starting services or running any pnpm script.
 tags: [workflow, docker, runbook]
-timestamp: 2026-09-30T00:00:00Z
+timestamp: 2026-10-15T00:00:00Z
 sources: [AGENTS.md, docker-compose.yml]
 ---
 # Running the stack
@@ -14,4 +14,6 @@ sources: [AGENTS.md, docker-compose.yml]
 - OCR sidecar is opt-in: [ocr-service](/code/ocr-service.md).
 - Parallel worktrees need isolated compose projects (own `COMPOSE_PROJECT_NAME`, host ports below 65535).
 - Never install or run a service natively. `test-results/` is generated output.
+- 2026-10-15 (Story 14.10 part 1): the `web` service runs Vite with `--configLoader runner`, so it never writes `apps/web/node_modules/.vite-temp` and a root-owned one left by a `--user root` tools run cannot crash-loop it. The `tools` service mounts the engine socket (`${ENGINE_SOCKET_HOST:-/var/run/docker.sock}` at `/var/run/engine.sock`, SELinux label separation off for that one-off container) and receives `COMPOSE_PROJECT_NAME` for the gate preflight, which only reads it ([merge-gate](/workflow/merge-gate.md)).
+- 2026-10-15: a host with no `/var/run/docker.sock` (rootless podman, a socket elsewhere) sets `ENGINE_SOCKET_HOST` in `.env` to its engine socket's path, e.g. `$XDG_RUNTIME_DIR/podman/podman.sock`; without a socket the preflight only says so and the gate goes on.
 - Local users are provisioned with `pnpm seed:users`; there is no signup ([sync](/architecture/sync.md)).

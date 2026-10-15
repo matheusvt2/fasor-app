@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { preflight } from './preflight.ts';
 
 /**
  * The merge gate (`pnpm verify`, test-speed batch 2026-09-27). It runs the same five
@@ -19,6 +20,10 @@ import { pathToFileURL } from 'node:url';
  * (never interleaved). Every stage's output is also written to
  * `test-results/verify/{stage}.log`, and the run ends with one line per stage (verdict and
  * wall time) and the total.
+ *
+ * Story 14.10 part 1: before the first phase, the preflight (`scripts/preflight.ts`) reads the
+ * container engine and stops the run when a compose container loops; the stages then run
+ * with `GATE_PREFLIGHT_DONE=1`, so their own scripts do not probe again.
  */
 
 export interface StageResult {
@@ -81,6 +86,18 @@ export function summaryLines(results: readonly StageResult[], totalMs: number): 
   return [...lines, `[verify]   total      ${seconds(totalMs)}`];
 }
 
+/**
+ * Story 14.10 part 1: the gate after its preflight. A preflight answering non-zero (a looping
+ * container) starts no stage and the gate exits 1 with one line; zero runs the gate.
+ */
+export async function verifyAfterPreflight(probe: () => Promise<number>, gate: () => Promise<number>, log: (line: string) => void = console.log): Promise<number> {
+  if ((await probe()) !== 0) {
+    log('[verify] FAILED: the preflight found a looping container; no stage ran');
+    return 1;
+  }
+  return gate();
+}
+
 const root = resolve(import.meta.dirname, '..');
 const LOG_DIR = resolve(root, 'test-results/verify');
 
@@ -96,7 +113,7 @@ function killTree(child: ChildProcess): void {
 
 const runPnpm: StageRunner = (stage, signal, alone) =>
   new Promise((resolveStage) => {
-    const child = spawn('pnpm', ['run', stage], { cwd: root, env: { ...process.env, FORCE_COLOR: '0' }, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn('pnpm', ['run', stage], { cwd: root, env: { ...process.env, FORCE_COLOR: '0', GATE_PREFLIGHT_DONE: '1' }, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
     const chunks: Buffer[] = [];
     const take = (chunk: Buffer) => {
       chunks.push(chunk);
@@ -113,7 +130,7 @@ const runPnpm: StageRunner = (stage, signal, alone) =>
     });
   });
 
-async function main(): Promise<void> {
+async function runGate(): Promise<number> {
   const started = Date.now();
   mkdirSync(LOG_DIR, { recursive: true });
   for (const phase of PHASES) console.log(`[verify] phase: ${phase.join(' + ')}`);
@@ -135,7 +152,9 @@ async function main(): Promise<void> {
   for (const line of summaryLines(results, Date.now() - started)) console.log(line);
   if (skipped.length > 0) console.log(`[verify]   not run (an earlier phase failed): ${skipped.join(', ')}`);
   console.log(`[verify] ${exitCode === 0 ? 'PASSED' : 'FAILED'}`);
-  process.exit(exitCode);
+  return exitCode;
 }
 
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) void main();
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void verifyAfterPreflight(() => preflight(), runGate).then((code) => process.exit(code));
+}
