@@ -43,7 +43,7 @@ import { expandLocation } from './support/tree.ts';
  * 14.2-E2E-004 (second pass, 2026-10-13) removes and restores locations in the relatório tree
  * and ends on the rows themselves: the device's `entities` store against the server's.
  *
- * 14.10-E2E-001 (Story 14.10 part 8, 2026-10-15) turns "Agrupar por tipo" on for a local whose
+ * 14.10-E2E-006 (Story 14.10 part 8, 2026-10-15) turns "Agrupar por tipo" on for a local whose
  * painel holds a seccionadora in each of two colunas, generates, and reads the type-group
  * titles of section 9 and the ÍNDICE: one group per coluna, naming the coluna, the painel and
  * the local. It generates too, in the same serial group.
@@ -384,7 +384,7 @@ test('@p0 14.2-E2E-001 at 1280: a template of one local (Transformação) with t
   expect(band[0]).not.toContain('<w:pStyle w:val="Heading2"/>');
 });
 
-// --- 14.10-E2E-001 -----------------------------------------------------------------------
+// --- 14.10-E2E-006 -----------------------------------------------------------------------
 
 /**
  * A relatório of one local ("Cabine primária") holding a painel ("Painel 1") of two colunas,
@@ -429,7 +429,7 @@ async function pushPainelRelatorio(page: Page): Promise<{ relatorioId: string }>
   return { relatorioId };
 }
 
-test('@p0 14.10-E2E-001 at 1280: "Agrupar por tipo" on a local whose painel holds a seccionadora in each of two colunas, stored on the device; the DOCX prints one type group per coluna titled with the coluna, the painel and the local, and the ÍNDICE lines equal those headings', async ({
+test('@p0 14.10-E2E-006 at 1280: "Agrupar por tipo" on a local whose painel holds a seccionadora in each of two colunas, stored on the device; the DOCX prints one type group per coluna titled with the coluna, the painel and the local, and the ÍNDICE lines equal those headings', async ({
   page,
 }) => {
   test.setTimeout(360_000);
