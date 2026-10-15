@@ -6,10 +6,12 @@ import {
   type BlockRow,
   type ClientRow,
   type HomeCard,
+  type LocationRow,
   type ProjectRow,
   type RelatorioRow,
   type RelatorioStatus,
   type ResumeTarget,
+  type SuggestionRow,
   type TemplateRow,
   pendingSuggestions,
   suggestionRowsOf,
@@ -19,7 +21,7 @@ import { useNavigate } from 'react-router';
 import { Button, LoadingNote } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
-import { blockRows, clientRows, projectRows, relatorioRows, relatorioState, templateRows } from '../../db/home-store.ts';
+import { blockRows, clientRows, locationRowsOnDevice, projectRows, relatorioRows, relatorioState, suggestionRows, templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { readLastSheet } from '../../db/prefs.ts';
 import { localFileRows, outboxRows, syncStateRows } from '../../db/sync-store.ts';
@@ -48,6 +50,8 @@ const NO_TEMPLATES: TemplateRow[] = [];
 const NO_OUTBOX: OutboxRow[] = [];
 const NO_STATES: SyncStateRow[] = [];
 const NO_BLOCKS: BlockRow[] = [];
+const NO_SUGGESTIONS: SuggestionRow[] = [];
+const NO_LOCATIONS: LocationRow[] = [];
 const NO_FILES: Awaited<ReturnType<typeof localFileRows>> = [];
 
 /** The key of the cold-open offline toast: once for this page session, not once per visit. */
@@ -83,6 +87,12 @@ export function HomeSurface() {
   // Story 12.2: the blocks this device holds, for the on-device cards' `.progress-counter`.
   // Undefined until read, so no card counts "0 de 0" for a frame.
   const blocks = useLiveQuery(() => (db === null ? Promise.resolve(NO_BLOCKS) : blockRows(db)), [db], null) ?? undefined;
+  // Story 14.10 part 10: the suggestion rows, so a sheet holding a pending one is not counted
+  // as concluded, the Sumário's rule. Undefined until read: the counter counts the sheets alone.
+  const suggestions = useLiveQuery(() => (db === null ? Promise.resolve(NO_SUGGESTIONS) : suggestionRows(db)), [db], null) ?? undefined;
+  // The location rows, removed ones included: a sheet on a hidden location is out of the counter,
+  // as it is out of the Sumário. Undefined until read.
+  const locations = useLiveQuery(() => (db === null ? Promise.resolve(NO_LOCATIONS) : locationRowsOnDevice(db)), [db], null) ?? undefined;
   // Story 10.4 (ledger 166): the file rows, so a downloading card counts its sheets ("Baixando… 12 de 30 fichas").
   const files = useLiveQuery(() => (db === null ? Promise.resolve(NO_FILES) : localFileRows(db)), [db], null) ?? undefined;
 
@@ -103,13 +113,15 @@ export function HomeSurface() {
       syncStates,
       outbox,
       blocks,
+      suggestions,
+      locations,
       files,
       online: sync.online,
       reachable: sync.unreachable === null,
       serverAnswers: sync.serverAnswers === true,
       now: now(),
     }),
-    [relatorios, sync.summaryRelatorios, projects, clients, templates, syncStates, outbox, blocks, files, sync.online, sync.unreachable, sync.serverAnswers],
+    [relatorios, sync.summaryRelatorios, projects, clients, templates, syncStates, outbox, blocks, suggestions, locations, files, sync.online, sync.unreachable, sync.serverAnswers],
   );
 
   // The board counts every relatório the device knows of, whatever the tile filter says;

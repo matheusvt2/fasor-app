@@ -14,7 +14,6 @@ import {
   parseFieldInput,
   pendingSuggestions,
   photoRemovedText,
-  replaceLineText,
   screenLabel,
   suggestionAnnouncement,
   suggestionGroupCounts,
@@ -440,19 +439,36 @@ function focusPlainField(key: string, frames = 10): void {
   });
 }
 
-/** "Sugerido: 15 kV — Substituir · Manter o digitado" under a field the engineer filled with another value. */
-export function ReplaceLine({ model, field, suggestion }: { model: NameplateSuggestionsModel; field: FieldDef; suggestion: SuggestionRow }) {
+/**
+ * Story 14.10 part 11 (`key-suggestion-options.html` option A, DESIGN.md › Suggestion field):
+ * under a field the engineer filled with another value, the amber tray joined to the field,
+ * "Sugerido: 15 kV" and two Secondary buttons, "Substituir" and "Manter o digitado", whose
+ * accessible names carry the field. It stays inside the field's wrapper (`NameplateField`'s
+ * DG-2 press guard) and carries the suggestion id (`focusFirstSuggestion` finds its first button).
+ */
+export function ReplaceLine({ model, field, suggestion, typed }: { model: NameplateSuggestionsModel; field: FieldDef; suggestion: SuggestionRow; typed: unknown }) {
+  const label = screenLabel(field.label);
+  const suggested = suggestionValueText(field, suggestion.value);
   return (
-    <span className="suggestion-alt" data-suggestion-id={suggestion.id}>
-      {replaceLineText(suggestionValueText(field, suggestion.value))}
-      <button type="button" className="btn btn-text" onClick={() => model.confirm(suggestion, field)}>
-        {ui.suggestionField.replace}
-      </button>
-      {/* DG-2: the typed value wins, the suggestion is discarded. */}
-      <button type="button" className="btn btn-text" onClick={() => model.keepTyped(suggestion)}>
-        {ui.suggestionField.keepTyped}
-      </button>
-    </span>
+    <div className="suggestion-tray" role="group" aria-label={ui.suggestionField.trayLabel(label)} data-suggestion-id={suggestion.id}>
+      <p className="suggestion-tray-text">
+        {ui.suggestionField.suggested}: <b>{suggested}</b>
+      </p>
+      <div className="suggestion-tray-actions">
+        <button type="button" className="btn btn-secondary" aria-label={ui.suggestionField.replaceLabel(label, suggested)} onClick={() => model.confirm(suggestion, field)}>
+          {ui.suggestionField.replace}
+        </button>
+        {/* DG-2: the typed value wins, the suggestion is discarded. */}
+        <button
+          type="button"
+          className="btn btn-secondary"
+          aria-label={ui.suggestionField.keepTypedLabel(label, suggestionValueText(field, typed))}
+          onClick={() => model.keepTyped(suggestion)}
+        >
+          {ui.suggestionField.keepTyped}
+        </button>
+      </div>
+    </div>
   );
 }
 

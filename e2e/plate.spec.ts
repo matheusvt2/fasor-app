@@ -210,8 +210,8 @@ test('@p0 8.6-E2E-001 Flow 2b: the arrival toast opens the sheet, the crop outli
 
   // The typed field keeps its value and offers the reading beside it.
   await expect(at).toHaveValue('13,8');
-  await expect(field(page, 'tensao_nominal_at').locator('.suggestion-alt')).toContainText('Sugerido: 15 kV');
-  await expect(field(page, 'tensao_nominal_at').locator('.suggestion-alt').getByRole('button', { name: 'Substituir' })).toBeVisible();
+  await expect(field(page, 'tensao_nominal_at').locator('.suggestion-tray')).toContainText('Sugerido: 15 kV');
+  await expect(field(page, 'tensao_nominal_at').locator('.suggestion-tray').getByRole('button', { name: 'Substituir' })).toBeVisible();
 
   // "Confirmar todos (8)": the eight grounded fields without a hint in one batch; the
   // replace, Verificar and Criar wait for their own taps.
@@ -225,7 +225,7 @@ test('@p0 8.6-E2E-001 Flow 2b: the arrival toast opens the sheet, the crop outli
   expect(new Set(confirmAll.map((row) => row.batch_id)).size).toBe(1);
   expect(rows.filter((row) => row.batch_id === confirmAll[0]!.batch_id)).toHaveLength(16);
   for (const key of eight) expect(rows.find((row) => row.path === `sheet/${ids.blockId}/nameplate/${key}`)?.meta).toMatchObject({ source_suggestion_id: sid[key] });
-  await expect(field(page, 'tensao_nominal_at').locator('.suggestion-alt')).toContainText('Sugerido: 15 kV');
+  await expect(field(page, 'tensao_nominal_at').locator('.suggestion-tray')).toContainText('Sugerido: 15 kV');
   await expect(at).toHaveValue('13,8');
   // A field confirmed from the plate still outlines its own region while the crop stays.
   await field(page, 'tipo').locator('input').focus();

@@ -256,7 +256,7 @@ test('@p0 8.1-E2E-004 a filled field receiving a different suggestion keeps its 
 
   const sid = await suggest(page, ids, { n_serie: { value: 'XYZ999' } });
   await expect(field(page, 'n_serie').locator('input')).toHaveValue('ABC123');
-  const alt = field(page, 'n_serie').locator('.suggestion-alt');
+  const alt = field(page, 'n_serie').locator('.suggestion-tray');
   await expect(alt).toContainText('Sugerido: XYZ999');
   expect((await cell(page, ids.blockId, 'n_serie'))?.value).toBe('ABC123');
   expect(await suggestionStatus(page, sid.n_serie!)).toBe('pending');
@@ -273,7 +273,7 @@ test('@p0 8.1-E2E-004 a filled field receiving a different suggestion keeps its 
   expect(value.batch_id).toBe(status.batch_id);
   await expect(field(page, 'n_serie').locator('input')).toHaveValue('XYZ999');
   await expect(page.locator('#ficha-nameplate .ficha-suggestion-confirmed[data-state="confirmed"]')).toHaveCount(1);
-  await expect(field(page, 'n_serie').locator('.suggestion-alt')).toHaveCount(0);
+  await expect(field(page, 'n_serie').locator('.suggestion-tray')).toHaveCount(0);
 });
 
 test('@p0 8.1-E2E-005 a filled field receiving an equal suggestion is confirmed by the device after "Sincronizar agora", once, with meta.auto', async ({ page }) => {
@@ -295,7 +295,7 @@ test('@p0 8.1-E2E-005 a filled field receiving an equal suggestion is confirmed 
   expect(new Set(auto.map((row) => row.batch_id)).size).toBe(1);
   expect(await suggestionStatus(page, sid.n_serie!)).toBe('confirmed');
   // No tap was asked for: no Suggestion field, no replace line; the glyph shows.
-  await expect(field(page, 'n_serie').locator('.suggestion-field.field, .suggestion-alt')).toHaveCount(0);
+  await expect(field(page, 'n_serie').locator('.suggestion-field.field, .suggestion-tray')).toHaveCount(0);
   await expect(page.locator('#ficha-nameplate .ficha-suggestion-confirmed[data-state="confirmed"]')).toHaveCount(1);
 
   // A second cycle confirms nothing more.

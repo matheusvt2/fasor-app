@@ -1,9 +1,9 @@
 import type { RelatorioSummary } from '../contract/sync.ts';
 import { formatDateOfInstant, formatServiceDates, formatShortDateTime, formatTimeOfDay } from '../format/datetime.ts';
 import type { Op } from '../ops/op.ts';
-import { fichasCountText, progress, progressCounterState } from '../relatorio/progress.ts';
+import { relatorioCounter } from '../relatorio/progress.ts';
 import { sumarioTitle } from '../relatorio/project.ts';
-import type { BlockRow, ProjectRow, RegistryRow, RelatorioRow, RelatorioStatus, TemplateRow } from '../schemas/entities.ts';
+import type { BlockRow, LocationRow, ProjectRow, RegistryRow, RelatorioRow, RelatorioStatus, SuggestionRow, TemplateRow } from '../schemas/entities.ts';
 import { RELATORIO_STATUSES, statusPillId, type StatusPillId } from '../status/table.ts';
 import { activeTemplates } from '../templates/list.ts';
 import {
@@ -81,6 +81,18 @@ export interface HomeCardsInput {
   now: Date;
   /** Every block this device holds (Story 12.2): the counter of an on-device card. Omitted means no counter. */
   blocks?: readonly BlockRow[];
+  /**
+   * Story 14.10 part 10: every suggestion row this device holds, any status and relatório. A
+   * sheet holding a pending one is not counted as concluded, the Sumário's rule
+   * (`relatorioCounter`). Omitted (not read yet) means the sheets alone.
+   */
+  suggestions?: readonly SuggestionRow[];
+  /**
+   * Story 14.10 part 10 (review): every location row this device holds, removed ones included,
+   * so a sheet on a hidden location is out of the counter as it is out of the Sumário
+   * (`relatorioCounter`). Omitted (not read yet) keeps every live block.
+   */
+  locations?: readonly LocationRow[];
   /**
    * Story 10.4 (ledger 166): the file rows this device holds, so a downloading card counts its
    * live photos against the summary's `progress`. Omitted (with `blocks`) means the bare word.
@@ -220,10 +232,25 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
     if (bucket === undefined) blocksByRelatorio.set(block.relatorio_id, [block]);
     else bucket.push(block);
   }
+  const suggestionsByRelatorio = new Map<string, SuggestionRow[]>();
+  for (const row of input.suggestions ?? []) {
+    const bucket = suggestionsByRelatorio.get(row.relatorio_id);
+    if (bucket === undefined) suggestionsByRelatorio.set(row.relatorio_id, [row]);
+    else bucket.push(row);
+  }
+  const locationsByRelatorio = new Map<string, LocationRow[]>();
+  for (const row of input.locations ?? []) {
+    const bucket = locationsByRelatorio.get(row.relatorio_id);
+    if (bucket === undefined) locationsByRelatorio.set(row.relatorio_id, [row]);
+    else bucket.push(row);
+  }
   const counterOf = (id: string, device: HomeCardDevice): HomeCard['counter'] => {
     if (input.blocks === undefined || device.kind !== 'on-device') return null;
-    const p = progress({ blocks: blocksByRelatorio.get(id) ?? [], suggestions: [] });
-    return { text: fichasCountText(p), state: progressCounterState(p) };
+    return relatorioCounter(
+      blocksByRelatorio.get(id) ?? [],
+      input.suggestions === undefined ? undefined : (suggestionsByRelatorio.get(id) ?? []),
+      input.locations === undefined ? undefined : (locationsByRelatorio.get(id) ?? []),
+    );
   };
 
   const cards: HomeCard[] = [];
