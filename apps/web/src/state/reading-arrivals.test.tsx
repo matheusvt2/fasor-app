@@ -300,10 +300,20 @@ describe('Review fixes 2026-10-08 (DC-4, DB-5, DE-5, DG-3): what an arrival anno
         <div className="field" data-suggestion-id="s0" data-state="confirmed">
           <button type="button">Confirmada</button>
         </div>
-        <span className="suggestion-alt" data-suggestion-id="s1">
-          Sugerido: 15 kV
-          <button type="button">Substituir</button>
-        </span>
+        {/* Story 14.10 part 11: the nameplate tray carries the id; "Ver" focuses its first button. */}
+        <div className="suggestion-tray" role="group" aria-label="Tensão: a leitura difere do digitado" data-suggestion-id="s1">
+          <p className="suggestion-tray-text">
+            Sugerido: <b>15 kV</b>
+          </p>
+          <div className="suggestion-tray-actions">
+            <button type="button" className="btn btn-secondary" aria-label="Substituir Tensão por 15 kV">
+              Substituir
+            </button>
+            <button type="button" className="btn btn-secondary" aria-label="Manter o digitado em Tensão, 13,8 kV">
+              Manter o digitado
+            </button>
+          </div>
+        </div>
       </>
     );
     // No relatório on this device: "Ver" leads to its Sumário, the address shown.
@@ -313,7 +323,7 @@ describe('Review fixes 2026-10-08 (DC-4, DB-5, DE-5, DG-3): what an arrival anno
     });
     await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('1 leitura pronta para confirmar'));
     await userEvent.click(screen.getByRole('button', { name: 'Ver' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Substituir' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Substituir Tensão por 15 kV' })).toHaveFocus());
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' });
     expect(screen.getByTestId('where')).toHaveTextContent(`/relatorio/${RELATORIO}`);
     expect(screen.queryByTestId('toast')).toBeNull();

@@ -200,10 +200,11 @@ describe('r8dry 2026-10-09: no write of the insulation marks an oil item', () =>
     expect(api.undoable).not.toHaveBeenCalled();
   });
 
-  it('"Substituir" on a replace line writes the confirm pair alone', async () => {
+  it('"Substituir" on the tray writes the confirm pair alone', async () => {
     const shown = block(insulated('Á SECO'));
     const { api, built } = draw(shown, shown, [suggestion(S_INSULATION, 'tipo_de_isolacao', 'EPÓXI', 'replace')]);
-    await userEvent.click(screen.getByRole('button', { name: 'Substituir' }));
+    // Story 14.10 part 11: the tray's button names its field.
+    await userEvent.click(screen.getByRole('button', { name: 'Substituir Tipo de isolação por EPÓXI' }));
     await waitFor(() => expect(built).toHaveLength(1));
     expect(built[0]!).toHaveLength(2);
     expect(checklistOps(built[0]!)).toHaveLength(0);

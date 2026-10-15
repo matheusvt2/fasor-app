@@ -106,6 +106,30 @@ export function blockRows(db: AppDatabase): Promise<BlockRow[]> {
   return rows<BlockRow>(db, 'block');
 }
 
+/**
+ * Story 14.10 part 10: every suggestion row this device holds, any status and relatório, so
+ * the Home card's counter holds a sheet with a pending one as the Sumário does
+ * (`homeCards`'s `suggestions`, `relatorioCounter`).
+ */
+export function suggestionRows(db: AppDatabase): Promise<SuggestionRow[]> {
+  return rows<SuggestionRow>(db, 'suggestion');
+}
+
+/**
+ * Story 14.10 part 10 (review): every location row this device holds, removed ones included,
+ * so the Home card leaves a sheet on a hidden location out of its counter as the Sumário's
+ * snapshot does (`homeCards`'s `locations`, `relatorioCounter`, `hiddenLocationIds`).
+ */
+export async function locationRowsOnDevice(db: AppDatabase): Promise<LocationRow[]> {
+  const records = await db.entities.where('entity').equals('location').toArray();
+  const parsed: LocationRow[] = [];
+  for (const record of records) {
+    const result = entityRowSchemas.location.safeParse(record.row);
+    if (result.success) parsed.push(result.data as LocationRow);
+  }
+  return parsed;
+}
+
 export function templateRows(db: AppDatabase): Promise<TemplateRow[]> {
   return rows<TemplateRow>(db, 'template');
 }
@@ -181,6 +205,11 @@ export function pointRowsOf(db: AppDatabase, relatorioId: string): Promise<Point
 /** Every block of one relatório, removed ones included ("Restaurar ficha removida" lists them). */
 export function blockRowsOf(db: AppDatabase, relatorioId: string): Promise<BlockRow[]> {
   return rowsWhere<BlockRow>(db, 'block', 'relatorio_id', relatorioId);
+}
+
+/** Story 14.10 part 10: the suggestion rows of one relatório, any status (the Project row's counter, `relatorioCounter`). */
+export function suggestionRowsOfRelatorio(db: AppDatabase, relatorioId: string): Promise<SuggestionRow[]> {
+  return rowsWhere<SuggestionRow>(db, 'suggestion', 'relatorio_id', relatorioId);
 }
 
 /**

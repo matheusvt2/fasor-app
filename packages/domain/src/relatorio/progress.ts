@@ -4,7 +4,7 @@ import { plural } from '../text/plural.ts';
 import { hiddenLocationIds } from './location-live.ts';
 import { siteNcCount } from './site-checklist.ts';
 import { enabledCells, isCellFilled, isEquipmentBlock, sheetState } from './sheet-state.ts';
-import { blocksWithPendingSuggestions, livePendingSuggestions } from './suggestions.ts';
+import { blocksWithPendingSuggestions, livePendingSuggestions, pendingSuggestions } from './suggestions.ts';
 
 /*
  * Story 4.3: the counts the Sumário header, the Project row and the Home card read, computed
@@ -219,6 +219,29 @@ export function progressCounterState(p: Pick<Progress, 'sheets_concluded' | 'she
 /** The Project row's counter: "42 de 94 fichas" (`30-project.html`). */
 export function fichasCountText(p: Pick<Progress, 'sheets_concluded' | 'sheets_total'>): string {
   return `${progressCounterText(p)} fichas`;
+}
+
+/**
+ * A relatório's counter on a list (the Home card, the Project row): "42 de 94 fichas" and its
+ * `data-state`. The Sumário's rule (Story 8.1 `held`), Story 14.10 part 10: `suggestionRows`
+ * are the device's suggestion rows of this relatório, any status; the pending ones waiting on
+ * a live block (`livePendingSuggestions`) keep that block out of the concluded count, exactly
+ * as `progress(snapshot, pendingSuggestions(rows))` does for the Sumário. Undefined (rows not
+ * read yet) counts the sheets alone. `locations` are the relatório's location rows, removed
+ * ones included: a block on a hidden location (removed, or under a removed one,
+ * `hiddenLocationIds`) is left out, as the snapshot's `liveStructure` leaves it out of the
+ * Sumário; undefined (not read yet) keeps every live block.
+ */
+export function relatorioCounter(
+  blocks: readonly BlockRow[],
+  suggestionRows: readonly SuggestionRow[] | undefined,
+  locations?: readonly Pick<LocationRow, 'id' | 'parent_id' | 'removed_at'>[],
+): { text: string; state: 'complete' | 'pending' } {
+  const hidden = locations === undefined ? null : hiddenLocationIds(locations);
+  const shown = hidden === null ? blocks : blocks.filter((block) => block.location_id === null || !hidden.has(block.location_id));
+  // `progress({ blocks, suggestions: [] }, pending)` without the copy: the same `over` and `scoped`.
+  const p = over(shown, ...scoped(shown, suggestionRows === undefined ? undefined : pendingSuggestions(suggestionRows)));
+  return { text: fichasCountText(p), state: progressCounterState(p) };
 }
 
 /** The header's first count: "42 de 94 fichas concluídas" (`40-relatorio-overview.html`). */

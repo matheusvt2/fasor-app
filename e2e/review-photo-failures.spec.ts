@@ -282,11 +282,11 @@ test('@p0 R8CAP-E2E-006 a reading landing on typed nameplate values: "Manter o d
   await syncNowAndReturn(page);
 
   // "Sugerido: 240815-07 — Substituir · Manter o digitado".
-  const serieLine = field(page, 'n_serie').locator('.suggestion-alt');
+  const serieLine = field(page, 'n_serie').locator('.suggestion-tray');
   await expect(serieLine).toContainText('240815-07');
   await expect(serieLine.getByRole('button', { name: 'Substituir' })).toBeVisible();
   await serieLine.getByRole('button', { name: 'Manter o digitado' }).click();
-  await expect(field(page, 'n_serie').locator('.suggestion-alt')).toHaveCount(0);
+  await expect(field(page, 'n_serie').locator('.suggestion-tray')).toHaveCount(0);
   await expect(field(page, 'n_serie').locator('input').first()).toHaveValue('SU-TYPED-1');
   await expect.poll(async () => (await outbox(page)).filter((op) => op.path === `suggestion/${suggestions.n_serie}/status`).map((op) => op.value)).toEqual(['discarded']);
   // Nothing was written over the typed value.
@@ -294,20 +294,20 @@ test('@p0 R8CAP-E2E-006 a reading landing on typed nameplate values: "Manter o d
 
   // A value being typed over the other one: the idle commit (500 ms, focus still in the field)
   // writes the put but never turns the suggestion down; the line stays.
-  await expect(field(page, 'tipo').locator('.suggestion-alt')).toContainText('TSE-500/15');
+  await expect(field(page, 'tipo').locator('.suggestion-tray')).toContainText('TSE-500/15');
   const tipo = field(page, 'tipo').locator('input').first();
   await tipo.fill('TIPO-');
   await expect.poll(async () => (await outbox(page)).some((op) => op.path === `sheet/${ids.blockId}/nameplate/tipo` && op.value === 'TIPO-')).toBe(true);
   await expect(tipo).toBeFocused();
   expect((await outbox(page)).some((op) => op.path === `suggestion/${suggestions.tipo}/status`)).toBe(false);
-  await expect(field(page, 'tipo').locator('.suggestion-alt')).toContainText('TSE-500/15');
+  await expect(field(page, 'tipo').locator('.suggestion-tray')).toContainText('TSE-500/15');
   // Finished, and the field left for another one (Tab would first reach the line's own
   // "Substituir", still inside the field): the value committed, then the discard alone in its
   // own batch.
   await tipo.press('End');
   await tipo.pressSequentially('B');
   await field(page, 'n_serie').locator('input').first().click();
-  await expect(field(page, 'tipo').locator('.suggestion-alt')).toHaveCount(0);
+  await expect(field(page, 'tipo').locator('.suggestion-tray')).toHaveCount(0);
   await expect.poll(async () => (await outbox(page)).some((op) => op.path === `suggestion/${suggestions.tipo}/status`)).toBe(true);
   const rows = await outbox(page);
   const put = rows.find((op) => op.path === `sheet/${ids.blockId}/nameplate/tipo` && op.value === 'TIPO-B')!;
@@ -320,7 +320,7 @@ test('@p0 R8CAP-E2E-006 a reading landing on typed nameplate values: "Manter o d
 
   // The suggested value typed exactly under its replace line: no discard in that batch; the
   // device's auto-confirm takes it after the next sync.
-  await expect(field(page, 'identificacao').locator('.suggestion-alt')).toContainText('TR-01');
+  await expect(field(page, 'identificacao').locator('.suggestion-tray')).toContainText('TR-01');
   const ident = field(page, 'identificacao').locator('input').first();
   await ident.fill('TR-01');
   await ident.press('Enter');
@@ -356,12 +356,12 @@ test('@p0 R8CAP-E2E-010 a manufacturer the registry lacks, created with "Criar" 
   const suggestions = await pushPlateSuggestions(account.companyId, ids.relatorioId, { blockId: ids.blockId, photoId: plateId, fields: { fabricacao: all.fabricacao! } });
   await pushReadingStatus(account.companyId, ids.relatorioId, plateId, 'done');
   await syncNowAndReturn(page);
-  await expect(field(page, 'fabricacao').locator('.suggestion-alt')).toContainText('Celtta');
+  await expect(field(page, 'fabricacao').locator('.suggestion-tray')).toContainText('Celtta');
 
   // Another name the registry lacks, created under the replace line.
   await field(page, 'fabricacao').getByRole('combobox').fill('Megabras R8CAP');
   await page.getByRole('option', { name: 'Criar “Megabras R8CAP”' }).click();
-  await expect(field(page, 'fabricacao').locator('.suggestion-alt')).toHaveCount(0);
+  await expect(field(page, 'fabricacao').locator('.suggestion-tray')).toHaveCount(0);
   await expect.poll(async () => (await outbox(page)).some((op) => op.path === `suggestion/${suggestions.fabricacao}/status`)).toBe(true);
   const rows = await outbox(page);
   const word = rows.find((op) => op.kind === 'create' && (op.value as { name?: string } | null)?.name === 'Megabras R8CAP')!;
