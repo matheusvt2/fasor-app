@@ -2,6 +2,7 @@ import { getDefinition, newPointRow, photoToken, type LocationRow, type OpDraft,
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { escapeDialog } from './support/dialogs.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { typeDate } from './support/relatorio-flow.ts';
@@ -600,11 +601,14 @@ test('@p1 6.6-E2E-011 E6-Q11: removing a photo a point cites names that point in
   ]);
   await page.goto(`/relatorio/${relatorioId}/fotos`);
   await page.getByRole('button', { name: 'Foto 1, abrir', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Foto 1 de 2' }).getByRole('button', { name: 'Remover', exact: true }).click();
+  const viewer = page.getByRole('dialog', { name: 'Foto 1 de 2' });
+  await viewer.getByRole('button', { name: 'Remover', exact: true }).click();
   const confirm = page.getByRole('dialog', { name: 'Remover a foto 1 do relatório?' });
   await expect(confirm).toContainText('Ela é citada no ponto de atenção 2, que passa a mostrar Foto removida.');
   await confirm.getByRole('button', { name: 'Cancelar' }).click();
-  await page.keyboard.press('Escape');
+  await expect(confirm).toBeHidden();
+  // E9-Q13: the key waits for the focus back inside the viewer, then the viewer must close.
+  await escapeDialog(page, viewer);
   // A photo no point cites says only what happens to it.
   await page.getByRole('button', { name: 'Foto 2, abrir', exact: true }).click();
   await page.getByRole('dialog', { name: 'Foto 2 de 2' }).getByRole('button', { name: 'Remover', exact: true }).click();

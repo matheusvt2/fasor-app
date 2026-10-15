@@ -1,6 +1,7 @@
 import { artOrTrtLabel, CONTRACT_VERSION, CONTRACT_VERSION_HEADER, makeOp, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
+import { escapeDialog } from './support/dialogs.ts';
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readDeviceId, readStore } from './support/outbox.ts';
@@ -110,13 +111,6 @@ async function moveBackTo(page: Page, to: string): Promise<void> {
   await page.getByRole('menuitem', { name: `Voltar para ${to}` }).click();
   await page.getByRole('dialog', { name: `Voltar para ${to}` }).getByRole('button', { name: `Voltar para ${to}` }).click();
   await expect(headerPill(page)).toHaveText(to);
-}
-
-/** Esc from inside the Export dialog, once the focus is in it (E9-Q13). */
-async function escapeDialog(page: Page): Promise<void> {
-  await expect.poll(() => dialog(page).evaluate((element) => element.contains(document.activeElement))).toBe(true);
-  await page.keyboard.press('Escape');
-  await expect(dialog(page)).toBeHidden();
 }
 
 /** One op pushed as another device of this same user (`suffix` names the device). */
@@ -298,7 +292,7 @@ for (const viewport of WIDTHS) {
     const againBox = (await dialog(page).getByRole('button', { name: 'Gerar de novo' }).boundingBox())!;
     expect(markBox.y).toBeLessThan(againBox.y);
     expect(await statusValues(page, EXPORT_RELATORIO_ID)).toEqual(['em_revisao']);
-    await escapeDialog(page);
+    await escapeDialog(page, dialog(page));
 
     // The Sumário says the same: the banner, the Controle row ("gerada", decision 4), the next
     // step under the pill, and the action in the bar, described by that sentence.
@@ -345,7 +339,7 @@ for (const viewport of WIDTHS) {
     await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
     await expect(dialog(page).locator('.row-wrap .t-meta')).toHaveText('Enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 2.');
     await expect(dialog(page).getByRole('button', { name: MARK_SENT })).toHaveCount(0);
-    await escapeDialog(page);
+    await escapeDialog(page, dialog(page));
     await expect(headerPill(page)).toHaveText('Emitido');
 
     // An Emitido relatório's sheet says that editing reopens it; the edit does, in its batch.
@@ -384,7 +378,7 @@ for (const viewport of WIDTHS) {
     await expect(note).toHaveText('Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 3.');
     await dialog(page).getByRole('button', { name: MARK_SENT }).click();
     await expect(note).toHaveText('Enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 3.');
-    await escapeDialog(page);
+    await escapeDialog(page, dialog(page));
     await expect(headerPill(page)).toHaveText('Emitido');
     const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
     if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
@@ -433,7 +427,7 @@ test('@p0 SF-E2E-003 Emitido with content the client does not have: an unchanged
   await expect(note).toHaveText('Enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 2.');
   await expect(dialog(page).getByRole('button', { name: MARK_SENT })).toHaveCount(0);
   expect(await statusValues(page, EXPORT_RELATORIO_ID)).toEqual(['em_revisao', 'emitido']);
-  await escapeDialog(page);
+  await escapeDialog(page, dialog(page));
 
   // Content the client does not have, with no status op: another device of this user edits
   // the relatório and this device pulls the edit. Its row still says Emitido.
@@ -458,7 +452,7 @@ test('@p0 SF-E2E-003 Emitido with content the client does not have: an unchanged
   await expect(note).toHaveText('Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 3.');
   await expect(dialog(page).getByRole('button', { name: MARK_SENT })).toBeVisible();
   expect(await statusValues(page, EXPORT_RELATORIO_ID)).toEqual(['em_revisao', 'emitido', 'em_revisao']);
-  await escapeDialog(page);
+  await escapeDialog(page, dialog(page));
 
   // The Sumário says the same, and the action is offered in the bar: it issues revision 2.
   await expect(headerPill(page)).toHaveText('Em revisão');

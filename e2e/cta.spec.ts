@@ -17,9 +17,10 @@ import {
   type SheetStep,
   type TemplateRow,
 } from '@app/domain';
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
+import { escapeDialog } from './support/dialogs.ts';
 import { addLocal } from './support/local.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -166,13 +167,6 @@ async function typeCell(page: Page, testKey: string, rowKey: string, columnKey: 
 async function openSheet(page: Page, relatorioId: string, blockId: string): Promise<void> {
   await page.goto(`/relatorio/${relatorioId}/ficha/${blockId}`);
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
-}
-
-/** Esc from inside the Export dialog, once the focus is in it (E9-Q13). */
-async function escapeDialog(page: Page, dialog: Locator): Promise<void> {
-  await expect.poll(() => dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
-  await page.keyboard.press('Escape');
-  await expect(dialog).toBeHidden();
 }
 
 // --- 14.5-E2E-001 ------------------------------------------------------------------------
