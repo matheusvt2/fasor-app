@@ -890,7 +890,7 @@ action_items:
     epic: 13
     action: "E13-A2 Fix the three recurring unit failures (theme.test.tsx, export-dialog.test.tsx drain under load, number-input.test.tsx:21 harness timer); until then a PR names each red unit test and its isolated pass; target test:unit exit 0 in two consecutive story gates, 0 PRs merged with a red stage"
     owner: "next carry-over batch"
-    status: open
+    status: done  # 2026-10-15: PR #137; test:unit exit 0 in two consecutive gates on an idle host (#137 gate 4122/4122, #133 pre-merge 4134/4134, wave gate 2026-10-15 green); load-only timeouts remain when three stacks share the VM
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-102-e13-a3-epic-13-device-script"
     epic: 13
@@ -914,7 +914,7 @@ action_items:
     epic: 13
     action: "E13-A6 Refactor without behavior change: one pointer-gesture core shared by use-pinch-zoom.ts and the camera controls, and camera-view.tsx (899 lines) split into stream/session, capabilities/controls and single-shot modules; target no camera file over 400 lines, camera, zoom and plate-shot-fallback specs green"
     owner: "next carry-over batch"
-    status: open
+    status: done  # 2026-10-15: PR #133 (pointer-gesture core, camera-view.tsx split, no camera file over 400 lines); camera, zoom and plate-shot specs green
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-106-e13-a7-fallback-and-capture-test-rules"
     epic: 13
@@ -980,7 +980,7 @@ action_items:
     epic: 14
     action: "E14-A7 Run a carry-over batch first in the next epic (E6-A7): quantity-stepper flake (deferred-work 1685), open e2e failures 6.6-E2E-011, 7.5-E2E-003, WebKit F-11, E13-A6 camera-view.tsx split (992 lines), relatorio-tree.tsx split by presentation (1029 lines), camera returnFocus row (1931), panel reading painel target (1791); target test:unit exit 0 in two consecutive story gates, no camera or tree surface file over 600 lines"
     owner: "coordinator (launch); next carry-over batch"
-    status: open
+    status: done  # 2026-10-15: carry-over batches co14a (#137) and co14b (#133) merged; wave gate on 0b67a20 found one interaction (14.2-E2E-002, a menu item picked by the focus scroll of #137 under the pointer) fixed in fix/wave-e14-carry-over
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-117-e14-a8-liveness-accessor-and-config-family"
     epic: 14
@@ -1016,5 +1016,5 @@ action_items:
     epic: 14
     action: "E14-A13 Stop the _tmp_13_* files pnpm 12.5.1's link probe leaves in bind-mounted worktrees: a .gitignore rule plus an install cleanup, or a pnpm package-import-method that skips the probe; target a batch worktree shows no _tmp_* file after install"
     owner: "coordinator (tooling)"
-    status: open  # 2026-10-14: .gitignore rule added; the probe itself still runs (install cleanup or package-import-method open)
+    status: done  # 2026-10-15: PR #133, pnpm_config_store_dir in x-app-env skips the probe; a fresh batch install left no _tmp_* file
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"

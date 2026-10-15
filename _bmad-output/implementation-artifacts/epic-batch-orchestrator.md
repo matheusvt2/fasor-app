@@ -153,6 +153,11 @@ overrides (they win over the workflow text):
   LibreOffice arm64/amd64 mismatch, see `deferred-work.md`.)* Spec paths go before `--project` when calling `scripts/e2e.ts` directly. A new spec that times taps
   against a render goes in `SERIAL_SPECS` or `scripts/e2e.test.ts` fails. Never `pkill` by a pattern that matches
   another batch's processes.
+- (2026-10-15, Epic 14 carry-over) A tools container run with `--user root` can leave root-owned files in the
+  `node_modules` volume (`apps/web/node_modules/.vite-temp`); the `web` dev container (user `node`) then crash-loops
+  on EACCES and its restarts load the VM until every gate times out (co14b: 6137 restarts, test:unit 1506 s). Keep a
+  batch's `web` service stopped unless a spec needs the dev server (`scripts/e2e.ts` builds its own bundle), and
+  check `podman ps` for a restarting container before reading a timeout as a defect.
 - Read files with offset/limit; do not re-read a file you just edited; do not cat whole large files.
 - No Playwright MCP browser pass in the batch (the integrated QA after the last merge does the human-style pass).
   The batch still covers each story's main ACs with Playwright specs tagged `@p0` (as a human would: clicks,

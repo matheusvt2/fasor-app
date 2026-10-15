@@ -445,6 +445,17 @@ describe('Carry-over co14a (F-11 on WebKit): a field the keyboard focused stops 
       keepClearOfStickyBar(field);
       expect(scrollBy).not.toHaveBeenCalled();
       dialog.remove();
+      // Inside an open menu or listbox: left alone, or the scroll moves an item under the
+      // pointer that opened it and the pointer's release picks it.
+      for (const role of ['menu', 'listbox']) {
+        const popover = document.createElement('div');
+        popover.setAttribute('role', role);
+        document.body.append(popover);
+        popover.append(field);
+        keepClearOfStickyBar(field);
+        popover.remove();
+      }
+      expect(scrollBy).not.toHaveBeenCalled();
       // A static App bar covers nothing: only the bar counts.
       document.body.append(field);
       appBar.style.position = 'static';
