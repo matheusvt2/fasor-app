@@ -95,8 +95,8 @@ describe('E9 sweep B16: "Tentar novamente" survives a reload', () => {
 
     // The reading failed again (a new status op): the button is back.
     render(row(OP_B, reloaded));
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(retry()).not.toHaveAttribute('aria-disabled');
+    // Carry-over co14a (E13-A2): waits for the record's read, not a fixed 50 ms that a loaded host outlasts.
+    await waitFor(() => expect(retry()).not.toHaveAttribute('aria-disabled'), { timeout: 5000 });
     await userEvent.click(retry());
     await waitFor(() => expect(reloaded.rereadPhoto).toHaveBeenCalledOnce());
   });
@@ -112,8 +112,7 @@ describe('E9 sweep B16: "Tentar novamente" survives a reload', () => {
     first.unmount();
 
     render(row(null, makeSyncState()));
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(retry()).not.toHaveAttribute('aria-disabled');
+    await waitFor(() => expect(retry()).not.toHaveAttribute('aria-disabled'), { timeout: 5000 });
   });
 });
 

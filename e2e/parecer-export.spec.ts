@@ -3,6 +3,7 @@ import { BLOCK_CHAVE_ID, CABINE_ID, EQUIPMENT_CHAVE_ID, portoSeguroSmall } from 
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
+import { escapeDialog } from './support/dialogs.ts';
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -324,7 +325,7 @@ test('@p1 7.5-E2E-003 R4: pressed and left for Home, the ready toast arrives the
   await footButton(page).click();
   await generateButton(page).click();
   await expect(dialog(page).locator('.gen-progress[role="status"]')).toContainText('Gerando revisão 1…', { timeout: 60_000 });
-  await page.keyboard.press('Escape');
+  await escapeDialog(page, dialog(page));
   // Leave through the app: Voltar to the obra, Voltar to Home.
   await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page).toHaveURL(/\/project\/[0-9a-f-]{36}$/);
@@ -355,7 +356,7 @@ test('@p1 7.5-E2E-004 Epic 4 item 29: "Restaurar" lists only the block removed a
   // F-03 (D1): the new relatório's sheets are empty, so the issue is confirmed first.
   await confirmIssue(dialog(page), /^Gerar com 94 fichas vazias/);
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
-  await page.keyboard.press('Escape');
+  await escapeDialog(page, dialog(page));
   // Removed after it: "Requisitos básicos".
   await page.getByRole('button', { name: 'Mais opções de Requisitos básicos' }).click();
   await page.getByRole('menuitem', { name: 'Remover' }).click();

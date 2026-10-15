@@ -147,6 +147,17 @@ export function QuantityStepper({ value, label, onCommit, isDisabled = false, di
     if (keyPending.current) keyCommit();
   };
 
+  // The select deferred by a focus to the next frame (so the browser's own caret placement does
+  // not undo it). Typing that lands before that frame cancels it: a select over typed text would
+  // make the next keystroke replace it (carry-over co14a: "150" read as "50").
+  const focusSelect = useRef<number | null>(null);
+  const cancelFocusSelect = useCallback(() => {
+    if (focusSelect.current === null) return;
+    cancelAnimationFrame(focusSelect.current);
+    focusSelect.current = null;
+  }, []);
+  useEffect(() => cancelFocusSelect, [cancelFocusSelect]);
+
   // A stepper that unmounts mid-hold still writes what its held key reached.
   const releaseRef = useRef(releaseKey);
   releaseRef.current = releaseKey;
@@ -261,10 +272,16 @@ export function QuantityStepper({ value, label, onCommit, isDisabled = false, di
           if (isDisabled) return;
           setText(local === 0 ? '' : String(local));
           const input = event.currentTarget;
-          requestAnimationFrame(() => input.select());
+          cancelFocusSelect();
+          focusSelect.current = requestAnimationFrame(() => {
+            focusSelect.current = null;
+            input.select();
+          });
         }}
         onChange={(event) => {
-          if (!isDisabled) setText(event.target.value);
+          if (isDisabled) return;
+          cancelFocusSelect();
+          setText(event.target.value);
         }}
         onBlur={() => {
           releaseKey();
@@ -282,6 +299,7 @@ export function QuantityStepper({ value, label, onCommit, isDisabled = false, di
             event.stopPropagation();
             const typed = text === null ? localRef.current : (parseQuantityInput(text) ?? localRef.current);
             const next = clampQuantity(typed + (event.key === 'ArrowUp' ? 1 : -1));
+            cancelFocusSelect();
             setText(next === 0 ? '' : String(next));
             show(next);
             keyHeld.current = true;

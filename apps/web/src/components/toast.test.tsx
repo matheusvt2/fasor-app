@@ -1,8 +1,8 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { dropToastRoom, forgetPointerPress, keepClearOfToast, STICKY_BAR_COVERED, Toast, TOAST_CLEARANCE, TOAST_ROOM, TOAST_ROOM_UP, TOAST_UP, useStickyBarScrollPadding, type ToastMessage } from './toast.tsx';
+import { dropToastRoom, forgetPointerPress, keepClearOfStickyBar, keepClearOfToast, STICKY_BAR_COVERED, Toast, TOAST_CLEARANCE, TOAST_ROOM, TOAST_ROOM_UP, TOAST_UP, useStickyBarScrollPadding, type ToastMessage } from './toast.tsx';
 
 const message: ToastMessage = { id: 1, text: 'Rascunho encontrado', action: { label: 'Recuperar', onPress: () => undefined } };
 
@@ -388,5 +388,113 @@ describe('Review fixes 2026-10-08: a toast that leaves with the focus in it hand
     // Withdrawn (or expired, or advanced) while the keyboard is in it.
     rerender(<Host up={false} />);
     expect(screen.getByRole('button', { name: 'Antes' })).toHaveFocus();
+  });
+});
+
+describe('Carry-over co14a (F-11 on WebKit): a field the keyboard focused stops clear of the Sticky action bar and the App bar', () => {
+  /** A sticky App bar 56 px tall and a sticky Sticky action bar covering the viewport's last 100 px (jsdom: 768 px tall). */
+  function bars(): { appBar: HTMLElement; bar: HTMLElement; floor: number } {
+    const appBar = document.createElement('header');
+    appBar.className = 'app-bar';
+    appBar.style.position = 'sticky';
+    vi.spyOn(appBar, 'getBoundingClientRect').mockReturnValue(rect(0, 56));
+    const bar = document.createElement('div');
+    bar.className = 'sticky-action-bar';
+    bar.style.position = 'sticky';
+    const floor = window.innerHeight - 100;
+    vi.spyOn(bar, 'getBoundingClientRect').mockReturnValue(rect(floor, 100));
+    document.body.append(appBar, bar);
+    return { appBar, bar, floor };
+  }
+
+  it('scrolls a field under the bar up until its bottom meets the bar, one under the App bar down, and a taller one to its own top', () => {
+    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+    const { appBar, bar, floor } = bars();
+    const field = document.createElement('input');
+    document.body.append(field);
+    const box = vi.spyOn(field, 'getBoundingClientRect').mockReturnValue(rect(floor - 18, 48));
+    try {
+      keepClearOfStickyBar(field);
+      expect(scrollBy).toHaveBeenLastCalledWith({ top: 30, behavior: 'instant' });
+      // Under the App bar: scrolls back by what it hides.
+      box.mockReturnValue(rect(20, 48));
+      keepClearOfStickyBar(field);
+      expect(scrollBy).toHaveBeenLastCalledWith({ top: -36, behavior: 'instant' });
+      // Taller than the room, its top under the App bar: its top comes into view, never its end.
+      box.mockReturnValue(rect(40, 700));
+      keepClearOfStickyBar(field);
+      expect(scrollBy).toHaveBeenLastCalledWith({ top: -16, behavior: 'instant' });
+      // Taller than the room, its top in view: it stays.
+      scrollBy.mockClear();
+      box.mockReturnValue(rect(56, 700));
+      keepClearOfStickyBar(field);
+      // Clear of both: nothing moves. Exactly on the floor: nothing moves either.
+      box.mockReturnValue(rect(300, 48));
+      keepClearOfStickyBar(field);
+      box.mockReturnValue(rect(floor - 48, 48));
+      keepClearOfStickyBar(field);
+      expect(scrollBy).not.toHaveBeenCalled();
+      // Inside the bar or a dialog: left alone.
+      box.mockReturnValue(rect(floor - 18, 48));
+      bar.append(field);
+      keepClearOfStickyBar(field);
+      const dialog = document.createElement('div');
+      dialog.setAttribute('role', 'dialog');
+      document.body.append(dialog);
+      dialog.append(field);
+      keepClearOfStickyBar(field);
+      expect(scrollBy).not.toHaveBeenCalled();
+      dialog.remove();
+      // A static App bar covers nothing: only the bar counts.
+      document.body.append(field);
+      appBar.style.position = 'static';
+      box.mockReturnValue(rect(20, 48));
+      keepClearOfStickyBar(field);
+      expect(scrollBy).not.toHaveBeenCalled();
+    } finally {
+      scrollBy.mockRestore();
+      appBar.remove();
+      bar.remove();
+      field.remove();
+    }
+  });
+
+  it('acts on a focus a Tab or an Enter moved, never on one with no key before it', () => {
+    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+    const now = vi.spyOn(performance, 'now').mockReturnValue(1e9);
+    const { appBar, bar, floor } = bars();
+    function Host() {
+      useStickyBarScrollPadding();
+      return (
+        <>
+          <input aria-label="A" />
+          <input aria-label="B" />
+        </>
+      );
+    }
+    const { unmount } = render(<Host />);
+    const [a, b] = [screen.getByRole('textbox', { name: 'A' }), screen.getByRole('textbox', { name: 'B' })];
+    vi.spyOn(a, 'getBoundingClientRect').mockReturnValue(rect(floor - 18, 48));
+    vi.spyOn(b, 'getBoundingClientRect').mockReturnValue(rect(floor - 18, 48));
+    try {
+      // No key: a press or the app focused it.
+      a.focus();
+      expect(scrollBy).not.toHaveBeenCalled();
+      // A Tab, then the focus it moves.
+      fireEvent.keyDown(document.body, { key: 'Tab' });
+      b.focus();
+      expect(scrollBy).toHaveBeenCalledWith({ top: 30, behavior: 'instant' });
+      // 500 ms after the key the focus is no longer the key's.
+      scrollBy.mockClear();
+      now.mockReturnValue(1e9 + 500);
+      a.focus();
+      expect(scrollBy).not.toHaveBeenCalled();
+    } finally {
+      unmount();
+      scrollBy.mockRestore();
+      now.mockRestore();
+      appBar.remove();
+      bar.remove();
+    }
   });
 });

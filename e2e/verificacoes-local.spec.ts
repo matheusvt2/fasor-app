@@ -1,6 +1,7 @@
 import { photoToken, SEED_VERSION, SITE_ITEM_KEYS, siteItems, type BlockRow, type LocationRow, type OpDraft, type PointRow } from '@app/domain';
 import type { BrowserContext, Page, Route } from '@playwright/test';
 import { paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
+import { escapeDialog } from './support/dialogs.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { addLocal } from './support/local.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -210,13 +211,6 @@ async function downloadDocx(page: Page, n: number): Promise<string> {
   const download = await downloadFrom(page, () => exportDialog(page).getByRole('button', { name: 'DOCX — abrir no Word' }).click());
   expect(download.suggestedFilename()).toBe(`relatorio-rev-${n}.docx`);
   return readZipEntries(await downloadBytes(download)).get('word/document.xml')!.toString('utf8');
-}
-
-/** Esc from inside the Export dialog, once the focus is in it (E9-Q13). */
-async function escapeDialog(page: Page): Promise<void> {
-  await expect.poll(() => exportDialog(page).evaluate((element) => element.contains(document.activeElement))).toBe(true);
-  await page.keyboard.press('Escape');
-  await expect(exportDialog(page)).toBeHidden();
 }
 
 // --- a small relatório pushed from the office ----------------------------------------------
@@ -620,7 +614,7 @@ test('@p0 14.3-E2E-002 an item answered on an Emitido relatório: the banner say
   await generateRevision(page, 1);
   await exportDialog(page).getByRole('button', { name: MARK_SENT }).click();
   await expect(exportDialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
-  await escapeDialog(page);
+  await escapeDialog(page, exportDialog(page));
   await expect(headerPill(page)).toHaveText('Emitido');
 
   // The surface of an Emitido relatório says that editing reopens it, in its own words.

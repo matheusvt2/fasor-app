@@ -136,7 +136,7 @@ const rowLabels = (root: HTMLElement) => [...root.querySelectorAll('table tbody 
 afterEach(cleanup);
 
 describe('14.5 MeasurementTests: what the sheet draws', () => {
-  it('draws the six tests in order under their kernel titles, each with its criterion and source, with no accessibility violation', async () => {
+  it('draws the six tests in order under their kernel titles, each with its criterion and source', () => {
     const { container } = renderTests(cta());
     expect(container.querySelector('.tests-stack')).not.toBeNull();
     expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
@@ -154,8 +154,17 @@ describe('14.5 MeasurementTests: what the sheet draws', () => {
     expect([...e1.querySelectorAll('thead th')].map((th) => th.textContent)).toEqual(['Polo', 'Lado Normal', 'Lado Emergência']);
     // BT by default: the E2 criterion is the BT one.
     expect(section(container, E2).querySelector('.mt-criterion')).toHaveTextContent('1.000 Vcc · ≥ 100 MΩ');
-    expect(await axe(container)).toHaveNoViolations();
   });
+
+  // Carry-over co14a (E13-A2): the axe scan of the six tables is its own test. It is CPU-bound
+  // (3.7 s alone, no wait inside it) and outlasted the 15 s default in two full `test:unit` runs
+  // on a loaded host, so it takes the 60 s budget the other whole-surface scans have
+  // (`template-composer.test.tsx`, `relatorio-tree-painel.test.tsx`).
+  it('the six tests draw with no accessibility violation', async () => {
+    const { container } = renderTests(cta());
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(6);
+    expect(await axe(container)).toHaveNoViolations();
+  }, 60_000);
 
   it('shows only the rows the configuration shows: no fase C at two poles, the neutral only at four; MT takes the seeded criterion', () => {
     const three = renderTests(cta());
