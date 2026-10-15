@@ -268,6 +268,13 @@ overrides (they win over the workflow text):
   `test:e2e:matrix`, a Playwright MCP pass over every AC at 390, 768 and 1280 px), its report written inside its
   worktree and copied by the coordinator; one fix batch; a re-check by the same QA agent through SendMessage
   (cached context); then a headless `bmad-retrospective -H` in a subagent (E4-A8).
+- (2026-10-15, Story 14.10 part 2, cross-batch merge rule) Two batch PRs of one wave never merge on their own
+  gates alone. Before merging the second, the coordinator merges the first batch's branch (or main, once the first
+  has merged) into the second, runs both batches' touched specs on that merge result under the host lock, and merges
+  only when both sets are green; the second PR's body names the merge commit and both spec lists. Reason: PRs #137
+  (co14a, the sticky-bar focus scroll) and #133 (co14b, the camera and relatorio tree split) were each green alone,
+  and together turned 14.2-E2E-002 red on the wave gate of 0b67a20 (a menu item scrolled under the pointer), which
+  cost a fix PR (#138) after both had merged.
 - QA screenshots: at most about ten, only for defects and the key states of each story (images are costly).
 - Every narrowing reported in a PR body gets a dated line under its story in `epics.md` when the PR merges.
 - (2026-10-14, E14-A4) Definition of Ready capability check, before a story or item enters a batch: for every verb a
