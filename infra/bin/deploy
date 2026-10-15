@@ -202,7 +202,8 @@ run_one_shot() {
   else
     for attempt in $(seq 1 60); do
       # A stopped instance stays ACTIVE with its agent disconnected; only a connected agent counts.
-      count="$("${aws[@]}" ecs list-container-instances --cluster "$cluster" --status ACTIVE --filter 'agentConnected==true' --query 'length(containerInstanceArns)' --output text)"
+      count="$("${aws[@]}" ecs list-container-instances --cluster "$cluster" --status ACTIVE --filter 'agentConnected==true' --query 'length(containerInstanceArns)' --output text)" \
+        || { echo "deploy: aws ecs list-container-instances failed (is the AWS session still valid?)" >&2; return 1; }
       [ "$count" -ge 1 ] && break
       if [ "$attempt" = 60 ]; then
         echo "deploy: no container instance joined $cluster in 10 minutes (is the instance stopped?)" >&2
@@ -225,7 +226,8 @@ run_one_shot() {
     printf 'DRY-RUN: wait until %q ecs describe-tasks --cluster %q --tasks %q reports STOPPED\n' "$bin/aws" "$cluster" "$task_arn"
   else
     for attempt in $(seq 1 180); do
-      last_status="$("${aws[@]}" ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" --query 'tasks[0].lastStatus' --output text)"
+      last_status="$("${aws[@]}" ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" --query 'tasks[0].lastStatus' --output text)" \
+        || { echo "deploy: aws ecs describe-tasks failed (is the AWS session still valid?)" >&2; return 1; }
       [ "$last_status" = "STOPPED" ] && break
       if [ "$attempt" = 180 ]; then
         echo "deploy: the $label task $one_shot_task is still $last_status after 30 minutes; do not rerun the deploy until it stops (its log: group $log_group)" >&2
@@ -308,6 +310,8 @@ step "$smoke_suite"
 if [ -n "$smoke_failed" ]; then
   echo "not run: the reset failed"
 else
+  # A progress file of an earlier deploy must never be read as where this run stopped.
+  [ "$dry_run" = 1 ] || rm -rf "$smoke_dir"
   # The password goes from Secrets Manager into this shell's environment and from there to the
   # container by name (-e SMOKE_PASSWORD): never on a command line, never printed.
   if ! SMOKE_PASSWORD="$(capture '<secret>' "${aws[@]}" secretsmanager get-secret-value --secret-id "$smoke_secret_id" \
@@ -333,7 +337,6 @@ if [ -z "$smoke_failed" ]; then
   suite=("$CTR" compose --profile tools run --rm --no-deps)
   [ "$CTR" = podman ] && suite+=(--user root)
   suite+=(-e SMOKE_BASE_URL -e SMOKE_EMAIL -e SMOKE_PASSWORD tools pnpm smoke:production)
-  [ "$dry_run" = 1 ] || rm -rf "$smoke_dir"
   suite_exit=0
   if [ "$dry_run" = 1 ]; then
     (cd "$root" && run ${lock[@]+"${lock[@]}"} "${suite[@]}")
@@ -353,7 +356,9 @@ fi
 # The cleanup runs whatever happened above: the test company never keeps a run's writes.
 cleanup_failed=0
 step "$smoke_cleanup"
-if run_one_shot smoke-seed "$smoke_family" "$smoke_log_group" smoke/smoke-seed "${DEPLOY_DRY_RUN_SMOKE_SEED_EXIT:-0}"; then
+# DEPLOY_DRY_RUN_SMOKE_CLEANUP_EXIT: the cleanup's own placeholder exit code (default: the reset's).
+if run_one_shot smoke-seed "$smoke_family" "$smoke_log_group" smoke/smoke-seed \
+  "${DEPLOY_DRY_RUN_SMOKE_CLEANUP_EXIT:-${DEPLOY_DRY_RUN_SMOKE_SEED_EXIT:-0}}"; then
   echo "test company cleaned up (task $one_shot_task)"
 else
   cleanup_failed=1
@@ -379,7 +384,8 @@ if [ -n "$smoke_failed" ] || [ "$cleanup_failed" = 1 ]; then
   if [ -n "$smoke_failed" ]; then
     echo "deploy: $tag is deployed and recorded; nothing was rolled back" >&2
     if [ -n "$previous_tag" ] && [ "$previous_tag" != "none" ] && [ "$previous_tag" != "$tag" ]; then
-      echo "deploy: to roll back: infra/bin/deploy --skip-build --tag $previous_tag" >&2
+      echo "deploy: to roll back: infra/bin/deploy --skip-build --skip-smoke --tag $previous_tag" >&2
+      echo "deploy: (--skip-smoke because an image older than Story 14.10 part 6 has no smoke-seed task to run)" >&2
     else
       echo "deploy: no earlier tag was recorded to roll back to; fix forward" >&2
     fi

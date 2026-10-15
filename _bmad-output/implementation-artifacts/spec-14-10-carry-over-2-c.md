@@ -2,7 +2,7 @@
 title: 'Story 14.10 part 6: production smoke after every deploy, on a dedicated test company'
 type: 'feature'
 created: '2026-10-15'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'fe7a7a60693c95e6068ebfd546d9d610e6cf066e'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -13,7 +13,21 @@ context:
   - '{project-root}/infra/PUBLISHING.md'
 warnings: ['batched']
 # batched: part 6 of the Story 14.10 carry-over runs as its own batch (co16a) beside co16b (parts 10 and 11); it shares no code with it.
-deferred: []
+deferred:
+  - summary: >-
+      A red smoke on a redeploy of the recorded tag cannot name the last proven tag; the hint says fix forward.
+    evidence: |-
+      infra/bin/deploy reads the previous SSM image-tag before recording; on a same-tag re-run it equals the tag. A second parameter written only after a green smoke would keep the real rollback target.
+    location: >-
+      infra/bin/deploy (record and smoke report)
+    severity: low
+  - summary: >-
+      pg-boss jobs of the smoke company survive the reset; a generate job finishing after it could write into the re-seeded relatorio.
+    evidence: |-
+      smoke-seed.ts deletes ops, entities, sync_device_push and reading_runs only (the spec's table set).
+    location: >-
+      apps/api/src/db/smoke-seed.ts
+    severity: low
 ---
 
 <intent-contract>
@@ -90,6 +104,25 @@ deferred: []
 - Given the tools container, when `pnpm exec playwright test -c e2e/production/playwright.config.ts --list` runs, then it lists the one smoke test; when `pnpm test:e2e -- --list` (root config) runs, then no `.smoke.ts` appears.
 - Given `infra/bin/check`, when it runs, then fmt, validate, tflint and ShellCheck pass.
 - Given `infra/bin/tf production plan`, when it runs, then it adds only the smoke resources (secret, version, random password, task definition, log group, IAM statement change) and replaces nothing.
+
+## Review Triage Log
+
+### 2026-10-15 — Review pass
+- verdicts: 13 findings — high 0, medium 4, low 7, false 1, maybe-false 0 (two duplicates counted on their own rows)
+- findings:
+  - `[medium]` `[patch]` VG: a cleanup-only failure has no test; reset and cleanup share one dry-run code — own `DEPLOY_DRY_RUN_SMOKE_CLEANUP_EXIT` and a test.
+  - `[false]` `[reject]` VG: the suite never runs before merge — the implementer ran the whole suite against the local compose stack after `smoke-seed-cli.ts` (8 of 8 steps green, 11 plate fields, DOCX 105 KB, PDF 450 KB); the PR body carries it.
+  - `[low]` `[defer]` VG: the same-tag branch of the rollback hint has no test — deferred with EC same-tag finding.
+  - `[medium]` `[patch]` EC: the first deploy reads `smoke_*` outputs before any apply — PUBLISHING states the plan and apply before the first deploy.
+  - `[medium]` `[patch]` EC: a rollback to a tag older than this story re-runs the smoke on an image without `smoke-seed-cli.ts` — the hint carries `--skip-smoke` and says why.
+  - `[low]` `[defer]` EC: a same-tag re-run loses the real rollback target — deferred (second parameter).
+  - `[low]` `[patch]` EC: a failed secret read printed a stale progress.txt — smoke dir cleared before the read.
+  - `[medium]` `[patch]` EC: aws failures inside `run_one_shot` loop to the timeout (errexit off in an `if`) — each aws call returns 1 at once.
+  - `[low]` `[reject]` EC: a lock timeout reads as a suite failure — rare (30 min wait), message still points at the report; not worth a branch.
+  - `[low]` `[patch]` EC: the AI-off plate step printed "passed" after "skipped" — prints "skipped:".
+  - `[low]` `[reject]` EC: a re-seed failure after the delete leaves the company empty until the next reset — the next deploy's reset repairs it and the task exits non-zero naming it.
+  - `[medium]` `[patch]` EC: errexit disabled inside run_one_shot (duplicate of the aws-failure row) — same fix.
+  - `[medium]` `[patch]` EC: the printed rollback command goes red on an older image (duplicate of the rollback row) — same fix.
 
 ## Design Notes
 

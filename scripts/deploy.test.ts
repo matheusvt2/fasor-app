@@ -161,7 +161,7 @@ describe('Story 14.10 part 6 infra/bin/deploy --dry-run, the production smoke', 
     expect(section(out, SMOKE_STEPS[2]!)).toMatch(/--task-definition fasor-production-smoke-seed /);
     expect(out).toContain('deploy: smoke failed at step: smoke: run the production suite');
     expect(out).toMatch(/deploy: report: \S+\/test-results\/production-smoke /);
-    expect(out).toContain('deploy: to roll back: infra/bin/deploy --skip-build --tag fedcba9876543210fedcba9876543210fedcba98');
+    expect(out).toContain('deploy: to roll back: infra/bin/deploy --skip-build --skip-smoke --tag fedcba9876543210fedcba9876543210fedcba98');
     expect(out).not.toMatch(/production smoke passed/);
   });
 
@@ -175,7 +175,19 @@ describe('Story 14.10 part 6 infra/bin/deploy --dry-run, the production smoke', 
     expect(out).toContain('its log: group /fasor/production/smoke, stream smoke/smoke-seed/0123456789abcdef0123456789abcdef');
     expect(out).toContain('deploy: smoke failed at step: smoke: reset the test company');
     expect(out).toContain('deploy: smoke failed at step: smoke: clean up the test company');
-    expect(out).toContain('deploy: to roll back: infra/bin/deploy --skip-build --tag fedcba9876543210fedcba9876543210fedcba98');
+    expect(out).toContain('deploy: to roll back: infra/bin/deploy --skip-build --skip-smoke --tag fedcba9876543210fedcba9876543210fedcba98');
+  });
+
+  it('a failed cleanup after a green reset and suite exits 1 with the cleanup line and no rollback hint', () => {
+    const { status, out } = run(['--dry-run'], { DEPLOY_DRY_RUN_SMOKE_CLEANUP_EXIT: '1' });
+    expect(status, out).toBe(1);
+    expect(section(out, SMOKE_STEPS[0]!)).toContain('test company reset');
+    expect(section(out, SMOKE_STEPS[1]!)).toContain('production suite passed');
+    expect(out).toContain('deploy: smoke failed at step: smoke: clean up the test company');
+    expect(out).not.toContain('smoke failed at step: smoke: reset the test company');
+    expect(out).not.toContain('smoke failed at step: smoke: run the production suite');
+    expect(out).not.toMatch(/production smoke passed/);
+    expect(out).not.toMatch(/to roll back/);
   });
 
   it('--skip-smoke prints the three steps as skipped and runs none of them', () => {

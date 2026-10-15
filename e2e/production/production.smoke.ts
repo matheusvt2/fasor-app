@@ -35,12 +35,15 @@ const exportDialog = (page: Page) => page.getByRole('dialog', { name: 'Gerar rel
 const nameplate = (page: Page) => page.locator('#ficha-nameplate');
 const camera = (page: Page) => page.getByRole('dialog', { name: 'Câmera' });
 
-/** Runs one named step, appending its name to the progress file first; prints it when it passed. */
+/** What a step's body returns to say it skipped its check (the plate step with the AI features off). */
+const SKIPPED = Symbol('skipped');
+
+/** Runs one named step, appending its name to the progress file first; prints it when it passed or skipped. */
 async function step<T>(name: string, body: () => Promise<T>): Promise<T> {
   return test.step(name, async () => {
     appendFileSync(SMOKE_PROGRESS_FILE, `${name}\n`);
     const result = await body();
-    console.log(`passed: ${name}`);
+    console.log(`${result === SKIPPED ? 'skipped' : 'passed'}: ${name}`);
     return result;
   });
 }
@@ -217,8 +220,8 @@ test('production smoke: sign in, edit and sync, a sheet photo, a plate reading, 
     expect(account.ok(), `GET /api/account answered ${account.status()}`).toBe(true);
     const features = ((await account.json()) as { features?: { ai?: boolean } }).features;
     if (features?.ai === false) {
-      console.log('5. read the plate: skipped, GET /api/account answers features.ai = false');
-      return;
+      console.log('5. read the plate: GET /api/account answers features.ai = false');
+      return SKIPPED;
     }
     const before = new Set(photoCreates(await serverOps(page, relatorioId)).keys());
     const tile = nameplate(page).locator('.camera-group').getByRole('button', { name: 'Fotografar placa' });

@@ -80,9 +80,11 @@ In order, it builds the api, ocr and caddy images and pushes them to ECR under t
 
 Expect 20 to 40 minutes. The OCR image is the largest; a first build downloads its models. A failed migration stops the deploy before any service rolls and prints its CloudWatch log stream.
 
+**First deploy after the smoke merged (Story 14.10 part 6):** the deploy reads the `smoke_*` outputs before any apply, so run `infra/bin/tf production plan` and `infra/bin/tf production apply` once first; it creates the Secrets Manager secret and its password, the `smoke-seed` task definition, the `/fasor/production/smoke` log group and the execution role's statement (5 to add, 1 to change). Without it the deploy stops at its outputs step.
+
 After the tag is recorded the deploy runs the **production smoke** (Story 14.10 part 6, README.md "Deploy"): the `smoke-seed` task resets the dedicated test company, a short Playwright suite signs in as its test user against the deployed URL (sign in, a relatório, an edit synced, a sheet photo, one plate reading, the preview, a revision, its DOCX and PDF), and the `smoke-seed` task cleans the company up again, also after a failure. The suite runs in the `tools` container of this checkout with `--no-deps`, so the checkout must already hold the tools image and its `node_modules` volumes from a gate run (`docker compose --profile tools run --rm tools pnpm verify` or any single stage); on a fresh machine run one gate stage first. It takes the host lock `/tmp/fasor-verify.lock` like the gates (waiting up to 30 minutes for a running gate). Expect 5 to 10 more minutes.
 
-A red smoke exits 1 and prints the failing step, the report path (`test-results/production-smoke/`) and the rollback command with the previous tag. The new tag stays deployed and recorded: nothing rolls back by itself. Decide, then roll back (below) or fix forward. `--skip-smoke` deploys without the smoke, for an emergency fix when the smoke itself is broken.
+A red smoke exits 1 and prints the failing step, the report path (`test-results/production-smoke/`) and the rollback command with the previous tag (`--skip-build --skip-smoke --tag <previous>`: an image older than the smoke has no `smoke-seed` task). The new tag stays deployed and recorded: nothing rolls back by itself. Decide, then roll back (below) or fix forward. `--skip-smoke` deploys without the smoke, for an emergency fix when the smoke itself is broken.
 
 The app is down for a few seconds while a service rolls (the old task stops before the new one starts). Publish outside field hours.
 
@@ -114,6 +116,8 @@ ECR keeps the last five images of each repository, and tags are immutable, so an
 ```sh
 infra/bin/deploy --skip-build --tag <previous sha>
 ```
+
+Add `--skip-smoke` when the previous tag predates the production smoke (2026-10-15): its image has no `smoke-seed` task, so the smoke would go red.
 
 Migrations are forward-only. Roll back across a migration only when the older code tolerates the newer schema; otherwise fix forward.
 
