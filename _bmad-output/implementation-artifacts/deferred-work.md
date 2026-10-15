@@ -2226,7 +2226,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Part 6 (the production smoke of the carry-over) is not built in lane A: which test company and which relatório a smoke may write to in production is Matheus's decision, and lane A touches no `infra/` and no AWS.
   evidence: spec Boundaries ("Never: Part 6 (production smoke), `infra/`..."); the production check of 2026-10-15 ran by hand on Bruno's account (relatório "TESTE v0.2.0 — apagar").
   class: debt
-  state: open (owner: Matheus decides the production test company; then a batch builds the smoke)
+  state: ~~open (owner: Matheus decides the production test company; then a batch builds the smoke)~~ closed (2026-10-15, batch co16a, `spec-14-10-carry-over-2-c.md`): Matheus chose option (a), a dedicated test company and user (`infra/production/smoke.tf`, password in Secrets Manager); `infra/bin/deploy` runs the `smoke-seed` reset, the suite `e2e/production/production.smoke.ts` and the cleanup after every deploy (`--skip-smoke` opts out)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-10-carry-over-2-a.md`
   summary: The `tools` service now mounts the container engine socket (read with GET requests only by `scripts/preflight.ts`) with SELinux label separation off for that one-off container, which gives a gate container engine access on a local stack. A read-only socket proxy in front of it would remove that access; open question 3 of the spec.

@@ -171,3 +171,40 @@ variable "log_retention_days" {
   type        = number
   default     = 14
 }
+
+# Story 14.10 part 6 (smoke.tf): the production smoke's test company and user. The company id
+# is fixed so the smoke-seed task always empties the same company, and it refuses one holding
+# any other user; the password is generated (random_password) and kept in Secrets Manager.
+variable "smoke_company_id" {
+  description = "Company id (a uuidv7, AD-4) of the production smoke's test company; the smoke-seed task empties and re-seeds this company only."
+  type        = string
+  default     = "01a14081-aa50-7697-855b-72450e7ed851"
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", var.smoke_company_id))
+    error_message = "smoke_company_id must be a lower-case uuidv7."
+  }
+}
+
+variable "smoke_company_name" {
+  description = "Name of the production smoke's test company."
+  type        = string
+  default     = "Empresa de teste automatizado"
+}
+
+variable "smoke_user_email" {
+  description = "Sign-in e-mail of the production smoke's test user; it must belong to no other company."
+  type        = string
+  default     = "smoke-producao@teste.local"
+
+  validation {
+    condition     = can(regex("^[^@ A-Z]+@[^@ A-Z]+$", var.smoke_user_email))
+    error_message = "smoke_user_email must be a lower-case e-mail address."
+  }
+}
+
+variable "smoke_user_name" {
+  description = "Name of the production smoke's test user."
+  type        = string
+  default     = "Teste automatizado"
+}

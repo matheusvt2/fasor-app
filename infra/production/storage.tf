@@ -128,7 +128,8 @@ resource "aws_ecr_lifecycle_policy" "this" {
 }
 
 resource "aws_cloudwatch_log_group" "this" {
-  for_each = toset(["api", "ocr", "caddy", "migrate"])
+  # Story 14.10 part 6: `smoke` holds the smoke-seed task's logs (smoke.tf).
+  for_each = toset(["api", "ocr", "caddy", "migrate", "smoke"])
 
   name              = "${local.ssm_prefix}/${each.key}"
   retention_in_days = var.log_retention_days

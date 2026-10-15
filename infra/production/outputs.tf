@@ -81,3 +81,21 @@ output "files_bucket" {
 output "database_identifier" {
   value = aws_db_instance.main.identifier
 }
+
+# Story 14.10 part 6 (smoke.tf): read by infra/bin/deploy for the smoke after the roll.
+output "smoke_task_family" {
+  value = aws_ecs_task_definition.smoke_seed.family
+}
+
+output "smoke_log_group" {
+  value = aws_cloudwatch_log_group.this["smoke"].name
+}
+
+output "smoke_secret_id" {
+  description = "The Secrets Manager secret holding the smoke user's password (its name, for get-secret-value)."
+  value       = aws_secretsmanager_secret.smoke_user_password.name
+}
+
+output "smoke_user_email" {
+  value = var.smoke_user_email
+}

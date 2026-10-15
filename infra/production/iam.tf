@@ -48,6 +48,14 @@ resource "aws_iam_role_policy" "execution_secrets" {
         Resource  = "arn:aws:kms:${local.region}:${var.account_id}:key/*"
         Condition = { StringEquals = { "kms:ViaService" = "ssm.${local.region}.amazonaws.com" } }
       },
+      {
+        # Story 14.10 part 6 (smoke.tf): the smoke user's password, this one secret only. It is
+        # under the AWS-managed key aws/secretsmanager, which needs no KMS statement here.
+        Sid      = "ReadSmokeUserPassword"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = aws_secretsmanager_secret.smoke_user_password.arn
+      },
     ]
   })
 }
