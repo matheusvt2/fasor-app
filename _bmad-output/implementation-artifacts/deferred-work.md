@@ -2199,3 +2199,15 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `packages/domain/src/home/cards.ts` `counterOf`; `packages/domain/src/relatorio/progress.ts` `over` and `progress`; production browser check of v0.2.0.
   class: defect
   state: open (owner: Matheus decides which count the card shows; then the next carry-over batch)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-13-8-emission-audit.md`
+  summary: 2026-10-15, production check of cd33356 (relatório "TESTE v0.2.0 — apagar", 76 sheets, 2 filled): the emission audit ("Conferir antes de emitir") reported "A imagem menciona 'chave de transferência automática CTA-APAGAR' que não consta em nenhuma folha de ensaio do relatório", although the CTA-APAGAR sheet exists and carries values. Either the audit input (`packages/domain/src/audit/input.ts`, built from the printed layout) cut that sheet (the long-relatório truncation of line 30) or it does not render a measurement-table sheet of a library type (seed v5) the way the photo caption names it. Not reproduced locally.
+  evidence: production browser check 2026-10-15 07:59 (Playwright MCP, Bruno's account); `packages/domain/src/audit/input.ts` `sheetLines`, `sheetLabelOf`.
+  class: defect
+  state: open (owner: the next carry-over batch: reproduce with a v5 CTA sheet and a captioned photo in the kernel audit-input test)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e14-carry-over-b.md`
+  summary: 2026-10-15, production check of cd33356 at 390 px: after a plate shot on the CTA sheet ("Fotografar placa", one shot, the camera closing by itself), `document.activeElement` was `BODY`: the focus did not come back to "Fotografar placa" or to the reading result that replaced it. The co14b focus watch (`restoreFocus` with `until: 'moved'`) covers the sheet's "Adicionar foto"; the plate path's opener is replaced by its result, so there is no target left.
+  evidence: production browser check 2026-10-15 07:25; `apps/web/src/input/focus-restore.ts`; the plate section of `apps/web/src/surfaces/ficha/`.
+  class: defect
+  state: open (owner: the next carry-over batch: decide the plate shot's return target, e.g. the reading status line, and assert it in plate-shot e2e)
