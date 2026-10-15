@@ -2804,6 +2804,8 @@ So that the plate inside the panel is readable without leaving the app or carryi
 
 *(2026-10-08, delivered in PR #106, narrowings: the torch, zoom and refusal copy is authored, accepted by Matheus on 2026-10-07 pending Bruno's field review.)*
 
+*(2026-10-15, Bruno's answers relayed by Matheus, question 8: Bruno agreed ("ok") to a 10-minute tablet session to review the authored copy (camera torch, zoom and refusal, "Ler de novo", "Recorte na tela", the pre-emission audit notice). Matheus schedules it; it has not happened yet, so this story's authored copy is still pending Bruno (E13-A8, E14-A10).)*
+
 ### Story 13.3: Pinch-zoom to read the photo
 
 **Dev model:** opus · **Effort:** medium · viewer gestures over the existing crop zoom
@@ -2825,6 +2827,8 @@ So that my own photo is the magnifier when a field reads "Verificar" or the OCR 
 **Definition of Done, in addition:** exercised on touch in the durability matrix (Android Chrome emulation and WebKit).
 
 *(2026-10-08, delivered in PR #103, narrowings: the WebKit zoom spec is skipped (Playwright WebKit cannot store a photo Blob); the iPad pinch pass is owed in E1-A1. Matheus, Q-5: from a crop, "Ajustar à tela" always shows the whole photo.)*
+
+*(2026-10-15, Bruno's answers relayed by Matheus, question 8: the authored "Recorte na tela" goes to the 10-minute tablet session Bruno accepted; Matheus schedules it; still pending (E13-A8).)*
 
 ### Story 13.4: The keyboard stops fighting the field, and the sheet says Salvo
 
@@ -2856,6 +2860,8 @@ So that a typed value is never mangled by autocorrect and never doubted.
 
 *(2026-10-08, delivered in PR #104, narrowings: "Hoje" only on the service start and end dates (Matheus, 2026-10-07); the offline wording is keyed to server reachability; a stored full date keeps the segmented picker; EXPERIENCE.md's "Salvo" sentence is struck through and replaced.)*
 
+*(2026-10-15, Bruno's answers relayed by Matheus, question 7: a "Hoje" shortcut on the "Próxima intervenção" date is wanted ("Faz sentido, pode incluir"). This overrides the exclusion in `spec-13-4-keyboard-and-salvo.md` (its "Never" list: no "Hoje" chip on "Próxima intervenção") for that one field; the fabrication dates keep no chip. Built in Story 14.10; `source-deltas.md` 2026-10-15. Closes E13-A8's Q-2.)*
+
 ### Story 13.5: A reading shows its age, can be cancelled, and never dead-ends
 
 **Dev model:** opus · **Effort:** high · reading lifecycle UI over the existing queue, no contract change
@@ -2885,6 +2891,8 @@ So that waiting is a choice and no photo leads to a dead end.
 **Definition of Done, in addition:** the flow is exercised end to end under `fake` providers with an injected delay; all wording lands in `copy/pt-br.ts` as authored.
 
 *(2026-10-08, delivered in PR #103, narrowings: the panel palette lists the awaiting photos of every device (Matheus, 2026-10-07); the cancel is device-local. Matheus, Q-3: after "Cancelar" a cancelled reading offers "Ler de novo" through the reread route, built in the Epic 13 fix batch.)*
+
+*(2026-10-15, Bruno's answers relayed by Matheus, question 8: the authored "Ler de novo" and the wait wording go to the 10-minute tablet session Bruno accepted; Matheus schedules it; still pending (E13-A8).)*
 
 ### Story 13.6: A shot refused by quota survives the tab
 
@@ -2965,6 +2973,8 @@ So that the client never receives a report that disagrees with itself.
 *(No FR: new capability from `review-field-ux-2026-10-06.md`; SPEC.md gains its capability line with this story. The device-composed conclusion text and parecer summary stay deterministic — this story does not touch them.)*
 
 *(2026-10-08, delivered in PR #107, narrowings: the audit runs on its own `audit` queue, not as a ReadingKind; CONTRACT_VERSION and MIN_CONTRACT_VERSION are 15 (old clients must update before syncing); no daily cap on audit runs (Matheus, Q-7); the copy and the `.precheck` look of the findings rows are authored.)*
+
+*(2026-10-15, Bruno's answers relayed by Matheus, question 8: the authored pre-emission audit notice and the findings rows go to the 10-minute tablet session Bruno accepted; Matheus schedules it; still pending (E13-A8). The audit's honesty on a long relatório (how many sheets it read) and the 2026-10-15 false positive on a CTA sheet are scheduled in Story 14.10.)*
 
 ### Story 13.9: Dictation on, behind one line of consent
 
@@ -3225,10 +3235,10 @@ So that the relatório records the room itself and an NC becomes a point of atte
 - Templates reach seed v4 by a server step at every api start (`upgradeTemplateSeeds`) that moves each live template's `seed_version` only; no relatório is rewritten. *(accepted)* A relatório created offline from a template row the device has not pulled since the move is born on the old seed and has no checklist.
 - *(narrowing)* The capture surface (`/relatorio/:id/local/:locationId/verificacoes`) is one column with no relatório rail beside it, and has no read-only state.
 - *(narrowing)* An NC site row is the sheet's checklist row: no photo tile inside the expansion, no photo count in the reason, no "Outro…" chip; beside a denied camera "Adicionar fotos" saves the picked files at once; the Caption composer opens a site photo as free text.
-- *(narrowing)* The type-group titles under a painel read "⟨grupo⟩ do ⟨painel⟩ — ⟨local⟩" (the recommended wording, authored, pending Bruno); the print mock's unnumbered group headings were not built; a relatório on v3 that already holds painéis prints the new titles too.
+- *(narrowing)* The type-group titles under a painel read "⟨grupo⟩ do ⟨painel⟩ — ⟨local⟩" (the recommended wording, ~~authored, pending Bruno~~ *(2026-10-15, Bruno: not enough; the title must also name the coluna of the painel, and a painel with one coluna still says "Coluna 1"; rebuilt in Story 14.10, `source-deltas.md` 2026-10-15)*); the print mock's unnumbered group headings were not built; a relatório on v3 that already holds painéis prints the new titles too.
 - *(narrowing)* A site-item key outside the closed list is answered `op_path_unknown`; a wrong kind or a wrong seed is answered `op_invalid`.
 - *(open, Matheus)* O1 "Concluir verificações" stores nothing (it names what is missing or returns to the tree); O2 a C or NC against NA contradiction on a site item is not a decision in the Conflict view; O3 NC site items are not in "NC abertos" and a local's counter stays sheets-only; O4 no photo-read NC draft on a site item.
-- *(open, Bruno)* the NC phrases of the 19 items and of the no-break item, and the other authored copy listed in the PR body.
+- *(open, Bruno)* ~~the NC phrases of the 19 items and of the no-break item, and~~ the other authored copy listed in the PR body. *(2026-10-15, Bruno via Matheus, question 1: the NC phrases of the 19 site items and of NO-BREAK DE COMANDO are accepted as they are ("de acordo"); `docs/nc-chip-phrases.md` status line. The other authored strings wait for the tablet session of question 8.)*
 - Gate: the story gate was green on the touched specs; the widened Playwright runs kept two reds on untouched specs, both open in `deferred-work.md` (`points` 6.6-E2E-011; WebKit `ficha.durability` F-11). The wave gate on the integrated main rechecks both.
 - Known open, in `deferred-work.md` under Stories 14.3 and 14.4: the boot wiring of `upgradeTemplateSeeds` has no test; "Legendar" on a site photo is untested; `location_id` is unchecked at the fold.
 
@@ -3237,6 +3247,8 @@ So that the relatório records the room itself and an NC becomes a point of atte
 **Given** a local with a site item answered NC
 **When** the Sumário and the parecer step read the relatório
 **Then** the item counts in "NC abertos" like an NC sheet item, and the suggested parecer is "com restrições" with the item named among the restrictions, as an NC sheet item is; the non-blocking pre-issue row of the QA fix stays (FR-48; `source-deltas.md` 2026-10-14)
+
+*(2026-10-15, Bruno's answers relayed by Matheus, question 6: the parecer wording for a site NC, "Verificações do local não conformes: item 3 (...) em 1 local.", is accepted ("Sim"). The wording of the site NC texts left open under Story 14.5's as-built note of 2026-10-14 is closed.)*
 
 ### Story 14.4: Verificações do local: the printed table
 
@@ -3270,9 +3282,11 @@ So that the client sees the room's condition beside its equipment.
 
 **Given** a local with *Agrupar por tipo* on and two painéis that each hold sheets of the same type
 **When** the relatório is generated
-**Then** the ÍNDICE and the headings tell the two groups apart: today both print the same numbered title ("Seccionadoras dos Cubículos de MT da ⟨local⟩" twice, because the painel band is unnumbered and the group title names only the local). Recommended, pending Bruno's word on the title: the type-group title under a painel names the painel ("Seccionadoras dos Cubículos de MT do ⟨painel⟩ — ⟨local⟩"); a local with no painel keeps the FO.SERV-03 titles unchanged. And with the flag on and no equipment placed directly on the local, the local still prints its own numbered heading before its first painel, as it does with the flag off (FR-68; AD-6; `deferred-work.md`, Story 14.2 coordinator review, entry on the ÍNDICE)
+**Then** the ÍNDICE and the headings tell the two groups apart: today both print the same numbered title ("Seccionadoras dos Cubículos de MT da ⟨local⟩" twice, because the painel band is unnumbered and the group title names only the local). ~~Recommended, pending Bruno's word on the title: the type-group title under a painel names the painel ("Seccionadoras dos Cubículos de MT do ⟨painel⟩ — ⟨local⟩");~~ *(2026-10-15, Bruno via Matheus, question 5: "Na maioria das vezes os painéis têm diversas colunas, então precisa ter a informação de qual coluna é do painel. Quando houver somente uma coluna fica como coluna 1." The type-group title under a painel names the coluna as well as the painel and the local, and a painel with a single coluna still reads "Coluna 1"; the exact wording and its build are Story 14.10, `source-deltas.md` 2026-10-15)* a local with no painel keeps the FO.SERV-03 titles unchanged. And with the flag on and no equipment placed directly on the local, the local still prints its own numbered heading before its first painel, as it does with the flag off (FR-68; AD-6; `deferred-work.md`, Story 14.2 coordinator review, entry on the ÍNDICE)
 
 **Definition of Done, in addition:** the DOCX and its PDF are checked against the approved print mock; the generate specs touched run serially per `e2e/support/groups.ts`.
+
+*(2026-10-15, Bruno's answers relayed by Matheus: question 5 settles the type-group title (it names the coluna; built in Story 14.10); question 6 accepts the parecer wording for a site NC (see Story 14.3).)*
 
 ### Story 14.5: The measurement table and two library types: Fonte auxiliar da proteção and Chave de transferência automática
 
@@ -3333,7 +3347,14 @@ So that the next job with a no-break or a chave ASCO is recorded in the relatór
 **When** it renders and prints
 **Then** E2 (isolamento principal) has no N-T row; E1 (resistência de contato) records the test current in A; a test that was not done (switched off, or E5 with método "Não realizado") disappears from the printed relatório entirely, title, method and criterion lines included; an out-of-criterion value prints plainly with no mark beside it, and its observation reaches the composed conclusion text; E4 (ajustes do controlador) carries only the rows Bruno keeps (pending his list; until it arrives E4 keeps its rows)
 
-**As built, 2026-10-14 (Bruno's answers, PR #130, merged as `b6765c2`; contract 19, seed v5 edited in place before its first deploy):** an NC site item counts in "NC abertos" (the tap focuses the local's Verificações row when it comes first in tree order) and makes the suggestion "Apto com restrições" naming the item; E2 has no N-T row (a cell pushed on it is refused); E1 records the test current (required, in A) and prints it; E5 "Não realizado" prints nothing; an out-of-criterion value prints plainly and is named in the composed conclusion (only the worst out reading of each test). *(open, Bruno)* E4's rows; whether the test current is required; the wording of the site NC texts. *(known open)* no e2e has a sheet NC win the "NC abertos" tap over a later site NC; a development store holding a pre-edit v5 CTA sheet keeps stale `n_t` cells.
+**As built, 2026-10-14 (Bruno's answers, PR #130, merged as `b6765c2`; contract 19, seed v5 edited in place before its first deploy):** an NC site item counts in "NC abertos" (the tap focuses the local's Verificações row when it comes first in tree order) and makes the suggestion "Apto com restrições" naming the item; E2 has no N-T row (a cell pushed on it is refused); E1 records the test current (required, in A) and prints it; E5 "Não realizado" prints nothing; an out-of-criterion value prints plainly and is named in the composed conclusion (only the worst out reading of each test). *(open, Bruno)* ~~E4's rows; whether the test current is required; the wording of the site NC texts.~~ *(2026-10-15, all three answered by Bruno, see the block below.)* *(known open)* no e2e has a sheet NC win the "NC abertos" tap over a later site NC; a development store holding a pre-edit v5 CTA sheet keeps stale `n_t` cells.
+
+**Bruno's answers of 2026-10-15 (relayed by Matheus; no code change in this story):**
+
+- Question 1, the 51 CTA NC phrases (`docs/nc-chip-phrases.md`): "de acordo", accepted as they are.
+- Question 2, E4 Ajustes do controlador (the 8 sensor rows for normal and emergência pickup and dropout of tensão and frequência, Falta de fase, TD 1C, TD 2B, TD 3A, TD 2E, Exercitador): "Neste primeiro momento está ok. Vamos incluindo conforme as demandas." The 14 rows stay; rows are added later on demand, each as a new seed version. This closes "E4 carries only the rows Bruno keeps (pending his list)" in the criteria of 2026-10-14: E4 keeps its rows.
+- Question 3, the CTA criteria and their sources: "Está certo. Os valores precisam ser preferencialmente os informados no manual do fabricante." The seeded criteria are accepted, with the principle that the manufacturer's manual value is preferred. *(open, Matheus)* whether the sheet should let the technician enter the manufacturer's criterion per equipment (a per-sheet override of a seeded limit); not scheduled.
+- Question 4, E1 "Corrente de ensaio": "Obrigatório". It stays required, as built in PR #130.
 
 ### Story 14.6: Company equipment types in the kernel
 
@@ -3432,3 +3453,163 @@ So that the equipment the base lacked is part of the job like any other.
 **Definition of Done, in addition:** a Playwright spec creates the no-break de comando from a copy with Bruno's content, places it in a template, fills it offline in a relatório, generates the DOCX and checks its table; the chave ASCO is created afterwards by the office through the editor, as data, with no code change.
 
 *(2026-10-09, Matheus: "coloque o que acha, depois a gente ajusta" and "deixa configurável". ~~The two first cases ship as **library types** in the next seed version — "Fonte auxiliar da proteção" (subtypes no-break de comando, fonte capacitiva, retificador + banco Vcc) and "Chave de transferência automática" (the chave ASCO; BT or MT, poles, neutro, transição and the E5 method as configurable fields and sub-block options) — with the content of `sprint-change-proposal-2026-10-08.md` § 8.3 and § 8.4. They are read-only and usable directly, and the office duplicates one to adjust it. This replaces the Definition of Ready on Bruno's no-break content, and the Definition of Done becomes: a Playwright spec places both library types in a template, fills a no-break with battery blocks added on site and a CTA with its E5 method offline, generates the DOCX and checks their tables; then it duplicates the CTA, changes one criterion, publishes, and shows that a relatório created earlier is unchanged.~~ Re-sliced the same day: the library types ship in Story 14.5. This story's Definition of Done becomes: a Playwright spec duplicates the library CTA into a company type, changes one criterion and one checklist item, publishes it, places it in a template, fills it offline and generates; a relatório created from the library CTA earlier is unchanged.)*
+
+### Story 14.9: Quadros elétricos (QGBT/QD) as a library type
+
+*(Added 2026-10-15 by Matheus, from the form Bruno sent: the original FO.SERV-03 complement spreadsheet, client material kept out of the repository at `docs/context/FO.SERV-03 Relatórios-Complemento.xlsx` (git-ignored; cite by path, never copy its header). Its "Quadros Elétricos" sheet, block "QGBT/QD's", is the content of this story. Modelled on Story 14.5: seeded code, no company-type machinery, AD-21 unchanged. Wave: like Story 14.5 it is a library type and does not wait for the wave-3 gate of E14-A12.)*
+
+**Dev model:** opus · **Effort:** high · seed v6 with one library type on the seeded nameplate, checklist and single-table insulation grammars; palettes, sheet, plate fixture and section 9
+
+As Bruno,
+I want the low-voltage boards (QGBT and quadros de distribuição) in the palette with their own sheet,
+So that the boards I already inspect on a job are recorded in the relatório, and section 6's "Cubículos, QGBT's e Quadros de Distribuição" is no longer a catalogue line with no sheet behind it (`prd.md` FR-66 consequences; `reconcile-brief-and-raw.md` C6).
+
+*(Definition of Ready: (1) Bruno's answers to the open questions below are recorded under this story with their date, or Matheus accepts the proposed default of each with a dated line; (2) the NC chip phrases drafted in `docs/nc-chip-phrases.md`, section "Quadros elétricos", are reviewed by Bruno or accepted by Matheus as the first version; (3) Story 14.5 is merged (seed v5, the library-type path, "Outros equipamentos") — met. No new mock frame is needed: the sheet uses the nameplate, checklist and insulation patterns of `60-ficha.html`, and the print follows the original sheet's layout as the eight types do; a criterion that needs a surface the sheet does not have becomes named scope before the build (E14-A4).)*
+
+**Content (from the original sheet, labels verbatim as they print):**
+
+- Title printed on the sheet: `QGBT/QD's`. Block type key proposed `quadro_eletrico`, label "Quadro elétrico (QGBT/QD)" and TAG prefix `QD` (both authored, open for Bruno).
+- DADOS DO EQUIPAMENTO, 9 fields: `IDENTIFICAÇÃO` · `FABRICANTE` · `Nº SÉRIE` · `TIPO` · `TIPO DE ISOLAÇÃO` · `DATA DE FABRICAÇÃO` · `CORRENTE DE CURTO` (kA) · `TENSÃO NOMINAL` (V) · `IP`. Units and kinds are proposed: text for the first five and IP, month-year date for the fabrication date (Story 13.4 rules), number for the two ratings.
+- VERIFICAÇÕES GERAIS (ÍTEM · C · NC · NA · OBSERVAÇÕES), 17 items as the original lists them: 1 LIMPEZA INTERNA E EXTERNA, 2 PINTURA, CORROSÃO DA CAIXA, 3 RESISTÊNCIA DE AQUECIMENTO, 4 ILUMINAÇÃO INTERNA, 5 LÂMPADAS DE SINALIZAÇÃO, 6 RELÉS E CONTATORES, 7 FUSÍVEIS, 8 DISJUNTORES TERMOMAGNÉTICOS (with the hint "FUNCIONAMENTO MECÂNICO (LIGA/DESLIGA/TRIP)" in the observation column), 9 ATERRAMENTO, 10 INSTRUMENTOS DE MEDIÇÃO, 11 BARRAMENTOS, 12 ISOLADORES, 13 FIAÇÃO INTERNA, 14 REAPERTO GERAL, 15 PLACAS DE SINALIZAÇÃO, 16 ORGANIZAÇÃO INTERNA (hint "CANALETA, CHICOTE, CABOS..."), and a second 16 IDENTIFICAÇÃO DE CIRCUITOS (proposed: numbered 17).
+- ENSAIO DE ISOLAÇÃO: the seeded single-table insulation grammar (`addendum.md` §9.3) with its instrument header (INSTRUM. FABRIC., TIPO, TENSÃO ENSAIO kV, Nº SÉRIE, RBC, ACEITÁVEL MΩ) and one row, LINHA `BARRAMENTO` · TERRA `MASSA` · GUARD empty, under 30 SEGUNDOS · 1 MINUTO · ESTAB./10MIN · ABSORÇÃO · POLARIZAÇÃO. The 1-minute-only capture rule of `source-deltas.md` applies unchanged (the other columns print "-").
+- OBSERVAÇÕES and CONCLUSÃO (APROVADO | REPROVADO × SEM RESTRIÇÕES | COM RESTRIÇÕES) as every sheet (`addendum.md` §9.4).
+
+**Open questions for Bruno (listed here and in the PR that adds this story):**
+
+1. Item 16 appears twice in the original (ORGANIZAÇÃO INTERNA and IDENTIFICAÇÃO DE CIRCUITOS): renumber the second as 17?
+2. The isolation test has one point, BARRAMENTO against MASSA: is that the practice, or one point per phase or bar (R, S, T, N against massa, or phase against phase)?
+3. The IP field: free text (e.g. "IP54"), or a closed list of the usual codes?
+4. The two hints (item 8 "FUNCIONAMENTO MECÂNICO (LIGA/DESLIGA/TRIP)", item 16 "CANALETA, CHICOTE, CABOS..."): do they print in the relatório (under the item, or pre-filled in OBSERVAÇÕES), or are they only a guide on the sheet?
+5. The type's name on screen and its TAG prefix (proposed "Quadro elétrico (QGBT/QD)" and `QD`), and whether a QGBT and a QD should be told apart (a configuration choice that changes the printed title and the TAG).
+6. The insulation acceptance value for a low-voltage board: the firm's seeded isolação criterion, or another value (the manufacturer's value preferred, Bruno 2026-10-15).
+7. The NC chip phrases drafted for the 17 items (`docs/nc-chip-phrases.md`).
+8. Placement: one sheet per board placed on the local or on a coluna, as any block; or does a board with several colunas take one sheet per coluna?
+
+**Acceptance Criteria:**
+
+**Given** the seed
+**When** this story lands
+**Then** seed v6 is v5 plus one library type, `quadro_eletrico` (key settled in the story spec), with the 9 nameplate fields, the 17 checklist items with 3 or 4 NC phrases each (the reviewed list of `docs/nc-chip-phrases.md`), the insulation test of one point on the seeded grammar and its seeded criterion; `SEED_VERSION` is v6; v1 to v5 stay frozen and resolvable; the closed type enum gains the key; TAG prefix, the noun with its gender for the conclusion and caption texts, and template totals come from the kernel; a kernel test pins that v6 differs from v5 only by this type (AR-20; AD-21)
+
+**Given** templates and relatórios that exist before this story
+**When** the api starts after it
+**Then** every live template reaches v6 through the existing server step (`upgradeTemplateSeeds`) without touching any relatório, and a relatório on v1 to v5 neither offers nor prints the type (AD-15, AD-21)
+
+**Given** the Template composer and the field Block palette on v6
+**When** they render
+**Then** the type is offered under "Outros equipamentos" after the CTA, with its Quantity stepper and suggested TAG, placeable on a local directly or on a coluna of a painel (never on a painel, `takesBlocks`), and the field adds it offline (FR-10, FR-18; UX-DR29, UX-DR30)
+
+**Given** a sheet of the type
+**When** a field user fills it offline
+**Then** the nameplate, the checklist with its bulk action ("Marcar os restantes como Conforme") and chips, the insulation test with the instrument picker, criteria evaluation, the suggested conclusion and its text, Não ensaiado, photos and points work as on a seeded sheet; every write is an existing op family through `applyOp`, and its status-flow decision is the one of the same family on a seeded sheet (FR-22, FR-25, FR-27; AD-3, AD-22)
+
+**Given** AI features on with `OCR_PROVIDER=fake` and `LLM_PROVIDER=fake`
+**When** "Fotografar placa" is used on the sheet
+**Then** the tile shows (Story 13.7: every type with a plate carries it) and the fake providers carry one fixture for this type, so the plate reading fills the 9 fields as suggestions under the existing trust rules (AI-1; FR-33)
+
+**Given** generation of a relatório on v6 holding the type
+**When** the DOCX and PDF are built
+**Then** section 9 prints each sheet in the "Outros equipamentos" group after Transformadores (and after the CTA), titled `QGBT/QD's` (or Bruno's answer to question 5), with DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS, ENSAIO DE ISOLAÇÃO with its instrument header, OBSERVAÇÕES and CONCLUSÃO as native tables, under both section 9 schemes and inside its local, painel and coluna headings; the hints print or not per Bruno's answer to question 4; section 6 prints its catalogue unchanged; a relatório on v1 to v5, including the Porto Seguro fixture, prints exactly as before and the golden documents still match (FR-66, FR-68; AD-6, AD-15, AD-16)
+
+**Given** the Sumário, the pre-issue check, "NC abertos" and the emission audit
+**When** a relatório holds the type
+**Then** its sheets count and its NC items surface as any sheet's do, with no new code path in `apps/*` (AD-2)
+
+**Definition of Done, in addition:** the contract version decision (bump and MIN_CONTRACT_VERSION, or none, argued) is written in the PR; `scripts/nc-chip-phrases.test.ts` passes with the type's rows; the batch runs every spec that asserts the closed list of block types or palette rows (E14-A3) beside its touched specs; a Playwright spec places the type in a template on a local and on a coluna, fills a sheet offline (checklist with one NC and its chip, the insulation point, the plate read through the fake fixture), reloads, syncs, generates the DOCX and checks its tables and the conclusion of an NC; the durability specs touched run on the matrix projects; `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` gain dated notes; `source-deltas.md` gains the row for the section 6 catalogue line being backed by a sheet when this lands.
+
+**Differences noticed between the original form and `addendum.md` §9 (2026-10-15, for Bruno; no existing type is rewritten by this story):**
+
+- TP and TC sheets (both Medição and Proteção) carry a 7-item checklist (1 LIMPEZA, PINTURA E CORROSÃO, 2 VASAMENTO, 3 FUSÍVEIS, 4 ATERRAMENTO, 5 CONEXÕES, 6 FIAÇÃO SECUNDÁRIA, 7 BUCHAS), where the seed gives TP, TC and Transformador de força one shared 15-item list.
+- The TP sheet's DADOS DO EQUIPAMENTO has 9 fields (no VOL. ÓLEO, POTÊNCIA NOMINAL or TAP ATUAL); the TC sheet has IDENTIFICAÇÃO, FABRICAÇÃO, Nº SÉRIE, TIPO, TIPO DE ISOLAÇÃO, DATA DE FABRICAÇÃO, RELAÇÃO, EXATIDÃO and a FATOR TÉRMICO the seed lacks, and no tensões, ligação, volume, potência or TAP.
+- The TP and TC sheets of the form carry only the insulation test, no transformation-ratio test (the seed carries one for each).
+- The para-raio sheet prints FABRICAÇÃO twice in its first row (likely FABRICANTE and FABRICAÇÃO); the seed has 5 fields.
+- The seccionadora and disjuntor sheets of the form have no TAG field (the seed adds one); the disjuntor's contact-resistance header has no Nº SÉRIE, RBC or ACEITÁVEL line.
+- The QGBT sheet says FABRICANTE where every other sheet says FABRICAÇÃO.
+
+### Story 14.10: Epic 14 carry-over 2
+
+*(Added 2026-10-15 by Matheus: the agent-closable carry-over after the production deploy v0.2.1 and its production check, plus Bruno's answers 5 and 7 of 2026-10-15. Each part has its own criteria; part 10 is listed, not built.)*
+
+**Dev model:** opus · **Effort:** high · tooling preflight, playbook rule, audit input, render timing, sync wording, a production smoke, a focus target, two document and setup changes from Bruno
+
+As the team shipping Releng,
+I want the gate to fail fast on a broken stack, the audit and the sync line to tell the truth, the document to be fast, production to be smoke-tested after each deploy, and Bruno's two changes in,
+So that the next real jobs meet a tool that is honest and quick, and a deploy is proven by a test, not by hand.
+
+*(Definition of Ready: (1) Matheus agrees the production test company of part 6 (its name, the account the smoke signs in with, where its secret lives: a secret declared in Terraform under `infra/`, never a key in the repository) and that the smoke runs only from `infra/bin/deploy` after a deploy; (2) part 10 stays out of scope until Matheus decides which count the Home card shows (deferred-work 2026-10-14); (3) parts 8 and 9 build Bruno's answers of 2026-10-15 recorded under Stories 14.3, 14.4 and 13.4 and in `source-deltas.md`; the exact title wording of part 8 is authored and stays open for Bruno.)*
+
+**Acceptance Criteria:**
+
+*Part 1, gate preflight.*
+
+**Given** a compose container of the stack restarting in a loop (status `restarting`, or a restart count that grows during a 10 s probe)
+**When** `pnpm verify`, a single gate stage or `scripts/e2e.ts` starts
+**Then** it stops within 15 s with one message naming the container, its restart count and the first line of its last log, and a non-zero exit, before any stage runs; a healthy stack adds under 15 s to the run; a unit test covers the probe's decision on a fake container list
+
+**Given** the `web` service and the shared `node_modules` volume
+**When** a tools container run with `--user root` has written `apps/web/node_modules/.vite-temp`
+**Then** the `web` service still starts (Vite's temp directory is moved out of the shared volume, or the service repairs its ownership before Vite starts, settled in the story spec), and the 2026-10-15 crash loop of batch co14b (`epic-batch-orchestrator.md`, note of 2026-10-15) cannot recur; the playbook note gains a dated line saying so
+
+*Part 2, cross-batch merge rule (playbook, no code).*
+
+**Given** two batch PRs of one wave
+**When** the coordinator merges the second
+**Then** `epic-batch-orchestrator.md` section 6 requires first merging the first batch's branch (or main after it merged) into the second, and running both batches' touched specs on the result before the merge; the 14.2-E2E-002 interaction of PRs #137 and #133 is cited as the reason, and `docs/kbs/workflow/story-delivery.md` is updated
+
+*Part 3, emission audit honesty.*
+
+**Given** a relatório whose audit text is cut at `AUDIT_INPUT_MAX_CHARS` (`packages/domain/src/audit/input.ts`)
+**When** the audit runs
+**Then** the kernel reports how many sheets the text carried and how many the relatório has, and the audit screen says so ("Conferidas N de M fichas", authored pt-BR, derived text in `packages/domain`); filled sheets go into the text before empty ones, so a 76-sheet relatório with 2 filled sheets sends both filled ones; a kernel test pins the order and the count
+
+**Given** a relatório with a v5 CTA sheet holding values and a photo captioned with its TAG (the 2026-10-15 production case, `deferred-work.md` entry of that date)
+**When** the audit input is built
+**Then** a kernel test reproduces the false positive (the caption names an equipment the text does not carry), the cause is fixed in the input (the sheet's label and TAG reach the text the way the caption names them), the test passes, and the deferred-work entry closes
+
+*Part 4, document generation time.*
+
+**Given** the 2026-10-15 production check (a 76-sheet relatório with 2 filled sheets: preview 88 s, generation 64 s)
+**When** the same shape is generated locally with timing on
+**Then** the PR records where the time goes (layout, DOCX build, LibreOffice conversion, photo work, upload), per stage; work for empty sheets that prints nothing is skipped; a timing assertion in the api suite fails when the measured stages exceed a target set from the measurement and written in the story spec; if no target can be derived the PR says why and the target goes to Matheus as an open question; the golden documents still match
+
+*Part 5, sync status while retrying.*
+
+**Given** the server answers (the health probe succeeds) but a sync request is slow or has failed and is being retried
+**When** the Sync status renders
+**Then** it says it is retrying ("Tentando de novo", authored, derived in `packages/domain/src/sync/counts.ts`) instead of "Sem conexão", which stays for an unreachable server; a kernel test covers the three states and an e2e delays the sync route to show the retrying line and its return to normal (the 2026-10-15 one-minute "sem conexão" during a plate reading)
+
+*Part 6, production smoke after deploy.*
+
+**Given** `infra/bin/deploy` finishing a deploy
+**When** the health check is green
+**Then** a short Playwright suite runs against production with the dedicated test company: open a relatório, edit a value and sync, add a sheet photo, read a plate with the OCR fixture plate fed as the camera stream, preview, generate a revision, download the DOCX and the PDF; it deletes what it created in a cleanup step that also runs on failure; a failure makes the deploy script exit non-zero and print the failing step
+
+**Given** the cost and policy rules of AGENTS.md
+**When** the smoke runs
+**Then** it runs only after a deploy, never in the story gate or `pnpm verify`; it makes at most one real plate reading and no emission audit per run, its cost per run is estimated in the PR and stays inside the USD 100 per month ceiling; any infrastructure it needs (the test account's secret, a log group) is Terraform in `infra/`; no paid API key is read by any test before deploy
+
+*Part 7, focus after a plate shot.*
+
+**Given** a plate shot that closes the camera by itself (one shot, "Fotografar placa")
+**When** the camera closes and the reading line replaces the tile
+**Then** the focus lands on the reading's status line (or the target settled in the story spec), never on `BODY`; a plate-shot e2e asserts `document.activeElement` at 390 and 768 px, and the deferred-work entry of 2026-10-15 closes
+
+*Part 8, the coluna in the type-group title (Bruno, 2026-10-15, question 5).*
+
+**Given** a local with *Agrupar por tipo* on and a painel holding sheets in its colunas
+**When** the relatório is generated
+**Then** each type-group title under a painel names the coluna, the painel and the local: proposed "⟨grupo⟩ da Coluna N do ⟨painel⟩ — ⟨local⟩", e.g. "Seccionadoras da Coluna 2 do Painel 1 — Cabine primária" (authored, open for Bruno); sheets of one type in two colunas make two groups, one per coluna (proposed, open for Bruno); a painel with a single coluna still reads "Coluna 1"; the ÍNDICE and the section 9 headings carry the same titles; a local with no painel keeps the FO.SERV-03 titles; the titles are composed once in `packages/domain`; a relatório on v1 to v3 without painéis, and the Porto Seguro golden documents, are unchanged
+
+*Part 9, "Hoje" on Próxima intervenção (Bruno, 2026-10-15, question 7).*
+
+**Given** the "Próxima intervenção recomendada" date in Etapa 5 (`apps/web/src/surfaces/relatorio/setup/etapa5-local.tsx`)
+**When** it renders empty or filled
+**Then** it offers the "Hoje" chip of Story 13.4's service dates, writing today's date (America/Sao_Paulo) through the same op as typing; the fabrication dates still have none; the tap-budget specs are unchanged; an e2e taps it, reloads and asserts the stored value
+
+*Part 10, Home card against Sumário count (listed, not built).*
+
+The Home and obra cards count a sheet with a pending suggestion as concluded while the Sumário does not (`deferred-work.md`, production deploy v0.2.0, entry of 2026-10-14). Matheus decides which count the card shows; the decision then becomes a criterion of a later carry-over, not of this story.
+
+**Definition of Done, in addition:** each part closes its `deferred-work.md` entry or adds one; the story gate plus every touched spec is pasted in each batch's PR; part 1 ships with a mutation run (the probe disabled, a looping container left running, the gate shown to hang or time out); part 3's and part 8's kernel changes run every spec that asserts audit text or section 9 titles (E14-A3); `docs/kbs/workflow/` (gate and story delivery) and `docs/kbs/log.md` gain dated notes.
+
+**Batch plan (suggested, two lanes):** lane A, "gate, document and deploy" (co15a): parts 1, 2, 4, 6 and 8, touching `scripts/verify.ts`, `scripts/e2e.ts` and its support, `docker-compose.yml`, `epic-batch-orchestrator.md`, `apps/api/src/` render and jobs code, the section 9 title composition in `packages/domain` (document layout), `infra/bin/deploy`, `infra/` Terraform and a new `e2e/production/` suite. Lane B, "field and audit" (co15b): parts 3, 5, 7 and 9, touching `packages/domain/src/audit/`, `packages/domain/src/sync/counts.ts`, the export dialog's audit section, the Sync status, the plate section of `apps/web/src/surfaces/ficha/` with `apps/web/src/input/focus-restore.ts`, `etapa5-local.tsx`, and their specs. The lanes share only `apps/web/src/copy/pt-br.ts` (new keys in separate blocks) and `packages/domain` exports; lane B reads the document layout for the audit but does not change it. They merge under part 2's rule: the second PR takes the first and runs both lanes' touched specs.
