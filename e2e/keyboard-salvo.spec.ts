@@ -152,7 +152,8 @@ test('@p0 13.4-E2E-002 INP-3 "Hoje": an empty service start on Etapa 1 is filled
   await page.reload();
   const again = page.locator('.setup-content .field').filter({ has: page.getByRole('group', { name: 'Início da execução' }) });
   await expect(again.getByRole('spinbutton')).toHaveText([d!, m!, y!], { timeout: 30_000 });
-  await expect(page.locator('.setup-content').getByRole('button', { name: /^Hoje em / })).toHaveCount(0);
+  // Story 14.10 lane B: the two service dates offer no chip (Etapa 5's empty Próxima intervenção keeps its own).
+  await expect(page.locator('.setup-content').getByRole('button', { name: /^Hoje em (Início|Fim) da execução$/ })).toHaveCount(0);
 });
 
 test('@p0 14.10-E2E-004 "Hoje" on an empty Próxima intervenção recomendada (Etapa 5) writes today, stored and shown after a reload; the fabrication dates offer no "Hoje"', async ({ page }) => {

@@ -10,7 +10,7 @@ import { useAiFeatures } from '../../state/ai-features.tsx';
 import { useServerReachable } from '../../state/sync.tsx';
 import { useCamera } from './camera-view.tsx';
 import { PlateCaptureTile } from './photo-openers.tsx';
-import { usePlateRowFocusHandoff } from './plate-focus.ts';
+import { usePlateFocusTarget, usePlateRowFocusHandoff } from './plate-focus.ts';
 import { CancelledReading, EmptyReading, FailedReading, ReadingWaitLine, useReadingCancelled, useRereadAt } from './reading-line.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 
@@ -267,8 +267,12 @@ export function PlateCrop({ photoId, region, focused, onOpen }: { photoId: strin
   // What is drawn at fit, in pixels of the picture: the zoom's maximum is its native resolution.
   const pinch = usePinchZoom({ content: loaded ? { width: w * size.width, height: h * size.height } : null, resetKey: `${photoId}|${focused?.join(',') ?? ''}` });
   const box = pinch.stageRef as RefObject<HTMLSpanElement | null>;
+  // Story 14.10 lane B: the crop takes the focus from the plate row it replaces (`plate-focus.ts`).
+  const open = useRef<HTMLButtonElement>(null);
+  usePlateFocusTarget(open);
   return (
     <button
+      ref={open}
       type="button"
       className="plate-crop-open"
       onClick={(event) => {
