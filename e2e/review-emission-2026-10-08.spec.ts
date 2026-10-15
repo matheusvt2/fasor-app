@@ -189,11 +189,11 @@ test('@p1 R8E-E2E-008 the issue confirmation and the foot reason name the blank 
   // The client is named with no CNPJ ("CNPJ —"); the worker's company has no Empresa registered
   // (its line prints "—" whole, so no CNPJ is named for it) and so no logo.
   const gaps = 'o CNPJ do contratante em branco e o logo da empresa não cadastrado';
-  await expect(bar(page).locator('.btn-reason').first()).toHaveText(new RegExp(`^Nada impede gerar\\. Emitir pede confirmação: 94 fichas vazias, \\d+ campos? em branco, ${gaps}\\.$`), { timeout: 30_000 });
+  await expect(bar(page).locator('.btn-reason').first()).toHaveText(new RegExp(`^Nada impede gerar\\. Gerar pede confirmação: 94 fichas vazias, \\d+ campos? em branco, ${gaps}\\.$`), { timeout: 30_000 });
   await bar(page).getByRole('button', { name: 'Gerar relatório' }).click();
   const modal = exportDialog(page);
   await modal.getByRole('button', { name: /^Gerar relatório$/ }).click();
-  const question = modal.getByRole('group', { name: new RegExp(`^Emitir com 94 fichas vazias, \\d+ campos? em branco, ${gaps}\\?$`) });
+  const question = modal.getByRole('group', { name: new RegExp(`^Gerar com 94 fichas vazias, \\d+ campos? em branco, ${gaps}\\?$`) });
   await expect(question).toBeVisible();
   await question.getByRole('button', { name: 'Voltar' }).click();
   await expect(question).toHaveCount(0);

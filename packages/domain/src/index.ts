@@ -102,6 +102,7 @@ export * from './format/datetime.ts';
 export * from './status/table.ts';
 export * from './status/edited-since.ts';
 export * from './print/layout.ts';
+export * from './print/absent-sections.ts';
 export * from './print/document-control.ts';
 export * from './print/revisions.ts';
 export * from './print/section-10.ts';

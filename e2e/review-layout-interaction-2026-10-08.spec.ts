@@ -620,6 +620,37 @@ async function expectDialogFits(dialog: Locator, where: string, phone: boolean):
 const DIALOG_SIZES = [{ width: 390, height: 700 }, { width: 360, height: 640 }, { width: 768, height: 1024 }, { width: 1280, height: 800 }] as const;
 const FIRST_DIALOG_SIZE = DIALOG_SIZES[0];
 
+test('@p0 P020-E2E-003 P-2 a tap on a registry combobox\'s chevron opens its list; the chevron beside a native select stays decorative and the tap reaches the select', async ({ page }) => {
+  test.setTimeout(150_000);
+  const built = await setUp(page, { width: 1280, height: 800 }, () => registryDrafts());
+  await syncNowAndReturn(page);
+  const sheet = sheetOf(built, 'chave_seccionadora');
+  await openSheet(page, built.relatorioId, sheet.blockId);
+
+  // Fabricação: from 1280 px the Combobox is drawn directly; its chevron is the React Aria Button.
+  const fabricacao = page.locator('#ficha-step-placa [data-field-key="fabricacao"]');
+  const chevron = fabricacao.getByRole('button', { name: 'Abrir lista' });
+  await expect(chevron).toBeVisible();
+  await chevron.click();
+  const list = page.getByRole('listbox');
+  await expect(list).toBeVisible();
+  await expect(list.getByRole('option', { name: 'Celtta' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(list).toHaveCount(0);
+
+  // MEIO DE EXTINÇÃO: a native select; a tap where its chevron is drawn lands on the select.
+  const meio = page.locator('#ficha-step-placa .field.combobox[data-field-key="meio_de_extincao"]');
+  const decorative = meio.locator(':scope > span.combobox-chevron');
+  await expect(decorative).toHaveCSS('pointer-events', 'none');
+  // Centred, so neither the App bar nor the Sticky action bar covers the point measured.
+  await meio.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+  const box = (await decorative.boundingBox())!;
+  const hit = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.tagName ?? null, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
+  expect(hit).toBe('SELECT');
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(meio.locator('select.input')).toBeFocused();
+});
+
 test('@p0 R8LAY-E2E-008 DA-1 the phone\'s "Novo relatório" dialogs fit the viewport and scroll inside, "Criar relatório" creates the relatório; centred on tablet and desktop', async ({ page }) => {
   test.setTimeout(300_000);
   await resetEmpresaB(account, { standard: true });

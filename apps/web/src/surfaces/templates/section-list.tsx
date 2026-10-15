@@ -1,6 +1,6 @@
 import { sectionsHeading, type ComposerSection } from '@app/domain';
 import { useId } from 'react';
-import { OverflowMenu, type OverflowMenuAction } from '../../components/index.ts';
+import { Button, OverflowMenu, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { sectionName } from './block-palette.tsx';
 import { DragHandle, PositionBox } from './reorder-controls.tsx';
@@ -8,6 +8,10 @@ import { useReorder, type Reorder } from './use-reorder.ts';
 
 export interface SectionListProps {
   sections: readonly ComposerSection[];
+  /** p020 P-1a: the kernel's warning while sections 8 or 10 (or every text section) are missing (`composerSectionsWarning`). */
+  warning?: string | null;
+  /** p020 P-1a: "Adicionar seção" opens the palette's "Seções" group, its tap appending. */
+  onAddSection?: () => void;
   onMove: (section: ComposerSection, toIndex: number) => Promise<void>;
   onAddBelow: (section: ComposerSection) => void;
   onDuplicate: (section: ComposerSection) => void;
@@ -22,7 +26,7 @@ export interface SectionListProps {
  * `.block-card` per section in order, with the drag handle, the Position box, the
  * FO.SERV-03 number in `.block-tag` and the title in `.block-name`.
  */
-export function SectionList({ sections, ...props }: SectionListProps) {
+export function SectionList({ sections, warning = null, onAddSection, ...props }: SectionListProps) {
   const headingId = useId();
   return (
     <section className="section" aria-labelledby={headingId}>
@@ -33,6 +37,18 @@ export function SectionList({ sections, ...props }: SectionListProps) {
         </h2>
         <span className="section-note">{copy.composer.sectionsNote}</span>
       </div>
+      {warning === null ? null : (
+        <div className="banner composer-sections-warning" role="status">
+          <span className="banner-text">{warning}</span>
+          {onAddSection === undefined ? null : (
+            <span className="banner-actions">
+              <Button variant="secondary" onPress={onAddSection}>
+                {copy.composer.addSectionAction}
+              </Button>
+            </span>
+          )}
+        </div>
+      )}
       {sections.length === 0 ? null : (
         <ul className="block-list" aria-label={copy.composer.sectionsListLabel} data-composer-list="sections">
           {sections.map((section) => {

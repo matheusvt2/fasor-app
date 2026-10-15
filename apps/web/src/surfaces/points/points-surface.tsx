@@ -10,6 +10,7 @@ import {
   pointOrderText,
   pointsHeadingText,
   pointSavedText,
+  printsSection,
   pointTextTokens,
   pointTitle,
   priorityLabel,
@@ -107,7 +108,7 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
         return (await commitBatch(db, [putPointOp(author, relatorioId, point.id, 'order_key', key)], { newId, now })).batch_id;
       })
       .catch(() => null);
-    if (batch !== null) setAnnouncement(pointMovedText(landing + 1, live.length));
+    if (batch !== null) setAnnouncement(pointMovedText(landing + 1, live.length, printsSection(snapshot, 8)));
   }
 
   /** The point whose editor closed with nothing written: its card takes the focus back. */
@@ -120,7 +121,7 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
       return;
     }
     // E6-Q2: the place the editor read once its last autosave landed.
-    const text = pointSavedText(saved.position, saved.total);
+    const text = pointSavedText(saved.position, saved.total, printsSection(snapshot, 8));
     edits.notify(text);
     setAnnouncement(text);
     restoreFocus(() => cardFocusTarget(saved.pointId), { frames: LIST_FOCUS_WATCH_FRAMES, once: true });

@@ -351,6 +351,35 @@ describe('3.4 composer: section blocks', () => {
     await userEvent.click(within(drawer).getByRole('button', { name: '2 Definições' }));
     await waitFor(() => expect(tags(container)).toEqual(['1', '2', '11']));
   });
+
+  it('p020 P-1a: with no section the warning and "Adicionar seção" show; the button opens the "Seções" group, its tap appends; with 8 and 10 no warning', async () => {
+    database = await freshDb(emptyTemplate(ID, 'v1'));
+    const { container } = renderComposer();
+    const warning = () => container.querySelector('.composer-sections-warning');
+    await waitFor(() =>
+      expect(warning()).toHaveTextContent('Este template não tem seções de texto: os relatórios saem só com as seções 7 e 9, sem pontos de atenção, parecer e assinatura.'),
+    );
+    await userEvent.click(within(warning() as HTMLElement).getByRole('button', { name: 'Adicionar seção' }));
+    // jsdom lays nothing out, so the inline palette counts as hidden and the drawer opens on its sections.
+    const drawer = await screen.findByRole('dialog', { name: 'Blocos' });
+    expect(within(drawer).queryByText(/A próxima seção tocada entra abaixo/)).toBeNull();
+    await userEvent.click(within(drawer).getByRole('button', { name: '8 Pontos de atenção' }));
+    await waitFor(() => expect(tags(container)).toEqual(['8']));
+    await waitFor(() => expect(warning()).toHaveTextContent('Sem a seção 10, o parecer e a assinatura não saem nos relatórios deste template.'));
+    // The drawer may still be open: the next tap goes where the palette is.
+    await userEvent.click(within(screen.queryByRole('dialog', { name: 'Blocos' }) ?? palette()).getByRole('button', { name: '10 Conclusão' }));
+    await waitFor(() => expect(tags(container)).toEqual(['8', '10']));
+    await waitFor(() => expect(warning()).toBeNull());
+    expect((await outboxPaths()).every((path) => path === `template/${ID}/blocks`)).toBe(true);
+  });
+
+  it('p020 P-1a: the standard template (8 and 10 present) shows no warning', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    const { container } = renderComposer();
+    await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' });
+    expect(container.querySelector('.composer-sections-warning')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Adicionar seção' })).toBeNull();
+  });
 });
 
 describe('3.4 composer: concurrent edits', () => {

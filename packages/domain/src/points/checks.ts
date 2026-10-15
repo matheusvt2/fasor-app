@@ -104,16 +104,27 @@ export function pointMoveOrderKey(
   return orderKeyForMove(livePointsOfLocals(points, locations), id, toIndex);
 }
 
-/** The announcement of a move: "Ponto de atenção movido: 1 de 3 na seção 8". */
-export function pointMovedText(position: number, total: number): string {
+/**
+ * The announcement of a move: "Ponto de atenção movido: 1 de 3 na seção 8". p020 P-1b:
+ * `section8Prints` false (the relatório has no section 8, `printsSection`) says the point
+ * does not print instead of naming the section.
+ */
+export function pointMovedText(position: number, total: number, section8Prints = true): string {
   // authored: the mock's toast ("Ponto movido uma posição para cima — a seção 8 segue esta
   // ordem") names no position; the announcement says where the point landed.
-  return `Ponto de atenção movido: ${position} de ${total} na seção 8`;
+  if (section8Prints) return `Ponto de atenção movido: ${position} de ${total} na seção 8`;
+  // authored: p020 P-1b, a relatório without section 8.
+  return `Ponto de atenção movido: ${position} de ${total} · não sai no documento: o relatório não tem a seção 8`;
 }
 
-/** The toast after "Concluir": "Ponto de atenção salvo · 4 de 4 na seção 8" (`72-pontos.html`). */
-export function pointSavedText(position: number, total: number): string {
-  return `Ponto de atenção salvo · ${position} de ${total} na seção 8`;
+/**
+ * The toast after "Concluir": "Ponto de atenção salvo · 4 de 4 na seção 8" (`72-pontos.html`).
+ * p020 P-1b: `section8Prints` false names no section 8 (the relatório has none).
+ */
+export function pointSavedText(position: number, total: number, section8Prints = true): string {
+  if (section8Prints) return `Ponto de atenção salvo · ${position} de ${total} na seção 8`;
+  // authored: p020 P-1b, a relatório without section 8.
+  return `Ponto de atenção salvo · ${position} de ${total} · não sai no documento: o relatório não tem a seção 8`;
 }
 
 /** E6-Q11: the 1-based section 8 positions of the live points whose text cites `photoId`. */

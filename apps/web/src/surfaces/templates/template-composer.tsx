@@ -5,6 +5,7 @@ import {
   addPainel,
   addSection,
   addSectionBelow,
+  composerSectionsWarning,
   composerView,
   defaultColunaName,
   defaultPainelName,
@@ -365,7 +366,8 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
     if (batch !== null) announce(moveAnnouncement('section', String(section.number), toIndex + 1, section.siblings));
   }
 
-  function onAddBelow(section: ComposerSection): void {
+  function onAddBelow(section: ComposerSection | null): void {
+    // p020 P-1a: null (the sections warning's "Adicionar seção") appends, as the palette's tap does.
     setInsertBelow(section);
     // From 1024 px the palette sits beside the composition (CSS alone decides, never a JS
     // breakpoint): the focus moves into it. Below, it is hidden, so the drawer opens.
@@ -553,6 +555,8 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
 
           <SectionList
             sections={view.sections}
+            warning={composerSectionsWarning(view.sections.map((section) => section.block_type))}
+            onAddSection={() => onAddBelow(null)}
             onMove={onMoveSection}
             onAddBelow={onAddBelow}
             onDuplicate={onDuplicateSection}
