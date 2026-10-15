@@ -102,7 +102,21 @@ export interface SyncClient {
    * existed still type-check.
    */
   audit?(relatorioId: string, body: AuditRequest): Promise<AuditResponse>;
+  /**
+   * Story 14.10 lane B: whether the server answers at all, `GET /api/health` (public, no
+   * session), aborted after `HEALTH_PROBE_TIMEOUT_MS`. True on any HTTP answer (a 503
+   * "degraded" is the server answering too); false on a network failure or the abort. Never throws. The engine asks it after a cycle
+   * that ended unreachable, so the badge can tell "Tentando de novo" from "Sem conexão".
+   * Optional in the type only so the test doubles built before it existed still type-check.
+   */
+  health?(): Promise<boolean>;
 }
+
+/** Story 14.10 lane B: how long the health probe waits before it reads as no answer. */
+export const HEALTH_PROBE_TIMEOUT_MS = 5000;
+
+/** Story 14.10 lane B: the probe's route (`apps/api/src/http/health.ts`). */
+export const HEALTH_PATH = '/api/health';
 
 /** Story 7.5: where the preview tab opens the relatório's latest RASCUNHO PDF; the file id only busts a cached earlier one. */
 export function previewPdfUrl(relatorioId: string, fileId: string): string {
@@ -255,5 +269,17 @@ export function createSyncClient(deps: { fetch: FetchLike }): SyncClient {
       await send(readingRereadPath(photoId), 'POST', { headers: { accept: 'application/json' } });
     },
     audit: (relatorioId, body) => request(auditRoute(relatorioId), auditResponseSchema, undefined, body),
+    async health() {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), HEALTH_PROBE_TIMEOUT_MS);
+      try {
+        await deps.fetch(HEALTH_PATH, { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { accept: 'application/json' }, signal: controller.signal });
+        return true;
+      } catch {
+        return false;
+      } finally {
+        clearTimeout(timer);
+      }
+    },
   };
 }

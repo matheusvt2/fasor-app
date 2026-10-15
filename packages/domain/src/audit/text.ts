@@ -93,3 +93,16 @@ export function auditCheckedAtText(run: AuditRunRow | null): string {
   const time = run === null || run.status !== 'done' ? '' : formatTimeOfDay(run.finished_at);
   return time === '' ? '' : `Conferido às ${time}`;
 }
+
+/**
+ * Story 14.10 lane B: how many sheets the finished run actually sent the model, "Conferida 1 de
+ * 1 ficha", "Conferidas 2 de 76 fichas" (the participle agrees with N, the noun with M); '' for
+ * a run with no coverage (one older than contract 20) or a relatório printing no sheet.
+ */
+export function auditCoverageText(run: AuditRunRow | null): string {
+  if (run === null || run.status !== 'done') return '';
+  const coverage = run.coverage;
+  if (coverage === null || coverage.total === 0) return '';
+  // authored: the audit summary's coverage line (Story 14.10 lane B, open for Bruno).
+  return `${coverage.sent === 1 ? 'Conferida' : 'Conferidas'} ${coverage.sent} de ${coverage.total} ${coverage.total === 1 ? 'ficha' : 'fichas'}`;
+}

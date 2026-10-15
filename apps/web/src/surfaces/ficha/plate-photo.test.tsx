@@ -438,3 +438,54 @@ describe('E78-Q14 the plate crop widened to the box', () => {
     expect(drawn.style.width).toBe(pct(outline.width));
   });
 });
+
+describe('14.10 the plate focus hand-off', () => {
+  const Sheet = ({ step, onOpen }: { step: 'pending' | 'stored' | 'crop'; onOpen: () => void }) => (
+    <section id="ficha-nameplate">
+      {step === 'pending' ? <PlatePendingRow /> : null}
+      {step === 'stored' ? <PlatePhotoRow tile={tile()} number={1} view="queued" onOpen={onOpen} onFillManually={vi.fn()} /> : null}
+      {step === 'crop' ? <PlateCrop photoId={PHOTO} region={[0.2, 0.2, 0.6, 0.6]} focused={null} onOpen={onOpen} /> : null}
+    </section>
+  );
+  const tree = (step: 'pending' | 'stored' | 'crop', onOpen = vi.fn()) => (
+    <SyncContext value={makeSyncState()}>
+      <ToastProvider>
+        <Sheet step={step} onOpen={onOpen} />
+      </ToastProvider>
+    </SyncContext>
+  );
+
+  it('moves the focus from the pending row to the stored row, then to the crop, in the commit that swaps them: never on BODY', () => {
+    const { container, rerender } = render(tree('pending'));
+    const pending = container.querySelector<HTMLElement>('[data-pending-shot] .reading-line')!;
+    pending.focus();
+    expect(document.activeElement).toBe(pending);
+
+    rerender(tree('stored'));
+    // Synchronous: no frame or task ran between the swap and this read.
+    expect(document.activeElement).not.toBe(document.body);
+    expect(container.querySelector('.ficha-np-photo')!.contains(document.activeElement)).toBe(true);
+
+    rerender(tree('crop'));
+    expect(document.activeElement).toBe(container.querySelector('.plate-crop-open'));
+  });
+
+  it('takes nothing when the user moved the focus elsewhere before the swap', () => {
+    const { container, rerender } = render(
+      <>
+        {tree('pending')}
+        <button type="button">Outro</button>
+      </>,
+    );
+    container.querySelector<HTMLElement>('[data-pending-shot] .reading-line')!.focus();
+    const other = screen.getByRole('button', { name: 'Outro' });
+    other.focus();
+    rerender(
+      <>
+        {tree('stored')}
+        <button type="button">Outro</button>
+      </>,
+    );
+    expect(document.activeElement).toBe(other);
+  });
+});

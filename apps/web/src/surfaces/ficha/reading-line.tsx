@@ -93,7 +93,10 @@ export function ReadingWaitLine({ photoId, startedAt, variant }: ReadingWaitLine
 
   const text =
     variant === 'plate' ? (
-      <p className="reading-line">{wait.text}</p>
+      // Story 14.10 lane B: the plate's waiting line takes the focus after the shot (`plate-focus.ts`).
+      <p className="reading-line" tabIndex={-1}>
+        {wait.text}
+      </p>
     ) : (
       <span className="queued-banner">
         <svg className="ico" aria-hidden="true">

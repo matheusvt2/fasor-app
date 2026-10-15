@@ -170,6 +170,10 @@ export const copy = {
     // reached although the device is online; these lines say which cause it is.
     serverUnreachable: 'Não foi possível falar com o servidor. Tudo fica salvo neste aparelho.',
     sessionExpired: 'Sua sessão expirou. Entre de novo para enviar.',
+    // Story 14.10 lane B (co15b)
+    // authored: the badge reads "Tentando de novo" when the last sync failed while the server
+    // still answers its health check; this line says so instead of "Não foi possível falar".
+    serverRetrying: 'O servidor respondeu, mas a última sincronização falhou. Tudo fica salvo neste aparelho e o envio será tentado de novo.',
     // The dead-op row ("3 alterações rejeitadas") is a count, so the kernel writes it
     // (`rejectedText`).
     resend: 'Reenviar',

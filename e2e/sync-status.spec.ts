@@ -398,6 +398,9 @@ test('@p0 10.4-E2E-009 a push that never reached the server leaves its sheet "Ag
   // The server cannot be reached: every push fails at the network, after the device marked its rows sent.
   const pushRoute = (url: URL) => url.pathname === '/api/sync/ops';
   await page.route(pushRoute, (route) => route.abort('connectionrefused'));
+  // Story 14.10 lane B: nor does its health check, so this stays "Sem conexão", not "Tentando de novo".
+  const healthRoute = (url: URL) => url.pathname === '/api/health';
+  await page.route(healthRoute, (route) => route.abort('connectionrefused'));
   await markFirst(page, 'Conforme');
 
   await openSyncStatus(page);
@@ -414,7 +417,50 @@ test('@p0 10.4-E2E-009 a push that never reached the server leaves its sheet "Ag
 
   // The server is back: the next cycle sends it and the row goes.
   await page.unroute(pushRoute);
+  await page.unroute(healthRoute);
   await syncNow(page);
   await expect(sheetRows(page)).toHaveCount(0);
   expect((await mine()).every((record) => record.status === 'acked')).toBe(true);
+});
+
+test('@p0 14.10-E2E-002 a sync answered 503 while the server answers its health check reads "Tentando de novo", not "Sem conexão"; released, "Sincronizar agora" returns to "Sincronizado"; offline reads "Sem conexão"', async ({ page, seed }) => {
+  test.setTimeout(180_000);
+  const account = seed.companies[1];
+  const database = deviceDatabaseName(account.userId);
+  await openChaveSheet(page, account, database);
+  // The push is slow and fails (503) while `/api/health` keeps answering: the server is there, the sync is not.
+  const pushRoute = (url: URL) => url.pathname === '/api/sync/ops';
+  await page.route(pushRoute, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ code: 'internal_error', message: 'e2e: unavailable' }) });
+  });
+  await markFirst(page, 'Conforme');
+
+  await openSyncStatus(page);
+  const button = page.getByRole('button', { name: 'Sincronizar agora' });
+  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 60_000 });
+  await button.click();
+  const badge = syncBadge(page);
+  await expect(badge).toHaveAttribute('data-state', 'retrying', { timeout: 60_000 });
+  await expect(badge.locator('.sync-long')).toHaveText('Tentando de novo');
+  await expect(page.getByTestId('sync-unreachable')).toHaveText(
+    'O servidor respondeu, mas a última sincronização falhou. Tudo fica salvo neste aparelho e o envio será tentado de novo.',
+  );
+  await expect(page.getByText('Sem conexão', { exact: true })).toHaveCount(0);
+
+  // Released: the next tap sends it and the badge is back to "Sincronizado".
+  await page.unroute(pushRoute);
+  await syncNow(page);
+  await expect(badge).toHaveAttribute('data-state', 'ok', { timeout: 60_000 });
+  await expect(badge.locator('.sync-long')).toHaveText('Sincronizado');
+  await expect(page.getByTestId('sync-unreachable')).toHaveCount(0);
+
+  // The browser offline: "Sem conexão", as before.
+  await page.context().setOffline(true);
+  try {
+    await expect(badge).toHaveAttribute('data-state', 'offline', { timeout: 30_000 });
+    await expect(badge.locator('.sync-long')).toHaveText('Sem conexão');
+  } finally {
+    await page.context().setOffline(false);
+  }
 });

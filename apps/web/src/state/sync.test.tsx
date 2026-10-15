@@ -37,7 +37,7 @@ const engine = {
   stop: vi.fn(),
   pause: vi.fn(),
   resume: vi.fn(),
-  status: vi.fn(() => ({ running: true, paused: false, outdated: false, lastResult: null, lastFailure: null, merges: [] })),
+  status: vi.fn(() => ({ running: true, paused: false, outdated: false, lastResult: null, lastFailure: null, serverAnswers: null, merges: [] })),
 } satisfies SyncEngine;
 
 vi.mock('../sync/engine.ts', async (importOriginal) => ({

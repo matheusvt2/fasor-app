@@ -1,4 +1,4 @@
-import { makeOp, SERVER_DEVICE_ID, suggestionPath, toIso, type EquipmentRow, type JsonValue, type OpInput, type RevisionRow, type SuggestionRow } from '@app/domain';
+import { makeOp, SERVER_DEVICE_ID, suggestionPath, toIso, type AuditRunRow, type EquipmentRow, type JsonValue, type OpInput, type RevisionRow, type SuggestionRow } from '@app/domain';
 import { loadConfig } from '../../apps/api/src/config.ts';
 import { createDb } from '../../apps/api/src/db/client.ts';
 import { asCompanyId } from '../../apps/api/src/db/repositories/company-id.ts';
@@ -136,6 +136,57 @@ export async function pushSuggestion(
     const result = await applyOps(db, asCompanyId(companyId), [op], { origin: 'server', now: () => at });
     if (result.rejected.length > 0) throw new Error(`suggestion op rejected: ${JSON.stringify(result.rejected)}`);
     return row.id;
+  } finally {
+    await sql.end();
+  }
+}
+
+/**
+ * Story 14.10 lane B: one finished emission audit run with no findings, written as the audit
+ * job leaves it (the `audit_run` family is `serverOnly`), so the device pulls it on its next
+ * sync. `coverage: null` is a run written before contract 20. Returns the run id.
+ */
+export async function pushAuditRun(
+  companyId: string,
+  relatorioId: string,
+  run: { coverage: { sent: number; total: number } | null; createdAt?: Date },
+): Promise<string> {
+  const config = loadConfig();
+  const { sql, db } = createDb(config.DATABASE_URL);
+  try {
+    const at = run.createdAt ?? new Date();
+    const iso = toIso(at);
+    const id = newId();
+    const value: AuditRunRow = {
+      id,
+      relatorio_id: relatorioId,
+      status: 'done',
+      findings: [],
+      error: null,
+      prompt_version: 'e2e-1',
+      created_at: iso,
+      started_at: iso,
+      finished_at: iso,
+      coverage: run.coverage,
+    };
+    const input: OpInput = {
+      kind: 'create',
+      scope: 'relatorio',
+      company_id: companyId,
+      project_id: null,
+      relatorio_id: relatorioId,
+      path: `audit_run/${id}`,
+      value: value as never,
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: 'system:audit',
+      device_id: SERVER_DEVICE_ID,
+    };
+    const op = makeOp(input, { newId, now: at });
+    const result = await applyOps(db, asCompanyId(companyId), [op], { origin: 'server', now: () => at });
+    if (result.rejected.length > 0) throw new Error(`audit_run op rejected: ${JSON.stringify(result.rejected)}`);
+    return id;
   } finally {
     await sql.end();
   }

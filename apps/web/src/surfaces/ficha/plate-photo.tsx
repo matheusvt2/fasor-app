@@ -10,6 +10,7 @@ import { useAiFeatures } from '../../state/ai-features.tsx';
 import { useServerReachable } from '../../state/sync.tsx';
 import { useCamera } from './camera-view.tsx';
 import { PlateCaptureTile } from './photo-openers.tsx';
+import { usePlateFocusTarget, usePlateRowFocusHandoff } from './plate-focus.ts';
 import { CancelledReading, EmptyReading, FailedReading, ReadingWaitLine, useReadingCancelled, useRereadAt } from './reading-line.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 
@@ -69,19 +70,23 @@ function PlateThumb({ src, number }: { src: string | null; number: number | null
 export function PlatePendingRow() {
   const t = copy.ficha.nameplate;
   const reachable = useServerReachable();
+  // Story 14.10 lane B: the reading line takes the focus when the camera closes (`plate-focus.ts`),
+  // and hands it on when the stored row replaces this one.
+  const row = useRef<HTMLDivElement>(null);
+  const handoff = usePlateRowFocusHandoff(row);
   return (
-    <div className="photo-row ficha-np-photo" data-reading={reachable ? 'running' : 'queued'} data-pending-shot="">
+    <div className="photo-row ficha-np-photo" data-reading={reachable ? 'running' : 'queued'} data-pending-shot="" ref={row} onFocus={handoff.onFocus} onBlur={handoff.onBlur}>
       <span className="photo-tile">
         <PlateThumb src={null} number={null} />
       </span>
       <div className="photo-text">
         <p className="photo-caption">{PLATE_CAPTION}</p>
         {reachable ? (
-          <p className="reading-line" role="status">
+          <p className="reading-line" role="status" tabIndex={-1}>
             {t.reading}
           </p>
         ) : (
-          <span className="queued-banner" role="status">
+          <span className="queued-banner" role="status" tabIndex={-1}>
             <svg className="ico" aria-hidden="true">
               <use href="/sprite.svg#i-image" />
             </svg>
@@ -125,16 +130,23 @@ export function PlatePhotoRow({
   // CAPT-V1: the retake camera lives here, in the row that stays mounted while the new shot
   // replaces the photo (review F-01's precedent): its view and `<video>` are never replaced.
   // The focus goes back to "Fotografar de novo", or to the row's tile once the line is gone.
+  // Story 14.10 lane B: after a shot, to the new photo's waiting line first (`plate-focus.ts`).
   const row = useRef<HTMLDivElement>(null);
   const opener = useMemo<RefObject<HTMLElement | null>>(
     () => ({
       get current() {
         const element = row.current;
-        return element?.querySelector<HTMLElement>('[data-retake]') ?? element?.querySelector<HTMLElement>('.photo-tile') ?? null;
+        return (
+          element?.querySelector<HTMLElement>('.reading-line[tabindex="-1"], .queued-banner[tabindex="-1"]') ??
+          element?.querySelector<HTMLElement>('[data-retake]') ??
+          element?.querySelector<HTMLElement>('.photo-tile') ??
+          null
+        );
       },
     }),
     [],
   );
+  const handoff = usePlateRowFocusHandoff(row);
   const latestRetake = useRef(retake ?? null);
   latestRetake.current = retake ?? null;
   const camera = useCamera(
@@ -163,7 +175,7 @@ export function PlatePhotoRow({
     reread_at: rereadAt,
   });
   return (
-    <div className="photo-row ficha-np-photo" data-reading={shown} ref={row}>
+    <div className="photo-row ficha-np-photo" data-reading={shown} ref={row} onFocus={handoff.onFocus} onBlur={handoff.onBlur}>
       <AriaButton className="photo-tile" aria-label={t.plateTileLabel(number)} onPress={onOpen} data-photo-id={tile.id}>
         <PlateThumb src={src} number={number} />
       </AriaButton>
@@ -171,7 +183,7 @@ export function PlatePhotoRow({
         <p className="photo-caption">{tile.caption ?? PLATE_CAPTION}</p>
         <p className="photo-meta">{captionPhotoMetaText(number, tile.captured_at)}</p>
         {shown === 'queued' && cancelled !== true ? (
-          <span className="queued-banner">
+          <span className="queued-banner" tabIndex={-1}>
             <svg className="ico" aria-hidden="true">
               <use href="/sprite.svg#i-image" />
             </svg>
@@ -255,8 +267,12 @@ export function PlateCrop({ photoId, region, focused, onOpen }: { photoId: strin
   // What is drawn at fit, in pixels of the picture: the zoom's maximum is its native resolution.
   const pinch = usePinchZoom({ content: loaded ? { width: w * size.width, height: h * size.height } : null, resetKey: `${photoId}|${focused?.join(',') ?? ''}` });
   const box = pinch.stageRef as RefObject<HTMLSpanElement | null>;
+  // Story 14.10 lane B: the crop takes the focus from the plate row it replaces (`plate-focus.ts`).
+  const open = useRef<HTMLButtonElement>(null);
+  usePlateFocusTarget(open);
   return (
     <button
+      ref={open}
       type="button"
       className="plate-crop-open"
       onClick={(event) => {

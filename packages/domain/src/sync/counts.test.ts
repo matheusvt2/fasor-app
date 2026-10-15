@@ -183,3 +183,31 @@ describe('F-14 (review 2026-10-06) syncStatusWord', () => {
     expect(syncStatusWord('error', counts, true)).toBe('Erro');
   });
 });
+
+describe('14.10-UNIT-003 the retrying state: the server answers, the last sync failed', () => {
+  const counts = syncCounts([]);
+  const pending = { ...counts, pending: 2 };
+
+  it('reads retrying when the cycle ended unreachable and the health probe answered; offline when it did not or the browser is offline; ok or pending when the server answers the sync', () => {
+    expect(syncBadgeState(pending, { online: true, reachable: false, serverAnswers: true })).toBe('retrying');
+    expect(syncBadgeState(counts, { online: true, reachable: false, serverAnswers: true })).toBe('retrying');
+    expect(syncBadgeState(pending, { online: true, reachable: false, serverAnswers: false })).toBe('offline');
+    expect(syncBadgeState(pending, { online: true, reachable: false })).toBe('offline');
+    expect(syncBadgeState(pending, { online: false, reachable: false, serverAnswers: true })).toBe('offline');
+    expect(syncBadgeState(pending, { online: true, reachable: true, serverAnswers: true })).toBe('pending');
+    expect(syncBadgeState(counts, { online: true, serverAnswers: true })).toBe('ok');
+  });
+
+  it('keeps conflict and error ahead of retrying', () => {
+    expect(syncBadgeState({ ...pending, dead: 1 }, { online: true, reachable: false, serverAnswers: true })).toBe('error');
+    expect(syncBadgeState(pending, { online: true, reachable: false, serverAnswers: true, conflicts: 1 })).toBe('conflict');
+  });
+
+  it('says "Tentando de novo" on the badge and in the announcement, "Tentando" on a narrow viewport, and "Sincronizando…" while a cycle runs', () => {
+    expect(syncBadgeLabel('retrying', pending)).toBe('Tentando de novo');
+    expect(syncAnnouncementText('retrying')).toBe('Tentando de novo');
+    expect(syncBadgeShortLabel('retrying', pending)).toBe('Tentando');
+    expect(syncStatusWord('retrying', pending, true)).toBe('Sincronizando…');
+    expect(syncStatusWord('retrying', pending, false)).toBe('Tentando de novo');
+  });
+});

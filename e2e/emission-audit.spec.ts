@@ -1,7 +1,9 @@
 import type { Locator, Page } from '@playwright/test';
+import { isEquipmentBlock, type BlockRow } from '@app/domain';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { openChaveSheet } from './support/photos.ts';
+import { pushAuditRun } from './support/push-server-ops.ts';
 import { confirmIssue, setParecer } from './support/relatorio-flow.ts';
 
 /*
@@ -32,8 +34,17 @@ const auditButton = (scope: Locator) => scope.getByRole('button', { name: /^(Con
 interface EntityRecord {
   entity: string;
   id: string;
-  row: { status?: string; findings?: unknown[] };
+  row: { status?: string; findings?: unknown[]; coverage?: { sent: number; total: number } | null };
 }
+
+/** Story 14.10 lane B: the live equipment sheets of a relatório on this device, the ones section 9 prints. */
+async function liveSheets(page: Page, relatorioId: string): Promise<number> {
+  const records = await readStore<{ entity: string; row: BlockRow }>(page, database, 'entities');
+  return records.filter((record) => record.entity === 'block' && record.row.relatorio_id === relatorioId && record.row.removed_at === null && isEquipmentBlock(record.row)).length;
+}
+
+/** The coverage line as the kernel writes it ("Conferidas 12 de 12 fichas"), spelled here on its own. */
+const coverageLine = (sent: number, total: number) => `${sent === 1 ? 'Conferida' : 'Conferidas'} ${sent} de ${total} ${total === 1 ? 'ficha' : 'fichas'}`;
 
 interface OutboxRecord {
   op_id: string;
@@ -98,6 +109,15 @@ test('@p0 13.8-E2E-001 one tap brings the findings to the dialog and the Sumári
   expect(runs).toHaveLength(1);
   expect(runs[0]!.row.status).toBe('done');
   expect(runs[0]!.row.findings).toHaveLength(3);
+  // Story 14.10 lane B: the run stores the sheets it sent of the ones printed (the standard
+  // relatório's ~95 sheets are more than the text cap carries), and the dialog says so.
+  const sheets = await liveSheets(page, relatorioId);
+  expect(sheets).toBeGreaterThan(1);
+  const coverage = runs[0]!.row.coverage!;
+  expect(coverage.total).toBe(sheets);
+  expect(coverage.sent).toBeGreaterThan(0);
+  expect(coverage.sent).toBeLessThanOrEqual(sheets);
+  await expect(modal.locator('.audit-summary .audit-coverage')).toHaveText(coverageLine(coverage.sent, coverage.total));
   expect(await outboxIds(page)).toEqual(before);
   expect((await readStore<OutboxRecord>(page, database, 'outbox')).some((row) => row.path.startsWith('audit_run'))).toBe(false);
 
@@ -126,6 +146,7 @@ test('@p0 13.8-E2E-001 one tap brings the findings to the dialog and the Sumári
   await expect(block.getByRole('heading', { name: 'Conferência por IA' })).toBeVisible({ timeout: 30_000 });
   await expect(block.getByText(NOTE)).toBeVisible();
   await expect(block.getByRole('list', { name: FINDINGS }).getByRole('listitem')).toHaveCount(3);
+  await expect(block.locator('.audit-summary .audit-coverage')).toHaveText(coverageLine(coverage.sent, coverage.total));
   await block.getByRole('button', { name: 'Ver Seção 10 · Conclusão e parecer' }).click();
   await expect(page.locator('.sumario .sum-row[data-row="section_10"]')).toHaveClass(/is-highlighted/);
   // The Sumário block's own sheet "Ver" opens the sheet without the way back to the dialog.
@@ -181,4 +202,27 @@ test('@p1 13.8-E2E-002 at 390 px the findings rows fit, and "Gerar relatório" s
   await confirmIssue(modal);
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: 150_000 });
   await expect(modal.getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeVisible();
+});
+
+test('@p1 14.10-E2E-001 a run that read 2 of 76 sheets says "Conferidas 2 de 76 fichas" in the Sumário and the dialog; an older run says nothing of it', async ({ page }) => {
+  test.setTimeout(180_000);
+  const { relatorioId } = await openChaveSheet(page, account, database);
+  // The audit job's done run, written as the server writes it (the family is server-only).
+  const runId = await pushAuditRun(account.companyId, relatorioId, { coverage: { sent: 2, total: 76 } });
+  await page.goto(`/relatorio/${relatorioId}`);
+  const block = page.locator('.sumario-audit');
+  await expect(block.locator('.audit-summary')).toContainText('Nenhum ponto encontrado', { timeout: 60_000 });
+  await expect(block.locator('.audit-summary .audit-coverage')).toHaveText('Conferidas 2 de 76 fichas');
+  const stored = (await readStore<EntityRecord>(page, database, 'entities')).find((record) => record.entity === 'audit_run' && record.id === runId);
+  expect(stored?.row.coverage).toEqual({ sent: 2, total: 76 });
+
+  const modal = await openDialog(page, relatorioId);
+  await expect(modal.locator('.audit-summary .audit-coverage')).toHaveText('Conferidas 2 de 76 fichas');
+
+  // A newer run written before contract 20 (no coverage) shows its summary with no coverage line.
+  await pushAuditRun(account.companyId, relatorioId, { coverage: null, createdAt: new Date(Date.now() + 60_000) });
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect.poll(async () => (await readStore<EntityRecord>(page, database, 'entities')).filter((record) => record.entity === 'audit_run').length, { timeout: 60_000 }).toBe(2);
+  await expect(block.locator('.audit-summary')).toContainText('Nenhum ponto encontrado', { timeout: 30_000 });
+  await expect(block.locator('.audit-summary .audit-coverage')).toHaveCount(0);
 });

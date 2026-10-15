@@ -11,11 +11,15 @@ import { layoutSpec } from '../print/layout.ts';
 import { preIssue } from '../relatorio/pre-issue.ts';
 import { progress } from '../relatorio/progress.ts';
 import { sumarioRows } from '../relatorio/sumario.ts';
-import type { AuditRunRow, BlockRow } from '../schemas/entities.ts';
+import { auditRunRowSchema, type AuditRunRow, type BlockRow, type EquipmentRow, type FileRow, type LocationRow } from '../schemas/entities.ts';
+import { CTA, CTA_BLOCK, ctaRows, ctaState, E1, num, writeSheet, blockOf } from '../relatorio/measurement-test-support.ts';
+import { sheetState, isEquipmentBlock } from '../relatorio/sheet-state.ts';
+import { newEquipmentBlock } from '../relatorio/tree.ts';
+import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { AUDIT_INPUT_MAX_CHARS, AUDIT_TRUNCATED_MARKER, auditInput, auditRowLabel, type AuditRef } from './input.ts';
 import { AUDIT_FINDING_KINDS } from './schema.ts';
-import { auditCheckedAtText, auditDisplay, auditFindingRows, auditRunActive, auditSummaryText, AUDIT_FINDING_KIND_LABELS, AUDIT_RUN_EXPIRE_S, AUDIT_RUN_QUEUE_RETENTION_S } from './text.ts';
+import { auditCheckedAtText, auditCoverageText, auditDisplay, auditFindingRows, auditRunActive, auditSummaryText, AUDIT_FINDING_KIND_LABELS, AUDIT_RUN_EXPIRE_S, AUDIT_RUN_QUEUE_RETENTION_S } from './text.ts';
 import { AUDIT_FINDING_MAX_CHARS, AUDIT_MAX_FINDINGS, validateAuditFindings } from './validate.ts';
 
 /*
@@ -49,6 +53,7 @@ function run(over: Partial<AuditRunRow> = {}): AuditRunRow {
     created_at: '2026-10-07T14:30:00.000Z',
     started_at: '2026-10-07T14:30:01.000Z',
     finished_at: '2026-10-07T17:32:00.000Z',
+    coverage: null,
     ...over,
   };
 }
@@ -416,5 +421,192 @@ describe('14.4 auditInput on a relatório with a site list (v4): the local parts
     const text = auditInput(draft(v1), v1).text;
     expect(text).not.toContain('VERIFICAÇÕES DO LOCAL');
     expect(text.split('\n').some((line) => line.includes('[row:') && line.includes('ALVENARIA - CONVENCIONAL'))).toBe(true);
+  });
+});
+
+describe('14.10-UNIT-001 auditInput sends the filled sheets first and counts the sheets it sent', () => {
+  const base = smallSnapshot();
+  const RELATORIO = base.relatorio.id;
+  const LOCAL = '019966c1-0000-7000-8000-00000000c001';
+  const PHOTO = '019966c1-0000-7000-8000-00000000c002';
+  const FILLED_SEC = '019966c1-0000-7000-8000-00000000c003';
+  const sheetId = (n: number) => `019966c1-0000-7000-8000-${(0xd000 + n).toString(16).padStart(12, '0')}`;
+  const equipmentId = (n: number) => `019966c1-0000-7000-8000-${(0xe000 + n).toString(16).padStart(12, '0')}`;
+  const TYPES: EquipmentBlockType[] = ['cabos_entrada', 'para_raio', 'chave_seccionadora', 'disjuntor_mt', 'tp', 'tc', 'cabos_saida', 'transformador_forca'];
+  const CAPTION = 'Vista geral da chave de transferência automática CTA-APAGAR';
+
+  const local: LocationRow = {
+    id: LOCAL,
+    relatorio_id: RELATORIO,
+    parent_id: null,
+    kind: 'cabine',
+    name: 'Cabine Geral',
+    order_key: 'a0',
+    removed_at: null,
+    se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null },
+    env: { altitude_m: null, temperature_c: null, humidity_pct: null },
+    agrupar_por_tipo: true,
+  };
+
+  /** The production case of 2026-10-15: 76 sheets on seed v5, 2 filled, the filled ones last in print order; a CTA tagged CTA-APAGAR with a captioned photo. */
+  function productionSnapshot(): RelatorioSnapshot {
+    const pairs: { block: BlockRow; equipment: EquipmentRow }[] = [];
+    for (let n = 0; n < 74; n += 1) {
+      const pair = newEquipmentBlock({ blockId: sheetId(n), equipmentId: equipmentId(n), relatorioId: RELATORIO, projectId: base.relatorio.project_id, locationId: LOCAL, type: TYPES[n % TYPES.length]!, tag: `EQ-${n}`, seedVersion: 'v5', orderKey: `a${n.toString().padStart(3, '0')}` });
+      pairs.push(pair);
+    }
+    // A chave seccionadora with one observation, last of its type.
+    const sec = newEquipmentBlock({ blockId: FILLED_SEC, equipmentId: equipmentId(900), relatorioId: RELATORIO, projectId: base.relatorio.project_id, locationId: LOCAL, type: 'chave_seccionadora', tag: 'SEC-ULTIMA', seedVersion: 'v5', orderKey: 'z0' });
+    pairs.push({ ...sec, block: { ...sec.block, sheet: { ...sec.block.sheet, observations: { value: 'Contatos com sinais de aquecimento', source_suggestion_id: null, op_id: '019966c1-0001-7000-8000-00000000c010' } } } });
+    // The CTA, filled through the fold, printed in the last group ("Outros equipamentos").
+    const { state, f } = ctaState();
+    const cta = blockOf(writeSheet(state, f, [{ test: E1, row: 'polo_a', col: 'lado_normal', value: num('38', 'µΩ') }]));
+    pairs.push({ block: { ...cta, relatorio_id: RELATORIO, location_id: LOCAL, order_key: 'z1' }, equipment: { ...ctaRows({}, { tag: 'CTA-APAGAR' }).equipment, project_id: base.relatorio.project_id } });
+    const photo: FileRow = {
+      id: PHOTO,
+      relatorio_id: RELATORIO,
+      kind: 'photo',
+      sha256: 'ab',
+      mime: 'image/jpeg',
+      size: 1,
+      uploaded_at: null,
+      variants: null,
+      removed_at: null,
+      captured_at: '2026-10-15T10:00:00.000Z',
+      tz_offset: -180,
+      coords: null,
+      local_seq: 1,
+      block_id: CTA_BLOCK,
+      location_id: null,
+      item_key: null,
+      caption: CAPTION,
+      reading_kind: null,
+      reading_target: null,
+      reading_status: 'none',
+      people_in_photo: false,
+    } as FileRow;
+    return {
+      ...base,
+      relatorio: { ...base.relatorio, seed_version: 'v5', export: { scheme: 'por_local_e_tipo' } },
+      locations: [local],
+      blocks: [...base.blocks.filter((block) => !isEquipmentBlock(block)), ...pairs.map((pair) => pair.block)],
+      equipment: pairs.map((pair) => pair.equipment),
+      files: [photo],
+      points: [],
+      suggestions: [],
+    };
+  }
+
+  const snapshot = productionSnapshot();
+  const layout = draft(snapshot);
+  const whole = auditInput(layout, snapshot, Number.MAX_SAFE_INTEGER);
+  const sheetLine = (text: string, blockId: string) => text.split('\n').find((line) => line.startsWith(`[sheet:${blockId}] `));
+  // A cap that keeps the 20th sheet line out: what the fixed texts and the first sheets leave room for.
+  const lines = whole.text.split('\n');
+  const twentieth = lines.findIndex((line, index) => line.startsWith('[sheet:') && lines.slice(0, index).filter((l) => l.startsWith('[sheet:')).length === 19);
+  const cap = lines.slice(0, twentieth).join('\n').length + AUDIT_TRUNCATED_MARKER.length + 1;
+  const cut = auditInput(layout, snapshot, cap);
+
+  it('the fixture is the production case: 76 sheets, 2 filled, the CTA and its photo', () => {
+    const sheets = snapshot.blocks.filter(isEquipmentBlock);
+    expect(sheets).toHaveLength(76);
+    expect(sheets.filter((block) => sheetState(block) !== 'vazia').map((block) => block.id).sort()).toEqual([CTA_BLOCK, FILLED_SEC].sort());
+    expect(snapshot.blocks.find((block) => block.id === CTA_BLOCK)?.block_type).toBe(CTA);
+    expect(whole.truncated).toBe(false);
+    expect(whole.sheetsSent).toBe(76);
+    expect(whole.sheetsTotal).toBe(76);
+  });
+
+  it('sends both filled sheets and the photo inside the cut, and names the CTA on its sheet line as the caption does', () => {
+    expect(cut.truncated).toBe(true);
+    const ctaLine = sheetLine(cut.text, CTA_BLOCK);
+    expect(ctaLine, 'the CTA sheet line is sent').toBeDefined();
+    expect(ctaLine!.toLocaleLowerCase('pt-BR')).toContain('chave de transferência automática cta-apagar');
+    expect(sheetLine(cut.text, FILLED_SEC)).toBeDefined();
+    expect(cut.text).toContain(`[photo:${PHOTO}] `);
+    expect(cut.refs.map((ref) => ref.id)).toEqual(expect.arrayContaining([`sheet:${CTA_BLOCK}`, `sheet:${FILLED_SEC}`, `photo:${PHOTO}`]));
+    // The CTA's reading is in the text, on a row of its sheet.
+    expect(cut.text.split('\n').some((line) => line.includes(`[row:${CTA_BLOCK}:`) && line.includes('38'))).toBe(true);
+  });
+
+  it('puts every empty sheet line after the filled ones, and counts the sent sheet lines of the 76', () => {
+    const order = whole.text.split('\n').filter((line) => line.startsWith('[sheet:'));
+    const filledAt = [order.findIndex((line) => line.startsWith(`[sheet:${FILLED_SEC}]`)), order.findIndex((line) => line.startsWith(`[sheet:${CTA_BLOCK}]`))];
+    expect(Math.max(...filledAt)).toBe(1);
+    expect(cut.sheetsTotal).toBe(76);
+    expect(cut.sheetsSent).toBe(cut.text.split('\n').filter((line) => line.startsWith('[sheet:')).length);
+    expect(cut.sheetsSent).toBe(19);
+    expect(cut.text.endsWith(AUDIT_TRUNCATED_MARKER)).toBe(true);
+  });
+
+  it('under the cap the 12-sheet fixture is sent whole; a printed title that already reads as the screen label carries no suffix', () => {
+    const small = smallSnapshot();
+    const input = auditInput(draft(small), small);
+    expect(input.truncated).toBe(false);
+    expect(input.sheetsTotal).toBe(small.blocks.filter((block) => block.removed_at === null && isEquipmentBlock(block)).length);
+    expect(input.sheetsSent).toBe(input.sheetsTotal);
+    expect(sheetLine(input.text, BLOCK_CHAVE_ID)).toBe(`[sheet:${BLOCK_CHAVE_ID}] CHAVE SECCIONADORA SEC-TEST`);
+  });
+
+  it('a sheet holding only a captioned photo goes with the filled ones, not to the tail', () => {
+    const bare = blockOf(ctaState().state);
+    const photoOnly: RelatorioSnapshot = {
+      ...snapshot,
+      blocks: snapshot.blocks.map((block) => (block.id === CTA_BLOCK ? { ...bare, relatorio_id: RELATORIO, location_id: LOCAL, order_key: 'z1' } : block)),
+    };
+    expect(sheetState(photoOnly.blocks.find((block) => block.id === CTA_BLOCK)!)).toBe('vazia');
+    const order = auditInput(draft(photoOnly), photoOnly, Number.MAX_SAFE_INTEGER)
+      .text.split('\n')
+      .filter((line) => line.startsWith('[sheet:'));
+    expect(order.findIndex((line) => line.startsWith(`[sheet:${CTA_BLOCK}]`))).toBeLessThanOrEqual(1);
+    const removed: RelatorioSnapshot = { ...photoOnly, files: photoOnly.files.map((file) => ({ ...file, removed_at: '2026-10-15T11:00:00.000Z' })) };
+    const tail = auditInput(draft(removed), removed, Number.MAX_SAFE_INTEGER)
+      .text.split('\n')
+      .filter((line) => line.startsWith('[sheet:'));
+    expect(tail.findIndex((line) => line.startsWith(`[sheet:${CTA_BLOCK}]`))).toBeGreaterThan(1);
+  });
+
+  it('every sheet line of the full fixture names its sheet as the screen does, beside the printed title when that differs', () => {
+    const full = fullSnapshot();
+    const input = auditInput(draft(full), full);
+    const sheetRefs = input.refs.filter((ref) => ref.id.startsWith('sheet:'));
+    expect(sheetRefs.length).toBeGreaterThan(0);
+    for (const ref of sheetRefs) {
+      const line = input.text.split('\n').find((candidate) => candidate.startsWith(`[${ref.id}] `))!;
+      expect(line.toLocaleLowerCase('pt-BR')).toContain(ref.label.toLocaleLowerCase('pt-BR'));
+      const title = line.slice(`[${ref.id}] `.length);
+      if (title.endsWith(`(${ref.label})`)) expect(title.slice(0, -ref.label.length - 3).toLocaleLowerCase('pt-BR')).not.toBe(ref.label.toLocaleLowerCase('pt-BR'));
+    }
+  });
+
+  it('a layout printing no sheet counts none', () => {
+    const small = smallSnapshot();
+    const bare: RelatorioSnapshot = { ...small, blocks: small.blocks.filter((block) => !isEquipmentBlock(block)), equipment: [], files: [], points: [], suggestions: [] };
+    const input = auditInput(draft(bare), bare);
+    expect(input.sheetsTotal).toBe(0);
+    expect(input.sheetsSent).toBe(0);
+  });
+});
+
+describe('14.10-UNIT-002 auditCoverageText', () => {
+  it('says how many sheets the run read, agreeing the participle with N and the noun with M', () => {
+    expect(auditCoverageText(run({ coverage: { sent: 1, total: 1 } }))).toBe('Conferida 1 de 1 ficha');
+    expect(auditCoverageText(run({ coverage: { sent: 2, total: 76 } }))).toBe('Conferidas 2 de 76 fichas');
+    expect(auditCoverageText(run({ coverage: { sent: 0, total: 3 } }))).toBe('Conferidas 0 de 3 fichas');
+  });
+
+  it('says nothing for a run with no coverage (older than contract 20), none printed, or not done', () => {
+    expect(auditCoverageText(run())).toBe('');
+    expect(auditCoverageText(run({ coverage: { sent: 0, total: 0 } }))).toBe('');
+    expect(auditCoverageText(run({ status: 'running', coverage: { sent: 2, total: 76 } }))).toBe('');
+    expect(auditCoverageText(null)).toBe('');
+  });
+
+  it('parses a stored run written before contract 20 with coverage null', () => {
+    const old: Record<string, unknown> = { ...run() };
+    delete old.coverage;
+    expect(auditRunRowSchema.parse(old).coverage).toBeNull();
+    expect(auditRunRowSchema.parse({ ...old, coverage: { sent: 2, total: 76 } }).coverage).toEqual({ sent: 2, total: 76 });
+    expect(auditRunRowSchema.safeParse({ ...old, coverage: { sent: -1, total: 76 } }).success).toBe(false);
   });
 });

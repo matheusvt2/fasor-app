@@ -121,8 +121,12 @@ export function syncCounts(
   };
 }
 
-/** The five badge states of `key-sync-status.html`. */
-export type SyncBadgeState = 'ok' | 'pending' | 'offline' | 'error' | 'conflict';
+/**
+ * The five badge states of `key-sync-status.html`, plus `retrying` (Story 14.10 lane B,
+ * production finding of 2026-10-15): the last cycle failed on the network or a 5xx while the
+ * server still answers its health check, so "Sem conexão" would be false.
+ */
+export type SyncBadgeState = 'ok' | 'pending' | 'offline' | 'retrying' | 'error' | 'conflict';
 
 export interface SyncBadgeInputs {
   /** The browser says it has a network. */
@@ -139,6 +143,13 @@ export interface SyncBadgeInputs {
    * badge to `conflict` first.
    */
   conflicts?: number;
+  /**
+   * Story 14.10 lane B: after a cycle that ended unreachable, whether the server answered the
+   * health probe the engine sent then. True turns an unreachable cycle into `retrying`
+   * ("Tentando de novo"); false or omitted keeps it `offline`. Ignored while `reachable` is
+   * not false.
+   */
+  serverAnswers?: boolean;
 }
 
 /**
@@ -147,11 +158,15 @@ export interface SyncBadgeInputs {
  * An unreachable server reads as `offline` ("Sem conexão"): EXPERIENCE.md has five badge
  * states and no sixth for it, and "no connection; still saving locally" is exactly what
  * the user needs to know then. Sync status names the actual cause.
+ * Story 14.10 lane B: an unreachable cycle while the server answers its health check reads
+ * `retrying` ("Tentando de novo") instead; the browser offline stays `offline` whatever the
+ * probe said.
  */
 export function syncBadgeState(counts: Pick<SyncCounts, 'dead' | 'pending' | 'sent'>, deps: SyncBadgeInputs): SyncBadgeState {
   if ((deps.conflicts ?? 0) > 0) return 'conflict';
   if (counts.dead > 0) return 'error';
-  if (!deps.online || deps.reachable === false) return 'offline';
+  if (!deps.online) return 'offline';
+  if (deps.reachable === false) return deps.serverAnswers === true ? 'retrying' : 'offline';
   if (counts.pending + counts.sent > 0) return 'pending';
   return 'ok';
 }
@@ -205,6 +220,9 @@ export function syncBadgeLabel(state: SyncBadgeState, counts: SyncCounts): strin
       return plural(counts.pending + counts.sent, 'pendente', 'pendentes');
     case 'offline':
       return 'Sem conexão';
+    case 'retrying':
+      // authored: Story 14.10 lane B, the server answers but the last sync failed (open for Bruno).
+      return 'Tentando de novo';
     case 'error':
       return 'Erro';
     case 'conflict':
@@ -225,6 +243,9 @@ export function syncAnnouncementText(state: SyncBadgeState): string {
       return 'Alterações pendentes';
     case 'offline':
       return 'Sem conexão';
+    case 'retrying':
+      // authored: Story 14.10 lane B.
+      return 'Tentando de novo';
     case 'error':
       return 'Erro de sincronização';
     case 'conflict':
@@ -237,12 +258,12 @@ export const SYNCING_WORD = 'Sincronizando…';
 
 /**
  * F-14: the Sync status headline's word, `syncBadgeLabel`'s, except while a cycle runs over a
- * state with nothing for the user to act on (`ok`, `pending`, `offline`): then "Sincronizando…",
+ * state with nothing for the user to act on (`ok`, `pending`, `offline`, `retrying`): then "Sincronizando…",
  * the reason the disabled "Sincronizar agora" gives too, so the headline and the button always
  * read one state. A conflict or an error keeps its word: it needs the user whatever runs.
  */
 export function syncStatusWord(state: SyncBadgeState, counts: SyncCounts, running: boolean): string {
-  if (running && (state === 'ok' || state === 'pending' || state === 'offline')) return SYNCING_WORD;
+  if (running && (state === 'ok' || state === 'pending' || state === 'offline' || state === 'retrying')) return SYNCING_WORD;
   return syncBadgeLabel(state, counts);
 }
 
@@ -265,6 +286,9 @@ export function syncBadgeShortLabel(state: SyncBadgeState, counts: SyncCounts): 
       return String(counts.pending + counts.sent);
     case 'offline':
       return 'Off';
+    case 'retrying':
+      // authored: Story 14.10 lane B, the narrow word of "Tentando de novo".
+      return 'Tentando';
     case 'error':
       return 'Erro';
     case 'conflict':

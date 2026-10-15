@@ -1,4 +1,4 @@
-import { auditCheckedAtText, auditFindingRows, auditSummaryText, type AuditFindingRow, type AuditRunRow, type AuditTarget } from '@app/domain';
+import { auditCheckedAtText, auditCoverageText, auditFindingRows, auditSummaryText, type AuditFindingRow, type AuditRunRow, type AuditTarget } from '@app/domain';
 import { TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import './export.css';
@@ -21,10 +21,13 @@ export function AuditFindings({ run, onSee }: AuditFindingsProps) {
   if (run === null) return null;
   const rows = auditFindingRows(run);
   const checkedAt = auditCheckedAtText(run);
+  // Story 14.10 lane B: how many sheets the model read ("Conferidas 2 de 76 fichas"); none for a run older than contract 20.
+  const coverage = auditCoverageText(run);
   return (
     <div className="audit-findings">
       <p className="pc-meta audit-summary">
         <span>{auditSummaryText(run)}</span>
+        {coverage === '' ? null : <span className="audit-coverage">{coverage}</span>}
         {checkedAt === '' ? null : <span className="audit-checked-at">{checkedAt}</span>}
       </p>
       {rows.length === 0 ? null : (

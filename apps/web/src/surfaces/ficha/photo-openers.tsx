@@ -1,11 +1,12 @@
 import { photoUploadState } from '@app/domain';
 import { PHOTO_ACCEPT } from '../../files/photo-import.ts';
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { PhotoRow } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { useCamera } from './camera-view.tsx';
+import { plateFocusTarget, plateScopeOf } from './plate-focus.ts';
 import type { CaptureTarget } from './use-photo-capture.ts';
 
 /*
@@ -64,10 +65,22 @@ export function useSheetCamera(relatorioId: string, target: () => CaptureTarget)
  * plate row's pending variant (`pendingRow`, review 2026-10-08 CAPT-16) shows instead.
  */
 export function PlateCaptureTile({ relatorioId, target, pendingRow }: { relatorioId: string; target: () => CaptureTarget; pendingRow: ReactNode }) {
-  const opener = useRef<HTMLButtonElement>(null);
+  const tile = useRef<HTMLButtonElement>(null);
+  // Story 14.10 lane B: once the shot replaced the tile, the camera's focus return goes to the
+  // plate row's reading line (then the stored row's, the tile, the crop: `plateFocusTarget`)
+  // inside the nameplate section the tile was pressed in, never to a missing opener.
+  const scope = useRef<HTMLElement | null>(null);
+  const opener = useMemo<RefObject<HTMLElement | null>>(
+    () => ({
+      get current() {
+        return tile.current ?? plateFocusTarget(scope.current);
+      },
+    }),
+    [],
+  );
   const camera = useCamera(relatorioId, target, opener, { singleShot: true });
   const deniedId = useId();
-  useAriaBusy(opener, camera.opening);
+  useAriaBusy(tile, camera.opening);
   // F-13: from the shutter on, the plate's row shows its reading state at once ("Lendo…", or
   // the queued words offline), before the photo's committed row replaces this group. A shot
   // that never lands gives the tile back.
@@ -88,12 +101,15 @@ export function PlateCaptureTile({ relatorioId, target, pendingRow }: { relatori
     <>
       {/* F-26: while the camera is asked for, the tile says so and keeps its name ("never a silent no-op"). */}
       <AriaButton
-        ref={opener}
+        ref={tile}
         className="camera-capture-tile"
         aria-label={t.takePlate}
         aria-describedby={camera.denied ? deniedId : undefined}
         data-state={camera.opening ? 'opening' : undefined}
-        onPress={camera.open}
+        onPress={() => {
+          scope.current = plateScopeOf(tile.current);
+          camera.open();
+        }}
       >
         <svg className="ico" aria-hidden="true">
           <use href="/sprite.svg#i-camera" />

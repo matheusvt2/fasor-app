@@ -108,7 +108,7 @@ export function createAuditRoutes(db: Db, deps: AuditRouteDeps): Hono<AppEnv> {
       clientTs: createdAt,
       kind: 'create',
       path: `audit_run/${runId}`,
-      value: { id: runId, relatorio_id: relatorioId, status: 'queued', findings: [], error: null, prompt_version: null, created_at: createdAt, started_at: null, finished_at: null },
+      value: { id: runId, relatorio_id: relatorioId, status: 'queued', findings: [], error: null, prompt_version: null, created_at: createdAt, started_at: null, finished_at: null, coverage: null },
       relatorioId,
     });
     try {

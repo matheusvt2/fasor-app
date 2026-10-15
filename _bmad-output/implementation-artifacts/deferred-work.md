@@ -2204,13 +2204,21 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: 2026-10-15, production check of cd33356 (relatório "TESTE v0.2.0 — apagar", 76 sheets, 2 filled): the emission audit ("Conferir antes de emitir") reported "A imagem menciona 'chave de transferência automática CTA-APAGAR' que não consta em nenhuma folha de ensaio do relatório", although the CTA-APAGAR sheet exists and carries values. Either the audit input (`packages/domain/src/audit/input.ts`, built from the printed layout) cut that sheet (the long-relatório truncation of line 30) or it does not render a measurement-table sheet of a library type (seed v5) the way the photo caption names it. Not reproduced locally.
   evidence: production browser check 2026-10-15 07:59 (Playwright MCP, Bruno's account); `packages/domain/src/audit/input.ts` `sheetLines`, `sheetLabelOf`.
   class: defect
-  state: open (owner: the next carry-over batch: reproduce with a v5 CTA sheet and a captioned photo in the kernel audit-input test)
+  state: ~~open (owner: the next carry-over batch: reproduce with a v5 CTA sheet and a captioned photo in the kernel audit-input test)~~ closed (2026-10-15, `spec-14-10-carry-over-2-b.md`: reproduced in `audit.test.ts` 14.10-UNIT-001 with 76 sheets on v5, 2 filled, the CTA tagged CTA-APAGAR with a captioned photo: the cut dropped the CTA's sheet line (the filled sheets printed last). `auditInput` now sends the filled or photographed sheets first and writes each sheet's screen label beside its printed title when they differ; the run stores `coverage` (contract 20) and the screen says "Conferidas N de M fichas")
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e14-carry-over-b.md`
   summary: 2026-10-15, production check of cd33356 at 390 px: after a plate shot on the CTA sheet ("Fotografar placa", one shot, the camera closing by itself), `document.activeElement` was `BODY`: the focus did not come back to "Fotografar placa" or to the reading result that replaced it. The co14b focus watch (`restoreFocus` with `until: 'moved'`) covers the sheet's "Adicionar foto"; the plate path's opener is replaced by its result, so there is no target left.
   evidence: production browser check 2026-10-15 07:25; `apps/web/src/input/focus-restore.ts`; the plate section of `apps/web/src/surfaces/ficha/`.
   class: defect
-  state: open (owner: the next carry-over batch: decide the plate shot's return target, e.g. the reading status line, and assert it in plate-shot e2e)
+  state: ~~open (owner: the next carry-over batch: decide the plate shot's return target, e.g. the reading status line, and assert it in plate-shot e2e)~~ closed (2026-10-15, `spec-14-10-carry-over-2-b.md`: the plate tile's camera returns the focus to the plate row's waiting line (`tabIndex={-1}`: the pending shot's row, then the stored row's), else the stored row's tile, else `.plate-crop-open` (`surfaces/ficha/plate-focus.ts`), and a plate row leaving while it holds the focus hands it on; the retake does the same. `e2e/plate-shot-fallback.spec.ts` 14.10-E2E-003 at 390 and 768 px)
+
+## Deferred from: Story 14.10 lane B (2026-10-15)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-10-carry-over-2-b.md`
+  summary: Open questions of the batch, kept conservative: a sync request still in flight but slow (no failure yet) keeps the previous badge word until it fails (no client timeout on sync calls, by the spec), so "Tentando de novo" shows only after a failed cycle; and the "Hoje" chip of Próxima intervenção shows on an empty field only (13.4's rule).
+  evidence: `apps/web/src/sync/engine.ts` `probeServer`; `apps/web/src/surfaces/relatorio/setup/etapa5-local.tsx`.
+  class: question
+  state: open (owner: Matheus, listed in the PR)
 
 ## Deferred from: Story 14.10 lane A, carry-over 2 (2026-10-15)
 
@@ -2224,4 +2232,4 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The `tools` service now mounts the container engine socket (read with GET requests only by `scripts/preflight.ts`) with SELinux label separation off for that one-off container, which gives a gate container engine access on a local stack. A read-only socket proxy in front of it would remove that access; open question 3 of the spec.
   evidence: `docker-compose.yml` `tools` service (`/var/run/engine.sock`, `security_opt: label=disable`); `scripts/preflight.ts`. The api suite's `generation-time.integration.test.ts` reads the api's `generate timing` log lines through the same socket (`serviceLog`, GET only) for its per-stage targets. With no socket it asserts the totals only.
   class: decision
-  state: open (owner: Matheus: keep the direct mount or put a read-only proxy in front)
+  state: ~~open (owner: Matheus: keep the direct mount or put a read-only proxy in front)~~ decided 2026-10-15 (Matheus): keep the direct mount; it serves the local gate only

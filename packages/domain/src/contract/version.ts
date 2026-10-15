@@ -146,8 +146,15 @@
  * an instrument or a criterion override a measurement test does not hold (`SeedPathError`,
  * answered `op_invalid`). A row written before 19 parses to the same bytes and nothing an
  * existing log can contain starts to throw. `MIN_CONTRACT_VERSION` goes to 19 too.
+ *
+ * 20 (2026-10-15, Story 14.10 lane B): the emission audit's coverage. The server-only put
+ * `audit_run/{id}/coverage` is new (`AUDIT_RUN_FIELDS` gains `coverage`): `{sent, total}`, the
+ * sheets the run sent the model of the ones the layout prints, written in the done batch. The
+ * `audit_run` row gains the optional `coverage` (null on a run not finished and on every run
+ * written before 20, which parses to it). A client push of that path is refused as server-only
+ * like every other `audit_run` field. `MIN_CONTRACT_VERSION` goes to 20 too.
  */
-export const CONTRACT_VERSION = 19;
+export const CONTRACT_VERSION = 20;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -238,8 +245,14 @@ export const CONTRACT_VERSION = 19;
  * de transferência automática block are all outside what it ships, so it would stall on pull
  * or draw a sheet it has no definition of. A stream carries those as soon as the template
  * upgrade runs or anyone adds that type, so the version-18 bundle updates too.
+ *
+ * 20 (2026-10-15, Story 14.10 lane B): a version-19 (or older) bundle cannot parse an
+ * `audit_run/{id}/coverage` put: the field is outside its `audit_run/field` enum, so its
+ * `opSchema` fails the whole pulled page (`invalid_response`) instead of skipping the op. A
+ * relatório stream carries that put as soon as an audit finishes, so the version-19 bundle
+ * updates too.
  */
-export const MIN_CONTRACT_VERSION = 19;
+export const MIN_CONTRACT_VERSION = 20;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

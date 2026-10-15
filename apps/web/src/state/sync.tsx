@@ -86,6 +86,12 @@ export interface SyncState {
    * status says which of the two it is.
    */
   unreachable: 'server' | 'session' | null;
+  /**
+   * Story 14.10 lane B: the server is unreachable for the sync (`unreachable === 'server'`) yet
+   * answered the health probe sent after that cycle: the badge reads "Tentando de novo" and
+   * Sync status says the server answered. Optional for the older test doubles (false).
+   */
+  serverAnswers?: boolean;
   running: boolean;
   outdated: boolean;
   lastResult: CycleResult | null;
@@ -198,6 +204,7 @@ const IDLE: EngineStatus = {
   outdated: false,
   lastResult: null,
   lastFailure: null,
+  serverAnswers: null,
   merges: [],
 };
 
@@ -311,6 +318,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     [rows, reading, status.merges, photoUploads],
   );
   const unreachable = unreachableCause({ reAuthRequired: session.reAuthRequired, lastFailure: status.lastFailure });
+  // Story 14.10 lane B: a server that fails the sync but answers its health probe; a session to renew stays as today.
+  const serverAnswers = unreachable === 'server' && status.serverAnswers === true;
   // E10-Q5: a `sent` row reads "Enviando…" only while a push can actually be in flight.
   const requestOpen = status.running && session.online && unreachable === null;
   const sheetContext = useLiveQuery(() => (db === null ? Promise.resolve(NO_SHEET_CONTEXT) : pendingSheetContext(db, rows)), [db, rows], NO_SHEET_CONTEXT);
@@ -435,7 +444,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SyncState>(
     () => ({
       counts,
-      badgeState: syncBadgeState(counts, { online: session.online, reachable: unreachable === null, conflicts: decisionCount }),
+      // Story 14.10 lane B: a server that fails the sync but answers its health probe reads "Tentando de novo"; a session to renew stays as today.
+      badgeState: syncBadgeState(counts, { online: session.online, reachable: unreachable === null, serverAnswers, conflicts: decisionCount }),
+      serverAnswers,
       headline: syncHeadlineText({ counts, ...split }),
       summaryBadges: syncSummaryBadges({ counts, ...split }),
       decisionCount,
@@ -471,7 +482,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       rereadPhoto,
       audit,
     }),
-    [counts, outboxRead, session.online, unreachable, status, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
+    [counts, outboxRead, session.online, unreachable, serverAnswers, status, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
   );
 
   return (

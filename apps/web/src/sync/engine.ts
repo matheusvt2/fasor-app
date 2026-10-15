@@ -78,6 +78,14 @@ export interface EngineStatus {
    */
   lastFailure: SyncFailure | null;
   /**
+   * Story 14.10 lane B: after a cycle that ended unreachable (a network or 5xx failure) with
+   * the browser online, whether the server answered the health probe sent then (`true`), did
+   * not (`false`), or nothing is known yet (`null`). A cycle that ends reachable resets it to
+   * null; a later unreachable cycle keeps the previous answer until its own probe answers, so
+   * the badge does not flicker between "Tentando de novo" and "Sem conexão" each minute.
+   */
+  serverAnswers: boolean | null;
+  /**
    * Story 10.1 (epic-10 Conflict 3): the merges by rule this tab saw since it opened, one
    * kernel `MergeInfo` per op pair, from the push's `superseded` answer and from pulled ops
    * of another device. Kept in memory for the tab session only: never an entity, never
@@ -202,6 +210,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     outdated: false,
     lastResult: null,
     lastFailure: null,
+    serverAnswers: null,
     merges: [],
   };
   /** Story 10.1: op pairs waiting for both ops (and the row after them) to be on this device. */
@@ -628,13 +637,35 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       // A cycle cut by going offline, with no failure of its own, proved nothing about
       // the server: the previous verdict stands. A cycle that ran clean clears it.
       if (cycleFailure !== null || !cycleWentOffline) status.lastFailure = cycleFailure;
+      // Story 14.10 lane B: an unreachable verdict asks the server whether it answers at all.
+      const unreachableFailure = status.lastFailure !== null && isUnreachableFailure(status.lastFailure) ? status.lastFailure : null;
+      if (unreachableFailure === null) status.serverAnswers = null;
       emit();
+      if (unreachableFailure !== null && !stopped && deps.isOnline()) void probeServer(unreachableFailure);
       if (onlineWhileRunning && !stopped) {
         onlineWhileRunning = false;
         deps.timers.setTimeout(() => void fireCycle(), 0);
       }
     }
     return 'ran';
+  }
+
+  /**
+   * Story 14.10 lane B: the health probe after an unreachable cycle. Its answer is published
+   * only while that cycle's verdict still stands: a newer cycle has its own probe, and a clean
+   * one has already reset the answer.
+   */
+  async function probeServer(failure: SyncFailure): Promise<void> {
+    if (deps.client.health === undefined) return;
+    let answers: boolean;
+    try {
+      answers = await deps.client.health();
+    } catch {
+      answers = false;
+    }
+    if (stopped || status.lastFailure !== failure || status.serverAnswers === answers) return;
+    status.serverAnswers = answers;
+    emit();
   }
 
   /** Applies the end-of-phase policy: pause on re-auth, flag outdated, otherwise record and move on. */
