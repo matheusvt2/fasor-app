@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { devicePhotos, expectCameraOpen, openChaveSheet } from './support/photos.ts';
+import { holdPhotoBytes } from './support/reading-ops.ts';
 
 /*
  * Review F-01 (Epic 13 QA, High): a single shot on the "Fotografar placa" tile is never lost
@@ -99,5 +100,55 @@ for (const mode of ['reject', 'slow'] as const) {
     }
     expect((await probe(page)).toasts.filter((text) => text.includes(FAILED))).toEqual([]);
     await expect(page.getByTestId('toast').filter({ hasText: FAILED })).toHaveCount(0);
+  });
+}
+
+/** Where the focus is: `plate` inside the plate's row or crop, `BODY` when lost, else the element's tag and class. */
+const focusPlace = (page: Page) =>
+  page.evaluate(() => {
+    const active = document.activeElement;
+    if (active === null || active === document.body) return 'BODY';
+    if (active.closest('#ficha-nameplate .ficha-np-photo, #ficha-nameplate .plate-crop-open') !== null) return 'plate';
+    return `${active.tagName}.${active.className}`;
+  });
+
+for (const width of [390, 768]) {
+  test(`@p0 14.10-E2E-003 at ${width} px, after a one-shot "Fotografar placa" the focus lands in the plate row, never on BODY while the reading waits`, async ({ page }) => {
+    test.setTimeout(150_000);
+    await stubTakePhoto(page, 'reject');
+    // The bytes stay on the device, so the reading keeps waiting under the plate row.
+    await holdPhotoBytes(page);
+    await openChaveSheet(page, account, database, { width });
+    await shootPlate(page);
+    await expect(page.getByRole('dialog', { name: 'Câmera' })).toHaveCount(0, { timeout: 15_000 });
+
+    // The camera closed: the focus is on the plate row (its reading line, else its tile).
+    await expect.poll(() => focusPlace(page), { timeout: 5_000 }).toBe('plate');
+    const focused = await page.evaluate(() => {
+      const active = document.activeElement as HTMLElement;
+      return { reading: active.matches('.reading-line, .queued-banner'), tile: active.matches('.photo-tile') };
+    });
+    expect(focused.reading || focused.tile).toBe(true);
+
+    // It stays there while the stored row replaces the pending one and the reading waits: sampled every 50 ms for 6 s,
+    // twice the focus watch of the camera.
+    const samples = await page.evaluate(
+      () =>
+        new Promise<string[]>((resolve) => {
+          const seen: string[] = [];
+          const timer = setInterval(() => {
+            const active = document.activeElement;
+            seen.push(active === null || active === document.body ? 'BODY' : active.closest('#ficha-nameplate .ficha-np-photo, #ficha-nameplate .plate-crop-open') !== null ? 'plate' : 'other');
+          }, 50);
+          setTimeout(() => {
+            clearInterval(timer);
+            resolve(seen);
+          }, 6_000);
+        }),
+    );
+    expect(samples.length).toBeGreaterThan(50);
+    expect(samples.filter((place) => place !== 'plate')).toEqual([]);
+    await expect(nameplate(page).locator('.photo-row.ficha-np-photo:not([data-pending-shot])')).toBeVisible({ timeout: 15_000 });
+    expect(await focusPlace(page)).toBe('plate');
   });
 }

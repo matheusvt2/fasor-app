@@ -56,8 +56,11 @@ export const EQUIPMENT_FIELDS = ['tag', 'removed_at'] as const;
 export const FILE_FIELDS = ['caption', 'block_id', 'item_key', 'removed_at', 'reading_kind', 'reading_target', 'people_in_photo', 'location_id'] as const;
 export const FILE_SERVER_FIELDS = ['uploaded_at', 'variants', 'reading_status'] as const;
 export const GENERATION_JOB_FIELDS = ['status', 'error', 'result_file_id', 'result', 'started_at'] as const;
-/** Story 13.8 (contract 15): the fields the audit job writes on its `audit_run` row. */
-export const AUDIT_RUN_FIELDS = ['status', 'findings', 'error', 'prompt_version', 'started_at', 'finished_at'] as const;
+/**
+ * Story 13.8 (contract 15): the fields the audit job writes on its `audit_run` row.
+ * Story 14.10 lane B (contract 20): `coverage`, the sheets the run sent of the ones printed.
+ */
+export const AUDIT_RUN_FIELDS = ['status', 'findings', 'error', 'prompt_version', 'started_at', 'finished_at', 'coverage'] as const;
 
 /**
  * Keys a `{field}` segment may never name: identity, ownership and derived values are set

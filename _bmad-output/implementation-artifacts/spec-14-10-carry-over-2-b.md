@@ -2,7 +2,8 @@
 title: 'Story 14.10 lane B: honest emission audit, sync retry wording, focus after a plate shot, Hoje on Proxima intervencao'
 type: 'bugfix'
 created: '2026-10-15'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: 'fd7c26ff0d5fb5898e4d7c1c7a93e91ecb4d01d8'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus

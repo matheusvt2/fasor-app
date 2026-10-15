@@ -556,6 +556,49 @@ describe('sync engine', () => {
     h.db.close();
   });
 
+  it('14.10: after an unreachable cycle it asks the health probe; an answer reads serverAnswers true, a clean cycle resets it, offline sends no probe', async () => {
+    const h = await harness();
+    await commitOps(h.db, seedLog());
+    let answers = true;
+    let probes = 0;
+    Object.assign(h.server, {
+      health: async () => {
+        probes += 1;
+        return answers;
+      },
+    });
+    const unavailable: SyncFailure = { kind: 'http', status: 503 };
+    h.server.failNext.pushes = [unavailable, unavailable, unavailable];
+    const first = h.engine.runCycle();
+    await waitFor(() => h.server.pushAttempts === 1, 'the first attempt');
+    await h.clock.advance(1_000);
+    await waitFor(() => h.server.pushAttempts === 2, 'the second attempt');
+    await h.clock.advance(2_000);
+    expect(await first).toBe('ran');
+    await waitFor(() => h.engine.status().serverAnswers === true, 'the probe answer');
+    expect(probes).toBe(1);
+    expect(h.engine.status().lastFailure).toEqual(unavailable);
+
+    // The server stops answering: the next unreachable cycle's probe says so.
+    answers = false;
+    h.server.failNext.pushes = [{ kind: 'network' }, { kind: 'network' }, { kind: 'network' }];
+    const second = h.engine.runCycle();
+    await waitFor(() => h.server.pushAttempts === 4, 'the next cycle attempt');
+    await h.clock.advance(1_000);
+    await waitFor(() => h.server.pushAttempts === 5, 'its second attempt');
+    await h.clock.advance(2_000);
+    expect(await second).toBe('ran');
+    await waitFor(() => h.engine.status().serverAnswers === false, 'the second probe answer');
+    expect(probes).toBe(2);
+
+    // A clean cycle resets it and sends no probe.
+    expect(await h.engine.runCycle()).toBe('ran');
+    expect(h.engine.status().lastFailure).toBeNull();
+    expect(h.engine.status().serverAnswers).toBeNull();
+    expect(probes).toBe(2);
+    h.db.close();
+  });
+
   it('start runs a cycle at once and every 60 s after, until stop', async () => {
     const h = await harness();
     h.engine.start();

@@ -5,6 +5,7 @@ import type { PrintRow, PrintSheet, SheetPart } from '../print/section-9.ts';
 import { isRelatorioSectionType } from '../relatorio/instantiate.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import { SUMARIO_TITLES } from '../relatorio/sumario.ts';
+import { sheetState } from '../relatorio/sheet-state.ts';
 import { blockTypeLabel } from '../relatorio/tree.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import type { AuditTarget } from './schema.ts';
@@ -29,6 +30,16 @@ import type { AuditTarget } from './schema.ts';
  * (11), then the sheets (9), then every other section (the fixed texts 1 to 6) in print
  * order. A long relatório loses its boilerplate and its last sheets, never its parecer. A cut
  * text ends with `AUDIT_TRUNCATED_MARKER`, and a ref whose line was cut is not offered.
+ *
+ * Story 14.10 lane B (production finding of 2026-10-15): inside the sheets section the sheets
+ * holding a value go first, each subsection's heading and local parts with them; the empty
+ * sheets (`sheetState` `vazia`) follow, under their subsection's heading again. A 76-sheet
+ * relatório with 2 filled ones keeps those 2 inside the cut. A sheet's line carries the screen
+ * label beside its printed title ("CHAVE DE TRANSFERÊNCIA AUTOMÁTICA CTA-APAGAR" next to
+ * "(Chave de transferência automática CTA-APAGAR)") when the two differ, so a caption naming
+ * the equipment the way the screen does finds it. `sheetsTotal` counts the layout's sheets
+ * and `sheetsSent` the sheet lines inside the cut: the run stores both as its coverage, so
+ * the screen states how much the model actually read.
  */
 
 /** The most characters one audit sends (about 12k tokens: one US cent of Claude Haiku 4.5 input). */
@@ -54,11 +65,17 @@ export interface AuditInput {
   text: string;
   refs: AuditRef[];
   truncated: boolean;
+  /** Story 14.10: the sheet lines inside the cut. */
+  sheetsSent: number;
+  /** Story 14.10: every sheet the layout prints (section 9). */
+  sheetsTotal: number;
 }
 
 interface Line {
   text: string;
   ref?: AuditRef;
+  /** The line is a sheet's own `[sheet:]` line (counted in `sheetsSent`). */
+  sheet?: true;
 }
 
 const SEP = ' | ';
@@ -129,8 +146,11 @@ function partLines(parts: readonly SheetPart[], photoRefs: Map<string, AuditRef>
 function sheetLines(snapshot: RelatorioSnapshot, sheet: PrintSheet, photoRefs: Map<string, AuditRef>): Line[] {
   const sheetLabel = sheetLabelOf(snapshot, sheet);
   const target: AuditTarget = { kind: 'sheet', blockId: sheet.blockId };
+  // Story 14.10: the screen label beside the printed title when they differ, so the model reads the name a caption uses.
+  const sameName = sheetLabel.toLocaleLowerCase('pt-BR') === sheet.title.toLocaleLowerCase('pt-BR');
+  const title = sameName ? sheet.title : `${sheet.title} (${sheetLabel})`;
   return [
-    { text: `[sheet:${sheet.blockId}] ${sheet.title}`, ref: { id: `sheet:${sheet.blockId}`, label: sheetLabel, target } },
+    { text: `[sheet:${sheet.blockId}] ${title}`, ref: { id: `sheet:${sheet.blockId}`, label: sheetLabel, target }, sheet: true },
     ...partLines(sheet.parts, photoRefs, (p, r, firstCell) => ({ id: `row:${sheet.blockId}:${p}:${r}`, label: auditRowLabel(sheetLabel, firstCell, r), target })),
   ];
 }
@@ -198,16 +218,30 @@ function sectionLines(snapshot: RelatorioSnapshot, section: LayoutSection, rowKe
     case 'certificates':
       // Calibration certificates print as page images: nothing here is text to compare.
       break;
-    case 'sheets':
+    case 'sheets': {
+      // Story 14.10: the sheets holding a value first, every subsection's heading and local
+      // parts with them; then the empty sheets, under their subsection's heading again.
+      const blocks = new Map(snapshot.blocks.map((row) => [row.id, row]));
+      const empty = (sheet: PrintSheet): boolean => {
+        const block = blocks.get(sheet.blockId);
+        return block !== undefined && sheetState(block) === 'vazia';
+      };
       for (const subsection of section.subsections) {
         lines.push({ text: subsection.heading });
         // Story 14.4: what the local itself prints under this heading (SE, AMBIENTE DE ENSAIO, the
         // site table and the site photos, on a relatório with a site list). The rows belong to
         // no sheet, so they carry no ref of their own: the model cites their section.
         if (subsection.localParts !== undefined) lines.push(...partLines(subsection.localParts, photoRefs, () => undefined));
-        for (const sheet of subsection.sheets) lines.push(...sheetLines(snapshot, sheet, photoRefs));
+        for (const sheet of subsection.sheets) if (!empty(sheet)) lines.push(...sheetLines(snapshot, sheet, photoRefs));
+      }
+      for (const subsection of section.subsections) {
+        const emptySheets = subsection.sheets.filter(empty);
+        if (emptySheets.length === 0) continue;
+        lines.push({ text: subsection.heading });
+        for (const sheet of emptySheets) lines.push(...sheetLines(snapshot, sheet, photoRefs));
       }
       break;
+    }
   }
   return lines;
 }
@@ -228,11 +262,14 @@ export function auditInput(layout: DocumentLayout, snapshot: RelatorioSnapshot, 
   };
   const ordered = layout.sections.map((section, index) => ({ section, index })).sort((a, b) => rank(a.section) - rank(b.section) || a.index - b.index).map(({ section }) => section);
   const lines = ordered.flatMap((section) => sectionLines(snapshot, section, rowKeyOf(section), photoRefs));
+  let sheetsTotal = 0;
+  for (const section of layout.sections) if (section.kind === 'sheets') for (const subsection of section.subsections) sheetsTotal += subsection.sheets.length;
 
   const out: string[] = [];
   const refs = new Map<string, AuditRef>();
   let length = 0;
   let truncated = false;
+  let sheetsSent = 0;
   const budget = maxChars - AUDIT_TRUNCATED_MARKER.length - 1;
   for (const line of lines) {
     const cost = line.text.length + (out.length === 0 ? 0 : 1);
@@ -242,8 +279,9 @@ export function auditInput(layout: DocumentLayout, snapshot: RelatorioSnapshot, 
     }
     out.push(line.text);
     length += cost;
+    if (line.sheet === true) sheetsSent += 1;
     if (line.ref !== undefined && !refs.has(line.ref.id)) refs.set(line.ref.id, line.ref);
   }
   if (truncated) out.push(AUDIT_TRUNCATED_MARKER);
-  return { text: out.join('\n'), refs: [...refs.values()], truncated };
+  return { text: out.join('\n'), refs: [...refs.values()], truncated, sheetsSent, sheetsTotal };
 }

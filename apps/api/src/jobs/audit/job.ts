@@ -14,12 +14,14 @@ import type { AuditProvider } from './provider.ts';
  * route); the job puts it `running`, reads the relatório's snapshot as it is now, builds the
  * kernel's draft layout and the assembled text (`auditInput`: text and values only, capped),
  * makes ONE provider call, keeps the findings the kernel validates against the refs it sent,
- * and writes them in one server batch with `status: done`. A failure writes `status: failed`
+ * and writes them in one server batch with `status: done`, with the run's `coverage` (Story
+ * 14.10 lane B, contract 20: the sheets the text carried of the ones the layout prints). A failure writes `status: failed`
  * and its error code; nothing is retried (one tap is at most one LLM call). The job writes
  * only `audit_run/{id}/*` ops: no sheet, block, relatório field, suggestion or count.
  *
  * Every run logs one `audit run` line: company, relatório, run id, model, prompt version,
- * input and output tokens, `usd` (0 on `fake`), the kept and dropped counts, the duration,
+ * input and output tokens, `usd` (0 on `fake`), the kept and dropped counts, the sheets sent
+ * and printed (`sheets_sent`, `sheets_total`), the duration,
  * and on a failure its status and error class.
  */
 
@@ -35,7 +37,7 @@ export interface AuditJobDeps {
   provider: AuditProvider;
 }
 
-type AuditField = 'status' | 'findings' | 'error' | 'prompt_version' | 'started_at' | 'finished_at';
+type AuditField = 'status' | 'findings' | 'error' | 'prompt_version' | 'started_at' | 'finished_at' | 'coverage';
 
 /** One `audit_run/{id}/{field}` put of the run, as the server's op. */
 export function auditRunPut(payload: Pick<AuditPayload, 'run_id' | 'company_id' | 'relatorio_id'>, now: string, newId: NewId, field: AuditField, value: unknown): Op {
@@ -88,6 +90,7 @@ export async function runAuditJob(deps: AuditJobDeps, payload: AuditPayload): Pr
       [
         put('findings', kept satisfies AuditFinding[], finishedAt),
         put('prompt_version', answer.prompt_version, finishedAt),
+        put('coverage', { sent: input.sheetsSent, total: input.sheetsTotal }, finishedAt),
         put('finished_at', finishedAt, finishedAt),
         put('status', 'done', finishedAt),
       ],
@@ -107,6 +110,8 @@ export async function runAuditJob(deps: AuditJobDeps, payload: AuditPayload): Pr
       dropped_reasons: dropped.map((entry) => entry.reason),
       input_chars: input.text.length,
       truncated: input.truncated,
+      sheets_sent: input.sheetsSent,
+      sheets_total: input.sheetsTotal,
       duration_ms: Date.now() - started,
     });
     return 'done';

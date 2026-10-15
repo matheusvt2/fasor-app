@@ -528,6 +528,12 @@ body {
   border-radius: var(--r-md);
 }
 
+/* Story 14.10 lane B: the sixth badge state, `retrying` ("Tentando de novo": the last sync
+   failed while the server answers its health check), has no mock rule. It mirrors
+   `components.css` `.sync-badge[data-state="pending"]` verbatim: work waits to go out, the
+   device keeps it, nothing for the user to fix. */
+.sync-badge[data-state="retrying"]  { color: var(--sync-pending); }
+
 /* The status board tile is a filter, not a link (UX-DR63, EXPERIENCE.md › Home), so it
    carries `aria-pressed`. `components.css` has `.status-board`, `.status-tile` and
    `.tile-count.is-zero` and no pressed state at all — the mock's tiles only navigate.

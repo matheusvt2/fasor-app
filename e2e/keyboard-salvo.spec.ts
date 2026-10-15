@@ -1,4 +1,4 @@
-import { calendarDateOfInstant, type OpDraft } from '@app/domain';
+import { calendarDateOfInstant, relatorioSetupPath, type OpDraft } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -153,6 +153,45 @@ test('@p0 13.4-E2E-002 INP-3 "Hoje": an empty service start on Etapa 1 is filled
   const again = page.locator('.setup-content .field').filter({ has: page.getByRole('group', { name: 'Início da execução' }) });
   await expect(again.getByRole('spinbutton')).toHaveText([d!, m!, y!], { timeout: 30_000 });
   await expect(page.locator('.setup-content').getByRole('button', { name: /^Hoje em / })).toHaveCount(0);
+});
+
+test('@p0 14.10-E2E-004 "Hoje" on an empty Próxima intervenção recomendada (Etapa 5) writes today, stored and shown after a reload; the fabrication dates offer no "Hoje"', async ({ page }) => {
+  test.setTimeout(120_000);
+  const built = await seedRelatorio(page, 1280, (drafts, relatorioId) => {
+    const relatorio = drafts.find((draft) => draft.kind === 'create' && draft.path === `relatorio/${relatorioId}`)!;
+    const value = relatorio.value as { setup: Record<string, unknown> };
+    value.setup = { ...value.setup, next_intervention_date: null };
+  });
+  await page.goto(`/relatorio/${built.relatorioId}/setup?etapa=5`);
+  const setupRoot = page.locator('.setup-content');
+  const next = setupRoot.locator('.field').filter({ has: page.getByRole('group', { name: 'Próxima intervenção recomendada' }) });
+  const hoje = next.locator('.chip-row').getByRole('button', { name: 'Hoje em Próxima intervenção recomendada', exact: true });
+  await expect(hoje).toBeVisible({ timeout: 30_000 });
+  await expect(hoje).toHaveText('Hoje');
+
+  await hoje.click();
+  const today = calendarDateOfInstant(new Date());
+  const [y, m, d] = today.split('-');
+  await expect(next.getByRole('spinbutton')).toHaveText([d!, m!, y!]);
+  // A filled date offers no chip (13.4's rule).
+  await expect(hoje).toHaveCount(0);
+  const path = relatorioSetupPath('next_intervention_date');
+  await expect.poll(() => written(page, path), { timeout: 15_000 }).toEqual([today]);
+
+  await page.reload();
+  const again = page.locator('.setup-content .field').filter({ has: page.getByRole('group', { name: 'Próxima intervenção recomendada' }) });
+  await expect(again.getByRole('spinbutton')).toHaveText([d!, m!, y!], { timeout: 30_000 });
+  await expect(page.locator('.setup-content').getByRole('button', { name: 'Hoje em Próxima intervenção recomendada' })).toHaveCount(0);
+  const stored = (await readStore<{ entity: string; id: string; row: { setup?: { next_intervention_date?: string | null } } }>(page, database, 'entities')).find(
+    (record) => record.entity === 'relatorio' && record.id === built.relatorioId,
+  );
+  expect(stored?.row.setup?.next_intervention_date).toBe(today);
+
+  // The fabrication dates of a sheet stay as 13.4 drew them: no "Hoje".
+  const sec = built.sheets.find((row) => row.blockType === 'chave_seccionadora')!;
+  await openSheet(page, built.relatorioId, sec);
+  await expect(field(page, 'data_de_fabricacao').locator('input.input')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Hoje em / })).toHaveCount(0);
 });
 
 test('@p0 13.4-E2E-003 INP-4 at 390 px: "Salvo às HH:MM" shows once an op lands, "Salvo neste aparelho" offline, and the header keeps its height', async ({ page, context }) => {

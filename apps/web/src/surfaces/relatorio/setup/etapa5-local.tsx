@@ -1,11 +1,15 @@
-import { siteAltitudeText, type RelatorioSnapshot } from '@app/domain';
+import { calendarDateOfInstant, siteAltitudeText, type RelatorioSnapshot } from '@app/domain';
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { Button, DateField, TextButton } from '../../../components/index.ts';
 import { useNumberInput, type ParsedNumber } from '../../../components/number-input.tsx';
 import { copy } from '../../../copy/pt-br.ts';
+import { now } from '../../../clock.ts';
 import { restoreFocus } from '../../../input/focus-restore.ts';
 import { siteAltitudeReading } from './altitude-reading.ts';
 import { useDateField, useTextField, type BandRef, type CommitField, type CommitFields } from './setup-fields.ts';
+
+/** Story 14.10 lane B: the "Hoje" chip of an empty Próxima intervenção, today in America/Sao_Paulo (Etapa 1's rule, 13.4). */
+const today = () => calendarDateOfInstant(now());
 
 // --- Etapa 5 — Local -------------------------------------------------------------------------
 
@@ -131,7 +135,13 @@ export function Etapa5Local({
               onConfirm={onConfirmAltitude}
             />
           )}
-          <DateField label={t.nextInterventionDateLabel} value={nextInterventionDate.date} onChange={nextInterventionDate.change} onBlur={nextInterventionDate.blur} />
+          <DateField
+            label={t.nextInterventionDateLabel}
+            value={nextInterventionDate.date}
+            onChange={nextInterventionDate.change}
+            onBlur={nextInterventionDate.blur}
+            today={today}
+          />
           <div className="field">
             <label className="field-label" htmlFor={justificationId}>
               {t.nextInterventionJustificationLabel}

@@ -198,6 +198,7 @@ const IDLE: EngineStatus = {
   outdated: false,
   lastResult: null,
   lastFailure: null,
+  serverAnswers: null,
   merges: [],
 };
 
@@ -435,7 +436,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SyncState>(
     () => ({
       counts,
-      badgeState: syncBadgeState(counts, { online: session.online, reachable: unreachable === null, conflicts: decisionCount }),
+      // Story 14.10 lane B: a server that fails the sync but answers its health probe reads "Tentando de novo"; a session to renew stays as today.
+      badgeState: syncBadgeState(counts, { online: session.online, reachable: unreachable === null, serverAnswers: unreachable === 'server' && status.serverAnswers === true, conflicts: decisionCount }),
       headline: syncHeadlineText({ counts, ...split }),
       summaryBadges: syncSummaryBadges({ counts, ...split }),
       decisionCount,

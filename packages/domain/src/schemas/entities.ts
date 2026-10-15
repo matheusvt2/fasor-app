@@ -649,8 +649,8 @@ export const revisionRowSchema = z.object({
  * Story 13.8 (contract 15): one emission audit, a server-only row the audit job writes
  * (`audit_run/{id}` create at the route, then `audit_run/{id}/{field}` puts). Its findings are
  * information the device shows and nothing else reads: never a sheet, a count, a status, a
- * pre-issue row, the snapshot or the document. A run writes `findings`, `prompt_version` and
- * `finished_at` with `status: done`, or `error` and `finished_at` with `status: failed`.
+ * pre-issue row, the snapshot or the document. A run writes `findings`, `prompt_version`,
+ * `coverage` (Story 14.10, contract 20) and `finished_at` with `status: done`, or `error` and `finished_at` with `status: failed`.
  */
 export const auditRunRowSchema = z.object({
   id: uuidV7Schema,
@@ -662,6 +662,15 @@ export const auditRunRowSchema = z.object({
   created_at: isoTimestampSchema,
   started_at: nullableIso.default(null),
   finished_at: nullableIso.default(null),
+  /**
+   * Story 14.10 lane B (contract 20): how many sheets the run sent the model (`sent`, the sheet
+   * lines inside the cut) of the ones the layout prints (`total`), written with the done batch.
+   * Null on a run that has not finished and on every run written before it.
+   */
+  coverage: z
+    .object({ sent: z.number().int().nonnegative(), total: z.number().int().nonnegative() })
+    .nullable()
+    .default(null),
 });
 
 // --- entity registry -------------------------------------------------------
