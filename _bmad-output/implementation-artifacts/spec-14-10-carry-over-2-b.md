@@ -2,7 +2,7 @@
 title: 'Story 14.10 lane B: honest emission audit, sync retry wording, focus after a plate shot, Hoje on Proxima intervencao'
 type: 'bugfix'
 created: '2026-10-15'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'fd7c26ff0d5fb5898e4d7c1c7a93e91ecb4d01d8'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -122,3 +122,15 @@ Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter, 
   - `[medium]` `[patch]` EC: a sheet with only photos is `vazia` and goes to the tail — a live photo makes it non-empty, kernel test.
   - `[low]` `[reject]` EC: a cut right after a `[sheet:]` line counts the sheet as sent with no rows — rare (one sheet at the boundary) and the fix adds look-ahead bookkeeping; the model did receive the sheet's name.
   - `[low]` `[reject]` EC: onBlur with a null relatedTarget (tab switch) keeps the hand-off armed — unlikely in field use; the guard adds document-focus branching.
+
+## Auto Run Result
+
+Status: done (followup_review_recommended: false; this pass patched 1 high and 5 medium, but the integrated epic review follows and each patch is covered by a gate-run test).
+
+- Part 3: `auditInput` sends sheets holding a value (or a live photo) first, puts the screen label beside a differing printed title, and returns `sheetsSent`/`sheetsTotal`; the job stores them as `audit_run/{id}/coverage` (contract 20, MIN 20); the audit summary shows "Conferidas N de M fichas". The CTA reproduction test fails on the baseline input code.
+- Part 5: a health probe after an unreachable cycle; kernel badge state `retrying` ("Tentando de novo") on the App bar, Sync status (headline, cause note) and Home cards.
+- Part 7: `plate-focus.ts` hands the focus to the plate row's reading line, synchronously within the commit, with an `if-lost` frame watch as fallback; covers the first shot, the retake and the crop.
+- Part 9: "Hoje" on an empty Próxima intervenção.
+- Review: 11 patches applied, 2 low findings rejected (see triage log). Gate fixes: 13.4-E2E-002 assertion scoped to the service dates; synchronous focus hand-off.
+- Verification: lint, static, test:unit 310/310 files, test:api 83/83 files, touched specs 32/32 (desktop-chrome and durability-desktop-chrome). Mutation: `plateFocusTarget` returning null turns 14.10-E2E-003 red at 390 and 768 px (activeElement BODY).
+- Residual: a slow request still in flight does not read "Tentando de novo" until it fails; "Hoje" only on an empty date (both open for Matheus).
