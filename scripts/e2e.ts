@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { E2eGroup } from '../e2e/support/groups.ts';
+import { preflight } from './preflight.ts';
 
 /**
  * E6-Q7: the one entry of every e2e command (`test:e2e`, `test:e2e:full`,
@@ -23,6 +24,10 @@ import type { E2eGroup } from '../e2e/support/groups.ts';
  * a file filter, `specFilters`) on which no test ran in either group fails the run, so a
  * typo, a spec whose every test skipped or a `:line` no test starts on can no longer turn
  * a story gate green on the other paths alone.
+ *
+ * Story 14.10 part 1: the preflight (`scripts/preflight.ts`) runs before the bundle build,
+ * unless `scripts/verify.ts` already ran it (`GATE_PREFLIGHT_DONE=1`), and stops the command
+ * when a compose container loops.
  */
 
 const root = resolve(import.meta.dirname, '..');
@@ -352,9 +357,13 @@ function line(summary: Pick<GroupSummary, 'tests' | 'passed' | 'failed' | 'skipp
   return `${summary.tests} tests: ${summary.passed} passed, ${summary.failed} failed, ${summary.skipped} skipped, ${summary.flaky} flaky, ${(summary.durationMs / 1000).toFixed(1)} s`;
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const started = Date.now();
+  if ((await preflight()) !== 0) {
+    console.error('[e2e] the preflight found a looping container; no group ran');
+    process.exit(1);
+  }
   mkdirSync(REPORT_DIR, { recursive: true });
 
   console.log('[e2e] building the web bundle once for both groups (build:e2e)');
@@ -384,4 +393,4 @@ function main(): void {
   process.exit(failed ? 1 : 0);
 }
 
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) void main();

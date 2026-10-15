@@ -282,8 +282,8 @@ function drawingOrder(children: readonly LocationRow[]): readonly LocationRow[] 
 const SEM_PAINEIS = 'sem painéis';
 const SEM_COLUNAS = 'sem colunas';
 
-/** "Coluna 5", "coluna-5": a name that already says what the row is. */
-function saysColuna(name: string): boolean {
+/** "Coluna 5", "coluna-5": a name that already says what the row is. Story 14.10 part 8: section 9's coluna titles read it too. */
+export function saysColuna(name: string): boolean {
   const lead = name.trim().split(/[\s-]+/)[0] ?? '';
   return lead.localeCompare('Coluna', 'pt-BR', { sensitivity: 'base' }) === 0;
 }

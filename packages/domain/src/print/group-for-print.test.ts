@@ -8,7 +8,7 @@ import type { EquipmentBlockType, Role } from '../schemas/block-config.ts';
 import type { BlockRow, EquipmentRow, LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { TEST_PROJECT } from '../test-support.ts';
-import { blockRoleOf, groupForPrint, painelTypeGroupTitle, type PrintSubsection } from './group-for-print.ts';
+import { blockRoleOf, colunaTypeGroupTitle, groupForPrint, painelTypeGroupTitle, type PrintSubsection } from './group-for-print.ts';
 import { section9Layout } from './section-9.ts';
 
 /*
@@ -344,20 +344,20 @@ describe('14.2-UNIT groupForPrint: a painel is a heading over its colunas', () =
     expect(groupForPrint(snapshotOf(locations, []), 'ordem_de_campo').subsections).toEqual([]);
   });
 
-  it('matrix "Print, por_local_e_tipo and flag on": the direct run split by type first (titles naming the local), then per painel a heading with no sheets and its own type groups, their titles naming the painel and the local', () => {
+  it('matrix "Print, por_local_e_tipo and flag on": the direct run split by type first (titles naming the local), then per painel a heading with no sheets and its colunas\' type groups, their titles naming the coluna, the painel and the local (Story 14.10 part 8)', () => {
     const locations = [...local(true), painel(20, 'Painel B', 1, 'a1'), coluna(21, 'Coluna 1', 20, 'a0')];
     const all = [...sheets, sheet(7, 21, 'disjuntor_mt', 'a0'), sheet(8, 21, 'chave_seccionadora', 'a1')];
     const grouping = groupForPrint(snapshotOf(locations, all), 'por_local_e_tipo');
     expect(full(grouping.subsections)).toEqual([
       { kind: 'transformadores', title: 'Transformadores e Cabos de Alimentação da Subestação', blockIds: [block(1), block(2)] },
       { kind: 'painel', title: 'Painel de média tensão', blockIds: [], painelId: id(10) },
-      { kind: 'seccionadoras', title: 'Seccionadoras dos Cubículos de MT do Painel de média tensão — Subestação', blockIds: [block(3)], painelId: id(10) },
-      { kind: 'disjuntores', title: 'Disjuntores dos Cubículos de MT do Painel de média tensão — Subestação', blockIds: [block(4)], painelId: id(10) },
+      { kind: 'seccionadoras', title: 'Seccionadoras dos Cubículos de MT da Coluna 1 do Painel de média tensão — Subestação', blockIds: [block(3)], painelId: id(10) },
+      { kind: 'disjuntores', title: 'Disjuntores dos Cubículos de MT da Coluna 2 do Painel de média tensão — Subestação', blockIds: [block(4)], painelId: id(10) },
       // The TP before its TC, paired inside Coluna 3.
-      { kind: 'tps_tcs', title: "TP's e TC's dos Cubículos de MT do Painel de média tensão — Subestação", blockIds: [block(6), block(5)], painelId: id(10) },
+      { kind: 'tps_tcs', title: "TP's e TC's dos Cubículos de MT da Coluna 3 do Painel de média tensão — Subestação", blockIds: [block(6), block(5)], painelId: id(10) },
       { kind: 'painel', title: 'Painel B', blockIds: [], painelId: id(20) },
-      { kind: 'seccionadoras', title: 'Seccionadoras dos Cubículos de MT do Painel B — Subestação', blockIds: [block(8)], painelId: id(20) },
-      { kind: 'disjuntores', title: 'Disjuntores dos Cubículos de MT do Painel B — Subestação', blockIds: [block(7)], painelId: id(20) },
+      { kind: 'seccionadoras', title: 'Seccionadoras dos Cubículos de MT da Coluna 1 do Painel B — Subestação', blockIds: [block(8)], painelId: id(20) },
+      { kind: 'disjuntores', title: 'Disjuntores dos Cubículos de MT da Coluna 1 do Painel B — Subestação', blockIds: [block(7)], painelId: id(20) },
     ]);
     expect(grouping.warnings).toEqual([]);
     // Story 14.4 (2026-10-13): two painéis each holding seccionadoras no longer print one title twice.
@@ -371,15 +371,95 @@ describe('14.2-UNIT groupForPrint: a painel is a heading over its colunas', () =
     expect(full(groupForPrint(snapshotOf(local(true), onlyInPainel), 'por_local_e_tipo').subsections)).toEqual([
       { kind: 'cabine', title: 'Subestação', blockIds: [] },
       { kind: 'painel', title: 'Painel de média tensão', blockIds: [], painelId: id(10) },
-      { kind: 'seccionadoras', title: 'Seccionadoras dos Cubículos de MT do Painel de média tensão — Subestação', blockIds: [block(3)], painelId: id(10) },
-      { kind: 'disjuntores', title: 'Disjuntores dos Cubículos de MT do Painel de média tensão — Subestação', blockIds: [block(4)], painelId: id(10) },
-      { kind: 'tps_tcs', title: "TP's e TC's dos Cubículos de MT do Painel de média tensão — Subestação", blockIds: [block(6), block(5)], painelId: id(10) },
+      { kind: 'seccionadoras', title: 'Seccionadoras dos Cubículos de MT da Coluna 1 do Painel de média tensão — Subestação', blockIds: [block(3)], painelId: id(10) },
+      { kind: 'disjuntores', title: 'Disjuntores dos Cubículos de MT da Coluna 2 do Painel de média tensão — Subestação', blockIds: [block(4)], painelId: id(10) },
+      { kind: 'tps_tcs', title: "TP's e TC's dos Cubículos de MT da Coluna 3 do Painel de média tensão — Subestação", blockIds: [block(6), block(5)], painelId: id(10) },
     ]);
   });
 
   it('painelTypeGroupTitle: the words, the painel with its contraction, then the local; names trimmed', () => {
     expect(painelTypeGroupTitle('Seccionadoras dos Cubículos de MT', ' Painel de média tensão ', ' Cabine primária ')).toBe('Seccionadoras dos Cubículos de MT do Painel de média tensão — Cabine primária');
     expect(painelTypeGroupTitle('Disjuntores dos Cubículos de MT', 'Coluna de entrada', '1° Subsolo')).toBe('Disjuntores dos Cubículos de MT da Coluna de entrada — 1° Subsolo');
+  });
+
+  describe('Story 14.10 part 8: one set of type groups per coluna under a painel, flag on', () => {
+    const primaria = (colunas: LocationRow[]) => [cabine(1, 'Cabine primária', 'a0', true), painel(10, 'Painel 1', 1, 'a0'), ...colunas];
+
+    it('colunaTypeGroupTitle: the words, "da" and the coluna, the painel with its contraction, then the local; names trimmed', () => {
+      expect(colunaTypeGroupTitle('Seccionadoras dos Cubículos de MT', ' Coluna 1 ', ' Painel 1 ', ' Cabine primária ')).toBe('Seccionadoras dos Cubículos de MT da Coluna 1 do Painel 1 — Cabine primária');
+      expect(colunaTypeGroupTitle('Disjuntores dos Cubículos de MT', 'coluna-2', 'Painel de média tensão', '1° Subsolo')).toBe('Disjuntores dos Cubículos de MT da coluna-2 do Painel de média tensão — 1° Subsolo');
+      // Open question 2: a name that does not say "Coluna" is read as "Coluna ⟨name⟩".
+      expect(colunaTypeGroupTitle('Seccionadoras dos Cubículos de MT', 'Entrada', 'Painel 1', 'Cabine primária')).toBe('Seccionadoras dos Cubículos de MT da Coluna Entrada do Painel 1 — Cabine primária');
+    });
+
+    it('matrix "One coluna in a painel, flag on": the painel heading, then the coluna\'s group titled with the coluna, the painel and the local', () => {
+      const grouping = groupForPrint(snapshotOf(primaria([coluna(11, 'Coluna 1', 10, 'a0')]), [sheet(1, 11, 'chave_seccionadora', 'a0')]), 'por_local_e_tipo');
+      expect(full(grouping.subsections)).toEqual([
+        { kind: 'cabine', title: 'Cabine primária', blockIds: [] },
+        { kind: 'painel', title: 'Painel 1', blockIds: [], painelId: id(10) },
+        { kind: 'seccionadoras', title: 'Seccionadoras dos Cubículos de MT da Coluna 1 do Painel 1 — Cabine primária', blockIds: [block(1)], painelId: id(10) },
+      ]);
+    });
+
+    it('matrix "Same type in two colunas": two groups in coluna order, each its own title, never merged', () => {
+      // Coluna 2 is keyed first: the tree order (order_key), not the name, decides.
+      const locations = primaria([coluna(12, 'Coluna 2', 10, 'a0'), coluna(11, 'Coluna 1', 10, 'a1')]);
+      const all = [sheet(1, 11, 'chave_seccionadora', 'a0'), sheet(2, 12, 'chave_seccionadora', 'a0'), sheet(3, 12, 'para_raio', 'a1'), sheet(4, 11, 'disjuntor_mt', 'a1')];
+      const grouping = groupForPrint(snapshotOf(locations, all), 'por_local_e_tipo');
+      expect(full(grouping.subsections)).toEqual([
+        { kind: 'cabine', title: 'Cabine primária', blockIds: [] },
+        { kind: 'painel', title: 'Painel 1', blockIds: [], painelId: id(10) },
+        { kind: 'seccionadoras', title: 'Seccionadoras dos Cubículos de MT da Coluna 2 do Painel 1 — Cabine primária', blockIds: [block(2), block(3)], painelId: id(10) },
+        { kind: 'seccionadoras', title: 'Seccionadoras dos Cubículos de MT da Coluna 1 do Painel 1 — Cabine primária', blockIds: [block(1)], painelId: id(10) },
+        { kind: 'disjuntores', title: 'Disjuntores dos Cubículos de MT da Coluna 1 do Painel 1 — Cabine primária', blockIds: [block(4)], painelId: id(10) },
+      ]);
+      expect(new Set(grouping.subsections.map((s) => s.title)).size).toBe(grouping.subsections.length);
+      expect(grouping.subsections.flatMap((s) => s.blockIds).sort()).toEqual(all.map((s) => s.block.id).sort());
+    });
+
+    it('matrix "Coluna name without Coluna": the title reads "da Coluna ⟨name⟩"', () => {
+      const grouping = groupForPrint(snapshotOf(primaria([coluna(11, 'Entrada', 10, 'a0')]), [sheet(1, 11, 'chave_seccionadora', 'a0')]), 'por_local_e_tipo');
+      expect(grouping.subsections.at(-1)?.title).toBe('Seccionadoras dos Cubículos de MT da Coluna Entrada do Painel 1 — Cabine primária');
+    });
+
+    it('a sheet under the painel outside any coluna (no client writes one) keeps the painel-only title, in tree order before the colunas', () => {
+      const locations = primaria([coluna(11, 'Coluna 1', 10, 'a0')]);
+      const all = [sheet(1, 10, 'chave_seccionadora', 'a0'), sheet(2, 11, 'chave_seccionadora', 'a0')];
+      expect(full(groupForPrint(snapshotOf(locations, all), 'por_local_e_tipo').subsections).slice(1)).toEqual([
+        { kind: 'painel', title: 'Painel 1', blockIds: [], painelId: id(10) },
+        { kind: 'seccionadoras', title: 'Seccionadoras dos Cubículos de MT do Painel 1 — Cabine primária', blockIds: [block(1)], painelId: id(10) },
+        { kind: 'seccionadoras', title: 'Seccionadoras dos Cubículos de MT da Coluna 1 do Painel 1 — Cabine primária', blockIds: [block(2)], painelId: id(10) },
+      ]);
+    });
+
+    it('matrix "Flag off, or no painel": titles unchanged; the coluna is not a subsection', () => {
+      const locations = [cabine(1, 'Cabine primária', 'a0', false), painel(10, 'Painel 1', 1, 'a0'), coluna(11, 'Coluna 1', 10, 'a0'), coluna(12, 'Coluna 2', 10, 'a1')];
+      const all = [sheet(1, 11, 'chave_seccionadora', 'a0'), sheet(2, 12, 'chave_seccionadora', 'a0')];
+      const expected = [
+        { kind: 'cabine', title: 'Cabine primária', blockIds: [] },
+        { kind: 'painel', title: 'Painel 1', blockIds: [block(1), block(2)], painelId: id(10) },
+      ];
+      expect(full(groupForPrint(snapshotOf(locations, all), 'por_local_e_tipo').subsections)).toEqual(expected);
+      // Flag on under ordem_de_campo: the base case, unchanged too.
+      const flagged = [cabine(1, 'Cabine primária', 'a0', true), ...locations.slice(1)];
+      expect(full(groupForPrint(snapshotOf(flagged, all), 'ordem_de_campo').subsections)).toEqual(expected);
+      // No painel, flag on: the FO.SERV-03 titles with the local's name.
+      const noPainel = [cabine(1, 'Cabine primária', 'a0', true), coluna(11, 'Coluna 1', 1, 'a0'), coluna(12, 'Coluna 2', 1, 'a1')];
+      expect(full(groupForPrint(snapshotOf(noPainel, all), 'por_local_e_tipo').subsections)).toEqual([
+        { kind: 'seccionadoras', title: 'Seccionadoras dos Cubículos de MT da Cabine primária', blockIds: [block(1), block(2)] },
+      ]);
+    });
+
+    it('a cable feeding a transformer of another coluna of the painel goes last in its own coluna with no warning', () => {
+      const locations = primaria([coluna(11, 'Coluna 1', 10, 'a0'), coluna(12, 'Coluna 2', 10, 'a1')]);
+      const all = [sheet(1, 11, 'transformador_forca', 'a0'), sheet(2, 12, 'cabos_saida', 'a0', { role: 'alimentacao', feeds: 1 })];
+      const grouping = groupForPrint(snapshotOf(locations, all), 'por_local_e_tipo');
+      expect(full(grouping.subsections).slice(2)).toEqual([
+        { kind: 'transformadores', title: 'Transformadores e Cabos de Alimentação da Coluna 1 do Painel 1 — Cabine primária', blockIds: [block(1)], painelId: id(10) },
+        { kind: 'transformadores', title: 'Transformadores e Cabos de Alimentação da Coluna 2 do Painel 1 — Cabine primária', blockIds: [block(2)], painelId: id(10) },
+      ]);
+      expect(grouping.warnings).toEqual([]);
+    });
   });
 
   it('a cable whose transformer prints in another run goes last in its own run with no warning; one feeding no live transformer of the cabine still warns', () => {
@@ -396,7 +476,7 @@ describe('14.2-UNIT groupForPrint: a painel is a heading over its colunas', () =
     expect(full(grouping.subsections)).toEqual([
       { kind: 'transformadores', title: 'Transformadores e Cabos de Alimentação da Subestação', blockIds: [block(5), block(1)] },
       { kind: 'painel', title: 'Painel de média tensão', blockIds: [], painelId: id(10) },
-      { kind: 'transformadores', title: 'Transformadores e Cabos de Alimentação do Painel de média tensão — Subestação', blockIds: [block(3), block(4)], painelId: id(10) },
+      { kind: 'transformadores', title: 'Transformadores e Cabos de Alimentação da Coluna 1 do Painel de média tensão — Subestação', blockIds: [block(3), block(4)], painelId: id(10) },
     ]);
     expect(grouping.warnings).toEqual([{ kind: 'integrity', code: 'unpaired_cable', blockId: block(4), cabineId: id(1) }]);
   });

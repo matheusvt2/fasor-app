@@ -158,6 +158,13 @@ overrides (they win over the workflow text):
   on EACCES and its restarts load the VM until every gate times out (co14b: 6137 restarts, test:unit 1506 s). Keep a
   batch's `web` service stopped unless a spec needs the dev server (`scripts/e2e.ts` builds its own bundle), and
   check `podman ps` for a restarting container before reading a timeout as a defect.
+  *(2026-10-15, Story 14.10 part 1: this crash loop cannot recur. The `web` service starts Vite with
+  `--configLoader runner`, which evaluates `vite.config.ts` in memory and writes nothing into
+  `apps/web/node_modules/.vite-temp`, so a root-owned `.vite-temp` left by a tools run no longer stops it (proved on
+  co15a: a root-owned `.vite-temp`, `web` serving with 0 restarts). And every gate entry (`pnpm verify`, a stage run
+  alone, `scripts/e2e.ts`) first runs `scripts/preflight.ts`, which reads the engine socket mounted into `tools`
+  (GET only) and exits non-zero within 15 s naming any project container that is restarting or whose restart count
+  grows, with its count and the first line of its last log; with no socket it says so in one line and goes on.)*
 - Read files with offset/limit; do not re-read a file you just edited; do not cat whole large files.
 - No Playwright MCP browser pass in the batch (the integrated QA after the last merge does the human-style pass).
   The batch still covers each story's main ACs with Playwright specs tagged `@p0` (as a human would: clicks,

@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { preflight } from './preflight.ts';
 
 /**
  * The merge gate (`pnpm verify`, test-speed batch 2026-09-27). It runs the same five
@@ -19,6 +20,10 @@ import { pathToFileURL } from 'node:url';
  * (never interleaved). Every stage's output is also written to
  * `test-results/verify/{stage}.log`, and the run ends with one line per stage (verdict and
  * wall time) and the total.
+ *
+ * Story 14.10 part 1: before the first phase, the preflight (`scripts/preflight.ts`) reads the
+ * container engine and stops the run when a compose container loops; the stages then run
+ * with `GATE_PREFLIGHT_DONE=1`, so their own scripts do not probe again.
  */
 
 export interface StageResult {
@@ -96,7 +101,7 @@ function killTree(child: ChildProcess): void {
 
 const runPnpm: StageRunner = (stage, signal, alone) =>
   new Promise((resolveStage) => {
-    const child = spawn('pnpm', ['run', stage], { cwd: root, env: { ...process.env, FORCE_COLOR: '0' }, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn('pnpm', ['run', stage], { cwd: root, env: { ...process.env, FORCE_COLOR: '0', GATE_PREFLIGHT_DONE: '1' }, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
     const chunks: Buffer[] = [];
     const take = (chunk: Buffer) => {
       chunks.push(chunk);
@@ -115,6 +120,10 @@ const runPnpm: StageRunner = (stage, signal, alone) =>
 
 async function main(): Promise<void> {
   const started = Date.now();
+  if ((await preflight()) !== 0) {
+    console.log('[verify] FAILED: the preflight found a looping container; no stage ran');
+    process.exit(1);
+  }
   mkdirSync(LOG_DIR, { recursive: true });
   for (const phase of PHASES) console.log(`[verify] phase: ${phase.join(' + ')}`);
   const streamed = new Set(PHASES.filter((phase) => phase.length === 1).flat());

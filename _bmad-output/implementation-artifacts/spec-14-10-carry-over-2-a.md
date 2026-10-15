@@ -2,7 +2,8 @@
 title: 'Story 14.10 lane A: gate preflight, cross-batch merge rule, generation time, coluna in the group titles'
 type: 'feature'
 created: '2026-10-15'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: 'f7d88b5d7ed5c20af56b5b6a0688a37ae66812a6'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus
@@ -104,6 +105,28 @@ deferred: []
 Part 8 composition (proposed, open for Bruno): `${words} da ${coluna} ${ofCabine(painel)} — ${local}` where `coluna` is the coluna's trimmed name when `saysColuna(name)` is true, else `Coluna ${name}`. A coluna is feminine, so the contraction is always "da". Two colunas of one painel never share a group even with one type.
 
 Part 4 target: to be filled by the implementer from the measurement: the measured local stage times, the multiplier chosen for load headroom (the gate runs beside other stages), and the resulting per-stage and total ceilings.
+
+*(2026-10-15, implementer, measured on the co15a stack: `generation-time.integration.test.ts`, the production shape seeded on the small fixture: 76 live sheets of the eight types, 2 filled, one photo, 86 pages, two TOC passes in every run.)*
+
+| Stage (ms) | Preview before | Preview after | Issue before | Issue after |
+|---|---|---|---|---|
+| freeze | 38-49 | 25-144 | 11-15 | 14-29 |
+| layout | 67-79 | 42-130 | 31-40 | 41-122 |
+| file_rows | 1-2 | 2-223 | 1-39 | 2-44 |
+| photos | 20-25 | 11-132 | 8-24 | 22-28 |
+| watermark | 31-43 | 33-116 | - | - |
+| docx_1 / docx_2 | 721-859 / 651-1107 | 669-838 / 619-747 | 575-964 / 408-768 | 581-651 / 430-778 |
+| convert_1 | 6275-6629 | 2787-2966 | 2135-3329 | 2334-4269 |
+| convert_2 | 6066-6237 | 6048-7261 | 2324-2580 | 2553-3040 |
+| outline_1 / outline_2 | 18-651 / 37-116 | 25-635 / 23-33 | 16-34 / 14-19 | 10-60 / 11-17 |
+| upload | 93 | 45-65 | 60-69 | 51-88 |
+| total (`duration_ms`) | 14745-15212 | 11149-12579 | 6010-7572 | 6258-8966 |
+
+LibreOffice is the cost: four fifths of every job. No work on the empty sheets is large enough to matter (layout 40-130 ms, the DOCX build under 1.1 s, the one photo 30 ms; every empty sheet prints its page, so none can be skipped). The skip that measuring found: the preview's RASCUNHO image tripled a pass's conversion (6.3 s against 2.1 s), and TOC pass 1 is rendered only for its outline, its files thrown away, so pass 1 now leaves the image out (`passLayout` in `job.ts`; the image floats behind the text in the header and moves no line, and the convergence check would take a third pass if it ever did). Preview total 15.0 s to 11.8 s on average; issue unchanged; printed output identical (the kept pass renders the whole layout). Production took 88 s and 64 s on the same shape, 6 to 9 times the local times: a Fargate task's CPU, not a stage of its own.
+
+Target: the slowest local time of each stage after the skip, times 4 for a gate that runs this beside `lint` and `static` and, on this host, beside another lane's gate (the 2026-09-27 measure saw the unit suite three times slower beside other stages), with a 2 s floor for the millisecond stages: each `convert_n` 30 s, each `docx_n` 5 s, each `outline_n` 3 s, freeze, layout, file rows, logo and cover, photos, certificates, watermark and upload 2 s each; total 50 s. The commit is logged but not targeted (it writes the result the totals are read from).
+
+*(2026-10-15, coordinator: no synced schema changes in this batch, lane B owns contract 20.)* The stage times are not in the job's `result`: the job logs them in one `generate timing` line and hands them to an optional `onTiming` job dep. The test always asserts each job's total (`result.duration_ms`, an existing field) against 50 s, and reads the per-stage times from the api container's `generate timing` line matched by job id, through the engine socket the tools container mounts (`scripts/preflight.ts` `serviceLog`, GET only). With no socket reachable it skips the per-stage part with a one-line note.
 
 Open questions (list in the PR body): (1) part 8 title wording and one group per coluna (Bruno); (2) a coluna whose name does not say "Coluna" (proposed "Coluna ⟨name⟩"); (3) the engine socket mount on the tools container gives it engine access on a local stack; Matheus may prefer a read-only socket proxy; (4) the part 4 target if it cannot be derived.
 
