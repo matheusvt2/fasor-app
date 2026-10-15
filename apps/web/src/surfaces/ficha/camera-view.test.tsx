@@ -592,6 +592,26 @@ describe('13.2 torch, zoom and tap-to-focus from the track\'s capabilities', () 
     expect(finder.querySelector('.cam-focus-ring')).not.toBeNull();
   });
 
+  it('a one-finger drag past 10 px is not a focus tap; a move within 10 px still is', async () => {
+    const { media, track } = cameraStream(offered);
+    useStream(media);
+    renderCamera();
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    await screen.findByRole('dialog', { name: 'Câmera' });
+    const finder = screen.getByRole('img', { name: 'Visor da câmera' });
+    vi.spyOn(finder, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200, x: 0, y: 0, toJSON: () => ({}) });
+    fireEvent.pointerDown(finder, { pointerId: 1, clientX: 100, clientY: 50 });
+    fireEvent.pointerMove(finder, { pointerId: 1, clientX: 111, clientY: 50 });
+    fireEvent.pointerUp(finder, { pointerId: 1, clientX: 111, clientY: 50 });
+    expect(advanced(track).some((set) => 'pointsOfInterest' in set)).toBe(false);
+    expect(finder.querySelector('.cam-focus-ring')).toBeNull();
+    fireEvent.pointerDown(finder, { pointerId: 2, clientX: 100, clientY: 50 });
+    fireEvent.pointerMove(finder, { pointerId: 2, clientX: 110, clientY: 50 });
+    fireEvent.pointerUp(finder, { pointerId: 2, clientX: 110, clientY: 50 });
+    await waitFor(() => expect(advanced(track).some((set) => 'pointsOfInterest' in set)).toBe(true));
+    expect(finder.querySelector('.cam-focus-ring')).not.toBeNull();
+  });
+
   it('clampZoom keeps a value on the range and its step; framePoint takes the covered overflow out', () => {
     const range = { min: 1, max: 3, step: 0.5 };
     expect(clampZoom(0.2, range)).toBe(1);

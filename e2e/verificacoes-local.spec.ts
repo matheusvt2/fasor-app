@@ -26,7 +26,8 @@ import { expandLocation } from './support/tree.ts';
  * the file is in the serial group. This project blocks the service worker (no shell cache), so
  * the reload of 14.3-E2E-001 runs with every api request refused, which keeps the outbox as
  * offline does; the reload truly offline is `verificacoes-local.durability.spec.ts`.
- * Each test resets this worker's own Empresa B (E6-Q7).
+ * E14-CO-B-E2E-001 counts animation frames against the camera's focus watch, which the serial
+ * group keeps off a shared CPU too. Each test resets this worker's own Empresa B (E6-Q7).
  */
 
 const SAO_PAULO = { latitude: -23.5505, longitude: -46.6333 };
@@ -762,6 +763,60 @@ test('@p1 14.3-E2E-004 no sideways scroll at 390, 768 and 1280 px, with an NC ro
   await expect(editor).toHaveCount(0);
   await expect(create).toBeFocused();
   expect((await outbox(page)).filter((op) => op.path.startsWith('point/'))).toEqual([]);
+});
+
+test('@p0 E14-CO-B-E2E-001 E14-A7: on the Checklist row, a point dialog opened and closed inside the camera\'s focus watch (about 3 s after "Concluir fotos") hands the focus back to "Criar ponto de atenção", not to "Adicionar foto"; the point is in the store and the outbox', async ({ page }) => {
+  test.setTimeout(180_000);
+  const { relatorioId, enelId } = await setUp(page, 768);
+  await openSurface(page, relatorioId, enelId);
+  const nc = row(page, EMERGENCIA);
+  await seg(page, EMERGENCIA, 'Não conforme').click();
+  await expect(seg(page, EMERGENCIA, 'Não conforme')).toHaveAttribute('aria-checked', 'true');
+  // The observation an NC item requires, from a chip; leaving the field commits it.
+  await nc.getByRole('group', { name: 'Observações sugeridas do item 11' }).getByRole('button', { name: NC_PHRASE }).click();
+  await page.keyboard.press('Tab');
+  await expect.poll(async () => (await outbox(page)).filter((op) => op.path === observationPath(enelId, EMERGENCIA)).map((op) => op.value)).toEqual([NC_PHRASE]);
+
+  const addPhoto = nc.getByRole('button', { name: 'Adicionar foto' });
+  await addPhoto.click();
+  const camera = await expectCameraOpen(page);
+  await shoot(page, 1);
+  // The camera's watch is frame-based (`LIST_FOCUS_WATCH_FRAMES`, 180): the frames are counted
+  // from before "Concluir fotos", so a count under 180 when the dialog closes is inside it.
+  await page.evaluate(() => {
+    const counter = window as unknown as { e2eFrames: number };
+    counter.e2eFrames = 0;
+    const tick = () => {
+      counter.e2eFrames += 1;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  const frames = () => page.evaluate(() => (window as unknown as { e2eFrames: number }).e2eFrames);
+  await camera.getByRole('button', { name: 'Concluir fotos' }).click();
+  await expect(page.getByRole('dialog', { name: 'Câmera' })).toHaveCount(0);
+  await expect(addPhoto).toBeFocused();
+
+  // The point dialog from the same row, opened and saved at once.
+  const create = nc.getByRole('button', { name: 'Criar ponto de atenção' });
+  await create.click();
+  const editor = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
+  await expect(editor).toBeVisible();
+  await editor.getByRole('textbox', { name: 'Ação recomendada' }).fill(POINT_ACTION);
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(editor).toHaveCount(0);
+  expect(await frames(), "the dialog closed inside the camera's focus watch").toBeLessThan(180);
+  // Past the end of the watch, the focus is where the dialog put it back.
+  await expect.poll(frames).toBeGreaterThan(200);
+  expect(await create.evaluate((element) => element === document.activeElement)).toBe(true);
+  await expect(create).toBeFocused();
+  await expect(addPhoto).not.toBeFocused();
+
+  // E12-A6: the point is committed: in the device's store and in the outbox.
+  await expect.poll(async () => (await pointsOf(page, relatorioId)).map((stored) => stored.action)).toEqual([POINT_ACTION]);
+  const [point] = await pointsOf(page, relatorioId);
+  expect(point).toMatchObject({ location_id: enelId, equipment_id: null, origin: 'manual', action: POINT_ACTION });
+  expect((await outbox(page)).filter((op) => op.path.startsWith(`point/${point!.id}`)).length).toBeGreaterThan(0);
 });
 
 test('@p0 14.3-E2E-007 Epic 14 QA Q-5: a local with no equipment fills its CARACTERÍSTICAS DA SE and AMBIENTE DE ENSAIO on the Verificações surface; the location ops are in the outbox, back after a reload, and the block fits at 390 px', async ({ page }) => {

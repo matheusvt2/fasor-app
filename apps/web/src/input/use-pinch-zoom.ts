@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
+import { pointerGesture, type PointerGesture } from './pointer-gesture.ts';
 
 /*
  * Story 13.3 (CAP-3, review-field-ux-2026-10-06): the engineer's own photo as a magnifier.
@@ -95,8 +96,8 @@ export function zoomAbout(state: PinchZoomState, scale: number, px: number, py: 
 }
 
 interface Gesture {
-  /** The pointers on the stage, by id, at their last position (stage coordinates). */
-  pointers: Map<number, { x: number; y: number; startX: number; startY: number }>;
+  /** The pointers on the stage, by id, at their last position (stage coordinates; E13-A6, the shared core). */
+  pointers: PointerGesture;
   /** The pinch: the start distance and midpoint, and the state then. */
   pinch: { distance: number; midX: number; midY: number; from: PinchZoomState } | null;
   /** The one-pointer pan: where it started, and the state then. */
@@ -111,7 +112,14 @@ export function usePinchZoom({ content, resetKey, doubleTap = false }: PinchZoom
   const stageRef = useRef<HTMLElement | null>(null);
   const [stage, setStage] = useState<ZoomSize | null>(null);
   const [state, setState] = useState<PinchZoomState>(FIT);
-  const gesture = useRef<Gesture>({ pointers: new Map(), pinch: null, pan: null, moved: false, gesture: false, lastTap: null });
+  const gesture = useRef<Gesture>({
+    pointers: pointerGesture({ tapSlop: TAP_SLOP, coords: (event) => stagePoint(stageRef.current, event) }),
+    pinch: null,
+    pan: null,
+    moved: false,
+    gesture: false,
+    lastTap: null,
+  });
   const maxScale = maxZoomScale(content, stage);
 
   // The latest values for handlers that outlive a render (the native wheel listener).
@@ -158,33 +166,23 @@ export function usePinchZoom({ content, resetKey, doubleTap = false }: PinchZoom
     setState(clampZoom(next, max, size));
   }, []);
 
-  const local = (event: { clientX: number; clientY: number }): { x: number; y: number } => {
-    const rect = stageRef.current?.getBoundingClientRect();
-    return rect === undefined ? { x: event.clientX, y: event.clientY } : { x: event.clientX - rect.left, y: event.clientY - rect.top };
-  };
-
   const startPinch = (g: Gesture) => {
-    const [a, b] = [...g.pointers.values()];
-    if (a === undefined || b === undefined) return;
-    g.pinch = { distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), midX: (a.x + b.x) / 2, midY: (a.y + b.y) / 2, from: live.current.state };
+    const frame = g.pointers.pinch();
+    if (frame === null) return;
+    g.pinch = { distance: Math.max(1, frame.spread), midX: frame.midX, midY: frame.midY, from: live.current.state };
     g.pan = null;
   };
 
   const startPan = (g: Gesture) => {
-    const [only] = [...g.pointers.values()];
+    const only = g.pointers.first();
     g.pan = only === undefined ? null : { x: only.x, y: only.y, from: live.current.state };
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     const g = gesture.current;
-    const at = local(event);
-    g.pointers.set(event.pointerId, { ...at, startX: at.x, startY: at.y });
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      // A synthetic pointer (tests) or one the browser already released: no capture needed.
-    }
+    // Tracked and captured (a synthetic pointer, or one the browser already released, needs no capture).
+    g.pointers.down(event);
     if (g.pointers.size === 1) {
       // A new touch starts a new gesture: what the last one did no longer decides a click.
       g.moved = false;
@@ -199,18 +197,14 @@ export function usePinchZoom({ content, resetKey, doubleTap = false }: PinchZoom
 
   const onPointerMove = (event: ReactPointerEvent<HTMLElement>) => {
     const g = gesture.current;
-    const pointer = g.pointers.get(event.pointerId);
-    if (pointer === undefined) return;
-    const at = local(event);
-    pointer.x = at.x;
-    pointer.y = at.y;
-    if (Math.hypot(at.x - pointer.startX, at.y - pointer.startY) > TAP_SLOP) g.moved = true;
+    const at = g.pointers.move(event);
+    if (at === null) return;
+    if (g.pointers.beyondSlop(at)) g.moved = true;
     if (g.pinch !== null && g.pointers.size >= 2) {
-      const [a, b] = [...g.pointers.values()];
-      if (a === undefined || b === undefined) return;
-      const distance = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
-      const midX = (a.x + b.x) / 2;
-      const midY = (a.y + b.y) / 2;
+      const frame = g.pointers.pinch();
+      if (frame === null) return;
+      const distance = Math.max(1, frame.spread);
+      const { midX, midY } = frame;
       const { from } = g.pinch;
       const scale = Math.min(Math.max(from.scale * (distance / g.pinch.distance), 1), live.current.maxScale);
       // The picture point under the starting midpoint follows the fingers' midpoint.
@@ -227,9 +221,7 @@ export function usePinchZoom({ content, resetKey, doubleTap = false }: PinchZoom
 
   const end = (event: ReactPointerEvent<HTMLElement>, cancelled: boolean) => {
     const g = gesture.current;
-    const pointer = g.pointers.get(event.pointerId);
-    if (pointer === undefined) return;
-    g.pointers.delete(event.pointerId);
+    if (g.pointers.up(event) === null) return;
     if (g.pointers.size >= 2) {
       startPinch(g);
       return;
@@ -248,7 +240,7 @@ export function usePinchZoom({ content, resetKey, doubleTap = false }: PinchZoom
       return;
     }
     if (!doubleTap) return;
-    const at = local(event);
+    const at = stagePoint(stageRef.current, event);
     const tapAt = event.timeStamp;
     const last = g.lastTap;
     if (last !== null && tapAt - last.at <= DOUBLE_TAP_MS && Math.hypot(at.x - last.x, at.y - last.y) <= DOUBLE_TAP_SLOP) {
@@ -304,6 +296,12 @@ export function usePinchZoom({ content, resetKey, doubleTap = false }: PinchZoom
       return was;
     },
   };
+}
+
+/** The event's position on the stage (its top-left corner is 0, 0); the client position while there is no stage. */
+function stagePoint(stage: HTMLElement | null, event: { clientX: number; clientY: number }): { x: number; y: number } {
+  const rect = stage?.getBoundingClientRect();
+  return rect === undefined ? { x: event.clientX, y: event.clientY } : { x: event.clientX - rect.left, y: event.clientY - rect.top };
 }
 
 function round(n: number, digits = 2): number {

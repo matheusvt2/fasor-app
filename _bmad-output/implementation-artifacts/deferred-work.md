@@ -1929,7 +1929,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Found while writing 14.3-E2E-001, in the Checklist row both the sheet and "Verificações do local" draw: for 180 frames (about 3 s) after the camera view closes, the camera's opener ("Adicionar foto") takes the focus back whenever it finds the focus lost (`returnFocus`, E6-Q6). A point dialog opened from the same row and closed inside that window ("Criar ponto de atenção", "Concluir") therefore hands the focus to "Adicionar foto" instead of the button that opened it: the opener's watch runs in the frame where the dialog's own restore has not landed yet. A person rarely shoots, opens and saves a point in 3 s; a test does. The e2e asserts the focus return on a row where no camera was opened (14.3-E2E-004); the sheet's 6.6-E2E-002 never opens the camera first.
   evidence: `apps/web/src/surfaces/ficha/camera-view.tsx` `returnFocus` (`restoreFocus` with `LIST_FOCUS_WATCH_FRAMES`, no `once`); `apps/web/src/components/dialog-shell.tsx` `useReturnFocus`; the run of 2026-10-13 (`document.activeElement` after "Concluir" was the row's "Adicionar foto").
   class: bug
-  state: open (owner: the next story touching `camera-view.tsx`; else the epic 14 deferred sweep)
+  state: ~~open (owner: the next story touching `camera-view.tsx`; else the epic 14 deferred sweep)~~ closed (2026-10-14, `spec-e14-carry-over-b.md`, E14-A7: `restoreFocus` gains the opt-in `until: 'moved'`, which ends the watch once the focus, after the target held it, sits on a connected control other than the target; the camera's `returnFocus`, now in `camera-session.tsx`, uses it, so the point dialog's own restore is left alone while a re-render's loss to `<body>` is still taken back (E6-Q6). Pinned by `focus-restore.test.ts` and `verificacoes-local.spec.ts` E14-CO-B-E2E-001, red with the option reverted.)
 
 ## Deferred from: review of batch e14b, Stories 14.3 and 14.4 (2026-10-13)
 
@@ -2174,10 +2174,10 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   state: open (owner: the next print story)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-14-qa-fixes.md`
-  summary: Tooling. The `install` container leaves `_tmp_13_*` files behind: pnpm 12.5.1's link probe, outside this repository's code. They are not ours to fix here.
+  summary: Tooling. The `install` container leaves `_tmp_13_*` files behind: pnpm 12.5.1's link probe, outside this repository's code. ~~They are not ours to fix here.~~ *(2026-10-14, E14-A13: they are: the probe is pnpm's store lookup, which runs because no store is set.)*
   evidence: the `install` service of `docker-compose.yml`; pnpm 12.5.1.
   class: debt
-  state: open (owner: tooling)
+  state: ~~open (owner: tooling)~~ closed (2026-10-14, `spec-e14-carry-over-b.md`, E14-A13: pnpm 12 reads its settings from `pnpm_config_*` only, so the `npm_config_store_dir` of the `x-app-env` anchor was ignored and every pnpm call in a container looked for a store itself, writing `_tmp_<pid>_*` probe files into the bind-mounted worktree root (seen 3 to 6 per `install`, left behind when a run is cut short). The anchor now sets `pnpm_config_store_dir` to the store that lookup already picked, `/workspace/node_modules/.pnpm-store`, which skips the probe: no `_tmp_*` file during `install` or `pnpm exec`, `--frozen-lockfile` green, packages still hard linked from the same store, and a fresh set of volumes installs clean.)
 
 
 ## Deferred from: production deploy v0.2.0 (2026-10-14)
