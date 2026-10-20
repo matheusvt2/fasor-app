@@ -54,10 +54,14 @@ export function PositionBox({ name, position, siblings, reorder, className, labe
       value={text ?? String(position)}
       // `text` holds only what the user typed: the box follows the row's position until
       // then, so a move that gives the focus back (and a later "Desfazer") never leaves a
-      // stale number in it. The focus selects the number, so typing replaces it.
+      // stale number in it. The focus selects the number, so typing replaces it. Only while
+      // the box still holds the focus: `select()` focuses an input, so a Tab that left the box
+      // before the frame (keys dispatch ahead of animation frames) would be pulled back to it.
       onFocus={(event) => {
         const input = event.currentTarget;
-        requestAnimationFrame(() => input.select());
+        requestAnimationFrame(() => {
+          if (document.activeElement === input) input.select();
+        });
       }}
       onChange={(event) => setText(event.target.value)}
       onBlur={(event) => commit(false, event.currentTarget)}
