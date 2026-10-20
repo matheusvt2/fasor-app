@@ -123,6 +123,9 @@ function formatDeviation(value: number): string {
 export function worstReadings(evaluations: readonly TestEvaluation[]): WorstReading[] {
   const out: WorstReading[] = [];
   for (const test of evaluations) {
+    // Story 14.9: a test no criterion judges (a band test with no band for the plate) names no worst reading.
+    const criterion = test.criterion;
+    if (criterion === null && test.testKey !== 'relacao_transformacao') continue;
     let worst: { out: boolean; score: number; reading: WorstReading } | null = null;
     for (const table of test.tables) {
       for (const row of table.rows) {
@@ -136,10 +139,10 @@ export function worstReadings(evaluations: readonly TestEvaluation[]): WorstRead
             score = deviationPct(value, Number(row.calculated.raw));
             valueText = `${formatDeviation(score)} %`;
           } else {
-            const scaled = scaleToUnit(value, cell.unit, test.criterion.unit);
+            const scaled = scaleToUnit(value, cell.unit, criterion!.unit);
             if (scaled === null) continue;
             // Insulation: the lowest is the worst; contact resistance: the highest.
-            score = test.criterion.operator.startsWith('>') ? -scaled : scaled;
+            score = criterion!.operator.startsWith('>') ? -scaled : scaled;
             valueText = cell.unit === null ? cell.displayText : `${cell.displayText} ${cell.unit}`;
           }
           // An out-of-criterion reading always outranks a within one.

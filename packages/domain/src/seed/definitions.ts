@@ -25,6 +25,7 @@ import { CABINE_PRIMARIA_V2 } from './v2.ts';
 import { CABINE_PRIMARIA_V3 } from './v3.ts';
 import { CABINE_PRIMARIA_V4 } from './v4.ts';
 import { CABINE_PRIMARIA_V5 } from './v5.ts';
+import { CABINE_PRIMARIA_V6 } from './v6.ts';
 
 /*
  * AD-21, AR-20: seed data is versioned code, resolved and never copied. A Template and a
@@ -40,7 +41,7 @@ import { CABINE_PRIMARIA_V5 } from './v5.ts';
  * moves it (`templateSeedUpgrade`, Story 14.3): every relatório made from it afterwards is
  * born on the newer version, and none already made is touched.
  */
-export const SEED_VERSION = 'v5';
+export const SEED_VERSION = 'v6';
 
 /** The named variables section boilerplate may carry, resolved at generation. */
 export const SECTION_VARIABLES = ['empresa_executora', 'cliente', 'obra', 'escopo', 'datas', 'responsavel'] as const;
@@ -65,6 +66,14 @@ function bundle(version: string, cabinePrimaria: ReportSeed): SeedBundle {
         throw new Error(`seed ${version}: ${definition.block_type}/${test.key} names unknown criterion "${test.criterion_key}"`);
       }
     }
+    // Story 14.9 (seed v6): a criterion picked by a nameplate value names its source on every band.
+    for (const test of definition.tests) {
+      const bands = test.criterion_bands;
+      if (bands === undefined) continue;
+      for (const band of [...bands.bands, ...(bands.selv === undefined ? [] : [bands.selv])]) {
+        if (band.source.name.trim() === '') throw new Error(`seed ${version}: ${definition.block_type}/${test.key} has a criterion band without its source`);
+      }
+    }
     // Story 14.5: a measurement criterion that reads a seeded one names one that exists.
     for (const test of definition.measurement_tests ?? []) {
       for (const criterion of test.criteria) {
@@ -84,6 +93,7 @@ export const SEED_VERSIONS: Readonly<Record<string, SeedBundle>> = deepFreeze({
   v3: bundle('v3', CABINE_PRIMARIA_V3),
   v4: bundle('v4', CABINE_PRIMARIA_V4),
   v5: bundle('v5', CABINE_PRIMARIA_V5),
+  v6: bundle('v6', CABINE_PRIMARIA_V6),
 });
 
 /**
@@ -122,7 +132,8 @@ export function getDefinition(seedVersion: string, reportType: string, blockType
 
 /**
  * Story 14.5: the equipment block types a seed version ships, in `EQUIPMENT_BLOCK_TYPES`
- * order: the eight on v1 to v4, the eight then the Chave de transferência automática on v5.
+ * order: the eight on v1 to v4, the eight then the Chave de transferência automática on v5,
+ * and on v6 the Quadro elétrico (QGBT/QD) after it.
  * Every list of types a surface offers reads this, so a relatório or a template never offers
  * a type its own version has no definition of. A version this bundle does not ship answers
  * the eight, which every version holds.

@@ -9,7 +9,7 @@ import {
   type BaseEquipmentBlockType,
   type EquipmentBlockType,
 } from '../schemas/block-config.ts';
-import { checkMeasurementDefinition, configFieldSchema, measurementTestSchema } from './measurement.ts';
+import { checkMeasurementDefinition, configFieldSchema, criterionSourceSchema, measurementTestSchema } from './measurement.ts';
 
 /*
  * The shape of one seed version (AD-21). Seed data is code, validated once at module
@@ -38,6 +38,11 @@ export const fieldDefSchema = z
      * visita" (the same equipment) does.
      */
     per_unit: z.literal(true).optional(),
+    /**
+     * Seed v6 (Story 14.9): a field an empty cell never makes missing (the QGBT's "Circuito
+     * SELV/PELV"). Optional and never defaulted, so v1 to v5 parse to the bytes they shipped with.
+     */
+    optional: z.literal(true).optional(),
   })
   .refine((f) => (f.kind === 'select') === (f.options !== undefined), {
     message: 'options exist exactly on a select field',
@@ -52,6 +57,12 @@ export const checklistItemSchema = z.object({
   key: itemKeySchema,
   label: z.string().min(1),
   nc_phrases: z.array(z.string().min(1)).min(3).max(4),
+  /**
+   * Seed v6 (Story 14.9, Bruno 2026-10-20 answer 4): a reminder for the technician shown under
+   * the item's label on the sheet only; it never prints, neither under the item nor in
+   * OBSERVAÇÕES. Optional, so v1 to v5 parse to the bytes they shipped with.
+   */
+  hint: z.string().min(1).optional(),
 });
 export type ChecklistItem = z.infer<typeof checklistItemSchema>;
 
@@ -99,12 +110,51 @@ export const tableDefSchema = z
   });
 export type TableDef = z.infer<typeof tableDefSchema>;
 
+/**
+ * Seed v6 (Story 14.9): one band of a criterion picked by a nameplate value, a minimum the
+ * readings must reach, with its source (every criterion names one).
+ */
+export const bandCriterionSchema = z.object({
+  operator: z.enum(['>', '>=']),
+  value: z.number().positive(),
+  unit: z.string().min(1),
+  source: criterionSourceSchema,
+});
+export type BandCriterion = z.infer<typeof bandCriterionSchema>;
+
+/**
+ * Seed v6 (Story 14.9, Bruno 2026-10-20, NBR 5410): a test's criterion derived from the board's
+ * own plate. `field` is a number field of the nameplate in V; each band applies up to its
+ * `up_to` (inclusive), in ascending order; above the last band, or with the field empty or not
+ * a positive number, there is no criterion (no verdict). `selv_field` is a SIM/NÃO select of the
+ * nameplate: SIM picks `selv` whatever the voltage.
+ */
+export const criterionBandsSchema = z
+  .object({
+    field: seedKey,
+    selv_field: seedKey.optional(),
+    selv: bandCriterionSchema.optional(),
+    bands: z.array(bandCriterionSchema.extend({ up_to: z.number().positive() })).min(1),
+  })
+  .refine((c) => (c.selv_field === undefined) === (c.selv === undefined), { message: 'selv_field and selv go together' })
+  .refine((c) => c.bands.every((band, i) => i === 0 || band.up_to > c.bands[i - 1]!.up_to), { message: 'bands ascend by up_to' })
+  .refine((c) => c.bands.every((band) => band.unit === c.bands[0]!.unit) && (c.selv === undefined || c.selv.unit === c.bands[0]!.unit), {
+    message: 'every band shares one unit',
+  });
+export type CriterionBands = z.infer<typeof criterionBandsSchema>;
+
 /** A test sub-block, bound by `criterion_key` to one of `SEEDED_CRITERIA` (Story 2.6). */
 export const testDefSchema = z.object({
   key: z.enum(['isolacao', 'resistencia_contato', 'relacao_transformacao']),
   label: z.string().min(1),
   criterion_key: z.string().min(1),
   tables: z.array(tableDefSchema).min(1),
+  /**
+   * Seed v6 (Story 14.9): the criterion is picked from the nameplate by these bands instead of
+   * the seeded one `criterion_key` names (which stays, for the schema). Optional and never
+   * defaulted, so v1 to v5 parse to the bytes they shipped with.
+   */
+  criterion_bands: criterionBandsSchema.optional(),
 });
 export type TestDef = z.infer<typeof testDefSchema>;
 
@@ -115,6 +165,55 @@ export const subtypeDefSchema = z.object({
   na_defaults: z.array(itemKeySchema).min(1),
 });
 export type SubtypeDef = z.infer<typeof subtypeDefSchema>;
+
+/**
+ * Seed v6 (Story 14.11, Bruno 2026-10-20): which nameplate value makes the unit an oil unit, and
+ * what an oil unit has that a non-oil one does not. `field` is a select of the nameplate (TIPO DE
+ * ISOLAÇÃO, MEIO DE EXTINÇÃO); `oil_values` the options that are oil; `items` the checklist items
+ * a non-oil unit shows NA; `fields` the nameplate fields it shows excused and prints "-".
+ */
+export const oilRuleSchema = z.object({
+  field: seedKey,
+  oil_values: z.array(z.string().min(1)).min(1),
+  items: z.array(itemKeySchema).min(1),
+  fields: z.array(seedKey),
+});
+export type OilRule = z.infer<typeof oilRuleSchema>;
+
+/** Seed v6: what the oil rule and the band criterion name exists on the definition. */
+function checkSeedV6Definition(
+  definition: {
+    nameplate: readonly FieldDef[];
+    checklist: readonly ChecklistItem[] | null;
+    tests: readonly TestDef[];
+    oil_rule?: OilRule | undefined;
+  },
+  ctx: z.RefinementCtx,
+): void {
+  const field = (key: string) => definition.nameplate.find((candidate) => candidate.key === key);
+  const rule = definition.oil_rule;
+  if (rule !== undefined) {
+    const select = field(rule.field);
+    if (select === undefined || select.kind !== 'select') ctx.addIssue({ code: 'custom', message: `oil_rule.field "${rule.field}" is not a select of the nameplate` });
+    else if (!rule.oil_values.every((value) => select.options!.includes(value))) ctx.addIssue({ code: 'custom', message: 'an oil value is not an option of its field' });
+    const items = new Set((definition.checklist ?? []).map((item) => item.key));
+    if (!rule.items.every((key) => items.has(key))) ctx.addIssue({ code: 'custom', message: 'an oil item is not on the checklist' });
+    if (!rule.fields.every((key) => field(key) !== undefined)) ctx.addIssue({ code: 'custom', message: 'an oil field is not on the nameplate' });
+  }
+  for (const test of definition.tests) {
+    const bands = test.criterion_bands;
+    if (bands === undefined) continue;
+    const voltage = field(bands.field);
+    if (voltage === undefined || voltage.kind !== 'number' || voltage.unit !== 'V') ctx.addIssue({ code: 'custom', message: `criterion_bands.field "${bands.field}" is not a number field in V` });
+    if (bands.selv_field !== undefined) {
+      const selv = field(bands.selv_field);
+      if (selv === undefined || selv.kind !== 'select' || !selv.options!.includes(SELV_YES)) ctx.addIssue({ code: 'custom', message: `criterion_bands.selv_field "${bands.selv_field}" is not a SIM/NÃO select` });
+    }
+  }
+}
+
+/** The option of a SELV/PELV select that picks the SELV criterion. */
+export const SELV_YES = 'SIM';
 
 export const blockDefinitionSchema = z
   .object({
@@ -139,8 +238,16 @@ export const blockDefinitionSchema = z
     config_fields: z.array(configFieldSchema).min(1).optional(),
     /** A library type: offered after the eight under "Outros equipamentos" and printed in that group. */
     library: z.literal(true).optional(),
+    /*
+     * Seeds v6 (Stories 14.9 and 14.11). Optional and never defaulted, like the three above.
+     */
+    /** The title the document prints for the sheet instead of the label (the QGBT's `QGBT/QD's`). */
+    print_title: z.string().min(1).optional(),
+    /** The oil rule (`relatorio/oil-rule.ts`): a non-oil unit shows its oil items NA and its oil fields excused. */
+    oil_rule: oilRuleSchema.optional(),
   })
-  .superRefine(checkMeasurementDefinition);
+  .superRefine(checkMeasurementDefinition)
+  .superRefine(checkSeedV6Definition);
 export type BlockDefinition = z.infer<typeof blockDefinitionSchema>;
 
 /** `CARACTERÍSTICAS DA SE` and `AMBIENTE DE ENSAIO`: the cabine's own fields (AD-6). */

@@ -137,7 +137,8 @@ describe('8.4-UNIT buildReadingSuggestions drops', () => {
           { key: 'identificacao', value: 'TR-01', ocr_token_ids: ['t4', 't99'], confidence: 0.9 },
           { key: 'data_fabricacao', value: 'agosto', ocr_token_ids: ['t29'], confidence: 0.9 },
           { key: 'potencia_nominal', value: { raw: '5,00', unit: 'kVA', state: 'measured' }, ocr_token_ids: ['t22'], confidence: 0.9 },
-          { key: 'tipo_de_isolacao', value: 'ÓLEO', ocr_token_ids: ['t15'], confidence: 0.9 },
+          // Seed v6 offers ÓLEO (Story 14.11); a value outside the list is still refused.
+          { key: 'tipo_de_isolacao', value: 'ÓLEO MINERAL', ocr_token_ids: ['t15'], confidence: 0.9 },
           { key: 'n_serie', value: '240815-07', ocr_token_ids: ['t9'], confidence: 0.9 },
         ]),
       }),

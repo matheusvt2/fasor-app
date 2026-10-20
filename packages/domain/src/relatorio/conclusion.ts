@@ -80,7 +80,8 @@ export function suggestConclusionPair(block: BlockRow): ConclusionPair | null {
   if (isCellFilled(block.sheet.conclusion.result) || isCellFilled(block.sheet.conclusion.restriction)) return null;
   const definition = definitionOf(block);
   if (definition === null) return null;
-  const cells = evaluatedCells(evaluateSheetReadings(block, definition));
+  const evaluations = evaluateSheetReadings(block, definition);
+  const cells = evaluatedCells(evaluations);
   // Story 14.5: the cells of the measurement tests count as the seeded tables' captures do.
   const tableCells = measurementCells(evaluateSheetMeasurements(block, definition));
   // Epic 14 QA Q-3: a zero or negative reading the criterion cannot judge stands: no suggestion until it is checked.
@@ -88,6 +89,10 @@ export function suggestConclusionPair(block: BlockRow): ConclusionPair | null {
   const measured = cells.some((cell) => cell.role === 'capture' && cell.state === 'measured') || tableCells.some((cell) => cell.state === 'measured');
   if (!measured && !anyAnswered(block)) return null;
   const restricted = ncItems(block, definition).length > 0 || cells.some((cell) => cell.verdict === 'out') || tableCells.some((cell) => cell.verdict === 'out');
+  // Story 14.9: a reading measured under a test no criterion judges (a QGBT with no TENSÃO
+  // NOMINAL, or above 1000 V) is never a pass: no "Sem restrições" is suggested over it.
+  const unjudged = evaluations.some((test) => test.criterion === null && evaluatedCells([test]).some((cell) => cell.role === 'capture' && cell.state === 'measured'));
+  if (!restricted && unjudged) return null;
   return { result: 'aprovado', restriction: restricted ? 'com_restricoes' : 'sem_restricoes' };
 }
 
@@ -143,6 +148,8 @@ const NOUNS: Readonly<Record<EquipmentBlockType, { noun: string; plural: boolean
   cabos_saida: { noun: 'Os cabos de saída', plural: true },
   transformador_forca: { noun: 'O transformador', plural: false },
   chave_transferencia_automatica: { noun: 'A chave de transferência automática', plural: false },
+  // authored (Story 14.9).
+  quadro_eletrico: { noun: 'O quadro elétrico', plural: false },
 };
 
 // authored: the recommendation that follows a restricted or failed result.

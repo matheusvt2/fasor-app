@@ -98,9 +98,9 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 20 and refuses version 19 (Story 14.10 lane B: a version-19 bundle cannot parse an audit_run coverage put)', () => {
-    expect(CONTRACT_VERSION).toBe(20);
-    expect(MIN_CONTRACT_VERSION).toBe(20);
+  it('speaks version 21 and refuses version 20 (Stories 14.9 and 14.11: a version-20 bundle cannot parse a quadro_eletrico block nor resolve seed v6)', () => {
+    expect(CONTRACT_VERSION).toBe(21);
+    expect(MIN_CONTRACT_VERSION).toBe(21);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

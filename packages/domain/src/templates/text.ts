@@ -41,6 +41,8 @@ const NOUNS: Readonly<Record<EquipmentBlockType, TypeNouns>> = {
     many: 'chaves de transferência automática',
     label: 'Chaves de transferência automática',
   },
+  // authored (Story 14.9).
+  quadro_eletrico: { one: 'quadro elétrico', many: 'quadros elétricos', label: 'Quadros elétricos' },
 };
 
 /**
@@ -57,6 +59,7 @@ export const TOTALS_ORDER: readonly EquipmentBlockType[] = [
   'cabos_saida',
   'para_raio',
   'chave_transferencia_automatica',
+  'quadro_eletrico',
 ];
 
 // authored: no mock draws a node or a template with no equipment yet.
@@ -353,7 +356,15 @@ export function subBlockSummaryText(definition: BlockDefinition, key: SubBlockKe
   const rows = test.tables.flatMap((table) => table.rows.map((row) => readingLabelText(row[0] ?? '')).filter((label) => label !== ''));
   const captured = [...new Set(test.tables.flatMap((table) => table.value_columns.filter((c) => c.role === 'capture').map((c) => headerText(c.label))))];
   const criterion = SEEDED_CRITERIA.find((c) => c.key === test.criterion_key);
-  const judged = criterion === undefined ? null : `${formatCriterionValue(criterion)} (${criterion.source.name})`;
+  const bands = test.criterion_bands;
+  // Story 14.9: a criterion picked from the plate names each band and its voltage, then the source.
+  // authored: "até ⟨n⟩ V".
+  const judged =
+    bands !== undefined
+      ? `${bands.bands.map((band) => `${band.operator}${String(band.value).replace('.', ',')} ${band.unit} até ${band.up_to} V`).join(' · ')} (${bands.bands[0]!.source.name})`
+      : criterion === undefined
+        ? null
+        : `${formatCriterionValue(criterion)} (${criterion.source.name})`;
   return [`${rows.join(' · ')} × ${captured.join(' · ')}`, judged].filter((part): part is string => part !== null).join(' · ');
 }
 

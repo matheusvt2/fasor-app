@@ -8,6 +8,7 @@ import { formatShortDateTime } from '../format/datetime.ts';
 import { cabineOf, cabineProgress } from './cabine.ts';
 import { nameplateMissingKeys } from './dry-insulation.ts';
 import { evaluateSheetMeasurements, measurementCounts } from './measurement-evaluation.ts';
+import { isOilItem, oilDerivedNaKeys } from './oil-rule.ts';
 import { evaluatedCells, evaluateSheetReadings } from './readings.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 import { firstInTree } from './tree.ts';
@@ -120,18 +121,38 @@ export function naDefaultsOf(block: Pick<BlockRow, 'config'>): ReadonlySet<strin
   return new Set(Array.isArray(keys) ? keys.filter((key): key is string => typeof key === 'string') : []);
 }
 
+/** What `checklistResultOf` reads of a block: the seed version and type only for the oil rule (seed v6). */
+type ResultBlock = Pick<BlockRow, 'config' | 'sheet'> & Partial<Pick<BlockRow, 'seed_version' | 'block_type'>>;
+
 /**
  * The result a checklist row shows: its stored value when one is filled, "NA" for an
  * `na_defaults` item with no cell of its own, else null (unset).
+ *
+ * Story 14.11 (seed v6): on a block whose definition has an oil rule (`oil-rule.ts`) the rule
+ * alone decides its oil items, never the config's `na_defaults`: on a non-oil unit an oil item
+ * shows "NA" whenever its own result is not filled (a cell cleared to null included); on an oil
+ * or unknown unit it shows its stored value or nothing.
  */
-export function checklistResultOf(block: Pick<BlockRow, 'config' | 'sheet'>, itemKey: string): 'C' | 'NC' | 'NA' | null {
+export function checklistResultOf(block: ResultBlock, itemKey: string): 'C' | 'NC' | 'NA' | null {
   const cell = block.sheet.checklist[itemKey]?.result;
-  if (cell !== undefined) {
-    if (!isCellFilled(cell)) return null;
-    const value = cell.value;
+  if (isCellFilled(cell)) {
+    const value = cell!.value;
     return value === 'C' || value === 'NC' || value === 'NA' ? value : null;
   }
+  if (isOilItem(block, itemKey)) return oilDerivedNaKeys(block).has(itemKey) ? 'NA' : null;
+  if (cell !== undefined) return null;
   return naDefaultsOf(block).has(itemKey) ? 'NA' : null;
+}
+
+/**
+ * Whether the result a checklist row shows is its own stored cell: false for a display default
+ * (an `na_defaults` NA with no cell, an oil item's derived NA), so the first tap on that row
+ * still commits a real cell.
+ */
+export function checklistResultIsStored(block: ResultBlock, itemKey: string): boolean {
+  const cell = block.sheet.checklist[itemKey]?.result;
+  if (cell === undefined) return false;
+  return isCellFilled(cell) || checklistResultOf(block, itemKey) === null;
 }
 
 /** What `sheetProgress` reads: the blocks, and the rest of the snapshot when the caller has it. */

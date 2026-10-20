@@ -492,6 +492,8 @@ export const copy = {
       transformador_forca: 'Transformador de força',
       // Story 14.5 (seed v5): the library type, verbatim from the mock's "Outros equipamentos" group.
       chave_transferencia_automatica: 'Chave de transferência automática',
+      // Story 14.9 (seed v6): the second library type, the seed's label (Bruno 2026-10-20 answer 5).
+      quadro_eletrico: 'Quadro elétrico (QGBT/QD)',
     },
   },
   // Export dialog (`73-exportar.html`, Story 4.8). Every sentence that carries a revision

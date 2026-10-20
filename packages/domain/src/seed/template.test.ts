@@ -18,9 +18,9 @@ const quantities = (ref: string) => {
 };
 
 describe('standardTemplate', () => {
-  it('is a valid template row named "Cabine primária — padrão" on the current seed (v5 since Story 14.5)', () => {
+  it('is a valid template row named "Cabine primária — padrão" on the current seed (v6 since Stories 14.9 and 14.11)', () => {
     expect(templateRowSchema.parse(template)).toEqual(template);
-    expect(template).toMatchObject({ id: ID, name: STANDARD_TEMPLATE_NAME, version: 1, seed_version: 'v5', removed_at: null });
+    expect(template).toMatchObject({ id: ID, name: STANDARD_TEMPLATE_NAME, version: 1, seed_version: 'v6', removed_at: null });
     expect(STANDARD_TEMPLATE_NAME).toBe('Cabine primária — padrão');
   });
 
@@ -104,6 +104,8 @@ describe('standardTemplate', () => {
       para_raio: 5,
       // The standard template stays without the library type (Story 14.5).
       chave_transferencia_automatica: 0,
+      // Nor the second one (Story 14.9).
+      quadro_eletrico: 0,
     });
     expect(templateBlockTotal(template)).toBe(94);
     // A block whose node left the skeleton is not counted, in the total either.
@@ -210,7 +212,7 @@ describe('standardTemplate', () => {
 
 describe('lockedSubBlocksOf (Story 14.5)', () => {
   it('is the locked two for each of the eight seeded types, on every seed version', () => {
-    for (const version of ['v1', 'v4', 'v5']) {
+    for (const version of ['v1', 'v4', 'v5', 'v6']) {
       for (const type of equipmentTypesOf(version).filter((candidate) => candidate !== 'chave_transferencia_automatica')) {
         expect(lockedSubBlocksOf(getDefinition(version, 'cabine_primaria', type)), `${version} ${type}`).toEqual([...LOCKED_SUB_BLOCKS]);
       }

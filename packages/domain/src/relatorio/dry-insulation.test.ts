@@ -3,7 +3,7 @@ import { mergePolicy } from '../merge/policy.ts';
 import { parsePath } from '../ops/path.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import { emptySheet, type BlockRow, type Cell, type JsonValue, type Sheet } from '../schemas/entities.ts';
-import { getDefinition, SEED_VERSION } from '../seed/definitions.ts';
+import { getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import { opFactory } from '../test-support.ts';
 import {
@@ -24,6 +24,12 @@ import { sheetProgress } from './sheet-progress.ts';
  * TIPO DE ISOLAÇÃO is dry, whatever wrote it, and VOL. ÓLEO stops counting as missing on a dry
  * block.
  */
+
+/**
+ * The chip and its rules are those of seeds v1 to v5 (Story 14.11: seed v6 replaces them by the
+ * oil rule, `oil-rule.test.ts`), so these tests run on the last version that has them.
+ */
+const SEED_VERSION = 'v5';
 
 const ID = '019966b0-d0a1-7000-8000-000000000001';
 const OP = '019966b0-d0a1-7000-8000-000000000002';

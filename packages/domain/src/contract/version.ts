@@ -153,8 +153,24 @@
  * `audit_run` row gains the optional `coverage` (null on a run not finished and on every run
  * written before 20, which parses to it). A client push of that path is refused as server-only
  * like every other `audit_run` field. `MIN_CONTRACT_VERSION` goes to 20 too.
+ *
+ * 21 (2026-10-20, Stories 14.9 and 14.11, one batch): seed v6. The block type `quadro_eletrico`
+ * (the Quadro elétrico, QGBT/QD) is a new `EQUIPMENT_BLOCK_TYPES` value, with 13 new
+ * `ITEM_KEYS`; seed v6 ships (v5 plus that type, ÓLEO in TIPO DE ISOLAÇÃO on Transformador de
+ * força, TP and TC, VÁCUO, ÓLEO (PVO) and ÓLEO (GVO) in the Disjuntor MT's MEIO DE EXTINÇÃO,
+ * and the oil rule on those four types) and is the version of a new template. No path family
+ * is new: the oil rule's NA marks are derived, never written, and a crossing between oil and
+ * non-oil writes existing puts (`sheet/.../checklist/...`, `sheet/.../nameplate/...`,
+ * `file/{id}/item_key`). A version-20 bundle cannot parse a block create of the new type (its
+ * `equipmentBlockTypeSchema` refuses it, so the whole pulled page fails, `invalid_response`) nor
+ * resolve seed v6, which a template the server moved to v6 and every relatório created on it
+ * carry; and its fold would count and print a v6 non-oil unit's oil items as unanswered where a
+ * version-21 fold reads them NA. The fold refuses a block create of the new type on a seed
+ * version that does not ship it (`SeedPathError`, answered `op_invalid`). A row written before 21
+ * parses to the same bytes and nothing an existing log can contain starts to throw.
+ * `MIN_CONTRACT_VERSION` goes to 21 too.
  */
-export const CONTRACT_VERSION = 20;
+export const CONTRACT_VERSION = 21;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -251,8 +267,15 @@ export const CONTRACT_VERSION = 20;
  * `opSchema` fails the whole pulled page (`invalid_response`) instead of skipping the op. A
  * relatório stream carries that put as soon as an audit finishes, so the version-19 bundle
  * updates too.
+ *
+ * 21 (2026-10-20, Stories 14.9 and 14.11): a version-20 (or older) bundle cannot parse a block
+ * create of type `quadro_eletrico` (its `opSchema` fails the whole pulled page) nor resolve seed
+ * v6, which a template the server moved to v6 and every relatório created on it carry; and on a
+ * v6 sheet it would count and print a non-oil unit's oil items as unanswered where the server's
+ * kernel reads them NA, so its Sumário, pre-issue and documents would disagree. A stream carries
+ * those as soon as the template upgrade runs, so the version-20 bundle updates too.
  */
-export const MIN_CONTRACT_VERSION = 20;
+export const MIN_CONTRACT_VERSION = 21;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes
