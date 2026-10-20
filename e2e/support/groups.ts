@@ -75,6 +75,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'cta.spec.ts',
     why: 'generates a revision through the shared queue and LibreOffice to read the Chave de transferência automática under "Outros equipamentos" in section 9 of the DOCX',
   },
+  // Story 14.9: 14.9-E2E-001 generates the DOCX its "Outros equipamentos" group and QGBT tables are read from.
+  {
+    file: 'qgbt.spec.ts',
+    why: 'generates a revision through the shared queue and LibreOffice to read the Quadro elétrico (QGBT/QD) under "Outros equipamentos" in section 9 of the DOCX',
+  },
   // Test-speed batch (2026-09-27): the specs that time a tap against a render (`humanTap`,
   // `touchPressAcross`, `tapCounter` in `taps.ts`). They measure the device, and the device
   // is the one thing the per-worker pairs cannot separate: beside two other browsers the

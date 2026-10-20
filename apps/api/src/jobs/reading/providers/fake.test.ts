@@ -155,10 +155,12 @@ describe('13.7-API every block type with a nameplate has its plate default', () 
     tc: 'plate-tc.png',
     // Story 14.5: the library type of seed v5.
     chave_transferencia_automatica: 'plate-chave-transferencia-automatica.png',
+    // Story 14.9: the library type of seed v6.
+    quadro_eletrico: 'plate-quadro-eletrico.png',
   };
 
-  it('the plate defaults are exactly the seven nameplate types, and no cable type', () => {
-    expect(nameplateTypes).toHaveLength(7);
+  it('the plate defaults are exactly the eight nameplate types, and no cable type', () => {
+    expect(nameplateTypes).toHaveLength(8);
     expect(Object.keys(DEFAULT_FIXTURE_BY_BLOCK_TYPE).sort()).toEqual([...nameplateTypes].sort());
     for (const cable of ['cabos_entrada', 'cabos_saida']) {
       expect(DEFAULT_FIXTURE_BY_BLOCK_TYPE[cable]).toBeUndefined();
@@ -170,7 +172,7 @@ describe('13.7-API every block type with a nameplate has its plate default', () 
     }
   });
 
-  for (const type of ['para_raio', 'chave_seccionadora', 'disjuntor_mt', 'tp', 'tc', 'chave_transferencia_automatica', 'transformador_forca']) {
+  for (const type of ['para_raio', 'chave_seccionadora', 'disjuntor_mt', 'tp', 'tc', 'chave_transferencia_automatica', 'quadro_eletrico', 'transformador_forca']) {
     it(`${type}: the scaled replay keeps the tokens inside the image, and every value is a ${type} nameplate key whose digits its cited tokens print`, async () => {
       const sha = DEFAULT_FIXTURE_BY_BLOCK_TYPE[type]!;
       const own = await fakeOcrProvider(DEFAULT_FIXTURES_DIR, sha).read(image);
@@ -185,8 +187,9 @@ describe('13.7-API every block type with a nameplate has its plate default', () 
       const fields = new Map(getDefinition(SEED_VERSION, 'cabine_primaria', type).nameplate.map((field) => [field.key, field]));
       const { output } = await fakeStructuringProvider(DEFAULT_FIXTURES_DIR, NO_FIXTURE, plate(type)).structure({ image: jpeg, ocr: scaled, fields: [] });
       expect(output.values.length).toBeGreaterThan(0);
-      // Every nameplate key but the tag (never printed on a plate) and the oil volume (the model leaves it out).
-      expect(output.values.map((value) => value.key)).toEqual([...fields.keys()].filter((key) => key !== 'tag' && key !== 'vol_oleo'));
+      // Every nameplate key but the tag (never printed on a plate), the oil volume (the model leaves it
+      // out) and (Story 14.9) a field the seed marks optional, the QGBT's SELV/PELV mark.
+      expect(output.values.map((value) => value.key)).toEqual([...fields.values()].filter((field) => field.key !== 'tag' && field.key !== 'vol_oleo' && field.optional !== true).map((field) => field.key));
       const tokens = new Map(own.tokens.map((token) => [token.id, token]));
       for (const value of output.values) {
         const field = fields.get(value.key);

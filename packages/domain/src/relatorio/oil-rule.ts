@@ -1,5 +1,6 @@
 import { fileFieldPath, sheetChecklistPath, sheetNameplatePath } from '../ops/path.ts';
-import type { BlockRow, Cell, FileRow } from '../schemas/entities.ts';
+import type { BlockRow, Cell } from '../schemas/entities.ts';
+import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { findDefinition } from '../seed/definitions.ts';
 import type { OilRule } from '../seed/schema.ts';
 import { plural } from '../text/plural.ts';
@@ -92,7 +93,7 @@ export interface OilCrossingPut {
  * batch: none unless the field is the rule's and the write crosses between oil and non-oil.
  * `next` is the value about to be stored (null clears the field). Read on the fresh block.
  */
-export function oilCrossingPuts(snapshot: { readonly blocks: readonly BlockRow[]; readonly files: readonly FileRow[] }, blockId: string, fieldKey: string, next: unknown): OilCrossingPut[] {
+export function oilCrossingPuts(snapshot: { readonly blocks: readonly BlockRow[]; readonly files: RelatorioSnapshot['files'] }, blockId: string, fieldKey: string, next: unknown): OilCrossingPut[] {
   const block = snapshot.blocks.find((row) => row.id === blockId);
   if (block === undefined) return [];
   const rule = oilRuleOf(block);
@@ -119,7 +120,7 @@ export function oilCrossingPuts(snapshot: { readonly blocks: readonly BlockRow[]
  * What a crossing batch cleared, as its toast counts it: each oil item that held a result, an
  * observation or a photo once, and each oil field once.
  */
-export function oilCrossingClearedCount(puts: readonly OilCrossingPut[], snapshot: { readonly files: readonly FileRow[] }): number {
+export function oilCrossingClearedCount(puts: readonly OilCrossingPut[], snapshot: { readonly files: RelatorioSnapshot['files'] }): number {
   const cleared = new Set<string>();
   const photoItem = new Map(snapshot.files.flatMap((file) => (file.kind === 'photo' && file.item_key !== null ? [[file.id, file.item_key] as const] : [])));
   for (const put of puts) {

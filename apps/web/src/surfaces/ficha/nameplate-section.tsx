@@ -7,9 +7,11 @@ import {
   nameplateCopyFields,
   nameplateIsEmpty,
   nameplateTagPrefill,
+  oilItemsClearedText,
   oilItemsNaText,
   oilNaChipItems,
   oilNaChipText,
+  oilRuleOf,
   PLATE_CAPTION,
   plateCropRegion,
   platePhotoOf,
@@ -26,6 +28,7 @@ import {
   type EntityState,
   type EquipmentRow,
   type JsonValue,
+  type OpDraft,
   type RelatorioSnapshot,
   type WordRow,
 } from '@app/domain';
@@ -41,7 +44,7 @@ import { useSession } from '../../state/session.tsx';
 import { requestSyncCycle } from '../../state/sync.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { firstFocusable, ReadOnlyField, SheetField } from './ficha-fields.tsx';
-import { checklistResultOp, createWordOp, nameplateOp } from './ficha-ops.ts';
+import { checklistResultOp, createWordOp, nameplateOp, withOilCrossing } from './ficha-ops.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { NameplateField, ReplaceLine, SuggestionFill, SuggestionGroupHead, useNameplateSuggestions } from './nameplate-suggestions.tsx';
 import { useAiFeatures } from '../../state/ai-features.tsx';
@@ -82,6 +85,12 @@ import type { CaptureTarget } from './use-photo-capture.ts';
  * "Marcar N itens de óleo como NA" (`oilNaChipItems`) writes the NA marks of the oil items the
  * fresh block still leaves unanswered, one batch with "Desfazer"; once used it is not offered
  * again on this device (`oil_na_used:{block}`). No other write marks anything.
+ *
+ * Story 14.11 (seed v6): on a block whose definition has an oil rule the chip is never offered
+ * (the kernel shows the oil items NA by itself). A write of the rule's field (TIPO DE ISOLAÇÃO,
+ * MEIO DE EXTINÇÃO) typed, picked or copied carries the kernel's crossing puts in its own batch
+ * (`withOilCrossing`), and a crossing that cleared anything offers "Desfazer" on the toast
+ * "N itens de óleo apagados".
  */
 export function NameplateSection({
   api,
@@ -145,13 +154,35 @@ export function NameplateSection({
   const missingKeys = nameplateMissingKeys({ blocks: snapshot.blocks, equipment }, block.id);
   const oilNaItems = readOnly ? [] : oilNaChipItems(block, { used: oilNaTapped || oilNaUsed !== false });
 
+  /** Story 14.11: the nameplate drafts with the oil crossing they bring (fresh blocks, the sheet's photos). */
+  const crossed = (blocks: readonly BlockRow[], by: NonNullable<FichaApi['author']>, drafts: readonly OpDraft[]) =>
+    withOilCrossing(by, api.relatorioId, { blocks, files: snapshot.files }, drafts).drafts;
+
   function copyFrom(fields: readonly { fieldKey: string; value: unknown }[], toast: (n: number) => string): void {
     if (fields.length === 0) return;
     void api
-      .edit((_blocks, by) => fields.map((entry) => nameplateOp(by, api.relatorioId, block.id, entry.fieldKey, entry.value)))
+      .edit((blocks, by) => crossed(blocks, by, fields.map((entry) => nameplateOp(by, api.relatorioId, block.id, entry.fieldKey, entry.value))))
       .then((batch) => api.undoable(toast(fields.length), batch))
       .catch(() => undefined);
   }
+
+  /**
+   * Story 14.11: a write of the oil rule's field goes through the edit queue with its crossing
+   * puts in the same batch; a crossing that cleared something offers "Desfazer".
+   */
+  function commitOilField(fieldKey: string, next: unknown): Promise<void> {
+    let cleared = 0;
+    return api
+      .edit((blocks, by) => {
+        const built = withOilCrossing(by, api.relatorioId, { blocks, files: snapshot.files }, [nameplateOp(by, api.relatorioId, block.id, fieldKey, next)]);
+        cleared = built.cleared;
+        return built.drafts;
+      })
+      .then((batch) => {
+        if (batch !== null && cleared > 0) api.undoable(oilItemsClearedText(cleared), batch);
+      });
+  }
+  const oilField = oilRuleOf(block)?.field ?? null;
 
   function copySame(): void {
     if (same === null) return;
@@ -159,7 +190,11 @@ export function NameplateSection({
       .edit((blocks, by) => {
         const source = blocks.find((row) => row.id === same.sourceBlockId && row.removed_at === null);
         if (source === undefined) return null;
-        return nameplateCopyFields(source, definition).map((entry) => nameplateOp(by, api.relatorioId, block.id, entry.fieldKey, entry.value));
+        return crossed(
+          blocks,
+          by,
+          nameplateCopyFields(source, definition).map((entry) => nameplateOp(by, api.relatorioId, block.id, entry.fieldKey, entry.value)),
+        );
       })
       .then((batch) => api.undoable(t.copiedFrom(same.tag), batch))
       .catch(() => undefined);
@@ -384,6 +419,7 @@ export function NameplateSection({
                 // discards that suggestion in the same batch (the engineer chose the typed one).
                 // DG-2: never a discard here (this may be the idle commit mid-typing); leaving
                 // the field or Enter turns the suggestion down (`turnDownOnLeave`).
+                if (field.key === oilField) return commitOilField(field.key, next);
                 return api.commit([nameplateOp(api.author, api.relatorioId, block.id, field.key, next)]);
               }}
               after={

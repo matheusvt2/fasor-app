@@ -350,3 +350,8 @@
    around it, so no chevron is laid over it: it keeps the browser's own arrow (the sheet's
    `select.input { appearance: none }` above is undone for it). */
 [data-route="/relatorio/:id/ficha/:blockId"] .ficha-cell > select.input { width: 100%; appearance: auto; padding-right: var(--sp-3); }
+
+/* ---------- authored (Story 14.9) ---------- */
+/* A checklist item's hint (the QGBT's items 8 and 16): the `.helper` text on its own line under the
+   label, wrapping inside the label's column at every width. No mock draws it. */
+.checklist-row .row-label .row-hint { display: block; overflow-wrap: anywhere; }

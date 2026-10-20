@@ -1,4 +1,5 @@
 import {
+  checklistResultIsStored,
   checklistResultOf,
   checklistUnsetItems,
   confirmSuggestionOps,
@@ -296,9 +297,10 @@ export function sheetRowTarget(snapshot: RelatorioSnapshot, block: BlockRow, ite
   return {
     entityId: block.id,
     result: checklistResultOf(block, item.key),
-    // A `na_defaults` row shows NA with no cell of its own (checklistResultOf's display
-    // default) -- the first tap on it must still commit a real cell (spec Design Notes).
-    committed: block.sheet.checklist[item.key]?.result !== undefined,
+    // A `na_defaults` row (and, Story 14.11, an oil item of a non-oil unit on seed v6) shows NA
+    // with no cell of its own (checklistResultOf's display default) -- the first tap on it must
+    // still commit a real cell (spec Design Notes).
+    committed: checklistResultIsStored(block, item.key),
     observation: typeof observationCell?.value === 'string' ? observationCell.value : '',
     resultOp: (by, value) => checklistResultOp(by, block.relatorio_id, block.id, item.key, value),
     observationOp: (by, value) => checklistObservationOp(by, block.relatorio_id, block.id, item.key, value),
@@ -331,8 +333,11 @@ export function ChecklistRow({
 }: {
   api: ChecklistRowApi;
   target: ChecklistRowTarget;
-  /** The item's key (the row's photos and its draft key go by it) and its NC phrases, the chips of an NC row. */
-  item: { key: string; nc_phrases: readonly string[] };
+  /**
+   * The item's key (the row's photos and its draft key go by it), its NC phrases, the chips of an
+   * NC row, and (seed v6, Story 14.9) the seed's hint, shown under the label on the sheet only.
+   */
+  item: { key: string; nc_phrases: readonly string[]; hint?: string | undefined };
   /** The item's label as the screen shows it. */
   label: string;
   number: number;
@@ -428,6 +433,8 @@ export function ChecklistRow({
         <span className="row-label">
           <span className="row-num">{number}.</span>
           {label}
+          {/* Story 14.9 (Bruno 2026-10-20 answer 4): a reminder for the technician, never printed. */}
+          {item.hint === undefined ? null : <span className="helper row-hint">{screenLabel(item.hint)}</span>}
         </span>
         <TriStateControl value={result} onChange={choose} committed={resultCommitted} aria-label={name} readOnly={readOnly} />
         <OverflowMenu name={label} items={menu} />

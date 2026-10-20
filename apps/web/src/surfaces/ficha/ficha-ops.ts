@@ -1,5 +1,8 @@
 import {
   choiceValue,
+  oilCrossingClearedCount,
+  oilCrossingPuts,
+  safeParsePath,
   locationEnvPath,
   locationSePath,
   putBlockOp,
@@ -13,10 +16,12 @@ import {
   sheetTestPath,
   sheetTestValuePath,
   type Author,
+  type BlockRow,
   type InstrumentHeader,
   type JsonValue,
   type OpDraft,
   type OpMeta,
+  type RelatorioSnapshot,
 } from '@app/domain';
 
 /*
@@ -39,6 +44,35 @@ function put(author: Author, relatorioId: string, path: string, value: unknown):
 /** `sheet/{blockId}/nameplate/{fieldKey}` put (null clears it). */
 export function nameplateOp(author: Author, relatorioId: string, blockId: string, fieldKey: string, value: unknown): OpDraft {
   return put(author, relatorioId, sheetNameplatePath(blockId, fieldKey), value);
+}
+
+/**
+ * Story 14.11 (seed v6): `drafts` with the oil crossing each of its nameplate puts brings
+ * (`oilCrossingPuts`, the kernel's): a write of TIPO DE ISOLAÇÃO or MEIO DE EXTINÇÃO that crosses
+ * between oil and non-oil clears, in the same batch, the oil items, the oil fields and the photo
+ * ties the kernel names (a path the batch already writes is left to it). `cleared` is what the
+ * "N itens de óleo apagados" toast counts; 0 when nothing crossed.
+ */
+export function withOilCrossing(
+  author: Author,
+  relatorioId: string,
+  snapshot: { readonly blocks: readonly BlockRow[]; readonly files: RelatorioSnapshot['files'] },
+  drafts: readonly OpDraft[],
+): { drafts: OpDraft[]; cleared: number } {
+  const written = new Set(drafts.map((draft) => draft.path));
+  const extra: OpDraft[] = [];
+  let cleared = 0;
+  for (const draft of drafts) {
+    const path = draft.kind === 'put' ? safeParsePath(draft.path) : null;
+    if (path === null || path.family !== 'sheet/nameplate') continue;
+    const crossing = oilCrossingPuts(snapshot, path.block_id, path.field_key, draft.value).filter((entry) => !written.has(entry.path));
+    cleared += oilCrossingClearedCount(crossing, snapshot);
+    for (const entry of crossing) {
+      written.add(entry.path);
+      extra.push(put(author, relatorioId, entry.path, entry.value));
+    }
+  }
+  return { drafts: [...drafts, ...extra], cleared };
 }
 
 /** `sheet/{blockId}/checklist/{itemKey}/result` put: "C", "NC", "NA", or null to clear. */

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Page } from '@playwright/test';
-import { BASE_EQUIPMENT_BLOCK_TYPES, getDefinition, initialOrderKey, newEquipmentBlock, SEED_VERSION } from '@app/domain';
+import { BASE_EQUIPMENT_BLOCK_TYPES, equipmentTypesOf, getDefinition, initialOrderKey, isLibraryType, newEquipmentBlock, SEED_VERSION, TAG_PREFIX, type EquipmentBlockType } from '@app/domain';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -23,7 +23,7 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
  * Story 14.5: the library type of seed v5 (the Chave de transferência automática) has a
  * nameplate and its own synthetic plate too. The standard template places none, so its sheet
  * is created on the local Geradores by office ops, as the palette creates it, and read the
- * same way (14.5-E2E-004).
+ * same way (14.5-E2E-004). Story 14.9: the Quadro elétrico (QGBT/QD) of seed v6 the same way.
  */
 
 let account: SeedAccount;
@@ -130,16 +130,19 @@ for (const type of BASE_EQUIPMENT_BLOCK_TYPES) {
   });
 }
 
-// Story 14.5: the library type of seed v5.
-const LIBRARY_TYPE = 'chave_transferencia_automatica';
-const LIBRARY_PLATE = resolve(FIXTURES, 'images/plate-chave-transferencia-automatica.png');
+// Story 14.5: the library type of seed v5; Story 14.9: the one of seed v6. Read from the kernel (E14-A3).
+const LIBRARY_PLATES: Record<string, string> = {
+  chave_transferencia_automatica: resolve(FIXTURES, 'images/plate-chave-transferencia-automatica.png'),
+  quadro_eletrico: resolve(FIXTURES, 'images/plate-quadro-eletrico.png'),
+};
+const LIBRARY_TYPES = equipmentTypesOf(SEED_VERSION).filter((type) => isLibraryType(SEED_VERSION, type));
 
 /**
  * Resets Empresa B, signs in, pushes a relatório of the standard template with one sheet of the
  * library type created on the local `cabine` from the office (the standard template places
  * none), and opens that sheet by its address.
  */
-async function openLibrarySheet(page: Page, cabine: string): Promise<{ blockId: string }> {
+async function openLibrarySheet(page: Page, cabine: string, type: EquipmentBlockType): Promise<{ blockId: string }> {
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
@@ -151,8 +154,8 @@ async function openLibrarySheet(page: Page, cabine: string): Promise<{ blockId: 
     relatorioId: built.relatorioId,
     projectId: built.projectId,
     locationId: local.id,
-    type: LIBRARY_TYPE,
-    tag: 'CTA-GERADORES',
+    type,
+    tag: `${TAG_PREFIX[type]}-GERADORES`,
     seedVersion: SEED_VERSION,
     // After the local's own blocks.
     orderKey: initialOrderKey(999),
@@ -167,13 +170,20 @@ async function openLibrarySheet(page: Page, cabine: string): Promise<{ blockId: 
   await page.goto(`/relatorio/${built.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   await page.goto(`/relatorio/${built.relatorioId}/ficha/${block.id}`);
-  await expect(page.locator('.sheet-header .sheet-title')).toContainText(getDefinition(SEED_VERSION, 'cabine_primaria', LIBRARY_TYPE).label, { timeout: 30_000 });
+  await expect(page.locator('.sheet-header .sheet-title')).toContainText(getDefinition(SEED_VERSION, 'cabine_primaria', type).label, { timeout: 30_000 });
   return { blockId: block.id };
 }
 
-test(`@p1 14.5-E2E-004 ${LIBRARY_TYPE}: the library type's plate imported through "Fotografar placa" is read by the real job and its suggestions arrive without a manual sync`, async ({ page }) => {
-  test.setTimeout(180_000);
-  const { blockId } = await openLibrarySheet(page, 'Geradores');
-  await expect(section(page)).toBeVisible();
-  await readPlateThroughTheTile(page, LIBRARY_TYPE, LIBRARY_PLATE, blockId);
+test('@p1 14.9-E2E-005 every library type of the current seed has its committed plate here', () => {
+  expect(LIBRARY_TYPES.length).toBeGreaterThan(0);
+  expect([...LIBRARY_TYPES].sort()).toEqual(Object.keys(LIBRARY_PLATES).sort());
 });
+
+for (const type of LIBRARY_TYPES) {
+  test(`@p1 14.5-E2E-004 ${type}: the library type's plate imported through "Fotografar placa" is read by the real job and its suggestions arrive without a manual sync`, async ({ page }) => {
+    test.setTimeout(180_000);
+    const { blockId } = await openLibrarySheet(page, 'Geradores', type);
+    await expect(section(page)).toBeVisible();
+    await readPlateThroughTheTile(page, type, LIBRARY_PLATES[type]!, blockId);
+  });
+}
