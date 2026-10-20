@@ -361,7 +361,11 @@ export function subBlockSummaryText(definition: BlockDefinition, key: SubBlockKe
   // authored: "até ⟨n⟩ V".
   const judged =
     bands !== undefined
-      ? `${bands.bands.map((band) => `${band.operator}${String(band.value).replace('.', ',')} ${band.unit} até ${band.up_to} V`).join(' · ')} (${bands.bands[0]!.source.name})`
+      ? `${[
+          ...bands.bands.map((band) => `${band.operator}${String(band.value).replace('.', ',')} ${band.unit} até ${band.up_to} V`),
+          // authored: "SELV/PELV" names the band the plate's mark picks.
+          ...(bands.selv === undefined ? [] : [`${bands.selv.operator}${String(bands.selv.value).replace('.', ',')} ${bands.selv.unit} SELV/PELV`]),
+        ].join(' · ')} (${bands.bands[0]!.source.name})`
       : criterion === undefined
         ? null
         : `${formatCriterionValue(criterion)} (${criterion.source.name})`;

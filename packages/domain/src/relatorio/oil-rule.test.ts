@@ -20,6 +20,7 @@ import {
   oilRuleOf,
   type OilCrossingPut,
 } from './oil-rule.ts';
+import { repeatChecklistPattern } from './ficha.ts';
 import { checklistResultIsStored, checklistResultOf, sheetProgress } from './sheet-progress.ts';
 import { newEquipmentBlock } from './tree.ts';
 
@@ -310,13 +311,15 @@ describe('matrix "Crossing" and "No crossing"', () => {
     expect(oilCrossingPuts(snapshot, BLOCK, 'tipo_de_isolacao', 'Á SECO')).toEqual([]);
     expect(oilCrossingPuts(snapshot, BLOCK, 'tipo_de_isolacao', null)).toEqual([]);
     expect(oilCrossingPuts(snapshot, BLOCK, 'tipo', 'ÓLEO')).toEqual([]);
-    // A dry subtype makes an emptied field dry: ÓLEO to empty crosses on it.
-    const sub = stateWith('transformador_forca', { subtype: 'a_seco' });
+    // Anything to empty clears nothing, even on a dry subtype (stored ÓLEO, subtype epoxi, put null or blank).
+    const sub = stateWith('transformador_forca', { subtype: 'epoxi' });
     const oil = puts(sub.state, sub.f, [
       [plate('tipo_de_isolacao'), 'ÓLEO'],
       [item('termometro'), 'C'],
     ]);
-    expect(oilCrossingPuts({ blocks: [blockOf(oil)], files: [] }, BLOCK, 'tipo_de_isolacao', null)).toEqual([{ path: item('termometro'), value: null }]);
+    expect(oilCrossingPuts({ blocks: [blockOf(oil)], files: [] }, BLOCK, 'tipo_de_isolacao', null)).toEqual([]);
+    expect(oilCrossingPuts({ blocks: [blockOf(oil)], files: [] }, BLOCK, 'tipo_de_isolacao', '  ')).toEqual([]);
+    expect(oilCrossingPuts({ blocks: [blockOf(oil)], files: [] }, BLOCK, 'tipo_de_isolacao', 'EPÓXI')).toEqual([{ path: item('termometro'), value: null }]);
     // The seccionadora's medium carries no rule; v5 neither.
     const sec = stateWith('chave_seccionadora');
     expect(oilCrossingPuts({ blocks: [blockOf(put(sec.state, sec.f, plate('meio_de_extincao'), 'AR').state)], files: [] }, BLOCK, 'meio_de_extincao', 'SF6')).toEqual([]);
@@ -406,6 +409,27 @@ describe('matrix "Crossing" and "No crossing"', () => {
     expect(checklistResultOf(converged, 'rele_de_gas_funcionamento')).toBe('NC');
     // The other oil items of the now-oil unit are unanswered on both.
     expect(checklistResultOf(blockOf(two), 'valvula_de_alivio')).toBeNull();
+  });
+});
+
+describe('"Repetir" from a non-oil unit onto an oil one', () => {
+  it('copies the stored results only: an oil item NA derived by the source\'s rule is never written onto the target', () => {
+    const source = stateWith('transformador_forca');
+    const dry = blockOf(
+      puts(source.state, source.f, [
+        [plate('tipo_de_isolacao'), 'Á SECO'],
+        [item('limpeza'), 'C'],
+        [item('termometro'), 'NA'],
+      ]),
+    );
+    const target = stateWith('transformador_forca', {}, opFactory(T0, idSequence('019966b0-0217-7000-8000-')));
+    const oil = blockOf(put(target.state, target.f, plate('tipo_de_isolacao'), 'ÓLEO').state);
+    // The source reads every oil item NA, but only TERMÔMETRO's NA is a stored answer.
+    expect(results(dry, OIL)).toEqual(OIL.map(() => 'NA'));
+    expect(repeatChecklistPattern(dry, oil)).toEqual([
+      { itemKey: 'limpeza', value: 'C' },
+      { itemKey: 'termometro', value: 'NA' },
+    ]);
   });
 });
 

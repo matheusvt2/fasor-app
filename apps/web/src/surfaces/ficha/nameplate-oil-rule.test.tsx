@@ -22,6 +22,7 @@ import { ToastProvider } from '../../state/toast.tsx';
 import { makeSyncState } from '../../test/sync-state.ts';
 import type { Build } from '../relatorio/relatorio-editor.ts';
 import type { FichaApi } from './ficha-api.ts';
+import { withOilCrossing } from './ficha-ops.ts';
 import { NameplateSection } from './nameplate-section.tsx';
 
 /*
@@ -44,14 +45,14 @@ const AUTHOR = { id: 'u1', companyId: 'c1' };
 
 const cell = (value: unknown): Cell => ({ value: value as Cell['value'], source_suggestion_id: null, op_id: OP });
 
-function block(sheet: Partial<Sheet> = {}, type: EquipmentBlockType = 'transformador_forca'): BlockRow {
+function block(sheet: Partial<Sheet> = {}, type: EquipmentBlockType = 'transformador_forca', subtype?: 'a_seco', id = ID): BlockRow {
   return {
-    id: ID,
+    id,
     relatorio_id: REL,
     location_id: null,
     equipment_id: null,
     block_type: type,
-    config: defaultBlockConfig('v6', type),
+    config: defaultBlockConfig('v6', type, subtype === undefined ? {} : { subtype }),
     seed_version: 'v6',
     order_key: 'a0',
     feeds_block_id: null,
@@ -75,10 +76,10 @@ const oilUnit = () =>
 
 const photo = { id: PHOTO, kind: 'photo', block_id: ID, item_key: 'termometro', removed_at: null, reading_target: null };
 
-function snapshotOf(shown: BlockRow): RelatorioSnapshot {
+function snapshotOf(shown: BlockRow, others: readonly BlockRow[] = []): RelatorioSnapshot {
   return {
     relatorio: { id: REL, status: 'em_campo' },
-    blocks: [shown],
+    blocks: [shown, ...others],
     equipment: [],
     locations: [],
     files: [photo],
@@ -88,14 +89,14 @@ function snapshotOf(shown: BlockRow): RelatorioSnapshot {
   } as unknown as RelatorioSnapshot;
 }
 
-function suggestion(value: string): SuggestionRow {
+function suggestion(value: string, mode: SuggestionRow['mode'] = 'replace'): SuggestionRow {
   return {
     id: SUGGESTION,
     relatorio_id: REL,
     target_path: `sheet/${ID}/nameplate/tipo_de_isolacao`,
     value,
     trust: 'suggested',
-    mode: 'replace',
+    mode,
     source: { photo_id: PHOTO, bbox: [0.1, 0.1, 0.4, 0.2], ocr_token_ids: ['t0'], reading_run_id: OP },
     status: 'pending',
     prompt_version: 'unit-1',
@@ -117,7 +118,7 @@ afterEach(async () => {
   session.database = null;
 });
 
-function draw(shown: BlockRow, rows: readonly SuggestionRow[] = []) {
+function draw(shown: BlockRow, rows: readonly SuggestionRow[] = [], others: readonly BlockRow[] = []) {
   const built: OpDraft[][] = [];
   const committed: OpDraft[][] = [];
   const api: FichaApi = {
@@ -129,7 +130,7 @@ function draw(shown: BlockRow, rows: readonly SuggestionRow[] = []) {
       committed.push(drafts);
     }),
     edit: vi.fn(async (build: Build) => {
-      const ops = build([shown], AUTHOR, { blocks: [shown], locations: [], allLocations: [], equipment: [] });
+      const ops = build([shown, ...others], AUTHOR, { blocks: [shown, ...others], locations: [], allLocations: [], equipment: [] });
       if (ops === null) return null;
       built.push(ops);
       return 'b1';
@@ -143,7 +144,7 @@ function draw(shown: BlockRow, rows: readonly SuggestionRow[] = []) {
       <ToastProvider>
         <NameplateSection
           api={api}
-          snapshot={snapshotOf(shown)}
+          snapshot={snapshotOf(shown, others)}
           state={state}
           block={shown}
           definition={getDefinition('v6', 'cabine_primaria', shown.block_type)}
@@ -221,5 +222,66 @@ describe('14.11 the oil rule on the nameplate', () => {
     await waitFor(() => expect(built).toHaveLength(1));
     const paths = built[0]!.map((op) => op.path);
     expect(paths).toEqual([`suggestion/${SUGGESTION}/status`, ...CROSSING]);
+  });
+
+  // A unit whose template subtype is Á SECO, insulation not stored yet: dry by its subtype, an oil item answered C on it.
+  const drySubtype = (nameplate: Sheet['nameplate'] = {}) => block({ nameplate, checklist: { termometro: { result: cell('C') } } }, 'transformador_forca', 'a_seco');
+  const TERMOMETRO = `sheet/${ID}/checklist/termometro/result`;
+
+  it('"Igual à ⟨TAG⟩?" from an oil sheet onto a dry-subtype unit: the oil item\'s null put is in the copy batch and the copied VOL. ÓLEO appears once', async () => {
+    const SOURCE = '019966b0-d0b2-7000-8000-000000000006';
+    const source = block(
+      { nameplate: { fabricacao: cell('Celtta'), tipo_de_isolacao: cell('ÓLEO'), vol_oleo: cell({ raw: '320', unit: 'L', state: 'measured' }) } },
+      'transformador_forca',
+      undefined,
+      SOURCE,
+    );
+    const { api, built } = draw(drySubtype(), [], [{ ...source, equipment_id: null }]);
+    await userEvent.click(screen.getByRole('button', { name: /^Igual à/ }));
+    await waitFor(() => expect(built).toHaveLength(1));
+    const ops = built[0]!;
+    expect(ops.filter((op) => op.path === TERMOMETRO).map((op) => op.value)).toEqual([null]);
+    expect(ops.filter((op) => op.path === `sheet/${ID}/nameplate/vol_oleo`).map((op) => op.value)).toEqual([{ raw: '320', unit: 'L', state: 'measured' }]);
+    await waitFor(() => expect(api.undoable).toHaveBeenCalled());
+  });
+
+  it('withOilCrossing leaves a path the batch already writes to it: a copied VOL. ÓLEO is never nulled by the crossing', () => {
+    const shown = oilUnit();
+    const copied = { raw: '410', unit: 'L', state: 'measured' };
+    const drafts = [`sheet/${ID}/nameplate/tipo_de_isolacao`, `sheet/${ID}/nameplate/vol_oleo`].map((path, i) => ({
+      kind: 'put' as const,
+      scope: 'relatorio' as const,
+      company_id: AUTHOR.companyId,
+      project_id: null,
+      relatorio_id: REL,
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: AUTHOR.id,
+      path,
+      value: i === 0 ? 'Á SECO' : copied,
+    })) as OpDraft[];
+    const built = withOilCrossing(AUTHOR, REL, { blocks: [shown], files: snapshotOf(shown).files }, drafts);
+    expect(built.drafts.filter((op) => op.path === `sheet/${ID}/nameplate/vol_oleo`).map((op) => op.value)).toEqual([copied]);
+    expect(built.drafts.map((op) => op.path)).toEqual([...drafts.map((op) => op.path), TERMOMETRO, `file/${PHOTO}/item_key`]);
+    expect(built.cleared).toBe(1);
+  });
+
+  it('"Confirmar todos" with an ÓLEO reading on a dry-subtype unit: the crossing puts are in the batch and the toast offers "Desfazer"', async () => {
+    const { api, built } = draw(drySubtype(), [suggestion('ÓLEO', 'fill')]);
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar todos (1)' }));
+    await waitFor(() => expect(built).toHaveLength(1));
+    expect(built[0]!.map((op) => op.path)).toEqual([`suggestion/${SUGGESTION}/status`, `sheet/${ID}/nameplate/tipo_de_isolacao`, TERMOMETRO, `file/${PHOTO}/item_key`]);
+    await waitFor(() => expect(api.undoable).toHaveBeenCalledWith('1 item de óleo apagado', 'b1'));
+  });
+
+  it('ÓLEO typed over a pending reading on a dry-subtype unit: the crossing puts beside the discard op, with the toast', async () => {
+    const { api, built } = draw(drySubtype(), [suggestion('Á SECO', 'fill')]);
+    const guess = screen.getByRole('textbox', { name: 'Tipo de isolação' });
+    await userEvent.clear(guess);
+    await userEvent.type(guess, 'ÓLEO{Enter}');
+    await waitFor(() => expect(built).toHaveLength(1));
+    expect(built[0]!.map((op) => op.path)).toEqual([`sheet/${ID}/nameplate/tipo_de_isolacao`, `suggestion/${SUGGESTION}/status`, TERMOMETRO, `file/${PHOTO}/item_key`]);
+    await waitFor(() => expect(api.undoable).toHaveBeenCalledWith('1 item de óleo apagado', 'b1'));
   });
 });

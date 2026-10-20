@@ -8,6 +8,7 @@ import {
   criarText,
   discardSuggestionOp,
   fieldInputText,
+  oilItemsClearedText,
   hasCreateHint,
   nameplateSuggestions,
   numberPhotos,
@@ -208,20 +209,39 @@ export function useNameplateSuggestions({
   // A second tap before the first confirm has landed (and the registry query caught up) writes
   // nothing: "Criar Celtta?" tapped twice never creates two manufacturers.
   const inFlight = useRef(new Set<string>());
-  /** Story 14.11: the drafts with the oil crossing their nameplate puts bring (the kernel's, `withOilCrossing`). */
-  const oilCrossed = (blocks: readonly BlockRow[], by: NonNullable<FichaApi['author']>, drafts: readonly OpDraft[]): OpDraft[] =>
-    withOilCrossing(by, api.relatorioId, { blocks, files: snapshot.files }, drafts).drafts;
+  /**
+   * Story 14.11: one write's oil crossing. `drafts` adds the puts its nameplate writes bring (the
+   * kernel's, `withOilCrossing`); `undoable` then raises "N itens de óleo apagados" with "Desfazer"
+   * for that batch when it cleared anything, as a typed write of the field does, and says whether it did.
+   */
+  const oilCrossing = () => {
+    let cleared = 0;
+    return {
+      drafts: (blocks: readonly BlockRow[], by: NonNullable<FichaApi['author']>, drafts: readonly OpDraft[]): OpDraft[] => {
+        const built = withOilCrossing(by, api.relatorioId, { blocks, files: snapshot.files }, drafts);
+        cleared = built.cleared;
+        return built.drafts;
+      },
+      undoable: (batch: string | null): boolean => {
+        if (batch === null || cleared === 0) return false;
+        api.undoable(oilItemsClearedText(cleared), batch);
+        return true;
+      },
+    };
+  };
   const confirm = (s: SuggestionRow, field: FieldDef) => {
     if (inFlight.current.has(s.id)) return;
     inFlight.current.add(s.id);
     const text = confirmedFieldToastText(screenLabel(field.label), suggestionValueText(field, s.value));
     const hint = hasCreateHint(s, registry) ? s.hint!.create_registry_entry : null;
+    const oil = oilCrossing();
     void api
       // "Criar Celtta?": the registry row and the confirm pair, one batch.
       // Story 14.11: a confirmed TIPO DE ISOLAÇÃO or MEIO DE EXTINÇÃO brings its oil crossing in the same batch.
-      .edit((blocks, by) => oilCrossed(blocks, by, hint === null ? confirmSuggestionOps(by, s) : [createWordOp(by, hint.kind, newId(), hint.name), ...confirmSuggestionOps(by, s)]))
+      .edit((blocks, by) => oil.drafts(blocks, by, hint === null ? confirmSuggestionOps(by, s) : [createWordOp(by, hint.kind, newId(), hint.name), ...confirmSuggestionOps(by, s)]))
       .then((batch) => {
-        if (batch !== null) sayWhenDrawn([s.id], text);
+        // A crossing that cleared anything says so with "Desfazer" instead of the plain confirmation.
+        if (batch !== null && !oil.undoable(batch)) sayWhenDrawn([s.id], text);
       })
       .catch(() => undefined)
       .finally(() => inFlight.current.delete(s.id));
@@ -231,6 +251,7 @@ export function useNameplateSuggestions({
     let done = 0;
     let skipped = 0;
     let ids: string[] = [];
+    const oil = oilCrossing();
     void api
       .edit((blocks, by) => {
         // The freshest sheet decides: a field typed a moment ago is no longer a fill.
@@ -239,10 +260,10 @@ export function useNameplateSuggestions({
         done = picked.length;
         skipped = suggestionGroupCounts(fresh, pending, registry).verify;
         ids = picked.map((s) => s.id);
-        return picked.length === 0 ? null : oilCrossed(blocks, by, picked.flatMap((s) => confirmSuggestionOps(by, s)));
+        return picked.length === 0 ? null : oil.drafts(blocks, by, picked.flatMap((s) => confirmSuggestionOps(by, s)));
       })
       .then((batch) => {
-        if (batch !== null) sayWhenDrawn(ids, confirmedAllToastText(done, skipped));
+        if (batch !== null && !oil.undoable(batch)) sayWhenDrawn(ids, confirmedAllToastText(done, skipped));
       })
       .catch(() => undefined);
   };
@@ -255,17 +276,21 @@ export function useNameplateSuggestions({
     const value = parsed.value;
     // A manufacturer the registry does not hold is created with the typed put (one batch).
     const create = unknownManufacturer(field, value, registry);
+    const oil = oilCrossing();
     return api
       .edit((blocks, by) =>
         value === null
           ? [discardSuggestionOp(by, s)]
-          : oilCrossed(blocks, by, [
+          : oil.drafts(blocks, by, [
               ...(create ? [createWordOp(by, 'manufacturer', newId(), value as string)] : []),
               nameplateOp(by, api.relatorioId, block.id, field.key, value),
               discardSuggestionOp(by, s),
             ]),
       )
-      .then((batch) => batch !== null)
+      .then((batch) => {
+        oil.undoable(batch);
+        return batch !== null;
+      })
       .catch(() => false);
   };
 

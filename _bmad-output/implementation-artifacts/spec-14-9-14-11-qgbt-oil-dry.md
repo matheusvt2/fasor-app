@@ -2,7 +2,7 @@
 title: 'Stories 14.9 and 14.11: QGBT/QD library type and oil vs dry, seed v6'
 type: 'feature'
 created: '2026-10-20'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'bfaf0325be3405cd93f64d7fb20f7d2fcf1e566a'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -132,6 +132,28 @@ E2E: `e2e/cta.spec.ts`, `e2e/cta.durability.spec.ts` (patterns), `e2e/dry-transf
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-10-20 — Review pass
+
+Layers: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent Alignment skipped (token economy; the
+integrated epic review covers them). One review-fix loop, as the batch playbook allows.
+
+- verdicts: 14 findings — high 0, medium 5, low 6, false 2, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` Edge: Repetir copies a non-oil v6 source's derived oil NA as a stored NA onto an oil target (`relatorio/ficha.ts:157`) — oil items of the source are copied only when stored; kernel test.
+  - `[medium]` `[patch]` Edge: a crossing confirmed through the suggestion tray clears oil data with no count toast and no "Desfazer" — the tray raises the same undoable count toast as `commitOilField`.
+  - `[low]` `[reject]` Edge: the copy toast does not mention cleared oil items — the copy's own "Copiado de" undo covers the whole batch, so nothing is lost without an undo; wording only.
+  - `[medium]` `[patch]` Edge: clearing ÓLEO to empty on a dry-subtype block counts as a crossing and wipes answers — contradicts matrix row "No crossing" (anything to empty clears nothing); an empty `next` is now no crossing; boundary test.
+  - `[low]` `[reject]` Edge: crossing puts against a removed block — the sheet of a removed block is not reachable for editing; a guard would add a branch for an unseen state.
+  - `[low]` `[reject]` Edge: ACEITÁVEL header unit over a `criterion_override` on a band test — no surface writes `criterion_override` (`reading-evaluation.ts` comment, E5-A4).
+  - `[false]` `[reject]` Edge: band value printed in exponent form or with a float artifact — the band values are fixed seed constants (0.25, 0.5, 1.0), none of which `String()` misprints.
+  - `[low]` `[reject]` Edge: a well-formed override ignored when no band applies — no writer of the override exists.
+  - `[low]` `[patch]` Edge: the template summary of a band test omits the SELV/PELV criterion — appended; test updated.
+  - `[false]` `[reject]` Edge (claim): other `naDefaultsOf` readers ignore the oil rule — its only reader is `checklistResultOf` (`sheet-progress.ts:144`), which consults the rule.
+  - `[medium]` `[patch]` Edge (claim): plate reading crossing clears with no undo — same root cause as the tray finding above; fixed there.
+  - `[medium]` `[patch]` Gap: the crossing on the copy paths, "Confirmar todos" and type-over, and the `written` filter of `withOilCrossing`, are untested — three component cases added in `nameplate-oil-rule.test.tsx`.
+  - `[low]` `[patch]` Gap (other): the tray applies crossings with no toast — same defect as above, fixed there.
+  - `[maybe-false]` `[reject]` Gap (other): `withOilCrossing` reads files from the render-time snapshot — would need a photo tied or untied between render and the edit callback on one device; if true only low (a stale tie, recoverable by hand).
 
 ## Design Notes
 

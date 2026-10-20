@@ -99,6 +99,8 @@ export function oilCrossingPuts(snapshot: { readonly blocks: readonly BlockRow[]
   const rule = oilRuleOf(block);
   if (rule === null || rule.field !== fieldKey) return [];
   const before = oilStateOf(rule, block.sheet.nameplate[fieldKey], block.config);
+  // Clearing the field ("anything to empty") never crosses, whatever the config subtype says.
+  if (!isCellFilled({ value: (next ?? null) as Cell['value'] } as Cell)) return [];
   const after = oilStateOf(rule, { value: (next ?? null) as Cell['value'] } as Cell, block.config);
   if (before === null || after === null || before === after) return [];
   const puts: OilCrossingPut[] = [];

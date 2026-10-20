@@ -7,7 +7,8 @@ import { formatDecimalGroupedPtBr, parseDecimalPtBr } from '../parse/pt-br-numbe
 import { wordRowByName } from '../registry/instrument-row.ts';
 import { sortWordRegistryRows, type WordRow } from '../registry/word-row.ts';
 import { plural } from '../text/plural.ts';
-import { checklistResultOf } from './sheet-progress.ts';
+import { isOilItem } from './oil-rule.ts';
+import { checklistResultIsStored, checklistResultOf } from './sheet-progress.ts';
 import { isCellFilled } from './sheet-state.ts';
 import { blocksWithPendingSuggestions, livePendingSuggestions } from './suggestions.ts';
 import { locationTree, siblingLocations, treeNodes, type TreeEquipmentNode } from './tree.ts';
@@ -147,7 +148,7 @@ export function repeatChecklistSource(snapshot: Pick<RelatorioSnapshot, 'blocks'
  * Never an observation or a photo.
  */
 export function repeatChecklistPattern(
-  source: Pick<BlockRow, 'config' | 'sheet'>,
+  source: Pick<BlockRow, 'config' | 'sheet'> & Partial<Pick<BlockRow, 'seed_version' | 'block_type'>>,
   target: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>,
 ): { itemKey: string; value: 'C' | 'NC' | 'NA' }[] {
   const definition = definitionOf(target);
@@ -157,6 +158,8 @@ export function repeatChecklistPattern(
     if (checklistResultOf(target, item.key) !== null) continue;
     const value = checklistResultOf(source, item.key);
     if (value === null) continue;
+    // Story 14.11: an oil item's NA the source's oil rule only derives is not an answer to copy.
+    if (isOilItem(source, item.key) && !checklistResultIsStored(source, item.key)) continue;
     out.push({ itemKey: item.key, value });
   }
   return out;
