@@ -7,7 +7,8 @@ import sharp from 'sharp';
 /*
  * Story 13.7 (E78-Q2 closed): the synthetic plates of the five nameplate block types that had
  * no default fixture (para_raio, chave_seccionadora, disjuntor_mt, tp, tc). Story 14.5 adds the
- * plate of the first library type (chave_transferencia_automatica, seed v5). A one-off,
+ * plate of the first library type (chave_transferencia_automatica, seed v5), Story 14.9 the
+ * Quadro elétrico's (quadro_eletrico, seed v6). A one-off,
  * re-runnable generator, never run by `pnpm verify` (no test glob matches it):
  *
  *   docker compose --profile tools run --rm tools pnpm exec tsx apps/api/src/scripts/make-plate-fixtures.ts [block_type ...]
@@ -46,7 +47,7 @@ interface PlateRow {
 }
 
 interface PlateSpec {
-  blockType: 'para_raio' | 'chave_seccionadora' | 'disjuntor_mt' | 'tp' | 'tc' | 'chave_transferencia_automatica';
+  blockType: 'para_raio' | 'chave_seccionadora' | 'disjuntor_mt' | 'tp' | 'tc' | 'chave_transferencia_automatica' | 'quadro_eletrico';
   file: string;
   rows: PlateRow[];
 }
@@ -154,6 +155,23 @@ const PLATES: PlateSpec[] = [
       { key: 'controlador_e_firmware', tokens: ['CG-7', 'v2.14'], value: 'CG-7 v2.14' },
       { key: 'involucro', tokens: ['IP54'], value: 'IP54' },
       { key: 'torque_dos_terminais', tokens: ['45', 'N·m'], value: num('45', 'N·m') },
+    ],
+  },
+  {
+    // Story 14.9: the nine fields of the seed v6 definition the plate prints, in definition order
+    // (the SELV/PELV mark is the technician's, never on a plate). The maker is a made-up word.
+    blockType: 'quadro_eletrico',
+    file: 'plate-quadro-eletrico.png',
+    rows: [
+      { key: 'identificacao', tokens: ['QD-01'], value: 'QD-01' },
+      { key: 'fabricante', tokens: ['Brivolta'], value: 'Brivolta' },
+      { key: 'n_serie', tokens: ['QD-552013'], value: 'QD-552013' },
+      { key: 'tipo', tokens: ['QGBT-800'], value: 'QGBT-800' },
+      { key: 'tipo_de_isolacao', tokens: ['BARRAMENTO', 'ISOLADO'], value: 'BARRAMENTO ISOLADO' },
+      { key: 'data_de_fabricacao', tokens: ['05/2018'], value: '2018-05' },
+      { key: 'corrente_de_curto', tokens: ['50', 'kA'], value: num('50', 'kA') },
+      { key: 'tensao_nominal', tokens: ['380', 'V'], value: num('380', 'V') },
+      { key: 'ip', tokens: ['IP54'], value: 'IP54' },
     ],
   },
 ];

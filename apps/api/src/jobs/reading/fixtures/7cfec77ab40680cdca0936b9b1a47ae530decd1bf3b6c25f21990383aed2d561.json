@@ -1,0 +1,451 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "QUADRO",
+        "bbox": [
+          72,
+          70,
+          263,
+          106
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "ELÉTRICO",
+        "bbox": [
+          276,
+          62,
+          488,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "(QGBT/QD)",
+        "bbox": [
+          501,
+          69,
+          738,
+          106
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "IDENTIFICAÇÃO",
+        "bbox": [
+          72,
+          152,
+          270,
+          181
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "QD-01",
+        "bbox": [
+          641,
+          156,
+          730,
+          180
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "FABRICANTE",
+        "bbox": [
+          72,
+          232,
+          230,
+          253
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "Brivolta",
+        "bbox": [
+          642,
+          232,
+          754,
+          253
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "Nº",
+        "bbox": [
+          72,
+          308,
+          101,
+          328
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "SÉRIE",
+        "bbox": [
+          112,
+          303,
+          185,
+          329
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "QD-552013",
+        "bbox": [
+          641,
+          308,
+          802,
+          332
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t10",
+        "text": "TIPO",
+        "bbox": [
+          69,
+          384,
+          129,
+          405
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t11",
+        "text": "QGBT-800",
+        "bbox": [
+          641,
+          384,
+          781,
+          408
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t12",
+        "text": "TIPO",
+        "bbox": [
+          69,
+          460,
+          129,
+          481
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t13",
+        "text": "DE",
+        "bbox": [
+          141,
+          461,
+          174,
+          480
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t14",
+        "text": "ISOLAÇÃO",
+        "bbox": [
+          186,
+          456,
+          316,
+          485
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t15",
+        "text": "BARRAMENTO",
+        "bbox": [
+          642,
+          460,
+          844,
+          481
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t16",
+        "text": "ISOLADO",
+        "bbox": [
+          856,
+          460,
+          984,
+          481
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t17",
+        "text": "DATA",
+        "bbox": [
+          72,
+          537,
+          137,
+          556
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t18",
+        "text": "DE",
+        "bbox": [
+          149,
+          537,
+          182,
+          556
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t19",
+        "text": "FABRICAÇÃO",
+        "bbox": [
+          194,
+          532,
+          356,
+          561
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t20",
+        "text": "05/2018",
+        "bbox": [
+          641,
+          536,
+          757,
+          559
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t21",
+        "text": "CORRENTE",
+        "bbox": [
+          71,
+          612,
+          212,
+          633
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t22",
+        "text": "DE",
+        "bbox": [
+          224,
+          613,
+          257,
+          632
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t23",
+        "text": "CURTO",
+        "bbox": [
+          268,
+          612,
+          356,
+          633
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t24",
+        "text": "50",
+        "bbox": [
+          642,
+          612,
+          675,
+          633
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t25",
+        "text": "kA",
+        "bbox": [
+          687,
+          612,
+          722,
+          632
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t26",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          684,
+          175,
+          709
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t27",
+        "text": "NOMINAL",
+        "bbox": [
+          187,
+          688,
+          307,
+          709
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t28",
+        "text": "380",
+        "bbox": [
+          641,
+          688,
+          693,
+          709
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t29",
+        "text": "V",
+        "bbox": [
+          703,
+          689,
+          723,
+          708
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t30",
+        "text": "IP",
+        "bbox": [
+          72,
+          765,
+          93,
+          784
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t31",
+        "text": "IP54",
+        "bbox": [
+          642,
+          765,
+          704,
+          785
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "identificacao",
+        "value": "QD-01",
+        "ocr_token_ids": [
+          "t4"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "fabricante",
+        "value": "Brivolta",
+        "ocr_token_ids": [
+          "t6"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "n_serie",
+        "value": "QD-552013",
+        "ocr_token_ids": [
+          "t9"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tipo",
+        "value": "QGBT-800",
+        "ocr_token_ids": [
+          "t11"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tipo_de_isolacao",
+        "value": "BARRAMENTO ISOLADO",
+        "ocr_token_ids": [
+          "t15",
+          "t16"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "data_de_fabricacao",
+        "value": "2018-05",
+        "ocr_token_ids": [
+          "t20"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "corrente_de_curto",
+        "value": {
+          "raw": "50",
+          "unit": "kA",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t24",
+          "t25"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_nominal",
+        "value": {
+          "raw": "380",
+          "unit": "V",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t28",
+          "t29"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "ip",
+        "value": "IP54",
+        "ocr_token_ids": [
+          "t31"
+        ],
+        "confidence": 0.97
+      }
+    ]
+  }
+}

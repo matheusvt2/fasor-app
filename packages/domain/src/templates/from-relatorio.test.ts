@@ -276,12 +276,12 @@ describe('14.3-UNIT how templates reach the current seed version', () => {
   const EARLIER = Object.keys(SEED_VERSIONS).filter((version) => version !== SEED_VERSION);
   const TEMPLATE = '019966b0-0069-7000-8000-000000000001';
 
-  it('the bundle ships v1 to v4 before the current v5', () => {
-    expect(SEED_VERSION).toBe('v5');
-    expect(EARLIER).toEqual(['v1', 'v2', 'v3', 'v4']);
+  it('the bundle ships v1 to v5 before the current v6', () => {
+    expect(SEED_VERSION).toBe('v6');
+    expect(EARLIER).toEqual(['v1', 'v2', 'v3', 'v4', 'v5']);
   });
 
-  it.each(['v1', 'v2', 'v3', 'v4'])('templateSeedUpgrade: the standard template of %s validates on the current version and moves to it', (version) => {
+  it.each(['v1', 'v2', 'v3', 'v4', 'v5'])('templateSeedUpgrade: the standard template of %s validates on the current version and moves to it', (version) => {
     const row = standardTemplate({ id: TEMPLATE, seedVersion: version });
     expect(row.seed_version).toBe(version);
     expect(templateSeedUpgrade(row)).toBe(SEED_VERSION);

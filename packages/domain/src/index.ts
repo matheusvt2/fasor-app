@@ -67,6 +67,7 @@ export * from './relatorio/sheet-progress.ts';
 export * from './relatorio/screen-label.ts';
 export * from './relatorio/nameplate-copy.ts';
 export * from './relatorio/dry-insulation.ts';
+export * from './relatorio/oil-rule.ts';
 export * from './relatorio/ficha.ts';
 export * from './relatorio/readings.ts';
 export * from './relatorio/measurement-evaluation.ts';

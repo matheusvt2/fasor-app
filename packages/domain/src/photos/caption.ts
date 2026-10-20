@@ -34,6 +34,8 @@ export const CAPTION_EQUIPMENT_WORDS: Readonly<Record<EquipmentBlockType, SeedWo
   transformador_forca: { name: 'transformador de força', gender: 'm', number: 'singular' },
   // authored (Story 14.5).
   chave_transferencia_automatica: { name: 'chave de transferência automática', gender: 'f', number: 'singular' },
+  // authored (Story 14.9).
+  quadro_eletrico: { name: 'quadro elétrico', gender: 'm', number: 'singular' },
 };
 
 /** The seed atividade a test table on screen names ("ensaios de resistência de isolação"). */

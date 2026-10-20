@@ -20,7 +20,13 @@ import { syncNow, syncNowAndReturn } from './support/sync.ts';
  * exercises (the cabine, the readings, the non-oil checklist items, the conclusion pair, a
  * source plate) is seeded by office ops. Runs on the durability projects (the matrix covers the
  * commit path); each worker has its own Empresa B (E6-Q7).
+ *
+ * Stories 14.9 and 14.11 (2026-10-20): the chip and its rules are those of seeds v1 to v5; seed v6
+ * replaces them with the oil rule (`oil-dry.spec.ts`). The relatório here is born on v5, the last
+ * version with the chip, so this spec keeps proving that a v5 relatório behaves as it did.
  */
+/** The last seed version that has the chip. */
+const CHIP_SEED = 'v5';
 
 let account: SeedAccount;
 let database: string;
@@ -114,7 +120,7 @@ async function setUp(
 ): Promise<{ relatorioId: string; sheet: SeededSheet; suggestions: Record<string, string> }> {
   await resetEmpresaB(account, { standard: true });
   await signInForDurability(page, context, account.email);
-  const built = newRelatorioDrafts(account);
+  const built = newRelatorioDrafts(account, { seedVersion: CHIP_SEED });
   const scope = { relatorioId: built.relatorioId };
   const sheet = built.sheets.find((s) => s.blockType === type)!;
   // Status flow 2026-10-10: Em campo from the start (field work would move a Rascunho relatório there in its first batch, with a toast).

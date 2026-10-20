@@ -43,7 +43,8 @@ describe('matrix "Palettes by seed": v4 lists the eight; v5 the eight then "Outr
       { key: 'seeded', label: null, types: [...BASE_EQUIPMENT_BLOCK_TYPES] },
       { key: 'library', label: 'Outros equipamentos', types: [CTA] },
     ]);
-    expect(paletteTypeGroups(SEED_VERSION)).toEqual(paletteTypeGroups('v5'));
+    // Story 14.9: seed v6 adds the Quadro elétrico after it (`quadro-eletrico.test.ts`).
+    expect(paletteTypeGroups(SEED_VERSION)[1]!.types[0]).toBe(CTA);
     // A version this bundle does not ship offers what every version holds.
     expect(paletteTypeGroups('v99')).toEqual([{ key: 'seeded', label: null, types: [...BASE_EQUIPMENT_BLOCK_TYPES] }]);
   });
@@ -54,7 +55,7 @@ describe('matrix "Palettes by seed": v4 lists the eight; v5 the eight then "Outr
     expect(v4.map((item) => item.type)).toEqual([...BASE_EQUIPMENT_BLOCK_TYPES]);
     expect(v4.every((item) => !item.library && item.summary === null)).toBe(true);
     const v5 = paletteItems('v5', coluna, []);
-    expect(v5.map((item) => item.type)).toEqual([...EQUIPMENT_BLOCK_TYPES]);
+    expect(v5.map((item) => item.type)).toEqual([...BASE_EQUIPMENT_BLOCK_TYPES, CTA]);
     expect(v5.slice(0, 8)).toEqual(v4);
     expect(v5[8]).toEqual({ type: CTA, label: 'Chave de transferência automática', tag: 'CTA-C05', library: true, summary: '17 itens · até 6 ensaios' });
     // Directly on a local, and with the TAG taken.
@@ -81,7 +82,7 @@ describe('matrix "Palettes by seed": v4 lists the eight; v5 the eight then "Outr
   it('"Fotografar equipamento": the provider is asked for the types of the seed version, and a read type the version does not ship proposes nothing', () => {
     expect(PANEL_FIELDS[0]!.options).toEqual([...BASE_EQUIPMENT_BLOCK_TYPES]);
     expect(panelFields('v4')).toEqual(PANEL_FIELDS);
-    expect(panelFields('v5')[0]!.options).toEqual([...EQUIPMENT_BLOCK_TYPES]);
+    expect(panelFields('v5')[0]!.options).toEqual([...BASE_EQUIPMENT_BLOCK_TYPES, CTA]);
     expect(panelFields('v5')[1]).toEqual(PANEL_FIELDS[1]);
     const local = ctaLocal();
     const suggestion = { row: { trust: 'suggested' }, value: { block_type: CTA, column: null, column_text: null } } as unknown as PanelSuggestion;
@@ -97,7 +98,8 @@ describe('matrix "Palettes by seed": v4 lists the eight; v5 the eight then "Outr
 
 describe('derived words of the type', () => {
   it('names it in the template totals after the eight, singular at one, and in the stepper label', () => {
-    expect(TOTALS_ORDER).toHaveLength(9);
+    // Story 14.9: the Quadro elétrico of seed v6 follows it.
+    expect(TOTALS_ORDER).toHaveLength(10);
     expect(TOTALS_ORDER[8]).toBe(CTA);
     const zero = Object.fromEntries(EQUIPMENT_BLOCK_TYPES.map((type) => [type, 0])) as Record<(typeof EQUIPMENT_BLOCK_TYPES)[number], number>;
     expect(totalsText({ ...zero, [CTA]: 1 })).toBe('1 chave de transferência automática');
@@ -171,12 +173,12 @@ describe('a template with the type', () => {
     expect(subBlockSummaryText(ctaDefinition(), 'nameplate')).toBe('15 campos');
   });
 
-  it('the standard template stays without it, and a v1 to v4 template moves to v5 as it is', () => {
+  it('the standard template stays without it, and a v1 to v5 template moves to the current version (v6 since Story 14.9) as it is', () => {
     const standard = standardTemplate({ id: TEMPLATE });
-    expect(standard.seed_version).toBe('v5');
+    expect(standard.seed_version).toBe(SEED_VERSION);
     expect(standard.blocks.some((block) => block.block_type === CTA)).toBe(false);
     expect(templateTotals(standard)[CTA]).toBe(0);
-    for (const version of ['v1', 'v2', 'v3', 'v4']) expect(templateSeedUpgrade(standardTemplate({ id: TEMPLATE, seedVersion: version })), version).toBe('v5');
+    for (const version of ['v1', 'v2', 'v3', 'v4', 'v5']) expect(templateSeedUpgrade(standardTemplate({ id: TEMPLATE, seedVersion: version })), version).toBe(SEED_VERSION);
     expect(templateSeedUpgrade(standard)).toBeNull();
   });
 
@@ -222,7 +224,8 @@ describe('a template with the type', () => {
     }
     const saved = templateFromRelatorio(snapshot, { id: TEMPLATE, name: 'Com CTA' });
     expect(templateRowSchema.safeParse(saved).success).toBe(true);
-    expect(saved.seed_version).toBe('v5');
+    // Saved from a v5 relatório, the template is born on the current version (Story 14.3's rule).
+    expect(saved.seed_version).toBe(SEED_VERSION);
     expect(saved.blocks.filter((block) => block.block_type === CTA)).toEqual([{ ...entry, skeleton_location_ref: saved.skeleton[0]!.ref }]);
     // The eight carry no `options` key into a relatório, as before.
     const tp = instantiateTemplate(

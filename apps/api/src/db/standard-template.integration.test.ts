@@ -139,6 +139,8 @@ describe('seedStandardTemplate', () => {
       expect(templateTotals(row)).toMatchObject({ chave_seccionadora: 25, disjuntor_mt: 21 });
       // Story 14.5: a newly seeded standard template holds no Chave de transferência automática.
       expect(templateTotals(row).chave_transferencia_automatica).toBe(0);
+      // Story 14.9: nor a Quadro elétrico (QGBT/QD).
+      expect(templateTotals(row).quadro_eletrico).toBe(0);
 
       expect(await templateCreates(companyId)).toEqual([
         { path: `template/${id}`, kind: 'create', actor_id: 'system:identity', device_id: 'server' },
@@ -348,6 +350,7 @@ describe('seedStandardTemplate on a database seeded before the current seed vers
       // standard template still places none: the upgrade carries the version, never a library type.
       expect(row.blocks.some((block) => block.block_type === 'chave_transferencia_automatica')).toBe(false);
       expect(templateTotals(row).chave_transferencia_automatica).toBe(0);
+      expect(row.blocks.some((block) => block.block_type === 'quadro_eletrico')).toBe(false);
       expect(templateTotals(row)).toMatchObject({ chave_seccionadora: 25, disjuntor_mt: 21 });
 
       const added = (await templateOps(companyId)).slice(before);

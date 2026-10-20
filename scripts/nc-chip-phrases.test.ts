@@ -32,8 +32,10 @@ function documentedPhrases(): Map<string, Map<string, string[]>> {
 }
 
 describe('docs/nc-chip-phrases.md', () => {
-  it('carries a dated pending-review status line', () => {
-    expect(doc).toMatch(/\*\*Status:\*\* pending review by Bruno.*\(entry dated \d{4}-\d{2}-\d{2}\)/);
+  // 2026-10-20 (Story 14.9): Bruno accepted every phrase, so the status line no longer reads
+  // "pending review"; it carries the dated line of that acceptance instead.
+  it('carries a dated status line', () => {
+    expect(doc).toMatch(/\*\*Status:\*\* .*\*\(\d{4}-\d{2}-\d{2}\)\* every phrase in this document is reviewed and accepted/);
   });
 
   it('lists every seeded NC phrase in its own item row, for every block type', () => {

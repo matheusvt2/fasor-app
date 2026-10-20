@@ -96,7 +96,7 @@ function recorder(companyIds: readonly string[]) {
 }
 
 describe('upgradeTemplateSeeds (Story 14.3, matrix "Templates")', () => {
-  it('moves every live template on v1 to v3 to the current version, seed_version alone; relatórios, removed and current templates stay; a broken row is skipped and logged; a second run writes no op', async () => {
+  it('moves every live template on v1 to v5 to the current version, seed_version alone; relatórios, removed and current templates stay; a broken row is skipped and logged; a second run writes no op', async () => {
     const companyId = await company('a');
     const otherCompanyId = await company('b');
     try {
@@ -105,11 +105,13 @@ describe('upgradeTemplateSeeds (Story 14.3, matrix "Templates")', () => {
       const edited = standardTemplate({ id: newId(), seedVersion: 'v2' });
       const own: TemplateRow = { ...emptyTemplate(newId(), 'v3'), name: 'Subestação do cliente', skeleton: [{ ref: 'local', kind: 'cabine', parent_ref: null, name: 'Cabine primária', agrupar_por_tipo: false }] };
       const archived: TemplateRow = { ...standardTemplate({ id: newId(), seedVersion: 'v3' }), name: 'Arquivado' };
+      // Stories 14.9 and 14.11: a template on v5 (the CTA's version) reaches v6 the same way.
+      const onV5: TemplateRow = { ...standardTemplate({ id: newId(), seedVersion: 'v5' }), name: 'Na v5' };
       // Not moved: a removed one (v2), one already current, and one whose stored row fails the row check.
       const removed: TemplateRow = { ...standardTemplate({ id: newId(), seedVersion: 'v2' }), name: 'Removido' };
       const current: TemplateRow = { ...standardTemplate({ id: newId() }), name: 'Atual' };
       const broken: TemplateRow = { ...standardTemplate({ id: newId(), seedVersion: 'v3' }), name: 'Quebrado' };
-      for (const row of [seeded, edited, own, archived, removed, current, broken]) await createTemplate(companyId, row);
+      for (const row of [seeded, edited, own, archived, onV5, removed, current, broken]) await createTemplate(companyId, row);
       await applyServer(companyId, [
         // A content edit (D-4) bumps the version to 2.
         { kind: 'put', path: `template/${edited.id}/blocks`, value: edited.blocks.slice(0, -1) },
@@ -139,7 +141,7 @@ describe('upgradeTemplateSeeds (Story 14.3, matrix "Templates")', () => {
         { ...made.drafts.find((draft) => draft.path === `relatorio/${made.relatorioId}`)! },
       ]);
 
-      const movedIds = [seeded.id, edited.id, own.id, archived.id];
+      const movedIds = [seeded.id, edited.id, own.id, archived.id, onV5.id];
       const before = new Map<string, unknown>();
       for (const id of [...movedIds, removed.id, current.id, broken.id]) before.set(id, (await templateRow(companyId, id)).row);
       const relatorioBefore = await relatorioRow(companyId, made.relatorioId);
@@ -149,7 +151,7 @@ describe('upgradeTemplateSeeds (Story 14.3, matrix "Templates")', () => {
 
       const first = recorder([companyId, otherCompanyId]);
       // The database may hold other companies' templates from before v4: at least these five move.
-      expect(await upgradeTemplateSeeds(db, first.deps)).toBeGreaterThanOrEqual(5);
+      expect(await upgradeTemplateSeeds(db, first.deps)).toBeGreaterThanOrEqual(6);
 
       for (const id of movedIds) {
         const row = (await templateRow(companyId, id)).row as unknown as TemplateRow;

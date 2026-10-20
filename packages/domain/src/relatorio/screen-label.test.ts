@@ -197,6 +197,29 @@ const SCREEN_FORMS: Record<string, string> = {
   'Partida do gerador comandada pela chave; exercitador programado': 'Partida do gerador comandada pela chave; exercitador programado',
   'Aquecedor e ventilação, se houver': 'Aquecedor e ventilação, se houver',
   'Gerador deixado em AUTOMÁTICO ao final': 'Gerador deixado em AUTOMÁTICO ao final',
+  // Seed v6 (Story 14.9): the Quadro elétrico (QGBT/QD); its type name and SELV mark are authored in sentence case.
+  'Quadro elétrico (QGBT/QD)': 'Quadro elétrico (QGBT/QD)',
+  FABRICANTE: 'Fabricante',
+  'CORRENTE DE CURTO': 'Corrente de curto',
+  IP: 'IP',
+  'Circuito SELV/PELV': 'Circuito SELV/PELV',
+  'LIMPEZA INTERNA E EXTERNA': 'Limpeza interna e externa',
+  'PINTURA, CORROSÃO DA CAIXA': 'Pintura, corrosão da caixa',
+  'RESISTÊNCIA DE AQUECIMENTO': 'Resistência de aquecimento',
+  'ILUMINAÇÃO INTERNA': 'Iluminação interna',
+  'RELÉS E CONTATORES': 'Relés e contatores',
+  'DISJUNTORES TERMOMAGNÉTICOS': 'Disjuntores termomagnéticos',
+  'INSTRUMENTOS DE MEDIÇÃO': 'Instrumentos de medição',
+  BARRAMENTOS: 'Barramentos',
+  'FIAÇÃO INTERNA': 'Fiação interna',
+  'REAPERTO GERAL': 'Reaperto geral',
+  'PLACAS DE SINALIZAÇÃO': 'Placas de sinalização',
+  'ORGANIZAÇÃO INTERNA': 'Organização interna',
+  'IDENTIFICAÇÃO DE CIRCUITOS': 'Identificação de circuitos',
+  NEUTRO: 'Neutro',
+  // The two hints, shown under their item on the sheet only.
+  'FUNCIONAMENTO MECÂNICO (LIGA/DESLIGA/TRIP)': 'Funcionamento mecânico (liga/desliga/trip)',
+  'CANALETA, CHICOTE, CABOS...': 'Canaleta, chicote, cabos...',
 };
 
 /** Every label of every shipped seed version that renders on screen. */
@@ -207,7 +230,10 @@ function seedScreenLabels(): Set<string> {
       for (const definition of Object.values(seed.blocks)) {
         labels.add(definition.label);
         for (const field of definition.nameplate) labels.add(field.label);
-        for (const item of definition.checklist ?? []) labels.add(item.label);
+        for (const item of definition.checklist ?? []) {
+          labels.add(item.label);
+          if (item.hint !== undefined) labels.add(item.hint);
+        }
         for (const subtype of definition.subtypes) labels.add(subtype.label);
         for (const test of definition.tests) {
           labels.add(test.label);

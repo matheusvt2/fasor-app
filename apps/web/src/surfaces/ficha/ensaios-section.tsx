@@ -354,7 +354,8 @@ function MeasurementTable({
             {screenLabel(table.title)}
           </span>
         )}
-        <span className="mt-criterion">{t.criterion(test.criterionText)}</span>
+        {/* Story 14.9: a test no criterion judges reads the kernel's "critério não avaliado" alone. */}
+        <span className="mt-criterion">{test.criterion === null ? test.criterionText : t.criterion(test.criterionText)}</span>
         <details className="ficha-details mt-source">
           <summary>
             <svg className="ico" aria-hidden="true">

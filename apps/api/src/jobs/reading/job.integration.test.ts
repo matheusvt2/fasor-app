@@ -864,6 +864,12 @@ describe('9.2-INT the panel reading', () => {
     expect((onV5[0] as { options: string[] }).options).toHaveLength(9);
     expect((onV5[0] as { options: string[] }).options.at(-1)).toBe('chave_transferencia_automatica');
 
+    // Story 14.9: on v6 the Quadro elétrico follows it.
+    const v6 = await relatorio('v6');
+    const onV6 = await fieldsAsked(v6.relatorioId, v6.blocks);
+    expect(onV6).toEqual([...panelFields('v6')]);
+    expect((onV6[0] as { options: string[] }).options.slice(-2)).toEqual(['chave_transferencia_automatica', 'quadro_eletrico']);
+
     const old = await relatorio('v1');
     expect((await row<{ seed_version: string }>('relatorio', old.relatorioId))?.seed_version).toBe('v1');
     const onV1 = await fieldsAsked(old.relatorioId, old.blocks);

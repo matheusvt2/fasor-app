@@ -50,8 +50,9 @@ async function liveRegistry(db: Db, companyId: CompanyId): Promise<{ manufacture
 
 export const plateHandler: ReadingKindHandler = {
   kind: 'plate',
-  // E78-Q2, Story 13.7 and Story 14.5: one synthetic plate per block type with a nameplate, seven
-  // now (the cables have none; the seventh is the library type of seed v5). The transformer's is
+  // E78-Q2, Story 13.7, Story 14.5 and Story 14.9: one synthetic plate per block type with a
+  // nameplate, eight now (the cables have none; the seventh and eighth are the library types of
+  // seeds v5 and v6). The transformer's is
   // `services/ocr/tests/fixtures/plate-transformador.jpg`; the six others are
   // `fixtures/images/plate-<type>.png`, made by `scripts/make-plate-fixtures.ts`.
   fakeDefaults: [
@@ -68,6 +69,8 @@ export const plateHandler: ReadingKindHandler = {
     { block_type: 'tc', sha256: '0b5dce48ef09a2a08b164d75a69208fb645ba112302a1631cd299ef3d94618a5' },
     // images/plate-chave-transferencia-automatica.png
     { block_type: 'chave_transferencia_automatica', sha256: '05598e686249d191e2c9e899b149d562c9c6057e237cc7fb61a086035b6df293' },
+    // images/plate-quadro-eletrico.png (Story 14.9, seed v6)
+    { block_type: 'quadro_eletrico', sha256: '7cfec77ab40680cdca0936b9b1a47ae530decd1bf3b6c25f21990383aed2d561' },
   ],
 
   async prepare({ db, companyId, relatorioId, photo }) {

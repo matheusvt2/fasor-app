@@ -269,11 +269,12 @@ describe('seed v1: checklists (addendum §9.2)', () => {
         all.add(it.key);
       }
     }
-    // Seed v4 (Story 14.3) appended one key to the enum and seed v5 (Story 14.5) seventeen; v1 itself lists what it always did.
+    // Seed v4 (Story 14.3) appended one key to the enum, seed v5 (Story 14.5) seventeen and seed
+    // v6 (Story 14.9) thirteen; v1 itself lists what it always did.
     expect([...all].sort()).toEqual(ITEM_KEYS.slice(0, 44).sort());
     expect(all.size).toBe(44);
     expect(ITEM_KEYS[44]).toBe('no_break_de_comando');
-    expect(ITEM_KEYS).toHaveLength(62);
+    expect(ITEM_KEYS).toHaveLength(75);
   });
 
   it('gives every item of every list three or four NC chip phrases', () => {
@@ -920,10 +921,9 @@ describe('seed v5 (Story 14.5): v4 plus one block type, the Chave de transferên
     ['Torque dos terminais', 'number', 'N·m'],
   ];
 
-  it('is the version a new Template is created with', () => {
-    expect(SEED_VERSION).toBe('v5');
+  it('was the version a new Template is created with until seed v6 (Stories 14.9 and 14.11), and stays resolvable', () => {
     expect(SEED_VERSIONS.v5!.version).toBe('v5');
-    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5']);
+    expect(Object.keys(SEED_VERSIONS).slice(0, 5)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5']);
   });
 
   it('differs from v4 by exactly the CTA block type, and v1 to v4 hash as they shipped', () => {
@@ -932,7 +932,7 @@ describe('seed v5 (Story 14.5): v4 plus one block type, the Chave de transferên
     delete stripped.blocks.chave_transferencia_automatica;
     expect(JSON.stringify(stripped)).toBe(JSON.stringify(v4));
     expect(Object.keys(v5.blocks)).toEqual([...EIGHT, CTA]);
-    expect(Object.keys(v5.blocks)).toEqual([...EQUIPMENT_BLOCK_TYPES]);
+    expect(Object.keys(v5.blocks)).toEqual(EQUIPMENT_BLOCK_TYPES.slice(0, 9));
     for (const version of ['v1', 'v2', 'v3', 'v4']) {
       const seed = getSeed(version, 'cabine_primaria');
       expect(Object.keys(seed.blocks), version).toEqual([...EIGHT]);
@@ -984,7 +984,7 @@ describe('seed v5 (Story 14.5): v4 plus one block type, the Chave de transferên
       expect(new Set(item.nc_phrases).size, item.key).toBe(item.nc_phrases.length);
     }
     // The 17 keys are the tail of the closed item enum, in the same order.
-    expect(list.map((item) => item.key)).toEqual(ITEM_KEYS.slice(45));
+    expect(list.map((item) => item.key)).toEqual(ITEM_KEYS.slice(45, 62));
     // The chips `63-ficha-cta.html` draws on item 3.
     expect(list[2]!.nc_phrases).toEqual(['Aviso ausente', 'Barreira solta', 'Tampa sem parafusos']);
     // None of the eight shares an item with it.
@@ -1260,6 +1260,235 @@ describe('seed v5 (Story 14.5): v4 plus one block type, the Chave de transferên
     const swapped = structuredClone(v5) as { blocks: Record<string, unknown> };
     swapped.blocks.tp = swapped.blocks.tc;
     expect(reportSeedSchema.safeParse(swapped).success).toBe(false);
+  });
+});
+
+/** The content hash of seed v5 as merged (Story 14.5), pinned from the untouched tree before Stories 14.9 and 14.11 touched a schema; never updated after. */
+const V5_HASH = '1b0abec402f96557b80723994f6b0ba373fd410dc094b3d7223ceee751dbf52e';
+
+describe('seed v6 (Stories 14.9 and 14.11): v5 plus the Quadro elétrico (QGBT/QD), the oil option lists and the oil rule', () => {
+  const v5 = getSeed('v5', 'cabine_primaria');
+  const v6 = getSeed('v6', 'cabine_primaria');
+  const QD = 'quadro_eletrico';
+  const qd = getDefinition('v6', 'cabine_primaria', QD);
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(SEED_VERSIONS[version])).digest('hex');
+  const options = (version: string, type: string, key: string) => getDefinition(version, 'cabine_primaria', type).nameplate.find((field) => field.key === key)!.options;
+
+  /** The 17 items of the original sheet, written from `docs/nc-chip-phrases.md` "Quadros elétricos", not read back from the seed. */
+  const ITEMS = [
+    'LIMPEZA INTERNA E EXTERNA',
+    'PINTURA, CORROSÃO DA CAIXA',
+    'RESISTÊNCIA DE AQUECIMENTO',
+    'ILUMINAÇÃO INTERNA',
+    'LÂMPADAS DE SINALIZAÇÃO',
+    'RELÉS E CONTATORES',
+    'FUSÍVEIS',
+    'DISJUNTORES TERMOMAGNÉTICOS',
+    'ATERRAMENTO',
+    'INSTRUMENTOS DE MEDIÇÃO',
+    'BARRAMENTOS',
+    'ISOLADORES',
+    'FIAÇÃO INTERNA',
+    'REAPERTO GERAL',
+    'PLACAS DE SINALIZAÇÃO',
+    'ORGANIZAÇÃO INTERNA',
+    'IDENTIFICAÇÃO DE CIRCUITOS',
+  ];
+
+  it('is the version a new Template is created with', () => {
+    expect(SEED_VERSION).toBe('v6');
+    expect(SEED_VERSIONS.v6!.version).toBe('v6');
+    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6']);
+  });
+
+  it('differs from v5 by exactly the QGBT type, the three option lists and the four oil rules, and v1 to v5 hash as they shipped', () => {
+    // Strip the additions from v6: what is left is v5, byte for byte.
+    const stripped = structuredClone(v6) as typeof v6;
+    delete stripped.blocks.quadro_eletrico;
+    for (const type of ['tp', 'tc', 'transformador_forca', 'disjuntor_mt'] as const) {
+      const definition = stripped.blocks[type] as BlockDefinition;
+      expect(definition.oil_rule, type).toBeDefined();
+      delete definition.oil_rule;
+      for (const field of definition.nameplate) {
+        const before = v5.blocks[type].nameplate.find((candidate) => candidate.key === field.key)!;
+        if (JSON.stringify(field) !== JSON.stringify(before)) {
+          expect(['tipo_de_isolacao', 'meio_de_extincao'], `${type}/${field.key}`).toContain(field.key);
+          field.options = before.options;
+        }
+      }
+    }
+    expect(JSON.stringify(stripped)).toBe(JSON.stringify(v5));
+    expect(Object.keys(v6.blocks)).toEqual([...EQUIPMENT_BLOCK_TYPES]);
+    for (const type of ['cabos_entrada', 'para_raio', 'chave_seccionadora', 'cabos_saida', 'chave_transferencia_automatica'] as const) {
+      expect(JSON.stringify(v6.blocks[type]), type).toBe(JSON.stringify(v5.blocks[type]));
+    }
+    // None of v1 to v5 gained a key of v6: nothing was parsed into them.
+    for (const version of ['v1', 'v2', 'v3', 'v4', 'v5']) {
+      const seed = getSeed(version, 'cabine_primaria');
+      expect(Object.keys(seed.blocks), version).not.toContain(QD);
+      for (const definition of Object.values(seed.blocks)) {
+        for (const key of ['oil_rule', 'print_title']) expect(key in definition, `${version}/${definition.block_type}/${key}`).toBe(false);
+        for (const test of definition.tests) expect('criterion_bands' in test, `${version}/${definition.block_type}`).toBe(false);
+        for (const field of definition.nameplate) expect('optional' in field, `${version}/${definition.block_type}/${field.key}`).toBe(false);
+        for (const item of definition.checklist ?? []) expect('hint' in item, `${version}/${definition.block_type}/${item.key}`).toBe(false);
+      }
+    }
+    expect(hash('v1')).toBe(V1_HASH);
+    expect(hash('v2')).toBe(V2_HASH);
+    expect(hash('v3')).toBe(V3_HASH);
+    expect(hash('v4')).toBe(V4_HASH);
+    expect(hash('v5'), 'seed v5 changed after it shipped: add a new version instead').toBe(V5_HASH);
+  });
+
+  it('the option lists: ÓLEO after EPÓXI and Á SECO on the three transformers; AR, SF6, VÁCUO and both ÓLEO on the disjuntor; the seccionadora as it was', () => {
+    for (const type of ['tp', 'tc', 'transformador_forca']) {
+      expect(options('v6', type, 'tipo_de_isolacao'), type).toEqual(['EPÓXI', 'Á SECO', 'ÓLEO']);
+      expect(options('v5', type, 'tipo_de_isolacao'), type).toEqual(['EPÓXI', 'Á SECO']);
+    }
+    expect(options('v6', 'disjuntor_mt', 'meio_de_extincao')).toEqual(['AR', 'SF6', 'VÁCUO', 'ÓLEO (PVO)', 'ÓLEO (GVO)']);
+    expect(options('v5', 'disjuntor_mt', 'meio_de_extincao')).toEqual(['AR', 'SF6']);
+    expect(options('v6', 'chave_seccionadora', 'meio_de_extincao')).toEqual(['AR', 'SF6']);
+    expect(getDefinition('v6', 'cabine_primaria', 'chave_seccionadora').oil_rule).toBeUndefined();
+  });
+
+  it('the oil rules: the eight oil items and VOL. ÓLEO on the transformers, the one oil item and VOL. ÓLEO on the disjuntor', () => {
+    for (const type of ['tp', 'tc', 'transformador_forca']) {
+      expect(getDefinition('v6', 'cabine_primaria', type).oil_rule, type).toEqual({ field: 'tipo_de_isolacao', oil_values: ['ÓLEO'], items: OIL_EIGHT, fields: ['vol_oleo'] });
+      // The rule names the dry subtypes' own NA defaults, no second list.
+      for (const subtype of getDefinition('v6', 'cabine_primaria', type).subtypes) expect(subtype.na_defaults, `${type}/${subtype.key}`).toEqual(OIL_EIGHT);
+    }
+    expect(getDefinition('v6', 'cabine_primaria', 'disjuntor_mt').oil_rule).toEqual({
+      field: 'meio_de_extincao',
+      oil_values: ['ÓLEO (PVO)', 'ÓLEO (GVO)'],
+      items: ['oleo_isolante_indicador_de_nivel'],
+      fields: ['vol_oleo'],
+    });
+    for (const type of ['cabos_entrada', 'para_raio', 'chave_seccionadora', 'cabos_saida', 'chave_transferencia_automatica', QD]) {
+      expect(getDefinition('v6', 'cabine_primaria', type).oil_rule, type).toBeUndefined();
+    }
+  });
+
+  it('the schema refuses an oil rule or a band criterion naming what the definition lacks', () => {
+    const tp = () => structuredClone(getDefinition('v6', 'cabine_primaria', 'tp')) as BlockDefinition;
+    expect(blockDefinitionSchema.safeParse(tp()).success).toBe(true);
+    const notSelect = tp();
+    notSelect.oil_rule!.field = 'tipo';
+    expect(blockDefinitionSchema.safeParse(notSelect).success).toBe(false);
+    const notOption = tp();
+    notOption.oil_rule!.oil_values = ['ÓLEO MINERAL'];
+    expect(blockDefinitionSchema.safeParse(notOption).success).toBe(false);
+    const notItem = tp();
+    notItem.oil_rule!.items = ['motor'];
+    expect(blockDefinitionSchema.safeParse(notItem).success).toBe(false);
+    const notField = tp();
+    notField.oil_rule!.fields = ['nenhum'];
+    expect(blockDefinitionSchema.safeParse(notField).success).toBe(false);
+    const board = () => structuredClone(qd) as BlockDefinition;
+    expect(blockDefinitionSchema.safeParse(board()).success).toBe(true);
+    const voltage = board();
+    voltage.tests[0]!.criterion_bands!.field = 'corrente_de_curto';
+    expect(blockDefinitionSchema.safeParse(voltage).success).toBe(false);
+    const descending = board();
+    descending.tests[0]!.criterion_bands!.bands.reverse();
+    expect(blockDefinitionSchema.safeParse(descending).success).toBe(false);
+    const sourceless = board();
+    delete (sourceless.tests[0]!.criterion_bands!.bands[0] as { source?: unknown }).source;
+    expect(blockDefinitionSchema.safeParse(sourceless).success).toBe(false);
+    const nameless = board();
+    nameless.tests[0]!.criterion_bands!.bands[1]!.source = { name: '', edition: null };
+    expect(blockDefinitionSchema.safeParse(nameless).success).toBe(false);
+  });
+
+  it('the QGBT exists on v6 only, a library type with its own print title', () => {
+    expect(qd.block_type).toBe(QD);
+    expect(qd.label).toBe('Quadro elétrico (QGBT/QD)');
+    expect(qd.print_title).toBe("QGBT/QD's");
+    expect(qd.library).toBe(true);
+    expect(qd.subtypes).toEqual([]);
+    expect(qd.sub_blocks).toEqual(['nameplate', 'checklist', 'isolacao', 'ia_ip_display', 'observations', 'conclusion']);
+    expect(qd.measurement_tests).toBeUndefined();
+    expect(qd.config_fields).toBeUndefined();
+    for (const version of ['v1', 'v2', 'v3', 'v4', 'v5']) {
+      expect(() => getDefinition(version, 'cabine_primaria', QD), version).toThrow(new RegExp(`block_type "${QD}" is not in seed_version "${version}"`));
+      expect(findDefinition(version, QD), version).toBeNull();
+      expect(isLibraryType(version, QD), version).toBe(false);
+    }
+    expect(isLibraryType('v6', QD)).toBe(true);
+    expect(equipmentTypesOf('v5')).toEqual([...EIGHT, 'chave_transferencia_automatica']);
+    expect(equipmentTypesOf('v6')).toEqual([...EIGHT, 'chave_transferencia_automatica', QD]);
+  });
+
+  it('DADOS DO EQUIPAMENTO: the 9 fields of the sheet in its order, then the optional SELV/PELV mark; IP a select of the twelve codes', () => {
+    expect(qd.nameplate.map((field) => [field.key, field.label, field.kind, field.unit ?? null])).toEqual([
+      ['identificacao', 'IDENTIFICAÇÃO', 'text', null],
+      ['fabricante', 'FABRICANTE', 'manufacturer', null],
+      ['n_serie', 'Nº SÉRIE', 'text', null],
+      ['tipo', 'TIPO', 'text', null],
+      ['tipo_de_isolacao', 'TIPO DE ISOLAÇÃO', 'text', null],
+      ['data_de_fabricacao', 'DATA DE FABRICAÇÃO', 'date', null],
+      ['corrente_de_curto', 'CORRENTE DE CURTO', 'number', 'kA'],
+      ['tensao_nominal', 'TENSÃO NOMINAL', 'number', 'V'],
+      ['ip', 'IP', 'select', null],
+      ['circuito_selv_pelv', 'Circuito SELV/PELV', 'select', null],
+    ]);
+    expect(qd.nameplate.find((field) => field.key === 'ip')!.options).toEqual(['IP20', 'IP30', 'IP31', 'IP40', 'IP41', 'IP42', 'IP43', 'IP44', 'IP54', 'IP55', 'IP65', 'IP66']);
+    expect(qd.nameplate.find((field) => field.key === 'circuito_selv_pelv')).toMatchObject({ options: ['SIM', 'NÃO'], optional: true });
+    expect(qd.nameplate.filter((field) => field.optional === true).map((field) => field.key)).toEqual(['circuito_selv_pelv']);
+    expect(qd.nameplate.filter((field) => field.per_unit === true).map((field) => field.key)).toEqual(['identificacao', 'n_serie']);
+    for (const field of qd.nameplate) expect(fieldDefSchema.safeParse(field).success, field.key).toBe(true);
+  });
+
+  it('VERIFICAÇÕES GERAIS: the 17 items in order, item 17 IDENTIFICAÇÃO DE CIRCUITOS, each keyed by its label with three or four phrases, hints on 8 and 16 only', () => {
+    const list = qd.checklist!;
+    expect(list.map((item) => item.label)).toEqual(ITEMS);
+    expect(list[16]!.label).toBe('IDENTIFICAÇÃO DE CIRCUITOS');
+    for (const item of list) {
+      expect(item.key, item.label).toBe(snake(item.label));
+      expect(item.nc_phrases.length, item.key).toBeGreaterThanOrEqual(3);
+      expect(item.nc_phrases.length, item.key).toBeLessThanOrEqual(4);
+      expect(new Set(item.nc_phrases).size, item.key).toBe(item.nc_phrases.length);
+    }
+    expect(list.flatMap((item, index) => (item.hint === undefined ? [] : [[index + 1, item.hint]]))).toEqual([
+      [8, 'FUNCIONAMENTO MECÂNICO (LIGA/DESLIGA/TRIP)'],
+      [16, 'CANALETA, CHICOTE, CABOS...'],
+    ]);
+    // The new keys are the tail of the closed item enum; the four the eight already use keep theirs.
+    const reused = ['lampadas_de_sinalizacao', 'fusiveis', 'aterramento', 'isoladores'];
+    expect(list.map((item) => item.key).filter((key) => !reused.includes(key))).toEqual(ITEM_KEYS.slice(62));
+    for (const key of reused) expect(ITEM_KEYS.indexOf(key as (typeof ITEM_KEYS)[number]), key).toBeLessThan(62);
+  });
+
+  it('ENSAIO DE ISOLAÇÃO: FASE A, FASE B, FASE C and NEUTRO against MASSA on the single-table grammar, judged by the NBR 5410 bands', () => {
+    expect(qd.tests).toHaveLength(1);
+    const isolacao = qd.tests[0]!;
+    expect(isolacao.key).toBe('isolacao');
+    expect(isolacao.label).toBe('ENSAIO DE ISOLAÇÃO');
+    const [only] = isolacao.tables;
+    expect(isolacao.tables).toHaveLength(1);
+    expect(only!.connection_columns).toEqual(['LINHA', 'TERRA', 'GUARD']);
+    expect(only!.rows).toEqual([
+      ['FASE A', 'MASSA', ''],
+      ['FASE B', 'MASSA', ''],
+      ['FASE C', 'MASSA', ''],
+      ['NEUTRO', 'MASSA', ''],
+    ]);
+    expect(only!.value_columns.map((column) => [column.label, column.role, column.unit])).toEqual([
+      ['30 SEGUNDOS', 'print', 'MΩ'],
+      ['1 MINUTO', 'capture', 'MΩ'],
+      ['ESTAB./10MIN', 'print', 'MΩ'],
+      ['ABSORÇÃO', 'print', null],
+      ['POLARIZAÇÃO', 'print', null],
+    ]);
+    const source = { name: 'NBR 5410', edition: null };
+    expect(isolacao.criterion_bands).toEqual({
+      field: 'tensao_nominal',
+      selv_field: 'circuito_selv_pelv',
+      selv: { operator: '>=', value: 0.25, unit: 'MΩ', source },
+      bands: [
+        { up_to: 500, operator: '>=', value: 0.5, unit: 'MΩ', source },
+        { up_to: 1000, operator: '>=', value: 1, unit: 'MΩ', source },
+      ],
+    });
   });
 });
 

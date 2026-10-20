@@ -12,7 +12,12 @@ type Account = SeedAccount;
  * with the page's own session — so a spec opens `/relatorio/:id` and the Sumário pulls it
  * on open. Returns the relatório and project ids.
  */
-export async function pushNewRelatorio(page: Page, account: Account, database: string, options: { emCampo?: boolean } = {}): Promise<{ relatorioId: string; projectId: string }> {
+export async function pushNewRelatorio(
+  page: Page,
+  account: Account,
+  database: string,
+  options: { emCampo?: boolean; seedVersion?: string } = {},
+): Promise<{ relatorioId: string; projectId: string }> {
   const projectId = newId();
   const project: OpDraft = {
     kind: 'create',
@@ -27,8 +32,9 @@ export async function pushNewRelatorio(page: Page, account: Account, database: s
     meta: null,
     actor_id: account.userId,
   };
+  // Stories 14.9 and 14.11: a spec about an older seed's behaviour names its version (the standard template on it).
   const { relatorioId, drafts } = instantiateTemplate(
-    standardTemplate({ id: newId() }),
+    standardTemplate({ id: newId(), ...(options.seedVersion === undefined ? {} : { seedVersion: options.seedVersion }) }),
     { id: projectId },
     { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
     { newId, actorId: account.userId, companyId: account.companyId },
@@ -134,7 +140,7 @@ export interface SeededSheet {
  * pushed yet) with its equipment sheets read off them, so a spec can add its own seed ops,
  * push everything in one batch and open a sheet by its address without walking the tree.
  */
-export function newRelatorioDrafts(account: Account): { relatorioId: string; projectId: string; drafts: OpDraft[]; sheets: SeededSheet[] } {
+export function newRelatorioDrafts(account: Account, options: { seedVersion?: string } = {}): { relatorioId: string; projectId: string; drafts: OpDraft[]; sheets: SeededSheet[] } {
   const projectId = newId();
   const project: OpDraft = {
     kind: 'create',
@@ -150,7 +156,7 @@ export function newRelatorioDrafts(account: Account): { relatorioId: string; pro
     actor_id: account.userId,
   };
   const { relatorioId, drafts } = instantiateTemplate(
-    standardTemplate({ id: newId() }),
+    standardTemplate({ id: newId(), ...(options.seedVersion === undefined ? {} : { seedVersion: options.seedVersion }) }),
     { id: projectId },
     { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
     { newId, actorId: account.userId, companyId: account.companyId },

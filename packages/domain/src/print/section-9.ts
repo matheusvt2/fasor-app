@@ -20,6 +20,7 @@ import { fieldValueText } from '../relatorio/ficha.ts';
 import { storedInstrumentHeader } from '../relatorio/instrument-pick.ts';
 import { configFieldsOf, evaluateSheetMeasurements, type EvaluatedMeasurementCell, type MeasurementTestEvaluation } from '../relatorio/measurement-evaluation.ts';
 import { nameplateTagPrefill } from '../relatorio/nameplate-copy.ts';
+import { isOilFieldExcused } from '../relatorio/oil-rule.ts';
 import { evaluateSheetReadings, type EvaluatedCell, type EvaluatedRow, type EvaluatedTable, type TestEvaluation, type TestKey } from '../relatorio/readings.ts';
 import { checklistResultOf } from '../relatorio/sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from '../relatorio/sheet-state.ts';
@@ -294,7 +295,8 @@ function sheetSeedOf(seedVersion: string): { cabine: CabineDefinition; checklist
 
 /** Type, role and TAG: "CHAVE SECCIONADORA DE ENTRADA SEC-C01", "CABOS DE ALIMENTAÇÃO CB-TR1"; the TAG as stored. */
 function sheetTitle(block: BlockRow, tag: string): string {
-  const label = blockTypeLabel(block.seed_version, block.block_type);
+  // Story 14.9: a type may print its own title (the QGBT's `QGBT/QD's`) instead of its label.
+  const label = definitionOf(block)?.print_title ?? blockTypeLabel(block.seed_version, block.block_type);
   const role = blockRoleOf(block);
   let type = label;
   if (role === 'alimentacao') type = block.block_type === 'cabos_saida' ? CABOS_DE_ALIMENTACAO : `${label} ${ROLE_WORDS.alimentacao}`;
@@ -346,7 +348,9 @@ function nameplatePart(ctx: Context, block: BlockRow, definition: BlockDefinitio
   const prefill = nameplateTagPrefill({ blocks: ctx.snapshot.blocks, equipment: ctx.snapshot.equipment }, block.id);
   const pairs = definition.nameplate.map((field) => {
     const cell = block.sheet.nameplate[field.key];
-    const value = cell === undefined ? (field.key === 'tag' && prefill !== null ? prefill : DASH) : storedValueText(field, cell.value);
+    // Story 14.11 (seed v6): an oil field of a non-oil unit prints "-" whatever is stored.
+    const excused = isOilFieldExcused(block, field.key);
+    const value = excused ? DASH : cell === undefined ? (field.key === 'tag' && prefill !== null ? prefill : DASH) : storedValueText(field, cell.value);
     return [{ text: printLabel(field.label), bold: true, align: 'left' as const }, { text: value, align: 'left' as const }];
   });
   const rows: PrintRow[] = [bandRow(NAMEPLATE_TITLE, 6)];
@@ -447,19 +451,30 @@ function instrumentPart(block: BlockRow, test: TestDef, evaluation: TestEvaluati
   const header = storedInstrumentHeader(block.sheet.test[test.key]?.instrument?.value);
   const text = (value: string | null | undefined) => (value === null || value === undefined || value.trim() === '' ? DASH : value);
   const parameter = TEST_PARAMETER_LABEL[test.key];
-  const labels: string[] = [...INSTRUMENT_LABELS, ...(parameter === null ? [] : [parameter]), ACCEPTABLE_LABEL];
+  // Story 14.9: a criterion picked from the plate prints its unit in the header and the band's
+  // minimum alone ("ACEITÁVEL MΩ" over "0,5"), "-" when no band applies.
+  const bands = test.criterion_bands;
+  const acceptableLabel = bands === undefined ? ACCEPTABLE_LABEL : `${ACCEPTABLE_LABEL} ${bands.bands[0]!.unit}`;
+  const acceptable = bands === undefined ? evaluation.criterionText : evaluation.criterion === null ? DASH : bandValueText(evaluation.criterion.value);
+  const labels: string[] = [...INSTRUMENT_LABELS, ...(parameter === null ? [] : [parameter]), acceptableLabel];
   const values = [
     text(header?.manufacturer),
     text(header?.model),
     text(header?.serial),
     text(header?.cert_number),
     ...(parameter === null ? [] : [text(header?.test_parameter)]),
-    evaluation.criterionText,
+    acceptable,
   ];
   return table(
     labels.map(() => 1),
     [bandRow(printLabel(test.label), labels.length), headerRow(labels), { cells: values.map(valueCell) }],
   );
+}
+
+/** A band's minimum as ACEITÁVEL prints it: pt-BR, at least one decimal ("0,5", "1,0", "0,25"). */
+function bandValueText(value: number): string {
+  const decimals = Math.max(1, (String(value).split('.')[1] ?? '').length);
+  return value.toFixed(decimals).replace('.', ',');
 }
 
 /** The measured units under a VALORES header: one prints "VALORES (GΩ)", several "VALORES"; none falls back to the seed's column unit. */

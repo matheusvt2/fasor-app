@@ -29,6 +29,7 @@ import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts, pushNewRelat
 import { newId } from '../apps/api/src/ids.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNow, syncNowAndReturn } from './support/sync.ts';
+import { paletteTypes, typeLabels, typeRows } from './support/palette.ts';
 import { expandLocation } from './support/tree.ts';
 
 /*
@@ -190,9 +191,12 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
   const groups = palette(page).locator('.palette-group');
   await expect(groups.filter({ hasText: new RegExp(`^${OUTROS}$`) })).toHaveCount(1);
   const steppers = palette(page).locator('.palette-item.is-stepper');
-  await expect(steppers).toHaveCount(9);
-  await expect(steppers.last().locator('.pi-text > span').first()).toHaveText(CTA_NAME);
-  await expect(steppers.last().locator('.pi-meta')).toHaveText(LIBRARY_SUMMARY);
+  // E14-A3: the closed lists are the kernel's (seed v6 adds the Quadro elétrico after the CTA).
+  const types = paletteTypes(SEED_VERSION);
+  await expect(steppers).toHaveCount(types.seeded.length + types.library.length);
+  const ctaStepper = steppers.nth(types.seeded.length + types.library.indexOf(CTA));
+  await expect(ctaStepper.locator('.pi-text > span').first()).toHaveText(CTA_NAME);
+  await expect(ctaStepper.locator('.pi-meta')).toHaveText(LIBRARY_SUMMARY);
   await palette(page).getByRole('group', { name: 'Chaves de transferência automática, 0' }).getByRole('button', { name: 'Mais um' }).click();
   const direct = localCard(page, LOCAL).locator(':scope > .block-expand > .loc-direct');
   await expect(direct.getByRole('group', { name: 'Chaves de transferência automática, 1' })).toBeVisible();
@@ -624,16 +628,18 @@ test('@p0 14.5-E2E-002 at 768 then 390: offline, the field palette lists the eig
   const fieldPalette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   await expect(fieldPalette.locator('.palette-where')).toHaveText(`Em: ${LOCAL}`);
   const rows = fieldPalette.locator('.pf-field');
-  await expect(rows).toHaveCount(9);
-  await expect(rows.locator('.pi-text > span:first-child')).toHaveText(['Cabos de entrada', 'Para-raio', 'Chave seccionadora', 'Disjuntor MT', 'TP', 'TC', 'Cabos de saída', 'Transformador de força', CTA_NAME]);
+  // E14-A3: the rows are the kernel's for the relatório's seed version.
+  await expect(rows).toHaveCount(typeLabels(SEED_VERSION).length);
+  await expect(rows.locator('.pi-text > span:first-child')).toHaveText(typeLabels(SEED_VERSION));
+  const ctaRow = typeRows(fieldPalette, [CTA]);
   const heading = fieldPalette.locator('.palette-group', { hasText: new RegExp(`^${OUTROS}$`) });
   await expect(heading).toHaveCount(1);
   // The heading sits between the eighth type and the library type.
   expect(await heading.evaluate((element) => (element.previousElementSibling?.classList.contains('palette-type') ?? false) && element.nextElementSibling?.getAttribute('data-block-type'))).toBe(CTA);
-  const meta = (await rows.last().locator('.pi-meta').innerText()).trim();
+  const meta = (await ctaRow.locator('.pi-meta').innerText()).trim();
   expect(meta).toMatch(new RegExp(`^${LIBRARY_SUMMARY} · CTA-GERADORES(-\\d+)?$`));
   const tag = meta.slice(`${LIBRARY_SUMMARY} · `.length);
-  await rows.last().click();
+  await ctaRow.click();
   await expect(fieldPalette).toBeHidden();
   await expect(toast(page)).toContainText(`${tag} criada em ${LOCAL}`);
   await expect(eqRow(page, tag).locator('.s9-eq-name')).toHaveText(CTA_NAME);

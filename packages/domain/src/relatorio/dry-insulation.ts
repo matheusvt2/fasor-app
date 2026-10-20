@@ -3,6 +3,7 @@ import { findDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition, SubtypeDef } from '../seed/schema.ts';
 import { plural } from '../text/plural.ts';
 import { nameplateTagPrefill } from './nameplate-copy.ts';
+import { isOilFieldExcused, isOilUnit, oilRuleOf } from './oil-rule.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 
 /*
@@ -22,6 +23,11 @@ import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
  *   plate: `sheetProgress` and the field's missing marker both read it).
  * No chip on a block that has a subtype (its `na_defaults` already display NA) or whose type has
  * no TIPO DE ISOLAÇÃO. The checklist is a locked sub-block, so its switch is never read here.
+ *
+ * Story 14.11 (seed v6): a block whose definition has an oil rule (`oil-rule.ts`) goes through
+ * that rule instead: it is dry when the rule reads it non-oil, the chip is never offered (its
+ * oil items already show NA), and its oil fields are excused by the rule. v1 to v5 keep all of
+ * the above unchanged.
  */
 
 /** The nameplate field that names the insulation (`TIPO DE ISOLAÇÃO`, seed v1). */
@@ -58,6 +64,7 @@ function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): Blo
 
 /** A dry unit: its config subtype is `epoxi` or `a_seco`, or its stored TIPO DE ISOLAÇÃO names one. */
 export function isDryBlock(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>): boolean {
+  if (oilRuleOf(block) !== null) return isOilUnit(block) === false;
   const subtype = subtypeOf(block);
   if (subtype !== null && DRY_SUBTYPE_KEYS.has(subtype)) return true;
   const cell = block.sheet.nameplate[INSULATION_FIELD_KEY];
@@ -74,7 +81,7 @@ export function isDryBlock(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_vers
  * shows while this is non-empty.
  */
 export function oilNaChipItems(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>, options: { used: boolean }): string[] {
-  if (options.used || subtypeOf(block) !== null) return [];
+  if (options.used || subtypeOf(block) !== null || oilRuleOf(block) !== null) return [];
   const definition = definitionOf(block);
   if (definition === null || definition.checklist === null) return [];
   const cell = block.sheet.nameplate[INSULATION_FIELD_KEY];
@@ -88,8 +95,9 @@ export function oilNaChipItems(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_
 /**
  * The nameplate fields of the block still missing (the one rule of "missing" on the plate):
  * every field of its definition whose cell is not filled, except a TAG field shown prefilled
- * from the block's TAG (Story 12.3, needs `equipment`) and VOL. ÓLEO on a dry block
- * (`isDryBlock`). Empty for an unknown block, one with no definition or a disabled nameplate.
+ * from the block's TAG (Story 12.3, needs `equipment`), VOL. ÓLEO on a dry block
+ * (`isDryBlock`; seed v6: every oil field the oil rule excuses) and a field the seed marks
+ * `optional` (seed v6, the QGBT's SELV/PELV mark). Empty for an unknown block, one with no definition or a disabled nameplate.
  */
 export function nameplateMissingKeys(
   snapshot: { readonly blocks: readonly BlockRow[]; readonly equipment?: readonly Pick<EquipmentRow, 'id' | 'tag'>[] | undefined },
@@ -100,12 +108,16 @@ export function nameplateMissingKeys(
   const definition = definitionOf(block);
   if (definition === null) return new Set();
   const prefilled = snapshot.equipment === undefined ? null : nameplateTagPrefill({ blocks: snapshot.blocks, equipment: snapshot.equipment }, block.id);
-  const dry = isDryBlock(block);
+  const ruled = definition.oil_rule !== undefined;
+  const dry = !ruled && isDryBlock(block);
   const missing = new Set<string>();
   for (const field of definition.nameplate) {
     if (isCellFilled(block.sheet.nameplate[field.key])) continue;
     if (field.key === 'tag' && prefilled !== null) continue;
     if (field.key === OIL_VOLUME_FIELD_KEY && dry) continue;
+    // Seed v6: the rule's oil fields on a non-oil unit (Story 14.11), and a field the seed marks optional (Story 14.9).
+    if (ruled && isOilFieldExcused(block, field.key)) continue;
+    if (field.optional === true) continue;
     missing.add(field.key);
   }
   return missing;

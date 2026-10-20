@@ -45,6 +45,7 @@ describe('4.1-UNIT suggestTag', () => {
       'chave_transferencia_automatica',
       'disjuntor_mt',
       'para_raio',
+      'quadro_eletrico',
       'tc',
       'tp',
       'transformador_forca',

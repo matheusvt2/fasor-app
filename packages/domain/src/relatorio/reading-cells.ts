@@ -104,8 +104,9 @@ export interface TestEvaluation {
   testKey: TestKey;
   /** The test's heading ("Ensaio de isolação"). */
   title: string;
-  criterion: CriterionSeed;
-  /** The criterion value alone, as the caption shows it (">400 MΩ"). */
+  /** Story 14.9: null when no criterion applies (a band test with no band for the plate): no verdict on any reading. */
+  criterion: CriterionSeed | null;
+  /** The criterion value alone, as the caption shows it (">400 MΩ"); `CRITERION_NOT_EVALUATED` with no criterion. */
   criterionText: string;
   /** The criterion's source ("aceitável na ficha"). */
   sourceName: string;

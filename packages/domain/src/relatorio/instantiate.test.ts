@@ -52,7 +52,7 @@ describe('4.1-UNIT instantiateTemplate over the standard template', () => {
       project_id: TEST_PROJECT,
       template_id: TEMPLATE_ID,
       template_version: 1,
-      seed_version: 'v5',
+      seed_version: 'v6',
       status: 'rascunho',
       setup: {
         service_start: '2026-09-06',
@@ -108,7 +108,7 @@ describe('4.1-UNIT instantiateTemplate over the standard template', () => {
     expect(sortByOrderKey(sections).map((b) => b.block_type)).toEqual([...RELATORIO_SECTION_TYPES]);
     for (const section of sections) {
       expect(section.equipment_id).toBeNull();
-      expect(section.seed_version).toBe('v5');
+      expect(section.seed_version).toBe('v6');
       expect(blockRowSchema.safeParse(section).success).toBe(true);
     }
     const s2 = sections.find((b) => b.block_type === 'section_2')!;
@@ -122,7 +122,7 @@ describe('4.1-UNIT instantiateTemplate over the standard template', () => {
     for (const b of sheets) byType[b.block_type as EquipmentBlockType] += 1;
     expect(byType).toEqual(totals);
     // The standard template holds none of the library type (seed v5).
-    expect(totals).toEqual({ chave_seccionadora: 25, disjuntor_mt: 21, tp: 11, tc: 11, transformador_forca: 8, cabos_entrada: 4, cabos_saida: 9, para_raio: 5, chave_transferencia_automatica: 0 });
+    expect(totals).toEqual({ chave_seccionadora: 25, disjuntor_mt: 21, tp: 11, tc: 11, transformador_forca: 8, cabos_entrada: 4, cabos_saida: 9, para_raio: 5, chave_transferencia_automatica: 0, quadro_eletrico: 0 });
     const coluna5 = locations.find((l) => l.name === 'Coluna 5')!;
     expect(sortByOrderKey(sheets.filter((b) => b.location_id === coluna5.id)).map((b) => b.block_type)).toEqual(['chave_seccionadora', 'disjuntor_mt']);
     const coluna3 = locations.find((l) => l.name === 'Coluna 3')!;

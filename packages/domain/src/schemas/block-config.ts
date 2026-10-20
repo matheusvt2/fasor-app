@@ -27,12 +27,13 @@ export type BaseEquipmentBlockType = (typeof BASE_EQUIPMENT_BLOCK_TYPES)[number]
 
 /**
  * Every equipment block type any seed version ships: the eight, then (seed v5, Story 14.5,
- * contract 19) the Chave de transferência automática. A closed, append-only list; which of
+ * contract 19) the Chave de transferência automática, then (seed v6, Story 14.9, contract 21)
+ * the Quadro elétrico (QGBT/QD). A closed, append-only list; which of
  * them a relatório or a template offers is its seed version's (`equipmentTypesOf`): a type
  * its version does not ship has no definition there (`getDefinition` throws, `findDefinition`
  * answers null) and the fold refuses a block of it.
  */
-export const EQUIPMENT_BLOCK_TYPES = [...BASE_EQUIPMENT_BLOCK_TYPES, 'chave_transferencia_automatica'] as const;
+export const EQUIPMENT_BLOCK_TYPES = [...BASE_EQUIPMENT_BLOCK_TYPES, 'chave_transferencia_automatica', 'quadro_eletrico'] as const;
 
 /**
  * The FO.SERV-03 sections a Template carries as blocks. Sections 7 (photos) and 9
@@ -170,6 +171,22 @@ export const ITEM_KEYS = [
   'partida_do_gerador_comandada_pela_chave_exercitador_programado',
   'aquecedor_e_ventilacao_se_houver',
   'gerador_deixado_em_automatico_ao_final',
+  // Appended (seed v6, Story 14.9): the items of the Quadro elétrico (QGBT/QD) not already above
+  // (`docs/nc-chip-phrases.md`, "Quadros elétricos"); its `lampadas_de_sinalizacao`, `fusiveis`,
+  // `aterramento` and `isoladores` are the keys the eight already use.
+  'limpeza_interna_e_externa',
+  'pintura_corrosao_da_caixa',
+  'resistencia_de_aquecimento',
+  'iluminacao_interna',
+  'reles_e_contatores',
+  'disjuntores_termomagneticos',
+  'instrumentos_de_medicao',
+  'barramentos',
+  'fiacao_interna',
+  'reaperto_geral',
+  'placas_de_sinalizacao',
+  'organizacao_interna',
+  'identificacao_de_circuitos',
 ] as const;
 
 export const itemKeySchema = z.enum(ITEM_KEYS);

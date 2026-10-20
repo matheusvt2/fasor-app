@@ -130,20 +130,22 @@ describe('3.4 composer: quantities per node', () => {
     expect((await outboxPaths()).every((path) => path === `template/${ID}/blocks`)).toBe(true);
   });
 
-  it('14.5: on seed v5 the palette lists the eight, then "Outros equipamentos" with the Chave de transferência automática; one from its stepper lands on the coluna and in the totals', async () => {
+  it('14.5 and 14.9: on seed v6 the palette lists the eight, then "Outros equipamentos" with the Chave de transferência automática and the Quadro elétrico; one CTA from its stepper lands on the coluna and in the totals', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     const { container } = renderComposer();
     await userEvent.click(await screen.findByRole('button', { name: /^Coluna 9/ }));
     const groups = [...palette().querySelectorAll('.palette-group')].map((group) => group.textContent);
     expect(groups.indexOf('Outros equipamentos')).toBeGreaterThan(groups.indexOf('Equipamentos'));
     const rows = [...palette().querySelectorAll<HTMLElement>('.palette-item.is-stepper')];
-    expect(rows).toHaveLength(9);
-    // The library type is the last row, after the heading, and says what it holds.
+    expect(rows).toHaveLength(10);
+    // The library types are the last rows, after the heading, and say what they hold.
     const heading = within(palette()).getByText('Outros equipamentos');
     expect(rows[7]!.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(heading.compareDocumentPosition(rows[8]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(rows[8]!.querySelector('.pi-text > span:first-child')).toHaveTextContent('Chave de transferência automática');
     expect(rows[8]!.querySelector('.pi-meta')).toHaveTextContent('17 itens · até 6 ensaios');
+    expect(rows[9]!.querySelector('.pi-text > span:first-child')).toHaveTextContent('Quadro elétrico (QGBT/QD)');
+    expect(rows[9]!.querySelector('.pi-meta')).toHaveTextContent('17 itens · até 1 ensaio');
     expect(rows[0]!.querySelector('.pi-meta')).toBeNull();
     // The standard template holds none.
     expect(container.querySelector('.composer-meta')).not.toHaveTextContent('chave de transferência automática');

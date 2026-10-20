@@ -1,7 +1,7 @@
 import { canonicalDecimal, formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import { compareCriterion, formatCriterionValue, scaleToUnit, SEEDED_CRITERIA, type CriterionSeed } from '../seed/criteria.ts';
-import type { BlockDefinition, ColumnDef, TableDef, TestDef } from '../seed/schema.ts';
+import { SELV_YES, type BandCriterion, type BlockDefinition, type ColumnDef, type TableDef, type TestDef } from '../seed/schema.ts';
 import { listPtBr } from '../text/plural.ts';
 import { enabledSubBlocksOf } from './sheet-state.ts';
 import {
@@ -38,6 +38,43 @@ function criterionOf(test: TestDef): CriterionSeed {
   return found;
 }
 
+/** A nameplate number cell as a value in V (a stored kV is moved into V), or null when it holds no positive number. */
+function voltsOf(value: unknown): number | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const cell = value as { raw?: unknown; unit?: unknown; state?: unknown };
+  if (cell.state !== 'measured' || typeof cell.raw !== 'string' || !DECIMAL.test(cell.raw)) return null;
+  const number = Number(cell.raw);
+  if (!Number.isFinite(number) || number <= 0) return null;
+  if (cell.unit === 'kV') return number * 1000;
+  return cell.unit === 'V' || cell.unit === null || cell.unit === undefined ? number : null;
+}
+
+/** A band as the criterion every reader takes, keyed and labelled as the test's seeded criterion. */
+function bandAsCriterion(test: TestDef, band: BandCriterion): CriterionSeed {
+  const seeded = criterionOf(test);
+  return { key: seeded.key, label: seeded.label, operator: band.operator, value: band.value, unit: band.unit, type: 'absolute_min', source: band.source, usedBy: seeded.usedBy };
+}
+
+/**
+ * Story 14.9 (seed v6, NBR 5410): the criterion a test with `criterion_bands` is judged by, from
+ * the block's own plate: the SELV/PELV band when the mark reads SIM, else the first band whose
+ * `up_to` the TENSÃO NOMINAL does not exceed; null (no verdict) when the voltage is empty, not
+ * a positive number, or above the last band. Re-read on every evaluation, so editing the plate
+ * re-judges the readings.
+ */
+export function bandCriterion(block: Pick<BlockRow, 'sheet'>, test: TestDef): CriterionSeed | null {
+  const bands = test.criterion_bands;
+  if (bands === undefined) return null;
+  if (bands.selv_field !== undefined && bands.selv !== undefined) {
+    const mark = block.sheet.nameplate[bands.selv_field]?.value;
+    if (typeof mark === 'string' && mark.trim() === SELV_YES) return bandAsCriterion(test, bands.selv);
+  }
+  const volts = voltsOf(block.sheet.nameplate[bands.field]?.value);
+  if (volts === null) return null;
+  const band = bands.bands.find((candidate) => volts <= candidate.up_to);
+  return band === undefined ? null : bandAsCriterion(test, band);
+}
+
 /**
  * E5-A4: the criterion a test of this sheet is judged by: the seed's, with the value and
  * unit of the sheet's `test.{key}.criterion_override` when it is well formed -- `{raw, unit}`
@@ -46,9 +83,13 @@ function criterionOf(test: TestDef): CriterionSeed {
  * (a negative value among them: it would make `>` pass and `±` fail every reading) is
  * ignored and the seed stands. Open question: no document fixes the override's shape;
  * this is the conservative reading, and no surface writes it yet.
+ *
+ * Story 14.9 (seed v6): a test with `criterion_bands` takes its band (`bandCriterion`) instead
+ * of the seeded criterion, and null when none applies: every reader then gives no verdict.
  */
-export function effectiveCriterion(block: Pick<BlockRow, 'sheet'>, test: TestDef): CriterionSeed {
-  const seed = criterionOf(test);
+export function effectiveCriterion(block: Pick<BlockRow, 'sheet'>, test: TestDef): CriterionSeed | null {
+  const seed = test.criterion_bands === undefined ? criterionOf(test) : bandCriterion(block, test);
+  if (seed === null) return null;
   const value = block.sheet.test[test.key]?.criterion_override?.value;
   if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) return seed;
   const override = value as { raw?: unknown; unit?: unknown };
@@ -57,6 +98,16 @@ export function effectiveCriterion(block: Pick<BlockRow, 'sheet'>, test: TestDef
   const number = Number(override.raw);
   if (!Number.isFinite(number) || number < 0 || scaleToUnit(number, override.unit, seed.unit) === null) return seed;
   return { ...seed, value: number, unit: override.unit };
+}
+
+// authored (Story 14.9): what a test reads when no criterion applies (the QGBT with no TENSÃO NOMINAL, or above 1000 V).
+/** The criterion text of a test judged by no criterion. */
+export const CRITERION_NOT_EVALUATED = 'critério não avaliado';
+
+/** The source a test names: its criterion's, else (no band applies) the source of its bands. */
+function sourceNameOf(test: TestDef, criterion: CriterionSeed | null): string {
+  if (criterion !== null) return criterion.source.name;
+  return test.criterion_bands?.bands[0]?.source.name ?? criterionOf(test).source.name;
 }
 
 function outHelperText(criterion: CriterionSeed): string {
@@ -93,7 +144,7 @@ function formatCalculated(value: number): string {
   return formatDecimalGroupedPtBr(value.toFixed(2));
 }
 
-function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestDef, criterion: CriterionSeed, table: TableDef, offset: number): EvaluatedTable {
+function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestDef, criterion: CriterionSeed | null, table: TableDef, offset: number): EvaluatedTable {
   const ratio = test.key === 'relacao_transformacao';
   const columns: VisibleColumn[] = [];
   const derived = table.value_columns.flatMap((c, i) => (c.role === 'derived' ? [i] : []));
@@ -110,7 +161,7 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
   });
   const typed = typedColumns(table);
   const inputs = typed.filter(({ column }) => column.role === 'input');
-  const helper = outHelperText(criterion);
+  const helper = criterion === null ? null : outHelperText(criterion);
 
   const rows: EvaluatedRow[] = table.rows.map((connection, r) => {
     const row = offset + r;
@@ -171,7 +222,7 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
     }
     // The verdicts: every measured capture against the criterion.
     for (const cell of cells) {
-      if (cell.role !== 'capture' || cell.state !== 'measured') continue;
+      if (cell.role !== 'capture' || cell.state !== 'measured' || criterion === null) continue;
       const value = Number(cell.raw);
       let within: boolean | null;
       try {
@@ -269,8 +320,8 @@ export function evaluateTest(block: BlockRow, definition: BlockDefinition, test:
     testKey: test.key,
     title: sentenceCase(test.label),
     criterion,
-    criterionText: formatCriterionValue(criterion),
-    sourceName: criterion.source.name,
+    criterionText: criterion === null ? CRITERION_NOT_EVALUATED : formatCriterionValue(criterion),
+    sourceName: sourceNameOf(test, criterion),
     tables,
   };
 }
