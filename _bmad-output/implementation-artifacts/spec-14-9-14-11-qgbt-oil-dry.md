@@ -2,10 +2,10 @@
 title: 'Stories 14.9 and 14.11: QGBT/QD library type and oil vs dry, seed v6'
 type: 'feature'
 created: '2026-10-20'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'bfaf0325be3405cd93f64d7fb20f7d2fcf1e566a'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -199,3 +199,25 @@ the host. `podman compose` (no `docker`); tools runs as `podman compose --profil
 `nohup sh -c "lockf -t 30000 /tmp/fasor-verify.lock sh -c 'podman compose --profile tools run --rm --user root tools pnpm exec tsx scripts/e2e.ts <specs> --project desktop-chrome --project durability-desktop-chrome'; echo EXIT=\$?" > .scratch-c17/e2e-<name>.log 2>&1 &`
 then poll the log in calls of at most 60 s. Before reading a timeout as a defect, check `podman ps` for a restarting
 container. Never stop containers that are not `fasor-c17-*`. Images are tagged `app-api-c17` and `app-tools-c17`; never build.
+
+## Auto Run Result
+
+Status: done (PR opened, not merged).
+
+**Summary.** Seed v6 = v5 plus the library type `quadro_eletrico` (10 plate fields incl. IP select and the authored
+optional "Circuito SELV/PELV", 17 items with hints on 8 and 16, four insulation rows against MASSA with the NBR 5410
+band criterion from TENSÃO NOMINAL) and the oil rule on Transformador de força, TP, TC (ÓLEO) and Disjuntor MT
+(VÁCUO, ÓLEO (PVO), ÓLEO (GVO)). Contract 21, minimum 21. Kernel `relatorio/oil-rule.ts`; band criterion through
+`effectiveCriterion` (nullable); web hint line and `withOilCrossing` on every nameplate write path; api plate fixture,
+`docx-qgbt.test.ts`, `sync-v6.integration.test.ts`; e2e `qgbt.spec.ts`, `oil-dry.spec.ts`, `oil-dry.durability.spec.ts`.
+
+**Review.** 14 findings: 8 rows patched (5 medium, 3 low; same root causes merged into 5 fixes, commit `bc5df944`),
+6 rejected with reasons in the triage log, none deferred. Follow-up review recommended: two or more medium entries
+were patched (the tray crossing toast and the Repetir oil-NA rule are not re-reviewed).
+
+**Verification (story gate on `bc5df944`, under the host lock, LOCKED_AFTER=0s):** lint 0 (15 s), static 0 (25 s),
+test:api 659/659 (273 s), test:unit 4295/4295 (265 s), touched and closed-list specs on desktop-chrome and
+durability-desktop-chrome 76/76 (595 s), touched durability specs on android-chrome and webkit 12/12 (71 s).
+
+**Residual risks.** `withOilCrossing` reads files from the render-time snapshot (maybe-false, rejected); the open
+questions listed in Design Notes stay for Matheus and Bruno.
