@@ -164,6 +164,11 @@ for (const size of [
       });
       expect(start).not.toBeNull();
       await page.keyboard.press('Tab');
+      // The focus scroll ends on the next frame: `useFocusedClearOfStickyBar` (toast.tsx) clears the
+      // field once in the focus task and once more on the next animation frame. Read the landing and
+      // reset the scroll after that frame, or the reset races it and the frame pass scrolls the page
+      // back down to the field (159 px at 390 px) before "Gerar relatório" is clicked.
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
       const landed = await page.evaluate(() => {
         const active = document.activeElement as HTMLElement;
         const barTop = document.querySelector('[data-route="/relatorio/:id"] .sticky-action-bar')!.getBoundingClientRect().top;
