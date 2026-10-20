@@ -1,6 +1,6 @@
 # NC chip phrases for review
 
-**Status:** pending review by Bruno, via Matheus ~~(entry dated 2026-09-22). Seed version `v1`.~~ *(2026-10-15)* for the Quadros elétricos draft at the end only (seed `v6`, Story 14.9) (entry dated 2026-10-15). Every phrase of seeds `v1` to `v5` (the equipment items, NO-BREAK DE COMANDO, the 19 Verificações do local items and the 51 CTA phrases) was reviewed and accepted as it is by Bruno, via Matheus, on 2026-10-15 ("de acordo").
+**Status:** ~~pending review by Bruno, via Matheus~~ ~~(entry dated 2026-09-22). Seed version `v1`.~~ ~~*(2026-10-15)* for the Quadros elétricos draft at the end only (seed `v6`, Story 14.9) (entry dated 2026-10-15).~~ *(2026-10-20)* every phrase in this document is reviewed and accepted: the Quadros elétricos draft at the end (seed `v6`, Story 14.9) was accepted as it is by Bruno, via Matheus, on 2026-10-20 ("de acordo"), with the request that a phrase typed by hand become a chip of the company's next sheets (Story 14.12). Every phrase of seeds `v1` to `v5` (the equipment items, NO-BREAK DE COMANDO, the 19 Verificações do local items and the 51 CTA phrases) was reviewed and accepted as it is by Bruno, via Matheus, on 2026-10-15 ("de acordo").
 
 ## What this is
 
@@ -137,7 +137,7 @@ Block types: `chave_transferencia_automatica`.
 
 Block types: `quadro_eletrico`.
 
-*(2026-10-15, draft, authored for Bruno's review: the 17 items of the "Quadros Elétricos" sheet of the original form (`docs/context/FO.SERV-03 Relatórios-Complemento.xlsx`, git-ignored), labels verbatim. The type is not seeded yet; the block type key and the item keys are proposed and settled in the Story 14.9 spec, and `scripts/nc-chip-phrases.test.ts` checks these rows once the type ships. Item 17 is printed as a second "16" in the original (open question 1 of Story 14.9).)*
+*(2026-10-15, draft, authored for Bruno's review: the 17 items of the "Quadros Elétricos" sheet of the original form (`docs/context/FO.SERV-03 Relatórios-Complemento.xlsx`, git-ignored), labels verbatim. The type is not seeded yet; the block type key and the item keys are proposed and settled in the Story 14.9 spec, and `scripts/nc-chip-phrases.test.ts` checks these rows once the type ships. Item 17 is printed as a second "16" in the original (open question 1 of Story 14.9).)* *(2026-10-20, Bruno, via Matheus: accepted as drafted, and the second 16 is numbered 17. A phrase typed by hand on an NC row becomes a chip of the company's next sheets with Story 14.12; it is not a seeded row of this table.)*
 
 | # | Item | Key | NC phrases |
 | --- | --- | --- | --- |

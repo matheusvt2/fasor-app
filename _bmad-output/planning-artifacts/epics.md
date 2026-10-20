@@ -3466,12 +3466,14 @@ So that the boards I already inspect on a job are recorded in the relatório, an
 
 *(Definition of Ready: (1) Bruno's answers to the open questions below are recorded under this story with their date, or Matheus accepts the proposed default of each with a dated line; (2) the NC chip phrases drafted in `docs/nc-chip-phrases.md`, section "Quadros elétricos", are reviewed by Bruno or accepted by Matheus as the first version; (3) Story 14.5 is merged (seed v5, the library-type path, "Outros equipamentos") — met. No new mock frame is needed: the sheet uses the nameplate, checklist and insulation patterns of `60-ficha.html`, and the print follows the original sheet's layout as the eight types do; a criterion that needs a surface the sheet does not have becomes named scope before the build (E14-A4).)*
 
+*(2026-10-20, Definition of Ready checked against Bruno's answers of 2026-10-20 (recorded below): (1) met, all eight questions answered; (2) met, the 17 NC phrases accepted ("de acordo"); (3) met. Ready for dev. The questions the answers opened are listed under "Still open after 2026-10-20" below; none blocks the build, each has the default the build takes. The seed and contract numbers are fixed with Story 14.11: one seed v6 and contract 21 (contract 20 was taken by Story 14.10 lane B's audit coverage).)*
+
 **Content (from the original sheet, labels verbatim as they print):**
 
-- Title printed on the sheet: `QGBT/QD's`. Block type key proposed `quadro_eletrico`, label "Quadro elétrico (QGBT/QD)" and TAG prefix `QD` (both authored, open for Bruno).
-- DADOS DO EQUIPAMENTO, 9 fields: `IDENTIFICAÇÃO` · `FABRICANTE` · `Nº SÉRIE` · `TIPO` · `TIPO DE ISOLAÇÃO` · `DATA DE FABRICAÇÃO` · `CORRENTE DE CURTO` (kA) · `TENSÃO NOMINAL` (V) · `IP`. Units and kinds are proposed: text for the first five and IP, month-year date for the fabrication date (Story 13.4 rules), number for the two ratings.
-- VERIFICAÇÕES GERAIS (ÍTEM · C · NC · NA · OBSERVAÇÕES), 17 items as the original lists them: 1 LIMPEZA INTERNA E EXTERNA, 2 PINTURA, CORROSÃO DA CAIXA, 3 RESISTÊNCIA DE AQUECIMENTO, 4 ILUMINAÇÃO INTERNA, 5 LÂMPADAS DE SINALIZAÇÃO, 6 RELÉS E CONTATORES, 7 FUSÍVEIS, 8 DISJUNTORES TERMOMAGNÉTICOS (with the hint "FUNCIONAMENTO MECÂNICO (LIGA/DESLIGA/TRIP)" in the observation column), 9 ATERRAMENTO, 10 INSTRUMENTOS DE MEDIÇÃO, 11 BARRAMENTOS, 12 ISOLADORES, 13 FIAÇÃO INTERNA, 14 REAPERTO GERAL, 15 PLACAS DE SINALIZAÇÃO, 16 ORGANIZAÇÃO INTERNA (hint "CANALETA, CHICOTE, CABOS..."), and a second 16 IDENTIFICAÇÃO DE CIRCUITOS (proposed: numbered 17).
-- ENSAIO DE ISOLAÇÃO: the seeded single-table insulation grammar (`addendum.md` §9.3) with its instrument header (INSTRUM. FABRIC., TIPO, TENSÃO ENSAIO kV, Nº SÉRIE, RBC, ACEITÁVEL MΩ) and one row, LINHA `BARRAMENTO` · TERRA `MASSA` · GUARD empty, under 30 SEGUNDOS · 1 MINUTO · ESTAB./10MIN · ABSORÇÃO · POLARIZAÇÃO. The 1-minute-only capture rule of `source-deltas.md` applies unchanged (the other columns print "-").
+- Title printed on the sheet: `QGBT/QD's`. Block type key proposed `quadro_eletrico`, label "Quadro elétrico (QGBT/QD)" and TAG prefix `QD` (both authored, ~~open for Bruno~~ *(2026-10-20)* accepted by Bruno, answer 5; QGBT and QD are not told apart as types).
+- DADOS DO EQUIPAMENTO, 9 fields: `IDENTIFICAÇÃO` · `FABRICANTE` · `Nº SÉRIE` · `TIPO` · `TIPO DE ISOLAÇÃO` · `DATA DE FABRICAÇÃO` · `CORRENTE DE CURTO` (kA) · `TENSÃO NOMINAL` (V) · `IP`. Units and kinds are proposed: text for the first five ~~and IP~~, month-year date for the fabrication date (Story 13.4 rules), number for the two ratings. *(2026-10-20, Bruno, answer 3: IP is a select from a list of codes, not free text; the list, authored for Bruno from the common IEC 60529 values: IP20, IP30, IP31, IP40, IP41, IP42, IP43, IP44, IP54, IP55, IP65, IP66.)* *(2026-10-20, Bruno via Matheus, follow-up 2: the twelve codes are accepted as the list.)* *(2026-10-20, Bruno via Matheus, follow-up 4: `FABRICANTE` is the manufacturer's name, kind `manufacturer` as FABRICAÇÃO is on the other sheets, never a date; the label prints FABRICANTE.)*
+- VERIFICAÇÕES GERAIS (ÍTEM · C · NC · NA · OBSERVAÇÕES), 17 items as the original lists them: 1 LIMPEZA INTERNA E EXTERNA, 2 PINTURA, CORROSÃO DA CAIXA, 3 RESISTÊNCIA DE AQUECIMENTO, 4 ILUMINAÇÃO INTERNA, 5 LÂMPADAS DE SINALIZAÇÃO, 6 RELÉS E CONTATORES, 7 FUSÍVEIS, 8 DISJUNTORES TERMOMAGNÉTICOS (with the hint "FUNCIONAMENTO MECÂNICO (LIGA/DESLIGA/TRIP)" in the observation column), 9 ATERRAMENTO, 10 INSTRUMENTOS DE MEDIÇÃO, 11 BARRAMENTOS, 12 ISOLADORES, 13 FIAÇÃO INTERNA, 14 REAPERTO GERAL, 15 PLACAS DE SINALIZAÇÃO, 16 ORGANIZAÇÃO INTERNA (hint "CANALETA, CHICOTE, CABOS..."), and a second 16 IDENTIFICAÇÃO DE CIRCUITOS (~~proposed:~~ numbered 17 *(2026-10-20, Bruno, answer 1)*). *(2026-10-20, Bruno, answer 4: the two hints are reminders for the technician on the sheet only; they never print.)*
+- ENSAIO DE ISOLAÇÃO: the seeded single-table insulation grammar (`addendum.md` §9.3) with its instrument header (INSTRUM. FABRIC., TIPO, TENSÃO ENSAIO kV, Nº SÉRIE, RBC, ACEITÁVEL MΩ) and ~~one row, LINHA `BARRAMENTO` · TERRA `MASSA` · GUARD empty,~~ *(2026-10-20, Bruno, answer 2: one row per phase against massa)* ~~three rows, LINHA `FASE A`, `FASE B`, `FASE C` · TERRA `MASSA` · GUARD empty (the para-raio's row labels; a neutral row is open),~~ *(2026-10-20, Bruno via Matheus, follow-up 1)* four rows, LINHA `FASE A`, `FASE B`, `FASE C`, `NEUTRO` · TERRA `MASSA` · GUARD empty (the label `NEUTRO` authored), under 30 SEGUNDOS · 1 MINUTO · ESTAB./10MIN · ABSORÇÃO · POLARIZAÇÃO. The 1-minute-only capture rule of `source-deltas.md` applies unchanged (the other columns print "-").
 - OBSERVAÇÕES and CONCLUSÃO (APROVADO | REPROVADO × SEM RESTRIÇÕES | COM RESTRIÇÕES) as every sheet (`addendum.md` §9.4).
 
 **Open questions for Bruno (listed here and in the PR that adds this story):**
@@ -3485,11 +3487,47 @@ So that the boards I already inspect on a job are recorded in the relatório, an
 7. The NC chip phrases drafted for the 17 items (`docs/nc-chip-phrases.md`).
 8. Placement: one sheet per board placed on the local or on a coluna, as any block; or does a board with several colunas take one sheet per coluna?
 
+**Answers (2026-10-20, Bruno, relayed by Matheus; the questions as sent after PR #140 were numbered 1 renumbering, 2 test points, 3 minimum value, 4 IP, 5 hints, 6 name, 7 placement, 8 NC phrases; mapped here to this list's numbers):**
+
+1. Yes: the second item 16, IDENTIFICAÇÃO DE CIRCUITOS, is numbered 17 (sent as 1).
+2. Per phase against massa ("Fase/massa"): one row per phase. The build takes the conservative reading, FASE A, FASE B and FASE C against MASSA; whether a neutral row (N against massa) is added is open (sent as 2).
+3. IP is a list of IP codes, not free text. The list drafted from IEC 60529's common values (IP20, IP30, IP31, IP40, IP41, IP42, IP43, IP44, IP54, IP55, IP65, IP66) is authored and open for Bruno's check (sent as 4). A code outside the list typed by hand is a candidate field of Story 14.12, not of this story.
+4. The hints of items 8 and 16 are reminders for the technician only: they show on the sheet under the item and never print, neither under the item nor in OBSERVAÇÕES (sent as 5).
+5. "Quadro elétrico (QGBT/QD)" with TAG prefix `QD` is fine, "but it must be editable" (sent as 6). Recorded as: the TAG and the label shown for the equipment are editable per equipment. Today the TAG is editable on every sheet (`equipment/{id}/tag`) and the board's own name is its IDENTIFICAÇÃO field; no per-block screen label exists. Whether the type's own name is editable belongs to the company-types work (Stories 14.6 and 14.7). Both are open for Matheus below; the build ships the fixed label with the editable TAG and IDENTIFICAÇÃO.
+6. The minimum insulation for a low-voltage board is 1 MΩ, source NBR 5410 (sent as 3). The type carries its own criterion, not the seeded 400 MΩ one: `>= 1 MΩ`, source "NBR 5410", printed as ACEITÁVEL MΩ 1.
+7. The 17 drafted NC phrases are agreed, "but there must be room to type one by hand, and it should become an item for the next ones" (sent as 8). Typing an observation by hand already works on every NC row (the chips insert into a free-text field); the hand-typed phrase becoming a chip of the company's next sheets is Story 14.12.
+8. One sheet per board, not per coluna (sent as 7); the board is placed on the local or on a coluna as the criteria below say.
+
+**Still open after 2026-10-20 (none blocks the build; the build takes the default named):**
+
+- For Bruno: a neutral row (N against massa) in the insulation test (default: none, A, B and C only); the IP list's codes (default: the twelve above); the NBR 5410 edition to cite and whether the 1 MΩ applies whatever the test voltage (default: `>= 1 MΩ`, edition left empty as the seeded sources are); the QGBT sheet's FABRICANTE label where every other sheet prints FABRICAÇÃO, from the old form (default: FABRICANTE as the form prints it, kind `manufacturer`).
+- For Matheus: whether a block needs a per-equipment screen label beyond the TAG and IDENTIFICAÇÃO (default: no; a new label would be a new op family and a contract decision); whether the type's own name is editable by the office, which belongs to Stories 14.6 and 14.7.
+
+**Follow-up answers (2026-10-20, Bruno, relayed by Matheus), closing the Bruno items of the list above:**
+
+- Neutral: the insulation test includes it. Four rows: FASE A, FASE B, FASE C and NEUTRO against MASSA.
+- IP: the twelve codes are accepted as the list.
+- Minimum insulation and test voltage depend on the circuit's nominal voltage, per NBR 5410 (the table Bruno sent). This **supersedes answer 6's flat 1 MΩ**:
+
+  | Circuit nominal voltage | Test voltage (d.c.) | Minimum insulation |
+  | --- | --- | --- |
+  | SELV and PELV | 250 V | 0.25 MΩ |
+  | Up to 500 V inclusive | 500 V | 0.5 MΩ |
+  | Above 500 V, up to 1000 V | 1000 V | 1.0 MΩ |
+
+  The kernel derives the criterion from the board's TENSÃO NOMINAL (V): up to 500 V inclusive gives `>= 0.5 MΩ`, above 500 V up to 1000 V gives `>= 1.0 MΩ`, each sourced "NBR 5410". SELV and PELV cannot be told from the plate's TENSÃO NOMINAL (they are a kind of circuit separation, not only a voltage), so they need a mark of their own; the exact UI is open for Matheus below, and until he answers, the build applies the two voltage bands only. A criterion whose value is picked by a nameplate value is new kernel scope (the CTA's criteria pick by a configuration option, `when: {config}` in seed v5), named here under E14-A4.
+- FABRICANTE is the manufacturer's name (kind `manufacturer`), not a date.
+
+**Still open after the follow-up (none blocks the build):**
+
+- For Matheus: how a board is marked SELV or PELV (proposed: a yes/no configuration option on the block, "Circuito SELV/PELV", written through the existing `block/{id}/config` put; default until answered: no mark, the voltage bands only); what a point reads when TENSÃO NOMINAL is empty or above 1000 V (default: no criterion, the point reads as without criterion and the pre-issue check names the missing TENSÃO NOMINAL); whether the kernel checks the typed TENSÃO ENSAIO against the band's test voltage (default: no check; ACEITÁVEL MΩ prints the band's minimum). The two Matheus items of the list above stay open.
+- For Bruno: the NBR 5410 edition to cite (default: edition left empty, as the seeded sources are).
+
 **Acceptance Criteria:**
 
 **Given** the seed
 **When** this story lands
-**Then** seed v6 is v5 plus one library type, `quadro_eletrico` (key settled in the story spec), with the 9 nameplate fields, the 17 checklist items with 3 or 4 NC phrases each (the reviewed list of `docs/nc-chip-phrases.md`), the insulation test of one point on the seeded grammar and its seeded criterion; `SEED_VERSION` is v6; v1 to v5 stay frozen and resolvable; the closed type enum gains the key; TAG prefix, the noun with its gender for the conclusion and caption texts, and template totals come from the kernel; a kernel test pins that v6 differs from v5 only by this type ~~(AR-20; AD-21)~~ *(2026-10-15: and by Story 14.11's option lists and oil rule; one v6 and one contract number for both stories, see Story 14.11)* (AR-20; AD-21)
+**Then** seed v6 is v5 plus one library type, `quadro_eletrico` (key settled in the story spec), with the 9 nameplate fields, the 17 checklist items with 3 or 4 NC phrases each (the reviewed list of `docs/nc-chip-phrases.md`), the insulation test of ~~one point on the seeded grammar and its seeded criterion~~ *(2026-10-20, Bruno, answers 2 and 6)* ~~three points (FASE A, FASE B, FASE C against MASSA) on the seeded grammar and its own criterion `>= 1 MΩ` sourced "NBR 5410",~~ *(2026-10-20, Bruno via Matheus, follow-ups 1 and 3)* four points (FASE A, FASE B, FASE C, NEUTRO against MASSA) on the seeded grammar and a criterion the kernel derives from TENSÃO NOMINAL by the NBR 5410 bands (`>= 0.5 MΩ` up to 500 V inclusive, `>= 1.0 MΩ` above 500 V up to 1000 V, `>= 0.25 MΩ` for a board marked SELV or PELV once Matheus settles the mark), IP a select of the twelve codes, item 17 IDENTIFICAÇÃO DE CIRCUITOS, and the hints of items 8 and 16 as sheet-only text; `SEED_VERSION` is v6; v1 to v5 stay frozen and resolvable; the closed type enum gains the key; TAG prefix, the noun with its gender for the conclusion and caption texts, and template totals come from the kernel; a kernel test pins that v6 differs from v5 only by this type ~~(AR-20; AD-21)~~ *(2026-10-15: and by Story 14.11's option lists and oil rule; one v6 and one contract number for both stories, see Story 14.11)* (AR-20; AD-21)
 
 **Given** templates and relatórios that exist before this story
 **When** the api starts after it
@@ -3509,13 +3547,19 @@ So that the boards I already inspect on a job are recorded in the relatório, an
 
 **Given** generation of a relatório on v6 holding the type
 **When** the DOCX and PDF are built
-**Then** section 9 prints each sheet in the "Outros equipamentos" group after Transformadores (and after the CTA), titled `QGBT/QD's` (or Bruno's answer to question 5), with DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS, ENSAIO DE ISOLAÇÃO with its instrument header, OBSERVAÇÕES and CONCLUSÃO as native tables, under both section 9 schemes and inside its local, painel and coluna headings; the hints print or not per Bruno's answer to question 4; section 6 prints its catalogue unchanged; a relatório on v1 to v5, including the Porto Seguro fixture, prints exactly as before and the golden documents still match (FR-66, FR-68; AD-6, AD-15, AD-16)
+**Then** section 9 prints each sheet in the "Outros equipamentos" group after Transformadores (and after the CTA), titled `QGBT/QD's` ~~(or Bruno's answer to question 5)~~, with DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS, ENSAIO DE ISOLAÇÃO with its instrument header, OBSERVAÇÕES and CONCLUSÃO as native tables, under both section 9 schemes and inside its local, painel and coluna headings; ~~the hints print or not per Bruno's answer to question 4~~ *(2026-10-20, Bruno, answer 4)* the hints of items 8 and 16 never print; ACEITÁVEL MΩ prints ~~1~~ *(2026-10-20, Bruno via Matheus)* the band's minimum (0,5 or 1,0); section 6 prints its catalogue unchanged; a relatório on v1 to v5, including the Porto Seguro fixture, prints exactly as before and the golden documents still match (FR-66, FR-68; AD-6, AD-15, AD-16)
+
+*(2026-10-20, from Bruno's answers 3, 4 and 6:)*
+
+**Given** a sheet of the type on v6
+**When** a field user fills it
+**Then** IP is picked from the twelve codes and never typed; the hints of items 8 and 16 show under their item label on the sheet only, never in OBSERVAÇÕES; each of the ~~three insulation points is evaluated against `>= 1 MΩ` (NBR 5410)~~ *(2026-10-20, Bruno via Matheus)* four insulation points is evaluated against the band of the board's TENSÃO NOMINAL (380 V gives `>= 0.5 MΩ`, 690 V gives `>= 1.0 MΩ`; 500 V falls in the lower band), a value under it reading out of criterion as on any sheet, and editing TENSÃO NOMINAL re-evaluates the points; a kernel test pins each band edge (500 V, 501 V, 1000 V), the source, the four rows and the empty-voltage case
 
 **Given** the Sumário, the pre-issue check, "NC abertos" and the emission audit
 **When** a relatório holds the type
 **Then** its sheets count and its NC items surface as any sheet's do, with no new code path in `apps/*` (AD-2)
 
-**Definition of Done, in addition:** the contract version decision (bump and MIN_CONTRACT_VERSION, or none, argued) is written in the PR; `scripts/nc-chip-phrases.test.ts` passes with the type's rows; the batch runs every spec that asserts the closed list of block types or palette rows (E14-A3) beside its touched specs; a Playwright spec places the type in a template on a local and on a coluna, fills a sheet offline (checklist with one NC and its chip, the insulation point, the plate read through the fake fixture), reloads, syncs, generates the DOCX and checks its tables and the conclusion of an NC; the durability specs touched run on the matrix projects; `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` gain dated notes; `source-deltas.md` gains the row for the section 6 catalogue line being backed by a sheet when this lands.
+**Definition of Done, in addition:** the contract version decision (bump and MIN_CONTRACT_VERSION, or none, argued) is written in the PR; `scripts/nc-chip-phrases.test.ts` passes with the type's rows; the batch runs every spec that asserts the closed list of block types or palette rows (E14-A3) beside its touched specs; a Playwright spec places the type in a template on a local and on a coluna, fills a sheet offline (checklist with one NC and its chip, ~~the insulation point~~ *(2026-10-20)* ~~the three insulation points with one under 1 MΩ,~~ *(2026-10-20, Bruno via Matheus)* TENSÃO NOMINAL 380 V and the four insulation points with one under 0.5 MΩ, the IP picked from its list, the plate read through the fake fixture), reloads, syncs, generates the DOCX and checks its tables and the conclusion of an NC; the durability specs touched run on the matrix projects; `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` gain dated notes; `source-deltas.md` gains the row for the section 6 catalogue line being backed by a sheet when this lands.
 
 **Differences noticed between the original form and `addendum.md` §9 (2026-10-15, for Bruno; no existing type is rewritten by this story):**
 
@@ -3525,6 +3569,8 @@ So that the boards I already inspect on a job are recorded in the relatório, an
 - The para-raio sheet prints FABRICAÇÃO twice in its first row (likely FABRICANTE and FABRICAÇÃO); the seed has 5 fields.
 - The seccionadora and disjuntor sheets of the form have no TAG field (the seed adds one); the disjuntor's contact-resistance header has no Nº SÉRIE, RBC or ACEITÁVEL line.
 - The QGBT sheet says FABRICANTE where every other sheet says FABRICAÇÃO.
+
+*(2026-10-20, Bruno, relayed by Matheus, answer 9: the spreadsheet is an old version of the form. The differences above for TP, TC, para-raio, seccionadora and disjuntor are ignored: no existing type changes and these questions are closed. The QGBT's own FABRICANTE label is not covered by that answer and stays open under "Still open after 2026-10-20" above.)*
 
 ### Story 14.10: Epic 14 carry-over 2
 
@@ -3602,6 +3648,8 @@ So that the next real jobs meet a tool that is honest and quick, and a deploy is
 **When** the relatório is generated
 **Then** each type-group title under a painel names the coluna, the painel and the local: proposed "⟨grupo⟩ da Coluna N do ⟨painel⟩ — ⟨local⟩", e.g. "Seccionadoras da Coluna 2 do Painel 1 — Cabine primária" (authored, open for Bruno); sheets of one type in two colunas make two groups, one per coluna (proposed, open for Bruno); a painel with a single coluna still reads "Coluna 1"; the ÍNDICE and the section 9 headings carry the same titles; a local with no painel keeps the FO.SERV-03 titles; the titles are composed once in `packages/domain`; a relatório on v1 to v3 without painéis, and the Porto Seguro golden documents, are unchanged
 
+*(2026-10-20, Bruno, relayed by Matheus, answer 10: the title "Seccionadoras da Coluna 2 do Painel 1 — Cabine primária" is ok. The wording built in lane A (one group per coluna, "⟨grupo⟩ da Coluna N do ⟨painel⟩ — ⟨local⟩") is accepted as it is; part 8's open wording question is closed with no code change.)*
+
 *Part 9, "Hoje" on Próxima intervenção (Bruno, 2026-10-15, question 7).*
 
 **Given** the "Próxima intervenção recomendada" date in Etapa 5 (`apps/web/src/surfaces/relatorio/setup/etapa5-local.tsx`)
@@ -3644,7 +3692,11 @@ So that a dry unit never asks about oil and an oil unit never hides it.
 
 **Seed coordination with Story 14.9:** both stories ship in the one seed version **v6** and under one contract number, fixed before either batch starts (the next free number then: 20 unless the E14-A8 per-key config family takes it first) and written in both story specs. Whichever merges second rebases on the first's v6 and extends it, and v6 freezes at the first production deploy after both. If one story is not ready when the other is, the coordinator decides with Matheus whether the ready one ships v6 alone and the other takes v7; no partial v6 is deployed.
 
+*(2026-10-20, seed-version plan, coordinator: both stories are ready for dev on the same day, so they ship as the one seed v6 and under contract 21 (20 was taken by Story 14.10 lane B's audit coverage, so it is no longer free; if the E14-A8 per-key config family lands first it takes 21 and these take 22). They run as two stacked lanes of one batch or as one batch, the coordinator's choice; whichever merges second rebases on the first's v6 and extends it; the two specs carry the same numbers; v6 freezes at the first production deploy after both, and no v6 is deployed before both are merged.)*
+
 *(Definition of Ready: Bruno's answers to the open questions below are recorded under this story with their date, or Matheus accepts the proposed default of each with a dated line; Story 14.9's batch and this one agree the v6 and contract numbers.)*
+
+*(2026-10-20, Definition of Ready checked: the four questions are answered by Bruno (below), and the v6 and contract numbers are fixed in the seed-version plan above (v6, contract 21). Ready for dev. What the answers opened is listed under "Still open after 2026-10-20"; none blocks the build.)*
 
 **Open questions for Bruno:**
 
@@ -3653,15 +3705,35 @@ So that a dry unit never asks about oil and an oil unit never hides it.
 3. Do TP and TC also get the ÓLEO insulation option (the same list as the transformer)?
 4. When the insulation or the medium changes after items were answered: keep the answers (proposed: an item already holding C, NC or NA is never overwritten, as today), or clear the oil items?
 
+**Answers (2026-10-20, Bruno, relayed by Matheus; sent as questions 11 to 14 after PR #140):**
+
+1. A dry or epoxy unit shows the oil items **already marked NA**, not hidden (sent as 11); they print NA, so the printed table keeps the FO.SERV-03 rows. VOL. ÓLEO stays on the sheet, excused, and prints "-".
+2. The disjuntor's extinction media are mainly óleo/PVO, vácuo and SF6, "but there must be an option to type one by hand, and it should become an item for the next ones" (sent as 12). v6 offers on the disjuntor AR, SF6, VÁCUO and ÓLEO (PVO) (AR kept because v1 to v5 values hold it; labels authored, open for Bruno); ÓLEO (PVO) is the oil value. The hand-typed medium that becomes an option is Story 14.12; until it lands the list is closed.
+3. TP and TC can be oil-filled but rarely; the common oil units are the transformador de força and the disjuntor (sent as 13). TP and TC get ÓLEO in `TIPO DE ISOLAÇÃO` too, with the same list as the transformer (EPÓXI, Á SECO, ÓLEO, in that order); no option is preselected on any type.
+4. When the insulation (or the medium) changes after oil items were filled, the oil items are **cleared** (apagar) (sent as 14). This replaces the proposed default "never overwritten". The rule: a change that crosses between an oil and a non-oil value clears the result and the observation of every oil item, in the same undoable batch as the change, with a "Desfazer" toast naming the count (authored); then the new value's state applies (non-oil: NA derived; oil: empty, to be answered). A change between two non-oil values (EPÓXI to Á SECO) clears nothing.
+
+**Still open after 2026-10-20 (none blocks the build; the build takes the default named):**
+
+- For Bruno: the printed labels VÁCUO and ÓLEO (PVO), and whether GVO is a separate value (default: no; Story 14.12's hand-typed value covers it); whether the seccionadora's MEIO DE EXTINÇÃO gains the new media (default: no, it keeps AR and SF6 and has no oil item); whether VOL. ÓLEO and the photos of an oil item are cleared with the items (default: VOL. ÓLEO is cleared, since it prints "-" on a non-oil unit; photos are kept, as evidence, and stay listed on the sheet).
+- For Matheus: whether a hand-typed medium (Story 14.12) counts as oil (default when 14.12 lands: no, a learned value is non-oil unless the office marks it; decided in 14.12's architecture).
+
+**Follow-up answers (2026-10-20, Bruno, relayed by Matheus), closing the Bruno items of the list above:**
+
+- GVO (grande volume de óleo) is its own value. The disjuntor's MEIO DE EXTINÇÃO on v6 offers AR, SF6, VÁCUO, ÓLEO (PVO) and ÓLEO (GVO) (labels authored); both ÓLEO values are oil. The value typed by hand Bruno asked for is Story 14.12 and is **out of this story's scope**: until 14.12 lands the list is closed.
+- The seccionadora does **not** get the new media: it keeps AR and SF6 and has no oil item.
+- When the insulation changes from oil to dry, **VOL. ÓLEO and the photos tied to the oil items are cleared too**. Today a photo is tied to a checklist item by its file row's `block_id` plus `item_key` (`photoFileRowSchema` in `packages/domain/src/schemas/entities.ts`, written through the existing `file/{id}/item_key` put of the `file/field` family); an NC row's observation photo also names the item in its `reading_target`. "Cleared" for a photo, in the conservative reading, means untied from the item: `item_key` put to null in the same undoable batch, so the photo stays on the sheet's block, in the gallery and in section 8 with its caption, and is never deleted. Should the model differ when the story spec reads the code (for example a photo that prints only through its item), the spec names it and it goes to Matheus.
+
+**Still open after the follow-up:** the Matheus item above (a hand-typed medium and oil, with Story 14.12); whether an NC observation photo's `reading_target` is also rewritten when untied (default: no, `reading_target` records what the reading was for and is left as it is).
+
 **Acceptance Criteria:**
 
 **Given** seed v6
 **When** it lands
-**Then** `TIPO DE ISOLAÇÃO` on Transformador de força (and TP and TC per Bruno's answer 3) offers ÓLEO beside EPÓXI and Á SECO, and `MEIO DE EXTINÇÃO` offers the media of Bruno's answer 2; v1 to v5 stay frozen and resolvable, and a kernel test pins the difference with v5 (AR-20; AD-21)
+**Then** `TIPO DE ISOLAÇÃO` on Transformador de força ~~(and TP and TC per Bruno's answer 3)~~ *(2026-10-20, Bruno, answer 3)* and on TP and TC offers ÓLEO beside EPÓXI and Á SECO, and `MEIO DE EXTINÇÃO` ~~offers the media of Bruno's answer 2~~ *(2026-10-20, answer 2)* offers on the disjuntor AR, SF6, VÁCUO, ~~and ÓLEO (PVO), ÓLEO (PVO) the one oil value~~ *(2026-10-20, Bruno via Matheus, follow-up 5)* ÓLEO (PVO) and ÓLEO (GVO), both ÓLEO values oil, and no value typed by hand (Story 14.12), the seccionadora keeping AR and SF6; v1 to v5 stay frozen and resolvable, and a kernel test pins the difference with v5 (AR-20; AD-21)
 
 **Given** a sheet on v6 whose insulation (or, on a disjuntor, extinction medium) is a dry or non-oil value, whether typed, picked, read from the plate and confirmed, or set by the template subtype
 **When** the sheet renders and is counted
-**Then** the oil items (`OIL_RELATED_ITEMS`; on the disjuntor `oleo_isolante_indicador_de_nivel`) are hidden or shown as NA per Bruno's answer 1, without a chip and without a tap; VOL. ÓLEO (and any other oil field) is hidden or excused and never counts as missing; the rule is one kernel function in `packages/domain` read by the sheet, progress, pre-issue, the conclusion text and the renderer, never derived in `apps/*` (AD-2)
+**Then** the oil items (`OIL_RELATED_ITEMS`; on the disjuntor `oleo_isolante_indicador_de_nivel`) are ~~hidden or shown as NA per Bruno's answer 1~~ *(2026-10-20, Bruno, answer 1)* shown already marked NA, never hidden, without a chip and without a tap; VOL. ÓLEO (and any other oil field) is ~~hidden or~~ shown, excused, and never counts as missing; the rule is one kernel function in `packages/domain` read by the sheet, progress, pre-issue, the conclusion text and the renderer, never derived in `apps/*` (AD-2)
 
 **Given** ÓLEO (or an oil medium)
 **When** it is chosen
@@ -3669,7 +3741,7 @@ So that a dry unit never asks about oil and an oil unit never hides it.
 
 **Given** the insulation or medium changes after answers exist
 **When** the sheet re-evaluates
-**Then** answers follow Bruno's answer 4, and a two-device test shows both devices converge on the same items and marks (AD-3); if the NA marks are written as ops rather than derived, they are written in one undoable batch and pinned by the replay test
+**Then** ~~answers follow Bruno's answer 4~~ *(2026-10-20, Bruno, answer 4)* a change that crosses between an oil and a non-oil value clears the result and observation of every oil item ~~(and VOL. ÓLEO, unless Bruno answers otherwise)~~ *(2026-10-20, Bruno via Matheus, follow-up 7)* and of VOL. ÓLEO, and the tie of every photo to an oil item (`file/{id}/item_key` put to null; the photo is kept on the block and in the gallery) as ops in the same undoable batch as the change, with "Desfazer"; a change between two non-oil values clears nothing; then the new value's state applies; and a two-device test shows both devices converge on the same items and marks (AD-3); if the NA marks are written as ops rather than derived, they are written in one undoable batch and pinned by the replay test
 
 **Given** a relatório on v1 to v5
 **When** it is opened and generated
@@ -3677,6 +3749,51 @@ So that a dry unit never asks about oil and an oil unit never hides it.
 
 **Given** generation on v6
 **When** a dry unit prints
-**Then** its oil items print as NA (or are absent, per answer 1) and its oil fields print "-" or are absent, the same choice on the sheet and in the document
+**Then** its oil items print as NA ~~(or are absent, per answer 1)~~ and its oil fields print "-" ~~or are absent~~ *(2026-10-20, answer 1)*, the same choice on the sheet and in the document
 
-**Definition of Done, in addition:** the contract version decision is written in the PR with Story 14.9's; a Playwright spec picks Á SECO on a transformer and sees the oil items handled with no tap, switches to ÓLEO and sees them back, does the same on a disjuntor's medium, reloads and syncs; the durability specs touched run on the matrix projects; `source-deltas.md` row "Story 3.5 and FR-11" gains a dated strike for v6 when this lands; `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` gain dated notes.
+**Definition of Done, in addition:** the contract version decision is written in the PR with Story 14.9's; a Playwright spec picks Á SECO on a transformer and sees the oil items handled with no tap, switches to ÓLEO and sees them back, does the same on a disjuntor's medium, reloads and syncs; *(2026-10-20)* answers an oil item C on ÓLEO, switches to Á SECO, sees it cleared and NA, taps "Desfazer" and sees the answer back; *(2026-10-20, follow-up)* with VOL. ÓLEO typed and a photo on an oil item, switches to Á SECO and sees VOL. ÓLEO empty and the photo still in the gallery but no longer on the item, then "Desfazer" restores both; picks ÓLEO (GVO) on a disjuntor and sees its oil item; picks ÓLEO on a TP; the durability specs touched run on the matrix projects; `source-deltas.md` row "Story 3.5 and FR-11" gains a dated strike for v6 when this lands; `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` gain dated notes.
+
+### Story 14.12: Options the office types become the company's next options
+
+*(Added 2026-10-20 by the coordinator, from Bruno's answers 8 and 12 of 2026-10-20 relayed by Matheus. On the NC phrases: "there must be room to type one by hand, and it should become an item for the next ones". On the disjuntor's extinction medium: "there must be an option to type one by hand, and it should become an item for the next ones". Neither blocks Stories 14.9 and 14.11, which ship their fixed lists in seed v6.)*
+
+**Dev model:** opus · **Effort:** high · company-scoped learned options beside the frozen seed: a new registry, its ops and pull, an "other" entry on chosen select fields, the NC chip row, an office review list
+
+As Bruno,
+I want a value I type because the list lacks it (an NC phrase, an extinction medium) to be offered on my company's next sheets of that type,
+So that the lists grow with the work we actually do, without a release and without changing a relatório already issued.
+
+**Relation to Stories 14.6 to 14.8.** This is company data that extends a seeded type's definition without a new type version, so it is the first slice of company types: it settles, on a small surface, where company-scoped definition data lives, how it reaches every device and how it sits beside a frozen seed version (AD-21). It does not open the closed type enums, add a resolver context to `getDefinition` or publish type versions; those stay in Story 14.6. Whatever store and op families the architecture picks here must be the ones Story 14.6 extends, not a parallel mechanism; the architecture decision below says so in the spine. The precedent is AD-19's Manufacturer registry: a company suggestion list stored by value, deduplicated server-side by normalized name, the sheet printing the spelling the engineer chose.
+
+*(Definition of Ready: (1) `bmad-architecture` has decided, and written in the spine without "proposed": where learned options live (a company-scoped registry keyed by seed type, field or checklist item, and normalized value, or a family on the Story 14.6 type registry), how they reach other devices (the registry pull of AD-10 and AD-24, offline behaviour before the first pull), when a typed value becomes an option (at sync of the op that carries it, server-side, idempotent and deduplicated), how the office reviews, renames and removes one, how a learned option sits beside the frozen seed version of a relatório (AD-21: the seed's list never changes; the offered list is the seed's plus the company's live learned options; the stored value is self-contained text, so a removed option never changes a sheet or a document), the op families and the contract version (AD-3, AD-13), and that the kernel computes the offered list and the "is oil" reading of a learned medium (AD-1, AD-2); (2) Matheus has picked the candidate fields beyond the two below (open question 1); (3) the office review surface is drawn with `bmad-ux` (a list in Registries or Templates) and approved by Matheus; (4) Stories 14.9 and 14.11 are merged (seed v6).)*
+
+**Acceptance Criteria:**
+
+**Given** an NC checklist row on any sheet (seeded or library type) whose chips lack the phrase the technician needs
+**When** the technician types an observation by hand and the relatório syncs
+**Then** the typed phrase is offered as a chip on that same item of every later sheet of that type in the company, after the seeded chips, once (deduplicated by normalized text); the relatório that carried it and every issued relatório are unchanged (FR-25; AD-19, AD-21)
+
+**Given** the disjuntor's MEIO DE EXTINÇÃO on v6 (and each field Matheus adds under open question 1)
+**When** the technician picks "Outro" (authored), types a value and the relatório syncs
+**Then** the value is stored as the field's value (it prints as typed), the kernel accepts it on a field marked as allowing it and refuses it on any other select through `applyOp` (`SeedPathError`, `op_invalid`), and the company's later sheets offer it after the seeded options; the oil rule of Story 14.11 reads a learned medium as the architecture decided (default: non-oil unless the office marks it oil)
+
+**Given** two devices of one company, one offline
+**When** a learned option is created on one
+**Then** the other offers it after its next pull, never before; a device of another company never sees it (a cross-tenant test, AD-10); two devices typing the same value make one option
+
+**Given** the office review list
+**When** an office user renames or removes a learned option
+**Then** later sheets offer the new spelling or no longer offer it; no stored value on any sheet or relatório changes, and generation of an issued relatório prints exactly as before (AD-15, AD-19)
+
+**Given** the kernel
+**When** the offered list of a field or an item is needed
+**Then** one kernel function returns the seed version's options followed by the company's live learned ones; `apps/*` never merges or orders the lists (AD-2)
+
+**Definition of Done, in addition:** the contract version decision is written in the PR; a cross-tenant api test; a Playwright spec types an NC observation by hand on a disjuntor sheet and a medium through "Outro", syncs, opens a second relatório of the company and finds both offered, removes one in the office list and sees it no longer offered while the first relatório still prints it; the durability specs touched run on the matrix projects; `docs/kbs/architecture/kernel-and-seed.md`, `docs/kbs/architecture/sync.md` and `docs/kbs/log.md` gain dated notes.
+
+**Open questions:**
+
+1. For Matheus: which select fields beyond the disjuntor's MEIO DE EXTINÇÃO allow a typed value: candidates are the QGBT/QD's IP (Story 14.9), `TIPO DE ISOLAÇÃO` (seed v6), the seccionadora's MEIO DE EXTINÇÃO and ACIONAMENTO, the CTA's configuration selects (seed v5), and TIPO DE SE (Etapa 5).
+2. For Matheus: does a learned option need the office's approval before it is offered (a review queue), or is it offered at once and only removable afterwards (default: offered at once)?
+3. For Matheus: are learned NC phrases per item and type only, or shared across types for items with the same key (default: per type and item)?
+4. For Matheus, with Bruno for the domain answer: does a learned extinction medium count as oil (default: no, unless the office marks it; the same question is listed under Story 14.11)?
