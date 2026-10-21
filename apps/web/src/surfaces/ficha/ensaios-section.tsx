@@ -9,6 +9,7 @@ import {
   runTarget,
   screenLabel,
   tableDictationLabel,
+  testVoltageCheck,
   unitTapNeedsEdit,
   type BlockDefinition,
   type BlockRow,
@@ -249,7 +250,16 @@ function TestSection({
   const readOnly = useSheetReadOnly();
   const blocks = snapshot.blocks;
   const serviceEnd = snapshot.relatorio.setup.service_end;
-  const tables = test.tables.map((table) => (
+  // Story 14.14 (seed v7): the instrument's TENSÃO ENSAIO against the band's, derived by the kernel.
+  const testDef = definition.tests.find((candidate) => candidate.key === test.testKey);
+  const voltage = testDef === undefined ? null : testVoltageCheck({ block, files: snapshot.files }, testDef);
+  const voltageNotice =
+    voltage === null || voltage.text === null ? null : (
+      <p className="helper" data-tone={voltage.state === 'mismatch' ? 'amber' : undefined} role="status" data-test-voltage={voltage.state}>
+        {voltage.text}
+      </p>
+    );
+  const tables = test.tables.map((table, index) => (
     <MeasurementTable
       key={table.key}
       api={api}
@@ -259,6 +269,7 @@ function TestSection({
       onRun={onRun}
       readOnly={readOnly}
       display={display}
+      notice={index === 0 ? voltageNotice : null}
       actions={(dictated) =>
         readOnly ? null : (
           <>
@@ -298,11 +309,14 @@ function MeasurementTable({
   onRun,
   readOnly,
   display,
+  notice,
   actions,
 }: {
   api: FichaApi;
   test: TestEvaluation;
   table: EvaluatedTable;
+  /** Story 14.14: a line under the title row's criterion (the test-voltage check); null for none. */
+  notice?: ReactNode;
   firstMissing: CellAddress | null;
   onRun: (from: CellAddress, direction: RunDirection) => boolean;
   readOnly: boolean;
@@ -372,6 +386,7 @@ function MeasurementTable({
           </div>
         )}
       </div>
+      {notice}
       {/* Review fixes 2026-10-08 (DC-1, DB-3): authored, the table's own horizontal scroller, UX-DR40's
           last resort: a table wider than its box scrolls inside it, never the title row or the page. */}
       <div className="mt-scroll">

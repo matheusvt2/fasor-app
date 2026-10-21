@@ -5,6 +5,7 @@ import { parseVoltageClassKv, type WordRow } from '../registry/word-row.ts';
 import type { BlockRow, Cell, JsonValue, RelatorioStatus, SuggestionRow } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import type { FieldDef } from '../seed/schema.ts';
+import { selectOptionFor } from '../seed/select-option.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
 import { collapse, numberShape, pendingByNameplateField, suggestionView } from './suggestion-rows.ts';
 
@@ -144,11 +145,11 @@ export function fieldInputText(field: Pick<FieldDef, 'kind'>, value: unknown): s
  * Empty text is `null`. Number: `{raw, unit: field.unit, state: 'measured'}`; date: what the
  * plain date field takes (`parsePlateDateText`: `dd/mm/aaaa`, `mm/aaaa`, a bare `aaaa`, ISO or
  * a digit run; PLN-13), refused outside 1900 .. next year when `options.now` is given
- * (`plateDateAccepted`, F-22); select: an option, ignoring case and accents; voltage class: a
+ * (`plateDateAccepted`, F-22); select: an option (or an alias of one), ignoring case and accents; voltage class: a
  * kV number ("15", "17,5 kV").
  */
 export function parseFieldInput(
-  field: Pick<FieldDef, 'kind' | 'unit' | 'options'>,
+  field: Pick<FieldDef, 'kind' | 'unit' | 'options' | 'option_aliases'>,
   text: string,
   options: { now?: Date } = {},
 ): { ok: true; value: JsonValue | null } | { ok: false } {
@@ -165,9 +166,8 @@ export function parseFieldInput(
       return { ok: true, value: date };
     }
     case 'select': {
-      const wanted = normalizeRegistryName(trimmed);
-      const option = (field.options ?? []).find((candidate) => normalizeRegistryName(candidate) === wanted);
-      return option === undefined ? { ok: false } : { ok: true, value: option };
+      const option = selectOptionFor(field, trimmed);
+      return option === null ? { ok: false } : { ok: true, value: option };
     }
     case 'voltage_class': {
       const kv = parseVoltageClassKv(trimmed);

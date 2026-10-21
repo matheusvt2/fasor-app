@@ -254,9 +254,8 @@ afterAll(async () => {
 });
 
 describe('Stories 14.9 and 14.11 (contract 21): seed v6 through POST /api/sync/ops', () => {
-  it('contract 21: the route speaks it and a version-20 bundle\'s pull is answered 426', async () => {
-    expect(CONTRACT_VERSION).toBe(21);
-    expect(MIN_CONTRACT_VERSION).toBe(21);
+  it('a v6 relatório pulls on the current contract and a version-20 bundle\'s pull is answered 426 (contract 22 pinned in sync-v7)', async () => {
+    expect(MIN_CONTRACT_VERSION).toBeGreaterThanOrEqual(21);
     const t = await relatorio('v6');
     expect((await authed(`/api/sync/relatorios/${t.relatorio}?since=0`)).status).toBe(200);
     expect((await authed(`/api/sync/relatorios/${t.relatorio}?since=0`, {}, '20')).status).toBe(426);
