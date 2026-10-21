@@ -504,6 +504,7 @@ A field engineer points the camera at a plate, a display or a panel and the shot
 **FRs covered:** FR-33, FR-36, FR-38, FR-39, FR-43, FR-56 (revisited: capture quality, waiting states, durability); FR-40 (dictation turned on); the emission audit carries no FR yet (SPEC.md gains its capability line with Story 13.8)
 **Scope boundary (2026-10-06):** everything the 2026-10-06 MVP hands-on review owns stays out — F-01 (Story 11.11, PR #98), the field-defects batch 2 (F-02 to F-28 rows named in `spec-review-fixes-field-defects-2.md`, in progress) and the layout-and-copy third batch (F-06, F-07, F-10, F-11, F-15 to F-19, F-22 to F-26, F-29). Stories 13.4 and 13.8 build on batch results (F-02, F-03), never replace them.
 **Decisions:** three waves — the camera funnel first (13.1 to 13.3), then trust and ergonomics (13.4 to 13.6), then the gated assists (13.7 to 13.9, each behind its own Definition of Ready). Considered from the competitor synthesis and not taken now: QR asset lookup, photo markup, gallery lock (recorded in the source review § 3).
+**Status (2026-10-21, Bruno via Matheus, answer 11):** Story 13.9 (dictation) is deferred to the "Backlog: deferred stories" section at the end of this file; the epic closes with 13.1 to 13.8.
 
 ### Epic 14: Locals, the site checklist and office-created equipment types (Bruno, 2026-10-08)
 An office user composes a masonry room as a local holding its equipment directly, with no coluna; every local carries the Verificações do local, 19 site items answered C · NC · NA whoever provides them and printed once with the local; and when a job holds equipment the base lacks — the no-break de comando first, the chave ASCO next — the office creates its type by copying an existing one, publishes it, and field users fill it like any seeded type. Source: `sprint-change-proposal-2026-10-08.md` (Bruno's voice notes of 2026-10-08, the competitor and norm research, the architecture impact); `source-deltas.md` rows of 2026-10-08.
@@ -2756,6 +2757,8 @@ So that a story cannot add taps to the sheet without anyone noticing.
 
 A field engineer points the camera and the shot is worth reading; typing, when the camera could not do it, is respected; waiting on a reading is a visible, cancellable choice; and the relatório gets one optional AI conference before it is issued. Source: `ux-fasor-2026-09-18/review-field-ux-2026-10-06.md` (findings CAP-1 to AI-3; the Field Control / Produttivo synthesis in its § 3). Scope boundary: the 2026-10-06 MVP review batches own F-01 to F-29 (see the Epic List entry); this epic never touches those findings except to build on their merged results. Waves: 13.1 to 13.3 (camera funnel) first, 13.4 to 13.6 (trust and ergonomics) second, 13.7 to 13.9 (gated assists) last, each of the last three behind its own Definition of Ready.
 
+*(2026-10-21, Bruno via Matheus, answer 11: Story 13.9 is deferred and moves to the "Backlog: deferred stories" section at the end of this file; the epic is 13.1 to 13.8, all done, and closes.)*
+
 ### Story 13.1: Capture at the resolution the reading needs
 
 **Dev model:** opus · **Effort:** high · camera constraints and `ImageCapture`, with the encode cap re-measured against the fixture plates
@@ -2983,6 +2986,8 @@ So that the client never receives a report that disagrees with itself.
 *(Definition of Ready: Matheus decides the consent wording and confirms `webspeech` as the shipped default engine — the Epic 9 open question on audio going to the browser vendor. Online-only stands, `source-deltas.md` row 37.)*
 
 *(2026-10-07, Matheus: deferred out of the Epic 13 delivery cycle; the consent wording is still open.)*
+
+*(2026-10-21, Bruno via Matheus, answer 11: deferred. The story leaves Epic 13 for the "Backlog: deferred stories" section at the end of this file, where it is listed with this date; its text stays here, unchanged, so its references hold. Its Definition of Ready is unchanged and still open. This closes E13-A9, so Epic 13 can close with 13.1 to 13.8.)*
 
 As a field engineer with dirty gloves,
 I want to dictate after accepting one clear line about where the audio goes,
@@ -3360,6 +3365,10 @@ So that the next job with a no-break or a chave ASCO is recorded in the relatór
 
 *(2026-10-09: renumbered from 14.5. Wave 3 gate (John with Matheus): this story starts only after two or three real jobs have used the library types of Story 14.5, with the count of new-type requests and of adjustments to existing types recorded here with dates; that count sets the editor's scope. The measurement table and the criteria vocabulary already exist from Story 14.5; this story makes types company data.)*
 
+*(2026-10-21, Bruno via Matheus, answer 13: Bruno already has real jobs to test with as soon as the library types are released to him in the app (v0.2.3 carries the CTA and the Quadro elétrico). The wave-3 gate (two or three real relatórios on the library types, E14-A12) starts counting the day Bruno gets access to production; each job is recorded here, dated, as E14-A12 says. Nothing in this story starts before the count is met.)*
+
+*(2026-10-21, Bruno via Matheus, answer 9: the office can rename an equipment type. This belongs to Stories 14.6 and 14.7: the type's on-screen name (its label) is company data the office edits, on a company type as one of its fields. Whether a library type (the eight, the CTA, the Quadro elétrico) is renamed in place, as a company-scoped name over the frozen seed label, or only through "Duplicar", is settled by this story's `bmad-architecture` step with the AD-21 amendment (default: through "Duplicar", since library types are read-only in Story 14.7's list). The TAG prefix and IDENTIFICAÇÃO stay as they are; no per-equipment screen label is added (answer 8, Story 14.9).)*
+
 **Dev model:** opus · **Effort:** max · opens the closed type enums, threads a resolver context through every definition lookup and `applyOp`, and keeps replay byte-equal
 
 As the product,
@@ -3417,6 +3426,12 @@ So that the job's unusual equipment has a sheet before the visit.
 **Given** a valid draft
 **When** the user taps "Publicar"
 **Then** a version is frozen; a later edit opens a draft of the next version; "Aposentar" asks for confirmation, hides the type from palettes and keeps every block that uses it working
+
+*(2026-10-21, Bruno via Matheus, answer 9: the office renames a type. Added to this story's scope:)*
+
+**Given** a company type in the editor (and, if Story 14.6's architecture allows it, a library type in the list)
+**When** an office user changes its name and publishes
+**Then** palettes, the Template composer, the sheet header and the relatórios created afterwards show the new name; a relatório created before keeps the name of the version its blocks reference (AD-21); the printed sheet title follows the same rule; the TAG prefix is unchanged unless edited on its own
 
 **Definition of Done, in addition:** a Playwright spec creates a type from a copy, publishes it, edits it into a second version and retires it, at 768 and 1280 px.
 
@@ -3522,6 +3537,14 @@ So that the boards I already inspect on a job are recorded in the relatório, an
 
 - For Matheus: how a board is marked SELV or PELV (proposed: a yes/no configuration option on the block, "Circuito SELV/PELV", written through the existing `block/{id}/config` put; default until answered: no mark, the voltage bands only); what a point reads when TENSÃO NOMINAL is empty or above 1000 V (default: no criterion, the point reads as without criterion and the pre-issue check names the missing TENSÃO NOMINAL); whether the kernel checks the typed TENSÃO ENSAIO against the band's test voltage (default: no check; ACEITÁVEL MΩ prints the band's minimum). The two Matheus items of the list above stay open.
 - For Bruno: the NBR 5410 edition to cite (default: edition left empty, as the seeded sources are).
+
+**Answers of 2026-10-21 (Bruno, relayed by Matheus; built in v0.2.3 as above, so each is either confirmed with no change or recorded as scope of a later story):**
+
+- SELV/PELV (answer 1): in both, the circuit voltage does not exceed 120 V d.c. or 50 V a.c.; follow NBR 5410. The yes/no field "Circuito SELV/PELV" as built (a plate field, SIM picks `>= 0.25 MΩ`, `deferred-work.md` entry of 2026-10-20) is kept. The definition becomes its help text and a non-blocking notice shows when the field reads SIM while TENSÃO NOMINAL is above 50 V: Story 14.14, not built.
+- TENSÃO NOMINAL empty or above 1000 V (answer 2): the insulation test reads "critério não avaliado", as built. Confirmed, no change; the open item above is closed.
+- Typed test voltage against the band (answer 3): checked, but only when the insulation reading comes with the instrument photo (a "Ler visor" display shot of the insulation table). With the photo, a non-blocking notice when the typed TENSÃO ENSAIO does not match the band's test voltage (250 V, 500 V or 1000 V); without the photo, shown as not checked, today's behaviour: Story 14.14, not built.
+- Per-equipment screen label (answer 8): TAG only, no extra name. The Matheus item above is closed with no change.
+- The type's own name editable by the office (answer 9): yes, in Stories 14.6 and 14.7 (dated lines there).
 
 **Acceptance Criteria:**
 
@@ -3725,6 +3748,8 @@ So that a dry unit never asks about oil and an oil unit never hides it.
 
 **Still open after the follow-up:** the Matheus item above (a hand-typed medium and oil, with Story 14.12); whether an NC observation photo's `reading_target` is also rewritten when untied (default: no, `reading_target` records what the reading was for and is left as it is).
 
+*(2026-10-21, Bruno via Matheus, answer 4: the extinction medium takes **no typed value**; it is a fixed list, "Ar", "Gás SF6", "Vácuo", "Óleo" and "Outro", and when "Outro" is selected every checklist item shows in full (the oil item included, nothing marked NA). This changes what v0.2.3 ships (the disjuntor's AR, SF6, VÁCUO, ÓLEO (PVO) and ÓLEO (GVO)): a seed v7, scoped as Story 14.14, not built; v6 stays frozen as delivered. The Matheus item above (whether a hand-typed medium counts as oil) is closed with no answer needed, since no medium is typed. This story stays done as built.)*
+
 **Acceptance Criteria:**
 
 **Given** seed v6
@@ -3757,15 +3782,17 @@ So that a dry unit never asks about oil and an oil unit never hides it.
 
 *(Added 2026-10-20 by the coordinator, from Bruno's answers 8 and 12 of 2026-10-20 relayed by Matheus. On the NC phrases: "there must be room to type one by hand, and it should become an item for the next ones". On the disjuntor's extinction medium: "there must be an option to type one by hand, and it should become an item for the next ones". Neither blocks Stories 14.9 and 14.11, which ship their fixed lists in seed v6.)*
 
-**Dev model:** opus · **Effort:** high · company-scoped learned options beside the frozen seed: a new registry, its ops and pull, an "other" entry on chosen select fields, the NC chip row, an office review list
+*(2026-10-21, Bruno via Matheus, answers 4 to 7: the extinction medium leaves this story, since it becomes a fixed list with "Outro" and no typed value (Story 14.14); the fields that accept a typed value start with **the NC phrases and FABRICANTE only**, widened later by use; a new typed value applies at once, with no approval before, and the office reviews, edits or removes it afterwards on a screen of its own; learned NC phrases are scoped **per equipment type and per checklist item**. FABRICANTE is a `manufacturer` field, whose company list already exists (AD-19's Manufacturer registry: the sheet's "Criar ⟨nome⟩?" and Registries › Fabricantes), so for FABRICANTE this story reuses that registry as the store and the review screen rather than adding a second list; what it adds there (for example a typed name registered at sync with no "Criar" tap) is settled in the architecture step. Struck text below follows these answers.)*
+
+**Dev model:** opus · **Effort:** high · company-scoped learned options beside the frozen seed: a new registry, its ops and pull, ~~an "other" entry on chosen select fields,~~ *(2026-10-21: FABRICANTE through the Manufacturer registry instead)* the NC chip row, an office review list
 
 As Bruno,
-I want a value I type because the list lacks it (an NC phrase, an extinction medium) to be offered on my company's next sheets of that type,
+I want a value I type because the list lacks it (an NC phrase, ~~an extinction medium~~ *(2026-10-21)* a manufacturer) to be offered on my company's next sheets of that type,
 So that the lists grow with the work we actually do, without a release and without changing a relatório already issued.
 
 **Relation to Stories 14.6 to 14.8.** This is company data that extends a seeded type's definition without a new type version, so it is the first slice of company types: it settles, on a small surface, where company-scoped definition data lives, how it reaches every device and how it sits beside a frozen seed version (AD-21). It does not open the closed type enums, add a resolver context to `getDefinition` or publish type versions; those stay in Story 14.6. Whatever store and op families the architecture picks here must be the ones Story 14.6 extends, not a parallel mechanism; the architecture decision below says so in the spine. The precedent is AD-19's Manufacturer registry: a company suggestion list stored by value, deduplicated server-side by normalized name, the sheet printing the spelling the engineer chose.
 
-*(Definition of Ready: (1) `bmad-architecture` has decided, and written in the spine without "proposed": where learned options live (a company-scoped registry keyed by seed type, field or checklist item, and normalized value, or a family on the Story 14.6 type registry), how they reach other devices (the registry pull of AD-10 and AD-24, offline behaviour before the first pull), when a typed value becomes an option (at sync of the op that carries it, server-side, idempotent and deduplicated), how the office reviews, renames and removes one, how a learned option sits beside the frozen seed version of a relatório (AD-21: the seed's list never changes; the offered list is the seed's plus the company's live learned options; the stored value is self-contained text, so a removed option never changes a sheet or a document), the op families and the contract version (AD-3, AD-13), and that the kernel computes the offered list and the "is oil" reading of a learned medium (AD-1, AD-2); (2) Matheus has picked the candidate fields beyond the two below (open question 1); (3) the office review surface is drawn with `bmad-ux` (a list in Registries or Templates) and approved by Matheus; (4) Stories 14.9 and 14.11 are merged (seed v6).)*
+*(Definition of Ready: (1) `bmad-architecture` has decided, and written in the spine without "proposed": where learned options live (a company-scoped registry keyed by seed type, field or checklist item, and normalized value, or a family on the Story 14.6 type registry), how they reach other devices (the registry pull of AD-10 and AD-24, offline behaviour before the first pull), when a typed value becomes an option (at sync of the op that carries it, server-side, idempotent and deduplicated), how the office reviews, renames and removes one, how a learned option sits beside the frozen seed version of a relatório (AD-21: the seed's list never changes; the offered list is the seed's plus the company's live learned options; the stored value is self-contained text, so a removed option never changes a sheet or a document), the op families and the contract version (AD-3, AD-13), and that the kernel computes the offered list ~~and the "is oil" reading of a learned medium~~ *(2026-10-21: no medium is learned, answer 4)* (AD-1, AD-2); (2) Matheus has picked the candidate fields beyond the two below (open question 1) *(2026-10-21: met, NC phrases and FABRICANTE only, answer 5)*; (3) the office review surface is drawn with `bmad-ux` (a list in Registries or Templates) and approved by Matheus; (4) Stories 14.9 and 14.11 are merged (seed v6).)*
 
 **Acceptance Criteria:**
 
@@ -3773,9 +3800,17 @@ So that the lists grow with the work we actually do, without a release and witho
 **When** the technician types an observation by hand and the relatório syncs
 **Then** the typed phrase is offered as a chip on that same item of every later sheet of that type in the company, after the seeded chips, once (deduplicated by normalized text); the relatório that carried it and every issued relatório are unchanged (FR-25; AD-19, AD-21)
 
-**Given** the disjuntor's MEIO DE EXTINÇÃO on v6 (and each field Matheus adds under open question 1)
-**When** the technician picks "Outro" (authored), types a value and the relatório syncs
-**Then** the value is stored as the field's value (it prints as typed), the kernel accepts it on a field marked as allowing it and refuses it on any other select through `applyOp` (`SeedPathError`, `op_invalid`), and the company's later sheets offer it after the seeded options; the oil rule of Story 14.11 reads a learned medium as the architecture decided (default: non-oil unless the office marks it oil)
+~~**Given** the disjuntor's MEIO DE EXTINÇÃO on v6 (and each field Matheus adds under open question 1)~~
+~~**When** the technician picks "Outro" (authored), types a value and the relatório syncs~~
+~~**Then** the value is stored as the field's value (it prints as typed), the kernel accepts it on a field marked as allowing it and refuses it on any other select through `applyOp` (`SeedPathError`, `op_invalid`), and the company's later sheets offer it after the seeded options; the oil rule of Story 14.11 reads a learned medium as the architecture decided (default: non-oil unless the office marks it oil)~~ *(2026-10-21, Bruno via Matheus, answers 4 and 5: replaced by:)*
+
+**Given** a FABRICANTE field on any sheet whose company list lacks the manufacturer
+**When** the technician types the name and the relatório syncs
+**Then** the name is offered on the company's later sheets at once, with no approval, through the Manufacturer registry of AD-19 (deduplicated by normalized name), and Registries › Fabricantes lists it for the office to rename or remove; the stored value on the sheet stays the spelling typed (AD-19)
+
+**Given** any select field other than FABRICANTE and the NC observation
+**When** a value outside its options is written
+**Then** the kernel refuses it through `applyOp` (`SeedPathError`, `op_invalid`), as today; widening the list of fields is a later dated decision
 
 **Given** two devices of one company, one offline
 **When** a learned option is created on one
@@ -3789,7 +3824,7 @@ So that the lists grow with the work we actually do, without a release and witho
 **When** the offered list of a field or an item is needed
 **Then** one kernel function returns the seed version's options followed by the company's live learned ones; `apps/*` never merges or orders the lists (AD-2)
 
-**Definition of Done, in addition:** the contract version decision is written in the PR; a cross-tenant api test; a Playwright spec types an NC observation by hand on a disjuntor sheet and a medium through "Outro", syncs, opens a second relatório of the company and finds both offered, removes one in the office list and sees it no longer offered while the first relatório still prints it; the durability specs touched run on the matrix projects; `docs/kbs/architecture/kernel-and-seed.md`, `docs/kbs/architecture/sync.md` and `docs/kbs/log.md` gain dated notes.
+**Definition of Done, in addition:** the contract version decision is written in the PR; a cross-tenant api test; a Playwright spec types an NC observation by hand on a disjuntor sheet and ~~a medium through "Outro"~~ *(2026-10-21)* a new FABRICANTE, syncs, opens a second relatório of the company and finds both offered, removes one in the office list and sees it no longer offered while the first relatório still prints it; the durability specs touched run on the matrix projects; `docs/kbs/architecture/kernel-and-seed.md`, `docs/kbs/architecture/sync.md` and `docs/kbs/log.md` gain dated notes.
 
 **Open questions:**
 
@@ -3797,3 +3832,107 @@ So that the lists grow with the work we actually do, without a release and witho
 2. For Matheus: does a learned option need the office's approval before it is offered (a review queue), or is it offered at once and only removable afterwards (default: offered at once)?
 3. For Matheus: are learned NC phrases per item and type only, or shared across types for items with the same key (default: per type and item)?
 4. For Matheus, with Bruno for the domain answer: does a learned extinction medium count as oil (default: no, unless the office marks it; the same question is listed under Story 14.11)?
+
+**Answers (2026-10-21, Bruno, relayed by Matheus):**
+
+1. NC phrases and FABRICANTE only, to start; widened later by use (answer 5). The extinction medium is no longer a candidate (answer 4, Story 14.14).
+2. Offered at once; the office has a screen to review, edit or remove it afterwards; no approval before (answer 6).
+3. Per equipment type and per checklist item (answer 7).
+4. Closed with no answer needed: the medium is a fixed list with "Outro" and nothing is typed (answer 4).
+
+### Story 14.13: The manufacturer's criterion on an equipment test
+
+*(Added 2026-10-21 by the coordinator, from Bruno's answer 10 of 2026-10-21 relayed by Matheus: yes to a manufacturer criterion. Bruno said on 2026-10-15 that the manufacturer's value is preferred where one exists (E14-A10, the CTA criteria). Backlog; it does not wait for the wave-3 gate, since it changes no type definition.)*
+
+**Dev model:** opus · **Effort:** high · one optional per-sheet criterion on each test over the existing `criterion_override` path, its source in the kernel, a sheet control, the criterion line in section 9, a contract decision
+
+As Bruno,
+I want to type the manufacturer's acceptance value on an equipment test when the equipment has one,
+So that the readings are judged by what the manufacturer specifies, and the relatório says so, instead of the default criterion.
+
+**Today (verified 2026-10-21):** the sheet already has a per-test `criterion_override` cell (`packages/domain/src/schemas/entities.ts`, `sheet.test.{key}.criterion_override`), written only through `sheet/{block_id}/test/{test_key}/criterion_override` (`ops/path.ts` `TEST_FIELDS`), merged as a "Critério" conflict (`merge/conflicts.ts`) and applied by `effectiveCriterion` (`relatorio/reading-evaluation.ts`, E5-A4): a well-formed `{raw, unit}` replaces the seeded value and unit and keeps the seed's operator, type and **source**; no surface writes it, and the document prints the seed's source. On a Quadro elétrico (seed v6) the override applies over the NBR 5410 band picked from TENSÃO NOMINAL.
+
+*(Definition of Ready: (1) the sheet control is drawn with `bmad-ux` beside each test's criterion line (`prototype/screens/60-ficha.html`) and approved by Matheus, since the sheet has no surface for it (E14-A4); (2) the printed wording of a manufacturer criterion is authored (proposed: "CRITÉRIO: ≥ 1.000 MΩ · critério do fabricante", and ACEITÁVEL showing the manufacturer's value) and listed for Bruno; (3) Matheus confirms the default scope of open question 1.)*
+
+**Acceptance Criteria:**
+
+**Given** an equipment sheet with a test on a seeded grammar (isolação, resistência de contato, relação de transformação, and the Quadro elétrico's band-judged insulation)
+**When** a field or office user fills the optional "Critério do fabricante" of that test (value and unit, authored label) on that sheet
+**Then** it is written through the existing `criterion_override` put as one op through `applyOp`, every reading of that test on that sheet is judged by it in place of the default (the seeded criterion or the NBR 5410 band), the operator stays the default's, and clearing it brings the default back; other sheets of the same type are unchanged (per equipment test, not per type)
+
+**Given** the criterion's source
+**When** a manufacturer criterion is set
+**Then** the kernel reports its source as the manufacturer's ("Fabricante", authored), not the seed's, so the sheet, the conclusion text, the pre-issue check and the document all name it; the value shape of `criterion_override` gains what the source needs (settled in the story spec, with the contract version decision); a value the kernel cannot read (malformed, negative, a unit that does not convert) is refused with an inline message instead of being ignored silently
+
+**Given** generation
+**When** a sheet carries a manufacturer criterion
+**Then** section 9 prints the test's ACEITÁVEL with the manufacturer's value and the criterion line with its source, under both section 9 schemes; a sheet without one prints exactly as before, and the Porto Seguro golden documents still match (AD-6, AD-16)
+
+**Given** two devices editing the same test's manufacturer criterion
+**When** they sync
+**Then** the existing "Critério" conflict of `merge/conflicts.ts` puts the single-cell choice, as for any sheet cell (AD-3)
+
+**Definition of Done, in addition:** the contract version decision is written in the PR; a kernel test pins the replacement on each grammar and on the band test (a 380 V Quadro elétrico with a manufacturer `>= 2 MΩ` judging a 1 MΩ reading out of criterion), the clear, the refused value and the source; a Playwright spec sets a manufacturer criterion on a disjuntor's contact resistance and on a Quadro elétrico's insulation offline, sees the verdicts change, reloads, syncs, generates the DOCX and checks ACEITÁVEL and the criterion line; the durability specs touched run on the matrix projects; `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` gain dated notes.
+
+**Open questions:**
+
+1. For Matheus: the measurement-table tests of the CTA (seed v5), whose criteria are per row: in scope, one manufacturer value per row, or out (default: out, listed for a later story).
+2. For Bruno: does the manufacturer criterion need a reference (manual or datasheet name) printed beside it (default: no reference field).
+3. For Bruno: may the manufacturer criterion be looser than the default (default: yes, it replaces the default whatever its value; the sheet shows the default beside it as a reminder).
+
+### Story 14.14: Seed v7: the fixed extinction media with "Outro", the SELV/PELV help and the test voltage checked against the photo
+
+*(Added 2026-10-21 by the coordinator, from Bruno's answers 1, 3 and 4 of 2026-10-21 relayed by Matheus. Stories 14.9 and 14.11 are done and deployed in v0.2.3 with seed v6, which froze at that deploy; each answer below changes what shipped, so it lands as a new seed version and its own story rather than as an amendment of a done story. Backlog; it does not wait for the wave-3 gate.)*
+
+**Dev model:** opus · **Effort:** medium · seed v7 (one option list, one oil-rule list, a field help text, a band test voltage), two non-blocking notices derived in the kernel, sheet and print, a contract decision
+
+As Bruno,
+I want the disjuntor's extinction medium to be a short fixed list with "Outro", the SELV/PELV mark to say what it means, and the test voltage checked when I send the instrument photo,
+So that the sheet asks the right questions and warns me before a wrong band or a wrong test voltage reaches the relatório.
+
+**Today (verified 2026-10-21 in the code of v0.2.3):**
+
+- Extinction medium. `packages/domain/src/seed/v6.ts` `MEIO_DE_EXTINCAO_DISJUNTOR` is `['AR', 'SF6', 'VÁCUO', 'ÓLEO (PVO)', 'ÓLEO (GVO)']` on the Disjuntor MT only, `MEDIUM_OIL` is `['ÓLEO (PVO)', 'ÓLEO (GVO)']`, and `oilDisjuntor` sets the oil rule `{field: 'meio_de_extincao', oil_values: MEDIUM_OIL, items: ['oleo_isolante_indicador_de_nivel'], fields: ['vol_oleo']}`. The seccionadora keeps v1's `MEIO_DE_EXTINCAO` `['AR', 'SF6']` (`seed/v1.ts`). No value is typed by hand: a value outside the options is refused by `applyOp`.
+- Oil rule. `packages/domain/src/relatorio/oil-rule.ts` `oilStateOf` reads any filled value not in `oil_values` as non-oil, so a new "Outro" option would show the disjuntor's oil item NA and VOL. ÓLEO excused and printed "-", the opposite of answer 4. A crossing between oil and non-oil clears the oil item, VOL. ÓLEO and the oil item's photo ties; a write from or to an unknown state clears nothing.
+- SELV/PELV. `seed/v6.ts` `quadroNameplate` carries `circuito_selv_pelv`, "Circuito SELV/PELV", a SIM/NÃO select marked `optional`; `relatorio/reading-evaluation.ts` `bandCriterion` picks `>= 0.25 MΩ` when it reads SIM, whatever TENSÃO NOMINAL says. A nameplate `FieldDef` has no help text (`seed/schema.ts`; only checklist items carry a `hint`).
+- Test voltage. TENSÃO ENSAIO is the instrument header's `test_parameter`, copied as text (for example "5.000 V") at instrument selection from the instrument registry's `test_isolacao` default (`relatorio/instrument-pick.ts`, AD-19); no sheet control types it. A band (`bandCriterionSchema`) carries operator, value, unit and source but no test voltage, and nothing compares the two (`deferred-work.md`, entry of 2026-10-20 on the empty or above-1000 V voltage). The instrument photo is a "Ler visor" display shot of the test table: a photo file row of the block whose `reading_target` is a display cell target naming the test (`reading/target.ts` `displayCellTarget`, `apps/web/src/surfaces/ficha/read-display.tsx`).
+
+*(Definition of Ready: (1) Bruno or Matheus answers, or Matheus accepts the default of, each open question below with a dated line; (2) the two notices' copy is authored and listed for Bruno; (3) the next contract number is fixed in the story spec.)*
+
+**Acceptance Criteria:**
+
+**Given** seed v7
+**When** it lands
+**Then** it is v6 plus: the Disjuntor MT's MEIO DE EXTINÇÃO offers exactly "Ar", "Gás SF6", "Vácuo", "Óleo" and "Outro", in that order, with no value typed by hand; its oil rule names "Óleo" as the oil value; the Quadro elétrico's "Circuito SELV/PELV" carries the help text (authored from Bruno's answer 1: "SELV e PELV: tensão até 120 V em corrente contínua ou 50 V em corrente alternada, conforme a NBR 5410"), shown on the sheet and never printed; each NBR 5410 band names its test voltage (250 V for SELV/PELV, 500 V up to 500 V, 1000 V up to 1000 V); `SEED_VERSION` is v7; v1 to v6 stay frozen and resolvable; a kernel test pins that v7 differs from v6 only by these (AR-20; AD-21)
+
+**Given** a disjuntor sheet on v7 whose MEIO DE EXTINÇÃO is "Outro"
+**When** it renders, is counted and prints
+**Then** every checklist item shows in full, the oil item `oleo_isolante_indicador_de_nivel` included and nothing derived NA, and VOL. ÓLEO shows and counts as on an oil unit; a change between "Outro" and "Óleo" clears nothing, and a change from "Outro" or "Óleo" to "Ar", "Gás SF6" or "Vácuo" clears as an oil-to-non-oil crossing does today (proposed: "Outro" listed among the values that show the oil items, so `oil-rule.ts` needs no new branch; the story spec confirms or names the field the rule gains) (AD-2)
+
+**Given** relatórios and plates from v6 and earlier
+**When** a v7 sheet takes a value from them ("Copiar da última visita", "Igual à ⟨TAG⟩?", a plate reading)
+**Then** the kernel maps the old spellings to v7's ("AR" to "Ar", "SF6" to "Gás SF6", "VÁCUO" to "Vácuo", "ÓLEO (PVO)" and "ÓLEO (GVO)" to "Óleo"), or leaves the field empty for the user when no mapping applies; a relatório on v6 keeps its v6 list, values and print, and the golden documents still match (AD-15)
+
+**Given** a Quadro elétrico sheet on v7 whose "Circuito SELV/PELV" reads SIM and whose TENSÃO NOMINAL is above 50 V
+**When** the sheet renders
+**Then** a non-blocking notice under the field says the mark and the voltage disagree (authored, derived text in `packages/domain`); the `>= 0.25 MΩ` band still applies as the mark says; nothing is blocked, written or printed by the notice
+
+**Given** a Quadro elétrico's insulation test on v7 with a TENSÃO ENSAIO in its instrument header and a band picked
+**When** the test has a live instrument photo (a display shot whose `reading_target` names that test)
+**Then** the kernel compares the TENSÃO ENSAIO, parsed with its unit, with the band's test voltage, and a non-blocking notice on the test says when they differ (authored); **without** the photo the test voltage shows as not checked, as today; no verdict, count or print changes because of the check; a kernel test pins the match, the mismatch, the unparsable text, the missing photo and each band
+
+**Definition of Done, in addition:** the contract version decision is written in the PR; a Playwright spec picks "Outro" on a disjuntor and sees the oil item and VOL. ÓLEO in full, switches to "Ar" and sees them NA and the answers cleared with "Desfazer", marks a 380 V Quadro elétrico SELV/PELV and sees the notice, shoots the insulation display through the fake reading with an instrument whose test voltage differs from the band and sees the test-voltage notice, then removes the photo and sees "not checked"; reloads and syncs; the durability specs touched run on the matrix projects; `source-deltas.md` gains its rows when this lands; `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` gain dated notes.
+
+**Open questions:**
+
+1. For Bruno: the printed spelling of the media. Every other select of the sheets prints in capitals ("EPÓXI", "Á SECO"); the list was given as "Ar", "Gás SF6", "Vácuo", "Óleo", "Outro" (default: the spelling given, stored and printed as is).
+2. For Bruno: does the seccionadora's MEIO DE EXTINÇÃO take the same fixed list (default: no, it keeps AR and SF6 and has no oil item, as answered on 2026-10-20).
+3. For Matheus: the test-voltage notice also in the pre-issue check and the Export dialog as a non-blocking row, or on the sheet only (default: on the sheet only).
+4. For Bruno: does "match" allow a tolerance (for example an instrument set to 5 kV for a 1000 V band reads as a mismatch, but 1 kV is a match) (default: equal after unit conversion, no tolerance).
+5. For Matheus: does "the photo is sent" mean a display shot taken and kept on the test, or one whose reading ran (default: a live display shot naming the test, whatever its reading's state).
+
+## Backlog: deferred stories
+
+Stories moved out of their epic with a dated decision, so the epic can close. Each keeps its text, number and Definition of Ready where it was written; this list is where they wait. A story leaves this list when a dated line schedules it into an epic.
+
+- *(2026-10-21, Bruno via Matheus, answer 11; closes E13-A9)* Story 13.9: Dictation on, behind one line of consent. Text under Epic 13. Definition of Ready still open: Matheus decides the consent wording and confirms `webspeech` as the shipped default engine.

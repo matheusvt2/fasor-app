@@ -2240,13 +2240,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The SELV/PELV mark of a Quadro elétrico is a plate field ("Circuito SELV/PELV", select SIM/NÃO, optional), not a `block/{id}/config` option as `epics.md` proposed; SIM picks `>= 0,25 MΩ` whatever the voltage. Conservative reading of Matheus's open question; a config option would be structure, not field content.
   evidence: `packages/domain/src/seed/v6.ts` `quadroNameplate`; `relatorio/reading-evaluation.ts` `bandCriterion`.
   class: question
-  state: open (owner: Matheus, listed in the PR)
+  state: ~~open (owner: Matheus, listed in the PR)~~ decided 2026-10-21 (Bruno via Matheus, answer 1): the yes/no plate field is kept; SELV and PELV mean a circuit voltage up to 120 V d.c. or 50 V a.c., per NBR 5410. Its help text and a non-blocking notice when it reads SIM above 50 V are Story 14.14 (backlog)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-9-14-11-qgbt-oil-dry.md`
   summary: A QGBT whose TENSÃO NOMINAL is empty, not a positive number or above 1000 V has no criterion: no verdict on its four rows, "critério não avaliado" on the sheet, ACEITÁVEL MΩ "-" and "CRITÉRIO: critério não avaliado · NBR 5410" in the document, and no "Sem restrições" suggested over its readings. The pre-issue check does not name the missing TENSÃO NOMINAL beyond the plate's own missing count; the typed TENSÃO ENSAIO is never checked against the band.
   evidence: `relatorio/reading-evaluation.ts` `CRITERION_NOT_EVALUATED`; `relatorio/conclusion.ts` `suggestConclusionPair`; `print/section-9.ts` `instrumentPart`.
   class: question
-  state: open (owner: Matheus, listed in the PR)
+  state: ~~open (owner: Matheus, listed in the PR)~~ partially closed 2026-10-21 (Bruno via Matheus, answers 2 and 3): an empty or above-1000 V TENSÃO NOMINAL staying "critério não avaliado" is confirmed, no change; the TENSÃO ENSAIO check against the band is wanted only when the instrument photo is sent (non-blocking notice on a mismatch, "not checked" without the photo), owner Story 14.14 (backlog)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-9-14-11-qgbt-oil-dry.md`
   summary: The oil crossing's "N itens de óleo apagados" counts each oil item that held a result, an observation or a photo once, and VOL. ÓLEO once ("2 itens" for one answered item with its photo and VOL. ÓLEO). A write that copies the plate ("Igual à ⟨TAG⟩?", "Copiar da última visita") or confirms a reading carries the crossing in its batch but keeps its own toast. A crossing is read on the device's photos as last drawn (`snapshot.files`), the blocks fresh.
@@ -2258,7 +2258,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Narrowings kept by the spec's Never list: no option typed by hand on MEIO DE EXTINÇÃO or as an NC chip (Story 14.12), no per-equipment screen label or editable type name (Stories 14.6 and 14.7), photos of an oil item untied and never deleted, an NC photo's `reading_target` never rewritten, the seccionadora's medium unchanged.
   evidence: spec Boundaries & Constraints; `epics.md` Stories 14.9, 14.11 and 14.12.
   class: debt
-  state: open (owner: Story 14.12 and the company-types stories)
+  state: open (owner: Story 14.12 and the company-types stories)  *(2026-10-21, Bruno via Matheus, answers 4, 8 and 9: no value is typed on MEIO DE EXTINÇÃO at all, the medium becomes a fixed list with "Outro" in Story 14.14 and leaves Story 14.12, whose typed values are the NC phrases and FABRICANTE; the per-equipment screen label is closed, TAG only; the type's own name editable by the office stays with Stories 14.6 and 14.7)*
 
 - source_spec: `_bmad-output/implementation-artifacts/epic-batch-orchestrator.md`
   summary: 2026-10-20, coordinator: the second root-owned-file breakage from the `tools` container running with `--user root`. After the 2026-10-14 `.vite-temp` crash loop, the main stack's `install` service (user `node`) failed with ERR_PNPM_CMD_SHIM_CHMOD on `node_modules/.pnpm/esbuild@0.25.12/...` owned by root, which stopped a wave gate before it ran; `chown -R node:node /workspace/node_modules` fixed it. Root cause: gate runs as root write into the shared `node_modules` volume.
