@@ -220,3 +220,19 @@ Rules for the lanes:
   config is what shapes the sheet before the visit: tensão BT/MT, polos, neutro, transição, bypass.
 
 All three batches are merged (2026-10-13): 14.2 as `cbce841`, 14.3 and 14.4 as `f1f7ec9`, 14.5 as `1d46f08`. Next: the wave gate and the one integrated review with a browser pass on the integrated main, then one fix batch.
+
+## Wave 4 batches (coordinator, 2026-10-21)
+
+From Bruno's 2026-10-21 answers (PR #151). Two batches in parallel, each from main at `ab4f27e4`.
+
+| Batch | Stories | Branch, base | Contract, seed | Port base |
+|---|---|---|---|---|
+| e14d | 14.14 (seed v7: the fixed extinction media with "Outro", the SELV/PELV help, the test voltage checked against the photo) | `story/14-14-seed-v7`, from main | 22, seed v7 | 41 |
+| e14e | 14.12 (learned company options: NC phrases per type and item, FABRICANTE through the Manufacturer registry, the office review list) | `story/14-12-learned-options`, from main | 23, no seed (a seed need is reported to the coordinator, never taken) | 42 |
+
+- Numbers are assigned here, not by merge order. e14d merges first; e14e then merges `origin/main` and runs its
+  gate on that merge, under the cross-batch merge rule (playbook § 6, both batches' touched specs).
+- The open questions written into 14.12 and 14.14 on 2026-10-21 take their recorded defaults; a batch lists each
+  one it relied on in its PR body.
+- Files both lanes may edit, keep both sides: `packages/domain/src/contract/version.ts`,
+  `packages/domain/src/status/edited-since.ts`, `apps/web/src/copy/pt-br.ts`, `deferred-work.md`, `docs/kbs/log.md`.
