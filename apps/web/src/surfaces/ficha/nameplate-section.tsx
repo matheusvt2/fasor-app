@@ -17,6 +17,8 @@ import {
   platePhotoOf,
   plateReadingTarget,
   plateReadingView,
+  selvNoticeFieldOf,
+  selvVoltageNoticeText,
   showsConfirmedGlyph,
   supersededPlatePhotos,
   suggestionView,
@@ -183,6 +185,9 @@ export function NameplateSection({
       });
   }
   const oilField = oilRuleOf(block)?.field ?? null;
+  // Story 14.14 (seed v7): the SELV notice under its field, derived by the kernel.
+  const selvField = selvNoticeFieldOf(block);
+  const selvNotice = selvField === null ? null : selvVoltageNoticeText(block);
 
   function copySame(): void {
     if (same === null) return;
@@ -393,8 +398,15 @@ export function NameplateSection({
           const stored = block.sheet.nameplate[field.key];
           const prefilled = field.key === 'tag' && stored === undefined && tagPrefill !== null;
           const value = prefilled ? tagPrefill : (stored?.value ?? null);
-          const helper = prefilled ? t.tagHelper : undefined;
-          if (readOnly) return <ReadOnlyField key={field.key} field={field} value={value} {...(helper === undefined ? {} : { helper })} />;
+          // Story 14.14: the seed's help under the field (the SELV/PELV meaning), on the sheet only.
+          const helper = prefilled ? t.tagHelper : field.help;
+          const notice =
+            field.key === selvField && selvNotice !== null ? (
+              <span className="helper" data-tone="amber" role="status">
+                {selvNotice}
+              </span>
+            ) : null;
+          if (readOnly) return <ReadOnlyField key={field.key} field={field} value={value} {...(helper === undefined ? {} : { helper })} after={notice} />;
           const pending = suggestions.entries.get(field.key);
           if (pending?.view === 'fill') return <SuggestionFill key={`${field.key}:${pending.suggestion.id}`} model={suggestions} field={field} suggestion={pending.suggestion} />;
           const after = pending?.view === 'replace' ? <ReplaceLine model={suggestions} field={field} suggestion={pending.suggestion} typed={value} /> : null;
@@ -429,6 +441,11 @@ export function NameplateSection({
                     <div className="chip-row">
                       <Chip onPress={markOilItemsNa}>{oilNaChipText(oilNaItems.length)}</Chip>
                     </div>
+                  </>
+                ) : notice !== null ? (
+                  <>
+                    {after}
+                    {notice}
                   </>
                 ) : (
                   after

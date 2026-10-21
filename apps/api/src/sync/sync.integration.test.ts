@@ -1080,6 +1080,7 @@ describe('1.5-API-005 contract skew', () => {
     expect(MIN_CONTRACT_VERSION).toBe(23);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
       // 22 is the last version that cannot parse a `registry/nc_phrase/...` op (Story 14.12);
+      // 21 cannot resolve seed v7 and reads an "Outro" disjuntor's oil item NA (Story 14.14);
       // 20 is the last version that cannot parse a `quadro_eletrico` block nor resolve seed v6 (Stories 14.9 and 14.11);
       // 19 cannot parse `audit_run/{id}/coverage` (Story 14.10 lane B);
       // 18 cannot parse `sheet/{id}/test/{key}/value/...`, the ninth block type nor resolve seed v5 (Story 14.5);

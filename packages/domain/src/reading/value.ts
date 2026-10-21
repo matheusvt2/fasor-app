@@ -4,7 +4,7 @@ import { parseDecimalPtBr } from '../parse/pt-br-number.ts';
 import { parseVoltageClassKv } from '../registry/word-row.ts';
 import type { JsonValue } from '../schemas/entities.ts';
 import type { FieldDef } from '../seed/schema.ts';
-import { normalizeRegistryName } from '../text/normalize-name.ts';
+import { selectOptionFor } from '../seed/select-option.ts';
 import { digitsOf, inTokenOrder } from './digits.ts';
 import { convertReadingUnit, parseSiUnit } from './units.ts';
 
@@ -24,7 +24,7 @@ import { convertReadingUnit, parseSiUnit } from './units.ts';
  * the bare year yet; it gains `YYYY` at the next contract change (`deferred-work.md`).
  */
 
-type ReadingField = Pick<FieldDef, 'kind' | 'unit' | 'options'>;
+type ReadingField = Pick<FieldDef, 'kind' | 'unit' | 'options' | 'option_aliases'>;
 
 const NUMBER_RAW = /^-?\d+(\.\d+)?$/;
 const ISO_DATE = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/;
@@ -195,7 +195,8 @@ function withPrintedVoltUnit(text: string, cited: readonly CitedToken[]): string
  *   unit the tokens print (`normalizeNumber`); a unit of another quantity asks for a check;
  *   the state becomes `measured`;
  * - `date`: a bare year (`2012`, as printed) or a valid ISO month or day;
- * - `select`: one of the options, matched ignoring case and accents, stored as the option;
+ * - `select`: one of the options, matched ignoring case and accents, stored as the option (or
+ *   an alias of one, seed v7, `selectOptionFor`);
  * - `voltage_class`: a kV number (`parseVoltageClassKv`, or a volt value moved into kV, the volt unit
  *   read from the cited tokens when the model gives a bare number), stored as its kV text;
  * - `text` and `manufacturer`: whitespace collapsed, not empty.
@@ -215,10 +216,9 @@ export function normalizeReadingValue(field: ReadingField, value: unknown, cited
     case 'date':
       return typeof parsed === 'string' && isValidIsoDate(parsed) ? { ok: true, value: parsed, verify: false } : invalid;
     case 'select': {
-      if (typeof parsed !== 'string') return invalid;
-      const wanted = normalizeRegistryName(parsed);
-      const option = (field.options ?? []).find((candidate) => normalizeRegistryName(candidate) === wanted);
-      return option === undefined ? invalid : { ok: true, value: option, verify: false };
+      // Story 14.14: an older spelling the plate prints ("SF6", "ÓLEO (PVO)") is suggested as the option it now reads as.
+      const option = selectOptionFor(field, parsed);
+      return option === null ? invalid : { ok: true, value: option, verify: false };
     }
     case 'voltage_class': {
       if (typeof parsed !== 'string') return invalid;
