@@ -9,16 +9,16 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNowAndReturn } from './support/sync.ts';
 
 /*
- * 14.11-E2E. The insulation and the extinction medium drive the oil items (seed v6), driven as a
- * person would on sheets of the standard template (born on v6, Em campo).
+ * 14.11-E2E. The insulation and the extinction medium drive the oil items (seed v6 on), driven as
+ * a person would on sheets of the standard template (born on the current seed version, Em campo).
  *
  * 14.11-E2E-001 (transformer): Á SECO shows the eight oil items NA with no tap and VOL. ÓLEO not
  * missing; ÓLEO brings them back unanswered; with an oil item answered C, VOL. ÓLEO typed and a
  * photo on that item, ÓLEO to Á SECO clears the three in one batch (the item NA, VOL. ÓLEO empty,
  * the photo still on the sheet but no longer on the item) with "N itens de óleo apagados", and
  * "Desfazer" restores all three; a reload and a sync keep it, the server rows agreeing.
- * 14.11-E2E-002: the disjuntor's MEIO DE EXTINÇÃO (VÁCUO, ÓLEO (GVO)) and its one oil item; the
- * seccionadora's list (AR, SF6); a TP's ÓLEO. Each test resets this worker's Empresa B (E6-Q7).
+ * 14.11-E2E-002: the disjuntor's MEIO DE EXTINÇÃO (read from the kernel: since seed v7, Story
+ * 14.14, "Vácuo" and "Óleo") and its one oil item; the seccionadora's list (AR, SF6); a TP's ÓLEO. Each test resets this worker's Empresa B (E6-Q7).
  */
 
 let account: SeedAccount;
@@ -185,36 +185,44 @@ test('@p0 14.11-E2E-001 a transformer: Á SECO marks the oil items NA with no ta
   expect((await blockOf(page, blockId)).sheet.checklist.termometro?.result?.value).toBe('C');
 });
 
-test('@p0 14.11-E2E-002 the disjuntor\'s medium: VÁCUO marks its oil item NA, ÓLEO (GVO) brings it back; the seccionadora lists AR and SF6 only; a TP offers ÓLEO and marks its oil items NA on EPÓXI', async ({ page }) => {
+test('@p0 14.11-E2E-002 the disjuntor\'s medium: a non-oil medium marks its oil item NA, the oil one brings it back; the seccionadora keeps its own list; a TP offers ÓLEO and marks its oil items NA on EPÓXI', async ({ page }) => {
   test.setTimeout(240_000);
   const { relatorioId } = await openSheet(page, 'disjuntor_mt');
-  const media = getDefinition(SEED_VERSION, 'cabine_primaria', 'disjuntor_mt').nameplate.find((f) => f.key === 'meio_de_extincao')!.options!;
-  expect((await select(page, 'meio_de_extincao').locator('option').allTextContents()).slice(-media.length)).toEqual(['AR', 'SF6', 'VÁCUO', 'ÓLEO (PVO)', 'ÓLEO (GVO)']);
-  await pick(page, 'meio_de_extincao', 'VÁCUO');
+  // Story 14.14: the media are read from the kernel (seed v7: Ar, Gás SF6, Vácuo, Óleo, Outro).
+  const disjuntor = getDefinition(SEED_VERSION, 'cabine_primaria', 'disjuntor_mt');
+  const media = disjuntor.nameplate.find((f) => f.key === 'meio_de_extincao')!.options!;
+  const rule = disjuntor.oil_rule!;
+  const oil = rule.oil_values[0]!;
+  const nonOil = media.filter((option) => !rule.oil_values.includes(option) && !(rule.full_values ?? []).includes(option)).at(-1)!;
+  expect((await select(page, 'meio_de_extincao').locator('option').allTextContents()).slice(-media.length)).toEqual(media);
+  await pick(page, 'meio_de_extincao', nonOil);
   await expect(checked(page, 'oleo_isolante_indicador_de_nivel')).toHaveAttribute('data-value', 'na');
   await expect(checked(page, 'camara_de_extincao')).toHaveCount(0);
   await expect(missingMarker(page, 'vol_oleo')).toHaveCount(0);
-  await pick(page, 'meio_de_extincao', 'ÓLEO (GVO)');
+  await pick(page, 'meio_de_extincao', oil);
   await expect(checked(page, 'oleo_isolante_indicador_de_nivel')).toHaveCount(0);
   await expect(missingMarker(page, 'vol_oleo')).toHaveCount(1);
-  // Answered on the oil unit, then VÁCUO: cleared, NA again, with the toast.
+  // Answered on the oil unit, then the non-oil medium: cleared, NA again, with the toast.
   await row(page, 'oleo_isolante_indicador_de_nivel').getByRole('radio', { name: 'Conforme', exact: true }).click();
   await expect(checked(page, 'oleo_isolante_indicador_de_nivel')).toHaveAttribute('data-value', 'c');
-  await pick(page, 'meio_de_extincao', 'VÁCUO');
+  await pick(page, 'meio_de_extincao', nonOil);
   await expect(toast(page)).toContainText('1 item de óleo apagado');
   await expect(checked(page, 'oleo_isolante_indicador_de_nivel')).toHaveAttribute('data-value', 'na');
   await page.reload();
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
-  await expect(select(page, 'meio_de_extincao')).toHaveValue('VÁCUO');
+  await expect(select(page, 'meio_de_extincao')).toHaveValue(nonOil);
   await expect(checked(page, 'oleo_isolante_indicador_de_nivel')).toHaveAttribute('data-value', 'na');
 
-  // The seccionadora of the same relatório keeps AR and SF6; a TP offers ÓLEO.
+  // The seccionadora of the same relatório keeps AR and SF6 (none of the disjuntor's v7 media); a TP offers ÓLEO.
   const built = await entities<BlockRow>(page);
   const blockOfType = (type: string) => built.find((record) => record.entity === 'block' && record.row.relatorio_id === relatorioId && record.row.block_type === type)!.row;
   await page.goto(`/relatorio/${relatorioId}/ficha/${blockOfType('chave_seccionadora').id}`);
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  const own = getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora').nameplate.find((f) => f.key === 'meio_de_extincao')!.options!;
+  expect(own).toEqual(['AR', 'SF6']);
   const seccionadora = await select(page, 'meio_de_extincao').locator('option').allTextContents();
-  expect(seccionadora.filter((option) => media.includes(option))).toEqual(['AR', 'SF6']);
+  expect(seccionadora.slice(-own.length)).toEqual(own);
+  expect(seccionadora.filter((option) => media.includes(option))).toEqual([]);
   await page.goto(`/relatorio/${relatorioId}/ficha/${blockOfType('tp').id}`);
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
   await expect(select(page, 'tipo_de_isolacao').locator('option', { hasText: 'ÓLEO' })).toHaveCount(1);

@@ -565,20 +565,19 @@ function DatePickerField({ field, value, commit, missing, label, after, flushOnU
   );
 }
 
-function SelectField({ field, value, commit, missing, label, selectEmpty, after }: FieldProps) {
+function SelectField({ field, value, commit, missing, label, selectEmpty, helper, after }: FieldProps) {
   const id = useId();
+  const helperId = useId();
   const current = typeof value === 'string' ? value : '';
   const options = field.options ?? [];
-  return (
-    <div className="field combobox" data-field-key={field.key}>
-      <label className="field-label" htmlFor={id}>
-        {screenLabel(label ?? field.label)}
-      </label>
+  const control = (
+    <>
       <select
         id={id}
         className="input"
         value={current}
         data-missing-field={missing ? '' : undefined}
+        aria-describedby={helper === undefined ? undefined : helperId}
         onChange={(event) => void commit(event.target.value === '' ? null : event.target.value)}
       >
         <option value="">{selectEmpty}</option>
@@ -595,6 +594,31 @@ function SelectField({ field, value, commit, missing, label, selectEmpty, after 
           <use href="/sprite.svg#i-chev-down" />
         </svg>
       </span>
+    </>
+  );
+  const fieldLabel = (
+    <label className="field-label" htmlFor={id}>
+      {screenLabel(label ?? field.label)}
+    </label>
+  );
+  // Story 14.14: with a helper line under it (the seed's help), the select and its chevron sit in
+  // their own `.combobox`, as the mock draws a field with a line under it ("Tensão de placa").
+  if (helper !== undefined) {
+    return (
+      <div className="field" data-field-key={field.key}>
+        {fieldLabel}
+        <div className="combobox">{control}</div>
+        <span className="helper" id={helperId}>
+          {helper}
+        </span>
+        {after}
+      </div>
+    );
+  }
+  return (
+    <div className="field combobox" data-field-key={field.key}>
+      {fieldLabel}
+      {control}
       {after}
     </div>
   );
@@ -675,7 +699,7 @@ function voltageMatchKey(text: string): string {
 }
 
 /** A read-only field (UX-DR49): the same label, the value as text, `aria-readonly`. */
-export function ReadOnlyField({ field, value, label, helper }: { field: Pick<FieldDef, 'kind' | 'label' | 'unit'>; value: unknown; label?: string; helper?: string }) {
+export function ReadOnlyField({ field, value, label, helper, after }: { field: Pick<FieldDef, 'kind' | 'label' | 'unit'>; value: unknown; label?: string; helper?: string; after?: ReactNode }) {
   const labelId = useId();
   const text = fieldValueText(field, value);
   const isNumber = field.kind === 'number';
@@ -695,6 +719,7 @@ export function ReadOnlyField({ field, value, label, helper }: { field: Pick<Fie
         </div>
       )}
       {helper === undefined ? null : <span className="helper">{helper}</span>}
+      {after}
     </div>
   );
 }
