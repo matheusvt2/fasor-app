@@ -127,6 +127,9 @@ export type RegistryKind = z.infer<typeof registryKindSchema>;
 
 const registryBase = { id: uuidV7Schema, removed_at: nullableIso };
 
+/** Story 14.12: the longest learned NC phrase, in characters (a longer piece is not learned, a longer rename is refused). */
+export const NC_PHRASE_MAX_LENGTH = 200;
+
 /** AD-19 metadata for by-value registries (gender and number drive `contextCaption`). */
 const wordMetadata = {
   name: z.string(),
@@ -208,7 +211,12 @@ export const registryRowSchemas = {
     kind: z.literal('nc_phrase'),
     block_type: equipmentBlockTypeSchema,
     item_key: itemKeySchema,
-    name: z.string(),
+    // Never blank and at most `NC_PHRASE_MAX_LENGTH`, as learned (review of Story 14.12): a rename outside it is `op_invalid`.
+    name: z
+      .string()
+      .min(1)
+      .max(NC_PHRASE_MAX_LENGTH)
+      .refine((name) => name.trim() !== '', { message: 'a phrase is never blank' }),
   }),
 } as const;
 

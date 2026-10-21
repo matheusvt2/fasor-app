@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { parsePath, type OpPath } from '../ops/path.ts';
 import { insertPhrase } from '../relatorio/ficha.ts';
-import { registryRowSchema, type BlockRow, type Cell, type RegistryRow } from '../schemas/entities.ts';
+import { NC_PHRASE_MAX_LENGTH, registryRowSchema, type BlockRow, type Cell, type RegistryRow } from '../schemas/entities.ts';
 import { SEED_VERSION, SEED_VERSIONS } from '../seed/definitions.ts';
 import {
   learnedOptionCandidates,
   learnTouchedOf,
-  NC_PHRASE_MAX_LENGTH,
   ncChipPhrases,
   ncPhraseRegistryGroups,
   ncPhraseRegistryRows,
   seedNcPhrasesOf,
+  typedPieces,
   type LearnTouched,
   type NcPhraseRow,
 } from './nc-phrase-row.ts';
@@ -156,6 +156,54 @@ describe('learnedOptionCandidates (the I/O matrix)', () => {
 
   it('a block with no definition (unknown seed version) teaches nothing', () => {
     expect(learnedOptionCandidates(block({ result: 'NC', observation: 'Fuga', seed: 'v999' }), ALL, [])).toEqual({ ncPhrases: [], manufacturers: [] });
+  });
+});
+
+describe('typedPieces (review of Story 14.12: whole phrases, any case)', () => {
+  it('cuts only at a whole occurrence, bounded by the ends, whitespace or ,;.()', () => {
+    expect(typedPieces('Trincado no isolador', ['Trinca'])).toEqual(['Trincado no isolador']);
+    expect(typedPieces('Destrinca a mola', ['trinca'])).toEqual(['Destrinca a mola']);
+    expect(typedPieces('Trinca, mola fraca', ['Trinca'])).toEqual(['mola fraca']);
+    expect(typedPieces('mola fraca (trinca)', ['Trinca'])).toEqual(['mola fraca']);
+    expect(typedPieces('folga (lado A), Trinca', ['Trinca'])).toEqual(['folga (lado A)']);
+    expect(typedPieces('Trinca - Trinca', ['Trinca'])).toEqual([]);
+    expect(typedPieces('mola fraca;Trinca.', ['Trinca'])).toEqual(['mola fraca']);
+  });
+
+  it('matches case-insensitively and takes a phrase holding regex metacharacters literally', () => {
+    expect(typedPieces('TRINCA NO ISOLADOR', ['Trinca no isolador'])).toEqual([]);
+    expect(typedPieces('vazamento (a+b)? e folga', ['vazamento (a+b)?'])).toEqual(['e folga']);
+    expect(typedPieces('vazamento ab e folga', ['vazamento (a+b)?'])).toEqual(['vazamento ab e folga']);
+  });
+
+  it('learns nothing from a chip typed in another case, and keeps a word that only starts like a learned phrase', () => {
+    const chip = phraseRow('Trinca no isolador');
+    expect(learnedOptionCandidates(block({ result: 'NC', observation: 'TRINCA NO ISOLADOR' }), ALL, [chip]).ncPhrases).toEqual([]);
+    const short = phraseRow('Trinca');
+    expect(learnedOptionCandidates(block({ result: 'NC', observation: 'Trincado no isolador' }), ALL, [short]).ncPhrases.map((p) => p.name)).toEqual(['Trincado no isolador']);
+  });
+});
+
+describe('learnedOptionCandidates with earlier names (review of Story 14.12)', () => {
+  it('a phrase or a manufacturer the office renamed away is not learned again', () => {
+    const renamed = phraseRow('Mola fraca na abertura');
+    const earlier = { ncPhrases: [{ block_type: 'disjuntor_mt', item_key: ITEM, name: 'Mola fraca' }], manufacturers: ['Celta'] };
+    const sheet = block({ result: 'NC', observation: 'mola fraca', fabricacao: 'CELTA' });
+    expect(learnedOptionCandidates(sheet, ALL, [renamed, manufacturerRow('Celtta')], earlier)).toEqual({ ncPhrases: [], manufacturers: [] });
+    // Another item's earlier name does not count.
+    const other = { ...earlier, ncPhrases: [{ block_type: 'disjuntor_mt', item_key: 'bobinas', name: 'Mola fraca' }] };
+    expect(learnedOptionCandidates(sheet, ALL, [renamed], other).ncPhrases.map((p) => p.name)).toEqual(['mola fraca']);
+  });
+});
+
+describe('the nc_phrase name (review of Story 14.12)', () => {
+  const row = (name: string) => ({ id: OP, kind: 'nc_phrase', block_type: 'disjuntor_mt', item_key: ITEM, name, removed_at: null });
+  it('is never blank and at most NC_PHRASE_MAX_LENGTH characters', () => {
+    expect(registryRowSchema.safeParse(row('')).success).toBe(false);
+    expect(registryRowSchema.safeParse(row('   ')).success).toBe(false);
+    expect(registryRowSchema.safeParse(row('a'.repeat(NC_PHRASE_MAX_LENGTH + 1))).success).toBe(false);
+    expect(registryRowSchema.safeParse(row('a'.repeat(NC_PHRASE_MAX_LENGTH))).success).toBe(true);
+    expect(registryRowSchema.safeParse(row('a')).success).toBe(true);
   });
 });
 

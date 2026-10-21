@@ -24,6 +24,7 @@ import {
   type EntityKey,
   type EntityRow,
   type BlockRow,
+  type EarlierNames,
   type Op,
   type OpPath,
   type OpRejectCode,
@@ -826,6 +827,7 @@ async function learnPushedOptions(tx: Tx, companyId: CompanyId, steps: readonly 
     .from(entities)
     .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'registry'), sql`${entities.row}->>'kind' in ('nc_phrase', 'manufacturer')`));
   const known: RegistryRow[] = registry.map((entry) => entry.row as RegistryRow);
+  const earlier = await earlierRegistryNames(tx, companyId, known);
   const at = toIso(deps.now());
   const batchId = newId();
   const creates: Op[] = [];
@@ -839,28 +841,69 @@ async function learnPushedOptions(tx: Tx, companyId: CompanyId, steps: readonly 
   for (const [blockId, items] of touched) {
     const block = blocks.find((entry) => entry.id === blockId)?.row as BlockRow | undefined;
     if (block === undefined) continue;
-    const learned = learnedOptionCandidates(block, items, known);
+    const learned = learnedOptionCandidates(block, items, known, earlier);
     for (const phrase of learned.ncPhrases) create({ id: newId(), kind: 'nc_phrase', removed_at: null, ...phrase });
     for (const name of learned.manufacturers) create({ id: newId(), kind: 'manufacturer', removed_at: null, name, gender: null, number: null });
   }
   if (creates.length === 0) return;
-  const validated: PathedOp[] = [];
-  for (const op of creates) {
-    const validation = validate(op, companyId, { now: deps.now, origin: 'server' });
-    if (!validation.ok) {
-      logError('learned options on push skipped: a create did not validate', { company_id: companyId, path: op.path, code: validation.code });
-      return;
-    }
-    validated.push(validation);
-  }
+  const validated = validLearnedCreates(creates, companyId, deps.now);
+  if (validated.length === 0) return;
   try {
     await tx.transaction(async (savepoint) => {
       for (const target of validated) await applyOneIn(savepoint, companyId, target, at, 'server', cache);
     });
-    log('learned options on push', { company_id: companyId, nc_phrases: creates.filter((op) => op.path.startsWith('registry/nc_phrase/')).length, manufacturers: creates.filter((op) => op.path.startsWith('registry/manufacturer/')).length });
+    log('learned options on push', { company_id: companyId, nc_phrases: validated.filter((v) => v.op.path.startsWith('registry/nc_phrase/')).length, manufacturers: validated.filter((v) => v.op.path.startsWith('registry/manufacturer/')).length });
   } catch (failure) {
     if (!isPermanentRefusal(failure)) throw failure;
     cache.clear();
     logError('learned options on push skipped: the server refused the batch', { company_id: companyId, code: 'op_invalid' });
   }
+}
+
+/**
+ * Review of Story 14.12: the learned creates that validate as server ops, in order. One that does
+ * not is logged and left out alone; the others of the batch still land.
+ */
+export function validLearnedCreates(creates: readonly Op[], companyId: CompanyId, now: Clock): PathedOp[] {
+  const validated: PathedOp[] = [];
+  for (const op of creates) {
+    const validation = validate(op, companyId, { now, origin: 'server' });
+    if (!validation.ok) {
+      logError('learned option on push skipped: its create did not validate', { company_id: companyId, path: op.path, code: validation.code });
+      continue;
+    }
+    validated.push({ op: validation.op, path: validation.path });
+  }
+  return validated;
+}
+
+/**
+ * Review of Story 14.12: every name the company's `nc_phrase` and `manufacturer` rows held before
+ * their current one, read from the log (each row's create value and its `registry/{kind}/{id}/name`
+ * puts), so a spelling the office renamed away is known and never learned again. A phrase's type
+ * and item are its row's (they never change); a log entry of an id with no row is skipped.
+ */
+async function earlierRegistryNames(tx: Tx, companyId: CompanyId, rows: readonly RegistryRow[]): Promise<EarlierNames> {
+  const logged = await tx
+    .select({ kind: ops.kind, path: ops.path, value: ops.value })
+    .from(ops)
+    .where(
+      and(
+        eq(ops.company_id, companyId),
+        or(sql`${ops.path} like 'registry/nc\_phrase/%'`, sql`${ops.path} like 'registry/manufacturer/%'`),
+        or(eq(ops.kind, 'create'), sql`${ops.path} like '%/name'`),
+      ),
+    );
+  const byId = new Map(rows.map((row) => [row.id, row] as const));
+  const earlier: { ncPhrases: { block_type: string; item_key: string; name: string }[]; manufacturers: string[] } = { ncPhrases: [], manufacturers: [] };
+  for (const entry of logged) {
+    const [, kind, id, field] = entry.path.split('/');
+    if (id === undefined || (field !== undefined && field !== 'name')) continue;
+    const name = field === undefined ? (entry.value as { name?: unknown } | null)?.name : entry.value;
+    const row = byId.get(id);
+    if (typeof name !== 'string' || row === undefined || row.kind !== kind) continue;
+    if (row.kind === 'nc_phrase') earlier.ncPhrases.push({ block_type: row.block_type, item_key: row.item_key, name });
+    else if (row.kind === 'manufacturer') earlier.manufacturers.push(name);
+  }
+  return earlier;
 }

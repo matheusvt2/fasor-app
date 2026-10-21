@@ -1,4 +1,4 @@
-import { registryFieldPath, type NcPhraseRegistryRow, type OpDraft } from '@app/domain';
+import { NC_PHRASE_MAX_LENGTH, registryFieldPath, type NcPhraseRegistryRow, type OpDraft } from '@app/domain';
 import { useId, useState } from 'react';
 import { Button, ConfirmDialog, TextButton } from '../../components/index.ts';
 import { now } from '../../clock.ts';
@@ -8,6 +8,7 @@ import { newId } from '../../ids.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
+import { useLiveReseed } from './live-reseed.ts';
 
 /*
  * Story 14.12: the panel of one learned NC phrase in Cadastros › Frases de NC, the Fabricantes
@@ -106,20 +107,30 @@ export function FrasesNcPanel({ entry, onClose }: { entry: NcPhraseRegistryRow; 
   );
 }
 
+/**
+ * The phrase field. A rename that lands from another device re-seeds it while the person is not
+ * in it and has no change of their own waiting (`useLiveReseed`, as the Instrumentos panel does).
+ */
 function PhraseField({ label, value, onCommit }: { label: string; value: string; onCommit: (value: string) => Promise<void> }) {
   const [text, setText] = useState(value);
   const committer = useFieldCommit<string>({ commit: onCommit });
+  const live = useLiveReseed(value, () => setText(value), () => committer.pending);
   return (
     <label className="field span-2">
       <span className="field-label">{label}</span>
       <input
         className="input"
         value={text}
+        maxLength={NC_PHRASE_MAX_LENGTH}
         onChange={(event) => {
           setText(event.target.value);
           committer.change(event.target.value);
         }}
-        onBlur={() => committer.blur()}
+        onFocus={live.onFocus}
+        onBlur={() => {
+          live.onBlur();
+          committer.blur();
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') committer.enter();
         }}

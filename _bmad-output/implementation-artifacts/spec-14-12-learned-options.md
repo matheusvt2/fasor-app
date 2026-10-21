@@ -2,7 +2,7 @@
 title: 'Story 14.12: learned company options (NC phrases per type and item, FABRICANTE, office review)'
 type: 'feature'
 created: '2026-10-21'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'f064f45c53b0f488c54cc696214e31ebb122c379'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -194,3 +194,26 @@ offered, the seed chips still are). Story 14.6 extends this same registry family
 - `pnpm exec tsx scripts/e2e.ts e2e/learned-options.spec.ts e2e/cadastros.spec.ts e2e/ficha.spec.ts
   e2e/verificacoes-local.spec.ts e2e/nameplate-values.spec.ts e2e/nc-draft.spec.ts --project desktop-chrome
   --project durability-desktop-chrome` -- expected: green.
+
+## Review Triage Log
+
+### 2026-10-21 — Review pass
+- layers: Edge Case Hunter, Verification Gap Reviewer (Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them)
+- verdicts: 15 findings — high 0, medium 3, low 7, false 3, maybe-false 0 (two ECH claim rows restate other rows)
+- findings:
+  - `[medium]` `[patch]` typedPieces splits a phrase inside a longer word ("Trinca" in "Trincado") — split at word/separator boundaries.
+  - `[low]` `[patch]` chip text typed in another case is not split, whole observation learned — case-insensitive boundary match (accents left: insertPhrase inserts the exact phrase).
+  - `[medium]` `[patch]` an office rename lets the old spelling be learned again from old sheets — earlier names from the ops log join the known set.
+  - `[low]` `[patch]` one invalid learned create drops every create of the push — skip only that create.
+  - `[false]` `[reject]` non-permanent error in the learn savepoint fails the push — by design, as `upgradePushedTemplates`: a database fault rolls the push back and the device retries; only refusals are swallowed.
+  - `[low]` `[reject]` a block of a trashed relatório still teaches options — rare (edits to a trashed relatório) and the office can remove the option.
+  - `[low]` `[patch]` a client rename to a blank or over-cap name is stored — schema non-blank and at most 200.
+  - `[low]` `[reject]` an unbounded FABRICANTE is learned — the existing "Criar" already accepts any length; not a new surface.
+  - `[low]` `[patch]` the Frases de NC panel field keeps a stale name after a remote rename — follows the stored value when no edit is pending.
+  - `[false]` `[reject]` contract skips 22 — 22 is e14d's, assigned in epic-14-context.md.
+  - `[false]` `[reject]` claim "never failing the push" — same as the non-permanent row above.
+  - `[medium]` `[patch]` claim rename re-learn — same root cause as the rename row.
+  - `[low]` `[defer]` (VG gap) the refusal branches of `learnPushedOptions` are untested — needs a fault-injection seam for both post-passes; deferred-work entry.
+  - `[low]` `[patch]` `ncPhraseRows` docstring says live only — corrected.
+  - `[low]` `[reject]` the two-device test is sequential, not racing — the company advisory lock serializes pushes; covered by existing lock tests.
+

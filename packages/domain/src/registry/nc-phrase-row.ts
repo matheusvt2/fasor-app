@@ -1,6 +1,6 @@
 import type { OpPath } from '../ops/path.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
-import type { BlockRow, RegistryRow } from '../schemas/entities.ts';
+import { NC_PHRASE_MAX_LENGTH, type BlockRow, type RegistryRow } from '../schemas/entities.ts';
 import { findDefinition, SEED_VERSION, SEED_VERSIONS } from '../seed/definitions.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
 
@@ -17,9 +17,6 @@ import { normalizeRegistryName } from '../text/normalize-name.ts';
 
 export type NcPhraseRow = Extract<RegistryRow, { kind: 'nc_phrase' }>;
 type ManufacturerRow = Extract<RegistryRow, { kind: 'manufacturer' }>;
-
-/** A learned phrase longer than this is not learned (the matrix's "Too long"). */
-export const NC_PHRASE_MAX_LENGTH = 200;
 
 function isNcPhraseRow(row: RegistryRow): row is NcPhraseRow {
   return row.kind === 'nc_phrase';
@@ -113,13 +110,41 @@ export function learnTouchedOf(paths: readonly OpPath[]): Map<string, LearnTouch
   return touched;
 }
 
-/** The phrase pieces split on the offered phrases' occurrences, each trimmed of whitespace and `,;.` (empty ones dropped). */
-function typedPieces(text: string, offered: readonly string[]): string[] {
-  const phrases = [...new Set(offered.filter((phrase) => phrase.trim() !== ''))].sort((a, b) => b.length - a.length);
-  let pieces = [text];
-  for (const phrase of phrases) pieces = pieces.flatMap((piece) => piece.split(phrase));
-  return pieces.map((piece) => piece.replace(/^[\s,;.]+|[\s,;.]+$/g, '')).filter((piece) => piece !== '');
+/** The characters a phrase occurrence must sit between (or the text's start and end) to split the text. */
+const BOUNDARY = '\\s,;.()\u0000';
+const CUT = '\u0000';
+
+/**
+ * The phrase pieces of a typed observation: the text cut at every whole occurrence of an offered
+ * phrase (bounded by the text's start or end, whitespace or `,;.()`, matched case-insensitively,
+ * so "Trinca" never cuts "Trincado"), each piece trimmed of whitespace and `,;.` (and of a bracket
+ * the cut left dangling); a piece with no letter or digit is dropped.
+ */
+export function typedPieces(text: string, offered: readonly string[]): string[] {
+  const phrases = [...new Set(offered.map((phrase) => phrase.trim()).filter((phrase) => phrase !== ''))].sort((a, b) => b.length - a.length);
+  let cut = text.replaceAll(CUT, ' ');
+  for (const phrase of phrases) {
+    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    cut = cut.replace(new RegExp(`(?<=^|[${BOUNDARY}])${escaped}(?=$|[${BOUNDARY}])`, 'giu'), CUT);
+  }
+  return cut
+    .split(CUT)
+    // A cut beside a bracket leaves its other half dangling ("(" at a piece's end, ")" at its start).
+    .map((piece) => piece.replace(/^[\s,;.)]+|[\s,;.(]+$/g, ''))
+    .filter((piece) => /[\p{L}\p{N}]/u.test(piece));
 }
+
+/**
+ * Review of Story 14.12: the names the company's rows held before a rename (their create values and
+ * earlier `name` puts), known like the rows' current names, so a spelling the office renamed away is
+ * never learned again.
+ */
+export interface EarlierNames {
+  ncPhrases: readonly { block_type: string; item_key: string; name: string }[];
+  manufacturers: readonly string[];
+}
+
+const NO_EARLIER: EarlierNames = { ncPhrases: [], manufacturers: [] };
 
 export interface LearnedOptions {
   ncPhrases: { block_type: NcPhraseRow['block_type']; item_key: NcPhraseRow['item_key']; name: string }[];
@@ -134,12 +159,14 @@ export interface LearnedOptions {
  * characters; and for each touched nameplate field of kind `manufacturer`, its typed value. Nothing
  * is learned from a removed block or one with no definition; nothing whose normalized text is a
  * seed phrase of the item, any row of the same key (live or removed: an option the office removed
- * is never learned again), or an earlier candidate of the result.
+ * is never learned again), a name such a row held before a rename (`earlier`), or an earlier
+ * candidate of the result.
  */
 export function learnedOptionCandidates(
   block: Pick<BlockRow, 'block_type' | 'seed_version' | 'removed_at' | 'sheet'>,
   touched: LearnTouched,
   registryRows: readonly RegistryRow[],
+  earlier: EarlierNames = NO_EARLIER,
 ): LearnedOptions {
   const result: LearnedOptions = { ncPhrases: [], manufacturers: [] };
   if (block.removed_at !== null) return result;
@@ -157,7 +184,8 @@ export function learnedOptionCandidates(
     const seeded = seedNcPhrasesOf(blockType, item.key);
     const sameKey = phraseRows.filter((row) => row.block_type === blockType && row.item_key === item.key);
     const offered = [...seeded, ...sameKey.filter((row) => row.removed_at === null).map((row) => row.name)];
-    const known = new Set([...seeded, ...sameKey.map((row) => row.name)].map(normalizeRegistryName));
+    const renamedAway = earlier.ncPhrases.filter((entry) => entry.block_type === blockType && entry.item_key === item.key).map((entry) => entry.name);
+    const known = new Set([...seeded, ...sameKey.map((row) => row.name), ...renamedAway].map(normalizeRegistryName));
     for (const piece of typedPieces(cell.value, offered)) {
       if (piece.length > NC_PHRASE_MAX_LENGTH) continue;
       const normalized = normalizeRegistryName(piece);
@@ -167,7 +195,7 @@ export function learnedOptionCandidates(
     }
   }
 
-  const knownNames = new Set(registryRows.filter(isManufacturerRow).map((row) => normalizeRegistryName(row.name)));
+  const knownNames = new Set([...registryRows.filter(isManufacturerRow).map((row) => row.name), ...earlier.manufacturers].map(normalizeRegistryName));
   for (const field of definition.nameplate) {
     if (field.kind !== 'manufacturer' || !touched.nameplate.includes(field.key)) continue;
     const value = block.sheet.nameplate[field.key]?.value;

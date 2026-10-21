@@ -14,6 +14,7 @@ import {
   sheetNameplatePath,
   syncPullResponseSchema,
   syncPushResponseSchema,
+  NC_PHRASE_MAX_LENGTH,
   type BlockRow,
   type JsonValue,
   type Op,
@@ -32,7 +33,8 @@ import { asCompanyId } from '../db/repositories/company-id.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { entities, ops, syncDevicePush } from '../db/schema.ts';
 import { newId } from '../ids.ts';
-import { REGISTRY_MERGE_ACTOR } from './apply.ts';
+import { REGISTRY_MERGE_ACTOR, validLearnedCreates } from './apply.ts';
+import { serverOp } from './server-op.ts';
 import { toSnapshot } from './snapshot.ts';
 
 /*
@@ -377,6 +379,54 @@ describe('Story 14.12 (contract 23): learned options through POST /api/sync/ops'
     const paths = (page.ops as Op[]).map((o) => o.path);
     for (const id of learned) expect(paths.some((path) => path.includes(id))).toBe(false);
     expect(await rowsNamed('nc_phrase', NONCE, companyB.companyId)).toEqual([]);
+  });
+
+  it('review: a phrase the office renamed away is not learned again from a sheet that still holds the old spelling', async () => {
+    const sheet = await disjuntorSheet();
+    const old = `Mola fraca ${NONCE}n`;
+    await pushOk(ncPuts(sheet, old));
+    const [learned] = await rowsNamed('nc_phrase', `${NONCE}n`);
+    await pushOk([companyOp('put', registryFieldPath('nc_phrase', learned!.id, 'name'), `Mola fraca na abertura ${NONCE}n`)]);
+    // Another push of a sheet holding the old spelling (its observation written again, as an edit would).
+    const again = await disjuntorSheet();
+    await pushOk(ncPuts(again, old.toUpperCase()));
+    await pushOk([put(sheet.relatorio, sheetChecklistPath(sheet.block, ITEM, 'observation'), `${old}.`)]);
+    expect((await rowsNamed('nc_phrase', `${NONCE}n`)).map((r) => r.row.name)).toEqual([`Mola fraca na abertura ${NONCE}n`]);
+
+    // A manufacturer renamed away likewise.
+    const maker = await disjuntorSheet();
+    await pushOk([put(maker.relatorio, sheetNameplatePath(maker.block, 'fabricacao'), `Celta ${NONCE}o`)]);
+    const [made] = await rowsNamed('manufacturer', `${NONCE}o`);
+    await pushOk([companyOp('put', registryFieldPath('manufacturer', made!.id, 'name'), `Celtta ${NONCE}o`)]);
+    const later = await disjuntorSheet();
+    await pushOk([put(later.relatorio, sheetNameplatePath(later.block, 'fabricacao'), `CELTA ${NONCE}o`)]);
+    expect((await rowsNamed('manufacturer', `${NONCE}o`)).map((r) => r.row.name)).toEqual([`Celtta ${NONCE}o`]);
+  });
+
+  it('review: a rename to a blank phrase or past NC_PHRASE_MAX_LENGTH is op_invalid; one at the limit is accepted', async () => {
+    const sheet = await disjuntorSheet();
+    await pushOk(ncPuts(sheet, `Folga axial ${NONCE}p`));
+    const [learned] = await rowsNamed('nc_phrase', `${NONCE}p`);
+    const path = registryFieldPath('nc_phrase', learned!.id, 'name');
+    for (const name of ['', '   ', `${NONCE}p`.padEnd(NC_PHRASE_MAX_LENGTH + 1, 'x')]) {
+      const rename = companyOp('put', path, name);
+      expect((await push([rename])).rejected, JSON.stringify(name)).toEqual([{ op_id: rename.op_id, code: 'op_invalid' }]);
+    }
+    const atLimit = `${NONCE}p`.padEnd(NC_PHRASE_MAX_LENGTH, 'y');
+    await pushOk([companyOp('put', path, atLimit)]);
+    expect((await rowsNamed('nc_phrase', `${NONCE}p`)).map((r) => r.row.name)).toEqual([atLimit]);
+  });
+
+  it('review: a learned create that does not validate is left out alone; the others still land', () => {
+    const at = new Date().toISOString();
+    const mk = (company: string, name: string) => {
+      const id = newId();
+      return serverOp({ opId: newId(), companyId: company, actorId: REGISTRY_MERGE_ACTOR, clientTs: at, kind: 'create', path: `registry/manufacturer/${id}`, value: { id, kind: 'manufacturer', name, gender: null, number: null, removed_at: null }, scope: 'company' });
+    };
+    const good = [mk(companyA.companyId, 'A'), mk(companyA.companyId, 'C')];
+    const foreign = mk(companyB.companyId, 'B');
+    const kept = validLearnedCreates([good[0]!, foreign, good[1]!], asCompanyId(companyA.companyId), now);
+    expect(kept.map((entry) => entry.op.op_id)).toEqual(good.map((op) => op.op_id));
   });
 
   it('Old client: a version-22 pull of the company stream is answered 426 contract_outdated', async () => {
