@@ -2286,3 +2286,9 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: debt
   state: open (owner: Bruno's first real job with the feature; a fix would learn only from a sheet left or concluded)
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-12-learned-options.md`
+  summary: The refusal branches of `learnPushedOptions` (a learned create that does not validate is skipped; a refused savepoint is logged and the push still commits) have no test that forces a refusal; the precedent `upgradePushedTemplates` has the same gap. Closing it needs a fault-injection seam for both post-passes.
+  evidence: `apps/api/src/sync/apply.ts` `learnPushedOptions` and `upgradePushedTemplates` catch blocks; Verification Gap review of Story 14.12.
+  class: verification-gap
+  state: open (owner: the Epic 14 integrated review)
+

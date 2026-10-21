@@ -2,7 +2,7 @@
 title: 'Story 14.12: learned company options (NC phrases per type and item, FABRICANTE, office review)'
 type: 'feature'
 created: '2026-10-21'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'f064f45c53b0f488c54cc696214e31ebb122c379'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -11,7 +11,10 @@ dev_effort: 'high'
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-14-context.md'
 warnings: ['batched', 'oversized']
-deferred: []
+deferred:
+  - summary: 'learnPushedOptions refusal branches untested (needs a fault-injection seam shared with upgradePushedTemplates)'
+    location: 'apps/api/src/sync/apply.ts'
+    severity: 'low'
 ---
 
 Batched: batch e14e holds one story, 14.12, run as a wave-4 batch beside e14d (Story 14.14, contract 22, seed v7);
