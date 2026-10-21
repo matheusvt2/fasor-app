@@ -2,8 +2,8 @@
 title: 'Story 14.14: seed v7, fixed extinction media with Outro, SELV/PELV help, test voltage checked against the photo'
 type: 'feature'
 created: '2026-10-21'
-status: 'ready-for-dev'
-baseline_revision: 'f064f45c53b0f488c54cc696214e31ebb122c379'
+status: 'in-review'
+baseline_revision: '798cefcf48c787a66cc4d85a81eb56164b905fb3'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'
