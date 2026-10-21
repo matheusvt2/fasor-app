@@ -125,3 +125,5 @@ export * from './text/normalize-name.ts';
 export * from './reading/index.ts';
 export * from './text/hash.ts';
 export * from './audit/index.ts';
+// Story 14.12: last, as it reads the seed, the sheet and the screen labels (module order).
+export * from './registry/nc-phrase-row.ts';

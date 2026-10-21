@@ -9,6 +9,7 @@ import {
   insertPhrase,
   screenLabel,
   itensMarcadosConformeText,
+  ncChipPhrases,
   ncRowPointPositions,
   ncRowPointsText,
   photoToken,
@@ -20,6 +21,7 @@ import {
   type ChecklistItem,
   type EquipmentRow,
   type OpDraft,
+  type RegistryRow,
   type RelatorioSnapshot,
   type SuggestionRow,
 } from '@app/domain';
@@ -45,7 +47,8 @@ import { useSheetReadOnly } from './sheet-read-only.tsx';
  * checklist only), and one 56 px Checklist row per item with its Tri-state control and
  * Overflow ("Limpar", "Observação"). NA defaults show NA with no cell of their own; nothing
  * is ever pre-marked C. An NC row expands to its chips (the seed's phrases plus the five
- * most recent observations typed for the item in this relatório) and the required
+ * most recent observations typed for the item in this relatório; Story 14.12 puts the
+ * company's learned phrases of the type and item between them, `ncChipPhrases`) and the required
  * Observation field. Story 6.1 adds the NC row's "Adicionar foto" (the burst camera, the
  * caption "verificação de ⟨item⟩") and the item's Photo tile rows under the row's buttons;
  * Story 6.6 adds "Criar ponto de atenção" beside it (the point editor in a Form dialog,
@@ -204,6 +207,7 @@ export function ChecklistSection({
   bulk,
   photos,
   pending = NO_PENDING,
+  learned = NO_LEARNED,
   sectionRef,
 }: {
   api: FichaApi;
@@ -214,6 +218,8 @@ export function ChecklistSection({
   photos?: ChecklistPhotos;
   /** Story 9.5: the device's pending suggestion rows of the relatório (the NC drafts among them). */
   pending?: readonly SuggestionRow[];
+  /** Story 14.12: the company's learned NC phrases (`nc_phrase` registry rows) this device holds. */
+  learned?: readonly RegistryRow[];
   sectionRef?: (element: HTMLElement | null) => void;
 }) {
   const t = copy.ficha.checklist;
@@ -243,7 +249,7 @@ export function ChecklistSection({
           <ChecklistRow
             key={item.key}
             api={api}
-            target={sheetRowTarget(snapshot, block, item, pending)}
+            target={sheetRowTarget(snapshot, block, item, pending, learned)}
             item={item}
             label={screenLabel(item.label)}
             number={index + 1}
@@ -258,6 +264,7 @@ export function ChecklistSection({
 }
 
 const NO_PENDING: readonly SuggestionRow[] = [];
+const NO_LEARNED: readonly RegistryRow[] = [];
 
 /** The row's Dictation button on its own `.row-wrap` (a row with no photo action); nothing when the button is hidden. */
 function DictationRow({ children }: { children: ReactNode }) {
@@ -287,12 +294,21 @@ export interface ChecklistRowTarget {
   pointSeed: (photoIds: readonly string[]) => PointSeed;
   /** E6-Q11: the row's point mark ("Ponto de atenção 3"), given the ids of the item's photos; null with none. */
   pointMark: (photoIds: readonly string[]) => string | null;
-  /** The chips after the item's own phrases: the recent observations of this item elsewhere in the relatório. */
-  recents: readonly string[];
+  /**
+   * Story 14.12: the row's NC chips in the order they are offered, the kernel's one list
+   * (`ncChipPhrases`): the item's seed phrases, the company's learned ones, the recents.
+   */
+  chips: readonly string[];
 }
 
 /** The target of one item of a sheet's checklist: its cells on the block, its ops on `sheet/{blockId}/checklist/…`. */
-export function sheetRowTarget(snapshot: RelatorioSnapshot, block: BlockRow, item: ChecklistItem, pending: readonly SuggestionRow[]): ChecklistRowTarget {
+export function sheetRowTarget(
+  snapshot: RelatorioSnapshot,
+  block: BlockRow,
+  item: ChecklistItem,
+  pending: readonly SuggestionRow[],
+  learned: readonly RegistryRow[] = NO_LEARNED,
+): ChecklistRowTarget {
   const observationCell = block.sheet.checklist[item.key]?.observation;
   return {
     entityId: block.id,
@@ -307,7 +323,13 @@ export function sheetRowTarget(snapshot: RelatorioSnapshot, block: BlockRow, ite
     ncDraft: ncDraftFor(block, item.key, pending),
     pointSeed: (photoIds) => ({ text: photoIds.map((id) => photoToken(id)).join(' '), equipmentId: block.equipment_id, origin: 'manual' }),
     pointMark: (photoIds) => ncRowPointsText(ncRowPointPositions(snapshot.points, block.equipment_id, photoIds)),
-    recents: recentChecklistObservations(snapshot, item.key, item.nc_phrases, block.id),
+    chips: ncChipPhrases({
+      seeded: item.nc_phrases,
+      learned,
+      blockType: block.block_type,
+      itemKey: item.key,
+      recents: recentChecklistObservations(snapshot, item.key, item.nc_phrases, block.id),
+    }),
   };
 }
 
@@ -334,10 +356,10 @@ export function ChecklistRow({
   api: ChecklistRowApi;
   target: ChecklistRowTarget;
   /**
-   * The item's key (the row's photos and its draft key go by it), its NC phrases, the chips of an
-   * NC row, and (seed v6, Story 14.9) the seed's hint, shown under the label on the sheet only.
+   * The item's key (the row's photos and its draft key go by it) and (seed v6, Story 14.9) the
+   * seed's hint, shown under the label on the sheet only. Its chips come from `target.chips`.
    */
-  item: { key: string; nc_phrases: readonly string[]; hint?: string | undefined };
+  item: { key: string; hint?: string | undefined };
   /** The item's label as the screen shows it. */
   label: string;
   number: number;
@@ -350,7 +372,7 @@ export function ChecklistRow({
   const result = target.result;
   const resultCommitted = target.committed;
   const stored = target.observation;
-  const recents = target.recents;
+  const chips = target.chips;
   const photoIds = (photos?.tiles ?? []).filter((tile) => tile.item_key === item.key).map((tile) => tile.id);
   const [observationOpen, setObservationOpen] = useState(false);
   const area = useRef<HTMLTextAreaElement | null>(null);
@@ -454,7 +476,7 @@ export function ChecklistRow({
         <div className="row-expand">
           {nc && !readOnly ? (
             <div className="chip-row" role="group" aria-label={t.chipsLabel(number)}>
-              {[...item.nc_phrases, ...recents].map((phrase) => (
+              {chips.map((phrase) => (
                 <Chip key={phrase} onPress={() => insert(phrase)}>
                   {phrase}
                 </Chip>

@@ -180,8 +180,20 @@
  * count and print an "Outro" disjuntor's oil item as derived NA where a version-22 fold shows it
  * unanswered. A row written before 22 parses to the same bytes. `MIN_CONTRACT_VERSION` goes to
  * 22 too.
+  *
+ * 23 (2026-10-21, Story 14.12): the company's learned options. The registry kind `nc_phrase` is
+ * new (`registryKindSchema` gains it): `registry/nc_phrase/{id}` `{block_type, item_key, name}`,
+ * an NC phrase the server learns from an observation typed on a sheet, created only by the
+ * server (`system:registry`, after a client push, in its transaction); a client create of the
+ * kind is refused `op_server_only`, a client `name` or `removed_at` put is accepted (the office's
+ * Cadastros › Frases de NC), and `block_type` and `item_key` are immutable (`op_path_unknown`).
+ * The server also creates a `registry/manufacturer/{id}` row for a FABRICANTE typed with no
+ * matching row. No path family is new. A version-22 (or older) bundle cannot parse a
+ * `registry/nc_phrase/...` op (its `registryKindSchema` refuses the kind, so the whole pulled page
+ * fails, `invalid_response`), and the company stream carries one as soon as anyone types an NC
+ * observation. `MIN_CONTRACT_VERSION` goes to 23 too.
  */
-export const CONTRACT_VERSION = 22;
+export const CONTRACT_VERSION = 23;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -291,8 +303,14 @@ export const CONTRACT_VERSION = 22;
  * whose medium is "Outro" it would read the oil item NA and VOL. ÓLEO excused where the server's
  * kernel shows them unanswered, so its Sumário, pre-issue and documents would disagree. A
  * stream carries those as soon as the template upgrade runs, so the version-21 bundle updates too.
+  *
+ * 23 (2026-10-21, Story 14.12): a version-22 (or older) bundle cannot parse a
+ * `registry/nc_phrase/{id}` create nor a put on one (its `registryKindSchema` refuses the kind,
+ * so its `opSchema` fails the whole pulled page, `invalid_response`). The company stream carries
+ * one as soon as the server learns an NC phrase from any device's push, so the version-22
+ * bundle updates too.
  */
-export const MIN_CONTRACT_VERSION = 22;
+export const MIN_CONTRACT_VERSION = 23;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

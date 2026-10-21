@@ -13,12 +13,13 @@ import { ClientesTab } from './clientes-tab.tsx';
 import { CriteriosTab } from './criterios-tab.tsx';
 import { EmpresaTab } from './empresa-tab.tsx';
 import { FabricantesTab } from './fabricantes-tab.tsx';
+import { FrasesNcTab } from './frases-nc-tab.tsx';
 import { InstrumentosTab } from './instrumentos-tab.tsx';
 import './registries.css';
 
 const DEFAULT_TAB = 'instrumentos';
 
-const TAB_IDS = ['empresa', 'clientes', 'instrumentos', 'fabricantes', 'classes-tensao', 'criterios'] as const;
+const TAB_IDS = ['empresa', 'clientes', 'instrumentos', 'fabricantes', 'frases-nc', 'classes-tensao', 'criterios'] as const;
 type TabId = (typeof TAB_IDS)[number];
 
 function isTabId(value: unknown): value is TabId {
@@ -115,6 +116,8 @@ export function RegistriesSurface() {
       ),
     },
     { id: 'fabricantes', label: copy.registries.tabFabricantes, panel: <FabricantesTab /> },
+    // Story 14.12: the NC phrases the company learned, after Fabricantes.
+    { id: 'frases-nc', label: copy.registries.tabFrasesNc, panel: <FrasesNcTab /> },
     { id: 'classes-tensao', label: copy.registries.tabClassesTensao, panel: <ClassesTensaoTab /> },
     { id: 'criterios', label: copy.registries.tabCriterios, panel: <CriteriosTab /> },
   ];

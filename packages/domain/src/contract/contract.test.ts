@@ -98,9 +98,9 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 22 and refuses version 21 (Story 14.14: a version-21 bundle cannot resolve seed v7 and reads an "Outro" disjuntor\'s oil item NA)', () => {
-    expect(CONTRACT_VERSION).toBe(22);
-    expect(MIN_CONTRACT_VERSION).toBe(22);
+  it('speaks version 23 and refuses version 22 (Story 14.12: a version-22 bundle cannot parse a registry/nc_phrase op)', () => {
+    expect(CONTRACT_VERSION).toBe(23);
+    expect(MIN_CONTRACT_VERSION).toBe(23);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

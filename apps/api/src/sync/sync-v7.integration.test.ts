@@ -242,8 +242,9 @@ afterAll(async () => {
 
 describe('Story 14.14 (contract 22): seed v7 through POST /api/sync/ops', () => {
   it('contract 22: the route speaks it and a version-21 bundle\'s pull is answered 426', async () => {
-    expect(CONTRACT_VERSION).toBe(22);
-    expect(MIN_CONTRACT_VERSION).toBe(22);
+    // Contract 22 introduced seed v7; later contracts (23, Story 14.12) keep refusing 21.
+    expect(CONTRACT_VERSION).toBeGreaterThanOrEqual(22);
+    expect(MIN_CONTRACT_VERSION).toBeGreaterThanOrEqual(22);
     const t = await relatorio('v7');
     expect((await authed(`/api/sync/relatorios/${t.relatorio}?since=0`)).status).toBe(200);
     expect((await authed(`/api/sync/relatorios/${t.relatorio}?since=0`, {}, '21')).status).toBe(426);

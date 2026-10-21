@@ -1,6 +1,7 @@
 import { formatCriterionValue, makeOp, SEEDED_CRITERIA, type Op } from '@app/domain';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
+import { copy } from '../apps/web/src/copy/pt-br.ts';
 import { deviceDatabaseName, expect, signIn, test } from './support/merged-fixtures.ts';
 import { syncNow } from './support/sync.ts';
 import { projectCreateOp, readDeviceId, readFileBlobs, readStore, seedOutbox, type SeedUser } from './support/outbox.ts';
@@ -125,6 +126,21 @@ function voltageClassOp(user: SeedUser, fields: Record<string, unknown>, id = ne
   );
 }
 
+/** E14-A3: the Cadastros tabs in order, read from the copy module (Story 14.12 adds Frases de NC after Fabricantes). */
+const REGISTRY_TAB_LABELS = (({ tabEmpresa, tabClientes, tabInstrumentos, tabFabricantes, tabFrasesNc, tabClassesTensao, tabCriterios }) => [
+  tabEmpresa,
+  tabClientes,
+  tabInstrumentos,
+  tabFabricantes,
+  tabFrasesNc,
+  tabClassesTensao,
+  tabCriterios,
+])(copy.registries);
+
+async function expectRegistryTabs(tablist: Locator): Promise<void> {
+  await expect(tablist.getByRole('tab')).toHaveText(REGISTRY_TAB_LABELS);
+}
+
 async function seedUser(page: Page, account: { companyId: string; userId: string }, database: string): Promise<SeedUser> {
   const deviceId = await readDeviceId(page, database);
   return { companyId: account.companyId, userId: account.userId, deviceId };
@@ -140,7 +156,7 @@ test('@p0 2.1-E2E-001 Cadastros: tabs render with Instrumentos default and remem
   await page.getByRole('link', { name: /Cadastros/ }).click();
   const tablist = page.getByRole('tablist', { name: 'Cadastros' });
   await expect(tablist).toBeVisible();
-  await expect(tablist.getByRole('tab')).toHaveCount(6);
+  await expectRegistryTabs(tablist);
   // F-20 (review 2026-10-06): the company has no razão social yet and nothing is remembered,
   // so Cadastros opens on Empresa; Instrumentos is the default once the company is registered.
   await expect(page.getByRole('tab', { name: 'Empresa' })).toHaveAttribute('aria-selected', 'true');
@@ -190,7 +206,7 @@ test('@p2 tabs-phone-selector-001 Cadastros: a one-row selector replaces the tab
   // separate `aria-label` -- same as `tabs.test.tsx`.
   const menu = page.getByRole('menu', { name: 'Empresa' });
   await expect(menu).toBeVisible();
-  await expect(menu.getByRole('menuitemradio')).toHaveCount(6);
+  await expect(menu.getByRole('menuitemradio')).toHaveText(REGISTRY_TAB_LABELS);
   // The popover's hidden dismiss buttons say "Fechar", never React Aria's "Descartar" (Epic 2 retro D-8).
   await expect(page.getByRole('button', { name: 'Descartar' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Fechar', exact: true })).not.toHaveCount(0);
@@ -250,7 +266,7 @@ test('@p2 tabs-phone-selector-002 Cadastros: the six-tab tablist is exposed at 7
 
   const tablist = page.getByRole('tablist', { name: 'Cadastros' });
   await expect(tablist).toBeVisible();
-  await expect(tablist.getByRole('tab')).toHaveCount(6);
+  await expectRegistryTabs(tablist);
   await expect(page.getByRole('button', { name: 'Instrumentos', exact: true })).toHaveCount(0);
 });
 

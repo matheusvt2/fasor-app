@@ -1494,6 +1494,8 @@ export const copy = {
     tabClientes: 'Clientes',
     tabInstrumentos: 'Instrumentos',
     tabFabricantes: 'Fabricantes',
+    // authored: Story 14.12, the tab of the learned NC phrases (open question 5: not drawn with bmad-ux; for Bruno).
+    tabFrasesNc: 'Frases de NC',
     tabClassesTensao: 'Classes de tensão',
     tabCriterios: 'Critérios de aceitação',
     // authored: Story 2.4 AC1's literal "14 digits when present" length check (Boundaries),
@@ -1654,6 +1656,31 @@ export const copy = {
         removeConfirmTitle: (name: string) => `Remover ${name}?`,
         removeConfirmBody: 'O fabricante sai do cadastro; ele não é referenciado por id em nenhuma ficha.',
         removed: (name: string) => `${name} removido`,
+        undo: 'Desfazer',
+        cancel: 'Cancelar',
+      },
+    },
+    // Story 14.12: Frases de NC, the NC phrases the company learned from typed observations.
+    // Not drawn with bmad-ux (open question 5): the Fabricantes list and panel, its copy authored for Bruno.
+    frasesNc: {
+      // authored: the list's accessible name.
+      listLabel: 'Frases de NC aprendidas',
+      // authored: the sentence above the list.
+      note: 'Quando uma observação de item NC é digitada numa ficha, ela vira uma opção desse item para as próximas fichas do mesmo tipo. Renomeie ou remova aqui; as fichas já preenchidas não mudam.',
+      // authored: the empty state (no action: phrases are learned, never created here).
+      emptyText: 'Nenhuma frase aprendida ainda. As observações digitadas em itens NC aparecem aqui depois de sincronizar.',
+      panel: {
+        // authored: the panel's field and its chrome, the Fabricantes panel's words where they apply.
+        close: 'Fechar edição',
+        panelClose: 'Fechar',
+        nameLabel: 'Frase',
+        // authored: the line under the panel title naming the type and item.
+        context: (type: string, item: string) => `${type} · ${item}`,
+        remove: 'Remover',
+        removeConfirmTitle: 'Remover esta frase?',
+        // authored: what removing does and does not change.
+        removeConfirmBody: 'A frase deixa de ser oferecida nas próximas fichas e não volta a ser aprendida. As fichas e os relatórios que já a usam não mudam.',
+        removed: 'Frase removida',
         undo: 'Desfazer',
         cancel: 'Cancelar',
       },
