@@ -2,7 +2,7 @@
 title: 'Story 14.14: seed v7, fixed extinction media with Outro, SELV/PELV help, test voltage checked against the photo'
 type: 'feature'
 created: '2026-10-21'
-status: 'in-review'
+status: 'done'
 baseline_revision: '798cefcf48c787a66cc4d85a81eb56164b905fb3'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -166,6 +166,22 @@ generates).
 
 ## Review Triage Log
 
+### 2026-10-21 — Review pass
+
+Layers: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent Alignment skipped (token economy; the
+integrated epic review covers them). One review-fix loop, as the batch playbook allows.
+
+- verdicts: 7 findings — high 0, medium 1, low 4, false 2, maybe-false 0
+- findings:
+  - `[low]` `[patch]` Edge: `fieldDefSchema` alias refine throws a TypeError on a select with aliases and no options — reachable only with a malformed seed; guard on `f.options !== undefined` added with a schema test.
+  - `[low]` `[reject]` Edge: "Copiar da última visita" from a v7 visit onto a still-open v6 sheet drops "Óleo", "Gás SF6", "Outro" — this is the AC's "leaves the field empty for the user when no mapping applies"; before the change the copy wrote a value outside the v6 options, which is worse; a reverse map would add surface for a rare path.
+  - `[false]` `[reject]` Edge: a v6 spelling stored on a v7 block by an outdated client reads as non-oil — `MIN_CONTRACT_VERSION` is 22, so a client that knows no v7 is refused by the push route; every v7 write path maps through `selectOptionFor`.
+  - `[false]` `[reject]` Edge: the SELV help is hidden while a pending plate suggestion fills "Circuito SELV/PELV" — the plate reading never suggests that field (`qgbt.spec.ts`: the mark is never on a plate).
+  - `[low]` `[patch]` Edge: `testParameterVolts` refuses "5 kV cc" and "500 Vdc" — regex widened to an optional space and cc/ca/dc/ac; kernel cases added.
+  - `[low]` `[reject]` Edge (claim): no e2e drives a v6 disjuntor's VÁCUO / ÓLEO (GVO) any more — new relatórios are born on v7, so a v6 sheet exists only as an old relatório; the v6 rule and list stay pinned by `oil-rule.test.ts` (on `'v6'`), the `V6_HASH` pin and `docx-seed-v7.test.ts`'s v6 print case.
+  - `[medium]` `[patch]` Gap: the read-only rendering of the SELV help, the SELV notice and the test-voltage line is untested — a web unit case renders the read-only v7 QGBT nameplate and asserts both texts.
+
+
 ## Design Notes
 
 ```ts
@@ -201,3 +217,26 @@ then poll with calls of at most 60 s. Never touch containers not named `fasor-e1
 **Commands:**
 - `pnpm lint`, `pnpm static`, `pnpm test:unit`, `pnpm test:api` -- green.
 - `pnpm exec tsx scripts/e2e.ts e2e/seed-v7.spec.ts e2e/oil-dry.spec.ts --project desktop-chrome --project durability-desktop-chrome` -- green (the orchestrator runs the closed-list set and the matrix).
+
+## Auto Run Result
+
+Status: done (PR opened by the orchestrator, not merged).
+
+**Summary.** Seed v7 = v6 plus: the Disjuntor MT's MEIO DE EXTINÇÃO "Ar", "Gás SF6", "Vácuo", "Óleo", "Outro" with the
+v6 spellings as `option_aliases`; its oil rule `oil_values ['Óleo']`, `full_values ['Outro']`; the help text on the
+Quadro elétrico's "Circuito SELV/PELV", `selv_max_voltage` 50 and the band test voltages 250/500/1000 V. Kernel
+`seed/select-option.ts` (`selectOptionFor`, read by the plate reading, the typed suggestion, "Igual à" and "Copiar
+da última visita"), `relatorio/test-voltage.ts` (`selvVoltageNoticeText`, `selvNoticeFieldOf`, `testVoltageCheck`,
+`testParameterVolts`), `pickedBand` in `reading-evaluation.ts`. Contract 22, minimum 22. Web: help and amber notice
+under the field, test-voltage line under the criterion. Api: `docx-seed-v7.test.ts`, `sync-v7.integration.test.ts`.
+E2E: `seed-v7.spec.ts` (two `@p0`), `oil-dry.spec.ts` E2E-002 reads the media from the kernel.
+
+**Review.** 7 findings: 3 patched (1 medium, 2 low; commit e665f0f8), 4 rejected with reasons in the triage log,
+none deferred. Follow-up review not recommended (one medium patched, a test addition).
+
+**Verification (under the host lock).** lint 0, static 0, test:api 666/666, test:unit 4331/4331 (gate 814 s,
+LOCKED_AFTER 445 s); touched and closed-list specs on desktop-chrome and durability-desktop-chrome 141/141 (1005 s).
+
+**Residual risks.** The read-only test-voltage line has no dedicated test (the editable line is covered by e2e);
+a v7 select value copied onto a still-open v6 sheet is dropped (the AC's empty field).
+
