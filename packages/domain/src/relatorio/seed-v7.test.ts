@@ -419,7 +419,7 @@ describe('matrix "Test voltage band" and the voltage check', () => {
   });
 
   it('testParameterVolts reads V, Vcc, Vca, kV, kVcc and kVca with pt-BR numbers', () => {
-    expect(['5.000 V', '5 kV', '5kV', '5 kVcc', '5 KVCA', '5000 Vca', '0,38 kV'].map(testParameterVolts)).toEqual([5000, 5000, 5000, 5000, 5000, 5000, 380]);
+    expect(['5.000 V', '5 kV', '5kV', '5 kVcc', '5 KVCA', '5000 Vca', '0,38 kV', '5 kV cc', '500 Vdc'].map(testParameterVolts)).toEqual([5000, 5000, 5000, 5000, 5000, 5000, 380, 5000, 500]);
     expect(['', 'V', '5', 'cinco V', '5,0,0 V', null, undefined].map(testParameterVolts)).toEqual([null, null, null, null, null, null, null]);
   });
 });

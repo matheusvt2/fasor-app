@@ -1588,6 +1588,9 @@ describe('seed v7 (Story 14.14): v6 plus the fixed extinction media with Outro, 
     badAlias.nameplate.find((candidate) => candidate.key === 'meio_de_extincao')!.option_aliases = { SF6: 'SF6' };
     expect(blockDefinitionSchema.safeParse(badAlias).success).toBe(false);
     expect(fieldDefSchema.safeParse({ key: 'tipo', label: 'TIPO', kind: 'text', option_aliases: { A: 'B' } }).success).toBe(false);
+    // A select with aliases and no options reports an issue, never throws.
+    expect(() => fieldDefSchema.safeParse({ key: 'meio', label: 'MEIO', kind: 'select', option_aliases: { AR: 'Ar' } })).not.toThrow();
+    expect(fieldDefSchema.safeParse({ key: 'meio', label: 'MEIO', kind: 'select', option_aliases: { AR: 'Ar' } }).success).toBe(false);
     const oilFull = disjuntor();
     oilFull.oil_rule!.full_values = ['Óleo'];
     expect(blockDefinitionSchema.safeParse(oilFull).success).toBe(false);

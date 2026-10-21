@@ -46,10 +46,10 @@ function voltsText(volts: number): string {
   return `${formatDecimalGroupedPtBr(String(volts))} V`;
 }
 
-/** The volts a typed TENSÃO ENSAIO names ("5.000 V", "0,5 kV", "500 Vcc"), or null when it names none. */
+/** The volts a typed TENSÃO ENSAIO names ("5.000 V", "0,5 kV", "500 Vcc", "5 kV cc", "500 Vdc"), or null when it names none. */
 export function testParameterVolts(text: string | null | undefined): number | null {
   if (typeof text !== 'string') return null;
-  const match = /^\s*([\d.,]+)\s*(k?)v(cc|ca)?\s*$/i.exec(text);
+  const match = /^\s*([\d.,]+)\s*(k?)v\s*(cc|ca|dc|ac)?\s*$/i.exec(text);
   if (match === null) return null;
   const raw = parseDecimalPtBr(match[1]!);
   if (raw === null) return null;

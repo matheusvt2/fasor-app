@@ -59,7 +59,7 @@ export const fieldDefSchema = z
   .refine((f) => (f.kind === 'select') === (f.options !== undefined), {
     message: 'options exist exactly on a select field',
   })
-  .refine((f) => f.option_aliases === undefined || (f.kind === 'select' && Object.values(f.option_aliases).every((target) => f.options!.includes(target))), {
+  .refine((f) => f.option_aliases === undefined || (f.kind === 'select' && f.options !== undefined && Object.values(f.option_aliases).every((target) => f.options!.includes(target))), {
     message: 'option_aliases belong to a select and name its options',
   })
   .refine((f) => f.unit === undefined || f.kind === 'number' || f.kind === 'voltage_class', {
