@@ -81,6 +81,17 @@ const TEMPLATE_FIELDS = mutableKeys(entityKeys('template'));
 // contact field a device edits like any other (Story 2.3).
 const USER_FIELDS = mutableKeys(entityKeys('user'), ['email']);
 
+/**
+ * Story 14.12 (contract 23): the keys of a registry kind a `registry/{kind}/{id}/{field}` put may
+ * name. A learned NC phrase's `block_type` and `item_key` are its identity, fixed when the server
+ * creates it: the office renames (`name`) or removes it, never moves it to another item.
+ */
+const REGISTRY_IMMUTABLE: Partial<Record<RegistryKind, readonly string[]>> = { nc_phrase: ['block_type', 'item_key'] };
+
+function registryFieldKeys(kind: RegistryKind): readonly string[] {
+  return mutableKeys(registryKeys(kind), REGISTRY_IMMUTABLE[kind] ?? []);
+}
+
 const fieldOf = (keys: readonly string[]) => z.string().refine((f) => keys.includes(f));
 
 export const opPathSchema = z.discriminatedUnion('family', [
@@ -133,7 +144,7 @@ export const opPathSchema = z.discriminatedUnion('family', [
   z
     .object({ family: z.literal('registry/field'), kind: registryKindSchema, id: uuidV7Schema, field: z.string() })
     // The field set depends on the kind, so a hand-built path is checked here, not only in matchFamily.
-    .refine((p) => mutableKeys(registryKeys(p.kind)).includes(p.field), {
+    .refine((p) => registryFieldKeys(p.kind).includes(p.field), {
       path: ['field'],
       message: 'unknown field for this registry kind',
     }),
@@ -201,7 +212,7 @@ const int = (as: string): Segment => ({ int: as });
 const field = (keys: readonly string[]): Segment => ({ field: keys });
 
 const REGISTRY_FIELD: Segment = {
-  field: (p) => mutableKeys(registryKeys(p.kind as RegistryKind)),
+  field: (p) => registryFieldKeys(p.kind as RegistryKind),
 };
 
 export const FAMILIES: readonly FamilyDef[] = [

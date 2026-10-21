@@ -2271,3 +2271,18 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: PR #148 and #149 bodies.
   class: verification-gap
   state: open (owner: the Epic 14 integrated review, with the quantity stepper in the next carry-over batch)
+
+## Deferred from: Story 14.12, learned company options (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-12-learned-options.md`
+  summary: The site checklist (Verificações do local) learns nothing: an NC observation typed on a site item stays a recent of its relatório only, never a company option (answer 7 scopes learned phrases per equipment type and item). Whether site items learn too is open.
+  evidence: `apps/web/src/surfaces/local/verificacoes-surface.tsx` `siteRowTarget` (`ncChipPhrases` with no learned rows); `apps/api/src/sync/apply.ts` `learnPushedOptions` reads `sheet/...` paths only.
+  class: decision
+  state: open (owner: a later dated decision by Matheus or Bruno)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-14-12-learned-options.md`
+  summary: A partial text may be learned. The observation field commits after 500 ms of idle typing and a push runs every 60 s (or on "Sincronizar agora"), so a push can carry a half-typed observation ("Fuga no buj") and the server learns that piece; the settled text learns too on the next push. The office removes the stray phrase in Cadastros › Frases de NC; a removed phrase is never learned again.
+  evidence: `apps/web/src/surfaces/ficha/ficha-fields.tsx` `useTypedText` (idle commit); `packages/domain/src/registry/nc-phrase-row.ts` `learnedOptionCandidates` (reads the end-of-push row).
+  class: debt
+  state: open (owner: Bruno's first real job with the feature; a fix would learn only from a sheet left or concluded)
+

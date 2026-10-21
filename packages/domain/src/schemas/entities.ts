@@ -4,7 +4,7 @@ import { actorIdSchema, uuidV7Schema } from '../ids.ts';
 import { CELL_MERGE_RULES } from '../merge/rules.ts';
 import { NOT_TESTED_REASON_KEYS } from '../seed/definitions.ts';
 import { checkTemplateRow } from '../seed/template-rules.ts';
-import { funcaoSchema, nodeNameSchema, siteItemKeySchema, skeletonNodeSchema, templateBlockSchema } from './block-config.ts';
+import { equipmentBlockTypeSchema, funcaoSchema, itemKeySchema, nodeNameSchema, siteItemKeySchema, skeletonNodeSchema, templateBlockSchema } from './block-config.ts';
 import { councilSchema } from './council.ts';
 import { AUDIT_RUN_STATUSES, auditFindingSchema } from '../audit/schema.ts';
 
@@ -120,6 +120,8 @@ export const registryKindSchema = z.enum([
   'atividade',
   'local',
   'criterion',
+  // Appended (Story 14.12, contract 23): an NC phrase the server learned for one equipment type and checklist item.
+  'nc_phrase',
 ]);
 export type RegistryKind = z.infer<typeof registryKindSchema>;
 
@@ -195,6 +197,19 @@ export const registryRowSchemas = {
     type: z.string(),
     source: z.object({ name: z.string(), edition: nullableString }),
   }),
+  /**
+   * Story 14.12 (contract 23): an NC phrase the server learned from an observation typed on a
+   * sheet (`learnedOptionCandidates`), offered as a chip on that type's item after the seed's
+   * own (`ncChipPhrases`). Only the server creates one; the office renames (`name`) or removes
+   * it, and `block_type` and `item_key` are fixed at create (`ops/path.ts`).
+   */
+  nc_phrase: z.object({
+    ...registryBase,
+    kind: z.literal('nc_phrase'),
+    block_type: equipmentBlockTypeSchema,
+    item_key: itemKeySchema,
+    name: z.string(),
+  }),
 } as const;
 
 export const registryRowSchema = z.discriminatedUnion('kind', [
@@ -206,6 +221,7 @@ export const registryRowSchema = z.discriminatedUnion('kind', [
   registryRowSchemas.atividade,
   registryRowSchemas.local,
   registryRowSchemas.criterion,
+  registryRowSchemas.nc_phrase,
 ]);
 
 /**

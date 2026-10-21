@@ -8,6 +8,7 @@ import {
   ncRowPointsText,
   numberPhotos,
   photoToken,
+  ncChipPhrases,
   recentSiteObservations,
   siteChecklistView,
   siteFirstUnanswered,
@@ -119,7 +120,8 @@ function siteRowTarget(snapshot: RelatorioSnapshot, location: CabineLocation, ro
     ncDraft: null,
     pointSeed: (photoIds) => ({ text: photoIds.map((id) => photoToken(id)).join(' '), equipmentId: null, origin: 'manual', locationId: location.id }),
     pointMark: (photoIds) => ncRowPointsText(ncRowPointPositions(snapshot.points, { locationId: location.id }, photoIds)),
-    recents: recentSiteObservations(snapshot, row.key, row.nc_phrases, location.id),
+    // Story 14.12: a site item learns nothing and offers no learned phrase (answer 7 scopes them per equipment type).
+    chips: ncChipPhrases({ seeded: row.nc_phrases, learned: [], blockType: null, itemKey: row.key, recents: recentSiteObservations(snapshot, row.key, row.nc_phrases, location.id) }),
   };
 }
 

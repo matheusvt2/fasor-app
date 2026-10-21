@@ -9,11 +9,12 @@ import { toRecord } from '../../db/commit.ts';
 import { readRegistryTab } from '../../db/prefs.ts';
 import { openDatabase, REGISTRY_TAB_PREF, type AppDatabase } from '../../db/schema.ts';
 import type { SessionState } from '../../state/session.tsx';
-import { ToastProvider } from '../../state/toast.tsx';
+import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { RegistriesSurface } from './registries-surface.tsx';
 
 /*
- * B5 (Story 2.1 test gap): Cadastros over a real device database -- the six tabs, the
+ * B5 (Story 2.1 test gap): Cadastros over a real device database -- the tabs (seven since
+ * Story 14.12's Frases de NC), the
  * remembered tab, the arrival that names its tab, and each tab's list, empty state and
  * add entry.
  */
@@ -104,6 +105,7 @@ function renderSurface(state?: unknown) {
         <Routes>
           <Route path="/cadastros" element={<RegistriesSurface />} />
         </Routes>
+        <ToastOutlet />
       </ToastProvider>
     </MemoryRouter>,
   );
@@ -143,7 +145,7 @@ describe('Cadastros tabs (B5)', () => {
     expect(tab(r.tabInstrumentos)).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('opens on Instrumentos once the company is registered, lists six tabs and switches the panel with the tab', async () => {
+  it('opens on Instrumentos once the company is registered, lists its tabs and switches the panel with the tab', async () => {
     const user = userEvent.setup();
     database = await freshDb();
     await registerEmpresa(database);
@@ -155,6 +157,7 @@ describe('Cadastros tabs (B5)', () => {
       r.tabClientes,
       r.tabInstrumentos,
       r.tabFabricantes,
+      r.tabFrasesNc,
       r.tabClassesTensao,
       r.tabCriterios,
     ]);
@@ -242,5 +245,71 @@ describe('Cadastros tabs (B5)', () => {
 
     await user.click(within(panel()).getByRole('button', { name: toolbarAction }));
     expect(row).toHaveAttribute('aria-pressed', 'false');
+  });
+});
+
+describe('Cadastros › Frases de NC (Story 14.12)', () => {
+  const r = copy.registries;
+  const phrase = (n: number, block_type: string, item_key: string, name: string): RegistryRow =>
+    registryRowSchema.parse({ id: id(n), kind: 'nc_phrase', block_type, item_key, name, removed_at: null });
+
+  it('an empty list says the phrases are learned at sync, with no action', async () => {
+    const user = userEvent.setup();
+    database = await freshDb();
+    renderSurface();
+    await user.click(tab(r.tabFrasesNc));
+    await waitFor(async () => expect(await readRegistryTab(database!)).toBe('frases-nc'));
+    expect(await within(panel()).findByText(r.frasesNc.emptyText)).toBeInTheDocument();
+    expect(within(panel()).queryByRole('button')).toBeNull();
+  });
+
+  it('lists the learned phrases grouped by type with the item below, renames one and removes one with its undo', async () => {
+    const user = userEvent.setup();
+    database = await freshDb();
+    const rows = [
+      phrase(20, 'tp', 'limpeza', 'Isolador trincado'),
+      phrase(21, 'disjuntor_mt', 'abertura_e_fechamento_mecanico', 'Mola fraca'),
+      phrase(22, 'disjuntor_mt', 'abertura_e_fechamento_mecanico', 'Fuga no bujão'),
+      { ...phrase(23, 'disjuntor_mt', 'bobinas', 'Removida'), removed_at: '2026-10-21T10:00:00.000Z' } as RegistryRow,
+    ];
+    await database.entities.bulkPut(rows.map((row) => toRecord(`registry:${row.id}`, row)));
+    renderSurface();
+    await user.click(tab(r.tabFrasesNc));
+    await waitFor(async () => expect(await readRegistryTab(database!)).toBe('frases-nc'));
+
+    const group = await within(panel()).findByRole('group', { name: r.frasesNc.listLabel });
+    const headings = within(group).getAllByRole('heading').map((el) => el.textContent);
+    expect(headings).toEqual(['Disjuntor MT', 'TP']);
+    const disjuntor = within(group).getByRole('list', { name: 'Disjuntor MT' });
+    expect(within(disjuntor).getAllByRole('button').map((el) => el.getAttribute('aria-label'))).toEqual([
+      'Fuga no bujão, Abertura e fechamento mecânico',
+      'Mola fraca, Abertura e fechamento mecânico',
+    ]);
+    expect(within(group).queryByText('Removida')).toBeNull();
+
+    await user.click(within(disjuntor).getByRole('button', { name: /^Mola fraca/ }));
+    expect(await within(panel()).findByRole('heading', { name: 'Mola fraca' })).toBeInTheDocument();
+    expect(within(panel()).getByText(r.frasesNc.panel.context('Disjuntor MT', 'Abertura e fechamento mecânico'))).toBeInTheDocument();
+    const field = within(panel()).getByRole('textbox', { name: r.frasesNc.panel.nameLabel });
+    await user.clear(field);
+    await user.type(field, 'Mola de abertura fraca');
+    await user.tab();
+    await waitFor(async () => {
+      const outbox = await database!.outbox.toArray();
+      expect(outbox.map((op) => [op.kind, op.path, op.value])).toContainEqual(['put', `registry/nc_phrase/${id(21)}/name`, 'Mola de abertura fraca']);
+    });
+    expect(await within(panel()).findByRole('heading', { name: 'Mola de abertura fraca' })).toBeInTheDocument();
+
+    await user.click(within(panel()).getByRole('button', { name: r.frasesNc.panel.remove }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(r.frasesNc.panel.removeConfirmBody)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: r.frasesNc.panel.remove }));
+    await waitFor(() => expect(within(panel()).queryByText('Mola de abertura fraca')).toBeNull());
+    await waitFor(async () => {
+      const outbox = await database!.outbox.toArray();
+      expect(outbox.map((op) => [op.kind, op.path])).toContainEqual(['remove', `registry/nc_phrase/${id(21)}/removed_at`]);
+    });
+    await user.click(await screen.findByRole('button', { name: r.frasesNc.panel.undo }));
+    expect(await within(panel()).findByRole('button', { name: /^Mola de abertura fraca/ })).toBeInTheDocument();
   });
 });

@@ -10,6 +10,7 @@ import {
   type EquipmentRow,
   type FileRow,
   type InstrumentRow,
+  type NcPhraseRow,
   type PointRow,
   type SuggestionRow,
   type LocationRow,
@@ -99,6 +100,12 @@ export async function manufacturerRows(db: AppDatabase): Promise<WordRow[]> {
 export async function voltageClassRows(db: AppDatabase): Promise<WordRow[]> {
   const registries = await rows<RegistryRow>(db, 'registry');
   return registries.filter((row): row is Extract<WordRow, { kind: 'voltage_class' }> => row.kind === 'voltage_class');
+}
+
+/** Story 14.12: the company's live learned NC phrases (`nc_phrase` registry rows), for the chips and Cadastros › Frases de NC. */
+export async function ncPhraseRows(db: AppDatabase): Promise<NcPhraseRow[]> {
+  const registries = await rows<RegistryRow>(db, 'registry');
+  return registries.filter((row): row is NcPhraseRow => row.kind === 'nc_phrase');
 }
 
 /** Every block on this device, for `isInstrumentReferenced` (AC4). */

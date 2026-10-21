@@ -9,6 +9,7 @@ import {
   type BlockRow,
   type EntityState,
   type InstrumentRow,
+  type NcPhraseRow,
   type OpDraft,
   type RelatorioSnapshot,
   type UserRow,
@@ -17,7 +18,7 @@ import {
 import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { copy } from '../../copy/pt-br.ts';
-import { instrumentRows, manufacturerRows, voltageClassRows } from '../../db/home-store.ts';
+import { instrumentRows, manufacturerRows, ncPhraseRows, voltageClassRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { writeLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
@@ -31,6 +32,7 @@ import { useSavedStatus } from './use-ficha-actions.ts';
 const NO_USERS: UserRow[] = [];
 const NO_WORDS: WordRow[] = [];
 const NO_INSTRUMENTS: InstrumentRow[] = [];
+const NO_PHRASES: NcPhraseRow[] = [];
 
 /** What one equipment sheet reads: its rows, the device registries, the edit queue, and what the kernel derives from them. */
 export function useFichaData({ relatorioId, snapshot, state, block }: { relatorioId: string; snapshot: RelatorioSnapshot; state: EntityState; block: BlockRow }) {
@@ -46,6 +48,8 @@ export function useFichaData({ relatorioId, snapshot, state, block }: { relatori
   const manufacturers = useLiveQuery(() => (db === null ? Promise.resolve(NO_WORDS) : manufacturerRows(db)), [db], NO_WORDS);
   const voltageClasses = useLiveQuery(() => (db === null ? Promise.resolve(NO_WORDS) : voltageClassRows(db)), [db], NO_WORDS);
   const instruments = useLiveQuery(() => (db === null ? Promise.resolve(NO_INSTRUMENTS) : instrumentRows(db)), [db], NO_INSTRUMENTS);
+  // Story 14.12: the company's learned NC phrases, the chips between the seed's and the recents.
+  const ncPhrases = useLiveQuery(() => (db === null ? Promise.resolve(NO_PHRASES) : ncPhraseRows(db)), [db], NO_PHRASES);
   const registries = useMemo(() => ({ manufacturer: manufacturers, voltage_class: voltageClasses }), [manufacturers, voltageClasses]);
   const editor = useRelatorioEditor(relatorioId, projectId);
   const { at: savedAt, saved } = useSavedStatus();
@@ -88,5 +92,5 @@ export function useFichaData({ relatorioId, snapshot, state, block }: { relatori
     [relatorioId, projectId, blockId, editor, saved],
   );
 
-  return { session, db, navigate, showToast, projectId, equipment, users, instruments, registries, editor, savedAt, saved, own, tag, typeName, progress, next, cabine, cabineFirst, enabled, api };
+  return { session, db, navigate, showToast, projectId, equipment, users, instruments, ncPhrases, registries, editor, savedAt, saved, own, tag, typeName, progress, next, cabine, cabineFirst, enabled, api };
 }

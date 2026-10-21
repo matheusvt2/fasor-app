@@ -1075,25 +1075,26 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 
-  it('contract 21 (Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-20 pull is refused with 426 contract_outdated on every stream, a version-21 pull is answered', async () => {
-    expect(CONTRACT_VERSION).toBe(21);
-    expect(MIN_CONTRACT_VERSION).toBe(21);
+  it('contract 23 (Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-22 pull is refused with 426 contract_outdated on every stream, a version-23 pull is answered', async () => {
+    expect(CONTRACT_VERSION).toBe(23);
+    expect(MIN_CONTRACT_VERSION).toBe(23);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
+      // 22 is the last version that cannot parse a `registry/nc_phrase/...` op (Story 14.12);
       // 20 is the last version that cannot parse a `quadro_eletrico` block nor resolve seed v6 (Stories 14.9 and 14.11);
       // 19 cannot parse `audit_run/{id}/coverage` (Story 14.10 lane B);
       // 18 cannot parse `sheet/{id}/test/{key}/value/...`, the ninth block type nor resolve seed v5 (Story 14.5);
       // 17 cannot parse `location/{id}/checklist/...` nor resolve seed v4 (Story 14.3); 16 stays refused as since Story 14.2.
-      for (const version of ['20', '19', '18', '17', '16']) {
+      for (const version of ['22', '21', '20', '19', '18', '17', '16']) {
         const old = await pull(companyA, path, version);
         expect(old.status, `${path} at ${version}`).toBe(426);
         expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
       }
     }
-    const current = await pull(companyA, '/api/sync/company?since=0', '21');
+    const current = await pull(companyA, '/api/sync/company?since=0', '23');
     expect(current.status).toBe(200);
     // An outdated client keeps pushing (AD-13): only the pull is refused.
     const batch = [clientCreate(idsA, newId())];
-    const pushed = await push(companyA, { ops: batch }, '20');
+    const pushed = await push(companyA, { ops: batch }, '22');
     expect(pushed.status).toBe(200);
     for (const o of batch) written.opIds.add(o.op_id);
   });

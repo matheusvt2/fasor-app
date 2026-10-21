@@ -2,7 +2,7 @@
 title: 'Story 14.12: learned company options (NC phrases per type and item, FABRICANTE, office review)'
 type: 'feature'
 created: '2026-10-21'
-status: 'ready-for-dev'
+status: 'in-progress'
 baseline_revision: 'f064f45c53b0f488c54cc696214e31ebb122c379'
 review_loop_iteration: 0
 followup_review_recommended: false
