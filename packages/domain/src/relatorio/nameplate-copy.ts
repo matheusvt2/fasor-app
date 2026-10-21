@@ -1,6 +1,7 @@
 import type { BlockRow, EquipmentRow, JsonValue } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
+import { selectOptionFor } from '../seed/select-option.ts';
 import { plural } from '../text/plural.ts';
 import { isCellFilled, isEquipmentBlock } from './sheet-state.ts';
 import { normalizeDateValue } from '../format/datetime.ts';
@@ -55,7 +56,14 @@ export function nameplateCopyFields(source: Pick<BlockRow, 'sheet'>, definition:
   for (const field of definition.nameplate) {
     if (field.per_unit === true) continue;
     const cell = source.sheet.nameplate[field.key];
-    if (cell !== undefined && isCellFilled(cell)) out.push({ fieldKey: field.key, value: cell.value as JsonValue });
+    if (cell === undefined || !isCellFilled(cell)) continue;
+    if (field.kind !== 'select') {
+      out.push({ fieldKey: field.key, value: cell.value as JsonValue });
+      continue;
+    }
+    // Story 14.14: a select value lands as the target's option it reads as, or is not copied.
+    const option = selectOptionFor(field, cell.value);
+    if (option !== null) out.push({ fieldKey: field.key, value: option });
   }
   return out;
 }
@@ -109,6 +117,12 @@ export function lastNameplateCopy(equipment: Pick<EquipmentRow, 'last_nameplate'
     if (!Object.hasOwn(fields, field.key)) continue;
     const value = fields[field.key];
     if (!isCellFilled({ value: value as JsonValue, source_suggestion_id: null, op_id: '' })) continue;
+    if (field.kind === 'select') {
+      // Story 14.14: a v6 "ÓLEO (PVO)" lands on a v7 disjuntor as "Óleo"; a value no option or alias names is not copied.
+      const option = selectOptionFor(field, value);
+      if (option !== null) out.push({ fieldKey: field.key, value: option });
+      continue;
+    }
     // E78-Q3: a date copied in the canonical shape when it has one ("07/2025" becomes "2025-07"; "2012" stays).
     out.push({ fieldKey: field.key, value: field.kind === 'date' ? normalizeDateValue(value) : value });
   }

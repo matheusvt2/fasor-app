@@ -1295,10 +1295,9 @@ describe('seed v6 (Stories 14.9 and 14.11): v5 plus the Quadro elétrico (QGBT/Q
     'IDENTIFICAÇÃO DE CIRCUITOS',
   ];
 
-  it('is the version a new Template is created with', () => {
-    expect(SEED_VERSION).toBe('v6');
+  it('is shipped as v6, after v1 to v5', () => {
     expect(SEED_VERSIONS.v6!.version).toBe('v6');
-    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6']);
+    expect(Object.keys(SEED_VERSIONS).slice(0, 6)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6']);
   });
 
   it('differs from v5 by exactly the QGBT type, the three option lists and the four oil rules, and v1 to v5 hash as they shipped', () => {
@@ -1489,6 +1488,112 @@ describe('seed v6 (Stories 14.9 and 14.11): v5 plus the Quadro elétrico (QGBT/Q
         { up_to: 1000, operator: '>=', value: 1, unit: 'MΩ', source },
       ],
     });
+  });
+});
+
+/** The content hash of seed v6 as deployed in v0.2.3 (Stories 14.9 and 14.11), pinned from the untouched tree before Story 14.14 touched a schema; never updated after. */
+const V6_HASH = '2d25915699418be456f01e55975b30e816d0f66c7768bd16ce907c4b9357a36f';
+
+describe('seed v7 (Story 14.14): v6 plus the fixed extinction media with Outro, the SELV/PELV help and the band test voltages', () => {
+  const v6 = getSeed('v6', 'cabine_primaria');
+  const v7 = getSeed('v7', 'cabine_primaria');
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(SEED_VERSIONS[version])).digest('hex');
+  const field = (version: string, type: string, key: string) => getDefinition(version, 'cabine_primaria', type).nameplate.find((candidate) => candidate.key === key)!;
+  const source = { name: 'NBR 5410', edition: null };
+
+  it('is the version a new Template is created with', () => {
+    expect(SEED_VERSION).toBe('v7');
+    expect(SEED_VERSIONS.v7!.version).toBe('v7');
+    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7']);
+    expect(equipmentTypesOf('v7')).toEqual(equipmentTypesOf('v6'));
+  });
+
+  it('differs from v6 by exactly the disjuntor medium and oil rule, the SELV help, the SELV ceiling and the band test voltages, and v1 to v6 hash as they shipped', () => {
+    const stripped = structuredClone(v7) as typeof v7;
+    const disjuntor = stripped.blocks.disjuntor_mt as BlockDefinition;
+    const medium = disjuntor.nameplate.find((candidate) => candidate.key === 'meio_de_extincao')!;
+    delete medium.option_aliases;
+    medium.options = field('v6', 'disjuntor_mt', 'meio_de_extincao').options;
+    delete disjuntor.oil_rule!.full_values;
+    disjuntor.oil_rule!.oil_values = v6.blocks.disjuntor_mt.oil_rule!.oil_values;
+    const quadro = stripped.blocks.quadro_eletrico!;
+    delete quadro.nameplate.find((candidate) => candidate.key === 'circuito_selv_pelv')!.help;
+    const bands = quadro.tests[0]!.criterion_bands!;
+    delete bands.selv_max_voltage;
+    delete bands.selv!.test_voltage;
+    for (const band of bands.bands) delete band.test_voltage;
+    expect(JSON.stringify(stripped)).toBe(JSON.stringify(v6));
+    // None of v1 to v6 gained a key of v7.
+    for (const version of ['v1', 'v2', 'v3', 'v4', 'v5', 'v6']) {
+      for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
+        for (const candidate of definition.nameplate) {
+          expect('help' in candidate, `${version}/${definition.block_type}/${candidate.key}`).toBe(false);
+          expect('option_aliases' in candidate, `${version}/${definition.block_type}/${candidate.key}`).toBe(false);
+        }
+        if (definition.oil_rule !== undefined) expect('full_values' in definition.oil_rule, `${version}/${definition.block_type}`).toBe(false);
+        for (const test of definition.tests) {
+          const own = test.criterion_bands;
+          if (own === undefined) continue;
+          expect('selv_max_voltage' in own, version).toBe(false);
+          for (const band of [...own.bands, own.selv!]) expect('test_voltage' in band, version).toBe(false);
+        }
+      }
+    }
+    expect(hash('v1')).toBe(V1_HASH);
+    expect(hash('v2')).toBe(V2_HASH);
+    expect(hash('v3')).toBe(V3_HASH);
+    expect(hash('v4')).toBe(V4_HASH);
+    expect(hash('v5')).toBe(V5_HASH);
+    expect(hash('v6'), 'seed v6 changed after it shipped: add a new version instead').toBe(V6_HASH);
+  });
+
+  it('the disjuntor medium: Ar, Gás SF6, Vácuo, Óleo, Outro in that order, the v6 spellings as aliases; the seccionadora as it was', () => {
+    const medium = field('v7', 'disjuntor_mt', 'meio_de_extincao');
+    expect(medium.options).toEqual(['Ar', 'Gás SF6', 'Vácuo', 'Óleo', 'Outro']);
+    expect(medium.option_aliases).toEqual({ AR: 'Ar', SF6: 'Gás SF6', VÁCUO: 'Vácuo', 'ÓLEO (PVO)': 'Óleo', 'ÓLEO (GVO)': 'Óleo' });
+    // Every v6 option of the disjuntor has a v7 reading.
+    for (const old of field('v6', 'disjuntor_mt', 'meio_de_extincao').options!) expect(Object.keys(medium.option_aliases!), old).toContain(old);
+    expect(field('v7', 'chave_seccionadora', 'meio_de_extincao')).toEqual(field('v6', 'chave_seccionadora', 'meio_de_extincao'));
+    expect(getDefinition('v7', 'cabine_primaria', 'chave_seccionadora').oil_rule).toBeUndefined();
+  });
+
+  it('the disjuntor oil rule names Óleo as oil and Outro as shown in full', () => {
+    expect(getDefinition('v7', 'cabine_primaria', 'disjuntor_mt').oil_rule).toEqual({
+      field: 'meio_de_extincao',
+      oil_values: ['Óleo'],
+      items: ['oleo_isolante_indicador_de_nivel'],
+      fields: ['vol_oleo'],
+      full_values: ['Outro'],
+    });
+  });
+
+  it('the SELV/PELV help, the 50 V ceiling and the band test voltages 250, 500 and 1000 V', () => {
+    expect(field('v7', 'quadro_eletrico', 'circuito_selv_pelv').help).toBe('SELV e PELV: tensão até 120 V em corrente contínua ou 50 V em corrente alternada, conforme a NBR 5410');
+    expect(getDefinition('v7', 'cabine_primaria', 'quadro_eletrico').tests[0]!.criterion_bands).toEqual({
+      field: 'tensao_nominal',
+      selv_field: 'circuito_selv_pelv',
+      selv: { operator: '>=', value: 0.25, unit: 'MΩ', source, test_voltage: 250 },
+      bands: [
+        { up_to: 500, operator: '>=', value: 0.5, unit: 'MΩ', source, test_voltage: 500 },
+        { up_to: 1000, operator: '>=', value: 1, unit: 'MΩ', source, test_voltage: 1000 },
+      ],
+      selv_max_voltage: 50,
+    });
+  });
+
+  it('the schema refuses aliases off a select or naming no option, and full values that are oil or no option', () => {
+    const disjuntor = () => structuredClone(getDefinition('v7', 'cabine_primaria', 'disjuntor_mt')) as BlockDefinition;
+    expect(blockDefinitionSchema.safeParse(disjuntor()).success).toBe(true);
+    const badAlias = disjuntor();
+    badAlias.nameplate.find((candidate) => candidate.key === 'meio_de_extincao')!.option_aliases = { SF6: 'SF6' };
+    expect(blockDefinitionSchema.safeParse(badAlias).success).toBe(false);
+    expect(fieldDefSchema.safeParse({ key: 'tipo', label: 'TIPO', kind: 'text', option_aliases: { A: 'B' } }).success).toBe(false);
+    const oilFull = disjuntor();
+    oilFull.oil_rule!.full_values = ['Óleo'];
+    expect(blockDefinitionSchema.safeParse(oilFull).success).toBe(false);
+    const notOption = disjuntor();
+    notOption.oil_rule!.full_values = ['Mineral'];
+    expect(blockDefinitionSchema.safeParse(notOption).success).toBe(false);
   });
 });
 

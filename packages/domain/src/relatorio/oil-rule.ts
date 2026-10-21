@@ -25,6 +25,11 @@ import { isCellFilled } from './sheet-state.ts';
  *   deleted, its `reading_target` never rewritten). A write between two non-oil values, from or
  *   to an unknown state, clears nothing.
  *
+ * Seed v7 (Story 14.14, Bruno 2026-10-21 answer 4): a value of the rule's `full_values` (the
+ * disjuntor's "Outro") reads as an oil unit here: its oil items and fields show in full and count,
+ * nothing is derived NA, a change between it and an oil value crosses nothing, and a change to a
+ * non-oil value crosses as from oil.
+ *
  * Only a definition with an `oil_rule` (seed v6 on) has any of this; v1 to v5 keep the "Marcar N
  * itens de óleo como NA" chip and their own rules (`dry-insulation.ts`).
  */
@@ -49,7 +54,8 @@ function subtypeOf(config: unknown): string | null {
 
 /** The oil state a stored cell of the rule's field and a config subtype give. */
 function oilStateOf(rule: OilRule, cell: Cell | null | undefined, config: unknown): boolean | null {
-  if (isCellFilled(cell) && typeof cell!.value === 'string') return rule.oil_values.includes(cell!.value.trim());
+  // Story 14.14 (seed v7): a `full_values` option ("Outro") shows the oil items in full, as oil does.
+  if (isCellFilled(cell) && typeof cell!.value === 'string') return rule.oil_values.includes(cell!.value.trim()) || (rule.full_values?.includes(cell!.value.trim()) ?? false);
   if (isCellFilled(cell)) return false;
   const subtype = subtypeOf(config);
   return subtype !== null && DRY_SUBTYPES.has(subtype) ? false : null;

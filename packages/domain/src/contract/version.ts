@@ -169,8 +169,19 @@
  * version that does not ship it (`SeedPathError`, answered `op_invalid`). A row written before 21
  * parses to the same bytes and nothing an existing log can contain starts to throw.
  * `MIN_CONTRACT_VERSION` goes to 21 too.
+ *
+ * 22 (2026-10-21, Story 14.14): seed v7. v6 plus the Disjuntor MT's MEIO DE EXTINÇÃO as "Ar",
+ * "Gás SF6", "Vácuo", "Óleo", "Outro" (with the v6 spellings as aliases), its oil rule naming
+ * "Óleo" as oil and "Outro" as a value that shows the oil items in full, the help text of the
+ * Quadro elétrico's "Circuito SELV/PELV", the SELV voltage ceiling and the band test voltages;
+ * it is the version of a new template. No path family, row field nor enum value is new: the
+ * notices are derived, never written. A version-21 bundle cannot resolve seed v7, which a
+ * template the server moved to v7 and every relatório created on it carry, and its fold would
+ * count and print an "Outro" disjuntor's oil item as derived NA where a version-22 fold shows it
+ * unanswered. A row written before 22 parses to the same bytes. `MIN_CONTRACT_VERSION` goes to
+ * 22 too.
  */
-export const CONTRACT_VERSION = 21;
+export const CONTRACT_VERSION = 22;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -274,8 +285,14 @@ export const CONTRACT_VERSION = 21;
  * v6 sheet it would count and print a non-oil unit's oil items as unanswered where the server's
  * kernel reads them NA, so its Sumário, pre-issue and documents would disagree. A stream carries
  * those as soon as the template upgrade runs, so the version-20 bundle updates too.
+ *
+ * 22 (2026-10-21, Story 14.14): a version-21 (or older) bundle cannot resolve seed v7, which a
+ * template the server moved to v7 and every relatório created on it carry, and on a v7 disjuntor
+ * whose medium is "Outro" it would read the oil item NA and VOL. ÓLEO excused where the server's
+ * kernel shows them unanswered, so its Sumário, pre-issue and documents would disagree. A
+ * stream carries those as soon as the template upgrade runs, so the version-21 bundle updates too.
  */
-export const MIN_CONTRACT_VERSION = 21;
+export const MIN_CONTRACT_VERSION = 22;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

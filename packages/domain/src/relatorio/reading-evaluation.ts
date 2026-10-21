@@ -39,7 +39,7 @@ function criterionOf(test: TestDef): CriterionSeed {
 }
 
 /** A nameplate number cell as a value in V (a stored kV is moved into V), or null when it holds no positive number. */
-function voltsOf(value: unknown): number | null {
+export function voltsOf(value: unknown): number | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
   const cell = value as { raw?: unknown; unit?: unknown; state?: unknown };
   if (cell.state !== 'measured' || typeof cell.raw !== 'string' || !DECIMAL.test(cell.raw)) return null;
@@ -63,16 +63,24 @@ function bandAsCriterion(test: TestDef, band: BandCriterion): CriterionSeed {
  * re-judges the readings.
  */
 export function bandCriterion(block: Pick<BlockRow, 'sheet'>, test: TestDef): CriterionSeed | null {
+  const band = pickedBand(block, test);
+  return band === null ? null : bandAsCriterion(test, band);
+}
+
+/**
+ * The band `bandCriterion` judges by, as the seed declares it (Story 14.14 reads its
+ * `test_voltage`): the SELV/PELV band on a SIM mark, else the voltage band; null as above.
+ */
+export function pickedBand(block: Pick<BlockRow, 'sheet'>, test: TestDef): BandCriterion | null {
   const bands = test.criterion_bands;
   if (bands === undefined) return null;
   if (bands.selv_field !== undefined && bands.selv !== undefined) {
     const mark = block.sheet.nameplate[bands.selv_field]?.value;
-    if (typeof mark === 'string' && mark.trim() === SELV_YES) return bandAsCriterion(test, bands.selv);
+    if (typeof mark === 'string' && mark.trim() === SELV_YES) return bands.selv;
   }
   const volts = voltsOf(block.sheet.nameplate[bands.field]?.value);
   if (volts === null) return null;
-  const band = bands.bands.find((candidate) => volts <= candidate.up_to);
-  return band === undefined ? null : bandAsCriterion(test, band);
+  return bands.bands.find((candidate) => volts <= candidate.up_to) ?? null;
 }
 
 /**

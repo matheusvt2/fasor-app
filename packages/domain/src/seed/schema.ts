@@ -43,9 +43,24 @@ export const fieldDefSchema = z
      * SELV/PELV"). Optional and never defaulted, so v1 to v5 parse to the bytes they shipped with.
      */
     optional: z.literal(true).optional(),
+    /*
+     * Seed v7 (Story 14.14). Both optional and never defaulted, so v1 to v6 parse to the bytes
+     * they shipped with.
+     */
+    /** A reminder shown under the field on the sheet only; it never prints (the QGBT's SELV/PELV meaning). */
+    help: z.string().min(1).optional(),
+    /**
+     * On a select only: earlier spellings of an option (key, matched ignoring case and accents)
+     * and the option each now reads as, for a value copied or read from an older seed version
+     * ("ÓLEO (PVO)" reads as "Óleo"). Never offered, never stored as such.
+     */
+    option_aliases: z.record(z.string().min(1), z.string().min(1)).optional(),
   })
   .refine((f) => (f.kind === 'select') === (f.options !== undefined), {
     message: 'options exist exactly on a select field',
+  })
+  .refine((f) => f.option_aliases === undefined || (f.kind === 'select' && Object.values(f.option_aliases).every((target) => f.options!.includes(target))), {
+    message: 'option_aliases belong to a select and name its options',
   })
   .refine((f) => f.unit === undefined || f.kind === 'number' || f.kind === 'voltage_class', {
     message: 'a unit belongs to a number or voltage_class field',
@@ -119,6 +134,12 @@ export const bandCriterionSchema = z.object({
   value: z.number().positive(),
   unit: z.string().min(1),
   source: criterionSourceSchema,
+  /**
+   * Seed v7 (Story 14.14, Bruno 2026-10-21 answer 3): the band's test voltage in V, compared with
+   * the instrument header's TENSÃO ENSAIO when a display shot of the test exists
+   * (`relatorio/test-voltage.ts`); never printed. Optional, so v6 parses as it shipped.
+   */
+  test_voltage: z.number().positive().optional(),
 });
 export type BandCriterion = z.infer<typeof bandCriterionSchema>;
 
@@ -135,8 +156,14 @@ export const criterionBandsSchema = z
     selv_field: seedKey.optional(),
     selv: bandCriterionSchema.optional(),
     bands: z.array(bandCriterionSchema.extend({ up_to: z.number().positive() })).min(1),
+    /**
+     * Seed v7 (Story 14.14, Bruno 2026-10-21 answer 1): the TENSÃO NOMINAL in V above which a SIM
+     * mark disagrees with the plate (a non-blocking notice, `selvVoltageNoticeText`). Optional.
+     */
+    selv_max_voltage: z.number().positive().optional(),
   })
   .refine((c) => (c.selv_field === undefined) === (c.selv === undefined), { message: 'selv_field and selv go together' })
+  .refine((c) => c.selv_max_voltage === undefined || c.selv_field !== undefined, { message: 'selv_max_voltage needs a selv_field' })
   .refine((c) => c.bands.every((band, i) => i === 0 || band.up_to > c.bands[i - 1]!.up_to), { message: 'bands ascend by up_to' })
   .refine((c) => c.bands.every((band) => band.unit === c.bands[0]!.unit) && (c.selv === undefined || c.selv.unit === c.bands[0]!.unit), {
     message: 'every band shares one unit',
@@ -172,12 +199,22 @@ export type SubtypeDef = z.infer<typeof subtypeDefSchema>;
  * ISOLAÇÃO, MEIO DE EXTINÇÃO); `oil_values` the options that are oil; `items` the checklist items
  * a non-oil unit shows NA; `fields` the nameplate fields it shows excused and prints "-".
  */
-export const oilRuleSchema = z.object({
-  field: seedKey,
-  oil_values: z.array(z.string().min(1)).min(1),
-  items: z.array(itemKeySchema).min(1),
-  fields: z.array(seedKey),
-});
+export const oilRuleSchema = z
+  .object({
+    field: seedKey,
+    oil_values: z.array(z.string().min(1)).min(1),
+    items: z.array(itemKeySchema).min(1),
+    fields: z.array(seedKey),
+    /**
+     * Seed v7 (Story 14.14, Bruno 2026-10-21 answer 4): options that are not oil but show the oil
+     * items and fields in full, as an oil unit does (the disjuntor's "Outro"). Optional, so v6
+     * parses as it shipped.
+     */
+    full_values: z.array(z.string().min(1)).min(1).optional(),
+  })
+  .refine((rule) => rule.full_values === undefined || rule.full_values.every((value) => !rule.oil_values.includes(value)), {
+    message: 'full_values and oil_values are disjoint',
+  });
 export type OilRule = z.infer<typeof oilRuleSchema>;
 
 /** Seed v6: what the oil rule and the band criterion name exists on the definition. */
@@ -196,6 +233,7 @@ function checkSeedV6Definition(
     const select = field(rule.field);
     if (select === undefined || select.kind !== 'select') ctx.addIssue({ code: 'custom', message: `oil_rule.field "${rule.field}" is not a select of the nameplate` });
     else if (!rule.oil_values.every((value) => select.options!.includes(value))) ctx.addIssue({ code: 'custom', message: 'an oil value is not an option of its field' });
+    else if (!(rule.full_values ?? []).every((value) => select.options!.includes(value))) ctx.addIssue({ code: 'custom', message: 'a full value is not an option of its field' });
     const items = new Set((definition.checklist ?? []).map((item) => item.key));
     if (!rule.items.every((key) => items.has(key))) ctx.addIssue({ code: 'custom', message: 'an oil item is not on the checklist' });
     if (!rule.fields.every((key) => field(key) !== undefined)) ctx.addIssue({ code: 'custom', message: 'an oil field is not on the nameplate' });
