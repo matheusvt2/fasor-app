@@ -2,7 +2,7 @@
 title: 'Stories 15.4 and 15.5: "Voltar" lands on the Sumário at every width; "Adicionar equipamento" on a coluna below 1024 px'
 type: 'feature'
 created: '2026-10-22'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'dcc2878c894cc662734597f9dde5947f2be90102'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -107,6 +107,16 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-10-22 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer ran; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 5 findings — high 0, medium 1, low 3, false 1, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` (verification-gap) 15.5-E2E-001 checked the cue's `::after` `display`, which Chromium never reports as `none`, so the check passed without the CSS rule — patched: asserts `content` is not `none` and `position` is `sticky` while `data-more-below="true"`, and `content` is `none` after scrolling to the end.
+  - `[false]` `[reject]` (edge-case) back from the Verificações of a removed local opens section 9 with nothing focused — this is the I/O matrix's own expected behaviour for that row ("L gone: Sumário, section 9 open, nothing focused"), the same as the sheet case since Story 12.2.
+  - `[low]` `[reject]` (edge-case) a palette name wider than the row on a phone narrower than 390 px could overflow with `nowrap` — the supported phone width is 390 (DESIGN.md frame-phone) where 15.5-E2E-001 asserts no horizontal overflow; a fallback adds rules for a width nobody meets in practice.
+  - `[low]` `[reject]` (edge-case) the cue attribute can go stale on a content height change with no mutation or resize (font swap) — the next scroll or resize corrects it; the fix adds more observers for a cosmetic, transient state.
+  - `[low]` `[reject]` (edge-case) the Sumário history entry keeps the arrival state, so a browser back/forward revisit refocuses the row — this has been the behaviour from 768 px since Story 12.2 and is a router location-state convention; clearing it adds a navigation not asked for.
+
 ## Design Notes
 
 - Why `backWith` and not a phone check: the target is now the same at every width, so the press-time width check has nothing left to decide; a single route field keeps `back` (a plain path) for routes that need no state.
@@ -119,3 +129,12 @@ deferred: []
 - `pnpm lint`, `pnpm static` -- expected: exit 0.
 - `pnpm test:unit -- apps/web/src/surfaces/app-shell.test.tsx apps/web/src/surfaces/relatorio apps/web/src/surfaces/templates apps/web/src/surfaces/local` while iterating; the whole `pnpm test:unit` and `pnpm test:api` once at the end -- expected: green.
 - Under the host lock (`nohup lockf -t 20000 /tmp/fasor-verify.lock sh -c '...' > /tmp/e2e-e15a.log 2>&1 &`, polled): `pnpm exec tsx scripts/e2e.ts e2e/journey-forward.spec.ts e2e/verificacoes-local.spec.ts e2e/templates.spec.ts e2e/local-painel-coluna.spec.ts --project desktop-chrome --project durability-desktop-chrome` -- expected: green.
+
+## Auto Run Result
+
+Status: done (batch e15a; gate and PR follow per the orchestrator).
+- 15.4: `backWide` (width-checked) replaced by `backWith` applied at every width (`app-shell.tsx`); ficha and Verificações routes go back to the Sumário with section 9 open and the row / "Verificações do local" focused (`app.tsx`, `sumario-surface.tsx` reads `focusLocationId`); `/arvore` stays for the rail and deep links (deferred-work line).
+- 15.5: an open coluna ends with "Adicionar equipamento" (+ authored empty note `copy.composer.colunaNone`), sharing `onAddEquipamento` with the local; the drawer/sheet keeps "Blocos" as its head with the target under it, scrolls only its list with a `data-more-below` fade cue, never wraps a type name; mock `42-template-composer.html` and `MOCK-GUIDE.md` updated.
+- Review: 1 patch (medium), 0 deferred, 4 rejected (reasons in the triage log). followup_review_recommended: false (one medium patched).
+- Open question: from 1024 px the coluna button releases the coluna (the literal toggle of the AC).
+- Residual: 14.2-E2E-001 (`local-painel-coluna.spec.ts`) reported failing before this change by the implementer (F43 moved section 9 on a compact template); checked on the gate.

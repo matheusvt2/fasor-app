@@ -681,7 +681,9 @@ test('@p0 15.5-E2E-001 at 390 px an open coluna\'s "Adicionar equipamento" opens
   // The list scrolls inside the sheet: the cue shows while content remains below, and goes at the end.
   const items = sheet.locator('.palette-items');
   await expect(items).toHaveAttribute('data-more-below', 'true');
-  expect(await items.evaluate((el) => getComputedStyle(el, '::after').display)).not.toBe('none');
+  // The cue rule creates the pseudo-element only while content remains below.
+  expect(await items.evaluate((el) => getComputedStyle(el, '::after').content)).not.toBe('none');
+  expect(await items.evaluate((el) => getComputedStyle(el, '::after').position)).toBe('sticky');
   expect(await items.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
   expect(await items.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   // Every type name on one line: its text forms a single line box.
@@ -705,6 +707,7 @@ test('@p0 15.5-E2E-001 at 390 px an open coluna\'s "Adicionar equipamento" opens
     el.scrollTop = el.scrollHeight;
   });
   await expect(items).toHaveAttribute('data-more-below', 'false');
+  expect(await items.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
   await sheet.getByRole('button', { name: 'Fechar' }).click();
   await expect(sheet).toBeHidden();
 
