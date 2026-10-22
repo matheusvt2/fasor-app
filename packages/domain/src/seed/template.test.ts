@@ -20,7 +20,7 @@ const quantities = (ref: string) => {
 describe('standardTemplate', () => {
   it('is a valid template row named "Cabine primária — padrão" on the current seed (v6 since Stories 14.9 and 14.11)', () => {
     expect(templateRowSchema.parse(template)).toEqual(template);
-    expect(template).toMatchObject({ id: ID, name: STANDARD_TEMPLATE_NAME, version: 1, seed_version: 'v8', removed_at: null });
+    expect(template).toMatchObject({ id: ID, name: STANDARD_TEMPLATE_NAME, version: 1, seed_version: 'v9', removed_at: null });
     expect(STANDARD_TEMPLATE_NAME).toBe('Cabine primária — padrão');
   });
 
@@ -212,7 +212,7 @@ describe('standardTemplate', () => {
 
 describe('lockedSubBlocksOf (Story 14.5)', () => {
   it('is the locked two for each of the eight seeded types, on every seed version', () => {
-    for (const version of ['v1', 'v4', 'v5', 'v6', 'v7', 'v8']) {
+    for (const version of ['v1', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9']) {
       for (const type of equipmentTypesOf(version).filter((candidate) => candidate !== 'chave_transferencia_automatica')) {
         expect(lockedSubBlocksOf(getDefinition(version, 'cabine_primaria', type)), `${version} ${type}`).toEqual([...LOCKED_SUB_BLOCKS]);
       }

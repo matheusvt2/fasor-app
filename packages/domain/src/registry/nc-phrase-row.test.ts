@@ -268,3 +268,35 @@ describe('ncPhraseRegistryRows (Cadastros › Frases de NC)', () => {
     ]);
   });
 });
+
+describe('Story 15.3 (seed v9): the learned phrases of the dropped transformer item `indicador_nivel_de_oleo`', () => {
+  const DROPPED = 'indicador_nivel_de_oleo';
+  const learned = [phraseRow('visor do nível embaçado', { block_type: 'transformador_forca', item_key: DROPPED })];
+  /** The chips each checklist row of a sheet on `version` offers, by item. */
+  const chipsBySheet = (version: string) =>
+    Object.fromEntries(
+      SEED_VERSIONS[version]!.report_types.cabine_primaria.blocks.transformador_forca!.checklist!.map((item) => [
+        item.key,
+        ncChipPhrases({ seeded: item.nc_phrases, learned, blockType: 'transformador_forca', itemKey: item.key, recents: [] }),
+      ]),
+    );
+
+  it('are not offered on a v9 sheet (it has no such row), are offered on a v8 one, and stay in the office list', () => {
+    const v9 = chipsBySheet('v9');
+    expect(Object.keys(v9)).not.toContain(DROPPED);
+    expect(Object.values(v9).flat()).not.toContain('visor do nível embaçado');
+    expect(chipsBySheet('v8')[DROPPED]).toEqual(['nível de óleo abaixo do mínimo', 'indicador de nível ilegível', 'indicador de nível danificado', 'visor do nível embaçado']);
+    expect(ncPhraseRegistryRows(learned).map((entry) => [entry.row.name, entry.text.secondary])).toEqual([['visor do nível embaçado', 'Indicador nível de óleo']]);
+  });
+
+  it('the kept item 13 offers the absorbed "indicador de nível danificado" on v9; the seed phrases across versions keep first-seen order', () => {
+    expect(chipsBySheet('v9').oleo_isolante_indicador_de_nivel).toEqual(['nível de óleo abaixo do mínimo', 'óleo com coloração escura', 'indicador de nível ilegível', 'indicador de nível danificado']);
+    expect(seedNcPhrasesOf('transformador_forca', 'oleo_isolante_indicador_de_nivel')).toEqual([
+      'nível de óleo abaixo do mínimo',
+      'óleo com coloração escura',
+      'indicador de nível ilegível',
+      'indicador de nível danificado',
+    ]);
+    expect(seedNcPhrasesOf('transformador_forca', DROPPED)).toHaveLength(3);
+  });
+});

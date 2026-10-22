@@ -126,7 +126,7 @@ const PLATES: PlateSpec[] = [
       { key: 'n_serie', tokens: ['TC-305117'], value: 'TC-305117' },
       { key: 'tipo', tokens: ['UCE-15'], value: 'UCE-15' },
       { key: 'tipo_de_isolacao', tokens: ['Á', 'SECO'], value: 'Á SECO' },
-      { key: 'potencia_nominal', tokens: ['25', 'VA'], value: num('25', 'VA') },
+      // Story 15.3 (seed v9): a TC has no POTÊNCIA NOMINAL, so its plate prints none.
       { key: 'tap_atual', tokens: ['1'], value: '1' },
       { key: 'data_fabricacao', tokens: ['02/2022'], value: '2022-02' },
       { key: 'tensao_nominal_at', tokens: ['15', 'kV'], value: num('15', 'kV') },

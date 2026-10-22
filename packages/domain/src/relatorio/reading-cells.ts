@@ -1,7 +1,7 @@
 import { canonicalDecimal, INSULATION_UNITS, parseDecimalPtBr } from '../parse/pt-br-number.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
 import type { CriterionSeed } from '../seed/criteria.ts';
-import type { BlockDefinition, ColumnDef, TestDef } from '../seed/schema.ts';
+import type { BlockDefinition, ColumnDef, TableDef, TestDef } from '../seed/schema.ts';
 import { screenAcronym } from './screen-label.ts';
 
 /*
@@ -106,6 +106,11 @@ export interface EvaluatedTable {
   rows: EvaluatedRow[];
   /** A ratio (TTR) table: stacked into cards below 768 px. */
   ratio: boolean;
+  /**
+   * Story 15.6 (seed v9): the sentence under a ratio table whose VAL CALCULADO applies a factor
+   * ("Calculado: U1 · √3 / U2"), on the sheet only, never printed; null on every other table.
+   */
+  formulaHelper: string | null;
 }
 
 export interface TestEvaluation {
@@ -169,6 +174,22 @@ export function headerText(label: string): string {
 export function inputHeaderText(label: string, unit: string | null): string {
   const text = headerText(label);
   return unit === null ? text : `${text} (${unit})`;
+}
+
+// authored: Story 15.6, the formula the transformador de força's VAL CALCULADO applies on seed v9.
+/** The helper under a ratio table by its seed `ratio_factor`. */
+const RATIO_FORMULA_TEXT: Readonly<Record<NonNullable<TableDef['ratio_factor']>, string>> = {
+  sqrt3: 'Calculado: U1 · √3 / U2',
+};
+
+/** Story 15.6: the formula helper of a ratio table, null when its VAL CALCULADO is the plain U1/U2. */
+export function ratioFormulaHelperText(factor: TableDef['ratio_factor']): string | null {
+  return factor === undefined ? null : RATIO_FORMULA_TEXT[factor];
+}
+
+/** Story 15.6: the multiplier of U1/U2 a seed `ratio_factor` names (1 without one). */
+export function ratioFactorValue(factor: TableDef['ratio_factor']): number {
+  return factor === 'sqrt3' ? Math.sqrt(3) : 1;
 }
 
 // --- units ---------------------------------------------------------------------------------
@@ -247,6 +268,27 @@ function nameplateNumber(block: BlockRow, key: string): { raw: string; unit: str
   return { raw: v.raw, unit: typeof v.unit === 'string' ? v.unit : null };
 }
 
+/** The leading number of a plate text: "380/220" -> "380", "380 V" -> "380", "13,8 kV" -> "13,8"; a sign ("-380/220") matches nothing. */
+const LEADING_NUMBER = /^\s*(\d[\d.,]*)/;
+
+/**
+ * Story 15.6: the BT side of a plate whose measured raw is not one number ("380/220", "380 V",
+ * typed or read so): its first number, the line voltage the ratio divides by. The strict
+ * `nameplateNumber` answers first; a raw with no leading number answers null as before.
+ */
+function nameplateFirstNumber(block: BlockRow, key: string): { raw: string; unit: string | null } | null {
+  const strict = nameplateNumber(block, key);
+  if (strict !== null) return strict;
+  const value = block.sheet.nameplate[key]?.value;
+  if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) return null;
+  const v = value as { raw?: unknown; unit?: unknown; state?: unknown };
+  if (v.state !== 'measured' || typeof v.raw !== 'string') return null;
+  const match = LEADING_NUMBER.exec(v.raw);
+  const parsed = match === null ? null : parseDecimalPtBr(match[1]!.replace(/[.,]$/, ''));
+  if (parsed === null) return null;
+  return { raw: canonicalDecimal(parsed), unit: typeof v.unit === 'string' ? v.unit : null };
+}
+
 /**
  * UX pass 2026-10-22 (F42): the plate's TAP ATUAL ("5", "12"), the transformer ratio row's
  * `TAP Nº` when the seed leaves that connection blank. Only a tap number counts, an integer of
@@ -276,7 +318,7 @@ export function nameplateRatioInput(block: BlockRow, definition: BlockDefinition
   }
   const key = index === 0 ? 'tensao_nominal_at' : 'tensao_nominal_bt';
   const field = definition.nameplate.find((f) => f.key === key);
-  const value = nameplateNumber(block, key);
+  const value = index === 0 ? nameplateNumber(block, key) : nameplateFirstNumber(block, key);
   if (field === undefined || value === null) return null;
   return convertRatioUnit(value.raw, value.unit ?? field.unit ?? null, columnUnit);
 }

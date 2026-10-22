@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { emptyTemplate, moveSection, removeSection, standardTemplate, type TemplateRow } from '@app/domain';
+import { emptyTemplate, moveSection, naDefaultsCountText, naDefaultsFor, removeSection, SEED_VERSION, standardTemplate, type TemplateRow } from '@app/domain';
 import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
@@ -224,7 +224,8 @@ describe('3.5 composer: sub-block defaults per type', () => {
     expect(after.sub_blocks.cta_transferencia?.enabled).toBe(true);
   });
 
-  it('"Á SECO" on the TP pre-marks the seed\'s 8 items, and a new TP placement follows the type', async () => {
+  it('"Á SECO" on the TP pre-marks the seed\'s oil items (seven on v9), and a new TP placement follows the type', async () => {
+    const dry = naDefaultsFor(SEED_VERSION, 'tp', 'a_seco').length;
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
     await screen.findByRole('complementary', { name: 'Paleta de blocos' });
@@ -234,7 +235,7 @@ describe('3.5 composer: sub-block defaults per type', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: /Abrir lista/ }));
     expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['Sem subtipo', 'Epóxi', 'Á seco']);
     await userEvent.click(screen.getByRole('option', { name: 'Á seco' }));
-    await waitFor(() => expect(within(dialog).getByText('8 itens marcados NA por padrão')).toBeVisible());
+    await waitFor(() => expect(within(dialog).getByText(naDefaultsCountText(dry))).toBeVisible());
     // "IA e IP lidos do visor" ships off and can be switched on.
     expect(within(dialog).getByRole('switch', { name: 'IA e IP lidos do visor' })).toHaveAttribute('aria-checked', 'false');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
@@ -247,7 +248,7 @@ describe('3.5 composer: sub-block defaults per type', () => {
       const tps = (await templateRow(database!, ID))!.blocks.filter((b) => b.block_type === 'tp');
       expect(tps.reduce((sum, b) => sum + b.quantity, 0)).toBe(12);
       expect(tps.find((b) => b.skeleton_location_ref === 'subsolo-1/coluna-9')).toBeDefined();
-      expect(tps.every((b) => b.subtype === 'a_seco' && b.na_defaults.length === 8)).toBe(true);
+      expect(tps.every((b) => b.subtype === 'a_seco' && b.na_defaults.length === dry)).toBe(true);
     });
   });
 

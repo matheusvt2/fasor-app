@@ -103,9 +103,20 @@ Block types: `tp`, `tc`, `transformador_forca`.
 | 10 | ATERRAMENTO | `aterramento` | aterramento desconectado · cordoalha de aterramento danificada · oxidação na conexão de terra |
 | 11 | BUCHAS PRIMÁRIA/SECUNDÁRIAS | `buchas_primaria_secundarias` | trinca na bucha · lascamento na bucha · sinais de aquecimento na bucha |
 | 12 | TERMÔMETRO | `termometro` | termômetro inoperante · leitura incoerente com a temperatura ambiente · visor do termômetro danificado |
-| 13 | ÓLEO ISOLANTE/INDICADOR DE NÍVEL | `oleo_isolante_indicador_de_nivel` | nível de óleo abaixo do mínimo · óleo com coloração escura · indicador de nível ilegível |
+| 13 | ÓLEO ISOLANTE/INDICADOR DE NÍVEL | `oleo_isolante_indicador_de_nivel` | nível de óleo abaixo do mínimo · óleo com coloração escura · indicador de nível ilegível · indicador de nível danificado |
 | 14 | CONEXÕES | `conexoes` | conexão frouxa · oxidação nos terminais · sinais de aquecimento na conexão |
 | 15 | RELÉ DE TEMPERATURA EXTERNO | `rele_de_temperatura_externo` | relé de temperatura inoperante · ajuste de alarme ou desligamento ausente · sensor de temperatura danificado |
+
+*(2026-10-22, Story 15.3, seed `v9` in `packages/domain/src/seed/v9.ts`: the list asks about the oil level once. Row 5 `indicador_nivel_de_oleo` leaves it, so the rows from 6 on are numbered one less (14 rows). Row 13 `oleo_isolante_indicador_de_nivel` (row 12 on `v9`) stays and gains row 5's chip it did not carry (the fourth phrase of row 13 above, on `v9` only; `v1` to `v8` offer the first three): nível de óleo abaixo do mínimo · óleo com coloração escura · indicador de nível ilegível · indicador de nível danificado. Seeds `v1` to `v8` keep the fifteen rows above, and a phrase the company learned on row 5 stays in Cadastros › Frases de NC and is offered on their sheets. The Disjuntor MT's item of the same key is unchanged.)*
+
+## Verificações do local: the two items of seed `v9`
+
+*(2026-10-22, Story 15.3.)* Two items close the Ambiente group of a local's "Verificações do local" on seed `v9` (items 20 and 21; seeds `v4` to `v8` keep their 19). Labels and phrases are authored, pending Bruno's review.
+
+| # | Item | Key | NC phrases |
+| --- | --- | --- | --- |
+| 20 | Grades e portas: estado e fixação | `grades_e_portas_estado_e_fixacao` | Grade ou porta danificada · Grade ou porta solta ou mal fixada · Dobradiças, trincos ou fechos corroídos |
+| 21 | Pintura e corrosão | `pintura_e_corrosao` | Pintura descascada ou desgastada · Pontos de corrosão em estruturas metálicas · Corrosão em suportes ou ferragens |
 
 ## Chave de transferência automática (library type, seed `v5`)
 

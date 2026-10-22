@@ -113,6 +113,13 @@ export const tableDefSchema = z
     value_columns: z.array(columnDefSchema).min(1),
     capture_column: z.string().min(1),
     rows: z.array(z.array(z.string())).min(1),
+    /**
+     * Seed v9 (Story 15.6, Bruno 2026-10-22): the factor the ratio test's VAL CALCULADO applies to
+     * U1/U2. `sqrt3` makes it U1 · √3 / U2 (the transformador de força: the primary is line-to-line,
+     * the captures phase-to-neutral). Optional and never defaulted, so v1 to v8 parse to the bytes
+     * they shipped with.
+     */
+    ratio_factor: z.enum(['sqrt3']).optional(),
   })
   .refine((t) => t.rows.every((row) => row.length === t.connection_columns.length), {
     message: 'every row has one cell per connection column',

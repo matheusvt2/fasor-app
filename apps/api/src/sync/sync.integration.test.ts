@@ -1075,10 +1075,11 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 
-  it('contract 24 (UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-23 pull is refused with 426 contract_outdated on every stream, a version-24 pull is answered', async () => {
-    expect(CONTRACT_VERSION).toBe(24);
-    expect(MIN_CONTRACT_VERSION).toBe(24);
+  it('contract 25 (Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-24 pull is refused with 426 contract_outdated on every stream, a version-25 pull is answered', async () => {
+    expect(CONTRACT_VERSION).toBe(25);
+    expect(MIN_CONTRACT_VERSION).toBe(25);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
+      // 24 cannot parse a site item of seed v9 nor resolve seed v9 (Stories 15.3 and 15.6);
       // 23 cannot resolve seed v8 (UX pass 2026-10-22, F43);
       // 22 is the last version that cannot parse a `registry/nc_phrase/...` op (Story 14.12);
       // 21 cannot resolve seed v7 and reads an "Outro" disjuntor's oil item NA (Story 14.14);
@@ -1086,17 +1087,17 @@ describe('1.5-API-005 contract skew', () => {
       // 19 cannot parse `audit_run/{id}/coverage` (Story 14.10 lane B);
       // 18 cannot parse `sheet/{id}/test/{key}/value/...`, the ninth block type nor resolve seed v5 (Story 14.5);
       // 17 cannot parse `location/{id}/checklist/...` nor resolve seed v4 (Story 14.3); 16 stays refused as since Story 14.2.
-      for (const version of ['23', '22', '21', '20', '19', '18', '17', '16']) {
+      for (const version of ['24', '23', '22', '21', '20', '19', '18', '17', '16']) {
         const old = await pull(companyA, path, version);
         expect(old.status, `${path} at ${version}`).toBe(426);
         expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
       }
     }
-    const current = await pull(companyA, '/api/sync/company?since=0', '24');
+    const current = await pull(companyA, '/api/sync/company?since=0', '25');
     expect(current.status).toBe(200);
     // An outdated client keeps pushing (AD-13): only the pull is refused.
     const batch = [clientCreate(idsA, newId())];
-    const pushed = await push(companyA, { ops: batch }, '23');
+    const pushed = await push(companyA, { ops: batch }, '24');
     expect(pushed.status).toBe(200);
     for (const o of batch) written.opIds.add(o.op_id);
   });
@@ -1601,6 +1602,31 @@ describe('Story 14.3 (contract 18): Verificações do local through POST /api/sy
     expect(await rowOf('location', old.local)).toEqual(before.oldLocal);
     // Only the good put changed the local.
     expect(await rowOf('location', t.local)).toEqual({ ...(before.local as object), checklist: { [EMERGENCIA]: { result: { value: 'NC', source_suggestion_id: null, op_id: good.op_id } } } });
+  });
+
+  it('Story 15.3 (seed v9, contract 25): the two new site items are accepted on a v9 relatório and carried by its stream; a v8 relatório refuses them op_invalid', async () => {
+    const [GRADES, PINTURA] = SITE_ITEM_KEYS.slice(-2);
+    expect([GRADES, PINTURA]).toEqual(['grades_e_portas_estado_e_fixacao', 'pintura_e_corrosao']);
+    const v9 = await site('v9');
+    const v8 = await site('v8');
+    const accepted = [
+      sitePut(v9.relatorio, v9.local, PINTURA!, 'result', 'NC'),
+      sitePut(v9.relatorio, v9.local, PINTURA!, 'observation', 'Pontos de corrosão em estruturas metálicas'),
+      sitePut(v9.relatorio, v9.local, GRADES!, 'result', 'C'),
+    ];
+    const refused = [sitePut(v8.relatorio, v8.local, PINTURA!, 'result', 'NC'), sitePut(v8.relatorio, v8.local, GRADES!, 'result', 'C')];
+    const before = await rowOf('location', v8.local);
+    const result = await pushOk(companyA, [...accepted, ...refused]);
+    expect(result.applied.map((a) => a.op_id)).toEqual(accepted.map((o) => o.op_id));
+    expect(result.rejected).toEqual(refused.map((o) => ({ op_id: o.op_id, code: 'op_invalid' })));
+    const local = (await rowOf('location', v9.local)) as unknown as { checklist: Record<string, { result?: { value: unknown }; observation?: { value: unknown } }> };
+    expect(local.checklist[PINTURA!]).toMatchObject({ result: { value: 'NC' }, observation: { value: 'Pontos de corrosão em estruturas metálicas' } });
+    expect(local.checklist[GRADES!]).toMatchObject({ result: { value: 'C' } });
+    expect(await rowOf('location', v8.local)).toEqual(before);
+    const page = await pullOk(companyA, `/api/sync/relatorios/${v9.relatorio}?since=0`);
+    const paths = (page.ops as Op[]).map((o) => o.path);
+    expect(paths).toContain(locationChecklistPath(v9.local, PINTURA!, 'result'));
+    expect(paths).toContain(locationChecklistPath(v9.local, GRADES!, 'result'));
   });
 
   it('a client batch holding one refused site put is refused whole, as any batch with a permanent refusal is', async () => {

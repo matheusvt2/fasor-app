@@ -988,3 +988,72 @@ describe('14.4 section9Layout: VERIFICAÇÕES DO LOCAL, once per local, right af
     expect(section9Layout(on(snapshotOf(locations(false), []), 'v3'), 9, TITLE)).toBeNull();
   });
 });
+
+describe('Stories 15.3 and 15.6 (seed v9): what a v9 relatório prints, a v8 one as before', () => {
+  /** Sheet `n` like `sheet`, on `version` (block and relatório). */
+  function sheetOn(version: string, n: number, type: EquipmentBlockType, tag = `T${n}`): Built {
+    return newEquipmentBlock({ blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId: RELATORIO, projectId: TEST_PROJECT, locationId: id(1), type, tag, seedVersion: version, orderKey: 'a0' });
+  }
+  const on = (snapshot: RelatorioSnapshot, version: string): RelatorioSnapshot => ({ ...snapshot, relatorio: { ...snapshot.relatorio, seed_version: version } });
+  const printedOf = (version: string, built: Built) => sheetOf(layoutOf(on(snapshotOf([cabine(1, 'Cabine A', 'a0')], [built]), version)), block(1));
+
+  it('the TC prints no POTÊNCIA NOMINAL: 13 pairs, the last row padded; v8 prints its 14', () => {
+    const plate = (version: string) => texts(tableNamed(printedOf(version, sheetOn(version, 1, 'tc', 'TC-1')), 'DADOS DO EQUIPAMENTO'));
+    const v9 = plate('v9');
+    const v8 = plate('v8');
+    const fieldCount = (version: string) => getDefinition(version, 'cabine_primaria', 'tc').nameplate.length;
+    expect(v9.slice(1).flat().filter((text) => text === 'POTÊNCIA NOMINAL')).toEqual([]);
+    expect(v8.slice(1).flat()).toContain('POTÊNCIA NOMINAL');
+    expect(v9).toHaveLength(1 + Math.ceil(fieldCount('v9') / 3));
+    expect(v9.at(-1)!.slice(2)).toEqual(['', '', '', '']);
+    expect(v8).toHaveLength(1 + Math.ceil(fieldCount('v8') / 3));
+  });
+
+  it('a transformer, TP or TC prints 14 numbered checklist rows on v9 (item 13 renumbered 12), 15 on v8', () => {
+    for (const type of ['transformador_forca', 'tp', 'tc'] as const) {
+      const rows = (version: string) => texts(tableNamed(printedOf(version, sheetOn(version, 1, type)), 'VERIFICAÇÕES GERAIS'));
+      const v9 = rows('v9');
+      expect(v9, type).toHaveLength(2 + getDefinition('v9', 'cabine_primaria', type).checklist!.length);
+      expect(v9, type).toHaveLength(2 + 14);
+      expect(v9.map((row) => row[0])).not.toContain('5. INDICADOR NÍVEL DE ÓLEO');
+      expect(v9[2 + 4]![0], type).toBe('5. VENTILADORES');
+      expect(v9[2 + 11]![0], type).toBe('12. ÓLEO ISOLANTE/INDICADOR DE NÍVEL');
+      const v8 = rows('v8');
+      expect(v8, type).toHaveLength(2 + 15);
+      expect(v8[2 + 4]![0], type).toBe('5. INDICADOR NÍVEL DE ÓLEO');
+    }
+  });
+
+  it('VAL CALCULADO: the transformer U1 · √3 / U2 on v9 (62,90) and U1/U2 on v8 (36,32); TP and TC the same on both', () => {
+    const ratioRow = (version: string, type: EquipmentBlockType, header: string, cells: Record<string, unknown>, nameplate: Record<string, unknown> = {}) => {
+      const built = edit(sheetOn(version, 1, type), (b) => withTest('relacao_transformacao', cells)(withNameplate(nameplate)(b)));
+      return texts(tableNamed(printedOf(version, built), header))[1]!;
+    };
+    const trafo = { '0/0': measured('13.8', 'kV'), '0/1': measured('380', 'V'), '0/3': measured('62.8', null), '0/4': measured('62.8', null), '0/5': measured('62.8', null) };
+    expect(ratioRow('v9', 'transformador_forca', 'TAP Nº', trafo)).toEqual(['-', '13,8 kV', '380 V', '62,90', '62,8', '62,8', '62,8', 'SATISFATÓRIO']);
+    expect(ratioRow('v8', 'transformador_forca', 'TAP Nº', trafo)).toEqual(['-', '13,8 kV', '380 V', '36,32', '62,8', '62,8', '62,8', 'INSATISFATÓRIO']);
+    const tp = { '0/0': measured('13800', 'V'), '0/1': measured('220', 'V'), '0/3': measured('62.7', null) };
+    for (const version of ['v8', 'v9']) {
+      expect(ratioRow(version, 'tp', "TP's", tp), version).toEqual(['FASE R', '13.800 V', '220 V', '62,73', '62,7', 'SATISFATÓRIO']);
+      expect(ratioRow(version, 'tc', 'TPS', { '0/3': measured('40', null) }, { relacao: '200/5' })[3], version).toBe('40,00');
+    }
+  });
+
+  it('VERIFICAÇÕES DO LOCAL prints 21 numbered rows on v9, the two new ones 20 and 21 under AMBIENTE; v8 prints 19', () => {
+    const answers: Extract<LocationRow, { kind: 'cabine' }>['checklist'] = {
+      grades_e_portas_estado_e_fixacao: { result: cell('NC'), observation: cell('Grade ou porta solta ou mal fixada') },
+      pintura_e_corrosao: { result: cell('C') },
+    };
+    const siteRows = (version: string) => {
+      const local = cabine(1, 'Cabine A', 'a0', { funcao: 'primaria', checklist: version === 'v9' ? answers : {} });
+      const section = layoutOf(on(snapshotOf([local], [sheetOn(version, 1, 'chave_seccionadora')]), version));
+      const part = section.subsections[0]!.localParts!.find((p): p is Extract<SheetPart, { kind: 'table' }> => p.kind === 'table' && p.table.rows[0]!.cells[0]!.text === 'VERIFICAÇÕES DO LOCAL')!;
+      return part.table.rows.filter((row) => row.group !== true).slice(2).map((row) => row.cells.map((c) => c.text));
+    };
+    const v9 = siteRows('v9');
+    expect(v9).toHaveLength(21);
+    expect(v9[19]).toEqual(['20. GRADES E PORTAS: ESTADO E FIXAÇÃO', '', 'X', '', 'Grade ou porta solta ou mal fixada']);
+    expect(v9[20]).toEqual(['21. PINTURA E CORROSÃO', 'X', '', '', '']);
+    expect(siteRows('v8')).toHaveLength(19);
+  });
+});

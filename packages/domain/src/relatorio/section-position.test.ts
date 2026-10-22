@@ -110,7 +110,8 @@ describe('F43 sectionPosition: the Sumário position of a FO.SERV-03 section', (
 
 describe('F43 seed v8: the Conclusão names sections 8 and 9 by their Sumário positions', () => {
   it('{itens_resultados} names the carried sections 8 and 9 by position: two, one, none', () => {
-    expect(SEED_VERSION).toBe('v8');
+    // Seed v9 keeps v8's Conclusão text.
+    expect(SEED_VERSION).toBe('v9');
     expect(sectionVariables(compact(), null)).toMatchObject({ itens_resultados: 'nos itens 4 e 5' });
     expect(sectionVariables(fresh(), null)).toMatchObject({ itens_resultados: 'nos itens 8 e 9' });
     // Without section 8 the compact template is 1, 5, 7, 9, 10: section 9 is row 4.
@@ -121,7 +122,7 @@ describe('F43 seed v8: the Conclusão names sections 8 and 9 by their Sumário p
 
   it('a v8 compact relatório prints "itens 4 e 5"; a v7 one keeps FO.SERV-03\'s "itens 8 e 9"', () => {
     const v8 = compact();
-    expect(v8.relatorio.seed_version).toBe('v8');
+    expect(v8.relatorio.seed_version).toBe('v9');
     const printed = printedText(v8);
     expect(printed).toContain('encontram-se nos itens 4 e 5 deste relatório;');
     expect(printed).toContain('constantes nos itens 4 e 5 deste sejam atendidas.');

@@ -111,7 +111,7 @@ test('@p0 14.11-E2E-001 a transformer: Á SECO marks the oil items NA with no ta
   const blockId = sheet.blockId;
   await expect(select(page, 'tipo_de_isolacao').locator('option')).toContainText(['EPÓXI', 'Á SECO', 'ÓLEO']);
 
-  // Á SECO: the eight oil items read NA with no tap, VOL. ÓLEO is not missing, no chip.
+  // Á SECO: the oil items (the current seed's, seven on v9) read NA with no tap, VOL. ÓLEO is not missing, no chip.
   await pick(page, 'tipo_de_isolacao', 'Á SECO');
   for (const key of OIL) await expect(checked(page, key), key).toHaveAttribute('data-value', 'na');
   await expect(checked(page, 'limpeza')).toHaveCount(0);

@@ -98,9 +98,9 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 24 and refuses version 23 (UX pass 2026-10-22, F43: a version-23 bundle cannot resolve seed v8)', () => {
-    expect(CONTRACT_VERSION).toBe(24);
-    expect(MIN_CONTRACT_VERSION).toBe(24);
+  it('speaks version 25 and refuses version 24 (Stories 15.3 and 15.6: a version-24 bundle cannot parse the two new site items nor resolve seed v9)', () => {
+    expect(CONTRACT_VERSION).toBe(25);
+    expect(MIN_CONTRACT_VERSION).toBe(25);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

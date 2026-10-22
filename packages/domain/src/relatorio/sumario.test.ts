@@ -50,6 +50,10 @@ import {
   templateBlocksText,
   templateHelperText,
 } from './project.ts';
+import { SEED_VERSION, siteItems } from '../seed/definitions.ts';
+
+/** The site items a new relatório owes per local: its seed version's (21 on v9, Story 15.3). */
+const SITE_COUNT = siteItems(SEED_VERSION).length;
 
 /** The numbered rows (the ones the Position box and Alt+arrows move among). */
 const numberedRows = (rows: readonly SumarioRow[]): SumarioRow[] => rows.filter((row) => row.number !== null);
@@ -130,8 +134,8 @@ describe('4.3-UNIT sumarioRows', () => {
         '0 de 94',
         '94 fichas vazias',
         ...['Cubículo Enel', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores'].map((name) => `${name}: faltam 6 campos`),
-        // Story 14.3: a new relatório is on seed v4 and every local owes its 19 site items.
-        'Verificações do local sem resposta: Cubículo Enel (19 itens), 1° Subsolo (19 itens), Oxigênio (19 itens), Cobertura A (19 itens), Cobertura B (19 itens) e Geradores (19 itens)',
+        // Story 14.3: every local of a new relatório owes its site items.
+        `Verificações do local sem resposta: Cubículo Enel (${SITE_COUNT} itens), 1° Subsolo (${SITE_COUNT} itens), Oxigênio (${SITE_COUNT} itens), Cobertura A (${SITE_COUNT} itens), Cobertura B (${SITE_COUNT} itens) e Geradores (${SITE_COUNT} itens)`,
       ].join(' · '),
     );
     // Stories 6.3/6.5: section 7 counts its photos (none yet).

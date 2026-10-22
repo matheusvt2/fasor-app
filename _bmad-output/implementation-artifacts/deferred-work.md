@@ -2321,6 +2321,14 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: verification-gap
   state: open (owner: next fix batch)
 
+## Deferred from: Stories 15.3 and 15.6, seed v9 and the ratio with √3 (2026-10-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-15-3-15-6-seed-v9-ratio.md`
+  summary: A company template with a dry (EPÓXI or Á SECO) TP, TC or Transformador de força keeps `indicador_nivel_de_oleo` in that block's `na_defaults`; seed v9 drops the item, so the template fails v9's row check and `templateSeedUpgrade` leaves it on v8 (Story 14.3: only `seed_version` moves). Relatórios made from it are born on v8, without the two new site items, the TC change or the √3 ratio. The standard template has no dry subtype and moves. Options: a data step that filters the dropped key out of `na_defaults` while moving, or leave such templates on v8.
+  evidence: `packages/domain/src/templates/from-relatorio.test.ts` "Story 15.3: a v4/v8 template with a dry transformer ... fails v9 and stays"; `epic-15-context.md` defaults (Bruno answer 1 pending).
+  class: decision
+  state: open (owner: coordinator / Bruno answer 1)
+
 ## Deferred from: Stories 15.4 and 15.5 (2026-10-22)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-15-4-15-5-voltar-coluna-add.md`

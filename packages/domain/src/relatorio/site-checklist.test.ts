@@ -10,10 +10,12 @@ import { pointsSummary, pointTitle, POINT_TITLE_GENERAL, sectionEightEntries } f
 import { section7Photos } from '../print/section-7.ts';
 import { resolveActionPlan, resolveSection8 } from '../print/section-8.ts';
 import { numberPhotos } from '../photos/numbering.ts';
-import { SITE_ITEM_KEYS } from '../schemas/block-config.ts';
 import { emptySheet, relatorioRowSchema, type BlockRow, type FileRow, type LocationRow, type PointRow, type RelatorioRow } from '../schemas/entities.ts';
 import { buildSnapshot, createSnapshotBuilder, serializeSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { siteItems } from '../seed/definitions.ts';
+
+/** The v4 site list (19 keys); seed v9 appends two more (Story 15.3). */
+const SITE_ITEM_KEYS = siteItems('v4').map((item) => item.key);
 import { opFactory, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO } from '../test-support.ts';
 import { firstCountedTarget } from './count-target.ts';
 import { preIssue, preIssueRowsFor, blockingRows } from './pre-issue.ts';

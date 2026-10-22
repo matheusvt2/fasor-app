@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { Blob as NodeBlob } from 'node:buffer';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { SITE_ITEM_KEYS, type LocationRow, type PointRow, type RelatorioRow, type RevisionRow } from '@app/domain';
+import { siteItems, type LocationRow, type PointRow, type RelatorioRow, type RevisionRow } from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -20,6 +20,9 @@ import { SyncContext } from '../../state/sync.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { makeSyncState } from '../../test/sync-state.ts';
 import { VerificacoesSurface } from './verificacoes-surface.tsx';
+
+/** The v4 site list these tests run on (19 keys; seed v9 appends two, Story 15.3). */
+const SITE_ITEM_KEYS = siteItems('v4').map((item) => item.key);
 
 /*
  * Story 14.3: "Verificações do local" (`61-verificacoes-local.html`) over the small Porto
@@ -215,7 +218,7 @@ describe('14.3 "Verificações do local": the surface', () => {
     ]);
     for (const group of groups) expect(group).toHaveAccessibleName(group.querySelector('h3')!.textContent!);
     const rows = [...container.querySelectorAll<HTMLElement>('li.checklist-row')];
-    expect(rows.map((row) => row.dataset.itemKey)).toEqual([...SITE_ITEM_KEYS]);
+    expect(rows.map((row) => row.dataset.itemKey)).toEqual(SITE_ITEM_KEYS);
     expect(rows.map((row) => row.querySelector('.row-num')!.textContent)).toEqual(Array.from({ length: 19 }, (_, i) => `${i + 1}.`));
     // The seed's labels as approved, sentence case, an acronym kept.
     expect(rowOf('epi_disponivel').querySelector('.row-label')).toHaveTextContent('6.EPI disponível');

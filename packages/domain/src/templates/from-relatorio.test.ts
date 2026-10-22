@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { applyOp, type EntityState } from '../ops/apply.ts';
 import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
-import { blockConfigSchema, MAX_QUANTITY, SECTION_BLOCK_TYPES, type TemplateBlock } from '../schemas/block-config.ts';
+import { blockConfigSchema, MAX_QUANTITY, SECTION_BLOCK_TYPES, type Subtype, type TemplateBlock } from '../schemas/block-config.ts';
 import { templateRowSchema, type BlockRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { equipmentTypesOf, getDefinition, SEED_VERSION, SEED_VERSIONS } from '../seed/definitions.ts';
@@ -14,6 +14,8 @@ import { emptyTemplate } from './list.ts';
 import { templateFromRelatorio, templateSavedText, templateSeedUpgrade } from './from-relatorio.ts';
 
 const NEW_TEMPLATE = '019966b0-0060-7000-8000-000000000099';
+/** The dry subtypes, whose v1..v8 NA defaults name the oil item seed v9 dropped (Story 15.3). */
+const DRY = new Set<Subtype>(['epoxi', 'a_seco']);
 
 function build(template = standardTemplate({ id: '019966b0-0060-7000-8000-000000000001' }), prefix = '019966b0-0061-7000-8000-') {
   const { relatorioId, drafts } = instantiateTemplate(
@@ -276,12 +278,12 @@ describe('14.3-UNIT how templates reach the current seed version', () => {
   const EARLIER = Object.keys(SEED_VERSIONS).filter((version) => version !== SEED_VERSION);
   const TEMPLATE = '019966b0-0069-7000-8000-000000000001';
 
-  it('the bundle ships v1 to v7 before the current v8', () => {
-    expect(SEED_VERSION).toBe('v8');
-    expect(EARLIER).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7']);
+  it('the bundle ships v1 to v8 before the current v9', () => {
+    expect(SEED_VERSION).toBe('v9');
+    expect(EARLIER).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8']);
   });
 
-  it.each(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7'])('templateSeedUpgrade: the standard template of %s validates on the current version and moves to it', (version) => {
+  it.each(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8'])('templateSeedUpgrade: the standard template of %s validates on the current version and moves to it', (version) => {
     const row = standardTemplate({ id: TEMPLATE, seedVersion: version });
     expect(row.seed_version).toBe(version);
     expect(templateSeedUpgrade(row)).toBe(SEED_VERSION);
@@ -292,18 +294,36 @@ describe('14.3-UNIT how templates reach the current seed version', () => {
     expect(templateSeedUpgrade(moved)).toBeNull();
   });
 
-  it.each(['v1', 'v2', 'v3', 'v4'])('templateSeedUpgrade: every default config of %s, with each subtype and role, validates on the current version', (version) => {
+  it.each(['v1', 'v2', 'v3', 'v4'])('templateSeedUpgrade: every default config of %s, with each subtype but a dry one and each role, validates on the current version', (version) => {
     const blocks: TemplateBlock[] = SECTION_BLOCK_TYPES.map((type) => ({ ...defaultBlockConfig(version, type), quantity: 1, skeleton_location_ref: null, section_text: null }));
     // Every type the version ships: the eight on v1 to v4 (Story 14.5: v5 is their superset).
     expect(equipmentTypesOf(version)).toHaveLength(8);
     for (const type of equipmentTypesOf(version)) {
-      const variants = [{}, ...getDefinition(version, 'cabine_primaria', type).subtypes.map((subtype) => ({ subtype: subtype.key })), { role: 'entrada' as const }, { role: 'saida' as const }, { role: 'alimentacao' as const }];
+      // Story 15.3 (seed v9): a dry subtype's v1..v8 NA defaults name `indicador_nivel_de_oleo`, which v9 dropped (pinned below).
+      const subtypes = getDefinition(version, 'cabine_primaria', type).subtypes.filter((subtype) => !DRY.has(subtype.key));
+      const variants = [{}, ...subtypes.map((subtype) => ({ subtype: subtype.key })), { role: 'entrada' as const }, { role: 'saida' as const }, { role: 'alimentacao' as const }];
       for (const options of variants) blocks.push({ ...defaultBlockConfig(version, type, options), quantity: 1, skeleton_location_ref: 'local', section_text: null });
     }
     const row = { ...emptyTemplate(TEMPLATE, version), blocks, skeleton: [{ ref: 'local', kind: 'cabine' as const, parent_ref: null, name: 'Local', agrupar_por_tipo: false }] };
     expect(templateRowSchema.safeParse(row).success).toBe(true);
     expect(blocks.length).toBeGreaterThan(SECTION_BLOCK_TYPES.length + equipmentTypesOf(version).length * 4);
     expect(templateSeedUpgrade(row)).toBe(SEED_VERSION);
+  });
+
+  it.each(['v4', 'v8'])('Story 15.3: a %s template with a dry transformer (its NA defaults name the dropped oil item) fails v9 and stays; the standard one, with no dry subtype, moves', (version) => {
+    const standard = standardTemplate({ id: TEMPLATE, seedVersion: version });
+    expect(standard.blocks.some((block) => block.subtype !== undefined && DRY.has(block.subtype))).toBe(false);
+    expect(templateSeedUpgrade(standard)).toBe(SEED_VERSION);
+    for (const type of ['tp', 'tc', 'transformador_forca'] as const) {
+      for (const subtype of DRY) {
+        const dry: TemplateBlock = { ...defaultBlockConfig(version, type, { subtype }), quantity: 1, skeleton_location_ref: 'local', section_text: null };
+        expect(dry.na_defaults).toContain('indicador_nivel_de_oleo');
+        const row = { ...emptyTemplate(TEMPLATE, version), blocks: [dry], skeleton: [{ ref: 'local', kind: 'cabine' as const, parent_ref: null, name: 'Local', agrupar_por_tipo: false }] };
+        expect(templateRowSchema.safeParse(row).success, `${type} ${subtype}`).toBe(true);
+        // Only seed_version moves (Story 14.3), so a row naming an item v9 does not have stays where it is.
+        expect(templateSeedUpgrade(row), `${type} ${subtype}`).toBeNull();
+      }
+    }
   });
 
   it('templateSeedUpgrade: null when already current, on a version this bundle does not ship, and when the row would not validate there', () => {

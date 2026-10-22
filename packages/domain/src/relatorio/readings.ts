@@ -10,6 +10,7 @@
 export {
   headerText,
   nextUnit,
+  ratioFormulaHelperText,
   readingLabelText,
   type CellAddress,
   type EvaluatedCell,
