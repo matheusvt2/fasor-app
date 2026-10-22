@@ -218,7 +218,8 @@ describe('3.4 composer: quantities per node', () => {
     expect(add).toHaveAttribute('aria-pressed', 'false');
     await userEvent.click(add);
     // jsdom lays nothing out, so the inline palette counts as hidden and the drawer opens on the local.
-    const drawer = await screen.findByRole('dialog', { name: 'Cubículo Enel' });
+    // Story 15.5 (F10): the drawer keeps "Blocos" as its head, so as its name; the target reads under it.
+    const drawer = await screen.findByRole('dialog', { name: 'Blocos' });
     expect(drawer.querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Cubículo Enel, direto no local');
     expect(within(drawer).getByRole('group', { name: 'Para-raios, 2' })).toBeVisible();
     // A new type lands on the local itself: one `blocks` put, the block's ref the local's.
@@ -241,7 +242,7 @@ describe('3.4 composer: quantities per node', () => {
     // Coordinator review 2026-10-13: with the palette in the drawer (not beside the composition), a press on
     // the local that is already the target opens the drawer again and keeps the target; it never releases it.
     await userEvent.click(add);
-    const again = await screen.findByRole('dialog', { name: 'Cubículo Enel' });
+    const again = await screen.findByRole('dialog', { name: 'Blocos' });
     expect(again.querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Cubículo Enel, direto no local');
     expect(within(again).getByRole('group', { name: 'Transformadores, 1' })).toBeVisible();
     await userEvent.keyboard('{Escape}');
@@ -268,7 +269,7 @@ describe('3.4 composer: quantities per node', () => {
     // The first tap, then one more after the drawer was closed.
     for (let tap = 0; tap < 2; tap++) {
       await userEvent.click(add);
-      const drawer = await screen.findByRole('dialog', { name: 'Cabine de transformação' });
+      const drawer = await screen.findByRole('dialog', { name: 'Blocos' });
       expect(drawer.querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Cabine de transformação, direto no local');
       expect(within(drawer).getByRole('group', { name: 'Transformadores, 0' })).toBeVisible();
       expect(card).toHaveClass('is-current');
@@ -297,6 +298,77 @@ describe('3.4 composer: quantities per node', () => {
       expect(card).not.toHaveClass('is-current');
       expect(screen.queryByRole('dialog')).toBeNull();
       expect(palette().querySelector('.pal-target')).toHaveTextContent('Selecione um local ou uma coluna.');
+    } finally {
+      offsetParent.mockRestore();
+    }
+  });
+});
+
+describe('15.5 composer: "Adicionar equipamento" on an open coluna', () => {
+  const colunaRow = async (name: RegExp) => (await screen.findByRole('button', { name })).closest('li') as HTMLElement;
+
+  it('an empty open coluna says so, then offers the button; below 1024 px it opens the drawer "Blocos" on the coluna and "+" lands there', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: /^Coluna 9/ }));
+    const row = await colunaRow(/^Coluna 9/);
+    await waitFor(() => expect(row).toHaveClass('is-open'));
+    const body = row.querySelector('.col-body') as HTMLElement;
+    // Coluna 9 holds nothing: the note, then the button, last in the body.
+    expect(body.querySelector('.qty-grid')).toBeNull();
+    expect(body.querySelector('p.section-note.col-none')).toHaveTextContent('Nenhum equipamento nesta coluna.');
+    const add = within(body).getByRole('button', { name: 'Adicionar equipamento' });
+    expect(add).toHaveClass('btn', 'btn-text');
+    expect(add).toHaveAttribute('aria-pressed', 'true');
+    expect(body.lastElementChild).toBe(add.closest('.skeleton-actions'));
+    expect(body.querySelector('.col-none')!.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // jsdom lays nothing out, so the inline palette counts as hidden: the drawer opens on the coluna.
+    await userEvent.click(add);
+    const drawer = await screen.findByRole('dialog', { name: 'Blocos' });
+    expect(drawer.querySelector('.palette-head')).toHaveTextContent('Blocos');
+    const target = drawer.querySelector('.palette-head + .pal-target');
+    expect(target).toHaveTextContent('Toque para adicionar em: Coluna 9 · 1° Subsolo');
+    expect(drawer.querySelectorAll('.pal-target')).toHaveLength(1);
+    expect(drawer.querySelector('.palette-items')).toHaveAttribute('data-more-below');
+
+    for (const name of ['Seccionadoras', 'Transformadores']) {
+      await userEvent.click(within(within(drawer).getByRole('group', { name: `${name}, 0` })).getByRole('button', { name: 'Mais um' }));
+      await waitFor(() => expect(within(drawer).getByRole('group', { name: `${name}, 1` })).toBeVisible());
+    }
+    await waitFor(async () => {
+      const template = (await templateRow(database!, ID))!;
+      const onColuna = template.blocks.filter((b) => b.skeleton_location_ref === 'subsolo-1/coluna-9');
+      expect(onColuna.map((b) => [b.block_type, b.quantity]).sort()).toEqual([
+        ['chave_seccionadora', 1],
+        ['transformador_forca', 1],
+      ]);
+    });
+    expect((await outboxPaths()).every((path) => path === `template/${ID}/blocks`)).toBe(true);
+
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(row).toHaveClass('is-open');
+    const grid = row.querySelector('.col-body .qty-grid') as HTMLElement;
+    expect(within(grid).getByRole('group', { name: 'Seccionadoras, 1' })).toBeVisible();
+    expect(within(grid).getByRole('group', { name: 'Transformadores, 1' })).toBeVisible();
+    expect(row.querySelector('.col-none')).toBeNull();
+  });
+
+  it('with the palette beside the composition (from 1024 px) the press releases the coluna, no drawer opens and the focus goes to its head', async () => {
+    const offsetParent = vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockImplementation(() => document.body);
+    try {
+      database = await freshDb(standardTemplate({ id: ID }));
+      renderComposer();
+      const head = await screen.findByRole('button', { name: /^Coluna 9/ });
+      await userEvent.click(head);
+      const row = head.closest('li') as HTMLElement;
+      await waitFor(() => expect(row).toHaveClass('is-open'));
+      await userEvent.click(within(row).getByRole('button', { name: 'Adicionar equipamento' }));
+      await waitFor(() => expect(row).not.toHaveClass('is-open'));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(palette().querySelector('.pal-target')).toHaveTextContent('Selecione um local ou uma coluna.');
+      await waitFor(() => expect(head).toHaveFocus());
     } finally {
       offsetParent.mockRestore();
     }

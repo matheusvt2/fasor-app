@@ -540,7 +540,7 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
   await expect(palette(page)).toBeHidden();
   await expect(card).toHaveClass(/is-current/);
   await expect(addEquipamento).toHaveAttribute('aria-pressed', 'true');
-  const drawer = page.getByRole('dialog', { name: 'Cabine primária', exact: true });
+  const drawer = page.getByRole('dialog', { name: 'Blocos', exact: true });
   for (let tap = 0; tap < 2; tap++) {
     await addEquipamento.click();
     await expect(drawer.locator('.pal-target')).toHaveText('Toque para adicionar em: Cabine primária, direto no local');

@@ -110,12 +110,21 @@ export function SumarioSurface() {
  * The navigation state the Sumário is opened with (setup "Concluir", a sheet's "Voltar", and
  * Story 10.3's Sync status "Renomear uma", which opens the rename dialog on an equipment).
  */
-function arrivalOf(state: unknown): { openSection9: boolean; focusBlockId: string | null; renameEquipmentId: string | null } {
-  if (typeof state !== 'object' || state === null) return { openSection9: false, focusBlockId: null, renameEquipmentId: null };
+function arrivalOf(state: unknown): {
+  openSection9: boolean;
+  focusBlockId: string | null;
+  focusLocationId: string | null;
+  renameEquipmentId: string | null;
+} {
+  if (typeof state !== 'object' || state === null) {
+    return { openSection9: false, focusBlockId: null, focusLocationId: null, renameEquipmentId: null };
+  }
   const raw = state as Record<string, unknown>;
   return {
     openSection9: raw.openSection9 === true,
     focusBlockId: typeof raw.focusBlockId === 'string' ? raw.focusBlockId : null,
+    // Story 15.4: a local's Verificações left by "Voltar" gets its "Verificações do local" focused.
+    focusLocationId: typeof raw.focusLocationId === 'string' ? raw.focusLocationId : null,
     renameEquipmentId: typeof raw.renameEquipmentId === 'string' ? raw.renameEquipmentId : null,
   };
 }
@@ -482,7 +491,9 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
                     id={treeId}
                     expandToLastSheet={openedByStatus}
                     focusBlockId={countFocus === null ? arrival.focusBlockId : countFocus.target.kind === 'block' ? countFocus.target.blockId : null}
-                    focusLocationId={countFocus?.target.kind === 'site' ? countFocus.target.locationId : null}
+                    focusLocationId={
+                      countFocus === null ? arrival.focusLocationId : countFocus.target.kind === 'site' ? countFocus.target.locationId : null
+                    }
                     focusToken={countFocus?.n ?? 0}
                     context={treeContext}
                     ref={treeRef}

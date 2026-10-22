@@ -296,9 +296,13 @@ test('@p0 3.4-E2E-001 builds a skeleton from "Novo template" and reorders a colu
   const handle = page.getByRole('button', { name: 'Reordenar Coluna 5 em Painel 1 em Cabine 1' });
   const from = (await handle.boundingBox())!;
   const top = (await page.getByRole('button', { name: 'Reordenar Coluna 1 em Painel 1 em Cabine 1' }).boundingBox())!;
+  // The drop follows the dragged row's centre; the open coluna's row is tall (Story 15.5 adds its
+  // note and "Adicionar equipamento"), so the pointer travels until that centre is above the first row.
+  const dragged = (await handle.locator('xpath=ancestor::li[1]').boundingBox())!;
+  const lift = dragged.y + dragged.height / 2 - (top.y - 4);
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
   await page.mouse.down();
-  await page.mouse.move(from.x + from.width / 2, top.y - 4, { steps: 8 });
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 - lift, { steps: 8 });
   await page.mouse.up();
   await expect(colunaNames(page, COLUNAS_OF_PAINEL_1)).toHaveText(['Coluna 5', 'Coluna 1', 'Coluna 2']);
   await expect(announcer(page)).toHaveText('Coluna 5 movida para a posição 1 de 3');
@@ -377,7 +381,7 @@ test('@p0 3.4-E2E-002 sets quantities per node with the palette stepper; the col
   await expect(page.locator('.composer-meta')).toHaveText('1 disjuntor');
 
   // Blocks placed on the local itself, with no coluna, count and show: "Adicionar equipamento" makes it the palette's target.
-  await page.getByRole('button', { name: 'Adicionar equipamento' }).click();
+  await page.locator('.local-card > .block-expand > .skeleton-actions').getByRole('button', { name: 'Adicionar equipamento' }).click();
   await expect(palette(page).locator('.pal-target')).toHaveText('Toque para adicionar em: Cabine 1, direto no local');
   await palette(page).getByRole('group', { name: 'Cabos de entrada, 0' }).getByRole('button', { name: 'Mais um' }).click();
   const direct = page.locator('.local-card.is-current > .block-expand > .loc-direct');
@@ -626,6 +630,139 @@ test('@p1 3.4-E2E-006 the palette sits beside the composition from 1024px, in a 
     await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME]);
     expect(await horizontalOverflow(page), `Templates list at ${width}px`).toBeLessThanOrEqual(0);
   }
+});
+
+// --- Story 15.5 ----------------------------------------------------------------------------
+
+/**
+ * A new template with one local, one painel and one coluna, the coluna open and the palette's
+ * target (as just added); returns the template id and the open coluna row.
+ */
+async function newTemplateWithColuna(page: Page, account: { email: string }, width: number): Promise<{ id: string; row: Locator }> {
+  await signIn(page, account.email);
+  await page.setViewportSize({ width, height: width < 768 ? 844 : width < 1024 ? 1024 : 900 });
+  await openTemplates(page);
+  await page.getByRole('button', { name: 'Novo template' }).click();
+  await expect(page).toHaveURL(/\/templates\/[0-9a-f-]{36}$/);
+  const id = new URL(page.url()).pathname.split('/').at(-1)!;
+  await addLocal(page, { funcao: 'Primária', name: 'Cabine 1' });
+  await page.getByRole('button', { name: 'Adicionar painel' }).click();
+  await expect(announcer(page)).toHaveText('Painel 1 adicionado');
+  await page.getByRole('button', { name: 'Adicionar coluna' }).click();
+  await expect(announcer(page)).toHaveText('Coluna 1 adicionada');
+  const row = page.locator('li.column-row').filter({ has: page.locator('.col-name', { hasText: 'Coluna 1' }) });
+  await expect(row).toHaveClass(/is-open/);
+  return { id, row };
+}
+
+test('@p0 15.5-E2E-001 at 390 px an open coluna\'s "Adicionar equipamento" opens the sheet "Blocos" on it: two types land on the coluna and in the stored template; the list scrolls inside with a cue, every type name on one line', async ({
+  page,
+  seed,
+}) => {
+  test.setTimeout(120_000);
+  const account = seed.companies[1];
+  await resetEmpresaB(account);
+  const { id, row } = await newTemplateWithColuna(page, account, 390);
+
+  // Empty: the note, then the text button, last in the body.
+  const body = row.locator('.col-body');
+  await expect(body.locator('p.section-note.col-none')).toHaveText('Nenhum equipamento nesta coluna.');
+  const add = body.getByRole('button', { name: 'Adicionar equipamento' });
+  await expect(add).toHaveClass(/btn-text/);
+  await expect(body.locator(':scope > :last-child')).toHaveClass('skeleton-actions');
+  expect(await horizontalOverflow(page), 'composer at 390px').toBeLessThanOrEqual(0);
+
+  await add.click();
+  const sheet = page.getByRole('dialog', { name: 'Blocos' });
+  await expect(sheet).toBeVisible();
+  await expect(sheet.locator('.palette-head')).toHaveText('Blocos');
+  await expect(sheet.locator('.palette-head + .pal-target')).toHaveText(/^Toque para adicionar em: Coluna 1 · Painel 1/);
+
+  // The list scrolls inside the sheet: the cue shows while content remains below, and goes at the end.
+  const items = sheet.locator('.palette-items');
+  await expect(items).toHaveAttribute('data-more-below', 'true');
+  // The cue rule creates the pseudo-element only while content remains below.
+  expect(await items.evaluate((el) => getComputedStyle(el, '::after').content)).not.toBe('none');
+  expect(await items.evaluate((el) => getComputedStyle(el, '::after').position)).toBe('sticky');
+  expect(await items.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+  expect(await items.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  // Every type name on one line: its text forms a single line box.
+  const lines = await sheet.locator('.palette-item .pi-text > span:first-child').evaluateAll((spans) =>
+    spans.map((span) => {
+      const range = document.createRange();
+      range.selectNodeContents(span);
+      const tops = new Set([...range.getClientRects()].map((rect) => Math.round(rect.top)));
+      return [span.textContent, tops.size] as const;
+    }),
+  );
+  expect(lines.length).toBeGreaterThan(10);
+  for (const [name, count] of lines) expect(count, `"${name}" on one line`).toBe(1);
+  expect(await horizontalOverflow(page), 'sheet at 390px').toBeLessThanOrEqual(0);
+
+  for (const type of ['Seccionadoras', 'Transformadores']) {
+    await sheet.getByRole('group', { name: `${type}, 0` }).getByRole('button', { name: 'Mais um' }).click();
+    await expect(sheet.getByRole('group', { name: `${type}, 1` })).toBeVisible();
+  }
+  await items.evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  await expect(items).toHaveAttribute('data-more-below', 'false');
+  expect(await items.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
+  await sheet.getByRole('button', { name: 'Fechar' }).click();
+  await expect(sheet).toBeHidden();
+
+  await expect(row.locator('.col-sum')).toContainText('1 seccionadora');
+  await expect(row.locator('.col-sum')).toContainText('1 trafo');
+  await expect(body.locator('.qty-grid').getByRole('group', { name: 'Seccionadoras, 1' })).toBeVisible();
+  await expect(body.locator('.qty-grid').getByRole('group', { name: 'Transformadores, 1' })).toBeVisible();
+  await expect(body.locator('.col-none')).toHaveCount(0);
+
+  // The committed state: the stored template holds both counts on that coluna, through template ops only.
+  await expect
+    .poll(async () => {
+      const template = await deviceTemplate(page, account.userId, id);
+      const coluna = template.skeleton.find((node) => node.kind === 'coluna' && node.name === 'Coluna 1');
+      return template.blocks
+        .filter((block) => coluna !== undefined && block.skeleton_location_ref === coluna.ref)
+        .map((block) => [block.block_type, block.quantity])
+        .sort();
+    })
+    .toEqual([
+      ['chave_seccionadora', 1],
+      ['transformador_forca', 1],
+    ]);
+  expect((await outboxPaths(page, account.userId)).every((path) => path.startsWith('template/'))).toBe(true);
+  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: SYNC_CYCLE_TIMEOUT });
+});
+
+test('@p1 15.5-E2E-002 the coluna\'s "Adicionar equipamento" opens the right drawer on it at 768 px; at 1280 px it releases the coluna, no dialog opens and the focus goes to its head', async ({
+  page,
+  seed,
+}) => {
+  test.setTimeout(120_000);
+  const account = seed.companies[1];
+  await resetEmpresaB(account);
+  const { row } = await newTemplateWithColuna(page, account, 768);
+
+  await row.locator('.col-body').getByRole('button', { name: 'Adicionar equipamento' }).click();
+  const drawer = page.getByRole('dialog', { name: 'Blocos' });
+  await expect(drawer).toBeVisible();
+  const box = (await drawer.boundingBox())!;
+  expect(Math.round(box.x + box.width)).toBe(768);
+  await expect(drawer.locator('.palette-head + .pal-target')).toHaveText(/^Toque para adicionar em: Coluna 1 · Painel 1/);
+  await page.keyboard.press('Escape');
+  await expect(drawer).toBeHidden();
+  await expect(row).toHaveClass(/is-open/);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(palette(page)).toBeVisible();
+  await expect(palette(page).locator('.pal-target')).toHaveText(/^Toque para adicionar em: Coluna 1 · Painel 1/);
+  await row.locator('.col-body').getByRole('button', { name: 'Adicionar equipamento' }).click();
+  await expect(row).not.toHaveClass(/is-open/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(palette(page).locator('.pal-target')).toHaveText('Selecione um local ou uma coluna.');
+  await expect(row.locator('.col-head')).toBeFocused();
+  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: SYNC_CYCLE_TIMEOUT });
 });
 
 // --- Stories 3.5 and 3.6 ------------------------------------------------------------------

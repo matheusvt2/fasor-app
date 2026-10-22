@@ -161,6 +161,7 @@ Esta nota vence a seção acima onde as duas discordam.
 - **`key-print-section-9.html`:** cada local imprime a sua tabela VERIFICAÇÕES DO LOCAL, com os itens em maiúsculas; o painel é uma faixa de título sobre as colunas; o grupo OUTROS EQUIPAMENTOS mostra a CTA.
 - **`61-verificacoes-local.html`:** o cabeçalho nomeia um local só ("Cabine primária · 1° Subsolo").
 
+- *(2026-10-22, Story 15.5, F10)* `42-template-composer.html`: a coluna aberta termina com o botão de texto "Adicionar equipamento" (`.col-body .skeleton-actions`; abaixo de 1024 px ele abre a paleta como gaveta ou folha naquela coluna), e a nova "Coluna 18", vazia e aberta, mostra antes dele a nota `.section-note.col-none` "Nenhum equipamento nesta coluna." (exemplo inventado; a contagem "17 colunas" do painel não foi refeita). Na gaveta e na folha a paleta mantém o cabeçalho "Blocos" com a linha `.pal-target` logo abaixo, rola só a lista com uma sombra de "há mais abaixo" e não quebra nome de tipo; nenhum frame do mock desenha a gaveta.
 
 ## Epic 15 (2026-10-22, Story 15.1) — os níveis da árvore
 

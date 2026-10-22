@@ -434,6 +434,18 @@ describe('4.3 SumarioSurface', () => {
     await waitFor(() => expect(container.querySelector(`li.s9-eq[data-block-id="${chaveBlockId}"] [data-tree-open]`)).toHaveFocus());
   });
 
+  it('15.4: arriving with openSection9 and focusLocationId (back from a local\'s Verificações) opens section 9 and focuses that local\'s "Verificações do local"', async () => {
+    database = await seeded();
+    const record = (await database.entities.get(['relatorio', RELATORIO]))!;
+    // Seed v4 ships the site checklist, so the cabine's header row draws its `.s9-verif`.
+    await database.entities.put({ ...record, row: { ...(record.row as RelatorioRow), status: 'rascunho', seed_version: 'v4' } });
+    const cabineId = portoSeguroSmall.log.find((op) => op.path.startsWith('location/'))!.path.split('/')[1]!;
+    const { container } = renderSumario(RELATORIO, syncState(), { openSection9: true, focusLocationId: cabineId });
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    expect(container.querySelector('.sum-s9')).toHaveClass('is-open');
+    await waitFor(() => expect(container.querySelector(`li[data-location-id="${cabineId}"] > .s9-loc-row .s9-verif`)).toHaveFocus());
+  });
+
   it('F-24: a sheet count opens section 9 on the first sheet it counts and focuses its row; a count of none focuses section 9', async () => {
     database = await seeded();
     const record = (await database.entities.get(['relatorio', RELATORIO]))!;

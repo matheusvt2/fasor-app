@@ -2320,3 +2320,16 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: review finding 17, unverified (maybe-false, medium if true). Settle with a dictation parse test over a row named "5".
   class: verification-gap
   state: open (owner: next fix batch)
+
+## Deferred from: Stories 15.4 and 15.5 (2026-10-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-15-4-15-5-voltar-coluna-add.md`
+  summary: No back target leads to `/relatorio/:id/arvore` any more (Story 15.4), but its phone presentation (the rail drawn full width) still renders when the address is typed or deep-linked. Remove the phone presentation, or the route below 768 px, if it is not wanted.
+  evidence: `apps/web/src/app.tsx` keeps the route for the rail and deep links; `relatorio.css` keeps the `/relatorio/:id/arvore` phone rules.
+  class: backlog
+  state: open (owner: a later story)
+- source_spec: `_bmad-output/implementation-artifacts/spec-15-4-15-5-voltar-coluna-add.md`
+  summary: From 1024 px a coluna's "Adicionar equipamento" follows the local button's toggle literally: since a coluna's body shows only while it is the target, the press always releases it and closes the row. Whether it should instead keep the target (idempotent) or be hidden where the palette is inline is open.
+  evidence: spec Design Notes; `template-composer.tsx` `onAddEquipamento`.
+  class: decision
+  state: open (owner: Matheus)

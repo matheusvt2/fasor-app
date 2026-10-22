@@ -38,6 +38,7 @@ import {
   withoutOrphans,
   type ComposerBlockNode,
   type ComposerCabine,
+  type ComposerColuna,
   type ComposerNode,
   type ComposerPainel,
   type ComposerSection,
@@ -248,20 +249,22 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   }
 
   /**
-   * "Adicionar equipamento" on a local: it becomes the palette's target. From 1024 px the
-   * palette sits beside the composition (CSS alone decides, never a JS breakpoint) and a
-   * second press releases the local, the mock's toggle. Below, the palette is hidden, so
-   * every press opens the drawer on the local and keeps it the target: a local that is
+   * "Adicionar equipamento" on a local or (Story 15.5) on an open coluna: the node becomes the
+   * palette's target. From 1024 px the palette sits beside the composition (CSS alone decides,
+   * never a JS breakpoint) and a second press releases the node, the mock's toggle; a released
+   * coluna closes its row, so `onReleased` hands the focus to its head. Below, the palette is
+   * hidden, so every press opens the drawer on the node and keeps it the target: a node that is
    * already current (one just added, or one whose drawer was closed) opens it in one tap.
    */
-  function onAddEquipamento(local: ComposerCabine): void {
+  function onAddEquipamento(node: ComposerCabine | ComposerColuna, onReleased?: () => void): void {
     const first = firstSection.current;
     const inline = first !== null && first.offsetParent !== null;
-    if (inline && currentRef === local.ref) {
+    if (inline && currentRef === node.ref) {
       setCurrentRef(null);
+      onReleased?.();
       return;
     }
-    setCurrentRef(local.ref);
+    setCurrentRef(node.ref);
     if (!inline) setPaletteOpen(true);
   }
 

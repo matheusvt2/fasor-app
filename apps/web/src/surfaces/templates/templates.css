@@ -45,6 +45,8 @@
 [data-route="/templates/:id"] .loc-direct.is-empty { display: none; }
 [data-route="/templates/:id"] .local-card.is-current > .block-expand > .loc-direct.is-empty { display: block; }
 [data-route="/templates/:id"] .loc-direct .loc-none, [data-route="/templates/:id"] .painel-card .pnl-empty { margin: 0; }
+/* Story 15.5 (F10): the mock's `.col-body .col-none`, an empty coluna's note, as the local's `.loc-none`. */
+[data-route="/templates/:id"] .col-body .col-none { margin: 0; }
 [data-route="/templates/:id"] .skeleton-list .block-line .loc-flag { font-size: var(--t-label-size); font-weight: var(--t-label-weight); }
 [data-route="/templates/:id"] .column-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-hairline); }
 [data-route="/templates/:id"] .column-row { border-bottom: 1px solid var(--border-hairline); }
