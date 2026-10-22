@@ -2,7 +2,7 @@
 title: 'Stories 15.3 and 15.6: seed v9 (one oil item, TC without POTENCIA NOMINAL, two site items) and the transformer ratio with sqrt(3)'
 type: 'feature'
 created: '2026-10-22'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'db776880a0e472d2254027a99a1026823cee8320'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -130,3 +130,13 @@ The first-number BT fallback is not seed-gated (it is a parsing rule of the plat
 All commands from the worktree root in the tools container: `podman compose --profile tools run --rm --user root tools pnpm <cmd>`, output redirected to `.scratch-e15b/*.log`, only the tail read.
 - `pnpm lint`, `pnpm static`, `pnpm test:unit`, `pnpm test:api` -- green.
 - Playwright only under the host lock (`nohup lockf -t 20000 /tmp/fasor-verify.lock sh -c '...' > /tmp/verify-e15b.log 2>&1 &`, then poll); the implementer may run at most the new spec and the ratio test with `--grep`; the orchestrator runs the full touched list.
+
+## Auto Run Result
+
+Status: done (review pass 1; gate in the PR body).
+
+- Summary: seed v9 derived from v8 (`seed/v9.ts`): the shared transformer checklist without `indicador_nivel_de_oleo` (14 items, item 13 absorbs "indicador de nível danificado"), dry `na_defaults` and `oil_rule.items` of seven, the TC without `potencia_nominal` (13 fields), two authored site items 20 and 21 at the end of Ambiente, and `ratio_factor: 'sqrt3'` on the transformador de força's ratio table; `SEED_VERSION` v9, contract 25, minimum 25, `V8_HASH` pinned. The kernel applies the factor, exposes `EvaluatedTable.formulaHelper`, and reads the first number of a plate BT ("380/220") for an untyped V SECUNDÁRIO; the sheet renders the helper. TC fake plate fixture regenerated (sha `92d3a9fb...`). `nc-phrase-row.ts` labels a dropped item from the newest version that has it.
+- Deviations from the story text (open questions for the coordinator): VAL CALCULADO for 13,8 kV / 380 V is 62,90 (the story says 62,89); the TC has 13 fields after the drop (the story says 11); on v9 (as since v6) the oil rule marks the seven items NA itself and no "Marcar N itens de óleo como NA" chip shows for a dry unit with the oil rule, so the tests assert seven items NA; the first-number BT fallback is not seed-gated; company templates with a dry transformer stay on v8 (`deferred-work.md`).
+- Review: 10 findings; patched 3 (low), deferred 1 (low), rejected 6 (see the triage log). Follow-up review recommended: false (no high or medium patched).
+- Verification: implementer ran lint, static, test:unit, test:api, and seed-v9 plus F42 e2e; the orchestrator's story gate is in the PR body.
+- Residual risks: the helper below 768 px is not asserted (deferred); goldens unchanged.
