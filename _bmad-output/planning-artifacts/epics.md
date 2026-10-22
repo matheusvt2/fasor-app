@@ -511,6 +511,12 @@ An office user composes a masonry room as a local holding its equipment directly
 **FRs covered:** FR-10, FR-17, FR-18, FR-22, FR-24, FR-25, FR-49, FR-68 (revisited); new capabilities CAP-27 (site checklist per location) and CAP-28 (office-created equipment types) in `SPEC.md`, added 2026-10-08
 **Also covers:** AR-20 (seed v4 and the AD-21 amendment); UX-DR29, UX-DR30, UX-DR36, UX-DR37, UX-DR38, UX-DR70
 **Decisions (Matheus, 2026-10-08):** batch correct-course; the scope rule, the criteria-editing non-goal, `source-deltas.md` row "Q6 and the FR-5 assumption" and CAP-12's fixed eight are revoked as recorded there; Epic 14 starts now, with the Epic 13 carry-over (E13-A2, A4, A6) in the next carry-over batch in parallel. Waves: 14.1 (mocks) alone; then 14.2 to 14.4; then ~~14.5 to 14.7~~, after `bmad-architecture` settles the AD-21 amendment. The chave ASCO of 2026-10-10 is recorded outside the sheets: the app cannot serve it by then. *(2026-10-09, John (PM) with Matheus: re-sliced. Library types ship before company types: the new Story 14.5 adds the measurement table and ships "Fonte auxiliar da proteção" and "Chave de transferência automática" as seed types, with AD-21 unchanged; the former 14.5, 14.6 and 14.7 became 14.6, 14.7 and 14.8 (wave 3); wave 3 starts only after two or three real jobs have used the library types, with the count of new-type and adjustment requests recorded; the editor frames moved from Story 14.1 to Story 14.7. Waves: 0 = 14.1; 1 = 14.2 to 14.4; 2 = 14.5; 3 = 14.6 to 14.8. `sprint-change-proposal-2026-10-08.md` § 9.)*
+### Epic 15: Bruno's first production feedback (document of 2026-10-22)
+Bruno, after his first days on v0.2.4 from a phone, sees the relatório tree read its levels at a glance (bands per local and painel, the level word, the NC and the type on each equipment row), a transformer list that asks about the oil level once and a TC sheet that asks for no power, a local's checklist that also covers paint and the condition of grades and doors, "Voltar" from a sheet returning to the Sumário row at every width, a coluna in the composer that offers "Adicionar equipamento" on a phone, and a transformer ratio calculated as U1·√3/U2. Source: his "Melhorias produto.docx" of 2026-10-22, seven items with screenshots; the site checklist he asked for already exists (Story 14.3).
+**FRs covered:** FR-10, FR-17, FR-18, FR-22, FR-24, FR-25, FR-68 (revisited); CAP-8, CAP-27 (revisited)
+**Also covers:** AR-20 (seed v9); UX-DR29, UX-DR70; the 2026-10-22 hands-on findings F10, F19, F34, F37, F50
+**Decisions (Matheus, 2026-10-22):** proceed on defaults while Bruno's seven questions are out; seed v9 and contract 25 for 15.3 and 15.6 in one batch; waves A (e15a 15.4 + 15.5, e15b 15.3 + 15.6, in parallel) and B (15.1 mocks, then 15.2). Context: `implementation-artifacts/epic-15-context.md`.
+
 
 ## Epic 1: Sign in and work on the device (offline-first foundation)
 
@@ -3930,6 +3936,199 @@ So that the sheet asks the right questions and warns me before a wrong band or a
 3. For Matheus: the test-voltage notice also in the pre-issue check and the Export dialog as a non-blocking row, or on the sheet only (default: on the sheet only).
 4. For Bruno: does "match" allow a tolerance (for example an instrument set to 5 kV for a 1000 V band reads as a mismatch, but 1 kV is a match) (default: equal after unit conversion, no tolerance).
 5. For Matheus: does "the photo is sent" mean a display shot taken and kept on the test, or one whose reading ran (default: a live display shot naming the test, whatever its reading's state).
+
+## Epic 15: Bruno's first production feedback (document of 2026-10-22)
+
+Bruno's "Melhorias produto.docx" of 2026-10-22, written against production v0.2.4 on a phone, carries seven items with screenshots: a more didactic tree layout (two Produttivo screens as references), the oil indicator twice on the transformer checklist, POTÊNCIA NOMINAL on the TC, "Voltar" from a sheet landing on the tree page, the template composer on a phone offering no way to put equipment in a painel, a checklist for the local, and the transformation ratio formula a = U1·√3/U2. Investigated 2026-10-22 by Matheus with the agent against main `6e5d8aee` (PR #156, the UX-pass fixes, merged): none of the seven is in that batch; the two seed items and the ratio stack on its seed v8 and contract 24, so they land as **seed v9, contract 25 (minimum 25)**. The checklist for the local already exists (Story 14.3, 19 items approved by Bruno on 2026-10-08), so that item becomes two new site items instead of a story. Findings of the 2026-10-22 hands-on pass (`test-artifacts/manual/ux-pass-2026-10-22.md`) that overlap these items join the stories that cover them (F10 in 15.5; F50, F19, F37, F34 in 15.1 and 15.2) instead of a separate fix batch.
+
+Decisions (Matheus, 2026-10-22): proceed on the defaults named under each story without waiting for Bruno; the seven questions below go to Bruno in one message, and an answer that differs from a default becomes a dated line under its story before the batch that builds it merges, or a follow-up seed version if it arrives later. Waves: **A**, now, two lanes: e15a = 15.4 + 15.5 (no seed), e15b = 15.3 + 15.6 (seed v9, contract 25); **B**: 15.1 (mocks) then 15.2 after Matheus approves them. The 2026-10-08 story gate applies to every story; the full `@p0`, `test:e2e:full` and the matrix run once per wave on the integrated main.
+
+**Questions sent to Bruno (2026-10-22, pt-BR, by Matheus):** (1) oil item: drop item 5 and keep item 13 on the shared transformer list; (2) POTÊNCIA NOMINAL leaves the TC only; (3) the √3 formula applies to the transformador de força with U2 the BT line voltage, TPs keep U1/U2 and the TC its plate ratio, and whether LIGAÇÃO SECUNDÁRIA (Dyn) should switch the factor; (4) "Voltar" was pressed on a sheet opened from the Sumário and landed on "Árvore do relatório", and the fix is to return to the Sumário on the row, as the tablet does, or a next/previous-sheet shortcut inside the sheet; (5) the site checklist exists with 19 items and only "Pintura" and the condition of grades and portas are missing, added as two items; (6) which of the Produttivo traits weighs most for the tree (title bands per local and painel, the level word, a colour per level, equipment in cards), drawn first for his approval on the phone; (7) F29 of the hands-on pass: the TC's checklist is the transformer list (válvula de alívio, elemento secante, ventiladores, radiadores, relé de gás, termômetro, relé de temperatura), as FO.SERV-03 delivers it, or does the TC get its own list.
+
+### Story 15.1: The mocks for the tree levels
+
+**Dev model:** opus · **Effort:** medium · mock HTML from the existing tokens and components, no app code; DESIGN.md and EXPERIENCE.md amendments
+
+As Bruno on a phone,
+I want the Sumário's section 9 and the rail to show at a glance which row is a local, a painel, a coluna or an equipment,
+So that the structure reads without counting indentation.
+
+**Today (verified 2026-10-22):** `DESIGN.md` › Relatório tree draws every level as a 56 px row indented 24 px per level, told apart by the `meta` line's level word ("Painel · 3 colunas") and nothing else; `40-relatorio-overview.html` and `shell-foot.html` follow it; the composer's skeleton (`42-template-composer.html`) already carries a `.level-kicker` ("Local", "Painel") the tree does not. Bruno's screenshot (the Sumário at 390 px, section 9 open) shows a painel, its three colunas and "Adicionar bloco em Cubículo Primário" as one flat run. The hands-on pass of the same day found, at 390 px, the Sumário counters each on a line with large gaps and the list below the fold (F50), the equipment row's type label not rendered at 1180 px (F19), "2 NC abertos" with no row carrying an NC badge (F37) and the automatic point counted twice on line 4 (F34).
+
+*(Definition of Ready: Bruno's answer 6 recorded, or the default taken with a dated line: title band per local with its Função and the site-checklist row inside it, a sub-band per painel, coluna rows as group headers with their count, the level word as a kicker, equipment rows with TAG, type label, state word and an NC badge, the "Adicionar …" actions as the last row of each level, no new colour token.)*
+
+**Acceptance Criteria:**
+
+**Given** `mockups/prototype/screens/40-relatorio-overview.html`, the rail in `shell-foot.html` and `60-ficha.html`, and `42-template-composer.html`
+**When** they are redrawn
+**Then** section 9 of the Sumário, the rail and the composer's skeleton show the four levels with one vocabulary (a title band per local naming it with its Função and its SE data, the "Verificações do local" row inside the band, a sub-band per painel, coluna rows as group headers with "N de M", equipment rows with TAG + type label + state word + an NC badge when the sheet holds an open NC, the level kicker on every non-equipment row, "Adicionar …" as the last row of each level), with only `tokens.css` and `components.css` classes or a documented addition per `MOCK-GUIDE.md`, at 390, 768 and 1280 px, light and dark, no emoji, no Fasor branding (CAP-8; UX-DR29; FR-68)
+
+**Given** the phone frame of the Sumário
+**When** it is redrawn
+**Then** the header counters sit in a two-by-two grid above the list, and line 4 counts the automatic point once ("1 ponto + 1 automático"), the F50 and F34 corrections
+
+**Given** `DESIGN.md` › Relatório tree and `EXPERIENCE.md` › Relatório tree
+**When** the mocks are approved
+**Then** both carry a dated amendment (strike-through, never a rewrite) naming the bands, the kicker, the NC badge and the type label as required at every width, and `MOCK-GUIDE.md` and `index.html` list the frames
+
+**Definition of Done, in addition:** Matheus approves the frames at 390 px in the browser; Bruno sees the phone frame and his answer is recorded under this story with its date; no app code changes.
+
+### Story 15.2: The tree levels built
+
+**Dev model:** opus · **Effort:** high · the Sumário and rail presentations rebuilt from the approved mocks, kernel row texts, the CSS translation per the `.frame-*` rule, Playwright at 390 and 1280
+
+As Bruno on a phone,
+I want the relatório tree and the composer skeleton to look like the approved mocks,
+So that the structure reads without counting indentation and the NC and type of each sheet are visible on the row.
+
+**Today (verified 2026-10-22):** `apps/web/src/surfaces/relatorio/relatorio-tree-sumario.tsx`, `relatorio-tree-rail.tsx` and `relatorio-tree-shared.tsx` render the rows (`.s9-loc-row`, `.s9-pnl-row`, `.s9-col`, `.s9-eq-open`) with `relatorio.css` and the `app.css` translations; every row text comes from `packages/domain/src/relatorio/tree.ts` (`locationTree`, `nodeSummaryText`). The composer's `.level-kicker` is in `apps/web/src/surfaces/templates/skeleton-list.tsx`.
+
+*(Definition of Ready: Story 15.1 approved by Matheus; every new row text (the band's Função line, the coluna header's count, the NC badge text) is named in the story spec as a kernel function.)*
+
+**Acceptance Criteria:**
+
+**Given** the Sumário with section 9 open, the rail inside a sheet and the composer
+**When** they render at 390, 768 and 1280 px
+**Then** they match the approved mocks class for class: the band per local, the sub-band per painel, coluna headers with their count, equipment rows with TAG, type label, state word and NC badge, the kicker on every non-equipment row and the "Adicionar …" rows last; every text is composed in `packages/domain` and `apps/web` renders it; the `.frame-*` rules are translated in `app.css` with the mock rule named (AD-1, AD-2; UX-DR29)
+
+**Given** the hands-on findings F50, F19, F37 and F34
+**When** this story lands
+**Then** the Sumário counters at 390 px sit in a two-by-two grid with the list visible without scrolling on a 844 px tall viewport, the type label renders beside the TAG at every width, "N NC abertos" matches the count of rows carrying the NC badge, and line 4 counts the automatic point once; each is pinned by a test
+
+**Given** the existing tree behaviour (expand and collapse, keyboard, drag, Position box, Overflow menus, "Verificações do local", the focus on return from a sheet, the panel capture)
+**When** the rows are restyled
+**Then** every existing `relatorio-tree*.test.tsx` and Playwright tree spec stays green unchanged except for selectors the mocks renamed (AD-26)
+
+**Definition of Done, in addition:** a Playwright spec at 390 px walks a local with a painel of two colunas and one direct equipment, asserts the kicker, band, header and badge texts, opens a sheet from a row and returns to it; the real-browser pass covers 390, 768 and 1280 px light and dark; `DESIGN.md` and `EXPERIENCE.md` amendments of 15.1 are referenced; `docs/kbs/log.md` gains a dated note.
+
+### Story 15.3: Seed v9: one oil item on the transformer list, the TC without POTÊNCIA NOMINAL, two site items
+
+**Dev model:** opus · **Effort:** high · a seed version derived from v8 that drops a checklist item and a nameplate field and adds two site items; the oil rule, subtypes, chips, print, plate fixtures and NC-phrase documents follow; contract 25
+
+As Bruno filling a transformer, a TC or a local,
+I want the transformer checklist to ask about the oil level once, the TC sheet not to ask for a power, and the local's checklist to cover paint and the condition of grades and doors,
+So that the sheet asks what the equipment and the room have.
+
+**Today (verified 2026-10-22 in the code of main `6e5d8aee`):**
+
+- Oil items. `packages/domain/src/seed/v1.ts` `TRANSFORMADORES_CHECKLIST` (shared by TP, TC and Transformador de força) carries item 5 `indicador_nivel_de_oleo` "INDICADOR NÍVEL DE ÓLEO" and item 13 `oleo_isolante_indicador_de_nivel` "ÓLEO ISOLANTE/INDICADOR DE NÍVEL", as FO.SERV-03 lists them (`imports/extract-fo-serv-03.md` line 174). Both keys are in `OIL_RELATED_ITEMS` (eight), the `na_defaults` of the `epoxi` and `a_seco` subtypes; v6's `transformerOilItems` derives the oil rule's items from the epoxi subtype; the chip "Marcar N itens de óleo como NA" counts them (`relatorio/dry-insulation.ts`); item 13's key is also the Disjuntor MT's item 15 and its oil rule's one item. Learned NC phrases (Story 14.12) are keyed by type and item.
+- TC nameplate. `instrumentTransformerFields('VA')` (`seed/v1.ts`) gives TP and TC twelve fields including `potencia_nominal`; `TC_FIELDS` adds RELAÇÃO and EXATIDÃO. `print/section-9.ts` `nameplatePart` prints three pairs per row and pads the last row. The fake plate fixture of the TC carries `potencia_nominal` (`apps/api/src/scripts/make-plate-fixtures.ts`).
+- Site checklist. `seed/v4.ts` `SITE_CHECKLIST_V4`, 19 items in six groups, the last group "Ambiente" with "Porta abrindo para fora, com fechadura", "Ventilação" and "Limpeza e ausência de infiltração"; numbered 1 to 19 across the groups (`siteItems`), printed by Story 14.4.
+- Seeds v1 to v8 are frozen and hash-pinned; `SEED_VERSION` is v8, contract 24, minimum 24; the Porto Seguro fixture is on v1.
+
+*(Definition of Ready: Bruno's answers 1, 2 and 5 recorded, or the defaults taken with a dated line (drop item 5 and keep item 13; the TC only; two site items "Grades e portas: estado e fixação" and "Pintura e corrosão" at the end of Ambiente, labels authored); the NC phrases of the two site items and the phrase item 13 absorbs are authored in the story spec and listed for Bruno; the seed and contract numbers (v9, 25) are written in the story spec and in Story 15.6's.)*
+
+**Acceptance Criteria:**
+
+**Given** seed v9
+**When** it lands
+**Then** it is v8 plus: the transformer checklist without `indicador_nivel_de_oleo` (14 items, item 13 becoming 12 and absorbing the phrase "indicador de nível danificado"), the TC nameplate without `potencia_nominal` (11 fields; TP keeps VA and the transformer kVA), and two site items at the end of Ambiente (21 items, numbered 20 and 21, with three authored NC phrases each); the `epoxi` and `a_seco` subtypes' `na_defaults` and the three transformers' `oil_rule.items` name seven items; `SEED_VERSION` is v9, contract 25, minimum 25; v1 to v8 stay frozen and resolvable with their hashes; a kernel test pins that v9 differs from v8 only by these (AR-20; AD-21)
+
+**Given** a transformer, TP or TC sheet on v9
+**When** it renders, is counted and prints
+**Then** the checklist shows and prints 14 numbered rows, the dry chip reads "Marcar 7 itens de óleo como NA", the oil rule marks seven items NA on a dry unit and clears seven on a crossing, and the TC's DADOS DO EQUIPAMENTO shows and prints 11 fields with the last printed row padded; a sheet on v1 to v8 shows and prints as today and the Porto Seguro golden documents still match (AD-15; FR-68)
+
+**Given** a plate reading on a v9 TC
+**When** the reading returns `potencia_nominal`
+**Then** the kernel offers no suggestion for a key the definition lacks and the fake fixture no longer carries it; a reading on a v8 TC still suggests it
+
+**Given** a local of a relatório on v9
+**When** "Verificações do local" opens and the relatório prints
+**Then** the two new items show in the Ambiente group with their chips and print in the VERIFICAÇÕES DO LOCAL table as items 20 and 21; the local's progress counts 21; a relatório on v4 to v8 keeps 19 (CAP-27)
+
+**Given** learned NC phrases of the dropped item
+**When** a v9 sheet renders
+**Then** they are not offered (the item does not exist there) and stay in the registry for v8 sheets; nothing is deleted
+
+**Definition of Done, in addition:** the contract decision is written in the PR; `docs/nc-chip-phrases.md` lists the two site items' phrases and item 13's; a Playwright spec creates a relatório on v9 from the standard template, opens a transformer sheet and counts 14 items and the "7 itens" chip, opens a TC sheet and finds no POTÊNCIA NOMINAL, answers items 20 and 21 on the local and generates a preview whose DOCX structure shows them; the durability specs touched run on the matrix projects; `source-deltas.md`, `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` gain dated notes.
+
+### Story 15.4: "Voltar" from a sheet lands on the Sumário at every width
+
+**Dev model:** opus · **Effort:** medium · one route decision reversed, the Verificações route with it, the phone presentation of the tree surface retired if nothing reaches it
+
+As Bruno on a phone,
+I want "Voltar" on a sheet to take me back to where the sheet sits in the Sumário,
+So that I see the other equipment of the coluna and not a separate tree page.
+
+**Today (verified 2026-10-22):** `apps/web/src/app.tsx` gives the ficha route `back: /relatorio/:id/arvore` and `backWide` (from 768 px) the Sumário with `openSection9` and `focusBlockId`; the Verificações route has the same split; the journey review D-8 of 2026-09-24 (`source-deltas.md`) decided "the phone keeps the tree surface". The Sumário's section 9 on a phone draws the same tree, so a sheet opened there returns to another page (Bruno's screenshot shows the "Árvore do relatório" page). `relatorio-tree.tsx` already scrolls `focusBlockId` into view and focuses its open button (Story 12.2).
+
+*(Definition of Ready: Bruno's answer 4 recorded, or the default taken with a dated line: the Sumário on the row at every width; the sibling-shortcut reading becomes a separate story if he asks for it.)*
+
+**Acceptance Criteria:**
+
+**Given** a sheet or a local's Verificações opened from anywhere
+**When** the App bar's "Voltar" is pressed at 390, 768 or 1280 px
+**Then** the Sumário opens with section 9 expanded, the row of that sheet (or the local's "Verificações do local" button) scrolled into view and focused, exactly as from 768 px today; the Export-dialog return (`?volta=exportar`) and the sticky bar's "Voltar ao relatório" are unchanged (UX-DR29; AD-26)
+
+**Given** the tree surface `/relatorio/:id/arvore`
+**When** this story lands
+**Then** nothing on a phone links to it any more; the route stays for the rail (and any deep link), and the story spec says whether its phone presentation is removed or left as a reachable-by-address page (default: left, with one line in `deferred-work.md` if it is to be removed later)
+
+**Given** `source-deltas.md` row "journey review D-8"
+**When** this story lands
+**Then** a new row records the reversal of the phone exception with this date, and `EXPERIENCE.md` › App bar and › Relatório tree ("Back from a sheet lands on its row") carry the dated note
+
+**Definition of Done, in addition:** `e2e/ficha.spec.ts` (or the tree spec) opens a sheet from the Sumário at 390 px, presses "Voltar" and asserts the Sumário with the row focused; the same for Verificações; `relatorio-tree.test.tsx` covers the phone path; the real-browser pass at 390 px.
+
+### Story 15.5: "Adicionar equipamento" on a coluna below 1024 px
+
+**Dev model:** opus · **Effort:** medium · one control on the coluna row and the palette target it sets, the mock frame with it, the palette sheet corrections of F10
+
+As Bruno building a template on a phone,
+I want a coluna to offer "Adicionar equipamento" where I am,
+So that I can put equipment in a painel without finding "Blocos" at the top of the page.
+
+**Today (verified 2026-10-22):** `apps/web/src/surfaces/templates/skeleton-list.tsx`: `PainelCard` offers "Adicionar coluna" only; an open `ColunaRow` renders `QtyGrid`, which draws only the types whose quantity is above zero, so an empty coluna has an empty body; a local has "Adicionar equipamento" (`template-composer.tsx` `onAddEquipamento`), which makes it the palette target and, below 1024 px where the inline palette is hidden (`app.css` "which palette shows"), opens the drawer or sheet. The only other entry below 1024 px is the "Blocos" button in the composer head. From 1024 px the palette beside the composition targets the open coluna, which is why it works on a computer. F10 of the hands-on pass: selecting a local replaces the palette's "Blocos" header with the local's name, the sheet is cut at the viewport with no scroll cue, and rows wrap ("Cabos de / entrada").
+
+*(Definition of Ready: none beyond this text; `42-template-composer.html` draws the control in the same change, per `MOCK-GUIDE.md`.)*
+
+**Acceptance Criteria:**
+
+**Given** an open coluna (under a painel or directly under a local) in the composer
+**When** it renders
+**Then** its body ends with a text button "Adicionar equipamento" and, when the coluna holds nothing, a one-line note saying so (both authored in `apps/web/src/copy/pt-br.ts`); the button makes the coluna the palette target and, below 1024 px, opens the drawer (tablet) or sheet (phone) on it, as the local's button does; from 1024 px it keeps the local button's toggle semantics; the palette's quantity change lands on that coluna (CAP-8; UX-DR70)
+
+**Given** the palette as a sheet or drawer
+**When** a target is selected
+**Then** the "Blocos" header stays and the target reads under it, the list scrolls inside the sheet with a visible scroll cue, and a type name never wraps mid-name (F10)
+
+**Given** `42-template-composer.html`
+**When** this story lands
+**Then** the phone and tablet frames draw the coluna's button and the empty-coluna note; `app.css` translations name the mock rules
+
+**Definition of Done, in addition:** `template-composer-palette.test.tsx` covers the coluna button at the three widths (jsdom with the inline palette shown and hidden); `e2e/templates.spec.ts` at 390 px builds local › painel › coluna, taps the coluna's "Adicionar equipamento", adds two types from the sheet and asserts the coluna's summary; the real-browser pass at 390 and 768 px.
+
+### Story 15.6: The transformer ratio calculated with √3
+
+**Dev model:** opus · **Effort:** high · a seed-level factor on one ratio table, the kernel's calculated value and verdicts, the plate fallback for "380/220", screen helper; shares seed v9 and contract 25 with Story 15.3
+
+As Bruno testing a transformador de força,
+I want VAL CALCULADO to be U1·√3/U2 with U2 the BT line voltage,
+So that the measured H-H / X-X0 ratios compare against the right value and a good transformer is not flagged.
+
+**Today (verified 2026-10-22):** `packages/domain/src/relatorio/reading-evaluation.ts` computes VAL CALCULADO as primário / secundário for every ratio table (`relacao_transformacao`); the transformer table (`seed/v1.ts` `TRANSFORMADOR_RATIO`) captures H1-H3 / X1-X0, H2-H1 / X2-X0, H3-H2 / X3-X0 (line on the primary, phase-to-neutral on the secondary), the TP table H1-H2 / X1-X2 and the TC table P1-P2 / S1-S2 from the plate's RELAÇÃO. The Porto Seguro document confirms the formula is table-specific: its TPs print 13.800 V / 220 V / 62,73 (U1/U2) and its transformers' captures (60,3 at 13,2 kV and "380/220"; 104,3 at 13,2 kV and "220/127") are U1·√3/U2 with U2 the line voltage. The hands-on pass F42 case (13,8 kV, 380 V, measured 36,3 flagged out) is this. An untyped V SECUNDÁRIO reads the plate's TENSÃO NOMINAL BT only when it is one decimal (`reading-cells.ts` `nameplateNumber`), so "380/220" gives no fallback. Since PR #156 the row's `condicao` is INSATISFATÓRIO when a capture is out.
+
+*(Definition of Ready: Bruno's answer 3 recorded, or the default taken with a dated line: the √3 factor on the transformer table only, fixed, not switched by LIGAÇÃO SECUNDÁRIA; the formula shown on screen under VAL CALCULADO; the seed and contract numbers shared with Story 15.3.)*
+
+**Acceptance Criteria:**
+
+**Given** the seed schema and seed v9
+**When** they land
+**Then** a ratio table may carry an optional `ratio_factor` (`'sqrt3'`), absent on v1 to v8 (their hashes unchanged), set on v9's `TRANSFORMADOR_RATIO` only; the kernel test of Story 15.3 pins it among v9's differences (AR-20; AD-21)
+
+**Given** a transformer ratio row on v9 with primário 13,8 kV and secundário 380 V
+**When** the row evaluates
+**Then** VAL CALCULADO is 62,89 (U1·√3/U2, formatted as today), a capture of 62,8 is within ±0,5 % and 36,3 is out, `condicao` follows; a TP row keeps U1/U2 (13.800 / 220 = 62,73) and a TC row its plate ratio; a transformer row on v1 to v8 keeps U1/U2 and the Porto Seguro golden documents still match (FR-68; AD-15)
+
+**Given** a v9 transformer whose V SECUNDÁRIO is untyped and whose plate TENSÃO NOMINAL BT reads "380/220" (or "380 V")
+**When** the row evaluates
+**Then** the fallback reads the first number (380) in the column's unit as the secundário, shown as the nameplate placeholder as today; "220/127" reads 220
+
+**Given** the sheet's ratio table on a v9 transformer
+**When** it renders
+**Then** a one-line helper under VAL CALCULADO names the formula ("Calculado: U1 · √3 / U2", authored, screen only); the printed sheet keeps FO.SERV-03's cells and words
+
+**Definition of Done, in addition:** `readings.test.ts`, `reading-cells` tests and `section-9.test.ts` cover the three tables on v8 and v9; `e2e/ficha.spec.ts` ratio case runs on a v9 relatório with the F42 values and asserts SATISFATÓRIO; the durability specs touched run on the matrix projects; `source-deltas.md`, `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` gain dated notes.
 
 ## Backlog: deferred stories
 
