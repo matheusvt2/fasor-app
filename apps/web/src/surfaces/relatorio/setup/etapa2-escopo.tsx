@@ -1,4 +1,4 @@
-import { defaultExclusions, empresaRegistered, withoutExclusion, type RelatorioSnapshot } from '@app/domain';
+import { defaultExclusions, empresaRegistered, sectionsCaption, withoutExclusion, type RelatorioSnapshot } from '@app/domain';
 import { useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button, OverflowMenu, TextButton } from '../../../components/index.ts';
@@ -113,7 +113,7 @@ export function Etapa2Escopo({
         <h2 className="band-title" id="setup-e2" tabIndex={-1}>
           {t.etapa2Title}
         </h2>
-        <span className="band-note">{t.etapa2Note}</span>
+        <span className="band-note">{sectionsCaption(snapshot, [1, 3])}</span>
       </div>
       <div className="band-body">
         <div className="form-grid">

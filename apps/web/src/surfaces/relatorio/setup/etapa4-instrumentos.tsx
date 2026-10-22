@@ -5,6 +5,8 @@ import {
   instrumentExpiredNoteText,
   instrumentRegistryRowText,
   isInstrumentReferenced,
+  sectionMention,
+  sectionsCaption,
   type BlockRow,
   type InstrumentRow,
   type RelatorioSnapshot,
@@ -65,10 +67,10 @@ export function Etapa4Instrumentos({
         <h2 className="band-title" id="setup-e4" tabIndex={-1}>
           {t.etapa4Title}
         </h2>
-        <span className="band-note">{t.etapa4Note}</span>
+        <span className="band-note">{sectionsCaption(snapshot, [11])}</span>
       </div>
       <div className="band-body">
-        <p className="section-note">{rows.length === 0 ? t.noInstruments : t.instrumentsNote}</p>
+        <p className="section-note">{rows.length === 0 ? t.noInstruments : t.instrumentsNote(sectionMention(snapshot, 11))}</p>
         <ul className="instrument-list instrument-picker">
           {rows.map(({ instrument, status }) => {
             const text = instrumentRegistryRowText(instrument, status);
@@ -97,7 +99,7 @@ export function Etapa4Instrumentos({
                 )}
                 {refusedId === undefined ? null : (
                   <p className="ip-expired" id={refusedId} role="status">
-                    {t.instrumentReferenced}
+                    {t.instrumentReferenced(sectionMention(snapshot, 11))}
                   </p>
                 )}
               </li>

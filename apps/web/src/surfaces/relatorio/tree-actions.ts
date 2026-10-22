@@ -37,6 +37,7 @@ import {
   type MovePlan,
   type OpDraft,
   type RelatorioSummary,
+  type SectionMention,
   type TreeEquipmentNode,
   type TreeLocationNode,
 } from '@app/domain';
@@ -96,6 +97,8 @@ export interface TreeHost {
   locationOf: (blockId: string) => string | null;
   /** The foot's "Adicionar local" (the focus target once an added local is undone). */
   addLocal: () => HTMLElement | null;
+  /** F43 (UX pass 2026-10-22): the kernel's `sectionMention` of FO.SERV-03 section `section` on the tree's snapshot. */
+  sectionMention: (section: number) => SectionMention;
 }
 
 export interface TreeActions {
@@ -532,11 +535,11 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
           }
           // The band on the sheet gives it its own Desfazer once opened; the toast here
           // states what happened, verbatim from `60-ficha.html`'s Overflow (spec Boundaries).
-          showToast(copy.ficha.notTestedToast);
+          showToast(copy.ficha.notTestedToast(host.sectionMention(8)));
         })
         .catch(() => undefined);
     },
-    [edit, relatorioId, showToast, t.gone],
+    [edit, relatorioId, showToast, t.gone, host],
   );
 
   /** One location create, with its toast, its focus and its undo. */

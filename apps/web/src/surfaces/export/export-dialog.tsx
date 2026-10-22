@@ -17,6 +17,8 @@ import {
   readyTitle,
   revisionMetaSegments,
   revisionRowSegments,
+  sectionMention,
+  sectionRefText,
   suggestionRowsOf,
   sumarioLineOf,
   sumarioRows,
@@ -441,7 +443,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                 <li className="is-blocking" key={row.id}>
                   <span className="pc-text">
                     <span className="pc-block">{row.text}</span>
-                    {copy.export.blockingWhere}
+                    {snapshot === null ? null : copy.export.blockingWhere(sectionRefText(snapshot, 10))}
                     <span className="pc-meta">{copy.export.blockingMeta}</span>
                   </span>
                   {onEditInSetup === undefined ? null : (
@@ -534,12 +536,14 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
           </div>
         )}
 
-        {phase.kind === 'ready' ? null : (
+        {phase.kind === 'ready' || snapshot === null ? null : sectionMention(snapshot, 9).prints ? (
           <p className="pc-meta export-sec9-note">
-            {copy.export.sec9NoteBefore}
+            {copy.export.sec9NoteBefore(sectionRefText(snapshot, 9, true))}
             <em>{copy.export.sec9NoteFlag}</em>
             {copy.export.sec9NoteAfter}
           </p>
+        ) : (
+          <p className="pc-meta export-sec9-note">{copy.export.sec9NoteAbsent(sectionMention(snapshot, 9))}</p>
         )}
 
         {body}

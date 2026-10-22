@@ -588,7 +588,7 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
   await expect(page.getByText('CRT', { exact: true })).toBeVisible();
   await expect(page.getByText(registrationNumberLabel('crt'))).toBeVisible();
   await page.getByLabel(artOrTrtLabel('crt'), { exact: true }).fill('2620262602583');
-  await expect(page.getByText(artTrtEchoText(artOrTrtLabel('crt'), '2620262602583')!)).toBeVisible();
+  await expect(page.getByText(artTrtEchoText(artOrTrtLabel('crt'), '2620262602583', 'seção 10')!)).toBeVisible();
 
   // Etapa 4 — Instrumentos: two checked, one unchecked back.
   const m1 = page.getByRole('checkbox', { name: /^M1/ });

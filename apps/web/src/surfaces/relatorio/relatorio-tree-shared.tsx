@@ -32,6 +32,8 @@ export interface Shared {
   setOpen: (node: TreeLocationNode, open: boolean) => void;
   currentBlockId: string | null;
   currentPath: ReadonlySet<string>;
+  /** F43 (UX pass 2026-10-22): how the relatório names FO.SERV-03 section `section` (the kernel's `sectionRefText`). */
+  sectionRef: (section: number) => string;
   actions: TreeActions;
   openPalette: (target: PaletteTarget) => void;
   /**
@@ -129,7 +131,7 @@ export function locationMenu(node: TreeLocationNode, shared: Shared, reorder: Re
       const first = node.firstBlockId;
       items.push({ id: 'open-first', label: t.openFirst, onAction: () => shared.actions.openSheet(first) });
     }
-    items.push({ id: 'agrupar', label: t.agrupar, checked: node.agruparPorTipo === true, onAction: () => shared.actions.toggleAgrupar(node) });
+    items.push({ id: 'agrupar', label: t.agrupar(shared.sectionRef(9)), checked: node.agruparPorTipo === true, onAction: () => shared.actions.toggleAgrupar(node) });
   }
   if (shared.presentation === 'rail') return { items, destructiveItems: [] };
   const target = shared.paletteLocation(node);

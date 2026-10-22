@@ -106,25 +106,28 @@ export function pointMoveOrderKey(
 
 /**
  * The announcement of a move: "Ponto de atenção movido: 1 de 3 na seção 8". p020 P-1b:
- * `section8Prints` false (the relatório has no section 8, `printsSection`) says the point
- * does not print instead of naming the section.
+ * a relatório without section 8 says the point does not print instead of naming the section.
+ * UX pass 2026-10-22 (F43): `section8` is how the relatório names section 8
+ * (`sectionRefText`: "seção 4" by its Sumário position, 'seção "Pontos de atenção"' when absent);
+ * `section8Prints` false says it does not print.
  */
-export function pointMovedText(position: number, total: number, section8Prints = true): string {
+export function pointMovedText(position: number, total: number, section8Prints: boolean, section8: string): string {
   // authored: the mock's toast ("Ponto movido uma posição para cima — a seção 8 segue esta
   // ordem") names no position; the announcement says where the point landed.
-  if (section8Prints) return `Ponto de atenção movido: ${position} de ${total} na seção 8`;
+  if (section8Prints) return `Ponto de atenção movido: ${position} de ${total} na ${section8}`;
   // authored: p020 P-1b, a relatório without section 8.
-  return `Ponto de atenção movido: ${position} de ${total} · não sai no documento: o relatório não tem a seção 8`;
+  return `Ponto de atenção movido: ${position} de ${total} · não sai no documento: o relatório não tem a ${section8}`;
 }
 
 /**
  * The toast after "Concluir": "Ponto de atenção salvo · 4 de 4 na seção 8" (`72-pontos.html`).
- * p020 P-1b: `section8Prints` false names no section 8 (the relatório has none).
+ * p020 P-1b: `section8Prints` false names no section 8 (the relatório has none). F43:
+ * `section8` as in `pointMovedText`.
  */
-export function pointSavedText(position: number, total: number, section8Prints = true): string {
-  if (section8Prints) return `Ponto de atenção salvo · ${position} de ${total} na seção 8`;
+export function pointSavedText(position: number, total: number, section8Prints: boolean, section8: string): string {
+  if (section8Prints) return `Ponto de atenção salvo · ${position} de ${total} na ${section8}`;
   // authored: p020 P-1b, a relatório without section 8.
-  return `Ponto de atenção salvo · ${position} de ${total} · não sai no documento: o relatório não tem a seção 8`;
+  return `Ponto de atenção salvo · ${position} de ${total} · não sai no documento: o relatório não tem a ${section8}`;
 }
 
 /** E6-Q11: the 1-based section 8 positions of the live points whose text cites `photoId`. */

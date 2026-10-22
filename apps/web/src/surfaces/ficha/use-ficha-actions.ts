@@ -18,6 +18,7 @@ import {
   type NextSheet,
   type OpDraft,
   type RelatorioSnapshot,
+  sectionMention,
   type SheetProgress,
   type SheetStep,
   type UserRow,
@@ -227,7 +228,7 @@ export function useFichaActions({
       .then((batch) => {
         // Same feedback as the tree's `markNotTested` on the same null-batch case (review
         // finding, 2026-09-24): the block was removed by another device meanwhile.
-        showToast(batch === null ? copy.sumario.tree.gone : t.notTestedToast);
+        showToast(batch === null ? copy.sumario.tree.gone : t.notTestedToast(sectionMention(snapshot, 8)));
       })
       .catch(() => undefined);
   };

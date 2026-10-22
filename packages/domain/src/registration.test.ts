@@ -39,15 +39,16 @@ describe('4.2-UNIT artOrTrtLabel / artTrtEchoText', () => {
   });
 
   it('is null until both the label and the number exist', () => {
-    expect(artTrtEchoText(null, '2620262602583')).toBeNull();
-    expect(artTrtEchoText('ART', null)).toBeNull();
-    expect(artTrtEchoText('ART', '')).toBeNull();
+    expect(artTrtEchoText(null, '2620262602583', 'seção 10')).toBeNull();
+    expect(artTrtEchoText('ART', null, 'seção 10')).toBeNull();
+    expect(artTrtEchoText('ART', '', 'seção 10')).toBeNull();
   });
 
-  it('echoes the seção 10 sentence once both exist', () => {
-    expect(artTrtEchoText('ART', '2620262602583')).toBe(
+  it('echoes the parecer section\'s sentence once both exist, the section named as the relatório does (F43)', () => {
+    expect(artTrtEchoText('ART', '2620262602583', 'seção 10')).toBe(
       'Na seção 10: "Este relatório tem validade apenas acompanhada da ART 2620262602583"',
     );
+    expect(artTrtEchoText('TRT', '123', 'seção 6')).toBe('Na seção 6: "Este relatório tem validade apenas acompanhada da TRT 123"');
   });
 });
 

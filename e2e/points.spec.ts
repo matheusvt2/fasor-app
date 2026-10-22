@@ -748,7 +748,8 @@ test('@p0 P020-E2E-002 a relatório without sections 8 and 10: the saved point\'
   await expect(row8(page)).toHaveCount(0);
 
   // The Sumário's reason line ends with what will not print, once.
-  const sentence = 'Sem as seções 8 e 10, os pontos de atenção, o parecer e a assinatura não saem no documento.';
+  // F43 (UX pass 2026-10-22): an absent section is named by its Sumário title, never by its FO.SERV-03 number.
+  const sentence = 'Sem a seção "Pontos de atenção" e a seção "Conclusão e parecer", os pontos de atenção, o parecer e a assinatura não saem no documento.';
   const reason = page.locator('.sticky-action-bar .btn-reason').first();
   await expect(reason).toContainText(sentence);
   expect((await reason.textContent())!.split(sentence)).toHaveLength(2);
@@ -762,7 +763,7 @@ test('@p0 P020-E2E-002 a relatório without sections 8 and 10: the saved point\'
   await page.keyboard.type('Detector de tensão inoperante.');
   await editor.getByRole('button', { name: 'Concluir' }).click();
   await expect(editor).toHaveCount(0);
-  await expect(toast(page)).toContainText('Ponto de atenção salvo · 2 de 2 · não sai no documento: o relatório não tem a seção 8');
+  await expect(toast(page)).toContainText('Ponto de atenção salvo · 2 de 2 · não sai no documento: o relatório não tem a seção "Pontos de atenção"');
   await expect(toast(page)).not.toContainText('na seção 8');
   // The committed state: one point, its text stored.
   const pointId = expectOnePointAutosaved(await outbox(page));
@@ -772,21 +773,21 @@ test('@p0 P020-E2E-002 a relatório without sections 8 and 10: the saved point\'
   await page.getByRole('button', { name: 'Editar o ponto 2, Geral' }).focus();
   await page.keyboard.press('Alt+ArrowUp');
   await expect(cards(page).locator('.poa-text').first()).toContainText('Detector de tensão inoperante.');
-  await expect(page.getByTestId('points-announcer')).toHaveText('Ponto de atenção movido: 1 de 2 · não sai no documento: o relatório não tem a seção 8');
+  await expect(page.getByTestId('points-announcer')).toHaveText('Ponto de atenção movido: 1 de 2 · não sai no documento: o relatório não tem a seção "Pontos de atenção"');
   await expect.poll(async () => (await outbox(page)).filter((op) => op.path === `point/${pointId}/order_key`)).toHaveLength(1);
 
   // Etapa 6: the note says the parecer does not print, and the box's kicker too once a verdict is set.
   await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
-  await expect(page.getByText('Este relatório não tem a seção 10: o parecer e a assinatura não saem no documento.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Este relatório não tem a seção "Conclusão e parecer": o parecer e a assinatura não saem no documento.', { exact: true })).toBeVisible();
   const verdict = page.getByRole('radiogroup', { name: 'Parecer' }).getByRole('radio', { name: 'Apto', exact: true });
   await verdict.click();
   await expect(verdict).toHaveAttribute('aria-checked', 'true');
-  await expect(page.locator('.parecer-box .pb-kicker')).toHaveText('Não sai no documento (sem seção 10)');
+  await expect(page.locator('.parecer-box .pb-kicker')).toHaveText('Não sai no documento (sem seção "Conclusão e parecer")');
   // "Confirmar" on the summary: the toast and the confirmed helper name no section 10.
   const field = page.locator('.suggestion-field.is-generated');
   await field.getByRole('button', { name: 'Confirmar' }).click();
   await expect(field).toHaveAttribute('data-state', 'confirmed');
   await expect(toast(page).locator(':scope > span').first()).toHaveText('Resumo do parecer confirmado');
-  await expect(field.locator('.helper').filter({ hasText: 'Confirmado' })).toHaveText('Confirmado · não sai no documento: o relatório não tem a seção 10');
+  await expect(field.locator('.helper').filter({ hasText: 'Confirmado' })).toHaveText('Confirmado · não sai no documento: o relatório não tem a seção "Conclusão e parecer"');
 });

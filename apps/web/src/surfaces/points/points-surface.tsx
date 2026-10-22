@@ -11,6 +11,8 @@ import {
   pointsHeadingText,
   pointSavedText,
   printsSection,
+  sectionMention,
+  sectionRefText,
   pointTextTokens,
   pointTitle,
   priorityLabel,
@@ -108,7 +110,7 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
         return (await commitBatch(db, [putPointOp(author, relatorioId, point.id, 'order_key', key)], { newId, now })).batch_id;
       })
       .catch(() => null);
-    if (batch !== null) setAnnouncement(pointMovedText(landing + 1, live.length, printsSection(snapshot, 8)));
+    if (batch !== null) setAnnouncement(pointMovedText(landing + 1, live.length, printsSection(snapshot, 8), sectionRefText(snapshot, 8)));
   }
 
   /** The point whose editor closed with nothing written: its card takes the focus back. */
@@ -121,7 +123,7 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
       return;
     }
     // E6-Q2: the place the editor read once its last autosave landed.
-    const text = pointSavedText(saved.position, saved.total, printsSection(snapshot, 8));
+    const text = pointSavedText(saved.position, saved.total, printsSection(snapshot, 8), sectionRefText(snapshot, 8));
     edits.notify(text);
     setAnnouncement(text);
     restoreFocus(() => cardFocusTarget(saved.pointId), { frames: LIST_FOCUS_WATCH_FRAMES, once: true });
@@ -158,9 +160,9 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
               {pointsHeadingText(live.length, derived.length)}
             </h2>
           </div>
-          <p className="section-note">{t.sectionNote}</p>
+          <p className="section-note">{t.sectionNote(sectionMention(snapshot, 8))}</p>
           {empty ? <p className="poa-empty">{t.empty}</p> : null}
-          <div className="poa-list" aria-label={t.listLabel} role="group" ref={listRef}>
+          <div className="poa-list" aria-label={t.listLabel(sectionMention(snapshot, 8))} role="group" ref={listRef}>
             {live.map((point, i) =>
               // The new point being edited, once autosaved, is drawn by its editor after the list.
               editing?.kind === 'new' && editing.id === point.id ? null : editing?.kind === 'point' && editing.id === point.id ? (
@@ -233,7 +235,7 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
           if (!open) setRemoving(null);
         }}
         title={t.removeTitle}
-        description={t.removeDescription}
+        description={t.removeDescription(sectionMention(snapshot, 8))}
         confirmLabel={t.removePoint}
         isDestructive
         onConfirm={() => {

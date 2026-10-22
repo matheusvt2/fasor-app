@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { sectionPosition } from '../relatorio/section-position.ts';
 import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { BLOCK_CHAVE_ID, portoSeguroSmall } from '../../fixtures/porto-seguro/small/op-log.ts';
 import { SERVER_DEVICE_ID } from '../ids.ts';
@@ -132,6 +133,10 @@ describe('13.8-UNIT-006 section refs when the printed numbering differs from FO.
     const input = auditInput(draft(snapshot), snapshot);
     const byId = new Map(input.refs.map((ref) => [ref.id, ref]));
     expect(byId.get('section:9')).toEqual({ id: 'section:9', label: 'Seção 9 · Conclusão e parecer', target: { kind: 'section', rowKey: 'section_10' } });
+    // F43 (UX pass 2026-10-22): the audit's number is the one every screen speaks for that section.
+    expect(sectionPosition(snapshot, 10)).toBe(9);
+    expect(sectionPosition(snapshot, 11)).toBe(10);
+    expect(sectionPosition(snapshot, 2)).toBeNull();
     expect(byId.get('section:8')?.target).toEqual({ kind: 'section', rowKey: 'section_9' });
     expect(byId.has('section:11')).toBe(false);
     // The parecer is sent first, under its printed number.

@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { SERVER_DEVICE_ID, type GenerateResponse, type Op, type RevisionRow } from '@app/domain';
+import { instantiateTemplate, SERVER_DEVICE_ID, standardTemplate, type BlockRow, type GenerateResponse, type Op, type RevisionRow } from '@app/domain';
 import { BLOCK_CHAVE_ID, EQUIPMENT_CHAVE_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { act, cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -970,6 +970,34 @@ describe('Export dialog (Story 4.8)', () => {
     await waitFor(() => expect(within(modal).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
     expect(generateButton()).toHaveAttribute('aria-disabled', 'true');
     await waitFor(() => expect(sync.syncRelatorio).toHaveBeenCalled());
+  });
+});
+
+describe('F43 (UX pass 2026-10-22): the Export dialog speaks the Sumário positions', () => {
+  it('a compact template (sections 1, 5, 7, 8, 9, 10): "Seção 5 impressa no agrupamento", and the parecer row points at "seção 6"', async () => {
+    const user = `019966c1-0049-7000-8000-${(++counter).toString(16).padStart(12, '0')}`;
+    await openDatabase(user).delete();
+    database = openDatabase(user);
+    await applyPulled(database, portoSeguroSmall.log);
+    await withResponsible(database);
+    let n = 0;
+    const { drafts } = instantiateTemplate(
+      standardTemplate({ id: '019966c1-004a-7000-8000-000000000001' }),
+      { id: portoSeguroSmall.projectId },
+      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+      { newId: () => `019966c1-004b-7000-8000-${(++n).toString(16).padStart(12, '0')}`, actorId: USER, companyId: COMPANY },
+    );
+    const sections = drafts
+      .filter((d) => d.path.startsWith('block/'))
+      .map((d) => d.value as unknown as BlockRow)
+      .filter((b) => b.location_id === null && !['section_2', 'section_3', 'section_4', 'section_6', 'section_11'].includes(b.block_type))
+      .map((b) => ({ ...b, relatorio_id: REL, created_by: USER }));
+    await database.entities.bulkPut(sections.map((b) => toRecord(`block:${b.id}`, b)));
+    render(<Harness sync={syncState()} />);
+    const modal = dialog();
+    await waitFor(() => expect(modal.querySelector('.export-sec9-note')).toHaveTextContent('Seção 5 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag Agrupar por tipo de cada local).'));
+    await waitFor(() => expect(modal.querySelector('li.is-blocking .pc-text')).toHaveTextContent(/ — seção 6 \(Apto/));
+    expect(modal.textContent).not.toMatch(/[Ss]eção (9|10|11)\b/);
   });
 });
 

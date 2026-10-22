@@ -49,11 +49,12 @@ export function artOrTrtLabel(council: Council): 'ART' | 'TRT' {
 /**
  * Relatório setup (Story 4.2, Etapa 3): "Na seção 10: 'Este relatório tem validade apenas
  * acompanhada da ART 2620262602583'", null until both the council's label and a number
- * exist.
+ * exist. UX pass 2026-10-22 (F43): `section` is how the relatório names section 10
+ * (`sectionRefText`, "seção 6" by its Sumário position).
  */
-export function artTrtEchoText(label: 'ART' | 'TRT' | null, number: string | null): string | null {
+export function artTrtEchoText(label: 'ART' | 'TRT' | null, number: string | null, section: string): string | null {
   if (label === null || number === null || number.trim() === '') return null;
-  return `Na seção 10: "Este relatório tem validade apenas acompanhada da ${label} ${number}"`;
+  return `Na ${section}: "Este relatório tem validade apenas acompanhada da ${label} ${number}"`;
 }
 
 export const registrationSchema = z.object({

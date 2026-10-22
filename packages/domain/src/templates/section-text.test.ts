@@ -85,6 +85,18 @@ describe('3.6-UNIT resolveSectionText', () => {
     expect(resolved).not.toMatch(/\{[a-z_]+\}/);
     expect(resolved).toContain('realizadas pela Empresa Executora Ltda., referentes');
     expect(resolved).toContain('de Bloco Norte da Cliente S.A.');
+    // F40 (UX pass 2026-10-22): the sentence's own period after "{cliente}" is not doubled.
+    expect(resolved).not.toContain('S.A..');
+    expect(resolved.split('\n\n')[0]!.endsWith('da Cliente S.A.')).toBe(true);
+  });
+
+  it('F40: a value ending in a period before a period prints one, in the text or before `followedBy`; an ellipsis value keeps its three', () => {
+    expect(resolveSectionText('da {cliente}.', { cliente: 'Vale Verde S.A.' }).resolved).toBe('da Vale Verde S.A.');
+    expect(resolveSectionText('{cliente}. E {cliente}, fim.', { cliente: 'X S.A.' }).resolved).toBe('X S.A. E X S.A., fim.');
+    expect(resolveSectionText('da {cliente}', { cliente: 'X S.A.' }, '. Fim').resolved).toBe('da X S.A');
+    expect(resolveSectionText('da {cliente}', { cliente: 'X S.A.' }, ' fim').resolved).toBe('da X S.A.');
+    expect(resolveSectionText('da {cliente}.', { cliente: 'Ltda' }).resolved).toBe('da Ltda.');
+    expect(resolveSectionText('{cliente}.', { cliente: 'Etc...' }).resolved).toBe('Etc...');
   });
 
   it('prints an unresolved variable as its label in brackets and lists it once, in order of first appearance', () => {
@@ -111,6 +123,16 @@ describe('3.6-UNIT resolveSectionText', () => {
     expect(OPTIONAL_SECTION_VARIABLES).toEqual(['escopo']);
     expect(isOptionalSectionVariable('escopo')).toBe(true);
     expect(INSERTABLE_SECTION_VARIABLES.some(isOptionalSectionVariable)).toBe(false);
+  });
+
+  it('F43 (seed v8): the results reference is labelled and never offered for insertion', () => {
+    expect(SECTION_VARIABLE_LABELS.itens_resultados).toBe('Itens dos resultados');
+    expect(INSERTABLE_SECTION_VARIABLES).not.toContain('itens_resultados');
+    expect(resolveSectionText('encontram-se {itens_resultados} deste', { itens_resultados: 'nos itens 4 e 5' })).toEqual({
+      resolved: 'encontram-se nos itens 4 e 5 deste',
+      unresolved: [],
+      unknown: [],
+    });
   });
 
   it('labels every variable and offers the five of the story for insertion, in order', () => {

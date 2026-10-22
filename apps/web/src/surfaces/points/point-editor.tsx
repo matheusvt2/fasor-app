@@ -9,6 +9,7 @@ import {
   pointTitle,
   recurringFindings,
   replaceLineText,
+  sectionMention,
   type PointPriority,
   type PointPriorityWrites,
   type PointRow,
@@ -519,7 +520,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
       }
     });
 
-  const order = position === undefined || total === undefined ? t.newOrder : pointOrderText(position, total);
+  const order = position === undefined || total === undefined ? t.newOrder(sectionMention(snapshot, 8)) : pointOrderText(position, total);
 
   const body = (
     <div className="poa-body">

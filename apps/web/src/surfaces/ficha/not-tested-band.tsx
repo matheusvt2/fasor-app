@@ -1,4 +1,4 @@
-import { hasNotTestedPoint, notTestedPointText, notTestedReasonText, type BlockRow, type RelatorioSnapshot } from '@app/domain';
+import { hasNotTestedPoint, notTestedPointText, notTestedReasonText, sectionMention, type BlockRow, type RelatorioSnapshot } from '@app/domain';
 import { useRef, useState } from 'react';
 import { ConfirmDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -24,7 +24,7 @@ export function NotTestedBand({
 }: {
   api: FichaApi;
   block: Pick<BlockRow, 'id' | 'not_tested' | 'seed_version' | 'equipment_id'>;
-  snapshot?: RelatorioSnapshot;
+  snapshot: RelatorioSnapshot;
 }) {
   const t = copy.ficha;
   const db = useSession().database;
@@ -54,13 +54,13 @@ export function NotTestedBand({
         <span className="band-text">
           {t.notTestedBandBefore}
           <span className="band-reason">{reason}</span>
-          {t.notTestedBandAfter}
+          {t.notTestedBandAfter(sectionMention(snapshot, 8))}
         </span>
         <button type="button" className="btn btn-text" ref={desfazerRef} onClick={() => void desfazer()}>
           {t.desfazer}
         </button>
       </div>
-      {snapshot === undefined || hasNotTestedPoint(snapshot.points, block.equipment_id) ? null : (
+      {hasNotTestedPoint(snapshot.points, block.equipment_id) ? null : (
         <div className="row-wrap not-tested-point" ref={createRef}>
           <CreatePointAction
             relatorioId={api.relatorioId}

@@ -9,6 +9,13 @@
  *
  * The product name is never written here: it comes from the PRODUTO constant.
  */
+/**
+ * F43 (UX pass 2026-10-22, coordinator review): the kernel's `sectionMention` for a section a
+ * sentence promises to print into: its name, whether the relatório prints it, and the absent
+ * wording ("não sai no documento: o relatório não tem a seção \"X\"") said instead when it does not.
+ */
+type Mention = { ref: string; prints: boolean; absent: string };
+
 export const copy = {
   login: {
     emailLabel: 'E-mail',
@@ -474,7 +481,8 @@ export const copy = {
       section_2: 'Definições',
       section_3: 'Limite de escopo',
       section_4: 'Requisitos básicos',
-      section_5: 'Segurança (NR-10)',
+      // F16 (UX pass 2026-10-22): the Sumário's title (`SUMARIO_TITLES.section_5`).
+      section_5: 'Recomendações gerais (NR-10)',
       section_6: 'Verificações aplicáveis',
       section_8: 'Pontos de atenção',
       section_10: 'Conclusão',
@@ -529,7 +537,8 @@ export const copy = {
     downloadingRevision: 'Baixando a revisão…',
     // Story 7.5, verbatim from `73-exportar.html` unless marked.
     precheckLabel: 'Antes de emitir',
-    blockingWhere: ' — seção 10 ',
+    // F43 (UX pass 2026-10-22): `section` is the kernel's `sectionRefText` for section 10.
+    blockingWhere: (section: string) => ` — ${section} `,
     blockingMeta: '(Apto · Apto com restrições · Não apto — escolha do engenheiro em Dados do relatório, obrigatória para emitir)',
     editInSetup: 'Editar em Dados do relatório',
     seeInSumario: 'Ver no sumário',
@@ -539,7 +548,10 @@ export const copy = {
     // authored (F-15, review 2026-09-30): the company has no razão social yet, so Documento and Contratada print "—".
     empresaMissing: 'Cadastre a empresa em Cadastros › Empresa',
     docControlAria: 'Controle do documento — impresso após a capa',
-    sec9NoteBefore: 'Seção 9 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag ',
+    // F43: `section` is the kernel's `sectionRefText` for section 9, capitalized ("Seção 5").
+    sec9NoteBefore: (section: string) => `${section} impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag `,
+    // authored (F43, coordinator review): section 9 absent, in place of the whole note.
+    sec9NoteAbsent: (m: Mention) => `As fichas não saem no documento: o relatório não tem a ${m.ref}.`,
     sec9NoteFlag: 'Agrupar por tipo',
     // authored (Story 14.2): on screen the root is the "local".
     sec9NoteAfter: ' de cada local).',
@@ -655,7 +667,8 @@ export const copy = {
     added: 'Nova seção adicionada abaixo — numeração refeita',
     duplicated: 'Seção duplicada abaixo',
     // Section 9.
-    s9Toggle: 'Expandir ou recolher a seção 9',
+    // F43 (UX pass 2026-10-22): the row's own Sumário number.
+    s9Toggle: (section: string) => `Expandir ou recolher a ${section}`,
     s9Note: 'Organizados por local aqui; no documento, agrupados como no FO.SERV-03.',
     s9TreeLabel: 'Locais do relatório',
     here: 'você parou aqui',
@@ -701,7 +714,8 @@ export const copy = {
       collapse: (name: string) => `Recolher ${name}`,
       // The local Overflow, verbatim from `#sum-menu-local` (Story 14.2).
       openFirst: 'Abrir primeira ficha (dados do local)',
-      agrupar: 'Agrupar por tipo na seção 9',
+      // F43: `section` is the kernel's `sectionRefText` for section 9.
+      agrupar: (section: string) => `Agrupar por tipo na ${section}`,
       addBlock: 'Adicionar bloco',
       addEquipamento: 'Adicionar equipamento',
       addPainel: 'Adicionar painel',
@@ -898,8 +912,13 @@ export const copy = {
   gallery: {
     // `70-fotos.html` `data-title`.
     title: 'Fotos',
-    // `key-photos.html` line 105, verbatim.
-    note: 'Ordem cronológica de captura. Os números são provisórios até a exportação (seção 7 do relatório). A hora e o pino vêm da captura; sem permissão de localização no aparelho, só a hora.',
+    // `key-photos.html` line 105, verbatim. F43 (UX pass 2026-10-22): `section` is the kernel's
+    // `sectionRefText` for section 7 ("seção 3" by its Sumário position).
+    // authored (F43, coordinator review): with section 7 absent, the photos do not print.
+    note: (m: Mention) =>
+      m.prints
+        ? `Ordem cronológica de captura. Os números são provisórios até a exportação (${m.ref} do relatório). A hora e o pino vêm da captura; sem permissão de localização no aparelho, só a hora.`
+        : `Ordem cronológica de captura. As fotos não saem no documento: o relatório não tem a ${m.ref}. A hora e o pino vêm da captura; sem permissão de localização no aparelho, só a hora.`,
     // `70-fotos.html` `.chip-row` aria-label, verbatim.
     // authored (Story 14.2): `70-fotos.html` says "Filtrar por cabine"; on screen the root is the "local".
     filterLabel: 'Filtrar por local',
@@ -928,7 +947,9 @@ export const copy = {
     next: 'Próxima',
     // authored: the Confirm dialog before "Remover" (EXPERIENCE.md › Photo viewer).
     removeTitle: (n: number) => `Remover a foto ${n} do relatório?`,
-    removeDescription: 'A foto sai da galeria e da seção 7. Dá para desfazer pelo aviso logo em seguida.',
+    // F43: `section` as in `note`.
+    // authored (F43, coordinator review): with section 7 absent, the gallery alone.
+    removeDescription: (m: Mention) => (m.prints ? `A foto sai da galeria e da ${m.ref}. Dá para desfazer pelo aviso logo em seguida.` : 'A foto sai da galeria. Dá para desfazer pelo aviso logo em seguida.'),
     removeConfirm: 'Remover foto',
     // `70-fotos.html` toast action, verbatim.
     undo: 'Desfazer',
@@ -987,15 +1008,19 @@ export const copy = {
     title: 'Pontos de atenção',
     // `72-pontos.html` `.section-note`, verbatim minus the sentence about the photo draft
     // (Story 11.9 builds the priority and Story 11.10 the action-plan table).
-    sectionNote:
-      'A ordem aqui é a ordem da seção 8 do relatório. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Um ponto criado de um item não conforme já traz a foto e o equipamento. Equipamentos marcados como Não ensaiado entram sozinhos ao final, com o motivo. A prioridade (P0 a P4) sugere o prazo; a seção 8 imprime, depois dos pontos, a tabela do plano de ação.',
+    // F43 (UX pass 2026-10-22): `section` is the kernel's `sectionRefText` ("seção 4" by its Sumário position).
+    // authored (F43, coordinator review): with section 8 absent, the first and last sentences say the points do not print.
+    sectionNote: (m: Mention) =>
+      m.prints
+        ? `A ordem aqui é a ordem da ${m.ref} do relatório. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Um ponto criado de um item não conforme já traz a foto e o equipamento. Equipamentos marcados como Não ensaiado entram sozinhos ao final, com o motivo. A prioridade (P0 a P4) sugere o prazo; a ${m.ref} imprime, depois dos pontos, a tabela do plano de ação.`
+        : `Os pontos de atenção não saem no documento: o relatório não tem a ${m.ref}. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Um ponto criado de um item não conforme já traz a foto e o equipamento. Equipamentos marcados como Não ensaiado entram sozinhos ao final, com o motivo. A prioridade (P0 a P4) sugere o prazo.`,
     // Story 6.6 AC, verbatim.
     empty: 'Nenhum ponto de atenção.',
     create: 'Criar',
     createFromRow: 'Criar ponto de atenção',
     actionLabel: 'Ação recomendada',
     // `72-pontos.html`, verbatim.
-    listLabel: 'Pontos de atenção da seção 8',
+    listLabel: (m: Mention) => (m.prints ? `Pontos de atenção da ${m.ref}` : 'Pontos de atenção'),
     textLabel: 'Texto',
     // Story 9.4, `72-pontos.html` 196-201: the text's Dictation button.
     dictateText: 'Ditar o texto',
@@ -1045,10 +1070,12 @@ export const copy = {
     cardName: (position: number, title: string) => `ponto ${position}, ${title}`,
     editingReason: 'Conclua o ponto em edição primeiro.',
     equipmentLabel: 'Equipamento',
-    newOrder: 'Novo ponto · entra no fim da seção 8',
+    // authored (F43, coordinator review): the absent form.
+    newOrder: (m: Mention) => (m.prints ? `Novo ponto · entra no fim da ${m.ref}` : `Novo ponto · ${m.absent}`),
     editingLabel: (position: number | null) => (position === null ? 'Novo ponto de atenção em edição' : `Ponto de atenção ${position} em edição`),
     removeTitle: 'Remover este ponto de atenção?',
-    removeDescription: 'Ele sai da seção 8. Um toque em Desfazer o traz de volta.',
+    // authored (F43, coordinator review): the absent form.
+    removeDescription: (m: Mention) => (m.prints ? `Ele sai da ${m.ref}. Um toque em Desfazer o traz de volta.` : 'Ele sai da lista. Um toque em Desfazer o traz de volta.'),
     pickerTitle: 'Escolher fotos',
     pickerEmpty: 'Nenhuma foto neste relatório ainda.',
     pickerLabel: 'Fotos do relatório',
@@ -1110,11 +1137,17 @@ export const copy = {
     // `key-sheet-states.html` frame (a): the chip beside the TAG once not tested.
     notTestedChip: 'Não ensaiado',
     // `60-ficha.html` header Overflow's "Marcar não ensaiado" toast, verbatim.
-    notTestedToast: 'Marcada como não ensaiada — entra na seção 8',
+    // F43 (UX pass 2026-10-22): `section` is the kernel's `sectionRefText` ("seção 4" by its Sumário position).
+    // authored (F43, coordinator review): the absent form.
+    notTestedToast: (m: Mention) => (m.prints ? `Marcada como não ensaiada — entra na ${m.ref}` : `Marcada como não ensaiada — o motivo ${m.absent}`),
     // The band's sentence around the reason (`key-sheet-states.html` `.band-reason`), split
     // so the reason renders as its own span, verbatim otherwise.
     notTestedBandBefore: 'Não ensaiado — ',
-    notTestedBandAfter: '. Os campos ficam somente leitura; a ficha imprime com os dados de placa e o motivo, e entra na seção 8 automaticamente.',
+    // authored (F43, coordinator review): the absent form.
+    notTestedBandAfter: (m: Mention) =>
+      m.prints
+        ? `. Os campos ficam somente leitura; a ficha imprime com os dados de placa e o motivo, e entra na ${m.ref} automaticamente.`
+        : `. Os campos ficam somente leitura; a ficha imprime com os dados de placa e o motivo. A entrada nos pontos de atenção ${m.absent}.`,
     // `key-sheet-states.html` frame (a) `.not-tested-band .btn-text`.
     desfazer: 'Desfazer',
     // authored: the Confirm dialog that gates "Desfazer" once the mark has reached the server.
@@ -1332,9 +1365,14 @@ export const copy = {
       // `key-equipment-sheet-v09.html` suggested sheet observation helper (Story 12.4), verbatim.
       observationSuggestedHelper: 'Montada dos itens NC · confirmada com o texto da conclusão',
       textLabel: 'Texto da conclusão',
-      // `60-ficha.html` helper under the suggested text.
-      textHelper: 'Montado no aparelho com os valores desta ficha e os critérios acima — funciona sem sinal. Impresso na linha Conclusão da seção 9 depois de confirmar.',
-      textConfirmed: 'Confirmado · impresso na linha Conclusão da ficha (seção 9)',
+      // `60-ficha.html` helper under the suggested text. F43 (UX pass 2026-10-22): `section` is the
+      // kernel's `sectionRefText` for section 9 ("seção 5" by its Sumário position).
+      // authored (F43, coordinator review): the absent forms.
+      textHelper: (m: Mention) =>
+        m.prints
+          ? `Montado no aparelho com os valores desta ficha e os critérios acima — funciona sem sinal. Impresso na linha Conclusão da ${m.ref} depois de confirmar.`
+          : `Montado no aparelho com os valores desta ficha e os critérios acima — funciona sem sinal. A ficha ${m.absent}.`,
+      textConfirmed: (m: Mention) => (m.prints ? `Confirmado · impresso na linha Conclusão da ficha (${m.ref})` : `Confirmado · ${m.absent}`),
     },
   },
   // Relatório setup (`50-relatorio-setup.html`, Story 4.2): the five Etapa bands plus the
@@ -1359,7 +1397,7 @@ export const copy = {
     coverPhotoLabel: 'Foto de capa',
     // Etapa 2 — Objetivo e escopo.
     etapa2Title: 'Etapa 2 — Objetivo e escopo',
-    etapa2Note: 'Seções 1 e 3',
+    // F43 (UX pass 2026-10-22): the band notes of Etapas 2 to 4 are the kernel's `sectionsCaption`.
     empresaExecutoraLabel: 'Empresa executora',
     localLabel: 'Local',
     exclusionsLabel: 'Exclusões',
@@ -1375,7 +1413,6 @@ export const copy = {
     undo: 'Desfazer',
     // Etapa 3 — Responsável.
     etapa3Title: 'Etapa 3 — Responsável',
-    etapa3Note: 'Seção 10',
     responsibleLabel: 'Responsável técnico',
     councilLabel: 'Conselho',
     // authored: the ART/TRT field's fallback label before the responsible's council is known.
@@ -1385,14 +1422,16 @@ export const copy = {
     // authored: the council is read-only here (it lives on the responsible's own account
     // profile, epics.md Story 4.2's 2026-09-24 narrowing), so this helper names where it
     // comes from and what it signs, in place of an editable Conselho segmented control.
-    councilHelper: (title: string) => `Assina a seção 10 como ${title} · conselho e número vêm do perfil`,
+    // F43: `section` is the kernel's `sectionRefText` for section 10.
+    councilHelper: (title: string, section: string) => `Assina a ${section} como ${title} · conselho e número vêm do perfil`,
     // Etapa 4 — Instrumentos e certificados.
     etapa4Title: 'Etapa 4 — Instrumentos e certificados',
-    etapa4Note: 'Seção 11',
     // authored: the note above the instrument checklist.
-    instrumentsNote: 'Marque os instrumentos desta obra: o certificado de cada um entra na seção 11.',
+    // authored (F43, coordinator review): the absent form.
+    instrumentsNote: (m: Mention) =>
+      m.prints ? `Marque os instrumentos desta obra: o certificado de cada um entra na ${m.ref}.` : `Marque os instrumentos desta obra. Os certificados não saem no documento: o relatório não tem a ${m.ref}.`,
     // authored: the inline note beside an instrument a sheet still references.
-    instrumentReferenced: 'Continua na seção 11 porque uma ficha usa este instrumento',
+    instrumentReferenced: (m: Mention) => (m.prints ? `Continua na ${m.ref} porque uma ficha usa este instrumento` : 'Continua marcado porque uma ficha usa este instrumento'),
     // authored (Story 12.2): the note in place of the list while the registry is empty,
     // the same sentence the sheet's instrument picker says.
     noInstruments: 'Nenhum instrumento cadastrado',
@@ -1419,14 +1458,15 @@ export const copy = {
     // Etapa 6 — Conclusão e parecer (Story 7.4), verbatim from `50-relatorio-setup.html`
     // `#setup-parecer` (the mock numbers it 5; the app's Local band is Etapa 5).
     etapa6Title: 'Etapa 6 — Conclusão e parecer',
-    etapa6Note: 'Seção 10 · caixa de parecer antes dos itens fixos',
+    // F43: `caption` is the kernel's `sectionsCaption` ("Seção 6"), `section` its `sectionRefText`.
+    etapa6Note: (caption: string) => `${caption} · caixa de parecer antes dos itens fixos`,
     parecerNote: 'O app conta fichas, restrições e não ensaiados e sugere; o parecer é escolha sua. Sem parecer, a emissão fica bloqueada em Gerar relatório.',
     parecerLabel: 'Parecer',
     parecerSummaryLabel: 'Resumo do parecer',
     parecerHelper: 'Montado no aparelho a partir das contagens do relatório — não é um veredito. Nada é impresso até você confirmar.',
-    parecerConfirmed: 'Confirmado · impresso na caixa de parecer da seção 10',
-    parecerConfirmedToast: 'Resumo do parecer confirmado — impresso na seção 10',
-    parecerKicker: 'Como imprime na seção 10',
+    parecerConfirmed: (section: string) => `Confirmado · impresso na caixa de parecer da ${section}`,
+    parecerConfirmedToast: (section: string) => `Resumo do parecer confirmado — impresso na ${section}`,
+    parecerKicker: (section: string) => `Como imprime na ${section}`,
     // authored: the way back to the Export dialog when the band was opened from its blocking row.
     backToExport: 'Voltar para Gerar relatório',
     // Sticky action bar.

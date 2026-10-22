@@ -1,4 +1,4 @@
-import { photoCitedByText, photoItemLine, photoStampFull, pointsCitingPhoto, toIso, viewerCountText, viewerLabel, type RelatorioSnapshot } from '@app/domain';
+import { photoCitedByText, photoItemLine, photoStampFull, pointsCitingPhoto, sectionMention, toIso, viewerCountText, viewerLabel, type RelatorioSnapshot } from '@app/domain';
 import { useEffect, useId, useState, type CSSProperties, type RefObject } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Button, ConfirmDialog, PhotoStamp } from '../../components/index.ts';
@@ -204,10 +204,10 @@ function ViewerBody({
         title={t.removeTitle(number)}
         description={
           cited === null ? (
-            t.removeDescription
+            t.removeDescription(sectionMention(snapshot, 7))
           ) : (
             <>
-              {t.removeDescription} <span className="viewer-cited">{cited}</span>
+              {t.removeDescription(sectionMention(snapshot, 7))} <span className="viewer-cited">{cited}</span>
             </>
           )
         }

@@ -139,7 +139,7 @@ describe('4.8-UNIT-002 layoutSpec edge cases', () => {
 
   it('reads the responsible, the site fallback and the escopo through the one kernel mapping (sectionVariables)', () => {
     const small = smallSnapshot();
-    expect(sectionVariables(small, small.responsible?.name ?? null)).toEqual({ cliente: 'Cliente de Testes Ltda', obra: 'Local de Testes', datas: '06/09/2026' });
+    expect(sectionVariables(small, small.responsible?.name ?? null)).toEqual({ cliente: 'Cliente de Testes Ltda', obra: 'Local de Testes', datas: '06/09/2026', itens_resultados: 'nos itens 8 e 9' });
     // A blank `local` is as good as none: the project's site stands in.
     const blankLocal: RelatorioSnapshot = { ...small, relatorio: { ...small.relatorio, setup: { ...small.relatorio.setup, local: '   ' } } };
     expect(sectionVariables(blankLocal, null).obra).toBe('Local de Testes');
@@ -165,6 +165,7 @@ describe('4.8-UNIT-002 layoutSpec edge cases', () => {
       escopo: 'Manutenção',
       responsavel: 'Ana Alves',
       empresa_executora: 'Empresa X',
+      itens_resultados: 'nos itens 8 e 9',
     });
   });
 

@@ -6,7 +6,8 @@ import { syncNowAndReturn } from './support/sync.ts';
 import { expandLocation } from './support/tree.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
-import { newRelatorioDrafts, officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
+import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
+import { openTransformerSheet } from './support/reading-ops.ts';
 
 /*
  * 5.1-5.4-E2E: the equipment sheet, driven as a person would, by pointer and by keyboard:
@@ -605,7 +606,8 @@ test('@p0 5.6-E2E-001 nine seccionadora readings with Enter only, the run ends o
   const tp = await openSheet(page, rowOfType(page, 'TP'));
   await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
   const ttr = page.locator('table.ficha-ttr');
-  await expect(ttr.locator('thead th')).toHaveText(["TP's", 'V primário', 'V secundário', 'Calculado', 'H1-H2 / X1-X2', 'Condição']);
+  // F42 (UX pass 2026-10-22): an input header names its unit on screen.
+  await expect(ttr.locator('thead th')).toHaveText(["TP's", 'V primário (V)', 'V secundário (V)', 'Calculado', 'H1-H2 / X1-X2', 'Condição']);
   await cellInput(page, 'Fase R, V primário').click();
   await page.keyboard.type('13800');
   await page.keyboard.press('Tab');
@@ -623,6 +625,105 @@ test('@p0 5.6-E2E-001 nine seccionadora readings with Enter only, the run ends o
   await expect(rowR.locator('td').last()).toContainText('SATISFATÓRIO');
   await expect.poll(async () => (await outbox(page)).find((row) => row.path === `sheet/${tp.blockId}/test/relacao_transformacao/cell/0/3`)?.value).toEqual({ raw: '120.135', unit: null, state: 'measured' });
   expect((await outbox(page)).some((row) => /relacao_transformacao\/cell\/\d+\/(2|4)$/.test(row.path))).toBe(false);
+});
+
+test('@p1 UX-F42 a transformer ratio row out of ±0,5 % reads INSATISFATÓRIO, its out cell offers "Marcar Com restrições", and TAP Nº reads the plate\'s TAP atual', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { blockId } = await openTransformerSheet(page, account, database, { width: 1280 });
+  // The plate's TAP ATUAL, typed as a person would.
+  const tap = field(page, 'tap_atual').locator('input').first();
+  await tap.fill('5');
+  await tap.press('Tab');
+  await expect.poll(async () => (await outbox(page)).find((row) => row.path === `sheet/${blockId}/nameplate/tap_atual`)?.value).toBe('5');
+
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  const ttr = page.locator('table.ficha-ttr');
+  await expect(ttr.locator('thead th')).toHaveText(['TAP nº', 'V primário (kV)', 'V secundário (V)', 'Calculado', 'H1-H3 / X1-X0', 'H2-H1 / X2-X0', 'H3-H2 / X3-X0', 'Condição']);
+  const row = ttr.locator('tbody tr').first();
+  await expect(row.locator('td').first()).toHaveText('5');
+  // 13,8 kV / 380 V = 36,32: 36,3 is within ±0,5 %, 72,6 is out.
+  // The row is named by its TAP Nº: the cell reads "5, V primário".
+  await cellInput(page, '5, V primário').click();
+  for (const value of ['13,8', '380', '36,3', '72,6', '36,3']) {
+    await page.keyboard.type(value);
+    await page.keyboard.press('Tab');
+  }
+  await expect(row.locator('td.cell-calc').first()).toContainText('36,32');
+  await expect(row.locator('td').last()).toContainText('INSATISFATÓRIO');
+  const out = cellBox(page, 'relacao_transformacao:0:4');
+  await expect(out.locator('.measurement-field')).toHaveAttribute('data-state', 'out-of-limit');
+  await expect(out.locator('.mf-helper')).toContainText('Fora do aceitável (±0,5 %)');
+  await expect(cellBox(page, 'relacao_transformacao:0:3').locator('.mf-helper')).toHaveCount(0);
+  await out.getByRole('button', { name: 'Marcar Com restrições' }).click();
+  await expect.poll(async () => (await outbox(page)).filter((r) => r.path === `sheet/${blockId}/conclusion/restriction`).at(-1)?.value).toBe('com_restricoes');
+
+  // Back within the limit: the row reads SATISFATÓRIO again.
+  const outInput = out.locator('input.mf-value');
+  await outInput.fill('36,3');
+  await outInput.press('Tab');
+  await expect(row.locator('td').last()).toContainText('SATISFATÓRIO');
+  await expect(row.locator('td').last()).not.toContainText('INSATISFATÓRIO');
+});
+
+test('@p1 UX-F51 phone 390: the collapsed "Do local" line puts its values on their own line, the line\'s width, no word broken', async ({ page }) => {
+  test.setTimeout(150_000);
+  await resetCompany(account, { standard: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page, account.email);
+  const built = newRelatorioDrafts(account);
+  // The production check's shape: a long local name beside its SE data (F51, P-6).
+  const LONG_NAME = 'Cabine de transformação — 2° subsolo, bloco B';
+  const enelDraft = built.drafts.find((draft) => draft.kind === 'create' && draft.path.startsWith('location/') && (draft.value as { name?: string }).name === 'Cubículo Enel')!;
+  const enelId = (enelDraft.value as { id: string }).id;
+  const scope = { relatorioId: built.relatorioId };
+  const measured = (raw: string, unit: string) => ({ raw, unit, state: 'measured' });
+  await pushDrafts(page, database, [
+    ...built.drafts,
+    emCampoDraft(account, built.relatorioId),
+    officeDraft(account, scope, `location/${enelId}/name`, LONG_NAME),
+    officeDraft(account, scope, `location/${enelId}/se/type`, 'ALVENARIA - CONVENCIONAL'),
+    officeDraft(account, scope, `location/${enelId}/se/primary_kv`, measured('13.8', 'kV')),
+    officeDraft(account, scope, `location/${enelId}/se/secondary_kv`, measured('220', 'V')),
+    officeDraft(account, scope, `location/${enelId}/se/installed_kva`, measured('500', 'kVA')),
+    // Complete, so a later sheet draws the block as its collapsed line.
+    officeDraft(account, scope, `location/${enelId}/env/temperature_c`, measured('25', '°C')),
+    officeDraft(account, scope, `location/${enelId}/env/humidity_pct`, measured('60', '%')),
+  ]);
+  await page.goto(`/relatorio/${built.relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
+  await expandLocation(page, LONG_NAME);
+  const local = tree(page).locator(':scope > li.s9-local').filter({ has: page.locator(':scope > .s9-loc-row .s9-loc-name', { hasText: LONG_NAME }) });
+  // The local's second sheet: its "Do local" block is the collapsed line.
+  await openSheet(page, local.locator(':scope > .s9-eqs > li.s9-eq').nth(1));
+  const line = page.getByRole('group', { name: 'Do local', exact: true });
+  await expect(line.locator('.cl-values')).toContainText('ALVENARIA - CONVENCIONAL');
+  const geometry = await line.evaluate((element) => {
+    const values = element.querySelector<HTMLElement>('.cl-values')!;
+    const name = element.querySelector<HTMLElement>('.cl-name')!;
+    const style = getComputedStyle(element);
+    const inner = element.getBoundingClientRect().width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    // Each word's own box: a word broken across lines has a taller box than one line.
+    const range = document.createRange();
+    const text = values.firstChild!;
+    const content = text.textContent ?? '';
+    const lineHeight = parseFloat(getComputedStyle(values).lineHeight);
+    const broken: string[] = [];
+    let at = 0;
+    for (const word of content.split(/\s+/).filter(Boolean)) {
+      const start = content.indexOf(word, at);
+      at = start + word.length;
+      range.setStart(text, start);
+      range.setEnd(text, at);
+      if (range.getClientRects().length > 1 || range.getBoundingClientRect().height > lineHeight * 1.5) broken.push(word);
+    }
+    return { values: values.getBoundingClientRect().width, inner, valuesTop: values.getBoundingClientRect().top, nameBottom: name.getBoundingClientRect().bottom, broken };
+  });
+  expect(geometry.values).toBeGreaterThanOrEqual(geometry.inner - 1);
+  expect(geometry.valuesTop).toBeGreaterThanOrEqual(geometry.nameBottom - 1);
+  expect(geometry.broken).toEqual([]);
+  expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 });
 
 test('@p0 5.7-E2E-001 the Instrument picker: empty state opens Cadastros; a pick by code copies the header, the expired line never blocks, the last one per test type comes first on the next sheet', async ({ page }) => {

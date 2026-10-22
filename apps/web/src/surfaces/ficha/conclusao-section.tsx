@@ -13,6 +13,7 @@ import {
   suggestConclusionPair,
   suggestedSheetObservation,
   type BlockDefinition,
+  type SectionMention,
   type BlockRow,
   type ConclusionRestriction,
   type ConclusionResult,
@@ -154,6 +155,7 @@ export function ConclusaoSection({
   tag,
   className,
   onFocus,
+  section9,
 }: {
   api: FichaApi;
   block: BlockRow;
@@ -161,6 +163,8 @@ export function ConclusaoSection({
   tag: string;
   className: string;
   onFocus: () => void;
+  /** F43 (UX pass 2026-10-22): the kernel's `sectionMention` of section 9, where the conclusion prints. */
+  section9: SectionMention;
 }) {
   const t = copy.ficha.conclusao;
   const obsHeading = useId();
@@ -375,8 +379,8 @@ export function ConclusaoSection({
                 onReplace={() => confirmText(composed.text, 'confirmed')}
                 onEdit={(text) => confirmText(text, 'edited')}
                 draft={{ surface: DRAFT_SURFACE, entityId: api.blockId, field: 'conclusion-text' }}
-                helper={t.textHelper}
-                confirmedHelper={t.textConfirmed}
+                helper={t.textHelper(section9)}
+                confirmedHelper={t.textConfirmed(section9)}
                 readOnly={readOnly}
               />
             </div>

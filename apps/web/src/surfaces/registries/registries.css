@@ -143,6 +143,22 @@
   grid-row: 3;
 }
 
+/*
+ * UX pass 2026-10-22 (F6), authored: the instrument's "Padrão de ensaio" types its unit in an
+ * `input.mf-unit` where the mock draws a span (`80-cadastros.html:337`). `components.css`
+ * (484, 486) sizes `.mf-unit` as that span (padding and a touch-wide minimum only), so the
+ * input kept its intrinsic width and won the flex over `.mf-value`, leaving the value 24 px
+ * wide. The unit input takes one and a half touch widths; the value takes the rest.
+ */
+.registry-panel .measurement-field input.mf-unit {
+  flex: 0 0 auto;
+  width: calc(1.5 * var(--touch-min));
+}
+
+.registry-panel .measurement-field input.mf-value {
+  width: 100%;
+}
+
 .registry-toolbar {
   display: flex;
   flex-wrap: wrap;

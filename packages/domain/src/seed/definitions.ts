@@ -27,6 +27,7 @@ import { CABINE_PRIMARIA_V4 } from './v4.ts';
 import { CABINE_PRIMARIA_V5 } from './v5.ts';
 import { CABINE_PRIMARIA_V6 } from './v6.ts';
 import { CABINE_PRIMARIA_V7 } from './v7.ts';
+import { CABINE_PRIMARIA_V8 } from './v8.ts';
 
 /*
  * AD-21, AR-20: seed data is versioned code, resolved and never copied. A Template and a
@@ -42,10 +43,14 @@ import { CABINE_PRIMARIA_V7 } from './v7.ts';
  * moves it (`templateSeedUpgrade`, Story 14.3): every relatório made from it afterwards is
  * born on the newer version, and none already made is touched.
  */
-export const SEED_VERSION = 'v7';
+export const SEED_VERSION = 'v8';
 
-/** The named variables section boilerplate may carry, resolved at generation. */
-export const SECTION_VARIABLES = ['empresa_executora', 'cliente', 'obra', 'escopo', 'datas', 'responsavel'] as const;
+/**
+ * The named variables section boilerplate may carry, resolved at generation. Seed v8 (UX pass
+ * 2026-10-22, F43) adds `itens_resultados`, where its Conclusão text says the results are
+ * ("nos itens 4 e 5"); it always resolves and is never offered for insertion.
+ */
+export const SECTION_VARIABLES = ['empresa_executora', 'cliente', 'obra', 'escopo', 'datas', 'responsavel', 'itens_resultados'] as const;
 export type SectionVariable = (typeof SECTION_VARIABLES)[number];
 
 function deepFreeze<T>(value: T): T {
@@ -96,6 +101,7 @@ export const SEED_VERSIONS: Readonly<Record<string, SeedBundle>> = deepFreeze({
   v5: bundle('v5', CABINE_PRIMARIA_V5),
   v6: bundle('v6', CABINE_PRIMARIA_V6),
   v7: bundle('v7', CABINE_PRIMARIA_V7),
+  v8: bundle('v8', CABINE_PRIMARIA_V8),
 });
 
 /**

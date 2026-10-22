@@ -9,6 +9,8 @@ import {
   parecerVerdictLabel,
   parecerWithText,
   parecerWithVerdict,
+  sectionRefText,
+  sectionsCaption,
   suggestParecer,
   type ParecerVerdict,
   type RelatorioParecer,
@@ -103,7 +105,7 @@ export function Etapa6Parecer({
         <h2 className="band-title" id="setup-e6" tabIndex={-1}>
           {t.etapa6Title}
         </h2>
-        <span className="band-note">{t.etapa6Note}</span>
+        <span className="band-note">{t.etapa6Note(sectionsCaption(snapshot, [10]))}</span>
       </div>
       <div className="band-body">
         {onBackToExport === null ? null : (
@@ -161,18 +163,18 @@ export function Etapa6Parecer({
             text={textState === 'unconfirmed' ? composed.text : (parecer.text ?? '')}
             criteriaItems={composed.criteriaItems}
             state={textState}
-            onConfirm={() => void writeText(composed.text, 'confirmed', absent?.toast ?? t.parecerConfirmedToast).catch(() => undefined)}
+            onConfirm={() => void writeText(composed.text, 'confirmed', absent?.toast ?? t.parecerConfirmedToast(sectionRefText(snapshot, 10))).catch(() => undefined)}
             onReplace={() => void writeText(composed.text, 'confirmed').catch(() => undefined)}
             onEdit={(text) => writeText(text, 'edited')}
             draft={{ surface: 'setup', entityId: relatorioId, field: 'parecer-text' }}
             helper={t.parecerHelper}
-            confirmedHelper={absent?.confirmedHelper ?? t.parecerConfirmed}
+            confirmedHelper={absent?.confirmedHelper ?? t.parecerConfirmed(sectionRefText(snapshot, 10))}
           />
         )}
 
         {parecer === null ? null : (
           <div className="parecer-box" role="status" aria-live="polite" data-verdict={parecerBoxTone(parecer.verdict)}>
-            <span className="pb-kicker">{absent?.kicker ?? t.parecerKicker}</span>
+            <span className="pb-kicker">{absent?.kicker ?? t.parecerKicker(sectionRefText(snapshot, 10))}</span>
             <span className="pb-verdict">{parecerVerdictLabel(parecer.verdict)}</span>
             <span className="pb-text">{parecerBoxText(snapshot)}</span>
           </div>

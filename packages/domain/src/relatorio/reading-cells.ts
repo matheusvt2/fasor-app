@@ -78,15 +78,23 @@ export interface EvaluatedCell {
 export interface EvaluatedRow {
   /** The row index across the test's tables (the op path's `row`). */
   row: number;
-  /** The connection cells as the table shows them ("Fase A", "Massa", ""). */
+  /**
+   * The connection cells as the table shows them ("Fase A", "Massa", ""). A typed connection
+   * the seed leaves blank (the transformer ratio's `TAP Nº`) reads the plate's TAP ATUAL
+   * verbatim ("5"), '' when the plate holds none (UX pass 2026-10-22, F42).
+   */
   connection: string[];
   /** The row's name: its first connection cell, sentence-cased ("Fase C"). */
   label: string;
   cells: EvaluatedCell[];
   /** Ratio rows: VAL CALCULADO, computed from the effective primary and secondary. */
   calculated: { raw: string; text: string } | null;
-  /** Ratio rows: "SATISFATÓRIO" when every capture of the row is within the criterion. */
-  condicao: 'SATISFATÓRIO' | null;
+  /**
+   * Ratio rows: "INSATISFATÓRIO" when any capture of the row is out of the criterion, else
+   * "SATISFATÓRIO" when every capture is within it; null while a capture is still unjudged
+   * (UX pass 2026-10-22, F42).
+   */
+  condicao: 'SATISFATÓRIO' | 'INSATISFATÓRIO' | null;
 }
 
 export interface EvaluatedTable {
@@ -151,6 +159,16 @@ const HEADER_TEXT: Readonly<Record<string, string>> = {
 /** A value column's header as the Measurement table shows it ("VALORES" -> "Valor", "1 MINUTO" -> "1 minuto"). */
 export function headerText(label: string): string {
   return HEADER_TEXT[label] ?? readingLabelText(label);
+}
+
+/**
+ * UX pass 2026-10-22 (F42): the header a ratio input column shows on screen, its unit named
+ * ("V primário (kV)"), so a primary typed in V into a kV column is caught before it computes.
+ * The printed header keeps FO.SERV-03's wording.
+ */
+export function inputHeaderText(label: string, unit: string | null): string {
+  const text = headerText(label);
+  return unit === null ? text : `${text} (${unit})`;
 }
 
 // --- units ---------------------------------------------------------------------------------
@@ -227,6 +245,19 @@ function nameplateNumber(block: BlockRow, key: string): { raw: string; unit: str
   const v = value as { raw?: unknown; unit?: unknown; state?: unknown };
   if (v.state !== 'measured' || typeof v.raw !== 'string' || !DECIMAL.test(v.raw)) return null;
   return { raw: v.raw, unit: typeof v.unit === 'string' ? v.unit : null };
+}
+
+/**
+ * UX pass 2026-10-22 (F42): the plate's TAP ATUAL ("5", "12"), the transformer ratio row's
+ * `TAP Nº` when the seed leaves that connection blank. Only a tap number counts, an integer of
+ * up to three digits: a voltage typed there ("13200", the Porto Seguro plates) or any other
+ * text answers null, so TAP Nº prints "-".
+ */
+export function nameplateTap(block: BlockRow): string | null {
+  const value = block.sheet.nameplate.tap_atual?.value;
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  return /^\d{1,3}$/.test(text) ? text : null;
 }
 
 /**

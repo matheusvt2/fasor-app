@@ -135,6 +135,8 @@ export function NumberedRow({ row, actions, openable, highlighted = false }: { r
 
 export interface Section9RowProps {
   row: Row;
+  /** F43 (UX pass 2026-10-22): how the relatório names section 9, the kernel's `sectionRefText` ("seção 5"). */
+  sectionName: string;
   actions: RowActions;
   expanded: boolean;
   onToggle: () => void;
@@ -147,7 +149,7 @@ export interface Section9RowProps {
 }
 
 /** Row 9: the same row with the `.tree-chevron` in front, and the note and tree below when open. */
-export function Section9Row({ row, actions, expanded, onToggle, children, chevronRef, highlighted = false }: Section9RowProps) {
+export function Section9Row({ row, sectionName, actions, expanded, onToggle, children, chevronRef, highlighted = false }: Section9RowProps) {
   const reorder = useReorder({ itemKey: row.key, position: row.position, siblings: row.siblings, onMove: (to) => actions.onMove(row, to), focusFrames: LIST_FOCUS_WATCH_FRAMES });
   const menu = rowMenu(row, reorder, actions);
   const treeId = useId();
@@ -158,7 +160,7 @@ export function Section9Row({ row, actions, expanded, onToggle, children, chevro
         <button
           type="button"
           className="tree-chevron"
-          aria-label={copy.sumario.s9Toggle}
+          aria-label={copy.sumario.s9Toggle(sectionName)}
           aria-expanded={expanded}
           aria-controls={treeId}
           onClick={onToggle}

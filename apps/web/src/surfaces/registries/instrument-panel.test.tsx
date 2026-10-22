@@ -139,6 +139,16 @@ describe('InstrumentPanel — ledger 310, another device edits the open instrume
     expect(screen.getByRole('textbox', { name: 'Padrão de ensaio — Isolação — Unidade' })).toHaveValue('kV');
   });
 
+  it('F6 (UX pass 2026-10-22): the test default\'s value and unit inputs sit in the panel\'s measurement field the authored sizing rule targets', () => {
+    render(panel({ ...instrument, test_isolacao: { raw: '5', unit: 'kV' } }));
+    const value = screen.getByRole('textbox', { name: 'Padrão de ensaio — Isolação — Valor' });
+    const unit = screen.getByRole('textbox', { name: 'Padrão de ensaio — Isolação — Unidade' });
+    // `registries.css`: `.registry-panel .measurement-field input.mf-unit` takes 1.5 touch widths, `input.mf-value` the rest.
+    expect(value.matches('.registry-panel .measurement-field input.mf-value')).toBe(true);
+    expect(unit.matches('.registry-panel .measurement-field input.mf-unit')).toBe(true);
+    expect(value.parentElement).toBe(unit.parentElement);
+  });
+
   it('a change that lands while the field is focused but untouched is applied when the field is left', async () => {
     const user = userEvent.setup();
     const { rerender } = render(panel({ ...instrument, serial: 'A-1' }));
