@@ -3977,6 +3977,8 @@ So that the structure reads without counting indentation.
 
 **Definition of Done, in addition:** Matheus approves the frames at 390 px in the browser; Bruno sees the phone frame and his answer is recorded under this story with its date; no app code changes.
 
+*(2026-10-22, Matheus approved the redrawn frames (PR #158, merged): equipment and the Verificações do local as cards in the Sumário and the rail; in the composer the checklist stays a text line in the local's band ("Verificações do local · 19 itens"), the recommended default, since nothing is filled there. Story closed; Bruno's look at the phone frame is pending, as Story 14.1's was. Story 15.2 is ready for dev.)*
+
 ### Story 15.2: The tree levels built
 
 **Dev model:** opus · **Effort:** high · the Sumário and rail presentations rebuilt from the approved mocks, kernel row texts, the CSS translation per the `.frame-*` rule, Playwright at 390 and 1280
