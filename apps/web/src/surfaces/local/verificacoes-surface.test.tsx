@@ -3,7 +3,6 @@ import { Blob as NodeBlob } from 'node:buffer';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { siteItems, type LocationRow, type PointRow, type RelatorioRow, type RevisionRow } from '@app/domain';
-
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

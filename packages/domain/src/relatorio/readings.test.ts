@@ -312,11 +312,27 @@ describe('5.5-UNIT evaluateSheetReadings', () => {
       expect(row.cells[1]!.source, raw).toBe('nameplate');
       expect(row.calculated?.text, raw).toBe(calculated);
     }
-    for (const raw of ['abc', '', '/220']) {
+    for (const raw of ['abc', '', '/220', '-380/220', '+380']) {
       const row = rowOf(raw);
       expect(row.cells[1]!.fallback, raw).toBeNull();
       expect(row.calculated, raw).toBeNull();
     }
+    // Not seed-gated: a v8 transformer reads the same first number and keeps U1/U2.
+    const v8 = block('transformador_forca', {
+      nameplate: { tensao_nominal_bt: cell({ raw: '380/220', unit: 'V', state: 'measured' }) },
+      ...test('relacao_transformacao', [[0, 0, measured('13.8', 'kV')]]),
+    });
+    const v8Row = evaluateSheetReadings({ ...v8, seed_version: 'v8' }, getDefinition('v8', 'cabine_primaria', 'transformador_forca')).find((t) => t.testKey === 'relacao_transformacao')!.tables[0]!.rows[0]!;
+    expect(v8Row.cells[1]!.fallback).toEqual({ raw: '380', text: '380' });
+    expect(v8Row.calculated?.text).toBe('36,32');
+    // A v9 TP with plate BT "220/127": 220, U1/U2 (13.800 V / 220 V = 62,73).
+    const tp = block('tp', {
+      nameplate: { tensao_nominal_bt: cell({ raw: '220/127', unit: 'V', state: 'measured' }) },
+      ...test('relacao_transformacao', [[0, 0, measured('13800', 'V')]]),
+    });
+    const tpRow = evaluateSheetReadings({ ...tp, seed_version: 'v9', config: defaultBlockConfig('v9', 'tp') }, getDefinition('v9', 'cabine_primaria', 'tp')).find((t) => t.testKey === 'relacao_transformacao')!.tables[0]!.rows[0]!;
+    expect(tpRow.cells[1]!.fallback).toEqual({ raw: '220', text: '220' });
+    expect(tpRow.calculated?.text).toBe('62,73');
   });
 
   it('untyped ratio inputs read the nameplate (TP: AT kV -> V, BT V; TC: RELAÇÃO "200/5"); an unparseable one computes nothing', () => {

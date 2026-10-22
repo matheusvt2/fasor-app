@@ -2,7 +2,7 @@
 title: 'Stories 15.3 and 15.6: seed v9 (one oil item, TC without POTENCIA NOMINAL, two site items) and the transformer ratio with sqrt(3)'
 type: 'feature'
 created: '2026-10-22'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'db776880a0e472d2254027a99a1026823cee8320'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-15-context.md'
 warnings: ['batched', 'oversized']
 batched_reason: "coordinator's cut: the two stories share seed v9 and contract 25"
-deferred: []
+deferred:
+  - summary: >-
+      The Story 15.6 formula helper under the ratio table is not asserted below 768 px (phone and tablet card layout).
+    evidence: |-
+      ensaios-section.tsx renders one p.helper after both the table and the cards block; e2e/ficha.spec.ts UX-F42 runs at 1280 px only. Risk is CSS-only; the integrated 390/768 real-browser pass should check it.
+    location: >-
+      apps/web/src/surfaces/ficha/ensaios-section.tsx:473
+    severity: low
 ---
 
 <intent-contract>
@@ -94,6 +101,23 @@ deferred: []
 - Given a v9 transformer, TP or TC sheet, when it renders and prints, then 14 numbered checklist rows, the dry chip reads "Marcar 7 itens de óleo como NA", the oil rule marks/clears 7, the TC shows and prints 11 nameplate fields (last printed row padded); a v8 sheet is as today and the goldens match.
 - Given a v9 transformer ratio row with 13,8 kV and 380 V, when it evaluates, then VAL CALCULADO is 62,90, a helper "Calculado: U1 · √3 / U2" shows under the table on screen (not in the print), and the F42 e2e asserts SATISFATÓRIO with 62,8.
 - Given a v9 local, when Verificações do local opens and the relatório previews, then items 20 and 21 show in Ambiente, progress counts 21, and the DOCX table holds them; a v4..v8 relatório keeps 19.
+
+## Review Triage Log
+
+### 2026-10-22 — Review pass
+- layers: Edge Case Hunter, Verification Gap Reviewer (Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them)
+- verdicts: 10 findings — high 0, medium 0, low 8, false 2, maybe-false 0
+- findings:
+  - `[low]` `[reject]` BT raw carrying its own unit ("0,38 kV") stored with unit V reads 0,38 V — a number nameplate field stores only a canonical decimal through the UI (`ficha.ts numberFieldValue`) and the reading path converts units before storing; only hand-built data reaches it, and the fix adds unit parsing.
+  - `[low]` `[patch]` a leading sign is accepted, "-380/220" shows a -380 placeholder — patched: LEADING_NUMBER takes no sign; test added.
+  - `[low]` `[reject]` AT side stays strict — the stories ask only for the BT "380/220" reading; an AT plate is one decimal (kV field).
+  - `[low]` `[reject]` the first-number fallback is not seed-gated (v1..v8 and TP gain a fallback) — the spec's Design Notes decide it on purpose; listed as an open question in the PR; goldens unaffected.
+  - `[low]` `[reject]` "a v8 sheet is as today" claim vs the same fallback — same root cause as above, intended and disclosed.
+  - `[false]` `[reject]` itemLabelOf newest-first relies on SEED_VERSIONS insertion order — SEED_VERSIONS is append-only by contract (definitions.ts comment, seed.test.ts pins the key order v1..v9), so the order is the version order.
+  - `[low]` `[patch]` fallback only tested on a v9 transformer — patched: v8 transformer and v9 TP cases added to readings.test.ts.
+  - `[low]` `[defer]` helper not asserted below 768 px — deferred (frontmatter).
+  - `[false]` `[reject]` a typed "380/220" in V SECUNDÁRIO computes nothing while the plate's computes — a typed cell is validated by the cell's own decimal rule and shows invalid (pre-existing, PR #156); the plate is a fallback reading and is not a cell value.
+  - `[low]` `[patch]` stray blank line in verificacoes-surface.test.tsx imports — removed.
 
 ## Design Notes
 

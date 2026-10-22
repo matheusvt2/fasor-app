@@ -268,8 +268,8 @@ function nameplateNumber(block: BlockRow, key: string): { raw: string; unit: str
   return { raw: v.raw, unit: typeof v.unit === 'string' ? v.unit : null };
 }
 
-/** The leading number of a plate text: "380/220" -> "380", "380 V" -> "380", "13,8 kV" -> "13,8". */
-const LEADING_NUMBER = /^\s*([+-]?\d[\d.,]*)/;
+/** The leading number of a plate text: "380/220" -> "380", "380 V" -> "380", "13,8 kV" -> "13,8"; a sign ("-380/220") matches nothing. */
+const LEADING_NUMBER = /^\s*(\d[\d.,]*)/;
 
 /**
  * Story 15.6: the BT side of a plate whose measured raw is not one number ("380/220", "380 V",
