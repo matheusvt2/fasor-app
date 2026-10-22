@@ -703,11 +703,17 @@ test('@p0 15.5-E2E-001 at 390 px an open coluna\'s "Adicionar equipamento" opens
     await sheet.getByRole('group', { name: `${type}, 0` }).getByRole('button', { name: 'Mais um' }).click();
     await expect(sheet.getByRole('group', { name: `${type}, 1` })).toBeVisible();
   }
-  await items.evaluate((el) => {
-    el.scrollTop = el.scrollHeight;
-  });
-  await expect(items).toHaveAttribute('data-more-below', 'false');
-  expect(await items.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
+  // The two "Mais um" taps re-render rows after the scroll lands, so the list can grow again under a
+  // scroll already at its bottom and the cue comes back, rightly; scroll and read together until the
+  // bottom holds.
+  await expect
+    .poll(async () =>
+      items.evaluate((el) => {
+        el.scrollTop = el.scrollHeight;
+        return `${el.dataset.moreBelow}|${getComputedStyle(el, '::after').content}`;
+      }),
+    )
+    .toBe('false|none');
   await sheet.getByRole('button', { name: 'Fechar' }).click();
   await expect(sheet).toBeHidden();
 

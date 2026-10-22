@@ -4082,6 +4082,8 @@ So that I see the other equipment of the coluna and not a separate tree page.
 
 **Definition of Done, in addition:** `e2e/ficha.spec.ts` (or the tree spec) opens a sheet from the Sumário at 390 px, presses "Voltar" and asserts the Sumário with the row focused; the same for Verificações; `relatorio-tree.test.tsx` covers the phone path; the real-browser pass at 390 px.
 
+**As built (2026-10-22, PR #162, batch e15a with Story 15.5, merged as `7eb9f7fc`; no op, seed or contract change):** `RouteHandle.backWide` (a press-time 768 px check) became `backWith`, applied at every width unless a `useBackTarget` override is set (the `?volta=exportar` return still wins); the ficha route goes back to the Sumário with `{ openSection9, focusBlockId }` and the Verificações route with `{ openSection9, focusLocationId }` (the Sumário's arrival state accepts `focusLocationId`). *(narrowing)* The phone presentation of `/relatorio/:id/arvore` stays reachable by address (`deferred-work.md`, owner a later story). Gate: lint, static, api 681/681, unit 4398/4401 with the three load timeouts green alone, touched specs 42/42 on the merge of main `629ea667`.
+
 ### Story 15.5: "Adicionar equipamento" on a coluna below 1024 px
 
 **Dev model:** opus · **Effort:** medium · one control on the coluna row and the palette target it sets, the mock frame with it, the palette sheet corrections of F10
@@ -4109,6 +4111,8 @@ So that I can put equipment in a painel without finding "Blocos" at the top of t
 **Then** the phone and tablet frames draw the coluna's button and the empty-coluna note; `app.css` translations name the mock rules
 
 **Definition of Done, in addition:** `template-composer-palette.test.tsx` covers the coluna button at the three widths (jsdom with the inline palette shown and hidden); `e2e/templates.spec.ts` at 390 px builds local › painel › coluna, taps the coluna's "Adicionar equipamento", adds two types from the sheet and asserts the coluna's summary; the real-browser pass at 390 and 768 px.
+
+**As built (2026-10-22, PR #162, batch e15a with Story 15.4, merged as `7eb9f7fc`):** an open coluna's body ends with the text button "Adicionar equipamento" and, when empty, the authored note "Nenhum equipamento nesta coluna." (`copy.composer.colunaNone`); it shares `onAddEquipamento(node, onReleased?)` with the local's button (below 1024 px the coluna becomes the target and the drawer or sheet opens; from 1024 px the toggle semantics); the palette drawer is named "Blocos" and keeps its header with a target selected, its list scrolls with a cue (`.palette-items[data-more-below]`) and type names do not wrap (F10); `42-template-composer.html` draws the control over the Story 15.1 cards. *(open, Matheus)* From 1024 px the coluna's button follows the local's toggle literally, so a press on the current coluna releases it (focus to the coluna head): keep, make idempotent, or hide where the palette is inline (`deferred-work.md`). Gate as under Story 15.4.
 
 ### Story 15.6: The transformer ratio calculated with √3
 
