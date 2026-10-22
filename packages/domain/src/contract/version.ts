@@ -201,8 +201,20 @@
  * new. A version-23 bundle cannot resolve seed v8, which a template the server moved to v8 and
  * every relatório created on it carry, and it would print the variables as unknown tokens. A row
  * written before 24 parses to the same bytes. `MIN_CONTRACT_VERSION` goes to 24 too.
+ *
+ * 25 (2026-10-22, Stories 15.3 and 15.6, Bruno's "Melhorias produto"): seed v9. v8 with the
+ * shared transformer checklist asking about the oil level once (item `indicador_nivel_de_oleo`
+ * dropped, so the dry subtypes and the oil rule name seven items), the TC without POTÊNCIA
+ * NOMINAL, two site items appended to Ambiente (`SITE_ITEM_KEYS` gains
+ * `grades_e_portas_estado_e_fixacao` and `pintura_e_corrosao`, so the path family
+ * `location/{id}/checklist/{item_key}/...` accepts them), and the optional table field
+ * `ratio_factor: 'sqrt3'` on the transformador de força's ratio table (VAL CALCULADO is
+ * U1 · √3 / U2). It is the version of a new template. A version-24 bundle cannot parse a
+ * `location/{id}/checklist/pintura_e_corrosao/...` op (its `siteItemKeySchema` refuses the key,
+ * so its `opSchema` fails the whole pulled page) nor resolve seed v9. A row written before 25
+ * parses to the same bytes. `MIN_CONTRACT_VERSION` goes to 25 too.
  */
-export const CONTRACT_VERSION = 24;
+export const CONTRACT_VERSION = 25;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -324,8 +336,16 @@ export const CONTRACT_VERSION = 24;
  * text would keep `{itens_resultados}` unresolved where the server's kernel prints the section
  * numbers, so its preview and the documents would disagree. A stream carries
  * those as soon as the template upgrade runs, so the version-23 bundle updates too.
+ *
+ * 25 (2026-10-22, Stories 15.3 and 15.6): a version-24 (or older) bundle cannot parse a site
+ * checklist op on `grades_e_portas_estado_e_fixacao` or `pintura_e_corrosao` (its `opSchema`
+ * fails the whole pulled page) nor resolve seed v9, which a template the server moved to v9 and
+ * every relatório created on it carry; on a v9 transformer it would compute VAL CALCULADO as
+ * U1/U2 where the server's kernel applies √3, so its condições, Sumário and documents would
+ * disagree. A stream carries those as soon as the template upgrade runs, so the version-24 bundle
+ * updates too.
  */
-export const MIN_CONTRACT_VERSION = 24;
+export const MIN_CONTRACT_VERSION = 25;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

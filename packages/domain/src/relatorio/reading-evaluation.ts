@@ -11,6 +11,8 @@ import {
   inputHeaderText,
   nameplateRatioInput,
   nameplateTap,
+  ratioFactorValue,
+  ratioFormulaHelperText,
   RATIO_POWER,
   readingLabelText,
   readStored,
@@ -225,7 +227,8 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
       // VAL CALCULADO exists only for a positive primário and secundário: a zero or negative
       // side would give a zero ratio and an infinite deviation.
       if (primary !== null && primary !== undefined && secondary !== null && secondary !== undefined && primary > 0 && secondary > 0) {
-        const value = primary / secondary;
+        // Story 15.6 (seed v9): the transformador de força's table multiplies U1/U2 by √3.
+        const value = (primary / secondary) * ratioFactorValue(table.ratio_factor);
         const raw = canonicalDecimal(value.toFixed(6));
         if (Number.isFinite(value) && Number(raw) > 0) calculated = { raw, text: formatCalculated(value) };
       }
@@ -277,6 +280,7 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
     columns,
     rows,
     ratio,
+    formulaHelper: ratio ? ratioFormulaHelperText(table.ratio_factor) : null,
   };
 }
 

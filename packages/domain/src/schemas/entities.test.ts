@@ -141,9 +141,9 @@ describe('Story 14.3 (contract 18): the cabine row gains `checklist`, the photo 
   const location = entityRowSchemas.location;
   const golden = (file: string) => JSON.parse(readFileSync(fileURLToPath(new URL(file, import.meta.url)), 'utf8')) as { locations: unknown[]; files: unknown[]; points: unknown[] };
 
-  it('SITE_ITEM_KEYS is the closed list of 19 keys, apart from the sheet item keys', () => {
-    expect(SITE_ITEM_KEYS).toHaveLength(19);
-    expect(new Set(SITE_ITEM_KEYS).size).toBe(19);
+  it('SITE_ITEM_KEYS is the closed list of 21 keys (19 of v4, two appended by v9), apart from the sheet item keys', () => {
+    expect(SITE_ITEM_KEYS).toHaveLength(21);
+    expect(new Set(SITE_ITEM_KEYS).size).toBe(21);
     for (const key of SITE_ITEM_KEYS) expect(key, key).toMatch(/^[a-z0-9_]+$/);
     expect(SITE_ITEM_KEYS.filter((key) => (ITEM_KEYS as readonly string[]).includes(key))).toEqual([]);
     expect(siteItemKeySchema.safeParse('ventilacao').success).toBe(true);

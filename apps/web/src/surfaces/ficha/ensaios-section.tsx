@@ -469,6 +469,8 @@ function MeasurementTable({
           </div>
         </div>
       ) : null}
+      {/* Story 15.6: the kernel's formula under a ratio table whose VAL CALCULADO applies a factor, at every width; never printed. */}
+      {table.formulaHelper === null ? null : <p className="helper">{table.formulaHelper}</p>}
     </div>
   );
 }

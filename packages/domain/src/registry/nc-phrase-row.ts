@@ -222,8 +222,15 @@ function typeLabelOf(blockType: string): string {
 }
 
 function itemLabelOf(blockType: string, itemKey: string): string {
-  const item = findDefinition(SEED_VERSION, blockType)?.checklist?.find((entry) => entry.key === itemKey);
-  return item === undefined ? itemKey : screenLabel(item.label);
+  // Story 15.3 (seed v9): an item a later seed dropped (`indicador_nivel_de_oleo`) keeps the label
+  // of the newest version that has it, so its learned phrases still read by name.
+  const versions = Object.keys(SEED_VERSIONS);
+  const newestFirst = [SEED_VERSION, ...versions.filter((version) => version !== SEED_VERSION).reverse()];
+  for (const version of newestFirst) {
+    const item = findDefinition(version, blockType)?.checklist?.find((entry) => entry.key === itemKey);
+    if (item !== undefined) return screenLabel(item.label);
+  }
+  return itemKey;
 }
 
 const collate = (a: string, b: string) => a.localeCompare(b, 'pt-BR');

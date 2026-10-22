@@ -265,8 +265,8 @@ describe('E5-A5 typed path builders round-trip through parsePath', () => {
 describe('Story 14.3 (contract 18): location/{id}/checklist/{item_key}/{result|observation}', () => {
   const path = (itemKey: string, field: string) => `location/${ID}/checklist/${itemKey}/${field}`;
 
-  it('parses every one of the 19 site item keys on both fields, round-trips and targets the location row', () => {
-    expect(SITE_ITEM_KEYS).toHaveLength(19);
+  it('parses every one of the 21 site item keys (19 of v4, two of v9) on both fields, round-trips and targets the location row', () => {
+    expect(SITE_ITEM_KEYS).toHaveLength(21);
     for (const itemKey of SITE_ITEM_KEYS) {
       for (const field of ['result', 'observation'] as const) {
         const parsed = parsePath(path(itemKey, field));

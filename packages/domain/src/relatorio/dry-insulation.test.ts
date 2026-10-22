@@ -220,6 +220,8 @@ describe('the texts', () => {
   it('names the chip and counts the oil items marked NA', () => {
     expect(oilNaChipText(1)).toBe('Marcar 1 item de óleo como NA');
     expect(oilNaChipText(8)).toBe('Marcar 8 itens de óleo como NA');
+    // Seed v9 (Story 15.3): the dry subtypes name seven oil items.
+    expect(oilNaChipText(getDefinition('v9', 'cabine_primaria', 'transformador_forca').subtypes[0]!.na_defaults.length)).toBe('Marcar 7 itens de óleo como NA');
     expect(oilItemsNaText(1)).toBe('1 item de óleo marcado NA');
     expect(oilItemsNaText(7)).toBe('7 itens de óleo marcados NA');
   });
@@ -243,5 +245,18 @@ describe('two devices on an oil item (E4-A8)', () => {
   it('NA against C or NC is a contradiction (the seq-later value shows, the other kept for "Aplicar")', () => {
     expect(mergePolicy({ path: at, current: theirs('C'), op: markFromA() })).toEqual({ kind: 'contradiction' });
     expect(mergePolicy({ path: at, current: theirs('NC'), op: markFromA() })).toEqual({ kind: 'contradiction' });
+  });
+});
+
+describe('Story 15.3 (seed v9): a dry transformer, TP or TC', () => {
+  it('names seven oil items in its dry subtypes; the oil rule shows them NA, so no chip is offered and VOL. ÓLEO is not missing', () => {
+    for (const type of TRANSFORMERS) {
+      const definition = getDefinition('v9', 'cabine_primaria', type);
+      for (const subtype of definition.subtypes) expect(subtype.na_defaults, `${type} ${subtype.key}`).toEqual(OIL.filter((key) => key !== 'indicador_nivel_de_oleo'));
+      const dry = { ...block(type, { nameplate: { tipo_de_isolacao: cell('Á SECO') } }), seed_version: 'v9', config: defaultBlockConfig('v9', type) } as BlockRow;
+      expect(isDryBlock(dry), type).toBe(true);
+      expect(oilNaChipItems(dry, { used: false }), type).toEqual([]);
+      expect(nameplateMissingKeys({ blocks: [dry] }, dry.id).has('vol_oleo'), type).toBe(false);
+    }
   });
 });

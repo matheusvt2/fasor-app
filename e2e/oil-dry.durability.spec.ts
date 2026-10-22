@@ -1,4 +1,4 @@
-import { canonicalJson, type BlockRow } from '@app/domain';
+import { canonicalJson, getDefinition, SEED_VERSION, type BlockRow } from '@app/domain';
 import type { BrowserContext, Locator, Page, Route } from '@playwright/test';
 import { signInForDurability, waitForShellCache } from './support/durability.ts';
 import { deviceDatabaseName, expect, test } from './support/merged-fixtures.ts';
@@ -23,7 +23,8 @@ import { syncNow } from './support/sync.ts';
 const row = (page: Page, key: string): Locator => page.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${key}"]`);
 const checked = (page: Page, key: string): Locator => row(page, key).locator('[role="radio"][aria-checked="true"]');
 const select = (page: Page, key: string): Locator => page.locator(`#ficha-nameplate [data-field-key="${key}"] select`);
-const OIL = ['valvula_de_alivio', 'elemento_secante', 'juntas_vedacoes_e_vazamentos', 'indicador_nivel_de_oleo', 'registros_radiadores', 'rele_de_gas_funcionamento', 'termometro', 'oleo_isolante_indicador_de_nivel'];
+/** The transformer's oil items on the current seed, from the kernel (seven on v9, Story 15.3). */
+const OIL = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').oil_rule!.items;
 
 async function sheetIsDrawn(page: Page): Promise<void> {
   await expect(page.locator('.sheet-header .sheet-title')).toContainText('Transformador de força', { timeout: 30_000 });

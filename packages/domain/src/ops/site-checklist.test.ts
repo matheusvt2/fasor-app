@@ -3,7 +3,10 @@ import { ZodError } from 'zod';
 import { SERVER_DEVICE_ID } from '../ids.ts';
 import { stampSeen } from '../merge/stamp.ts';
 import { clearedMarks } from '../merge/restore.ts';
-import { SITE_ITEM_KEYS } from '../schemas/block-config.ts';
+import { siteItems } from '../seed/definitions.ts';
+
+/** The v4 site list (19 keys); seed v9 appends two more (Story 15.3). */
+const SITE_ITEM_KEYS = siteItems('v4').map((item) => item.key);
 import {
   entityRowSchemas,
   locationRowSchema,

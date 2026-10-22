@@ -7,6 +7,7 @@ import {
   newPointRow,
   SEED_VERSION,
   SITE_ITEM_KEYS,
+  siteItems,
   standardTemplate,
   type BlockRow,
   type EquipmentRow,
@@ -1154,13 +1155,14 @@ test('@p1 14.2-E2E-005 Epic 14 QA Q-6: a local holding only its site work (answe
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   await openSection9(page);
 
-  // A local with no equipment, its 19 site items answered on its Verificações surface.
+  // A local with no equipment, every site item answered on its Verificações surface (the current seed's count, 21 on v9).
   const NAME = 'Sala só de verificações';
+  const N = siteItems(SEED_VERSION).length;
   await addLocal(page, { funcao: 'Distribuição', name: NAME });
   await local(page, NAME).locator(':scope > .s9-loc-row .s9-loc-body .s9-verif').click();
   await expect(page.locator('.sheet-header .sheet-title')).toHaveText(`Verificações do local — ${NAME}`, { timeout: 30_000 });
   await page.getByRole('group', { name: 'Ações em lote das verificações do local' }).getByRole('button', { name: 'Marcar os restantes como Conforme' }).click();
-  await expect(page.getByTestId('local-progress')).toHaveText('19 de 19');
+  await expect(page.getByTestId('local-progress')).toHaveText(`${N} de ${N}`);
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Ver árvore' }).click();
   await expect(tree(page)).toBeVisible({ timeout: 30_000 });
 
@@ -1202,7 +1204,7 @@ test('@p1 14.2-E2E-005 Epic 14 QA Q-6: a local holding only its site work (answe
   await menuOf(page, NAME).click();
   await page.getByRole('menuitem', { name: 'Remover', exact: true }).click();
   const confirm = page.getByRole('dialog', { name: `Remover ${NAME}?`, exact: true });
-  await expect(confirm).toHaveAccessibleDescription(`O local, 19 respostas das verificações, 1 foto e 1 ponto de atenção saem do relatório. ${RECOVERABLE}`);
+  await expect(confirm).toHaveAccessibleDescription(`O local, ${N} respostas das verificações, 1 foto e 1 ponto de atenção saem do relatório. ${RECOVERABLE}`);
   await expect(confirm.getByRole('button', { name: 'Cancelar', exact: true })).toBeFocused();
   await confirm.getByRole('button', { name: 'Remover local', exact: true }).click();
   await expect(confirm).toBeHidden();
@@ -1211,11 +1213,11 @@ test('@p1 14.2-E2E-005 Epic 14 QA Q-6: a local holding only its site work (answe
   // The restore entry says what comes back.
   const restore = await openRestore(page);
   const entry = restore.locator('.restore-list > li').filter({ has: page.locator('.rr-primary', { hasText: NAME }) });
-  const detail = 'Local · 19 respostas das verificações · 1 foto · 1 ponto de atenção';
+  const detail = `Local · ${N} respostas das verificações · 1 foto · 1 ponto de atenção`;
   await expect(entry.locator('.rr-secondary')).toHaveText(detail);
   await restore.getByRole('button', { name: `Restaurar ${NAME} — ${detail}`, exact: true }).click();
   await expect(restore).toBeHidden();
-  await expect(local(page, NAME).locator(':scope > .s9-loc-row .s9-loc-body .s9-verif')).toHaveText('Verificações do local · 19 de 19');
+  await expect(local(page, NAME).locator(':scope > .s9-loc-row .s9-loc-body .s9-verif')).toHaveText(`Verificações do local · ${N} de ${N}`);
 });
 
 test('@p1 14.2-E2E-006 Epic 14 QA ledger (h): a sheet another device created in a local removed before the newest revision is its own restore entry, and restoring it brings back only that local', async ({ page }) => {

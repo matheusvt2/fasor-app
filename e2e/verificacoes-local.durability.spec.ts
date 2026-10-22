@@ -1,4 +1,4 @@
-import { SITE_ITEM_KEYS, type LocationRow } from '@app/domain';
+import { SEED_VERSION, SITE_ITEM_KEYS, siteItems, type LocationRow } from '@app/domain';
 import type { Page, Route } from '@playwright/test';
 import { signInForDurability, waitForShellCache, withoutServiceWorker } from './support/durability.ts';
 import { deviceDatabaseName, expect, test } from './support/merged-fixtures.ts';
@@ -33,6 +33,8 @@ interface OutboxRow {
 }
 
 const [LUVAS, TAPETE, VARA] = SITE_ITEM_KEYS;
+/** The site items of a relatório on the current seed (21 on v9, Story 15.3), from the kernel. */
+const N = siteItems(SEED_VERSION).length;
 const NOTE = 'Tapete com rasgo junto à porta';
 
 /** Not acknowledged by the server yet: waiting to be pushed, or pushed with no answer (a refused request leaves the op `sent`). */
@@ -61,7 +63,7 @@ test('@p1 14.3-E2E-006 site items tapped and typed offline survive a reload with
     .find((location) => location.relatorio_id === relatorioId && location.kind === 'cabine' && location.name === 'Cubículo Enel')!;
   await page.goto(`/relatorio/${relatorioId}/local/${enel.id}/verificacoes`);
   await expect(title(page)).toHaveText('Verificações do local — Cubículo Enel', { timeout: 30_000 });
-  await expect(progress(page)).toHaveText('0 de 19');
+  await expect(progress(page)).toHaveText(`0 de ${N}`);
 
   await context.setOffline(true);
   await seg(page, LUVAS!, 'Conforme').click();
@@ -74,7 +76,7 @@ test('@p1 14.3-E2E-006 site items tapped and typed offline survive a reload with
   await page.keyboard.press('Tab');
   await seg(page, VARA!, 'Não se aplica').click();
   await expect(seg(page, VARA!, 'Não se aplica')).toHaveAttribute('aria-checked', 'true');
-  await expect(progress(page)).toHaveText('3 de 19');
+  await expect(progress(page)).toHaveText(`3 de ${N}`);
 
   const path = (itemKey: string, cell: 'result' | 'observation') => `location/${enel.id}/checklist/${itemKey}/${cell}`;
   const written = [
@@ -104,7 +106,7 @@ test('@p1 14.3-E2E-006 site items tapped and typed offline survive a reload with
   }
   await page.reload();
   await expect(title(page)).toHaveText('Verificações do local — Cubículo Enel', { timeout: 30_000 });
-  await expect(progress(page)).toHaveText('3 de 19');
+  await expect(progress(page)).toHaveText(`3 de ${N}`);
   await expect(seg(page, LUVAS!, 'Conforme')).toHaveAttribute('aria-checked', 'true');
   await expect(seg(page, TAPETE!, 'Não conforme')).toHaveAttribute('aria-checked', 'true');
   await expect(row(page, TAPETE!).getByRole('textbox', { name: 'Observação do item 2' })).toHaveValue(NOTE);

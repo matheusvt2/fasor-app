@@ -1,4 +1,4 @@
-import { photoToken, SEED_VERSION, SITE_ITEM_KEYS, siteItems, type BlockRow, type LocationRow, type OpDraft, type PointRow } from '@app/domain';
+import { photoToken, SEED_VERSION, siteChecklistOf, siteItems, type BlockRow, type LocationRow, type OpDraft, type PointRow } from '@app/domain';
 import type { BrowserContext, Page, Route } from '@playwright/test';
 import { paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { escapeDialog } from './support/dialogs.ts';
@@ -16,7 +16,7 @@ import { expandLocation } from './support/tree.ts';
 
 /*
  * 14.3/14.4-E2E. "Verificações do local", driven as a person would: a relatório born from the
- * standard template (seed v4) is opened at its local's tree row, the 19 site items are
+ * standard template (the current seed, its site list read from the kernel) is opened at its local's tree row, every site item is
  * answered offline (a chip, an observation, a photo, the bulk action and its undo, a point of
  * attention from the NC item), read back after a reload and synced; then the generated DOCX is
  * read from its own headings: VERIFICAÇÕES DO LOCAL once per local right after AMBIENTE DE
@@ -86,6 +86,12 @@ const POINT_TEXT = 'Luminária de emergência inoperante';
 const POINT_ACTION = 'Substituir as baterias';
 const SITE_TITLE = 'VERIFICAÇÕES DO LOCAL';
 const GROUPS = ['SEGURANÇA E EPC NO LOCAL', 'COMBATE A INCÊNDIO', 'ILUMINAÇÃO', 'ATERRAMENTO', 'SINALIZAÇÃO E DOCUMENTAÇÃO', 'AMBIENTE'];
+/** The site list of a relatório born from the standard template: its seed version's (21 items on v9, Story 15.3), read from the kernel. */
+const SITE = siteItems(SEED_VERSION);
+const SITE_ITEM_KEYS = SITE.map((item) => item.key);
+const N = SITE.length;
+/** The items per group, in group order. */
+const GROUP_SIZES = siteChecklistOf(SEED_VERSION)!.groups.map((group) => group.items.length);
 /** The group rows of the printed table (`apps/api/src/jobs/generate/sections/section-9.ts` `GROUP_ROW_FILL`, the print mock's `.pt-group`). */
 const GROUP_FILL = 'F0F0F0';
 const MARK_SENT = 'Marcar como enviado ao cliente';
@@ -261,7 +267,7 @@ async function openSurface(page: Page, relatorioId: string, locationId: string):
 
 // --- 14.3-E2E-001 -------------------------------------------------------------------------
 
-test('@p0 14.3-E2E-001 at 768 px: a v4 relatório, the surface opened from the local\'s tree row, the 19 items answered offline (chip, observation, photo, bulk action and its undo, a point from the NC item), read back after a reload and synced; the DOCX prints the table once per local right after AMBIENTE DE ENSAIO, the photo in section 7 and the point in section 8', async ({
+test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface opened from the local\'s tree row, every site item answered offline (chip, observation, photo, bulk action and its undo, a point from the NC item), read back after a reload and synced; the DOCX prints the table once per local right after AMBIENTE DE ENSAIO, the photo in section 7 and the point in section 8', async ({
   page,
   context,
 }) => {
@@ -295,19 +301,19 @@ test('@p0 14.3-E2E-001 at 768 px: a v4 relatório, the surface opened from the l
   await openSection9(page);
 
   // Every local's row shows its counter; the row opens the surface.
-  for (const location of before) await expect(siteButton(page, location.name)).toHaveText('Verificações do local · 0 de 19');
-  await expect(siteButton(page, ENEL)).toHaveAccessibleName('Verificações do local · 0 de 19 — Cubículo Enel');
+  for (const location of before) await expect(siteButton(page, location.name)).toHaveText(`Verificações do local · 0 de ${N}`);
+  await expect(siteButton(page, ENEL)).toHaveAccessibleName(`Verificações do local · 0 de ${N} — Cubículo Enel`);
   await siteButton(page, ENEL).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/local/${enelId}/verificacoes$`));
   await expect(title(page)).toHaveText('Verificações do local — Cubículo Enel');
   await expect(page.locator('.app-bar-title')).toHaveText('Verificações do local');
   await expect(page.locator('.sheet-header .sheet-summary')).toHaveText('Uma vez por local, vale para todos os equipamentos dele.');
-  await expect(progress(page)).toHaveText('0 de 19');
+  await expect(progress(page)).toHaveText(`0 de ${N}`);
   await expect(progress(page)).toHaveAttribute('data-state', 'pending');
   await expect(page.locator('.content > section.vl-group h3.vl-group-title')).toHaveText(['Segurança e EPC no local', 'Combate a incêndio', 'Iluminação', 'Aterramento', 'Sinalização e documentação', 'Ambiente']);
-  await expect(page.locator('.content > section.vl-group .section-head .btn-reason')).toHaveText(['0 de 7', '0 de 2', '0 de 2', '0 de 2', '0 de 3', '0 de 3']);
-  await expect(page.locator('li.checklist-row')).toHaveCount(19);
-  expect(await page.locator('li.checklist-row').evaluateAll((rows) => rows.map((element) => (element as HTMLElement).dataset.itemKey))).toEqual([...SITE_ITEM_KEYS]);
+  await expect(page.locator('.content > section.vl-group .section-head .btn-reason')).toHaveText(GROUP_SIZES.map((size) => `0 de ${size}`));
+  await expect(page.locator('li.checklist-row')).toHaveCount(N);
+  expect(await page.locator('li.checklist-row').evaluateAll((rows) => rows.map((element) => (element as HTMLElement).dataset.itemKey))).toEqual(SITE_ITEM_KEYS);
   await expect(page.locator('.vl-intro .checklist-legend')).toHaveText('C Conforme · NC Não conforme · NA Não se aplica');
 
   // --- offline from here ---
@@ -317,7 +323,7 @@ test('@p0 14.3-E2E-001 at 768 px: a v4 relatório, the surface opened from the l
   await seg(page, LUVAS, 'Conforme').click();
   await expect(seg(page, LUVAS, 'Conforme')).toHaveAttribute('aria-checked', 'true');
   await expect(toast(page)).toContainText('Relatório em campo', { timeout: 15_000 });
-  await expect(progress(page)).toHaveText('1 de 19');
+  await expect(progress(page)).toHaveText(`1 de ${N}`);
   await expect(row(page, LUVAS).locator('xpath=ancestor::section[1]').locator('.section-head .btn-reason')).toHaveText('1 de 7');
   {
     const ops = await outbox(page);
@@ -377,24 +383,24 @@ test('@p0 14.3-E2E-001 at 768 px: a v4 relatório, the surface opened from the l
   expect(photo).toMatchObject({ block_id: null, item_key: EMERGENCIA, location_id: enelId, caption: CAPTION, reading_kind: null, uploaded_at: null });
   const photoId = photo!.id;
 
-  // "Marcar os restantes como Conforme": 16 puts in one batch; its "Desfazer" writes 16 inverses in a new one; then again.
+  // "Marcar os restantes como Conforme": N - 3 puts in one batch; its "Desfazer" writes as many inverses in a new one; then again.
   const idsBefore = new Set((await outbox(page)).map((op) => op.op_id));
   const since = async (known: ReadonlySet<string>) => (await outbox(page)).filter((op) => !known.has(op.op_id));
   const byPath = (ops: readonly OutboxRow[]) => ops.map((op) => [op.path, op.value] as const).sort((a, b) => a[0].localeCompare(b[0]));
   await bulk(page).click();
-  await expect(toast(page)).toContainText('16 itens marcados Conforme');
-  await expect(progress(page)).toHaveText('19 de 19');
+  await expect(toast(page)).toContainText(`${N - 3} itens marcados Conforme`);
+  await expect(progress(page)).toHaveText(`${N} de ${N}`);
   await expect(progress(page)).toHaveAttribute('data-state', 'complete');
   const marked = await since(idsBefore);
-  expect(marked).toHaveLength(16);
+  expect(marked).toHaveLength(N - 3);
   expect(new Set(marked.map((op) => op.batch_id)).size).toBe(1);
   const rest = SITE_ITEM_KEYS.filter((key) => ![LUVAS, BACIA, EMERGENCIA].includes(key));
   expect(byPath(marked)).toEqual(rest.map((key) => [resultPath(enelId, key), 'C'] as const).sort((a, b) => a[0].localeCompare(b[0])));
   await toast(page).getByRole('button', { name: 'Desfazer' }).click();
-  await expect(progress(page)).toHaveText('3 de 19');
+  await expect(progress(page)).toHaveText(`3 de ${N}`);
   await expect(seg(page, TAPETE, 'Conforme')).toHaveAttribute('aria-checked', 'false');
   const undone = await since(new Set([...idsBefore, ...marked.map((op) => op.op_id)]));
-  expect(undone).toHaveLength(16);
+  expect(undone).toHaveLength(N - 3);
   expect(new Set(undone.map((op) => op.batch_id)).size).toBe(1);
   expect(undone[0]!.batch_id).not.toBe(marked[0]!.batch_id);
   expect(undone.every((op) => op.kind === 'put')).toBe(true);
@@ -404,8 +410,8 @@ test('@p0 14.3-E2E-001 at 768 px: a v4 relatório, the surface opened from the l
   await expect(seg(page, BACIA, 'Não se aplica')).toHaveAttribute('aria-checked', 'true');
   await expect(seg(page, EMERGENCIA, 'Não conforme')).toHaveAttribute('aria-checked', 'true');
   await bulk(page).click();
-  await expect(progress(page)).toHaveText('19 de 19');
-  await expect(page.locator('.content > section.vl-group .section-head .btn-reason')).toHaveText(['7 de 7', '2 de 2', '2 de 2', '2 de 2', '3 de 3', '3 de 3']);
+  await expect(progress(page)).toHaveText(`${N} de ${N}`);
+  await expect(page.locator('.content > section.vl-group .section-head .btn-reason')).toHaveText(GROUP_SIZES.map((size) => `${size} de ${size}`));
   await expect(bulk(page)).toHaveAttribute('aria-disabled', 'true');
 
   // Epic 14 QA Q-4: the NC item has no point of attention yet, so one pending row before issue
@@ -435,11 +441,11 @@ test('@p0 14.3-E2E-001 at 768 px: a v4 relatório, the surface opened from the l
   const [point] = await pointsOf(page, relatorioId);
   expect(point).toMatchObject({ location_id: enelId, equipment_id: null, origin: 'manual', action: POINT_ACTION, text: `${POINT_TEXT} ${photoToken(photoId)}` });
 
-  // "Concluir verificações" with nothing missing returns to the tree; the row reads 19 de 19.
+  // "Concluir verificações" with nothing missing returns to the tree; the row reads N de N.
   await bar(page).getByRole('button', { name: 'Concluir verificações' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
-  await expect(siteButton(page, ENEL)).toHaveText('Verificações do local · 19 de 19');
-  await expect(siteButton(page, EMPTY_LOCAL)).toHaveText('Verificações do local · 0 de 19');
+  await expect(siteButton(page, ENEL)).toHaveText(`Verificações do local · ${N} de ${N}`);
+  await expect(siteButton(page, EMPTY_LOCAL)).toHaveText(`Verificações do local · 0 de ${N}`);
   await expect(headerPill(page)).toHaveText('Em campo');
   await siteButton(page, ENEL).click();
   await expect(title(page)).toHaveText('Verificações do local — Cubículo Enel');
@@ -450,8 +456,8 @@ test('@p0 14.3-E2E-001 at 768 px: a v4 relatório, the surface opened from the l
   expect(pendingBefore.length).toBeGreaterThanOrEqual(2 + 2 + 2 + 1 + 48 + 1);
   const restore = await reloadWithoutNetwork(page, context);
   await expect(title(page)).toHaveText('Verificações do local — Cubículo Enel', { timeout: 30_000 });
-  await expect(progress(page)).toHaveText('19 de 19');
-  await expect(page.locator('li.checklist-row [role="radio"][aria-checked="true"]')).toHaveCount(19);
+  await expect(progress(page)).toHaveText(`${N} de ${N}`);
+  await expect(page.locator('li.checklist-row [role="radio"][aria-checked="true"]')).toHaveCount(N);
   await expect(seg(page, LUVAS, 'Conforme')).toHaveAttribute('aria-checked', 'true');
   await expect(seg(page, BACIA, 'Não se aplica')).toHaveAttribute('aria-checked', 'true');
   await expect(seg(page, EMERGENCIA, 'Não conforme')).toHaveAttribute('aria-checked', 'true');
@@ -481,7 +487,7 @@ test('@p0 14.3-E2E-001 at 768 px: a v4 relatório, the surface opened from the l
       { timeout: 120_000, intervals: [1_000, 3_000, 5_000] },
     )
     .toBe(true);
-  // The device and the server hold the same 19 cells, the photo's local and item, and the point's local and token.
+  // The device and the server hold the same N cells, the photo's local and item, and the point's local and token.
   const expected = Object.fromEntries(SITE_ITEM_KEYS.map((key) => [key, key === EMERGENCIA ? 'NC' : key === BACIA ? 'NA' : 'C']));
   const resultsOf = (location: Local | undefined) => Object.fromEntries(Object.entries(location?.checklist ?? {}).map(([key, entry]) => [key, entry?.result?.value ?? null]));
   const deviceEnel = (await locals(page, relatorioId)).find((location) => location.id === enelId);
@@ -499,7 +505,7 @@ test('@p0 14.3-E2E-001 at 768 px: a v4 relatório, the surface opened from the l
   await openSumario(page, relatorioId);
   const row9 = sumario(page).locator('li.sum-s9 .sum-status').first();
   await expect(row9).toContainText(
-    'Verificações do local sem resposta: 1° Subsolo (19 itens), Oxigênio (19 itens), Cobertura A (19 itens), Cobertura B (19 itens), Geradores (19 itens) e Sala dos painéis (19 itens)',
+    `Verificações do local sem resposta: 1° Subsolo (${N} itens), Oxigênio (${N} itens), Cobertura A (${N} itens), Cobertura B (${N} itens), Geradores (${N} itens) e Sala dos painéis (${N} itens)`,
   );
   await expect(row9).not.toContainText('Cubículo Enel (');
   // Epic 14 QA Q-4: the NC item has its point now: no row names it.
@@ -548,8 +554,8 @@ test('@p0 14.3-E2E-001 at 768 px: a v4 relatório, the surface opened from the l
     expect(table[1]).toEqual(['ÍTEM', 'C', 'NC', 'NA', 'OBSERVAÇÕES']);
     expect(table.filter((cells) => cells.length === 1).map((cells) => cells[0])).toEqual([SITE_TITLE, ...GROUPS]);
     const items = itemRows(table);
-    expect(items).toHaveLength(19);
-    expect(items.map((cells) => cells[0]!.split('.')[0])).toEqual(Array.from({ length: 19 }, (_, i) => String(i + 1)));
+    expect(items).toHaveLength(N);
+    expect(items.map((cells) => cells[0]!.split('.')[0])).toEqual(Array.from({ length: N }, (_, i) => String(i + 1)));
     expect(items.every((cells) => cells[0] === cells[0]!.toLocaleUpperCase('pt-BR'))).toBe(true);
   }
   // No sheet repeats the local's tables: the cabine tables print once per local in all.
@@ -562,10 +568,10 @@ test('@p0 14.3-E2E-001 at 768 px: a v4 relatório, the surface opened from the l
   expect(enelItems[0]).toEqual(['1. LUVAS ISOLANTES COMPATÍVEIS COM A TENSÃO, COM ENSAIO DIELÉTRICO VÁLIDO', 'X', '', '', '']);
   expect(enelItems[8]).toEqual(['9. BACIA DE CONTENÇÃO DE ÓLEO', '', '', 'X', NA_NOTE]);
   expect(enelItems[10]).toEqual(['11. ILUMINAÇÃO DE EMERGÊNCIA (AUTONOMIA MÍNIMA DE 2 H)', '', 'X', '', NC_PHRASE]);
-  expect(enelItems.filter((cells) => cells[1] === 'X')).toHaveLength(17);
+  expect(enelItems.filter((cells) => cells[1] === 'X')).toHaveLength(N - 2);
   const enelParagraphs = paragraphsOf(enelPart.xml);
   const photoLine = `Imagem 1: ${CAPTION}.`;
-  const order = [enelPart.heading, 'CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', SITE_TITLE, GROUPS[0]!, '19. LIMPEZA E AUSÊNCIA DE INFILTRAÇÃO', photoLine].map((paragraph) => enelParagraphs.indexOf(paragraph));
+  const order = [enelPart.heading, 'CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', SITE_TITLE, GROUPS[0]!, `${N}. ${SITE.at(-1)!.label.toLocaleUpperCase('pt-BR')}`, photoLine].map((paragraph) => enelParagraphs.indexOf(paragraph));
   expect(order.every((index) => index > -1), `the parts of Cubículo Enel are printed: ${JSON.stringify(order)}`).toBe(true);
   expect([...order].sort((a, b) => a - b)).toEqual(order);
   // The local's parts come before its first sheet's own tables.
@@ -643,7 +649,7 @@ test('@p0 14.3-E2E-002 an item answered on an Emitido relatório: the banner say
   await expect(page.getByTestId('status-next-step')).toHaveText('Em revisão: há alterações desde a revisão 1. Gere a revisão 2 antes de marcar como enviado ao cliente.');
   await expect(bar(page).getByRole('button', { name: MARK_SENT })).toHaveCount(0);
   await expect(sumario(page).locator('li[data-row="controle"]')).toContainText('Rev. 2 na próxima emissão');
-  await expect(siteButton(page, ENEL)).toHaveText('Verificações do local · 1 de 19');
+  await expect(siteButton(page, ENEL)).toHaveText(`Verificações do local · 1 de ${N}`);
 
   // The next generate builds revision 2 (never `unchanged`), with the answer in the table.
   await bar(page).getByRole('button', { name: 'Gerar relatório' }).click();
@@ -668,7 +674,7 @@ test('@p1 14.3-E2E-003 the sheet\'s "Do local" block carries the entry line with
   await expect(line).toHaveClass(/cabine-line/);
   await expect(line).toHaveClass(/ficha-local-line/);
   await expect(line.locator('.cl-name')).toHaveText('Verificações do local');
-  await expect(line.locator('.cl-values')).toHaveText('0 de 19');
+  await expect(line.locator('.cl-values')).toHaveText(`0 de ${N}`);
   // Under the "Do local" block: after "Ambiente de ensaio", before the sheet's own checklist.
   const lineY = (await line.boundingBox())!.y;
   expect(lineY).toBeGreaterThan((await page.locator('section.ficha-amb').boundingBox())!.y);
@@ -676,9 +682,9 @@ test('@p1 14.3-E2E-003 the sheet\'s "Do local" block carries the entry line with
   // The rail's level-1 row under the open local, and its entry.
   const railRow = page.locator(`aside.rail li[data-site-of="${enelId}"] > .tree-row`);
   await expect(railRow).toHaveAttribute('data-level', '1');
-  await expect(railRow.locator('.tree-body .tree-meta')).toHaveText('19 itens · uma vez por local');
+  await expect(railRow.locator('.tree-body .tree-meta')).toHaveText(`${N} itens · uma vez por local`);
   // The state glyph (hidden from assistive technology), then the counter.
-  await expect(railRow.locator('.tree-state')).toHaveText(/^\S0 de 19$/);
+  await expect(railRow.locator('.tree-state')).toHaveText(new RegExp(`^\\S0 de ${N}$`));
   await expect(railRow.locator('.tree-state')).toHaveAttribute('data-state', 'vazia');
 
   await line.getByRole('button', { name: 'Abrir', exact: true }).click();
@@ -686,18 +692,18 @@ test('@p1 14.3-E2E-003 the sheet\'s "Do local" block carries the entry line with
   await expect(title(page)).toHaveText('Verificações do local — Cubículo Enel');
   await seg(page, LUVAS, 'Conforme').click();
   await seg(page, TAPETE, 'Não conforme').click();
-  await expect(progress(page)).toHaveText('2 de 19');
+  await expect(progress(page)).toHaveText(`2 de ${N}`);
 
   // "Concluir verificações" with items missing: it says what is missing and goes to the first unanswered row.
   await bar(page).getByRole('button', { name: 'Concluir verificações' }).click();
-  await expect(toast(page)).toHaveText('17 itens sem resposta — o primeiro é o item 3, Vara de manobra com ensaio dielétrico válido');
+  await expect(toast(page)).toHaveText(`${N - 2} itens sem resposta — o primeiro é o item 3, Vara de manobra com ensaio dielétrico válido`);
   await expect(row(page, 'vara_de_manobra_com_ensaio_dieletrico_valido').getByRole('radio').first()).toBeFocused();
   await expect(page).toHaveURL(new RegExp(`/local/${enelId}/verificacoes$`));
 
   // Back on the sheet (and in its rail) the counter followed.
   await page.goto(`/relatorio/${relatorioId}/ficha/${firstSheetId}`);
-  await expect(line.locator('.cl-values')).toHaveText('2 de 19', { timeout: 30_000 });
-  await expect(railRow.locator('.tree-state')).toHaveText(/^\S2 de 19$/);
+  await expect(line.locator('.cl-values')).toHaveText(`2 de ${N}`, { timeout: 30_000 });
+  await expect(railRow.locator('.tree-state')).toHaveText(new RegExp(`^\\S2 de ${N}$`));
   await expect(railRow.locator('.tree-state')).toHaveAttribute('data-state', 'em-preenchimento');
   await railRow.getByRole('button', { name: 'Verificações do local — Cubículo Enel' }).click();
   await expect(page).toHaveURL(new RegExp(`/local/${enelId}/verificacoes$`));

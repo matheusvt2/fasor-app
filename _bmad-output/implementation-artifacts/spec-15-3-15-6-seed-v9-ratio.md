@@ -2,7 +2,8 @@
 title: 'Stories 15.3 and 15.6: seed v9 (one oil item, TC without POTENCIA NOMINAL, two site items) and the transformer ratio with sqrt(3)'
 type: 'feature'
 created: '2026-10-22'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: 'db776880a0e472d2254027a99a1026823cee8320'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'

@@ -7,6 +7,10 @@ import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { instantiateTemplate } from './instantiate.ts';
 import { blockingRows, cabineIncompletaText, cabineSemEquipamentoText, preIssue, preIssueRowsFor } from './pre-issue.ts';
+import { SEED_VERSION, siteItems } from '../seed/definitions.ts';
+
+/** The site items a new relatório owes per local: its seed version's (21 on v9, Story 15.3). */
+const SITE_COUNT = siteItems(SEED_VERSION).length;
 
 const TEMPLATE_ID = '019966b0-0051-7000-8000-000000000001';
 const CABINES = ['Cubículo Enel', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores'];
@@ -40,8 +44,8 @@ describe('4.3-UNIT preIssue', () => {
       // F-03 (review 2026-10-06): the empty sheets are named apart, as information.
       ['sheets_empty', '94 fichas vazias'],
       ...CABINES.map((name) => ['cabine_incompleta', `${name}: faltam 6 campos`]),
-      // Story 14.3: a new relatório is on seed v4, so every local still owes its 19 site items (one row, pending).
-      ['site_checklist_unanswered', `Verificações do local sem resposta: ${CABINES.slice(0, -1).map((name) => `${name} (19 itens)`).join(', ')} e Geradores (19 itens)`],
+      // Story 14.3: every local of a new relatório still owes its site items (one row, pending).
+      ['site_checklist_unanswered', `Verificações do local sem resposta: ${CABINES.slice(0, -1).map((name) => `${name} (${SITE_COUNT} itens)`).join(', ')} e Geradores (${SITE_COUNT} itens)`],
     ]);
     expect(preIssueRowsFor(rows, 'section_11').map((r) => [r.kind, r.text])).toEqual([['setup_missing', 'Nenhum instrumento em Dados do relatório']]);
     expect(blockingRows(rows).map((r) => [r.kind, r.row, r.text])).toEqual([['parecer_missing', 'section_10', 'Parecer não preenchido']]);
@@ -60,7 +64,7 @@ describe('4.3-UNIT preIssue', () => {
     ).toEqual(['0 de 75', '75 fichas vazias', cabineSemEquipamentoText('Geradores')]);
     // Story 14.3: a local with no equipment still owes its site items, in the one row that names them.
     expect(rows.filter((r) => r.kind === 'site_checklist_unanswered').map((r) => r.text)).toEqual([
-      `Verificações do local sem resposta: ${CABINES.slice(0, -1).map((name) => `${name} (19 itens)`).join(', ')} e Geradores (19 itens)`,
+      `Verificações do local sem resposta: ${CABINES.slice(0, -1).map((name) => `${name} (${SITE_COUNT} itens)`).join(', ')} e Geradores (${SITE_COUNT} itens)`,
     ]);
     expect(rows.find((r) => r.kind === 'cabine_sem_equipamento')).toMatchObject({ id: `cabine_sem_equipamento:${geradores.id}`, severity: 'pending' });
     // A cabine with no sheet to fill its data on is named once, by the row above.

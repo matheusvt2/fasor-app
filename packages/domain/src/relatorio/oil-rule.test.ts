@@ -7,6 +7,7 @@ import { section9Layout, type PrintTable, type SheetPart } from '../print/sectio
 import type { EquipmentBlockType, Subtype } from '../schemas/block-config.ts';
 import { relatorioRowSchema, type BlockRow, type EntityRow, type FileRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import { idSequence, opFactory, T0, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO, type OpFactory } from '../test-support.ts';
 import { isDryBlock, nameplateMissingKeys, oilNaChipItems } from './dry-insulation.ts';
@@ -465,5 +466,43 @@ describe('the print of a v6 unit (matrix "Dry from start": the same choice on th
     const oilParts = section9Layout(snapshotOf(oil), 9, 'RELATÓRIOS DOS ENSAIOS')!.subsections[0]!.sheets[0]!.parts;
     const oilPairs = table(oilParts, 'DADOS DO EQUIPAMENTO').rows.slice(1).flatMap((row) => row.cells.map((cell) => cell.text));
     expect(oilPairs[oilPairs.indexOf('VOL. ÓLEO') + 1]).toBe('320 L');
+  });
+});
+
+describe('Story 15.3 (seed v9): the transformers ask about the oil level once, so their oil rule names seven items', () => {
+  const oilOf = (version: string, type: EquipmentBlockType) => getDefinition(version, 'cabine_primaria', type).oil_rule!.items;
+  const checklistOf = (version: string, type: EquipmentBlockType) => getDefinition(version, 'cabine_primaria', type).checklist!;
+
+  it('a dry v9 transformer, TP or TC shows its seven oil items NA (the definition\'s, not a literal) and counts the other seven; v8 keeps eight', () => {
+    for (const type of TRANSFORMERS) {
+      const oil = oilOf('v9', type);
+      expect(oil, type).toEqual(OIL.filter((key) => key !== 'indicador_nivel_de_oleo'));
+      expect(oilOf('v8', type), type).toEqual(OIL);
+      for (const value of ['EPÓXI', 'Á SECO']) {
+        const { state, f } = stateWith(type, { seedVersion: 'v9' });
+        const block = blockOf(put(state, f, plate('tipo_de_isolacao'), value).state);
+        expect(results(block, oil), `${type} ${value}`).toEqual(oil.map(() => 'NA'));
+        expect(sheetProgress({ blocks: [block] }, BLOCK).steps.verificacoes.missing, type).toBe(checklistOf('v9', type).length - oil.length);
+        expect(sheetProgress({ blocks: [block] }, BLOCK).steps.verificacoes.missing, type).toBe(7);
+        expect([...oilDerivedNaKeys(block)], type).toEqual(oil);
+        expect(oilNaChipItems(block, { used: false }), type).toEqual([]);
+      }
+      // A dry subtype shows the same seven NA.
+      const sub = stateWith(type, { seedVersion: 'v9', subtype: 'a_seco' });
+      expect(results(blockOf(sub.state), oil), type).toEqual(oil.map(() => 'NA'));
+    }
+  });
+
+  it('ÓLEO to Á SECO on v9 clears the answered oil items of the seven; Á SECO to ÓLEO leaves all seven unanswered', () => {
+    const { state, f } = stateWith('transformador_forca', { seedVersion: 'v9' });
+    const oil = oilOf('v9', 'transformador_forca');
+    const answered = puts(state, f, [[plate('tipo_de_isolacao'), 'ÓLEO'], ...oil.map((key): [string, unknown] => [item(key), 'C']), [item('limpeza'), 'C']]);
+    const crossing = oilCrossingPuts({ blocks: [blockOf(answered)], files: [] }, BLOCK, 'tipo_de_isolacao', 'Á SECO');
+    expect(crossing.map((entry) => entry.path)).toEqual(oil.map((key) => item(key)));
+    expect(oilCrossingClearedCount(crossing, { files: [] })).toBe(7);
+    const dry = puts(state, f, [[plate('tipo_de_isolacao'), 'Á SECO']]);
+    const wet = put(dry, f, plate('tipo_de_isolacao'), 'ÓLEO').state;
+    expect(results(blockOf(wet), oil)).toEqual(oil.map(() => null));
+    expect(sheetProgress({ blocks: [blockOf(wet)] }, BLOCK).steps.verificacoes.missing).toBe(checklistOf('v9', 'transformador_forca').length);
   });
 });

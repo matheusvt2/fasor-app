@@ -1,4 +1,4 @@
-import { cellAddressesOf, getDefinition, type OpDraft } from '@app/domain';
+import { cellAddressesOf, getDefinition, ratioFormulaHelperText, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -627,7 +627,7 @@ test('@p0 5.6-E2E-001 nine seccionadora readings with Enter only, the run ends o
   expect((await outbox(page)).some((row) => /relacao_transformacao\/cell\/\d+\/(2|4)$/.test(row.path))).toBe(false);
 });
 
-test('@p1 UX-F42 a transformer ratio row out of ±0,5 % reads INSATISFATÓRIO, its out cell offers "Marcar Com restrições", and TAP Nº reads the plate\'s TAP atual', async ({ page }) => {
+test('@p1 UX-F42 a transformer ratio row out of ±0,5 % reads INSATISFATÓRIO, its out cell offers "Marcar Com restrições", and TAP Nº reads the plate\'s TAP atual; Story 15.6: VAL CALCULADO is U1 · √3 / U2 with its formula shown', async ({ page }) => {
   test.setTimeout(150_000);
   const { blockId } = await openTransformerSheet(page, account, database, { width: 1280 });
   // The plate's TAP ATUAL, typed as a person would.
@@ -641,15 +641,20 @@ test('@p1 UX-F42 a transformer ratio row out of ±0,5 % reads INSATISFATÓRIO, i
   await expect(ttr.locator('thead th')).toHaveText(['TAP nº', 'V primário (kV)', 'V secundário (V)', 'Calculado', 'H1-H3 / X1-X0', 'H2-H1 / X2-X0', 'H3-H2 / X3-X0', 'Condição']);
   const row = ttr.locator('tbody tr').first();
   await expect(row.locator('td').first()).toHaveText('5');
-  // 13,8 kV / 380 V = 36,32: 36,3 is within ±0,5 %, 72,6 is out.
+  // Story 15.6 (seed v9): 13,8 kV · √3 / 380 V = 62,90: 62,8 is within ±0,5 %, 36,3 (the U1/U2 reading) is out.
   // The row is named by its TAP Nº: the cell reads "5, V primário".
   await cellInput(page, '5, V primário').click();
-  for (const value of ['13,8', '380', '36,3', '72,6', '36,3']) {
+  for (const value of ['13,8', '380', '62,8', '36,3', '62,8']) {
     await page.keyboard.type(value);
     await page.keyboard.press('Tab');
   }
-  await expect(row.locator('td.cell-calc').first()).toContainText('36,32');
+  await expect(row.locator('td.cell-calc').first()).toContainText('62,90');
   await expect(row.locator('td').last()).toContainText('INSATISFATÓRIO');
+  // The formula the kernel names shows once under the table.
+  const helper = page.locator('.ficha-mt[data-table-key="relacao_transformacao"] > p.helper');
+  await expect(helper).toHaveCount(1);
+  await expect(helper).toHaveText(ratioFormulaHelperText('sqrt3')!);
+  await expect(helper).toBeVisible();
   const out = cellBox(page, 'relacao_transformacao:0:4');
   await expect(out.locator('.measurement-field')).toHaveAttribute('data-state', 'out-of-limit');
   await expect(out.locator('.mf-helper')).toContainText('Fora do aceitável (±0,5 %)');
@@ -659,7 +664,7 @@ test('@p1 UX-F42 a transformer ratio row out of ±0,5 % reads INSATISFATÓRIO, i
 
   // Back within the limit: the row reads SATISFATÓRIO again.
   const outInput = out.locator('input.mf-value');
-  await outInput.fill('36,3');
+  await outInput.fill('62,8');
   await outInput.press('Tab');
   await expect(row.locator('td').last()).toContainText('SATISFATÓRIO');
   await expect(row.locator('td').last()).not.toContainText('INSATISFATÓRIO');

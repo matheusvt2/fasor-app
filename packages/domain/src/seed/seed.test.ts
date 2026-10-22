@@ -563,7 +563,7 @@ describe('seed v1: section boilerplate (Story 3.2)', () => {
 
   it('refuses a section without boilerplate', () => {
     expect(() => sectionText('v1', 7, '2026-09-22')).toThrow(/section 7/);
-    expect(() => sectionText('v9', 1, '2026-09-22')).toThrow(/v9/);
+    expect(() => sectionText('v99', 1, '2026-09-22')).toThrow(/v99/);
   });
 
   it('refuses a date that is not YYYY-MM-DD, which would compare wrongly as text', () => {
@@ -594,7 +594,7 @@ describe('getDefinition', () => {
   });
 
   it('throws naming the bad argument', () => {
-    expect(() => getDefinition('v9', 'cabine_primaria', 'tp')).toThrow(/seed_version "v9"/);
+    expect(() => getDefinition('v99', 'cabine_primaria', 'tp')).toThrow(/seed_version "v99"/);
     expect(() => getDefinition('v1', 'x', 'tp')).toThrow(/report_type "x"/);
     expect(() => getDefinition('v1', 'cabine_primaria', 'foo')).toThrow(/block_type "foo"/);
     expect(() => getDefinition('v1', 'cabine_primaria', 'section_1')).toThrow(/block_type "section_1"/);
@@ -826,7 +826,8 @@ describe('seed v4 (Story 14.3): v3 plus the site checklist and the NO-BREAK DE C
     expect(list.groups.map((group) => [group.key, group.label, group.items.map((item) => [item.key, item.label])])).toEqual(SITE_GROUPS);
     expect(list.groups.map((group) => group.items.length)).toEqual([7, 2, 2, 2, 3, 3]);
     const keys = list.groups.flatMap((group) => group.items.map((item) => item.key));
-    expect(keys).toEqual([...SITE_ITEM_KEYS]);
+    // Seed v9 (Story 15.3) appends two keys: v4 offers the first 19.
+    expect(keys).toEqual(SITE_ITEM_KEYS.slice(0, 19));
     expect(keys).toHaveLength(19);
     for (const group of list.groups) {
       expect(group.key).toBe(snake(group.label));
@@ -852,7 +853,7 @@ describe('seed v4 (Story 14.3): v3 plus the site checklist and the NO-BREAK DE C
   it('siteItems: flat, numbered 1 to 19 across the groups, each with its group and phrases; none where there is no list', () => {
     const items = siteItems('v4');
     expect(items.map((item) => item.number)).toEqual(Array.from({ length: 19 }, (_, i) => i + 1));
-    expect(items.map((item) => item.key)).toEqual([...SITE_ITEM_KEYS]);
+    expect(items.map((item) => item.key)).toEqual(SITE_ITEM_KEYS.slice(0, 19));
     expect(items[0]).toEqual({
       key: 'luvas_isolantes_compativeis_com_a_tensao_com_ensaio_dieletrico_valido',
       label: 'Luvas isolantes compatíveis com a tensão, com ensaio dielétrico válido',
@@ -1607,10 +1608,9 @@ describe('seed v8 (UX pass 2026-10-22, F43): v7 plus a Conclusão naming section
   const v8 = getSeed('v8', 'cabine_primaria');
   const hash = (version: string) => createHash('sha256').update(JSON.stringify(SEED_VERSIONS[version])).digest('hex');
 
-  it('is the version a new Template is created with', () => {
-    expect(SEED_VERSION).toBe('v8');
+  it('was the version a new Template is created with until seed v9 (pinned there)', () => {
     expect(SEED_VERSIONS.v8!.version).toBe('v8');
-    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8']);
+    expect(Object.keys(SEED_VERSIONS)).toContain('v8');
     expect(equipmentTypesOf('v8')).toEqual(equipmentTypesOf('v7'));
   });
 
@@ -1633,7 +1633,7 @@ describe('seed v8 (UX pass 2026-10-22, F43): v7 plus a Conclusão naming section
     expect(hash('v7'), 'seed v7 changed after it shipped: add a new version instead').toBe(V7_HASH);
   });
 
-  it('only v8 carries the results reference variable', () => {
+  it('only v8 (and v9, which keeps its text) carries the results reference variable', () => {
     const variablesOf = (version: string) => {
       const found = new Set<string>();
       const seed = getSeed(version, 'cabine_primaria');
@@ -1641,10 +1641,123 @@ describe('seed v8 (UX pass 2026-10-22, F43): v7 plus a Conclusão naming section
       for (const row of seed.cover.rows) for (const match of row.value.matchAll(/\{([^}]*)\}/g)) found.add(match[1]!);
       return [...found].sort();
     };
-    expect(variablesOf('v8')).toEqual([...SECTION_VARIABLES].sort());
+    for (const version of ['v8', 'v9']) expect(variablesOf(version), version).toEqual([...SECTION_VARIABLES].sort());
     for (const version of ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7']) {
       expect(variablesOf(version), version).toEqual(['cliente', 'datas', 'empresa_executora', 'escopo', 'obra', 'responsavel']);
     }
+  });
+});
+
+/** v8 as it shipped (UX pass 2026-10-22, F43); a change to it is a new version. */
+const V8_HASH = '03ade51f394d1382a656a0ca6d9aa26671cf5ad147fd1c51b39b46b0fce4ebae';
+
+describe('seed v9 (Stories 15.3 and 15.6): v8 with one oil-level item, the TC without POTÊNCIA NOMINAL, two site items and the ratio with √3', () => {
+  const v8 = getSeed('v8', 'cabine_primaria');
+  const v9 = getSeed('v9', 'cabine_primaria');
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(SEED_VERSIONS[version])).digest('hex');
+  const TRANSFORMERS = ['tp', 'tc', 'transformador_forca'] as const;
+
+  it('is the version a new Template is created with', () => {
+    expect(SEED_VERSION).toBe('v9');
+    expect(SEED_VERSIONS.v9!.version).toBe('v9');
+    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9']);
+    expect(equipmentTypesOf('v9')).toEqual(equipmentTypesOf('v8'));
+  });
+
+  it('differs from v8 by exactly the 15.3 and 15.6 differences, and v1 to v8 hash as they shipped', () => {
+    const stripped = structuredClone(v9) as typeof v9;
+    for (const type of TRANSFORMERS) {
+      const own = stripped.blocks[type] as BlockDefinition;
+      const shipped = v8.blocks[type];
+      const at = shipped.checklist!.findIndex((item) => item.key === 'indicador_nivel_de_oleo');
+      expect(at, type).toBe(4);
+      own.checklist!.splice(at, 0, structuredClone(shipped.checklist![at]!));
+      const kept = own.checklist!.find((item) => item.key === 'oleo_isolante_indicador_de_nivel')!;
+      kept.nc_phrases = [...shipped.checklist!.find((item) => item.key === 'oleo_isolante_indicador_de_nivel')!.nc_phrases];
+      own.subtypes = structuredClone(shipped.subtypes);
+      own.oil_rule!.items = [...shipped.oil_rule!.items];
+      if (type === 'tc') {
+        const fieldAt = shipped.nameplate.findIndex((candidate) => candidate.key === 'potencia_nominal');
+        own.nameplate.splice(fieldAt, 0, structuredClone(shipped.nameplate[fieldAt]!));
+      }
+      for (const test of own.tests) for (const table of test.tables) delete table.ratio_factor;
+    }
+    const ambiente = stripped.site_checklist!.groups.find((group) => group.key === 'ambiente')!;
+    expect(ambiente.items.splice(-2).map((item) => item.key)).toEqual(['grades_e_portas_estado_e_fixacao', 'pintura_e_corrosao']);
+    expect(JSON.stringify(stripped)).toBe(JSON.stringify(v8));
+    expect(hash('v1')).toBe(V1_HASH);
+    expect(hash('v2')).toBe(V2_HASH);
+    expect(hash('v3')).toBe(V3_HASH);
+    expect(hash('v4')).toBe(V4_HASH);
+    expect(hash('v5')).toBe(V5_HASH);
+    expect(hash('v6')).toBe(V6_HASH);
+    expect(hash('v7')).toBe(V7_HASH);
+    expect(hash('v8'), 'seed v8 changed after it shipped: add a new version instead').toBe(V8_HASH);
+  });
+
+  it('the three transformers: 14 checklist items, item 13 with four phrases, seven oil items in the dry defaults and the oil rule', () => {
+    for (const type of TRANSFORMERS) {
+      const definition = getDefinition('v9', 'cabine_primaria', type);
+      expect(definition.checklist, type).toHaveLength(14);
+      expect(definition.checklist!.map((item) => item.key), type).not.toContain('indicador_nivel_de_oleo');
+      expect(definition.checklist!.find((item) => item.key === 'oleo_isolante_indicador_de_nivel')!.nc_phrases).toEqual([
+        'nível de óleo abaixo do mínimo',
+        'óleo com coloração escura',
+        'indicador de nível ilegível',
+        'indicador de nível danificado',
+      ]);
+      const oil = ['valvula_de_alivio', 'elemento_secante', 'juntas_vedacoes_e_vazamentos', 'registros_radiadores', 'rele_de_gas_funcionamento', 'termometro', 'oleo_isolante_indicador_de_nivel'];
+      for (const subtype of definition.subtypes) expect(subtype.na_defaults, `${type} ${subtype.key}`).toEqual(oil);
+      expect(definition.oil_rule!.items, type).toEqual(oil);
+      expect(naDefaultsFor('v9', type, 'epoxi')).toHaveLength(7);
+      expect(naDefaultsFor('v8', type, 'epoxi')).toHaveLength(8);
+      expect(getDefinition('v8', 'cabine_primaria', type).checklist, type).toHaveLength(15);
+    }
+    // The Disjuntor MT keeps its item of the same key and its phrases.
+    expect(getDefinition('v9', 'cabine_primaria', 'disjuntor_mt')).toEqual(getDefinition('v8', 'cabine_primaria', 'disjuntor_mt'));
+  });
+
+  it('the TC has no POTÊNCIA NOMINAL (13 fields, v8 has 14); TP and Transformador de força keep theirs', () => {
+    const keys = (version: string, type: string) => getDefinition(version, 'cabine_primaria', type).nameplate.map((candidate) => candidate.key);
+    expect(keys('v9', 'tc')).not.toContain('potencia_nominal');
+    expect(keys('v9', 'tc')).toEqual(keys('v8', 'tc').filter((key) => key !== 'potencia_nominal'));
+    expect(keys('v9', 'tc')).toHaveLength(13);
+    expect(keys('v8', 'tc')).toHaveLength(14);
+    expect(keys('v8', 'tc')).toContain('potencia_nominal');
+    expect(keys('v9', 'tp')).toContain('potencia_nominal');
+    expect(keys('v9', 'transformador_forca')).toContain('potencia_nominal');
+  });
+
+  it('ratio_factor sqrt3 sits on the v9 transformador de força ratio table only', () => {
+    const factors: string[] = [];
+    for (const version of Object.keys(SEED_VERSIONS)) {
+      for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
+        for (const test of definition.tests) for (const table of test.tables) if ('ratio_factor' in table) factors.push(`${version}/${definition.block_type}/${test.key}/${table.ratio_factor}`);
+      }
+    }
+    expect(factors).toEqual(['v9/transformador_forca/relacao_transformacao/sqrt3']);
+  });
+
+  it('the site checklist: 21 items, the two new ones items 20 and 21 at the end of Ambiente; v4 to v8 keep 19', () => {
+    const items = siteItems('v9');
+    expect(items.map((item) => item.number)).toEqual(Array.from({ length: 21 }, (_, i) => i + 1));
+    expect(items.map((item) => item.key)).toEqual([...SITE_ITEM_KEYS]);
+    expect(items[19]).toEqual({
+      key: 'grades_e_portas_estado_e_fixacao',
+      label: 'Grades e portas: estado e fixação',
+      groupKey: 'ambiente',
+      number: 20,
+      nc_phrases: ['Grade ou porta danificada', 'Grade ou porta solta ou mal fixada', 'Dobradiças, trincos ou fechos corroídos'],
+    });
+    expect(items[20]).toEqual({
+      key: 'pintura_e_corrosao',
+      label: 'Pintura e corrosão',
+      groupKey: 'ambiente',
+      number: 21,
+      nc_phrases: ['Pintura descascada ou desgastada', 'Pontos de corrosão em estruturas metálicas', 'Corrosão em suportes ou ferragens'],
+    });
+    expect(siteChecklistOf('v9')!.groups.map((group) => group.items.length)).toEqual([7, 2, 2, 2, 3, 5]);
+    for (const version of ['v4', 'v5', 'v6', 'v7', 'v8']) expect(siteItems(version), version).toHaveLength(19);
   });
 });
 

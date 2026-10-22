@@ -198,6 +198,8 @@ export type ItemKey = z.infer<typeof itemKeySchema>;
  * § 4.1). A closed list like `ITEM_KEYS`: a key is the ASCII snake_case of its label, the list
  * grows append-only with the seed, and `location/{id}/checklist/{item_key}/...` accepts no other
  * key. Which of them a relatório offers is its seed version's `site_checklist` (`siteItems`).
+ * Story 15.3 (seed v9, contract 25) appends two Ambiente items, so v9 offers 21 and v4 to v8 the
+ * first 19.
  */
 export const SITE_ITEM_KEYS = [
   // Segurança e EPC no local
@@ -225,6 +227,9 @@ export const SITE_ITEM_KEYS = [
   'porta_abrindo_para_fora_com_fechadura',
   'ventilacao',
   'limpeza_e_ausencia_de_infiltracao',
+  // Seed v9 (Story 15.3, contract 25): appended to Ambiente as its items 20 and 21.
+  'grades_e_portas_estado_e_fixacao',
+  'pintura_e_corrosao',
 ] as const;
 
 export const siteItemKeySchema = z.enum(SITE_ITEM_KEYS);

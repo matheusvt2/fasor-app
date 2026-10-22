@@ -13,6 +13,7 @@ import {
   evaluateSheetReadings,
   firstRunCell,
   nextUnit,
+  ratioFormulaHelperText,
   readingLabelText,
   runEnterKeyHint,
   runTarget,
@@ -249,6 +250,73 @@ describe('5.5-UNIT evaluateSheetReadings', () => {
       expect(ratioOf(block('transformador_forca', { nameplate: { tap_atual: cell(typed) } })).rows[0]!.connection, typed).toEqual(['']);
     }
     expect(ratioOf(block('transformador_forca', { nameplate: { tap_atual: cell(' 12 ') } })).rows[0]!.connection).toEqual(['12']);
+  });
+
+  it('15.6: the v9 transformador de força computes U1 · √3 / U2 (62,90 for 13,8 kV / 380 V) and shows its formula; v8 and the v9 TP and TC keep U1/U2', () => {
+    const ratioOf = (version: string, type: EquipmentBlockType, sheet: Partial<Sheet>) => {
+      const b = { ...block(type, sheet, defaultBlockConfig(version, type)), seed_version: version };
+      return evaluateSheetReadings(b, getDefinition(version, 'cabine_primaria', type)).find((t) => t.testKey === 'relacao_transformacao')!.tables[0]!;
+    };
+    const inputs: [number, number, Cell][] = [
+      [0, 0, measured('13.8', 'kV')],
+      [0, 1, measured('380', 'V')],
+    ];
+    const captures = (a: string, b: string, c: string): [number, number, Cell][] => [...inputs, [0, 3, measured(a, null)], [0, 4, measured(b, null)], [0, 5, measured(c, null)]];
+    // 13800 · √3 / 380 = 62,9008: 62,8 is within ±0,5 %, 36,3 (the U1/U2 reading) is out.
+    const within = ratioOf('v9', 'transformador_forca', test('relacao_transformacao', captures('62.8', '62.8', '62.8')));
+    expect(within.rows[0]!.calculated).toEqual({ raw: '62.900792', text: '62,90' });
+    expect(within.rows[0]!.condicao).toBe('SATISFATÓRIO');
+    expect(within.formulaHelper).toBe('Calculado: U1 · √3 / U2');
+    expect(ratioFormulaHelperText('sqrt3')).toBe('Calculado: U1 · √3 / U2');
+    expect(ratioFormulaHelperText(undefined)).toBeNull();
+    const out = ratioOf('v9', 'transformador_forca', test('relacao_transformacao', captures('62.8', '36.3', '62.8')));
+    expect(out.rows[0]!.condicao).toBe('INSATISFATÓRIO');
+    expect(out.rows[0]!.cells.filter((c) => c.role === 'capture').map((c) => c.verdict)).toEqual(['within', 'out', 'within']);
+    // The ±0,5 % boundary around 62,900792: 63,2152 and 62,5864 within, 63,216 and 62,5855 out.
+    expect(ratioOf('v9', 'transformador_forca', test('relacao_transformacao', captures('63.2152', '62.5864', '62.9'))).rows[0]!.condicao).toBe('SATISFATÓRIO');
+    expect(ratioOf('v9', 'transformador_forca', test('relacao_transformacao', captures('63.216', '62.9', '62.9'))).rows[0]!.condicao).toBe('INSATISFATÓRIO');
+    expect(ratioOf('v9', 'transformador_forca', test('relacao_transformacao', captures('62.9', '62.5855', '62.9'))).rows[0]!.condicao).toBe('INSATISFATÓRIO');
+    // Seed v8: the same inputs give U1/U2 = 36,32 and no formula.
+    const v8 = ratioOf('v8', 'transformador_forca', test('relacao_transformacao', captures('36.3', '36.3', '36.3')));
+    expect(v8.rows[0]!.calculated?.text).toBe('36,32');
+    expect(v8.rows[0]!.condicao).toBe('SATISFATÓRIO');
+    expect(v8.formulaHelper).toBeNull();
+    // The v9 TP: 13.800 V / 220 V = 62,73; the v9 TC's plate RELAÇÃO "200/5" = 40,00; neither shows a formula.
+    const tp = ratioOf('v9', 'tp', test('relacao_transformacao', [[0, 0, measured('13800', 'V')], [0, 1, measured('220', 'V')]]));
+    expect(tp.rows[0]!.calculated?.text).toBe('62,73');
+    expect(tp.formulaHelper).toBeNull();
+    const tc = ratioOf('v9', 'tc', { nameplate: { relacao: cell('200/5') } });
+    expect(tc.rows[0]!.calculated?.text).toBe('40,00');
+    expect(tc.formulaHelper).toBeNull();
+    // No other table carries a formula.
+    for (const t of evaluateSheetReadings(block('chave_seccionadora'), SEC)) for (const table of t.tables) expect(table.formulaHelper).toBeNull();
+  });
+
+  it('15.6: an empty V SECUNDÁRIO reads the plate BT\'s first number ("380/220" -> 380, "380 V" -> 380, "220/127" -> 220); no leading number reads nothing', () => {
+    const trafo = getDefinition('v9', 'cabine_primaria', 'transformador_forca');
+    const rowOf = (raw: string) => {
+      const b = block('transformador_forca', {
+        nameplate: { tensao_nominal_bt: cell({ raw, unit: 'V', state: 'measured' }) },
+        ...test('relacao_transformacao', [[0, 0, measured('13.8', 'kV')]]),
+      });
+      return evaluateSheetReadings({ ...b, seed_version: 'v9' }, trafo).find((t) => t.testKey === 'relacao_transformacao')!.tables[0]!.rows[0]!;
+    };
+    for (const [raw, expected, calculated] of [
+      ['380/220', '380', '62,90'],
+      ['380 V', '380', '62,90'],
+      ['220/127', '220', '108,65'],
+      ['380', '380', '62,90'],
+    ] as const) {
+      const row = rowOf(raw);
+      expect(row.cells[1]!.fallback, raw).toEqual({ raw: expected, text: expected });
+      expect(row.cells[1]!.source, raw).toBe('nameplate');
+      expect(row.calculated?.text, raw).toBe(calculated);
+    }
+    for (const raw of ['abc', '', '/220']) {
+      const row = rowOf(raw);
+      expect(row.cells[1]!.fallback, raw).toBeNull();
+      expect(row.calculated, raw).toBeNull();
+    }
   });
 
   it('untyped ratio inputs read the nameplate (TP: AT kV -> V, BT V; TC: RELAÇÃO "200/5"); an unparseable one computes nothing', () => {

@@ -161,6 +161,16 @@ describe('8.4-UNIT buildReadingSuggestions drops', () => {
     expect(rows[0]!.trust).toBe('suggested');
   });
 
+  it('Story 15.3: a v9 TC drops a read POTÊNCIA NOMINAL as an unknown key; a v8 TC still suggests it', () => {
+    const tcOn = (seed: string): BuildReadingSuggestionsInput['block'] => ({ ...block({}, 'tc'), seed_version: seed });
+    const v9 = buildReadingSuggestions(input({ block: tcOn('v9') }));
+    expect(v9.rows.map((row) => row.target_path.split('/').at(-1))).not.toContain('potencia_nominal');
+    expect(v9.dropped).toContainEqual({ key: 'potencia_nominal', reason: 'unknown_key' });
+    const v8 = buildReadingSuggestions(input({ block: tcOn('v8') }));
+    expect(v8.rows.map((row) => row.target_path.split('/').at(-1))).toContain('potencia_nominal');
+    expect(v8.dropped.map((d) => d.key)).not.toContain('potencia_nominal');
+  });
+
   it('a block type without a definition drops every value as an unknown key', () => {
     const { rows, dropped } = buildReadingSuggestions(input({ block: block({}, 'no_such_type') }));
     expect(rows).toEqual([]);

@@ -44,9 +44,9 @@
         "text": "FABRICAÇÃO",
         "bbox": [
           72,
-          205,
+          209,
           234,
-          234
+          238
         ],
         "confidence": 0.99
       },
@@ -55,9 +55,9 @@
         "text": "Velquor",
         "bbox": [
           640,
-          209,
+          213,
           753,
-          235
+          239
         ],
         "confidence": 0.99
       },
@@ -66,9 +66,9 @@
         "text": "Nº",
         "bbox": [
           72,
-          262,
+          270,
           101,
-          282
+          290
         ],
         "confidence": 0.99
       },
@@ -77,9 +77,9 @@
         "text": "SÉRIE",
         "bbox": [
           112,
-          257,
+          265,
           185,
-          283
+          291
         ],
         "confidence": 0.99
       },
@@ -88,9 +88,9 @@
         "text": "TC-305117",
         "bbox": [
           640,
-          262,
+          270,
           795,
-          283
+          291
         ],
         "confidence": 0.99
       },
@@ -99,9 +99,9 @@
         "text": "TIPO",
         "bbox": [
           69,
-          315,
+          327,
           129,
-          336
+          348
         ],
         "confidence": 0.99
       },
@@ -110,9 +110,9 @@
         "text": "UCE-15",
         "bbox": [
           642,
-          315,
+          327,
           744,
-          336
+          348
         ],
         "confidence": 0.99
       },
@@ -121,9 +121,9 @@
         "text": "TIPO",
         "bbox": [
           69,
-          368,
+          384,
           129,
-          389
+          405
         ],
         "confidence": 0.99
       },
@@ -132,9 +132,9 @@
         "text": "DE",
         "bbox": [
           141,
-          369,
+          385,
           174,
-          388
+          404
         ],
         "confidence": 0.99
       },
@@ -143,9 +143,9 @@
         "text": "ISOLAÇÃO",
         "bbox": [
           186,
-          364,
+          380,
           316,
-          393
+          409
         ],
         "confidence": 0.99
       },
@@ -154,9 +154,9 @@
         "text": "Á",
         "bbox": [
           640,
-          363,
+          379,
           660,
-          388
+          404
         ],
         "confidence": 0.99
       },
@@ -165,317 +165,273 @@
         "text": "SECO",
         "bbox": [
           671,
-          368,
+          384,
           747,
-          389
+          405
         ],
         "confidence": 0.99
       },
       {
         "id": "t15",
-        "text": "POTÊNCIA",
+        "text": "TAP",
         "bbox": [
-          72,
-          416,
-          201,
-          442
+          69,
+          442,
+          117,
+          461
         ],
         "confidence": 0.99
       },
       {
         "id": "t16",
-        "text": "NOMINAL",
+        "text": "ATUAL",
         "bbox": [
-          213,
-          421,
-          333,
-          442
+          127,
+          442,
+          210,
+          462
         ],
         "confidence": 0.99
       },
       {
         "id": "t17",
-        "text": "25",
+        "text": "1",
         "bbox": [
           642,
-          421,
-          675,
-          442
+          442,
+          657,
+          461
         ],
         "confidence": 0.99
       },
       {
         "id": "t18",
-        "text": "VA",
+        "text": "DATA",
         "bbox": [
-          685,
-          422,
-          723,
-          441
+          72,
+          499,
+          137,
+          518
         ],
         "confidence": 0.99
       },
       {
         "id": "t19",
-        "text": "TAP",
+        "text": "FABRICAÇÃO",
         "bbox": [
-          69,
-          475,
-          117,
-          494
+          149,
+          494,
+          311,
+          523
         ],
         "confidence": 0.99
       },
       {
         "id": "t20",
-        "text": "ATUAL",
+        "text": "02/2022",
         "bbox": [
-          127,
-          475,
-          210,
-          495
+          641,
+          498,
+          756,
+          521
         ],
         "confidence": 0.99
       },
       {
         "id": "t21",
-        "text": "1",
+        "text": "TENSÃO",
         "bbox": [
-          642,
-          475,
-          657,
-          494
+          69,
+          551,
+          175,
+          576
         ],
         "confidence": 0.99
       },
       {
         "id": "t22",
-        "text": "DATA",
+        "text": "NOMINAL",
         "bbox": [
-          72,
-          528,
-          137,
-          547
+          187,
+          555,
+          307,
+          576
         ],
         "confidence": 0.99
       },
       {
         "id": "t23",
-        "text": "FABRICAÇÃO",
+        "text": "AT",
         "bbox": [
-          149,
-          523,
-          311,
-          552
+          317,
+          556,
+          349,
+          575
         ],
         "confidence": 0.99
       },
       {
         "id": "t24",
-        "text": "02/2022",
+        "text": "15",
         "bbox": [
-          641,
-          527,
-          756,
-          550
+          642,
+          556,
+          675,
+          576
         ],
         "confidence": 0.99
       },
       {
         "id": "t25",
-        "text": "TENSÃO",
+        "text": "kV",
         "bbox": [
-          69,
-          576,
-          175,
-          601
+          687,
+          555,
+          722,
+          575
         ],
         "confidence": 0.99
       },
       {
         "id": "t26",
-        "text": "NOMINAL",
+        "text": "TENSÃO",
         "bbox": [
-          187,
-          580,
-          307,
-          601
+          69,
+          608,
+          175,
+          633
         ],
         "confidence": 0.99
       },
       {
         "id": "t27",
-        "text": "AT",
+        "text": "NOMINAL",
         "bbox": [
-          317,
-          581,
-          349,
-          600
+          187,
+          612,
+          307,
+          633
         ],
         "confidence": 0.99
       },
       {
         "id": "t28",
-        "text": "15",
+        "text": "BT",
         "bbox": [
-          642,
-          581,
-          675,
-          601
+          319,
+          613,
+          351,
+          632
         ],
         "confidence": 0.99
       },
       {
         "id": "t29",
-        "text": "kV",
+        "text": "220",
         "bbox": [
-          687,
-          580,
-          722,
-          600
+          642,
+          612,
+          693,
+          633
         ],
         "confidence": 0.99
       },
       {
         "id": "t30",
-        "text": "TENSÃO",
+        "text": "V",
         "bbox": [
-          69,
-          629,
-          175,
-          654
+          703,
+          613,
+          723,
+          632
         ],
         "confidence": 0.99
       },
       {
         "id": "t31",
-        "text": "NOMINAL",
+        "text": "LIGAÇÃO",
         "bbox": [
-          187,
-          633,
-          307,
-          654
+          72,
+          665,
+          184,
+          694
         ],
         "confidence": 0.99
       },
       {
         "id": "t32",
-        "text": "BT",
+        "text": "SECUNDÁRIA",
         "bbox": [
-          319,
-          634,
-          351,
-          653
+          195,
+          664,
+          364,
+          690
         ],
         "confidence": 0.99
       },
       {
         "id": "t33",
-        "text": "220",
+        "text": "Y",
         "bbox": [
-          642,
-          633,
-          693,
-          654
+          640,
+          670,
+          659,
+          689
         ],
         "confidence": 0.99
       },
       {
         "id": "t34",
-        "text": "V",
+        "text": "RELAÇÃO",
         "bbox": [
-          703,
-          634,
-          723,
-          653
+          72,
+          722,
+          192,
+          751
         ],
         "confidence": 0.99
       },
       {
         "id": "t35",
-        "text": "LIGAÇÃO",
+        "text": "200-5",
         "bbox": [
-          72,
-          682,
-          184,
-          711
+          642,
+          726,
+          722,
+          747
         ],
         "confidence": 0.99
       },
       {
         "id": "t36",
-        "text": "SECUNDÁRIA",
+        "text": "A",
         "bbox": [
-          195,
-          681,
-          364,
-          707
+          732,
+          727,
+          752,
+          746
         ],
         "confidence": 0.99
       },
       {
         "id": "t37",
-        "text": "Y",
+        "text": "EXATIDÃO",
         "bbox": [
-          640,
-          687,
-          659,
-          706
+          72,
+          779,
+          200,
+          804
         ],
         "confidence": 0.99
       },
       {
         "id": "t38",
-        "text": "RELAÇÃO",
-        "bbox": [
-          72,
-          735,
-          192,
-          764
-        ],
-        "confidence": 0.99
-      },
-      {
-        "id": "t39",
-        "text": "200-5",
-        "bbox": [
-          642,
-          739,
-          722,
-          760
-        ],
-        "confidence": 0.99
-      },
-      {
-        "id": "t40",
-        "text": "A",
-        "bbox": [
-          732,
-          740,
-          752,
-          759
-        ],
-        "confidence": 0.99
-      },
-      {
-        "id": "t41",
-        "text": "EXATIDÃO",
-        "bbox": [
-          72,
-          788,
-          200,
-          813
-        ],
-        "confidence": 0.99
-      },
-      {
-        "id": "t42",
         "text": "10B100",
         "bbox": [
           642,
-          792,
+          783,
           749,
-          813
+          804
         ],
         "confidence": 0.99
       }
@@ -526,23 +482,10 @@
         "confidence": 0.97
       },
       {
-        "key": "potencia_nominal",
-        "value": {
-          "raw": "25",
-          "unit": "VA",
-          "state": "measured"
-        },
-        "ocr_token_ids": [
-          "t17",
-          "t18"
-        ],
-        "confidence": 0.97
-      },
-      {
         "key": "tap_atual",
         "value": "1",
         "ocr_token_ids": [
-          "t21"
+          "t17"
         ],
         "confidence": 0.97
       },
@@ -550,7 +493,7 @@
         "key": "data_fabricacao",
         "value": "2022-02",
         "ocr_token_ids": [
-          "t24"
+          "t20"
         ],
         "confidence": 0.97
       },
@@ -562,8 +505,8 @@
           "state": "measured"
         },
         "ocr_token_ids": [
-          "t28",
-          "t29"
+          "t24",
+          "t25"
         ],
         "confidence": 0.97
       },
@@ -575,8 +518,8 @@
           "state": "measured"
         },
         "ocr_token_ids": [
-          "t33",
-          "t34"
+          "t29",
+          "t30"
         ],
         "confidence": 0.97
       },
@@ -584,7 +527,7 @@
         "key": "ligacao_secundaria",
         "value": "Y",
         "ocr_token_ids": [
-          "t37"
+          "t33"
         ],
         "confidence": 0.97
       },
@@ -592,8 +535,8 @@
         "key": "relacao",
         "value": "200-5 A",
         "ocr_token_ids": [
-          "t39",
-          "t40"
+          "t35",
+          "t36"
         ],
         "confidence": 0.97
       },
@@ -601,7 +544,7 @@
         "key": "exatidao",
         "value": "10B100",
         "ocr_token_ids": [
-          "t42"
+          "t38"
         ],
         "confidence": 0.97
       }

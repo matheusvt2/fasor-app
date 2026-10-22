@@ -66,7 +66,7 @@ export const plateHandler: ReadingKindHandler = {
     // images/plate-tp.png
     { block_type: 'tp', sha256: '008145d0ff9770712dacc52395bee359f34dcd5ec4c7cc4d4f9b416216e5b11b' },
     // images/plate-tc.png
-    { block_type: 'tc', sha256: '0b5dce48ef09a2a08b164d75a69208fb645ba112302a1631cd299ef3d94618a5' },
+    { block_type: 'tc', sha256: '92d3a9fb2cdc8ae0cf174211fe614107cb03edd31093dd126be275d53d7e2ecb' },
     // images/plate-chave-transferencia-automatica.png
     { block_type: 'chave_transferencia_automatica', sha256: '05598e686249d191e2c9e899b149d562c9c6057e237cc7fb61a086035b6df293' },
     // images/plate-quadro-eletrico.png (Story 14.9, seed v6)
