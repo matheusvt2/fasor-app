@@ -40,6 +40,14 @@ dated line under its story before the batch merges, or a later seed version:
 - 15.1: bands per local and painel, coluna headers with counts, level kicker, NC badge and type label on equipment
   rows, "Adicionar …" last; no new colour token.
 
+Bruno's answers (2026-10-22, same day, relayed by Matheus): 1 to 4 confirm the defaults above (15.3, 15.4, 15.6
+unchanged). 5 and 6 change 15.1 and 15.2: equipment rows become **cards** (TAG and type label, state word, NC badge,
+Overflow at the corner) and the **Verificações do local is a card of the same kind, the first of its local**, with
+"N de 19" as progress and the equipment state words; bands per local and painel and the level kicker stay; PR #158
+is redrawn before Matheus approves. 7 adds Story 15.7 (the TC's own checklist, seed v10), backlog until Bruno sends
+the list; Matheus asks for it at the next interaction. Open for Bruno next time: whether "Próxima ficha" walks the
+checklist card (default: no).
+
 ## Cross-story table (one assertion per shared item)
 
 | Shared item | Stories | Assertion |
