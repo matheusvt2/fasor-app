@@ -27,7 +27,7 @@ import { pushRevision } from './support/push-server-ops.ts';
 import { emCampoDraft, officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 import { resetEmpresaB, withSeedDb } from './support/reset-empresa-b.ts';
 import { SYNC_CYCLE_TIMEOUT, syncNowAndReturn, waitForCompanyPull } from './support/sync.ts';
-import { expandLocation } from './support/tree.ts';
+import { expandLocation, section9Chevron } from './support/tree.ts';
 
 /*
  * 14.2-E2E. Local › Painel › Coluna, driven as a person would: the Template composer builds
@@ -121,7 +121,7 @@ const coluna = (page: Page, name: string) => page.locator('li.s9-coluna').filter
 const eqRow = (page: Page, tag: string) => page.locator('li.s9-eq').filter({ has: page.locator('.block-tag', { hasText: new RegExp(`^${tag}$`) }) });
 
 async function openSection9(page: Page): Promise<void> {
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = section9Chevron(page);
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
 }
