@@ -30,7 +30,7 @@ import { newId } from '../apps/api/src/ids.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNow, syncNowAndReturn } from './support/sync.ts';
 import { paletteTypes, typeLabels, typeRows } from './support/palette.ts';
-import { expandLocation } from './support/tree.ts';
+import { expandLocation, section9Chevron } from './support/tree.ts';
 
 /*
  * 14.5-E2E. The Chave de transferência automática (CTA), the library type of seed v5 on the
@@ -128,7 +128,7 @@ async function openSumario(page: Page, relatorioId: string): Promise<void> {
 }
 
 async function openSection9(page: Page): Promise<void> {
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = section9Chevron(page);
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
 }
