@@ -121,7 +121,9 @@ const coluna = (page: Page, name: string) => page.locator('li.s9-coluna').filter
 const eqRow = (page: Page, tag: string) => page.locator('li.s9-eq').filter({ has: page.locator('.block-tag', { hasText: new RegExp(`^${tag}$`) }) });
 
 async function openSection9(page: Page): Promise<void> {
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  // The relatórios dos ensaios carry the number of their Sumário position (F43, PR #156): a compact
+  // template puts them at 2, so the one section that expands is found by its label's shape.
+  const chevron = page.getByRole('button', { name: /^Expandir ou recolher a seção \d+$/ });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
 }
