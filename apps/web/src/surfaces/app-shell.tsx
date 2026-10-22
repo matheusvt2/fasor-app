@@ -32,15 +32,13 @@ export interface RouteTitle {
    */
   back?: string | ((params: Record<string, string | undefined>) => string);
   /**
-   * Story 12.2 (D-8): where back goes at the tablet and desktop widths when that differs
-   * from `back` (a sheet returns to the Sumário with its row focused; the phone keeps the
-   * tree surface), with the navigation state the destination reads.
+   * Where back goes when the destination also reads navigation state (a sheet returns to
+   * the Sumário with section 9 open and its row focused). It applies at every width
+   * whenever no `useBackTarget` override is set: Story 15.4 revoked journey review D-8's
+   * phone exception (Story 12.2), so there is no width check left to make.
    */
-  backWide?: (params: Record<string, string | undefined>) => { to: string; state: unknown };
+  backWith?: (params: Record<string, string | undefined>) => { to: string; state: unknown };
 }
-
-/** DESIGN.md `breakpoint-tablet`, the width from which a sheet has its rail beside it. */
-const WIDE_QUERY = '(min-width: 768px)';
 
 /** The document title of a route: "Conta · PRODUTO", or the product name alone on Home. */
 export function documentTitle(handle: RouteTitle | undefined): string {
@@ -102,11 +100,10 @@ export function AppShell() {
   useForwardArrival(titleRef);
 
   function goBack(): void {
-    // A press-time width check, not a render switch: the destination depends on the
-    // layout the person sees when they press, and nothing on screen changes with it.
-    const backWide = backTarget === null ? handle?.backWide : undefined;
-    if (backWide !== undefined && typeof window.matchMedia === 'function' && window.matchMedia(WIDE_QUERY).matches) {
-      const { to, state } = backWide(params);
+    // A `useBackTarget` override (the Export-dialog return) wins over the route's back.
+    const backWith = backTarget === null ? handle?.backWith : undefined;
+    if (backWith !== undefined) {
+      const { to, state } = backWith(params);
       void navigate(to, { state });
       return;
     }

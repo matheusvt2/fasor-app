@@ -131,9 +131,9 @@ function FichaProbe() {
   return <p data-testid="ficha-probe">{blockId}</p>;
 }
 
-function renderAt(path: string) {
+function renderAt(path: string, state: unknown = null) {
   return render(
-    <MemoryRouter initialEntries={[path]}>
+    <MemoryRouter initialEntries={[{ pathname: path, state }]}>
       <SyncContext value={syncState()}>
         <ToastProvider>
           <BackTargetProvider>
@@ -346,6 +346,29 @@ describe('4.4 location tree (Sumário presentation)', () => {
     expect(document.querySelector('.toast')).toHaveTextContent('SEC-TEST movido para a posição 2 de 3');
   });
 
+});
+
+describe('15.4 back from a sheet on a phone lands on the Sumário row', () => {
+  // The press-time width check is gone (app-shell.test.tsx pins the navigation); this pins the
+  // arrival at a phone width: the collapsed path opens, the row scrolls in and its open button
+  // takes the focus. The `focusLocationId` twin is pinned in sumario-surface.test.tsx (15.4).
+  it('at 390 px, arriving with focusBlockId on a coluna sheet opens its cabine, scrolls its row in and focuses its open button', async () => {
+    vi.stubGlobal('innerWidth', 390);
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      database = await seeded({ status: 'rascunho' });
+      renderAt(`/relatorio/${RELATORIO}`, { openSection9: true, focusBlockId: SEC_C01 });
+      await screen.findByRole('list', { name: 'Locais do relatório' });
+      await waitFor(() => expect(eqRow(SEC_C01)?.querySelector('[data-tree-open]')).toHaveFocus());
+      expect(screen.getByRole('button', { name: 'Recolher Cabine de Testes' })).toHaveAttribute('aria-expanded', 'true');
+      expect(scrollIntoView.mock.contexts).toContain(eqRow(SEC_C01));
+    } finally {
+      // @ts-expect-error jsdom's Element has no scrollIntoView; this test added it.
+      delete Element.prototype.scrollIntoView;
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 describe('4.4 rail presentation (/relatorio/:id/arvore)', () => {

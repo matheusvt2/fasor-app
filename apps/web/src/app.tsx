@@ -150,6 +150,7 @@ const router = createBrowserRouter([
             handle: { title: copy.setup.heading, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
           },
           // Story 4.4: the tree's rail presentation, until Epic 5 mounts it inside a sheet.
+          // Story 15.4: no back target leads here any more; it stays for the rail and deep links.
           {
             path: '/relatorio/:id/arvore',
             element: <TreeSurface />,
@@ -160,12 +161,12 @@ const router = createBrowserRouter([
           {
             path: '/relatorio/:id/ficha/:blockId',
             element: <FichaSurface />,
-            // Story 12.2 (D-8): from 768 px the sheet goes back to the Sumário, section 9
-            // open and its row focused; the phone keeps the tree surface.
+            // Story 15.4: at every width the sheet goes back to the Sumário, section 9 open and
+            // its row focused (journey review D-8's phone exception, Story 12.2, is revoked).
             handle: {
               title: '',
-              back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}/arvore`,
-              backWide: (params: Record<string, string | undefined>) => ({
+              back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}`,
+              backWith: (params: Record<string, string | undefined>) => ({
                 to: `/relatorio/${params.id ?? ''}`,
                 state: { openSection9: true, focusBlockId: params.blockId ?? null },
               }),
@@ -173,15 +174,18 @@ const router = createBrowserRouter([
           },
           // Story 14.3: "Verificações do local", the site checklist of one local (the mock's
           // `/local/:id/verificacoes`), opened from the local's tree row and from the sheet's
-          // "Do local" line. Back goes where the sheet's goes: the tree surface on a phone, the
-          // Sumário with section 9 open from 768 px.
+          // "Do local" line. Back goes where the sheet's goes (Story 15.4, every width): the
+          // Sumário with section 9 open and the local's "Verificações do local" focused.
           {
             path: '/relatorio/:id/local/:locationId/verificacoes',
             element: <VerificacoesSurface />,
             handle: {
               title: SITE_CHECKLIST_LABEL,
-              back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}/arvore`,
-              backWide: (params: Record<string, string | undefined>) => ({ to: `/relatorio/${params.id ?? ''}`, state: { openSection9: true } }),
+              back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}`,
+              backWith: (params: Record<string, string | undefined>) => ({
+                to: `/relatorio/${params.id ?? ''}`,
+                state: { openSection9: true, focusLocationId: params.locationId ?? null },
+              }),
             },
           },
           // Story 6.3: the gallery, reached from Sumário row 7.

@@ -10,7 +10,7 @@ import { syncNowAndReturn } from './support/sync.ts';
  * 12.2-E2E: the forward path, driven as a person would. J0 resumes the last sheet from Home
  * in one tap; J5 goes from Home to the first sheet of a new relatório without a single
  * "Voltar", registering the instrument setup asks for on the way; a sheet's "Voltar" lands
- * on the Sumário with its row focused from 768 px and on the tree surface on a phone; with
+ * on the Sumário with its row focused at every width (Story 15.4); with
  * no pointer "Continuar" opens the first sheet still missing something; "Próxima seção"
  * walks the section texts. Each journey records its tap count as a test annotation.
  *
@@ -137,7 +137,7 @@ test('@p0 12.2-E2E-001 J0 at 768: Home "Continuar" opens the last sheet in one t
   recordTaps('J0', journey.count);
 });
 
-test('@p0 12.2-E2E-002 "Voltar" from a sheet: the Sumário with section 9 open and the row focused at 768 and 1280, the tree surface at 390', async ({ page }) => {
+test('@p0 12.2-E2E-002 "Voltar" from a sheet: the Sumário with section 9 open and the row focused at 768, 1280 and 390 (Story 15.4)', async ({ page }) => {
   test.setTimeout(120_000);
   const relatorioId = await emCampoRelatorio(page, 768);
   const rows = await firstCabineRows(page);
@@ -159,12 +159,17 @@ test('@p0 12.2-E2E-002 "Voltar" from a sheet: the Sumário with section 9 open a
   await expect(section9Chevron(page)).toHaveAttribute('aria-expanded', 'true');
   await expect(open()).toBeFocused();
 
-  // A phone keeps the tree surface.
+  // Story 15.4: a phone lands on the same Sumário row (journey review D-8's tree surface is gone).
   await open().click();
   await expect(page).toHaveURL(new RegExp(`/ficha/${sheet.blockId}$`));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'Voltar' }).click();
-  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/arvore$`));
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
+  await expect(section9Chevron(page)).toHaveAttribute('aria-expanded', 'true');
+  await expect(open()).toBeFocused();
+  await expect(open()).toBeInViewport();
+  // Nothing on the phone Sumário links to the tree surface.
+  await expect(page.locator('a[href$="/arvore"]')).toHaveCount(0);
 });
 
 test('@p0 12.2-E2E-006 forward at 768: "Próxima ficha", the sheet\'s "Voltar", Home "Continuar" and "Próxima seção" open the new page at its top or its target, the focus on its heading or the target (E12-Q2)', async ({ page }) => {

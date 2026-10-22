@@ -360,7 +360,7 @@ export const copy = {
     agruparPorTipo: 'Agrupar por tipo',
     addColuna: 'Adicionar coluna',
     addLocal: 'Adicionar local',
-    // `.skeleton-actions` of a local card and of a painel card, and the menus' items.
+    // `.skeleton-actions` of a local card, of a painel card and (Story 15.5) of an open coluna, and the menus' items.
     addEquipamento: 'Adicionar equipamento',
     addPainel: 'Adicionar painel',
     // The foot's `.btn-reason`, verbatim.
@@ -372,6 +372,8 @@ export const copy = {
     // `.pnl-empty` and the sub-line of a painel with no coluna, verbatim.
     painelEmpty: 'Este painel ainda não tem colunas. Um painel só agrupa colunas e não recebe equipamento direto: adicione uma coluna e coloque os equipamentos nela.',
     painelNewSub: 'Novo · nomeie-o pelo menu e adicione a primeira coluna',
+    // authored: Story 15.5 (F10), `.col-none`: an open coluna that holds no equipment yet.
+    colunaNone: 'Nenhum equipamento nesta coluna.',
     // `.pal-target`, verbatim: the palette's current target, or the prompt with none.
     paletteTargetLead: 'Toque para adicionar em: ',
     selectNode: 'Selecione um local ou uma coluna.',

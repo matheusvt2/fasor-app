@@ -8,7 +8,7 @@ import {
   type EquipmentBlockType,
   type SectionBlockType,
 } from '@app/domain';
-import { Fragment, useId, type Ref } from 'react';
+import { Fragment, useCallback, useId, type Ref } from 'react';
 import { QuantityStepper } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { copy } from '../../copy/pt-br.ts';
@@ -49,6 +49,10 @@ export interface BlockPaletteProps {
  * with a Quantity stepper for that node. With no current node the steppers are disabled and
  * the line says why ("Selecione um local ou uma coluna.").
  *
+ * Story 15.5 (F10): as a drawer or a sheet it keeps "Blocos" as its head (and so as the
+ * dialog's name) with the `.pal-target` line right under it, and only its list scrolls,
+ * carrying `data-more-below` while content remains below so CSS draws the cue.
+ *
  * Story 14.5: the types are the ones the template's seed version ships, in the kernel's
  * groups: the eight under "Equipamentos", then, on a version that has library types, the
  * "Outros equipamentos" heading with the Chave de transferência automática, its row saying
@@ -68,21 +72,38 @@ export function BlockPaletteContent({
   onEditDefaults,
 }: BlockPaletteProps) {
   const reasonId = useId();
+  const drawer = onClose !== undefined;
+  const moreBelow = useMoreBelowCue(drawer);
+  // The mock swaps `.pal-now` and `.pal-none` with CSS `:has()`; here one of them is rendered. A polite region: the target is said when it changes.
+  const target = (
+    <p className="palette-group pal-target" aria-live="polite" id={reasonId}>
+      {current === null || targetText === null ? (
+        <span className="pal-none">{copy.composer.selectNode}</span>
+      ) : (
+        <span className="pal-now">
+          {copy.composer.paletteTargetLead}
+          <b>{targetText}</b>
+        </span>
+      )}
+    </p>
+  );
   return (
     <>
-      {onClose === undefined ? null : <div className="sheet-grip" aria-hidden="true" />}
+      {drawer ? <div className="sheet-grip" aria-hidden="true" /> : null}
       <div className="palette-head">
-        {/* DESIGN.md › Block palette: headed by the node it fills ("Coluna 5"); "Blocos" with none. */}
-        <span id={headingId}>{current === null ? copy.composer.paletteTitle : current.name}</span>
-        {onClose === undefined ? null : (
+        {/* DESIGN.md › Block palette: inline, headed by the node it fills ("Coluna 5"), "Blocos" with
+            none; as a drawer or a sheet (Story 15.5, F10) always "Blocos", the target under it. */}
+        <span id={headingId}>{drawer || current === null ? copy.composer.paletteTitle : current.name}</span>
+        {drawer ? (
           <button type="button" className="icon-btn" aria-label={copy.composer.closePalette} onClick={onClose}>
             <svg className="ico" aria-hidden="true">
               <use href="/sprite.svg#i-close" />
             </svg>
           </button>
-        )}
+        ) : null}
       </div>
-      <div className="palette-items">
+      {drawer ? target : null}
+      <div className="palette-items" ref={moreBelow}>
         <p className="palette-group">{copy.composer.paletteSections}</p>
         {insertBelow === null ? null : <p className="palette-note">{copy.composer.paletteInsertBelow(insertBelow)}</p>}
         {SECTION_BLOCK_TYPES.map((type, i) => (
@@ -106,17 +127,7 @@ export function BlockPaletteContent({
         ))}
 
         <p className="palette-group">{copy.composer.paletteEquipment}</p>
-        {/* The mock swaps `.pal-now` and `.pal-none` with CSS `:has()`; here one of them is rendered. A polite region: the target is said when it changes. */}
-        <p className="palette-group pal-target" aria-live="polite" id={reasonId}>
-          {current === null || targetText === null ? (
-            <span className="pal-none">{copy.composer.selectNode}</span>
-          ) : (
-            <span className="pal-now">
-              {copy.composer.paletteTargetLead}
-              <b>{targetText}</b>
-            </span>
-          )}
-        </p>
+        {drawer ? null : target}
         {paletteTypeGroups(seedVersion).map((group) => (
           <Fragment key={group.key}>
             {group.label === null ? null : <p className="palette-group palette-library">{group.label}</p>}
@@ -137,6 +148,38 @@ export function BlockPaletteContent({
         ))}
       </div>
     </>
+  );
+}
+
+/**
+ * Story 15.5 (F10): the drawer's or sheet's list carries `data-more-below="true"` while content
+ * remains below its visible part, so CSS draws the bottom cue; kept on scroll, on a resize of
+ * the list or the window, and on a change of its content. Written on the element, not in
+ * React state: the cue never re-renders the palette. Off for the inline palette.
+ */
+function useMoreBelowCue(enabled: boolean): (element: HTMLDivElement | null) => (() => void) | undefined {
+  return useCallback(
+    (element: HTMLDivElement | null) => {
+      if (!enabled || element === null) return undefined;
+      const update = () => {
+        const more = element.scrollTop + element.clientHeight < element.scrollHeight - 1;
+        element.dataset.moreBelow = more ? 'true' : 'false';
+      };
+      update();
+      element.addEventListener('scroll', update, { passive: true });
+      window.addEventListener('resize', update);
+      const resize = typeof ResizeObserver === 'function' ? new ResizeObserver(update) : null;
+      resize?.observe(element);
+      const mutation = typeof MutationObserver === 'function' ? new MutationObserver(update) : null;
+      mutation?.observe(element, { childList: true, subtree: true, characterData: true });
+      return () => {
+        element.removeEventListener('scroll', update);
+        window.removeEventListener('resize', update);
+        resize?.disconnect();
+        mutation?.disconnect();
+      };
+    },
+    [enabled],
   );
 }
 

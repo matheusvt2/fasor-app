@@ -2,7 +2,8 @@
 title: 'Stories 15.4 and 15.5: "Voltar" lands on the Sumário at every width; "Adicionar equipamento" on a coluna below 1024 px'
 type: 'feature'
 created: '2026-10-22'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: 'dcc2878c894cc662734597f9dde5947f2be90102'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'

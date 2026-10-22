@@ -24,6 +24,8 @@
 [data-route="/templates/porto-seguro"] .loc-direct.is-empty { display: none; }
 [data-route="/templates/porto-seguro"] .local-card.is-current > .block-expand > .loc-direct.is-empty { display: block; }
 [data-route="/templates/porto-seguro"] .loc-direct .loc-none, [data-route="/templates/porto-seguro"] .painel-card .pnl-empty { margin: 0; }
+/* Story 15.5 (F10): an empty coluna's note, as the local's `.loc-none` */
+[data-route="/templates/porto-seguro"] .col-body .col-none { margin: 0; }
 [data-route="/templates/porto-seguro"] .skeleton-list .block-line .loc-flag { font-size: var(--t-label-size); font-weight: var(--t-label-weight); }
 [data-route="/templates/porto-seguro"] .column-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-hairline); }
 [data-route="/templates/porto-seguro"] .column-row { border-bottom: 1px solid var(--border-hairline); display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--sp-2); }
@@ -286,10 +288,21 @@
                           <button class="chip" data-toast="Composição da Coluna 5 copiada para as colunas 6–17"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Repetir nas colunas 6–17</button>
                           <button class="chip" data-toast="Coluna 5 copiada da Coluna 4 · trafo incluído"><svg class="ico" aria-hidden="true"><use href="#i-repeat"/></svg>Igual à Coluna 4</button>
                         </div>
+                        <!-- Story 15.5 (F10): the open coluna's own way to the palette; below 1024 px it opens the palette drawer or sheet on this coluna -->
+                        <div class="skeleton-actions"><button class="btn btn-text" aria-pressed="true" data-toast="Coluna 5 · Painel de média tensão: a paleta abre como gaveta (tablet) ou folha (celular) e adiciona aqui"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar equipamento</button></div>
                       </div>
                     </li>
                     <li class="column-row"><input class="pos-box col-pos" type="text" inputmode="numeric" value="6" aria-label="Posição de Coluna 6 em Painel de média tensão — digite outro número para mover" data-toast="Coluna 6 movida para a posição 6 — Desfazer"><button class="col-head" data-toast="Só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Coluna 6</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 TP · 1 TC</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button><button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Coluna 6 em Cabine primária"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
                     <li class="column-row"><span class="col-pos-empty" aria-hidden="true"></span><button class="col-head" data-toast="Colunas 7–17 — só a Coluna 5 da Cabine primária tem os steppers no protótipo"><span class="col-name">Colunas 7–17</span><span class="col-sum">11 colunas · 8 seccionadoras · 9 disjuntores · 3 TP · 3 TC · 2 trafos · 6 cabos de saída · 2 para-raios</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+                    <!-- Story 15.5 (F10): a coluna just added holds nothing yet; open, its body says so and offers "Adicionar equipamento" -->
+                    <li class="column-row is-open" id="tc-col-18"><input class="pos-box col-pos" type="text" inputmode="numeric" value="18" aria-label="Posição de Coluna 18 em Painel de média tensão — digite outro número para mover" data-toast="Coluna 18 movida para a posição 18 — Desfazer">
+                      <button class="col-head" data-toggle-class="is-open" data-toggle-target="#tc-col-18" aria-expanded="true" aria-controls="tc-col-18-body"><span class="col-name">Coluna 18</span><span class="col-sum"></span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button>
+                      <button class="overflow-trigger" data-open="#tc-dlg-col-menu" aria-label="Mais opções de Coluna 18 em Cabine primária"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+                      <div class="col-body" id="tc-col-18-body">
+                        <p class="section-note col-none">Nenhum equipamento nesta coluna.</p>
+                        <div class="skeleton-actions"><button class="btn btn-text" aria-pressed="false" data-set-text="#tc-pal-current|Coluna 18 · Painel de média tensão" data-toast="Coluna 18 · Painel de média tensão: a paleta abre como gaveta (tablet) ou folha (celular) e adiciona aqui"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar equipamento</button></div>
+                      </div>
+                    </li>
                   </ul>
                   <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 18 adicionada em Painel de média tensão — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
                 </div>
