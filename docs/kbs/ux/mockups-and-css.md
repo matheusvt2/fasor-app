@@ -3,7 +3,7 @@ type: UX Rule
 title: Mockups and CSS translation
 description: Build screens from the mockups with their class names; how bezel-scoped selectors translate to the app.
 tags: [ux, css, mockups]
-timestamp: 2026-09-30T00:00:00Z
+timestamp: 2026-10-22T00:00:00Z
 sources: [AGENTS.md, _bmad-output/planning-artifacts/ux-designs/ux-fasor-2026-09-18/mockups/MOCK-GUIDE.md]
 ---
 # Mockups and CSS translation
@@ -14,4 +14,5 @@ sources: [AGENTS.md, _bmad-output/planning-artifacts/ux-designs/ux-fasor-2026-09
 - Never translate: `.frame--crop`, `.mock-*`, bezel sizes, `.browser-chrome`, `.frame-desktop .screen`, static `.is-focus-ring`. Media queries already in `components.css` apply as is.
 - ARIA state lives on the element the mock CSS styles. If a valid ARIA shape cannot carry the mock attribute (`role="radio"` and `aria-pressed`), `app.css` mirrors the declarations for the attribute it does carry. No invented look.
 - A new `.frame-*` rule gets its translation in the same change that first renders it; the real-browser pass checks 390, 768 and 1280 px plus a dialog.
+- Tree levels (2026-10-22, Story 15.1): the Sumário section 9, the rail and the composer skeleton share one vocabulary (local title band, painel sub-band, coluna group header, the `.level-kicker` word, every sheet an `.eq-card` with TAG and type label as its title and `.nc-badge`, the Verificações do local as the first card of its local, "Adicionar …" last; Bruno's answers 5 and 6 of 2026-10-22); the class table is `MOCK-GUIDE.md` › Epic 15, the rule `DESIGN.md` and `EXPERIENCE.md` › Relatório tree (2026-10-22 amendments).
 - Behavior and components: [ui-system](/architecture/ui-system.md).
