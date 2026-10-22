@@ -164,23 +164,39 @@ Esta nota vence a seção acima onde as duas discordam.
 
 ## Epic 15 (2026-10-22, Story 15.1) — os níveis da árvore
 
-Fonte: `epic-15-context.md` (o padrão da 15.1, tomado pelo Matheus em 2026-10-22 enquanto a resposta 6 do Bruno não chega), o item 1 do "Melhorias produto.docx" do Bruno (a seção 9 do Sumário a 390 px lida como uma sequência plana; referências do Produttivo: faixas de título por grupo e uma palavra por nível) e `test-artifacts/manual/ux-pass-2026-10-22.md` F50, F19, F37, F34. Emendas: `DESIGN.md` › Relatório tree e `EXPERIENCE.md` › Relatório tree, 2026-10-22.
+Fonte: `epic-15-context.md` (o padrão da 15.1, tomado pelo Matheus em 2026-10-22 enquanto a resposta 6 do Bruno não chega; *(2026-10-22, tarde)* as respostas 5 e 6 do Bruno chegaram e mudaram o desenho, ver o fim desta seção), o item 1 do "Melhorias produto.docx" do Bruno (a seção 9 do Sumário a 390 px lida como uma sequência plana; referências do Produttivo: faixas de título por grupo e uma palavra por nível) e `test-artifacts/manual/ux-pass-2026-10-22.md` F50, F19, F37, F34. Emendas: `DESIGN.md` › Relatório tree e `EXPERIENCE.md` › Relatório tree, 2026-10-22.
 
 **Um vocabulário para os quatro níveis**, igual no Sumário (`screens/40-relatorio-overview.html`), no trilho (`rail-tree` de `shell-foot.html`, CSS em `screens/60-ficha.html` com seletores `#rail`) e no esqueleto do composer (`screens/42-template-composer.html`):
 
 | Nível | Desenho | Classes (Sumário · trilho · composer) |
 | --- | --- | --- |
-| Local | faixa de título em `surface-sunken`, hairline acima e abaixo; "Local" (kicker) sobre o nome; Função e dados da SE; a linha "Verificações do local · N de 19" dentro da faixa | `.s9-loc-row` · `.tree-row.level-band` + `.tree-row.in-band` · `.local-card` |
+| Local | faixa de título em `surface-sunken`, hairline acima e abaixo; "Local" (kicker) sobre o nome; Função e dados da SE; ~~a linha "Verificações do local · N de 19" dentro da faixa~~ *(2026-10-22, resposta 5: a faixa não tem botão; as Verificações do local são o primeiro cartão do local)* | `.s9-loc-row` · `.tree-row.level-band` ~~+ `.tree-row.in-band`~~ · `.local-card` |
 | Painel | subfaixa em `surface-base`, hairline abaixo, a régua aberta (`sum-open-rule`) à esquerda no Sumário; "Painel" sobre o nome | `.s9-pnl-row` · `.tree-row.level-subband` · `.painel-card` |
 | Coluna | cabeçalho de grupo: "Coluna" antes do nome, nome em 600, "N de M" em meta, hairline abaixo | `.s9-coluna > .s9-col` · `.tree-row.level-group` · `.column-row` |
-| Equipamento | TAG (600, tabular) sobre o rótulo do tipo (meta), os dois em toda largura (no desktop lado a lado); selo NC quando a ficha tem NC aberta; glifo + palavra de estado | `.s9-eq-id > .block-tag + .s9-eq-name`, `.nc-badge` · `.tree-id > .tree-tag + .nc-badge`, `.tree-meta` · (o composer não tem linhas de equipamento) |
+| Equipamento | ~~TAG (600, tabular) sobre o rótulo do tipo (meta), os dois em toda largura (no desktop lado a lado); selo NC quando a ficha tem NC aberta; glifo + palavra de estado~~ *(2026-10-22, resposta 6: um cartão, ver abaixo)* | ~~`.s9-eq-id > .block-tag + .s9-eq-name`, `.nc-badge` · `.tree-id > .tree-tag + .nc-badge`, `.tree-meta` · (o composer não tem linhas de equipamento)~~ *(ver abaixo)* |
 | "Adicionar …" | a última linha do seu nível, no recuo do nível | `.s9-add` · — · `.skeleton-actions` |
 
-- **Kicker** `.level-kicker`: `label` (14 px), 600, `ink-secondary`; a mesma classe que o composer já usava desde a Story 14.1. Em linha de equipamento nunca há kicker; "Equipamentos no local" e "Colunas 6 a 17" são cabeçalhos de grupo sem kicker (não são níveis).
+- **Kicker** `.level-kicker`: `label` (14 px), 600, `ink-secondary`; a mesma classe que o composer já usava desde a Story 14.1. Em ~~linha~~ *(cartão, 2026-10-22)* de equipamento nunca há kicker; "Equipamentos no local" e "Colunas 6 a 17" são cabeçalhos de grupo sem kicker (não são níveis).
 - **Selo NC** `.nc-badge`: "1 NC", `nao-conforme` sobre `nao-conforme-fill`, raio cheio. Nenhum token de cor novo; `tokens.css` e `components.css` não mudaram (todo o CSS é de página, com o seletor da rota ou `#rail`, como na Epic 14).
-- **Controles mantidos em toda linha**, como o app os desenha (`relatorio-tree-sumario.tsx`): chevron (48×56), alça de arrastar, caixa de posição (`.pos-box.s9-pos`), contador, Overflow; nas linhas de equipamento, alça, caixa de posição e Overflow. No celular as linhas de local, painel e coluna não desenham alça nem caixa de posição (como `app.css` já faz). A linha selecionada continua `focus-fill` + régua `primary` de 4 px.
+- **Controles mantidos em toda linha**, como o app os desenha (`relatorio-tree-sumario.tsx`): chevron (48×56), alça de arrastar, caixa de posição (`.pos-box.s9-pos`), contador, Overflow; nas ~~linhas~~ *(cartões, 2026-10-22)* de equipamento, alça, caixa de posição e Overflow. No celular as linhas de local, painel e coluna não desenham alça nem caixa de posição (como `app.css` já faz). A linha *(ou o cartão, 2026-10-22)* selecionada continua `focus-fill` + régua `primary` de 4 px.
 - **Cabeçalho do Sumário no celular** (F50): os quatro contadores numa grade 2×2 acima da lista. **Linha dos pontos** (F34): o ponto automático contado uma vez, "4 pontos + 1 automático · 1 sem ação" (no app de Bruno, "1 ponto + 1 automático").
-- **Selos NC** (F37): "2 NC abertos" no cabeçalho corresponde às duas linhas com selo (DJ-C05 na Coluna 5, TR1 na Cabine de transformação); o trilho mostra o selo de DJ-C05 e de TR1.
+- **Selos NC** (F37): "2 NC abertos" no cabeçalho corresponde às duas ~~linhas~~ *(fichas, 2026-10-22: cartões)* com selo (DJ-C05 na Coluna 5, TR1 na Cabine de transformação); o trilho mostra o selo de DJ-C05 e de TR1.
 - **Ordem**: "Adicionar equipamento no local" passou para depois dos painéis do local (última linha do nível); "Adicionar bloco em ⟨painel⟩" segue a última coluna do painel.
 - **Textos que mudam no kernel** (Story 15.2): a meta do painel perde "Painel ·" (o kicker diz o nível: "17 colunas", no trilho "17 colunas · 39 de 53"); a meta do local no trilho perde "Local ·" ("Primária · 1 painel · 39 de 53 fichas"); a coluna no trilho mostra "N de M" em vez de "N fichas".
 - `prototype/index.html` foi regerado concatenando os mesmos arquivos na ordem do `build.py` (saída byte-idêntica à do `build.py` antes da mudança); rode `python3 build.py` para ver os avisos dele.
+
+### Respostas do Bruno de 2026-10-22 (5 e 6, repassadas pelo Matheus)
+
+Esta nota vence o texto acima onde os dois discordam.
+
+- **Resposta 6, equipamento em cartões.** Toda ficha da seção 9, do trilho e do esqueleto do composer é um cartão no visual do Block card de `components.css` (`surface-raised`, `border-strong`, raio md, no mínimo `touch-field` de altura), não uma linha de 56 px. Título: TAG + rótulo do tipo; no cartão, glifo + palavra de estado e o selo NC; Overflow no canto; o corpo do cartão é a área de toque. A coluna continua cabeçalho de grupo sobre os seus cartões; as faixas de local e painel e o kicker continuam.
+- **Resposta 5, Verificações do local como as fichas.** As Verificações do local são um cartão do mesmo tipo, **o primeiro cartão do local** (antes de painéis e de equipamento direto), com "N de 19" como progresso e as palavras de estado de uma ficha (Vazia · Em preenchimento · Concluída) e o mesmo visual de selecionado. A faixa do local não tem mais o botão: guarda nome, Função e dados da SE. No trilho, o mesmo cartão primeiro no local. A linha "Do local" de `60-ficha.html` não muda.
+
+| Peça | Sumário (`40`) | Trilho (`shell-foot.html`, CSS em `60`) | Composer (`42`) |
+| --- | --- | --- | --- |
+| Cartão de ficha | `li.s9-eq.eq-card.block-card` › `.drag-handle`, `.pos-box.s9-pos`, `button.s9-eq-open.eq-card-open` (› `.eq-card-title` = `.s9-eq-id` › `.block-tag` + `.s9-eq-name`; `.eq-card-status` › `.s9-state`, `.nc-badge`, `.sum-here`), `.overflow-trigger` | `.tree-row.level-item.eq-card` › `.tree-body` › `.tree-id` (`.tree-tag` + `.tree-name`), `.eq-card-status` (`.tree-state`, `.nc-badge`) | `.qty-row.eq-card` (tipo + "TAG ao criar", Quantity stepper à direita) |
+| Cartão das Verificações | `ul.s9-eqs.s9-site` › `li.s9-site-card.eq-card.block-card` › `button.s9-verif.eq-card-open` (a classe `.s9-verif` do app fica no botão) | `.tree-row.eq-card.site-card` | — (o composer mostra "Verificações do local: 19 itens" na linha do local, como antes) |
+
+- Cartão atual: `.eq-card.is-current` (Sumário) e `.tree-row.eq-card.is-selected` (trilho) levam `focus-fill` + régua `primary` de 4 px.
+- `.in-band` e o lado a lado de TAG e tipo só no desktop saíram; o título do cartão põe TAG e tipo na mesma linha e quebra quando falta largura.
+- Textos novos (autorais): o progresso do cartão das Verificações "N de 19" com a palavra de estado ao lado ("Concluída" em 19 de 19, "Vazia" em 0, "Em preenchimento" entre os dois).
