@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 10-21-2026 12:00
+last_updated: 10-22-2026 18:00
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -178,6 +178,14 @@ development_status:
   14-13-the-manufacturers-criterion-on-an-equipment-test: backlog  # added 2026-10-21 (Bruno via Matheus, answer 10): an optional per-sheet critério do fabricante per test replaces the default, over the existing criterion_override path; DoR: control drawn and approved, print wording authored, CTA measurement tests scope confirmed
   14-14-seed-v7-fixed-extinction-media-selv-pelv-help-test-voltage: done  # 2026-10-22: PR #153 merged (batch e14d, contract 22, seed v7); deployed as v0.2.4 (74c71b4), production smoke passed |  # added 2026-10-21 (Bruno via Matheus, answers 1, 3, 4): disjuntor medium Ar, Gás SF6, Vácuo, Óleo, Outro (Outro shows the oil item and VOL. OLEO), SELV/PELV help text and a >50 V notice, band test voltage checked only with the instrument photo; seed v7, contract decision; DoR: open questions answered or defaults accepted
   epic-14-retrospective: done  # epic-14-retro-2026-10-14.md; machine verdict rejected (14-6 to 14-8 wait for real jobs, wave 3); this cycle 14.1-14.5
+
+  epic-15: in-progress  # added 2026-10-22 (Matheus): Bruno's "Melhorias produto.docx" of 2026-10-22, seven items against v0.2.4 on a phone; epic-15-context.md; waves A (e15a 15.4+15.5, e15b 15.3+15.6 seed v9 contract 25) and B (15.1 mocks, then 15.2); defaults taken while Bruno's seven questions are out
+  15-1-the-mocks-for-the-tree-levels: backlog  # wave B; DoR: Bruno's answer 6 or the default (bands, kicker, NC badge, type label)
+  15-2-the-tree-levels-built: backlog  # wave B, after Matheus approves 15.1; folds UX-pass F50, F19, F37, F34
+  15-3-seed-v9-one-oil-item-tc-without-potencia-nominal-two-site-items: ready-for-dev  # wave A, batch e15b with 15.6; seed v9, contract 25; defaults: drop item 5 keep 13, TC only, two Ambiente items
+  15-4-voltar-from-a-sheet-lands-on-the-sumario-at-every-width: ready-for-dev  # wave A, batch e15a with 15.5; reverses the D-8 phone exception
+  15-5-adicionar-equipamento-on-a-coluna-below-1024-px: ready-for-dev  # wave A, batch e15a with 15.4; folds UX-pass F10
+  15-6-the-transformer-ratio-calculated-with-sqrt3: ready-for-dev  # wave A, batch e15b with 15.3; seed v9 ratio_factor on the transformer table only
 
   backlog-deferred: backlog  # added 2026-10-21: stories moved out of their epic with a dated decision, epics.md "Backlog: deferred stories"
   13-9-dictation-on-behind-one-line-of-consent: backlog  # 2026-10-21 (Bruno via Matheus, answer 11): moved out of Epic 13 to the backlog; DoR unchanged |  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus
