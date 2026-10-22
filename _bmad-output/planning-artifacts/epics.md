@@ -515,7 +515,7 @@ An office user composes a masonry room as a local holding its equipment directly
 Bruno, after his first days on v0.2.4 from a phone, sees the relatório tree read its levels at a glance (bands per local and painel, the level word, the NC and the type on each equipment row), a transformer list that asks about the oil level once and a TC sheet that asks for no power, a local's checklist that also covers paint and the condition of grades and doors, "Voltar" from a sheet returning to the Sumário row at every width, a coluna in the composer that offers "Adicionar equipamento" on a phone, and a transformer ratio calculated as U1·√3/U2. Source: his "Melhorias produto.docx" of 2026-10-22, seven items with screenshots; the site checklist he asked for already exists (Story 14.3).
 **FRs covered:** FR-10, FR-17, FR-18, FR-22, FR-24, FR-25, FR-68 (revisited); CAP-8, CAP-27 (revisited)
 **Also covers:** AR-20 (seed v9); UX-DR29, UX-DR70; the 2026-10-22 hands-on findings F10, F19, F34, F37, F50
-**Decisions (Matheus, 2026-10-22):** proceed on defaults while Bruno's seven questions are out; seed v9 and contract 25 for 15.3 and 15.6 in one batch; waves A (e15a 15.4 + 15.5, e15b 15.3 + 15.6, in parallel) and B (15.1 mocks, then 15.2). Context: `implementation-artifacts/epic-15-context.md`.
+**Decisions (Matheus, 2026-10-22):** proceed on defaults while Bruno's seven questions are out; seed v9 and contract 25 for 15.3 and 15.6 in one batch; waves A (e15a 15.4 + 15.5, e15b 15.3 + 15.6, in parallel) and B (15.1 mocks, then 15.2). Context: `implementation-artifacts/epic-15-context.md`. *(2026-10-22, Bruno's answers, same day: 1 to 4 confirm the defaults; 5 and 6 turn equipment rows and the Verificações do local into cards (15.1 redrawn, 15.2); 7 adds Story 15.7, the TC's own checklist, waiting for Bruno's list.)*
 
 
 ## Epic 1: Sign in and work on the device (offline-first foundation)
@@ -3945,6 +3945,8 @@ Decisions (Matheus, 2026-10-22): proceed on the defaults named under each story 
 
 **Questions sent to Bruno (2026-10-22, pt-BR, by Matheus):** (1) oil item: drop item 5 and keep item 13 on the shared transformer list; (2) POTÊNCIA NOMINAL leaves the TC only; (3) the √3 formula applies to the transformador de força with U2 the BT line voltage, TPs keep U1/U2 and the TC its plate ratio, and whether LIGAÇÃO SECUNDÁRIA (Dyn) should switch the factor; (4) "Voltar" was pressed on a sheet opened from the Sumário and landed on "Árvore do relatório", and the fix is to return to the Sumário on the row, as the tablet does, or a next/previous-sheet shortcut inside the sheet; (5) the site checklist exists with 19 items and only "Pintura" and the condition of grades and portas are missing, added as two items; (6) which of the Produttivo traits weighs most for the tree (title bands per local and painel, the level word, a colour per level, equipment in cards), drawn first for his approval on the phone; (7) F29 of the hands-on pass: the TC's checklist is the transformer list (válvula de alívio, elemento secante, ventiladores, radiadores, relé de gás, termômetro, relé de temperatura), as FO.SERV-03 delivers it, or does the TC get its own list.
 
+**Bruno's answers (2026-10-22, relayed by Matheus, same day):** (1) confirmed; (2) ok; (3) TP and TC stay as they are, the transformador de força always uses the √3 formula; (4) yes, back to the Sumário; (5) the way into the site checklist must be more didactic and intuitive in the activity flow, "similar to the equipment"; (6) equipment in cards; (7) the TC gets a checklist of its own, which Bruno will review and send, to be asked for at the next interaction. Effects: 15.3, 15.4 and 15.6 keep their defaults (Definition of Ready met); 15.1 and 15.2 change (equipment rows become cards, and the Verificações do local is drawn and built as a card like an equipment's, first in its local); new Story 15.7 waits for Bruno's TC list.
+
 ### Story 15.1: The mocks for the tree levels
 
 **Dev model:** opus · **Effort:** medium · mock HTML from the existing tokens and components, no app code; DESIGN.md and EXPERIENCE.md amendments
@@ -3971,6 +3973,8 @@ So that the structure reads without counting indentation.
 **When** the mocks are approved
 **Then** both carry a dated amendment (strike-through, never a rewrite) naming the bands, the kicker, the NC badge and the type label as required at every width, and `MOCK-GUIDE.md` and `index.html` list the frames
 
+*(2026-10-22, Bruno's answers 5 and 6: Definition of Ready met with a changed default. Equipment rows are **cards** (the Block card look of `components.css`: TAG and type label as the title, state word and NC badge on the card, the Overflow trigger at its corner, the card itself the tap target), not rows; the **Verificações do local is a card of the same kind**, the first card of its local, with "N de 19" as its progress and the same state words (Vazia, Em preenchimento, Concluída), so the checklist sits in the activity flow where an equipment sheet sits; the coluna header stays a group header over its cards; the bands and the kicker stay. PR #158 is redrawn to this before Matheus approves.)*
+
 **Definition of Done, in addition:** Matheus approves the frames at 390 px in the browser; Bruno sees the phone frame and his answer is recorded under this story with its date; no app code changes.
 
 ### Story 15.2: The tree levels built
@@ -3984,6 +3988,8 @@ So that the structure reads without counting indentation and the NC and type of 
 **Today (verified 2026-10-22):** `apps/web/src/surfaces/relatorio/relatorio-tree-sumario.tsx`, `relatorio-tree-rail.tsx` and `relatorio-tree-shared.tsx` render the rows (`.s9-loc-row`, `.s9-pnl-row`, `.s9-col`, `.s9-eq-open`) with `relatorio.css` and the `app.css` translations; every row text comes from `packages/domain/src/relatorio/tree.ts` (`locationTree`, `nodeSummaryText`). The composer's `.level-kicker` is in `apps/web/src/surfaces/templates/skeleton-list.tsx`.
 
 *(Definition of Ready: Story 15.1 approved by Matheus; every new row text (the band's Função line, the coluna header's count, the NC badge text) is named in the story spec as a kernel function.)*
+
+*(2026-10-22, Bruno's answers 5 and 6: the build follows the redrawn 15.1: equipment as cards and the Verificações do local as the first card of its local, with its progress and state word; the tree's `TreeSiteNode` already carries the site progress, and the card's state word is composed in `packages/domain` as the equipment's is. Whether "Próxima ficha" from a sheet also walks through the local's checklist card is an open question for Bruno at the next interaction (default: no, the walk stays equipment only).)*
 
 **Acceptance Criteria:**
 
@@ -4017,6 +4023,8 @@ So that the sheet asks what the equipment and the room have.
 - Seeds v1 to v8 are frozen and hash-pinned; `SEED_VERSION` is v8, contract 24, minimum 24; the Porto Seguro fixture is on v1.
 
 *(Definition of Ready: Bruno's answers 1, 2 and 5 recorded, or the defaults taken with a dated line (drop item 5 and keep item 13; the TC only; two site items "Grades e portas: estado e fixação" and "Pintura e corrosão" at the end of Ambiente, labels authored); the NC phrases of the two site items and the phrase item 13 absorbs are authored in the story spec and listed for Bruno; the seed and contract numbers (v9, 25) are written in the story spec and in Story 15.6's.)*
+
+*(2026-10-22, Bruno's answers 1 and 2: confirmed as the defaults (drop item 5, keep item 13; POTÊNCIA NOMINAL leaves the TC only). Answer 5 does not object to the two site items; it asks for the way into the checklist to be redrawn, which is Stories 15.1 and 15.2. Definition of Ready met.)*
 
 **Acceptance Criteria:**
 
@@ -4053,6 +4061,8 @@ So that I see the other equipment of the coluna and not a separate tree page.
 **Today (verified 2026-10-22):** `apps/web/src/app.tsx` gives the ficha route `back: /relatorio/:id/arvore` and `backWide` (from 768 px) the Sumário with `openSection9` and `focusBlockId`; the Verificações route has the same split; the journey review D-8 of 2026-09-24 (`source-deltas.md`) decided "the phone keeps the tree surface". The Sumário's section 9 on a phone draws the same tree, so a sheet opened there returns to another page (Bruno's screenshot shows the "Árvore do relatório" page). `relatorio-tree.tsx` already scrolls `focusBlockId` into view and focuses its open button (Story 12.2).
 
 *(Definition of Ready: Bruno's answer 4 recorded, or the default taken with a dated line: the Sumário on the row at every width; the sibling-shortcut reading becomes a separate story if he asks for it.)*
+
+*(2026-10-22, Bruno's answer 4: "Sim. Voltar para o sumário." The default stands; no sibling shortcut asked. Definition of Ready met.)*
 
 **Acceptance Criteria:**
 
@@ -4110,6 +4120,8 @@ So that the measured H-H / X-X0 ratios compare against the right value and a goo
 
 *(Definition of Ready: Bruno's answer 3 recorded, or the default taken with a dated line: the √3 factor on the transformer table only, fixed, not switched by LIGAÇÃO SECUNDÁRIA; the formula shown on screen under VAL CALCULADO; the seed and contract numbers shared with Story 15.3.)*
 
+*(2026-10-22, Bruno's answer 3: "TP e TC continuam como está. Transformador de força sempre utilizar a fórmula com raiz 3." The default stands: fixed √3 on the transformer table, never switched by the connection. Definition of Ready met.)*
+
 **Acceptance Criteria:**
 
 **Given** the seed schema and seed v9
@@ -4129,6 +4141,32 @@ So that the measured H-H / X-X0 ratios compare against the right value and a goo
 **Then** a one-line helper under VAL CALCULADO names the formula ("Calculado: U1 · √3 / U2", authored, screen only); the printed sheet keeps FO.SERV-03's cells and words
 
 **Definition of Done, in addition:** `readings.test.ts`, `reading-cells` tests and `section-9.test.ts` cover the three tables on v8 and v9; `e2e/ficha.spec.ts` ratio case runs on a v9 relatório with the F42 values and asserts SATISFATÓRIO; the durability specs touched run on the matrix projects; `source-deltas.md`, `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` gain dated notes.
+
+### Story 15.7: The TC's own checklist (seed v10)
+
+*(Added 2026-10-22 from Bruno's answer 7: the TC de proteção should not share the transformer list; Bruno reviews and sends the TC list; Matheus asks for it at the next interaction. Backlog until the list arrives.)*
+
+**Dev model:** opus · **Effort:** medium · a seed version derived from v9 that gives `transformador_corrente` its own checklist with authored NC phrases; subtypes, oil rule, print and the fake plate fixture follow
+
+As Bruno filling a TC sheet,
+I want the checklist to ask what a current transformer has,
+So that I am not marking NA a transformer's valves, fans and radiators on every TC.
+
+**Today (verified 2026-10-22):** `seed/v1.ts` binds `TRANSFORMADORES_CHECKLIST` to TP, TC and Transformador de força (line 556 for the TC); the dry subtypes' `na_defaults` and v6's `transformerOilItems` derive from that list; FO.SERV-03's TC sheet (Modelo 6) lists the same 15 items as the transformer (`extract-fo-serv-03.md` line 174, "a maioria marcada NA em TP/TC"). The hands-on pass F29 asked the same question.
+
+*(Definition of Ready: Bruno's TC list recorded under this story with its date (items in order, which are oil items, which subtypes mark NA); the NC phrases authored in the story spec and listed for Bruno; the next seed and contract numbers fixed in the story spec; Story 15.3 merged (v9).)*
+
+**Acceptance Criteria:**
+
+**Given** seed v10
+**When** it lands
+**Then** it is v9 plus the TC's own checklist (Bruno's list), its `epoxi`/`a_seco` `na_defaults` and `oil_rule.items` naming the TC list's oil items, TP and Transformador de força unchanged; v1 to v9 stay frozen and resolvable; a kernel test pins that v10 differs from v9 only by this (AR-20; AD-21)
+
+**Given** a TC sheet on v10
+**When** it renders, is counted and prints
+**Then** the checklist shows and prints Bruno's items numbered from 1, with their chips, the dry chip counting the TC's oil items, and a TC on v1 to v9 unchanged; the Porto Seguro golden documents (v1) still match (FR-68; AD-15)
+
+**Definition of Done, in addition:** the contract decision in the PR; `docs/nc-chip-phrases.md` lists the TC phrases; a Playwright spec opens a v10 TC sheet and counts the items; `source-deltas.md`, `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` gain dated notes.
 
 ## Backlog: deferred stories
 
