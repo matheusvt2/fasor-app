@@ -82,6 +82,13 @@ describe('11.4-UNIT parseRichText (the I/O matrix)', () => {
     expect(richRunsResolved(block!.runs, {})).toEqual([{ text: '[Cliente]', bold: true }]);
   });
 
+  it('F40: a bold value ending in a period before a plain run starting with one prints one period', () => {
+    const [block] = parseRichText('Da **{cliente}**. Fim');
+    expect(richRunsResolved(block!.runs, { cliente: 'Vale Verde S.A.' })).toEqual([{ text: 'Da ' }, { text: 'Vale Verde S.A', bold: true }, { text: '. Fim' }]);
+    const [plain] = parseRichText('Da {cliente}.');
+    expect(richRunsResolved(plain!.runs, { cliente: 'Vale Verde S.A.' })).toEqual([{ text: 'Da Vale Verde S.A.' }]);
+  });
+
   it('drops blank lines and blocks, and never throws', () => {
     expect(parseRichText('')).toEqual([]);
     expect(parseRichText('\n\n- \n**  **\n')).toEqual([]);

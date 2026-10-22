@@ -178,6 +178,18 @@ test('@p0 2.1-E2E-001 Cadastros: tabs render with Instrumentos default and remem
   await panel.getByLabel('Nome').fill('Instrumento de teste E2E');
   await panel.getByLabel('Data de calibração').fill('2026-01-15');
   await panel.getByLabel('Intervalo de calibração (meses)').fill('12');
+  // F6 (UX pass 2026-10-22): at 1280 px the "Padrão de ensaio" value is readable beside its unit
+  // (the unit input kept its intrinsic width and left the value 24 px).
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const testValue = panel.getByRole('textbox', { name: 'Padrão de ensaio — Isolação — Valor' });
+  const testUnit = panel.getByRole('textbox', { name: 'Padrão de ensaio — Isolação — Unidade' });
+  await testValue.scrollIntoViewIfNeeded();
+  await testValue.fill('5000');
+  await testUnit.fill('V');
+  expect((await testValue.boundingBox())!.width).toBeGreaterThanOrEqual(120);
+  expect((await testUnit.boundingBox())!.width).toBeLessThanOrEqual(96);
+  await expect(testValue).toHaveValue('5000');
+  expect(await testValue.evaluate((input: HTMLInputElement) => input.scrollWidth <= input.clientWidth)).toBe(true);
   await panel.getByRole('button', { name: 'Fechar edição' }).click();
 
   // Validity is read-only and derived: 2026-01-15 + 12 months = 15/01/2027.

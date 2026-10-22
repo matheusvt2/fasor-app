@@ -2292,3 +2292,31 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: verification-gap
   state: open (owner: the Epic 14 integrated review)
 
+## Deferred from: UX pass fixes (2026-10-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ux-pass-fixes-2026-10-22.md`
+  summary: F28 of the 2026-10-22 hands-on pass: an insulation reading's unit defaults by block type (Disjuntor, TC and Transformador in GΩ; cables and para-raio in MΩ, as FO.SERV-03 prints them, F41 reclassified form-faithful), so moving from a GΩ sheet to a MΩ one can type a value 1000x off with nothing said. A one-line hint when the default differs from the previous sheet's unit, or a sanity hint for an absurd value, is a content decision for Bruno (also whether cables should ever default to GΩ).
+  evidence: `_bmad-output/test-artifacts/manual/ux-pass-2026-10-22.md` F28 and F41; `rev1.pdf` p.17 vs p.8 (gitignored evidence).
+  class: decision
+  state: open (owner: Bruno, relayed by Matheus)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ux-pass-fixes-2026-10-22.md`
+  summary: A template or relatório whose Conclusão carries its own text (Story 11.4 `section_text`) still prints the literal "itens 8 e 9"; the v8 results-reference variable is not offered for insertion, so the office cannot fix such a text from the composer.
+  evidence: review finding 5 (blind hunter); `INSERTABLE_SECTION_VARIABLES` excludes the section variables by design. Settle with Bruno whether custom Conclusão texts should get the variable or a pre-issue warning.
+  class: decision
+  state: open (owner: Bruno, relayed by Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-ux-pass-fixes-2026-10-22.md`
+  summary: A ratio row's INSATISFATÓRIO verdict feeds only the screen and the printed sheet; the conclusion suggestion, the pre-issue rows and the parecer count never read it, so a sheet can still be concluded Aprovado / Sem restrições over a failed ratio (the UX pass F42 case).
+  evidence: review finding 7; `condicao` consumers are `ensaios-section.tsx` and `print/section-9.ts` only. Pre-existing: the suggestion engine reads insulation and contact verdicts, not ratio rows.
+  class: bug
+  state: open (owner: next fix batch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-ux-pass-fixes-2026-10-22.md`
+  summary: The P2/P3 findings of the 2026-10-22 hands-on pass (F1–F3, F5, F7–F15, F18–F27, F30–F39, F44–F50) are recorded only in `_bmad-output/test-artifacts/manual/ux-pass-2026-10-22.md`; they need triage into stories or a later fix batch.
+  evidence: review finding 8; the report is the backlog source until then.
+  class: backlog
+  state: open (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-ux-pass-fixes-2026-10-22.md`
+  summary: With TAP Nº now read from the plate, a transformer ratio row is named by a number ("5, V primário"); the dictation parser (`parse/utterance.ts` `tableDictationLabel`) may take that leading number as the value.
+  evidence: review finding 17, unverified (maybe-false, medium if true). Settle with a dictation parse test over a row named "5".
+  class: verification-gap
+  state: open (owner: next fix batch)

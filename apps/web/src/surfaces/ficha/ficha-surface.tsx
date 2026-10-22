@@ -8,6 +8,7 @@ import {
   suggestionGroupCounts,
   suggestionRowsOf,
   type BlockDefinition,
+  sectionMention,
   type BlockRow,
   type EntityState,
   type RelatorioSnapshot,
@@ -233,7 +234,15 @@ function FichaBody({
                 targetFor={(testKey) => photos.targetFor('ensaios', testKey)}
                 onCaptionPhoto={photos.setCaptioning}
               />
-              <ConclusaoSection api={api} block={block} definition={definition} tag={tag} className={stepClass('conclusao')} onFocus={() => focusIn('conclusao')} />
+              <ConclusaoSection
+                api={api}
+                block={block}
+                definition={definition}
+                tag={tag}
+                className={stepClass('conclusao')}
+                onFocus={() => focusIn('conclusao')}
+                section9={sectionMention(snapshot, 9)}
+              />
               {/* Story 11.11: the sheet's photos, last (`60-ficha.html` 779-795). */}
               <SheetPhotos api={api} snapshot={snapshot} blockId={blockId} onCaptionPhoto={photos.setCaptioning} />
             </div>

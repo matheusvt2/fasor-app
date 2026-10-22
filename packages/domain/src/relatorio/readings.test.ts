@@ -120,8 +120,8 @@ describe('5.5-UNIT evaluateSheetReadings', () => {
     expect(para.tables[0]!.columns.map((c) => c.header)).toEqual(['1 minuto']);
     const tp = evaluateSheetReadings(block('tp'), TP)[1]!;
     expect(tp.tables[0]!.columns.map((c) => [c.header, c.role, c.derivedKind])).toEqual([
-      ['V primário', 'input', null],
-      ['V secundário', 'input', null],
+      ['V primário (V)', 'input', null],
+      ['V secundário (V)', 'input', null],
       ['Calculado', 'derived', 'calculated'],
       ['H1-H2 / X1-X2', 'capture', null],
       ['Condição', 'derived', 'condicao'],
@@ -216,11 +216,39 @@ describe('5.5-UNIT evaluateSheetReadings', () => {
     const rows = evaluateSheetReadings(b, TP)[1]!.tables[0]!.rows;
     expect(rows[0]!.calculated).toEqual({ raw: '120', text: '120,00' });
     expect(rows[0]!.condicao).toBe('SATISFATÓRIO');
-    expect(rows[1]!.condicao).toBeNull();
+    // F42 (UX pass 2026-10-22): a capture out of the criterion fails the row.
+    expect(rows[1]!.condicao).toBe('INSATISFATÓRIO');
     expect(rows[1]!.cells[2]!.helperText).toBe('Fora do aceitável (±0,5 %)');
     // Row 3: inputs missing (no nameplate either) -> no calc, no verdict, both inputs missing.
     expect(rows[2]!.calculated).toBeNull();
     expect(rows[2]!.cells.map((c) => c.missing)).toEqual([true, true, true]);
+  });
+
+  it('F42: a transformer ratio row reads INSATISFATÓRIO with one capture out, null while a capture is unjudged, TAP Nº from the plate', () => {
+    const trafo = getDefinition('v1', 'cabine_primaria', 'transformador_forca');
+    const ratioOf = (b: BlockRow) => evaluateSheetReadings(b, trafo).find((t) => t.testKey === 'relacao_transformacao')!.tables[0]!;
+    const inputs: [number, number, Cell][] = [
+      [0, 0, measured('13.8', 'kV')],
+      [0, 1, measured('380', 'V')],
+    ];
+    // 13,8 kV / 380 V = 36,32: 36,3 is within ±0,5 %, 72,6 is ~99,9 % out.
+    const out = ratioOf(block('transformador_forca', { nameplate: { tap_atual: cell('5') }, ...test('relacao_transformacao', [...inputs, [0, 3, measured('36.3', null)], [0, 4, measured('72.6', null)], [0, 5, measured('36.3', null)]]) }));
+    expect(out.rows[0]!.calculated?.text).toBe('36,32');
+    expect(out.rows[0]!.condicao).toBe('INSATISFATÓRIO');
+    expect(out.rows[0]!.connection).toEqual(['5']);
+    expect(out.rows[0]!.label).toBe('5');
+    expect(out.columns.map((c) => c.header)).toEqual(['V primário (kV)', 'V secundário (V)', 'Calculado', 'H1-H3 / X1-X0', 'H2-H1 / X2-X0', 'H3-H2 / X3-X0', 'Condição']);
+    const within = ratioOf(block('transformador_forca', test('relacao_transformacao', [...inputs, [0, 3, measured('36.3', null)], [0, 4, measured('36.3', null)], [0, 5, measured('36.35', null)]])));
+    expect(within.rows[0]!.condicao).toBe('SATISFATÓRIO');
+    // One of the three captures empty: unjudged, no verdict yet; an empty plate leaves TAP Nº blank.
+    const partial = ratioOf(block('transformador_forca', { nameplate: { tap_atual: cell('  ') }, ...test('relacao_transformacao', [...inputs, [0, 3, measured('36.3', null)], [0, 4, measured('36.3', null)]]) }));
+    expect(partial.rows[0]!.condicao).toBeNull();
+    expect(partial.rows[0]!.connection).toEqual(['']);
+    // Only a tap number counts: a voltage typed as TAP ATUAL ("13200") or other text reads blank.
+    for (const typed of ['13200', '5A', '1.5', 'TAP 3']) {
+      expect(ratioOf(block('transformador_forca', { nameplate: { tap_atual: cell(typed) } })).rows[0]!.connection, typed).toEqual(['']);
+    }
+    expect(ratioOf(block('transformador_forca', { nameplate: { tap_atual: cell(' 12 ') } })).rows[0]!.connection).toEqual(['12']);
   });
 
   it('untyped ratio inputs read the nameplate (TP: AT kV -> V, BT V; TC: RELAÇÃO "200/5"); an unparseable one computes nothing', () => {

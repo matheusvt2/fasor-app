@@ -75,11 +75,11 @@ describe('p020 P-1b printsSection, the one rule', () => {
 
 describe('p020 P-1b the texts of a relatório without section 8 or 10', () => {
   it('the point toast and the move announcement name section 8 only when it prints', () => {
-    expect(pointSavedText(1, 1)).toBe('Ponto de atenção salvo · 1 de 1 na seção 8');
-    expect(pointSavedText(1, 1, true)).toBe('Ponto de atenção salvo · 1 de 1 na seção 8');
-    expect(pointSavedText(2, 3, false)).toBe('Ponto de atenção salvo · 2 de 3 · não sai no documento: o relatório não tem a seção 8');
-    expect(pointMovedText(1, 3)).toBe('Ponto de atenção movido: 1 de 3 na seção 8');
-    expect(pointMovedText(1, 3, false)).toBe('Ponto de atenção movido: 1 de 3 · não sai no documento: o relatório não tem a seção 8');
+    expect(pointSavedText(1, 1, true, 'seção 8')).toBe('Ponto de atenção salvo · 1 de 1 na seção 8');
+    expect(pointMovedText(1, 3, true, 'seção 8')).toBe('Ponto de atenção movido: 1 de 3 na seção 8');
+    // F43 (UX pass 2026-10-22): the caller names the section as the relatório does.
+    expect(pointSavedText(4, 4, true, 'seção 4')).toBe('Ponto de atenção salvo · 4 de 4 na seção 4');
+    expect(pointMovedText(1, 3, false, 'seção "Pontos de atenção"')).toBe('Ponto de atenção movido: 1 de 3 · não sai no documento: o relatório não tem a seção "Pontos de atenção"');
   });
 
   it('Etapa 6: the variant set while section 10 does not print, else null', () => {
@@ -88,10 +88,11 @@ describe('p020 P-1b the texts of a relatório without section 8 or 10', () => {
     expect(parecerAbsentTexts(without(snapshot, [...TEXT_SECTIONS, 'section_7', 'section_9']))).toBeNull();
     expect(parecerAbsentTexts(without(snapshot, ['section_8']))).toBeNull();
     expect(parecerAbsentTexts(without(snapshot, ['section_10']))).toEqual({
-      note: 'Este relatório não tem a seção 10: o parecer e a assinatura não saem no documento.',
-      confirmedHelper: 'Confirmado · não sai no documento: o relatório não tem a seção 10',
+      // F43 (UX pass 2026-10-22): an absent section is named by its Sumário title, never its FO.SERV-03 number.
+      note: 'Este relatório não tem a seção "Conclusão e parecer": o parecer e a assinatura não saem no documento.',
+      confirmedHelper: 'Confirmado · não sai no documento: o relatório não tem a seção "Conclusão e parecer"',
       toast: 'Resumo do parecer confirmado',
-      kicker: 'Não sai no documento (sem seção 10)',
+      kicker: 'Não sai no documento (sem seção "Conclusão e parecer")',
     });
   });
 
@@ -99,10 +100,12 @@ describe('p020 P-1b the texts of a relatório without section 8 or 10', () => {
     const snapshot = fresh();
     expect(absentSectionsSentence(snapshot)).toBeNull();
     expect(absentSectionsSentence(without(snapshot, [...TEXT_SECTIONS, 'section_7', 'section_9']))).toBeNull();
-    expect(absentSectionsSentence(without(snapshot, TEXT_SECTIONS))).toBe('Sem as seções 8 e 10, os pontos de atenção, o parecer e a assinatura não saem no documento.');
-    expect(absentSectionsSentence(without(snapshot, ['section_8', 'section_10']))).toBe('Sem as seções 8 e 10, os pontos de atenção, o parecer e a assinatura não saem no documento.');
-    expect(absentSectionsSentence(without(snapshot, ['section_8']))).toBe('Sem a seção 8, os pontos de atenção não saem no documento.');
-    expect(absentSectionsSentence(without(snapshot, ['section_10']))).toBe('Sem a seção 10, o parecer e a assinatura não saem no documento.');
+    // F43 (UX pass 2026-10-22): the absent sections by their Sumário titles.
+    const both = 'Sem a seção "Pontos de atenção" e a seção "Conclusão e parecer", os pontos de atenção, o parecer e a assinatura não saem no documento.';
+    expect(absentSectionsSentence(without(snapshot, TEXT_SECTIONS))).toBe(both);
+    expect(absentSectionsSentence(without(snapshot, ['section_8', 'section_10']))).toBe(both);
+    expect(absentSectionsSentence(without(snapshot, ['section_8']))).toBe('Sem a seção "Pontos de atenção", os pontos de atenção não saem no documento.');
+    expect(absentSectionsSentence(without(snapshot, ['section_10']))).toBe('Sem a seção "Conclusão e parecer", o parecer e a assinatura não saem no documento.');
   });
 
   it('the reason line ends with the sentence once, after one space; without it, as before', () => {

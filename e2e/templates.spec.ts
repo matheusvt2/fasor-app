@@ -457,7 +457,7 @@ test('@p0 3.4-E2E-003 section blocks reorder, duplicate and remove with undo; Ag
   await expect(tags).toHaveText(['2', '1', '4', '3', '5', '6', '8', '10', '10', '11']);
 
   // A section added from "Seções" lands at the end.
-  await palette(page).getByRole('button', { name: '5 Segurança (NR-10)' }).click();
+  await palette(page).getByRole('button', { name: '5 Recomendações gerais (NR-10)' }).click();
   await expect(tags).toHaveText(['2', '1', '4', '3', '5', '6', '8', '10', '10', '11', '5']);
 
   await page.getByRole('button', { name: 'Mais opções de 8 Pontos de atenção' }).click();

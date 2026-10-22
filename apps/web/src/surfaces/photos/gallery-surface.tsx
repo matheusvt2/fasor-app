@@ -27,6 +27,7 @@ import {
   photoTileLabel,
   photoUploadState,
   skippedFilesText,
+  sectionMention,
   type EntityState,
   type RelatorioSnapshot,
   type SuggestionRow,
@@ -251,7 +252,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
               </span>
             )}
           </div>
-          <p className="section-note">{t.note}</p>
+          <p className="section-note">{t.note(sectionMention(snapshot, 7))}</p>
           {numbersStatus === null ? null : (
             <p className="section-note" data-testid="photo-numbers-status">
               {numbersStatus}

@@ -3,6 +3,7 @@ import { flattenSectionText } from '../templates/section-text.ts';
 import { sectionText, type SectionVariable } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { sectionPosition } from './section-position.ts';
 
 /*
  * Story 4.2/4.7: the one place the section 1/3 variables and the section 3 exclusion
@@ -42,7 +43,25 @@ export function sectionVariables(snapshot: RelatorioSnapshot, responsibleName: s
     ...(snapshot.empresa === null ? {} : { empresa_executora: snapshot.empresa.name }),
     ...(responsibleName === null ? {} : { responsavel: responsibleName }),
     ...(escopo === undefined ? {} : { escopo }),
+    // Seed v8 (UX pass 2026-10-22, F43): where the Conclusão text says the results are.
+    itens_resultados: resultsItemsText(snapshot),
   };
+}
+
+/**
+ * Seed v8 (UX pass 2026-10-22, F43): the `{itens_resultados}` of the Conclusão, the Sumário
+ * positions of Pontos de atenção (8) and Relatórios dos ensaios (9) the relatório carries,
+ * ascending: "nos itens 4 e 5", "no item 5" with one of them, "no corpo" with neither.
+ */
+export function resultsItemsText(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'relatorio'>): string {
+  const positions = [8, 9]
+    .map((section) => sectionPosition(snapshot, section))
+    .filter((position): position is number => position !== null)
+    .sort((a, b) => a - b);
+  // authored: UX pass 2026-10-22 (F43, coordinator review), the three forms of the reference.
+  if (positions.length === 0) return 'no corpo';
+  if (positions.length === 1) return `no item ${positions[0]}`;
+  return `nos itens ${positions[0]} e ${positions[1]}`;
 }
 
 /**

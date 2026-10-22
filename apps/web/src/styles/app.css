@@ -277,6 +277,11 @@ body {
      data inside the screen when the local's name is long: `.cl-values` is squeezed by the name and
      a long word ("CONVENCIONAL") ran past it, scrolling the page sideways. */
   .cabine-line .cl-name, .cabine-line .cl-values { overflow-wrap: anywhere; }
+  /* authored (UX pass 2026-10-22, F51): beside a long name the values were squeezed to a ~60 px
+     column and the rule above broke them mid-word ("ALVEN / ARIA"); on a phone they take their
+     own line under the name, the whole width, and wrap between words. The site line's short
+     counter ("12 de 19", `.ficha-local-line`) stays beside its label. */
+  .cabine-line:not(.ficha-local-line) .cl-values { flex-basis: 100%; }
   /* authored (Story 14.2): on a phone the painel's own inset (its rule, 24 px of margin and 12 px
      of padding) would leave a sheet row too narrow for its TAG; the margin closes. */
   [data-route="/relatorio/:id"] .sum-s9 .s9-painel { margin-left: 0; }

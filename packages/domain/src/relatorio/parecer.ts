@@ -7,6 +7,7 @@ import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { conclusionRestrictionOf, conclusionResultOf } from './conclusion.ts';
 import { naoEnsaiadasText } from './progress.ts';
+import { sectionRefText } from './section-position.ts';
 import { checklistResultOf } from './sheet-progress.ts';
 import { siteNcCount, siteNcItems } from './site-checklist.ts';
 import { enabledSubBlocksOf, isEquipmentBlock, sheetState } from './sheet-state.ts';
@@ -245,7 +246,8 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
     // authored: 2026-10-14, the site NC sentence (open for Bruno).
     sentences.push(`Verificações do local não conformes: ${listPtBr(site.map((item) => `${ncItemName(item)} em ${plural(item.locals, 'local', 'locais')}`))}.`);
   }
-  if (points > 0) sentences.push(`${points === 1 ? 'Foi registrado 1 ponto de atenção' : `Foram registrados ${points} pontos de atenção`} na seção 8.`);
+  // F43 (UX pass 2026-10-22): section 8 named by its Sumário position.
+  if (points > 0) sentences.push(`${points === 1 ? 'Foi registrado 1 ponto de atenção' : `Foram registrados ${points} pontos de atenção`} na ${sectionRefText(snapshot, 8)}.`);
   const text = sentences.join(' ');
 
   const criteriaItems = [

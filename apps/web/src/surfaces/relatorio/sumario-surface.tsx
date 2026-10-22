@@ -10,6 +10,7 @@ import {
   issuedBannerText,
   latestRevision,
   MARK_SENT_LABEL,
+  sectionRefText,
   naoEnsaiadasText,
   ncAbertosText,
   pendingSuggestions,
@@ -463,6 +464,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
               <Section9Row
                 key={row.key}
                 row={row}
+                sectionName={sectionRefText(snapshot, 9)}
                 actions={actions}
                 expanded={expanded}
                 highlighted={highlighted.has(row.rowKey)}

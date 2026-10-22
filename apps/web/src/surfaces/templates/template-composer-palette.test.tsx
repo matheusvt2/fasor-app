@@ -307,6 +307,14 @@ describe('3.4 composer: section blocks', () => {
   const tags = (container: HTMLElement) =>
     [...container.querySelectorAll('.block-list[aria-label="Blocos do template"] .block-tag')].map((el) => el.textContent);
 
+  it('F16 (UX pass 2026-10-22): section 5 reads as the Sumário names it, in the palette and on its card', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    expect(await screen.findByRole('button', { name: 'Mais opções de 5 Recomendações gerais (NR-10)' })).toBeVisible();
+    expect(screen.getAllByRole('button', { name: '5 Recomendações gerais (NR-10)' }).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Segurança \(NR-10\)/)).toBeNull();
+  });
+
   it('moves, duplicates and removes sections through the Overflow, with the Confirm dialog and "Desfazer"', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     const { container } = renderComposer();

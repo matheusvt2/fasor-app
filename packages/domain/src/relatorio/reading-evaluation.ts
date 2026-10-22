@@ -8,7 +8,9 @@ import {
   convertRatioUnit,
   DECIMAL,
   headerText,
+  inputHeaderText,
   nameplateRatioInput,
+  nameplateTap,
   RATIO_POWER,
   readingLabelText,
   readStored,
@@ -161,7 +163,7 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
     columns.push({
       col,
       label: column.label,
-      header: headerText(column.label),
+      header: column.role === 'input' ? inputHeaderText(column.label, column.unit) : headerText(column.label),
       role: column.role,
       unit: column.unit,
       derivedKind: column.role !== 'derived' ? null : col === derived[derived.length - 1] && derived.length > 1 ? 'condicao' : 'calculated',
@@ -245,8 +247,14 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
       }
     }
     const captures = cells.filter((cell) => cell.role === 'capture');
-    const condicao = ratio && calculated !== null && captures.length > 0 && captures.every((cell) => cell.verdict === 'within') ? 'SATISFATÓRIO' : null;
-    const shown = connection.map((text) => readingLabelText(text));
+    // F42: one capture out of the criterion fails the row; every capture within passes it; otherwise unjudged.
+    let condicao: EvaluatedRow['condicao'] = null;
+    if (ratio && calculated !== null && captures.length > 0) {
+      if (captures.some((cell) => cell.verdict === 'out')) condicao = 'INSATISFATÓRIO';
+      else if (captures.every((cell) => cell.verdict === 'within')) condicao = 'SATISFATÓRIO';
+    }
+    // F42: a typed connection the seed leaves blank (TAP Nº) reads the plate's TAP ATUAL as typed.
+    const shown = connection.map((text) => (table.connection_typed && text.trim() === '' ? (nameplateTap(block) ?? '') : readingLabelText(text)));
     return { row, connection: shown, label: shown[0] ?? '', cells, calculated, condicao };
   });
 

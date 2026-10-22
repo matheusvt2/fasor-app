@@ -238,5 +238,6 @@ export function richBlockNumbers(blocks: readonly RichBlock[]): (number | null)[
  * prints `[Label]` with the run's marks.
  */
 export function richRunsResolved(runs: readonly RichRun[], variables: Partial<Record<SectionVariable, string>>): RichRun[] {
-  return mergeRuns(runs.map((r) => ({ ...r, text: resolveSectionText(r.text, variables).resolved })));
+  // F40 (UX pass 2026-10-22): a value ending in "." at the end of a run before a run starting with "." prints one period.
+  return mergeRuns(runs.map((r, i) => ({ ...r, text: resolveSectionText(r.text, variables, runs[i + 1]?.text ?? '').resolved })));
 }

@@ -192,8 +192,17 @@
  * `registry/nc_phrase/...` op (its `registryKindSchema` refuses the kind, so the whole pulled page
  * fails, `invalid_response`), and the company stream carries one as soon as anyone types an NC
  * observation. `MIN_CONTRACT_VERSION` goes to 23 too.
+ *
+ * 24 (2026-10-22, UX pass F43, Matheus's decision SEED_V8_VARIABLES): seed v8. v7 plus a
+ * Conclusão (section 10) text naming the sections that hold the results by the new section
+ * variable `{itens_resultados}` (`SECTION_VARIABLES` gains it), which resolves to "nos itens 4 e
+ * 5" by the Sumário positions of sections 8 and 9 ("no item 5" with one, "no corpo" with
+ * neither); it is the version of a new template. No path family, row field nor enum value is
+ * new. A version-23 bundle cannot resolve seed v8, which a template the server moved to v8 and
+ * every relatório created on it carry, and it would print the variables as unknown tokens. A row
+ * written before 24 parses to the same bytes. `MIN_CONTRACT_VERSION` goes to 24 too.
  */
-export const CONTRACT_VERSION = 23;
+export const CONTRACT_VERSION = 24;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -309,8 +318,14 @@ export const CONTRACT_VERSION = 23;
  * so its `opSchema` fails the whole pulled page, `invalid_response`). The company stream carries
  * one as soon as the server learns an NC phrase from any device's push, so the version-22
  * bundle updates too.
+ *
+ * 24 (2026-10-22, UX pass F43): a version-23 (or older) bundle cannot resolve seed v8, which a
+ * template the server moved to v8 and every relatório created on it carry, and its Conclusão
+ * text would keep `{itens_resultados}` unresolved where the server's kernel prints the section
+ * numbers, so its preview and the documents would disagree. A stream carries
+ * those as soon as the template upgrade runs, so the version-23 bundle updates too.
  */
-export const MIN_CONTRACT_VERSION = 23;
+export const MIN_CONTRACT_VERSION = 24;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

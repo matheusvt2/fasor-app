@@ -2388,8 +2388,8 @@
     [
       ["TP's","V PRIMÁRIO","V SECUNDÁRIO","VAL CALCULADO","H1-H2 / X1-X2","CONDIÇÕES"],
       ["FASE R","13.200 V","115 V","114,78","114,325","SATISFATÓRIO"],
-      ["FASE S","13.200 V","115 V","114,78","114,125","-"],
-      ["FASE T","13.200 V","115 V","114,78","114,091","-"]
+      ["FASE S","13.200 V","115 V","114,78","114,125","INSATISFATÓRIO"],
+      ["FASE T","13.200 V","115 V","114,78","114,091","INSATISFATÓRIO"]
     ],
     [
       ["CONCLUSÃO"],
@@ -4219,8 +4219,8 @@
     ],
     [
       ["TPS","A PRIMÁRIO","A SECUNDÁRIO","VAL CALCULADO","P1-P2 / S1-S2","CONDIÇÕES"],
-      ["FASE R","150 A","5 A","30,00","30,251","-"],
-      ["FASE S","150 A","5 A","30,00","30,198","-"],
+      ["FASE R","150 A","5 A","30,00","30,251","INSATISFATÓRIO"],
+      ["FASE S","150 A","5 A","30,00","30,198","INSATISFATÓRIO"],
       ["FASE T","150 A","5 A","30,00","30,109","SATISFATÓRIO"]
     ],
     [
@@ -4328,7 +4328,7 @@
       ["TPS","A PRIMÁRIO","A SECUNDÁRIO","VAL CALCULADO","P1-P2 / S1-S2","CONDIÇÕES"],
       ["FASE R","150 A","5 A","30,00","30,121","SATISFATÓRIO"],
       ["FASE S","150 A","5 A","30,00","30,149","SATISFATÓRIO"],
-      ["FASE T","150 A","5 A","30,00","30,187","-"]
+      ["FASE T","150 A","5 A","30,00","30,187","INSATISFATÓRIO"]
     ],
     [
       ["CONCLUSÃO"],

@@ -9,6 +9,8 @@ import {
   locationTree,
   moveTargets,
   paletteLocationFor,
+  sectionMention,
+  sectionRefText,
   removeBlockTitle,
   treePathTo,
   type EquipmentRow,
@@ -176,9 +178,14 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
   }, []);
   useImperativeHandle(ref, () => ({ reveal }), [reveal]);
 
+  // Read at call time: a row's menu action needs the latest snapshot, not the one `shared` was built with.
+  const latestSnapshot = useRef(snapshot);
+  latestSnapshot.current = snapshot;
+
   const host = useMemo(
     () => ({
       root: () => rootRef.current,
+      sectionMention: (section: number) => sectionMention(latestSnapshot.current, section),
       reveal,
       locationOf: (blockId: string) => blockLocations.current.get(blockId) ?? null,
       addLocal: () => footRef.current?.querySelector<HTMLElement>('button') ?? null,
@@ -256,9 +263,8 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
   // The path to the last sheet, kept by content so a rebuilt tree with the same path keeps `shared`.
   const currentPathKey = (lastSheetId === null ? [] : treePathTo(tree, { blockId: lastSheetId })).join(' ');
   const currentPath = useMemo(() => new Set(currentPathKey === '' ? [] : currentPathKey.split(' ')), [currentPathKey]);
-  // Read at call time: a row's menu action needs the latest snapshot, not the one `shared` was built with.
-  const latestSnapshot = useRef(snapshot);
-  latestSnapshot.current = snapshot;
+  // F43: the name of section 9 the rows' "Agrupar por tipo na seção N" says; a new position renews `shared`.
+  const section9Ref = sectionRefText(snapshot, 9);
   // The locations as rows see them through `pathOf` (a duplicate line's accessible name): a
   // rename, a move or a removal changes `shared`, so memoized rows redraw with the new path.
   const locationsKey = snapshot.locations.map((row) => `${row.id}\u0000${row.name}\u0000${row.parent_id ?? ''}\u0000${row.removed_at ?? ''}`).join('\u0001');
@@ -280,6 +286,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
         }),
       currentBlockId: lastSheetId,
       currentPath,
+      sectionRef: (section) => sectionRefText(latestSnapshot.current, section),
       actions,
       openPalette: setPalette,
       paletteLocation: (node) => (node.kind === 'coluna' ? node.id : paletteLocationFor(latestSnapshot.current, node.id, lastSheetId)),
@@ -312,7 +319,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
       },
     }),
     // `locationsKey` is read through `latestSnapshot`; it is a dependency so a new path renews `shared`.
-    [presentation, expanded, lastSheetId, currentPath, actions, locationsKey, context.projectId, context.relatorioId],
+    [presentation, expanded, lastSheetId, currentPath, actions, locationsKey, section9Ref, context.projectId, context.relatorioId],
   );
 
   const closeDialog = (focusTo?: () => HTMLElement | null) => {

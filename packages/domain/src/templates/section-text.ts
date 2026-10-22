@@ -22,6 +22,8 @@ export const SECTION_VARIABLE_LABELS: Readonly<Record<SectionVariable, string>> 
   // Seed v1 prints `{escopo}` only as the cover's "Informações adicionais" (Epic 4 QA Q3),
   // so a blank one prints that field's own name.
   escopo: 'Informações adicionais',
+  // authored: UX pass 2026-10-22 (F43), seed v8's results reference; it always resolves, so this never prints.
+  itens_resultados: 'Itens dos resultados',
 };
 
 /**
@@ -142,20 +144,32 @@ export interface ResolvedSectionText {
 const ANY_BRACE_TOKEN = /\{([^{}\s]+)\}/g;
 
 /**
+ * UX pass 2026-10-22 (F40): a value ending in a period ("Vale Verde S.A.") put before a text
+ * that starts with one ("{cliente}.") loses its own, so the sentence ends once, never "S.A..".
+ */
+function valueBefore(value: string, next: string): string {
+  return value.endsWith('.') && next.startsWith('.') ? value.slice(0, -1) : value;
+}
+
+/**
  * A section text with every variable replaced by the relatório's value. A variable with
  * no value (missing, empty or blank) prints its label in brackets ("[Responsável]") and
  * is listed in `unresolved`, which the kernel's pre-issue integrity check reads (Epic 4+).
+ * A value ending in a period drops it before a period that follows the token, in the text
+ * or, for the last token, in `followedBy` (what comes after the text: the next rich-text run).
  * Never throws.
  */
 export function resolveSectionText(
   text: string,
   relatorioInputs: Partial<Record<SectionVariable, string>>,
+  followedBy = '',
 ): ResolvedSectionText {
   const unresolved: SectionVariable[] = [];
-  const resolved = text.replace(TOKEN, (token, name: string) => {
+  const resolved = text.replace(TOKEN, (token, name: string, offset: number) => {
     if (!isSectionVariable(name)) return token;
     const value = relatorioInputs[name];
-    if (value !== undefined && value.trim() !== '') return value;
+    const after = text.slice(offset + token.length);
+    if (value !== undefined && value.trim() !== '') return valueBefore(value, after === '' ? followedBy : after);
     if (!unresolved.includes(name)) unresolved.push(name);
     return `[${SECTION_VARIABLE_LABELS[name]}]`;
   });

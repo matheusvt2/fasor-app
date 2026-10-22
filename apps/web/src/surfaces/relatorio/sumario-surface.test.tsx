@@ -156,6 +156,23 @@ afterEach(() => {
   syncRelatorio.mockClear();
 });
 
+describe('F43 (UX pass 2026-10-22): a compact template speaks the Sumário positions', () => {
+  it('sections 1, 5, 7, 8, 9 and 10 are rows 1 to 6: section 9\'s chevron and its local\'s "Agrupar por tipo" name row 5', async () => {
+    const db = await freshDb();
+    await applyPulled(db, portoSeguroSmall.log);
+    const kept = sectionBlocksFor(RELATORIO).filter((b) => !['section_2', 'section_3', 'section_4', 'section_6', 'section_11'].includes(b.block_type));
+    await db.entities.bulkPut(kept.map((b) => toRecord(`block:${b.id}`, b)));
+    database = db;
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(8));
+    const chevron = await screen.findByRole('button', { name: 'Expandir ou recolher a seção 5' });
+    expect(screen.queryByRole('button', { name: 'Expandir ou recolher a seção 9' })).toBeNull();
+    if (chevron.getAttribute('aria-expanded') !== 'true') await userEvent.click(chevron);
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Cabine de Testes' }));
+    expect(await screen.findByRole('menuitemcheckbox', { name: 'Agrupar por tipo na seção 5' })).toBeVisible();
+  });
+});
+
 describe('p020 P-1b: the reason line says what will not print', () => {
   it('a relatório without sections 8 and 10 ends the foot reason with one sentence; with them, none', async () => {
     const db = await freshDb();
@@ -164,8 +181,9 @@ describe('p020 P-1b: the reason line says what will not print', () => {
     await db.entities.bulkPut(kept.map((b) => toRecord(`block:${b.id}`, b)));
     database = db;
     renderSumario();
-    const sentence = 'Sem as seções 8 e 10, os pontos de atenção, o parecer e a assinatura não saem no documento.';
-    await waitFor(() => expect(document.querySelector('.sticky-action-bar .btn-reason')!.textContent).toMatch(/ Sem as seções 8 e 10, .* não saem no documento\.$/));
+    // F43 (UX pass 2026-10-22): the absent sections by their Sumário titles.
+    const sentence = 'Sem a seção "Pontos de atenção" e a seção "Conclusão e parecer", os pontos de atenção, o parecer e a assinatura não saem no documento.';
+    await waitFor(() => expect(document.querySelector('.sticky-action-bar .btn-reason')!.textContent).toMatch(/ Sem a seção "Pontos de atenção" e a seção "Conclusão e parecer", .* não saem no documento\.$/));
     const text = document.querySelector('.sticky-action-bar .btn-reason')!.textContent!;
     expect(text.split(sentence)).toHaveLength(2);
     cleanup();

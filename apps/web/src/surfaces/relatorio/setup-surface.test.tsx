@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { defaultEmpresaRow, type RelatorioRow, type UserRow } from '@app/domain';
+import { defaultEmpresaRow, instantiateTemplate, standardTemplate, type BlockRow, type RelatorioRow, type UserRow } from '@app/domain';
 import { INSTRUMENT_MEGOHMETRO_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -123,6 +123,43 @@ afterEach(() => {
   database = null;
   // F-11: the kept geolocation answer of a relatório lives in this device's storage.
   window.localStorage.clear();
+});
+
+/** The section blocks of a compact template (sections 1, 5, 7, 8, 9 and 10), retargeted at the fixture's relatório. */
+function compactSectionBlocks(): BlockRow[] {
+  let n = 0;
+  const { drafts } = instantiateTemplate(
+    standardTemplate({ id: '019966c1-00f0-7000-8000-000000000001' }),
+    { id: portoSeguroSmall.projectId },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+    { newId: () => `019966c1-00f1-7000-8000-${(++n).toString(16).padStart(12, '0')}`, actorId: USER, companyId: COMPANY },
+  );
+  return drafts
+    .filter((d) => d.path.startsWith('block/'))
+    .map((d) => d.value as unknown as BlockRow)
+    .filter((b) => b.location_id === null && !['section_2', 'section_3', 'section_4', 'section_6', 'section_11'].includes(b.block_type))
+    .map((b) => ({ ...b, relatorio_id: RELATORIO, created_by: USER }));
+}
+
+describe('F43 (UX pass 2026-10-22): the setup on a compact template speaks the Sumário positions', () => {
+  it('Etapa 2 "Seção 1", Etapa 3 "Seção 6" and its sentences, Etapa 4 Certificados absent, Etapa 6 "Seção 6"; no FO.SERV-03 9, 10 or 11', async () => {
+    database = await seeded();
+    await database.entities.bulkPut(compactSectionBlocks().map((b) => toRecord(`block:${b.id}`, b)));
+    const { container } = renderSetup();
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Responsável técnico' })).toHaveValue('Bento Braga'));
+    const note = (heading: string) => screen.getByRole('heading', { level: 2, name: heading }).closest('section')!.querySelector('.band-note');
+    expect(note('Etapa 2 — Objetivo e escopo')).toHaveTextContent(/^Seção 1$/);
+    expect(note('Etapa 3 — Responsável')).toHaveTextContent(/^Seção 6$/);
+    expect(note('Etapa 4 — Instrumentos e certificados')).toHaveTextContent('Seção "Certificados"');
+    expect(screen.getByText('Marque os instrumentos desta obra. Os certificados não saem no documento: o relatório não tem a seção "Certificados".')).toBeVisible();
+    expect(note('Etapa 6 — Conclusão e parecer')).toHaveTextContent('Seção 6 · caixa de parecer antes dos itens fixos');
+    expect(screen.getByText(/^Assina a seção 6 como Eng\. Eletricista/)).toBeVisible();
+    await userEvent.type(screen.getByRole('textbox', { name: 'ART' }), '123');
+    await waitFor(() => expect(screen.getByText(/^Na seção 6: "Este relatório tem validade apenas acompanhada da ART 123/)).toBeVisible());
+    await userEvent.click(screen.getByRole('radiogroup', { name: 'Parecer' }).querySelector<HTMLElement>('[role="radio"]')!);
+    await waitFor(() => expect(container.querySelector('.parecer-box .pb-kicker')).toHaveTextContent('Como imprime na seção 6'));
+    expect(container.textContent).not.toMatch(/[Ss]eção (9|10|11)\b/);
+  });
 });
 
 describe('4.2 SetupSurface', () => {

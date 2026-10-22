@@ -547,6 +547,20 @@ describe('7.1 section9Layout: sub-blocks, grids and words', () => {
     ]);
   });
 
+  it('F42: prints the transformer ratio\'s TAP Nº from the plate\'s TAP ATUAL and INSATISFATÓRIO with a capture out; "-" with no TAP', () => {
+    const cells = { '0/0': measured('13.8', 'kV'), '0/1': measured('380', 'V'), '0/3': measured('36.3', null), '0/4': measured('72.6', null), '0/5': measured('36.3', null) };
+    const tr = edit(sheet(1, 1, 'transformador_forca', 'a0', 'TR-1'), (b) => withTest('relacao_transformacao', cells)(withNameplate({ tap_atual: '5' })(b)));
+    const rowsOf = (built: Built) => texts(tableNamed(sheetOf(layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0')], [built])), block(1)), 'TAP Nº'));
+    const rows = rowsOf(tr);
+    expect(rows[0]).toEqual(['TAP Nº', 'V PRIMÁRIO', 'V SECUNDÁRIO', 'VAL CALCULADO', 'H1-H3 / X1-X0', 'H2-H1 / X2-X0', 'H3-H2 / X3-X0', 'CONDIÇÕES']);
+    expect(rows[1]).toEqual(['5', '13,8 kV', '380 V', '36,32', '36,3', '72,6', '36,3', 'INSATISFATÓRIO']);
+    const noTap = edit(sheet(1, 1, 'transformador_forca', 'a0', 'TR-1'), withTest('relacao_transformacao', cells));
+    expect(rowsOf(noTap)[1]![0]).toBe('-');
+    // A voltage typed as TAP ATUAL (the Porto Seguro plates' "13200") is no tap number: "-".
+    const voltage = edit(sheet(1, 1, 'transformador_forca', 'a0', 'TR-1'), (b) => withTest('relacao_transformacao', cells)(withNameplate({ tap_atual: '13200' })(b)));
+    expect(rowsOf(voltage)[1]![0]).toBe('-');
+  });
+
   it('titles a sheet by type, role and TAG, the role not repeated and the TAG as stored', () => {
     const titleOf = (built: Built) => sheetOf(layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0')], [built])), built.block.id).title;
     expect(titleOf(edit(sheet(1, 1, 'chave_seccionadora', 'a0', 'SEC-C01'), withRole('entrada')))).toBe('CHAVE SECCIONADORA DE ENTRADA SEC-C01');

@@ -72,7 +72,7 @@ function renderSection(shown: BlockRow, current?: BlockRow) {
   };
   render(
     <ToastProvider>
-      <ConclusaoSection api={api} block={shown} definition={SEC} tag="SEC-C05" className="ficha-step" onFocus={() => undefined} />
+      <ConclusaoSection api={api} block={shown} definition={SEC} tag="SEC-C05" className="ficha-step" onFocus={() => undefined} section9={{ ref: 'seção 5', prints: true, absent: 'não sai no documento: o relatório não tem a seção 5' }} />
     </ToastProvider>,
   );
   return builds;
@@ -84,6 +84,8 @@ describe('E5-A4 the conclusion confirm guards its basis', () => {
   it('a fresh confirm writes the text, its status and its basis in one batch', async () => {
     const shown = block({ test: readings('147'), conclusion: pair });
     const builds = renderSection(shown);
+    // F43 (UX pass 2026-10-22): the helper names section 9 as the relatório numbers it.
+    expect(screen.getByText(/Impresso na linha Conclusão da seção 5 depois de confirmar\./)).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
     expect(builds).toHaveLength(1);
     const ops = builds[0]!([shown], AUTHOR, fresh) ?? [];

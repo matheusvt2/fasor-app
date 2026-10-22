@@ -1,4 +1,4 @@
-import { artOrTrtLabel, artTrtEchoText, councilLabel, registrationNumberLabel, type RelatorioSnapshot, type UserRow } from '@app/domain';
+import { artOrTrtLabel, artTrtEchoText, councilLabel, registrationNumberLabel, sectionRefText, sectionsCaption, type RelatorioSnapshot, type UserRow } from '@app/domain';
 import { useId, useRef, useState } from 'react';
 import { Combobox } from '../../../components/index.ts';
 import { copy } from '../../../copy/pt-br.ts';
@@ -49,7 +49,7 @@ export function Etapa3Responsavel({
         <h2 className="band-title" id="setup-e3" tabIndex={-1}>
           {t.etapa3Title}
         </h2>
-        <span className="band-note">{t.etapa3Note}</span>
+        <span className="band-note">{sectionsCaption(snapshot, [10])}</span>
       </div>
       <div className="band-body">
         <div className="form-grid">
@@ -87,13 +87,13 @@ export function Etapa3Responsavel({
                   onBlur={artTrtNumber.blur}
                 />
                 {(() => {
-                  const echo = artTrtEchoText(label, artTrtNumber.text);
+                  const echo = artTrtEchoText(label, artTrtNumber.text, sectionRefText(snapshot, 10));
                   return echo === null ? null : <span className="echo">{echo}</span>;
                 })()}
               </div>
               {selected.title === null ? null : (
                 <div className="field span-2">
-                  <span className="helper">{t.councilHelper(selected.title)}</span>
+                  <span className="helper">{t.councilHelper(selected.title, sectionRefText(snapshot, 10))}</span>
                 </div>
               )}
             </>

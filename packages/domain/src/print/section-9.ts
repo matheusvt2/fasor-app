@@ -608,7 +608,8 @@ function measurementTable(block: BlockRow, testKey: TestKey, definition: TableDe
     const row = evaluated.rows[r]!;
     rows.push({
       cells: [
-        ...connection.map((text) => valueCell(definition.connection_typed && text.trim() === '' ? DASH : printLabel(text))),
+        // F42: a typed connection the seed leaves blank prints the evaluated one (the plate's TAP ATUAL), "-" when none.
+        ...connection.map((text, i) => valueCell(definition.connection_typed && text.trim() === '' ? row.connection[i] || DASH : printLabel(text))),
         ...definition.value_columns.map((column, col) => valueCell(valueText(block, testKey, row, evaluated, col, column, enabled))),
       ],
     });

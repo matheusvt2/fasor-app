@@ -531,14 +531,14 @@ describe('seed v1: section boilerplate (Story 3.2)', () => {
     expect(after.at(-1)!.text).toBe('Manobra de religamento feita de forma inversa ao desligamento (itens “a” à “f”).');
   });
 
-  it('uses only the six named variables, and section 1 carries three of them', () => {
+  it('uses only the six named variables of v1 (seed v8 adds two, pinned there), and section 1 carries three of them', () => {
     const variables = new Set<string>();
     const collect = (text: string) => {
       for (const match of text.matchAll(/\{([^}]*)\}/g)) variables.add(match[1]!);
     };
     for (const entry of seed.sections) for (const block of entry.blocks ?? []) collect(block.text);
     for (const row of seed.cover.rows) collect(row.value);
-    expect([...variables].sort()).toEqual([...SECTION_VARIABLES].sort());
+    expect([...variables].sort()).toEqual(SECTION_VARIABLES.filter((name) => name !== 'itens_resultados').sort());
     expect(current(1)[0]!.text).toBe(
       'O presente relatório tem por objetivo apresentar, de forma clara e objetiva, as atividades realizadas pela {empresa_executora}, referentes à manutenção preventiva e à execução de ensaios dielétricos nas Cabines Primárias de Proteção, Distribuição e Transformação de {obra} da {cliente}.',
     );
@@ -1501,10 +1501,9 @@ describe('seed v7 (Story 14.14): v6 plus the fixed extinction media with Outro, 
   const field = (version: string, type: string, key: string) => getDefinition(version, 'cabine_primaria', type).nameplate.find((candidate) => candidate.key === key)!;
   const source = { name: 'NBR 5410', edition: null };
 
-  it('is the version a new Template is created with', () => {
-    expect(SEED_VERSION).toBe('v7');
+  it('was the version a new Template is created with until seed v8 (pinned there)', () => {
     expect(SEED_VERSIONS.v7!.version).toBe('v7');
-    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7']);
+    expect(Object.keys(SEED_VERSIONS)).toContain('v7');
     expect(equipmentTypesOf('v7')).toEqual(equipmentTypesOf('v6'));
   });
 
@@ -1597,6 +1596,55 @@ describe('seed v7 (Story 14.14): v6 plus the fixed extinction media with Outro, 
     const notOption = disjuntor();
     notOption.oil_rule!.full_values = ['Mineral'];
     expect(blockDefinitionSchema.safeParse(notOption).success).toBe(false);
+  });
+});
+
+/** v7 as it shipped in v0.2.4 (Story 14.14); a change to it is a new version. */
+const V7_HASH = 'c3133e05413014a3a4926f7f4753f4dae85e0b2c02f5da899727d6a9fcdc795a';
+
+describe('seed v8 (UX pass 2026-10-22, F43): v7 plus a Conclusão naming sections 8 and 9 by one variable', () => {
+  const v7 = getSeed('v7', 'cabine_primaria');
+  const v8 = getSeed('v8', 'cabine_primaria');
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(SEED_VERSIONS[version])).digest('hex');
+
+  it('is the version a new Template is created with', () => {
+    expect(SEED_VERSION).toBe('v8');
+    expect(SEED_VERSIONS.v8!.version).toBe('v8');
+    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8']);
+    expect(equipmentTypesOf('v8')).toEqual(equipmentTypesOf('v7'));
+  });
+
+  it('differs from v7 by exactly the two "nos itens 8 e 9" of the Conclusão, and v1 to v7 hash as they shipped', () => {
+    const stripped = structuredClone(v8) as typeof v8;
+    for (const entry of stripped.sections) for (const block of entry.blocks ?? []) block.text = block.text.replaceAll('{itens_resultados}', 'nos itens 8 e 9');
+    expect(JSON.stringify(stripped)).toBe(JSON.stringify(v7));
+    const conclusao = sectionText('v8', 10, '2026-10-22').map((block) => block.text);
+    expect(conclusao.filter((text) => text.includes('{itens_resultados}'))).toHaveLength(2);
+    expect(conclusao.some((text) => text.includes('encontram-se {itens_resultados} deste relatório;'))).toBe(true);
+    expect(conclusao.some((text) => text.includes('constantes {itens_resultados} deste sejam atendidas.'))).toBe(true);
+    expect(conclusao.join(' ')).not.toContain('itens 8 e 9');
+    expect(sectionText('v7', 10, '2026-10-22').filter((block) => block.text.includes('itens 8 e 9'))).toHaveLength(2);
+    expect(hash('v1')).toBe(V1_HASH);
+    expect(hash('v2')).toBe(V2_HASH);
+    expect(hash('v3')).toBe(V3_HASH);
+    expect(hash('v4')).toBe(V4_HASH);
+    expect(hash('v5')).toBe(V5_HASH);
+    expect(hash('v6')).toBe(V6_HASH);
+    expect(hash('v7'), 'seed v7 changed after it shipped: add a new version instead').toBe(V7_HASH);
+  });
+
+  it('only v8 carries the results reference variable', () => {
+    const variablesOf = (version: string) => {
+      const found = new Set<string>();
+      const seed = getSeed(version, 'cabine_primaria');
+      for (const entry of seed.sections) for (const block of entry.blocks ?? []) for (const match of block.text.matchAll(/\{([^}]*)\}/g)) found.add(match[1]!);
+      for (const row of seed.cover.rows) for (const match of row.value.matchAll(/\{([^}]*)\}/g)) found.add(match[1]!);
+      return [...found].sort();
+    };
+    expect(variablesOf('v8')).toEqual([...SECTION_VARIABLES].sort());
+    for (const version of ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7']) {
+      expect(variablesOf(version), version).toEqual(['cliente', 'datas', 'empresa_executora', 'escopo', 'obra', 'responsavel']);
+    }
   });
 });
 
