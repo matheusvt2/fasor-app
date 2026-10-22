@@ -734,7 +734,7 @@ test('@p0 3.5-E2E-001 per-type sub-block defaults: toggles, "Sempre", subtype NA
     expect(block.subtype).toBe('manual');
     expect(block.na_defaults).toEqual(['motor', 'fusiveis']);
   }
-  for (const block of row.blocks.filter((b) => b.block_type === 'tp')) expect(block.na_defaults).toHaveLength(8);
+  for (const block of row.blocks.filter((b) => b.block_type === 'tp')) expect(block.na_defaults).toHaveLength(naDefaultsFor(SEED_VERSION, 'tp', 'a_seco').length);
 
   // Kept on reload.
   await page.reload();
