@@ -37,8 +37,12 @@ export interface SkeletonListProps {
   onSetQuantity: (ref: string, type: EquipmentBlockType, n: number) => Promise<void>;
   /** The foot's "Adicionar local": opens the Função dialog. */
   onAddLocal: () => void;
-  /** A local's "Adicionar equipamento": the local becomes the palette's target. */
-  onAddEquipamento: (local: ComposerCabine) => void;
+  /**
+   * "Adicionar equipamento" of a local or (Story 15.5) of an open coluna: the node becomes the
+   * palette's target. `onReleased` runs when the press released the node instead (the inline
+   * palette's toggle), so the coluna's row, which then closes, hands the focus to its head.
+   */
+  onAddEquipamento: (node: ComposerCabine | ComposerColuna, onReleased?: () => void) => void;
   onAddPainel: (local: ComposerCabine) => void;
   /** "Adicionar coluna" of a painel, or of a local that already holds colunas directly. */
   onAddColuna: (parent: ComposerCabine | ComposerPainel) => void;
@@ -375,7 +379,7 @@ function PainelCard({ painel, local, ...props }: CardProps & { painel: ComposerP
  * of two painéis alike. The row's head keeps the coluna's own name, as drawn.
  */
 function ColunaRow({ coluna, controlName, ...props }: CardProps & { coluna: ComposerColuna; controlName: string }) {
-  const { currentRef, onSelect, onMove, onSetQuantity } = props;
+  const { currentRef, onSelect, onMove, onSetQuantity, onAddEquipamento } = props;
   const reorder = useReorder({
     itemKey: coluna.ref,
     position: coluna.position,
@@ -408,6 +412,20 @@ function ColunaRow({ coluna, controlName, ...props }: CardProps & { coluna: Comp
       {isOpen ? (
         <div className="col-body" id={bodyId}>
           <QtyGrid node={coluna} onSetQuantity={onSetQuantity} head={() => headButton.current} />
+          {/* Story 15.5 (F10): below 1024 px this is the coluna's way to the palette; an empty
+              coluna says so first. A text button (the painel card's precedent) that carries
+              `aria-pressed`, which `TextButton` does not take. */}
+          {coluna.blockCount === 0 ? <p className="section-note col-none">{copy.composer.colunaNone}</p> : null}
+          <div className="skeleton-actions">
+            <AriaButton
+              className="btn btn-text"
+              aria-pressed={isOpen}
+              onPress={() => onAddEquipamento(coluna, () => restoreFocus(() => headButton.current))}
+            >
+              <Plus />
+              {copy.composer.addEquipamento}
+            </AriaButton>
+          </div>
         </div>
       ) : null}
     </li>

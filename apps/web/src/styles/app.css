@@ -609,6 +609,26 @@ body {
   .dialog-scrim.palette-drawer .block-palette { width: 100%; height: auto; max-height: 85dvh; }
   .dialog-scrim.palette-drawer .sheet-grip { display: block; }
 }
+/* authored: Story 15.5 (F10). The drawer and the sheet are a column: the grip, the "Blocos" head
+   and the `.pal-target` line under it stay put and only the list scrolls (it overrides the
+   palette's own `overflow-y: auto` above). The line keeps the mock's `.palette-group` padding
+   it gives up under the "Equipamentos" label inline (`templates.css`). */
+.dialog-scrim.palette-drawer .block-palette { display: flex; flex-direction: column; overflow: hidden; }
+.dialog-scrim.palette-drawer .block-palette > :is(.sheet-grip, .palette-head, .pal-target) { flex: none; }
+.dialog-scrim.palette-drawer .block-palette > .pal-target { padding-top: var(--sp-2); border-bottom: 1px solid var(--border-hairline); }
+.dialog-scrim.palette-drawer .palette-items { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+/* authored: Story 15.5 (F10), the scroll cue: a fade into the palette's own surface at the
+   bottom of the list while content remains below (`data-more-below`, kept by
+   `block-palette.tsx`); it sticks to the visible bottom and lets taps through. No new token. */
+.dialog-scrim.palette-drawer .palette-items[data-more-below="true"]::after {
+  content: ''; display: block; position: sticky; bottom: 0; height: var(--sp-6); margin-top: calc(-1 * var(--sp-6));
+  background: linear-gradient(to bottom, transparent, var(--surface-base)); pointer-events: none;
+}
+/* authored: Story 15.5 (F10), a type name never wraps mid-name: the name keeps its one line and
+   the row wraps its stepper under it when both do not fit (no ellipsis, no clipping). */
+.dialog-scrim.palette-drawer .palette-item.is-stepper { flex-wrap: wrap; }
+.dialog-scrim.palette-drawer .palette-item.is-stepper .pi-text { flex: 1 0 auto; max-width: 100%; }
+.dialog-scrim.palette-drawer .palette-item .pi-text > span:first-child { white-space: nowrap; }
 
 /* ---------- Date field: React Aria's segments inside the mock's `.input` box ----------
    authored: the mock (`30-project.html`) draws the date as text in the `.input` with the

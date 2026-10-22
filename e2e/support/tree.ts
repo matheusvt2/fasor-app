@@ -10,6 +10,15 @@ import { expect } from './merged-fixtures.ts';
  */
 
 /**
+ * The Sumário's section 9 chevron. Since the UX pass of 2026-10-22 (F43) its label names the
+ * section by its Sumário position ("Expandir ou recolher a seção 5" on a compact template), so a
+ * spec never asserts the FO.SERV-03 number; section 9 is the only row that carries a chevron.
+ */
+export function section9Chevron(page: Page) {
+  return page.getByRole('button', { name: /^Expandir ou recolher a seção \d+$/ });
+}
+
+/**
  * Leaves the location row `name` of the relatório tree expanded, whatever state it was in and
  * whether or not it opens by itself meanwhile: retried until the row reads "Recolher ⟨name⟩".
  * `name` is the row's control name, as the chevron reads it: a local's own name, a painel's

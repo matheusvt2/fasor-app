@@ -28,7 +28,7 @@ import { pushRevision } from './support/push-server-ops.ts';
 import { emCampoDraft, officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 import { resetEmpresaB, withSeedDb } from './support/reset-empresa-b.ts';
 import { SYNC_CYCLE_TIMEOUT, syncNowAndReturn, waitForCompanyPull } from './support/sync.ts';
-import { expandLocation } from './support/tree.ts';
+import { expandLocation, section9Chevron } from './support/tree.ts';
 
 /*
  * 14.2-E2E. Local › Painel › Coluna, driven as a person would: the Template composer builds
@@ -122,7 +122,7 @@ const coluna = (page: Page, name: string) => page.locator('li.s9-coluna').filter
 const eqRow = (page: Page, tag: string) => page.locator('li.s9-eq').filter({ has: page.locator('.block-tag', { hasText: new RegExp(`^${tag}$`) }) });
 
 async function openSection9(page: Page): Promise<void> {
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = section9Chevron(page);
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
 }
@@ -541,7 +541,7 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
   await expect(palette(page)).toBeHidden();
   await expect(card).toHaveClass(/is-current/);
   await expect(addEquipamento).toHaveAttribute('aria-pressed', 'true');
-  const drawer = page.getByRole('dialog', { name: 'Cabine primária', exact: true });
+  const drawer = page.getByRole('dialog', { name: 'Blocos', exact: true });
   for (let tap = 0; tap < 2; tap++) {
     await addEquipamento.click();
     await expect(drawer.locator('.pal-target')).toHaveText('Toque para adicionar em: Cabine primária, direto no local');

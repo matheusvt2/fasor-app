@@ -959,3 +959,30 @@ test('@p1 14.3-E2E-005 a coluna and a relatório on seed v3 offer no entry: no t
   await page.goto(surfaceUrl(v3.relatorioId, v3.enelId));
   await expect(page.getByText(NOT_FOUND)).toBeVisible({ timeout: 30_000 });
 });
+
+test('@p0 15.4-E2E-001 the App bar "Voltar" from a local\'s Verificações lands on the Sumário at 390 and 1280 px: section 9 open, that local\'s "Verificações do local" focused and in view; the navigation writes nothing', async ({ page }) => {
+  test.setTimeout(120_000);
+  const { relatorioId, enelId } = await setUp(page, 390);
+  await openSection9(page);
+  const before = await locals(page, relatorioId);
+  expect(before.map((location) => location.id)).toEqual([enelId]);
+  const opsBefore = (await outbox(page)).length;
+
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: width < 768 ? 844 : 1024 });
+    await siteButton(page, ENEL).click();
+    await expect(page).toHaveURL(new RegExp(`${surfaceUrl(relatorioId, enelId)}$`));
+    await expect(title(page)).toBeVisible();
+    await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
+    await expect(page.getByRole('button', { name: 'Expandir ou recolher a seção 9' })).toHaveAttribute('aria-expanded', 'true');
+    await expect(siteButton(page, ENEL)).toBeFocused();
+    await expect(siteButton(page, ENEL)).toBeInViewport();
+    // Nothing on the Sumário links to the tree surface.
+    await expect(page.locator('a[href$="/arvore"]')).toHaveCount(0);
+  }
+
+  // The committed state: the local row as it was, and no op written by the round trips.
+  expect(await locals(page, relatorioId)).toEqual(before);
+  expect((await outbox(page)).length).toBe(opsBefore);
+});

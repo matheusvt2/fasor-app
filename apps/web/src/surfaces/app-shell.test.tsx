@@ -1,8 +1,9 @@
 import { PRODUTO } from '@app/domain';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter, RouterProvider, useLocation } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
+import { BackTargetProvider, useBackToExport } from '../state/back-target.tsx';
 import { DraftsContext, type DraftsState } from '../state/drafts.tsx';
 import type { SessionState } from '../state/session.tsx';
 import { SyncContext, type SyncState } from '../state/sync.tsx';
@@ -185,5 +186,101 @@ describe('AppShell banner slot, live region and toast', () => {
   it('a waiting draft raises no banner', () => {
     const { container } = renderShell(syncState(), '/', draftsState(true));
     expect(container.querySelector('.banner')).toBeNull();
+  });
+});
+
+/** Story 15.4: the ficha route's handle as `app.tsx` declares it. */
+const fichaHandle = {
+  title: '',
+  back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}`,
+  backWith: (params: Record<string, string | undefined>) => ({
+    to: `/relatorio/${params.id ?? ''}`,
+    state: { openSection9: true, focusBlockId: params.blockId ?? null },
+  }),
+};
+
+function SumarioStub() {
+  const location = useLocation();
+  return (
+    <main>
+      <p data-testid="where">{`${location.pathname}${location.search}`}</p>
+      <p data-testid="state">{JSON.stringify(location.state ?? null)}</p>
+    </main>
+  );
+}
+
+function FichaStub() {
+  useBackToExport('R');
+  return <p>ficha</p>;
+}
+
+function renderFicha(path: string) {
+  const router = createMemoryRouter(
+    [
+      {
+        element: (
+          <SyncContext value={syncState()}>
+            <ToastProvider>
+              <DraftsContext value={draftsState()}>
+                <BackTargetProvider>
+                  <AppShell />
+                </BackTargetProvider>
+              </DraftsContext>
+            </ToastProvider>
+          </SyncContext>
+        ),
+        children: [
+          { path: '/', element: <Screen label="home" />, handle: { title: 'Início', titleHidden: true } },
+          { path: '/relatorio/:id', element: <SumarioStub />, handle: { title: 'Sumário' } },
+          { path: '/relatorio/:id/ficha/:blockId', element: <FichaStub />, handle: fichaHandle },
+        ],
+      },
+    ],
+    { initialEntries: [path] },
+  );
+  return render(<RouterProvider router={router} />);
+}
+
+function stubWidth(width: number) {
+  vi.stubGlobal('matchMedia', (query: string) => {
+    const min = /min-width:\s*(\d+)px/.exec(query);
+    return {
+      matches: min === null ? false : width >= Number(min[1]),
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    };
+  });
+}
+
+describe('AppShell back with state (Story 15.4)', () => {
+  for (const width of [390, 1280]) {
+    it(`at ${width} px a sheet's "Voltar" opens the Sumário with section 9 open and the row asked for`, async () => {
+      stubWidth(width);
+      try {
+        renderFicha('/relatorio/R/ficha/B');
+        await userEvent.click(screen.getByRole('button', { name: 'Voltar' }));
+        expect(screen.getByTestId('where')).toHaveTextContent('/relatorio/R');
+        expect(JSON.parse(screen.getByTestId('state').textContent ?? 'null')).toEqual({ openSection9: true, focusBlockId: 'B' });
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+  }
+
+  it('the Export-dialog return (`?volta=exportar`) wins over the route back', async () => {
+    stubWidth(390);
+    try {
+      renderFicha('/relatorio/R/ficha/B?volta=exportar');
+      await userEvent.click(screen.getByRole('button', { name: 'Voltar' }));
+      expect(screen.getByTestId('where')).toHaveTextContent('/relatorio/R?exportar=1');
+      expect(screen.getByTestId('state')).toHaveTextContent('null');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
