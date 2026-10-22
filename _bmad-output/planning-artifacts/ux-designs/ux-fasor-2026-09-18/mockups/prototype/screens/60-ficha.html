@@ -201,6 +201,36 @@
 /* In-fragment Banner slot (TP-C16: draft found › relatório exported — the shell's data-banner is per section, not per TAG) */
 [data-route="/ficha/:tag"] .ficha-banner-slot .banner { border-radius: 0; }
 [data-route="/ficha/:tag"] .ficha-banner-slot .banner-more { cursor: pointer; }
+/* ---------- Story 15.1 (2026-10-22): the rail (shell-foot.html rail-tree) in the tree-level vocabulary of the Sumário (40-relatorio-overview.html).
+   Scoped to #rail, so it holds on every data-rail="true" screen; components.css .relatorio-tree is unchanged. No new colour token.
+   .level-band (local) surface-sunken title band, hairline above; .in-band (its "Verificações do local" row) continues the band, hairline below;
+   .level-subband (painel) surface-base, hairline below; .level-group (coluna) group header, kicker + name + "N de M" on one line, hairline below;
+   .level-item (sheet) TAG over the type label, .nc-badge beside the TAG, glyph + state word (drops under the label when the 320 px rail is short).
+   Rows step 12 px a level; the selected row keeps focus-fill + the 4 px primary left rule (components.css .tree-row.is-selected). */
+#rail .tree-row[data-level="1"] { padding-left: var(--sp-3); }
+#rail .tree-row[data-level="2"] { padding-left: var(--sp-5); }
+#rail .tree-row[data-level="3"] { padding-left: calc(var(--sp-5) + var(--sp-3)); }
+#rail .level-kicker { font-size: var(--t-label-size); font-weight: 600; line-height: var(--t-label-lh); color: var(--ink-secondary); }
+#rail .tree-name { color: var(--ink-primary); }
+#rail .relatorio-tree[role="tree"] > li + li { margin-top: var(--sp-2); }
+#rail .tree-row.level-band { align-items: flex-start; background: var(--surface-sunken); border-top: 1px solid var(--border-hairline); }
+#rail .relatorio-tree[role="tree"] > li:first-of-type > .tree-row.level-band { border-top: 0; }
+#rail li[aria-expanded="false"] > .tree-row.level-band, #rail .tree-row.in-band { border-bottom: 1px solid var(--border-hairline); }
+#rail .tree-row.level-band .tree-name { font-weight: 700; }
+#rail .tree-row.level-band > .overflow-trigger { margin-top: var(--sp-1); }
+#rail .tree-row.in-band { background: var(--surface-sunken); }
+#rail .tree-row.level-subband { background: var(--surface-base); border-bottom: 1px solid var(--border-hairline); }
+#rail .tree-row.level-subband .tree-name { font-weight: 600; }
+#rail .tree-row.level-group { border-bottom: 1px solid var(--border-hairline); }
+#rail .tree-row.level-group .tree-body { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-2); }
+#rail .tree-row.level-group .tree-name { font-weight: 600; }
+#rail .tree-row.level-item { flex-wrap: wrap; border-bottom: 1px solid var(--border-hairline); }
+#rail .tree-row.level-item > .tree-body { flex: 1 1 8rem; }
+#rail .tree-row.level-item > .tree-state { margin-left: auto; }
+#rail .tree-id { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
+#rail .tree-tag { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink-primary); white-space: nowrap; }
+#rail .nc-badge { display: inline-flex; align-items: center; padding: 0 var(--sp-2); border-radius: var(--r-full); background: var(--nao-conforme-fill); color: var(--nao-conforme); font-size: var(--t-label-size); font-weight: 600; line-height: var(--t-label-lh); white-space: nowrap; }
+#rail .tree-row.is-selected { background: var(--focus-fill); }
 </style>
 
 <section class="screen" data-route="/ficha/:tag" data-title=":tag" data-shell="app" data-rail="true" data-sync="pending" data-sync-label="2 pendentes" data-examples="CB-ENT,SEC-ENT,SEC-C05,DJ-C14,TP-C16" data-count-tap>

@@ -161,3 +161,26 @@ Esta nota vence a seção acima onde as duas discordam.
 - **`key-print-section-9.html`:** cada local imprime a sua tabela VERIFICAÇÕES DO LOCAL, com os itens em maiúsculas; o painel é uma faixa de título sobre as colunas; o grupo OUTROS EQUIPAMENTOS mostra a CTA.
 - **`61-verificacoes-local.html`:** o cabeçalho nomeia um local só ("Cabine primária · 1° Subsolo").
 
+
+## Epic 15 (2026-10-22, Story 15.1) — os níveis da árvore
+
+Fonte: `epic-15-context.md` (o padrão da 15.1, tomado pelo Matheus em 2026-10-22 enquanto a resposta 6 do Bruno não chega), o item 1 do "Melhorias produto.docx" do Bruno (a seção 9 do Sumário a 390 px lida como uma sequência plana; referências do Produttivo: faixas de título por grupo e uma palavra por nível) e `test-artifacts/manual/ux-pass-2026-10-22.md` F50, F19, F37, F34. Emendas: `DESIGN.md` › Relatório tree e `EXPERIENCE.md` › Relatório tree, 2026-10-22.
+
+**Um vocabulário para os quatro níveis**, igual no Sumário (`screens/40-relatorio-overview.html`), no trilho (`rail-tree` de `shell-foot.html`, CSS em `screens/60-ficha.html` com seletores `#rail`) e no esqueleto do composer (`screens/42-template-composer.html`):
+
+| Nível | Desenho | Classes (Sumário · trilho · composer) |
+| --- | --- | --- |
+| Local | faixa de título em `surface-sunken`, hairline acima e abaixo; "Local" (kicker) sobre o nome; Função e dados da SE; a linha "Verificações do local · N de 19" dentro da faixa | `.s9-loc-row` · `.tree-row.level-band` + `.tree-row.in-band` · `.local-card` |
+| Painel | subfaixa em `surface-base`, hairline abaixo, a régua aberta (`sum-open-rule`) à esquerda no Sumário; "Painel" sobre o nome | `.s9-pnl-row` · `.tree-row.level-subband` · `.painel-card` |
+| Coluna | cabeçalho de grupo: "Coluna" antes do nome, nome em 600, "N de M" em meta, hairline abaixo | `.s9-coluna > .s9-col` · `.tree-row.level-group` · `.column-row` |
+| Equipamento | TAG (600, tabular) sobre o rótulo do tipo (meta), os dois em toda largura (no desktop lado a lado); selo NC quando a ficha tem NC aberta; glifo + palavra de estado | `.s9-eq-id > .block-tag + .s9-eq-name`, `.nc-badge` · `.tree-id > .tree-tag + .nc-badge`, `.tree-meta` · (o composer não tem linhas de equipamento) |
+| "Adicionar …" | a última linha do seu nível, no recuo do nível | `.s9-add` · — · `.skeleton-actions` |
+
+- **Kicker** `.level-kicker`: `label` (14 px), 600, `ink-secondary`; a mesma classe que o composer já usava desde a Story 14.1. Em linha de equipamento nunca há kicker; "Equipamentos no local" e "Colunas 6 a 17" são cabeçalhos de grupo sem kicker (não são níveis).
+- **Selo NC** `.nc-badge`: "1 NC", `nao-conforme` sobre `nao-conforme-fill`, raio cheio. Nenhum token de cor novo; `tokens.css` e `components.css` não mudaram (todo o CSS é de página, com o seletor da rota ou `#rail`, como na Epic 14).
+- **Controles mantidos em toda linha**, como o app os desenha (`relatorio-tree-sumario.tsx`): chevron (48×56), alça de arrastar, caixa de posição (`.pos-box.s9-pos`), contador, Overflow; nas linhas de equipamento, alça, caixa de posição e Overflow. No celular as linhas de local, painel e coluna não desenham alça nem caixa de posição (como `app.css` já faz). A linha selecionada continua `focus-fill` + régua `primary` de 4 px.
+- **Cabeçalho do Sumário no celular** (F50): os quatro contadores numa grade 2×2 acima da lista. **Linha dos pontos** (F34): o ponto automático contado uma vez, "4 pontos + 1 automático · 1 sem ação" (no app de Bruno, "1 ponto + 1 automático").
+- **Selos NC** (F37): "2 NC abertos" no cabeçalho corresponde às duas linhas com selo (DJ-C05 na Coluna 5, TR1 na Cabine de transformação); o trilho mostra o selo de DJ-C05 e de TR1.
+- **Ordem**: "Adicionar equipamento no local" passou para depois dos painéis do local (última linha do nível); "Adicionar bloco em ⟨painel⟩" segue a última coluna do painel.
+- **Textos que mudam no kernel** (Story 15.2): a meta do painel perde "Painel ·" (o kicker diz o nível: "17 colunas", no trilho "17 colunas · 39 de 53"); a meta do local no trilho perde "Local ·" ("Primária · 1 painel · 39 de 53 fichas"); a coluna no trilho mostra "N de M" em vez de "N fichas".
+- `prototype/index.html` foi regerado concatenando os mesmos arquivos na ordem do `build.py` (saída byte-idêntica à do `build.py` antes da mudança); rode `python3 build.py` para ver os avisos dele.
