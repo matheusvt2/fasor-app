@@ -23,6 +23,7 @@ import {
   type MeasurementTestEvaluation,
   type RelatorioSnapshot,
   type TestEvaluation,
+  condicaoScreenText,
 } from '@app/domain';
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import { WholeWords } from '../../components/whole-words.tsx';
@@ -358,7 +359,7 @@ function MeasurementTable({
         onRun={onRun}
       />
     );
-  const derivedText = (row: EvaluatedRow, kind: 'calculated' | 'condicao' | null) => (kind === 'condicao' ? (row.condicao ?? '—') : (row.calculated?.text ?? '—'));
+  const derivedText = (row: EvaluatedRow, kind: 'calculated' | 'condicao' | null) => (kind === 'condicao' ? condicaoScreenText(row.condicao) : (row.calculated?.text ?? '—'));
 
   return (
     <div className="ficha-mt" data-table-key={table.key}>
@@ -420,10 +421,14 @@ function MeasurementTable({
                       // DC-1: Condição is the mock's `td.cell-dim` ("Satisfatório", `60-ficha.html`), the calculated value `td.cell-calc`.
                       <td key={column.col} className={column.derivedKind === 'condicao' ? 'cell-dim' : 'cell-calc'}>
                         {derivedText(row, column.derivedKind)}
-                        <span className="calc-mark" aria-hidden="true">
-                          {ui.measurementField.calcMark}
-                        </span>
-                        <span className="visually-hidden">{ui.measurementField.calcSpoken}</span>
+                        {column.derivedKind === 'condicao' ? null : (
+                          <>
+                            <span className="calc-mark" aria-hidden="true">
+                              {ui.measurementField.calcMark}
+                            </span>
+                            <span className="visually-hidden">{ui.measurementField.calcSpoken}</span>
+                          </>
+                        )}
                       </td>
                     );
                   }
@@ -458,10 +463,14 @@ function MeasurementTable({
                   .map((column) => (
                     <p key={column.col} className="card-dims">
                       {column.derivedKind === 'condicao' ? t.cardCondition(derivedText(row, column.derivedKind)) : `${screenLabel(column.header)} ${derivedText(row, column.derivedKind)}`}
-                      <span className="calc-mark" aria-hidden="true">
-                        {ui.measurementField.calcMark}
-                      </span>
-                      <span className="visually-hidden">{ui.measurementField.calcSpoken}</span>
+                      {column.derivedKind === 'condicao' ? null : (
+                        <>
+                          <span className="calc-mark" aria-hidden="true">
+                            {ui.measurementField.calcMark}
+                          </span>
+                          <span className="visually-hidden">{ui.measurementField.calcSpoken}</span>
+                        </>
+                      )}
                     </p>
                   ))}
               </div>

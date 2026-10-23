@@ -6,6 +6,7 @@ import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readDeviceId, readStore } from './support/outbox.ts';
 import { addLocal } from './support/local.ts';
+import { section9Chevron } from './support/tree.ts';
 import { createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 import { officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
@@ -185,7 +186,7 @@ for (const viewport of WIDTHS) {
     await expect(toast(page)).toContainText('Seção removida deste relatório — numeração refeita');
     await closeToast(page).click();
     await expect(toast(page)).toHaveCount(0);
-    const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+    const chevron = section9Chevron(page);
     if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
     await addLocal(page, { funcao: 'Primária', name: 'Cabine 7' });
     await expect(page.getByRole('button', { name: /^(Expandir|Recolher) Cabine 7$/ })).toBeVisible();
@@ -380,7 +381,7 @@ for (const viewport of WIDTHS) {
     await expect(note).toHaveText('Enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 3.');
     await escapeDialog(page, dialog(page));
     await expect(headerPill(page)).toHaveText('Emitido');
-    const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+    const chevron = section9Chevron(page);
     if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
     await addLocal(page, { funcao: 'Primária' });
     await expect(headerPill(page)).toHaveText('Em revisão');

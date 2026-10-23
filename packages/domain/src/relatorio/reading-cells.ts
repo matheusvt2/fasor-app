@@ -176,6 +176,16 @@ export function inputHeaderText(label: string, unit: string | null): string {
   return unit === null ? text : `${text} (${unit})`;
 }
 
+/**
+ * The Condição a ratio row shows on screen: the mock's "Satisfatório" (`60-ficha.html`, a
+ * `td.cell-dim`), one word in sentence case, so the column keeps the width DC-1 fixed at 1280 px;
+ * the printed sheet keeps FO.SERV-03's uppercase value (`EvaluatedRow.condicao`). "—" while unjudged.
+ */
+export function condicaoScreenText(condicao: EvaluatedRow['condicao']): string {
+  if (condicao === null) return '—';
+  return condicao === 'SATISFATÓRIO' ? 'Satisfatório' : 'Insatisfatório';
+}
+
 // authored: Story 15.6, the formula the transformador de força's VAL CALCULADO applies on seed v9.
 /** The helper under a ratio table by its seed `ratio_factor`. */
 const RATIO_FORMULA_TEXT: Readonly<Record<NonNullable<TableDef['ratio_factor']>, string>> = {
