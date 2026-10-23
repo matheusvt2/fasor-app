@@ -7,7 +7,20 @@ import { Chevron, locationMenu, sameRow, treeKeys, type Shared } from './relator
 /*
  * E14-A7: the rail presentation of the relatório tree (`relatorio-tree.tsx` says what each
  * presentation draws): locais, painéis, colunas, the site checklist row and the fichas.
+ *
+ * Story 15.2 (the Story 15.1 mocks, `shell-foot.html` `rail-tree`): a local row is a title band
+ * (`.level-band`), a painel row a sub-band (`.level-subband`), a coluna row a group header
+ * (`.level-group`), each with its kicker; every sheet is a card (`.level-item.eq-card`: TAG and
+ * type as its title, the state word and the NC badge under it) and the local's "Verificações do
+ * local" a card of the same kind (`.eq-card.site-card`), the first under its local.
  */
+
+/** The rail row's level class (`shell-foot.html`): a local's band, a painel's sub-band, a coluna's group header. */
+function levelClass(node: TreeLocationNode): string {
+  if (node.kind === 'cabine' && node.level === 0) return 'level-band';
+  if (node.kind === 'painel') return 'level-subband';
+  return 'level-group';
+}
 
 export const RailLocation = memo(function RailLocation({ node, shared }: { node: TreeLocationNode; shared: Shared }) {
   const t = copy.sumario.tree;
@@ -19,7 +32,7 @@ export const RailLocation = memo(function RailLocation({ node, shared }: { node:
   const hasChildren = site !== null || node.equipment.length > 0 || node.locations.length > 0;
   return (
     <li data-location-id={node.id}>
-      <div className="tree-row" data-level={node.level} onKeyDown={(event) => treeKeys(event, hasChildren ? open : null, (value) => shared.setOpen(node, value))}>
+      <div className={`tree-row ${levelClass(node)}`} data-level={node.level} onKeyDown={(event) => treeKeys(event, hasChildren ? open : null, (value) => shared.setOpen(node, value))}>
         {hasChildren ? (
           <button
             type="button"
@@ -37,8 +50,9 @@ export const RailLocation = memo(function RailLocation({ node, shared }: { node:
           <span className="tree-chevron" aria-hidden="true" />
         )}
         <div className="tree-body">
-          <span>{node.name}</span>
-          {/* Story 14.2: the rail line of each level is the kernel's ("Local · Entrada · 1 painel · 3 de 9 fichas", "Painel · 1 coluna · 3 de 9"). */}
+          <span className="level-kicker">{node.kicker}</span>
+          <span className="tree-name">{node.name}</span>
+          {/* Story 14.2: the rail line of each level is the kernel's (Story 15.2: "Entrada · 1 painel · 3 de 9 fichas", "1 coluna · 3 de 9", "3 de 9"). */}
           <span className="tree-meta">{node.railMeta}</span>
         </div>
         {menu.items.length > 0 ? <OverflowMenu name={node.controlName} items={menu.items} /> : null}
@@ -48,20 +62,24 @@ export const RailLocation = memo(function RailLocation({ node, shared }: { node:
           {/* Story 14.3 (`shell-foot.html`): the local's site checklist first, one level under it. */}
           {site === null ? null : (
             <li data-site-of={node.id}>
-              <div className="tree-row" data-level={node.level + 1} onKeyDown={(event) => treeKeys(event, null, () => undefined)}>
-                <span className="tree-chevron" aria-hidden="true">
-                  <svg className="ico" aria-hidden="true">
-                    <use href="/sprite.svg#i-check-all" />
-                  </svg>
-                </span>
+              <div className="tree-row eq-card site-card" data-level={node.level + 1} onKeyDown={(event) => treeKeys(event, null, () => undefined)}>
+                {/* Story 15.2: a card of the sheet kind, "N de 19" as its progress and the sheet state words. */}
                 <button type="button" className="tree-body" data-tree-open aria-label={copy.local.entryLabel(SITE_CHECKLIST_LABEL, node.name)} onClick={() => shared.actions.openVerificacoes(node.id)}>
-                  <span>{SITE_CHECKLIST_LABEL}</span>
-                  <span className="tree-meta">{site.railMeta}</span>
+                  <span className="tree-id">
+                    <svg className="ico ico-sm" aria-hidden="true">
+                      <use href="/sprite.svg#i-check-all" />
+                    </svg>
+                    <span className="tree-name">{SITE_CHECKLIST_LABEL}</span>
+                    <span className="tree-meta">{site.railCounter}</span>
+                  </span>
+                  <span className="eq-card-status">
+                    <span className="tree-state" data-state={site.railStateAttr}>
+                      <span aria-hidden="true">{site.glyph}</span>
+                      {site.stateWord}
+                    </span>
+                    {site.ncBadge === null ? null : <span className="nc-badge">{site.ncBadge}</span>}
+                  </span>
                 </button>
-                <span className="tree-state" data-state={site.railStateAttr}>
-                  <span aria-hidden="true">{site.glyph}</span>
-                  {site.railCounter}
-                </span>
               </div>
             </li>
           )}
@@ -82,25 +100,28 @@ export const RailEquipment = memo(function RailEquipment({ node, shared }: { nod
   return (
     <li data-block-id={node.blockId}>
       <div
-        className={current ? 'tree-row is-selected' : 'tree-row'}
+        className={current ? 'tree-row level-item eq-card is-selected' : 'tree-row level-item eq-card'}
         data-level={node.level}
         aria-current={current ? 'true' : undefined}
         onKeyDown={(event) => treeKeys(event, null, () => undefined)}
       >
-        <span className="tree-chevron" aria-hidden="true" />
+        {/* Story 15.2 (Bruno's answer 6): the whole card is the tap target; TAG and type are its title
+            (F-07: the TAG never breaks inside itself), the state word and the NC badge under it. */}
         <button type="button" className="tree-body" data-tree-open onClick={() => shared.actions.openSheet(node.blockId)}>
-          <span>{node.typeLabel}</span>
-          {/* F-07: the TAG never breaks inside itself; the reason after it wraps as words do. */}
-          <span className="tree-meta">
+          <span className="tree-id">
             {node.tag === '' ? null : <span className="tree-tag">{node.tag}</span>}
-            {node.railMetaRest}
+            <span className="tree-name">{node.typeLabel}</span>
           </span>
+          <span className="eq-card-status">
+            {/* The 320 px rail keeps the state to its word; a not-tested sheet's reason is its own meta line (review F-1). */}
+            <span className="tree-state" data-state={node.stateAttr}>
+              <span aria-hidden="true">{node.glyph}</span>
+              {node.stateWord}
+            </span>
+            {node.ncBadge === null ? null : <span className="nc-badge">{node.ncBadge}</span>}
+          </span>
+          {node.reason === null ? null : <span className="tree-meta">{node.reason}</span>}
         </button>
-        {/* The 320 px rail keeps the state to its word; a not-tested sheet's reason is on the meta line (review F-1). */}
-        <span className="tree-state" data-state={node.stateAttr}>
-          <span aria-hidden="true">{node.glyph}</span>
-          {node.stateWord}
-        </span>
       </div>
     </li>
   );

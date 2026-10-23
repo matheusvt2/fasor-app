@@ -617,7 +617,8 @@ test('@p1 6.6-E2E-011 E6-Q11: removing a photo a point cites names that point in
   await expect(plain).not.toContainText('citada');
 });
 
-test('@p0 6.6-E2E-005 Sumário row 8 reads "5 pontos · 1 sem ação · 3 não ensaiadas" for 2 manual points (one without action) and 3 untested sheets', async ({ page }) => {
+// Story 15.2 (F34): the derived entries are counted once, after the live points; row 8 read "5 pontos · 1 sem ação · 3 não ensaiadas" before.
+test('@p0 6.6-E2E-005 Sumário row 8 reads "2 pontos + 3 automáticos · 1 sem ação" for 2 manual points (one without action) and 3 untested sheets', async ({ page }) => {
   test.setTimeout(120_000);
   await setUp(page, (scope, all) => [
     ...pointDrafts(scope, [
@@ -626,7 +627,7 @@ test('@p0 6.6-E2E-005 Sumário row 8 reads "5 pontos · 1 sem ação · 3 não e
     ]).drafts,
     ...all.slice(0, 3).map((sheet) => notTestedDraft(scope, sheet.blockId)),
   ]);
-  await expect(row8(page).locator('.sum-status')).toHaveText('5 pontos · 1 sem ação · 3 não ensaiadas · 2 pontos sem prazo');
+  await expect(row8(page).locator('.sum-status')).toHaveText('2 pontos + 3 automáticos · 1 sem ação · 2 pontos sem prazo');
   await openPoints(page);
   await expect(page.getByRole('heading', { level: 2, name: 'Pontos de atenção (2 + 3 automáticos)' })).toBeVisible();
   await expect(cards(page)).toHaveCount(2);

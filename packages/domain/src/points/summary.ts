@@ -82,6 +82,8 @@ export interface PointsSummary {
   semAcao: number;
   /** Derived entries plus live points written from an untested sheet. */
   naoEnsaiadas: number;
+  /** Story 15.2 (F34): the derived (automatic) entries alone, counted once in row 8 ("+ 1 automático"). */
+  derived: number;
 }
 
 export function pointsSummary(snapshot: PointsSnapshot): PointsSummary {
@@ -90,6 +92,7 @@ export function pointsSummary(snapshot: PointsSnapshot): PointsSummary {
   return {
     total: live.length + derived.length,
     semAcao: pointsWithoutAction(snapshot.points).length,
+    derived: derived.length,
     // A point written from an untested sheet counts only while that sheet is still untested,
     // so row 8 agrees with row 9 once the sheet is tested again.
     naoEnsaiadas:
@@ -106,13 +109,21 @@ export function pointsSummary(snapshot: PointsSnapshot): PointsSummary {
 // authored: row 8 of a relatório with no point and no untested sheet.
 export const NO_POINTS_TEXT = 'Nenhum ponto de atenção';
 
-/** Sumário row 8: "5 pontos · 1 sem ação · 3 não ensaiadas", the parts that are not 0; "Nenhum ponto de atenção" when empty. */
+/**
+ * Sumário row 8: "5 pontos · 1 sem ação · 3 não ensaiadas", the parts that are not 0; "Nenhum
+ * ponto de atenção" when empty. Story 15.2 (F34, `40-relatorio-overview.html`): the derived
+ * (automatic) entries are counted once, after the live points as the Points heading words
+ * them ("4 pontos + 1 automático · 1 sem ação", "0 pontos + 1 automático"); "não ensaiadas"
+ * then counts only the live points written from a sheet still untested.
+ */
 export function pointsSummaryText(summary: PointsSummary): string {
   if (summary.total === 0) return NO_POINTS_TEXT;
+  const live = summary.total - summary.derived;
+  const untestedLive = summary.naoEnsaiadas - summary.derived;
   return [
-    plural(summary.total, 'ponto', 'pontos'),
+    summary.derived > 0 ? `${plural(live, 'ponto', 'pontos')} + ${plural(summary.derived, 'automático', 'automáticos')}` : plural(summary.total, 'ponto', 'pontos'),
     summary.semAcao > 0 ? `${summary.semAcao} sem ação` : null,
-    summary.naoEnsaiadas > 0 ? naoEnsaiadasText(summary.naoEnsaiadas) : null,
+    untestedLive > 0 ? naoEnsaiadasText(untestedLive) : null,
   ]
     .filter((part): part is string => part !== null)
     .join(SEP);

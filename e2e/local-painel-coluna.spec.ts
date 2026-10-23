@@ -116,6 +116,9 @@ async function openNewTemplate(page: Page): Promise<string> {
 const tree = (page: Page) => page.getByRole('list', { name: 'Locais do relatório' });
 const treeAnnouncer = (page: Page) => page.getByTestId('sumario-announcer');
 const local = (page: Page, name: string) => tree(page).locator(':scope > li.s9-local').filter({ has: page.locator(':scope > .s9-loc-row .s9-loc-name', { hasText: name }) });
+// Story 15.2 (the 15.1 mocks changed the text): a painel's `.s9-pnl-meta` reads "2 colunas" ("Painel · 2 colunas" before),
+// the kicker "Painel" saying the level; the local's "Verificações do local" is a card under the open local (`siteButton`).
+const siteButton = (page: Page, name: string) => local(page, name).locator(':scope > ul.s9-site .s9-verif');
 const painel = (page: Page, name: string) => page.locator('li.s9-painel').filter({ has: page.locator(':scope > .s9-pnl-row .s9-pnl-name', { hasText: new RegExp(`^${name}`) }) });
 const painelNames = (page: Page, localName: string) => local(page, localName).locator(':scope > .s9-pnls > li.s9-painel > .s9-pnl-row .s9-pnl-name');
 const coluna = (page: Page, name: string) => page.locator('li.s9-coluna').filter({ has: page.locator(':scope > .s9-col .s9-col-name', { hasText: new RegExp(`^${name}$`) }) });
@@ -288,7 +291,7 @@ test('@p0 14.2-E2E-001 at 1280: a template of one local (Transformação) with t
   await expect(localLi.locator(':scope > .s9-col-direct .s9-col-name')).toHaveText('Equipamentos no local');
   await expect(page.getByRole('list', { name: `Equipamentos direto em ${LOCAL}` }).locator(':scope > li.s9-eq .block-tag')).toHaveText(['TR-1', 'TR-2']);
   await expect(painelNames(page, LOCAL)).toHaveText(['Painel 1']);
-  await expect(painel(page, 'Painel 1').locator(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveText('Painel · 3 colunas');
+  await expect(painel(page, 'Painel 1').locator(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveText('3 colunas');
   await expandLocation(page, painelInTree('Painel 1', LOCAL));
   await expect(painel(page, 'Painel 1').locator(':scope > .s9-cols > li.s9-coluna > .s9-col .s9-col-name')).toHaveText(['Coluna 1', 'Coluna 2', 'Coluna 3']);
   await expandLocation(page, colunaInTree('Coluna 1', 'Painel 1', LOCAL));
@@ -654,13 +657,13 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
   await expect(toast(page)).toContainText('Painel 1 adicionado');
   await expect(page.getByRole('button', { name: `Recolher ${painelInTree('Painel 1', NEW_LOCAL)}`, exact: true })).toBeFocused();
   const treePainel = painel(page, 'Painel 1');
-  await expect(treePainel.locator(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveText('Painel · sem colunas');
+  await expect(treePainel.locator(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveText('sem colunas');
   await expect(treePainel.getByRole('note')).toHaveText(PAINEL_EMPTY);
   await expect(treePainel.getByRole('button', { name: /^Adicionar bloco/ })).toHaveCount(0);
   await treePainel.getByRole('button', { name: 'Adicionar coluna' }).click();
   await expect(toast(page)).toContainText('Coluna 1 adicionada');
   await expect(treePainel.getByRole('note')).toHaveCount(0);
-  await expect(treePainel.locator(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveText('Painel · 1 coluna');
+  await expect(treePainel.locator(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveText('1 coluna');
   await expect(treePainel.getByRole('button', { name: `Adicionar bloco em ${painelInTree('Painel 1', NEW_LOCAL)}` })).toBeVisible();
 
   // A second painel, renamed.
@@ -764,7 +767,7 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
   expect(lastColunaId).not.toBe(painelId);
   // The painel still holds no block of its own on the device, and its row counts the new sheet through its coluna.
   expect((await entities<BlockRow>(page)).filter((record) => record.entity === 'block' && record.row.location_id === painelId)).toEqual([]);
-  await expect(treePainel.locator(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveText('Painel · 2 colunas');
+  await expect(treePainel.locator(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveText('2 colunas');
   await expect(treePainel.locator(':scope > .s9-pnl-row .progress-counter')).toHaveText('0 de 1');
   await expect(treePainel.locator(':scope > .s9-eqs')).toHaveCount(0);
 
@@ -813,7 +816,7 @@ test('@p1 14.2-E2E-003 at 390 the composer with a local, a painel and a coluna, 
   expect(await horizontalOverflow(page), 'Sumário with an empty painel at 390px').toBeLessThanOrEqual(0);
   await fitsViewport(treePainel.getByRole('note'), 'the empty-painel note');
   await treePainel.getByRole('button', { name: 'Adicionar coluna' }).click();
-  await expect(treePainel.locator(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveText('Painel · 1 coluna');
+  await expect(treePainel.locator(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveText('1 coluna');
   await expect(coluna(page, 'Coluna 1')).toHaveCount(1);
   expect(await horizontalOverflow(page), 'Sumário with a painel and a coluna at 390px').toBeLessThanOrEqual(0);
   await fitsViewport(treePainel.locator(':scope > .s9-pnl-row'), 'the painel row');
@@ -947,7 +950,7 @@ test('@p0 14.2-E2E-004 at 768: a coluna holding a sheet is removed after its con
   await expect(painelColunas.locator(':scope > .s9-col .s9-col-name')).toHaveText(['Coluna 1', 'Coluna 2']);
   await expect(colunaTags('Coluna 1')).toHaveText([tag1]);
   await expect(colunaTags('Coluna 2')).toHaveText([tag2]);
-  await expect(painelMeta).toHaveText('Painel · 2 colunas');
+  await expect(painelMeta).toHaveText('2 colunas');
   await expect(painelCounter).toHaveText('0 de 2');
   await expect(localCounter(PAINEL_LOCAL)).toHaveText('0 de 7');
   await expect(total(96)).toBeVisible();
@@ -993,7 +996,7 @@ test('@p0 14.2-E2E-004 at 768: a coluna holding a sheet is removed after its con
   // The row and its sheet leave; the painel's and the local's counters close up.
   await expect(painelColunas.locator(':scope > .s9-col .s9-col-name')).toHaveText(['Coluna 2']);
   await expect(eqRow(page, tag1)).toHaveCount(0);
-  await expect(painelMeta).toHaveText('Painel · 1 coluna');
+  await expect(painelMeta).toHaveText('1 coluna');
   await expect(painelCounter).toHaveText('0 de 1');
   await expect(localCounter(PAINEL_LOCAL)).toHaveText('0 de 6');
   await expect(total(95)).toBeVisible();
@@ -1075,7 +1078,7 @@ test('@p0 14.2-E2E-004 at 768: a coluna holding a sheet is removed after its con
   await expect(colunaTags('Coluna 2')).toHaveText([tag2]);
   expect(await eqRow(page, tag1).getAttribute('data-block-id')).toBe(block1Id);
   expect(await eqRow(page, tag2).getAttribute('data-block-id')).toBe(block2Id);
-  await expect(painelMeta).toHaveText('Painel · 2 colunas');
+  await expect(painelMeta).toHaveText('2 colunas');
   await expect(painelCounter).toHaveText('0 de 2');
   await expect(localCounter(PAINEL_LOCAL)).toHaveText('0 de 7');
   await expect(total(96)).toBeVisible();
@@ -1159,7 +1162,8 @@ test('@p1 14.2-E2E-005 Epic 14 QA Q-6: a local holding only its site work (answe
   const NAME = 'Sala só de verificações';
   const N = siteItems(SEED_VERSION).length;
   await addLocal(page, { funcao: 'Distribuição', name: NAME });
-  await local(page, NAME).locator(':scope > .s9-loc-row .s9-loc-body .s9-verif').click();
+  await expandLocation(page, NAME);
+  await siteButton(page, NAME).click();
   await expect(page.locator('.sheet-header .sheet-title')).toHaveText(`Verificações do local — ${NAME}`, { timeout: 30_000 });
   await page.getByRole('group', { name: 'Ações em lote das verificações do local' }).getByRole('button', { name: 'Marcar os restantes como Conforme' }).click();
   await expect(page.getByTestId('local-progress')).toHaveText(`${N} de ${N}`);
@@ -1217,7 +1221,9 @@ test('@p1 14.2-E2E-005 Epic 14 QA Q-6: a local holding only its site work (answe
   await expect(entry.locator('.rr-secondary')).toHaveText(detail);
   await restore.getByRole('button', { name: `Restaurar ${NAME} — ${detail}`, exact: true }).click();
   await expect(restore).toBeHidden();
-  await expect(local(page, NAME).locator(':scope > .s9-loc-row .s9-loc-body .s9-verif')).toHaveText(`Verificações do local · ${N} de ${N}`);
+  await expandLocation(page, NAME);
+  await expect(siteButton(page, NAME)).toHaveAccessibleName(`Verificações do local · ${N} de ${N} — ${NAME}`);
+  await expect(siteButton(page, NAME).locator('.s9-site-count')).toHaveText(`${N} de ${N}`);
 });
 
 test('@p1 14.2-E2E-006 Epic 14 QA ledger (h): a sheet another device created in a local removed before the newest revision is its own restore entry, and restoring it brings back only that local', async ({ page }) => {

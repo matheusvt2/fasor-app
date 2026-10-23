@@ -387,10 +387,13 @@ describe('4.4 rail presentation (/relatorio/:id/arvore)', () => {
     });
     expect(current).toHaveAttribute('aria-current', 'true');
     expect(current).toHaveTextContent('DJ-TEST');
-    // F-07: the TAG sits in its own unbreakable span, the reason after it; the line reads as before.
-    expect(current.querySelector('.tree-meta .tree-tag')).toHaveTextContent(/^DJ-TEST$/);
-    expect(current.querySelector('.tree-meta')!.textContent).toMatch(/^DJ-TEST · /);
-    expect(current.querySelector('.tree-state')).toHaveAttribute('data-state', 'nao-ensaiada');
+    // Story 15.2 (the 15.1 mocks changed the markup): a card, TAG and type as its title (F-07: the TAG
+    // in its own unbreakable span), the state word and the not-tested reason on its own meta line.
+    expect(current).toHaveClass('level-item', 'eq-card');
+    expect(current.querySelector('.tree-id .tree-tag')).toHaveTextContent(/^DJ-TEST$/);
+    expect(current.querySelector('.tree-id .tree-name')).toHaveTextContent('Disjuntor MT');
+    expect(current.querySelector('.tree-meta')!.textContent).toBe('Solicitação do cliente');
+    expect(current.querySelector('.eq-card-status .tree-state')).toHaveAttribute('data-state', 'nao-ensaiada');
     expect(current.querySelector('.tree-state [aria-hidden="true"]')).toHaveTextContent('⊘');
     // No sections, no Position box, no drag handle, no equipment Overflow.
     expect(rail.querySelector('.pos-box, .drag-handle')).toBeNull();
@@ -399,11 +402,17 @@ describe('4.4 rail presentation (/relatorio/:id/arvore)', () => {
     await userEvent.click(within(rail).getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
     const menu = await screen.findByRole('menu');
     expect([...menu.querySelectorAll('[role^="menuitem"]')].map((i) => i.textContent)).toEqual(['Abrir primeira ficha (dados do local)', 'Agrupar por tipo na seção 9']);
-    // Story 14.2: the rail line of each level is the kernel's.
-    const metaOf = (name: string) => [...rail.querySelectorAll<HTMLElement>('.tree-row')].find((row) => row.querySelector('.tree-body > span')?.textContent === name)!.querySelector('.tree-meta')!.textContent;
-    expect(metaOf('Cabine de Testes')).toBe('Local · 1 coluna · 1 de 4 fichas');
-    expect(metaOf('Cabine Vazia')).toBe('Local · sem painéis · 0 de 0 fichas');
+    // Story 14.2: the rail line of each level is the kernel's. Story 15.2 (the 15.1 mocks changed the
+    // markup and the text): the name is `.tree-name` under the level's kicker, which the meta no longer repeats.
+    const rowOf = (name: string) => [...rail.querySelectorAll<HTMLElement>('.tree-row')].find((row) => row.querySelector('.tree-body > .tree-name')?.textContent === name)!;
+    const metaOf = (name: string) => rowOf(name).querySelector('.tree-meta')!.textContent;
+    expect(metaOf('Cabine de Testes')).toBe('1 coluna · 1 de 4 fichas');
+    expect(metaOf('Cabine Vazia')).toBe('sem painéis · 0 de 0 fichas');
     expect(metaOf('Coluna 1')).toBe('0 de 1');
+    expect(rowOf('Cabine de Testes')).toHaveClass('level-band');
+    expect(rowOf('Cabine de Testes').querySelector('.level-kicker')).toHaveTextContent('Local');
+    expect(rowOf('Coluna 1')).toHaveClass('level-group');
+    expect(rowOf('Coluna 1').querySelector('.level-kicker')).toHaveTextContent('Coluna');
     await userEvent.keyboard('{Escape}');
 
     const body = container.querySelector('.arvore-body')!;

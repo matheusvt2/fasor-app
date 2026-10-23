@@ -244,17 +244,22 @@ test('@p0 F-25 a priority picked on a point shows no toast; the Prazo it filled 
 
 // --- @p1 --------------------------------------------------------------------------------------
 
-/** Per rail row with a state: whether label and state overlap, which words split across lines, and the TAG's line count. */
+/**
+ * Per rail card with a state: whether its title (TAG and type) and its state overlap, which words
+ * split across lines, and the TAG's line count. Story 15.2 (the 15.1 mocks changed the markup):
+ * every sheet is a card, TAG and type as its title (`.tree-id`) and the state word under it
+ * (`.eq-card-status .tree-state`), so the state is always under the title, leading its line.
+ */
 function railRows(scope: Locator) {
   return scope.locator('.tree-row').evaluateAll((rows) =>
     rows
-      .filter((row) => row.getClientRects().length > 0 && row.querySelector(':scope > .tree-state') !== null)
+      .filter((row) => row.getClientRects().length > 0 && row.querySelector('.eq-card-status .tree-state') !== null)
       .map((row) => {
-        const body = row.querySelector('.tree-body')!;
+        const body = row.querySelector('.tree-id')!;
         const range = document.createRange();
         range.selectNodeContents(body);
         const text = range.getBoundingClientRect();
-        const state = row.querySelector(':scope > .tree-state')!.getBoundingClientRect();
+        const state = row.querySelector('.eq-card-status .tree-state')!.getBoundingClientRect();
         const rowBox = row.getBoundingClientRect();
         const split: string[] = [];
         const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
@@ -272,7 +277,7 @@ function railRows(scope: Locator) {
           name: body.textContent ?? '',
           apart: text.right <= state.left + 0.5 || text.bottom <= state.top + 0.5,
           below: state.top >= text.bottom - 0.5,
-          stateRightGap: rowBox.right - state.right,
+          inside: state.left >= rowBox.left - 0.5 && state.right <= rowBox.right + 0.5,
           split,
           tagLines: tag === null ? 0 : new Set([...tag.getClientRects()].map((rect) => Math.round(rect.top))).size,
         };
@@ -301,8 +306,9 @@ test('@p1 F-07 the rail at 320 px and the tree at 390 px: no word split, the TAG
     expect(row.apart, `${row.name}: label and state overlap`).toBe(true);
     expect(row.split, `${row.name}: split words`).toEqual([]);
     expect(row.tagLines, `${row.name}: the TAG breaks`).toBeLessThanOrEqual(1);
-    // A state dropped under the label sits at the right.
-    if (row.below) expect(row.stateRightGap, `${row.name}: the dropped state is not right-aligned`).toBeLessThanOrEqual(16);
+    // Story 15.2: the state sits under the card's title, inside the card (it was dropped right-aligned under the label).
+    expect(row.below, `${row.name}: the state is not under the title`).toBe(true);
+    expect(row.inside, `${row.name}: the state runs past the card`).toBe(true);
   }
   expect(await rail.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
 

@@ -277,7 +277,8 @@ describe('4.3 SumarioSurface', () => {
     expect(r11!.querySelector('button.sum-open')).toBeNull();
     expect(r10!.querySelector('button.sum-open')).not.toBeNull();
     expect(r7!.querySelector('button.sum-open')).not.toBeNull();
-    expect(within(r8!).getByRole('button', { name: /^Pontos de atenção/ })).toHaveTextContent('1 ponto · 1 não ensaiada');
+    // Story 15.2 (F34): the one derived entry counted once (it read "1 ponto · 1 não ensaiada").
+    expect(within(r8!).getByRole('button', { name: /^Pontos de atenção/ })).toHaveTextContent('0 pontos + 1 automático');
     await userEvent.click(within(r1!).getByRole('button', { name: /^Objetivo/ }));
     expect(await screen.findByTestId('setup-route')).toHaveTextContent('Setup 2');
     cleanup();
@@ -437,13 +438,15 @@ describe('4.3 SumarioSurface', () => {
   it('15.4: arriving with openSection9 and focusLocationId (back from a local\'s Verificações) opens section 9 and focuses that local\'s "Verificações do local"', async () => {
     database = await seeded();
     const record = (await database.entities.get(['relatorio', RELATORIO]))!;
-    // Seed v4 ships the site checklist, so the cabine's header row draws its `.s9-verif`.
+    // Seed v4 ships the site checklist, so the cabine draws its site card. Story 15.2: the card is drawn
+    // under the open local (it was in the header row), so the local opens first.
     await database.entities.put({ ...record, row: { ...(record.row as RelatorioRow), status: 'rascunho', seed_version: 'v4' } });
     const cabineId = portoSeguroSmall.log.find((op) => op.path.startsWith('location/'))!.path.split('/')[1]!;
     const { container } = renderSumario(RELATORIO, syncState(), { openSection9: true, focusLocationId: cabineId });
     await waitFor(() => expect(rows()).toHaveLength(13));
     expect(container.querySelector('.sum-s9')).toHaveClass('is-open');
-    await waitFor(() => expect(container.querySelector(`li[data-location-id="${cabineId}"] > .s9-loc-row .s9-verif`)).toHaveFocus());
+    await waitFor(() => expect(container.querySelector(`li[data-location-id="${cabineId}"] > ul.s9-site .s9-verif`)).toHaveFocus());
+    expect(container.querySelector(`li[data-location-id="${cabineId}"]`)).toHaveClass('is-open');
   });
 
   it('F-24: a sheet count opens section 9 on the first sheet it counts and focuses its row; a count of none focuses section 9', async () => {

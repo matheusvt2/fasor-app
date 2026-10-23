@@ -134,17 +134,35 @@ afterEach(() => {
 });
 
 describe('14.3 entry: the local\'s Sumário row', () => {
-  it('shows "Verificações do local · N de 19" as the .s9-verif button under the meta line and opens the surface', async () => {
+  // Story 15.2 (the 15.1 mocks changed the markup, Bruno's answer 5): the Verificações do local is a card
+  // of the sheet kind, the first under the open local; the band keeps the kicker, the name and the meta line.
+  it('shows "Verificações do local" and "N de 19" as the .s9-verif card, first under the open local, and opens the surface', async () => {
     database = await seeded({ answered: 12 });
     renderAt(`/relatorio/${RELATORIO}`);
     await screen.findByRole('list', { name: 'Locais do relatório' });
     const body = row(LOCAL).querySelector(':scope > .s9-loc-row .s9-loc-body')!;
-    const button = within(body as HTMLElement).getByRole('button', { name: 'Verificações do local · 12 de 19 — Cabine de Testes' });
-    expect(button).toHaveClass('btn', 'btn-text', 's9-verif');
-    expect(button).toHaveTextContent(/^Verificações do local · 12 de 19$/);
-    expect(button.querySelector('svg.ico.ico-sm use')).toHaveAttribute('href', '/sprite.svg#i-check-all');
-    // After the name and the meta line, as the mock stacks them.
-    expect([...body.children].map((el) => el.className)).toEqual(['s9-loc-name', 's9-loc-meta', 'btn btn-text s9-verif']);
+    expect([...body.children].map((el) => el.className)).toEqual(['level-kicker', 's9-loc-name', 's9-loc-meta']);
+    expect(body.querySelector('.level-kicker')).toHaveTextContent('Local');
+    // Collapsed, the local draws no card.
+    expect(row(LOCAL).querySelector('.s9-verif')).toBeNull();
+    await userEvent.click(await screen.findByRole('button', { name: 'Expandir Cabine de Testes' }));
+    const list = await within(row(LOCAL)).findByRole('list', { name: 'Verificações de Cabine de Testes' });
+    expect(list).toHaveClass('s9-eqs', 's9-site');
+    // The first list under the band.
+    expect(row(LOCAL).querySelector(':scope > ul')).toBe(list);
+    const card = list.querySelector(':scope > li')!;
+    expect(card).toHaveClass('s9-site-card', 'eq-card', 'block-card');
+    const button = within(list).getByRole('button', { name: 'Verificações do local · 12 de 19 — Cabine de Testes' });
+    expect(button).toHaveClass('s9-verif', 'eq-card-open');
+    expect(button.querySelector('.eq-card-title .s9-site-name')).toHaveTextContent(/^Verificações do local$/);
+    expect(button.querySelector('.eq-card-title .s9-site-count')).toHaveTextContent(/^12 de 19$/);
+    expect(button.querySelector('.eq-card-title svg.ico.ico-sm use')).toHaveAttribute('href', '/sprite.svg#i-check-all');
+    const state = button.querySelector('.eq-card-status .s9-state')!;
+    expect(state).toHaveAttribute('data-state', 'doing');
+    expect(state).toHaveTextContent('● Em preenchimento');
+    expect(state.querySelector('[aria-hidden="true"]')).toHaveTextContent('●');
+    // The fixture answers its first item NC: the card carries the badge (F37).
+    expect(button.querySelector('.eq-card-status .nc-badge')).toHaveTextContent(/^1 NC$/);
     // The local's sheet counter stays the sheets' own.
     expect(row(LOCAL).querySelector(':scope > .s9-loc-row .progress-counter')).toHaveTextContent(/^\d+ de \d+$/);
     expect(row(LOCAL).querySelector(':scope > .s9-loc-row .progress-counter')).not.toHaveTextContent('19');
@@ -161,7 +179,11 @@ describe('14.3 entry: the local\'s Sumário row', () => {
     await waitFor(() => expect(row(COLUNA)).not.toBeNull());
     expect(document.querySelectorAll('.s9-verif')).toHaveLength(1);
     expect(row(PAINEL).querySelector('.s9-verif')).toBeNull();
-    expect(row(LOCAL).querySelector(':scope > .s9-loc-row .s9-verif')).toHaveTextContent('Verificações do local · 0 de 19');
+    // Story 15.2: the card under the open local, "0 de 19" and "Vazia".
+    const card = row(LOCAL).querySelector(':scope > ul.s9-site .s9-verif')!;
+    expect(card.querySelector('.s9-site-count')).toHaveTextContent('0 de 19');
+    expect(card.querySelector('.s9-state')).toHaveAttribute('data-state', 'empty');
+    expect(card.querySelector('.s9-state')).toHaveTextContent('○ Vazia');
     first.unmount();
     database.close();
 
@@ -191,15 +213,17 @@ describe('14.3 entry: the rail', () => {
     expect(first.dataset.siteOf).toBe(LOCAL);
     const line = first.querySelector(':scope > .tree-row')!;
     expect(line).toHaveAttribute('data-level', '1');
-    expect(line.querySelector('.tree-chevron')).toHaveAttribute('aria-hidden', 'true');
-    expect(line.querySelector('.tree-chevron use')).toHaveAttribute('href', '/sprite.svg#i-check-all');
+    // Story 15.2 (the 15.1 mocks changed the markup): a card of the sheet kind, "N de 19" as its
+    // progress beside the label and the sheet's state word under it.
+    expect(line).toHaveClass('eq-card', 'site-card');
     const body = within(line as HTMLElement).getByRole('button', { name: 'Verificações do local — Cabine de Testes' });
     expect(body).toHaveClass('tree-body');
-    expect([...body.children].map((el) => el.textContent)).toEqual(['Verificações do local', '19 itens · uma vez por local']);
-    expect(body.querySelector('.tree-meta')).toHaveTextContent('19 itens · uma vez por local');
-    const stateEl = line.querySelector('.tree-state')!;
+    expect(body.querySelector('.tree-id use')).toHaveAttribute('href', '/sprite.svg#i-check-all');
+    expect(body.querySelector('.tree-id .tree-name')).toHaveTextContent(/^Verificações do local$/);
+    expect(body.querySelector('.tree-id .tree-meta')).toHaveTextContent(new RegExp(`^${text}$`));
+    const stateEl = line.querySelector('.eq-card-status .tree-state')!;
     expect(stateEl).toHaveAttribute('data-state', state);
-    expect(stateEl).toHaveTextContent(text);
+    expect(stateEl).toHaveTextContent({ vazia: 'Vazia', 'em-preenchimento': 'Em preenchimento', concluida: 'Concluída' }[state]);
     // The painel under the local, and its coluna, have no such row.
     expect(document.querySelectorAll('li[data-site-of]')).toHaveLength(1);
 

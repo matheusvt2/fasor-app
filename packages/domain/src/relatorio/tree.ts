@@ -11,7 +11,7 @@ import { integrityFindings } from './integrity.ts';
 import { funcaoLabel } from './local.ts';
 import { liveLocationIds } from './location-live.ts';
 import { locationPathText } from './location-path.ts';
-import { blocksProgress, fichasCountText, locationProgressIndex, progressCounterState, progressCounterText, type Progress } from './progress.ts';
+import { blocksProgress, fichasCountText, locationProgressIndex, ncBadgeText, ncCount, progressCounterState, progressCounterText, type Progress } from './progress.ts';
 import { isEquipmentBlock, sheetState, sheetStateLabel, type SheetState } from './sheet-state.ts';
 import { siteCounterText, siteLocals, siteRailMetaText, siteResultOf, siteRowText } from './site-checklist.ts';
 import { cabineMissingText, cabineProgress } from './cabine.ts';
@@ -30,6 +30,10 @@ import { suggestTag, type TagEquipment, type TagLocation } from './tag.ts';
  * and its meta lines. Depth is not enforced (a block may hang off any node); rows past the
  * third level indent as the third (DESIGN.md: 24 px per level). The surface renders this
  * and decides nothing.
+ *
+ * Story 15.2 (the 15.1 mocks, `40-relatorio-overview.html`, `shell-foot.html`): every location
+ * carries its level word (`kicker`: "Local", "Painel", "Coluna"), every sheet and every local's
+ * site checklist its NC badge ("1 NC", F37), so the badges add up to the header's "N NC abertos".
  */
 
 /** DESIGN.md › Relatório tree: the text glyph before each state word (`aria-hidden` where drawn). */
@@ -68,6 +72,21 @@ export const TREE_MAX_LEVEL = 3;
 
 const SEP = ' · ';
 
+const KICKER_LOCAL = 'Local';
+const KICKER_PAINEL = 'Painel';
+const KICKER_COLUNA = 'Coluna';
+
+/**
+ * Story 15.2: the level word a location row draws over (a local, a painel) or before (a
+ * coluna) its name, `.level-kicker` (`40-relatorio-overview.html`). The root `cabine` is the
+ * local; a `cabine` drawn under another location reads as a coluna, as its row does.
+ */
+export function levelKickerText(kind: LocationRow['kind'], level: number): string {
+  if (kind === 'cabine' && level === 0) return KICKER_LOCAL;
+  if (kind === 'painel') return KICKER_PAINEL;
+  return KICKER_COLUNA;
+}
+
 export interface TreeEquipmentNode {
   kind: 'equipment';
   blockId: string;
@@ -91,14 +110,12 @@ export interface TreeEquipmentNode {
   stateWord: string;
   /** The word, and for a sheet not tested its reason: "Não ensaiada · Solicitação do cliente". */
   stateText: string;
-  /** The rail row's `.tree-meta`: the TAG, and for a sheet not tested its reason ("SEC-C05 · Solicitação do cliente"); the rail's state keeps the word alone. */
-  railMetaText: string;
-  /**
-   * Review fixes 2026-10-06 (F-07): what `railMetaText` holds after the TAG (`'' `, or
-   * `' · Solicitação do cliente'`; the reason alone when there is no TAG), so the rail can keep
-   * the TAG on one line: `railMetaText === tag + railMetaRest`.
-   */
-  railMetaRest: string;
+  /** Why the sheet was not tested (`notTestedReasonText`), null when it was: the rail card's `.tree-meta` line (review F-1), its state keeping the word alone. */
+  reason: string | null;
+  /** Story 15.2 (F37): the checklist items of this sheet answered NC (`ncCount`), what `Progress.nc_open` adds up. */
+  nc: number;
+  /** "1 NC", "2 NC": the card's `.nc-badge`; null while the sheet holds no NC. */
+  ncBadge: string | null;
   /** 1-based position among the live blocks of the same location, and how many there are. */
   position: number;
   siblings: number;
@@ -126,19 +143,21 @@ export interface TreeLocationNode {
   level: number;
   /** The local's Função as stored (a reserved key or a typed name); null when it holds none, and on a painel or a coluna. */
   funcao: string | null;
+  /** Story 15.2: the row's level word (`levelKickerText`): "Local", "Painel", "Coluna". */
+  kicker: string;
   /**
    * The Sumário row's meta line (`40-relatorio-overview.html`). A local: its read-only data
    * line led by its Função ("Transformação · Alvenaria · 13,8 kV"), "sem painéis" closing it
-   * while nothing hangs under it, "—" when it holds none. A painel: "Painel · 17 colunas",
-   * "Painel · sem colunas". "" on a coluna.
+   * while nothing hangs under it, "—" when it holds none. A painel: "17 colunas", "1 coluna",
+   * "sem colunas" (Story 15.2: the kicker says the level). "" on a coluna.
    */
   meta: string;
   /** Story 12.3: "falta a umidade" / "faltam 3 campos" after the meta while a cabine field is empty; null otherwise (and on a painel or a coluna). */
   metaMissing: string | null;
   /**
-   * The rail row's meta line (`shell-foot.html` `rail-tree`): "Local · Entrada · 1 painel ·
-   * 3 de 9 fichas" for a local, "Painel · 1 coluna · 3 de 9" for a painel, and a coluna's
-   * counter, led by "Coluna" when its name does not say it ("Coluna · 3 de 9", "2 de 4").
+   * The rail row's meta line (`shell-foot.html` `rail-tree`, Story 15.2: the kicker says the
+   * level): "Entrada · 1 painel · 3 de 9 fichas" for a local, "1 coluna · 3 de 9" for a painel
+   * ("sem colunas" alone when it has none), and a coluna's counter, "2 de 4".
    */
   railMeta: string;
   /** "3 de 9": the sheets concluded on this node and every node under it. */
@@ -172,9 +191,9 @@ export interface TreeLocationNode {
 export interface TreeSiteNode {
   answered: number;
   total: number;
-  /** "Verificações do local · 12 de 19": the Sumário row's button. */
+  /** "Verificações do local · 12 de 19": the Sumário card's accessible name (with the local's, `copy.local.entryLabel`). */
   text: string;
-  /** "12 de 19": the rail row's `.tree-state` text. */
+  /** "12 de 19": the card's progress (`.s9-site-count`, the rail card's `.tree-meta`). */
   railCounter: string;
   /** "19 itens · uma vez por local": the rail row's `.tree-meta`. */
   railMeta: string;
@@ -184,8 +203,14 @@ export interface TreeSiteNode {
   state: 'vazia' | 'pending' | 'concluida';
   /** The rail's `.tree-state[data-state]` value of `state`. */
   railStateAttr: TreeStateAttr;
-  /** The glyph before the rail counter (`aria-hidden` where drawn): the sheet states' own. */
+  /** The glyph before the state word (`aria-hidden` where drawn): the sheet states' own. */
   glyph: string;
+  /** Story 15.2 (Bruno's answer 5): the state word of a sheet ("Vazia", "Em preenchimento", "Concluída"). */
+  stateWord: string;
+  /** The Sumário card's `.s9-state[data-state]` value of `state`. */
+  sumarioStateAttr: SumarioStateAttr;
+  /** "1 NC", "2 NC": the card's `.nc-badge` (F37), null while no item is answered NC. */
+  ncBadge: string | null;
 }
 
 const SITE_STATE: Readonly<Record<TreeSiteNode['state'], SheetState>> = { vazia: 'vazia', pending: 'em_preenchimento', concluida: 'concluida' };
@@ -288,15 +313,18 @@ export function saysColuna(name: string): boolean {
   return lead.localeCompare('Coluna', 'pt-BR', { sensitivity: 'base' }) === 0;
 }
 
-/** The three meta texts of one location row, by kind (the mocks' wording, see `TreeLocationNode`). */
+/**
+ * The three meta texts of one location row, by kind (the mocks' wording, see `TreeLocationNode`).
+ * Story 15.2: the level word is the row's kicker, so no meta line repeats it.
+ */
 function locationMetaTexts(location: LocationRow, children: readonly LocationRow[], counts: Progress): { meta: string; railMeta: string } {
   const counter = progressCounterText(counts);
   const colunas = children.filter((child) => child.kind === 'coluna').length;
-  if (location.kind === 'coluna') return { meta: '', railMeta: saysColuna(location.name) ? counter : `Coluna${SEP}${counter}` };
+  if (location.kind === 'coluna') return { meta: '', railMeta: counter };
   if (location.kind === 'painel') {
     const part = colunas > 0 ? plural(colunas, 'coluna', 'colunas') : SEM_COLUNAS;
     // A painel with no coluna holds no sheet: its rail line says why instead of "0 de 0".
-    return { meta: `Painel${SEP}${part}`, railMeta: colunas > 0 ? `Painel${SEP}${part}${SEP}${counter}` : `Painel${SEP}${part}` };
+    return { meta: part, railMeta: colunas > 0 ? `${part}${SEP}${counter}` : part };
   }
   const paineis = children.filter((child) => child.kind === 'painel').length;
   const data = cabineMetaText(location);
@@ -304,7 +332,7 @@ function locationMetaTexts(location: LocationRow, children: readonly LocationRow
   const meta = children.length > 0 ? data : data === CABINE_META_NONE ? SEM_PAINEIS : `${data}${SEP}${SEM_PAINEIS}`;
   // authored: a local with colunas directly under it (a tree from before the painel level) counts them; the mock draws none.
   const under = paineis > 0 ? plural(paineis, 'painel', 'painéis') : colunas > 0 ? plural(colunas, 'coluna', 'colunas') : SEM_PAINEIS;
-  const railMeta = ['Local', funcaoLabel(location.funcao), under, fichasCountText(counts)].filter((part): part is string => part !== null).join(SEP);
+  const railMeta = [funcaoLabel(location.funcao), under, fichasCountText(counts)].filter((part): part is string => part !== null).join(SEP);
   return { meta, railMeta };
 }
 
@@ -456,15 +484,19 @@ function buildLocationTree(
     if (location.kind !== 'cabine' || !siteIds.has(location.id)) return null;
     const counts = { answered: siteList.filter((item) => siteResultOf(location, item.key) !== null).length, total: siteList.length };
     const state = counts.answered === 0 ? 'vazia' : counts.answered >= counts.total ? 'concluida' : 'pending';
+    const nc = siteList.filter((item) => siteResultOf(location, item.key) === 'NC').length;
     return {
       ...counts,
       text: siteRowText(counts),
       railCounter: siteCounterText(counts),
       railMeta: siteRailMetaText(counts.total),
-      nc: siteList.filter((item) => siteResultOf(location, item.key) === 'NC').length,
+      nc,
       state,
       railStateAttr: STATE_ATTR[SITE_STATE[state]],
       glyph: SHEET_STATE_GLYPH[SITE_STATE[state]],
+      stateWord: sheetStateLabel(SITE_STATE[state]),
+      sumarioStateAttr: SUMARIO_STATE_ATTR[SITE_STATE[state]],
+      ncBadge: nc > 0 ? ncBadgeText(nc) : null,
     };
   };
 
@@ -474,6 +506,7 @@ function buildLocationTree(
     const reason = notTestedReasonText(block);
     const tag = block.equipment_id === null ? '' : (tags.get(block.equipment_id) ?? '');
     const typeLabel = blockTypeLabel(block.seed_version, block.block_type);
+    const nc = ncCount(block);
     return {
       kind: 'equipment',
       blockId: block.id,
@@ -490,8 +523,9 @@ function buildLocationTree(
       glyph: SHEET_STATE_GLYPH[state],
       stateWord: word,
       stateText: reason === null ? word : `${word}${SEP}${reason}`,
-      railMetaText: [tag, reason].filter((part): part is string => part !== null && part !== '').join(SEP),
-      railMetaRest: reason === null || reason === '' ? '' : tag === '' ? reason : `${SEP}${reason}`,
+      reason: reason === '' ? null : reason,
+      nc,
+      ncBadge: nc > 0 ? ncBadgeText(nc) : null,
       position,
       siblings,
       duplicate: block.equipment_id !== null && duplicated.has(block.equipment_id),
@@ -520,6 +554,7 @@ function buildLocationTree(
       name: location.name,
       controlName,
       level: Math.min(depth, TREE_MAX_LEVEL),
+      kicker: levelKickerText(location.kind, depth),
       funcao: location.kind === 'cabine' ? (location.funcao ?? null) : null,
       meta: texts.meta,
       // A cabine with no equipment block has no sheet to fill its data on: nothing is asked (as in `preIssue`).
