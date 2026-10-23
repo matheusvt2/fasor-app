@@ -21,6 +21,7 @@ import {
   unitTapNeedsEdit,
   worstReadings,
   type CellAddress,
+  condicaoScreenText,
 } from './readings.ts';
 import { sheetProgress } from './sheet-progress.ts';
 
@@ -546,5 +547,13 @@ describe('E5-A4 criterion_override', () => {
     const iso = evaluateSheetReadings(b, SEC)[0]!;
     expect(iso.criterionText).toBe('>400 MΩ');
     expect(iso.tables[0]!.rows[0]!.cells[0]!.verdict).toBe('within');
+  });
+});
+
+describe('condicaoScreenText', () => {
+  it("shows the mock's sentence-case word on screen and a dash while unjudged; the print keeps the uppercase value", () => {
+    expect(condicaoScreenText('SATISFATÓRIO')).toBe('Satisfatório');
+    expect(condicaoScreenText('INSATISFATÓRIO')).toBe('Insatisfatório');
+    expect(condicaoScreenText(null)).toBe('—');
   });
 });

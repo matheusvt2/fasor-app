@@ -622,7 +622,7 @@ test('@p0 5.6-E2E-001 nine seccionadora readings with Enter only, the run ends o
   await page.keyboard.press('Enter');
   // Review fixes 2026-10-08 (DC-1): Condição is the mock's `td.cell-dim`, the row's last cell.
   await expect(rowR.locator('td').last()).toHaveClass('cell-dim');
-  await expect(rowR.locator('td').last()).toContainText('SATISFATÓRIO');
+  await expect(rowR.locator('td').last()).toContainText('Satisfatório');
   await expect.poll(async () => (await outbox(page)).find((row) => row.path === `sheet/${tp.blockId}/test/relacao_transformacao/cell/0/3`)?.value).toEqual({ raw: '120.135', unit: null, state: 'measured' });
   expect((await outbox(page)).some((row) => /relacao_transformacao\/cell\/\d+\/(2|4)$/.test(row.path))).toBe(false);
 });
@@ -649,7 +649,7 @@ test('@p1 UX-F42 a transformer ratio row out of ±0,5 % reads INSATISFATÓRIO, i
     await page.keyboard.press('Tab');
   }
   await expect(row.locator('td.cell-calc').first()).toContainText('62,90');
-  await expect(row.locator('td').last()).toContainText('INSATISFATÓRIO');
+  await expect(row.locator('td').last()).toContainText('Insatisfatório');
   // The formula the kernel names shows once under the table.
   const helper = page.locator('.ficha-mt[data-table-key="relacao_transformacao"] > p.helper');
   await expect(helper).toHaveCount(1);
@@ -666,8 +666,8 @@ test('@p1 UX-F42 a transformer ratio row out of ±0,5 % reads INSATISFATÓRIO, i
   const outInput = out.locator('input.mf-value');
   await outInput.fill('62,8');
   await outInput.press('Tab');
-  await expect(row.locator('td').last()).toContainText('SATISFATÓRIO');
-  await expect(row.locator('td').last()).not.toContainText('INSATISFATÓRIO');
+  await expect(row.locator('td').last()).toContainText('Satisfatório');
+  await expect(row.locator('td').last()).not.toContainText('Insatisfatório');
 });
 
 test('@p1 UX-F51 phone 390: the collapsed "Do local" line puts its values on their own line, the line\'s width, no word broken', async ({ page }) => {

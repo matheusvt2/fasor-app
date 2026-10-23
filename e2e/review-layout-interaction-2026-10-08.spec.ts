@@ -861,7 +861,7 @@ test('@p1 R8LAY-E2E-013 the Condição cell is drawn in --ink-secondary, light a
   await typeInto(ttr.locator('table.ficha-ttr input.mf-value'), ['13800', '115', '120,135']);
   const condicao = ttr.locator('table.ficha-ttr tbody tr').first().locator('td').last();
   await expect(condicao).toHaveClass('cell-dim');
-  await expect(condicao).toContainText('SATISFATÓRIO');
+  await expect(condicao).toContainText('Satisfatório');
   await expect(ttr.locator('table.ficha-ttr thead th').last()).not.toHaveClass(/col-value/);
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
