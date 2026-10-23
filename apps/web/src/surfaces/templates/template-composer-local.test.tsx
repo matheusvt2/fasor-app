@@ -137,6 +137,24 @@ describe('14.2 composer: the three levels', () => {
     for (const el of container.querySelectorAll('.block-name')) el.textContent = '';
     expect(container.querySelector('.composer-main')).not.toHaveTextContent(/cabine/i);
     expect(screen.getByRole('complementary', { name: 'Paleta de blocos' })).not.toHaveTextContent(/cabine/i);
+
+    // Story 15.2 (`42-template-composer.html`): a coluna row reads its level word before its name,
+    // hidden from the accessibility tree (the head's name stays the coluna's), and every equipment
+    // line, the local's own and an open coluna's, is a card (`.qty-row.eq-card`).
+    expect([...direct.querySelectorAll('.qty-row')].length).toBeGreaterThan(0);
+    for (const row of direct.querySelectorAll('.qty-row')) expect(row).toHaveClass('eq-card');
+    const coluna1 = colunas.querySelector<HTMLElement>(':scope > li.column-row')!;
+    const head = coluna1.querySelector<HTMLElement>('.col-head')!;
+    const kicker = head.querySelector(':scope > .level-kicker')!;
+    expect(kicker).toHaveTextContent(/^Coluna$/);
+    expect(kicker).toHaveAttribute('aria-hidden', 'true');
+    expect(kicker.nextElementSibling).toHaveClass('col-name');
+    expect(head).toHaveAccessibleName(/^Coluna 1/);
+    await userEvent.click(head);
+    await waitFor(() => expect(coluna1).toHaveClass('is-open'));
+    const rows = [...coluna1.querySelectorAll('.col-body .qty-row')];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row).toHaveClass('eq-card');
   });
 
   it('has no violations with the three levels drawn', async () => {

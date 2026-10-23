@@ -35,7 +35,6 @@ import {
   siteObservationOf,
   sitePointTitle,
   siteProgressState,
-  siteRailMetaText,
   siteResultOf,
   siteRowText,
   siteNcCount,
@@ -246,10 +245,10 @@ describe('14.3 the counters and texts of a local, on the mock state (12 of 19)',
     expect(view.latestOpId).toBe(ops.at(-1)!.op_id);
   });
 
-  it('writes the counter, the Sumário row, the rail meta and the header from one place', () => {
+  // Story 15.2: the rail card shows "N de 19" (`siteCounterText`); the "19 itens · uma vez por local" meta line and its `siteRailMetaText` are gone.
+  it('writes the counter, the Sumário row and the header from one place', () => {
     expect(siteCounterText(view)).toBe('12 de 19');
     expect(siteRowText(view)).toBe('Verificações do local · 12 de 19');
-    expect(siteRailMetaText(19)).toBe('19 itens · uma vez por local');
     expect(siteHeaderTitle(' 1° Subsolo ')).toBe('Verificações do local — 1° Subsolo');
     expect(view.title).toBe('Verificações do local — 1° Subsolo');
     expect(view.meta).toBe('Função: Primária');
@@ -332,14 +331,17 @@ describe('14.3 the tree: a local node carries its site checklist', () => {
       total: 19,
       text: 'Verificações do local · 12 de 19',
       railCounter: '12 de 19',
-      railMeta: '19 itens · uma vez por local',
       // 2026-10-14: item 11 of the mock is NC.
       nc: 1,
       state: 'pending',
       railStateAttr: 'em-preenchimento',
       glyph: '●',
+      // Story 15.2 (Bruno's answer 5): the card's state word and Sumário state, and its NC badge (F37).
+      stateWord: 'Em preenchimento',
+      sumarioStateAttr: 'doing',
+      ncBadge: '1 NC',
     });
-    expect(siteOf(snapshot, ENEL)).toMatchObject({ answered: 0, text: 'Verificações do local · 0 de 19', state: 'vazia', railStateAttr: 'vazia', glyph: '○' });
+    expect(siteOf(snapshot, ENEL)).toMatchObject({ answered: 0, text: 'Verificações do local · 0 de 19', state: 'vazia', railStateAttr: 'vazia', glyph: '○', stateWord: 'Vazia', sumarioStateAttr: 'empty', ncBadge: null });
     expect(siteOf(snapshot, PAINEL)).toBeNull();
     expect(siteOf(snapshot, COLUNA)).toBeNull();
   });
@@ -347,7 +349,7 @@ describe('14.3 the tree: a local node carries its site checklist', () => {
   it('reads concluída once the 19 are answered, and the sheet counter of the local stays sheets-only', () => {
     const f = opFactory();
     const snapshot = snapshotOf(fold(baseState(), SITE_ITEM_KEYS.map((key) => f.op({ path: locationChecklistPath(ENEL, key, 'result'), value: 'C' }))));
-    expect(siteOf(snapshot, ENEL)).toMatchObject({ answered: 19, text: 'Verificações do local · 19 de 19', railCounter: '19 de 19', state: 'concluida', railStateAttr: 'concluida', glyph: '✓' });
+    expect(siteOf(snapshot, ENEL)).toMatchObject({ answered: 19, text: 'Verificações do local · 19 de 19', railCounter: '19 de 19', state: 'concluida', railStateAttr: 'concluida', glyph: '✓', stateWord: 'Concluída', sumarioStateAttr: 'ok', ncBadge: null });
     expect(nodes(snapshot).find((node) => node.id === ENEL)!.counterText).toBe('0 de 0');
   });
 
@@ -691,6 +693,34 @@ describe('2026-10-14 (Bruno): an NC site item counts as an NC (N1, N2, N3)', () 
       .sort((a, b) => a.number - b.number)
       .map((item) => ({ number: item.number, label: item.label, locals: item.key === EPI ? ['Cubículo Enel', '1° Subsolo'] : ['1° Subsolo'] }));
     expect(siteNcItems(snapshot)).toEqual(expected);
+  });
+
+  it('15.2-UNIT F37: the NC badges of the tree (sheets and site cards) add up to the header\'s "N NC abertos"', () => {
+    const f = opFactory();
+    // NC on two sheets (one item on Cubículo Enel's, two on the coluna's) and on one site item of 1° Subsolo.
+    const second: BlockRow = {
+      ...ncSheet(),
+      id: POINT,
+      location_id: COLUNA,
+      sheet: {
+        ...emptySheet(),
+        checklist: {
+          limpeza: { result: { value: 'NC', source_suggestion_id: null, op_id: '019966b0-0143-7000-8000-000000000097' } },
+          fixacao: { result: { value: 'NC', source_suggestion_id: null, op_id: '019966b0-0143-7000-8000-000000000096' } },
+          aterramento: { result: { value: 'C', source_suggestion_id: null, op_id: '019966b0-0143-7000-8000-000000000095' } },
+        },
+      },
+    };
+    const snapshot = snapshotOf(withRows(fold(baseState(), ncOn(SUBSOLO, [EPI], f)), [[entityKey('block', BLOCK), ncSheet()], [entityKey('block', POINT), second]]));
+    const nodes = treeNodes(locationTree(snapshot));
+    const badges = nodes.flatMap((node) => (node.kind === 'equipment' ? [node.ncBadge] : [node.site?.ncBadge ?? null])).filter((badge): badge is string => badge !== null);
+    expect(badges).toEqual(['1 NC', '1 NC', '2 NC']);
+    const sum = badges.reduce((total, badge) => total + Number.parseInt(badge, 10), 0);
+    expect(sum).toBe(progress(snapshot).nc_open);
+    expect(sum).toBe(4);
+    // Each badge carries its own count; a sheet with no NC carries none.
+    const sheets = nodes.filter((node) => node.kind === 'equipment');
+    expect(sheets.map((node) => [node.nc, node.ncBadge])).toEqual([[1, '1 NC'], [2, '2 NC']]);
   });
 
   it('N3: "NC abertos" lands on a local\'s site row before its equipment; a sheet NC first in order lands on its row', () => {

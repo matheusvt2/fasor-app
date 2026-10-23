@@ -95,10 +95,8 @@
 /* authored (ERGO-E2E-001): the mock draws this line 44 px tall; DESIGN.md's touch target wins,
    every control is at least 48 px (`--touch-min`). */
 [data-route="/relatorio/:id"] .s9-verif { min-height: var(--touch-min); }
-/* authored: the mock's `.s9-loc-body` top padding makes room for the "Verificações do local" line
-   under the meta (Story 14.3, `.s9-verif` above); a local with no such line (a relatório on a seed
-   with no site list) closes the row with the same space at the bottom. */
-[data-route="/relatorio/:id"] .s9-loc-body:not(:has(.s9-verif)) { padding-bottom: var(--sp-2); }
+/* Story 15.2: the authored `.s9-loc-body:not(:has(.s9-verif))` bottom padding is gone: the band keeps
+   no button (the site checklist is a card under it) and the 15.1 rule below pads the body evenly. */
 [data-route="/relatorio/:id"] .sum-here { font-size: var(--t-meta-size); color: var(--primary); font-weight: 600; }
 /* status-driven: Em revisão -> section 9 collapsed, rows with pendências lead the eye */
 [data-route="/relatorio/:id"] .sumario.is-review .sum-row:not(.has-pend) .sum-title { font-weight: 400; color: var(--ink-secondary); }
@@ -132,7 +130,7 @@
    counter and Overflow. */
 [data-route="/relatorio/:id"] .s9-eqs, [data-route="/relatorio/:id"] .s9-cols { list-style: none; margin: 0; padding: 0 0 0 24px; }
 [data-route="/relatorio/:id"] .s9-coluna.is-open > .s9-eqs { display: block; }
-[data-route="/relatorio/:id"] .s9-coluna[data-level="2"] > .s9-eqs, [data-route="/relatorio/:id"] .s9-coluna[data-level="2"] > .s9-cols { padding-left: 0; }
+/* Story 15.2: the authored `.s9-coluna[data-level="2"] > .s9-eqs` reset is gone: the 15.1 cards step in under their group header. */
 [data-route="/relatorio/:id"] .s9-coluna .tree-chevron { width: var(--touch-min); height: 56px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
 [data-route="/relatorio/:id"] .s9-coluna .tree-chevron .ico { transition: transform .15s; transform: rotate(-90deg); }
 [data-route="/relatorio/:id"] .s9-coluna.is-open > .s9-col .tree-chevron .ico { transform: none; }
@@ -141,12 +139,10 @@
 /* authored (Story 14.2): inside a painel the coluna list is flush with the painel's own inset
    (its rule and padding are the level's indent), and a coluna's sheets indent one step under it. */
 [data-route="/relatorio/:id"] .s9-painel > .s9-cols { padding-left: 0; }
-[data-route="/relatorio/:id"] .s9-painel > .s9-cols > .s9-coluna > .s9-eqs { padding-left: 24px; }
 /* authored (Story 14.2): "Equipamentos no local", the mock's `.s9-col` heading line over a local's own
    sheets. It is a paragraph before the list, not an item of it (the list holds only the rows that
    reorder), at the list's own inset so it reads as the heading of the rows under it. */
 [data-route="/relatorio/:id"] .s9-col.s9-col-direct { margin: 0; min-height: 40px; padding-left: calc(24px + var(--sp-3)); }
-[data-route="/relatorio/:id"] .s9-col.s9-col-direct .s9-col-name { flex: none; color: inherit; }
 [data-route="/relatorio/:id"] .s9-local:not(.is-open) > .s9-col-direct { display: none; }
 /* authored (Story 14.2; EXPERIENCE.md › Relatório tree: order is set by "drag, Position box, Overflow
    menu, or Alt+↑/↓"): a local, painel or coluna row carries the drag handle and the Position box
@@ -178,6 +174,76 @@
 [data-route="/relatorio/:id"] div.sum-open { cursor: default; }
 /* authored: the mock's `.sum-row` has no `data-status`; the sticky bar sits after the content. */
 [data-route="/relatorio/:id"] .sticky-action-bar { margin-top: auto; }
+
+/* ---------- Story 15.2: the tree levels (`40-relatorio-overview.html`, the Story 15.1 block,
+   Bruno's answers 5 and 6 of 2026-10-22; ux-pass-2026-10-22.md F19, F37). Declarations copied from
+   the mock's rules; they come after the Story 14.2 rules above and override them, as in the mock.
+   A local is a title band (`.s9-loc-row` on surface-sunken), a painel a sub-band (`.s9-pnl-row`), a
+   coluna a group header (`.s9-coluna > .s9-col`), each with its `.level-kicker`; every sheet is a
+   card on the Block card look (`.eq-card.block-card`, `components.css`), the local's Verificações a
+   card of the same kind (`.s9-site-card`), first in its local; "Adicionar …" the last row of its level.
+   The `.frame-phone` rules are in `app.css`. ---------- */
+[data-route="/relatorio/:id"] .s9-tree { padding: 0; border-top: 1px solid var(--border-hairline); }
+[data-route="/relatorio/:id"] .level-kicker { font-size: var(--t-label-size); font-weight: 600; line-height: var(--t-label-lh); color: var(--ink-secondary); }
+[data-route="/relatorio/:id"] .s9-local + .s9-local { margin-top: var(--sp-2); }
+[data-route="/relatorio/:id"] .s9-local.is-open { padding-bottom: var(--sp-2); }
+[data-route="/relatorio/:id"] .s9-loc-row { align-items: center; min-height: 72px; padding: var(--sp-1) var(--sp-3) var(--sp-1) 0; background: var(--surface-sunken); border-top: 1px solid var(--border-hairline); border-bottom: 1px solid var(--border-hairline); }
+[data-route="/relatorio/:id"] .s9-tree > .s9-local:first-child > .s9-loc-row { border-top: 0; }
+[data-route="/relatorio/:id"] .s9-loc-body { padding: var(--sp-2) 0; }
+[data-route="/relatorio/:id"] .s9-loc-name { font-size: var(--t-body-size); font-weight: 700; color: var(--ink-primary); }
+[data-route="/relatorio/:id"] .s9-pnls { padding: 0; }
+[data-route="/relatorio/:id"] .sum-s9 .s9-painel { margin: var(--sp-2) 0 0 var(--sp-5); padding-left: 0; }
+[data-route="/relatorio/:id"] .sum-s9 .s9-painel:not(.is-open) { border-left-color: var(--border-hairline); }
+[data-route="/relatorio/:id"] .s9-pnl-row { min-height: 64px; background: var(--surface-base); border-top: 0; border-bottom: 1px solid var(--border-hairline); }
+[data-route="/relatorio/:id"] .s9-pnl-name { font-size: var(--t-body-size); color: var(--ink-primary); }
+[data-route="/relatorio/:id"] .s9-cols { list-style: none; margin: 0; padding: 0; }
+[data-route="/relatorio/:id"] .s9-painel:not(.is-open) > .s9-cols, [data-route="/relatorio/:id"] .s9-local:not(.is-open) > .s9-col-direct { display: none; }
+[data-route="/relatorio/:id"] .s9-col { display: flex; align-items: center; gap: var(--sp-2); min-height: 56px; padding: 0 var(--sp-3) 0 0; font-size: var(--t-label-size); font-weight: 400; color: var(--ink-secondary); }
+[data-route="/relatorio/:id"] .s9-col-name { flex: 1; min-width: 0; font-weight: 600; color: var(--ink-primary); }
+[data-route="/relatorio/:id"] .s9-col-meta { margin-left: 0; font-weight: 400; white-space: nowrap; }
+[data-route="/relatorio/:id"] .s9-col.s9-col-direct, [data-route="/relatorio/:id"] .s9-col.s9-col-rest { margin: 0; min-height: 48px; padding-left: var(--sp-5); }
+[data-route="/relatorio/:id"] .s9-coluna .tree-chevron { width: var(--touch-min); height: 56px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+[data-route="/relatorio/:id"] .s9-coluna .tree-chevron .ico { transition: transform .15s; transform: rotate(-90deg); }
+[data-route="/relatorio/:id"] .s9-coluna.is-open > .s9-col .tree-chevron .ico { transform: none; }
+[data-route="/relatorio/:id"] .s9-coluna.is-open > .s9-eqs { display: block; }
+/* authored: colunas directly under a local (a tree from before the painel level, the mock draws none)
+   step in as a painel does (`.sum-s9 .s9-painel` margin above), so their header reads under the band. */
+[data-route="/relatorio/:id"] .s9-local > .s9-cols { padding-left: var(--sp-5); }
+/* Cards: the list steps in under its header and spaces its cards; the Block card's own padding and flex come from components.css */
+[data-route="/relatorio/:id"] .s9-eqs { padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-5); }
+[data-route="/relatorio/:id"] .s9-eqs > li + li { margin-top: var(--sp-2); }
+[data-route="/relatorio/:id"] .eq-card { gap: 0 var(--sp-1); min-height: var(--touch-field); padding: var(--sp-1) var(--sp-1) var(--sp-1) 0; }
+[data-route="/relatorio/:id"] .eq-card > .eq-card-open { flex: 1; width: auto; min-width: 0; min-height: var(--touch-field); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; padding: var(--sp-2); background: none; box-shadow: none; text-align: left; cursor: pointer; }
+[data-route="/relatorio/:id"] .s9-eq.is-current .s9-eq-open { background: none; box-shadow: none; }
+/* authored: `components.css` (`.sum-s9 .s9-eq.is-current .s9-eq-open { background: var(--focus-fill) }`)
+   loads after this file; the mock's rule above, with the section's class for the weight it has there. */
+[data-route="/relatorio/:id"] .sum-s9 .s9-eq.is-current .s9-eq-open { background: none; box-shadow: none; }
+[data-route="/relatorio/:id"] .eq-card.is-current { background: var(--focus-fill); box-shadow: inset 4px 0 0 var(--primary); }
+[data-route="/relatorio/:id"] .eq-card-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-2); min-width: 0; font-size: var(--t-body-size); color: var(--ink-primary); }
+[data-route="/relatorio/:id"] .eq-card-title .block-tag { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+[data-route="/relatorio/:id"] .eq-card-title .s9-eq-name { flex: none; font-weight: 400; }
+/* authored (F19): the type keeps its own width beside the TAG (`flex: none` above) and wraps between
+   its words inside the card when the card is narrower than it, never past the card's edge. */
+[data-route="/relatorio/:id"] .eq-card-title .s9-eq-name { max-width: 100%; }
+[data-route="/relatorio/:id"] .eq-card-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
+[data-route="/relatorio/:id"] .eq-card-status .sum-here { flex-basis: auto; order: 0; }
+[data-route="/relatorio/:id"] .s9-state { white-space: nowrap; }
+[data-route="/relatorio/:id"] .s9-state[data-state="empty"] { color: var(--ink-secondary); }
+[data-route="/relatorio/:id"] .nc-badge { display: inline-flex; align-items: center; padding: 0 var(--sp-2); border-radius: var(--r-full); background: var(--nao-conforme-fill); color: var(--nao-conforme); font-size: var(--t-label-size); font-weight: 600; line-height: var(--t-label-lh); white-space: nowrap; }
+/* The Verificações do local card: no drag handle or Position box (it is always first), so its body starts at the card's edge */
+[data-route="/relatorio/:id"] .s9-site-card { padding-left: var(--sp-1); }
+[data-route="/relatorio/:id"] .s9-site-card .s9-verif { min-height: var(--touch-field); padding: var(--sp-2); gap: 2px; font-size: var(--t-body-size); color: var(--ink-primary); white-space: normal; }
+[data-route="/relatorio/:id"] .s9-site-card .eq-card-title { align-items: center; }
+[data-route="/relatorio/:id"] .s9-site-card .eq-card-title .ico { color: var(--ink-secondary); flex: none; }
+[data-route="/relatorio/:id"] .s9-site-name { font-weight: 600; }
+[data-route="/relatorio/:id"] .s9-site-count { font-variant-numeric: tabular-nums; color: var(--ink-secondary); }
+[data-route="/relatorio/:id"] .eq-card > .drag-handle, [data-route="/relatorio/:id"] .eq-card > .pos-box, [data-route="/relatorio/:id"] .eq-card > .overflow-trigger,
+[data-route="/relatorio/:id"] .s9-col > .drag-handle, [data-route="/relatorio/:id"] .s9-col > .pos-box, [data-route="/relatorio/:id"] .s9-col > .overflow-trigger,
+[data-route="/relatorio/:id"] .s9-pnl-row > .drag-handle, [data-route="/relatorio/:id"] .s9-pnl-row > .pos-box,
+[data-route="/relatorio/:id"] .s9-loc-row > .drag-handle, [data-route="/relatorio/:id"] .s9-loc-row > .pos-box { flex: none; }
+[data-route="/relatorio/:id"] .eq-card > .overflow-trigger { align-self: flex-start; }
+[data-route="/relatorio/:id"] .s9-local.is-open > .s9-add, [data-route="/relatorio/:id"] .s9-painel.is-open > .s9-add { display: flex; justify-content: flex-start; width: 100%; min-height: var(--touch-min); margin: 0; padding-left: var(--sp-5); white-space: normal; text-align: left; }
+[data-route="/relatorio/:id"] .s9-painel.is-open > .s9-add { border-bottom: 1px solid var(--border-hairline); }
 
 /* ---------- 45-secao.html (Story 4.7's editor) ---------- */
 [data-route="/relatorio/:id/secao/:blockId"] .section-text-title { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); margin-bottom: var(--sp-4); }

@@ -265,7 +265,6 @@ body {
   /* authored (Story 14.2): the same 16 px step for the sheets of a painel's coluna and for the
      "Equipamentos no local" line over the local's own. */
   [data-route="/relatorio/:id"] .s9-painel > .s9-cols { padding-left: 0; }
-  [data-route="/relatorio/:id"] .s9-painel > .s9-cols > .s9-coluna > .s9-eqs { padding-left: var(--sp-4); }
   [data-route="/relatorio/:id"] .s9-col.s9-col-direct { padding-left: calc(var(--sp-4) + var(--sp-3)); }
   /* authored (Story 14.2): a location row keeps its name readable on a phone: its drag handle and
      Position box are not drawn there, and the Overflow's "Subir · Descer" and Alt+↑/↓ move it (the
@@ -286,6 +285,35 @@ body {
      of padding) would leave a sheet row too narrow for its TAG; the margin closes. */
   [data-route="/relatorio/:id"] .sum-s9 .s9-painel { margin-left: 0; }
   [data-route="/relatorio/:id"] .s9-dup { padding-left: var(--sp-2); }
+  /* Story 15.2 (`40-relatorio-overview.html`, the Story 15.1 block's `.frame-phone` rules): the
+     header counters in a two-by-two grid above the list (F50); location rows drop the drag handle and
+     the Position box (the rule above), the painel and the cards step 8 px. They come after the Story
+     14.2 phone rules above and override them, as in the mock. */
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .sum-summary` */
+  [data-route="/relatorio/:id"] .sum-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--sp-3); margin-top: var(--sp-2); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .sum-summary .btn-text` */
+  [data-route="/relatorio/:id"] .sum-summary .btn-text { justify-content: flex-start; min-height: var(--touch-min); white-space: normal; text-align: left; line-height: var(--t-meta-lh); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .header-side` (Story 15.1) */
+  [data-route="/relatorio/:id"] .header-side { flex-direction: row-reverse; justify-content: flex-end; align-items: center; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-loc-row` and `... .s9-pnl-row` (Story 15.1) */
+  [data-route="/relatorio/:id"] .s9-loc-row { flex-wrap: nowrap; padding-right: 0; }
+  [data-route="/relatorio/:id"] .s9-pnl-row { flex-wrap: nowrap; padding-right: 0; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .sum-s9 .s9-painel` */
+  [data-route="/relatorio/:id"] .sum-s9 .s9-painel { margin-left: var(--sp-2); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-pnls` (Story 15.1) */
+  [data-route="/relatorio/:id"] .s9-pnls { padding-left: 0; }
+  /* authored (Story 15.2): the Story 14.2 phone step of the coluna list above gives way to the 15.1
+     drawing (the painel's own margin is the step); colunas directly under a local step as a painel does. */
+  [data-route="/relatorio/:id"] .s9-cols { padding-left: 0; }
+  [data-route="/relatorio/:id"] .s9-local > .s9-cols { padding-left: var(--sp-2); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-eqs` (Story 15.1) */
+  [data-route="/relatorio/:id"] .s9-eqs { padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-2); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .eq-card > .eq-card-open` */
+  [data-route="/relatorio/:id"] .eq-card > .eq-card-open { padding: var(--sp-2) var(--sp-1); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-local.is-open > .s9-add, ... .s9-painel.is-open > .s9-add` (Story 15.1) */
+  [data-route="/relatorio/:id"] .s9-local.is-open > .s9-add, [data-route="/relatorio/:id"] .s9-painel.is-open > .s9-add { margin-left: 0; padding-left: var(--sp-3); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-col.s9-col-direct, ... .s9-col.s9-col-rest` */
+  [data-route="/relatorio/:id"] .s9-col.s9-col-direct, [data-route="/relatorio/:id"] .s9-col.s9-col-rest { padding-left: var(--sp-3); }
   /* `.frame-tablet [data-route="/project/porto-seguro"] .project-head .btn, .frame-phone ... .btn`
      (30-project.html); the tablet half is under "Tablet" below. authored: `.btn` is
      `white-space: nowrap`, and "Novo relatório a partir de template" is wider than a 390px
@@ -346,6 +374,8 @@ body {
      one-word-wide column. */
   [data-route="/templates/:id"] .column-row .col-head { flex-wrap: wrap; row-gap: 0; padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
   [data-route="/templates/:id"] .column-row .col-sum { flex-basis: 100%; }
+  /* `.frame-phone [data-route="/templates/porto-seguro"] .column-row .col-name` (Story 15.1, the kicker before the name) */
+  [data-route="/templates/:id"] .column-row .col-name { min-width: 0; }
   /* `.frame-phone [data-route="/templates/porto-seguro"] .rich-dialog .dialog-actions` and
      `... .dialog-actions .btn` (42-template-composer.html); the dialog is portaled out of
      the route, so the route scope is dropped. */
@@ -892,6 +922,55 @@ html { scroll-padding-bottom: var(--sticky-bar-covered, 0px); }
 .relatorio-tree .tree-row:has(> .tree-state) > .tree-body { flex: 1 1 10rem; }
 .relatorio-tree .tree-state { flex: none; margin-inline-start: auto; }
 .relatorio-tree .tree-tag { display: inline-block; vertical-align: bottom; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Story 15.2 (`60-ficha.html` style, the Story 15.1 block scoped to `#rail`; `shell-foot.html`
+   `rail-tree`): the rail in the tree-level vocabulary of the Sumário. The mock's `#rail` is the
+   rail container; the app draws the tree in both rail mounts (`ficha-rail.tsx`, `tree-surface.tsx`)
+   as `.relatorio-tree`, so `#rail X` reads `.relatorio-tree X`, and the mock's root list
+   (`#rail .relatorio-tree[role="tree"]`) is the one directly in the `.rail` aside. `.level-band`
+   (local) surface-sunken title band, hairline above and below; `.level-subband` (painel)
+   surface-base, hairline below; `.level-group` (coluna) group header, kicker + name + "N de M" on
+   one line over its cards; `.eq-card` (every sheet, `.level-item`, and the Verificações do local,
+   `.site-card`, first in its local) the Block card look. Rows and cards step 12 px a level; a
+   selected card takes focus-fill + the 4 px primary left rule. Declarations copied; these come
+   after the F-07 rules above and override them, as the mock's come after `components.css`. */
+.relatorio-tree .tree-row[data-level="1"] { padding-left: var(--sp-3); }
+.relatorio-tree .tree-row[data-level="2"] { padding-left: var(--sp-5); }
+.relatorio-tree .tree-row[data-level="3"] { padding-left: calc(var(--sp-5) + var(--sp-3)); }
+.relatorio-tree .level-kicker { font-size: var(--t-label-size); font-weight: 600; line-height: var(--t-label-lh); color: var(--ink-secondary); }
+.relatorio-tree .tree-name { color: var(--ink-primary); }
+.rail > .relatorio-tree > li + li { margin-top: var(--sp-2); }
+.relatorio-tree .tree-row.level-band { align-items: flex-start; background: var(--surface-sunken); border-top: 1px solid var(--border-hairline); border-bottom: 1px solid var(--border-hairline); }
+.rail > .relatorio-tree > li:first-of-type > .tree-row.level-band { border-top: 0; }
+.relatorio-tree .tree-row.level-band .tree-name { font-weight: 700; }
+.relatorio-tree .tree-row.level-band > .overflow-trigger { margin-top: var(--sp-1); }
+.relatorio-tree .tree-row.level-subband { background: var(--surface-base); border-bottom: 1px solid var(--border-hairline); }
+.relatorio-tree .tree-row.level-subband .tree-name { font-weight: 600; }
+.relatorio-tree .tree-row.level-group .tree-body { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-2); }
+.relatorio-tree .tree-row.level-group .tree-name { font-weight: 600; }
+.relatorio-tree .tree-row.eq-card { min-height: var(--touch-field); margin: var(--sp-2) var(--sp-2) 0 0; padding-left: var(--sp-3); background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: var(--r-md); cursor: pointer; }
+.relatorio-tree .tree-row.eq-card[data-level="1"] { margin-left: var(--sp-3); }
+/* authored: a sheet in a coluna directly under a local (level 2; the mock draws levels 1 and 3 only) steps as its row does. */
+.relatorio-tree .tree-row.eq-card[data-level="2"] { margin-left: var(--sp-5); }
+.relatorio-tree .tree-row.eq-card[data-level="3"] { margin-left: calc(var(--sp-5) + var(--sp-3)); }
+.relatorio-tree .relatorio-tree > li:last-child > .tree-row.eq-card { margin-bottom: var(--sp-2); }
+.relatorio-tree .tree-row.eq-card > .tree-body { padding: var(--sp-2) var(--sp-2) var(--sp-2) 0; gap: 2px; }
+/* authored: the mock's card inset (`padding-left: var(--sp-3)` above) moves into the card's body,
+   the button, so a tap anywhere on the card, its left strip included, opens it. */
+.relatorio-tree .tree-row.eq-card { padding-left: 0; }
+.relatorio-tree .tree-row.eq-card > .tree-body { align-self: stretch; padding-left: var(--sp-3); }
+.relatorio-tree .tree-row.eq-card.is-selected { background: var(--focus-fill); border-left: 4px solid var(--primary); }
+.relatorio-tree .tree-id { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-2); }
+.relatorio-tree .tree-id .ico { align-self: center; color: var(--ink-secondary); }
+.relatorio-tree .tree-tag { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink-primary); white-space: nowrap; }
+.relatorio-tree .site-card .tree-name { font-weight: 600; }
+.relatorio-tree .eq-card-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
+.relatorio-tree .eq-card-status .tree-state { padding-right: 0; }
+/* authored: the F-07 `margin-inline-start: auto` above pushed a state beside its label to the right;
+   under the card's title the state leads its line, as the mock draws it. */
+.relatorio-tree .eq-card-status .tree-state { margin-inline-start: 0; }
+.relatorio-tree .nc-badge { display: inline-flex; align-items: center; padding: 0 var(--sp-2); border-radius: var(--r-full); background: var(--nao-conforme-fill); color: var(--nao-conforme); font-size: var(--t-label-size); font-weight: 600; line-height: var(--t-label-lh); white-space: nowrap; }
+.relatorio-tree .tree-row.level-band.is-selected { background: var(--focus-fill); }
 
 /* F-16 (D7, amended 2026-10-07 by the orchestrator): from 1280 px the App bar's h1 names the
    relatório in full (Story 12.5, J-17), so the Sumário header's h2 with the same text is visually

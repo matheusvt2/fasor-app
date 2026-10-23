@@ -255,6 +255,15 @@ export function ncAbertosText(n: number): string {
 }
 
 /**
+ * Story 15.2 (F37, `40-relatorio-overview.html` `.nc-badge`): "1 NC", "2 NC", the badge of a
+ * sheet card or of a local's site checklist card. The tree's nodes hold none at 0; the badges'
+ * numbers add up to `Progress.nc_open`, the header's "N NC abertos".
+ */
+export function ncBadgeText(n: number): string {
+  return `${n} NC`;
+}
+
+/**
  * F-03 (review 2026-10-06): the live equipment sheets nothing was typed on (`sheetState` is
  * `vazia`). The Sumário's section 9 and the Export dialog name them, and issuing a revision
  * with any asks for a confirmation that counts them.

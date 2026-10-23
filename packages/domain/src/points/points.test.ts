@@ -183,15 +183,16 @@ describe('6.6-UNIT pointsSummary and row 8', () => {
     4: notTested('impossibilidade_desligamento'),
   });
 
-  it('reads "5 pontos · 1 sem ação · 3 não ensaiadas" for 2 manual (1 without action) and 3 derived', () => {
+  // Story 15.2 (F34): the derived entries are counted once, after the live points; this read "5 pontos · 1 sem ação · 3 não ensaiadas" before.
+  it('reads "2 pontos + 3 automáticos · 1 sem ação" for 2 manual (1 without action) and 3 derived', () => {
     const first = point(marked, { action: 'Instalar plaquetas' });
     const snapshot = withPoints(marked, first, point(withPoints(marked, first), { action: '  ' }));
     const summary = pointsSummary(snapshot);
-    expect(summary).toEqual({ total: 5, semAcao: 1, naoEnsaiadas: 3 });
-    expect(pointsSummaryText(summary)).toBe('5 pontos · 1 sem ação · 3 não ensaiadas');
+    expect(summary).toEqual({ total: 5, semAcao: 1, naoEnsaiadas: 3, derived: 3 });
+    expect(pointsSummaryText(summary)).toBe('2 pontos + 3 automáticos · 1 sem ação');
     const computed = progress(snapshot);
     const row8 = sumarioRows(snapshot, preIssue(snapshot, computed), computed).find((row) => row.rowKey === 'section_8')!;
-    expect(row8.meta).toBe('5 pontos · 1 sem ação · 3 não ensaiadas · 2 pontos sem prazo');
+    expect(row8.meta).toBe('2 pontos + 3 automáticos · 1 sem ação · 2 pontos sem prazo');
     expect(row8.kind).toBe('generated');
     expect(row8.pending).toBe(true);
     expect(preIssue(snapshot, computed).filter((row) => row.row === 'section_8')).toEqual([
@@ -201,21 +202,35 @@ describe('6.6-UNIT pointsSummary and row 8', () => {
   });
 
   it('omits the parts that are 0, and names an empty section 8', () => {
-    expect(pointsSummaryText({ total: 0, semAcao: 0, naoEnsaiadas: 0 })).toBe('Nenhum ponto de atenção');
-    expect(pointsSummaryText({ total: 1, semAcao: 0, naoEnsaiadas: 1 })).toBe('1 ponto · 1 não ensaiada');
-    expect(pointsSummaryText({ total: 2, semAcao: 2, naoEnsaiadas: 0 })).toBe('2 pontos · 2 sem ação');
+    expect(pointsSummaryText({ total: 0, semAcao: 0, naoEnsaiadas: 0, derived: 0 })).toBe('Nenhum ponto de atenção');
+    // A live point written from a sheet still untested (no derived entry).
+    expect(pointsSummaryText({ total: 1, semAcao: 0, naoEnsaiadas: 1, derived: 0 })).toBe('1 ponto · 1 não ensaiada');
+    expect(pointsSummaryText({ total: 2, semAcao: 2, naoEnsaiadas: 0, derived: 0 })).toBe('2 pontos · 2 sem ação');
     const computed = progress(base);
     const row8 = sumarioRows(base, preIssue(base, computed), computed).find((row) => row.rowKey === 'section_8')!;
     expect(row8.meta).toBe('Nenhum ponto de atenção');
     expect(row8.pending).toBe(false);
   });
 
+  it('15.2-UNIT F34: counts the automatic point once, after the live points', () => {
+    // 1 live point + 1 derived entry: Bruno's app read "2 pontos · 1 não ensaiada".
+    expect(pointsSummaryText({ total: 2, semAcao: 0, naoEnsaiadas: 1, derived: 1 })).toBe('1 ponto + 1 automático');
+    expect(pointsSummaryText({ total: 5, semAcao: 1, naoEnsaiadas: 1, derived: 1 })).toBe('4 pontos + 1 automático · 1 sem ação');
+    expect(pointsSummaryText({ total: 1, semAcao: 0, naoEnsaiadas: 1, derived: 1 })).toBe('0 pontos + 1 automático');
+    expect(pointsSummaryText({ total: 3, semAcao: 0, naoEnsaiadas: 0, derived: 0 })).toBe('3 pontos');
+    // A live point from an untested sheet beside a derived entry still adds "1 não ensaiada".
+    expect(pointsSummaryText({ total: 2, semAcao: 0, naoEnsaiadas: 2, derived: 1 })).toBe('1 ponto + 1 automático · 1 não ensaiada');
+  });
+
   it('counts a stored not_tested point as não ensaiada, never as sem ação', () => {
     const block = marked.blocks.find((row) => row.id === sheetOrder(marked)[0]!.blockId)!;
     const snapshot = withPoints(marked, point(marked, { origin: 'not_tested', equipment_id: block.equipment_id, action: null }));
-    expect(pointsSummary(snapshot)).toEqual({ total: 3, semAcao: 0, naoEnsaiadas: 3 });
+    expect(pointsSummary(snapshot)).toEqual({ total: 3, semAcao: 0, naoEnsaiadas: 3, derived: 2 });
+    // Story 15.2 (F34): the two derived entries once, and the live point from an untested sheet as "não ensaiada".
+    expect(pointsSummaryText(pointsSummary(snapshot))).toBe('1 ponto + 2 automáticos · 1 não ensaiada');
     // Once that sheet is tested again, its stored point stays but is no longer "não ensaiada".
-    expect(pointsSummary(withNotTested(snapshot, { 0: null }))).toEqual({ total: 3, semAcao: 0, naoEnsaiadas: 2 });
+    expect(pointsSummary(withNotTested(snapshot, { 0: null }))).toEqual({ total: 3, semAcao: 0, naoEnsaiadas: 2, derived: 2 });
+    expect(pointsSummaryText(pointsSummary(withNotTested(snapshot, { 0: null })))).toBe('1 ponto + 2 automáticos');
   });
 
   it('writes the heading and the order line', () => {
@@ -312,7 +327,7 @@ describe('6.6-UNIT the Porto Seguro fixture', () => {
     expect(snapshot.points.filter((row) => row.origin === 'manual')).toHaveLength(4);
     // Rows written before Story 6.6 parse with the new fields empty.
     expect(snapshot.points.every((row) => row.action === null && row.priority === null && row.deadline === null && row.owner === null)).toBe(true);
-    expect(pointsSummary(snapshot)).toEqual({ total: 7, semAcao: 4, naoEnsaiadas: 3 });
+    expect(pointsSummary(snapshot)).toEqual({ total: 7, semAcao: 4, naoEnsaiadas: 3, derived: 0 });
   });
 });
 

@@ -18,6 +18,7 @@ import {
   paletteItems,
   paletteLocationFor,
   siblingLocations,
+  levelKickerText,
   TREE_MAX_LEVEL,
   treeNodes,
   treePathTo,
@@ -187,13 +188,52 @@ describe('14.2-UNIT locationTree: three levels', () => {
     expect(cabineMetaText(rows.find((row) => row.name === 'Painel B')!)).toBe('');
   });
 
+  // Story 15.2: the kicker says the level, so the painel's lines lose "Painel · " (the 15.1 mocks).
   it('words the painel and coluna meta lines as the mocks do, an empty painel saying why', () => {
-    expect(byName(tree, 'Painel de média tensão')).toMatchObject({ meta: 'Painel · 2 colunas', railMeta: 'Painel · 2 colunas · 1 de 2', counterText: '1 de 2', agruparPorTipo: null, metaMissing: null });
-    expect(byName(tree, 'Painel B')).toMatchObject({ meta: 'Painel · 1 coluna', railMeta: 'Painel · 1 coluna · 0 de 1' });
-    expect(byName(tree, 'Painel vazio')).toMatchObject({ meta: 'Painel · sem colunas', railMeta: 'Painel · sem colunas', counterText: '0 de 0', firstBlockId: null });
+    expect(byName(tree, 'Painel de média tensão')).toMatchObject({ meta: '2 colunas', railMeta: '2 colunas · 1 de 2', counterText: '1 de 2', agruparPorTipo: null, metaMissing: null });
+    expect(byName(tree, 'Painel B')).toMatchObject({ meta: '1 coluna', railMeta: '1 coluna · 0 de 1' });
+    expect(byName(tree, 'Painel vazio')).toMatchObject({ meta: 'sem colunas', railMeta: 'sem colunas', counterText: '0 de 0', firstBlockId: null });
     const mt = byName(tree, 'Painel de média tensão');
     expect(mt.locations[0]).toMatchObject({ meta: '', railMeta: '1 de 1' });
     expect(byName(tree, 'Coluna legado')).toMatchObject({ meta: '', railMeta: '0 de 1' });
+  });
+
+  it('15.2-UNIT: carries the level word of every location: "Local" on a root, "Painel", "Coluna" (a legacy coluna and a cabine drawn under a location too)', () => {
+    expect(local.kicker).toBe('Local');
+    expect(byName(tree, 'Cubículo Enel').kicker).toBe('Local');
+    expect(byName(tree, 'Painel de média tensão').kicker).toBe('Painel');
+    expect(byName(tree, 'Painel vazio').kicker).toBe('Painel');
+    expect(byName(tree, 'Coluna 5').kicker).toBe('Coluna');
+    expect(byName(tree, 'Coluna legado').kicker).toBe('Coluna');
+    // A `cabine` row under another location reads as a coluna, as its row does.
+    const nested = locationTree({ locations: [cabine(LOCAL, 'Raiz', 'a0'), { ...cabine(ENEL, 'Sala interna', 'a0'), parent_id: id(LOCAL) }], blocks: [], equipment: [] });
+    expect(nested[0]!.locations[0]).toMatchObject({ kind: 'cabine', level: 1, kicker: 'Coluna' });
+    expect(levelKickerText('cabine', 0)).toBe('Local');
+    expect(levelKickerText('cabine', 1)).toBe('Coluna');
+    expect(levelKickerText('painel', 1)).toBe('Painel');
+    expect(levelKickerText('coluna', 2)).toBe('Coluna');
+    // An equipment card carries no kicker; it carries its NC badge and its not-tested reason, null when it has none.
+    for (const node of treeNodes(tree)) if (node.kind === 'equipment') expect(node).toMatchObject({ nc: 0, ncBadge: null, reason: null });
+  });
+
+  it('15.2-UNIT: an equipment node carries its NC count and badge, and the reason a sheet was not tested', () => {
+    const snapshot = relatorio();
+    const nc = (key: string, value: string) => ({ result: { value, source_suggestion_id: null, op_id: id(9000 + key.length) } });
+    const blocks = snapshot.blocks.map((block, i): BlockRow =>
+      i === 0
+        ? { ...block, sheet: { ...block.sheet, checklist: { limpeza: nc('limpeza', 'NC') } } }
+        : i === 1
+          ? { ...block, sheet: { ...block.sheet, checklist: { limpeza: nc('limpeza', 'NC'), fixacao: nc('fixacao', 'NC'), pintura: nc('pintura', 'C') } } }
+          : i === 2
+            ? { ...block, not_tested: { reason: 'outro', text: '  Sem acesso ao cubículo ', at: T0.toISOString(), by: TEST_USER } }
+            : block,
+    );
+    const rows = treeNodes(locationTree({ ...snapshot, blocks })).filter((node): node is TreeEquipmentNode => node.kind === 'equipment');
+    const byTag = new Map(rows.map((row) => [row.tag, row]));
+    expect(byTag.get('TR-1')).toMatchObject({ nc: 1, ncBadge: '1 NC', reason: null });
+    expect(byTag.get('TR-2')).toMatchObject({ nc: 2, ncBadge: '2 NC', reason: null });
+    expect(byTag.get('DJ-LEGADO')).toMatchObject({ nc: 0, ncBadge: null, reason: 'Sem acesso ao cubículo', stateWord: 'Não ensaiada' });
+    expect(byTag.get('SEC-C05')).toMatchObject({ nc: 0, ncBadge: null, reason: null });
   });
 
   it('names the controls of a painel with its local ("Painel B de Cabine de transformação") and of a coluna with what it sits in; a local reads its own name (coordinator review 2026-10-13; second pass, rule 9)', () => {
@@ -241,21 +281,23 @@ describe('14.2-UNIT locationTree: three levels', () => {
     expect(locationControlName(locations, id(9999))).toBe('');
   });
 
-  it('a coluna whose name does not say "Coluna" is led by the word on the rail', () => {
+  // Story 15.2: the kicker "Coluna" leads every coluna row, so its rail line is the counter alone (was "Coluna · 1 de 1").
+  it('a coluna whose name does not say "Coluna" reads its counter alone on the rail, the kicker saying the level', () => {
     const snapshot = relatorio();
     const renamed = { ...snapshot, locations: snapshot.locations.map((row) => (row.id === id(MT_C5) ? { ...row, name: 'Entrada' } : row)) };
-    expect(byName(locationTree(renamed), 'Entrada').railMeta).toBe('Coluna · 1 de 1');
+    expect(byName(locationTree(renamed), 'Entrada')).toMatchObject({ railMeta: '1 de 1', kicker: 'Coluna' });
   });
 
-  it('words the local rail line: "Local", the Função, its painéis (or colunas, or none) and the sheets', () => {
-    expect(local.railMeta).toBe('Local · Transformação · 3 painéis · 2 de 6 fichas');
-    expect(byName(tree, 'Cubículo Enel').railMeta).toBe('Local · sem painéis · 0 de 1 fichas');
-    expect(byName(tree, 'Local novo').railMeta).toBe('Local · Medição · sem painéis · 0 de 0 fichas');
+  // Story 15.2: the kicker "Local" sits over the name, so the rail line drops it.
+  it('words the local rail line: the Função, its painéis (or colunas, or none) and the sheets', () => {
+    expect(local.railMeta).toBe('Transformação · 3 painéis · 2 de 6 fichas');
+    expect(byName(tree, 'Cubículo Enel').railMeta).toBe('sem painéis · 0 de 1 fichas');
+    expect(byName(tree, 'Local novo').railMeta).toBe('Medição · sem painéis · 0 de 0 fichas');
     // A local from before the painel level (colunas directly under it) counts them.
     const snapshot = relatorio();
     const legacy = { ...snapshot, locations: snapshot.locations.filter((row) => row.kind !== 'painel' && ![MT_C5, MT_C6, B_C5].map(id).includes(row.id)) };
     const root = locationTree(legacy)[0]!;
-    expect(root.railMeta).toBe('Local · Transformação · 1 coluna · 1 de 3 fichas');
+    expect(root.railMeta).toBe('Transformação · 1 coluna · 1 de 3 fichas');
     expect(root.meta).toBe('Transformação · Alvenaria · 13,8 kV');
   });
 

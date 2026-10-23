@@ -178,7 +178,7 @@ describe('14.2-UNIT the tree, the counters and the targets without the removed l
       // The counters close up, and each drawn node's counter is still `locationProgress` of that node.
       const nodes = locationNodes(tree);
       expect(nodes.find((node) => node.id === local)!.counterText).toBe('0 de 4');
-      expect(nodes.find((node) => node.id === local)!.railMeta).toBe('Local · Primária · 1 painel · 0 de 4 fichas');
+      expect(nodes.find((node) => node.id === local)!.railMeta).toBe('Primária · 1 painel · 0 de 4 fichas');
       const index = locationProgressIndex(input);
       for (const node of nodes) {
         expect(node.counterText).toBe(progressCounterText(locationProgress(input, node.id)));

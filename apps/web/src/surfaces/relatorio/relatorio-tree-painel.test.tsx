@@ -154,6 +154,8 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     const local = row(LOCAL);
     expect(local).toHaveClass('s9-local', 'is-open');
     expect(local.querySelector(':scope > .s9-loc-row .s9-loc-name')).toHaveTextContent('Cabine de Testes');
+    // Story 15.2: every location row carries its level word (the kernel's `kicker`).
+    expect(local.querySelector(':scope > .s9-loc-row .s9-loc-body > .level-kicker')).toHaveTextContent(/^Local$/);
     expect(local.querySelector(':scope > .s9-loc-row .s9-loc-meta')).toHaveTextContent('Primária · ALVENARIA - CONVENCIONAL · 13,8 kV · 20 °C · 60 %');
     expect(local.querySelector(':scope > .s9-loc-row .progress-counter')).toHaveTextContent('1 de 4');
     const direct = local.querySelector(':scope > .s9-col-direct')!;
@@ -166,7 +168,9 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     expect([...paineis.querySelectorAll(':scope > li.s9-painel .s9-pnl-name')].map((el) => el.textContent)).toEqual(['Painel de média tensão', 'Painel B']);
     const painel = row(PAINEL);
     expect(painel).toHaveClass('s9-painel', 'is-open');
-    expect(painel.querySelector(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveTextContent('Painel · 2 colunas');
+    // Story 15.2 (the 15.1 mocks changed the text): the kicker says the level, the meta the count ("Painel · 2 colunas" before).
+    expect(painel.querySelector(':scope > .s9-pnl-row .s9-pnl-body > .level-kicker')).toHaveTextContent(/^Painel$/);
+    expect(painel.querySelector(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveTextContent(/^2 colunas$/);
     expect(painel.querySelector(':scope > .s9-pnl-row .progress-counter')).toHaveTextContent('0 de 1');
     // The colunas of a painel are `.s9-col` rows under it, one level in; their sheets one more.
     const colunas = [...painel.querySelectorAll<HTMLElement>(':scope > .s9-cols > li.s9-coluna')];
@@ -175,11 +179,20 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
       ['Coluna 6', '2'],
     ]);
     expect(colunas[0]!.querySelector(':scope > .s9-col')).not.toBeNull();
+    expect(colunas[0]!.querySelector(':scope > .s9-col > .level-kicker')).toHaveTextContent(/^Coluna$/);
     const sheet = colunas[0]!.querySelector<HTMLElement>(':scope > .s9-eqs > li.s9-eq')!;
     expect(sheet).toHaveAttribute('data-level', '3');
-    expect(sheet.querySelector('.block-tag')).toHaveTextContent('SEC-C05');
-    // "Adicionar equipamento no local" under the local's own sheets; "Adicionar bloco em ⟨painel⟩" under the painel.
-    expect(within(local).getByRole('button', { name: 'Adicionar equipamento no local Cabine de Testes' })).toHaveClass('s9-add');
+    // Story 15.2: every sheet is a card, TAG and type as its title.
+    expect(sheet).toHaveClass('eq-card', 'block-card');
+    expect(sheet.querySelector('.s9-eq-open.eq-card-open > .s9-eq-id.eq-card-title > .block-tag')).toHaveTextContent('SEC-C05');
+    expect(sheet.querySelector('.eq-card-title > .s9-eq-name')).toHaveTextContent('Chave seccionadora');
+    expect(sheet.querySelector('.eq-card-status > .s9-state')).toHaveTextContent('○ Vazia');
+    // Story 15.2 (15.1 mocks): "Adicionar equipamento no local" is the local's last row, after its painéis;
+    // "Adicionar bloco em ⟨painel⟩" follows the painel's last coluna.
+    const addOnLocal = within(local).getByRole('button', { name: 'Adicionar equipamento no local Cabine de Testes' });
+    expect(addOnLocal).toHaveClass('s9-add');
+    expect(local.lastElementChild).toBe(addOnLocal);
+    expect(paineis.compareDocumentPosition(addOnLocal) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // Its accessible name adds the painel's local (rule 9); the visible words stay the mock's.
     const addInPainel = within(painel).getByRole('button', { name: 'Adicionar bloco em Painel de média tensão de Cabine de Testes' });
     expect(addInPainel).toHaveClass('s9-add');
@@ -197,7 +210,8 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     database = await seeded();
     await openLocal();
     const painelB = row(PAINEL_B);
-    expect(painelB.querySelector('.s9-pnl-meta')).toHaveTextContent('Painel · sem colunas');
+    // Story 15.2: "Painel · sem colunas" before; the kicker says the level.
+    expect(painelB.querySelector('.s9-pnl-meta')).toHaveTextContent(/^sem colunas$/);
     const note = within(painelB).getByRole('note');
     expect(note).toHaveClass('pnl-empty');
     expect(note).toHaveTextContent('Este painel ainda não tem colunas. Um painel só agrupa colunas e não recebe equipamento direto: adicione uma coluna e coloque os equipamentos nela.');
@@ -606,18 +620,27 @@ describe('14.2 relatório tree: three levels (rail presentation)', () => {
     const { container } = renderAt(`/relatorio/${RELATORIO}/arvore`);
     const rail = await screen.findByRole('list', { name: 'Árvore do relatório' });
     await userEvent.click(await within(rail).findByRole('button', { name: 'Expandir Cabine de Testes' }));
-    const rows = () => [...container.querySelectorAll<HTMLElement>('.relatorio-tree .tree-row')].map((el) => [el.querySelector('.tree-body > span')?.textContent, el.dataset.level, el.querySelector('.tree-meta')?.textContent]);
-    await waitFor(() => expect(rows().some(([name]) => name === 'Coluna 5')).toBe(true));
+    // Story 15.2 (the 15.1 mocks changed the markup and the texts): each location row has its level class,
+    // its kicker and its name (`.tree-name`); each sheet is a card, TAG and type as its title.
+    const rows = () =>
+      [...container.querySelectorAll<HTMLElement>('.relatorio-tree .tree-row')].map((el) => [
+        el.querySelector('.level-kicker')?.textContent ?? el.querySelector('.tree-tag')?.textContent ?? null,
+        el.querySelector('.tree-name')?.textContent,
+        el.dataset.level,
+        el.querySelector('.tree-meta')?.textContent ?? null,
+        [...el.classList].filter((name) => name.startsWith('level-')).join(' '),
+      ]);
+    await waitFor(() => expect(rows().some(([, name]) => name === 'Coluna 5')).toBe(true));
     expect(rows()).toEqual([
-      ['Cabine de Testes', '0', 'Local · Primária · 2 painéis · 1 de 4 fichas'],
-      ['Chave seccionadora', '1', expect.stringMatching(/^SEC-TEST/)],
-      ['Disjuntor MT', '1', expect.stringMatching(/^DJ-TEST/)],
-      ['Transformador de força', '1', expect.stringMatching(/^TR-TEST/)],
-      ['Painel de média tensão', '1', 'Painel · 2 colunas · 0 de 1'],
-      ['Coluna 5', '2', '0 de 1'],
-      ['Chave seccionadora', '3', 'SEC-C05'],
-      ['Coluna 6', '2', '0 de 0'],
-      ['Painel B', '1', 'Painel · sem colunas'],
+      ['Local', 'Cabine de Testes', '0', 'Primária · 2 painéis · 1 de 4 fichas', 'level-band'],
+      ['SEC-TEST', 'Chave seccionadora', '1', null, 'level-item'],
+      ['DJ-TEST', 'Disjuntor MT', '1', expect.any(String), 'level-item'],
+      ['TR-TEST', 'Transformador de força', '1', null, 'level-item'],
+      ['Painel', 'Painel de média tensão', '1', '2 colunas · 0 de 1', 'level-subband'],
+      ['Coluna', 'Coluna 5', '2', '0 de 1', 'level-group'],
+      ['SEC-C05', 'Chave seccionadora', '3', null, 'level-item'],
+      ['Coluna', 'Coluna 6', '2', '0 de 0', 'level-group'],
+      ['Painel', 'Painel B', '1', 'sem colunas', 'level-subband'],
     ]);
     // The rail edits nothing: no handle, no Position box, and only the local carries a menu.
     expect(rail.querySelector('.pos-box, .drag-handle')).toBeNull();

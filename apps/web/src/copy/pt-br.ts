@@ -357,6 +357,8 @@ export const copy = {
     // `.level-kicker`: the word before a card's name.
     levelLocal: 'Local',
     levelPainel: 'Painel',
+    // Story 15.2 (`42-template-composer.html` `.column-row .level-kicker`): before a coluna's name.
+    levelColuna: 'Coluna',
     agruparPorTipo: 'Agrupar por tipo',
     addColuna: 'Adicionar coluna',
     addLocal: 'Adicionar local',
@@ -751,6 +753,8 @@ export const copy = {
       locDirectTitle: 'Equipamentos no local',
       locDirectLabel: (name: string) => `Equipamentos direto em ${name}`,
       painelListLabel: (name: string) => `Painéis de ${name}`,
+      // `40-relatorio-overview.html` `ul.s9-eqs.s9-site` (Story 15.2): the list holding a local's "Verificações do local" card.
+      siteListLabel: (name: string) => `Verificações de ${name}`,
       // The note of a painel with no coluna in the tree: the composer's `.pnl-empty`, verbatim.
       painelEmpty: 'Este painel ainda não tem colunas. Um painel só agrupa colunas e não recebe equipamento direto: adicione uma coluna e coloque os equipamentos nela.',
       // The foot of section 9's tree (Story 14.2: it opens the Função dialog).

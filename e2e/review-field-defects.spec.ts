@@ -404,14 +404,16 @@ test('@p1 F-09 a photo picked into a point lands after the text with a space, ne
 /**
  * Every rail row's label and state never overlap: the state sits right of the text or, when the
  * two do not fit side by side, under it (review fixes 2026-10-06, F-07). And no word of the
- * label is split across two lines ("Chave secciona / dora", "SEC- / ENEL-2").
+ * label is split across two lines ("Chave secciona / dora", "SEC- / ENEL-2"). Story 15.2 (the
+ * 15.1 mocks changed the markup): a sheet is a card whose body holds its title (`.tree-id`, TAG
+ * and type) and, under it, its state; the label measured is the title.
  */
 async function expectRailRowsApart(page: Page): Promise<void> {
   const rows = await page.locator('.rail .relatorio-tree .tree-row').evaluateAll((elements) =>
     elements
-      .filter((row) => row.getClientRects().length > 0 && row.querySelector('.tree-state') !== null && row.querySelector('.tree-body') !== null)
+      .filter((row) => row.getClientRects().length > 0 && row.querySelector('.tree-state') !== null && row.querySelector('.tree-id') !== null)
       .map((row) => {
-        const body = row.querySelector('.tree-body')!;
+        const body = row.querySelector('.tree-id')!;
         const range = document.createRange();
         range.selectNodeContents(body);
         const text = range.getBoundingClientRect();

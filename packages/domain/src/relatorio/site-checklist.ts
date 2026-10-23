@@ -103,11 +103,6 @@ export function siteRowText(p: SiteProgress): string {
   return `${SITE_CHECKLIST_LABEL}${SEP}${siteCounterText(p)}`;
 }
 
-/** "19 itens · uma vez por local": the rail row's meta line (`shell-foot.html`). */
-export function siteRailMetaText(total: number): string {
-  return `${plural(total, 'item', 'itens')}${SEP}uma vez por local`;
-}
-
 /** "Verificações do local — Cubículo Enel": the surface's title (`61-verificacoes-local.html`). */
 export function siteHeaderTitle(name: string): string {
   return `${SITE_CHECKLIST_LABEL} — ${name.trim()}`;

@@ -1,4 +1,4 @@
-import { CABINE_META_NONE, duplicateTagText, type TreeEquipmentNode, type TreeLocationNode } from '@app/domain';
+import { CABINE_META_NONE, duplicateTagText, SITE_CHECKLIST_LABEL, type TreeEquipmentNode, type TreeLocationNode } from '@app/domain';
 import { Button as AriaButton } from 'react-aria-components';
 import { memo, useId, type KeyboardEvent } from 'react';
 import { WholeWords } from '../../components/whole-words.tsx';
@@ -13,6 +13,14 @@ import { Chevron, locationMenu, sameRow, treeKeys, type Shared } from './relator
 /*
  * E14-A7: the Sumário presentation of the relatório tree (`relatorio-tree.tsx` says what each
  * presentation draws): section 9's location rows and equipment rows.
+ *
+ * Story 15.2 (the Story 15.1 mocks, `40-relatorio-overview.html`): a local is a title band
+ * (`.s9-loc-row`, the kicker "Local" over its name and its Função line), a painel a sub-band
+ * (`.s9-pnl-row`, the kicker "Painel"), a coluna a group header (`.s9-col`, the kicker "Coluna"
+ * before its name and "N de M"); every sheet is a card (`.s9-eq.eq-card.block-card`: TAG and
+ * type as its title, glyph + state word and the NC badge under it) and the local's
+ * "Verificações do local" is a card of the same kind, the first of its local
+ * (`.s9-site-card`). "Adicionar …" is the last row of its level. Every word is the kernel's.
  */
 
 const PlusIcon = () => (
@@ -28,6 +36,7 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
   const eqsId = useId();
   const colsId = useId();
   const pnlsId = useId();
+  const siteId = useId();
   const reorder = useReorder({
     itemKey: node.id,
     position: node.position,
@@ -37,13 +46,16 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
   });
   const trigger = () => locationTrigger(reorder.row());
   const menu = locationMenu(node, shared, reorder, trigger);
-  // The root row is the local; a `cabine` row drawn under another location is read as a coluna row, as before.
-  const local = node.kind === 'cabine' && node.level === 0;
   const painel = node.kind === 'painel';
   const current = shared.currentPath.has(node.id);
   const colunas = node.locations.filter((child) => child.kind !== 'painel');
   const paineis = node.locations.filter((child) => child.kind === 'painel');
-  const controls = [node.equipment.length > 0 ? eqsId : null, colunas.length > 0 ? colsId : null, paineis.length > 0 ? pnlsId : null].filter(Boolean).join(' ');
+  // The root row is the local; a `cabine` row drawn under another location is read as a coluna row, as before.
+  const local = node.kind === 'cabine' && node.level === 0;
+  const site = local ? node.site : null;
+  const controls = [site !== null ? siteId : null, node.equipment.length > 0 ? eqsId : null, colunas.length > 0 ? colsId : null, paineis.length > 0 ? pnlsId : null]
+    .filter(Boolean)
+    .join(' ');
 
   const chevron = (
     <button
@@ -91,6 +103,36 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
     const className = ['s9-local', open && 'is-open', current && 'is-current', reorder.dragging && 'is-dragging'].filter(Boolean).join(' ');
     // The palette opened here adds to the local itself, or to its current coluna when it holds colunas directly.
     const onLocal = target === node.id;
+    // Story 15.2 (Bruno's answer 5): the local's site checklist is a card of the sheet kind, the first card of its local.
+    const siteCard =
+      open && site !== null ? (
+        <ul className="s9-eqs s9-site" id={siteId} aria-label={t.siteListLabel(node.name)}>
+          {/* Left/Right as on a sheet card (EXPERIENCE.md › Relatório tree): Left goes to the local's chevron. */}
+          <li className="s9-site-card eq-card block-card" onKeyDown={(event) => treeKeys(event, null, () => undefined)}>
+            {/* The NC badge is part of the name, so a screen reader hears it as it is seen. */}
+            <AriaButton
+              className="s9-verif eq-card-open"
+              data-tree-open
+              aria-label={copy.local.entryLabel(site.ncBadge === null ? site.text : `${site.text} · ${site.ncBadge}`, node.name)}
+              onPress={() => shared.actions.openVerificacoes(node.id)}
+            >
+              <span className="eq-card-title">
+                <svg className="ico ico-sm" aria-hidden="true">
+                  <use href="/sprite.svg#i-check-all" />
+                </svg>
+                <span className="s9-site-name">{SITE_CHECKLIST_LABEL}</span>
+                <span className="s9-site-count">{site.railCounter}</span>
+              </span>
+              <span className="eq-card-status">
+                <span className="s9-state" data-state={site.sumarioStateAttr}>
+                  <span aria-hidden="true">{site.glyph}</span> {site.stateWord}
+                </span>
+                {site.ncBadge === null ? null : <span className="nc-badge">{site.ncBadge}</span>}
+              </span>
+            </AriaButton>
+          </li>
+        </ul>
+      ) : null;
     const addButton =
       open && target !== null ? (
         <AriaButton
@@ -108,6 +150,7 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
           {chevron}
           {reorderControls}
           <span className="s9-loc-body">
+            <span className="level-kicker">{node.kicker}</span>
             <span className="s9-loc-name">
               {node.name}
               {/* The last sheet's row says it when drawn; a collapsed local says it for it. */}
@@ -128,15 +171,6 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
                 <span className="cl-missing">{node.metaMissing}</span>
               </span>
             )}
-            {/* Story 14.3 (`40-relatorio-overview.html` `.s9-verif`): the local's site checklist and its counter, the kernel's text. */}
-            {node.site === null ? null : (
-              <AriaButton className="btn btn-text s9-verif" aria-label={copy.local.entryLabel(node.site.text, node.name)} onPress={() => shared.actions.openVerificacoes(node.id)}>
-                <svg className="ico ico-sm" aria-hidden="true">
-                  <use href="/sprite.svg#i-check-all" />
-                </svg>
-                {node.site.text}
-              </AriaButton>
-            )}
           </span>
           <span className="progress-counter" data-state={node.counterState}>
             <span className="dot" aria-hidden="true" />
@@ -144,7 +178,9 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
           </span>
           <OverflowMenu name={node.controlName} items={menu.items} destructiveItems={menu.destructiveItems} />
         </div>
-        {/* The local's own sheets first, under their heading line (the mock's `.s9-col` of `.s9-eqs`). */}
+        {/* Story 15.2: the band keeps no button; the site checklist card comes first under it. */}
+        {siteCard}
+        {/* The local's own sheets next, under their heading line (the mock's `.s9-col` of `.s9-eqs`). */}
         {open && node.equipment.length > 0 ? (
           <p className="s9-col s9-col-direct">
             <span className="s9-col-name">{t.locDirectTitle}</span>
@@ -152,11 +188,7 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
           </p>
         ) : null}
         {equipmentList}
-        {/* The mock draws "Adicionar equipamento no local" right under the local's own sheets;
-            a local that holds colunas directly keeps "Adicionar bloco em ⟨local⟩" after them, as before. */}
-        {onLocal ? addButton : null}
         {colunaList}
-        {onLocal ? null : addButton}
         {open && paineis.length > 0 ? (
           <ul className="s9-pnls" id={pnlsId} aria-label={t.painelListLabel(node.name)}>
             {paineis.map((child) => (
@@ -164,6 +196,9 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
             ))}
           </ul>
         ) : null}
+        {/* Story 15.2 (15.1 mocks): "Adicionar equipamento no local" (or, on a local holding colunas
+            directly, "Adicionar bloco em ⟨local⟩") is the last row of the local, after its painéis. */}
+        {addButton}
       </li>
     );
   }
@@ -175,6 +210,7 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
           {chevron}
           {reorderControls}
           <span className="s9-pnl-body">
+            <span className="level-kicker">{node.kicker}</span>
             <span className="s9-pnl-name">
               {node.name}
               {current && !open ? <span className="sum-here"> {copy.sumario.here}</span> : null}
@@ -219,6 +255,7 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
       <div className="s9-col" onKeyDown={onKeyDown}>
         {chevron}
         {reorderControls}
+        <span className="level-kicker">{node.kicker}</span>
         <span className="s9-col-name">{node.name}</span>
         <span className="s9-col-meta">{node.counterText}</span>
         <OverflowMenu name={node.controlName} items={menu.items} destructiveItems={menu.destructiveItems} />
@@ -247,7 +284,7 @@ function equipmentMenu(node: TreeEquipmentNode, shared: Shared, reorder: Reorder
   return { items, destructiveItems };
 }
 
-/** An equipment row: drag handle, Position box, the row body that opens the sheet, the Overflow, and the duplicate line. */
+/** An equipment card: drag handle, Position box, the card body that opens the sheet, the Overflow, and the duplicate line. */
 export const SumarioEquipment = memo(function SumarioEquipment({ node, shared }: { node: TreeEquipmentNode; shared: Shared }) {
   const t = copy.sumario.tree;
   const reorder = useReorder({
@@ -260,7 +297,7 @@ export const SumarioEquipment = memo(function SumarioEquipment({ node, shared }:
   const trigger = () => blockTrigger(reorder.row());
   const menu = equipmentMenu(node, shared, reorder, trigger);
   const current = shared.currentBlockId === node.blockId;
-  const className = ['s9-eq', current && 'is-current', reorder.dragging && 'is-dragging'].filter(Boolean).join(' ');
+  const className = ['s9-eq', 'eq-card', 'block-card', current && 'is-current', reorder.dragging && 'is-dragging'].filter(Boolean).join(' ');
   return (
     <li
       className={className}
@@ -275,14 +312,21 @@ export const SumarioEquipment = memo(function SumarioEquipment({ node, shared }:
     >
       <DragHandle name={node.name} reorder={reorder} />
       <PositionBox name={node.name} position={node.position} siblings={node.siblings} reorder={reorder} className="s9-pos" />
-      <button type="button" className="s9-eq-open" data-tree-open onClick={() => shared.actions.openSheet(node.blockId)}>
-        <span className="block-tag">{node.tag}</span>
-        <span className="s9-eq-name">
-          <WholeWords className="s9-word" text={node.typeLabel} />
+      {/* Story 15.2 (Bruno's answer 6): the card body is the tap target; TAG and type are its title
+          (a sheet with no TAG shows its type alone), the state, the NC badge and "você parou aqui" under it. */}
+      <button type="button" className="s9-eq-open eq-card-open" data-tree-open onClick={() => shared.actions.openSheet(node.blockId)}>
+        <span className="s9-eq-id eq-card-title">
+          {node.tag === '' ? null : <span className="block-tag">{node.tag}</span>}
+          <span className="s9-eq-name">
+            <WholeWords className="s9-word" text={node.typeLabel} />
+          </span>
         </span>
-        {current ? <span className="sum-here">{copy.sumario.here}</span> : null}
-        <span className="s9-state" data-state={node.sumarioStateAttr}>
-          <span aria-hidden="true">{node.glyph}</span> {node.stateText}
+        <span className="eq-card-status">
+          <span className="s9-state" data-state={node.sumarioStateAttr}>
+            <span aria-hidden="true">{node.glyph}</span> {node.stateText}
+          </span>
+          {node.ncBadge === null ? null : <span className="nc-badge">{node.ncBadge}</span>}
+          {current ? <span className="sum-here">{copy.sumario.here}</span> : null}
         </span>
       </button>
       <OverflowMenu name={node.name} items={menu.items} destructiveItems={menu.destructiveItems} />
