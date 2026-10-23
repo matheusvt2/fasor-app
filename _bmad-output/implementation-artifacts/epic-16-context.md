@@ -62,7 +62,7 @@ durability specs on the matrix projects for e16c (it changes a value shape the f
 
 ## Wave gates (coordinator)
 
-(none yet)
+- **Batch e16a (Story 16.1), 2026-10-23, main `8124f2a4`** (PR #179): story gate lint 0 errors (25 pre-existing e2e warnings), static green, api 682/683 (14.10-INT timing red under load, green alone), unit 4433/4435 (two template-composer 15 s timeouts under load, green alone), `docx.test.ts` 24/24; no Playwright spec touched. Deployed to production as **v0.3.2** (`8124f2a4`) the same day, smoke 8 of 8; tag and GitHub release v0.3.2. The wave A full gate (`@p0`, `test:e2e:full`, matrix) runs after e16b merges.
 
 ## Out of scope
 
