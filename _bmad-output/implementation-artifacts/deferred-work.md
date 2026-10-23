@@ -2342,3 +2342,11 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: decision
   ~~state: open (owner: Matheus)~~
   state: done (2026-10-23, fix batch fx15q: idempotent from 1024 px, Matheus)
+
+## Deferred from: fix batch fx15q, Epic 15 follow-up (2026-10-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-epic-15-decisions.md`
+  summary: With only automatic points the Sumário's row 8 reads "N automáticos" (Matheus, 2026-10-23), but the Points surface heading still reads "Pontos de atenção (0 + N automáticos)"; the same wording rule belongs there.
+  evidence: PR #174 open question; `apps/web/src/surfaces/points/points-surface.tsx` heading, kernel text in `points/summary.ts`.
+  class: bug
+  state: open (owner: the next fix batch)
