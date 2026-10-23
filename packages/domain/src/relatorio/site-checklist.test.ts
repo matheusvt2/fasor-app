@@ -35,7 +35,6 @@ import {
   siteObservationOf,
   sitePointTitle,
   siteProgressState,
-  siteRailMetaText,
   siteResultOf,
   siteRowText,
   siteNcCount,
@@ -246,10 +245,10 @@ describe('14.3 the counters and texts of a local, on the mock state (12 of 19)',
     expect(view.latestOpId).toBe(ops.at(-1)!.op_id);
   });
 
-  it('writes the counter, the Sumário row, the rail meta and the header from one place', () => {
+  // Story 15.2: the rail card shows "N de 19" (`siteCounterText`); the "19 itens · uma vez por local" meta line and its `siteRailMetaText` are gone.
+  it('writes the counter, the Sumário row and the header from one place', () => {
     expect(siteCounterText(view)).toBe('12 de 19');
     expect(siteRowText(view)).toBe('Verificações do local · 12 de 19');
-    expect(siteRailMetaText(19)).toBe('19 itens · uma vez por local');
     expect(siteHeaderTitle(' 1° Subsolo ')).toBe('Verificações do local — 1° Subsolo');
     expect(view.title).toBe('Verificações do local — 1° Subsolo');
     expect(view.meta).toBe('Função: Primária');
@@ -332,7 +331,6 @@ describe('14.3 the tree: a local node carries its site checklist', () => {
       total: 19,
       text: 'Verificações do local · 12 de 19',
       railCounter: '12 de 19',
-      railMeta: '19 itens · uma vez por local',
       // 2026-10-14: item 11 of the mock is NC.
       nc: 1,
       state: 'pending',

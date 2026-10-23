@@ -64,7 +64,7 @@ export const RailLocation = memo(function RailLocation({ node, shared }: { node:
             <li data-site-of={node.id}>
               <div className="tree-row eq-card site-card" data-level={node.level + 1} onKeyDown={(event) => treeKeys(event, null, () => undefined)}>
                 {/* Story 15.2: a card of the sheet kind, "N de 19" as its progress and the sheet state words. */}
-                <button type="button" className="tree-body" data-tree-open aria-label={copy.local.entryLabel(SITE_CHECKLIST_LABEL, node.name)} onClick={() => shared.actions.openVerificacoes(node.id)}>
+                <button type="button" className="tree-body" data-tree-open aria-label={copy.local.entryLabel(site.ncBadge === null ? SITE_CHECKLIST_LABEL : `${SITE_CHECKLIST_LABEL} · ${site.ncBadge}`, node.name)} onClick={() => shared.actions.openVerificacoes(node.id)}>
                   <span className="tree-id">
                     <svg className="ico ico-sm" aria-hidden="true">
                       <use href="/sprite.svg#i-check-all" />

@@ -2,7 +2,7 @@
 title: 'Story 15.2: the tree levels built (bands, kicker, cards with state and NC badge, the site checklist as a card)'
 type: 'feature'
 created: '2026-10-22'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '02ae2b3dc4fc0ce59aeea78866ded82c66c4a124'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -90,6 +90,19 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-10-22 — Review pass
+- layers: Edge Case Hunter, Verification Gap Reviewer (Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them)
+- verdicts: 8 findings — high 0, medium 2, low 6, false 0, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` VG: the rail sheet card's `.nc-badge` is never asserted — unit test added in `relatorio-tree.test.tsx` (NC sheet shows "1 NC", others none).
+  - `[low]` `[patch]` VG: composer coluna kicker and `qty-row.eq-card` untested — assertions added in `template-composer-local.test.tsx`.
+  - `[medium]` `[patch]` ECH: the Sumário site card lost tree arrow keys when it left the band row — `treeKeys` handler on the card `li`, unit-tested.
+  - `[low]` `[patch]` ECH: the site button's aria-label hides its NC badge — the badge text is appended to the label when present; unchanged without NC.
+  - `[low]` `[patch]` ECH: the rail card's left padding strip is outside the `.tree-body` button — inset moved onto the button.
+  - `[low]` `[patch]` ECH: `TreeSiteNode.railMeta` computed but never drawn — field removed.
+  - `[low]` `[reject]` ECH: with locals collapsed no badge is visible while the header counts NC — the approved mocks draw no indicator on bands; the header tap ("NC abertos", F-24 finder) opens the path to the sheet; listed as known open in the PR.
+  - `[low]` `[reject]` ECH: the composer's "Coluna" kicker is web copy, not the kernel's `levelKickerText` — the composer's "Local"/"Painel" kickers already live in `copy.composer` (static surface copy home); the tree's is kernel-derived because a `cabine` drawn under a location reads as a coluna.
 
 ## Design Notes
 

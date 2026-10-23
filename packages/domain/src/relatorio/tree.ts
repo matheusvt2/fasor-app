@@ -13,7 +13,7 @@ import { liveLocationIds } from './location-live.ts';
 import { locationPathText } from './location-path.ts';
 import { blocksProgress, fichasCountText, locationProgressIndex, ncBadgeText, ncCount, progressCounterState, progressCounterText, type Progress } from './progress.ts';
 import { isEquipmentBlock, sheetState, sheetStateLabel, type SheetState } from './sheet-state.ts';
-import { siteCounterText, siteLocals, siteRailMetaText, siteResultOf, siteRowText } from './site-checklist.ts';
+import { siteCounterText, siteLocals, siteResultOf, siteRowText } from './site-checklist.ts';
 import { cabineMissingText, cabineProgress } from './cabine.ts';
 import { CABINE_META_NONE, cabineMetaText } from './sumario.ts';
 import { suggestTag, type TagEquipment, type TagLocation } from './tag.ts';
@@ -195,8 +195,6 @@ export interface TreeSiteNode {
   text: string;
   /** "12 de 19": the card's progress (`.s9-site-count`, the rail card's `.tree-meta`). */
   railCounter: string;
-  /** "19 itens · uma vez por local": the rail row's `.tree-meta`. */
-  railMeta: string;
   /** 2026-10-14: the items answered NC, which `Progress.nc_open` counts and the F-24 finder reaches. */
   nc: number;
   /** Nothing answered, some answered, every item answered. Derived, never stored. */
@@ -489,7 +487,6 @@ function buildLocationTree(
       ...counts,
       text: siteRowText(counts),
       railCounter: siteCounterText(counts),
-      railMeta: siteRailMetaText(counts.total),
       nc,
       state,
       railStateAttr: STATE_ATTR[SITE_STATE[state]],

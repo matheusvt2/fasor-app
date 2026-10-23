@@ -955,6 +955,10 @@ html { scroll-padding-bottom: var(--sticky-bar-covered, 0px); }
 .relatorio-tree .tree-row.eq-card[data-level="3"] { margin-left: calc(var(--sp-5) + var(--sp-3)); }
 .relatorio-tree .relatorio-tree > li:last-child > .tree-row.eq-card { margin-bottom: var(--sp-2); }
 .relatorio-tree .tree-row.eq-card > .tree-body { padding: var(--sp-2) var(--sp-2) var(--sp-2) 0; gap: 2px; }
+/* authored: the mock's card inset (`padding-left: var(--sp-3)` above) moves into the card's body,
+   the button, so a tap anywhere on the card, its left strip included, opens it. */
+.relatorio-tree .tree-row.eq-card { padding-left: 0; }
+.relatorio-tree .tree-row.eq-card > .tree-body { align-self: stretch; padding-left: var(--sp-3); }
 .relatorio-tree .tree-row.eq-card.is-selected { background: var(--focus-fill); border-left: 4px solid var(--primary); }
 .relatorio-tree .tree-id { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-2); }
 .relatorio-tree .tree-id .ico { align-self: center; color: var(--ink-secondary); }

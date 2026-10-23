@@ -107,8 +107,15 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
     const siteCard =
       open && site !== null ? (
         <ul className="s9-eqs s9-site" id={siteId} aria-label={t.siteListLabel(node.name)}>
-          <li className="s9-site-card eq-card block-card">
-            <AriaButton className="s9-verif eq-card-open" aria-label={copy.local.entryLabel(site.text, node.name)} onPress={() => shared.actions.openVerificacoes(node.id)}>
+          {/* Left/Right as on a sheet card (EXPERIENCE.md › Relatório tree): Left goes to the local's chevron. */}
+          <li className="s9-site-card eq-card block-card" onKeyDown={(event) => treeKeys(event, null, () => undefined)}>
+            {/* The NC badge is part of the name, so a screen reader hears it as it is seen. */}
+            <AriaButton
+              className="s9-verif eq-card-open"
+              data-tree-open
+              aria-label={copy.local.entryLabel(site.ncBadge === null ? site.text : `${site.text} · ${site.ncBadge}`, node.name)}
+              onPress={() => shared.actions.openVerificacoes(node.id)}
+            >
               <span className="eq-card-title">
                 <svg className="ico ico-sm" aria-hidden="true">
                   <use href="/sprite.svg#i-check-all" />

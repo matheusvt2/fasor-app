@@ -375,6 +375,13 @@ describe('4.4 rail presentation (/relatorio/:id/arvore)', () => {
   it('lists cabines and fichas, marks the last sheet aria-current, and the strip opens and collapses the rail', async () => {
     database = await seeded();
     await database.local_prefs.put({ key: LAST_SHEET_PREF(RELATORIO), value: DJ_TEST });
+    // Story 15.2 (F37): one checklist item of SEC-C01 answered NC, the badge its card carries.
+    const record = (await database.entities.get(['block', SEC_C01]))!;
+    const blockRow = record.row as BlockRow;
+    await database.entities.put({
+      ...record,
+      row: { ...blockRow, sheet: { ...blockRow.sheet, checklist: { limpeza: { result: { value: 'NC', source_suggestion_id: null, op_id: id(90) } } } } } as never,
+    });
     const { container } = renderAt(`/relatorio/${RELATORIO}/arvore`);
     const rail = await screen.findByRole('list', { name: 'Árvore do relatório' });
     expect(rail).toHaveClass('relatorio-tree');
@@ -395,6 +402,9 @@ describe('4.4 rail presentation (/relatorio/:id/arvore)', () => {
     expect(current.querySelector('.tree-meta')!.textContent).toBe('Solicitação do cliente');
     expect(current.querySelector('.eq-card-status .tree-state')).toHaveAttribute('data-state', 'nao-ensaiada');
     expect(current.querySelector('.tree-state [aria-hidden="true"]')).toHaveTextContent('⊘');
+    // F37: the one sheet holding an NC carries the badge "1 NC"; no other sheet card carries one.
+    await waitFor(() => expect(rail.querySelector(`li[data-block-id="${SEC_C01}"] .eq-card-status .nc-badge`)).toHaveTextContent(/^1 NC$/));
+    expect(rail.querySelectorAll('li[data-block-id] .nc-badge')).toHaveLength(1);
     // No sections, no Position box, no drag handle, no equipment Overflow.
     expect(rail.querySelector('.pos-box, .drag-handle')).toBeNull();
     expect(within(rail).queryByRole('button', { name: 'Mais opções de DJ-TEST' })).toBeNull();

@@ -152,7 +152,8 @@ describe('14.3 entry: the local\'s Sumário row', () => {
     expect(row(LOCAL).querySelector(':scope > ul')).toBe(list);
     const card = list.querySelector(':scope > li')!;
     expect(card).toHaveClass('s9-site-card', 'eq-card', 'block-card');
-    const button = within(list).getByRole('button', { name: 'Verificações do local · 12 de 19 — Cabine de Testes' });
+    // The fixture answers its first item NC: the badge is part of the name, as it is seen.
+    const button = within(list).getByRole('button', { name: 'Verificações do local · 12 de 19 · 1 NC — Cabine de Testes' });
     expect(button).toHaveClass('s9-verif', 'eq-card-open');
     expect(button.querySelector('.eq-card-title .s9-site-name')).toHaveTextContent(/^Verificações do local$/);
     expect(button.querySelector('.eq-card-title .s9-site-count')).toHaveTextContent(/^12 de 19$/);
@@ -166,6 +167,11 @@ describe('14.3 entry: the local\'s Sumário row', () => {
     // The local's sheet counter stays the sheets' own.
     expect(row(LOCAL).querySelector(':scope > .s9-loc-row .progress-counter')).toHaveTextContent(/^\d+ de \d+$/);
     expect(row(LOCAL).querySelector(':scope > .s9-loc-row .progress-counter')).not.toHaveTextContent('19');
+    // Left on the card, as on a sheet card, goes to its local's chevron (EXPERIENCE.md › Relatório tree).
+    expect(button).toHaveAttribute('data-tree-open');
+    button.focus();
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(screen.getByRole('button', { name: 'Recolher Cabine de Testes' })).toHaveFocus();
 
     await userEvent.click(button);
     expect(await screen.findByTestId('where')).toHaveTextContent(TARGET);
@@ -216,7 +222,8 @@ describe('14.3 entry: the rail', () => {
     // Story 15.2 (the 15.1 mocks changed the markup): a card of the sheet kind, "N de 19" as its
     // progress beside the label and the sheet's state word under it.
     expect(line).toHaveClass('eq-card', 'site-card');
-    const body = within(line as HTMLElement).getByRole('button', { name: 'Verificações do local — Cabine de Testes' });
+    // Story 15.2: the fixture answers its first item NC once any is answered; the badge is part of the name.
+    const body = within(line as HTMLElement).getByRole('button', { name: answered === 0 ? 'Verificações do local — Cabine de Testes' : 'Verificações do local · 1 NC — Cabine de Testes' });
     expect(body).toHaveClass('tree-body');
     expect(body.querySelector('.tree-id use')).toHaveAttribute('href', '/sprite.svg#i-check-all');
     expect(body.querySelector('.tree-id .tree-name')).toHaveTextContent(/^Verificações do local$/);
