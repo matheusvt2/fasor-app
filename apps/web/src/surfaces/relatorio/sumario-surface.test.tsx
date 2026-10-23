@@ -277,8 +277,11 @@ describe('4.3 SumarioSurface', () => {
     expect(r11!.querySelector('button.sum-open')).toBeNull();
     expect(r10!.querySelector('button.sum-open')).not.toBeNull();
     expect(r7!.querySelector('button.sum-open')).not.toBeNull();
-    // Story 15.2 (F34): the one derived entry counted once (it read "1 ponto · 1 não ensaiada").
-    expect(within(r8!).getByRole('button', { name: /^Pontos de atenção/ })).toHaveTextContent('0 pontos + 1 automático');
+    // Story 15.2 (F34): the one derived entry counted once (it read "1 ponto · 1 não ensaiada");
+    // with no live point it reads the automatic count alone (fix batch fx15q).
+    const r8Button = within(r8!).getByRole('button', { name: /^Pontos de atenção/ });
+    expect(r8Button).toHaveTextContent('1 automático');
+    expect(r8Button).not.toHaveTextContent('pontos +');
     await userEvent.click(within(r1!).getByRole('button', { name: /^Objetivo/ }));
     expect(await screen.findByTestId('setup-route')).toHaveTextContent('Setup 2');
     cleanup();

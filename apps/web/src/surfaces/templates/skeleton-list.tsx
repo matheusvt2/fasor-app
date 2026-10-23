@@ -25,6 +25,8 @@ import { useReorder } from './use-reorder.ts';
 
 export interface SkeletonListProps {
   view: ComposerView;
+  /** The template's seed version: the local sub-line counts its site checklist. */
+  seedVersion: string;
   /** The palette's target: a local (made current by "Adicionar equipamento") or a coluna (its row open), or null. */
   currentRef: string | null;
   /** A coluna row's head: the coluna becomes the palette's target. */
@@ -39,10 +41,10 @@ export interface SkeletonListProps {
   onAddLocal: () => void;
   /**
    * "Adicionar equipamento" of a local or (Story 15.5) of an open coluna: the node becomes the
-   * palette's target. `onReleased` runs when the press released the node instead (the inline
-   * palette's toggle), so the coluna's row, which then closes, hands the focus to its head.
+   * palette's target; with the inline palette a local's second press releases it, a coluna's
+   * press keeps it the target and its row open.
    */
-  onAddEquipamento: (node: ComposerCabine | ComposerColuna, onReleased?: () => void) => void;
+  onAddEquipamento: (node: ComposerCabine | ComposerColuna) => void;
   onAddPainel: (local: ComposerCabine) => void;
   /** "Adicionar coluna" of a painel, or of a local that already holds colunas directly. */
   onAddColuna: (parent: ComposerCabine | ComposerPainel) => void;
@@ -237,7 +239,7 @@ function LocalCard({ cabine, ...props }: CardProps & { cabine: ComposerCabine })
         name={cabine.name}
         nameId={nameId}
         flag={summary.flag}
-        sub={localSubText(cabine)}
+        sub={localSubText(cabine, props.seedVersion)}
         open={open}
         controls={expandId}
         onToggle={() => expand.toggle(cabine.ref)}
@@ -426,7 +428,7 @@ function ColunaRow({ coluna, controlName, ...props }: CardProps & { coluna: Comp
             <AriaButton
               className="btn btn-text"
               aria-pressed={isOpen}
-              onPress={() => onAddEquipamento(coluna, () => restoreFocus(() => headButton.current))}
+              onPress={() => onAddEquipamento(coluna)}
             >
               <Plus />
               {copy.composer.addEquipamento}

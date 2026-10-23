@@ -323,6 +323,7 @@ export function templatesSubline(templates: readonly TemplateRow[]): string {
 /**
  * `.shortcut-sub` of the Cadastros card. authored: `20-home.html` draws the four registries
  * that existed then; Empresa and Critérios de aceitação are tabs of the same surface since
- * Epic 2, so the line names all six (Epic 2 retro D-8).
+ * Epic 2, so the line names all of them in tab order (Epic 2 retro D-8), Frases de NC included
+ * since Epic 15 (fix batch fx15q, QA gap G2).
  */
-export const CADASTROS_SUBLINE = 'Empresa · Clientes · Instrumentos · Fabricantes · Classes de tensão · Critérios';
+export const CADASTROS_SUBLINE = 'Empresa · Clientes · Instrumentos · Fabricantes · Frases de NC · Classes de tensão · Critérios';

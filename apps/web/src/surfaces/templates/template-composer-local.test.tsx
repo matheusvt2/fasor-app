@@ -1,5 +1,18 @@
 import 'fake-indexeddb/auto';
-import { addCabine, addColuna, addPainel, emptyTemplate, renameNode, setFuncao, setQuantity, standardTemplate, type SkeletonNode, type TemplateRow } from '@app/domain';
+import {
+  addCabine,
+  addColuna,
+  addPainel,
+  emptyTemplate,
+  renameNode,
+  setAgruparPorTipo,
+  setFuncao,
+  setQuantity,
+  siteItems,
+  standardTemplate,
+  type SkeletonNode,
+  type TemplateRow,
+} from '@app/domain';
 import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
@@ -96,6 +109,24 @@ afterEach(() => {
 });
 
 describe('14.2 composer: the three levels', () => {
+  it('a local on a seed with the site checklist names it in its sub-line, between the Função and Agrupar (fix batch fx15q)', async () => {
+    let skeleton = addCabine([], 'loc', 'Cabine primária', 'primaria');
+    skeleton = setAgruparPorTipo(skeleton, 'loc', true);
+    skeleton = addCabine(skeleton, 'ger', 'Geradores');
+    database = await freshDb({ ...emptyTemplate(ID, 'v9'), skeleton });
+    renderComposer();
+    const n = siteItems('v9').length;
+    const verificacoes = `Verificações do local: ${n} itens, respondidos uma vez neste local`;
+    const primaria = await card(/^Local Cabine primária/);
+    expect(primaria.querySelector(':scope > .block-body .block-sub')).toHaveTextContent(
+      new RegExp(`^Função: primária · ${verificacoes} · Agrupar por tipo: ativado$`),
+    );
+    const geradores = await card(/^Local Geradores/);
+    expect(geradores.querySelector(':scope > .block-body .block-sub')).toHaveTextContent(
+      new RegExp(`^${verificacoes} · Agrupar por tipo: desativado$`),
+    );
+  });
+
   it('draws a local card with its kicker, flag and sub-line, its own equipment, its painel cards and their colunas; no string calls the root "cabine"', async () => {
     database = await freshDb(composed());
     const { container } = renderComposer();

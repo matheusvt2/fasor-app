@@ -741,7 +741,7 @@ test('@p0 15.5-E2E-001 at 390 px an open coluna\'s "Adicionar equipamento" opens
   await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: SYNC_CYCLE_TIMEOUT });
 });
 
-test('@p1 15.5-E2E-002 the coluna\'s "Adicionar equipamento" opens the right drawer on it at 768 px; at 1280 px it releases the coluna, no dialog opens and the focus goes to its head', async ({
+test('@p1 15.5-E2E-002 the coluna\'s "Adicionar equipamento" opens the right drawer on it at 768 px; at 1280 px the press is idempotent: the coluna stays the target, its row open, no dialog, the focus on the button', async ({
   page,
   seed,
 }) => {
@@ -763,11 +763,15 @@ test('@p1 15.5-E2E-002 the coluna\'s "Adicionar equipamento" opens the right dra
   await page.setViewportSize({ width: 1280, height: 900 });
   await expect(palette(page)).toBeVisible();
   await expect(palette(page).locator('.pal-target')).toHaveText(/^Toque para adicionar em: Coluna 1 · Painel 1/);
-  await row.locator('.col-body').getByRole('button', { name: 'Adicionar equipamento' }).click();
-  await expect(row).not.toHaveClass(/is-open/);
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(palette(page).locator('.pal-target')).toHaveText('Selecione um local ou uma coluna.');
-  await expect(row.locator('.col-head')).toBeFocused();
+  // Fix batch fx15q (Matheus, 2026-10-23): a press, then a second one, change nothing.
+  const add = row.locator('.col-body').getByRole('button', { name: 'Adicionar equipamento' });
+  for (let press = 0; press < 2; press += 1) {
+    await add.click();
+    await expect(row).toHaveClass(/is-open/);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(palette(page).locator('.pal-target')).toHaveText(/^Toque para adicionar em: Coluna 1 · Painel 1/);
+    await expect(add).toBeFocused();
+  }
   await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: SYNC_CYCLE_TIMEOUT });
 });
 

@@ -635,6 +635,24 @@ test('@p0 6.6-E2E-005 Sumário row 8 reads "2 pontos + 3 automáticos · 1 sem a
   await expect(cards(page).nth(1).locator('.poa-fields dd').first()).toHaveText('—');
 });
 
+// Fix batch fx15q (Matheus, 2026-10-23): with untested sheets and no manual point, row 8 reads
+// the automatic count alone, never "0 pontos + ...". No existing state of this file holds that
+// shape (every setUp with untested sheets also writes a manual point), so it gets its own test.
+test('@p1 6.6-E2E-016 Sumário row 8 reads "N automáticos" for untested sheets and no manual point', async ({ page }) => {
+  test.setTimeout(120_000);
+  let untested = 0;
+  await setUp(page, (scope, all) => {
+    const drafts = all.slice(0, 2).map((sheet) => notTestedDraft(scope, sheet.blockId));
+    untested = drafts.length;
+    return drafts;
+  });
+  expect(untested).toBe(2);
+  await expect(row8(page).locator('.sum-status')).toHaveText(`${untested} automáticos`);
+  await openPoints(page);
+  await expect(autoCards(page)).toHaveCount(untested);
+  await expect(cards(page)).toHaveCount(0);
+});
+
 test('@p1 6.6-E2E-006 a point citing a removed photo is named on row 8; "Remover" asks, tombstones it and "Desfazer" brings it back', async ({ page }) => {
   test.setTimeout(150_000);
   const photoId = newId();

@@ -102,6 +102,20 @@ const painelInTree = (name: string, localName: string) => `${name} de ${localNam
 /** The name a coluna's controls read in the relatório tree (second pass, 2026-10-13): with its painel and its local, since every painel's first coluna is "Coluna 1". */
 const colunaInTree = (name: string, painelName: string, localName: string) => `${name} de ${painelInTree(painelName, localName)}`;
 
+/**
+ * A local card's sub-line on a new template (seed `SEED_VERSION`): the Função part when set, the
+ * site checklist counted by the kernel (fix batch fx15q), then Agrupar por tipo.
+ */
+function localSub(funcao: string | null, agrupar: boolean): string {
+  return [
+    funcao === null ? null : `Função: ${funcao}`,
+    `Verificações do local: ${siteItems(SEED_VERSION).length} itens, respondidos uma vez neste local`,
+    `Agrupar por tipo: ${agrupar ? 'ativado' : 'desativado'}`,
+  ]
+    .filter((part) => part !== null)
+    .join(' · ');
+}
+
 async function openNewTemplate(page: Page): Promise<string> {
   await page.getByRole('link', { name: /Templates/ }).click();
   await expect(page).toHaveURL(/\/templates$/);
@@ -215,7 +229,7 @@ test('@p0 14.2-E2E-001 at 1280: a template of one local (Transformação) with t
   await addLocal(page, { funcao: 'Transformação' });
   await expect(composerAnnouncer(page)).toHaveText(`${LOCAL} adicionada`);
   await expect(localCards(page).locator(':scope > .block-body .block-name')).toHaveText([LOCAL]);
-  await expect(localCard(page, LOCAL).locator(':scope > .block-body .block-sub')).toHaveText('Função: transformação · Agrupar por tipo: desativado');
+  await expect(localCard(page, LOCAL).locator(':scope > .block-body .block-sub')).toHaveText(localSub('transformação', false));
 
   // Two transformers directly on the local: the local just added is the palette's target.
   await expect(palette(page).locator('.pal-target')).toHaveText(`Toque para adicionar em: ${LOCAL}, direto no local`);
@@ -535,7 +549,7 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
   await expect(composerAnnouncer(page)).toHaveText('Cabine primária adicionada');
   const card = localCard(page, 'Cabine primária');
   await expect(card.locator(':scope > .block-body .loc-flag')).toHaveText('sem painéis · 0 blocos');
-  await expect(card.locator(':scope > .block-body .block-sub')).toHaveText('Função: primária · Agrupar por tipo: desativado');
+  await expect(card.locator(':scope > .block-body .block-sub')).toHaveText(localSub('primária', false));
 
   // Below 1024 px the palette is a drawer. The local just added is already its target, so one tap on
   // "Adicionar equipamento" opens it on that local, and one more after closing opens it again
@@ -616,9 +630,9 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
   await editCard.getByRole('textbox', { name: 'Nome', exact: true }).fill('Cabine do térreo');
   await editCard.getByRole('button', { name: 'Salvar' }).click();
   await expect(composerAnnouncer(page)).toHaveText('Cabine do térreo atualizada');
-  await expect(localCard(page, 'Cabine do térreo').locator(':scope > .block-body .block-sub')).toHaveText('Função: transformação · Agrupar por tipo: desativado');
+  await expect(localCard(page, 'Cabine do térreo').locator(':scope > .block-body .block-sub')).toHaveText(localSub('transformação', false));
   await toast(page).getByRole('button', { name: 'Desfazer' }).click();
-  await expect(localCard(page, 'Cabine primária').locator(':scope > .block-body .block-sub')).toHaveText('Função: primária · Agrupar por tipo: desativado');
+  await expect(localCard(page, 'Cabine primária').locator(':scope > .block-body .block-sub')).toHaveText(localSub('primária', false));
   await expect(localCard(page, 'Cabine do térreo')).toHaveCount(0);
 
   // Every op of the composer walk is the template's own: its create, then skeleton puts.
