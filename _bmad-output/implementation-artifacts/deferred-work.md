@@ -2340,4 +2340,5 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: From 1024 px a coluna's "Adicionar equipamento" follows the local button's toggle literally: since a coluna's body shows only while it is the target, the press always releases it and closes the row. Whether it should instead keep the target (idempotent) or be hidden where the palette is inline is open.
   evidence: spec Design Notes; `template-composer.tsx` `onAddEquipamento`.
   class: decision
-  state: open (owner: Matheus)
+  ~~state: open (owner: Matheus)~~
+  state: done (2026-10-23, fix batch fx15q: idempotent from 1024 px, Matheus)

@@ -216,7 +216,10 @@ describe('6.6-UNIT pointsSummary and row 8', () => {
     // 1 live point + 1 derived entry: Bruno's app read "2 pontos · 1 não ensaiada".
     expect(pointsSummaryText({ total: 2, semAcao: 0, naoEnsaiadas: 1, derived: 1 })).toBe('1 ponto + 1 automático');
     expect(pointsSummaryText({ total: 5, semAcao: 1, naoEnsaiadas: 1, derived: 1 })).toBe('4 pontos + 1 automático · 1 sem ação');
-    expect(pointsSummaryText({ total: 1, semAcao: 0, naoEnsaiadas: 1, derived: 1 })).toBe('0 pontos + 1 automático');
+    // Only automatic points: the count alone, never "0 pontos + ..." (fix batch fx15q).
+    expect(pointsSummaryText({ total: 1, semAcao: 0, naoEnsaiadas: 1, derived: 1 })).toBe('1 automático');
+    expect(pointsSummaryText({ total: 2, semAcao: 0, naoEnsaiadas: 2, derived: 2 })).toBe('2 automáticos');
+    expect(pointsSummaryText({ total: 2, semAcao: 1, naoEnsaiadas: 2, derived: 2 })).toBe('2 automáticos · 1 sem ação');
     expect(pointsSummaryText({ total: 3, semAcao: 0, naoEnsaiadas: 0, derived: 0 })).toBe('3 pontos');
     // A live point from an untested sheet beside a derived entry still adds "1 não ensaiada".
     expect(pointsSummaryText({ total: 2, semAcao: 0, naoEnsaiadas: 2, derived: 1 })).toBe('1 ponto + 1 automático · 1 não ensaiada');

@@ -402,7 +402,7 @@ describe('shortcut sub-lines', () => {
   });
 
   it('names the registries the mock names', () => {
-    expect(CADASTROS_SUBLINE).toBe('Empresa · Clientes · Instrumentos · Fabricantes · Classes de tensão · Critérios');
+    expect(CADASTROS_SUBLINE).toBe('Empresa · Clientes · Instrumentos · Fabricantes · Frases de NC · Classes de tensão · Critérios');
   });
 });
 

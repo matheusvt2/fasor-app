@@ -355,7 +355,7 @@ describe('15.5 composer: "Adicionar equipamento" on an open coluna', () => {
     expect(row.querySelector('.col-none')).toBeNull();
   });
 
-  it('with the palette beside the composition (from 1024 px) the press releases the coluna, no drawer opens and the focus goes to its head', async () => {
+  it('with the palette beside the composition (from 1024 px) the press is idempotent: the coluna stays the target, its row open, no drawer, the focus on the button', async () => {
     const offsetParent = vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockImplementation(() => document.body);
     try {
       database = await freshDb(standardTemplate({ id: ID }));
@@ -364,11 +364,16 @@ describe('15.5 composer: "Adicionar equipamento" on an open coluna', () => {
       await userEvent.click(head);
       const row = head.closest('li') as HTMLElement;
       await waitFor(() => expect(row).toHaveClass('is-open'));
-      await userEvent.click(within(row).getByRole('button', { name: 'Adicionar equipamento' }));
-      await waitFor(() => expect(row).not.toHaveClass('is-open'));
-      expect(screen.queryByRole('dialog')).toBeNull();
-      expect(palette().querySelector('.pal-target')).toHaveTextContent('Selecione um local ou uma coluna.');
-      await waitFor(() => expect(head).toHaveFocus());
+      const add = within(row).getByRole('button', { name: 'Adicionar equipamento' });
+      // Fix batch fx15q (Matheus, 2026-10-23): one press, then a second, change nothing.
+      for (let press = 0; press < 2; press += 1) {
+        await userEvent.click(add);
+        expect(row).toHaveClass('is-open');
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(palette().querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Coluna 9 · 1° Subsolo');
+        expect(add).toHaveFocus();
+        expect(add).toHaveAttribute('aria-pressed', 'true');
+      }
     } finally {
       offsetParent.mockRestore();
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getDefinition } from '../seed/definitions.ts';
+import { getDefinition, siteItems } from '../seed/definitions.ts';
 import { standardTemplate, templateTotals, zeroTotals } from '../seed/template.ts';
 import { addCabine, addColuna, addPainel, composerView, findComposerNode, setAgruparPorTipo, setQuantity } from './compose.ts';
 import { emptyTemplate } from './list.ts';
@@ -184,11 +184,19 @@ describe('14.2-UNIT composer texts: Local › Painel › Coluna', () => {
     expect(nodeSummaryText(view.cabines[0]!.paineis[0]!.colunas[1]!)).toEqual({ flag: '2 blocos', sum: '2 disjuntores' });
   });
 
-  it('writes the local sub-line: the Função in lower case when there is one, then Agrupar por tipo', () => {
-    expect(localSubText(view.cabines[0]!)).toBe('Função: primária · Agrupar por tipo: ativado');
-    expect(localSubText(view.cabines[1]!)).toBe('Função: medição · Agrupar por tipo: desativado');
-    expect(localSubText(view.cabines[2]!)).toBe('Agrupar por tipo: desativado');
-    expect(localSubText({ funcao: 'transformacao', agrupar_por_tipo: false })).toBe('Função: transformação · Agrupar por tipo: desativado');
+  it('writes the local sub-line: the Função in lower case when there is one, the site checklist, then Agrupar por tipo', () => {
+    // A seed without the site checklist (v1-v3) has no Verificações part.
+    expect(siteItems('v3')).toHaveLength(0);
+    expect(localSubText(view.cabines[0]!, 'v3')).toBe('Função: primária · Agrupar por tipo: ativado');
+    expect(localSubText(view.cabines[1]!, 'v1')).toBe('Função: medição · Agrupar por tipo: desativado');
+    expect(localSubText(view.cabines[2]!, 'v2')).toBe('Agrupar por tipo: desativado');
+    expect(localSubText({ funcao: 'transformacao', agrupar_por_tipo: false }, 'v3')).toBe('Função: transformação · Agrupar por tipo: desativado');
+    // Seed v9 carries the site checklist: the count reads from the kernel, between Função and Agrupar.
+    const n = siteItems('v9').length;
+    expect(n).toBeGreaterThan(1);
+    const verificacoes = `Verificações do local: ${n} itens, respondidos uma vez neste local`;
+    expect(localSubText(view.cabines[0]!, 'v9')).toBe(`Função: primária · ${verificacoes} · Agrupar por tipo: ativado`);
+    expect(localSubText(view.cabines[2]!, 'v9')).toBe(`${verificacoes} · Agrupar por tipo: desativado`);
   });
 
   it('names the palette target: a coluna with its painel (or its local), a local "direto no local"', () => {

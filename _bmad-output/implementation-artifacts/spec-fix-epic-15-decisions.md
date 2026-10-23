@@ -2,7 +2,8 @@
 title: 'Fix batch fx15q: four one-screen corrections of Epic 15 after the v0.3.0 QA'
 type: 'bugfix'
 created: '2026-10-23'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: 'be4b442305962b0a18e08f052c337183bb62dda1'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'

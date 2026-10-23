@@ -3,6 +3,7 @@ import type { EquipmentBlockType, SubBlockKey } from '../schemas/block-config.ts
 import type { TemplateRow } from '../schemas/entities.ts';
 import { formatCriterionValue, SEEDED_CRITERIA } from '../seed/criteria.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
+import { siteItems } from '../seed/definitions.ts';
 import { funcaoLabel } from '../relatorio/local.ts';
 import { plural, relatoriosCount } from '../text/plural.ts';
 import { composerView, type ComposerCabine, type ComposerNode, type ComposerView } from './compose.ts';
@@ -178,14 +179,19 @@ export function nodeSummaryText(node: ComposerNode): NodeSummary {
 }
 
 /**
- * A local card's `.block-sub` (`42-template-composer.html`, without the 14.3 part): "Função:
- * primária · Agrupar por tipo: ativado"; the Função part is left out while the local holds
- * none. The Função is the kernel's label in lower case, as the mock writes it mid-sentence.
+ * A local card's `.block-sub` (`42-template-composer.html`): "Função: primária · Verificações do
+ * local: 21 itens, respondidos uma vez neste local · Agrupar por tipo: ativado". The Função part
+ * is left out while the local holds none; the Verificações part counts the site checklist of the
+ * template's seed version (Story 14.3) and is left out on a seed without one. The mock's
+ * "alvenaria: ..." part is not drawn. The Função is the kernel's label in lower case, as the mock
+ * writes it mid-sentence.
  */
-export function localSubText(cabine: Pick<ComposerCabine, 'funcao' | 'agrupar_por_tipo'>): string {
+export function localSubText(cabine: Pick<ComposerCabine, 'funcao' | 'agrupar_por_tipo'>, seedVersion: string): string {
   const funcao = funcaoLabel(cabine.funcao);
+  const siteItemCount = siteItems(seedVersion).length;
   const parts: string[] = [];
   if (funcao !== null) parts.push(`Função: ${funcao.toLocaleLowerCase('pt-BR')}`);
+  if (siteItemCount > 0) parts.push(`Verificações do local: ${plural(siteItemCount, 'item', 'itens')}, respondidos uma vez neste local`);
   parts.push(`Agrupar por tipo: ${cabine.agrupar_por_tipo ? 'ativado' : 'desativado'}`);
   return parts.join(SEP);
 }

@@ -113,15 +113,21 @@ export const NO_POINTS_TEXT = 'Nenhum ponto de atenção';
  * Sumário row 8: "5 pontos · 1 sem ação · 3 não ensaiadas", the parts that are not 0; "Nenhum
  * ponto de atenção" when empty. Story 15.2 (F34, `40-relatorio-overview.html`): the derived
  * (automatic) entries are counted once, after the live points as the Points heading words
- * them ("4 pontos + 1 automático · 1 sem ação", "0 pontos + 1 automático"); "não ensaiadas"
- * then counts only the live points written from a sheet still untested.
+ * them ("4 pontos + 1 automático · 1 sem ação"); with no live point the first part is the
+ * automatic count alone ("1 automático", "2 automáticos"; Matheus, 2026-10-23, fix batch
+ * fx15q), never "0 pontos + ...". "não ensaiadas" then counts only the live points written
+ * from a sheet still untested.
  */
 export function pointsSummaryText(summary: PointsSummary): string {
   if (summary.total === 0) return NO_POINTS_TEXT;
   const live = summary.total - summary.derived;
   const untestedLive = summary.naoEnsaiadas - summary.derived;
   return [
-    summary.derived > 0 ? `${plural(live, 'ponto', 'pontos')} + ${plural(summary.derived, 'automático', 'automáticos')}` : plural(summary.total, 'ponto', 'pontos'),
+    summary.derived === 0
+      ? plural(summary.total, 'ponto', 'pontos')
+      : live === 0
+        ? plural(summary.derived, 'automático', 'automáticos')
+        : `${plural(live, 'ponto', 'pontos')} + ${plural(summary.derived, 'automático', 'automáticos')}`,
     summary.semAcao > 0 ? `${summary.semAcao} sem ação` : null,
     untestedLive > 0 ? naoEnsaiadasText(untestedLive) : null,
   ]
