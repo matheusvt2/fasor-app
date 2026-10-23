@@ -2,7 +2,7 @@
 title: 'Fix batch fx15q: four one-screen corrections of Epic 15 after the v0.3.0 QA'
 type: 'bugfix'
 created: '2026-10-23'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'be4b442305962b0a18e08f052c337183bb62dda1'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -82,9 +82,23 @@ deferred: []
 
 ## Review Triage Log
 
+Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter, Intent Alignment (token economy; the integrated epic review covers them).
+
+### 2026-10-23 — Review pass
+- verdicts: 4 findings — high 0, medium 0, low 3, false 1, maybe-false 0
+- findings:
+  - `[low]` `[reject]` `localSubText` would read "1 item, respondidos" on a seed with exactly one site item — no seed has one (v1-v3 none, v4+ 19 or more); not met in use.
+  - `[low]` `[reject]` e2e `localSub()` always adds the Verificações part with "itens" — the spec runs on `SEED_VERSION` (v9, 21 items); it would only drift if a future seed shipped 0 or 1 items.
+  - `[false]` `[reject]` `pointsSummaryText` with `derived > total` reads "-1 pontos" — `pointsSummary` sets `total = live.length + derived.length`, so derived never exceeds total.
+  - `[low]` `[reject]` Points surface heading still reads "Pontos de atenção (0 + N automáticos)" — the decision names row 8 and `PointsSummary.derived` text only; listed as an open question in the PR body.
+
 ## Verification
 
 **Commands (all in the tools container, `podman compose --profile tools run --rm --user root tools ...`):**
 - `pnpm test:unit -- <touched test paths>` while iterating -- green
 - `pnpm lint`, `pnpm static` -- green
 - Playwright is run by the orchestrator under the host lock; the implementer does not run Playwright.
+
+## Auto Run Result
+
+Status: done. Four corrections: coluna "Adicionar equipamento" idempotent from 1024 px (`template-composer.tsx`, `skeleton-list.tsx`); row 8 "N automáticos" with no manual point (`points/summary.ts`); the composer local sub-line names the site checklist with the kernel count (`templates/text.ts` `localSubText(cabine, seedVersion)`); `CADASTROS_SUBLINE` lists seven tabs (`home/cards.ts`). Tests: 7 unit/component tests red on the reverted sources, green with the fix (165/165 in the 7 files); e2e updated in `templates.spec.ts` (15.5-E2E-002), `local-painel-coluna.spec.ts`, new `points.spec.ts` 6.6-E2E-016. No patches; 4 findings rejected (see triage log). Follow-up review: false. Residual: Points heading wording with only automatic points (open question); the Cadastros default tab stays Instrumentos for a registered company (F-20 decision, not a one-line default).
