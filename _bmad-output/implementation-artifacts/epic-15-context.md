@@ -75,6 +75,11 @@ Cross-batch merge rule (2026-10-15): before the second PR of wave A merges, merg
 spec lists on the result under the host lock. Tools run only in the `tools` container through `podman compose`;
 worktree stacks remap ports through `compose.local.yml` (orchestrator § 1).
 
+## Wave gates (coordinator)
+
+- **Wave A gate, 2026-10-22, main `e8a144a6`** (after PRs #158, #162, #161, #163, #165): lint, static, api 682/682, unit 4429/4429, matrix 106/106; `@p0` 299/305 and `test:e2e:full` 504/520. Triage in PR #169 (merged as `b20a06e8`): three stale specs (ergonomics 19 site rows on seed v9, status-flow "seção 9" after a section removal, review-layout-interaction headers without units) and one layout regression from PR #156 (the Condição cell's uppercase word plus the calc mark made the transformer TTR scroll at 1280 px, DC-1; fixed by showing the mock's "Satisfatório"/"Insatisfatório" without the mark, the print unchanged); seven load flakes green alone on the same commit (R8CAP-E2E-010, templates 3.4-E2E-003/005/006 and 15.5-E2E-001, photos 6.2-E2E-001/005, plate-shot-fallback 14.10-E2E-003, suggestions 8.1-E2E-005).
+- **Wave B gate, 2026-10-23, main `b20a06e8`** (after PRs #167, #168, #169): started by the coordinator; result recorded here when it ends.
+
 ## Out of scope
 
 The sibling next/previous shortcut inside a sheet (Bruno's question 4, other reading); a TC-specific checklist (F29,
