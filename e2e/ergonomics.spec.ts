@@ -1,3 +1,4 @@
+import { SEED_VERSION, siteItems } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
@@ -171,10 +172,10 @@ test('@p0 ERGO-E2E-001 glove targets at 390 and 768 px: every control at least 4
     await expect(page.locator('.se-block').first()).toBeVisible();
     await sweep(page, `Ficha ${at}`, found, measured);
 
-    // Story 14.3: the site checklist of that local (the 19 rows, the bulk action, the Sticky action bar).
+    // Story 14.3: the site checklist of that local (its rows, 21 on seed v9, the bulk action, the Sticky action bar).
     await page.goto(`/relatorio/${built.relatorioId}/local/${enel.id}/verificacoes`);
     await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
-    await expect(page.locator('li.checklist-row')).toHaveCount(19);
+    await expect(page.locator('li.checklist-row')).toHaveCount(siteItems(SEED_VERSION).length);
     await sweep(page, `Verificações do local ${at}`, found, measured);
   }
 

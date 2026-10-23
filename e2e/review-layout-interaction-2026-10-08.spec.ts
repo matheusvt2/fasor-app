@@ -233,7 +233,7 @@ test('@p0 R8LAY-E2E-001 DC-1 the transformer TTR at 768, 1024 (rail open) and 12
     await expect(ttr.locator('table.ficha-ttr')).toBeVisible();
     const geometry = await expectTableWhole(page, ttr, where, 72, inputs.nth(4));
     expect(geometry.inputs.map((input) => input.value)).toEqual(['13,8', '380', '34,512', '39,48', '34,51']);
-    await expect(ttr.locator('table.ficha-ttr thead th')).toHaveText(['TAP nº', 'V primário', 'V secundário', 'Calculado', 'H1-H3 / X1-X0', 'H2-H1 / X2-X0', 'H3-H2 / X3-X0', 'Condição']);
+    await expect(ttr.locator('table.ficha-ttr thead th')).toHaveText(['TAP nº', 'V primário (kV)', 'V secundário (V)', 'Calculado', 'H1-H3 / X1-X0', 'H2-H1 / X2-X0', 'H3-H2 / X3-X0', 'Condição']);
     if (size.width === 1280) expect(geometry.scroller.scrollWidth, `1280: the table scroller scrolls: ${geometry.columns}`).toBeLessThanOrEqual(geometry.scroller.clientWidth);
     else {
       // Where the table scrolls, Enter on the last capture brings the row's Condição (its verdict) into the scroller's box.
