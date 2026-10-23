@@ -1,0 +1,72 @@
+# Epic 16 Context: Bruno's second production feedback (WhatsApp of 2026-10-23)
+
+<!-- Compiled 2026-10-23 from epics.md Epic 16, Bruno's WhatsApp messages of 2026-10-23 (three items, one desktop
+screenshot of the preview beside the DOCX in Word), the production request log of 2026-10-22/23, source-deltas.md rows
+of 2026-10-23, spine AD-1/11/15/17/26. Current decisions only. Edit freely. -->
+
+## Goal
+
+Three items Bruno sent after using v0.3.0 and v0.3.1 on a desktop, landed as four stories: the header logo whole in the DOCX and the
+PDF (16.1), the Export dialog saying that the listed revisions predate the edits so nobody sends yesterday's revision
+for today's preview (16.2), the "Ler visor" display shots out of the REGISTRO FOTOGRÁFICO and the numbering (16.3), and
+"N.A" accepted in a nameplate or cabine number field as the AD-11 `not_applicable` state (16.4, contract 26).
+
+The DOCX item was investigated as a possible rendering fault and is not one: the production log shows no
+`POST .../generate` on 2026-10-23 for Bruno's relatório; the file he opened was the revision of 2026-10-22 15:12 BRT,
+downloaded from the "Revisões" list after six previews (`epics.md` Epic 16 preamble).
+
+## Stories, waves and lanes
+
+| Wave | Batch | Story | Dev model | Seed / contract | Base |
+|---|---|---|---|---|---|
+| A | e16a | 16.1 The header logo fits its cell | sonnet · low | none | main (01d37c76 or later); deployed alone as v0.3.2 |
+| A | e16b | 16.2 A revision older than the edits says so | sonnet · medium | none | main |
+| A | e16b | 16.3 Display shots print only under their test | opus · medium | none | same branch as 16.2 |
+| B | e16c | 16.4 "N.A" in a nameplate or cabine number field | opus · high | **contract 26, minimum 26** (no seed) | main, after wave A's gate |
+
+Two batch stacks at a time (E11-A1 load rule): e16a and e16b run in parallel as two worktrees; e16a merges first and
+ships as v0.3.2 (Bruno waits on the logo); e16c starts after wave A's gate. Numbers are fixed here: no other batch
+takes contract 26.
+
+Defaults taken on 2026-10-23 (Matheus) while Bruno's two questions are out; an answer that differs becomes a dated line
+under its story before the batch merges:
+
+- 16.3: display shots leave section 7 and the "Imagem N" numbering, print after their test in section 9 with the
+  caption sentence alone, carry no badge on screen and are not offered by the point editor's picker.
+- 16.4: nameplate and cabine number fields only; typings `N.A`, `NA`, `N/A`, `N.A.` in any case; shown and printed
+  "N.A"; stored `{ raw: '', unit: null, state: 'not_applicable' }`.
+- 16.2: the mock's banner sentence with number and date live; "gerado" unless that revision had been marked as sent;
+  row tag " — anterior às alterações".
+
+## Cross-story table (one assertion per shared item)
+
+| Shared item | Stories | Assertion |
+|---|---|---|
+| `print/revisions.ts` (`revisionRowSegments`, new banner sentence) | 16.2 | the only place the sentence and the tag are composed; `export-dialog.tsx` renders strings it receives |
+| `photos/numbering.ts` `numberPhotos` | 16.3 | one filter (`reading_kind !== 'display'`) feeds section 7, section 8 refs, section 9, the audit input and every web badge; no second numbering anywhere in `apps/*` |
+| `print/section-9.ts` `sheetPhotos`, `photoLine` | 16.3, 16.4 | 16.3 changes the display shot's line only; 16.4 changes `storedValueText` only; the Porto Seguro goldens (v1, no logo, no display shot, no N.A) unchanged by both |
+| `schemas/entities.ts` `numberValueSchema`; `contract/version.ts` | 16.4 | one enum value, one contract entry (26/26); `contract/ocr.ts` keeps its own three-state schema so `schema:ocr` output is unchanged (the kernel drift test stays green) |
+| `relatorio/ficha.ts` `numberFieldValue`, `fieldValueText`; `components/number-input.tsx` | 16.4 | the parse answers the N.A variant beside `null`/`'invalid'`/measured; `NumberField` and the cabine fields commit it; measurement cells never see it |
+| `apps/api/src/jobs/generate/docx.ts` header constants | 16.1 | `LOGO_MAX_WIDTH_PX` derives from `CONTENT_WIDTH_TWIPS / 2 - CELL_MARGINS_TWIPS`; the logo cell equals the drawing plus margins; `docx.test.ts` A11 reads `wp:extent` against `w:tcW` |
+| `e2e/export.spec.ts` E4-E2E-001 | 16.2 | extended, not duplicated: banner and tag after the edit, gone after revision 2 |
+
+Undo pairs: 16.4 adds no op kind (an N.A commit is the existing nameplate/cabine put); 16.1, 16.2 and 16.3 add no op.
+
+## Gate
+
+The 2026-10-08 story gate per PR: `lint`, `static`, `test:unit`, `test:api` and the Playwright specs the story touched
+(`pnpm exec tsx scripts/e2e.ts <specs> --project desktop-chrome --project durability-desktop-chrome`), plus the touched
+durability specs on the matrix projects for e16c (it changes a value shape the ficha's live query folds). The full
+`@p0`, `test:e2e:full` and the matrix once per wave on the integrated main, by the coordinator. Tools run only in the
+`tools` container through `podman compose`; worktree stacks remap ports through `compose.local.yml` (orchestrator § 1).
+
+## Wave gates (coordinator)
+
+(none yet)
+
+## Out of scope
+
+Free text in number fields (refused: the ratio, the voltage classes, the criterion bands, the OCR confirmations and the
+cabine lines read numbers); the `unchanged` short-circuit ignoring registry and user edits (`deferred-work.md` row of
+Story 4.8, unchanged); any seed change (v10 stays Story 15.7, waiting for Bruno's TC list); the Epic 15 retrospective
+(runs before wave B).

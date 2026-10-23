@@ -4186,6 +4186,147 @@ So that I am not marking NA a transformer's valves, fans and radiators on every 
 
 **Definition of Done, in addition:** the contract decision in the PR; `docs/nc-chip-phrases.md` lists the TC phrases; a Playwright spec opens a v10 TC sheet and counts the items; `source-deltas.md`, `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` gain dated notes.
 
+## Epic 16: Bruno's second production feedback (WhatsApp of 2026-10-23)
+
+Bruno's messages of 2026-10-23 (11:31 and 13:03 BRT), against production v0.3.0 and v0.3.1 on a desktop browser and Word, carry three items with one screenshot: the DOCX he downloaded kept old photos and captions while the in-app preview showed his corrections ("Corrigir: Registro fotográfico vinculado com as imagens de Relatório dos ensaios"), the wish to type letters in a numeric field ("Permitir inserir letras nos campos destinados a inserir valores numéricos (exemplo: Potência Nominal do TC, permitir colocar N.A caso não tenha informação na plaqueta)"), and the company logo cut in the header ("redimensionar o logo no cabeçalho pra ficar certinho. Sem cortar. Aí eu consigo mandar pra frente"). Investigated 2026-10-23 by Matheus with the agent against main `01d37c76` and the production request log (`/fasor/production/api`, `http_request` lines, read with `infra/bin/aws logs filter-log-events`):
+
+- The DOCX is not a rendering fault. The preview and the issue job share one code path (`apps/api/src/jobs/generate/job.ts` freezes one snapshot, `layoutSpec` builds one layout, `buildDocx` renders it; the preview differs by `draft: true`). The log shows, for Bruno's relatório: 2026-10-22 15:12 BRT `POST .../generate` 202 (a revision issued and downloaded at 15:16 and 15:21); 2026-10-23 10:23 the same revision's DOCX downloaded again; 10:32 to 11:28 six `POST .../preview` and five `preview.pdf` reads; 10:50 the same revision's DOCX downloaded once more, from the dialog's "Revisões" list; and **no `POST .../generate` on 2026-10-23**. The DOCX of the screenshot is the revision of the day before, frozen by design (AD-15); the app never says that a listed revision predates the edits. The mock `73-exportar.html` draws that banner ("Relatório emitido em 10/09 (revisão 2). Alterações desde então geram a revisão 3 — as anteriores continuam disponíveis abaixo."); `export-dialog.tsx` does not render it, and a revision row reads only "Rev. N — date — who".
+- The "linked with the test-report images" half is real: section 7 prints every live photo, the sheets' "Ler visor" display shots included (`packages/domain/src/print/section-7.ts`, "a photo linked to a sheet prints here too"), so the old revision's section 7 opened with the 08:33 megohmmeter display shot as "Imagem 2"; by the preview Bruno had removed those photos, which also took them out of section 9. FO.SERV-03's own section 7 (82 photos, activity captions; `imports/extract-fo-serv-03.md` lines 73 to 76) carries no instrument display photos.
+- Letters in a number field: `numberFieldValue` (`relatorio/ficha.ts`) parses with `parseDecimalPtBr` and the `NumberField` of `ficha-fields.tsx` flags anything else "Número não reconhecido" and commits nothing; a blank field prints "-". POTÊNCIA NOMINAL left the TC in seed v9 (Story 15.3), but a relatório keeps the seed it was created with, so Bruno still sees it. Numbers feed the ratio (`reading-cells.ts` `nameplateNumber`), the voltage classes and criterion bands, the OCR confirmations and the cabine lines, so free text is refused; the plate's one legitimate non-number is "não consta".
+- The logo: `apps/api/src/jobs/generate/docx.ts` caps the image at `LOGO_MAX_WIDTH_PX` = half the content width (5233 twips, 9.23 cm, 349 px) and caps the logo *cell* at that same half, while Word's default cell margins (`CELL_MARGINS_TWIPS`, 0.19 cm each side) sit inside the cell. A logo wider than about 3:1 (Fasor's is about 4:1, so the 3 cm height cap never wins) is drawn 9.23 cm wide in a cell whose inner width is 8.85 cm; Word and LibreOffice both clip the right 0.38 cm, the cut "R" of FASOR and "A" of ENGENHARIA in both halves of the screenshot (the RASCUNHO PDF shows the same cut). The structure golden never caught it: the Porto Seguro fixture has no logo (`deferred-work.md`, the A11 row).
+
+Decisions (Matheus, 2026-10-23): proceed on the defaults named under each story; the two questions below go to Bruno with the next message, and an answer that differs from a default becomes a dated line under its story before the batch that builds it merges. No story changes seeds v1 to v9. Waves: **A**, now, two lanes: e16a = 16.1 alone (the logo; Bruno is waiting to send the relatório; deployed as v0.3.2 as soon as its gate is green), e16b = 16.2 + 16.3 (kernel text and print, the Export dialog; no contract change); **B**: e16c = 16.4 (contract 26, minimum 26) after wave A's gate. The 2026-10-08 story gate applies to every story; the full `@p0`, `test:e2e:full` and the matrix run once per wave on the integrated main.
+
+**Questions for Bruno (2026-10-23, pt-BR, by Matheus):** (1) the "Ler visor" display shots (the instrument screen photos the reading comes from) leave the REGISTRO FOTOGRÁFICO and print only under their test in RELATÓRIOS DOS ENSAIOS, without an "Imagem N" number (default taken in 16.3); or should they not print at all? (2) the spelling of the not-applicable value in a number field: "N.A" as he wrote, or "NA" as the checklist prints Não Aplicável (default "N.A", 16.4)?
+
+### Story 16.1: The header logo fits its cell
+
+**Dev model:** sonnet · **Effort:** low · one width cap and one cell size in the DOCX header, with a test over a wide logo; no kernel, no contract
+
+As Bruno sending the relatório to the client,
+I want the company logo whole in the header of the DOCX and the PDF,
+So that the document goes out without a cut logo.
+
+**Today (verified 2026-10-23 in the code of main `01d37c76`):** `apps/api/src/jobs/generate/docx.ts` sizes the logo with `sizedImage(logo, LOGO_MAX_WIDTH_PX, LOGO_MAX_HEIGHT_PX)` where `LOGO_MAX_WIDTH_PX = round((CONTENT_WIDTH_TWIPS / 2 / 1440) * 96)` and `LOGO_MAX_HEIGHT_PX = round(3 * PX_PER_CM)`; `logoHeader` then sets `logoWidth = min(CONTENT_WIDTH_TWIPS / 2, ceil(logo.width * TWIPS_PER_PX) + CELL_MARGINS_TWIPS)`, so a width-capped logo gets a cell as wide as the image, not as wide as the image plus its margins, and the image overflows the cell's inner width by `CELL_MARGINS_TWIPS` (216 twips, 0.38 cm). `docx.test.ts` "A11" checks the table's shape with a small JPEG and never compares the drawing's extent with the cell.
+
+*(Definition of Ready: met on 2026-10-23: the cause is in the code above; no decision open.)*
+
+**Acceptance Criteria:**
+
+**Given** a company logo wider than tall (a 4:1 PNG, as Fasor's)
+**When** a DOCX renders with it
+**Then** the drawing's extent is at most half the content width minus Word's two cell margins (`CONTENT_WIDTH_TWIPS / 2 - CELL_MARGINS_TWIPS`), the logo cell is exactly the drawing's width plus the margins, the lines cell takes the rest, and the image is whole in Word and in the LibreOffice PDF (nothing clipped on either side; the title and form lines stay beside it, A11 unchanged) (FR-68; AD-15)
+
+**Given** a logo taller than wide
+**When** a DOCX renders with it
+**Then** the 3 cm height cap decides as today and the cell again equals the image plus its margins
+
+**Given** no logo
+**When** a DOCX renders
+**Then** the plain header is byte-for-byte as today and the Porto Seguro golden documents still match
+
+**Definition of Done, in addition:** `docx.test.ts` "A11" gains a wide-logo case that reads `wp:extent` (EMU, 635 per twip) and the cell's `w:tcW` and asserts the inequality above, and a tall-logo case for the height cap; the preview of the dev company with a wide logo looked at once in Word or LibreOffice (screenshot in the PR); the `deferred-work.md` A11 row gains the closing note; deployed as v0.3.2 after its gate (Bruno waits on it); `docs/kbs/log.md` line.
+
+### Story 16.2: A revision older than the edits says so
+
+**Dev model:** sonnet · **Effort:** medium · two kernel sentences in `print/revisions.ts`, the mock's banner and a row tag in the Export dialog, the export spec extended; no op, no contract
+
+As Bruno opening "Gerar relatório" after correcting a relatório,
+I want the dialog to tell me that the revisions listed are older than my corrections and that a press generates the next one,
+So that I never send a revision rendered before my changes thinking it is the preview I just read.
+
+**Today (verified 2026-10-23 in the code of main `01d37c76`):** `useGenerate` (`apps/web/src/surfaces/export/use-generate.ts`) already computes `edited` (`useEditedSince` over the latest revision's `snapshot_seq`, the kernel's `editedOnDevice`) and `idleNumber`; the only trace of it on screen is the idle reason "…como a revisão N+1" beside the button. The mock `73-exportar.html` draws, under the dialog title, `<div class="banner" role="status">` with "Relatório emitido em 10/09 (revisão 2). Alterações desde então geram a revisão 3 — as anteriores continuam disponíveis abaixo."; `export-dialog.tsx` renders no banner (`.banner` is styled in `components.css` and used by `state/banner-slot.tsx` elsewhere). `revisionRowSegments` (`packages/domain/src/print/revisions.ts`) composes "Rev. N — ⟨date⟩ — ⟨who⟩" and nothing about the row's age. `e2e/export.spec.ts` E4-E2E-001 walks generate, mark as sent, edit, generate 2 and counts the rows.
+
+*(Definition of Ready: met on 2026-10-23: the banner's words are the mock's with the number and date live; "emitido" stands only for a revision marked as sent (status Emitido at the time of the edit), "gerado" otherwise (authored, p020 P-5: "Gerar" generates, "Emitir" issues); the row tag "anterior às alterações" is authored and listed for Bruno.)*
+
+**Acceptance Criteria:**
+
+**Given** a relatório with a latest revision and something edited since its snapshot (the kernel's `editedOnDevice`)
+**When** the Export dialog opens, in any phase but `working`
+**Then** the mock's banner stands under the title with the kernel's sentence ("Relatório gerado em ⟨dd/mm⟩ (revisão N). Alterações desde então geram a revisão N+1 — as anteriores continuam disponíveis abaixo."; "emitido" when that revision had been marked as sent), and every row of "Revisões" ends with the kernel's tag " — anterior às alterações"; `apps/web` composes neither sentence nor tag (AD-1; EXPERIENCE.md › Export dialog)
+
+**Given** nothing edited since the latest revision
+**When** the dialog opens
+**Then** no banner and no tag; the ready block's `nextEditNote` and "Marcar como enviado ao cliente" are as today
+
+**Given** the banner shown
+**When** "Gerar relatório" generates revision N+1 and it arrives
+**Then** the banner leaves, the new row carries no tag and the older rows keep none (the sentence speaks of the latest revision only); after the next edit the banner returns naming N+1
+
+**Given** no revision yet
+**When** the dialog opens
+**Then** nothing changes ("Nenhuma revisão gerada ainda.")
+
+**Definition of Done, in addition:** `print/revisions.test.ts` covers the sentence (gerado, emitido, number, date) and the tag; `export-dialog.test.tsx` renders the three states; E4-E2E-001 asserts the banner and the tag after the edit and their absence after revision 2; the authored strings are listed in the PR for Bruno; `MOCK-GUIDE.md` notes the banner is built; `source-deltas.md`, `docs/kbs/log.md` lines.
+
+### Story 16.3: Display shots print only under their test
+
+**Dev model:** opus · **Effort:** medium · kernel only: `photos/numbering.ts`, `print/section-7.ts`, `print/section-9.ts`, `points/refs.ts`, the gallery and sheet strip labels that read the numbers; goldens unchanged
+
+As Bruno reading the REGISTRO FOTOGRÁFICO,
+I want it to hold the photos of the site and the work, not the instrument screens the readings came from,
+So that the record reads as FO.SERV-03's and the display shots stay with their test.
+
+**Today (verified 2026-10-23 in the code of main `01d37c76`):** a "Ler visor" burst stores each frame as a photo with `reading_kind: 'display'` (`schemas/entities.ts` line 541) on the sheet's block. `numberPhotos` (`photos/numbering.ts`) numbers every live photo in capture order; `section7Photos` prints every live photo with that number; section 9's `sheetPhotos` puts a display shot in `other` and prints it after the tests as "Imagem N: ⟨legenda⟩."; `points/refs.ts` and `audit/input.ts` resolve `[[foto:id]]` tokens through the same numbers; the gallery, the sheet's "Fotos da ficha" strip, the caption dialog and the point editor show the number badge (`numberPhotos` in `apps/web/src/surfaces/photos`, `ficha`, `points`). The Porto Seguro fixture holds no display shot, so the goldens do not exercise this.
+
+*(Definition of Ready: default taken on 2026-10-23 (Matheus): display shots leave section 7 and the numbering and print under their test without a number; Bruno's question 1 is out, and "do not print them at all" becomes a dated line here if that is his answer.)*
+
+**Acceptance Criteria:**
+
+**Given** a relatório with photos of which some carry `reading_kind: 'display'`
+**When** `numberPhotos` runs and the document prints
+**Then** the display shots get no number, the other photos number 1, 2, 3… with no gap, section 7 lists only the numbered photos, section 8's "conforme Imagem N" and the audit's references resolve on the same numbers, and the Porto Seguro golden documents still match (AD-17; FR-68)
+
+**Given** a sheet with a display shot
+**When** its RELATÓRIO DOS ENSAIOS prints
+**Then** the shot prints after the test tables where it prints today, its line the caption sentence alone ("⟨legenda⟩." or, uncaptioned, the full stamp), never "Imagem N:"; a sheet without display shots prints as today
+
+**Given** the gallery, the sheet strip, the caption dialog and the point editor
+**When** they show a display shot
+**Then** it carries no number badge and no "Imagem N" words, the point editor's photo picker does not offer it, and the other photos' numbers match the document; a caption saved on a display shot toasts without a number (`captionSavedText(null)`)
+
+**Given** a display shot removed or restored
+**When** the numbers recompute
+**Then** the numbered photos keep their numbers (a display shot never shifted them)
+
+**Definition of Done, in addition:** kernel tests for `numberPhotos`, `section7Photos`, `sheetPhotos` and `points/refs.ts` with a display shot among numbered photos; a Playwright spec takes a "Ler visor" burst on a measurement cell, captures a site photo, checks the badges, generates the preview and asserts section 7's count and section 9's line (through the PDF text, as `export-visual.spec.ts` does); `glossary.md` gains "display shot"; `source-deltas.md`, `docs/kbs/log.md` lines.
+
+### Story 16.4: "N.A" in a nameplate or cabine number field (contract 26)
+
+**Dev model:** opus · **Effort:** high · the AD-11 number value gains a `not_applicable` state typed as N.A, read by every number reader of the kernel, shown and printed as "N.A", outside every calculation; contract 26, minimum 26
+
+As Bruno filling a plate that does not carry a value,
+I want to type N.A in the number field instead of leaving it blank,
+So that the printed sheet says the plate has no such value rather than "-", and the field stops reading as unfilled.
+
+**Today (verified 2026-10-23 in the code of main `01d37c76`):** `numberValueSchema` (`schemas/entities.ts`) is `{raw, unit, state: 'measured' | 'not_measured' | 'empty'}`; `numberFieldValue(typed, unit)` (`relatorio/ficha.ts`) answers `null`, `'invalid'` or a measured value, and `NumberField` (`ficha-fields.tsx`, through `useNumberInput`) keeps invalid text typed with "Número não reconhecido" and commits nothing; the cabine's number fields (`primary_kv`, `secondary_kv`, `installed_kva`, `altitude_m`, `temperature_c`, `humidity_pct`) go through the same input. Readers of the shape: `fieldValueText` and `storedValueText` (print), `cabineValueFilled` and `lineMeasure` (`relatorio/cabine.ts`), `sumario.ts` line 114, `identityPart` (`conclusion.ts`, measured only), `nameplateNumber` and `nameplateFirstNumber` (`reading-cells.ts`, measured only), `isCellFilled` (`sheet-state.ts`, `state !== 'empty'`), `suggestionView` and `compareSuggestion` (`suggestion-rows.ts`), `readingValueText` (`reading/value.ts`), `conflicts.ts` line 664, and the OCR contract's `structuringValueSchemaFor('number')` (`contract/ocr.ts`, `numberValueSchema.strict()`, exported to `services/ocr` by `schema:ocr`). Measurement cells have their own "Não medido" state and are not number fields of this kind. Contract 25 is current and minimum (`contract/version.ts`).
+
+*(Definition of Ready: defaults taken on 2026-10-23 (Matheus): scope = the nameplate and cabine number fields only (measurement cells unchanged); accepted typings `N.A`, `NA`, `N/A`, `N.A.`, any case, spaces ignored; shown and printed "N.A" (Bruno's spelling; his question 2 is out, "NA" becomes a dated line here if he prefers it); stored as `{ raw: '', unit: null, state: 'not_applicable' }`; the contract and minimum numbers fixed in the story spec as 26.)*
+
+**Acceptance Criteria:**
+
+**Given** a nameplate or cabine number field
+**When** the engineer types one of the accepted spellings and leaves the field or presses Enter
+**Then** the field commits `{ raw: '', unit: null, state: 'not_applicable' }` through the existing `sheet/nameplate` or `location/se`/`location/env` put, shows "N.A" at rest (no unit, no echo line), Enter runs on to the next missing field, "Número não reconhecido" never shows, and the draft source is cleared as for a number (AD-11; FR-61)
+
+**Given** a field holding N.A
+**When** the sheet, the cabine lines, the Sumário and the document render
+**Then** DADOS DO EQUIPAMENTO prints "N.A" (no unit), the cabine line prints "N.A" in the value's place, `isCellFilled` reads it as filled (no missing-field cursor, no dry-insulation gap), `identityPart` skips it, the ratio's `nameplateNumber` answers null, the voltage classes and criterion bands treat it as absent, and the pre-issue question does not count it (AD-1; AD-15)
+
+**Given** a plate reading (OCR) on a field holding N.A
+**When** the suggestion arrives
+**Then** it shows the replace line as on any filled field (`suggestionView` 'replace'), "Confirmar" writes the measured value, and the OCR contract's exported JSON Schema is unchanged (the sidecar never emits N.A: `structuringValueSchemaFor` keeps the three reading states through its own schema)
+
+**Given** a device on contract 25
+**When** it pulls a `not_applicable` value
+**Then** it shows the field empty and never throws (every reader above reads `state` before `raw`), and the server answers its next pull 426 so it reloads to 26 (AD-26)
+
+**Given** an undo of the N.A commit
+**When** "Desfazer" runs
+**Then** the field returns to its previous value as for any put (the undo pair is the existing one)
+
+**Definition of Done, in addition:** `numberValueSchema` extended and `contract/version.ts` gains entry 26 with the reasons above; kernel tests over every reader listed in Today with a `not_applicable` value; `ficha-fields.test.tsx` types the four spellings; a Playwright spec types "n.a" on a TP's POTÊNCIA NOMINAL, sees "N.A" after blur, generates the preview and finds "N.A" in the PDF text; `source-deltas.md` row on the AD-11 value shape, `glossary.md` ("N.A"), `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` lines; the authored "N.A" spelling listed in the PR for Bruno.
+
 ## Backlog: deferred stories
 
 Stories moved out of their epic with a dated decision, so the epic can close. Each keeps its text, number and Definition of Ready where it was written; this list is where they wait. A story leaves this list when a dated line schedules it into an epic.
