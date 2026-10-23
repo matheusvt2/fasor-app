@@ -82,6 +82,27 @@
 [data-route="/templates/:id"] .name-field { max-width: 560px; margin-bottom: var(--sp-5); }
 [data-route="/templates/:id"] .composer-main .section-head .section-note { margin: 0; }
 
+/* ---------- Story 15.2 (`42-template-composer.html`, the Story 15.1 block, Bruno's answer 6): the
+   skeleton in the tree-level vocabulary of the Sumário and the rail. A local card is a title band:
+   its head on surface-sunken, the kicker "Local" on its own line over the name; its expanded body
+   returns to surface-raised. A painel card is the sub-band: surface-base, the kicker "Painel" over
+   the name, its body on surface-raised. A coluna row is the group header: the kicker "Coluna" before
+   its name. Every equipment line of a coluna or a local (the quantity rows) is a card on the Block
+   card look. Declarations copied; they override the Story 14.2 rules above, as in the mock. The
+   `.frame-phone` rule is in `app.css`. ---------- */
+[data-route="/templates/:id"] .skeleton-list .level-kicker { font-size: var(--t-label-size); font-weight: 600; line-height: var(--t-label-lh); color: var(--ink-secondary); }
+[data-route="/templates/:id"] .skeleton-list .block-line .level-kicker { flex-basis: 100%; }
+[data-route="/templates/:id"] .local-card { background: var(--surface-sunken); flex-wrap: wrap; align-items: flex-start; }
+[data-route="/templates/:id"] .local-card > .block-expand, [data-route="/templates/:id"] .painel-card > .block-expand { background: var(--surface-raised); margin: var(--sp-3) calc(-1 * var(--sp-2)) calc(-1 * var(--sp-3)) 0; border-radius: 0 0 var(--r-md) var(--r-md); }
+[data-route="/templates/:id"] .painel-list > .painel-card { flex-wrap: wrap; align-items: flex-start; }
+[data-route="/templates/:id"] .local-card > .drag-handle, [data-route="/templates/:id"] .local-card > .pos-box, [data-route="/templates/:id"] .local-card > .card-chev, [data-route="/templates/:id"] .local-card > .overflow-trigger,
+[data-route="/templates/:id"] .painel-card > .drag-handle, [data-route="/templates/:id"] .painel-card > .pos-box, [data-route="/templates/:id"] .painel-card > .card-chev, [data-route="/templates/:id"] .painel-card > .overflow-trigger { margin-top: var(--sp-1); }
+[data-route="/templates/:id"] .column-row .level-kicker { flex: none; }
+[data-route="/templates/:id"] .qty-grid { gap: var(--sp-2) var(--sp-3); }
+[data-route="/templates/:id"] .qty-row.eq-card { min-height: var(--touch-field); padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3); background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: var(--r-md); }
+[data-route="/templates/:id"] .qty-row.eq-card .qty-name { font-weight: 600; }
+[data-route="/templates/:id"] .qty-row.eq-card .qty-tag { font-weight: 400; }
+
 /* ---------- composer parts the mock does not draw (authored, from the mock's own rules) ---------- */
 
 /* The composer head: the name field, the totals meta line (`.palette-head-meta`'s type) and,

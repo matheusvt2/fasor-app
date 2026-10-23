@@ -158,13 +158,10 @@ describe('4.4-UNIT locationTree', () => {
     expect(byTag.get('DJ-C05')).toMatchObject({ sumarioStateAttr: 'ok', holdsData: true });
     expect(byTag.get('SEC-C04')).toMatchObject({ sumarioStateAttr: 'doing', holdsData: true });
     expect(byTag.get('CE-B')).toMatchObject({ sumarioStateAttr: 'empty', holdsData: false });
-    // The rail keeps the word alone in its state and puts the reason on the meta line (review F-1).
-    expect(byTag.get('SEC-C05')!.railMetaText).toBe('SEC-C05 · Solicitação do cliente');
-    expect(byTag.get('DJ-C05')!.railMetaText).toBe('DJ-C05');
-    // Review fixes 2026-10-06 (F-07): the rest after the TAG, so the rail keeps the TAG whole.
-    expect(byTag.get('SEC-C05')!.railMetaRest).toBe(' · Solicitação do cliente');
-    expect(byTag.get('DJ-C05')!.railMetaRest).toBe('');
-    for (const row of rows) expect(row.tag + row.railMetaRest).toBe(row.railMetaText);
+    // The rail keeps the word alone in its state and puts the reason on its own meta line (review F-1).
+    // Story 15.2: the card draws TAG and type as its title, so the reason is a field of its own (was `railMetaText`/`railMetaRest`).
+    expect(byTag.get('SEC-C05')!.reason).toBe('Solicitação do cliente');
+    expect(byTag.get('DJ-C05')!.reason).toBeNull();
     expect(SHEET_STATE_GLYPH).toEqual({ concluida: '✓', em_preenchimento: '●', vazia: '○', nao_ensaiada: '⊘' });
   });
 

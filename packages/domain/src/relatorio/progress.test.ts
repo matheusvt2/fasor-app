@@ -9,6 +9,7 @@ import {
   locationProgress,
   naoEnsaiadasText,
   ncAbertosText,
+  ncBadgeText,
   progress,
   progressCounterState,
   progressCounterText,
@@ -59,6 +60,8 @@ describe('4.3-UNIT progress over the Porto Seguro fixture', () => {
     expect(progressCounterState({ sheets_concluded: 0, sheets_total: 0 })).toBe('pending');
     expect(ncAbertosText(0)).toBe('0 NC abertos');
     expect(ncAbertosText(1)).toBe('1 NC aberto');
+    // Story 15.2 (F37): the badge of one card; the tree holds none at 0.
+    expect([ncBadgeText(0), ncBadgeText(1), ncBadgeText(2)]).toEqual(['0 NC', '1 NC', '2 NC']);
     expect(ncAbertosText(2)).toBe('2 NC abertos');
     expect(naoEnsaiadasText(1)).toBe('1 não ensaiada');
     expect(naoEnsaiadasText(3)).toBe('3 não ensaiadas');

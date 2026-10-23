@@ -415,7 +415,8 @@ describe('14.2 second pass: removing a location', () => {
       [`equipment/${SEC_C05_EQUIPMENT}/removed_at`, 'remove'],
     ]);
     expect(new Set(first.map((op) => op.batch)).size).toBe(1);
-    expect(row(PAINEL)!.querySelector(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveTextContent('Painel · 1 coluna');
+    // Story 15.2: the kicker says the level ("Painel · 1 coluna" before).
+    expect(row(PAINEL)!.querySelector(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveTextContent(/^1 coluna$/);
 
     // No sheet on it: no Confirm. No coluna is left in the list: the painel's chevron takes the focus.
     await pressRemove(COLUNA_6_MENU);

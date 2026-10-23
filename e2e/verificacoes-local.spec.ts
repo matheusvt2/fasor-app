@@ -108,7 +108,15 @@ const toast = (page: Page) => page.getByTestId('toast');
 const sumario = (page: Page) => page.getByRole('list', { name: 'Sumário do relatório' });
 const tree = (page: Page) => page.getByRole('list', { name: 'Locais do relatório' });
 const local = (page: Page, name: string) => tree(page).locator(':scope > li.s9-local').filter({ has: page.locator(':scope > .s9-loc-row .s9-loc-name', { hasText: name }) });
-const siteButton = (page: Page, name: string) => local(page, name).locator(':scope > .s9-loc-row .s9-loc-body .s9-verif');
+// Story 15.2 (the 15.1 mocks changed the markup, Bruno's answer 5): the local's "Verificações do local" is a card, the first
+// under its open local (`ul.s9-site`), its progress "N de 19" in `.s9-site-count`; it was a button in the local's row.
+const siteButton = (page: Page, name: string) => local(page, name).locator(':scope > ul.s9-site .s9-verif');
+const siteCount = (page: Page, name: string) => siteButton(page, name).locator('.s9-site-count');
+/** The local's site card, its local expanded first (the card is drawn only under an open local). */
+async function siteCard(page: Page, name: string) {
+  await expandLocation(page, name);
+  return siteButton(page, name);
+}
 const row = (page: Page, itemKey: string) => page.locator(`li.checklist-row[data-item-key="${itemKey}"]`);
 const seg = (page: Page, itemKey: string, name: 'Conforme' | 'Não conforme' | 'Não se aplica') => row(page, itemKey).getByRole('radio', { name, exact: true });
 const progress = (page: Page) => page.getByTestId('local-progress');
@@ -301,8 +309,12 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   await openSection9(page);
 
   // Every local's row shows its counter; the row opens the surface.
-  for (const location of before) await expect(siteButton(page, location.name)).toHaveText(`Verificações do local · 0 de ${N}`);
+  for (const location of before) {
+    await expect(await siteCard(page, location.name)).toHaveAccessibleName(`Verificações do local · 0 de ${N} — ${location.name}`);
+    await expect(siteCount(page, location.name)).toHaveText(`0 de ${N}`);
+  }
   await expect(siteButton(page, ENEL)).toHaveAccessibleName(`Verificações do local · 0 de ${N} — Cubículo Enel`);
+  await expect(siteButton(page, ENEL).locator('.s9-state')).toHaveText('○ Vazia');
   await siteButton(page, ENEL).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/local/${enelId}/verificacoes$`));
   await expect(title(page)).toHaveText('Verificações do local — Cubículo Enel');
@@ -419,7 +431,7 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   await bar(page).getByRole('button', { name: 'Concluir verificações' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
   await expect(sumario(page).locator('li.sum-s9 .sum-status').first()).toContainText(NC_WITHOUT_POINT);
-  await siteButton(page, ENEL).click();
+  await (await siteCard(page, ENEL)).click();
   await expect(title(page)).toHaveText('Verificações do local — Cubículo Enel');
 
   // "Criar ponto de atenção" on the NC item: a point of this local, citing the item's photo.
@@ -444,8 +456,13 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   // "Concluir verificações" with nothing missing returns to the tree; the row reads N de N.
   await bar(page).getByRole('button', { name: 'Concluir verificações' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
-  await expect(siteButton(page, ENEL)).toHaveText(`Verificações do local · ${N} de ${N}`);
-  await expect(siteButton(page, EMPTY_LOCAL)).toHaveText(`Verificações do local · 0 de ${N}`);
+  await expandLocation(page, ENEL);
+  await expect(siteCount(page, ENEL)).toHaveText(`${N} de ${N}`);
+  await expect(siteButton(page, ENEL).locator('.s9-state')).toHaveText('✓ Concluída');
+  // Its one NC item carries the card's NC badge (F37).
+  await expect(siteButton(page, ENEL).locator('.nc-badge')).toHaveText('1 NC');
+  await expandLocation(page, EMPTY_LOCAL);
+  await expect(siteCount(page, EMPTY_LOCAL)).toHaveText(`0 de ${N}`);
   await expect(headerPill(page)).toHaveText('Em campo');
   await siteButton(page, ENEL).click();
   await expect(title(page)).toHaveText('Verificações do local — Cubículo Enel');
@@ -626,7 +643,7 @@ test('@p0 14.3-E2E-002 an item answered on an Emitido relatório: the banner say
 
   // The surface of an Emitido relatório says that editing reopens it, in its own words.
   await openSection9(page);
-  await siteButton(page, ENEL).click();
+  await (await siteCard(page, ENEL)).click();
   await expect(title(page)).toHaveText('Verificações do local — Cubículo Enel');
   const sentence = 'Relatório emitido (revisão 1). Editar estas verificações reabre o relatório como Em revisão e gera a revisão 2.';
   await expect(banner(page)).toContainText(sentence);
@@ -649,7 +666,8 @@ test('@p0 14.3-E2E-002 an item answered on an Emitido relatório: the banner say
   await expect(page.getByTestId('status-next-step')).toHaveText('Em revisão: há alterações desde a revisão 1. Gere a revisão 2 antes de marcar como enviado ao cliente.');
   await expect(bar(page).getByRole('button', { name: MARK_SENT })).toHaveCount(0);
   await expect(sumario(page).locator('li[data-row="controle"]')).toContainText('Rev. 2 na próxima emissão');
-  await expect(siteButton(page, ENEL)).toHaveText(`Verificações do local · 1 de ${N}`);
+  await expandLocation(page, ENEL);
+  await expect(siteCount(page, ENEL)).toHaveText(`1 de ${N}`);
 
   // The next generate builds revision 2 (never `unchanged`), with the answer in the table.
   await bar(page).getByRole('button', { name: 'Gerar relatório' }).click();
@@ -682,9 +700,12 @@ test('@p1 14.3-E2E-003 the sheet\'s "Do local" block carries the entry line with
   // The rail's level-1 row under the open local, and its entry.
   const railRow = page.locator(`aside.rail li[data-site-of="${enelId}"] > .tree-row`);
   await expect(railRow).toHaveAttribute('data-level', '1');
-  await expect(railRow.locator('.tree-body .tree-meta')).toHaveText(`${N} itens · uma vez por local`);
-  // The state glyph (hidden from assistive technology), then the counter.
-  await expect(railRow.locator('.tree-state')).toHaveText(new RegExp(`^\\S0 de ${N}$`));
+  // Story 15.2 (the 15.1 mocks changed the markup): a card of the sheet kind, "N de 19" beside its label and the
+  // state glyph (hidden from assistive technology) and word under it.
+  await expect(railRow).toHaveClass(/\beq-card\b/);
+  await expect(railRow).toHaveClass(/\bsite-card\b/);
+  await expect(railRow.locator('.tree-id .tree-meta')).toHaveText(`0 de ${N}`);
+  await expect(railRow.locator('.tree-state')).toHaveText(/^\SVazia$/);
   await expect(railRow.locator('.tree-state')).toHaveAttribute('data-state', 'vazia');
 
   await line.getByRole('button', { name: 'Abrir', exact: true }).click();
@@ -703,9 +724,13 @@ test('@p1 14.3-E2E-003 the sheet\'s "Do local" block carries the entry line with
   // Back on the sheet (and in its rail) the counter followed.
   await page.goto(`/relatorio/${relatorioId}/ficha/${firstSheetId}`);
   await expect(line.locator('.cl-values')).toHaveText(`2 de ${N}`, { timeout: 30_000 });
-  await expect(railRow.locator('.tree-state')).toHaveText(new RegExp(`^\\S2 de ${N}$`));
+  await expect(railRow.locator('.tree-id .tree-meta')).toHaveText(`2 de ${N}`);
+  await expect(railRow.locator('.tree-state')).toHaveText(/^\SEm preenchimento$/);
   await expect(railRow.locator('.tree-state')).toHaveAttribute('data-state', 'em-preenchimento');
-  await railRow.getByRole('button', { name: 'Verificações do local — Cubículo Enel' }).click();
+  // Its NC item carries the card's NC badge (F37).
+  await expect(railRow.locator('.eq-card-status .nc-badge')).toHaveText('1 NC');
+  // Story 15.2: the card's NC badge is part of its name.
+  await railRow.getByRole('button', { name: 'Verificações do local · 1 NC — Cubículo Enel', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/local/${enelId}/verificacoes$`));
 });
 
@@ -879,7 +904,11 @@ test('@p0 14.3-E2E-008 2026-10-14 (Bruno): a site item answered NC counts in "NC
   await expect(nc).toBeVisible();
   await nc.click();
   await expect(tree(page)).toBeVisible();
+  // Story 15.2: the card is drawn under its local, which the tap opens; the card carries the NC badge, equal to the header's count (F37).
   await expect(siteButton(page, ENEL)).toBeFocused();
+  await expect(local(page, ENEL)).toHaveClass(/\bis-open\b/);
+  await expect(siteButton(page, ENEL).locator('.nc-badge')).toHaveText('1 NC');
+  await expect(tree(page).locator('.nc-badge')).toHaveCount(1);
 
   // Etapa 6: the suggestion and its hint count the site NC; the composed summary names the item.
   const item = siteItems(SEED_VERSION).find((entry) => entry.key === EMERGENCIA)!;
@@ -930,8 +959,8 @@ test('@p1 14.3-E2E-005 a coluna and a relatório on seed v3 offer no entry: no t
   // Seed v4: the locals carry the entry, a coluna never does.
   const v4 = await setUp(page, 1280, { keepSheets: true });
   await openSection9(page);
-  await expandLocation(page, '1° Subsolo');
-  // One per local of the standard template.
+  // One per local of the standard template. Story 15.2: the card is drawn under its open local.
+  for (const name of [ENEL, '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores']) await expandLocation(page, name);
   await expect(tree(page).locator('.s9-verif')).toHaveCount(6);
   await expect(tree(page).locator('li.s9-coluna').first()).toBeVisible();
   await expect(tree(page).locator('li.s9-coluna .s9-verif')).toHaveCount(0);
@@ -970,7 +999,8 @@ test('@p0 15.4-E2E-001 the App bar "Voltar" from a local\'s Verificações lands
 
   for (const width of [390, 1280]) {
     await page.setViewportSize({ width, height: width < 768 ? 844 : 1024 });
-    await siteButton(page, ENEL).click();
+    // Story 15.2: the card is drawn under its open local (the first round opens it; "Voltar" leaves it open).
+    await (await siteCard(page, ENEL)).click();
     await expect(page).toHaveURL(new RegExp(`${surfaceUrl(relatorioId, enelId)}$`));
     await expect(title(page)).toBeVisible();
     await page.getByRole('button', { name: 'Voltar', exact: true }).click();

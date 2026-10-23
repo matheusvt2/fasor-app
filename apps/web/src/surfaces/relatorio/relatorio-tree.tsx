@@ -117,9 +117,9 @@ export interface RelatorioTreeProps {
  */
 const COUNTS_ONLY = { otherBlocks: [], visibility: { companyDownloaded: false, summaries: [], heldRelatorioIds: [], downloadedStreamIds: [] } } as const;
 
-/** A local's "Verificações do local" button (`.s9-verif`) in its own header row, or null while not drawn. */
+/** A local's "Verificações do local" button (`.s9-verif`) on its card, the first under the open local (Story 15.2), or null while not drawn. */
 function siteRowButton(root: HTMLElement | null, locationId: string): HTMLElement | null {
-  return root?.querySelector<HTMLElement>(`li[data-location-id="${CSS.escape(locationId)}"] > .s9-loc-row .s9-verif`) ?? null;
+  return root?.querySelector<HTMLElement>(`li[data-location-id="${CSS.escape(locationId)}"] > ul.s9-site .s9-verif`) ?? null;
 }
 
 export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, id, expandToLastSheet = false, focusBlockId = null, focusLocationId = null, focusToken = 0, context, ref, pending }: RelatorioTreeProps) {
@@ -227,12 +227,13 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
   }, [focusToken]);
   useEffect(() => {
     if (focusSeeded.current) return;
-    // A local's site row sits in its header row, drawn whenever section 9 is: nothing to open.
-    // Only a root this tree draws with a site row is a target; anything else asks for nothing.
+    // Story 15.2: a local's site card is drawn only while the local is open, so the local opens.
+    // Only a root this tree draws with a site checklist is a target; anything else asks for nothing.
     if (focusLocationId !== null) {
       if (!tree.some((node) => node.id === focusLocationId && node.site !== null)) return;
       focusSeeded.current = true;
       focusPending.current = true;
+      reveal(focusLocationId);
       return;
     }
     if (focusBlockId === null) return;

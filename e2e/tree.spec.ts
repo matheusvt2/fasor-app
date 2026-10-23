@@ -447,10 +447,13 @@ test('@p0 4.4-E2E-002 /relatorio/:id/arvore: the tree as a surface at 390, the s
   const current = rail.locator('.tree-row[aria-current="true"]');
   await expect(current).toHaveCount(1);
   await expect(current).toHaveClass(/is-selected/);
-  // The state keeps its word; the reason is on the meta line (review F-1).
+  // The state keeps its word; the reason is on the meta line (review F-1). Story 15.2 (the 15.1 mocks
+  // changed the markup): a card, TAG and type as its title, so the meta line holds the reason alone.
+  await expect(current).toHaveClass(/\beq-card\b/);
   await expect(current.locator('.tree-state')).toHaveText('⊘Não ensaiada');
   await expect(current.locator('.tree-state [aria-hidden="true"]')).toHaveText('⊘');
-  await expect(current.locator('.tree-meta')).toHaveText(`${geradoresFirst} · Solicitação do cliente`);
+  await expect(current.locator('.tree-id .tree-tag')).toHaveText(geradoresFirst);
+  await expect(current.locator('.tree-meta')).toHaveText('Solicitação do cliente');
   expect(await page.locator('aside.rail').evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
   expect((await current.locator('.tree-body').boundingBox())!.width).toBeGreaterThan(120);
   // Cabines and fichas only: no section, no Position box.
@@ -497,7 +500,9 @@ test('@p0 5.9-E2E-003 "Marcar não ensaiado" from a Block card Overflow: the rea
   if ((await cabineChevron.count()) > 0) await cabineChevron.click();
   const railRow = rail.locator(`li[data-block-id="${blockId}"] .tree-row`);
   await expect(railRow.locator('.tree-state')).toHaveText('⊘Não ensaiada');
-  await expect(railRow.locator('.tree-meta')).toHaveText(`${firstTag} · Solicitação do cliente`);
+  // Story 15.2: the TAG is the card's title, the reason its meta line (it read "TAG · reason").
+  await expect(railRow.locator('.tree-id .tree-tag')).toHaveText(firstTag);
+  await expect(railRow.locator('.tree-meta')).toHaveText('Solicitação do cliente');
 });
 
 test('@p0 5.2-E2E-004 (AC2 leftover) cabineMetaText updates live, with no reload, in the Sumário row once "Do local" is filled; the rail row reads its own line, which follows the sheet live', async ({ page }) => {
@@ -519,11 +524,13 @@ test('@p0 5.2-E2E-004 (AC2 leftover) cabineMetaText updates live, with no reload
   await umidade.press('Enter');
 
   // Story 14.2 (the redrawn rail of `shell-foot.html`): the rail's local row no longer repeats the
-  // data line; it reads the level, what hangs under the local and its sheets ("Local · … fichas").
+  // data line; it reads what hangs under the local and its sheets. Story 15.2 (the 15.1 mocks changed
+  // the text): the kicker "Local" sits over the name, so the line no longer leads with it.
   // The data line is the Sumário row's, checked live below.
-  const railCabine = page.locator('aside.rail li[data-location-id]').filter({ has: page.locator(':scope > .tree-row > .tree-body > span', { hasText: /^Cubículo Enel$/ }) });
+  const railCabine = page.locator('aside.rail li[data-location-id]').filter({ has: page.locator(':scope > .tree-row > .tree-body > .tree-name', { hasText: /^Cubículo Enel$/ }) });
+  await expect(railCabine.locator(':scope > .tree-row > .tree-body > .level-kicker')).toHaveText('Local');
   const railLine = railCabine.locator(':scope > .tree-row > .tree-body > .tree-meta');
-  await expect(railLine).toHaveText('Local · sem painéis · 0 de 9 fichas');
+  await expect(railLine).toHaveText('sem painéis · 0 de 9 fichas');
   // The rail beside the sheet (on screen at 1280) reads live, no reload: the open sheet marked
   // not tested is one sheet settled, and the local's line counts it while the rail stays mounted.
   const openTag = (await page.locator('.sheet-header .tag-btn').textContent())!.trim();
@@ -534,7 +541,7 @@ test('@p0 5.2-E2E-004 (AC2 leftover) cabineMetaText updates live, with no reload
   await notTested.getByRole('button', { name: 'Marcar não ensaiado' }).click();
   await expect(notTested).toBeHidden();
   await expect(page.locator('.sheet-title .not-tested-chip')).toHaveText('Não ensaiado');
-  await expect(railLine).toHaveText('Local · sem painéis · 1 de 9 fichas');
+  await expect(railLine).toHaveText('sem painéis · 1 de 9 fichas');
 
   // Back on the Sumário, the same value with no reload.
   await page.goBack();

@@ -161,7 +161,8 @@ function QtyGrid({ node, onSetQuantity, head }: QtyGridProps) {
   return (
     <div className="qty-grid">
       {types.map((type) => (
-        <div className="qty-row" key={type} data-type={type}>
+        // Story 15.2 (`42-template-composer.html`, Bruno's answer 6): every equipment line is a card on the Block card look.
+        <div className="qty-row eq-card" key={type} data-type={type}>
           <span className="qty-name">{copy.composer.equipmentNames[type]}</span>
           <QuantityStepper
             value={node.quantities[type]}
@@ -404,6 +405,11 @@ function ColunaRow({ coluna, controlName, ...props }: CardProps & { coluna: Comp
           aria-controls={isOpen ? bodyId : undefined}
           onClick={() => onSelect(coluna.ref)}
         >
+          {/* Story 15.2 (`42-template-composer.html`): the level word before the name; hidden from the
+              accessibility tree so the head's name stays the coluna's name and its summary. */}
+          <span className="level-kicker" aria-hidden="true">
+            {copy.composer.levelColuna}
+          </span>
           <span className="col-name">{coluna.name}</span>
           <span className="col-sum">{nodeSummaryText(coluna).sum}</span>
         </button>
