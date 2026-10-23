@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 10-22-2026 18:00
+last_updated: 10-23-2026 15:40
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -189,7 +189,7 @@ development_status:
   15-7-the-tcs-own-checklist-seed-v10: backlog  # added 2026-10-22 (Bruno's answer 7): the TC gets its own checklist; DoR: Bruno sends the list (ask at the next interaction); after 15.3 (v9)
 
   epic-16: in-progress  # added 2026-10-23 (Matheus): Bruno's WhatsApp feedback of 2026-10-23 (old DOCX beside a fresh preview, letters in number fields, the header logo cut); investigated against the production request log: no generate on the 23rd, the DOCX was the 22nd's revision from the "Revisões" list; epic-16-context.md; waves A (e16a 16.1 alone, shipped as v0.3.2; e16b 16.2+16.3) and B (e16c 16.4, contract 26); defaults taken while Bruno's two questions are out
-  16-1-the-header-logo-fits-its-cell: backlog  # added 2026-10-23: LOGO_MAX_WIDTH_PX ignores the cell margins (docx.ts); one cap, one cell size, a wide-logo test; first to build and deploy (v0.3.2)
+  16-1-the-header-logo-fits-its-cell: review  # 2026-10-23: built on branch story/16-1-header-logo-fits-its-cell, docx.test.ts 24/24, LibreOffice render whole; PR after the gate |  # 2026-10-23: batch e16a started on branch story/16-1-header-logo-fits-its-cell (oneshot spec) |  # added 2026-10-23: LOGO_MAX_WIDTH_PX ignores the cell margins (docx.ts); one cap, one cell size, a wide-logo test; first to build and deploy (v0.3.2)
   16-2-a-revision-older-than-the-edits-says-so: backlog  # added 2026-10-23: the mock's banner and a row tag from the kernel while edited since the latest revision; E4-E2E-001 extended
   16-3-display-shots-print-only-under-their-test: backlog  # added 2026-10-23: default taken (out of section 7 and the numbering, under the test without a number); Bruno's question 1 out
   16-4-n-a-in-a-nameplate-or-cabine-number-field: backlog  # added 2026-10-23: AD-11 state not_applicable, contract 26 minimum 26; defaults taken (scope, spellings, "N.A"); Bruno's question 2 out; after wave A's gate
