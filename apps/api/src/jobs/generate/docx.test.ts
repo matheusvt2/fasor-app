@@ -18,7 +18,7 @@ import {
 import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
-import { buildDocx, TOC_PLACEHOLDER } from './docx.ts';
+import { buildDocx, CELL_MARGINS_TWIPS, CONTENT_WIDTH_TWIPS, PX_PER_CM, TOC_PLACEHOLDER } from './docx.ts';
 import { PAINEL_BAND_COLOR, PAINEL_BAND_FILL } from './sections/section-9.ts';
 import { extractStructure, paragraphText, readZipEntries, type DocxStructure } from './docx-structure.test-support.ts';
 import { placeholderPages } from './toc.ts';
@@ -473,6 +473,45 @@ describe('4.8-UNIT-007 images', () => {
     const afterTable = draftHeader.slice(draftHeader.indexOf('</w:tbl>'));
     expect(afterTable).toContain('<w:drawing');
     expect(afterTable).toContain('behindDoc="1"');
+  }, 60_000);
+
+  it('Story 16.1: the logo drawing fits inside its cell, margins included, wide or tall', async () => {
+    // Bruno's screenshot of 2026-10-23: a 4:1 logo capped at half the content width overflowed a cell
+    // of that same width by its two margins, and Word and LibreOffice clipped it.
+    const make = (width: number, height: number) => sharp({ create: { width, height, channels: 3, background: { r: 10, g: 40, b: 90 } } }).png().toBuffer();
+    const EMU_PER_TWIP = 635;
+    const EMU_PER_PX = 9525;
+    const heightCapEmu = Math.round(3 * PX_PER_CM) * EMU_PER_PX;
+    for (const [name, logo] of [
+      ['wide', await make(400, 100)],
+      ['tall', await make(100, 400)],
+    ] as const) {
+      const layout = layoutSpec(snapshot(), { revisionNumber: 1, issuedAt: ISSUED_AT });
+      const docx = await buildDocx(layout, { tocPages: placeholderPages(layout), images: { logo } });
+      const header = readZipEntries(docx).get('word/header1.xml')!.toString('utf8');
+      const table = /<w:tbl>([\s\S]*?)<\/w:tbl>/.exec(header)![0];
+      const [logoCell, linesCell] = [...table.matchAll(/<w:tc>([\s\S]*?)<\/w:tc>/g)].map((m) => m[1]!);
+      const widthOf = (cell: string) => Number(/<w:tcW[^>]*\bw:w="(\d+)"/.exec(cell)![1]);
+      const cellWidth = widthOf(logoCell!);
+      // Word's 108-twip default margins are what the cap subtracts: the table overrides none, and
+      // the grid and the lines cell share the content width with the logo cell.
+      expect(table).not.toMatch(/<w:tblCellMar|<w:tcMar/);
+      expect(widthOf(linesCell!), name).toBe(CONTENT_WIDTH_TWIPS - cellWidth);
+      expect([...table.matchAll(/<w:gridCol w:w="(\d+)"/g)].map((m) => Number(m[1])), name).toEqual([cellWidth, CONTENT_WIDTH_TWIPS - cellWidth]);
+      const cx = Number(/<wp:extent[^>]*\bcx="(\d+)"/.exec(logoCell)![1]);
+      const cy = Number(/<wp:extent[^>]*\bcy="(\d+)"/.exec(logoCell)![1]);
+      const innerWidthEmu = (cellWidth - CELL_MARGINS_TWIPS) * EMU_PER_TWIP;
+      // The drawing never passes the cell's inner width (the cell minus Word's two margins) nor 3 cm of height,
+      // and the cell never passes half the content width.
+      expect(cx, name).toBeLessThanOrEqual(innerWidthEmu);
+      expect(cy, name).toBeLessThanOrEqual(heightCapEmu);
+      expect(cellWidth, name).toBeLessThanOrEqual(CONTENT_WIDTH_TWIPS / 2);
+      // The cell is the drawing plus the margins, wide or tall; each fills the cap that decides
+      // it: the wide one its width, the tall one its height.
+      expect(cellWidth, name).toBe(Math.ceil(cx / EMU_PER_PX / 96 * 1440) + CELL_MARGINS_TWIPS);
+      if (name === 'wide') expect(cx).toBe(innerWidthEmu);
+      else expect(cy).toBe(heightCapEmu);
+    }
   }, 60_000);
 
   it('prints without an image sharp cannot read, and never throws for it', async () => {

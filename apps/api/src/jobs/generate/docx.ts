@@ -55,12 +55,18 @@ export const CONTENT_WIDTH_TWIPS = A4.width - 2 * MARGIN_TWIPS;
 /** Printed at 96 px per inch, the scale `docx` assumes for an image's `transformation`. */
 export const PX_PER_CM = 96 / 2.54;
 const LOGO_MAX_HEIGHT_PX = Math.round(3 * PX_PER_CM);
-/** The logo takes at most half the header's width: the title and form lines keep the other half. */
-const LOGO_MAX_WIDTH_PX = Math.round((CONTENT_WIDTH_TWIPS / 2 / 1440) * 96);
 /** Twips per px at the 96 px per inch `docx` assumes (1440 twips per inch). */
 const TWIPS_PER_PX = 1440 / 96;
 /** Word's default left plus right cell margin (0.19 cm each side), kept around the logo. */
-const CELL_MARGINS_TWIPS = 2 * 108;
+export const CELL_MARGINS_TWIPS = 2 * 108;
+/**
+ * The logo takes at most half the header's width, its cell margins included: the title and
+ * form lines keep the other half. Story 16.1: the margins sit inside the cell, so the image
+ * is capped at the half minus them (floored, so the cell `logoHeader` sizes from it never
+ * exceeds the half); capped at the half itself, a wide logo overflowed its cell by 0.38 cm
+ * and Word and LibreOffice clipped it.
+ */
+const LOGO_MAX_WIDTH_PX = Math.floor(((CONTENT_WIDTH_TWIPS / 2 - CELL_MARGINS_TWIPS) / 1440) * 96);
 const COVER_MAX_WIDTH_PX = Math.round((CONTENT_WIDTH_TWIPS / 1440) * 96);
 const COVER_MAX_HEIGHT_PX = Math.round(12 * PX_PER_CM);
 
@@ -249,6 +255,9 @@ function plainHeader(lines: HeaderLines, watermark: ImageRun | null): Paragraph[
  * paragraph, so a 1 pt empty one follows the table and carries the watermark.
  */
 function logoHeader(lines: HeaderLines, logo: SizedImage, watermark: ImageRun | null): (Table | Paragraph)[] {
+  // The cell is the drawing plus its two margins (Story 16.1): `sizedImage` already keeps the
+  // drawing within the half minus the margins, so the cell never passes the half; the clamp
+  // keeps that invariant here for any caller that sized the image otherwise.
   const logoWidth = Math.min(CONTENT_WIDTH_TWIPS / 2, Math.ceil(logo.width * TWIPS_PER_PX) + CELL_MARGINS_TWIPS);
   const linesWidth = CONTENT_WIDTH_TWIPS - logoWidth;
   const table = new Table({
