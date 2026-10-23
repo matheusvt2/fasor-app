@@ -2,7 +2,7 @@
 title: 'Story 15.2: the tree levels built (bands, kicker, cards with state and NC badge, the site checklist as a card)'
 type: 'feature'
 created: '2026-10-22'
-status: 'in-review'
+status: 'done'
 baseline_revision: '02ae2b3dc4fc0ce59aeea78866ded82c66c4a124'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -114,3 +114,12 @@ deferred: []
 **Commands (tools container, `podman compose --profile tools run --rm --user root tools …`, logs to `.scratch-e15d/`):**
 - `pnpm lint`, `pnpm static`, `pnpm test:unit`, `pnpm test:api` -- expected: green.
 - Under the host lock: `pnpm exec tsx scripts/e2e.ts e2e/tree-levels.spec.ts <touched specs> <specs from grep -rln "s9-\|Locais do relatório\|Em preenchimento\|Verificações do local" e2e/*.spec.ts> --project desktop-chrome --project durability-desktop-chrome` -- expected: green.
+
+## Auto Run Result
+
+- Summary: section 9 of the Sumário, the rail (sheet rail and the phone tree page) and the composer skeleton rebuilt from the approved 15.1 mocks: local title band, painel sub-band, coluna group header with "N de M", level kicker, every sheet a card (TAG + type label, glyph + state word, NC badge), the Verificações do local as the first card of its local, "Adicionar …" last; F50 (phone counters 2×2), F19 (type label at every width), F37 (NC badges whose numbers sum to the header), F34 (row 8 "1 ponto + 1 automático").
+- Files: `packages/domain/src/relatorio/tree.ts`, `progress.ts`, `site-checklist.ts`, `points/summary.ts` (kernel fields and texts) with tests; `apps/web/src/surfaces/relatorio/relatorio-tree-{sumario,rail}.tsx`, `relatorio-tree.tsx` (site focus reveals its local), `relatorio.css`, `styles/app.css`, `templates/skeleton-list.tsx`, `templates.css`, `copy/pt-br.ts`; unit tests; e2e `tree-levels.spec.ts` (new) and the specs bound to changed markup; `docs/kbs/log.md`.
+- Review: 6 patches applied (2 medium, 4 low), 0 deferred, 2 rejected (reasons in the triage log).
+- Follow-up review recommended: false (no high patched; the two medium patches are a test and a key handler, both now covered by tests).
+- Verification: lint, static, test:unit, test:api in the tools container; the touched and tree-text Playwright specs under the host lock (results in the PR body).
+- Residual risks: badges are visible only under expanded locations (mocks draw no band indicator); the 390×844 fold check and the 1180 type label are pinned only by Playwright.
