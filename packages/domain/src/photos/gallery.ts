@@ -211,9 +211,9 @@ export function photoTileLabel(n: number | null, opts: { suggested?: boolean } =
   return opts.suggested === true ? `${name}, legenda sugerida, abrir` : `${name}, abrir`;
 }
 
-/** The viewer's accessible name: "Foto 4 de 20". */
-export function viewerLabel(position: number, total: number): string {
-  return `Foto ${position} de ${total}`;
+/** The viewer's accessible name: "Foto 4 de 20"; "Foto" alone for a display shot (no number, Story 16.3). */
+export function viewerLabel(position: number | null, total: number): string {
+  return position === null ? captionPhotoLabel(null) : `Foto ${position} de ${total}`;
 }
 
 /** The toast after "Remover": "Foto 4 removida do relatório"; "Foto removida do relatório" for a display shot (no number, Story 16.3). */

@@ -103,9 +103,8 @@ function ViewerBody({
   const zoom = cropZoom !== null && leftCrop !== cropKey ? cropZoom : null;
   const countId = useId();
   const [confirming, setConfirming] = useState(false);
-  // Story 16.3: a display shot has no number; it draws no badge (its position stands in the count).
-  const numbered = numbers.get(tile.id) ?? null;
-  const number = numbered ?? index + 1;
+  // Story 16.3: a display shot has no number: no badge, no count, "Foto" alone.
+  const number = numbers.get(tile.id) ?? null;
   const total = numbers.size;
   const src = useObjectUrl(useViewerPicture(tile));
   // The picture's own size, read when it loads (the crop's view and the zoom's maximum need it).
@@ -133,13 +132,13 @@ function ViewerBody({
             <use href="/sprite.svg#i-close" />
           </svg>
         </AriaButton>
-        {numbered === null ? null : (
+        {number === null ? null : (
           <span className="number-badge" aria-hidden="true">
-            {numbered}
+            {number}
           </span>
         )}
         <span className="viewer-count" id={countId}>
-          {viewerCountText(number, total, provisional)}
+          {number === null ? null : viewerCountText(number, total, provisional)}
         </span>
         <ZoomControls pinch={pinch} inCrop={zoom !== null} onLeaveCrop={() => setLeftCrop(cropKey)} />
       </div>

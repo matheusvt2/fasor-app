@@ -1,11 +1,12 @@
 import 'fake-indexeddb/auto';
 import { instantiateTemplate, SERVER_DEVICE_ID, standardTemplate, type BlockRow, type GenerateResponse, type Op, type RevisionRow } from '@app/domain';
 import { BLOCK_CHAVE_ID, EQUIPMENT_CHAVE_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
-import { act, cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, configure, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { commitBatch, toRecord } from '../../db/commit.ts';
+import { useEditedSinceRead, useMarkedSentSince } from '../../db/generate-store.ts';
 import { readGenerateAwaiting } from '../../db/prefs.ts';
 import { openDatabase, type AppDatabase, type OutboxRow } from '../../db/schema.ts';
 import { applyPulled } from '../../db/sync-store.ts';
@@ -1780,5 +1781,27 @@ describe('Review fixes 2026-10-08 (QW25): "Pré-visualizar" refuses a dead op an
     expect(within(dialog()).queryByText(SESSION_EXPIRED)).toBeNull();
     expect(within(dialog()).queryByText('Não foi possível gerar o rascunho. Os dados não foram alterados.')).toBeNull();
     open.mockRestore();
+  });
+});
+
+describe('Story 16.2 review: the banner waits for both reads of the latest snapshot', () => {
+  it('neither read counts until it lands for the asked snapshot; a result for an older snapshot is never answered for a newer one', async () => {
+    database = await freshDb();
+    const db = database;
+    await applyPulled(db, [{ ...serverOp({ kind: 'put', path: 'relatorio/status', value: 'emitido', client_ts: '2026-09-23T12:10:00.000Z' }), actor_id: USER, device_id: 'outro-aparelho' }]);
+    const before = seq - 1;
+    const { result, rerender } = renderHook(({ snapshotSeq }: { snapshotSeq: number }) => ({ sent: useMarkedSentSince(db, REL, snapshotSeq), edited: useEditedSinceRead(db, REL, snapshotSeq) }), {
+      initialProps: { snapshotSeq: before },
+    });
+    // First render: no read landed, so the dialog shows no banner ("gerado" never flashes).
+    expect(result.current.sent).toEqual({ sent: false, read: false });
+    expect(result.current.edited.read).toBe(false);
+    await waitFor(() => expect(result.current.sent).toEqual({ sent: true, read: true }));
+    await waitFor(() => expect(result.current.edited.read).toBe(true));
+    // A newer snapshot: the older result is not read as this one's until its own read lands.
+    rerender({ snapshotSeq: seq });
+    expect(result.current.sent.read).toBe(false);
+    expect(result.current.edited.read).toBe(false);
+    await waitFor(() => expect(result.current.sent).toEqual({ sent: false, read: true }));
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { captionSavedText, photoRemovedText, photoTileLabel } from './gallery.ts';
+import { captionSavedText, photoRemovedText, photoTileLabel, viewerLabel } from './gallery.ts';
 import { numberPhotos, type NumberableFile } from './numbering.ts';
 
 /*
@@ -54,6 +54,8 @@ describe('16.3-UNIT numberPhotos skips display shots', () => {
     expect(photoTileLabel(4)).toBe('Foto 4, abrir');
     expect(photoRemovedText(null)).toBe('Foto removida do relatório');
     expect(photoRemovedText(4)).toBe('Foto 4 removida do relatório');
+    expect(viewerLabel(null, 2)).toBe('Foto');
+    expect(viewerLabel(2, 2)).toBe('Foto 2 de 2');
     expect(captionSavedText(numberPhotos([file(1, 10, 'display')]).get(id(1)) ?? null)).toBe('Legenda salva');
   });
 });

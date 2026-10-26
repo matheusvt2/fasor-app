@@ -14,7 +14,8 @@ import { setParecer } from './support/relatorio-flow.ts';
  * photo number. On the small Porto Seguro fixture (no photo of its own): a display shot on
  * the chave's isolation table, then a site photo; the site photo is "Foto 1" everywhere,
  * the display shot carries no badge in the gallery, the sheet strip and the caption
- * composer, the point editor's picker does not offer it, and in the generated DOCX section 7
+ * composer and the viewer, the point editor's picker does not offer it, removing it leaves the
+ * site photo's number, and in the generated DOCX section 7
  * holds only the site photo ("Imagem 1.") while the chave's sheet in section 9 prints the
  * display shot's caption sentence alone, never "Imagem N". The fixture's ids are fixed and
  * a revision is generated, so this spec runs in the serial group (`e2e/support/groups.ts`).
@@ -164,4 +165,23 @@ test('@p0 16.3-E2E-001 a "Ler visor" display shot takes no number: no badge on s
   await expect(offered).toHaveCount(1);
   await expect(offered.first()).toHaveAccessibleName(/^Imagem 1, /);
   await expect(picker.getByRole('button', { name: new RegExp(CAPTION) })).toHaveCount(0);
+  await picker.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(picker).toHaveCount(0);
+
+  // The viewer on the display shot: no badge, no count, named "Foto" alone.
+  await openGallery(page);
+  await galleryItem(page, display!.id).getByRole('button', { name: /^Foto, (legenda sugerida, )?abrir$/ }).click();
+  const viewer = page.getByRole('dialog', { name: 'Foto', exact: true });
+  await expect(viewer).toBeVisible();
+  await expect(viewer.locator('.number-badge')).toHaveCount(0);
+  await expect(viewer.locator('.viewer-count')).toHaveText('');
+
+  // Removing it says so without a number, and the site photo keeps number 1.
+  await viewer.getByRole('button', { name: 'Remover', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Remover a foto do relatório?', exact: true }).getByRole('button', { name: 'Remover foto' }).click();
+  await expect(page.locator('.photo-viewer')).toHaveCount(0);
+  await expect(toast(page)).toContainText('Foto removida do relatório');
+  await expect.poll(async () => (await displayRows(page)).filter((row) => row.removed_at === null).length, { timeout: 15_000 }).toBe(0);
+  await expect(galleryItem(page, display!.id)).toHaveCount(0);
+  await expect(galleryItem(page, site.id).locator('.number-badge')).toHaveText('1');
 });

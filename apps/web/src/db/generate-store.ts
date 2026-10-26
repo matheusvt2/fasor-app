@@ -116,13 +116,19 @@ export async function markedSentSinceSnapshot(db: AppDatabase, relatorioId: stri
   return markedSentSince([...pulled, ...acked, ...unsent.map((op) => ({ ...op, seq: null }))], snapshotSeq);
 }
 
-/** `markedSentSinceSnapshot`, live; false (the plain "gerado") until the read lands or with no snapshot. */
-export function useMarkedSentSince(db: AppDatabase | null, relatorioId: string, snapshotSeq: number | null): boolean {
-  return useLiveQuery(
-    () => (db === null || snapshotSeq === null ? Promise.resolve(false) : markedSentSinceSnapshot(db, relatorioId, snapshotSeq)),
+/**
+ * `markedSentSinceSnapshot`, live, with whether its read has landed for this very snapshot
+ * (as `useEditedSinceRead`): a result read for another snapshot is never answered for this
+ * one. `sent` is false until `read`; with no snapshot nothing was sent and `read` is true.
+ */
+export function useMarkedSentSince(db: AppDatabase | null, relatorioId: string, snapshotSeq: number | null): { sent: boolean; read: boolean } {
+  const result = useLiveQuery(
+    async () => (db === null || snapshotSeq === null ? { seq: snapshotSeq, sent: false } : { seq: snapshotSeq, sent: await markedSentSinceSnapshot(db, relatorioId, snapshotSeq) }),
     [db, relatorioId, snapshotSeq],
-    false,
   );
+  if (snapshotSeq === null) return { sent: false, read: true };
+  const read = db !== null && result !== undefined && result.seq === snapshotSeq;
+  return { sent: read ? result.sent : false, read };
 }
 
 /**

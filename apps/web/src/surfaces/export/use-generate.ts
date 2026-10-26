@@ -106,7 +106,7 @@ export interface GenerateState {
   edited: boolean;
   /**
    * Story 16.2: the banner under the dialog's title (kernel sentence), or null: no revision,
-   * nothing edited since the latest one, the edited read not landed yet for its snapshot, or
+   * nothing edited since the latest one, the edited or marked-sent read not landed yet for its snapshot, or
    * the `working` phase.
    */
   beforeEditsBanner: string | null;
@@ -139,7 +139,7 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
   // True (the next number) until the read lands for this snapshot, as before; `editedRead`
   // says whether it landed, so the 16.2 banner never flashes on an unedited relatório.
   const { edited, read: editedRead } = useEditedSinceRead(db, relatorioId, latestSeq);
-  const markedSent = useMarkedSentSince(db, relatorioId, latestSeq);
+  const { sent: markedSent, read: markedSentRead } = useMarkedSentSince(db, relatorioId, latestSeq);
   const idleNumber = idleRevisionNumber(revisions, edited);
 
   const [phase, setPhase] = useState<GeneratePhase>({ kind: 'idle' });
@@ -454,7 +454,8 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
   const sendable = relatorio !== null && readyHeld && canMarkSent({ status: relatorio.status, latest: latestRevision(revisions)?.number ?? null, edited });
 
   const beforeEdits = newest !== null && editedRead && edited;
-  const beforeEditsBanner = beforeEdits && phase.kind !== 'working' ? revisionsBeforeEditsBanner(newest, { edited, markedSent }) : null;
+  // Both reads landed for this snapshot, so the banner never flashes "gerado" for a sent revision.
+  const beforeEditsBanner = beforeEdits && markedSentRead && phase.kind !== 'working' ? revisionsBeforeEditsBanner(newest, { edited, markedSent }) : null;
 
   return {
     phase,

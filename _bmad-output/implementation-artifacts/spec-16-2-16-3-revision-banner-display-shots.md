@@ -2,16 +2,30 @@
 title: 'Stories 16.2 and 16.3: a revision older than the edits says so, display shots print only under their test'
 type: 'feature'
 created: '2026-10-26'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '6666e5647605847d95bc35d637b20511e10fd07d'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'medium'
 context: ['{project-root}/_bmad-output/implementation-artifacts/epic-16-context.md']
 warnings: ['batched']
 batched_reason: 'Two stories of wave A of Epic 16 with no shared file, built on one branch in two parallel lanes with one gate and one PR (coordinator decision of 2026-10-23).'
-deferred: []
+deferred:
+  - summary: >-
+      A relatório whose last revision predates Story 16.3 and holds display shots shows its numbers as frozen while they no longer match that revision's document.
+    evidence: |-
+      photoNumbersProvisional(latest, edited) in gallery-surface.tsx calls the numbers the revision's while nothing was edited; numberPhotos now skips display shots that the old revision numbered. Ends at the next revision.
+    location: >-
+      apps/web/src/surfaces/photos/gallery-surface.tsx:126
+    severity: medium
+  - summary: >-
+      A point of attention that cited a display shot before Story 16.3 prints "imagem removida".
+    evidence: |-
+      resolvePhotoTokens prints REMOVED_PHOTO_REF_TEXT for any token without a number; spec open question 1, for Bruno.
+    location: >-
+      packages/domain/src/print/section-8.ts:72
+    severity: medium
 ---
 
 <intent-contract>
@@ -117,3 +131,34 @@ Shared (orchestrator, after the lanes): `_bmad-output/specs/spec-fasor/glossary.
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-10-26 — Review pass
+- Layers: Edge Case Hunter and Verification Gap Reviewer (opus). Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them.
+- verdicts: 14 findings — high 1, medium 6, low 5, false 1, maybe-false 1 (rows sharing a root cause are kept apart)
+- findings:
+  - `[medium]` `[patch]` ECH-1 viewer on a display shot reads "Foto k de N" with k a position against a total of numbered photos ("Foto 1 de 0" with display shots only) — viewer label "Foto", no count text, `removeTitle(null)` "Remover a foto do relatório?" (lane B).
+  - `[medium]` `[defer]` ECH-2 a relatório whose last revision predates 16.3 and holds display shots: the gallery calls the numbers frozen ("Números da revisão N") while they no longer match that revision's document — real only until the next revision; deferred, noted in the PR.
+  - `[medium]` `[defer]` ECH-3 a point written before 16.3 citing a display shot prints "imagem removida" — the spec's open question 1, left to Bruno.
+  - `[low]` `[patch]` ECH-4 `useMarkedSentSince` not keyed by snapshot; previous revision's read may serve the new one — hook keyed by seq and gated like the edited read (lane A).
+  - `[low]` `[patch]` ECH-5 picker filters on `numbers.has(tile.id)`, hiding a live photo not yet in `snapshot.files` — filter on `reading_kind !== 'display'` (lane B).
+  - `[low]` `[reject]` ECH-6 section 9 branches on `reading_kind === 'display'` beside `numberPhotos` — placement is a print decision section 9 must make; numbers still come only from `numberPhotos`; no reader diverges.
+  - `[maybe-false]` `[reject]` ECH-7 a display shot on a local (no block) prints nowhere — "Ler visor" is offered only on a block's measurement table and a display shot carries its block; no path moves it to a local was found; would be low if real.
+  - `[false]` `[reject]` ECH-8 a `sent` outbox `emitido` row applied before the snapshot — a generate flushes the outbox first and "Marcar como enviado" is offered only after the revision exists, so a sent issue op cannot predate the snapshot of the latest revision.
+  - `[medium]` `[patch]` VGR-1 viewer's display-shot branch unverified — `display-shots.spec.ts` opens the display shot in the viewer and asserts no badge and its name (lane B).
+  - `[low]` `[patch]` VGR-2 "Foto removida do relatório" toast unpinned at the call sites — `display-shots.spec.ts` removes the display shot and asserts the toast and the site photo's number (lane B).
+  - `[high]` `[patch]` VGR-3 `e2e/seed-v7.spec.ts` 14.14-E2E-002 locates the display shot's strip tile with `/^Foto \d+, abrir$/`, which no longer matches — locators updated and the spec added to the gate's spec list.
+  - `[medium]` `[patch]` VGR-4 (same root cause as ECH-1) viewer count and remove prompt on a display shot.
+  - `[medium]` `[defer]` VGR-5 (same root cause as ECH-2) frozen numbers drift from a pre-16.3 revision.
+  - `[low]` `[patch]` VGR-6 (same root cause as ECH-4) banner can say "gerado" for a moment before "emitido".
+
+
+Note (orchestrator, not a review finding): `apps/api/src/jobs/generate/docx.test.ts` l.501-502 gained `logoCell!`: `pnpm static` was red on main `7eeae579` (Story 16.1 test, TS2345).
+
+## Auto Run Result
+
+- Summary: Story 16.2 (Export dialog banner "Relatório gerado|emitido em dd/mm (revisão N). Alterações desde então geram a revisão N+1 — as anteriores continuam disponíveis abaixo." and the " — anterior às alterações" row tag, both kernel text, shown once the edited and marked-sent reads landed for the latest snapshot) and Story 16.3 (`numberPhotos` skips display shots; section 7 numbered photos only; section 9 prints a display shot after its tests with the caption sentence or the full stamp; no badge, no "Imagem N", not in the picker; viewer reads "Foto" with no count) built in two parallel lanes.
+- Files: kernel `print/revisions.ts`, `photos/numbering.ts`, `photos/gallery.ts`, `print/section-7.ts`, `print/section-9.ts`, `audit/input.ts` with tests; web `db/generate-store.ts`, `surfaces/export/use-generate.ts`, `export-dialog.tsx`, `photos/gallery-surface.tsx`, `photo-viewer.tsx`, `ficha/sheet-photos-section.tsx`, `nameplate-suggestions.tsx`, `points/point-editor.tsx`, `copy/pt-br.ts` (`photos.removeTitle`); e2e `export.spec.ts` (E4-E2E-001 extended), new `display-shots.spec.ts` (serial), `seed-v7.spec.ts` locators; docs glossary, source-deltas, KB, MOCK-GUIDE; `apps/api/src/jobs/generate/docx.test.ts` static fix.
+- Review: 14 findings; patched 8 rows (high 1, medium 3, low 4: ECH-1/4/5, VGR-1/2/3/4/6), deferred 3 rows (ECH-2/VGR-5 frozen numbers drift from a pre-16.3 revision, ECH-3 point citing a display shot), rejected 3 (ECH-6 low, ECH-7 maybe-false, ECH-8 false) with reasons in the triage log.
+- Follow-up review recommended: true: the high VGR-3 patch (seed-v7 locators) and the viewer patch are verified only by the story gate's targeted specs, not re-reviewed. Patched counts by verdict: high 1, medium 3, low 4.
+- Verification: lanes' targeted unit runs green; `pnpm lint` 0 errors, `pnpm static` green before the review patches; the story gate's results are in the PR body.
+- Residual risks: the two deferred items; a display shot attached to a local without a block would print nowhere (no path found that produces one).

@@ -952,7 +952,8 @@ export const copy = {
     previous: 'Anterior',
     next: 'Próxima',
     // authored: the Confirm dialog before "Remover" (EXPERIENCE.md › Photo viewer).
-    removeTitle: (n: number) => `Remover a foto ${n} do relatório?`,
+    // authored (Story 16.3): a display shot has no number.
+    removeTitle: (n: number | null) => (n === null ? 'Remover a foto do relatório?' : `Remover a foto ${n} do relatório?`),
     // F43: `section` as in `note`.
     // authored (F43, coordinator review): with section 7 absent, the gallery alone.
     removeDescription: (m: Mention) => (m.prints ? `A foto sai da galeria e da ${m.ref}. Dá para desfazer pelo aviso logo em seguida.` : 'A foto sai da galeria. Dá para desfazer pelo aviso logo em seguida.'),
