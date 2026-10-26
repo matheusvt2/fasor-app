@@ -116,6 +116,26 @@ describe('7.2-UNIT-001 section 7 layout', () => {
   });
 });
 
+describe('16.3-UNIT section 7 without display shots', () => {
+  const base = fresh();
+
+  it('B2: p1, d1 (display), p2 print two photos, "Imagem 1" and "Imagem 2"; the display shot stays out', () => {
+    const p1 = photo(base, { captured_at: '2026-09-06T17:00:00.000Z', caption: 'Vista geral' });
+    const d1 = photo(base, { captured_at: '2026-09-06T17:10:00.000Z', caption: 'Leitura do megômetro', reading_kind: 'display' });
+    const p2 = photo(base, { captured_at: '2026-09-06T17:20:00.000Z', caption: null });
+    const photos = section7Photos({ ...base, files: [p1, d1, p2] });
+    expect(photos.map((p) => [p.fileId, p.number, p.label])).toEqual([
+      [p1.id, 1, 'Imagem 1:'],
+      [p2.id, 2, 'Imagem 2.'],
+    ]);
+  });
+
+  it('a relatório whose only photo is a display shot prints the empty note', () => {
+    const d1 = photo(base, { reading_kind: 'display' });
+    expect(section7Layout({ ...base, files: [d1] }, heading)).toBeNull();
+  });
+});
+
 describe('7.2-UNIT-002 section 7 on the Porto Seguro fixture', () => {
   const snapshot = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
   const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: '2026-09-23T12:00:00.000Z' });

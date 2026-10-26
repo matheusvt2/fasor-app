@@ -117,9 +117,10 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const snapshot: RelatorioSnapshot = useRelatorioSnapshot(state, relatorioId);
   const tiles = useRelatorioPhotoTiles(db, relatorioId);
   const all = tiles;
-  // Numbered from the tiles this surface draws (one query), so every drawn tile has its number.
+  // Numbered from the tiles this surface draws (one query), so every drawn tile has its number;
+  // a display shot (`reading_kind: 'display'`, Story 16.3) has none and draws no badge.
   const numbers = useMemo(
-    () => numberPhotos(all.map((tile) => ({ id: tile.id, kind: 'photo', removed_at: null, captured_at: tile.captured_at, local_seq: tile.local_seq }))),
+    () => numberPhotos(all.map((tile) => ({ id: tile.id, kind: 'photo', removed_at: null, captured_at: tile.captured_at, local_seq: tile.local_seq, reading_kind: tile.reading_kind }))),
     [all],
   );
   // Story 7.2 (AC3): a revision froze these numbers until anything is edited after it.
@@ -206,7 +207,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
 
   const remove = (tile: PhotoTile) => {
     if (db === null || user === null) return;
-    const number = numbers.get(tile.id) ?? 0;
+    const number = numbers.get(tile.id) ?? null;
     const author = { id: user.id, companyId: user.companyId };
     const at = shown.findIndex((row) => row.id === tile.id);
     const neighbour = shown[at + 1] ?? shown[at - 1] ?? null;
@@ -284,7 +285,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
           {all.length === 0 ? <p className="section-note gallery-empty">{t.empty}</p> : null}
           <div className="gallery-grid" role="list" aria-label={t.listLabel}>
             {shown.map((tile) => {
-              const number = numbers.get(tile.id) ?? 0;
+              const number = numbers.get(tile.id) ?? null;
               const suggestion = suggested.get(tile.id);
               const suggestionText = suggestion === undefined ? null : String(suggestion.value);
               const marked = tile.people_in_photo === true;
@@ -312,7 +313,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
                         </div>
                       ) : undefined
                     }
-                    number={number}
+                    number={number ?? undefined}
                     stamp={{ text: photoStampShort(tile.captured_at), gps: tile.coords !== null }}
                     caption={tile.caption}
                     thumb={tile.thumb}

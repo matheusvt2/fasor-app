@@ -961,6 +961,108 @@ describe('Export dialog (Story 4.8)', () => {
     expect(await within(modal).findByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeVisible();
   });
 
+  describe('Story 16.2: a revision older than the edits says so', () => {
+    const BEFORE_EDITS = ' — anterior às alterações';
+    const banner = () => dialog().querySelector('.banner');
+    const rowTexts = () => [...dialog().querySelectorAll('.revision-row .rev-text')].map((el) => el.textContent ?? '');
+
+    it('A1, A5, A6: edited since revision 1 the banner says "gerado" and every row is tagged; working hides the banner, not the tags; revision 2 clears both until the next edit', async () => {
+      database = await freshDb();
+      await applyPulled(database, [...jobOps('done'), revisionOf(1).op]);
+      await applyPulled(database, [pulledEdit({ scope: 'relatorio', path: 'relatorio/setup/local', value: 'Outro local' })]);
+      const secondJob = '019966c1-0000-7000-8000-0000000000e3';
+      const sync = syncState({ generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: secondJob, revision_number: 2 })) });
+      render(<Harness sync={sync} />);
+      const modal = dialog();
+
+      // A1: the mock's banner right under the title, the kernel's sentence.
+      await waitFor(() => expect(banner()).not.toBeNull());
+      expect(banner()).toHaveAttribute('role', 'status');
+      expect(banner()!.querySelector('.banner-text')).toHaveTextContent(
+        'Relatório gerado em 23/09 (revisão 1). Alterações desde então geram a revisão 2 — as anteriores continuam disponíveis abaixo.',
+      );
+      expect(modal.querySelector('h2.dialog-title')!.nextElementSibling).toBe(banner());
+      expect(rowTexts()).toEqual(['Rev. 1 — 23/09/2026 09:00 — Bento Braga — anterior às alterações']);
+      expect(await axe(modal)).toHaveNoViolations();
+      // The banner writes nothing.
+      expect(await statusOps(database!)).toEqual([]);
+
+      // A5: working, no banner; the rows keep their tag.
+      await userEvent.click(generateButton());
+      await waitFor(() => expect(within(modal).getByRole('status')).toHaveTextContent('Gerando revisão 2…'));
+      expect(banner()).toBeNull();
+      expect(rowTexts()).toEqual(['Rev. 1 — 23/09/2026 09:00 — Bento Braga — anterior às alterações']);
+
+      // A6: revision 2 arrives: no banner, no row tagged.
+      await act(async () => {
+        await applyPulled(database!, [...jobOps('done', secondJob), revisionOf(2).op]);
+      });
+      await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 2 pronta' })).toBeInTheDocument());
+      await waitFor(() => expect(rowTexts()).toHaveLength(2));
+      expect(banner()).toBeNull();
+      expect(rowTexts().every((text) => !text.endsWith(BEFORE_EDITS))).toBe(true);
+
+      // The next edit brings it back, naming revision 2.
+      await act(async () => {
+        await applyPulled(database!, [pulledEdit({ scope: 'relatorio', path: 'relatorio/setup/local', value: 'Mais um local' })]);
+      });
+      await waitFor(() =>
+        expect(banner()).toHaveTextContent('Relatório gerado em 23/09 (revisão 2). Alterações desde então geram a revisão 3 — as anteriores continuam disponíveis abaixo.'),
+      );
+      expect(rowTexts().every((text) => text.endsWith(BEFORE_EDITS))).toBe(true);
+    });
+
+    it('A2: revision 1 marked as sent, then edited: the banner says "emitido"', async () => {
+      await emitidoWithRevisionOne();
+      await applyPulled(database!, [pulledEdit({ scope: 'relatorio', path: 'relatorio/setup/local', value: 'Outro local' })]);
+      render(<Harness sync={syncState()} />);
+      await waitFor(() =>
+        expect(banner()).toHaveTextContent('Relatório emitido em 23/09 (revisão 1). Alterações desde então geram a revisão 2 — as anteriores continuam disponíveis abaixo.'),
+      );
+      expect(rowTexts()).toEqual(['Rev. 1 — 23/09/2026 09:00 — Bento Braga — anterior às alterações']);
+      expect(await statusOps(database!)).toEqual([]);
+    });
+
+    it('A2: an issue this device has not sent yet also reads "emitido"', async () => {
+      database = await freshDb();
+      await applyPulled(database, [...jobOps('done'), revisionOf(1).op, pulledEdit({ scope: 'relatorio', path: 'relatorio/status', value: 'em_revisao' })]);
+      const draft = (path: string, value: unknown) => ({
+        kind: 'put' as const,
+        scope: 'relatorio' as const,
+        company_id: COMPANY,
+        project_id: null,
+        relatorio_id: REL,
+        path,
+        value: value as Op['value'],
+        prev_op_id: null,
+        batch_id: null,
+        meta: null,
+        actor_id: USER,
+      });
+      await commitBatch(database, [draft('relatorio/status', 'emitido')], { newId, now: () => new Date() });
+      await commitBatch(database, [draft('relatorio/setup/local', 'Outro local')], { newId, now: () => new Date() });
+      render(<Harness sync={syncState()} />);
+      await waitFor(() => expect(banner()).toHaveTextContent(/^Relatório emitido em 23\/09 \(revisão 1\)\./));
+    });
+
+    it('A3: nothing edited since the latest revision: no banner, no tag, the ready block as today', async () => {
+      const modal = await afterRevisionOne();
+      // The idle line answered revision 1 again, so the edited read has landed.
+      expect(banner()).toBeNull();
+      expect(rowTexts()).toEqual(['Rev. 1 — 23/09/2026 09:00 — Bento Braga']);
+      expect(within(modal).queryByText(/anterior às alterações/)).toBeNull();
+    });
+
+    it('A4: no revision yet: no banner, "Nenhuma revisão gerada ainda."', async () => {
+      database = await freshDb();
+      await applyPulled(database, [pulledEdit({ scope: 'relatorio', path: 'relatorio/setup/local', value: 'Outro local' })]);
+      render(<Harness sync={syncState()} />);
+      expect(await within(dialog()).findByText('Nenhuma revisão gerada ainda.')).toBeInTheDocument();
+      await waitFor(() => expect(within(dialog()).getByText('Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 1. Precisa de conexão.')).toBeInTheDocument());
+      expect(banner()).toBeNull();
+    });
+  });
+
   it('resumes the working state from a job the server still runs, whoever asked for it', async () => {
     database = await freshDb();
     await applyPulled(database, jobOps('running'));

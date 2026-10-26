@@ -1,3 +1,4 @@
+import { captionPhotoLabel } from '../photos/gallery.ts';
 import { photoRefLabel } from '../photos/numbering.ts';
 import { printedSections, sectionHeading, type DocumentLayout, type LayoutSection } from '../print/layout.ts';
 import { ACTION_PLAN_COLUMNS } from '../print/section-8.ts';
@@ -167,11 +168,14 @@ export function auditRowLabel(sheetLabel: string, firstCell: string, rowIndex: n
   return PLACEHOLDER_CELL.test(first) ? `${sheetLabel} · linha ${rowIndex + 1}` : `${sheetLabel} · ${clip(screenLabel(first), ROW_LABEL_MAX)}`;
 }
 
-/** One photo line, its ref offered once however often the photo prints (section 7 and its sheet). */
-function photoLine(fileId: string, number: number, caption: string, photoRefs: Map<string, AuditRef>): Line {
+/**
+ * One photo line, its ref offered once however often the photo prints (section 7 and its sheet).
+ * A display shot has no number (Story 16.3): its ref reads "Foto" (`captionPhotoLabel(null)`).
+ */
+function photoLine(fileId: string, number: number | null, caption: string, photoRefs: Map<string, AuditRef>): Line {
   const id = `photo:${fileId}`;
   const known = photoRefs.get(id);
-  const ref = known ?? { id, label: photoRefLabel(number), target: { kind: 'photos' as const } };
+  const ref = known ?? { id, label: number === null ? captionPhotoLabel(null) : photoRefLabel(number), target: { kind: 'photos' as const } };
   if (known === undefined) photoRefs.set(id, ref);
   return { text: `  [${id}] ${caption}`, ref };
 }

@@ -124,6 +124,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'tap-budget-signal.spec.ts',
     why: 'times every tap of the SM-3 walk against a render and waits on nine readings of the one reading queue and worker',
   },
+  // Story 16.3: display shots out of section 7 and the numbering, checked in a generated DOCX.
+  {
+    file: 'display-shots.spec.ts',
+    why: 'loads the fixed-id Porto Seguro fixture and generates a revision through the shared queue and LibreOffice, uploading a display shot the one reading queue and worker read',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

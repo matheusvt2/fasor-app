@@ -615,3 +615,49 @@ describe('14.10-UNIT-002 auditCoverageText', () => {
     expect(auditRunRowSchema.safeParse({ ...old, coverage: { sent: -1, total: 76 } }).success).toBe(false);
   });
 });
+
+describe('16.3-UNIT auditInput: a display shot has no number', () => {
+  const small = smallSnapshot();
+  const file = (id: string, capturedAt: string, readingKind: 'display' | null, caption: string): FileRow =>
+    ({
+      id,
+      relatorio_id: small.relatorio.id,
+      kind: 'photo',
+      sha256: 'ab',
+      mime: 'image/jpeg',
+      size: 1,
+      uploaded_at: null,
+      variants: null,
+      removed_at: null,
+      captured_at: capturedAt,
+      tz_offset: -180,
+      coords: null,
+      local_seq: 1,
+      block_id: BLOCK_CHAVE_ID,
+      location_id: null,
+      item_key: null,
+      caption,
+      reading_kind: readingKind,
+      reading_target: null,
+      reading_status: 'none',
+      people_in_photo: false,
+    }) as FileRow;
+  const DISPLAY = '019966c1-0163-7000-8000-00000000d001';
+  const PLAIN = '019966c1-0163-7000-8000-00000000d002';
+  const snapshot: RelatorioSnapshot = {
+    ...small,
+    files: [...small.files, file(DISPLAY, '2000-01-01T10:00:00.000Z', 'display', 'Leitura do megômetro'), file(PLAIN, '2000-01-01T10:01:00.000Z', null, 'Vista geral')],
+  };
+  const input = auditInput(draft(snapshot), snapshot, Number.MAX_SAFE_INTEGER);
+
+  it('sends the display shot once, its line the caption sentence alone, its ref labelled "Foto"', () => {
+    expect(input.text).toContain(`[photo:${DISPLAY}] Leitura do megômetro.`);
+    expect(input.text.split('\n').filter((line) => line.includes(`[photo:${DISPLAY}]`))).toHaveLength(1);
+    expect(input.refs.find((ref) => ref.id === `photo:${DISPLAY}`)).toEqual({ id: `photo:${DISPLAY}`, label: 'Foto', target: { kind: 'photos' } });
+  });
+
+  it('the plain photo taken right after it keeps number 1 (the earliest), as section 7 prints it', () => {
+    expect(input.refs.find((ref) => ref.id === `photo:${PLAIN}`)?.label).toBe('Imagem 1');
+    expect(input.text).toContain(`[photo:${PLAIN}] Imagem 1: Vista geral.`);
+  });
+});

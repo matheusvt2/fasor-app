@@ -4,8 +4,8 @@ import { livePhotos } from '../photos/order.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 
 /*
- * Story 7.2 (AC1): section 7, the photo record, as layout data. Every live photo of the
- * frozen snapshot, in the `numberPhotos` order `(captured_at, local_seq, id)` and with its
+ * Story 7.2 (AC1): section 7, the photo record, as layout data. Every live numbered photo
+ * of the frozen snapshot (a "Ler visor" display shot has no number and stays out, Story 16.3), in the `numberPhotos` order `(captured_at, local_seq, id)` and with its
  * number, two per row in the document. Under each photo: the bold label "Imagem 5:" and
  * the caption as a sentence, the full Photo stamp and, for a photo taken on a checklist
  * row (a sheet's, or a local's site item since Story 14.3), that row's line ("Item 8 ·
@@ -55,17 +55,19 @@ export function captionSentence(caption: string): string {
 export function section7Photos(snapshot: Section7Snapshot): LayoutPhoto[] {
   const numbers = numberPhotos(snapshot.files);
   return livePhotos(snapshot)
-    .map((photo) => {
-      const number = numbers.get(photo.id)!;
+    .flatMap((photo) => {
+      // Story 16.3: a display shot takes no number and prints under its test in section 9 only.
+      const number = numbers.get(photo.id);
+      if (number === undefined) return [];
       const captioned = !isUncaptioned(photo.caption);
-      return {
+      return [{
         fileId: photo.id,
         number,
         label: `${photoRefLabel(number)}${captioned ? ':' : '.'}`,
         caption: captioned ? ` ${captionSentence(photo.caption!)}` : null,
         stamp: photoStampFull(photo),
         itemLine: photoItemLine(photo, snapshot)?.text ?? null,
-      };
+      }];
     })
     .sort((a, b) => a.number - b.number);
 }

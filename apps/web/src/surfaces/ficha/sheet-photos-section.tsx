@@ -41,12 +41,13 @@ export function SheetPhotosSection({ snapshot, blockId, tiles, onOpen, onRetry }
       <div className="photo-list">
         {photos.map((photo) => {
           const tile = tileOf.get(photo.id);
-          const number = numbers.get(photo.id) ?? 0;
+          // Story 16.3: a display shot has no number, so no badge.
+          const number = numbers.get(photo.id) ?? null;
           return (
             <PhotoRow
               key={photo.id}
               label={photoTileLabel(number)}
-              number={number}
+              number={number ?? undefined}
               stamp={{ text: photoStampShort(photo.captured_at), gps: photo.coords !== null }}
               caption={photo.caption}
               thumb={tile?.thumb ?? null}

@@ -106,6 +106,20 @@ describe('11.11-UNIT-003 SheetPhotosSection', () => {
     expect(container.querySelector('.thumb-fake')).not.toBeNull();
   });
 
+  it('16.3: a "Ler visor" display shot draws no badge and no number in its name; the photos around it keep theirs', () => {
+    const files = [
+      photo(1, '2026-09-06T09:00:00.000Z', BLOCK),
+      photo(2, '2026-09-06T10:00:00.000Z', BLOCK, { reading_kind: 'display', caption: 'Leitura do megômetro' }),
+      photo(3, '2026-09-06T11:00:00.000Z', BLOCK),
+    ];
+    const { container } = render(<SheetPhotosSection snapshot={snapshotOf(files)} blockId={BLOCK} tiles={[]} onOpen={() => {}} onRetry={() => {}} />);
+    const rows = [...container.querySelectorAll('.photo-list > .photo-row')];
+    expect(rows.map((row) => row.querySelector('.number-badge')?.textContent ?? null)).toEqual(['1', null, '2']);
+    expect(screen.getByRole('button', { name: 'Foto, abrir' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Foto 2, abrir' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Foto 3, abrir' })).toBeNull();
+  });
+
   it('renders nothing for a block with no live photo', () => {
     const files = [photo(1, '2026-09-06T10:00:00.000Z', OTHER), photo(2, '2026-09-06T11:00:00.000Z', BLOCK, { removed_at: '2026-09-07T00:00:00.000Z' })];
     const { container } = render(<SheetPhotosSection snapshot={snapshotOf(files)} blockId={BLOCK} tiles={[tile(1), tile(2)]} onOpen={() => {}} onRetry={() => {}} />);

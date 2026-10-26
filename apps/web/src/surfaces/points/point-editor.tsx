@@ -722,7 +722,7 @@ function PrazoField({
   );
 }
 
-/** The picker of the relatório's live photos (`key-photos.html` tiles with their number). */
+/** The picker of the relatório's live numbered photos (`key-photos.html` tiles with their number). */
 function PhotoPicker({
   isOpen,
   onOpenChange,
@@ -737,13 +737,15 @@ function PhotoPicker({
   onPick: (id: string) => void;
 }) {
   const t = copy.points;
+  // Story 16.3: only numbered photos are offered; a display shot (no number) is never referenced.
+  const offered = tiles.filter((tile) => numbers.has(tile.id));
   return (
     <FormDialog isOpen={isOpen} onOpenChange={onOpenChange} title={t.pickerTitle} className="poa-picker-dialog">
-      {tiles.length === 0 ? (
+      {offered.length === 0 ? (
         <p className="section-note">{t.pickerEmpty}</p>
       ) : (
         <div className="poa-picker-grid" role="group" aria-label={t.pickerLabel}>
-          {tiles.map((tile) => {
+          {offered.map((tile) => {
             const n = numbers.get(tile.id) ?? null;
             return (
               <PhotoRefTile

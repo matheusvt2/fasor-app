@@ -2,7 +2,8 @@
 title: 'Stories 16.2 and 16.3: a revision older than the edits says so, display shots print only under their test'
 type: 'feature'
 created: '2026-10-26'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '6666e5647605847d95bc35d637b20511e10fd07d'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'

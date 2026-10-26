@@ -10,6 +10,7 @@ import {
   notCaughtUpDetailsSchema,
   notCaughtUpRetryable,
   putRelatorioStatusOp,
+  revisionsBeforeEditsBanner,
   toIso,
   type GenerateOutcome,
   type GenerationJobRow,
@@ -24,8 +25,9 @@ import {
   lastOpIdFor,
   relatorioRow,
   revisionRows,
-  useEditedSince,
+  useEditedSinceRead,
   useLatestGenerationJob,
+  useMarkedSentSince,
   useRelatorio,
   useRevisions,
 } from '../../db/generate-store.ts';
@@ -102,6 +104,14 @@ export interface GenerateState {
   online: boolean;
   /** Whether anything was edited since the newest revision (true until the first read lands). */
   edited: boolean;
+  /**
+   * Story 16.2: the banner under the dialog's title (kernel sentence), or null: no revision,
+   * nothing edited since the latest one, the edited read not landed yet for its snapshot, or
+   * the `working` phase.
+   */
+  beforeEditsBanner: string | null;
+  /** Story 16.2: every "Revisões" row predates edits (the read landed and says edited); kept in `working`. */
+  beforeEdits: boolean;
   /** Decision 2 (2026-10-10): Em revisão, a revision on record, nothing edited since it. */
   canMarkSent: boolean;
   /** "Marcar como enviado ao cliente": one `issue` op when the kernel still offers it at the write. */
@@ -124,7 +134,12 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
   const revisions = useRevisions(db, relatorioId);
   const latestJob = useLatestGenerationJob(db, relatorioId);
   const nextNumber = nextRevisionNumber(revisions);
-  const edited = useEditedSince(db, relatorioId, latestRevision(revisions)?.snapshot_seq ?? null);
+  const newest = latestRevision(revisions);
+  const latestSeq = newest?.snapshot_seq ?? null;
+  // True (the next number) until the read lands for this snapshot, as before; `editedRead`
+  // says whether it landed, so the 16.2 banner never flashes on an unedited relatório.
+  const { edited, read: editedRead } = useEditedSinceRead(db, relatorioId, latestSeq);
+  const markedSent = useMarkedSentSince(db, relatorioId, latestSeq);
   const idleNumber = idleRevisionNumber(revisions, edited);
 
   const [phase, setPhase] = useState<GeneratePhase>({ kind: 'idle' });
@@ -438,5 +453,24 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
   const readyHeld = phase.kind !== 'ready' || revisions.some((row) => (phase.revisionId === null ? row.number === phase.number : row.id === phase.revisionId));
   const sendable = relatorio !== null && readyHeld && canMarkSent({ status: relatorio.status, latest: latestRevision(revisions)?.number ?? null, edited });
 
-  return { phase, relatorio, revisions, latestJob, nextNumber, idleNumber, userNames: sync.userNames, online: sync.online, edited, canMarkSent: sendable, markSent, start, reset };
+  const beforeEdits = newest !== null && editedRead && edited;
+  const beforeEditsBanner = beforeEdits && phase.kind !== 'working' ? revisionsBeforeEditsBanner(newest, { edited, markedSent }) : null;
+
+  return {
+    phase,
+    relatorio,
+    revisions,
+    latestJob,
+    nextNumber,
+    idleNumber,
+    userNames: sync.userNames,
+    online: sync.online,
+    edited,
+    beforeEditsBanner,
+    beforeEdits,
+    canMarkSent: sendable,
+    markSent,
+    start,
+    reset,
+  };
 }

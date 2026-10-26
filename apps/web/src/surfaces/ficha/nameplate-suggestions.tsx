@@ -123,7 +123,7 @@ export function useCropViewer({ api, snapshot, onCaptionPhoto }: { api: LocalApi
   const db = useSession().database;
   const tiles = useRelatorioPhotoTiles(db, api.relatorioId);
   const numbers = useMemo(
-    () => numberPhotos(tiles.map((tile) => ({ id: tile.id, kind: 'photo', removed_at: null, captured_at: tile.captured_at, local_seq: tile.local_seq }))),
+    () => numberPhotos(tiles.map((tile) => ({ id: tile.id, kind: 'photo', removed_at: null, captured_at: tile.captured_at, local_seq: tile.local_seq, reading_kind: tile.reading_kind }))),
     [tiles],
   );
   const [viewing, setViewing] = useState<{ photoId: string; zoom: NormalizedBox | null } | null>(null);
@@ -134,7 +134,7 @@ export function useCropViewer({ api, snapshot, onCaptionPhoto }: { api: LocalApi
   const remove = (tile: PhotoTile) => {
     if (db === null || api.author === null) return;
     const author = api.author;
-    const number = numbers.get(tile.id) ?? 0;
+    const number = numbers.get(tile.id) ?? null;
     setViewing(null);
     void removePhoto(db, author, api.relatorioId, tile.id)
       .then(() =>
