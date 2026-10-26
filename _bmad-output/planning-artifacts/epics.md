@@ -4331,6 +4331,8 @@ So that the printed sheet says the plate has no such value rather than "-", and 
 
 **Definition of Done, in addition:** `numberValueSchema` extended and `contract/version.ts` gains entry 26 with the reasons above; kernel tests over every reader listed in Today with a `not_applicable` value; `ficha-fields.test.tsx` types the four spellings; a Playwright spec types "n.a" on a TP's POTÊNCIA NOMINAL, sees "N.A" after blur, generates the preview and finds "N.A" in the PDF text; `source-deltas.md` row on the AD-11 value shape, `glossary.md` ("N.A"), `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` lines; the authored "N.A" spelling listed in the PR for Bruno.
 
+*(2026-10-26, PR #183, batch e16c, merged as 5cece708)* Built on the defaults; contract 26, minimum 26. Narrowings: N.A is accepted only by the nameplate and cabine fields through an opt-in `acceptsNotApplicable` flag; measurement values and the plate suggestion's editable guess keep refusing it; "Copiar da cabine anterior" is not offered when the previous cabine's temperature or humidity is N.A. Open for Matheus: on a tablet's soft keyboard N.A cannot be typed, because the number input asks for the decimal keypad (`inputMode: 'decimal'`), so today only a desktop or a hardware keyboard reaches it; a text keypad or an "N.A" control is a product choice (deferred-work, medium). Patched after the review and not re-reviewed: the guard that keeps N.A out of measurement fields.
+
 ## Backlog: deferred stories
 
 Stories moved out of their epic with a dated decision, so the epic can close. Each keeps its text, number and Definition of Ready where it was written; this list is where they wait. A story leaves this list when a dated line schedules it into an epic.
