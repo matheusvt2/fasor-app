@@ -202,19 +202,23 @@ export function photoNumbersStatusText(latest: Pick<RevisionRow, 'number'> | nul
   return edited ? `Números provisórios — serão definidos na revisão ${latest.number + 1}` : `Números da revisão ${latest.number}`;
 }
 
-/** A gallery tile's accessible name: "Foto 4, abrir"; "Foto 1, legenda sugerida, abrir" with a caption suggestion (`70-fotos.html`). */
-export function photoTileLabel(n: number, opts: { suggested?: boolean } = {}): string {
-  return opts.suggested === true ? `Foto ${n}, legenda sugerida, abrir` : `Foto ${n}, abrir`;
+/**
+ * A gallery tile's accessible name: "Foto 4, abrir"; "Foto 1, legenda sugerida, abrir" with a
+ * caption suggestion (`70-fotos.html`). Story 16.3: a display shot has no number ("Foto, abrir").
+ */
+export function photoTileLabel(n: number | null, opts: { suggested?: boolean } = {}): string {
+  const name = captionPhotoLabel(n);
+  return opts.suggested === true ? `${name}, legenda sugerida, abrir` : `${name}, abrir`;
 }
 
-/** The viewer's accessible name: "Foto 4 de 20". */
-export function viewerLabel(position: number, total: number): string {
-  return `Foto ${position} de ${total}`;
+/** The viewer's accessible name: "Foto 4 de 20"; "Foto" alone for a display shot (no number, Story 16.3). */
+export function viewerLabel(position: number | null, total: number): string {
+  return position === null ? captionPhotoLabel(null) : `Foto ${position} de ${total}`;
 }
 
-/** The toast after "Remover": "Foto 4 removida do relatório". */
-export function photoRemovedText(n: number): string {
-  return `Foto ${n} removida do relatório`;
+/** The toast after "Remover": "Foto 4 removida do relatório"; "Foto removida do relatório" for a display shot (no number, Story 16.3). */
+export function photoRemovedText(n: number | null): string {
+  return `${captionPhotoLabel(n)} removida do relatório`;
 }
 
 /** E6-Q3: the Caption composer's photo line (`71-legenda.html` `.capture-meta`): "Nº provisório 4 · 06/09 08:31". */

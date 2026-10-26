@@ -282,10 +282,11 @@ test('@p0 14.14-E2E-002 a Quadro elétrico: the SELV/PELV help, the SELV notice 
       (record) => record.entity === 'file' && record.row.block_id === blockId && record.row.reading_kind === 'display' && record.row.removed_at === null,
     );
   await expect.poll(async () => (await shots()).length, { timeout: 15_000 }).toBe(1);
-  await page.getByRole('region', { name: /^Fotos da ficha \(\d+\)$/ }).getByRole('button', { name: /^Foto \d+, abrir$/ }).first().click();
-  const viewer = page.getByRole('dialog', { name: /^Foto \d+ de \d+$/ });
+  await page.getByRole('region', { name: /^Fotos da ficha \(\d+\)$/ }).getByRole('button', { name: 'Foto, abrir', exact: true }).first().click();
+  // Story 16.3: a display shot has no number, so the viewer and the confirm name none.
+  const viewer = page.getByRole('dialog', { name: 'Foto', exact: true });
   await viewer.getByRole('button', { name: 'Remover', exact: true }).click();
-  await page.getByRole('dialog', { name: /^Remover a foto \d+ do relatório\?$/ }).getByRole('button', { name: 'Remover foto' }).click();
+  await page.getByRole('dialog', { name: 'Remover a foto do relatório?', exact: true }).getByRole('button', { name: 'Remover foto' }).click();
   await expect(page.locator('.photo-viewer')).toHaveCount(0);
   await expect.poll(async () => (await shots()).length, { timeout: 15_000 }).toBe(0);
   await expect(voltageNotice).toHaveText(TEST_VOLTAGE_NOT_CHECKED);

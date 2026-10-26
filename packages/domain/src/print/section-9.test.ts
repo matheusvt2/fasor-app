@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { portoSeguroSmall } from '../../fixtures/porto-seguro/small/op-log.ts';
 import { replay } from '../ops/replay.ts';
+import { photoStampFull } from '../photos/gallery.ts';
 import { numberPhotos } from '../photos/numbering.ts';
 import { composeConclusion } from '../relatorio/conclusion.ts';
 import { preIssue, preIssueRowsFor } from '../relatorio/pre-issue.ts';
@@ -154,7 +155,7 @@ function tableNamed(sheet: PrintSheet, name: string): PrintTable {
   return part.table;
 }
 
-function photo(n: number, over: { block_id?: string | null; item_key?: string | null; reading_kind?: 'plate' | null; caption?: string | null; captured_at: string; removed_at?: string | null }): RelatorioSnapshot['files'][number] {
+function photo(n: number, over: { block_id?: string | null; item_key?: string | null; reading_kind?: 'plate' | 'display' | null; caption?: string | null; captured_at: string; removed_at?: string | null; coords?: { lat: number; lng: number; accuracy_m: number; source: 'geolocation' } | null }): RelatorioSnapshot['files'][number] {
   return {
     id: id(3000 + n),
     relatorio_id: RELATORIO,
@@ -167,7 +168,7 @@ function photo(n: number, over: { block_id?: string | null; item_key?: string | 
     removed_at: over.removed_at ?? null,
     captured_at: over.captured_at,
     tz_offset: -180,
-    coords: null,
+    coords: over.coords ?? null,
     local_seq: n,
     block_id: over.block_id ?? null,
     item_key: over.item_key ?? null,
@@ -1055,5 +1056,63 @@ describe('Stories 15.3 and 15.6 (seed v9): what a v9 relatório prints, a v8 one
     expect(v9[19]).toEqual(['20. GRADES E PORTAS: ESTADO E FIXAÇÃO', '', 'X', '', 'Grade ou porta solta ou mal fixada']);
     expect(v9[20]).toEqual(['21. PINTURA E CORROSÃO', 'X', '', '', '']);
     expect(siteRows('v8')).toHaveLength(19);
+  });
+});
+
+describe('16.3 section9Layout: a display shot prints after the tests with its caption alone', () => {
+  const sheetPhotosOf = (files: RelatorioSnapshot['files']) => {
+    const printed = sheetOf(layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0')], [FULL_CHAVE], { files })), block(1));
+    return { printed, photos: printed.parts.flatMap((p) => (p.kind === 'photos' ? p.photos : [])) };
+  };
+  const general = photo(1, { captured_at: '2026-09-06T09:00:00.000Z', caption: 'Vista geral' }); // 1
+  const display = photo(2, { block_id: block(1), reading_kind: 'display', caption: 'Leitura do megômetro', captured_at: '2026-09-06T09:30:00.000Z' }); // none
+  const after = photo(3, { block_id: block(1), caption: 'Detalhe', captured_at: '2026-09-06T10:00:00.000Z' }); // 2
+
+  it('B3: after the test tables, "Leitura do megômetro." with no "Imagem" and no number; the other photos keep theirs', () => {
+    const { printed, photos } = sheetPhotosOf([general, display, after]);
+    expect(photos).toEqual([
+      { fileId: display.id, number: null, caption: 'Leitura do megômetro.' },
+      { fileId: after.id, number: 2, caption: 'Imagem 2: Detalhe.' },
+    ]);
+    // The photos part stands after the last test table and before OBSERVAÇÕES.
+    const names = printed.parts.map((part) => (part.kind === 'photos' ? 'photos' : partName(part)));
+    expect(names.slice(names.indexOf('photos') - 1, names.indexOf('photos') + 2)).toEqual(['LINHA', 'photos', 'OBSERVAÇÕES']);
+  });
+
+  it('a caption already closed keeps its own punctuation; a display shot on a checklist row still prints after the tests', () => {
+    const closed = photo(4, { block_id: block(1), reading_kind: 'display', item_key: 'contatos', caption: '  Leitura do megômetro!  ', captured_at: '2026-09-06T09:40:00.000Z' });
+    const { printed, photos } = sheetPhotosOf([general, closed]);
+    expect(photos).toEqual([{ fileId: closed.id, number: null, caption: 'Leitura do megômetro!' }]);
+    expect(printed.parts.map((part) => (part.kind === 'photos' ? 'photos' : partName(part))).indexOf('photos')).toBeGreaterThan(
+      printed.parts.map(partName).indexOf('LINHA'),
+    );
+  });
+
+  it('B4: an uncaptioned display shot prints its full stamp alone', () => {
+    const coords = { lat: -23.55052, lng: -46.63331, accuracy_m: 5, source: 'geolocation' as const };
+    const bare = photo(5, { block_id: block(1), reading_kind: 'display', caption: null, captured_at: '2026-09-06T10:05:00.000Z', coords });
+    const blank = photo(6, { block_id: block(1), reading_kind: 'display', caption: '   ', captured_at: '2026-09-06T10:06:00.000Z' });
+    const { photos } = sheetPhotosOf([bare, blank]);
+    expect(photos.map((p) => [p.number, p.caption])).toEqual([
+      [null, photoStampFull(bare as Parameters<typeof photoStampFull>[0])],
+      [null, '06/09/2026 07:06'],
+    ]);
+    expect(photos[0]!.caption).toBe('06/09/2026 07:05 · −23,5505, −46,6333');
+    expect(photos.some((p) => p.caption.includes('Imagem'))).toBe(false);
+  });
+
+  it('a sheet without display shots prints as before; removing the display shot changes nothing else', () => {
+    const withShot = sheetPhotosOf([general, display, after]).printed;
+    const withoutShot = sheetPhotosOf([general, after]).printed;
+    const strip = (sheet: PrintSheet) => sheet.parts.map((part) => (part.kind === 'photos' ? { ...part, photos: part.photos.filter((p) => p.number !== null) } : part));
+    expect(strip(withShot)).toEqual(withoutShot.parts);
+    // Removed, the display shot prints nowhere.
+    const removed = { ...display, removed_at: '2026-09-06T11:00:00.000Z' } as RelatorioSnapshot['files'][number];
+    expect(sheetPhotosOf([general, removed, after]).printed).toEqual(withoutShot);
+  });
+
+  it('a display shot on a local (no block) prints nowhere in section 9', () => {
+    const files = [{ ...display, block_id: null, location_id: id(1) } as RelatorioSnapshot['files'][number]];
+    expect(JSON.stringify(layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0')], [FULL_CHAVE], { files })))).not.toContain(display.id);
   });
 });

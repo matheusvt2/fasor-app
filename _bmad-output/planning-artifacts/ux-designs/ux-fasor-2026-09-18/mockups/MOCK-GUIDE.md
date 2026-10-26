@@ -64,6 +64,7 @@ Inside a relatório: tablet landscape and desktop show `.rail` (320px, `relatori
 - **Rich text editor** `.rich-text(.is-focus) > .rt-toolbar[role=toolbar] > .rt-tool[aria-pressed] (Negrito · Itálico · Lista · Numeração) + .rt-tool.rt-var "Variável"; .rt-area[role=textbox] > p > .var-chip "{executor}"; .rt-foot` (the available variables). Template composer only, inside a section Block card's `.block-expand`.
 - **Overflow menu, open** `li.block-card.overflow-anchor > .overflow-trigger[aria-expanded=true] + .overflow-menu.is-open[role=menu] > .menu-item[role=menuitem]` in the order Adicionar abaixo · Subir · Descer · Duplicar · (menu-group) Remover `data-tone="red"`. The only shadow on a Block card.
 - **Export pre-check, blocking** `.precheck li > .pc-text > .pc-block` ("Parecer não preenchido", red word) + the primary "Gerar relatório" disabled with its `btn-reason`.
+- **Export banner** `73-exportar.html` `.export-state > .banner[role=status] > .banner-text` under the dialog title ("Relatório emitido em 10/09 (revisão 2). Alterações desde então geram a revisão 3 — …"). *(2026-10-26, Story 16.2: built; shown while something was edited since the latest revision, "gerado" unless that revision was marked as sent, and every "Revisões" row then ends with " — anterior às alterações", authored.)*
 - No emoji anywhere (mocks, CSS, guide, UI strings): icons only via the inline SVG sprite or a CSS glyph.
 
 ## Content rules

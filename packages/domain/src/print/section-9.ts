@@ -1,5 +1,6 @@
 import { formatDateTime } from '../format/datetime.ts';
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
+import { isUncaptioned, photoStampFull } from '../photos/gallery.ts';
 import { numberPhotos, photoRefLabel } from '../photos/numbering.ts';
 import { livePhotos, type SnapshotPhoto } from '../photos/order.ts';
 import { notTestedPointText } from '../points/derived.ts';
@@ -95,9 +96,15 @@ export interface PrintTable {
 
 export interface PrintPhoto {
   fileId: string;
-  /** The photo's number, the same `numberPhotos` gives section 7. */
-  number: number;
-  /** The line under the photo: "Imagem 3: ⟨legenda⟩." or "Imagem 3.". */
+  /**
+   * The photo's number, the same `numberPhotos` gives section 7; null for a "Ler visor"
+   * display shot, which takes none (Story 16.3).
+   */
+  number: number | null;
+  /**
+   * The line under the photo: "Imagem 3: ⟨legenda⟩." or "Imagem 3."; a display shot's is its
+   * caption sentence alone ("⟨legenda⟩.") or, uncaptioned, its full stamp.
+   */
   caption: string;
 }
 
@@ -803,10 +810,28 @@ function photoLine(n: number, caption: string | null): string {
   return `${photoRefLabel(n)}: ${text}${CLOSED_CAPTION.test(text) ? '' : '.'}`;
 }
 
-/** The sheet's photos by where they print: the plate's after the nameplate, a checklist row's after the checklist, the rest after the tests. */
+/**
+ * Story 16.3: a "Ler visor" display shot's line, with no "Imagem N": the caption as a sentence
+ * (closed as `photoLine` closes it) or, uncaptioned, the full stamp ("06/09/2026 14:32 · …").
+ */
+function displayShotLine(photo: SnapshotPhoto): string {
+  if (isUncaptioned(photo.caption)) return photoStampFull(photo);
+  const text = photo.caption!.trim();
+  return `${text}${CLOSED_CAPTION.test(text) ? '' : '.'}`;
+}
+
+/**
+ * The sheet's photos by where they print: the plate's after the nameplate, a checklist row's
+ * after the checklist, the rest after the tests. A display shot (Story 16.3) has no number and
+ * always prints after the tests, its line the caption sentence alone.
+ */
 function sheetPhotos(ctx: Context, blockId: string, checklistPrinted: boolean): { plate: PrintPhoto[]; items: PrintPhoto[]; other: PrintPhoto[] } {
   const out = { plate: [] as PrintPhoto[], items: [] as PrintPhoto[], other: [] as PrintPhoto[] };
   for (const photo of ctx.photos.get(blockId) ?? []) {
+    if (photo.reading_kind === 'display') {
+      out.other.push({ fileId: photo.id, number: null, caption: displayShotLine(photo) });
+      continue;
+    }
     const number = ctx.numbers.get(photo.id);
     if (number === undefined) continue;
     const printed: PrintPhoto = { fileId: photo.id, number, caption: photoLine(number, photo.caption) };

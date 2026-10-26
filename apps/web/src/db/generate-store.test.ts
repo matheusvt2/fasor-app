@@ -4,7 +4,7 @@ import { makeOp, SERVER_DEVICE_ID, type Op, type RevisionRow } from '@app/domain
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { describe, expect, it } from 'vitest';
 import { commitBatch } from './commit.ts';
-import { editedSinceSnapshot, lastOpIdFor, latestGenerationJob, relatorioRow, revisionRows } from './generate-store.ts';
+import { editedSinceSnapshot, lastOpIdFor, latestGenerationJob, markedSentSinceSnapshot, relatorioRow, revisionRows } from './generate-store.ts';
 import { newId } from '../ids.ts';
 import { openDatabase, type AppDatabase } from './schema.ts';
 import { applyPulled, markDead } from './sync-store.ts';
@@ -120,6 +120,44 @@ describe('E4 retro item 18: editedSinceSnapshot reads the relatório stream', ()
     const referenced = portoSeguroSmall.log.find((op) => op.path.startsWith('equipment/') && op.kind === 'create')!;
     await applyPulled(db, [projectOp(`equipment/${(referenced.value as { id: string }).id}/tag`, 'SEC-RENOMEADA', snapshot + 3)]);
     expect(await editedSinceSnapshot(db, REL, snapshot)).toBe(true);
+  });
+});
+
+describe('16.2: markedSentSinceSnapshot reads an issue past the revision snapshot', () => {
+  const snapshot = 50_000;
+  const statusOp = (value: string, seqOf: number): Op => ({ ...serverOp({ kind: 'put', path: 'relatorio/status', value, client_ts: '2026-10-22T18:30:00.000Z' }), actor_id: USER, device_id: 'tablet-office', seq: seqOf });
+  const deviceRow = (value: string, status: 'pending' | 'sent' | 'acked' | 'dead', seqOf?: number) => {
+    const op: Op = { ...statusOp(value, 0), device_id: 'tablet-store' };
+    if (seqOf === undefined) delete op.seq;
+    else op.seq = seqOf;
+    return { ...op, status, error_code: null, targets: [] };
+  };
+
+  it('a pulled emitido put counts only past the snapshot; another status never does', async () => {
+    const db = await freshDb();
+    expect(await markedSentSinceSnapshot(db, REL, snapshot)).toBe(false);
+    await applyPulled(db, [statusOp('emitido', snapshot - 1), statusOp('em_revisao', snapshot + 1)]);
+    expect(await markedSentSinceSnapshot(db, REL, snapshot)).toBe(false);
+    await applyPulled(db, [statusOp('emitido', snapshot + 2)]);
+    expect(await markedSentSinceSnapshot(db, REL, snapshot)).toBe(true);
+    // Another relatório's snapshot reads its own stream only.
+    expect(await markedSentSinceSnapshot(db, newId(), snapshot)).toBe(false);
+  });
+
+  it("this device's unsent or acked issue counts; a dead one or one acked before the snapshot does not", async () => {
+    const db = await freshDb();
+    await db.outbox.put(deviceRow('emitido', 'dead'));
+    await db.outbox.put(deviceRow('emitido', 'acked', snapshot - 5));
+    expect(await markedSentSinceSnapshot(db, REL, snapshot)).toBe(false);
+    await db.outbox.put(deviceRow('emitido', 'acked', snapshot + 5));
+    expect(await markedSentSinceSnapshot(db, REL, snapshot)).toBe(true);
+
+    const pending = await freshDb();
+    await pending.outbox.put(deviceRow('emitido', 'pending'));
+    expect(await markedSentSinceSnapshot(pending, REL, snapshot)).toBe(true);
+    const sent = await freshDb();
+    await sent.outbox.put(deviceRow('emitido', 'sent'));
+    expect(await markedSentSinceSnapshot(sent, REL, snapshot)).toBe(true);
   });
 });
 

@@ -320,6 +320,21 @@ const IDLE_2 = 'Gera o DOCX e o PDF juntos, a partir dos dados do app, como a re
 const sumarioList = (page: Page) => page.getByRole('list', { name: 'Sumário do relatório' });
 const banner = (page: Page) => page.locator('.banner-slot .banner');
 
+/** Story 16.2: the Export dialog's banner under its title. */
+const exportBanner = (page: Page) => dialog(page).locator('.banner');
+
+/** Story 16.2: the op ids of the `relatorio/status` rows in this device's outbox. */
+async function statusOpIds(page: Page): Promise<string[]> {
+  const rows = await readStore<{ op_id: string; path: string }>(page, database, 'outbox');
+  return rows.filter((row) => row.path === 'relatorio/status').map((row) => row.op_id);
+}
+
+/** Story 16.2: the fixture relatório's status as this device's store holds it. */
+async function relatorioStatusOnDevice(page: Page): Promise<unknown> {
+  const rows = await readStore<{ entity: string; id: string; row: { status?: unknown } }>(page, database, 'entities');
+  return rows.find((record) => record.entity === 'relatorio' && record.id === EXPORT_RELATORIO_ID)?.row.status;
+}
+
 /** Opens the header Overflow and confirms the one-step backward move to `to`. */
 async function moveBackTo(page: Page, to: string): Promise<void> {
   await page.getByRole('button', { name: 'Mais opções do relatório' }).click();
@@ -373,13 +388,28 @@ test('@p0 E4-E2E-001 generate, mark as sent, edit, Em revisão, generate revisio
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   await expect(headerPill(page)).toHaveText('Em revisão');
 
-  // Revision 2: listed with revision 1; marked as sent from the Sumário's foot, Emitido again.
+  // Story 16.2: the dialog says that revision 1 predates the edits: the mock's banner under
+  // its title ("emitido": revision 1 was marked as sent) and the tag on its row. Reading it
+  // writes nothing: no status op appears and the relatório stays Em revisão.
+  const statusOpsBefore = await statusOpIds(page);
   await footButton(page).click();
   await expect(reason(page)).toHaveText(IDLE_2);
+  await expect(exportBanner(page)).toHaveText(
+    /^Relatório emitido em \d{2}\/\d{2} \(revisão 1\)\. Alterações desde então geram a revisão 2 — as anteriores continuam disponíveis abaixo\.$/,
+  );
+  await expect(dialog(page).locator('h2.dialog-title + .banner')).toHaveCount(1);
+  await expect(dialog(page).locator('.revision-row .rev-text')).toHaveText([/^Rev\. 1 — .* — anterior às alterações$/]);
+  expect((await statusOpIds(page)).filter((id) => !statusOpsBefore.includes(id))).toEqual([]);
+  expect(await relatorioStatusOnDevice(page)).toBe('em_revisao');
+
+  // Revision 2: listed with revision 1; marked as sent from the Sumário's foot, Emitido again.
   await generateButton(page).click();
   await expect(page.getByTestId('toast')).toHaveText('Revisão 2 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 2 pronta' })).toBeVisible();
   await expect(dialog(page).locator('.revision-row')).toHaveCount(2);
+  // Story 16.2: revision 2 holds the edits: no banner, no row tagged.
+  await expect(exportBanner(page)).toHaveCount(0);
+  await expect(dialog(page).locator('.revision-row .rev-text', { hasText: 'anterior às alterações' })).toHaveCount(0);
   await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Em revisão');
   await escapeDialog(page, dialog(page));
   await expect(headerPill(page)).toHaveText('Em revisão');

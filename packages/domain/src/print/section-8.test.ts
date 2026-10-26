@@ -211,6 +211,40 @@ describe('7.3-UNIT-004 section 8 layout', () => {
       table: [{ number: '1', point: 'Ver Imagem 2 e Imagem 1.', local: '—', priority: '—', deadline: '—', action: '—', owner: '—', images: '2, 1' }],
     });
   });
+
+  it('16.3: a display shot between two photos leaves their numbers as section 7 prints them; a token to it reads as an unnumbered photo', () => {
+    const base = fresh();
+    const D = '019966b0-0801-7000-8000-00000000000d';
+    const photo = (id: string, at: string, readingKind: 'display' | null = null) => ({
+      id,
+      relatorio_id: base.relatorio.id,
+      kind: 'photo' as const,
+      sha256: 'x',
+      mime: 'image/jpeg',
+      size: 1,
+      uploaded_at: null,
+      variants: null,
+      removed_at: null,
+      captured_at: at,
+      tz_offset: -180,
+      coords: null,
+      local_seq: 1,
+      block_id: null,
+      item_key: null,
+      caption: null,
+      reading_kind: readingKind,
+      reading_target: null,
+      reading_status: 'none' as const,
+      people_in_photo: false,
+    });
+    const files = [photo(A, '2026-09-06T17:00:00.000Z'), photo(D, '2026-09-06T17:30:00.000Z', 'display'), photo(B, '2026-09-06T18:00:00.000Z')];
+    const snapshot = addPoint({ ...base, files }, { text: `Ver ${photoToken(B)}, ${photoToken(D)} e ${photoToken(A)}.` });
+    expect(numberPhotos(snapshot.files).get(B)).toBe(2);
+    expect(section8Layout(snapshot, heading)).toMatchObject({
+      bullets: [`Ver Imagem 2, ${REMOVED_PHOTO_REF_TEXT} e Imagem 1.`],
+      table: [{ images: '2, 1' }],
+    });
+  });
 });
 
 describe('7.3-UNIT-005 section 8 on the Porto Seguro fixture', () => {

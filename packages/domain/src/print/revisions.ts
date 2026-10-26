@@ -1,4 +1,5 @@
-import { formatDateTime } from '../format/datetime.ts';
+import { formatDateTime, formatDayMonthOfInstant } from '../format/datetime.ts';
+import { relatorioStatusPath } from '../ops/path.ts';
 import type { GenerationJobRow, RelatorioStatus, RevisionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 
@@ -51,21 +52,67 @@ export interface RevisionRowSegments {
   dateText: string;
   /** " — Bruno", or '' when nobody is known. */
   after: string;
+  /** Story 16.2: `REVISION_BEFORE_EDITS_TAG` while something was edited since the latest revision, else ''. */
+  tag: string;
 }
+
+/**
+ * Story 16.2: the tag every "Revisões" row ends with while something was edited since the
+ * latest revision, so nobody takes a listed revision for the edited document.
+ */
+export const REVISION_BEFORE_EDITS_TAG = ' — anterior às alterações'; // authored: 2026-10-23 (Epic 16 default for 16.2), no mock draws the row tag.
 
 /**
  * The parts of a "Revisões" row, "Rev. 2 — 10/09/2026 08:47 — Bruno", so the dialog can
  * wrap the date in a `<time>` without composing the sentence itself. `whoName` is the
- * name of `created_by` as this device knows it, or null.
+ * name of `created_by` as this device knows it, or null. `beforeEdits` (Story 16.2): the
+ * row predates edits made since the latest revision, and ends with the tag.
  */
-export function revisionRowSegments(row: RevisionRow, whoName: string | null): RevisionRowSegments {
+export function revisionRowSegments(row: RevisionRow, whoName: string | null, beforeEdits = false): RevisionRowSegments {
   const who = whoName?.trim() ?? '';
   return {
     before: `${revisionTitle(row.number)} — `,
     datetime: row.created_at,
     dateText: formatDateTime(row.created_at),
     after: who === '' ? '' : ` — ${who}`,
+    tag: beforeEdits ? REVISION_BEFORE_EDITS_TAG : '',
   };
+}
+
+/**
+ * Story 16.2: the Export dialog's banner under its title, verbatim from `73-exportar.html`
+ * with the number and the date live: "Relatório emitido em 10/09 (revisão 2). Alterações
+ * desde então geram a revisão 3 — as anteriores continuam disponíveis abaixo." It says
+ * "gerado" unless that revision had been marked as sent (`markedSent`). Null with no
+ * revision, or while nothing was edited since the latest one.
+ */
+export function revisionsBeforeEditsBanner(
+  latest: Pick<RevisionRow, 'number' | 'created_at'> | null,
+  state: { edited: boolean; markedSent: boolean },
+): string | null {
+  if (latest === null || !state.edited) return null;
+  const verb = state.markedSent ? 'emitido' : 'gerado';
+  const date = formatDayMonthOfInstant(latest.created_at);
+  return `Relatório ${verb} em ${date} (revisão ${latest.number}). Alterações desde então geram a revisão ${latest.number + 1} — as anteriores continuam disponíveis abaixo.`;
+}
+
+/** What `markedSentSince` reads of an op: a pulled or acked op carries its `seq`, an unsent one none. */
+export interface MarkedSentCandidate {
+  kind: string;
+  path: string;
+  value?: unknown;
+  seq?: number | null;
+}
+
+/**
+ * Story 16.2: whether the revision whose snapshot is `snapshotSeq` was marked as sent to the
+ * client: a `relatorio/status` put of `emitido` among the given ops of the relatório past that
+ * snapshot (a pulled or acked op with `seq > snapshotSeq`, or an unsent one with no `seq`).
+ * An `issue` later undone still counts (narrowing kept on purpose, spec open question).
+ */
+export function markedSentSince(ops: readonly MarkedSentCandidate[], snapshotSeq: number): boolean {
+  const statusPath = relatorioStatusPath();
+  return ops.some((op) => op.kind === 'put' && op.path === statusPath && op.value === 'emitido' && (op.seq == null || op.seq > snapshotSeq));
 }
 
 export interface RevisionMetaSegments {

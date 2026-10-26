@@ -34,6 +34,7 @@ Fixed vocabulary for every downstream artifact. Portuguese terms are the domain'
 - **Copy / default** — a value taken from the engineer's own earlier entry (last visit, previous cabine, previous row's unit). Written as a plain value with an undo toast, not as a Suggestion.
 - **Reading** — one backend pass over a photo with a kind: plate, display, caption, panel, nc_obs. Queued offline, run at first connectivity.
 - **Photo** — image plus caption plus capture stamp (date, time, coordinates when enabled), linked to a sheet, checklist row or point. Numbered automatically at generation.
+- **Display shot** — a photo of an instrument screen taken with "Ler visor" on a measurement table (`reading_kind: 'display'`), the source of a reading. It takes no "Imagem N" number, stays out of section 7 and prints only under its test in section 9 with its caption sentence (2026-10-26, Story 16.3).
 - **Ponto de atenção** — a finding: text with photo tokens, equipment or TAG, recommended corrective action. Prints as a section 8 bullet, as in FO.SERV-03. Priority, deadline and owner are data-model fields with no UI in the MVP.
 - **Parecer** — the relatório-level technical opinion with its composed summary. The one blocking pre-issue item.
 - **Não ensaiado / Não ensaiada** — present, not tested, with a reason (Impossibilidade de desligamento · Solicitação do cliente · Outro). Prints nameplate and reason band; listed automatically in section 8.

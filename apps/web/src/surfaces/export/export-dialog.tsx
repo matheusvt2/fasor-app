@@ -435,6 +435,13 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
           {copy.export.title}
         </h2>
 
+        {state.beforeEditsBanner === null ? null : (
+          // Story 16.2: the mock's banner (`73-exportar.html`), the kernel's sentence.
+          <div className="banner" role="status">
+            <span className="banner-text">{state.beforeEditsBanner}</span>
+          </div>
+        )}
+
         {showPrecheck ? (
           <div>
             <p className="field-label precheck-label">{copy.export.precheckLabel}</p>
@@ -568,7 +575,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
           <p className="section-note">{copy.export.noRevisions}</p>
         ) : (
           revisions.map((row) => {
-            const segments = revisionRowSegments(row, whoOf(row));
+            const segments = revisionRowSegments(row, whoOf(row), state.beforeEdits);
             const docxKey = `revision:${row.id}:docx`;
             const pdfKey = `revision:${row.id}:pdf`;
             return (
@@ -578,6 +585,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                     {segments.before}
                     <time dateTime={segments.datetime}>{segments.dateText}</time>
                     {segments.after}
+                    {segments.tag}
                   </span>
                   <span className="rev-files">
                     <TextButton onPress={() => download(docxKey, { revisionId: row.id, number: row.number, format: 'docx' })}>

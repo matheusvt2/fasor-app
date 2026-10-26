@@ -16,6 +16,7 @@ import {
   isJobActive,
   jobExpiresAt,
   latestRevision,
+  markedSentSince,
   missingFilesText,
   nextEditNote,
   previewFileName,
@@ -23,7 +24,9 @@ import {
   nextRevisionNumber,
   readyTitle,
   readyToast,
+  REVISION_BEFORE_EDITS_TAG,
   revisionMetaSegments,
+  revisionsBeforeEditsBanner,
   revisionRowSegments,
   revisionTitle,
   sortRevisions,
@@ -74,6 +77,7 @@ describe('4.8-UNIT-004 revision numbering and rows', () => {
       datetime: '2026-09-10T11:47:00.000Z',
       dateText: '10/09/2026 08:47',
       after: ' — Bruno',
+      tag: '',
     });
     expect(revisionMetaSegments(REV_2, 'Bruno')).toEqual({ datetime: '2026-09-10T11:47:00.000Z', dateText: '10/09/2026 08:47', after: ' · Bruno' });
     expect(revisionMetaSegments(REV_2, null).after).toBe('');
@@ -195,5 +199,56 @@ describe('E9 sweep B14: a not_caught_up this device cannot answer', () => {
 describe('A-25 previewFileName', () => {
   it('names the preview PDF download relatorio-rascunho.pdf, as the preview route always served it', () => {
     expect(previewFileName()).toBe('relatorio-rascunho.pdf');
+  });
+});
+
+describe('16.2-UNIT revisions listed before the edits', () => {
+  // 2026-10-22T15:12 BRT, the revision Bruno downloaded.
+  const REV = { number: 2, created_at: '2026-10-22T18:12:00.000Z' };
+
+  it('A1: edited and never marked sent says "gerado", the date dd/mm and N, N+1', () => {
+    expect(revisionsBeforeEditsBanner(REV, { edited: true, markedSent: false })).toBe(
+      'Relatório gerado em 22/10 (revisão 2). Alterações desde então geram a revisão 3 — as anteriores continuam disponíveis abaixo.',
+    );
+  });
+
+  it('A2: edited after being marked sent says "emitido", the mock sentence', () => {
+    expect(revisionsBeforeEditsBanner({ number: 2, created_at: '2026-09-10T11:47:00.000Z' }, { edited: true, markedSent: true })).toBe(
+      'Relatório emitido em 10/09 (revisão 2). Alterações desde então geram a revisão 3 — as anteriores continuam disponíveis abaixo.',
+    );
+  });
+
+  it('A3/A4: null when nothing was edited, and with no revision', () => {
+    expect(revisionsBeforeEditsBanner(REV, { edited: false, markedSent: false })).toBeNull();
+    expect(revisionsBeforeEditsBanner(REV, { edited: false, markedSent: true })).toBeNull();
+    expect(revisionsBeforeEditsBanner(null, { edited: true, markedSent: false })).toBeNull();
+    expect(revisionsBeforeEditsBanner(null, { edited: true, markedSent: true })).toBeNull();
+  });
+
+  it('the row tag ends a row before the edits, and only then', () => {
+    expect(REVISION_BEFORE_EDITS_TAG).toBe(' — anterior às alterações');
+    expect(revisionRowSegments(REV_1, 'Bruno', true).tag).toBe(' — anterior às alterações');
+    expect(revisionRowSegments(REV_1, null, true)).toMatchObject({ after: '', tag: ' — anterior às alterações' });
+    expect(revisionRowSegments(REV_1, 'Bruno', false).tag).toBe('');
+    expect(revisionRowSegments(REV_1, 'Bruno').tag).toBe('');
+  });
+
+  it('markedSentSince reads an emitido status put past the snapshot, pulled, acked or unsent', () => {
+    const status = (value: string, seq?: number | null) => ({ kind: 'put', path: 'relatorio/status', value, ...(seq === undefined ? {} : { seq }) });
+    // Pulled past the snapshot.
+    expect(markedSentSince([status('emitido', 201)], 200)).toBe(true);
+    // At or before the snapshot: an earlier revision's issue does not count for this one.
+    expect(markedSentSince([status('emitido', 200)], 200)).toBe(false);
+    expect(markedSentSince([status('emitido', 150)], 200)).toBe(false);
+    // Unsent (no seq yet, or a null seq).
+    expect(markedSentSince([status('emitido')], 200)).toBe(true);
+    expect(markedSentSince([status('emitido', null)], 200)).toBe(true);
+    // Another status, another path or another kind never counts.
+    expect(markedSentSince([status('em_revisao', 300), status('em_campo')], 200)).toBe(false);
+    expect(markedSentSince([{ kind: 'put', path: 'relatorio/setup', value: 'emitido', seq: 300 }], 200)).toBe(false);
+    expect(markedSentSince([{ kind: 'create', path: 'relatorio/status', value: 'emitido', seq: 300 }], 200)).toBe(false);
+    // An issue later moved back still reads emitido (spec open question, narrowing).
+    expect(markedSentSince([status('emitido', 210), status('em_revisao', 220)], 200)).toBe(true);
+    expect(markedSentSince([], 200)).toBe(false);
   });
 });

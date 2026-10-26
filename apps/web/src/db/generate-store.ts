@@ -2,7 +2,9 @@ import Dexie from 'dexie';
 import {
   editedOnDevice,
   entityKey,
+  markedSentSince,
   referencedEquipmentIds,
+  relatorioStatusPath,
   generationJobRowSchema,
   relatorioRowSchema,
   revisionRowSchema,
@@ -95,6 +97,38 @@ export function useEditedSince(db: AppDatabase | null, relatorioId: string, snap
     [db, relatorioId, snapshotSeq],
     true,
   );
+}
+
+/**
+ * Story 16.2: whether the revision whose snapshot is `snapshotSeq` was marked as sent to the
+ * client (an `issue`: a `relatorio/status = emitido` put past that snapshot), read the way
+ * `editedSinceSnapshot` reads ops: the relatório's pulled ops past the snapshot, this
+ * device's acked ops past it and its unsent ones (pending or sent); the kernel decides.
+ */
+export async function markedSentSinceSnapshot(db: AppDatabase, relatorioId: string, snapshotSeq: number): Promise<boolean> {
+  const statusPath = relatorioStatusPath();
+  const [pulled, acked, unsent] = await Promise.all([
+    db.remote_ops.where('[relatorio_id+seq]').between([relatorioId, snapshotSeq], [relatorioId, Dexie.maxKey], false, true).filter((op) => op.path === statusPath).toArray(),
+    db.outbox.where('seq').above(snapshotSeq).filter((op) => op.status === 'acked' && op.relatorio_id === relatorioId && op.path === statusPath).toArray(),
+    db.outbox.where('status').anyOf('pending', 'sent').filter((op) => op.relatorio_id === relatorioId && op.path === statusPath).toArray(),
+  ]);
+  // An unsent row may still carry no seq; the kernel counts it whatever the snapshot.
+  return markedSentSince([...pulled, ...acked, ...unsent.map((op) => ({ ...op, seq: null }))], snapshotSeq);
+}
+
+/**
+ * `markedSentSinceSnapshot`, live, with whether its read has landed for this very snapshot
+ * (as `useEditedSinceRead`): a result read for another snapshot is never answered for this
+ * one. `sent` is false until `read`; with no snapshot nothing was sent and `read` is true.
+ */
+export function useMarkedSentSince(db: AppDatabase | null, relatorioId: string, snapshotSeq: number | null): { sent: boolean; read: boolean } {
+  const result = useLiveQuery(
+    async () => (db === null || snapshotSeq === null ? { seq: snapshotSeq, sent: false } : { seq: snapshotSeq, sent: await markedSentSinceSnapshot(db, relatorioId, snapshotSeq) }),
+    [db, relatorioId, snapshotSeq],
+  );
+  if (snapshotSeq === null) return { sent: false, read: true };
+  const read = db !== null && result !== undefined && result.seq === snapshotSeq;
+  return { sent: read ? result.sent : false, read };
 }
 
 /**

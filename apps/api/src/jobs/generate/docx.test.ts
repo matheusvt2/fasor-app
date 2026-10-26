@@ -498,8 +498,8 @@ describe('4.8-UNIT-007 images', () => {
       expect(table).not.toMatch(/<w:tblCellMar|<w:tcMar/);
       expect(widthOf(linesCell!), name).toBe(CONTENT_WIDTH_TWIPS - cellWidth);
       expect([...table.matchAll(/<w:gridCol w:w="(\d+)"/g)].map((m) => Number(m[1])), name).toEqual([cellWidth, CONTENT_WIDTH_TWIPS - cellWidth]);
-      const cx = Number(/<wp:extent[^>]*\bcx="(\d+)"/.exec(logoCell)![1]);
-      const cy = Number(/<wp:extent[^>]*\bcy="(\d+)"/.exec(logoCell)![1]);
+      const cx = Number(/<wp:extent[^>]*\bcx="(\d+)"/.exec(logoCell!)![1]);
+      const cy = Number(/<wp:extent[^>]*\bcy="(\d+)"/.exec(logoCell!)![1]);
       const innerWidthEmu = (cellWidth - CELL_MARGINS_TWIPS) * EMU_PER_TWIP;
       // The drawing never passes the cell's inner width (the cell minus Word's two margins) nor 3 cm of height,
       // and the cell never passes half the content width.
