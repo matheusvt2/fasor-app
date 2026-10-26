@@ -242,6 +242,11 @@ export interface FieldProps {
   after?: ReactNode;
   /** F-01: typed text still waiting for its commit is committed when the field leaves the page. */
   flushOnUnmount?: boolean;
+  /**
+   * Story 16.4: a nameplate or cabine number field accepts the "N.A" spellings; any other
+   * number field (a measurement test's value) refuses them as text that is no number.
+   */
+  acceptsNotApplicable?: boolean;
 }
 
 /** One sheet field, editable, rendered by its kind. */
@@ -313,7 +318,7 @@ function TextField({ field, value, commit, draft, missing, label, helper, after,
  * "N.A" spelling commits the kernel's `not_applicable` value, reads "N.A" with no unit and
  * no echo line, and Enter runs on as after a number.
  */
-function NumberField({ field, value, commit, draft, missing, label, invalidText, after, flushOnUnmount }: FieldProps) {
+function NumberField({ field, value, commit, draft, missing, label, invalidText, after, flushOnUnmount, acceptsNotApplicable }: FieldProps) {
   const id = useId();
   const helperId = useId();
   const unit = field.unit ?? null;
@@ -323,6 +328,7 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
   const parseNumber = (text: string): ParsedNumber | null | 'invalid' => {
     const parsed = numberFieldValue(text, unit);
     if (parsed === null || parsed === 'invalid') return parsed;
+    if (parsed.state === 'not_applicable' && acceptsNotApplicable !== true) return 'invalid';
     return parsed.state === 'not_applicable' ? { raw: '', unit: null, state: 'not_applicable' } : { raw: parsed.raw, unit: parsed.unit };
   };
   const number: ReturnType<typeof useNumberInput> = useNumberInput({
@@ -725,7 +731,7 @@ export function ReadOnlyField({ field, value, label, helper, after }: { field: P
       {isNumber ? (
         <div className="measurement-field" role="textbox" aria-readonly="true" aria-labelledby={labelId}>
           <span className={text === '' ? 'mf-value is-empty' : 'mf-value'}>{text === '' ? '—' : text}</span>
-          {field.unit === undefined ? null : <span className="mf-unit">{field.unit}</span>}
+          {field.unit === undefined || isNotApplicableNumber(value) ? null : <span className="mf-unit">{field.unit}</span>}
         </div>
       ) : (
         <div className="input" role="textbox" aria-readonly="true" aria-labelledby={labelId}>

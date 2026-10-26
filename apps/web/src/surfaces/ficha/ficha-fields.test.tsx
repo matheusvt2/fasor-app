@@ -5,7 +5,7 @@ import { I18nProvider } from 'react-aria-components';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
-import { focusNextMissingField, SheetField } from './ficha-fields.tsx';
+import { focusNextMissingField, ReadOnlyField, SheetField } from './ficha-fields.tsx';
 
 /*
  * Review fixes 2026-09-30 on the sheet's typed fields:
@@ -388,7 +388,7 @@ describe('16.4 "N.A" in a nameplate or cabine number field', () => {
   const NA = { raw: '', unit: null, state: 'not_applicable' };
 
   /** A field over a store: a commit becomes the stored value, as the live query would make it. */
-  function Stored({ initial, commit, def = POT }: { initial: unknown; commit: (value: unknown) => void; def?: FieldDef }) {
+  function Stored({ initial, commit, def = POT, accepts = true }: { initial: unknown; commit: (value: unknown) => void; def?: FieldDef; accepts?: boolean }) {
     const [value, setValue] = useState<unknown>(initial);
     return (
       <I18nProvider locale="pt-BR">
@@ -404,6 +404,7 @@ describe('16.4 "N.A" in a nameplate or cabine number field', () => {
             draft={{ entityId: 'b', field: def.key }}
             invalidText="Número não reconhecido"
             selectEmpty="Selecione"
+            {...(accepts ? { acceptsNotApplicable: true } : {})}
           />
           <SheetField field={TAP} value={null} missing commit={vi.fn()} draft={{ entityId: 'b', field: TAP.key }} invalidText="Número não reconhecido" selectEmpty="Selecione" />
           <button type="button" onClick={() => setValue({ raw: '1500', unit: 'kVA', state: 'measured' })}>
@@ -460,6 +461,25 @@ describe('16.4 "N.A" in a nameplate or cabine number field', () => {
     expect(input).toHaveFocus();
     expect(screen.getByText('Número não reconhecido')).toBeVisible();
     expect(commit).not.toHaveBeenCalled();
+  });
+
+  it('a number field without the flag (a measurement test\'s value) refuses "N.A": the helper shows and nothing commits', async () => {
+    const commit = vi.fn();
+    render(<Stored initial={null} commit={commit} accepts={false} />);
+    const input = screen.getByRole('textbox', { name: /potência/i });
+    await userEvent.type(input, 'N.A{Enter}');
+    expect(input).toHaveFocus();
+    expect(screen.getByText('Número não reconhecido')).toBeVisible();
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  it('a read-only field holding "N.A" reads "N.A" with no unit; a number keeps its unit', () => {
+    const { unmount } = render(<ReadOnlyField field={POT} value={NA} />);
+    expect(screen.getByRole('textbox', { name: /potência/i })).toHaveTextContent(/^N\.A$/);
+    expect(document.querySelector('.mf-unit')).toBeNull();
+    unmount();
+    render(<ReadOnlyField field={POT} value={{ raw: '1500', unit: 'kVA', state: 'measured' }} />);
+    expect(document.querySelector('.mf-unit')).toHaveTextContent('kVA');
   });
 
   it('a cabine number field (no unit of the seed\'s in the way) commits and reads "N.A" the same', async () => {

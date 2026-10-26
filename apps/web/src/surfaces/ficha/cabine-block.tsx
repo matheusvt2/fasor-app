@@ -139,6 +139,7 @@ export function CabineBlock({
         draft={{ entityId: cabine.id, field: `${group}-${field.key.replace(/_/g, '-')}` }}
         invalidText={t.invalidNumber}
         selectEmpty={t.selectEmpty}
+        acceptsNotApplicable
         commit={(next) =>
           api.author === null
             ? undefined

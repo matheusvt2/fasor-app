@@ -2,15 +2,22 @@
 title: 'Story 16.4: "N.A" in a nameplate or cabine number field (contract 26)'
 type: 'feature'
 created: '2026-10-26'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '0387e97394274eb474620c8f34c8cbacf28cfe08'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context: ['{project-root}/_bmad-output/implementation-artifacts/epic-16-context.md']
 warnings: ['oversized']
-deferred: []
+deferred:
+  - summary: >-
+      A tablet's soft numeric keypad (inputMode decimal) has no letters, so N.A cannot be typed there.
+    evidence: |-
+      apps/web/src/components/number-input.tsx sets inputMode 'decimal' on every number input; N.A works from a desktop or hardware keyboard. Text keypad vs an "N.A" action is a product choice (open question 4).
+    location: >-
+      apps/web/src/components/number-input.tsx:196
+    severity: medium
 ---
 
 <intent-contract>
@@ -106,6 +113,7 @@ Open questions (keep the default, list in the PR body):
 1. Bruno's question 2: "N.A" or "NA" printed. Default "N.A".
 2. "Copiar da cabine anterior" when the previous cabine holds N.A in temperature or humidity: default not offered (an N.A is no reading to copy).
 3. The plate suggestion's editable guess (`parseFieldInput`) keeps refusing N.A: a reading is a number by definition.
+4. The tablet soft keypad (`inputMode: 'decimal'`) has no letters, so N.A is typed only from a hardware or desktop keyboard; whether nameplate and cabine fields switch to a text keypad or get an "N.A" action is for Matheus (review 2026-10-26).
 
 ## Verification
 
@@ -114,3 +122,26 @@ Open questions (keep the default, list in the PR body):
 - `schema:ocr` then `git status --short` -- no change.
 - `podman compose restart api` before `test:api -- sync.integration` -- green.
 - `lint`, `static` -- green.
+
+## Review Triage Log
+
+### 2026-10-26 — Review pass
+Layers: Edge Case Hunter and Verification Gap Reviewer (opus). Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them.
+- verdicts: 7 findings — high 2, medium 4, low 1, false 0, maybe-false 0
+- findings:
+  - `[high]` `[patch]` Measurement test number values (`measurement-test-section.tsx` TestValue via SheetField) accept and commit N.A, which `readStored` reads invalid — fix: an opt-in flag through SheetField to NumberField, set only by the nameplate section and the cabine block; test that a field without it refuses "N.A".
+  - `[medium]` `[patch]` ReadOnlyField draws the field unit after a stored N.A ("N.A kVA") — fix: no `.mf-unit` for `isNotApplicableNumber(value)`; test.
+  - `[medium]` `[defer]` `inputMode: 'decimal'` gives tablets a numeric soft keypad without letters, so N.A cannot be typed on a tablet's soft keyboard (desktop and hardware keyboards work) — product choice (inputMode text vs an "N.A" action) not settled by the documents: OPEN QUESTION 4, known open in the PR.
+  - `[low]` `[reject]` `numberValueSchema` accepts a non-canonical `not_applicable` (non-empty raw or a unit) — only a nonconforming client could write it; every reader keys on `state`, so it still shows and prints "N.A"; a schema union is more than a direct correction.
+  - `[high]` `[patch]` (claim) "a Measurement field's parse never does" is false at TestValue — same root cause and fix as the first row.
+  - `[medium]` `[patch]` (claim) "N.A at rest with no unit" is false on ReadOnlyField — same as the second row.
+  - `[medium]` `[patch]` (verification gap) no test that a cabine display reading over an N.A temperature or humidity is `mode: 'replace'` (`reading/display.ts:336`) — fix: one case in `display.test.ts`.
+
+## Auto Run Result
+
+- Summary: the AD-11 number value gains `not_applicable` (contract 26, minimum 26); `numberFieldValue` answers it for `N.A`, `NA`, `N/A`, `N.A.` (any case, whitespace anywhere); the kernel text "N.A" (`NOT_APPLICABLE_TEXT`, `parse/pt-br-number.ts`) is shown and printed with no unit by every reader; nameplate and cabine `NumberField`s (opt-in `acceptsNotApplicable`) commit it through the existing puts; the OCR contract keeps its own three-state schema.
+- Files: kernel `parse/pt-br-number.ts`, `schemas/entities.ts`, `contract/{ocr,version}.ts`, `relatorio/{ficha,cabine,sumario,suggestion-group}.ts`, `print/section-9.ts`, `reading/value.ts`, `merge/conflicts.ts` plus tests; web `components/number-input.tsx`, `surfaces/ficha/{ficha-fields,nameplate-section,cabine-block}.tsx` plus `ficha-fields.test.tsx`; api `sync/sync.integration.test.ts`; e2e `na-number-field.spec.ts`, `support/pdf-text.ts`, `support/groups.ts`; docs source-deltas, glossary, KB.
+- Review: 3 patches applied (high: measurement values accepted N.A; medium: read-only unit after N.A; medium: display-reading test), 1 deferred (tablet soft keypad, open question 4), 1 rejected (non-canonical N.A shape, low).
+- Follow-up review recommended: true (one high patched: the opt-in flag through SheetField was not re-reviewed; the integrated epic review reads it under "Patched, not re-reviewed"). Patched counts: high 1, medium 2.
+- Verification: unit 4488, api 684, lint 0 errors, static green, schema:ocr unchanged, the new spec green on desktop-chrome before the review fixes; the fixes' two test files 54/54. Story gate after this commit.
+- Residual risk: N.A cannot be typed from a tablet's soft numeric keypad (deferred).
