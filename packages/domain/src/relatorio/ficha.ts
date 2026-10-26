@@ -3,7 +3,15 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { getDefinition, getSeed } from '../seed/definitions.ts';
 import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
 import { formatCalendarDate } from '../format/datetime.ts';
-import { formatDecimalGroupedPtBr, parseDecimalPtBr } from '../parse/pt-br-number.ts';
+import {
+  formatDecimalGroupedPtBr,
+  isNotApplicableNumber,
+  isNotApplicableText,
+  NOT_APPLICABLE_NUMBER,
+  NOT_APPLICABLE_TEXT,
+  parseDecimalPtBr,
+  type NotApplicableNumber,
+} from '../parse/pt-br-number.ts';
 import { wordRowByName } from '../registry/instrument-row.ts';
 import { sortWordRegistryRows, type WordRow } from '../registry/word-row.ts';
 import { plural } from '../text/plural.ts';
@@ -62,7 +70,8 @@ export function nextSheet(snapshot: Pick<RelatorioSnapshot, 'locations' | 'block
 
 /**
  * "Copiar da cabine anterior": the cabine right before this one among the roots, by
- * `order_key`, when it holds both a temperature and a humidity; null otherwise.
+ * `order_key`, when it holds both a temperature and a humidity; null otherwise. Story 16.4: an
+ * "N.A" in either is no reading to copy, so the action is not offered.
  */
 export function previousCabineEnv(
   locations: readonly LocationRow[],
@@ -75,6 +84,7 @@ export function previousCabineEnv(
   const { temperature_c, humidity_pct } = previous.env;
   if (temperature_c === null || humidity_pct === null) return null;
   if (temperature_c.state === 'empty' || humidity_pct.state === 'empty') return null;
+  if (isNotApplicableNumber(temperature_c) || isNotApplicableNumber(humidity_pct)) return null;
   return { cabineId: previous.id, name: previous.name, temperature_c, humidity_pct };
 }
 
@@ -87,10 +97,10 @@ export function previousCabineEnv(
  */
 export const HUMIDITY_NOTE_THRESHOLD_PCT = 80;
 
-/** True when the cabine's recorded humidity is above the threshold (Story 5.2 AC 4). */
+/** True when the cabine's recorded humidity is above the threshold (Story 5.2 AC 4); only a measured humidity counts (Story 16.4: never "N.A"). */
 export function humidityNoteSurfaced(env: Pick<Extract<LocationRow, { kind: 'cabine' }>['env'], 'humidity_pct'> | null): boolean {
   const value = env?.humidity_pct;
-  if (value === null || value === undefined || value.state === 'empty') return false;
+  if (value === null || value === undefined || value.state !== 'measured') return false;
   const n = Number(value.raw);
   return Number.isFinite(n) && n > HUMIDITY_NOTE_THRESHOLD_PCT;
 }
@@ -249,16 +259,25 @@ export function nameplateWordRecents(
 
 // --- the value shapes a typed field commits (AR-10) ------------------------------------------
 
-/** The AR-10 value of a typed number: `{raw, unit, state: 'measured'}`, null for an empty field, `'invalid'` for text that is no number. */
-export function numberFieldValue(typed: string, unit: string | null): { raw: string; unit: string | null; state: 'measured' } | null | 'invalid' {
+/**
+ * The AR-10 value of a typed number: `{raw, unit, state: 'measured'}`, null for an empty field,
+ * `'invalid'` for text that is no number. Story 16.4: an accepted "N.A" spelling ("N.A", "NA",
+ * "N/A", "N.A.", any case, whitespace anywhere) answers `NOT_APPLICABLE_NUMBER`.
+ */
+export function numberFieldValue(
+  typed: string,
+  unit: string | null,
+): NotApplicableNumber | { raw: string; unit: string | null; state: 'measured' } | null | 'invalid' {
   if (typed.trim() === '') return null;
+  if (isNotApplicableText(typed)) return NOT_APPLICABLE_NUMBER;
   const raw = parseDecimalPtBr(typed);
   return raw === null ? 'invalid' : { raw, unit, state: 'measured' };
 }
 
-/** A stored field value as a field shows it: numbers pt-BR with thousands grouped ("1.500", E5-Q14), dates dd/mm/aaaa, text as typed; '' when empty. */
+/** A stored field value as a field shows it: numbers pt-BR with thousands grouped ("1.500", E5-Q14), "N.A" for the `not_applicable` state (Story 16.4), dates dd/mm/aaaa, text as typed; '' when empty. */
 export function fieldValueText(field: Pick<FieldDef, 'kind'>, value: unknown): string {
   if (value === null || value === undefined) return '';
+  if (isNotApplicableNumber(value)) return NOT_APPLICABLE_TEXT;
   if (typeof value === 'object' && !Array.isArray(value) && 'raw' in (value as object)) {
     const number = value as { raw: string; state?: string };
     return number.state === 'empty' ? '' : formatDecimalGroupedPtBr(number.raw);

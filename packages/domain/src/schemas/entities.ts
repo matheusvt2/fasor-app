@@ -23,11 +23,15 @@ const nullableIso = isoTimestampSchema.nullable();
 const nullableId = uuidV7Schema.nullable();
 const nullableString = z.string().nullable();
 
-/** AD-11 `number` value shape; `raw` is a decimal string using `.`. */
+/**
+ * AD-11 `number` value shape; `raw` is a decimal string using `.`. Story 16.4 (contract 26):
+ * `not_applicable` is "N.A" typed in a nameplate or cabine number field, stored
+ * `{ raw: '', unit: null, state: 'not_applicable' }` (`NOT_APPLICABLE_NUMBER`).
+ */
 export const numberValueSchema = z.object({
   raw: z.string(),
   unit: nullableString,
-  state: z.enum(['measured', 'not_measured', 'empty']),
+  state: z.enum(['measured', 'not_measured', 'empty', 'not_applicable']),
 });
 
 /** AD-11 `date` value shape: `YYYY-MM-DD` or `YYYY-MM`. */

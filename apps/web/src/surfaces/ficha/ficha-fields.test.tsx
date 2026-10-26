@@ -15,7 +15,13 @@ import { focusNextMissingField, SheetField } from './ficha-fields.tsx';
  *   helper and writes nothing.
  */
 
-vi.mock('../../state/drafts.tsx', () => ({ useDraftSource: () => undefined }));
+// The draft registrations, by field, so a test can read what a field still holds as a draft.
+const draftSources = vi.hoisted(() => new Map<string, { read: () => unknown }>());
+vi.mock('../../state/drafts.tsx', () => ({
+  useDraftSource: (source: { field: string; read: () => unknown }) => {
+    draftSources.set(source.field, source);
+  },
+}));
 
 const TAP: FieldDef = { key: 'tap_atual', label: 'TAP ATUAL', kind: 'text' };
 const VOL: FieldDef = { key: 'vol_oleo', label: 'VOL. ÓLEO', kind: 'number', unit: 'L' };
@@ -367,5 +373,106 @@ describe('R8LAY DB-7 the plate and cabine fields\' Enter run', () => {
     expect(focusNextMissingField(byId('e'))).toBe(true);
     expect(document.activeElement).toBe(byId('ficha-primary'));
     document.body.innerHTML = '';
+  });
+});
+
+describe('16.4 "N.A" in a nameplate or cabine number field', () => {
+  beforeEach(() => {
+    vi.spyOn(Element.prototype, 'getClientRects').mockImplementation(function (this: Element) {
+      return (this.closest('[hidden]') === null ? [{ width: 1, height: 1 }] : []) as unknown as DOMRectList;
+    });
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  const POT: FieldDef = { key: 'potencia_nominal', label: 'POTÊNCIA NOMINAL', kind: 'number', unit: 'kVA' };
+  const NA = { raw: '', unit: null, state: 'not_applicable' };
+
+  /** A field over a store: a commit becomes the stored value, as the live query would make it. */
+  function Stored({ initial, commit, def = POT }: { initial: unknown; commit: (value: unknown) => void; def?: FieldDef }) {
+    const [value, setValue] = useState<unknown>(initial);
+    return (
+      <I18nProvider locale="pt-BR">
+        <ToastProvider>
+          <SheetField
+            field={def}
+            value={value}
+            missing
+            commit={(next) => {
+              commit(next);
+              setValue(next);
+            }}
+            draft={{ entityId: 'b', field: def.key }}
+            invalidText="Número não reconhecido"
+            selectEmpty="Selecione"
+          />
+          <SheetField field={TAP} value={null} missing commit={vi.fn()} draft={{ entityId: 'b', field: TAP.key }} invalidText="Número não reconhecido" selectEmpty="Selecione" />
+          <button type="button" onClick={() => setValue({ raw: '1500', unit: 'kVA', state: 'measured' })}>
+            desfazer
+          </button>
+        </ToastProvider>
+      </I18nProvider>
+    );
+  }
+
+  const unitOf = (input: HTMLElement) => input.closest('.field')!.querySelector('.mf-unit');
+  const echoOf = (input: HTMLElement) => input.closest('.field')!.querySelector('.mf-echo');
+
+  for (const typed of ['N.A', 'NA', 'N/A', 'N.A.', ' n . a ']) {
+    it(`"${typed}" commits the not_applicable value, reads "N.A" with no unit nor echo, and Enter runs on`, async () => {
+      const commit = vi.fn();
+      render(<Stored initial={null} commit={commit} />);
+      const input = screen.getByRole('textbox', { name: /potência/i });
+      expect(unitOf(input)).not.toBeNull();
+      await userEvent.type(input, typed);
+      // Typed: no unit and no echo line while the text reads "N.A".
+      expect(unitOf(input)).toBeNull();
+      expect(echoOf(input)).toBeNull();
+      expect(draftSources.get('potencia_nominal')!.read()).toBe(typed);
+      await userEvent.keyboard('{Enter}');
+      expect(commit).toHaveBeenCalledTimes(1);
+      expect(commit).toHaveBeenCalledWith(NA);
+      expect(screen.getByRole('textbox', { name: /tap/i })).toHaveFocus();
+      expect(input).toHaveValue('N.A');
+      expect(unitOf(input)).toBeNull();
+      expect(echoOf(input)).toBeNull();
+      expect(screen.queryByText('Número não reconhecido')).toBeNull();
+      expect(input).not.toHaveAttribute('aria-invalid');
+      // The draft source is cleared as for a number.
+      expect(draftSources.get('potencia_nominal')!.read()).toBeNull();
+    });
+  }
+
+  it('a stored "N.A" reads "N.A" at rest with no unit; an undo to a number replaces it at rest', async () => {
+    render(<Stored initial={NA} commit={vi.fn()} />);
+    const input = screen.getByRole('textbox', { name: /potência/i });
+    expect(input).toHaveValue('N.A');
+    expect(unitOf(input)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'desfazer' }));
+    expect(input).toHaveValue('1.500');
+    expect(unitOf(input)).toHaveTextContent('kVA');
+  });
+
+  it('a near spelling is still no number: the helper shows and nothing commits', async () => {
+    const commit = vi.fn();
+    render(<Stored initial={null} commit={commit} />);
+    const input = screen.getByRole('textbox', { name: /potência/i });
+    await userEvent.type(input, 'N.A.A{Enter}');
+    expect(input).toHaveFocus();
+    expect(screen.getByText('Número não reconhecido')).toBeVisible();
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  it('a cabine number field (no unit of the seed\'s in the way) commits and reads "N.A" the same', async () => {
+    const PRIMARY: FieldDef = { key: 'primary_kv', label: 'TENSÃO PRIMÁRIA', kind: 'number', unit: 'kV' };
+    const commit = vi.fn();
+    render(<Stored initial={{ raw: '13.8', unit: 'kV', state: 'measured' }} commit={commit} def={PRIMARY} />);
+    const input = screen.getByRole('textbox', { name: /primária/i });
+    expect(input).toHaveValue('13,8');
+    await userEvent.clear(input);
+    await userEvent.type(input, 'na');
+    fireEvent.blur(input);
+    expect(commit).toHaveBeenCalledWith(NA);
+    expect(input).toHaveValue('N.A');
+    expect(unitOf(input)).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { replay } from '../ops/replay.ts';
+import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
 import { buildSnapshot } from '../schemas/snapshot.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import { emptySheet, type BlockRow, type Cell, type Sheet } from '../schemas/entities.ts';
@@ -351,6 +352,24 @@ describe('5.5-UNIT evaluateSheetReadings', () => {
     expect(evaluateSheetReadings(tc, TC)[1]!.tables[0]!.rows[0]!.calculated?.text).toBe('40,00');
     const bad = block('tc', { nameplate: { relacao: cell('380/220/1') } });
     expect(evaluateSheetReadings(bad, TC)[1]!.tables[0]!.rows[0]!.calculated).toBeNull();
+  });
+
+  it('16.4: an "N.A" plate voltage is no ratio input (nameplateNumber and nameplateFirstNumber answer null): no fallback, no VAL CALCULADO', () => {
+    const tp = block('tp', {
+      nameplate: { tensao_nominal_at: cell(NOT_APPLICABLE_NUMBER), tensao_nominal_bt: measured('115', 'V') },
+      ...test('relacao_transformacao', [[0, 3, measured('120.1', null)]]),
+    });
+    const row = evaluateSheetReadings(tp, TP)[1]!.tables[0]!.rows[0]!;
+    expect(row.cells[0]!.fallback).toBeNull();
+    expect(row.calculated).toBeNull();
+    const trafo = getDefinition('v9', 'cabine_primaria', 'transformador_forca');
+    const b = block('transformador_forca', {
+      nameplate: { tensao_nominal_bt: cell(NOT_APPLICABLE_NUMBER) },
+      ...test('relacao_transformacao', [[0, 0, measured('13.8', 'kV')]]),
+    });
+    const bt = evaluateSheetReadings({ ...b, seed_version: 'v9' }, trafo).find((t) => t.testKey === 'relacao_transformacao')!.tables[0]!.rows[0]!;
+    expect(bt.cells[1]!.fallback).toBeNull();
+    expect(bt.calculated).toBeNull();
   });
 
   it('a zero or negative primário or secundário computes no VAL CALCULADO, no verdict and no worst deviation', () => {

@@ -1,4 +1,4 @@
-import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
+import { formatDecimalGroupedPtBr, isNotApplicableNumber, NOT_APPLICABLE_TEXT } from '../parse/pt-br-number.ts';
 import type { LocationRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { findSeed } from '../seed/definitions.ts';
@@ -54,9 +54,10 @@ function cabineDefinition(seedVersion: string): CabineDefinition | null {
   return findSeed(seedVersion)?.cabine ?? null;
 }
 
-/** A cabine column holds a value: a non-blank text, or a number that is not empty. */
+/** A cabine column holds a value: a non-blank text, or a number that is not empty ("N.A" counts, Story 16.4). */
 function cabineValueFilled(value: unknown): boolean {
   if (value === null || value === undefined) return false;
+  if (isNotApplicableNumber(value)) return true;
   if (typeof value === 'string') return value.trim() !== '';
   if (typeof value === 'object' && !Array.isArray(value) && 'raw' in value) {
     const number = value as { raw: string; state?: string };
@@ -107,11 +108,12 @@ export function cabineMissingText(p: Pick<CabineProgress, 'missing'>): string | 
 }
 
 /**
- * A cabine number as the line prints it: "13,8 kV", "1.500 kVA", "65 %"; null when not typed.
- * Value and unit are joined by a no-break space (U+00A0), so a wrapping line never splits
- * "25" from "°C" (E12-Q9).
+ * A cabine number as the line prints it: "13,8 kV", "1.500 kVA", "65 %"; "N.A" with no unit
+ * for the `not_applicable` state (Story 16.4); null when not typed. Value and unit are joined
+ * by a no-break space (U+00A0), so a wrapping line never splits "25" from "°C" (E12-Q9).
  */
 function lineMeasure(value: { raw: string; unit: string | null; state?: string } | null, unit: string): string | null {
+  if (isNotApplicableNumber(value)) return NOT_APPLICABLE_TEXT;
   if (value === null || value.state === 'empty' || value.raw.trim() === '') return null;
   return `${formatDecimalGroupedPtBr(value.raw.trim())}\u00a0${value.unit ?? unit}`;
 }

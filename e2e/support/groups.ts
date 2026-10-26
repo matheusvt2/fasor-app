@@ -129,6 +129,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'display-shots.spec.ts',
     why: 'loads the fixed-id Porto Seguro fixture and generates a revision through the shared queue and LibreOffice, uploading a display shot the one reading queue and worker read',
   },
+  // Story 16.4: "N.A" in a nameplate and a cabine number field, read back from a preview PDF.
+  {
+    file: 'na-number-field.spec.ts',
+    why: 'loads the fixed-id Porto Seguro fixture and renders a preview PDF through the shared queue and LibreOffice',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

@@ -2,7 +2,8 @@
 title: 'Story 16.4: "N.A" in a nameplate or cabine number field (contract 26)'
 type: 'feature'
 created: '2026-10-26'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '0387e97394274eb474620c8f34c8cbacf28cfe08'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'

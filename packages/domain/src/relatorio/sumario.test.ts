@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { makeOp } from '../ops/op.ts';
+import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
 import { replay } from '../ops/replay.ts';
 import type { RelatorioRow, TemplateRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
@@ -229,6 +230,18 @@ describe('4.3-UNIT sumarioRows', () => {
     };
     expect(cabineMetaText(full)).toBe('SE · 13,8 kV · 19 °C · 67 % · agrupar por tipo');
     expect(cabineMetaText({ ...base, agrupar_por_tipo: false })).toBe('—');
+  });
+
+  it('16.4-UNIT the cabine meta prints "N.A" with no unit in an "N.A" value\'s place', () => {
+    const base = snapshot.locations.find((l) => l.name === 'Cubículo Enel')!;
+    if (base.kind !== 'cabine') throw new Error('Cubículo Enel is a cabine');
+    const n = (raw: string) => ({ raw, unit: null, state: 'measured' as const });
+    const na = {
+      ...base,
+      se: { ...base.se, type: 'SE', primary_kv: NOT_APPLICABLE_NUMBER },
+      env: { ...base.env, temperature_c: n('19'), humidity_pct: NOT_APPLICABLE_NUMBER },
+    };
+    expect(cabineMetaText(na)).toBe('SE · N.A · 19 °C · N.A');
   });
 
   it('over the Porto Seguro fixture: the cover reads the client and dates once nothing is missing but the logo', () => {

@@ -1,5 +1,5 @@
 import { formatDateTime } from '../format/datetime.ts';
-import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
+import { formatDecimalGroupedPtBr, isNotApplicableNumber, NOT_APPLICABLE_TEXT } from '../parse/pt-br-number.ts';
 import { isUncaptioned, photoStampFull } from '../photos/gallery.ts';
 import { numberPhotos, photoRefLabel } from '../photos/numbering.ts';
 import { livePhotos, type SnapshotPhoto } from '../photos/order.ts';
@@ -232,10 +232,12 @@ function withUnit(text: string, unit: string | null | undefined): string {
 /**
  * A stored field value as the document prints it: numbers pt-BR with their unit (the stored
  * one, else the field's), a voltage class with " kV", a date dd/mm/aaaa (a date typed in
- * another shape as stored), text as typed; "-" when empty. Never uppercased.
+ * another shape as stored), text as typed; "-" when empty; "N.A" with no unit for the
+ * `not_applicable` state (Story 16.4). Never uppercased.
  */
 function storedValueText(field: Pick<FieldDef, 'kind' | 'unit'>, value: unknown): string {
   if (value === null || value === undefined) return DASH;
+  if (isNotApplicableNumber(value)) return NOT_APPLICABLE_TEXT;
   if (typeof value === 'object' && !Array.isArray(value)) {
     const number = value as { raw?: unknown; unit?: unknown; state?: unknown };
     if (typeof number.raw !== 'string') return DASH;

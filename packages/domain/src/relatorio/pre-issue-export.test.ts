@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
+import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
 import type { InstrumentRow } from '../registry/instrument-row.ts';
 import type { BlockRow, Cell, RelatorioParecer, SuggestionRow, UserRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
@@ -466,6 +467,18 @@ describe('F-03 (review 2026-10-06, D1): empty sheets and blank fields ask before
     expect(issueConfirmText({ emptySheets: 1, blankFields: 0, ...NO_GAPS })).toBe('Gerar com 1 ficha vazia?');
     expect(issueConfirmText({ emptySheets: 0, blankFields: 1, ...NO_GAPS })).toBe('Gerar com 1 campo em branco?');
     expect(issueConfirmReason({ emptySheets: 93, blankFields: 0, ...NO_GAPS })).toBe('Gerar pede confirmação: 93 fichas vazias.');
+  });
+
+  it('16.4: a sheet holding only an "N.A" is not an empty sheet and adds no blank field', () => {
+    const snapshot = fresh();
+    const before = issueConfirmation(snapshot, { now: NOW });
+    const numberKey = (b: BlockRow) => findDefinition(b.seed_version, b.block_type)?.nameplate.find((f) => f.kind === 'number')?.key;
+    const target = snapshot.blocks.find((b) => isEquipmentBlock(b) && b.removed_at === null && numberKey(b) !== undefined)!;
+    const key = numberKey(target)!;
+    const blocks = snapshot.blocks.map((b) => (b.id === target.id ? { ...b, sheet: { ...b.sheet, nameplate: { ...b.sheet.nameplate, [key]: cell(NOT_APPLICABLE_NUMBER) } } } : b));
+    const after = issueConfirmation({ ...snapshot, blocks }, { now: NOW });
+    expect(after.emptySheets).toBe(before.emptySheets - 1);
+    expect(after.blankFields).toBe(before.blankFields);
   });
 
   it('counts a blank required cover row ("[Responsável]") and stops once the responsible is set', () => {

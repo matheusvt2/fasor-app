@@ -3,6 +3,10 @@ import {
   canonicalDecimal,
   formatDecimalGroupedPtBr,
   INSULATION_UNITS,
+  isNotApplicableNumber,
+  isNotApplicableText,
+  NOT_APPLICABLE_NUMBER,
+  NOT_APPLICABLE_TEXT,
   numberEchoText,
   parseDecimalPtBr,
   parseReadingPtBr,
@@ -97,5 +101,30 @@ describe('5.5-UNIT parseReadingPtBr, formatDecimalGroupedPtBr, numberEchoText', 
     expect(numberEchoText('3300', null)).toBe('= 3.300');
     expect(canonicalDecimal('007.2500')).toBe('7.25');
     expect(canonicalDecimal('-0.0')).toBe('0');
+  });
+});
+
+describe('16.4-UNIT the "N.A" spellings and value (contract 26)', () => {
+  it('accepts N.A, NA, N/A and N.A. in any case, whitespace anywhere', () => {
+    for (const typed of ['N.A', 'NA', 'N/A', 'N.A.', 'n.a', 'na', 'n/a', 'n.a.', 'Na', ' n . a ', 'N / A', '\tN.A.\n']) {
+      expect(isNotApplicableText(typed), typed).toBe(true);
+    }
+  });
+
+  it('refuses anything else', () => {
+    for (const typed of ['', 'N', 'A', 'N.A.A', 'NAO', 'n-a', 'N.A 5', 'N..A', 'N.A./', 'NA.', '5']) {
+      expect(isNotApplicableText(typed), typed).toBe(false);
+    }
+  });
+
+  it('shows "N.A" and stores the frozen fourth state with no raw nor unit', () => {
+    expect(NOT_APPLICABLE_TEXT).toBe('N.A');
+    expect(NOT_APPLICABLE_NUMBER).toEqual({ raw: '', unit: null, state: 'not_applicable' });
+    expect(Object.isFrozen(NOT_APPLICABLE_NUMBER)).toBe(true);
+    expect(isNotApplicableNumber(NOT_APPLICABLE_NUMBER)).toBe(true);
+    expect(isNotApplicableNumber({ raw: '', unit: null, state: 'not_applicable' })).toBe(true);
+    for (const other of [null, undefined, 'N.A', { raw: '', unit: null, state: 'empty' }, { raw: '5', unit: 'kV', state: 'measured' }, ['not_applicable']]) {
+      expect(isNotApplicableNumber(other)).toBe(false);
+    }
   });
 });

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { dateValueSchema, numberValueSchema } from '../schemas/entities.ts';
+import { dateValueSchema } from '../schemas/entities.ts';
 import type { FieldDef, FieldKind } from '../seed/schema.ts';
 
 /*
@@ -128,11 +128,24 @@ export interface OcrProvider {
 
 const nonEmptyTextSchema = z.string().min(1);
 
+/**
+ * Story 16.4: the OCR contract keeps its own three-state number shape. `not_applicable` is
+ * something the engineer types, never something a plate reading answers, so the structuring
+ * step neither emits it nor accepts it, and the exported JSON Schema stays the same bytes.
+ */
+const ocrNumberValueSchema = z
+  .object({
+    raw: z.string(),
+    unit: z.string().nullable(),
+    state: z.enum(['measured', 'not_measured', 'empty']),
+  })
+  .strict();
+
 /** The value shape of one field kind (AD-11): `number` -> `{raw, unit, state}`, `date` -> `YYYY-MM[-DD]`, else a non-empty string. */
 export function structuringValueSchemaFor(kind: FieldKind): z.ZodType {
   switch (kind) {
     case 'number':
-      return numberValueSchema.strict();
+      return ocrNumberValueSchema;
     case 'date':
       return dateValueSchema;
     default:
@@ -144,7 +157,7 @@ export function structuringValueSchemaFor(kind: FieldKind): z.ZodType {
 export const structuringValueSchema = z
   .object({
     key: z.string().min(1),
-    value: z.union([numberValueSchema.strict(), nonEmptyTextSchema]),
+    value: z.union([ocrNumberValueSchema, nonEmptyTextSchema]),
     ocr_token_ids: z.array(z.string().regex(/^t\d+$/)).min(1),
     confidence: z.number().min(0).max(1),
   })

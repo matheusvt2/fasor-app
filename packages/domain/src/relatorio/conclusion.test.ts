@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyOp, entityKey, readPath, type EntityState } from '../ops/apply.ts';
 import type { Op } from '../ops/op.ts';
+import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
 import { invertBatch } from '../ops/outbox.ts';
 import { blockFieldPath, sheetConclusionPath, sheetObservationsPath, sheetTestPath } from '../ops/path.ts';
 import type { InstrumentRow } from '../registry/instrument-row.ts';
@@ -110,6 +111,18 @@ describe('5.8-UNIT composeConclusion', () => {
     );
     expect(composed.criteriaLine).toBe(`R_iso T1–T2 330 MΩ · critério >400 MΩ · R_cont T1-T2–Fase A 120 µΩ · critério <250 µΩ · item ${contatosIndex} NC`);
     expect(composed.basis).toMatch(/^[0-9a-f]{8}$/);
+  });
+
+  it('16.4: the identity skips an "N.A" nameplate number (no "N.A" in the paragraph)', () => {
+    const b = block({
+      nameplate: { ...plate, corrente_nominal: cell(NOT_APPLICABLE_NUMBER) },
+      checklist: allC(),
+      test: within(),
+      conclusion: { result: cell('aprovado'), restriction: cell('sem_restricoes') },
+    });
+    const text = composeConclusion(b, SEC, 'SEC-C05').text;
+    expect(text).toMatch(/^A seccionadora SEC-C05 \(Celtta, 15 kV\) apresentou /);
+    expect(text).not.toContain('N.A');
   });
 
   it('with everything within and conform: the two fixed clauses, no recommendation, parts dropped when missing', () => {

@@ -1,5 +1,6 @@
 import { dateRangeText } from '../format/datetime.ts';
 import { sortByOrderKey } from '../ops/order-key.ts';
+import { isNotApplicableNumber, NOT_APPLICABLE_TEXT } from '../parse/pt-br-number.ts';
 import { livePhotos } from '../photos/order.ts';
 import { photoCountText } from '../photos/text.ts';
 import type { BlockRow, EquipmentRow, LocationRow, RelatorioStatus, RevisionRow } from '../schemas/entities.ts';
@@ -109,8 +110,9 @@ function pendingRows(rows: readonly PreIssueRow[]): PreIssueRow[] {
   return rows.filter((row) => row.severity !== 'info');
 }
 
-/** A cabine number value as its meta line prints it: "13,8 kV", "19 °C", "67 %"; null when not typed. */
+/** A cabine number value as its meta line prints it: "13,8 kV", "19 °C", "67 %"; "N.A" with no unit for the `not_applicable` state (Story 16.4, read before `raw`); null when not typed. */
 function measure(value: { raw: string; unit: string | null } | null, unit: string): string | null {
+  if (isNotApplicableNumber(value)) return NOT_APPLICABLE_TEXT;
   if (value === null || value.raw.trim() === '') return null;
   return `${value.raw.trim().replace('.', ',')} ${value.unit ?? unit}`;
 }

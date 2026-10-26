@@ -2,7 +2,10 @@ import {
   criarText,
   fieldValueText,
   formatDecimalGroupedPtBr,
+  isNotApplicableNumber,
   nameplateWordRecents,
+  NOT_APPLICABLE_NUMBER,
+  NOT_APPLICABLE_TEXT,
   normalizeRegistryName,
   numberEchoText,
   normalizeDateValue,
@@ -19,7 +22,7 @@ import {
 } from '@app/domain';
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { DateField, RegistryPickerField } from '../../components/index.ts';
-import { useNumberInput } from '../../components/number-input.tsx';
+import { NOT_APPLICABLE_STORED_RAW, useNumberInput, type ParsedNumber } from '../../components/number-input.tsx';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
@@ -306,22 +309,31 @@ function TextField({ field, value, commit, draft, missing, label, helper, after,
 /**
  * A nameplate or cabine number (Story 5.3; the carry-over of PR #30): the shared
  * `useNumberInput`, so the text is parsed and committed on blur or Enter only and never
- * rewritten while the engineer types ("3.3", a pause, "00" commits 3300).
+ * rewritten while the engineer types ("3.3", a pause, "00" commits 3300). Story 16.4: an
+ * "N.A" spelling commits the kernel's `not_applicable` value, reads "N.A" with no unit and
+ * no echo line, and Enter runs on as after a number.
  */
 function NumberField({ field, value, commit, draft, missing, label, invalidText, after, flushOnUnmount }: FieldProps) {
   const id = useId();
   const helperId = useId();
   const unit = field.unit ?? null;
-  const storedRaw = typeof value === 'object' && value !== null && 'raw' in value && (value as { state?: string }).state === 'measured' ? (value as { raw: string }).raw : null;
-  const parseNumber = (text: string) => numberFieldValue(text, unit);
+  const storedNotApplicable = isNotApplicableNumber(value);
+  const measuredRaw = typeof value === 'object' && value !== null && 'raw' in value && (value as { state?: string }).state === 'measured' ? (value as { raw: string }).raw : null;
+  const storedRaw = storedNotApplicable ? NOT_APPLICABLE_STORED_RAW : measuredRaw;
+  const parseNumber = (text: string): ParsedNumber | null | 'invalid' => {
+    const parsed = numberFieldValue(text, unit);
+    if (parsed === null || parsed === 'invalid') return parsed;
+    return parsed.state === 'not_applicable' ? { raw: '', unit: null, state: 'not_applicable' } : { raw: parsed.raw, unit: parsed.unit };
+  };
   const number: ReturnType<typeof useNumberInput> = useNumberInput({
-    // At rest a stored number reads grouped ("3.300"), the same after a blur and a reload.
-    storedText: storedRaw === null ? fieldValueText(field, value) : formatDecimalGroupedPtBr(storedRaw),
+    // At rest a stored number reads grouped ("3.300"), the same after a blur and a reload; a stored "N.A" reads "N.A".
+    storedText: measuredRaw === null ? fieldValueText(field, value) : formatDecimalGroupedPtBr(measuredRaw),
     storedRaw,
     parse: parseNumber,
-    commit: (parsed) => commit(parsed === null ? null : { raw: parsed.raw, unit, state: 'measured' }),
-    echo: (parsed) => numberEchoText(parsed.raw, unit),
-    format: (parsed) => formatDecimalGroupedPtBr(parsed.raw),
+    commit: (parsed) =>
+      commit(parsed === null ? null : parsed.state === 'not_applicable' ? { ...NOT_APPLICABLE_NUMBER } : { raw: parsed.raw, unit, state: 'measured' }),
+    echo: (parsed) => (parsed.state === 'not_applicable' ? null : numberEchoText(parsed.raw, unit)),
+    format: (parsed) => (parsed.state === 'not_applicable' ? NOT_APPLICABLE_TEXT : formatDecimalGroupedPtBr(parsed.raw)),
     draft: { surface: DRAFT_SURFACE, entityId: draft.entityId, field: draft.field },
     flushOnUnmount: flushOnUnmount === true,
     // DB-7: Enter commits (`useNumberInput`), then runs on unless the text is no number (the
@@ -339,6 +351,8 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
     },
   });
   const describedBy = [number.invalid ? helperId : null, number.echo === null ? null : `${helperId}-echo`].filter(Boolean).join(' ') || undefined;
+  // Story 16.4: "N.A" has no unit, at rest and once typed.
+  const showsNotApplicable = number.parsed !== null && number.parsed !== 'invalid' && number.parsed.state === 'not_applicable';
   return (
     <div className="field" data-field-key={field.key}>
       <label className="field-label" htmlFor={id}>
@@ -354,7 +368,7 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
           aria-describedby={describedBy}
           data-missing-field={missing ? '' : undefined}
         />
-        {unit === null ? null : <span className="mf-unit">{unit}</span>}
+        {unit === null || showsNotApplicable ? null : <span className="mf-unit">{unit}</span>}
       </div>
       {number.echo === null ? null : (
         <span className="mf-echo" id={`${helperId}-echo`}>

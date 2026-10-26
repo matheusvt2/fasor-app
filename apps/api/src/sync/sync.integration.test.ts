@@ -10,13 +10,16 @@ import {
   locationChecklistPath,
   locationRemovalPlan,
   locationRestorePlan,
+  locationSePath,
   makeOp,
   MIN_CONTRACT_VERSION,
+  NOT_APPLICABLE_NUMBER,
   photoToken,
   progress,
   replay,
   revisionRowSchema,
   serializeSnapshot,
+  sheetNameplatePath,
   SITE_ITEM_KEYS,
   splitEntityKey,
   syncPullResponseSchema,
@@ -1075,10 +1078,11 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 
-  it('contract 25 (Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-24 pull is refused with 426 contract_outdated on every stream, a version-25 pull is answered', async () => {
-    expect(CONTRACT_VERSION).toBe(25);
-    expect(MIN_CONTRACT_VERSION).toBe(25);
+  it('contract 26 (Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-25 pull is refused with 426 contract_outdated on every stream, a version-26 pull is answered', async () => {
+    expect(CONTRACT_VERSION).toBe(26);
+    expect(MIN_CONTRACT_VERSION).toBe(26);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
+      // 25 cannot parse the `not_applicable` number state, "N.A" (Story 16.4);
       // 24 cannot parse a site item of seed v9 nor resolve seed v9 (Stories 15.3 and 15.6);
       // 23 cannot resolve seed v8 (UX pass 2026-10-22, F43);
       // 22 is the last version that cannot parse a `registry/nc_phrase/...` op (Story 14.12);
@@ -1087,17 +1091,17 @@ describe('1.5-API-005 contract skew', () => {
       // 19 cannot parse `audit_run/{id}/coverage` (Story 14.10 lane B);
       // 18 cannot parse `sheet/{id}/test/{key}/value/...`, the ninth block type nor resolve seed v5 (Story 14.5);
       // 17 cannot parse `location/{id}/checklist/...` nor resolve seed v4 (Story 14.3); 16 stays refused as since Story 14.2.
-      for (const version of ['24', '23', '22', '21', '20', '19', '18', '17', '16']) {
+      for (const version of ['25', '24', '23', '22', '21', '20', '19', '18', '17', '16']) {
         const old = await pull(companyA, path, version);
         expect(old.status, `${path} at ${version}`).toBe(426);
         expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
       }
     }
-    const current = await pull(companyA, '/api/sync/company?since=0', '25');
+    const current = await pull(companyA, '/api/sync/company?since=0', '26');
     expect(current.status).toBe(200);
     // An outdated client keeps pushing (AD-13): only the pull is refused.
     const batch = [clientCreate(idsA, newId())];
-    const pushed = await push(companyA, { ops: batch }, '24');
+    const pushed = await push(companyA, { ops: batch }, '25');
     expect(pushed.status).toBe(200);
     for (const o of batch) written.opIds.add(o.op_id);
   });
@@ -1627,6 +1631,30 @@ describe('Story 14.3 (contract 18): Verificações do local through POST /api/sy
     const paths = (page.ops as Op[]).map((o) => o.path);
     expect(paths).toContain(locationChecklistPath(v9.local, PINTURA!, 'result'));
     expect(paths).toContain(locationChecklistPath(v9.local, GRADES!, 'result'));
+  });
+
+  it('Story 16.4 (contract 26): an "N.A" cabine and nameplate put is applied, stored and carried by the stream; a version-25 pull is 426', async () => {
+    const t = await site('v9');
+    const block = newId();
+    const created = await pushOk(companyA, [blockCreate(idsA, t.relatorio, block, 'transformador_forca')]);
+    expect(created.rejected).toEqual([]);
+    const se = put(t.relatorio, locationSePath(t.local, 'primary_kv'), NOT_APPLICABLE_NUMBER, { meta: SAW_EMPTY });
+    const plate = put(t.relatorio, sheetNameplatePath(block, 'potencia_nominal'), NOT_APPLICABLE_NUMBER, { meta: SAW_EMPTY });
+    const result = await pushOk(companyA, [se, plate]);
+    expect(result.rejected).toEqual([]);
+    expect(result.applied.map((a) => a.op_id)).toEqual([se.op_id, plate.op_id]);
+    const NA = { raw: '', unit: null, state: 'not_applicable' };
+    expect(((await rowOf('location', t.local)) as unknown as { se: Record<string, unknown> }).se.primary_kv).toEqual(NA);
+    expect(((await rowOf('block', block)) as unknown as BlockRow).sheet.nameplate.potencia_nominal).toMatchObject({ value: NA, op_id: plate.op_id });
+    const page = await pullOk(companyA, `/api/sync/relatorios/${t.relatorio}?since=0`);
+    const carried = (page.ops as Op[]).filter((o) => o.op_id === se.op_id || o.op_id === plate.op_id);
+    expect(carried.map((o) => [o.path, o.value])).toEqual([
+      [locationSePath(t.local, 'primary_kv'), NA],
+      [sheetNameplatePath(block, 'potencia_nominal'), NA],
+    ]);
+    const old = await pull(companyA, `/api/sync/relatorios/${t.relatorio}?since=0`, '25');
+    expect(old.status).toBe(426);
+    expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
   });
 
   it('a client batch holding one refused site put is refused whole, as any batch with a permanent refusal is', async () => {

@@ -1,7 +1,7 @@
 import { formatShortDateTime } from '../format/datetime.ts';
 import { entityKey, type EntityKey } from '../ops/apply.ts';
 import { formatPath, safeParsePath, type OpPath } from '../ops/path.ts';
-import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
+import { formatDecimalGroupedPtBr, NOT_APPLICABLE_TEXT } from '../parse/pt-br-number.ts';
 import { avatarInitial } from '../registration.ts';
 import { composeConclusion } from '../relatorio/conclusion.ts';
 import { sheetOrder, fieldValueText } from '../relatorio/ficha.ts';
@@ -651,13 +651,15 @@ function measurementValueText(path: string, value: unknown, block: Pick<BlockRow
   return null;
 }
 
-/** A side's value as the sheet displays it ("3.300 MΩ", "Conforme", "Aprovado", a choice's label); "—" when empty. */
+/** A side's value as the sheet displays it ("3.300 MΩ", "Conforme", "Aprovado", a choice's label, "N.A"); "—" when empty. */
 export function conflictValueText(cell: Pick<CellConflict, 'path'>, value: unknown, block?: Pick<BlockRow, 'seed_version' | 'block_type'>): string {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'object' && !Array.isArray(value) && 'raw' in value) {
     const number = value as { raw: string; unit?: string | null; state?: string };
     if (number.state === 'empty') return '—';
     if (number.state === 'not_measured') return '-';
+    // Story 16.4: read before the measurement path, which would print the empty raw.
+    if (number.state === 'not_applicable') return NOT_APPLICABLE_TEXT;
     const measurement = block === undefined ? null : measurementValueText(cell.path, value, block);
     if (measurement !== null) return measurement;
     const unit = typeof number.unit === 'string' && number.unit !== '' ? ` ${number.unit}` : '';

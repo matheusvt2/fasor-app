@@ -213,8 +213,19 @@
  * `location/{id}/checklist/pintura_e_corrosao/...` op (its `siteItemKeySchema` refuses the key,
  * so its `opSchema` fails the whole pulled page) nor resolve seed v9. A row written before 25
  * parses to the same bytes. `MIN_CONTRACT_VERSION` goes to 25 too.
+ *
+ * 26 (2026-10-26, Story 16.4, Bruno's WhatsApp of 2026-10-23): the AD-11 number value gains a
+ * fourth state, `not_applicable`, stored `{ raw: '', unit: null, state: 'not_applicable' }`, typed
+ * "N.A" (or "NA", "N/A", "N.A.") in a nameplate or cabine number field and shown and printed
+ * "N.A" with no unit (`NOT_APPLICABLE_TEXT`). No path family, row field nor seed is new: the
+ * value travels on the existing `sheet/{id}/nameplate/{key}` and `location/{id}/se|env/{field}`
+ * puts. A version-25 bundle's `numberValueSchema` refuses the state, so a pulled cabine row or op
+ * holding it fails its parse, and its readers would print "-" or a blank where the server prints
+ * "N.A". The OCR contract keeps its own three-state shape, so the exported JSON Schema is
+ * unchanged. A row written before 26 parses to the same bytes. `MIN_CONTRACT_VERSION` goes to 26
+ * too.
  */
-export const CONTRACT_VERSION = 25;
+export const CONTRACT_VERSION = 26;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -344,8 +355,14 @@ export const CONTRACT_VERSION = 25;
  * U1/U2 where the server's kernel applies √3, so its condições, Sumário and documents would
  * disagree. A stream carries those as soon as the template upgrade runs, so the version-24 bundle
  * updates too.
+ *
+ * 26 (2026-10-26, Story 16.4): a version-25 (or older) bundle's `numberValueSchema` refuses the
+ * `not_applicable` state, so a pulled cabine row or a nameplate or cabine put holding "N.A" fails
+ * its parse (the whole pulled page, `invalid_response`), and its readers would print "-" or a
+ * blank where the server's kernel prints "N.A". A stream carries one as soon as any device types
+ * "N.A", so the version-25 bundle updates too.
  */
-export const MIN_CONTRACT_VERSION = 25;
+export const MIN_CONTRACT_VERSION = 26;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

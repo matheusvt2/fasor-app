@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyOp, cellAt, entityKey, SeedPathError, type EntityKey, type EntityState } from '../ops/apply.ts';
 import { blockPath, parsePath, sheetChecklistPath, sheetConclusionPath, sheetNameplatePath, sheetObservationsPath, sheetTestCellPath } from '../ops/path.ts';
+import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
 import { CAPTION_EQUIPMENT_WORDS } from '../photos/caption.ts';
 import { groupForPrint } from '../print/group-for-print.ts';
 import { section9Layout, type PrintSheet, type PrintTable, type SheetPart } from '../print/section-9.ts';
@@ -13,6 +14,7 @@ import { opFactory, TEST_PROJECT, TEST_RELATORIO, type OpFactory } from '../test
 import { composeConclusion, suggestConclusionPair } from './conclusion.ts';
 import { nameplateMissingKeys } from './dry-insulation.ts';
 import { CTA } from './measurement-test-support.ts';
+import { voltsOf } from './reading-evaluation.ts';
 import { bandCriterion, CRITERION_NOT_EVALUATED, evaluatedCells, evaluateSheetReadings, worstReadings } from './readings.ts';
 import { sheetProgress } from './sheet-progress.ts';
 import { suggestTag, TAG_PREFIX } from './tag.ts';
@@ -175,6 +177,13 @@ describe('matrix "Band criterion", "No criterion" and "SELV/PELV": the criterion
     for (const volts of [null, num('1001', 'V'), num('13800', 'V'), num('0', 'V'), { raw: 'abc', unit: 'V', state: 'invalid' }, { raw: '', unit: 'V', state: 'not_measured' }]) {
       expect(value(board(volts as JsonValue | null)), JSON.stringify(volts)).toBeNull();
     }
+  });
+
+  it('16.4: an "N.A" TENSÃO NOMINAL is no voltage: voltsOf null, no band, no criterion', () => {
+    expect(voltsOf(NOT_APPLICABLE_NUMBER)).toBeNull();
+    expect(value(board(NOT_APPLICABLE_NUMBER as unknown as JsonValue))).toBeNull();
+    // Filled all the same: the plate does not ask for it again.
+    expect(nameplateMissingKeys({ blocks: [board(NOT_APPLICABLE_NUMBER as unknown as JsonValue)] }, BLOCK).has('tensao_nominal')).toBe(false);
   });
 
   it('a board marked SIM is judged >= 0,25 MΩ whatever its voltage; NÃO or empty reads the voltage bands, and an empty mark is never missing', () => {
