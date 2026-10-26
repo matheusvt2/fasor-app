@@ -4259,6 +4259,8 @@ So that I never send a revision rendered before my changes thinking it is the pr
 
 **Definition of Done, in addition:** `print/revisions.test.ts` covers the sentence (gerado, emitido, number, date) and the tag; `export-dialog.test.tsx` renders the three states; E4-E2E-001 asserts the banner and the tag after the edit and their absence after revision 2; the authored strings are listed in the PR for Bruno; `MOCK-GUIDE.md` notes the banner is built; `source-deltas.md`, `docs/kbs/log.md` lines.
 
+*(2026-10-26, PR #181, batch e16b, merged as bc9e31df)* Built as specified. Narrowing: "emitido" is read from a `relatorio/status = emitido` op past the revision's snapshot (`markedSentSince`), so an issue later undone still reads "emitido" in the banner until the next revision. Authored strings for Bruno: the banner sentence with "gerado" or "emitido", the row tag " — anterior às alterações".
+
 ### Story 16.3: Display shots print only under their test
 
 **Dev model:** opus · **Effort:** medium · kernel only: `photos/numbering.ts`, `print/section-7.ts`, `print/section-9.ts`, `points/refs.ts`, the gallery and sheet strip labels that read the numbers; goldens unchanged
@@ -4290,6 +4292,8 @@ So that the record reads as FO.SERV-03's and the display shots stay with their t
 **Then** the numbered photos keep their numbers (a display shot never shifted them)
 
 **Definition of Done, in addition:** kernel tests for `numberPhotos`, `section7Photos`, `sheetPhotos` and `points/refs.ts` with a display shot among numbered photos; a Playwright spec takes a "Ler visor" burst on a measurement cell, captures a site photo, checks the badges, generates the preview and asserts section 7's count and section 9's line (through the PDF text, as `export-visual.spec.ts` does); `glossary.md` gains "display shot"; `source-deltas.md`, `docs/kbs/log.md` lines.
+
+*(2026-10-26, PR #181, batch e16b, merged as bc9e31df)* Built on the default (display shots print under their test, no number). Narrowing: the audit labels a display shot "Foto". Open question for Matheus: a point that cited a display shot before 16.3 now prints "imagem removida" in section 8; acceptable, or should the reference print the caption sentence? Known open (deferred-work): a relatório whose latest revision predates 16.3 and holds display shots shows gallery numbers frozen from that revision while its document no longer matches; it corrects at the next revision.
 
 ### Story 16.4: "N.A" in a nameplate or cabine number field (contract 26)
 
