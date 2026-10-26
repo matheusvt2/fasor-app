@@ -422,6 +422,7 @@ export function NameplateSection({
               invalidText={t.invalidNumber}
               selectEmpty={t.selectEmpty}
               registries={registries}
+              acceptsNotApplicable
               blocks={snapshot.blocks}
               onCreateWord={(kind, name) => createWord(field.key, kind, name)}
               onRegisterWord={registerWord}

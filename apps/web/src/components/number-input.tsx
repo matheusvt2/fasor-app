@@ -14,7 +14,9 @@ import { useDraftSource } from '../state/drafts.tsx';
  *   text;
  * - while focused and parseable, `echo` is the line under the field ("= 3.300 MΩ");
  * - text that is no number stays typed, is flagged invalid and commits nothing;
- * - uncommitted text is a draft source ("Rascunho encontrado — Recuperar", FR-61).
+ * - uncommitted text is a draft source ("Rascunho encontrado — Recuperar", FR-61);
+ * - Story 16.4: a nameplate or cabine field's parse may answer "N.A" (`state:
+ *   'not_applicable'`); a Measurement field's parse never does.
  *
  * The parse, the echo and the formatting are the kernel's; this hook only holds the text.
  */
@@ -22,19 +24,28 @@ import { useDraftSource } from '../state/drafts.tsx';
 export interface ParsedNumber {
   raw: string;
   unit: string | null;
+  /** Story 16.4: an "N.A" typed in a nameplate or cabine number field; absent for a number. */
+  state?: 'not_applicable';
 }
+
+/**
+ * Story 16.4: the `storedRaw` of a stored "N.A". `rawOf` answers it for a typed "N.A" too, so a
+ * re-render with "N.A" stored and shown keeps the text, while a stored number or a blank (an
+ * undo, a remote put) differs from it and replaces the text at rest. Never a decimal string.
+ */
+export const NOT_APPLICABLE_STORED_RAW = '\u0000not_applicable';
 
 export interface NumberInputOptions {
   /** The stored value as the input shows it when not typing ('' when empty). */
   storedText: string;
-  /** The stored raw when a number is stored, else null. */
+  /** The stored raw when a number is stored, `NOT_APPLICABLE_STORED_RAW` for a stored "N.A", else null. */
   storedRaw: string | null;
   /** The kernel's parse of the typed text. */
   parse: (text: string) => ParsedNumber | null | 'invalid';
   /** Commits a parsed value (null: the field was emptied). */
   commit: (value: ParsedNumber | null) => void | Promise<void>;
-  /** The echo line of a parseable text while focused. */
-  echo?: (value: ParsedNumber) => string;
+  /** The echo line of a parseable text while focused; null shows none (an "N.A"). */
+  echo?: (value: ParsedNumber) => string | null;
   /** The text a committed value is shown as afterwards ("147G" -> "147"); the typed text stays when omitted. */
   format?: (value: ParsedNumber) => string;
   /** The draft registration of the field. */
@@ -77,7 +88,8 @@ export interface NumberInputState {
   markClean: () => void;
 }
 
-const rawOf = (parsed: ParsedNumber | null | 'invalid'): string | null => (parsed === null || parsed === 'invalid' ? null : parsed.raw);
+const rawOf = (parsed: ParsedNumber | null | 'invalid'): string | null =>
+  parsed === null || parsed === 'invalid' ? null : parsed.state === 'not_applicable' ? NOT_APPLICABLE_STORED_RAW : parsed.raw;
 
 export function useNumberInput(options: NumberInputOptions): NumberInputState {
   const { storedText, storedRaw, parse, draft } = options;

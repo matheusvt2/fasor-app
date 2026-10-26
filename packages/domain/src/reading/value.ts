@@ -1,6 +1,6 @@
 import { structuringValueSchemaFor, type OcrToken } from '../contract/ocr.ts';
 import { formatCalendarDate, normalizeDateValue } from '../format/datetime.ts';
-import { parseDecimalPtBr } from '../parse/pt-br-number.ts';
+import { isNotApplicableNumber, parseDecimalPtBr } from '../parse/pt-br-number.ts';
 import { parseVoltageClassKv } from '../registry/word-row.ts';
 import type { JsonValue } from '../schemas/entities.ts';
 import type { FieldDef } from '../seed/schema.ts';
@@ -60,9 +60,10 @@ function isValidIsoDate(text: string): boolean {
 /**
  * The text the digit rule reads from a value: a number's `raw`, a date's pt-BR display
  * (`2024-08` -> `08/2024`, the order a plate prints it), a voltage class's kV text (`15`,
- * `17,5`), anything else as the string it is.
+ * `17,5`), anything else as the string it is; '' for an "N.A" (Story 16.4: no digits to read).
  */
 export function readingValueText(field: Pick<FieldDef, 'kind'>, value: unknown): string {
+  if (isNotApplicableNumber(value)) return '';
   if (field.kind === 'number' && isRecord(value) && typeof value.raw === 'string') return value.raw;
   if (typeof value !== 'string') return value === null || value === undefined ? '' : JSON.stringify(value);
   if (field.kind === 'date') return formatCalendarDate(value) || value;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
+import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
 import type { LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { standardTemplate } from '../seed/template.ts';
@@ -82,6 +83,18 @@ describe('12.3-UNIT cabineProgress and its words', () => {
     const measures = cabineLineText(cabine).split(' · ').slice(1);
     expect(measures).toHaveLength(5);
     for (const measure of measures) expect(measure).toMatch(/^[\d.,]+\u00a0\S+$/);
+  });
+});
+
+describe('16.4-UNIT an "N.A" cabine number', () => {
+  it('fills its field (nothing missing) and prints "N.A" with no unit in the value\'s place on the line', () => {
+    const { snapshot, cabine } = withCabine(fresh(), 'Cubículo Enel', (c) => ({
+      ...c,
+      se: { ...FULL_SE, primary_kv: NOT_APPLICABLE_NUMBER },
+      env: { ...FULL_ENV, humidity_pct: NOT_APPLICABLE_NUMBER },
+    }));
+    expect(cabineProgress(snapshot, cabine.id)).toEqual({ missing: [], complete: true });
+    expect(cabineLineText(cabine)).toBe('ALVENARIA - CONVENCIONAL · N.A · 380\u00a0V · 1.500\u00a0kVA · 25\u00a0°C · N.A');
   });
 });
 

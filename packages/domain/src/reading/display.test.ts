@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { OcrReadResult, OcrToken } from '../contract/ocr.ts';
+import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
 import { emptySheet, type BlockRow, type Cell } from '../schemas/entities.ts';
 import { buildDisplaySuggestions, DISPLAY_MIN_CONFIDENCE, DISPLAY_PROMPT_VERSION, displayUnitOf, displayValues, type BuildDisplaySuggestionsInput } from './display.ts';
 import { displayCellTarget, displayEnvTarget, displayReadingTargetSchema, isDisplayCellTarget } from './target.ts';
@@ -250,6 +251,15 @@ describe('9.1-UNIT buildDisplaySuggestions: the I/O matrix', () => {
     expect(dropped).toEqual([{ key: '2:12', reason: 'no_cell' }]);
     const twice = build([tok(0, '58%', [0, 0, 10, 10], 0.9), tok(1, '59%', [0, 20, 10, 30], 0.9)], displayEnvTarget(LOCATION), { block: null, location });
     expect(twice.dropped).toEqual([{ key: '1:59', reason: 'duplicate' }]);
+  });
+
+  it('16.4: env over an "N.A" temperature and humidity: mode replace, never fill', () => {
+    const location = { id: LOCATION, env: { altitude_m: null, temperature_c: NOT_APPLICABLE_NUMBER, humidity_pct: NOT_APPLICABLE_NUMBER } };
+    const { rows } = build(TERMO, displayEnvTarget(LOCATION), { block: null, location });
+    expect(rows.map((row) => [row.target_path, row.mode])).toEqual([
+      [`location/${LOCATION}/env/temperature_c`, 'replace'],
+      [`location/${LOCATION}/env/humidity_pct`, 'replace'],
+    ]);
   });
 
   it('no value read (dates and labels only, a far shot): no suggestion', () => {

@@ -1,6 +1,6 @@
 import { plateDateAccepted } from '../checks/plate-date.ts';
 import { dateFieldText, parsePlateDateText } from '../format/datetime.ts';
-import { formatDecimalGroupedPtBr, parseDecimalPtBr } from '../parse/pt-br-number.ts';
+import { formatDecimalGroupedPtBr, isNotApplicableNumber, NOT_APPLICABLE_TEXT, parseDecimalPtBr } from '../parse/pt-br-number.ts';
 import { parseVoltageClassKv, type WordRow } from '../registry/word-row.ts';
 import type { BlockRow, Cell, JsonValue, RelatorioStatus, SuggestionRow } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
@@ -118,10 +118,13 @@ export function showsConfirmedGlyph(cell: Cell | null | undefined, relatorioStat
 /*
  * `ficha.ts`'s `fieldValueText` and `numberFieldValue`, restated here: `progress.ts` reads
  * this module, and `ficha.ts` reaches `progress.ts` through `tree.ts`, so importing it back
- * would close an import cycle. Same rules: numbers grouped pt-BR, dates dd/mm/aaaa.
+ * would close an import cycle. Same rules: numbers grouped pt-BR, "N.A" for the
+ * `not_applicable` state (Story 16.4, the text from the leaf `parse/pt-br-number.ts`), dates
+ * dd/mm/aaaa.
  */
 export function valueText(field: Pick<FieldDef, 'kind'>, value: unknown): string {
   if (value === null || value === undefined) return '';
+  if (isNotApplicableNumber(value)) return NOT_APPLICABLE_TEXT;
   const number = numberShape(value);
   if (number !== null) return number.state === 'empty' ? '' : formatDecimalGroupedPtBr(number.raw);
   if (field.kind === 'date' && typeof value === 'string') return dateFieldText(value);

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
 import { normalizeReadingValue, readingValueText } from './value.ts';
 
 const kva = { kind: 'number', unit: 'kVA' } as const;
@@ -22,6 +23,10 @@ describe('8.4-UNIT readingValueText', () => {
     expect(readingValueText(voltage, '15 kV')).toBe('15');
     expect(readingValueText(voltage, '17.5')).toBe('17,5');
     expect(readingValueText(text, 'Dyn1')).toBe('Dyn1');
+  });
+
+  it('16.4: an "N.A" holds no digits to read (the state before the raw)', () => {
+    expect(readingValueText(kva, NOT_APPLICABLE_NUMBER)).toBe('');
   });
 });
 

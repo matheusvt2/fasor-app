@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SERVER_DEVICE_ID } from '../ids.ts';
 import { applyOp, entityKey, readPath, type EntityKey, type EntityState } from '../ops/apply.ts';
 import { invertBatch } from '../ops/outbox.ts';
+import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
 import { materializeEntity } from '../ops/materialize.ts';
 import type { Op } from '../ops/op.ts';
 import { emptySheet, type BlockRow, type EquipmentRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
@@ -643,6 +644,16 @@ describe('conflictValueText: the conclusion words', () => {
     expect(conflictValueText(at('text_status'), 'confirmed')).toBe('Confirmado');
     expect(conflictValueText(at('text_status'), 'edited')).toBe('Editado');
     expect(conflictValueText(at('text'), 'Texto editado.')).toBe('Texto editado.');
+  });
+});
+
+describe('conflictValueText: an "N.A" side (Story 16.4)', () => {
+  it('reads "N.A" on a nameplate or cabine number, never the empty raw', () => {
+    const plate = { path: 'sheet/019966b0-0012-7000-8000-000000000001/nameplate/potencia_nominal' };
+    const cabine = { path: 'location/019966b0-0012-7000-8000-000000000002/se/primary_kv' };
+    expect(conflictValueText(plate, NOT_APPLICABLE_NUMBER)).toBe('N.A');
+    expect(conflictValueText(cabine, NOT_APPLICABLE_NUMBER)).toBe('N.A');
+    expect(conflictValueText(plate, NOT_APPLICABLE_NUMBER, { seed_version: SEED_VERSION, block_type: 'transformador_forca' })).toBe('N.A');
   });
 });
 

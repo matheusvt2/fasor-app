@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
 import { emptySheet, type BlockRow, type Cell } from '../schemas/entities.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import { enabledCells, isCellFilled, isEquipmentBlock, sheetState, sheetStateLabel } from './sheet-state.ts';
@@ -97,6 +98,8 @@ describe('4.3-UNIT sheetState (AD-18 precedence)', () => {
     expect(isCellFilled(cell(null))).toBe(false);
     expect(isCellFilled(cell(0))).toBe(true);
     expect(isCellFilled(cell({ raw: '1', unit: null, state: 'not_measured' }))).toBe(true);
+    // Story 16.4: an "N.A" is a filled cell (no missing-field cursor, no dry-insulation gap).
+    expect(isCellFilled(cell(NOT_APPLICABLE_NUMBER))).toBe(true);
     expect(isEquipmentBlock({ block_type: 'section_2', equipment_id: null })).toBe(false);
     expect(isEquipmentBlock({ block_type: 'tp', equipment_id: null })).toBe(true);
   });

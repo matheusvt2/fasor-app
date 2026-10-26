@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { applyOp, entityKey, type EntityState } from '../ops/apply.ts';
 import { opSchema } from '../ops/op.ts';
 import { suggestionPath } from '../ops/path.ts';
+import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
 import { emptySheet, suggestionRowSchema, type BlockRow, type Cell, type EntityRow, type SuggestionRow } from '../schemas/entities.ts';
 import type { FieldDef } from '../seed/schema.ts';
 import { TEST_COMPANY, TEST_RELATORIO, TEST_USER, opFactory } from '../test-support.ts';
@@ -278,6 +279,19 @@ describe('8.1-UNIT the I/O matrix', () => {
     expect(nameplateSuggestions(block, [equal])[0]!.view).toBe('none');
     expect(suggestionGroupCounts(block, [equal])).toEqual({ shown: 0, fills: 0, confirmable: 0, verify: 0, create: 0 });
     expect(confirmAllCandidates(block, [equal])).toEqual([]);
+  });
+});
+
+describe('16.4-UNIT a plate reading on an "N.A" field', () => {
+  it('is a different value: the replace line, and Confirmar writes the measured value', () => {
+    const measuredValue = { raw: '630', unit: 'A', state: 'measured' };
+    expect(compareSuggestion(NOT_APPLICABLE_NUMBER, measuredValue, def('number'))).toBe('different');
+    const block = chave({ corrente_nominal: cell(NOT_APPLICABLE_NUMBER) });
+    const reading = suggestion('corrente_nominal', measuredValue);
+    expect(suggestionView(block.sheet.nameplate.corrente_nominal, reading, def('number'))).toBe('replace');
+    expect(nameplateSuggestions(block, [reading]).find((e) => e.field.key === 'corrente_nominal')!.view).toBe('replace');
+    const [, put] = confirmSuggestionOps(AUTHOR, reading);
+    expect(put).toMatchObject({ kind: 'put', path: reading.target_path, value: measuredValue });
   });
 });
 

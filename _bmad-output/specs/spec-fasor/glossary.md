@@ -38,6 +38,7 @@ Fixed vocabulary for every downstream artifact. Portuguese terms are the domain'
 - **Ponto de atenção** — a finding: text with photo tokens, equipment or TAG, recommended corrective action. Prints as a section 8 bullet, as in FO.SERV-03. Priority, deadline and owner are data-model fields with no UI in the MVP.
 - **Parecer** — the relatório-level technical opinion with its composed summary. The one blocking pre-issue item.
 - **Não ensaiado / Não ensaiada** — present, not tested, with a reason (Impossibilidade de desligamento · Solicitação do cliente · Outro). Prints nameplate and reason band; listed automatically in section 8.
+- **N.A** — não aplicável, typed in a nameplate or cabine number field (`N.A`, `NA`, `N/A` or `N.A.`, any case) when the plate carries no such value; stored as the number state `not_applicable`, shown and printed "N.A" with no unit, counted as filled and left out of every calculation. Distinct from the checklist's **NA** and from "Não medido". Added 2026-10-26 (Story 16.4).
 - **Pre-issue list** — every outstanding condition shown before generating; the same kernel check feeds the Sumário rows.
 - **Export revision** — the numbered output of one generation: a DOCX and a PDF of identical content. Distinct from the **form revision** ("Revisão 01") that identifies the form itself.
 - **Preview** — the same generation with a RASCUNHO watermark and no revision number.

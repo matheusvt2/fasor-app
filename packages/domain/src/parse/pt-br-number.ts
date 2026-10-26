@@ -131,3 +131,45 @@ export function numberEchoText(raw: string, unit: string | null): string {
   const value = formatDecimalGroupedPtBr(raw);
   return unit === null || unit === '' ? `= ${value}` : `= ${value} ${unit}`;
 }
+
+/*
+ * Story 16.4 (contract 26): "N.A" in a nameplate or cabine number field. The AD-11 number
+ * value's fourth state, `not_applicable`, says the plate carries no such value. This leaf
+ * module, which imports nothing of the kernel, is its one home (AD-1): the text every reader
+ * shows and prints, the spellings the input accepts, the stored value and its guard.
+ */
+
+/** What a `not_applicable` number value shows and prints, with no unit. */
+export const NOT_APPLICABLE_TEXT = 'N.A';
+
+// The accepted spellings once whitespace is stripped and the text uppercased:
+// "N.A", "N.A.", "NA" and "N/A".
+const NOT_APPLICABLE_SPELLING = /^(N\.A\.?|NA|N\/A)$/;
+
+/** True when the typed text is one of the accepted "N.A" spellings (any case, whitespace anywhere). */
+export function isNotApplicableText(typed: string): boolean {
+  return NOT_APPLICABLE_SPELLING.test(typed.replace(/\s+/g, '').toUpperCase());
+}
+
+/** The stored `not_applicable` number value (a type alias, so it is a JSON value as it stands). */
+export type NotApplicableNumber = {
+  readonly raw: '';
+  readonly unit: null;
+  readonly state: 'not_applicable';
+};
+
+/** The one `not_applicable` value a nameplate or cabine number field commits. */
+export const NOT_APPLICABLE_NUMBER: NotApplicableNumber = Object.freeze({
+  raw: '',
+  unit: null,
+  state: 'not_applicable',
+});
+
+/** True for a stored number value in the `not_applicable` state (any other value answers false). */
+export function isNotApplicableNumber(value: unknown): value is NotApplicableNumber {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as { state?: unknown }).state === 'not_applicable'
+  );
+}

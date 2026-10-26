@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BlockRow, Cell, EquipmentRow, LocationRow } from '../schemas/entities.ts';
+import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
 import type { WordRow } from '../registry/word-row.ts';
 import { TEST_PROJECT, TEST_RELATORIO } from '../test-support.ts';
 import { cabineOf } from './cabine.ts';
@@ -113,6 +114,18 @@ describe('5.2-UNIT the cabine block', () => {
     expect(previousCabineEnv(onlyOne, id(3))).toBeNull();
   });
 
+  it('16.4-UNIT does not offer a previous cabine whose temperature or humidity is "N.A" (no reading to copy)', () => {
+    const r = relatorio();
+    const naTemp = [cabine(1, 'Cabine A', 'a0', { temperature_c: NOT_APPLICABLE_NUMBER, humidity_pct: num('67', '%') }), ...r.locations.slice(1)];
+    expect(previousCabineEnv(naTemp, id(3))).toBeNull();
+    const naHumidity = [cabine(1, 'Cabine A', 'a0', { temperature_c: num('19', '°C'), humidity_pct: NOT_APPLICABLE_NUMBER }), ...r.locations.slice(1)];
+    expect(previousCabineEnv(naHumidity, id(3))).toBeNull();
+  });
+
+  it('16.4-UNIT never surfaces the humidity note for an "N.A" humidity', () => {
+    expect(humidityNoteSurfaced({ humidity_pct: NOT_APPLICABLE_NUMBER })).toBe(false);
+  });
+
   it('surfaces the humidity note above the threshold only', () => {
     expect(humidityNoteSurfaced({ humidity_pct: num('85', '%') })).toBe(true);
     expect(humidityNoteSurfaced({ humidity_pct: num('80', '%') })).toBe(false);
@@ -210,12 +223,25 @@ describe('5.3-UNIT typed values (AR-10)', () => {
     expect(numberFieldValue('abc', 'kV')).toBe('invalid');
   });
 
+  it('16.4-UNIT an accepted "N.A" spelling answers the not_applicable value; anything close is still invalid', () => {
+    for (const typed of ['N.A', 'na', 'n/a', 'N.A.', ' n . a ']) {
+      expect(numberFieldValue(typed, 'kVA'), typed).toEqual({ raw: '', unit: null, state: 'not_applicable' });
+    }
+    for (const typed of ['N', 'N.A.A', 'NAO', 'n-a', 'N.A 5']) {
+      expect(numberFieldValue(typed, 'kVA'), typed).toBe('invalid');
+    }
+    expect(numberFieldValue('1.500', 'kVA')).toEqual({ raw: '1500', unit: 'kVA', state: 'measured' });
+    expect(numberFieldValue('', 'kVA')).toBeNull();
+  });
+
   it('shows a stored value the way a field reads it', () => {
     expect(fieldValueText({ kind: 'number' }, { raw: '13.8', unit: 'kV', state: 'measured' })).toBe('13,8');
     expect(fieldValueText({ kind: 'number' }, { raw: '1500', unit: 'kVA', state: 'measured' })).toBe('1.500');
     expect(fieldValueText({ kind: 'date' }, '2012-03-01')).toBe('01/03/2012');
     expect(fieldValueText({ kind: 'text' }, 'SU1')).toBe('SU1');
     expect(fieldValueText({ kind: 'text' }, null)).toBe('');
+    // Story 16.4: the fourth state reads "N.A", never the empty raw.
+    expect(fieldValueText({ kind: 'number' }, NOT_APPLICABLE_NUMBER)).toBe('N.A');
   });
 });
 
