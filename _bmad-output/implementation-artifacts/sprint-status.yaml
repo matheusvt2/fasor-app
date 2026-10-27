@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 10-23-2026 17:10
+last_updated: 10-26-2026 22:09
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -179,7 +179,7 @@ development_status:
   14-14-seed-v7-fixed-extinction-media-selv-pelv-help-test-voltage: done  # 2026-10-22: PR #153 merged (batch e14d, contract 22, seed v7); deployed as v0.2.4 (74c71b4), production smoke passed |  # added 2026-10-21 (Bruno via Matheus, answers 1, 3, 4): disjuntor medium Ar, Gás SF6, Vácuo, Óleo, Outro (Outro shows the oil item and VOL. OLEO), SELV/PELV help text and a >50 V notice, band test voltage checked only with the instrument photo; seed v7, contract decision; DoR: open questions answered or defaults accepted
   epic-14-retrospective: done  # epic-14-retro-2026-10-14.md; machine verdict rejected (14-6 to 14-8 wait for real jobs, wave 3); this cycle 14.1-14.5
 
-  epic-15: in-progress  # 2026-10-23 evening: deployed to production as v0.3.1 (01d37c76, smoke 8 of 8); remaining: the epic retrospective, the Points surface heading row, Story 15.7 behind Bruno's TC list |  # 2026-10-23 evening: full gate on 6bfed744 green (verify whole, p0 307/307, matrix 106/106, full 518/523 with one load flake green alone twice); v0.3.1 ready to publish on Matheus's word; then the epic retrospective |  # 2026-10-23 afternoon: Matheus's five decisions recorded (coluna button idempotent, BT fallback on every seed, site card NC badge kept, NC count as a sum, "N automáticos"); fix batch fx15q (branch fix/epic-15-decisions-and-qa-gaps, port base 46) builds the two wording/behaviour changes plus QA gaps G1 and G2; then the epic retrospective |  # 2026-10-23: deployed to production as v0.3.0 (490cc24d; the first deploy run lost the ECS endpoint after the rollout, the --skip-build rerun recorded the tag and passed the smoke 8 of 8); integrated QA browser pass test-artifacts/manual/qa-e15-2026-10-23.md, no blocking defect, gaps G1 (composer band without the site checklist text) and G2 (F3); 15.1-15.6 done, 15.7 waits for Bruno's TC list; Matheus's open decisions in deferred-work.md; wave B gate on b20a06e8 green (p0 307/307, full 517/522 with one load flake green alone, matrix 106/106, unit flake green alone twice); wave A gate on e8a144a6 triaged and fixed in PR #169 (b20a06e8: three stale specs, the TTR Condição layout at 1280, seven load flakes green alone); 15.2 merged (#167); next: integrated QA browser pass, Matheus's open decisions, production deploy; 15.7 waits for Bruno's TC list |  # 2026-10-22: wave A merged (15.1 #158, 15.4+15.5 #162, 15.3+15.6 #161, e2e fixes #163 #165), wave gate started on e8a144a6; 15.2 in batch e15d; 15.7 waits for Bruno's TC list |  # added 2026-10-22 (Matheus): Bruno's "Melhorias produto.docx" of 2026-10-22, seven items against v0.2.4 on a phone; epic-15-context.md; waves A (e15a 15.4+15.5, e15b 15.3+15.6 seed v9 contract 25) and B (15.1 mocks, then 15.2); defaults taken while Bruno's seven questions are out
+  epic-15: in-progress  # 2026-10-26: retrospective written (epic-15-retro-2026-10-26.md), machine verdict rejected only for 15.7 (backlog, Bruno's TC list); Matheus decides accepted-with-open-items and E15-A2/A5/A6/A7/A8/A9/A11 |  # 2026-10-23 evening: deployed to production as v0.3.1 (01d37c76, smoke 8 of 8); remaining: the epic retrospective, the Points surface heading row, Story 15.7 behind Bruno's TC list |  # 2026-10-23 evening: full gate on 6bfed744 green (verify whole, p0 307/307, matrix 106/106, full 518/523 with one load flake green alone twice); v0.3.1 ready to publish on Matheus's word; then the epic retrospective |  # 2026-10-23 afternoon: Matheus's five decisions recorded (coluna button idempotent, BT fallback on every seed, site card NC badge kept, NC count as a sum, "N automáticos"); fix batch fx15q (branch fix/epic-15-decisions-and-qa-gaps, port base 46) builds the two wording/behaviour changes plus QA gaps G1 and G2; then the epic retrospective |  # 2026-10-23: deployed to production as v0.3.0 (490cc24d; the first deploy run lost the ECS endpoint after the rollout, the --skip-build rerun recorded the tag and passed the smoke 8 of 8); integrated QA browser pass test-artifacts/manual/qa-e15-2026-10-23.md, no blocking defect, gaps G1 (composer band without the site checklist text) and G2 (F3); 15.1-15.6 done, 15.7 waits for Bruno's TC list; Matheus's open decisions in deferred-work.md; wave B gate on b20a06e8 green (p0 307/307, full 517/522 with one load flake green alone, matrix 106/106, unit flake green alone twice); wave A gate on e8a144a6 triaged and fixed in PR #169 (b20a06e8: three stale specs, the TTR Condição layout at 1280, seven load flakes green alone); 15.2 merged (#167); next: integrated QA browser pass, Matheus's open decisions, production deploy; 15.7 waits for Bruno's TC list |  # 2026-10-22: wave A merged (15.1 #158, 15.4+15.5 #162, 15.3+15.6 #161, e2e fixes #163 #165), wave gate started on e8a144a6; 15.2 in batch e15d; 15.7 waits for Bruno's TC list |  # added 2026-10-22 (Matheus): Bruno's "Melhorias produto.docx" of 2026-10-22, seven items against v0.2.4 on a phone; epic-15-context.md; waves A (e15a 15.4+15.5, e15b 15.3+15.6 seed v9 contract 25) and B (15.1 mocks, then 15.2); defaults taken while Bruno's seven questions are out
   15-1-the-mocks-for-the-tree-levels: done  # PR #158 merged 2026-10-22 (batch e15c), approved by Matheus; cards per Bruno's answers 5 and 6; composer keeps the text line; Bruno's look at the phone frame pending
   15-2-the-tree-levels-built: done  # deployed as v0.3.0 (490cc24d) 2026-10-23 |  # PR #167 merged 2026-10-22 as 339e17df (batch e15d); folds UX-pass F50, F19, F37, F34; four open questions for Matheus in the PR (site card NC badge, NC count as a sum, row 8 automatic-only wording, rail not-tested reason)
   15-3-seed-v9-one-oil-item-tc-without-potencia-nominal-two-site-items: done  # deployed as v0.3.0 (490cc24d) 2026-10-23 |  # PR #161 merged 2026-10-22 as e8a144a6 (batch e15b with 15.6); seed v9, contract 25 (minimum 25); TC keeps 13 fields; no chip on v9 (oil rule); dry company templates stay on v8 (deferred-work.md)
@@ -187,12 +187,14 @@ development_status:
   15-5-adicionar-equipamento-on-a-coluna-below-1024-px: done  # deployed as v0.3.0 (490cc24d) 2026-10-23 |  # PR #162 merged 2026-10-22 as 7eb9f7fc (batch e15a with 15.4); folds UX-pass F10; open for Matheus: the toggle from 1024 px (deferred-work.md)
   15-6-the-transformer-ratio-calculated-with-sqrt3: done  # deployed as v0.3.0 (490cc24d) 2026-10-23 |  # PR #161 merged 2026-10-22 as e8a144a6 (batch e15b with 15.3); ratio_factor sqrt3 on the v9 transformer table, VAL CALCULADO 62,90; BT first-number fallback on every seed (open for Matheus: limit it to ratio_factor tables)
   15-7-the-tcs-own-checklist-seed-v10: backlog  # added 2026-10-22 (Bruno's answer 7): the TC gets its own checklist; DoR: Bruno sends the list (ask at the next interaction); after 15.3 (v9)
+  epic-15-retrospective: done  # epic-15-retro-2026-10-26.md; machine verdict rejected (15-7 waits for Bruno's TC list, carried); this cycle 15.1-15.6
 
-  epic-16: in-progress  # 2026-10-26 night: deployed as v0.3.3 (5cece708), smoke 8 of 8; wave B gate green on the follow-up (unit 4491/4491, @p0 309/309, full 520/521 with the merge setup timeout green alone, matrix 106/106); remaining: the epic QA browser pass, Matheus's decisions (N.A on the tablet keyboard, section 8 reference), the retrospective, Bruno's two answers |  # 2026-10-26 evening: 16.4 merged (#183, 5cece708); wave B gate running on 5cece708; then the record, the deploy v0.3.3 and the epic QA |  # 2026-10-26: 16.2 + 16.3 merged (#181, bc9e31df); wave A gate green on bc9e31df (verify 2100 s, full 520/520, matrix 106/106, no fix batch); batch e16c (16.4, contract 26) started |  # 2026-10-23 evening: 16.1 merged (#179) and deployed as v0.3.2; next batch e16b (16.2 + 16.3), then wave A full gate, then e16c (16.4) |  # added 2026-10-23 (Matheus): Bruno's WhatsApp feedback of 2026-10-23 (old DOCX beside a fresh preview, letters in number fields, the header logo cut); investigated against the production request log: no generate on the 23rd, the DOCX was the 22nd's revision from the "Revisões" list; epic-16-context.md; waves A (e16a 16.1 alone, shipped as v0.3.2; e16b 16.2+16.3) and B (e16c 16.4, contract 26); defaults taken while Bruno's two questions are out
+  epic-16: in-progress  # 2026-10-26 late: QA browser pass green (qa-e16-2026-10-26.md, no P1/P2, three P3 in deferred-work), retrospective accepted-with-open-items (epic-16-retro-2026-10-26.md); closes when Matheus settles E16-A1/A2/A4/A6/A7 and the v0.3.3 release exists |  # 2026-10-26 night: deployed as v0.3.3 (5cece708), smoke 8 of 8; wave B gate green on the follow-up (unit 4491/4491, @p0 309/309, full 520/521 with the merge setup timeout green alone, matrix 106/106); remaining: the epic QA browser pass, Matheus's decisions (N.A on the tablet keyboard, section 8 reference), the retrospective, Bruno's two answers |  # 2026-10-26 evening: 16.4 merged (#183, 5cece708); wave B gate running on 5cece708; then the record, the deploy v0.3.3 and the epic QA |  # 2026-10-26: 16.2 + 16.3 merged (#181, bc9e31df); wave A gate green on bc9e31df (verify 2100 s, full 520/520, matrix 106/106, no fix batch); batch e16c (16.4, contract 26) started |  # 2026-10-23 evening: 16.1 merged (#179) and deployed as v0.3.2; next batch e16b (16.2 + 16.3), then wave A full gate, then e16c (16.4) |  # added 2026-10-23 (Matheus): Bruno's WhatsApp feedback of 2026-10-23 (old DOCX beside a fresh preview, letters in number fields, the header logo cut); investigated against the production request log: no generate on the 23rd, the DOCX was the 22nd's revision from the "Revisões" list; epic-16-context.md; waves A (e16a 16.1 alone, shipped as v0.3.2; e16b 16.2+16.3) and B (e16c 16.4, contract 26); defaults taken while Bruno's two questions are out
   16-1-the-header-logo-fits-its-cell: done  # deployed as v0.3.2 (8124f2a4) 2026-10-23, smoke 8 of 8 |  # PR #179 merged 2026-10-23 as 8124f2a4 (batch e16a); story gate green with three load flakes green alone |  # 2026-10-23: built on branch story/16-1-header-logo-fits-its-cell, docx.test.ts 24/24, LibreOffice render whole; PR after the gate |  # 2026-10-23: batch e16a started on branch story/16-1-header-logo-fits-its-cell (oneshot spec) |  # added 2026-10-23: LOGO_MAX_WIDTH_PX ignores the cell margins (docx.ts); one cap, one cell size, a wide-logo test; first to build and deploy (v0.3.2)
   16-2-a-revision-older-than-the-edits-says-so: done  # PR #181 merged 2026-10-26 as bc9e31df (batch e16b); story gate green (lint, static, api 683/683, unit 4464/4464, touched specs 80/80, lock wait 0 s); wave A full gate running on bc9e31df |  # 2026-10-23: batch e16b started on branch story/16-2-16-3-revision-banner-display-shots (worktree fasor-app-e16b, port base 27) |  # added 2026-10-23: the mock's banner and a row tag from the kernel while edited since the latest revision; E4-E2E-001 extended
   16-3-display-shots-print-only-under-their-test: done  # PR #181 merged 2026-10-26 as bc9e31df (batch e16b); 16.3-E2E-001 red once because the batch api container had not reloaded the kernel, green after restart on the same commit |  # 2026-10-23: batch e16b started on branch story/16-2-16-3-revision-banner-display-shots (same branch as 16.2) |  # added 2026-10-23: default taken (out of section 7 and the numbering, under the test without a number); Bruno's question 1 out
   16-4-n-a-in-a-nameplate-or-cabine-number-field: done  # PR #183 merged 2026-10-26 as 5cece708 (batch e16c); story gate green (lint, static, api 684/684, unit 4491/4491 on re-run, 13 touched specs 115/115, 5 durability specs on the matrix 59/59 with 1 skip); open: N.A cannot be typed on a tablet soft keyboard (inputMode decimal), Matheus decides |  # 2026-10-26: batch e16c started on branch story/16-4-na-in-number-fields (worktree fasor-app-e16c, port base 28) after the wave A gate |  # added 2026-10-23: AD-11 state not_applicable, contract 26 minimum 26; defaults taken (scope, spellings, "N.A"); Bruno's question 2 out; after wave A's gate
+  epic-16-retrospective: done  # epic-16-retro-2026-10-26.md; machine verdict accepted-with-open-items (all four stories done; open: N.A on a tablet keypad, section 8 display-shot reference, Bruno's two answers, release v0.3.3, the unrun integrated review)
 
   backlog-deferred: backlog  # added 2026-10-21: stories moved out of their epic with a dated decision, epics.md "Backlog: deferred stories"
   13-9-dictation-on-behind-one-line-of-consent: backlog  # 2026-10-21 (Bruno via Matheus, answer 11): moved out of Epic 13 to the backlog; DoR unchanged |  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus
@@ -1041,3 +1043,129 @@ action_items:
     owner: "coordinator (tooling)"
     status: done  # 2026-10-15: PR #133, pnpm_config_store_dir in x-app-env skips the probe; a fresh batch install left no _tmp_* file
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+  - id: "epic-15-retro-item-123-e15-a1-ledger-hygiene"
+    epic: 15
+    action: "E15-A1 Ledger hygiene for Epic 15: close the 15.3 dry-template row (moot, epics.md 15.6 decision of 2026-10-23), add a row for the PR #167 known open (a collapsed band shows no NC indicator), give named owners to the rows owned by the next fix batch and a later story, date the UX-pass P2/P3 triage row; target 0 Epic 15 rows owned by a finished batch or unscheduled event"
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-124-e15-a2-ratio-verdict-feeds-conclusion"
+    epic: 15
+    action: "E15-A2 Decide whether a ratio row INSATISFATORIO feeds the conclusion suggestion, pre-issue rows and parecer count (deferred-work.md UX pass row), and schedule the fix if yes; target a dated decision on the row"
+    owner: "Matheus (decision); next fix batch (build)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-125-e15-a3-seed-bump-literal-grep"
+    epic: 15
+    action: "E15-A3 Playbook rule for a seed bump: grep e2e/ for the previous count and section literals and run every hit beside the touched specs, replace each with the kernel value, restart the api container after regenerating a fake-provider fixture; target 0 stale-literal reds at the next seed-bump wave gate"
+    owner: "coordinator (playbook)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-126-e15-a4-no-gate-overlap"
+    epic: 15
+    action: "E15-A4 Load rule: no story gate overlaps a wave gate; a unit stage red only under load is re-run alone under the lock before merge and both runs go in the PR; target 0 PRs merged on a red unit stage without a recorded isolated green re-run"
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-127-e15-a5-integrated-code-review"
+    epic: 15
+    action: "E15-A5 Run the integrated code review the Epic 15 batches deferred (Blind Hunter and Intent Alignment) over 6e5d8aee..be2f46fb or record a dated waiver; playbook: a batch that skips a lens names the review that will run it and the coordinator schedules it"
+    owner: "coordinator; Matheus (waiver)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-128-e15-a6-story-15-1-bruno-dod"
+    epic: 15
+    action: "E15-A6 Meet Story 15.1 DoD (Bruno sees the phone frame, his answer dated under the story) now that v0.3.0 is on his phone, or narrow the clause with a dated line; same for Story 14.1"
+    owner: "Matheus"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-129-e15-a7-story-15-7-carried"
+    epic: 15
+    action: "E15-A7 Story 15.7 carried: ask Bruno for the TC checklist (items in order, oil items, NA subtypes) and decide whether 15.7 stays under Epic 15 (epic stays in-progress) or moves to a later epic so Epic 15 can close; target Bruno's list or a dated move line under Story 15.7"
+    owner: "Matheus"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-130-e15-a8-epic-15-copy-review"
+    epic: 15
+    action: "E15-A8 Fold Epic 15 authored copy into the E14-A10 Bruno review: site items 20 and 21 labels and phrases, item 12 absorbed phrase, Calculado U1 x sqrt3 / U2, Nenhum equipamento nesta coluna, N automaticos; target dated answers under Stories 15.2, 15.3, 15.5, 15.6"
+    owner: "Matheus (Bruno for the wording)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-131-e15-a9-success-signal"
+    epic: 15
+    action: "E15-A9 Measure the success signal: on Bruno's next relatorio from the phone, record dated under Epic 15 which of the seven workarounds he still needed"
+    owner: "Matheus (record); coordinator (line)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-132-e15-a10-deploy-lost-ecs-endpoint"
+    epic: 15
+    action: "E15-A10 Make infra/bin/deploy survive a lost ECS endpoint after the rollout (v0.3.0 first run exit 255 before the tag record): diagnose, make tag record and smoke resumable, add a ledger row now; target the next deploy records tag and smoke on its first run"
+    owner: "coordinator (infra)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-133-e15-a11-ac-reconciliation"
+    epic: 15
+    action: "E15-A11 Spec reconciliation: dated strike-through amendments on the criteria with superseded numbers: 15.3 TC 11 fields to 13, 15.3 Marcar 7 itens chip to the oil rule marking seven NA, 15.6 62,89 to 62,90; no sentence deleted"
+    owner: "coordinator (draft); Matheus (approve)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-134-e16-a1-na-on-tablet-keypad"
+    epic: 16
+    action: "E16-A1 Decide how a tablet or phone enters N.A in a nameplate or cabine number field (inputMode decimal has no letters): a text keypad on those fields or an N.A control beside them (candidate Story 16.5); then cut the story"
+    owner: "Matheus (decision); next batch (build)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-135-e16-a2-section-8-display-shot-ref"
+    epic: 16
+    action: "E16-A2 Decide what section 8 prints for a ponto de atencao citing a display shot (today imagem removida): keep it or print the shot's caption sentence; ask with Bruno's question 1; dated line under Story 16.3"
+    owner: "Matheus"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-136-e16-a3-bruno-answers-and-copy"
+    epic: 16
+    action: "E16-A3 Record Bruno's answers: question 1 (display shots under their test or not at all), question 2 (N.A or NA), whether the v0.3.2 logo is whole in Word, and the Epic 16 authored copy (banner verb gerado, row tag anterior as alteracoes, Foto for a display shot), folded into E14-A10 and E15-A8"
+    owner: "Matheus (Bruno for the answers)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-137-e16-a4-github-release-v0-3-3"
+    epic: 16
+    action: "E16-A4 Create the GitHub release v0.3.3 from the notes drafted in the deploy session (the agent may not create a public release) and record in the deploy playbook who creates a release"
+    owner: "Matheus"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-138-e16-a5-ledger-hygiene"
+    epic: 16
+    action: "E16-A5 Ledger hygiene for Epic 16: ledger rows for the pre-16.3 frozen gallery numbers and the imagem removida reference (spec frontmatter deferred), a low row for point-editor.tsx:741 filtering display shots itself, and a scheduled owner for QA G1 and G2 instead of the next fix batch"
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-139-e16-a6-integrated-review-epic-16"
+    epic: 16
+    action: "E16-A6 Run Blind Hunter and Intent Alignment over be2f46fb..541ceb97, starting with the patched-not-re-reviewed hunks (acceptsNotApplicable opt-in of PR #183, seed-v7 locators and photo viewer of PR #181), together with E15-A5, or record a dated waiver"
+    owner: "coordinator; Matheus (waiver)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-140-e16-a7-spec-reconciliation"
+    epic: 16
+    action: "E16-A7 Spec reconciliation in epics.md: dated as-built line under Story 16.1 (PR #179 and its spec narrowings, Word look pending), dated strike-through amendment of the 16.4 undo criterion (a typed put raises no Desfazer toast), and Matheus's decision on N.A in Altitude do site (QA G3); no sentence deleted"
+    owner: "coordinator (draft); Matheus (approve, altitude decision)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-141-e16-a8-restart-api-before-story-e2e"
+    epic: 16
+    action: "E16-A8 Playbook: before the story gate's e2e a batch restarts its api container when packages/domain or apps/api changed since it started (tsx watch misses changes across the podman VM mount), widening E15-A3; a batch stack idle overnight is stopped or restarted before its gate"
+    owner: "coordinator (playbook)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-142-e16-a9-static-after-review-patches"
+    epic: 16
+    action: "E16-A9 Playbook: after the review's patches re-run lint and static on the head that merges, not only the patched test files (16.1 left main red on static, TS2345, fixed in PR #181)"
+    owner: "coordinator (playbook)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-143-e16-a10-template-composer-load-timeouts"
+    epic: 16
+    action: "E16-A10 Make the template-composer unit tests load-independent (15 s timeouts and the 1 s findByRole on Adicionar painel, red in PR #179, PR #183 and the wave B gate), and record the host load average and its source at the start of every wave gate"
+    owner: "coordinator (tooling)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
