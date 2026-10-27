@@ -2,10 +2,10 @@
 title: 'Stories 17.3 and 17.5: the "N/A" control and spelling; a failed ratio feeds the conclusion suggestion, the pre-issue rows and the parecer count'
 type: 'feature'
 created: '2026-10-27'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'e3c8813e'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'medium'
 context: ['{project-root}/_bmad-output/implementation-artifacts/epic-17-context.md']
@@ -146,3 +146,13 @@ Layers: Edge Case Hunter and Verification Gap Reviewer (opus). Blind Hunter and 
   - `[medium]` `[patch]` (gap) the A9 unit test never exercises `commitNow()` because `userEvent.click` blurs the input first in jsdom; deleting the call keeps the test green — fix: the click fires without a blur so the test goes red without `commitNow()`.
   - `[medium]` `[patch]` (gap) the control's fit and tap are asserted at 390 px only while the AC names 390, 768 and 1280 px — fix: the nameplate block loops over the three widths in `na-number-field.spec.ts`.
   - `[low]` `[reject]` (gap, other) `restrictionWarning` runs `evaluateSheetReadings` on every render of `conclusao-section.tsx` unmemoised — negligible: `suggestConclusionPair` beside it already does the same on every render; no user-visible harm.
+
+## Auto Run Result
+
+- Summary: (17.3) `NOT_APPLICABLE_TEXT` is "N/A" (one home, no contract); every `acceptsNotApplicable` field renders a secondary "N/A" button (`.btn.btn-secondary.btn-na` in `.field-na-row`, accessible name "Marcar ⟨campo⟩ como não aplicável") that commits the existing `not_applicable` put through `useNumberInput.commitValue` (typed text commits first), hides while the field holds N/A and moves no focus; QA G1 closed in `suggestionValueText`. (17.5) `failedRatioRows` (`reading-evaluation.ts`, exported through `readings.ts`) is the one reader of a ratio row INSATISFATÓRIO: `suggestConclusionPair` reads it explicitly, `restrictionWarning` names the row ("Fase R"; "TAP 5" / "TAP" on a transformer), `composeConclusion` is unchanged (text, criteria and basis already carried the ratio), the pre-issue `conclusion_stale` row is tested, `parecer.ts` `restricted()`, a sentence and a Critérios item count it (basis key `ratio` only when non-empty).
+- Files: kernel `parse/pt-br-number.ts`, `relatorio/{suggestion-ops,reading-evaluation,reading-run,readings,conclusion,parecer}.ts` plus reader comments and tests (`readings`, `conclusion`, `parecer`, `pre-issue-export`, `suggestions`, `pt-br-number`, `conflicts`, `cabine`, `sumario`, `ficha`, `section-9`); web `components/number-input.tsx` (comments), `copy/ui.ts` (`notApplicable`), `styles/app.css`, `surfaces/ficha/ficha-fields.tsx` + test; e2e `na-number-field.spec.ts` (extended, three widths), `ratio-feeds-conclusion.spec.ts` (new, `@p0`), `na-control.durability.spec.ts` (new, the Android project matches `*.durability.spec.ts` only); docs `source-deltas.md`, `glossary.md`, `docs/kbs/log.md`, `deferred-work.md` (E15-A2 / F42 and QA G1 closed).
+- Review: 3 patches (medium: the blank TAP label, the A9 test without blur, the control at 768 and 1280 px), 0 deferred, 5 rejected (two by design per the spec A3/A9, two false claims settled by the Verification finding, one negligible unmemoised call).
+- Follow-up review recommended: true (three medium patches on a first pass; unverified risk: the authored TAP label composition `TAP ⟨n⟩` reads the first connection header, a seed whose typed-connection header does not start with "TAP" would fall back to the bare label). Patched counts: high 0, medium 3.
+- Verification (tools container, under the host lock, final commit): lint 0 errors (25 warnings, pre-existing); static green; test:unit 4513/4513 (322 files); test:api 683/684, the one failure `generation-time.integration.test.ts` docx_1 5709 ms against 5000 ms under load (batch e17a's gate ran beside), rerun in isolation on the same commit (result in the PR body); touched specs `na-number-field`, `ratio-feeds-conclusion`, `ficha`, `cta`, `qgbt`, `review-concluir-text`, `verificacoes-local` on desktop-chrome and durability-desktop-chrome 51/51 (a first run before the review patches had 5.1-E2E-005 red on a doubled `tensao_nominal` put, the registry picker's leave commit racing the created word's landing, untouched by this batch; green on the same final commit); `na-control.durability.spec.ts` on durability-android-chrome and durability-desktop-chrome (result in the PR body).
+- Residual risk: the two puts of a tap over typed text (A9) are both undoable but need two Desfazer taps to reach the previous value; the authored sentences are open for Bruno.
+
