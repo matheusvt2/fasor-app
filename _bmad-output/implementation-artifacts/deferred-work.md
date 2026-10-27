@@ -2309,7 +2309,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: A ratio row's INSATISFATÓRIO verdict feeds only the screen and the printed sheet; the conclusion suggestion, the pre-issue rows and the parecer count never read it, so a sheet can still be concluded Aprovado / Sem restrições over a failed ratio (the UX pass F42 case).
   evidence: review finding 7; `condicao` consumers are `ensaios-section.tsx` and `print/section-9.ts` only. Pre-existing: the suggestion engine reads insulation and contact verdicts, not ratio rows.
   class: bug
-  state: open (owner: next fix batch)
+  state: ~~open (owner: next fix batch)~~ scheduled (2026-10-27, Bruno's answer 6: yes; Story 17.5, Epic 17 wave A)
 - source_spec: `_bmad-output/implementation-artifacts/spec-ux-pass-fixes-2026-10-22.md`
   summary: The P2/P3 findings of the 2026-10-22 hands-on pass (F1–F3, F5, F7–F15, F18–F27, F30–F39, F44–F50) are recorded only in `_bmad-output/test-artifacts/manual/ux-pass-2026-10-22.md`; they need triage into stories or a later fix batch.
   evidence: review finding 8; the report is the backlog source until then.
@@ -2359,14 +2359,14 @@ Source: `_bmad-output/test-artifacts/manual/qa-e16-2026-10-26.md` (verdict pass;
   summary: After a plate reading on a nameplate field holding N.A, the "Manter o digitado" button's accessible name ends with the bare unit ("… Potência nominal, kVA") instead of "N.A" (QA G1).
   evidence: QA report G1; the kept-value name is composed where the suggestion row reads the stored number, so the `not_applicable` state needs its own text there.
   class: bug
-  state: open (owner: the next fix batch)
+  state: ~~open (owner: the next fix batch)~~ scheduled (2026-10-27: Story 17.3 fixes the kept-value name with the N/A control and spelling)
 - source_spec: `_bmad-output/implementation-artifacts/spec-16-2-16-3-revision-banner-display-shots.md`
   summary: The remove confirm on a "Ler visor" display shot still says "A foto sai da galeria e da seção 3", while since Story 16.3 the Registro fotográfico never holds display shots (QA G2).
   evidence: QA report G2; the confirm sentence is one static string for every photo, so the display shot needs its own sentence (kernel text, AD-1).
   class: bug
-  state: open (owner: the next fix batch)
+  state: ~~open (owner: the next fix batch)~~ scheduled (2026-10-27: Story 17.1 takes every sheet photo out of section 7, so the confirm sentence changes for every sheet photo there, display shots included)
 - source_spec: `_bmad-output/implementation-artifacts/spec-16-4-na-in-number-fields.md`
   summary: "Altitude do site" (Dados do relatório, Etapa 5) is a native number input, so `n.a` is dropped without a word and the sheet's read-only Altitude can never hold N.A (QA G3). Story 16.4 names the cabine fields but its AC does not name this setup field; whether altitude should take N.A is a product question for Matheus.
   evidence: QA report G3; `inputmode` and `type="number"` on the setup field.
   class: question
-  state: open (owner: Matheus; then a story line under 16.4 or the next fix batch)
+  state: ~~open (owner: Matheus; then a story line under 16.4 or the next fix batch)~~ scheduled (2026-10-27, Bruno's answer 4: N/A, or the phone's position; Story 17.6, Epic 17 wave B, contract 27)
