@@ -71,7 +71,7 @@ export function nextSheet(snapshot: Pick<RelatorioSnapshot, 'locations' | 'block
 /**
  * "Copiar da cabine anterior": the cabine right before this one among the roots, by
  * `order_key`, when it holds both a temperature and a humidity; null otherwise. Story 16.4: an
- * "N.A" in either is no reading to copy, so the action is not offered.
+ * "N/A" in either is no reading to copy, so the action is not offered.
  */
 export function previousCabineEnv(
   locations: readonly LocationRow[],
@@ -97,7 +97,7 @@ export function previousCabineEnv(
  */
 export const HUMIDITY_NOTE_THRESHOLD_PCT = 80;
 
-/** True when the cabine's recorded humidity is above the threshold (Story 5.2 AC 4); only a measured humidity counts (Story 16.4: never "N.A"). */
+/** True when the cabine's recorded humidity is above the threshold (Story 5.2 AC 4); only a measured humidity counts (Story 16.4: never "N/A"). */
 export function humidityNoteSurfaced(env: Pick<Extract<LocationRow, { kind: 'cabine' }>['env'], 'humidity_pct'> | null): boolean {
   const value = env?.humidity_pct;
   if (value === null || value === undefined || value.state !== 'measured') return false;
@@ -274,7 +274,7 @@ export function numberFieldValue(
   return raw === null ? 'invalid' : { raw, unit, state: 'measured' };
 }
 
-/** A stored field value as a field shows it: numbers pt-BR with thousands grouped ("1.500", E5-Q14), "N.A" for the `not_applicable` state (Story 16.4), dates dd/mm/aaaa, text as typed; '' when empty. */
+/** A stored field value as a field shows it: numbers pt-BR with thousands grouped ("1.500", E5-Q14), "N/A" for the `not_applicable` state (Story 16.4), dates dd/mm/aaaa, text as typed; '' when empty. */
 export function fieldValueText(field: Pick<FieldDef, 'kind'>, value: unknown): string {
   if (value === null || value === undefined) return '';
   if (isNotApplicableNumber(value)) return NOT_APPLICABLE_TEXT;

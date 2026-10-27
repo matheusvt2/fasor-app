@@ -376,7 +376,7 @@ describe('R8LAY DB-7 the plate and cabine fields\' Enter run', () => {
   });
 });
 
-describe('16.4 "N.A" in a nameplate or cabine number field', () => {
+describe('16.4 "N/A" in a nameplate or cabine number field (Story 17.3: printed "N/A", the control)', () => {
   beforeEach(() => {
     vi.spyOn(Element.prototype, 'getClientRects').mockImplementation(function (this: Element) {
       return (this.closest('[hidden]') === null ? [{ width: 1, height: 1 }] : []) as unknown as DOMRectList;
@@ -419,13 +419,13 @@ describe('16.4 "N.A" in a nameplate or cabine number field', () => {
   const echoOf = (input: HTMLElement) => input.closest('.field')!.querySelector('.mf-echo');
 
   for (const typed of ['N.A', 'NA', 'N/A', 'N.A.', ' n . a ']) {
-    it(`"${typed}" commits the not_applicable value, reads "N.A" with no unit nor echo, and Enter runs on`, async () => {
+    it(`"${typed}" commits the not_applicable value, reads "N/A" with no unit nor echo, and Enter runs on`, async () => {
       const commit = vi.fn();
       render(<Stored initial={null} commit={commit} />);
       const input = screen.getByRole('textbox', { name: /potência/i });
       expect(unitOf(input)).not.toBeNull();
       await userEvent.type(input, typed);
-      // Typed: no unit and no echo line while the text reads "N.A".
+      // Typed: no unit and no echo line while the text reads N/A.
       expect(unitOf(input)).toBeNull();
       expect(echoOf(input)).toBeNull();
       expect(draftSources.get('potencia_nominal')!.read()).toBe(typed);
@@ -433,7 +433,7 @@ describe('16.4 "N.A" in a nameplate or cabine number field', () => {
       expect(commit).toHaveBeenCalledTimes(1);
       expect(commit).toHaveBeenCalledWith(NA);
       expect(screen.getByRole('textbox', { name: /tap/i })).toHaveFocus();
-      expect(input).toHaveValue('N.A');
+      expect(input).toHaveValue('N/A');
       expect(unitOf(input)).toBeNull();
       expect(echoOf(input)).toBeNull();
       expect(screen.queryByText('Número não reconhecido')).toBeNull();
@@ -443,10 +443,10 @@ describe('16.4 "N.A" in a nameplate or cabine number field', () => {
     });
   }
 
-  it('a stored "N.A" reads "N.A" at rest with no unit; an undo to a number replaces it at rest', async () => {
+  it('a stored "N/A" reads "N/A" at rest with no unit; an undo to a number replaces it at rest', async () => {
     render(<Stored initial={NA} commit={vi.fn()} />);
     const input = screen.getByRole('textbox', { name: /potência/i });
-    expect(input).toHaveValue('N.A');
+    expect(input).toHaveValue('N/A');
     expect(unitOf(input)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'desfazer' }));
     expect(input).toHaveValue('1.500');
@@ -463,26 +463,29 @@ describe('16.4 "N.A" in a nameplate or cabine number field', () => {
     expect(commit).not.toHaveBeenCalled();
   });
 
-  it('a number field without the flag (a measurement test\'s value) refuses "N.A": the helper shows and nothing commits', async () => {
+  it('a number field without the flag (a measurement test\'s value) refuses "N.A": no control, the helper shows and nothing commits', async () => {
     const commit = vi.fn();
     render(<Stored initial={null} commit={commit} accepts={false} />);
     const input = screen.getByRole('textbox', { name: /potência/i });
+    expect(screen.queryByRole('button', { name: /como não aplicável/ })).toBeNull();
+    expect(input.closest('.field')!.querySelector('.field-na-row')).toBeNull();
     await userEvent.type(input, 'N.A{Enter}');
     expect(input).toHaveFocus();
     expect(screen.getByText('Número não reconhecido')).toBeVisible();
     expect(commit).not.toHaveBeenCalled();
   });
 
-  it('a read-only field holding "N.A" reads "N.A" with no unit; a number keeps its unit', () => {
+  it('a read-only field holding "N/A" reads "N/A" with no unit, and has no control; a number keeps its unit', () => {
     const { unmount } = render(<ReadOnlyField field={POT} value={NA} />);
-    expect(screen.getByRole('textbox', { name: /potência/i })).toHaveTextContent(/^N\.A$/);
+    expect(screen.getByRole('textbox', { name: /potência/i })).toHaveTextContent(/^N\/A$/);
     expect(document.querySelector('.mf-unit')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
     unmount();
     render(<ReadOnlyField field={POT} value={{ raw: '1500', unit: 'kVA', state: 'measured' }} />);
     expect(document.querySelector('.mf-unit')).toHaveTextContent('kVA');
   });
 
-  it('a cabine number field (no unit of the seed\'s in the way) commits and reads "N.A" the same', async () => {
+  it('a cabine number field (no unit of the seed\'s in the way) commits and reads "N/A" the same', async () => {
     const PRIMARY: FieldDef = { key: 'primary_kv', label: 'TENSÃO PRIMÁRIA', kind: 'number', unit: 'kV' };
     const commit = vi.fn();
     render(<Stored initial={{ raw: '13.8', unit: 'kV', state: 'measured' }} commit={commit} def={PRIMARY} />);
@@ -492,7 +495,92 @@ describe('16.4 "N.A" in a nameplate or cabine number field', () => {
     await userEvent.type(input, 'na');
     fireEvent.blur(input);
     expect(commit).toHaveBeenCalledWith(NA);
-    expect(input).toHaveValue('N.A');
+    expect(input).toHaveValue('N/A');
     expect(unitOf(input)).toBeNull();
+  });
+
+  const control = () => screen.queryByRole('button', { name: 'Marcar Potência nominal como não aplicável' });
+
+  it('17.3 the control renders beside the value of a field that accepts N/A, with its authored name and text', () => {
+    render(<Stored initial={{ raw: '1000', unit: 'kVA', state: 'measured' }} commit={vi.fn()} />);
+    const input = screen.getByRole('textbox', { name: /potência/i });
+    const button = control()!;
+    expect(button).toHaveTextContent(/^N\/A$/);
+    expect(button).toHaveClass('btn', 'btn-secondary', 'btn-na');
+    expect(button).toHaveAttribute('type', 'button');
+    // The row holds the untouched `.measurement-field` and the control, in that order.
+    const row = input.closest('.field-na-row')!;
+    expect(row.firstElementChild).toHaveClass('measurement-field');
+    expect(row.lastElementChild).toBe(button);
+    // The decimal keypad still comes up.
+    expect(input).toHaveAttribute('inputmode', 'decimal');
+  });
+
+  it('17.3 a tap commits the not_applicable value once, reads "N/A" with no unit nor echo, hides the control and moves no focus', async () => {
+    const commit = vi.fn();
+    render(<Stored initial={{ raw: '1000', unit: 'kVA', state: 'measured' }} commit={commit} />);
+    const input = screen.getByRole('textbox', { name: /potência/i });
+    const tap = screen.getByRole('textbox', { name: /tap/i });
+    await userEvent.click(control()!);
+    expect(commit).toHaveBeenCalledTimes(1);
+    expect(commit).toHaveBeenCalledWith(NA);
+    expect(input).toHaveValue('N/A');
+    expect(unitOf(input)).toBeNull();
+    expect(echoOf(input)).toBeNull();
+    expect(control()).toBeNull();
+    expect(input).not.toHaveFocus();
+    expect(tap).not.toHaveFocus();
+    expect(draftSources.get('potencia_nominal')!.read()).toBeNull();
+  });
+
+  it('17.3 a field holding N/A, stored or just typed, renders no control', async () => {
+    const { unmount } = render(<Stored initial={NA} commit={vi.fn()} />);
+    expect(control()).toBeNull();
+    unmount();
+    render(<Stored initial={null} commit={vi.fn()} />);
+    const input = screen.getByRole('textbox', { name: /potência/i });
+    expect(control()).not.toBeNull();
+    await userEvent.type(input, 'n.a');
+    expect(control()).toBeNull();
+    // The input kept its focus while the control went (the row stays, the input never remounts).
+    expect(input).toHaveFocus();
+  });
+
+  it('17.3 a number typed over N/A commits measured and the control shows again', async () => {
+    const commit = vi.fn();
+    render(<Stored initial={NA} commit={commit} />);
+    const input = screen.getByRole('textbox', { name: /potência/i });
+    await userEvent.clear(input);
+    await userEvent.type(input, '1500');
+    fireEvent.blur(input);
+    expect(commit).toHaveBeenLastCalledWith({ raw: '1500', unit: 'kVA', state: 'measured' });
+    expect(input).toHaveValue('1.500');
+    expect(unitOf(input)).toHaveTextContent('kVA');
+    expect(control()).not.toBeNull();
+  });
+
+  it('17.3 clearing an N/A field commits null and the control shows again', async () => {
+    const commit = vi.fn();
+    render(<Stored initial={NA} commit={commit} />);
+    const input = screen.getByRole('textbox', { name: /potência/i });
+    await userEvent.clear(input);
+    fireEvent.blur(input);
+    expect(commit).toHaveBeenLastCalledWith(null);
+    expect(input).toHaveValue('');
+    expect(control()).not.toBeNull();
+  });
+
+  it('17.3 a tap while a number is typed and not committed commits that number first, then N/A', async () => {
+    const commit = vi.fn();
+    render(<Stored initial={null} commit={commit} />);
+    const input = screen.getByRole('textbox', { name: /potência/i });
+    await userEvent.type(input, '12');
+    // WebKit takes no focus on a tapped button: the click lands while the input keeps the
+    // focus, so no blur commits 12 and the control's own commitNow must.
+    expect(input).toHaveFocus();
+    fireEvent.click(control()!);
+    expect(commit.mock.calls).toEqual([[{ raw: '12', unit: 'kVA', state: 'measured' }], [NA]]);
+    expect(input).toHaveValue('N/A');
+    expect(control()).toBeNull();
   });
 });

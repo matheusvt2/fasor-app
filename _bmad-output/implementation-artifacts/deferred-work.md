@@ -2309,7 +2309,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: A ratio row's INSATISFATÓRIO verdict feeds only the screen and the printed sheet; the conclusion suggestion, the pre-issue rows and the parecer count never read it, so a sheet can still be concluded Aprovado / Sem restrições over a failed ratio (the UX pass F42 case).
   evidence: review finding 7; `condicao` consumers are `ensaios-section.tsx` and `print/section-9.ts` only. Pre-existing: the suggestion engine reads insulation and contact verdicts, not ratio rows.
   class: bug
-  state: ~~open (owner: next fix batch)~~ scheduled (2026-10-27, Bruno's answer 6: yes; Story 17.5, Epic 17 wave A)
+  state: ~~open (owner: next fix batch)~~ ~~scheduled (2026-10-27, Bruno's answer 6: yes; Story 17.5, Epic 17 wave A)~~ closed (2026-10-27, Story 17.5, batch e17b: `failedRatioRows` (`reading-evaluation.ts`) is the one reader of the ratio verdict; `suggestConclusionPair` reads it explicitly, `restrictionWarning` names the row, `parecer.ts` `restricted()`, the parecer sentence and its Critérios item count it; the pre-issue `conclusion_stale` row already fired through the basis, now tested. Verified while building: the suggestion and the composed text already read the capture's `out` verdict since F42; the real gaps were the warning and the parecer)
 - source_spec: `_bmad-output/implementation-artifacts/spec-ux-pass-fixes-2026-10-22.md`
   summary: The P2/P3 findings of the 2026-10-22 hands-on pass (F1–F3, F5, F7–F15, F18–F27, F30–F39, F44–F50) are recorded only in `_bmad-output/test-artifacts/manual/ux-pass-2026-10-22.md`; they need triage into stories or a later fix batch.
   evidence: review finding 8; the report is the backlog source until then.
@@ -2359,7 +2359,7 @@ Source: `_bmad-output/test-artifacts/manual/qa-e16-2026-10-26.md` (verdict pass;
   summary: After a plate reading on a nameplate field holding N.A, the "Manter o digitado" button's accessible name ends with the bare unit ("… Potência nominal, kVA") instead of "N.A" (QA G1).
   evidence: QA report G1; the kept-value name is composed where the suggestion row reads the stored number, so the `not_applicable` state needs its own text there.
   class: bug
-  state: ~~open (owner: the next fix batch)~~ scheduled (2026-10-27: Story 17.3 fixes the kept-value name with the N/A control and spelling)
+  state: ~~open (owner: the next fix batch)~~ ~~scheduled (2026-10-27: Story 17.3 fixes the kept-value name with the N/A control and spelling)~~ closed (2026-10-27, Story 17.3, batch e17b: `suggestionValueText` (`relatorio/suggestion-ops.ts`) reads the `not_applicable` state first and answers `NOT_APPLICABLE_TEXT`, so the name reads "Manter o digitado em Potência nominal, N/A")
 - source_spec: `_bmad-output/implementation-artifacts/spec-16-2-16-3-revision-banner-display-shots.md`
   summary: The remove confirm on a "Ler visor" display shot still says "A foto sai da galeria e da seção 3", while since Story 16.3 the Registro fotográfico never holds display shots (QA G2).
   evidence: QA report G2; the confirm sentence is one static string for every photo, so the display shot needs its own sentence (kernel text, AD-1).

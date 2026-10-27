@@ -7,6 +7,7 @@ import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { conclusionRestrictionOf, conclusionResultOf } from './conclusion.ts';
 import { naoEnsaiadasText } from './progress.ts';
+import { evaluateSheetReadings, failedRatioRows, type FailedRatioRow } from './readings.ts';
 import { sectionRefText } from './section-position.ts';
 import { checklistResultOf } from './sheet-progress.ts';
 import { siteNcCount, siteNcItems } from './site-checklist.ts';
@@ -83,11 +84,25 @@ function countedSheets(snapshot: RelatorioSnapshot): CountedSheet[] {
     .map(({ block, name }) => ({ block, name }));
 }
 
-/** A sheet that carries a restriction: Com restrições, any NC row, or marked not tested. */
+/**
+ * A sheet that carries a restriction: Com restrições, any NC row, any ratio row
+ * INSATISFATÓRIO (Story 17.5: a failed ratio restricts the sheet whatever its conclusion
+ * says, as an NC row does), or marked not tested.
+ */
 function restricted(block: BlockRow): boolean {
   if (block.not_tested !== null) return true;
   if (conclusionRestrictionOf(block) === 'com_restricoes') return true;
-  return ncItemsOf(block).length > 0;
+  return ncItemsOf(block).length > 0 || failedRatioRowsOf(block).length > 0;
+}
+
+/**
+ * Story 17.5: the ratio rows INSATISFATÓRIO of a live sheet, read through the one kernel
+ * reader (`failedRatioRows`); empty when its seed is unknown or its ratio sub-block is off.
+ */
+function failedRatioRowsOf(block: BlockRow): FailedRatioRow[] {
+  const definition = findDefinition(block.seed_version, block.block_type);
+  if (definition === null) return [];
+  return failedRatioRows(evaluateSheetReadings(block, definition));
 }
 
 /** The enabled checklist's NC items of a live sheet: their 1-based number and label. */
@@ -217,6 +232,8 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
     }
   }
   const nc = [...ncGroups.values()].sort((a, b) => a.n - b.n || (a.label < b.label ? -1 : 1));
+  // Story 17.5: the tested sheets with a ratio row INSATISFATÓRIO, by name in tree order.
+  const ratio = sheets.filter(({ block }) => block.not_tested === null && failedRatioRowsOf(block).length > 0).map(({ name }) => name);
   const site = siteNcItems(snapshot).map((item) => ({ n: item.number, label: item.label, locals: item.locals.length }));
   const points = pointsSummary(snapshot).total;
 
@@ -241,6 +258,10 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
     if (nc.length > 0) {
       sentences.push(`Itens não conformes: ${listPtBr(nc.map((group) => `${ncItemName(group)} em ${plural(group.sheets, 'ficha', 'fichas')}`))}.`);
     }
+    if (ratio.length > 0) {
+      // authored (Story 17.5, open for Bruno): the failed ratio sentence.
+      sentences.push(`Relação de transformação insatisfatória em ${plural(ratio.length, 'ficha', 'fichas')} (${listPtBr(ratio)}).`);
+    }
   }
   if (site.length > 0) {
     // authored: 2026-10-14, the site NC sentence (open for Bruno).
@@ -256,13 +277,17 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
     ...(notTested.length > 0 ? [`${naoEnsaiadasText(notTested.length)} (${notTested.map((entry) => entry.name).join(', ')})`] : []),
     ...(withRestriction.length > 0 ? [`${withRestriction.length} com restrições (${withRestriction.join(', ')})`] : []),
     ...nc.map((group) => `item ${group.n} NC (${group.sheets})`),
+    // authored (Story 17.5, open for Bruno): the Critérios item of the failed ratios.
+    ...(ratio.length > 0 ? [`relação de transformação insatisfatória (${ratio.join(', ')})`] : []),
     // authored: 2026-10-14, a Critérios item per NC site item (open for Bruno).
     ...site.map((item) => `verificações do local, item ${item.n} NC (${item.locals})`),
     ...(points > 0 ? [plural(points, 'ponto de atenção', 'pontos de atenção')] : []),
   ];
 
-  // The key is added only when non-empty, so a relatório with no site NC keeps its basis byte-identical.
-  const basis = fnv1a(canonicalJson({ total, concluded, open, notTested, withRestriction, nc, points, ...(site.length > 0 ? { site } : {}) }));
+  // The keys are added only when non-empty, so a relatório with no site NC and no failed ratio keeps its basis byte-identical.
+  const basis = fnv1a(
+    canonicalJson({ total, concluded, open, notTested, withRestriction, nc, points, ...(site.length > 0 ? { site } : {}), ...(ratio.length > 0 ? { ratio } : {}) }),
+  );
   return { text, criteriaItems, criteriaLine: criteriaItems.join(' · '), basis };
 }
 

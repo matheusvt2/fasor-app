@@ -133,20 +133,22 @@ export function numberEchoText(raw: string, unit: string | null): string {
 }
 
 /*
- * Story 16.4 (contract 26): "N.A" in a nameplate or cabine number field. The AD-11 number
+ * Story 16.4 (contract 26): "N/A" in a nameplate or cabine number field. The AD-11 number
  * value's fourth state, `not_applicable`, says the plate carries no such value. This leaf
  * module, which imports nothing of the kernel, is its one home (AD-1): the text every reader
  * shows and prints, the spellings the input accepts, the stored value and its guard.
+ * Story 17.3: the text is "N/A" (it was "N.A"); the stored state carries no spelling, so a
+ * value typed as "N.A" before reads "N/A" too, with no contract bump.
  */
 
 /** What a `not_applicable` number value shows and prints, with no unit. */
-export const NOT_APPLICABLE_TEXT = 'N.A';
+export const NOT_APPLICABLE_TEXT = 'N/A';
 
 // The accepted spellings once whitespace is stripped and the text uppercased:
 // "N.A", "N.A.", "NA" and "N/A".
 const NOT_APPLICABLE_SPELLING = /^(N\.A\.?|NA|N\/A)$/;
 
-/** True when the typed text is one of the accepted "N.A" spellings (any case, whitespace anywhere). */
+/** True when the typed text is one of the accepted "N/A" spellings (any case, whitespace anywhere). */
 export function isNotApplicableText(typed: string): boolean {
   return NOT_APPLICABLE_SPELLING.test(typed.replace(/\s+/g, '').toUpperCase());
 }

@@ -231,7 +231,7 @@ function withUnit(text: string, unit: string | null | undefined): string {
 /**
  * A stored field value as the document prints it: numbers pt-BR with their unit (the stored
  * one, else the field's), a voltage class with " kV", a date dd/mm/aaaa (a date typed in
- * another shape as stored), text as typed; "-" when empty; "N.A" with no unit for the
+ * another shape as stored), text as typed; "-" when empty; "N/A" with no unit for the
  * `not_applicable` state (Story 16.4). Never uppercased.
  */
 function storedValueText(field: Pick<FieldDef, 'kind' | 'unit'>, value: unknown): string {

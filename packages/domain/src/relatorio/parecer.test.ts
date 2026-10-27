@@ -293,3 +293,61 @@ describe('2026-10-14 (Bruno) an NC site item counts in the parecer (N4, N5)', ()
     expect(composeParecer(v3).criteriaItems.some((item) => item.startsWith('verificações do local'))).toBe(false);
   });
 });
+
+describe('17.5-UNIT a ratio row INSATISFATÓRIO restricts the sheet in the parecer (F42, E15-A2)', () => {
+  const ratio = (capture: string): BlockRow['sheet']['test'] => ({
+    relacao_transformacao: {
+      cells: { '0': { '0': cell({ raw: '13.8', unit: 'kV', state: 'measured' }), '1': cell({ raw: '115', unit: 'V', state: 'measured' }), '3': cell({ raw: capture, unit: null, state: 'measured' }) } },
+    },
+  });
+  /** Every sheet of the standard template concluded Aprovado · Sem restrições, its first TP's ratio holding `capture`, that TP concluded `restriction`. */
+  const withTp = (capture: string, restriction: 'sem_restricoes' | 'com_restricoes' = 'sem_restricoes') => {
+    const base = withSheets(Number.MAX_SAFE_INTEGER);
+    const tpId = base.blocks.find((b) => b.block_type === 'tp')!.id;
+    return mapSheets(base, (b) => (b.id === tpId ? conclude({ ...b, sheet: { ...b.sheet, test: ratio(capture) } }, 'aprovado', restriction) : conclude(b, 'aprovado', 'sem_restricoes')));
+  };
+  const tpName = (snapshot: RelatorioSnapshot) => {
+    const tp = snapshot.blocks.find((b) => b.block_type === 'tp')!;
+    return snapshot.equipment.find((e) => e.id === tp.equipment_id)!.tag;
+  };
+
+  it('B5: a sheet concluded Sem restrições over a failed ratio counts in withRestriction, the hint counts it, the summary and Critérios name it', () => {
+    const snapshot = withTp('125');
+    const name = tpName(snapshot);
+    const counts = parecerCounts(snapshot);
+    expect(counts.withRestriction).toEqual([name]);
+    expect(suggestParecer(snapshot)).toBe('apto_com_restricoes');
+    expect(parecerHintText('apto_com_restricoes', snapshot)).toContain(`${counts.concluded} de ${counts.total} fichas concluídas, 1 com restrições.`);
+    const composed = composeParecer(snapshot);
+    expect(composed.text).toContain(`1 ficha apresentou restrições (${name}).`);
+    expect(composed.text).toContain(`Relação de transformação insatisfatória em 1 ficha (${name}).`);
+    expect(composed.criteriaItems).toContain(`relação de transformação insatisfatória (${name})`);
+    expect(composed.criteriaItems.indexOf(`relação de transformação insatisfatória (${name})`)).toBe(composed.criteriaItems.indexOf(`1 com restrições (${name})`) + 1);
+  });
+
+  it('B5: concluded Com restrições over a failed ratio, the same counts and the same ratio item', () => {
+    const snapshot = withTp('125', 'com_restricoes');
+    const name = tpName(snapshot);
+    expect(parecerCounts(snapshot).withRestriction).toEqual([name]);
+    expect(composeParecer(snapshot).criteriaItems).toContain(`relação de transformação insatisfatória (${name})`);
+  });
+
+  it('a within ratio: Apto, no ratio sentence nor item, and the basis has no `ratio` key (byte-identical to before)', () => {
+    const snapshot = withTp('120.1');
+    expect(suggestParecer(snapshot)).toBe('apto');
+    const composed = composeParecer(snapshot);
+    expect(composed.text).not.toContain('Relação de transformação');
+    expect(composed.criteriaItems.some((item) => item.startsWith('relação de transformação'))).toBe(false);
+    const { total, concluded, open, notTested, withRestriction } = parecerCounts(snapshot);
+    expect(composed.basis).toBe(fnv1a(canonicalJson({ total, concluded, open, notTested, withRestriction, nc: [], points: 0 })));
+    expect(composeParecer(withTp('125')).basis).not.toBe(composed.basis);
+  });
+
+  it('a not tested sheet holding a failed ratio is counted as not tested, never named by the ratio', () => {
+    const tpId = withTp('125').blocks.find((b) => b.block_type === 'tp')!.id;
+    const snapshot = mapSheets(withTp('125'), (b) => (b.id === tpId ? untested(b, 'impossibilidade_desligamento') : b));
+    const composed = composeParecer(snapshot);
+    expect(parecerCounts(snapshot).withRestriction).toEqual([]);
+    expect(composed.text).not.toContain('Relação de transformação');
+  });
+});

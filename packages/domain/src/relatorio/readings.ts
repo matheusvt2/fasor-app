@@ -24,5 +24,5 @@ export {
   type TestKey,
   type VisibleColumn,
 } from './reading-cells.ts';
-export { bandCriterion, cellAddressesOf, pickedBand, CRITERION_NOT_EVALUATED, effectiveCriterion, evaluatedCells, evaluateSheetReadings, evaluateTest, unitDefaultFor } from './reading-evaluation.ts';
+export { bandCriterion, cellAddressesOf, pickedBand, CRITERION_NOT_EVALUATED, effectiveCriterion, evaluatedCells, evaluateSheetReadings, evaluateTest, failedRatioRows, type FailedRatioRow, unitDefaultFor } from './reading-evaluation.ts';
 export { firstRunCell, runEnterKeyHint, runTarget, unitTapNeedsEdit, worstReadings, type WorstReading } from './reading-run.ts';

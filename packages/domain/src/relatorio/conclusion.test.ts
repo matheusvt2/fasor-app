@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyOp, entityKey, readPath, type EntityState } from '../ops/apply.ts';
 import type { Op } from '../ops/op.ts';
-import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
+import { NOT_APPLICABLE_NUMBER, NOT_APPLICABLE_TEXT } from '../parse/pt-br-number.ts';
 import { invertBatch } from '../ops/outbox.ts';
 import { blockFieldPath, sheetConclusionPath, sheetObservationsPath, sheetTestPath } from '../ops/path.ts';
 import type { InstrumentRow } from '../registry/instrument-row.ts';
@@ -122,7 +122,7 @@ describe('5.8-UNIT composeConclusion', () => {
     });
     const text = composeConclusion(b, SEC, 'SEC-C05').text;
     expect(text).toMatch(/^A seccionadora SEC-C05 \(Celtta, 15 kV\) apresentou /);
-    expect(text).not.toContain('N.A');
+    expect(text).not.toContain(NOT_APPLICABLE_TEXT);
   });
 
   it('with everything within and conform: the two fixed clauses, no recommendation, parts dropped when missing', () => {
@@ -548,5 +548,45 @@ describe('p020 P-3 (v0.2.0 production check): a CTA concluded with "Concluir e a
   it('the basis of a sheet of the eight keeps its bytes (a pinned seccionadora basis)', () => {
     const b = block({ checklist: allC(), test: within(), nameplate: plate, conclusion: { result: cell('aprovado'), restriction: cell('sem_restricoes') } });
     expect(composeConclusion(b, SEC, 'SEC-C05').basis).toBe('230b4355');
+  });
+});
+
+describe('17.5-UNIT a ratio row INSATISFATÓRIO feeds the suggestion, the warning and the composed conclusion (F42, E15-A2)', () => {
+  const TP = getDefinition('v1', 'cabine_primaria', 'tp');
+  const tpAllC = (): Sheet['checklist'] => Object.fromEntries(TP.checklist!.map((item) => [item.key, { result: cell('C') }]));
+  const ratio = (capture: string): Sheet['test'] => ({ relacao_transformacao: { cells: { '0': { '0': measured('13.8', 'kV'), '1': measured('115', 'V'), '3': measured(capture, null) } } } });
+  const tpBlock = (sheet: Partial<Sheet>) => block(sheet, { block_type: 'tp', config: defaultBlockConfig('v1', 'tp') });
+  const ncKey = TP.checklist![0]!.key;
+
+  it('B1: a failed ratio and nothing else suggests Aprovado · Com restrições', () => {
+    const b = tpBlock({ test: ratio('125') });
+    expect(suggestConclusionPair(b)).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
+    expect(conclusionSuggestionText(suggestConclusionPair(b)!)).toBe('Aprovado · Com restrições?');
+    // Every row within: as today.
+    expect(suggestConclusionPair(tpBlock({ test: ratio('120.1') }))).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
+    // At the limit (0,5 %): within.
+    expect(suggestConclusionPair(tpBlock({ test: ratio('120.6') }))?.restriction).toBe('sem_restricoes');
+  });
+
+  it('B2: Sem restrições over a failed ratio warns with the authored sentence; with an NC row too, one sentence naming both', () => {
+    const sem = { result: cell('aprovado'), restriction: cell('sem_restricoes') };
+    expect(restrictionWarning(tpBlock({ test: ratio('125'), conclusion: sem }))).toBe('Há relação de transformação insatisfatória em Fase R');
+    expect(restrictionWarning(tpBlock({ test: ratio('125'), checklist: { ...tpAllC(), [ncKey]: { result: cell('NC') } }, conclusion: sem }))).toBe(
+      'Há itens não conformes e relação de transformação insatisfatória em Fase R',
+    );
+    // NC only and within only: as today.
+    expect(restrictionWarning(tpBlock({ test: ratio('120.1'), checklist: { ...tpAllC(), [ncKey]: { result: cell('NC') } }, conclusion: sem }))).toBe('Há itens não conformes');
+    expect(restrictionWarning(tpBlock({ test: ratio('120.1'), conclusion: sem }))).toBeNull();
+    // Com restrições: no warning.
+    expect(restrictionWarning(tpBlock({ test: ratio('125'), conclusion: { result: cell('aprovado'), restriction: cell('com_restricoes') } }))).toBeNull();
+  });
+
+  it('B3: the composed text names the ratio clause, the criteria line its item, and the basis differs from the within case', () => {
+    const pair = { result: cell('aprovado'), restriction: cell('com_restricoes') };
+    const out = composeConclusion(tpBlock({ test: ratio('125'), checklist: tpAllC(), conclusion: pair }), TP, 'TP-1');
+    expect(out.text).toContain('desvio de relação de transformação de 4,17 % em Fase R (critério: ±0,5 %, aceitável na ficha)');
+    expect(out.criteriaItems).toContain('RT Fase R 4,17 % · critério ±0,5 %');
+    const within = composeConclusion(tpBlock({ test: ratio('120.1'), checklist: tpAllC(), conclusion: pair }), TP, 'TP-1');
+    expect(within.basis).not.toBe(out.basis);
   });
 });

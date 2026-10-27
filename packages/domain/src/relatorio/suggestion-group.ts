@@ -118,7 +118,7 @@ export function showsConfirmedGlyph(cell: Cell | null | undefined, relatorioStat
 /*
  * `ficha.ts`'s `fieldValueText` and `numberFieldValue`, restated here: `progress.ts` reads
  * this module, and `ficha.ts` reaches `progress.ts` through `tree.ts`, so importing it back
- * would close an import cycle. Same rules: numbers grouped pt-BR, "N.A" for the
+ * would close an import cycle. Same rules: numbers grouped pt-BR, "N/A" for the
  * `not_applicable` state (Story 16.4, the text from the leaf `parse/pt-br-number.ts`), dates
  * dd/mm/aaaa.
  */
