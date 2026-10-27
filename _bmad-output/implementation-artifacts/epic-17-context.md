@@ -83,4 +83,4 @@ restart the batch's api container after a kernel change before the story's e2e (
 
 ## Wave gates
 
-(filled by the coordinator as the batches merge)
+- **Start, 2026-10-27 (Matheus):** "Bruno já deu todas as informações necessárias": the six confirmations stand as the defaults above, the camera default of 17.2 is confirmed. Wave A launched from main `c2ee5580`: e17a (17.1 + 17.4, worktree `fasor-app-e17a`, port base 29, branch `story/17-1-17-4-section-7-by-hand-display-shots-numbered`) and e17b (17.3 + 17.5, worktree `fasor-app-e17b`, port base 30, branch `story/17-3-17-5-na-control-failed-ratio`), images tagged from `app-api-e16c` / `app-tools-e16c`.
