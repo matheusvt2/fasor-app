@@ -2350,3 +2350,23 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: PR #174 open question; `apps/web/src/surfaces/points/points-surface.tsx` heading, kernel text in `points/summary.ts`.
   class: bug
   state: open (owner: the next fix batch)
+
+## Deferred from: Epic 16 integrated QA browser pass (2026-10-26)
+
+Source: `_bmad-output/test-artifacts/manual/qa-e16-2026-10-26.md` (verdict pass; no P1, no P2; the three P3 gaps below). The tablet soft keyboard limit of Story 16.4 is not listed here: it is a product decision recorded under the story in `epics.md` (candidate Story 16.5).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-16-4-na-in-number-fields.md`
+  summary: After a plate reading on a nameplate field holding N.A, the "Manter o digitado" button's accessible name ends with the bare unit ("… Potência nominal, kVA") instead of "N.A" (QA G1).
+  evidence: QA report G1; the kept-value name is composed where the suggestion row reads the stored number, so the `not_applicable` state needs its own text there.
+  class: bug
+  state: open (owner: the next fix batch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-16-2-16-3-revision-banner-display-shots.md`
+  summary: The remove confirm on a "Ler visor" display shot still says "A foto sai da galeria e da seção 3", while since Story 16.3 the Registro fotográfico never holds display shots (QA G2).
+  evidence: QA report G2; the confirm sentence is one static string for every photo, so the display shot needs its own sentence (kernel text, AD-1).
+  class: bug
+  state: open (owner: the next fix batch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-16-4-na-in-number-fields.md`
+  summary: "Altitude do site" (Dados do relatório, Etapa 5) is a native number input, so `n.a` is dropped without a word and the sheet's read-only Altitude can never hold N.A (QA G3). Story 16.4 names the cabine fields but its AC does not name this setup field; whether altitude should take N.A is a product question for Matheus.
+  evidence: QA report G3; `inputmode` and `type="number"` on the setup field.
+  class: question
+  state: open (owner: Matheus; then a story line under 16.4 or the next fix batch)
