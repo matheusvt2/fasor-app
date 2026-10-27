@@ -117,8 +117,8 @@ describe('16.4-UNIT the "N.A" spellings and value (contract 26)', () => {
     }
   });
 
-  it('shows "N.A" and stores the frozen fourth state with no raw nor unit', () => {
-    expect(NOT_APPLICABLE_TEXT).toBe('N.A');
+  it('17.3: shows "N/A" and stores the frozen fourth state with no raw nor unit', () => {
+    expect(NOT_APPLICABLE_TEXT).toBe('N/A');
     expect(NOT_APPLICABLE_NUMBER).toEqual({ raw: '', unit: null, state: 'not_applicable' });
     expect(Object.isFrozen(NOT_APPLICABLE_NUMBER)).toBe(true);
     expect(isNotApplicableNumber(NOT_APPLICABLE_NUMBER)).toBe(true);

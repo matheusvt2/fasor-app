@@ -60,7 +60,7 @@ function isValidIsoDate(text: string): boolean {
 /**
  * The text the digit rule reads from a value: a number's `raw`, a date's pt-BR display
  * (`2024-08` -> `08/2024`, the order a plate prints it), a voltage class's kV text (`15`,
- * `17,5`), anything else as the string it is; '' for an "N.A" (Story 16.4: no digits to read).
+ * `17,5`), anything else as the string it is; '' for an "N/A" (Story 16.4: no digits to read).
  */
 export function readingValueText(field: Pick<FieldDef, 'kind'>, value: unknown): string {
   if (isNotApplicableNumber(value)) return '';

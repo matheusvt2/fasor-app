@@ -6,7 +6,7 @@ import type { BlockDefinition } from '../seed/schema.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr } from '../text/plural.ts';
 import { evaluateSheetMeasurements, measurementCells, worstMeasurements, type WorstMeasurement } from './measurement-evaluation.ts';
-import { evaluatedCells, evaluateSheetReadings, worstReadings, type TestKey, type WorstReading } from './readings.ts';
+import { evaluatedCells, evaluateSheetReadings, failedRatioRows, worstReadings, type FailedRatioRow, type TestKey, type WorstReading } from './readings.ts';
 import { checklistResultOf } from './sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 
@@ -71,7 +71,8 @@ function anyAnswered(block: BlockRow): boolean {
 
 /**
  * The amber suggestion row's pair (Story 5.8 AC 1): Aprovado, with Com restrições when any
- * row is NC or any reading is out of criterion, else Sem restrições. Null when the sheet
+ * row is NC, any reading is out of criterion or any ratio row INSATISFATÓRIO (Story 17.5,
+ * `failedRatioRows`), else Sem restrições. Null when the sheet
  * is marked not tested, once any segment is set, or while nothing is measured and nothing
  * answered. Never Reprovado.
  */
@@ -88,7 +89,11 @@ export function suggestConclusionPair(block: BlockRow): ConclusionPair | null {
   if (tableCells.some((cell) => cell.toCheck)) return null;
   const measured = cells.some((cell) => cell.role === 'capture' && cell.state === 'measured') || tableCells.some((cell) => cell.state === 'measured');
   if (!measured && !anyAnswered(block)) return null;
-  const restricted = ncItems(block, definition).length > 0 || cells.some((cell) => cell.verdict === 'out') || tableCells.some((cell) => cell.verdict === 'out');
+  const restricted =
+    ncItems(block, definition).length > 0 ||
+    failedRatioRows(evaluations).length > 0 ||
+    cells.some((cell) => cell.verdict === 'out') ||
+    tableCells.some((cell) => cell.verdict === 'out');
   // Story 14.9: a reading measured under a test no criterion judges (a QGBT with no TENSÃO
   // NOMINAL, or above 1000 V) is never a pass: no "Sem restrições" is suggested over it.
   const unjudged = evaluations.some((test) => test.criterion === null && evaluatedCells([test]).some((cell) => cell.role === 'capture' && cell.state === 'measured'));
@@ -104,11 +109,26 @@ export function conclusionSuggestionText(pair: ConclusionPair): string {
   return `${RESULT_WORDS[pair.result]} · ${RESTRICTION_WORDS[pair.restriction]}?`;
 }
 
-/** The inline warning of Sem restrições beside an NC row (allowed, EXPERIENCE.md › Conclusion control). */
+// authored (Story 17.5, open for Bruno): the warning of Sem restrições over a failed ratio row.
+function ratioWarningText(rows: readonly FailedRatioRow[]): string {
+  return `Há relação de transformação insatisfatória em ${listPtBr(rows.map((row) => row.label))}`;
+}
+
+/**
+ * The inline warning of Sem restrições beside an NC row (allowed, EXPERIENCE.md › Conclusion
+ * control) or over a ratio row INSATISFATÓRIO (Story 17.5); one sentence naming both when
+ * both stand.
+ */
 export function restrictionWarning(block: BlockRow): string | null {
   if (conclusionRestrictionOf(block) !== 'sem_restricoes') return null;
   const definition = definitionOf(block);
-  return definition !== null && ncItems(block, definition).length > 0 ? 'Há itens não conformes' : null;
+  if (definition === null) return null;
+  const ncs = ncItems(block, definition).length > 0;
+  const ratio = failedRatioRows(evaluateSheetReadings(block, definition));
+  if (ratio.length === 0) return ncs ? 'Há itens não conformes' : null;
+  const ratioText = ratioWarningText(ratio);
+  // authored (Story 17.5, open for Bruno): both findings in one sentence.
+  return ncs ? `Há itens não conformes e ${ratioText.slice('Há '.length)}` : ratioText;
 }
 
 /**

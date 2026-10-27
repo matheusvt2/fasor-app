@@ -651,7 +651,7 @@ function measurementValueText(path: string, value: unknown, block: Pick<BlockRow
   return null;
 }
 
-/** A side's value as the sheet displays it ("3.300 MΩ", "Conforme", "Aprovado", a choice's label, "N.A"); "—" when empty. */
+/** A side's value as the sheet displays it ("3.300 MΩ", "Conforme", "Aprovado", a choice's label, "N/A"); "—" when empty. */
 export function conflictValueText(cell: Pick<CellConflict, 'path'>, value: unknown, block?: Pick<BlockRow, 'seed_version' | 'block_type'>): string {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'object' && !Array.isArray(value) && 'raw' in value) {

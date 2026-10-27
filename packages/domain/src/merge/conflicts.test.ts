@@ -648,12 +648,12 @@ describe('conflictValueText: the conclusion words', () => {
 });
 
 describe('conflictValueText: an "N.A" side (Story 16.4)', () => {
-  it('reads "N.A" on a nameplate or cabine number, never the empty raw', () => {
+  it('reads "N/A" on a nameplate or cabine number, never the empty raw', () => {
     const plate = { path: 'sheet/019966b0-0012-7000-8000-000000000001/nameplate/potencia_nominal' };
     const cabine = { path: 'location/019966b0-0012-7000-8000-000000000002/se/primary_kv' };
-    expect(conflictValueText(plate, NOT_APPLICABLE_NUMBER)).toBe('N.A');
-    expect(conflictValueText(cabine, NOT_APPLICABLE_NUMBER)).toBe('N.A');
-    expect(conflictValueText(plate, NOT_APPLICABLE_NUMBER, { seed_version: SEED_VERSION, block_type: 'transformador_forca' })).toBe('N.A');
+    expect(conflictValueText(plate, NOT_APPLICABLE_NUMBER)).toBe('N/A');
+    expect(conflictValueText(cabine, NOT_APPLICABLE_NUMBER)).toBe('N/A');
+    expect(conflictValueText(plate, NOT_APPLICABLE_NUMBER, { seed_version: SEED_VERSION, block_type: 'transformador_forca' })).toBe('N/A');
   });
 });
 

@@ -232,6 +232,21 @@ describe('7.5-UNIT preIssue: the rows the story adds', () => {
       expect(staleRows(removed)).toEqual([]);
     });
 
+    it('17.5 B4: a sheet concluded Sem restrições over a within ratio, whose capture then turns out, is named stale', () => {
+      const snapshot = fresh();
+      const tp = sheetOrder(snapshot).find((node) => blockOf(snapshot, node.blockId).block_type === 'tp')!;
+      const ratio = (capture: string): BlockRow['sheet']['test'] => ({
+        relacao_transformacao: { cells: { '0': { '0': cell({ raw: '13.8', unit: 'kV', state: 'measured' }), '1': cell({ raw: '115', unit: 'V', state: 'measured' }), '3': cell({ raw: capture, unit: null, state: 'measured' }) } } },
+      });
+      const confirmed = withBlocks(
+        snapshot,
+        new Map([[tp.blockId, (b: BlockRow) => concludedWith(snapshot, { ...b, sheet: { ...b.sheet, test: ratio('120.1') } }, 'confirmed', true)]]),
+      );
+      expect(staleRows(confirmed)).toEqual([]);
+      const turned = withBlocks(confirmed, new Map([[tp.blockId, (b: BlockRow) => ({ ...b, sheet: { ...b.sheet, test: ratio('125') } })]]));
+      expect(staleRows(turned).map((r) => r.text)).toEqual([`Texto de conclusão desatualizado: ${tp.name}`]);
+    });
+
     it('conclusionStaleText: singular and plural', () => {
       expect(conclusionStaleText(['SEC-C05'])).toBe('Texto de conclusão desatualizado: SEC-C05');
       expect(conclusionStaleText(['SEC-C05', 'TR-01'])).toBe('Textos de conclusão desatualizados: SEC-C05 e TR-01');
