@@ -1,0 +1,86 @@
+# Epic 17 Context: Bruno's answers and third production feedback (WhatsApp of 2026-10-27)
+
+<!-- Compiled 2026-10-27 from epics.md Epic 17, Bruno's WhatsApp message of 2026-10-27 (ten answers, two new items,
+the spreadsheet already in docs/context/), the code of main e2023853, spine AD-1/7/8/11/15/17/26, AR-27. Current
+decisions only. Edit freely. -->
+
+## Goal
+
+Bruno's ten answers of 2026-10-27 and his two new items, landed as seven stories plus the already-written Story 15.7:
+section 7 holds only the "Geral" photos (17.1), the device's camera app takes the photos on phones and tablets
+(17.2), "N/A" from a control beside the field and printed "N/A" (17.3), display shots numbered again (17.4, amends
+16.3), a failed ratio feeds the conclusion suggestion (17.5, E15-A2), Altitude do site takes N/A (17.6, contract 27),
+a photo saved to the device on request (17.7), and the TC's own checklist (15.7, seed v10, contract 27).
+
+"Photos not saved on the device" is the design, not a fault (AD-7/AD-8: IndexedDB plus upload, evicted once acked;
+nothing writes to the gallery), and the copy "salva neste aparelho" misled; 17.2 corrects the words, 17.7 gives the
+one honest way to a gallery copy the web platform offers (`navigator.share` with the file). Details in the epic
+preamble (`epics.md` Epic 17, investigation bullets).
+
+## Stories, waves and lanes
+
+| Wave | Batch | Story | Dev model | Seed / contract | Base |
+|---|---|---|---|---|---|
+| A | e17a | 17.1 The REGISTRO FOTOGRÁFICO holds only the photos added to it by hand | opus · medium | none | main (e2023853 or later) |
+| A | e17a | 17.4 Display shots keep their number | opus · medium | none | same branch as 17.1 (shared print and numbering files) |
+| A | e17b | 17.3 "N/A" from a control beside the field, printed "N/A" | opus · medium | none | main; lane 1 |
+| A | e17b | 17.5 A failed ratio feeds the conclusion suggestion, the pre-issue rows and the parecer count | opus · medium | none | main; lane 2 (no shared files with 17.3) |
+| B | e17c | 15.7 The TC's own checklist (seed v10) | opus · medium | **seed v10, contract 27, minimum 27** | main after wave A's gate |
+| B | e17c | 17.6 "Altitude do site" takes N/A and says when the device gave none | opus · medium | contract 27 (one entry with 15.7) | same branch as 15.7 |
+| B | e17d | 17.2 The device's camera app takes the photos | opus · high | none | main after wave A's gate, once Matheus confirms the camera default |
+| B | e17d | 17.7 A photo saved to the device | opus · medium | none | same branch as 17.2 (photo viewer and Conta copy shared) |
+
+Two batch stacks at a time (E11-A1): e17a and e17b in parallel as two worktrees; v0.3.4 deploy after wave A's gate;
+e17c and e17d in parallel after it; v0.4.0 after wave B's gate (contract bump). Numbers are fixed here: no other batch
+takes seed v10 or contract 27. Story 17.6 ships in e17c because the contract entry is one for the batch; if 15.7
+slips, 17.6 takes 27 alone and 15.7 the next number.
+
+Defaults taken on 2026-10-27 (Matheus) while the six confirmations are out (`epics.md` Epic 17 preamble, asked at
+the afternoon tablet session); an answer that differs becomes a dated line under its story before the batch merges:
+
+- 17.1: "Geral" = `block_id`, `item_key`, `location_id` and `reading_kind` all null; one numbering sequence in
+  document order (section 7 first in capture order, then section 9 in print order).
+- 17.2: device-local preference "Câmera do aparelho" on by default when `navigator.maxTouchPoints > 0`; every opener
+  through the existing `capture` input; one photo per tap; viewfinder as the off state and on desktops; copy "no
+  relatório".
+- 17.3: secondary "N/A" button at the trailing end of every `acceptsNotApplicable` field; `NOT_APPLICABLE_TEXT`
+  becomes "N/A" (no contract: the stored state carries no spelling).
+- 17.4: display shots numbered in the 17.1 sequence under their test; section 9 "Imagem N: ⟨legenda⟩."; `REMOVED_PHOTO_REF_TEXT`
+  stays for deleted photos.
+- 17.6: `site_altitude_na: boolean` beside `site_altitude_m`; authored hint when the device answered no altitude.
+- 17.7: "Salvar no aparelho" on the photo viewer; share the file where `navigator.canShare` allows, else download.
+- 15.7: oil item "VASAMENTO" only; `epoxi` and `a_seco` mark it NA; spelling as the spreadsheet's.
+
+## Cross-story table (one assertion per shared item)
+
+| Shared item | Stories | Assertion |
+|---|---|---|
+| `photos/numbering.ts` `numberPhotos` | 17.1, 17.4 | one function, one order (document order), one filter (live photos, every kind); no second numbering in `apps/*`; the revision-frozen numbers keep the rule in force at issue |
+| `print/section-7.ts` `section7Photos` | 17.1 | the only selector of section 7; reads the "Geral" predicate from one kernel helper (`photos/order.ts` or beside it) that the gallery wording reuses |
+| `print/section-9.ts` `contextOf`, display line | 17.1, 17.4 | 17.1 changes nothing in section 9 but the numbers it reads; 17.4 changes the display line only |
+| `parse/pt-br-number.ts` `NOT_APPLICABLE_TEXT` | 17.3, 17.6 | the one spelling; 17.6 prints it for the altitude through the same readers |
+| `components/number-input.tsx` `acceptsNotApplicable` | 17.3, 17.6 | the control is rendered by the field that accepts N/A; 17.6 opts the altitude field in, never a second control |
+| `schemas/entities.ts` relatório setup fields; `contract/version.ts` | 17.6, 15.7 | one contract entry 27 naming both reasons; `seed/definitions.ts` gains v10 only |
+| `surfaces/ficha/camera-session.tsx` `useCamera`, `camera-single-shot.tsx` `useCameraPicker` | 17.2 | the preference is read in one place (`useCamera`); every opener keeps its call; the `capture` input stays the one system-camera path |
+| `db/prefs.ts` `local_prefs` | 17.2 | the camera preference is stored like the theme (AR-27), with the kernel schema for its value |
+| `photos/text.ts`, `copy/pt-br.ts` camera lines | 17.2, 17.7 | "no relatório" words in 17.2; the Conta sentence of 17.7 is the only place that says where a gallery copy comes from |
+| `surfaces/export/revision-file.ts` `shareFile`, `saveFile` | 17.7 | reused for the photo, not duplicated |
+| `relatorio/conclusion.ts` `suggestConclusionPair`, `restrictionWarning`, `composeConclusion`; `parecer.ts` | 17.5 | one reader of the ratio verdict (`condicao` or the capture cells' `out`), named in the batch spec after the verification |
+| Porto Seguro goldens | 17.1, 17.3, 17.4, 17.6 | unchanged by every story (82 "Geral" photos, no display shot, no N/A, no altitude N/A) |
+
+Undo pairs: 17.3 and 17.6 add no op kind (an N/A commit is the existing put); 17.1, 17.2, 17.4, 17.5 and 17.7 add
+no op; 15.7 adds no op (a seed version).
+
+## Gate
+
+The 2026-10-08 story gate per PR: `lint`, `static`, `test:unit`, `test:api` and the Playwright specs the story touched
+(`pnpm exec tsx scripts/e2e.ts <specs> --project desktop-chrome --project durability-desktop-chrome`), plus the touched
+durability specs on the matrix projects for e17c (a value shape the ficha's live query folds) and e17d (the capture
+path on `durability-android-chrome` and `durability-webkit`). The full `@p0`, `test:e2e:full` and the matrix once per
+wave on the integrated main, by the coordinator. Tools run only in the `tools` container through `podman compose`;
+restart the batch's api container after a kernel change before the story's e2e (E16-A8); every gate under
+`lockf -t 20000 /tmp/fasor-verify.lock`; at most two batch stacks up, the main checkout's stack stopped meanwhile.
+
+## Wave gates
+
+(filled by the coordinator as the batches merge)

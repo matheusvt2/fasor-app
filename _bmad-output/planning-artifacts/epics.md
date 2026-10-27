@@ -3373,6 +3373,8 @@ So that the next job with a no-break or a chave ASCO is recorded in the relatór
 
 *(2026-10-21, Bruno via Matheus, answer 13: Bruno already has real jobs to test with as soon as the library types are released to him in the app (v0.2.3 carries the CTA and the Quadro elétrico). The wave-3 gate (two or three real relatórios on the library types, E14-A12) starts counting the day Bruno gets access to production; each job is recorded here, dated, as E14-A12 says. Nothing in this story starts before the count is met.)*
 
+*(2026-10-27, Bruno via Matheus, answer 9 to the 2026-10-26 list: ok to the count; he reports each real relatório done in the app as it happens. No job recorded yet.)*
+
 *(2026-10-21, Bruno via Matheus, answer 9: the office can rename an equipment type. This belongs to Stories 14.6 and 14.7: the type's on-screen name (its label) is company data the office edits, on a company type as one of its fields. Whether a library type (the eight, the CTA, the Quadro elétrico) is renamed in place, as a company-scoped name over the frozen seed label, or only through "Duplicar", is settled by this story's `bmad-architecture` step with the AD-21 amendment (default: through "Duplicar", since library types are read-only in Story 14.7's list). The TAG prefix and IDENTIFICAÇÃO stay as they are; no per-equipment screen label is added (answer 8, Story 14.9).)*
 
 **Dev model:** opus · **Effort:** max · opens the closed type enums, threads a resolver context through every definition lookup and `applyOp`, and keeps replay byte-equal
@@ -3947,6 +3949,8 @@ Decisions (Matheus, 2026-10-22): proceed on the defaults named under each story 
 
 **Bruno's answers (2026-10-22, relayed by Matheus, same day):** (1) confirmed; (2) ok; (3) TP and TC stay as they are, the transformador de força always uses the √3 formula; (4) yes, back to the Sumário; (5) the way into the site checklist must be more didactic and intuitive in the activity flow, "similar to the equipment"; (6) equipment in cards; (7) the TC gets a checklist of its own, which Bruno will review and send, to be asked for at the next interaction. Effects: 15.3, 15.4 and 15.6 keep their defaults (Definition of Ready met); 15.1 and 15.2 change (equipment rows become cards, and the Verificações do local is drawn and built as a card like an equipment's, first in its local); new Story 15.7 waits for Bruno's TC list.
 
+*(2026-10-27, Bruno via Matheus, answer 6 to the 2026-10-26 list: a ratio row INSATISFATÓRIO must feed the conclusion suggestion. E15-A2 decided; built as Story 17.5. Answer 8 of the same list meets Story 15.7's Definition of Ready, recorded under it.)*
+
 ### Story 15.1: The mocks for the tree levels
 
 **Dev model:** opus · **Effort:** medium · mock HTML from the existing tokens and components, no app code; DESIGN.md and EXPERIENCE.md amendments
@@ -4174,6 +4178,8 @@ So that I am not marking NA a transformer's valves, fans and radiators on every 
 
 *(Definition of Ready: Bruno's TC list recorded under this story with its date (items in order, which are oil items, which subtypes mark NA); the NC phrases authored in the story spec and listed for Bruno; the next seed and contract numbers fixed in the story spec; Story 15.3 merged (v9).)*
 
+*(2026-10-27, Bruno via Matheus, answer 8: the TC list is the one of the spreadsheet sent on 2026-10-15 and again today (`docs/context/FO.SERV-03 Relatórios-Complemento.xlsx`, sheets "Tranformador Corrente Medição" and "Tranformador Corrente Proteção", identical): 1. LIMPEZA, PINTURA E CORROSÃO; 2. VASAMENTO; 3. FUSÍVEIS; 4. ATERRAMENTO; 5. CONEXÕES; 6. FIAÇÃO SECUNDÁRIA; 7. BUCHAS. The spreadsheet lacks the TC's ratio test, as he notes; the app's TC keeps its ratio table (his answer 3 of 2026-10-22). Defaults taken (Matheus): the only oil item is "VASAMENTO" (item 2), marked NA by the `epoxi` and `a_seco` subtypes and named by `oil_rule.items`; the spelling "VASAMENTO" prints as the spreadsheet has it (Epic 17 confirmation 4); the NC phrases are authored in the batch spec and listed in `docs/nc-chip-phrases.md` for Bruno; seed v10 with contract 27 (minimum 27), shared with Story 17.6 in batch e17c. Definition of Ready met; scheduled in Epic 17 wave B.)*
+
 **Acceptance Criteria:**
 
 **Given** seed v10
@@ -4198,6 +4204,8 @@ Bruno's messages of 2026-10-23 (11:31 and 13:03 BRT), against production v0.3.0 
 Decisions (Matheus, 2026-10-23): proceed on the defaults named under each story; the two questions below go to Bruno with the next message, and an answer that differs from a default becomes a dated line under its story before the batch that builds it merges. No story changes seeds v1 to v9. Waves: **A**, now, two lanes: e16a = 16.1 alone (the logo; Bruno is waiting to send the relatório; deployed as v0.3.2 as soon as its gate is green), e16b = 16.2 + 16.3 (kernel text and print, the Export dialog; no contract change); **B**: e16c = 16.4 (contract 26, minimum 26) after wave A's gate. The 2026-10-08 story gate applies to every story; the full `@p0`, `test:e2e:full` and the matrix run once per wave on the integrated main.
 
 **Questions for Bruno (2026-10-23, pt-BR, by Matheus):** (1) the "Ler visor" display shots (the instrument screen photos the reading comes from) leave the REGISTRO FOTOGRÁFICO and print only under their test in RELATÓRIOS DOS ENSAIOS, without an "Imagem N" number (default taken in 16.3); or should they not print at all? (2) the spelling of the not-applicable value in a number field: "N.A" as he wrote, or "NA" as the checklist prints Não Aplicável (default "N.A", 16.4)?
+
+**Bruno's answers (2026-10-27, relayed by Matheus, to the list of ten questions sent on 2026-10-26 after v0.3.3):** (1) display shots stay under their test but must be numbered; (2) the spelling is "N/A"; (3) a clickable N/A option beside the field; (4) Altitude do site also takes N/A, or pulls the value from the phone's position; (5) a point citing a display shot prints the caption; (6) a failed ratio feeds the conclusion suggestion; (7) the logo is whole in Word; (8) the TC checklist is in the spreadsheet sent before (`docs/context/FO.SERV-03 Relatórios-Complemento.xlsx`, the two "Tranformador Corrente" sheets, seven items; he notes the spreadsheet lacks the TC's ratio test, which the app keeps); (9) ok to the two-or-three real jobs gate of Epic 14 wave 3; (10) the ten-minute tablet session this afternoon. Effects: 16.1 closes (the Word look confirmed); 16.3 is amended by Story 17.4 (the numbers return, and with them section 8 prints "Imagem N" again, so answer 5 is met through answer 1 and "imagem removida" remains only for a photo deleted after it was cited); 16.4's spelling and the N/A control become Story 17.3 (E16-A1, QA G1) and the altitude Story 17.6 (QA G3); E15-A2 becomes Story 17.5; Story 15.7's Definition of Ready is met and it is scheduled in Epic 17's wave B. The same message carries two new items, Stories 17.1 and 17.2 (with 17.7), under Epic 17.
 
 ### Story 16.1: The header logo fits its cell
 
@@ -4226,6 +4234,8 @@ So that the document goes out without a cut logo.
 **Then** the plain header is byte-for-byte as today and the Porto Seguro golden documents still match
 
 **Definition of Done, in addition:** `docx.test.ts` "A11" gains a wide-logo case that reads `wp:extent` (EMU, 635 per twip) and the cell's `w:tcW` and asserts the inequality above, and a tall-logo case for the height cap; the preview of the dev company with a wide logo looked at once in Word or LibreOffice (screenshot in the PR); the `deferred-work.md` A11 row gains the closing note; deployed as v0.3.2 after its gate (Bruno waits on it); `docs/kbs/log.md` line.
+
+*(2026-10-27, Bruno via Matheus, answer 7: the logo is whole in Word in the relatório he sent on; the "Word look pending" of E16-A7 closes.)*
 
 ### Story 16.2: A revision older than the edits says so
 
@@ -4277,15 +4287,15 @@ So that the record reads as FO.SERV-03's and the display shots stay with their t
 
 **Given** a relatório with photos of which some carry `reading_kind: 'display'`
 **When** `numberPhotos` runs and the document prints
-**Then** the display shots get no number, the other photos number 1, 2, 3… with no gap, section 7 lists only the numbered photos, section 8's "conforme Imagem N" and the audit's references resolve on the same numbers, and the Porto Seguro golden documents still match (AD-17; FR-68)
+**Then** ~~the display shots get no number, the other photos number 1, 2, 3… with no gap, section 7 lists only the numbered photos,~~ *(2026-10-27, Bruno's answer 1, Story 17.4: every live photo numbers in one sequence in document order, display shots included; section 7 lists the "Geral" photos of Story 17.1 only)* section 8's "conforme Imagem N" and the audit's references resolve on the same numbers, and the Porto Seguro golden documents still match (AD-17; FR-68)
 
 **Given** a sheet with a display shot
 **When** its RELATÓRIO DOS ENSAIOS prints
-**Then** the shot prints after the test tables where it prints today, its line the caption sentence alone ("⟨legenda⟩." or, uncaptioned, the full stamp), never "Imagem N:"; a sheet without display shots prints as today
+**Then** the shot prints after the test tables where it prints today, ~~its line the caption sentence alone ("⟨legenda⟩." or, uncaptioned, the full stamp), never "Imagem N:"~~ *(2026-10-27, Story 17.4: its line "Imagem N: ⟨legenda⟩." again)*; a sheet without display shots prints as today
 
 **Given** the gallery, the sheet strip, the caption dialog and the point editor
 **When** they show a display shot
-**Then** it carries no number badge and no "Imagem N" words, the point editor's photo picker does not offer it, and the other photos' numbers match the document; a caption saved on a display shot toasts without a number (`captionSavedText(null)`)
+**Then** ~~it carries no number badge and no "Imagem N" words, the point editor's photo picker does not offer it,~~ *(2026-10-27, Story 17.4: it carries its number badge and the picker offers it)* and the other photos' numbers match the document; ~~a caption saved on a display shot toasts without a number (`captionSavedText(null)`)~~ *(2026-10-27, Story 17.4: the caption toast carries its number)*
 
 **Given** a display shot removed or restored
 **When** the numbers recompute
@@ -4294,6 +4304,8 @@ So that the record reads as FO.SERV-03's and the display shots stay with their t
 **Definition of Done, in addition:** kernel tests for `numberPhotos`, `section7Photos`, `sheetPhotos` and `points/refs.ts` with a display shot among numbered photos; a Playwright spec takes a "Ler visor" burst on a measurement cell, captures a site photo, checks the badges, generates the preview and asserts section 7's count and section 9's line (through the PDF text, as `export-visual.spec.ts` does); `glossary.md` gains "display shot"; `source-deltas.md`, `docs/kbs/log.md` lines.
 
 *(2026-10-26, PR #181, batch e16b, merged as bc9e31df)* Built on the default (display shots print under their test, no number). Narrowing: the audit labels a display shot "Foto". Open question for Matheus: a point that cited a display shot before 16.3 now prints "imagem removida" in section 8; acceptable, or should the reference print the caption sentence? Known open (deferred-work): a relatório whose latest revision predates 16.3 and holds display shots shows gallery numbers frozen from that revision while its document no longer matches; it corrects at the next revision.
+
+*(2026-10-27, Bruno via Matheus, answers 1 and 5: the display shots stay under their test but carry a number, and a point that cites one prints its caption. Recorded as Story 17.4: the numbering half of this story is reversed there (criteria amended above with strike-through), the print place stands, and the cited display shot resolves as "Imagem N" again, which meets answer 5; "imagem removida" remains only for a photo deleted after it was cited (E16-A2 closed).)*
 
 ### Story 16.4: "N.A" in a nameplate or cabine number field (contract 26)
 
@@ -4332,6 +4344,233 @@ So that the printed sheet says the plate has no such value rather than "-", and 
 **Definition of Done, in addition:** `numberValueSchema` extended and `contract/version.ts` gains entry 26 with the reasons above; kernel tests over every reader listed in Today with a `not_applicable` value; `ficha-fields.test.tsx` types the four spellings; a Playwright spec types "n.a" on a TP's POTÊNCIA NOMINAL, sees "N.A" after blur, generates the preview and finds "N.A" in the PDF text; `source-deltas.md` row on the AD-11 value shape, `glossary.md` ("N.A"), `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` lines; the authored "N.A" spelling listed in the PR for Bruno.
 
 *(2026-10-26, PR #183, batch e16c, merged as 5cece708)* Built on the defaults; contract 26, minimum 26. Narrowings: N.A is accepted only by the nameplate and cabine fields through an opt-in `acceptsNotApplicable` flag; measurement values and the plate suggestion's editable guess keep refusing it; "Copiar da cabine anterior" is not offered when the previous cabine's temperature or humidity is N.A. Open for Matheus: on a tablet's soft keyboard N.A cannot be typed, because the number input asks for the decimal keypad (`inputMode: 'decimal'`), so today only a desktop or a hardware keyboard reaches it; a text keypad or an "N.A" control is a product choice (deferred-work, medium). Patched after the review and not re-reviewed: the guard that keeps N.A out of measurement fields.
+
+*(2026-10-27, Bruno via Matheus, answers 2, 3 and 4: the spelling is "N/A"; a clickable option beside the field; Altitude do site also takes N/A or comes from the phone's position. Recorded as Story 17.3 (the "N/A" control and the printed spelling, no contract; E16-A1 closed) and Story 17.6 (the altitude, contract 27 with seed v10; QA G3). The accepted typings stay.)*
+
+## Epic 17: Bruno's answers and third production feedback (WhatsApp of 2026-10-27)
+
+Bruno's WhatsApp message of 2026-10-27 (early afternoon), relayed by Matheus the same day, answers the ten questions sent on 2026-10-26 after v0.3.3 and adds two items of its own. The answers are recorded under their stories (Epic 15 and Epic 16 preambles, Stories 15.7, 16.1, 16.3 and 16.4) and land here as Stories 17.3 to 17.6; the two new items are Stories 17.1 and 17.2, with 17.7 as the honest answer to "saved on the device". The attached spreadsheet "FO.SERV-03 Relatórios-Complemento.xlsx" is, cell by cell, the one already in `docs/context/` since 2026-10-15 (cited by path, never copied). The two new items, in his words: *"As imagens do 'Item 07 - Registro Fotográfico' devem ser inseridas manualmente e registrar exclusivamente a execução dos serviços gerais. Exemplos incluem: aterramento temporário, verificação de ausência de tensão, limpezas, reapertos e ensaios. Atenção: Fotos específicas de cada equipamento ou das verificações de campo devem permanecer vinculadas apenas aos seus respectivos itens, sendo proibida a inclusão delas no Item 07."* and *"Corrija o erro no aplicativo onde as fotos tiradas pela câmera não estão sendo salvas no dispositivo. Além disso, implemente ou verifique a viabilidade de alterar o código para abrir o aplicativo de câmera nativo do dispositivo (Android/iOS), permitindo que o usuário aproveite os recursos de hardware do celular, como diferentes lentes, modos de flash e configurações nativas."*
+
+Investigated 2026-10-27 by Matheus with the agent against main `e2023853` (v0.3.3 plus the Epic 16 records):
+
+- Section 7 prints every live photo but the display shots, whatever it is linked to: `section7Photos` (`packages/domain/src/print/section-7.ts` lines 55 to 73) walks `livePhotos` and keeps every photo `numberPhotos` numbered, and `numberPhotos` (`photos/numbering.ts` lines 28 to 34) numbers every live photo except `reading_kind: 'display'`, in capture order. A photo's place is only its `block_id`, `item_key` and `location_id`: the gallery's "Geral" target (`gallery-surface.tsx` `GERAL_TARGET`, `blockId: null`) is the one way to add a photo linked to nothing. Section 9 already prints every sheet's photos under the sheet and every local's site-item photos under the local (`print/section-9.ts` `contextOf`, `photos` and `sitePhotos` maps), so today a sheet photo prints twice: in section 7 and under its sheet. The Porto Seguro fixture's 82 photos are all "Geral" (no block, no local, no item, no reading kind), so the goldens do not exercise the double print.
+- "Photos are not saved on the device" is the design, not a fault: a shot is re-encoded to JPEG on the device (AD-7, `files/photo-encode.ts`, long edge 2560 px) and written to IndexedDB (`db/commit.ts` `commitPhotoBatch`, tables `files` and `thumbs`) in the same transaction as its op, uploaded with `PUT /api/files/{id}` (`sync/client.ts` `uploadFile`), and the local original is evicted once acked (`db/file-store.ts`, `sync/engine.ts`). Nothing writes to the device's photo gallery or filesystem: no `navigator.share` of a photo, no download anchor, no File System Access API, no manifest or `share_target` (AD-8, `apps/web/public/sw.js`); `saveFile`/`shareFile` (`surfaces/export/revision-file.ts`) exist for the DOCX and PDF only. The copy says otherwise: the camera count line "salva(s) neste aparelho com a legenda do contexto" (`packages/domain/src/photos/text.ts` lines 19 to 20) and the toast "Fotos salvas neste aparelho — entram na fila de envio" (`copy/pt-br.ts` lines 879 to 883) read as "in the phone", while they mean the browser's store. The web platform cannot promise a photo in the gallery: Android Chrome's and iOS Safari's camera intents return the file to the page without adding it to the gallery (some vendor camera apps keep a copy, none is required to).
+- The camera is the app's own: `useCamera` (`surfaces/ficha/camera-session.tsx`, `camera-stream.ts`) opens `getUserMedia` with `facingMode: 'environment'`, ideal 3840x2160 and `zoom: true` (Story 13.1) into the viewfinder dialog "Câmera" with "Disparar" and "Concluir fotos" (burst), torch, zoom and tap-to-focus (Story 13.2); the single-shot openers use `ImageCapture.takePhoto()` with a 2 s fallback to the frame at the tap. The device's camera app is reached today only as the fallback when there is no camera API or it fails with anything but a denial: the hidden `<input type="file" accept="image/*" capture="environment">` of `useCameraPicker` (`camera-single-shot.tsx` lines 106 to 153, `data-testid="camera-fallback-input"`), one shot, which `durability.spec.ts` and `photo-zoom.durability.spec.ts` exercise by removing `mediaDevices`. Every opener ("Tirar foto" on the sticky bar, "Adicionar foto" on an NC row, "Fotografar placa", "Ler visor", "Fotografar equipamento", the gallery's camera) goes through `useCamera`, so one switch covers them all. EXPERIENCE.md line 274 and FR-43 / UX-DR17 / Story 6.1 AC say "`capture` attribute, no chooser"; the viewfinder came in with the Story 6.1 implementation spec (`spec-6-1-6-2-photo-capture-and-durability.md` line 31) and was never recorded as a source delta. "Adicionar fotos" (the gallery picker, `accept="image/*,.heic,.heif"`, no `capture`) is unchanged by any story here.
+- The ratio row's `condicao` (`relatorio/reading-evaluation.ts`, F42: INSATISFATÓRIO when any capture is out of the criterion) is read by `ensaios-section.tsx` and `print/section-9.ts` only; `suggestConclusionPair` (`relatorio/conclusion.ts`) reads the NC items and the `out` verdicts of `evaluateSheetReadings` and `evaluateSheetMeasurements`, so whether a ratio capture's `out` reaches it is the first thing Story 17.5 verifies; `parecerCounts` (`relatorio/parecer.ts`) counts `withRestriction` from the stored conclusion, and the pre-issue `conclusion_stale` row compares the composed basis.
+- "N.A" is one constant, `NOT_APPLICABLE_TEXT` in `parse/pt-br-number.ts` (Story 16.4), read by every screen and print reader; the accepted typings already include `N/A`. "Altitude do site" (Etapa 5) is `site_altitude_m: z.number().int().nullable()` plus `site_altitude_confirmed` (`schemas/entities.ts` lines 340 to 342), prefilled once per relatório from `getCurrentPosition().coords.altitude` (`setup/altitude-reading.ts`, Story 4.2), which many Android browsers answer `null` without a GPS fix; the field then sits empty with no word and refuses N.A (QA G3).
+- The TC checklist Bruno points to is the two "Tranformador Corrente" sheets of the spreadsheet (seven items, rows 10 to 16): 1. LIMPEZA, PINTURA E CORROSÃO; 2. VASAMENTO; 3. FUSÍVEIS; 4. ATERRAMENTO; 5. CONEXÕES; 6. FIAÇÃO SECUNDÁRIA; 7. BUCHAS. Its "ENSAIO DE RELAÇÃO" is absent from the spreadsheet, as he notes; the app's TC keeps its ratio table (his answer 3 of 2026-10-22). The item spelling "VASAMENTO" is the spreadsheet's; the seed prints Bruno's words verbatim, so it stays unless he corrects it.
+
+**Decisions (Matheus, 2026-10-27):** proceed on the defaults named under each story; the six confirmations below go to Bruno at this afternoon's tablet session (his answer 10), and an answer that differs becomes a dated line under its story before the batch that builds it merges. Numbers fixed here: seed v10 and contract 27 (minimum 27) belong to batch e17c (Stories 15.7 and 17.6) and to no other batch; Stories 17.1, 17.3, 17.4 and 17.5 change no contract. Waves: **A**, now, two stacks: e17a = 17.1 + 17.4 (one branch, the print and numbering files are shared), e17b = 17.3 + 17.5 (two lanes, no shared files); after wave A's gate, a deploy as v0.3.4 (Bruno sees the numbers, the N/A control and section 7 at once); **B**: e17c = 15.7 + 17.6 (seed v10, contract 27, one branch), e17d = 17.2 + 17.7 (the camera app and the saved photo, one branch) after Matheus confirms the camera default below; deployed as v0.4.0 after wave B's gate (contract bump). The 2026-10-08 story gate applies to every story; the full `@p0`, `test:e2e:full` and the matrix run once per wave on the integrated main. Epic 14 wave 3 stays behind its two-or-three-real-jobs count (Bruno's answer 9: ok).
+
+**Confirmations for Bruno (2026-10-27, pt-BR, by Matheus at the tablet session):** (1) the photo numbers run in document order: the REGISTRO FOTOGRÁFICO first (1, 2, 3…), then each sheet's photos where the sheet prints, display shots included (17.1, 17.4); (2) on a phone or tablet every camera button opens the device's camera app, one photo per tap, and the in-app viewfinder stays for the computer and as a switch in Conta (17.2); (3) the web app cannot put a photo in the phone's gallery by itself; each photo gets "Salvar no aparelho" instead (17.7); (4) the TC checklist's only oil item is "VASAMENTO", marked NA on an epóxi or a seco TC, and "VASAMENTO" is printed as the spreadsheet spells it (15.7); (5) the N/A control is a small button at the end of the field, and "N/A" is printed everywhere, including the relatórios already typed with "N.A" (17.3); (6) a ponto de atenção that cites a photo deleted since keeps printing "imagem removida" (there is no caption left to print); a cited display shot prints "Imagem N" again (17.4).
+
+### Story 17.1: The REGISTRO FOTOGRÁFICO holds only the photos added to it by hand
+
+**Dev model:** opus · **Effort:** medium · kernel print and numbering: `print/section-7.ts`, `photos/numbering.ts` (document order), the gallery's "Geral" wording; the goldens stay (all 82 fixture photos are "Geral")
+
+As Bruno reading the REGISTRO FOTOGRÁFICO,
+I want it to hold only the photos of the general services (aterramento temporário, ausência de tensão, limpezas, reapertos, ensaios) that the engineer put there,
+So that an equipment's or a local's photos print only under their own item, as FO.SERV-03 does.
+
+**Today (verified 2026-10-27 in the code of main `e2023853`):** see the first investigation bullet of the epic: section 7 prints every numbered live photo; a sheet's or a local's photo prints there and again under its sheet or local in section 9; numbers follow capture order.
+
+*(Definition of Ready: defaults taken on 2026-10-27 (Matheus): a "Geral" photo is one with `block_id`, `item_key` and `location_id` all null and `reading_kind` null; section 7 lists only those; the one numbering sequence follows document order (section 7's photos in capture order, then section 9's photos in the order the document prints them); confirmation 1 is out.)*
+
+**Acceptance Criteria:**
+
+**Given** a relatório with "Geral" photos and photos on sheets, NC rows, plates, panels and site items
+**When** the document prints
+**Then** section 7 lists the "Geral" photos only, in their numbered order, and every other photo prints only where it prints today (under its sheet or its local in section 9), never in section 7; a relatório with no "Geral" photo prints section 7 as an empty one prints today; the Porto Seguro golden documents still match (FR-68; AD-17)
+
+**Given** the same relatório
+**When** `numberPhotos` runs
+**Then** every live photo holds one number in one sequence: section 7's photos first in capture order, then section 9's photos in document order (local by local, sheet by sheet, each sheet's photos as section 9 orders them); section 8's "conforme Imagem N", the audit's references, the gallery's and the sheet strip's badges and the caption toast read the same numbers; the numbers frozen by a revision keep the rule in force when it was issued (AD-1; AD-15)
+
+**Given** the gallery's "De qual equipamento?" batch and the gallery camera
+**When** they name the "Geral" target
+**Then** the wording says where those photos print (authored: "Geral — Registro fotográfico (serviços gerais)" and one note line under the gallery camera), from `copy/pt-br.ts`, listed in the PR for Bruno
+
+**Definition of Done, in addition:** kernel tests for `section7Photos` and `numberPhotos` with photos of every link kind; a Playwright spec takes one gallery "Geral" photo and one sheet photo, generates the preview and asserts section 7's count and the sheet photo's single print and number through the PDF text; `source-deltas.md` row (AD-17 "a photo linked to a sheet prints here too" ends), `glossary.md` ("Geral photo"), `docs/kbs/log.md` line.
+
+### Story 17.2: The device's camera app takes the photos
+
+**Dev model:** opus · **Effort:** high · the capture-input path becomes the default on touch devices behind a device-local preference; every opener, the copy that says "neste aparelho", EXPERIENCE.md amendment; no kernel shape, no contract
+
+As Bruno photographing a plate, an NC or a visor on his phone,
+I want the camera button to open the phone's own camera app,
+So that I get its lenses, flash modes, HDR and focus, and the photo lands in the relatório as it does today.
+
+**Today (verified 2026-10-27 in the code of main `e2023853`):** see the third investigation bullet of the epic: the in-app viewfinder is the only path while `getUserMedia` exists; the `capture` input is the fallback, one shot, already wired into every opener through `useCamera` and already exercised by the durability specs.
+
+*(Definition of Ready: defaults taken on 2026-10-27 (Matheus): a device-local preference "Câmera do aparelho" (AR-27 `local_prefs`, Conta) on by default when the device has touch points (`navigator.maxTouchPoints > 0`) and off on a desktop; with it on, every opener uses the `capture` input and the viewfinder never opens; burst openers take one photo per tap; the viewfinder with its torch, zoom and focus (13.2) stays as the off state; the capture pipeline (EXIF, encode, coordinates, rescue, outbox, upload) is untouched; the copy "salva(s) neste aparelho" becomes "salva(s) no relatório"; confirmation 2 is out.)*
+
+**Acceptance Criteria:**
+
+**Given** a phone or tablet with the preference on (the default there)
+**When** "Tirar foto", an NC row's "Adicionar foto", "Fotografar placa", "Ler visor", "Fotografar equipamento" or the gallery camera is tapped
+**Then** the device's camera app opens through the existing `capture="environment"` input with no chooser and no viewfinder dialog, the photo it returns runs the pipeline as a viewfinder shot does (same op, same `reading_kind`, same coordinates rule, same toast and badge), a HEIC answer takes the import path's conversion, and a cancelled camera app leaves the button at rest with no error (FR-43; AD-7)
+
+**Given** a burst opener ("Tirar foto", the NC row, "Ler visor") on such a device
+**When** the engineer wants several photos
+**Then** each tap opens the camera app once and returns to the sheet with the count toast ("1 foto salva no relatório…"); nothing waits for "Concluir fotos"
+
+**Given** the preference off, or a desktop
+**When** any opener is tapped
+**Then** the in-app viewfinder opens as today, with burst, torch, zoom and focus unchanged, and the no-camera fallback stays as it is
+
+**Given** Conta
+**When** it renders on any device
+**Then** a switch "Câmera do aparelho" (authored, with one description line) shows the device's current state and changes it on this device only, kept across reloads like the theme (`local_prefs`)
+
+**Given** the camera count line and the saved toasts
+**When** they render on any path
+**Then** they say "no relatório", never "neste aparelho" (`photos/text.ts`, `copy/pt-br.ts`), and `e2e/support/photos.ts` `shoot()` reads the new words
+
+**Definition of Done, in addition:** `camera-view.test.tsx` and a new preference test cover the choice; a Playwright spec on `durability-android-chrome` (touch points) feeds `camera-fallback-input` on each opener above and on `desktop-chrome` sees the viewfinder; the Conta switch in a spec; EXPERIENCE.md line 274 and DESIGN.md line 805 amended with strike-through and the date; `source-deltas.md` row recording both the 2026-09 viewfinder choice (Story 6.1 spec) and this one; the authored strings listed for Bruno; `docs/kbs/log.md` line. Out of scope: the gallery copy of a photo (Story 17.7).
+
+### Story 17.3: "N/A" from a control beside the field, printed "N/A"
+
+**Dev model:** opus · **Effort:** medium · one printed constant, one control on the `acceptsNotApplicable` fields, QA G1; no contract (the stored state is unchanged; a device on contract 26 shows "N.A" until it reloads)
+
+As Bruno on the tablet,
+I want a N/A button beside a plate or cabine number field, and the value spelled "N/A",
+So that I can mark a value not applicable without a keyboard that has letters.
+
+**Today (verified 2026-10-27 in the code of main `e2023853`):** `NOT_APPLICABLE_TEXT` is "N.A" (`parse/pt-br-number.ts` line 143) and the typed spellings already include `N/A`; `NumberField` and the cabine fields take N.A only through the `acceptsNotApplicable` opt-in (`number-input.tsx`, Story 16.4) and ask for `inputMode: 'decimal'`, which has no letters on a soft keyboard (E16-A1); QA G1: the keep button of a Desfazer-less N.A field carries the old name.
+
+*(Definition of Ready: Bruno's answers 2 and 3 of 2026-10-27 recorded under Story 16.4; defaults taken (Matheus): a small secondary button "N/A" at the trailing end of every `acceptsNotApplicable` field (DESIGN.md secondary Button, 44 px target), a tap commits the `not_applicable` put exactly as typing does and the field shows "N/A" at rest; typing a number over it commits the number; the control is hidden while the field holds N/A; confirmation 5 is out.)*
+
+**Acceptance Criteria:**
+
+**Given** a nameplate or cabine number field that accepts N/A, on a 390, 768 and 1280 px viewport
+**When** the engineer taps its "N/A" control
+**Then** the field commits `{ raw: '', unit: null, state: 'not_applicable' }` through the same put as the typed spelling, shows "N/A" at rest, the control hides, the next missing field is not skipped nor focused (as a typed commit behaves today), and the Desfazer rule of Story 16.4 is unchanged (FR-61; AD-11)
+
+**Given** a field holding N/A
+**When** the engineer types a number, or clears it
+**Then** the number commits as today and the control shows again
+
+**Given** any reader of `NOT_APPLICABLE_TEXT`
+**When** the sheet, the cabine lines, the Sumário, the conflicts dialog, the audit and the document render
+**Then** they print "N/A" (no unit), including relatórios whose value was typed as "N.A" before (the stored state carries no spelling); measurement cells still refuse it
+
+**Given** a tablet soft keyboard
+**When** the field is focused
+**Then** the decimal keypad still comes up (`inputMode` unchanged); N/A needs no letters
+
+**Definition of Done, in addition:** `pt-br-number.test.ts`, `ficha-fields.test.tsx` and the readers' tests updated to "N/A"; `na-number-field.spec.ts` extended on `desktop-chrome` and `durability-android-chrome` (tap the control, see "N/A", PDF text "N/A"); QA G1's keep-button name fixed with it; `glossary.md` "N.A" row amended with strike-through; `source-deltas.md` row; `docs/kbs/log.md` line; the authored control label and description listed for Bruno.
+
+### Story 17.4: Display shots keep their number
+
+**Dev model:** opus · **Effort:** medium · reverses the numbering half of Story 16.3: `photos/numbering.ts`, `print/section-9.ts` display line, the badges and the point picker; the print place (under the test, never in section 7) stands
+
+As Bruno reading a sheet's RELATÓRIO DOS ENSAIOS,
+I want the instrument display photos numbered like every other photo,
+So that a ponto de atenção or a reader can point at "Imagem 12" and find it under the test.
+
+**Today (verified 2026-10-27 in the code of main `e2023853`):** `numberPhotos` skips `reading_kind: 'display'`; section 9's display line prints the caption sentence alone; the gallery, the sheet strip, the caption dialog and the point editor hide the number and the picker does not offer a display shot; section 8 prints "imagem removida" for a point that cited one (Story 16.3 as built, PR #181).
+
+*(Definition of Ready: Bruno's answers 1 and 5 of 2026-10-27 recorded under Story 16.3; defaults taken (Matheus): display shots number in the one sequence of Story 17.1, in document order (under their test); section 9 prints "Imagem N: ⟨legenda⟩." as before 16.3; `REMOVED_PHOTO_REF_TEXT` stays for a photo deleted after it was cited; confirmation 6 is out.)*
+
+**Acceptance Criteria:**
+
+**Given** a sheet with display shots among its photos
+**When** `numberPhotos` runs and the document prints
+**Then** the display shots hold numbers in the single sequence (where they print, under their test), section 9 prints each as "Imagem N: ⟨legenda⟩." (uncaptioned: "Imagem N: ⟨full stamp⟩."), section 7 never lists them (they carry a `block_id`, Story 17.1), section 8 and the audit resolve a cited display shot as "Imagem N", and the Porto Seguro goldens still match (AD-17; FR-68)
+
+**Given** the gallery, the sheet strip, the caption dialog and the point editor
+**When** they show a display shot
+**Then** it carries its number badge, the point editor's picker offers it, and a caption saved on it toasts with its number (`captionSavedText(n)`)
+
+**Given** a display shot removed or restored
+**When** the numbers recompute
+**Then** the later photos renumber as any removed photo makes them (the 16.3 "never shifted" rule ends with the 16.3 exclusion)
+
+**Definition of Done, in addition:** the 16.3 kernel tests and `display-shots.spec.ts` amended to the new rule, not duplicated; the audit label of a display shot kept; `glossary.md` "display shot" amended with strike-through; `source-deltas.md` row amending the 16.3 row; `docs/kbs/log.md` line; Story 16.3's first and third criteria amended in this document with strike-through and the date.
+
+### Story 17.5: A failed ratio feeds the conclusion suggestion, the pre-issue rows and the parecer count
+
+**Dev model:** opus · **Effort:** medium · kernel: `relatorio/conclusion.ts`, `reading-evaluation.ts`, `pre-issue.ts`, `parecer.ts`; closes E15-A2 and the UX-pass F42 deferred row
+
+As Bruno concluding a transformer sheet,
+I want a ratio row INSATISFATÓRIO to pull the suggestion to "Aprovado · Com restrições?" and to count in the parecer,
+So that a sheet is never suggested "Sem restrições" over a failed ratio.
+
+**Today (verified 2026-10-27 in the code of main `e2023853`):** see the fourth investigation bullet of the epic; the deferred row "A ratio row's INSATISFATÓRIO verdict feeds only the screen and the printed sheet" (`deferred-work.md`, UX pass 2026-10-22, review finding 7).
+
+*(Definition of Ready: Bruno's answer 6 of 2026-10-27 ("deve puxar a sugestão") recorded in the Epic 15 preamble; no default open.)*
+
+**Acceptance Criteria:**
+
+**Given** a sheet whose ratio table has a row INSATISFATÓRIO and no other finding
+**When** the suggestion row, the restriction warning and the composed conclusion render
+**Then** the suggestion is "Aprovado · Com restrições?", the warning names the ratio row (authored sentence, listed for Bruno), the composed conclusion's basis includes it, and a sheet with every row SATISFATÓRIO suggests as today (FR-71; AD-1)
+
+**Given** a sheet concluded "Aprovado · Sem restrições" whose ratio row later turns INSATISFATÓRIO
+**When** the pre-issue question runs
+**Then** the existing `conclusion_stale` row names the sheet, as it does for a checklist NC added after the conclusion
+
+**Given** the parecer band
+**When** its counts and hint compose
+**Then** a sheet concluded with restriction over a failed ratio counts in `withRestriction` as any restricted sheet, and the Critérios line names the ratio among the items
+
+**Definition of Done, in addition:** kernel tests over `suggestConclusionPair`, `restrictionWarning`, `composeConclusion`, the pre-issue row and `parecerCounts` with a failed ratio; a Playwright spec types a TP ratio out of criterion and reads the suggestion row; the deferred row closed with the date; `docs/kbs/log.md` line.
+
+### Story 17.6: "Altitude do site" takes N/A and says when the device gave none (contract 27)
+
+**Dev model:** opus · **Effort:** medium · the relatório's site altitude gains a not-applicable flag (contract 27, minimum 27, shared with seed v10 in batch e17c); Etapa 5 uses the N/A control of Story 17.3 and says when the device answered no altitude; closes QA G3
+
+As Bruno in Etapa 5 on his phone,
+I want the altitude to come from the phone's position, and N/A when it cannot,
+So that the relatório's altitude is never a blank nobody explained.
+
+**Today (verified 2026-10-27 in the code of main `e2023853`):** see the fifth investigation bullet of the epic: the once-per-relatório position request exists (Story 4.2) and many devices answer no altitude; the field is a native number input and refuses N.A; the sheet's read-only Altitude mirrors it.
+
+*(Definition of Ready: Bruno's answer 4 of 2026-10-27 recorded under Story 16.4; defaults taken (Matheus): `site_altitude_na: boolean` (default false) beside `site_altitude_m`, so a relatório on an older bundle keeps parsing its own fields and the server raises the minimum to 27 with seed v10 (Story 15.7, same batch); the Etapa 5 field gets the "N/A" control of 17.3; when the device answered no altitude the field shows an authored hint ("O aparelho não informou a altitude: digite o valor ou marque N/A"); printed "N/A" in the cabine line and the document; the contract and minimum numbers fixed in the batch spec as 27.)*
+
+**Acceptance Criteria:**
+
+**Given** Etapa 5 on a device whose position answer carries no altitude
+**When** the step renders
+**Then** the altitude field is empty with the authored hint under it and the "N/A" control beside it; a device that answered an altitude prefills it as today (FR-44; AD-11)
+
+**Given** the "N/A" control tapped, or a value typed over an N/A
+**When** the relatório saves
+**Then** `site_altitude_na` and `site_altitude_m` change through the existing setup put, the step counts the field as filled, the sheet's read-only Altitude and the cabine line show "N/A", and the document prints "N/A" in the altitude's place
+
+**Given** a device on contract 26
+**When** it pulls a relatório with `site_altitude_na: true`
+**Then** it shows the field empty and never throws, and the server answers its next pull 426 so it reloads to 27 (AD-26)
+
+**Definition of Done, in addition:** `contract/version.ts` entry 27 (with seed v10's reasons, one entry for the batch); kernel tests over the schema, the cabine line and the print; `setup-surface.test.tsx` for the hint and the control; a Playwright spec on `durability-android-chrome` with a stubbed position without altitude; `source-deltas.md` row, `glossary.md` "N.A" row cross-reference, `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` lines; the authored hint listed for Bruno.
+
+### Story 17.7: A photo saved to the device
+
+**Dev model:** opus · **Effort:** medium · one action on the photo viewer: `navigator.share` with the file where the device offers it (iOS "Salvar imagem", the Android share sheet), else a download; the honest sentence in Conta; no kernel shape, no contract
+
+As Bruno wanting a photo in his phone's gallery,
+I want a "Salvar no aparelho" action on the photo,
+So that I can keep a copy outside the app when I need one.
+
+**Today (verified 2026-10-27 in the code of main `e2023853`):** see the second investigation bullet of the epic: no photo ever leaves the browser store but through the upload; `shareFile` and `saveFile` exist for revisions only (`surfaces/export/revision-file.ts`).
+
+*(Definition of Ready: defaults taken on 2026-10-27 (Matheus): the action lives in the photo viewer (the caption dialog's full-size view) as a secondary button "Salvar no aparelho"; it shares the original when the device still holds it, else the server's original fetched through the existing file route; a device without `navigator.canShare` for files gets a download of the same JPEG named by the photo's stamp; one photo at a time; Conta gains one authored sentence under the camera switch ("As fotos ficam no relatório. Para guardar uma cópia na galeria, use Salvar no aparelho na foto."); confirmation 3 is out.)*
+
+**Acceptance Criteria:**
+
+**Given** a photo opened in the viewer on a phone that shares files
+**When** "Salvar no aparelho" is tapped
+**Then** the OS share sheet opens with the JPEG (the local original, else the server's), the app changes nothing in the relatório, and a dismissed sheet leaves no error (FR-43; AD-7)
+
+**Given** a device that cannot share files
+**When** the action is tapped
+**Then** the same JPEG downloads, named "⟨stamp⟩.jpg"
+
+**Given** a photo whose original is neither local nor uploaded yet (offline, evicted)
+**When** the viewer renders
+**Then** the action is disabled with the reason (authored), never a broken share
+
+**Definition of Done, in addition:** unit tests over the share/download choice with a fake `navigator.share`; a Playwright spec on `desktop-chrome` asserts the download and on `durability-android-chrome` the share call through a stub; the authored strings listed for Bruno; `source-deltas.md` row (the photo leaves the store on request only), `docs/kbs/log.md` line.
 
 ## Backlog: deferred stories
 
