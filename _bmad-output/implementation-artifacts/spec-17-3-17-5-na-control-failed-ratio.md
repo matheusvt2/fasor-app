@@ -2,8 +2,8 @@
 title: 'Stories 17.3 and 17.5: the "N/A" control and spelling; a failed ratio feeds the conclusion suggestion, the pre-issue rows and the parecer count'
 type: 'feature'
 created: '2026-10-27'
-status: 'ready-for-dev'
-baseline_revision: '9f0df21b'
+status: 'in-progress'
+baseline_revision: 'e3c8813e'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'

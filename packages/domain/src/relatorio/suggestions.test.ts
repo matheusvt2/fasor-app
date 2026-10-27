@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { applyOp, entityKey, type EntityState } from '../ops/apply.ts';
 import { opSchema } from '../ops/op.ts';
 import { suggestionPath } from '../ops/path.ts';
-import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
+import { NOT_APPLICABLE_NUMBER, NOT_APPLICABLE_TEXT } from '../parse/pt-br-number.ts';
 import { emptySheet, suggestionRowSchema, type BlockRow, type Cell, type EntityRow, type SuggestionRow } from '../schemas/entities.ts';
 import type { FieldDef } from '../seed/schema.ts';
 import { TEST_COMPANY, TEST_RELATORIO, TEST_USER, opFactory } from '../test-support.ts';
@@ -282,7 +282,7 @@ describe('8.1-UNIT the I/O matrix', () => {
   });
 });
 
-describe('16.4-UNIT a plate reading on an "N.A" field', () => {
+describe('16.4-UNIT a plate reading on an "N/A" field', () => {
   it('is a different value: the replace line, and Confirmar writes the measured value', () => {
     const measuredValue = { raw: '630', unit: 'A', state: 'measured' };
     expect(compareSuggestion(NOT_APPLICABLE_NUMBER, measuredValue, def('number'))).toBe('different');
@@ -292,6 +292,13 @@ describe('16.4-UNIT a plate reading on an "N.A" field', () => {
     expect(nameplateSuggestions(block, [reading]).find((e) => e.field.key === 'corrente_nominal')!.view).toBe('replace');
     const [, put] = confirmSuggestionOps(AUTHOR, reading);
     expect(put).toMatchObject({ kind: 'put', path: reading.target_path, value: measuredValue });
+  });
+
+  it('17.3 (QA G1): an "N/A" value is named "N/A" with no unit, never the empty raw plus the seed\'s unit', () => {
+    expect(NOT_APPLICABLE_TEXT).toBe('N/A');
+    expect(suggestionValueText(def('number', { unit: 'kVA' }), NOT_APPLICABLE_NUMBER)).toBe('N/A');
+    expect(suggestionValueText(def('number'), NOT_APPLICABLE_NUMBER)).toBe('N/A');
+    expect(suggestionValueText(def('number', { unit: 'kVA' }), { raw: '1000', unit: 'kVA', state: 'measured' })).toBe('1.000 kVA');
   });
 });
 

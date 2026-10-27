@@ -1,6 +1,6 @@
 import type { OpDraft } from '../ops/op.ts';
 import { suggestionStatusPath } from '../ops/path.ts';
-import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
+import { formatDecimalGroupedPtBr, isNotApplicableNumber, NOT_APPLICABLE_TEXT } from '../parse/pt-br-number.ts';
 import type { JsonValue, SuggestionRow } from '../schemas/entities.ts';
 import type { FieldDef } from '../seed/schema.ts';
 import { dateFieldText } from '../format/datetime.ts';
@@ -42,9 +42,14 @@ export function discardSuggestionOp(author: Author, s: Pick<SuggestionRow, 'id' 
 
 // --- the texts ---------------------------------------------------------------------------------
 
-/** A suggested value as a sentence names it, unit included: "630 A", "15 kV", "03/2012", "Schneider". */
+/**
+ * A suggested value as a sentence names it, unit included: "630 A", "15 kV", "03/2012", "Schneider".
+ * Story 17.3 (QA G1): a `not_applicable` number reads "N/A" with no unit, never the empty raw plus
+ * the seed's unit (" kVA").
+ */
 export function suggestionValueText(field: Pick<FieldDef, 'kind' | 'unit'> | null, value: unknown): string {
   if (field === null) return typeof value === 'string' ? value : JSON.stringify(value);
+  if (isNotApplicableNumber(value)) return NOT_APPLICABLE_TEXT;
   if (field.kind === 'voltage_class') return fieldInputText(field, value);
   if (field.kind === 'date' && typeof value === 'string') return dateFieldText(value);
   const number = numberShape(value);

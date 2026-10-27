@@ -103,6 +103,14 @@ export const ui = {
     // authored: a typed text that is no number (kept typed, not committed).
     invalid: 'Número não reconhecido',
   },
+  // Story 17.3: the control at the trailing end of a nameplate or cabine number field that
+  // accepts N/A (no mock draws it; DESIGN.md Button, secondary). Open for Bruno.
+  notApplicable: {
+    // authored: the visible text, the printed spelling (`NOT_APPLICABLE_TEXT`).
+    control: 'N/A',
+    // authored: the accessible name, with the field's label.
+    markLabel: (label: string) => `Marcar ${label} como não aplicável`,
+  },
   // The Suggestion field and the Generated text field (Story 5.8, UX-DR45/46/47).
   suggestionField: {
     suggested: 'Sugerido',

@@ -357,16 +357,16 @@ describe('7.1 section9Layout: the I/O matrix', () => {
     expect(texts(tableNamed(sheetOf(section, block(2)), 'AMBIENTE DE ENSAIO'))[2]).toEqual(['900 m', '25 °C', '65 %']);
   });
 
-  it('16.4: an "N.A" nameplate or cabine number prints "N.A" with no unit (never "-", never " kVA")', () => {
+  it('16.4: an "N.A" nameplate or cabine number prints "N/A" with no unit (never "-", never " kVA")', () => {
     const se = { type: 'BLINDADA', primary_kv: NOT_APPLICABLE_NUMBER, secondary_kv: measured('380', 'V'), installed_kva: null };
     const env = { altitude_m: null, temperature_c: NOT_APPLICABLE_NUMBER, humidity_pct: measured('65', '%') };
     const trafo = edit(sheet(1, 1, 'transformador_forca', 'a0'), withNameplate({ potencia_nominal: NOT_APPLICABLE_NUMBER }));
     const section = layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0', { se, env })], [trafo]));
     const printed = sheetOf(section, block(1));
-    expect(texts(tableNamed(printed, 'CARACTERÍSTICAS DA SE'))[2]).toEqual(['BLINDADA', 'N.A', '380 V', '-']);
-    expect(texts(tableNamed(printed, 'AMBIENTE DE ENSAIO'))[2]).toEqual(['-', 'N.A', '65 %']);
+    expect(texts(tableNamed(printed, 'CARACTERÍSTICAS DA SE'))[2]).toEqual(['BLINDADA', 'N/A', '380 V', '-']);
+    expect(texts(tableNamed(printed, 'AMBIENTE DE ENSAIO'))[2]).toEqual(['-', 'N/A', '65 %']);
     const plate = texts(tableNamed(printed, 'DADOS DO EQUIPAMENTO')).flat();
-    expect(plate[plate.indexOf('POTÊNCIA NOMINAL') + 1]).toBe('N.A');
+    expect(plate[plate.indexOf('POTÊNCIA NOMINAL') + 1]).toBe('N/A');
   });
 
   it('Não ensaiada: title, attribution, the cabine block on a first sheet, the nameplate and the reason band; nothing else', () => {

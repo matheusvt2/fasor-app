@@ -12,6 +12,7 @@ import {
   effectiveCriterion,
   evaluatedCells,
   evaluateSheetReadings,
+  failedRatioRows,
   firstRunCell,
   nextUnit,
   ratioFormulaHelperText,
@@ -574,5 +575,65 @@ describe('condicaoScreenText', () => {
     expect(condicaoScreenText('SATISFATÓRIO')).toBe('Satisfatório');
     expect(condicaoScreenText('INSATISFATÓRIO')).toBe('Insatisfatório');
     expect(condicaoScreenText(null)).toBe('—');
+  });
+});
+
+describe('17.5-UNIT failedRatioRows (F42, E15-A2)', () => {
+  const tpInputs = (row: number): [number, number, Cell][] => [
+    [row, 0, measured('13.8', 'kV')],
+    [row, 1, measured('115', 'V')],
+  ];
+  const tp = (cells: [number, number, Cell][]) => failedRatioRows(evaluateSheetReadings(block('tp', test('relacao_transformacao', cells)), TP));
+
+  it('B1: a TP row with 13,8 kV / 115 V (120,00) and a capture of 125 (4,17 %) is named with its deviation', () => {
+    expect(tp([...tpInputs(0), [0, 3, measured('125', null)]])).toEqual([{ testKey: 'relacao_transformacao', label: 'Fase R', deviationText: '4,17 %' }]);
+  });
+
+  it('two failed rows in table order; a within row between them is not named', () => {
+    const rows = tp([...tpInputs(0), [0, 3, measured('125', null)], ...tpInputs(1), [1, 3, measured('120.1', null)], ...tpInputs(2), [2, 3, measured('110', null)]]);
+    expect(rows.map((r) => [r.label, r.deviationText])).toEqual([
+      ['Fase R', '4,17 %'],
+      ['Fase T', '8,33 %'],
+    ]);
+  });
+
+  it('B8: a capture exactly at the limit (120,6 of 120,00, 0,5 %) is within, never failed', () => {
+    expect(tp([...tpInputs(0), [0, 3, measured('120.6', null)]])).toEqual([]);
+    expect(tp([...tpInputs(0), [0, 3, measured('120.61', null)]]).map((r) => r.label)).toEqual(['Fase R']);
+  });
+
+  it('B6: a sheet with no ratio table is empty', () => {
+    const b = block('chave_seccionadora', test('isolacao', [[0, 0, measured('1', 'MΩ')]]));
+    expect(failedRatioRows(evaluateSheetReadings(b, SEC))).toEqual([]);
+  });
+
+  it('B7 and B10: no capture, every capture within, or no VAL CALCULADO is empty', () => {
+    expect(tp(tpInputs(0))).toEqual([]);
+    expect(tp([...tpInputs(0), [0, 3, measured('120.1', null)]])).toEqual([]);
+    // No inputs and no nameplate: no VAL CALCULADO, the capture is unjudged.
+    expect(tp([[0, 3, measured('125', null)]])).toEqual([]);
+  });
+
+  it('B9: the v9 transformador de força, one capture out of three: the row named once, by its TAP, with the worst out deviation', () => {
+    const trafo = getDefinition('v9', 'cabine_primaria', 'transformador_forca');
+    const sheet = {
+      nameplate: { tap_atual: cell('5') },
+      ...test('relacao_transformacao', [
+        [0, 0, measured('13.8', 'kV')],
+        [0, 1, measured('380', 'V')],
+        [0, 3, measured('62.8', null)],
+        [0, 4, measured('36.3', null)],
+        [0, 5, measured('62.8', null)],
+      ]),
+    };
+    const b = { ...block('transformador_forca', sheet, defaultBlockConfig('v9', 'transformador_forca')), seed_version: 'v9' };
+    expect(failedRatioRows(evaluateSheetReadings(b, trafo))).toEqual([{ testKey: 'relacao_transformacao', label: '5', deviationText: '42,29 %' }]);
+  });
+
+  it('a disabled ratio sub-block is not evaluated, so nothing fails', () => {
+    const config = defaultBlockConfig('v1', 'tp') as { sub_blocks: Record<string, { enabled: boolean }> };
+    const off = { ...config, sub_blocks: { ...config.sub_blocks, relacao_transformacao: { enabled: false } } };
+    const b = block('tp', test('relacao_transformacao', [...tpInputs(0), [0, 3, measured('125', null)]]), off);
+    expect(failedRatioRows(evaluateSheetReadings(b, TP))).toEqual([]);
   });
 });

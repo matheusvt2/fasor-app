@@ -240,8 +240,8 @@ describe('5.3-UNIT typed values (AR-10)', () => {
     expect(fieldValueText({ kind: 'date' }, '2012-03-01')).toBe('01/03/2012');
     expect(fieldValueText({ kind: 'text' }, 'SU1')).toBe('SU1');
     expect(fieldValueText({ kind: 'text' }, null)).toBe('');
-    // Story 16.4: the fourth state reads "N.A", never the empty raw.
-    expect(fieldValueText({ kind: 'number' }, NOT_APPLICABLE_NUMBER)).toBe('N.A');
+    // Story 16.4: the fourth state reads "N/A" (Story 17.3), never the empty raw.
+    expect(fieldValueText({ kind: 'number' }, NOT_APPLICABLE_NUMBER)).toBe('N/A');
   });
 });
 

@@ -152,6 +152,11 @@ export function deviationPct(measured: number, calculated: number): number {
   return Math.round((Math.abs(measured - calculated) / calculated) * 100 * 1e9) / 1e9;
 }
 
+/** A ratio deviation as the conclusion and the failed-ratio rows print it: "4,17" (append " %"). */
+export function formatDeviation(value: number): string {
+  return formatDecimalGroupedPtBr(canonicalDecimal(value.toFixed(2)));
+}
+
 function formatCalculated(value: number): string {
   return formatDecimalGroupedPtBr(value.toFixed(2));
 }
@@ -355,6 +360,41 @@ export function evaluateSheetReadings(block: BlockRow, definition: BlockDefiniti
 /** Every evaluated cell of the sheet, test by test, table by table, row by row. */
 export function evaluatedCells(evaluations: readonly TestEvaluation[]): EvaluatedCell[] {
   return evaluations.flatMap((test) => test.tables.flatMap((table) => table.rows.flatMap((row) => row.cells)));
+}
+
+/** Story 17.5: one ratio row whose CONDIÇÃO reads INSATISFATÓRIO. */
+export interface FailedRatioRow {
+  testKey: 'relacao_transformacao';
+  /** The row's name as the table shows it ("Fase R", the TAP). */
+  label: string;
+  /** The worst out capture's deviation from VAL CALCULADO, as `worstReadings` prints it ("4,17 %"). */
+  deviationText: string;
+}
+
+/**
+ * Story 17.5 (F42, E15-A2): THE reader of the ratio verdict. One entry per ratio row whose
+ * `condicao` is INSATISFATÓRIO, in table order; the conclusion suggestion, its restriction
+ * warning, the pre-issue stale row (through the conclusion basis) and the parecer read the
+ * failed ratio only through it. Empty for a sheet with no ratio table, no capture, no VAL
+ * CALCULADO or every capture within (a deviation exactly at the limit is within).
+ */
+export function failedRatioRows(evaluations: readonly TestEvaluation[]): FailedRatioRow[] {
+  const out: FailedRatioRow[] = [];
+  for (const test of evaluations) {
+    if (test.testKey !== 'relacao_transformacao') continue;
+    for (const table of test.tables) {
+      for (const row of table.rows) {
+        if (row.condicao !== 'INSATISFATÓRIO' || row.calculated === null) continue;
+        const calculated = Number(row.calculated.raw);
+        let worst = -Infinity;
+        for (const cell of row.cells) {
+          if (cell.role === 'capture' && cell.verdict === 'out') worst = Math.max(worst, deviationPct(Number(cell.raw), calculated));
+        }
+        out.push({ testKey: 'relacao_transformacao', label: row.label, deviationText: `${formatDeviation(worst)} %` });
+      }
+    }
+  }
+  return out;
 }
 
 export function sameAddress(a: CellAddress, b: CellAddress): boolean {

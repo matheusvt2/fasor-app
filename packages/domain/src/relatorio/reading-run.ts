@@ -1,8 +1,7 @@
-import { canonicalDecimal, formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { scaleToUnit } from '../seed/criteria.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import type { CellAddress, EvaluatedCell, EvaluatedRow, EvaluatedTable, ReadingVerdict, TestEvaluation, TestKey } from './reading-cells.ts';
-import { deviationPct, sameAddress } from './reading-evaluation.ts';
+import { deviationPct, formatDeviation, sameAddress } from './reading-evaluation.ts';
 import { sheetState } from './sheet-state.ts';
 
 /*
@@ -113,10 +112,6 @@ function whereOf(table: EvaluatedTable, row: EvaluatedRow, cell: EvaluatedCell):
   if (captures > 1) return cell.column;
   if (table.ratio) return row.label;
   return row.connection.filter((text) => text !== '').slice(0, 2).join('–');
-}
-
-function formatDeviation(value: number): string {
-  return formatDecimalGroupedPtBr(canonicalDecimal(value.toFixed(2)));
 }
 
 /** The worst reading of every enabled test that holds at least one measured capture. */

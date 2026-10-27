@@ -1095,3 +1095,11 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
 @media (max-width: 767.98px) {
   .suggestion-tray-actions .btn { flex-basis: 100%; }
 }
+
+/* Story 17.3: authored (no mock draws it), the "N/A" control at the trailing end of a nameplate or
+   cabine number field that accepts N/A: a small DESIGN.md secondary Button (`components.css`
+   `.btn-secondary`) beside the field's `.measurement-field`, which shrinks while the button keeps
+   its width, so the row never overflows at 390 px. The 48 px `--touch-min` covers the 44 px target. */
+.field-na-row { display: flex; align-items: stretch; gap: var(--sp-2); }
+.field-na-row > .measurement-field { flex: 1; min-width: 0; }
+.btn-na { flex: none; min-width: var(--touch-min); min-height: var(--touch-min); padding: 0 var(--sp-3); }

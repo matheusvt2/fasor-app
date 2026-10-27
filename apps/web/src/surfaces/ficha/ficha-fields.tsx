@@ -25,6 +25,7 @@ import { DateField, RegistryPickerField } from '../../components/index.ts';
 import { NOT_APPLICABLE_STORED_RAW, useNumberInput, type ParsedNumber } from '../../components/number-input.tsx';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { ui } from '../../copy/ui.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useDraftSource } from '../../state/drafts.tsx';
 
@@ -243,8 +244,9 @@ export interface FieldProps {
   /** F-01: typed text still waiting for its commit is committed when the field leaves the page. */
   flushOnUnmount?: boolean;
   /**
-   * Story 16.4: a nameplate or cabine number field accepts the "N.A" spellings; any other
+   * Story 16.4: a nameplate or cabine number field accepts the "N/A" spellings; any other
    * number field (a measurement test's value) refuses them as text that is no number.
+   * Story 17.3: such a field also renders the "N/A" control at its trailing end.
    */
   acceptsNotApplicable?: boolean;
 }
@@ -315,8 +317,10 @@ function TextField({ field, value, commit, draft, missing, label, helper, after,
  * A nameplate or cabine number (Story 5.3; the carry-over of PR #30): the shared
  * `useNumberInput`, so the text is parsed and committed on blur or Enter only and never
  * rewritten while the engineer types ("3.3", a pause, "00" commits 3300). Story 16.4: an
- * "N.A" spelling commits the kernel's `not_applicable` value, reads "N.A" with no unit and
- * no echo line, and Enter runs on as after a number.
+ * "N/A" spelling commits the kernel's `not_applicable` value, reads "N/A" with no unit and
+ * no echo line, and Enter runs on as after a number. Story 17.3: a field that accepts N/A
+ * shows a secondary "N/A" button at its trailing end while it does not read N/A; a tap
+ * commits the same `not_applicable` put as the typed spelling and moves no focus.
  */
 function NumberField({ field, value, commit, draft, missing, label, invalidText, after, flushOnUnmount, acceptsNotApplicable }: FieldProps) {
   const id = useId();
@@ -332,7 +336,7 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
     return parsed.state === 'not_applicable' ? { raw: '', unit: null, state: 'not_applicable' } : { raw: parsed.raw, unit: parsed.unit };
   };
   const number: ReturnType<typeof useNumberInput> = useNumberInput({
-    // At rest a stored number reads grouped ("3.300"), the same after a blur and a reload; a stored "N.A" reads "N.A".
+    // At rest a stored number reads grouped ("3.300"), the same after a blur and a reload; a stored "N/A" reads "N/A".
     storedText: measuredRaw === null ? fieldValueText(field, value) : formatDecimalGroupedPtBr(measuredRaw),
     storedRaw,
     parse: parseNumber,
@@ -357,25 +361,52 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
     },
   });
   const describedBy = [number.invalid ? helperId : null, number.echo === null ? null : `${helperId}-echo`].filter(Boolean).join(' ') || undefined;
-  // Story 16.4: "N.A" has no unit, at rest and once typed.
+  // Story 16.4: "N/A" has no unit, at rest and once typed.
   const showsNotApplicable = number.parsed !== null && number.parsed !== 'invalid' && number.parsed.state === 'not_applicable';
+  const fieldLabel = screenLabel(label ?? field.label);
+  const valueField = (
+    <div className="measurement-field" aria-invalid={number.invalid || undefined}>
+      <input
+        id={id}
+        className="mf-value"
+        {...number.inputProps}
+        enterKeyHint="next"
+        aria-invalid={number.invalid || undefined}
+        aria-describedby={describedBy}
+        data-missing-field={missing ? '' : undefined}
+      />
+      {unit === null || showsNotApplicable ? null : <span className="mf-unit">{unit}</span>}
+    </div>
+  );
   return (
     <div className="field" data-field-key={field.key}>
       <label className="field-label" htmlFor={id}>
-        {screenLabel(label ?? field.label)}
+        {fieldLabel}
       </label>
-      <div className="measurement-field" aria-invalid={number.invalid || undefined}>
-        <input
-          id={id}
-          className="mf-value"
-          {...number.inputProps}
-          enterKeyHint="next"
-          aria-invalid={number.invalid || undefined}
-          aria-describedby={describedBy}
-          data-missing-field={missing ? '' : undefined}
-        />
-        {unit === null || showsNotApplicable ? null : <span className="mf-unit">{unit}</span>}
-      </div>
+      {acceptsNotApplicable === true ? (
+        // The row stays while the control hides, so the input never remounts mid-typing.
+        <div className="field-na-row">
+          {valueField}
+          {showsNotApplicable ? null : (
+            <button
+              type="button"
+              className="btn btn-secondary btn-na"
+              aria-label={ui.notApplicable.markLabel(fieldLabel)}
+              onClick={() => {
+                // A9: text typed and not committed yet commits first (the input's blur does it
+                // where the tap takes the focus; WebKit does not focus a tapped button), then the
+                // existing `not_applicable` put. No focus move (never the next missing field).
+                number.commitNow();
+                number.commitValue({ raw: '', unit: null, state: 'not_applicable' });
+              }}
+            >
+              {ui.notApplicable.control}
+            </button>
+          )}
+        </div>
+      ) : (
+        valueField
+      )}
       {number.echo === null ? null : (
         <span className="mf-echo" id={`${helperId}-echo`}>
           {number.echo}

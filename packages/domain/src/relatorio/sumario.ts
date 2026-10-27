@@ -110,7 +110,7 @@ function pendingRows(rows: readonly PreIssueRow[]): PreIssueRow[] {
   return rows.filter((row) => row.severity !== 'info');
 }
 
-/** A cabine number value as its meta line prints it: "13,8 kV", "19 °C", "67 %"; "N.A" with no unit for the `not_applicable` state (Story 16.4, read before `raw`); null when not typed. */
+/** A cabine number value as its meta line prints it: "13,8 kV", "19 °C", "67 %"; "N/A" with no unit for the `not_applicable` state (Story 16.4, read before `raw`); null when not typed. */
 function measure(value: { raw: string; unit: string | null } | null, unit: string): string | null {
   if (isNotApplicableNumber(value)) return NOT_APPLICABLE_TEXT;
   if (value === null || value.raw.trim() === '') return null;

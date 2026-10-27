@@ -54,7 +54,7 @@ function cabineDefinition(seedVersion: string): CabineDefinition | null {
   return findSeed(seedVersion)?.cabine ?? null;
 }
 
-/** A cabine column holds a value: a non-blank text, or a number that is not empty ("N.A" counts, Story 16.4). */
+/** A cabine column holds a value: a non-blank text, or a number that is not empty ("N/A" counts, Story 16.4). */
 function cabineValueFilled(value: unknown): boolean {
   if (value === null || value === undefined) return false;
   if (isNotApplicableNumber(value)) return true;
@@ -108,7 +108,7 @@ export function cabineMissingText(p: Pick<CabineProgress, 'missing'>): string | 
 }
 
 /**
- * A cabine number as the line prints it: "13,8 kV", "1.500 kVA", "65 %"; "N.A" with no unit
+ * A cabine number as the line prints it: "13,8 kV", "1.500 kVA", "65 %"; "N/A" with no unit
  * for the `not_applicable` state (Story 16.4); null when not typed. Value and unit are joined
  * by a no-break space (U+00A0), so a wrapping line never splits "25" from "°C" (E12-Q9).
  */
