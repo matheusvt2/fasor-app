@@ -1131,7 +1131,7 @@ action_items:
     epic: 16
     action: "E16-A4 Create the GitHub release v0.3.3 from the notes drafted in the deploy session (the agent may not create a public release) and record in the deploy playbook who creates a release"
     owner: "Matheus"
-    status: open
+    status: done  # 2026-10-26: release v0.3.3 created with gh on Matheus's instruction (https://github.com/matheusvt2/fasor-app/releases/tag/v0.3.3); releases stay a human-authorized step
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-138-e16-a5-ledger-hygiene"
     epic: 16
