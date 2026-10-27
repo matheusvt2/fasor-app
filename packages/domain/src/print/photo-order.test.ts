@@ -10,7 +10,10 @@ import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { siteItems } from '../seed/definitions.ts';
 import { TEST_PROJECT, T0 } from '../test-support.ts';
 import { documentPhotoOrder, sheetChecklistPrinted } from './photo-order.ts';
+import { newPointRow } from '../points/checks.ts';
+import { photoToken } from '../points/refs.ts';
 import { section7Photos } from './section-7.ts';
+import { REMOVED_PHOTO_REF_TEXT, resolveSection8 } from './section-8.ts';
 import { section9Layout, type SheetPart } from './section-9.ts';
 
 /*
@@ -229,20 +232,49 @@ describe('17.1-UNIT documentPhotoOrder', () => {
     ]);
   });
 
-  it('M5: a not-tested sheet\'s photos keep their number in the sheet\'s walk position, though section 9 prints none of them', () => {
-    const files = [photo(1, at(1), { block_id: block(2) }), photo(2, at(2), { block_id: block(1) }), photo(3, at(3), { block_id: block(3) })];
+  it('M5: a Não ensaiada sheet between two tested sheets prints its plate photo before its reason band and its burst after it; the printed numbers run 1..N with no gap', () => {
+    const files = [
+      photo(1, at(1), { block_id: block(2) }), // the untested sheet's burst
+      photo(2, at(2), { block_id: block(1) }),
+      photo(3, at(3), { block_id: block(3) }),
+      photo(4, at(4), { block_id: block(2), reading_kind: 'plate' }), // the untested sheet's plate
+    ];
     const untested = sheet(2, 1, 'disjuntor_mt', 'a1');
     untested.block = { ...untested.block, not_tested: { reason: 'outro', text: 'Sem acesso', at: T0.toISOString(), by: id(900) } };
     const snapshot = snapshotOf([cabine(1, 'Cabine A', 'a0')], [sheet(1, 1, 'chave_seccionadora', 'a0'), untested, sheet(3, 1, 'chave_seccionadora', 'a2')], files);
     expect(entries(snapshot)).toEqual([
       [id(3002), 1],
-      [id(3001), 2],
+      [id(3004), 2],
+      [id(3001), 3],
+      [id(3003), 4],
+    ]);
+    expect(section9Numbers(snapshot)).toEqual(entries(snapshot));
+    expect(section9Numbers(snapshot).map(([, n]) => n)).toEqual([1, 2, 3, 4]);
+    // Under the untested sheet: the plate photo, the reason band, then the burst.
+    const printed = section9Layout(snapshot, 9, 'RELATÓRIOS DOS ENSAIOS')!.subsections.flatMap((sub) => sub.sheets).find((s) => s.blockId === block(2))!;
+    const names = printed.parts.map((part) => (part.kind === 'photos' ? `photos ${part.photos.map((p) => p.number).join(' ')}` : part.kind === 'table' ? part.table.rows[0]!.cells[0]!.text : 'paragraph'));
+    const band = names.findIndex((name) => name.startsWith('NÃO ENSAIADO'));
+    expect(band).toBeGreaterThan(-1);
+    expect(names.slice(band - 1, band + 2)).toEqual(['photos 2', names[band], 'photos 3']);
+  });
+
+  it('M5: a block whose definition does not resolve is not placed: its photo numbers after every placed photo and prints nowhere', () => {
+    const unknown = sheet(2, 1, 'chave_seccionadora', 'a1');
+    unknown.block = { ...unknown.block, seed_version: 'v0' };
+    const files = [photo(1, at(1), { block_id: block(2) }), photo(2, at(2), { block_id: block(1) }), photo(3, at(3), { block_id: block(3) }), photo(4, at(4))];
+    const snapshot = snapshotOf([cabine(1, 'Cabine A', 'a0')], [sheet(1, 1, 'chave_seccionadora', 'a0'), unknown, sheet(3, 1, 'chave_seccionadora', 'a2')], files);
+    expect(documentPhotoOrder(snapshot).sheets.has(block(2))).toBe(false);
+    expect(entries(snapshot)).toEqual([
+      [id(3004), 1],
+      [id(3002), 2],
       [id(3003), 3],
+      [id(3001), 4],
     ]);
     expect(section9Numbers(snapshot)).toEqual([
-      [id(3002), 1],
+      [id(3002), 2],
       [id(3003), 3],
     ]);
+    expect(section7Photos(snapshot).map((p) => [p.fileId, p.number])).toEqual([[id(3004), 1]]);
   });
 
   it('M9 boundary: zero photos, one Geral only, display shots only, a removed photo', () => {
@@ -258,5 +290,8 @@ describe('17.1-UNIT documentPhotoOrder', () => {
     const removed = snapshotOf(locals, one, [photo(1, at(1), { removed_at: at(9) }), photo(2, at(2))]);
     expect(entries(removed)).toEqual([[id(3002), 1]]);
     expect(numberPhotos(removed).has(id(3001))).toBe(false);
+    // A point citing the removed photo prints the removed text in section 8; the live one its number.
+    const cited = { ...removed, points: [{ ...newPointRow({ id: id(5001), relatorioId: RELATORIO, text: `Ver ${photoToken(id(3001))} e ${photoToken(id(3002))}`, equipmentId: null, origin: 'manual', action: null }, []) }] };
+    expect(resolveSection8(cited, numberPhotos(cited))).toEqual([{ kind: 'point', text: `Ver ${REMOVED_PHOTO_REF_TEXT} e Imagem 1`, point_id: id(5001) }]);
   });
 });

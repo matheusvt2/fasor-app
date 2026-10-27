@@ -15,11 +15,12 @@ import { groupForPrint } from './group-for-print.ts';
  * checklist items' photos and the others (bursts, display shots, panels) in capture order
  * inside each group. A display shot is numbered like any photo and prints after the tests.
  *
- * A photo the walk cannot place (a block in no subsection, a site photo whose item the seed
- * does not list, a photo with an `item_key` or a reading but no sheet and no local) still
- * holds a number, after every placed photo, in capture order. A sheet the walk places but
- * section 9 prints without its photos (Não ensaiada, no definition) keeps its photos' numbers
- * in position. The walk never evaluates a sheet: `groupForPrint` and the predicates below.
+ * A photo the walk cannot place (a block in no subsection, a block whose definition does not
+ * resolve, a site photo whose item the seed does not list, a photo with an `item_key` or a
+ * reading but no sheet and no local) still holds a number, after every placed photo, in
+ * capture order, so no printed "Imagem N" skips a number. Every placed photo prints in
+ * section 9, a Não ensaiada sheet's included (around its reason band). The walk never
+ * evaluates a sheet: `groupForPrint` and the predicates below.
  */
 
 /** What the walk reads: `groupForPrint`'s snapshot and the files. */
@@ -101,7 +102,8 @@ export function documentPhotoOrder(snapshot: NumberingSnapshot): DocumentPhotoOr
     }
     for (const blockId of subsection.blockIds) {
       const block = blocks.get(blockId);
-      if (block === undefined || sheets.has(blockId)) continue;
+      // A block whose definition does not resolve prints no photo (`sheetOf`): its photos close the order.
+      if (block === undefined || sheets.has(blockId) || findDefinition(block.seed_version, block.block_type) === null) continue;
       const groups = groupsOf(byBlock.get(blockId) ?? [], sheetChecklistPrinted(block));
       sheets.set(blockId, groups);
       order.push(...groups.plate, ...groups.items, ...groups.other);

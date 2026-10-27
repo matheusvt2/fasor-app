@@ -47,7 +47,8 @@ import { documentPhotoOrder, sheetChecklistPrinted, type DocumentPhotoOrder } fr
  * VERIFICAÇÕES GERAIS, the checklist photos, one block per enabled test (instrument header,
  * criterion line, tables), the other photos, OBSERVAÇÕES and CONCLUSÃO. A switched-off
  * sub-block is omitted; the four uncaptured insulation columns are grid columns and print
- * "-". A Não ensaiada sheet prints its plate and a reason band, nothing else. Labels are
+ * "-". A Não ensaiada sheet prints its plate, its plate photos, a reason band and then its
+ * other photos (Story 17.1: every numbered photo of a placed sheet prints somewhere). Labels are
  * the seed's strings in caps (the screen shows them sentence-cased); values print as stored.
  * Cells hold only confirmed values, so no suggestion is ever read.
  *
@@ -840,7 +841,10 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   if (nameplate) parts.push(nameplatePart(ctx, block, definition));
   const sheet = { blockId, title: sheetTitle(block, tag), attribution: attributionOf(block, ctx.actors), parts };
   if (block.not_tested !== null) {
-    parts.push(notTestedPart(block));
+    // Stories 17.1 and 17.4: its photos print under it, in the walk's order (they no longer
+    // print in section 7): the plate's before the reason band, the rest after it.
+    const photos = sheetPhotos(ctx, blockId);
+    parts.push(...photosPart(photos.plate), notTestedPart(block), ...photosPart([...photos.items, ...photos.other]));
     return sheet;
   }
   if (definition === null) return sheet;

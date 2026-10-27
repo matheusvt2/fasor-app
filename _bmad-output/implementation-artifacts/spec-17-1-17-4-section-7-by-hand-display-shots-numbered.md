@@ -11,7 +11,56 @@ dev_effort: 'high'
 context: ['{project-root}/_bmad-output/implementation-artifacts/epic-17-context.md']
 warnings: ['batched']
 batched_reason: 'Stories 17.1 and 17.4 rewrite the one photo numbering (photos/numbering.ts) and the section 7 / section 9 print of photos; two branches would conflict on every line.'
-deferred: []
+deferred:
+  - summary: >-
+      A live photo the walk cannot place (its sheet deleted, its block definition unresolved, a site item the seed's list lacks) is numbered at the tail of the sequence but prints nowhere; before Story 17.1 it printed in section 7. The point editor's picker still offers it.
+    evidence: |-
+      documentPhotoOrder appends unplaced photos after every placed one, so no printed number is skipped, but a "conforme Imagem N" citing one points at nothing. Where such an orphan should print (section 7 again, nowhere, or unnumbered) is a product call for Bruno; settle also whether removing a block removes its photos.
+    location: >-
+      packages/domain/src/print/photo-order.ts:110
+    severity: medium
+  - summary: >-
+      Sheet and local photos no longer print their full stamp (date, time, coordinates) or their item line anywhere in the document; before Story 17.1 they also printed in section 7 with both.
+    evidence: |-
+      Section 9 prints "Imagem N: legenda." only (printPhotos); section 7, which printed photoStampFull and photoItemLine, now holds Geral photos only. The account copy "Impressas na seção 7 com a data e a hora" now holds only for Geral photos. Open question for Bruno: should section 9 print the stamp and the item line under a photo.
+    location: >-
+      packages/domain/src/print/section-9.ts:806
+    severity: medium
+  - summary: >-
+      The Sumário's row 7 counts every live photo ("10 fotos") while section 7 prints only the Geral photos (possibly none).
+    evidence: |-
+      sumario.ts l.232 photoCountText(livePhotos(snapshot).length); the row opens the gallery, which holds every photo, so counting all of them is consistent with its target; whether it should count the Geral photos is a product call.
+    location: >-
+      packages/domain/src/relatorio/sumario.ts:232
+    severity: medium
+  - summary: >-
+      The gallery note's branch for a relatório without section 7 says "As fotos não saem no documento", false since Story 17.1 for sheet and local photos, which print in section 9; the present branch ties the provisional numbers to section 7 alone.
+    evidence: |-
+      copy/pt-br.ts gallery.note; authored copy, reword for Bruno with the stamp question above.
+    location: >-
+      apps/web/src/copy/pt-br.ts:924
+    severity: low
+  - summary: >-
+      The gallery keeps its tiles in capture order while the badges now follow document order, so the grid and the viewer's previous and next read out of numeric order ("Foto 7 de 20" then "Foto 2 de 20").
+    evidence: |-
+      Spec Design Notes: kept deliberately ("Ordem cronológica de captura"), open question for Matheus whether the gallery sorts by number.
+    location: >-
+      apps/web/src/surfaces/photos/gallery-surface.tsx:118
+    severity: low
+  - summary: >-
+      A relatório whose latest revision predates this change shows new-rule numbers under "Números da revisão N" until its next revision.
+    evidence: |-
+      A revision stores no numbers; the unchanged snapshot is what freezes them, so the screens recompute under the new rule. The issued DOCX and PDF keep their own numbers. Recorded in deferred-work.md.
+    location: >-
+      packages/domain/src/photos/gallery.ts:201
+    severity: medium
+  - summary: >-
+      The viewer's remove confirm on a local's site-item photo ("…e das verificações do local…") is verified only by the kernel test, never through the viewer.
+    evidence: |-
+      VGR-1: the M12 kernel test covers all four sentences; e2e covers the sheet and Geral sentences through the viewer; the local sentence depends on the tile carrying location_id. Add a viewer-remove step to verificacoes-local 14.3-E2E-001 at its next change.
+    location: >-
+      apps/web/src/surfaces/photos/photo-viewer.tsx:123
+    severity: low
 ---
 
 <intent-contract>
@@ -124,3 +173,21 @@ Docs (orchestrator, after the review): `_bmad-output/specs/spec-fasor/source-del
 - 2026-10-27, implementation: the Geral predicate accepts `reading_kind: 'caption'` (narrowing of the 17.1 default; Story 9.3 gives that kind to every photo with no context, so the literal default emptied section 7).
 
 ## Review Triage Log
+
+### 2026-10-27 — Review pass
+- Layers: Edge Case Hunter and Verification Gap Reviewer (opus). Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them.
+- verdicts: 13 findings — high 0, medium 7, low 5, false 1, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` ECH-1 a Não ensaiada sheet's (or a definition-less sheet's) photos are numbered mid-sequence but print nowhere, so printed numbers skip them — patched: a Não ensaiada sheet prints its plate photos after the nameplate and its other photos after the reason band; a block whose definition does not resolve is not placed (its photos fall to the tail); boundary tests added.
+  - `[medium]` `[defer]` ECH-2 an unplaced photo (deleted sheet, off-list site item) is numbered at the tail and prints nowhere — product call (where an orphan prints), deferred with evidence.
+  - `[medium]` `[defer]` ECH-3 the picker offers photos the document never prints (same root cause as ECH-2).
+  - `[low]` `[defer]` ECH-4 gallery tiles in capture order, badges in document order — kept by the spec's Design Notes, open question for Matheus.
+  - `[false]` `[reject]` ECH-5 numberPhotos on the whole snapshot lags tablets — measured 0.33 ms per call on the full Porto Seguro fixture (94 sheets, 82 photos); the snapshot was already rebuilt on every state change before this change.
+  - `[low]` `[reject]` ECH-6 the Geral note and label promise section 7 when the relatório lacks it — rare (section 7 removed from the Sumário) and the fix adds a branch to authored copy awaiting Bruno.
+  - `[low]` `[reject]` ECH-7 remove confirm names the local's checks for a site photo that prints nowhere (removed local, off-list item) — rare orphan case; the fix needs the walk's placement in the viewer; folded into the ECH-2 question.
+  - `[medium]` `[patch]` ECH-8 (claim) photos of Não ensaiada or definition-less sheets dropped out of the document — same root cause as ECH-1 for the placed sheets (patched); the orphan half shares ECH-2 (deferred).
+  - `[medium]` `[defer]` ECH-9 (claim) no per-revision numbering: a pre-17.1 revision's label shows new-rule numbers — the issued files keep theirs; known open in deferred-work.md until each relatório's next revision.
+  - `[low]` `[defer]` VGR-1 viewer remove confirm on a site-item photo verified only in the kernel — filed disposition defer; one viewer step in verificacoes-local at its next change.
+  - `[medium]` `[defer]` VGR-other-1 Sumário row 7 counts every photo while section 7 prints the Geral ones — product call (the row opens the gallery, which holds all).
+  - `[low]` `[defer]` VGR-other-2 the gallery note's absent branch and the account copy still say every photo prints in section 7 — authored copy, reword with Bruno.
+  - `[medium]` `[defer]` VGR-other-3 sheet and local photos lose their stamp and item line in the document — open question for Bruno (should section 9 print them).

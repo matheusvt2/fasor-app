@@ -370,7 +370,7 @@ describe('7.1 section9Layout: the I/O matrix', () => {
     expect(plate[plate.indexOf('POTÊNCIA NOMINAL') + 1]).toBe('N.A');
   });
 
-  it('Não ensaiada: title, attribution, the cabine block on a first sheet, the nameplate and the reason band; nothing else', () => {
+  it('Não ensaiada: title, attribution, the cabine block on a first sheet, the nameplate, the plate photos, the reason band and the other photos (17.1); nothing else', () => {
     const marked = (n: number, type: EquipmentBlockType, reason: string, text: string | null) =>
       edit(sheet(n, 1, type, `a${n}`), (b) => ({
         ...withChecklist({ limpeza: 'C' })(withTest('isolacao', { '0/0': measured('1', 'GΩ') }, INSTRUMENT)(withNameplate({ fabricacao: 'WEG' })(b))),
@@ -378,7 +378,11 @@ describe('7.1 section9Layout: the I/O matrix', () => {
         last_modified_by: USER.id,
         last_modified_at: '2026-09-06T12:00:00.000Z',
       }));
-    const files = [photo(1, { block_id: block(1), captured_at: '2026-09-06T10:00:00.000Z' })];
+    const files = [
+      photo(1, { block_id: block(1), captured_at: '2026-09-06T10:00:00.000Z' }), // 1: block 1's burst, after its band
+      photo(2, { block_id: block(2), reading_kind: 'plate', captured_at: '2026-09-06T10:05:00.000Z' }), // 2: block 2's plate, before its band
+      photo(3, { block_id: block(2), captured_at: '2026-09-06T10:01:00.000Z' }), // 3: block 2's burst, after its band
+    ];
     const snapshot = snapshotOf(
       [cabine(1, 'Cabine A', 'a0')],
       [marked(1, 'chave_seccionadora', 'solicitacao_cliente', null), marked(2, 'disjuntor_mt', 'outro', 'Equipamento energizado'), marked(3, 'tp', 'outro', null), edit(marked(4, 'cabos_saida', 'solicitacao_cliente', 'Texto digitado'), (b) => b)],
@@ -387,8 +391,11 @@ describe('7.1 section9Layout: the I/O matrix', () => {
     const section = layoutOf(snapshot);
     const first = sheetOf(section, block(1));
     expect(first.attribution).toBe('Preenchido por Bruno Silva · 06/09/2026 09:00');
-    expect(first.parts.map(partName)).toEqual(['CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', 'DADOS DO EQUIPAMENTO', 'NÃO ENSAIADO — Solicitação do cliente: Os ensaios não foram realizados conforme solicitação do cliente.']);
-    expect(sheetOf(section, block(2)).parts.map(partName)).toEqual(['DADOS DO EQUIPAMENTO', 'NÃO ENSAIADO — Equipamento energizado']);
+    expect(first.parts.map(partName)).toEqual(['CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', 'DADOS DO EQUIPAMENTO', 'NÃO ENSAIADO — Solicitação do cliente: Os ensaios não foram realizados conforme solicitação do cliente.', 'photos 1']);
+    expect(sheetOf(section, block(2)).parts.map(partName)).toEqual(['DADOS DO EQUIPAMENTO', 'photos 2', 'NÃO ENSAIADO — Equipamento energizado', 'photos 3']);
+    // Every numbered photo prints, the printed numbers run 1..3 with no gap.
+    expect(sheetsOf(section).flatMap((s) => s.parts.flatMap((p) => (p.kind === 'photos' ? p.photos.map((x) => x.number) : [])))).toEqual([1, 2, 3]);
+    expect([...numberPhotos(snapshot).values()]).toEqual([1, 2, 3]);
     expect(sheetOf(section, block(3)).parts.map(partName)).toEqual(['DADOS DO EQUIPAMENTO', 'NÃO ENSAIADO — Outro']);
     // Cabos carry no nameplate; the seed's justification wins over a typed text (as section 8 prints it).
     expect(sheetOf(section, block(4)).parts.map(partName)).toEqual(['NÃO ENSAIADO — Solicitação do cliente: Os ensaios não foram realizados conforme solicitação do cliente.']);
