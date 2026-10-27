@@ -2,8 +2,8 @@
 title: 'Stories 17.1 and 17.4: the REGISTRO FOTOGRÁFICO by hand, display shots numbered again'
 type: 'feature'
 created: '2026-10-27'
-status: 'ready-for-dev'
-baseline_revision: '9f0df21b'
+status: 'in-review'
+baseline_revision: '2fa793381f9adc21e35bb0945c6d8d29cf36904b'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'
@@ -120,5 +120,7 @@ Docs (orchestrator, after the review): `_bmad-output/specs/spec-fasor/source-del
 - Under `lockf -t 20000 /tmp/fasor-verify.lock`: `pnpm exec tsx scripts/e2e.ts e2e/section-7-by-hand.spec.ts e2e/display-shots.spec.ts e2e/photo-numbers.spec.ts e2e/gallery.spec.ts e2e/captions.spec.ts e2e/points.spec.ts e2e/sheet-photos.spec.ts e2e/read-display.spec.ts e2e/export-visual.spec.ts e2e/verificacoes-local.spec.ts e2e/seed-v7.spec.ts e2e/photos.spec.ts e2e/review-field-defects.spec.ts e2e/review-field-defects-2.spec.ts e2e/review-toasts-2026-10-08.spec.ts e2e/suggestions.spec.ts e2e/photo-zoom.durability.spec.ts --project desktop-chrome --project durability-desktop-chrome` -- green.
 
 ## Spec Change Log
+
+- 2026-10-27, implementation: the Geral predicate accepts `reading_kind: 'caption'` (narrowing of the 17.1 default; Story 9.3 gives that kind to every photo with no context, so the literal default emptied section 7).
 
 ## Review Triage Log

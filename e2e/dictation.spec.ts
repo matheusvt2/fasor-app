@@ -60,7 +60,7 @@ async function batchOnGeral(page: Page, relatorioId: string): Promise<Locator> {
   const sheet = page.getByRole('dialog', { name: /^De qual equipamento\?/ });
   await expect(sheet).toBeVisible();
   await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(2);
-  await sheet.getByRole('radio', { name: 'Geral (sem equipamento)' }).click();
+  await sheet.getByRole('radio', { name: 'Geral — Registro fotográfico (serviços gerais)' }).click();
   return sheet;
 }
 

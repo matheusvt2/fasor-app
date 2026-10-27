@@ -337,11 +337,12 @@ describe('14.4 VERIFICAÇÕES DO LOCAL in the DOCX: once per local, right after 
     expect(itemRow).not.toContain('w:fill=');
   }, 60_000);
 
-  it('a removed local prints nothing: no heading, no table; its site photo stays in section 7 as a general photo and its point leaves section 8', async () => {
+  it('a removed local prints nothing: no heading, no table, not its site photo (17.1: never in section 7 either); its point leaves section 8', async () => {
     const live = await render(snapshotOf({ enelContent: true }));
     expect(live.siteTables).toHaveLength(2);
     expect(live.paragraphsOf(live.sectionXml(8))).toContain('Sem iluminação de emergência no cubículo');
-    expect(live.paragraphsOf(live.sectionXml(7))).toContain('Item 11 · Iluminação de emergência (autonomia mínima de 2 h)');
+    // Story 17.1: section 7 holds the "Geral" photos only; both site photos print under their locals.
+    expect(live.paragraphsOf(live.sectionXml(7)).some((p) => /^Imagem \d+/.test(p))).toBe(false);
     expect(ascending(live.section, ['9.2 Cubículo Enel', SITE_TITLE, 'Imagem 2.'])).toBe(true);
 
     const removed = await render(snapshotOf({ enelContent: true, enelRemoved: true }));
@@ -350,16 +351,16 @@ describe('14.4 VERIFICAÇÕES DO LOCAL in the DOCX: once per local, right after 
     expect(removed.section).not.toContain('9.2 Cubículo Enel');
     expect(removed.section).not.toContain('Imagem 2.');
     expect(removed.paragraphsOf(removed.sectionXml(8))).not.toContain('Sem iluminação de emergência no cubículo');
-    const seven = removed.paragraphsOf(removed.sectionXml(7));
-    expect(seven).toContain('Imagem 2.');
-    // The live local's photo keeps its item line; the removed local's photo has none.
-    expect(seven.filter((p) => p.startsWith('Item 11 · '))).toEqual(['Item 11 · Iluminação de emergência (autonomia mínima de 2 h) · NC']);
+    // The removed local's photo keeps a number (2, after every placed photo) but prints nowhere.
+    expect(removed.structure.paragraphs).not.toContain('Imagem 2.');
+    expect(removed.paragraphsOf(removed.sectionXml(7)).some((p) => /^Imagem \d+/.test(p))).toBe(false);
   }, 120_000);
 
-  it('sections 7 and 8: the site photo with its caption and its item line, and the point created from the item as a bullet and an action-plan row naming the local', async () => {
-    const { sectionXml, paragraphsOf, tablesOf } = await render(snapshotOf());
-    const seven = paragraphsOf(sectionXml(7));
-    expect(ascending(seven, [PHOTO_LINE, '06/09/2026 10:00', 'Item 11 · Iluminação de emergência (autonomia mínima de 2 h) · NC'])).toBe(true);
+  it('sections 7 and 8: the site photo prints once, under its local (17.1: not in section 7), and the point created from the item as a bullet and an action-plan row naming the local', async () => {
+    const { sectionXml, paragraphsOf, tablesOf, section, structure } = await render(snapshotOf());
+    expect(paragraphsOf(sectionXml(7))).not.toContain(PHOTO_LINE);
+    expect(count(section, PHOTO_LINE)).toBe(1);
+    expect(count(structure.paragraphs, PHOTO_LINE)).toBe(1);
     const eight = sectionXml(8);
     expect(paragraphsOf(eight)).toContain('Luminária de emergência inoperante, conforme Imagem 1. Substituir as baterias');
     const [plan] = tablesOf(eight);
@@ -375,8 +376,9 @@ describe('14.4 VERIFICAÇÕES DO LOCAL in the DOCX: once per local, right after 
     expect(structure.headings.filter((h) => h.level === 2).map((h) => h.text)).toEqual(['9.1 Cabine primária']);
     expect(ascending(section, ['9.1 Cabine primária', 'TRANSFORMADOR DE FORÇA TR-1', 'CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', 'TRANSFORMADOR DE FORÇA TR-2', 'PAINEL DE ENTRADA'])).toBe(true);
     expect(count(section, 'CARACTERÍSTICAS DA SE')).toBe(1);
-    // The photo is a general photo here: no item line, and never inside section 9.
+    // No site list places the photo: it keeps a number but prints in neither section 9 nor (17.1) section 7.
     expect(section).not.toContain(PHOTO_LINE);
+    expect(paragraphsOf(sectionXml(7))).not.toContain(PHOTO_LINE);
     expect(paragraphsOf(sectionXml(7)).some((p) => p.startsWith('Item 11'))).toBe(false);
   }, 60_000);
 });

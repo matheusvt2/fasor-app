@@ -202,7 +202,7 @@ describe('7.3-UNIT-004 section 8 layout', () => {
       people_in_photo: false,
     });
     const snapshot = addPoint({ ...base, files: [photo(B, '2026-09-06T18:00:00.000Z'), photo(A, '2026-09-06T17:00:00.000Z')] }, { text: `Ver ${photoToken(B)} e ${photoToken(A)}.` });
-    expect(numberPhotos(snapshot.files).get(B)).toBe(2);
+    expect(numberPhotos(snapshot).get(B)).toBe(2);
     expect(section8Layout(snapshot, heading)).toEqual({
       number: 8,
       title: heading.title,
@@ -212,9 +212,11 @@ describe('7.3-UNIT-004 section 8 layout', () => {
     });
   });
 
-  it('16.3: a display shot between two photos leaves their numbers as section 7 prints them; a token to it reads as an unnumbered photo', () => {
+  it('17.4 M8: a cited display shot of a sheet resolves as "Imagem N" in the one sequence (after the "Geral" photos); a deleted photo prints the removed text', () => {
     const base = fresh();
     const D = '019966b0-0801-7000-8000-00000000000d';
+    const DELETED = '019966b0-0801-7000-8000-0000000000de';
+    const chave = base.blocks.find((block) => block.block_type === 'chave_seccionadora')!;
     const photo = (id: string, at: string, readingKind: 'display' | null = null) => ({
       id,
       relatorio_id: base.relatorio.id,
@@ -229,7 +231,7 @@ describe('7.3-UNIT-004 section 8 layout', () => {
       tz_offset: -180,
       coords: null,
       local_seq: 1,
-      block_id: null,
+      block_id: readingKind === 'display' ? chave.id : null,
       item_key: null,
       caption: null,
       reading_kind: readingKind,
@@ -238,11 +240,12 @@ describe('7.3-UNIT-004 section 8 layout', () => {
       people_in_photo: false,
     });
     const files = [photo(A, '2026-09-06T17:00:00.000Z'), photo(D, '2026-09-06T17:30:00.000Z', 'display'), photo(B, '2026-09-06T18:00:00.000Z')];
-    const snapshot = addPoint({ ...base, files }, { text: `Ver ${photoToken(B)}, ${photoToken(D)} e ${photoToken(A)}.` });
-    expect(numberPhotos(snapshot.files).get(B)).toBe(2);
+    const snapshot = addPoint({ ...base, files }, { text: `Ver ${photoToken(B)}, ${photoToken(D)}, ${photoToken(DELETED)} e ${photoToken(A)}.` });
+    expect(numberPhotos(snapshot).get(B)).toBe(2);
+    expect(numberPhotos(snapshot).get(D)).toBe(3);
     expect(section8Layout(snapshot, heading)).toMatchObject({
-      bullets: [`Ver Imagem 2, ${REMOVED_PHOTO_REF_TEXT} e Imagem 1.`],
-      table: [{ images: '2, 1' }],
+      bullets: [`Ver Imagem 2, Imagem 3, ${REMOVED_PHOTO_REF_TEXT} e Imagem 1.`],
+      table: [{ images: '2, 3, 1' }],
     });
   });
 });

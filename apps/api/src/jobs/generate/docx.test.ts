@@ -221,7 +221,7 @@ describe('7.1-UNIT section 9 in the DOCX', () => {
     const photo = base.files.find((f) => f.kind === 'photo')!;
     const snapshot: RelatorioSnapshot = { ...base, files: base.files.map((f) => (f.id === photo.id && f.kind === 'photo' ? { ...f, block_id: tr1.id } : f)) };
     const caption = photo.kind === 'photo' ? photo.caption : null;
-    return { snapshot, photoId: photo.id, number: numberPhotos(snapshot.files).get(photo.id)!, caption };
+    return { snapshot, photoId: photo.id, number: numberPhotos(snapshot).get(photo.id)!, caption };
   }
 
   it('embeds a block-linked photo inside its sheet, with "Imagem N: ⟨legenda⟩." beneath and N its numberPhotos number', async () => {
@@ -233,13 +233,15 @@ describe('7.1-UNIT section 9 in the DOCX', () => {
     // The fixture's caption already ends in a period: none is added.
     expect(caption).toBe('Detalhe da equipe da Enel no local para desligamento e religamento da energia.');
     const line = `Imagem ${number}: ${caption}`;
-    expect(line).toBe('Imagem 1: Detalhe da equipe da Enel no local para desligamento e religamento da energia.');
+    // Story 17.1: the 81 "Geral" photos left open the sequence; the sheet's photo follows them in document order.
+    expect(line).toBe('Imagem 82: Detalhe da equipe da Enel no local para desligamento e religamento da energia.');
     const { paragraphs, tables } = extractStructure(docx);
     const at = paragraphs.indexOf('TRANSFORMADOR DE FORÇA TR-1');
     const next = paragraphs.indexOf('CABOS DE ALIMENTAÇÃO CB-TR2');
     expect(at).toBeGreaterThan(-1);
-    // Section 7 prints the same line first (Story 7.2); the sheet's copy follows its title bar.
-    expect(paragraphs.indexOf(line, at)).toBeGreaterThan(at);
+    // Story 17.1: section 7 no longer prints it; its one line follows the sheet's title bar.
+    expect(paragraphs.indexOf(line)).toBeGreaterThan(at);
+    expect(paragraphs.filter((paragraph) => paragraph === line)).toHaveLength(1);
     expect(paragraphs.indexOf(line, at)).toBeLessThan(next);
     // The picture and its line share one cell of the photo table.
     const document = entries.get('word/document.xml')!.toString('utf8');
@@ -629,7 +631,7 @@ describe('11.10-UNIT section 8 action-plan table', () => {
   it('F-05: a point citing a photo after "etc." prints "…, conforme Imagem N. <ação>" as its bullet; the table keeps the text', async () => {
     const base = fixtureSnapshot();
     const [first] = livePoints(base.points);
-    const [photoId, number] = [...numberPhotos(base.files).entries()].find(([, n]) => n === 1)!;
+    const [photoId, number] = [...numberPhotos(base).entries()].find(([, n]) => n === 1)!;
     const text = `Ausência de identificação da função dos transformadores etc. [[foto:${photoId}]]`;
     const action = 'Instalar placas de sinalização NR-10 nas portas das cabines';
     const snapshot: RelatorioSnapshot = { ...base, points: base.points.map((point) => (point.id === first!.id ? { ...point, text, action } : point)) };

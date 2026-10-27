@@ -1,4 +1,4 @@
-import { photoCitedByText, photoItemLine, photoStampFull, pointsCitingPhoto, sectionMention, toIso, viewerCountText, viewerLabel, type RelatorioSnapshot } from '@app/domain';
+import { photoCitedByText, photoItemLine, photoRemoveDescription, photoStampFull, pointsCitingPhoto, sectionMention, toIso, viewerCountText, viewerLabel, type RelatorioSnapshot } from '@app/domain';
 import { useEffect, useId, useState, type CSSProperties, type RefObject } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Button, ConfirmDialog, PhotoStamp } from '../../components/index.ts';
@@ -103,7 +103,8 @@ function ViewerBody({
   const zoom = cropZoom !== null && leftCrop !== cropKey ? cropZoom : null;
   const countId = useId();
   const [confirming, setConfirming] = useState(false);
-  // Story 16.3: a display shot has no number: no badge, no count, "Foto" alone.
+  // Stories 17.1 and 17.4: every live photo is numbered (a display shot too); a tile the
+  // snapshot does not hold yet draws no badge and no count for that render.
   const number = numbers.get(tile.id) ?? null;
   const total = numbers.size;
   const src = useObjectUrl(useViewerPicture(tile));
@@ -118,6 +119,8 @@ function ViewerBody({
   const item = photoItemLine(tile, snapshot);
   // E6-Q11: the Remover confirm names the points that cite this photo.
   const cited = photoCitedByText(pointsCitingPhoto(snapshot.points, tile.id));
+  // Story 17.1 (QA G2): the confirm says where the photo leaves from, by where it prints.
+  const removeDescription = photoRemoveDescription(tile, sectionMention(snapshot, 7));
   const previous = index > 0 ? tiles[index - 1]! : null;
   const next = index < tiles.length - 1 ? tiles[index + 1]! : null;
 
@@ -207,10 +210,10 @@ function ViewerBody({
         title={t.removeTitle(number)}
         description={
           cited === null ? (
-            t.removeDescription(sectionMention(snapshot, 7))
+            removeDescription
           ) : (
             <>
-              {t.removeDescription(sectionMention(snapshot, 7))} <span className="viewer-cited">{cited}</span>
+              {removeDescription} <span className="viewer-cited">{cited}</span>
             </>
           )
         }

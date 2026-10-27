@@ -276,7 +276,7 @@ async function generalPhoto(page: Page): Promise<string> {
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }).click();
   await (await chooser).setFiles([await plainJpeg(page, 'r8e-geral.jpg')]);
   const which = page.getByRole('dialog', { name: /^De qual equipamento\?/ });
-  await which.getByRole('radio', { name: 'Geral (sem equipamento)' }).click();
+  await which.getByRole('radio', { name: 'Geral — Registro fotográfico (serviços gerais)' }).click();
   await which.getByRole('textbox', { name: 'Legenda da foto' }).clear();
   await which.getByRole('button', { name: 'Adicionar 1 foto' }).click();
   await expect(which).toHaveCount(0);

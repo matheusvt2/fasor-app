@@ -117,12 +117,9 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const snapshot: RelatorioSnapshot = useRelatorioSnapshot(state, relatorioId);
   const tiles = useRelatorioPhotoTiles(db, relatorioId);
   const all = tiles;
-  // Numbered from the tiles this surface draws (one query), so every drawn tile has its number;
-  // a display shot (`reading_kind: 'display'`, Story 16.3) has none and draws no badge.
-  const numbers = useMemo(
-    () => numberPhotos(all.map((tile) => ({ id: tile.id, kind: 'photo', removed_at: null, captured_at: tile.captured_at, local_seq: tile.local_seq, reading_kind: tile.reading_kind }))),
-    [all],
-  );
+  // Stories 17.1 and 17.4: the kernel's numbers in document order, over the snapshot (a display
+  // shot's included); a tile the snapshot does not hold yet draws no badge for that render.
+  const numbers = useMemo(() => numberPhotos(snapshot), [snapshot]);
   // Story 7.2 (AC3): a revision froze these numbers until anything is edited after it.
   const latest = latestRevision(useRevisions(db, relatorioId));
   const edited = useEditedSince(db, relatorioId, latest?.snapshot_seq ?? null);
@@ -344,6 +341,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
           <span className="btn-reason drag-reason">{copy.photos.dragReason}</span>
         </div>
         {camera.note}
+        <p className="section-note gallery-geral-note">{t.geralNote}</p>
       </div>
 
       <PhotoViewer

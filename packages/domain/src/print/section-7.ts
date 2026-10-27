@@ -1,18 +1,20 @@
 import { isUncaptioned, photoItemLine, photoStampFull } from '../photos/gallery.ts';
 import { numberPhotos, photoRefLabel } from '../photos/numbering.ts';
-import { livePhotos } from '../photos/order.ts';
-import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { geralPhotos } from '../photos/order.ts';
+import type { NumberingSnapshot } from './photo-order.ts';
 
 /*
- * Story 7.2 (AC1): section 7, the photo record, as layout data. Every live numbered photo
- * of the frozen snapshot (a "Ler visor" display shot has no number and stays out, Story 16.3), in the `numberPhotos` order `(captured_at, local_seq, id)` and with its
- * number, two per row in the document. Under each photo: the bold label "Imagem 5:" and
- * the caption as a sentence, the full Photo stamp and, for a photo taken on a checklist
- * row (a sheet's, or a local's site item since Story 14.3), that row's line ("Item 8 ·
- * Contatos · NC"). A photo linked to a sheet prints here
- * too, with the same number, so a "conforme Imagem 5" of section 8 always finds it. The
- * renderer (`apps/api/src/jobs/generate/sections/section-7.ts`) embeds the `print`
- * variant and composes nothing: every string below is printed as given.
+ * Story 7.2 (AC1), Story 17.1 (Bruno, 2026-10-27): section 7, the REGISTRO FOTOGRÁFICO, as
+ * layout data. It holds only the "Geral" photos (`isGeralPhoto`: no sheet, no item, no local,
+ * no reading), the ones added to it by hand, in capture order; they open the one numbering
+ * sequence (`numberPhotos`), so they are "Imagem 1" to "Imagem N" here, two per row in the
+ * document. A photo of a sheet, a checklist or site item, a plate or a display shot prints
+ * only under its sheet or its local in section 9, with its own number of the same sequence,
+ * so a "conforme Imagem 5" of section 8 always finds it there. Under each photo: the bold
+ * label "Imagem 5:" and the caption as a sentence, the full Photo stamp and, for a photo
+ * taken on a checklist row, that row's line (`photoItemLine`; a "Geral" photo carries no
+ * item, so none prints today). The renderer (`apps/api/src/jobs/generate/sections/section-7.ts`)
+ * embeds the `print` variant and composes nothing: every string below is printed as given.
  */
 
 /** authored: what a photo cell prints in place of the image when the server holds no bytes for it (open for Bruno). */
@@ -39,11 +41,10 @@ export interface LayoutSectionPhotos {
 }
 
 /**
- * What section 7 reads. The relatório row and the locations are what a site-item photo's line
- * needs (Story 14.3, "Item 11 · Iluminação de emergência (autonomia mínima de 2 h) · NC");
- * without them only a sheet item's line is printed.
+ * What section 7 reads: what the numbering walks (`NumberingSnapshot`), the relatório row and
+ * the locations included (a photo's item line reads them too).
  */
-type Section7Snapshot = Pick<RelatorioSnapshot, 'files' | 'blocks'> & Partial<Pick<RelatorioSnapshot, 'relatorio' | 'locations'>>;
+type Section7Snapshot = NumberingSnapshot;
 
 /** A caption as a printed sentence: trimmed, with a final period unless it already ends in ".", "!" or "?". */
 export function captionSentence(caption: string): string {
@@ -51,12 +52,11 @@ export function captionSentence(caption: string): string {
   return /[.!?]$/.test(text) ? text : `${text}.`;
 }
 
-/** The photos of section 7 in print order, numbered; empty when the relatório holds no live photo. */
+/** The "Geral" photos of section 7 in print order, numbered; empty when the relatório holds none. */
 export function section7Photos(snapshot: Section7Snapshot): LayoutPhoto[] {
-  const numbers = numberPhotos(snapshot.files);
-  return livePhotos(snapshot)
+  const numbers = numberPhotos(snapshot);
+  return geralPhotos(snapshot)
     .flatMap((photo) => {
-      // Story 16.3: a display shot takes no number and prints under its test in section 9 only.
       const number = numbers.get(photo.id);
       if (number === undefined) return [];
       const captioned = !isUncaptioned(photo.caption);
@@ -72,7 +72,7 @@ export function section7Photos(snapshot: Section7Snapshot): LayoutPhoto[] {
     .sort((a, b) => a.number - b.number);
 }
 
-/** Section 7's layout under its heading; null when there is no live photo (the section prints the empty note). */
+/** Section 7's layout under its heading; null when there is no live "Geral" photo (the section prints the empty note). */
 export function section7Layout(snapshot: Section7Snapshot, heading: { number: number; title: string }): LayoutSectionPhotos | null {
   const photos = section7Photos(snapshot);
   return photos.length === 0 ? null : { number: heading.number, title: heading.title, kind: 'photos', photos };

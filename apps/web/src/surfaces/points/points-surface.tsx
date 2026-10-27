@@ -77,7 +77,7 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
   const entries = useMemo(() => sectionEightEntries(snapshot), [snapshot]);
   const live = useMemo(() => entries.flatMap((entry) => (entry.kind === 'point' ? [entry.point] : [])), [entries]);
   const derived = useMemo(() => entries.flatMap((entry) => (entry.kind === 'derived' ? [entry.derived] : [])), [entries]);
-  const numbers = useMemo(() => numberPhotos(snapshot.files), [snapshot.files]);
+  const numbers = useMemo(() => numberPhotos(snapshot), [snapshot]);
   const tiles = useRelatorioPhotoTiles(db, relatorioId);
 
   const [editing, setEditing] = useState<Editing>(null);

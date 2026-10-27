@@ -134,6 +134,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'na-number-field.spec.ts',
     why: 'loads the fixed-id Porto Seguro fixture and renders a preview PDF through the shared queue and LibreOffice',
   },
+  // Story 17.1: section 7 holds the "Geral" photos only, read back from the issued DOCX and PDF.
+  {
+    file: 'section-7-by-hand.spec.ts',
+    why: 'loads the fixed-id Porto Seguro fixture and generates a revision (DOCX and PDF) through the shared queue and LibreOffice',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

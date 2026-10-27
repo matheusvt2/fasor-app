@@ -26,7 +26,7 @@ export function PhotoCaptionDialog({
 }) {
   const sources = useCaptionSources(relatorioId, snapshot);
   const meta = { step: null, testKey: null, words: { atividades: sources.atividades, locais: sources.locais }, registry: sources.registry };
-  const number = useMemo(() => numberPhotos(snapshot.files).get(photo.id) ?? null, [snapshot.files, photo.id]);
+  const number = useMemo(() => numberPhotos(snapshot).get(photo.id) ?? null, [snapshot, photo.id]);
   return (
     <CaptionComposer
       isOpen

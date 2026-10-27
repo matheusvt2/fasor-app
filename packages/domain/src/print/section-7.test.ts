@@ -3,7 +3,6 @@ import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
 import { numberPhotos } from '../photos/numbering.ts';
-import { getDefinition } from '../seed/definitions.ts';
 import { instantiateTemplate } from '../relatorio/instantiate.ts';
 import { sheetOrder } from '../relatorio/ficha.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
@@ -63,30 +62,21 @@ const heading = { number: 7, title: 'REGISTRO FOTOGRÁFICO MANUTENÇÃO PREVENTI
 describe('7.2-UNIT-001 section 7 layout', () => {
   const base = fresh();
   const chave = base.blocks.find((block) => block.id === sheetOrder(base).find((node) => node.blockType === 'chave_seccionadora')!.blockId)!;
-  const items = getDefinition(chave.seed_version, 'cabine_primaria', 'chave_seccionadora').checklist!;
-  const contatos = items.findIndex((item) => item.key === 'contatos') + 1;
   const ncChave = { ...chave, sheet: { ...chave.sheet, checklist: { contatos: { result: { value: 'NC', source_suggestion_id: null, op_id: '019966b0-0705-7000-8000-000000000001' } } } } };
 
-  it('S7 happy: numberPhotos order, bold label and caption as a sentence, the full stamp, the item line', () => {
+  it('S7 happy: the "Geral" photos in capture order, numbered first, bold label and caption as a sentence, the full stamp; a sheet item photo stays out', () => {
     const late = photo(base, { captured_at: '2026-09-06T18:00:00.000Z', caption: 'Detalhe da chave!', coords: { lat: -23.55052, lng: -46.63331, accuracy_m: 5, source: 'geolocation' } });
     const early = photo(base, { captured_at: '2026-09-06T17:00:00.000Z', caption: '  Detalhe da verificação de contatos  ', block_id: chave.id, item_key: 'contatos' });
     const middle = photo(base, { captured_at: '2026-09-06T17:30:00.000Z', caption: 'Vista geral.' });
     const snapshot = { ...base, blocks: base.blocks.map((block) => (block.id === chave.id ? ncChave : block)), files: [late, early, middle] };
     const photos = section7Photos(snapshot);
-    expect(photos.map((p) => p.fileId)).toEqual([early.id, middle.id, late.id]);
-    expect(photos.map((p) => p.number)).toEqual([1, 2, 3]);
-    expect([...numberPhotos(snapshot.files)].map(([id, number]) => ({ id, number }))).toEqual(photos.map((p) => ({ id: p.fileId, number: p.number })));
-    expect(photos[0]).toEqual({
-      fileId: early.id,
-      number: 1,
-      label: 'Imagem 1:',
-      caption: ' Detalhe da verificação de contatos.',
-      stamp: '06/09/2026 14:00',
-      itemLine: `Item ${contatos} · Contatos · NC`,
-    });
+    expect(photos.map((p) => p.fileId)).toEqual([middle.id, late.id]);
+    expect(photos.map((p) => p.number)).toEqual([1, 2]);
+    // Story 17.1: one sequence; the sheet's item photo prints under its sheet only, numbered after section 7.
+    expect([...numberPhotos(snapshot)].map(([id, number]) => ({ id, number }))).toEqual([...photos.map((p) => ({ id: p.fileId, number: p.number })), { id: early.id, number: 3 }]);
+    expect(photos[0]).toEqual({ fileId: middle.id, number: 1, label: 'Imagem 1:', caption: ' Vista geral.', stamp: '06/09/2026 14:30', itemLine: null });
     // A caption already ending in ".", "!" or "?" gets no second period.
-    expect(photos[1]!.caption).toBe(' Vista geral.');
-    expect(photos[2]).toMatchObject({ label: 'Imagem 3:', caption: ' Detalhe da chave!', stamp: '06/09/2026 15:00 · −23,5505, −46,6333', itemLine: null });
+    expect(photos[1]).toMatchObject({ label: 'Imagem 2:', caption: ' Detalhe da chave!', stamp: '06/09/2026 15:00 · −23,5505, −46,6333', itemLine: null });
   });
 
   it('S7 uncaptioned: "Imagem N." alone; a removed photo is gone and the numbers close the gap', () => {
@@ -116,23 +106,37 @@ describe('7.2-UNIT-001 section 7 layout', () => {
   });
 });
 
-describe('16.3-UNIT section 7 without display shots', () => {
+describe('17.1-UNIT section 7 holds the "Geral" photos only', () => {
   const base = fresh();
+  const chave = base.blocks.find((block) => block.id === sheetOrder(base).find((node) => node.blockType === 'chave_seccionadora')!.blockId)!;
+  const local = base.locations.find((location) => location.kind === 'cabine')!;
+  const at = (minute: number) => `2026-09-06T17:${String(minute).padStart(2, '0')}:00.000Z`;
 
-  it('B2: p1, d1 (display), p2 print two photos, "Imagem 1" and "Imagem 2"; the display shot stays out', () => {
-    const p1 = photo(base, { captured_at: '2026-09-06T17:00:00.000Z', caption: 'Vista geral' });
-    const d1 = photo(base, { captured_at: '2026-09-06T17:10:00.000Z', caption: 'Leitura do megômetro', reading_kind: 'display' });
-    const p2 = photo(base, { captured_at: '2026-09-06T17:20:00.000Z', caption: null });
-    const photos = section7Photos({ ...base, files: [p1, d1, p2] });
+  it('M2: g2, s1 (burst), n1 (NC item), p1 (plate), d1 (display), t1 (site item), g1 captured before g2: section 7 is g1 "Imagem 1", g2 "Imagem 2"', () => {
+    // g2 asks for its vision caption (Story 9.3, what a context-less gallery photo carries): still Geral.
+    const g2 = photo(base, { captured_at: at(10), caption: 'Vista geral', reading_kind: 'caption' });
+    const s1 = photo(base, { captured_at: at(11), block_id: chave.id });
+    const n1 = photo(base, { captured_at: at(12), block_id: chave.id, item_key: 'contatos' });
+    const p1 = photo(base, { captured_at: at(13), block_id: chave.id, reading_kind: 'plate' });
+    const d1 = photo(base, { captured_at: at(14), block_id: chave.id, reading_kind: 'display', caption: 'Leitura do megômetro' });
+    const t1 = photo(base, { captured_at: at(15), location_id: local.id, item_key: 'epi_disponivel' });
+    const g1 = photo(base, { captured_at: at(5), caption: null });
+    const photos = section7Photos({ ...base, files: [g2, s1, n1, p1, d1, t1, g1] });
     expect(photos.map((p) => [p.fileId, p.number, p.label])).toEqual([
-      [p1.id, 1, 'Imagem 1:'],
-      [p2.id, 2, 'Imagem 2.'],
+      [g1.id, 1, 'Imagem 1.'],
+      [g2.id, 2, 'Imagem 2:'],
     ]);
   });
 
-  it('a relatório whose only photo is a display shot prints the empty note', () => {
-    const d1 = photo(base, { reading_kind: 'display' });
-    expect(section7Layout({ ...base, files: [d1] }, heading)).toBeNull();
+  it('M2: a relatório with only sheet photos (a display shot among them) prints section 7 as the empty one prints today', () => {
+    const s1 = photo(base, { block_id: chave.id });
+    const d1 = photo(base, { block_id: chave.id, reading_kind: 'display' });
+    expect(section7Layout({ ...base, files: [s1, d1] }, heading)).toBeNull();
+    // A site photo, an item key alone or a place-naming reading alone ('panel') is not "Geral" either.
+    const t1 = photo(base, { location_id: local.id, item_key: 'epi_disponivel' });
+    const keyed = photo(base, { item_key: 'contatos' });
+    const read = photo(base, { reading_kind: 'panel' });
+    expect(section7Layout({ ...base, files: [t1, keyed, read] }, heading)).toBeNull();
   });
 });
 
@@ -146,7 +150,7 @@ describe('7.2-UNIT-002 section 7 on the Porto Seguro fixture', () => {
     if (section.kind !== 'photos') return;
     expect(section.photos).toHaveLength(82);
     expect(section.photos.map((p) => p.number)).toEqual(Array.from({ length: 82 }, (_, i) => i + 1));
-    const numbers = numberPhotos(snapshot.files);
+    const numbers = numberPhotos(snapshot);
     for (const p of section.photos) expect(numbers.get(p.fileId)).toBe(p.number);
     expect(section.photos.every((p) => p.label === `Imagem ${p.number}:` && p.caption !== null && p.caption.endsWith('.'))).toBe(true);
     expect(section.photos[0]!.caption).toBe(' Detalhe da equipe da Enel no local para desligamento e religamento da energia.');

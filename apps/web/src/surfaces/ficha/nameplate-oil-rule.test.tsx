@@ -78,7 +78,7 @@ const photo = { id: PHOTO, kind: 'photo', block_id: ID, item_key: 'termometro', 
 
 function snapshotOf(shown: BlockRow, others: readonly BlockRow[] = []): RelatorioSnapshot {
   return {
-    relatorio: { id: REL, status: 'em_campo' },
+    relatorio: { id: REL, status: 'em_campo', seed_version: 'v1', export: { scheme: 'ordem_de_campo' } },
     blocks: [shown, ...others],
     equipment: [],
     locations: [],

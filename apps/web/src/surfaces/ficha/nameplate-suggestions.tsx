@@ -122,10 +122,8 @@ export function useCropViewer({ api, snapshot, onCaptionPhoto }: { api: LocalApi
   const { showToast } = useToast();
   const db = useSession().database;
   const tiles = useRelatorioPhotoTiles(db, api.relatorioId);
-  const numbers = useMemo(
-    () => numberPhotos(tiles.map((tile) => ({ id: tile.id, kind: 'photo', removed_at: null, captured_at: tile.captured_at, local_seq: tile.local_seq, reading_kind: tile.reading_kind }))),
-    [tiles],
-  );
+  // Stories 17.1 and 17.4: the kernel's numbers in document order, over the snapshot.
+  const numbers = useMemo(() => numberPhotos(snapshot), [snapshot]);
   const [viewing, setViewing] = useState<{ photoId: string; zoom: NormalizedBox | null } | null>(null);
   const openPhoto = (photoId: string, zoom: NormalizedBox | null = null) => {
     if (tiles.some((tile) => tile.id === photoId)) setViewing({ photoId, zoom });

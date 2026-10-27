@@ -58,7 +58,7 @@ afterEach(async () => {
 describe('14.14 the SELV/PELV help and notice on a read-only sheet', () => {
   it('shows the seed help and the amber SELV notice under the field', () => {
     const api = { relatorioId: REL, projectId: REL, blockId: ID, author: null, commit: vi.fn(), edit: vi.fn(), undoable: vi.fn(), announce: vi.fn() } as unknown as FichaApi;
-    const snapshot = { relatorio: { id: REL, status: 'emitido' }, blocks: [board], equipment: [], locations: [], files: [], points: [], suggestions: [], instruments: [] } as unknown as RelatorioSnapshot;
+    const snapshot = { relatorio: { id: REL, status: 'emitido', seed_version: 'v1', export: { scheme: 'ordem_de_campo' } }, blocks: [board], equipment: [], locations: [], files: [], points: [], suggestions: [], instruments: [] } as unknown as RelatorioSnapshot;
     const { container } = render(
       <SyncContext value={makeSyncState()}>
         <ToastProvider>

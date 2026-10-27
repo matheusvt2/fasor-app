@@ -2364,9 +2364,14 @@ Source: `_bmad-output/test-artifacts/manual/qa-e16-2026-10-26.md` (verdict pass;
   summary: The remove confirm on a "Ler visor" display shot still says "A foto sai da galeria e da seção 3", while since Story 16.3 the Registro fotográfico never holds display shots (QA G2).
   evidence: QA report G2; the confirm sentence is one static string for every photo, so the display shot needs its own sentence (kernel text, AD-1).
   class: bug
-  state: ~~open (owner: the next fix batch)~~ scheduled (2026-10-27: Story 17.1 takes every sheet photo out of section 7, so the confirm sentence changes for every sheet photo there, display shots included)
+  state: ~~open (owner: the next fix batch)~~ ~~scheduled (2026-10-27: Story 17.1 takes every sheet photo out of section 7, so the confirm sentence changes for every sheet photo there, display shots included)~~ closed (2026-10-27, batch e17a, `spec-17-1-17-4-section-7-by-hand-display-shots-numbered.md`: `photoRemoveDescription` in `packages/domain/src/photos/gallery.ts` composes the sentence by where the photo prints: a Geral photo names section 7 (or the gallery alone when the relatório lacks it), a sheet's photo "a ficha do equipamento", a local's site-item photo "as verificações do local"; `display-shots.spec.ts` asserts the sheet sentence on a display shot)
 - source_spec: `_bmad-output/implementation-artifacts/spec-16-4-na-in-number-fields.md`
   summary: "Altitude do site" (Dados do relatório, Etapa 5) is a native number input, so `n.a` is dropped without a word and the sheet's read-only Altitude can never hold N.A (QA G3). Story 16.4 names the cabine fields but its AC does not name this setup field; whether altitude should take N.A is a product question for Matheus.
   evidence: QA report G3; `inputmode` and `type="number"` on the setup field.
   class: question
   state: ~~open (owner: Matheus; then a story line under 16.4 or the next fix batch)~~ scheduled (2026-10-27, Bruno's answer 4: N/A, or the phone's position; Story 17.6, Epic 17 wave B, contract 27)
+- source_spec: `_bmad-output/implementation-artifacts/spec-17-1-17-4-section-7-by-hand-display-shots-numbered.md`
+  summary: A relatório whose latest revision predates Stories 17.1 and 17.4 and that holds sheet, local or display-shot photos shows "Números da revisão N" in the gallery while its badges read the new document-order numbers, which that revision's document does not carry (the 16.3 drift again, in the other direction). A revision stores no numbers; the unchanged snapshot is what freezes them, so the label is right again at the next revision.
+  evidence: `photoNumbersStatusText(latest, edited)` and `numberPhotos(snapshot)` in `gallery-surface.tsx`; the rule changed, the snapshot did not.
+  class: known-open
+  state: open (owner: ends by itself at the next revision of each such relatório; a line under Story 17.4 if Bruno notices)

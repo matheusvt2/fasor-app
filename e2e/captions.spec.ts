@@ -216,7 +216,7 @@ test('@p0 9.3-E2E-003 "Pessoas na foto" in an import batch marks every photo of 
   await openGallery(page, relatorioId);
   const which = await pickFiles(page, [await plainJpeg(page, 'a.jpg'), await plainJpeg(page, 'b.jpg')]);
   await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(2);
-  await which.getByRole('radio', { name: 'Geral (sem equipamento)' }).click();
+  await which.getByRole('radio', { name: 'Geral — Registro fotográfico (serviços gerais)' }).click();
   const chip = which.getByRole('button', { name: 'Pessoas na foto' });
   await expect(chip).toHaveAttribute('aria-pressed', 'false');
   await chip.click();
@@ -257,7 +257,7 @@ test('@p0 9.3-E2E-005 ledger 1131: a batch answered "Geral" with "Adicionar" ask
   expect(await readingPuts(page)).toEqual([]);
   for (const photo of await devicePhotos(page, database)) expect(photo.reading_status).toBe('none');
 
-  await which.getByRole('radio', { name: 'Geral (sem equipamento)' }).click();
+  await which.getByRole('radio', { name: 'Geral — Registro fotográfico (serviços gerais)' }).click();
   await which.getByRole('button', { name: 'Adicionar 2 fotos' }).click();
   await expect(which).toHaveCount(0);
   await expect.poll(async () => (await readingPuts(page)).length, { timeout: 15_000 }).toBe(2);

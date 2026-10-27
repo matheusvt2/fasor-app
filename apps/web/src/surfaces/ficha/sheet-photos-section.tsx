@@ -1,4 +1,4 @@
-import { numberPhotos, photosOfBlock, photoStampShort, photoTileLabel, photoUploadState, sheetPhotosHeading, type RelatorioSnapshot } from '@app/domain';
+import { numberPhotos, photosOfBlock, photoStampShort, photoTileLabel, photoUploadState, sheetPhotosHeading, type NumberingSnapshot, type RelatorioSnapshot } from '@app/domain';
 import { useId, useMemo } from 'react';
 import { PhotoRow } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -18,7 +18,8 @@ import { useCropViewer } from './nameplate-suggestions.tsx';
  */
 
 export interface SheetPhotosSectionProps {
-  snapshot: Pick<RelatorioSnapshot, 'files'>;
+  /** What `numberPhotos` walks (the files and what places them in the document). */
+  snapshot: NumberingSnapshot;
   blockId: string;
   /** The device's photo tiles of the relatório (any order): the thumbs and local errors, by id. */
   tiles: readonly PhotoTile[];
@@ -29,7 +30,7 @@ export interface SheetPhotosSectionProps {
 export function SheetPhotosSection({ snapshot, blockId, tiles, onOpen, onRetry }: SheetPhotosSectionProps) {
   const headingId = useId();
   const photos = useMemo(() => photosOfBlock(snapshot, blockId), [snapshot, blockId]);
-  const numbers = useMemo(() => numberPhotos(snapshot.files), [snapshot.files]);
+  const numbers = useMemo(() => numberPhotos(snapshot), [snapshot]);
   const tileOf = useMemo(() => new Map(tiles.map((tile) => [tile.id, tile])), [tiles]);
   if (photos.length === 0) return null;
   return (
@@ -41,7 +42,7 @@ export function SheetPhotosSection({ snapshot, blockId, tiles, onOpen, onRetry }
       <div className="photo-list">
         {photos.map((photo) => {
           const tile = tileOf.get(photo.id);
-          // Story 16.3: a display shot has no number, so no badge.
+          // Story 17.4: a display shot is numbered like any photo.
           const number = numbers.get(photo.id) ?? null;
           return (
             <PhotoRow

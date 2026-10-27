@@ -459,7 +459,7 @@ describe('14.3 a point created from a site item', () => {
     expect(sitePointTitle(' 1° Subsolo ')).toBe('1° Subsolo · Verificações do local');
     expect(pointTitle({ equipment_id: null }, snapshot)).toBe(POINT_TITLE_GENERAL);
     expect(pointTitle({ equipment_id: null, location_id: POINT }, snapshot)).toBe(POINT_TITLE_GENERAL);
-    const numbering = numberPhotos(snapshot.files);
+    const numbering = numberPhotos(snapshot);
     expect(resolveSection8(snapshot, numbering)).toEqual([{ kind: 'point', text: 'Luminária de emergência inoperante, conforme Imagem 1', point_id: POINT }]);
     expect(resolveActionPlan(snapshot, numbering)[0]).toMatchObject({ number: '1', local: '1° Subsolo · Verificações do local', images: '1' });
     expect(pointsSummary(snapshot)).toMatchObject({ total: 1, semAcao: 1 });
@@ -526,8 +526,9 @@ describe('14.3 a photo taken on a site item', () => {
     ]);
     // An unanswered item reads without a result.
     expect(photoItemLine({ ...photo, item_key: EPI }, snapshot)).toMatchObject({ text: 'Item 6 · EPI disponível', result: null, nc: false });
-    // Section 7 prints the line under the photo.
-    expect(section7Photos(snapshot).map((row) => row.itemLine)).toEqual(['Item 11 · Iluminação de emergência (autonomia mínima de 2 h) · NC']);
+    // Story 17.1: section 7 holds the "Geral" photos only; the site photo prints under its local in section 9, numbered 1.
+    expect(section7Photos(snapshot)).toEqual([]);
+    expect(numberPhotos(snapshot).get(PHOTO)).toBe(1);
   });
 
   it('its caption is prefilled "Verificação de ⟨item⟩ d⟨o/a⟩ ⟨local⟩", agreeing with the local name', () => {
@@ -571,7 +572,7 @@ describe('14.3 a photo taken on a site item', () => {
     expect(contextCaption(both, snapshot, meta)).toBeNull();
   });
 
-  it('matrix "Removed local": the photo stays in section 7 as a photo whose block is absent, with no item line and no local', () => {
+  it('matrix "Removed local": the photo reads as one with no item line and no local; it keeps a number but prints in no section (17.1: never in section 7)', () => {
     const f = opFactory(new Date('2026-09-23T12:00:00.000Z'));
     const remove = f.op({ path: locationFieldPath(SUBSOLO, 'removed_at'), value: '2026-09-23T12:00:00.000Z' });
     const removed = snapshotOf(fold(state(), [remove]));
@@ -579,9 +580,11 @@ describe('14.3 a photo taken on a site item', () => {
     expect(photoItemLine(photo, removed)).toBeNull();
     expect(photoCabineId(photo, removed)).toBeNull();
     expect(contextCaption(photo, removed, meta)).toBeNull();
-    expect(section7Photos(removed).map((row) => [row.number, row.itemLine])).toEqual([[1, null]]);
+    expect(section7Photos(removed)).toEqual([]);
+    expect(numberPhotos(removed).get(PHOTO)).toBe(1);
     const restored = snapshotOf(fold(state(), [remove, f.op({ path: locationFieldPath(SUBSOLO, 'removed_at'), value: null, prev_op_id: remove.op_id })]));
-    expect(section7Photos(restored)[0]!.itemLine).toBe('Item 11 · Iluminação de emergência (autonomia mínima de 2 h) · NC');
+    expect(photoItemLine(restored.files[0]! as Extract<RelatorioSnapshot['files'][number], { kind: 'photo' }>, restored)?.text).toBe('Item 11 · Iluminação de emergência (autonomia mínima de 2 h) · NC');
+    expect(section7Photos(restored)).toEqual([]);
   });
 });
 

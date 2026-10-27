@@ -51,7 +51,12 @@ function tile(n: number, extra: Partial<PhotoTile> = {}): PhotoTile {
   };
 }
 
-const snapshotOf = (files: unknown[]) => ({ files }) as unknown as RelatorioSnapshot;
+/**
+ * What `numberPhotos` walks: these blocks sit in no location, so every photo is numbered after
+ * the (absent) "Geral" ones in capture order (Story 17.1, matrix M5).
+ */
+const snapshotOf = (files: unknown[]) =>
+  ({ files, relatorio: { seed_version: 'v1', export: { scheme: 'ordem_de_campo' } }, locations: [], blocks: [], equipment: [] }) as unknown as RelatorioSnapshot;
 
 afterEach(cleanup);
 
@@ -106,7 +111,7 @@ describe('11.11-UNIT-003 SheetPhotosSection', () => {
     expect(container.querySelector('.thumb-fake')).not.toBeNull();
   });
 
-  it('16.3: a "Ler visor" display shot draws no badge and no number in its name; the photos around it keep theirs', () => {
+  it('17.4: a "Ler visor" display shot draws its badge and its number in its name, like the photos around it', () => {
     const files = [
       photo(1, '2026-09-06T09:00:00.000Z', BLOCK),
       photo(2, '2026-09-06T10:00:00.000Z', BLOCK, { reading_kind: 'display', caption: 'Leitura do megômetro' }),
@@ -114,10 +119,10 @@ describe('11.11-UNIT-003 SheetPhotosSection', () => {
     ];
     const { container } = render(<SheetPhotosSection snapshot={snapshotOf(files)} blockId={BLOCK} tiles={[]} onOpen={() => {}} onRetry={() => {}} />);
     const rows = [...container.querySelectorAll('.photo-list > .photo-row')];
-    expect(rows.map((row) => row.querySelector('.number-badge')?.textContent ?? null)).toEqual(['1', null, '2']);
-    expect(screen.getByRole('button', { name: 'Foto, abrir' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Foto 2, abrir' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Foto 3, abrir' })).toBeNull();
+    expect(rows.map((row) => row.querySelector('.number-badge')?.textContent ?? null)).toEqual(['1', '2', '3']);
+    expect(within(rows[1] as HTMLElement).getByRole('button', { name: 'Foto 2, abrir' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Foto 3, abrir' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Foto, abrir' })).toBeNull();
   });
 
   it('renders nothing for a block with no live photo', () => {
