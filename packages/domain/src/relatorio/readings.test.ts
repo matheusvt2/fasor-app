@@ -614,7 +614,7 @@ describe('17.5-UNIT failedRatioRows (F42, E15-A2)', () => {
     expect(tp([[0, 3, measured('125', null)]])).toEqual([]);
   });
 
-  it('B9: the v9 transformador de força, one capture out of three: the row named once, by its TAP, with the worst out deviation', () => {
+  it('B9: the v9 transformador de força, one capture out of three: the row named once, "TAP 5", with the worst out deviation; the TP keeps "Fase R"', () => {
     const trafo = getDefinition('v9', 'cabine_primaria', 'transformador_forca');
     const sheet = {
       nameplate: { tap_atual: cell('5') },
@@ -627,7 +627,12 @@ describe('17.5-UNIT failedRatioRows (F42, E15-A2)', () => {
       ]),
     };
     const b = { ...block('transformador_forca', sheet, defaultBlockConfig('v9', 'transformador_forca')), seed_version: 'v9' };
-    expect(failedRatioRows(evaluateSheetReadings(b, trafo))).toEqual([{ testKey: 'relacao_transformacao', label: '5', deviationText: '42,29 %' }]);
+    expect(failedRatioRows(evaluateSheetReadings(b, trafo))).toEqual([{ testKey: 'relacao_transformacao', label: 'TAP 5', deviationText: '42,29 %' }]);
+    // A blank or N/A TAP ATUAL: the row is named "TAP" alone, never an empty name.
+    for (const tap of [cell('  '), cell({ raw: '', unit: null, state: 'not_applicable' })]) {
+      const blank = { ...b, sheet: { ...b.sheet, nameplate: { tap_atual: tap } } };
+      expect(failedRatioRows(evaluateSheetReadings(blank, trafo)).map((r) => r.label)).toEqual(['TAP']);
+    }
   });
 
   it('a disabled ratio sub-block is not evaluated, so nothing fails', () => {

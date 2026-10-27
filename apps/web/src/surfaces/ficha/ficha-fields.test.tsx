@@ -575,7 +575,10 @@ describe('16.4 "N/A" in a nameplate or cabine number field (Story 17.3: printed 
     render(<Stored initial={null} commit={commit} />);
     const input = screen.getByRole('textbox', { name: /potência/i });
     await userEvent.type(input, '12');
-    await userEvent.click(control()!);
+    // WebKit takes no focus on a tapped button: the click lands while the input keeps the
+    // focus, so no blur commits 12 and the control's own commitNow must.
+    expect(input).toHaveFocus();
+    fireEvent.click(control()!);
     expect(commit.mock.calls).toEqual([[{ raw: '12', unit: 'kVA', state: 'measured' }], [NA]]);
     expect(input).toHaveValue('N/A');
     expect(control()).toBeNull();

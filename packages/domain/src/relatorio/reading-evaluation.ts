@@ -365,7 +365,7 @@ export function evaluatedCells(evaluations: readonly TestEvaluation[]): Evaluate
 /** Story 17.5: one ratio row whose CONDIÇÃO reads INSATISFATÓRIO. */
 export interface FailedRatioRow {
   testKey: 'relacao_transformacao';
-  /** The row's name as the table shows it ("Fase R", the TAP). */
+  /** The row's name as a person reads it: "Fase R"; on a typed TAP table "TAP 5", or "TAP" when blank. */
   label: string;
   /** The worst out capture's deviation from VAL CALCULADO, as `worstReadings` prints it ("4,17 %"). */
   deviationText: string;
@@ -383,6 +383,8 @@ export function failedRatioRows(evaluations: readonly TestEvaluation[]): FailedR
   for (const test of evaluations) {
     if (test.testKey !== 'relacao_transformacao') continue;
     for (const table of test.tables) {
+      // A typed TAP connection (the transformer) reads "TAP 5", or "TAP" alone when blank.
+      const tap = table.connectionHeaders[0]?.toUpperCase().startsWith('TAP') === true;
       for (const row of table.rows) {
         if (row.condicao !== 'INSATISFATÓRIO' || row.calculated === null) continue;
         const calculated = Number(row.calculated.raw);
@@ -390,7 +392,8 @@ export function failedRatioRows(evaluations: readonly TestEvaluation[]): FailedR
         for (const cell of row.cells) {
           if (cell.role === 'capture' && cell.verdict === 'out') worst = Math.max(worst, deviationPct(Number(cell.raw), calculated));
         }
-        out.push({ testKey: 'relacao_transformacao', label: row.label, deviationText: `${formatDeviation(worst)} %` });
+        const label = tap ? (row.label.trim() === '' ? 'TAP' : `TAP ${row.label}`) : row.label;
+        out.push({ testKey: 'relacao_transformacao', label, deviationText: `${formatDeviation(worst)} %` });
       }
     }
   }

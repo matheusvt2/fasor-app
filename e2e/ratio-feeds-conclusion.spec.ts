@@ -67,7 +67,7 @@ test('@p0 17.5-E2E-001 a transformer ratio row INSATISFATÓRIO suggests "Aprovad
   await restriction.getByRole('radio', { name: 'Sem restrições', exact: true }).click();
   await expect(restriction.getByRole('radio', { name: 'Sem restrições', exact: true })).toHaveAttribute('aria-checked', 'true');
   const warning = page.locator('.conclusion-control .conclusion-hint');
-  await expect(warning).toHaveText('Há relação de transformação insatisfatória em 5');
+  await expect(warning).toHaveText('Há relação de transformação insatisfatória em TAP 5');
 
   // "Com restrições": the warning goes, the observation is required and typed, the composed text confirmed.
   await restriction.getByRole('radio', { name: 'Com restrições', exact: true }).click();

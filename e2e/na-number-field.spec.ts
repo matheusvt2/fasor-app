@@ -116,25 +116,28 @@ test('@p0 16.4-E2E-001 17.3-E2E-001 "N/A" typed in the transformer sheet\'s POT�
   await expect(values).toHaveText(/^ALVENARIA - CONVENCIONAL · 13,8\skV · .+ · N\/A · 20\s°C · 60\s%$/);
   await expect(values).not.toContainText('kVA');
 
-  // Story 17.3 at a phone width: a number back in POTÊNCIA NOMINAL brings the control back.
-  await page.setViewportSize({ width: 390, height: 844 });
-  await input.fill('1000');
-  await input.blur();
-  await expect(input).toHaveValue('1.000');
-  await expect(potencia.locator('.mf-unit')).toHaveText('kVA');
-  await expect.poll(() => lastOutboxValue(page, POTENCIA_PATH)).toEqual({ raw: '1000', unit: 'kVA', state: 'measured' });
+  // Story 17.3 at 1280, 768 and 390 px (the last one stays for the cabine): a number back in
+  // POTÊNCIA NOMINAL brings the control back, it fits beside the value and a tap commits N/A.
   const plateControl = naControl(page, 'Potência nominal');
-  await expect(plateControl).toHaveText('N/A');
-  await plateControl.scrollIntoViewIfNeeded();
-  await expectControlFits(page, potencia, plateControl);
-  // The tap commits the same put as the typed spelling, reads "N/A", hides itself and moves no focus.
-  await plateControl.click();
-  await expect(input).toHaveValue('N/A');
-  await expect(potencia.locator('.mf-unit')).toHaveCount(0);
-  await expect(potencia.locator('.mf-echo')).toHaveCount(0);
-  await expect(plateControl).toHaveCount(0);
-  await expect.poll(() => lastOutboxValue(page, POTENCIA_PATH)).toEqual(NA);
-  await expect(page.locator('input:focus')).toHaveCount(0);
+  for (const width of [1280, 768, 390]) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    await input.fill('1000');
+    await input.blur();
+    await expect(input).toHaveValue('1.000');
+    await expect(potencia.locator('.mf-unit')).toHaveText('kVA');
+    await expect.poll(() => lastOutboxValue(page, POTENCIA_PATH)).toEqual({ raw: '1000', unit: 'kVA', state: 'measured' });
+    await expect(plateControl).toHaveText('N/A');
+    await plateControl.scrollIntoViewIfNeeded();
+    await expectControlFits(page, potencia, plateControl);
+    // The tap commits the same put as the typed spelling, reads "N/A", hides itself and moves no focus.
+    await plateControl.click();
+    await expect(input).toHaveValue('N/A');
+    await expect(potencia.locator('.mf-unit')).toHaveCount(0);
+    await expect(potencia.locator('.mf-echo')).toHaveCount(0);
+    await expect(plateControl).toHaveCount(0);
+    await expect.poll(() => lastOutboxValue(page, POTENCIA_PATH)).toEqual(NA);
+    await expect(page.locator('input:focus')).toHaveCount(0);
+  }
 
   // The cabine field the same way: "Editar", a number, then the control.
   await cabineLine(page).getByRole('button', { name: 'Editar' }).click();

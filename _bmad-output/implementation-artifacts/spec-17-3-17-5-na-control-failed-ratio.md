@@ -2,7 +2,7 @@
 title: 'Stories 17.3 and 17.5: the "N/A" control and spelling; a failed ratio feeds the conclusion suggestion, the pre-issue rows and the parecer count'
 type: 'feature'
 created: '2026-10-27'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'e3c8813e'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -133,3 +133,16 @@ A TP v1 ratio row with inputs 13,8 kV / 115 V and capture 125: `condicao` = INSA
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-10-27 — Review pass
+Layers: Edge Case Hunter and Verification Gap Reviewer (opus). Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them.
+- verdicts: 8 findings — high 0, medium 3, low 3, false 2, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` (edge) `failedRatioRows` names a transformer row by the typed TAP ("em 5") and by nothing at all when TAP ATUAL is blank or N/A (`reading-evaluation.ts` `shown[0] ?? ''`) — fix: the label reads `TAP ⟨n⟩` on a typed-connection table (`TAP` alone when blank), `Fase R` elsewhere; boundary tests added; the e2e expectation updated.
+  - `[low]` `[reject]` (edge) a tap over typed, uncommitted text lands two puts (the number, then N/A), so one Desfazer restores the typed number — by design (spec A9 and Design Notes: both are the existing put kind, both undoable; a typed commit behaves the same on blur).
+  - `[low]` `[reject]` (edge) the control hides on a typed, uncommitted "n.a" before any commit — spec A3 ("stored or just typed"); the text stays shown, blur or `flushOnUnmount` commits it; a refused commit is not a state the input reaches (the parse already accepted the spelling).
+  - `[false]` `[reject]` (edge, claim) `composeConclusion` never calls `failedRatioRows` — the spec's Verification finding and Code Map settle it: the text and criteria already name the ratio through `worstReadings`, the basis hashes every verdict, and the spec forbids changing the basis bytes.
+  - `[false]` `[reject]` (edge, claim) the suggestion change is a no-op — acknowledged in the Verification finding: the explicit `failedRatioRows` read makes the rule hold in one place; no bad outcome.
+  - `[medium]` `[patch]` (gap) the A9 unit test never exercises `commitNow()` because `userEvent.click` blurs the input first in jsdom; deleting the call keeps the test green — fix: the click fires without a blur so the test goes red without `commitNow()`.
+  - `[medium]` `[patch]` (gap) the control's fit and tap are asserted at 390 px only while the AC names 390, 768 and 1280 px — fix: the nameplate block loops over the three widths in `na-number-field.spec.ts`.
+  - `[low]` `[reject]` (gap, other) `restrictionWarning` runs `evaluateSheetReadings` on every render of `conclusao-section.tsx` unmemoised — negligible: `suggestConclusionPair` beside it already does the same on every render; no user-visible harm.
