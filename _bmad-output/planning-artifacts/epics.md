@@ -4366,6 +4366,8 @@ Investigated 2026-10-27 by Matheus with the agent against main `e2023853` (v0.3.
 
 *(2026-10-27, Matheus, same day: "Bruno já deu todas as informações necessárias"; the six confirmations stand as the defaults named under each story (a later answer from Bruno still becomes a dated line), the camera app as the default on phones and tablets is confirmed (17.2), and Epic 17 starts: wave A batches e17a (17.1 + 17.4) and e17b (17.3 + 17.5) launched from main `c2ee5580` or later.)*
 
+*(2026-10-28: wave A merged. Batch e17b (Stories 17.3 and 17.5) PR #189 as `fd5efabf`, batch e17a (Stories 17.1 and 17.4) PR #190 as `0bdd925a`, the second after merging the first and running both batches' touched specs on the merge commit (cross-batch rule). The wave A gate (`pnpm verify` with `@p0`, `test:e2e:full`, `test:e2e:matrix`) runs on `0bdd925a` from the main checkout; its record is in `epic-17-context.md` "Wave gates". Deploy v0.3.4 after it, on Matheus's go.)*
+
 ### Story 17.1: The REGISTRO FOTOGRÁFICO holds only the photos added to it by hand
 
 **Dev model:** opus · **Effort:** medium · kernel print and numbering: `print/section-7.ts`, `photos/numbering.ts` (document order), the gallery's "Geral" wording; the goldens stay (all 82 fixture photos are "Geral")
@@ -4393,6 +4395,8 @@ So that an equipment's or a local's photos print only under their own item, as F
 **Then** the wording says where those photos print (authored: "Geral — Registro fotográfico (serviços gerais)" and one note line under the gallery camera), from `copy/pt-br.ts`, listed in the PR for Bruno
 
 **Definition of Done, in addition:** kernel tests for `section7Photos` and `numberPhotos` with photos of every link kind; a Playwright spec takes one gallery "Geral" photo and one sheet photo, generates the preview and asserts section 7's count and the sheet photo's single print and number through the PDF text; `source-deltas.md` row (AD-17 "a photo linked to a sheet prints here too" ends), `glossary.md` ("Geral photo"), `docs/kbs/log.md` line.
+
+*(2026-10-28, built as batch e17a with 17.4, PR #190 squash-merged as `0bdd925a`. Narrowing: `isGeralPhoto` accepts `reading_kind` null or `'caption'`, because Story 9.3 gives `'caption'` to every photo with no sheet, no caption and no "Pessoas na foto" mark, so the literal default emptied section 7. Review patch: a Não ensaiada sheet prints its photos under it (plate photos after the nameplate, the rest after the reason band); a block whose definition does not resolve is not placed and its photos number at the tail. Decisions pending for Matheus, from the PR: (1) where an orphan photo prints (deleted sheet, off-list site item: today numbered last, printed nowhere, still offered by the picker); (2) whether section 9 prints the full stamp and the item line under sheet and local photos (today "Imagem N: legenda." only); (3) whether the Sumário's row 7 counts every photo or the Geral ones; (4) the gallery note's wording for a relatório without section 7; (5) whether the gallery sorts by number instead of capture order. Known open: a relatório whose latest revision predates this change shows the new numbers under "Números da revisão N" until its next revision. Authored strings for Bruno: "Geral — Registro fotográfico (serviços gerais)", the gallery note and the three remove-confirm sentences.)*
 
 ### Story 17.2: The device's camera app takes the photos
 
@@ -4462,6 +4466,8 @@ So that I can mark a value not applicable without a keyboard that has letters.
 
 **Definition of Done, in addition:** `pt-br-number.test.ts`, `ficha-fields.test.tsx` and the readers' tests updated to "N/A"; `na-number-field.spec.ts` extended on `desktop-chrome` and `durability-android-chrome` (tap the control, see "N/A", PDF text "N/A"); QA G1's keep-button name fixed with it; `glossary.md` "N.A" row amended with strike-through; `source-deltas.md` row; `docs/kbs/log.md` line; the authored control label and description listed for Bruno.
 
+*(2026-10-28, built as batch e17b with 17.5, PR #189 squash-merged as `fd5efabf`: `NOT_APPLICABLE_TEXT` is "N/A" with no contract bump (the stored state carries no spelling; a device still on contract 26 shows "N.A" until it reloads); the control is a secondary button "N/A" at the trailing end of every `acceptsNotApplicable` field (`NumberField` in `ficha-fields.tsx`, accessible name "Marcar ⟨campo⟩ como não aplicável", hidden while the field holds N/A, no focus moved, typed text commits first); QA G1 closed (`suggestionValueText` reads the not-applicable state first). Narrowing: the Android emulation project matches `*.durability.spec.ts` only, so a new `na-control.durability.spec.ts` covers the control there. The control's text and accessible name are authored, open for Bruno.)*
+
 ### Story 17.4: Display shots keep their number
 
 **Dev model:** opus · **Effort:** medium · reverses the numbering half of Story 16.3: `photos/numbering.ts`, `print/section-9.ts` display line, the badges and the point picker; the print place (under the test, never in section 7) stands
@@ -4490,6 +4496,8 @@ So that a ponto de atenção or a reader can point at "Imagem 12" and find it un
 
 **Definition of Done, in addition:** the 16.3 kernel tests and `display-shots.spec.ts` amended to the new rule, not duplicated; the audit label of a display shot kept; `glossary.md` "display shot" amended with strike-through; `source-deltas.md` row amending the 16.3 row; `docs/kbs/log.md` line; Story 16.3's first and third criteria amended in this document with strike-through and the date.
 
+*(2026-10-28, built as batch e17a with 17.1, PR #190 squash-merged as `0bdd925a`: a display shot numbers in the one document-order sequence and prints "Imagem N: ⟨legenda⟩." under its test (uncaptioned: the full stamp); `PrintPhoto.number` is a `number` again; the badge returns on display shots in the gallery, the strip, the caption dialog, the viewer and the point picker; the 16.3 kernel tests and `display-shots.spec.ts` amended, not duplicated.)*
+
 ### Story 17.5: A failed ratio feeds the conclusion suggestion, the pre-issue rows and the parecer count
 
 **Dev model:** opus · **Effort:** medium · kernel: `relatorio/conclusion.ts`, `reading-evaluation.ts`, `pre-issue.ts`, `parecer.ts`; closes E15-A2 and the UX-pass F42 deferred row
@@ -4517,6 +4525,8 @@ So that a sheet is never suggested "Sem restrições" over a failed ratio.
 **Then** a sheet concluded with restriction over a failed ratio counts in `withRestriction` as any restricted sheet, and the Critérios line names the ratio among the items
 
 **Definition of Done, in addition:** kernel tests over `suggestConclusionPair`, `restrictionWarning`, `composeConclusion`, the pre-issue row and `parecerCounts` with a failed ratio; a Playwright spec types a TP ratio out of criterion and reads the suggestion row; the deferred row closed with the date; `docs/kbs/log.md` line.
+
+*(2026-10-28, built as batch e17b with 17.3, PR #189 squash-merged as `fd5efabf`: one reader `failedRatioRows(evaluations)` (`reading-evaluation.ts`, through `readings.ts`) feeds `suggestConclusionPair`, `restrictionWarning` ("Há relação de transformação insatisfatória em Fase R", "… em TAP 5", "… em TAP" when TAP ATUAL is blank; with NC items "Há itens não conformes e relação de transformação insatisfatória em …"), the pre-issue `conclusion_stale` row, `parecer.ts` counts, a parecer sentence and the Critérios item; `composeConclusion` unchanged. Defaults taken: the parecer treats a failed ratio as an NC row whatever the conclusion; the transformer row is named by its TAP. `ratio-feeds-conclusion.spec.ts` (`@p0`) confirms the text and the restriction without "Concluir ficha".)*
 
 ### Story 17.6: "Altitude do site" takes N/A and says when the device gave none (contract 27)
 
