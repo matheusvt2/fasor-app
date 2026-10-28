@@ -124,7 +124,9 @@ overrides (they win over the workflow text):
   `grep -n -E 'FAIL|failed|Error' /tmp/verify-<tag>.log | head -40` only when it failed. Never end your turn to wait.
 - (E9-A3) Every helper script, log or scratch file of a batch carries the batch tag in its name
   (`/tmp/verify-<tag>.log`, `<worktree>/.scratch-<tag>/`, excluded in `.git/info/exclude`); never write a shared
-  name. Reports go only to your parent. Record the lock wait (`LOCKED_AFTER`) and the gate time in the PR body.
+  name. *(2026-10-28, E17-A5: ~~`/tmp/verify-<tag>.log`~~ every log, including the gate's, lives inside
+  `<worktree>/.scratch-<tag>/`, never in `/tmp`: a macOS update rebooted the machine during the Epic 17 wave A
+  rerun and wiped `/tmp` with the gate log and the orchestrator outputs.)* Reports go only to your parent. Record the lock wait (`LOCKED_AFTER`) and the gate time in the PR body.
 - (E9-A2) Never open a PR, and the coordinator never merges one, with a red or partial gate pasted. A failure called
   a flake needs its failing state explained and a green full `verify` on the same commit. A PR that merges main after
   its gate re-runs the full `verify` before the merge.
@@ -290,3 +292,30 @@ overrides (they win over the workflow text):
   acceptance criteria under the story in `epics.md` before the build, never a scope addition at PR review (the
   Story 14.2 location-removal gap, the `deferred-work.md` row latent "until a relatório can remove a location", is
   the precedent).
+
+## 7. Rules carried from the Epic 15, 16 and 17 retrospectives (2026-10-28, E17-A5)
+
+Written here because the Epic 17 context file and its batch specs carried them while this playbook stayed at its
+2026-10-15 text; a rule that lives only in one epic's context is re-typed per epic or lost. Each names its source.
+
+- (E15-A3) Seed bump: a batch that adds a seed version greps `e2e/` for the previous version's count and section
+  literals (item counts, "N itens", section titles) and runs every hit beside its touched specs, replacing each
+  literal with the kernel value; it restarts the api container after regenerating a fake-provider fixture.
+- (E15-A4, E16-A10) Load: a unit or api stage red only under load (15 s test timeouts, forks-worker starts,
+  a timing target missed in untouched files) is re-run alone under the host lock before the merge, and both runs go
+  in the PR body. Every wave gate record starts with the host load average (`sysctl -n vm.loadavg`) and what else
+  ran. Two batch stacks on one VM are still allowed (2026-10-08) until E17-A8 decides otherwise.
+- (E16-A8) The api container is restarted (`podman compose restart api`) after any change under `packages/domain`
+  or `apps/api` since it started, before `test:api` and before the story's e2e (`tsx watch` misses changes across
+  the podman VM mount). A batch stack left idle overnight is restarted before its gate.
+- (E16-A9) After the review's patches, `lint` and `static` run again on the head that merges, not only the patched
+  test files.
+- (F7, Epic 17) A batch's last steps (the spec's Auto Run Result, the PR body, `gh pr create` after
+  `gh auth switch --user matheusvt2`, `podman compose stop`) are written as a script in `.scratch-<tag>/` as soon
+  as the gate starts, so the coordinator can run them when the orchestrator agent is cut by the runtime or dies on a
+  network drop; the coordinator keeps its own background `until grep` watcher on the gate log and resumes the agent
+  with SendMessage.
+- (F8, Epic 17) Each epic context carries a "facts the batches share" list, one line per fact two batches would
+  otherwise discover separately. Current entries: a photo with no sheet, no caption and no "Pessoas na foto" mark
+  carries `reading_kind: 'caption'` (Story 9.3), so a "Geral" predicate accepts null or `'caption'`; a sheet's
+  route is `/relatorio/{id}/ficha/{blockId}`; `V<n>_HASH` pins a seed version when the next derives from it.
