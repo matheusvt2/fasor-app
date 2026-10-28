@@ -151,6 +151,33 @@ Review: 20 findings; 5 patched (ECH-6 medium, ECH-10 low, VGR-A/B/C medium), 3 d
 
 Verification: narrow `test:unit` 81 files / 815 tests green, the full `test:unit` 4534 green, `lint` 0 errors, `static` green (implementation); after the patches `test:unit` on the edited files 5 files / 75 tests, `static` and eslint green (`.scratch-e17d/*-fix-e17d.log`). The story gate (lint, static, test:api, test:unit, the touched specs on desktop-chrome and durability-desktop-chrome, the durability specs on durability-android-chrome and durability-webkit) runs from `.scratch-e17d/gate-e17d.sh`; its summary is pasted in the PR.
 
+Gate record (2026-10-28):
+
+Two gate sessions, both from `.scratch-e17d/` scripts under `lockf /tmp/fasor-verify.lock`, tools container only.
+
+**Gate 1 (pre-merge) on `2e65555d`, 15:06-15:32 UTC:**
+```
+STAGE lint exit=0 time=17s        (0 errors, 25 pre-existing warnings)
+STAGE static exit=0 time=24s
+STAGE test-api exit=0 time=351s   (92 files; Tests 684 passed (684))
+STAGE test-unit exit=0 time=192s  (326 files; Tests 4556 passed (4556))
+LOCKED_AFTER=160s
+STAGE e2e-desktop exit=1 time=706s  146 tests: 141 passed, 2 failed, 3 skipped (desktop-chrome + durability-desktop-chrome)
+STAGE e2e-matrix exit=1 time=103s   40 tests: 27 passed, 3 failed, 10 skipped (durability-android-chrome + durability-webkit)
+```
+The 5 failures were two assertions of the new spec itself, not the app: 17.2-E2E-001 expected the gallery's Geral photo with `reading_kind` null (Story 9.3 gives it `'caption'`, which `isGeralPhoto` accepts), and 17.2-E2E-002 navigated to `/ficha/{blockId}` instead of `/relatorio/{id}/ficha/{blockId}`. Fixed in `bdfc232f`; the spec alone on that commit, all four projects: `exit=0 time=54s`, 12 tests: 9 passed, 0 failed, 3 skipped (WebKit cannot store a photo Blob), `LOCKED_AFTER=0s`.
+
+**Gate 2 (cross-batch, on the merge commit `6bb4e517` = this branch + main `6c28b886` with batch e17c), 15:35-15:55 UTC:**
+```
+STAGE static exit=0 time=29s
+STAGE test-unit exit=0 time=168s  (326 files; Tests 4590 passed (4590))
+LOCKED_AFTER=0s
+STAGE e2e-desktop-both exit=0 time=826s  194 tests: 191 passed, 0 failed, 3 skipped, 0 flaky  (e17d's 24 specs + e17c's seed-v10, altitude-na, altitude-na.durability, seed-v9, na-number-field, na-control.durability, relatorio, oil-dry, oil-dry.durability, dry-transformer.durability, templates on desktop-chrome + durability-desktop-chrome)
+STAGE e2e-matrix-both exit=0 time=128s   56 tests: 46 passed, 0 failed, 10 skipped, 0 flaky  (both batches' durability specs on durability-android-chrome + durability-webkit)
+GATE EXIT=0
+```
+Lint and test:api were not re-run on the merge: this branch touches no `apps/api` file and the lockfile is unchanged. `git diff origin/main --stat` on the merge commit lists only this batch's 33 files.
+
 Residual risks: 17.7-E2E-002's live transition waits for the app's own sync after an `online` event (up to 90 s); the camera-app path on a real iPad relies on the in-press input click (WebKit opens no chooser under Playwright); the deferred items above.
 
 ## Spec Change Log
