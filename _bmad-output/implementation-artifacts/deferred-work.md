@@ -2440,3 +2440,63 @@ Source: `_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md` § D
   evidence: `gallery-surface.tsx:117-120`, `photo-viewer.tsx:160-163`. A component test rendering a tile absent from the snapshot, then the snapshot update.
   class: test-gap
   state: open (owner: the next gallery batch)
+
+## Deferred from: production pass, epic by epic (2026-10-28)
+
+Source: `_bmad-output/test-artifacts/manual/prod-pass-2026-10-28.md` (v0.4.0 on `app.fasorengenharia.com.br`, the smoke test company, three successive Playwright MCP passes: 17 epics, 186 checks held, 38 not checkable from a desktop browser, 11 gaps). G6 is the one feature that does not work in production and is Matheus's decision; G8 goes to the next fix batch; the P3 rows wait for the next batch touching their surface.
+
+- source_spec: `services/ocr/app/detector.py`
+  summary: "Ler visor" never reads in production: every display photo fails after three attempts with `ResourceExhaustedError: Fail to alloc memory of 5648154624` in the PP-OCRv5 server text detector of the sidecar on the 4 GiB `t3a.medium`; the photo was 1200 x 900 px, so it is the server model's CPU memory, not the image. No display read was ever attempted in production before 2026-10-28 (CloudWatch, 14 days). The "Digitar" path keeps the sheet usable (prod-pass G6, P1).
+  evidence: `/fasor/production/ocr` log; `prod-pass-2026-10-28.md` § "Coordinator's diagnosis of G6"; `infra/README.md` memory risk note; `t3a.large` would add about USD 22 per month and cross the USD 100 ceiling.
+  class: bug
+  state: open (owner: Matheus decides between (1) `PP-OCRv5_mobile_det` in the sidecar with the display accuracy tests re-run, (2) display reading through Bedrock vision with the sidecar off in production, (3) a lower `OCR_DET_LIMIT_SIDE_LEN` by Terraform, unproven; then one batch and a deploy)
+- source_spec: `_bmad-output/implementation-artifacts/spec-9-5-nc-drafts.md`
+  summary: A long learned NC phrase chip (66 characters) renders 490 px wide and makes the whole sheet scroll sideways at 390 px (`scrollWidth` 505 against 375) (prod-pass G8, P2).
+  evidence: `prod-pass-2026-10-28.md` Epic 9 G8, screenshot `e9-*`; the chip has no max width or wrap rule.
+  class: bug
+  state: open (owner: the next fix batch; a max width with ellipsis or wrapping on the chip row, checked at 390 px)
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-6-home-and-account.md`
+  summary: One console error `merge pairs of a pull failed` on the first load of an empty device (the "Dados deste aparelho foram apagados" recovery screen); "Baixar do servidor" then worked and the error never recurred (prod-pass G1, P3).
+  evidence: `prod-pass-2026-10-28.md` Epic 1 G1.
+  class: bug
+  state: open (owner: the next sync batch; reproduce on a fresh profile against production)
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-4-compose-template.md`
+  summary: The template composer's sections palette "+" adds a section the template already holds (a second "1 Objetivo" at position 10); removable through "Mais opções > Remover" (prod-pass G2, P3).
+  evidence: `prod-pass-2026-10-28.md` Epic 3 G2.
+  class: bug
+  state: open (owner: the next template batch; the palette hides or disables a section already in the template)
+- source_spec: `_bmad-output/implementation-artifacts/spec-6-3-gallery-captions.md`
+  summary: Importing a photo as "Geral" with no caption toasts "1 foto adicionada — legenda aplicada" while the gallery counts it "1 sem legenda" (prod-pass G3, P3).
+  evidence: `prod-pass-2026-10-28.md` Epic 6 G3; the toast text does not read the caption state.
+  class: bug
+  state: open (owner: the next gallery batch; kernel toast text by caption state)
+- source_spec: `_bmad-output/implementation-artifacts/spec-5-2-cabine-characteristics.md`
+  summary: The cabine's "Tensão secundária" refuses `380/220` ("Número não reconhecido") although the seeded sample carries exactly that value in the same field (prod-pass G4, P3).
+  evidence: `prod-pass-2026-10-28.md` Epic 5 G4; the seed writes a text the field's parser does not accept.
+  class: question
+  state: open (owner: Matheus: a number with one value, or a text field for the pair; then the seed or the parser)
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-x-export-dialog.md`
+  summary: The Sumário chip reads "2 de 96 fichas concluídas" while the parecer hint reads "1 de 96 fichas concluídas, 1 não ensaiada" (prod-pass G5, P3).
+  evidence: `prod-pass-2026-10-28.md` Epic 7 G5; two readers count a Não ensaiada sheet differently.
+  class: bug
+  state: open (owner: the next Sumário batch; one kernel count for both)
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-9-11-11-completions.md`
+  summary: No "Sugerir TAG para Coluna 9?" offer after "Mover para…" (SEC-C01 kept its TAG in Coluna 9) (prod-pass G7, P3).
+  evidence: `prod-pass-2026-10-28.md` Epic 11 G7.
+  class: question
+  state: open (owner: Matheus: is the re-suggestion expected after a move; then the next tree batch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-10-2-sync-status.md`
+  summary: Merge-by-rule rows ("… mesclado") never shown in Sync status after a C-versus-NC merge between two devices (prod-pass G9, P3).
+  evidence: `prod-pass-2026-10-28.md` Epic 10 G9.
+  class: bug
+  state: open (owner: the next sync batch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-epic-17-retro-and-qa-gaps.md`
+  summary: A pending "Verificar" suggestion stays offered on Vol. óleo after EPÓXI excused the field (prod-pass G10, P3); the fx17r predicate hides the N/A control but not the pending suggestion row.
+  evidence: `prod-pass-2026-10-28.md` Epic 8 G10.
+  class: bug
+  state: open (owner: the next plate batch; `isNameplateFieldExcused` also filters the suggestion rows)
+- source_spec: `_bmad-output/implementation-artifacts/spec-6-1-capture-sheet.md`
+  summary: "Cancelar" on the capture sheet's equipment step keeps the picked photo as Geral (toast "1 foto ficou como Geral, sem legenda"); the toast says it is intended, so it may be a wording question (prod-pass G11, P3).
+  evidence: `prod-pass-2026-10-28.md` Epic 17 G11.
+  class: question
+  state: open (owner: Matheus: keep as Geral or discard on Cancelar)
