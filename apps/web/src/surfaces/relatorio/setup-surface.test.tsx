@@ -927,6 +927,45 @@ describe('Story 17.6: "Altitude do site" takes N/A and says when the device gave
     expect(screen.queryByRole('spinbutton', { name: 'Altitude do site' })).toBeNull();
   });
 
+  it('B7: a tap that leaves the focus in the field (WebKit) never writes the typed text after the mark', async () => {
+    database = await seeded();
+    renderSetup();
+    const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+    await userEvent.type(input, '12');
+    expect(input).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: NA_BUTTON }));
+    await screen.findByText('Altitude do site: N/A');
+    // Past the idle pause (500 ms) and the unmount flush.
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    await untilStored(storedSetup, (setup) => expect(setup).toMatchObject({ site_altitude_na: true, site_altitude_m: null }));
+    const altitudeOps = (await database.outbox.toArray()).filter((op) => op.path === 'relatorio/setup/site_altitude_m');
+    expect(altitudeOps.map((op) => op.value)).not.toContain(12);
+    expect(altitudeOps.at(-1)!.value).toBeNull();
+  });
+
+  it('B7: a position answering after the tap never prefills the field "Alterar" reopens', async () => {
+    let answer: (() => void) | null = null;
+    stub((ok) => {
+      answer = () => ok({ coords: { altitude: 763.6 } } as GeolocationPosition);
+    });
+    try {
+      database = await seeded();
+      renderSetup();
+      await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await waitFor(() => expect(answer).not.toBeNull());
+      await userEvent.click(screen.getByRole('button', { name: NA_BUTTON }));
+      await screen.findByText('Altitude do site: N/A');
+      answer!();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await userEvent.click(screen.getByRole('button', { name: 'Alterar altitude do site' }));
+      const reopened = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      expect(reopened).toHaveValue(null);
+      expect(within(reopened.closest('.altitude-field') as HTMLElement).queryByText('Sugerido')).toBeNull();
+    } finally {
+      unstub();
+    }
+  });
+
   it('B8: a stored N/A shows the line (over a number and a confirmation) and asks no position', async () => {
     const getCurrentPosition = noAltitude();
     try {

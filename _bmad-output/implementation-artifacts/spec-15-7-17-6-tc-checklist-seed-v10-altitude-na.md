@@ -2,7 +2,7 @@
 title: 'Stories 15.7 and 17.6: the TC''s own checklist (seed v10); "Altitude do site" takes N/A and says when the device gave none (contract 27)'
 type: 'feature'
 created: '2026-10-28'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '1a2f0b0f2a56872166008bf6c628366a9380323a'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -119,3 +119,15 @@ deferred: []
 ## Verification
 
 Every command from the worktree root in the tools container: `podman compose --profile tools run --rm --user root tools pnpm <cmd>`, output redirected to `.scratch-e17c/<name>-e17c.log`, only the tail read. The implementation subagent runs the narrowest suites only: `pnpm test:unit -- packages/domain/src/seed`, `-- packages/domain/src/relatorio/setup-complete`, `-- packages/domain/src/print/section-9`, `-- apps/web/src/surfaces/relatorio/setup-surface`, `-- apps/web/src/surfaces/ficha/ficha-fields`, then `pnpm static`, `pnpm lint`, and `pnpm test:api -- sync.integration` after `podman compose restart api`. It never runs Playwright; the orchestrator runs the touched specs (`seed-v9`, `seed-v10`, `altitude-na`, `altitude-na.durability`, `na-number-field`, `na-control.durability`, `review-field-defects-2`, `relatorio`, `oil-dry`, `dry-transformer.durability`, `plate-every-type`, `templates`) under the host lock, plus the durability ones on `durability-android-chrome` and `durability-webkit`.
+
+## Review Triage Log
+
+### 2026-10-28 — Review pass
+- layers: Edge Case Hunter, Verification Gap Reviewer (Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them)
+- verdicts: 5 findings — high 0, medium 1, low 3, false 0, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` (gap) the WebKit no-focus tap of the altitude "N/A" over typed, uncommitted text is never exercised: the B7 typed case uses `userEvent.click`, whose blur commits the text before `onPress`, so removing `altitude.markClean()` or the idle-timer clear turns no test red — patched: a `fireEvent.click` case in `setup-surface.test.tsx` (the `ficha-fields.test.tsx:573` pattern) asserting the stored `{ site_altitude_na: true, site_altitude_m: null }` and no late `site_altitude_m` put; mutation run reported in the PR body.
+  - `[low]` `[patch]` (edge) a geolocation answer still in flight when "N/A" is tapped, answering an altitude, calls `setReading` because `altitudeUserEdited` is still false, so "Alterar" from N/A reopens the field prefilled "Sugerido" — patched: `onNotApplicable` marks the field user-edited; test with a deferred position answer.
+  - `[low]` `[reject]` (edge) two devices racing a confirm against an N/A merge per field to `na: true, confirmed: true, m: null`, and "Alterar" from N/A then renders the confirmed line with no value — a two-device race on an office-side step; the fix adds a render guard for a state no surface writes; listed as known open in the PR.
+  - `[low]` `[reject]` (edge) "Alterar" from N/A on a device that mounted with `na: true` never asks the device, so no prefill or hint — by design: the position is asked once per relatório on mount (Story 4.2, F-11/W-14) and the hint follows a kept answer (open question 2 in the Design Notes).
+  - `[maybe-false]` `[reject]` (edge) on desktop the mousedown on "N/A" blurs a dirty input, so one `site_altitude_m` put of the typed value lands before the N/A batch — by design, spec B7 ("a blur that already wrote the typed value is harmless"), the same two-put sequence as Story 17.3 A9; the stored end state is N/A.

@@ -113,6 +113,8 @@ export function Etapa5Local({
 
   /** Story 17.6: "N/A" writes the mark and clears the number in one batch (the existing setup puts). */
   async function onNotApplicable(): Promise<void> {
+    // The mark is the user's own edit: a position answering later never prefills the field.
+    altitudeUserEdited.current = true;
     lastWritten.current = null;
     setReading(null);
     await onCommitFields([
