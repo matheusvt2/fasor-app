@@ -15,8 +15,8 @@ const MB = 1024 * 1024;
 
 describe('6.1-UNIT-005 burstCountText', () => {
   it('counts the burst with agreement', () => {
-    expect(burstCountText(1)).toBe('1 foto nesta rajada · salva neste aparelho com a legenda do contexto');
-    expect(burstCountText(3)).toBe('3 fotos nesta rajada · salvas neste aparelho com a legenda do contexto');
+    expect(burstCountText(1)).toBe('1 foto nesta rajada · salva no relatório com a legenda do contexto');
+    expect(burstCountText(3)).toBe('3 fotos nesta rajada · salvas no relatório com a legenda do contexto');
   });
 });
 

@@ -100,6 +100,16 @@ export const copy = {
     screenHeading: 'Tela',
     keepScreenOnLabel: 'Manter a tela ligada',
     // The sub line names the idle time; it is the kernel's (`keepScreenOnSubText`).
+    // Story 17.2 (listed for Bruno; no mock draws it): the device-local camera-app switch.
+    // authored: Story 17.2.
+    cameraHeading: 'Câmera',
+    // authored: Story 17.2.
+    cameraAppLabel: 'Câmera do aparelho',
+    // authored: Story 17.2.
+    cameraAppSub: 'Cada toque abre a câmera do aparelho e tira uma foto. Desligado, a câmera abre aqui dentro, com rajada, lanterna e zoom.',
+    // Story 17.7: the one place that says where a gallery copy comes from.
+    // authored: Story 17.7.
+    cameraPhotosNote: 'As fotos ficam no relatório. Para guardar uma cópia na galeria, use Salvar no aparelho na foto.',
     // Tema and Armazenamento from `mockups/prototype/screens/90-account.html`.
     themeHeading: 'Tema',
     themeNote: 'Segue a preferência do aparelho. Os dois temas mantêm o contraste para uso ao sol.',
@@ -876,11 +886,17 @@ export const copy = {
     done: 'Concluir fotos',
     burstIdle: 'Rajada: toque no disparador quantas vezes precisar; nada pergunta entre as fotos',
     // authored: `.cam-hint` for a sheet (the mock's hint describes the gallery's context).
-    hint: 'Cada disparo é salvo neste aparelho com a legenda do contexto.',
-    // `70-fotos.html` "Concluir fotos" toast, verbatim.
-    doneToast: 'Fotos salvas neste aparelho — entram na fila de envio',
-    // authored: Story 8.2, the single shot of "Fotografar placa" (the burst's toast, in the singular).
-    doneOneToast: 'Foto salva neste aparelho — entra na fila de envio',
+    // Story 17.2: a shot is saved in the relatório (the browser's store and the upload queue,
+    // AD-7/AD-8), not in the device's gallery.
+    // authored: Story 17.2.
+    hint: 'Cada disparo é salvo no relatório com a legenda do contexto.',
+    // `70-fotos.html` "Concluir fotos" toast, verbatim until Story 17.2.
+    // authored: Story 17.2, "no relatório" for "neste aparelho".
+    doneToast: 'Fotos salvas no relatório — entram na fila de envio',
+    // authored: Story 8.2, the single shot of "Fotografar placa" (the burst's toast, in the
+    // singular); Story 17.2, every camera-app photo (one file per pick).
+    // authored: Story 17.2, "no relatório" for "neste aparelho".
+    doneOneToast: 'Foto salva no relatório — entra na fila de envio',
     // authored (F-13, review 2026-10-06): the same toasts with the server reachable, where no
     // queue is waited on.
     doneToastOnline: 'Fotos salvas — enviando',
@@ -960,6 +976,18 @@ export const copy = {
     removeConfirm: 'Remover foto',
     // `70-fotos.html` toast action, verbatim.
     undo: 'Desfazer',
+    // Story 17.7 (listed for Bruno; no mock draws it): a copy of the photo leaves the relatório
+    // on request, through the share sheet or a download.
+    // authored: Story 17.7.
+    save: 'Salvar no aparelho',
+    // authored: Story 17.7, the share sheet's title.
+    saveTitle: 'Foto do relatório',
+    // authored: Story 17.7, the disabled action's reasons.
+    saveReasonNone: 'O original ainda não foi enviado pelo aparelho que tirou a foto.',
+    // authored: Story 17.7.
+    saveReasonLoading: 'Preparando a foto…',
+    // authored: Story 17.7.
+    saveReasonFailed: 'Não foi possível buscar a foto no servidor. Tente de novo com conexão.',
   },
   // Story 6.4: the Photo capture sheet (`70-fotos.html` "Photo capture sheet", "De qual equipamento?").
   captureSheet: {

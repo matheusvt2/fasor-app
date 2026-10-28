@@ -24,6 +24,15 @@ const capture = vi.hoisted(() => ({
 }));
 vi.mock('./use-photo-capture.ts', () => ({ usePhotoCapture: () => capture }));
 
+// Story 17.2: "Câmera do aparelho", off unless a test turns it on (the viewfinder tests below).
+const cameraApp = vi.hoisted(() => ({ on: false }));
+vi.mock('../../input/use-camera-app.ts', () => ({ useCameraApp: () => cameraApp.on, touchPoints: () => 0 }));
+const heic = vi.hoisted(() => ({ toJpeg: vi.fn<(blob: Blob) => Promise<Blob>>() }));
+vi.mock('../../files/photo-import.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../files/photo-import.ts')>()),
+  heicToJpeg: (blob: Blob) => heic.toJpeg(blob),
+}));
+
 const stop = vi.fn();
 const stream = { getTracks: () => [{ stop }] } as unknown as MediaStream;
 
@@ -95,7 +104,7 @@ describe('F-13 (review 2026-10-06) the "Concluir fotos" toast', () => {
 
   it('offline or with the server unreachable keeps the queued words', async () => {
     await finish(makeSyncState({ online: false }));
-    expect(await screen.findByText('Fotos salvas neste aparelho — entram na fila de envio')).toBeVisible();
+    expect(await screen.findByText('Fotos salvas no relatório — entram na fila de envio')).toBeVisible();
   });
 });
 
@@ -128,7 +137,7 @@ describe('F-13 (review 2026-10-06) the single shot\'s toast (a plate, "Ler visor
 
   it('offline keeps the queued words', async () => {
     await shootOne(makeSyncState({ online: false }));
-    expect(await screen.findByText('Foto salva neste aparelho — entra na fila de envio')).toBeVisible();
+    expect(await screen.findByText('Foto salva no relatório — entra na fila de envio')).toBeVisible();
   });
 });
 
@@ -763,7 +772,7 @@ describe('R8CAP-UNIT review 2026-10-08 the open camera says its own failures, it
       expect(hint).not.toHaveAttribute('data-state');
     });
     expect(said).toBe(true);
-    expect(hint).toHaveTextContent('Cada disparo é salvo neste aparelho com a legenda do contexto.');
+    expect(hint).toHaveTextContent('Cada disparo é salvo no relatório com a legenda do contexto.');
 
     // A save failing while the camera is open is said in the hint too, never a toast.
     expect(report('failed')).toBe(true);
@@ -1008,5 +1017,210 @@ describe('R8CAP-UNIT review 2026-10-08 the open camera says its own failures, it
     expect(ours.length).toBeGreaterThan(0);
     // Every focus this camera gave its opener asked not to scroll (React Aria's own restore also never scrolls).
     expect(ours.every((args) => (args?.[0] as FocusOptions | undefined)?.preventScroll === true)).toBe(true);
+  });
+});
+
+// --- Story 17.2: the device's camera app takes the photos ---------------------------------------
+
+describe('17.2-UNIT "Câmera do aparelho" on: every opener takes the camera app through the capture input', () => {
+  const target = { blockId: '019966b0-0000-7000-8000-0000000000b1', itemKey: 'contatos', caption: 'Contatos', reading: undefined };
+  let getUserMedia: ReturnType<typeof vi.fn>;
+
+  function AppHarness({ single = false }: { single?: boolean }) {
+    const opener = useRef<HTMLButtonElement>(null);
+    const cam = useCamera('019966b0-0000-7000-8000-000000000001', () => target, opener, { singleShot: single });
+    return (
+      <>
+        <button type="button" ref={opener} onClick={cam.open} data-count={cam.burst === 0 ? '' : String(cam.burst)}>
+          Abrir câmera
+        </button>
+        {cam.denied ? <p>negada</p> : null}
+        {cam.opening ? <p>abrindo</p> : null}
+        {cam.element}
+      </>
+    );
+  }
+
+  function renderApp(sync: ReturnType<typeof makeSyncState> = makeSyncState({ online: false }), single = false) {
+    render(
+      <SyncContext value={sync}>
+        <ToastProvider>
+          <AppHarness single={single} />
+          <ToastOutlet />
+        </ToastProvider>
+      </SyncContext>,
+    );
+  }
+
+  beforeEach(() => {
+    cameraApp.on = true;
+    capture.shoot.mockClear();
+    capture.prepare.mockClear();
+    capture.settle.mockResolvedValue(true);
+    heic.toJpeg.mockReset();
+    getUserMedia = vi.fn(async () => stream);
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+  });
+  afterEach(() => {
+    cameraApp.on = false;
+  });
+
+  it('clicks the capture input inside the press, never asks getUserMedia, and opens no viewfinder', async () => {
+    const picker = vi.spyOn(HTMLInputElement.prototype, 'click');
+    renderApp();
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    expect(picker).toHaveBeenCalledTimes(1);
+    expect(picker.mock.contexts[0]).toBe(screen.getByTestId('camera-fallback-input'));
+    expect(screen.getByTestId('camera-fallback-input')).toHaveAttribute('capture', 'environment');
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog', { name: 'Câmera' })).toBeNull();
+    expect(screen.queryByText('abrindo')).toBeNull();
+  });
+
+  it("the returned file runs capture.shoot with the opener's target, the badge reads 1 while it is stored, and the toast is the one-photo one", async () => {
+    let release: (value: boolean) => void = () => undefined;
+    capture.settle.mockImplementationOnce(() => new Promise<boolean>((resolve) => (release = resolve)));
+    renderApp(makeSyncState({ online: false }));
+    const opener = screen.getByRole('button', { name: 'Abrir câmera' });
+    await userEvent.click(opener);
+    const file = new File(['x'], 'IMG_0001.jpg', { type: 'image/jpeg' });
+    fireEvent.change(screen.getByTestId('camera-fallback-input'), { target: { files: [file] } });
+    await waitFor(() => expect(capture.shoot).toHaveBeenCalledTimes(1));
+    expect(capture.shoot.mock.calls[0]![0]).toBe(file);
+    expect(capture.shoot.mock.calls[0]![1]).toEqual(target);
+    expect(opener).toHaveAttribute('data-count', '1');
+    release(true);
+    // A burst opener (no singleShot) still says one photo: one file per pick.
+    expect(await screen.findByText('Foto salva no relatório — entra na fila de envio')).toBeVisible();
+    expect(screen.queryByText(/Fotos salvas/)).toBeNull();
+    await waitFor(() => expect(opener).toHaveAttribute('data-count', ''));
+    expect(heic.toJpeg).not.toHaveBeenCalled();
+  });
+
+  it('with the server reachable the one-photo toast speaks of no queue', async () => {
+    renderApp(makeSyncState());
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    fireEvent.change(screen.getByTestId('camera-fallback-input'), { target: { files: [new File(['x'], 'a.jpg', { type: 'image/jpeg' })] } });
+    expect(await screen.findByText('Foto salva — enviando')).toBeVisible();
+  });
+
+  it('a HEIC answer is converted to JPEG first, then shot', async () => {
+    const jpeg = new Blob(['jpeg'], { type: 'image/jpeg' });
+    heic.toJpeg.mockResolvedValueOnce(jpeg);
+    renderApp();
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    const file = new File(['heic'], 'IMG_0002.HEIC', { type: '' });
+    fireEvent.change(screen.getByTestId('camera-fallback-input'), { target: { files: [file] } });
+    await waitFor(() => expect(capture.shoot).toHaveBeenCalledTimes(1));
+    expect(heic.toJpeg).toHaveBeenCalledExactlyOnceWith(file);
+    expect(capture.shoot.mock.calls[0]![0]).toBe(jpeg);
+    expect(await screen.findByText('Foto salva no relatório — entra na fila de envio')).toBeVisible();
+  });
+
+  it('a HEIC that cannot be converted says the failure and clears the badge, no shot', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    heic.toJpeg.mockRejectedValueOnce(new Error('bad heic'));
+    renderApp();
+    const opener = screen.getByRole('button', { name: 'Abrir câmera' });
+    await userEvent.click(opener);
+    fireEvent.change(screen.getByTestId('camera-fallback-input'), { target: { files: [new File(['heic'], 'x.heic', { type: 'image/heic' })] } });
+    expect(await screen.findByText('Não foi possível salvar a foto. Tente de novo.')).toBeVisible();
+    expect(capture.shoot).not.toHaveBeenCalled();
+    expect(opener).toHaveAttribute('data-count', '');
+    expect(errors).toHaveBeenCalled();
+  });
+
+  it('a cancelled camera app leaves the opener at rest: no toast, no badge, no denial, not opening', async () => {
+    renderApp();
+    const opener = screen.getByRole('button', { name: 'Abrir câmera' });
+    await userEvent.click(opener);
+    // The camera app was dismissed: the input's change never fires.
+    fireEvent(screen.getByTestId('camera-fallback-input'), new Event('cancel'));
+    expect(capture.shoot).not.toHaveBeenCalled();
+    expect(opener).toHaveAttribute('data-count', '');
+    expect(screen.queryByText('negada')).toBeNull();
+    expect(screen.queryByText('abrindo')).toBeNull();
+    expect(screen.queryByText(/Foto salva|Não foi possível/)).toBeNull();
+    // The next tap opens the camera app again.
+    const picker = vi.spyOn(HTMLInputElement.prototype, 'click');
+    await userEvent.click(opener);
+    expect(picker).toHaveBeenCalledTimes(1);
+  });
+
+  it('a held shot (13.6) keeps the camera app shut: the refusal toast and the retry behind it', async () => {
+    const quota = () => Object.assign(new Error('quota'), { name: 'QuotaExceededError' });
+    await sessionCaptureRescue.save(
+      {
+        companyId: 'c',
+        relatorioId: 'r',
+        actorId: 'u',
+        fileId: 'held-17-2',
+        blockId: null,
+        itemKey: null,
+        caption: null,
+        capturedAt: '2026-10-28T12:00:00.000Z',
+        tzOffset: -180,
+        coords: null,
+        original: new Blob(['o']),
+        thumb: new Blob(['t']),
+        sha256: 'ab',
+      },
+      { isOnline: () => false, commit: async () => Promise.reject(quota()), sendDirect: async () => undefined },
+    );
+    capture.retry.mockReset();
+    capture.retry.mockResolvedValueOnce(1);
+    const picker = vi.spyOn(HTMLInputElement.prototype, 'click');
+    try {
+      renderApp();
+      await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+      expect(await screen.findByText(/Este aparelho recusou guardar a foto/)).toBeVisible();
+      expect(picker).not.toHaveBeenCalled();
+      expect(capture.retry).toHaveBeenCalledTimes(1);
+      expect(getUserMedia).not.toHaveBeenCalled();
+    } finally {
+      await sessionCaptureRescue.retryHeld({ isOnline: () => false, commit: async () => undefined, sendDirect: async () => undefined });
+    }
+  });
+
+  it('a burst with targets whose first target is gone ("Ler visor", every cell read) opens no camera app: the hint toast, the opener at rest', async () => {
+    const picker = vi.spyOn(HTMLInputElement.prototype, 'click');
+    function DoneHarness() {
+      const opener = useRef<HTMLButtonElement>(null);
+      const cam = useCamera('019966b0-0000-7000-8000-000000000001', () => target, opener, {
+        shotTarget: () => null,
+        shotHint: () => 'Nada mais a ler nesta ficha',
+      });
+      return (
+        <>
+          <button type="button" ref={opener} onClick={cam.open} data-count={cam.burst === 0 ? '' : String(cam.burst)}>
+            Abrir câmera
+          </button>
+          {cam.element}
+        </>
+      );
+    }
+    render(
+      <ToastProvider>
+        <DoneHarness />
+        <ToastOutlet />
+      </ToastProvider>,
+    );
+    const opener = screen.getByRole('button', { name: 'Abrir câmera' });
+    await userEvent.click(opener);
+    expect(await screen.findByText('Nada mais a ler nesta ficha')).toBeVisible();
+    expect(picker).not.toHaveBeenCalled();
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(capture.shoot).not.toHaveBeenCalled();
+    expect(opener).toHaveAttribute('data-count', '');
+  });
+
+  it('off: the viewfinder opens through getUserMedia as before', async () => {
+    cameraApp.on = false;
+    const picker = vi.spyOn(HTMLInputElement.prototype, 'click');
+    renderApp();
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    expect(await screen.findByRole('dialog', { name: 'Câmera' })).toBeInTheDocument();
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(picker).not.toHaveBeenCalled();
   });
 });

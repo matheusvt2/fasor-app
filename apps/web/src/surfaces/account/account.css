@@ -79,11 +79,15 @@
 }
 
 /* Review 2026-10-08 (FLD-1): "Manter a tela ligada" sits under its section head the same way,
-   the mock's page-scoped `.toggle-row { border-top: 0; }` (no mock draws the row itself). */
-.keep-screen-row .toggle-row {
+   the mock's page-scoped `.toggle-row { border-top: 0; }` (no mock draws the row itself).
+   Story 17.2: "Câmera do aparelho" too. */
+.keep-screen-row .toggle-row,
+.camera-app-row .toggle-row {
   border-top: 0;
 }
 
-.location-row .helper {
+/* Story 17.7: the note under "Câmera do aparelho" is a helper line like the location's. */
+.location-row .helper,
+.camera-app-row .helper {
   display: block;
 }
