@@ -2399,12 +2399,12 @@ Source: `_bmad-output/test-artifacts/manual/qa-e17-2026-10-28.md` (verdict pass;
   summary: On an EPÓXI (or a seco) TC the "N/A" control is still offered beside Vol. óleo, an oil field the oil rule already excuses: the tap stores `not_applicable` and the field shows "N/A" at rest while the document prints "VOL. ÓLEO -" by the rule's design, and the field was never counted as missing (QA G1). A typed "n.a" did the same since 16.4; the control makes it one tap away.
   evidence: QA report G1, `preview-1.txt` line 400; `oil-rule.ts` ("an oil field of a non-oil unit: shown excused, never missing, printed '-'") against `acceptsNotApplicable` in `ficha-fields.tsx`.
   class: bug
-  state: ~~open (owner: the next fix batch; either hide the control on an excused oil field or print the stored "N/A")~~ scheduled (2026-10-28, E17-A6: fix batch fx17r, E17-A1; one predicate shared by the oil rule and `acceptsNotApplicable`)
+  state: ~~open (owner: the next fix batch; either hide the control on an excused oil field or print the stored "N/A")~~ ~~scheduled (2026-10-28, E17-A6: fix batch fx17r, E17-A1; one predicate shared by the oil rule and `acceptsNotApplicable`)~~ done (2026-10-28, fix batch fx17r: the kernel's `nameplateAcceptsNotApplicable`, the negation of `isNameplateFieldExcused` that `nameplateMissingKeys` reads, drives the plate's `acceptsNotApplicable`; `oil-rule.test.ts`, `nameplate-oil-rule.test.tsx`, 14.11-E2E-001)
 - source_spec: `_bmad-output/implementation-artifacts/spec-17-3-17-5-na-control-failed-ratio.md`
   summary: The Ensaio de relação cells' accessible names start with a comma while TAP atual is blank (`textbox ", V primário"`, `", H1-H3 / X1-X0"`); after TAP atual is typed they read "5, V primário" (QA G2). The visible table is right. Pre-existing, untouched by 17.5.
   evidence: QA report G2; the row label composes the TAP value and the separator before the column name without a blank-TAP case.
   class: bug
-  state: ~~open (owner: the next fix batch)~~ scheduled (2026-10-28, E17-A6: fix batch fx17r, E17-A1)
+  state: ~~open (owner: the next fix batch)~~ ~~scheduled (2026-10-28, E17-A6: fix batch fx17r, E17-A1)~~ done (2026-10-28, fix batch fx17r: the kernel's `measurementCellName` names a cell by its column alone while the row has no label; `readings.test.ts`, 17.5-E2E-001)
 
 ## Deferred from: Epic 17 retrospective, integrated code review (2026-10-28)
 

@@ -10,7 +10,7 @@ import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import { idSequence, opFactory, T0, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO, type OpFactory } from '../test-support.ts';
-import { isDryBlock, nameplateMissingKeys, oilNaChipItems } from './dry-insulation.ts';
+import { isDryBlock, isNameplateFieldExcused, nameplateAcceptsNotApplicable, nameplateMissingKeys, oilNaChipItems } from './dry-insulation.ts';
 import {
   isOilFieldExcused,
   isOilItem,
@@ -196,6 +196,47 @@ describe('matrix "Dry from start", "Oil", "Empty value", "Stored value vs subtyp
         // No chip on v6: the items already show NA.
         expect(oilNaChipItems(block, { used: false }), type).toEqual([]);
       }
+    }
+  });
+
+  it('QA G1: an excused oil field offers no N/A control, every other nameplate field keeps it', () => {
+    const accepts = (block: BlockRow, key: string) => nameplateAcceptsNotApplicable(block, key);
+    for (const type of TRANSFORMERS) {
+      const definition = getDefinition('v6', 'cabine_primaria', type);
+      const oilFields = definition.oil_rule!.fields;
+      const plateKeys = definition.nameplate.map((field) => field.key);
+      expect(oilFields.length, type).toBeGreaterThan(0);
+      // Dry by the typed value and by the config subtype.
+      const { state, f } = stateWith(type);
+      const typed = blockOf(put(state, f, plate('tipo_de_isolacao'), 'EPÓXI').state);
+      const bySubtype = blockOf(stateWith(type, { subtype: 'a_seco' }).state);
+      for (const dry of [typed, bySubtype]) {
+        for (const key of oilFields) {
+          expect(isNameplateFieldExcused(dry, key), `${type} ${key}`).toBe(true);
+          expect(accepts(dry, key), `${type} ${key}`).toBe(false);
+        }
+        for (const key of plateKeys.filter((k) => !oilFields.includes(k))) expect(accepts(dry, key), `${type} ${key}`).toBe(true);
+        expect(nameplateMissingKeys({ blocks: [dry] }, BLOCK).has('vol_oleo'), type).toBe(false);
+      }
+      // Oil and unknown: every field accepts N/A.
+      const oil = blockOf(put(state, f, plate('tipo_de_isolacao'), 'ÓLEO').state);
+      const unknown = blockOf(state);
+      for (const block of [oil, unknown]) for (const key of plateKeys) expect(accepts(block, key), `${type} ${key}`).toBe(true);
+    }
+    // Seed v10: a TC on EPÓXI.
+    const v10 = stateWith('tc', { seedVersion: 'v10' });
+    const tc = blockOf(put(v10.state, v10.f, plate('tipo_de_isolacao'), 'EPÓXI').state);
+    const tcOil = getDefinition('v10', 'cabine_primaria', 'tc').oil_rule!.fields;
+    expect(tcOil.length).toBeGreaterThan(0);
+    for (const key of tcOil) expect(accepts(tc, key), key).toBe(false);
+    // Seeds v1 to v5: VOL. ÓLEO on a dry block is the skip nameplateMissingKeys applies.
+    for (const seedVersion of ['v1', 'v5']) {
+      const old = stateWith('transformador_forca', { seedVersion });
+      const dryOld = blockOf(put(old.state, old.f, plate('tipo_de_isolacao'), 'Á SECO').state);
+      expect(isDryBlock(dryOld), seedVersion).toBe(true);
+      expect(accepts(dryOld, 'vol_oleo'), seedVersion).toBe(false);
+      expect(accepts(dryOld, 'potencia_nominal'), seedVersion).toBe(true);
+      expect(accepts(blockOf(old.state), 'vol_oleo'), seedVersion).toBe(true);
     }
   });
 

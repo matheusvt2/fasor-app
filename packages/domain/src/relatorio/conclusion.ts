@@ -110,8 +110,9 @@ export function conclusionSuggestionText(pair: ConclusionPair): string {
 }
 
 // authored (Story 17.5, open for Bruno): the warning of Sem restrições over a failed ratio row.
-function ratioWarningText(rows: readonly FailedRatioRow[]): string {
-  return `Há relação de transformação insatisfatória em ${listPtBr(rows.map((row) => row.label))}`;
+/** The ratio clause of the warning, without its leading "Há " ("relação de transformação insatisfatória em Fase R"). */
+function ratioRestrictionClause(rows: readonly FailedRatioRow[]): string {
+  return `relação de transformação insatisfatória em ${listPtBr(rows.map((row) => row.label))}`;
 }
 
 /**
@@ -126,9 +127,9 @@ export function restrictionWarning(block: BlockRow): string | null {
   const ncs = ncItems(block, definition).length > 0;
   const ratio = failedRatioRows(evaluateSheetReadings(block, definition));
   if (ratio.length === 0) return ncs ? 'Há itens não conformes' : null;
-  const ratioText = ratioWarningText(ratio);
+  const clause = ratioRestrictionClause(ratio);
   // authored (Story 17.5, open for Bruno): both findings in one sentence.
-  return ncs ? `Há itens não conformes e ${ratioText.slice('Há '.length)}` : ratioText;
+  return ncs ? `Há itens não conformes e ${clause}` : `Há ${clause}`;
 }
 
 /**

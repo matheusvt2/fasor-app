@@ -48,6 +48,7 @@ const field = (page: Page, key: string): Locator => page.locator(`#ficha-namepla
 const select = (page: Page, key: string): Locator => field(page, key).locator('select');
 const missingMarker = (page: Page, key: string): Locator =>
   page.locator(`#ficha-nameplate [data-field-key="${key}"][data-missing-field], #ficha-nameplate [data-field-key="${key}"] [data-missing-field]`);
+const naControl = (page: Page, label: string): Locator => page.getByRole('button', { name: `Marcar ${label} como não aplicável`, exact: true });
 const row = (page: Page, key: string): Locator => page.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${key}"]`);
 const checked = (page: Page, key: string): Locator => row(page, key).locator('[role="radio"][aria-checked="true"]');
 const strip = (page: Page) => page.getByRole('region', { name: /^Fotos da ficha \(\d+\)$/ });
@@ -105,7 +106,7 @@ async function pick(page: Page, key: string, option: string): Promise<void> {
 const blockOf = async (page: Page, blockId: string) => (await entities<BlockRow>(page)).find((record) => record.entity === 'block' && record.id === blockId)!.row;
 const photoOf = async (page: Page, id: string) => (await entities<{ item_key: string | null; block_id: string | null; removed_at: string | null }>(page)).find((record) => record.entity === 'file' && record.id === id)?.row;
 
-test('@p0 14.11-E2E-001 a transformer: Á SECO marks the oil items NA with no tap, ÓLEO brings them back; ÓLEO to Á SECO clears an answered item, VOL. ÓLEO and the photo tie in one batch with "Desfazer", which restores all three; a reload and a sync keep it', async ({ page }) => {
+test('@p0 14.11-E2E-001 a transformer: Á SECO marks the oil items NA with no tap and offers no N/A beside VOL. ÓLEO, ÓLEO brings them back; ÓLEO to Á SECO clears an answered item, VOL. ÓLEO and the photo tie in one batch with "Desfazer", which restores all three; a reload and a sync keep it', async ({ page }) => {
   test.setTimeout(240_000);
   const { relatorioId, sheet } = await openSheet(page, 'transformador_forca');
   const blockId = sheet.blockId;
@@ -117,6 +118,9 @@ test('@p0 14.11-E2E-001 a transformer: Á SECO marks the oil items NA with no ta
   await expect(checked(page, 'limpeza')).toHaveCount(0);
   await expect(missingMarker(page, 'vol_oleo')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /itens? de óleo como NA$/ })).toHaveCount(0);
+  // QA G1 (fx17r): the excused VOL. ÓLEO offers no N/A control; Potência nominal keeps its own.
+  await expect(naControl(page, 'Vol. óleo')).toHaveCount(0);
+  await expect(naControl(page, 'Potência nominal')).toHaveCount(1);
   // Nothing was written for them: the NA is the kernel's reading of the plate.
   expect((await outbox(page)).filter((op) => op.path.includes('/checklist/'))).toEqual([]);
 
@@ -124,6 +128,7 @@ test('@p0 14.11-E2E-001 a transformer: Á SECO marks the oil items NA with no ta
   await pick(page, 'tipo_de_isolacao', 'ÓLEO');
   for (const key of OIL) await expect(checked(page, key), key).toHaveCount(0);
   await expect(missingMarker(page, 'vol_oleo')).toHaveCount(1);
+  await expect(naControl(page, 'Vol. óleo')).toHaveCount(1);
 
   // A photo on the termometro item (from another device), an answer C on it and VOL. ÓLEO typed.
   const photo = photoDraft(relatorioId, blockId, 'termometro');

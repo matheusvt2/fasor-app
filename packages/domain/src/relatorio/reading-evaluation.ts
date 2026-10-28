@@ -392,7 +392,9 @@ export function failedRatioRows(evaluations: readonly TestEvaluation[]): FailedR
         for (const cell of row.cells) {
           if (cell.role === 'capture' && cell.verdict === 'out') worst = Math.max(worst, deviationPct(Number(cell.raw), calculated));
         }
-        const label = tap ? (row.label.trim() === '' ? 'TAP' : `TAP ${row.label}`) : row.label;
+        // authored (fx17r, R5): a connection row with no label is named by its 1-based position
+        const blank = row.label.trim() === '';
+        const label = tap ? (blank ? 'TAP' : `TAP ${row.label}`) : blank ? `Linha ${row.row + 1}` : row.label;
         out.push({ testKey: 'relacao_transformacao', label, deviationText: `${formatDeviation(worst)} %` });
       }
     }

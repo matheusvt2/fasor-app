@@ -189,6 +189,20 @@ describe('14.11 the oil rule on the nameplate', () => {
     expect(document.querySelector('#ficha-nameplate [data-field-key="vol_oleo"] [data-missing-field]')).toBeNull();
   });
 
+  it('QA G1: a dry unit offers no N/A control beside VOL. ÓLEO, Potência nominal keeps its own; an oil unit has it beside VOL. ÓLEO', async () => {
+    draw(block({ nameplate: { tipo_de_isolacao: cell('Á SECO') } }));
+    await settle();
+    expect(screen.queryByRole('button', { name: 'Marcar Vol. óleo como não aplicável' })).toBeNull();
+    expect(document.querySelector('#ficha-nameplate [data-field-key="vol_oleo"] .field-na-row')).toBeNull();
+    expect(document.querySelector('#ficha-nameplate [data-field-key="potencia_nominal"] .field-na-row')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Marcar Potência nominal como não aplicável' })).toBeTruthy();
+    cleanup();
+    draw(oilUnit());
+    await settle();
+    expect(screen.getByRole('button', { name: 'Marcar Vol. óleo como não aplicável' })).toBeTruthy();
+    expect(document.querySelector('#ficha-nameplate [data-field-key="vol_oleo"] .field-na-row')).not.toBeNull();
+  });
+
   it('ÓLEO to Á SECO picked by hand: one batch with the item, VOL. ÓLEO and the photo tie, and "Desfazer" on "2 itens de óleo apagados" (the item with its photo, and VOL. ÓLEO)', async () => {
     const { api, built, committed } = draw(oilUnit());
     await userEvent.selectOptions(screen.getByLabelText('Tipo de isolação'), 'Á SECO');

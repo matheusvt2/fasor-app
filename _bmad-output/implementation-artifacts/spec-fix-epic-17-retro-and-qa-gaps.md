@@ -2,8 +2,8 @@
 title: 'Fix batch fx17r: Epic 17 QA gaps G1 and G2, review findings R4, R5, R11, R18 (E17-A1)'
 type: 'bugfix'
 created: '2026-10-28'
-status: 'ready-for-dev'
-baseline_revision: '25ea903d8dd1fd8a2d53d05a25d7a9bc86e6eff2'
+status: 'in-progress'
+baseline_revision: '23cdcfa52d2e58282238e25dea0322afa9ec5f33'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'

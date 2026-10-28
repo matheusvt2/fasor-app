@@ -246,6 +246,7 @@ export interface FieldProps {
    * Story 16.4: a nameplate or cabine number field accepts the "N/A" spellings; any other
    * number field (a measurement test's value) refuses them as text that is no number.
    * Story 17.3: such a field also renders the "N/A" control at its trailing end.
+   * On the plate the flag is the kernel's `nameplateAcceptsNotApplicable` (QA G1).
    */
   acceptsNotApplicable?: boolean;
 }

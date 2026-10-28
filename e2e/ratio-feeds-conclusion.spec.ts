@@ -37,6 +37,12 @@ test('@p0 17.5-E2E-001 a transformer ratio row INSATISFATÓRIO suggests "Aprovad
   test.setTimeout(180_000);
   const { relatorioId, blockId } = await openTransformerSheet(page, account, database, { width: 1280 });
 
+  // QA G2 (fx17r): while TAP ATUAL is blank, a ratio cell is named by its column alone, never ", V primário".
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  await expect(cellInput(page, 'V primário')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: /^, / })).toHaveCount(0);
+  await stepper(page).getByRole('button', { name: /^Placa,/ }).click();
+
   // The plate's TAP ATUAL names the ratio row ("5"), as `ficha.spec.ts` UX-F42 types it.
   const tap = field(page, 'tap_atual').locator('input').first();
   await tap.fill('5');

@@ -14,6 +14,7 @@ import {
   evaluateSheetReadings,
   failedRatioRows,
   firstRunCell,
+  measurementCellName,
   nextUnit,
   ratioFormulaHelperText,
   readingLabelText,
@@ -410,6 +411,13 @@ describe('5.5-UNIT evaluateSheetReadings', () => {
     expect(readingLabelText("TP's")).toBe("TP's");
   });
 
+  it('QA G2: a Measurement cell is named by its row and column, by its column alone while the row has no label', () => {
+    expect(measurementCellName('', 'V primário')).toBe('V primário');
+    expect(measurementCellName('  ', 'H1-H3 / X1-X0')).toBe('H1-H3 / X1-X0');
+    expect(measurementCellName('5', 'V primário')).toBe('5, V primário');
+    expect(measurementCellName('Fase R', 'V primário')).toBe('Fase R, V primário');
+  });
+
   it('E12-A7 keeps the screen acronyms as screenLabel does, in labels, headers and table titles', () => {
     expect(readingLabelText('TAP Nº')).toBe('TAP Nº');
     // Not the first word, and written in a case the screen form corrects.
@@ -595,6 +603,18 @@ describe('17.5-UNIT failedRatioRows (F42, E15-A2)', () => {
       ['Fase R', '4,17 %'],
       ['Fase T', '8,33 %'],
     ]);
+  });
+
+  it('R5: a failed row with a blank label on a non-TAP table is named by its 1-based position', () => {
+    const blankLabels = (evaluations: ReturnType<typeof evaluateSheetReadings>) =>
+      evaluations.map((t) => ({ ...t, tables: t.tables.map((table) => ({ ...table, rows: table.rows.map((row) => ({ ...row, label: '  ' })) })) }));
+    const one = evaluateSheetReadings(block('tp', test('relacao_transformacao', [...tpInputs(0), [0, 3, measured('125', null)]])), TP);
+    expect(failedRatioRows(blankLabels(one)).map((r) => r.label)).toEqual(['Linha 1']);
+    const two = evaluateSheetReadings(
+      block('tp', test('relacao_transformacao', [...tpInputs(0), [0, 3, measured('125', null)], ...tpInputs(1), [1, 3, measured('120.1', null)], ...tpInputs(2), [2, 3, measured('110', null)]])),
+      TP,
+    );
+    expect(failedRatioRows(blankLabels(two)).map((r) => r.label)).toEqual(['Linha 1', 'Linha 3']);
   });
 
   it('B8: a capture exactly at the limit (120,6 of 120,00, 0,5 %) is within, never failed', () => {

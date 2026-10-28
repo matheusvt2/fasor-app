@@ -93,6 +93,28 @@ export function oilNaChipItems(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_
 }
 
 /**
+ * A nameplate field the block excuses: VOL. ÓLEO on a dry block of seeds v1 to v5
+ * (`isDryBlock`), and on seed v6 on every field of the oil rule a non-oil unit excuses
+ * (`isOilFieldExcused`). Never missing, printed "-" whatever is stored. False for a block with
+ * no definition.
+ */
+export function isNameplateFieldExcused(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>, fieldKey: string): boolean {
+  const definition = definitionOf(block);
+  if (definition === null) return false;
+  if (definition.oil_rule !== undefined) return isOilFieldExcused(block, fieldKey);
+  return fieldKey === OIL_VOLUME_FIELD_KEY && isDryBlock(block);
+}
+
+/**
+ * Stories 16.4 and 17.3, QA G1 (2026-10-28): whether the nameplate field offers the "N/A"
+ * control. An excused field prints "-" whatever is stored, so it offers no N/A; every other
+ * field of the plate does.
+ */
+export function nameplateAcceptsNotApplicable(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>, fieldKey: string): boolean {
+  return !isNameplateFieldExcused(block, fieldKey);
+}
+
+/**
  * The nameplate fields of the block still missing (the one rule of "missing" on the plate):
  * every field of its definition whose cell is not filled, except a TAG field shown prefilled
  * from the block's TAG (Story 12.3, needs `equipment`), VOL. ÓLEO on a dry block
@@ -108,15 +130,13 @@ export function nameplateMissingKeys(
   const definition = definitionOf(block);
   if (definition === null) return new Set();
   const prefilled = snapshot.equipment === undefined ? null : nameplateTagPrefill({ blocks: snapshot.blocks, equipment: snapshot.equipment }, block.id);
-  const ruled = definition.oil_rule !== undefined;
-  const dry = !ruled && isDryBlock(block);
   const missing = new Set<string>();
   for (const field of definition.nameplate) {
     if (isCellFilled(block.sheet.nameplate[field.key])) continue;
     if (field.key === 'tag' && prefilled !== null) continue;
-    if (field.key === OIL_VOLUME_FIELD_KEY && dry) continue;
-    // Seed v6: the rule's oil fields on a non-oil unit (Story 14.11), and a field the seed marks optional (Story 14.9).
-    if (ruled && isOilFieldExcused(block, field.key)) continue;
+    // VOL. ÓLEO on a dry v1-v5 block; seed v6: the rule's oil fields on a non-oil unit (Story 14.11).
+    if (isNameplateFieldExcused(block, field.key)) continue;
+    // A field the seed marks optional (Story 14.9).
     if (field.optional === true) continue;
     missing.add(field.key);
   }

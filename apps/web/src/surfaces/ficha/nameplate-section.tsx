@@ -3,6 +3,7 @@ import {
   discardSuggestionOp,
   INSULATION_FIELD_KEY,
   lastNameplateCopy,
+  nameplateAcceptsNotApplicable,
   nameplateMissingKeys,
   nameplateCopyFields,
   nameplateIsEmpty,
@@ -422,7 +423,7 @@ export function NameplateSection({
               invalidText={t.invalidNumber}
               selectEmpty={t.selectEmpty}
               registries={registries}
-              acceptsNotApplicable
+              acceptsNotApplicable={nameplateAcceptsNotApplicable(block, field.key)}
               blocks={snapshot.blocks}
               onCreateWord={(kind, name) => createWord(field.key, kind, name)}
               onRegisterWord={registerWord}

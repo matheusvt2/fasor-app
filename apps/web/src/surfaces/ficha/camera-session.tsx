@@ -155,11 +155,12 @@ export function useCamera(
   // behind a hidden file input, one shot.
   const picker = useCameraPicker({ capture, reachable, onStored: (stored) => shotStored(options.onShot, stored), setBurst, showToast, returnFocus });
   // Story 17.2: a burst with targets ("Ler visor") whose first target is gone (every cell read)
-  // opens no camera app, as the viewfinder disables its shutter: the hint says why. `target()`
+  // opens no camera app, as the viewfinder disables its shutter: the caller's hint says why, and
+  // with no hint the no-target sentence does (fx17r, R11; never the save-failure toast). `target()`
   // already ran (it sets the burst's start), so `shotTarget(0)` reads this press.
   const pick = (context: CaptureTarget) => {
     if (cameraApp && shotTarget !== undefined && shotTarget(0) === null) {
-      showToast(shotHint?.(0) ?? copy.photos.failedToast);
+      showToast(shotHint?.(0) ?? copy.photos.noTargetToast);
       return;
     }
     picker.pick(context);
