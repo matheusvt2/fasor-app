@@ -85,6 +85,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'seed-v9.spec.ts',
     why: 'generates a revision through the shared queue and LibreOffice to read the two seed v9 site items in VERIFICAÇÕES DO LOCAL of the DOCX',
   },
+  // Story 15.7: 15.7-E2E-002 generates the DOCX the TC's seven seed v10 items are read from.
+  {
+    file: 'seed-v10.spec.ts',
+    why: 'generates a revision through the shared queue and LibreOffice to read the TC\'s seven seed v10 items in VERIFICAÇÕES GERAIS of the DOCX',
+  },
   // Test-speed batch (2026-09-27): the specs that time a tap against a render (`humanTap`,
   // `touchPressAcross`, `tapCounter` in `taps.ts`). They measure the device, and the device
   // is the one thing the per-worker pairs cannot separate: beside two other browsers the

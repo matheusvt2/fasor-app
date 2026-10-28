@@ -1,4 +1,6 @@
+import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
 import { artOrTrtLabel } from '../registration.ts';
+import type { NumberValue, RelatorioSetup } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { listPtBr } from '../text/plural.ts';
 
@@ -58,6 +60,18 @@ export function firstSetupGap(snapshot: RelatorioSnapshot): SetupGap | null {
  */
 export function siteAltitudeText(m: number): string {
   return m < 1000 ? '< 1000 m' : `${m} m`;
+}
+
+/**
+ * Story 17.6: the site altitude as the AD-11 number value its readers show and print (the
+ * sheet's read-only Altitude, section 9's ALTITUDE). `site_altitude_na` wins over a stored
+ * number and reads `not_applicable` ("N/A"); a number reads `measured` in metres; neither is
+ * null (the readers' "-").
+ */
+export function siteAltitudeValue(setup: Pick<RelatorioSetup, 'site_altitude_m' | 'site_altitude_na'>): NumberValue | null {
+  if (setup.site_altitude_na) return { ...NOT_APPLICABLE_NUMBER };
+  if (setup.site_altitude_m === null) return null;
+  return { raw: String(setup.site_altitude_m), unit: 'm', state: 'measured' };
 }
 
 /**

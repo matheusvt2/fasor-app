@@ -20,7 +20,7 @@ const quantities = (ref: string) => {
 describe('standardTemplate', () => {
   it('is a valid template row named "Cabine primária — padrão" on the current seed (v6 since Stories 14.9 and 14.11)', () => {
     expect(templateRowSchema.parse(template)).toEqual(template);
-    expect(template).toMatchObject({ id: ID, name: STANDARD_TEMPLATE_NAME, version: 1, seed_version: 'v9', removed_at: null });
+    expect(template).toMatchObject({ id: ID, name: STANDARD_TEMPLATE_NAME, version: 1, seed_version: SEED_VERSION, removed_at: null });
     expect(STANDARD_TEMPLATE_NAME).toBe('Cabine primária — padrão');
   });
 

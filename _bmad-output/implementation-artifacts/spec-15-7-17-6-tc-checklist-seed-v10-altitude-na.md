@@ -2,7 +2,7 @@
 title: 'Stories 15.7 and 17.6: the TC''s own checklist (seed v10); "Altitude do site" takes N/A and says when the device gave none (contract 27)'
 type: 'feature'
 created: '2026-10-28'
-status: 'ready-for-dev'
+status: 'in-progress'
 baseline_revision: '1a2f0b0f2a56872166008bf6c628366a9380323a'
 review_loop_iteration: 0
 followup_review_recommended: false

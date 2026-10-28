@@ -300,3 +300,23 @@ describe('Story 15.3 (seed v9): the learned phrases of the dropped transformer i
     expect(seedNcPhrasesOf('transformador_forca', DROPPED)).toHaveLength(3);
   });
 });
+
+describe('Story 15.7 (seed v10): the learned phrases of a TC item the TC\'s own list leaves, `valvula_de_alivio`', () => {
+  const LEFT = 'valvula_de_alivio';
+  const learned = [phraseRow('lacre da válvula rompido', { block_type: 'tc', item_key: LEFT })];
+  const chipsBySheet = (version: string) =>
+    Object.fromEntries(
+      SEED_VERSIONS[version]!.report_types.cabine_primaria.blocks.tc!.checklist!.map((item) => [
+        item.key,
+        ncChipPhrases({ seeded: item.nc_phrases, learned, blockType: 'tc', itemKey: item.key, recents: [] }),
+      ]),
+    );
+
+  it('are offered on a v9 TC, not on a v10 one (no such item), and keep their label from v9 in the office list', () => {
+    expect(chipsBySheet('v9')[LEFT]).toContain('lacre da válvula rompido');
+    const v10 = chipsBySheet('v10');
+    expect(Object.keys(v10)).not.toContain(LEFT);
+    expect(Object.values(v10).flat()).not.toContain('lacre da válvula rompido');
+    expect(ncPhraseRegistryRows(learned).map((entry) => [entry.row.name, entry.group, entry.text.secondary])).toEqual([['lacre da válvula rompido', 'TC', 'Válvula de alívio']]);
+  });
+});

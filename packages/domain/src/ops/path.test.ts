@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { opLog } from '../../fixtures/replay-small/op-log.ts';
 import { SITE_ITEM_KEYS } from '../schemas/block-config.ts';
+import { RELATORIO_SETUP_KEYS } from '../schemas/entities.ts';
 import { opFactory } from '../test-support.ts';
 import { opSchema } from './op.ts';
 import { FAMILIES, FILE_FIELDS, formatPath, isCreateFamily, isServerOnly, opPathSchema, parsePath, pathField, PathError, safeParsePath, targetOf, type OpPath } from './path.ts';
@@ -80,6 +81,9 @@ describe('1.4-UNIT-001 path round trip', () => {
       field: 'code',
     });
     expect(parsePath('relatorio/setup/service_start')).toEqual({ family: 'relatorio/setup', field: 'service_start' });
+    // Story 17.6 (contract 27): the altitude's "N/A".
+    expect(RELATORIO_SETUP_KEYS).toContain('site_altitude_na');
+    expect(parsePath('relatorio/setup/site_altitude_na')).toEqual({ family: 'relatorio/setup', field: 'site_altitude_na' });
   });
 
   it('rejects an unknown family naming the family segment', () => {
