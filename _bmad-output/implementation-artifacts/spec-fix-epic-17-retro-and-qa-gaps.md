@@ -2,7 +2,7 @@
 title: 'Fix batch fx17r: Epic 17 QA gaps G1 and G2, review findings R4, R5, R11, R18 (E17-A1)'
 type: 'bugfix'
 created: '2026-10-28'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '23cdcfa52d2e58282238e25dea0322afa9ec5f33'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -115,6 +115,21 @@ deferred: []
 
 ## Review Triage Log
 
+Layers run: Edge Case Hunter, Verification Gap Reviewer (opus). Skipped: Blind Hunter, Intent Alignment (token economy; the integrated epic review covers them).
+
+### 2026-10-28 — Review pass
+- verdicts: 9 findings — high 0, medium 2, low 5, false 1, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` VGR-1: a `not_applicable` stored on a field the oil rule now excuses (data written before this fix by a typed "n.a" or the 17.3 control) renders "N/A" with the unit beside it, since `parseNumber` returns 'invalid' for N/A when the flag is false and `showsNotApplicable` goes false; no test renders a stored N/A on an excused field — verified in `number-input.tsx` (`parsed = parse(text)` at rest) and `ficha-fields.tsx` L366; patched: `parseNumber` accepts the N/A parse when `storedNotApplicable`, pinned by a new `nameplate-oil-rule.test.tsx` case (value "N/A", no unit, not invalid, no control, no missing marker).
+  - `[low]` `[reject]` VGR-2: `copy.photos.noTargetToast` has no production path (the burst caller passes a hint, the environment caller's target at 0 is never null) — true and known: the retro recorded R11 as latent and the intent asked for the authored fallback precisely so the latent path never speaks of a save failure; nothing to fix.
+  - `[maybe-false]` `[reject]` VGR-3: `displayBurstHintText` would end in " · " for a blank-label row if a display burst reached the ratio table — pre-existing, not changed by this diff, and if true cosmetic (low); what would settle it: whether `displayBurstStops` lists the ratio table's capture cells on a transformer. Listed in the PR body as known open.
+  - `[medium]` `[patch]` ECH-1: same defect as VGR-1 (stored N/A on an excused field reads "N/A L"; a retyped N/A flagged invalid) — grouped with VGR-1, same patch.
+  - `[low]` `[reject]` ECH-2: a remote insulation change landing while the engineer types in VOL. ÓLEO flips the flag, the wrapper swaps and the input remounts (focus lost) — real but needs a concurrent crossing write from another device on the very field being typed; `flushOnUnmount` (F-01) commits the typed text first, and the crossing batch clears the field anyway; the fix (always rendering the row wrapper) changes the DOM of every field without the flag and the tests asserting its absence; not worth it.
+  - `[low]` `[patch]` ECH-3: "Linha N" used `row.row + 1`, the row index across the test's tables, so on a ratio test with more than one table it would name a position the reader cannot find — verified in `EvaluatedRow.row`'s doc; every ratio test today has one table, so the output is identical; patched to the 1-based index within the table (`table.rows.entries()`), R5 test unchanged and green.
+  - `[false]` `[reject]` ECH-4: the "só na galeria" variant could flash while the snapshot has no blocks — `GallerySurface` renders `Gallery` under `RelatorioGate`, which hands it a loaded `EntityState`; the first note (`t.note(sectionMention(snapshot, 7))`) has read the same snapshot since F43 with no flash, and the e2e specs locate the radio after the sheet opens on the loaded snapshot.
+  - `[low]` `[patch]` ECH-5 (claim): "1-based position" matched a per-table position only while the ratio test has one table — same root cause as ECH-3, same patch.
+  - `[low]` `[reject]` ECH note: the e2e specs that select the radio by its full text assume their relatórios carry section 7 — they do (standard template); the present wording is byte-identical, so they are the guard, not a gap.
+
 ## Verification
 
 **Commands (in the tools container: `podman compose --profile tools run --rm --user root tools pnpm ...`; the implementer runs unit tests only, never Playwright):**
@@ -123,3 +138,13 @@ deferred: []
 - `grep -rn "cellLabel\|'Há '.length" apps/web/src packages/domain/src` -- no hits.
 
 ## Auto Run Result
+
+Status: done. Six corrections, kernel first. G1: `isNameplateFieldExcused` and `nameplateAcceptsNotApplicable` (`dry-insulation.ts`; `nameplateMissingKeys` reads the same predicate), the plate passes it to `acceptsNotApplicable`, a stored N/A on an excused field still reads "N/A" (review patch in `ficha-fields.tsx`). G2: `measurementCellName` (`reading-cells.ts`, re-exported by `readings.ts`) names a cell by its column alone while the row label is blank; `cellLabel` removed from `pt-br.ts`; `ensaios-section.tsx` reads the kernel. R4: `restrictionWarning` composed from `ratioRestrictionClause`. R5: "Linha N" (position within the table, review patch) for a blank non-TAP label. R11: `photos.noTargetToast` as the guard's fallback (`camera-session.tsx`). R18: `gallery.geralNote(m)` and `captureSheet.general(m)` on `sectionMention(snapshot, 7)` (`gallery-surface.tsx`, `capture-sheet.tsx`, `EquipmentStep` exported for the test). Ledger rows G1 and G2 done; `docs/kbs/log.md` one line.
+
+Files changed: `packages/domain/src/relatorio/{dry-insulation,reading-cells,readings,reading-evaluation,conclusion}.ts` and their tests (`oil-rule.test.ts`, `readings.test.ts`); `apps/web/src/copy/pt-br.ts`; `apps/web/src/surfaces/ficha/{nameplate-section,ficha-fields,ensaios-section,camera-session}.tsx`, tests `nameplate-oil-rule.test.tsx`, `camera-view.test.tsx`; `apps/web/src/surfaces/photos/{gallery-surface,capture-sheet}.tsx`, test `compact-template-sections.test.tsx`; `e2e/oil-dry.spec.ts`, `e2e/ratio-feeds-conclusion.spec.ts`; `deferred-work.md`, `docs/kbs/log.md`.
+
+Review: 9 findings; 2 patched entries (VGR-1/ECH-1 medium: stored N/A on an excused field; ECH-3/ECH-5 low: "Linha N" per table), 0 deferred, 5 rejected (VGR-2 latent fallback by intent; VGR-3 pre-existing cosmetic sibling, listed as known open; ECH-2 rare remount with the typed text flushed; ECH-4 false, the gate hands a loaded state; ECH note, the standard-template specs are the guard). Patched counts by verdict: medium 1 entry, low 1 entry. Follow-up review recommended: false (one medium patch, no high).
+
+Verification: new tests red before each fix (kernel G1 predicate, G2 `measurementCellName`, R5; web G1 control, R11 toast, R18 note and radio; the review-patch case was added with its fix); `conclusion.test.ts` B2 green before and after R4. After the patches: 8 files / 249 tests green, `pnpm lint` 0 errors (25 pre-existing warnings in untouched files), `pnpm static` green; `grep cellLabel|'Há '.length` no hits. Playwright runs in the orchestrator's story gate (recorded in the PR body).
+
+Residual risks: the e2e clauses added to `oil-dry.spec.ts` and `ratio-feeds-conclusion.spec.ts` were first run by the gate; `displayBurstHintText` keeps its " · " tail for a blank-label row (pre-existing, known open).

@@ -203,6 +203,19 @@ describe('14.11 the oil rule on the nameplate', () => {
     expect(document.querySelector('#ficha-nameplate [data-field-key="vol_oleo"] .field-na-row')).not.toBeNull();
   });
 
+  it('QA G1 (fx17r review): a dry unit whose VOL. ÓLEO already stores N/A still reads "N/A", with no unit, no error, no control and no missing marker', async () => {
+    draw(block({ nameplate: { tipo_de_isolacao: cell('Á SECO'), vol_oleo: cell({ raw: '', unit: null, state: 'not_applicable' }) } }));
+    await settle();
+    const vol = document.querySelector('#ficha-nameplate [data-field-key="vol_oleo"]')!;
+    const input = vol.querySelector('input')!;
+    expect(input.value).toBe('N/A');
+    expect(input.getAttribute('aria-invalid')).not.toBe('true');
+    expect(vol.querySelector('.mf-unit')).toBeNull();
+    expect(vol.querySelector('.field-na-row')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Marcar Vol. óleo como não aplicável' })).toBeNull();
+    expect(document.querySelector('#ficha-nameplate [data-field-key="vol_oleo"] [data-missing-field]')).toBeNull();
+  });
+
   it('ÓLEO to Á SECO picked by hand: one batch with the item, VOL. ÓLEO and the photo tie, and "Desfazer" on "2 itens de óleo apagados" (the item with its photo, and VOL. ÓLEO)', async () => {
     const { api, built, committed } = draw(oilUnit());
     await userEvent.selectOptions(screen.getByLabelText('Tipo de isolação'), 'Á SECO');

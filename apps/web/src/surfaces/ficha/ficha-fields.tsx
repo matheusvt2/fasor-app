@@ -332,7 +332,8 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
   const parseNumber = (text: string): ParsedNumber | null | 'invalid' => {
     const parsed = numberFieldValue(text, unit);
     if (parsed === null || parsed === 'invalid') return parsed;
-    if (parsed.state === 'not_applicable' && acceptsNotApplicable !== true) return 'invalid';
+    // QA G1, fx17r review: an N/A stored before the field stopped offering it still reads N/A.
+    if (parsed.state === 'not_applicable' && acceptsNotApplicable !== true && !storedNotApplicable) return 'invalid';
     return parsed.state === 'not_applicable' ? { raw: '', unit: null, state: 'not_applicable' } : { raw: parsed.raw, unit: parsed.unit };
   };
   const number: ReturnType<typeof useNumberInput> = useNumberInput({

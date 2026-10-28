@@ -385,16 +385,16 @@ export function failedRatioRows(evaluations: readonly TestEvaluation[]): FailedR
     for (const table of test.tables) {
       // A typed TAP connection (the transformer) reads "TAP 5", or "TAP" alone when blank.
       const tap = table.connectionHeaders[0]?.toUpperCase().startsWith('TAP') === true;
-      for (const row of table.rows) {
+      for (const [index, row] of table.rows.entries()) {
         if (row.condicao !== 'INSATISFATÓRIO' || row.calculated === null) continue;
         const calculated = Number(row.calculated.raw);
         let worst = -Infinity;
         for (const cell of row.cells) {
           if (cell.role === 'capture' && cell.verdict === 'out') worst = Math.max(worst, deviationPct(Number(cell.raw), calculated));
         }
-        // authored (fx17r, R5): a connection row with no label is named by its 1-based position
+        // authored (fx17r, R5): a connection row with no label is named by its 1-based position in its table
         const blank = row.label.trim() === '';
-        const label = tap ? (blank ? 'TAP' : `TAP ${row.label}`) : blank ? `Linha ${row.row + 1}` : row.label;
+        const label = tap ? (blank ? 'TAP' : `TAP ${row.label}`) : blank ? `Linha ${index + 1}` : row.label;
         out.push({ testKey: 'relacao_transformacao', label, deviationText: `${formatDeviation(worst)} %` });
       }
     }
