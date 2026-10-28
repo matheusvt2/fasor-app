@@ -260,3 +260,14 @@ describe('Story 15.3 (seed v9): a dry transformer, TP or TC', () => {
     }
   });
 });
+
+describe('Story 15.7 (seed v10): a dry TC', () => {
+  it('names VASAMENTO alone in its dry subtypes; the oil rule shows it NA, so no chip is offered and VOL. ÓLEO is not missing', () => {
+    const definition = getDefinition('v10', 'cabine_primaria', 'tc');
+    for (const subtype of definition.subtypes) expect(subtype.na_defaults, subtype.key).toEqual(['vasamento']);
+    const dry = { ...block('tc', { nameplate: { tipo_de_isolacao: cell('Á SECO') } }), seed_version: 'v10', config: defaultBlockConfig('v10', 'tc') } as BlockRow;
+    expect(isDryBlock(dry)).toBe(true);
+    expect(oilNaChipItems(dry, { used: false })).toEqual([]);
+    expect(nameplateMissingKeys({ blocks: [dry] }, dry.id).has('vol_oleo')).toBe(false);
+  });
+});

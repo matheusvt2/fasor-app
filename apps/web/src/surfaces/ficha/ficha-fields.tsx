@@ -21,11 +21,10 @@ import {
   type WordRow,
 } from '@app/domain';
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { DateField, RegistryPickerField } from '../../components/index.ts';
+import { DateField, NotApplicableButton, RegistryPickerField } from '../../components/index.ts';
 import { NOT_APPLICABLE_STORED_RAW, useNumberInput, type ParsedNumber } from '../../components/number-input.tsx';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
-import { ui } from '../../copy/ui.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useDraftSource } from '../../state/drafts.tsx';
 
@@ -388,20 +387,16 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
         <div className="field-na-row">
           {valueField}
           {showsNotApplicable ? null : (
-            <button
-              type="button"
-              className="btn btn-secondary btn-na"
-              aria-label={ui.notApplicable.markLabel(fieldLabel)}
-              onClick={() => {
+            <NotApplicableButton
+              label={fieldLabel}
+              onPress={() => {
                 // A9: text typed and not committed yet commits first (the input's blur does it
                 // where the tap takes the focus; WebKit does not focus a tapped button), then the
                 // existing `not_applicable` put. No focus move (never the next missing field).
                 number.commitNow();
                 number.commitValue({ raw: '', unit: null, state: 'not_applicable' });
               }}
-            >
-              {ui.notApplicable.control}
-            </button>
+            />
           )}
         </div>
       ) : (

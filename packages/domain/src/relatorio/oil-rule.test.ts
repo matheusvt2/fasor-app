@@ -13,6 +13,7 @@ import { idSequence, opFactory, T0, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO, 
 import { isDryBlock, nameplateMissingKeys, oilNaChipItems } from './dry-insulation.ts';
 import {
   isOilFieldExcused,
+  isOilItem,
   isOilUnit,
   oilCrossingClearedCount,
   oilCrossingPuts,
@@ -504,5 +505,39 @@ describe('Story 15.3 (seed v9): the transformers ask about the oil level once, s
     const wet = put(dry, f, plate('tipo_de_isolacao'), 'ÓLEO').state;
     expect(results(blockOf(wet), oil)).toEqual(oil.map(() => null));
     expect(sheetProgress({ blocks: [blockOf(wet)] }, BLOCK).steps.verificacoes.missing).toBe(checklistOf('v9', 'transformador_forca').length);
+  });
+});
+
+describe('Story 15.7 (seed v10): the TC asks its own seven items, VASAMENTO its one oil item', () => {
+  const checklistOf = (version: string, type: EquipmentBlockType) => getDefinition(version, 'cabine_primaria', type).checklist!;
+
+  it('a dry v10 TC (Á SECO or EPÓXI, typed or by subtype) shows VASAMENTO NA through the oil rule, no chip, and counts the other six', () => {
+    const keys = checklistOf('v10', 'tc').map((entry) => entry.key);
+    for (const value of ['EPÓXI', 'Á SECO']) {
+      const { state, f } = stateWith('tc', { seedVersion: 'v10' });
+      const block = blockOf(put(state, f, plate('tipo_de_isolacao'), value).state);
+      expect([...oilDerivedNaKeys(block)], value).toEqual(['vasamento']);
+      expect(results(block, keys), value).toEqual(keys.map((key) => (key === 'vasamento' ? 'NA' : null)));
+      expect(checklistResultOf(block, 'limpeza_pintura_e_corrosao'), value).toBeNull();
+      expect(oilNaChipItems(block, { used: false }), value).toEqual([]);
+      expect(sheetProgress({ blocks: [block] }, BLOCK).steps.verificacoes.missing, value).toBe(keys.length - 1);
+    }
+    const sub = blockOf(stateWith('tc', { seedVersion: 'v10', subtype: 'a_seco' }).state);
+    expect([...oilDerivedNaKeys(sub)]).toEqual(['vasamento']);
+    expect(oilNaChipItems(sub, { used: false })).toEqual([]);
+    expect(isOilItem(sub, 'vasamento')).toBe(true);
+    expect(isOilItem(sub, 'buchas')).toBe(false);
+    expect(isOilItem(sub, 'valvula_de_alivio')).toBe(false);
+  });
+
+  it('a v10 TC on ÓLEO asks all seven; a v9 TC keeps its fourteen items and seven oil items', () => {
+    const { state, f } = stateWith('tc', { seedVersion: 'v10' });
+    const wet = blockOf(put(state, f, plate('tipo_de_isolacao'), 'ÓLEO').state);
+    expect(sheetProgress({ blocks: [wet] }, BLOCK).steps.verificacoes.missing).toBe(checklistOf('v10', 'tc').length);
+    const v9 = stateWith('tc', { seedVersion: 'v9' });
+    const dryV9 = blockOf(put(v9.state, v9.f, plate('tipo_de_isolacao'), 'Á SECO').state);
+    expect(checklistOf('v9', 'tc')).toHaveLength(14);
+    expect([...oilDerivedNaKeys(dryV9)]).toHaveLength(7);
+    expect(isOilItem(dryV9, 'valvula_de_alivio')).toBe(true);
   });
 });

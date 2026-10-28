@@ -1,4 +1,4 @@
-import { getDefinition, oilNaChipText, SEED_VERSION, siteChecklistOf, siteItems, type BlockRow, type LocationRow, type OpDraft } from '@app/domain';
+import { getDefinition, oilNaChipText, SEED_VERSION, SEED_VERSIONS, siteChecklistOf, siteItems, type BlockRow, type LocationRow, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
@@ -78,7 +78,7 @@ async function openSheet(page: Page, relatorioId: string, blockId: string): Prom
 
 test('@p0 15.3-E2E-001 v9 sheets: the transformer asks about the oil level once and a dry one shows its seven oil items NA with no chip; the TC has no POTÊNCIA NOMINAL, the TP keeps it', async ({ page }) => {
   test.setTimeout(180_000);
-  expect(SEED_VERSION).toBe('v9');
+  expect(Object.keys(SEED_VERSIONS)).toContain('v9');
   const built = await pushStandard(page);
   const sheetOf = (type: string) => built.sheets.find((sheet) => sheet.blockType === type)!;
   const transformer = sheetOf('transformador_forca');

@@ -270,11 +270,11 @@ describe('seed v1: checklists (addendum §9.2)', () => {
       }
     }
     // Seed v4 (Story 14.3) appended one key to the enum, seed v5 (Story 14.5) seventeen and seed
-    // v6 (Story 14.9) thirteen; v1 itself lists what it always did.
+    // v6 (Story 14.9) thirteen and seed v10 (Story 15.7) four; v1 itself lists what it always did.
     expect([...all].sort()).toEqual(ITEM_KEYS.slice(0, 44).sort());
     expect(all.size).toBe(44);
     expect(ITEM_KEYS[44]).toBe('no_break_de_comando');
-    expect(ITEM_KEYS).toHaveLength(75);
+    expect(ITEM_KEYS).toHaveLength(79);
   });
 
   it('gives every item of every list three or four NC chip phrases', () => {
@@ -1452,9 +1452,10 @@ describe('seed v6 (Stories 14.9 and 14.11): v5 plus the Quadro elétrico (QGBT/Q
       [8, 'FUNCIONAMENTO MECÂNICO (LIGA/DESLIGA/TRIP)'],
       [16, 'CANALETA, CHICOTE, CABOS...'],
     ]);
-    // The new keys are the tail of the closed item enum; the four the eight already use keep theirs.
+    // The new keys were the tail of the closed item enum until seed v10 appended four after them;
+    // the four the eight already use keep theirs.
     const reused = ['lampadas_de_sinalizacao', 'fusiveis', 'aterramento', 'isoladores'];
-    expect(list.map((item) => item.key).filter((key) => !reused.includes(key))).toEqual(ITEM_KEYS.slice(62));
+    expect(list.map((item) => item.key).filter((key) => !reused.includes(key))).toEqual(ITEM_KEYS.slice(62, 75));
     for (const key of reused) expect(ITEM_KEYS.indexOf(key as (typeof ITEM_KEYS)[number]), key).toBeLessThan(62);
   });
 
@@ -1641,7 +1642,7 @@ describe('seed v8 (UX pass 2026-10-22, F43): v7 plus a Conclusão naming section
       for (const row of seed.cover.rows) for (const match of row.value.matchAll(/\{([^}]*)\}/g)) found.add(match[1]!);
       return [...found].sort();
     };
-    for (const version of ['v8', 'v9']) expect(variablesOf(version), version).toEqual([...SECTION_VARIABLES].sort());
+    for (const version of ['v8', 'v9', 'v10']) expect(variablesOf(version), version).toEqual([...SECTION_VARIABLES].sort());
     for (const version of ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7']) {
       expect(variablesOf(version), version).toEqual(['cliente', 'datas', 'empresa_executora', 'escopo', 'obra', 'responsavel']);
     }
@@ -1657,10 +1658,9 @@ describe('seed v9 (Stories 15.3 and 15.6): v8 with one oil-level item, the TC wi
   const hash = (version: string) => createHash('sha256').update(JSON.stringify(SEED_VERSIONS[version])).digest('hex');
   const TRANSFORMERS = ['tp', 'tc', 'transformador_forca'] as const;
 
-  it('is the version a new Template is created with', () => {
-    expect(SEED_VERSION).toBe('v9');
+  it('was the version a new Template is created with until seed v10 (pinned there)', () => {
     expect(SEED_VERSIONS.v9!.version).toBe('v9');
-    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9']);
+    expect(Object.keys(SEED_VERSIONS)).toContain('v9');
     expect(equipmentTypesOf('v9')).toEqual(equipmentTypesOf('v8'));
   });
 
@@ -1728,14 +1728,14 @@ describe('seed v9 (Stories 15.3 and 15.6): v8 with one oil-level item, the TC wi
     expect(keys('v9', 'transformador_forca')).toContain('potencia_nominal');
   });
 
-  it('ratio_factor sqrt3 sits on the v9 transformador de força ratio table only', () => {
+  it('ratio_factor sqrt3 sits on the v9 (and v10) transformador de força ratio table only', () => {
     const factors: string[] = [];
     for (const version of Object.keys(SEED_VERSIONS)) {
       for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
         for (const test of definition.tests) for (const table of test.tables) if ('ratio_factor' in table) factors.push(`${version}/${definition.block_type}/${test.key}/${table.ratio_factor}`);
       }
     }
-    expect(factors).toEqual(['v9/transformador_forca/relacao_transformacao/sqrt3']);
+    expect(factors).toEqual(['v9/transformador_forca/relacao_transformacao/sqrt3', 'v10/transformador_forca/relacao_transformacao/sqrt3']);
   });
 
   it('the site checklist: 21 items, the two new ones items 20 and 21 at the end of Ambiente; v4 to v8 keep 19', () => {
@@ -1758,6 +1758,91 @@ describe('seed v9 (Stories 15.3 and 15.6): v8 with one oil-level item, the TC wi
     });
     expect(siteChecklistOf('v9')!.groups.map((group) => group.items.length)).toEqual([7, 2, 2, 2, 3, 5]);
     for (const version of ['v4', 'v5', 'v6', 'v7', 'v8']) expect(siteItems(version), version).toHaveLength(19);
+  });
+});
+
+/** v9 as it shipped (Stories 15.3 and 15.6); a change to it is a new version. */
+const V9_HASH = '51a82df917a94d799ac0b8cfa6966fd7c05b249c95419e570361a99a2b69e9e3';
+
+describe('seed v10 (Story 15.7): v9 with the TC\'s own seven-item checklist', () => {
+  const v9 = getSeed('v9', 'cabine_primaria');
+  const v10 = getSeed('v10', 'cabine_primaria');
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(SEED_VERSIONS[version])).digest('hex');
+  const TC_KEYS = ['limpeza_pintura_e_corrosao', 'vasamento', 'fusiveis', 'aterramento', 'conexoes', 'fiacao_secundaria', 'buchas'];
+
+  it('is the version a new Template is created with', () => {
+    expect(SEED_VERSION).toBe('v10');
+    expect(SEED_VERSIONS.v10!.version).toBe('v10');
+    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10']);
+    expect(equipmentTypesOf('v10')).toEqual(equipmentTypesOf('v9'));
+  });
+
+  it('differs from v9 by exactly the TC\'s checklist, dry defaults and oil items, and v1 to v9 hash as they shipped', () => {
+    const stripped = structuredClone(v10) as typeof v10;
+    const own = stripped.blocks.tc as BlockDefinition;
+    own.checklist = structuredClone(v9.blocks.tc.checklist);
+    own.subtypes = structuredClone(v9.blocks.tc.subtypes);
+    own.oil_rule!.items = [...v9.blocks.tc.oil_rule!.items];
+    expect(JSON.stringify(stripped)).toBe(JSON.stringify(v9));
+    expect(hash('v1')).toBe(V1_HASH);
+    expect(hash('v2')).toBe(V2_HASH);
+    expect(hash('v3')).toBe(V3_HASH);
+    expect(hash('v4')).toBe(V4_HASH);
+    expect(hash('v5')).toBe(V5_HASH);
+    expect(hash('v6')).toBe(V6_HASH);
+    expect(hash('v7')).toBe(V7_HASH);
+    expect(hash('v8')).toBe(V8_HASH);
+    expect(hash('v9'), 'seed v9 changed after it shipped: add a new version instead').toBe(V9_HASH);
+  });
+
+  it('the TC asks Bruno\'s seven items in order, with their labels', () => {
+    const checklist = getDefinition('v10', 'cabine_primaria', 'tc').checklist!;
+    expect(checklist.map((item) => item.key)).toEqual(TC_KEYS);
+    expect(checklist.map((item) => item.label)).toEqual([
+      'LIMPEZA, PINTURA E CORROSÃO',
+      'VASAMENTO',
+      'FUSÍVEIS',
+      'ATERRAMENTO',
+      'CONEXÕES',
+      'FIAÇÃO SECUNDÁRIA',
+      'BUCHAS',
+    ]);
+    // The shared keys carry the chips the other sheets offer.
+    const v9Tc = getDefinition('v9', 'cabine_primaria', 'tc').checklist!;
+    for (const key of ['aterramento', 'conexoes']) {
+      expect(checklist.find((item) => item.key === key)!.nc_phrases, key).toEqual(v9Tc.find((item) => item.key === key)!.nc_phrases);
+    }
+    expect(checklist.find((item) => item.key === 'fusiveis')!.nc_phrases).toEqual(
+      getDefinition('v9', 'cabine_primaria', 'chave_seccionadora').checklist!.find((item) => item.key === 'fusiveis')!.nc_phrases,
+    );
+    for (const key of TC_KEYS) expect(ITEM_KEYS as readonly string[]).toContain(key);
+    expect(ITEM_KEYS.slice(-4)).toEqual(['limpeza_pintura_e_corrosao', 'vasamento', 'fiacao_secundaria', 'buchas']);
+  });
+
+  it('a dry TC marks only VASAMENTO NA, and the oil rule names it alone', () => {
+    const tc = getDefinition('v10', 'cabine_primaria', 'tc');
+    const v9Tc = getDefinition('v9', 'cabine_primaria', 'tc');
+    expect(tc.subtypes.map((subtype) => subtype.key)).toEqual(['epoxi', 'a_seco']);
+    for (const subtype of tc.subtypes) expect(subtype.na_defaults, subtype.key).toEqual(['vasamento']);
+    expect(tc.oil_rule!.items).toEqual(['vasamento']);
+    expect(tc.oil_rule!.field).toBe(v9Tc.oil_rule!.field);
+    expect(tc.oil_rule!.oil_values).toEqual(v9Tc.oil_rule!.oil_values);
+    expect(tc.oil_rule!.fields).toEqual(v9Tc.oil_rule!.fields);
+    expect(naDefaultsFor('v10', 'tc', 'epoxi')).toHaveLength(1);
+    expect(naDefaultsFor('v10', 'tp', 'epoxi')).toHaveLength(7);
+    expect(naDefaultsFor('v9', 'tc', 'epoxi')).toHaveLength(7);
+  });
+
+  it('TP, Transformador de força and the TC\'s nameplate, insulation and ratio are v9\'s', () => {
+    for (const type of ['tp', 'transformador_forca']) {
+      expect(getDefinition('v10', 'cabine_primaria', type), type).toEqual(getDefinition('v9', 'cabine_primaria', type));
+    }
+    const tc = getDefinition('v10', 'cabine_primaria', 'tc');
+    const v9Tc = getDefinition('v9', 'cabine_primaria', 'tc');
+    expect(tc.nameplate).toEqual(v9Tc.nameplate);
+    expect(tc.tests).toEqual(v9Tc.tests);
+    expect(tc.sub_blocks).toEqual(v9Tc.sub_blocks);
+    expect(getDefinition('v9', 'cabine_primaria', 'tc').checklist).toHaveLength(14);
   });
 });
 

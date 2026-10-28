@@ -224,8 +224,19 @@
  * "N.A". The OCR contract keeps its own three-state shape, so the exported JSON Schema is
  * unchanged. A row written before 26 parses to the same bytes. `MIN_CONTRACT_VERSION` goes to 26
  * too.
+ *
+ * 27 (2026-10-28, Stories 15.7 and 17.6, Epic 17 wave B): seed v10, v9 with the TC's own
+ * seven-item checklist (Bruno's list; `epoxi` and `a_seco` mark only VASAMENTO NA and the oil
+ * rule names it alone), so `ITEM_KEYS` gains `limpeza_pintura_e_corrosao`, `vasamento`,
+ * `fiacao_secundaria` and `buchas`; and `site_altitude_na` on the relatório setup (Story 17.6:
+ * "Altitude do site" marked N/A, winning over `site_altitude_m` in every reader). It is the
+ * version of a new template. A version-26 bundle cannot resolve seed v10, parse a
+ * `relatorio/setup/site_altitude_na` op (outside its `RELATORIO_SETUP_KEYS`), nor a `file` or
+ * `point` row naming a new item key (its `itemKeySchema` refuses it). No op kind nor path family
+ * is new. A row written before 27 parses to the same bytes (`site_altitude_na` defaults to
+ * false). `MIN_CONTRACT_VERSION` goes to 27 too.
  */
-export const CONTRACT_VERSION = 26;
+export const CONTRACT_VERSION = 27;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -361,8 +372,15 @@ export const CONTRACT_VERSION = 26;
  * its parse (the whole pulled page, `invalid_response`), and its readers would print "-" or a
  * blank where the server's kernel prints "N.A". A stream carries one as soon as any device types
  * "N.A", so the version-25 bundle updates too.
+ *
+ * 27 (2026-10-28, Stories 15.7 and 17.6): a version-26 (or older) bundle cannot resolve seed
+ * v10, which a template the server moved to v10 and every relatório created on it carry, nor
+ * parse a `relatorio/setup/site_altitude_na` put (its `opSchema` fails the whole pulled page);
+ * its schema would strip the key from a pulled relatório row and show the altitude empty where
+ * the server's kernel prints "N/A". A stream carries those as soon as the template upgrade runs
+ * or any device marks the altitude N/A, so the version-26 bundle updates too.
  */
-export const MIN_CONTRACT_VERSION = 26;
+export const MIN_CONTRACT_VERSION = 27;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

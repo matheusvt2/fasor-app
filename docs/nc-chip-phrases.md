@@ -109,6 +109,24 @@ Block types: `tp`, `tc`, `transformador_forca`.
 
 *(2026-10-22, Story 15.3, seed `v9` in `packages/domain/src/seed/v9.ts`: the list asks about the oil level once. Row 5 `indicador_nivel_de_oleo` leaves it, so the rows from 6 on are numbered one less (14 rows). Row 13 `oleo_isolante_indicador_de_nivel` (row 12 on `v9`) stays and gains row 5's chip it did not carry (the fourth phrase of row 13 above, on `v9` only; `v1` to `v8` offer the first three): nível de óleo abaixo do mínimo · óleo com coloração escura · indicador de nível ilegível · indicador de nível danificado. Seeds `v1` to `v8` keep the fifteen rows above, and a phrase the company learned on row 5 stays in Cadastros › Frases de NC and is offered on their sheets. The Disjuntor MT's item of the same key is unchanged.)*
 
+*(2026-10-28, Story 15.7, seed `v10` in `packages/domain/src/seed/v10.ts`: the TC leaves this list and asks its own seven items, below. TP and Transformador de força keep the list above; a TC on seeds `v1` to `v9` keeps it too, and a phrase the company learned on one of its items stays in Cadastros › Frases de NC and is offered on those sheets.)*
+
+## TC (seed v10)
+
+Block types: `tc`.
+
+*(2026-10-28, Story 15.7.)* Bruno's list (his spreadsheet of 2026-10-15, answer 8 of 2026-10-27), "VASAMENTO" spelled as the spreadsheet spells it; it is the TC's only oil item, marked NA on an EPÓXI or Á SECO unit. Rows 3, 4 and 5 reuse the phrases the other sheets offer on the same key; the phrases of rows 1, 2, 6 and 7 are authored, pending Bruno's review.
+
+| # | Item | Key | NC phrases |
+| --- | --- | --- | --- |
+| 1 | LIMPEZA, PINTURA E CORROSÃO | `limpeza_pintura_e_corrosao` | acúmulo de poeira e sujeira · pintura descascada · pontos de corrosão |
+| 2 | VASAMENTO | `vasamento` | vazamento de óleo pela junta · vazamento de óleo pela bucha · resíduos de óleo na base |
+| 3 | FUSÍVEIS | `fusiveis` | fusível queimado · fusível com dimensionamento incorreto · base do fusível danificada |
+| 4 | ATERRAMENTO | `aterramento` | aterramento desconectado · cordoalha de aterramento danificada · oxidação na conexão de terra |
+| 5 | CONEXÕES | `conexoes` | conexão frouxa · oxidação nos terminais · sinais de aquecimento na conexão |
+| 6 | FIAÇÃO SECUNDÁRIA | `fiacao_secundaria` | fiação secundária danificada · terminal secundário frouxo · fiação secundária sem identificação |
+| 7 | BUCHAS | `buchas` | trinca na bucha · lascamento na bucha · sinais de aquecimento na bucha |
+
 ## Verificações do local: the two items of seed `v9`
 
 *(2026-10-22, Story 15.3.)* Two items close the Ambiente group of a local's "Verificações do local" on seed `v9` (items 20 and 21; seeds `v4` to `v8` keep their 19). Labels and phrases are authored, pending Bruno's review.

@@ -66,6 +66,11 @@ const SCREEN_FORMS: Record<string, string> = {
   'ATERRAMENTO CORDOALHAS': 'Aterramento cordoalhas',
   BOBINAS: 'Bobinas',
   'BUCHAS PRIMÁRIA/SECUNDÁRIAS': 'Buchas primária/secundárias',
+  // Seed v10 (Story 15.7): the TC's own list.
+  BUCHAS: 'Buchas',
+  'FIAÇÃO SECUNDÁRIA': 'Fiação secundária',
+  'LIMPEZA, PINTURA E CORROSÃO': 'Limpeza, pintura e corrosão',
+  VASAMENTO: 'Vasamento',
   'CABOS DE CONTROLE': 'Cabos de controle',
   'CARREGAMENTO MANUAL DE MOLAS': 'Carregamento manual de molas',
   'CONDIÇÃO GERAL DOS MECANISMOS': 'Condição geral dos mecanismos',
