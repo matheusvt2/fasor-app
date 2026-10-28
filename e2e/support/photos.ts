@@ -71,6 +71,8 @@ export interface PhotoRowRecord {
   mime: string;
   /** Story 8.2: the reading the photo asked for at capture, null for a plain one. */
   reading_kind: string | null;
+  /** Story 8.2: what that reading targets (a display shot's `start_cell`), null for a plain one. */
+  reading_target: unknown;
   reading_status: string;
   removed_at: string | null;
 }

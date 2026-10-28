@@ -157,61 +157,69 @@ async function expectSwitch(page: Page, on: boolean): Promise<void> {
   await expect(cameraSwitch(page)).toContainText(on ? 'Ativado' : 'Desativado');
 }
 
-test('@p0 17.2-E2E-001 on a touch device every camera opener takes the camera app: the capture input inside the press, no viewfinder, getUserMedia never asked, each photo stored with its opener\'s target', async ({ page, context, browserName }) => {
-  test.skip(browserName === 'webkit', 'Playwright WebKit cannot store a photo Blob in IndexedDB');
-  test.skip(!test.info().project.use.hasTouch, 'the camera app is the default on a touch device (the Android emulation)');
-  test.setTimeout(240_000);
-  await holdPhotoBytes(page);
-  const { relatorioId, blockId } = await openChaveSheet(page, account, database, { signIn: () => signInForDurability(page, context, account.email) });
-  expect(await page.evaluate(() => navigator.maxTouchPoints)).toBeGreaterThan(0);
-  const jpeg = await jpegFromPage(page, 4000, 3000);
+test.describe('on a touch screen', () => {
+  // The camera app is the default on a touch device: every project runs this test with one,
+  // so the story gate's desktop projects run it too (as `photo-zoom.durability.spec.ts` does).
+  test.use({ hasTouch: true });
 
-  // The sticky bar's "Tirar foto": the sheet, no item, no reading.
-  const tirar = page.locator('.sticky-action-bar').getByRole('button', { name: 'Tirar foto', exact: true });
-  const shot = await shootThroughCameraApp(page, tirar, jpeg, 'IMG_0001.jpg');
-  expect(shot).toMatchObject({ block_id: blockId, item_key: null });
-  expect(shot.reading_kind).toBeNull();
+  test('@p0 17.2-E2E-001 on a touch device every camera opener takes the camera app: the capture input inside the press, no viewfinder, getUserMedia never asked, each photo stored with its opener\'s target', async ({ page, context, browserName }) => {
+    test.skip(browserName === 'webkit', 'Playwright WebKit cannot store a photo Blob in IndexedDB');
+    test.setTimeout(240_000);
+    await holdPhotoBytes(page);
+    const { relatorioId, blockId } = await openChaveSheet(page, account, database, { signIn: () => signInForDurability(page, context, account.email) });
+    expect(await page.evaluate(() => navigator.maxTouchPoints)).toBeGreaterThan(0);
+    const jpeg = await jpegFromPage(page, 4000, 3000);
 
-  // An NC row's "Adicionar foto": its item, the NC draft reading.
-  const contatos = page.locator('#ficha-step-verificacoes li.checklist-row[data-item-key="contatos"]');
-  await contatos.getByRole('radio', { name: 'Não conforme', exact: true }).click();
-  const nc = await shootThroughCameraApp(page, contatos.getByRole('button', { name: 'Adicionar foto' }), jpeg, 'IMG_0002.jpg');
-  expect(nc).toMatchObject({ block_id: blockId, item_key: 'contatos' });
-  expect(nc.reading_kind).toBe('nc_obs');
+    // The sticky bar's "Tirar foto": the sheet, no item, no reading.
+    const tirar = page.locator('.sticky-action-bar').getByRole('button', { name: 'Tirar foto', exact: true });
+    const shot = await shootThroughCameraApp(page, tirar, jpeg, 'IMG_0001.jpg');
+    expect(shot).toMatchObject({ block_id: blockId, item_key: null });
+    expect(shot.reading_kind).toBeNull();
 
-  // "Fotografar placa": the plate reading.
-  const plateTile = page.locator('#ficha-nameplate .camera-group').getByRole('button', { name: 'Fotografar placa' });
-  const plate = await shootThroughCameraApp(page, plateTile, jpeg, 'IMG_0003.jpg');
-  expect(plate).toMatchObject({ block_id: blockId });
-  expect(plate.reading_kind).toBe('plate');
+    // An NC row's "Adicionar foto": its item, the NC draft reading.
+    const contatos = page.locator('#ficha-step-verificacoes li.checklist-row[data-item-key="contatos"]');
+    await contatos.getByRole('radio', { name: 'Não conforme', exact: true }).click();
+    const nc = await shootThroughCameraApp(page, contatos.getByRole('button', { name: 'Adicionar foto' }), jpeg, 'IMG_0002.jpg');
+    expect(nc).toMatchObject({ block_id: blockId, item_key: 'contatos' });
+    expect(nc.reading_kind).toBe('nc_obs');
 
-  // "Ler visor" (a burst opener): one photo per tap, the display reading.
-  const visor = page.locator('#ficha-step-ensaios .ficha-mt[data-table-key="contato_aberto"] .mt-actions').getByRole('button', { name: 'Ler visor' });
-  const display = await shootThroughCameraApp(page, visor, jpeg, 'IMG_0004.jpg');
-  expect(display).toMatchObject({ block_id: blockId });
-  expect(display.reading_kind).toBe('display');
+    // "Fotografar placa": the plate reading.
+    const plateTile = page.locator('#ficha-nameplate .camera-group').getByRole('button', { name: 'Fotografar placa' });
+    const plate = await shootThroughCameraApp(page, plateTile, jpeg, 'IMG_0003.jpg');
+    expect(plate).toMatchObject({ block_id: blockId });
+    expect(plate.reading_kind).toBe('plate');
 
-  // The gallery camera: "Geral".
-  await page.goto(`/relatorio/${relatorioId}/fotos`);
-  const galleryCamera = page.locator('.gallery-bar').getByRole('button', { name: 'Tirar foto', exact: true });
-  await expect(galleryCamera).toBeVisible({ timeout: 30_000 });
-  const geral = await shootThroughCameraApp(page, galleryCamera, jpeg, 'IMG_0005.jpg');
-  expect(geral).toMatchObject({ block_id: null, item_key: null });
-  expect(geral.reading_kind).toBeNull();
+    // "Ler visor" (a burst opener): one photo per tap, the display reading, each tap the next row.
+    const visor = page.locator('#ficha-step-ensaios .ficha-mt[data-table-key="contato_aberto"] .mt-actions').getByRole('button', { name: 'Ler visor' });
+    const displays = [await shootThroughCameraApp(page, visor, jpeg, 'IMG_0004.jpg'), await shootThroughCameraApp(page, visor, jpeg, 'IMG_0004b.jpg')];
+    for (const display of displays) {
+      expect(display).toMatchObject({ block_id: blockId });
+      expect(display.reading_kind).toBe('display');
+    }
+    expect(displays.map((display) => (display.reading_target as { start_cell: { row: number } }).start_cell.row)).toEqual([0, 1]);
 
-  // The relatório tree's "Fotografar equipamento": the panel reading, no block yet.
-  await page.goto(`/relatorio/${relatorioId}`);
-  await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
-  const chevron = page.getByRole('button', { name: /^Expandir ou recolher a seção \d+$/ });
-  if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
-  await expandLocation(page, '1° Subsolo');
-  await page.getByRole('button', { name: 'Mais opções de Coluna 1 de 1° Subsolo', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
-  const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
-  const panel = await shootThroughCameraApp(page, palette.getByRole('button', { name: 'Fotografar equipamento' }), jpeg, 'IMG_0006.jpg');
-  expect(panel).toMatchObject({ block_id: null });
-  expect(panel.reading_kind).toBe('panel');
-  await expect(page.getByRole('dialog', { name: 'Fotografar equipamento' })).toBeVisible();
+    // The gallery camera: "Geral".
+    await page.goto(`/relatorio/${relatorioId}/fotos`);
+    const galleryCamera = page.locator('.gallery-bar').getByRole('button', { name: 'Tirar foto', exact: true });
+    await expect(galleryCamera).toBeVisible({ timeout: 30_000 });
+    const geral = await shootThroughCameraApp(page, galleryCamera, jpeg, 'IMG_0005.jpg');
+    expect(geral).toMatchObject({ block_id: null, item_key: null });
+    expect(geral.reading_kind).toBeNull();
+
+    // The relatório tree's "Fotografar equipamento": the panel reading, no block yet.
+    await page.goto(`/relatorio/${relatorioId}`);
+    await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
+    const chevron = page.getByRole('button', { name: /^Expandir ou recolher a seção \d+$/ });
+    if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
+    await expandLocation(page, '1° Subsolo');
+    await page.getByRole('button', { name: 'Mais opções de Coluna 1 de 1° Subsolo', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
+    const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
+    const panel = await shootThroughCameraApp(page, palette.getByRole('button', { name: 'Fotografar equipamento' }), jpeg, 'IMG_0006.jpg');
+    expect(panel).toMatchObject({ block_id: null });
+    expect(panel.reading_kind).toBe('panel');
+    await expect(page.getByRole('dialog', { name: 'Fotografar equipamento' })).toBeVisible();
+  });
 });
 
 test('@p0 17.2-E2E-002 Conta: "Câmera do aparelho" follows the touch points, flips on a tap, survives a reload, and "Tirar foto" then takes the other path', async ({ page, context, browserName }) => {
@@ -417,22 +425,17 @@ test('@p1 17.7-E2E-002 a colleague\'s photo: disabled with its reason until uplo
   await expect(save).toHaveAccessibleDescription('O original ainda não foi enviado pelo aparelho que tirou a foto.');
   await expect(viewer.getByText('O original ainda não foi enviado pelo aparelho que tirou a foto.')).toBeVisible();
 
-  // Uploaded, but the file route fails (offline from the server's side): the failure is the reason.
-  await page.route(`**/api/files/${photoId}/original`, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{"code":"unavailable","message":"e2e"}' }));
-  await markUploaded(relatorioId, photoId);
-  await syncNowAndReturn(page);
-  await expect.poll(async () => (await devicePhotos(page, database))[0]?.uploaded_at ?? null, { timeout: 30_000 }).not.toBeNull();
-  viewer = await openViewer();
-  save = viewer.getByRole('button', { name: 'Salvar no aparelho' });
-  await expect(save).toHaveAccessibleDescription('Não foi possível buscar a foto no servidor. Tente de novo com conexão.', { timeout: 15_000 });
-  await expect(save).toHaveAttribute('aria-disabled', 'true');
-
-  // The route answers the original: enabled once the viewer lands on it, and those bytes download.
-  await page.unroute(`**/api/files/${photoId}/original`);
+  // Uploaded while the viewer stays open, the file route answering the original: the open viewer
+  // fetches it, the reason goes and "Salvar no aparelho" enables; those bytes download. The sync
+  // runs without leaving the page (the app's own cycle on `online`, else its 60 s tick), so the
+  // viewer is never remounted.
   await page.route(`**/api/files/${photoId}/original`, (route) => route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg }));
-  viewer = await openViewer();
-  save = viewer.getByRole('button', { name: 'Salvar no aparelho' });
+  await markUploaded(relatorioId, photoId);
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect.poll(async () => (await devicePhotos(page, database))[0]?.uploaded_at ?? null, { timeout: 90_000 }).not.toBeNull();
   await expect(save).not.toHaveAttribute('aria-disabled', 'true', { timeout: 15_000 });
+  await expect(viewer.getByText('O original ainda não foi enviado pelo aparelho que tirou a foto.')).toHaveCount(0);
+  await expect(viewer.getByText('Preparando a foto…')).toHaveCount(0);
   await page.evaluate(() => {
     Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true });
     Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true, writable: true });
@@ -440,4 +443,12 @@ test('@p1 17.7-E2E-002 a colleague\'s photo: disabled with its reason until uplo
   const download = await downloadFrom(page, () => save.click());
   expect(download.suggestedFilename()).toBe('foto-2026-10-28-100509.jpg');
   expect((await downloadBytes(download)).equals(jpeg)).toBe(true);
+
+  // The file route failing (offline from the server's side), on a fresh viewer: the failure is the reason.
+  await page.unroute(`**/api/files/${photoId}/original`);
+  await page.route(`**/api/files/${photoId}/original`, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{"code":"unavailable","message":"e2e"}' }));
+  viewer = await openViewer();
+  save = viewer.getByRole('button', { name: 'Salvar no aparelho' });
+  await expect(save).toHaveAccessibleDescription('Não foi possível buscar a foto no servidor. Tente de novo com conexão.', { timeout: 15_000 });
+  await expect(save).toHaveAttribute('aria-disabled', 'true');
 });

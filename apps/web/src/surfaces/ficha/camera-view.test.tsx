@@ -1182,6 +1182,38 @@ describe('17.2-UNIT "Câmera do aparelho" on: every opener takes the camera app 
     }
   });
 
+  it('a burst with targets whose first target is gone ("Ler visor", every cell read) opens no camera app: the hint toast, the opener at rest', async () => {
+    const picker = vi.spyOn(HTMLInputElement.prototype, 'click');
+    function DoneHarness() {
+      const opener = useRef<HTMLButtonElement>(null);
+      const cam = useCamera('019966b0-0000-7000-8000-000000000001', () => target, opener, {
+        shotTarget: () => null,
+        shotHint: () => 'Nada mais a ler nesta ficha',
+      });
+      return (
+        <>
+          <button type="button" ref={opener} onClick={cam.open} data-count={cam.burst === 0 ? '' : String(cam.burst)}>
+            Abrir câmera
+          </button>
+          {cam.element}
+        </>
+      );
+    }
+    render(
+      <ToastProvider>
+        <DoneHarness />
+        <ToastOutlet />
+      </ToastProvider>,
+    );
+    const opener = screen.getByRole('button', { name: 'Abrir câmera' });
+    await userEvent.click(opener);
+    expect(await screen.findByText('Nada mais a ler nesta ficha')).toBeVisible();
+    expect(picker).not.toHaveBeenCalled();
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(capture.shoot).not.toHaveBeenCalled();
+    expect(opener).toHaveAttribute('data-count', '');
+  });
+
   it('off: the viewfinder opens through getUserMedia as before', async () => {
     cameraApp.on = false;
     const picker = vi.spyOn(HTMLInputElement.prototype, 'click');

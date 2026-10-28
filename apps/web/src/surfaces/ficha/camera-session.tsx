@@ -154,7 +154,17 @@ export function useCamera(
   // The device's camera app (Story 17.2), or no camera API (or no camera): the system camera
   // behind a hidden file input, one shot.
   const picker = useCameraPicker({ capture, reachable, onStored: (stored) => shotStored(options.onShot, stored), setBurst, showToast, returnFocus });
-  const { open, opening } = useCameraOpen({ capture, target, sessionRef, mounted, startSession, setDenied, showToast, pick: picker.pick, cameraApp });
+  // Story 17.2: a burst with targets ("Ler visor") whose first target is gone (every cell read)
+  // opens no camera app, as the viewfinder disables its shutter: the hint says why. `target()`
+  // already ran (it sets the burst's start), so `shotTarget(0)` reads this press.
+  const pick = (context: CaptureTarget) => {
+    if (cameraApp && shotTarget !== undefined && shotTarget(0) === null) {
+      showToast(shotHint?.(0) ?? copy.photos.failedToast);
+      return;
+    }
+    picker.pick(context);
+  };
+  const { open, opening } = useCameraOpen({ capture, target, sessionRef, mounted, startSession, setDenied, showToast, pick, cameraApp });
 
   /**
    * FLD-V1: whether a shot's failure (or success) is said by the open camera itself: true while

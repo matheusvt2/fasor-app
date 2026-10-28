@@ -89,13 +89,14 @@ function useSaveFile(tile: PhotoTile): SaveState {
   const { fetchFile } = useSyncActions();
   const reachable = useServerReachable();
   const [state, setState] = useState<{ id: string; save: SaveState } | null>(null);
-  // The photo (and its upload) whose file is in hand: a reachability change does not fetch it again.
+  // The photo whose file is in hand: kept for it (a later upload ack or reachability change does
+  // not fetch it again); `none` and `failed` set nothing, so they run again on either change.
   const readyFor = useRef<string | null>(null);
   const uploadedAt = tile.uploaded_at;
   const capturedAt = tile.captured_at;
   useEffect(() => {
     if (db === null) return;
-    const key = `${tile.id}|${uploadedAt ?? ''}`;
+    const key = tile.id;
     if (readyFor.current === key) return;
     readyFor.current = null;
     let live = true;
