@@ -7,6 +7,11 @@
  * under the opener (never a dialog, never a silent no-op); a browser with no camera API
  * falls back to the system camera through a hidden `capture` file input, one shot.
  *
+ * Story 17.2: on a phone or a tablet the device's camera app takes the photos ("Câmera do
+ * aparelho" in Conta, on by default where the device has touch points): every opener clicks
+ * the same hidden `capture` input inside the press, one photo per tap, with the one-photo
+ * toast; the viewfinder below is the switch's off state and the desktop's path.
+ *
  * Story 9.1 ("Ler visor"): a burst may give each shot its own target (`shotTarget`, the
  * Measurement row the shot reads), the hint line naming the next one (`shotHint`); when there
  * is no next target the shutter is disabled and only "Concluir" is left.

@@ -69,6 +69,8 @@ export interface PhotoRowRecord {
   uploaded_at: string | null;
   variants: { thumb: string; print: string } | null;
   mime: string;
+  /** Story 8.2: the reading the photo asked for at capture, null for a plain one. */
+  reading_kind: string | null;
   reading_status: string;
   removed_at: string | null;
 }
@@ -103,7 +105,7 @@ export async function shoot(page: Page, n: number): Promise<void> {
   for (let i = 1; i <= n; i++) {
     await camera.getByRole('button', { name: 'Disparar' }).click();
     await expect(camera.locator('.cam-count')).toHaveText(
-      i === 1 ? '1 foto nesta rajada · salva neste aparelho com a legenda do contexto' : `${i} fotos nesta rajada · salvas neste aparelho com a legenda do contexto`,
+      i === 1 ? '1 foto nesta rajada · salva no relatório com a legenda do contexto' : `${i} fotos nesta rajada · salvas no relatório com a legenda do contexto`,
     );
   }
 }

@@ -7,6 +7,11 @@ import type { CaptureTarget, PhotoCapture } from './use-photo-capture.ts';
  * E13-A6: the camera's stream (`camera-view.tsx` says what the camera does): the constraints
  * every capture surface asks for, the helpers on the session's stream, and the opener's press
  * (`useCameraOpen`), which asks for the stream or hands the shot to the system picker.
+ *
+ * Story 17.2: on a phone or a tablet the device's camera app is the first path ("Câmera do
+ * aparelho", on by default where the device has touch points): the press treats it as no live
+ * camera, so the hidden `capture` input opens the camera app inside the press, one photo per
+ * tap, and the viewfinder is the switch's off state and the desktop's path.
  */
 
 const DENIED_ERRORS = new Set(['NotAllowedError', 'SecurityError', 'PermissionDeniedError']);
@@ -58,13 +63,16 @@ export interface CameraOpenHost {
   showToast: (message: string) => void;
   /** The system picker takes the shot (only inside the press, where the browser counts the gesture). */
   pick: (context: CaptureTarget) => void;
+  /** Story 17.2: "Câmera do aparelho" on this device (read once, in `useCamera`): the camera app takes the shot. */
+  cameraApp: boolean;
 }
 
 /**
- * The opener's press: the held shot first (Story 13.6), then the stream, or the system picker
- * when there is no camera. `opening` is true while `getUserMedia` has not answered.
+ * The opener's press: the held shot first (Story 13.6), then the device's camera app (Story
+ * 17.2) or the stream, or the system picker when there is no camera. `opening` is true while
+ * `getUserMedia` has not answered.
  */
-export function useCameraOpen({ capture, target, sessionRef, mounted, startSession, setDenied, showToast, pick }: CameraOpenHost): { open: () => void; opening: boolean } {
+export function useCameraOpen({ capture, target, sessionRef, mounted, startSession, setDenied, showToast, pick, cameraApp }: CameraOpenHost): { open: () => void; opening: boolean } {
   // A `getUserMedia` in flight: a second press waits for it instead of asking twice. F-26:
   // mirrored into state (`isOpening`) so the opener shows it; the ref stays the guard.
   const opening = useRef(false);
@@ -128,7 +136,9 @@ export function useCameraOpen({ capture, target, sessionRef, mounted, startSessi
     setDenied(false);
     void capture.prepare();
     const media = typeof navigator === 'undefined' ? undefined : navigator.mediaDevices;
-    const live = media !== undefined && typeof media.getUserMedia === 'function';
+    // Story 17.2: with "Câmera do aparelho" on, the camera app is the path, exactly as with no
+    // camera API: `getUserMedia` is never asked and the `capture` input opens inside the press.
+    const live = !cameraApp && media !== undefined && typeof media.getUserMedia === 'function';
     // Story 13.6: a shot this tab could not store is still held. The system picker must open
     // inside the press, so it stays shut and the retry runs behind the toast; the live camera
     // tries the held shot first and opens only once it is stored or sent.
@@ -160,8 +170,8 @@ export function useCameraOpen({ capture, target, sessionRef, mounted, startSessi
       return;
     }
     if (!live) {
-      // No camera API: the system camera, one shot. Clicked inside the press, so the
-      // browser still counts the user's gesture.
+      // The device's camera app (Story 17.2) or no camera API: the system camera, one shot.
+      // Clicked inside the press, so the browser still counts the user's gesture.
       pick(context);
       return;
     }

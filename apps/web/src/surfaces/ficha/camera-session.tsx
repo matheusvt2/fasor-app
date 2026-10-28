@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from '../../input/focus-restore.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { useCameraApp } from '../../input/use-camera-app.ts';
 import { useCaptureRefused } from '../../state/storage-reading.ts';
 import { useServerReachable } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
@@ -70,6 +71,8 @@ export function useCamera(
   const { showToast } = useToast();
   // F-13: with the server reachable the toast does not speak of a queue.
   const reachable = useServerReachable();
+  // Story 17.2: the one read of "Câmera do aparelho"; every opener's press follows it.
+  const cameraApp = useCameraApp();
   const [session, setSession] = useState<CameraSession | null>(null);
   const [denied, setDenied] = useState(false);
   const [burst, setBurst] = useState(0);
@@ -148,9 +151,10 @@ export function useCamera(
     );
   }, [opener]);
 
-  // No camera API (or no camera): the system camera behind a hidden file input, one shot.
-  const picker = useCameraPicker({ capture, single, reachable, onStored: (stored) => shotStored(options.onShot, stored), setBurst, showToast, returnFocus });
-  const { open, opening } = useCameraOpen({ capture, target, sessionRef, mounted, startSession, setDenied, showToast, pick: picker.pick });
+  // The device's camera app (Story 17.2), or no camera API (or no camera): the system camera
+  // behind a hidden file input, one shot.
+  const picker = useCameraPicker({ capture, reachable, onStored: (stored) => shotStored(options.onShot, stored), setBurst, showToast, returnFocus });
+  const { open, opening } = useCameraOpen({ capture, target, sessionRef, mounted, startSession, setDenied, showToast, pick: picker.pick, cameraApp });
 
   /**
    * FLD-V1: whether a shot's failure (or success) is said by the open camera itself: true while

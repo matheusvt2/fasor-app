@@ -190,7 +190,7 @@ test('production smoke: sign in, edit and sync, a sheet photo, a plate reading, 
     await page.getByRole('button', { name: 'Tirar foto', exact: true }).click();
     const view = await expectCameraOpen(page);
     await view.getByRole('button', { name: 'Disparar' }).click();
-    await expect(view.locator('.cam-count')).toHaveText('1 foto nesta rajada · salva neste aparelho com a legenda do contexto');
+    await expect(view.locator('.cam-count')).toHaveText('1 foto nesta rajada · salva no relatório com a legenda do contexto');
     await view.getByRole('button', { name: 'Concluir fotos' }).click();
     await expect(camera(page)).toHaveCount(0);
 

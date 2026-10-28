@@ -1,4 +1,4 @@
-import { keepScreenOnOf, keepScreenOnSchema, themePreferenceSchema, type KeepScreenOn, type ThemePreference } from '@app/domain';
+import { cameraAppOf, cameraAppSchema, keepScreenOnOf, keepScreenOnSchema, themePreferenceSchema, type CameraApp, type KeepScreenOn, type ThemePreference } from '@app/domain';
 import { LAST_SHEET_PREF, RECOVERY_NOTICE_PREF, REGISTRY_TAB_PREF, THEME_PREF, type AppDatabase } from './schema.ts';
 
 /*
@@ -253,4 +253,19 @@ export async function readKeepScreenOn(db: AppDatabase): Promise<KeepScreenOn> {
 
 export async function writeKeepScreenOn(db: AppDatabase, on: KeepScreenOn): Promise<void> {
   await db.local_prefs.put({ key: KEEP_SCREEN_ON_PREF, value: keepScreenOnSchema.parse(on) });
+}
+
+/**
+ * Story 17.2: "Câmera do aparelho" in Conta, device-local (`camera_app`). With nothing (or
+ * nothing valid) stored it reads the kernel's default for the device's touch points; the
+ * kernel's schema reads and writes it.
+ */
+export const CAMERA_APP_PREF = 'camera_app';
+
+export async function readCameraApp(db: AppDatabase, touchPoints: number): Promise<CameraApp> {
+  return cameraAppOf((await db.local_prefs.get(CAMERA_APP_PREF))?.value, touchPoints);
+}
+
+export async function writeCameraApp(db: AppDatabase, on: CameraApp): Promise<void> {
+  await db.local_prefs.put({ key: CAMERA_APP_PREF, value: cameraAppSchema.parse(on) });
 }

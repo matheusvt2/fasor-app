@@ -6,6 +6,7 @@ import { axe } from '../../test-axe.ts';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toRecord } from '../../db/commit.ts';
+import { CAMERA_APP_PREF } from '../../db/prefs.ts';
 import { GEOLOCATION_DENIED_PREF, openDatabase } from '../../db/schema.ts';
 import { ThemeProvider } from '../../state/theme.tsx';
 import type { SessionState } from '../../state/session.tsx';
@@ -424,6 +425,107 @@ describe('11.5 Account: "Localização nas fotos"', () => {
     } finally {
       if (original === undefined) Reflect.deleteProperty(navigator, 'permissions');
       else Object.defineProperty(navigator, 'permissions', original);
+      session = signedIn;
+      db.close();
+      await db.delete();
+    }
+  });
+});
+
+describe('17.2 Account: "Câmera do aparelho"', () => {
+  /** Replaces `navigator.maxTouchPoints` for one test; returns the undo. */
+  function stubTouchPoints(points: number): () => void {
+    const original = Object.getOwnPropertyDescriptor(navigator, 'maxTouchPoints');
+    Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: points });
+    return () => {
+      if (original === undefined) Reflect.deleteProperty(navigator, 'maxTouchPoints');
+      else Object.defineProperty(navigator, 'maxTouchPoints', original);
+    };
+  }
+
+  /** The device's database with this user's row (the surface waits for it before it renders). */
+  async function withDatabase(): Promise<ReturnType<typeof openDatabase>> {
+    const db = openDatabase(signedIn.user!.id);
+    await db.delete();
+    await db.open();
+    const user: UserRow = {
+      id: signedIn.user!.id,
+      name: 'Ana Alves',
+      email: 'a@teste.local',
+      council: 'crea',
+      registration_number: 'SP 1000000001',
+      title: 'Eng. Eletricista',
+      photo_location_enabled: true,
+    };
+    await db.entities.put(toRecord(entityKey('user', user.id), user));
+    return db;
+  }
+
+  it('on a touch device it is on by default, with its sub line and the 17.7 note; a tap writes local_prefs at once and a reload keeps it', async () => {
+    const undo = stubTouchPoints(5);
+    const db = await withDatabase();
+    session = { ...signedIn, database: db };
+    try {
+      const { baseElement } = renderAccount(syncState('', 0));
+      expect(await screen.findByRole('heading', { name: 'Câmera' })).toBeVisible();
+      const toggle = screen.getByRole('switch', { name: 'Câmera do aparelho' });
+      await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'));
+      expect(toggle).toHaveAccessibleDescription(
+        'Cada toque abre a câmera do aparelho e tira uma foto. Desligado, a câmera abre aqui dentro, com rajada, lanterna e zoom.',
+      );
+      expect(screen.getByText('As fotos ficam no relatório. Para guardar uma cópia na galeria, use Salvar no aparelho na foto.')).toBeVisible();
+      await userEvent.click(toggle);
+      expect(toggle).toHaveAttribute('aria-checked', 'false');
+      await waitFor(async () => expect(await db.local_prefs.get(CAMERA_APP_PREF)).toEqual({ key: 'camera_app', value: false }));
+      expect(screen.queryByRole('button', { name: 'Desfazer' })).toBeNull();
+      expect(await axe(baseElement)).toHaveNoViolations();
+      cleanup();
+      renderAccount(syncState('', 0));
+      await waitFor(async () => expect(await screen.findByRole('switch', { name: 'Câmera do aparelho' })).toHaveAttribute('aria-checked', 'false'));
+    } finally {
+      undo();
+      session = signedIn;
+      db.close();
+      await db.delete();
+    }
+  });
+
+  it('on a desktop (no touch points) it is off by default, and a tap turns it on', async () => {
+    const undo = stubTouchPoints(0);
+    const db = await withDatabase();
+    session = { ...signedIn, database: db };
+    try {
+      renderAccount(syncState('', 0));
+      const toggle = await screen.findByRole('switch', { name: 'Câmera do aparelho' });
+      expect(toggle).toHaveAttribute('aria-checked', 'false');
+      await userEvent.click(toggle);
+      expect(toggle).toHaveAttribute('aria-checked', 'true');
+      await waitFor(async () => expect((await db.local_prefs.get(CAMERA_APP_PREF))?.value).toBe(true));
+    } finally {
+      undo();
+      session = signedIn;
+      db.close();
+      await db.delete();
+    }
+  });
+
+  it('a write the device refuses logs it, and the row keeps the tapped state', async () => {
+    const undo = stubTouchPoints(5);
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const db = await withDatabase();
+    const put = vi.spyOn(db.local_prefs, 'put').mockRejectedValue(new Error('refused'));
+    session = { ...signedIn, database: db };
+    try {
+      renderAccount(syncState('', 0));
+      const toggle = await screen.findByRole('switch', { name: 'Câmera do aparelho' });
+      await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'));
+      await userEvent.click(toggle);
+      await waitFor(() => expect(errors).toHaveBeenCalledWith('camera app not saved', expect.any(Error)));
+      expect(toggle).toHaveAttribute('aria-checked', 'false');
+    } finally {
+      put.mockRestore();
+      errors.mockRestore();
+      undo();
       session = signedIn;
       db.close();
       await db.delete();
