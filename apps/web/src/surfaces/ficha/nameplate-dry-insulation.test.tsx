@@ -104,7 +104,7 @@ const stateOf = (rows: readonly SuggestionRow[]): EntityState => new Map(rows.ma
 
 function snapshotOf(shown: BlockRow): RelatorioSnapshot {
   return {
-    relatorio: { id: REL, status: 'em_campo' },
+    relatorio: { id: REL, status: 'em_campo', seed_version: 'v1', export: { scheme: 'ordem_de_campo' } },
     blocks: [shown],
     equipment: [],
     locations: [],

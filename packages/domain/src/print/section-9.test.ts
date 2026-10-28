@@ -198,10 +198,10 @@ const FULL_CHAVE = edit(sheet(1, 1, 'chave_seccionadora', 'a0', 'SEC-01'), (b) =
 
 describe('7.1 section9Layout: one sheet in FO.SERV-03 order', () => {
   const files = [
-    photo(7, { captured_at: '2026-09-06T09:00:00.000Z' }), // a general photo: number 1
-    photo(4, { block_id: block(1), caption: '  ', captured_at: '2026-09-06T10:00:00.000Z' }), // 2, after the tests
+    photo(7, { captured_at: '2026-09-06T09:00:00.000Z' }), // a "Geral" photo: number 1 (section 7)
+    photo(4, { block_id: block(1), caption: '  ', captured_at: '2026-09-06T10:00:00.000Z' }), // 4, after the tests
     photo(1, { block_id: block(1), item_key: 'contatos', caption: 'Detalhe dos contatos', captured_at: '2026-09-06T10:01:00.000Z' }), // 3, after the checklist
-    photo(2, { block_id: block(1), reading_kind: 'plate', captured_at: '2026-09-06T10:02:00.000Z' }), // 4, after the nameplate
+    photo(2, { block_id: block(1), reading_kind: 'plate', captured_at: '2026-09-06T10:02:00.000Z' }), // 2, after the nameplate
     photo(3, { block_id: block(1), caption: 'Vista geral.', captured_at: '2026-09-06T10:03:00.000Z' }), // 5, after the tests
     photo(5, { block_id: block(2), captured_at: '2026-09-06T10:04:00.000Z' }), // 6, another sheet's
     photo(6, { block_id: block(1), captured_at: '2026-09-06T09:30:00.000Z', removed_at: '2026-09-06T11:00:00.000Z' }), // removed: no number
@@ -216,7 +216,7 @@ describe('7.1 section9Layout: one sheet in FO.SERV-03 order', () => {
       'CARACTERÍSTICAS DA SE',
       'AMBIENTE DE ENSAIO',
       'DADOS DO EQUIPAMENTO',
-      'photos 4',
+      'photos 2',
       'VERIFICAÇÕES GERAIS',
       'photos 3',
       'ENSAIO DE ISOLAÇÃO',
@@ -225,14 +225,14 @@ describe('7.1 section9Layout: one sheet in FO.SERV-03 order', () => {
       'ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO',
       'paragraph',
       'LINHA',
-      'photos 2 5',
+      'photos 4 5',
       'OBSERVAÇÕES',
       'CONCLUSÃO',
     ]);
   });
 
-  it('numbers photos as `numberPhotos` does, in capture order, with "Imagem N: ⟨legenda⟩." or "Imagem N." beneath', () => {
-    const numbers = numberPhotos(snapshot.files);
+  it('numbers photos as `numberPhotos` does, in document order (plate, items, other), with "Imagem N: ⟨legenda⟩." or "Imagem N." beneath', () => {
+    const numbers = numberPhotos(snapshot);
     const photos = printed.parts.flatMap((p) => (p.kind === 'photos' ? p.photos : []));
     expect(photos.map((p) => [p.fileId, p.number])).toEqual([
       [id(3002), numbers.get(id(3002))],
@@ -240,7 +240,8 @@ describe('7.1 section9Layout: one sheet in FO.SERV-03 order', () => {
       [id(3004), numbers.get(id(3004))],
       [id(3003), numbers.get(id(3003))],
     ]);
-    expect(photos.map((p) => p.caption)).toEqual(['Imagem 4.', 'Imagem 3: Detalhe dos contatos.', 'Imagem 2.', 'Imagem 5: Vista geral.']);
+    expect(photos.map((p) => p.number)).toEqual([2, 3, 4, 5]);
+    expect(photos.map((p) => p.caption)).toEqual(['Imagem 2.', 'Imagem 3: Detalhe dos contatos.', 'Imagem 4.', 'Imagem 5: Vista geral.']);
   });
 
   it('prints DADOS DO EQUIPAMENTO three pairs a row, labels in caps, values as stored with their units, "-" when empty', () => {
@@ -369,7 +370,7 @@ describe('7.1 section9Layout: the I/O matrix', () => {
     expect(plate[plate.indexOf('POTÊNCIA NOMINAL') + 1]).toBe('N/A');
   });
 
-  it('Não ensaiada: title, attribution, the cabine block on a first sheet, the nameplate and the reason band; nothing else', () => {
+  it('Não ensaiada: title, attribution, the cabine block on a first sheet, the nameplate, the plate photos, the reason band and the other photos (17.1); nothing else', () => {
     const marked = (n: number, type: EquipmentBlockType, reason: string, text: string | null) =>
       edit(sheet(n, 1, type, `a${n}`), (b) => ({
         ...withChecklist({ limpeza: 'C' })(withTest('isolacao', { '0/0': measured('1', 'GΩ') }, INSTRUMENT)(withNameplate({ fabricacao: 'WEG' })(b))),
@@ -377,7 +378,11 @@ describe('7.1 section9Layout: the I/O matrix', () => {
         last_modified_by: USER.id,
         last_modified_at: '2026-09-06T12:00:00.000Z',
       }));
-    const files = [photo(1, { block_id: block(1), captured_at: '2026-09-06T10:00:00.000Z' })];
+    const files = [
+      photo(1, { block_id: block(1), captured_at: '2026-09-06T10:00:00.000Z' }), // 1: block 1's burst, after its band
+      photo(2, { block_id: block(2), reading_kind: 'plate', captured_at: '2026-09-06T10:05:00.000Z' }), // 2: block 2's plate, before its band
+      photo(3, { block_id: block(2), captured_at: '2026-09-06T10:01:00.000Z' }), // 3: block 2's burst, after its band
+    ];
     const snapshot = snapshotOf(
       [cabine(1, 'Cabine A', 'a0')],
       [marked(1, 'chave_seccionadora', 'solicitacao_cliente', null), marked(2, 'disjuntor_mt', 'outro', 'Equipamento energizado'), marked(3, 'tp', 'outro', null), edit(marked(4, 'cabos_saida', 'solicitacao_cliente', 'Texto digitado'), (b) => b)],
@@ -386,8 +391,11 @@ describe('7.1 section9Layout: the I/O matrix', () => {
     const section = layoutOf(snapshot);
     const first = sheetOf(section, block(1));
     expect(first.attribution).toBe('Preenchido por Bruno Silva · 06/09/2026 09:00');
-    expect(first.parts.map(partName)).toEqual(['CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', 'DADOS DO EQUIPAMENTO', 'NÃO ENSAIADO — Solicitação do cliente: Os ensaios não foram realizados conforme solicitação do cliente.']);
-    expect(sheetOf(section, block(2)).parts.map(partName)).toEqual(['DADOS DO EQUIPAMENTO', 'NÃO ENSAIADO — Equipamento energizado']);
+    expect(first.parts.map(partName)).toEqual(['CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', 'DADOS DO EQUIPAMENTO', 'NÃO ENSAIADO — Solicitação do cliente: Os ensaios não foram realizados conforme solicitação do cliente.', 'photos 1']);
+    expect(sheetOf(section, block(2)).parts.map(partName)).toEqual(['DADOS DO EQUIPAMENTO', 'photos 2', 'NÃO ENSAIADO — Equipamento energizado', 'photos 3']);
+    // Every numbered photo prints, the printed numbers run 1..3 with no gap.
+    expect(sheetsOf(section).flatMap((s) => s.parts.flatMap((p) => (p.kind === 'photos' ? p.photos.map((x) => x.number) : [])))).toEqual([1, 2, 3]);
+    expect([...numberPhotos(snapshot).values()]).toEqual([1, 2, 3]);
     expect(sheetOf(section, block(3)).parts.map(partName)).toEqual(['DADOS DO EQUIPAMENTO', 'NÃO ENSAIADO — Outro']);
     // Cabos carry no nameplate; the seed's justification wins over a typed text (as section 8 prints it).
     expect(sheetOf(section, block(4)).parts.map(partName)).toEqual(['NÃO ENSAIADO — Solicitação do cliente: Os ensaios não foram realizados conforme solicitação do cliente.']);
@@ -965,7 +973,8 @@ describe('14.4 section9Layout: VERIFICAÇÕES DO LOCAL, once per local, right af
       sitePhoto(7, 1, 'contatos', '2026-09-06T14:00:00.000Z'), // 7: an item key outside the site list
       sitePhoto(8, 99, EMERGENCIA, '2026-09-06T15:00:00.000Z'), // 8: a local that is not live
     ];
-    const section = layoutOf(on(snapshotOf(locations(false), sheets, { files }), 'v4'));
+    const sited = on(snapshotOf(locations(false), sheets, { files }), 'v4');
+    const section = layoutOf(sited);
     expect(localPartNames(section)).toEqual([[...LOCAL_PARTS, 'photos 2 3'], null, [...LOCAL_PARTS, 'photos 5']]);
     const photos = section.subsections[0]!.localParts!.find((part) => part.kind === 'photos') as Extract<SheetPart, { kind: 'photos' }>;
     expect(photos.photos).toEqual([
@@ -974,8 +983,8 @@ describe('14.4 section9Layout: VERIFICAÇÕES DO LOCAL, once per local, right af
     ]);
     // The photo carrying both prints on its block's sheet, as any photo of that sheet.
     expect(sheetOf(section, block(1)).parts.some((part) => part.kind === 'photos' && part.photos.some((p) => p.fileId === id(3006)))).toBe(true);
-    // The numbers are section 7's.
-    expect(numberPhotos(files).get(id(3003))).toBe(2);
+    // The numbers are `numberPhotos`'s: the "Geral" photo 1, then this local's site photos.
+    expect(numberPhotos(sited).get(id(3003))).toBe(2);
   });
 
   it('matrix "Removed local": a local absent from the snapshot prints nothing, its site photos included', () => {
@@ -1072,60 +1081,67 @@ describe('Stories 15.3 and 15.6 (seed v9): what a v9 relatório prints, a v8 one
   });
 });
 
-describe('16.3 section9Layout: a display shot prints after the tests with its caption alone', () => {
+describe('17.4 section9Layout: a display shot is numbered and prints "Imagem N: ⟨legenda⟩." after the tests', () => {
   const sheetPhotosOf = (files: RelatorioSnapshot['files']) => {
-    const printed = sheetOf(layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0')], [FULL_CHAVE], { files })), block(1));
-    return { printed, photos: printed.parts.flatMap((p) => (p.kind === 'photos' ? p.photos : [])) };
+    const snapshot = snapshotOf([cabine(1, 'Cabine A', 'a0')], [FULL_CHAVE], { files });
+    const printed = sheetOf(layoutOf(snapshot), block(1));
+    return { snapshot, printed, photos: printed.parts.flatMap((p) => (p.kind === 'photos' ? p.photos : [])) };
   };
-  const general = photo(1, { captured_at: '2026-09-06T09:00:00.000Z', caption: 'Vista geral' }); // 1
-  const display = photo(2, { block_id: block(1), reading_kind: 'display', caption: 'Leitura do megômetro', captured_at: '2026-09-06T09:30:00.000Z' }); // none
-  const after = photo(3, { block_id: block(1), caption: 'Detalhe', captured_at: '2026-09-06T10:00:00.000Z' }); // 2
+  const general = photo(1, { captured_at: '2026-09-06T09:00:00.000Z', caption: 'Vista geral' }); // 1, section 7
+  const display = photo(2, { block_id: block(1), reading_kind: 'display', caption: 'Leitura do megômetro', captured_at: '2026-09-06T09:30:00.000Z' }); // 2
+  const after = photo(3, { block_id: block(1), caption: 'Detalhe', captured_at: '2026-09-06T10:00:00.000Z' }); // 3
 
-  it('B3: after the test tables, "Leitura do megômetro." with no "Imagem" and no number; the other photos keep theirs', () => {
-    const { printed, photos } = sheetPhotosOf([general, display, after]);
+  it('M6: after the test tables, "Imagem 2: Leitura do megômetro." with its number; the sheet photo after it is 3, numbers as numberPhotos gives them', () => {
+    const { snapshot, printed, photos } = sheetPhotosOf([general, display, after]);
     expect(photos).toEqual([
-      { fileId: display.id, number: null, caption: 'Leitura do megômetro.' },
-      { fileId: after.id, number: 2, caption: 'Imagem 2: Detalhe.' },
+      { fileId: display.id, number: 2, caption: 'Imagem 2: Leitura do megômetro.' },
+      { fileId: after.id, number: 3, caption: 'Imagem 3: Detalhe.' },
     ]);
+    const numbers = numberPhotos(snapshot);
+    expect(photos.map((p) => numbers.get(p.fileId))).toEqual([2, 3]);
     // The photos part stands after the last test table and before OBSERVAÇÕES.
     const names = printed.parts.map((part) => (part.kind === 'photos' ? 'photos' : partName(part)));
     expect(names.slice(names.indexOf('photos') - 1, names.indexOf('photos') + 2)).toEqual(['LINHA', 'photos', 'OBSERVAÇÕES']);
   });
 
-  it('a caption already closed keeps its own punctuation; a display shot on a checklist row still prints after the tests', () => {
-    const closed = photo(4, { block_id: block(1), reading_kind: 'display', item_key: 'contatos', caption: '  Leitura do megômetro!  ', captured_at: '2026-09-06T09:40:00.000Z' });
+  it('M6: a caption already closed keeps its own punctuation; a display shot on a checklist row still prints after the tests', () => {
+    const closed = photo(4, { block_id: block(1), reading_kind: 'display', item_key: 'contatos', caption: '  Está oxidado?  ', captured_at: '2026-09-06T09:40:00.000Z' });
     const { printed, photos } = sheetPhotosOf([general, closed]);
-    expect(photos).toEqual([{ fileId: closed.id, number: null, caption: 'Leitura do megômetro!' }]);
+    expect(photos).toEqual([{ fileId: closed.id, number: 2, caption: 'Imagem 2: Está oxidado?' }]);
     expect(printed.parts.map((part) => (part.kind === 'photos' ? 'photos' : partName(part))).indexOf('photos')).toBeGreaterThan(
       printed.parts.map(partName).indexOf('LINHA'),
     );
   });
 
-  it('B4: an uncaptioned display shot prints its full stamp alone', () => {
+  it('M6: an uncaptioned display shot prints "Imagem N: ⟨full stamp⟩.", never the bare "Imagem N." of a plain uncaptioned photo', () => {
     const coords = { lat: -23.55052, lng: -46.63331, accuracy_m: 5, source: 'geolocation' as const };
     const bare = photo(5, { block_id: block(1), reading_kind: 'display', caption: null, captured_at: '2026-09-06T10:05:00.000Z', coords });
     const blank = photo(6, { block_id: block(1), reading_kind: 'display', caption: '   ', captured_at: '2026-09-06T10:06:00.000Z' });
-    const { photos } = sheetPhotosOf([bare, blank]);
+    const plain = photo(7, { block_id: block(1), caption: null, captured_at: '2026-09-06T10:07:00.000Z' });
+    const { photos } = sheetPhotosOf([bare, blank, plain]);
     expect(photos.map((p) => [p.number, p.caption])).toEqual([
-      [null, photoStampFull(bare as Parameters<typeof photoStampFull>[0])],
-      [null, '06/09/2026 07:06'],
+      [1, `Imagem 1: ${photoStampFull(bare as Parameters<typeof photoStampFull>[0])}.`],
+      [2, 'Imagem 2: 06/09/2026 07:06.'],
+      [3, 'Imagem 3.'],
     ]);
-    expect(photos[0]!.caption).toBe('06/09/2026 07:05 · −23,5505, −46,6333');
-    expect(photos.some((p) => p.caption.includes('Imagem'))).toBe(false);
+    expect(photos[0]!.caption).toBe('Imagem 1: 06/09/2026 07:05 · −23,5505, −46,6333.');
   });
 
-  it('a sheet without display shots prints as before; removing the display shot changes nothing else', () => {
-    const withShot = sheetPhotosOf([general, display, after]).printed;
-    const withoutShot = sheetPhotosOf([general, after]).printed;
-    const strip = (sheet: PrintSheet) => sheet.parts.map((part) => (part.kind === 'photos' ? { ...part, photos: part.photos.filter((p) => p.number !== null) } : part));
-    expect(strip(withShot)).toEqual(withoutShot.parts);
-    // Removed, the display shot prints nowhere.
+  it('M7: removing the display shot closes the gap (the photo after it becomes 2); restoring it gives the numbers back', () => {
+    const live = sheetPhotosOf([general, display, after]).photos;
     const removed = { ...display, removed_at: '2026-09-06T11:00:00.000Z' } as RelatorioSnapshot['files'][number];
-    expect(sheetPhotosOf([general, removed, after]).printed).toEqual(withoutShot);
+    expect(sheetPhotosOf([general, removed, after]).photos).toEqual([{ fileId: after.id, number: 2, caption: 'Imagem 2: Detalhe.' }]);
+    const restored = { ...display, removed_at: null } as RelatorioSnapshot['files'][number];
+    expect(sheetPhotosOf([general, restored, after]).photos).toEqual(live);
   });
 
-  it('a display shot on a local (no block) prints nowhere in section 9', () => {
-    const files = [{ ...display, block_id: null, location_id: id(1) } as RelatorioSnapshot['files'][number]];
-    expect(JSON.stringify(layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0')], [FULL_CHAVE], { files })))).not.toContain(display.id);
+  it('M5: a display shot on a local (no block) prints nowhere in section 9 but still holds a number, after every placed photo', () => {
+    const files = [{ ...display, block_id: null, location_id: id(1) } as RelatorioSnapshot['files'][number], general];
+    const snapshot = snapshotOf([cabine(1, 'Cabine A', 'a0')], [FULL_CHAVE], { files });
+    expect(JSON.stringify(layoutOf(snapshot))).not.toContain(display.id);
+    expect([...numberPhotos(snapshot).entries()]).toEqual([
+      [general.id, 1],
+      [display.id, 2],
+    ]);
   });
 });

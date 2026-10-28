@@ -20,7 +20,8 @@ import { expandLocation } from './support/tree.ts';
  * answered offline (a chip, an observation, a photo, the bulk action and its undo, a point of
  * attention from the NC item), read back after a reload and synced; then the generated DOCX is
  * read from its own headings: VERIFICAÇÕES DO LOCAL once per local right after AMBIENTE DE
- * ENSAIO, the site photo in section 7 and the point in section 8.
+ * ENSAIO, the site photo under its local only (Story 17.1: never in section 7) and the point
+ * in section 8.
  *
  * 14.3-E2E-001 and 14.3-E2E-002 generate through the one queue and LibreOffice of the api, so
  * the file is in the serial group. This project blocks the service worker (no shell cache), so
@@ -275,7 +276,7 @@ async function openSurface(page: Page, relatorioId: string, locationId: string):
 
 // --- 14.3-E2E-001 -------------------------------------------------------------------------
 
-test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface opened from the local\'s tree row, every site item answered offline (chip, observation, photo, bulk action and its undo, a point from the NC item), read back after a reload and synced; the DOCX prints the table once per local right after AMBIENTE DE ENSAIO, the photo in section 7 and the point in section 8', async ({
+test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface opened from the local\'s tree row, every site item answered offline (chip, observation, photo, bulk action and its undo, a point from the NC item), read back after a reload and synced; the DOCX prints the table once per local right after AMBIENTE DE ENSAIO, the photo under its local only (never in section 7) and the point in section 8', async ({
   page,
   context,
 }) => {
@@ -611,10 +612,12 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   expect(tablesOf(emptyPart.xml)).toHaveLength(3);
   expect(parts.at(-1)!.heading).toBe(emptyPart.heading);
 
-  // Section 7: the photo with its caption and its item line. Section 8: the point, and its row naming the local.
+  // Story 17.1: section 7 holds only the "Geral" photos, so the site item's photo prints once, under its local above.
   const seven = paragraphsOf(sectionXml(document, 7));
-  expect(seven).toContain(photoLine);
-  expect(seven).toContain('Item 11 · Iluminação de emergência (autonomia mínima de 2 h) · NC');
+  expect(seven).not.toContain(photoLine);
+  expect(seven.some((paragraph) => /^Imagem \d+[.:]/.test(paragraph))).toBe(false);
+  expect(paragraphsOf(document).filter((paragraph) => paragraph === photoLine)).toHaveLength(1);
+  // Section 8: the point, and its row naming the local.
   const eight = sectionXml(document, 8);
   expect(paragraphsOf(eight)).toContain(`${POINT_TEXT}, conforme Imagem 1. ${POINT_ACTION}`);
   const [plan] = tablesOf(eight);

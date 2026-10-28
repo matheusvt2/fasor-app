@@ -120,7 +120,7 @@ export function useFichaPhotos({
     if (db === null || api.author === null) return;
     // W-9: a refused write says so (AD-8, FR-54).
     void setPhotoCaption(db, api.author, relatorioId, tile.id, text)
-      .then(() => showToast(captionSavedText(numberPhotos(snapshot.files).get(tile.id) ?? null)))
+      .then(() => showToast(captionSavedText(numberPhotos(snapshot).get(tile.id) ?? null)))
       .catch(toastPhotoWriteFailure(showToast));
   };
   return { photoTarget, targetFor, sheetCamera, checklistPhotos, importing, setImporting, captioning, setCaptioning, saveCaption, fichaMain, dragging };

@@ -262,7 +262,7 @@ test('@p1 11.11-E2E-011 with the camera denied, a file added from the NC row and
   await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(1);
   const other = which.getByRole('radio').nth(1);
   await expect(other).not.toHaveAccessibleName(SEC_ENEL_OPTION);
-  await expect(other).not.toHaveAccessibleName('Geral (sem equipamento)');
+  await expect(other).not.toHaveAccessibleName('Geral — Registro fotográfico (serviços gerais)');
   await other.click();
   await which.getByRole('button', { name: 'Adicionar 1 foto' }).click();
   await expect(which).toHaveCount(0);
@@ -399,11 +399,13 @@ test('@p0 6.4-E2E-003 the gallery asks "De qual equipamento?" once for a batch: 
   const plain = imported.find((photo) => photo.id !== fromExif.id)!;
   expect(plain.coords).toBeNull();
 
-  // The EXIF photo takes number 1; the gallery shot moves to 2.
-  await expect(itemOf(page, fromExif.id).locator('.number-badge')).toHaveText('1');
+  // The EXIF photo sorts first among the tiles (capture order); Story 17.1: the numbers follow
+  // the document, so the "Geral" gallery shot keeps 1 (section 7) and the sheet's two follow it.
+  await expect(galleryItems(page).first()).toHaveAttribute('data-photo-id', fromExif.id);
+  await expect(itemOf(page, fromExif.id).locator('.number-badge')).toHaveText('2');
   await expect(itemOf(page, fromExif.id).locator('.photo-stamp')).toContainText('06/09 08:12');
   await expect(itemOf(page, fromExif.id).locator('.photo-stamp .pin')).toHaveCount(1);
-  await expect(itemOf(page, geral!.id).locator('.number-badge')).toHaveText('2');
+  await expect(itemOf(page, geral!.id).locator('.number-badge')).toHaveText('1');
   await expect(itemOf(page, plain.id).locator('.number-badge')).toHaveText('3');
   await expect(itemOf(page, plain.id).locator('.photo-stamp .pin')).toHaveCount(0);
 });
@@ -586,7 +588,7 @@ test('@p0 6.4-E2E-007 E6-Q4 and E6-Q8 at 390 px: the batch is saved as "Geral" w
   // The short list: the current sheet first; "Outro equipamento"; "Geral" on screen without a scroll.
   const list = sheet.getByRole('radiogroup', { name: 'Equipamentos do relatório' });
   await expect(list.getByRole('radio').first()).toHaveAccessibleName(SEC_ENEL_OPTION);
-  const geral = list.getByRole('radio', { name: 'Geral (sem equipamento)' });
+  const geral = list.getByRole('radio', { name: 'Geral — Registro fotográfico (serviços gerais)' });
   await expect(geral).toBeInViewport();
   expect(await list.getByRole('radio').count()).toBeLessThanOrEqual(6);
   // "Outro equipamento": the whole relatório grouped as the tree, "Geral" still in view.

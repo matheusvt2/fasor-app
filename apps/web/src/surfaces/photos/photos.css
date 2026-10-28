@@ -41,6 +41,8 @@
 }
 /* authored: the gallery's bar stays at the bottom of the viewport, like the sheet's (`ficha.css`). */
 [data-route="/relatorio/:id/fotos"] .sticky-action-bar { position: sticky; bottom: 0; margin-top: auto; }
+/* authored (Story 17.1): the "Geral" note under the gallery camera, a `section-note` line inside the bar's own gap. */
+.sticky-action-bar .gallery-geral-note { margin: 0; }
 /* authored: DESIGN.md › Photo tile: the caption in `meta`, two lines at most, ellipsis. */
 .photo-row .photo-meta { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 /* authored: the gallery tile is 96 px (DESIGN.md `thumb-grid`); the button carries no chrome of its own. */
@@ -100,7 +102,7 @@
 .photo-capture-sheet .capture-caption .capture-reason { padding: 0; }
 /* authored (E6-Q4): the whole relatório after "Outro equipamento", one group per location
    with its "Cabine › Coluna" line in the meta style, in a box that scrolls by itself so
-   "Geral (sem equipamento)" under it is never below the whole list. */
+   the "Geral" row under it is never below the whole list. */
 .photo-capture-sheet .capture-groups { max-height: 45dvh; overflow-y: auto; border-top: 1px solid var(--border-hairline); border-bottom: 1px solid var(--border-hairline); }
 .photo-capture-sheet .capture-group-label { margin: 0; padding: var(--sp-3) var(--sp-5) var(--sp-1); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
 .photo-capture-sheet .capture-more { color: var(--primary); }

@@ -231,7 +231,7 @@ function VerificacoesBody({
   const saveCaption = (tile: PhotoTile, text: string | null) => {
     if (db === null || editor.author === null) return;
     void setPhotoCaption(db, editor.author, relatorioId, tile.id, text)
-      .then(() => showToast(captionSavedText(numberPhotos(snapshot.files).get(tile.id) ?? null)))
+      .then(() => showToast(captionSavedText(numberPhotos(snapshot).get(tile.id) ?? null)))
       .catch(toastPhotoWriteFailure(showToast));
   };
   // A point typed in an NC row's dialog before a reload is offered back here, as on a sheet.

@@ -128,7 +128,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   const edits = useUndoableEdits();
   const tiles = useRelatorioPhotoTiles(db, relatorioId);
 
-  const numbers = useMemo(() => numberPhotos(snapshot.files), [snapshot.files]);
+  const numbers = useMemo(() => numberPhotos(snapshot), [snapshot]);
   const numbersRef = useRef(numbers);
   numbersRef.current = numbers;
   const labelOf = useCallback((id: string) => {
@@ -722,7 +722,7 @@ function PrazoField({
   );
 }
 
-/** The picker of the relatório's live photos but display shots (`key-photos.html` tiles with their number). */
+/** The picker of the relatório's live photos, display shots included (`key-photos.html` tiles with their number). */
 function PhotoPicker({
   isOpen,
   onOpenChange,
@@ -737,8 +737,8 @@ function PhotoPicker({
   onPick: (id: string) => void;
 }) {
   const t = copy.points;
-  // Story 16.3: a display shot (no number) is never offered for a reference.
-  const offered = tiles.filter((tile) => tile.reading_kind !== 'display');
+  // Story 17.4: a display shot is numbered and offered like any photo.
+  const offered = tiles;
   return (
     <FormDialog isOpen={isOpen} onOpenChange={onOpenChange} title={t.pickerTitle} className="poa-picker-dialog">
       {offered.length === 0 ? (

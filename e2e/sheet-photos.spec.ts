@@ -331,7 +331,7 @@ test('@p0 11.11-E2E-008 from a sheet the step re-points the saved batch: "Geral"
 
   // "Geral": no sheet, no item, the caption cleared; the strip stays empty.
   let dialog = await pickSaved(page, [await plainJpeg(page, 'geral.jpg')], 1);
-  await dialog.getByRole('radio', { name: 'Geral (sem equipamento)' }).click();
+  await dialog.getByRole('radio', { name: 'Geral — Registro fotográfico (serviços gerais)' }).click();
   await expect(dialog.getByRole('textbox', { name: 'Legenda da foto' })).toHaveValue('');
   await dialog.getByRole('button', { name: 'Adicionar 1 foto' }).click();
   await expect(dialog).toHaveCount(0);
@@ -344,7 +344,7 @@ test('@p0 11.11-E2E-008 from a sheet the step re-points the saved batch: "Geral"
   const other = dialog.getByRole('radio').nth(1);
   const otherName = (await other.textContent()) ?? '';
   expect(otherName).not.toMatch(SEC_ENEL_OPTION);
-  expect(otherName).not.toBe('Geral (sem equipamento)');
+  expect(otherName).not.toBe('Geral — Registro fotográfico (serviços gerais)');
   await other.click();
   const otherCaption = await dialog.getByRole('textbox', { name: 'Legenda da foto' }).inputValue();
   expect(otherCaption).not.toBe(SHEET_CAPTION);

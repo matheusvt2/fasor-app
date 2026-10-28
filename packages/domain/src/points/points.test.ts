@@ -12,6 +12,7 @@ import { progress } from '../relatorio/progress.ts';
 import { sumarioRows } from '../relatorio/sumario.ts';
 import { sheetOrder } from '../relatorio/ficha.ts';
 import { numberPhotos, photoRefLabel } from '../photos/numbering.ts';
+import { resolveSection8 } from '../print/section-8.ts';
 import { extractPhotoRefs, photoToken, pointTextTokens } from './refs.ts';
 import { derivedPointReasonText, derivedPoints, groupDerivedPoints, notTestedPointText, type DerivedPoint } from './derived.ts';
 import { livePoints, livePointsOfLocals, ncRowPointPositions, ncRowPointsText, newPointRow, photoCitedByText, pointMoveOrderKey, pointsCitingPhoto, pointsWithRemovedPhotos } from './checks.ts';
@@ -81,22 +82,62 @@ describe('6.6-UNIT photo tokens', () => {
 });
 
 describe('6.6-UNIT numberPhotos', () => {
-  const photo = (id: string, captured_at: string, local_seq: number, removed_at: string | null = null) => ({ id, kind: 'photo', captured_at, local_seq, removed_at });
+  const base = fresh();
+  const photo = (id: string, captured_at: string, local_seq: number, removed_at: string | null = null, over: { block_id?: string; reading_kind?: 'display' } = {}) =>
+    ({
+      id,
+      relatorio_id: base.relatorio.id,
+      kind: 'photo',
+      sha256: 'x',
+      mime: 'image/jpeg',
+      size: 1,
+      uploaded_at: null,
+      variants: null,
+      removed_at,
+      captured_at,
+      tz_offset: -180,
+      coords: null,
+      local_seq,
+      block_id: over.block_id ?? null,
+      item_key: null,
+      caption: null,
+      reading_kind: over.reading_kind ?? null,
+      reading_target: null,
+      reading_status: 'none',
+      people_in_photo: false,
+    }) as RelatorioSnapshot['files'][number];
 
-  it('numbers live photos by (captured_at, local_seq, id), closing the gap a removed one leaves', () => {
-    const numbers = numberPhotos([
-      photo(B, '2026-09-07T10:00:00.000Z', 2),
-      photo(A, '2026-09-07T10:00:00.000Z', 1),
-      photo('019966b0-0070-7000-8000-00000000000c', '2026-09-07T09:00:00.000Z', 9, T0.toISOString()),
-      photo('019966b0-0070-7000-8000-00000000000d', '2026-09-07T11:00:00.000Z', 3),
-      { id: '019966b0-0070-7000-8000-00000000000e', kind: 'logo', removed_at: null },
-    ]);
+  it('numbers live "Geral" photos by (captured_at, local_seq, id), closing the gap a removed one leaves', () => {
+    const numbers = numberPhotos({
+      ...base,
+      files: [
+        photo(B, '2026-09-07T10:00:00.000Z', 2),
+        photo(A, '2026-09-07T10:00:00.000Z', 1),
+        photo('019966b0-0070-7000-8000-00000000000c', '2026-09-07T09:00:00.000Z', 9, T0.toISOString()),
+        photo('019966b0-0070-7000-8000-00000000000d', '2026-09-07T11:00:00.000Z', 3),
+        { id: '019966b0-0070-7000-8000-00000000000e', relatorio_id: base.relatorio.id, kind: 'logo', sha256: 'x', mime: 'image/png', size: 1, uploaded_at: null, variants: null, removed_at: null } as RelatorioSnapshot['files'][number],
+      ],
+    });
     expect([...numbers.entries()]).toEqual([
       [A, 1],
       [B, 2],
       ['019966b0-0070-7000-8000-00000000000d', 3],
     ]);
     expect(photoRefLabel(12)).toBe('Imagem 12');
+  });
+
+  it('17.4: a cited display shot of a sheet is numbered after the "Geral" photos, resolves as "Imagem N" and is never a removed photo', () => {
+    const chave = base.blocks.find((block) => block.block_type === 'chave_seccionadora')!;
+    const D = '019966b0-0070-7000-8000-0000000000dd';
+    const cites = point(base, { text: `Leitura em ${photoToken(D)}`, action: null });
+    const snapshot = withPoints({ ...base, files: [photo(D, '2026-09-07T08:00:00.000Z', 1, null, { block_id: chave.id, reading_kind: 'display' }), photo(A, '2026-09-07T10:00:00.000Z', 2)] }, cites);
+    const numbers = numberPhotos(snapshot);
+    expect([...numbers.entries()]).toEqual([
+      [A, 1],
+      [D, 2],
+    ]);
+    expect(resolveSection8(snapshot, numbers)).toEqual([{ kind: 'point', text: 'Leitura em Imagem 2', point_id: cites.id }]);
+    expect(pointsWithRemovedPhotos(snapshot)).toEqual([]);
   });
 });
 

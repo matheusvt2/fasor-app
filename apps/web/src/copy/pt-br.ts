@@ -943,6 +943,8 @@ export const copy = {
     peopleInPhoto: 'Pessoas na foto',
     // authored: the tile's suggestion group name.
     suggestedCaption: 'Legenda sugerida',
+    // authored (Story 17.1, listed for Bruno): the line under the gallery camera.
+    geralNote: 'Fotos tiradas aqui entram como Geral e saem no Registro fotográfico; as fotos de um equipamento ou de um local saem só na ficha ou no local.',
   },
   // Story 6.3: the Photo viewer (`70-fotos.html` "Photo viewer").
   viewer: {
@@ -951,12 +953,10 @@ export const copy = {
     remove: 'Remover',
     previous: 'Anterior',
     next: 'Próxima',
-    // authored: the Confirm dialog before "Remover" (EXPERIENCE.md › Photo viewer).
-    // authored (Story 16.3): a display shot has no number.
+    // authored: the Confirm dialog before "Remover" (EXPERIENCE.md › Photo viewer); "a foto"
+    // alone for a tile the snapshot has not numbered yet. Story 17.1: the description under it
+    // is the kernel's `photoRemoveDescription` (where the photo leaves from, by where it prints).
     removeTitle: (n: number | null) => (n === null ? 'Remover a foto do relatório?' : `Remover a foto ${n} do relatório?`),
-    // F43: `section` as in `note`.
-    // authored (F43, coordinator review): with section 7 absent, the gallery alone.
-    removeDescription: (m: Mention) => (m.prints ? `A foto sai da galeria e da ${m.ref}. Dá para desfazer pelo aviso logo em seguida.` : 'A foto sai da galeria. Dá para desfazer pelo aviso logo em seguida.'),
     removeConfirm: 'Remover foto',
     // `70-fotos.html` toast action, verbatim.
     undo: 'Desfazer',
@@ -967,7 +967,8 @@ export const copy = {
     choose: 'Escolher arquivos',
     cancel: 'Cancelar',
     whichEquipment: 'De qual equipamento?',
-    general: 'Geral (sem equipamento)',
+    // authored (Story 17.1, listed for Bruno): where a "Geral" photo prints.
+    general: 'Geral — Registro fotográfico (serviços gerais)',
     // authored: the list of equipment rows.
     equipmentList: 'Equipamentos do relatório',
     // `70-fotos.html` "Outro equipamento — abrir a árvore", shortened: E6-Q4 opens the whole

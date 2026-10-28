@@ -8,6 +8,7 @@ import { POINT_TITLE_GENERAL, pointTitle } from '../points/summary.ts';
 import type { PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { listPtBr } from '../text/plural.ts';
+import type { NumberingSnapshot } from './photo-order.ts';
 
 /*
  * Story 7.3 (AC1): section 8, the points of attention, as printed bullets. First the live
@@ -232,8 +233,8 @@ export function resolveActionPlan(snapshot: Section8Snapshot, numbering: Readonl
 }
 
 /** Section 8's layout under its heading; null when there is no point and no derived entry (the section prints the empty note). */
-export function section8Layout(snapshot: Section8Snapshot & Pick<RelatorioSnapshot, 'files'>, heading: { number: number; title: string }): LayoutSectionPoints | null {
-  const numbering = numberPhotos(snapshot.files);
+export function section8Layout(snapshot: Section8Snapshot & NumberingSnapshot, heading: { number: number; title: string }): LayoutSectionPoints | null {
+  const numbering = numberPhotos(snapshot);
   const bullets = resolveSection8(snapshot, numbering).map((bullet) => bullet.text);
   if (bullets.length === 0) return null;
   return { number: heading.number, title: heading.title, kind: 'points', bullets, table: resolveActionPlan(snapshot, numbering) };

@@ -2,6 +2,7 @@ import { formatDateTime, formatShortDateTime } from '../format/datetime.ts';
 import { cabineOf, type CabineLocation } from '../relatorio/cabine.ts';
 import { sheetOrder } from '../relatorio/ficha.ts';
 import { locationPathText } from '../relatorio/location-path.ts';
+import type { SectionMention } from '../relatorio/section-position.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import { checklistResultOf } from '../relatorio/sheet-progress.ts';
 import { siteLocalOf, siteResultOf } from '../relatorio/site-checklist.ts';
@@ -12,6 +13,7 @@ import { getDefinition, siteItems } from '../seed/definitions.ts';
 import { plural } from '../text/plural.ts';
 import type { CaptionWord } from './caption.ts';
 import { legendasSugeridasText } from './captions.ts';
+import { isGeralPhoto, type GeralCandidate } from './order.ts';
 import { photosPendingText, photosUncaptionedText, photoUploadState } from './text.ts';
 
 /*
@@ -204,21 +206,39 @@ export function photoNumbersStatusText(latest: Pick<RevisionRow, 'number'> | nul
 
 /**
  * A gallery tile's accessible name: "Foto 4, abrir"; "Foto 1, legenda sugerida, abrir" with a
- * caption suggestion (`70-fotos.html`). Story 16.3: a display shot has no number ("Foto, abrir").
+ * caption suggestion (`70-fotos.html`); "Foto, abrir" for a tile the snapshot has not numbered yet.
  */
 export function photoTileLabel(n: number | null, opts: { suggested?: boolean } = {}): string {
   const name = captionPhotoLabel(n);
   return opts.suggested === true ? `${name}, legenda sugerida, abrir` : `${name}, abrir`;
 }
 
-/** The viewer's accessible name: "Foto 4 de 20"; "Foto" alone for a display shot (no number, Story 16.3). */
+/** The viewer's accessible name: "Foto 4 de 20"; "Foto" alone for a photo not numbered yet. */
 export function viewerLabel(position: number | null, total: number): string {
   return position === null ? captionPhotoLabel(null) : `Foto ${position} de ${total}`;
 }
 
-/** The toast after "Remover": "Foto 4 removida do relatório"; "Foto removida do relatório" for a display shot (no number, Story 16.3). */
+/** The toast after "Remover": "Foto 4 removida do relatório"; "Foto removida do relatório" for a photo not numbered yet. */
 export function photoRemovedText(n: number | null): string {
   return `${captionPhotoLabel(n)} removida do relatório`;
+}
+
+/** authored (Story 17.1): the "Remover" confirm's undo sentence, after where the photo leaves from. */
+const REMOVE_UNDO = 'Dá para desfazer pelo aviso logo em seguida.';
+
+/**
+ * Story 17.1 (QA G2, Bruno, 2026-10-27): the viewer's "Remover" confirm says where the photo
+ * leaves from, by the place it prints: a "Geral" photo leaves the gallery and section 7
+ * (`mention`, `sectionMention(snapshot, 7)`; the gallery alone when the relatório does not
+ * carry section 7); a sheet's photo (a display shot included) leaves the equipment's sheet; a
+ * local's site-item photo leaves the local's checks; any other the gallery.
+ */
+export function photoRemoveDescription(photo: GeralCandidate, mention: Pick<SectionMention, 'ref' | 'prints'>): string {
+  // authored (Story 17.1): the four sentences, listed in the PR for Bruno.
+  if (isGeralPhoto(photo)) return mention.prints ? `A foto sai da galeria e da ${mention.ref}. ${REMOVE_UNDO}` : `A foto sai da galeria. ${REMOVE_UNDO}`;
+  if (photo.block_id !== null) return `A foto sai da galeria e da ficha do equipamento. ${REMOVE_UNDO}`;
+  if ((photo.location_id ?? null) !== null) return `A foto sai da galeria e das verificações do local. ${REMOVE_UNDO}`;
+  return `A foto sai da galeria. ${REMOVE_UNDO}`;
 }
 
 /** E6-Q3: the Caption composer's photo line (`71-legenda.html` `.capture-meta`): "Nº provisório 4 · 06/09 08:31". */

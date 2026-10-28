@@ -9,6 +9,7 @@ import { entityKey } from '../ops/apply.ts';
 import { instantiateTemplate } from '../relatorio/instantiate.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { layoutSpec } from '../print/layout.ts';
+import { numberPhotos, photoRefLabel } from '../photos/numbering.ts';
 import { preIssue } from '../relatorio/pre-issue.ts';
 import { progress } from '../relatorio/progress.ts';
 import { sumarioRows } from '../relatorio/sumario.ts';
@@ -616,7 +617,7 @@ describe('14.10-UNIT-002 auditCoverageText', () => {
   });
 });
 
-describe('16.3-UNIT auditInput: a display shot has no number', () => {
+describe('17.4-UNIT auditInput: a display shot is cited by its number', () => {
   const small = smallSnapshot();
   const file = (id: string, capturedAt: string, readingKind: 'display' | null, caption: string): FileRow =>
     ({
@@ -650,14 +651,19 @@ describe('16.3-UNIT auditInput: a display shot has no number', () => {
   };
   const input = auditInput(draft(snapshot), snapshot, Number.MAX_SAFE_INTEGER);
 
-  it('sends the display shot once, its line the caption sentence alone, its ref labelled "Foto"', () => {
-    expect(input.text).toContain(`[photo:${DISPLAY}] Leitura do megômetro.`);
+  const numbers = numberPhotos(snapshot);
+  const n = numbers.get(DISPLAY)!;
+
+  it('M8: sends the display shot once, under its sheet, its line "Imagem N: ⟨legenda⟩." and its ref "Imagem N", never "Foto"', () => {
+    expect(n).toBeGreaterThan(0);
+    expect(input.text).toContain(`[photo:${DISPLAY}] Imagem ${n}: Leitura do megômetro.`);
     expect(input.text.split('\n').filter((line) => line.includes(`[photo:${DISPLAY}]`))).toHaveLength(1);
-    expect(input.refs.find((ref) => ref.id === `photo:${DISPLAY}`)).toEqual({ id: `photo:${DISPLAY}`, label: 'Foto', target: { kind: 'photos' } });
+    expect(input.refs.find((ref) => ref.id === `photo:${DISPLAY}`)).toEqual({ id: `photo:${DISPLAY}`, label: photoRefLabel(n), target: { kind: 'photos' } });
   });
 
-  it('the plain photo taken right after it keeps number 1 (the earliest), as section 7 prints it', () => {
-    expect(input.refs.find((ref) => ref.id === `photo:${PLAIN}`)?.label).toBe('Imagem 1');
-    expect(input.text).toContain(`[photo:${PLAIN}] Imagem 1: Vista geral.`);
+  it('the sheet photo taken right after it is the next number (capture order inside the sheet\'s other photos)', () => {
+    expect(numbers.get(PLAIN)).toBe(n + 1);
+    expect(input.refs.find((ref) => ref.id === `photo:${PLAIN}`)?.label).toBe(`Imagem ${n + 1}`);
+    expect(input.text).toContain(`[photo:${PLAIN}] Imagem ${n + 1}: Vista geral.`);
   });
 });

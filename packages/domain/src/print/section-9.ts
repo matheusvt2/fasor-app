@@ -1,8 +1,8 @@
 import { formatDateTime } from '../format/datetime.ts';
 import { formatDecimalGroupedPtBr, isNotApplicableNumber, NOT_APPLICABLE_TEXT } from '../parse/pt-br-number.ts';
 import { isUncaptioned, photoStampFull } from '../photos/gallery.ts';
-import { numberPhotos, photoRefLabel } from '../photos/numbering.ts';
-import { livePhotos, type SnapshotPhoto } from '../photos/order.ts';
+import { photoRefLabel } from '../photos/numbering.ts';
+import type { SnapshotPhoto } from '../photos/order.ts';
 import { notTestedPointText } from '../points/derived.ts';
 import { wordRegistryRowText, type WordRow } from '../registry/word-row.ts';
 import type { CabineLocation } from '../relatorio/cabine.ts';
@@ -33,6 +33,7 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { findDefinition, findSeed, getSeed } from '../seed/definitions.ts';
 import type { BlockDefinition, CabineDefinition, ColumnDef, FieldDef, ReportSeed, SiteChecklist, TableDef, TestDef } from '../seed/schema.ts';
 import { blockRoleOf, groupForPrint, type PrintGroupWarning } from './group-for-print.ts';
+import { documentPhotoOrder, sheetChecklistPrinted, type DocumentPhotoOrder } from './photo-order.ts';
 
 /*
  * Story 7.1 (FR-68, AR-11, NFR-17), Story 7.2 AC2 and E12-A2: section 9 as data. Every sheet
@@ -46,7 +47,8 @@ import { blockRoleOf, groupForPrint, type PrintGroupWarning } from './group-for-
  * VERIFICAÇÕES GERAIS, the checklist photos, one block per enabled test (instrument header,
  * criterion line, tables), the other photos, OBSERVAÇÕES and CONCLUSÃO. A switched-off
  * sub-block is omitted; the four uncaptured insulation columns are grid columns and print
- * "-". A Não ensaiada sheet prints its plate and a reason band, nothing else. Labels are
+ * "-". A Não ensaiada sheet prints its plate, its plate photos, a reason band and then its
+ * other photos (Story 17.1: every numbered photo of a placed sheet prints somewhere). Labels are
  * the seed's strings in caps (the screen shows them sentence-cased); values print as stored.
  * Cells hold only confirmed values, so no suggestion is ever read.
  *
@@ -96,14 +98,11 @@ export interface PrintTable {
 
 export interface PrintPhoto {
   fileId: string;
+  /** The photo's number, the one `numberPhotos` gives every reader (Story 17.4: a display shot's too). */
+  number: number;
   /**
-   * The photo's number, the same `numberPhotos` gives section 7; null for a "Ler visor"
-   * display shot, which takes none (Story 16.3).
-   */
-  number: number | null;
-  /**
-   * The line under the photo: "Imagem 3: ⟨legenda⟩." or "Imagem 3."; a display shot's is its
-   * caption sentence alone ("⟨legenda⟩.") or, uncaptioned, its full stamp.
+   * The line under the photo: "Imagem 3: ⟨legenda⟩." or "Imagem 3."; a display shot's, when
+   * uncaptioned, "Imagem 3: ⟨full stamp⟩." (Story 17.4).
    */
   caption: string;
 }
@@ -261,28 +260,21 @@ interface Context {
   blocks: ReadonlyMap<string, BlockRow>;
   tags: ReadonlyMap<string, string>;
   actors: ReadonlyMap<string, UserRow>;
+  /** Every live photo's number, in document order (`numberPhotos`'s map). */
   numbers: ReadonlyMap<string, number>;
-  photos: ReadonlyMap<string, SnapshotPhoto[]>;
-  /** Story 14.4: the photos of each local's site items (no block, a `location_id`), in capture order. */
-  sitePhotos: ReadonlyMap<string, SnapshotPhoto[]>;
+  /** Stories 17.1 and 17.4: the one walk the numbers come from; its groups are what prints where. */
+  photos: DocumentPhotoOrder;
 }
 
 function contextOf(snapshot: RelatorioSnapshot): Context {
-  const photos = new Map<string, SnapshotPhoto[]>();
-  const sitePhotos = new Map<string, SnapshotPhoto[]>();
-  for (const photo of livePhotos(snapshot)) {
-    // A row carrying both a block and a local is read as its block's.
-    if (photo.block_id !== null) photos.set(photo.block_id, [...(photos.get(photo.block_id) ?? []), photo]);
-    else if ((photo.location_id ?? null) !== null) sitePhotos.set(photo.location_id!, [...(sitePhotos.get(photo.location_id!) ?? []), photo]);
-  }
+  const photos = documentPhotoOrder(snapshot);
   return {
     snapshot,
     blocks: new Map(snapshot.blocks.map((block) => [block.id, block])),
     tags: new Map(snapshot.equipment.map((row) => [row.id, row.tag])),
     actors: new Map(snapshot.actors.map((user) => [user.id, user])),
-    numbers: numberPhotos(snapshot.files),
+    numbers: new Map(photos.order.map((photo, i) => [photo.id, i + 1])),
     photos,
-    sitePhotos,
   };
 }
 
@@ -439,13 +431,8 @@ function siteChecklistPart(cabine: CabineLocation, list: SiteChecklist, columns:
  * its site items (in capture order, numbered as section 7 numbers them).
  */
 function localPartsOf(ctx: Context, cabine: CabineLocation, seed: ReportSeed, list: SiteChecklist): SheetPart[] {
-  const keys = new Set<string>(list.groups.flatMap((group) => group.items.map((item) => item.key)));
-  const photos: PrintPhoto[] = [];
-  for (const photo of ctx.sitePhotos.get(cabine.id) ?? []) {
-    const number = ctx.numbers.get(photo.id);
-    if (number === undefined || photo.item_key === null || !keys.has(photo.item_key)) continue;
-    photos.push({ fileId: photo.id, number, caption: photoLine(number, photo.caption) });
-  }
+  // The walk kept only this local's photos on an item of `list` (the seed's site list).
+  const photos = printPhotos(ctx, ctx.photos.locals.get(cabine.id) ?? []);
   return [
     ...cabineParts(cabine, seed.cabine, ctx.snapshot.relatorio.setup.site_altitude_m),
     siteChecklistPart(cabine, list, seed.checklist_columns),
@@ -813,35 +800,28 @@ function photoLine(n: number, caption: string | null): string {
 }
 
 /**
- * Story 16.3: a "Ler visor" display shot's line, with no "Imagem N": the caption as a sentence
- * (closed as `photoLine` closes it) or, uncaptioned, the full stamp ("06/09/2026 14:32 · …").
+ * Photos as printed: "Imagem N: ⟨legenda⟩." or "Imagem N.". Story 17.4: a "Ler visor" display
+ * shot is numbered like any photo; uncaptioned, its line carries its full stamp
+ * ("Imagem 7: 06/09/2026 14:32 · …."), never the bare "Imagem 7.".
  */
-function displayShotLine(photo: SnapshotPhoto): string {
-  if (isUncaptioned(photo.caption)) return photoStampFull(photo);
-  const text = photo.caption!.trim();
-  return `${text}${CLOSED_CAPTION.test(text) ? '' : '.'}`;
+function printPhotos(ctx: Context, photos: readonly SnapshotPhoto[]): PrintPhoto[] {
+  return photos.flatMap((photo) => {
+    const number = ctx.numbers.get(photo.id);
+    if (number === undefined) return [];
+    const caption = photo.reading_kind === 'display' && isUncaptioned(photo.caption) ? photoStampFull(photo) : photo.caption;
+    return [{ fileId: photo.id, number, caption: photoLine(number, caption) }];
+  });
 }
 
 /**
- * The sheet's photos by where they print: the plate's after the nameplate, a checklist row's
- * after the checklist, the rest after the tests. A display shot (Story 16.3) has no number and
- * always prints after the tests, its line the caption sentence alone.
+ * The sheet's photos by where they print (`documentPhotoOrder`'s groups): the plate's after
+ * the nameplate, a checklist row's after the checklist, the rest after the tests, a display
+ * shot among them in capture order.
  */
-function sheetPhotos(ctx: Context, blockId: string, checklistPrinted: boolean): { plate: PrintPhoto[]; items: PrintPhoto[]; other: PrintPhoto[] } {
-  const out = { plate: [] as PrintPhoto[], items: [] as PrintPhoto[], other: [] as PrintPhoto[] };
-  for (const photo of ctx.photos.get(blockId) ?? []) {
-    if (photo.reading_kind === 'display') {
-      out.other.push({ fileId: photo.id, number: null, caption: displayShotLine(photo) });
-      continue;
-    }
-    const number = ctx.numbers.get(photo.id);
-    if (number === undefined) continue;
-    const printed: PrintPhoto = { fileId: photo.id, number, caption: photoLine(number, photo.caption) };
-    if (photo.item_key !== null && checklistPrinted) out.items.push(printed);
-    else if (photo.item_key === null && photo.reading_kind === 'plate') out.plate.push(printed);
-    else out.other.push(printed);
-  }
-  return out;
+function sheetPhotos(ctx: Context, blockId: string): { plate: PrintPhoto[]; items: PrintPhoto[]; other: PrintPhoto[] } {
+  const groups = ctx.photos.sheets.get(blockId);
+  if (groups === undefined) return { plate: [], items: [], other: [] };
+  return { plate: printPhotos(ctx, groups.plate), items: printPhotos(ctx, groups.items), other: printPhotos(ctx, groups.other) };
 }
 
 const photosPart = (photos: PrintPhoto[]): SheetPart[] => (photos.length === 0 ? [] : [{ kind: 'photos', photos }]);
@@ -861,15 +841,19 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   if (nameplate) parts.push(nameplatePart(ctx, block, definition));
   const sheet = { blockId, title: sheetTitle(block, tag), attribution: attributionOf(block, ctx.actors), parts };
   if (block.not_tested !== null) {
-    parts.push(notTestedPart(block));
+    // Stories 17.1 and 17.4: its photos print under it, in the walk's order (they no longer
+    // print in section 7): the plate's before the reason band, the rest after it.
+    const photos = sheetPhotos(ctx, blockId);
+    parts.push(...photosPart(photos.plate), notTestedPart(block), ...photosPart([...photos.items, ...photos.other]));
     return sheet;
   }
   if (definition === null) return sheet;
 
   const config = configPart(block, definition);
   if (config !== null) parts.push(config);
-  const checklist = enabled.has('checklist') && seed !== null ? checklistPart(block, definition, seed.checklistColumns) : null;
-  const photos = sheetPhotos(ctx, blockId, checklist !== null);
+  // The walk splits items from the other photos by the same predicate.
+  const checklist = sheetChecklistPrinted(block) && seed !== null ? checklistPart(block, definition, seed.checklistColumns) : null;
+  const photos = sheetPhotos(ctx, blockId);
   parts.push(...photosPart(photos.plate));
   if (checklist !== null) parts.push(checklist, ...photosPart(photos.items));
   for (const evaluation of evaluateSheetReadings(block, definition)) parts.push(...testParts(block, definition, evaluation, enabled));

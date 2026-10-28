@@ -440,7 +440,7 @@ function SheetBody({
 /**
  * "De qual equipamento?" (`70-fotos.html` 404-425, E6-Q4): the current sheet and the sheets
  * near it first, "Outro equipamento" for the whole relatório grouped as the tree, then
- * "Geral (sem equipamento)"; with no current sheet the grouped list shows directly (in a
+ * "Geral" (`copy.captureSheet.general`, Story 17.1); with no current sheet the grouped list shows directly (in a
  * box that scrolls by itself, so "Geral" is never below all of it). One tap for the batch,
  * the caption field, "Adicionar N fotos".
  */
