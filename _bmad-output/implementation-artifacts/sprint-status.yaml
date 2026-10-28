@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 10-26-2026 22:09
+last_updated: 10-28-2026 16:05
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -196,7 +196,8 @@ development_status:
   16-4-n-a-in-a-nameplate-or-cabine-number-field: done  # PR #183 merged 2026-10-26 as 5cece708 (batch e16c); story gate green (lint, static, api 684/684, unit 4491/4491 on re-run, 13 touched specs 115/115, 5 durability specs on the matrix 59/59 with 1 skip); open: N.A cannot be typed on a tablet soft keyboard (inputMode decimal), Matheus decides |  # 2026-10-26: batch e16c started on branch story/16-4-na-in-number-fields (worktree fasor-app-e16c, port base 28) after the wave A gate |  # added 2026-10-23: AD-11 state not_applicable, contract 26 minimum 26; defaults taken (scope, spellings, "N.A"); Bruno's question 2 out; after wave A's gate
   epic-16-retrospective: done  # epic-16-retro-2026-10-26.md; machine verdict accepted-with-open-items (all four stories done; open: N.A on a tablet keypad, section 8 display-shot reference, Bruno's two answers, release v0.3.3, the unrun integrated review)
 
-  epic-17: in-progress  # 2026-10-28 afternoon: QA browser pass green (qa-e17-2026-10-28.md, no P1/P2, two P3 in deferred-work); v0.4.0 deploy waits for Matheus's aws login; then the retrospective |  # 2026-10-28: wave B merged (PRs #193, #194), wave B gate green on 3beacd40, v0.4.0 deploy (contract 27) with Matheus's go, QA pass, retrospective; wave B started (e17c 15.7+17.6, e17d 17.2+17.7) from main 1a2f0b0f; wave A merged (PRs #189, #190), wave A gate on 0bdd925a, then v0.3.4 and wave B | 2026-10-27: Matheus: Bruno's information is complete, confirmations stand as defaults, camera default confirmed; wave A started (e17a 17.1+17.4, e17b 17.3+17.5) |  # added 2026-10-27 (Matheus): Bruno's ten answers and two new items of 2026-10-27 (section 7 by hand, camera app and photos "not saved on the device"); epic-17-context.md; waves A (e17a 17.1+17.4, e17b 17.3+17.5), B (e17c 15.7+17.6 seed v10 contract 27, e17d 17.2+17.7); six confirmations out to Bruno at the afternoon tablet session; starts on Matheus's word
+  epic-17: in-progress  # 2026-10-28 16:05: retrospective written (epic-17-retro-2026-10-28.md), machine verdict accepted-with-open-items; closes when v0.4.0 is deployed and Matheus settles E17-A2 and E17-A7 |  # 2026-10-28 afternoon: QA browser pass green (qa-e17-2026-10-28.md, no P1/P2, two P3 in deferred-work); v0.4.0 deploy waits for Matheus's aws login; then the retrospective |  # 2026-10-28: wave B merged (PRs #193, #194), wave B gate green on 3beacd40, v0.4.0 deploy (contract 27) with Matheus's go, QA pass, retrospective; wave B started (e17c 15.7+17.6, e17d 17.2+17.7) from main 1a2f0b0f; wave A merged (PRs #189, #190), wave A gate on 0bdd925a, then v0.3.4 and wave B | 2026-10-27: Matheus: Bruno's information is complete, confirmations stand as defaults, camera default confirmed; wave A started (e17a 17.1+17.4, e17b 17.3+17.5) |  # added 2026-10-27 (Matheus): Bruno's ten answers and two new items of 2026-10-27 (section 7 by hand, camera app and photos "not saved on the device"); epic-17-context.md; waves A (e17a 17.1+17.4, e17b 17.3+17.5), B (e17c 15.7+17.6 seed v10 contract 27, e17d 17.2+17.7); six confirmations out to Bruno at the afternoon tablet session; starts on Matheus's word
+  epic-17-retrospective: done  # epic-17-retro-2026-10-28.md; machine verdict accepted-with-open-items (all seven stories and 15.7 done; open: eleven product decisions, Bruno's strings and tablet checks, the v0.4.0 deploy, QA G1/G2 and four review fix-now items, three criteria to amend, the playbook rules)
   17-1-the-registro-fotografico-holds-only-the-photos-added-by-hand: done  # 2026-10-28: PR #190 squash-merged as 0bdd925a (batch e17a with 17.4); five decisions pending for Matheus (orphan photos, stamp in section 9, Sumário row 7, gallery note, gallery order) | 2026-10-27: batch e17a started (wave A) |  # added 2026-10-27 (Bruno's new item 1): section 7 lists the "Geral" photos only, one numbering in document order; goldens unchanged (82 Geral photos)
   17-2-the-devices-camera-app-takes-the-photos: done  # 2026-10-28: PR #194 squash-merged as 3beacd40 (batch e17d with 17.7) | 2026-10-28: batch e17d started (wave B) | added 2026-10-27 (Bruno's new item 2): the capture input as the default on touch devices behind a device-local switch; copy "no relatório"; wave B after Matheus confirms the default
   17-3-n-a-from-a-control-beside-the-field-printed-n-a: done  # 2026-10-28: PR #189 squash-merged as fd5efabf (batch e17b with 17.5); QA G1 closed; E16-A1 closed | 2026-10-27: batch e17b started (wave A) |  # added 2026-10-27 (Bruno's answers 2 and 3; E16-A1, QA G1): "N/A" control on the acceptsNotApplicable fields, NOT_APPLICABLE_TEXT "N/A"; no contract
@@ -1178,3 +1179,51 @@ action_items:
     owner: "coordinator (tooling)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-17-retro-item-144-e17-a1-fix-batch-code-findings"
+    epic: 17
+    action: "E17-A1 Fix batch for the Epic 17 code findings, one branch, kernel tests first: QA G1 (one predicate shared by the oil rule and acceptsNotApplicable), QA G2 (ratio cells' names with a blank TAP), R4 (restrictionWarning composed from parts), R5 (one blank-label fallback in failedRatioRows), R11 (an authored nothing-left-to-read sentence), R18 (gallery note and Geral radio take sectionMention(snapshot, 7), web unit test on a compact snapshot); target the six items closed in one PR with its story gate"
+    owner: "coordinator (batch); Bruno's wording for R18"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+  - id: "epic-17-retro-item-145-e17-a2-matheus-decisions"
+    epic: 17
+    action: "E17-A2 Matheus's decisions, one dated line each: 17.1 (orphan photo placement, stamp and item line in section 9, Sumario row 7 count, gallery note wording, gallery sorted by number), 17.5 (parecer counts a failed ratio as NC whatever the conclusion, R9 pre-issue row as the alternative; TAP naming), 17.6 (cabine line and the altitude; hint without a geolocation API; R7 cabine altitude_m against an explicit N/A), 17.2 (touch-screen laptop default), 17.7 (viewer prefetch, R12 cache and abort), 17.3 (R8 N/A control in the Tab order or not), 15.7 (VASAMENTO or seed v11)"
+    owner: "Matheus"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+  - id: "epic-17-retro-item-146-e17-a3-bruno-tablet-session"
+    epic: 17
+    action: "E17-A3 Bruno's tablet session: the authored strings of all eight stories and the four TC NC phrase rows (docs/nc-chip-phrases.md), the timed two-tap Ler visor run through the camera app, the camera app end to end (cancelled app, HEIC device, portrait shot), Salvar no aparelho on iPadOS and Android, the VASAMENTO spelling; fold E14-A10, E15-A8 and E16-A3 into the same session; target dated answers under the stories"
+    owner: "Matheus (Bruno)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+  - id: "epic-17-retro-item-147-e17-a4-deploy-v0-4-0"
+    epic: 17
+    action: "E17-A4 Deploy v0.4.0 (contract 27) from the integrated main: aws login --profile fasor-admin (Matheus), infra/bin/deploy, smoke 8 of 8, tag v0.4.0, record in epic-17-context.md and docs/kbs/log.md; a GitHub release only on Matheus's word; E15-A10 stays open (no recovery for a lost ECS endpoint); target tag recorded and smoke green on the first run"
+    owner: "Matheus (login, release word); coordinator (deploy, record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+  - id: "epic-17-retro-item-148-e17-a5-playbook-rules"
+    epic: 17
+    action: "E17-A5 Playbook: write into epic-batch-orchestrator.md (unchanged since 2026-10-15) the rules carried only by epic-17-context.md and the batch specs: E15-A3, E15-A4, E16-A8, E16-A9, E16-A10, plus gate logs inside .scratch-<tag>/ never /tmp, a batch's last steps as a script the coordinator can run with its own watcher on the gate log, and a facts-the-batches-share line per epic context (reading_kind caption); target 0 process rules living only in an epic context file"
+    owner: "coordinator (playbook)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+  - id: "epic-17-retro-item-149-e17-a6-ledger-hygiene"
+    epic: 17
+    action: "E17-A6 Ledger hygiene for Epic 17: re-own the two-tap row to Bruno's session, name the E17-A1 batch as owner of QA G1 and G2, add rows for the e17a VGR-1 item (viewer remove step on a site-item photo), R1 (camera-off fallback picker guard), R3 (HEIC conversion failure loses the photo), R6 (one preference read per session), R10 (same-second file names), R13 (tiles and numbers from two sources for one render); target every confirmed finding has a row or a story line, 0 rows owned by a finished event"
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+  - id: "epic-17-retro-item-150-e17-a7-spec-reconciliation"
+    epic: 17
+    action: "E17-A7 Spec reconciliation in epics.md, dated strike-through, no sentence deleted: 17.1 DoR reading_kind null to null or caption; 17.6 AC the cabine line shows N/A to the cabine line as built or Matheus's decision; 17.2 AC same toasts to the one-photo toast and the HEIC stamp from the device clock; a dated preamble line that v0.3.4 was skipped and both waves ship as v0.4.0; target four dated lines"
+    owner: "coordinator (draft); Matheus (approve)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+  - id: "epic-17-retro-item-151-e17-a8-load-on-one-vm"
+    epic: 17
+    action: "E17-A8 Load on one VM: E16-A10 recurred (template-composer-defaults and template-composer-local red under load in e17a's pre-merge run) and e17b's test:api missed its timing target under the same load; make those tests load-independent or run the unit and api stages of batch gates under the host lock as the Playwright stages are, measure one epic, record the host load at every wave gate; target 0 superseded unit or api stages in Epic 18"
+    owner: "coordinator (tooling); Matheus (two batch stacks)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
