@@ -204,7 +204,8 @@ test.describe('on a touch screen', () => {
     await expect(galleryCamera).toBeVisible({ timeout: 30_000 });
     const geral = await shootThroughCameraApp(page, galleryCamera, jpeg, 'IMG_0005.jpg');
     expect(geral).toMatchObject({ block_id: null, item_key: null });
-    expect(geral.reading_kind).toBeNull();
+    // Story 9.3: a photo with no sheet and no caption asks for the vision caption, which `isGeralPhoto` accepts (Story 17.1).
+    expect(geral.reading_kind).toBe('caption');
 
     // The relatório tree's "Fotografar equipamento": the panel reading, no block yet.
     await page.goto(`/relatorio/${relatorioId}`);
@@ -224,7 +225,7 @@ test.describe('on a touch screen', () => {
 
 test('@p0 17.2-E2E-002 Conta: "Câmera do aparelho" follows the touch points, flips on a tap, survives a reload, and "Tirar foto" then takes the other path', async ({ page, context, browserName }) => {
   test.setTimeout(180_000);
-  const { blockId } = await openChaveSheet(page, account, database, { signIn: () => signInForDurability(page, context, account.email) });
+  const { relatorioId, blockId } = await openChaveSheet(page, account, database, { signIn: () => signInForDurability(page, context, account.email) });
   const touch = (await page.evaluate(() => navigator.maxTouchPoints)) > 0;
   expect(touch).toBe(test.info().project.use.hasTouch === true);
 
@@ -242,7 +243,7 @@ test('@p0 17.2-E2E-002 Conta: "Câmera do aparelho" follows the touch points, fl
   await expectSwitch(page, !touch);
 
   // The sheet's "Tirar foto" now takes the other path.
-  await page.goto(`/ficha/${blockId}`);
+  await page.goto(`/relatorio/${relatorioId}/ficha/${blockId}`);
   const tirar = page.locator('.sticky-action-bar').getByRole('button', { name: 'Tirar foto', exact: true });
   await expect(tirar).toBeVisible({ timeout: 30_000 });
   if (touch) {
