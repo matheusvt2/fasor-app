@@ -1,4 +1,4 @@
-import { fireEvent, getConfig, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, getConfig, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -1026,9 +1026,11 @@ describe('17.2-UNIT "Câmera do aparelho" on: every opener takes the camera app 
   const target = { blockId: '019966b0-0000-7000-8000-0000000000b1', itemKey: 'contatos', caption: 'Contatos', reading: undefined };
   let getUserMedia: ReturnType<typeof vi.fn>;
 
-  function AppHarness({ single = false }: { single?: boolean }) {
+  type HarnessOptions = NonNullable<Parameters<typeof useCamera>[3]>;
+
+  function AppHarness({ single = false, options = {} }: { single?: boolean; options?: HarnessOptions }) {
     const opener = useRef<HTMLButtonElement>(null);
-    const cam = useCamera('019966b0-0000-7000-8000-000000000001', () => target, opener, { singleShot: single });
+    const cam = useCamera('019966b0-0000-7000-8000-000000000001', () => target, opener, { singleShot: single, ...options });
     return (
       <>
         <button type="button" ref={opener} onClick={cam.open} data-count={cam.burst === 0 ? '' : String(cam.burst)}>
@@ -1041,11 +1043,11 @@ describe('17.2-UNIT "Câmera do aparelho" on: every opener takes the camera app 
     );
   }
 
-  function renderApp(sync: ReturnType<typeof makeSyncState> = makeSyncState({ online: false }), single = false) {
+  function renderApp(sync: ReturnType<typeof makeSyncState> = makeSyncState({ online: false }), single = false, options: HarnessOptions = {}) {
     render(
       <SyncContext value={sync}>
         <ToastProvider>
-          <AppHarness single={single} />
+          <AppHarness single={single} options={options} />
           <ToastOutlet />
         </ToastProvider>
       </SyncContext>,
@@ -1075,6 +1077,22 @@ describe('17.2-UNIT "Câmera do aparelho" on: every opener takes the camera app 
     expect(getUserMedia).not.toHaveBeenCalled();
     expect(screen.queryByRole('dialog', { name: 'Câmera' })).toBeNull();
     expect(screen.queryByText('abrindo')).toBeNull();
+  });
+
+  it('R11: a "Ler visor" press whose first target is gone says there is nothing left to shoot when the caller gives no hint, the hint when it gives one; no picker opens', async () => {
+    const picker = vi.spyOn(HTMLInputElement.prototype, 'click');
+    picker.mockClear();
+    renderApp(makeSyncState({ online: false }), false, { shotTarget: () => null });
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    expect(await screen.findByText('Nada mais a fotografar aqui: toda leitura desta ficha já tem foto.')).toBeVisible();
+    expect(screen.queryByText(/Não foi possível/)).toBeNull();
+    expect(picker).not.toHaveBeenCalled();
+    cleanup();
+    renderApp(makeSyncState({ online: false }), false, { shotTarget: () => null, shotHint: () => 'Próxima leitura: X' });
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    expect(await screen.findByText('Próxima leitura: X')).toBeVisible();
+    expect(picker).not.toHaveBeenCalled();
+    picker.mockRestore();
   });
 
   it("the returned file runs capture.shoot with the opener's target, the badge reads 1 while it is stored, and the toast is the one-photo one", async () => {

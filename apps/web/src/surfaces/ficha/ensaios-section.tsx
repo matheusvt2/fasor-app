@@ -4,6 +4,7 @@ import {
   evaluatedCells,
   measurementCells,
   measurementRunEnterKeyHint,
+  measurementCellName,
   measurementRunTarget,
   runEnterKeyHint,
   runTarget,
@@ -338,12 +339,12 @@ function MeasurementTable({
   const cellOf = (row: EvaluatedRow, col: number): EvaluatedCell | undefined => row.cells.find((cell) => cell.address.col === col);
   const field = (row: EvaluatedRow, cell: EvaluatedCell, presentation: 'table' | 'card') =>
     readOnly ? (
-      <ReadOnlyMeasurementField cell={cell} label={t.cellLabel(screenLabel(row.label), screenLabel(cell.column))} />
+      <ReadOnlyMeasurementField cell={cell} label={measurementCellName(screenLabel(row.label), screenLabel(cell.column))} />
     ) : sameAddress(dictatedCell, cell.address) && dictated !== null ? (
       <DictatedMeasurementField
         api={api}
         cell={cell}
-        label={t.cellLabel(screenLabel(row.label), screenLabel(cell.column))}
+        label={measurementCellName(screenLabel(row.label), screenLabel(cell.column))}
         reading={dictated}
         onDone={() => setDictated(null)}
         onRun={onRun}
@@ -353,7 +354,7 @@ function MeasurementTable({
         model={display}
         api={api}
         cell={cell}
-        label={t.cellLabel(screenLabel(row.label), screenLabel(cell.column))}
+        label={measurementCellName(screenLabel(row.label), screenLabel(cell.column))}
         presentation={presentation}
         missing={sameAddress(firstMissing, cell.address)}
         onRun={onRun}

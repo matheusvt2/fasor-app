@@ -9,6 +9,7 @@ import {
   photosImportedText,
   photosKeptGeneralText,
   photosKeptOnSheetText,
+  sectionMention,
   skippedFilesText,
   type RelatorioSnapshot,
 } from '@app/domain';
@@ -444,7 +445,8 @@ function SheetBody({
  * box that scrolls by itself, so "Geral" is never below all of it). One tap for the batch,
  * the caption field, "Adicionar N fotos".
  */
-function EquipmentStep({
+/** Exported for the unit test (fx17r, R18). */
+export function EquipmentStep({
   relatorioId,
   snapshot,
   count,
@@ -533,7 +535,7 @@ function EquipmentStep({
               ))}
             </div>
           ) : null}
-          <EquipmentRow label={t.general} selected={chosen === null} onPress={() => choose(null)} />
+          <EquipmentRow label={t.general(sectionMention(snapshot, 7))} selected={chosen === null} onPress={() => choose(null)} />
         </div>
       )}
       {chosen === undefined ? null : (

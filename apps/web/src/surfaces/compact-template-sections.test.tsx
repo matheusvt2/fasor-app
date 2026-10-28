@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { instantiateTemplate, standardTemplate, type BlockRow } from '@app/domain';
+import { instantiateTemplate, standardTemplate, type BlockRow, type RelatorioSnapshot } from '@app/domain';
 import { BLOCK_CHAVE_ID, BLOCK_DISJUNTOR_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { cleanup, configure, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -17,6 +17,7 @@ import { ToastOutlet, ToastProvider } from '../state/toast.tsx';
 import { makeSyncState } from '../test/sync-state.ts';
 import { FichaSurface } from './ficha/ficha-surface.tsx';
 import { GallerySurface } from './photos/gallery-surface.tsx';
+import { EquipmentStep } from './photos/capture-sheet.tsx';
 import { PointsSurface } from './points/points-surface.tsx';
 
 /*
@@ -55,9 +56,12 @@ vi.mock('../state/drafts.tsx', () => ({ useDraftSource: () => async () => undefi
 configure({ asyncUtilTimeout: 5000 });
 
 const NO_FO_SERV_NUMBER = /[Ss]eção (9|10|11)\b/;
+const GERAL_NOTE_PRINTS = 'Fotos tiradas aqui entram como Geral e saem no Registro fotográfico; as fotos de um equipamento ou de um local saem só na ficha ou no local.';
+const GERAL_NOTE_ABSENT =
+  'Fotos tiradas aqui entram como Geral e ficam só na galeria (o relatório não tem a seção "Registro fotográfico"); as fotos de um equipamento ou de um local saem só na ficha ou no local.';
 
-/** The section blocks of a compact template, retargeted at the fixture's relatório. */
-function compactSectionBlocks(): BlockRow[] {
+/** The section blocks of a compact template, retargeted at the fixture's relatório; `without7` drops Registro fotográfico too (fx17r, R18). */
+function compactSectionBlocks(without7 = false): BlockRow[] {
   let n = 0;
   const { drafts } = instantiateTemplate(
     standardTemplate({ id: '019966c1-00f2-7000-8000-000000000001' }),
@@ -68,16 +72,16 @@ function compactSectionBlocks(): BlockRow[] {
   return drafts
     .filter((d) => d.path.startsWith('block/'))
     .map((d) => d.value as unknown as BlockRow)
-    .filter((b) => b.location_id === null && !['section_2', 'section_3', 'section_4', 'section_6', 'section_11'].includes(b.block_type))
+    .filter((b) => b.location_id === null && !['section_2', 'section_3', 'section_4', 'section_6', 'section_11', ...(without7 ? ['section_7'] : [])].includes(b.block_type))
     .map((b) => ({ ...b, relatorio_id: RELATORIO, created_by: USER }));
 }
 
-async function compactDb(): Promise<AppDatabase> {
+async function compactDb(without7 = false): Promise<AppDatabase> {
   const user = `019966c1-00f4-7000-8000-${(++counter).toString(16).padStart(12, '0')}`;
   await openDatabase(user).delete();
   const db = openDatabase(user);
   await applyPulled(db, portoSeguroSmall.log);
-  await db.entities.bulkPut(compactSectionBlocks().map((b) => toRecord(`block:${b.id}`, b)));
+  await db.entities.bulkPut(compactSectionBlocks(without7).map((b) => toRecord(`block:${b.id}`, b)));
   return db;
 }
 
@@ -135,7 +139,37 @@ describe('F43 (UX pass 2026-10-22): a compact template, surface by surface', () 
     database = await compactDb();
     const { container } = renderAt(`/relatorio/${RELATORIO}/fotos`, '/relatorio/:id/fotos', <GallerySurface />);
     await waitFor(() => expect(container.querySelector('.section-note')).toHaveTextContent('Os números são provisórios até a exportação (seção 3 do relatório).'));
+    expect(container.querySelector('.gallery-geral-note')).toHaveTextContent(GERAL_NOTE_PRINTS, { normalizeWhitespace: false });
     expect(container.textContent).not.toMatch(NO_FO_SERV_NUMBER);
+  });
+
+  it('R18 (fx17r): without Registro fotográfico the gallery\'s Geral note says the photos stay in the gallery', async () => {
+    database = await compactDb(true);
+    const { container } = renderAt(`/relatorio/${RELATORIO}/fotos`, '/relatorio/:id/fotos', <GallerySurface />);
+    await waitFor(() => expect(container.querySelector('.gallery-geral-note')).toHaveTextContent(GERAL_NOTE_ABSENT, { normalizeWhitespace: false }));
+    expect(container.textContent).not.toContain(GERAL_NOTE_PRINTS);
+  });
+
+  it('R18 (fx17r): the capture sheet\'s "Geral" radio promises Registro fotográfico only when the relatório carries it', async () => {
+    const snapshotWith = (blocks: BlockRow[]) =>
+      ({
+        relatorio: { id: RELATORIO, status: 'em_campo', seed_version: 'v1', export: { scheme: 'ordem_de_campo' } },
+        blocks,
+        equipment: [],
+        locations: [],
+        files: [],
+        points: [],
+        suggestions: [],
+        instruments: [],
+      }) as unknown as RelatorioSnapshot;
+    const step = (snapshot: RelatorioSnapshot) =>
+      render(<EquipmentStep relatorioId={RELATORIO} snapshot={snapshot} count={1} titleId="t" onCancel={() => undefined} onAdd={() => undefined} />);
+    step(snapshotWith(compactSectionBlocks(true)));
+    expect(await screen.findByRole('radio', { name: 'Geral — só na galeria (serviços gerais)' })).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Geral — Registro fotográfico (serviços gerais)' })).toBeNull();
+    cleanup();
+    step(snapshotWith(compactSectionBlocks()));
+    expect(await screen.findByRole('radio', { name: 'Geral — Registro fotográfico (serviços gerais)' })).toBeInTheDocument();
   });
 
   it('a ficha: its conclusion helper names "seção 5", through the ficha surface', async () => {

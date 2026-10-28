@@ -909,6 +909,8 @@ export const copy = {
     // authored: a shot that could not be read or saved at all. Review 2026-10-08 (FLD-V1): the
     // open camera says it in `.cam-hint` until the next shot saves; a closed one, in a toast.
     failedToast: 'Não foi possível salvar a foto. Tente de novo.',
+    // authored (fx17r, R11, open for Bruno): a "Ler visor" press whose first target is gone when the caller gives no hint.
+    noTargetToast: 'Nada mais a fotografar aqui: toda leitura desta ficha já tem foto.',
     // `60-ficha.html` NC row, verbatim.
     addPhoto: 'Adicionar foto',
     addPhotoReason: 'Recomendada para não conforme',
@@ -960,7 +962,11 @@ export const copy = {
     // authored: the tile's suggestion group name.
     suggestedCaption: 'Legenda sugerida',
     // authored (Story 17.1, listed for Bruno): the line under the gallery camera.
-    geralNote: 'Fotos tiradas aqui entram como Geral e saem no Registro fotográfico; as fotos de um equipamento ou de um local saem só na ficha ou no local.',
+    // authored (fx17r, R18, open for Bruno): with section 7 absent the Geral photos stay in the gallery (vocabulary of gallery.note and photoRemoveDescription).
+    geralNote: (m: Mention) =>
+      m.prints
+        ? 'Fotos tiradas aqui entram como Geral e saem no Registro fotográfico; as fotos de um equipamento ou de um local saem só na ficha ou no local.'
+        : `Fotos tiradas aqui entram como Geral e ficam só na galeria (o relatório não tem a ${m.ref}); as fotos de um equipamento ou de um local saem só na ficha ou no local.`,
   },
   // Story 6.3: the Photo viewer (`70-fotos.html` "Photo viewer").
   viewer: {
@@ -996,7 +1002,8 @@ export const copy = {
     cancel: 'Cancelar',
     whichEquipment: 'De qual equipamento?',
     // authored (Story 17.1, listed for Bruno): where a "Geral" photo prints.
-    general: 'Geral — Registro fotográfico (serviços gerais)',
+    // authored (fx17r, R18, open for Bruno): with section 7 absent the Geral photos stay in the gallery (vocabulary of gallery.note and photoRemoveDescription).
+    general: (m: Mention) => (m.prints ? 'Geral — Registro fotográfico (serviços gerais)' : 'Geral — só na galeria (serviços gerais)'),
     // authored: the list of equipment rows.
     equipmentList: 'Equipamentos do relatório',
     // `70-fotos.html` "Outro equipamento — abrir a árvore", shortened: E6-Q4 opens the whole
@@ -1338,8 +1345,6 @@ export const copy = {
       // EXPERIENCE.md › State patterns, Empty: Instrument picker.
       noInstruments: 'Nenhum instrumento cadastrado',
       registerInstrument: 'Cadastrar instrumento',
-      // authored: a Measurement cell's accessible name, row + column ("Fase A, 1 minuto").
-      cellLabel: (row: string, column: string) => `${row}, ${column}`,
       // authored: the TTR card's field label ("H1-H2 / X1-X2 (medido)", `60-ficha.html`).
       cardMeasured: (column: string) => `${column} (medido)`,
       // `60-ficha.html` TTR card: "Condição: Satisfatório".

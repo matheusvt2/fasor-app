@@ -341,7 +341,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
           <span className="btn-reason drag-reason">{copy.photos.dragReason}</span>
         </div>
         {camera.note}
-        <p className="section-note gallery-geral-note">{t.geralNote}</p>
+        <p className="section-note gallery-geral-note">{t.geralNote(sectionMention(snapshot, 7))}</p>
       </div>
 
       <PhotoViewer

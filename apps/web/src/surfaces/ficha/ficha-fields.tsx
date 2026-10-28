@@ -246,6 +246,7 @@ export interface FieldProps {
    * Story 16.4: a nameplate or cabine number field accepts the "N/A" spellings; any other
    * number field (a measurement test's value) refuses them as text that is no number.
    * Story 17.3: such a field also renders the "N/A" control at its trailing end.
+   * On the plate the flag is the kernel's `nameplateAcceptsNotApplicable` (QA G1).
    */
   acceptsNotApplicable?: boolean;
 }
@@ -331,7 +332,8 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
   const parseNumber = (text: string): ParsedNumber | null | 'invalid' => {
     const parsed = numberFieldValue(text, unit);
     if (parsed === null || parsed === 'invalid') return parsed;
-    if (parsed.state === 'not_applicable' && acceptsNotApplicable !== true) return 'invalid';
+    // QA G1, fx17r review: an N/A stored before the field stopped offering it still reads N/A.
+    if (parsed.state === 'not_applicable' && acceptsNotApplicable !== true && !storedNotApplicable) return 'invalid';
     return parsed.state === 'not_applicable' ? { raw: '', unit: null, state: 'not_applicable' } : { raw: parsed.raw, unit: parsed.unit };
   };
   const number: ReturnType<typeof useNumberInput> = useNumberInput({

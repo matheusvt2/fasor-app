@@ -154,6 +154,14 @@ export function sentenceCase(text: string): string {
   return lower.charAt(0).toLocaleUpperCase('pt-BR') + lower.slice(1);
 }
 
+/**
+ * The accessible name of a Measurement cell ("Fase A, 1 minuto"); a row with no label yet (the
+ * transformer's TAP Nº before TAP atual is typed) names the cell by its column alone (QA G2).
+ */
+export function measurementCellName(rowLabel: string, column: string): string {
+  return rowLabel.trim() === '' ? column : `${rowLabel}, ${column}`;
+}
+
 /** The Measurement table's column headers where FO.SERV-03's own label reads badly on screen (`60-ficha.html`). */
 const HEADER_TEXT: Readonly<Record<string, string>> = {
   VALORES: 'Valor',

@@ -10,6 +10,7 @@
 export {
   condicaoScreenText,
   headerText,
+  measurementCellName,
   nextUnit,
   ratioFormulaHelperText,
   readingLabelText,
