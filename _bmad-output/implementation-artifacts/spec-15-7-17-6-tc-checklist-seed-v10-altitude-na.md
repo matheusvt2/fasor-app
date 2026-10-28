@@ -2,7 +2,7 @@
 title: 'Stories 15.7 and 17.6: the TC''s own checklist (seed v10); "Altitude do site" takes N/A and says when the device gave none (contract 27)'
 type: 'feature'
 created: '2026-10-28'
-status: 'in-review'
+status: 'done'
 baseline_revision: '1a2f0b0f2a56872166008bf6c628366a9380323a'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -131,3 +131,13 @@ Every command from the worktree root in the tools container: `podman compose --p
   - `[low]` `[reject]` (edge) two devices racing a confirm against an N/A merge per field to `na: true, confirmed: true, m: null`, and "Alterar" from N/A then renders the confirmed line with no value — a two-device race on an office-side step; the fix adds a render guard for a state no surface writes; listed as known open in the PR.
   - `[low]` `[reject]` (edge) "Alterar" from N/A on a device that mounted with `na: true` never asks the device, so no prefill or hint — by design: the position is asked once per relatório on mount (Story 4.2, F-11/W-14) and the hint follows a kept answer (open question 2 in the Design Notes).
   - `[maybe-false]` `[reject]` (edge) on desktop the mousedown on "N/A" blurs a dirty input, so one `site_altitude_m` put of the typed value lands before the N/A batch — by design, spec B7 ("a blur that already wrote the typed value is harmless"), the same two-put sequence as Story 17.3 A9; the stored end state is N/A.
+
+## Auto Run Result
+
+Status: done (review pass 1; gate in the PR body).
+
+- Summary: (15.7) seed v10 derived from v9 (`seed/v10.ts`): the TC's own seven-item checklist (1 LIMPEZA, PINTURA E CORROSÃO; 2 VASAMENTO; 3 FUSÍVEIS; 4 ATERRAMENTO; 5 CONEXÕES; 6 FIAÇÃO SECUNDÁRIA; 7 BUCHAS), `epoxi`/`a_seco` `na_defaults` and `oil_rule.items` = `['vasamento']`, TP and Transformador de força untouched; `ITEM_KEYS` appends `limpeza_pintura_e_corrosao`, `vasamento`, `fiacao_secundaria`, `buchas`; `SEED_VERSION` v10, `V9_HASH` pinned (`51a82df9…`). (17.6) `site_altitude_na: boolean` (default false) beside `site_altitude_m`; `siteAltitudeValue(setup)` (`relatorio/setup-complete.ts`) is the one reader (N/A wins), used by section 9's ALTITUDE cell and the sheet's read-only Altitude; the shared `NotApplicableButton` (`components/not-applicable-button.tsx`, also rendered by `NumberField`) on Etapa 5; the N/A tap writes `[site_altitude_na true, site_altitude_m null]` in one batch and shows the line "Altitude do site: N/A" with "Alterar"; the authored hint when the device answered no altitude. Contract 27, minimum 27 (one entry).
+- Files: kernel `schemas/block-config.ts`, `schemas/entities.ts`, `seed/v10.ts` (new), `seed/definitions.ts`, `contract/version.ts`, `contract/examples.ts`, `relatorio/instantiate.ts`, `relatorio/setup-complete.ts`, `print/section-9.ts`, `fixtures/replay-small/snapshot.golden.json` (one key `site_altitude_na: false`, the replayed snapshot now carries the default) and tests; web `components/not-applicable-button.tsx` (new), `components/index.ts`, `surfaces/ficha/ficha-fields.tsx`, `surfaces/ficha/cabine-block.tsx`, `surfaces/relatorio/setup/etapa5-local.tsx`, `copy/pt-br.ts` and tests; api `sync.integration.test.ts`; e2e `seed-v10.spec.ts`, `altitude-na.spec.ts`, `altitude-na.durability.spec.ts` (new), `seed-v9.spec.ts`, `support/groups.ts`; docs `nc-chip-phrases.md`, `source-deltas.md`, `glossary.md`, `kernel-and-seed.md`, `docs/kbs/log.md`, `deferred-work.md` (QA G3 closed).
+- Review: 5 findings; patched 2 (one medium gap: the WebKit no-focus tap test, mutation-checked red without `markClean()`; one low edge: the N/A tap marks the field user-edited), rejected 3 (two by design, one two-device race listed as known open). Follow-up review recommended: false.
+- Verification (tools container, final commit `cad3aad4`): lint 0 errors (25 pre-existing warnings); static green; test:api 686/686 (92 files); test:unit 4562/4562 (323 files); touched specs on desktop-chrome and durability-desktop-chrome 72/72 (`LOCKED_AFTER=0s`, 371 s); durability specs on durability-android-chrome and durability-webkit 16/16.
+- Deviation from the spec's "touch no golden": `fixtures/replay-small/snapshot.golden.json` gained the one default key; the Porto Seguro snapshot JSON, DOCX and PDF goldens are byte-identical.
