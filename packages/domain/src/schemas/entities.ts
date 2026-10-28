@@ -33,6 +33,7 @@ export const numberValueSchema = z.object({
   unit: nullableString,
   state: z.enum(['measured', 'not_measured', 'empty', 'not_applicable']),
 });
+export type NumberValue = z.infer<typeof numberValueSchema>;
 
 /** AD-11 `date` value shape: `YYYY-MM-DD` or `YYYY-MM`. */
 export const dateValueSchema = z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/);
@@ -339,6 +340,9 @@ export const relatorioSetupSchema = z.object({
   instrument_ids: z.array(uuidV7Schema).default([]),
   // Etapa 5 (Local): the site altitude, prefilled from geolocation and confirmed once.
   site_altitude_m: z.number().int().nullable().default(null),
+  // Story 17.6 (contract 27): the device gave no altitude and none applies ("N/A"). It wins
+  // over `site_altitude_m` in every reader (`siteAltitudeValue`).
+  site_altitude_na: z.boolean().default(false),
   site_altitude_confirmed: z.boolean().default(false),
   next_intervention_date: dateValueSchema.nullable().default(null),
   next_intervention_justification: nullableString.default(null),

@@ -25,10 +25,11 @@ import { isOilFieldExcused } from '../relatorio/oil-rule.ts';
 import { evaluateSheetReadings, type EvaluatedCell, type EvaluatedRow, type EvaluatedTable, type TestEvaluation, type TestKey } from '../relatorio/readings.ts';
 import { checklistResultOf } from '../relatorio/sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from '../relatorio/sheet-state.ts';
+import { siteAltitudeValue } from '../relatorio/setup-complete.ts';
 import { SITE_CHECKLIST_LABEL, siteObservationOf, siteResultOf } from '../relatorio/site-checklist.ts';
 import { blockTypeLabel, notTestedReasonText } from '../relatorio/tree.ts';
 import type { SubBlockKey } from '../schemas/block-config.ts';
-import type { BlockRow, UserRow } from '../schemas/entities.ts';
+import type { BlockRow, NumberValue, UserRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { findDefinition, findSeed, getSeed } from '../seed/definitions.ts';
 import type { BlockDefinition, CabineDefinition, ColumnDef, FieldDef, ReportSeed, SiteChecklist, TableDef, TestDef } from '../seed/schema.ts';
@@ -327,18 +328,16 @@ function attributionOf(block: BlockRow, actors: ReadonlyMap<string, UserRow>): s
  * CARACTERÍSTICAS DA SE and AMBIENTE DE ENSAIO, labels over values, "-" for a field not
  * filled. ALTITUDE is the relatório's since Story 12.3 (setup Etapa 5, `site_altitude_m`; no
  * sheet asks the cabine's, `relatorio/cabine.ts` SETUP_OWNED): a cabine value still wins when
- * one exists, else the setup's prints.
+ * one exists, else the setup's prints ("N/A" when `site_altitude_na`, Story 17.6).
  */
-function cabineParts(cabine: CabineLocation, definition: CabineDefinition, siteAltitudeM: number | null): SheetPart[] {
+function cabineParts(cabine: CabineLocation, definition: CabineDefinition, siteAltitude: NumberValue | null): SheetPart[] {
   const group = (title: string, fields: readonly FieldDef[], values: Record<string, unknown>): SheetPart =>
     table(
       fields.map(() => 1),
       [bandRow(title, fields.length), headerRow(fields.map((field) => printLabel(field.label))), { cells: fields.map((field) => valueCell(storedValueText(field, values[field.key]))) }],
     );
   const env: Record<string, unknown> = { ...(cabine.env as Record<string, unknown>) };
-  if ((env.altitude_m === null || env.altitude_m === undefined) && siteAltitudeM !== null) {
-    env.altitude_m = { raw: String(siteAltitudeM), unit: 'm', state: 'measured' };
-  }
+  if ((env.altitude_m === null || env.altitude_m === undefined) && siteAltitude !== null) env.altitude_m = siteAltitude;
   return [group(CABINE_SE_TITLE, definition.se, cabine.se as Record<string, unknown>), group(CABINE_ENV_TITLE, definition.env, env)];
 }
 
@@ -434,7 +433,7 @@ function localPartsOf(ctx: Context, cabine: CabineLocation, seed: ReportSeed, li
   // The walk kept only this local's photos on an item of `list` (the seed's site list).
   const photos = printPhotos(ctx, ctx.photos.locals.get(cabine.id) ?? []);
   return [
-    ...cabineParts(cabine, seed.cabine, ctx.snapshot.relatorio.setup.site_altitude_m),
+    ...cabineParts(cabine, seed.cabine, siteAltitudeValue(ctx.snapshot.relatorio.setup)),
     siteChecklistPart(cabine, list, seed.checklist_columns),
     ...photosPart(photos),
   ];
@@ -836,7 +835,7 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   const seed = sheetSeedOf(block.seed_version);
   const enabled = enabledSubBlocksOf(block);
   const parts: SheetPart[] = [];
-  if (cabine !== null && seed !== null) parts.push(...cabineParts(cabine, seed.cabine, ctx.snapshot.relatorio.setup.site_altitude_m));
+  if (cabine !== null && seed !== null) parts.push(...cabineParts(cabine, seed.cabine, siteAltitudeValue(ctx.snapshot.relatorio.setup)));
   const nameplate = definition !== null && enabled.has('nameplate') && definition.nameplate.length > 0;
   if (nameplate) parts.push(nameplatePart(ctx, block, definition));
   const sheet = { blockId, title: sheetTitle(block, tag), attribution: attributionOf(block, ctx.actors), parts };

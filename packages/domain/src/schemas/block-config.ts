@@ -187,6 +187,12 @@ export const ITEM_KEYS = [
   'placas_de_sinalizacao',
   'organizacao_interna',
   'identificacao_de_circuitos',
+  // Appended (seed v10, Story 15.7, contract 27): the TC's own list (`docs/nc-chip-phrases.md`,
+  // "TC"); `fusiveis`, `aterramento` and `conexoes` are the keys other lists already use.
+  'limpeza_pintura_e_corrosao',
+  'vasamento',
+  'fiacao_secundaria',
+  'buchas',
 ] as const;
 
 export const itemKeySchema = z.enum(ITEM_KEYS);

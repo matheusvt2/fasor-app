@@ -1,11 +1,11 @@
-import { calendarDateOfInstant, siteAltitudeText, type RelatorioSnapshot } from '@app/domain';
+import { calendarDateOfInstant, NOT_APPLICABLE_TEXT, siteAltitudeText, type RelatorioSnapshot } from '@app/domain';
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { Button, DateField, TextButton } from '../../../components/index.ts';
+import { Button, DateField, NotApplicableButton, TextButton } from '../../../components/index.ts';
 import { useNumberInput, type ParsedNumber } from '../../../components/number-input.tsx';
 import { copy } from '../../../copy/pt-br.ts';
 import { now } from '../../../clock.ts';
 import { restoreFocus } from '../../../input/focus-restore.ts';
-import { siteAltitudeReading } from './altitude-reading.ts';
+import { keptAltitudeAnswer, siteAltitudeReading } from './altitude-reading.ts';
 import { useDateField, useTextField, type BandRef, type CommitField, type CommitFields } from './setup-fields.ts';
 
 /** Story 14.10 lane B: the "Hoje" chip of an empty Próxima intervenção, today in America/Sao_Paulo (Etapa 1's rule, 13.4). */
@@ -40,18 +40,28 @@ export function Etapa5Local({
   // it still shows that reading.
   const [reading, setReading] = useState<string | null>(null);
   const altitudeInput = useRef<HTMLInputElement | null>(null);
+  const relatorioId = snapshot.relatorio.id;
+  // Story 17.6: the device answered with no altitude (denied, unavailable, or a fix without
+  // one), so the empty field says so. A device that was never asked (no geolocation API, open
+  // question 2) answered nothing and shows no hint. A kept answer counts without asking again,
+  // so "Alterar" from N/A shows the hint after a reload too.
+  const [deviceGaveNone, setDeviceGaveNone] = useState(() => keptAltitudeAnswer(relatorioId)?.altitude === null);
 
   // F-11 / W-14: the device is asked once per relatório (`siteAltitudeReading` keeps the first
   // answer); a later mount shows the kept reading without asking, and an answer arriving after
-  // the page is gone sets nothing.
-  const relatorioId = snapshot.relatorio.id;
+  // the page is gone sets nothing. Story 17.6: an altitude marked N/A asks nothing either.
   useEffect(() => {
-    if (setup.site_altitude_m !== null || setup.site_altitude_confirmed) return;
+    if (setup.site_altitude_m !== null || setup.site_altitude_confirmed || setup.site_altitude_na) return;
     const answer = siteAltitudeReading(relatorioId, (globalThis.navigator as Navigator | undefined)?.geolocation);
     if (answer === null) return;
     let cancelled = false;
     void answer.then(({ altitude }) => {
-      if (cancelled || altitudeUserEdited.current || altitude === null) return;
+      if (cancelled) return;
+      if (altitude === null) {
+        setDeviceGaveNone(true);
+        return;
+      }
+      if (altitudeUserEdited.current) return;
       setReading(String(altitude));
     });
     return () => {
@@ -101,6 +111,25 @@ export function Etapa5Local({
     restoreFocus(() => altitudeInput.current, { mode: 'settled' });
   }
 
+  /** Story 17.6: "N/A" writes the mark and clears the number in one batch (the existing setup puts). */
+  async function onNotApplicable(): Promise<void> {
+    // The mark is the user's own edit: a position answering later never prefills the field.
+    altitudeUserEdited.current = true;
+    lastWritten.current = null;
+    setReading(null);
+    await onCommitFields([
+      ['site_altitude_na', true],
+      ['site_altitude_m', null],
+    ]);
+  }
+
+  /** Story 17.6: "Alterar" from N/A reopens the empty field with the focus in it. */
+  async function onChangeNotApplicable(): Promise<void> {
+    altitudeUserEdited.current = true;
+    await onCommit('site_altitude_na', false);
+    restoreFocus(() => altitudeInput.current, { mode: 'settled' });
+  }
+
   return (
     <section className="section-band" aria-labelledby="setup-e5" ref={(el) => bandRef(el)}>
       <div className="band-head">
@@ -114,7 +143,17 @@ export function Etapa5Local({
       </div>
       <div className="band-body">
         <div className="form-grid">
-          {setup.site_altitude_confirmed ? (
+          {setup.site_altitude_na ? (
+            <div className="field suggestion-field altitude-field span-2">
+              <span className="field-label">{t.altitudeLabel}</span>
+              <span className="row">
+                <span className="helper helper-ok">{t.altitudeNotApplicable(NOT_APPLICABLE_TEXT)}</span>
+                <TextButton aria-label={t.altitudeChangeLabel} onPress={() => void onChangeNotApplicable()}>
+                  {t.altitudeChange}
+                </TextButton>
+              </span>
+            </div>
+          ) : setup.site_altitude_confirmed ? (
             <div className="field suggestion-field altitude-field span-2">
               <span className="field-label">{t.altitudeLabel}</span>
               <span className="row">
@@ -130,9 +169,11 @@ export function Etapa5Local({
               stored={setup.site_altitude_m}
               reading={reading}
               inputRef={altitudeInput}
+              deviceGaveNone={deviceGaveNone}
               onEdit={() => (altitudeUserEdited.current = true)}
               onCommit={onTypedAltitude}
               onConfirm={onConfirmAltitude}
+              onNotApplicable={onNotApplicable}
             />
           )}
           <DateField
@@ -190,20 +231,26 @@ function AltitudeInput({
   stored,
   reading,
   inputRef,
+  deviceGaveNone,
   onEdit,
   onCommit,
   onConfirm,
+  onNotApplicable,
 }: {
   relatorioId: string;
   stored: number | null;
   reading: string | null;
   inputRef: RefObject<HTMLInputElement | null>;
+  /** Story 17.6: the device answered with no altitude, so the empty field says so. */
+  deviceGaveNone: boolean;
   onEdit: () => void;
   onCommit: (value: number | null) => Promise<void>;
   onConfirm: (value: number) => Promise<void>;
+  onNotApplicable: () => Promise<void>;
 }) {
   const t = copy.setup;
   const altitudeId = useId();
+  const hintId = useId();
   const storedText = stored === null ? (reading ?? '') : String(stored);
   const element = useRef<HTMLInputElement | null>(null);
   const badInput = () => element.current?.validity?.badInput === true;
@@ -231,16 +278,19 @@ function AltitudeInput({
   const parsed = altitude.parsed;
   const shownAltitude = parsed === null || parsed === 'invalid' ? null : metres(parsed);
   const suggested = reading !== null && altitude.text === reading;
+  const showsHint = deviceGaveNone && stored === null && altitude.text.trim() === '';
 
   return (
     <div className="field suggestion-field altitude-field span-2" data-state={suggested ? 'suggested' : undefined}>
       <label className="field-label" htmlFor={altitudeId}>
         {t.altitudeLabel}
       </label>
+      <div className="field-na-row">
       <div className="measurement-field">
         <input
           {...inputProps}
           id={altitudeId}
+          aria-describedby={showsHint ? hintId : undefined}
           ref={(el) => {
             inputRef.current = el;
             element.current = el;
@@ -280,6 +330,22 @@ function AltitudeInput({
           </Button>
         )}
       </div>
+      <NotApplicableButton
+        label={t.altitudeLabel}
+        onPress={() => {
+          if (idle.current !== null) clearTimeout(idle.current);
+          idle.current = null;
+          // The typed text is replaced by the mark: neither the blur nor leaving writes it again.
+          altitude.markClean();
+          void onNotApplicable();
+        }}
+      />
+      </div>
+      {showsHint ? (
+        <span className="helper" id={hintId}>
+          {t.altitudeNoneHint}
+        </span>
+      ) : null}
       {suggested ? <span className="suggested-pill">{t.altitudeSuggestedPill}</span> : null}
     </div>
   );

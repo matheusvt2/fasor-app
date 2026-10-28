@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import type { RelatorioSetup, UserRow } from '../schemas/entities.ts';
-import { firstSetupGap, setupGaps, setupGapsNote, setupGapsText, setupIncompleteReason, siteAltitudeText } from './setup-complete.ts';
+import { firstSetupGap, setupGaps, setupGapsNote, setupGapsText, setupIncompleteReason, siteAltitudeText, siteAltitudeValue } from './setup-complete.ts';
 
 const RESPONSIBLE: UserRow = {
   id: '019966b0-0061-7000-8000-000000000003',
@@ -26,6 +26,7 @@ const COMPLETE_SETUP: RelatorioSetup = {
   art_trt_number: '2620262602583',
   instrument_ids: ['019966b0-0068-7000-8000-000000000001'],
   site_altitude_m: null,
+  site_altitude_na: false,
   site_altitude_confirmed: false,
   next_intervention_date: null,
   next_intervention_justification: null,
@@ -122,5 +123,14 @@ describe('siteAltitudeText (FR-16)', () => {
   it('is "⟨m⟩ m" at or above the threshold', () => {
     expect(siteAltitudeText(1000)).toBe('1000 m');
     expect(siteAltitudeText(1200)).toBe('1200 m');
+  });
+});
+
+describe('siteAltitudeValue (Story 17.6)', () => {
+  it('reads N/A when marked (over a stored number), metres when typed, null with neither', () => {
+    expect(siteAltitudeValue({ site_altitude_m: null, site_altitude_na: true })).toEqual({ raw: '', unit: null, state: 'not_applicable' });
+    expect(siteAltitudeValue({ site_altitude_m: 840, site_altitude_na: true })).toEqual({ raw: '', unit: null, state: 'not_applicable' });
+    expect(siteAltitudeValue({ site_altitude_m: 840, site_altitude_na: false })).toEqual({ raw: '840', unit: 'm', state: 'measured' });
+    expect(siteAltitudeValue({ site_altitude_m: null, site_altitude_na: false })).toBeNull();
   });
 });

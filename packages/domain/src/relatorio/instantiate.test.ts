@@ -7,6 +7,7 @@ import { blockConfigSchema, EQUIPMENT_BLOCK_TYPES, type EquipmentBlockType } fro
 import { blockRowSchema, type BlockRow, type EquipmentRow, type LocationRow, type RelatorioRow, type TemplateRow } from '../schemas/entities.ts';
 import { buildSnapshot } from '../schemas/snapshot.ts';
 import { standardTemplate, templateTotals } from '../seed/template.ts';
+import { SEED_VERSION } from '../seed/definitions.ts';
 import { addCabine, addColuna, addPainel, setQuantity, setSectionText, setTypeDefaults, typeConfigFor } from '../templates/compose.ts';
 import { templateFromRelatorio } from '../templates/from-relatorio.ts';
 import { emptyTemplate } from '../templates/list.ts';
@@ -52,7 +53,7 @@ describe('4.1-UNIT instantiateTemplate over the standard template', () => {
       project_id: TEST_PROJECT,
       template_id: TEMPLATE_ID,
       template_version: 1,
-      seed_version: 'v9',
+      seed_version: SEED_VERSION,
       status: 'rascunho',
       setup: {
         service_start: '2026-09-06',
@@ -64,6 +65,7 @@ describe('4.1-UNIT instantiateTemplate over the standard template', () => {
         art_trt_number: null,
         instrument_ids: [],
         site_altitude_m: null,
+        site_altitude_na: false,
         site_altitude_confirmed: false,
         next_intervention_date: null,
         next_intervention_justification: null,
@@ -108,7 +110,7 @@ describe('4.1-UNIT instantiateTemplate over the standard template', () => {
     expect(sortByOrderKey(sections).map((b) => b.block_type)).toEqual([...RELATORIO_SECTION_TYPES]);
     for (const section of sections) {
       expect(section.equipment_id).toBeNull();
-      expect(section.seed_version).toBe('v9');
+      expect(section.seed_version).toBe(SEED_VERSION);
       expect(blockRowSchema.safeParse(section).success).toBe(true);
     }
     const s2 = sections.find((b) => b.block_type === 'section_2')!;

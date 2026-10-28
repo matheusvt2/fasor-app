@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ZodError } from 'zod';
-import { blockRowSchema, emptySheet, type BlockRow, type FileRow, type LocationRow } from '../schemas/entities.ts';
+import { blockRowSchema, emptySheet, relatorioRowSchema, type BlockRow, type FileRow, type LocationRow } from '../schemas/entities.ts';
 import { opFactory, TEST_COMPANY, TEST_RELATORIO, TEST_USER } from '../test-support.ts';
 import { applyOp, entityKey, LocationKindError, readPath, SeedPathError, targetsOf, type EntityState } from './apply.ts';
 import { replay } from './replay.ts';
@@ -243,6 +243,29 @@ describe('1.4-UNIT-002 applyOp semantics', () => {
       export: { scheme: 'ordem_de_campo' },
       preview_file_id: PHOTO,
     });
+  });
+
+  it('17.6: a row written before contract 27 parses with site_altitude_na false, and the put folds it', () => {
+    const f = opFactory();
+    const key = entityKey('relatorio', TEST_RELATORIO);
+    const row = relatorioRowSchema.parse({
+      id: TEST_RELATORIO,
+      project_id: '019966b0-0004-7000-8000-000000000009',
+      template_id: null,
+      template_version: null,
+      seed_version: 'v1',
+      status: 'rascunho',
+      setup: { service_start: null, service_end: null, atividade: null, local: null, responsible_user_id: null, cover_photo_file_id: null, site_altitude_m: 760 },
+      export: { scheme: 'por_local_e_tipo' },
+      preview_file_id: null,
+      removed_at: null,
+    });
+    expect(row.setup.site_altitude_na).toBe(false);
+    const s = fold(state([key, row]), [
+      f.op({ path: 'relatorio/setup/site_altitude_na', value: true }),
+      f.op({ path: 'relatorio/setup/site_altitude_m', value: null }),
+    ]);
+    expect(s.get(key)).toMatchObject({ setup: { site_altitude_na: true, site_altitude_m: null } });
   });
 });
 

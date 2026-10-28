@@ -59,6 +59,7 @@ function relatorio(id: string, removed_at: string | null): RelatorioRow {
       art_trt_number: null,
       instrument_ids: [],
       site_altitude_m: null,
+      site_altitude_na: false,
       site_altitude_confirmed: false,
       next_intervention_date: null,
       next_intervention_justification: null,

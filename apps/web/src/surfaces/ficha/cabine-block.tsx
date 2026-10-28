@@ -8,6 +8,7 @@ import {
   previousCabineEnv,
   quickNotes,
   SITE_CHECKLIST_LABEL,
+  siteAltitudeValue,
   siteChecklistProgress,
   siteCounterText,
   type EntityState,
@@ -99,7 +100,7 @@ export function CabineBlock({
   const missingKeys = new Set(first ? progress.missing.map((field) => `${field.group}/${field.key}`) : []);
   const previous = previousCabineEnv(snapshot.locations, cabine.id);
   const sectionClass = (extra: string) => ['section', 'se-block', extra].filter(Boolean).join(' ');
-  const altitude = snapshot.relatorio.setup.site_altitude_m;
+  const altitude = siteAltitudeValue(snapshot.relatorio.setup);
   const altitudeField = definition.env.find((field) => field.key === 'altitude_m');
 
   const siteLine = withSiteLine ? <SiteLine relatorioId={api.relatorioId} snapshot={snapshot} cabineId={cabine.id} /> : null;
@@ -196,7 +197,7 @@ export function CabineBlock({
             );
           })}
           {altitudeField === undefined ? null : (
-            <ReadOnlyField field={altitudeField} value={altitude === null ? null : { raw: String(altitude), unit: 'm', state: 'measured' }} helper={t.altitudeHelper} />
+            <ReadOnlyField field={altitudeField} value={altitude} helper={t.altitudeHelper} />
           )}
         </div>
         {envDisplay.viewer}

@@ -1489,6 +1489,10 @@ export const copy = {
     altitudeChange: 'Alterar',
     // authored: its accessible name, naming what it changes.
     altitudeChangeLabel: 'Alterar altitude do site',
+    // authored (Story 17.6, open for Bruno): under the empty altitude when the device gave none.
+    altitudeNoneHint: 'O aparelho não informou a altitude: digite o valor ou marque N/A',
+    // authored: the resolved line once the altitude is marked N/A (`NOT_APPLICABLE_TEXT`).
+    altitudeNotApplicable: (text: string) => `Altitude do site: ${text}`,
     nextInterventionDateLabel: 'Próxima intervenção recomendada',
     nextInterventionJustificationLabel: 'Justificativa',
     // Etapa 6 — Conclusão e parecer (Story 7.4), verbatim from `50-relatorio-setup.html`

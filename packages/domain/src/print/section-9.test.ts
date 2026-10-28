@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { portoSeguroSmall } from '../../fixtures/porto-seguro/small/op-log.ts';
 import { replay } from '../ops/replay.ts';
-import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
+import { NOT_APPLICABLE_NUMBER, NOT_APPLICABLE_TEXT } from '../parse/pt-br-number.ts';
 import { photoStampFull } from '../photos/gallery.ts';
 import { numberPhotos } from '../photos/numbering.ts';
 import { composeConclusion } from '../relatorio/conclusion.ts';
@@ -356,6 +356,17 @@ describe('7.1 section9Layout: the I/O matrix', () => {
     const section = layoutOf(withSetup);
     expect(texts(tableNamed(sheetOf(section, block(1)), 'AMBIENTE DE ENSAIO'))[2]).toEqual(['760 m', '25 °C', '65 %']);
     expect(texts(tableNamed(sheetOf(section, block(2)), 'AMBIENTE DE ENSAIO'))[2]).toEqual(['900 m', '25 °C', '65 %']);
+  });
+
+  it('17.6: ALTITUDE prints "N/A" when the setup marks it so (over a stored number), a cabine value still wins, and "-" with neither', () => {
+    const env = { altitude_m: null, temperature_c: measured('25', '°C'), humidity_pct: measured('65', '%') };
+    const snapshot = snapshotOf([cabine(1, 'Cabine A', 'a0', { env }), cabine(2, 'Cabine B', 'a1', { env: { ...env, altitude_m: measured('900', 'm') } })], [sheet(1, 1, 'tp', 'a0'), sheet(2, 2, 'tp', 'a0')]);
+    const withSetup = (setup: { site_altitude_m: number | null; site_altitude_na: boolean }) => layoutOf({ ...snapshot, relatorio: { ...snapshot.relatorio, setup: { ...snapshot.relatorio.setup, ...setup } } });
+    const marked = withSetup({ site_altitude_m: 760, site_altitude_na: true });
+    expect(texts(tableNamed(sheetOf(marked, block(1)), 'AMBIENTE DE ENSAIO'))[2]).toEqual([NOT_APPLICABLE_TEXT, '25 °C', '65 %']);
+    expect(texts(tableNamed(sheetOf(marked, block(2)), 'AMBIENTE DE ENSAIO'))[2]).toEqual(['900 m', '25 °C', '65 %']);
+    const neither = withSetup({ site_altitude_m: null, site_altitude_na: false });
+    expect(texts(tableNamed(sheetOf(neither, block(1)), 'AMBIENTE DE ENSAIO'))[2]).toEqual(['-', '25 °C', '65 %']);
   });
 
   it('16.4: an "N.A" nameplate or cabine number prints "N/A" with no unit (never "-", never " kVA")', () => {
@@ -1045,6 +1056,26 @@ describe('Stories 15.3 and 15.6 (seed v9): what a v9 relatório prints, a v8 one
       expect(v8, type).toHaveLength(2 + 15);
       expect(v8[2 + 4]![0], type).toBe('5. INDICADOR NÍVEL DE ÓLEO');
     }
+  });
+
+  it('15.7: a v10 TC prints its seven VERIFICAÇÕES GERAIS rows numbered 1 to 7 in definition order; a v9 TC 14; a v10 TP 14', () => {
+    const rows = (version: string, type: EquipmentBlockType) => texts(tableNamed(printedOf(version, sheetOn(version, 1, type)), 'VERIFICAÇÕES GERAIS'));
+    const v10 = rows('v10', 'tc');
+    const definition = getDefinition('v10', 'cabine_primaria', 'tc').checklist!;
+    expect(v10).toHaveLength(2 + definition.length);
+    expect(v10).toHaveLength(2 + 7);
+    expect(v10.slice(2).map((row) => row[0])).toEqual(definition.map((item, at) => `${at + 1}. ${item.label}`));
+    expect(v10.slice(2).map((row) => row[0])).toEqual([
+      '1. LIMPEZA, PINTURA E CORROSÃO',
+      '2. VASAMENTO',
+      '3. FUSÍVEIS',
+      '4. ATERRAMENTO',
+      '5. CONEXÕES',
+      '6. FIAÇÃO SECUNDÁRIA',
+      '7. BUCHAS',
+    ]);
+    expect(rows('v9', 'tc')).toHaveLength(2 + 14);
+    expect(rows('v10', 'tp')).toHaveLength(2 + 14);
   });
 
   it('VAL CALCULADO: the transformer U1 · √3 / U2 on v9 (62,90) and U1/U2 on v8 (36,32); TP and TC the same on both', () => {
