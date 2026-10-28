@@ -2,7 +2,7 @@
 title: 'Stories 17.1 and 17.4: the REGISTRO FOTOGRÁFICO by hand, display shots numbered again'
 type: 'feature'
 created: '2026-10-27'
-status: 'in-review'
+status: 'done'
 baseline_revision: '2fa793381f9adc21e35bb0945c6d8d29cf36904b'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -167,6 +167,15 @@ Docs (orchestrator, after the review): `_bmad-output/specs/spec-fasor/source-del
 - `pnpm test:api -- docx` -- the structure golden untouched.
 - `pnpm lint`, `pnpm static` -- green.
 - Under `lockf -t 20000 /tmp/fasor-verify.lock`: `pnpm exec tsx scripts/e2e.ts e2e/section-7-by-hand.spec.ts e2e/display-shots.spec.ts e2e/photo-numbers.spec.ts e2e/gallery.spec.ts e2e/captions.spec.ts e2e/points.spec.ts e2e/sheet-photos.spec.ts e2e/read-display.spec.ts e2e/export-visual.spec.ts e2e/verificacoes-local.spec.ts e2e/seed-v7.spec.ts e2e/photos.spec.ts e2e/review-field-defects.spec.ts e2e/review-field-defects-2.spec.ts e2e/review-toasts-2026-10-08.spec.ts e2e/suggestions.spec.ts e2e/photo-zoom.durability.spec.ts --project desktop-chrome --project durability-desktop-chrome` -- green.
+
+## Auto Run Result
+
+- Summary: (17.1) section 7 holds the "Geral" photos only (`isGeralPhoto`/`geralPhotos` in `photos/order.ts`; `reading_kind` null or `'caption'`), every other photo prints once under its sheet or its local in section 9; one numbering in document order from `documentPhotoOrder(snapshot)` (`print/photo-order.ts`), read by `numberPhotos(snapshot)` and by section 9's `contextOf`, so section 8, the audit, the badges, the caption toast and the point picker share one map; the viewer's remove confirm is composed per photo kind in the kernel (`photoRemoveDescription`, QA G2). (17.4) display shots number in the one sequence and print "Imagem N: legenda." under their test; `PrintPhoto.number` is a `number` again; the badge returns on display shots everywhere. A Não ensaiada sheet prints its photos under it (review patch); a definition-less block is not placed and its photos number at the tail.
+- Files: kernel `photos/{numbering,order,gallery}.ts`, `print/{photo-order,section-7,section-9}.ts`, `audit/input.ts`, `index.ts` and their tests; web `surfaces/photos/{capture-sheet,gallery-surface,photo-caption-dialog,photo-viewer}.tsx`, `photos.css`, `surfaces/ficha/{sheet-photos-section,use-ficha-photos,nameplate-suggestions}.tsx`, `surfaces/points/{point-editor,points-surface}.tsx`, `surfaces/local/verificacoes-surface.tsx`, `copy/pt-br.ts` and tests; e2e `section-7-by-hand.spec.ts` (new, `@p0`, serial), `display-shots`, `photo-numbers`, `gallery`, `captions`, `sheet-photos`, `seed-v7`, `verificacoes-local`, `dictation`, `review-toasts-2026-10-08`, `support/groups.ts`; docs `source-deltas.md` (rows 128, 129), `glossary.md`, `deferred-work.md`, `docs/kbs/log.md`, `docs/kbs/architecture/{files-and-photos,rendering}.md`.
+- Review: 1 patch (medium: Não ensaiada and definition-less sheets), 8 deferred (orphan placement, picker offering unprinted photos, gallery order versus badge order, pre-17.1 revision numbers, viewer remove step on a site-item photo, Sumário row 7 count, gallery note copy, stamp and item line in section 9), 3 rejected (ECH-5 measured 0.33 ms per `numberPhotos` call on the Porto Seguro fixture; ECH-6 and ECH-7 rare wording cases folded into the deferred questions).
+- Follow-up review recommended: false (one medium patch with boundary tests; the deferred items are product questions for Matheus and Bruno, listed in the PR body).
+- Verification: pre-merge session on `8c71354c`: lint 0 errors (79 s), static green (145 s), test:api 684/684 (617 s), test:unit red on 17 load timeouts in 8 untouched files (635 s, batch e17b's gate on the same VM), superseded. Merge of origin/main `fd5efabf` as `a0724e6e`. Post-merge session on `a0724e6e`, alone on the VM: static green (38 s), test:unit 4528/4528 (263 s), the 18 touched specs plus e17b's 6 on desktop-chrome and durability-desktop-chrome 179/181 (`LOCKED_AFTER=0s`): the two failures in `verificacoes-local.spec.ts` (E14-CO-B-E2E-001 frame count 193 against 200, 14.3-E2E-005 setup POST at the 15 s timeout) during a window where the host lost its network and later rebooted; isolated rerun of that spec on `a0724e6e` 9/9 (86 s). The Porto Seguro goldens, `docx.ts` and `layout.ts` are untouched. No op fold, commit path or live query changed: no matrix run.
+- Residual risk: an orphan photo (deleted sheet, off-list site item) prints nowhere until Matheus decides where (question 1 of the PR); the authored strings await Bruno.
 
 ## Spec Change Log
 
