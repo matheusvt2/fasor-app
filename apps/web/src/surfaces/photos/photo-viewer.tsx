@@ -1,5 +1,5 @@
 import { photoCitedByText, photoItemLine, photoRemoveDescription, photoStampFull, pointsCitingPhoto, sectionMention, toIso, viewerCountText, viewerLabel, type RelatorioSnapshot } from '@app/domain';
-import { useEffect, useId, useState, type CSSProperties, type RefObject } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Button, ConfirmDialog, PhotoStamp } from '../../components/index.ts';
 import { useObjectUrl } from '../../components/photo-row.tsx';
@@ -10,7 +10,9 @@ import { ensureLocalBlob, readLocalBlob } from '../../db/file-store.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { usePinchZoom, type PinchZoom, type ZoomSize } from '../../input/use-pinch-zoom.ts';
 import { useSession } from '../../state/session.tsx';
+import { useServerReachable } from '../../state/sync.tsx';
 import { useSyncActions } from '../../state/sync-actions.ts';
+import { photoSaveFile, savePhotoToDevice } from './photo-file.ts';
 import './photos.css';
 
 /*
@@ -27,6 +29,11 @@ import './photos.css';
  * tela") zoom it up to its native resolution, and one finger pans it while zoomed
  * (`usePinchZoom`). Opened from a crop, the crop's view stays the fit the user zoom starts
  * from. "Anterior / Próxima" return to fit; there is no swipe navigation.
+ *
+ * Story 17.7: "Salvar no aparelho" hands the photo's JPEG (this device's original, else the
+ * server's, fetched when the viewer lands on the photo so the press shares inside its
+ * activation) to the share sheet, else downloads it; disabled with its reason while there is
+ * no original yet, while the server's is being fetched, or when that fetch failed.
  */
 
 export interface PhotoViewerProps {
@@ -69,6 +76,49 @@ function useViewerPicture(tile: PhotoTile): Blob | null {
   return picture !== null && picture.id === tile.id ? picture.blob : tile.thumb;
 }
 
+/** Story 17.7: where "Salvar no aparelho" stands for the photo on screen. */
+type SaveState = { status: 'ready'; file: File } | { status: 'loading' | 'failed' | 'none' };
+
+/**
+ * The photo's JPEG for "Salvar no aparelho", prepared when the viewer lands on it: this
+ * device's original at once, else the server's fetched now (again when the server is
+ * reachable once more after a failed fetch, or once the photo is uploaded).
+ */
+function useSaveFile(tile: PhotoTile): SaveState {
+  const db = useSession().database;
+  const { fetchFile } = useSyncActions();
+  const reachable = useServerReachable();
+  const [state, setState] = useState<{ id: string; save: SaveState } | null>(null);
+  // The photo whose file is in hand: kept for it (a later upload ack or reachability change does
+  // not fetch it again); `none` and `failed` set nothing, so they run again on either change.
+  const readyFor = useRef<string | null>(null);
+  const uploadedAt = tile.uploaded_at;
+  const capturedAt = tile.captured_at;
+  useEffect(() => {
+    if (db === null) return;
+    const key = tile.id;
+    if (readyFor.current === key) return;
+    readyFor.current = null;
+    let live = true;
+    setState({ id: tile.id, save: { status: 'loading' } });
+    photoSaveFile(db, { id: tile.id, captured_at: capturedAt, uploaded_at: uploadedAt }, fetchFile).then(
+      (file) => {
+        if (!live) return;
+        if (file !== null) readyFor.current = key;
+        setState({ id: tile.id, save: file === null ? { status: 'none' } : { status: 'ready', file } });
+      },
+      (error: unknown) => {
+        console.error('photo original not fetched', error);
+        if (live) setState({ id: tile.id, save: { status: 'failed' } });
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [db, fetchFile, tile.id, uploadedAt, capturedAt, reachable]);
+  return state !== null && state.id === tile.id ? state.save : { status: db === null ? 'none' : 'loading' };
+}
+
 export function PhotoViewer(props: PhotoViewerProps) {
   const titleId = useId();
   const index = props.tiles.findIndex((tile) => tile.id === props.photoId);
@@ -102,6 +152,9 @@ function ViewerBody({
   const [leftCrop, setLeftCrop] = useState<string | null>(null);
   const zoom = cropZoom !== null && leftCrop !== cropKey ? cropZoom : null;
   const countId = useId();
+  const saveReasonId = useId();
+  const save = useSaveFile(tile);
+  const saveReason = save.status === 'none' ? t.saveReasonNone : save.status === 'loading' ? t.saveReasonLoading : save.status === 'failed' ? t.saveReasonFailed : null;
   const [confirming, setConfirming] = useState(false);
   // Stories 17.1 and 17.4: every live photo is numbered (a display shot too); a tile the
   // snapshot does not hold yet draws no badge and no count for that render.
@@ -188,6 +241,26 @@ function ViewerBody({
             </svg>
             {t.remove}
           </Button>
+          <Button
+            variant="secondary"
+            block
+            isDisabled={save.status !== 'ready'}
+            disabledReasonId={saveReasonId}
+            onPress={() => {
+              // The file is in hand: the share runs inside the press's activation (iPadOS).
+              if (save.status === 'ready') void savePhotoToDevice(save.file, t.saveTitle).catch((error: unknown) => console.error('photo not saved to the device', error));
+            }}
+          >
+            <svg className="ico" aria-hidden="true">
+              <use href="/sprite.svg#i-download" />
+            </svg>
+            {t.save}
+          </Button>
+          {saveReason === null ? null : (
+            <span className="btn-reason" id={saveReasonId}>
+              {saveReason}
+            </span>
+          )}
         </div>
         <div className="viewer-nav">
           <Button variant="secondary" isDisabled={previous === null} disabledReasonId={countId} onPress={() => previous !== null && onNavigate(previous.id)}>

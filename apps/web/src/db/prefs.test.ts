@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  CAMERA_APP_PREF,
+  readCameraApp,
   readLastSheet,
   readRecoveryNotice,
   readTheme,
@@ -8,6 +10,7 @@ import {
   THEME_MIRROR_KEY,
   writeLastSheet,
   writeRecoveryNotice,
+  writeCameraApp,
   writeTheme,
 } from './prefs.ts';
 import { LAST_SHEET_PREF, openDatabase, RECOVERY_NOTICE_PREF, THEME_PREF, type AppDatabase } from './schema.ts';
@@ -168,6 +171,33 @@ describe('last sheet per relatório in local_prefs (Story 4.3)', () => {
     const db = await freshDb();
     await db.local_prefs.put({ key: LAST_SHEET_PREF(RELATORIO), value: { kind: 'relatorio' } });
     expect(await readLastSheet(db, RELATORIO)).toBeNull();
+    db.close();
+  });
+});
+
+describe('17.2-UNIT the camera-app preference in local_prefs', () => {
+  it("reads the device's default until written: on with touch points, off without", async () => {
+    const db = await freshDb();
+    expect(await readCameraApp(db, 5)).toBe(true);
+    expect(await readCameraApp(db, 0)).toBe(false);
+    db.close();
+  });
+
+  it('round-trips a choice under its own key, whatever the touch points', async () => {
+    const db = await freshDb();
+    await writeCameraApp(db, false);
+    expect(await readCameraApp(db, 5)).toBe(false);
+    expect(await db.local_prefs.get(CAMERA_APP_PREF)).toEqual({ key: 'camera_app', value: false });
+    await writeCameraApp(db, true);
+    expect(await readCameraApp(db, 0)).toBe(true);
+    db.close();
+  });
+
+  it('falls back to the default for a stored value that is not a boolean', async () => {
+    const db = await freshDb();
+    await db.local_prefs.put({ key: CAMERA_APP_PREF, value: 'off' });
+    expect(await readCameraApp(db, 5)).toBe(true);
+    expect(await readCameraApp(db, 0)).toBe(false);
     db.close();
   });
 });

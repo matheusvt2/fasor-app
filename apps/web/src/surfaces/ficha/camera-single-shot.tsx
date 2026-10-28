@@ -1,11 +1,13 @@
 import { useRef, type ReactNode } from 'react';
 import { copy } from '../../copy/pt-br.ts';
+import { heicToJpeg, isHeic } from '../../files/photo-import.ts';
 import type { CaptureTarget, PhotoCapture } from './use-photo-capture.ts';
 
 /*
  * E13-A6: one shot of the camera (`camera-view.tsx` says what the camera does): the camera's
  * own photo or a frame of the stream (Story 13.1, review F-01), and the system picker that
- * takes the one shot where the browser has no camera API.
+ * takes the one shot: the device's camera app (Story 17.2, "Câmera do aparelho"), and the
+ * fallback where the browser has no camera API.
  */
 
 /** Story 13.1: how long a single shot waits for `takePhoto()` before it grabs a frame instead. */
@@ -87,7 +89,6 @@ export async function grabFrame(video: HTMLVideoElement): Promise<ImageBitmap> {
 
 export interface CameraPickerHost {
   capture: PhotoCapture;
-  single: boolean;
   /** Whether the server answers (F-13: then the toast does not speak of a queue). */
   reachable: boolean;
   /** The host's `onShot` for a stored shot. */
@@ -99,11 +100,13 @@ export interface CameraPickerHost {
 }
 
 /**
- * The system camera behind a hidden `capture` file input, one shot: `pick` clicks it (inside
- * the press, so the browser still counts the user's gesture) and `input` renders beside the
- * opener.
+ * The system camera behind a hidden `capture` file input, one shot: the device's camera app
+ * (Story 17.2) and the no-camera fallback. `pick` clicks it (inside the press, so the browser
+ * still counts the user's gesture) and `input` renders beside the opener. A cancelled camera
+ * app fires no change, so the opener stays at rest. One file per pick, so the done toast is
+ * always the one-photo one (whatever the opener's burst mode).
  */
-export function useCameraPicker({ capture, single, reachable, onStored, setBurst, showToast, returnFocus }: CameraPickerHost): { pick: (context: CaptureTarget) => void; input: ReactNode } {
+export function useCameraPicker({ capture, reachable, onStored, setBurst, showToast, returnFocus }: CameraPickerHost): { pick: (context: CaptureTarget) => void; input: ReactNode } {
   const fileInput = useRef<HTMLInputElement>(null);
   const fallbackTarget = useRef<CaptureTarget | null>(null);
 
@@ -118,19 +121,32 @@ export function useCameraPicker({ capture, single, reachable, onStored, setBurst
     if (file === undefined || context === null) return;
     setBurst(1);
     let failed = false;
-    capture.shoot(file, context, (outcome) => {
-      if (outcome === 'saved') onStored(context);
-      else failed = true;
-      // The camera view is not open: a failure is the toast.
-      return false;
-    });
-    void capture.settle().then((allSaved) => {
-      setBurst(0);
-      // A failed shot keeps its failure toast, never replaced by the done one.
-      if (failed) showToast(copy.photos.failedToast);
-      else if (allSaved) showToast(single ? (reachable ? copy.photos.doneOneToastOnline : copy.photos.doneOneToast) : reachable ? copy.photos.doneToastOnline : copy.photos.doneToast);
-      returnFocus();
-    });
+    // Story 17.2: a camera app may answer HEIC; it takes the import path's conversion first.
+    const source: Promise<Blob> = isHeic(file) ? heicToJpeg(file) : Promise.resolve(file);
+    void source
+      .then(
+        (photo) => {
+          capture.shoot(photo, context, (outcome) => {
+            if (outcome === 'saved') onStored(context);
+            else failed = true;
+            // The camera view is not open: a failure is the toast.
+            return false;
+          });
+          return capture.settle();
+        },
+        (error: unknown) => {
+          console.error('camera app photo could not be converted', error);
+          failed = true;
+          return false;
+        },
+      )
+      .then((allSaved) => {
+        setBurst(0);
+        // A failed shot keeps its failure toast, never replaced by the done one.
+        if (failed) showToast(copy.photos.failedToast);
+        else if (allSaved) showToast(reachable ? copy.photos.doneOneToastOnline : copy.photos.doneOneToast);
+        returnFocus();
+      });
   };
 
   const input = (
