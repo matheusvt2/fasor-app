@@ -2,7 +2,7 @@
 title: 'Stories 17.2 and 17.7: the device''s camera app takes the photos, "Salvar no aparelho"'
 type: 'feature'
 created: '2026-10-28'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '1a2f0b0f2a56872166008bf6c628366a9380323a'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -11,7 +11,28 @@ dev_effort: 'high'
 context: ['{project-root}/_bmad-output/implementation-artifacts/epic-17-context.md']
 warnings: ['batched']
 batched_reason: 'Stories 17.2 and 17.7 share the photo viewer, the Conta surface and the camera copy lines; two branches would conflict on the same files.'
-deferred: []
+deferred:
+  - summary: >-
+      With "Câmera do aparelho" on, two quick "Ler visor" taps (the second before the first photo's row landed in the snapshot) compute the same start cell from the snapshot, so both display photos target row 0; the viewfinder burst counts its shots locally and never does.
+    evidence: |-
+      read-display.tsx `target()` recomputes `displayBurstStart(stops, photosOf(snapshot), ...)` at every press; the picker path has no per-session counter. Unverified whether a user can tap again before the commit lands (the camera app round trip plus the encode is 1-3 s, the commit lands in the same transaction as the encode). Settled by a timed two-tap run on a tablet; a guard would advance `start.current` locally after each pick.
+    location: >-
+      apps/web/src/surfaces/ficha/read-display.tsx:614
+    severity: medium (unverified)
+  - summary: >-
+      The viewer fetches the server's original of every uploaded photo it lands on when this device holds no original (spec M12, so the share runs inside the press's activation on iPadOS), so paging through evicted photos on mobile data downloads every original even when "Salvar no aparelho" is never pressed.
+    evidence: |-
+      photo-viewer.tsx `useSaveFile` runs `photoSaveFile` on landing; the viewer already fetches the `print` variant for its picture, so the original adds a second, larger download per photo. Product choice for Matheus: keep the prefetch (share inside the activation), fetch on the press (a share after the await may fall back to a download on iPadOS), or serve the picture and the save from one fetched original.
+    location: >-
+      apps/web/src/surfaces/photos/photo-viewer.tsx:98
+    severity: medium
+  - summary: >-
+      A touch-screen laptop or desktop (`navigator.maxTouchPoints > 0`) defaults to the camera app, where `capture` is ignored and a file picker opens instead of the webcam viewfinder.
+    evidence: |-
+      The default rule is the one Matheus decided on 2026-10-27 (`epic-17-context.md`, touch points); the Conta switch is the remedy on such a machine. Listed as a decision, not changed.
+    location: >-
+      packages/domain/src/prefs/camera.ts:16
+    severity: low
 ---
 
 <intent-contract>
@@ -120,6 +141,45 @@ Docs (the orchestrator, after the review): `EXPERIENCE.md` "Camera capture butto
 
 ## Auto Run Result
 
+Status: done (batch e17d; the story gate runs after this record and its output goes to the PR body).
+
+Summary: Story 17.2 — "Câmera do aparelho" (`prefs/camera.ts`, `local_prefs` `camera_app`, on by default with touch points) read once in `useCamera`; with it on, `useCameraOpen` treats the device as having no live camera, so every opener clicks its hidden `capture` input inside the press (one photo per tap, HEIC converted first, the one-photo toast); "Ler visor" with every cell read refuses the pick with the hint; Conta section "Câmera" with the switch, its sub line and the 17.7 note; the copy says "no relatório". Story 17.7 — the viewer's "Salvar no aparelho" (`photos/save.ts` `photoSaveSource`, `photoFileName`; `surfaces/photos/photo-file.ts` over `shareFile`) shares or downloads the JPEG, disabled with its reason while there is no original, while it is fetched, or when the fetch failed.
+
+Files: `packages/domain/src/prefs/camera.ts` (+test), `photos/save.ts` (+test), `photos/text.ts` (+test), `index.ts`; `apps/web/src/db/prefs.ts` (+test), `input/use-camera-app.ts`, `surfaces/ficha/camera-session.tsx`, `camera-stream.ts`, `camera-single-shot.tsx`, `camera-view.tsx`, `camera-view.test.tsx`, `surfaces/account/account-surface.tsx` (+test, `account.css`), `surfaces/photos/photo-file.ts` (+test), `photo-viewer.tsx`, `photos.css`, `copy/pt-br.ts`; `e2e/camera-app.durability.spec.ts` (new), `e2e/support/photos.ts`, `e2e/production/production.smoke.ts`; docs by the orchestrator (EXPERIENCE.md, DESIGN.md, source-deltas.md, docs/kbs, deferred-work.md).
+
+Review: 20 findings; 5 patched (ECH-6 medium, ECH-10 low, VGR-A/B/C medium), 3 deferred (ECH-7 maybe-false medium, ECH-9/VGR-E medium product decision, ECH-12 low decision), 12 rejected with their reasons in the triage log. Follow-up review recommendation: false (no high patched; the four medium patches are a guard, two test-coverage additions and one test restructuring, each re-verified by its own test).
+
+Verification: narrow `test:unit` 81 files / 815 tests green, the full `test:unit` 4534 green, `lint` 0 errors, `static` green (implementation); after the patches `test:unit` on the edited files 5 files / 75 tests, `static` and eslint green (`.scratch-e17d/*-fix-e17d.log`). The story gate (lint, static, test:api, test:unit, the touched specs on desktop-chrome and durability-desktop-chrome, the durability specs on durability-android-chrome and durability-webkit) runs from `.scratch-e17d/gate-e17d.sh`; its summary is pasted in the PR.
+
+Residual risks: 17.7-E2E-002's live transition waits for the app's own sync after an `online` event (up to 90 s); the camera-app path on a real iPad relies on the in-press input click (WebKit opens no chooser under Playwright); the deferred items above.
+
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-10-28 — Review pass
+
+Layers run: Edge Case Hunter (15 findings), Verification Gap Reviewer (3 gaps + 2 other findings). Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them.
+
+- verdicts: 20 findings — high 0, medium 6, low 13, false 0, maybe-false 1
+- findings:
+  - `[low]` `[reject]` ECH-1 `use-camera-app.ts:33` the touch default answers until the `local_prefs` read lands, so a stored "off" is wrong for the first milliseconds — the ficha renders its openers after its own live queries, so a press inside that window does not happen in use; the guard (ignore presses until read) would make a press a silent no-op.
+  - `[low]` `[reject]` ECH-2 `account-surface.tsx:196` a refused `local_prefs` put leaves the row on the tapped state — the "Manter a tela ligada" row behaves the same (spec M8 chose it); a refused put is a rare storage state, and the next read corrects the row.
+  - `[low]` `[reject]` ECH-3 `account-surface.tsx:86` a tap before the stored value lands writes the shown default — same millisecond window as ECH-1; Conta's row cannot be tapped before its first paint settles.
+  - `[low]` `[reject]` ECH-4 `camera-single-shot.tsx:125` a second pick while the first is converting or saving clears the badge early and may toast twice — pre-existing shape of the fallback picker; the camera app is modal on a phone, so the second tap lands only while the first file encodes; two identical toasts at worst.
+  - `[low]` `[reject]` ECH-5 `camera-single-shot.tsx:125` a HEIC loses its EXIF in `heicToJpeg`, so `captured_at` is the device clock — `shoot` takes the device position first (`position ?? exifCoords`, the AC's "same coordinates rule"), and the camera app answers within seconds of the shot; reading EXIF out of a HEIC container is not a trivial fix.
+  - `[medium]` `[patch]` ECH-6 `camera-stream.ts:141` "Ler visor" with every display cell read: the viewfinder disables its shutter, the camera-app path stores a plain photo with no reading — verified in `read-display.tsx:614-622` (`shotTarget(0) ?? targetFor(testKey)`). Patched: `useCamera` refuses the pick when `shotTarget(0) === null`, toasting `shotHint(0)` ("Nada mais a ler nesta ficha"); unit test added.
+  - `[maybe-false]` `[defer]` ECH-7 `camera-stream.ts:141` two quick "Ler visor" taps target the same cell — deferred (frontmatter); settled by a timed two-tap run on a tablet. The sequential two-tap e2e (VGR-B) covers the normal pace.
+  - `[low]` `[reject]` ECH-8 `photo-viewer.tsx:98` a 5xx with the server reachable keeps the button disabled until the viewer is reopened — "Anterior/Próxima" or a close and reopen refetch; a retry on a disabled button is new surface.
+  - `[medium]` `[defer]` ECH-9 `photo-viewer.tsx:103` every landing on an evicted uploaded photo downloads its original — spec M12's choice; product decision for Matheus (frontmatter).
+  - `[low]` `[patch]` ECH-10 `photo-viewer.tsx:117` `uploaded_at` set after the file is ready refetches it and flips the button to "Preparando a foto…" — patched: `readyFor` keyed by the photo id, so a ready file is kept; `none` and `failed` still re-run on `uploaded_at` and reachability.
+  - `[low]` `[reject]` ECH-11 `save.ts:44` two photos in one second share a file name — one photo is saved at a time, the OS renames a duplicate download, the share sheet names its own copy; the AC names the stamp.
+  - `[low]` `[defer]` ECH-12 `camera.ts:16` a touch-screen laptop defaults to the camera app — the rule is Matheus's decision; listed as a decision with the Conta switch as the remedy (frontmatter).
+  - `[low]` `[reject]` ECH-13 claim: HEIC "takes the import path's conversion" reuses only `heicToJpeg` — the conversion is the import path's; the EXIF read of a HEIC is ECH-5's note.
+  - `[medium]` `[patch]` ECH-14 claim: "Ler visor" has no per-shot target on this path — the no-cell-left case is ECH-6's patch; the per-tap row is VGR-B's e2e.
+  - `[low]` `[reject]` ECH-15 claim: the switch "shows the device's current state" — ECH-1/2/3's windows; rejected with them.
+  - `[medium]` `[patch]` VGR-A `camera-app.durability.spec.ts:160` 17.2-E2E-001 skips on both story-gate projects (`hasTouch` false) — patched: the test runs under `test.use({ hasTouch: true })` on every Chromium durability project, the `hasTouch` skip dropped.
+  - `[medium]` `[patch]` VGR-B `camera-app.durability.spec.ts:188` the per-tap display row is never asserted — patched: two camera-app "Ler visor" taps, rows `[0, 1]` asserted as `read-display.spec.ts:168` does.
+  - `[medium]` `[patch]` VGR-C `camera-app.durability.spec.ts:393` the viewer's live none → ready transition is only tested across remounts — patched: the viewer stays open while the photo is marked uploaded and synced, the button enables without a reopen; the failed state keeps its fresh mount.
+  - `[low]` `[reject]` VGR-D the default-before-read window — ECH-1.
+  - `[medium]` `[defer]` VGR-E the original fetched on every landing — ECH-9.
