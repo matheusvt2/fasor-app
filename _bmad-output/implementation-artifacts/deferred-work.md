@@ -2390,3 +2390,18 @@ Source: `_bmad-output/test-artifacts/manual/qa-e16-2026-10-26.md` (verdict pass;
   evidence: The default rule is the 2026-10-27 decision (touch points); the Conta switch is the remedy on such a machine.
   class: question
   state: open (owner: Matheus; a `(pointer: coarse)` media query would refine the default)
+
+## Deferred from: Epic 17 integrated QA browser pass (2026-10-28)
+
+Source: `_bmad-output/test-artifacts/manual/qa-e17-2026-10-28.md` (verdict pass; no P1, no P2; the two P3 gaps below). The items the report lists as known open (Sumário row 7 count, gallery order, "VASAMENTO" spelling, the altitude hint on a denied geolocation permission) are Matheus's decisions recorded under the stories in `epics.md`, not rows here.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-17-3-17-5-na-control-failed-ratio.md`
+  summary: On an EPÓXI (or a seco) TC the "N/A" control is still offered beside Vol. óleo, an oil field the oil rule already excuses: the tap stores `not_applicable` and the field shows "N/A" at rest while the document prints "VOL. ÓLEO -" by the rule's design, and the field was never counted as missing (QA G1). A typed "n.a" did the same since 16.4; the control makes it one tap away.
+  evidence: QA report G1, `preview-1.txt` line 400; `oil-rule.ts` ("an oil field of a non-oil unit: shown excused, never missing, printed '-'") against `acceptsNotApplicable` in `ficha-fields.tsx`.
+  class: bug
+  state: open (owner: the next fix batch; either hide the control on an excused oil field or print the stored "N/A")
+- source_spec: `_bmad-output/implementation-artifacts/spec-17-3-17-5-na-control-failed-ratio.md`
+  summary: The Ensaio de relação cells' accessible names start with a comma while TAP atual is blank (`textbox ", V primário"`, `", H1-H3 / X1-X0"`); after TAP atual is typed they read "5, V primário" (QA G2). The visible table is right. Pre-existing, untouched by 17.5.
+  evidence: QA report G2; the row label composes the TAP value and the separator before the column name without a blank-TAP case.
+  class: bug
+  state: open (owner: the next fix batch)
