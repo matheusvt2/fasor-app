@@ -31,7 +31,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from app.detector import load_detector  # noqa: E402
+from app.detector import DISPLAY_DETECTION_MODEL, load_detector  # noqa: E402
 from app.display import read_display  # noqa: E402
 from app.pipeline import decode, read_image  # noqa: E402
 from app.recognizer import load_recognizer  # noqa: E402
@@ -68,7 +68,7 @@ def main() -> None:
     crops, truth_path = Path(sys.argv[1]), Path(sys.argv[2])
     truth: dict = json.loads(truth_path.read_text())
     reader = read_image if len(sys.argv) > 3 and sys.argv[3] == "text" else read_display
-    detector, recognizer = load_detector(), load_recognizer()
+    detector, recognizer = load_detector(DISPLAY_DETECTION_MODEL), load_recognizer()
 
     def read(path: Path) -> list[dict]:
         result = reader(decode(path.read_bytes()), detector, recognizer)

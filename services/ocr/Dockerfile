@@ -52,6 +52,7 @@ RUN python -c "from paddleocr import TextDetection; TextDetection(model_name='PP
  && mkdir -p /opt/models \
  && cp -r /root/.paddlex/official_models/PP-OCRv5_mobile_det /opt/models/PP-OCRv5_mobile_det \
  && cd /opt/models/PP-OCRv5_mobile_det \
+ && rm -rf .cache .gitattributes \
  && printf '%s\n' \
       '05feef1acb00aa4cd7362b15f7f501fc4f99d7b1fa73c1c871e0c7b1504b0f5c  inference.json' \
       'afa1820cb16c1fd0dad589d0f8b389139061c1ef6d68019685fd07be997dda5b  inference.pdiparams' \
@@ -59,7 +60,7 @@ RUN python -c "from paddleocr import TextDetection; TextDetection(model_name='PP
       '7ac1c33f377ba58561f4b89d3180b6add2b7c5c60a4edac90fa4e0ceccdc6665  config.json' \
       '4cc20ad6d41af86b3ce9885ffb0956e152574a2eb14179aeb07fd2d3956161ca  README.md' \
     | sha256sum -c - \
- && test "$(ls | wc -l)" -eq 5
+ && test "$(ls -A | wc -l)" -eq 5
 # The pydantic models the responses are built through, generated from the kernel's JSON Schema.
 COPY contract/ ./contract/
 RUN mkdir -p /opt/generated && /opt/venv-dev/bin/datamodel-codegen \

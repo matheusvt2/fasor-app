@@ -12,7 +12,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/prod-pass-fix-context.md'
 warnings: ['batched', 'oversized']
 # batched: one production-pass item (G6) in its own batch beside fxpw; the batch tag carries it, no story split.
-deferred: []
+deferred:
+  - summary: >-
+      Kernel and api display fixtures still replay server-detector sidecar tokens; the mobile detector's token confidences and row placement are not checked at the kernel's level.
+    evidence: |-
+      packages/domain/src/reading/display.test.ts and apps/api job-display fixtures were recorded on PP-OCRv5_server_det; services/ocr/tests/test_display.py asserts number presence only. Re-recording touches apps/api and packages/domain, excluded by this batch.
+    location: >-
+      services/ocr/tests/test_display.py
+    severity: medium
 ---
 
 <intent-contract>
@@ -91,3 +98,19 @@ All commands from the worktree root, each started with `nohup` under the lock, o
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-10-29 — Review pass
+- verdicts: 12 findings — high 1, medium 6, low 4, false 0, maybe-false 0 (layers run: Edge Case Hunter, Verification Gap Reviewer, both opus; Blind Hunter and Intent Alignment skipped for token economy, the integrated review covers them)
+- findings:
+  - `[low]` `[patch]` (ECH-1) `tools/display_spike.py:71` still calls `load_detector()` bare and raises TypeError — patched: `load_detector(DISPLAY_DETECTION_MODEL)`.
+  - `[low]` `[reject]` (ECH-2) on the arm64 host every emulated read (80-120 s) passes the 55 s `OCR_INFERENCE_TIMEOUT_SECONDS`, so a local `ocr-svc` read answers 504 — the `ocr` profile is opt-in, `OCR_PROVIDER` defaults to `fake`, production runs natively, and the README states the emulated read time; a compose-level timeout knob would add configuration for a dev-only path.
+  - `[medium]` `[patch]` (ECH-3) the documented compose pytest segfaults (139) on the arm64 host: TestClient builds the Paddle predictor off the main thread — patched: `tests/conftest.py` builds the detector and recognizer in the main thread and sets the test-run inference timeout default; README and KB concept updated.
+  - `[low]` `[patch]` (ECH-4) the copied mobile model directory holds an unpinned `.cache/` and `.gitattributes` that plain `ls` hides (verified with `ls -la` in the image) — patched: both removed before the check, count with `ls -A`.
+  - `[medium]` `[patch]` (ECH-5) the cited pytest peaks came from a scratch harness, not the committed suite — patched with ECH-3; the committed suite was re-run on the rebuilt image and the cited numbers re-measured.
+  - `[medium]` `[patch]` (ECH-6) the red run of the unchanged image segfaulted (139, peak 657342464, 0 OOM events) instead of showing the memory failure — action: orchestrator red rerun (`.scratch-fxg6/red2.sh`) with the models built in the main thread, as uvicorn and through the pytest harness; outcome in the Auto Run Result.
+  - `[medium]` `[patch]` (VG-1) the committed sidecar pytest cannot run on the only verification host — same root cause and patch as ECH-3.
+  - `[medium]` `[patch]` (VG-2) no committed check holds the display read to the 1536 MiB reservation — patched: `services/ocr/compose.memcap.yml` plus the README command printing `memory.peak`.
+  - `[high]` `[patch]` (VG-3) every display measurement used 1200 x 900 fixtures while production sends the print variant up to 2000 px (`PRINT_MAX_PX`), which neither `_prepare` nor `DET_LIMIT_SIDE_LEN` shrinks — patched: a print-size test (two fixtures upscaled to 2000 x 1500) in `tests/test_display.py`, run under the cap.
+  - `[medium]` `[defer]` (VG-4) the kernel and api display tests replay server-detector tokens and `test_display.py` checks number presence only, so the mobile detector's confidences and row placement are unverified at the kernel's level — the fix re-records fixtures in `apps/api` and `packages/domain`, which the intent excludes; the unit spellings the mobile read produced (`GO`, `Gn`) are already mapped to GΩ by `packages/domain/src/reading/display.ts:28`. Ledger row in `deferred-work.md`.
+  - `[low]` `[patch]` (VG-other-1) `display_spike.py` broken by the new signature — same as ECH-1.
+  - `[low]` `[patch]` (VG-other-2) the Dockerfile file count misses hidden files — same as ECH-4.

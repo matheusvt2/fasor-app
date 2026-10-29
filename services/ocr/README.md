@@ -82,9 +82,19 @@ lockf -t 20000 /tmp/fasor-verify.lock podman build --platform linux/amd64 -t app
 
 Under that emulation a Paddle predictor built outside the main thread segfaults (exit
 139, no OOM event); uvicorn builds the models in the main thread and serves normally, but
-`TestClient` runs the lifespan in a worker thread, so the in-process pytest run crashes
-there. Reads are also slower: about 80 s for one display, above the 55 s
-`OCR_INFERENCE_TIMEOUT_SECONDS` default.
+`TestClient` runs the lifespan in a worker thread. Reads are also slower: 80-120 s for one
+display, above the 55 s `OCR_INFERENCE_TIMEOUT_SECONDS` default. `tests/conftest.py`
+therefore builds the models in the main thread at import, hands them to the lifespan, and
+defaults the timeout to 600 s for the tests only, so the committed suite runs on the arm64
+host too.
+
+The display tests inside the production memory budget (`compose.memcap.yml`: 1536 MiB, the
+ocr task's `memoryReservation` in `infra/production/ecs.tf`), printing the cgroup peak:
+
+```
+lockf -t 20000 /tmp/fasor-verify.lock podman compose -f docker-compose.yml -f services/ocr/compose.memcap.yml \
+  --profile ocr run --rm ocr sh -c 'pytest tests/test_display.py; rc=$?; echo peak=$(cat /sys/fs/cgroup/memory.peak); exit $rc'
+```
 
 The tests (`tests/`) read the committed synthetic plate
 (`tests/fixtures/plate-transformador.*`, see its `.md`), a rotated copy, a PNG copy, a

@@ -1,0 +1,6 @@
+# Fix batch fxg6 (2026-10-29, prod-pass G6): the production memory budget of the ocr container,
+# the ocr task's `memoryReservation = 1536` in infra/production/ecs.tf. Layered over the root
+# docker-compose.yml to run the display tests inside that budget (command in README.md).
+services:
+  ocr:
+    mem_limit: 1536m

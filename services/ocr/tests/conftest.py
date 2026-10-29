@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import unicodedata
 from pathlib import Path
@@ -11,7 +12,23 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 sys.path.insert(0, str(FIXTURES))
 
+# Fix batch fxg6 (2026-10-29): the image is linux/amd64 only, and on an arm64 host it runs under
+# emulation, where reads take 80-120 s (above the 55 s production default) and a Paddle
+# predictor built outside the main thread segfaults (exit 139). TestClient runs the lifespan in
+# a worker thread, so the models are built here, in the main thread, and the lifespan is handed
+# those instances (keyed by model name); uvicorn, as in production, loads in the main thread
+# anyway. The timeout is only a test default; production keeps its own.
+os.environ.setdefault("OCR_INFERENCE_TIMEOUT_SECONDS", "600")
+
 from app.main import app  # noqa: E402
+import app.main as _main  # noqa: E402
+
+_BUILT: dict = {
+    "recognizer": _main.load_recognizer(),
+    _main.DISPLAY_DETECTION_MODEL: _main.load_detector(_main.DISPLAY_DETECTION_MODEL),
+}
+_main.load_recognizer = lambda: _BUILT["recognizer"]
+_main.load_detector = lambda name: _BUILT[name]
 
 SCHEMA_DOC = json.loads((ROOT / "contract" / "ocr-contract.schema.json").read_text())
 # The routes and the body limit, as the kernel exports them (`x-ocr-service`); never literals.
