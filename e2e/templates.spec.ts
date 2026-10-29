@@ -460,20 +460,25 @@ test('@p0 3.4-E2E-003 section blocks reorder, duplicate and remove with undo; Ag
   await page.getByRole('menuitem', { name: 'Duplicar' }).click();
   await expect(tags).toHaveText(['2', '1', '4', '3', '5', '6', '8', '10', '10', '11']);
 
-  // A section added from "Seções" lands at the end.
-  await palette(page).getByRole('button', { name: '5 Recomendações gerais (NR-10)' }).click();
-  await expect(tags).toHaveText(['2', '1', '4', '3', '5', '6', '8', '10', '10', '11', '5']);
+  // Fix batch fxpw G2 (`42-template-composer.html` L186-194): a section the template holds
+  // reads "No template" in "Seções", and a tap adds nothing and says so. P020-E2E-001 keeps
+  // the "lands at the end" proof on an empty template.
+  const heldRow = palette(page).getByRole('button', { name: '5 Recomendações gerais (NR-10)' });
+  await expect(heldRow.locator('.pi-meta')).toHaveText('No template');
+  await heldRow.click();
+  await expect(page.getByTestId('toast')).toContainText('5 Recomendações gerais (NR-10) já está no template');
+  await expect(tags).toHaveText(['2', '1', '4', '3', '5', '6', '8', '10', '10', '11']);
 
   await page.getByRole('button', { name: 'Mais opções de 8 Pontos de atenção' }).click();
   await page.getByRole('menuitem', { name: 'Remover' }).click();
   const dialog = page.getByRole('dialog', { name: 'Remover 8 Pontos de atenção?' });
   await expect(dialog.getByRole('button', { name: 'Cancelar' })).toBeFocused();
   await dialog.getByRole('button', { name: 'Remover' }).click();
-  await expect(tags).toHaveText(['2', '1', '4', '3', '5', '6', '10', '10', '11', '5']);
+  await expect(tags).toHaveText(['2', '1', '4', '3', '5', '6', '10', '10', '11']);
   // The Overflow that opened the dialog left with its card: the next card's takes the focus.
   await expect(page.getByRole('button', { name: 'Mais opções de 10 Conclusão' }).first()).toBeFocused();
   await page.getByRole('button', { name: 'Desfazer' }).click();
-  await expect(tags).toHaveText(['2', '1', '4', '3', '5', '6', '8', '10', '10', '11', '5']);
+  await expect(tags).toHaveText(['2', '1', '4', '3', '5', '6', '8', '10', '10', '11']);
 
   // Agrupar por tipo on the Cubículo Enel.
   const toggle = page.getByRole('switch', { name: 'Agrupar por tipo Cubículo Enel' });
@@ -488,7 +493,7 @@ test('@p0 3.4-E2E-003 section blocks reorder, duplicate and remove with undo; Ag
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
   await page.reload();
   await expect(page.getByRole('switch', { name: 'Agrupar por tipo Cubículo Enel' })).toHaveAttribute('aria-checked', 'true');
-  await expect(tags).toHaveText(['2', '1', '4', '3', '5', '6', '8', '10', '10', '11', '5']);
+  await expect(tags).toHaveText(['2', '1', '4', '3', '5', '6', '8', '10', '10', '11']);
 
   expect((await outboxPaths(page, account.userId)).every((path) => path.startsWith('template/'))).toBe(true);
   await syncNowAndReturn(page);
@@ -503,7 +508,7 @@ test('@p0 3.4-E2E-003 section blocks reorder, duplicate and remove with undo; Ag
     await openComposer(tablet, STANDARD_TEMPLATE_NAME);
     await expect(tablet.getByRole('switch', { name: 'Agrupar por tipo Cubículo Enel' })).toHaveAttribute('aria-checked', 'true');
     await expect(tablet.getByRole('list', { name: 'Blocos do template' }).locator('.block-tag')).toHaveText([
-      '2', '1', '4', '3', '5', '6', '8', '10', '10', '11', '5',
+      '2', '1', '4', '3', '5', '6', '8', '10', '10', '11',
     ]);
   } finally {
     await other.close();

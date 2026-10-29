@@ -26,6 +26,13 @@ export interface BlockPaletteProps {
   /** The kernel's name of that target (`paletteTargetText`: "Coluna 5 · Painel de média tensão", "Cubículo Enel, direto no local"); null with none. */
   targetText: string | null;
   onAddSection: (type: SectionBlockType) => void;
+  /**
+   * Fix batch fxpw G2 (`42-template-composer.html` L186-194): the section types the template
+   * holds (`heldSectionTypes`). Their rows read "No template" and a tap calls `onSectionHeld`.
+   */
+  heldSections: ReadonlySet<SectionBlockType>;
+  /** A tap on a held section's row: nothing is added (the composer says so). */
+  onSectionHeld: (type: SectionBlockType) => void;
   onSetQuantity: (type: EquipmentBlockType, n: number) => Promise<void>;
   /** The section a "Adicionar abaixo" is waiting to place the next tapped section under. */
   insertBelow: string | null;
@@ -63,6 +70,8 @@ export function BlockPaletteContent({
   current,
   targetText,
   onAddSection,
+  heldSections,
+  onSectionHeld,
   onSetQuantity,
   insertBelow,
   firstSectionRef,
@@ -106,25 +115,37 @@ export function BlockPaletteContent({
       <div className="palette-items" ref={moreBelow}>
         <p className="palette-group">{copy.composer.paletteSections}</p>
         {insertBelow === null ? null : <p className="palette-note">{copy.composer.paletteInsertBelow(insertBelow)}</p>}
-        {SECTION_BLOCK_TYPES.map((type, i) => (
-          <button
-            key={type}
-            ref={i === 0 ? firstSectionRef : undefined}
-            type="button"
-            className="palette-item"
-            onClick={() => onAddSection(type)}
-          >
-            <svg className="ico" aria-hidden="true">
-              <use href={type === 'section_8' ? '/sprite.svg#i-flag' : '/sprite.svg#i-doc'} />
-            </svg>
-            <span className="pi-text">
-              <span>{sectionName(type)}</span>
-            </span>
-            <span className="plus" aria-hidden="true">
-              +
-            </span>
-          </button>
-        ))}
+        {SECTION_BLOCK_TYPES.map((type, i) => {
+          const held = heldSections.has(type);
+          const metaId = `${reasonId}-${type}`;
+          return (
+            <button
+              key={type}
+              ref={i === 0 ? firstSectionRef : undefined}
+              type="button"
+              className="palette-item"
+              // G2: the name stays the section's; "No template" is its description.
+              aria-label={sectionName(type)}
+              aria-describedby={held ? metaId : undefined}
+              onClick={() => (held ? onSectionHeld(type) : onAddSection(type))}
+            >
+              <svg className="ico" aria-hidden="true">
+                <use href={type === 'section_8' ? '/sprite.svg#i-flag' : '/sprite.svg#i-doc'} />
+              </svg>
+              <span className="pi-text">
+                <span>{sectionName(type)}</span>
+                {held ? (
+                  <span className="pi-meta" id={metaId}>
+                    {copy.composer.sectionHeldMeta}
+                  </span>
+                ) : null}
+              </span>
+              <span className="plus" aria-hidden="true">
+                +
+              </span>
+            </button>
+          );
+        })}
 
         <p className="palette-group">{copy.composer.paletteEquipment}</p>
         {drawer ? null : target}

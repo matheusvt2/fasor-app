@@ -60,6 +60,11 @@ export interface NumberInputOptions {
    * suggestion landing on this empty field swaps it out), never silently dropped.
    */
   flushOnUnmount?: boolean;
+  /**
+   * Fix batch fxpw G4: the keyboard the input asks for; `decimal` by default. A field that
+   * accepts a two-level voltage ("380/220") asks for `text`: the decimal keypad has no "/".
+   */
+  inputMode?: 'decimal' | 'text';
 }
 
 export interface NumberInputState {
@@ -193,7 +198,7 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
     inputProps: {
       ref: element,
       value: text,
-      inputMode: 'decimal',
+      inputMode: options.inputMode ?? 'decimal',
       autoComplete: 'off',
       onChange: (event) => {
         dirty.current = true;

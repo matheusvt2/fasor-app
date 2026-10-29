@@ -57,6 +57,13 @@ export interface SessionState {
    */
   recoveryNeeded: boolean;
   database: AppDatabase | null;
+  /**
+   * Fix batch fxpw G1: whether the boot's server read has settled (a confirmed user attached,
+   * unreachable, or no session), or a form sign-in has landed; sign-out leaves it true. The
+   * sync engine runs only on a database the server has answered for: until then `database`
+   * may be the cached pointer's, which a cookie of another user replaces mid-pull.
+   */
+  settled: boolean;
   signIn: (email: string, password: string) => Promise<authClient.SignInResult>;
   signOut: () => Promise<void>;
   /**
@@ -102,6 +109,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [aiFeatures, setAiFeatures] = useState<boolean>(() => readAiFeatures() ?? true);
   const [recoveryNeeded, setRecoveryNeeded] = useState(false);
   const [database, setDatabase] = useState<AppDatabase | null>(null);
+  const [settled, setSettled] = useState(false);
   const databaseRef = useRef<AppDatabase | null>(null);
 
   /**
@@ -174,6 +182,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // Offline. A cached session keeps working; without one there is nothing to show
         // but Login, which will explain that signing in needs a connection.
         if (cached === null) setStatus('signed-out');
+        setSettled(true);
         return;
       }
 
@@ -185,10 +194,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (cached === null) {
           setUser(null);
           setStatus('signed-out');
+          setSettled(true);
           return;
         }
         writeReAuthRequired(true);
         setReAuthRequired(true);
+        setSettled(true);
         return;
       }
 
@@ -219,6 +230,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setRecoveryNeeded(notice === 'pending');
       }
       setStatus('signed-in');
+      setSettled(true);
     })();
     return () => {
       cancelled = true;
@@ -264,6 +276,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         writeReAuthRequired(false);
         setReAuthRequired(false);
         setStatus('signed-in');
+        setSettled(true);
       }
       return result;
     },
@@ -336,6 +349,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       aiFeatures,
       recoveryNeeded,
       database,
+      settled,
       signIn: doSignIn,
       signOut: doSignOut,
       saveRegistration: doSaveRegistration,
@@ -352,6 +366,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       aiFeatures,
       recoveryNeeded,
       database,
+      settled,
       doSignIn,
       doSignOut,
       doSaveRegistration,

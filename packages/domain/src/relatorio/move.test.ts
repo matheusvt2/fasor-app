@@ -54,6 +54,14 @@ describe('11.2-UNIT moveTagSuggestion', () => {
     expect(suggestion).toEqual({ tag: 'SEC-C09', question: 'Sugerir TAG para Coluna 9?', renameLabel: 'Renomear para SEC-C09' });
   });
 
+  it('fix batch fxpw G7 (pin): SEC-C01 moved from Coluna 1 to the empty Coluna 9 is offered SEC-C09', () => {
+    const coluna1 = byName('Coluna 1');
+    const sec1 = locationBlocks(snapshot.blocks, coluna1.id).find((block) => block.block_type === 'chave_seccionadora')!;
+    expect(tagOf(sec1)).toBe('SEC-C01');
+    expect(locationBlocks(snapshot.blocks, coluna9.id)).toEqual([]);
+    expect(moveTagSuggestion(sec1, own(sec1), coluna9, snapshot.equipment)).toEqual({ tag: 'SEC-C09', question: 'Sugerir TAG para Coluna 9?', renameLabel: 'Renomear para SEC-C09' });
+  });
+
   it('offers the next free TAG when the base one is taken by a live row, never by a removed one', () => {
     const holder = { id: '019966b0-0053-7000-8000-000000000001', tag: 'SEC-C09', removed_at: null };
     expect(moveTagSuggestion(sec, own(sec), coluna9, [...snapshot.equipment, holder])!.tag).toBe('SEC-C09-2');

@@ -1,4 +1,5 @@
 import {
+  acceptsVoltagePair,
   appendObservation,
   cabineDataNoteText,
   cabineLineText,
@@ -141,6 +142,7 @@ export function CabineBlock({
         invalidText={t.invalidNumber}
         selectEmpty={t.selectEmpty}
         acceptsNotApplicable
+        acceptsPair={acceptsVoltagePair(group, field.key)}
         commit={(next) =>
           api.author === null
             ? undefined

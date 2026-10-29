@@ -10,6 +10,7 @@ import {
   NOT_APPLICABLE_NUMBER,
   NOT_APPLICABLE_TEXT,
   parseDecimalPtBr,
+  parseVoltagePairPtBr,
   type NotApplicableNumber,
 } from '../parse/pt-br-number.ts';
 import { wordRowByName } from '../registry/instrument-row.ts';
@@ -262,15 +263,18 @@ export function nameplateWordRecents(
 /**
  * The AR-10 value of a typed number: `{raw, unit, state: 'measured'}`, null for an empty field,
  * `'invalid'` for text that is no number. Story 16.4: an accepted "N.A" spelling ("N.A", "NA",
- * "N/A", "N.A.", any case, whitespace anywhere) answers `NOT_APPLICABLE_NUMBER`.
+ * "N/A", "N.A.", any case, whitespace anywhere) answers `NOT_APPLICABLE_NUMBER`. Fix batch
+ * fxpw G4: with `pair` (the field accepts a two-level voltage, `acceptsVoltagePair`), a typed
+ * "380/220" is measured too, its `raw` the dot-decimal pair (`parseVoltagePairPtBr`).
  */
 export function numberFieldValue(
   typed: string,
   unit: string | null,
+  options: { pair?: boolean } = {},
 ): NotApplicableNumber | { raw: string; unit: string | null; state: 'measured' } | null | 'invalid' {
   if (typed.trim() === '') return null;
   if (isNotApplicableText(typed)) return NOT_APPLICABLE_NUMBER;
-  const raw = parseDecimalPtBr(typed);
+  const raw = parseDecimalPtBr(typed) ?? (options.pair === true ? parseVoltagePairPtBr(typed) : null);
   return raw === null ? 'invalid' : { raw, unit, state: 'measured' };
 }
 

@@ -24,6 +24,7 @@ const session = (): SessionState => ({
   reAuthRequired: false,
   aiFeatures: true,
   recoveryNeeded: false,
+  settled: true,
   database,
   signIn: vi.fn(),
   signOut: vi.fn(async () => {}),

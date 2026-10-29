@@ -399,6 +399,10 @@ export const copy = {
     paletteLabel: 'Paleta de blocos',
     paletteTitle: 'Blocos',
     paletteSections: 'Seções',
+    // Fix batch fxpw G2, verbatim from `42-template-composer.html` L186-194: a section the
+    // template holds keeps its row with this `.pi-meta`, and a tap adds nothing and says so.
+    sectionHeldMeta: 'No template',
+    sectionHeldToast: (name: string) => `${name} já está no template`,
     // The palette group's name; the `.pal-target` line under it names where it adds (Story 14.2).
     paletteEquipment: 'Equipamentos',
     // authored: "Adicionar abaixo" places the next section tapped in the palette under

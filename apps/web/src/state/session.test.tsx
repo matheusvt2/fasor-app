@@ -304,3 +304,52 @@ describe('the server AI features flag (Story 11.8 follow-up)', () => {
     expect(current?.aiFeatures).toBe(true);
   });
 });
+
+describe('fix batch fxpw G1: the boot read settles before the engine may run', () => {
+  const other: UserProfile = { ...profile, id: '0b000000-0000-7000-8000-0000000000b1', email: 'b@teste.local', companyId: '0b000000-0000-7000-8000-00000000000b' };
+
+  afterEach(async () => {
+    await openDatabase(other.id).delete();
+  });
+
+  it("a pointer left by another user: unsettled on that user's database, settled on the confirmed one", async () => {
+    writeLastSession(profile);
+    let answer: (account: AccountResponse | null) => void = () => {};
+    readSession.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    renderSession();
+    await waitFor(() => expect(current?.database?.name).toBe(databaseName(profile.id)));
+    expect(current?.status).toBe('signed-in');
+    expect(current?.settled).toBe(false);
+    await act(async () => {
+      answer({ user: other, features: { ai: true } });
+    });
+    await waitFor(() => expect(current?.settled).toBe(true));
+    expect(current?.database?.name).toBe(databaseName(other.id));
+    expect(current?.user?.id).toBe(other.id);
+    // The confirmed user's store did not exist: the evicted-origin screen (AD-8).
+    expect(current?.recoveryNeeded).toBe(true);
+  });
+
+  it("an offline boot settles on the cached user's database", async () => {
+    writeLastSession(profile);
+    readSession.mockRejectedValue(new TypeError('Failed to fetch'));
+    renderSession();
+    await waitFor(() => expect(current?.settled).toBe(true));
+    expect(current?.database?.name).toBe(databaseName(profile.id));
+    expect(current?.status).toBe('signed-in');
+  });
+
+  it('a boot with no pointer and no session settles signed out; a form sign-in leaves it settled', async () => {
+    readSession.mockResolvedValue(null);
+    renderSession();
+    await waitFor(() => expect(current?.status).toBe('signed-out'));
+    expect(current?.settled).toBe(true);
+    signIn.mockResolvedValue({ ok: true, user: profile, features: { ai: true } });
+    await act(async () => {
+      await current!.signIn('a@teste.local', 'x');
+    });
+    expect(current?.status).toBe('signed-in');
+    expect(current?.settled).toBe(true);
+    expect(current?.database?.name).toBe(databaseName(profile.id));
+  });
+});

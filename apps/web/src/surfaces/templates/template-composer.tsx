@@ -4,6 +4,7 @@ import {
   addedText,
   addPainel,
   addSection,
+  heldSectionTypes,
   addSectionBelow,
   composerSectionsWarning,
   composerView,
@@ -353,11 +354,23 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
     setInsertBelow(null);
     void edit((fresh) => {
       const blocks = withoutOrphans(fresh);
+      // Fix batch fxpw G2: held on the fresh row (a second quick tap, or another device added it
+      // meanwhile): no write, and the tap says so as a tap on a held row does.
+      if (heldSectionTypes(blocks).has(type)) {
+        showToast(copy.composer.sectionHeldToast(sectionName(type)));
+        return null;
+      }
       if (below === null) return [['blocks', addSection(blocks, type, fresh.seed_version)]];
       // E9 sweep B11: the section "Adicionar abaixo" was pressed on, wherever it is now.
       const index = resolveSectionIndex(blocks, below);
       return index === null ? null : [['blocks', addSectionBelow(blocks, index, type, fresh.seed_version)]];
     }).catch(() => undefined);
+  }
+
+  /** Fix batch fxpw G2: a tap on a section the template holds adds nothing and says so (the mock's toast). */
+  function onSectionHeld(type: SectionBlockType): void {
+    setInsertBelow(null);
+    showToast(copy.composer.sectionHeldToast(sectionName(type)));
   }
 
   async function onMoveSection(section: ComposerSection, toIndex: number): Promise<void> {
@@ -414,6 +427,8 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
     () => new Set(equipmentTypesOf(row.seed_version).filter((type) => typeConfigFor(liveBlocks, type) !== null)),
     [liveBlocks, row.seed_version],
   );
+  // Fix batch fxpw G2: the sections the rendered composition holds.
+  const heldSections = useMemo(() => heldSectionTypes(liveBlocks), [liveBlocks]);
   const editingConfig = editingType === null ? null : typeConfigFor(liveBlocks, editingType);
   // The type left the template (its last placement went to zero, here or on another device):
   // its panel closes rather than reopening by itself when the type comes back.
@@ -493,6 +508,8 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
     placedTypes,
     onEditDefaults: setEditingType,
     onAddSection,
+    heldSections,
+    onSectionHeld,
     onSetQuantity: (type: EquipmentBlockType, n: number) =>
       current === null ? Promise.resolve() : onSetQuantity(current.ref, type, n),
     insertBelow: insertBelow === null ? null : sectionName(insertBelow.block_type),

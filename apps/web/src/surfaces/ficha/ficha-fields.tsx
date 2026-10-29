@@ -249,6 +249,12 @@ export interface FieldProps {
    * On the plate the flag is the kernel's `nameplateAcceptsNotApplicable` (QA G1).
    */
   acceptsNotApplicable?: boolean;
+  /**
+   * Fix batch fxpw G4: the number field also accepts a two-level voltage ("380/220"), stored
+   * as typed in `raw`. The flag is the kernel's `acceptsVoltagePair` (the cabine's TENSÃO
+   * SECUNDÁRIA only); validity is `numberFieldValue`'s.
+   */
+  acceptsPair?: boolean;
 }
 
 /** One sheet field, editable, rendered by its kind. */
@@ -322,7 +328,7 @@ function TextField({ field, value, commit, draft, missing, label, helper, after,
  * shows a secondary "N/A" button at its trailing end while it does not read N/A; a tap
  * commits the same `not_applicable` put as the typed spelling and moves no focus.
  */
-function NumberField({ field, value, commit, draft, missing, label, invalidText, after, flushOnUnmount, acceptsNotApplicable }: FieldProps) {
+function NumberField({ field, value, commit, draft, missing, label, invalidText, after, flushOnUnmount, acceptsNotApplicable, acceptsPair }: FieldProps) {
   const id = useId();
   const helperId = useId();
   const unit = field.unit ?? null;
@@ -330,7 +336,7 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
   const measuredRaw = typeof value === 'object' && value !== null && 'raw' in value && (value as { state?: string }).state === 'measured' ? (value as { raw: string }).raw : null;
   const storedRaw = storedNotApplicable ? NOT_APPLICABLE_STORED_RAW : measuredRaw;
   const parseNumber = (text: string): ParsedNumber | null | 'invalid' => {
-    const parsed = numberFieldValue(text, unit);
+    const parsed = numberFieldValue(text, unit, { pair: acceptsPair === true });
     if (parsed === null || parsed === 'invalid') return parsed;
     // QA G1, fx17r review: an N/A stored before the field stopped offering it still reads N/A.
     if (parsed.state === 'not_applicable' && acceptsNotApplicable !== true && !storedNotApplicable) return 'invalid';
@@ -347,6 +353,8 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
     format: (parsed) => (parsed.state === 'not_applicable' ? NOT_APPLICABLE_TEXT : formatDecimalGroupedPtBr(parsed.raw)),
     draft: { surface: DRAFT_SURFACE, entityId: draft.entityId, field: draft.field },
     flushOnUnmount: flushOnUnmount === true,
+    // G4: the decimal keypad has no "/", so a field that takes "380/220" asks for the text keyboard.
+    inputMode: acceptsPair === true ? 'text' : 'decimal',
     // DB-7: Enter commits (`useNumberInput`), then runs on unless the text is no number (the
     // helper shows and the focus stays) or an IME composition ends with it.
     onEnter: (event) => {

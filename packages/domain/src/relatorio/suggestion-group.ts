@@ -7,6 +7,7 @@ import { getDefinition } from '../seed/definitions.ts';
 import type { FieldDef } from '../seed/schema.ts';
 import { selectOptionFor } from '../seed/select-option.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
+import { isNameplateFieldExcused } from './dry-insulation.ts';
 import { collapse, numberShape, pendingByNameplateField, suggestionView } from './suggestion-rows.ts';
 
 /*
@@ -32,13 +33,23 @@ export interface NameplateSuggestion {
   view: 'fill' | 'replace' | 'none';
 }
 
-/** Each nameplate field of `block` holding a pending suggestion, in definition order, with its view. */
-export function nameplateSuggestions(block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>, pending: readonly SuggestionRow[]): NameplateSuggestion[] {
+/** The block fields the nameplate group reads: its own, and those the excused-field rule reads (`isNameplateFieldExcused`). */
+type GroupBlock = Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet' | 'config'>;
+
+/**
+ * Each nameplate field of `block` holding a pending suggestion, in definition order, with its
+ * view. Fix batch fxpw G10: a field the block excuses (`isNameplateFieldExcused`, VOL. ÓLEO
+ * on a dry unit) shows none while it is excused: the row stays pending, untouched, and is
+ * back once the unit reads oil again. Every reader of the group (its rows, the banner count
+ * through `suggestionGroupCounts`, `confirmAllCandidates`) goes through this one filter.
+ */
+export function nameplateSuggestions(block: GroupBlock, pending: readonly SuggestionRow[]): NameplateSuggestion[] {
   const byField = pendingByNameplateField(pending, block.id);
   const out: NameplateSuggestion[] = [];
   for (const field of nameplateFields(block)) {
     const suggestion = byField.get(field.key);
     if (suggestion === undefined) continue;
+    if (isNameplateFieldExcused(block, field.key)) continue;
     out.push({ field, suggestion, view: suggestionView(block.sheet.nameplate[field.key], suggestion, field) });
   }
   return out;
@@ -80,7 +91,7 @@ export function unknownManufacturer(field: Pick<FieldDef, 'kind'>, value: unknow
  * (`hasCreateHint`: a new manufacturer takes its own "Criar ⟨nome⟩?" tap) are skipped.
  * Without `registry` any hint counts as a create.
  */
-export function confirmAllCandidates(block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>, pending: readonly SuggestionRow[], registry: RegistryNames = []): SuggestionRow[] {
+export function confirmAllCandidates(block: GroupBlock, pending: readonly SuggestionRow[], registry: RegistryNames = []): SuggestionRow[] {
   return nameplateSuggestions(block, pending)
     .filter((entry) => entry.view === 'fill' && entry.suggestion.trust === 'suggested' && !hasCreateHint(entry.suggestion, registry))
     .map((entry) => entry.suggestion);
@@ -91,7 +102,7 @@ export function confirmAllCandidates(block: Pick<BlockRow, 'id' | 'seed_version'
  * the `verify` fills and the fills that create a registry row (`create`, counted apart).
  */
 export function suggestionGroupCounts(
-  block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>,
+  block: GroupBlock,
   pending: readonly SuggestionRow[],
   registry: RegistryNames = [],
 ): { shown: number; fills: number; confirmable: number; verify: number; create: number } {

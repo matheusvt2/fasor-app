@@ -10,6 +10,7 @@ import {
   numberEchoText,
   parseDecimalPtBr,
   parseReadingPtBr,
+  parseVoltagePairPtBr,
 } from './pt-br-number.ts';
 
 describe('5.3-UNIT parseDecimalPtBr (EXPERIENCE.md › Measurement field, Parsing)', () => {
@@ -126,5 +127,26 @@ describe('16.4-UNIT the "N.A" spellings and value (contract 26)', () => {
     for (const other of [null, undefined, 'N.A', { raw: '', unit: null, state: 'empty' }, { raw: '5', unit: 'kV', state: 'measured' }, ['not_applicable']]) {
       expect(isNotApplicableNumber(other)).toBe(false);
     }
+  });
+});
+
+describe('fix batch fxpw G4: the two-level voltage "380/220" (FO.SERV-03 practice)', () => {
+  it('parses two non-negative pt-BR numbers around one slash into dot-decimal sides', () => {
+    expect(parseVoltagePairPtBr('380/220')).toBe('380/220');
+    expect(parseVoltagePairPtBr(' 380 / 220 ')).toBe('380/220');
+    expect(parseVoltagePairPtBr('13,8/7,97')).toBe('13.8/7.97');
+    expect(parseVoltagePairPtBr('13.800/7.970')).toBe('13800/7970');
+    for (const typed of ['380/', '/220', '-380/220', '380/-220', '+380/220', '380/220/127', 'abc', '380', '', '/', 'N/A', '380/abc']) {
+      expect(parseVoltagePairPtBr(typed), typed).toBeNull();
+    }
+  });
+
+  it('formats each side of a stored pair the way a single number reads; any other text unchanged', () => {
+    expect(formatDecimalGroupedPtBr('380/220')).toBe('380/220');
+    expect(formatDecimalGroupedPtBr('13.8/7.97')).toBe('13,8/7,97');
+    expect(formatDecimalGroupedPtBr('13800/7970')).toBe('13.800/7.970');
+    expect(formatDecimalGroupedPtBr('n/a')).toBe('n/a');
+    expect(formatDecimalGroupedPtBr('380/')).toBe('380/');
+    expect(numberEchoText('380/220', 'V')).toBe('= 380/220 V');
   });
 });

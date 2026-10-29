@@ -457,6 +457,15 @@ export function resolveSectionIndex(blocks: readonly TemplateBlock[], section: S
   return null;
 }
 
+/**
+ * Fix batch fxpw G2: the section types the composition holds (`42-template-composer.html`
+ * L186-194: a held section's palette row reads "No template" and a tap adds nothing). A
+ * duplicate ("Duplicar", Story 3.4) counts once; equipment blocks never.
+ */
+export function heldSectionTypes(blocks: readonly TemplateBlock[]): ReadonlySet<SectionBlockType> {
+  return new Set(sectionSlots(blocks).map((slot) => blocks[slot]!.block_type as SectionBlockType));
+}
+
 /** Appends a section block after every other section (the palette's "Seções" tap), under the row's seed version. */
 export function addSection(blocks: readonly TemplateBlock[], type: SectionBlockType, seedVersion: string): TemplateBlock[] {
   const slots = sectionSlots(blocks);

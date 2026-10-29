@@ -10,11 +10,18 @@ import { blocksWithPendingSuggestions, livePendingSuggestions, pendingSuggestion
  * Story 4.3: the counts the Sumário header, the Project row and the Home card read, computed
  * once from the snapshot (AD-2). Everything goes through `sheetState`, so Epic 5's sheet
  * edits change nothing here. "Não ensaiada counts as concluded" (EXPERIENCE.md › Export
- * dialog): a sheet marked not tested is done with, and is counted apart as well.
+ * dialog) is the handled count (`sheets_handled`): a sheet marked not tested is done with,
+ * and is counted apart as well. Fix batch fxpw G5: "fichas concluídas" has one meaning, the
+ * parecer's (`parecerCounts`): `sheets_concluded` never counts a not-tested sheet, which the
+ * header's "N não ensaiadas" counts instead. The remaining-work counters (Home card, Project
+ * row, tree counters, section 9 row, resume line, pre-issue row) read `sheets_handled`.
  */
 
 export interface Progress {
+  /** Sheets concluded (`sheetState === 'concluida'`) and not held by a pending suggestion; never a not-tested one (G5). */
   sheets_concluded: number;
+  /** Sheets done with: concluded or not tested, and not held by a pending suggestion (the remaining-work count). */
+  sheets_handled: number;
   sheets_total: number;
   /**
    * Checklist items answered NC on live sheets. Epic 6's points of attention close them.
@@ -50,12 +57,15 @@ export function ncCount(block: BlockRow): number {
  * waiting for a tap is never counted as concluded, whatever its own state says.
  */
 function over(blocks: readonly BlockRow[], suggestionsPending: number, held: ReadonlySet<string> = new Set()): Progress {
-  const progress: Progress = { sheets_concluded: 0, sheets_total: 0, nc_open: 0, not_tested: 0, suggestions_pending: suggestionsPending };
+  const progress: Progress = { sheets_concluded: 0, sheets_handled: 0, sheets_total: 0, nc_open: 0, not_tested: 0, suggestions_pending: suggestionsPending };
   for (const block of blocks) {
     if (block.removed_at !== null || !isEquipmentBlock(block)) continue;
     progress.sheets_total += 1;
     const state = sheetState(block);
-    if ((state === 'concluida' || state === 'nao_ensaiada') && !held.has(block.id)) progress.sheets_concluded += 1;
+    if (!held.has(block.id)) {
+      if (state === 'concluida') progress.sheets_concluded += 1;
+      if (state === 'concluida' || state === 'nao_ensaiada') progress.sheets_handled += 1;
+    }
     if (state === 'nao_ensaiada') progress.not_tested += 1;
     progress.nc_open += ncCount(block);
   }
@@ -183,13 +193,14 @@ export function locationProgressIndex(
     return out;
   };
   return (locationId) => {
-    const total: Progress = { sheets_concluded: 0, sheets_total: 0, nc_open: 0, not_tested: 0, suggestions_pending: 0 };
+    const total: Progress = { sheets_concluded: 0, sheets_handled: 0, sheets_total: 0, nc_open: 0, not_tested: 0, suggestions_pending: 0 };
     const seen = new Set([locationId]);
     const stack = [locationId];
     while (stack.length > 0) {
       const id = stack.pop()!;
       const p = ownProgress(id);
       total.sheets_concluded += p.sheets_concluded;
+      total.sheets_handled += p.sheets_handled;
       total.sheets_total += p.sheets_total;
       total.nc_open += p.nc_open;
       total.not_tested += p.not_tested;
@@ -206,18 +217,18 @@ export function locationProgressIndex(
 
 // --- the texts -------------------------------------------------------------------------
 
-/** `.progress-counter`: "42 de 94" (the section 9 cabine rows). */
-export function progressCounterText(p: Pick<Progress, 'sheets_concluded' | 'sheets_total'>): string {
-  return `${p.sheets_concluded} de ${p.sheets_total}`;
+/** `.progress-counter`: "42 de 94" (the section 9 cabine rows), the handled sheets (concluded or not tested, G5). */
+export function progressCounterText(p: Pick<Progress, 'sheets_handled' | 'sheets_total'>): string {
+  return `${p.sheets_handled} de ${p.sheets_total}`;
 }
 
-/** `.progress-counter[data-state]`: complete once every sheet is concluded (a relatório with no sheet is never complete). */
-export function progressCounterState(p: Pick<Progress, 'sheets_concluded' | 'sheets_total'>): 'complete' | 'pending' {
-  return p.sheets_total > 0 && p.sheets_concluded >= p.sheets_total ? 'complete' : 'pending';
+/** `.progress-counter[data-state]`: complete once every sheet is handled (a relatório with no sheet is never complete). */
+export function progressCounterState(p: Pick<Progress, 'sheets_handled' | 'sheets_total'>): 'complete' | 'pending' {
+  return p.sheets_total > 0 && p.sheets_handled >= p.sheets_total ? 'complete' : 'pending';
 }
 
-/** The Project row's counter: "42 de 94 fichas" (`30-project.html`). */
-export function fichasCountText(p: Pick<Progress, 'sheets_concluded' | 'sheets_total'>): string {
+/** The Project row's counter: "42 de 94 fichas" (`30-project.html`), the handled sheets. */
+export function fichasCountText(p: Pick<Progress, 'sheets_handled' | 'sheets_total'>): string {
   return `${progressCounterText(p)} fichas`;
 }
 
@@ -244,9 +255,13 @@ export function relatorioCounter(
   return { text: fichasCountText(p), state: progressCounterState(p) };
 }
 
-/** The header's first count: "42 de 94 fichas concluídas" (`40-relatorio-overview.html`). */
+/**
+ * The header's first count: "42 de 94 fichas concluídas" (`40-relatorio-overview.html`). Fix
+ * batch fxpw G5: the concluded sheets only, the parecer hint's and summary's count; a
+ * not-tested sheet is the header's third count.
+ */
 export function fichasConcluidasText(p: Pick<Progress, 'sheets_concluded' | 'sheets_total'>): string {
-  return `${progressCounterText(p)} fichas concluídas`;
+  return `${p.sheets_concluded} de ${p.sheets_total} fichas concluídas`;
 }
 
 /** "2 NC abertos", "1 NC aberto", "0 NC abertos". */
