@@ -2,10 +2,10 @@
 title: 'Fix batch fxpw: the ten web and kernel gaps of the production pass (G1 to G5, G7 to G11)'
 type: 'bugfix'
 created: '2026-10-29'
-status: 'in-review'
+status: 'done'
 baseline_revision: '79d76805d5c504b6b7979b6a820c078dd0638332'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -184,3 +184,25 @@ G5 split, so no reader changes by accident: `sheets_handled` is today's `sheets_
 - `pnpm exec vitest run <the touched test files>` -- green; each new case shown red on the unfixed source first (pins G7, G9 green on both).
 - `pnpm lint`, `pnpm static` -- green.
 - `grep -rn "legenda aplicada\|ficou como Geral\|ficaram como Geral\|fichas concluídas" e2e` -- every hit read against this change.
+
+## Auto Run Result
+
+Status: done. Ten items, kernel first (child 1, 3852250b), then web and e2e (child 2, 92cfa9b0), one review loop (5c9d9e32).
+
+- G8: `app.css` wraps the learned NC chip inside its pill (`.checklist-row .row-expand > .chip-row > .chip`); e2e `learned-options.spec.ts` 14.12-E2E-004, red with the rule removed (mutation run), green with it.
+- G1: `SessionState.settled`; `SyncProvider` starts the engine only after the boot read settles or a form sign-in lands; `SyncState.engineReady` and the relatório gate wait for it (review ECH-1). Unit `session.test.tsx`, `sync.test.tsx`, `sumario-surface.test.tsx`; e2e `durability.spec.ts` 1.8-E2E-004 (no console error), 1.8-E2E-007 (another user's pointer), both on the matrix too.
+- G2: `heldSectionTypes`; a held section reads "No template" and a tap (or a stale double tap, review ECH-6) writes nothing and toasts "{N Título} já está no template"; `template-composer-palette.test.tsx`; e2e 3.4-E2E-003.
+- G3: `photosImportedText(added, skipped, caption)`, `photosAddedUncaptionedText`; e2e 6.4-E2E-010.
+- G4: `parseVoltagePairPtBr`, pair-aware `formatDecimalGroupedPtBr`, `numberFieldValue(..., { pair })`, `acceptsVoltagePair`; the pair field's keypad is text (review ECH-4); e2e 12.3-E2E-003; goldens unchanged.
+- G5: `Progress.sheets_handled` (remaining work) beside `sheets_concluded` (concluded only); one-snapshot test `parecer.test.ts`; pre-issue pin (review VGR-2); e2e E5-Q18e, 8.1-E2E-006, 14.10-E2E-032.
+- G7, G9: no product defect; pins `move.test.ts` (SEC-C01 to Coluna 9 = SEC-C09) and `engine.test.ts` (`nc_over_c` row); evidence 11.2-E2E-001/002 and 10.1-E2E-001 green.
+- G10: `nameplateSuggestions` and `livePendingSuggestions` skip an excused field; e2e `oil-dry.spec.ts` 14.11-E2E-004.
+- G11: `removePhotos` (one batch of the gallery's `removed_at` puts); the Geral cancel toast offers "Desfazer"; e2e 6.4-E2E-008.
+
+Files changed: `packages/domain/src/{parse/pt-br-number,photos/gallery,relatorio/{cabine,count-target,ficha,pre-issue,progress,suggestion-group,suggestion-rows},templates/compose}.ts` and tests; `apps/web/src/{state/{session,sync},components/number-input,copy/pt-br,styles/app.css,surfaces/{ficha/{cabine-block,ficha-fields},photos/{capture-sheet,photo-ops},relatorio/relatorio-gate,templates/{block-palette,template-composer}}}` and tests (39 session mocks gained `settled: true`); e2e `durability`, `templates`, `gallery`, `sheet-knows-12-3-12-4`, `ficha`, `suggestions`, `learned-options`, `oil-dry`; `deferred-work.md` (ten rows done, two review rows), `docs/kbs/log.md`.
+
+Review: 14 findings (ECH 11, VGR 3): 5 patched entries (medium 2: ECH-1, ECH-4; low 3: ECH-6, VGR-1, VGR-2), 2 deferred (ECH-3 medium, ECH-11 with VGR-other low; both pre-existing, ledger rows), 6 rejected with reasons in the triage log (ECH-2, ECH-5, ECH-7, ECH-8, ECH-9, ECH-10). Follow-up review recommended: true — two medium patches not re-reviewed: the relatório gate's wait on `engineReady` (no e2e drives a deep link to an absent relatório while the boot read is pending) and the pair field's `inputmode="text"` (not tried on a tablet keyboard).
+
+Verification (tools container, story gate under the host lock, 2026-10-29T15:04-15:29Z, lock wait 0 s after a first attempt that waited 34 min and died on a quoting error in the lock wrapper): lint 0 errors (21 s), static green (26 s), test:api 92 files / 686 tests green (287 s), test:unit 4620/4621 (466 s, load 11): `template-composer-defaults.test.tsx` timed out at 15 s under load and passed 15/15 alone under the lock (16:45Z, load 6.7); touched specs on desktop-chrome and durability-desktop-chrome 140 tests: 136 passed, 3 skipped (touch-only tests on desktop), 1 failed (the new 14.12-E2E-004 expected the typed phrase with its period; the server learns it without; fixed, then learned-options.spec.ts 4/4 green); matrix (android, webkit) 1.8-E2E-004 and 007: 4/4 green.
+
+Residual risks: G1's cause is inferred from code (the production profile's pointer was unreadable); G4's pair display now groups any stored dot-decimal pair ("13800/13200" reads "13.800/13.200"); the two deferred findings.

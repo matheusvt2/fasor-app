@@ -265,6 +265,8 @@ test('@p1 14.12-E2E-004 fix batch fxpw G8: at 390 px a 66-character learned NC p
   test.setTimeout(180_000);
   const LONG = 'Temperatura elevada do transformador de força indicada no display.';
   expect(LONG).toHaveLength(66);
+  // The server learns the phrase without its closing period (the registry's normalized name), as the pass's chip read.
+  const LEARNED = LONG.slice(0, -1);
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 768, height: 1024 });
   await signIn(page, account.email);
@@ -279,17 +281,17 @@ test('@p1 14.12-E2E-004 fix batch fxpw G8: at 390 px a 66-character learned NC p
     officeDraft(account, { relatorioId: one.relatorioId }, sheetChecklistPath(sheetOne.blockId, ITEM, 'observation'), LONG),
   ]);
   await syncNowAndReturn(page);
-  await expect.poll(() => liveRegistryNames(page, 'nc_phrase'), { timeout: 30_000 }).toEqual([LONG]);
+  await expect.poll(() => liveRegistryNames(page, 'nc_phrase'), { timeout: 30_000 }).toEqual([LEARNED]);
 
   // A later sheet at 390 px offers it as a chip.
   await page.setViewportSize({ width: 390, height: 844 });
   await openSheet(page, two.relatorioId, sheetTwo.blockId);
   const { item, n } = await itemOf(page, two.relatorioId);
   await markNc(page);
-  await expect(chips(page, n)).toHaveText([...item.nc_phrases, LONG]);
+  await expect(chips(page, n)).toHaveText([...item.nc_phrases, LEARNED]);
   const chip = chips(page, n).last();
   await chip.scrollIntoViewIfNeeded();
-  await expect(chip).toHaveText(LONG);
+  await expect(chip).toHaveText(LEARNED);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   const chipBox = (await chip.boundingBox())!;
   const rowBox = (await checklistRow(page).boundingBox())!;
