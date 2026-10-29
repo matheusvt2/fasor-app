@@ -105,7 +105,7 @@ deferred: []
 
 ### 2026-10-29 — Review pass
 Layers: Edge Case Hunter and Verification Gap Reviewer (opus). Blind Hunter and Intent Alignment skipped: token economy; the integrated review covers them.
-- verdicts: 10 findings — high 0, medium 4, low 4, false 0, maybe-false 0 (2 rejected as low and unlikely)
+- verdicts: 10 findings — high 0, medium 4, low 6, false 0, maybe-false 0 (three lows rejected as unlikely, three patched)
 - findings:
   - `[medium]` `[defer]` ECH-1: `relatorio/removed_at` is not server-only, so a crafted contract-28 push could tombstone an emitido relatório — coordinator decision 1 keeps it device-writable; no app surface writes it; ledger row under "Deferred from: fix batch fxrm".
   - `[low]` `[reject]` ECH-2: a generate job in flight writes revision/file ops onto a tombstoned relatório — harmless (the tombstone hides the relatório; its ops stay valid) and the target relatório has no job.
@@ -136,3 +136,12 @@ Layers: Edge Case Hunter and Verification Gap Reviewer (opus). Blind Hunter and 
 - `podman compose --profile tools run --rm --user root tools pnpm test:unit -- packages/domain/src/ops packages/domain/src/contract packages/domain/src/home` -- expected: green.
 - `podman compose --profile tools run --rm --user root tools pnpm exec vitest run --project api apps/api/src/db/tombstone.integration.test.ts` (or the api suite's own filter) -- expected: green.
 - Story gate under `lockf -t 20000 /tmp/fasor-verify.lock`: `pnpm lint`, `pnpm static`, `pnpm test:unit`, `pnpm test:api`, then `pnpm exec tsx scripts/e2e.ts e2e/relatorio-tombstone.spec.ts e2e/sync.spec.ts --project desktop-chrome --project durability-desktop-chrome`.
+
+## Auto Run Result
+
+Status: done
+Head gated: `364cc435410a58c3e4f0bcd5b0399050e6198279` (includes `origin/main` 8d120e65 merged as `17e760cd`).
+Story gate (2026-10-29, lock wait 0 s, 22:29Z to 22:41Z): lint 0 (24 s), static 0 (32 s), test:api 0 (93 files, 703 tests, 347 s), test:unit 0 (326 files, 4630 tests, 271 s), e2e `relatorio-tombstone.spec.ts` + `sync.spec.ts` on desktop-chrome and durability-desktop-chrome 0 (4 of 4, 36 s).
+Red first: `.scratch-fxrm/red-first.txt` (kernel path and apply tests, the missing tombstone module, the contract-28 and device-remove sync tests).
+Mutation: the in-transaction re-check made a no-op turned "re-runs the checks inside the batch transaction" red; restored green.
+Matrix projects not run: the op fold gained a new family case only, no existing behavior and no commit path change.
