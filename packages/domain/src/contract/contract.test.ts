@@ -98,9 +98,9 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 27 and refuses version 26 (Stories 15.7 and 17.6: a version-26 bundle cannot resolve seed v10 nor parse site_altitude_na)', () => {
-    expect(CONTRACT_VERSION).toBe(27);
-    expect(MIN_CONTRACT_VERSION).toBe(27);
+  it('speaks version 28 and refuses version 27 (fix batch fxrm: a version-27 bundle cannot parse a relatorio/removed_at op)', () => {
+    expect(CONTRACT_VERSION).toBe(28);
+    expect(MIN_CONTRACT_VERSION).toBe(28);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

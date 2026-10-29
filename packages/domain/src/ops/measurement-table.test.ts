@@ -74,7 +74,8 @@ describe('contract 19: sheet/{block_id}/test/{test_key}/value/{value_key}', () =
     expect(isCreateFamily(parsed)).toBe(false);
     expect(isServerOnly(parsed)).toBe(false);
     expect(isCellFamily(parsed.family)).toBe(true);
-    expect(FAMILIES).toHaveLength(45);
+    // Fix batch fxrm (contract 28) appended `relatorio/removed_at` after it.
+    expect(FAMILIES).toHaveLength(46);
     expect(FAMILIES[44]!.family).toBe('sheet/test/value');
   });
 

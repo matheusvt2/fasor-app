@@ -290,6 +290,19 @@ describe('homeCards: device availability (AD-7, AD-8)', () => {
     );
     expect(cards).toEqual([]);
   });
+
+  it('fix batch fxrm: a tombstoned relatório is not a card (the company summary lists live relatórios only), and feeds no board count', () => {
+    const removed = { ...relatorio(R_DRAFT, 'rascunho'), removed_at: '2026-10-29T12:00:00.000Z' };
+    const all = homeCards(
+      input({
+        relatorios: [removed, relatorio(R_FIELD_HERE, 'em_campo')],
+        summary: [summary(R_FIELD_HERE, 'em_campo')],
+        syncStates: [onDevice(R_DRAFT), onDevice(R_FIELD_HERE)],
+      }),
+    );
+    expect(all.map((card) => card.id)).toEqual([R_FIELD_HERE]);
+    expect(statusBoardCounts(all)).toMatchObject({ rascunho: 0, em_campo: 1 });
+  });
 });
 
 describe('homeCards: ordering', () => {

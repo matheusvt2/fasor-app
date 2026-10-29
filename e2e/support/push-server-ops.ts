@@ -3,6 +3,7 @@ import { loadConfig } from '../../apps/api/src/config.ts';
 import { createDb } from '../../apps/api/src/db/client.ts';
 import { asCompanyId } from '../../apps/api/src/db/repositories/company-id.ts';
 import { applyOps } from '../../apps/api/src/sync/apply.ts';
+import { applyTombstone } from '../../apps/api/src/db/tombstone.ts';
 import { newId } from '../../apps/api/src/ids.ts';
 
 /*
@@ -187,6 +188,21 @@ export async function pushAuditRun(
     const result = await applyOps(db, asCompanyId(companyId), [op], { origin: 'server', now: () => at });
     if (result.rejected.length > 0) throw new Error(`audit_run op rejected: ${JSON.stringify(result.rejected)}`);
     return id;
+  } finally {
+    await sql.end();
+  }
+}
+
+/**
+ * Fix batch fxrm (contract 28): the one-shot cleanup's tombstone of a relatório
+ * (`apps/api/src/db/tombstone.ts`, actor `system:cleanup`), run against the compose Postgres
+ * as the production CLI runs it; the device learns the removal on its next pull.
+ */
+export async function tombstoneRelatorio(companyId: string, relatorioId: string): Promise<void> {
+  const config = loadConfig();
+  const { sql, db } = createDb(config.DATABASE_URL);
+  try {
+    await applyTombstone(db, { companyId, relatorioId }, { now: () => new Date(), newId });
   } finally {
     await sql.end();
   }

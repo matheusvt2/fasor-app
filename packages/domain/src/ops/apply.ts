@@ -553,6 +553,8 @@ export function readPath(state: EntityState, op: Op): unknown {
       return (row as RelatorioRow).export.scheme;
     case 'relatorio/preview_file_id':
       return (row as RelatorioRow).preview_file_id;
+    case 'relatorio/removed_at':
+      return (row as RelatorioRow).removed_at;
     case 'location/se':
     case 'location/env': {
       const loc = row as LocationRow;
@@ -624,6 +626,9 @@ function writeRow(row: EntityRow, op: Op, path: OpPath): EntityRow {
       return { ...(row as RelatorioRow), export: { scheme: value as RelatorioRow['export']['scheme'] } };
     case 'relatorio/preview_file_id':
       return { ...(row as RelatorioRow), preview_file_id: value as string | null };
+    case 'relatorio/removed_at':
+      // Fix batch fxrm (contract 28): a `remove` writes its `client_ts`, a put of null restores.
+      return { ...(row as RelatorioRow), removed_at: value as string | null };
     case 'location/se':
     case 'location/env': {
       const loc = row as LocationRow;
