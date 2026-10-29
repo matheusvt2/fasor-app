@@ -48,3 +48,9 @@ Matheus, 2026-10-29, on the test data the hand-run production check of 2026-10-1
 - **Deviation 2:** `--find` matches a relatório on `setup.local` or `setup.atividade` (a relatório row has no name) and lists every live relatório of a matched project.
 - **Addition, open for veto:** a project another live relatório belongs to is refused, as a client another live project references is.
 - **Pending:** the deploy (contract 28: a tablet on 27 gets "Atualizar" until it reloads), then the production run on Matheus's word; nothing ran against AWS in this batch. Open product question in `deferred-work.md` § "Deferred from: fix batch fxrm (2026-10-29)".
+
+## Result addendum (2026-10-29, evening)
+
+- `94ca957a` deployed to production (smoke 8 of 8) and re-checked on the smoke company: G1, G5, G6, G7, G8, G9 hold (`prod-pass-2026-10-28.md` § Re-check); one new P3 (the learned NC chip offered twice) in the ledger.
+- **fxrm merged**: PR #208, squash `d0c8c1f1` (contract 28, `relatorio/removed_at`, `tombstone-cli.ts`, runbook). Pending: the deploy of that image on Matheus's go (a tablet on contract 27 shows "Atualização necessária" until it reloads), then find, dry run and apply on Bruno's company, recorded here when done.
+- Backlog analysis of Matheus's two asks (Home navigation at scale; interaction telemetry on AWS): `backlog-2026-10-29-home-nav-and-telemetry.md`, rows in the ledger.

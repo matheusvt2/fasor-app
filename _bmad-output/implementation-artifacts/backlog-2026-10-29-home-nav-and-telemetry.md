@@ -6,7 +6,7 @@ Matheus asked for both on 2026-10-29, after the production pass fix batches merg
 
 > "temos que registrar todo tipo de interação que o usuário estiver fazendo com a ferramenta, para conseguir ver pontos de atrito e melhoria do workflow. Como poderíamos fazer isso usando o ambiente AWS? coloque junto da análise da Amelia"
 
-Neither is a story yet. Section 1 is Sally's (UX) reading with options; section 2 is Amelia's (dev) technical analysis with a recommendation; section 3 lists the decisions Matheus and Bruno own. Rows pointing here go into `deferred-work.md` ("Deferred from: Matheus's asks of 2026-10-29") once fix batch fxrm, which edits that file, has merged.
+Neither is a story yet. Section 1 is Sally's (UX) reading with options; section 2 is Amelia's (dev) technical analysis with a recommendation; section 3 lists the decisions Matheus and Bruno own. Rows pointing here are in `deferred-work.md` ("Deferred from: the production re-check and Matheus's asks of 2026-10-29").
 
 ## 1. Home navigation with many relatórios (Sally)
 
