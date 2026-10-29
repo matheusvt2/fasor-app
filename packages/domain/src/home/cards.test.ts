@@ -291,12 +291,12 @@ describe('homeCards: device availability (AD-7, AD-8)', () => {
     expect(cards).toEqual([]);
   });
 
-  it('fix batch fxrm: a tombstoned relatório is not a card even while a stale summary still lists it, and feeds no board count', () => {
+  it('fix batch fxrm: a tombstoned relatório is not a card (the company summary lists live relatórios only), and feeds no board count', () => {
     const removed = { ...relatorio(R_DRAFT, 'rascunho'), removed_at: '2026-10-29T12:00:00.000Z' };
     const all = homeCards(
       input({
         relatorios: [removed, relatorio(R_FIELD_HERE, 'em_campo')],
-        summary: [summary(R_DRAFT, 'rascunho'), summary(R_FIELD_HERE, 'em_campo')],
+        summary: [summary(R_FIELD_HERE, 'em_campo')],
         syncStates: [onDevice(R_DRAFT), onDevice(R_FIELD_HERE)],
       }),
     );

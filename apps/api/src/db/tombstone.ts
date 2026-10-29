@@ -48,6 +48,11 @@ export type TombstonePlan =
 export interface TombstoneDeps {
   now: Clock;
   newId: NewId;
+  /**
+   * Test seam only (review of fix batch fxrm): runs after the plan passed and before the batch
+   * opens its transaction, to model a change between the dry run and the apply.
+   */
+  afterPlan?: () => Promise<void>;
 }
 
 export interface TombstoneCandidate {
@@ -270,6 +275,7 @@ export async function planTombstone(db: Reader, input: TombstoneInput, deps: Tom
 export async function applyTombstone(db: Db, input: TombstoneInput, deps: TombstoneDeps): Promise<{ batchId: string; ops: Op[]; applied: Array<{ op_id: string; seq: number }> }> {
   const plan = await planTombstone(db, input, deps);
   if (!plan.ok) throw new TombstoneRefused(plan.reason, plan.checks);
+  if (deps.afterPlan !== undefined) await deps.afterPlan();
   const result = await applyServerBatch(db, asCompanyId(input.companyId), plan.ops, {
     now: deps.now,
     before: async (tx) => {

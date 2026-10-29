@@ -2,7 +2,7 @@
 title: 'Fix batch fxrm: relatório tombstone op family (contract 28) and the one-shot tombstone CLI to remove the 2026-10-15 test data from production'
 type: 'feature'
 created: '2026-10-29'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '94ca957ad1d79dd646800936f78aad8853a05cfe'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -102,6 +102,21 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-10-29 — Review pass
+Layers: Edge Case Hunter and Verification Gap Reviewer (opus). Blind Hunter and Intent Alignment skipped: token economy; the integrated review covers them.
+- verdicts: 10 findings — high 0, medium 4, low 4, false 0, maybe-false 0 (2 rejected as low and unlikely)
+- findings:
+  - `[medium]` `[defer]` ECH-1: `relatorio/removed_at` is not server-only, so a crafted contract-28 push could tombstone an emitido relatório — coordinator decision 1 keeps it device-writable; no app surface writes it; ledger row under "Deferred from: fix batch fxrm".
+  - `[low]` `[reject]` ECH-2: a generate job in flight writes revision/file ops onto a tombstoned relatório — harmless (the tombstone hides the relatório; its ops stay valid) and the target relatório has no job.
+  - `[low]` `[reject]` ECH-3: a device's unpushed outbox ops land on the tombstone — AD-20 by design (an edit on a tombstone is applied and kept); the target is abandoned test data.
+  - `[low]` `[patch]` ECH-4: `flag in ID_FLAGS` accepted `constructor` and other prototype keys — now `Object.hasOwn`; spawned-CLI test added.
+  - `[low]` `[patch]` ECH-5: `--find` given twice silently replaced the text — now refused; spawned-CLI test added.
+  - `[low]` `[reject]` ECH-6: a `--find` text starting with `--` is refused as a missing value — no row name starts so; the operator quotes another fragment.
+  - `[low]` `[patch]` ECH-7: the runbook implied a restore tool — `infra/README.md` now says the CLI has no restore mode and a restore is a reviewed one-off `applyServerBatch` of null puts.
+  - `[medium]` `[patch]` VG-1: the in-transaction re-check had no test (removing the `before` hook stayed green) — `TombstoneDeps.afterPlan` test seam plus a test that marks the relatório emitido between plan and apply; mutation run (hook made a no-op) turned it red, restored green.
+  - `[medium]` `[patch]` VG-2: the CLI's dry-run and apply branches were never spawned — test spawns a dry run (exit 0, "dry run", no op) and the same ids with `--apply` (exit 0, two ops, both rows removed).
+  - `[medium]` `[patch]` VG-3: the `homeCards` stale-summary branch was unreachable from the app (`home-store.ts` `liveRows` drops tombstones before `homeCards`) — reverted `cards.ts` to main and the claims in the KB and coordinator context; the unit test now feeds the fresh summary a device holds after the cleanup (the company pull runs before the relatório streams in one cycle, and the e2e covers the device path).
 
 ## Design Notes
 

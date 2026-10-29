@@ -47,5 +47,4 @@ Matheus, 2026-10-29, on the test data the hand-run production check of 2026-10-1
 - **Deviation 1:** the project put is scope `company` (`ENTITY_SCOPE.project`), not "scope project".
 - **Deviation 2:** `--find` matches a relatório on `setup.local` or `setup.atividade` (a relatório row has no name) and lists every live relatório of a matched project.
 - **Addition, open for veto:** a project another live relatório belongs to is refused, as a client another live project references is.
-- **Kernel robustness:** `homeCards` also hides a summary entry whose local row is a tombstone (a summary pulled before the removal).
 - **Pending:** the deploy (contract 28: a tablet on 27 gets "Atualizar" until it reloads), then the production run on Matheus's word; nothing ran against AWS in this batch. Open product question in `deferred-work.md` § "Deferred from: fix batch fxrm (2026-10-29)".

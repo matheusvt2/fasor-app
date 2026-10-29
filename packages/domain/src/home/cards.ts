@@ -193,23 +193,17 @@ function deviceOf(
 /**
  * The ordered Home cards. The card set is the local relatório rows (tombstones
  * excluded) unioned by id with the company summary entries the device has no row
- * for (nor a tombstone of); ordering is the current card, then the service start descending with missing
+ * for; ordering is the current card, then the service start descending with missing
  * dates last, then the id.
  */
 export function homeCards(input: HomeCardsInput): HomeCard[] {
   const sources = new Map<string, CardSource>();
-  // Fix batch fxrm: a tombstoned local row also hides a summary entry that still lists it
-  // (a summary pulled before the removal reached this device).
-  const removed = new Set<string>();
   for (const row of input.relatorios) {
-    if (row.removed_at !== null) {
-      removed.add(row.id);
-      continue;
-    }
+    if (row.removed_at !== null) continue;
     sources.set(row.id, fromRow(row));
   }
   for (const entry of input.summary) {
-    if (sources.has(entry.id) || removed.has(entry.id)) continue;
+    if (sources.has(entry.id)) continue;
     sources.set(entry.id, fromSummary(entry));
   }
 

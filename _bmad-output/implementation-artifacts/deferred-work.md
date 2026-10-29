@@ -2535,3 +2535,8 @@ Source: `_bmad-output/implementation-artifacts/spec-fix-prod-remove-test-data-fx
   evidence: fix batch fxrm, Intent "The app has no Remover for a relatório or a project"; runbook `infra/README.md` "Remove test data from a company".
   class: question
   state: open (owner: Bruno and Matheus: whether the product offers the removal, to whom, for which statuses, and with what undo)
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-prod-remove-test-data-fxrm.md`
+  summary: The family `relatorio/removed_at` is not server-only (coordinator decision), so a contract-28 client that crafts a push could tombstone an emitido relatório; the "never an emitido relatório" rule lives only in the cleanup CLI. No app surface writes the family today.
+  evidence: `packages/domain/src/ops/path.ts` family entry (no `serverOnly`); `apps/api/src/sync/apply.ts` `validate` has no status rule for it; review of fix batch fxrm, Edge Case Hunter.
+  class: debt
+  state: open (owner: the batch that builds a "Remover relatório" surface: refuse it on an emitido relatório in the push route, or make the family server-only until then)

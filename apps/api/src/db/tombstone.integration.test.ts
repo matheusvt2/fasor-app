@@ -215,6 +215,23 @@ describe('planTombstone and applyTombstone refusals', () => {
 });
 
 describe('applyTombstone', () => {
+  it('re-runs the checks inside the batch transaction: a relatório emitido after the plan passed is refused and nothing of the tombstone lands', async () => {
+    const raceProject = newId();
+    const raceRelatorio = newId();
+    await applyServerBatch(db, asCompanyId(companyId), [projectCreate(raceProject, null, 'Obra da corrida'), relatorioCreate(raceRelatorio, raceProject)], { now: () => new Date() });
+    const given = input({ relatorioId: raceRelatorio, projectId: raceProject });
+    expect((await planTombstone(db, given, deps)).ok).toBe(true);
+    const before = await opCount(companyId);
+    const afterPlan = async () => {
+      await applyServerBatch(db, asCompanyId(companyId), [serverOp({ kind: 'put', scope: 'relatorio', relatorio_id: raceRelatorio, path: 'relatorio/status', value: 'emitido' })], { now: () => new Date() });
+    };
+    await expect(applyTombstone(db, given, { ...deps, afterPlan })).rejects.toThrow(/emitido/);
+    // Only the racing status put landed.
+    expect(await opCount(companyId)).toBe(before + 1);
+    expect(await removedAt('relatorio', raceRelatorio)).toBeNull();
+    expect(await removedAt('project', raceProject)).toBeNull();
+  }, 60_000);
+
   it('writes the three ops in one batch as system:cleanup; the stream carries the remove; the summary drops the relatório', async () => {
     const before = await opCount(companyId);
     const dry = await planTombstone(db, input({ relatorioId, projectId, clientId }), deps);
@@ -274,6 +291,34 @@ describe('tombstone-cli', () => {
     expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(1);
     expect(`${run.stdout}${run.stderr}`).toContain('emitido');
     expect(await opCount(companyId)).toBe(before);
+  }, 60_000);
+
+  it('a dry run of consistent ids exits 0 and writes nothing; the same ids with --apply write the tombstones', async () => {
+    const cliProject = newId();
+    const cliRelatorio = newId();
+    await applyServerBatch(db, asCompanyId(companyId), [projectCreate(cliProject, null, 'Obra da CLI'), relatorioCreate(cliRelatorio, cliProject)], { now: () => new Date() });
+    const args = ['--company', companyId, '--relatorio', cliRelatorio, '--project', cliProject];
+    const before = await opCount(companyId);
+    const dry = cli(args);
+    expect(dry.status, `${dry.stdout}\n${dry.stderr}`).toBe(0);
+    expect(dry.stdout).toContain('dry run');
+    expect(dry.stdout).toContain('relatorio/removed_at');
+    expect(await opCount(companyId)).toBe(before);
+    expect(await removedAt('relatorio', cliRelatorio)).toBeNull();
+    const applied = cli([...args, '--apply']);
+    expect(applied.status, `${applied.stdout}\n${applied.stderr}`).toBe(0);
+    expect(await opCount(companyId)).toBe(before + 2);
+    expect(await removedAt('relatorio', cliRelatorio)).not.toBeNull();
+    expect(await removedAt('project', cliProject)).not.toBeNull();
+  }, 120_000);
+
+  it('refuses --find given twice and an argument named after an object key', () => {
+    const twice = cli(['--find', 'a', '--find', 'b'], { DATABASE_URL: 'postgres://nobody:nothing@127.0.0.1:1/none' });
+    expect(twice.status, `${twice.stdout}\n${twice.stderr}`).toBe(1);
+    expect(twice.stderr).toContain('--find given twice');
+    const proto = cli(['--company', companyId, 'constructor', relatorioId], { DATABASE_URL: 'postgres://nobody:nothing@127.0.0.1:1/none' });
+    expect(proto.status, `${proto.stdout}\n${proto.stderr}`).toBe(1);
+    expect(proto.stderr).toContain('unknown argument');
   }, 60_000);
 
   it('refuses a malformed id before it opens the database', () => {

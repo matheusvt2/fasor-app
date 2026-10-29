@@ -55,10 +55,11 @@ function parseArgs(argv: readonly string[]): Parsed {
       continue;
     }
     const value = argv[i + 1];
-    if (flag !== '--find' && !(flag in ID_FLAGS)) throw new UsageError(`unknown argument ${JSON.stringify(flag)}`);
+    if (flag !== '--find' && !Object.hasOwn(ID_FLAGS, flag)) throw new UsageError(`unknown argument ${JSON.stringify(flag)}`);
     if (value === undefined || value.startsWith('--')) throw new UsageError(`${flag} needs a value`);
     i++;
     if (flag === '--find') {
+      if (find !== undefined) throw new UsageError('--find given twice');
       if (value.trim() === '') throw new UsageError('--find needs a non-empty text');
       find = value;
       continue;
