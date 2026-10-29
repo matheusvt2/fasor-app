@@ -2,10 +2,10 @@
 title: 'Fix batch fxg6: display reading on the mobile text detector so the OCR sidecar fits the production instance (prod-pass G6)'
 type: 'bugfix'
 created: '2026-10-29'
-status: 'in-review'
+status: 'done'
 baseline_revision: '98b6b7bddc5a787890ac148a25e43ebe4d5bbffd'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'medium'
 context:
@@ -114,3 +114,21 @@ All commands from the worktree root, each started with `nohup` under the lock, o
   - `[medium]` `[defer]` (VG-4) the kernel and api display tests replay server-detector tokens and `test_display.py` checks number presence only, so the mobile detector's confidences and row placement are unverified at the kernel's level — the fix re-records fixtures in `apps/api` and `packages/domain`, which the intent excludes; the unit spellings the mobile read produced (`GO`, `Gn`) are already mapped to GΩ by `packages/domain/src/reading/display.ts:28`. Ledger row in `deferred-work.md`.
   - `[low]` `[patch]` (VG-other-1) `display_spike.py` broken by the new signature — same as ECH-1.
   - `[low]` `[patch]` (VG-other-2) the Dockerfile file count misses hidden files — same as ECH-4.
+- patch verification (2026-10-29): the VG-3 print-size test failed its first capped run (rebuilt image at `ad145c93`: nine 1200 x 900 tests passed, the first 2000 x 1500 case OOM-killed, pytest exit 137, `memory.peak` = max 1610612736, `oom_kill 1`; a uvicorn read of the same print OOM-killed after 70 s). Fixed inside the patch step, not a second review loop: `display.py` `MAX_DISPLAY_SIDE = 1200` (the display working copy is scaled to at most 1200 px a side, the size measured inside the cap; the six fixtures stay unscaled; the plate route and the detector parameters unchanged), boundary tests in `test_review_fixes.py` (1200 kept, 1201 scaled, 2000 x 1500 to 1200 x 900, the small-image upscale kept). Patched, not re-reviewed.
+
+## Auto Run Result
+
+Status: done (2026-10-29, head `541dfdff` plus the ledger, log and doc-number commit; merge of `origin/main` 8ea95e4d at `fb8278da`).
+
+**Change.** Branch A landed: `PP-OCRv5_mobile_det` passed every plate accuracy test, so it serves `/read/display` and `/read`, the server model left the image, and `/health` names it. Beyond the spec (review patch VG-3, flagged for the coordinator): the display working copy is capped at 1200 px a side (`MAX_DISPLAY_SIDE`), because a 2000 x 1500 print-size read on the mobile detector was OOM-killed under the cap; detector parameters are unchanged.
+
+**Files.** `services/ocr/app/detector.py` (model name per instance, `DISPLAY_DETECTION_MODEL`), `app/main.py` (one mobile detector, health name), `app/display.py` (`MAX_DISPLAY_SIDE`), `Dockerfile` (mobile model baked and pinned, five files, hidden metadata removed), `compose.memcap.yml` (new, the 1536 MiB budget), `tests/conftest.py` (models built in the main thread, test timeout default 600 s), `tests/test_display.py` (two 2000 x 1500 prints), `tests/test_api.py`, `tests/test_review_fixes.py` (model name, `_prepare` boundaries), `tools/display_spike.py`, `README.md`; `docker-compose.yml` (`platform: linux/amd64`, `mem_limit` comment); `infra/README.md` (memory rows); `docs/kbs/code/ocr-service.md`, `docs/kbs/log.md`; `deferred-work.md` (G6 done, VG-4 row).
+
+**Review.** 12 findings: 9 patched (1 high, 5 medium, 3 low), 1 deferred (VG-4, medium), 1 rejected (ECH-2, low: emulated local reads pass the 55 s timeout, opt-in profile, documented). Follow-up review recommended: the patched high (VG-3) and its `MAX_DISPLAY_SIDE` fix were not re-reviewed; the open risk is display accuracy on real camera photos scaled to 1200 px and the memory margin natively.
+
+**Verification** (amd64 image under qemu on the arm64 podman VM, every run under the host lock).
+- Red, unchanged image (`app-ocr-fxg6-red`), 1536 MiB cap: plain `pytest tests/test_display.py` segfault 139 (emulation, predictor built off the main thread; peak 657342464, 0 OOM); uvicorn display read OOM-killed (`oom_kill 1`, peak = max 1610612736, client disconnected at 672.8 s); `test_display.py` with main-thread models `Killed`, exit 137, `oom_kill 1`.
+- Green (`541dfdff`): build exit 0, five pinned sums OK, `/opt/models` = `PP-OCRv5_mobile_det`, `parseq`; architecture `amd64`; uvicorn 2000 x 1500 read 200, values read, peak 1238253568, 0 OOM; `tests/test_display.py` under `compose.memcap.yml` 11 passed, peak 1187180544, 0 OOM; full suite 48 passed (8g), peak 1811865600; plate 43/43, 16/16, IoU 0.910 / 0.921 / 0.904.
+- Tools container on the merged head: `pnpm lint` exit 0 (25 warnings, 0 errors), `pnpm static` exit 0, `scripts/speech-default.test.ts` 2 passed.
+
+**Residual risks.** Memory was measured under emulation (qemu adds its own overhead; native should be lower). The plate route still feeds up to 2000 px to the detector and was not measured under the cap (production sends plates and panels to Textract). The image tag needs the deploy.

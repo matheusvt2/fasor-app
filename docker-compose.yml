@@ -287,8 +287,9 @@ services:
     # A bound on a runaway, not a tight budget: the pytest run of this image peaked at 6.3 GiB
     # (measured 2026-09-30, no limit); 3 GiB killed it (exit 137).
     # 2026-10-29 (fix batch fxg6, mobile detector, amd64 under emulation): the full pytest run
-    # peaked at 1.66 GiB (cgroup memory.peak 1785495552), the display tests at 1.10 GiB under a
-    # 1536 MiB cap; the value stays as the runaway bound.
+    # (48 tests) peaked at 1.69 GiB (cgroup memory.peak 1811865600), the display tests at 1.11 GiB
+    # (1187180544) under a 1536 MiB cap (services/ocr/compose.memcap.yml); the value stays as the
+    # runaway bound.
     # The display route works on at most 1200 px a side: a 2000 x 1500 print read without that
     # limit was OOM-killed under the 1536 MiB cap.
     mem_limit: 8g

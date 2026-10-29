@@ -121,7 +121,10 @@ requests give identical responses. The run ends with the measured accuracy line.
   43 words with 16 of 16 values (mean IoU 0.910, 0.921 and 0.904), the same text
   results as above; the six display fixtures read every expected value under a 1536 MiB
   cgroup cap. The image no longer carries the server detector. A 2000 x 1500 copy of a
-  display was OOM-killed under that cap until the display route took its 1200 px limit.
+  display was OOM-killed under that cap until the display route took its 1200 px limit;
+  with it, `tests/test_display.py` (11 tests, two of them 2000 x 1500 prints) passed under
+  the cap at a cgroup `memory.peak` of 1187180544 B, and the full suite (48 tests) peaked at
+  1811865600 B without the cap (amd64 under emulation, head `541dfdff`).
 
 ## Open question for Matheus
 
