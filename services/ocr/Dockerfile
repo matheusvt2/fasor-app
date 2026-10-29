@@ -43,18 +43,24 @@ ENV PATH=/opt/venv/bin:$PATH
 # Download the detection model once (PaddleX official model store) and keep it under /opt/models.
 ENV PADDLE_PDX_MODEL_SOURCE=huggingface
 # Security review 2026-09-30: the download names no revision, so the files the image keeps are
-# pinned by checksum (the ones the 2026-09-28 image was built and tested with); a changed
-# upstream model fails the build here instead of shipping unreviewed weights.
-RUN python -c "from paddleocr import TextDetection; TextDetection(model_name='PP-OCRv5_server_det')" \
+# pinned by checksum; a changed upstream model fails the build here instead of shipping
+# unreviewed weights. Fix batch fxg6 (2026-10-29, prod-pass G6): the model is the mobile
+# detector, which serves both routes inside the production task's 1536 MiB reservation (the
+# server detector asked 5.6 GB for a display photo); its sums are the ones the 2026-10-29
+# build downloaded and was tested with.
+RUN python -c "from paddleocr import TextDetection; TextDetection(model_name='PP-OCRv5_mobile_det')" \
  && mkdir -p /opt/models \
- && cp -r /root/.paddlex/official_models/PP-OCRv5_server_det /opt/models/PP-OCRv5_server_det \
- && cd /opt/models/PP-OCRv5_server_det \
+ && cp -r /root/.paddlex/official_models/PP-OCRv5_mobile_det /opt/models/PP-OCRv5_mobile_det \
+ && cd /opt/models/PP-OCRv5_mobile_det \
+ && rm -rf .cache .gitattributes \
  && printf '%s\n' \
-      'af5876933d8806a1b50d895867e0781e135cd92ff37381992828fc8d1b842d28  inference.json' \
-      '183146fe9d9910352f68482f623bcbbb9fa7b9e8fa1463b9ad288cef00524d2d  inference.pdiparams' \
-      '28fb721efc3634fc8aa677e474b9602cb815a91cf569ef357a7a553d7b3ce685  inference.yml' \
-      '436bf19010fe3879477e8599a870a0ec8ccd14ca39056805ec4ed20ab318ec04  config.json' \
-    | sha256sum -c -
+      '05feef1acb00aa4cd7362b15f7f501fc4f99d7b1fa73c1c871e0c7b1504b0f5c  inference.json' \
+      'afa1820cb16c1fd0dad589d0f8b389139061c1ef6d68019685fd07be997dda5b  inference.pdiparams' \
+      '98069072e1b6b37d727fd9d9f11725faa46d6ea0de012f2ed26caea011c37699  inference.yml' \
+      '7ac1c33f377ba58561f4b89d3180b6add2b7c5c60a4edac90fa4e0ceccdc6665  config.json' \
+      '4cc20ad6d41af86b3ce9885ffb0956e152574a2eb14179aeb07fd2d3956161ca  README.md' \
+    | sha256sum -c - \
+ && test "$(ls -A | wc -l)" -eq 5
 # The pydantic models the responses are built through, generated from the kernel's JSON Schema.
 COPY contract/ ./contract/
 RUN mkdir -p /opt/generated && /opt/venv-dev/bin/datamodel-codegen \

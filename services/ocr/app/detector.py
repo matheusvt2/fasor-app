@@ -9,7 +9,12 @@ from pathlib import Path
 
 import numpy as np
 
-DETECTION_MODEL = "PP-OCRv5_server_det"
+# Fix batch fxg6 (2026-10-29, prod-pass G6): both routes run the mobile detector. The server
+# detector (`PP-OCRv5_server_det`) asked 5.6 GB on CPU for a 1200 x 900 display photo and died
+# inside the production task's 1536 MiB reservation; the mobile one reads the six display
+# fixtures under that cap and keeps the plate accuracy tests green, so it serves `/read` too
+# and the server model left the image.
+DISPLAY_DETECTION_MODEL = "PP-OCRv5_mobile_det"
 # Review fixes 2026-09-30 (O-4): the detector resizes its input so the longer side is at most
 # this many pixels (PaddleOCR `limit_type="max"`); its polygons come back in the input's own
 # pixels. The model's default keeps a 4000 px working image whole, tens of seconds on CPU and
@@ -19,11 +24,12 @@ DET_LIMIT_SIDE_LEN = int(os.environ.get("OCR_DET_LIMIT_SIDE_LEN", "2000"))
 
 
 class Pp5Detector:
-    def __init__(self, model_dir: Path) -> None:
+    def __init__(self, model_dir: Path, model_name: str) -> None:
         from paddleocr import TextDetection
 
+        self.model_name = model_name
         self.model = TextDetection(
-            model_name=DETECTION_MODEL,
+            model_name=model_name,
             model_dir=str(model_dir),
             device="cpu",
             enable_mkldnn=False,
@@ -41,5 +47,5 @@ class Pp5Detector:
         return [np.asarray(p, dtype=np.float32).reshape(-1, 2) for p in polys if len(p) >= 4]
 
 
-def load_detector() -> Pp5Detector:
-    return Pp5Detector(Path(os.environ.get("OCR_MODELS_DIR", "/opt/models")) / DETECTION_MODEL)
+def load_detector(model_name: str) -> Pp5Detector:
+    return Pp5Detector(Path(os.environ.get("OCR_MODELS_DIR", "/opt/models")) / model_name, model_name)

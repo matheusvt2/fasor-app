@@ -2449,7 +2449,7 @@ Source: `_bmad-output/test-artifacts/manual/prod-pass-2026-10-28.md` (v0.4.0 on 
   summary: "Ler visor" never reads in production: every display photo fails after three attempts with `ResourceExhaustedError: Fail to alloc memory of 5648154624` in the PP-OCRv5 server text detector of the sidecar on the 4 GiB `t3a.medium`; the photo was 1200 x 900 px, so it is the server model's CPU memory, not the image. No display read was ever attempted in production before 2026-10-28 (CloudWatch, 14 days). The "Digitar" path keeps the sheet usable (prod-pass G6, P1).
   evidence: `/fasor/production/ocr` log; `prod-pass-2026-10-28.md` § "Coordinator's diagnosis of G6"; `infra/README.md` memory risk note; `t3a.large` would add about USD 22 per month and cross the USD 100 ceiling.
   class: bug
-  state: open (owner: Matheus decides between (1) `PP-OCRv5_mobile_det` in the sidecar with the display accuracy tests re-run, (2) display reading through Bedrock vision with the sidecar off in production, (3) a lower `OCR_DET_LIMIT_SIDE_LEN` by Terraform, unproven; then one batch and a deploy)
+  state: ~~open (owner: Matheus decides between (1) `PP-OCRv5_mobile_det` in the sidecar with the display accuracy tests re-run, (2) display reading through Bedrock vision with the sidecar off in production, (3) a lower `OCR_DET_LIMIT_SIDE_LEN` by Terraform, unproven; then one batch and a deploy)~~ done (2026-10-29, fix batch fxg6: option 1, `PP-OCRv5_mobile_det` serves `/read/display` and `/read` (the plate tests held 43 of 43 words, 16 of 16 values) and the server model left the image; the display working copy is capped at 1200 px a side (`MAX_DISPLAY_SIDE`) because a 2000 x 1500 print was OOM-killed on the mobile detector under the cap. Under a 1536 MiB cgroup limit on the amd64 image: the unchanged image OOM-killed on one 1200 x 900 display read (`oom_kill 1`, pytest exit 137), the fixed one passed `tests/test_display.py` with two 2000 x 1500 prints (11 passed, `memory.peak` 1187180544) and a uvicorn print read (1238253568); full suite 48 passed, peak 1811865600. Production needs the deploy, on Matheus's word)
 - source_spec: `_bmad-output/implementation-artifacts/spec-9-5-nc-drafts.md`
   summary: A long learned NC phrase chip (66 characters) renders 490 px wide and makes the whole sheet scroll sideways at 390 px (`scrollWidth` 505 against 375) (prod-pass G8, P2).
   evidence: `prod-pass-2026-10-28.md` Epic 9 G8, screenshot `e9-*`; the chip has no max width or wrap rule.
@@ -2515,3 +2515,13 @@ Source: `_bmad-output/implementation-artifacts/spec-fix-prod-pass-fxpw.md` § Re
   evidence: `packages/domain/src/relatorio/progress.ts` `over()` (Story 8.1 held rule) against `parecer.ts` `parecerCounts` (snapshot only, no device suggestion rows) (ECH-11, VGR).
   class: question
   state: open (owner: Matheus: whether the parecer counts a held sheet as concluded, or the header counts it)
+
+## Deferred from: fix batch fxg6 review (2026-10-29)
+
+Source: `_bmad-output/implementation-artifacts/spec-fix-prod-pass-fxg6.md` § Review Triage Log (Verification Gap Reviewer, VG-4). The fix lies in `apps/api` and `packages/domain`, which the batch could not touch.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-prod-pass-fxg6.md`
+  summary: The kernel and api display tests still replay tokens the sidecar produced on `PP-OCRv5_server_det`, and `services/ocr/tests/test_display.py` checks only that each expected number appears, so the confidences and row placement the mobile detector now produces (what `displayValues` uses for the unit token and the 0.5 trust threshold) are not checked at the kernel's level.
+  evidence: `packages/domain/src/reading/display.test.ts` "recorded sidecar reads" and the `apps/api` job-display fixtures (`fixtures/README.md`) predate the swap; the mobile read of `display-tres-valores` spells the units `GO`/`GO`/`GO` where the recording has `GO`/`GD`/`GD` (all three map to GΩ, `display.ts:28`).
+  class: test-gap
+  state: open (owner: the next batch touching display reading; re-record the fixtures from the mobile sidecar and let the existing kernel and job tests judge them)

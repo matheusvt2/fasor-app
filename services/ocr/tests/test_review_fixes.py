@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 from starlette.requests import Request
 
+import app.display as display
 import app.detector as detector
 import app.main as main
 from app.pipeline import _reading_order, clamp_box, quad_size, rectify
@@ -51,9 +52,27 @@ def test_the_detector_is_given_a_max_side_limit(monkeypatch):
             seen.update(kwargs)
 
     monkeypatch.setitem(sys.modules, "paddleocr", types.SimpleNamespace(TextDetection=FakeTextDetection))
-    detector.Pp5Detector(detector.Path("/nowhere"))
+    detector.Pp5Detector(detector.Path("/nowhere"), detector.DISPLAY_DETECTION_MODEL)
     assert seen["limit_type"] == "max"
     assert seen["limit_side_len"] == detector.DET_LIMIT_SIDE_LEN == 2000
+    assert seen["enable_mkldnn"] is False
+
+
+def test_the_display_route_detector_is_the_mobile_model(monkeypatch):
+    """Fix batch fxg6 (prod-pass G6): the detector the sidecar loads at startup, which
+    `/read/display` runs, is built with PP-OCRv5_mobile_det from its baked directory."""
+    seen = {}
+
+    class FakeTextDetection:
+        def __init__(self, **kwargs):
+            seen.update(kwargs)
+
+    monkeypatch.setitem(sys.modules, "paddleocr", types.SimpleNamespace(TextDetection=FakeTextDetection))
+    monkeypatch.setenv("OCR_MODELS_DIR", "/baked")
+    built = detector.load_detector(detector.DISPLAY_DETECTION_MODEL)
+    assert detector.DISPLAY_DETECTION_MODEL == "PP-OCRv5_mobile_det"
+    assert built.model_name == seen["model_name"] == "PP-OCRv5_mobile_det"
+    assert seen["model_dir"] == "/baked/PP-OCRv5_mobile_det"
 
 
 def test_clamp_box_clamps_rounds_and_drops_slivers():
@@ -88,3 +107,28 @@ def test_a_client_that_goes_away_mid_body_gets_no_500_and_frees_its_slot():
     for _ in range(taken):
         main._slots.release()
     assert taken == main.MAX_IN_FLIGHT
+
+
+@pytest.mark.parametrize(
+    ("width", "height", "expected"),
+    [
+        (1200, 900, (1200, 900)),
+        (900, 1200, (900, 1200)),
+        (1201, 900, (1200, 899)),
+        (2000, 1500, (1200, 900)),
+        (1500, 2000, (900, 1200)),
+    ],
+)
+def test_the_display_working_copy_is_at_most_1200_px_a_side(width, height, expected):
+    """Fix batch fxg6 (prod-pass G6): the display route's working copy keeps a long side up to
+    MAX_DISPLAY_SIDE untouched and scales a larger one (the 2000 px print variant) down to it."""
+    work, scale = display._prepare(np.full((height, width, 3), 255, np.uint8))
+    assert display.MAX_DISPLAY_SIDE == 1200
+    assert (work.shape[1], work.shape[0]) == expected
+    assert scale == (1.0 if max(width, height) <= 1200 else 1200 / max(width, height))
+
+
+def test_a_small_display_still_upscales_to_the_minimum_short_side():
+    work, scale = display._prepare(np.full((100, 200, 3), 255, np.uint8))
+    assert scale == display.MIN_SHORT_SIDE / 100
+    assert min(work.shape[:2]) == display.MIN_SHORT_SIDE

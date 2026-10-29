@@ -30,7 +30,7 @@ from fastapi.responses import JSONResponse, Response
 from starlette.requests import ClientDisconnect
 
 from .contract_models import OcrErrorResponse, OcrHealthResponse, OcrReadResult
-from .detector import DETECTION_MODEL, load_detector
+from .detector import DISPLAY_DETECTION_MODEL, load_detector
 from .display import read_display
 from .pipeline import InvalidImage, decode, read_image
 from .recognizer import RECOGNITION_MODEL, load_recognizer
@@ -74,7 +74,8 @@ def _stuck() -> bool:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    models["detector"] = load_detector()
+    # Fix batch fxg6 (prod-pass G6): one detector, the mobile model, serves both routes.
+    models["detector"] = load_detector(DISPLAY_DETECTION_MODEL)
     models["recognizer"] = load_recognizer()
     yield
     models.clear()
@@ -97,7 +98,7 @@ async def health() -> Response:
         return JSONResponse({"status": "starting"}, status_code=503)
     if _stuck():
         return JSONResponse({"status": "stuck"}, status_code=503)
-    return _json(OcrHealthResponse.model_validate({"status": "up", "detection": DETECTION_MODEL, "recognition": RECOGNITION_MODEL}))
+    return _json(OcrHealthResponse.model_validate({"status": "up", "detection": DISPLAY_DETECTION_MODEL, "recognition": RECOGNITION_MODEL}))
 
 
 async def _read_body(request: Request) -> bytes | None:
