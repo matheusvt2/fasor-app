@@ -126,7 +126,22 @@ export async function assignPhotoBatch(
 
 /** "Remover": the photo's tombstone. */
 export async function removePhoto(db: AppDatabase, author: Author, relatorioId: string, fileId: string): Promise<void> {
-  await commitBatch(db, [put(author, relatorioId, fileId, 'removed_at', toIso(now()))], deps);
+  await removePhotos(db, author, relatorioId, [fileId]);
+}
+
+/**
+ * Fix batch fxpw G11: the tombstones of several photos (the "Desfazer" of the import cancel
+ * toast, "N fotos ficaram como Geral, sem legenda"), the same `removed_at` put "Remover"
+ * writes, one per photo, in ONE batch. No new op.
+ */
+export async function removePhotos(db: AppDatabase, author: Author, relatorioId: string, fileIds: readonly string[]): Promise<void> {
+  if (fileIds.length === 0) return;
+  const at = toIso(now());
+  await commitBatch(
+    db,
+    fileIds.map((fileId) => put(author, relatorioId, fileId, 'removed_at', at)),
+    deps,
+  );
 }
 
 /** The toast's "Desfazer": the tombstone cleared, the photo back with its number. */

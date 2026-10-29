@@ -33,7 +33,7 @@ import { requestSyncCycle } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { writeErrorText } from '../../state/use-undoable-edits.ts';
 import { CaptionComposer, LegendarButton } from './caption-composer.tsx';
-import { assignPhotoBatch } from './photo-ops.ts';
+import { assignPhotoBatch, removePhotos, toastPhotoWriteFailure } from './photo-ops.ts';
 import { useCaptionSources } from './use-caption-sources.ts';
 import './photos.css';
 
@@ -341,15 +341,36 @@ function SheetBody({
     // "Cancelar" keeps the batch as "Geral": only the caption reading puts (ledger 1131).
     const answer = target ?? { blockId: null, caption: null, peopleInPhoto: false };
     const from = savedTarget();
-    void assignPhotoBatch(db, { id: user.id, companyId: user.companyId }, relatorioId, ids, answer.blockId, answer.caption, answer.peopleInPhoto, {
+    const author = { id: user.id, companyId: user.companyId };
+    void assignPhotoBatch(db, author, relatorioId, ids, answer.blockId, answer.caption, answer.peopleInPhoto, {
       blockId: from.blockId,
       itemKey: from.itemKey,
       caption: from.caption,
       readingKind: from.reading?.kind ?? null,
     }).then(
       () => {
-        const text = target === null ? photosKeptGeneralText(ids.length, skipped) : photosImportedText(ids.length, skipped, answer.caption);
-        if (text !== null) showToast(text);
+        if (target !== null) {
+          const text = photosImportedText(ids.length, skipped, answer.caption);
+          if (text !== null) showToast(text);
+          return;
+        }
+        // Fix batch fxpw G11: the photos stay (EXPERIENCE.md, Story 11.11), and the toast offers
+        // "Desfazer", which removes the whole batch in one batch with no confirm (the toast is it).
+        const text = photosKeptGeneralText(ids.length, skipped);
+        if (text === null) return;
+        showToast(
+          text,
+          ids.length === 0
+            ? {}
+            : {
+                action: {
+                  label: copy.viewer.undo,
+                  onPress: () => {
+                    void removePhotos(db, author, relatorioId, ids).catch(toastPhotoWriteFailure(showToast));
+                  },
+                },
+              },
+        );
       },
       (error: unknown) => showToast(writeErrorText(error)),
     );

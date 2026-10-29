@@ -1103,3 +1103,11 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
 .field-na-row { display: flex; align-items: stretch; gap: var(--sp-2); }
 .field-na-row > .measurement-field { flex: 1; min-width: 0; }
 .btn-na { flex: none; min-width: var(--touch-min); min-height: var(--touch-min); padding: 0 var(--sp-3); }
+
+/* authored (fix batch fxpw G8): a learned NC phrase chip under "Observações sugeridas do item N"
+   (`copy.ficha.checklist.chipsLabel`, Story 9.5) can be a whole sentence; with the mock's `.chip`
+   `white-space: nowrap; flex: none` it widened the sheet at 390 px. DESIGN.md › Chip says the row
+   wraps and never scrolls sideways and says nothing on long chip text, so this row alone lets the
+   text wrap inside the pill. Every other chip row (status, "Hoje", recent values) keeps the mock's
+   `nowrap`; `components.css` is untouched. */
+.checklist-row .row-expand > .chip-row > .chip { max-width: 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere; text-align: left; padding-block: var(--sp-2); }

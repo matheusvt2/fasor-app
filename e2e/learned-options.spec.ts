@@ -260,3 +260,41 @@ test('@p1 14.12-E2E-003 at 390 px Cadastros › Frases de NC and its panel fit w
   await expect(panel.getByRole('textbox', { name: r.frasesNc.panel.nameLabel })).toBeVisible();
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 });
+
+test('@p1 14.12-E2E-004 fix batch fxpw G8: at 390 px a 66-character learned NC phrase wraps inside its chip, and the sheet does not scroll sideways', async ({ page }) => {
+  test.setTimeout(180_000);
+  const LONG = 'Temperatura elevada do transformador de força indicada no display.';
+  expect(LONG).toHaveLength(66);
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await signIn(page, account.email);
+  // The office types the long observation on one relatório: the server learns it from that push.
+  const one = newRelatorioDrafts(account);
+  const two = newRelatorioDrafts(account);
+  const sheetOne = one.sheets.find((entry) => entry.blockType === DJ)!;
+  const sheetTwo = two.sheets.find((entry) => entry.blockType === DJ)!;
+  await pushDrafts(page, database, [...one.drafts, emCampoDraft(account, one.relatorioId), ...two.drafts, emCampoDraft(account, two.relatorioId)]);
+  await pushDrafts(page, database, [
+    officeDraft(account, { relatorioId: one.relatorioId }, sheetChecklistPath(sheetOne.blockId, ITEM, 'result'), 'NC'),
+    officeDraft(account, { relatorioId: one.relatorioId }, sheetChecklistPath(sheetOne.blockId, ITEM, 'observation'), LONG),
+  ]);
+  await syncNowAndReturn(page);
+  await expect.poll(() => liveRegistryNames(page, 'nc_phrase'), { timeout: 30_000 }).toEqual([LONG]);
+
+  // A later sheet at 390 px offers it as a chip.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openSheet(page, two.relatorioId, sheetTwo.blockId);
+  const { item, n } = await itemOf(page, two.relatorioId);
+  await markNc(page);
+  await expect(chips(page, n)).toHaveText([...item.nc_phrases, LONG]);
+  const chip = chips(page, n).last();
+  await chip.scrollIntoViewIfNeeded();
+  await expect(chip).toHaveText(LONG);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  const chipBox = (await chip.boundingBox())!;
+  const rowBox = (await checklistRow(page).boundingBox())!;
+  expect(chipBox.x).toBeGreaterThanOrEqual(rowBox.x - 0.5);
+  expect(chipBox.x + chipBox.width).toBeLessThanOrEqual(rowBox.x + rowBox.width + 0.5);
+  // Wrapped: the pill is taller than one line of chip text.
+  expect(chipBox.height).toBeGreaterThan(48);
+});

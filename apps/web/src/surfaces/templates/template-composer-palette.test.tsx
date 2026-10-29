@@ -45,6 +45,7 @@ const session = (): SessionState => ({
   saveRegistration: vi.fn(async () => {}),
   savePhotoLocation: vi.fn(async () => {}),
   recoveryNeeded: false,
+  settled: true,
   dismissRecovery: vi.fn(),
 });
 
@@ -458,6 +459,34 @@ describe('3.4 composer: section blocks', () => {
     await waitFor(() => expect(tags(container)).toEqual(['8', '10']));
     await waitFor(() => expect(warning()).toBeNull());
     expect((await outboxPaths()).every((path) => path === `template/${ID}/blocks`)).toBe(true);
+  });
+
+  it('fix batch fxpw G2: a section the template holds reads "No template" in "Seções", and a tap writes nothing and says so', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    const { container } = renderComposer();
+    await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' });
+    const held = within(palette()).getByRole('button', { name: '1 Objetivo' });
+    expect(held.querySelector('.pi-meta')).toHaveTextContent('No template');
+    expect(held).toHaveAccessibleDescription('No template');
+    await userEvent.click(held);
+    expect(await screen.findByText('1 Objetivo já está no template')).toBeVisible();
+    expect(tags(container)).toEqual(['1', '2', '3', '4', '5', '6', '8', '10', '11']);
+    expect(await outboxPaths()).toEqual([]);
+  });
+
+  it('fix batch fxpw G2: a section the template lacks has no "No template" and is added; once held, a second tap adds nothing', async () => {
+    database = await freshDb(emptyTemplate(ID, 'v1'));
+    const { container } = renderComposer();
+    await screen.findByRole('complementary', { name: 'Paleta de blocos' });
+    const row = () => within(palette()).getByRole('button', { name: '8 Pontos de atenção' });
+    expect(row().querySelector('.pi-meta')).toBeNull();
+    await userEvent.click(row());
+    await waitFor(() => expect(tags(container)).toEqual(['8']));
+    await waitFor(() => expect(row().querySelector('.pi-meta')).toHaveTextContent('No template'));
+    await userEvent.click(row());
+    expect(await screen.findByText('8 Pontos de atenção já está no template')).toBeVisible();
+    expect(tags(container)).toEqual(['8']);
+    expect(await outboxPaths()).toHaveLength(1);
   });
 
   it('p020 P-1a: the standard template (8 and 10 present) shows no warning', async () => {

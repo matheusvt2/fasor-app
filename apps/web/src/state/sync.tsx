@@ -256,8 +256,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     onlineRef.current = session.online;
   }, [session.online]);
 
+  // Fix batch fxpw G1: the engine waits for the session's boot read, so it never pulls or
+  // pushes on a cached pointer's database the server is about to replace with another user's.
+  const settled = session.settled;
   useEffect(() => {
-    if (db === null) return;
+    if (db === null || !settled) return;
     // Registered before `engine.start()` subscribes its own `online` listener.
     const stopFollowing = followOnlineEvents(onlineRef);
     const client = createBrowserSyncClient();
@@ -292,7 +295,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       clientRef.current = null;
       setStatus(IDLE);
     };
-  }, [db]);
+  }, [db, settled]);
 
   // A 401 pauses the engine (through onReAuth) and signing in again resumes it.
   useEffect(() => {
@@ -300,7 +303,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     if (engine === null) return;
     if (session.reAuthRequired) engine.pause();
     else engine.resume();
-  }, [session.reAuthRequired, db]);
+  }, [session.reAuthRequired, db, settled]);
 
   const loadedRows = useLiveQuery(() => (db === null ? Promise.resolve(NO_ROWS) : outboxRows(db)), [db]);
   const rows = loadedRows ?? NO_ROWS;

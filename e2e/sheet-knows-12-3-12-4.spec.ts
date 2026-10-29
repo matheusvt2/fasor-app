@@ -348,7 +348,8 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
   await page.getByLabel('Tipo de SE', { exact: true }).selectOption('BLINDADA');
   for (const [label, value] of [
     ['Tensão primária', '13,8'],
-    ['Tensão secundária', '380'],
+    // Fix batch fxpw G4: the two-level secondary FO.SERV-03 writes ("380/220 V").
+    ['Tensão secundária', '380/220'],
     ['Potência instalada', '1500'],
     ['Temperatura', '25'],
   ] as const) {
@@ -357,6 +358,10 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
     await input.press('Tab');
   }
   await expect.poll(() => stepMissing(page, 'Placa')).toBe(withCabine - 5);
+  await expect(page.getByText('Número não reconhecido')).toHaveCount(0);
+  await expect
+    .poll(async () => (await outbox(page)).filter((row) => row.path.endsWith('/se/secondary_kv')).at(-1)?.value)
+    .toEqual({ raw: '380/220', unit: 'V', state: 'measured' });
 
   // The Sumário row now says the one field left.
   await page.goto(`/relatorio/${relatorioId}`);
@@ -367,6 +372,8 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
   // A later sheet of the incomplete cabine: expanded and editable, not counted there.
   await page.goto(firstUrl);
   await expect(page.getByRole('heading', { name: 'Características da SE' })).toBeVisible();
+  // G4: the pair reads back as typed.
+  await expect(page.getByLabel('Tensão secundária', { exact: true })).toHaveValue('380/220');
   await page.locator('#ficha-primary').click();
   await expect(page).not.toHaveURL(firstUrl);
   await expect(page.getByRole('heading', { name: 'Características da SE' })).toBeVisible();
@@ -386,7 +393,7 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
   const line = page.getByRole('group', { name: 'Do local', exact: true });
   await expect(line).toBeVisible();
   await expect(line.locator('.cl-name')).toHaveText('Cubículo Enel');
-  await expect(line.locator('.cl-values')).toHaveText('BLINDADA · 13,8 kV · 380 V · 1.500 kVA · 25 °C · 65 %');
+  await expect(line.locator('.cl-values')).toHaveText('BLINDADA · 13,8 kV · 380/220 V · 1.500 kVA · 25 °C · 65 %');
   await expect(page.getByRole('heading', { name: 'Características da SE' })).toHaveCount(0);
   const editar = line.getByRole('button', { name: 'Editar' });
   expect(Math.round((await editar.boundingBox())!.height)).toBeGreaterThanOrEqual(48);

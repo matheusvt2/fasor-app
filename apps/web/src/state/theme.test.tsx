@@ -31,6 +31,7 @@ const session = (): SessionState => ({
   saveRegistration: vi.fn(async () => {}),
   savePhotoLocation: vi.fn(async () => {}),
   recoveryNeeded: false,
+  settled: true,
   dismissRecovery: vi.fn(),
 });
 

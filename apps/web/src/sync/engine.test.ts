@@ -1,7 +1,10 @@
 import 'fake-indexeddb/auto';
 import {
+  findDefinition,
   makeOp,
+  mergeInfoText,
   READING_FAST_POLL_WINDOW_MS,
+  type BlockRow,
   type FilePutResponse,
   type FileVariantName,
   type GenerateResponse,
@@ -14,6 +17,7 @@ import { BLOCK_1_ID, COMPANY_ID, EQUIPMENT_1_ID, PROJECT_ID, RELATORIO_ID, repla
 import { describe, expect, it, vi } from 'vitest';
 import { commitOps } from '../db/commit.ts';
 import { clearUploadError } from '../db/file-store.ts';
+import { mergeTextContext } from '../db/sync-store.ts';
 import { openDatabase, type AppDatabase } from '../db/schema.ts';
 import type { Timers } from '../input/field-commit.ts';
 import { SyncRequestError, type SyncClient, type SyncFailure } from './client.ts';
@@ -982,6 +986,32 @@ describe('sync engine', () => {
       // Another cycle never lists the same pair twice.
       await h.engine.runCycle();
       expect(h.engine.status().merges).toHaveLength(1);
+      h.db.close();
+    });
+
+    it('fix batch fxpw G9 (pin): this device\'s C on a checklist item, superseded by another device\'s NC, is one nc_over_c entry read "item N NC de … mesclado"', async () => {
+      const h = await harness();
+      await commitOps(h.db, seedLog());
+      await h.engine.runCycle();
+      const newId = ids('019966b0-0018-7000-8000-');
+      const block = (await h.db.entities.get(['block', BLOCK_1_ID]))!.row as BlockRow;
+      const itemKey = findDefinition(block.seed_version, block.block_type)!.checklist![0]!.key;
+      const path = `sheet/${BLOCK_1_ID}/checklist/${itemKey}/result`;
+      // The other device answered NC; this device, not having seen it, answers C.
+      const nc = { ...localPut(newId, 'NC', { path, device_id: 'tablet-b', actor_id: OTHER_USER }), seq: h.server.log.length + 1 };
+      h.server.log.push(nc);
+      const [c] = await commitOps(h.db, [localPut(newId, 'C', { path })]);
+      const original = h.server.pushOps.bind(h.server);
+      h.server.pushOps = async (ops) => {
+        const res = await original(ops);
+        res.superseded.push({ op_id: c!.op_id, over_op_id: nc.op_id });
+        return res;
+      };
+      expect(await h.engine.runCycle()).toBe('ran');
+      const merges = h.engine.status().merges;
+      expect(merges).toHaveLength(1);
+      expect(merges[0]).toMatchObject({ op_id: c!.op_id, over_op_id: nc.op_id, rule: 'nc_over_c', standing: { value: 'NC', actor_id: OTHER_USER } });
+      expect(mergeInfoText(merges[0]!, await mergeTextContext(h.db, merges))).toMatch(/: item 1 NC de .+ mesclado$/);
       h.db.close();
     });
 
