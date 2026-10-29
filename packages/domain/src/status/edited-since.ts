@@ -83,6 +83,7 @@ const FAMILY_DECISIONS = {
   revision: never('server-only: the revision row the generate job cuts'),
   audit_run: never('server-only: the emission audit run row'),
   'audit_run/field': never('server-only: the audit job writing its own fields; a finding is information, never an op'),
+  'relatorio/removed_at': never('the tombstone of the whole relatório (fix batch fxrm): it removes the relatório, it edits none of its content'),
 } as const satisfies Record<PathFamily, FamilyDecision>;
 
 const DECIDED = Object.entries(FAMILY_DECISIONS) as ReadonlyArray<[PathFamily, FamilyDecision]>;

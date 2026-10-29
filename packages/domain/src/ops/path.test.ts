@@ -48,6 +48,8 @@ const EXTRA_PATHS = [
   `point/${ID}/location_id`,
   // Story 14.5 (contract 19): a value of a measurement test outside its table.
   `sheet/${BLOCK}/test/cta_transferencia/value/metodo`,
+  // Fix batch fxrm (contract 28): a relatório's tombstone.
+  'relatorio/removed_at',
 ];
 
 describe('1.4-UNIT-001 path round trip', () => {
@@ -63,7 +65,9 @@ describe('1.4-UNIT-001 path round trip', () => {
     const seen = new Set(paths.map((p) => parsePath(p).family));
     const missing = FAMILIES.map((f) => f.family).filter((f) => !seen.has(f));
     expect(missing).toEqual([]);
-    expect(FAMILIES.length).toBe(45);
+    // Fix batch fxrm (contract 28): `relatorio/removed_at`, appended last.
+    expect(FAMILIES.length).toBe(46);
+    expect(FAMILIES.at(-1)!.family).toBe('relatorio/removed_at');
   });
 
   it('returns typed segments', () => {
@@ -200,6 +204,7 @@ describe('E5-A5 typed path builders round-trip through parsePath', () => {
     [builders.relatorioSetupPath('exclusions'), { family: 'relatorio/setup', field: 'exclusions' }],
     [builders.relatorioStatusPath(), { family: 'relatorio/status' }],
     [builders.relatorioExportSchemePath(), { family: 'relatorio/export/scheme' }],
+    [builders.relatorioRemovedAtPath(), { family: 'relatorio/removed_at' }],
     [builders.locationPath(ID), { family: 'location', id: ID }],
     [builders.locationFieldPath(ID, 'order_key'), { family: 'location/field', id: ID, field: 'order_key' }],
     [builders.locationSePath(ID, 'type'), { family: 'location/se', id: ID, field: 'type' }],
@@ -336,3 +341,47 @@ describe('K-1 (full review 2026-09-30) the last parsed path is kept', () => {
   });
 });
 
+
+describe('Fix batch fxrm (contract 28): relatorio/removed_at, the tombstone of the op\'s own relatório', () => {
+  const RELATORIO = '019966b0-0000-7000-8000-0000000000cc';
+  const base = (overrides: Record<string, unknown>) => ({
+    op_id: '019966b0-0000-7000-8000-0000000000dd',
+    kind: 'put',
+    scope: 'relatorio',
+    company_id: '019966b0-0000-7000-8000-0000000000ee',
+    project_id: null,
+    relatorio_id: RELATORIO,
+    path: 'relatorio/removed_at',
+    value: '2026-10-29T12:00:00.000Z',
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: 'system:cleanup',
+    device_id: 'server',
+    client_ts: '2026-10-29T12:00:00.000Z',
+    ...overrides,
+  });
+
+  it('parses to its family, formats back, writes removed_at on the implicit relatório and is not server-only', () => {
+    const parsed = parsePath('relatorio/removed_at');
+    expect(parsed).toEqual({ family: 'relatorio/removed_at' });
+    expect(formatPath(parsed)).toBe('relatorio/removed_at');
+    expect(targetOf(parsed)).toEqual({ entity: 'relatorio', id: null });
+    expect(pathField(parsed)).toBe('removed_at');
+    expect(isCreateFamily(parsed)).toBe(false);
+    expect(isServerOnly('relatorio/removed_at')).toBe(false);
+  });
+
+  it('opSchema accepts a put of an ISO instant, a put of null and a remove', () => {
+    expect(opSchema.safeParse(base({})).success).toBe(true);
+    expect(opSchema.safeParse(base({ value: null })).success).toBe(true);
+    expect(opSchema.safeParse(base({ kind: 'remove', value: null })).success).toBe(true);
+  });
+
+  it('opSchema refuses a create, a scope other than relatorio, and a missing relatorio_id', () => {
+    expect(opSchema.safeParse(base({ kind: 'create', value: null })).success).toBe(false);
+    expect(opSchema.safeParse(base({ scope: 'company', relatorio_id: null })).success).toBe(false);
+    expect(opSchema.safeParse(base({ scope: 'project', project_id: RELATORIO })).success).toBe(false);
+    expect(opSchema.safeParse(base({ relatorio_id: null })).success).toBe(false);
+  });
+});

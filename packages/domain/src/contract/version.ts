@@ -235,8 +235,18 @@
  * `point` row naming a new item key (its `itemKeySchema` refuses it). No op kind nor path family
  * is new. A row written before 27 parses to the same bytes (`site_altitude_na` defaults to
  * false). `MIN_CONTRACT_VERSION` goes to 27 too.
+ *
+ * 28 (2026-10-29, fix batch fxrm, Matheus's decision on the production pass): the path family
+ * `relatorio/removed_at`, put (an ISO instant, or null to restore) and remove, the only op
+ * path that writes a relatório's tombstone (`relatorio/{id}` is create-only). The server's
+ * one-shot cleanup (`apps/api/src/db/tombstone-cli.ts`, actor `system:cleanup`) writes it to
+ * remove the 2026-10-15 test data, and a device that follows the relatório learns the removal
+ * through it alone (AD-13). A version-27 bundle cannot parse the op (its `opPathSchema` refuses
+ * the family, so its `opSchema` fails the whole pulled page). No row field, seed nor enum value
+ * is new: a row written before 28 parses to the same bytes. `MIN_CONTRACT_VERSION` goes to 28
+ * too.
  */
-export const CONTRACT_VERSION = 27;
+export const CONTRACT_VERSION = 28;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -379,8 +389,13 @@ export const CONTRACT_VERSION = 27;
  * its schema would strip the key from a pulled relatório row and show the altitude empty where
  * the server's kernel prints "N/A". A stream carries those as soon as the template upgrade runs
  * or any device marks the altitude N/A, so the version-26 bundle updates too.
+ *
+ * 28 (2026-10-29, fix batch fxrm): a version-27 (or older) bundle cannot parse a
+ * `relatorio/removed_at` op (its `opSchema` fails the whole pulled page, `invalid_response`).
+ * The relatório stream carries one as soon as the cleanup tombstones a relatório a device
+ * follows, so the version-27 bundle updates too, and only then drops the relatório's card.
  */
-export const MIN_CONTRACT_VERSION = 27;
+export const MIN_CONTRACT_VERSION = 28;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

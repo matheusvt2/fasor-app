@@ -178,6 +178,8 @@ export const opPathSchema = z.discriminatedUnion('family', [
     test_key: seedKey,
     value_key: seedKey,
   }),
+  // Fix batch fxrm (2026-10-29, contract 28): the tombstone of the op's own relatório.
+  z.object({ family: z.literal('relatorio/removed_at') }),
 ]);
 
 export type OpPath = z.infer<typeof opPathSchema>;
@@ -355,6 +357,12 @@ export const FAMILIES: readonly FamilyDef[] = [
     entity: 'block',
     segments: [lit('sheet'), id('block_id'), lit('test'), key('test_key'), lit('value'), key('value_key')],
   },
+  // Fix batch fxrm (2026-10-29, contract 28): `relatorio/removed_at`, put (an ISO instant, or
+  // null to restore) and remove (`removed_at = client_ts`), on the op's own relatório. The only
+  // op path that writes a relatório's tombstone (`relatorio/{id}` is create-only). Not
+  // server-only: the server's one-shot cleanup (`apps/api/src/db/tombstone-cli.ts`, actor
+  // `system:cleanup`) writes it today, and a device may later, once the product offers it.
+  { family: 'relatorio/removed_at', entity: 'relatorio', implicitRelatorio: true, segments: [lit('relatorio'), lit('removed_at')] },
 ];
 
 const BY_FAMILY: ReadonlyMap<PathFamily, FamilyDef> = new Map(FAMILIES.map((f) => [f.family, f]));
@@ -527,6 +535,8 @@ export const relatorioPath = (id: string): string => formatPath({ family: 'relat
 export const relatorioSetupPath = (field: string): string => formatPath({ family: 'relatorio/setup', field });
 export const relatorioStatusPath = (): string => formatPath({ family: 'relatorio/status' });
 export const relatorioExportSchemePath = (): string => formatPath({ family: 'relatorio/export/scheme' });
+/** Fix batch fxrm (contract 28): the relatório's own tombstone, `remove` to remove it, a put of null to restore it. */
+export const relatorioRemovedAtPath = (): string => formatPath({ family: 'relatorio/removed_at' });
 export const locationPath = (id: string): string => formatPath({ family: 'location', id });
 export const locationFieldPath = (id: string, field: (typeof LOCATION_FIELDS)[number]): string =>
   formatPath({ family: 'location/field', id, field });

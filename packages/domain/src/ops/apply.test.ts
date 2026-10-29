@@ -269,6 +269,46 @@ describe('1.4-UNIT-002 applyOp semantics', () => {
   });
 });
 
+describe('Fix batch fxrm (contract 28): relatorio/removed_at', () => {
+  const key = entityKey('relatorio', TEST_RELATORIO);
+  const row = () =>
+    relatorioRowSchema.parse({
+      id: TEST_RELATORIO,
+      project_id: '019966b0-0004-7000-8000-000000000009',
+      template_id: null,
+      template_version: null,
+      seed_version: 'v1',
+      status: 'em_campo',
+      setup: { service_start: null, service_end: null, atividade: null, local: null, responsible_user_id: null, cover_photo_file_id: null },
+      export: { scheme: 'por_local_e_tipo' },
+      preview_file_id: null,
+      removed_at: null,
+    });
+  const server = { actor_id: 'system:cleanup', device_id: 'server' } as const;
+
+  it('a remove sets removed_at to the op client_ts, and a put of null restores the row', () => {
+    const f = opFactory();
+    const remove = f.op({ kind: 'remove', path: 'relatorio/removed_at', value: null, ...server });
+    const removed = applyOp(state([key, row()]), remove);
+    expect((removed.get(key) as { removed_at: string | null }).removed_at).toBe(remove.client_ts);
+    expect(readPath(removed, f.op({ path: 'relatorio/removed_at', value: null, ...server }))).toBe(remove.client_ts);
+    const restored = applyOp(removed, f.op({ path: 'relatorio/removed_at', value: null, ...server }));
+    expect(restored.get(key)).toEqual(row());
+  });
+
+  it('a put of an ISO instant sets it; the rest of the row is untouched', () => {
+    const f = opFactory();
+    const s = applyOp(state([key, row()]), f.op({ path: 'relatorio/removed_at', value: '2026-10-29T12:00:00.000Z' }));
+    expect(s.get(key)).toEqual({ ...row(), removed_at: '2026-10-29T12:00:00.000Z' });
+  });
+
+  it('is a no-op on a relatório this state does not hold', () => {
+    const f = opFactory();
+    const s = applyOp(state(), f.op({ kind: 'remove', path: 'relatorio/removed_at', value: null, ...server }));
+    expect(s.size).toBe(0);
+  });
+});
+
 describe('1.4-UNIT-004 provenance and attribution', () => {
   it('sets source_suggestion_id from meta and clears it on a later plain put; cell op_id is the last op', () => {
     const f = opFactory();

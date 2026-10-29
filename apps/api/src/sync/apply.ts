@@ -211,6 +211,9 @@ interface Applied {
 /** The actor of the server's merge ops (Story 2.5 AC4, Epic 2 retro D-1). */
 export const REGISTRY_MERGE_ACTOR = 'system:registry';
 
+/** Fix batch fxrm (2026-10-29): the actor of the one-shot tombstone of test data (`db/tombstone.ts`). */
+export const CLEANUP_ACTOR = 'system:cleanup';
+
 /** The transaction handle drizzle hands a `db.transaction` callback; `applyOneIn` and `freezeSnapshot` run inside one. */
 export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 type MergeKind = 'manufacturer' | 'voltage_class';

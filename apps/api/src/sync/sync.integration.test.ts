@@ -16,6 +16,7 @@ import {
   NOT_APPLICABLE_NUMBER,
   photoToken,
   progress,
+  relatorioRemovedAtPath,
   replay,
   revisionRowSchema,
   serializeSnapshot,
@@ -1079,10 +1080,11 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 
-  it('contract 27 (Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-26 pull is refused with 426 contract_outdated on every stream, a version-27 pull is answered', async () => {
-    expect(CONTRACT_VERSION).toBe(27);
-    expect(MIN_CONTRACT_VERSION).toBe(27);
+  it('contract 28 (fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-27 pull is refused with 426 contract_outdated on every stream, a version-28 pull is answered', async () => {
+    expect(CONTRACT_VERSION).toBe(28);
+    expect(MIN_CONTRACT_VERSION).toBe(28);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
+      // 27 cannot parse a `relatorio/removed_at` op (fix batch fxrm);
       // 26 cannot resolve seed v10 nor parse `relatorio/setup/site_altitude_na` (Stories 15.7 and 17.6);
       // 25 cannot parse the `not_applicable` number state, "N.A" (Story 16.4);
       // 24 cannot parse a site item of seed v9 nor resolve seed v9 (Stories 15.3 and 15.6);
@@ -1093,17 +1095,17 @@ describe('1.5-API-005 contract skew', () => {
       // 19 cannot parse `audit_run/{id}/coverage` (Story 14.10 lane B);
       // 18 cannot parse `sheet/{id}/test/{key}/value/...`, the ninth block type nor resolve seed v5 (Story 14.5);
       // 17 cannot parse `location/{id}/checklist/...` nor resolve seed v4 (Story 14.3); 16 stays refused as since Story 14.2.
-      for (const version of ['26', '25', '24', '23', '22', '21', '20', '19', '18', '17', '16']) {
+      for (const version of ['27', '26', '25', '24', '23', '22', '21', '20', '19', '18', '17', '16']) {
         const old = await pull(companyA, path, version);
         expect(old.status, `${path} at ${version}`).toBe(426);
         expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
       }
     }
-    const current = await pull(companyA, '/api/sync/company?since=0', '27');
+    const current = await pull(companyA, '/api/sync/company?since=0', '28');
     expect(current.status).toBe(200);
     // An outdated client keeps pushing (AD-13): only the pull is refused.
     const batch = [clientCreate(idsA, newId())];
-    const pushed = await push(companyA, { ops: batch }, '26');
+    const pushed = await push(companyA, { ops: batch }, '27');
     expect(pushed.status).toBe(200);
     for (const o of batch) written.opIds.add(o.op_id);
   });
@@ -2029,5 +2031,32 @@ describe('Story 14.2, second pass: a location removal batch and its restore thro
     expect(server.blocks.some((row) => row.id === sheets.mover || row.id === sheets.nova)).toBe(false);
     expect(server.locations.map((row) => row.id).sort()).toEqual([local, outra].sort());
     expect(serializeSnapshot({ ...server, empresa: null })).toBe(serializeSnapshot({ ...kernel, empresa: null }));
+  });
+});
+
+describe('Fix batch fxrm (contract 28): relatorio/removed_at through POST /api/sync/ops', () => {
+  const rowOf = async (entity: string, id: string) =>
+    (await db.select({ row: entities.row }).from(entities).where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, entity), eq(entities.id, id))))[0]?.row;
+  it('a device remove of relatorio/removed_at is applied and carried by the relatório stream, a put of null restores it, and a version-27 pull is 426', async () => {
+    const projectId = newId();
+    const relatorioId = newId();
+    const created = await pushOk(companyA, [projectCreate(idsA, projectId), relatorioCreate(idsA, relatorioId, projectId)]);
+    expect(created.rejected).toEqual([]);
+    const tombstone = op(idsA, { kind: 'remove', scope: 'relatorio', relatorio_id: relatorioId, path: relatorioRemovedAtPath(), value: null });
+    const removed = await pushOk(companyA, [tombstone]);
+    expect(removed.rejected).toEqual([]);
+    expect(((await rowOf('relatorio', relatorioId)) as unknown as { removed_at: string | null }).removed_at).toBe(tombstone.client_ts);
+    const summary = await pullOk(companyA, '/api/sync/company?since=0');
+    expect((summary.summary?.relatorios ?? []).map((entry) => entry.id)).not.toContain(relatorioId);
+    const page = await pullOk(companyA, `/api/sync/relatorios/${relatorioId}?since=0`);
+    expect((page.ops as Op[]).filter((o) => o.op_id === tombstone.op_id).map((o) => [o.kind, o.path])).toEqual([['remove', 'relatorio/removed_at']]);
+
+    const restore = op(idsA, { kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, path: relatorioRemovedAtPath(), value: null });
+    expect((await pushOk(companyA, [restore])).rejected).toEqual([]);
+    expect(((await rowOf('relatorio', relatorioId)) as unknown as { removed_at: string | null }).removed_at).toBeNull();
+
+    const old = await pull(companyA, `/api/sync/relatorios/${relatorioId}?since=0`, '27');
+    expect(old.status).toBe(426);
+    expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
   });
 });

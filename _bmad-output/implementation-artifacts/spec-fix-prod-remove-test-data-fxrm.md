@@ -2,7 +2,7 @@
 title: 'Fix batch fxrm: relatório tombstone op family (contract 28) and the one-shot tombstone CLI to remove the 2026-10-15 test data from production'
 type: 'feature'
 created: '2026-10-29'
-status: 'ready-for-dev'
+status: 'in-progress'
 baseline_revision: '94ca957ad1d79dd646800936f78aad8853a05cfe'
 review_loop_iteration: 0
 followup_review_recommended: false
