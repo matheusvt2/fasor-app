@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 from starlette.requests import Request
 
+import app.display as display
 import app.detector as detector
 import app.main as main
 from app.pipeline import _reading_order, clamp_box, quad_size, rectify
@@ -106,3 +107,28 @@ def test_a_client_that_goes_away_mid_body_gets_no_500_and_frees_its_slot():
     for _ in range(taken):
         main._slots.release()
     assert taken == main.MAX_IN_FLIGHT
+
+
+@pytest.mark.parametrize(
+    ("width", "height", "expected"),
+    [
+        (1200, 900, (1200, 900)),
+        (900, 1200, (900, 1200)),
+        (1201, 900, (1200, 899)),
+        (2000, 1500, (1200, 900)),
+        (1500, 2000, (900, 1200)),
+    ],
+)
+def test_the_display_working_copy_is_at_most_1200_px_a_side(width, height, expected):
+    """Fix batch fxg6 (prod-pass G6): the display route's working copy keeps a long side up to
+    MAX_DISPLAY_SIDE untouched and scales a larger one (the 2000 px print variant) down to it."""
+    work, scale = display._prepare(np.full((height, width, 3), 255, np.uint8))
+    assert display.MAX_DISPLAY_SIDE == 1200
+    assert (work.shape[1], work.shape[0]) == expected
+    assert scale == (1.0 if max(width, height) <= 1200 else 1200 / max(width, height))
+
+
+def test_a_small_display_still_upscales_to_the_minimum_short_side():
+    work, scale = display._prepare(np.full((100, 200, 3), 255, np.uint8))
+    assert scale == display.MIN_SHORT_SIDE / 100
+    assert min(work.shape[:2]) == display.MIN_SHORT_SIDE

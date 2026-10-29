@@ -47,7 +47,11 @@ is built through them.
    text-line polygons. ~~`PP-OCRv5_server_det`~~ (2026-10-29, fix batch fxg6, prod-pass G6: the
    server detector asked 5.6 GB on CPU for a 1200 x 900 display photo and died inside the
    production task's 1536 MiB reservation; the mobile one reads the six display fixtures under
-   that cap and keeps every plate accuracy test green, so the server model left the image.) It runs in
+   that cap and keeps every plate accuracy test green, so the server model left the image.) The
+   display route works on at most 1200 px a side (`MAX_DISPLAY_SIDE` in `app/display.py`):
+   production sends the print variant, up to 2000 px, and a 2000 x 1500 display read on the
+   mobile detector without that cap was OOM-killed under 1536 MiB. The plate route keeps
+   its 4000 px `MAX_SIDE`. It runs in
    PaddleOCR 3 on paddlepaddle's CPU wheel, which exists for CPython 3.13, so no ONNX
    conversion of the detector is needed.
 2. Each line is rectified and split into words by its column ink profile: a gap wider
@@ -116,7 +120,8 @@ requests give identical responses. The run ends with the measured accuracy line.
   tests: the plate JPEG, its 4-degree rotation and its 4400 px upscale each matched 43 of
   43 words with 16 of 16 values (mean IoU 0.910, 0.921 and 0.904), the same text
   results as above; the six display fixtures read every expected value under a 1536 MiB
-  cgroup cap. The image no longer carries the server detector.
+  cgroup cap. The image no longer carries the server detector. A 2000 x 1500 copy of a
+  display was OOM-killed under that cap until the display route took its 1200 px limit.
 
 ## Open question for Matheus
 

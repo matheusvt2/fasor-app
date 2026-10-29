@@ -6,7 +6,7 @@ number at its segment gaps and at its decimal point, so here every detected line
 recognized whole. Before detection the working copy is:
 
 - upscaled so its shorter side is at least MIN_SHORT_SIDE (a display crop can be tiny),
-  or downscaled so its longer side is at most MAX_SIDE;
+  or downscaled so its longer side is at most MAX_DISPLAY_SIDE;
 - turned grey and contrast-equalized (CLAHE), because an LCD is low contrast;
 - ink-bridged: a grey-level erosion (the minimum over a small disc, 1/BRIDGE_DIVISOR of the
   shorter side) joins the separate segments of a seven-segment digit and the dots of a
@@ -21,9 +21,15 @@ token means is the kernel's job (`packages/domain/src/reading/display.ts`).
 import cv2
 import numpy as np
 
-from .pipeline import MAX_SIDE, Detector, ReadResult, Recognizer, Token, _order_quad, _reading_order, clamp_box, quad_size, rectify
+from .pipeline import Detector, ReadResult, Recognizer, Token, _order_quad, _reading_order, clamp_box, quad_size, rectify
 
 MIN_SHORT_SIDE = 320
+# Fix batch fxg6 (2026-10-29, prod-pass G6): the display route works on at most this many pixels
+# a side. Production sends the stored print variant, up to 2000 px on the long edge, and a
+# 2000 x 1500 read on the mobile detector was OOM-killed inside the ocr task's 1536 MiB
+# reservation; 1200 is the largest size measured inside it (the six fixtures are 1200 x 900
+# and stay unscaled). The plate route keeps its own MAX_SIDE (pipeline.py), unchanged.
+MAX_DISPLAY_SIDE = 1200
 BRIDGE_DIVISOR = 150
 MIN_LINE_SIDE = 4
 
@@ -34,8 +40,8 @@ def _prepare(image: np.ndarray) -> tuple[np.ndarray, float]:
     scale = 1.0
     if min(height, width) < MIN_SHORT_SIDE:
         scale = MIN_SHORT_SIDE / min(height, width)
-    elif max(height, width) > MAX_SIDE:
-        scale = MAX_SIDE / max(height, width)
+    elif max(height, width) > MAX_DISPLAY_SIDE:
+        scale = MAX_DISPLAY_SIDE / max(height, width)
     work = image
     if scale != 1.0:
         size = (max(1, round(width * scale)), max(1, round(height * scale)))

@@ -54,8 +54,9 @@ def test_too_large_is_413_before_decoding(client):
 @pytest.mark.parametrize("name", ["display-tres-valores", "display-isolacao"])
 def test_display_at_the_print_variant_size_reads_its_values(client, name):
     """Fix batch fxg6: production sends the stored print variant, up to 2000 px on the long
-    edge (`PRINT_MAX_PX` in apps/api/src/storage/variants.ts), which no detector limit shrinks;
-    the fixture upscaled to 2000 x 1500 still reads every expected value."""
+    edge (`PRINT_MAX_PX` in apps/api/src/storage/variants.ts); the display route scales it to
+    MAX_DISPLAY_SIDE (1200) before detection, and the fixture upscaled to 2000 x 1500 still
+    reads every expected value."""
     expected = DISPLAYS[name]
     image = cv2.imdecode(np.frombuffer((FIXTURES / f"{name}.jpg").read_bytes(), np.uint8), cv2.IMREAD_COLOR)
     big = cv2.resize(image, (2000, 1500), interpolation=cv2.INTER_CUBIC)
@@ -66,6 +67,7 @@ def test_display_at_the_print_variant_size_reads_its_values(client, name):
     payload = response.json()
     assert_read_result(payload)
     assert payload["image"] == {"width": 2000, "height": 1500}
+    assert payload["preprocessing_applied"] is True
     numbers = _numbers(payload["tokens"])
     for value in expected["values"]:
         assert float(value["raw"]) in numbers, (name, value, [t["text"] for t in payload["tokens"]])
