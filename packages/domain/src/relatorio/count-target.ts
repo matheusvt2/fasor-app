@@ -33,7 +33,8 @@ export function firstCountedTarget(
   const held = blocksWithPendingSuggestions(livePendingSuggestions(blocks, pending));
   const counts = (blockId: string, state: string): boolean => {
     if (kind === 'not_tested') return state === 'nao_ensaiada';
-    if (kind === 'concluded') return (state === 'concluida' || state === 'nao_ensaiada') && !held.has(blockId);
+    // Fix batch fxpw G5: the header's concluded count, never a not-tested sheet (`Progress.sheets_concluded`).
+    if (kind === 'concluded') return state === 'concluida' && !held.has(blockId);
     const block = byId.get(blockId);
     return block !== undefined && ncCount(block) > 0;
   };

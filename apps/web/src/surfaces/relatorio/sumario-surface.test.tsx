@@ -222,7 +222,7 @@ describe('4.3 SumarioSurface', () => {
     expect(controle!.querySelector('.overflow-trigger')).toBeNull();
     expect(numbered.map((li) => (li.querySelector('.pos-box') as HTMLInputElement).value)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']);
     expect(within(numbered[1]!).getByRole('textbox', { name: 'Número de Definições — digite outro para mover' })).toHaveClass('pos-box', 'sum-pos');
-    // The fixture's three sheets: one not tested (counts as concluded), two in progress.
+    // The fixture's three sheets: one not tested (handled on the section 9 row, never concluded: fix batch fxpw G5), two in progress.
     expect(numbered[8]!.querySelector('.sum-status')).toHaveTextContent('1 de 3 · 1 não ensaiada');
     expect(numbered[8]!).toHaveClass('has-pend');
     expect(numbered[1]!.querySelector('.sum-status')).toHaveTextContent('texto padrão');
@@ -234,7 +234,7 @@ describe('4.3 SumarioSurface', () => {
     expect(numbered[9]!.querySelector('.sum-status')).toHaveTextContent('Parecer não preenchido');
     // The header counts and the foot reason.
     const summary = screen.getByRole('group', { name: 'Resumo do relatório' });
-    expect(within(summary).getAllByRole('button').map((b) => b.textContent)).toEqual(['1 de 3 fichas concluídas', '0 NC abertos', '1 não ensaiada', '0 sugestões por confirmar']);
+    expect(within(summary).getAllByRole('button').map((b) => b.textContent)).toEqual(['0 de 3 fichas concluídas', '0 NC abertos', '1 não ensaiada', '0 sugestões por confirmar']);
     expect(capa!.querySelector('.sum-status')).toHaveTextContent('Fim da parada em branco');
     const reason = 'Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.';
     expect(screen.getByText(reason)).toHaveClass('btn-reason');
@@ -465,11 +465,13 @@ describe('4.3 SumarioSurface', () => {
     expect(container.querySelector('.sum-s9')).toHaveClass('is-open');
     const notTested = document.activeElement!.closest('li.s9-eq')!;
     expect(notTested).toHaveTextContent(/Não ensaiada/);
-    // The fixture's one concluded sheet is that same not-tested one; tapped again, it is focused again.
+    // Fix batch fxpw G5: the not-tested sheet is never concluded and the fixture concludes none:
+    // "0 de 3 fichas concluídas" counts none, so section 9's own row takes the focus.
     (document.activeElement as HTMLElement).blur();
-    await userEvent.click(within(summary).getByRole('button', { name: '1 de 3 fichas concluídas' }));
-    await waitFor(() => expect(document.activeElement?.closest('li.s9-eq')).toBe(notTested));
+    await userEvent.click(within(summary).getByRole('button', { name: '0 de 3 fichas concluídas' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' })).toHaveFocus());
     // No sheet holds an NC: section 9's own row takes the focus.
+    (document.activeElement as HTMLElement).blur();
     await userEvent.click(within(summary).getByRole('button', { name: '0 NC abertos' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' })).toHaveFocus());
   });

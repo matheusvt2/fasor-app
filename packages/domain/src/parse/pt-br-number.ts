@@ -52,16 +52,49 @@ function groupThousands(digits: string): string {
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
-/**
- * A dot-decimal `raw` as pt-BR shows a reading: thousands grouped with dots, the decimal
- * comma ("3300" -> "3.300", "1234.5" -> "1.234,5", "0.5" -> "0,5"). Text that is not a
- * dot-decimal number is returned unchanged.
- */
-export function formatDecimalGroupedPtBr(raw: string): string {
-  const match = /^(-?)(\d+)(?:\.(\d+))?$/.exec(raw.trim());
-  if (match === null) return raw;
+/** One dot-decimal number as pt-BR shows it, or null when `text` is not one. */
+function formatOneDecimal(text: string): string | null {
+  const match = /^(-?)(\d+)(?:\.(\d+))?$/.exec(text);
+  if (match === null) return null;
   const [, sign, whole, fraction] = match;
   return `${sign}${groupThousands(whole!)}${fraction === undefined ? '' : `,${fraction}`}`;
+}
+
+/**
+ * A dot-decimal `raw` as pt-BR shows a reading: thousands grouped with dots, the decimal
+ * comma ("3300" -> "3.300", "1234.5" -> "1.234,5", "0.5" -> "0,5"). Fix batch fxpw G4: a
+ * stored two-level voltage (`parseVoltagePairPtBr`) shows each side the same way
+ * ("13.8/7.97" -> "13,8/7,97", "380/220" unchanged). Any other text is returned unchanged.
+ */
+export function formatDecimalGroupedPtBr(raw: string): string {
+  const text = raw.trim();
+  const single = formatOneDecimal(text);
+  if (single !== null) return single;
+  const pair = /^(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/.exec(text);
+  if (pair === null) return raw;
+  return `${formatOneDecimal(pair[1]!)}/${formatOneDecimal(pair[2]!)}`;
+}
+
+/**
+ * Fix batch fxpw G4: the two-level voltage FO.SERV-03 writes for a secondary ("380/220 V"):
+ * two non-negative pt-BR numbers around one slash, spaces allowed, each side read by
+ * `parseDecimalPtBr`; the dot-decimal sides joined by "/" ("13,8/7,97" -> "13.8/7.97",
+ * " 380 / 220 " -> "380/220"). Null for anything else ("380/", "/220", "-380/220",
+ * "380/220/127", a single number).
+ */
+export function parseVoltagePairPtBr(input: string): string | null {
+  const sides = input.split('/');
+  if (sides.length !== 2) return null;
+  const out: string[] = [];
+  for (const side of sides) {
+    const text = side.trim();
+    // A sign on either side is refused: a voltage pair is never negative, and "+" is never written.
+    if (text === '' || text.startsWith('-') || text.startsWith('+')) return null;
+    const raw = parseDecimalPtBr(text);
+    if (raw === null) return null;
+    out.push(raw);
+  }
+  return out.join('/');
 }
 
 /** The insulation family: the only units a typed suffix or the unit tap-cycle may set. */

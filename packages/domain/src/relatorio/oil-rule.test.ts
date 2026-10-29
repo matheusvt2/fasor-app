@@ -5,11 +5,11 @@ import { blockPath, fileFieldPath, parsePath, sheetChecklistPath, sheetNameplate
 import type { Op } from '../ops/op.ts';
 import { section9Layout, type PrintTable, type SheetPart } from '../print/section-9.ts';
 import type { EquipmentBlockType, Subtype } from '../schemas/block-config.ts';
-import { relatorioRowSchema, type BlockRow, type EntityRow, type FileRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
+import { relatorioRowSchema, suggestionRowSchema, type BlockRow, type SuggestionRow, type EntityRow, type FileRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
-import { idSequence, opFactory, T0, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO, type OpFactory } from '../test-support.ts';
+import { idSequence, opFactory, T0, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO, TEST_USER, type OpFactory } from '../test-support.ts';
 import { isDryBlock, isNameplateFieldExcused, nameplateAcceptsNotApplicable, nameplateMissingKeys, oilNaChipItems } from './dry-insulation.ts';
 import {
   isOilFieldExcused,
@@ -25,6 +25,9 @@ import {
 import { repeatChecklistPattern } from './ficha.ts';
 import { checklistResultIsStored, checklistResultOf, sheetProgress } from './sheet-progress.ts';
 import { newEquipmentBlock } from './tree.ts';
+import { firstSheetWithPendingSuggestions } from './ficha.ts';
+import { progress } from './progress.ts';
+import { confirmAllCandidates, livePendingSuggestions, nameplateSuggestions, suggestionGroupCounts } from './suggestions.ts';
 
 /*
  * Story 14.11 (seed v6): the insulation (or the extinction medium) drives the oil items. Every
@@ -580,5 +583,71 @@ describe('Story 15.7 (seed v10): the TC asks its own seven items, VASAMENTO its 
     expect(checklistOf('v9', 'tc')).toHaveLength(14);
     expect([...oilDerivedNaKeys(dryV9)]).toHaveLength(7);
     expect(isOilItem(dryV9, 'valvula_de_alivio')).toBe(true);
+  });
+});
+
+describe('fix batch fxpw G10: a pending suggestion on a nameplate field the oil rule excuses', () => {
+  const suggestionOn = (field: string, id: string, trust: 'suggested' | 'verify'): SuggestionRow =>
+    suggestionRowSchema.parse({
+      id,
+      relatorio_id: TEST_RELATORIO,
+      target_path: plate(field),
+      value: num('320', 'L'),
+      trust,
+      mode: 'fill',
+      source: { photo_id: PHOTO_OIL, bbox: [0.1, 0.2, 0.3, 0.4], ocr_token_ids: ['t0'], reading_run_id: PHOTO_OTHER },
+      status: 'pending',
+      prompt_version: 'test-1',
+    });
+  const VOL = '019966b0-0211-7000-8000-0000000000a1';
+  const POT = '019966b0-0211-7000-8000-0000000000a2';
+  const shown = (block: BlockRow, pending: readonly SuggestionRow[]) => nameplateSuggestions(block, pending).map((entry) => entry.field.key);
+
+  it('is hidden, not counted and holds nothing while the unit is dry; ÓLEO brings it back, its status still pending', () => {
+    for (const seedVersion of ['v6', 'v10', 'v1']) {
+      for (const type of TRANSFORMERS) {
+        if (seedVersion === 'v1' && type !== 'transformador_forca') continue;
+        for (const trust of ['suggested', 'verify'] as const) {
+          const label = `${seedVersion} ${type} ${trust}`;
+          const vol = suggestionOn('vol_oleo', VOL, trust);
+          const other = suggestionOn('n_serie', POT, 'suggested');
+          const { state, f } = stateWith(type, { seedVersion });
+          expect(getDefinition(seedVersion, 'cabine_primaria', type).nameplate.map((field) => field.key), label).toEqual(expect.arrayContaining(['vol_oleo', 'n_serie']));
+          const pending = [vol, other];
+          for (const value of ['EPÓXI', 'Á SECO']) {
+            const dry = blockOf(put(state, f, plate('tipo_de_isolacao'), value).state);
+            expect(isNameplateFieldExcused(dry, 'vol_oleo'), label).toBe(true);
+            expect(shown(dry, pending), label).toEqual(['n_serie']);
+            expect(livePendingSuggestions([dry], pending), label).toEqual([other]);
+            expect(suggestionGroupCounts(dry, [vol]), label).toEqual({ shown: 0, fills: 0, confirmable: 0, verify: 0, create: 0 });
+            expect(confirmAllCandidates(dry, [vol]), label).toEqual([]);
+            expect(livePendingSuggestions([dry], [vol]), label).toEqual([]);
+            const concluded = { ...dry, concluded_by: { actor_id: TEST_USER, at: '2026-10-29T10:00:00.000Z' } };
+            expect(progress({ blocks: [concluded], suggestions: [] }, [vol]), label).toMatchObject({ sheets_concluded: 1, suggestions_pending: 0 });
+            expect(firstSheetWithPendingSuggestions({ blocks: [concluded], locations: [local()], equipment: [] } as never, [vol]), label).toBeNull();
+            expect(vol.status).toBe('pending');
+          }
+          const oil = blockOf(put(state, f, plate('tipo_de_isolacao'), 'ÓLEO').state);
+          expect(shown(oil, [vol]), label).toEqual(['vol_oleo']);
+          expect(suggestionGroupCounts(oil, [vol]).fills, label).toBe(1);
+          expect(livePendingSuggestions([oil], [vol]), label).toEqual([vol]);
+          const concludedOil = { ...oil, concluded_by: { actor_id: TEST_USER, at: '2026-10-29T10:00:00.000Z' } };
+          expect(progress({ blocks: [concludedOil], suggestions: [] }, [vol]), label).toMatchObject({ sheets_concluded: 0, suggestions_pending: 1 });
+          // Nothing typed and no dry subtype: the suggestion shows and counts.
+          expect(shown(blockOf(state), [vol]), label).toEqual(['vol_oleo']);
+          expect(livePendingSuggestions([blockOf(state)], [vol]), label).toEqual([vol]);
+        }
+      }
+    }
+  });
+
+  it('a dry subtype with nothing typed excuses it too; a field the rule does not excuse keeps its suggestion', () => {
+    const { state } = stateWith('transformador_forca', { subtype: 'a_seco' });
+    const dry = blockOf(state);
+    const vol = suggestionOn('vol_oleo', VOL, 'verify');
+    const serie = suggestionOn('n_serie', POT, 'suggested');
+    expect(shown(dry, [vol])).toEqual([]);
+    expect(livePendingSuggestions([dry], [vol, serie])).toEqual([serie]);
+    expect(shown(dry, [vol, serie])).toEqual(['n_serie']);
   });
 });

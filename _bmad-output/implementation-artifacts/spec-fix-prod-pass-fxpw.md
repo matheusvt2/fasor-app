@@ -2,8 +2,8 @@
 title: 'Fix batch fxpw: the ten web and kernel gaps of the production pass (G1 to G5, G7 to G11)'
 type: 'bugfix'
 created: '2026-10-29'
-status: 'ready-for-dev'
-baseline_revision: '316285ab'
+status: 'in-progress'
+baseline_revision: '79d76805d5c504b6b7979b6a820c078dd0638332'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'

@@ -21,6 +21,7 @@ import {
   parecerWithVerdict,
   suggestParecer,
 } from './parecer.ts';
+import { fichasConcluidasText, progress, relatorioCounter } from './progress.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
 
 const TEMPLATE_ID = '019966b0-0071-7000-8000-000000000001';
@@ -105,6 +106,21 @@ describe('7.4-UNIT suggestParecer (I/O matrix)', () => {
     }
     expect(parecerCounts(cases[0]!)).toMatchObject({ total: 5, concluded: 1, open: 3 });
     expect(parecerCounts(cases[2]!)).toMatchObject({ total: 5, concluded: 0, open: 0 });
+  });
+
+  it('fix batch fxpw G5: the Sumário header, the parecer hint and the summary state one concluded count on one snapshot', () => {
+    const snapshot = mapSheets(withSheets(3), (b, i) => (i === 0 ? conclude(b, 'aprovado', 'sem_restricoes') : i === 1 ? untested(b, 'impossibilidade_desligamento') : b));
+    const computed = progress(snapshot);
+    expect(fichasConcluidasText(computed)).toBe('1 de 3 fichas concluídas');
+    expect(computed.not_tested).toBe(1);
+    const hint = parecerHintText(suggestParecer(snapshot) ?? 'apto_com_restricoes', snapshot)!;
+    expect(hint).toContain('1 de 3 fichas concluídas');
+    expect(hint).toContain('1 não ensaiada');
+    const composed = composeParecer(snapshot);
+    expect(composed.text).toContain(`Foram registradas 3 fichas de ensaio: 1 concluída, 1 não ensaiada (${tagOf(snapshot, 1)}, por impossibilidade de desligamento) e 1 ainda não concluída.`);
+    expect(composed.criteriaItems.slice(0, 3)).toEqual(['3 fichas', '1 concluída', `1 não ensaiada (${tagOf(snapshot, 1)})`]);
+    // The remaining-work counter (Home card, Project row) still counts the not-tested sheet as handled.
+    expect(relatorioCounter(snapshot.blocks, []).text).toBe('2 de 3 fichas');
   });
 
   it('suggests nothing with no sheet, with sheets open and no restriction, or a Reprovado with no restriction; never Não apto', () => {

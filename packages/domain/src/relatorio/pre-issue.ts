@@ -379,7 +379,8 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
     rows.push({ id: 'points_sem_prazo', row: 'section_8', severity: 'info', text: pointsSemPrazoText(semPrazo), kind: 'points_sem_prazo' });
   }
 
-  if (computed.sheets_concluded < computed.sheets_total) {
+  // Fix batch fxpw G5: the remaining work, a not-tested sheet counted as handled.
+  if (computed.sheets_handled < computed.sheets_total) {
     rows.push({ id: 'sheets', row: 'section_9', severity: 'pending', text: progressCounterText(computed), kind: 'sheets' });
   }
   // F-03 (review 2026-10-06, D1): the sheets nothing was typed on print as dashes; a warning

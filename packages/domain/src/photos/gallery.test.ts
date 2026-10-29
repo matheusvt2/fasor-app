@@ -32,6 +32,7 @@ import {
   photoItemLine,
   photoRemovedText,
   photosAddedText,
+  photosAddedUncaptionedText,
   photoStampFull,
   photoStampShort,
   photoNumbersProvisional,
@@ -232,10 +233,23 @@ describe('6.3-UNIT-005 gallery texts', () => {
         { uploaded_at: null, caption: 'Detalhe' },
       ]),
     ).toEqual({ pending: 2, error: 1, uncaptioned: 2, suggested: 0 });
-    expect(photosImportedText(3, 0)).toBe('3 fotos adicionadas — legenda aplicada');
-    expect(photosImportedText(3, 1)).toBe('3 fotos adicionadas — legenda aplicada. 1 arquivo não pôde ser lido como foto e ficou de fora');
-    expect(photosImportedText(0, 2)).toBe(skippedFilesText(2));
-    expect(photosImportedText(0, 0)).toBeNull();
+    expect(photosImportedText(3, 0, 'Detalhe')).toBe('3 fotos adicionadas — legenda aplicada');
+    expect(photosImportedText(3, 1, 'Detalhe')).toBe('3 fotos adicionadas — legenda aplicada. 1 arquivo não pôde ser lido como foto e ficou de fora');
+    expect(photosImportedText(0, 2, 'Detalhe')).toBe(skippedFilesText(2));
+    expect(photosImportedText(0, 0, 'Detalhe')).toBeNull();
+  });
+
+  it('fix batch fxpw G3: an import answered with no caption says "sem legenda", never "legenda aplicada"', () => {
+    expect(photosAddedUncaptionedText(1)).toBe('1 foto adicionada — sem legenda');
+    expect(photosAddedUncaptionedText(3)).toBe('3 fotos adicionadas — sem legenda');
+    expect(photosImportedText(1, 0, null)).toBe('1 foto adicionada — sem legenda');
+    expect(photosImportedText(2, 0, '   ')).toBe('2 fotos adicionadas — sem legenda');
+    expect(photosImportedText(2, 1, '')).toBe('2 fotos adicionadas — sem legenda. 1 arquivo não pôde ser lido como foto e ficou de fora');
+    expect(photosImportedText(0, 2, null)).toBe(skippedFilesText(2));
+    expect(photosImportedText(0, 0, null)).toBeNull();
+    // With a caption: today's sentence, byte-identical.
+    expect(photosImportedText(1, 0, 'Vista geral')).toBe('1 foto adicionada — legenda aplicada');
+    expect(photosImportedText(3, 0, 'Vista geral')).toBe(photosAddedText(3));
   });
 
   it('E6-Q8 photosKeptGeneralText: a cancelled batch stays as Geral with no caption', () => {

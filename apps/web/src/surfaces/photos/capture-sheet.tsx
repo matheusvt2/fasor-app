@@ -95,7 +95,7 @@ export function usePhotoImport(relatorioId: string): (files: readonly File[], ta
       // E6-Q14: saved photos go out now when online, not on the next 60 s tick.
       if (result.saved.length > 0) requestSyncCycle();
       // E6-Q12: the one toast is the kernel's sentence.
-      const text = options.quiet === true ? null : photosImportedText(result.saved.length, result.skipped + skippedBefore);
+      const text = options.quiet === true ? null : photosImportedText(result.saved.length, result.skipped + skippedBefore, target.caption);
       if (text !== null) showToast(text);
       return result;
     },
@@ -348,7 +348,7 @@ function SheetBody({
       readingKind: from.reading?.kind ?? null,
     }).then(
       () => {
-        const text = target === null ? photosKeptGeneralText(ids.length, skipped) : photosImportedText(ids.length, skipped);
+        const text = target === null ? photosKeptGeneralText(ids.length, skipped) : photosImportedText(ids.length, skipped, answer.caption);
         if (text !== null) showToast(text);
       },
       (error: unknown) => showToast(writeErrorText(error)),

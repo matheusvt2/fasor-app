@@ -3,6 +3,7 @@ import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { replay } from '../ops/replay.ts';
 import { emptySheet, type BlockRow, type Cell } from '../schemas/entities.ts';
 import { buildSnapshot } from '../schemas/snapshot.ts';
+import { TEST_USER } from '../test-support.ts';
 import { firstCountedTarget } from './count-target.ts';
 import { sheetState } from './sheet-state.ts';
 import { locationTree, type TreeLocationNode } from './tree.ts';
@@ -29,8 +30,13 @@ describe('F-24 firstCountedTarget', () => {
     const notTested = order.find((id) => sheetState(byId.get(id)!) === 'nao_ensaiada');
     expect(notTested).toBeDefined();
     expect(firstCountedTarget(tree, snapshot.blocks, 'not_tested')).toEqual({ kind: 'block', blockId: notTested });
-    // The fixture's concluded sheets are its three not-tested ones.
-    expect(firstCountedTarget(tree, snapshot.blocks, 'concluded')).toEqual({ kind: 'block', blockId: notTested });
+    // Fix batch fxpw G5: a not-tested sheet is never concluded; the fixture concludes none.
+    expect(firstCountedTarget(tree, snapshot.blocks, 'concluded')).toBeNull();
+    // Concluding a sheet after the first not-tested one in tree order: "concluídas" lands on it.
+    const later = order[order.indexOf(notTested!) + 1]!;
+    expect(sheetState(byId.get(later)!)).not.toBe('nao_ensaiada');
+    const blocks = snapshot.blocks.map((block) => (block.id === later ? { ...block, concluded_by: { actor_id: TEST_USER, at: '2026-09-07T10:00:00.000Z' } } : block));
+    expect(firstCountedTarget(locationTree({ ...snapshot, blocks }), blocks, 'concluded')).toEqual({ kind: 'block', blockId: later });
   });
 
   it('"NC abertos" lands on the first sheet holding an NC answer; none when no sheet holds one', () => {

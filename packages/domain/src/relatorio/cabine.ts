@@ -87,6 +87,16 @@ export function cabineProgress(snapshot: Pick<RelatorioSnapshot, 'relatorio' | '
   return { missing, complete: missing.length === 0 };
 }
 
+/**
+ * Fix batch fxpw G4: whether a cabine number field accepts a two-level voltage ("380/220",
+ * `parseVoltagePairPtBr`): the SE's TENSÃO SECUNDÁRIA only, the FO.SERV-03 practice
+ * "380/220 V" that the Porto Seguro fixture already stores (`fixtures/porto-seguro/small/op-log.ts`,
+ * `secondary_kv: measured('380/220', 'V')`). Every other field keeps a single number.
+ */
+export function acceptsVoltagePair(group: 'se' | 'env', key: string): boolean {
+  return group === 'se' && key === 'secondary_kv';
+}
+
 // authored: each cabine field's short name with its article, for "falta ⟨campo⟩" (the
 // v0.9 mock's Sumário row reads "falta a umidade"); open question for Bruno and Matheus.
 const SHORT_NAMES: Readonly<Record<string, string>> = {
