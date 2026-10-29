@@ -2540,3 +2540,23 @@ Source: `_bmad-output/implementation-artifacts/spec-fix-prod-remove-test-data-fx
   evidence: `packages/domain/src/ops/path.ts` family entry (no `serverOnly`); `apps/api/src/sync/apply.ts` `validate` has no status rule for it; review of fix batch fxrm, Edge Case Hunter.
   class: debt
   state: open (owner: the batch that builds a "Remover relatório" surface: refuse it on an emitido relatório in the push route, or make the family server-only until then)
+
+## Deferred from: the production re-check and Matheus's asks of 2026-10-29
+
+Source: `_bmad-output/test-artifacts/manual/prod-pass-2026-10-28.md` § "Re-check after the fix deploy (2026-10-29)" and `_bmad-output/implementation-artifacts/backlog-2026-10-29-home-nav-and-telemetry.md`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-prod-pass-fxpw.md`
+  summary: The chip row "Observações sugeridas do item N" offers a learned NC phrase twice: the registry's normalized name (no closing period) and this device's recent text (with the period); recents and learned phrases are not deduplicated across the trailing period or the registry normalization (production re-check 2026-10-29, G8 steps, P3).
+  evidence: `prod-pass-2026-10-28.md` § Re-check, TR-1 item 1 after the 66-character observation on TR-TEST synced; chip sources in `packages/domain/src/registry/nc-phrase-row.ts` (Stories 9.5 and 14.12).
+  class: bug
+  state: open (owner: the next ficha batch; dedupe a recent against the learned phrases with the registry's normalization)
+- source_spec: `_bmad-output/planning-artifacts/ux-designs/ux-fasor-2026-09-18/EXPERIENCE.md`
+  summary: Home with many relatórios buries the Templates and Cadastros shortcuts under the card list (Matheus, 2026-10-29); Sally's options and recommendation (fold Emitido behind its chip, shortcuts above the list) in `backlog-2026-10-29-home-nav-and-telemetry.md` § 1, with two questions for Bruno.
+  evidence: `20-home.html` section order (status chips, cards, "Atalhos"); production Home on 2026-10-29 already puts the shortcuts below the fold at 390 px with two relatórios.
+  class: question
+  state: open (owner: Matheus and Bruno decide the option; then a UX amendment and a story)
+- source_spec: `_bmad-output/planning-artifacts/architecture/architecture-fasor-2026-09-21/ARCHITECTURE-SPINE.md`
+  summary: Record every user interaction to find friction (Matheus, 2026-10-29): Amelia's analysis and recommendation (an offline event queue in IndexedDB flushed with the sync to `POST /api/telemetry`, a dedicated CloudWatch Logs group queried with Logs Insights, no free text, 90 days, cents a month) in `backlog-2026-10-29-home-nav-and-telemetry.md` § 2, with three stories and an architecture amendment (a second local write kind outside the op log).
+  evidence: the op log records every data edit but no navigation, cancel, retry, disabled tap or wait; CloudWatch holds only the api, ocr, caddy, migrate and smoke groups.
+  class: debt
+  state: open (owner: Matheus approves the amendment, the LGPD wording and the three stories for a coming epic)
