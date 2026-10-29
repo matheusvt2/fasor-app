@@ -2454,49 +2454,64 @@ Source: `_bmad-output/test-artifacts/manual/prod-pass-2026-10-28.md` (v0.4.0 on 
   summary: A long learned NC phrase chip (66 characters) renders 490 px wide and makes the whole sheet scroll sideways at 390 px (`scrollWidth` 505 against 375) (prod-pass G8, P2).
   evidence: `prod-pass-2026-10-28.md` Epic 9 G8, screenshot `e9-*`; the chip has no max width or wrap rule.
   class: bug
-  state: open (owner: the next fix batch; a max width with ellipsis or wrapping on the chip row, checked at 390 px)
+  state: ~~open (owner: the next fix batch; a max width with ellipsis or wrapping on the chip row, checked at 390 px)~~ done (2026-10-29, fix batch fxpw: `app.css` wraps the learned NC chip inside its pill, the other chip rows keep `nowrap`; e2e `learned-options.spec.ts` 14.12-E2E-004 at 390 px)
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6-home-and-account.md`
   summary: One console error `merge pairs of a pull failed` on the first load of an empty device (the "Dados deste aparelho foram apagados" recovery screen); "Baixar do servidor" then worked and the error never recurred (prod-pass G1, P3).
   evidence: `prod-pass-2026-10-28.md` Epic 1 G1.
   class: bug
-  state: open (owner: the next sync batch; reproduce on a fresh profile against production)
+  state: ~~open (owner: the next sync batch; reproduce on a fresh profile against production)~~ done (2026-10-29, fix batch fxpw: the sync engine waits for the boot read (`SessionState.settled`), so it never runs on a cached pointer's database the server replaces with another user's; `session.test.tsx`, `sync.test.tsx`; e2e `durability.spec.ts` 1.8-E2E-004 (no console error) and 1.8-E2E-007)
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-4-compose-template.md`
   summary: The template composer's sections palette "+" adds a section the template already holds (a second "1 Objetivo" at position 10); removable through "Mais opções > Remover" (prod-pass G2, P3).
   evidence: `prod-pass-2026-10-28.md` Epic 3 G2.
   class: bug
-  state: open (owner: the next template batch; the palette hides or disables a section already in the template)
+  state: ~~open (owner: the next template batch; the palette hides or disables a section already in the template)~~ done (2026-10-29, fix batch fxpw: a held section reads "No template" in "Seções" and a tap writes nothing and toasts "{N Título} já está no template" (`42-template-composer.html` L186-194, `heldSectionTypes`); `template-composer-palette.test.tsx`; e2e `templates.spec.ts` 3.4-E2E-003)
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-3-gallery-captions.md`
   summary: Importing a photo as "Geral" with no caption toasts "1 foto adicionada — legenda aplicada" while the gallery counts it "1 sem legenda" (prod-pass G3, P3).
   evidence: `prod-pass-2026-10-28.md` Epic 6 G3; the toast text does not read the caption state.
   class: bug
-  state: open (owner: the next gallery batch; kernel toast text by caption state)
+  state: ~~open (owner: the next gallery batch; kernel toast text by caption state)~~ done (2026-10-29, fix batch fxpw: `photosImportedText` takes the caption: "… — sem legenda" with none; `gallery.test.ts`; e2e `gallery.spec.ts` 6.4-E2E-010)
 - source_spec: `_bmad-output/implementation-artifacts/spec-5-2-cabine-characteristics.md`
   summary: The cabine's "Tensão secundária" refuses `380/220` ("Número não reconhecido") although the seeded sample carries exactly that value in the same field (prod-pass G4, P3).
   evidence: `prod-pass-2026-10-28.md` Epic 5 G4; the seed writes a text the field's parser does not accept.
   class: question
-  state: open (owner: Matheus: a number with one value, or a text field for the pair; then the seed or the parser)
+  state: ~~open (owner: Matheus: a number with one value, or a text field for the pair; then the seed or the parser)~~ done (2026-10-29, fix batch fxpw: `secondary_kv` accepts the pair (`acceptsVoltagePair`, `parseVoltagePairPtBr`), stored as typed, printed "380/220 V"; goldens unchanged; e2e `sheet-knows-12-3-12-4.spec.ts` 12.3-E2E-003)
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-x-export-dialog.md`
   summary: The Sumário chip reads "2 de 96 fichas concluídas" while the parecer hint reads "1 de 96 fichas concluídas, 1 não ensaiada" (prod-pass G5, P3).
   evidence: `prod-pass-2026-10-28.md` Epic 7 G5; two readers count a Não ensaiada sheet differently.
   class: bug
-  state: open (owner: the next Sumário batch; one kernel count for both)
+  state: ~~open (owner: the next Sumário batch; one kernel count for both)~~ done (2026-10-29, fix batch fxpw: `sheets_concluded` excludes a not-tested sheet, `sheets_handled` keeps the remaining-work readers; one-snapshot test in `parecer.test.ts`; e2e `ficha.spec.ts` E5-Q18e)
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-9-11-11-completions.md`
   summary: No "Sugerir TAG para Coluna 9?" offer after "Mover para…" (SEC-C01 kept its TAG in Coluna 9) (prod-pass G7, P3).
   evidence: `prod-pass-2026-10-28.md` Epic 11 G7.
   class: question
-  state: open (owner: Matheus: is the re-suggestion expected after a move; then the next tree batch)
+  state: ~~open (owner: Matheus: is the re-suggestion expected after a move; then the next tree batch)~~ done (2026-10-29, fix batch fxpw: no product defect (the pass clicked "Mover" without reading the dialog, which asks "Sugerir TAG para Coluna 9?"); pin `move.test.ts` SEC-C01 to Coluna 9 = SEC-C09; e2e `move-block.spec.ts` 11.2-E2E-001/002 as evidence)
 - source_spec: `_bmad-output/implementation-artifacts/spec-10-2-sync-status.md`
   summary: Merge-by-rule rows ("… mesclado") never shown in Sync status after a C-versus-NC merge between two devices (prod-pass G9, P3).
   evidence: `prod-pass-2026-10-28.md` Epic 10 G9.
   class: bug
-  state: open (owner: the next sync batch)
+  state: ~~open (owner: the next sync batch)~~ done (2026-10-29, fix batch fxpw: no product defect (the pass's unexact "Conforme" locator wrote different items, and reloads clear the engine's merges by design); pin `engine.test.ts` nc_over_c entry and its row text; e2e `merge.spec.ts` 10.1-E2E-001 as evidence)
 - source_spec: `_bmad-output/implementation-artifacts/spec-fix-epic-17-retro-and-qa-gaps.md`
   summary: A pending "Verificar" suggestion stays offered on Vol. óleo after EPÓXI excused the field (prod-pass G10, P3); the fx17r predicate hides the N/A control but not the pending suggestion row.
   evidence: `prod-pass-2026-10-28.md` Epic 8 G10.
   class: bug
-  state: open (owner: the next plate batch; `isNameplateFieldExcused` also filters the suggestion rows)
+  state: ~~open (owner: the next plate batch; `isNameplateFieldExcused` also filters the suggestion rows)~~ done (2026-10-29, fix batch fxpw: `nameplateSuggestions` and `livePendingSuggestions` skip a field `isNameplateFieldExcused` excuses, the row kept pending; `oil-rule.test.ts`; e2e `oil-dry.spec.ts` 14.11-E2E-004)
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-1-capture-sheet.md`
   summary: "Cancelar" on the capture sheet's equipment step keeps the picked photo as Geral (toast "1 foto ficou como Geral, sem legenda"); the toast says it is intended, so it may be a wording question (prod-pass G11, P3).
   evidence: `prod-pass-2026-10-28.md` Epic 17 G11.
   class: question
-  state: open (owner: Matheus: keep as Geral or discard on Cancelar)
+  state: ~~open (owner: Matheus: keep as Geral or discard on Cancelar)~~ done (2026-10-29, fix batch fxpw: the photos stay as Geral and the toast offers "Desfazer", which removes the batch in one batch (`removePhotos`); `photo-ops.test.ts`; e2e `gallery.spec.ts` 6.4-E2E-008)
+
+## Deferred from: fix batch fxpw review (2026-10-29)
+
+Source: `_bmad-output/implementation-artifacts/spec-fix-prod-pass-fxpw.md` § Review Triage Log (Edge Case Hunter and Verification Gap Reviewer). Both pre-existing; neither changed by the batch.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-prod-pass-fxpw.md`
+  summary: An offline boot with one user's cached pointer and another user's session cookie settles as unreachable on the pointer's database, and once online the sync engine pushes and pulls with that cookie into it (the G1 mix by the offline path).
+  evidence: `apps/web/src/state/session.tsx` boot effect, `'unreachable'` branch (unchanged by fxpw); needs a cookie changed outside the app's sign-in, as the production pass's persistent MCP profile had (ECH-3).
+  class: bug
+  state: open (owner: the next session or sync batch; re-read the session on the first `online` event before the engine's first push)
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-prod-pass-fxpw.md`
+  summary: The Sumário header leaves out a concluded sheet held by a pending suggestion on this device, while the Etapa 6 parecer hint and summary count it as concluded (G5 aligned the not-tested reading only).
+  evidence: `packages/domain/src/relatorio/progress.ts` `over()` (Story 8.1 held rule) against `parecer.ts` `parecerCounts` (snapshot only, no device suggestion rows) (ECH-11, VGR).
+  class: question
+  state: open (owner: Matheus: whether the parecer counts a held sheet as concluded, or the header counts it)

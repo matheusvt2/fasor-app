@@ -20,10 +20,12 @@ import { SyncProvider, useSync, type SyncState } from './sync.tsx';
  */
 
 let database: AppDatabase | null = null;
+/** Fix batch fxpw G1: whether the session's boot read has settled (the engine waits for it). */
+let settled = true;
 let counter = 0;
 
 vi.mock('./session.tsx', () => ({
-  useSession: (): Partial<SessionState> => ({ status: 'signed-in', user: null, online: false, reAuthRequired: false, database }),
+  useSession: (): Partial<SessionState> => ({ status: 'signed-in', user: null, online: false, reAuthRequired: false, database, settled }),
 }));
 
 const engine = {
@@ -56,6 +58,7 @@ afterEach(() => {
   cleanup();
   database?.close();
   database = null;
+  settled = true;
   vi.clearAllMocks();
 });
 
@@ -117,5 +120,26 @@ describe('SyncProvider', () => {
     await waitFor(() => expect(state?.counts.pending).toBe(1));
     expect(renders.state).toBeGreaterThan(settled.state);
     expect(renders.actions).toBe(settled.actions);
+  });
+
+  it('fix batch fxpw G1: the engine is not created before the boot read settles, and starts once it has', async () => {
+    database = await freshDb();
+    settled = false;
+    const view = render(
+      <SyncProvider>
+        <p>child</p>
+      </SyncProvider>,
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(engine.start).not.toHaveBeenCalled();
+    settled = true;
+    view.rerender(
+      <SyncProvider>
+        <p>child</p>
+      </SyncProvider>,
+    );
+    await waitFor(() => expect(engine.start).toHaveBeenCalledTimes(1));
   });
 });

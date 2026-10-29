@@ -1,4 +1,5 @@
 import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, type Op } from '@app/domain';
+import type { Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test } from './support/merged-fixtures.ts';
 import {
   clearSessionPointer,
@@ -57,6 +58,18 @@ interface DraftRecord {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Fix batch fxpw G1: collects the page's console errors from now on (a resource the
+ * browser could not load is the network's line, not the app's, and is left out).
+ */
+function collectConsoleErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) errors.push(message.text());
+  });
+  return errors;
+}
 
 test('@p0 1.8-E2E-001 the tab closes mid-sheet: committed values survive and the draft is offered, never applied', async ({
   page,
@@ -247,6 +260,8 @@ test('@p1 1.8-E2E-004 an evicted origin with a live cookie gets the one-time rec
   await goToNeutralDocument(page);
   await deleteDeviceDatabase(page, database);
   await clearSessionPointer(page);
+  // Fix batch fxpw G1: the recovery screen and its download log no console error.
+  const consoleErrors = collectConsoleErrors(page);
   await page.goto('/');
 
   const heading = page.getByRole('heading', { level: 1, name: 'Dados deste aparelho foram apagados' });
@@ -264,11 +279,52 @@ test('@p1 1.8-E2E-004 an evicted origin with a live cookie gets the one-time rec
 
   await page.getByRole('button', { name: 'Baixar do servidor' }).click();
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible({ timeout: 30_000 });
+  expect(consoleErrors, `the console logged ${consoleErrors.join(' | ')}`).toEqual([]);
 
   // One-time: a reload goes straight to Home.
   await page.reload();
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
   await expect(heading).toHaveCount(0);
+});
+
+test("@p1 1.8-E2E-007 a pointer left by another user: the engine waits for the server's answer, no console error, the other store untouched", async ({
+  page,
+  context,
+  seed,
+}) => {
+  // Fix batch fxpw G1. Company 0's session cookie is kept aside; company 1 then signs in on
+  // this browser and leaves its pointer and its downloaded store.
+  const evicted = seed.companies[0];
+  const other = seed.companies[1];
+  const evictedDatabase = deviceDatabaseName(evicted.userId);
+  const otherDatabase = deviceDatabaseName(other.userId);
+  await signInForDurability(page, context, evicted.email);
+  const evictedCookies = await context.cookies();
+  await goToNeutralDocument(page);
+  await clearSessionPointer(page);
+  await context.clearCookies();
+  await signInForDurability(page, context, other.email);
+
+  // Company 0's store goes and its cookie comes back; company 1's pointer stays.
+  await goToNeutralDocument(page);
+  await deleteDeviceDatabase(page, evictedDatabase);
+  const outboxBefore = (await readStore<OutboxRecord>(page, otherDatabase, 'outbox')).length;
+  const entitiesBefore = (await readStore(page, otherDatabase, 'entities')).length;
+  expect(entitiesBefore).toBeGreaterThan(0);
+  await context.clearCookies();
+  await context.addCookies(evictedCookies);
+
+  const consoleErrors = collectConsoleErrors(page);
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1, name: 'Dados deste aparelho foram apagados' })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('recovery-holds')).toContainText('2 pessoas da equipe', { timeout: 20_000 });
+  await page.getByRole('button', { name: 'Baixar do servidor' }).click();
+  await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible({ timeout: 30_000 });
+  expect(consoleErrors, `the console logged ${consoleErrors.join(' | ')}`).toEqual([]);
+
+  await goToNeutralDocument(page);
+  expect((await readStore<OutboxRecord>(page, otherDatabase, 'outbox')).length).toBe(outboxBefore);
+  expect((await readStore(page, otherDatabase, 'entities')).length).toBe(entitiesBefore);
 });
 
 test('@p1 1.8-E2E-005 work older than five days raises the banner, and a new shell waits for an empty outbox', async ({

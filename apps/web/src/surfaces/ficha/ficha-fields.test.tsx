@@ -1,4 +1,4 @@
-import type { FieldDef } from '@app/domain';
+import { acceptsVoltagePair, type FieldDef } from '@app/domain';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { I18nProvider } from 'react-aria-components';
@@ -582,5 +582,44 @@ describe('16.4 "N/A" in a nameplate or cabine number field (Story 17.3: printed 
     expect(commit.mock.calls).toEqual([[{ raw: '12', unit: 'kVA', state: 'measured' }], [NA]]);
     expect(input).toHaveValue('N/A');
     expect(control()).toBeNull();
+  });
+});
+
+describe('fix batch fxpw G4: the two-level secondary voltage', () => {
+  const SECONDARY: FieldDef = { key: 'secondary_kv', label: 'Tensão secundária', kind: 'number', unit: 'V' };
+  const PRIMARY: FieldDef = { key: 'primary_kv', label: 'Tensão primária', kind: 'number', unit: 'kV' };
+
+  function cabineField(def: FieldDef, commit: (value: unknown) => void) {
+    return (
+      <I18nProvider locale="pt-BR">
+        <ToastProvider>
+          <SheetField
+            field={def}
+            value={null}
+            commit={commit}
+            draft={{ entityId: 'c', field: def.key }}
+            invalidText="Número não reconhecido"
+            selectEmpty="Selecione"
+            acceptsNotApplicable
+            acceptsPair={acceptsVoltagePair('se', def.key)}
+          />
+        </ToastProvider>
+      </I18nProvider>
+    );
+  }
+
+  it('Tensão secundária opens the text keyboard (a "/" key) and commits "380/220"; Tensão primária keeps the decimal keypad', async () => {
+    const commit = vi.fn();
+    render(
+      <>
+        {cabineField(SECONDARY, commit)}
+        {cabineField(PRIMARY, vi.fn())}
+      </>,
+    );
+    const secondary = screen.getByLabelText('Tensão secundária', { exact: true });
+    expect(secondary).toHaveAttribute('inputmode', 'text');
+    expect(screen.getByLabelText('Tensão primária', { exact: true })).toHaveAttribute('inputmode', 'decimal');
+    await userEvent.type(secondary, '380/220{Enter}');
+    expect(commit).toHaveBeenCalledWith({ raw: '380/220', unit: 'V', state: 'measured' });
   });
 });

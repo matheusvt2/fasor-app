@@ -279,6 +279,15 @@ export function photosAddedText(n: number): string {
   return n === 1 ? '1 foto adicionada — legenda aplicada' : `${n} fotos adicionadas — legenda aplicada`;
 }
 
+/**
+ * Fix batch fxpw G3: the batch's toast when the answer carried no caption (null or blank,
+ * `isUncaptioned`): "1 foto adicionada — sem legenda", "3 fotos adicionadas — sem legenda".
+ */
+export function photosAddedUncaptionedText(n: number): string {
+  // authored (fix batch fxpw, open for Bruno): the vocabulary of "ficou como Geral, sem legenda".
+  return n === 1 ? '1 foto adicionada — sem legenda' : `${n} fotos adicionadas — sem legenda`;
+}
+
 /** The note beside the batch caption: "Fica igual para as 3 fotos; dá para mudar uma a uma depois em Legendar." */
 export function batchCaptionNote(n: number): string {
   return n === 1
@@ -379,11 +388,14 @@ export function galleryCounts(
 /**
  * E6-Q12: the one toast of an import: "3 fotos adicionadas — legenda aplicada", with the
  * files left out after it ("… 1 arquivo não pôde ser lido como foto e ficou de fora"), or
- * those alone; null when nothing was added or left out.
+ * those alone; null when nothing was added or left out. Fix batch fxpw G3: `caption` is the
+ * caption the import's answer applied; with none (`isUncaptioned`) the added part reads
+ * "… — sem legenda" (`photosAddedUncaptionedText`).
  */
-export function photosImportedText(added: number, skipped: number): string | null {
-  if (added > 0 && skipped > 0) return `${photosAddedText(added)}. ${skippedFilesText(skipped)}`;
-  if (added > 0) return photosAddedText(added);
+export function photosImportedText(added: number, skipped: number, caption: string | null): string | null {
+  const addedText = added === 0 ? null : isUncaptioned(caption) ? photosAddedUncaptionedText(added) : photosAddedText(added);
+  if (addedText !== null && skipped > 0) return `${addedText}. ${skippedFilesText(skipped)}`;
+  if (addedText !== null) return addedText;
   if (skipped > 0) return skippedFilesText(skipped);
   return null;
 }

@@ -48,6 +48,7 @@ const session = (): SessionState => ({
   saveRegistration: vi.fn(async () => {}),
   savePhotoLocation: vi.fn(async () => {}),
   recoveryNeeded: false,
+  settled: true,
   dismissRecovery: vi.fn(),
 });
 
@@ -222,7 +223,7 @@ describe('4.3 SumarioSurface', () => {
     expect(controle!.querySelector('.overflow-trigger')).toBeNull();
     expect(numbered.map((li) => (li.querySelector('.pos-box') as HTMLInputElement).value)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']);
     expect(within(numbered[1]!).getByRole('textbox', { name: 'Número de Definições — digite outro para mover' })).toHaveClass('pos-box', 'sum-pos');
-    // The fixture's three sheets: one not tested (counts as concluded), two in progress.
+    // The fixture's three sheets: one not tested (handled on the section 9 row, never concluded: fix batch fxpw G5), two in progress.
     expect(numbered[8]!.querySelector('.sum-status')).toHaveTextContent('1 de 3 · 1 não ensaiada');
     expect(numbered[8]!).toHaveClass('has-pend');
     expect(numbered[1]!.querySelector('.sum-status')).toHaveTextContent('texto padrão');
@@ -234,7 +235,7 @@ describe('4.3 SumarioSurface', () => {
     expect(numbered[9]!.querySelector('.sum-status')).toHaveTextContent('Parecer não preenchido');
     // The header counts and the foot reason.
     const summary = screen.getByRole('group', { name: 'Resumo do relatório' });
-    expect(within(summary).getAllByRole('button').map((b) => b.textContent)).toEqual(['1 de 3 fichas concluídas', '0 NC abertos', '1 não ensaiada', '0 sugestões por confirmar']);
+    expect(within(summary).getAllByRole('button').map((b) => b.textContent)).toEqual(['0 de 3 fichas concluídas', '0 NC abertos', '1 não ensaiada', '0 sugestões por confirmar']);
     expect(capa!.querySelector('.sum-status')).toHaveTextContent('Fim da parada em branco');
     const reason = 'Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.';
     expect(screen.getByText(reason)).toHaveClass('btn-reason');
@@ -465,11 +466,13 @@ describe('4.3 SumarioSurface', () => {
     expect(container.querySelector('.sum-s9')).toHaveClass('is-open');
     const notTested = document.activeElement!.closest('li.s9-eq')!;
     expect(notTested).toHaveTextContent(/Não ensaiada/);
-    // The fixture's one concluded sheet is that same not-tested one; tapped again, it is focused again.
+    // Fix batch fxpw G5: the not-tested sheet is never concluded and the fixture concludes none:
+    // "0 de 3 fichas concluídas" counts none, so section 9's own row takes the focus.
     (document.activeElement as HTMLElement).blur();
-    await userEvent.click(within(summary).getByRole('button', { name: '1 de 3 fichas concluídas' }));
-    await waitFor(() => expect(document.activeElement?.closest('li.s9-eq')).toBe(notTested));
+    await userEvent.click(within(summary).getByRole('button', { name: '0 de 3 fichas concluídas' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' })).toHaveFocus());
     // No sheet holds an NC: section 9's own row takes the focus.
+    (document.activeElement as HTMLElement).blur();
     await userEvent.click(within(summary).getByRole('button', { name: '0 NC abertos' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' })).toHaveFocus());
   });
@@ -688,6 +691,20 @@ describe('4.3 SumarioSurface', () => {
     expect(busy).not.toHaveBeenCalled();
     rerender(tree(id, syncState({ running: false })));
     expect(await screen.findByText('Relatório não encontrado neste aparelho.')).toBeVisible();
+    expect(syncRelatorio).toHaveBeenCalledWith(id);
+  });
+
+  it('fix batch fxpw G1: waits for the sync engine to start (the boot read still pending), then pulls once', async () => {
+    database = await freshDb();
+    const id = '019966c1-000e-7000-8000-000000000004';
+    const { rerender } = renderSumario(id, syncState({ engineReady: false }));
+    expect(await screen.findByText('Baixando o relatório…')).toBeVisible();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(syncRelatorio).not.toHaveBeenCalled();
+    expect(screen.queryByText('Relatório não encontrado neste aparelho.')).toBeNull();
+    rerender(tree(id, syncState({ engineReady: true })));
+    expect(await screen.findByText('Relatório não encontrado neste aparelho.')).toBeVisible();
+    expect(syncRelatorio).toHaveBeenCalledTimes(1);
     expect(syncRelatorio).toHaveBeenCalledWith(id);
   });
 

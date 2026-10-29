@@ -223,6 +223,18 @@ describe('5.3-UNIT typed values (AR-10)', () => {
     expect(numberFieldValue('abc', 'kV')).toBe('invalid');
   });
 
+  it('fix batch fxpw G4: a field that accepts a voltage pair stores "380/220" as typed; any other field refuses it', () => {
+    const pair = { pair: true };
+    expect(numberFieldValue('380/220', 'V', pair)).toEqual({ raw: '380/220', unit: 'V', state: 'measured' });
+    expect(numberFieldValue('380 / 220', 'V', pair)).toEqual({ raw: '380/220', unit: 'V', state: 'measured' });
+    expect(numberFieldValue('13,8/7,97', 'V', pair)).toEqual({ raw: '13.8/7.97', unit: 'V', state: 'measured' });
+    expect(numberFieldValue('380', 'V', pair)).toEqual({ raw: '380', unit: 'V', state: 'measured' });
+    expect(numberFieldValue('N/A', 'V', pair)).toEqual(NOT_APPLICABLE_NUMBER);
+    for (const typed of ['380/', '/220', '-380/220', '380/220/127', 'abc']) expect(numberFieldValue(typed, 'V', pair), typed).toBe('invalid');
+    expect(numberFieldValue('380/220', 'kV')).toBe('invalid');
+    expect(numberFieldValue('13,8', 'kV')).toEqual({ raw: '13.8', unit: 'kV', state: 'measured' });
+  });
+
   it('16.4-UNIT an accepted "N.A" spelling answers the not_applicable value; anything close is still invalid', () => {
     for (const typed of ['N.A', 'na', 'n/a', 'N.A.', ' n . a ']) {
       expect(numberFieldValue(typed, 'kVA'), typed).toEqual({ raw: '', unit: null, state: 'not_applicable' });

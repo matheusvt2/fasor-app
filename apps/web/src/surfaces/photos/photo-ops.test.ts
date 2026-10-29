@@ -5,7 +5,7 @@ import { BLOCK_1_ID, COMPANY_ID, RELATORIO_ID, USER_ID } from '@app/domain/fixtu
 import { describe, expect, it } from 'vitest';
 import { commitPhotoCapture } from '../../db/file-commit.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
-import { assignPhotoBatch, toastPhotoWriteFailure } from './photo-ops.ts';
+import { assignPhotoBatch, removePhotos, toastPhotoWriteFailure } from './photo-ops.ts';
 
 /*
  * Ledger 1131 (contract 14): a gallery import batch is created with no reading; its answer
@@ -157,6 +157,23 @@ describe('11.11 assignPhotoBatch re-points a batch saved on a sheet', () => {
     const db = await batchDb();
     await assignPhotoBatch(db, author, RELATORIO_ID, [PHOTO_A], SHEET, saved.caption, true, saved);
     expect((await puts(db)).map(({ path, value }) => ({ path, value }))).toEqual([{ path: `file/${PHOTO_A}/people_in_photo`, value: true }]);
+    db.close();
+  });
+});
+
+describe('fix batch fxpw G11 removePhotos (the cancel toast\'s "Desfazer")', () => {
+  it('tombstones every photo of the batch in one batch, with no other put', async () => {
+    const db = await batchDb();
+    await removePhotos(db, author, RELATORIO_ID, [PHOTO_A, PHOTO_B]);
+    const written = await puts(db);
+    expect(written.map(({ path }) => path)).toEqual([`file/${PHOTO_A}/removed_at`, `file/${PHOTO_B}/removed_at`]);
+    expect(written.every((op) => typeof op.value === 'string')).toBe(true);
+    expect(new Set(written.map((op) => op.batch_id)).size).toBe(1);
+    expect(written[0]!.batch_id).toEqual(expect.any(String));
+    for (const id of [PHOTO_A, PHOTO_B]) {
+      const row = photoFileRowSchema.parse((await db.entities.get(['file', id]))!.row);
+      expect(row.removed_at).not.toBeNull();
+    }
     db.close();
   });
 });

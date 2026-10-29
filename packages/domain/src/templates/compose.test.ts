@@ -17,6 +17,7 @@ import {
   composerView,
   duplicateSection,
   findComposerNode,
+  heldSectionTypes,
   moveNode,
   moveSection,
   parsePositionInput,
@@ -254,6 +255,21 @@ describe('3.4-UNIT section blocks', () => {
 
     expect(() => removeSection(template.blocks, 42)).toThrow(TemplateTargetGoneError);
     expect(() => removeSection(template.blocks, 42)).toThrow(/no section block at index 42/);
+  });
+
+  it('fix batch fxpw G2: heldSectionTypes names the section types the composition holds, nothing else', () => {
+    const template = frozen(structuredClone(standard));
+    const held = heldSectionTypes(template.blocks);
+    expect([...held].sort()).toEqual(types(template.blocks).slice().sort());
+    expect(held.has('section_1')).toBe(true);
+    expect(held.has('chave_seccionadora' as never)).toBe(false);
+    expect(heldSectionTypes([]).size).toBe(0);
+    // A duplicate counts once; a removed section is no longer held.
+    expect(heldSectionTypes(duplicateSection(template.blocks, 1)).size).toBe(held.size);
+    const without8 = removeSection(template.blocks, 6);
+    expect(heldSectionTypes(without8).has('section_8')).toBe(false);
+    expect(heldSectionTypes(without8).size).toBe(held.size - 1);
+    expect(heldSectionTypes(addSection(without8, 'section_8', 'v1')).has('section_8')).toBe(true);
   });
 
   it('adds the first section to an empty composition', () => {

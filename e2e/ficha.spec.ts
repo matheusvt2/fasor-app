@@ -1502,6 +1502,9 @@ test('@p1 E5-Q18e the Sumário counts a sheet marked not tested: "0 não ensaiad
   const { relatorioId } = await openRelatorio(page, 1280);
   const summary = page.getByRole('group', { name: 'Resumo do relatório' });
   await expect(summary.getByRole('button', { name: '0 não ensaiadas' })).toBeVisible();
+  // Fix batch fxpw G5: the header's concluded count, read before the mark.
+  const concludedButton = summary.getByRole('button', { name: /^\d+ de \d+ fichas concluídas$/ });
+  const [, concludedBefore, total] = /^(\d+) de (\d+) fichas concluídas$/.exec((await concludedButton.textContent())!.trim())!;
 
   await openEnel(page);
   const { tag } = await openSheet(page, rowOfType(page, 'Para-raio'));
@@ -1516,10 +1519,28 @@ test('@p1 E5-Q18e the Sumário counts a sheet marked not tested: "0 não ensaiad
   const count = summary.getByRole('button', { name: '1 não ensaiada' });
   await expect(count).toBeVisible({ timeout: 30_000 });
   await expect(summary.getByRole('button', { name: /não ensaiadas$/ })).toHaveCount(0);
+  // G5: a not-tested sheet is counted by "1 não ensaiada", never as concluded.
+  await expect(concludedButton).toHaveText(`${concludedBefore} de ${total} fichas concluídas`);
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
   if ((await chevron.getAttribute('aria-expanded')) === 'true') await chevron.click();
   await count.click();
   await expect(chevron).toHaveAttribute('aria-expanded', 'true');
+
+  // G5: Etapa 6's hint and summary state the same counts as the header.
+  await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
+  const hint = page.locator('.conclusion-hint').first();
+  await expect(hint).toContainText('Sugerido pelas contagens: Apto com restrições?');
+  await expect(hint).toContainText(`${concludedBefore} de ${total} fichas concluídas`);
+  await expect(hint).toContainText('1 não ensaiada');
+  const verdict = page.getByRole('radiogroup', { name: 'Parecer' }).getByRole('radio', { name: 'Apto com restrições', exact: true });
+  await verdict.click();
+  await expect(verdict).toHaveAttribute('aria-checked', 'true');
+  const generated = page.locator('.suggestion-field.is-generated .generated-text');
+  await expect(generated).toContainText(`Foram registradas ${total} fichas de ensaio: `);
+  await expect(generated).toContainText(/1 não ensaiada \(.*, por solicitação do cliente\)/);
+  // No sheet concluded before the mark: the summary names no concluded count (the not-tested one is not it).
+  if (concludedBefore === '0') await expect(generated).not.toContainText(/\d+ concluídas?\b/);
 });
 
 test('@p1 E5-Q18f the saved line changes at most once for a burst of commits, never per commit (Story 13.4)', async ({ page }) => {

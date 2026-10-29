@@ -627,6 +627,15 @@ test('@p0 6.4-E2E-008 E6-Q8: "Cancelar" on "De qual equipamento?" keeps the save
   expect(puts.map((op) => op.path).sort()).toEqual(photos.map((photo) => `file/${photo.id}/reading_kind`).sort());
   expect(puts.every((op) => op.value === 'caption')).toBe(true);
   expect(new Set(puts.map((op) => op.batch_id)).size).toBe(1);
+
+  // Fix batch fxpw G11: the toast's "Desfazer" removes the whole batch in one batch, no
+  // confirm: the gallery is back to its count before the import (none).
+  await toast(page).getByRole('button', { name: 'Desfazer' }).click();
+  await expect(galleryItems(page)).toHaveCount(0);
+  const removals = (await readStore<OutboxOp>(page, database, 'outbox')).filter((op) => op.kind === 'put' && /^file\/[^/]+\/removed_at$/.test(op.path));
+  expect(removals.map((op) => op.path).sort()).toEqual(photos.map((photo) => `file/${photo.id}/removed_at`).sort());
+  expect(new Set(removals.map((op) => op.batch_id)).size).toBe(1);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('@p1 6.4-E2E-010 E6-Q8: Esc on "De qual equipamento?" keeps the saved batch as "Geral", as "Cancelar" does', async ({ page }) => {
@@ -642,6 +651,17 @@ test('@p1 6.4-E2E-010 E6-Q8: Esc on "De qual equipamento?" keeps the saved batch
   await expect(toast(page)).toContainText('2 fotos ficaram como Geral, sem legenda');
   await expect(galleryItems(page)).toHaveCount(2);
   for (const photo of await devicePhotos(page, database)) expect(photo).toMatchObject({ block_id: null, item_key: null, caption: null });
+
+  // Fix batch fxpw G3: a batch answered "Geral" with the caption field left empty says so.
+  await pickFiles(page, page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }), [await plainJpeg(page, 'c.jpg')]);
+  await expect(sheet).toBeVisible();
+  await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(3);
+  await sheet.getByRole('radio', { name: 'Geral — Registro fotográfico (serviços gerais)' }).click();
+  await expect(sheet.getByRole('textbox', { name: 'Legenda da foto' })).toHaveValue('');
+  await sheet.getByRole('button', { name: 'Adicionar 1 foto' }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(toast(page)).toContainText('1 foto adicionada — sem legenda');
+  await expect(galleryItems(page)).toHaveCount(3);
 });
 
 test('@p0 6.5-E2E-003 E6-Q3 at 390 px: the composer shows the photo on top, and after a chip tap the caption and "Salvar legenda" are both on screen', async ({ page }) => {

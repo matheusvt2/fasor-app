@@ -3,6 +3,7 @@ import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
+import { pushSuggestion } from './support/push-server-ops.ts';
 import { serverRow } from './support/reading-ops.ts';
 import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
@@ -235,4 +236,42 @@ test('@p0 14.11-E2E-002 the disjuntor\'s medium: a non-oil medium marks its oil 
   for (const key of OIL) await expect(checked(page, key), key).toHaveAttribute('data-value', 'na');
   await pick(page, 'tipo_de_isolacao', 'ÓLEO');
   for (const key of OIL) await expect(checked(page, key), key).toHaveCount(0);
+});
+
+test('@p0 14.11-E2E-004 fix batch fxpw G10: a pending VOL. ÓLEO suggestion leaves the sheet and its banner while the insulation excuses the field, and comes back on ÓLEO, still pending', async ({ page }) => {
+  test.setTimeout(180_000);
+  const { relatorioId, sheet } = await openSheet(page, 'transformador_forca');
+  const suggestionId = await pushSuggestion(account.companyId, relatorioId, {
+    targetPath: `sheet/${sheet.blockId}/nameplate/vol_oleo`,
+    value: measured('250', 'L'),
+    trust: 'verify',
+    actorId: account.userId,
+  });
+  await syncNowAndReturn(page);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  const suggestionRow = field(page, 'vol_oleo').locator('.suggestion-field');
+  const banner = page.locator('[data-banner="suggestions-ready"]');
+  const status = async () => (await entities<{ status: string }>(page)).find((record) => record.entity === 'suggestion' && record.id === suggestionId)?.row.status;
+
+  // No insulation chosen yet: the suggestion is shown and counted.
+  await expect(suggestionRow.first()).toBeVisible({ timeout: 30_000 });
+  await expect(banner).toContainText('Sugestões prontas — 1 campo para confirmar');
+
+  // Á SECO excuses VOL. ÓLEO: no row, no banner; the suggestion is only hidden.
+  await pick(page, 'tipo_de_isolacao', 'Á SECO');
+  await expect(suggestionRow).toHaveCount(0);
+  await expect(banner).toHaveCount(0);
+  expect(await status()).toBe('pending');
+
+  // ÓLEO brings it back.
+  await pick(page, 'tipo_de_isolacao', 'ÓLEO');
+  await expect(suggestionRow.first()).toBeVisible();
+  await expect(banner).toContainText('Sugestões prontas — 1 campo para confirmar');
+
+  // EPÓXI excuses it too.
+  await pick(page, 'tipo_de_isolacao', 'EPÓXI');
+  await expect(suggestionRow).toHaveCount(0);
+  await expect(banner).toHaveCount(0);
+  expect(await status()).toBe('pending');
+  expect((await outbox(page)).some((op) => op.path.startsWith(`suggestion/${suggestionId}`))).toBe(false);
 });

@@ -6,7 +6,7 @@ import type { LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
-import { cabineLineText, cabineMissingText, cabineOf, cabineProgress, type CabineLocation } from './cabine.ts';
+import { acceptsVoltagePair, cabineLineText, cabineMissingText, cabineOf, cabineProgress, type CabineLocation } from './cabine.ts';
 import { instantiateTemplate } from './instantiate.ts';
 import { isCabineFirstSheet, sheetProgress } from './sheet-progress.ts';
 import { firstInTree, locationTree } from './tree.ts';
@@ -76,6 +76,19 @@ describe('12.3-UNIT cabineProgress and its words', () => {
     const { cabine } = withCabine(fresh(), 'Cubículo Enel', (c) => ({ ...c, se: FULL_SE, env: FULL_ENV }));
     expect(cabineLineText(cabine)).toBe('ALVENARIA - CONVENCIONAL · 13,8\u00a0kV · 380\u00a0V · 1.500\u00a0kVA · 25\u00a0°C · 65\u00a0%');
     expect(cabineLineText({ ...cabine, se: { ...FULL_SE, secondary_kv: null, installed_kva: null } })).toBe('ALVENARIA - CONVENCIONAL · 13,8\u00a0kV · 25\u00a0°C · 65\u00a0%');
+  });
+
+  it('fix batch fxpw G4: the line prints a stored two-level secondary voltage as the field shows it', () => {
+    const { cabine } = withCabine(fresh(), 'Cubículo Enel', (c) => ({ ...c, se: { ...FULL_SE, secondary_kv: n('380/220', 'V') }, env: FULL_ENV }));
+    expect(cabineLineText(cabine)).toBe('ALVENARIA - CONVENCIONAL · 13,8\u00a0kV · 380/220\u00a0V · 1.500\u00a0kVA · 25\u00a0°C · 65\u00a0%');
+    expect(cabineLineText({ ...cabine, se: { ...FULL_SE, secondary_kv: n('13.8/7.97', 'V') } })).toContain(' · 13,8/7,97\u00a0V · ');
+  });
+
+  it('fix batch fxpw G4: only the SE secondary voltage accepts a pair', () => {
+    expect(acceptsVoltagePair('se', 'secondary_kv')).toBe(true);
+    for (const [group, key] of [['se', 'primary_kv'], ['se', 'installed_kva'], ['env', 'temperature_c'], ['env', 'humidity_pct'], ['env', 'secondary_kv']] as const) {
+      expect(acceptsVoltagePair(group, key), `${group} ${key}`).toBe(false);
+    }
   });
 
   it('E12-Q9: joins each value to its unit with a no-break space, so a wrap never splits "25" from "°C"', () => {

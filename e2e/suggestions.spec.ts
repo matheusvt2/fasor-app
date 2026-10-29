@@ -306,20 +306,25 @@ test('@p0 8.1-E2E-005 a filled field receiving an equal suggestion is confirmed 
 test('@p1 8.1-E2E-006 the Sumário counts the device pending suggestions, never counts their sheet as concluded, and its count opens that sheet', async ({ page }) => {
   test.setTimeout(180_000);
   const ids = await openChaveSheet(page, account, database);
-  // The sheet is set aside as not tested elsewhere: concluded, until a suggestion waits on it.
+  // The sheet is set aside as not tested elsewhere: handled (section 9's remaining-work count),
+  // until a suggestion waits on it. Fix batch fxpw G5: a not-tested sheet is never concluded, so
+  // the header's "fichas concluídas" reads 0 throughout and the held rule shows on section 9's row.
   await pushDrafts(page, database, [
     officeDraft(account, { relatorioId: ids.relatorioId }, `block/${ids.blockId}/not_tested`, { reason: 'solicitacao_cliente', text: null, at: new Date().toISOString(), by: account.userId }),
   ]);
   await syncNow(page);
   let header = await sumarioHeader(page, ids.relatorioId);
   const concluded = header.getByRole('button', { name: /fichas concluídas$/ });
-  await expect(concluded).toHaveText(/^1 de \d+ fichas concluídas$/);
+  await expect(concluded).toHaveText(/^0 de \d+ fichas concluídas$/);
+  const handled = page.locator('li.sum-s9 .sum-status');
+  await expect(handled).toHaveText(/(^| · )1 de \d+( · |$)/);
   await expect(header.getByRole('button', { name: '0 sugestões por confirmar' })).toBeVisible();
 
   await pushSuggestion(account.companyId, ids.relatorioId, { targetPath: `sheet/${ids.blockId}/nameplate/fabricacao`, value: 'Schneider', actorId: account.userId });
   await syncNow(page);
   header = await sumarioHeader(page, ids.relatorioId);
   await expect(header.getByRole('button', { name: /fichas concluídas$/ })).toHaveText(/^0 de \d+ fichas concluídas$/);
+  await expect(page.locator('li.sum-s9 .sum-status')).toHaveText(/(^| · )0 de \d+( · |$)/);
   await header.getByRole('button', { name: '1 sugestão por confirmar' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${ids.relatorioId}/ficha/${ids.blockId}$`));
 });

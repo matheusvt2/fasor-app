@@ -6,6 +6,7 @@ import type { BlockRow, Cell, LocationRow, SuggestionRow } from '../schemas/enti
 import { getDefinition } from '../seed/definitions.ts';
 import type { FieldDef } from '../seed/schema.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
+import { isNameplateFieldExcused } from './dry-insulation.ts';
 import { isCellFilled } from './sheet-state.ts';
 
 /*
@@ -85,19 +86,28 @@ export function suggestionTarget(path: string): SuggestionTarget | null {
  * Story 9.1: given `locations`, a thermo-hygrometer suggestion on a live cabine of them is
  * kept too (Sync status counts it); without them (the pre-issue check, the Sumário) only
  * sheet suggestions are.
+ *
+ * Fix batch fxpw G10: a nameplate row on a field its live block excuses
+ * (`isNameplateFieldExcused`, VOL. ÓLEO on a dry unit) waits on nothing while excused: left
+ * out here (not counted, the sheet not held), its stored status untouched, so it is back once
+ * the unit reads oil again.
  */
 export function livePendingSuggestions(
-  blocks: readonly Pick<BlockRow, 'id' | 'removed_at'>[],
+  blocks: readonly Pick<BlockRow, 'id' | 'removed_at' | 'config' | 'sheet' | 'seed_version' | 'block_type'>[],
   pending: readonly SuggestionRow[],
   locations: readonly Pick<LocationRow, 'id' | 'kind' | 'removed_at'>[] = [],
 ): SuggestionRow[] {
-  const live = new Set(blocks.filter((block) => block.removed_at === null).map((block) => block.id));
+  const live = new Map(blocks.filter((block) => block.removed_at === null).map((block) => [block.id, block]));
   const cabines = new Set(locations.filter((location) => location.removed_at === null && location.kind === 'cabine').map((location) => location.id));
   return pending.filter((row) => {
     if (row.status !== 'pending') return false;
     const target = suggestionTarget(row.target_path);
     if (target === null) return false;
-    return target.kind === 'block' ? live.has(target.block_id) : cabines.has(target.location_id);
+    if (target.kind === 'location') return cabines.has(target.location_id);
+    const block = live.get(target.block_id);
+    if (block === undefined) return false;
+    const key = nameplateKeyOf(row, block.id);
+    return key === null || !isNameplateFieldExcused(block, key);
   });
 }
 

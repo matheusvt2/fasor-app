@@ -23,8 +23,8 @@ import type { LocationRow } from '../schemas/entities.ts';
 const snapshot = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
 
 describe('4.3-UNIT progress over the Porto Seguro fixture', () => {
-  it('counts 94 sheets, the 3 not-tested ones as concluded and apart, no NC and no pending suggestion', () => {
-    expect(progress(snapshot)).toEqual({ sheets_concluded: 3, sheets_total: 94, nc_open: 0, not_tested: 3, suggestions_pending: 0 });
+  it('counts 94 sheets, the 3 not-tested ones as handled and apart (never concluded, fix batch fxpw G5), no NC and no pending suggestion', () => {
+    expect(progress(snapshot)).toEqual({ sheets_concluded: 0, sheets_handled: 3, sheets_total: 94, nc_open: 0, not_tested: 3, suggestions_pending: 0 });
   });
 
   it('counts one cabine with its colunas', () => {
@@ -47,17 +47,24 @@ describe('4.3-UNIT progress over the Porto Seguro fixture', () => {
     const nc: BlockRow = { ...base, id: '019966b0-0050-7000-8000-000000000002', sheet: { ...emptySheet(), checklist: { limpeza: { result: cell('NC') }, mufla: { result: cell('C') } } } };
     const removed: BlockRow = { ...nc, id: '019966b0-0050-7000-8000-000000000003', removed_at: '2026-09-07T10:00:00.000Z' };
     const section: BlockRow = { ...base, id: '019966b0-0050-7000-8000-000000000004', location_id: null, equipment_id: null, block_type: 'section_2', config: {} };
-    expect(progress({ blocks: [nc, removed, section], suggestions: [] })).toEqual({ sheets_concluded: 0, sheets_total: 1, nc_open: 1, not_tested: 0, suggestions_pending: 0 });
+    expect(progress({ blocks: [nc, removed, section], suggestions: [] })).toEqual({ sheets_concluded: 0, sheets_handled: 0, sheets_total: 1, nc_open: 1, not_tested: 0, suggestions_pending: 0 });
   });
 
   it('writes the counter and the four header texts, plural-correct', () => {
-    const p = { sheets_concluded: 0, sheets_total: 94 };
+    const p = { sheets_concluded: 0, sheets_handled: 0, sheets_total: 94 };
     expect(progressCounterText(p)).toBe('0 de 94');
     expect(fichasCountText(p)).toBe('0 de 94 fichas');
     expect(fichasConcluidasText(p)).toBe('0 de 94 fichas concluídas');
     expect(progressCounterState(p)).toBe('pending');
-    expect(progressCounterState({ sheets_concluded: 94, sheets_total: 94 })).toBe('complete');
-    expect(progressCounterState({ sheets_concluded: 0, sheets_total: 0 })).toBe('pending');
+    expect(progressCounterState({ sheets_handled: 94, sheets_total: 94 })).toBe('complete');
+    expect(progressCounterState({ sheets_handled: 0, sheets_total: 0 })).toBe('pending');
+    // Fix batch fxpw G5: the remaining-work counters read the handled count, the header's first count the concluded one.
+    const handled = { sheets_concluded: 1, sheets_handled: 2, sheets_total: 96 };
+    expect(progressCounterText(handled)).toBe('2 de 96');
+    expect(fichasCountText(handled)).toBe('2 de 96 fichas');
+    expect(fichasConcluidasText(handled)).toBe('1 de 96 fichas concluídas');
+    const allHandled = { sheets_concluded: 90, sheets_handled: 96, sheets_total: 96 };
+    expect(progressCounterState(allHandled)).toBe('complete');
     expect(ncAbertosText(0)).toBe('0 NC abertos');
     expect(ncAbertosText(1)).toBe('1 NC aberto');
     // Story 15.2 (F37): the badge of one card; the tree holds none at 0.
