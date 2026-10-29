@@ -51,9 +51,27 @@ def test_the_detector_is_given_a_max_side_limit(monkeypatch):
             seen.update(kwargs)
 
     monkeypatch.setitem(sys.modules, "paddleocr", types.SimpleNamespace(TextDetection=FakeTextDetection))
-    detector.Pp5Detector(detector.Path("/nowhere"))
+    detector.Pp5Detector(detector.Path("/nowhere"), detector.DISPLAY_DETECTION_MODEL)
     assert seen["limit_type"] == "max"
     assert seen["limit_side_len"] == detector.DET_LIMIT_SIDE_LEN == 2000
+    assert seen["enable_mkldnn"] is False
+
+
+def test_the_display_route_detector_is_the_mobile_model(monkeypatch):
+    """Fix batch fxg6 (prod-pass G6): the detector the sidecar loads at startup, which
+    `/read/display` runs, is built with PP-OCRv5_mobile_det from its baked directory."""
+    seen = {}
+
+    class FakeTextDetection:
+        def __init__(self, **kwargs):
+            seen.update(kwargs)
+
+    monkeypatch.setitem(sys.modules, "paddleocr", types.SimpleNamespace(TextDetection=FakeTextDetection))
+    monkeypatch.setenv("OCR_MODELS_DIR", "/baked")
+    built = detector.load_detector(detector.DISPLAY_DETECTION_MODEL)
+    assert detector.DISPLAY_DETECTION_MODEL == "PP-OCRv5_mobile_det"
+    assert built.model_name == seen["model_name"] == "PP-OCRv5_mobile_det"
+    assert seen["model_dir"] == "/baked/PP-OCRv5_mobile_det"
 
 
 def test_clamp_box_clamps_rounds_and_drops_slivers():

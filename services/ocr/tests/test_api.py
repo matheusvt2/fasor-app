@@ -26,7 +26,14 @@ def test_health_names_the_models(client):
     assert response.status_code == 200
     body = response.json()
     validate("OcrHealthResponse", body)
-    assert body == {"status": "up", "detection": "PP-OCRv5_server_det", "recognition": "parseq"}
+    assert body == {"status": "up", "detection": "PP-OCRv5_mobile_det", "recognition": "parseq"}
+
+
+def test_startup_loads_the_mobile_detector_for_displays(client):
+    """Fix batch fxg6 (prod-pass G6): the detector `/read/display` runs is the mobile model."""
+    import app.main as main
+
+    assert main.models["detector"].model_name == "PP-OCRv5_mobile_det"
 
 
 def test_rotated_plate_is_deskewed_and_mapped_back(client, plate_jpeg, expected_tokens):

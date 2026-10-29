@@ -276,11 +276,19 @@ services:
   #   docker compose --profile ocr run --rm ocr pytest
   ocr:
     profiles: ['ocr']
+    # Fix batch fxg6 (2026-10-29): paddlepaddle publishes no aarch64 wheel (infra/README.md), and
+    # production runs amd64; on an arm64 host the service runs under emulation. `podman compose
+    # build` ignores this key on an arm64 podman host (its classic builder builds arm64), so build
+    # there with `podman build --platform linux/amd64 -t app-ocr services/ocr`, as infra/bin/deploy does.
+    platform: linux/amd64
     build:
       context: services/ocr
     image: app-ocr
     # A bound on a runaway, not a tight budget: the pytest run of this image peaked at 6.3 GiB
     # (measured 2026-09-30, no limit); 3 GiB killed it (exit 137).
+    # 2026-10-29 (fix batch fxg6, mobile detector, amd64 under emulation): the full pytest run
+    # peaked at 1.66 GiB (cgroup memory.peak 1785495552), the display tests at 1.10 GiB under a
+    # 1536 MiB cap; the value stays as the runaway bound.
     mem_limit: 8g
     ports:
       - '127.0.0.1:8000:8000'

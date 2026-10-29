@@ -2,7 +2,8 @@
 title: 'Fix batch fxg6: display reading on the mobile text detector so the OCR sidecar fits the production instance (prod-pass G6)'
 type: 'bugfix'
 created: '2026-10-29'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '98b6b7bddc5a787890ac148a25e43ebe4d5bbffd'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'

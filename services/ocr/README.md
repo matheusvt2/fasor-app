@@ -26,7 +26,7 @@ is built through them.
 | `POST /read` | raw image bytes, `image/jpeg`, `image/png` or `application/octet-stream` | `200 OcrReadResult` |
 | | larger than 20 MB (checked before decoding) | `413 {"error": "too_large"}` |
 | | empty, undecodable, or another content type | `422 {"error": "invalid_image"}` |
-| `GET /health` | | `200 {"status": "up", "detection": "PP-OCRv5_server_det", "recognition": "parseq"}` once the models are loaded |
+| `GET /health` | | `200 {"status": "up", "detection": "PP-OCRv5_mobile_det", "recognition": "parseq"}` once the models are loaded |
 
 `OcrReadResult` is `{image: {width, height}, tokens: [{id, text, bbox, confidence}], preprocessing_applied}`:
 
@@ -43,7 +43,11 @@ is built through them.
 
 ## Pipeline and the recognition decision
 
-1. PP-OCRv5 detection (`PP-OCRv5_server_det`) finds text-line polygons. It runs in
+1. PP-OCRv5 detection (`PP-OCRv5_mobile_det`, on both `/read` and `/read/display`) finds
+   text-line polygons. ~~`PP-OCRv5_server_det`~~ (2026-10-29, fix batch fxg6, prod-pass G6: the
+   server detector asked 5.6 GB on CPU for a 1200 x 900 display photo and died inside the
+   production task's 1536 MiB reservation; the mobile one reads the six display fixtures under
+   that cap and keeps every plate accuracy test green, so the server model left the image.) It runs in
    PaddleOCR 3 on paddlepaddle's CPU wheel, which exists for CPython 3.13, so no ONNX
    conversion of the detector is needed.
 2. Each line is rectified and split into words by its column ink profile: a gap wider
@@ -67,6 +71,21 @@ flock /tmp/fasor-verify.lock docker compose --profile ocr run --rm ocr pytest
 docker compose --profile ocr up -d ocr     # healthy once the models load
 ```
 
+The image is `linux/amd64` only (paddlepaddle publishes no aarch64 wheel), and compose
+says `platform: linux/amd64`. On an arm64 podman host `podman compose build` ignores that
+key (its classic builder builds arm64), so build there as `infra/bin/deploy` does, then
+run the tests through compose as above (fix batch fxg6, 2026-10-29):
+
+```
+lockf -t 20000 /tmp/fasor-verify.lock podman build --platform linux/amd64 -t app-ocr services/ocr
+```
+
+Under that emulation a Paddle predictor built outside the main thread segfaults (exit
+139, no OOM event); uvicorn builds the models in the main thread and serves normally, but
+`TestClient` runs the lifespan in a worker thread, so the in-process pytest run crashes
+there. Reads are also slower: about 80 s for one display, above the 55 s
+`OCR_INFERENCE_TIMEOUT_SECONDS` default.
+
 The tests (`tests/`) read the committed synthetic plate
 (`tests/fixtures/plate-transformador.*`, see its `.md`), a rotated copy, a PNG copy, a
 blank image, garbage, an empty and an oversized body, and check that two identical
@@ -74,14 +93,20 @@ requests give identical responses. The run ends with the measured accuracy line.
 
 ## Image size and measured accuracy
 
-- Image `app-ocr`: 1.94 GB (CPython 3.13 slim, paddlepaddle CPU, PP-OCRv5 server
-  detection, PARSeq ONNX, onnxruntime). It answers `GET /health` with networking cut.
+- Image `app-ocr`: 1.94 GB (measured with the server detector; not re-measured after the
+  2026-10-29 swap) (CPython 3.13 slim, paddlepaddle CPU, PP-OCRv5 ~~server~~
+  mobile (2026-10-29, fix batch fxg6) detection, PARSeq ONNX, onnxruntime). It answers `GET /health` with networking cut.
 - Fixture plate (43 printed words, 16 of them values), 2026-09-26: every word found
   with its box within tolerance (mean IoU 0.910; the rotated copy 0.922). Text: 41 of
   43 words read right up to accents; the two others are PARSeq case errors on the
   units, `kVA` and `kV` read `KVA` and `KV`. The fixture test therefore compares the
   unit tokens (`kVA`, `kV`, `V`, `L`) case-insensitively (the rule and its reason are in
   `tests/matching.py`); every other value token compares exactly.
+- 2026-10-29 (fix batch fxg6), the mobile detector `PP-OCRv5_mobile_det` on the same
+  tests: the plate JPEG, its 4-degree rotation and its 4400 px upscale each matched 43 of
+  43 words with 16 of 16 values (mean IoU 0.910, 0.921 and 0.904), the same text
+  results as above; the six display fixtures read every expected value under a 1536 MiB
+  cgroup cap. The image no longer carries the server detector.
 
 ## Open question for Matheus
 
