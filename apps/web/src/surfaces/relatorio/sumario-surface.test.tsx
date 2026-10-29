@@ -694,6 +694,20 @@ describe('4.3 SumarioSurface', () => {
     expect(syncRelatorio).toHaveBeenCalledWith(id);
   });
 
+  it('fix batch fxpw G1: waits for the sync engine to start (the boot read still pending), then pulls once', async () => {
+    database = await freshDb();
+    const id = '019966c1-000e-7000-8000-000000000004';
+    const { rerender } = renderSumario(id, syncState({ engineReady: false }));
+    expect(await screen.findByText('Baixando o relatório…')).toBeVisible();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(syncRelatorio).not.toHaveBeenCalled();
+    expect(screen.queryByText('Relatório não encontrado neste aparelho.')).toBeNull();
+    rerender(tree(id, syncState({ engineReady: true })));
+    expect(await screen.findByText('Relatório não encontrado neste aparelho.')).toBeVisible();
+    expect(syncRelatorio).toHaveBeenCalledTimes(1);
+    expect(syncRelatorio).toHaveBeenCalledWith(id);
+  });
+
   it('a busy answer goes back to idle and the pull is asked again', async () => {
     database = await freshDb();
     const id = '019966c1-000e-7000-8000-000000000003';

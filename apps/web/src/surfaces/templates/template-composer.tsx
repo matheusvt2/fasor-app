@@ -354,8 +354,12 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
     setInsertBelow(null);
     void edit((fresh) => {
       const blocks = withoutOrphans(fresh);
-      // Fix batch fxpw G2: held on the fresh row (another device added it meanwhile): no write.
-      if (heldSectionTypes(blocks).has(type)) return null;
+      // Fix batch fxpw G2: held on the fresh row (a second quick tap, or another device added it
+      // meanwhile): no write, and the tap says so as a tap on a held row does.
+      if (heldSectionTypes(blocks).has(type)) {
+        showToast(copy.composer.sectionHeldToast(sectionName(type)));
+        return null;
+      }
       if (below === null) return [['blocks', addSection(blocks, type, fresh.seed_version)]];
       // E9 sweep B11: the section "Adicionar abaixo" was pressed on, wherever it is now.
       const index = resolveSectionIndex(blocks, below);

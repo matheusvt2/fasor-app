@@ -2,7 +2,7 @@
 title: 'Fix batch fxpw: the ten web and kernel gaps of the production pass (G1 to G5, G7 to G11)'
 type: 'bugfix'
 created: '2026-10-29'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '79d76805d5c504b6b7979b6a820c078dd0638332'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -11,7 +11,21 @@ dev_effort: 'high'
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/prod-pass-fix-context.md'
 warnings: ['batched', 'oversized'] # coordinator's cut (prod-pass-fix-context.md): the ten web and kernel gaps of the 2026-10-28 production pass, one batch beside the OCR batch fxg6
-deferred: []
+deferred:
+  - summary: >-
+      An offline boot with one user's pointer and another user's cookie settles as unreachable and the engine later syncs that cookie's company into the pointer user's database.
+    evidence: |-
+      session.tsx boot effect: the 'unreachable' branch keeps the cached database and settles; when the network returns the engine pushes and pulls with the cookie it has. Pre-existing (the offline branch is unchanged by fxpw); needs a cookie changed outside the app's sign-in (cookie injection, as the production pass's MCP profile). Edge Case Hunter ECH-3, fix batch fxpw review.
+    location: >-
+      apps/web/src/state/session.tsx:181
+    severity: medium
+  - summary: >-
+      The Sumário header leaves out a concluded sheet held by a pending suggestion on this device, while the Etapa 6 parecer hint and summary count it as concluded.
+    evidence: |-
+      progress.ts over(): a held block counts in neither sheets_concluded nor sheets_handled (Story 8.1); parecer.ts parecerCounts counts every concluida sheet and never reads device suggestion rows. Pre-existing; G5 aligned the not-tested reading only. Edge Case Hunter ECH-11 and Verification Gap Reviewer, fix batch fxpw review.
+    location: >-
+      packages/domain/src/relatorio/progress.ts:65
+    severity: low
 ---
 
 <intent-contract>
@@ -139,6 +153,26 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+Layers run: Edge Case Hunter, Verification Gap Reviewer (opus). Skipped: Blind Hunter, Intent Alignment (token economy; the integrated epic review covers them).
+
+### 2026-10-29 — Review pass
+- verdicts: 14 findings — high 0, medium 3, low 9, false 0, maybe-false 0 (ECH 11, VGR 3; VGR's "other" G5 finding and ECH-11 share one root cause and keep their own rows)
+- findings:
+  - `[medium]` `[patch]` ECH-1: G1 regression, a cold open of an absent relatório while the boot read is pending gets `'paused'` from `syncRelatorio` (no engine yet), the gate marks the pull done and says not found, with no pull once the engine starts — verified in `relatorio-gate.tsx` L30-38 and `sync.tsx` `syncRelatorio` (`?? 'paused'`); child effects run before SyncProvider's; patched: SyncProvider's `engineReady` state on the sync context, the gate waits for it; boundary test (not ready: no call; ready: one call).
+  - `[low]` `[reject]` ECH-2: a boot read that stalls (no fetch timeout) keeps `settled` false and the engine off until it settles — real but bounded (the load balancer's idle timeout answers 504, the TCP stack gives up, both land on `'unreachable'` and settle); every write stays in the outbox; a client timeout would start the engine on an unconfirmed database again, the G1 mix this batch closes.
+  - `[medium]` `[defer]` ECH-3: an offline boot with user A's pointer and user B's cookie settles on `'unreachable'` and the engine later runs on A's database with B's cookie — pre-existing (the boot's offline branch is unchanged) and needs a cookie changed outside the app's sign-in; recorded in `deferred`.
+  - `[medium]` `[patch]` ECH-4: G4 untypeable on a tablet, the number input always asks `inputMode: 'decimal'` (`number-input.tsx` L196), whose keypad has no "/" — verified; patched: `useNumberInput` takes `inputMode`, `NumberField` passes `'text'` with `acceptsPair`; unit assertion on both cabine voltage inputs.
+  - `[low]` `[reject]` ECH-5: `formatDecimalGroupedPtBr` now groups each side of any stored dot-decimal pair ("13800/380" -> "13.800/380") — by design (Design Notes: the field, the echo, the cabine line and section 9 agree; a pair reads the way a single number does); the section-9 goldens and every asserted literal are unchanged; a second formatter would split one display rule in two.
+  - `[low]` `[patch]` ECH-6: the composer's fresh-row guard (`template-composer.tsx` L358) returns null with no feedback when a double tap or another device's add made the section held after the render — patched: the guard shows the same "já está no template" toast; test with VGR-1.
+  - `[low]` `[reject]` ECH-7: "Desfazer" pressed after the batch's photos were captioned or assigned would remove them — the toast slot is one at a time and a user action's toast replaces the undo toast (`state/toast.tsx` `showToast`), and captioning, assigning or removing a photo each toast; the window needs a change with no toast.
+  - `[low]` `[reject]` ECH-8: "Cancelar" from a sheet ("ficaram nesta ficha", Story 11.11) still has no undo — the coordinator's G11 decision names the Geral toast only; the sheet-mode photos land on the sheet as asked; listed as an open question for Bruno.
+  - `[low]` `[reject]` ECH-9: an arrival toast could announce a reading whose only pending row is an excused VOL. ÓLEO — a plate reading suggests many fields at once, and `pendingRows` (`reading-arrivals.tsx` L52) already announces rows of removed blocks the same way (pre-existing reader); the fix needs the blocks in that read.
+  - `[low]` `[reject]` ECH-10: a long learned word in a `chips-recent` row could still widen the sheet — out of scope by intent: the coordinator's G8 decision keeps the mock's `nowrap` on every other chip row (status, "Hoje", recent).
+  - `[low]` `[defer]` ECH-11: the Sumário header leaves out a concluded sheet held by a pending suggestion on this device while the parecer hint counts it — pre-existing (Story 8.1's held rule reads device rows the kernel parecer never sees); recorded in `deferred`.
+  - `[low]` `[patch]` VGR-1: no test reaches G2's fresh-row guard (every test taps after the re-render) — patched: two clicks in one `act` on an empty template, one write, the toast; shown red with the guard removed.
+  - `[low]` `[patch]` VGR-2: no test pins the pre-issue "sheets" row on `sheets_handled` (reverting L383 passes every test) — patched: boundary cases in `pre-issue.test.ts` (all handled with one not tested: no row; one open: the row "N-1 de N"), shown red with L383 reverted.
+  - `[low]` `[defer]` VGR-other: same root cause as ECH-11 (header vs parecer on a held sheet); same deferred entry.
 
 ## Design Notes
 

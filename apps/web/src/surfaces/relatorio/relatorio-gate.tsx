@@ -28,7 +28,9 @@ export function RelatorioGate({ id, children }: { id: string; children: (state: 
   useEffect(() => {
     // A cycle already running (Home's absent-online tap starts one just before navigating)
     // answers `busy` without pulling: wait for it to end, then pull once.
-    if (state !== null || phase !== 'idle' || sync.running) return;
+    // Fix batch fxpw G1: the engine starts only once the session's boot read settles; a pull
+    // asked before it answers `paused` without pulling, so wait for it too.
+    if (state !== null || phase !== 'idle' || sync.running || sync.engineReady === false) return;
     const next = attempt + 1;
     setPull({ id, phase: 'running', attempt: next });
     void sync.syncRelatorio(id).then(

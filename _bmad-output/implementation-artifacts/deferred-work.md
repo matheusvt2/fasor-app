@@ -2500,3 +2500,18 @@ Source: `_bmad-output/test-artifacts/manual/prod-pass-2026-10-28.md` (v0.4.0 on 
   evidence: `prod-pass-2026-10-28.md` Epic 17 G11.
   class: question
   state: ~~open (owner: Matheus: keep as Geral or discard on Cancelar)~~ done (2026-10-29, fix batch fxpw: the photos stay as Geral and the toast offers "Desfazer", which removes the batch in one batch (`removePhotos`); `photo-ops.test.ts`; e2e `gallery.spec.ts` 6.4-E2E-008)
+
+## Deferred from: fix batch fxpw review (2026-10-29)
+
+Source: `_bmad-output/implementation-artifacts/spec-fix-prod-pass-fxpw.md` § Review Triage Log (Edge Case Hunter and Verification Gap Reviewer). Both pre-existing; neither changed by the batch.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-prod-pass-fxpw.md`
+  summary: An offline boot with one user's cached pointer and another user's session cookie settles as unreachable on the pointer's database, and once online the sync engine pushes and pulls with that cookie into it (the G1 mix by the offline path).
+  evidence: `apps/web/src/state/session.tsx` boot effect, `'unreachable'` branch (unchanged by fxpw); needs a cookie changed outside the app's sign-in, as the production pass's persistent MCP profile had (ECH-3).
+  class: bug
+  state: open (owner: the next session or sync batch; re-read the session on the first `online` event before the engine's first push)
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-prod-pass-fxpw.md`
+  summary: The Sumário header leaves out a concluded sheet held by a pending suggestion on this device, while the Etapa 6 parecer hint and summary count it as concluded (G5 aligned the not-tested reading only).
+  evidence: `packages/domain/src/relatorio/progress.ts` `over()` (Story 8.1 held rule) against `parecer.ts` `parecerCounts` (snapshot only, no device suggestion rows) (ECH-11, VGR).
+  class: question
+  state: open (owner: Matheus: whether the parecer counts a held sheet as concluded, or the header counts it)

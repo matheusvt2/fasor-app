@@ -93,6 +93,12 @@ export interface SyncState {
    */
   serverAnswers?: boolean;
   running: boolean;
+  /**
+   * Fix batch fxpw G1: the engine is started (the session's boot read settled on a database).
+   * Until then a `syncRelatorio` answers `paused` without pulling, so a caller that pulls on
+   * open waits for this. Optional for the older test doubles (treated as started).
+   */
+  engineReady?: boolean;
   outdated: boolean;
   lastResult: CycleResult | null;
   /**
@@ -239,6 +245,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const session = useSession();
   const db = session.database;
   const [status, setStatus] = useState<EngineStatus>(IDLE);
+  const [engineReady, setEngineReady] = useState(false);
   const [device, setDevice] = useState<string | null>(null);
   const engineRef = useRef<SyncEngine | null>(null);
   const clientRef = useRef<SyncClient | null>(null);
@@ -285,6 +292,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     engineRef.current = engine;
     void deviceId(db, newId).then(setDevice, () => setDevice(null));
     engine.start();
+    setEngineReady(true);
     const nudge = () => engine.nudge();
     cycleRequests.add(nudge);
     return () => {
@@ -293,6 +301,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       stopFollowing();
       engineRef.current = null;
       clientRef.current = null;
+      setEngineReady(false);
       setStatus(IDLE);
     };
   }, [db, settled]);
@@ -465,6 +474,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       online: session.online,
       unreachable,
       running: status.running,
+      engineReady,
       outdated: status.outdated,
       lastResult: status.lastResult,
       lastFailure: status.lastFailure,
@@ -485,7 +495,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       rereadPhoto,
       audit,
     }),
-    [counts, outboxRead, session.online, unreachable, serverAnswers, status, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
+    [counts, outboxRead, session.online, unreachable, serverAnswers, status, engineReady, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
   );
 
   return (

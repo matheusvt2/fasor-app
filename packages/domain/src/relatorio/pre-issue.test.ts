@@ -6,6 +6,7 @@ import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { instantiateTemplate } from './instantiate.ts';
+import { isEquipmentBlock } from './sheet-state.ts';
 import { blockingRows, cabineIncompletaText, cabineSemEquipamentoText, preIssue, preIssueRowsFor } from './pre-issue.ts';
 import { SEED_VERSION, siteItems } from '../seed/definitions.ts';
 
@@ -50,6 +51,29 @@ describe('4.3-UNIT preIssue', () => {
     expect(preIssueRowsFor(rows, 'section_11').map((r) => [r.kind, r.text])).toEqual([['setup_missing', 'Nenhum instrumento em Dados do relatório']]);
     expect(blockingRows(rows).map((r) => [r.kind, r.row, r.text])).toEqual([['parecer_missing', 'section_10', 'Parecer não preenchido']]);
     expect(rows.every((r) => r.id !== '')).toBe(true);
+  });
+
+  it('fix batch fxpw G5: the section 9 "sheets" row counts a not-tested sheet as handled', () => {
+    const snapshot = fresh();
+    const sheets = snapshot.blocks.filter((b) => b.removed_at === null && isEquipmentBlock(b));
+    const total = sheets.length;
+    const at = T0.toISOString();
+    const mark = (pick: (index: number) => 'concluded' | 'not_tested' | 'open') => ({
+      ...snapshot,
+      blocks: snapshot.blocks.map((block) => {
+        const index = sheets.indexOf(block);
+        if (index < 0) return block;
+        const kind = pick(index);
+        if (kind === 'concluded') return { ...block, concluded_by: { actor_id: TEST_USER, at } };
+        if (kind === 'not_tested') return { ...block, not_tested: { reason: 'solicitacao_cliente', text: null, at, by: TEST_USER } };
+        return block;
+      }),
+    });
+    const sheetsRow = (s: RelatorioSnapshot) => preIssueRowsFor(preIssue(s), 'section_9').filter((r) => r.kind === 'sheets');
+    // Every sheet concluded but one marked not tested: no sheet is left, so no "sheets" row.
+    expect(sheetsRow(mark((i) => (i === 0 ? 'not_tested' : 'concluded')))).toEqual([]);
+    // One sheet left open (neither): the row reads "N-1 de N".
+    expect(sheetsRow(mark((i) => (i === 0 ? 'not_tested' : i === 1 ? 'open' : 'concluded'))).map((r) => r.text)).toEqual([`${total - 1} de ${total}`]);
   });
 
   it('flags a cabine that holds no equipment, on section 9', () => {

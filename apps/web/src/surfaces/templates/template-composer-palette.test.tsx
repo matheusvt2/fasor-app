@@ -489,6 +489,21 @@ describe('3.4 composer: section blocks', () => {
     expect(await outboxPaths()).toHaveLength(1);
   });
 
+  it('fix batch fxpw G2: a double tap on a section the template lacks adds it once, and the second tap says it is held', async () => {
+    database = await freshDb(emptyTemplate(ID, 'v1'));
+    const { container } = renderComposer();
+    await screen.findByRole('complementary', { name: 'Paleta de blocos' });
+    const row = within(palette()).getByRole('button', { name: '8 Pontos de atenção' });
+    act(() => {
+      row.click();
+      row.click();
+    });
+    await waitFor(() => expect(tags(container)).toEqual(['8']));
+    expect(await screen.findByText('8 Pontos de atenção já está no template')).toBeVisible();
+    expect(tags(container)).toEqual(['8']);
+    expect(await outboxPaths()).toHaveLength(1);
+  });
+
   it('p020 P-1a: the standard template (8 and 10 present) shows no warning', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     const { container } = renderComposer();

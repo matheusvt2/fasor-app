@@ -353,6 +353,8 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
     format: (parsed) => (parsed.state === 'not_applicable' ? NOT_APPLICABLE_TEXT : formatDecimalGroupedPtBr(parsed.raw)),
     draft: { surface: DRAFT_SURFACE, entityId: draft.entityId, field: draft.field },
     flushOnUnmount: flushOnUnmount === true,
+    // G4: the decimal keypad has no "/", so a field that takes "380/220" asks for the text keyboard.
+    inputMode: acceptsPair === true ? 'text' : 'decimal',
     // DB-7: Enter commits (`useNumberInput`), then runs on unless the text is no number (the
     // helper shows and the focus stays) or an IME composition ends with it.
     onEnter: (event) => {
