@@ -39,6 +39,8 @@ export const SCREENS = [
   'local',
   'photos',
   'gallery',
+  // Coordinator, 2026-10-29 (o18a D5): section 8, Pontos de atenção, is a funnel step of its own.
+  'points',
   'export',
   'templates',
   'composer',
@@ -180,7 +182,7 @@ const SCREEN_ROUTES: readonly (readonly [RegExp, Screen])[] = [
   [new RegExp(`^/relatorio/${ID}/ficha/${ID}$`), 'ficha'],
   [new RegExp(`^/relatorio/${ID}/local/${ID}/verificacoes$`), 'local'],
   [new RegExp(`^/relatorio/${ID}/fotos$`), 'gallery'],
-  [new RegExp(`^/relatorio/${ID}/pontos$`), 'photos'],
+  [new RegExp(`^/relatorio/${ID}/pontos$`), 'points'],
   [/^\/templates$/, 'templates'],
   [new RegExp(`^/templates/${ID}$`), 'composer'],
   [/^\/cadastros$/, 'cadastros'],

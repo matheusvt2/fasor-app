@@ -2,7 +2,7 @@
 title: 'Epic 18 batch o18a: usage events on the device (Story 18.1) and the api route with the CloudWatch sink (Story 18.2)'
 type: 'feature'
 created: '2026-10-29'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'd180732acc549285ffa8494525776717a490a39b'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,21 @@ context:
   - '{project-root}/AGENTS.md'
 warnings: ['batched', 'oversized', 'multiple-goals']
 batched_reason: 'Story 18.2 is the route and sink Story 18.1 flushes to; one kernel contract binds both, and the e2e of 18.1 needs the route (launch prompt: build 18.1 and 18.2 together). Implementation runs at the higher effort (18.1 high; 18.2 medium).'
-deferred: []
+deferred:
+  - summary: >-
+      The per-device telemetry limit keys on the client-chosen device_id, so one user can spread events over many ids.
+    evidence: |-
+      apps/api/src/http/telemetry.ts consumes `${userId}:${device_id}` per group; the DoR names a per-device limit; a per-user aggregate would close it.
+    location: >-
+      apps/api/src/http/telemetry.ts
+    severity: low
+  - summary: >-
+      Keyboard activation through React Aria usePress may fire no native click, so the document listener records no action.
+    evidence: |-
+      apps/web/src/telemetry/instrument.ts listens to capturing click and pointerdown only; tablets tap, so the funnel is mostly covered.
+    location: >-
+      apps/web/src/telemetry/instrument.ts
+    severity: medium
 ---
 
 <intent-contract>
@@ -113,6 +127,30 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-10-29 — Review pass
+- layers: Edge Case Hunter, Verification Gap Reviewer (Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them)
+- verdicts: 19 findings — high 0, medium 9, low 8, false 2, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` ECH-1 CloudWatch batch spanning more than 24 h refused whole after a 204 — sink timestamps every log event with the batch's `received_at`; the device `ts` stays in the message.
+  - `[medium]` `[patch]` ECH-2 events older than 14 days or over 2 h ahead dropped silently — same fix as ECH-1.
+  - `[low]` `[patch]` ECH-3 stream gone after creation leaves every later put failing — `ResourceNotFoundException` resets the created flag.
+  - `[low]` `[defer]` ECH-4 a client can spread events over many `device_id` values to pass the per-device limit — the DoR names a per-device limit; only signed-in users can post; deferred-work row.
+  - `[low]` `[reject]` ECH-5 a refused multi-device batch still spends the first device's window — a device posts its own id only; no real client sends two ids.
+  - `[medium]` `[patch]` ECH-6 readings captured and landed between two looks never tracked — a photo absent from the last look and captured after it counts as pending.
+  - `[medium]` `[patch]` ECH-7 Export dialog closed after a successful generate tracked as `dialog_cancel` — cancel not tracked once the generate succeeded.
+  - `[low]` `[patch]` ECH-8 "Sincronizar agora" wait on a 426 cycle reads `ok` — `refused` when the engine is outdated.
+  - `[false]` `[reject]` ECH-9 deploy with a custom `--tag` maps the version to `dev` — `infra/bin/deploy` refuses a build whose tag is not HEAD's sha (line 95), so a built image always gets the sha.
+  - `[medium]` `[defer]` ECH-10 keyboard presses through React Aria `usePress` may fire no native click, so no `action` — narrowing already recorded by the implementation; tablets tap; deferred-work row.
+  - `[false]` `[reject]` ECH-11 `sync_result` offline tracked only on the transition — Design Notes D7 decides it.
+  - `[medium]` `[patch]` VG-1 SyncProvider waits, errors and offline transition untested — component test added.
+  - `[medium]` `[patch]` VG-2 per-surface `data-telemetry` names unguarded — a unit test asserts every `UX_ACTION_TARGETS`/`UX_DIALOG_TARGETS` name occurs in the web sources; per-surface press tests stay with the e2e's sample.
+  - `[low]` `[patch]` VG-3 Toast "Desfazer" undo wiring untested — case added to `toast.test.tsx`.
+  - `[medium]` `[patch]` VG-4 production sink choice in `main.ts` untested — `telemetrySinkOf(config)` extracted and tested.
+  - `[medium]` `[patch]` VG-5 (other) CloudWatch limits — duplicate of ECH-1/2.
+  - `[low]` `[reject]` VG-6 (other) refused multi-device batch spends the limit — duplicate of ECH-5.
+  - `[low]` `[reject]` VG-7 (other) stale `lastFailure` after a cycle cut offline makes the sync wait `fail` — rare (offline mid-cycle right after a failed one) and the fix needs the engine to publish the cycle's own failure, more than a direct correction.
+  - `[low]` `[patch]` VG-8 (other) orphaned doc comment above `failureCode` — moved.
+
 ## Design Notes
 
 Decisions where the stories are silent (listed in the PR for the coordinator's veto):
@@ -120,7 +158,7 @@ Decisions where the stories are silent (listed in the PR for the coordinator's v
 - D2 the telemetry limit is always on (1000 events a minute per `user:device`, cost = event count), not gated by `RATE_LIMIT`, since it is a story AC and a gate cannot hit it.
 - D3 Story 18.1 says the schema refuses any unknown key; Story 18.2 says a `user_id`/`company_id` in the body is ignored. Both hold: the route strips the three server-stamped keys from each item, then parses strictly (any other unknown key still refuses the batch).
 - D4 `kind` is checked per `name`; `error`'s kind is an `errorCodeSchema` code.
-- D5 `screenOf`: `/login` login, `/` home, `/project/:id` project, `/relatorio/:id` and `/arvore` sumario, `/setup` setup, `/ficha/:blockId` ficha, `/local/:id/verificacoes` local, `/fotos` gallery, `/pontos` photos (section 8), `/secao/:blockId` other, `/templates` templates, `/templates/:id` composer, `/cadastros`, `/sync`, `/account`; `recovery` and `update` are tracked by those surfaces when shown; anything else `other`. `export` is the export dialog's screen when tracked from it.
+- D5 `screenOf`: `/login` login, `/` home, `/project/:id` project, `/relatorio/:id` and `/arvore` sumario, `/setup` setup, `/ficha/:blockId` ficha, `/local/:id/verificacoes` local, `/fotos` gallery, ~~`/pontos` photos (section 8)~~ `/pontos` points (2026-10-29, coordinator: `points` added to `SCREENS`, section 8 is a funnel step of its own), `/secao/:blockId` other, `/templates` templates, `/templates/:id` composer, `/cadastros`, `/sync`, `/account`; `recovery` and `update` are tracked by those surfaces when shown; anything else `other`. `export` is the export dialog's screen when tracked from it.
 - D6 `retry`/`undo` events come from `data-telemetry-event` on the control; `reading.retry` emits `retry` (not also `action`).
 - D7 `sync_result` `offline` is tracked only on a transition into offline (the 60 s tick would otherwise write one row a minute); `busy`/`paused` cycles track nothing.
 - D8 beacon payload capped at 60 000 bytes.
