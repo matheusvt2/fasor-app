@@ -441,8 +441,8 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
       className="export-dialog"
       isOpen={isOpen}
       onOpenChange={(next) => {
-        // Esc and the scrim: the dialog's cancel path.
-        if (!next) exportCancelled();
+        // Esc and the scrim: the dialog's cancel path, unless the generation it was opened for succeeded.
+        if (!next && phase.kind !== 'ready') exportCancelled();
         onOpenChange(next);
       }}
       aria-labelledby={TITLE_ID}

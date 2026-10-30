@@ -1,5 +1,6 @@
 import type { StampedUxEvent } from '@app/domain';
 import { CloudWatchLogsClient, CreateLogStreamCommand, PutLogEventsCommand } from '@aws-sdk/client-cloudwatch-logs';
+import type { Config } from '../config.ts';
 import { log, logError } from '../log.ts';
 
 /*
@@ -49,8 +50,11 @@ function alreadyExists(error: unknown): boolean {
 /**
  * Puts each batch on `logGroup` in this process's stream, created on first use (a stream
  * that already exists counts as created; a failed creation is tried again on the next
- * batch). One `PutLogEvents` per batch, one JSON line per event, timestamped with the
- * event's own instant and sorted by it, as `PutLogEvents` requires.
+ * batch; a stream gone missing later is created again on the next batch). One
+ * `PutLogEvents` per batch, one JSON line per event, each timestamped with the batch's server
+ * `received_at`: `PutLogEvents` refuses a batch spanning more than 24 hours and drops events
+ * older than 14 days or over 2 hours ahead, which an offline queue or a skewed device clock
+ * would hit. The device's own `ts` stays in the message.
  */
 export function cloudWatchSink(options: CloudWatchSinkOptions): TelemetrySink {
   const stream = logStreamName(options.now(), options.pid);
@@ -71,11 +75,10 @@ export function cloudWatchSink(options: CloudWatchSinkOptions): TelemetrySink {
       if (events.length === 0) return;
       try {
         await ensureStream();
-        const logEvents = events
-          .map((event) => ({ timestamp: Date.parse(event.ts), message: JSON.stringify(event) }))
-          .sort((a, b) => a.timestamp - b.timestamp);
+        const logEvents = events.map((event) => ({ timestamp: Date.parse(event.received_at), message: JSON.stringify(event) }));
         await options.client.send(new PutLogEventsCommand({ logGroupName: options.logGroup, logStreamName: stream, logEvents }));
       } catch (error) {
+        if (error instanceof Error && error.name === 'ResourceNotFoundException') created = false;
         logError('ux_event_sink_failed', { count: events.length, error: error instanceof Error ? error.name : String(error) });
       }
     },
@@ -85,4 +88,12 @@ export function cloudWatchSink(options: CloudWatchSinkOptions): TelemetrySink {
 /** The production sink: the default credential chain (the task role), region from `AWS_REGION`. */
 export function createCloudWatchSink(logGroup: string): TelemetrySink {
   return cloudWatchSink({ client: new CloudWatchLogsClient({}), logGroup, now: () => new Date(), pid: process.pid });
+}
+
+/** The sink the configuration names (`main.ts`): CloudWatch on `TELEMETRY_LOG_GROUP`, else stdout. */
+export function telemetrySinkOf(
+  config: Pick<Config, 'TELEMETRY_SINK' | 'TELEMETRY_LOG_GROUP'>,
+  cloudWatch: (logGroup: string) => TelemetrySink = createCloudWatchSink,
+): TelemetrySink {
+  return config.TELEMETRY_SINK === 'cloudwatch' && config.TELEMETRY_LOG_GROUP !== undefined ? cloudWatch(config.TELEMETRY_LOG_GROUP) : stdoutSink;
 }

@@ -18,7 +18,7 @@ import { registerReadingWorker } from './jobs/reading/worker.ts';
 import { startQueue } from './jobs/queue.ts';
 import { log, logError } from './log.ts';
 import { createS3, prepareStorage, probeStorage } from './storage/s3.ts';
-import { createCloudWatchSink, stdoutSink } from './telemetry/sink.ts';
+import { telemetrySinkOf } from './telemetry/sink.ts';
 
 const config = loadConfigOrExit();
 
@@ -105,8 +105,7 @@ const auth = createAuth({
 });
 
 // Epic 18 (AD-28): the usage-event sink; `cloudwatch` through the default credential chain.
-const telemetrySink =
-  config.TELEMETRY_SINK === 'cloudwatch' && config.TELEMETRY_LOG_GROUP !== undefined ? createCloudWatchSink(config.TELEMETRY_LOG_GROUP) : stdoutSink;
+const telemetrySink = telemetrySinkOf(config);
 const rateLimits = requestLimits(config);
 const app = createApp({
   auth,

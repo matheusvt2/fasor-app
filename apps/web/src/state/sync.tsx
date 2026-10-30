@@ -267,7 +267,6 @@ function observeCycle(db: AppDatabase, previous: EngineStatus, next: EngineStatu
   }
 }
 
-/** The outcome of a "Sincronizar agora" wait: how the cycle it ran ended. */
 /** The api error code a failed request carried, if any. */
 function failureCode(error: unknown): string | undefined {
   return error instanceof SyncRequestError && error.failure.kind === 'http' ? error.failure.code : undefined;
@@ -280,9 +279,11 @@ function failureOutcome(error: unknown): 'offline' | 'refused' | 'fail' {
   return 'fail';
 }
 
-function syncWaitOutcome(result: CycleResult, failure: SyncFailure | null): 'ok' | 'fail' | 'offline' | 'refused' {
+/** The outcome of a "Sincronizar agora" wait: how the cycle it ran ended (a 426 is `refused`). */
+function syncWaitOutcome(result: CycleResult, status: Pick<EngineStatus, 'lastFailure' | 'outdated'>): 'ok' | 'fail' | 'offline' | 'refused' {
   if (result === 'offline') return 'offline';
-  if (result === 'paused') return 'refused';
+  if (result === 'paused' || status.outdated) return 'refused';
+  const failure = status.lastFailure;
   return failure === null ? 'ok' : 'fail';
 }
 
@@ -467,7 +468,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const syncNow = useCallback(async () => {
     const finish = startWait('sync');
     const result = (await engineRef.current?.runFreshCycle()) ?? 'paused';
-    finish(syncWaitOutcome(result, statusRef.current.lastFailure));
+    finish(syncWaitOutcome(result, statusRef.current));
     return result;
   }, []);
   const syncRelatorio = useCallback(

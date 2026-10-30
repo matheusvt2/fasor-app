@@ -14,14 +14,14 @@ const CAPTURED = '2026-10-29T12:00:00.000Z';
 let counter = 0;
 let db: AppDatabase;
 
-async function putPhoto(id: string, status: string, kind = 'plate'): Promise<void> {
+async function putPhoto(id: string, status: string, kind = 'plate', capturedAt = CAPTURED): Promise<void> {
   await db.entities.put({
     entity: 'file',
     id,
     relatorio_id: RELATORIO,
     project_id: null,
     removed_at: null,
-    row: { kind: 'photo', captured_at: CAPTURED, block_id: BLOCK, reading_kind: kind, reading_status: status } as never,
+    row: { kind: 'photo', captured_at: capturedAt, block_id: BLOCK, reading_kind: kind, reading_status: status } as never,
   });
 }
 
@@ -72,6 +72,18 @@ describe('reading results (Story 18.1)', () => {
     expect((await events()).map((e) => [e.name, e.kind, e.outcome])).toEqual([
       ['reading_result', 'nc_obs', 'fail'],
       ['wait', 'reading', 'fail'],
+    ]);
+  });
+
+  it('tracks a photo shot after the last look whose reading landed before the next one', async () => {
+    const lookAt = Date.parse(CAPTURED);
+    await observeReadingResults(db, lookAt);
+    // Shot 3 s after the look, pushed, read and pulled within the next cycle.
+    await putPhoto('019966b0-0033-7000-8000-0000000000c1', 'done', 'display', new Date(lookAt + 3_000).toISOString());
+    await observeReadingResults(db, lookAt + 9_000);
+    expect((await events()).map((e) => [e.name, e.kind, e.outcome, e.duration_ms])).toEqual([
+      ['reading_result', 'display', 'ok', undefined],
+      ['wait', 'reading', 'ok', 6_000],
     ]);
   });
 });

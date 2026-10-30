@@ -16,6 +16,8 @@ const OUTCOME: Partial<Record<PhotoReadingState['status'], UxOutcome>> = { done:
 
 let seen: Map<string, PhotoReadingState['status']> | null = null;
 let seenDb: AppDatabase | null = null;
+/** When the last look was taken: a photo captured after it was still pending then. */
+let seenAt: number | null = null;
 
 function idsOf(state: PhotoReadingState): { relatorio_id?: string; block_id?: string } {
   return {
@@ -29,15 +31,20 @@ export async function observeReadingResults(db: AppDatabase, nowMs: number = Dat
   try {
     const states = await photoReadingStates(db);
     const before = seenDb === db ? seen : null;
+    const lastLook = seenDb === db ? seenAt : null;
     const next = new Map<string, PhotoReadingState['status']>();
     for (const state of states) {
       next.set(state.id, state.status);
       const previous = before?.get(state.id);
       const outcome = OUTCOME[state.status];
       if (before === null || outcome === undefined) continue;
-      // Only a reading pending at the last look has landed now; a photo first seen already
-      // finished (pulled from another device) was never waited for here.
-      if (previous === undefined || !PENDING.has(previous)) continue;
+      // Only a reading pending at the last look has landed now. A photo absent then counts as
+      // pending when it was captured after that look (shot, read and pulled within one cycle);
+      // one captured before and first seen finished (pulled from another device) was never
+      // waited for here.
+      const pendingThen =
+        previous === undefined ? lastLook !== null && Date.parse(state.captured_at) > lastLook : PENDING.has(previous);
+      if (!pendingThen) continue;
       track({ name: 'reading_result', kind: state.kind, outcome, ...idsOf(state) });
       const waited = nowMs - Date.parse(state.captured_at);
       if (Number.isFinite(waited) && waited >= 0) {
@@ -46,6 +53,7 @@ export async function observeReadingResults(db: AppDatabase, nowMs: number = Dat
     }
     seen = next;
     seenDb = db;
+    seenAt = nowMs;
   } catch {
     // An event is never worth a failure.
   }
@@ -55,4 +63,5 @@ export async function observeReadingResults(db: AppDatabase, nowMs: number = Dat
 export function resetReadingResultsForTests(): void {
   seen = null;
   seenDb = null;
+  seenAt = null;
 }
