@@ -14,6 +14,8 @@ export async function postTelemetry(events: readonly UxEvent[]): Promise<number>
     headers: { 'content-type': 'application/json', [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) },
     body: JSON.stringify(events),
   });
+  // Read to its end (a 204 is empty), so the request completes rather than being cut off.
+  await response.arrayBuffer().catch(() => undefined);
   return response.status;
 }
 

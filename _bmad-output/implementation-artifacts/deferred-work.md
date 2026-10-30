@@ -2560,3 +2560,23 @@ Source: `_bmad-output/test-artifacts/manual/prod-pass-2026-10-28.md` § "Re-chec
   evidence: the op log records every data edit but no navigation, cancel, retry, disabled tap or wait; CloudWatch holds only the api, ocr, caddy, migrate and smoke groups.
   class: debt
   state: open (owner: Matheus approves the amendment, the LGPD wording and the three stories for a coming epic)
+
+## Deferred from: Epic 18 batch o18a (Stories 18.1 and 18.2, 2026-10-29)
+
+Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
+  summary: The CloudWatch sink timestamps each log event with the event's own `ts` (Story 18.2, the spec's rule). `PutLogEvents` refuses a whole batch whose events span more than 24 hours and rejects events older than 14 days or more than 2 hours in the future, so a device that queued events offline across two days (or with a wrong clock) loses that batch: the api logs `ux_event_sink_failed` once and still answers 204, and the device deletes the batch.
+  evidence: `apps/api/src/telemetry/sink.ts` `cloudWatchSink` (one put per batch, `timestamp = Date.parse(event.ts)`); AWS PutLogEvents limits; the device flushes oldest first in batches of 200 (`apps/web/src/telemetry/flush.ts`).
+  class: risk
+  state: open (owner: Matheus decides before the first digest: split a batch by 24 h windows, or timestamp with `received_at` and keep `ts` in the message)
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
+  summary: Narrowed instrumentation: a control pressed from the keyboard (Enter or Space on a React Aria button) may queue no `action`, since the listener reads the native click; `wait` of kind `generate` and `preview` times the request, not the job until the document is ready; a natively `disabled` control queues `disabled_tap` only where the browser dispatches `pointerdown` to it (the app's own Button uses `aria-disabled`, which always does); "Renomear TAG" is tracked from the sheet only, not from the Sumário tree; `upload` waits are not tracked.
+  evidence: `apps/web/src/telemetry/instrument.ts`, `apps/web/src/state/sync.tsx` (`generate`, `preview`), `apps/web/src/surfaces/ficha/ficha-dialogs.tsx`.
+  class: debt
+  state: open (owner: Story 18.3's first friction read says which of these the funnel needs)
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
+  summary: Targets beyond the epic's minimum list were added where the minimum names none: `photos.add` ("Adicionar fotos"), `export.retry` (the Export dialog's "Tentar novamente", a `retry`) and `toast.undo` (every "Desfazer", an `undo`); the Export dialog's foot button "Gerar relatório" is `sumario.export` and the dialog's own "Gerar relatório" is `sumario.generate`. The CloudWatch stream is `api/<start instant>/<pid>` with the instant's colons written as `-` (CloudWatch refuses `:` in a stream name).
+  evidence: `apps/web/src/surfaces/ficha/photo-openers.tsx`, `apps/web/src/surfaces/export/export-dialog.tsx`, `apps/web/src/components/toast.tsx`, `apps/api/src/telemetry/sink.ts` `logStreamName`.
+  class: question
+  state: open (owner: the o18b dashboard and saved queries read these names; the coordinator confirms or renames before the deploy)

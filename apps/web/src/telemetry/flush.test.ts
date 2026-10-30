@@ -117,19 +117,21 @@ describe('flushTelemetry (Story 18.1)', () => {
     expect(await db.ux_events.count()).toBe(0);
   });
 
-  it('never runs two flushes at once: a second call while one is in flight sends nothing', async () => {
-    await queue(db, 5);
-    const fake = fakeTransport([204]);
+  it('never runs two flushes at once: a second call while one is in flight sends nothing, not even the rows the first has not reached', async () => {
+    await queue(db, 205);
+    const fake = fakeTransport([204, 204]);
     fake.holdPosts();
     const first = flushTelemetry(db, fake.transport);
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(fake.posts).toHaveLength(1);
+    expect(fake.posts.map((p) => p.length)).toEqual([200]);
     const second = flushTelemetry(db, fake.transport);
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(fake.posts).toHaveLength(1);
+    expect(fake.posts.map((p) => p.length)).toEqual([200]);
     fake.release();
     await Promise.all([first, second]);
-    expect(fake.posts).toHaveLength(1);
+    // The first flush went on to the last 5; no event was posted twice.
+    expect(fake.posts.map((p) => p.length)).toEqual([200, 5]);
+    expect(new Set(fake.posts.flat().map((e) => e.duration_ms)).size).toBe(205);
     expect(await db.ux_events.count()).toBe(0);
   });
 
