@@ -43,6 +43,8 @@ describe('sign-out and the device database', () => {
         'remote_ops',
         'sync_state',
         'thumbs',
+        // Epic 18 (AD-28): the usage-event queue, Dexie version 7.
+        'ux_events',
       ]);
       expect(await reopened.local_prefs.get('theme')).toMatchObject({ value: 'dark' });
       expect(await reopened.drafts.get('d-1')).toMatchObject({ surface: 'sheet' });
