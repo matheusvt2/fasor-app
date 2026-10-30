@@ -2,7 +2,8 @@
 title: 'Epic 18 batch o18a: usage events on the device (Story 18.1) and the api route with the CloudWatch sink (Story 18.2)'
 type: 'feature'
 created: '2026-10-29'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: 'd180732acc549285ffa8494525776717a490a39b'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus
