@@ -4,8 +4,9 @@ import type { Op } from '../ops/op.ts';
 import { relatorioCounter } from '../relatorio/progress.ts';
 import { sumarioTitle } from '../relatorio/project.ts';
 import type { BlockRow, LocationRow, ProjectRow, RegistryRow, RelatorioRow, RelatorioStatus, SuggestionRow, TemplateRow } from '../schemas/entities.ts';
-import { RELATORIO_STATUSES, statusPillId, type StatusPillId } from '../status/table.ts';
+import { RELATORIO_STATUSES, statusLabel, statusPillId, type StatusPillId } from '../status/table.ts';
 import { activeTemplates } from '../templates/list.ts';
+import { plural, relatoriosCount } from '../text/plural.ts';
 import {
   syncBadgeState,
   syncCounts,
@@ -193,8 +194,10 @@ function deviceOf(
 /**
  * The ordered Home cards. The card set is the local relatório rows (tombstones
  * excluded) unioned by id with the company summary entries the device has no row
- * for; ordering is the current card, then the service start descending with missing
- * dates last, then the id.
+ * for; ordering is the current card, then most recent first (Story 19.2, Matheus
+ * 2026-10-30 "1.a": the summary's `updated_seq` descending, the server's sequence of
+ * the relatório's last change), then the cards with no summary entry by service start
+ * descending with missing dates last, then the id.
  */
 export function homeCards(input: HomeCardsInput): HomeCard[] {
   const sources = new Map<string, CardSource>();
@@ -287,7 +290,15 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
   }
 
   const startOf = new Map(cards.map((card) => [card.id, sources.get(card.id)?.service_start ?? null]));
+  const seqOf = new Map(input.summary.map((entry) => [entry.id, entry.updated_seq]));
   cards.sort((a, b) => {
+    const qa = seqOf.get(a.id);
+    const qb = seqOf.get(b.id);
+    if (qa !== qb) {
+      if (qa === undefined) return 1;
+      if (qb === undefined) return -1;
+      return qb - qa;
+    }
     const sa = startOf.get(a.id) ?? null;
     const sb = startOf.get(b.id) ?? null;
     if (sa !== sb) {
@@ -306,6 +317,82 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
   }
 
   return input.filter === null ? cards : cards.filter((card) => card.status === input.filter);
+}
+
+/** Story 19.2: the statuses Home lists with no Status board tile pressed; Emitido sits behind its tile. */
+export const HOME_ACTIVE_STATUSES = ['rascunho', 'em_campo', 'em_revisao'] as const satisfies readonly RelatorioStatus[];
+
+/** Story 19.2: the page sizes of the Home list, offered as Filter chips. */
+export const HOME_PAGE_SIZES = [10, 20, 50, 100] as const;
+export type HomePageSize = (typeof HOME_PAGE_SIZES)[number];
+export const DEFAULT_HOME_PAGE_SIZE: HomePageSize = 10;
+
+export function isHomePageSize(value: unknown): value is HomePageSize {
+  return typeof value === 'number' && (HOME_PAGE_SIZES as readonly number[]).includes(value);
+}
+
+/** A stored preference read back: anything not one of the four sizes reads as the default. */
+export function homePageSizeOf(value: unknown): HomePageSize {
+  return isHomePageSize(value) ? value : DEFAULT_HOME_PAGE_SIZE;
+}
+
+/** "Mostrando 10 de 37 relatórios" (Story 19.2). */
+export function homeListNote(shown: number, total: number): string {
+  return `Mostrando ${shown} de ${relatoriosCount(total)}`;
+}
+
+/** The empty sentence of a device with emitted relatórios only (Story 19.2). */
+export function noneActiveText(emitted: number): string {
+  // authored (Story 19.2): no mock draws a Home with emitted relatórios only; the tile is named by its own label.
+  return `Nenhum relatório em andamento. ${plural(emitted, 'emitido', 'emitidos')}: toque em ${statusLabel('emitido')}.`;
+}
+
+/**
+ * Why the list is empty: `none` when the device knows of no relatório, `none-for-filter`
+ * when a pressed tile reads zero, `none-active` when only emitted ones exist and no tile is
+ * pressed; null when the list has cards.
+ */
+export type HomeListEmpty = null | 'none' | 'none-for-filter' | { kind: 'none-active'; text: string };
+
+export interface HomeList {
+  /** The page of cards to render, in `homeCards` order. */
+  cards: HomeCard[];
+  shown: number;
+  /** Every card of the selection, before the cut. */
+  total: number;
+  /** "Mostrando n de N relatórios" when the selection holds more than the smallest page; else null (no note, no chips). */
+  note: string | null;
+  empty: HomeListEmpty;
+}
+
+/**
+ * Story 19.2: the Home list from every ordered card (`homeCards` with no filter): the
+ * pressed tile's status, or the active statuses with none pressed, cut at the page size.
+ * The order is `homeCards`', so the current card stays first in every selection.
+ */
+export function homeList(
+  cards: readonly HomeCard[],
+  options: { filter: RelatorioStatus | null; pageSize: number },
+): HomeList {
+  const active = HOME_ACTIVE_STATUSES as readonly RelatorioStatus[];
+  const selection = cards.filter((card) => (options.filter === null ? active.includes(card.status) : card.status === options.filter));
+  const page = selection.slice(0, homePageSizeOf(options.pageSize));
+  const total = selection.length;
+  let empty: HomeListEmpty = null;
+  if (cards.length === 0) empty = 'none';
+  else if (total === 0) {
+    empty =
+      options.filter === null
+        ? { kind: 'none-active', text: noneActiveText(cards.filter((card) => card.status === 'emitido').length) }
+        : 'none-for-filter';
+  }
+  return {
+    cards: page,
+    shown: page.length,
+    total,
+    note: total > HOME_PAGE_SIZES[0] ? homeListNote(page.length, total) : null,
+    empty,
+  };
 }
 
 /**

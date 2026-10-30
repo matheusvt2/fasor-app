@@ -4754,6 +4754,8 @@ So that composing a template or keeping the registries never starts with a scrol
 
 ### Story 19.2: Home opens on the active work: Emitido behind its tile and the list capped with "Ver todos"
 
+*(2026-10-30, built the same day: the title's "Ver todos" became the page-size chips 10 · 20 · 50 · 100 at Matheus's word; the heading and the sprint-status key keep their wording.)*
+
 **Dev model:** opus · **Effort:** medium · kernel (`home/cards.ts`: the default selection, the most-recent order, the page size, the note and empty texts), `home-surface.tsx` (the page-size chips, the preference on the device), copy, the note the mocks already draw replaced by the chips; no op, no contract change (the summary's `updated_seq` already exists)
 
 As an engineer opening Home,
@@ -4778,7 +4780,7 @@ So that Home stays short when the company holds a hundred relatórios.
 **When** Home opens
 **Then** the empty note says so and points at the Emitido tile; a device with nothing at all keeps "Nenhum relatório ainda."
 
-**Definition of Done, in addition:** red-first kernel tests for the selection, the order, the page size and the texts; component tests for the three states and the remembered page size; `home.spec.ts` extended with the Emitido tile, the order and the chips at 390 and 1280 px; EXPERIENCE.md § Home and § Status board amended with the date; `20-home.html` and `key-home.html` redrawn with the chips in place of "Ver todos" and MOCK-GUIDE noted; the `targets.test.ts` guard covers `home.page_size`; the story gate (lint, static, test:unit, test:api, the touched specs); the first digest reads `home.status_chip` on Emitido and `home.page_size` per session.
+**Definition of Done, in addition:** red-first kernel tests for the selection, the order, the page size and the texts; component tests for the three states and the remembered page size; `home.spec.ts` extended with the Emitido tile, the order and the chips at 390 and 1280 px; EXPERIENCE.md § Home and § Status board amended with the date; `20-home.html` and `key-home.html` redrawn with the chips in place of "Ver todos" and MOCK-GUIDE noted; the `targets.test.ts` guard covers `home.page_size`; the story gate (lint, static, test:unit, test:api, the touched specs); ~~the first digest reads `home.status_chip` on Emitido and `home.page_size` per session.~~ *(2026-10-30, review of the build: the events carry no tile and no size, so the first digest reads `home.status_chip` taps and `home.page_size` changes per session; a target per tile and per size is a ledger row of the review.)*
 
 ## Backlog: deferred stories
 

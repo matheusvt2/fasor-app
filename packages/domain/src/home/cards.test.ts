@@ -8,7 +8,15 @@ import { sumarioTitle } from '../relatorio/project.ts';
 import { idSequence } from '../test-support.ts';
 import {
   CADASTROS_SUBLINE,
+  DEFAULT_HOME_PAGE_SIZE,
+  HOME_ACTIVE_STATUSES,
+  HOME_PAGE_SIZES,
   homeCards,
+  homeList,
+  homeListNote,
+  homePageSizeOf,
+  isHomePageSize,
+  noneActiveText,
   statusBoardCounts,
   templatesSubline,
   type HomeCardsInput,
@@ -94,8 +102,8 @@ function relatorio(
   };
 }
 
-function summary(id: string, status: RelatorioStatus): RelatorioSummary {
-  return { id, project_id: PROJECT, status, template_id: TEMPLATE, seed_version: 'v1', updated_seq: 10 };
+function summary(id: string, status: RelatorioStatus, updated_seq = 10): RelatorioSummary {
+  return { id, project_id: PROJECT, status, template_id: TEMPLATE, seed_version: 'v1', updated_seq };
 }
 
 const onDevice = (id: string, last_sync_at: string | null = '2026-09-08T00:40:00.000Z'): SyncStateLike => ({
@@ -321,7 +329,24 @@ describe('homeCards: ordering', () => {
     expect(cards[1]!.isCurrent).toBe(false);
   });
 
-  it('then service start descending, missing dates last, then id', () => {
+  it('Story 19.2: most recent first, the summary\'s updated_seq descending, whatever the service dates say', () => {
+    const cards = homeCards(
+      input({
+        relatorios: [
+          relatorio(R_DRAFT, 'rascunho', { service_start: '2026-09-20' }),
+          relatorio(R_FIELD_AWAY, 'em_campo', { service_start: '2026-07-01' }),
+        ],
+        summary: [
+          summary(R_DRAFT, 'rascunho', 3),
+          summary(R_FIELD_AWAY, 'em_campo', 40),
+          summary(R_ISSUED_A, 'emitido', 12),
+        ],
+      }),
+    );
+    expect(cards.map((c) => c.id)).toEqual([R_FIELD_AWAY, R_ISSUED_A, R_DRAFT]);
+  });
+
+  it('Story 19.2 fallback: a row with no summary entry comes after every card with a sequence, then service start descending, missing dates last, then id', () => {
     const cards = homeCards(
       input({
         relatorios: [
@@ -329,10 +354,23 @@ describe('homeCards: ordering', () => {
           relatorio(R_ISSUED_A, 'emitido'),
           relatorio(R_DRAFT, 'rascunho', { service_start: '2026-07-01' }),
           relatorio(R_FIELD_AWAY, 'em_campo', { service_start: '2026-09-06' }),
+          relatorio(R_FIELD_HERE, 'em_revisao', { service_start: '2026-01-01' }),
         ],
+        summary: [summary(R_FIELD_HERE, 'em_revisao', 1)],
       }),
     );
-    expect(cards.map((c) => c.id)).toEqual([R_FIELD_AWAY, R_DRAFT, R_ISSUED_A, R_ISSUED_B]);
+    expect(cards.map((c) => c.id)).toEqual([R_FIELD_HERE, R_FIELD_AWAY, R_DRAFT, R_ISSUED_A, R_ISSUED_B]);
+  });
+
+  it('Story 19.2: the current card stays first even with the oldest sequence', () => {
+    const cards = homeCards(
+      input({
+        relatorios: [relatorio(R_FIELD_HERE, 'em_campo'), relatorio(R_DRAFT, 'rascunho')],
+        summary: [summary(R_FIELD_HERE, 'em_campo', 1), summary(R_DRAFT, 'rascunho', 99)],
+        syncStates: [onDevice(R_FIELD_HERE)],
+      }),
+    );
+    expect(cards.map((c) => c.id)).toEqual([R_FIELD_HERE, R_DRAFT]);
   });
 
   it('no Em campo relatório on this device means no current card', () => {
@@ -483,5 +521,136 @@ describe('homeCards: the counter follows the Sumário rule (14.10 part 10)', () 
   it("the card's text is the Sumário's count over the same rows", () => {
     const rows = [suggestion(B, R_FIELD_HERE), suggestion(A, R_FIELD_HERE, 'discarded')];
     expect(counter(rows)!.text).toBe(fichasCountText(progress({ blocks, suggestions: [] }, pendingSuggestions(rows))));
+  });
+});
+
+describe('homeList (Story 19.2): the selection, the page, the note and the empty sentence', () => {
+  const genIds = idSequence('019966b0-0019-7000-8000-');
+  /** `n` cards of `status`, each with its own summary sequence counting down from `top`. */
+  function many(status: RelatorioStatus, n: number, top: number): { rows: RelatorioRow[]; entries: RelatorioSummary[] } {
+    const rows: RelatorioRow[] = [];
+    const entries: RelatorioSummary[] = [];
+    for (let i = 0; i < n; i += 1) {
+      const id = genIds();
+      rows.push(relatorio(id, status));
+      entries.push(summary(id, status, top - i));
+    }
+    return { rows, entries };
+  }
+  function build(...groups: { rows: RelatorioRow[]; entries: RelatorioSummary[] }[]) {
+    return homeCards(
+      input({ relatorios: groups.flatMap((g) => g.rows), summary: groups.flatMap((g) => g.entries) }),
+    );
+  }
+
+  it('names the active statuses and the page sizes, 10 by default', () => {
+    expect(HOME_ACTIVE_STATUSES).toEqual(['rascunho', 'em_campo', 'em_revisao']);
+    expect(HOME_PAGE_SIZES).toEqual([10, 20, 50, 100]);
+    expect(DEFAULT_HOME_PAGE_SIZE).toBe(10);
+  });
+
+  it('default list: no tile pressed shows the active cards only, most recent first, no note under 11', () => {
+    const drafts = many('rascunho', 1, 50);
+    const field = many('em_campo', 1, 60);
+    const review = many('em_revisao', 1, 40);
+    const issued = many('emitido', 9, 100);
+    const cards = build(drafts, field, review, issued);
+    const list = homeList(cards, { filter: null, pageSize: 10 });
+    expect(list.cards.map((c) => c.id)).toEqual([field.rows[0]!.id, drafts.rows[0]!.id, review.rows[0]!.id]);
+    expect(list).toMatchObject({ shown: 3, total: 3, note: null, empty: null });
+    expect(statusBoardCounts(cards).emitido).toBe(9);
+  });
+
+  it('Emitido tile: the emitted cards only, most recent first', () => {
+    const issued = many('emitido', 9, 100);
+    const list = homeList(build(many('rascunho', 3, 200), issued), { filter: 'emitido', pageSize: 10 });
+    expect(list.cards.map((c) => c.id)).toEqual(issued.rows.map((r) => r.id));
+    expect(list.note).toBeNull();
+  });
+
+  it('another tile: that status only', () => {
+    const drafts = many('rascunho', 2, 5);
+    const list = homeList(build(drafts, many('em_campo', 2, 50)), { filter: 'rascunho', pageSize: 10 });
+    expect(list.cards.map((c) => c.id)).toEqual(drafts.rows.map((r) => r.id));
+  });
+
+  it('cap: 12 in the selection on a page of 10 shows 10 and the note', () => {
+    const drafts = many('rascunho', 12, 100);
+    const list = homeList(build(drafts), { filter: null, pageSize: 10 });
+    expect(list.cards.map((c) => c.id)).toEqual(drafts.rows.slice(0, 10).map((r) => r.id));
+    expect(list).toMatchObject({ shown: 10, total: 12, note: 'Mostrando 10 de 12 relatórios', empty: null });
+  });
+
+  it('page size chosen: 50 shows all 12 and the note still reads', () => {
+    const list = homeList(build(many('rascunho', 12, 100)), { filter: null, pageSize: 50 });
+    expect(list).toMatchObject({ shown: 12, total: 12, note: 'Mostrando 12 de 12 relatórios' });
+  });
+
+  it('fits the smallest page: 10 or fewer means no note', () => {
+    const list = homeList(build(many('rascunho', 10, 100)), { filter: null, pageSize: 10 });
+    expect(list).toMatchObject({ shown: 10, total: 10, note: null });
+  });
+
+  it('the note words its count in the kernel', () => {
+    expect(homeListNote(10, 37)).toBe('Mostrando 10 de 37 relatórios');
+  });
+
+  it('stored value unknown reads as 10', () => {
+    expect(isHomePageSize(50)).toBe(true);
+    for (const value of [15, '50', null, undefined, 0, Number.NaN]) {
+      expect(isHomePageSize(value)).toBe(false);
+      expect(homePageSizeOf(value)).toBe(10);
+    }
+    expect(homePageSizeOf(100)).toBe(100);
+  });
+
+  it('current card: first in the active list and in the Em campo tile\'s list, whatever its sequence', () => {
+    const cards = homeCards(
+      input({
+        relatorios: [relatorio(R_FIELD_HERE, 'em_campo'), relatorio(R_FIELD_AWAY, 'em_campo'), relatorio(R_DRAFT, 'rascunho')],
+        summary: [summary(R_FIELD_HERE, 'em_campo', 1), summary(R_FIELD_AWAY, 'em_campo', 90), summary(R_DRAFT, 'rascunho', 80)],
+        syncStates: [onDevice(R_FIELD_HERE)],
+      }),
+    );
+    expect(homeList(cards, { filter: null, pageSize: 10 }).cards.map((c) => c.id)).toEqual([R_FIELD_HERE, R_FIELD_AWAY, R_DRAFT]);
+    expect(homeList(cards, { filter: 'em_campo', pageSize: 10 }).cards.map((c) => c.id)).toEqual([R_FIELD_HERE, R_FIELD_AWAY]);
+  });
+
+  it('the current card with the oldest sequence stays first when the Em campo selection exceeds the page', () => {
+    const field = many('em_campo', 11, 100);
+    const cards = homeCards(
+      input({
+        relatorios: [relatorio(R_FIELD_HERE, 'em_campo'), ...field.rows],
+        summary: [summary(R_FIELD_HERE, 'em_campo', 1), ...field.entries],
+        syncStates: [onDevice(R_FIELD_HERE)],
+      }),
+    );
+    const list = homeList(cards, { filter: 'em_campo', pageSize: 10 });
+    expect(list.cards[0]!.id).toBe(R_FIELD_HERE);
+    expect(list.cards[0]!.isCurrent).toBe(true);
+    expect(list).toMatchObject({ shown: 10, total: 12, note: 'Mostrando 10 de 12 relatórios' });
+    expect(list.cards.slice(1).map((c) => c.id)).toEqual(field.rows.slice(0, 9).map((r) => r.id));
+  });
+
+  it('a full page smaller than the selection: 60 on a page of 50', () => {
+    const list = homeList(build(many('rascunho', 60, 100)), { filter: null, pageSize: 50 });
+    expect(list).toMatchObject({ shown: 50, total: 60, note: 'Mostrando 50 de 60 relatórios' });
+  });
+
+  it('no active: the kernel sentence points at the Emitido tile, singular for 1', () => {
+    const list = homeList(build(many('emitido', 7, 100)), { filter: null, pageSize: 10 });
+    expect(list.cards).toEqual([]);
+    expect(list.empty).toEqual({ kind: 'none-active', text: 'Nenhum relatório em andamento. 7 emitidos: toque em Emitido.' });
+    expect(noneActiveText(1)).toBe('Nenhum relatório em andamento. 1 emitido: toque em Emitido.');
+  });
+
+  it('a pressed tile with nothing is none-for-filter', () => {
+    const list = homeList(build(many('emitido', 2, 100)), { filter: 'em_revisao', pageSize: 10 });
+    expect(list).toMatchObject({ shown: 0, total: 0, note: null, empty: 'none-for-filter' });
+  });
+
+  it('nothing on the device is none', () => {
+    expect(homeList([], { filter: null, pageSize: 10 })).toEqual({ cards: [], shown: 0, total: 0, note: null, empty: 'none' });
+    expect(homeList([], { filter: 'emitido', pageSize: 10 }).empty).toBe('none');
   });
 });

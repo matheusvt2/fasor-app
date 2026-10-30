@@ -163,6 +163,9 @@ export const copy = {
     // authored: a tile that reads zero is still pressable, and an empty list under it is
     // not an empty device — the two cases have to say different things.
     noneForFilter: 'Nenhum relatório neste status.',
+    // authored: Story 19.2, the accessible name of the page-size chips (10 · 20 · 50 · 100) beside
+    // the kernel's "Mostrando n de N relatórios"; no mock names the group.
+    pageSizeLabel: 'Relatórios por página',
     // Verbatim from `key-home.html` frame 3.
     offlineToast: 'Sem conexão. Tudo fica salvo neste aparelho.',
   },

@@ -2,7 +2,9 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CAMERA_APP_PREF,
+  HOME_PAGE_SIZE_PREF,
   readCameraApp,
+  readHomePageSize,
   readLastSheet,
   readRecoveryNotice,
   readTheme,
@@ -11,6 +13,7 @@ import {
   writeLastSheet,
   writeRecoveryNotice,
   writeCameraApp,
+  writeHomePageSize,
   writeTheme,
 } from './prefs.ts';
 import { LAST_SHEET_PREF, openDatabase, RECOVERY_NOTICE_PREF, THEME_PREF, type AppDatabase } from './schema.ts';
@@ -198,6 +201,26 @@ describe('17.2-UNIT the camera-app preference in local_prefs', () => {
     await db.local_prefs.put({ key: CAMERA_APP_PREF, value: 'off' });
     expect(await readCameraApp(db, 5)).toBe(true);
     expect(await readCameraApp(db, 0)).toBe(false);
+    db.close();
+  });
+});
+
+describe('19.2-UNIT the Home page size in local_prefs', () => {
+  it('reads 10 until written, then round-trips under home_page_size', async () => {
+    const db = await freshDb();
+    expect(await readHomePageSize(db)).toBe(10);
+    await writeHomePageSize(db, 50);
+    expect(await readHomePageSize(db)).toBe(50);
+    expect(await db.local_prefs.get(HOME_PAGE_SIZE_PREF)).toEqual({ key: 'home_page_size', value: 50 });
+    db.close();
+  });
+
+  it('reads an unknown stored value as 10', async () => {
+    const db = await freshDb();
+    for (const value of [15, '50', null, { size: 20 }]) {
+      await db.local_prefs.put({ key: HOME_PAGE_SIZE_PREF, value });
+      expect(await readHomePageSize(db)).toBe(10);
+    }
     db.close();
   });
 });

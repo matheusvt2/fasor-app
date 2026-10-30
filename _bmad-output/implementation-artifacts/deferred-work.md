@@ -2585,3 +2585,13 @@ Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
   evidence: `apps/api/src/http/telemetry.ts` consumes `${userId}:${device_id}` per group; the DoR of Story 18.2 names a per-device limit; a per-user aggregate key beside it would close the gap.
   class: risk
   state: open (owner: the coordinator decides whether a per-user aggregate limit is worth adding; only signed-in users can post)
+
+## Deferred from: Story 19.2 review (2026-10-30)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-2-home-opens-on-the-active-work.md`
+  summary: The Home usage events cannot tell which Status board tile was pressed or which page size was chosen: all four tiles share the target `home.status_chip`, the four chips share `home.page_size`, and the event has no value field.
+  evidence: Review BH-4 (2026-10-30): `uxEventSchema` is strict with no value; the digest can count tile and chip taps per session, not the Emitido presses or the sizes. A target per tile (`home.status_chip_<status>`) and per size would be appended to `UX_ACTION_TARGETS` (Epic 18's kernel-first rule) in a story, with the `actions` view reading them; the Story 19.2 DoD sentence was narrowed with the date.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-2-home-opens-on-the-active-work.md`
+  summary: Relatórios past the 100th of a selection are unreachable from Home: the largest page is 100 and there is no next page or search.
+  evidence: Review ECH-2 and BH-6 (2026-10-30): `homeList` slices at the page size and `HOME_PAGE_SIZES` ends at 100 (Matheus's sizes); a company with more than 100 emitted relatórios reaches the oldest from the Project surface only. EXPERIENCE.md § Home names that way in; a next page or a search (option D of the 2026-10-29 analysis) waits for Bruno's volume answers.
+

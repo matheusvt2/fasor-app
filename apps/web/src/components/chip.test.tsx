@@ -45,6 +45,16 @@ describe('FilterChipGroup', () => {
     expect(onChange).toHaveBeenCalledWith('enel');
   });
 
+  it('Story 19.2: a telemetry name lands on every chip as data-telemetry, and on none without it', () => {
+    const { unmount } = render(
+      <FilterChipGroup options={options} selectedId="all" onChange={vi.fn()} aria-label="Relatórios por página" telemetry="home.page_size" />,
+    );
+    for (const radio of screen.getAllByRole('radio')) expect(radio).toHaveAttribute('data-telemetry', 'home.page_size');
+    unmount();
+    render(<FilterChipGroup options={options} selectedId="all" onChange={vi.fn()} aria-label="Filtrar por cabine" />);
+    for (const radio of screen.getAllByRole('radio')) expect(radio).not.toHaveAttribute('data-telemetry');
+  });
+
   it('tapping the selected chip again does nothing (no clearing by re-tap)', async () => {
     const onChange = vi.fn();
     render(<FilterChipGroup options={options} selectedId="all" onChange={onChange} aria-label="Filtrar por cabine" />);
@@ -60,6 +70,20 @@ describe('FilterChipGroup', () => {
     render(<FilterChipGroup options={options} selectedId={null} onChange={onChange} aria-label="Motivo" />);
     expect(screen.getAllByRole('radio').filter((radio) => (radio as HTMLElement).getAttribute('aria-checked') === 'true')).toHaveLength(0);
     await userEvent.click(screen.getByRole('radio', { name: 'Cubículo Enel' }));
+    expect(onChange).toHaveBeenCalledWith('enel');
+  });
+
+  it('Story 19.2: an arrow key clicks the next chip, so the usage-event listener hears it, and onChange runs once', async () => {
+    const onChange = vi.fn();
+    render(<FilterChipGroup options={options} selectedId="all" onChange={onChange} aria-label="Relatórios por página" telemetry="home.page_size" />);
+    const clicks = vi.fn();
+    const next = screen.getByRole('radio', { name: 'Cubículo Enel' });
+    next.addEventListener('click', clicks);
+    await userEvent.tab();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(clicks).toHaveBeenCalledTimes(1);
+    expect(next).toHaveFocus();
+    expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith('enel');
   });
 

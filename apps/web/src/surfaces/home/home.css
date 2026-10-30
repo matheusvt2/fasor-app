@@ -61,3 +61,18 @@
 .home-screen .section + .section {
   margin-top: var(--sp-5);
 }
+
+/* Story 19.2: the note "Mostrando n de N relatórios" with the page-size chips beside it, in
+   place of the mock's "Ver todos" link (`20-home.html`, redrawn 2026-10-30). The row wraps,
+   so at 390 px the chips fall under the note and nothing scrolls sideways. */
+.home-screen .home-list-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+  margin-top: var(--sp-3);
+}
+
+.home-screen .home-list-note .section-note {
+  margin-bottom: 0;
+}

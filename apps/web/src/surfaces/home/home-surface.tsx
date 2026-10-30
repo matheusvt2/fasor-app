@@ -1,5 +1,9 @@
 import {
+  DEFAULT_HOME_PAGE_SIZE,
+  HOME_PAGE_SIZES,
   homeCards,
+  homeList,
+  isHomePageSize,
   isProjectStreamId,
   resumeTarget,
   statusBoardCounts,
@@ -18,12 +22,12 @@ import {
 } from '@app/domain';
 import { useEffect, useId, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Button, LoadingNote } from '../../components/index.ts';
+import { Button, FilterChipGroup, LoadingNote } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { blockRows, clientRows, locationRowsOnDevice, projectRows, relatorioRows, relatorioState, suggestionRows, templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
-import { readLastSheet } from '../../db/prefs.ts';
+import { readHomePageSize, readLastSheet, writeHomePageSize } from '../../db/prefs.ts';
 import { localFileRows, outboxRows, syncStateRows } from '../../db/sync-store.ts';
 import type { OutboxRow, SyncStateRow } from '../../db/schema.ts';
 import { useSession } from '../../state/session.tsx';
@@ -54,6 +58,9 @@ const NO_SUGGESTIONS: SuggestionRow[] = [];
 const NO_LOCATIONS: LocationRow[] = [];
 const NO_FILES: Awaited<ReturnType<typeof localFileRows>> = [];
 
+/** Story 19.2: the page-size chips, 10 · 20 · 50 · 100, the size itself as the chip id and word. */
+const PAGE_SIZE_OPTIONS = HOME_PAGE_SIZES.map((size) => ({ id: String(size), label: String(size) }));
+
 /** The key of the cold-open offline toast: once for this page session, not once per visit. */
 const OFFLINE_TOAST_KEY = 'offline-cold-open';
 
@@ -70,12 +77,16 @@ export function HomeSurface() {
   const shortcutsHeadingId = useId();
 
   const [filter, setFilter] = useState<RelatorioStatus | null>(null);
+  // Story 19.2: the list's page size, this device's preference (`local_prefs.home_page_size`).
+  // Undefined until read, so a device with 50 stored never draws a frame of 10 cards.
+  const pageSize = useLiveQuery(() => (db === null ? Promise.resolve(DEFAULT_HOME_PAGE_SIZE) : readHomePageSize(db)), [db]);
 
   // Undefined until the device store answers: the list says "Carregando relatórios…" rather
   // than flashing the empty state (Matheus, 2026-09-30).
   const loadedRelatorios = useLiveQuery(() => (db === null ? Promise.resolve(NO_RELATORIOS) : relatorioRows(db)), [db]);
   const relatorios = loadedRelatorios ?? NO_RELATORIOS;
-  const relatoriosPending = db !== null && loadedRelatorios === undefined;
+  // Story 19.2: the list also waits for the stored page size, so its first frame is already cut right.
+  const relatoriosPending = db !== null && (loadedRelatorios === undefined || pageSize === undefined);
   const projects = useLiveQuery(() => (db === null ? Promise.resolve(NO_PROJECTS) : projectRows(db)), [db], NO_PROJECTS);
   const clients = useLiveQuery(() => (db === null ? Promise.resolve(NO_CLIENTS) : clientRows(db)), [db], NO_CLIENTS);
   const templates = useLiveQuery(
@@ -125,11 +136,18 @@ export function HomeSurface() {
   );
 
   // The board counts every relatório the device knows of, whatever the tile filter says;
-  // the list below is the same call with the filter, because AD-2 puts the ordering and
-  // the filtering in the kernel and not in this component.
+  // the list below is the kernel's selection and page of the same ordered cards (Story 19.2:
+  // the active statuses with no tile pressed, cut at the page size), because AD-2 puts the
+  // ordering, the filtering and the cut in the kernel and not in this component.
   const allCards = useMemo(() => homeCards({ ...base, filter: null }), [base]);
   const counts = useMemo(() => statusBoardCounts(allCards), [allCards]);
-  const cards = useMemo(() => homeCards({ ...base, filter }), [base, filter]);
+  const list = useMemo(() => homeList(allCards, { filter, pageSize: pageSize ?? DEFAULT_HOME_PAGE_SIZE }), [allCards, filter, pageSize]);
+
+  function choosePageSize(id: string) {
+    const size = Number(id);
+    if (db === null || !isHomePageSize(size)) return;
+    void writeHomePageSize(db, size).catch(() => undefined);
+  }
 
   // Story 12.2: where the current card's "Continuar" goes, from its snapshot and this
   // device's last sheet (`last_sheet:{id}`); the kernel picks the sheet and writes the text.
@@ -211,24 +229,40 @@ export function HomeSurface() {
 
           {relatoriosPending ? (
             <LoadingNote what={copy.loadingWhat.relatorios} />
-          ) : cards.length === 0 ? (
-            // A pressed tile can read zero, so an empty list is not always an empty
-            // device: say which of the two it is instead of leaving a blank area.
+          ) : list.empty !== null ? (
+            // A pressed tile can read zero, and a device can hold emitted relatórios only, so
+            // an empty list is not always an empty device: say which case it is (the kernel's).
             <div className="home-empty">
-              <p className="section-note">{allCards.length === 0 ? copy.home.empty : copy.home.noneForFilter}</p>
+              <p className="section-note">
+                {list.empty === 'none' ? copy.home.empty : list.empty === 'none-for-filter' ? copy.home.noneForFilter : list.empty.text}
+              </p>
             </div>
           ) : (
-            <div className="relatorio-cards">
-              {cards.map((card) => (
-                <RelatorioCard
-                  key={card.id}
-                  card={card}
-                  onPress={openCard}
-                  resume={card.id === currentId ? resume : null}
-                  onContinue={continueCard}
-                />
-              ))}
-            </div>
+            <>
+              <div className="relatorio-cards">
+                {list.cards.map((card) => (
+                  <RelatorioCard
+                    key={card.id}
+                    card={card}
+                    onPress={openCard}
+                    resume={card.id === currentId ? resume : null}
+                    onContinue={continueCard}
+                  />
+                ))}
+              </div>
+              {list.note === null ? null : (
+                <div className="home-list-note">
+                  <p className="section-note">{list.note}</p>
+                  <FilterChipGroup
+                    options={PAGE_SIZE_OPTIONS}
+                    selectedId={String(pageSize ?? DEFAULT_HOME_PAGE_SIZE)}
+                    onChange={choosePageSize}
+                    aria-label={copy.home.pageSizeLabel}
+                    telemetry="home.page_size"
+                  />
+                </div>
+              )}
+            </>
           )}
         </section>
       </div>

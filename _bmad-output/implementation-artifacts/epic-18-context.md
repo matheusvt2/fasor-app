@@ -83,5 +83,6 @@ fell back to the file chooser), then `prodpass.sh cleanup` and the cookie file e
 - **First monthly friction digest:** one month after this deploy (`docs/observability.md` § The monthly digest, template
   `test-artifacts/friction-digest-template.md`); the Home navigation measure of the 2026-10-29 analysis
   (`home.shortcut_templates` and `home.shortcut_cadastros` per session) is now collected.
+- **Data sufficiency review (2026-10-30, Matheus: "coloque o usuário logado no dash; reveja se esses dados bastam"):** `backlog-2026-10-30-ux-data-sufficiency.md`: the events say where and how often, not how long, in what order, on which device or for whom; a user view joins E18-A2, the rest is a Story 18.4 draft waiting for his decisions (ids or names; one batch or after the first digest).
 - **Matheus and Bruno:** the Conta sentence wording (LGPD), the Home decision (Sally's A + B), the per-user telemetry
   limit row (ECH-4), the GitHub release for the production tag (only on Matheus's word).

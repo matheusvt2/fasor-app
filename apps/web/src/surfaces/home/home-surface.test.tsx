@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { toRecord } from '../../db/commit.ts';
-import { writeLastSheet } from '../../db/prefs.ts';
+import { HOME_PAGE_SIZE_PREF, writeLastSheet } from '../../db/prefs.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
@@ -92,13 +92,13 @@ function relatorio(id: string, status: RelatorioStatus, local: string, start: st
   };
 }
 
-const summary = (id: string, status: RelatorioStatus): RelatorioSummary => ({
+const summary = (id: string, status: RelatorioStatus, updated_seq = 5): RelatorioSummary => ({
   id,
   project_id: PROJECT,
   status,
   template_id: TEMPLATE,
   seed_version: 'v1',
-  updated_seq: 5,
+  updated_seq,
 });
 
 let counter = 0;
@@ -189,7 +189,8 @@ describe('Home: status board', () => {
   it('shows four tiles in board order with live counts, zero included', async () => {
     renderHome(syncState({ summaryRelatorios: [summary(R_FIELD_AWAY, 'emitido')] }));
     const board = await screen.findByRole('group', { name: 'Relatórios por status' });
-    await waitFor(() => expect(cards()).toHaveLength(4));
+    // Story 19.2: with no tile pressed the list holds the active relatórios only; the board counts every one.
+    await waitFor(() => expect(cards()).toHaveLength(2));
 
     const tiles = within(board).getAllByRole('button');
     expect(tiles.map((t) => t.getAttribute('aria-label'))).toEqual([
@@ -204,7 +205,7 @@ describe('Home: status board', () => {
 
   it('a tile filters the list and a second tap clears it', async () => {
     renderHome();
-    await waitFor(() => expect(cards()).toHaveLength(3));
+    await waitFor(() => expect(cards()).toHaveLength(2));
 
     const emCampo = screen.getByRole('button', { name: 'Em campo, 1 relatório' });
     await userEvent.click(emCampo);
@@ -215,12 +216,12 @@ describe('Home: status board', () => {
 
     await userEvent.click(emCampo);
     expect(emCampo).toHaveAttribute('aria-pressed', 'false');
-    await waitFor(() => expect(cards()).toHaveLength(3));
+    await waitFor(() => expect(cards()).toHaveLength(2));
   });
 
   it('another tile takes over the filter', async () => {
     renderHome();
-    await waitFor(() => expect(cards()).toHaveLength(3));
+    await waitFor(() => expect(cards()).toHaveLength(2));
     await userEvent.click(screen.getByRole('button', { name: 'Em campo, 1 relatório' }));
     await userEvent.click(screen.getByRole('button', { name: 'Emitido, 1 relatório' }));
     expect(screen.getByRole('button', { name: 'Em campo, 1 relatório' })).toHaveAttribute('aria-pressed', 'false');
@@ -392,6 +393,8 @@ describe('Home: relatório cards', () => {
     database = await freshDb();
     await seedCompany(database);
     renderHome(syncState({ summaryRelatorios: [summary(R_ISSUED, 'emitido')] }));
+    // Story 19.2: an emitted relatório sits behind the Emitido tile.
+    await userEvent.click(await screen.findByRole('button', { name: 'Emitido, 1 relatório' }));
 
     await waitFor(() => expect(cards()).toHaveLength(1));
     const card = cards()[0]!;
@@ -405,6 +408,7 @@ describe('Home: relatório cards', () => {
     database = await freshDb();
     await seedCompany(database);
     renderHome(syncState({ unreachable: 'server', badgeState: 'offline', summaryRelatorios: [summary(R_ISSUED, 'emitido')] }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Emitido, 1 relatório' }));
 
     await waitFor(() => expect(cards().length).toBeGreaterThan(0));
     for (const card of cards()) {
@@ -418,6 +422,7 @@ describe('Home: relatório cards', () => {
     database = await freshDb();
     await seedCompany(database);
     renderHome(syncState({ online: false, badgeState: 'offline', summaryRelatorios: [summary(R_ISSUED, 'emitido')] }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Emitido, 1 relatório' }));
 
     await waitFor(() => expect(cards()).toHaveLength(1));
     const card = cards()[0]!;
@@ -432,6 +437,105 @@ describe('Home: relatório cards', () => {
     await userEvent.click(within(card).getByRole('button'));
     expect(await screen.findByTestId('toast')).toHaveTextContent('Não está neste aparelho — conecte para baixar');
     expect(syncRelatorio).not.toHaveBeenCalled();
+  });
+});
+
+describe('Home: the active list and its page (Story 19.2)', () => {
+  /** `n` summary-only relatórios of `status`, sequences counting down from `top` (most recent first). */
+  function many(status: RelatorioStatus, n: number, top: number): RelatorioSummary[] {
+    return Array.from({ length: n }, (_, i) => summary(ids(), status, top - i));
+  }
+  const listIds = () => cards().map((card) => card.getAttribute('data-relatorio'));
+  const pageChips = () => screen.queryByRole('radiogroup', { name: 'Relatórios por página' });
+  const note = () => document.querySelector('.home-list-note .section-note');
+
+  beforeEach(async () => {
+    database = await freshDb();
+    await seedCompany(database);
+  });
+
+  it('default list: the active relatórios most recent first, the Emitido tile counts the rest and toggles them', async () => {
+    const draft = summary(ids(), 'rascunho', 30);
+    const field = summary(ids(), 'em_campo', 50);
+    const review = summary(ids(), 'em_revisao', 40);
+    const issued = many('emitido', 9, 100);
+    renderHome(syncState({ summaryRelatorios: [draft, review, ...issued, field] }));
+
+    await waitFor(() => expect(listIds()).toEqual([field.id, review.id, draft.id]));
+    expect(note()).toBeNull();
+    expect(pageChips()).toBeNull();
+
+    const emitido = screen.getByRole('button', { name: 'Emitido, 9 relatórios' });
+    expect(emitido).toHaveAttribute('data-telemetry', 'home.status_chip');
+    await userEvent.click(emitido);
+    await waitFor(() => expect(listIds()).toEqual(issued.map((entry) => entry.id)));
+    await userEvent.click(emitido);
+    await waitFor(() => expect(listIds()).toEqual([field.id, review.id, draft.id]));
+  });
+
+  it('cap: 12 in the selection shows 10, the note and the chips; 50 shows all, is stored, and survives a remount', async () => {
+    const drafts = many('rascunho', 12, 100);
+    const sync = syncState({ summaryRelatorios: drafts });
+    const { unmount } = renderHome(sync);
+
+    await waitFor(() => expect(listIds()).toEqual(drafts.slice(0, 10).map((entry) => entry.id)));
+    await waitFor(() => expect(note()).toHaveTextContent(/^Mostrando 10 de 12 relatórios$/));
+    const group = pageChips()!;
+    const chips = within(group).getAllByRole('radio');
+    expect(chips.map((chip) => chip.textContent)).toEqual(['10', '20', '50', '100']);
+    expect(chips.map((chip) => chip.getAttribute('aria-checked'))).toEqual(['true', 'false', 'false', 'false']);
+    for (const chip of chips) expect(chip).toHaveAttribute('data-telemetry', 'home.page_size');
+
+    await userEvent.click(within(group).getByRole('radio', { name: '50' }));
+    await waitFor(() => expect(cards()).toHaveLength(12));
+    expect(note()).toHaveTextContent(/^Mostrando 12 de 12 relatórios$/);
+    await waitFor(async () => expect((await database!.local_prefs.get(HOME_PAGE_SIZE_PREF))?.value).toBe(50));
+
+    unmount();
+    renderHome(sync);
+    await waitFor(() => expect(within(pageChips()!).getByRole('radio', { name: '50' })).toHaveAttribute('aria-checked', 'true'));
+    expect(cards()).toHaveLength(12);
+  });
+
+  it('with 50 stored, the first list drawn already holds 12 cards, never a frame of 10', async () => {
+    await database!.local_prefs.put({ key: HOME_PAGE_SIZE_PREF, value: 50 });
+    const counts: number[] = [];
+    const observer = new MutationObserver(() => {
+      const n = cards().length;
+      if (n > 0 && counts.at(-1) !== n) counts.push(n);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    renderHome(syncState({ summaryRelatorios: many('rascunho', 12, 100) }));
+    await waitFor(() => expect(cards()).toHaveLength(12));
+    observer.disconnect();
+    expect(counts).toEqual([12]);
+  });
+
+  it('a stored value that is not a page size reads as 10', async () => {
+    await database!.local_prefs.put({ key: HOME_PAGE_SIZE_PREF, value: 15 });
+    renderHome(syncState({ summaryRelatorios: many('em_revisao', 11, 100) }));
+    await waitFor(() => expect(cards()).toHaveLength(10));
+    expect(within(pageChips()!).getByRole('radio', { name: '10' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('10 or fewer in the selection: no note, no chips', async () => {
+    renderHome(syncState({ summaryRelatorios: many('rascunho', 10, 100) }));
+    await waitFor(() => expect(cards()).toHaveLength(10));
+    expect(note()).toBeNull();
+    expect(pageChips()).toBeNull();
+  });
+
+  it('no active relatório: the kernel sentence points at the Emitido tile', async () => {
+    renderHome(syncState({ summaryRelatorios: many('emitido', 7, 100) }));
+    expect(await screen.findByText('Nenhum relatório em andamento. 7 emitidos: toque em Emitido.')).toBeVisible();
+    expect(cards()).toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Emitido, 7 relatórios' })).toBeVisible();
+  });
+
+  it('a pressed tile with nothing keeps its sentence', async () => {
+    renderHome(syncState({ summaryRelatorios: many('emitido', 2, 100) }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Em revisão, 0 relatórios' }));
+    expect(await screen.findByText('Nenhum relatório neste status.')).toBeVisible();
   });
 });
 

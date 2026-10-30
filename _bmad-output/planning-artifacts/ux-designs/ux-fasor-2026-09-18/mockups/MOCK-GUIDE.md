@@ -206,3 +206,8 @@ Esta nota vence o texto acima onde os dois discordam.
 ## 2026-10-30 — Home: the shortcut row above the list (Epic 19, Story 19.1)
 
 Matheus's decision on Sally's option B (`_bmad-output/implementation-artifacts/backlog-2026-10-29-home-nav-and-telemetry.md` § 1): in `prototype/screens/20-home.html` and in the three frames of `key-home.html` the `Atalhos` section now sits between the Status board and the `Relatórios` section, same markup and classes, with a dated comment at the moved block. The capped-list note `Mostrando 4 de 8 relatórios · Ver todos` stays drawn and unbuilt until Story 19.2.
+
+## 2026-10-30 — Home: the active list, most recent first, cut at a page size (Epic 19, Story 19.2)
+
+~~The capped-list note `Mostrando 4 de 8 relatórios · Ver todos` stays drawn and unbuilt until Story 19.2.~~ In `prototype/screens/20-home.html` and the two `key-home.html` frames that drew it, the note is now `.home-list-note`: the `.section-note` "Mostrando 10 de 37 relatórios" with a `.chip-row` of four chips (10 · 20 · 50 · 100, the first pressed) beside it, wrapping under the note on a phone; dated comment at the block. The app renders the chips as the Filter chip group (`role="radiogroup"`). The cards drawn under it are unchanged; the app lists the active statuses with no tile pressed and the emitted ones behind the Emitido tile.
+
