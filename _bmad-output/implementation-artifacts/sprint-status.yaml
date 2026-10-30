@@ -208,7 +208,7 @@ development_status:
   epic-18: in-progress  # 2026-10-29: Matheus: "pode fazer a observabilidade. quero ver todo o funil"; Epic 18 written (three stories, AD-28); batches o18a (18.1+18.2) and o18b (18.3) start from main; deploy after both merge, on Matheus's go
   18-1-the-device-records-usage-events-and-ships-them-with-the-sync: in-progress  # 2026-10-29: batch o18a started
   18-2-the-api-receives-usage-events-and-writes-them-to-cloudwatch: in-progress  # 2026-10-29: batch o18a started
-  18-3-seeing-the-funnel-dashboard-saved-queries-and-the-first-friction-digest: in-progress  # 2026-10-29: batch o18b started
+  18-3-seeing-the-funnel-dashboard-saved-queries-and-the-first-friction-digest: done  # 2026-10-29: batch o18b PR PRNUM (not merged; dashboard and saved queries appear after the deploy's Terraform apply) | 2026-10-29: batch o18b started
 
   backlog-deferred: backlog  # added 2026-10-21: stories moved out of their epic with a dated decision, epics.md "Backlog: deferred stories"
   13-9-dictation-on-behind-one-line-of-consent: backlog  # 2026-10-21 (Bruno via Matheus, answer 11): moved out of Epic 13 to the backlog; DoR unchanged |  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus

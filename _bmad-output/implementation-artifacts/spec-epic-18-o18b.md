@@ -2,10 +2,10 @@
 title: 'Epic 18 batch o18b: the funnel dashboard, saved queries, runbook and the op-log friction read (Story 18.3)'
 type: 'feature'
 created: '2026-10-29'
-status: 'in-review'
+status: 'done'
 baseline_revision: '2066d2efc9540c456cb3fb1686aee8be39ce8e57'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: medium
 context:
@@ -135,3 +135,14 @@ Cost: CloudWatch gives three dashboards of up to 50 metrics each free a month an
 - Environment: this worktree is `/Users/matheusvilella/Documents/estudos/fasor-app-o18b`; podman only (`docker` is absent), never run pnpm or node on the host, never build images (`app-api-o18b`, `app-tools-o18b` are tagged; the stack is up via `podman compose up -d --no-build api`). Every pnpm run in the tools container goes under the host lock with nohup and a log in `.scratch-o18b/`, e.g. `nohup lockf -t 20000 /tmp/fasor-verify.lock podman compose --profile tools run --rm --user root tools pnpm --filter @app/api exec vitest run src/db/friction-read > .scratch-o18b/friction-red.log 2>&1; echo EXIT=$? >> .scratch-o18b/friction-red.log` -- red before the module exists (keep that log), green after.
 - `TF_OFFLINE=1 infra/bin/tf production fmt -check && TF_OFFLINE=1 infra/bin/tf production init -backend=false -input=false && TF_OFFLINE=1 infra/bin/tf production validate` -- all pass.
 - Gate (orchestrator, under `lockf -t 20000 /tmp/fasor-verify.lock`, logs in `.scratch-o18b/`): `lint`, `static`, `test:unit`, `test:api` -- green.
+
+## Auto Run Result
+
+Status: done
+
+- Summary: the funnel dashboard `fasor-production-ux` (nine Logs Insights widgets) and nine saved query definitions over the literal group `/fasor/production/ux-events`; the read-only op-log friction read (`friction-read.ts`, `friction-read-cli.ts`) with its integration test; `docs/observability.md`; the digest template; README rows and runbook lines; kbs lines; sprint-status 18.3.
+- Files changed: `infra/production/observability.tf` (dashboard and queries); `apps/api/src/db/friction-read.ts` (the fold, one read-only snapshot); `apps/api/src/db/friction-read-cli.ts` (`--company`); `apps/api/src/db/friction-read.integration.test.ts` (seeded company and neighbour, CLI run, no value in output); `docs/observability.md` (runbook); `_bmad-output/test-artifacts/friction-digest-template.md` (monthly digest); `infra/README.md` (stack row, cost row USD 0.00, runbook); `docs/kbs/architecture/infra-aws.md`, `docs/kbs/log.md` (one line each); `_bmad-output/implementation-artifacts/sprint-status.yaml` (18.3 done).
+- Review: 6 findings; 5 patched (VG-1, VG-2, ECH-1 medium; ECH-2, ECH-3 low), 1 deferred (ECH-4, memory), none rejected. Fixtures (d) and (e) were not run against the code from before the patch, so they have no red-first proof.
+- Follow-up review recommended: true. Three medium entries were patched. The unverified risk is the disarm rules of ECH-1 and ECH-2, patched and not re-reviewed.
+- Verification: red-first run (`Cannot find module './friction-read.ts'`); friction-read test 8 of 8 green after the patches; `TF_OFFLINE=1` fmt -check, init -backend=false, validate green (tflint not run, image absent); story gate under the host lock: lint 0 errors (25 warnings in untouched e2e specs, 21 s), static green (23 s), test:unit 326 files 4630 tests (218 s), test:api 94 files 711 tests (276 s), lock wait 0 s for each stage.
+- Residual risks: the Logs Insights syntax of views 3 (`strcontains` inside `sum`) and 6 (`sort kind, outcome`) is validated only by CloudWatch, at the console run after the deploy; the read is held in memory (deferred).
