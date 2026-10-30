@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 10-28-2026 16:05
+last_updated: 10-30-2026 12:55
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -205,10 +205,12 @@ development_status:
   17-5-a-failed-ratio-feeds-the-conclusion-suggestion: done  # 2026-10-28: PR #189 squash-merged as fd5efabf (batch e17b with 17.3); E15-A2 closed | 2026-10-27: batch e17b started (wave A) |  # added 2026-10-27 (Bruno's answer 6; E15-A2): ratio INSATISFATORIO reaches the suggestion, the pre-issue conclusion_stale row and the parecer counts
   17-6-altitude-do-site-takes-n-a-contract-27: done  # 2026-10-28: PR #193 squash-merged as 6c28b886 (batch e17c with 15.7); QA G3 closed | 2026-10-28: batch e17c started (wave B) | added 2026-10-27 (Bruno's answer 4; QA G3): site_altitude_na, the N/A control, the hint when the device gave no altitude; contract 27 minimum 27 with seed v10 (batch e17c)
   17-7-a-photo-saved-to-the-device: done  # 2026-10-28: PR #194 squash-merged as 3beacd40 (batch e17d with 17.2) | 2026-10-28: batch e17d started (wave B) | added 2026-10-27 (the honest answer to "not saved on the device"): Salvar no aparelho on the photo viewer through navigator.share, else download; Conta sentence
-  epic-18: in-progress  # 2026-10-30: deployed as 3b45e83c on Matheus's go (smoke 8 of 8); log group, dashboard fasor-production-ux and nine saved queries live; first production read 131 events, nine queries Complete (epic-18-context.md); retro pending | 2026-10-29: Matheus: "pode fazer a observabilidade. quero ver todo o funil"; Epic 18 written (three stories, AD-28); batches o18a (18.1+18.2) and o18b (18.3) start from main; deploy after both merge, on Matheus's go
+  epic-18: in-progress  # 2026-10-30: deployed as 3b45e83c on Matheus's go (smoke 8 of 8); log group, dashboard fasor-production-ux and nine saved queries live; first production read 131 events, nine queries Complete (epic-18-context.md); retrospective 2026-10-30 accepted-with-open-items (E18-A1 to E18-A7, epic-18-retro-2026-10-30.md) | 2026-10-29: Matheus: "pode fazer a observabilidade. quero ver todo o funil"; Epic 18 written (three stories, AD-28); batches o18a (18.1+18.2) and o18b (18.3) start from main; deploy after both merge, on Matheus's go
+  epic-18-retrospective: done  # epic-18-retro-2026-10-30.md; machine verdict accepted-with-open-items (all three stories done; test:e2e:full 537 of 542, one red green alone; open: E18-A1 to E18-A7, chiefly a 429 deleting a batch, the per-cycle photo scan, the smoke company in the views, the unbound queries)
   18-1-the-device-records-usage-events-and-ships-them-with-the-sync: done  # 2026-10-30: PR #213 squash-merged as 3b45e83c and deployed; events reach /fasor/production/ux-events | 2026-10-29: batch o18a PR #213 (open, not merged) | 2026-10-29: batch o18a started
   18-2-the-api-receives-usage-events-and-writes-them-to-cloudwatch: done  # 2026-10-30: PR #213 squash-merged as 3b45e83c and deployed; the log group exists (90 days) and the api writes to it | 2026-10-29: batch o18a PR #213 (open, not merged; the log group appears after the deploy's Terraform apply) | 2026-10-29: batch o18a started
-  18-3-seeing-the-funnel-dashboard-saved-queries-and-the-first-friction-digest: done  # 2026-10-30: PR #212 squash-merged as 62bdd76c and deployed with 3b45e83c; dashboard and nine saved queries live, all nine Complete on production data; first digest due 2026-11-30 | 2026-10-29: batch o18b PR #212 (open, not merged; dashboard and saved queries appear after the deploy's Terraform apply) | 2026-10-29: batch o18b started
+  18-3-seeing-the-funnel-dashboard-saved-queries-and-the-first-friction-digest: 
+    done                                                                              # 2026-10-30: PR #212 squash-merged as 62bdd76c and deployed with 3b45e83c; dashboard and nine saved queries live, all nine Complete on production data; first digest due 2026-11-30 | 2026-10-29: batch o18b PR #212 (open, not merged; dashboard and saved queries appear after the deploy's Terraform apply) | 2026-10-29: batch o18b started
 
   backlog-deferred: backlog  # added 2026-10-21: stories moved out of their epic with a dated decision, epics.md "Backlog: deferred stories"
   13-9-dictation-on-behind-one-line-of-consent: backlog  # 2026-10-21 (Bruno via Matheus, answer 11): moved out of Epic 13 to the backlog; DoR unchanged |  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus
@@ -669,565 +671,946 @@ action_items:
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
   - id: "epic-7-retro-item-66-e7-a1-gate-time-device-snapshot-first"
     epic: 7
-    action: "E7-A1 Gate time back under budget: stop the device rebuilding the whole relatório snapshot per commit (measure per-commit cost before/after), then re-validate 3 workers; target verify <= 900 s median of 3, e2e @p0 <= 600 s, test:e2e:full <= 1200 s, 0 timing failures in 3 consecutive --workers=3 full runs; otherwise a dated DoD budget line with the measured number"
+    action: "E7-A1 Gate time back under budget: stop the device rebuilding the whole
+      relatório snapshot per commit (measure per-commit cost before/after), then re-validate
+      3 workers; target verify <= 900 s median of 3, e2e @p0 <= 600 s, test:e2e:full
+      <= 1200 s, 0 timing failures in 3 consecutive --workers=3 full runs; otherwise
+      a dated DoD budget line with the measured number"
     owner: "Epic 9 carry-over batch (dev); coordinator accepts on the numbers"
     status: done  # superseded by the split merge gate (AGENTS.md 2026-09-30) and E11-A1 (audit-2026-09-30); PR #57 incremental snapshot
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
   - id: "epic-7-retro-item-67-e7-a2-gate-throughput-queue-and-load-flakes"
     epic: 7
-    action: "E7-A2 Gate throughput: targeted specs, unit and api before queueing for the full gate; record lock wait and gate time per batch; load-independent waits in template-composer-undo, setup-surface, relatorio-tree-edits; target lock wait <= 10 min per batch and 0 unit-file timeouts in the next epic's gates"
+    action: "E7-A2 Gate throughput: targeted specs, unit and api before queueing for
+      the full gate; record lock wait and gate time per batch; load-independent waits
+      in template-composer-undo, setup-surface, relatorio-tree-edits; target lock
+      wait <= 10 min per batch and 0 unit-file timeouts in the next epic's gates"
     owner: "coordinator (playbook); dev (unit files)"
     status: done  # superseded by the split merge gate and E11-A3 (audit-2026-09-30); dev part in PR #57
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
   - id: "epic-7-retro-item-68-e7-a3-track-e78-q10-q12-q15"
     epic: 7
-    action: "E7-A3 Add deferred-work entries with owners for E78-Q10, E78-Q12 and E78-Q15, and fix the fixture TTR value (13200 to 13.2) in the next batch touching the Porto Seguro fixture"
+    action: "E7-A3 Add deferred-work entries with owners for E78-Q10, E78-Q12 and
+      E78-Q15, and fix the fixture TTR value (13200 to 13.2) in the next batch touching
+      the Porto Seguro fixture"
     owner: "coordinator"
     status: done  # entries a2cd053; fixture TTR 13.2 in PR #57
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
   - id: "epic-7-retro-item-69-e7-a4-re-own-epic-7-carry-over-rows"
     epic: 7
-    action: "E7-A4 Re-own the open Epic 7 deferred-work rows (cert_number_mismatch and unpaired_cable rows, calibration row over section11Instruments, small-fixture sub-blocks, ÍNDICE 9.x, section 9 first-sheet split) and close the stale missing-certificate entry (pre-issue.ts:361)"
+    action: "E7-A4 Re-own the open Epic 7 deferred-work rows (cert_number_mismatch
+      and unpaired_cable rows, calibration row over section11Instruments, small-fixture
+      sub-blocks, ÍNDICE 9.x, section 9 first-sheet split) and close the stale missing-certificate
+      entry (pre-issue.ts:361)"
     owner: "coordinator (re-own); Epic 9 carry-over batch (dev)"
     status: done  # PR #57 (fixed or re-owned; stale certificate entry closed)
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
   - id: "epic-7-retro-item-70-e7-a5-answer-the-epic-7-product-questions"
     epic: 7
-    action: "E7-A5 Answer or date as deferred: Rascunho may generate (E4 item 25), blank ART line (E78-Q10), parecer suggestion timing, dual secondary for VAL CALCULADO, TAG in not-tested bullets, who writes feeds_block_id, SM-C1 logged vs stored, one 'concluídas' definition (E78-R2); before the Epic 9 carry-over batch"
+    action: "E7-A5 Answer or date as deferred: Rascunho may generate (E4 item 25),
+      blank ART line (E78-Q10), parecer suggestion timing, dual secondary for VAL
+      CALCULADO, TAG in not-tested bullets, who writes feeds_block_id, SM-C1 logged
+      vs stored, one 'concluídas' definition (E78-R2); before the Epic 9 carry-over
+      batch"
     owner: "Matheus (with Bruno for wording)"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
   - id: "epic-7-retro-item-71-e7-a6-playbook-shared-renderer-and-cut-batches"
     epic: 7
-    action: "E7-A6 Playbook: a batch touching docx.ts, layout.ts, the golden or the contract merges main and runs test:e2e:full before its PR; document tests assert from their own section heading; a batch cut by a usage limit or API timeout leaves a handoff note (branch, last green stage, failing tests, conflicts)"
+    action: "E7-A6 Playbook: a batch touching docx.ts, layout.ts, the golden or the
+      contract merges main and runs test:e2e:full before its PR; document tests assert
+      from their own section heading; a batch cut by a usage limit or API timeout
+      leaves a handoff note (branch, last green stage, failing tests, conflicts)"
     owner: "coordinator"
     status: done  # epic-batch-orchestrator.md a2cd053
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
   - id: "epic-7-retro-item-72-e7-a7-gate-without-the-network"
     epic: 7
-    action: "E7-A7 Bake or cache the pnpm binary in the tools image so verify and test:e2e:matrix start without registry.npmjs.org; target: a gate started offline gets past install"
+    action: "E7-A7 Bake or cache the pnpm binary in the tools image so verify and
+      test:e2e:matrix start without registry.npmjs.org; target: a gate started offline
+      gets past install"
     owner: "dev"
     status: done  # PR #57 (COREPACK_ENABLE_NETWORK=0, offline gate start proven)
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
   - id: "epic-8-retro-item-58-e8-a1-gate-under-budget-incremental-snapshot"
     epic: 8
-    action: "E8-A1 Make the device relatório snapshot incremental (the whole-snapshot rebuild per commit is the next lever); target under the host lock: verify <= 900 s in two consecutive runs, e2e @p0 <= 600 s, commit-to-render before/after, workers raised only after three green `test:e2e:full --workers=3`; if 900 s is missed, Matheus decides a dated DoD clause 3 amendment or a split gate"
+    action: "E8-A1 Make the device relatório snapshot incremental (the whole-snapshot
+      rebuild per commit is the next lever); target under the host lock: verify <=
+      900 s in two consecutive runs, e2e @p0 <= 600 s, commit-to-render before/after,
+      workers raised only after three green `test:e2e:full --workers=3`; if 900 s
+      is missed, Matheus decides a dated DoD clause 3 amendment or a split gate"
     owner: "Epic 9 carry-over batch (dev); Matheus for the stop rule"
     status: done  # superseded with E7-A1 (audit-2026-09-30)
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
   - id: "epic-8-retro-item-59-e8-a2-bake-pnpm-into-the-tools-image"
     epic: 8
-    action: "E8-A2 Bake the pinned pnpm binary into the tools image so no gate downloads at start; proof: a gate starts its first test with the network off"
+    action: "E8-A2 Bake the pinned pnpm binary into the tools image so no gate downloads
+      at start; proof: a gate starts its first test with the network off"
     owner: "Epic 9 carry-over batch (dev)"
     status: done  # PR #57
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
   - id: "epic-8-retro-item-60-e8-a3-epic-8-product-questions"
     epic: 8
-    action: "E8-A3 Add to the E5-A3 session: PARSeq vs PP-OCRv5, Confirmar todos and the create-hint manufacturer (and its toast), megôhmetro range source (Story 9.1), plate tile on other types, one concluded-sheet definition (E78-R2), 12.1 tap-guard timing, E6-A2 e2e:full rule, the carried Epic 7 questions; answers as dated lines"
+    action: "E8-A3 Add to the E5-A3 session: PARSeq vs PP-OCRv5, Confirmar todos and
+      the create-hint manufacturer (and its toast), megôhmetro range source (Story
+      9.1), plate tile on other types, one concluded-sheet definition (E78-R2), 12.1
+      tap-guard timing, E6-A2 e2e:full rule, the carried Epic 7 questions; answers
+      as dated lines"
     owner: "Matheus (Bruno for wording); coordinator records"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
   - id: "epic-8-retro-item-61-e8-a4-sidecar-contract-drift-gate"
     epic: 8
-    action: "E8-A4 Owner for deferred 'OCR contract change passes verify without the sidecar': a PR touching contract/ocr.ts, the committed schema or services/ocr runs the sidecar build and pytest under the lock and pastes the output"
+    action: "E8-A4 Owner for deferred 'OCR contract change passes verify without the
+      sidecar': a PR touching contract/ocr.ts, the committed schema or services/ocr
+      runs the sidecar build and pytest under the lock and pastes the output"
     owner: "coordinator (playbook); dev for an optional tooling check"
     status: done  # playbook rule a2cd053; applied in PR #56; tooling check in batch C2
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
   - id: "epic-8-retro-item-62-e8-a5-epic-9-carry-over-lows"
     epic: 8
-    action: "E8-A5 Epic 9 carry-over lows: E78-R1 crop region, EXIF orientation of thumb/print, crop-blob eviction and re-download, close the stale 'tile stays queued' entry with the QA refutation"
+    action: "E8-A5 Epic 9 carry-over lows: E78-R1 crop region, EXIF orientation of
+      thumb/print, crop-blob eviction and re-download, close the stale 'tile stays
+      queued' entry with the QA refutation"
     owner: "Epic 9 carry-over batch (dev); coordinator for the stale entry"
     status: done  # PR #57 (crop region, eviction, re-download, stale entry); EXIF in PR #60
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
   - id: "epic-8-retro-item-63-e8-a6-pipeline-e2e-through-the-real-job"
     epic: 8
-    action: "E8-A6 A feature with a server pipeline gets one @p1 e2e from the UI entry through the real job under fake providers, no server-op seeding; playbook now, DoD wording for Matheus"
+    action: "E8-A6 A feature with a server pipeline gets one @p1 e2e from the UI entry
+      through the real job under fake providers, no server-op seeding; playbook now,
+      DoD wording for Matheus"
     owner: "coordinator; Matheus approves the DoD wording"
     status: in-progress  # playbook rule a2cd053, applied in 9.1; DoD wording for Matheus
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
   - id: "epic-8-retro-item-64-e8-a7-tc-12-plate-flow-on-a-device"
     epic: 8
-    action: "E8-A7 Add the plate flow (offline shot, queued line, upload on signal, toast, Confirmar todos, Criar offline) to the E1-A1 script and run it with E6-A5 and E12-A3; evidence in test-artifacts/manual"
+    action: "E8-A7 Add the plate flow (offline shot, queued line, upload on signal,
+      toast, Confirmar todos, Criar offline) to the E1-A1 script and run it with E6-A5
+      and E12-A3; evidence in test-artifacts/manual"
     owner: "Matheus"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
   - id: "epic-8-retro-item-65-e8-a8-story-9-1-dor-remaining-gaps"
     epic: 8
-    action: "E8-A8 Story 9.1 DoR: range-source answer, real tablet photos of the four displays, a decision on the 2 ambiguous crops; dated line when ready"
+    action: "E8-A8 Story 9.1 DoR: range-source answer, real tablet photos of the four
+      displays, a decision on the 2 ambiguous crops; dated line when ready"
     owner: "Matheus; coordinator for the line"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
   - id: "epic-9-retro-item-73-e9-a1-gate-budget-stop-rule"
     epic: 9
-    action: "E9-A1 Decide the gate-budget stop rule (E9-Q6): a dated AGENTS.md/DoD amendment to a measured budget, or a split gate; name the lock-wait target; supersedes the 900 s targets of E7-A1/E8-A1, before Epic 10's first story PR"
+    action: "E9-A1 Decide the gate-budget stop rule (E9-Q6): a dated AGENTS.md/DoD
+      amendment to a measured budget, or a split gate; name the lock-wait target;
+      supersedes the 900 s targets of E7-A1/E8-A1, before Epic 10's first story PR"
     owner: "Matheus"
     status: done  # AGENTS.md 2026-09-30 split merge gate (Matheus)
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-74-e9-a2-no-merge-on-red-gate"
     epic: 9
-    action: "E9-A2 No merge with a red or partial gate: a flake needs a green verify on the same commit and an explained failing state; a PR that merges main after its gate re-runs full verify; Epic 10 target 0 such merges"
+    action: "E9-A2 No merge with a red or partial gate: a flake needs a green verify
+      on the same commit and an explained failing state; a PR that merges main after
+      its gate re-runs full verify; Epic 10 target 0 such merges"
     owner: "coordinator (playbook)"
     status: done  # playbook 2026-09-29
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-75-e9-a3-lock-aware-agents"
     epic: 9
-    action: "E9-A3 Agents never block a stream on flock (gate in the background, polls of at most 60 s); per-batch scratchpad/<batch>/; reports go only to the parent; lock wait recorded per PR; Epic 10 target 0 watchdog kills, 0 shared-file overwrites"
+    action: "E9-A3 Agents never block a stream on flock (gate in the background, polls
+      of at most 60 s); per-batch scratchpad/<batch>/; reports go only to the parent;
+      lock wait recorded per PR; Epic 10 target 0 watchdog kills, 0 shared-file overwrites"
     owner: "coordinator (playbook)"
     status: done  # playbook 2026-09-29
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-76-e9-a4-cross-story-interaction-tests"
     epic: 9
-    action: "E9-A4 The epic context lists every story pair sharing a cell, entity, op path or undo batch, and the later batch owns an e2e for each pair; 390 px checks assert table scroll containers, not only the page"
+    action: "E9-A4 The epic context lists every story pair sharing a cell, entity,
+      op path or undo batch, and the later batch owns an e2e for each pair; 390 px
+      checks assert table scroll containers, not only the page"
     owner: "coordinator"
     status: done  # Epic 10 retro: pairs owned and tested; per-item gap carried by E10-A3
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-77-e9-a5-deferred-ledger-ownership"
     epic: 9
-    action: "E9-A5 deferred-work: close 1113 (fixed E9-Q2) and 1125 (refuted by QA (g)); re-own 1065-1137; route 1149 (accept), 1155 (add verify-fill-under-dictation e2e), 1161 (Epic 10); target 0 entries owned by a finished review or retro"
+    action: "E9-A5 deferred-work: close 1113 (fixed E9-Q2) and 1125 (refuted by QA
+      (g)); re-own 1065-1137; route 1149 (accept), 1155 (add verify-fill-under-dictation
+      e2e), 1161 (Epic 10); target 0 entries owned by a finished review or retro"
     owner: "Epic 10 carry-over batch"
     status: done  # PR #63
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-78-e9-a6-real-display-accuracy"
     epic: 9
-    action: "E9-A6 Run the plate and display paths and keep the higher-confidence value; re-score on real crops and tablet photos (E8-A8); target at least 8/15 real, with the tablet set scored in docs/display-reading-spike.md"
+    action: "E9-A6 Run the plate and display paths and keep the higher-confidence
+      value; re-score on real crops and tablet photos (E8-A8); target at least 8/15
+      real, with the tablet set scored in docs/display-reading-spike.md"
     owner: "dev batch; Matheus for photos"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-79-e9-a7-split-suggestions-ts"
     epic: 9
-    action: "E9-A7 Split packages/domain/src/relatorio/suggestions.ts (905 lines, 68 exports) by concern (plate crop, measurement/display, env, text), no behavior change; no relatorio/ file over 500 lines"
+    action: "E9-A7 Split packages/domain/src/relatorio/suggestions.ts (905 lines,
+      68 exports) by concern (plate crop, measurement/display, env, text), no behavior
+      change; no relatorio/ file over 500 lines"
     owner: "Epic 10 carry-over batch"
     status: done  # PR #63
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-80-e9-a8-epic-9-product-questions"
     epic: 9
-    action: "E9-A8 Add to the E5-A3 session: E9-Q15, Q16 (a blocker before Epic 11), Q17, Q18 (range source, display walk across rows, print-only values), the Conferir line layout at 1280, the per-user SW pin (AD-8); dated answers under Stories 9.1-9.5"
+    action: "E9-A8 Add to the E5-A3 session: E9-Q15, Q16 (a blocker before Epic 11),
+      Q17, Q18 (range source, display walk across rows, print-only values), the Conferir
+      line layout at 1280, the per-user SW pin (AD-8); dated answers under Stories
+      9.1-9.5"
     owner: "Matheus (Bruno for wording)"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-81-e9-a9-speech-engine-default"
     epic: 9
-    action: "E9-A9 Until vendor audio is approved (Q18), default VITE_SPEECH_ENGINE to none in docker-compose.yml and .env.example, or add consent text before the first dictation"
+    action: "E9-A9 Until vendor audio is approved (Q18), default VITE_SPEECH_ENGINE
+      to none in docker-compose.yml and .env.example, or add consent text before the
+      first dictation"
     owner: "dev; Matheus approves"
     status: done  # PR #63
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-82-e9-a10-device-script-epic-9-flows"
     epic: 9
-    action: "E9-A10 Add Ler visor on real displays, dictation on a real tablet (Chrome/Safari) and Fotografar equipamento to the E1-A1 device script; run it with E6-A5, E8-A7, E12-A3; evidence in test-artifacts/manual/"
+    action: "E9-A10 Add Ler visor on real displays, dictation on a real tablet (Chrome/Safari)
+      and Fotografar equipamento to the E1-A1 device script; run it with E6-A5, E8-A7,
+      E12-A3; evidence in test-artifacts/manual/"
     owner: "Matheus"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-10-retro-item-83-e10-a1-gate-decision-draft"
     epic: 10
-    action: "E10-A1 Draft the E9-A1 decision from Epic 10 data: split gate (story PR = lint, static, unit, api, @p0 e2e plus touched specs and their durability specs on the matrix; e2e:full and full matrix once per wave on integrated main and at the epic QA; #68 precedent), with X's two 70-min cycles and the 948-2162 s wave-2 lock waits"
+    action: "E10-A1 Draft the E9-A1 decision from Epic 10 data: split gate (story
+      PR = lint, static, unit, api, @p0 e2e plus touched specs and their durability
+      specs on the matrix; e2e:full and full matrix once per wave on integrated main
+      and at the epic QA; #68 precedent), with X's two 70-min cycles and the 948-2162
+      s wave-2 lock waits"
     owner: "coordinator drafts; Matheus decides"
     status: done  # AGENTS.md 2026-09-30 split merge gate (Matheus)
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
   - id: "epic-10-retro-item-84-e10-a2-push-wip-checkpoints"
     epic: 10
-    action: "E10-A2 Batches push their branch to origin after each commit that precedes a gate run and before any long wait, not only commit (the 18:10 restart wiped /tmp with the fix branch unpushed); Epic 11 target: every gate run starts from a commit on origin"
+    action: "E10-A2 Batches push their branch to origin after each commit that precedes
+      a gate run and before any long wait, not only commit (the 18:10 restart wiped
+      /tmp with the fix branch unpushed); Epic 11 target: every gate run starts from
+      a commit on origin"
     owner: "coordinator (playbook)"
     status: done  # applied by the coordinator 2026-09-29
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
   - id: "epic-10-retro-item-85-e10-a3-one-test-per-shared-item"
     epic: 10
-    action: "E10-A3 Refine E9-A4: every item in a pair's 'What they share' cell gets its own named assertion in the epic context, and the undo of each new op kind or resolution against the Epic 5 inverse is always a listed pair (E10-Q2, E10-Q3 fell between batches)"
+    action: "E10-A3 Refine E9-A4: every item in a pair's 'What they share' cell gets
+      its own named assertion in the epic context, and the undo of each new op kind
+      or resolution against the Epic 5 inverse is always a listed pair (E10-Q2, E10-Q3
+      fell between batches)"
     owner: "coordinator"
     status: done  # applied by the coordinator 2026-09-29
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
   - id: "epic-10-retro-item-86-e10-a4-targeted-matrix-per-batch"
     epic: 10
-    action: "E10-A4 A batch changing the fold, the commit path or a live query on the ficha runs its touched durability specs on test:e2e:matrix (three projects, targeted) before its PR; Epic 11 target 0 matrix regressions first found at the epic QA"
+    action: "E10-A4 A batch changing the fold, the commit path or a live query on
+      the ficha runs its touched durability specs on test:e2e:matrix (three projects,
+      targeted) before its PR; Epic 11 target 0 matrix regressions first found at
+      the epic QA"
     owner: "coordinator (playbook)"
     status: done  # applied by the coordinator 2026-09-29
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
   - id: "epic-10-retro-item-87-e10-a5-relocate-story-10-4-narrowing"
     epic: 10
-    action: "E10-A5 Move the PR #65 narrowing from epics.md:489 (Epic List overview, stray leading '#') to under Story 10.4 with a dated relocation note"
+    action: "E10-A5 Move the PR #65 narrowing from epics.md:489 (Epic List overview,
+      stray leading '#') to under Story 10.4 with a dated relocation note"
     owner: "coordinator"
     status: done  # applied by the coordinator 2026-09-29
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
   - id: "epic-10-retro-item-88-e10-a6-epic-10-product-questions"
     epic: 10
-    action: "E10-A6 Add to the E5-A3 session: undoable resolutions (E10-Q2, option (b) built), NC vs NA contradiction, contradiction/merge as pre-issue row, 'de {nome}' for the viewer, 'contradição/decisão' wording (E10-Q4), waiting photo bytes and the badge, 'leituras prontas', three-device last-two values, ledger 1071, 370 and the third merge-fold limit; dated answers under Stories 10.1-10.4"
+    action: "E10-A6 Add to the E5-A3 session: undoable resolutions (E10-Q2, option
+      (b) built), NC vs NA contradiction, contradiction/merge as pre-issue row, 'de
+      {nome}' for the viewer, 'contradição/decisão' wording (E10-Q4), waiting photo
+      bytes and the badge, 'leituras prontas', three-device last-two values, ledger
+      1071, 370 and the third merge-fold limit; dated answers under Stories 10.1-10.4"
     owner: "Matheus (Bruno for wording)"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
   - id: "epic-10-retro-item-89-e10-a7-device-script-two-tablets"
     epic: 10
-    action: "E10-A7 Add to the E1-A1 manual device script a two-tablet NC/C merge, a cell contradiction with Aplicar and Desfazer, and a removed-versus-edited block via Sincronizar agora; run it with E6-A5, E8-A7, E9-A10, E12-A3; evidence in test-artifacts/manual/"
+    action: "E10-A7 Add to the E1-A1 manual device script a two-tablet NC/C merge,
+      a cell contradiction with Aplicar and Desfazer, and a removed-versus-edited
+      block via Sincronizar agora; run it with E6-A5, E8-A7, E9-A10, E12-A3; evidence
+      in test-artifacts/manual/"
     owner: "Matheus"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
   - id: "epic-11-retro-item-90-e11-a1-gate-time-answer"
     epic: 11
-    action: "E11-A1 Answer 'os testes estão demorando muito': profile the @p0 e2e (1405-1738 s of every verify) and propose either a story verify of lint, static, unit, api and touched specs with the full @p0 in the per-wave integrated gate (Epic 11 precedent), or a dated DoD budget with the measured number; target story gate <= 15 min or the dated budget"
+    action: "E11-A1 Answer 'os testes estão demorando muito': profile the @p0 e2e
+      (1405-1738 s of every verify) and propose either a story verify of lint, static,
+      unit, api and touched specs with the full @p0 in the per-wave integrated gate
+      (Epic 11 precedent), or a dated DoD budget with the measured number; target
+      story gate <= 15 min or the dated budget"
     owner: "coordinator drafts; Matheus decides"
     status: done  # 2026-10-08, Matheus: story gate (lint, static, unit, api, touched specs), full @p0 per wave; AGENTS.md Decisions of record
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-91-e11-a2-close-11-8-live-evidence"
     epic: 11
-    action: "E11-A2 Close Story 11.8: explain the 502 on /api/health at 15:10 on 2026-09-30 (ECS events, exit codes, OOM), record DEPLOY-SMOKE as the post-merge step, 11.8-ROLE through the ECS task role (DetectDocumentText, a denied Converse outside the allow list, simulate-principal-policy with the budget deny), one night stop/start and one Caddy renewal; then 11-8 done, deferred-work.md:1224 closed, first bill compared with USD 78.83"
+    action: "E11-A2 Close Story 11.8: explain the 502 on /api/health at 15:10 on 2026-09-30
+      (ECS events, exit codes, OOM), record DEPLOY-SMOKE as the post-merge step, 11.8-ROLE
+      through the ECS task role (DetectDocumentText, a denied Converse outside the
+      allow list, simulate-principal-policy with the budget deny), one night stop/start
+      and one Caddy renewal; then 11-8 done, deferred-work.md:1224 closed, first bill
+      compared with USD 78.83"
     owner: "Matheus (AWS login) with the coordinator"
     status: done  # 2026-09-30 coordinator: the 15:10 502 is the api roll of the #79 deploy (ECS events 18:10:53-18:12:38 UTC); health all up after; budget action fasor-monthly APPLY_IAM_POLICY AUTOMATIC STANDBY at 100 % on fasor-production-app and fasor-app; task role = fasor-app-bedrock-textract + files-bucket; live Textract through fasor-app 42 tokens (PR #69)
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-92-e11-a3-visible-gate-lock"
     epic: 11
-    action: "E11-A3 Wrap the gate lock in a script that records holder pid, session, command and start time and refuses to wait silently behind a holder older than 60 min (a stuck measure.sh held it about 4 h; lock waits of 1-3.7 h per batch); target Epic 12: no wait over 30 min from a dead or stuck holder"
+    action: "E11-A3 Wrap the gate lock in a script that records holder pid, session,
+      command and start time and refuses to wait silently behind a holder older than
+      60 min (a stuck measure.sh held it about 4 h; lock waits of 1-3.7 h per batch);
+      target Epic 12: no wait over 30 min from a dead or stuck holder"
     owner: "coordinator (playbook and script)"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-93-e11-a4-rotate-password-seed-from-ssm"
     epic: 11
-    action: "E11-A4 Rotate the production admin password exposed in the chat and in the ECS task description; seed through a task definition reading the password from SSM (secrets, not an env override) or a seed entry point in the prod image; playbook: agents never open or print a secrets file"
+    action: "E11-A4 Rotate the production admin password exposed in the chat and in
+      the ECS task description; seed through a task definition reading the password
+      from SSM (secrets, not an env override) or a seed entry point in the prod image;
+      playbook: agents never open or print a secrets file"
     owner: "Matheus (rotation); coordinator (task definition, playbook)"
     status: in-progress  # PR #83: seed-users reads SEED_USER_PASSWORD; rotating the exposed production password is still Matheus's
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-94-e11-a5-a12-hardening-story"
     epic: 11
-    action: "E11-A5 Make A12 a story via bmad-correct-course before the production URL goes to the design partner: rate limiting on /api/auth/* and the push route, Caddy security headers, a push body limit, better-auth production rate-limit defaults checked; target headers present, 429 after N failed sign-ins, 413 on an oversized push, A12 closed"
+    action: "E11-A5 Make A12 a story via bmad-correct-course before the production
+      URL goes to the design partner: rate limiting on /api/auth/* and the push route,
+      Caddy security headers, a push body limit, better-auth production rate-limit
+      defaults checked; target headers present, 429 after N failed sign-ins, 413 on
+      an oversized push, A12 closed"
     owner: "Matheus (priority); architect"
     status: done  # PR #83 (api headers and CSP, body limits, rate limits, production SESSION_SECRET check, HSTS at the edge)
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-95-e11-a6-epic-11-product-questions"
     epic: 11
-    action: "E11-A6 Add to the E5-A3 session: the per-relatório rich editor vs Story 11.4's plain-text AC (PR #79), Graviton vs x86-64, panel to Textract or ocr-svc, rail rows with 'Mover para…', rename checked by default, obra name as template default, 'pontos sem prazo' prazo or priority, the empty action-plan table, authored P4 hint and toasts, the CloudFront fallback HTTP leg, the 401 wording; dated answers under Stories 11.1-11.10"
+    action: "E11-A6 Add to the E5-A3 session: the per-relatório rich editor vs Story
+      11.4's plain-text AC (PR #79), Graviton vs x86-64, panel to Textract or ocr-svc,
+      rail rows with 'Mover para…', rename checked by default, obra name as template
+      default, 'pontos sem prazo' prazo or priority, the empty action-plan table,
+      authored P4 hint and toasts, the CloudFront fallback HTTP leg, the 401 wording;
+      dated answers under Stories 11.1-11.10"
     owner: "Matheus (Bruno for wording)"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-96-e11-a7-recheck-pr-79"
     epic: 11
-    action: "E11-A7 QA re-check of PR #79 (DOCX and PDF download and share as files, every loading state, the rich editor on the per-relatório surface) appended to reviews/epic-11-review-qa.md; the real iPadOS and Android file share added to the E1-A1 device script; the leaked screenshot deleted from the main checkout"
+    action: "E11-A7 QA re-check of PR #79 (DOCX and PDF download and share as files,
+      every loading state, the rich editor on the per-relatório surface) appended
+      to reviews/epic-11-review-qa.md; the real iPadOS and Android file share added
+      to the E1-A1 device script; the leaked screenshot deleted from the main checkout"
     owner: "coordinator (re-check); Matheus (device)"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-97-e11-a8-playbook-shared-fix-stale-api-paths"
     epic: 11
-    action: "E11-A8 Playbook: a shared-file fix two batches need (toast.tsx) has one owning batch named by the coordinator; a batch restarts the compose api after changing packages/domain before a gate; QA and MCP screenshot paths are absolute inside the agent worktree; target Epic 12: 0 duplicate shared fixes, 0 stale-api false reds, 0 leaked files"
+    action: "E11-A8 Playbook: a shared-file fix two batches need (toast.tsx) has one
+      owning batch named by the coordinator; a batch restarts the compose api after
+      changing packages/domain before a gate; QA and MCP screenshot paths are absolute
+      inside the agent worktree; target Epic 12: 0 duplicate shared fixes, 0 stale-api
+      false reds, 0 leaked files"
     owner: "coordinator (playbook)"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-98-e11-a9-unblock-story-11-6"
     epic: 11
-    action: "E11-A9 Track the Bedrock quota support case; when a quota is above 0 run the 11.6 Definition of Ready (Converse through fasor-app on Sonnet 5.5 and one cheaper candidate), then build 11.6 with MIN raised to 14 or later (PR #72) and ai_features on"
+    action: "E11-A9 Track the Bedrock quota support case; when a quota is above 0
+      run the 11.6 Definition of Ready (Converse through fasor-app on Sonnet 5.5 and
+      one cheaper candidate), then build 11.6 with MIN raised to 14 or later (PR #72)
+      and ai_features on"
     owner: "Matheus (support case); coordinator (batch L)"
     status: done  # Bedrock unblocked 2026-10-05 on Haiku 4.5; Story 11.6 merged in PR #88
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-99-e11-a10-infra-offline-checks"
     epic: 11
-    action: "E11-A10 infra/bin/check gains a Caddy run of the production Caddyfile on a local IP curled with no SNI, and an ASCII check on Terraform description values; both fail on the pre-#76 and pre-#78 trees and pass on main"
+    action: "E11-A10 infra/bin/check gains a Caddy run of the production Caddyfile
+      on a local IP curled with no SNI, and an ASCII check on Terraform description
+      values; both fail on the pre-#76 and pre-#78 trees and pass on main"
     owner: "coordinator"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-13-retro-item-100-e13-a1-wave-gate-on-75c4bad"
     epic: 13
-    action: "E13-A1 Run the wave gate on integrated main 75c4bad before Epic 14 starts: full @p0, test:e2e:full and the full test:e2e:matrix under the lock with the main stack stopped; a red stage becomes a fix batch; target all three green, only failures also red on b1c2c6b left, each with a ledger row"
+    action: "E13-A1 Run the wave gate on integrated main 75c4bad before Epic 14 starts:
+      full @p0, test:e2e:full and the full test:e2e:matrix under the lock with the
+      main stack stopped; a red stage becomes a fix batch; target all three green,
+      only failures also red on b1c2c6b left, each with a ledger row"
     owner: "coordinator"
     status: done  # 2026-10-08 on a8b9b0e: verify green, e2e:full 409/415, matrix 80/93, failures known or pre-epic (deferred-work rows)
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-101-e13-a2-fix-recurring-unit-failures"
     epic: 13
-    action: "E13-A2 Fix the three recurring unit failures (theme.test.tsx, export-dialog.test.tsx drain under load, number-input.test.tsx:21 harness timer); until then a PR names each red unit test and its isolated pass; target test:unit exit 0 in two consecutive story gates, 0 PRs merged with a red stage"
+    action: "E13-A2 Fix the three recurring unit failures (theme.test.tsx, export-dialog.test.tsx
+      drain under load, number-input.test.tsx:21 harness timer); until then a PR names
+      each red unit test and its isolated pass; target test:unit exit 0 in two consecutive
+      story gates, 0 PRs merged with a red stage"
     owner: "next carry-over batch"
     status: done  # 2026-10-15: PR #137; test:unit exit 0 in two consecutive gates on an idle host (#137 gate 4122/4122, #133 pre-merge 4134/4134, wave gate 2026-10-15 green); load-only timeouts remain when three stacks share the VM
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-102-e13-a3-epic-13-device-script"
     epic: 13
-    action: "E13-A3 Add the Epic 13 device steps to test-artifacts/manual/offline-proof-script.md (13.1 capture size per path on Android and iPad, 13.2 torch/zoom/focus in a dark cubicle, 13.3 iPad pinch, 13.4 iOS decimal pad commit by tap, 13.3/13.6 WebKit legs), meeting the 13.1/13.2 DoD as written; run with E6-A5, E8-A7, E9-A10, E10-A7, E12-A3; evidence in test-artifacts/manual"
+    action: "E13-A3 Add the Epic 13 device steps to test-artifacts/manual/offline-proof-script.md
+      (13.1 capture size per path on Android and iPad, 13.2 torch/zoom/focus in a
+      dark cubicle, 13.3 iPad pinch, 13.4 iOS decimal pad commit by tap, 13.3/13.6
+      WebKit legs), meeting the 13.1/13.2 DoD as written; run with E6-A5, E8-A7, E9-A10,
+      E10-A7, E12-A3; evidence in test-artifacts/manual"
     owner: "coordinator (script lines); Matheus (device run)"
     status: done  # 2026-10-14: steps 9-13 in test-artifacts/manual/offline-proof-script.md and rows in its result template; the device run itself is Matheus's, with the other device items
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-103-e13-a4-ledger-cleanup"
     epic: 13
-    action: "E13-A4 deferred-work: close the EXPERIENCE.md Salvo row (landed #109); re-own the panel wait-text/cancel-order test row and the audit worker invalid-payload test row to the next carry-over batch; record the 2026-10-07 every-device decision on the panel palette row and route or accept the two-device double-confirm risk; target 0 rows owned by a finished batch"
+    action: "E13-A4 deferred-work: close the EXPERIENCE.md Salvo row (landed #109);
+      re-own the panel wait-text/cancel-order test row and the audit worker invalid-payload
+      test row to the next carry-over batch; record the 2026-10-07 every-device decision
+      on the panel palette row and route or accept the two-device double-confirm risk;
+      target 0 rows owned by a finished batch"
     owner: "coordinator"
     status: done  # 2026-10-14: deferred-work Salvo row closed (#109), panel palette decision recorded and the double-confirm risk routed, wait-text and ?panel= rows re-owned
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-104-e13-a5-handoff-every-phase"
     epic: 13
-    action: "E13-A5 Playbook: WIP commit, push and HANDOFF.md update at every phase boundary (spec ready, review done, gate started), and a coordinator resume procedure from HANDOFF.md, after three classifier stalls killed orchestrators in Epic 13; target a stalled Epic 14 batch resumes with no rework beyond its last phase"
+    action: "E13-A5 Playbook: WIP commit, push and HANDOFF.md update at every phase
+      boundary (spec ready, review done, gate started), and a coordinator resume procedure
+      from HANDOFF.md, after three classifier stalls killed orchestrators in Epic
+      13; target a stalled Epic 14 batch resumes with no rework beyond its last phase"
     owner: "coordinator (playbook)"
     status: done  # 2026-10-14: folded into E14-A6 (epic-batch-orchestrator.md section 3)
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-105-e13-a6-capture-refactor"
     epic: 13
-    action: "E13-A6 Refactor without behavior change: one pointer-gesture core shared by use-pinch-zoom.ts and the camera controls, and camera-view.tsx (899 lines) split into stream/session, capabilities/controls and single-shot modules; target no camera file over 400 lines, camera, zoom and plate-shot-fallback specs green"
+    action: "E13-A6 Refactor without behavior change: one pointer-gesture core shared
+      by use-pinch-zoom.ts and the camera controls, and camera-view.tsx (899 lines)
+      split into stream/session, capabilities/controls and single-shot modules; target
+      no camera file over 400 lines, camera, zoom and plate-shot-fallback specs green"
     owner: "next carry-over batch"
     status: done  # 2026-10-15: PR #133 (pointer-gesture core, camera-view.tsx split, no camera file over 400 lines); camera, zoom and plate-shot specs green
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-106-e13-a7-fallback-and-capture-test-rules"
     epic: 13
-    action: "E13-A7 Playbook test rules: a story adopting a browser API with a fallback ships an e2e on the real surface stubbing the API to reject and to hang (plate-shot-fallback.spec.ts pattern); an e2e that captures asserts a property of the captured file (its size), not only that it exists"
+    action: "E13-A7 Playbook test rules: a story adopting a browser API with a fallback
+      ships an e2e on the real surface stubbing the API to reject and to hang (plate-shot-fallback.spec.ts
+      pattern); an e2e that captures asserts a property of the captured file (its
+      size), not only that it exists"
     owner: "coordinator (playbook)"
     status: done  # 2026-10-14: rules in epic-batch-orchestrator.md section 4
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-107-e13-a8-epic-13-product-questions"
     epic: 13
-    action: "E13-A8 Add to the E5-A3 session: authored copy pending Bruno (13.2 torch/zoom/refusal, 13.8 audit copy and .precheck look, Ler de novo, Recorte na tela, F-09 banner and burst line, wait announcements), Q-2 Hoje on Proxima intervencao, Q-4 cables nameplate, the 13.4 typed-year-over-suggestion parse, the #110 toast priority rule (arrival opt-in); dated answers under Stories 13.2-13.8"
+    action: "E13-A8 Add to the E5-A3 session: authored copy pending Bruno (13.2 torch/zoom/refusal,
+      13.8 audit copy and .precheck look, Ler de novo, Recorte na tela, F-09 banner
+      and burst line, wait announcements), Q-2 Hoje on Proxima intervencao, Q-4 cables
+      nameplate, the 13.4 typed-year-over-suggestion parse, the #110 toast priority
+      rule (arrival opt-in); dated answers under Stories 13.2-13.8"
     owner: "Matheus (Bruno for wording)"
     status: open  # 2026-10-15: Bruno's answers (relayed by Matheus) close Q-2: a "Hoje" chip on Proxima intervencao is wanted, built in Story 14.10 part 9. The authored copy (13.2 torch/zoom/refusal, Ler de novo, Recorte na tela, the audit notice) goes to a 10-minute tablet session Bruno accepted, not yet scheduled by Matheus. Still open: that session, Q-4 cables nameplate, the 13.4 typed-year parse, the #110 toast rule
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-108-e13-a9-decide-story-13-9"
     epic: 13
-    action: "E13-A9 Decide Story 13.9: settle its DoR (consent wording, webspeech default) and schedule it, or move it to a later epic with a dated line, so epic-13 can close"
+    action: "E13-A9 Decide Story 13.9: settle its DoR (consent wording, webspeech
+      default) and schedule it, or move it to a later epic with a dated line, so epic-13
+      can close"
     owner: "Matheus"
     status: done  # 2026-10-21 (Bruno via Matheus, answer 11): Story 13.9 deferred, moved to the epics.md "Backlog: deferred stories" section with a dated line; epic-13 closes
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-109-e13-a10-measure-story-gate"
     epic: 13
-    action: "E13-A10 Measure the 2026-10-08 story gate and load rules on Epic 14's first wave from the PR bodies (lock wait, gate wall time, reruns per batch); fold in E11-A3 lock-holder visibility if a wait exceeds 60 min; target every lock wait under 60 min, at most one rerun per batch"
+    action: "E13-A10 Measure the 2026-10-08 story gate and load rules on Epic 14's
+      first wave from the PR bodies (lock wait, gate wall time, reruns per batch);
+      fold in E11-A3 lock-holder visibility if a wait exceeds 60 min; target every
+      lock wait under 60 min, at most one rerun per batch"
     owner: "coordinator"
     status: done  # 2026-10-14: measured on PRs #126-#130 in epic-14-retro-2026-10-14.md (longest lock wait 1074 s, gate wall 10-34 min, #127 two reruns); E11-A3 not folded (no wait over 60 min)
     ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
   - id: "epic-14-retro-item-110-e14-a1-full-and-matrix-on-62db6c2"
     epic: 14
-    action: "E14-A1 Run test:e2e:full and the full test:e2e:matrix on main 62db6c2 before the next epic, under the lock with the main stack stopped; a red stage becomes a fix batch; target both green or only failures also red on 4bce905, each with a ledger row"
+    action: "E14-A1 Run test:e2e:full and the full test:e2e:matrix on main 62db6c2
+      before the next epic, under the lock with the main stack stopped; a red stage
+      becomes a fix batch; target both green or only failures also red on 4bce905,
+      each with a ledger row"
     owner: "coordinator"
     status: done  # 2026-10-14 on main f2c0bb8 (lock wait 0 s): test:e2e:full 480 of 485 passed, 1 failed, 4 skipped (1847 s); test:e2e:matrix 102 of 114 passed, 1 failed, 11 skipped (358 s). The two reds are the known points 6.6-E2E-011 and WebKit ficha.durability F-11, both in E14-A7 (carry-over); no Epic 14 red
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-111-e14-a2-ledger-cleanup"
     epic: 14
-    action: "E14-A2 deferred-work: close or re-own the ten Epic 14 rows owned by a finished event (epic QA, integrated review, wave gate, browser pass, unscheduled epic 14 deferred sweep, batch e14a), close the boot-wiring and relatorio-tree-edges rows, fold in the E13-A4 leftovers (1382, 1403); target 0 rows owned by a finished batch, review, QA, gate or unscheduled sweep"
+    action: "E14-A2 deferred-work: close or re-own the ten Epic 14 rows owned by a
+      finished event (epic QA, integrated review, wave gate, browser pass, unscheduled
+      epic 14 deferred sweep, batch e14a), close the boot-wiring and relatorio-tree-edges
+      rows, fold in the E13-A4 leftovers (1382, 1403); target 0 rows owned by a finished
+      batch, review, QA, gate or unscheduled sweep"
     owner: "coordinator"
     status: done  # 2026-10-14: deferred-work rows owned by finished events closed or re-owned (boot-wiring and relatorio-tree-edges closed); the rows held by co14a/co14b left to them
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-112-e14-a3-closed-list-spec-rule"
     epic: 14
-    action: "E14-A3 Playbook: a batch that adds a value to a closed list other specs assert (block type, palette row, enum value, seed version) runs every spec asserting that list (found by grep) beside its touched specs; specs read such lists from the kernel (e2e/support/palette.ts), never a literal; target next wave gate 0 reds from stale expectations"
+    action: "E14-A3 Playbook: a batch that adds a value to a closed list other specs
+      assert (block type, palette row, enum value, seed version) runs every spec asserting
+      that list (found by grep) beside its touched specs; specs read such lists from
+      the kernel (e2e/support/palette.ts), never a literal; target next wave gate
+      0 reds from stale expectations"
     owner: "coordinator (playbook)"
     status: done  # 2026-10-14: rule in epic-batch-orchestrator.md section 4
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-113-e14-a4-dor-capability-check"
     epic: 14
-    action: "E14-A4 Definition of Ready check: every verb a criterion asks of a surface (remove, move, restore) is checked against what the surface does today and against the ledger; a missing capability becomes named scope with its own criteria before the build (14.2 removal gap, deferred-work 1203); target 0 scope additions at PR review in the next epic"
+    action: "E14-A4 Definition of Ready check: every verb a criterion asks of a surface
+      (remove, move, restore) is checked against what the surface does today and against
+      the ledger; a missing capability becomes named scope with its own criteria before
+      the build (14.2 removal gap, deferred-work 1203); target 0 scope additions at
+      PR review in the next epic"
     owner: "Matheus (with John at story writing); coordinator (DoR check)"
     status: done  # 2026-10-14: rule in epic-batch-orchestrator.md section 6 and docs/kbs/workflow/story-delivery.md
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-114-e14-a5-patched-not-re-reviewed"
     epic: 14
-    action: "E14-A5 Playbook: a review-loop patch to an evaluation, verdict or lock rule ships with a boundary test (zero, negative, equal, at limit) and is listed in the PR body under patched, not re-reviewed, which the integrated review reads first (Q-3, Q-12 came from such patches); target every PR body carries the list, QA finds 0 defects in listed patches"
+    action: "E14-A5 Playbook: a review-loop patch to an evaluation, verdict or lock
+      rule ships with a boundary test (zero, negative, equal, at limit) and is listed
+      in the PR body under patched, not re-reviewed, which the integrated review reads
+      first (Q-3, Q-12 came from such patches); target every PR body carries the list,
+      QA finds 0 defects in listed patches"
     owner: "coordinator (playbook)"
     status: done  # 2026-10-14: rule in epic-batch-orchestrator.md section 4
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-115-e14-a6-orchestrator-handback-and-handoff"
     epic: 14
-    action: "E14-A6 Playbook: land E13-A5 (WIP commit, push and HANDOFF.md at every phase boundary, coordinator resume from it); an orchestrator never hands back while a child it launched still runs and its final message states every child; add the stacked-merge recipe (take main for files the batch did not change, re-apply its delta); target 0 coordinator resumes of a handed-back orchestrator in the next epic"
+    action: "E14-A6 Playbook: land E13-A5 (WIP commit, push and HANDOFF.md at every
+      phase boundary, coordinator resume from it); an orchestrator never hands back
+      while a child it launched still runs and its final message states every child;
+      add the stacked-merge recipe (take main for files the batch did not change,
+      re-apply its delta); target 0 coordinator resumes of a handed-back orchestrator
+      in the next epic"
     owner: "coordinator (playbook)"
     status: done  # 2026-10-14: rules in epic-batch-orchestrator.md sections 3 and 4 (folds E13-A5)
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-116-e14-a7-carry-over-batch-first"
     epic: 14
-    action: "E14-A7 Run a carry-over batch first in the next epic (E6-A7): quantity-stepper flake (deferred-work 1685), open e2e failures 6.6-E2E-011, 7.5-E2E-003, WebKit F-11, E13-A6 camera-view.tsx split (992 lines), relatorio-tree.tsx split by presentation (1029 lines), camera returnFocus row (1931), panel reading painel target (1791); target test:unit exit 0 in two consecutive story gates, no camera or tree surface file over 600 lines"
+    action: "E14-A7 Run a carry-over batch first in the next epic (E6-A7): quantity-stepper
+      flake (deferred-work 1685), open e2e failures 6.6-E2E-011, 7.5-E2E-003, WebKit
+      F-11, E13-A6 camera-view.tsx split (992 lines), relatorio-tree.tsx split by
+      presentation (1029 lines), camera returnFocus row (1931), panel reading painel
+      target (1791); target test:unit exit 0 in two consecutive story gates, no camera
+      or tree surface file over 600 lines"
     owner: "coordinator (launch); next carry-over batch"
     status: done  # 2026-10-15: carry-over batches co14a (#137) and co14b (#133) merged; wave gate on 0b67a20 found one interaction (14.2-E2E-002, a menu item picked by the focus scroll of #137 under the pointer) fixed in fix/wave-e14-carry-over
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-117-e14-a8-liveness-accessor-and-config-family"
     epic: 14
-    action: "E14-A8 Architect before wave 3: decide location liveness for raw-row readers (one kernel accessor with a static check, or ledger (g) and Q-10 accepted as a list; 90 own removed_at filters, 11 files read liveLocationIds) and the per-key block/{id}/config family (R1, contract 20), with the AD-21/AD-3/AD-15 amendments of Story 14.6's DoR; target a dated AD note for each"
+    action: "E14-A8 Architect before wave 3: decide location liveness for raw-row
+      readers (one kernel accessor with a static check, or ledger (g) and Q-10 accepted
+      as a list; 90 own removed_at filters, 11 files read liveLocationIds) and the
+      per-key block/{id}/config family (R1, contract 20), with the AD-21/AD-3/AD-15
+      amendments of Story 14.6's DoR; target a dated AD note for each"
     owner: "architect (Winston) with Matheus"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-118-e14-a9-epic-14-product-decisions"
     epic: 14
-    action: "E14-A9 Decide before the first real job: site NCs in NC abertos and the parecer suggestion plus an item link on a point (Q-4, count-based blind spot), Q-8 offline site work on a removed local, Q-9 site photos of a removed local in section 7, Q-15/R2 CTA config change on Emitido, 14.3 O1/O2/O4, cabine incompleta row for a local with no equipment, 14.5 W1 select vs segmented and W6 E1/E5 stacking on phone; target dated answers under Stories 14.3-14.5"
+    action: "E14-A9 Decide before the first real job: site NCs in NC abertos and the
+      parecer suggestion plus an item link on a point (Q-4, count-based blind spot),
+      Q-8 offline site work on a removed local, Q-9 site photos of a removed local
+      in section 7, Q-15/R2 CTA config change on Emitido, 14.3 O1/O2/O4, cabine incompleta
+      row for a local with no equipment, 14.5 W1 select vs segmented and W6 E1/E5
+      stacking on phone; target dated answers under Stories 14.3-14.5"
     owner: "Matheus"
     status: open  # 2026-10-14: partly answered by Bruno, PR #130 (b6765c2): Q-4 settled (a site NC counts in NC abertos, the tap focuses its local, the parecer suggests Apto com restricoes naming the item). Still open: the item link on a point, Q-8, Q-9, Q-15/R2, 14.3 O1/O2/O4, cabine incompleta row, 14.5 W1 and W6  # 2026-10-15: Bruno's answers close no further part; answer 6 accepts the parecer wording for a site NC (the Q-4 suggestion), answer 3 records the manufacturer's value as the preferred criterion source and opens a product question (a per-equipment manufacturer criterion on the sheet), answer 2 keeps E4's 14 rows. The parts listed above stay open
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-119-e14-a10-bruno-copy-review"
     epic: 14
-    action: "E14-A10 Bruno's copy review before the first real job: NC phrases of the 19 site items, NO-BREAK DE COMANDO and the 51 CTA phrases (docs/nc-chip-phrases.md), criteria wording and sources, the // authored: strings of PRs #126-#129; target dated answers, 0 rows marked before the first real job open when it starts"
+    action: "E14-A10 Bruno's copy review before the first real job: NC phrases of
+      the 19 site items, NO-BREAK DE COMANDO and the 51 CTA phrases (docs/nc-chip-phrases.md),
+      criteria wording and sources, the // authored: strings of PRs #126-#129; target
+      dated answers, 0 rows marked before the first real job open when it starts"
     owner: "Matheus (Bruno for wording)"
     status: open  # 2026-10-14: not yet reviewed; PR #130 added more // authored: strings (site NC hint, summary and Criterios lines, Corrente de ensaio label) and E4 waits for Bruno's list of rows  # 2026-10-15: Bruno reviewed and accepted the NC phrases (19 site items, NO-BREAK DE COMANDO, 51 CTA) and the CTA criteria wording and sources (manufacturer's value preferred); E1 test current required; E4 keeps its rows. Still open: the // authored: strings of PRs #126-#130, pending the tablet session Matheus schedules  # 2026-10-20: Bruno's answers accept copy outside this item's list (the 17 QGBT/QD NC phrases of Story 14.9, the coluna group title of Story 14.10 part 8) and close no part of it; E13-A8 and E14-A9 are not touched by these answers  # 2026-10-21 (answer 12): the 10-minute tablet session with Bruno to review the authored copy stays open; Matheus schedules it
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-120-e14-a11-story-14-4-pdf-dod"
     epic: 14
-    action: "E14-A11 Meet Story 14.4 DoD: check a v5 relatorio PDF layout against key-print-section-9.html and record it under Story 14.4, or narrow the clause with a dated line (Q-16); target a dated line under Story 14.4"
+    action: "E14-A11 Meet Story 14.4 DoD: check a v5 relatorio PDF layout against
+      key-print-section-9.html and record it under Story 14.4, or narrow the clause
+      with a dated line (Q-16); target a dated line under Story 14.4"
     owner: "coordinator (check); Matheus (narrowing)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-121-e14-a12-real-jobs-and-wave-3-gate"
     epic: 14
-    action: "E14-A12 For each next real relatorio record under Story 14.6, dated: every local carried its checklist, any equipment recorded outside the sheets, count of new-type and adjustment requests; wave 3 starts after two or three such jobs; decide whether epic-14 stays in-progress or 14.6-14.8 move to a later epic; target 2-3 dated job records and a dated line on the epic status"
+    action: "E14-A12 For each next real relatorio record under Story 14.6, dated:
+      every local carried its checklist, any equipment recorded outside the sheets,
+      count of new-type and adjustment requests; wave 3 starts after two or three
+      such jobs; decide whether epic-14 stays in-progress or 14.6-14.8 move to a later
+      epic; target 2-3 dated job records and a dated line on the epic status"
     owner: "Matheus (records, decision); coordinator (lines)"
     status: open  # 2026-10-21 (Bruno via Matheus, answer 13): Bruno has real jobs ready to test as soon as the app is released to him; the count of 2-3 real relatorios starts when he gets production access, each job recorded under Story 14.6
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-122-e14-a13-pnpm-tmp-files"
     epic: 14
-    action: "E14-A13 Stop the _tmp_13_* files pnpm 12.5.1's link probe leaves in bind-mounted worktrees: a .gitignore rule plus an install cleanup, or a pnpm package-import-method that skips the probe; target a batch worktree shows no _tmp_* file after install"
+    action: "E14-A13 Stop the _tmp_13_* files pnpm 12.5.1's link probe leaves in bind-mounted
+      worktrees: a .gitignore rule plus an install cleanup, or a pnpm package-import-method
+      that skips the probe; target a batch worktree shows no _tmp_* file after install"
     owner: "coordinator (tooling)"
     status: done  # 2026-10-15: PR #133, pnpm_config_store_dir in x-app-env skips the probe; a fresh batch install left no _tmp_* file
     ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
   - id: "epic-15-retro-item-123-e15-a1-ledger-hygiene"
     epic: 15
-    action: "E15-A1 Ledger hygiene for Epic 15: close the 15.3 dry-template row (moot, epics.md 15.6 decision of 2026-10-23), add a row for the PR #167 known open (a collapsed band shows no NC indicator), give named owners to the rows owned by the next fix batch and a later story, date the UX-pass P2/P3 triage row; target 0 Epic 15 rows owned by a finished batch or unscheduled event"
+    action: "E15-A1 Ledger hygiene for Epic 15: close the 15.3 dry-template row (moot,
+      epics.md 15.6 decision of 2026-10-23), add a row for the PR #167 known open
+      (a collapsed band shows no NC indicator), give named owners to the rows owned
+      by the next fix batch and a later story, date the UX-pass P2/P3 triage row;
+      target 0 Epic 15 rows owned by a finished batch or unscheduled event"
     owner: "coordinator"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-124-e15-a2-ratio-verdict-feeds-conclusion"
     epic: 15
-    action: "E15-A2 Decide whether a ratio row INSATISFATORIO feeds the conclusion suggestion, pre-issue rows and parecer count (deferred-work.md UX pass row), and schedule the fix if yes; target a dated decision on the row"
+    action: "E15-A2 Decide whether a ratio row INSATISFATORIO feeds the conclusion
+      suggestion, pre-issue rows and parecer count (deferred-work.md UX pass row),
+      and schedule the fix if yes; target a dated decision on the row"
     owner: "Matheus (decision); next fix batch (build)"
     status: closed  # 2026-10-27: Bruno's answer 6 (yes); built as Story 17.5 (Epic 17 wave A)
     ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-125-e15-a3-seed-bump-literal-grep"
     epic: 15
-    action: "E15-A3 Playbook rule for a seed bump: grep e2e/ for the previous count and section literals and run every hit beside the touched specs, replace each with the kernel value, restart the api container after regenerating a fake-provider fixture; target 0 stale-literal reds at the next seed-bump wave gate"
+    action: "E15-A3 Playbook rule for a seed bump: grep e2e/ for the previous count
+      and section literals and run every hit beside the touched specs, replace each
+      with the kernel value, restart the api container after regenerating a fake-provider
+      fixture; target 0 stale-literal reds at the next seed-bump wave gate"
     owner: "coordinator (playbook)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-126-e15-a4-no-gate-overlap"
     epic: 15
-    action: "E15-A4 Load rule: no story gate overlaps a wave gate; a unit stage red only under load is re-run alone under the lock before merge and both runs go in the PR; target 0 PRs merged on a red unit stage without a recorded isolated green re-run"
+    action: "E15-A4 Load rule: no story gate overlaps a wave gate; a unit stage red
+      only under load is re-run alone under the lock before merge and both runs go
+      in the PR; target 0 PRs merged on a red unit stage without a recorded isolated
+      green re-run"
     owner: "coordinator"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-127-e15-a5-integrated-code-review"
     epic: 15
-    action: "E15-A5 Run the integrated code review the Epic 15 batches deferred (Blind Hunter and Intent Alignment) over 6e5d8aee..be2f46fb or record a dated waiver; playbook: a batch that skips a lens names the review that will run it and the coordinator schedules it"
+    action: "E15-A5 Run the integrated code review the Epic 15 batches deferred (Blind
+      Hunter and Intent Alignment) over 6e5d8aee..be2f46fb or record a dated waiver;
+      playbook: a batch that skips a lens names the review that will run it and the
+      coordinator schedules it"
     owner: "coordinator; Matheus (waiver)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-128-e15-a6-story-15-1-bruno-dod"
     epic: 15
-    action: "E15-A6 Meet Story 15.1 DoD (Bruno sees the phone frame, his answer dated under the story) now that v0.3.0 is on his phone, or narrow the clause with a dated line; same for Story 14.1"
+    action: "E15-A6 Meet Story 15.1 DoD (Bruno sees the phone frame, his answer dated
+      under the story) now that v0.3.0 is on his phone, or narrow the clause with
+      a dated line; same for Story 14.1"
     owner: "Matheus"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-129-e15-a7-story-15-7-carried"
     epic: 15
-    action: "E15-A7 Story 15.7 carried: ask Bruno for the TC checklist (items in order, oil items, NA subtypes) and decide whether 15.7 stays under Epic 15 (epic stays in-progress) or moves to a later epic so Epic 15 can close; target Bruno's list or a dated move line under Story 15.7"
+    action: "E15-A7 Story 15.7 carried: ask Bruno for the TC checklist (items in order,
+      oil items, NA subtypes) and decide whether 15.7 stays under Epic 15 (epic stays
+      in-progress) or moves to a later epic so Epic 15 can close; target Bruno's list
+      or a dated move line under Story 15.7"
     owner: "Matheus"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-130-e15-a8-epic-15-copy-review"
     epic: 15
-    action: "E15-A8 Fold Epic 15 authored copy into the E14-A10 Bruno review: site items 20 and 21 labels and phrases, item 12 absorbed phrase, Calculado U1 x sqrt3 / U2, Nenhum equipamento nesta coluna, N automaticos; target dated answers under Stories 15.2, 15.3, 15.5, 15.6"
+    action: "E15-A8 Fold Epic 15 authored copy into the E14-A10 Bruno review: site
+      items 20 and 21 labels and phrases, item 12 absorbed phrase, Calculado U1 x
+      sqrt3 / U2, Nenhum equipamento nesta coluna, N automaticos; target dated answers
+      under Stories 15.2, 15.3, 15.5, 15.6"
     owner: "Matheus (Bruno for the wording)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-131-e15-a9-success-signal"
     epic: 15
-    action: "E15-A9 Measure the success signal: on Bruno's next relatorio from the phone, record dated under Epic 15 which of the seven workarounds he still needed"
+    action: "E15-A9 Measure the success signal: on Bruno's next relatorio from the
+      phone, record dated under Epic 15 which of the seven workarounds he still needed"
     owner: "Matheus (record); coordinator (line)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-132-e15-a10-deploy-lost-ecs-endpoint"
     epic: 15
-    action: "E15-A10 Make infra/bin/deploy survive a lost ECS endpoint after the rollout (v0.3.0 first run exit 255 before the tag record): diagnose, make tag record and smoke resumable, add a ledger row now; target the next deploy records tag and smoke on its first run"
+    action: "E15-A10 Make infra/bin/deploy survive a lost ECS endpoint after the rollout
+      (v0.3.0 first run exit 255 before the tag record): diagnose, make tag record
+      and smoke resumable, add a ledger row now; target the next deploy records tag
+      and smoke on its first run"
     owner: "coordinator (infra)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-133-e15-a11-ac-reconciliation"
     epic: 15
-    action: "E15-A11 Spec reconciliation: dated strike-through amendments on the criteria with superseded numbers: 15.3 TC 11 fields to 13, 15.3 Marcar 7 itens chip to the oil rule marking seven NA, 15.6 62,89 to 62,90; no sentence deleted"
+    action: "E15-A11 Spec reconciliation: dated strike-through amendments on the criteria
+      with superseded numbers: 15.3 TC 11 fields to 13, 15.3 Marcar 7 itens chip to
+      the oil rule marking seven NA, 15.6 62,89 to 62,90; no sentence deleted"
     owner: "coordinator (draft); Matheus (approve)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
   - id: "epic-16-retro-item-134-e16-a1-na-on-tablet-keypad"
     epic: 16
-    action: "E16-A1 Decide how a tablet or phone enters N.A in a nameplate or cabine number field (inputMode decimal has no letters): a text keypad on those fields or an N.A control beside them (candidate Story 16.5); then cut the story"
+    action: "E16-A1 Decide how a tablet or phone enters N.A in a nameplate or cabine
+      number field (inputMode decimal has no letters): a text keypad on those fields
+      or an N.A control beside them (candidate Story 16.5); then cut the story"
     owner: "Matheus (decision); next batch (build)"
     status: closed  # 2026-10-27: Bruno's answer 3 (a clickable option beside the field); cut as Story 17.3 (Epic 17 wave A)
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-135-e16-a2-section-8-display-shot-ref"
     epic: 16
-    action: "E16-A2 Decide what section 8 prints for a ponto de atencao citing a display shot (today imagem removida): keep it or print the shot's caption sentence; ask with Bruno's question 1; dated line under Story 16.3"
+    action: "E16-A2 Decide what section 8 prints for a ponto de atencao citing a display
+      shot (today imagem removida): keep it or print the shot's caption sentence;
+      ask with Bruno's question 1; dated line under Story 16.3"
     owner: "Matheus"
     status: closed  # 2026-10-27: Bruno's answers 1 and 5 (numbered; the caption): Story 17.4 returns the numbers, so a cited display shot prints Imagem N again; dated line under Story 16.3
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-136-e16-a3-bruno-answers-and-copy"
     epic: 16
-    action: "E16-A3 Record Bruno's answers: question 1 (display shots under their test or not at all), question 2 (N.A or NA), whether the v0.3.2 logo is whole in Word, and the Epic 16 authored copy (banner verb gerado, row tag anterior as alteracoes, Foto for a display shot), folded into E14-A10 and E15-A8"
+    action: "E16-A3 Record Bruno's answers: question 1 (display shots under their
+      test or not at all), question 2 (N.A or NA), whether the v0.3.2 logo is whole
+      in Word, and the Epic 16 authored copy (banner verb gerado, row tag anterior
+      as alteracoes, Foto for a display shot), folded into E14-A10 and E15-A8"
     owner: "Matheus (Bruno for the answers)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-137-e16-a4-github-release-v0-3-3"
     epic: 16
-    action: "E16-A4 Create the GitHub release v0.3.3 from the notes drafted in the deploy session (the agent may not create a public release) and record in the deploy playbook who creates a release"
+    action: "E16-A4 Create the GitHub release v0.3.3 from the notes drafted in the
+      deploy session (the agent may not create a public release) and record in the
+      deploy playbook who creates a release"
     owner: "Matheus"
     status: done  # 2026-10-26: release v0.3.3 created with gh on Matheus's instruction (https://github.com/matheusvt2/fasor-app/releases/tag/v0.3.3); releases stay a human-authorized step
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-138-e16-a5-ledger-hygiene"
     epic: 16
-    action: "E16-A5 Ledger hygiene for Epic 16: ledger rows for the pre-16.3 frozen gallery numbers and the imagem removida reference (spec frontmatter deferred), a low row for point-editor.tsx:741 filtering display shots itself, and a scheduled owner for QA G1 and G2 instead of the next fix batch"
+    action: "E16-A5 Ledger hygiene for Epic 16: ledger rows for the pre-16.3 frozen
+      gallery numbers and the imagem removida reference (spec frontmatter deferred),
+      a low row for point-editor.tsx:741 filtering display shots itself, and a scheduled
+      owner for QA G1 and G2 instead of the next fix batch"
     owner: "coordinator"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-139-e16-a6-integrated-review-epic-16"
     epic: 16
-    action: "E16-A6 Run Blind Hunter and Intent Alignment over be2f46fb..541ceb97, starting with the patched-not-re-reviewed hunks (acceptsNotApplicable opt-in of PR #183, seed-v7 locators and photo viewer of PR #181), together with E15-A5, or record a dated waiver"
+    action: "E16-A6 Run Blind Hunter and Intent Alignment over be2f46fb..541ceb97,
+      starting with the patched-not-re-reviewed hunks (acceptsNotApplicable opt-in
+      of PR #183, seed-v7 locators and photo viewer of PR #181), together with E15-A5,
+      or record a dated waiver"
     owner: "coordinator; Matheus (waiver)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-140-e16-a7-spec-reconciliation"
     epic: 16
-    action: "E16-A7 Spec reconciliation in epics.md: dated as-built line under Story 16.1 (PR #179 and its spec narrowings, Word look pending), dated strike-through amendment of the 16.4 undo criterion (a typed put raises no Desfazer toast), and Matheus's decision on N.A in Altitude do site (QA G3); no sentence deleted"
+    action: "E16-A7 Spec reconciliation in epics.md: dated as-built line under Story
+      16.1 (PR #179 and its spec narrowings, Word look pending), dated strike-through
+      amendment of the 16.4 undo criterion (a typed put raises no Desfazer toast),
+      and Matheus's decision on N.A in Altitude do site (QA G3); no sentence deleted"
     owner: "coordinator (draft); Matheus (approve, altitude decision)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-141-e16-a8-restart-api-before-story-e2e"
     epic: 16
-    action: "E16-A8 Playbook: before the story gate's e2e a batch restarts its api container when packages/domain or apps/api changed since it started (tsx watch misses changes across the podman VM mount), widening E15-A3; a batch stack idle overnight is stopped or restarted before its gate"
+    action: "E16-A8 Playbook: before the story gate's e2e a batch restarts its api
+      container when packages/domain or apps/api changed since it started (tsx watch
+      misses changes across the podman VM mount), widening E15-A3; a batch stack idle
+      overnight is stopped or restarted before its gate"
     owner: "coordinator (playbook)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-142-e16-a9-static-after-review-patches"
     epic: 16
-    action: "E16-A9 Playbook: after the review's patches re-run lint and static on the head that merges, not only the patched test files (16.1 left main red on static, TS2345, fixed in PR #181)"
+    action: "E16-A9 Playbook: after the review's patches re-run lint and static on
+      the head that merges, not only the patched test files (16.1 left main red on
+      static, TS2345, fixed in PR #181)"
     owner: "coordinator (playbook)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-143-e16-a10-template-composer-load-timeouts"
     epic: 16
-    action: "E16-A10 Make the template-composer unit tests load-independent (15 s timeouts and the 1 s findByRole on Adicionar painel, red in PR #179, PR #183 and the wave B gate), and record the host load average and its source at the start of every wave gate"
+    action: "E16-A10 Make the template-composer unit tests load-independent (15 s
+      timeouts and the 1 s findByRole on Adicionar painel, red in PR #179, PR #183
+      and the wave B gate), and record the host load average and its source at the
+      start of every wave gate"
     owner: "coordinator (tooling)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
   - id: "epic-17-retro-item-144-e17-a1-fix-batch-code-findings"
     epic: 17
-    action: "E17-A1 Fix batch for the Epic 17 code findings, one branch, kernel tests first: QA G1 (one predicate shared by the oil rule and acceptsNotApplicable), QA G2 (ratio cells' names with a blank TAP), R4 (restrictionWarning composed from parts), R5 (one blank-label fallback in failedRatioRows), R11 (an authored nothing-left-to-read sentence), R18 (gallery note and Geral radio take sectionMention(snapshot, 7), web unit test on a compact snapshot); target the six items closed in one PR with its story gate"
+    action: "E17-A1 Fix batch for the Epic 17 code findings, one branch, kernel tests
+      first: QA G1 (one predicate shared by the oil rule and acceptsNotApplicable),
+      QA G2 (ratio cells' names with a blank TAP), R4 (restrictionWarning composed
+      from parts), R5 (one blank-label fallback in failedRatioRows), R11 (an authored
+      nothing-left-to-read sentence), R18 (gallery note and Geral radio take sectionMention(snapshot,
+      7), web unit test on a compact snapshot); target the six items closed in one
+      PR with its story gate"
     owner: "coordinator (batch); Bruno's wording for R18"
     status: done  # 2026-10-28, fix batch fx17r, PR #199 (2c0748a0)
     ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-145-e17-a2-matheus-decisions"
     epic: 17
-    action: "E17-A2 Matheus's decisions, one dated line each: 17.1 (orphan photo placement, stamp and item line in section 9, Sumario row 7 count, gallery note wording, gallery sorted by number), 17.5 (parecer counts a failed ratio as NC whatever the conclusion, R9 pre-issue row as the alternative; TAP naming), 17.6 (cabine line and the altitude; hint without a geolocation API; R7 cabine altitude_m against an explicit N/A), 17.2 (touch-screen laptop default), 17.7 (viewer prefetch, R12 cache and abort), 17.3 (R8 N/A control in the Tab order or not), 15.7 (VASAMENTO or seed v11)"
+    action: "E17-A2 Matheus's decisions, one dated line each: 17.1 (orphan photo placement,
+      stamp and item line in section 9, Sumario row 7 count, gallery note wording,
+      gallery sorted by number), 17.5 (parecer counts a failed ratio as NC whatever
+      the conclusion, R9 pre-issue row as the alternative; TAP naming), 17.6 (cabine
+      line and the altitude; hint without a geolocation API; R7 cabine altitude_m
+      against an explicit N/A), 17.2 (touch-screen laptop default), 17.7 (viewer prefetch,
+      R12 cache and abort), 17.3 (R8 N/A control in the Tab order or not), 15.7 (VASAMENTO
+      or seed v11)"
     owner: "Matheus"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-146-e17-a3-bruno-tablet-session"
     epic: 17
-    action: "E17-A3 Bruno's tablet session: the authored strings of all eight stories and the four TC NC phrase rows (docs/nc-chip-phrases.md), the timed two-tap Ler visor run through the camera app, the camera app end to end (cancelled app, HEIC device, portrait shot), Salvar no aparelho on iPadOS and Android, the VASAMENTO spelling; fold E14-A10, E15-A8 and E16-A3 into the same session; target dated answers under the stories"
+    action: "E17-A3 Bruno's tablet session: the authored strings of all eight stories
+      and the four TC NC phrase rows (docs/nc-chip-phrases.md), the timed two-tap
+      Ler visor run through the camera app, the camera app end to end (cancelled app,
+      HEIC device, portrait shot), Salvar no aparelho on iPadOS and Android, the VASAMENTO
+      spelling; fold E14-A10, E15-A8 and E16-A3 into the same session; target dated
+      answers under the stories"
     owner: "Matheus (Bruno)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-147-e17-a4-deploy-v0-4-0"
     epic: 17
-    action: "E17-A4 Deploy v0.4.0 (contract 27) from the integrated main: aws login --profile fasor-admin (Matheus), infra/bin/deploy, smoke 8 of 8, tag v0.4.0, record in epic-17-context.md and docs/kbs/log.md; a GitHub release only on Matheus's word; E15-A10 stays open (no recovery for a lost ECS endpoint); target tag recorded and smoke green on the first run"
+    action: "E17-A4 Deploy v0.4.0 (contract 27) from the integrated main: aws login
+      --profile fasor-admin (Matheus), infra/bin/deploy, smoke 8 of 8, tag v0.4.0,
+      record in epic-17-context.md and docs/kbs/log.md; a GitHub release only on Matheus's
+      word; E15-A10 stays open (no recovery for a lost ECS endpoint); target tag recorded
+      and smoke green on the first run"
     owner: "Matheus (login, release word); coordinator (deploy, record)"
     status: in-progress  # 2026-10-28: deployed and smoked (8f5fa154, tag v0.4.0 pushed); the GitHub release waits for Matheus's word
     ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-148-e17-a5-playbook-rules"
     epic: 17
-    action: "E17-A5 Playbook: write into epic-batch-orchestrator.md (unchanged since 2026-10-15) the rules carried only by epic-17-context.md and the batch specs: E15-A3, E15-A4, E16-A8, E16-A9, E16-A10, plus gate logs inside .scratch-<tag>/ never /tmp, a batch's last steps as a script the coordinator can run with its own watcher on the gate log, and a facts-the-batches-share line per epic context (reading_kind caption); target 0 process rules living only in an epic context file"
+    action: "E17-A5 Playbook: write into epic-batch-orchestrator.md (unchanged since
+      2026-10-15) the rules carried only by epic-17-context.md and the batch specs:
+      E15-A3, E15-A4, E16-A8, E16-A9, E16-A10, plus gate logs inside .scratch-<tag>/
+      never /tmp, a batch's last steps as a script the coordinator can run with its
+      own watcher on the gate log, and a facts-the-batches-share line per epic context
+      (reading_kind caption); target 0 process rules living only in an epic context
+      file"
     owner: "coordinator (playbook)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-149-e17-a6-ledger-hygiene"
     epic: 17
-    action: "E17-A6 Ledger hygiene for Epic 17: re-own the two-tap row to Bruno's session, name the E17-A1 batch as owner of QA G1 and G2, add rows for the e17a VGR-1 item (viewer remove step on a site-item photo), R1 (camera-off fallback picker guard), R3 (HEIC conversion failure loses the photo), R6 (one preference read per session), R10 (same-second file names), R13 (tiles and numbers from two sources for one render); target every confirmed finding has a row or a story line, 0 rows owned by a finished event"
+    action: "E17-A6 Ledger hygiene for Epic 17: re-own the two-tap row to Bruno's
+      session, name the E17-A1 batch as owner of QA G1 and G2, add rows for the e17a
+      VGR-1 item (viewer remove step on a site-item photo), R1 (camera-off fallback
+      picker guard), R3 (HEIC conversion failure loses the photo), R6 (one preference
+      read per session), R10 (same-second file names), R13 (tiles and numbers from
+      two sources for one render); target every confirmed finding has a row or a story
+      line, 0 rows owned by a finished event"
     owner: "coordinator"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-150-e17-a7-spec-reconciliation"
     epic: 17
-    action: "E17-A7 Spec reconciliation in epics.md, dated strike-through, no sentence deleted: 17.1 DoR reading_kind null to null or caption; 17.6 AC the cabine line shows N/A to the cabine line as built or Matheus's decision; 17.2 AC same toasts to the one-photo toast and the HEIC stamp from the device clock; a dated preamble line that v0.3.4 was skipped and both waves ship as v0.4.0; target four dated lines"
+    action: "E17-A7 Spec reconciliation in epics.md, dated strike-through, no sentence
+      deleted: 17.1 DoR reading_kind null to null or caption; 17.6 AC the cabine line
+      shows N/A to the cabine line as built or Matheus's decision; 17.2 AC same toasts
+      to the one-photo toast and the HEIC stamp from the device clock; a dated preamble
+      line that v0.3.4 was skipped and both waves ship as v0.4.0; target four dated
+      lines"
     owner: "coordinator (draft); Matheus (approve)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-151-e17-a8-load-on-one-vm"
     epic: 17
-    action: "E17-A8 Load on one VM: E16-A10 recurred (template-composer-defaults and template-composer-local red under load in e17a's pre-merge run) and e17b's test:api missed its timing target under the same load; make those tests load-independent or run the unit and api stages of batch gates under the host lock as the Playwright stages are, measure one epic, record the host load at every wave gate; target 0 superseded unit or api stages in Epic 18"
+    action: "E17-A8 Load on one VM: E16-A10 recurred (template-composer-defaults and
+      template-composer-local red under load in e17a's pre-merge run) and e17b's test:api
+      missed its timing target under the same load; make those tests load-independent
+      or run the unit and api stages of batch gates under the host lock as the Playwright
+      stages are, measure one epic, record the host load at every wave gate; target
+      0 superseded unit or api stages in Epic 18"
     owner: "coordinator (tooling); Matheus (two batch stacks)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+  - id: "epic-18-retro-item-152-e18-a1-code-fix-batch"
+    epic: 18
+    action: "E18-A1 Fix batch for the Epic 18 code findings, one branch, red-first:
+      device (keep the batch on 429 and end the flush; fetch timeout; pagehide; photoReadingStates
+      narrowed to pending and pulled files; session id rotation on a new database;
+      undo: true on the four registry toasts; network failure of Sincronizar agora
+      reads offline; read-only tri-state taps as disabled_tap; primary-pointer guard),
+      api (256 KB body limit on the telemetry route; stdout sink ts field), friction
+      read (structural block fields out of spans and re-edits; typed-after-failure
+      by client_ts against the failure's received_at; a restored photo re-arms; refusal
+      without the value; guarded sql.end), the tests the verification lens named (R-V2
+      to R-V9, R-V11, R-V12 unit part; the route-table test) and usage-events.spec.ts
+      promoted to @p0"
+    owner: "coordinator (batch)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+  - id: "epic-18-retro-item-153-e18-a2-observability-fix-batch"
+    epic: 18
+    action: "E18-A2 Observability fix batch: local.ux_events_log_group from the Terraform
+      resource; drop logs:DescribeLogStreams; filter company_id != var.smoke_company_id
+      on the nine queries; sessions_per_day by the device day; the tooling test binding
+      the queries' names and fields to the kernel and the SOURCE literal to the group;
+      a telemetry step in the production smoke and infra/bin/deploy (a session_start
+      with the deployed tag in the group, no ux_event_sink_failed since the deploy);
+      offline fmt, init -backend=false, validate; applied by the next deploy on Matheus's
+      go"
+    owner: "coordinator (batch); Matheus (deploy go)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+  - id: "epic-18-retro-item-154-e18-a3-docs-ledger-playbook"
+    epic: 18
+    action: "E18-A3 Docs, ledger and playbook, no code: docs/observability.md (LGPD
+      sentence names the pattern for controls; receipt-time window and sessions_per_day
+      until E18-A2; reading waits count from the shot; one sync_result row per ran
+      cycle; structural block fields in spans until E18-A1; append-only vocabulary
+      within a release; the digest greps ux_event_sink_failed); deferred-work.md (o18b
+      memory row; the 2026-10-29 ask row closed with the deploy; rows for R-A2, R-A5,
+      R-A6, R-A13, R-E4, the sync.tsx observer extraction; R-A12 accepted); epic-batch-orchestrator.md
+      (a residual risk that changes how a view is read is a runbook sentence in the
+      same PR; the wave gate record carries the host load line)"
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+  - id: "epic-18-retro-item-155-e18-a4-spec-reconciliation"
+    epic: 18
+    action: "E18-A4 Spec reconciliation in epics.md, dated strike-through, no sentence
+      deleted: the epic's SCREENS list gains points; Story 18.2's stream name as built
+      (colons written -); Story 18.3 DoR from the ops table alone to ops plus the
+      live entities; Story 18.1's wait for preview and generation noted as the request
+      until re-timed; and in the terms per Matheus's decision"
+    owner: "coordinator (draft); Matheus (approve)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+  - id: "epic-18-retro-item-156-e18-a5-matheus-decisions"
+    epic: 18
+    action: "E18-A5 Matheus's decisions, one dated line each: the terms notice of
+      the epic intro (strike or schedule with Bruno's LGPD wording); sync_result per
+      ran cycle or only on transitions and cycles that moved data, after the first
+      digest's share; preview and generate re-timed to the document in a story with
+      the sync.tsx observer extraction; the per-user telemetry limit row ECH-4; the
+      Conta sentence wording with Bruno"
+    owner: "Matheus (Bruno for the Conta wording)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+  - id: "epic-18-retro-item-157-e18-a6-gate-record-before-deploy"
+    epic: 18
+    action: "E18-A6 Gate record rule in the playbook's deploy checklist: before infra/bin/deploy
+      of an integrated main, test:e2e:full green on that main with the host load line,
+      recorded in the epic context (E10-A1, E11-A1, E17-A8 restated); for Epic 18
+      the record is the retrospective's run of 2026-10-30"
+    owner: "coordinator (playbook)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+  - id: "epic-18-retro-item-158-e18-a7-first-monthly-digest"
+    epic: 18
+    action: "E18-A7 First monthly friction digest on 2026-11-30 from friction-digest-template.md:
+      the nine views over the month with app_version noted, the friction read on the
+      companies in use (its first production run), the Home navigation measure (shortcut
+      taps per session) for Sally's A plus B decision, the share of sync_result rows
+      and of smoke traffic if E18-A2 has not landed; decisions proposed to Matheus
+      and to Bruno for anything on the screens"
+    owner: "coordinator (digest); Matheus and Bruno (decisions)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"

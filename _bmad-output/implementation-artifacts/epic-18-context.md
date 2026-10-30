@@ -70,9 +70,16 @@ fell back to the file chooser), then `prodpass.sh cleanup` and the cookie file e
 
 ## Still open
 
-- **Retrospective of Epic 18:** not run yet; the epic's own acceptance (the funnel readable in production) is met.
+- ~~**Retrospective of Epic 18:** not run yet; the epic's own acceptance (the funnel readable in production) is met.
   Run it once Bruno has used the new bundle for some days, so the behavior check reads real sessions, or earlier on
-  Matheus's word.
+  Matheus's word.~~ *(2026-10-30, Matheus: "pode seguir": retrospective run headless the same day,
+  `epic-18-retro-2026-10-30.md`, machine verdict accepted-with-open-items. Integrated review (Blind Hunter, Edge Case,
+  Verification Gap) over `f90dec0c..3b45e83c`: 40 findings, routed to the fix batches E18-A1 (code and tests) and E18-A2
+  (Terraform and a telemetry step in the smoke), the docs and ledger item E18-A3, the spec reconciliation E18-A4,
+  Matheus's decisions E18-A5, the gate rule E18-A6 and the first digest E18-A7. `test:e2e:full` on main `677415a8`:
+  537 of 542, 4 known skips, one red (`photo-numbers.spec.ts` 7.2-E2E-001, a focus race at `closeDialog`) green alone.
+  Second production read at about 12:00: 143 events from 4 devices on `3b45e83c`, two of them real devices outside the
+  test pass (12 events), 48 of 49 telemetry posts 204 and the one 401 the revoked pass session, `ux_event_sink_failed` 0.)*
 - **First monthly friction digest:** one month after this deploy (`docs/observability.md` § The monthly digest, template
   `test-artifacts/friction-digest-template.md`); the Home navigation measure of the 2026-10-29 analysis
   (`home.shortcut_templates` and `home.shortcut_cadastros` per session) is now collected.
