@@ -2,7 +2,8 @@
 title: 'Epic 18 batch o18b: the funnel dashboard, saved queries, runbook and the op-log friction read (Story 18.3)'
 type: 'feature'
 created: '2026-10-29'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '2066d2efc9540c456cb3fb1686aee8be39ce8e57'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus
@@ -111,6 +112,6 @@ Cost: CloudWatch gives three dashboards of up to 50 metrics each free a month an
 ## Verification
 
 **Commands:**
-- `podman compose --profile tools run --rm --user root tools pnpm test:api -- apps/api/src/db/friction-read` -- red before the module exists, green after.
+- Environment: this worktree is `/Users/matheusvilella/Documents/estudos/fasor-app-o18b`; podman only (`docker` is absent), never run pnpm or node on the host, never build images (`app-api-o18b`, `app-tools-o18b` are tagged; the stack is up via `podman compose up -d --no-build api`). Every pnpm run in the tools container goes under the host lock with nohup and a log in `.scratch-o18b/`, e.g. `nohup lockf -t 20000 /tmp/fasor-verify.lock podman compose --profile tools run --rm --user root tools pnpm --filter @app/api exec vitest run src/db/friction-read > .scratch-o18b/friction-red.log 2>&1; echo EXIT=$? >> .scratch-o18b/friction-red.log` -- red before the module exists (keep that log), green after.
 - `TF_OFFLINE=1 infra/bin/tf production fmt -check && TF_OFFLINE=1 infra/bin/tf production init -backend=false -input=false && TF_OFFLINE=1 infra/bin/tf production validate` -- all pass.
 - Gate (orchestrator, under `lockf -t 20000 /tmp/fasor-verify.lock`, logs in `.scratch-o18b/`): `lint`, `static`, `test:unit`, `test:api` -- green.
