@@ -215,3 +215,14 @@ variable "smoke_user_name" {
   type        = string
   default     = "Teste automatizado"
 }
+
+# E18-A2 (2026-10-30, Matheus: "faltou o user name, eu só vejo o id"): labels for the usage
+# dashboard's users view, user id to a short name. Kept in the operator's untracked
+# terraform.tfvars, never in the repository (it is public) and never in the events, which keep
+# the opaque id (AD-28, the Conta sentence). A name must not contain an apostrophe (it is
+# quoted into the Logs Insights query). An id absent from the map shows as the id.
+variable "user_names" {
+  description = "Usage dashboard labels: user id to a short name (operator's tfvars only)"
+  type        = map(string)
+  default     = {}
+}
