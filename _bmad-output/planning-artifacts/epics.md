@@ -4592,6 +4592,134 @@ So that I can keep a copy outside the app when I need one.
 
 *(2026-10-28, built as batch e17d with 17.2, PR #194 squash-merged as `3beacd40`: "Salvar no aparelho" on the photo viewer shares the JPEG through `navigator.share` where `canShare` allows the file (title "Foto do relatório"), else downloads it; the viewer prefetches the server's original on landing so the share runs inside the press's activation (one original download per evicted photo paged, a cost accepted by default, open for Matheus); disabled with a reason while the original is not uploaded yet ("O original ainda não foi enviado pelo aparelho que tirou a foto."), while preparing, or after a fetch error ("Não foi possível buscar a foto no servidor. Tente de novo com conexão."; a 5xx keeps it disabled until the viewer reopens, known open). The Conta sentence "As fotos ficam no relatório. Para guardar uma cópia na galeria, use Salvar no aparelho na foto." The download assertion runs on durability-desktop-chrome and the share stub on Android emulation.)*
 
+## Epic 18: Observing how the app is used (usage events, the funnel, friction)
+
+Matheus, 2026-10-29, after the production pass fix batches: "tem que registrar todo tipo de interação que o usuário estiver fazendo com a ferramenta, para conseguir ver pontos de atrito e melhoria do workflow. Como poderíamos fazer isso usando o ambiente AWS?" and, on the analysis (`_bmad-output/implementation-artifacts/backlog-2026-10-29-home-nav-and-telemetry.md` § 2): "pode fazer a observabilidade. quero ver todo o funil, verificar pontos de possível melhoria de experiência".
+
+What exists: the op log records every data edit with actor, device and timestamp, and nothing records navigation, cancels, retries, taps on disabled controls, waits or the errors the user saw. The CloudWatch groups hold the api, ocr, caddy, migrate and smoke logs only. What this epic adds: a closed vocabulary of **usage events** written by the device into its own IndexedDB queue (never into the op log: AD-28), shipped with the sync cycle to `POST /api/telemetry`, written by the api to a dedicated CloudWatch Logs group kept 90 days, and read through a CloudWatch dashboard, saved Logs Insights queries and a monthly friction digest. No free text ever leaves the device in an event: ids are opaque, screens and controls are named from closed lists, and the schema refuses anything else (LGPD: employees' interactions; a notice in Conta and in the terms).
+
+**Decisions (Matheus, 2026-10-29, from the analysis):** option 1 of the analysis (CloudWatch Logs through the api, an offline queue on the device); CloudWatch RUM and Amazon Pinpoint are not used (RUM drops offline events and adds a cookie; Pinpoint's end of support is 2026-10-30); S3 and Athena wait for a later need. The budget line stays under USD 1 a month (ingestion about 50 MB a month at USD 0.50 per GB; dashboards and query definitions in the free tier).
+
+**The event (contract 28, no contract bump: the events travel on their own route, not in the op stream):** one zod object, strict (unknown keys refused), in `packages/domain/src/contract/telemetry.ts`:
+
+- `v: 1`; `ts` (ISO instant, device clock); `session_id` (uuid, new on every app load); `device_id` (the sync device id); `app_version` (the build's commit sha, `VITE_APP_VERSION`, or `dev`);
+- `name`, one of: `session_start`, `screen_view`, `action`, `dialog_open`, `dialog_cancel`, `disabled_tap`, `wait`, `retry`, `undo`, `sync_result`, `reading_result`, `error`;
+- `screen`, one of the closed list `SCREENS`: `login`, `home`, `project`, `setup`, `sumario`, `ficha`, `local`, `photos`, `gallery`, `export`, `templates`, `composer`, `cadastros`, `sync`, `account`, `recovery`, `update`, `other` (the kernel's `screenOf(pathname)` maps a route to one of them; ids never appear);
+- `target?` (a control or dialog name, `^[a-z0-9][a-z0-9_.-]{0,63}$`, from the `data-telemetry` attribute the surface gives the control; the names below are the minimum list); `kind?` (a closed subtype: for `wait`, `reading | sync | generate | preview | upload`; for `reading_result`, `plate | display | caption | panel | nc_obs`; for `sync_result`, `ran | offline | contract_outdated | unauthorized | failed`; for `error`, the kernel error code); `outcome?` (`ok | cancel | fail | refused | timeout | offline`); `duration_ms?` (integer, 0 or more); `relatorio_id?`, `block_id?` (uuid v7).
+- The api stamps `received_at`, `user_id` and `company_id` from the session, never from the body. A batch is at most 200 events; the route is `TELEMETRY_ROUTE = { method: 'POST', path: '/api/telemetry' }` in the contract beside `ACCOUNT_ROUTES`.
+
+**Minimum instrumentation (the funnel Matheus asked to see):** `session_start` on boot; `screen_view` on every route change; `action` targets `home.card_open`, `home.continue`, `home.summary`, `home.new_relatorio`, `home.status_chip`, `home.shortcut_templates`, `home.shortcut_cadastros`, `sumario.open_sheet`, `sumario.preview`, `sumario.generate`, `sumario.export`, `ficha.plate_shot`, `ficha.read_display`, `ficha.photo`, `ficha.na`, `ficha.mark_c`, `ficha.mark_nc`, `ficha.mark_na`, `ficha.conclude`, `ficha.next_sheet`, `reading.type_instead`, `reading.retry`, `sync.now`; `dialog_open` and `dialog_cancel` with the dialog as `target` (`capture_sheet`, `move_block`, `rename_tag`, `export`, `not_tested`, `conflict`); `disabled_tap` on any `data-telemetry` control pressed while disabled; `wait` with `kind` and `duration_ms` for a reading (shot stored to result), a sync cycle, a preview and a generation; `retry` and `undo` with the control as `target`; `sync_result` with `kind`; `reading_result` with `kind` and `outcome`; `error` with the kernel error code as `kind`.
+
+*(Batches: o18a builds 18.1 and 18.2 (kernel contract first, then the api sink and route, then the device queue and flush and the Conta notice); o18b builds 18.3 against the vocabulary above and the literal log group name, in parallel; the deploy after both merge, on Matheus's go; the first digest a month later.)*
+
+### Story 18.1: The device records usage events and ships them with the sync
+
+**Dev model:** opus · **Effort:** high · kernel contract (`contract/telemetry.ts`, `screenOf`), a Dexie table and a `track()` helper in `apps/web`, instrumentation of the funnel's controls, flush on the sync cycle and on `visibilitychange`; no op, no seed, no contract bump
+
+As Matheus reading how the engineers use the app,
+I want every device to record where they go, what they tap, what they cancel, what they wait for and what fails, without recording what they type,
+So that the friction points of the workflow can be seen in production instead of guessed.
+
+**Today (verified 2026-10-29 in the code of main `87ff8a9d`):** nothing in `apps/web` records interactions; the op log (`outbox`, `remote_ops`) records data edits only; the sync engine (`sync/engine.ts`) runs its cycle on the 60 s tick, "Sincronizar agora", `requestSyncCycle()` and the `online` event, and `SyncProvider` (`state/sync.tsx`) publishes `lastResult`; `local_prefs` and `sync_state` are the only non-op device stores; the Dexie schema is at version 6 (`db/schema.ts`).
+
+*(Definition of Ready: decisions taken on 2026-10-29 (Matheus, from the analysis): the event schema and vocabulary are the epic's; the queue is a new Dexie table `ux_events` (version 7: `++id, ts`), capped at 5 000 rows with the oldest dropped; the flush runs after every sync cycle that reached the server (`lastResult === 'ran'`) and on `visibilitychange: hidden` through `navigator.sendBeacon`, in batches of at most 200, deleting a batch on 2xx and on 4xx (an invalid batch is dropped, never retried), keeping it on 5xx or no network; a `track()` call never throws into the UI and never awaits; the `data-telemetry` attribute is the one source of a control's `target` name; `app_version` comes from `VITE_APP_VERSION` (the build injects the commit sha; `dev` without it). The Dexie upgrade is additive. No kernel status or count depends on an event.)*
+
+**Acceptance Criteria:**
+
+**Given** the kernel contract
+**When** an event is parsed
+**Then** `uxEventSchema` accepts exactly the shape above and refuses an unknown key, an unknown `name`, `screen`, `kind` or `outcome`, a `target` outside its pattern, a negative or fractional `duration_ms`, and any string field that is not in the closed lists (no free text can pass); `screenOf('/relatorio/<id>/ficha/<id>')` is `ficha`, `screenOf('/')` is `home`, an unknown route is `other`; `TELEMETRY_ROUTE` and `TELEMETRY_BATCH_MAX = 200` are exported
+
+**Given** the app boots on a device
+**When** the shell mounts and the user navigates
+**Then** one `session_start` (with `app_version`) and one `screen_view` per route change land in `ux_events` with `session_id`, `device_id` and `ts`; a `screen_view` carries `relatorio_id` and `block_id` when the route names them, and nothing else about the route
+
+**Given** the funnel's controls (the minimum list of the epic) carry `data-telemetry`
+**When** one is pressed, a dialog is opened or cancelled, a disabled control is tapped, a reading or a sync or a generation is waited for, "Tentar novamente", "Digitar" or "Desfazer" is used, a sync cycle ends or a reading lands
+**Then** the matching event is queued with its `target`, `kind`, `outcome` and `duration_ms` as the epic lists them, and the queue never holds a typed value, a caption, a TAG, a name or a photo
+
+**Given** 5 000 events are queued offline
+**When** the 5 001st arrives
+**Then** the oldest is dropped, the app is unaffected, and nothing is logged to the console
+
+**Given** queued events and a device that is online
+**When** a sync cycle reaches the server, or the tab is hidden
+**Then** the events go to `POST /api/telemetry` in batches of at most 200 (the hidden-tab path through `sendBeacon`), each batch is deleted on 2xx and on 4xx and kept on 5xx or no network, and a batch in flight is never sent twice
+
+**Given** the Playwright e2e
+**When** a device goes offline, opens Home, a relatório, a sheet, marks an item, cancels a capture sheet and taps "Sincronizar agora" once online
+**Then** the queue held the events while offline (`readStore` on `ux_events`), the api's test sink received them after the sync, every received event parses against `uxEventSchema`, and none carries a text field beyond the closed lists
+
+**Definition of Done, in addition:** red-first kernel tests for the schema and `screenOf`; unit tests for `track()` (cap, no throw, no await), the flush (2xx, 4xx, 5xx, offline, in-flight guard) with a fake `fetch` and a fake `sendBeacon`; the Dexie version 7 upgrade test; a component test that a `data-telemetry` control pressed while disabled queues `disabled_tap`; the e2e above tagged `@p1` on `desktop-chrome`; EXPERIENCE.md gains a dated note under Account for the Conta notice of Story 18.2; `docs/kbs` concept and log lines.
+
+### Story 18.2: The api receives usage events and writes them to a CloudWatch log group
+
+**Dev model:** opus · **Effort:** medium · `POST /api/telemetry` behind the session, a sink chosen by `TELEMETRY_SINK` (`stdout` default, `cloudwatch` in production through `@aws-sdk/client-cloudwatch-logs`), Terraform log group, IAM and environment, the Conta notice; no op, no schema migration
+
+As Matheus,
+I want the events every device ships to land in one place in AWS that keeps them 90 days and that I can query,
+So that the funnel and the friction can be read without touching the production database.
+
+**Today (verified 2026-10-29 in the code of main `87ff8a9d`):** the api has no telemetry route; `log.ts` writes one JSON line per event to stdout, which the ECS `awslogs` driver ships to `/fasor/production/api` (14 days); the api already depends on `@aws-sdk/client-s3`, `client-textract` and `client-bedrock-runtime` at `3.1134.0`, with the task role through the default credential chain; `infra/production/ecs.tf` builds `local.api_environment` and `aws_cloudwatch_log_group.this` per service; `iam.tf` gives the app role S3 only; `http/rate-limit.ts` has `FixedWindowLimiter`, `signInRateLimit` and `pushRateLimit`.
+
+*(Definition of Ready: decisions taken on 2026-10-29 (Matheus, from the analysis): the route validates every event with the kernel schema and refuses the whole batch with `400 telemetry_invalid` when one fails or when the batch exceeds 200, stamps `received_at`, `user_id` and `company_id` from the session, and answers `204`; the sink is `TELEMETRY_SINK=stdout` (default: one `log('ux_event', …)` line per event, what local, tests and the compose stack use) or `cloudwatch` (`PutLogEvents` to `TELEMETRY_LOG_GROUP`, one stream per api process named `api/<start ISO instant>/<pid>`, created at first use; a failed put is logged once per batch and the route still answers 204: events are not records); a per-device limit of 1 000 events a minute through a `FixedWindowLimiter` answers `429`; Terraform adds the group `/fasor/production/ux-events` with `var.ux_events_retention_days = 90`, the app role's `logs:CreateLogStream`, `logs:DescribeLogStreams` and `logs:PutLogEvents` on that group and its streams, and the two environment entries; `infra/README.md` gets the cost row (about USD 0.10 a month) and a runbook line; the Conta notice is one authored sentence under a "Uso do aplicativo" row, open for Bruno; no story before the deploy depends on the cloud, so `stdout` is the default everywhere but `ecs.tf`.)*
+
+**Acceptance Criteria:**
+
+**Given** a signed-in device
+**When** it posts a batch of valid events
+**Then** the api answers `204`, each event reaches the sink with `received_at`, `user_id` and `company_id` stamped by the server (a `company_id` or `user_id` in the body is ignored), and the api's own request log line for the route carries no event content
+
+**Given** a batch with one invalid event, more than 200 events, or a body that is not an array
+**When** it is posted
+**Then** the api answers `400 telemetry_invalid` and nothing reaches the sink
+
+**Given** a device posting more than 1 000 events in a minute
+**When** the limit is crossed
+**Then** the api answers `429` with the existing rate-limit shape, and a later minute is answered again
+
+**Given** `TELEMETRY_SINK=cloudwatch`
+**When** a batch arrives
+**Then** the sink calls `PutLogEvents` once per batch on the group `TELEMETRY_LOG_GROUP` and a stream named for this api process, creating the stream on first use, one JSON line per event; when the put fails the failure is logged once with the batch size and the route still answers `204`
+
+**Given** the Terraform of the production stack
+**When** `terraform validate` runs (no backend, no apply)
+**Then** the group, the IAM statement and the environment entries validate, `var.ux_events_retention_days` defaults to 90, and `infra/README.md` names the group, the retention, the IAM grant and the cost
+
+**Given** Conta
+**When** it renders
+**Then** a "Uso do aplicativo" row states, in one authored pt-BR sentence marked `// authored (Epic 18, open for Bruno)`, that the device records screens, taps, waits and errors without typed texts, kept 90 days, to improve the PRODUTO
+
+**Definition of Done, in addition:** red-first api integration tests for the route (valid batch to the `stdout` sink, each refusal, the stamped fields, the rate limit); a unit test of the CloudWatch sink with a fake client (stream creation, the put payload, the logged failure); `infra/bin/tf production fmt -check` and `init -backend=false` plus `validate` green in the PR (never `plan` or `apply` from a batch); the Conta row's component test; the PR names the deploy as the step that creates the group (the deploy's Terraform apply) and lists the Conta sentence for Bruno.
+
+### Story 18.3: Seeing the funnel: dashboard, saved queries and the first friction digest
+
+**Dev model:** opus · **Effort:** medium · Terraform `aws_cloudwatch_dashboard` and `aws_cloudwatch_query_definition` resources over the literal group name, a runbook `docs/observability.md`, a read-only op-log CLI for the first friction read, and the digest template; no app code
+
+As Matheus,
+I want to open one page in AWS and see the funnel (Home, relatório, ficha, placa, verificações, ensaios, fotos, conclusão, geração) with the cancels, retries, disabled taps and waits beside it,
+So that the next UX decisions (Home navigation first) rest on what the engineers did.
+
+**Today (verified 2026-10-29):** no dashboard exists; CloudWatch holds the service log groups only; Logs Insights has no saved query; the op log can answer "how long did a sheet take" and "what was re-edited" with SQL nobody has written.
+
+*(Definition of Ready: decisions taken on 2026-10-29 (Matheus, from the analysis): one dashboard `fasor-production-ux` (within the three free ones) of Logs Insights widgets over `SOURCE '/fasor/production/ux-events'` (the literal name, so this story builds beside 18.2): screen views per screen (the funnel, 7 days), actions per `target`, dialog opens against cancels per `target`, disabled taps per `target`, `wait` p50 and p95 per `kind`, `reading_result` by `kind` and `outcome`, `sync_result` by `kind`, sessions and devices per day, errors by `kind`; the same queries as `aws_cloudwatch_query_definition` resources (free) so they open in the console; `docs/observability.md` says how to read them, how to add an event name (kernel first), the LGPD stance and the retention; a read-only CLI `apps/api/src/db/friction-read-cli.ts` run as a migrate-task command override prints, per relatório of a company, each sheet's time from its first to its last op, the fields edited more than once and the typed values that followed a failed reading, from the `ops` table alone; the digest template `_bmad-output/test-artifacts/friction-digest-template.md` names the sections the monthly read fills.)*
+
+**Acceptance Criteria:**
+
+**Given** the Terraform of the production stack
+**When** `terraform validate` runs
+**Then** the dashboard JSON and every query definition validate, each query names the `/fasor/production/ux-events` group and only fields of the epic's event, and the widgets cover the nine views above
+
+**Given** the runbook
+**When** Matheus opens it
+**Then** it names the dashboard, each saved query and what a reader concludes from it, the steps to add an event (schema, `data-telemetry`, query), the retention and the LGPD sentence, and the monthly digest procedure
+
+**Given** the op log of a company
+**When** the friction-read CLI runs (read-only, as a migrate-task command override like `tombstone-cli.ts`)
+**Then** it prints per relatório each live sheet's first-to-last-op span, the count of fields edited more than once, and the count of typed values that followed a failed reading, with no cell value, caption, name or TAG in its output
+
+**Definition of Done, in addition:** `infra/bin/tf production fmt -check`, `init -backend=false` and `validate` green; an api integration test of the friction-read CLI over a seeded company (spans, re-edits, the typed-after-failure count, and that the output carries no value); the digest template; the kbs `infra-aws.md` and `log.md` lines; the PR says the dashboard appears after the deploy's Terraform apply.
+
 ## Backlog: deferred stories
 
 Stories moved out of their epic with a dated decision, so the epic can close. Each keeps its text, number and Definition of Ready where it was written; this list is where they wait. A story leaves this list when a dated line schedules it into an epic.
