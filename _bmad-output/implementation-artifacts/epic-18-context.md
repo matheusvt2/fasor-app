@@ -86,3 +86,19 @@ fell back to the file chooser), then `prodpass.sh cleanup` and the cookie file e
 - **Data sufficiency review (2026-10-30, Matheus: "coloque o usuário logado no dash; reveja se esses dados bastam"):** `backlog-2026-10-30-ux-data-sufficiency.md`: the events say where and how often, not how long, in what order, on which device or for whom; a user view joins E18-A2, the rest is a Story 18.4 draft waiting for his decisions (ids or names; one batch or after the first digest).
 - **Matheus and Bruno:** the Conta sentence wording (LGPD), the Home decision (Sally's A + B), the per-user telemetry
   limit row (ECH-4), the GitHub release for the production tag (only on Matheus's word).
+
+## E18-A2 part 1: the users view (2026-10-30, Matheus: "eu ainda não estou vendo os usuários logados pelo dashboard")
+
+PR #220 (main `08566478`): the tenth view and saved query `users` on `fasor-production-ux` (sessions, devices, events,
+first and last activity by `user_id` and `company_id`, `earliest`/`latest` on `received_at`; `min`/`max` on that string
+field return nothing, found by a read-only run against the production group), `sessions_per_day` with distinct users,
+and the read-only `apps/api/src/db/users-read-cli.ts` that maps the ids to people (one SELECT over `user`, `company` and
+`session`; name, e-mail, sign-ins; migrate-task command override) with its integration test. Gate: lint 0 errors,
+static, test:api 738 of 738, test:unit 4707 of 4707. Applied the same day from the merged main with
+`infra/bin/tf production apply` on Matheus's "autorizo o apply" (1 added, 2 changed, 0 destroyed); the dashboard holds
+ten widgets and the query definition `fasor-production-ux/users` exists. First read of the new view, last 30 days: two
+users, the smoke user (15 sessions, 3 devices, 196 events) and one user of another company (4 sessions, 3 devices,
+439 events); ids only, as designed. The CLI reaches production with the next `infra/bin/deploy`, on Matheus's go; until
+then the ids are read beside the company ids (the smoke company's is `var.smoke_company_id`). The rest of E18-A2 (the
+smoke company filtered out of the views, `sessions_per_day` by the device day, the tooling test binding the queries to
+the kernel, the telemetry step in the smoke) stays open.
