@@ -1,7 +1,9 @@
 # Story 18.3 (2026-10-29): the usage dashboard over the usage events of AD-28.
 #
-# One CloudWatch dashboard `fasor-production-ux` with nine Logs Insights widgets, and the same
-# nine queries as saved query definitions (CloudWatch > Logs Insights > Saved queries). Both
+# One CloudWatch dashboard `fasor-production-ux` with ten Logs Insights widgets (nine of Story
+# 18.3 and, since 2026-10-30 (E18-A2, Matheus: "controlar os usuários logados"), the users
+# view), and the same ten queries as saved query definitions (CloudWatch > Logs Insights >
+# Saved queries). Both
 # read the log group `/fasor/production/ux-events` by its literal name; the group itself is
 # declared elsewhere (Story 18.1) and never referenced from here, so this file plans on its
 # own. Queries use only the event fields of AD-28 (`name`, `screen`, `target`, `kind`,
@@ -52,19 +54,26 @@ locals {
       query = "filter name = 'sync_result' | stats count(*) as cycles by kind | sort cycles desc"
     }
     sessions_per_day = {
-      title = "Sessions and devices per day"
+      title = "Sessions, devices and users per day"
       view  = "bar"
-      query = "stats count_distinct(session_id) as sessions, count_distinct(device_id) as devices by bin(1d)"
+      query = "stats count_distinct(session_id) as sessions, count_distinct(device_id) as devices, count_distinct(user_id) as users by bin(1d)"
     }
     errors = {
       title = "Errors by screen and kind"
       view  = "table"
       query = "filter name = 'error' | stats count(*) as errors by screen, kind | sort errors desc"
     }
+    # E18-A2 (2026-10-30): who used the app. The user stays an opaque id in the events (the Conta
+    # sentence stands); `apps/api/src/db/users-read-cli.ts` maps the ids to people for the digest.
+    users = {
+      title = "Users: sessions, devices, events and last activity by user and company"
+      view  = "table"
+      query = "stats count_distinct(session_id) as sessions, count_distinct(device_id) as devices, count(*) as events, earliest(received_at) as first_seen, latest(received_at) as last_seen by user_id, company_id | sort last_seen desc"
+    }
   }
 
   # The dashboard order; every key of ux_queries appears once.
-  ux_query_order = ["funnel", "actions", "dialogs", "disabled_taps", "waits", "readings", "syncs", "sessions_per_day", "errors"]
+  ux_query_order = ["funnel", "actions", "dialogs", "disabled_taps", "waits", "readings", "syncs", "sessions_per_day", "errors", "users"]
 }
 
 resource "aws_cloudwatch_dashboard" "ux" {

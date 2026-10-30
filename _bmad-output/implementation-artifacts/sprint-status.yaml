@@ -1561,7 +1561,9 @@ action_items:
       offline fmt, init -backend=false, validate; applied by the next deploy on Matheus's
       go; 2026-10-30, Matheus's pode fazer on the data-sufficiency review: a tenth view,
       sessions and events by user_id and company_id, and a read-only id-to-name CLI per
-      company for the digest (the user stays an id in the events)"
+      company for the digest (the user stays an id in the events); part 1, the users
+      view, the users column of sessions_per_day and the id-to-name CLI, built 2026-10-30
+      on branch e18-a2-users-view (Matheus: controlar os usuarios logados)"
     owner: "coordinator (batch); Matheus (deploy go)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"

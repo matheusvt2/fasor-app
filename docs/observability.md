@@ -16,9 +16,9 @@ Both exist only after the production Terraform apply that follows the Epic 18 me
 2. **Dashboard:** CloudWatch > Dashboards > `fasor-production-ux`. It opens on the last 7 days; the time picker widens it up to the 90 days the group keeps. Each widget runs its query when the page opens.
 3. **Saved queries:** CloudWatch > Logs Insights > Saved queries, folder `fasor-production-ux`. Each one opens on the group `/fasor/production/ux-events`; change the window, add a `filter` (for example `filter app_version = '<sha>'` or `filter company_id = '<id>'`) and run.
 
-The nine views are the same text in the widget and in the saved query (the widget adds `SOURCE '/fasor/production/ux-events' |` in front).
+The ~~nine~~ ten views *(2026-10-30, E18-A2: the `users` view joined the nine)* are the same text in the widget and in the saved query (the widget adds `SOURCE '/fasor/production/ux-events' |` in front).
 
-## The nine views and what a reader concludes
+## The ~~nine~~ ten views and what a reader concludes
 
 **`funnel`: screen views and sessions per screen (bar).** How many times each screen was opened and in how many sessions. Read it top to bottom as the path Home, relatório (`setup`, `sumario`), ficha, photos, export: a screen far below the one before it is where people stop or go around. A `sessions` count close to `views` means a screen is opened once per session; a much larger `views` means people come back to it, which may be work or may be getting lost.
 
@@ -34,9 +34,20 @@ The nine views are the same text in the widget and in the saved query (the widge
 
 **`syncs`: sync cycles by result (bar).** `ran` against `offline`, `contract_outdated`, `unauthorized` and `failed`. Many `offline` is the field reality; `contract_outdated` after a deploy means devices are slow to update; `failed` or `unauthorized` need a look at the api log.
 
-**`sessions_per_day`: sessions and devices per day (bar).** How many app loads and how many distinct devices a day. It is the denominator of the other views: a drop in a count on a day with few sessions is not a change of behaviour.
+**`sessions_per_day`: sessions, devices and users per day (bar).** How many app loads, how many distinct devices and *(2026-10-30, E18-A2)* how many distinct users a day. It is the denominator of the other views: a drop in a count on a day with few sessions is not a change of behaviour.
 
 **`errors`: errors by screen and kind (table).** The kernel error codes users saw, by screen. A code that repeats on one screen is a bug or a missing guard there; read the api log of the same window for the cause.
+
+**`users`: sessions, devices, events and last activity by user and company (table).** *(2026-10-30, E18-A2, Matheus: "controlar os usuários logados".)* Who used the app in the window: one row per `user_id` and `company_id` with its sessions, devices, events, first and last activity, most recent first. The ids are opaque on purpose (the events carry no name, as Conta says); the section "Mapping user ids to people" below turns them into names for the digest. With three engineers, a friction pattern in another view is often one person's habit or one device's problem: read this view first, then filter the others with `filter user_id = '<id>'`.
+
+## Mapping user ids to people
+
+*(2026-10-30, E18-A2.)* `apps/api/src/db/users-read-cli.ts` reads the `user`, `company` and `session` tables (read-only, one SELECT) and prints one JSON line per user with `company_id`, `company_name`, `user_id`, `name`, `email`, `created_at`, `sessions` (sign-ins ever) and `last_session_at`, then a closing count; `--company <id>` limits it to one company. The usage events keep the user as an id; this output is account data the administrator already holds, written to the migrate log group (kept 14 days) and never into the events group. In production it runs as a command override on the migrate task (`infra/README.md`, runbook "Map the user ids of the usage dashboard to people"; the image carries it from the first deploy after 2026-10-30). Locally:
+
+```sh
+podman compose --profile tools run --rm tools \
+  pnpm exec tsx apps/api/src/db/users-read-cli.ts [--company <company id>]
+```
 
 ## Adding an event name
 
