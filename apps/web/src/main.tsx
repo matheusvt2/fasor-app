@@ -4,9 +4,12 @@ import { createRoot } from 'react-dom/client';
 import { PRODUTO } from '@app/domain';
 import { App } from './app.tsx';
 import { registerServiceWorker, unregisterServiceWorkers } from './sw/register.ts';
+import { startTelemetry } from './telemetry/instrument.ts';
 import './styles/index.css';
 
 document.title = PRODUTO;
+// Epic 18 (AD-28): the `session_start` of this app load and the `data-telemetry` listeners.
+startTelemetry();
 const root = document.getElementById('root');
 if (!root) throw new Error('missing #root');
 createRoot(root).render(

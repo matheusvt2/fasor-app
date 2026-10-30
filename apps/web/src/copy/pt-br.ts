@@ -120,6 +120,11 @@ export const copy = {
     storageInUse: 'Em uso',
     storageNote:
       'Fotos ficam neste aparelho até o servidor confirmar o recebimento. Relatórios emitidos são removidos daqui sozinhos.',
+    // authored (Epic 18, open for Bruno): Story 18.2's notice of the usage events (AD-28).
+    usageHeading: 'Uso do aplicativo',
+    // authored (Epic 18, open for Bruno)
+    usageNote: (produto: string) =>
+      `Este aparelho registra as telas abertas, os toques, as esperas e os erros, nunca o que é digitado, e os guarda por 90 dias para melhorar o ${produto}.`,
   },
   // Home from `mockups/prototype/screens/20-home.html` and `key-home.html`. Every card
   // line, the board counts and the shortcut sub-lines come from the kernel

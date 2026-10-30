@@ -241,6 +241,18 @@ describe('rate limits', () => {
     expect(limiter.consume('k').allowed).toBe(true);
   });
 
+  it('Epic 18: counts a cost per request, so a batch of events spends that many of the window', () => {
+    let now = 0;
+    const limiter = new FixedWindowLimiter({ max: 1000, windowMs: 60_000 }, () => now);
+    expect(limiter.consume('u:d', 600).allowed).toBe(true);
+    expect(limiter.consume('u:d', 400).allowed).toBe(true);
+    expect(limiter.consume('u:d', 1)).toEqual({ allowed: false, retryAfterSeconds: 60 });
+    // Another key has its own window; the default cost stays one.
+    expect(limiter.consume('u:e').allowed).toBe(true);
+    now = 60_000;
+    expect(limiter.consume('u:d', 200).allowed).toBe(true);
+  });
+
   it('reads the client address from the last X-Forwarded-For entry only behind a trusted proxy', async () => {
     const app = new Hono();
     app.get('/ip/:trust', (c) => c.text(clientAddress(c, c.req.param('trust') === '1')));

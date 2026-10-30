@@ -34,6 +34,7 @@ export function RelatorioCard({ card, onPress, resume = null, onContinue }: Rela
         // is only a coloured pill for the eye, so the name has to carry it. The device
         // sentence is already read from the visible `.card-device` and is not repeated here.
         aria-label={label}
+        data-telemetry="home.card_open"
         onClick={() => onPress(card)}
       >
         <span>{card.title}</span>
@@ -54,7 +55,7 @@ export function RelatorioCard({ card, onPress, resume = null, onContinue }: Rela
       </div>
       {card.isCurrent ? (
         <div className="card-continue">
-          <Button variant="primary" onPress={() => (onContinue === undefined ? onPress(card) : onContinue(card, resume))}>
+          <Button variant="primary" data-telemetry="home.continue" onPress={() => (onContinue === undefined ? onPress(card) : onContinue(card, resume))}>
             {resume === null ? (
               copy.home.continue
             ) : (
@@ -64,7 +65,9 @@ export function RelatorioCard({ card, onPress, resume = null, onContinue }: Rela
               </>
             )}
           </Button>
-          <TextButton onPress={() => onPress(card)}>{copy.home.openSummary}</TextButton>
+          <TextButton data-telemetry="home.summary" onPress={() => onPress(card)}>
+            {copy.home.openSummary}
+          </TextButton>
         </div>
       ) : null}
       <p className="card-device">{card.device.text}</p>

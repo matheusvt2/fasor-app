@@ -1,4 +1,4 @@
-import { targetsOf, type Entity, type EntityRow, type Op, type RelatorioSummary, type RestoreMarks } from '@app/domain';
+import { targetsOf, type Entity, type EntityRow, type Op, type RelatorioSummary, type RestoreMarks, type UxEvent } from '@app/domain';
 import Dexie, { type DBCoreMutateRequest, type Table, type Transaction } from 'dexie';
 
 /*
@@ -124,6 +124,13 @@ export interface LocalPrefRow {
   value: unknown;
 }
 
+/**
+ * Epic 18 (AD-28): one queued usage event (`uxEventSchema`), keyed by an auto-increment id
+ * (oldest first). Never an op: it is outside `outbox`, `remote_ops` and `entities`, and
+ * nothing derives a status or count from it.
+ */
+export type UxEventRow = UxEvent & { id?: number };
+
 export const COMPANY_STREAM = 'company';
 export const DEVICE_ID_PREF = 'device_id';
 export const THEME_PREF = 'theme';
@@ -226,6 +233,12 @@ export const VERSIONS: readonly VersionDef[] = [
     },
     upgrade: stamp(6),
   },
+  {
+    // Epic 18 (AD-28): the usage-event queue, outside the op log; additive, no row changes shape.
+    version: 7,
+    stores: { ux_events: '++id, ts' },
+    upgrade: stamp(7),
+  },
 ];
 
 export const LATEST_VERSION = VERSIONS[VERSIONS.length - 1]!.version;
@@ -274,6 +287,7 @@ export class AppDatabase extends Dexie {
   thumbs!: Table<ThumbRow, string>;
   sync_state!: Table<SyncStateRow, string>;
   local_prefs!: Table<LocalPrefRow, string>;
+  ux_events!: Table<UxEventRow, number>;
 
   constructor(name: string, upToVersion: number = LATEST_VERSION) {
     super(name);

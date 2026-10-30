@@ -17,6 +17,7 @@ timestamp: 2026-09-30T00:00:00Z
 - [suggestions-and-reading](/architecture/suggestions-and-reading.md) AD-12, AD-14: Suggestion lifecycle, reading pipeline, OCR and LLM providers.
 - [rendering](/architecture/rendering.md) AD-15, AD-16, AD-26: snapshot, generate job, revisions, print order, section 8 tokens.
 - [ui-system](/architecture/ui-system.md) AD-23: mockup CSS as design system, React Aria.
+- [usage-events](/architecture/usage-events.md) AD-28, Epic 18: the usage-event contract, the device queue `ux_events`, `POST /api/telemetry`, its sink and the ux-events log group. Open for anything that records how the app is used.
 - [infra-aws](/architecture/infra-aws.md) AD-27: containers, AWS services, Terraform, cost ceiling.
 - [decisions](/architecture/decisions.md) AD number to file lookup, one line each. Open when a task names an AD-n.
 

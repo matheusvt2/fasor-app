@@ -107,7 +107,7 @@ export const RailEquipment = memo(function RailEquipment({ node, shared }: { nod
       >
         {/* Story 15.2 (Bruno's answer 6): the whole card is the tap target; TAG and type are its title
             (F-07: the TAG never breaks inside itself), the state word and the NC badge under it. */}
-        <button type="button" className="tree-body" data-tree-open onClick={() => shared.actions.openSheet(node.blockId)}>
+        <button type="button" className="tree-body" data-tree-open data-telemetry="sumario.open_sheet" onClick={() => shared.actions.openSheet(node.blockId)}>
           <span className="tree-id">
             {node.tag === '' ? null : <span className="tree-tag">{node.tag}</span>}
             <span className="tree-name">{node.typeLabel}</span>

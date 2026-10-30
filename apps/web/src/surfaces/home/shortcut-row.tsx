@@ -15,7 +15,7 @@ export interface ShortcutRowProps {
 export function ShortcutRow({ templates }: ShortcutRowProps) {
   return (
     <div className="shortcut-row">
-      <Link className="shortcut-card" to="/templates">
+      <Link className="shortcut-card" to="/templates" data-telemetry="home.shortcut_templates">
         <svg className="ico" aria-hidden="true">
           <use href="/sprite.svg#i-layers" />
         </svg>
@@ -27,7 +27,7 @@ export function ShortcutRow({ templates }: ShortcutRowProps) {
           <use href="/sprite.svg#i-chev-right" />
         </svg>
       </Link>
-      <Link className="shortcut-card" to="/cadastros">
+      <Link className="shortcut-card" to="/cadastros" data-telemetry="home.shortcut_cadastros">
         <svg className="ico" aria-hidden="true">
           <use href="/sprite.svg#i-book" />
         </svg>

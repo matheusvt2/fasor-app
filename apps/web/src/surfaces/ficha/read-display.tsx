@@ -625,6 +625,7 @@ export function ReadDisplayButton({
       <AriaButton
         ref={opener}
         className="read-display-btn"
+        data-telemetry="ficha.read_display"
         data-count={camera.burst > 0 ? String(camera.burst) : ''}
         aria-describedby={camera.denied ? deniedId : undefined}
         onPress={camera.open}
@@ -736,6 +737,7 @@ export function EnvReadDisplayButton({ relatorioId, cabineId, target }: { relato
       <AriaButton
         ref={opener}
         className="read-display-btn"
+        data-telemetry="ficha.read_display"
         data-count={camera.burst > 0 ? String(camera.burst) : ''}
         aria-describedby={camera.denied ? `${reasonId} ${deniedId}` : reasonId}
         onPress={camera.open}

@@ -2,6 +2,7 @@ import { PRODUTO } from '@app/domain';
 import { useId } from 'react';
 import { Button } from '../components/index.ts';
 import { copy } from '../copy/pt-br.ts';
+import { useScreenView } from '../telemetry/hooks.ts';
 
 /**
  * The full-screen state a pull's `426 contract_outdated` puts the app in (AD-13,
@@ -10,6 +11,8 @@ import { copy } from '../copy/pt-br.ts';
  * reloads into the new bundle. There is no mock; the copy is authored.
  */
 export function ContractOutdatedSurface() {
+  // Epic 18: this full-surface state replaces the routes, so it says itself that it was shown.
+  useScreenView('update');
   const titleId = useId();
   return (
     <main className="screen" data-route="/outdated">

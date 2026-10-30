@@ -56,6 +56,8 @@ export function useSavedStatus(): { at: string | null; saved: () => void } {
 export interface FichaActions {
   primaryLabel: string;
   primary: () => void;
+  /** Epic 18: the primary's usage-event name: `ficha.conclude` while it concludes, else `ficha.next_sheet`. */
+  primaryTelemetry: 'ficha.conclude' | 'ficha.next_sheet';
   menu: OverflowMenuAction[];
   filledBy: string | null;
   concludedBy: string | null;
@@ -279,6 +281,7 @@ export function useFichaActions({
   return {
     primaryLabel,
     primary,
+    primaryTelemetry: concludable ? 'ficha.conclude' : 'ficha.next_sheet',
     menu,
     filledBy,
     concludedBy,

@@ -29,6 +29,7 @@ export function useSheetCamera(relatorioId: string, target: () => CaptureTarget)
         <AriaButton
           ref={opener}
           className="camera-capture-btn"
+          data-telemetry="ficha.photo"
           aria-label={t.takePhoto}
           data-count={camera.burst > 0 ? String(camera.burst) : ''}
           aria-describedby={camera.denied ? deniedId : undefined}
@@ -103,6 +104,7 @@ export function PlateCaptureTile({ relatorioId, target, pendingRow }: { relatori
       <AriaButton
         ref={tile}
         className="camera-capture-tile"
+        data-telemetry="ficha.plate_shot"
         aria-label={t.takePlate}
         aria-describedby={camera.denied ? deniedId : undefined}
         data-state={camera.opening ? 'opening' : undefined}
@@ -205,7 +207,7 @@ export function AddPhotosButton({ denied, onFiles, onOpenSheet }: { denied: bool
   const direct = !denied && onFiles !== undefined;
   return (
     <>
-      <AriaButton className="btn btn-secondary add-photos-btn" onPress={direct ? picker.open : onOpenSheet}>
+      <AriaButton className="btn btn-secondary add-photos-btn" data-telemetry="photos.add" onPress={direct ? picker.open : onOpenSheet}>
         <svg className="ico" aria-hidden="true">
           <use href="/sprite.svg#i-image" />
         </svg>
@@ -241,6 +243,7 @@ export function RowPhotoAction({
         <AriaButton
           ref={opener}
           className="btn btn-secondary"
+          data-telemetry="ficha.photo"
           aria-describedby={camera.denied ? `${reasonId} ${deniedId}` : reasonId}
           onPress={camera.open}
         >

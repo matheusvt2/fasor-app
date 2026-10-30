@@ -109,6 +109,13 @@ export const configSchema = z
      * reread); `PUT /api/files/:id` keeps its own 25 MB cap and `/api/auth/*` a 64 KiB one.
      */
     API_BODY_LIMIT_BYTES: z.preprocess(unsetWhenEmpty, z.coerce.number().int().positive().default(16 * 1024 * 1024)),
+    /**
+     * Epic 18 (AD-28): where `POST /api/telemetry` writes the usage events. `stdout` (the
+     * default: local, tests, the compose stack) is one `ux_event` log line per event;
+     * `cloudwatch` (production, `infra/production/ecs.tf`) puts them on TELEMETRY_LOG_GROUP.
+     */
+    TELEMETRY_SINK: z.preprocess(unsetWhenEmpty, z.enum(['stdout', 'cloudwatch']).default('stdout')),
+    TELEMETRY_LOG_GROUP: z.preprocess(unsetWhenEmpty, z.string().min(1).optional()),
   })
   .superRefine((config, ctx) => {
     // The compose default is public (this repository is): a production process refuses it.
@@ -118,6 +125,9 @@ export const configSchema = z
         path: ['SESSION_SECRET'],
         message: 'is the public development default; production needs its own secret',
       });
+    }
+    if (config.TELEMETRY_SINK === 'cloudwatch' && config.TELEMETRY_LOG_GROUP === undefined) {
+      ctx.addIssue({ code: 'custom', path: ['TELEMETRY_LOG_GROUP'], message: 'required when TELEMETRY_SINK is cloudwatch' });
     }
     // Half a key pair is a misconfiguration, never a silent fall back to the default chain.
     const pair = ['S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const;

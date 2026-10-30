@@ -23,6 +23,7 @@ export function StatusBoard({ counts, filter, onFilter }: StatusBoardProps) {
           count={counts[status]}
           isPressed={filter === status}
           onPress={() => onFilter(status)}
+          telemetry="home.status_chip"
         />
       ))}
     </div>

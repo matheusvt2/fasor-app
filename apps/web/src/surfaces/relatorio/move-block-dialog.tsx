@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Button, Checkbox, FilterChipGroup, FormDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
+import { useDialogTelemetry } from '../../telemetry/hooks.ts';
 
 /*
  * Story 11.2: "Mover para…", shared by the Sumário's Block card Overflow and the sheet
@@ -26,6 +27,12 @@ export interface MoveBlockDialogProps {
 }
 
 export function MoveBlockDialog({ name, blockId, locations, blocks, equipment, onClose, onSubmit }: MoveBlockDialogProps) {
+  // Epic 18: `dialog_open` on mount; `onClose` is this dialog's cancel path (Cancelar, Esc, the scrim).
+  const cancelled = useDialogTelemetry('move_block');
+  const cancel = () => {
+    cancelled();
+    onClose();
+  };
   const t = copy.sumario.tree;
   const [targetId, setTargetId] = useState<string | null>(null);
   const [rename, setRename] = useState(false);
@@ -46,7 +53,7 @@ export function MoveBlockDialog({ name, blockId, locations, blocks, equipment, o
     <FormDialog
       isOpen
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (!open) cancel();
       }}
       title={t.moveTitle(name)}
       className="move-dialog"
@@ -70,7 +77,7 @@ export function MoveBlockDialog({ name, blockId, locations, blocks, equipment, o
         </>
       )}
       <div className="dialog-actions">
-        <Button variant="secondary" onPress={onClose}>
+        <Button variant="secondary" onPress={cancel}>
           {ui.confirmDialog.cancel}
         </Button>
         <Button variant="primary" isDisabled={disabledReason !== undefined} {...(disabledReason === undefined ? {} : { disabledReason })} onPress={submit}>

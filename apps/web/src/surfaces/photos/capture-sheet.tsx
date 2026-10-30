@@ -36,6 +36,7 @@ import { CaptionComposer, LegendarButton } from './caption-composer.tsx';
 import { assignPhotoBatch, removePhotos, toastPhotoWriteFailure } from './photo-ops.ts';
 import { useCaptionSources } from './use-caption-sources.ts';
 import './photos.css';
+import { useDialogTelemetry } from '../../telemetry/hooks.ts';
 
 /*
  * Story 6.4 (FR-45; `70-fotos.html` "Photo capture sheet" and "De qual equipamento?",
@@ -195,6 +196,8 @@ export function PhotoCaptureSheet({ relatorioId, isOpen, onClose, mode, initialF
   const titleId = useId();
   // E6-Q8: Esc and the scrim close through the body, which says what became of a saved batch.
   const close = useRef<(() => void) | null>(null);
+  // Epic 18: the sheet's `dialog_open`, and its `dialog_cancel` on "Cancelar", Esc and the scrim.
+  const cancelled = useDialogTelemetry('capture_sheet', isOpen);
   return (
     <DialogShell
       className="photo-capture-sheet"
@@ -203,11 +206,14 @@ export function PhotoCaptureSheet({ relatorioId, isOpen, onClose, mode, initialF
       onOpenChange={(open) => {
         if (open) return;
         if (close.current !== null) close.current();
-        else onClose();
+        else {
+          cancelled();
+          onClose();
+        }
       }}
       aria-labelledby={titleId}
     >
-      {isOpen ? <SheetBody relatorioId={relatorioId} mode={mode} titleId={titleId} onClose={onClose} initialFiles={initialFiles} closeRef={close} /> : null}
+      {isOpen ? <SheetBody relatorioId={relatorioId} mode={mode} titleId={titleId} onClose={onClose} onCancelled={cancelled} initialFiles={initialFiles} closeRef={close} /> : null}
     </DialogShell>
   );
 }
@@ -239,6 +245,7 @@ function SheetBody({
   mode,
   titleId,
   onClose,
+  onCancelled,
   initialFiles,
   closeRef,
 }: {
@@ -246,6 +253,8 @@ function SheetBody({
   mode: CaptureSheetMode;
   titleId: string;
   onClose: () => void;
+  /** Epic 18: the sheet was cancelled (its `dialog_cancel`). */
+  onCancelled: () => void;
   initialFiles: readonly File[] | null;
   closeRef: RefObject<(() => void) | null>;
 }) {
@@ -365,6 +374,7 @@ function SheetBody({
             : {
                 action: {
                   label: copy.viewer.undo,
+                  undo: true,
                   onPress: () => {
                     void removePhotos(db, author, relatorioId, ids).catch(toastPhotoWriteFailure(showToast));
                   },
@@ -386,6 +396,7 @@ function SheetBody({
 
   /** "Cancelar", Esc, the scrim: a saved batch stays as "Geral", and the toast says so. */
   const cancel = () => {
+    onCancelled();
     if (batch !== null && !answered.current) {
       if (batch.ids !== null) finish(batch.ids, batch.skipped, null);
       else settled.current = (ids, skipped) => finish(ids, skipped, null);
@@ -452,7 +463,13 @@ function SheetBody({
           picked(list);
         }}
       />
-      <AriaButton className="btn btn-text btn-block capture-cancel" onPress={onClose}>
+      <AriaButton
+        className="btn btn-text btn-block capture-cancel"
+        onPress={() => {
+          onCancelled();
+          onClose();
+        }}
+      >
         {t.cancel}
       </AriaButton>
     </>

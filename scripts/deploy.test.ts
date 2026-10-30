@@ -79,7 +79,8 @@ describe('Story 11.8 infra/bin/deploy --dry-run', () => {
       const result = spawnSync('bash', [deploy, '--dry-run'], { encoding: 'utf8', env: { PATH: `${podmanStubs}:/usr/bin:/bin`, HOME: tmpdir() } });
       const out = `${result.stdout}${result.stderr}`;
       expect(result.status, out).toBe(0);
-      expect(out).toMatch(/^DRY-RUN: podman build --platform linux\/amd64 -f \S*Dockerfile\.prod -t \S*fasor\/api:0123456789abcdef/m);
+      // Epic 18: the api image's web bundle carries the tag as its usage events' `app_version`.
+      expect(out).toMatch(/^DRY-RUN: podman build --platform linux\/amd64 -f \S*Dockerfile\.prod --build-arg VITE_APP_VERSION=0123456789abcdef0123456789abcdef01234567 -t \S*fasor\/api:0123456789abcdef/m);
       expect(out).toMatch(/^DRY-RUN: podman build --platform linux\/amd64 --target runtime -t \S*fasor\/ocr:/m);
       expect(out).toMatch(/^DRY-RUN: podman push .*fasor\/api:0123456789abcdef/m);
       expect(out).toMatch(/\| podman login --username AWS --password-stdin/);

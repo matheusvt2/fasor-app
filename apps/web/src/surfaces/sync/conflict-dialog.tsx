@@ -24,6 +24,7 @@ import { useLiveQuery } from '../../db/live.ts';
 import { useSession } from '../../state/session.tsx';
 import type { DecisionActions } from './decision-actions.ts';
 import './sync.css';
+import { useDialogTelemetry } from '../../telemetry/hooks.ts';
 
 /*
  * Stories 10.2 and 10.3 (FR-59, `prototype/screens/86-sync-conflito.html`, epic-10
@@ -50,12 +51,18 @@ export function ConflictDialog({ entry, decision, context, actions, onClose }: C
   const descId = useId();
   const t = copy.conflict;
   const title = conflictViewTitle(decision.block_id, context);
+  // Epic 18: `dialog_open` on mount; Esc, the scrim and the close button are its cancel.
+  const cancelled = useDialogTelemetry('conflict');
+  const cancel = () => {
+    cancelled();
+    onClose();
+  };
   return (
     <DialogShell
       className="conflict-dialog"
       isOpen
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (!open) cancel();
       }}
       aria-labelledby={titleId}
       aria-describedby={descId}
@@ -68,7 +75,7 @@ export function ConflictDialog({ entry, decision, context, actions, onClose }: C
               {decision.kind === 'cell' ? t.desc : t.removalDesc}
             </span>
           </div>
-          <button type="button" className="icon-btn" aria-label={t.close} onClick={onClose}>
+          <button type="button" className="icon-btn" aria-label={t.close} onClick={cancel}>
             <svg className="ico" aria-hidden="true">
               <use href="/sprite.svg#i-close" />
             </svg>

@@ -1,7 +1,12 @@
+import 'fake-indexeddb/auto';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { openDatabase } from '../db/schema.ts';
+import { queuedUxEvents } from '../db/ux-events-store.ts';
+import { installTelemetryListeners } from '../telemetry/instrument.ts';
+import { configureTelemetry, resetTelemetryForTests, whenTelemetryWritten } from '../telemetry/track.ts';
 import { dropToastRoom, forgetPointerPress, keepClearOfStickyBar, keepClearOfToast, STICKY_BAR_COVERED, Toast, TOAST_CLEARANCE, TOAST_ROOM, TOAST_ROOM_UP, TOAST_UP, useStickyBarScrollPadding, type ToastMessage } from './toast.tsx';
 
 const message: ToastMessage = { id: 1, text: 'Rascunho encontrado', action: { label: 'Recuperar', onPress: () => undefined } };
@@ -506,6 +511,29 @@ describe('Carry-over co14a (F-11 on WebKit): a field the keyboard focused stops 
       now.mockRestore();
       appBar.remove();
       bar.remove();
+    }
+  });
+});
+
+describe('Toast "Desfazer" (Epic 18)', () => {
+  it('queues an undo with the target toast.undo when an undo action is pressed', async () => {
+    resetTelemetryForTests();
+    const db = openDatabase('019966b0-0077-7000-8000-000000000001');
+    await db.delete();
+    await db.open();
+    configureTelemetry({ db, deviceId: '019966b0-0077-7000-8000-0000000000dd' });
+    const uninstall = installTelemetryListeners(document);
+    try {
+      const undo = vi.fn();
+      render(<Toast toast={{ id: 2, text: 'Seção removida', action: { label: 'Desfazer', undo: true, onPress: undo } }} onClose={() => undefined} onDismiss={() => undefined} />);
+      await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+      expect(undo).toHaveBeenCalledTimes(1);
+      await whenTelemetryWritten();
+      expect((await queuedUxEvents(db)).map(({ name, target }) => ({ name, target }))).toEqual([{ name: 'undo', target: 'toast.undo' }]);
+    } finally {
+      uninstall();
+      configureTelemetry(null);
+      db.close();
     }
   });
 });

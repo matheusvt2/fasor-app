@@ -184,6 +184,17 @@ describe('config', () => {
     ).toEqual({ signIn: { max: 7, windowMs: 300_000 }, push: { max: 120, windowMs: 30_000 }, trustProxy: false });
   });
 
+  it('Epic 18: defaults the telemetry sink to stdout, and cloudwatch needs a log group', () => {
+    expect(loadConfig(valid).TELEMETRY_SINK).toBe('stdout');
+    expect(loadConfig({ ...valid, TELEMETRY_SINK: '' }).TELEMETRY_SINK).toBe('stdout');
+    expect(loadConfig({ ...valid, TELEMETRY_LOG_GROUP: '' }).TELEMETRY_LOG_GROUP).toBeUndefined();
+    const cloud = loadConfig({ ...valid, TELEMETRY_SINK: 'cloudwatch', TELEMETRY_LOG_GROUP: '/fasor/production/ux-events' });
+    expect([cloud.TELEMETRY_SINK, cloud.TELEMETRY_LOG_GROUP]).toEqual(['cloudwatch', '/fasor/production/ux-events']);
+    expect(() => loadConfig({ ...valid, TELEMETRY_SINK: 'cloudwatch' })).toThrow(/TELEMETRY_LOG_GROUP/);
+    expect(() => loadConfig({ ...valid, TELEMETRY_SINK: 'cloudwatch', TELEMETRY_LOG_GROUP: '' })).toThrow(/TELEMETRY_LOG_GROUP/);
+    expect(() => loadConfig({ ...valid, TELEMETRY_SINK: 'kinesis' })).toThrow(/TELEMETRY_SINK/);
+  });
+
   it('knows every development SESSION_SECRET this repository commits', () => {
     const repo = resolve(import.meta.dirname, '../../..');
     const committed = [

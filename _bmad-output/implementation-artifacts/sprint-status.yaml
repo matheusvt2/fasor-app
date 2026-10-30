@@ -206,8 +206,8 @@ development_status:
   17-6-altitude-do-site-takes-n-a-contract-27: done  # 2026-10-28: PR #193 squash-merged as 6c28b886 (batch e17c with 15.7); QA G3 closed | 2026-10-28: batch e17c started (wave B) | added 2026-10-27 (Bruno's answer 4; QA G3): site_altitude_na, the N/A control, the hint when the device gave no altitude; contract 27 minimum 27 with seed v10 (batch e17c)
   17-7-a-photo-saved-to-the-device: done  # 2026-10-28: PR #194 squash-merged as 3beacd40 (batch e17d with 17.2) | 2026-10-28: batch e17d started (wave B) | added 2026-10-27 (the honest answer to "not saved on the device"): Salvar no aparelho on the photo viewer through navigator.share, else download; Conta sentence
   epic-18: in-progress  # 2026-10-29: Matheus: "pode fazer a observabilidade. quero ver todo o funil"; Epic 18 written (three stories, AD-28); batches o18a (18.1+18.2) and o18b (18.3) start from main; deploy after both merge, on Matheus's go
-  18-1-the-device-records-usage-events-and-ships-them-with-the-sync: in-progress  # 2026-10-29: batch o18a started
-  18-2-the-api-receives-usage-events-and-writes-them-to-cloudwatch: in-progress  # 2026-10-29: batch o18a started
+  18-1-the-device-records-usage-events-and-ships-them-with-the-sync: done  # 2026-10-29: batch o18a PR #213 (open, not merged) | 2026-10-29: batch o18a started
+  18-2-the-api-receives-usage-events-and-writes-them-to-cloudwatch: done  # 2026-10-29: batch o18a PR #213 (open, not merged; the log group appears after the deploy's Terraform apply) | 2026-10-29: batch o18a started
   18-3-seeing-the-funnel-dashboard-saved-queries-and-the-first-friction-digest: done  # 2026-10-29: batch o18b PR #212 (open, not merged; dashboard and saved queries appear after the deploy's Terraform apply) | 2026-10-29: batch o18b started
 
   backlog-deferred: backlog  # added 2026-10-21: stories moved out of their epic with a dated decision, epics.md "Backlog: deferred stories"

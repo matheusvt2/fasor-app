@@ -7,6 +7,8 @@ export interface StatusTileProps {
   count: number;
   isPressed: boolean;
   onPress: () => void;
+  /** Epic 18: the control's usage-event name (`data-telemetry`). */
+  telemetry?: string;
 }
 
 /**
@@ -16,7 +18,7 @@ export interface StatusTileProps {
  * `aria-pressed` lands on the visible element, and `src/styles/app.css` (not the locked
  * `components.css`) gives the pressed state its look.
  */
-export function StatusTile({ status, count, isPressed, onPress }: StatusTileProps) {
+export function StatusTile({ status, count, isPressed, onPress, telemetry }: StatusTileProps) {
   return (
     <ToggleButton
       className="status-tile"
@@ -24,6 +26,7 @@ export function StatusTile({ status, count, isPressed, onPress }: StatusTileProp
       onChange={onPress}
       aria-label={statusTileLabel(status, count)}
       data-status={status}
+      data-telemetry={telemetry}
     >
       <span className={count === 0 ? 'tile-count is-zero' : 'tile-count'} aria-hidden="true">
         {count}

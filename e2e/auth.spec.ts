@@ -60,6 +60,8 @@ test('@p0 1.3-E2E-001 signs in, keeps working with the API down, and signs out w
     'remote_ops',
     'sync_state',
     'thumbs',
+    // Epic 18 (AD-28): the usage-event queue, Dexie version 7.
+    'ux_events',
   ]);
 
   // Reopen the tab with the server unreachable. Without the service worker of Story 1.8

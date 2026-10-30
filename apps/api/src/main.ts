@@ -18,6 +18,7 @@ import { registerReadingWorker } from './jobs/reading/worker.ts';
 import { startQueue } from './jobs/queue.ts';
 import { log, logError } from './log.ts';
 import { createS3, prepareStorage, probeStorage } from './storage/s3.ts';
+import { telemetrySinkOf } from './telemetry/sink.ts';
 
 const config = loadConfigOrExit();
 
@@ -103,6 +104,8 @@ const auth = createAuth({
   trustedOrigins: parseTrustedOrigins(config.TRUSTED_ORIGINS),
 });
 
+// Epic 18 (AD-28): the usage-event sink; `cloudwatch` through the default credential chain.
+const telemetrySink = telemetrySinkOf(config);
 const rateLimits = requestLimits(config);
 const app = createApp({
   auth,
@@ -112,6 +115,7 @@ const app = createApp({
   boss,
   aiFeatures: config.AI_FEATURES === 'on',
   bodyLimitBytes: config.API_BODY_LIMIT_BYTES,
+  telemetry: { sink: telemetrySink },
   ...(rateLimits === undefined ? {} : { rateLimits }),
   probes: {
     db: () => sql`select 1`,
@@ -122,5 +126,5 @@ const app = createApp({
 });
 
 serve({ fetch: app.fetch, port: config.PORT }, (info) => {
-  log('api listening', { port: info.port, rate_limit: rateLimitEnabled(config) ? 'on' : 'off' });
+  log('api listening', { port: info.port, rate_limit: rateLimitEnabled(config) ? 'on' : 'off', telemetry_sink: config.TELEMETRY_SINK });
 });

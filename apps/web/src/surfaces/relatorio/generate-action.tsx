@@ -45,7 +45,7 @@ export function GenerateAction({ relatorioId, reasonId, onSeeInSumario, onSeeAud
   };
   return (
     <>
-      <Button variant="primary" aria-describedby={reasonId} onPress={() => setOpen(true)}>
+      <Button variant="primary" aria-describedby={reasonId} data-telemetry="sumario.export" onPress={() => setOpen(true)}>
         <svg className="ico" aria-hidden="true">
           <use href="/sprite.svg#i-doc" />
         </svg>

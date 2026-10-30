@@ -18,8 +18,8 @@ describe('Dexie store', () => {
   });
 
   it('declares append-only versions, each with an upgrade()', () => {
-    expect(VERSIONS.map((v) => v.version)).toEqual([1, 2, 3, 4, 5, 6]);
-    expect(LATEST_VERSION).toBe(6);
+    expect(VERSIONS.map((v) => v.version)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(LATEST_VERSION).toBe(7);
     for (const v of VERSIONS) expect(typeof v.upgrade).toBe('function');
   });
 
@@ -95,7 +95,7 @@ describe('Dexie store', () => {
     await v5.outbox.bulkAdd(own);
     v5.close();
 
-    const v6 = openDatabase(user);
+    const v6 = openDatabase(user, { upToVersion: 6 });
     await v6.open();
     expect(v6.verno).toBe(6);
     expect(await v6.local_prefs.get('db_version')).toEqual({ key: 'db_version', value: 6 });
@@ -121,6 +121,32 @@ describe('Dexie store', () => {
     expect(ownOfRelatorio.map((r) => r.op_id).sort()).toEqual(own.filter((r) => r.relatorio_id === RELATORIO_ID).map((r) => r.op_id).sort());
     expect(ownOfRelatorio.length).toBeGreaterThan(0);
     v6.close();
+  });
+
+  it('Epic 18: a version 6 store with outbox rows opens at version 7 with an empty ux_events queue, every row intact', async () => {
+    const user = '019966b0-0009-7000-8000-000000000009';
+    const v6 = openDatabase(user, { upToVersion: 6 });
+    const own = opLog.slice(0, 4).map((op) => ({ ...op, status: 'pending' as const, error_code: null, targets: targetKeysOf(op) }));
+    await v6.outbox.bulkAdd(own);
+    await v6.local_prefs.put({ key: 'device_id', value: '019966b0-0009-7000-8000-0000000000dd' });
+    expect(v6.tables.map((t) => t.name)).not.toContain('ux_events');
+    v6.close();
+
+    const v7 = openDatabase(user);
+    await v7.open();
+    expect(v7.verno).toBe(7);
+    expect(await v7.local_prefs.get('db_version')).toEqual({ key: 'db_version', value: 7 });
+    const kept = await v7.outbox.orderBy('client_ts').toArray();
+    expect(kept.map((r) => r.op_id)).toEqual(own.map((r) => r.op_id));
+    expect(kept.every((r) => r.status === 'pending')).toBe(true);
+    expect(await v7.local_prefs.get('device_id')).toEqual({ key: 'device_id', value: '019966b0-0009-7000-8000-0000000000dd' });
+    expect(await v7.ux_events.count()).toBe(0);
+    // The queue is keyed oldest first and indexed by instant.
+    const first = await v7.ux_events.add({ v: 1, ts: '2026-10-29T12:00:00.000Z', session_id: user, device_id: user, app_version: 'dev', name: 'session_start', screen: 'home' });
+    const second = await v7.ux_events.add({ v: 1, ts: '2026-10-29T11:00:00.000Z', session_id: user, device_id: user, app_version: 'dev', name: 'screen_view', screen: 'home' });
+    expect(second).toBeGreaterThan(first);
+    expect((await v7.ux_events.orderBy('ts').first())?.name).toBe('screen_view');
+    v7.close();
   });
 
   // AD-8's eviction signal: only the open that brings the store into existence says so.

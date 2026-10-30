@@ -52,8 +52,11 @@ export class FixedWindowLimiter {
     return this.windows.size;
   }
 
-  /** Counts one request of `key` and says whether it is within the rule. */
-  consume(key: string): RateLimitDecision {
+  /**
+   * Counts one request of `key` and says whether it is within the rule. `cost` is what the
+   * request spends of the window (Epic 18: a telemetry batch spends one per event).
+   */
+  consume(key: string, cost = 1): RateLimitDecision {
     const now = this.now();
     let window = this.windows.get(key);
     if (window === undefined || now >= window.resetAt) {
@@ -65,7 +68,7 @@ export class FixedWindowLimiter {
       window = { count: 0, resetAt: now + this.rule.windowMs };
       this.windows.set(key, window);
     }
-    window.count += 1;
+    window.count += cost;
     if (window.count <= this.rule.max) return { allowed: true, retryAfterSeconds: 0 };
     return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((window.resetAt - now) / 1000)) };
   }
@@ -80,7 +83,7 @@ const rateLimited: ErrorResponse = {
   message: 'Too many requests; try again later.',
 };
 
-function tooMany(c: Context, retryAfterSeconds: number): Response {
+export function tooMany(c: Context, retryAfterSeconds: number): Response {
   return c.json(rateLimited, 429, { 'retry-after': String(retryAfterSeconds) });
 }
 

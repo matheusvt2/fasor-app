@@ -4,6 +4,7 @@ import { Button, TextButton } from '../components/index.ts';
 import { copy } from '../copy/pt-br.ts';
 import { useSession } from '../state/session.tsx';
 import { useSync } from '../state/sync.tsx';
+import { useScreenView } from '../telemetry/hooks.ts';
 
 /**
  * AD-8: "if the origin's storage was evicted (session cookie present, database absent),
@@ -16,6 +17,8 @@ import { useSync } from '../state/sync.tsx';
  * No mock exists, so every string is authored.
  */
 export function EvictionRecoverySurface() {
+  // Epic 18: this full-surface state replaces the routes, so it says itself that it was shown.
+  useScreenView('recovery');
   const titleId = useId();
   const session = useSession();
   const sync = useSync();

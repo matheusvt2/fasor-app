@@ -4,6 +4,8 @@ export interface NotApplicableButtonProps {
   /** The field's label as the screen shows it, named in the accessible name. */
   label: string;
   onPress: () => void;
+  /** Epic 18: the control's usage-event name (`data-telemetry`), e.g. `ficha.na` on a sheet. */
+  telemetry?: string;
 }
 
 /**
@@ -12,9 +14,9 @@ export interface NotApplicableButtonProps {
  * setup's "Altitude do site" (which is not a `NumberField`). A plain button, so a tap that
  * does not move the focus (WebKit) still runs `onPress` and the caller decides the focus.
  */
-export function NotApplicableButton({ label, onPress }: NotApplicableButtonProps) {
+export function NotApplicableButton({ label, onPress, telemetry }: NotApplicableButtonProps) {
   return (
-    <button type="button" className="btn btn-secondary btn-na" aria-label={ui.notApplicable.markLabel(label)} onClick={onPress}>
+    <button type="button" className="btn btn-secondary btn-na" data-telemetry={telemetry} aria-label={ui.notApplicable.markLabel(label)} onClick={onPress}>
       {ui.notApplicable.control}
     </button>
   );

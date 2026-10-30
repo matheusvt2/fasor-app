@@ -15,6 +15,7 @@ import { SyncProvider, useSync } from './state/sync.tsx';
 import { ThemeProvider } from './state/theme.tsx';
 import { ToastProvider } from './state/toast.tsx';
 import { useShellUpdate } from './sw/use-shell-update.ts';
+import { TelemetryRoutes } from './telemetry/hooks.ts';
 import { AppShell } from './surfaces/app-shell.tsx';
 import { AccountSurface } from './surfaces/account/account-surface.tsx';
 import { ContractOutdatedSurface } from './surfaces/contract-outdated-surface.tsx';
@@ -118,6 +119,8 @@ const router = createBrowserRouter([
   {
     element: (
       <SessionProvider>
+        {/* Epic 18 (AD-28): one `screen_view` per route change, ids from the route params only. */}
+        <TelemetryRoutes />
         <div className="app-root">
           <Outlet />
         </div>
