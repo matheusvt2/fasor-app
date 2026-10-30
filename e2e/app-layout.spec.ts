@@ -39,6 +39,9 @@ test('@p0 HOME-LAYOUT-E2E-001 Home and /cadastros at 390, 768, 1280 and 1906 px:
 
     await page.goto('/');
     await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
+    // Story 19.1 (2026-10-30): Templates and Cadastros are in the viewport without scrolling at every width.
+    await expect(page.locator('.shortcut-card').first()).toBeInViewport();
+    await expect(page.locator('.shortcut-card').last()).toBeInViewport();
     const home = await rightEdges(page);
     expect(home.bar - home.avatar, `Home at ${width} px: avatar ${home.avatar}, bar ${home.bar}`).toBeLessThanOrEqual(16);
     expect(home.bar - home.avatar).toBeGreaterThanOrEqual(0);

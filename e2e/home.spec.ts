@@ -184,6 +184,12 @@ test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first 
   await expect(shortcuts.first()).toHaveAttribute('href', '/templates');
   await expect(shortcuts.first()).not.toHaveAttribute('aria-disabled');
   await expect(page.locator('.shortcut-card .sync-badge')).toHaveCount(0);
+  // Story 19.1 (2026-10-30): the shortcut row sits between the Status board and the "Relatórios" heading.
+  const boardBox = (await page.getByRole('group', { name: 'Relatórios por status' }).boundingBox())!;
+  const rowBox = (await page.locator('.shortcut-row').boundingBox())!;
+  const headBox = (await page.getByRole('heading', { level: 2, name: 'Relatórios', exact: true }).boundingBox())!;
+  expect(rowBox.y).toBeGreaterThanOrEqual(boardBox.y + boardBox.height);
+  expect(headBox.y).toBeGreaterThanOrEqual(rowBox.y + rowBox.height);
 });
 
 test('@p1 1.6-E2E-002 a device with nothing on it says so and offers "Novo relatório"', async ({ page, seed }) => {
