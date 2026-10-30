@@ -2595,3 +2595,8 @@ Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
   summary: Relatórios past the 100th of a selection are unreachable from Home: the largest page is 100 and there is no next page or search.
   evidence: Review ECH-2 and BH-6 (2026-10-30): `homeList` slices at the page size and `HOME_PAGE_SIZES` ends at 100 (Matheus's sizes); a company with more than 100 emitted relatórios reaches the oldest from the Project surface only. EXPERIENCE.md § Home names that way in; a next page or a search (option D of the 2026-10-29 analysis) waits for Bruno's volume answers.
 
+## Deferred from: the Epic 19 deploy (2026-10-30)
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-19-context.md`
+  summary: `infra/bin/check` is red on the operator's machine at its `terraform init -backend=false` step for both stacks ("No valid credential sources found", the S3 backend's message) while every other step passes; the check is documented as needing no AWS login.
+  evidence: Run of 2026-10-30 before the Epic 19 deploy (`.scratch-prodfix/check-29f030b2.log`): fmt, validate, tflint, caddy validate, the fallback origin secret and shellcheck `ok`, `FAILED: terraform init bootstrap` and `FAILED: terraform init production`. Both stack directories hold a `.terraform/terraform.tfstate` written on 2026-10-05 by a real init with the S3 backend, and the container has no credentials; a plain `infra/bin/tf production init` (with the login session) and `plan` ran green the same minute. To decide: let the check pass `-reconfigure` with `-backend=false`, run it in a scratch copy of the stack directory, or mount the login session for that one step. Owner: the next infrastructure batch (E18-A2 or later).

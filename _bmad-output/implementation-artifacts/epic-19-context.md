@@ -43,3 +43,23 @@ Keep Home short and useful whatever the company's number of relatórios. Today e
 - Story 19.1 is merged on main (`57d3b5cc`); Story 19.2 builds on its order.
 - Epic 18: the first monthly digest (2026-11-30) reads `home.shortcut_*`, `home.status_chip` and the new page-size target per session; the target name must exist in the kernel list before the digest.
 - Bruno's volume answers (how many relatórios active and per year) are still open; a search and other sort keys wait for them.
+
+## Deploy (2026-10-30, Matheus: "pode deployar")
+
+`infra/bin/deploy` from the clean main checkout at `29f030b2` (Stories 19.1 and 19.2 merged, PRs #216 and #217) with the
+`fasor-admin` login (`.scratch-prodfix/deploy-29f030b2.log`). Before it, `infra/bin/tf production plan` reported no
+changes, so the apply moves only the image tag. Images built for linux/amd64 and pushed; the migrate task ran on the new
+api image (task `5c78104c`; `-target` apply 1 added, 1 destroyed; nothing to migrate, the epic carries no schema or
+contract change); the services rolled (4 added, 3 changed, 4 destroyed); health up on every component; production smoke
+8 of 8 in 51.6 s (reset task `4216b370`, cleanup `35d8cccf`). Devices on contract 28 keep working and take the new Home
+on their next load of the bundle; the api log showed no error or warning in the 15 minutes after the roll.
+
+Hands-on check after the deploy, on the smoke company only (Playwright MCP, cookie sign-in, 390 px): Home in the order
+Início, Relatórios por status (0 · 1 · 0 · 0), Atalhos (Templates, Cadastros), Relatórios with the one Em campo card
+("Continuar: DJ-TEST · 1 de 3"); no page note with one relatório; `scrollWidth` 390 equal to `innerWidth`; screenshot
+`.playwright-mcp/s19-2/prod-home-390.png`; the session cookie cleared from the browser afterwards.
+
+`infra/bin/check` before the deploy: fmt, validate (both stacks), tflint (both), caddy and shellcheck green; its
+`terraform init -backend=false` step red on both stacks with "No valid credential sources found" on this working
+directory, initialized with the S3 backend since 2026-10-05 (the real `infra/bin/tf production init` and the plan ran
+green). Ledger row in `deferred-work.md` § Deferred from: the Epic 19 deploy. No release tag: Matheus's word.
