@@ -2569,7 +2569,7 @@ Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
   summary: The CloudWatch sink timestamps each log event with the event's own `ts` (Story 18.2, the spec's rule). `PutLogEvents` refuses a whole batch whose events span more than 24 hours and rejects events older than 14 days or more than 2 hours in the future, so a device that queued events offline across two days (or with a wrong clock) loses that batch: the api logs `ux_event_sink_failed` once and still answers 204, and the device deletes the batch.
   evidence: `apps/api/src/telemetry/sink.ts` `cloudWatchSink` (one put per batch, `timestamp = Date.parse(event.ts)`); AWS PutLogEvents limits; the device flushes oldest first in batches of 200 (`apps/web/src/telemetry/flush.ts`).
   class: risk
-  state: done (2026-10-29, o18a review: each log event is timestamped with the batch's server `received_at`, the device `ts` stays in the message; one put per batch)
+  state: ~~open (owner: Matheus decides before the first digest: split a batch by 24 h windows, or timestamp with `received_at` and keep `ts` in the message)~~ done (2026-10-29, o18a review: each log event is timestamped with the batch's server `received_at`, the device `ts` stays in the message; one put per batch)
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
   summary: Narrowed instrumentation: a control pressed from the keyboard (Enter or Space on a React Aria button) may queue no `action`, since the listener reads the native click; `wait` of kind `generate` and `preview` times the request, not the job until the document is ready; a natively `disabled` control queues `disabled_tap` only where the browser dispatches `pointerdown` to it (the app's own Button uses `aria-disabled`, which always does); "Renomear TAG" is tracked from the sheet only, not from the Sumário tree; `upload` waits are not tracked.
   evidence: `apps/web/src/telemetry/instrument.ts`, `apps/web/src/state/sync.tsx` (`generate`, `preview`), `apps/web/src/surfaces/ficha/ficha-dialogs.tsx`.
@@ -2580,3 +2580,8 @@ Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
   evidence: `apps/web/src/surfaces/ficha/photo-openers.tsx`, `apps/web/src/surfaces/export/export-dialog.tsx`, `apps/web/src/components/toast.tsx`, `apps/api/src/telemetry/sink.ts` `logStreamName`.
   class: question
   state: open (owner: the o18b dashboard and saved queries read these names; the coordinator confirms or renames before the deploy)
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
+  summary: The per-device telemetry limit (1 000 events a minute) is keyed on `user:device_id`, and the device id is the client's own claim, so one signed-in user can spread events over many ids and pass the limit (review ECH-4); a refused batch from two devices also spends the first device's window (ECH-5, rejected: a real client sends its own id only).
+  evidence: `apps/api/src/http/telemetry.ts` consumes `${userId}:${device_id}` per group; the DoR of Story 18.2 names a per-device limit; a per-user aggregate key beside it would close the gap.
+  class: risk
+  state: open (owner: the coordinator decides whether a per-user aggregate limit is worth adding; only signed-in users can post)

@@ -2,7 +2,7 @@
 title: 'Epic 18 batch o18a: usage events on the device (Story 18.1) and the api route with the CloudWatch sink (Story 18.2)'
 type: 'feature'
 created: '2026-10-29'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'd180732acc549285ffa8494525776717a490a39b'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -179,3 +179,17 @@ Open questions: Q1 a `401`/`429` drops the batch (DoR: every 4xx); keeping on 40
 - Tools container: `podman compose --profile tools run --rm --user root tools pnpm <stage>`. New dependency: `podman compose --profile tools run --rm --user root tools pnpm install` (never rebuild an image).
 - Every stage run and every Playwright run goes under the host lock, started with `nohup` in the background and polled (another batch shares the host): `nohup sh -c 'lockf -t 20000 /tmp/fasor-verify.lock sh -c "podman compose --profile tools run --rm --user root tools pnpm test:unit -- <path>"; echo EXIT=$?' > .scratch-o18a/<name>.log 2>&1 &`, then poll `grep EXIT= .scratch-o18a/<name>.log` in short calls (at most 60 s each) and read only the tail. Narrow runs while iterating (`pnpm test:unit -- <path>`, one api test file, one spec with `--grep`). Never `pkill` by pattern. Logs only in `.scratch-o18a/`.
 - Commits: WIP commits allowed, message trailer `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`. Do not push, do not open a PR, do not edit `sprint-status.yaml` or `epics.md`.
+
+## Auto Run Result
+
+Status: done (2026-10-29)
+
+**Summary.** Story 18.1: kernel contract `packages/domain/src/contract/telemetry.ts` (strict `uxEventSchema` with `kind` checked per name, the closed lists, `screenOf`, `syncResultKind`, `TELEMETRY_BATCH_MAX`), `TELEMETRY_ROUTE` in `contract/index.ts`, `telemetry_invalid` appended to `errors.ts`; Dexie v7 `ux_events`; `apps/web/src/telemetry/` (`track`, flush and beacon, the document-level click and pointerdown listeners, hooks, reading results, the target-name guard); `data-telemetry` on the minimum list; SyncProvider wiring (flush after a `ran` cycle, waits, `sync_result`, errors). Story 18.2: `POST /api/telemetry` (`apps/api/src/http/telemetry.ts`), the stdout and CloudWatch sinks and `telemetrySinkOf` (`apps/api/src/telemetry/sink.ts`), `TELEMETRY_SINK`/`TELEMETRY_LOG_GROUP`, `FixedWindowLimiter.consume(key, cost)`, `@aws-sdk/client-cloudwatch-logs` 3.1134.0; `infra/production/telemetry.tf`, `ecs.tf`, `variables.tf`, README cost row and runbook; `VITE_APP_VERSION` from `infra/bin/deploy` into `Dockerfile.prod`; the Conta row "Uso do aplicativo"; KB concept `docs/kbs/architecture/usage-events.md`.
+
+**Review.** Edge Case Hunter and Verification Gap Reviewer (Blind Hunter, Intent Alignment skipped). 19 findings: 13 patched in one loop (receipt timestamps on the CloudWatch put, stream recreation, fast readings, export cancel after success, 426 sync wait, SyncProvider telemetry test, target-name guard test, toast undo test, `telemetrySinkOf`, comment), 2 deferred (ECH-4 per-device key, ECH-10 keyboard presses), 4 rejected (ECH-5, ECH-9 false, ECH-11 false, VG-7) with reasons in the triage log. Follow-up review: false (no high patched).
+
+**Coordinator decisions applied (2026-10-29).** D1, D2, D3, D7, D8, D10 and Q1 accepted; D5 amended: `points` added to `SCREENS` and `/pontos` maps to it (red first: the kernel test failed on the list and the mapping, then passed).
+
+**Verification.** On the merged head `fc7c3557` (origin/main `62bdd76c` merged): lint 0 (18 s), static 0 (23 s), test:api 733 of 733 (259 s), test:unit 4677 of 4677 (178 s), e2e of 13 touched specs on desktop-chrome and durability-desktop-chrome 124 of 124 (323 s); lock wait 0 s. Terraform offline `fmt -check -recursive`, `init -backend=false`, `validate`: all exit 0. Mutation runs: 12 mutants of the flush rules and the schema, 11 killed; the survivor (`kind` widened to any string) is still refused by the per-name refinement.
+
+**Residual risks.** Keyboard activation may record no `action`; generate and preview waits time the request, not the job; the per-device limit trusts the device id; the CloudWatch group exists only after the deploy's apply (until then a put fails, logged once per batch, still 204).
