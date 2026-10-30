@@ -4612,6 +4612,8 @@ What exists: the op log records every data edit with actor, device and timestamp
 
 *(Batches: o18a builds 18.1 and 18.2 (kernel contract first, then the api sink and route, then the device queue and flush and the Conta notice); o18b builds 18.3 against the vocabulary above and the literal log group name, in parallel; the deploy after both merge, on Matheus's go; the first digest a month later.)*
 
+*(2026-10-30, Matheus's "pode fazer" on `_bmad-output/implementation-artifacts/backlog-2026-10-30-ux-data-sufficiency.md` § 4: Story 18.4 added below, built after the E18-A1 and E18-A2 batches on his "pode seguir"; the user stays an id on the dashboard, with the user view and the id-to-name CLI inside E18-A2.)*
+
 ### Story 18.1: The device records usage events and ships them with the sync
 
 **Dev model:** opus · **Effort:** high · kernel contract (`contract/telemetry.ts`, `screenOf`), a Dexie table and a `track()` helper in `apps/web`, instrumentation of the funnel's controls, flush on the sync cycle and on `visibilitychange`; no op, no seed, no contract bump
@@ -4719,6 +4721,38 @@ So that the next UX decisions (Home navigation first) rest on what the engineers
 **Then** it prints per relatório each live sheet's first-to-last-op span, the count of fields edited more than once, and the count of typed values that followed a failed reading, with no cell value, caption, name or TAG in its output
 
 **Definition of Done, in addition:** `infra/bin/tf production fmt -check`, `init -backend=false` and `validate` green; an api integration test of the friction-read CLI over a seeded company (spans, re-edits, the typed-after-failure count, and that the output carries no value); the digest template; the kbs `infra-aws.md` and `log.md` lines; the PR says the dashboard appears after the deploy's Terraform apply.
+
+### Story 18.4: The events say how long, in what order, on what and for whom
+
+**Dev model:** opus · **Effort:** high · Kernel contract additions (closed fields on `screen_view` and `session_start`, the event `input_refused`, targets per Status board tile and per page size), the device writing them, the two document waits re-timed, Terraform views and saved queries, the runbook and the digest template; additions to the event contract only, no op change
+
+As Matheus,
+I want the usage events to say how long each screen stayed open, which screen came before it, on what kind of device and for which user, and which typed values the app refused,
+So that the monthly digest can tell "the export dialog is cancelled a lot" from "on the phone, after opening the Sumário from Home, one engineer opens the export dialog and leaves it in two seconds".
+
+**Today (verified 2026-10-30, `_bmad-output/implementation-artifacts/backlog-2026-10-30-ux-data-sufficiency.md` § 1 and § 2):** the nine views find where friction is and how often; `screen_view` has no duration and no origin; `session_start` carries no viewport, install mode or online state; `user_id` is an opaque uuid no view groups by; the four Status board tiles share `home.status_chip` and the four page-size chips share `home.page_size` (Story 19.2 review BH-4); a validation refusal typed into a field reaches no view; the `preview` and `generate` waits time the request, not the document (ledger row of batch o18a, first production read).
+
+*(Definition of Ready: Matheus, 2026-10-30, "pode fazer" on the review's recommendations: the user stays an id (the Conta sentence and the LGPD stance stand); the tenth view "sessions and events by user" and the read-only id-to-name CLI go in the E18-A2 observability batch, not here; this story carries the rest, `input_refused` included. Scope, kernel first (Epic 18's rule; `docs/observability.md` § Adding an event name): (1) `screen_view` gains `duration_ms`, written when the screen is left (route change, `pagehide` or the tab hidden), and `from`, the previous screen from `SCREENS`; (2) `session_start` gains `viewport` (`phone` below 768 px, `tablet` to 1279 px, `desktop` from 1280 px, DESIGN.md's breakpoints), `standalone` (installed or in the browser) and `online`; (3) the event `input_refused`, with the field's `data-telemetry` name as `target` and the refusal code as `kind` from a closed kernel list, never the value; (4) targets per tile (`home.status_chip_rascunho`, `home.status_chip_em_campo`, `home.status_chip_em_revisao`, `home.status_chip_emitido`) and per size (`home.page_size_10`, `home.page_size_20`, `home.page_size_50`, `home.page_size_100`) appended to `UX_ACTION_TARGETS`, the two shared names kept so old bundles still pass the schema; (5) the `wait` of kinds `preview` and `generate` re-timed from the tap to the document opening or the download starting, with the `sync.tsx` observer extraction of retro finding A3 in the same change (closes E18-A5 item 3); (6) views and saved queries: time per screen p50 and p95, Home to first navigation, cancels by preceding screen, A to B to A loops within 10 s, sessions by viewport, refusals by target and kind, the two re-timed waits; (7) the digest template gains the five questions a month of data must answer: time per screen, Home to first navigation, cancels by preceding screen, sessions by user and viewport, the document wait. Out on purpose: free text of any kind, per-keystroke events, pointer movement, scroll depth. Built after the E18-A1 and E18-A2 batches, on Matheus's "pode seguir".)*
+
+**Acceptance Criteria:**
+
+**Given** the kernel contract
+**When** an event is parsed
+**Then** `screen_view` accepts `duration_ms` and `from` (a `SCREENS` value), `session_start` accepts `viewport`, `standalone` and `online` from closed lists, `input_refused` is a name with a closed `kind` list and a `target`, the eight new targets are in `UX_ACTION_TARGETS`, and anything else on those events is still refused (red-first kernel tests)
+
+**Given** a device on the new bundle
+**When** the user leaves a screen, opens the app, has a typed value refused, presses a tile or a size chip, or waits for a preview, a generation or a download
+**Then** the queue holds the event with the new fields and nothing more (no typed value, no free text), and the e2e asserts that a refused value never appears in the queued events
+
+**Given** the production Terraform
+**When** `terraform validate` runs
+**Then** the new views and saved queries name only fields of the kernel's event, and the tooling test of E18-A2 binds them to the kernel and the `SOURCE` literal to the group
+
+**Given** the runbook and the digest template
+**When** the next digest is written
+**Then** each of the five questions has a view to read from, with what a reader concludes written beside it
+
+**Definition of Done, in addition:** the story gate (lint, static, test:unit, test:api, the touched Playwright specs); the offline Terraform checks; `docs/observability.md` amended (the vocabulary, the views; the LGPD sentence unchanged in substance); the Conta sentence reviewed: no new category of data beyond what it already says (screens, taps, waits, errors), or the sentence amended with Bruno's word before the deploy; the ledger rows of the per-tile targets and the document wait closed; sprint-status and `docs/kbs/log.md`.
 
 ## Epic 19: Home at scale (shortcuts first; the active list; Emitido behind its tile)
 

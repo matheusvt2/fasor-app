@@ -62,4 +62,4 @@ Início, Relatórios por status (0 · 1 · 0 · 0), Atalhos (Templates, Cadastro
 `infra/bin/check` before the deploy: fmt, validate (both stacks), tflint (both), caddy and shellcheck green; its
 `terraform init -backend=false` step red on both stacks with "No valid credential sources found" on this working
 directory, initialized with the S3 backend since 2026-10-05 (the real `infra/bin/tf production init` and the plan ran
-green). Ledger row in `deferred-work.md` § Deferred from: the Epic 19 deploy. No release tag: Matheus's word.
+green). Ledger row in `deferred-work.md` § Deferred from: the Epic 19 deploy. ~~No release tag: Matheus's word.~~ *(2026-10-30, Matheus "pode fazer": annotated tag `v0.5.0` at `29f030b2` pushed (Epics 18 and 19, the fix batches fxpw, fxg6 and fxrm, contract 28); the GitHub release page was not created from the agent session, whose permission classifier refused the public-surface action; the notes are in `release-notes-v0.5.0.md` beside this file with the command to publish them.)*

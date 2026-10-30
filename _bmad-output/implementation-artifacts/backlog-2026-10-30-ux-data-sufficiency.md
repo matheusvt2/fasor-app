@@ -45,6 +45,8 @@ The data finds **where** friction is (screen, control, dialog, failed reading, d
 2. **Story 18.4 "The events say how long, in what order, on what and for whom"** with the § 2 additions, built as one batch (kernel, device, Terraform views, runbook and digest template), or only the user view now (inside the E18-A2 observability batch) and the rest after the first digest shows what is missing.
 3. The validation-refusal event (`input_refused`): in 18.4, or wait.
 
+*(2026-10-30, Matheus: "pode fazer" on the recommendations above: (1) ids with the mapping CLI, inside the E18-A2 batch; (2) Story 18.4 written in `epics.md` § Epic 18 the same day, built after E18-A1 and E18-A2 on his "pode seguir"; (3) `input_refused` inside 18.4.)*
+
 ## 5. Where this lands
 
 - The user view (ids) joins the E18-A2 observability batch (Terraform and the smoke step) whatever the answer to § 4.2; the mapping CLI with it.
