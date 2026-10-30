@@ -112,6 +112,8 @@ export const UX_ACTION_TARGETS = [
   'reading.type_instead',
   'reading.retry',
   'sync.now',
+  // Story 19.2: the Home list's page-size chips (10 · 20 · 50 · 100).
+  'home.page_size',
 ] as const;
 export type UxActionTarget = (typeof UX_ACTION_TARGETS)[number];
 

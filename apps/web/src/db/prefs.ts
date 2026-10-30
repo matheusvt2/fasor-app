@@ -1,4 +1,4 @@
-import { cameraAppOf, cameraAppSchema, keepScreenOnOf, keepScreenOnSchema, themePreferenceSchema, type CameraApp, type KeepScreenOn, type ThemePreference } from '@app/domain';
+import { cameraAppOf, cameraAppSchema, homePageSizeOf, keepScreenOnOf, keepScreenOnSchema, themePreferenceSchema, type CameraApp, type HomePageSize, type KeepScreenOn, type ThemePreference } from '@app/domain';
 import { LAST_SHEET_PREF, RECOVERY_NOTICE_PREF, REGISTRY_TAB_PREF, THEME_PREF, type AppDatabase } from './schema.ts';
 
 /*
@@ -95,6 +95,21 @@ export async function readRegistryTab(db: AppDatabase): Promise<string | null> {
 
 export async function writeRegistryTab(db: AppDatabase, tabId: string): Promise<void> {
   await db.local_prefs.put({ key: REGISTRY_TAB_PREF, value: tabId });
+}
+
+/**
+ * Story 19.2: how many relatórios the Home list shows at once (10 · 20 · 50 · 100), kept in
+ * this user's own database, so it never follows a sign-out to another user. A value that is
+ * not one of the four sizes reads as 10 (`homePageSizeOf`).
+ */
+export const HOME_PAGE_SIZE_PREF = 'home_page_size';
+
+export async function readHomePageSize(db: AppDatabase): Promise<HomePageSize> {
+  return homePageSizeOf((await db.local_prefs.get(HOME_PAGE_SIZE_PREF))?.value);
+}
+
+export async function writeHomePageSize(db: AppDatabase, size: HomePageSize): Promise<void> {
+  await db.local_prefs.put({ key: HOME_PAGE_SIZE_PREF, value: size });
 }
 
 /**

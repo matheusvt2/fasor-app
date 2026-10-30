@@ -59,6 +59,8 @@ export interface FilterChipGroupProps {
   selectedId: string | null;
   onChange: (id: string) => void;
   'aria-label': string;
+  /** Epic 18: the chips' usage-event name (`data-telemetry`), the same on every chip of the group. */
+  telemetry?: string;
 }
 
 /**
@@ -83,7 +85,7 @@ export interface FilterChipGroupProps {
  * the on-state alias pattern of AGENTS.md (retro F-SPEC-6). The standalone value `Chip`
  * above keeps `aria-pressed` natively and gets the mock rule directly.
  */
-export function FilterChipGroup({ options, selectedId, onChange, ...rest }: FilterChipGroupProps) {
+export function FilterChipGroup({ options, selectedId, onChange, telemetry, ...rest }: FilterChipGroupProps) {
   const chips = useRef(new Map<string, HTMLButtonElement | null>());
   const selectedIndex = options.findIndex((option) => option.id === selectedId);
   const tabbableIndex = selectedIndex === -1 ? 0 : selectedIndex;
@@ -91,8 +93,11 @@ export function FilterChipGroup({ options, selectedId, onChange, ...rest }: Filt
   function moveTo(index: number) {
     const target = options[(index + options.length) % options.length];
     if (target === undefined) return;
-    chips.current.get(target.id)?.focus();
-    if (target.id !== selectedId) onChange(target.id);
+    const chip = chips.current.get(target.id);
+    chip?.focus();
+    // Story 19.2: a real click, so a keyboard choice reaches the document's usage-event
+    // listener like a tap does; the button's own guard calls `onChange` once.
+    chip?.click();
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
@@ -112,6 +117,7 @@ export function FilterChipGroup({ options, selectedId, onChange, ...rest }: Filt
           aria-checked={option.id === selectedId}
           tabIndex={index === tabbableIndex ? 0 : -1}
           className="chip"
+          data-telemetry={telemetry}
           ref={(element) => {
             chips.current.set(option.id, element);
           }}
