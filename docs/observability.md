@@ -10,7 +10,7 @@ Locally and in the tests the sink is `stdout` (`TELEMETRY_SINK=stdout`): the eve
 
 ## Opening the dashboard and the saved queries
 
-Both exist only after the production Terraform apply that follows the Epic 18 merges (`infra/production/observability.tf`).
+Both exist only after the production Terraform apply that follows the Epic 18 merges (`infra/production/observability.tf`). They exist since the deploy of `3b45e83c` on 2026-10-30, when the nine queries first ran to `Complete` over production events (`_bmad-output/implementation-artifacts/epic-18-context.md`).
 
 1. Sign in to the AWS console with the `fasor-admin` login (passkey MFA; the same account `infra/bin/aws` uses), region **us-east-1**.
 2. **Dashboard:** CloudWatch > Dashboards > `fasor-production-ux`. It opens on the last 7 days; the time picker widens it up to the 90 days the group keeps. Each widget runs its query when the page opens.
@@ -28,7 +28,7 @@ The nine views are the same text in the widget and in the saved query (the widge
 
 **`disabled_taps`: taps on disabled controls (bar).** A control pressed while disabled is a control people expect to work. The top of this list is where the app does not say why something is unavailable, or says it too far from the control.
 
-**`waits`: waits p50 and p95 by kind (table).** How long people wait for a `reading`, a `sync`, a `generate`, a `preview` and an `upload`. The p95 is what the slowest one in twenty felt; a p95 several times the p50 means the wait is unpredictable, which hurts more than a steady slow one.
+**`waits`: waits p50 and p95 by kind (table).** How long people wait for a `reading`, a `sync`, a `generate`, a `preview` and an `upload`. The p95 is what the slowest one in twenty felt; a p95 several times the p50 means the wait is unpredictable, which hurts more than a steady slow one. *(2026-10-30, first production read: `preview` and `generate` time the request that enqueues the document, not the wait until it opens; the first preview took 26.8 s on the screen and 176 ms here. Read those two kinds as request latency until the device times them to the document; `reading` and `sync` are the wait the user felt. Ledger row in `deferred-work.md` § Epic 18 batch o18a.)*
 
 **`readings`: readings by kind and outcome (table).** Per reading kind (`plate`, `display`, `caption`, `panel`, `nc_obs`), how many ended `ok`, `fail`, `cancel`, `refused`, `timeout` or `offline`. A kind that fails often is where people type instead (compare with the op-log friction read below).
 

@@ -16,3 +16,5 @@ sources: [ARCHITECTURE-SPINE.md#ad-28, epics.md#epic-18]
 - **Infra**: `infra/production/telemetry.tf` (group `/fasor/production/ux-events`, `ux_events_retention_days = 90`, the app role's `logs:CreateLogStream`, `DescribeLogStreams`, `PutLogEvents` on the group and its streams), the two `ecs.tf` environment entries, `VITE_APP_VERSION` passed by `infra/bin/deploy` to `apps/api/Dockerfile.prod`; cost row and runbook line in `infra/README.md`. The deploy's Terraform apply creates the group.
 - **Conta**: "Uso do aplicativo", one authored sentence in `copy.account.usageNote` (open for Bruno).
 - **Never**: an event in `outbox`, `remote_ops`, `entities` or `applyOp`; a status or count derived from an event; an analytics SDK or cookie.
+
+**Status (2026-10-30):** deployed to production as `3b45e83c`; the group, the dashboard `fasor-production-ux` and the nine saved queries exist and read events; first production read and its caveats (the `preview` and `generate` waits time the request) in `_bmad-output/implementation-artifacts/epic-18-context.md`.
