@@ -202,3 +202,7 @@ Esta nota vence o texto acima onde os dois discordam.
 - Cartão atual: `.eq-card.is-current` (Sumário) e `.tree-row.eq-card.is-selected` (trilho) levam `focus-fill` + régua `primary` de 4 px.
 - `.in-band` e o lado a lado de TAG e tipo só no desktop saíram; o título do cartão põe TAG e tipo na mesma linha e quebra quando falta largura.
 - Textos novos (autorais): o progresso do cartão das Verificações "N de 19" com a palavra de estado ao lado ("Concluída" em 19 de 19, "Vazia" em 0, "Em preenchimento" entre os dois).
+
+## 2026-10-30 — Home: the shortcut row above the list (Epic 19, Story 19.1)
+
+Matheus's decision on Sally's option B (`_bmad-output/implementation-artifacts/backlog-2026-10-29-home-nav-and-telemetry.md` § 1): in `prototype/screens/20-home.html` and in the three frames of `key-home.html` the `Atalhos` section now sits between the Status board and the `Relatórios` section, same markup and classes, with a dated comment at the moved block. The capped-list note `Mostrando 4 de 8 relatórios · Ver todos` stays drawn and unbuilt until Story 19.2.

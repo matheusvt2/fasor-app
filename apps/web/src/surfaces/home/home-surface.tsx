@@ -37,8 +37,8 @@ import './home.css';
 import { relatorioSnapshotOf } from '../../db/relatorio-snapshot.ts';
 
 /**
- * Home (`20-home.html`, `key-home.html`) — the status board, the relatório cards and
- * the two shortcuts. AD-1: it renders only what `useLiveQuery` reads from this device
+ * Home (`20-home.html`, `key-home.html`) — the status board, the two shortcuts and the
+ * relatório cards (in that order since Story 19.1). AD-1: it renders only what `useLiveQuery` reads from this device
  * and what the kernel computed from it; AD-2: not one count, order or line of text is
  * derived here.
  */
@@ -192,6 +192,15 @@ export function HomeSurface() {
           )}
         </section>
 
+        {/* Story 19.1 (2026-10-30, Matheus: "Fazer: B"): the shortcuts sit between the Status board and the list, so
+            Templates and Cadastros are one tap from the top whatever the list length (EXPERIENCE.md § Home). */}
+        <section className="section" aria-labelledby={shortcutsHeadingId}>
+          <h2 id={shortcutsHeadingId} className="visually-hidden">
+            {copy.home.shortcutsHeading}
+          </h2>
+          <ShortcutRow templates={templates} />
+        </section>
+
         <section className="section" aria-labelledby={listHeadingId}>
           <div className="home-head">
             <h2 id={listHeadingId}>{copy.home.relatoriosHeading}</h2>
@@ -221,13 +230,6 @@ export function HomeSurface() {
               ))}
             </div>
           )}
-        </section>
-
-        <section className="section" aria-labelledby={shortcutsHeadingId}>
-          <h2 id={shortcutsHeadingId} className="visually-hidden">
-            {copy.home.shortcutsHeading}
-          </h2>
-          <ShortcutRow templates={templates} />
         </section>
       </div>
 

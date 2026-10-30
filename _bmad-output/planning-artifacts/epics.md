@@ -4720,6 +4720,66 @@ So that the next UX decisions (Home navigation first) rest on what the engineers
 
 **Definition of Done, in addition:** `infra/bin/tf production fmt -check`, `init -backend=false` and `validate` green; an api integration test of the friction-read CLI over a seeded company (spans, re-edits, the typed-after-failure count, and that the output carries no value); the digest template; the kbs `infra-aws.md` and `log.md` lines; the PR says the dashboard appears after the deploy's Terraform apply.
 
+## Epic 19: Home at scale (shortcuts first; the active list; Emitido behind its tile)
+
+Matheus, 2026-10-30, reading the 2026-10-29 analysis (`_bmad-output/implementation-artifacts/backlog-2026-10-29-home-nav-and-telemetry.md` § 1) after the Epic 18 retrospective: "Fazer: B. Atalhos acima da lista. Também temos que pensar na lista completa com a quantidade de itens que vão ser mostrados. Imagina termos 100 relatórios. Talvez tirar os enviados e aí só quando clicar no card de enviados é que mostra."
+
+What exists: Home is, in order, the Status board (four tiles, each a filter of the list), the "Relatórios" head with "Novo relatório" and the card list (every relatório of the company, the current one first, then service start descending), and at the end the two shortcut cards Templates and Cadastros (`20-home.html`, `apps/web/src/surfaces/home/home-surface.tsx`). Every relatório pushes the shortcuts down; in production with two relatórios they are below the fold at 390 px. The mocks already draw a capped list ("Mostrando 4 de 8 relatórios · Ver todos", `20-home.html:90`, `key-home.html:131`) that the app never built. Since the deploy of 2026-10-30 Epic 18 measures the Home (`home.shortcut_templates`, `home.shortcut_cadastros`, `home.status_chip` per session), so this epic has a before and an after.
+
+**Decisions (Matheus, 2026-10-30):** option B in Sally's "above the list" variant, built at once (Story 19.1). The list at scale as he described it, which is Sally's option A, plus the cap the mocks draw: drafted as Story 19.2 from his words; its Definition of Ready waits for his word (and for Bruno's volume answers of the analysis § 1).
+
+### Story 19.1: Templates and Cadastros one tap from the top: the shortcut row above the relatório list
+
+**Dev model:** sonnet · **Effort:** low · one section moved in `home-surface.tsx`, the order asserted in the component test and the two Home specs, dated notes in EXPERIENCE.md, the two Home mocks and MOCK-GUIDE; no kernel change, no op, no copy change
+
+As Bruno at the office,
+I want Templates and Cadastros reachable from the top of Home whatever the length of the relatório list,
+So that composing a template or keeping the registries never starts with a scroll past the year's relatórios.
+
+**Today (verified 2026-10-30 in the code of main `64fe789e`):** `home-surface.tsx` renders the Status board section, the list section and the shortcuts section in that order; `20-home.html` and `key-home.html` draw the same order; `home.spec.ts` 1.6-E2E-001 and `home-surface.test.tsx` assert that the two shortcut cards exist and open their surfaces, not where they sit; `app-layout.spec.ts` HOME-LAYOUT-E2E-001 checks Home at 390, 768, 1280 and 1906 px.
+
+*(Definition of Ready: decided 2026-10-30 (Matheus, "Fazer: B"): the shortcut row moves between the Status board and the "Relatórios" head, Sally's option B "above the list", not the header; the Status board stays first because its counts are the page's summary and its tiles filter the list under them; the current card stays the hero of the list and its "Continuar" stays one tap, one row lower (56 px on tablet and desktop, two stacked 56 px cards on phone); the shortcut cards keep their look, sub-lines, no badge (UX-DR64) and their `data-telemetry` names; the mocks move the same block with a dated comment; the `.section + .section` spacing is unchanged.)*
+
+**Acceptance Criteria:**
+
+**Given** Home at 390, 768, 1280 and 1906 px with any number of relatórios
+**When** it renders
+**Then** its sections are, in order, the Status board, the shortcut row (Templates, Cadastros), then the "Relatórios" head with "Novo relatório" and the cards; both shortcut cards are in the viewport without scrolling at every one of those widths at 900 px height; the current card still sorts first in the list with its "Continuar"
+
+**Given** the two shortcut cards
+**When** pressed
+**Then** Templates and Cadastros open as before, the sub-lines hold and no badge appears, and the events keep the names `home.shortcut_templates` and `home.shortcut_cadastros`, so the Epic 18 measure compares before and after
+
+**Definition of Done, in addition:** the component test asserts the DOM order (Status board, shortcut row, list head); `home.spec.ts` 1.6-E2E-001 asserts the shortcut row sits between the Status board and the "Relatórios" heading; `app-layout.spec.ts` HOME-LAYOUT-E2E-001 asserts both shortcut cards in the viewport at the four widths; EXPERIENCE.md § Home carries the dated amendment; `20-home.html` and `key-home.html` move the block with a dated comment and MOCK-GUIDE gains a dated line; the story gate (lint, static, test:unit, test:api, the two touched specs); the first digest (E18-A7) reads shortcut taps per session before and after this story's deploy.
+
+### Story 19.2: Home opens on the active work: Emitido behind its tile and the list capped with "Ver todos"
+
+**Dev model:** opus · **Effort:** medium · kernel (`home/cards.ts`: the default selection, the cap, the note and empty texts), `home-surface.tsx` (the expanded state for the page session), copy, the note the mocks already draw; no op, no contract change
+
+As an engineer opening Home,
+I want the list to show the relatórios being worked, the emitted ones one tap away behind their tile, and a long list cut with "Mostrando 10 de 37 relatórios · Ver todos",
+So that Home stays short when the company holds a hundred relatórios.
+
+**Today (verified 2026-10-30):** `homeCards` returns every relatório (filter `null`) or one status; nothing caps the list; the mocks' note "Mostrando 4 de 8 relatórios · Ver todos" was never built; `statusBoardCounts` counts everything.
+
+*(Definition of Ready, open: Matheus confirms the three rules (on 2026-10-30 he wrote "talvez"): (1) with no tile pressed the list shows the active statuses only (Rascunho, Em campo, Em revisão), and the Emitido tile, with its count, is the one way to the emitted relatórios; the empty note then says which case it is ("Nenhum relatório em andamento. 12 emitidos: toque em Emitido.", authored, composed in the kernel) while a device with nothing keeps "Nenhum relatório ainda."; (2) the list shows at most 10 cards and, when more exist, the mocks' note "Mostrando 10 de N relatórios" with "Ver todos", which expands the list for the page session (the count text through `plural`, in the kernel); (3) the order is unchanged (the current card first, then service start descending), behind the Emitido tile too; a sort by emission date and a search (option D) wait for Bruno's volume answers. The Status board keeps its four tiles and counts over every relatório. Telemetry: `home.status_chip` as today and a new target `home.show_all` appended to the kernel list (Epic 18's rule).)*
+
+**Acceptance Criteria:**
+
+**Given** a company with relatórios in every status
+**When** Home opens with no tile pressed
+**Then** the list holds the Rascunho, Em campo and Em revisão relatórios only, in the current order; the Emitido tile shows its count; pressing it shows the emitted ones alone, and pressing it again returns to the active list
+
+**Given** more than 10 relatórios in the shown selection
+**When** the list renders
+**Then** the first 10 appear, followed by the note "Mostrando 10 de N relatórios · Ver todos"; "Ver todos" shows them all until the page is left; with 10 or fewer the note is absent
+
+**Given** no active relatório and N emitted
+**When** Home opens
+**Then** the empty note says so and points at the Emitido tile; a device with nothing at all keeps "Nenhum relatório ainda."
+
+**Definition of Done, in addition:** red-first kernel tests for the selection, the cap and the texts; component tests for the three states; `home.spec.ts` extended with the tile and the cap; EXPERIENCE.md § Home and § Status board amended with the date; `20-home.html` keeps its note as the reference; the first digest reads `home.status_chip` on Emitido and `home.show_all` per session.
+
 ## Backlog: deferred stories
 
 Stories moved out of their epic with a dated decision, so the epic can close. Each keeps its text, number and Definition of Ready where it was written; this list is where they wait. A story leaves this list when a dated line schedules it into an epic.

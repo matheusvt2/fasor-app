@@ -84,5 +84,6 @@ Measure before and after with section 2: taps on Templates and Cadastros per ses
 ## 3. Decisions owned by Matheus and Bruno
 
 - Section 1: option A plus B as Sally recommends, or another mix; Bruno's volume answers.
+  - *(2026-10-30, Matheus, after the Epic 18 retrospective)* Decided: B now ("Fazer: B. Atalhos acima da lista"), built as Story 19.1 in `epics.md` § Epic 19. On the list at scale he proposed what option A describes ("talvez tirar os enviados e aí só quando clicar no card de enviados é que mostra") and asked to think about the count shown at a hundred relatórios: drafted as Story 19.2 (A plus the mocks' "Mostrando N de M · Ver todos" cap), his word pending; Bruno's volume answers still open.
 - Section 2: approve the architecture amendment (a telemetry store outside the op log) and the LGPD wording; approve the three stories for a coming epic.
 - Also on 2026-10-29 (separate batch `fxrm`): the 2026-10-15 test data in Bruno's company is removed by a server CLI, because the app has no "Remover" for a relatório or an obra; whether users should get one is a product question for Bruno.

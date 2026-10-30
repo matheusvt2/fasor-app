@@ -479,6 +479,20 @@ describe('Home: empty state and shortcuts', () => {
     expect(cadastros).not.toHaveAttribute('aria-disabled');
     expect(cadastros).toHaveAttribute('href', '/cadastros');
   });
+
+  it('puts the shortcut row between the Status board and the list (Story 19.1)', async () => {
+    database = await freshDb();
+    await seedCompany(database);
+    const { container } = renderHome();
+
+    await waitFor(() => expect(container.querySelector('.status-board')).not.toBeNull());
+    const board = container.querySelector('.status-board')!;
+    const row = container.querySelector('.shortcut-row')!;
+    const head = container.querySelector('.home-head')!;
+    // `DOCUMENT_POSITION_FOLLOWING` on `a.compareDocumentPosition(b)`: b comes after a.
+    expect(board.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(row.compareDocumentPosition(head) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
 
 describe('Home: cold open offline', () => {
