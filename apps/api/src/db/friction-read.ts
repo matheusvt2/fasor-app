@@ -97,6 +97,8 @@ interface PhotoState {
   /** The cell path and block a failure armed, waiting for a device put. */
   armed: { blockId: string; cellPath: string } | null;
   counted: boolean;
+  /** A `removed_at` put non-null: the photo never arms again. */
+  removed: boolean;
 }
 
 const record = (value: unknown): Record<string, unknown> | null =>
@@ -117,13 +119,21 @@ export function foldFriction(rows: readonly FrictionOp[]): Map<string, SheetAcc>
   const photoOf = (id: string): PhotoState => {
     let photo = photos.get(id);
     if (photo === undefined) {
-      photo = { kind: null, target: null, armed: null, counted: false };
+      photo = { kind: null, target: null, armed: null, counted: false, removed: false };
       photos.set(id, photo);
     }
     return photo;
   };
   // Cell paths armed by a failure, to the photos waiting on them.
   const armedCells = new Map<string, Set<string>>();
+  /** Drops a photo's armed cell: its reading was re-run, re-kinded, re-targeted or removed. */
+  const disarm = (photoId: string, photo: PhotoState): void => {
+    if (photo.armed === null) return;
+    const waiting = armedCells.get(photo.armed.cellPath);
+    waiting?.delete(photoId);
+    if (waiting?.size === 0) armedCells.delete(photo.armed.cellPath);
+    photo.armed = null;
+  };
 
   for (const row of rows) {
     const path = safeParsePath(row.path);
@@ -141,14 +151,29 @@ export function foldFriction(rows: readonly FrictionOp[]): Map<string, SheetAcc>
     }
     if (path.family === 'file/field') {
       const photo = photoOf(path.id);
-      if (path.field === 'reading_kind') photo.kind = typeof row.value === 'string' ? row.value : null;
-      if (path.field === 'reading_target') photo.target = row.value;
+      if (path.field === 'reading_kind') {
+        photo.kind = typeof row.value === 'string' ? row.value : null;
+        disarm(path.id, photo);
+      }
+      if (path.field === 'reading_target') {
+        photo.target = row.value;
+        disarm(path.id, photo);
+      }
+      if (path.field === 'removed_at' && row.value !== null) {
+        photo.removed = true;
+        disarm(path.id, photo);
+      }
       continue;
     }
     if (path.family === 'file/server') {
-      if (path.field !== 'reading_status' || row.value !== 'failed') continue;
+      if (path.field !== 'reading_status') continue;
       const photo = photoOf(path.id);
-      if (photo.counted || photo.armed !== null || photo.kind !== 'display') continue;
+      // Any other status (queued, running, done, none) is a re-read: the failure no longer stands.
+      if (row.value !== 'failed') {
+        disarm(path.id, photo);
+        continue;
+      }
+      if (photo.counted || photo.removed || photo.armed !== null || photo.kind !== 'display') continue;
       const target = displayCellTargetSchema.safeParse(photo.target);
       if (!target.success) continue;
       const { block_id, table_key, start_cell } = target.data;
@@ -215,17 +240,36 @@ export function totalsOf(sheets: readonly FrictionSheet[]): Omit<FrictionTotals,
 }
 
 export async function readFriction(db: Db, companyId: string): Promise<FrictionReport> {
-  const relatorioRows = await db
+  // One read-only snapshot, so the entities and the ops agree with each other.
+  const { relatorioRows, blockRows, opRows } = await db.transaction(
+    async (tx) => ({
+      relatorioRows: await readRelatorios(tx, companyId),
+      blockRows: await readBlocks(tx, companyId),
+      opRows: await readOps(tx, companyId),
+    }),
+    { isolationLevel: 'repeatable read', accessMode: 'read only' },
+  );
+  return reportOf(relatorioRows, blockRows, opRows);
+}
+
+type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+
+const readRelatorios = (tx: Tx, companyId: string) =>
+  tx
     .select({ id: entities.id, status: sql<string>`${entities.row}->>'status'` })
     .from(entities)
     .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'relatorio'), isNull(entities.removed_at)))
     .orderBy(asc(entities.id));
-  const blockRows = await db
+
+const readBlocks = (tx: Tx, companyId: string) =>
+  tx
     .select({ id: entities.id, relatorio_id: entities.relatorio_id, block_type: sql<string>`${entities.row}->>'block_type'` })
     .from(entities)
     .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'block'), isNull(entities.removed_at)))
     .orderBy(asc(entities.id));
-  const opRows = await db
+
+const readOps = (tx: Tx, companyId: string) =>
+  tx
     .select({
       seq: ops.seq,
       path: ops.path,
@@ -239,6 +283,11 @@ export async function readFriction(db: Db, companyId: string): Promise<FrictionR
     .where(eq(ops.company_id, companyId))
     .orderBy(asc(ops.seq));
 
+function reportOf(
+  relatorioRows: readonly { id: string; status: string | null }[],
+  blockRows: readonly { id: string; relatorio_id: string | null; block_type: string | null }[],
+  opRows: readonly FrictionOp[],
+): FrictionReport {
   const accs = foldFriction(opRows);
   const relatorios: FrictionRelatorio[] = relatorioRows.map((r) => ({
     relatorio_id: r.id,

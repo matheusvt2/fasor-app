@@ -2,7 +2,7 @@
 title: 'Epic 18 batch o18b: the funnel dashboard, saved queries, runbook and the op-log friction read (Story 18.3)'
 type: 'feature'
 created: '2026-10-29'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '2066d2efc9540c456cb3fb1686aee8be39ce8e57'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -11,7 +11,14 @@ dev_effort: medium
 context:
   - '{project-root}/AGENTS.md'
 warnings: []
-deferred: []
+deferred:
+  - summary: >-
+      The friction read loads every op row of the company into memory at once.
+    evidence: |-
+      readFriction selects all ops of the company ordered by seq and folds them in memory; fine for a one-shot CLI at today's volume, a large company would need paging by seq.
+    location: >-
+      apps/api/src/db/friction-read.ts (readFriction)
+    severity: low
 ---
 
 <intent-contract>
@@ -85,6 +92,19 @@ deferred: []
 - Given the production stack, when `TF_OFFLINE=1 infra/bin/tf production fmt -check`, `init -backend=false` and `validate` run, then all three pass and the dashboard holds exactly nine `log` widgets whose queries begin `SOURCE '/fasor/production/ux-events' |`, matched one to one by nine query definitions on that group.
 - Given a seeded company, when `friction-read-cli.ts --company <id>` runs, then it exits 0 and prints JSON lines whose spans, re-edit counts and typed-after-failure counts match the seed, and no stdout line carries any seeded value, caption, name or TAG.
 - Given `docs/observability.md`, when Matheus opens it, then it names the dashboard, the nine saved queries with what each tells, the add-an-event steps, the 90-day retention, the LGPD sentence and the monthly digest procedure pointing at the template.
+
+## Review Triage Log
+
+### 2026-10-29 — Review pass
+- Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter and Intent Alignment (token economy; the integrated epic review covers them).
+- verdicts: 6 findings — high 0, medium 3, low 3, false 0, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` VG-1: no fixture proves the exact start-cell rule of D3 — test (a) added: a device put on a non-start cell of b4's table after its failure keeps b4 at 0.
+  - `[medium]` `[patch]` VG-2: non-display failures and the latest `reading_kind`/`reading_target` (`file/field` puts) are never exercised — tests (b) plate failure and (c) kind put null / re-target before the failure, both 0.
+  - `[medium]` `[patch]` ECH-1: a failed reading re-read to `done` stays armed, so accepting its suggestion counts as typed — any non-`failed` status disarms; test (d).
+  - `[low]` `[patch]` ECH-2: a photo removed or re-targeted after the failure stays armed on the old cell — `removed_at`, `reading_target`, `reading_kind` puts disarm; test (e).
+  - `[low]` `[patch]` ECH-3: the three SELECTs read different snapshots — one read-only repeatable-read transaction (a direct correction).
+  - `[low]` `[defer]` ECH-4: every op row of the company is loaded into memory at once — a one-shot CLI at today's volume (thousands of ops); paging by seq when a company outgrows it.
 
 ## Design Notes
 

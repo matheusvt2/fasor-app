@@ -37,6 +37,11 @@ const b4 = newId(); // r2: put before the failure, failure never followed by a p
 const b5 = newId(); // block of the removed relatório r3
 const p1 = newId(); // display photo for b1
 const p2 = newId(); // display photo for b4
+const p3 = newId(); // plate photo for b4: never counted
+const p4 = newId(); // display photo for b4, re-kinded before its failure
+const p5 = newId(); // display photo for b4, re-targeted after its failure
+const p6 = newId(); // display photo for b4, re-read to done after its failure
+const p7 = newId(); // display photo for b4, removed after its failure
 const nr = newId(); // neighbour relatório
 const nb = newId(); // neighbour block
 
@@ -142,6 +147,33 @@ beforeAll(async () => {
     op(companyId, r2, DEVICE, 'create', `file/${p2}`, { id: p2, caption: `CAPTION-${tag}`, reading_kind: 'display', reading_target: cellTarget(b4, 'transformador', 0, 0) }, 11_000),
     op(companyId, r2, DEVICE, 'put', `sheet/${b4}/test/resistencia_isolamento/cell/0/0`, `SECRET-VALUE-${tag}`, 12_000),
     op(companyId, r2, SERVER, 'put', `file/${p2}/reading_status`, 'failed', 13_000),
+    // (a) a put on another cell of the same table after p2's failure: not its start cell.
+    op(companyId, r2, DEVICE, 'put', `sheet/${b4}/test/resistencia_isolamento/cell/0/1`, `SECRET-VALUE-${tag}`, 14_000),
+    // (b) a plate photo that fails, then a put on the cell its target would name.
+    op(companyId, r2, DEVICE, 'create', `file/${p3}`, { id: p3, reading_kind: 'plate', reading_target: cellTarget(b4, 'transformador', 1, 0) }, 15_000),
+    op(companyId, r2, SERVER, 'put', `file/${p3}/reading_status`, 'failed', 15_100),
+    op(companyId, r2, DEVICE, 'put', `sheet/${b4}/test/resistencia_isolamento/cell/1/0`, `SECRET-VALUE-${tag}`, 15_200),
+    // (c) a display photo whose reading_kind is put null before its failure.
+    op(companyId, r2, DEVICE, 'create', `file/${p4}`, { id: p4, reading_kind: 'display', reading_target: cellTarget(b4, 'transformador', 2, 0) }, 16_000),
+    op(companyId, r2, DEVICE, 'put', `file/${p4}/reading_kind`, null, 16_100),
+    op(companyId, r2, SERVER, 'put', `file/${p4}/reading_status`, 'failed', 16_200),
+    op(companyId, r2, DEVICE, 'put', `sheet/${b4}/test/resistencia_isolamento/cell/2/0`, `SECRET-VALUE-${tag}`, 16_300),
+    // (c') a display photo re-targeted to another cell after its failure, then a put on the original cell.
+    op(companyId, r2, DEVICE, 'create', `file/${p5}`, { id: p5, reading_kind: 'display', reading_target: cellTarget(b4, 'transformador', 3, 0) }, 17_000),
+    op(companyId, r2, SERVER, 'put', `file/${p5}/reading_status`, 'failed', 17_100),
+    op(companyId, r2, DEVICE, 'put', `file/${p5}/reading_target`, cellTarget(b4, 'transformador', 4, 0), 17_200),
+    op(companyId, r2, DEVICE, 'put', `sheet/${b4}/test/resistencia_isolamento/cell/3/0`, `SECRET-VALUE-${tag}`, 17_300),
+    // (d) a display photo that fails, is re-read to done, then a put on its start cell.
+    op(companyId, r2, DEVICE, 'create', `file/${p6}`, { id: p6, reading_kind: 'display', reading_target: cellTarget(b4, 'transformador', 5, 0) }, 18_000),
+    op(companyId, r2, SERVER, 'put', `file/${p6}/reading_status`, 'failed', 18_100),
+    op(companyId, r2, SERVER, 'put', `file/${p6}/reading_status`, 'queued', 18_200),
+    op(companyId, r2, SERVER, 'put', `file/${p6}/reading_status`, 'done', 18_300),
+    op(companyId, r2, DEVICE, 'put', `sheet/${b4}/test/resistencia_isolamento/cell/5/0`, `SECRET-VALUE-${tag}`, 18_400),
+    // (e) a display photo that fails, is removed, then a put on its start cell.
+    op(companyId, r2, DEVICE, 'create', `file/${p7}`, { id: p7, reading_kind: 'display', reading_target: cellTarget(b4, 'transformador', 6, 0) }, 19_000),
+    op(companyId, r2, SERVER, 'put', `file/${p7}/reading_status`, 'failed', 19_100),
+    op(companyId, r2, DEVICE, 'put', `file/${p7}/removed_at`, at(19_200), 19_200),
+    op(companyId, r2, DEVICE, 'put', `sheet/${b4}/test/resistencia_isolamento/cell/6/0`, `SECRET-VALUE-${tag}`, 19_300),
     op(companyId, r2, DEVICE, 'put', `sheet/${b4}/observations`, `SECRET-VALUE-${tag}`, 40_000),
     // b5: a block of the removed relatório.
     op(companyId, r3, DEVICE, 'create', `block/${b5}`, { id: b5 }, 0),
@@ -203,8 +235,8 @@ describe('readFriction', () => {
     });
   });
 
-  it('does not count a put before the failure nor a failure never followed by a put', () => {
-    expect(sheetOf(b4)).toMatchObject({ span_ms: 30_000, device_op_count: 3, fields_reedited: 0, typed_after_failed_reading: 0 });
+  it('counts no put before the failure, on another cell, after a plate failure, after a re-kind, a re-target, a successful re-read or a removal', () => {
+    expect(sheetOf(b4)).toMatchObject({ span_ms: 30_000, device_op_count: 9, fields_reedited: 0, typed_after_failed_reading: 0 });
   });
 
   it('totals the company', () => {
@@ -212,7 +244,7 @@ describe('readFriction', () => {
       relatorio_count: 2,
       sheet_count: 3,
       span_ms_total: 90_000,
-      device_op_count: 9,
+      device_op_count: 15,
       fields_reedited: 1,
       typed_after_failed_reading: 1,
     });
