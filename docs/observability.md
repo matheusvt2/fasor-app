@@ -38,7 +38,7 @@ The ~~nine~~ ten views *(2026-10-30, E18-A2: the `users` view joined the nine)* 
 
 **`errors`: errors by screen and kind (table).** The kernel error codes users saw, by screen. A code that repeats on one screen is a bug or a missing guard there; read the api log of the same window for the cause.
 
-**`users`: sessions, devices, events and last activity by user and company (table).** *(2026-10-30, E18-A2, Matheus: "controlar os usuários logados".)* Who used the app in the window: one row per `user_id` and `company_id` with its sessions, devices, events, first and last activity, most recent first. The ids are opaque on purpose (the events carry no name, as Conta says); the section "Mapping user ids to people" below turns them into names for the digest. With three engineers, a friction pattern in another view is often one person's habit or one device's problem: read this view first, then filter the others with `filter user_id = '<id>'`.
+**`users`: sessions, devices, events and last activity by user and company (table).** *(2026-10-30, E18-A2, Matheus: "controlar os usuários logados".)* Who used the app in the window: one row per user and company with its sessions, devices, events, first and last activity, most recent first. The events carry the opaque id (as Conta says); the view labels it with the short name the operator keeps for that id in the untracked `infra/production/terraform.tfvars` (`user_names = { "<user id>" = "<name>" }`, applied with `infra/bin/tf production apply`; the smoke company reads `smoke`), so a user not yet in that map shows as an id until the map is updated (the CLI of the section "Mapping user ids to people" below gives the id, name and e-mail). The names live in the operator's AWS account only, never in the repository (it is public) and never in the events. With three engineers, a friction pattern in another view is often one person's habit or one device's problem: read this view first, then filter the others with `filter user_id = '<id>'`.
 
 ## Mapping user ids to people
 
@@ -63,7 +63,7 @@ The group keeps events **90 days** (`var.ux_events_retention_days`), then CloudW
 
 ## LGPD
 
-The events describe how employees use a work tool, not what they type: ids are opaque UUIDs, screens, controls, kinds and outcomes come from closed lists the schema enforces, and no free text (no typed value, caption, TAG, name, local or photo) can pass the schema. Users are told in Conta, under "Uso do aplicativo" (Story 18.2), that the device records screens, taps, waits and errors without typed texts, kept 90 days, to improve the product.
+The events describe how employees use a work tool, not what they type: ids are opaque UUIDs, screens, controls, kinds and outcomes come from closed lists the schema enforces, and no free text (no typed value, caption, TAG, name, local or photo) can pass the schema. *(2026-10-30, E18-A2: the dashboard's `users` view labels the ids with names kept in the operator's untracked tfvars; the events and the repository stay without them.)* Users are told in Conta, under "Uso do aplicativo" (Story 18.2), that the device records screens, taps, waits and errors without typed texts, kept 90 days, to improve the product.
 
 ## The op-log friction read
 

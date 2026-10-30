@@ -17,6 +17,13 @@
 locals {
   ux_events_log_group = "/fasor/production/ux-events"
 
+  # E18-A2 (2026-10-30): the users view shows names, not ids. The events carry the opaque id;
+  # the label is computed in the query with one nested replace() per entry of var.user_names
+  # (the operator's untracked tfvars), so an unknown user shows its id, and the smoke company
+  # reads "smoke".
+  ux_user_label    = "${join("", [for id in keys(var.user_names) : "replace("])}user_id${join("", [for id, name in var.user_names : ", '${id}', '${name}')"])}"
+  ux_company_label = "replace(company_id, '${var.smoke_company_id}', 'smoke')"
+
   ux_queries = {
     funnel = {
       title = "Funnel: screen views and sessions"
@@ -68,7 +75,7 @@ locals {
     users = {
       title = "Users: sessions, devices, events and last activity by user and company"
       view  = "table"
-      query = "stats count_distinct(session_id) as sessions, count_distinct(device_id) as devices, count(*) as events, earliest(received_at) as first_seen, latest(received_at) as last_seen by user_id, company_id | sort last_seen desc"
+      query = "fields ${local.ux_user_label} as usuario, ${local.ux_company_label} as empresa | stats count_distinct(session_id) as sessions, count_distinct(device_id) as devices, count(*) as events, earliest(received_at) as first_seen, latest(received_at) as last_seen by usuario, empresa | sort last_seen desc"
     }
   }
 
