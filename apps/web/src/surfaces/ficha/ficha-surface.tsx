@@ -137,7 +137,7 @@ function FichaBody({
     showToast,
     saved,
   });
-  const { primaryLabel, primary, menu, filledBy, concludedBy, setRenaming } = actions;
+  const { primaryLabel, primary, primaryTelemetry, menu, filledBy, concludedBy, setRenaming } = actions;
   const [rail, setRail] = useState<RailState>('auto');
   // Story 8.1: the rail's counters read the device's pending suggestion rows, as the Sumário's do.
   const pending = useMemo(() => pendingSuggestions(suggestionRowsOf(state, relatorioId)), [state, relatorioId]);
@@ -265,6 +265,7 @@ function FichaBody({
             cameraNote={sheetCamera.note}
             primaryLabel={primaryLabel}
             onPrimary={primary}
+            primaryTelemetry={primaryTelemetry}
             primaryId={PRIMARY_ID}
           />
         </div>

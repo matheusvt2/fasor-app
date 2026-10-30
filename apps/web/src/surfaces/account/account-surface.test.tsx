@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { entityKey, type UserRow } from '@app/domain';
+import { entityKey, PRODUTO, type UserRow } from '@app/domain';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
@@ -531,5 +531,17 @@ describe('17.2 Account: "Câmera do aparelho"', () => {
       db.close();
       await db.delete();
     }
+  });
+});
+
+describe('Account: Uso do aplicativo (Epic 18, Story 18.2)', () => {
+  it('states in one sentence what the device records, for how long and why, naming the product', () => {
+    renderAccount(syncState('', 0));
+    const heading = screen.getByRole('heading', { level: 2, name: 'Uso do aplicativo' });
+    const section = heading.closest('section');
+    expect(section).not.toBeNull();
+    expect(section).toHaveTextContent(
+      `Este aparelho registra as telas abertas, os toques, as esperas e os erros, nunca o que é digitado, e os guarda por 90 dias para melhorar o ${PRODUTO}.`,
+    );
   });
 });

@@ -25,6 +25,8 @@ export interface TriStateControlProps {
    * keyboard (arrows, Delete/Backspace) and a click that reaches the button regardless.
    */
   readOnly?: boolean;
+  /** Epic 18: the segments' usage-event name prefix; `ficha.mark` names them `ficha.mark_c`, `_nc`, `_na`. */
+  telemetry?: string;
 }
 
 const SEGMENTS: readonly { value: TriStateValue; attr: 'c' | 'nc' | 'na' }[] = [
@@ -44,7 +46,7 @@ const SEGMENTS: readonly { value: TriStateValue; attr: 'c' | 'nc' | 'na' }[] = [
  * Re-tapping the selected segment does nothing: a glove double-tap must not un-mark a row.
  * With nothing chosen, the first segment holds the tab stop and focus alone never commits.
  */
-export function TriStateControl({ value, onChange, committed = true, readOnly = false, ...rest }: TriStateControlProps) {
+export function TriStateControl({ value, onChange, committed = true, readOnly = false, telemetry, ...rest }: TriStateControlProps) {
   const segments = useRef(new Map<TriStateValue, HTMLButtonElement | null>());
   const selectedIndex = SEGMENTS.findIndex((segment) => segment.value === value);
   const tabbableIndex = selectedIndex === -1 ? 0 : selectedIndex;
@@ -97,6 +99,7 @@ export function TriStateControl({ value, onChange, committed = true, readOnly = 
           role="radio"
           className="seg"
           data-value={segment.attr}
+          data-telemetry={telemetry === undefined ? undefined : `${telemetry}_${segment.attr}`}
           aria-checked={segment.value === value}
           aria-label={ui.triState[segment.value]}
           tabIndex={index === tabbableIndex ? 0 : -1}

@@ -5,6 +5,8 @@ import { ui } from '../copy/ui';
 export interface ToastAction {
   label: string;
   onPress: () => void;
+  /** Epic 18: the action is "Desfazer", tracked as an `undo` (`toast.undo`). */
+  undo?: boolean;
 }
 
 export interface ToastMessage {
@@ -84,6 +86,7 @@ export function Toast({
         <>
           <AriaButton
             className="toast-action"
+            {...(toast.action.undo === true ? { 'data-telemetry': 'toast.undo', 'data-telemetry-event': 'undo' } : {})}
             onPress={() => {
               ownExit.current = true;
               toast.action?.onPress();

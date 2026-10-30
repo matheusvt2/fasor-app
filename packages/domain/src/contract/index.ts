@@ -16,6 +16,7 @@ export * from './ocr.ts';
 export * from './reading.ts';
 export * from './prose.ts';
 export * from './audit.ts';
+export * from './telemetry.ts';
 
 export const componentStatusSchema = z.enum(['up', 'down']);
 
@@ -57,3 +58,6 @@ export interface ApiRoute {
 export const ACCOUNT_ROUTES = {
   read: { method: 'GET', path: '/api/account' },
 } as const satisfies Record<string, ApiRoute>;
+
+/** Epic 18 (AD-28): the route usage events travel on, outside the op stream. */
+export const TELEMETRY_ROUTE = { method: 'POST', path: '/api/telemetry' } as const satisfies ApiRoute;

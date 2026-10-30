@@ -169,7 +169,13 @@ export function CancelledReading({ photoId, canRetry }: { photoId: string; canRe
   };
   return (
     <div className="reading-cancelled" data-photo-id={photoId}>
-      <TextButton isDisabled={!online || asking} disabledReason={!online ? t.retryOffline : asking ? t.retryAsked : undefined} onPress={again}>
+      <TextButton
+        data-telemetry="reading.retry"
+        data-telemetry-event="retry"
+        isDisabled={!online || asking}
+        disabledReason={!online ? t.retryOffline : asking ? t.retryAsked : undefined}
+        onPress={again}
+      >
         {copy.readingWait.readAgain}
       </TextButton>
     </div>
@@ -241,11 +247,19 @@ export function FailedReading({ photoId, statusOpId, canRetry, onFallback, fallb
       </p>
       <div className="row-wrap">
         {canRetry ? (
-          <TextButton isDisabled={!online || asked || loading} disabledReason={!online ? t.retryOffline : asked ? t.retryAsked : loading ? copy.common.loading : undefined} onPress={retry}>
+          <TextButton
+            data-telemetry="reading.retry"
+            data-telemetry-event="retry"
+            isDisabled={!online || asked || loading}
+            disabledReason={!online ? t.retryOffline : asked ? t.retryAsked : loading ? copy.common.loading : undefined}
+            onPress={retry}
+          >
             {t.retryRead}
           </TextButton>
         ) : null}
-        <TextButton onPress={onFallback}>{fallbackLabel}</TextButton>
+        <TextButton data-telemetry="reading.type_instead" onPress={onFallback}>
+          {fallbackLabel}
+        </TextButton>
       </div>
     </>
   );
@@ -298,7 +312,9 @@ export function EmptyReading({ onRetake, retakeOpening = false, onFallback, fall
             {t.retake}
           </TextButton>
         )}
-        <TextButton onPress={onFallback}>{fallbackLabel}</TextButton>
+        <TextButton data-telemetry="reading.type_instead" onPress={onFallback}>
+          {fallbackLabel}
+        </TextButton>
       </div>
     </>
   );

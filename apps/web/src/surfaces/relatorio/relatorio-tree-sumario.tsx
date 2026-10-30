@@ -314,7 +314,7 @@ export const SumarioEquipment = memo(function SumarioEquipment({ node, shared }:
       <PositionBox name={node.name} position={node.position} siblings={node.siblings} reorder={reorder} className="s9-pos" />
       {/* Story 15.2 (Bruno's answer 6): the card body is the tap target; TAG and type are its title
           (a sheet with no TAG shows its type alone), the state, the NC badge and "você parou aqui" under it. */}
-      <button type="button" className="s9-eq-open eq-card-open" data-tree-open onClick={() => shared.actions.openSheet(node.blockId)}>
+      <button type="button" className="s9-eq-open eq-card-open" data-tree-open data-telemetry="sumario.open_sheet" onClick={() => shared.actions.openSheet(node.blockId)}>
         <span className="s9-eq-id eq-card-title">
           {node.tag === '' ? null : <span className="block-tag">{node.tag}</span>}
           <span className="s9-eq-name">

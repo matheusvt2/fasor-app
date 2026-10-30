@@ -16,6 +16,7 @@ import { enqueueGenerate } from '../jobs/generate/worker.ts';
 import type { ReadingPayload } from '../jobs/reading/payload.ts';
 import { enqueueReading } from '../jobs/reading/worker.ts';
 import { log, logError } from '../log.ts';
+import { stdoutSink, type TelemetrySink } from '../telemetry/sink.ts';
 import { createSyncRoutes } from '../sync/routes.ts';
 import { createAccountRoutes } from './account.ts';
 import { createAuditRoutes } from './audit.ts';
@@ -23,6 +24,7 @@ import { createFileRoutes } from './files.ts';
 import { createGenerateRoutes } from './generate.ts';
 import { createHealthRoutes, type HealthProbes } from './health.ts';
 import { createReadingRoutes } from './reading.ts';
+import { createTelemetryRoutes } from './telemetry.ts';
 import { pushRateLimit, signInRateLimit, type RateLimitRule } from './rate-limit.ts';
 import { htmlContentSecurityPolicy, securityHeaders } from './security-headers.ts';
 import { type AppEnv, sessionMiddleware, SessionUnavailableError, sessionUnavailableError, UnauthenticatedError, unauthenticatedError } from './session.ts';
@@ -114,6 +116,11 @@ export interface AppOptions {
   rateLimits?: { signIn: RateLimitRule; push: RateLimitRule; trustProxy: boolean };
   /** The body cap of the JSON routes; absent, `DEFAULT_API_BODY_LIMIT_BYTES`. */
   bodyLimitBytes?: number;
+  /**
+   * Epic 18 (AD-28): where `POST /api/telemetry` writes (absent, `stdoutSink`), and its
+   * per-device limit (absent, `TELEMETRY_RATE_LIMIT`; always on) with the limiter's clock.
+   */
+  telemetry?: { sink?: TelemetrySink; limit?: RateLimitRule; limitNow?: () => number };
 }
 
 /** `config.API_BODY_LIMIT_BYTES`'s default: far above the largest push (500 ops), far below a memory exhaustion. */
@@ -237,6 +244,17 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
       newId: options.newId ?? mintId,
       ...(sendAudit === undefined ? {} : { enqueue: sendAudit }),
       aiFeatures,
+    }),
+  );
+
+  // Epic 18 (AD-28): usage events, behind the same session middleware; never an op.
+  app.route(
+    '/',
+    createTelemetryRoutes({
+      sink: options.telemetry?.sink ?? stdoutSink,
+      now: options.now ?? clock,
+      ...(options.telemetry?.limit === undefined ? {} : { limit: options.telemetry.limit }),
+      ...(options.telemetry?.limitNow === undefined ? {} : { limitNow: options.telemetry.limitNow }),
     }),
   );
 

@@ -7,6 +7,7 @@ import {
   keepScreenOnSubText,
   registrationRowText,
   storageLine,
+  PRODUTO,
   type Registration,
   type ThemePreference,
 } from '@app/domain';
@@ -68,6 +69,7 @@ export function AccountSurface() {
   const locationHelperId = useId();
   const themeHeadingId = useId();
   const storageHeadingId = useId();
+  const usageHeadingId = useId();
   const sessionHeadingId = useId();
   const signOutNoteId = useId();
   const screenHeadingId = useId();
@@ -418,6 +420,14 @@ export function AccountSurface() {
             </li>
           </ul>
           <p className="section-note">{copy.account.storageNote}</p>
+        </section>
+
+        {/* Epic 18 (AD-28, Story 18.2): what this device records of its use; authored, open for Bruno. */}
+        <section className="section" aria-labelledby={usageHeadingId}>
+          <div className="section-head">
+            <h2 id={usageHeadingId}>{copy.account.usageHeading}</h2>
+          </div>
+          <p className="section-note">{copy.account.usageNote(PRODUTO)}</p>
         </section>
 
         <section className="section" aria-labelledby={sessionHeadingId}>

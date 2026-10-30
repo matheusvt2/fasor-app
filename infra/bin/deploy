@@ -162,7 +162,8 @@ if [ "$skip_build" = 0 ] && images_in_ecr; then
 fi
 if [ "$skip_build" = 0 ]; then
   step "build the images for $platform"
-  image_build "$ecr_api:$tag" "$root" -f "$root/apps/api/Dockerfile.prod"
+  # Epic 18: the web bundle's usage events carry this tag as their `app_version`.
+  image_build "$ecr_api:$tag" "$root" -f "$root/apps/api/Dockerfile.prod" --build-arg "VITE_APP_VERSION=$tag"
   image_build "$ecr_ocr:$tag" "$root/services/ocr" --target runtime
   image_build "$ecr_caddy:$tag" "$root/infra/caddy"
 

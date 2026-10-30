@@ -167,9 +167,16 @@ variable "bootstrap_app_policy_name" {
 }
 
 variable "log_retention_days" {
-  description = "CloudWatch Logs retention of every log group."
+  description = "CloudWatch Logs retention of every service log group (the usage events keep their own, ux_events_retention_days)."
   type        = number
   default     = 14
+}
+
+# Epic 18, Story 18.2 (AD-28): the usage events' log group (telemetry.tf).
+variable "ux_events_retention_days" {
+  description = "CloudWatch Logs retention of the usage-event group /fasor/production/ux-events."
+  type        = number
+  default     = 90
 }
 
 # Story 14.10 part 6 (smoke.tf): the production smoke's test company and user. The company id

@@ -19,6 +19,7 @@ export function StickyActionBar({
   primaryLabel,
   onPrimary,
   primaryId,
+  primaryTelemetry,
 }: {
   stepper: ReactNode;
   secondary: ReactNode;
@@ -32,6 +33,8 @@ export function StickyActionBar({
   onPrimary: () => void;
   /** The primary's id: the continuous Enter run of the readings ends on it (Story 5.6). */
   primaryId?: string;
+  /** Epic 18: the primary's usage-event name (`data-telemetry`). */
+  primaryTelemetry?: string;
 }) {
   const hasCamera = camera !== undefined && camera !== null;
   // F-11: a field scrolled into view stops above this bar (`--sticky-bar-covered`, `app.css`).
@@ -43,7 +46,7 @@ export function StickyActionBar({
       <div className={hasCamera ? 'bar-buttons has-camera' : 'bar-buttons'}>
         {camera}
         {importButton}
-        <Button variant="primary" onPress={onPrimary} id={primaryId}>
+        <Button variant="primary" onPress={onPrimary} id={primaryId} data-telemetry={primaryTelemetry}>
           {primaryLabel}
           <svg className="ico" aria-hidden="true">
             <use href="/sprite.svg#i-chev-right" />

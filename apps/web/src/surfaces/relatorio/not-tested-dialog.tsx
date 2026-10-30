@@ -4,6 +4,7 @@ import { flushSync } from 'react-dom';
 import { Button, FilterChipGroup, FormDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
+import { useDialogTelemetry } from '../../telemetry/hooks.ts';
 
 /*
  * Stories 5.9 and 12.4: "Marcar não ensaiado", shared by the sheet header's Overflow and the
@@ -22,6 +23,12 @@ export interface NotTestedDialogProps {
 }
 
 export function NotTestedDialog({ seedVersion, onClose, onSubmit }: NotTestedDialogProps) {
+  // Epic 18: `dialog_open` on mount; `onClose` is this dialog's cancel path (Cancelar, Esc, the scrim).
+  const cancelled = useDialogTelemetry('not_tested');
+  const cancel = () => {
+    cancelled();
+    onClose();
+  };
   const t = copy.sumario.tree;
   const reasons = getSeed(seedVersion, 'cabine_primaria').not_tested_reasons;
   const [selected, setSelected] = useState<string | null>(null);
@@ -48,7 +55,7 @@ export function NotTestedDialog({ seedVersion, onClose, onSubmit }: NotTestedDia
     <FormDialog
       isOpen
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (!open) cancel();
       }}
       title={t.markNotTested}
     >
@@ -60,7 +67,7 @@ export function NotTestedDialog({ seedVersion, onClose, onSubmit }: NotTestedDia
         </label>
       ) : null}
       <div className="dialog-actions">
-        <Button variant="secondary" onPress={onClose}>
+        <Button variant="secondary" onPress={cancel}>
           {ui.confirmDialog.cancel}
         </Button>
         <Button variant="primary" isDisabled={disabledReason !== undefined} {...(disabledReason === undefined ? {} : { disabledReason })} onPress={submit}>

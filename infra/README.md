@@ -139,13 +139,14 @@ List prices for `us-east-1` as the builder knows them on 2026-09-30 (not re-read
 | S3 Standard, about 20 GB plus requests | 20 x 0.023 + 0.14 | 0.60 |
 | ECR, about 6 GB (5 images of each repository) | 6 x 0.10 | 0.60 |
 | CloudWatch Logs, about 1 GB ingested, 14 days kept | 1 x 0.50 + 0.10 | 0.60 |
+| CloudWatch Logs, usage events (Epic 18, 2026-10-29): the group `/fasor/production/ux-events`, kept 90 days (`ux_events_retention_days`); about 50 MB ingested a month for ten devices, about 150 MB held at the 90-day steady state | 0.05 x 0.50 + 0.15 x 0.03 = 0.03, counted at 0.10 for headroom (twice the devices, longer sessions) | 0.10 |
 | SSM Parameter Store standard, AWS-managed KMS key, EventBridge Scheduler, 2 budgets with one action, S3 gateway endpoint, data transfer out under 100 GB | free tiers | 0.00 |
 | Secrets Manager, one secret (the smoke user's password, 2026-10-15) plus its calls (USD 0.05 per 10 000, two per deploy) | 1 x 0.40 | 0.40 |
 | Production smoke, 30 deploys a month (2026-10-15): one plate reading each (about USD 0.007, up to 0.0115 with the Nova Pro escalation); the two `smoke-seed` tasks and the LibreOffice generation run on the existing instance; about 3-5 MB of S3 objects kept per run (no delete in production, AD-7: about 150 MB a month, under USD 0.01); logs negligible | 30 x 0.0115 | 0.35 |
 | CloudFront fallback (off by default; within 1 TB and 10 M requests if on) | free tier | 0.00 |
 | Textract `DetectDocumentText`, allowance of 5 000 pages | 5 000 / 1 000 x 1.50 | 7.50 |
 | Bedrock allowance (Story 11.6 picks the model) | allowance | 30.00 |
-| **Total** | | ~~78.83~~ ~~82.52~~ **83.27** |
+| **Total** | | ~~78.83~~ ~~82.52~~ ~~83.27~~ **83.37** (2026-10-29, the usage events counted at USD 0.10) |
 
 Bedrock, measured on 2026-10-05 with Claude Haiku 4.5 on the synthetic nameplate (about 3 300 input and 750 output tokens): about USD 0.007 a plate reading, and up to USD 0.0115 when the Nova Pro escalation runs too; a panel or a caption costs less than half of that. 1 000 plate readings a month cost USD 7 to 12 on Bedrock plus USD 1.50 of Textract, so the USD 30 allowance above covers about 2 600 plate readings with every one escalated. Re-reads are not capped, and the budget action is what stops them.
 
@@ -155,6 +156,7 @@ The total stays below USD 100 with Textract and a Bedrock allowance included; th
 
 - **First deploy of an empty stack:** `infra/bin/tf production init`, then `infra/bin/tf production apply` (creates everything; the services cannot start until their images exist), then `infra/bin/deploy`.
 - **Logs:** `infra/bin/aws logs tail /fasor/production/api --since 1h` (also `ocr`, `caddy`, `migrate`, `smoke`).
+- **Usage events (Epic 18, AD-28):** the api writes them to `/fasor/production/ux-events` (`telemetry.tf`: the group, kept `ux_events_retention_days` = 90 days, and the app role's `logs:CreateLogStream`, `logs:DescribeLogStreams` and `logs:PutLogEvents` on that group and its streams only), one stream per api process named `api/<start instant>/<pid>` (the instant's colons written as `-`, which CloudWatch refuses in a stream name). The group is created by the deploy's Terraform apply; until then a put fails and the api logs `ux_event_sink_failed` once per batch while still answering 204. `infra/bin/aws logs tail /fasor/production/ux-events --since 1h` shows the latest events; a failed put shows in `/fasor/production/api` as `ux_event_sink_failed`.
 - **Red smoke:** read `test-results/production-smoke/` (`progress.txt` names the step it stopped in, `report.json` the failure, `artifacts/` its screenshot) and `infra/bin/aws logs tail /fasor/production/api --since 30m`; the deploy has already cleaned the test company up. Roll back with the printed command, or fix forward. A failed cleanup only leaves the test company dirty until the next deploy's reset; to clean it now, `infra/bin/aws ecs run-task --cluster fasor-production --launch-type EC2 --task-definition fasor-production-smoke-seed`.
 - **Rotate the smoke user's password:** `infra/bin/tf production apply -replace=random_password.smoke_user`; the next deploy's reset sets it on the user.
 - **A shell on the instance:** Session Manager (the AWS CLI container lacks the Session Manager plugin, so use the console's Session Manager "Connect", which changes nothing); `docker ps`, `docker logs`, `dmesg` for OOM kills.

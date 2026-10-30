@@ -49,6 +49,7 @@ import { isSessionExpired, isUnauthorized, SessionExpiredNote } from './session-
 import { publishReAuth } from '../../api/auth-client.ts';
 import './export.css';
 import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
+import { useDialogTelemetry } from '../../telemetry/hooks.ts';
 
 export interface ExportDialogProps {
   relatorioId: string;
@@ -84,6 +85,8 @@ const TITLE_ID = 'export-title';
  * "Gerar relatório" (`surfaces/relatorio/generate-action.tsx`).
  */
 export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup, onSeeInSumario, onSeeAuditTarget, timing = DEFAULT_TIMING }: ExportDialogProps) {
+  // Epic 18: the Export dialog's `dialog_open` and `dialog_cancel`, on its own screen.
+  const exportCancelled = useDialogTelemetry('export', isOpen, 'export');
   const state = useGenerate(relatorioId, timing);
   const preview = usePreview(relatorioId, timing);
   // Story 13.8 (AI-3): the optional AI pass, never automatic and never in the way of the issue.
@@ -248,7 +251,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
 
   const previewButton = (
     // Offline, the row's one reason ("Gerar relatório precisa de conexão") names both buttons.
-    <Button variant="secondary" isDisabled={!online} disabledReasonId={online ? undefined : generateReasonId} onPress={preview.start}>
+    <Button variant="secondary" isDisabled={!online} disabledReasonId={online ? undefined : generateReasonId} data-telemetry="sumario.preview" onPress={preview.start}>
       <svg className="ico" aria-hidden="true">
         <use href="/sprite.svg#i-doc" />
       </svg>
@@ -263,6 +266,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
         variant="primary"
         isDisabled={options.disabledReason !== undefined}
         disabledReasonId={options.disabledReason === undefined ? undefined : generateReasonId}
+        data-telemetry="sumario.generate"
         onPress={onGenerate}
       >
         {phase.kind === 'flushing' || phase.kind === 'requesting' || phase.kind === 'working' ? copy.export.generating : copy.export.generate}
@@ -393,7 +397,11 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
           <div className="gen-error" role="alert">
             <span>{copy.export.failed}</span>
             {phase.missingFiles === undefined ? null : <span>{missingFilesText(phase.missingFiles)}</span>}
-            {blocked ? null : <TextButton onPress={onGenerate}>{copy.export.retry}</TextButton>}
+            {blocked ? null : (
+              <TextButton data-telemetry="export.retry" data-telemetry-event="retry" onPress={onGenerate}>
+                {copy.export.retry}
+              </TextButton>
+            )}
           </div>
         ) : null}
         {asking ? (
@@ -429,8 +437,18 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   const showPrecheck = phase.kind !== 'ready' && (precheck.blocking.length > 0 || precheck.explicit.length > 0 || precheck.summarizedCount > 0);
 
   return (
-    <DialogShell className="export-dialog" isOpen={isOpen} onOpenChange={onOpenChange} aria-labelledby={TITLE_ID}>
-      <div className="export-state">
+    <DialogShell
+      className="export-dialog"
+      isOpen={isOpen}
+      onOpenChange={(next) => {
+        // Esc and the scrim: the dialog's cancel path.
+        if (!next) exportCancelled();
+        onOpenChange(next);
+      }}
+      aria-labelledby={TITLE_ID}
+    >
+      {/* Epic 18: what is pressed in here is tracked on the `export` screen. */}
+      <div className="export-state" data-telemetry-screen="export">
         <h2 className="dialog-title" id={TITLE_ID}>
           {copy.export.title}
         </h2>

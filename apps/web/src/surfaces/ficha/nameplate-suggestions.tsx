@@ -137,7 +137,7 @@ export function useCropViewer({ api, snapshot, onCaptionPhoto }: { api: LocalApi
     void removePhoto(db, author, api.relatorioId, tile.id)
       .then(() =>
         showToast(photoRemovedText(number), {
-          action: { label: copy.viewer.undo, onPress: () => void restorePhoto(db, author, api.relatorioId, tile.id).catch(() => undefined) },
+          action: { label: copy.viewer.undo, undo: true, onPress: () => void restorePhoto(db, author, api.relatorioId, tile.id).catch(() => undefined) },
         }),
       )
       .catch(() => undefined);

@@ -195,7 +195,9 @@ export function HomeSurface() {
         <section className="section" aria-labelledby={listHeadingId}>
           <div className="home-head">
             <h2 id={listHeadingId}>{copy.home.relatoriosHeading}</h2>
-            <Button onPress={() => setCreating(true)}>{copy.home.newRelatorio}</Button>
+            <Button onPress={() => setCreating(true)} data-telemetry="home.new_relatorio">
+              {copy.home.newRelatorio}
+            </Button>
           </div>
 
           {relatoriosPending ? (

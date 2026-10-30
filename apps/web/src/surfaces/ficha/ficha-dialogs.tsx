@@ -7,6 +7,7 @@ import { PhotoCaptureSheet } from '../photos/capture-sheet.tsx';
 import { PhotoCaptionDialog } from '../photos/photo-caption-dialog.tsx';
 import type { FichaActions } from './use-ficha-actions.ts';
 import type { FichaPhotos } from './use-ficha-photos.ts';
+import { useDialogTelemetry } from '../../telemetry/hooks.ts';
 
 /** The sheet's dialogs and sheets: rename the TAG, add photos, caption one, mark not tested. */
 export function FichaDialogs({
@@ -30,6 +31,8 @@ export function FichaDialogs({
 }) {
   const { importing, setImporting, photoTarget, captioning, setCaptioning, saveCaption } = photos;
   const { renaming, setRenaming, rename, notTestedDialogOpen, setNotTestedDialogOpen, markNotTested, moveDialogOpen, setMoveDialogOpen, moveTo } = actions;
+  // Epic 18: the rename TAG dialog's `dialog_open`; its `onClose` is the cancel path.
+  const renameCancelled = useDialogTelemetry('rename_tag', renaming && own !== undefined);
   return (
     <>
       {renaming && own !== undefined ? (
@@ -41,7 +44,10 @@ export function FichaDialogs({
           blocks={snapshot.blocks}
           locations={snapshot.locations}
           selfId={own.id}
-          onClose={() => setRenaming(false)}
+          onClose={() => {
+            renameCancelled();
+            setRenaming(false);
+          }}
           onSubmit={rename}
         />
       ) : null}

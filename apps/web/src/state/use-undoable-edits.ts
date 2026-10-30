@@ -133,6 +133,7 @@ export function useUndoableEdits(): UndoableEdits {
       notify(text, {
         action: {
           label: options.label,
+          undo: true,
           onPress: () => {
             undoToast.current = null;
             options.onUndo?.();

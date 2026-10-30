@@ -121,7 +121,11 @@ export function AppShell() {
     unsyncedForDays: unsyncedForDays(oldest, now()),
     storage,
     storageRefused,
-    storageAction: <TextButton onPress={() => void sync.syncNow()}>{copy.banner.storageLowAction}</TextButton>,
+    storageAction: (
+      <TextButton data-telemetry="sync.now" onPress={() => void sync.syncNow()}>
+        {copy.banner.storageLowAction}
+      </TextButton>
+    ),
     extra: extraBanner === null ? undefined : [extraBanner],
     reAuthAction: (
       // The flag stays set until a sign-in clears it, so /login does not bounce straight

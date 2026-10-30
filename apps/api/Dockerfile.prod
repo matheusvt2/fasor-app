@@ -31,8 +31,11 @@ RUN --mount=type=cache,id=fasor-pnpm-store,target=/pnpm-store \
 COPY tsconfig.base.json ./
 COPY packages/domain/ packages/domain/
 COPY apps/web/ apps/web/
+# Epic 18 (AD-28): the build's commit sha, the usage events' `app_version`; `dev` without one
+# (`infra/bin/deploy` passes `--build-arg VITE_APP_VERSION=$tag`).
+ARG VITE_APP_VERSION=dev
 # E9-A9: the Dictation engine stays off in production until vendor audio is approved.
-RUN VITE_SPEECH_ENGINE=none pnpm --filter @app/web build
+RUN VITE_SPEECH_ENGINE=none VITE_APP_VERSION="${VITE_APP_VERSION}" pnpm --filter @app/web build
 
 # --- stage 2: the api's production dependencies, for the target platform --------------
 # Native modules (sharp, esbuild under tsx) resolve for the target architecture here.

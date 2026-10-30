@@ -87,6 +87,7 @@ export function SyncStatusSurface() {
             <Button
               isDisabled={disabledReason !== undefined}
               disabledReason={disabledReason}
+              data-telemetry="sync.now"
               onPress={() => void sync.syncNow()}
             >
               {copy.sync.syncNow}

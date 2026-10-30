@@ -57,6 +57,9 @@ export const errorCodeSchema = z.enum([
   // Story 13.8 (contract 15): the audit route refuses while a run of the relatório is still
   // active (`details.audit_run_id` names it); one tap is at most one run.
   'audit_running',
+  // Epic 18 (AD-28): `POST /api/telemetry` refuses the whole batch when the body is not an
+  // array, holds more than `TELEMETRY_BATCH_MAX` events, or any event fails `uxEventSchema`.
+  'telemetry_invalid',
 ]);
 export type ErrorCode = z.infer<typeof errorCodeSchema>;
 

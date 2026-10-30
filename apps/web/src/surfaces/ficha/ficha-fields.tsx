@@ -399,6 +399,7 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
           {showsNotApplicable ? null : (
             <NotApplicableButton
               label={fieldLabel}
+              telemetry="ficha.na"
               onPress={() => {
                 // A9: text typed and not committed yet commits first (the input's blur does it
                 // where the tap takes the focus; WebKit does not focus a tapped button), then the

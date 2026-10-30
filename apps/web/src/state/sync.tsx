@@ -14,6 +14,7 @@ import {
   syncCounts,
   syncHeadlineText,
   syncSummaryBadges,
+  syncResultKind,
   type DownloadRow,
   type PendingPhotoRow,
   type PendingSheetContext,
@@ -58,10 +59,15 @@ import { storageHeadroom } from '../device/storage-estimate.ts';
 import { now } from '../clock.ts';
 import { newId } from '../ids.ts';
 import { createBrowserSyncClient, type SyncClient } from '../sync/client.ts';
-import type { SyncFailure } from '../sync/client.ts';
+import { SyncRequestError, type SyncFailure } from '../sync/client.ts';
 import { unreachableCause } from '../sync/policy.ts';
 import { createSyncEngine, type CycleResult, type EngineStatus, type SyncEngine } from '../sync/engine.ts';
 import { followOnlineEvents } from '../sync/online.ts';
+import { flushTelemetry } from '../telemetry/flush.ts';
+import { startWait, trackError } from '../telemetry/hooks.ts';
+import { observeReadingResults } from '../telemetry/readings.ts';
+import { configureTelemetry, track } from '../telemetry/track.ts';
+import type { AppDatabase } from '../db/schema.ts';
 import { useSession } from './session.tsx';
 import { SyncActionsContext, type SyncActions } from './sync-actions.ts';
 
@@ -241,6 +247,45 @@ export function requestSyncCycle(): void {
   for (const request of cycleRequests) request();
 }
 
+/**
+ * Epic 18 (AD-28): what a status change of the engine says about usage. A cycle that ran
+ * queues its `sync_result`, looks for readings that landed, then drains the usage-event
+ * queue (`flushTelemetry`); a cycle that found the device offline is tracked only on the way
+ * into offline (the 60 s tick would otherwise write one row a minute); `busy` and `paused`
+ * track nothing. Never touches the op log.
+ */
+function observeCycle(db: AppDatabase, previous: EngineStatus, next: EngineStatus): void {
+  try {
+    if (previous.running && !next.running && next.lastResult === 'ran') {
+      track({ name: 'sync_result', kind: syncResultKind({ outdated: next.outdated, failure: next.lastFailure }) });
+      void observeReadingResults(db).then(() => flushTelemetry(db));
+      return;
+    }
+    if (next.lastResult === 'offline' && previous.lastResult !== 'offline') track({ name: 'sync_result', kind: 'offline' });
+  } catch {
+    // An event is never worth a failure.
+  }
+}
+
+/** The outcome of a "Sincronizar agora" wait: how the cycle it ran ended. */
+/** The api error code a failed request carried, if any. */
+function failureCode(error: unknown): string | undefined {
+  return error instanceof SyncRequestError && error.failure.kind === 'http' ? error.failure.code : undefined;
+}
+
+/** How a failed request ended, for its `wait`. */
+function failureOutcome(error: unknown): 'offline' | 'refused' | 'fail' {
+  if (error instanceof SyncRequestError && error.failure.kind === 'network') return 'offline';
+  if (error instanceof SyncRequestError && error.failure.kind === 'http' && error.failure.status < 500) return 'refused';
+  return 'fail';
+}
+
+function syncWaitOutcome(result: CycleResult, failure: SyncFailure | null): 'ok' | 'fail' | 'offline' | 'refused' {
+  if (result === 'offline') return 'offline';
+  if (result === 'paused') return 'refused';
+  return failure === null ? 'ok' : 'fail';
+}
+
 export function SyncProvider({ children }: { children: ReactNode }) {
   const session = useSession();
   const db = session.database;
@@ -254,6 +299,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // the engine's included. The session's value is copied in only when it changes, never
   // on every render, so a render that still carries the old value cannot undo the event.
   const onlineRef = useRef(session.online);
+  // Epic 18: the engine's last published status, read by the "Sincronizar agora" wait.
+  const statusRef = useRef<EngineStatus>(IDLE);
   // Story 8.1: who auto-confirms a pulled suggestion; read by the engine at pull time.
   const userRef = useRef(session.user);
   useEffect(() => {
@@ -282,7 +329,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       isOnline: () => onlineRef.current,
       onReAuth: publishReAuth,
       onOutdated: () => {},
-      onChange: setStatus,
+      onChange: (next) => {
+        observeCycle(db, statusRef.current, next);
+        statusRef.current = next;
+        setStatus(next);
+      },
       readStorage: storageHeadroom,
       author: () => {
         const user = userRef.current;
@@ -290,12 +341,23 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       },
     });
     engineRef.current = engine;
-    void deviceId(db, newId).then(setDevice, () => setDevice(null));
+    // Epic 18: the usage-event queue writes to this user's database once its device id is read.
+    let current = true;
+    void deviceId(db, newId).then(
+      (id) => {
+        setDevice(id);
+        if (current) configureTelemetry({ db, deviceId: id });
+      },
+      () => setDevice(null),
+    );
     engine.start();
     setEngineReady(true);
     const nudge = () => engine.nudge();
     cycleRequests.add(nudge);
     return () => {
+      current = false;
+      configureTelemetry(null);
+      statusRef.current = IDLE;
       cycleRequests.delete(nudge);
       engine.stop();
       stopFollowing();
@@ -318,6 +380,22 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const rows = loadedRows ?? NO_ROWS;
   // Matheus, 2026-09-30: the Sync status surface says it is loading until the outbox is read.
   const outboxRead = db === null || loadedRows !== undefined;
+  // Epic 18: an op the server refused for good (a dead row) is an api error code the user
+  // sees on Sync status; each one is tracked once, the rows already dead at boot excepted.
+  const deadSeen = useRef<{ db: AppDatabase; ids: Set<string> } | null>(null);
+  useEffect(() => {
+    if (db === null || loadedRows === undefined) return;
+    const dead = loadedRows.filter((row) => row.status === 'dead');
+    if (deadSeen.current?.db !== db) {
+      deadSeen.current = { db, ids: new Set(dead.map((row) => row.op_id)) };
+      return;
+    }
+    for (const row of dead) {
+      if (deadSeen.current.ids.has(row.op_id)) continue;
+      deadSeen.current.ids.add(row.op_id);
+      trackError(row.error_code, row.relatorio_id === null || row.relatorio_id === undefined ? {} : { relatorio_id: row.relatorio_id });
+    }
+  }, [db, loadedRows]);
   const states = useLiveQuery(() => (db === null ? Promise.resolve(NO_STATES) : syncStateRows(db)), [db], NO_STATES);
   const users = useLiveQuery(() => (db === null ? Promise.resolve(NO_USERS) : localUsers(db)), [db], NO_USERS);
 
@@ -385,7 +463,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   // W-4 (full review 2026-09-30): "Sincronizar agora" and "Reenviar" run a cycle that starts
   // after any cycle in flight, never answer `busy` and leave the work to the 60 s tick.
-  const syncNow = useCallback(async () => (await engineRef.current?.runFreshCycle()) ?? 'paused', []);
+  // Epic 18: the user waits for this cycle (`wait`, kind `sync`).
+  const syncNow = useCallback(async () => {
+    const finish = startWait('sync');
+    const result = (await engineRef.current?.runFreshCycle()) ?? 'paused';
+    finish(syncWaitOutcome(result, statusRef.current.lastFailure));
+    return result;
+  }, []);
   const syncRelatorio = useCallback(
     async (relatorioId: string) => (await engineRef.current?.syncRelatorio(relatorioId)) ?? 'paused',
     [],
@@ -426,19 +510,43 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const generate = useCallback(async (relatorioId: string, body: GenerateRequest): Promise<GenerateResponse> => {
     const client = clientRef.current;
     if (client === null) throw new Error('sync client is not running');
-    return client.generate(relatorioId, body);
+    // Epic 18: the generate request's wait, and the api code of a refusal the user sees.
+    const finish = startWait('generate', { relatorio_id: relatorioId });
+    try {
+      const answer = await client.generate(relatorioId, body);
+      finish('ok');
+      return answer;
+    } catch (error) {
+      finish(failureOutcome(error));
+      trackError(failureCode(error), { relatorio_id: relatorioId });
+      throw error;
+    }
   }, []);
 
   const preview = useCallback(async (relatorioId: string, body: GenerateRequest): Promise<PreviewResponse> => {
     const client = clientRef.current;
     if (client === null || client.preview === undefined) throw new Error('sync client is not running');
-    return client.preview(relatorioId, body);
+    const finish = startWait('preview', { relatorio_id: relatorioId });
+    try {
+      const answer = await client.preview(relatorioId, body);
+      finish('ok');
+      return answer;
+    } catch (error) {
+      finish(failureOutcome(error));
+      trackError(failureCode(error), { relatorio_id: relatorioId });
+      throw error;
+    }
   }, []);
 
   const rereadPhoto = useCallback(async (photoId: string): Promise<void> => {
     const client = clientRef.current;
     if (client === null) throw new Error('sync client is not running');
-    await client.rereadPhoto(photoId);
+    try {
+      await client.rereadPhoto(photoId);
+    } catch (error) {
+      trackError(failureCode(error));
+      throw error;
+    }
   }, []);
 
   const audit = useCallback(async (relatorioId: string, body: AuditRequest): Promise<AuditResponse> => {

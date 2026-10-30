@@ -458,7 +458,7 @@ export function ChecklistRow({
           {/* Story 14.9 (Bruno 2026-10-20 answer 4): a reminder for the technician, never printed. */}
           {item.hint === undefined ? null : <span className="helper row-hint">{screenLabel(item.hint)}</span>}
         </span>
-        <TriStateControl value={result} onChange={choose} committed={resultCommitted} aria-label={name} readOnly={readOnly} />
+        <TriStateControl value={result} onChange={choose} committed={resultCommitted} aria-label={name} readOnly={readOnly} telemetry="ficha.mark" />
         <OverflowMenu name={label} items={menu} />
       </div>
       {obsLine ? (

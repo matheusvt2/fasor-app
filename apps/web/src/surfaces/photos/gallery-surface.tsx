@@ -215,6 +215,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
         showToast(photoRemovedText(number), {
           action: {
             label: copy.viewer.undo,
+            undo: true,
             onPress: () => {
               void restorePhoto(db, author, relatorioId, tile.id)
                 .then(() => focusTileSoon(tile.id, heading.current))
