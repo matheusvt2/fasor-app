@@ -2,7 +2,7 @@
 title: 'Story 19.2: Home opens on the active work: Emitido behind its tile, most recent first, the list cut at 10, 20, 50 or 100'
 type: 'feature'
 created: '2026-10-30'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 dev_model: opus
@@ -26,7 +26,7 @@ context:
 **Always:**
 - Binding text: `epics.md` Story 19.2 (DoR and ACs), `epic-19-context.md`. AD-13: `packages/domain` computes the selection, the order, the page, the note and the empty sentence; `apps/web` keeps only the pressed tile and the page size as state and renders.
 - `homeCards` keeps returning every card (the Status board counts come from it); the selection and the page are a new kernel function over those cards. The current card (Em campo on this device) stays first in every selection.
-- Order (decision, Matheus 2026-10-30, "1.a": "mais recente" is the relatório's last change on the server): the company summary's `updated_seq` descending (`RelatorioSummary.updated_seq`, the server's sequence of the relatório's last change); cards with no summary entry after them by service start descending, missing dates last, then id (today's rule as the fallback).
+- Order (decision, Matheus 2026-10-30, "1.a": "mais recente" is the relatório's last change on the server): the company summary's `updated_seq` descending (`RelatorioSummary.updated_seq`, the server's sequence of the relatório's last change); ~~cards with no summary entry after them by service start descending, missing dates last, then id (today's rule as the fallback).~~ *(2026-10-30, Matheus, "A" to the review's intent gap: a card with no summary entry, a relatório created on this device and not yet synced, is the newest thing here and sorts right after the current card, before every card with a sequence; among themselves by service start descending, missing dates last, then id.)*
 - Page sizes `10, 20, 50, 100`, default 10; the note and the chips appear only when the selection holds more than 10; the chips are the existing `FilterChipGroup` (exactly one pressed); the choice is read from and written to `local_prefs` under `home_page_size`, an unknown stored value reads as 10. The preference lives in the user's own database, so it never follows a sign-out to another user.
 - Empty states: nothing on the device keeps "Nenhum relatório ainda."; a pressed tile with nothing keeps "Nenhum relatório neste status."; no active relatório with N emitted reads a kernel sentence "Nenhum relatório em andamento. N emitidos: toque em Emitido." (`plural` for 1).
 - Telemetry (Epic 18): append `home.page_size` to `UX_ACTION_TARGETS` first (red kernel test), then `data-telemetry="home.page_size"` on each chip; `home.status_chip` unchanged.
@@ -48,7 +48,7 @@ context:
 | Page size chosen | press 50 | up to 50 cards, note "Mostrando 12 de 12 relatórios" when they all fit; `local_prefs.home_page_size` = 50; survives a reload | none |
 | Stored value unknown | `home_page_size` = 15 or a string | reads as 10, the chip 10 pressed | silent |
 | Fits the smallest page | 10 or fewer in the selection | no note, no chips | none |
-| Order fallback | a local row with no summary entry | after every card with a sequence, by service start | none |
+| Order fallback | a local row with no summary entry | ~~after every card with a sequence, by service start~~ before every card with a sequence, right after the current card, by service start (2026-10-30, Matheus "A") | none |
 | Current card | Em campo on this device, old sequence | first in the active list and in the Em campo tile's list | none |
 | No active | 0 active, 7 emitted | "Nenhum relatório em andamento. 7 emitidos: toque em Emitido."; Emitido tile 7 | none |
 | Nothing | 0 relatórios | "Nenhum relatório ainda." | none |
@@ -97,6 +97,8 @@ context:
 
 - 2026-10-30, after the review patches (eight, by the same implementation subagent, `.scratch-prodfix/gate-19-2*.log`): full story gate under the host lock, api restarted first: lint 0 errors (25 warnings in untouched specs), static green, test:api 96 files 733 tests (281 s), test:unit 333 files 4706 tests (223 s, host load up to 12.05 with no red), `home.spec.ts` and `app-layout.spec.ts` 5 of 5 (32 s). Open before the spec can close: the intent gap on the unsynced new relatório's place in the order (Review Triage Log, first row), asked to Matheus as A (newest first) or B (keep after the synced ones).
 
+- 2026-10-30, after Matheus's "A" (the unsynced new relatório right after the current card, before the synced ones): the `homeCards` sort swapped on the undefined sequence, the fallback kernel test rewritten and one test added (current card, then the unsynced one, then the sequenced ones); the two Home test files alone 73 of 73 (`.scratch-prodfix/s19-2-a-quick.log`), then the full story gate again under the host lock, api restarted first (`.scratch-prodfix/gate-19-2-a-*.log`): lint 0 errors (25 warnings in untouched specs), static green, test:api 96 files 733 tests (295 s), test:unit 333 files 4707 tests (209 s, host load up to 9.03, no red), `home.spec.ts` and `app-layout.spec.ts` 5 of 5 on `desktop-chrome` and `durability-desktop-chrome` (27 s). Spec closed.
+
 ## Spec Change Log
 
 ## Review Triage Log
@@ -105,7 +107,7 @@ context:
 
 | Finding | Verdict | Evidence and route |
 |---|---|---|
-| ECH-1, ECH-8 (claim), VG-O2, BH-1: a relatório with no summary entry (created on the device, not yet synced) sorts after every sequenced card and can fall past the cut | medium | True: `cards.ts` sort puts `undefined` sequence last; the spec's own fallback sentence says so, so the code follows the spec. The intent "most recent first" has two readings for an unsynced creation (newest, or after the synced ones). Route: **intent_gap**, taken to Matheus as one question without reverting the code (the fix is one line in the sort and one test; re-deriving 750 lines for it serves no one). His answer is applied as a patch and the frozen fallback sentence is amended with his words. |
+| ECH-1, ECH-8 (claim), VG-O2, BH-1: a relatório with no summary entry (created on the device, not yet synced) sorts after every sequenced card and can fall past the cut | medium | True: `cards.ts` sort puts `undefined` sequence last; the spec's own fallback sentence says so, so the code follows the spec. The intent "most recent first" has two readings for an unsynced creation (newest, or after the synced ones). Route: **intent_gap**, taken to Matheus as one question without reverting the code (the fix is one line in the sort and one test; re-deriving 750 lines for it serves no one). His answer is applied as a patch and the frozen fallback sentence is amended with his words. **Resolved 2026-10-30: Matheus chose A** (the unsynced new relatório right after the current card, before the synced ones); patched in `cards.ts` (the two `undefined` branches of the sort swapped), the fallback kernel test rewritten and one test added for the current card, then the unsynced one, then the sequenced ones; Boundaries and the I-O matrix amended with the date. |
 | BH-2: the order changes after each sync, a card can leave the visible page between two taps | low | True by design: Matheus chose the last change on the server as the order ("1.a"); the movement shows only above the page size. Rejected (intended behaviour; recorded). |
 | ECH-3, VG-O1, BH-3a: arrow keys change the page size and record no `home.page_size` event | low | True: `FilterChipGroup.moveTo` calls `onChange` directly and the instrument listens to `click`. Route: **patch** (the key handler clicks the target chip, so the existing guard and the click listener run). |
 | ECH-4, BH-3b: a tap on the already-checked chip records an action the group ignores | low | True: the document listener records any enabled `data-telemetry` click. Rejected: negligible inflation, and the fix adds a guard to the shared listener. |

@@ -346,7 +346,7 @@ describe('homeCards: ordering', () => {
     expect(cards.map((c) => c.id)).toEqual([R_FIELD_AWAY, R_ISSUED_A, R_DRAFT]);
   });
 
-  it('Story 19.2 fallback: a row with no summary entry comes after every card with a sequence, then service start descending, missing dates last, then id', () => {
+  it('Story 19.2 (Matheus "A"): a row with no summary entry, created here and not yet synced, comes before every card with a sequence, by service start descending, missing dates last, then id', () => {
     const cards = homeCards(
       input({
         relatorios: [
@@ -359,7 +359,23 @@ describe('homeCards: ordering', () => {
         summary: [summary(R_FIELD_HERE, 'em_revisao', 1)],
       }),
     );
-    expect(cards.map((c) => c.id)).toEqual([R_FIELD_HERE, R_FIELD_AWAY, R_DRAFT, R_ISSUED_A, R_ISSUED_B]);
+    expect(cards.map((c) => c.id)).toEqual([R_FIELD_AWAY, R_DRAFT, R_ISSUED_A, R_ISSUED_B, R_FIELD_HERE]);
+  });
+
+  it('Story 19.2 (Matheus "A"): the current card first, then the unsynced new relatório, then the synced ones by sequence', () => {
+    const cards = homeCards(
+      input({
+        relatorios: [
+          relatorio(R_FIELD_HERE, 'em_campo', { service_start: '2026-01-01' }),
+          relatorio(R_DRAFT, 'rascunho', { service_start: '2026-02-01' }),
+          relatorio(R_FIELD_AWAY, 'em_campo', { service_start: '2026-10-30' }),
+        ],
+        summary: [summary(R_FIELD_HERE, 'em_campo', 1), summary(R_DRAFT, 'rascunho', 99)],
+        syncStates: [onDevice(R_FIELD_HERE)],
+      }),
+    );
+    expect(cards.map((c) => c.id)).toEqual([R_FIELD_HERE, R_FIELD_AWAY, R_DRAFT]);
+    expect(cards[0]!.isCurrent).toBe(true);
   });
 
   it('Story 19.2: the current card stays first even with the oldest sequence', () => {

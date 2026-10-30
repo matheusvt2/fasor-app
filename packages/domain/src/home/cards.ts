@@ -194,10 +194,11 @@ function deviceOf(
 /**
  * The ordered Home cards. The card set is the local relatório rows (tombstones
  * excluded) unioned by id with the company summary entries the device has no row
- * for; ordering is the current card, then most recent first (Story 19.2, Matheus
- * 2026-10-30 "1.a": the summary's `updated_seq` descending, the server's sequence of
- * the relatório's last change), then the cards with no summary entry by service start
- * descending with missing dates last, then the id.
+ * for; ordering is the current card, then the cards with no summary entry yet (created
+ * on this device and not synced: the newest things here, Matheus 2026-10-30 "A") by
+ * service start descending with missing dates last, then most recent first (Story 19.2,
+ * Matheus 2026-10-30 "1.a": the summary's `updated_seq` descending, the server's
+ * sequence of the relatório's last change), then the id.
  */
 export function homeCards(input: HomeCardsInput): HomeCard[] {
   const sources = new Map<string, CardSource>();
@@ -295,8 +296,9 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
     const qa = seqOf.get(a.id);
     const qb = seqOf.get(b.id);
     if (qa !== qb) {
-      if (qa === undefined) return 1;
-      if (qb === undefined) return -1;
+      // No sequence means not on the server yet: created here, newest first (Matheus, "A").
+      if (qa === undefined) return -1;
+      if (qb === undefined) return 1;
       return qb - qa;
     }
     const sa = startOf.get(a.id) ?? null;
