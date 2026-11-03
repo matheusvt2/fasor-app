@@ -28,6 +28,8 @@ git status --short          # must print nothing tracked
 
 The deploy refuses uncommitted changes and tags the images with the HEAD commit, so publish only a commit whose pull request carried a green `pnpm verify` ([docs/TESTING.md](../docs/TESTING.md)).
 
+**Gate record before an integrated main (2026-11-03, E18-A6).** When the commit took more than one batch or story pull request since the last deploy, it also needs `pnpm test:e2e:full` green on that same commit, run in the `tools` container under the host lock, with the host load line (`sysctl -n vm.loadavg` at the start and at the end, the lock wait, what else ran on the host), written into the epic's context file (`_bmad-output/implementation-artifacts/epic-<N>-context.md`, its gate or deploy section) before `infra/bin/deploy` starts. A test red once and green when re-run alone counts only with both runs recorded. `pnpm verify` alone does not satisfy this: the `@p1` and `@p2` specs run only in `test:e2e:full`. The rule and its sources are in `_bmad-output/implementation-artifacts/epic-batch-orchestrator.md` § 8.
+
 ### 2. Check the infrastructure offline
 
 ```sh
