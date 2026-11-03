@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 11-03-2026 11:44
+last_updated: 11-03-2026 12:45
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -1272,7 +1272,7 @@ action_items:
       by the next fix batch and a later story, date the UX-pass P2/P3 triage row;
       target 0 Epic 15 rows owned by a finished batch or unscheduled event"
     owner: "coordinator"
-    status: open
+    status: done  # 2026-11-03: deferred-work.md hygiene, PR #227
     ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-124-e15-a2-ratio-verdict-feeds-conclusion"
     epic: 15
@@ -1289,7 +1289,7 @@ action_items:
       with the kernel value, restart the api container after regenerating a fake-provider
       fixture; target 0 stale-literal reds at the next seed-bump wave gate"
     owner: "coordinator (playbook)"
-    status: open
+    status: done  # 2026-11-03: epic-batch-orchestrator.md § 7 (E17-A5) carries the rule; verified by batch e18fd, PR #227
     ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-126-e15-a4-no-gate-overlap"
     epic: 15
@@ -1298,7 +1298,7 @@ action_items:
       in the PR; target 0 PRs merged on a red unit stage without a recorded isolated
       green re-run"
     owner: "coordinator"
-    status: open
+    status: done  # 2026-11-03: epic-batch-orchestrator.md § 7 carries the load rule with E16-A10; verified PR #227
     ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-127-e15-a5-integrated-code-review"
     epic: 15
@@ -1307,7 +1307,7 @@ action_items:
       playbook: a batch that skips a lens names the review that will run it and the
       coordinator schedules it"
     owner: "coordinator; Matheus (waiver)"
-    status: open
+    status: done  # 2026-11-03: Blind Hunter and intent alignment run 2026-11-03 over 6e5d8aee..be2f46fb on main 0fede8ac: test-artifacts/review-e15-e16-integrated-2026-11-03.md; E15-R1 and E15-R2 ledger rows, E15-R3 accepted
     ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-128-e15-a6-story-15-1-bruno-dod"
     epic: 15
@@ -1357,7 +1357,7 @@ action_items:
       with superseded numbers: 15.3 TC 11 fields to 13, 15.3 Marcar 7 itens chip to
       the oil rule marking seven NA, 15.6 62,89 to 62,90; no sentence deleted"
     owner: "coordinator (draft); Matheus (approve)"
-    status: open
+    status: open  # 2026-11-03: drafted in spec-reconciliation-drafts-2026-11-03.md (PR #227); waits for Matheus's approval
     ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
   - id: "epic-16-retro-item-134-e16-a1-na-on-tablet-keypad"
     epic: 16
@@ -1399,7 +1399,7 @@ action_items:
       a low row for point-editor.tsx:741 filtering display shots itself, and a scheduled
       owner for QA G1 and G2 instead of the next fix batch"
     owner: "coordinator"
-    status: open
+    status: done  # 2026-11-03: deferred-work.md hygiene, PR #227
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-139-e16-a6-integrated-review-epic-16"
     epic: 16
@@ -1408,7 +1408,7 @@ action_items:
       of PR #183, seed-v7 locators and photo viewer of PR #181), together with E15-A5,
       or record a dated waiver"
     owner: "coordinator; Matheus (waiver)"
-    status: open
+    status: done  # 2026-11-03: same review over be2f46fb..541ceb97: E16-R1 to batch s184 (Story 18.4 wave), E16-R2 ledger row for Matheus and Bruno, E16-R3 accepted; the PR #183 and #181 hunks hold or are moot
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-140-e16-a7-spec-reconciliation"
     epic: 16
@@ -1417,7 +1417,7 @@ action_items:
       amendment of the 16.4 undo criterion (a typed put raises no Desfazer toast),
       and Matheus's decision on N.A in Altitude do site (QA G3); no sentence deleted"
     owner: "coordinator (draft); Matheus (approve, altitude decision)"
-    status: open
+    status: open  # 2026-11-03: drafted in spec-reconciliation-drafts-2026-11-03.md (PR #227); waits for Matheus's approval
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-141-e16-a8-restart-api-before-story-e2e"
     epic: 16
@@ -1426,7 +1426,7 @@ action_items:
       misses changes across the podman VM mount), widening E15-A3; a batch stack idle
       overnight is stopped or restarted before its gate"
     owner: "coordinator (playbook)"
-    status: open
+    status: done  # 2026-11-03: epic-batch-orchestrator.md § 7; verified PR #227
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-142-e16-a9-static-after-review-patches"
     epic: 16
@@ -1434,7 +1434,7 @@ action_items:
       the head that merges, not only the patched test files (16.1 left main red on
       static, TS2345, fixed in PR #181)"
     owner: "coordinator (playbook)"
-    status: open
+    status: done  # 2026-11-03: epic-batch-orchestrator.md § 7; verified PR #227
     ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-143-e16-a10-template-composer-load-timeouts"
     epic: 16
@@ -1489,7 +1489,7 @@ action_items:
       word; E15-A10 stays open (no recovery for a lost ECS endpoint); target tag recorded
       and smoke green on the first run"
     owner: "Matheus (login, release word); coordinator (deploy, record)"
-    status: in-progress  # 2026-10-28: deployed and smoked (8f5fa154, tag v0.4.0 pushed); the GitHub release waits for Matheus's word
+    status: done  # 2026-11-03: v0.4.0 deployed 8f5fa154, smoke 8/8, tag pushed (epic-17-context.md); later deploys supersede it; v0.4.0 stays a tag without a release page (release-notes-v0.5.0.md), v0.5.0 page published
     ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-148-e17-a5-playbook-rules"
     epic: 17
@@ -1501,7 +1501,7 @@ action_items:
       (reading_kind caption); target 0 process rules living only in an epic context
       file"
     owner: "coordinator (playbook)"
-    status: open
+    status: done  # 2026-11-03: epic-batch-orchestrator.md § 7 written 2026-10-28 plus the .scratch-<tag> log rule; verified PR #227
     ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-149-e17-a6-ledger-hygiene"
     epic: 17
@@ -1513,7 +1513,7 @@ action_items:
       two sources for one render); target every confirmed finding has a row or a story
       line, 0 rows owned by a finished event"
     owner: "coordinator"
-    status: open
+    status: done  # 2026-11-03: deferred-work.md hygiene, PR #227
     ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-150-e17-a7-spec-reconciliation"
     epic: 17
@@ -1524,7 +1524,7 @@ action_items:
       line that v0.3.4 was skipped and both waves ship as v0.4.0; target four dated
       lines"
     owner: "coordinator (draft); Matheus (approve)"
-    status: open
+    status: open  # 2026-11-03: drafted in spec-reconciliation-drafts-2026-11-03.md (PR #227); waits for Matheus's approval
     ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-151-e17-a8-load-on-one-vm"
     epic: 17
@@ -1587,7 +1587,7 @@ action_items:
       (a residual risk that changes how a view is read is a runbook sentence in the
       same PR; the wave gate record carries the host load line)"
     owner: "coordinator"
-    status: open
+    status: in-progress  # 2026-11-03: ledger and playbook parts done in PR #227; the docs/observability.md part is in batch e18fb
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
   - id: "epic-18-retro-item-155-e18-a4-spec-reconciliation"
     epic: 18
@@ -1597,7 +1597,7 @@ action_items:
       live entities; Story 18.1's wait for preview and generation noted as the request
       until re-timed; and in the terms per Matheus's decision"
     owner: "coordinator (draft); Matheus (approve)"
-    status: open
+    status: open  # 2026-11-03: drafted in spec-reconciliation-drafts-2026-11-03.md (PR #227); waits for Matheus's approval
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
   - id: "epic-18-retro-item-156-e18-a5-matheus-decisions"
     epic: 18
@@ -1617,7 +1617,7 @@ action_items:
       recorded in the epic context (E10-A1, E11-A1, E17-A8 restated); for Epic 18
       the record is the retrospective's run of 2026-10-30"
     owner: "coordinator (playbook)"
-    status: open
+    status: done  # 2026-11-03: epic-batch-orchestrator.md § 8 and infra/PUBLISHING.md step 1, PR #227
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
   - id: "epic-18-retro-item-158-e18-a7-first-monthly-digest"
     epic: 18
