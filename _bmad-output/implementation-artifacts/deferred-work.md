@@ -2618,7 +2618,7 @@ Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
   class: risk
   state: open (owner: Matheus decides; the coordinator records it in the PR)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e18fa-code-fix-batch.md`
-  summary: The reading watcher no longer sees a photo whose only change reached this device through a snapshot download rather than the pulled op log (`remote_ops`).
+  summary: The reading watcher no longer sees a photo whose only change reached this device through a snapshot download rather than the pulled op log (`remote_ops`), nor a photo of another device that arrives through a stream whose cursor lags the highest pulled `seq` (photos pending at the last look are read by key, and photos shot here through the outbox since review fix ECH-4, so both cases are photos this device never waited for).
   evidence: R-A14 narrowing (`telemetry/readings.ts`): after the baseline, a look reads the photos pending at the last look and the `file` entities named by `remote_ops` rows above the last seen `seq`. A relatório downloaded as a snapshot writes entities without `remote_ops` rows, so a reading that lands that way is not tracked; a photo pending at the last look is still read by key. Spec Design Notes.
   class: risk
   state: open (owner: Story 18.4, if the first digest shows reading waits missing)
@@ -2637,3 +2637,8 @@ Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
   evidence: R-A16 (`apps/api/src/db/friction-read.ts`): the item named spans and re-edits only. Whether the device op count should drop them too is an open question of the PR.
   class: question
   state: open (owner: Matheus decides at the first digest, E18-A7)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e18fa-code-fix-batch.md`
+  summary: The friction read's "typed after a failed reading" compares the device's `client_ts` with the server's `received_at` of the failure (R-A17), so a device clock running behind the server never counts a value typed after the failure, and one running ahead counts a value typed offline while the reading still ran.
+  evidence: Review ECH-3 of batch e18fa (2026-11-03): `apps/api/src/db/friction-read.ts` `foldFriction` (`ts > photo.armed.failedAt`); the comparison is the one E18-A1 prescribed. A skew window, or the put's own `received_at` against the failure's, would bound it.
+  class: risk
+  state: open (owner: the first digest, E18-A7, reads the count beside the device clocks it can see)
