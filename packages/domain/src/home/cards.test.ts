@@ -859,6 +859,7 @@ describe('homeList (Story 20.2): the search by client and obra', () => {
     expect(list.announcement).toBe('Nenhum relatório encontrado para zzz.');
     expect(list).toMatchObject({ shown: 0, total: 0, note: null });
     expect(noSearchMatchText(' zzz  ')).toBe('Nenhum relatório encontrado para zzz.');
+    expect(noSearchMatchText(' porto   seguro ')).toBe('Nenhum relatório encontrado para porto seguro.');
     expect(statusBoardCounts(cards)).toMatchObject({ rascunho: 3, emitido: 2 });
     const narrowed = homeList(cards, { filter: 'em_campo', pageSize: 10, query: 'zzz' });
     expect(narrowed.empty).toEqual({ kind: 'none-for-query', text: 'Nenhum relatório encontrado para zzz.' });

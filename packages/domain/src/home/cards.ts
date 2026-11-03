@@ -382,7 +382,7 @@ export function noneActiveText(emitted: number): string {
 /** Story 20.2: the empty sentence of a search that matches nothing. */
 export function noSearchMatchText(query: string): string {
   // authored (Story 20.2 DoR): no mock draws a search with no match.
-  return `Nenhum relatório encontrado para ${query.trim()}.`;
+  return `Nenhum relatório encontrado para ${query.trim().replace(/\s+/g, ' ')}.`;
 }
 
 /** Story 20.2: the polite count of a search's results. */

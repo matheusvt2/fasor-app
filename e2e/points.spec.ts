@@ -1015,3 +1015,65 @@ test('@p0 20.4-E2E-003 FR-61: a new point\'s picked equipment, held before its t
   await expect.poll(async () => (await storedPoints(page)).map((row) => [row.text, row.equipment_id, row.location_id ?? null])).toEqual([['Isolador trincado', equipmentOf.get(chave.blockId), null]]);
   await expect(cards(page).first().locator('.poa-title')).toHaveText(`${chave.tag} · Cubículo Enel`);
 });
+
+test('@p0 20.4-E2E-006 a pick in a new point\'s editor goes into its create: from an NC row\'s dialog another equipment, from "Criar" on the Points surface an equipment of another local picked before the text; no reload, each row and card carries the pick', async ({ page }) => {
+  test.setTimeout(180_000);
+  const { relatorioId, chave, row } = await openNcRow(page);
+
+  // From the NC row: the dialog starts on the sheet's equipment; another chave is picked before "Concluir".
+  const create = row.getByRole('button', { name: 'Criar ponto de atenção' });
+  await create.click();
+  const dialog = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
+  await expect(dialog).toBeVisible();
+  const dialogPicker = linkPicker(dialog);
+  await expect(dialogPicker).toContainText(chaveOption(chave));
+  await textArea(dialog).click();
+  await page.keyboard.type('Contato com folga');
+  await dialogPicker.click();
+  const dialogOption = linkList(page).getByRole('group', { name: 'Cubículo Enel' }).getByRole('option').filter({ hasNotText: chave.tag + ' ·' }).nth(1);
+  const dialogKey = (await dialogOption.getAttribute('data-key'))!;
+  const dialogText = (await dialogOption.textContent())!;
+  expect(dialogKey).toMatch(/^equipment:/);
+  await dialogOption.click();
+  await expect(dialogPicker).toContainText(dialogText);
+  await dialog.getByRole('button', { name: 'Concluir' }).click();
+  await expect(dialog).toHaveCount(0);
+  const dialogEquipment = dialogKey.slice('equipment:'.length);
+  await expect.poll(async () => (await storedPoints(page)).map((point) => [point.text, point.equipment_id, point.location_id ?? null])).toEqual([['Contato com folga', dialogEquipment, null]]);
+
+  // From "Criar" on the Points surface: an equipment of another local, picked before the text.
+  await page.goto(`/relatorio/${relatorioId}/pontos`);
+  await expect(cards(page)).toHaveCount(1, { timeout: 30_000 });
+  const dialogTag = dialogText.split(' · ')[0]!;
+  await expect(cards(page).first().locator('.poa-title')).toHaveText(`${dialogTag} · Cubículo Enel`);
+  await page.getByRole('button', { name: 'Criar', exact: true }).click();
+  const editor = page.getByRole('article', { name: 'Novo ponto de atenção em edição' });
+  await expect(textArea(editor)).toBeFocused();
+  // Picked before any text: held, then the first text creates the point with it.
+  const picker = linkPicker(editor);
+  await expect(picker).toContainText('Geral');
+  const before = (await pointOutbox(page)).length;
+  await picker.click();
+  const option = linkList(page).getByRole('group', { name: '1° Subsolo' }).getByRole('option').nth(1);
+  const key = (await option.getAttribute('data-key'))!;
+  const text = (await option.textContent())!;
+  expect(key).toMatch(/^equipment:/);
+  await option.click();
+  await expect(picker).toContainText(text);
+  expect((await pointOutbox(page)).length).toBe(before);
+  await textArea(editor).click();
+  await page.keyboard.type('Transformador sem placa');
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(editor).toHaveCount(0);
+  const equipment = key.slice('equipment:'.length);
+  await expect
+    .poll(async () => (await storedPoints(page)).find((point) => point.text === 'Transformador sem placa'))
+    .toMatchObject({ equipment_id: equipment });
+  expect((await storedPoints(page)).find((point) => point.text === 'Transformador sem placa')!.location_id ?? null).toBeNull();
+  // The create op itself carries the pick.
+  const createOp = (await pointOutbox(page)).find((op) => op.kind === 'create' && (op.value as PointRow).text === 'Transformador sem placa');
+  expect(createOp!.value as PointRow).toMatchObject({ equipment_id: equipment });
+  expect((createOp!.value as PointRow).location_id ?? null).toBeNull();
+  const parts = text.split(' · ');
+  await expect(cards(page).nth(1).locator('.poa-title')).toHaveText(`${parts[0]} · ${parts.at(-1)}`);
+});

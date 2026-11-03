@@ -2,7 +2,7 @@
 title: 'Batch e20w: Stories 20.1, 20.2 and 20.4 (Conforme, Home search by client and obra, relink a point)'
 type: 'feature'
 created: '2026-11-03'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '76af18eff41394de3fbdfcd269a088eb2bc2dc77'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -213,3 +213,30 @@ lockf -t 20000 /tmp/fasor-verify.lock
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-03 — Review pass
+
+Layers run: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent Alignment were skipped for token economy; the integrated epic review covers them.
+
+- verdicts: 8 findings. high 0, medium 2, low 4, false 2, maybe-false 0.
+- findings:
+  - `[low]` `[reject]` A stale link (an equipment or local that has been removed) reads `geral`, so picking "Geral" is dropped and the stale id stays stored.
+    - The point already prints and shows as Geral (`pointTitle`).
+    - The harm appears only if the removed sheet is later restored. That is rare.
+    - The fix would add a stale-state branch to the picker.
+  - `[medium]` `[patch]` `pickLink` was not chained into `lastWrite.current`, and a refused pick never set `refused.current`.
+    - As a result, `finish()` could close with `onDone(null)` after a pick created the point, or close after a refused pick.
+    - Fix: chained it the way `persist` does.
+  - `[low]` `[reject]` A pick on an untouched seeded new point creates the row.
+    - The pick is the person's own change. The priority pick (`writePriorityPick` through `writeFields`) creates the row in the same case, so this is the existing pattern.
+  - `[low]` `[reject]` Undoing a pick that created the point undoes the create.
+    - The priority pick returns the create's batch for undo too (`noteFieldsWrite`).
+    - This is consistent behavior of the editor, not a new defect.
+  - `[false]` `[reject]` A rejected pick is said to revert silently.
+    - Refuted: `edits.write` toasts a rejection (`writeErrorText`) and rethrows it (`state/use-undoable-edits.ts:17`).
+  - `[low]` `[patch]` The no-match sentence echoed raw internal spacing.
+    - Fix: whitespace runs are collapsed in `noSearchMatchText`, with a kernel test case.
+  - `[medium]` `[patch]` (verification gap) No test covered the editor's normal create path with a pick (Criar, then pick, then type, then Concluir), nor a pick in the NC-row dialog.
+    - Fix: added `@p0` tests in `e2e/points.spec.ts`.
+  - `[false]` `[reject]` (verification gap, other) The relink is said never to be offered for undo.
+    - Refuted: `pickLink` returns `result.batchId` from inside `edits.write`, which is what the queue offers as "Desfazer". The trailing `.then` only settles the outer promise.

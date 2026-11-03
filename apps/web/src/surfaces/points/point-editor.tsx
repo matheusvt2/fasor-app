@@ -373,8 +373,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
       draftAutosave.changed();
     }
     const taken = { ...values.current };
-    void edits
-      .write(async () => {
+    const run = edits.write(async () => {
         const pendingHeld = pendingRef.current;
         const result: PointLinkWrite = await writePointLink(db, author, relatorioId, pointId, next, held, taken, pendingHeld);
         switch (result.kind) {
@@ -393,11 +392,15 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
             }
             return result.batchId;
         }
-      })
-      .then(
-        () => undefined,
-        () => undefined,
-      );
+      });
+    // As `persist`: a close waits on this pick, and a refused pick keeps the editor open.
+    const settled = run.then(
+      () => undefined,
+      () => {
+        refused.current = true;
+      },
+    );
+    lastWrite.current = settled;
   };
   const changeDeadline = (next: string | null) => {
     setTypedDeadline(next);
