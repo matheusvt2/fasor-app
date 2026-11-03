@@ -10,12 +10,18 @@ import { entities, ops } from './schema.ts';
  *
  * - D1 how long a sheet took: first to last `client_ts` of the DEVICE ops (actor not
  *   `system:*`) that target the block (`block/{id}`, `block/{id}/*`, `sheet/{id}/*`);
- *   server ops (reading suggestions, cleanups, seed moves) never stretch a span.
+ *   server ops (reading suggestions, cleanups, seed moves) never stretch a span. E18-A1
+ *   (R-A16): the structural block fields (`location_id`, `order_key`, `removed_at`,
+ *   `feeds_block_id`: a move, a reorder, a remove or restore, a feed) are not sheet work, so
+ *   they stretch no span and count no re-edit; they still count in `device_op_count`.
  * - D2 which fields were edited more than once: a block or sheet field path (not the
- *   `block/{id}` create) with two or more device ops of any kind.
+ *   `block/{id}` create, not a structural field) with two or more device ops of any kind.
  * - D3 what was typed after a failed reading: per `display` photo whose latest
  *   `reading_target` parses as `displayCellTargetSchema`, 1 when a device put on exactly its
- *   `start_cell` path lands after (by `seq`) a `failed` reading status.
+ *   `start_cell` path follows (by `seq`) a `failed` reading status and was typed (`client_ts`)
+ *   after the server wrote that failure (its `received_at`, E18-A1 R-A17): a value typed
+ *   offline while the reading still ran, and pushed later, neither counts nor disarms. A
+ *   photo removed and then restored (`removed_at` put back to null) arms again (R-E1).
  *
  * The report carries ids, closed keys and numbers only: no op value ever leaves this module.
  * Only `file/*` op values are fetched at all (the reading kind, target and status).
@@ -59,8 +65,13 @@ export interface FrictionOp {
   kind: string;
   actor_id: string;
   client_ts: string;
+  /** When the server logged the op: a failure's instant, against which a device put's `client_ts` is read. */
+  received_at: string;
   value: unknown;
 }
+
+/** The block fields that move, order, remove or feed a block: not sheet work (E18-A1, R-A16). */
+export const STRUCTURAL_BLOCK_FIELDS: ReadonlySet<string> = new Set(['location_id', 'order_key', 'removed_at', 'feeds_block_id']);
 
 export const isServerActor = (actorId: string): boolean => actorId.startsWith('system:');
 
@@ -94,10 +105,10 @@ interface SheetAcc {
 interface PhotoState {
   kind: string | null;
   target: unknown;
-  /** The cell path and block a failure armed, waiting for a device put. */
-  armed: { blockId: string; cellPath: string } | null;
+  /** The cell path and block a failure armed, waiting for a device put typed after `failedAt` (the failure's `received_at`). */
+  armed: { blockId: string; cellPath: string; failedAt: number } | null;
   counted: boolean;
-  /** A `removed_at` put non-null: the photo never arms again. */
+  /** A `removed_at` put non-null: the photo does not arm while removed; a null put restores it. */
   removed: boolean;
 }
 
@@ -163,6 +174,7 @@ export function foldFriction(rows: readonly FrictionOp[]): Map<string, SheetAcc>
         photo.removed = true;
         disarm(path.id, photo);
       }
+      if (path.field === 'removed_at' && row.value === null) photo.removed = false;
       continue;
     }
     if (path.family === 'file/server') {
@@ -178,7 +190,7 @@ export function foldFriction(rows: readonly FrictionOp[]): Map<string, SheetAcc>
       if (!target.success) continue;
       const { block_id, table_key, start_cell } = target.data;
       const cellPath = `sheet/${block_id}/test/${table_key}/cell/${start_cell.row}/${start_cell.col}`;
-      photo.armed = { blockId: block_id, cellPath };
+      photo.armed = { blockId: block_id, cellPath, failedAt: Date.parse(row.received_at) };
       const waiting = armedCells.get(cellPath) ?? new Set<string>();
       waiting.add(path.id);
       armedCells.set(cellPath, waiting);
@@ -188,22 +200,27 @@ export function foldFriction(rows: readonly FrictionOp[]): Map<string, SheetAcc>
     const blockId = blockOfPath(path);
     if (blockId === null || !device) continue;
     const acc = accOf(blockId);
+    acc.count += 1;
+    if (path.family === 'block/field' && STRUCTURAL_BLOCK_FIELDS.has(path.field)) continue;
     const ts = Date.parse(row.client_ts);
     acc.first = acc.first === null ? ts : Math.min(acc.first, ts);
     acc.last = acc.last === null ? ts : Math.max(acc.last, ts);
-    acc.count += 1;
     if (path.family !== 'block') acc.pathCounts.set(row.path, (acc.pathCounts.get(row.path) ?? 0) + 1);
 
     if (path.family === 'sheet/test/cell' && row.kind === 'put') {
       const waiting = armedCells.get(row.path);
       if (waiting !== undefined) {
-        for (const photoId of waiting) {
+        for (const photoId of [...waiting]) {
           const photo = photoOf(photoId);
+          // Typed before the server wrote the failure (offline while the reading ran): not
+          // typed after it, and the photo stays armed for a later put.
+          if (photo.armed === null || !(ts > photo.armed.failedAt)) continue;
           photo.counted = true;
           photo.armed = null;
+          waiting.delete(photoId);
           acc.typed += 1;
         }
-        armedCells.delete(row.path);
+        if (waiting.size === 0) armedCells.delete(row.path);
       }
     }
   }
@@ -213,6 +230,10 @@ export function foldFriction(rows: readonly FrictionOp[]): Map<string, SheetAcc>
 function sheetOf(blockId: string, blockType: string, acc: SheetAcc | undefined): FrictionSheet {
   if (acc === undefined || acc.count === 0) {
     return { block_id: blockId, block_type: blockType, first_op_at: null, last_op_at: null, span_ms: null, device_op_count: 0, fields_reedited: 0, typed_after_failed_reading: acc?.typed ?? 0 };
+  }
+  // Only structural puts (a block the server created and the device moved): counted, no span.
+  if (acc.first === null || acc.last === null) {
+    return { block_id: blockId, block_type: blockType, first_op_at: null, last_op_at: null, span_ms: null, device_op_count: acc.count, fields_reedited: 0, typed_after_failed_reading: acc.typed };
   }
   let reedited = 0;
   for (const count of acc.pathCounts.values()) if (count >= 2) reedited += 1;
@@ -276,6 +297,7 @@ const readOps = (tx: Tx, companyId: string) =>
       kind: ops.kind,
       actor_id: ops.actor_id,
       client_ts: ops.client_ts,
+      received_at: ops.received_at,
       // Only a photo's values are read (reading kind, target, status); no other value is fetched.
       value: sql<unknown>`case when ${ops.path} like 'file/%' then ${ops.value} else null end`,
     })

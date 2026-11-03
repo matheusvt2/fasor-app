@@ -127,7 +127,7 @@ export function WordRegistryPanel(props: WordRegistryPanelProps) {
       { newId, now },
     );
     showToast(base.removed(shownName), {
-      action: { label: base.undo, onPress: () => void undoBatch(db, batch_id, { newId, now }) },
+      action: { label: base.undo, undo: true, onPress: () => void undoBatch(db, batch_id, { newId, now }) },
     });
     onClose();
   }

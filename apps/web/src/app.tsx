@@ -115,7 +115,11 @@ const fixtureRoutes: RouteObject[] = import.meta.env.DEV
   ? [{ path: '/__fixture/field', element: <FieldFixtureSurface />, handle: { title: 'Campo de teste' } }]
   : [];
 
-const router = createBrowserRouter([
+/**
+ * The app's route table. Exported so the usage-event test binds it to the kernel's
+ * route-to-screen mapping (`screenOf`, E18-A1 A2): a route added here without its screen fails there.
+ */
+export const appRoutes: RouteObject[] = [
   {
     element: (
       <SessionProvider>
@@ -214,7 +218,9 @@ const router = createBrowserRouter([
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },
-]);
+];
+
+const router = createBrowserRouter(appRoutes);
 
 /** pt-BR orders the date field's segments (day, month, year) and names them. */
 export function App() {

@@ -1,10 +1,11 @@
 // @vitest-environment node
 import 'fake-indexeddb/auto';
 import { TELEMETRY_BATCH_MAX, TELEMETRY_ROUTE, uxEventSchema, type UxEvent } from '@app/domain';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { TELEMETRY_POST_TIMEOUT_MS } from '../api/telemetry-client.ts';
 import { openDatabase, type AppDatabase } from '../db/schema.ts';
 import { appendUxEvents, queuedUxEvents } from '../db/ux-events-store.ts';
-import { BEACON_MAX_BYTES, beaconTelemetry, flushTelemetry, type TelemetryTransport } from './flush.ts';
+import { BEACON_MAX_BYTES, beaconTelemetry, flushTelemetry, RATE_LIMIT_WINDOW_MS, resetFlushForTests, type TelemetryTransport } from './flush.ts';
 
 const DEVICE = '019966b0-0031-7000-8000-0000000000dd';
 
@@ -66,7 +67,13 @@ function fakeTransport(answers: (number | 'network')[], options: { beacon?: bool
 
 let db: AppDatabase;
 beforeEach(async () => {
+  resetFlushForTests();
   db = await freshDb();
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 describe('flushTelemetry (Story 18.1)', () => {
@@ -90,12 +97,24 @@ describe('flushTelemetry (Story 18.1)', () => {
     expect(await db.ux_events.count()).toBe(0);
   });
 
-  it('drops on a 401 and a 429 too (every 4xx)', async () => {
+  it('drops on a 401 too (every 4xx but 429)', async () => {
     await queue(db, 3);
     await flushTelemetry(db, fakeTransport([401]).transport);
     expect(await db.ux_events.count()).toBe(0);
-    await queue(db, 3);
-    await flushTelemetry(db, fakeTransport([429]).transport);
+  });
+
+  it('E18-A1 (R-A1): a 429 mid-drain keeps that batch and the rest and ends the flush; the next flush resumes', async () => {
+    await queue(db, 600);
+    const fake = fakeTransport([204, 429, 204]);
+    await flushTelemetry(db, fake.transport);
+    // The first batch went; the refused one and the third were never deleted, and no third post was made.
+    expect(fake.posts.map((p) => p.length)).toEqual([200, 200]);
+    expect(await db.ux_events.count()).toBe(400);
+    expect((await queuedUxEvents(db)).map((e) => e.duration_ms)).toEqual(Array.from({ length: 400 }, (_, i) => i + 200));
+    const next = fakeTransport([204, 204]);
+    await flushTelemetry(db, next.transport);
+    expect(next.posts.map((p) => p.length)).toEqual([200, 200]);
+    expect(next.posts[0]![0]!.duration_ms).toBe(200);
     expect(await db.ux_events.count()).toBe(0);
   });
 
@@ -132,6 +151,38 @@ describe('flushTelemetry (Story 18.1)', () => {
     // The first flush went on to the last 5; no event was posted twice.
     expect(fake.posts.map((p) => p.length)).toEqual([200, 5]);
     expect(new Set(fake.posts.flat().map((e) => e.duration_ms)).size).toBe(205);
+    expect(await db.ux_events.count()).toBe(0);
+  });
+
+  it('E18-A1 (R-A4): a post that never settles is aborted after the timeout, the rows stay and a later flush starts a new drain', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await queue(db, 5);
+    const fetch = vi.fn(
+      (_input: string, init: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+        }),
+    );
+    vi.stubGlobal('fetch', fetch);
+    const stalled = flushTelemetry(db);
+    let ended = false;
+    void stalled.then(() => {
+      ended = true;
+    });
+    // Real turns of the event loop (not `vi.waitFor`, which would advance the fake clock).
+    for (let turn = 0; turn < 200 && fetch.mock.calls.length === 0; turn += 1) await new Promise((resolve) => setImmediate(resolve));
+    expect(fetch).toHaveBeenCalledTimes(1);
+    // While the post hangs, another flush starts nothing.
+    void flushTelemetry(db);
+    await vi.advanceTimersByTimeAsync(TELEMETRY_POST_TIMEOUT_MS - 1);
+    expect(ended).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await stalled;
+    expect(await db.ux_events.count()).toBe(5);
+    fetch.mockImplementation(async () => new Response(null, { status: 204 }));
+    await flushTelemetry(db);
+    expect(fetch).toHaveBeenCalledTimes(2);
     expect(await db.ux_events.count()).toBe(0);
   });
 
@@ -195,6 +246,32 @@ describe('beaconTelemetry (Story 18.1, the hidden-tab path)', () => {
     expect(fake.beacons[0]!.body.size).toBeLessThanOrEqual(1000);
     expect(sent.map((e) => e.duration_ms)).toEqual(Array.from({ length: sent.length }, (_, i) => i));
     expect(sent.length).toBeGreaterThan(0);
+  });
+
+  it('E18-A1: two back-to-back calls (visibilitychange then pagehide on a tab close) send one beacon', async () => {
+    await queue(db, 5);
+    const fake = fakeTransport([]);
+    await Promise.all([beaconTelemetry(db, fake.transport), beaconTelemetry(db, fake.transport)]);
+    expect(fake.beacons).toHaveLength(1);
+    expect(await db.ux_events.count()).toBe(0);
+  });
+
+  it('E18-A1: within 60 s of a 429 no beacon is sent and the rows stay; after the window it sends', async () => {
+    const start = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(start);
+    await queue(db, 5);
+    await flushTelemetry(db, fakeTransport([429]).transport);
+    expect(await db.ux_events.count()).toBe(5);
+    const fake = fakeTransport([]);
+    clock.mockReturnValue(start + RATE_LIMIT_WINDOW_MS - 1);
+    await beaconTelemetry(db, fake.transport);
+    expect(fake.beacons).toHaveLength(0);
+    expect(await db.ux_events.count()).toBe(5);
+    clock.mockReturnValue(start + RATE_LIMIT_WINDOW_MS);
+    await beaconTelemetry(db, fake.transport);
+    expect(fake.beacons).toHaveLength(1);
+    expect(await db.ux_events.count()).toBe(0);
+    expect(RATE_LIMIT_WINDOW_MS).toBe(60_000);
   });
 
   it('never beacons a batch a flush has in flight', async () => {

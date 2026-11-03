@@ -285,12 +285,17 @@ function failureOutcome(error: unknown): 'offline' | 'refused' | 'fail' {
   return 'fail';
 }
 
-/** The outcome of a "Sincronizar agora" wait: how the cycle it ran ended (a 426 is `refused`). */
+/**
+ * The outcome of a "Sincronizar agora" wait: how the cycle it ran ended (a 426 is `refused`;
+ * a cycle that started online and lost the network reads `offline`, as the generate and
+ * preview waits do, E18-A1 R-E2).
+ */
 function syncWaitOutcome(result: CycleResult, status: Pick<EngineStatus, 'lastFailure' | 'outdated'>): 'ok' | 'fail' | 'offline' | 'refused' {
   if (result === 'offline') return 'offline';
   if (result === 'paused' || status.outdated) return 'refused';
   const failure = status.lastFailure;
-  return failure === null ? 'ok' : 'fail';
+  if (failure === null) return 'ok';
+  return failure.kind === 'network' ? 'offline' : 'fail';
 }
 
 export function SyncProvider({ children }: { children: ReactNode }) {

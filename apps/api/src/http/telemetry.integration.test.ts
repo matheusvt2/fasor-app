@@ -1,7 +1,18 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { TELEMETRY_BATCH_MAX, TELEMETRY_ROUTE, type StampedUxEvent } from '@app/domain';
+import {
+  errorCodeSchema,
+  READING_RESULT_KINDS,
+  SCREENS,
+  SYNC_RESULT_KINDS,
+  TELEMETRY_BATCH_MAX,
+  TELEMETRY_ROUTE,
+  UX_OUTCOMES,
+  uxEventSchema,
+  WAIT_KINDS,
+  type StampedUxEvent,
+} from '@app/domain';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAuth } from '../auth/auth.ts';
 import { parseTrustedOrigins } from '../auth/trusted-origins.ts';
@@ -10,7 +21,7 @@ import { createDb } from '../db/client.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { createS3 } from '../storage/s3.ts';
 import type { TelemetrySink } from '../telemetry/sink.ts';
-import { createApp } from './app.ts';
+import { createApp, TELEMETRY_BODY_LIMIT_BYTES } from './app.ts';
 
 /*
  * Epic 18, Story 18.2: `POST /api/telemetry`. The app runs in process with a recording sink
@@ -177,6 +188,53 @@ describe('POST /api/telemetry (Story 18.2)', () => {
       expect([body === '' ? 'empty' : JSON.stringify(body).slice(0, 40), res.status]).toEqual([body === '' ? 'empty' : JSON.stringify(body).slice(0, 40), 400]);
       expect(await res.json()).toMatchObject({ code: 'telemetry_invalid' });
     }
+    expect(written).toEqual([]);
+  });
+
+  it('E18-A1 (R-A7): the largest valid batch is under the route\'s 256 KiB cap and answers 204; one byte over answers 413 and the sink sees nothing', async () => {
+    expect(TELEMETRY_BODY_LIMIT_BYTES).toBe(256 * 1024);
+    const longest = (values: readonly string[]) => values.reduce((a, b) => (b.length > a.length ? b : a));
+    const device = newDevice();
+    // Every field at its widest: the longest name with kinds and its longest kind, the longest
+    // screen and outcome, a 64-character target, a 40-hex version, both ids, the largest duration.
+    const kinds: [string, readonly string[]][] = [
+      ['error', errorCodeSchema.options],
+      ['sync_result', SYNC_RESULT_KINDS],
+      ['reading_result', READING_RESULT_KINDS],
+      ['wait', WAIT_KINDS],
+    ];
+    const widest = kinds
+      .map(([name, list]) =>
+        event(device, {
+          name,
+          kind: longest(list),
+          screen: longest(SCREENS),
+          outcome: longest(UX_OUTCOMES),
+          target: `a${'b'.repeat(63)}`,
+          app_version: 'f'.repeat(40),
+          duration_ms: Number.MAX_SAFE_INTEGER,
+          relatorio_id: '019966c1-ffff-7fff-bfff-ffffffffffff',
+          block_id: '019966c1-ffff-7fff-bfff-fffffffffffe',
+          ts: '2026-10-29T11:59:59.999Z',
+        }),
+      )
+      .filter((candidate) => uxEventSchema.safeParse(candidate).success)
+      .reduce((a, b) => (JSON.stringify(b).length > JSON.stringify(a).length ? b : a));
+    const batch = JSON.stringify(Array(TELEMETRY_BATCH_MAX).fill(widest));
+    expect(Buffer.byteLength(batch)).toBeLessThan(TELEMETRY_BODY_LIMIT_BYTES);
+    expect((await post(batch)).status).toBe(204);
+    expect(written).toHaveLength(1);
+    written = [];
+
+    // The same valid batch padded with whitespace: at the cap it is read, one byte over it is not.
+    const other = newDevice();
+    const valid = JSON.stringify([event(other)]);
+    const atCap = valid + ' '.repeat(TELEMETRY_BODY_LIMIT_BYTES - Buffer.byteLength(valid));
+    expect((await post(atCap)).status).toBe(204);
+    written = [];
+    const over = await post(`${atCap} `);
+    expect(over.status).toBe(413);
+    expect(await over.json()).toMatchObject({ code: 'body_too_large' });
     expect(written).toEqual([]);
   });
 

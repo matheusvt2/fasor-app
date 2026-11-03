@@ -23,7 +23,9 @@ const { sql, db } = createDb(config.DATABASE_URL);
 
 const companyId = newId();
 const neighbourId = newId();
-const created = [companyId, neighbourId];
+// E18-A1: a third company holds the fixtures of the fix batch, so the totals above stay as they were.
+const fixesId = newId();
+const created = [companyId, neighbourId, fixesId];
 const tag = companyId.slice(-12);
 const markers = [`SECRET-VALUE-${tag}`, `TAG-${tag}`, `CAPTION-${tag}`, `NAME-${tag}`, `LOCAL-${tag}`, `ATIVIDADE-${tag}`];
 
@@ -44,6 +46,15 @@ const p6 = newId(); // display photo for b4, re-read to done after its failure
 const p7 = newId(); // display photo for b4, removed after its failure
 const nr = newId(); // neighbour relatório
 const nb = newId(); // neighbour block
+const fr = newId(); // E18-A1: the fixes company's relatório
+const fb1 = newId(); // R-A16: a sheet moved, reordered, removed and restored, fed
+const fb2 = newId(); // R-A16: a block the server created and the device only moved
+const fb3 = newId(); // R-A17: a value typed offline while the reading still ran
+const fb4 = newId(); // R-A17: the same, then a value typed after the failure reached the device
+const fb5 = newId(); // R-E1: a display photo removed and restored, then failed and typed
+const fp3 = newId();
+const fp4 = newId();
+const fp5 = newId();
 
 const DEVICE = { actor_id: 'user-friction', device_id: 'device-friction' };
 const OTHER_DEVICE = { actor_id: 'user-friction-2', device_id: 'device-friction-2' };
@@ -103,6 +114,7 @@ const cellTarget = (blockId: string, blockType: string, row: number, col: number
 });
 
 let report: FrictionReport;
+let fixes: FrictionReport;
 
 beforeAll(async () => {
   await db.insert(company).values([
@@ -188,6 +200,45 @@ beforeAll(async () => {
   for (const row of rows) await db.insert(ops).values(row);
 
   report = await readFriction(db, companyId);
+
+  // E18-A1 fixtures, in the fixes company.
+  await db.insert(company).values([{ id: fixesId, name: `NAME-${tag} fixes` }]);
+  await db.insert(entities).values([
+    entity(fixesId, 'relatorio', fr, fr, relatorioRow(fr, 'em_campo', null), null),
+    ...[fb1, fb2, fb3, fb4, fb5].map((id) => entity(fixesId, 'block', id, fr, blockRow(id, fr, 'transformador', null), null)),
+  ]);
+  /** A server failure whose `received_at` is `receivedMs`, logged now (its `seq` follows every op before it). */
+  const failure = (photo: string, clientMs: number, receivedMs: number) => ({ ...op(fixesId, fr, SERVER, 'put', `file/${photo}/reading_status`, 'failed', clientMs), received_at: at(receivedMs) });
+  const fixRows = [
+    // R-A16: worked from 0 to 1 s; the move, reorder, remove, restore and feed come much later.
+    op(fixesId, fr, DEVICE, 'create', `block/${fb1}`, { id: fb1 }, 0),
+    op(fixesId, fr, DEVICE, 'put', `sheet/${fb1}/nameplate/tag`, `TAG-${tag}`, 1_000),
+    op(fixesId, fr, DEVICE, 'put', `block/${fb1}/location_id`, newId(), 500_000),
+    op(fixesId, fr, DEVICE, 'put', `block/${fb1}/order_key`, 'a1', 600_000),
+    op(fixesId, fr, DEVICE, 'put', `block/${fb1}/removed_at`, at(700_000), 700_000),
+    op(fixesId, fr, DEVICE, 'put', `block/${fb1}/removed_at`, null, 800_000),
+    op(fixesId, fr, DEVICE, 'put', `block/${fb1}/feeds_block_id`, fb2, 900_000),
+    // R-A16: the server's block, then a device move only.
+    op(fixesId, fr, SERVER, 'create', `block/${fb2}`, { id: fb2 }, 0),
+    op(fixesId, fr, DEVICE, 'put', `block/${fb2}/location_id`, newId(), 5_000),
+    // R-A17: the failure is written at 21 s; the value was typed at 19 s, offline, and pushed after it.
+    op(fixesId, fr, DEVICE, 'create', `file/${fp3}`, { id: fp3, reading_kind: 'display', reading_target: cellTarget(fb3, 'transformador', 0, 0) }, 10_000),
+    failure(fp3, 20_000, 21_000),
+    op(fixesId, fr, DEVICE, 'put', `sheet/${fb3}/test/resistencia_isolamento/cell/0/0`, `SECRET-VALUE-${tag}`, 19_000),
+    // R-A17: the offline value does not disarm the photo; the one typed at 40 s, after the failure, counts.
+    op(fixesId, fr, DEVICE, 'create', `file/${fp4}`, { id: fp4, reading_kind: 'display', reading_target: cellTarget(fb4, 'transformador', 0, 0) }, 10_000),
+    failure(fp4, 20_000, 21_000),
+    op(fixesId, fr, DEVICE, 'put', `sheet/${fb4}/test/resistencia_isolamento/cell/0/0`, `SECRET-VALUE-${tag}`, 19_000),
+    op(fixesId, fr, DEVICE, 'put', `sheet/${fb4}/test/resistencia_isolamento/cell/0/0`, `SECRET-VALUE-${tag}`, 40_000),
+    // R-E1: the display photo is removed and restored, then its reading fails and the cell is typed.
+    op(fixesId, fr, DEVICE, 'create', `file/${fp5}`, { id: fp5, reading_kind: 'display', reading_target: cellTarget(fb5, 'transformador', 1, 0) }, 10_000),
+    op(fixesId, fr, DEVICE, 'put', `file/${fp5}/removed_at`, at(11_000), 11_000),
+    op(fixesId, fr, DEVICE, 'put', `file/${fp5}/removed_at`, null, 12_000),
+    failure(fp5, 13_000, 13_500),
+    op(fixesId, fr, DEVICE, 'put', `sheet/${fb5}/test/resistencia_isolamento/cell/1/0`, `SECRET-VALUE-${tag}`, 30_000),
+  ];
+  for (const row of fixRows) await db.insert(ops).values(row);
+  fixes = await readFriction(db, fixesId);
 }, 60_000);
 
 afterAll(async () => {
@@ -250,6 +301,42 @@ describe('readFriction', () => {
     });
   });
 
+  it('E18-A1 (R-A16): a move, a reorder, a remove and restore and a feed stretch no span and count no re-edit, but count as device ops', () => {
+    const fixSheet = (blockId: string) => fixes.relatorios.flatMap((r) => r.sheets).find((s) => s.block_id === blockId);
+    expect(fixSheet(fb1)).toEqual({
+      block_id: fb1,
+      block_type: 'transformador',
+      first_op_at: at(0),
+      last_op_at: at(1_000),
+      span_ms: 1_000,
+      device_op_count: 7,
+      fields_reedited: 0,
+      typed_after_failed_reading: 0,
+    });
+    expect(fixSheet(fb2)).toEqual({
+      block_id: fb2,
+      block_type: 'transformador',
+      first_op_at: null,
+      last_op_at: null,
+      span_ms: null,
+      device_op_count: 1,
+      fields_reedited: 0,
+      typed_after_failed_reading: 0,
+    });
+  });
+
+  it('E18-A1 (R-A17): a value typed before the failure reached the server is not typed after it, and leaves the photo armed', () => {
+    const fixSheet = (blockId: string) => fixes.relatorios.flatMap((r) => r.sheets).find((s) => s.block_id === blockId);
+    expect(fixSheet(fb3)).toMatchObject({ typed_after_failed_reading: 0 });
+    expect(fixSheet(fb4)).toMatchObject({ typed_after_failed_reading: 1, fields_reedited: 1 });
+  });
+
+  it('E18-A1 (R-E1): a display photo removed and restored arms again; its failure and the typed cell count once', () => {
+    const fixSheet = (blockId: string) => fixes.relatorios.flatMap((r) => r.sheets).find((s) => s.block_id === blockId);
+    expect(fixSheet(fb5)).toMatchObject({ typed_after_failed_reading: 1 });
+    expect(fixes.company).toMatchObject({ relatorio_count: 1, sheet_count: 5, typed_after_failed_reading: 2, fields_reedited: 1 });
+  });
+
   it('reads an empty company as totals of zero', async () => {
     const empty = await readFriction(db, newId());
     expect(empty).toEqual({
@@ -286,6 +373,17 @@ describe('friction-read-cli', () => {
       expect(run.status, `${args.join(' ')}: ${run.stdout}\n${run.stderr}`).toBe(1);
       expect(run.stdout).toBe('');
       expect(run.stderr).toContain('refused');
+    }
+  }, 60_000);
+
+  it('E18-A1 (R-A18): a refusal names the expected shape and never echoes the refused argument or value', () => {
+    for (const args of [['--company', 'not-a-uuid-SECRET'], ['--SECRET'], ['--company', companyId, '--SECRET']]) {
+      const run = cli(args);
+      expect(run.status, args.join(' ')).toBe(1);
+      expect(run.stderr).toContain('refused');
+      expect(run.stderr).toContain('uuidv7');
+      expect(run.stderr).not.toContain('SECRET');
+      expect(run.stdout).not.toContain('SECRET');
     }
   }, 60_000);
 });

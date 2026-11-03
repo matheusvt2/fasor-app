@@ -6,16 +6,25 @@ import { telemetryDatabase, track } from './track.ts';
  * Epic 18, Story 18.1 (AD-28): the `data-telemetry` attribute is the one source of a
  * control's `target` name. One document-level capturing `click` listener turns a press of
  * an enabled control into an `action` (or the `retry`/`undo` its `data-telemetry-event`
- * names); one capturing `pointerdown` listener turns a press of a disabled one (`disabled`
- * or `aria-disabled="true"`) into a `disabled_tap`. React Aria fires `onPress` from the
- * native click, so the capture here sees the control before the press changes the page.
- * Hiding the tab hands the queue to `sendBeacon`.
+ * names); one capturing `pointerdown` listener turns a primary press of a disabled one
+ * (`disabled`, `aria-disabled="true"`, or inside a read-only group, `aria-readonly="true"`:
+ * a not-tested sheet's checklist, E18-A1 R-E3) into a `disabled_tap`. React Aria fires
+ * `onPress` from the native click, so the capture here sees the control before the press
+ * changes the page. Hiding the tab, or leaving the page (`pagehide`, which fires where
+ * `visibilitychange` may not), hands the queue to `sendBeacon`.
  */
 
 const SELECTOR = '[data-telemetry]';
 
 function isDisabled(control: Element): boolean {
-  return control.hasAttribute('disabled') || control.getAttribute('aria-disabled') === 'true';
+  return control.hasAttribute('disabled') || control.getAttribute('aria-disabled') === 'true' || control.closest('[aria-readonly="true"]') !== null;
+}
+
+/** E18-A1 (R-E7): a secondary button or a second finger is no press. `in` checks: jsdom may lack `PointerEvent`. */
+function isPrimaryPress(event: Event): boolean {
+  if ('isPrimary' in event && event.isPrimary === false) return false;
+  if ('button' in event && event.button !== 0) return false;
+  return true;
 }
 
 function controlOf(event: Event): Element | null {
@@ -46,32 +55,39 @@ function onClick(event: Event): void {
 }
 
 function onPointerDown(event: Event): void {
+  if (!isPrimaryPress(event)) return;
   const control = controlOf(event);
   if (control === null || !isDisabled(control)) return;
   track({ name: 'disabled_tap', target: control.getAttribute('data-telemetry') ?? undefined, ...screenOverride(control) });
 }
 
 /**
- * Installs the listeners on `doc` and returns their removal. The visibility listener
- * beacons the configured user's queue when the tab is hidden.
+ * Installs the listeners on `doc` and returns their removal. The visibility listener and
+ * the window's `pagehide` beacon the configured user's queue when the tab is hidden or left.
  */
 export function installTelemetryListeners(doc: Document = document): () => void {
-  const onVisibility = () => {
-    if (doc.visibilityState !== 'hidden') return;
+  const beacon = () => {
     const db = telemetryDatabase();
     if (db !== null) void beaconTelemetry(db);
   };
+  const onVisibility = () => {
+    if (doc.visibilityState === 'hidden') beacon();
+  };
+  const view = doc.defaultView;
   doc.addEventListener('click', onClick, true);
   doc.addEventListener('pointerdown', onPointerDown, true);
   doc.addEventListener('visibilitychange', onVisibility);
+  view?.addEventListener('pagehide', beacon);
   return () => {
     doc.removeEventListener('click', onClick, true);
     doc.removeEventListener('pointerdown', onPointerDown, true);
     doc.removeEventListener('visibilitychange', onVisibility);
+    view?.removeEventListener('pagehide', beacon);
   };
 }
 
 let installed = false;
+let uninstallInstalled: (() => void) | null = null;
 
 /**
  * Once per app load: the listeners and the `session_start` event (Story 18.1). A second
@@ -81,9 +97,16 @@ export function startTelemetry(): void {
   if (installed || typeof document === 'undefined') return;
   installed = true;
   try {
-    installTelemetryListeners(document);
+    uninstallInstalled = installTelemetryListeners(document);
     track({ name: 'session_start' });
   } catch {
     // An event is never worth a failure.
   }
+}
+
+/** Removes what `startTelemetry` installed and lets it run again (tests). */
+export function resetStartTelemetryForTests(): void {
+  uninstallInstalled?.();
+  uninstallInstalled = null;
+  installed = false;
 }

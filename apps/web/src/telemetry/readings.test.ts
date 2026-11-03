@@ -1,6 +1,6 @@
 // @vitest-environment node
 import 'fake-indexeddb/auto';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDatabase, type AppDatabase } from '../db/schema.ts';
 import { queuedUxEvents } from '../db/ux-events-store.ts';
 import { observeReadingResults, resetReadingResultsForTests } from './readings.ts';
@@ -12,9 +12,11 @@ const BLOCK = '019966b0-0033-7000-8000-000000000072';
 const CAPTURED = '2026-10-29T12:00:00.000Z';
 
 let counter = 0;
+let seq = 0;
 let db: AppDatabase;
 
-async function putPhoto(id: string, status: string, kind = 'plate', capturedAt = CAPTURED): Promise<void> {
+/** The photo as stored, without the pulled op that would name it (a change this device made and has not pulled back). */
+async function storePhoto(id: string, status: string, kind = 'plate', capturedAt = CAPTURED): Promise<void> {
   await db.entities.put({
     entity: 'file',
     id,
@@ -23,6 +25,13 @@ async function putPhoto(id: string, status: string, kind = 'plate', capturedAt =
     removed_at: null,
     row: { kind: 'photo', captured_at: capturedAt, block_id: BLOCK, reading_kind: kind, reading_status: status } as never,
   });
+}
+
+/** The photo as a pull leaves it: the entity and the pulled op on it, with a rising `seq`. */
+async function putPhoto(id: string, status: string, kind = 'plate', capturedAt = CAPTURED): Promise<void> {
+  await storePhoto(id, status, kind, capturedAt);
+  seq += 1;
+  await db.remote_ops.put({ op_id: `019966b0-0033-7000-8000-${seq.toString(16).padStart(12, '0')}`, seq, targets: [`file:${id}`], path: `file/${id}/reading_status` } as never);
 }
 
 beforeEach(async () => {
@@ -85,5 +94,78 @@ describe('reading results (Story 18.1)', () => {
       ['reading_result', 'display', 'ok', undefined],
       ['wait', 'reading', 'ok', 6_000],
     ]);
+  });
+});
+
+describe('reading results read only what may have landed (E18-A1, R-A14)', () => {
+  it('after the baseline, a look scans no photo table: it reads the pending photos and the pulled ones by key', async () => {
+    const lookAt = Date.parse(CAPTURED) + 1_000;
+    const pending = '019966b0-0033-7000-8000-0000000000d1';
+    const landedBefore = '019966b0-0033-7000-8000-0000000000d2';
+    const untouched = '019966b0-0033-7000-8000-0000000000d3';
+    await putPhoto(pending, 'running');
+    await putPhoto(landedBefore, 'done');
+    await putPhoto(untouched, 'done', 'display');
+    await observeReadingResults(db, lookAt);
+    expect(await events()).toEqual([]);
+
+    const where = vi.spyOn(db.entities, 'where');
+    const bulkGet = vi.spyOn(db.entities, 'bulkGet');
+    // The pending plate lands through the pull; a display is shot after the look and pulled read.
+    await putPhoto(pending, 'done');
+    const shot = '019966b0-0033-7000-8000-0000000000d4';
+    await putPhoto(shot, 'done', 'display', new Date(lookAt + 2_000).toISOString());
+    // A photo neither pending nor pulled is not read, even when its row changed under the look.
+    await storePhoto(untouched, 'done', 'display', new Date(lookAt + 3_000).toISOString());
+    await observeReadingResults(db, lookAt + 8_000);
+
+    expect(where).not.toHaveBeenCalled();
+    const read = bulkGet.mock.calls.flatMap(([keys]) => (keys as [string, string][]).map(([, id]) => id));
+    expect(new Set(read)).toEqual(new Set([pending, shot]));
+    expect((await events()).map((e) => [e.name, e.kind, e.outcome, e.duration_ms])).toEqual([
+      ['reading_result', 'plate', 'ok', undefined],
+      ['wait', 'reading', 'ok', 8_000 + 1_000],
+      ['reading_result', 'display', 'ok', undefined],
+      ['wait', 'reading', 'ok', 6_000],
+    ]);
+  });
+
+  it('a photo shot here after a look, before its create came back, is pending at the next look and tracked when it lands', async () => {
+    const lookAt = Date.parse(CAPTURED) + 1_000;
+    await observeReadingResults(db, lookAt);
+    const shot = '019966b0-0033-7000-8000-0000000000f1';
+    const capturedAt = new Date(lookAt + 2_000).toISOString();
+    // Committed on this device: the entity and its outbox row, no pulled op yet.
+    await storePhoto(shot, 'none', 'plate', capturedAt);
+    await db.outbox.put({ op_id: '019966b0-0033-7000-8000-0000000001f1', client_ts: capturedAt, status: 'pending', targets: [`file:${shot}`], path: `file/${shot}` } as never);
+    await observeReadingResults(db, lookAt + 3_000);
+    expect(await events()).toEqual([]);
+    // Its create and its reading come back in one later pull, already done.
+    await putPhoto(shot, 'done', 'plate', capturedAt);
+    await observeReadingResults(db, lookAt + 9_000);
+    expect((await events()).map((e) => [e.name, e.kind, e.outcome, e.duration_ms])).toEqual([
+      ['reading_result', 'plate', 'ok', undefined],
+      ['wait', 'reading', 'ok', 7_000],
+    ]);
+  });
+
+  it('two looks started together track a landed reading once', async () => {
+    const pending = '019966b0-0033-7000-8000-0000000000f2';
+    await putPhoto(pending, 'running');
+    await observeReadingResults(db, Date.parse(CAPTURED) + 1_000);
+    await putPhoto(pending, 'done');
+    await Promise.all([observeReadingResults(db, Date.parse(CAPTURED) + 5_000), observeReadingResults(db, Date.parse(CAPTURED) + 5_001)]);
+    expect((await events()).map((e) => e.name)).toEqual(['reading_result', 'wait']);
+  });
+
+  it('a look with nothing pending and nothing pulled reads no photo at all', async () => {
+    await putPhoto('019966b0-0033-7000-8000-0000000000e1', 'done');
+    await observeReadingResults(db, Date.parse(CAPTURED) + 1_000);
+    const where = vi.spyOn(db.entities, 'where');
+    const bulkGet = vi.spyOn(db.entities, 'bulkGet');
+    await observeReadingResults(db, Date.parse(CAPTURED) + 61_000);
+    expect(where).not.toHaveBeenCalled();
+    expect(bulkGet).not.toHaveBeenCalled();
+    expect(await events()).toEqual([]);
   });
 });

@@ -216,7 +216,7 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
     );
     const code = instrument.code;
     showToast(referenced ? t.archived(code) : t.removed(code), {
-      action: { label: t.undo, onPress: () => void undoBatch(db, batch_id, { newId, now }) },
+      action: { label: t.undo, undo: true, onPress: () => void undoBatch(db, batch_id, { newId, now }) },
     });
     onClose();
   }

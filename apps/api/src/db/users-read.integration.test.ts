@@ -101,4 +101,15 @@ describe('users-read-cli', () => {
       expect(run.stderr).toContain('refused');
     }
   });
+
+  it('E18-A1 (R-A18): a refusal names the expected shape and never echoes the refused argument or value', () => {
+    for (const args of [['--company', 'not-a-uuid-SECRET'], ['--SECRET'], ['--company', 'x', '--SECRET']]) {
+      const run = cli(args);
+      expect(run.status, args.join(' ')).toBe(1);
+      expect(run.stderr).toContain('refused');
+      expect(run.stderr).toContain('uuidv7');
+      expect(run.stderr).not.toContain('SECRET');
+      expect(run.stdout).not.toContain('SECRET');
+    }
+  });
 });

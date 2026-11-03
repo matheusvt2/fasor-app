@@ -18,8 +18,18 @@ export type TrackInput = Omit<UxEvent, 'v' | 'ts' | 'session_id' | 'device_id' |
 /** Events tracked before the user's database and device id are known, at most this many (oldest dropped). */
 export const PRE_CONFIG_BUFFER_MAX = 50;
 
-/** A new id on every app load (Story 18.1: `session_id`). */
-export const SESSION_ID: string = newId();
+/**
+ * A new id on every app load (Story 18.1: `session_id`), and a new one when another user's
+ * database is configured in the same tab (E18-A1, R-A15): see `configureTelemetry`.
+ */
+let sessionId: string = newId();
+/** The name of the last database the queue pointed at; a different one starts a new session. */
+let lastDatabaseName: string | null = null;
+
+/** The session id events are stamped with now. */
+export function currentSessionId(): string {
+  return sessionId;
+}
 
 /** The build's commit sha (`VITE_APP_VERSION`), or `dev`; a malformed value reads as `dev` rather than dropping every event. */
 export function appVersionOf(value: unknown): string {
@@ -60,13 +70,21 @@ function write(to: TelemetryTarget, events: readonly Pending[]): void {
 /**
  * Points the queue at the signed-in user's database and device (the `SyncProvider` does,
  * once the device id is read), or at nothing on sign-out. Events tracked before are queued now.
+ * A database other than the last one configured (another user signed in without a reload)
+ * starts a new session id, which the held events take too; the first configure of a load and
+ * the same database again (an effect re-run, the same user signing in again) keep the id.
  */
 export function configureTelemetry(next: TelemetryTarget | null): void {
   target = next;
   if (next === null) return;
-  const held = pending;
+  let held = pending;
   pending = [];
   try {
+    if (lastDatabaseName !== null && next.db.name !== lastDatabaseName) {
+      sessionId = newId();
+      held = held.map((event) => ({ ...event, session_id: sessionId }));
+    }
+    lastDatabaseName = next.db.name;
     write(next, held);
   } catch {
     // An event is never worth a failure.
@@ -85,7 +103,7 @@ export function track(input: TrackInput): void {
     const event: Pending = withoutUndefined({
       v: 1 as const,
       ts: now().toISOString(),
-      session_id: SESSION_ID,
+      session_id: sessionId,
       app_version: APP_VERSION,
       screen: screen ?? currentScreen(),
       ...rest,
@@ -106,9 +124,11 @@ export function whenTelemetryWritten(): Promise<void> {
   return writes;
 }
 
-/** Forgets the target and the buffer (tests). */
+/** Forgets the target, the buffer and the session (tests). */
 export function resetTelemetryForTests(): void {
   target = null;
   pending = [];
   writes = Promise.resolve();
+  sessionId = newId();
+  lastDatabaseName = null;
 }
