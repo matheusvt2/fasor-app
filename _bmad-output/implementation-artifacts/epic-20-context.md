@@ -107,3 +107,44 @@ Waves: one wave A in two stacks. The web lane is 20.1, then 20.2, then 20.4; tho
 
 - Mocks are the source of class names. A mock that changes gets a dated comment, and EXPERIENCE.md and MOCK-GUIDE get a dated note. `tokens.css` and `components.css` stay byte-identical, so their "PRODUTO (fasor)" header comments stay too.
 - The layout golden `apps/api/src/jobs/generate/golden/porto-seguro-skeleton.json` is rewritten with `GOLDEN_UPDATE=1`, and every diff is explained in the PR. The kernel goldens under `packages/domain/fixtures/porto-seguro/` pin data, not layout, and should not move.
+
+## Batch plan (2026-11-03, Matheus: "agrupe as histórias … menos PRs … gastar menos tokens, entregar mais rápido, sem perder a qualidade")
+
+There are four batches, so four PRs for thirteen stories. They run in two lanes, so at most two batch stacks are up at a time (load rules of 2026-10-08). Each batch runs `bmad-build-auto` in its own worktree, following `epic-batch-orchestrator.md`. The wave lettering above becomes:
+- wave 1: e20s and e20w;
+- wave 2: e20d and e20e.
+
+The server lane goes first because it closes the two High findings soonest and shares no file with the web lane.
+
+| Wave | Tag | Port base | Branch | Stories | Dev model | Base |
+|---|---|---|---|---|---|---|
+| 1 | e20s | 51 | `e20s-server-rules` | 20.7, 20.8, 20.9, 20.10 | opus · max | main `266f12bf` or later |
+| 1 | e20w | 52 | `e20w-web-conforme-search-relink` | 20.1, 20.2, 20.4 | opus · high | main |
+| 2 | e20d | 53 | `e20d-document-order-tables-photos` | 20.3, 20.5, 20.6 | opus · high | main after e20s merges |
+| 2 | e20e | 54 | `e20e-device-quotas-edges` | 20.11, 20.12, 20.13 | opus · high | main after e20s and e20w merge |
+
+**Coordinator decisions.**
+- **Contract and versions:**
+  - e20s owns contract 29 and adds all six codes, including `quota_exceeded` and `forbidden_origin` for e20e.
+  - No other batch bumps the contract.
+  - No seed bump is planned.
+- **Shared files between concurrent batches.**
+  - Wave 1:
+    - `contract/errors.ts` is e20s's alone.
+    - Each batch appends to `deferred-work.md` under its own heading.
+    - e20w does not touch `sync/apply.ts`, and e20s does not touch `copy/pt-br.ts`.
+  - Wave 2:
+    - e20d owns `docx.ts`, `sections/section-9.ts`, `print/*` and the layout golden.
+    - e20e owns `state/session.tsx`, `http/app.ts`, `http/files.ts`, `http/telemetry.ts`, `http/reading.ts`, `http/audit.ts`, `storage/variants.ts` and `infra/caddy/Caddyfile`.
+- **Readings.** The coordinator's readings in each DoR are taken as written. Matheus said go without correcting them on 2026-11-03.
+- **Facts the batches share:**
+  - The security reproductions are in the main checkout at `/Users/matheusvilella/Documents/estudos/fasor-app/test-results/adhoc-sec/`. They are gitignored, so they are absent from the worktrees. Read them there.
+  - The session cookie is `Secure`, so a Playwright test must reach the app on `localhost`.
+  - Ops are pushed to `POST /api/sync/ops` as `{ops}` (at most 500). Pulls need `x-contract-version`.
+  - The test company is Empresa A, `a@teste.local`.
+- **Gates.**
+  - Each batch runs the story gate: lint, static, test:unit, test:api and its touched specs. Its touched durability specs also run on the matrix projects when it changes the commit path; e20s and e20e do.
+  - Before the second PR of a wave merges, the cross-batch merge rule (§ 6) applies.
+  - After wave 2 comes one integrated gate on main: `test:e2e:full` and the matrix, with the load line.
+  - After that comes one integrated review, then the second hands-on security pass, then one fix batch if needed.
+  - The deploy happens only on Matheus's word.
