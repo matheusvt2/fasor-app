@@ -91,12 +91,33 @@ const KINDS: readonly string[] = shape.kind.unwrap().options;
 const EVENT_KEYS = new Set<string>([...Object.keys(shape), ...TELEMETRY_SERVER_KEYS]);
 const CLOSED: Record<string, readonly string[]> = { name: UX_EVENT_NAMES, kind: KINDS, outcome: UX_OUTCOMES, screen: SCREENS };
 
+/** The one event name the query keeps (`name = '...'`, no list), or undefined. */
+function singleName(query: string): string | undefined {
+  const text = expand(query);
+  if (/\bname\s+(?:not\s+)?in\s*\[/.test(text)) return undefined;
+  const names = new Set([...text.matchAll(/\bname\s*=\s*'([^']*)'/g)].map((match) => match[1]!));
+  return names.size === 1 ? [...names][0] : undefined;
+}
+
+/** Whether the kernel's schema accepts `kind` on an event named `name` (its per-name list, `superRefine`). */
+function kindAllowed(name: string, kind: string): boolean {
+  const id = '0b000000-0000-4000-8000-00000000000b';
+  return uxEventSchema.safeParse({ v: 1, ts: '2026-11-03T00:00:00.000Z', session_id: id, device_id: id, app_version: 'dev', name, screen: 'home', kind }).success;
+}
+
 /** Every way a query breaks the binding, one line each naming the query and the offender. */
 function bindingViolations(queries: Map<string, string>): string[] {
   const out: string[] = [];
   for (const [key, query] of queries) {
+    const name = singleName(query);
     for (const [field, list] of Object.entries(CLOSED)) {
-      for (const literal of comparedLiterals(query, field)) if (!list.includes(literal)) out.push(`${key}: ${field} '${literal}' is not in the kernel list`);
+      for (const literal of comparedLiterals(query, field)) {
+        if (!list.includes(literal)) out.push(`${key}: ${field} '${literal}' is not in the kernel list`);
+        // A query on one name compares `kind` with that name's own kinds, not the union.
+        else if (field === 'kind' && name !== undefined && (UX_EVENT_NAMES as readonly string[]).includes(name) && !kindAllowed(name, literal)) {
+          out.push(`${key}: kind '${literal}' is not a kind of ${name}`);
+        }
+      }
     }
     for (const field of referencedFields(query).fields) if (!EVENT_KEYS.has(field)) out.push(`${key}: field ${field} is not an event key, a server key or an alias`);
   }
@@ -126,6 +147,8 @@ describe('the usage dashboard queries are bound to the kernel vocabulary (observ
       ['typo', "filter name = 'screen_veiw' | stats count(*) as n by screen"],
       ['list', "filter name in ['action', 'tap'] and kind = 'photo' and outcome != 'meh' and screen in ['home', 'nowhere'] | stats count(*) as n by targett"],
       ['contains', "stats sum(strcontains(name, 'dialog_opened')) as opens by target"],
+      ['crossed', "filter name = 'wait' and kind = 'plate' | stats count(*) as n by kind"],
+      ['own', "filter name = 'reading_result' and kind = 'plate' | stats count(*) as n by outcome"],
     ]);
     expect(bindingViolations(bad)).toEqual([
       "typo: name 'screen_veiw' is not in the kernel list",
@@ -135,7 +158,22 @@ describe('the usage dashboard queries are bound to the kernel vocabulary (observ
       "list: screen 'nowhere' is not in the kernel list",
       'list: field targett is not an event key, a server key or an alias',
       "contains: name 'dialog_opened' is not in the kernel list",
+      "crossed: kind 'plate' is not a kind of wait",
     ]);
+  });
+
+  it('binds the deploy\'s usage-events filter pattern to the kernel: a kernel event name and event keys only', () => {
+    const deploy = read(resolve(import.meta.dirname, '../infra/bin/deploy'));
+    const pattern = /^\s*local session_pattern="(.*)"$/m.exec(deploy)?.[1];
+    expect(pattern).toBeDefined();
+    const terms = [...pattern!.matchAll(/\\\$\.(\w+) = \\"([^"\\]*)\\"/g)].map((match) => ({ field: match[1]!, value: match[2]! }));
+    expect(terms.map((term) => term.field)).toEqual(['name', 'app_version']);
+    const unknown = terms.filter((term) => !Object.keys(shape).includes(term.field)).map((term) => term.field);
+    expect(unknown).toEqual([]);
+    const name = terms.find((term) => term.field === 'name')!.value;
+    expect(UX_EVENT_NAMES).toContain(name);
+    expect(name).toBe('session_start');
+    expect(terms.find((term) => term.field === 'app_version')!.value).toBe('$tag');
   });
 
   it('leaves the smoke company out of every view but users, which labels it', () => {

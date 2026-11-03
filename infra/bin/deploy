@@ -99,8 +99,9 @@ on_exit() {
   if [ "$status" != 0 ] && [ "$rolled" = 1 ] && [ "$finished" = 0 ]; then
     local hint="infra/bin/deploy --resume --tag $tag"
     [ "$skip_smoke" = 1 ] && hint="$hint --skip-smoke"
-    printf '\ndeploy: the services were rolled to %s, but the deploy stopped before it finished\n' "$tag" >&2
+    printf '\ndeploy: the roll to %s started, but the deploy stopped before it finished\n' "$tag" >&2
     echo "deploy: to resume: $hint" >&2
+    echo "deploy: (--resume refuses when a service does not run $tag; then rerun the deploy without it)" >&2
   fi
 }
 trap on_exit EXIT
@@ -378,10 +379,12 @@ fi
 # here, after the roll, so the first deploy carrying their outputs has them.
 # telemetry_count <placeholder> <log group> <filter pattern>: the number of events of the group
 # since the deploy started that match the pattern, or a non-zero return when it cannot be read.
+# JSON output: with `--output text` the CLI applies the query per page of the paginated call
+# and prints one number per page.
 telemetry_count() {
   local placeholder="$1" group="$2" pattern="$3" count
   count="$(capture "$placeholder" aws_retry "${aws[@]}" logs filter-log-events --log-group-name "$group" \
-    --start-time "$deploy_start_ms" --filter-pattern "$pattern" --query 'length(events)' --output text)" || return 1
+    --start-time "$deploy_start_ms" --filter-pattern "$pattern" --query 'length(events)' --output json)" || return 1
   [[ "$count" =~ ^[0-9]+$ ]] || return 1
   printf '%s' "$count"
 }

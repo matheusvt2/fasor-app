@@ -29,8 +29,8 @@ check "terraform fmt" "$bin/tf" . fmt -check -recursive -diff
 # untouched here.
 check_data_dir=.terraform/check
 for stack in "${stacks[@]}"; do
-  check "terraform init $stack" env TF_DATA_DIR="$check_data_dir" "$bin/tf" "$stack" init -backend=false -input=false -no-color
-  check "terraform validate $stack" env TF_DATA_DIR="$check_data_dir" "$bin/tf" "$stack" validate -no-color
+  check "terraform init $stack" env INFRA_TF_DATA_DIR="$check_data_dir" "$bin/tf" "$stack" init -backend=false -input=false -no-color
+  check "terraform validate $stack" env INFRA_TF_DATA_DIR="$check_data_dir" "$bin/tf" "$stack" validate -no-color
   check "tflint $stack" "$CTR" run --rm --user "$(id -u):$(id -g)" -v "$root:/infra" -w "/infra/$stack" \
     ghcr.io/terraform-linters/tflint:v0.59.1 --config=/infra/.tflint.hcl --no-color
 done

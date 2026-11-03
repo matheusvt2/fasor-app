@@ -2,7 +2,7 @@
 title: 'E18-A2 remainder, E15-A10 and tooling: smoke-free views, device-day sessions, the query binding test, the telemetry smoke step, resumable deploy'
 type: 'chore'
 created: '2026-11-03'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '0fede8ac813fa77e856cf26e976c9c199ebab709'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -14,7 +14,21 @@ context:
   - '{project-root}/infra/README.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 batched_reason: 'Coordinator lane 2 of the follow-up delivery of 2026-11-03 (epic-18-context.md): six agent-closable infra, tooling and docs items that share infra/ and the runbook, one branch to keep the stacks at two.'
-deferred: []
+deferred:
+  - summary: >-
+      A --resume after the original run already recorded the tag reads previous_tag equal to the tag, so a red smoke says fix forward instead of naming the tag before the deploy.
+    evidence: |-
+      infra/bin/deploy reads previous_tag from the image-tag parameter just before put-parameter; on a resume of a run cut during the smoke that value is already the new tag. Fix needs the pre-deploy tag persisted between runs.
+    location: >-
+      infra/bin/deploy record step and rollback hint
+    severity: medium
+  - summary: >-
+      Step 6 openTab and recover callbacks are exercised only with fakes; the smoke runs only against production.
+    evidence: |-
+      scripts/preview-tab.test.ts drives the retry decision with fake tabs; a recover that failed to reopen the dialog would lose the retry unseen until a deploy hits a closed tab (preview-retry.json shows it).
+    location: >-
+      e2e/production/production.smoke.ts step 6
+    severity: low
 ---
 
 <intent-contract>
@@ -94,6 +108,30 @@ deferred: []
 - Given `scripts/deploy.test.ts`, when the tooling project runs, then the existing dry-run tests and the new retry, resume, trap and telemetry cases pass.
 - Given the two composer files, when `test:unit` runs in the gate, then both pass on the first run, and their before/after durations are in the PR body with the host load at gate start.
 - Given the ledger, then the Epic 19 check row and the 2026-11-03 step 6 row carry dated closing notes and the new heading holds the rows above.
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-11-03 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer (opus); Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them)
+- verdicts: 15 findings — high 2, medium 5, low 8, false 0, maybe-false 0
+- findings:
+  - `[high]` `[patch]` ECH-1: `aws_retry` never sees the endpoint message when the deploy runs in a terminal (`infra/bin/aws` adds `-it`, stderr lands on the pty) — fix: the retried command runs with stdin from `/dev/null`, so no tty is allocated.
+  - `[high]` `[patch]` ECH-9 (claim, grouped with ECH-1): the E15-A10 retry does not hold for a deploy run in a terminal — same fix.
+  - `[medium]` `[patch]` ECH-2: `--output text` applies `--query length(events)` per page of filter-log-events, so a multi-page count reads as unreadable — fix: `--output json`.
+  - `[low]` `[patch]` ECH-3: `rolled=1` before the apply makes the hint say "rolled" for an apply that failed before any service changed — fix: reworded (the roll started; `--resume` refuses when a service does not run the tag).
+  - `[low]` `[reject]` ECH-4: a resume after an apply that died mid-way records the tag while other resources stay unapplied — the next plain apply (ssm.tf keeps the recorded tag) applies them; a plan check on resume adds a branch for a rare case.
+  - `[medium]` `[defer]` ECH-5: a resume after the original run already recorded the tag reads `previous_tag == tag`, so a red smoke says "fix forward" instead of naming the tag before — needs the pre-deploy tag persisted between runs.
+  - `[low]` `[patch]` ECH-6: a `TF_DATA_DIR` exported in the operator's shell would reach the deploy's init/apply — fix: a dedicated variable forwarded as `TF_DATA_DIR`.
+  - `[low]` `[reject]` ECH-7: the console listener stays attached when `previewRequest` throws — the throw ends the test; no harm.
+  - `[low]` `[reject]` ECH-8: `mktemp` failure in `aws_retry` — an unwritable TMPDIR breaks every container call of the deploy first.
+  - `[medium]` `[patch]` VGR-1: nothing asserts a red smoke prints no resume hint (the `finished` guard) — fix: `not.toMatch(/to resume/)` in the three red-smoke tests.
+  - `[medium]` `[patch]` VGR-2: the data-dir forwarding of `infra/bin/tf` and its use by `infra/bin/check` have no test — fix: a stub-container tooling test.
+  - `[medium]` `[patch]` VGR-3: the deploy's session_start filter pattern is not bound to the kernel — fix: `telemetry-queries.test.ts` extracts it from `infra/bin/deploy`.
+  - `[low]` `[defer]` VGR-4: step 6's `openTab`/`recover` are exercised only with fakes; the suite runs only against production — the next deploy that hits a closed tab is the proof (`preview-retry.json`).
+  - `[low]` `[patch]` VGR-O1: `kind` literals checked against the union of kinds, not the filtered name's list — fix: per-name list.
+  - `[low]` `[reject]` VGR-O2: `aws_retry` buffers stderr until the command ends — the waiter prints nothing on success; the message appears when it fails.
 
 ## Design Notes
 

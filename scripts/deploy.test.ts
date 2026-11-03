@@ -173,6 +173,8 @@ describe('Story 14.10 part 6 infra/bin/deploy --dry-run, the production smoke', 
     expect(out).toMatch(/deploy: report: \S+\/test-results\/production-smoke /);
     expect(out).toContain('deploy: to roll back: infra/bin/deploy --skip-build --skip-smoke --tag fedcba9876543210fedcba9876543210fedcba98');
     expect(out).not.toMatch(/production smoke passed/);
+    // A red smoke is reported as one, never as a deploy to resume.
+    expect(out).not.toMatch(/to resume/);
   });
 
   it('a failed reset skips the suite, still runs the cleanup, and reports both failures', () => {
@@ -188,6 +190,7 @@ describe('Story 14.10 part 6 infra/bin/deploy --dry-run, the production smoke', 
     expect(out).toContain('deploy: smoke failed at step: smoke: reset the test company');
     expect(out).toContain('deploy: smoke failed at step: smoke: clean up the test company');
     expect(out).toContain('deploy: to roll back: infra/bin/deploy --skip-build --skip-smoke --tag fedcba9876543210fedcba9876543210fedcba98');
+    expect(out).not.toMatch(/to resume/);
   });
 
   it('a failed cleanup after a green reset and suite exits 1 with the cleanup line and no rollback hint', () => {
@@ -200,6 +203,7 @@ describe('Story 14.10 part 6 infra/bin/deploy --dry-run, the production smoke', 
     expect(out).not.toContain('smoke failed at step: smoke: run the production suite');
     expect(out).not.toMatch(/production smoke passed/);
     expect(out).not.toMatch(/to roll back/);
+    expect(out).not.toMatch(/to resume/);
   });
 
   it('--skip-smoke prints the four steps as skipped and runs none of them', () => {
@@ -232,11 +236,14 @@ describe('E15-A10 aws_retry (infra/bin/lib.sh)', () => {
       writeFileSync(said, `${message}\n`);
       writeFileSync(
         stub,
-        `#!/usr/bin/env bash\nn=$(($(cat "${counter}") + 1)); echo "$n" > "${counter}"\nif [ "$n" -le ${failures} ]; then cat "${said}" >&2; exit ${code}; fi\necho "ok $*"\n`,
+        `#!/usr/bin/env bash\nn=$(($(cat "${counter}") + 1)); echo "$n" > "${counter}"\nif [ "$n" -le ${failures} ]; then cat "${said}" >&2; exit ${code}; fi\necho "ok $* stdin=[$(cat)]"\n`,
       );
       chmodSync(stub, 0o755);
+      // The caller's stdin holds text: the command must never read it (stdin /dev/null, so
+      // infra/bin/aws never sees a terminal and never allocates one with -it).
       const result = spawnSync('bash', ['-c', '. "$1"; shift; aws_retry "$@"', 'retry', lib, stub, 'ecs', 'wait'], {
         encoding: 'utf8',
+        input: 'the-callers-stdin\n',
         env: { PATH: '/usr/bin:/bin', HOME: tmpdir(), DEPLOY_RETRY_ATTEMPTS: attempts, DEPLOY_RETRY_PAUSE_S: '0' },
       });
       return { status: result.status, stdout: result.stdout, stderr: result.stderr, calls: Number(readFileSync(counter, 'utf8').trim()) };
@@ -250,7 +257,8 @@ describe('E15-A10 aws_retry (infra/bin/lib.sh)', () => {
     const result = retry(2, LOST);
     expect(result.status, result.stderr).toBe(0);
     expect(result.calls).toBe(3);
-    expect(result.stdout).toBe('ok ecs wait\n');
+    // stdin is /dev/null: the stub read nothing of the caller's.
+    expect(result.stdout).toBe('ok ecs wait stdin=[]\n');
     expect(result.stderr.match(/Could not connect to the endpoint URL/g)).toHaveLength(2);
     expect(result.stderr).toContain('lost the AWS endpoint (exit 255); attempt 3 of 3');
   });
@@ -288,8 +296,10 @@ describe('E15-A10 infra/bin/deploy --dry-run, the resume hint and --resume', () 
   it('a stable wait that fails after the roll prints the resume command and records nothing', () => {
     const { status, out } = run(['--dry-run'], { DEPLOY_DRY_RUN_STABLE_EXIT: '255' });
     expect(status, out).toBe(255);
+    expect(out).toContain(`deploy: the roll to ${HEAD} started, but the deploy stopped before it finished`);
     expect(out).toContain(`deploy: to resume: infra/bin/deploy --resume --tag ${HEAD}`);
-    expect(out).not.toMatch(/ssm put-parameter|smoke: reset/);
+    expect(out).toContain(`deploy: (--resume refuses when a service does not run ${HEAD}; then rerun the deploy without it)`);
+    expect(out).not.toMatch(/services were rolled|ssm put-parameter|smoke: reset/);
     // With --skip-smoke the hint keeps it.
     const skipped = run(['--dry-run', '--skip-smoke'], { DEPLOY_DRY_RUN_STABLE_EXIT: '255' });
     expect(skipped.out).toContain(`deploy: to resume: infra/bin/deploy --resume --tag ${HEAD} --skip-smoke`);
@@ -353,14 +363,14 @@ describe('E18-A2 infra/bin/deploy --dry-run, the usage-events check', () => {
     expect(text).toMatch(/^DRY-RUN: \S+ production output -raw ux_events_log_group {2}-> \/fasor\/production\/ux-events$/m);
     expect(text).toMatch(/^DRY-RUN: \S+ production output -raw api_log_group {2}-> \/fasor\/production\/api$/m);
     const sessions = new RegExp(
-      `^DRY-RUN: aws_retry \\S+ logs filter-log-events --log-group-name /fasor/production/ux-events --start-time (\\d{13}) --filter-pattern \\{ \\(\\$\\.name = "session_start"\\) && \\(\\$\\.app_version = "${HEAD}"\\) \\} --query length\\(events\\) --output text {2}-> 1$`,
+      `^DRY-RUN: aws_retry \\S+ logs filter-log-events --log-group-name /fasor/production/ux-events --start-time (\\d{13}) --filter-pattern \\{ \\(\\$\\.name = "session_start"\\) && \\(\\$\\.app_version = "${HEAD}"\\) \\} --query length\\(events\\) --output json {2}-> 1$`,
       'm',
     ).exec(text);
     expect(sessions, text).not.toBeNull();
     const start = Number(sessions![1]);
     expect(start).toBeGreaterThanOrEqual(before);
     expect(start).toBeLessThanOrEqual(after);
-    expect(text).toMatch(new RegExp(`^DRY-RUN: aws_retry \\S+ logs filter-log-events --log-group-name /fasor/production/api --start-time ${start} --filter-pattern "ux_event_sink_failed" --query length\\(events\\) --output text {2}-> 0$`, 'm'));
+    expect(text).toMatch(new RegExp(`^DRY-RUN: aws_retry \\S+ logs filter-log-events --log-group-name /fasor/production/api --start-time ${start} --filter-pattern "ux_event_sink_failed" --query length\\(events\\) --output json {2}-> 0$`, 'm'));
     const iso = new Date(start).toISOString().replace(/\.\d{3}Z$/, 'Z');
     expect(text).toContain(`telemetry: 1 session_start with app_version ${HEAD} since ${iso}; 0 ux_event_sink_failed`);
     expect(text).not.toMatch(/warning/);
