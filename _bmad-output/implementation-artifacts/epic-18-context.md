@@ -102,3 +102,30 @@ users, the smoke user (15 sessions, 3 devices, 196 events) and one user of anoth
 then the ids are read beside the company ids (the smoke company's is `var.smoke_company_id`). The rest of E18-A2 (the
 smoke company filtered out of the views, `sessions_per_day` by the device day, the tooling test binding the queries to
 the kernel, the telemetry step in the smoke) stays open.
+
+## Deploy of 2026-11-03: the users view with names and the id-to-name CLI in production (Matheus: "pode fazer o deploy")
+
+`infra/bin/deploy` from the clean main checkout at `54b11947` (PR #220 the users view and the CLI, PR #222 the name
+labels from the operator's untracked tfvars) with the `fasor-admin` login (`.scratch-prodfix/deploy-54b11947.log`).
+Before it, `infra/bin/tf production plan` reported the two label changes only. Images built for linux/amd64 and pushed;
+migrate task `629fe9b8` (nothing to migrate); the full apply 4 added, 5 changed, 4 destroyed (the roll's task
+definitions and services, the dashboard and the `users` query definition with the labels); health up on every component;
+the tag recorded. The dashboard holds ten widgets and the `users` view reads "smoke" and "Bruno" (the second label is
+the one real user, assumed from Matheus's "só temos 1"; the map lives in `terraform.tfvars`, `user_names`).
+
+**Smoke:** the first run was red at step 6, "preview the PDF": the tab the app opens for the preview closed before the
+preview request was seen (`page.waitForRequest: Target page, context or browser has been closed`, 24 s into the run;
+steps 1 to 5 green on the new api; no error and no preview request of the smoke company in the api log; the deploy kept
+`54b11947` deployed and printed the rollback command). The suite was re-run alone minutes later with the same three
+steps (reset task `894f29bf`, the suite with the password in the shell, cleanup task `c76aba74`): 8 of 8, preview
+448 159 bytes, DOCX 104 472 bytes, PDF 381 695 bytes (`.scratch-prodfix/smoke-rerun-54b11947.log`; the failed run's
+artifacts in `.scratch-prodfix/smoke-fail-54b11947/`). Read as a smoke-runner flake right after the roll; ledger row
+below.
+
+**Field hours:** the api log shows the real company generating two documents at 12:38 and 12:46 UTC (41 s each, 30
+pages) and the roll at 12:53 UTC, so the app was in use during the deploy's seconds of downtime; `infra/PUBLISHING.md`
+asks for a publish outside field hours. Matheus's call next time.
+
+**The CLI:** `users-read-cli.ts` is in the deployed image; its first production run from the agent session was refused
+by the auto-mode permission classifier ("Production Reads"), so the runbook command (`infra/README.md`, "Map the user
+ids of the usage dashboard to people") is Matheus's to run, or to allow.
