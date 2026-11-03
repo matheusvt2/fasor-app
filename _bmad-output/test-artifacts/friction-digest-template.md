@@ -14,8 +14,20 @@ Template (Story 18.3, 2026-10-29). Copy to `friction-digest-<YYYY-MM>.md` and fi
 The measures the 2026-10-29 analysis (`implementation-artifacts/backlog-2026-10-29-home-nav-and-telemetry.md` § 1) asked for, before and after any Home change:
 
 - Taps on `home.shortcut_templates` and `home.shortcut_cadastros` per session (`actions`, divided by `sessions_per_day`):
-- Time from the Home `screen_view` to the first navigation out of Home, p50 and p95 (Logs Insights over `session_id` and `ts`):
+- Time from the Home `screen_view` to the first navigation out of Home, p50 and p95 (~~Logs Insights over `session_id` and `ts`~~ *(2026-11-03, Story 18.4: the `home_first_nav` view; see "Five questions" below)*):
 - Scroll depth before the shortcut tap: not an event yet (no `scroll` name in the vocabulary); say so here until one is added.
+
+## Five questions
+
+*(2026-11-03, Story 18.4.)* The questions a month of data must answer (`implementation-artifacts/backlog-2026-10-30-ux-data-sufficiency.md` § 5), each with the view that answers it (`docs/observability.md` § The views) and what a reader concludes. Only events of bundles from Story 18.4 on carry the fields these views read: note the share of sessions on such a bundle (`app_version`) first.
+
+1. **Time per screen** (`screen_time`): p50 and p95 per screen. A screen meant for work with a short p50 is opened and left; a screen meant for a choice with a long p95 makes people search:
+2. **Home to first navigation** (`home_first_nav`): p50 and p95 of the Home views that began a visit. Seconds say people find their way at once; tens of seconds say Home makes them search; compare with the previous digest and with any Home change between:
+3. **Cancels by preceding screen** (`paths`, filtered to the sessions with a `dialog_cancel`; `bounces` for the quick returns): for the top cancelled dialog of § 4, the screens the cancelling sessions came through, read from the `screen_view` rows around each cancel. A cancel that follows one path more than the others is a dialog reached by mistake on that path:
+4. **Sessions by user and viewport** (`viewports`, labelled as `users`): sessions and devices per user by `viewport`, `standalone` and `online`. A pattern of another section that belongs to one viewport or one user is that device's or that person's, not the product's:
+5. **The document wait** (`document_waits`): `preview` and `generate` p50 and p95 per outcome, only the versions from Story 18.4 on (older versions time the request). The p95 is what the slowest engineer in twenty waited; a `cancel` share says people give up waiting:
+
+Typed values refused (`refusals`), the top five fields by refusals with their reason and sessions; a field at the top refuses what people type there:
 
 ## 3. Funnel
 

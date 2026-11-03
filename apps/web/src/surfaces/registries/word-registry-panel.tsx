@@ -1,4 +1,4 @@
-import { parseVoltageClassKv, registryFieldPath, registryPath, wordRegistryRowText, type OpDraft, type WordRow } from '@app/domain';
+import { parseVoltageClassKv, registryFieldPath, registryPath, voltageClassInputRefusal, wordRegistryRowText, type OpDraft, type WordRow } from '@app/domain';
 import { useId, useRef, useState } from 'react';
 import { Button, ConfirmDialog, SegmentedControl, TextButton, type SegmentedOption } from '../../components/index.ts';
 import { now } from '../../clock.ts';
@@ -7,6 +7,7 @@ import { newId } from '../../ids.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
+import { trackInputRefused } from '../../telemetry/hooks.ts';
 
 type Gender = WordRow['gender'];
 type Numeral = WordRow['number'];
@@ -290,6 +291,7 @@ function KvField({ label, unit, unitName, invalidText, value, onCommit }: KvFiel
       </label>
       <div className="measurement-field">
         <input
+          data-telemetry="cadastros.voltage_class"
           id={inputId}
           className="mf-value"
           inputMode="decimal"
@@ -304,7 +306,10 @@ function KvField({ label, unit, unitName, invalidText, value, onCommit }: KvFiel
             if (kv !== null) committer.change(kv);
           }}
           onBlur={() => {
-            setInvalid(text.trim() !== '' && parseVoltageClassKv(text) === null);
+            // Story 18.4: a refusal on blur is an `input_refused` with the kernel's reason, never the text.
+            const refusal = voltageClassInputRefusal(text);
+            setInvalid(refusal !== null);
+            if (refusal !== null) trackInputRefused('cadastros.voltage_class', refusal);
             committer.blur();
           }}
           onKeyDown={(event) => {

@@ -23,6 +23,7 @@ export * from './checks/client-reference.ts';
 export * from './checks/cnpj.ts';
 export * from './checks/pre-issue-client.ts';
 export * from './checks/plate-date.ts';
+export * from './checks/input-refusal.ts';
 export * from './registry/instrument-row.ts';
 export * from './registry/empresa.ts';
 export * from './registry/client-row.ts';

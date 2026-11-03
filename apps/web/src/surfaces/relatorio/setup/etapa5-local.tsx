@@ -5,6 +5,7 @@ import { useNumberInput, type ParsedNumber } from '../../../components/number-in
 import { copy } from '../../../copy/pt-br.ts';
 import { now } from '../../../clock.ts';
 import { restoreFocus } from '../../../input/focus-restore.ts';
+import { trackInputRefused } from '../../../telemetry/hooks.ts';
 import { keptAltitudeAnswer, siteAltitudeReading } from './altitude-reading.ts';
 import { useDateField, useTextField, type BandRef, type CommitField, type CommitFields } from './setup-fields.ts';
 
@@ -261,6 +262,8 @@ function AltitudeInput({
     commit: (value) => onCommit(value === null ? null : metres(value)),
     draft: { surface: 'setup', entityId: relatorioId, field: 'site_altitude_m' },
     flushOnUnmount: true,
+    // Story 18.4: the altitude's parse is this surface's own (whole metres of a browser number), so its one refusal is no number.
+    onRefuse: () => trackInputRefused('setup.altitude', 'not_a_number'),
   });
   const { ref: hookRef, onChange, ...inputProps } = altitude.inputProps;
 
@@ -288,6 +291,7 @@ function AltitudeInput({
       <div className="field-na-row">
       <div className="measurement-field">
         <input
+          data-telemetry="setup.altitude"
           {...inputProps}
           id={altitudeId}
           aria-describedby={showsHint ? hintId : undefined}

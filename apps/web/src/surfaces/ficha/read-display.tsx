@@ -24,6 +24,8 @@ import {
   measurementTableVerifyCount,
   parseFieldInput,
   parseReadingPtBr,
+  refusedFieldInputKind,
+  refusedReadingKind,
   pendingSuggestions,
   readingNeedsAi,
   readingWaitStart,
@@ -58,6 +60,7 @@ import { ui } from '../../copy/ui.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { useAiFeatures } from '../../state/ai-features.tsx';
 import { useServerReachable } from '../../state/sync.tsx';
+import { trackInputRefused } from '../../telemetry/hooks.ts';
 import { useToast } from '../../state/toast.tsx';
 import { useCamera } from './camera-view.tsx';
 import type { FichaApi, LocalApi } from './ficha-api.ts';
@@ -508,6 +511,8 @@ function SuggestedCell({
     const result = model.type(suggestion, cell, text, label);
     if (result === 'invalid') {
       setInvalid(true);
+      // Story 18.4: the kernel's reason, never the text.
+      trackInputRefused('ficha.reading', refusedReadingKind(text));
       return false;
     }
     written.current = true;
@@ -523,6 +528,7 @@ function SuggestedCell({
         <div className="measurement-field">
           <CropThumb source="display" photoId={suggestion.source.photo_id} bbox={suggestion.source.bbox} label={label} onPress={() => model.openCrop(suggestion)} />
           <input
+            data-telemetry="ficha.reading"
             className="mf-value"
             inputMode="decimal"
             autoComplete="off"
@@ -812,7 +818,11 @@ export function EnvSuggestionFill({ model, field, suggestion }: { model: EnvDisp
       return;
     }
     setInvalid(result === 'invalid');
-    if (result === 'invalid') return;
+    if (result === 'invalid') {
+      // Story 18.4: the kernel's reason, never the text.
+      trackInputRefused('ficha.reading', refusedFieldInputKind(field, text));
+      return;
+    }
     written.current = true;
     void result.then((ok) => {
       if (!ok) written.current = false;
@@ -838,6 +848,7 @@ export function EnvSuggestionFill({ model, field, suggestion }: { model: EnvDisp
         }
       >
         <input
+          data-telemetry="ficha.reading"
           className="mf-value"
           inputMode="decimal"
           autoComplete="off"

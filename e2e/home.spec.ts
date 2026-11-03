@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
+import { HOME_PAGE_SIZES, homePageSizeTarget, homeStatusTileTarget, TELEMETRY_ROUTE, type UxEvent } from '@app/domain';
 import { deviceDatabaseName, expect, signIn, syncBadge, syncWord, test } from './support/merged-fixtures.ts';
 import { syncNow, waitForCompanyPull } from './support/sync.ts';
 import {
@@ -52,6 +53,31 @@ function tile(page: Page, status: (typeof STATUSES)[number]): Locator {
 }
 
 const card = (page: Page, relatorioId: string) => page.locator(`.relatorio-card[data-relatorio="${relatorioId}"]`);
+
+/**
+ * Story 18.4: the Home `action` events since `from` (an ISO instant), queued or already shipped
+ * by a sync cycle (the page's telemetry posts are recorded from `recordTelemetryPosts` on).
+ */
+function homeActions(page: Page, database: string, posted: UxEvent[], from: string): Promise<string[]> {
+  return readStore<UxEvent>(page, database, 'ux_events').then((queued) => {
+    const seen = new Map<string, UxEvent>();
+    for (const event of [...posted, ...queued]) {
+      if (event.name !== 'action' || event.screen !== 'home' || event.ts < from) continue;
+      seen.set([event.ts, event.session_id, event.target ?? ''].join('|'), event);
+    }
+    return [...seen.values()].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0)).map((event) => event.target ?? '');
+  });
+}
+
+function recordTelemetryPosts(page: Page): UxEvent[] {
+  const posted: UxEvent[] = [];
+  page.on('request', (request) => {
+    if (request.method() !== TELEMETRY_ROUTE.method || new URL(request.url()).pathname !== TELEMETRY_ROUTE.path) return;
+    const body = request.postDataJSON() as unknown;
+    if (Array.isArray(body)) posted.push(...(body as UxEvent[]));
+  });
+  return posted;
+}
 
 test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first and the three device states', async ({
   page,
@@ -220,6 +246,7 @@ test('@p1 19.2-E2E-001 Home opens on the active work, most recent first; Emitido
   // E19-A2 (R-9): the standard template, so the Project's "Novo relatório" dialog can create one below.
   await resetEmpresaB(account, { standard: true });
   const database = deviceDatabaseName(account.userId);
+  const posted = recordTelemetryPosts(page);
   await signIn(page, account.email);
   await waitForCompanyPull(page, database);
 
@@ -258,8 +285,11 @@ test('@p1 19.2-E2E-001 Home opens on the active work, most recent first; Emitido
   await expect(chips).toHaveCount(0);
 
   // The Emitido tile: the emitted ones, most recent first, cut at 10 with the note and the chips.
+  // Story 18.4: each tile and each size names its own target, the kernel's.
   const emitido = tile(page, 'Emitido');
-  await expect(emitido).toHaveAttribute('data-telemetry', 'home.status_chip');
+  await expect(emitido).toHaveAttribute('data-telemetry', homeStatusTileTarget('emitido'));
+  await expect(tile(page, 'Rascunho')).toHaveAttribute('data-telemetry', homeStatusTileTarget('rascunho'));
+  const pressedFrom = await page.evaluate(() => new Date().toISOString());
   await emitido.click();
   const newestFirst = emitidos.map((op) => op.relatorio_id).reverse();
   await expect.poll(listIds).toEqual(newestFirst.slice(0, 10));
@@ -267,7 +297,8 @@ test('@p1 19.2-E2E-001 Home opens on the active work, most recent first; Emitido
   const radios = chips.getByRole('radio');
   await expect(radios).toHaveText(['10', '20', '50', '100']);
   await expect(chips.getByRole('radio', { name: '10', exact: true })).toHaveAttribute('aria-checked', 'true');
-  for (const radio of await radios.all()) await expect(radio).toHaveAttribute('data-telemetry', 'home.page_size');
+  const sizes = HOME_PAGE_SIZES.map(homePageSizeTarget);
+  for (const [index, radio] of (await radios.all()).entries()) await expect(radio).toHaveAttribute('data-telemetry', sizes[index]!);
 
   // 50: every one shows, the note follows, the choice is stored on the device.
   await chips.getByRole('radio', { name: '50', exact: true }).click();
@@ -280,6 +311,10 @@ test('@p1 19.2-E2E-001 Home opens on the active work, most recent first; Emitido
   // A second tap on the tile returns to the active list.
   await emitido.click();
   await expect.poll(listIds).toEqual([emCampo.relatorio_id, emRevisao.relatorio_id, rascunho.relatorio_id]);
+  // Story 18.4: one `action` per tile and size pressed, each with its own name.
+  await expect
+    .poll(() => homeActions(page, database, posted, pressedFrom), { timeout: 15_000 })
+    .toEqual([homeStatusTileTarget('emitido'), homePageSizeTarget(50), homeStatusTileTarget('emitido')]);
 
   // A reload keeps 50.
   await page.reload();

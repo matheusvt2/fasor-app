@@ -96,11 +96,14 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   // Sumário always renders it), so closing it stops a preview or an audit press in flight.
   const { cancel: cancelPreview } = preview;
   const { cancel: cancelAudit } = audit;
+  // Story 18.4: and ends a generate press's wait (the job goes on).
+  const { cancelWait: cancelGenerateWait } = state;
   useEffect(() => {
     if (isOpen) return;
     cancelPreview();
     cancelAudit();
-  }, [isOpen, cancelPreview, cancelAudit]);
+    cancelGenerateWait();
+  }, [isOpen, cancelPreview, cancelAudit, cancelGenerateWait]);
   const { phase, relatorio, revisions, idleNumber, userNames, online } = state;
   const whoOf = (row: RevisionRow) => userNames[row.created_by] ?? null;
   const downloadingReasonId = useId();

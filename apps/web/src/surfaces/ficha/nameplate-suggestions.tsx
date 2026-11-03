@@ -13,6 +13,7 @@ import {
   nameplateSuggestions,
   numberPhotos,
   parseFieldInput,
+  refusedFieldInputKind,
   pendingSuggestions,
   photoRemovedText,
   screenLabel,
@@ -41,6 +42,7 @@ import { ui } from '../../copy/ui.ts';
 import { useRelatorioPhotoTiles, type PhotoTile } from '../../db/photo-store.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
+import { trackInputRefused } from '../../telemetry/hooks.ts';
 import { removePhoto, restorePhoto } from '../photos/photo-ops.ts';
 import { PhotoViewer } from '../photos/photo-viewer.tsx';
 import type { FichaApi, LocalApi } from './ficha-api.ts';
@@ -360,10 +362,17 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
    */
   const pressingConfirm = useRef(false);
 
-  const commit = (refocus: boolean) => {
+  /** Story 18.4: the DOM event whose refusal was reported (the input's blur also reaches the root's handler). */
+  const refusalCause = useRef<Event | null>(null);
+  const commit = (refocus: boolean, cause?: Event) => {
     if (written.current) return;
     const result = model.type(suggestion, field, text);
     setInvalid(result === 'invalid');
+    if (result === 'invalid' && (cause === undefined || refusalCause.current !== cause)) {
+      refusalCause.current = cause ?? null;
+      // Story 18.4: one `input_refused` per decision, the kernel's reason, never the text.
+      trackInputRefused('ficha.suggestion', refusedFieldInputKind(field, text));
+    }
     if (typeof result === 'string') return;
     written.current = true;
     void result.then((ok) => {
@@ -378,6 +387,7 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
   const invalidText = field.kind === 'number' ? t.invalidNumber : field.kind === 'date' ? t.invalidDate : field.kind === 'voltage_class' ? t.invalidVoltage : t.invalidOption;
   const input = (
     <input
+      data-telemetry="ficha.suggestion"
       className={isNumber ? 'mf-value' : 'sv'}
       aria-labelledby={labelId}
       aria-invalid={invalid || undefined}
@@ -390,13 +400,13 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
         setText(event.target.value);
         if (invalid) setInvalid(false);
       }}
-      onBlur={() => {
+      onBlur={(event) => {
         // A press on this field's "Confirmar" decides on its own (below), never twice.
         if (pressingConfirm.current) return;
-        commit(false);
+        commit(false, event.nativeEvent);
       }}
       onKeyDown={(event) => {
-        if (event.key === 'Enter') commit(true);
+        if (event.key === 'Enter') commit(true, event.nativeEvent);
       }}
     />
   );
@@ -417,7 +427,7 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
         const next = event.relatedTarget;
         if (next instanceof Node && root.current?.contains(next)) return;
         pressingConfirm.current = false;
-        commit(false);
+        commit(false, event.nativeEvent);
       }}
     >
       <SuggestionField

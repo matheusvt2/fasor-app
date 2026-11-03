@@ -3,6 +3,7 @@ import { now } from '../clock.ts';
 import type { AppDatabase } from '../db/schema.ts';
 import { appendUxEvents } from '../db/ux-events-store.ts';
 import { newId } from '../ids.ts';
+import { deviceContext } from './context.ts';
 
 /*
  * Epic 18, Story 18.1 (AD-28): the one way the device records a usage event. `track()`
@@ -73,6 +74,9 @@ function write(to: TelemetryTarget, events: readonly Pending[]): void {
  * A database other than the last one configured (another user signed in without a reload)
  * starts a new session id, which the held events take too; the first configure of a load and
  * the same database again (an effect re-run, the same user signing in again) keep the id.
+ * Story 18.4 (e18fa open question 2): the new session is opened by its own `session_start`
+ * (with the device context), queued before the held events; the load's own came from
+ * `startTelemetry`, so the first configure queues none.
  */
 export function configureTelemetry(next: TelemetryTarget | null): void {
   target = next;
@@ -82,7 +86,10 @@ export function configureTelemetry(next: TelemetryTarget | null): void {
   try {
     if (lastDatabaseName !== null && next.db.name !== lastDatabaseName) {
       sessionId = newId();
-      held = held.map((event) => ({ ...event, session_id: sessionId }));
+      // Its instant is no later than the earliest held event's, so a session reads in `ts` order from its start.
+      const start = build({ name: 'session_start', ...deviceContext() });
+      const earliest = held.reduce((min, event) => (event.ts < min ? event.ts : min), start.ts);
+      held = [{ ...start, ts: earliest }, ...held.map((event) => ({ ...event, session_id: sessionId }))];
     }
     lastDatabaseName = next.db.name;
     write(next, held);
@@ -96,18 +103,23 @@ export function telemetryDatabase(): AppDatabase | null {
   return target?.db ?? null;
 }
 
+/** The event `input` names, stamped now with the session and the version. */
+function build(input: TrackInput): Pending {
+  const { screen, ...rest } = input;
+  return withoutUndefined({
+    v: 1 as const,
+    ts: now().toISOString(),
+    session_id: sessionId,
+    app_version: APP_VERSION,
+    screen: screen ?? currentScreen(),
+    ...rest,
+  });
+}
+
 /** Queues one usage event. Fire and forget: never throws, never returns a promise. */
 export function track(input: TrackInput): void {
   try {
-    const { screen, ...rest } = input;
-    const event: Pending = withoutUndefined({
-      v: 1 as const,
-      ts: now().toISOString(),
-      session_id: sessionId,
-      app_version: APP_VERSION,
-      screen: screen ?? currentScreen(),
-      ...rest,
-    });
+    const event = build(input);
     if (target === null) {
       pending.push(event);
       if (pending.length > PRE_CONFIG_BUFFER_MAX) pending.splice(0, pending.length - PRE_CONFIG_BUFFER_MAX);

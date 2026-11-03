@@ -13,6 +13,7 @@ import { applyPulled } from '../../db/sync-store.ts';
 import type { SessionState } from '../../state/session.tsx';
 import { StatusToaster } from '../../state/status-toaster.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
+import { trackInputRefused } from '../../telemetry/hooks.ts';
 import { SetupSurface } from './setup-surface.tsx';
 import { loadIndependentWaits, untilStored } from '../../test/load.ts';
 
@@ -71,6 +72,12 @@ loadIndependentWaits();
 // Story 7.4: Etapa 6's summary is the shared Generated text field, whose draft source needs
 // the app's DraftProvider; drafts are covered by their own suite (as `conclusao-section.test.tsx`).
 vi.mock('../../state/drafts.tsx', () => ({ useDraftSource: () => undefined }));
+
+// Story 18.4: the refusals the altitude reports, by name and reason.
+vi.mock('../../telemetry/hooks.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../telemetry/hooks.ts')>()),
+  trackInputRefused: vi.fn(),
+}));
 
 async function freshDb(): Promise<AppDatabase> {
   const user = `019966c1-000f-7000-8000-${(++counter).toString(16).padStart(12, '0')}`;
@@ -607,6 +614,25 @@ describe('4.2 SetupSurface', () => {
       await userEvent.type(input, '12');
       await userEvent.tab();
       await untilStored(altitudeOps, (ops) => expect(ops.map((op) => op.value)).toEqual([12]));
+    });
+
+    it('Story 18.4: an entry the browser cannot read, left on blur, is one input_refused (setup.altitude, not_a_number); typing queues none', async () => {
+      vi.mocked(trackInputRefused).mockClear();
+      database = await seeded();
+      const relatorioRecord = await database.entities.get(['relatorio', RELATORIO]);
+      const row = relatorioRecord!.row as RelatorioRow;
+      await database.entities.put({ ...relatorioRecord!, row: { ...row, setup: { ...row.setup, site_altitude_m: 760 } } });
+      renderSetup();
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await waitFor(() => expect(input).toHaveValue(760));
+      expect(input).toHaveAttribute('data-telemetry', 'setup.altitude');
+      input.focus();
+      Object.defineProperty(input, 'validity', { configurable: true, value: { badInput: true, valid: false } });
+      fireEvent.change(input, { target: { value: '' } });
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      expect(trackInputRefused).not.toHaveBeenCalled();
+      fireEvent.blur(input);
+      expect(vi.mocked(trackInputRefused).mock.calls).toEqual([['setup.altitude', 'not_a_number']]);
     });
 
     it('a transient entry the browser cannot read ("-", reported as \'\' with badInput) writes nothing over the stored value, on idle or blur', async () => {

@@ -5,6 +5,7 @@ import { I18nProvider } from 'react-aria-components';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
+import { trackInputRefused } from '../../telemetry/hooks.ts';
 import { focusNextMissingField, ReadOnlyField, SheetField } from './ficha-fields.tsx';
 
 /*
@@ -17,6 +18,12 @@ import { focusNextMissingField, ReadOnlyField, SheetField } from './ficha-fields
 
 // The draft registrations, by field, so a test can read what a field still holds as a draft.
 const draftSources = vi.hoisted(() => new Map<string, { read: () => unknown }>());
+// Story 18.4: the refusals the fields report, by name and reason.
+vi.mock('../../telemetry/hooks.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../telemetry/hooks.ts')>()),
+  trackInputRefused: vi.fn(),
+}));
+
 vi.mock('../../state/drafts.tsx', () => ({
   useDraftSource: (source: { field: string; read: () => unknown }) => {
     draftSources.set(source.field, source);
@@ -621,5 +628,66 @@ describe('fix batch fxpw G4: the two-level secondary voltage', () => {
     expect(screen.getByLabelText('Tensão primária', { exact: true })).toHaveAttribute('inputmode', 'decimal');
     await userEvent.type(secondary, '380/220{Enter}');
     expect(commit).toHaveBeenCalledWith({ raw: '380/220', unit: 'V', state: 'measured' });
+  });
+});
+
+describe('Story 18.4: a refused number or date is an input_refused with its name and the kernel reason', () => {
+  afterEach(() => vi.mocked(trackInputRefused).mockClear());
+
+  it('the number field: "abc" on blur is not_a_number; "N/A" where none is taken is not_applicable; the input carries ficha.number', async () => {
+    render(
+      <>
+        {field(VOL, vi.fn())}
+        <button type="button">fora</button>
+      </>,
+    );
+    const input = screen.getByRole('textbox', { name: /óleo/i });
+    expect(input).toHaveAttribute('data-telemetry', 'ficha.number');
+    await userEvent.type(input, 'abc');
+    expect(trackInputRefused).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
+    expect(vi.mocked(trackInputRefused).mock.calls).toEqual([['ficha.number', 'not_a_number']]);
+    await userEvent.clear(input);
+    await userEvent.type(input, 'N/A');
+    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
+    expect(vi.mocked(trackInputRefused).mock.calls.at(-1)).toEqual(['ficha.number', 'not_applicable']);
+  });
+
+  it('the date picker: a year outside 1900 .. next year, left, is one out_of_range; moving between its segments reports nothing', async () => {
+    render(
+      <I18nProvider locale="pt-BR">
+        <ToastProvider>
+          <SheetField field={DATE} value="2020-01-01" commit={vi.fn()} draft={{ entityId: 'b', field: DATE.key }} invalidText="x" selectEmpty="Selecione" />
+        </ToastProvider>
+        <button type="button">fora</button>
+      </I18nProvider>,
+    );
+    const group = screen.getByRole('group', { name: /fabrica/i });
+    const segments = within(group).getAllByRole('spinbutton');
+    await userEvent.click(segments[2]!);
+    await userEvent.keyboard('{Backspace}{Backspace}{Backspace}{Backspace}1850');
+    await userEvent.click(segments[0]!);
+    expect(trackInputRefused).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
+    expect(vi.mocked(trackInputRefused).mock.calls).toEqual([['ficha.date', 'out_of_range']]);
+  });
+
+  it('the date field: an unreadable date is not_a_date, a year out of range out_of_range, each once per blur or Enter', async () => {
+    render(
+      <>
+        {field(DATE, vi.fn())}
+        <button type="button">fora</button>
+      </>,
+    );
+    const input = screen.getByRole('textbox', { name: /fabrica/i });
+    expect(input).toHaveAttribute('data-telemetry', 'ficha.date');
+    await userEvent.type(input, 'ontem');
+    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
+    await userEvent.clear(input);
+    await userEvent.type(input, '20/02/0001{Enter}');
+    expect(vi.mocked(trackInputRefused).mock.calls).toEqual([
+      ['ficha.date', 'not_a_date'],
+      ['ficha.date', 'out_of_range'],
+    ]);
   });
 });

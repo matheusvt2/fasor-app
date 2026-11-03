@@ -5,7 +5,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { copy } from '../../copy/pt-br.ts';
 import { ToastProvider } from '../../state/toast.tsx';
 import type { SessionState } from '../../state/session.tsx';
+import { trackInputRefused } from '../../telemetry/hooks.ts';
 import { WordRegistryPanel } from './word-registry-panel.tsx';
+
+// Story 18.4: the refusals the field reports, by name and reason.
+vi.mock('../../telemetry/hooks.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../telemetry/hooks.ts')>()),
+  trackInputRefused: vi.fn(),
+}));
 
 const session: SessionState = {
   status: 'signed-in',
@@ -106,5 +113,21 @@ describe('WordRegistryPanel for a voltage class (Epic 2 retro D-6)', () => {
     await user.tab();
     expect(screen.getByRole('alert')).toHaveTextContent(t.valueInvalid);
     expect(field).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('Story 18.4: a refused value on blur is one input_refused (cadastros.voltage_class, not_a_number); a kV number none', async () => {
+    vi.mocked(trackInputRefused).mockClear();
+    const user = userEvent.setup();
+    renderVoltage(null);
+    const field = screen.getByLabelText(t.valueLabel);
+    expect(field).toHaveAttribute('data-telemetry', 'cadastros.voltage_class');
+    await user.type(field, 'quinze');
+    expect(trackInputRefused).not.toHaveBeenCalled();
+    await user.tab();
+    expect(vi.mocked(trackInputRefused).mock.calls).toEqual([['cadastros.voltage_class', 'not_a_number']]);
+    await user.clear(field);
+    await user.type(field, '17,5');
+    await user.tab();
+    expect(trackInputRefused).toHaveBeenCalledTimes(1);
   });
 });

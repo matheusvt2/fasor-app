@@ -5,6 +5,7 @@ import {
   nextUnit,
   numberEchoText,
   parseMeasurementReadingPtBr,
+  refusedMeasurementKind,
   suggestionAnnouncement,
   suggestionValueText,
   type CellAddress,
@@ -16,6 +17,7 @@ import { SuggestionField } from '../../components/suggestion-field.tsx';
 import { useNumberInput } from '../../components/number-input.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
+import { trackInputRefused } from '../../telemetry/hooks.ts';
 import { DRAFT_SURFACE } from './ficha-fields.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { conclusionOp, testCellOp } from './ficha-ops.ts';
@@ -136,6 +138,8 @@ export function MeasurementField<Address extends FieldAddress>({
     onEnter: (event) => {
       if (onRun(address, 'next')) event.preventDefault();
     },
+    // Story 18.4: a refusal on blur or Enter is an `input_refused` with the kernel's reason.
+    onRefuse: (text) => trackInputRefused('ficha.measurement', refusedMeasurementKind(text, cell, slotUnit)),
     onKey: (event: KeyboardEvent<HTMLInputElement>) => {
       if (event.key === 'Enter' && event.shiftKey) {
         event.preventDefault();
@@ -213,6 +217,7 @@ export function MeasurementField<Address extends FieldAddress>({
     >
       <div className="measurement-field" data-state={out ? 'out-of-limit' : undefined}>
         <input
+          data-telemetry="ficha.measurement"
           className="mf-value"
           {...number.inputProps}
           aria-label={label}
@@ -349,6 +354,7 @@ export function DictatedMeasurementField({
     const parsed = parseMeasurementReadingPtBr(text, cell, reading.unit);
     if (parsed === 'invalid') {
       setInvalid(measurementReadingRefusal(text, cell, reading.unit) ?? t.invalid);
+      trackInputRefused('ficha.measurement', refusedMeasurementKind(text, cell, reading.unit));
       return false;
     }
     if (parsed === null) {
@@ -366,6 +372,7 @@ export function DictatedMeasurementField({
     const refusal = measurementReadingRefusal(initial, cell, reading.unit);
     if (refusal !== null) {
       setInvalid(refusal);
+      trackInputRefused('ficha.measurement', refusedMeasurementKind(initial, cell, reading.unit));
       return false;
     }
     write(reading);
@@ -390,6 +397,7 @@ export function DictatedMeasurementField({
         }
       >
         <input
+          data-telemetry="ficha.measurement"
           className="mf-value"
           aria-labelledby={labelId}
           aria-invalid={invalid !== null || undefined}

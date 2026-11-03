@@ -1,6 +1,7 @@
-import { formatCnpj, isValidCnpjFormat } from '@app/domain';
+import { cnpjInputRefusal, formatCnpj, isValidCnpjFormat } from '@app/domain';
 import { useId, useState } from 'react';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
+import { trackInputRefused } from '../../telemetry/hooks.ts';
 
 interface CnpjFieldProps {
   value: string;
@@ -26,6 +27,7 @@ export function CnpjField({ value, label, invalidText, onCommit }: CnpjFieldProp
     <label className="field">
       <span className="field-label">{label}</span>
       <input
+        data-telemetry="cadastros.cnpj"
         className="input"
         value={text}
         aria-invalid={invalid || undefined}
@@ -41,7 +43,10 @@ export function CnpjField({ value, label, invalidText, onCommit }: CnpjFieldProp
           if (isValidCnpjFormat(raw)) committer.change(formatCnpj(raw));
         }}
         onBlur={() => {
-          setInvalid(text.trim() !== '' && !isValidCnpjFormat(text));
+          // Story 18.4: a refusal on blur is an `input_refused` with the kernel's reason, never the text.
+          const refusal = cnpjInputRefusal(text);
+          setInvalid(refusal !== null);
+          if (refusal !== null) trackInputRefused('cadastros.cnpj', refusal);
           committer.blur();
         }}
         onKeyDown={(event) => {

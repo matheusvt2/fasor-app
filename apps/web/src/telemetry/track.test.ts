@@ -107,16 +107,37 @@ describe('track (Story 18.1)', () => {
     // Tracked while no user is signed in: held until the next one is known.
     track({ name: 'action', screen: 'login', target: 'home.continue' });
     const second = await freshDb();
+    // The next user signs in a while later.
+    const later = new Date(Date.now() + 5000);
+    vi.useFakeTimers({ toFake: ['Date'], now: later });
     configureTelemetry({ db: second, deviceId: DEVICE });
+    vi.useRealTimers();
     const rotated = currentSessionId();
     expect(rotated).not.toBe(loadSession);
     track({ name: 'action', screen: 'home', target: 'home.card_open' });
     await whenTelemetryWritten();
     expect((await queuedUxEvents(first)).map((e) => e.session_id)).toEqual([loadSession]);
-    expect((await queuedUxEvents(second)).map((e) => [e.target, e.session_id])).toEqual([
-      ['home.continue', rotated],
-      ['home.card_open', rotated],
+    // Story 18.4 (e18fa open question 2): the new session opens with its own session_start, then the held events.
+    const rows = await queuedUxEvents(second);
+    expect(rows.map((e) => [e.name, e.target, e.session_id])).toEqual([
+      ['session_start', undefined, rotated],
+      ['action', 'home.continue', rotated],
+      ['action', 'home.card_open', rotated],
     ]);
+    expect(rows[0]).toMatchObject({ viewport: expect.stringMatching(/^(phone|tablet|desktop)$/), standalone: expect.any(Boolean), online: expect.any(Boolean) });
+    expect(rows.filter((e) => e.name === 'session_start')).toHaveLength(1);
+    // The session_start comes first in `ts` order too: no later than the held event it precedes.
+    expect(rows[0]!.ts <= rows[1]!.ts).toBe(true);
+    expect(rows[0]!.ts).toBe(rows[1]!.ts);
+  });
+
+  it('Story 18.4: the first configure of a load queues no session_start (the load queued its own)', async () => {
+    const db = await freshDb();
+    configureTelemetry({ db, deviceId: DEVICE });
+    configureTelemetry(null);
+    configureTelemetry({ db, deviceId: DEVICE });
+    await whenTelemetryWritten();
+    expect(await queuedUxEvents(db)).toEqual([]);
   });
 
   it('E18-A1 (R-A15): the same database configured again (an effect re-run, the same user again) keeps the session id', async () => {

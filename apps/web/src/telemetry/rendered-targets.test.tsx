@@ -1,8 +1,9 @@
-import { RELATORIO_STATUSES, UX_ACTION_TARGETS, type RelatorioStatus } from '@app/domain';
+import { HOME_PAGE_SIZES, homePageSizeTarget, homeStatusTileTarget, RELATORIO_STATUSES, UX_ACTION_TARGETS, type RelatorioStatus } from '@app/domain';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { NotApplicableButton } from '../components/not-applicable-button.tsx';
 import { TriStateControl } from '../components/tri-state-control.tsx';
+import { FilterChipGroup } from '../components/chip.tsx';
 import { StatusBoard } from '../surfaces/home/status-board.tsx';
 import { StickyActionBar } from '../surfaces/ficha/sticky-action-bar.tsx';
 import type { FichaActions } from '../surfaces/ficha/use-ficha-actions.ts';
@@ -22,13 +23,20 @@ function renderedNames(container: HTMLElement): string[] {
 }
 
 describe('prop-fed control names, as rendered', () => {
-  it('the Home status board names each tile home.status_chip', () => {
+  it('Story 18.4: the Home status board names each tile by its status (home.status_chip_<status>)', () => {
     const counts = Object.fromEntries(RELATORIO_STATUSES.map((status) => [status, 1])) as Record<RelatorioStatus, number>;
     const { container } = render(<StatusBoard counts={counts} filter={null} onFilter={() => undefined} />);
     const names = renderedNames(container);
-    expect(names).toHaveLength(RELATORIO_STATUSES.length);
-    expect(new Set(names)).toEqual(new Set(['home.status_chip']));
+    expect(names).toEqual(RELATORIO_STATUSES.map(homeStatusTileTarget));
+    expect(names).toEqual(['home.status_chip_rascunho', 'home.status_chip_em_campo', 'home.status_chip_em_revisao', 'home.status_chip_emitido']);
     for (const name of names) expect(TARGETS.has(name)).toBe(true);
+  });
+
+  it("Story 18.4: the Home page-size chips, as Home gives them, name each size (home.page_size_<size>)", () => {
+    const options = HOME_PAGE_SIZES.map((size) => ({ id: String(size), label: String(size), telemetry: homePageSizeTarget(size) }));
+    const { container } = render(<FilterChipGroup options={options} selectedId="10" onChange={() => undefined} aria-label="Relatórios por página" />);
+    expect(renderedNames(container)).toEqual(['home.page_size_10', 'home.page_size_20', 'home.page_size_50', 'home.page_size_100']);
+    for (const name of renderedNames(container)) expect(TARGETS.has(name)).toBe(true);
   });
 
   it('the checklist Tri-state (call site "ficha.mark") names its segments ficha.mark_c, _nc and _na', () => {

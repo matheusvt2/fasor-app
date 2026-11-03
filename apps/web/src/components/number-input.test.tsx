@@ -151,3 +151,54 @@ describe('useNumberInput (Story 5.5; PR #30 carry-over)', () => {
     expect(onCommit.mock.calls[1]?.[0]).toMatchObject({ raw: '25' });
   });
 });
+
+describe('Story 18.4: onRefuse, once per blur or Enter that refuses', () => {
+  function Refusing({ onRefuse }: { onRefuse: (text: string) => void }) {
+    const number = useNumberInput({
+      storedText: '',
+      storedRaw: null,
+      parse: (text) => parseReadingPtBr(text, { units: ['A'], defaultUnit: 'A' }),
+      commit: () => undefined,
+      draft: { surface: 'ficha', entityId: 'e', field: 'f' },
+      onRefuse,
+    });
+    return (
+      <div>
+        <input aria-label="Corrente" {...number.inputProps} />
+        <button type="button" onClick={() => number.commitNow()}>
+          agora
+        </button>
+        <button type="button">fora</button>
+      </div>
+    );
+  }
+
+  it('a refused text reports on blur and on Enter, never on a keystroke or a commitNow; an accepted one never', async () => {
+    const onRefuse = vi.fn();
+    render(
+      <ToastProvider>
+        <Refusing onRefuse={onRefuse} />
+      </ToastProvider>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Corrente' });
+    await userEvent.type(input, 'abc');
+    expect(onRefuse).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
+    expect(onRefuse).toHaveBeenCalledTimes(1);
+    expect(onRefuse).toHaveBeenLastCalledWith('abc');
+    // The same refusal on the next blur is a new one.
+    await userEvent.click(input);
+    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
+    expect(onRefuse).toHaveBeenCalledTimes(2);
+    await userEvent.click(input);
+    await userEvent.keyboard('{Enter}');
+    expect(onRefuse).toHaveBeenCalledTimes(3);
+    // A commitNow (a unit chip, Shift+Enter) decides for another reason: nothing reported.
+    fireEvent.click(screen.getByRole('button', { name: 'agora' }));
+    expect(onRefuse).toHaveBeenCalledTimes(3);
+    await userEvent.clear(input);
+    await userEvent.type(input, '12');
+    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
+    expect(onRefuse).toHaveBeenCalledTimes(3);
+  });
+});

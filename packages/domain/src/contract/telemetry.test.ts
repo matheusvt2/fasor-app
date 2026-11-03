@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { errorCodeSchema } from './errors.ts';
 import { TELEMETRY_ROUTE } from './index.ts';
+import { HOME_PAGE_SIZES } from '../home/cards.ts';
+import { RELATORIO_STATUSES } from '../status/table.ts';
 import {
+  homePageSizeTarget,
+  homeStatusTileTarget,
+  INPUT_REFUSAL_KINDS,
   READING_RESULT_KINDS,
   SCREENS,
   screenOf,
@@ -13,8 +18,11 @@ import {
   UX_ACTION_TARGETS,
   UX_DIALOG_TARGETS,
   UX_EVENT_NAMES,
+  UX_INPUT_TARGETS,
   UX_OUTCOMES,
   uxEventSchema,
+  viewportOf,
+  VIEWPORTS,
   WAIT_KINDS,
 } from './telemetry.ts';
 
@@ -54,6 +62,7 @@ describe('usage events contract (Epic 18, AD-28)', () => {
       'sync_result',
       'reading_result',
       'error',
+      'input_refused',
     ]);
     expect(SCREENS).toEqual([
       'login',
@@ -213,6 +222,14 @@ describe('usage events contract (Epic 18, AD-28)', () => {
       'reading.retry',
       'sync.now',
       'home.page_size',
+      'home.status_chip_rascunho',
+      'home.status_chip_em_campo',
+      'home.status_chip_em_revisao',
+      'home.status_chip_emitido',
+      'home.page_size_10',
+      'home.page_size_20',
+      'home.page_size_50',
+      'home.page_size_100',
     ]);
     expect(UX_DIALOG_TARGETS).toEqual(['capture_sheet', 'move_block', 'rename_tag', 'export', 'not_tested', 'conflict']);
     for (const target of [...UX_ACTION_TARGETS, ...UX_DIALOG_TARGETS]) expect(TELEMETRY_TARGET_PATTERN.test(target)).toBe(true);
@@ -226,5 +243,118 @@ describe('usage events contract (Epic 18, AD-28)', () => {
     expect(syncResultKind({ outdated: false, failure: { kind: 'http', status: 503 } })).toBe('failed');
     expect(syncResultKind({ outdated: false, failure: { kind: 'network' } })).toBe('failed');
     expect(syncResultKind({ outdated: false, failure: { kind: 'apply' } })).toBe('failed');
+  });
+});
+
+describe('Story 18.4: how long, in what order, on what and for whom', () => {
+  const bare = (() => {
+    const event: Record<string, unknown> = { ...base };
+    delete event.target;
+    return event;
+  })();
+
+  it('carries the new closed lists', () => {
+    expect(INPUT_REFUSAL_KINDS).toEqual(['not_a_number', 'not_positive', 'not_applicable', 'not_a_date', 'out_of_range', 'bad_format']);
+    expect(VIEWPORTS).toEqual(['phone', 'tablet', 'desktop']);
+    expect(UX_INPUT_TARGETS).toEqual([
+      'ficha.number',
+      'ficha.measurement',
+      'ficha.reading',
+      'ficha.suggestion',
+      'ficha.date',
+      'setup.altitude',
+      'cadastros.cnpj',
+      'cadastros.voltage_class',
+    ]);
+    for (const target of UX_INPUT_TARGETS) expect(TELEMETRY_TARGET_PATTERN.test(target)).toBe(true);
+  });
+
+  it('names the viewport by the width: below 768 phone, 768 to 1279 tablet, from 1280 desktop', () => {
+    expect([0, 390, 767, 767.98, 768, 1024, 1279, 1279.5, 1280, 1920].map(viewportOf)).toEqual([
+      'phone',
+      'phone',
+      'phone',
+      'phone',
+      'tablet',
+      'tablet',
+      'tablet',
+      'tablet',
+      'desktop',
+      'desktop',
+    ]);
+  });
+
+  it('names a target per Home status tile and per page size, each in the action list', () => {
+    expect(RELATORIO_STATUSES.map(homeStatusTileTarget)).toEqual([
+      'home.status_chip_rascunho',
+      'home.status_chip_em_campo',
+      'home.status_chip_em_revisao',
+      'home.status_chip_emitido',
+    ]);
+    expect(HOME_PAGE_SIZES.map(homePageSizeTarget)).toEqual(['home.page_size_10', 'home.page_size_20', 'home.page_size_50', 'home.page_size_100']);
+    for (const target of [...RELATORIO_STATUSES.map(homeStatusTileTarget), ...HOME_PAGE_SIZES.map(homePageSizeTarget)]) expect(UX_ACTION_TARGETS).toContain(target);
+    // Old bundles still send the shared names.
+    expect(parses({ ...base, screen: 'home', target: 'home.status_chip' })).toBe(true);
+    expect(parses({ ...base, screen: 'home', target: 'home.page_size' })).toBe(true);
+  });
+
+  it('accepts a screen_view with its duration and the screen before it, and a session_start with the device context', () => {
+    expect(parses({ ...bare, name: 'screen_view', screen: 'sumario', duration_ms: 4000, from: 'home', relatorio_id: RELATORIO })).toBe(true);
+    expect(parses({ ...bare, name: 'screen_view', screen: 'home', duration_ms: 0 })).toBe(true);
+    for (const viewport of VIEWPORTS) expect(parses({ ...bare, name: 'session_start', screen: 'home', viewport, standalone: false, online: true })).toBe(true);
+    expect(parses({ ...bare, name: 'session_start', screen: 'login', viewport: 'phone', standalone: true, online: false })).toBe(true);
+    // An old bundle's session_start carries none of them.
+    expect(parses({ ...bare, name: 'session_start', screen: 'home' })).toBe(true);
+    expect(parses({ ...bare, name: 'screen_view', screen: 'home' })).toBe(true);
+  });
+
+  it('accepts an input_refused with its target and kind, and the ids of where it was', () => {
+    for (const kind of INPUT_REFUSAL_KINDS) expect(parses({ ...bare, name: 'input_refused', target: 'ficha.number', kind })).toBe(true);
+    expect(parses({ ...bare, name: 'input_refused', target: 'ficha.measurement', kind: 'not_positive', relatorio_id: RELATORIO, block_id: BLOCK })).toBe(true);
+  });
+
+  it('refuses each new field on any name but its own', () => {
+    expect(parses({ ...base, from: 'home' })).toBe(false);
+    expect(parses({ ...bare, name: 'session_start', from: 'home' })).toBe(false);
+    expect(parses({ ...bare, name: 'screen_view', viewport: 'phone' })).toBe(false);
+    expect(parses({ ...bare, name: 'screen_view', standalone: false })).toBe(false);
+    expect(parses({ ...bare, name: 'screen_view', online: true })).toBe(false);
+    expect(parses({ ...base, viewport: 'desktop' })).toBe(false);
+    expect(parses({ ...bare, name: 'wait', kind: 'sync', online: false })).toBe(false);
+  });
+
+  it('refuses an input_refused without its target or kind, with an outcome, a duration or a new field, and a kind of another name', () => {
+    expect(parses({ ...bare, name: 'input_refused', kind: 'not_a_number' })).toBe(false);
+    expect(parses({ ...bare, name: 'input_refused', target: 'ficha.number' })).toBe(false);
+    expect(parses({ ...bare, name: 'input_refused', target: 'ficha.number', kind: 'not_a_number', outcome: 'refused' })).toBe(false);
+    expect(parses({ ...bare, name: 'input_refused', target: 'ficha.number', kind: 'not_a_number', duration_ms: 10 })).toBe(false);
+    expect(parses({ ...bare, name: 'input_refused', target: 'ficha.number', kind: 'not_a_number', from: 'home' })).toBe(false);
+    expect(parses({ ...bare, name: 'input_refused', target: 'ficha.number', kind: 'not_a_number', viewport: 'phone' })).toBe(false);
+    expect(parses({ ...bare, name: 'input_refused', target: 'ficha.number', kind: 'reading' })).toBe(false);
+    // A refusal kind on another name.
+    expect(parses({ ...bare, name: 'wait', kind: 'not_a_number' })).toBe(false);
+    // Never the typed value: a target is a constant name, a kind a closed word.
+    expect(parses({ ...bare, name: 'input_refused', target: 'abc 12', kind: 'not_a_number' })).toBe(false);
+    expect(parses({ ...bare, name: 'input_refused', target: 'ficha.number', kind: 'abc' })).toBe(false);
+  });
+
+  it('refuses on screen_view anything but the screen, the ids, the duration and from; on session_start anything but the device context', () => {
+    expect(parses({ ...bare, name: 'screen_view', target: 'home.card_open' })).toBe(false);
+    expect(parses({ ...bare, name: 'screen_view', outcome: 'ok' })).toBe(false);
+    expect(parses({ ...bare, name: 'screen_view', kind: 'sync' })).toBe(false);
+    expect(parses({ ...bare, name: 'session_start', target: 'home.card_open' })).toBe(false);
+    expect(parses({ ...bare, name: 'session_start', kind: 'sync' })).toBe(false);
+    expect(parses({ ...bare, name: 'session_start', outcome: 'ok' })).toBe(false);
+    expect(parses({ ...bare, name: 'session_start', duration_ms: 1 })).toBe(false);
+    expect(parses({ ...bare, name: 'session_start', relatorio_id: RELATORIO })).toBe(false);
+    expect(parses({ ...bare, name: 'session_start', block_id: BLOCK })).toBe(false);
+  });
+
+  it('refuses a new field outside its closed list or type', () => {
+    expect(parses({ ...bare, name: 'session_start', viewport: 'watch' })).toBe(false);
+    expect(parses({ ...bare, name: 'session_start', standalone: 'yes' })).toBe(false);
+    expect(parses({ ...bare, name: 'session_start', online: 1 })).toBe(false);
+    expect(parses({ ...bare, name: 'screen_view', from: 'report' })).toBe(false);
+    expect(parses({ ...bare, name: 'screen_view', from: '/relatorio/x' })).toBe(false);
   });
 });

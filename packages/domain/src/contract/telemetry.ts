@@ -1,5 +1,7 @@
 import { z } from 'zod';
+import type { HomePageSize } from '../home/cards.ts';
 import { uuidV7Schema } from '../ids.ts';
+import type { RelatorioStatus } from '../schemas/entities.ts';
 import { errorCodeSchema } from './errors.ts';
 
 /*
@@ -10,6 +12,12 @@ import { errorCodeSchema } from './errors.ts';
  *
  * Every string field is from a closed list, a pattern, a uuid or an ISO instant: no free
  * text (a typed value, a caption, a TAG, a name) can pass the schema.
+ *
+ * Story 18.4 (2026-11-03): the lists are append-only (an old bundle's events still pass). A
+ * `screen_view` may say how long the screen stayed open (`duration_ms`) and which screen came
+ * before it (`from`); a `session_start` may say on what it runs (`viewport`, `standalone`,
+ * `online`); `input_refused` says a typed value was refused (its field's constant `target`
+ * and the closed `kind` of the refusal), never the value.
  */
 
 export const UX_EVENT_NAMES = [
@@ -25,6 +33,8 @@ export const UX_EVENT_NAMES = [
   'sync_result',
   'reading_result',
   'error',
+  // Story 18.4: a typed value a field refused (the field's name and why, never the value).
+  'input_refused',
 ] as const;
 export type UxEventName = (typeof UX_EVENT_NAMES)[number];
 
@@ -68,6 +78,25 @@ export type SyncResultKind = (typeof SYNC_RESULT_KINDS)[number];
 export const UX_OUTCOMES = ['ok', 'cancel', 'fail', 'refused', 'timeout', 'offline'] as const;
 export type UxOutcome = (typeof UX_OUTCOMES)[number];
 
+/** Story 18.4: `kind` of an `input_refused`: why a typed value was refused. */
+export const INPUT_REFUSAL_KINDS = ['not_a_number', 'not_positive', 'not_applicable', 'not_a_date', 'out_of_range', 'bad_format'] as const;
+export type InputRefusalKind = (typeof INPUT_REFUSAL_KINDS)[number];
+
+/** Story 18.4: the device's width class on a `session_start`, DESIGN.md's breakpoints. */
+export const VIEWPORTS = ['phone', 'tablet', 'desktop'] as const;
+export type Viewport = (typeof VIEWPORTS)[number];
+
+/** DESIGN.md `breakpoint-tablet` and `breakpoint-desktop`, in CSS pixels. */
+export const VIEWPORT_TABLET_MIN_PX = 768;
+export const VIEWPORT_DESKTOP_MIN_PX = 1280;
+
+/** The viewport of a width: below 768 phone, 768 to 1279 tablet, from 1280 desktop. */
+export function viewportOf(widthPx: number): Viewport {
+  if (widthPx >= VIEWPORT_DESKTOP_MIN_PX) return 'desktop';
+  if (widthPx >= VIEWPORT_TABLET_MIN_PX) return 'tablet';
+  return 'phone';
+}
+
 /** A control or dialog name, from the surface's `data-telemetry` attribute. */
 export const TELEMETRY_TARGET_PATTERN = /^[a-z0-9][a-z0-9_.-]{0,63}$/;
 
@@ -83,6 +112,7 @@ const KINDS_BY_NAME: Partial<Record<UxEventName, readonly string[]>> = {
   reading_result: READING_RESULT_KINDS,
   sync_result: SYNC_RESULT_KINDS,
   error: errorCodeSchema.options,
+  input_refused: INPUT_REFUSAL_KINDS,
 };
 
 const ALL_KINDS = [...new Set(Object.values(KINDS_BY_NAME).flat())] as [string, ...string[]];
@@ -114,12 +144,48 @@ export const UX_ACTION_TARGETS = [
   'sync.now',
   // Story 19.2: the Home list's page-size chips (10 · 20 · 50 · 100).
   'home.page_size',
+  // Story 18.4: one name per Status board tile and per page size (`homeStatusTileTarget`,
+  // `homePageSizeTarget`); `home.status_chip` and `home.page_size` stay for old bundles.
+  'home.status_chip_rascunho',
+  'home.status_chip_em_campo',
+  'home.status_chip_em_revisao',
+  'home.status_chip_emitido',
+  'home.page_size_10',
+  'home.page_size_20',
+  'home.page_size_50',
+  'home.page_size_100',
 ] as const;
 export type UxActionTarget = (typeof UX_ACTION_TARGETS)[number];
+
+/** Story 18.4: the `target` of the Home Status board tile of `status`. */
+export function homeStatusTileTarget(status: RelatorioStatus): UxActionTarget {
+  return `home.status_chip_${status}`;
+}
+
+/** Story 18.4: the `target` of the Home page-size chip of `size`. */
+export function homePageSizeTarget(size: HomePageSize): UxActionTarget {
+  return `home.page_size_${size}`;
+}
+
+/** Story 18.4: the `target` of an `input_refused`, the refusing field's `data-telemetry` name. */
+export const UX_INPUT_TARGETS = [
+  'ficha.number',
+  'ficha.measurement',
+  'ficha.reading',
+  'ficha.suggestion',
+  'ficha.date',
+  'setup.altitude',
+  'cadastros.cnpj',
+  'cadastros.voltage_class',
+] as const;
+export type UxInputTarget = (typeof UX_INPUT_TARGETS)[number];
 
 /** The dialogs whose `dialog_open` and `dialog_cancel` are tracked, by `target`. */
 export const UX_DIALOG_TARGETS = ['capture_sheet', 'move_block', 'rename_tag', 'export', 'not_tested', 'conflict'] as const;
 export type UxDialogTarget = (typeof UX_DIALOG_TARGETS)[number];
+
+/** The keys only a `session_start` carries (Story 18.4). */
+const SESSION_START_KEYS = ['viewport', 'standalone', 'online'] as const;
 
 /** One usage event as the device builds and sends it; strict, so an unknown key is refused. */
 export const uxEventSchema = z
@@ -137,12 +203,37 @@ export const uxEventSchema = z
     duration_ms: z.number().int().nonnegative().optional(),
     relatorio_id: uuidV7Schema.optional(),
     block_id: uuidV7Schema.optional(),
+    // Story 18.4: `screen_view` only, the screen shown before this one.
+    from: z.enum(SCREENS).optional(),
+    // Story 18.4: `session_start` only, the device and its connection when the session began.
+    viewport: z.enum(VIEWPORTS).optional(),
+    standalone: z.boolean().optional(),
+    online: z.boolean().optional(),
   })
   .superRefine((event, ctx) => {
-    if (event.kind === undefined) return;
-    const allowed = KINDS_BY_NAME[event.name];
-    if (allowed === undefined || !allowed.includes(event.kind)) {
-      ctx.addIssue({ code: 'custom', path: ['kind'], message: `kind ${event.kind} is not one of ${event.name}'s` });
+    const refuse = (path: string, message: string) => ctx.addIssue({ code: 'custom', path: [path], message });
+    if (event.kind !== undefined) {
+      const allowed = KINDS_BY_NAME[event.name];
+      if (allowed === undefined || !allowed.includes(event.kind)) refuse('kind', `kind ${event.kind} is not one of ${event.name}'s`);
+    }
+    if (event.from !== undefined && event.name !== 'screen_view') refuse('from', `from is a screen_view field, not ${event.name}'s`);
+    for (const key of SESSION_START_KEYS) {
+      if (event[key] !== undefined && event.name !== 'session_start') refuse(key, `${key} is a session_start field, not ${event.name}'s`);
+    }
+    // Story 18.4: a screen_view is the screen, its ids, its duration and from; a session_start the device context.
+    if (event.name === 'screen_view') {
+      for (const key of ['target', 'outcome'] as const) if (event[key] !== undefined) refuse(key, `a screen_view has no ${key}`);
+    }
+    if (event.name === 'session_start') {
+      for (const key of ['target', 'outcome', 'duration_ms', 'relatorio_id', 'block_id'] as const) {
+        if (event[key] !== undefined) refuse(key, `a session_start has no ${key}`);
+      }
+    }
+    if (event.name === 'input_refused') {
+      if (event.target === undefined) refuse('target', 'an input_refused names its field');
+      if (event.kind === undefined) refuse('kind', 'an input_refused names why');
+      if (event.outcome !== undefined) refuse('outcome', 'an input_refused has no outcome');
+      if (event.duration_ms !== undefined) refuse('duration_ms', 'an input_refused has no duration');
     }
   });
 export type UxEvent = z.infer<typeof uxEventSchema>;

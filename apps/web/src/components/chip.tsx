@@ -51,6 +51,8 @@ export function Chip({ children, isSelected, onSelectedChange, onPress, isInacti
 export interface FilterChipOption {
   id: string;
   label: string;
+  /** Story 18.4: this chip's own usage-event name, over the group's `telemetry`. */
+  telemetry?: string;
 }
 
 export interface FilterChipGroupProps {
@@ -122,7 +124,7 @@ export function FilterChipGroup({ options, selectedId, onChange, telemetry, ...r
           aria-checked={option.id === selectedId}
           tabIndex={index === tabbableIndex ? 0 : -1}
           className="chip"
-          data-telemetry={telemetry}
+          data-telemetry={option.telemetry ?? telemetry}
           ref={(element) => {
             chips.current.set(option.id, element);
           }}

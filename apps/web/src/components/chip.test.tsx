@@ -55,6 +55,19 @@ describe('FilterChipGroup', () => {
     for (const radio of screen.getAllByRole('radio')) expect(radio).not.toHaveAttribute('data-telemetry');
   });
 
+  it("Story 18.4: an option's own telemetry name wins over the group's; an option without one keeps the group's", () => {
+    const named = [
+      { id: '10', label: '10', telemetry: 'home.page_size_10' },
+      { id: '20', label: '20', telemetry: 'home.page_size_20' },
+      { id: 'x', label: 'x' },
+    ];
+    const { unmount } = render(<FilterChipGroup options={named} selectedId="10" onChange={vi.fn()} aria-label="Relatórios por página" telemetry="home.page_size" />);
+    expect(screen.getAllByRole('radio').map((radio) => radio.getAttribute('data-telemetry'))).toEqual(['home.page_size_10', 'home.page_size_20', 'home.page_size']);
+    unmount();
+    render(<FilterChipGroup options={named} selectedId="10" onChange={vi.fn()} aria-label="Relatórios por página" />);
+    expect(screen.getAllByRole('radio').map((radio) => radio.getAttribute('data-telemetry'))).toEqual(['home.page_size_10', 'home.page_size_20', null]);
+  });
+
   it('tapping the selected chip again does nothing (no clearing by re-tap)', async () => {
     const onChange = vi.fn();
     render(<FilterChipGroup options={options} selectedId="all" onChange={onChange} aria-label="Filtrar por cabine" />);
