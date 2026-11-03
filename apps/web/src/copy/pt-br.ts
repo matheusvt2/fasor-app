@@ -122,9 +122,9 @@ export const copy = {
       'Fotos ficam neste aparelho até o servidor confirmar o recebimento. Relatórios emitidos são removidos daqui sozinhos.',
     // authored (Epic 18, open for Bruno): Story 18.2's notice of the usage events (AD-28).
     usageHeading: 'Uso do aplicativo',
-    // authored (Epic 18, open for Bruno)
+    // authored (Epic 18; 2026-11-03, Matheus: the device's screen and connection added for Story 18.4)
     usageNote: (produto: string) =>
-      `Este aparelho registra as telas abertas, os toques, as esperas e os erros, nunca o que é digitado, e os guarda por 90 dias para melhorar o ${produto}.`,
+      `Este aparelho registra as telas abertas, os toques, as esperas, os erros e o tipo de tela e de conexão, nunca o que é digitado, e os guarda por 90 dias para melhorar o ${produto}.`,
   },
   // Home from `mockups/prototype/screens/20-home.html` and `key-home.html`. Every card
   // line, the board counts and the shortcut sub-lines come from the kernel

@@ -541,7 +541,7 @@ describe('Account: Uso do aplicativo (Epic 18, Story 18.2)', () => {
     const section = heading.closest('section');
     expect(section).not.toBeNull();
     expect(section).toHaveTextContent(
-      `Este aparelho registra as telas abertas, os toques, as esperas e os erros, nunca o que é digitado, e os guarda por 90 dias para melhorar o ${PRODUTO}.`,
+      `Este aparelho registra as telas abertas, os toques, as esperas, os erros e o tipo de tela e de conexão, nunca o que é digitado, e os guarda por 90 dias para melhorar o ${PRODUTO}.`,
     );
   });
 });

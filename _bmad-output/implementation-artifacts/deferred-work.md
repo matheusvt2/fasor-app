@@ -2785,7 +2785,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   summary: The Conta sentence ("Uso do aplicativo", `copy.account.usageNote`) still says the device records screens, taps, waits and errors; `session_start` now also says the viewport, whether the app is installed and whether it was online (the device and its connection), and `input_refused` says a typed value was refused (never the value).
   evidence: Spec Design Notes, "Conta sentence verdict"; `apps/web/src/copy/pt-br.ts` unchanged; `docs/observability.md` § LGPD.
   class: decision
-  state: open (owner: Matheus and Bruno decide the wording; the production deploy of Story 18.4 waits on it)
+  state: ~~open (owner: Matheus and Bruno decide the wording; the production deploy of Story 18.4 waits on it)~~ closed 2026-11-03: Matheus chose the short wording, "as telas abertas, os toques, as esperas, os erros e o tipo de tela e de conexão, nunca o que é digitado"; `copy.account.usageNote` and its component test carry it. `input_refused` is read as an error and needs no word of its own.
 - source_spec: `_bmad-output/implementation-artifacts/spec-s184-events-say-how-long.md`
   summary: "Cancels by preceding screen" is not an aggregated view: the dialog events carry no `from`, so the `paths` view lists the per-session sequence and the reader finds the screen before a cancel in the `screen_view` rows around it.
   evidence: Spec Design Notes, view `paths`; `infra/production/observability.tf` `paths`; `_bmad-output/test-artifacts/friction-digest-template.md` "Five questions" item 3.
