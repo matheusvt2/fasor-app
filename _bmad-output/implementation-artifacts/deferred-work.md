@@ -2679,3 +2679,16 @@ Source: `epic-15-retro-2026-10-26.md` (E15-A1: R15-13, R15-14), `epic-16-retro-2
   evidence: `e2e/photo-numbers.spec.ts:82-85`; `epic-18-retro-2026-10-30.md` § Behavior verification (`.scratch-prodfix/e2e-full-retro18.log`, the rerun `.scratch-prodfix/e2e-photo-numbers-rerun.log`); the spec and `dialog-shell.tsx` unchanged since 2026-10-13 and 2026-09-23.
   class: test-gap
   state: open (owner: the next epic's carry-over batch, or the first batch that touches `photo-numbers.spec.ts`: `closeDialog` focuses the dialog or presses its close control before `Escape`; a wave gate that sees it red again re-runs it alone per E15-A4 and links this row)
+
+## Deferred from: the integrated review of Epics 15 and 16 (2026-11-03, E15-A5 and E16-A6)
+
+Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (main `0fede8ac`).
+
+- **E15-R1, the rail's site card is named without its counter.** `apps/web/src/surfaces/relatorio/relatorio-tree-rail.tsx:67` sets the button's `aria-label` to the label, NC badge and name, which replaces the content, so "N de M" (`site.railCounter`) and the state word are never announced (the mock and the Sumário card carry the counter); both trees compose the "· ncBadge" in `apps/web` (also `relatorio-tree-sumario.tsx:116`) against Story 15.2's rule that every text is composed in `packages/domain`. Fix: the kernel site node exposes one accessible name used by both trees.
+  state: open (owner: the next epic's carry-over batch)
+- **E15-R2, the palette drawer's target is not announced on open.** `apps/web/src/surfaces/templates/block-palette.tsx:88` holds the target ("Toque para adicionar em: ...") in an `aria-live` paragraph mounted with the dialog, which screen readers usually skip; the drawer is named only "Blocos" since Story 15.5 (`:265-272`). Fix: `aria-describedby` on the drawer's `DialogShell` pointing at that paragraph.
+  state: open (owner: the next epic's carry-over batch)
+- **E16-R1, an `unchanged` ready names an older revision.** `apps/web/src/surfaces/export/use-generate.ts:456-458`: the "anterior às alterações" banner and row tags are suppressed only while generating, so an `unchanged` answer whose revision is not pulled yet shows "Revisão N pronta" over "(revisão N-1). Alterações desde então geram a revisão N" (Story 16.2 AC 3). Fix: gate both on `readyHeld`, with a dialog test that delivers the job before the revision.
+  state: open (owner: batch s184, the Story 18.4 wave, which re-times the waits in the same file)
+- **E16-R2, a cabine environment display shot prints nowhere yet holds a photo number.** A temperature or humidity "Ler visor" shot on a local (`apps/web/src/surfaces/ficha/read-display.tsx:733`, `displayEnvTarget`) has no block and no item; Story 16.3 took display shots out of section 7 for sheets only and Story 17.4 kept this one unprinted and numbered last (`packages/domain/src/print/photo-order.ts:83-86`, `:112-113`; pinned by `section-9.test.ts:1169`). The evidence of AMBIENTE DE ENSAIO leaves the document and the gallery shows a "Foto N" no "Imagem N" carries. Options: print it under the cabine's characteristics or environment part, or leave it out of the numbering and say so in the gallery.
+  state: open (owner: Matheus, with Bruno; then the next epic's carry-over batch)
