@@ -177,3 +177,26 @@ a container with no AWS credentials.
 **Wave gate.** After lanes 1 and 2 merge, the coordinator runs `test:e2e:full` on the integrated main under the lock
 (E18-A6), then wave 2; after wave 2, the integrated review (adversarial, edge case, verification gap) over the
 follow-up diff, one fix batch if needed, and the deploy only on Matheus's word.
+
+**Wave gate record (2026-11-03, on main `cf468e3d`, which holds lanes 1 and 2 and batch f19; E18-A6, E19-A4 P-1).**
+
+| Run | Tests | Passed | Failed | Skipped | Load start / end | Lock wait | Also on the host |
+|---|---|---|---|---|---|---|---|
+| `pnpm test:e2e:full` | 544 | 522 | 18 | 4 | 4.92 / 4.41 | 0 s | the s184 stack (3 containers) |
+| `pnpm test:e2e:matrix` | 138 | 124 | 0 | 14 | 4.41 / 8.72 | 1058 s | the s184 stack and its gate |
+| Re-run alone of the seven red files (E15-A4) | 53 | 53 | 0 | 0 | 6.42 / 5.61 | 0 s | the s184 stack (3 containers), no other gate |
+
+The 18 reds were all in the parallel group of `test:e2e:full`, in seven files: `relatorio.spec.ts` (9), `reading-wait.spec.ts` (2), `review-field-defects.spec.ts` (2), `review-photo-failures.spec.ts` (2), `review-toasts-2026-10-08.spec.ts`, `merge.spec.ts` and `nc-draft.spec.ts` (1 each). Most were the 30 s test or navigation timeout; four `relatorio.spec.ts` tests timed out in `syncNowAndReturn` with "Sincronizar agora" still `aria-disabled`, and two waited 30 s for the URL after "Criar relatório". The same seven files, run alone on the same commit with `--project desktop-chrome` (`scripts/e2e.ts`, both groups), passed 53 of 53 in 286 s, so the failing state is host load (load 9.2 in the minute before the run, the s184 stack up), not a regression of #230, #231 or #232. Logs: `.scratch-prodfix/wave-gate-{full,matrix,rerun}.log` (untracked).
+
+## Deploys of 2026-11-03: `cf468e3d` and `d39a5e6c` (Matheus: "pode fazer o deploy e testar usando a url")
+
+Both from the main checkout with `infra/bin/deploy`, after a read-only `terraform plan` with the tag.
+
+| Tag | Content | Plan | Result |
+|---|---|---|---|
+| `cf468e3d` | #230 (E18-A2 remainder, E15-A10), #231 (E18-A1), #232 (E19-A2) | 5 to add, 14 to change, 5 to destroy: the five task definitions replaced on the tag; the dashboard, nine saved queries, the `app_ux_events` IAM policy and three services updated in place | smoke 8 of 8, 6 `session_start` with the tag, 0 `ux_event_sink_failed` |
+| `d39a5e6c` | #233 (Story 18.4) | 12 to add, 4 to change, 5 to destroy: seven new saved queries (`bounces`, `document_waits`, `home_first_nav`, `paths`, `refusals`, `screen_time`, `viewports`), the dashboard in place, the task definitions on the tag | smoke 8 of 8, 6 `session_start` with the tag, 0 `ux_event_sink_failed`; a `session_start` read back carries `viewport`, `standalone` and `online`; 17 saved queries under `fasor-production-ux` |
+
+The `cf468e3d` deploy took three runs. (1) The roll's `terraform apply` lost the ECS endpoint while refreshing (`DescribeClusters`, StatusCode 0) and changed nothing; build, push and migrate had run, production stayed healthy on `54b11947`. (2) `infra/bin/deploy --skip-build` rolled, waited, checked health and recorded the tag, but the smoke step failed at once with `lockf: already locked`: the coordinator had wrapped the whole deploy in `lockf` on `/tmp/fasor-verify.lock`, and the deploy takes that lock itself for the smoke (`infra/bin/deploy` § smoke). The telemetry warning of 0 events in that run is the smoke that never ran. (3) `infra/bin/deploy --resume --tag cf468e3d...` (E15-A10) ran only the waits, health, record and smoke, green. Before (3) the preflight refused an untracked `_bmad-output/brainstorming/` folder from another session; it was excluded locally through `.git/info/exclude` for the run and the line removed after, the folder untouched. Lesson: start `infra/bin/deploy` with no lock wrapper.
+
+Story 18.4's Conta sentence (its DoD's deploy condition): Matheus chose on 2026-11-03 the short wording, "Este aparelho registra as telas abertas, os toques, as esperas, os erros e o tipo de tela e de conexão, nunca o que é digitado, e os guarda por 90 dias para melhorar o PRODUTO." (`copy.account.usageNote`, commit `5054866a` in #233).
