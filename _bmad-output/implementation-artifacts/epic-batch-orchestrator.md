@@ -319,3 +319,26 @@ Written here because the Epic 17 context file and its batch specs carried them w
   otherwise discover separately. Current entries: a photo with no sheet, no caption and no "Pessoas na foto" mark
   carries `reading_kind: 'caption'` (Story 9.3), so a "Geral" predicate accepts null or `'caption'`; a sheet's
   route is `/relatorio/{id}/ficha/{blockId}`; `V<n>_HASH` pins a seed version when the next derives from it.
+
+## 8. Rules carried from the Epic 18 retrospective (2026-11-03, E18-A3 and E18-A6)
+
+Each names its source in `epic-18-retro-2026-10-30.md`.
+
+- (E18-A3, P1) A residual risk that changes how a dashboard view, a saved query or a generated document is read is
+  written as a runbook sentence (`docs/observability.md` for the views, the document's own runbook otherwise) in the
+  same PR that lists the risk, beside its Auto Run Result line. Precedent: o18a listed "generate and preview waits
+  time the request, not the job" on 2026-10-29, and `docs/observability.md` § waits said so only after the first
+  production read (`677415a8`, 2026-10-30), when 26.8 s on screen read as 176 ms in the view.
+- (E18-A3, P5; E15-A4, E16-A10, E17-A8 restated) Every wave gate record in `epic-<N>-context.md` carries the host
+  load line: `sysctl -n vm.loadavg` at the start and at the end, the lock wait (`LOCKED_AFTER`), and what else ran
+  on the host (batch stacks up, another gate). A record without it is incomplete, whatever its counts; Epic 18's
+  integrated gate on `3b45e83c` recorded stage times and no load.
+- (E18-A6, P4; E10-A1, E11-A1, E17-A8 restated) Deploy checklist, before `infra/bin/deploy` of an integrated main
+  (a main that took more than one batch or story PR since the last deploy): `pnpm test:e2e:full` is green on that
+  main commit, run under the host lock, with the host load line above, and recorded in the epic context's gate or
+  deploy section before the deploy starts. A test red once and green alone counts only with both runs recorded and
+  the failing state explained (E15-A4). `pnpm verify` alone is not this record: the `@p1` and `@p2` specs run only
+  in `test:e2e:full`. The same step is in `infra/PUBLISHING.md` § Every publish, step 1. For Epic 18 the record is
+  the retrospective's run of 2026-10-30 on `677415a8` (the code of `3b45e83c`): 537 of 542, one red green alone
+  (2 of 2), 4 skipped, load 3.30 at the start and 3.08 at the end, lock wait 0 s (`epic-18-retro-2026-10-30.md`
+  § Behavior verification).

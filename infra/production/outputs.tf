@@ -91,6 +91,16 @@ output "smoke_log_group" {
   value = aws_cloudwatch_log_group.this["smoke"].name
 }
 
+# E18-A2 (2026-11-03): read by infra/bin/deploy's smoke step "check the usage events", which
+# counts this tag's session_start events and the api's ux_event_sink_failed lines.
+output "ux_events_log_group" {
+  value = aws_cloudwatch_log_group.ux_events.name
+}
+
+output "api_log_group" {
+  value = aws_cloudwatch_log_group.this["api"].name
+}
+
 output "smoke_secret_id" {
   description = "The Secrets Manager secret holding the smoke user's password (its name, for get-secret-value)."
   value       = aws_secretsmanager_secret.smoke_user_password.name

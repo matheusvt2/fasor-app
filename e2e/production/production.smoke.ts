@@ -1,8 +1,10 @@
-import { appendFileSync, mkdirSync, rmSync } from 'node:fs';
+import { appendFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, type Op } from '@app/domain';
-import { expect, test, type APIRequestContext, type Download, type Locator, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type ConsoleMessage, type Download, type Locator, type Page } from '@playwright/test';
 import { installPlateCamera } from './camera-stream.ts';
+import { previewRequest } from './preview-tab.ts';
 import { readSmokeEnv, SMOKE_PROGRESS_FILE, SMOKE_RESULTS_DIR } from './smoke-env.ts';
 
 /*
@@ -259,15 +261,45 @@ test('production smoke: sign in, edit and sync, a sheet photo, a plate reading, 
   });
 
   await step('6. preview the PDF', async () => {
-    await page.goto(`/relatorio/${relatorioId}`);
-    await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
-    await footButton(page).click();
+    // Batch e18fb (2026-11-03): what the device said, kept for the one retry of a closed tab.
+    const consoleErrors: string[] = [];
+    const onConsole = (message: ConsoleMessage) => {
+      if (message.type() === 'error') consoleErrors.push(message.text());
+    };
+    page.on('console', onConsole);
+    const openSumario = async () => {
+      await page.goto(`/relatorio/${relatorioId}`);
+      await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+      await footButton(page).click();
+    };
+    await openSumario();
     const preview = exportDialog(page).locator('.generate-row').getByRole('button', { name: /^(Pré-visualizar|Gerando rascunho…)$/ });
-    const opened = context.waitForEvent('page');
-    await preview.click();
-    const tab = await opened;
     // Headless Chrome has no PDF viewer: the tab's navigation to the PDF is what is observed.
-    const requested = await tab.waitForRequest(/\/api\/relatorios\/[0-9a-f-]{36}\/preview\.pdf\?v=[0-9a-f-]{36}$/, { timeout: DOCUMENT_TIMEOUT });
+    const { request: requested, tab } = await previewRequest({
+      openTab: async () => {
+        const opened = context.waitForEvent('page');
+        await preview.click();
+        return opened;
+      },
+      url: /\/api\/relatorios\/[0-9a-f-]{36}\/preview\.pdf\?v=[0-9a-f-]{36}$/,
+      timeout: DOCUMENT_TIMEOUT,
+      recover: async (error) => {
+        // The web closes the tab and then draws its failure line (`use-preview.ts`): give it a moment.
+        const alerts = exportDialog(page).locator('.gen-error, [role="alert"]');
+        await alerts
+          .first()
+          .waitFor({ timeout: 5_000 })
+          .catch(() => {});
+        const failureLine = await alerts.allTextContents().catch(() => []);
+        const record = { at: new Date().toISOString(), error: error.message.split('\n')[0], failureLine, consoleErrors: [...consoleErrors] };
+        writeFileSync(resolve(SMOKE_RESULTS_DIR, 'preview-retry.json'), `${JSON.stringify(record, null, 2)}\n`);
+        console.log(`6. preview the PDF: the preview tab closed before its request (${record.error}); pressing it once more`);
+        console.log(`6. preview the PDF: the dialog said ${JSON.stringify(failureLine)}; console errors: ${JSON.stringify(consoleErrors)} (also in preview-retry.json)`);
+        if (await exportDialog(page).isVisible()) await page.keyboard.press('Escape');
+        await openSumario();
+      },
+    });
+    page.off('console', onConsole);
     const pdf = await page.request.get(requested.url());
     expect(pdf.status()).toBe(200);
     const bytes = await pdf.body();

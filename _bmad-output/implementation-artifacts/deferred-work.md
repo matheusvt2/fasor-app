@@ -841,7 +841,6 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: deferred
   state: ~~open (owner: Epic 7 batch G2 or the integrated Epic 7/8 review)~~ closed (2026-09-28, `spec-epic-9-carry-over.md`, batch C1, E7-A4: `preIssue`'s calibration rows iterate `section11Instruments(snapshot)` and judge each on its registry row, so they name exactly what section 11 prints; `pre-issue-export.test.ts` "the calibration rows follow section 11's own list")
 
-
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-2-7-3-photo-record-points-certificates.md`
   summary: Narrowing. Section 11 prints the placeholder line for an instrument with no certificate attached, but the pre-issue warning row for it is not built. The kernel list it reads is ready: `missingCertificates(snapshot)` in `packages/domain/src/print/section-11.ts`.
   evidence: Epic 7 context, coordinator decisions of 2026-09-26: the pre-issue rows are batch G3's (Stories 7.4/7.5), and batch G2 does not touch `preIssue`.
@@ -1969,7 +1968,6 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: debt
   state: ~~open (owner: the next carry-over batch, with the two entries it points at)~~ closed (2026-10-14, batch co14a): 6.6-E2E-011, 7.5-E2E-003 and 7.5-E2E-004 pressed `Escape` before React Aria handed the focus back to the dialog (the E9-Q13 family); each now waits for it through the shared `escapeDialog` and asserts the dialog closed. WebKit F-11 was a product defect: WebKit's focus scroll ignores `scroll-padding-bottom` (probe: padding 133 px set, the reading left at 698 px under a bar whose top was 612 px of 800), so a keyboard-moved focus is now scrolled clear of the Sticky action bar and the App bar by `keepClearOfStickyBar` (`toast.tsx`, beside the `--sticky-bar-covered` writer, all browsers), run on the focus and again when the page or the bar changes size within 1.5 s (the reading left grows its row on blur; the Bulk mirror joins the bar); the test now measures three frames after each key, as a person sees it, since both changes land a frame later and WebKit has no scroll anchoring. F-11 on `durability-webkit`: 5 of 5 with the fix, red with the hook removed.
 
-
 ## Deferred from: Story 14.5, the measurement table and the Chave de transferência automática (2026-10-13)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
@@ -2146,7 +2144,6 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: process
   state: ~~open (owner: the coordinator, with this batch's orchestrator: merge main after e14b merges, gate, open the PR)~~ closed (2026-10-14: PR #126 and PR #127 merged; this branch merged `origin/main` at `3acbddb`, taking main's version of every file the batch did not change and re-applying the Story 14.5 delta on the 114 it did, and gated on that merge)
 
-
 ## Deferred from: Epic 14 QA fix batch (2026-10-14)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-14-qa-fixes.md`
@@ -2178,7 +2175,6 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: the `install` service of `docker-compose.yml`; pnpm 12.5.1.
   class: debt
   state: ~~open (owner: tooling)~~ closed (2026-10-14, `spec-e14-carry-over-b.md`, E14-A13: pnpm 12 reads its settings from `pnpm_config_*` only, so the `npm_config_store_dir` of the `x-app-env` anchor was ignored and every pnpm call in a container looked for a store itself, writing `_tmp_<pid>_*` probe files into the bind-mounted worktree root (seen 3 to 6 per `install`, left behind when a run is cut short). The anchor now sets `pnpm_config_store_dir` to the store that lookup already picked, `/workspace/node_modules/.pnpm-store`, which skips the probe: no `_tmp_*` file during `install` or `pnpm exec`, `--frozen-lockfile` green, packages still hard linked from the same store, and a fresh set of volumes installs clean.)
-
 
 ## Deferred from: production deploy v0.2.0 (2026-10-14)
 
@@ -2314,12 +2310,12 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The P2/P3 findings of the 2026-10-22 hands-on pass (F1–F3, F5, F7–F15, F18–F27, F30–F39, F44–F50) are recorded only in `_bmad-output/test-artifacts/manual/ux-pass-2026-10-22.md`; they need triage into stories or a later fix batch.
   evidence: review finding 8; the report is the backlog source until then.
   class: backlog
-  state: open (owner: Matheus)
+  state: ~~open (owner: Matheus)~~ open since 2026-10-22 (owner: Matheus, the triage into stories or the next epic's carry-over batch; dated 2026-11-03, E15-A1: untriaged as a list since the pass, while Epics 16 to 19 took single findings from Bruno's feedback)
 - source_spec: `_bmad-output/implementation-artifacts/spec-ux-pass-fixes-2026-10-22.md`
   summary: With TAP Nº now read from the plate, a transformer ratio row is named by a number ("5, V primário"); the dictation parser (`parse/utterance.ts` `tableDictationLabel`) may take that leading number as the value.
   evidence: review finding 17, unverified (maybe-false, medium if true). Settle with a dictation parse test over a row named "5".
   class: verification-gap
-  state: open (owner: next fix batch)
+  state: ~~open (owner: next fix batch)~~ open (owner: Story 13.9, dictation on behind one line of consent, in the backlog since 2026-10-21; dictation reaches no user before it, so its build adds the parse test over a row named "5"; re-owned 2026-11-03, E15-A1: `parse/utterance.test.ts` still has no such case)
 
 ## Deferred from: Stories 15.3 and 15.6, seed v9 and the ratio with √3 (2026-10-22)
 
@@ -2327,7 +2323,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: A company template with a dry (EPÓXI or Á SECO) TP, TC or Transformador de força keeps `indicador_nivel_de_oleo` in that block's `na_defaults`; seed v9 drops the item, so the template fails v9's row check and `templateSeedUpgrade` leaves it on v8 (Story 14.3: only `seed_version` moves). Relatórios made from it are born on v8, without the two new site items, the TC change or the √3 ratio. The standard template has no dry subtype and moves. Options: a data step that filters the dropped key out of `na_defaults` while moving, or leave such templates on v8.
   evidence: `packages/domain/src/templates/from-relatorio.test.ts` "Story 15.3: a v4/v8 template with a dry transformer ... fails v9 and stays"; `epic-15-context.md` defaults (Bruno answer 1 pending).
   class: decision
-  state: open (owner: coordinator / Bruno answer 1)
+  state: ~~open (owner: coordinator / Bruno answer 1)~~ closed, moot (2026-11-03, E15-A1: Matheus recorded on 2026-10-23 under Story 15.6 in `epics.md` that "the dry-template migration is moot: the production migrate task of v0.3.0 moved all 7 templates to v9 and skipped none"; no production template is left on v8)
 
 ## Deferred from: Stories 15.4 and 15.5 (2026-10-22)
 
@@ -2335,7 +2331,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: No back target leads to `/relatorio/:id/arvore` any more (Story 15.4), but its phone presentation (the rail drawn full width) still renders when the address is typed or deep-linked. Remove the phone presentation, or the route below 768 px, if it is not wanted.
   evidence: `apps/web/src/app.tsx` keeps the route for the rail and deep links; `relatorio.css` keeps the `/relatorio/:id/arvore` phone rules.
   class: backlog
-  state: open (owner: a later story)
+  state: ~~open (owner: a later story)~~ open (owner: Matheus decides whether the phone presentation stays; if it goes, the next epic's carry-over batch removes it (playbook § 6, E6-A7); re-owned 2026-11-03, E15-A1: the route still renders, `apps/web/src/app.tsx:158`)
 - source_spec: `_bmad-output/implementation-artifacts/spec-15-4-15-5-voltar-coluna-add.md`
   summary: From 1024 px a coluna's "Adicionar equipamento" follows the local button's toggle literally: since a coluna's body shows only while it is the target, the press always releases it and closes the row. Whether it should instead keep the target (idempotent) or be hidden where the palette is inline is open.
   evidence: spec Design Notes; `template-composer.tsx` `onAddEquipamento`.
@@ -2349,7 +2345,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: With only automatic points the Sumário's row 8 reads "N automáticos" (Matheus, 2026-10-23), but the Points surface heading still reads "Pontos de atenção (0 + N automáticos)"; the same wording rule belongs there.
   evidence: PR #174 open question; `apps/web/src/surfaces/points/points-surface.tsx` heading, kernel text in `points/summary.ts`.
   class: bug
-  state: open (owner: the next fix batch)
+  state: ~~open (owner: the next fix batch)~~ open (owner: the next epic's carry-over batch, playbook § 6, E6-A7; re-owned 2026-11-03, E15-A1: fx15q, fx17r and the 2026-10-29 fix batches did not take it, and `pointsHeadingText` (`packages/domain/src/points/summary.ts:147-151`) still answers "(0 + N automáticos)" with no live point)
 
 ## Deferred from: Epic 16 integrated QA browser pass (2026-10-26)
 
@@ -2419,7 +2415,7 @@ Source: `_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md` § D
   summary: The "Ler visor" exhausted-target guard runs only with "Câmera do aparelho" on (`camera-session.tsx:160`, `if (cameraApp && …)`); with it off and no `getUserMedia` (the pre-17.2 fallback picker), the file chooser opens where the viewfinder disables its shutter, and the picked photo lands as a plain sheet photo (retro R1).
   evidence: `camera-session.tsx:156-166`; pre-existing path, rare (a desktop without a camera, every cell read).
   class: bug
-  state: open (owner: fix batch fx17r if its scope allows, else the next camera batch; drop the `cameraApp &&` so the guard covers both picker paths)
+  state: ~~open (owner: fix batch fx17r if its scope allows, else the next camera batch; drop the `cameraApp &&` so the guard covers both picker paths)~~ open (owner: the next epic's carry-over batch, playbook § 6, E6-A7; re-owned 2026-11-03, E17-A6: fx17r (PR #199) finished without it and the guard still reads `if (cameraApp && …)` at `camera-session.tsx:162`; the fix is the same)
 - source_spec: `_bmad-output/implementation-artifacts/spec-17-2-17-7-device-camera-app-save-to-device.md`
   summary: A camera-app HEIC whose `heicToJpeg` rejects (decoder chunk unavailable offline, decode error) is lost with the failure toast; the `capture` input keeps no copy in the device's camera roll (retro R3).
   evidence: `camera-single-shot.tsx:125-141`. iOS answers a file input with JPEG by default, so the case needs a device set to keep HEIC. Cheapest guard: an authored toast that says to take the photo again; a fuller one keeps the raw file in the outbox for a later conversion.
@@ -2559,7 +2555,7 @@ Source: `_bmad-output/test-artifacts/manual/prod-pass-2026-10-28.md` § "Re-chec
   summary: Record every user interaction to find friction (Matheus, 2026-10-29): Amelia's analysis and recommendation (an offline event queue in IndexedDB flushed with the sync to `POST /api/telemetry`, a dedicated CloudWatch Logs group queried with Logs Insights, no free text, 90 days, cents a month) in `backlog-2026-10-29-home-nav-and-telemetry.md` § 2, with three stories and an architecture amendment (a second local write kind outside the op log).
   evidence: the op log records every data edit but no navigation, cancel, retry, disabled tap or wait; CloudWatch holds only the api, ocr, caddy, migrate and smoke groups.
   class: debt
-  state: open (owner: Matheus approves the amendment, the LGPD wording and the three stories for a coming epic)
+  state: ~~open (owner: Matheus approves the amendment, the LGPD wording and the three stories for a coming epic)~~ closed (2026-11-03, E18-A3: Matheus approved the amendment (AD-28, planning PR #211) and the three stories, built as Epic 18 (PRs #212, #213) and deployed on 2026-10-30 as `3b45e83c` (smoke 8 of 8, `epic-18-context.md`); only the LGPD wording stays open, carried by the Conta row "Uso do aplicativo" (`// authored (Epic 18, open for Bruno)`) and E18-A5 item 5)
 
 ## Deferred from: Epic 18 batch o18a (Stories 18.1 and 18.2, 2026-10-29)
 
@@ -2600,7 +2596,8 @@ Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
 
 - source_spec: `_bmad-output/implementation-artifacts/epic-19-context.md`
   summary: `infra/bin/check` is red on the operator's machine at its `terraform init -backend=false` step for both stacks ("No valid credential sources found", the S3 backend's message) while every other step passes; the check is documented as needing no AWS login.
-  evidence: Run of 2026-10-30 before the Epic 19 deploy (`.scratch-prodfix/check-29f030b2.log`): fmt, validate, tflint, caddy validate, the fallback origin secret and shellcheck `ok`, `FAILED: terraform init bootstrap` and `FAILED: terraform init production`. Both stack directories hold a `.terraform/terraform.tfstate` written on 2026-10-05 by a real init with the S3 backend, and the container has no credentials; a plain `infra/bin/tf production init` (with the login session) and `plan` ran green the same minute. To decide: let the check pass `-reconfigure` with `-backend=false`, run it in a scratch copy of the stack directory, or mount the login session for that one step. Owner: the next infrastructure batch (E18-A2 or later).
+  evidence: Run of 2026-10-30 before the Epic 19 deploy (`.scratch-prodfix/check-29f030b2.log`): fmt, validate, tflint, caddy validate, the fallback origin secret and shellcheck `ok`, `FAILED: terraform init bootstrap` and `FAILED: terraform init production`. Both stack directories hold a `.terraform/terraform.tfstate` written on 2026-10-05 by a real init with the S3 backend, and the container has no credentials; a plain `infra/bin/tf production init` (with the login session) and `plan` ran green the same minute. ~~To decide: let the check pass `-reconfigure` with `-backend=false`, run it in a scratch copy of the stack directory, or mount the login session for that one step. Owner: the next infrastructure batch (E18-A2 or later).~~
+  state: done (2026-11-03, batch e18fb: `infra/bin/check` runs `init -backend=false` and `validate` with `TF_DATA_DIR=.terraform/check`, a data dir of its own under each stack, and `infra/bin/tf` passes `INFRA_TF_DATA_DIR` into the container as `TF_DATA_DIR` (a dedicated name, so an operator's exported `TF_DATA_DIR` never reaches the deploy); the operator's `.terraform/terraform.tfstate` is never read or changed. Proved on a copy of `infra/` with the main checkout's S3-backend `terraform.tfstate` in both stacks: the old check `FAILED: terraform init bootstrap` and `production` with "No valid credential sources found", the new one `all passed`, the state file byte for byte the same; `infra/README.md` § Checks)
 
 ## Deferred from: the deploy of 2026-11-03 (54b11947)
 
@@ -2642,3 +2639,115 @@ Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
   evidence: Review ECH-3 of batch e18fa (2026-11-03): `apps/api/src/db/friction-read.ts` `foldFriction` (`ts > photo.armed.failedAt`); the comparison is the one E18-A1 prescribed. A skew window, or the put's own `received_at` against the failure's, would bound it.
   class: risk
   state: open (owner: the first digest, E18-A7, reads the count beside the device clocks it can see)
+
+  state: ~~open (owner: the next infra batch, E18-A2 or E15-A10)~~ done (2026-11-03, batch e18fb: step 6 presses the preview through `previewRequest` (`e2e/production/preview-tab.ts`), which retries once, and only when the tab closed before the preview request was seen: it records the dialog's failure line and the page's console errors to `test-results/production-smoke/preview-retry.json` and the log, closes the dialog, reloads the Sumário and presses once more; a second close fails the step with the first error, any other error at once; the eight steps and every assertion unchanged. Unit test with fakes `scripts/preview-tab.test.ts`. The suite's own re-run by the deploy stays open question Q-1)
+
+## Deferred from: the Epic 18 retrospective and the ledger hygiene of Epics 15 to 17 (2026-11-03, batch e18fd)
+
+Source: `epic-15-retro-2026-10-26.md` (E15-A1: R15-13, R15-14), `epic-16-retro-2026-10-26.md` (E16-A5: R16-14, R16-17, R16-18), `epic-17-retro-2026-10-28.md` (E17-A6: F13, F15) and `epic-18-retro-2026-10-30.md` (E18-A3: P7, A3, R-A2, R-A5, R-A6, R-A12, R-A13, R-E4, the `test:e2e:full` red of Behavior verification). Rows that already existed were re-owned or closed in place with a dated note above. Owner "the next epic's carry-over batch" is the first batch of the next epic, which takes the agent-closable ledger rows of earlier epics (`epic-batch-orchestrator.md` § 6, E6-A7); the coordinator reads these rows when it cuts that batch. Epic 16's third spec `deferred:` item (a tablet's soft numeric keypad cannot type N.A, `spec-16-4-na-in-number-fields.md`) has no row on purpose: it was a product decision recorded under Story 16.4 in `epics.md`, answered by Bruno on 2026-10-27 and built as Story 17.3 (E16-A1 closed). Epic 17's remaining owners are scheduled items (Bruno's tablet session E17-A3, the next batch touching a named file); no Epic 17 row is owned by a finished event after the R1 re-owning above.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-15-2-tree-levels.md`
+  summary: A collapsed local, painel or coluna shows no NC indicator, so a band closed in the Sumário tree hides that a sheet under it holds an open NC (PR #167 "Known open"; the as-built line under Story 15.2 says "(known open)").
+  evidence: PR #167 body § Known open ("The mocks draw none on bands; the header's 'NC abertos' tap opens the path to the sheet"); `epics.md:4016`; `epic-15-retro-2026-10-26.md` R15-13. The bands draw `ncBadge` for the site card and for sheets only (`apps/web/src/surfaces/relatorio/relatorio-tree-rail.tsx:80,121`).
+  class: known-open
+  state: open (owner: Matheus, with Bruno at his tablet session (E17-A3): whether a collapsed band needs an indicator the mocks do not draw; if yes, the next epic's carry-over batch, the count derived in the kernel's tree, AD-1)
+- source_spec: `_bmad-output/implementation-artifacts/spec-16-2-16-3-revision-banner-display-shots.md`
+  summary: A relatório whose last revision predates Story 16.3 and holds display shots showed its gallery numbers as the revision's while they no longer matched that revision's document (spec `deferred:` item 1, PR #181 "Known open").
+  evidence: spec frontmatter `deferred:` (`gallery-surface.tsx:126` at the time); `epic-16-retro-2026-10-26.md` R16-14 and R16-18 (the row was never written).
+  class: known-open
+  state: closed into the Story 17.1 and 17.4 row of § Epic 16 integrated QA browser pass above (2026-11-03, E16-A5): Story 17.4 numbered display shots again and Story 17.1 changed the order, so any relatório whose latest revision predates 17.1 and 17.4 shows the drift that row describes; it ends by itself at the next revision of each such relatório
+- source_spec: `_bmad-output/implementation-artifacts/spec-16-2-16-3-revision-banner-display-shots.md`
+  summary: A ponto de atenção that cited a display shot before Story 16.3 printed "imagem removida" in section 8, because a token without a number resolved to `REMOVED_PHOTO_REF_TEXT` (spec `deferred:` item 2).
+  evidence: spec frontmatter `deferred:` (`section-8.ts:72` at the time); `epic-16-retro-2026-10-26.md` R16-13 and R16-18.
+  class: question
+  state: closed (2026-10-28, Story 17.4, batch e17a, PR #190, `0bdd925a`: Bruno's answers 1 and 5 of 2026-10-27; a display shot is numbered again, so a cited display shot prints "Imagem N"; a photo deleted since keeps "imagem removida" (confirmation 6 of the Epic 17 preamble); E16-A2 closed; recorded 2026-11-03, E16-A5)
+- source_spec: `_bmad-output/implementation-artifacts/spec-16-2-16-3-revision-banner-display-shots.md`
+  summary: The point editor's photo picker applied the kernel's display-shot rule a second time in `apps/web` (`tile.reading_kind !== 'display'` at `point-editor.tsx:741`, the 16.3 ECH-5 patch), while the cross-story table named one filter, `numberPhotos`, for every reader (low).
+  evidence: `epic-16-retro-2026-10-26.md` R16-17; `spec-16-2-16-3-revision-banner-display-shots.md:143`.
+  class: debt
+  state: closed (2026-10-28, Story 17.4, `0bdd925a`: the filter is gone; the picker offers display shots like any photo, `apps/web/src/surfaces/points/point-editor.tsx:725,740`; recorded 2026-11-03, E16-A5)
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18b.md`
+  summary: The friction read loads every op row of the company into memory at once (`readFriction` selects all ops of the company ordered by `seq` and folds them in memory); fine for the one-shot CLI at today's volume, a large company would need paging by `seq`.
+  evidence: spec frontmatter `deferred:` (severity low); `apps/api/src/db/friction-read.ts` `readFriction` (one repeatable-read transaction over the relatórios, blocks and ops); `epic-18-retro-2026-10-30.md` P7 (i).
+  class: debt
+  state: open (owner: the first monthly digest, E18-A7 on 2026-11-30, which is the read's first production run: it records the run time and the task's memory; paging by `seq` becomes a carry-over item only if that run nears the migrate task's memory)
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
+  summary: One unknown event refuses the whole telemetry batch with `400 telemetry_invalid` and the device deletes it, so a bundle and an api that disagree on a closed list (the minutes of a deploy) lose that device's batch (retro R-A2, confirmed by design).
+  evidence: `apps/api/src/http/telemetry.ts:61-63`, `apps/web/src/telemetry/flush.ts:64-65` (line numbers of `3b45e83c`); `epic-18-retro-2026-10-30.md` R-A2. The rule that keeps the window short (names, kinds and targets are appended, never removed or renamed within a release) belongs in `docs/observability.md` § Adding an event name, the E18-A3 docs part owned by this wave's observability lane.
+  class: risk
+  state: open (owner: the first monthly digest, E18-A7: count the api's `telemetry_invalid` answers in `/fasor/production/api` over the month; a per-event parse (keep the valid events, drop the unknown) is cut as a story only if the count is not zero outside deploy minutes)
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
+  summary: Two tabs of one device share one telemetry queue and can both post the same oldest rows, since the in-flight guard is module state per tab (retro R-A5, plausible); rare on a tablet PWA, possible on a desktop review.
+  evidence: `apps/web/src/telemetry/flush.ts:33-35` (line numbers of `3b45e83c`); `epic-18-retro-2026-10-30.md` R-A5. Fix: Web Locks (`navigator.locks.request`) around the drain.
+  class: risk
+  state: open (owner: the next epic's carry-over batch, playbook § 6, E6-A7; the digest can see duplicates as two rows with one `ts`, `session_id` and `name`)
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
+  summary: The beacon awaits an IndexedDB read before `navigator.sendBeacon`, so a tab closed at once may hand nothing to the browser; the rows are not lost (they go with the next sync) but can land on a later day (retro R-A6, plausible). The `pagehide` listener is E18-A1's one-line fix; this row is the deferred half, a synchronous in-memory mirror of the unsent rows the beacon can send without awaiting.
+  evidence: `apps/web/src/telemetry/flush.ts:110-118`, `apps/web/src/telemetry/instrument.ts:59-66` (only `visibilitychange` listened to); `epic-18-retro-2026-10-30.md` R-A6.
+  class: improvement
+  state: open (owner: the next epic's carry-over batch, after E18-A1 adds `pagehide`; measure first at the digest whether late rows show, `received_at` days after `ts`)
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
+  summary: Two api processes started in the same millisecond would share one CloudWatch stream name (`api/<start instant>/<pid>`), since the name is the start instant and the pid (retro R-A12).
+  evidence: `apps/api/src/telemetry/sink.ts:34-35` `logStreamName`; one api task in production, and two processes of one task cannot share a pid.
+  class: risk
+  state: accepted (2026-10-30, Epic 18 retrospective: not reachable in practice; recorded 2026-11-03, E18-A3, no owner)
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
+  summary: One `sync_result` row and one `POST /api/telemetry` per `ran` cycle: the engine runs a cycle every 60 s while the tab is visible and every 5 s while a reading is pending, and an empty outbox still pulls, so the `syncs` view is dominated by idle cycles and is read as ratios, not counts (retro R-A13; per Story 18.1's criterion "`sync_result` per finished cycle"). About 500 rows and 500 requests a day per active device, within the cost line.
+  evidence: `apps/web/src/state/sync.tsx` `observeCycle` (`:257-262` at `3b45e83c`); `apps/web/src/sync/engine.ts:164,173`; first production read of 2026-10-30 (23 `ran` rows in fifteen minutes on one device, 19 in one minute on the smoke runner); `epic-18-retro-2026-10-30.md` R-A13.
+  class: decision
+  state: open (owner: Matheus, E18-A5 item 2, after the first digest (E18-A7) measures the share of `sync_result` rows: keep one row per ran cycle, or amend Story 18.1 to transitions and cycles that moved data)
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
+  summary: The `reading` wait counts from the shot's `captured_at`, so offline time and a failed first attempt inflate it, and a re-read ("Ler de novo") measures from the original shot, not from the re-read tap (retro R-E4, accepted as Story 18.1's "shot stored to result").
+  evidence: `apps/web/src/telemetry/readings.ts:49-52`; `epic-18-retro-2026-10-30.md` R-E4. The runbook caveat ("reading waits count from the shot") is the E18-A3 docs part in `docs/observability.md`, owned by this wave's observability lane.
+  class: improvement
+  state: open (owner: Story 18.4, which re-times the waits (its scope item 5 times `preview` and `generate`) and extracts the observer around `sync.tsx` `rereadPhoto` (`:542`), where a re-read could stamp its own start for `readings.ts`; if 18.4 leaves it, the next epic's carry-over batch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
+  summary: `apps/web/src/state/sync.tsx` grew from 522 to 631 lines and is now the telemetry observer of the engine as well as the owner of the sync state (`observeCycle`, `failureCode`, `failureOutcome`, `syncWaitOutcome`, the dead-op `trackError` effect, the waits of `syncNow`, `generate`, `preview` and `rereadPhoto`); the helpers belong in `apps/web/src/telemetry/sync-observer.ts` as pure functions, with `sync-telemetry.test.tsx` moving beside them (retro A3).
+  evidence: `epic-18-retro-2026-10-30.md` A3 (`sync.tsx:245-275`, `:385-400`, `:460-552` at `3b45e83c`); `epics.md` Story 18.4 Definition of Ready scope item 5 ("with the `sync.tsx` observer extraction of retro finding A3 in the same change").
+  class: debt
+  state: open (owner: Story 18.4, the same change that re-times `preview` and `generate`; closes E18-A5 item 3)
+- source_spec: `_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md`
+  summary: `e2e/photo-numbers.spec.ts` `closeDialog` presses `Escape` after "Marcar como enviado ao cliente"; when the pressed button unmounts, focus falls to `body` and `Escape` can miss the Export dialog, which stays visible past the 5 s expectation (7.2-E2E-001 red once in the retrospective's `test:e2e:full`, green alone, 2 of 2).
+  evidence: `e2e/photo-numbers.spec.ts:82-85`; `epic-18-retro-2026-10-30.md` § Behavior verification (`.scratch-prodfix/e2e-full-retro18.log`, the rerun `.scratch-prodfix/e2e-photo-numbers-rerun.log`); the spec and `dialog-shell.tsx` unchanged since 2026-10-13 and 2026-09-23.
+  class: test-gap
+  state: open (owner: the next epic's carry-over batch, or the first batch that touches `photo-numbers.spec.ts`: `closeDialog` focuses the dialog or presses its close control before `Escape`; a wave gate that sees it red again re-runs it alone per E15-A4 and links this row)
+
+## Deferred from: the integrated review of Epics 15 and 16 (2026-11-03, E15-A5 and E16-A6)
+
+Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (main `0fede8ac`).
+
+- **E15-R1, the rail's site card is named without its counter.** `apps/web/src/surfaces/relatorio/relatorio-tree-rail.tsx:67` sets the button's `aria-label` to the label, NC badge and name, which replaces the content, so "N de M" (`site.railCounter`) and the state word are never announced (the mock and the Sumário card carry the counter); both trees compose the "· ncBadge" in `apps/web` (also `relatorio-tree-sumario.tsx:116`) against Story 15.2's rule that every text is composed in `packages/domain`. Fix: the kernel site node exposes one accessible name used by both trees.
+  state: open (owner: the next epic's carry-over batch)
+- **E15-R2, the palette drawer's target is not announced on open.** `apps/web/src/surfaces/templates/block-palette.tsx:88` holds the target ("Toque para adicionar em: ...") in an `aria-live` paragraph mounted with the dialog, which screen readers usually skip; the drawer is named only "Blocos" since Story 15.5 (`:265-272`). Fix: `aria-describedby` on the drawer's `DialogShell` pointing at that paragraph.
+  state: open (owner: the next epic's carry-over batch)
+- **E16-R1, an `unchanged` ready names an older revision.** `apps/web/src/surfaces/export/use-generate.ts:456-458`: the "anterior às alterações" banner and row tags are suppressed only while generating, so an `unchanged` answer whose revision is not pulled yet shows "Revisão N pronta" over "(revisão N-1). Alterações desde então geram a revisão N" (Story 16.2 AC 3). Fix: gate both on `readyHeld`, with a dialog test that delivers the job before the revision.
+  state: open (owner: batch s184, the Story 18.4 wave, which re-times the waits in the same file)
+- **E16-R2, a cabine environment display shot prints nowhere yet holds a photo number.** A temperature or humidity "Ler visor" shot on a local (`apps/web/src/surfaces/ficha/read-display.tsx:733`, `displayEnvTarget`) has no block and no item; Story 16.3 took display shots out of section 7 for sheets only and Story 17.4 kept this one unprinted and numbered last (`packages/domain/src/print/photo-order.ts:83-86`, `:112-113`; pinned by `section-9.test.ts:1169`). The evidence of AMBIENTE DE ENSAIO leaves the document and the gallery shows a "Foto N" no "Imagem N" carries. Options: print it under the cabine's characteristics or environment part, or leave it out of the numbering and say so in the gallery.
+  state: open (owner: Matheus, with Bruno; then the next epic's carry-over batch)
+
+## Deferred from: batch e18fb (2026-11-03)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e18fb-observability-and-tooling.md`
+  summary: E15-A10, the deploy that died after the roll: diagnosed and fixed. The v0.3.0 deploy (2026-10-23) rolled the services, then the AWS CLI container lost `https://ecs.us-east-1.amazonaws.com/` during `aws ecs wait services-stable` (exit 255, "Could not connect to the endpoint URL"), and `set -euo pipefail` ended `infra/bin/deploy` before the tag record and the smoke; the cause is a transient network loss between the host's container VM and the AWS endpoint, not an AWS error, and nothing in the script retried or said how to finish.
+  evidence: main checkout `.scratch-deploy/deploy-v0.3.0.log:762` (`aws: [ERROR]: Could not connect to the endpoint URL`, `DEPLOY_EXIT=255`); `epic-15-retro-2026-10-26.md` R15-9. Fix: `aws_retry` in `infra/bin/lib.sh` (exit 255 with a connection message only; 5 attempts 15 s apart by default) around the repeatable calls after the roll (the stable wait, `ssm get-parameter`, `ssm put-parameter --overwrite`, the one-shot polls; never `run-task`), an EXIT trap that prints `infra/bin/deploy --resume --tag <tag>` once the roll started and before the smoke finished, and `--resume` (no build, push, migrate or roll; a read-only check that every service runs the tag; then the wait, health, record and smoke). Tests: `scripts/deploy.test.ts` (the retry with a stub, the hint on a failed stable wait, `--resume` and its refusal of another tag).
+  state: done (2026-11-03, batch e18fb; the next real deploy is the field proof: its log should show either no retry or `lost the AWS endpoint ... attempt n of 5` followed by the tag record)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e18fb-observability-and-tooling.md`
+  summary: The deploy's usage-events check (`smoke: check the usage events`) is a warning, never a failure, in this release; it should fail the deploy once it has been green on a production run.
+  evidence: `infra/bin/deploy` `check_usage_events`: N = 0 `session_start` with the tag, M > 0 `ux_event_sink_failed` or a read error print `deploy: warning: ...` and keep the exit; the coordinator's decision of 2026-11-03 (`epic-18-context.md` § Follow-up delivery) made it a warning for the first deploy that carries it. Turning it into a failure is a red smoke like the others (cleanup still runs, rollback hint printed) and changes `scripts/deploy.test.ts`'s warning cases.
+  class: risk
+  state: open (owner: the next infra batch, after the first deploy that prints `telemetry: N session_start ... ; 0 ux_event_sink_failed` with N >= 1)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e18fb-observability-and-tooling.md`
+  summary: The ten views' new text (the smoke filter, `sessions_per_day` by `substr(ts, 0, 10)`, the group from its resource) and the app role without `logs:DescribeLogStreams` reach production only with the next `infra/bin/tf production apply` or deploy; the new query syntax has run offline only (`infra/bin/check`), not in Logs Insights.
+  evidence: batch e18fb is offline by rule (no apply). The `users` view's `fields ... as ... | stats ... by` shape and `filter` chains already ran to `Complete` in production (2026-10-30), and `substr` is a documented Logs Insights string function, so the risk is low; the first read after the apply should open `sessions_per_day` and one filtered view and check they run to `Complete` and that the `smoke` row is gone from them.
+  class: risk
+  state: open (owner: the coordinator, at the deploy that carries the batch, on Matheus's word)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e18fb-observability-and-tooling.md`
+  summary: A `--resume` of a deploy cut after its tag record (during the smoke) reads `previous_tag` equal to the tag, so a red smoke on that resume says "no earlier tag was recorded to roll back to; fix forward" instead of naming the tag before the deploy.
+  evidence: `infra/bin/deploy` reads `previous_tag` from the image-tag parameter right before `put-parameter`; a first run that recorded the tag and then died leaves the parameter at the new tag. Review finding ECH-5 of batch e18fb. To decide: persist the pre-deploy tag (a file under `test-results/` or an SSM tag) or let `--resume` take `--previous-tag`.
+  class: risk
+  state: open (owner: the next infra batch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e18fb-observability-and-tooling.md`
+  summary: The smoke step 6 retry (`e2e/production/preview-tab.ts`) is unit-tested with fakes only; the `openTab` and `recover` callbacks the suite passes (press, Escape, reload the Sumário, reopen the dialog) run only against production.
+  evidence: `scripts/preview-tab.test.ts` covers the retry decision; the suite has no local run. Review finding VGR-4 of batch e18fb. The next deploy whose preview tab closes early is the proof: its log line `pressing it once more` and `test-results/production-smoke/preview-retry.json`.
+  class: risk
+  state: open (owner: the coordinator, at the next deploy that shows the retry)

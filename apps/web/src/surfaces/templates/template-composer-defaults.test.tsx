@@ -4,7 +4,7 @@ import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
 import { Link, MemoryRouter, Route, Routes } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { toRecord } from '../../db/commit.ts';
 import { templateRow } from '../../db/home-store.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
@@ -57,15 +57,26 @@ vi.mock('../../db/home-store.ts', async (original) => {
   return { ...actual, templateRow: vi.fn(actual.templateRow) };
 });
 
-// Each edit is an IndexedDB write plus a live-query round trip; under a full parallel run
-// that can outlast the one-second default.
-configure({ asyncUtilTimeout: 5000 });
+// E16-A10, E17-A8 (batch e18fb, 2026-11-03): load-independent waits. Each edit is an
+// IndexedDB write plus a live-query round trip, and these files timed out on loaded gate VMs
+// (PR #179, e16c, Epic 16 wave B, e17a) with a 5 s wait and the app's 15 s test budget. Every
+// wait ends on its condition, so an idle run is as fast as before; the wide bounds only stop
+// a loaded machine from failing a test that would pass. No wait in this file sets its own.
+configure({ asyncUtilTimeout: 30_000 });
+vi.setConfig({ testTimeout: 60_000 });
+
+// Pointer and keyboard events dispatch without the zero-delay pause between them (the
+// default `delay: 0` yields to the timer queue after each one); one instance per test.
+let user = userEvent.setup({ delay: null });
+beforeEach(() => {
+  user = userEvent.setup({ delay: null });
+});
 
 async function freshDb(row: TemplateRow | null): Promise<AppDatabase> {
-  const user = `019966b0-0038-7000-8000-${(++counter).toString(16).padStart(12, '0')}`;
-  const db = openDatabase(user);
+  const owner = `019966b0-0038-7000-8000-${(++counter).toString(16).padStart(12, '0')}`;
+  const db = openDatabase(owner);
   await db.delete();
-  const fresh = openDatabase(user);
+  const fresh = openDatabase(owner);
   if (row !== null) await fresh.entities.put(toRecord(`template:${row.id}`, row));
   return fresh;
 }
@@ -119,7 +130,7 @@ describe('3.5 composer: sub-block defaults per type', () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
     await screen.findByRole('complementary', { name: 'Paleta de blocos' });
-    await userEvent.click(within(palette()).getByRole('button', { name: 'Editar padrões de Chave seccionadora' }));
+    await user.click(within(palette()).getByRole('button', { name: 'Editar padrões de Chave seccionadora' }));
     const dialog = await screen.findByRole('dialog', { name: 'Padrões de Chave seccionadora' });
 
     const plate = within(dialog).getByRole('switch', { name: 'Dados de placa' });
@@ -132,7 +143,7 @@ describe('3.5 composer: sub-block defaults per type', () => {
       expect(toggle).toHaveAttribute('aria-checked', 'true');
       expect(toggle).toHaveTextContent('Sempre');
       expect([...toggle.closest('.toggle-row')!.querySelectorAll('.toggle-sub')].at(-1)).toHaveTextContent('Sempre na ficha');
-      await userEvent.click(within(dialog).getByText(locked, { selector: 'label' }));
+      await user.click(within(dialog).getByText(locked, { selector: 'label' }));
       expect(toggle).toHaveAttribute('aria-checked', 'true');
     }
     // E3-A9: the kernel's line under each sub-block that holds something, then the two "Sempre na ficha".
@@ -150,7 +161,7 @@ describe('3.5 composer: sub-block defaults per type', () => {
     expect(await axe(dialog)).toHaveNoViolations();
 
     // Off, on every placement, as one blocks put -- from a tap on the row's label.
-    await userEvent.click(within(dialog).getByText('Resistência de contato', { selector: 'label' }));
+    await user.click(within(dialog).getByText('Resistência de contato', { selector: 'label' }));
     await waitFor(async () => {
       const blocks = (await templateRow(database!, ID))!.blocks.filter((b) => b.block_type === 'chave_seccionadora');
       expect(blocks.every((b) => b.sub_blocks.resistencia_contato?.enabled === false)).toBe(true);
@@ -158,8 +169,8 @@ describe('3.5 composer: sub-block defaults per type', () => {
     await waitFor(() => expect(within(dialog).getByRole('switch', { name: 'Resistência de contato' })).toHaveTextContent('Desativado'));
 
     // No subtype: no NA pre-mark, every item still on the list.
-    await userEvent.click(within(dialog).getByRole('button', { name: /Abrir lista/ }));
-    await userEvent.click(await screen.findByRole('option', { name: 'Sem subtipo' }));
+    await user.click(within(dialog).getByRole('button', { name: /Abrir lista/ }));
+    await user.click(await screen.findByRole('option', { name: 'Sem subtipo' }));
     await waitFor(() => expect(within(dialog).getByText('Nenhum item marcado NA por padrão')).toBeVisible());
     expect(subtype).toHaveValue('Sem subtipo');
     const blocks = (await templateRow(database!, ID))!.blocks.filter((b) => b.block_type === 'chave_seccionadora');
@@ -170,10 +181,10 @@ describe('3.5 composer: sub-block defaults per type', () => {
   it('14.5: a measurement test that is not switchable (E4, E5 of the Chave de transferência automática) reads "Sempre" and offers no switch; the other four are switches', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
-    await userEvent.click(await screen.findByRole('button', { name: /^Coluna 9/ }));
+    await user.click(await screen.findByRole('button', { name: /^Coluna 9/ }));
     const stepper = within(palette()).getByRole('group', { name: 'Chaves de transferência automática, 0' });
-    await userEvent.click(within(stepper).getByRole('button', { name: 'Mais um' }));
-    await userEvent.click(await within(palette()).findByRole('button', { name: 'Editar padrões de Chave de transferência automática' }));
+    await user.click(within(stepper).getByRole('button', { name: 'Mais um' }));
+    await user.click(await within(palette()).findByRole('button', { name: 'Editar padrões de Chave de transferência automática' }));
     const dialog = await screen.findByRole('dialog', { name: 'Padrões de Chave de transferência automática' });
     const placed = async () => (await templateRow(database!, ID))!.blocks.filter((b) => b.block_type === 'chave_transferencia_automatica');
     const before = await placed();
@@ -204,8 +215,8 @@ describe('3.5 composer: sub-block defaults per type', () => {
       expect(toggle).toHaveTextContent('Sempre');
       expect([...toggle.closest('.toggle-row')!.querySelectorAll('.toggle-sub')].at(-1)).toHaveTextContent('Sempre na ficha');
       // A press on the switch or on its label writes nothing.
-      await userEvent.click(toggle);
-      await userEvent.click(within(dialog).getByText(name, { selector: 'label' }));
+      await user.click(toggle);
+      await user.click(within(dialog).getByText(name, { selector: 'label' }));
       expect(toggle).toHaveAttribute('aria-checked', 'true');
     }
     expect(await placed()).toEqual(before);
@@ -218,7 +229,7 @@ describe('3.5 composer: sub-block defaults per type', () => {
     expect(await axe(dialog)).toHaveNoViolations();
 
     // A switchable test still switches, on every placement of the type.
-    await userEvent.click(within(dialog).getByText('E1 · Resistência de contato', { selector: 'label' }));
+    await user.click(within(dialog).getByText('E1 · Resistência de contato', { selector: 'label' }));
     await waitFor(async () => expect((await placed()).every((b) => b.sub_blocks.cta_resistencia_contato?.enabled === false)).toBe(true));
     const after = (await placed())[0]!;
     expect(after.sub_blocks.cta_ajustes_controlador?.enabled).toBe(true);
@@ -230,21 +241,21 @@ describe('3.5 composer: sub-block defaults per type', () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
     await screen.findByRole('complementary', { name: 'Paleta de blocos' });
-    await userEvent.click(within(palette()).getByRole('button', { name: 'Editar padrões de TP — proteção' }));
+    await user.click(within(palette()).getByRole('button', { name: 'Editar padrões de TP — proteção' }));
     const dialog = await screen.findByRole('dialog', { name: 'Padrões de TP — proteção' });
     expect(within(dialog).getByRole('combobox', { name: 'Subtipo padrão' })).toHaveValue('Sem subtipo');
-    await userEvent.click(within(dialog).getByRole('button', { name: /Abrir lista/ }));
+    await user.click(within(dialog).getByRole('button', { name: /Abrir lista/ }));
     expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['Sem subtipo', 'Epóxi', 'Á seco']);
-    await userEvent.click(screen.getByRole('option', { name: 'Á seco' }));
+    await user.click(screen.getByRole('option', { name: 'Á seco' }));
     await waitFor(() => expect(within(dialog).getByText(naDefaultsCountText(dry))).toBeVisible());
     // "IA e IP lidos do visor" ships off and can be switched on.
     expect(within(dialog).getByRole('switch', { name: 'IA e IP lidos do visor' })).toHaveAttribute('aria-checked', 'false');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 
     // A TP placed on a coluna that had none starts with the type's config.
-    await userEvent.click(screen.getByRole('button', { name: /^Coluna 9/ }));
-    await userEvent.click(within(within(palette()).getByRole('group', { name: 'TP, 0' })).getByRole('button', { name: 'Mais um' }));
+    await user.click(screen.getByRole('button', { name: /^Coluna 9/ }));
+    await user.click(within(within(palette()).getByRole('group', { name: 'TP, 0' })).getByRole('button', { name: 'Mais um' }));
     await waitFor(async () => {
       const tps = (await templateRow(database!, ID))!.blocks.filter((b) => b.block_type === 'tp');
       expect(tps.reduce((sum, b) => sum + b.quantity, 0)).toBe(12);
@@ -257,7 +268,7 @@ describe('3.5 composer: sub-block defaults per type', () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
     await screen.findByRole('complementary', { name: 'Paleta de blocos' });
-    await userEvent.click(within(palette()).getByRole('button', { name: 'Editar padrões de Chave seccionadora' }));
+    await user.click(within(palette()).getByRole('button', { name: 'Editar padrões de Chave seccionadora' }));
     const dialog = await screen.findByRole('dialog', { name: 'Padrões de Chave seccionadora' });
     // No await between them: the second change is queued while the first is still writing.
     fireEvent.click(within(dialog).getByRole('switch', { name: 'Dados de placa' }));
@@ -278,13 +289,13 @@ describe('E9 sweep B11: section actions after a pull reordered the sections', ()
   it('"Remover" removes the section it was pressed on, wherever the row read at write time holds it', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
-    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 8 Pontos de atenção' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
+    await user.click(await screen.findByRole('button', { name: 'Mais opções de 8 Pontos de atenção' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Remover' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remover 8 Pontos de atenção?' });
     // The row this device reads at the moment of the write has section 8 first (index 6 now holds section 6).
     const stale = standardTemplate({ id: ID });
     vi.mocked(templateRow).mockImplementationOnce(async () => ({ ...stale, blocks: moveSection(stale.blocks, 6, 0) }));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Remover' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Remover' }));
     await waitFor(async () => expect(await outboxPaths()).toEqual([`template/${ID}/blocks`]));
     expect(await writtenSections()).toEqual(['section_1', 'section_2', 'section_3', 'section_4', 'section_5', 'section_6', 'section_10', 'section_11']);
   });
@@ -292,12 +303,12 @@ describe('E9 sweep B11: section actions after a pull reordered the sections', ()
   it('"Descer" moves the section it was pressed on, wherever the row read at write time holds it', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
-    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
+    await user.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
     const descer = await screen.findByRole('menuitem', { name: 'Descer' });
     // The row this device reads at the moment of the write has section 1 fourth: [2, 3, 4, 1, ...].
     const stale = standardTemplate({ id: ID });
     vi.mocked(templateRow).mockImplementationOnce(async () => ({ ...stale, blocks: moveSection(stale.blocks, 0, 3) }));
-    await userEvent.click(descer);
+    await user.click(descer);
     await waitFor(async () => expect(await outboxPaths()).toEqual([`template/${ID}/blocks`]));
     expect(await writtenSections()).toEqual(['section_2', 'section_1', 'section_3', 'section_4', 'section_5', 'section_6', 'section_8', 'section_10', 'section_11']);
   });
@@ -308,21 +319,21 @@ describe('3.6 composer: section text', () => {
   /** Story 11.4: the "Inserir dado do relatório" row opens from the toolbar's "Variável". */
   const chipButton = async (dialog: HTMLElement, name: string) => {
     const variavel = within(dialog).getByRole('button', { name: 'Variável' });
-    if (variavel.getAttribute('aria-expanded') !== 'true') await userEvent.click(variavel);
+    if (variavel.getAttribute('aria-expanded') !== 'true') await user.click(variavel);
     return within(dialog).getByRole('button', { name });
   };
 
   it('E9 sweep B11: writes onto the same section when another device moved it, never onto the one now at its index', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
-    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
+    await user.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
     const dialog = await screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
     // The row this device reads at the moment of the write has section 2 at index 0.
     const stale = standardTemplate({ id: ID });
     vi.mocked(templateRow).mockImplementationOnce(async () => ({ ...stale, blocks: moveSection(stale.blocks, 0, 1) }));
-    await userEvent.click(await chipButton(dialog, 'cliente'));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await user.click(await chipButton(dialog, 'cliente'));
+    await user.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     await waitFor(async () => expect(await outboxPaths()).toEqual([`template/${ID}/blocks`]));
     const blocks = (await templateRow(database!, ID))!.blocks;
     expect(blocks.find((b) => b.block_type === 'section_1')!.section_text).toContain('{cliente}');
@@ -333,14 +344,14 @@ describe('3.6 composer: section text', () => {
   it('writes nothing when another device removed the section it was opened on, and says so', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
-    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
+    await user.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
     const dialog = await screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
     // The row this device reads at the moment of the write no longer holds section 1.
     const stale = standardTemplate({ id: ID });
     vi.mocked(templateRow).mockImplementationOnce(async () => ({ ...stale, blocks: removeSection(stale.blocks, 0) }));
-    await userEvent.click(await chipButton(dialog, 'cliente'));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await user.click(await chipButton(dialog, 'cliente'));
+    await user.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     expect(await screen.findByText('A seção mudou em outro aparelho; o texto não foi salvo.')).toBeVisible();
     // The dialog closes, so later autosaves cannot repeat the toast.
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
@@ -352,14 +363,14 @@ describe('3.6 composer: section text', () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
     const open = async () => {
-      await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
-      await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
+      await user.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
       return screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
     };
     // An older committed text: the seed text with a chip in front.
     let dialog = await open();
-    await userEvent.click(await chipButton(dialog, 'cliente'));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await user.click(await chipButton(dialog, 'cliente'));
+    await user.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toMatch(/^\{cliente\}O presente/));
 
     // Typed, and restored at once, well inside the 500 ms autosave idle.
@@ -369,7 +380,7 @@ describe('3.6 composer: section text', () => {
     fireEvent.input(textbox);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Restaurar texto padrão' }));
     await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toBeNull());
-    await userEvent.click(await screen.findByRole('button', { name: 'Desfazer' }));
+    await user.click(await screen.findByRole('button', { name: 'Desfazer' }));
     await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toMatch(/ Recém digitado\.$/));
   });
 
@@ -377,13 +388,13 @@ describe('3.6 composer: section text', () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
     const open = async () => {
-      await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
-      await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
+      await user.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
       return screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
     };
     let dialog = await open();
-    await userEvent.click(await chipButton(dialog, 'cliente'));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await user.click(await chipButton(dialog, 'cliente'));
+    await user.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toMatch(/^\{cliente\}O presente/));
 
     // Back to the seed text: the chip removed with Backspace right after it.
@@ -396,14 +407,14 @@ describe('3.6 composer: section text', () => {
     document.getSelection()!.removeAllRanges();
     document.getSelection()!.addRange(range);
     fireEvent.keyDown(textbox, { key: 'Backspace' });
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toBeNull());
 
     // Emptied: the whole text removed.
     dialog = await open();
     area(dialog).replaceChildren();
     fireEvent.input(area(dialog));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toBeNull();
     // Two writes only: the chip, then null; the emptied text found null already stored.
@@ -411,7 +422,7 @@ describe('3.6 composer: section text', () => {
 
     // Restoring what is already the seed text writes nothing, and still says it is restored.
     dialog = await open();
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Restaurar texto padrão' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Restaurar texto padrão' }));
     expect(await screen.findByText('Texto padrão restaurado')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Desfazer' })).toBeNull();
     expect(await outboxPaths()).toHaveLength(2);
@@ -422,13 +433,13 @@ describe('3.6 composer: section text', () => {
     renderComposer();
     const section3 = () => templateRow(database!, ID).then((row) => row!.blocks.find((b) => b.block_type === 'section_3')!.section_text);
     const open = async () => {
-      await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 3 Limite de escopo' }));
-      await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
+      await user.click(await screen.findByRole('button', { name: 'Mais opções de 3 Limite de escopo' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
       return screen.findByRole('dialog', { name: '3 Limite de escopo — texto fixo' });
     };
     let dialog = await open();
-    await userEvent.click(await chipButton(dialog, 'cliente'));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await user.click(await chipButton(dialog, 'cliente'));
+    await user.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     // The editor stores the kernel markup: the seed's items as "- " lines, the chip in front.
     await waitFor(async () => expect(await section3()).toMatch(/^\{cliente\}[\s\S]*\n- /));
 
@@ -441,20 +452,20 @@ describe('3.6 composer: section text', () => {
     document.getSelection()!.removeAllRanges();
     document.getSelection()!.addRange(range);
     fireEvent.keyDown(textbox, { key: 'Backspace' });
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     await waitFor(async () => expect(await section3()).toBeNull());
   });
 
   it('offers "Editar texto" only on a section with text, opening the seed\'s text with its variables as chips', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
-    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 8 Pontos de atenção' }));
+    await user.click(await screen.findByRole('button', { name: 'Mais opções de 8 Pontos de atenção' }));
     expect(within(await screen.findByRole('menu')).queryByRole('menuitem', { name: 'Editar texto' })).toBeNull();
-    await userEvent.keyboard('{Escape}');
+    await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
 
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de 1 Objetivo' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
+    await user.click(screen.getByRole('button', { name: 'Mais opções de 1 Objetivo' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
     const dialog = await screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
     const textbox = area(dialog);
     expect(textbox).toHaveAttribute('contenteditable', 'true');
@@ -465,7 +476,7 @@ describe('3.6 composer: section text', () => {
     expect(within(toolbar).getAllByRole('button').map((b) => b.textContent)).toEqual(['Negrito', 'Itálico', 'Lista', 'Numeração', 'Variável']);
     expect(within(toolbar).getAllByRole('button').slice(0, 4).map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'false', 'false']);
     expect(within(dialog).queryByRole('group', { name: 'Inserir dado do relatório' })).toBeNull();
-    await userEvent.click(within(toolbar).getByRole('button', { name: 'Variável' }));
+    await user.click(within(toolbar).getByRole('button', { name: 'Variável' }));
     expect(within(toolbar).getByRole('button', { name: 'Variável' })).toHaveAttribute('aria-expanded', 'true');
     const row = within(dialog).getByRole('group', { name: 'Inserir dado do relatório' });
     expect(within(row).getAllByRole('button').map((b) => b.textContent)).toEqual([
@@ -481,34 +492,34 @@ describe('3.6 composer: section text', () => {
   it('inserts a chip, autosaves the text on close, and "Restaurar texto padrão" puts the seed back with "Desfazer"', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
-    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
+    await user.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
     let dialog = await screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
     // The dialog opens with the focus, and so the caret, at the start of the text: the chip goes there.
-    await userEvent.click(await chipButton(dialog, 'responsável'));
+    await user.click(await chipButton(dialog, 'responsável'));
     expect(area(dialog).querySelectorAll('.var-chip')).toHaveLength(4);
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toMatch(/^\{responsavel\}O presente/));
     expect(await outboxPaths()).toEqual([`template/${ID}/blocks`]);
 
     // Reopened, it shows the template's own text.
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de 1 Objetivo' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
+    await user.click(screen.getByRole('button', { name: 'Mais opções de 1 Objetivo' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
     dialog = await screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
     expect(area(dialog).querySelectorAll('.var-chip')).toHaveLength(4);
 
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Restaurar texto padrão' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Restaurar texto padrão' }));
     await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toBeNull());
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(await screen.findByText('Texto padrão restaurado')).toBeVisible();
-    await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    await user.click(screen.getByRole('button', { name: 'Desfazer' }));
     await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toMatch(/^\{responsavel\}O presente/));
   });
 
   it('E3-A9: a tap on a section card body opens "Editar texto" with the focus in the text; a section with no text has no body button', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
-    await userEvent.click(await screen.findByRole('button', { name: 'Editar texto de 1 Objetivo' }));
+    await user.click(await screen.findByRole('button', { name: 'Editar texto de 1 Objetivo' }));
     const dialog = await screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
     await waitFor(() => expect(area(dialog)).toHaveFocus());
     expect(screen.queryByRole('button', { name: 'Editar texto de 8 Pontos de atenção' })).toBeNull();
