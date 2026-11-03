@@ -150,18 +150,19 @@ function Where() {
   return <p data-testid="where">{useLocation().pathname}</p>;
 }
 
-const renderHome = (sync: SyncState = syncState()) =>
-  render(
-    <MemoryRouter>
-      <SyncContext value={sync}>
-        <ToastProvider>
-          <Where />
-          <HomeSurface />
-          <ToastOutlet />
-        </ToastProvider>
-      </SyncContext>
-    </MemoryRouter>,
-  );
+const homeTree = (sync: SyncState) => (
+  <MemoryRouter>
+    <SyncContext value={sync}>
+      <ToastProvider>
+        <Where />
+        <HomeSurface />
+        <ToastOutlet />
+      </ToastProvider>
+    </SyncContext>
+  </MemoryRouter>
+);
+
+const renderHome = (sync: SyncState = syncState()) => render(homeTree(sync));
 
 const cards = () => screen.queryAllByTestId('relatorio-card');
 
@@ -530,6 +531,55 @@ describe('Home: the active list and its page (Story 19.2)', () => {
     expect(await screen.findByText('Nenhum relatório em andamento. 7 emitidos: toque em Emitido.')).toBeVisible();
     expect(cards()).toHaveLength(0);
     expect(screen.getByRole('button', { name: 'Emitido, 7 relatórios' })).toBeVisible();
+  });
+
+  it('E19-A2 (R-3): until the provider has read the summary, the list and the board stay pending; once it has, they render', async () => {
+    const drafts = many('rascunho', 3, 100);
+    const { rerender } = renderHome(syncState({ summaryRelatorios: [], summaryRead: false }));
+    // The device's own reads answer (the shortcut sub-line is a live query too); the gate is the provider's flag.
+    await waitFor(() => expect(screen.getByText('1 template')).toBeVisible());
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(screen.getByText(/Carregando relatórios/)).toBeVisible();
+    expect(screen.queryByRole('group', { name: 'Relatórios por status' })).toBeNull();
+    expect(cards()).toHaveLength(0);
+
+    rerender(homeTree(syncState({ summaryRelatorios: drafts, summaryRead: true })));
+    await waitFor(() => expect(listIds()).toEqual(drafts.map((entry) => entry.id)));
+    expect(screen.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
+  });
+
+  it('E19-A2 (R-3): answered with no company stream yet (a fresh device), the list renders empty', async () => {
+    renderHome(syncState({ summaryRelatorios: [], summaryRead: true }));
+    expect(await screen.findByText('Nenhum relatório ainda.')).toBeVisible();
+  });
+
+  it('E19-A2 (R-11): a failed page-size read falls back to a page of 10', async () => {
+    const prefs = database!.local_prefs;
+    const get = prefs.get.bind(prefs);
+    vi.spyOn(prefs, 'get').mockImplementation(((key: unknown) =>
+      key === HOME_PAGE_SIZE_PREF ? Promise.reject(new Error('read failed')) : get(key as string)) as typeof prefs.get);
+    renderHome(syncState({ summaryRelatorios: many('rascunho', 12, 100) }));
+    await waitFor(() => expect(cards()).toHaveLength(10));
+    expect(within(pageChips()!).getByRole('radio', { name: '10' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('E19-A2 (R-12): a hidden status line carries the note, so a page-size change is announced', async () => {
+    const status = () => screen.getByTestId('home-list-status');
+    renderHome(syncState({ summaryRelatorios: many('emitido', 12, 100) }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Emitido, 12 relatórios' }));
+    await waitFor(() => expect(status()).toHaveTextContent(/^Mostrando 10 de 12 relatórios$/));
+    expect(status()).toHaveAttribute('role', 'status');
+    expect(status()).toHaveClass('visually-hidden');
+    await userEvent.click(within(pageChips()!).getByRole('radio', { name: '50' }));
+    await waitFor(() => expect(status()).toHaveTextContent(/^Mostrando 12 de 12 relatórios$/));
+  });
+
+  it('E19-A2 (R-12): the status line stays mounted and empty while there is no note', async () => {
+    renderHome(syncState({ summaryRelatorios: many('rascunho', 3, 100) }));
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    expect(screen.getByTestId('home-list-status')).toHaveTextContent(/^$/);
   });
 
   it('a pressed tile with nothing keeps its sentence', async () => {

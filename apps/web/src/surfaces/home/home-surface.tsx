@@ -79,14 +79,20 @@ export function HomeSurface() {
   const [filter, setFilter] = useState<RelatorioStatus | null>(null);
   // Story 19.2: the list's page size, this device's preference (`local_prefs.home_page_size`).
   // Undefined until read, so a device with 50 stored never draws a frame of 10 cards.
-  const pageSize = useLiveQuery(() => (db === null ? Promise.resolve(DEFAULT_HOME_PAGE_SIZE) : readHomePageSize(db)), [db]);
+  // E19-A2 (R-11): a read that fails is a page of 10, never a Home that does not render.
+  const pageSize = useLiveQuery(
+    () => (db === null ? Promise.resolve(DEFAULT_HOME_PAGE_SIZE) : readHomePageSize(db).catch(() => DEFAULT_HOME_PAGE_SIZE)),
+    [db],
+  );
 
   // Undefined until the device store answers: the list says "Carregando relatórios…" rather
   // than flashing the empty state (Matheus, 2026-09-30).
   const loadedRelatorios = useLiveQuery(() => (db === null ? Promise.resolve(NO_RELATORIOS) : relatorioRows(db)), [db]);
   const relatorios = loadedRelatorios ?? NO_RELATORIOS;
   // Story 19.2: the list also waits for the stored page size, so its first frame is already cut right.
-  const relatoriosPending = db !== null && (loadedRelatorios === undefined || pageSize === undefined);
+  // E19-A2 (R-3): and for the provider's summary (the order's source), so a cold open never
+  // cuts its first frame in the wrong order. An older double without the flag reads as answered.
+  const relatoriosPending = db !== null && (loadedRelatorios === undefined || pageSize === undefined || sync.summaryRead === false);
   const projects = useLiveQuery(() => (db === null ? Promise.resolve(NO_PROJECTS) : projectRows(db)), [db], NO_PROJECTS);
   const clients = useLiveQuery(() => (db === null ? Promise.resolve(NO_CLIENTS) : clientRows(db)), [db], NO_CLIENTS);
   const templates = useLiveQuery(
@@ -227,6 +233,10 @@ export function HomeSurface() {
             </Button>
           </div>
 
+          {/* E19-A2 (R-12): always mounted, so a page-size or tile change to the kernel's note is announced. */}
+          <p className="visually-hidden" role="status" data-testid="home-list-status">
+            {relatoriosPending ? '' : (list.note ?? '')}
+          </p>
           {relatoriosPending ? (
             <LoadingNote what={copy.loadingWhat.relatorios} />
           ) : list.empty !== null ? (

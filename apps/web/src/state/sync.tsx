@@ -155,6 +155,12 @@ export interface SyncState {
   heldDecisions?: readonly HeldDecisions[];
   /** False while the device's outbox has not been read yet (the Sync status surface says it is loading). Optional for the older test doubles. */
   outboxRead?: boolean;
+  /**
+   * E19-A2 (R-3): false while the device's sync states (the company stream and its summary,
+   * `summaryRelatorios`) have not been read yet, so Home does not cut a first frame in the
+   * wrong order. Optional for the older test doubles, which read as answered.
+   */
+  summaryRead?: boolean;
   deviceId: string | null;
   /** User names known on this device, by user id, for "Último envio". */
   userNames: Readonly<Record<string, string>>;
@@ -402,7 +408,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       trackError(row.error_code, row.relatorio_id === null || row.relatorio_id === undefined ? {} : { relatorio_id: row.relatorio_id });
     }
   }, [db, loadedRows]);
-  const states = useLiveQuery(() => (db === null ? Promise.resolve(NO_STATES) : syncStateRows(db)), [db], NO_STATES);
+  const loadedStates = useLiveQuery(() => (db === null ? Promise.resolve(NO_STATES) : syncStateRows(db)), [db]);
+  const states = loadedStates ?? NO_STATES;
+  // E19-A2 (R-3): Home stays pending until the summary it sorts on has been read.
+  const summaryRead = db === null || loadedStates !== undefined;
   const users = useLiveQuery(() => (db === null ? Promise.resolve(NO_USERS) : localUsers(db)), [db], NO_USERS);
 
   // Story 8.2: the readings still queued and the suggestions still pending on this device.
@@ -583,6 +592,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       decisions,
       heldDecisions: held,
       outboxRead,
+      summaryRead,
       pendingText: pendingSummaryText(counts),
       pendingCount: pendingSummaryCount(counts),
       online: session.online,
@@ -609,7 +619,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       rereadPhoto,
       audit,
     }),
-    [counts, outboxRead, session.online, unreachable, serverAnswers, status, engineReady, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
+    [counts, outboxRead, summaryRead, session.online, unreachable, serverAnswers, status, engineReady, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
   );
 
   return (

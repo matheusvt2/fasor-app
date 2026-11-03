@@ -87,6 +87,32 @@ describe('FilterChipGroup', () => {
     expect(onChange).toHaveBeenCalledWith('enel');
   });
 
+  it('E19-A2 (R-5): Home on the checked first chip keeps focus there and raises no click and no onChange', async () => {
+    const onChange = vi.fn();
+    render(<FilterChipGroup options={options} selectedId="all" onChange={onChange} aria-label="Relatórios por página" telemetry="home.page_size" />);
+    const clicks = vi.fn();
+    const first = screen.getByRole('radio', { name: 'Todas' });
+    first.addEventListener('click', clicks);
+    await userEvent.tab();
+    await userEvent.keyboard('{Home}');
+    expect(first).toHaveFocus();
+    expect(clicks).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('E19-A2 (R-5): End on the checked last chip raises no click either', async () => {
+    const onChange = vi.fn();
+    render(<FilterChipGroup options={options} selectedId="enel" onChange={onChange} aria-label="Relatórios por página" />);
+    const clicks = vi.fn();
+    const last = screen.getByRole('radio', { name: 'Cubículo Enel' });
+    last.addEventListener('click', clicks);
+    await userEvent.tab();
+    await userEvent.keyboard('{End}');
+    expect(last).toHaveFocus();
+    expect(clicks).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it('B3: arrows, Home and End move focus and selection together, wrapping (APG radiogroup)', async () => {
     const three = [...options, { id: 'cpfl', label: 'Cubículo CPFL' }];
     const onChange = vi.fn();

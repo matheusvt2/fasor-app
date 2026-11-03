@@ -122,6 +122,22 @@ describe('SyncProvider', () => {
     expect(renders.actions).toBe(settled.actions);
   });
 
+  it('E19-A2 (R-3): summaryRead is false before the sync states are read, true once they are', async () => {
+    database = await freshDb();
+    const seen: (boolean | undefined)[] = [];
+    function Probe() {
+      seen.push(useSync().summaryRead);
+      return null;
+    }
+    render(
+      <SyncProvider>
+        <Probe />
+      </SyncProvider>,
+    );
+    expect(seen[0]).toBe(false);
+    await waitFor(() => expect(seen.at(-1)).toBe(true));
+  });
+
   it('fix batch fxpw G1: the engine is not created before the boot read settles, and starts once it has', async () => {
     database = await freshDb();
     settled = false;
