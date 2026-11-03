@@ -2720,3 +2720,26 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   evidence: `scripts/preview-tab.test.ts` covers the retry decision; the suite has no local run. Review finding VGR-4 of batch e18fb. The next deploy whose preview tab closes early is the proof: its log line `pressing it once more` and `test-results/production-smoke/preview-retry.json`.
   class: risk
   state: open (owner: the coordinator, at the next deploy that shows the retry)
+
+## Deferred from: the Epic 19 retrospective (2026-11-03, E19-A3)
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md`
+  summary: R-4: Home reads "no summary entry" as "created on this device", so a relatório removed on the server sorts right after the current card as the newest until its stream pulls and tombstones the local row.
+  evidence: The summary leaves removed entities out (`isNull(entities.removed_at)`, `apps/api/src/sync/pull.ts:163`); `homeCards` sorts an undefined `updated_seq` first after the current card (Matheus's "A", `packages/domain/src/home/cards.ts` sort). Plausible, not exercised (retro adversarial 3a). Fix: mark the unsynced bucket with a positive signal, a pending `relatorio` create op in `outboxByRelatorio`, not with a missing sequence; a kernel test with a local row absent from the summary and no create op.
+  class: risk
+  state: open (owner: the next Home story or fix batch, after Matheus's E19-A1 decision on the order key)
+- source_spec: `_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md`
+  summary: R-6: two kernel functions take a `filter` whose `null` means opposite things: every card in `homeCards`, the active statuses only in `homeList`; and `homeList` assumes its input is the unfiltered set (`cards.length === 0` decides `none`).
+  evidence: `packages/domain/src/home/cards.ts` (`homeCards` returns `input.filter === null ? cards : ...`; `homeList` filters `HOME_ACTIVE_STATUSES` when `options.filter === null`); production passes `filter: null` to `homeCards` only (`apps/web/src/surfaces/home/home-surface.tsx`, `allCards`). Confirmed (retro adversarial 6). Fix: drop `filter` from `HomeCardsInput` (its tests move to `homeList`), or rename `homeList`'s option to `tile`, and document the input contract on `homeList`.
+  class: debt
+  state: open (owner: the next batch that touches `cards.ts`; Story 18.4 may take it if it edits `homeList`)
+- source_spec: `_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md`
+  summary: R-10: the page size has no optimistic state, and a failed write is swallowed after the usage event was already counted.
+  evidence: `selectedId` comes from IndexedDB through the live query only (`home-surface.tsx`, `pageSize` and the `FilterChipGroup`); `choosePageSize` does `void writeHomePageSize(db, size).catch(() => undefined)`. A quick 20 then 10, or an arrow held on a loaded tablet, can leave the focused chip and the stored size out of step; a rejected write leaves the chip unchanged with no word to the user. Plausible, not exercised (retro adversarial 4 and 10). Fix: a local pending size shown until the live query agrees, and a failed write surfaced (a toast) instead of swallowed; a component test with a write that hangs and one that rejects.
+  class: risk
+  state: open (owner: the next Home story or fix batch)
+- source_spec: `_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md`
+  summary: R-13 (UX question): the page-size chips sit only below the list. After 50 or 100 they are at the end of a long list; a larger size inserts cards above the focused chip; when a sync drops the selection to 10 or fewer the chip group unmounts while it holds focus; and the stored size makes every later visit open long, against the epic's goal of a short Home.
+  evidence: `home-surface.tsx` renders the note row with the chips after `.relatorio-cards` and only when `list.note !== null`; the mocks draw the note under the cards (`20-home.html`, `key-home.html`), so this is not a defect of the as-built. Plausible, not exercised (retro adversarial 12, edge case 5 and 6). To decide: also place the chips by the "Relatórios" heading, reset a large stored size on the next visit, and where focus goes when the group unmounts.
+  class: question
+  state: open (owner: Matheus and Sally, the decision; then the next Home story)

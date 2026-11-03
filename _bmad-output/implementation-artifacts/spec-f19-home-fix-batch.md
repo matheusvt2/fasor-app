@@ -2,7 +2,7 @@
 title: 'E19-A2: Home fix batch (current card rule, pending list, page-size chips, tests)'
 type: 'bugfix'
 created: '2026-11-03'
-status: 'in-progress'
+status: 'in-review'
 route: 'dispatch'
 baseline_revision: 'f085d7ec0ae6a6af32a4ba6af4fb5194dfabc0f1'
 review_loop_iteration: 0
@@ -79,12 +79,12 @@ deferred: []
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `packages/domain/src/home/cards.test.ts` then `cards.ts` -- R-2 rows red, then the current-card pick by its own rule; R-7 pin, then the derived list -- AD-13, pre-19.2 rule
-- [ ] `apps/web/src/components/chip.test.tsx` then `chip.tsx` -- R-5 rows red, then `moveTo` guard and fallback -- no event when nothing changes
-- [ ] `apps/web/src/surfaces/home/home-surface.test.tsx` then `apps/web/src/state/sync.tsx` and `home-surface.tsx` -- R-3, R-11, R-12 red, then the flag, the pending gate, the catch and the status line
-- [ ] `e2e/app-layout.spec.ts` -- R-8 ratio 1
-- [ ] `e2e/home.spec.ts` -- R-9 extension of 19.2-E2E-001
-- [ ] `deferred-work.md`, `docs/kbs/log.md` -- E19-A3 rows and the log line (orchestrator)
+- [x] `packages/domain/src/home/cards.test.ts` then `cards.ts` -- R-2 rows red, then the current-card pick by its own rule; R-7 pin, then the derived list -- AD-13, pre-19.2 rule
+- [x] `apps/web/src/components/chip.test.tsx` then `chip.tsx` -- R-5 rows red, then `moveTo` guard and fallback -- no event when nothing changes
+- [x] `apps/web/src/surfaces/home/home-surface.test.tsx` then `apps/web/src/state/sync.tsx` and `home-surface.tsx` -- R-3, R-11, R-12 red, then the flag, the pending gate, the catch and the status line
+- [x] `e2e/app-layout.spec.ts` -- R-8 ratio 1
+- [x] `e2e/home.spec.ts` -- R-9 extension of 19.2-E2E-001
+- [x] `deferred-work.md`, `docs/kbs/log.md` -- E19-A3 rows and the log line (orchestrator)
 
 **Acceptance Criteria:**
 - Given every row of the matrix, when the kernel, chip and surface tests run, then each row holds in a test that was seen red before its fix.
@@ -95,6 +95,16 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-03 — Review pass (Edge Case Hunter and Verification Gap Reviewer; Blind Hunter and Intent Alignment skipped: token economy, the integrated epic review covers them)
+- verdicts: 5 findings — high 0, medium 0, low 4, false 0, maybe-false 1
+- findings:
+  - `[maybe-false]` `[reject]` ECH-1: after `readHomePageSize` rejects inside the live query, the query may not re-run after a later write, so the chips stay at 10 — whether Dexie registers the observed key of a failed `get` was not settled; if true it is low (a device whose `local_prefs` read fails is already broken, the write would most likely fail too, and before this batch Home did not render at all), so rejected with this note.
+  - `[low]` `[reject]` ECH-2: with a null chip ref, `onChange` moves the selection but focus and the usage event do not follow — the inline ref callback holds the element of every rendered chip, so the branch is a defensive fallback the retro asked to keep; making it focus or emit adds branches for a state no user meets.
+  - `[low]` `[reject]` ECH-3: on a switch to another non-null database, `useLiveQuery` may keep the previous database's states for a frame, so `summaryRead` reads true with stale rows — the same transient holds for `loadedRelatorios` and `outboxRead` (pre-existing pattern); the flag does not widen it, and tagging each result with its db adds surface for a sign-out frame.
+  - `[low]` `[reject]` ECH-4: a month-precision `service_start` ('2026-09') loses the current-card pick to any day of that month — the comparison is the pre-19.2 rule and the list sort's, byte for byte; a month-only rule is a product choice outside E19-A2.
+  - `[low]` `[reject]` ECH-5 (claim): the matrix row "Missing ref (R-5)" has no test — true; the null ref cannot be reached from the rendered component without reaching into the ref map, as the spec's Code Map allowed; the code path is kept and the gap is listed in the PR as known open.
+- Verification Gap Reviewer: no verification gaps found.
 
 ## Design Notes
 
