@@ -5,6 +5,7 @@ import { fichasCountText, progress } from '../relatorio/progress.ts';
 import { pendingSuggestions } from '../relatorio/suggestions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import { sumarioTitle } from '../relatorio/project.ts';
+import { RELATORIO_STATUSES } from '../status/table.ts';
 import { idSequence } from '../test-support.ts';
 import {
   CADASTROS_SUBLINE,
@@ -389,6 +390,68 @@ describe('homeCards: ordering', () => {
     expect(cards.map((c) => c.id)).toEqual([R_FIELD_HERE, R_DRAFT]);
   });
 
+  it('E19-A2 (R-2): the current card is the on-device Em campo with the latest service start, not the latest sequence; the other keeps its sequence place', () => {
+    const cards = homeCards(
+      input({
+        relatorios: [
+          relatorio(R_FIELD_HERE, 'em_campo', { service_start: '2026-08-01' }),
+          relatorio(R_FIELD_AWAY, 'em_campo', { service_start: '2026-09-01' }),
+          relatorio(R_DRAFT, 'rascunho'),
+        ],
+        summary: [summary(R_FIELD_HERE, 'em_campo', 9), summary(R_FIELD_AWAY, 'em_campo', 3)],
+        syncStates: [onDevice(R_FIELD_HERE), onDevice(R_FIELD_AWAY)],
+      }),
+    );
+    expect(cards.map((c) => c.id)).toEqual([R_FIELD_AWAY, R_DRAFT, R_FIELD_HERE]);
+    expect(cards.map((c) => c.isCurrent)).toEqual([true, false, false]);
+  });
+
+  it('E19-A2 (R-2): with the same service start the smaller id is current', () => {
+    const cards = homeCards(
+      input({
+        relatorios: [
+          relatorio(R_FIELD_HERE, 'em_campo', { service_start: '2026-09-01' }),
+          relatorio(R_FIELD_AWAY, 'em_campo', { service_start: '2026-09-01' }),
+        ],
+        summary: [summary(R_FIELD_HERE, 'em_campo', 3), summary(R_FIELD_AWAY, 'em_campo', 9)],
+        syncStates: [onDevice(R_FIELD_AWAY), onDevice(R_FIELD_HERE)],
+      }),
+    );
+    expect(cards[0]!.id).toBe(R_FIELD_HERE);
+    expect(cards[0]!.isCurrent).toBe(true);
+    expect(cards[1]!.isCurrent).toBe(false);
+  });
+
+  it('E19-A2 (R-2): a missing service start comes after any date', () => {
+    const cards = homeCards(
+      input({
+        relatorios: [
+          relatorio(R_FIELD_HERE, 'em_campo', { service_start: null }),
+          relatorio(R_FIELD_AWAY, 'em_campo', { service_start: '2026-01-01' }),
+        ],
+        summary: [summary(R_FIELD_HERE, 'em_campo', 9), summary(R_FIELD_AWAY, 'em_campo', 3)],
+        syncStates: [onDevice(R_FIELD_HERE), onDevice(R_FIELD_AWAY)],
+      }),
+    );
+    expect(cards[0]!.id).toBe(R_FIELD_AWAY);
+    expect(cards[0]!.isCurrent).toBe(true);
+  });
+
+  it('E19-A2 (R-2): an Em campo relatório not on this device is never current, whatever its start', () => {
+    const cards = homeCards(
+      input({
+        relatorios: [
+          relatorio(R_FIELD_HERE, 'em_campo', { service_start: '2026-01-01' }),
+          relatorio(R_FIELD_AWAY, 'em_campo', { service_start: '2026-12-01' }),
+        ],
+        summary: [summary(R_FIELD_HERE, 'em_campo', 3), summary(R_FIELD_AWAY, 'em_campo', 9)],
+        syncStates: [onDevice(R_FIELD_HERE)],
+      }),
+    );
+    expect(cards.map((c) => c.id)).toEqual([R_FIELD_HERE, R_FIELD_AWAY]);
+    expect(cards[0]!.isCurrent).toBe(true);
+  });
+
   it('no Em campo relatório on this device means no current card', () => {
     const cards = homeCards(input({ relatorios: [relatorio(R_FIELD_AWAY, 'em_campo')] }));
     expect(cards[0]!.isCurrent).toBe(false);
@@ -561,6 +624,8 @@ describe('homeList (Story 19.2): the selection, the page, the note and the empty
 
   it('names the active statuses and the page sizes, 10 by default', () => {
     expect(HOME_ACTIVE_STATUSES).toEqual(['rascunho', 'em_campo', 'em_revisao']);
+    // E19-A2 (R-7): derived from the status table, every status but Emitido, in its order.
+    expect(HOME_ACTIVE_STATUSES).toEqual(RELATORIO_STATUSES.filter((status) => status !== 'emitido'));
     expect(HOME_PAGE_SIZES).toEqual([10, 20, 50, 100]);
     expect(DEFAULT_HOME_PAGE_SIZE).toBe(10);
   });

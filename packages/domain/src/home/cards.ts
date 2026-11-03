@@ -292,6 +292,16 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
 
   const startOf = new Map(cards.map((card) => [card.id, sources.get(card.id)?.service_start ?? null]));
   const seqOf = new Map(input.summary.map((entry) => [entry.id, entry.updated_seq]));
+  const startsBefore = (a: HomeCard, b: HomeCard): boolean => {
+    const sa = startOf.get(a.id) ?? null;
+    const sb = startOf.get(b.id) ?? null;
+    if (sa !== sb) {
+      if (sa === null) return false;
+      if (sb === null) return true;
+      return sa > sb;
+    }
+    return a.id < b.id;
+  };
   cards.sort((a, b) => {
     const qa = seqOf.get(a.id);
     const qb = seqOf.get(b.id);
@@ -311,7 +321,14 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
 
-  const current = cards.find((card) => card.status === 'em_campo' && states.has(card.id));
+  // E19-A2 (R-2): the current card has its own rule, apart from the list sort, so a sync
+  // that moves another relatório's `updated_seq` never moves it: the on-device Em campo
+  // card with the latest service start, a missing date after any date, then the smaller id.
+  let current: HomeCard | undefined;
+  for (const card of cards) {
+    if (card.status !== 'em_campo' || !states.has(card.id)) continue;
+    if (current === undefined || startsBefore(card, current)) current = card;
+  }
   if (current !== undefined) {
     current.isCurrent = true;
     cards.splice(cards.indexOf(current), 1);
@@ -322,7 +339,9 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
 }
 
 /** Story 19.2: the statuses Home lists with no Status board tile pressed; Emitido sits behind its tile. */
-export const HOME_ACTIVE_STATUSES = ['rascunho', 'em_campo', 'em_revisao'] as const satisfies readonly RelatorioStatus[];
+export const HOME_ACTIVE_STATUSES: readonly Exclude<RelatorioStatus, 'emitido'>[] = RELATORIO_STATUSES.filter(
+  (status): status is Exclude<RelatorioStatus, 'emitido'> => status !== 'emitido',
+);
 
 /** Story 19.2: the page sizes of the Home list, offered as Filter chips. */
 export const HOME_PAGE_SIZES = [10, 20, 50, 100] as const;

@@ -95,11 +95,16 @@ export function FilterChipGroup({ options, selectedId, onChange, telemetry, ...r
   function moveTo(index: number) {
     const target = options[(index + options.length) % options.length];
     if (target === undefined) return;
-    const chip = chips.current.get(target.id);
+    const chip = chips.current.get(target.id) ?? null;
     chip?.focus();
+    // E19-A2 (R-5): a key that lands on the checked chip (Home on the first, End on the
+    // last) moves focus only; no click, so no usage event for a choice that did not change.
+    if (target.id === selectedId) return;
     // Story 19.2: a real click, so a keyboard choice reaches the document's usage-event
-    // listener like a tap does; the button's own guard calls `onChange` once.
-    chip?.click();
+    // listener like a tap does; the button's own guard calls `onChange` once. Without the
+    // chip's element the selection still moves.
+    if (chip === null) onChange(target.id);
+    else chip.click();
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
