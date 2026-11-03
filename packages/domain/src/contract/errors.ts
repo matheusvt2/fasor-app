@@ -7,9 +7,23 @@ import { z } from 'zod';
  */
 
 /**
- * Per-op rejection codes of `POST /api/sync/ops` (AD-24): shape, path, origin, tenant, and
- * `op_forbidden` for a write to a row only its owner may write (another user's
- * `user/{id}/{field}`). Never a domain rule. Append-only.
+ * Per-op rejection codes of `POST /api/sync/ops` (AD-24), append-only: shape, path, origin,
+ * tenant, and `op_forbidden` for a write to a row only its owner may write (another user's
+ * `user/{id}/{field}`).
+ *
+ * Contract 29 (2026-11-03, Stories 20.7 to 20.10, security pass S1 and S3 to S5): a refusal is
+ * no longer only one of shape. The server also refuses a client op that breaks a business rule
+ * the kernel holds, checked against what the server holds when the op applies, and each such
+ * refusal refuses that op alone (the rest of its client batch applies):
+ * - `op_status_transition`: a `relatorio/status` move AD-22's table does not allow from the
+ *   server's status (`statusMoveVerdict`), or a `relatorio/{id}` create not born Rascunho;
+ * - `op_attribution`: a value naming another actor than the op's, or an instant past the
+ *   server's clock or before the relatório's creation, beyond the skew (`attributionIssue`);
+ * - `op_value_invalid`: a value outside its field's type, length cap or range
+ *   (`opValueIssue`), or a `responsible_user_id` that is no user of the company;
+ * - `op_target_missing`: a put or remove whose row does not exist, or exists in another
+ *   relatório or obra than the op names, and a create naming a relatório the company lacks;
+ * - `op_forbidden` also refuses, alone, the removal of an Emitido relatório.
  */
 export const opRejectCodeSchema = z.enum([
   'op_invalid',
@@ -17,6 +31,11 @@ export const opRejectCodeSchema = z.enum([
   'op_server_only',
   'op_tenant_mismatch',
   'op_forbidden',
+  // Contract 29 (2026-11-03, Story 20.7): appended, never reordered.
+  'op_status_transition',
+  'op_attribution',
+  'op_value_invalid',
+  'op_target_missing',
 ]);
 export type OpRejectCode = z.infer<typeof opRejectCodeSchema>;
 export const OP_REJECT_CODES = opRejectCodeSchema.options;
@@ -60,6 +79,12 @@ export const errorCodeSchema = z.enum([
   // Epic 18 (AD-28): `POST /api/telemetry` refuses the whole batch when the body is not an
   // array, holds more than `TELEMETRY_BATCH_MAX` events, or any event fails `uxEventSchema`.
   'telemetry_invalid',
+  // Contract 29 (2026-11-03): reserved here for Story 20.12 (batch e20e implements it): a
+  // company over its daily quota of paid readings, rereads or audits.
+  'quota_exceeded',
+  // Contract 29 (2026-11-03): reserved here for Story 20.13 (batch e20e implements it): a
+  // mutating `/api` request from an origin the server does not trust.
+  'forbidden_origin',
 ]);
 export type ErrorCode = z.infer<typeof errorCodeSchema>;
 

@@ -12,6 +12,14 @@ import { opRejectCodeSchema } from './errors.ts';
 
 export const SYNC_PUSH_MAX_OPS = 500;
 
+/**
+ * Contract 29 (2026-11-03, Story 20.9, security pass S4): the largest body `POST /api/sync/ops`
+ * reads, 4 MiB; a larger one is answered `413 body_too_large` whole, nothing applied. The
+ * device splits its pushes under it (`batches`, `apps/web/src/sync/policy.ts`) without ever
+ * splitting a client batch, so a long offline backlog never earns a permanent 413.
+ */
+export const SYNC_PUSH_MAX_BYTES = 4 * 1024 * 1024;
+
 /** Body of `POST /api/sync/ops` as the client sends it: array order is apply order. */
 export const syncPushRequestSchema = z.object({
   ops: z.array(opSchema).max(SYNC_PUSH_MAX_OPS),

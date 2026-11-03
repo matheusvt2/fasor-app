@@ -1080,10 +1080,11 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 
-  it('contract 28 (fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-27 pull is refused with 426 contract_outdated on every stream, a version-28 pull is answered', async () => {
-    expect(CONTRACT_VERSION).toBe(28);
-    expect(MIN_CONTRACT_VERSION).toBe(28);
+  it('contract 29 (Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-28 pull is refused with 426 contract_outdated on every stream, a version-29 pull is answered', async () => {
+    expect(CONTRACT_VERSION).toBe(29);
+    expect(MIN_CONTRACT_VERSION).toBe(29);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
+      // 28 cannot parse a push answer carrying a contract-29 refusal code (Stories 20.7 to 20.10);
       // 27 cannot parse a `relatorio/removed_at` op (fix batch fxrm);
       // 26 cannot resolve seed v10 nor parse `relatorio/setup/site_altitude_na` (Stories 15.7 and 17.6);
       // 25 cannot parse the `not_applicable` number state, "N.A" (Story 16.4);
@@ -1095,17 +1096,17 @@ describe('1.5-API-005 contract skew', () => {
       // 19 cannot parse `audit_run/{id}/coverage` (Story 14.10 lane B);
       // 18 cannot parse `sheet/{id}/test/{key}/value/...`, the ninth block type nor resolve seed v5 (Story 14.5);
       // 17 cannot parse `location/{id}/checklist/...` nor resolve seed v4 (Story 14.3); 16 stays refused as since Story 14.2.
-      for (const version of ['27', '26', '25', '24', '23', '22', '21', '20', '19', '18', '17', '16']) {
+      for (const version of ['28', '27', '26', '25', '24', '23', '22', '21', '20', '19', '18', '17', '16']) {
         const old = await pull(companyA, path, version);
         expect(old.status, `${path} at ${version}`).toBe(426);
         expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
       }
     }
-    const current = await pull(companyA, '/api/sync/company?since=0', '28');
+    const current = await pull(companyA, '/api/sync/company?since=0', '29');
     expect(current.status).toBe(200);
     // An outdated client keeps pushing (AD-13): only the pull is refused.
     const batch = [clientCreate(idsA, newId())];
-    const pushed = await push(companyA, { ops: batch }, '27');
+    const pushed = await push(companyA, { ops: batch }, '28');
     expect(pushed.status).toBe(200);
     for (const o of batch) written.opIds.add(o.op_id);
   });

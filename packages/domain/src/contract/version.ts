@@ -245,8 +245,26 @@
  * the family, so its `opSchema` fails the whole pulled page). No row field, seed nor enum value
  * is new: a row written before 28 parses to the same bytes. `MIN_CONTRACT_VERSION` goes to 28
  * too.
+ *
+ * 29 (2026-11-03, Stories 20.7 to 20.10, the security pass of the same day): the server enforces
+ * the business rules of every client op (AD-22, AD-24, AD-11 amended). Four per-op refusal codes
+ * are new and appended to `opRejectCodeSchema`: `op_status_transition` (a status move AD-22's
+ * table does not allow from the server's status, or a relatório create not born Rascunho),
+ * `op_attribution` (a value naming another actor, or an instant past the server's clock or
+ * before the relatório's creation, beyond `CLOCK_SKEW_MS`), `op_value_invalid` (a value outside
+ * its field's type, cap or range, or a responsible user who is no user of the company) and
+ * `op_target_missing` (a put on a row that does not exist in the relatório or obra it names);
+ * `op_forbidden` also refuses the removal of an Emitido relatório. Each refuses its op alone:
+ * the rest of the client batch applies. Two error codes are reserved for batch e20e:
+ * `quota_exceeded` (Story 20.12) and `forbidden_origin` (Story 20.13). The push body is capped
+ * at `SYNC_PUSH_MAX_BYTES` (4 MiB, `413 body_too_large`), and a device splits its pushes under
+ * it. No path family, row field, seed nor enum value of a row is new: a row written before 29
+ * parses to the same bytes, and no cap reaches a row schema or `applyOp`, so every stored row
+ * and pulled op still parses. A version-28 bundle cannot parse a push answer that carries a new
+ * code (its `syncPushResponseSchema` refuses the code, so the whole answer fails and the push is
+ * retried forever), so `MIN_CONTRACT_VERSION` goes to 29 too.
  */
-export const CONTRACT_VERSION = 28;
+export const CONTRACT_VERSION = 29;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -394,8 +412,15 @@ export const CONTRACT_VERSION = 28;
  * `relatorio/removed_at` op (its `opSchema` fails the whole pulled page, `invalid_response`).
  * The relatório stream carries one as soon as the cleanup tombstones a relatório a device
  * follows, so the version-27 bundle updates too, and only then drops the relatório's card.
+ *
+ * 29 (2026-11-03, Stories 20.7 to 20.10): a version-28 (or older) bundle cannot parse a push
+ * answer whose `rejected` carries one of the four new codes (its `opRejectCodeSchema` refuses
+ * it, so the whole answer fails and the device keeps re-sending the same push), it does not
+ * split a push under the 4 MiB body cap, and it shows no sentence for the new refusals. The
+ * server refuses its status ops and oversized values from the first push of the deploy on, so
+ * the version-28 bundle updates too, through the outdated-contract screen as on every bump.
  */
-export const MIN_CONTRACT_VERSION = 28;
+export const MIN_CONTRACT_VERSION = 29;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes
