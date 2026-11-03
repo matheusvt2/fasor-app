@@ -139,3 +139,41 @@ for it; and `last_session_at` is when the newest session was opened, not the las
 days with a daily refresh (`SESSION_EXPIRES_IN_SECONDS`, `apps/api/src/auth/auth.ts`), so the real user's
 `last_session_at` of 2026-10-28 sits under today's document generations. The dashboard's `last_seen` is the activity
 measure; the CLI's columns are account facts. Both readings now stated in `docs/observability.md` and the runbook.)*
+
+## Follow-up delivery of 2026-11-03 (Matheus: "pode fazer tudo que não for destrutivo")
+
+Scope taken from his word: every open item an agent can close without a destructive or production-changing action.
+Out on purpose and left to him: the production deploy and any `terraform apply` (each needs his per-action word; the
+code lands on main and waits), removing the old worktrees fxg6, fxpw, fxrm, o18a and o18b (deletes directories; all
+five are clean and their branches squash-merged), every item owned by Matheus or Bruno (E14-A9, E14-A10, E15-A6,
+E15-A7, E15-A8, E15-A9, E16-A3, E17-A2, E17-A3, E18-A5), and the approval half of the spec reconciliations (drafted,
+not applied).
+
+| Lane | Tag | Port base | Branch | Items | Dev model |
+|---|---|---|---|---|---|
+| 1 | e18fa | 41 | `e18fa-code-fix-batch` | E18-A1 whole (device, api, friction read, the tests R-V2 to R-V9, R-V11, R-V12 unit part, the route-table test, `usage-events.spec.ts` promoted to `@p0`) | opus · high |
+| 2 | e18fb | 42 | `e18fb-observability-and-tooling` | E18-A2 remainder (log group from the resource, no `logs:DescribeLogStreams`, the smoke company filtered out of the views, `sessions_per_day` by the device day, the tooling test binding the queries to the kernel and `SOURCE` to the group, the telemetry step in the production smoke and `infra/bin/deploy`); E15-A10 (deploy survives a lost ECS endpoint: tag record and smoke resumable); the `infra/bin/check` init step on initialized directories (ledger, Epic 19 deploy); the smoke step 6 flake (ledger, deploy of 2026-11-03); E16-A10 and E17-A8 (template-composer unit tests load-independent) | opus · high |
+| 3 | r19 | none | `epic-19-retro` | Epic 19 retrospective, headless; no gate of its own (the wave gate below covers main) | opus |
+| 4 | e18fd | none | `e18fd-docs-ledger-playbook` | E18-A3, E18-A6, ledger hygiene E15-A1, E16-A5, E17-A6; drafts of E15-A11, E16-A7, E17-A7 and E18-A4 in one file for Matheus's approval | opus |
+| review | none | none | none | E15-A5 and E16-A6: Blind Hunter and Intent Alignment over `6e5d8aee..be2f46fb` and `be2f46fb..541ceb97`, read-only, findings to the coordinator | opus |
+| wave 2 | s184 | 43 | `s184-events-say-how-long` | Story 18.4, from main after lanes 1 and 2 merge (it extends the contract lane 1 hardens and the queries and tooling test lane 2 writes) | opus · high |
+
+**Coordinator decisions.** Lanes 1 and 2 share no file except `docs/observability.md` (lane 2 owns it in wave 1; lane 1
+writes its runbook sentences into its PR body for the coordinator) and `deferred-work.md` (each lane appends under its
+own heading). Lane 1 adds no event name, kind or target: the vocabulary is frozen until Story 18.4. Lane 2's tooling
+test reads the closed lists from `packages/domain/src/contract/telemetry.ts`, never a copy. The telemetry step of the
+smoke reads CloudWatch with the deploy's own credentials (read-only `logs:FilterLogEvents` or Logs Insights), prints
+counts only, and is a warning, not a failure, for the first deploy that carries it. The smoke step 6 fix keeps the
+suite's eight steps and their assertions; a retry is allowed only around the tab opening, never around an assertion.
+Two batch stacks stay allowed (2026-10-08; E17-A8 records the measured load instead of a new rule). The main
+checkout's stack is stopped while lanes 1 and 2 run.
+
+**Facts the batches share.** The event vocabulary and `SCREENS` live in `packages/domain/src/contract/telemetry.ts`;
+the CloudWatch line is written by `apps/api/src/telemetry/sink.ts` (`ux_event_sink_failed` is the sink's error
+line); the queries are `local.ux_queries` in `infra/production/observability.tf` with `local.ux_query_order` and the
+labels `local.ux_user_label`/`local.ux_company_label`; `var.smoke_company_id` exists; `infra/bin/check` runs offline in
+a container with no AWS credentials.
+
+**Wave gate.** After lanes 1 and 2 merge, the coordinator runs `test:e2e:full` on the integrated main under the lock
+(E18-A6), then wave 2; after wave 2, the integrated review (adversarial, edge case, verification gap) over the
+follow-up diff, one fix batch if needed, and the deploy only on Matheus's word.
