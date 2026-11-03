@@ -2,7 +2,7 @@
 title: 'E19-A2: Home fix batch (current card rule, pending list, page-size chips, tests)'
 type: 'bugfix'
 created: '2026-11-03'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 baseline_revision: 'f085d7ec0ae6a6af32a4ba6af4fb5194dfabc0f1'
 review_loop_iteration: 0
@@ -117,3 +117,19 @@ deferred: []
 - `podman compose --profile tools run --rm --user root tools pnpm exec vitest run <file>` -- while iterating, the narrowest file
 - `podman compose --profile tools run --rm --user root tools pnpm lint` / `static` / `test:unit` / `test:api` -- green
 - `podman compose --profile tools run --rm --user root tools pnpm exec tsx scripts/e2e.ts e2e/home.spec.ts e2e/app-layout.spec.ts --project desktop-chrome --project durability-desktop-chrome` -- green
+
+## Auto Run Result
+
+Status: done
+
+**Summary:** E19-A2 whole, red first, and E19-A3's four ledger rows. R-2: `homeCards` picks the current card by its own rule (on-device Em campo, latest `service_start`, a missing date after any date, then the smaller id), apart from the list sort, which is unchanged. R-3: `SyncState.summaryRead` (optional; false until the provider's `sync_state` live query answers) keeps Home's board and list pending. R-5: `FilterChipGroup.moveTo` moves focus always and clicks only when the target differs from `selectedId`, with `onChange` when the ref is null. R-7: `HOME_ACTIVE_STATUSES` derived from `RELATORIO_STATUSES` without `emitido`, pinned by a kernel test. R-8: `app-layout.spec.ts` `toBeInViewport({ ratio: 1 })`. R-9: `19.2-E2E-001` creates a relatório through the dialogs with the push aborted and asserts `[Em campo (is-current), new, Em revisão, Rascunho]` and the create op in the outbox. R-11: the page-size live query falls back to 10 on a rejected read. R-12: an always-mounted visually hidden `role="status"` line (`home-list-status`) carries the kernel's note.
+
+**Files:** `packages/domain/src/home/cards.ts` (+ test), `apps/web/src/components/chip.tsx` (+ test), `apps/web/src/state/sync.tsx` (+ test), `apps/web/src/surfaces/home/home-surface.tsx` (+ test), `e2e/app-layout.spec.ts`, `e2e/home.spec.ts`, `deferred-work.md` (§ Deferred from: the Epic 19 retrospective), `docs/kbs/log.md`.
+
+**Review:** 5 findings (Edge Case Hunter 5, Verification Gap 0): 0 patched, 0 deferred, 5 rejected with reasons in the triage log (4 low, 1 maybe-false that would only be low). `followup_review_recommended: false` (no patch).
+
+**Red-first runs (implementation subagent, `.scratch-f19/*-red.log`):** cards.test.ts 3 R-2 tests red; chip.test.tsx the Home and End rows red; sync.test.tsx the `summaryRead` case red; home-surface.test.tsx the R-3 pending, R-11 fallback and two R-12 tests red; all green after the fixes. Not red by nature: the R-2 not-on-device row, the R-7 pin, the R-3 fresh-device row and the two e2e strengthenings. No test for the R-5 null-ref row (unreachable without internals).
+
+**Verification (host lock, `.scratch-f19/gate*.log`):** run 1 on `7741c3b6`: lock wait 0 s (after a first attempt whose wrapper failed on quoting after a 165 s wait behind batch e18fa's gate), load 4.91 at start, 6.05 at end; lint 0 errors (25 warnings in untouched specs) 15 s, static green 31 s, test:api 97 files 738 tests 295 s, test:unit 336 files 4749 tests 205 s, touched specs 4 of 5 (19.2-E2E-001 red: the Project page had no "Novo relatório a partir de template" step to click, then the reset without the standard template left the Template combobox empty). Two test-only fixes to `e2e/home.spec.ts` (drop the extra click; `resetEmpresaB(account, { standard: true })`, wait for "1 template", `test.setTimeout(120_000)`). Run 3: lint 0 errors 17 s, static green 26 s, `home.spec.ts` + `app-layout.spec.ts` 5 of 5 (24.7 s wall, build included; the durability project holds none of them), load 4.66 at start, 4.53 at end; batch e18fa's stack up beside it.
+
+**Residual risks:** R-1 (the order key) waits for Matheus's E19-A1; the current-card rule here is the conservative pre-19.2 reading and may change with his answer to the retro's open question (latest start or last sheet opened on this device).

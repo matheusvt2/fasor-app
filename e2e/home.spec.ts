@@ -214,8 +214,11 @@ test('@p1 19.2-E2E-001 Home opens on the active work, most recent first; Emitido
   page,
   seed,
 }) => {
+  // E19-A2 (R-9): the relatório created through the dialogs below adds about 20 s.
+  test.setTimeout(120_000);
   const account = seed.companies[1];
-  await resetEmpresaB(account);
+  // E19-A2 (R-9): the standard template, so the Project's "Novo relatório" dialog can create one below.
+  await resetEmpresaB(account, { standard: true });
   const database = deviceDatabaseName(account.userId);
   await signIn(page, account.email);
   await waitForCompanyPull(page, database);
@@ -290,8 +293,8 @@ test('@p1 19.2-E2E-001 Home opens on the active work, most recent first; Emitido
   await page.route(isPush, (route) => route.abort('internetdisconnected'));
   await tile(page, 'Emitido').click();
   await expect.poll(listIds).toEqual([emCampo.relatorio_id, emRevisao.relatorio_id, rascunho.relatorio_id]);
+  await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
   await createProjectFromHome(page);
-  await page.getByRole('button', { name: 'Novo relatório a partir de template' }).first().click();
   const created = await createRelatorio(page);
   await page.goto('/');
   await expect(board).toBeVisible();
