@@ -14,8 +14,53 @@ Name the product Conforme, and act on five field feedback items Matheus relayed 
 - Story 20.4: Change the equipment or local of a point of attention
 - Story 20.5: The nameplate and verification tables never start on one page and end on the next
 - Story 20.6: Each equipment on its own page with all its photos at its end
+- Story 20.7: The server decides which status moves a relatório may make
+- Story 20.8: The server checks who and when an op says
+- Story 20.9: Every op value has a size and a type the server enforces
+- Story 20.10: Every op lands on a row that exists in the relatório it names
+- Story 20.11: Signing out leaves nothing of the user on the device
+- Story 20.12: Paid readings, audits and image decoding have a ceiling
+- Story 20.13: The edges: auth endpoints, cross-site writes, telemetry, removed files, HSTS and the login copy
 
 Waves: one wave A in two stacks. The web lane is 20.1, then 20.2, then 20.4; those stories share `copy/pt-br.ts` and the e2e shell specs. The document lane is 20.3, then 20.5, then 20.6; those stories share `docx.ts`, `sections/section-9.ts`, `print/section-9.ts` and the layout golden.
+
+*(2026-11-03, Matheus: the security pass (`test-artifacts/manual/security-pass-2026-11-03.md`) joins as wave B. It starts after wave A merges and passes its wave gate, in two stacks:*
+- *The server lane is 20.7, then 20.8, then 20.9, then 20.10. These stories share `apps/api/src/sync/apply.ts` `validate`, `packages/domain/src/contract/errors.ts` and `e2e/security-ops.spec.ts`.*
+- *The edge lane is 20.11, then 20.12, then 20.13. These stories share `copy/pt-br.ts`, `http/app.ts` and the auth specs. 20.12 and 20.13 start after 20.7 merges.*
+
+*20.7 bumps the contract to 29 once, for every new code of the wave. A second hands-on security pass on the integrated main precedes the deploy.)*
+
+## Security wave (B): requirements and constraints
+
+- **The kernel holds every rule. The server calls it in `validate` (`sync/apply.ts` lines 150 to 194) and in the apply transaction under the company's advisory lock.**
+  - The status validator reads AD-22's table (`status/table.ts`). The forward moves come from `statusTable`, and the backward moves are `manualMove`.
+  - The attribution table, the value schemas per path family and field, and the target check are all kernel exports. A guard test enumerates every family.
+- **What the server checks against:** the status, rows and jobs the server holds when the op applies, never the device's view.
+  - A stale device's refused op lands in its rejected list with a kernel sentence. The rest of its batch applies.
+  - A put on a tombstoned row still applies (LWW).
+  - The merge redirect (`mergedInto`) runs before the target check.
+- **What stays allowed:** edits to an Emitido relatório, because the issued revision is frozen and the next generate builds N+1. Past instants also stay allowed, because a tablet works offline for days.
+- **New codes, in contract 29, append-only in `contract/errors.ts`:**
+  - op refusals: `op_status_transition`, `op_attribution`, `op_value_invalid`, `op_target_missing`;
+  - errors: `quota_exceeded`, `forbidden_origin`.
+- **Sign-out (20.11):**
+  - First `Dexie.delete` of `releng-{user_id}`, then the user's cached files, then `clearLastSession()`. The flush comes before all of this, as the Export dialog does.
+  - An online boot with a 401 goes to `/login` and does not open the database.
+  - An offline boot keeps the re-auth banner (AD-9 otherwise unchanged).
+  - The storage identifiers of Story 20.1 stay as they are.
+- **No paid key in any test:** `LLM_PROVIDER` and `OCR_PROVIDER` stay `fake`. Quotas are env variables with the defaults written in Story 20.12, and the CloudWatch metric goes through Terraform in `infra/`.
+- **Regression specs:** `test-results/adhoc-sec/` (gitignored: `attack.mjs`, `online.mjs`, `inject.mjs`, `render.mjs`) holds the reproductions. They become `e2e/security-ops.spec.ts` (20.7 to 20.10, 20.13) and `e2e/security-device.spec.ts` (20.11), both `@p0`. The Secure cookie needs `localhost`, which the e2e base URL already is.
+- **Durability:** 20.7 and 20.10 change the commit path, so their durability specs also run on the matrix projects (story gate, E10-A1 as amended by E11-A1).
+
+## Open readings of wave B (coordinator's, to be corrected by Matheus)
+
+- **20.7:** no roles; every member keeps every move.
+- **20.8:** a clock skew of 10 minutes into the future; nothing earlier than the relatório's creation.
+- **20.9:** caps of 200, 1 000 and 20 000 characters; altitude from -500 to 9 000 m; a sync body of 4 MB.
+- **20.10:** a relatório with an issued revision cannot be removed until it is moved back to Em revisão.
+- **20.11:** sign-out deletes the device data after a flush and a confirm; an online boot with a 401 goes to `/login`.
+- **20.12:** 400 readings and 30 audits per company per day; 120 megapixels.
+- **20.13:** the per-e-mail sign-in limit is kept, and the lockout is an accepted risk.
 
 ## Requirements & Constraints
 

@@ -4831,6 +4831,36 @@ Investigated 2026-11-03 by Matheus with the agent against main `cf468e3d` (conte
 
 **Decisions (Matheus, 2026-11-03):** the name is Conforme for now, kept in the one constant so the next change is one line (20.1). The Home search covers client and obra (20.2). Section 8 prints after section 9 on every new relatório, renumbered (20.3). The point editor gets a picker that links, changes or clears the point's equipment or local (20.4). The equipment and verification tables do not split (20.5). In his words for the photos: *"não é para ter foto no meio do equipamento. São 2 alterações, a primeira é, ter um espaço entre equipamentos, tem que ter quebra de página entre equipamentos. A segunda é que as fotos devem vir entre um equipamento e outro, ou seja as fotos do equipamento devem vir após os dados do ensaio, inclusive as fotos não conforme"* (20.6). No seed and no contract bump is planned; a story that finds one necessary says so before it merges. Waves: **A**, two stacks: the web lane 20.1, then 20.2, then 20.4 (the copy module and the e2e shell specs are shared); the document lane 20.3, then 20.5, then 20.6 (`docx.ts`, `section-9.ts` and the layout golden are shared). The 2026-10-08 story gate applies to every story; the full `@p0`, `test:e2e:full` and the matrix run once on the integrated main; the deploy follows on Matheus's go.
 
+**Added 2026-11-03 (Matheus: *"pode registrar e planejar a execução do lote … coloque junto"*): the security pass joins this epic as Stories 20.7 to 20.13.** Source: `_bmad-output/test-artifacts/manual/security-pass-2026-11-03.md`, a hands-on pass of the same day against the local main stack (`cf468e3d`), driven by curl and Playwright, plus a static audit of `apps/api` and `packages/domain`. His brief was: *"deve ser quase impossível entrar sem user e senha e nenhum dado deve ser exposto na url, assim como o backend deve conter as regras de negócio, não quero que confie no front com as informações"*.
+
+What the pass found holding:
+- sign-in, the session cookie and sign-out;
+- every unauthenticated route (401) and deep link (`/login`);
+- URLs that carry only uuids, `since` and `etapa`;
+- tenant isolation;
+- stored XSS rendered as text.
+
+What it found failing:
+- the server takes business rules from the client, in status (S1), attribution (S3), value bounds (S4) and targets (S5): Stories 20.7 to 20.10;
+- a signed-out device still opens, and writes, the previous user's data (S2): Story 20.11;
+- paid work and image decoding have no ceiling (S6): Story 20.12;
+- the edges (S7, S8): Story 20.13.
+
+Three things in these stories are the coordinator's reading, to be corrected by Matheus, and each DoR marks them:
+- No roles: every member keeps every move, and the server enforces AD-22's table.
+- Sign-out deletes the device database after a flush, and an online boot with an expired session goes to `/login`.
+- The caps and quotas carry the default numbers written in those stories.
+
+Contract 29 is bumped once, by 20.7. That amends the "no contract bump" line above for wave B only.
+
+Waves:
+- **A:** unchanged.
+- **B:** after A merges and passes its wave gate, two stacks.
+  - The server lane is 20.7, then 20.8, then 20.9, then 20.10. These share `sync/apply.ts` `validate`, `contract/errors.ts` and `e2e/security-ops.spec.ts`.
+  - The edge lane is 20.11, then 20.12, then 20.13. These share `copy/pt-br.ts`, `http/app.ts` and the auth specs. 20.12 and 20.13 start after 20.7 merges, because they use its contract.
+
+The regression proof of the pass, now in `test-results/adhoc-sec/` (gitignored), becomes `e2e/security-ops.spec.ts` and `e2e/security-device.spec.ts` (`@p0`). Wave B ends with a second hands-on security pass on the integrated main before the deploy.
+
 ### Story 20.1: The product is called Conforme: the one constant, the page title and the boot splash
 
 **Dev model:** opus · **Effort:** medium · one constant value, two literals in `index.html`, one copy literal moved onto the constant, the tests that assert the literal, the naming lines of the planning docs and the KB; no kernel logic, no op, no contract, no identifier change
@@ -5002,6 +5032,345 @@ So that a ficha reads as one block and no photo interrupts its tables.
 **Then** every photo keeps its number and every "conforme Imagem NN" in the points resolves to the same photo (FR-48)
 
 **Definition of Done, in addition:** red-first kernel tests in `print/section-9.test.ts` for the part order of an ensaiada, a Não ensaiada and a local block; `photo-order.test.ts` and `numbering.test.ts` green unchanged; `docx.test.ts` asserts a page break before each ficha and none doubled after the section heading; the layout golden regenerated with the diff explained; `photo-numbers.spec.ts`, `display-shots.spec.ts` 16.3-E2E-001, `section-7-by-hand.spec.ts` 17.1-E2E-001 and `sheet-photos.spec.ts` 11.11-E2E-001 updated to the new placement and a check that each ficha starts a page in the PDF (through the per-page read Story 20.5 adds); a `source-deltas.md` row (FR-68 "photos linked to the equipment beside its tables"); the story gate (lint, static, test:unit, test:api, the touched specs).
+
+### Story 20.7: The server decides which status moves a relatório may make
+
+**Dev model:** opus · **Effort:** max · kernel (one transition validator over AD-22's table, read by both sides), the server's per-op validation in `sync/apply.ts`, the codes of wave B (contract 29, bumped once here), the AD-22 and AD-24 amendments; no surface change, no seed
+
+As the engineer who signs a relatório and the client who receives it,
+I want a relatório to reach Emitido only by being generated and marked as sent,
+So that no device, edited build or hand-written request can mark as issued a relatório nobody revised.
+
+**Today (verified 2026-11-03 on the local main stack, `security-pass-2026-11-03.md` S1):** one `relatorio/status` put moved a Rascunho straight to Emitido with no revision, and Home counted it as Emitido. A `relatorio/{id}` create born `emitido` was applied. The table lives only in the kernel's emitters (`status/table.ts`, `relatorio/status-advance.ts`), which only the web calls. The server checks shape, path, tenant and attribution only (`validate`, `sync/apply.ts` lines 150 to 194), and `contract/errors.ts` says a refusal is "never a domain rule" (AD-24). Every member of a company may do everything: there are no roles.
+
+*(Definition of Ready: decided 2026-11-03 (Matheus: "o backend deve conter as regras de negócio, não quero que confie no front"). Coordinator's reading, to be corrected by Matheus: no roles in this epic, every member keeps every move, and the server enforces the table instead of trusting the client. The server never writes the status, so AD-22 still holds; it validates each `relatorio/status` op against the status the server holds when the op applies, through one kernel function used by both sides. The rules:*
+
+- *A create is born `rascunho`.*
+- *A forward move must be a row of the table.*
+- *Moving to Em revisão needs a `generation_job` of kind `issue` for that relatório, created after the relatório's latest status op.*
+- *Moving to Emitido needs the move to start at Em revisão and a `revision` row for that relatório.*
+- *A backward move (`manualMove`) is always allowed.*
+
+*A refused status op is refused alone with `op_status_transition`. The other ops of its batch apply, and the device shows the refusal through its rejected list as other refusals do, with a kernel sentence. Edits to an Emitido relatório stay allowed: the issued revision is a frozen snapshot, and the next generate builds revision N+1 (AD-22, 2026-10-13).*
+
+*Contract 29 is bumped once, here, and carries every new code of wave B: the op refusals `op_status_transition`, `op_attribution`, `op_value_invalid`, `op_target_missing`, and the error codes `quota_exceeded` (20.12) and `forbidden_origin` (20.13). This amends the epic's "no contract bump" line. A device on contract 28 gets the outdated-contract screen, as on every bump. `relatorio/removed_at` and `responsible_user_id` belong to Stories 20.9 and 20.10.)*
+
+**Acceptance Criteria:**
+
+**Given** a Rascunho relatório and a valid session of its company
+**When** a client pushes a `relatorio/status` put to `emitido`, or to `em_revisao` with no issue job queued after its last status op
+**Then** the op is refused `op_status_transition`, the server row keeps `rascunho`, Home on every device still counts it under Rascunho, and the other ops of the batch apply (AD-22, AD-24)
+
+**Given** a push of `relatorio/{id}` create whose row says `emitido`, `em_revisao` or `em_campo`
+**When** it is applied
+**Then** it is refused `op_status_transition` and no relatório is created
+
+**Given** the paths the web takes today, each through the real UI:
+- a setup completed;
+- a first field value;
+- a generate;
+- "Marcar como enviado ao cliente";
+- an edit after Emitido;
+- the Overflow's backward move;
+
+**When** each is synced
+**Then** every one is applied as before, and no relatório in the fixtures or in the e2e suite gets a refusal it did not get before
+
+**Given** two devices with a stale status, one marking the relatório as sent while the other, offline, makes its first field edit on what it still sees as Rascunho
+**When** both sync
+**Then** the server applies whichever transition is valid from the status it holds and refuses the other. No edit is lost. The device whose op was refused converges on the server's status on its next pull and shows the refusal sentence once.
+
+**Definition of Done, in addition:**
+- Red-first kernel tests of the validator, covering every (from, to) pair, the job and revision preconditions, and the create rule.
+- `apply-batch.integration.test.ts` and a new `status-transition.integration.test.ts` reproduce the S1 pushes and the two-device case.
+- `contract.test.ts` covers the four new codes and version 29.
+- `e2e/security-ops.spec.ts` (new, `@p0`) reproduces the forged status push through the page's own session and asserts Home is unchanged.
+- The status durability specs run on the matrix projects, because this changes the commit path.
+- AD-22 and AD-24 are amended with the date in the spine, and a `source-deltas.md` row records the change.
+- `docs/kbs` concept and log are updated.
+- The story gate (lint, static, test:unit, test:api, the touched specs).
+
+### Story 20.8: The server checks who and when an op says
+
+**Dev model:** opus · **Effort:** high · the server's per-op validation of attribution held inside values (`concluded_by`, `not_tested.by`, `meta.restore.removed_by`) and of the client's clock; kernel helpers; no surface change; the codes come with contract 29 (Story 20.7)
+
+As the engineer whose name the relatório prints,
+I want "concluído por" and every other signature in a ficha to be the person who actually did it,
+So that a colleague cannot conclude a sheet in my name or backdate it.
+
+**Today (verified 2026-11-03, S3):** `block/{id}/concluded_by` was applied with another user's `actor_id` and an `at` of 2020-01-01, and an op with `client_ts` in 2099 was applied. The op's own `actor_id` is checked against the session (`sync/apply.ts` line 170). The ids and instants inside a value are not checked.
+
+*(Definition of Ready: decided 2026-11-03 (Matheus, same sentence as 20.7). Coordinator's reading, to be corrected by Matheus. A value that names an actor must name the op's actor (the session user). A value or an op that carries an instant may lie at most 10 minutes in the server's future, and no earlier than the relatório's `created_at`. Past instants stay allowed, because a tablet works offline for days. A failure is refused `op_attribution`. The kernel lists the attributed fields in one table that the server's check and a guard test read, so a new attributed field cannot skip the check.)*
+
+**Acceptance Criteria:**
+
+**Given** a push of `concluded_by`, `not_tested` or a restore whose actor is another user of the same company
+**When** applied
+**Then** it is refused `op_attribution`, and the sheet keeps its previous value (FR-36, AD-24)
+
+**Given** an op whose `client_ts` or value instant is more than 10 minutes ahead of the server clock, or earlier than its relatório's creation
+**When** applied
+**Then** it is refused `op_attribution`
+
+**Given** a field user who concludes sheets offline for two days and syncs on the third
+**When** the outbox flushes
+**Then** every op applies with its offline instants, and the section 9 attribution line prints their real dates
+
+**Definition of Done, in addition:**
+- Red-first tests on the kernel table and on the check.
+- An integration test for each S3 push and for the two-day offline batch.
+- A guard test that every value schema holding an `actor_id` or an instant is in the table.
+- `security-ops.spec.ts` extended with a forged `concluded_by`.
+- A `source-deltas.md` row.
+- The story gate.
+
+### Story 20.9: Every op value has a size and a type the server enforces
+
+**Dev model:** opus · **Effort:** high · kernel (a value schema per path family and field, with length caps and numeric ranges, applied by `applyOp`'s validation on both sides), the server refusal `op_value_invalid`, the sync body cap, the bounded inputs in the web where a field had none; the code comes with contract 29
+
+As the office that generates relatórios on one shared instance,
+I want a field to accept only the kind and amount of text or number it is meant to hold,
+So that one oversized or malformed value cannot block a relatório's generation or hold up everyone's documents.
+
+**Today (verified 2026-11-03, S4):** each of these was applied:
+- a 5 MB string in `relatorio/setup/additional_info`;
+- `sheet/{id}/observations` as an object;
+- `site_altitude_m = -99999`.
+
+The next preview ran LibreOffice for about 2 minutes and failed `libreoffice_timeout`, which made the relatório impossible to generate. No string in the row schemas has a `.max`, and `POST /api/sync/ops` takes up to 16 MB.
+
+*(Definition of Ready: decided 2026-11-03 (Matheus, same sentence as 20.7). Coordinator's reading, to be corrected by Matheus: caps chosen from the longest values in the Porto Seguro fixture and FO.SERV-03, with headroom:*
+
+| Kind of field | Examples | Limit |
+|---|---|---|
+| Short text | names, TAG, serial, place, labels | 200 characters |
+| Medium text | an NC phrase, an item note, a caption | 1 000 characters |
+| Long text | `additional_info`, OBSERVAÇÕES, CONCLUSÃO, point text, parecer | 20 000 characters |
+| Numbers | every number field | finite |
+| Numbers with a unit | the unit's range in the kernel (altitude -500 to 9 000 m, the AD-11 kinds) | as stated |
+| Enums and ids | every enum and id field | their own schema |
+
+*A refused value gets `op_value_invalid` and the device's rejected list. The web fields carry the same caps (`maxLength`, numeric bounds), so a user never types into a refusal. The sync body cap drops to 4 MB. Before the deploy, a read-only production query counts any stored value over its cap and reports it in the PR. Stored values are not rewritten: they stay readable, and only new ops are bounded.)*
+
+**Acceptance Criteria:**
+
+**Given** each S4 push
+**When** applied
+**Then** it is refused `op_value_invalid`, the relatório still generates in its usual time, and the preview has no `libreoffice_timeout` (NFR performance budget of AD-7)
+
+**Given** a field at its cap in the UI
+**When** the user types past it or pastes a longer text
+**Then** the field stops at the cap and shows how many characters it holds, and nothing is queued that the server would refuse
+
+**Given** every path family the kernel declares
+**When** the guard test runs
+**Then** each has a value schema, and a new family without one fails `test:unit`
+
+**Definition of Done, in addition:**
+- Red-first kernel tests per field kind.
+- An integration test for each S4 push and for the body cap (413).
+- The guard test above.
+- Every existing unit, api and e2e test green unchanged, which proves the caps fit real data.
+- `security-ops.spec.ts` extended with the 5 MB push followed by a successful preview.
+- The production count query result pasted in the PR.
+- The AD-11 amendment with the date.
+- A `source-deltas.md` row.
+- The story gate.
+
+### Story 20.10: Every op lands on a row that exists in the relatório it names
+
+**Dev model:** opus · **Effort:** high · the server's target check in the apply transaction (the entity exists, or is created earlier in the same batch, and belongs to the op's `relatorio_id` or `project_id`), the reference checks (`responsible_user_id` is a user of the company), removal of an issued relatório; the code comes with contract 29
+
+As the office relying on every device seeing the same relatório,
+I want an op filed under the wrong relatório, or aimed at a row that does not exist, to be refused,
+So that no write is hidden from the devices and checks that read that relatório's stream.
+
+**Today (verified 2026-11-03, S5 and part of S1):** each of these was applied:
+- a put on a relatório the company does not hold, stored as an orphan op;
+- a put on a block id that does not exist;
+- a put on relatório R1's block filed under R2's `relatorio_id`, which R1's devices never pull and which generate's "edited since" misses;
+- `responsible_user_id` set to an id that is no user;
+- `relatorio/removed_at` on an Emitido relatório.
+
+*(Definition of Ready: decided 2026-11-03 (Matheus, same sentence as 20.7). The server checks, inside the apply transaction and with the advisory lock already held:*
+
+- *the target row of a put or remove exists, or is created earlier in the same batch;*
+- *the row belongs to the op's `relatorio_id` or `project_id`;*
+- *a row merged away is redirected as today.*
+
+*A failure is refused `op_target_missing`. A put on a tombstoned row still applies, as LWW does today. `responsible_user_id` must be a user of the company (`op_value_invalid`).*
+
+*Coordinator's reading, to be corrected by Matheus: a relatório with an issued revision cannot be removed (`op_forbidden`). The office backs it to Em revisão first, then removes it. This is the one removal rule here. Whether only some people may remove, and roles in general, waits for a dated decision.)*
+
+**Acceptance Criteria:**
+
+**Given** each S5 push
+**When** applied
+**Then** it is refused `op_target_missing`, and no orphan op is stored
+
+**Given** a device that creates a local, an equipment and its first values in one offline batch
+**When** it syncs
+**Then** every op applies in order, because each target is created earlier in the batch
+
+**Given** a removal of an Emitido relatório, and a `responsible_user_id` that is no user of the company
+**When** applied
+**Then** they are refused `op_forbidden` and `op_value_invalid`; a removal after moving the relatório back to Em revisão applies
+
+**Definition of Done, in addition:**
+- Red-first integration tests per refusal.
+- The in-batch creation order.
+- The merge redirect unchanged (`merge.integration.test.ts` and `panel-retarget.integration.test.ts` green).
+- `replay.integration.test.ts` green, which proves the check never refuses an op the replay fixtures hold.
+- `security-ops.spec.ts` extended with the misfiled put.
+- The durability specs on the matrix projects, because this changes the commit path.
+- A `source-deltas.md` row.
+- The story gate.
+
+### Story 20.11: Signing out leaves nothing of the user on the device
+
+**Dev model:** opus · **Effort:** high · `state/session.tsx` sign-out (delete the user's Dexie database and the user's cached files, after a flush), the boot path when the server answers 401 online, the Conta sign-out confirm with the pending count, copy, the AD-9 amendment; no op, no contract
+
+As an engineer who shares a field tablet or loses one,
+I want "Sair" to remove my relatórios, photos and unsent changes from the device,
+So that the next person holding it cannot open my company's data or write in my name.
+
+**Today (verified 2026-11-03, S2):**
+- Sign-out keeps `releng-{user_id}` by design ("sign-out never drops it", AD-9; `doSignOut`, `state/session.tsx` lines 291 to 305).
+- After "Sair", putting the profile JSON back into `localStorage['releng.last-session']` and reloading opened the previous user's Home, cadastros and relatórios with no password. This also worked online, behind only the re-auth banner.
+- A client, a project and a relatório created in that state were pushed with the victim's `actor_id` at that user's next sign-in.
+
+*(Definition of Ready: decided 2026-11-03. Coordinator's reading, recommended in the security pass, to be corrected by Matheus:*
+
+- *A confirmed sign-out first drives the sync engine to flush, as the Export dialog does.*
+- *If anything is still pending or dead, a confirm says so: "N alterações ainda não foram enviadas. Sair apaga-as deste aparelho." (authored, the count composed in the kernel), with "Cancelar" and "Sair mesmo assim".*
+- *Then it deletes the user's database (`Dexie.delete`) and every cache entry that holds the user's files, and clears the pointer.*
+- *At boot, when the network answers and the session read returns 401, the app goes to the login screen without opening the database. The database is kept, so an expired session is not a sign-out, and the same user signing in gets the outbox back.*
+- *Offline, the 30-day session still reaches local data behind the re-auth banner (AD-9 unchanged there).*
+- *A different user signing in on the device opens their own database only.)*
+
+**Acceptance Criteria:**
+
+**Given** a signed-in user with everything synced
+**When** they confirm "Sair"
+**Then** the `releng-{user_id}` database and the user's cached files are gone, and restoring the old pointer and reloading lands on `/login` with no data shown, online and offline (AD-9)
+
+**Given** a user with unsent changes, online
+**When** they press "Sair"
+**Then** the app first tries to send them. If some remain, the confirm names the count, and "Cancelar" keeps everything as it was.
+
+**Given** a device whose session expired, with network
+**When** the app boots
+**Then** it opens on `/login`, no relatório is shown, and the same user signing in finds the unsent changes and sends them
+
+**Given** a device whose session expired, with no network
+**When** the app boots
+**Then** it opens on Home behind the re-auth banner, as today
+
+**Definition of Done, in addition:**
+- Component and unit tests for the sign-out sequence and the confirm.
+- `e2e/security-device.spec.ts` (new, `@p0`) runs the S2 reading and writing reproductions from `test-results/adhoc-sec/attack.mjs` and `inject.mjs` as real Playwright tests and asserts both now fail.
+- `auth.spec.ts` and the durability sign-out specs are updated and run on the matrix projects.
+- EXPERIENCE.md § session states is amended with the date.
+- AD-9 is amended with the date, and a `source-deltas.md` row records it.
+- The story gate.
+
+### Story 20.12: Paid readings, audits and image decoding have a ceiling
+
+**Dev model:** opus · **Effort:** high · a per-company daily quota on readings, rereads and audits (configured, counted in Postgres), a reread refused on a photo already read with the same kind, `sharp` `limitInputPixels` on every decode of uploaded bytes, kernel sentences for "limit reached"; the code `quota_exceeded` comes with contract 29 (Story 20.7)
+
+As Matheus, who pays the AWS bill,
+I want one user, by mistake or on purpose, unable to run readings, audits or image work without limit,
+So that the month stays under the USD 100 ceiling and the single instance stays responsive.
+
+**Today (static audit 2026-11-03, S6):**
+- A photo create may carry `reading_status: "queued"`.
+- The reread route can be repeated on a photo already `done`.
+- An audit only checks that none is running.
+- None of these routes has a quota or a rate limit.
+- `sharp()` decodes uploads with no `limitInputPixels` (`storage/variants.ts` line 43) inside the upload request.
+
+*(Definition of Ready: decided 2026-11-03 (Matheus's AWS ceiling of 2026-09-29). Coordinator's reading, to be corrected by Matheus:*
+
+- *Defaults per company per day: 400 readings including rereads, and 30 audits, through env variables. The usage events give the real volumes, so the defaults can be checked before the deploy.*
+- *A reread of a photo already read with the same reading kind answers the stored reading and spends nothing.*
+- *Past the quota, a reading or an audit is refused `quota_exceeded` with the kernel sentence "Limite diário de leituras atingido. Tente amanhã ou fale com o administrador." (authored), and the photo stays a plain photo the user can fill by hand.*
+- *`limitInputPixels` is set to 120 megapixels on every `sharp` decode of uploaded bytes, and a larger image is refused at upload with its own message.*
+- *A CloudWatch metric of daily readings per company goes in `infra/`, through Terraform.)*
+
+**Acceptance Criteria:**
+
+**Given** a company at its daily reading quota
+**When** a user takes a nameplate photo
+**Then** no reading is queued, the photo is kept, the sheet shows the sentence, and the next day's first reading runs (FR-37, NFR cost ceiling)
+
+**Given** a photo already read
+**When** the reread route is called again with the same kind
+**Then** the provider is not called and the stored reading is answered
+
+**Given** a 200-megapixel image or a decompression bomb uploaded as a photo
+**When** the upload is processed
+**Then** it is refused before decoding, and the api stays responsive to other requests
+
+**Definition of Done, in addition:**
+- Integration tests for the quota, the reread and the pixel limit, using fake providers and no paid key.
+- `photos.spec.ts` or a new spec covers the quota sentence on a sheet.
+- `infra/` gains the metric, with `terraform plan` output pasted in the PR.
+- `docs/observability.md` gains the metric line.
+- A `source-deltas.md` row.
+- The story gate.
+
+### Story 20.13: The edges: auth endpoints, cross-site writes, telemetry, removed files, HSTS and the login copy
+
+**Dev model:** opus · **Effort:** medium · `http/app.ts` (an allowlist under `/api/auth/*`, a same-origin and JSON check on every mutating `/api` route), `http/telemetry.ts` (limiter keyed by the session user), `http/files.ts` (a tombstoned file answers 404 except revision files), `infra/caddy/Caddyfile` (HSTS on the domain block), `http/health.ts` (the LibreOffice probe cached), the login copy; no op; the code `forbidden_origin` comes with contract 29 (Story 20.7)
+
+As anyone signing in or working in the app,
+I want only the doors the app uses to be open,
+So that no other request can rename me, list my sessions, write on my behalf from another site, or flood the logs.
+
+**Today (verified 2026-11-03, S7 and S8):**
+- `POST /api/auth/update-user` renamed the signed-in user. The name is identity-owned and prints in the relatório.
+- `list-sessions` and `revoke-other-sessions` answer.
+- `POST /api/sync/ops` with `content-type: text/plain` and no `Origin` was applied.
+- The telemetry limiter is keyed by the client's `device_id`.
+- A removed file is still served.
+- The `{$APP_DOMAIN}` Caddy block sends no `Strict-Transport-Security`.
+- `/api/health` starts LibreOffice on every unauthenticated call.
+- An unknown e-mail shows "Senha incorreta".
+
+*(Definition of Ready: decided 2026-11-03. The changes:*
+
+- *Only `sign-in/email`, `sign-out` and `get-session` are routed to better-auth. Every other `/api/auth/*` path answers 404.*
+- *Every POST, PUT, PATCH and DELETE under `/api` needs `Origin` (or `Sec-Fetch-Site: same-origin`) in the trusted origins and, except file uploads, `content-type: application/json`, else 403 `forbidden_origin`.*
+- *Telemetry is limited per session user and per device.*
+- *A file whose row is tombstoned answers 404, except a revision's DOCX or PDF.*
+- *The domain block sends `Strict-Transport-Security "max-age=31536000"` and drops `Server`, as the IP block does.*
+- *The health probe of LibreOffice is cached for 60 s.*
+- *The login error reads "E-mail ou senha incorretos." (authored).*
+
+*Coordinator's reading, to be corrected by Matheus: the per-e-mail sign-in limit stays. It is what stops distributed password guessing, and a signed-in device is not affected. The lockout an attacker can cause is recorded as an accepted risk in `deferred-work.md`.)*
+
+**Acceptance Criteria:**
+
+**Given** a signed-in session
+**When** it calls `update-user`, `list-sessions`, `revoke-other-sessions`, `change-password` or any other better-auth path outside the three
+**Then** the answer is 404, and the user's name and sessions are unchanged
+
+**Given** a mutating request with a foreign `Origin`, no `Origin` and no `Sec-Fetch-Site`, or a `text/plain` body
+**When** it reaches `/api/sync/ops`, generate, reading, audit or account
+**Then** it is refused 403 and nothing is applied; the app's own requests from every supported browser pass
+
+**Given** the production domain
+**When** any page is requested over HTTPS
+**Then** the response carries `Strict-Transport-Security` and no `Server` header
+
+**Definition of Done, in addition:**
+- `security.test.ts` and integration tests for each item.
+- `auth.spec.ts` covers the new login copy.
+- `security-ops.spec.ts` covers the cross-site push.
+- The Caddyfile change goes through the deploy path of `infra/` with its smoke.
+- The accepted-risk row is in `deferred-work.md`.
+- A `source-deltas.md` row for the auth allowlist.
+- The story gate.
 
 ## Backlog: deferred stories
 
