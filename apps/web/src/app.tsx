@@ -123,7 +123,7 @@ export const appRoutes: RouteObject[] = [
   {
     element: (
       <SessionProvider>
-        {/* Epic 18 (AD-28): one `screen_view` per route change, ids from the route params only. */}
+        {/* Epic 18 (AD-28): each route change enters its screen (Story 18.4: its `screen_view` is written when it is left), ids from the route params only. */}
         <TelemetryRoutes />
         <div className="app-root">
           <Outlet />

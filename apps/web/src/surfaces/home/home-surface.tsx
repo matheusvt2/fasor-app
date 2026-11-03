@@ -1,6 +1,7 @@
 import {
   DEFAULT_HOME_PAGE_SIZE,
   HOME_PAGE_SIZES,
+  homePageSizeTarget,
   homeCards,
   homeList,
   isHomePageSize,
@@ -59,7 +60,7 @@ const NO_LOCATIONS: LocationRow[] = [];
 const NO_FILES: Awaited<ReturnType<typeof localFileRows>> = [];
 
 /** Story 19.2: the page-size chips, 10 · 20 · 50 · 100, the size itself as the chip id and word. */
-const PAGE_SIZE_OPTIONS = HOME_PAGE_SIZES.map((size) => ({ id: String(size), label: String(size) }));
+const PAGE_SIZE_OPTIONS = HOME_PAGE_SIZES.map((size) => ({ id: String(size), label: String(size), telemetry: homePageSizeTarget(size) }));
 
 /** The key of the cold-open offline toast: once for this page session, not once per visit. */
 const OFFLINE_TOAST_KEY = 'offline-cold-open';
@@ -258,7 +259,6 @@ export function HomeSurface() {
                     selectedId={String(pageSize ?? DEFAULT_HOME_PAGE_SIZE)}
                     onChange={choosePageSize}
                     aria-label={copy.home.pageSizeLabel}
-                    telemetry="home.page_size"
                   />
                 </div>
               )}

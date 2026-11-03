@@ -113,10 +113,24 @@ describe('track (Story 18.1)', () => {
     track({ name: 'action', screen: 'home', target: 'home.card_open' });
     await whenTelemetryWritten();
     expect((await queuedUxEvents(first)).map((e) => e.session_id)).toEqual([loadSession]);
-    expect((await queuedUxEvents(second)).map((e) => [e.target, e.session_id])).toEqual([
-      ['home.continue', rotated],
-      ['home.card_open', rotated],
+    // Story 18.4 (e18fa open question 2): the new session opens with its own session_start, then the held events.
+    const rows = await queuedUxEvents(second);
+    expect(rows.map((e) => [e.name, e.target, e.session_id])).toEqual([
+      ['session_start', undefined, rotated],
+      ['action', 'home.continue', rotated],
+      ['action', 'home.card_open', rotated],
     ]);
+    expect(rows[0]).toMatchObject({ viewport: expect.stringMatching(/^(phone|tablet|desktop)$/), standalone: expect.any(Boolean), online: expect.any(Boolean) });
+    expect(rows.filter((e) => e.name === 'session_start')).toHaveLength(1);
+  });
+
+  it('Story 18.4: the first configure of a load queues no session_start (the load queued its own)', async () => {
+    const db = await freshDb();
+    configureTelemetry({ db, deviceId: DEVICE });
+    configureTelemetry(null);
+    configureTelemetry({ db, deviceId: DEVICE });
+    await whenTelemetryWritten();
+    expect(await queuedUxEvents(db)).toEqual([]);
   });
 
   it('E18-A1 (R-A15): the same database configured again (an effect re-run, the same user again) keeps the session id', async () => {

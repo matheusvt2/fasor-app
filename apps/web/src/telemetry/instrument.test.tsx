@@ -9,6 +9,7 @@ import { queuedUxEvents } from '../db/ux-events-store.ts';
 import { beaconTelemetry } from './flush.ts';
 import { installTelemetryListeners, resetStartTelemetryForTests, startTelemetry } from './instrument.ts';
 import { configureTelemetry, resetTelemetryForTests, whenTelemetryWritten } from './track.ts';
+import { enterScreen, resetViewsForTests } from './views.ts';
 
 // The beacon path is `flush.test.ts`'s; here only that the listeners call it.
 vi.mock('./flush.ts', async (importOriginal) => ({
@@ -130,12 +131,14 @@ function pointerDown(element: Element, fields: { button?: number; isPrimary?: bo
 }
 
 describe('E18-A1 fixes and gaps', () => {
-  it('R-A6: pagehide on the window beacons the queue once, without a visibilitychange; uninstalled, it stops', () => {
+  it('R-A6: pagehide on the window beacons the queue once, without a visibilitychange; uninstalled, it stops', async () => {
     window.dispatchEvent(new Event('pagehide'));
-    expect(beaconTelemetry).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(beaconTelemetry).toHaveBeenCalledTimes(1));
     expect(vi.mocked(beaconTelemetry).mock.calls[0]![0]).toBe(db);
     uninstall();
     window.dispatchEvent(new Event('pagehide'));
+    await whenTelemetryWritten();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(beaconTelemetry).toHaveBeenCalledTimes(1);
   });
 
@@ -201,8 +204,62 @@ describe('E18-A1 fixes and gaps', () => {
         { name: 'session_start', target: undefined, screen: 'home' },
         { name: 'action', target: 'home.summary', screen: 'home' },
       ]);
+      // Story 18.4: the session_start says on what the session runs (jsdom: 1024 px, a browser tab, online).
+      const [start] = await queuedUxEvents(db);
+      expect(start).toMatchObject({ viewport: 'tablet', standalone: false, online: true });
     } finally {
       resetStartTelemetryForTests();
     }
+  });
+});
+
+describe('Story 18.4: the listeners and the view tracker, and fields that are never pressed', () => {
+  afterEach(() => resetViewsForTests());
+
+  const setVisibility = (state: 'hidden' | 'visible') => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: state });
+    document.dispatchEvent(new Event('visibilitychange'));
+  };
+
+  it("hiding the tab writes the open screen's view before the beacon; shown again, the same screen opens from itself", async () => {
+    resetViewsForTests();
+    enterScreen('ficha');
+    setVisibility('hidden');
+    await vi.waitFor(() => expect(beaconTelemetry).toHaveBeenCalledTimes(1));
+    // The beacon ran after the view was written: it is in the queue the beacon reads.
+    expect((await queuedUxEvents(db)).map((e) => [e.name, e.screen, e.from])).toEqual([['screen_view', 'ficha', undefined]]);
+    setVisibility('visible');
+    enterScreen('sumario');
+    await whenTelemetryWritten();
+    expect((await queuedUxEvents(db)).map((e) => [e.name, e.screen, e.from])).toEqual([
+      ['screen_view', 'ficha', undefined],
+      ['screen_view', 'ficha', 'ficha'],
+    ]);
+    window.dispatchEvent(new Event('pagehide'));
+    await vi.waitFor(() => expect(beaconTelemetry).toHaveBeenCalledTimes(2));
+    expect((await queued()).at(-1)).toEqual({ name: 'screen_view', target: undefined, screen: 'sumario' });
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+  });
+
+  it('a click into an input, a textarea, a select or a field named for input_refused queues no action, enabled or disabled', async () => {
+    render(
+      <>
+        <input aria-label="Valor" data-telemetry="ficha.number" />
+        <input aria-label="Outro" data-telemetry="home.summary" />
+        <textarea aria-label="Texto" data-telemetry="home.summary" />
+        <select aria-label="Opcao" data-telemetry="home.summary" disabled>
+          <option>a</option>
+        </select>
+        <div data-telemetry="ficha.date">
+          <span>Data</span>
+        </div>
+      </>,
+    );
+    await userEvent.click(screen.getByRole('textbox', { name: 'Valor' }));
+    await userEvent.click(screen.getByRole('textbox', { name: 'Outro' }));
+    await userEvent.click(screen.getByRole('textbox', { name: 'Texto' }));
+    fireEvent.pointerDown(screen.getByRole('combobox', { name: 'Opcao' }), { isPrimary: true });
+    await userEvent.click(screen.getByText('Data'));
+    expect(await queued()).toEqual([]);
   });
 });

@@ -1,7 +1,18 @@
-import { errorCodeSchema, screenOf, uuidV7Schema, type Screen, type UxDialogTarget, type UxOutcome, type WaitKind } from '@app/domain';
+import {
+  errorCodeSchema,
+  screenOf,
+  uuidV7Schema,
+  type InputRefusalKind,
+  type Screen,
+  type UxDialogTarget,
+  type UxInputTarget,
+  type UxOutcome,
+  type WaitKind,
+} from '@app/domain';
 import { useCallback, useEffect, useRef } from 'react';
 import { useLocation, useMatches } from 'react-router';
 import { track } from './track.ts';
+import { enterRouteScreen, enterScreen } from './views.ts';
 
 /*
  * Epic 18, Story 18.1: the React side of usage events. `TelemetryRoutes` queues one
@@ -9,6 +20,10 @@ import { track } from './track.ts';
  * params name (uuid v7, nothing else of the path); `useDialogTelemetry` queues a dialog's
  * `dialog_open` and `dialog_cancel`; `startWait` times a wait; `trackError` names an api
  * error code the user saw.
+ *
+ * Story 18.4: a route change and a full-surface state enter the view tracker (`views.ts`),
+ * which writes each `screen_view` when its screen is left, with its duration and the screen
+ * before it; `trackInputRefused` says a field refused a typed value (its name and why).
  */
 
 /** The ids a route's params name, each only when it is a kernel id. */
@@ -21,7 +36,7 @@ export function routeIdsOf(pathname: string, params: Readonly<Record<string, str
   };
 }
 
-/** Rendered once at the router's root: a `screen_view` per pathname change. */
+/** Rendered once at the router's root: each pathname change enters its screen (Story 18.4: the view left is written then). */
 export function TelemetryRoutes(): null {
   const location = useLocation();
   const matches = useMatches();
@@ -34,9 +49,7 @@ export function TelemetryRoutes(): null {
   useEffect(() => {
     if (last.current === pathname) return;
     last.current = pathname;
-    track({
-      name: 'screen_view',
-      screen: screenOf(pathname),
+    enterScreen(screenOf(pathname), {
       ...(relatorioId === undefined ? {} : { relatorio_id: relatorioId }),
       ...(blockId === undefined ? {} : { block_id: blockId }),
     });
@@ -44,10 +57,14 @@ export function TelemetryRoutes(): null {
   return null;
 }
 
-/** A full-surface state that replaces the routes (the 426 update screen, the eviction recovery) says it was shown. */
+/**
+ * A full-surface state that replaces the routes (the 426 update screen, the eviction recovery)
+ * enters its screen while shown; when it goes, the route's screen shows again (Story 18.4).
+ */
 export function useScreenView(screen: Screen): void {
   useEffect(() => {
-    track({ name: 'screen_view', screen });
+    enterScreen(screen, {}, 'surface');
+    return () => enterRouteScreen();
   }, [screen]);
 }
 
@@ -79,4 +96,13 @@ export function trackError(code: unknown, ids: { relatorio_id?: string; block_id
   const parsed = errorCodeSchema.safeParse(code);
   if (!parsed.success) return;
   track({ name: 'error', kind: parsed.data, ...ids });
+}
+
+/**
+ * Story 18.4: a field refused a typed value. `target` is the field's constant name (its
+ * `data-telemetry`) and `kind` the kernel's reason; the typed text never reaches the event.
+ * Called once where the refusal is decided (a blur, an Enter, a "Confirmar"), never per keystroke.
+ */
+export function trackInputRefused(target: UxInputTarget, kind: InputRefusalKind): void {
+  track({ name: 'input_refused', target, kind });
 }

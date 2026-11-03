@@ -2574,7 +2574,7 @@ Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
   summary: Narrowed instrumentation: a control pressed from the keyboard (Enter or Space on a React Aria button) may queue no `action`, since the listener reads the native click; `wait` of kind `generate` and `preview` times the request, not the job until the document is ready; a natively `disabled` control queues `disabled_tap` only where the browser dispatches `pointerdown` to it (the app's own Button uses `aria-disabled`, which always does); "Renomear TAG" is tracked from the sheet only, not from the Sumário tree; `upload` waits are not tracked.
   evidence: `apps/web/src/telemetry/instrument.ts`, `apps/web/src/state/sync.tsx` (`generate`, `preview`), `apps/web/src/surfaces/ficha/ficha-dialogs.tsx`.
   class: debt
-  state: open (owner: Story 18.3's first friction read says which of these the funnel needs; 2026-10-30, first production read: the first preview took 26.8 s on the screen and 176 ms in the `waits` view, so the `preview` and `generate` kinds of that view read the request, not the wait, until a story times them until the document opens; `reading` and `sync` are right, `epic-18-context.md`) 2026-10-30, Matheus's "pode fazer": the re-timing of the `preview` and `generate` waits is owned by Story 18.4 (`epics.md`), the keyboard activation note stays with E18-A1.
+  state: open (owner: Story 18.3's first friction read says which of these the funnel needs; 2026-10-30, first production read: the first preview took 26.8 s on the screen and 176 ms in the `waits` view, so the `preview` and `generate` kinds of that view read the request, not the wait, until a story times them until the document opens; `reading` and `sync` are right, `epic-18-context.md`) 2026-10-30, Matheus's "pode fazer": the re-timing of the `preview` and `generate` waits is owned by Story 18.4 (`epics.md`), the keyboard activation note stays with E18-A1. *(2026-11-03, batch s184, Story 18.4: the `preview` and `generate` part is done: both waits time the press, `use-preview.ts` until the tab is pointed at the PDF and `use-generate.ts` until the ready revision is held, one wait per press across the `not_caught_up` retries; `sync.tsx` keeps only their error codes; the `document_waits` view reads them by `app_version`. The other parts of this row stay as they were.)*
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
   summary: Targets beyond the epic's minimum list were added where the minimum names none: `photos.add` ("Adicionar fotos"), `export.retry` (the Export dialog's "Tentar novamente", a `retry`) and `toast.undo` (every "Desfazer", an `undo`); the Export dialog's foot button "Gerar relatório" is `sumario.export` and the dialog's own "Gerar relatório" is `sumario.generate`. The CloudWatch stream is `api/<start instant>/<pid>` with the instant's colons written as `-` (CloudWatch refuses `:` in a stream name).
   evidence: `apps/web/src/surfaces/ficha/photo-openers.tsx`, `apps/web/src/surfaces/export/export-dialog.tsx`, `apps/web/src/components/toast.tsx`, `apps/api/src/telemetry/sink.ts` `logStreamName`.
@@ -2591,7 +2591,7 @@ Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-2-home-opens-on-the-active-work.md`
   summary: The Home usage events cannot tell which Status board tile was pressed or which page size was chosen: all four tiles share the target `home.status_chip`, the four chips share `home.page_size`, and the event has no value field.
   evidence: Review BH-4 (2026-10-30): `uxEventSchema` is strict with no value; the digest can count tile and chip taps per session, not the Emitido presses or the sizes. A target per tile (`home.status_chip_<status>`) and per size would be appended to `UX_ACTION_TARGETS` (Epic 18's kernel-first rule) in a story, with the `actions` view reading them; the Story 19.2 DoD sentence was narrowed with the date.
-  state: open (owner: Story 18.4, the targets per tile and per size; 2026-10-30, Matheus's "pode fazer")
+  state: ~~open (owner: Story 18.4, the targets per tile and per size; 2026-10-30, Matheus's "pode fazer")~~ done (2026-11-03, batch s184: `home.status_chip_<status>` and `home.page_size_<size>` appended to `UX_ACTION_TARGETS` with `homeStatusTileTarget` and `homePageSizeTarget`; the tiles and the chips carry them, the shared names stay in the kernel for old bundles; `e2e/home.spec.ts` asserts one `action` per tile and size pressed)
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-2-home-opens-on-the-active-work.md`
   summary: Relatórios past the 100th of a selection are unreachable from Home: the largest page is 100 and there is no next page or search.
   evidence: Review ECH-2 and BH-6 (2026-10-30): `homeList` slices at the page size and `HOME_PAGE_SIZES` ends at 100 (Matheus's sizes); a company with more than 100 emitted relatórios reaches the oldest from the Project surface only. EXPERIENCE.md § Home names that way in; a next page or a search (option D of the 2026-10-29 analysis) waits for Bruno's volume answers.
@@ -2622,17 +2622,17 @@ Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
   summary: The reading watcher no longer sees a photo whose only change reached this device through a snapshot download rather than the pulled op log (`remote_ops`), nor a photo of another device that arrives through a stream whose cursor lags the highest pulled `seq` (photos pending at the last look are read by key, and photos shot here through the outbox since review fix ECH-4, so both cases are photos this device never waited for).
   evidence: R-A14 narrowing (`telemetry/readings.ts`): after the baseline, a look reads the photos pending at the last look and the `file` entities named by `remote_ops` rows above the last seen `seq`. A relatório downloaded as a snapshot writes entities without `remote_ops` rows, so a reading that lands that way is not tracked; a photo pending at the last look is still read by key. Spec Design Notes.
   class: risk
-  state: open (owner: Story 18.4, if the first digest shows reading waits missing)
+  state: open (owner: Story 18.4, if the first digest shows reading waits missing) *(2026-11-03, batch s184: Story 18.4 was built before the first digest, so this row is the first digest's to raise; owner then the next epic's carry-over batch.)*
 - source_spec: `_bmad-output/implementation-artifacts/spec-e18fa-code-fix-batch.md`
   summary: A 401 on `POST /api/telemetry` still deletes the batch (only 429 was named for keeping), so a session that expires with a full queue loses it.
   evidence: `telemetry/flush.ts` `drain`: kept on a 5xx, a network failure, a timeout and a 429; deleted on every other 4xx, 401 included (Q1 of Story 18.1). The retro's production read saw one 401 batch dropped after `prodpass.sh cleanup`. Open question of the PR.
   class: risk
-  state: open (owner: Matheus decides; Story 18.4 if kept)
+  state: open (owner: Matheus decides; Story 18.4 if kept) *(2026-11-03, batch s184: no decision yet, so Story 18.4 left the 401 rule as it was; the runbook says a 401 drops the batch.)*
 - source_spec: `_bmad-output/implementation-artifacts/spec-e18fa-code-fix-batch.md`
   summary: A session id rotated for a second user in the same tab queues no `session_start` of its own, so the `sessions` views count it only through `count_distinct(session_id)` of its other events.
   evidence: R-A15 (`telemetry/track.ts` `configureTelemetry`): the id rotates when the database name differs from the last one; no event is queued on rotation (spec Design Notes). Open question of the PR.
   class: question
-  state: open (owner: Story 18.4)
+  state: ~~open (owner: Story 18.4)~~ done (2026-11-03, batch s184: the rotation queues the new session's `session_start` with its device context first, then the held events; the first configure of a load queues none, `track.test.ts`)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e18fa-code-fix-batch.md`
   summary: Structural block puts (`location_id`, `order_key`, `removed_at`, `feeds_block_id`) left the friction read's spans and re-edits but still count in `device_op_count`.
   evidence: R-A16 (`apps/api/src/db/friction-read.ts`): the item named spans and re-edits only. Whether the device op count should drop them too is an open question of the PR.
@@ -2704,12 +2704,12 @@ Source: `epic-15-retro-2026-10-26.md` (E15-A1: R15-13, R15-14), `epic-16-retro-2
   summary: The `reading` wait counts from the shot's `captured_at`, so offline time and a failed first attempt inflate it, and a re-read ("Ler de novo") measures from the original shot, not from the re-read tap (retro R-E4, accepted as Story 18.1's "shot stored to result").
   evidence: `apps/web/src/telemetry/readings.ts:49-52`; `epic-18-retro-2026-10-30.md` R-E4. The runbook caveat ("reading waits count from the shot") is the E18-A3 docs part in `docs/observability.md`, owned by this wave's observability lane.
   class: improvement
-  state: open (owner: Story 18.4, which re-times the waits (its scope item 5 times `preview` and `generate`) and extracts the observer around `sync.tsx` `rereadPhoto` (`:542`), where a re-read could stamp its own start for `readings.ts`; if 18.4 leaves it, the next epic's carry-over batch)
+  state: open (owner: Story 18.4, which re-times the waits (its scope item 5 times `preview` and `generate`) and extracts the observer around `sync.tsx` `rereadPhoto` (`:542`), where a re-read could stamp its own start for `readings.ts`; if 18.4 leaves it, the next epic's carry-over batch) *(2026-11-03, batch s184: Story 18.4 left it: the observer moved to `telemetry/sync-observer.ts` and `rereadPhoto` still tracks only its error code, so a re-read is still measured from the original shot; owner now the next epic's carry-over batch.)*
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
   summary: `apps/web/src/state/sync.tsx` grew from 522 to 631 lines and is now the telemetry observer of the engine as well as the owner of the sync state (`observeCycle`, `failureCode`, `failureOutcome`, `syncWaitOutcome`, the dead-op `trackError` effect, the waits of `syncNow`, `generate`, `preview` and `rereadPhoto`); the helpers belong in `apps/web/src/telemetry/sync-observer.ts` as pure functions, with `sync-telemetry.test.tsx` moving beside them (retro A3).
   evidence: `epic-18-retro-2026-10-30.md` A3 (`sync.tsx:245-275`, `:385-400`, `:460-552` at `3b45e83c`); `epics.md` Story 18.4 Definition of Ready scope item 5 ("with the `sync.tsx` observer extraction of retro finding A3 in the same change").
   class: debt
-  state: open (owner: Story 18.4, the same change that re-times `preview` and `generate`; closes E18-A5 item 3)
+  state: ~~open (owner: Story 18.4, the same change that re-times `preview` and `generate`; closes E18-A5 item 3)~~ done (2026-11-03, batch s184: `observeCycle`, `failureCode`, `failureOutcome` and `syncWaitOutcome` are pure functions in `apps/web/src/telemetry/sync-observer.ts` with their cases in `sync-observer.test.ts`; `sync.tsx` imports them, its `generate` and `preview` no longer time a wait; closes E18-A5 item 3)
 - source_spec: `_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md`
   summary: `e2e/photo-numbers.spec.ts` `closeDialog` presses `Escape` after "Marcar como enviado ao cliente"; when the pressed button unmounts, focus falls to `body` and `Escape` can miss the Export dialog, which stays visible past the 5 s expectation (7.2-E2E-001 red once in the retrospective's `test:e2e:full`, green alone, 2 of 2).
   evidence: `e2e/photo-numbers.spec.ts:82-85`; `epic-18-retro-2026-10-30.md` § Behavior verification (`.scratch-prodfix/e2e-full-retro18.log`, the rerun `.scratch-prodfix/e2e-photo-numbers-rerun.log`); the spec and `dialog-shell.tsx` unchanged since 2026-10-13 and 2026-09-23.
@@ -2725,7 +2725,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - **E15-R2, the palette drawer's target is not announced on open.** `apps/web/src/surfaces/templates/block-palette.tsx:88` holds the target ("Toque para adicionar em: ...") in an `aria-live` paragraph mounted with the dialog, which screen readers usually skip; the drawer is named only "Blocos" since Story 15.5 (`:265-272`). Fix: `aria-describedby` on the drawer's `DialogShell` pointing at that paragraph.
   state: open (owner: the next epic's carry-over batch)
 - **E16-R1, an `unchanged` ready names an older revision.** `apps/web/src/surfaces/export/use-generate.ts:456-458`: the "anterior às alterações" banner and row tags are suppressed only while generating, so an `unchanged` answer whose revision is not pulled yet shows "Revisão N pronta" over "(revisão N-1). Alterações desde então geram a revisão N" (Story 16.2 AC 3). Fix: gate both on `readyHeld`, with a dialog test that delivers the job before the revision.
-  state: open (owner: batch s184, the Story 18.4 wave, which re-times the waits in the same file)
+  state: ~~open (owner: batch s184, the Story 18.4 wave, which re-times the waits in the same file)~~ done (2026-11-03, batch s184: `beforeEdits`, and with it `beforeEditsBanner`, also require `readyHeld`; `export-dialog.test.tsx` "E16-R1" delivers an `unchanged` answer before its revision: no banner and no row tag, then the revision lands and both show; red without the gate)
 - **E16-R2, a cabine environment display shot prints nowhere yet holds a photo number.** A temperature or humidity "Ler visor" shot on a local (`apps/web/src/surfaces/ficha/read-display.tsx:733`, `displayEnvTarget`) has no block and no item; Story 16.3 took display shots out of section 7 for sheets only and Story 17.4 kept this one unprinted and numbered last (`packages/domain/src/print/photo-order.ts:83-86`, `:112-113`; pinned by `section-9.test.ts:1169`). The evidence of AMBIENTE DE ENSAIO leaves the document and the gallery shows a "Foto N" no "Imagem N" carries. Options: print it under the cabine's characteristics or environment part, or leave it out of the numbering and say so in the gallery.
   state: open (owner: Matheus, with Bruno; then the next epic's carry-over batch)
 
@@ -2755,3 +2755,36 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   evidence: `scripts/preview-tab.test.ts` covers the retry decision; the suite has no local run. Review finding VGR-4 of batch e18fb. The next deploy whose preview tab closes early is the proof: its log line `pressing it once more` and `test-results/production-smoke/preview-retry.json`.
   class: risk
   state: open (owner: the coordinator, at the next deploy that shows the retry)
+
+## Deferred from: batch s184 (2026-11-03)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-s184-events-say-how-long.md`
+  summary: The Conta sentence ("Uso do aplicativo", `copy.account.usageNote`) still says the device records screens, taps, waits and errors; `session_start` now also says the viewport, whether the app is installed and whether it was online (the device and its connection), and `input_refused` says a typed value was refused (never the value).
+  evidence: Spec Design Notes, "Conta sentence verdict"; `apps/web/src/copy/pt-br.ts` unchanged; `docs/observability.md` § LGPD.
+  class: decision
+  state: open (owner: Matheus and Bruno decide the wording; the production deploy of Story 18.4 waits on it)
+- source_spec: `_bmad-output/implementation-artifacts/spec-s184-events-say-how-long.md`
+  summary: "Cancels by preceding screen" is not an aggregated view: the dialog events carry no `from`, so the `paths` view lists the per-session sequence and the reader finds the screen before a cancel in the `screen_view` rows around it.
+  evidence: Spec Design Notes, view `paths`; `infra/production/observability.tf` `paths`; `_bmad-output/test-artifacts/friction-digest-template.md` "Five questions" item 3.
+  class: question
+  state: open (owner: the first digest says whether the reading by hand suffices; else a story adds `from` to `dialog_open` and `dialog_cancel`)
+- source_spec: `_bmad-output/implementation-artifacts/spec-s184-events-say-how-long.md`
+  summary: The seven new views (`screen_time`, `home_first_nav`, `paths`, `bounces`, `viewports`, `refusals`, `document_waits`) have run offline only (`infra/bin/check`, `scripts/telemetry-queries.test.ts`), not in Logs Insights: `ispresent()`, the backticked `` `from` `` and the field-to-field comparison `` `from` != screen `` are untried there.
+  evidence: Batch s184 is offline by rule (no apply). The first read after the apply should open each of the seven and check it runs to `Complete`.
+  class: risk
+  state: open (owner: the coordinator, at the deploy that carries Story 18.4, on Matheus's word)
+- source_spec: `_bmad-output/implementation-artifacts/spec-s184-events-say-how-long.md`
+  summary: While old and new bundles report together, `funnel` mixes `screen_view` rows written on entering (old bundles) with rows written on leaving (new), and `waits` mixes request-timed and press-timed `preview` and `generate` waits; `document_waits` splits the waits by `app_version`, `funnel` has no such split.
+  evidence: `docs/observability.md` § The views (`funnel` and `waits` notes); the device starts on the new bundle at its next load.
+  class: risk
+  state: open (owner: the first digest notes the share of sessions on the new bundle; accepted as a transition)
+- source_spec: `_bmad-output/implementation-artifacts/spec-s184-events-say-how-long.md`
+  summary: Narrowed refusal points: a sheet number or measurement field reports a refusal on blur and Enter, not on Shift+Enter (which commits through `commitNow`, never a refusal report) or a unit chip; the setup altitude's refusal is always `not_a_number`, named in `apps/web` because its parse is the surface's own (`parseAltitude`), not the kernel's; the date picker's one refusal is `out_of_range` on leaving it; an `input_refused` target is checked against `TELEMETRY_TARGET_PATTERN` by the schema, like every target, and against `UX_INPUT_TARGETS` by `targets.test.ts`.
+  evidence: `apps/web/src/components/number-input.tsx` `onRefuse` (blur and Enter only), `apps/web/src/surfaces/relatorio/setup/etapa5-local.tsx`, `apps/web/src/surfaces/ficha/ficha-fields.tsx` `DatePickerField`, `apps/web/src/telemetry/targets.test.ts`.
+  class: debt
+  state: open (owner: the first digest says whether a missing path matters; the altitude's reason moves to the kernel with its parse if a story moves the parse)
+- source_spec: `_bmad-output/implementation-artifacts/spec-s184-events-say-how-long.md`
+  summary: The e2e of `input_refused` types "quinze", not the spec's "abc": the queue holds hexadecimal ids, so "abc" can occur inside a uuid and the "never the typed text" check would fail by chance.
+  evidence: `e2e/usage-events.spec.ts` 18.4-E2E-001.
+  class: test-gap
+  state: accepted (2026-11-03, batch s184: the assertion is the same, with a word that cannot occur in an id)

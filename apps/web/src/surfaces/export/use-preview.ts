@@ -1,4 +1,4 @@
-import { expectedFileIds, GENERATE_JOB_EXPIRE_S, isJobActive, toIso } from '@app/domain';
+import { expectedFileIds, GENERATE_JOB_EXPIRE_S, isJobActive, toIso, type UxOutcome } from '@app/domain';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { now } from '../../clock.ts';
 import { generationJobRow, lastOpIdFor } from '../../db/generate-store.ts';
@@ -7,6 +7,8 @@ import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { previewPdfUrl, SyncRequestError } from '../../sync/client.ts';
 import { publishReAuth } from '../../api/auth-client.ts';
+import { startWait } from '../../telemetry/hooks.ts';
+import { failureOutcome } from '../../telemetry/sync-observer.ts';
 import { isSessionExpired, isUnauthorized } from './session-expired.tsx';
 import { setPreviewTabStep, writePreviewTab } from './preview-tab.ts';
 import { DeadOpsError, drainForServerJob, guardBeforeAsk, isJobAborted, throwIfAborted, wait } from './server-job.ts';
@@ -26,6 +28,11 @@ import { DEFAULT_TIMING, type GenerateTiming } from './use-generate.ts';
  * stays enabled and the next press checks again), and one found mid-drain closes the tab the
  * same way. `cancel()` (the dialog closed) and an unmount abort the press in flight: its waits
  * stop, no POST follows, the tab closes and nothing reads as failed.
+ *
+ * Story 18.4: the press's `wait` (kind `preview`) runs from the press to the moment the tab is
+ * pointed at the PDF (`ok`); a failure ends it with `failureOutcome` (a session gone or a dead
+ * op found mid-drain `refused`), an abort with `cancel`. A press refused before it starts (a
+ * dead op held) times nothing.
  */
 
 export type PreviewPhase =
@@ -62,10 +69,11 @@ function openBlankTab(): Tab {
   return tab;
 }
 
-/** One press: its abort and the blank tab it opened. */
+/** One press: its abort, the blank tab it opened and its `wait` (Story 18.4). */
 interface Press {
   controller: AbortController;
   tab: Tab;
+  finish: (outcome: UxOutcome) => void;
 }
 
 export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT_TIMING): PreviewState {
@@ -88,6 +96,7 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
     current.current = null;
     press.controller.abort();
     press.tab?.close();
+    press.finish('cancel');
     return true;
   }, []);
 
@@ -139,6 +148,8 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
           press.tab = null;
           if (tab === null) window.open(url, '_blank', 'noopener');
           else tab.location.href = url;
+          // Story 18.4: the wait the engineer felt ends here, with the PDF in the tab.
+          press.finish('ok');
           return;
         }
         if (job !== null && (job.status === 'failed' || job.status === 'done' || !isJobActive(job, toIso(now())))) throw new Error(`preview job ${jobId} ended without a file`);
@@ -156,7 +167,7 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
       setPhase({ kind: 'blocked' });
       return;
     }
-    const press: Press = { controller: new AbortController(), tab: null };
+    const press: Press = { controller: new AbortController(), tab: null, finish: startWait('preview', { relatorio_id: relatorioId }) };
     press.tab = openBlankTab();
     current.current = press;
     setPhase({ kind: 'working' });
@@ -171,21 +182,26 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
           // A 401 raises the re-auth banner even when the press was aborted meanwhile.
           if (isUnauthorized(error)) publishReAuth();
           // An abort (the dialog closed, the surface went away) is never a failure.
-          if (isJobAborted(error) || press.controller.signal.aborted) return;
+          if (isJobAborted(error) || press.controller.signal.aborted) {
+            press.finish('cancel');
+            return;
+          }
           if (error instanceof DeadOpsError) {
+            press.finish('refused');
             if (own()) setPhase({ kind: 'blocked' });
             return;
           }
           console.error('preview failed', error);
           // F-12 / W-23: a 401 is a session that expired: the re-auth banner and its own words.
           const expired = isSessionExpired(error) || reAuthRequired.current;
+          press.finish(expired ? 'refused' : failureOutcome(error));
           if (own()) setPhase(expired ? { kind: 'failed', sessionExpired: true } : { kind: 'failed' });
         },
       )
       .finally(() => {
         if (own()) current.current = null;
       });
-  }, [db, run]);
+  }, [db, run, relatorioId]);
 
   const cancel = useCallback(() => {
     // A press in flight stops; a refusal shown goes with the dialog, and the next press checks again.

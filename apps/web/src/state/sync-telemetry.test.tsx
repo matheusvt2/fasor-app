@@ -5,7 +5,6 @@ import { openDatabase, type AppDatabase, type OutboxRow } from '../db/schema.ts'
 import { queuedUxEvents } from '../db/ux-events-store.ts';
 import { SyncRequestError, type SyncClient } from '../sync/client.ts';
 import type { EngineStatus, SyncEngine, SyncEngineDeps } from '../sync/engine.ts';
-import { flushTelemetry } from '../telemetry/flush.ts';
 import { resetTelemetryForTests, telemetryDatabase, whenTelemetryWritten } from '../telemetry/track.ts';
 import type { SessionState } from './session.tsx';
 import { useSyncActions, type SyncActions } from './sync-actions.ts';
@@ -13,9 +12,11 @@ import { SyncProvider } from './sync.tsx';
 
 /*
  * Epic 18 (Story 18.1): the usage events the SyncProvider queues around what it already
- * exposes: the "Sincronizar agora" wait, a refused generate's wait and api error code, and
- * the `sync_result` of a cycle that found the device offline (once on the way in). The engine
- * and the client are stand-ins; the queue is the real device store.
+ * exposes: the "Sincronizar agora" wait and the api error code of a refused generate, preview
+ * or re-read. The engine and the client are stand-ins; the queue is the real device store.
+ * Story 18.4: the observer's own cases (`sync_result`, the wait outcomes) moved beside it
+ * (`telemetry/sync-observer.test.ts`), and the `generate` and `preview` waits are the
+ * Export dialog's (`surfaces/export/export-dialog.test.tsx`).
  */
 
 let database: AppDatabase | null = null;
@@ -125,24 +126,15 @@ describe('SyncProvider usage events (Epic 18)', () => {
     expect(waits.map((event) => event.outcome)).toEqual(['ok', 'refused']);
   });
 
-  it('a generate the api refuses queues a refused generate wait and the error code, on its relatório', async () => {
+  it('a generate the api refuses queues the error code, on its relatório, and no wait (Story 18.4: the press times it)', async () => {
     const { db, actions } = await mount();
     await act(async () => {
       await expect(actions().generate(RELATORIO, { last_op_id: null, file_ids_expected: [] })).rejects.toBeInstanceOf(SyncRequestError);
     });
     const events = (await queued(db)).filter((event) => event.name === 'wait' || event.name === 'error');
     expect(events.map(({ name, kind, outcome, relatorio_id }) => ({ name, kind, outcome, relatorio_id }))).toEqual([
-      { name: 'wait', kind: 'generate', outcome: 'refused', relatorio_id: RELATORIO },
       { name: 'error', kind: 'not_caught_up', outcome: undefined, relatorio_id: RELATORIO },
     ]);
-  });
-
-  it('two cycles that find the device offline queue one sync_result offline', async () => {
-    const { db } = await mount();
-    act(() => deps!.onChange({ ...IDLE, lastResult: 'offline' }));
-    act(() => deps!.onChange({ ...IDLE, lastResult: 'offline' }));
-    const results = (await queued(db)).filter((event) => event.name === 'sync_result');
-    expect(results.map((event) => event.kind)).toEqual(['offline']);
   });
 });
 
@@ -171,49 +163,6 @@ function deadRow(n: number, code: string): OutboxRow {
 }
 
 describe('SyncProvider usage events, E18-A1', () => {
-  it.each([
-    ['ran', {}],
-    ['failed', { lastFailure: { kind: 'http', status: 503 } }],
-    ['unauthorized', { lastFailure: { kind: 'http', status: 401 } }],
-    ['contract_outdated', { outdated: true }],
-  ] as const)('R-V3: a cycle that ran and ended %s queues its sync_result and drains the queue', async (kind, end) => {
-    const { db } = await mount();
-    act(() => deps!.onChange({ ...IDLE, running: true }));
-    expect(flushTelemetry).not.toHaveBeenCalled();
-    act(() => deps!.onChange({ ...IDLE, ...end, running: false, lastResult: 'ran' } as EngineStatus));
-    await waitFor(() => expect(flushTelemetry).toHaveBeenCalledTimes(1));
-    expect(vi.mocked(flushTelemetry).mock.calls[0]![0]).toBe(db);
-    const results = (await queued(db)).filter((event) => event.name === 'sync_result');
-    expect(results.map((event) => event.kind)).toEqual([kind]);
-  });
-
-  it('R-V3: a status change that is not the end of a running cycle queues no sync_result and drains nothing', async () => {
-    const { db } = await mount();
-    act(() => deps!.onChange({ ...IDLE, lastResult: 'ran' }));
-    act(() => deps!.onChange({ ...IDLE, running: true }));
-    act(() => deps!.onChange({ ...IDLE, running: false, lastResult: 'busy' } as EngineStatus));
-    await whenTelemetryWritten();
-    expect(flushTelemetry).not.toHaveBeenCalled();
-    expect((await queued(db)).filter((event) => event.name === 'sync_result')).toEqual([]);
-  });
-
-  it('R-E2: a "Sincronizar agora" cycle that ends on a network failure is an offline wait', async () => {
-    const { db, actions } = await mount();
-    act(() => deps!.onChange({ ...IDLE, lastResult: 'ran', lastFailure: { kind: 'network' } }));
-    await act(async () => {
-      await actions().syncNow();
-    });
-    act(() => deps!.onChange({ ...IDLE, lastResult: 'ran', lastFailure: { kind: 'http', status: 503 } }));
-    await act(async () => {
-      await actions().syncNow();
-    });
-    const waits = (await queued(db)).filter((event) => event.name === 'wait');
-    expect(waits.map((event) => [event.kind, event.outcome])).toEqual([
-      ['sync', 'offline'],
-      ['sync', 'fail'],
-    ]);
-  });
-
   it('R-V4: an op refused for good after boot queues one error with its code; a row dead at boot queues none', async () => {
     const { db } = await mount(async (fresh) => {
       await fresh.outbox.put(deadRow(1, 'sync_batch_invalid'));
@@ -233,7 +182,7 @@ describe('SyncProvider usage events, E18-A1', () => {
     expect(errors.map(({ kind, relatorio_id }) => ({ kind, relatorio_id }))).toEqual([{ kind: 'relatorio_not_found', relatorio_id: RELATORIO }]);
   });
 
-  it('R-V5: a preview queues its wait, ok or refused with the error code', async () => {
+  it('R-V5: a preview refused queues its error code, and no wait (Story 18.4: the press times it)', async () => {
     const { db, actions } = await mount();
     await act(async () => {
       await actions().preview!(RELATORIO, { last_op_id: null, file_ids_expected: [] });
@@ -252,10 +201,7 @@ describe('SyncProvider usage events, E18-A1', () => {
     });
     const events = (await queued(db)).filter((event) => event.name === 'wait' || event.name === 'error');
     expect(events.map(({ name, kind, outcome, relatorio_id }) => ({ name, kind, outcome, relatorio_id }))).toEqual([
-      { name: 'wait', kind: 'preview', outcome: 'ok', relatorio_id: RELATORIO },
-      { name: 'wait', kind: 'preview', outcome: 'refused', relatorio_id: RELATORIO },
       { name: 'error', kind: 'not_caught_up', outcome: undefined, relatorio_id: RELATORIO },
-      { name: 'wait', kind: 'preview', outcome: 'offline', relatorio_id: RELATORIO },
     ]);
   });
 

@@ -4,7 +4,7 @@ import { BLOCK_CHAVE_ID, EQUIPMENT_CHAVE_ID, portoSeguroSmall } from '@app/domai
 import { act, cleanup, configure, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { commitBatch, toRecord } from '../../db/commit.ts';
 import { useEditedSinceRead, useMarkedSentSince } from '../../db/generate-store.ts';
 import { readGenerateAwaiting } from '../../db/prefs.ts';
@@ -1049,6 +1049,33 @@ describe('Export dialog (Story 4.8)', () => {
       await waitFor(() => expect(banner()).toHaveTextContent(/^Relatório emitido em 23\/09 \(revisão 1\)\./));
     });
 
+    it('E16-R1: an "unchanged" ready whose revision is not held yet shows no banner and no row tag over the older one; once it lands they show', async () => {
+      database = await freshDb();
+      await applyPulled(database, [...jobOps('done'), revisionOf(1).op]);
+      // Revision 2 was cut on another device; this device has not pulled it. Edits follow it.
+      const two = revisionOf(2);
+      await applyPulled(database, [pulledEdit({ scope: 'relatorio', path: 'relatorio/setup/local', value: 'Outro local' })]);
+      const answer: GenerateResponse = { outcome: 'unchanged', revision_id: two.row.id, revision_number: 2 };
+      render(<Harness sync={syncState({ generate: vi.fn(async () => answer) })} />);
+      const modal = dialog();
+      // Idle, the banner speaks of revision 1, the one held.
+      await waitFor(() => expect(banner()).toHaveTextContent(/\(revisão 1\)/));
+      await userEvent.click(generateButton());
+      await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 2 pronta' })).toBeInTheDocument());
+      expect(banner()).toBeNull();
+      expect(rowTexts()).toEqual(['Rev. 1 — 23/09/2026 09:00 — Bento Braga']);
+      expect(within(modal).queryByText(/anterior às alterações/)).toBeNull();
+
+      await act(async () => {
+        await applyPulled(database!, [two.op]);
+      });
+      await waitFor(() => expect(rowTexts()).toHaveLength(2));
+      await waitFor(() =>
+        expect(banner()).toHaveTextContent('Relatório gerado em 23/09 (revisão 2). Alterações desde então geram a revisão 3 — as anteriores continuam disponíveis abaixo.'),
+      );
+      expect(rowTexts().every((text) => text.endsWith(BEFORE_EDITS))).toBe(true);
+    });
+
     it('A3: nothing edited since the latest revision: no banner, no tag, the ready block as today', async () => {
       const modal = await afterRevisionOne();
       // The idle line answered revision 1 again, so the edited read has landed.
@@ -1828,5 +1855,187 @@ describe('Export dialog usage events (E18-A1, R-V7)', () => {
       configureTelemetry(null);
       resetTelemetryForTests();
     }
+  });
+});
+
+describe('Story 18.4: the generate and preview waits time the press, not the request', () => {
+  const DEVICE = '019966c1-0049-7000-8000-0000000000de';
+  const PREVIEW_JOB = '019966c1-0000-7000-8000-0000000000f2';
+  const PREVIEW_FILE = '019966c1-0000-7000-8000-0000000000f3';
+  const notCaughtUp = () => new SyncRequestError({ kind: 'http', status: 409, code: 'not_caught_up' });
+
+  beforeEach(() => {
+    // Only the monotonic clock is fake: Dexie and the dialog's timers run as they do.
+    vi.useFakeTimers({ toFake: ['performance'] });
+    resetTelemetryForTests();
+  });
+
+  afterEach(() => {
+    configureTelemetry(null);
+    resetTelemetryForTests();
+    vi.useRealTimers();
+  });
+
+  async function fresh(): Promise<AppDatabase> {
+    database = await freshDb();
+    configureTelemetry({ db: database, deviceId: DEVICE });
+    return database;
+  }
+
+  async function waits(db: AppDatabase) {
+    await whenTelemetryWritten();
+    return (await queuedUxEvents(db)).filter((event) => event.name === 'wait').map(({ kind, outcome, duration_ms, relatorio_id }) => ({ kind, outcome, duration_ms, relatorio_id }));
+  }
+
+  const previewDone = () => [
+    serverOp({
+      kind: 'create',
+      path: `generation_job/${PREVIEW_JOB}`,
+      value: { id: PREVIEW_JOB, relatorio_id: REL, kind: 'preview', status: 'queued', error: null, result_file_id: null, result: null, created_at: new Date().toISOString() },
+      client_ts: '2026-09-23T12:00:00.000Z',
+    }),
+    serverOp({ kind: 'put', path: `generation_job/${PREVIEW_JOB}/result_file_id`, value: PREVIEW_FILE, client_ts: '2026-09-23T12:00:05.000Z' }),
+    serverOp({ kind: 'put', path: `generation_job/${PREVIEW_JOB}/status`, value: 'done', client_ts: '2026-09-23T12:00:05.000Z' }),
+  ];
+
+  it('"Gerar relatório": one generate wait per press, ok once the revision is held, its duration the whole press across the not_caught_up retries', async () => {
+    const db = await fresh();
+    const generate = vi
+      .fn<SyncState['generate']>()
+      .mockImplementationOnce(async () => {
+        vi.advanceTimersByTime(4000);
+        throw notCaughtUp();
+      })
+      .mockImplementationOnce(async () => {
+        vi.advanceTimersByTime(6000);
+        throw notCaughtUp();
+      })
+      .mockImplementationOnce(async () => {
+        vi.advanceTimersByTime(500);
+        return { outcome: 'queued' as const, job_id: JOB_ID, revision_number: 1 };
+      });
+    render(<Harness sync={syncState({ generate })} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
+    expect(generate).toHaveBeenCalledTimes(3);
+    // The request answered long ago: no wait yet, the job still runs.
+    expect(await waits(db)).toEqual([]);
+    vi.advanceTimersByTime(20_000);
+    await act(async () => {
+      await applyPulled(db, [...jobOps('done'), revisionOf(1).op]);
+    });
+    await waitFor(() => expect(within(dialog()).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
+    await waitFor(async () => expect(await waits(db)).toHaveLength(1));
+    expect(await waits(db)).toEqual([{ kind: 'generate', outcome: 'ok', duration_ms: 30_500, relatorio_id: REL }]);
+  });
+
+  it('"Gerar relatório" answered "unchanged" with a revision not held: ok only once it lands', async () => {
+    const db = await fresh();
+    const { row, op } = revisionOf(1);
+    const answer: GenerateResponse = { outcome: 'unchanged', revision_id: row.id, revision_number: 1 };
+    render(<Harness sync={syncState({ generate: vi.fn(async () => answer) })} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
+    vi.advanceTimersByTime(3000);
+    expect(await waits(db)).toEqual([]);
+    await act(async () => {
+      await applyPulled(db, [...jobOps('done'), op]);
+    });
+    await waitFor(async () => expect(await waits(db)).toEqual([{ kind: 'generate', outcome: 'ok', duration_ms: 3000, relatorio_id: REL }]));
+  });
+
+  it('a press stopped by a dead op is refused, a 5xx fail, a session gone refused; each press one wait', async () => {
+    const db = await fresh();
+    const dead = render(<Harness sync={syncState({ counts: { dead: 1 } })} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByText('Há alterações rejeitadas — resolva em Sincronização antes de gerar.')).toBeInTheDocument());
+    dead.unmount();
+
+    const failing = render(<Harness sync={syncState({ generate: vi.fn(async () => Promise.reject(new SyncRequestError({ kind: 'http', status: 503 }))) })} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('alert')).toBeInTheDocument());
+    failing.unmount();
+
+    render(<Harness sync={syncState({ generate: vi.fn(async () => Promise.reject(new SyncRequestError({ kind: 'http', status: 401 }))) })} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('alert')).toHaveTextContent(SESSION_EXPIRED));
+    expect((await waits(db)).map(({ kind, outcome }) => [kind, outcome])).toEqual([
+      ['generate', 'refused'],
+      ['generate', 'fail'],
+      ['generate', 'refused'],
+    ]);
+  });
+
+  it('a press whose dialog goes away before the revision is a cancel', async () => {
+    const db = await fresh();
+    const { unmount } = render(<Harness sync={syncState()} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
+    vi.advanceTimersByTime(1200);
+    unmount();
+    expect(await waits(db)).toEqual([{ kind: 'generate', outcome: 'cancel', duration_ms: 1200, relatorio_id: REL }]);
+  });
+
+  it('"Pré-visualizar": one preview wait, ok when the tab is pointed at the PDF, its duration from the press', async () => {
+    const db = await fresh();
+    const tab = { location: { href: '' }, close: vi.fn(), opener: {} };
+    const open = vi.spyOn(window, 'open').mockImplementation(() => tab as unknown as Window);
+    const preview = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        vi.advanceTimersByTime(1000);
+        throw notCaughtUp();
+      })
+      .mockImplementationOnce(async () => {
+        vi.advanceTimersByTime(1000);
+        return { outcome: 'queued' as const, job_id: PREVIEW_JOB };
+      });
+    render(<Harness sync={syncState({ preview })} />);
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+    await waitFor(() => expect(preview).toHaveBeenCalledTimes(2));
+    vi.advanceTimersByTime(18_000);
+    expect(await waits(db)).toEqual([]);
+    await act(async () => {
+      await applyPulled(db, previewDone());
+    });
+    await waitFor(() => expect(tab.location.href).toBe(`/api/relatorios/${REL}/preview.pdf?v=${PREVIEW_FILE}`));
+    await waitFor(async () => expect(await waits(db)).toEqual([{ kind: 'preview', outcome: 'ok', duration_ms: 20_000, relatorio_id: REL }]));
+    open.mockRestore();
+  });
+
+  it('a preview closed mid-press is a cancel, a refused one refused, one with no network offline; a dead op held times nothing', async () => {
+    const db = await fresh();
+    const tab = () => ({ location: { href: '' }, close: vi.fn(), opener: {} });
+    const open = vi.spyOn(window, 'open').mockImplementation(() => tab() as unknown as Window);
+    const pending = syncState({ counts: { pending: 1 } });
+    const { rerender, unmount } = render(<Harness sync={pending} />);
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+    await waitFor(() => expect(within(dialog()).getByRole('button', { name: 'Gerando rascunho…' })).toBeInTheDocument());
+    vi.advanceTimersByTime(700);
+    rerender(<Harness sync={pending} open={false} />);
+    await waitFor(async () => expect(await waits(db)).toHaveLength(1));
+    unmount();
+
+    const refusing = render(<Harness sync={syncState({ preview: vi.fn(async () => Promise.reject(new SyncRequestError({ kind: 'http', status: 401 }))) })} />);
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+    await waitFor(() => expect(within(dialog()).getByText(SESSION_EXPIRED)).toBeVisible());
+    refusing.unmount();
+
+    const offline = render(<Harness sync={syncState({ preview: vi.fn(async () => Promise.reject(new SyncRequestError({ kind: 'network' }))) })} />);
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+    await waitFor(() => expect(within(dialog()).getByText('Não foi possível gerar o rascunho. Os dados não foram alterados.')).toBeVisible());
+    offline.unmount();
+
+    render(<Harness sync={syncState({ counts: { dead: 1 } })} />);
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+    await waitFor(() => expect(within(dialog()).getByRole('button', { name: 'Pré-visualizar' })).toBeInTheDocument());
+    const all = await waits(db);
+    expect(all.map(({ kind, outcome }) => [kind, outcome])).toEqual([
+      ['preview', 'cancel'],
+      ['preview', 'refused'],
+      ['preview', 'offline'],
+    ]);
+    expect(all[0]!.duration_ms).toBe(700);
+    open.mockRestore();
   });
 });

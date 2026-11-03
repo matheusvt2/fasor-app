@@ -16,6 +16,11 @@ import { expandLocation } from './support/tree.ts';
  * event parsed and the sink took the batch), every posted event parses with the kernel schema
  * and carries no text beyond the closed lists, the posted set covers what the queue held, and
  * the queue is empty after.
+ *
+ * Story 18.4: a `screen_view` is written when its screen is left, with its `duration_ms` and
+ * the screen before it (`from`); the walk starts on the sheet `openChaveSheet` opened, so the
+ * sheet's own view comes first. Every `session_start` says on what it ran (`viewport`,
+ * `standalone`, `online`).
  */
 
 let account: SeedAccount;
@@ -89,14 +94,15 @@ test('@p0 18.1-E2E-001 offline the device queues its screens, taps and dialogs i
   await sheet.getByRole('button', { name: 'Cancelar' }).click();
   await expect(sheet).toHaveCount(0);
 
-  // While offline the queue holds every one of them, ids only from the route params.
+  // While offline the queue holds every one of them, ids only from the route params. Story 18.4:
+  // each screen's view is written as it is left, after what was pressed on it, with the screen before it.
   const expected = [
-    { name: 'screen_view', screen: 'account' },
-    { name: 'screen_view', screen: 'home' },
+    { name: 'screen_view', screen: 'ficha', relatorio_id: relatorioId, block_id: blockId, from: 'sumario' },
+    { name: 'screen_view', screen: 'account', from: 'ficha' },
     { name: 'action', screen: 'home', target: 'home.card_open' },
-    { name: 'screen_view', screen: 'sumario', relatorio_id: relatorioId },
+    { name: 'screen_view', screen: 'home', from: 'account' },
     { name: 'action', screen: 'sumario', target: 'sumario.open_sheet' },
-    { name: 'screen_view', screen: 'ficha', relatorio_id: relatorioId, block_id: blockId },
+    { name: 'screen_view', screen: 'sumario', relatorio_id: relatorioId, from: 'home' },
     { name: 'action', screen: 'ficha', target: 'ficha.mark_c' },
     { name: 'action', screen: 'ficha', target: 'ficha.photo' },
     { name: 'action', screen: 'ficha', target: 'photos.add' },
@@ -108,11 +114,18 @@ test('@p0 18.1-E2E-001 offline the device queues its screens, taps and dialogs i
       async () =>
         (await queued(page))
           .filter((event) => event.ts >= offlineFrom && TRACKED_HERE.has(event.name))
-          .map(({ name, screen, target, relatorio_id, block_id }) => ({ name, screen, target, relatorio_id, block_id })),
+          .map(({ name, screen, target, relatorio_id, block_id, from }) => ({ name, screen, target, relatorio_id, block_id, from })),
       { timeout: 15_000 },
     )
-    .toEqual(expected.map((event) => ({ target: undefined, relatorio_id: undefined, block_id: undefined, ...event })));
+    .toEqual(expected.map((event) => ({ target: undefined, relatorio_id: undefined, block_id: undefined, from: undefined, ...event })));
   const offlineQueue = await queued(page);
+  // Story 18.4: every view says how long its screen stayed open, in whole milliseconds.
+  const views = offlineQueue.filter((event) => event.ts >= offlineFrom && event.name === 'screen_view');
+  expect(views).toHaveLength(4);
+  for (const view of views) {
+    expect(Number.isInteger(view.duration_ms), JSON.stringify(view)).toBe(true);
+    expect(view.duration_ms).toBeGreaterThanOrEqual(0);
+  }
   expect(offlineQueue.length).toBeGreaterThanOrEqual(expected.length);
   const postsBefore = posts.length;
   for (const event of offlineQueue) {
@@ -154,6 +167,10 @@ test('@p0 18.1-E2E-001 offline the device queues its screens, taps and dialogs i
   expect(posted.some((event) => event.name === 'action' && event.target === 'sync.now')).toBe(true);
   expect(posted.some((event) => event.name === 'sync_result' && event.kind === 'ran')).toBe(true);
   expect(startedQueued || posted.some((event) => event.name === 'session_start')).toBe(true);
+  // Story 18.4: each load's session_start ran at 1280 px, in a browser tab, online.
+  const starts = [...offlineQueue, ...posted].filter((event) => event.name === 'session_start');
+  expect(starts.length).toBeGreaterThan(0);
+  for (const start of starts) expect({ viewport: start.viewport, standalone: start.standalone, online: start.online }).toEqual({ viewport: 'desktop', standalone: false, online: true });
   // Nothing typed or named in an event: neither the relatório's texts nor the TAGs.
   expect(JSON.stringify(posted)).not.toMatch(/Cubículo|Chave seccionadora|Enel/);
 });
@@ -218,4 +235,41 @@ test('@p0 18.1-E2E-002 a 429 on the telemetry post keeps every queued event and 
   await expect.poll(async () => (await queued(page)).length, { timeout: 30_000 }).toBe(0);
   await expect.poll(() => statuses.length, { timeout: 15_000 }).toBeGreaterThan(0);
   expect(statuses.every((status) => status === 204)).toBe(true);
+});
+
+/*
+ * 18.4-E2E-001 (Story 18.4): a value typed in a sheet number field that the field refuses is
+ * one `input_refused` with the field's constant name and the kernel's reason, on blur; the
+ * keystrokes queue nothing, and no queued event carries the typed text. The typed word is not
+ * hexadecimal ("quinze"), so it cannot occur by chance inside an id of the queue.
+ */
+test('@p0 18.4-E2E-001 a typed value the sheet refuses queues one input_refused with its name and reason, and never the text', async ({ page, context }) => {
+  test.setTimeout(180_000);
+  await openChaveSheet(page, account, database);
+  // Offline, so no sync cycle ships the queue while it is read.
+  await context.setOffline(true);
+  const typed = 'quinze';
+  const field = page.locator('input[data-telemetry="ficha.number"]').first();
+  await field.scrollIntoViewIfNeeded();
+  const from = await page.evaluate(() => new Date().toISOString());
+  await field.click();
+  await field.pressSequentially(typed);
+  const refusals = async () => (await queued(page)).filter((event) => event.ts >= from && event.name === 'input_refused');
+  // Typing alone queues nothing.
+  expect(await refusals()).toEqual([]);
+  await field.blur();
+  await expect(page.getByText('Número não reconhecido').first()).toBeVisible();
+  await expect.poll(async () => (await refusals()).length, { timeout: 15_000 }).toBe(1);
+  const [refusal] = await refusals();
+  expect(refusal).toMatchObject({ name: 'input_refused', screen: 'ficha', target: 'ficha.number', kind: 'not_a_number' });
+  expect(refusal!.outcome).toBeUndefined();
+  expect(refusal!.duration_ms).toBeUndefined();
+  const { id, ...wire } = refusal!;
+  expect(typeof id).toBe('number');
+  expect(uxEventSchema.safeParse(wire).success).toBe(true);
+  // A click into the field is no action.
+  expect((await queued(page)).filter((event) => event.ts >= from && event.name === 'action')).toEqual([]);
+  // Never the typed text, anywhere in the queue.
+  expect(JSON.stringify(await queued(page))).not.toContain(typed);
+  await context.setOffline(false);
 });

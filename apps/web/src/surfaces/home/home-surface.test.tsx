@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { newEquipmentBlock, type LocationRow, type RelatorioRow, type RelatorioStatus, type RelatorioSummary } from '@app/domain';
+import { HOME_PAGE_SIZES, homePageSizeTarget, homeStatusTileTarget, newEquipmentBlock, type LocationRow, type RelatorioRow, type RelatorioStatus, type RelatorioSummary } from '@app/domain';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
@@ -466,7 +466,9 @@ describe('Home: the active list and its page (Story 19.2)', () => {
     expect(pageChips()).toBeNull();
 
     const emitido = screen.getByRole('button', { name: 'Emitido, 9 relatórios' });
-    expect(emitido).toHaveAttribute('data-telemetry', 'home.status_chip');
+    // Story 18.4: each tile names its own target, the kernel's.
+    expect(emitido).toHaveAttribute('data-telemetry', homeStatusTileTarget('emitido'));
+    expect(emitido).toHaveAttribute('data-telemetry', 'home.status_chip_emitido');
     await userEvent.click(emitido);
     await waitFor(() => expect(listIds()).toEqual(issued.map((entry) => entry.id)));
     await userEvent.click(emitido);
@@ -484,7 +486,8 @@ describe('Home: the active list and its page (Story 19.2)', () => {
     const chips = within(group).getAllByRole('radio');
     expect(chips.map((chip) => chip.textContent)).toEqual(['10', '20', '50', '100']);
     expect(chips.map((chip) => chip.getAttribute('aria-checked'))).toEqual(['true', 'false', 'false', 'false']);
-    for (const chip of chips) expect(chip).toHaveAttribute('data-telemetry', 'home.page_size');
+    // Story 18.4: each size names its own target, the kernel's.
+    expect(chips.map((chip) => chip.getAttribute('data-telemetry'))).toEqual(HOME_PAGE_SIZES.map(homePageSizeTarget));
 
     await userEvent.click(within(group).getByRole('radio', { name: '50' }));
     await waitFor(() => expect(cards()).toHaveLength(12));

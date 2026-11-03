@@ -1,4 +1,4 @@
-import { RELATORIO_STATUSES, type RelatorioStatus } from '@app/domain';
+import { homeStatusTileTarget, RELATORIO_STATUSES, type RelatorioStatus } from '@app/domain';
 import { StatusTile } from '../../components/status-tile.tsx';
 import { copy } from '../../copy/pt-br.ts';
 
@@ -23,7 +23,7 @@ export function StatusBoard({ counts, filter, onFilter }: StatusBoardProps) {
           count={counts[status]}
           isPressed={filter === status}
           onPress={() => onFilter(status)}
-          telemetry="home.status_chip"
+          telemetry={homeStatusTileTarget(status)}
         />
       ))}
     </div>

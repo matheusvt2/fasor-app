@@ -13,6 +13,8 @@ import {
   parsePlateDateText,
   parseVoltageClassKv,
   plateDateAccepted,
+  refusedNumberKind,
+  refusedPlateDateKind,
   screenLabel,
   wordRegistryRowText,
   wordRowByName,
@@ -27,6 +29,7 @@ import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useDraftSource } from '../../state/drafts.tsx';
+import { trackInputRefused } from '../../telemetry/hooks.ts';
 
 /*
  * The sheet's typed fields by kind (Stories 5.2, 5.3; AD-11/AR-10): text, number with its
@@ -355,6 +358,8 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
     flushOnUnmount: flushOnUnmount === true,
     // G4: the decimal keypad has no "/", so a field that takes "380/220" asks for the text keyboard.
     inputMode: acceptsPair === true ? 'text' : 'decimal',
+    // Story 18.4: a refusal on blur or Enter is an `input_refused` with the kernel's reason.
+    onRefuse: (text) => trackInputRefused('ficha.number', refusedNumberKind(text)),
     // DB-7: Enter commits (`useNumberInput`), then runs on unless the text is no number (the
     // helper shows and the focus stays) or an IME composition ends with it.
     onEnter: (event) => {
@@ -376,6 +381,7 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
   const valueField = (
     <div className="measurement-field" aria-invalid={number.invalid || undefined}>
       <input
+        data-telemetry="ficha.number"
         id={id}
         className="mf-value"
         {...number.inputProps}
@@ -484,7 +490,7 @@ function DateTextField({ field, value, commit, missing, label, after, flushOnUnm
     const parsed = parsePlateDateText(typed);
     return parsed === null || !plateDateAccepted(parsed, now()) ? false : parsed;
   };
-  /** Commits the typed date; false when it is refused (the invalid helper shows). */
+  /** Commits the typed date; false when it is refused (the invalid helper shows, and Story 18.4's `input_refused` is queued). */
   const submit = (onBlur = false): boolean => {
     // Enter committed this text and moved the focus on: the blur that follows writes it no second
     // time. Only the blur skips it, so an Enter (Shift+Enter included) still re-commits a write the
@@ -495,6 +501,7 @@ function DateTextField({ field, value, commit, missing, label, after, flushOnUnm
     if (next === undefined) return true;
     if (next === false) {
       setInvalid(true);
+      trackInputRefused('ficha.date', refusedPlateDateKind(text));
       return false;
     }
     setInvalid(false);
@@ -520,6 +527,7 @@ function DateTextField({ field, value, commit, missing, label, after, flushOnUnm
         {screenLabel(label ?? field.label)}
       </label>
       <input
+        data-telemetry="ficha.date"
         id={id}
         className="input"
         value={text}
@@ -584,6 +592,7 @@ function DatePickerField({ field, value, commit, missing, label, after, flushOnU
     <div
       data-field-key={field.key}
       data-missing-field={missing ? '' : undefined}
+      data-telemetry="ficha.date"
       // Story 13.4: focus within the picker keeps it mounted (`DateValueField`).
       onFocus={() => onFocusChange(true)}
       onBlur={(event) => {
@@ -606,7 +615,11 @@ function DatePickerField({ field, value, commit, missing, label, after, flushOnU
           committer.change(next);
         }}
         onBlur={() => {
-          if (refused.current) setOutOfRange(true);
+          if (refused.current) {
+            setOutOfRange(true);
+            // Story 18.4: the picker holds a date only, so its one refusal is the range (F-22).
+            trackInputRefused('ficha.date', 'out_of_range');
+          }
           committer.blur();
         }}
         after={

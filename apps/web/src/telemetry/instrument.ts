@@ -1,6 +1,8 @@
-import { SCREENS, TELEMETRY_TARGET_PATTERN, type Screen } from '@app/domain';
+import { SCREENS, TELEMETRY_TARGET_PATTERN, UX_INPUT_TARGETS, type Screen } from '@app/domain';
+import { deviceContext } from './context.ts';
 import { beaconTelemetry } from './flush.ts';
-import { telemetryDatabase, track } from './track.ts';
+import { telemetryDatabase, track, whenTelemetryWritten } from './track.ts';
+import { leaveScreen, resumeScreen } from './views.ts';
 
 /*
  * Epic 18, Story 18.1 (AD-28): the `data-telemetry` attribute is the one source of a
@@ -12,9 +14,22 @@ import { telemetryDatabase, track } from './track.ts';
  * `onPress` from the native click, so the capture here sees the control before the press
  * changes the page. Hiding the tab, or leaving the page (`pagehide`, which fires where
  * `visibilitychange` may not), hands the queue to `sendBeacon`.
+ *
+ * Story 18.4: hiding the tab or leaving the page first writes the open screen's `screen_view`
+ * (`leaveScreen`), and the beacon follows once that write settled; showing the tab again opens
+ * a view of the same screen (`resumeScreen`). A field (`input`, `textarea`, `select`, or a
+ * control named for `input_refused`) is never pressed: a click into it queues nothing.
  */
 
 const SELECTOR = '[data-telemetry]';
+
+const FIELD_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
+const INPUT_TARGETS = new Set<string>(UX_INPUT_TARGETS);
+
+/** A typing field or a field's name: its refusals are `input_refused`, never an `action` or a `disabled_tap`. */
+function isField(control: Element): boolean {
+  return FIELD_TAGS.has(control.tagName) || INPUT_TARGETS.has(control.getAttribute('data-telemetry') ?? '');
+}
 
 function isDisabled(control: Element): boolean {
   return control.hasAttribute('disabled') || control.getAttribute('aria-disabled') === 'true' || control.closest('[aria-readonly="true"]') !== null;
@@ -44,7 +59,7 @@ function screenOverride(control: Element): { screen?: Screen } {
 
 function onClick(event: Event): void {
   const control = controlOf(event);
-  if (control === null || isDisabled(control)) return;
+  if (control === null || isField(control) || isDisabled(control)) return;
   // Only `retry` and `undo` rename the press; any other value is a plain `action`.
   const declared = control.getAttribute('data-telemetry-event');
   track({
@@ -57,7 +72,7 @@ function onClick(event: Event): void {
 function onPointerDown(event: Event): void {
   if (!isPrimaryPress(event)) return;
   const control = controlOf(event);
-  if (control === null || !isDisabled(control)) return;
+  if (control === null || isField(control) || !isDisabled(control)) return;
   track({ name: 'disabled_tap', target: control.getAttribute('data-telemetry') ?? undefined, ...screenOverride(control) });
 }
 
@@ -67,11 +82,15 @@ function onPointerDown(event: Event): void {
  */
 export function installTelemetryListeners(doc: Document = document): () => void {
   const beacon = () => {
+    leaveScreen();
     const db = telemetryDatabase();
-    if (db !== null) void beaconTelemetry(db);
+    if (db === null) return;
+    // The open screen's `screen_view` goes with this beacon: it is sent once that write settled.
+    void whenTelemetryWritten().then(() => beaconTelemetry(db));
   };
   const onVisibility = () => {
     if (doc.visibilityState === 'hidden') beacon();
+    else resumeScreen();
   };
   const view = doc.defaultView;
   doc.addEventListener('click', onClick, true);
@@ -98,7 +117,7 @@ export function startTelemetry(): void {
   installed = true;
   try {
     uninstallInstalled = installTelemetryListeners(document);
-    track({ name: 'session_start' });
+    track({ name: 'session_start', ...deviceContext() });
   } catch {
     // An event is never worth a failure.
   }

@@ -1,14 +1,16 @@
 # Story 18.3 (2026-10-29): the usage dashboard over the usage events of AD-28.
 #
-# One CloudWatch dashboard `fasor-production-ux` with ten Logs Insights widgets (nine of Story
-# 18.3 and, since 2026-10-30 (E18-A2, Matheus: "controlar os usuários logados"), the users
-# view), and the same ten queries as saved query definitions (CloudWatch > Logs Insights >
-# Saved queries). Both read the group the api writes to, `aws_cloudwatch_log_group.ux_events`
-# of `telemetry.tf` (2026-11-03, E18-A2: no longer by its literal name, so a renamed group
-# moves the dashboard, the saved queries and the api's TELEMETRY_LOG_GROUP together). Queries
-# use only the event fields of AD-28 (`name`, `screen`, `target`, `kind`, `outcome`,
-# `duration_ms`, `session_id`, `device_id`, `ts`, `app_version`, `relatorio_id`, `block_id`)
-# and the server's `received_at`, `user_id`, `company_id`; `scripts/telemetry-queries.test.ts`
+# One CloudWatch dashboard `fasor-production-ux` with seventeen Logs Insights widgets
+# (nine of Story 18.3 and, since 2026-10-30 (E18-A2, Matheus: "controlar os usuários logados"),
+# the users view; since 2026-11-03, Story 18.4's seven: screen_time, home_first_nav, paths,
+# bounces, viewports, refusals, document_waits), and the same queries as saved query
+# definitions (CloudWatch > Logs Insights > Saved queries). Both read the group the api writes
+# to, `aws_cloudwatch_log_group.ux_events` of `telemetry.tf` (2026-11-03, E18-A2: no longer by
+# its literal name, so a renamed group moves the dashboard, the saved queries and the api's
+# TELEMETRY_LOG_GROUP together). Queries use only the event fields of AD-28 (`name`, `screen`,
+# `target`, `kind`, `outcome`, `duration_ms`, `session_id`, `device_id`, `ts`, `app_version`,
+# `relatorio_id`, `block_id`; Story 18.4: `from`, `viewport`, `standalone`, `online`) and the
+# server's `received_at`, `user_id`, `company_id`; `scripts/telemetry-queries.test.ts`
 # binds every name, kind, outcome, screen and field they read to the kernel's closed lists
 # (`packages/domain/src/contract/telemetry.ts`).
 #
@@ -89,10 +91,49 @@ locals {
       view  = "table"
       query = "fields ${local.ux_user_label} as usuario, ${local.ux_company_label} as empresa | stats count_distinct(session_id) as sessions, count_distinct(device_id) as devices, count(*) as events, earliest(received_at) as first_seen, latest(received_at) as last_seen by usuario, empresa | sort last_seen desc"
     }
+    # 2026-11-03 (Story 18.4): how long, in what order, on what and for whom. A `screen_view` is
+    # written when its screen is left, with `duration_ms` and `from` (the screen before it);
+    # `from` is backticked, as a field name that is also a query word. Events of bundles before
+    # the story carry neither, so these views read only the new bundles' rows.
+    screen_time = {
+      title = "Time per screen p50 and p95 (ms)"
+      view  = "table"
+      query = "${local.ux_smoke_filter}filter name = 'screen_view' and ispresent(duration_ms) | stats count(*) as views, pct(duration_ms, 50) as p50_ms, pct(duration_ms, 95) as p95_ms by screen | sort p95_ms desc"
+    }
+    home_first_nav = {
+      title = "Home to first navigation p50 and p95 (ms)"
+      view  = "table"
+      query = "${local.ux_smoke_filter}filter name = 'screen_view' and screen = 'home' and ispresent(duration_ms) and (not ispresent(`from`) or `from` = 'login') | stats count(*) as landings, pct(duration_ms, 50) as p50_ms, pct(duration_ms, 95) as p95_ms"
+    }
+    paths = {
+      title = "Paths: screens, dialogs, disabled taps, errors and refusals per session"
+      view  = "table"
+      query = "${local.ux_smoke_filter}filter name in ['screen_view', 'dialog_open', 'dialog_cancel', 'disabled_tap', 'error', 'input_refused'] | fields session_id, ts, name, screen, `from`, target, kind, duration_ms | sort session_id, ts | limit 1000"
+    }
+    bounces = {
+      title = "Bounces: from A to B, left within 10 s"
+      view  = "table"
+      query = "${local.ux_smoke_filter}filter name = 'screen_view' and duration_ms < 10000 and ispresent(`from`) and `from` != screen | stats count(*) as bounces by `from`, screen | sort bounces desc | limit 50"
+    }
+    viewports = {
+      title = "Sessions by user and viewport"
+      view  = "table"
+      query = "${local.ux_smoke_filter}filter name = 'session_start' and ispresent(viewport) | fields ${local.ux_user_label} as usuario | stats count_distinct(session_id) as sessions, count_distinct(device_id) as devices by usuario, viewport, standalone, online | sort sessions desc"
+    }
+    refusals = {
+      title = "Typed values refused by screen, field and reason"
+      view  = "table"
+      query = "${local.ux_smoke_filter}filter name = 'input_refused' | stats count(*) as refusals, count_distinct(session_id) as sessions by screen, target, kind | sort refusals desc | limit 50"
+    }
+    document_waits = {
+      title = "Document waits p50 and p95 (ms) by kind, outcome and version"
+      view  = "table"
+      query = "${local.ux_smoke_filter}filter name = 'wait' and kind in ['preview', 'generate'] | stats count(*) as waits, pct(duration_ms, 50) as p50_ms, pct(duration_ms, 95) as p95_ms by kind, outcome, app_version | sort kind, outcome"
+    }
   }
 
   # The dashboard order; every key of ux_queries appears once.
-  ux_query_order = ["funnel", "actions", "dialogs", "disabled_taps", "waits", "readings", "syncs", "sessions_per_day", "errors", "users"]
+  ux_query_order = ["funnel", "actions", "dialogs", "disabled_taps", "waits", "readings", "syncs", "sessions_per_day", "errors", "users", "screen_time", "home_first_nav", "paths", "bounces", "viewports", "refusals", "document_waits"]
 }
 
 resource "aws_cloudwatch_dashboard" "ux" {

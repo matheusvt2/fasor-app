@@ -8,6 +8,7 @@ import { openDatabase, type AppDatabase } from '../db/schema.ts';
 import { queuedUxEvents } from '../db/ux-events-store.ts';
 import { routeIdsOf, TelemetryRoutes, useScreenView } from './hooks.ts';
 import { configureTelemetry, resetTelemetryForTests, whenTelemetryWritten } from './track.ts';
+import { leaveScreen, resetViewsForTests } from './views.ts';
 
 /*
  * E18-A1 (A2, R-V6): the kernel's route-to-screen list (`SCREEN_ROUTES` behind `screenOf`) and
@@ -36,6 +37,7 @@ let db: AppDatabase;
 
 beforeEach(async () => {
   resetTelemetryForTests();
+  resetViewsForTests();
   db = openDatabase(`019966b0-0035-7000-8000-${(++counter).toString(16).padStart(12, '0')}`);
   await db.open();
   configureTelemetry({ db, deviceId: DEVICE });
@@ -49,7 +51,7 @@ afterEach(() => {
 
 async function views() {
   await whenTelemetryWritten();
-  return (await queuedUxEvents(db)).filter((e) => e.name === 'screen_view').map(({ screen, relatorio_id, block_id }) => ({ screen, relatorio_id, block_id }));
+  return (await queuedUxEvents(db)).filter((e) => e.name === 'screen_view').map(({ screen, from, relatorio_id, block_id }) => ({ screen, from, relatorio_id, block_id }));
 }
 
 describe("the router table and the kernel's screens (A2)", () => {
@@ -80,7 +82,7 @@ describe('routeIdsOf (R-V6)', () => {
 });
 
 describe('TelemetryRoutes (R-V6)', () => {
-  it('queues one screen_view per pathname change, with the ids the route names', async () => {
+  it('queues one screen_view per pathname left (Story 18.4: written on leaving, with the screen before it), with the ids the route names', async () => {
     const Leaf = () => null;
     const router = createMemoryRouter(
       [
@@ -115,22 +117,41 @@ describe('TelemetryRoutes (R-V6)', () => {
     await act(async () => {
       await router.navigate(`/project/${SAMPLE_ID}`);
     });
+    // The project screen is still open: it is written when it is left (here, the tab hidden).
+    leaveScreen();
     expect(await views()).toEqual([
-      { screen: 'home', relatorio_id: undefined, block_id: undefined },
-      { screen: 'sumario', relatorio_id: RELATORIO, block_id: undefined },
-      { screen: 'ficha', relatorio_id: RELATORIO, block_id: BLOCK },
-      { screen: 'project', relatorio_id: undefined, block_id: undefined },
+      { screen: 'home', from: undefined, relatorio_id: undefined, block_id: undefined },
+      { screen: 'sumario', from: 'home', relatorio_id: RELATORIO, block_id: undefined },
+      { screen: 'ficha', from: 'sumario', relatorio_id: RELATORIO, block_id: BLOCK },
+      { screen: 'project', from: 'ficha', relatorio_id: undefined, block_id: undefined },
     ]);
+    const rows = (await queuedUxEvents(db)).filter((e) => e.name === 'screen_view');
+    for (const row of rows) expect(Number.isInteger(row.duration_ms)).toBe(true);
   });
 });
 
 describe('useScreenView (R-V6)', () => {
   it('queues the update and the recovery screens', async () => {
-    renderHook(() => useScreenView('update'));
+    const update = renderHook(() => useScreenView('update'));
+    update.unmount();
     renderHook(() => useScreenView('recovery'));
+    leaveScreen();
     expect(await views()).toEqual([
-      { screen: 'update', relatorio_id: undefined, block_id: undefined },
-      { screen: 'recovery', relatorio_id: undefined, block_id: undefined },
+      { screen: 'update', from: undefined, relatorio_id: undefined, block_id: undefined },
+      { screen: 'recovery', from: 'update', relatorio_id: undefined, block_id: undefined },
+    ]);
+  });
+
+  it('Story 18.4: a full surface shown over a route enters its screen, and the route shows again when it goes', async () => {
+    const router = createMemoryRouter([{ path: '/', element: <TelemetryRoutes /> }], { initialEntries: ['/'] });
+    render(<RouterProvider router={router} />);
+    const surface = renderHook(() => useScreenView('update'));
+    surface.unmount();
+    leaveScreen();
+    expect((await views()).map(({ screen, from }) => [screen, from])).toEqual([
+      ['home', undefined],
+      ['update', 'home'],
+      ['home', 'update'],
     ]);
   });
 });

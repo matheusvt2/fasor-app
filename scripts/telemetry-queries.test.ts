@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { SCREENS, TELEMETRY_SERVER_KEYS, UX_EVENT_NAMES, UX_OUTCOMES, uxEventSchema } from '@app/domain';
+import { SCREENS, TELEMETRY_SERVER_KEYS, UX_EVENT_NAMES, UX_OUTCOMES, uxEventSchema, VIEWPORTS } from '@app/domain';
 import { describe, expect, it } from 'vitest';
 
 /*
@@ -11,6 +11,9 @@ import { describe, expect, it } from 'vitest';
  * compares with is in its closed list, every field it reads is an event key, a server key or
  * an alias the query defines, every view but `users` leaves the smoke company out, and the
  * dashboard and the saved queries read the group the api writes to.
+ *
+ * Story 18.4 (2026-11-03): seventeen queries; `from` (written backticked, a query word as well
+ * as a field) compares only with a kernel screen and `viewport` only with a kernel viewport.
  */
 
 const infra = resolve(import.meta.dirname, '../infra/production');
@@ -56,15 +59,19 @@ function expand(query: string): string {
     .replace(/\$\{[^}]*\}/g, "'interpolated'");
 }
 
-/** The literals the query compares with `field`: `=` and `!=`, `in [...]`, `strcontains(field, ...)`. */
+/**
+ * The literals the query compares with `field`: `=` and `!=`, `in [...]`, `strcontains(field, ...)`;
+ * the field may be written backticked (Story 18.4: `` `from` ``).
+ */
 function comparedLiterals(query: string, field: string): string[] {
   const text = expand(query);
+  const name = `\`?\\b${field}\\b\`?`;
   const out: string[] = [];
-  for (const match of text.matchAll(new RegExp(`\\b${field}\\s*!?=\\s*'([^']*)'`, 'g'))) out.push(match[1]!);
-  for (const match of text.matchAll(new RegExp(`\\b${field}\\s+(?:not\\s+)?in\\s*\\[([^\\]]*)\\]`, 'g'))) {
+  for (const match of text.matchAll(new RegExp(`${name}\\s*!?=\\s*'([^']*)'`, 'g'))) out.push(match[1]!);
+  for (const match of text.matchAll(new RegExp(`${name}\\s+(?:not\\s+)?in\\s*\\[([^\\]]*)\\]`, 'g'))) {
     for (const literal of match[1]!.matchAll(/'([^']*)'/g)) out.push(literal[1]!);
   }
-  for (const match of text.matchAll(new RegExp(`strcontains\\(\\s*${field}\\s*,\\s*'([^']*)'\\s*\\)`, 'g'))) out.push(match[1]!);
+  for (const match of text.matchAll(new RegExp(`strcontains\\(\\s*${name}\\s*,\\s*'([^']*)'\\s*\\)`, 'g'))) out.push(match[1]!);
   return out;
 }
 
@@ -89,7 +96,7 @@ function referencedFields(query: string): { fields: string[]; aliases: string[] 
 const shape = uxEventSchema.shape;
 const KINDS: readonly string[] = shape.kind.unwrap().options;
 const EVENT_KEYS = new Set<string>([...Object.keys(shape), ...TELEMETRY_SERVER_KEYS]);
-const CLOSED: Record<string, readonly string[]> = { name: UX_EVENT_NAMES, kind: KINDS, outcome: UX_OUTCOMES, screen: SCREENS };
+const CLOSED: Record<string, readonly string[]> = { name: UX_EVENT_NAMES, kind: KINDS, outcome: UX_OUTCOMES, screen: SCREENS, from: SCREENS, viewport: VIEWPORTS };
 
 /** The one event name the query keeps (`name = '...'`, no list), or undefined. */
 function singleName(query: string): string | undefined {
@@ -102,7 +109,9 @@ function singleName(query: string): string | undefined {
 /** Whether the kernel's schema accepts `kind` on an event named `name` (its per-name list, `superRefine`). */
 function kindAllowed(name: string, kind: string): boolean {
   const id = '0b000000-0000-4000-8000-00000000000b';
-  return uxEventSchema.safeParse({ v: 1, ts: '2026-11-03T00:00:00.000Z', session_id: id, device_id: id, app_version: 'dev', name, screen: 'home', kind }).success;
+  // Story 18.4: an input_refused always names its field.
+  const target = name === 'input_refused' ? { target: 'ficha.number' } : {};
+  return uxEventSchema.safeParse({ v: 1, ts: '2026-11-03T00:00:00.000Z', session_id: id, device_id: id, app_version: 'dev', name, screen: 'home', kind, ...target }).success;
 }
 
 /** Every way a query breaks the binding, one line each naming the query and the offender. */
@@ -130,8 +139,8 @@ describe('the usage dashboard queries are bound to the kernel vocabulary (observ
   const queries = parseQueries(observability);
   const order = parseOrder(observability);
 
-  it('reads the ten queries and the dashboard order, each key once both ways', () => {
-    expect([...queries.keys()]).toHaveLength(10);
+  it('reads the seventeen queries and the dashboard order, each key once both ways', () => {
+    expect([...queries.keys()]).toHaveLength(17);
     expect(new Set(order).size).toBe(order.length);
     expect([...order].sort()).toEqual([...queries.keys()].sort());
   });
@@ -149,6 +158,12 @@ describe('the usage dashboard queries are bound to the kernel vocabulary (observ
       ['contains', "stats sum(strcontains(name, 'dialog_opened')) as opens by target"],
       ['crossed', "filter name = 'wait' and kind = 'plate' | stats count(*) as n by kind"],
       ['own', "filter name = 'reading_result' and kind = 'plate' | stats count(*) as n by outcome"],
+      // Story 18.4: one bad case per new field.
+      ['from', "filter name = 'screen_view' and `from` = 'report' | stats count(*) as n by `from`"],
+      ['fromlist', "filter `from` in ['home', 'lobby'] | stats count(*) as n by screen"],
+      ['viewport', "filter name = 'session_start' and viewport = 'watch' | stats count(*) as n by viewport"],
+      ['context', "filter name = 'session_start' | stats count(*) as n by stand_alone, onlin"],
+      ['refusal', "filter name = 'input_refused' and kind = 'plate' | stats count(*) as n by target"],
     ]);
     expect(bindingViolations(bad)).toEqual([
       "typo: name 'screen_veiw' is not in the kernel list",
@@ -159,6 +174,12 @@ describe('the usage dashboard queries are bound to the kernel vocabulary (observ
       'list: field targett is not an event key, a server key or an alias',
       "contains: name 'dialog_opened' is not in the kernel list",
       "crossed: kind 'plate' is not a kind of wait",
+      "from: from 'report' is not in the kernel list",
+      "fromlist: from 'lobby' is not in the kernel list",
+      "viewport: viewport 'watch' is not in the kernel list",
+      'context: field stand_alone is not an event key, a server key or an alias',
+      'context: field onlin is not an event key, a server key or an alias',
+      "refusal: kind 'plate' is not a kind of input_refused",
     ]);
   });
 
@@ -205,5 +226,22 @@ describe('the usage dashboard queries are bound to the kernel vocabulary (observ
     const named = [...runbook.matchAll(/`(\/fasor\/[a-z]+\/ux-[a-z-]+)`/g)].map((match) => match[1]);
     expect(named.length).toBeGreaterThan(0);
     expect(new Set(named)).toEqual(new Set([group]));
+  });
+
+  it('Story 18.4: the seven new views read the new fields: the screen durations, from, the device context, the refusals and the document waits', () => {
+    const fieldsOf = (key: string) => referencedFields(queries.get(key) ?? '').fields;
+    expect(order.slice(-7)).toEqual(['screen_time', 'home_first_nav', 'paths', 'bounces', 'viewports', 'refusals', 'document_waits']);
+    expect(fieldsOf('screen_time')).toEqual(expect.arrayContaining(['duration_ms', 'screen']));
+    expect(comparedLiterals(queries.get('home_first_nav') ?? '', 'from')).toEqual(['login']);
+    expect(comparedLiterals(queries.get('home_first_nav') ?? '', 'screen')).toEqual(['home']);
+    expect(fieldsOf('paths')).toEqual(expect.arrayContaining(['session_id', 'ts', 'name', 'screen', 'from', 'target', 'kind', 'duration_ms']));
+    expect(comparedLiterals(queries.get('paths') ?? '', 'name')).toEqual(['screen_view', 'dialog_open', 'dialog_cancel', 'disabled_tap', 'error', 'input_refused']);
+    expect(queries.get('bounces')).toMatch(/duration_ms < 10000/);
+    expect(fieldsOf('viewports')).toEqual(expect.arrayContaining(['viewport', 'standalone', 'online', 'user_id']));
+    expect(comparedLiterals(queries.get('refusals') ?? '', 'name')).toEqual(['input_refused']);
+    expect(comparedLiterals(queries.get('document_waits') ?? '', 'kind')).toEqual(['preview', 'generate']);
+    expect(fieldsOf('document_waits')).toEqual(expect.arrayContaining(['app_version', 'outcome']));
+    // `from` is always backticked: never a bare word a query could read as its own keyword.
+    for (const [key, query] of queries) expect([key, /(?<!`)\bfrom\b(?!`)/.test(query)]).toEqual([key, false]);
   });
 });

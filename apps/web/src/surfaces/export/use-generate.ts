@@ -16,6 +16,7 @@ import {
   type GenerationJobRow,
   type RelatorioRow,
   type RevisionRow,
+  type UxOutcome,
 } from '@app/domain';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { now } from '../../clock.ts';
@@ -40,6 +41,8 @@ import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { SyncRequestError } from '../../sync/client.ts';
 import { publishReAuth } from '../../api/auth-client.ts';
+import { startWait } from '../../telemetry/hooks.ts';
+import { failureOutcome } from '../../telemetry/sync-observer.ts';
 import { isSessionExpired, isUnauthorized } from './session-expired.tsx';
 import { markSentNow } from './use-mark-sent.ts';
 
@@ -58,6 +61,13 @@ import { markSentNow } from './use-mark-sent.ts';
  * 2026-10-13 (AD-22, Matheus): a queued generate from Emitido reopens the relatório as
  * Em revisão (revision N+1 is not with the client); an `unchanged` answer leaves Emitido alone.
  * The rule is the kernel's (`advanceOnGenerate`), read here with the server's answer.
+ *
+ * Story 18.4: one `wait` (kind `generate`) per press, from "Gerar relatório" to the moment the
+ * revision the ready phase names is held on this device (its downloads can start): `ok`; a
+ * failed press ends it with its outcome (`failureOutcome` of the error; a dead op, files no
+ * upload brings and a session gone `refused`; a job past its expiry `timeout`; going offline
+ * while flushing `offline`), an unmount before either with `cancel`. The `not_caught_up`
+ * retries stay inside the one wait.
  */
 
 export type GeneratePhase =
@@ -147,12 +157,20 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
   const [awaiting, setAwaiting] = useState<{ number: number; job_id: string } | null | undefined>(undefined);
   const flushRounds = useRef(0);
   const mounted = useRef(true);
+  /** Story 18.4: the press's `wait`, null when no press waits (none yet, or it ended). */
+  const pressWait = useRef<((outcome: UxOutcome) => void) | null>(null);
+  const finishPress = useCallback((outcome: UxOutcome) => {
+    const finish = pressWait.current;
+    pressWait.current = null;
+    finish?.(outcome);
+  }, []);
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
+      finishPress('cancel');
     };
-  }, []);
+  }, [finishPress]);
 
   useEffect(() => {
     if (db === null) return;
@@ -299,6 +317,7 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
             const uploads = await pendingUploads(db);
             const pending = new Set(uploads.filter((item) => item.upload_error?.state !== 'dead').map((item) => item.id));
             if (!notCaughtUpRetryable(details.data, pending)) {
+              finishPress('refused');
               if (mounted.current) setPhase({ kind: 'failed', missingFiles: details.data.missing_files.length });
               return;
             }
@@ -313,9 +332,10 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
       // F-12 / W-23: a 401 is a session that expired: the re-auth banner and its own words.
       const expired = isSessionExpired(error);
       if (isUnauthorized(error)) publishReAuth();
+      finishPress(expired ? 'refused' : failureOutcome(error));
       if (mounted.current) setPhase(expired ? { kind: 'failed', sessionExpired: true } : { kind: 'failed' });
     }
-  }, [db, relatorioId, revisions, sync, timing.retryMs]);
+  }, [db, relatorioId, revisions, sync, timing.retryMs, finishPress]);
   const requestRef = useRef(request);
   requestRef.current = request;
 
@@ -330,10 +350,12 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
     // (a 404, 4.8-E2E-001 on the rfp branch, whose launch delayed that first read).
     if (outboxRead === false) return;
     if (!online) {
+      finishPress('offline');
       setPhase({ kind: 'idle' });
       return;
     }
     if (counts.dead > 0) {
+      finishPress('refused');
       setPhase({ kind: 'blocked' });
       return;
     }
@@ -343,6 +365,7 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
     // change re-runs this effect and starts over); the rounds are bounded.
     const kick = () => {
       if (++flushRounds.current > MAX_FLUSH_ROUNDS) {
+        finishPress('fail');
         setPhase({ kind: 'failed' });
         return;
       }
@@ -364,14 +387,16 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
           else if (!running) kick();
         })
         .catch(() => {
-          if (!cancelled) setPhase({ kind: 'failed' });
+          if (cancelled) return;
+          finishPress('fail');
+          setPhase({ kind: 'failed' });
         });
     }
     return () => {
       cancelled = true;
       if (timer !== null) clearTimeout(timer);
     };
-  }, [phase.kind, db, online, outboxRead, counts.dead, counts.pending, counts.sent, running, syncNow, timing.retryMs]);
+  }, [phase.kind, db, online, outboxRead, counts.dead, counts.pending, counts.sent, running, syncNow, timing.retryMs, finishPress]);
 
   // Working: pull the stream until the revision arrives or the job ends without one.
   const { syncRelatorio } = sync;
@@ -391,6 +416,7 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
     const job = latestJob?.id === phase.jobId ? latestJob : null;
     if (job === null) return;
     if (job.status === 'failed') {
+      finishPress('fail');
       setPhase({ kind: 'failed' });
       if (db !== null) void clearGenerateAwaiting(db, relatorioId).catch(() => undefined);
       return;
@@ -401,11 +427,12 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
       const latest = latestRevision(revisions);
       if (latest !== null) finishReady(latest);
       else {
+        finishPress('fail');
         setPhase({ kind: 'failed' });
         if (db !== null) void clearGenerateAwaiting(db, relatorioId).catch(() => undefined);
       }
     }
-  }, [phase, revisions, latestJob, db, relatorioId, finishReady]);
+  }, [phase, revisions, latestJob, db, relatorioId, finishReady, finishPress]);
 
   // Working past the queue's expiry with no revision: the worker died mid-job (an api
   // restart), pg-boss dropped the job and nobody will write `failed`. The dialog stops
@@ -415,6 +442,7 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
   useEffect(() => {
     if (expiresAt === null) return;
     const giveUp = () => {
+      finishPress('timeout');
       setPhase({ kind: 'failed' });
       if (db !== null) void clearGenerateAwaiting(db, relatorioId).catch(() => undefined);
     };
@@ -425,7 +453,7 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
     }
     const timer = setTimeout(giveUp, remaining);
     return () => clearTimeout(timer);
-  }, [expiresAt, db, relatorioId]);
+  }, [expiresAt, db, relatorioId, finishPress]);
 
   // Ready with a revision this device has not pulled (an `unchanged` answer on a fresh
   // device): ask for the stream once, so the row and its download appear.
@@ -438,11 +466,17 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
   const start = useCallback(() => {
     if (!sync.online || db === null) return;
     flushRounds.current = 0;
+    // Story 18.4: the press's wait starts at the tap; a press still waiting (none should) is given up.
+    finishPress('cancel');
+    pressWait.current = startWait('generate', { relatorio_id: relatorioId });
     setPhase({ kind: 'flushing' });
     void sync.syncNow();
-  }, [sync, db]);
+  }, [sync, db, relatorioId, finishPress]);
 
-  const reset = useCallback(() => setPhase({ kind: 'idle' }), []);
+  const reset = useCallback(() => {
+    finishPress('cancel');
+    setPhase({ kind: 'idle' });
+  }, [finishPress]);
 
   const markSent = useCallback(async () => {
     if (db === null || user === null) return;
@@ -453,7 +487,15 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
   const readyHeld = phase.kind !== 'ready' || revisions.some((row) => (phase.revisionId === null ? row.number === phase.number : row.id === phase.revisionId));
   const sendable = relatorio !== null && readyHeld && canMarkSent({ status: relatorio.status, latest: latestRevision(revisions)?.number ?? null, edited });
 
-  const beforeEdits = newest !== null && editedRead && edited;
+  // Story 18.4: the press's wait ends once the revision the ready phase names is held (the downloads can start).
+  const readyAndHeld = phase.kind === 'ready' && readyHeld;
+  useEffect(() => {
+    if (readyAndHeld) finishPress('ok');
+  }, [readyAndHeld, finishPress]);
+
+  // E16-R1: a ready revision not held yet (an `unchanged` answer on a fresh device) says nothing of
+  // the older revision the device holds: no banner and no row tags until it lands.
+  const beforeEdits = newest !== null && editedRead && edited && readyHeld;
   // Both reads landed for this snapshot, so the banner never flashes "gerado" for a sent revision.
   const beforeEditsBanner = beforeEdits && markedSentRead && phase.kind !== 'working' ? revisionsBeforeEditsBanner(newest, { edited, markedSent }) : null;
 

@@ -14,7 +14,6 @@ import {
   syncCounts,
   syncHeadlineText,
   syncSummaryBadges,
-  syncResultKind,
   type DownloadRow,
   type PendingPhotoRow,
   type PendingSheetContext,
@@ -59,14 +58,13 @@ import { storageHeadroom } from '../device/storage-estimate.ts';
 import { now } from '../clock.ts';
 import { newId } from '../ids.ts';
 import { createBrowserSyncClient, type SyncClient } from '../sync/client.ts';
-import { SyncRequestError, type SyncFailure } from '../sync/client.ts';
+import type { SyncFailure } from '../sync/client.ts';
 import { unreachableCause } from '../sync/policy.ts';
 import { createSyncEngine, type CycleResult, type EngineStatus, type SyncEngine } from '../sync/engine.ts';
 import { followOnlineEvents } from '../sync/online.ts';
-import { flushTelemetry } from '../telemetry/flush.ts';
 import { startWait, trackError } from '../telemetry/hooks.ts';
-import { observeReadingResults } from '../telemetry/readings.ts';
-import { configureTelemetry, track } from '../telemetry/track.ts';
+import { failureCode, observeCycle, syncWaitOutcome } from '../telemetry/sync-observer.ts';
+import { configureTelemetry } from '../telemetry/track.ts';
 import type { AppDatabase } from '../db/schema.ts';
 import { useSession } from './session.tsx';
 import { SyncActionsContext, type SyncActions } from './sync-actions.ts';
@@ -245,51 +243,6 @@ const cycleRequests = new Set<() => void>();
  */
 export function requestSyncCycle(): void {
   for (const request of cycleRequests) request();
-}
-
-/**
- * Epic 18 (AD-28): what a status change of the engine says about usage. A cycle that ran
- * queues its `sync_result`, looks for readings that landed, then drains the usage-event
- * queue (`flushTelemetry`); a cycle that found the device offline is tracked only on the way
- * into offline (the 60 s tick would otherwise write one row a minute); `busy` and `paused`
- * track nothing. Never touches the op log.
- */
-function observeCycle(db: AppDatabase, previous: EngineStatus, next: EngineStatus): void {
-  try {
-    if (previous.running && !next.running && next.lastResult === 'ran') {
-      track({ name: 'sync_result', kind: syncResultKind({ outdated: next.outdated, failure: next.lastFailure }) });
-      void observeReadingResults(db).then(() => flushTelemetry(db));
-      return;
-    }
-    if (next.lastResult === 'offline' && previous.lastResult !== 'offline') track({ name: 'sync_result', kind: 'offline' });
-  } catch {
-    // An event is never worth a failure.
-  }
-}
-
-/** The api error code a failed request carried, if any. */
-function failureCode(error: unknown): string | undefined {
-  return error instanceof SyncRequestError && error.failure.kind === 'http' ? error.failure.code : undefined;
-}
-
-/** How a failed request ended, for its `wait`. */
-function failureOutcome(error: unknown): 'offline' | 'refused' | 'fail' {
-  if (error instanceof SyncRequestError && error.failure.kind === 'network') return 'offline';
-  if (error instanceof SyncRequestError && error.failure.kind === 'http' && error.failure.status < 500) return 'refused';
-  return 'fail';
-}
-
-/**
- * The outcome of a "Sincronizar agora" wait: how the cycle it ran ended (a 426 is `refused`;
- * a cycle that started online and lost the network reads `offline`, as the generate and
- * preview waits do, E18-A1 R-E2).
- */
-function syncWaitOutcome(result: CycleResult, status: Pick<EngineStatus, 'lastFailure' | 'outdated'>): 'ok' | 'fail' | 'offline' | 'refused' {
-  if (result === 'offline') return 'offline';
-  if (result === 'paused' || status.outdated) return 'refused';
-  const failure = status.lastFailure;
-  if (failure === null) return 'ok';
-  return failure.kind === 'network' ? 'offline' : 'fail';
 }
 
 export function SyncProvider({ children }: { children: ReactNode }) {
@@ -516,14 +469,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const generate = useCallback(async (relatorioId: string, body: GenerateRequest): Promise<GenerateResponse> => {
     const client = clientRef.current;
     if (client === null) throw new Error('sync client is not running');
-    // Epic 18: the generate request's wait, and the api code of a refusal the user sees.
-    const finish = startWait('generate', { relatorio_id: relatorioId });
+    // Epic 18: the api code of a refusal the user sees. Story 18.4: the `generate` wait is the
+    // press's, timed by the Export dialog until the revision is held (`use-generate.ts`).
     try {
-      const answer = await client.generate(relatorioId, body);
-      finish('ok');
-      return answer;
+      return await client.generate(relatorioId, body);
     } catch (error) {
-      finish(failureOutcome(error));
       trackError(failureCode(error), { relatorio_id: relatorioId });
       throw error;
     }
@@ -532,13 +482,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const preview = useCallback(async (relatorioId: string, body: GenerateRequest): Promise<PreviewResponse> => {
     const client = clientRef.current;
     if (client === null || client.preview === undefined) throw new Error('sync client is not running');
-    const finish = startWait('preview', { relatorio_id: relatorioId });
+    // Story 18.4: the `preview` wait is the press's, timed by the Export dialog until the PDF opens (`use-preview.ts`).
     try {
-      const answer = await client.preview(relatorioId, body);
-      finish('ok');
-      return answer;
+      return await client.preview(relatorioId, body);
     } catch (error) {
-      finish(failureOutcome(error));
       trackError(failureCode(error), { relatorio_id: relatorioId });
       throw error;
     }
