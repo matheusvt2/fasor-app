@@ -111,3 +111,117 @@ export function manualMove(from: RelatorioStatus, to: RelatorioStatus): Relatori
   if (fromIndex === -1 || toIndex === -1) return null;
   return toIndex < fromIndex ? to : null;
 }
+
+/*
+ * Story 20.7 (2026-11-03, contract 29, security pass S1): the server checks every client
+ * `relatorio/status` op against this table, against the status it holds when the op applies.
+ * The emitters stay `advanceOnEdit` and `advanceOnGenerate` (`relatorio/status-advance.ts`) and
+ * the surfaces' actions; the server never writes the status (AD-22). There are no roles: every
+ * member of the company keeps every move (coordinator's reading).
+ */
+
+/** What a status move needs to know of the server's log besides the three statuses (`statusMoveFacts`). */
+export type StatusMoveFact = 'issueJobSinceLastStatus' | 'unchangedRevision' | 'hasRevision';
+
+export interface StatusMoveInput {
+  /** The status the server holds when the op applies. */
+  server: RelatorioStatus;
+  /** The status the device saw when it wrote the op (`statusSeen`). */
+  seen: RelatorioStatus;
+  /** The status the op writes. */
+  to: RelatorioStatus;
+  /**
+   * An issue `generation_job` was created after the relatório's latest status op (with no status
+   * op yet, after seq 0): a generate was queued since the device last moved the status.
+   */
+  issueJobSinceLastStatus?: boolean;
+  /**
+   * The relatório has a latest revision and nothing was edited after its snapshot (AD-15): the
+   * generate route's `unchanged` answer, which `advanceOnGenerate` also turns into Em revisão.
+   */
+  unchangedRevision?: boolean;
+  /** The relatório has a revision. */
+  hasRevision?: boolean;
+}
+
+export type StatusVerdict = 'allowed' | 'refused';
+
+/**
+ * The status the device saw when it wrote a status op: the value of the op its `prev_op_id`
+ * names when the server log holds that op on this relatório's `relatorio/status` (`logged`),
+ * Rascunho when `prev_op_id` is null (a relatório is born Rascunho, and no status op was seen),
+ * and otherwise the server's own status (an op the log does not hold tells nothing).
+ */
+export function statusSeen(input: { prevOpId: string | null; logged: unknown; server: RelatorioStatus }): RelatorioStatus {
+  if (input.prevOpId === null) return 'rascunho';
+  const logged = input.logged;
+  return typeof logged === 'string' && (RELATORIO_STATUSES as readonly string[]).includes(logged) ? (logged as RelatorioStatus) : input.server;
+}
+
+/** True when the device meant to move the relatório back (`manualMove` from what it saw). */
+function isBackwardIntent(seen: RelatorioStatus, to: RelatorioStatus): boolean {
+  return manualMove(seen, to) !== null;
+}
+
+/** True when some event of AD-22's table moves `server` to `to`. */
+function isForwardRow(server: RelatorioStatus, to: RelatorioStatus): boolean {
+  return STATUS_EVENTS.some((event) => statusTable(server, event) === to);
+}
+
+/**
+ * The facts of the server's log `statusMoveVerdict` reads for this move, so the server reads
+ * nothing it does not need: a forward move to Em revisão from Rascunho or Em campo needs to know
+ * whether a generate was queued since the last status op (or, failing that, whether the latest
+ * revision is unchanged); a forward move to Emitido needs to know whether a revision exists.
+ * Every other move needs none.
+ */
+export function statusMoveFacts(input: Pick<StatusMoveInput, 'server' | 'seen' | 'to'>): readonly StatusMoveFact[] {
+  const { server, seen, to } = input;
+  if (isBackwardIntent(seen, to) || to === server || !isForwardRow(server, to)) return [];
+  if (to === 'em_revisao' && (server === 'rascunho' || server === 'em_campo')) return ['issueJobSinceLastStatus', 'unchangedRevision'];
+  if (to === 'emitido') return ['hasRevision'];
+  return [];
+}
+
+/**
+ * Story 20.7: whether a client `relatorio/status` op may apply, from the status the server holds.
+ * - A backward intent (`manualMove(seen, to)`: back from what the device saw) is always allowed
+ *   (AD-22: manual backward moves from any state, Emitido to Em revisão on an edit, every
+ *   "Desfazer" that steps back).
+ * - `to === server` is allowed: an idempotent duplicate (two devices completing setup).
+ * - Anything else is a forward intent and must be a row of the table from the server's status,
+ *   with its precondition: to Em revisão from Rascunho or Em campo needs a generate queued since
+ *   the last status op or an unchanged latest revision; to Emitido needs the server at Em revisão
+ *   and a revision. A fact the caller did not give counts as false.
+ * Two devices with a stale status: one marks a revision as sent while the other, which still sees
+ * Rascunho, makes its first field edit; whichever arrives second meets a status from which its
+ * move is no row, so the server applies one and refuses the other, in either order.
+ */
+export function statusMoveVerdict(input: StatusMoveInput): StatusVerdict {
+  const { server, seen, to } = input;
+  if (isBackwardIntent(seen, to)) return 'allowed';
+  if (to === server) return 'allowed';
+  if (!isForwardRow(server, to)) return 'refused';
+  if (to === 'em_revisao' && (server === 'rascunho' || server === 'em_campo')) {
+    return input.issueJobSinceLastStatus === true || input.unchangedRevision === true ? 'allowed' : 'refused';
+  }
+  if (to === 'emitido') return server === 'em_revisao' && input.hasRevision === true ? 'allowed' : 'refused';
+  return 'allowed';
+}
+
+/** Story 20.7: a relatório is born Rascunho; a `relatorio/{id}` create of any other status is refused. */
+export function statusCreateVerdict(status: unknown): StatusVerdict {
+  return status === 'rascunho' ? 'allowed' : 'refused';
+}
+
+/**
+ * Story 20.10 (coordinator's reading, 2026-11-03): an Emitido relatório cannot be removed. A
+ * `relatorio/removed_at` remove, or a put of an instant, on a relatório the server holds as
+ * Emitido is refused (`op_forbidden`); the office moves it back to Em revisão first, then
+ * removes it. A put of null (the restore) is always allowed. This is the one removal rule; who
+ * may remove, and roles in general, wait for a dated decision.
+ */
+export function relatorioRemovalVerdict(server: RelatorioStatus, write: { kind: 'put' | 'remove'; value: unknown }): StatusVerdict {
+  const removes = write.kind === 'remove' || write.value !== null;
+  return removes && server === 'emitido' ? 'refused' : 'allowed';
+}

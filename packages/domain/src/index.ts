@@ -13,6 +13,9 @@ export * from './ops/outbox.ts';
 export * from './ops/replay.ts';
 export * from './ops/materialize.ts';
 export * from './ops/order-key.ts';
+// Stories 20.8 and 20.9 (contract 29): who and when an op says, and the size and type of its value.
+export * from './ops/attribution.ts';
+export * from './ops/value-limits.ts';
 export * from './checks/unsynced.ts';
 export * from './checks/write-error.ts';
 export * from './checks/storage.ts';
