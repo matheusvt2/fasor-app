@@ -2627,3 +2627,13 @@ Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
   evidence: batch e18fb is offline by rule (no apply). The `users` view's `fields ... as ... | stats ... by` shape and `filter` chains already ran to `Complete` in production (2026-10-30), and `substr` is a documented Logs Insights string function, so the risk is low; the first read after the apply should open `sessions_per_day` and one filtered view and check they run to `Complete` and that the `smoke` row is gone from them.
   class: risk
   state: open (owner: the coordinator, at the deploy that carries the batch, on Matheus's word)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e18fb-observability-and-tooling.md`
+  summary: A `--resume` of a deploy cut after its tag record (during the smoke) reads `previous_tag` equal to the tag, so a red smoke on that resume says "no earlier tag was recorded to roll back to; fix forward" instead of naming the tag before the deploy.
+  evidence: `infra/bin/deploy` reads `previous_tag` from the image-tag parameter right before `put-parameter`; a first run that recorded the tag and then died leaves the parameter at the new tag. Review finding ECH-5 of batch e18fb. To decide: persist the pre-deploy tag (a file under `test-results/` or an SSM tag) or let `--resume` take `--previous-tag`.
+  class: risk
+  state: open (owner: the next infra batch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e18fb-observability-and-tooling.md`
+  summary: The smoke step 6 retry (`e2e/production/preview-tab.ts`) is unit-tested with fakes only; the `openTab` and `recover` callbacks the suite passes (press, Escape, reload the Sumário, reopen the dialog) run only against production.
+  evidence: `scripts/preview-tab.test.ts` covers the retry decision; the suite has no local run. Review finding VGR-4 of batch e18fb. The next deploy whose preview tab closes early is the proof: its log line `pressing it once more` and `test-results/production-smoke/preview-retry.json`.
+  class: risk
+  state: open (owner: the coordinator, at the next deploy that shows the retry)

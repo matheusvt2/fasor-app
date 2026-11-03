@@ -2,10 +2,10 @@
 title: 'E18-A2 remainder, E15-A10 and tooling: smoke-free views, device-day sessions, the query binding test, the telemetry smoke step, resumable deploy'
 type: 'chore'
 created: '2026-11-03'
-status: 'in-review'
+status: 'done'
 baseline_revision: '0fede8ac813fa77e856cf26e976c9c199ebab709'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -144,3 +144,19 @@ The trap is the fallback that covers any unforeseen exit after the roll; the ret
 - `podman compose --profile tools run --rm --user root tools pnpm exec vitest run apps/web/src/surfaces/templates/template-composer-defaults.test.tsx apps/web/src/surfaces/templates/template-composer-local.test.tsx` -- green, 3 runs.
 - `infra/bin/check` -- `all passed`.
 - Story gate (coordinator-run by the orchestrator): `pnpm lint`, `pnpm static`, `pnpm test:api`, `pnpm test:unit` under the host lock.
+
+## Auto Run Result
+
+Status: done (gate green on `262f5b6b91f500aa559a0f078c20fb72e63a902c`).
+
+**Summary.** E18-A2 remainder: the ten views read the group from `aws_cloudwatch_log_group.ux_events`, nine start with `local.ux_smoke_filter`, `sessions_per_day` groups by `substr(ts, 0, 10)`, the app role loses `logs:DescribeLogStreams`, outputs `ux_events_log_group` and `api_log_group`; `scripts/telemetry-queries.test.ts` binds every name, kind, field, the deploy's filter pattern and `SOURCE` to the kernel and the group (red on the old file). E15-A10: `aws_retry` (lib.sh), an EXIT trap with the resume hint, `--resume` with a read-only service-tag check, the stable wait as its own step. Telemetry smoke step (warning only). `infra/bin/check` with `INFRA_TF_DATA_DIR=.terraform/check`. Smoke step 6 retries once around the tab opening (`e2e/production/preview-tab.ts`). Composer tests: wide async and test ceilings, `userEvent.setup({ delay: null })`. Docs, README, KB and ledger.
+
+**Files.** `infra/production/{observability,telemetry,outputs}.tf`; `infra/bin/{deploy,lib.sh,tf,check}`; `scripts/{telemetry-queries,preview-tab,infra-tf}.test.ts` (new), `scripts/deploy.test.ts`; `e2e/production/{preview-tab.ts,production.smoke.ts}`; the two composer test files; `docs/observability.md`, `infra/README.md`, `docs/kbs/architecture/{usage-events,infra-aws}.md`, `docs/kbs/log.md`; `deferred-work.md`.
+
+**Review.** 15 findings: 8 patched (ECH-1, ECH-9, ECH-2, ECH-3, ECH-6, VGR-1, VGR-2, VGR-3, VGR-O1 as one fix round), 2 deferred (ECH-5, VGR-4; ledger rows), 4 rejected (ECH-4, ECH-7, ECH-8, VGR-O2; reasons in the triage log). Patched by verdict: high 1 entry (ECH-1 with ECH-9), medium 3, low 3.
+
+**Follow-up review: true.** The high patch (stdin `/dev/null` in `aws_retry`, so `infra/bin/aws` never takes a tty) is proven by a stub and a mutation run, not re-reviewed, and no real AWS call has exercised the retry.
+
+**Verification.** Story gate under the lock (lock wait 0 s, load 9.79 at start, 7.66 at end, beside batch e18fa): lint 0 errors (25 warnings, pre-existing) 47 s; static green 54 s; test:api 97 files 738 tests 286 s; test:unit 336 files 4737 tests 190 s on the first run, composer local 12.8 s, defaults 19.4 s. `infra/bin/check` all passed. Mutation: without `</dev/null` the aws_retry test goes red (1 of 25).
+
+**Residual risks.** The new Logs Insights text and the telemetry step have run offline only; the first apply and deploy are their field test.
