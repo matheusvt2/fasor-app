@@ -2,6 +2,7 @@ import { uuidV7Schema } from '@app/domain';
 import { loadConfigOrExit } from '../config.ts';
 import { log, logError } from '../log.ts';
 import { createDb } from './client.ts';
+import { readThenEnd } from './cli-run.ts';
 import { readUsers } from './users-read.ts';
 
 /**
@@ -41,12 +42,13 @@ function parseArgs(argv: readonly string[]): { companyId: string | undefined } {
   let companyId: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i]!;
-    if (flag !== '--company') throw new UsageError(`unknown argument ${JSON.stringify(flag)}`);
+    // E18-A1 (R-A18): a refusal names the expected shape, never the argument or the value (stderr is a log group in production).
+    if (flag !== '--company') throw new UsageError('unknown argument: the only flag is --company <uuidv7>');
     const value = argv[i + 1];
-    if (value === undefined || value.startsWith('--')) throw new UsageError(`${flag} needs a value`);
+    if (value === undefined || value.startsWith('--')) throw new UsageError('--company needs a value: --company <uuidv7>');
     i++;
     if (companyId !== undefined) throw new UsageError('--company given twice');
-    if (!uuidV7Schema.safeParse(value).success) throw new UsageError(`--company must be a uuidv7, got ${JSON.stringify(value)}`);
+    if (!uuidV7Schema.safeParse(value).success) throw new UsageError('--company must be a uuidv7');
     companyId = value;
   }
   return { companyId };
@@ -57,13 +59,11 @@ async function run(): Promise<void> {
   const { companyId } = parseArgs(process.argv.slice(2));
   const config = loadConfigOrExit();
   const { sql, db } = createDb(config.DATABASE_URL);
-  try {
+  await readThenEnd(async () => {
     const rows = await readUsers(db, companyId);
     for (const row of rows) log('users read', { ...row });
     log('users read done', { users: rows.length, ...(companyId === undefined ? {} : { company_id: companyId }) });
-  } finally {
-    await sql.end();
-  }
+  }, () => sql.end());
 }
 
 run().then(

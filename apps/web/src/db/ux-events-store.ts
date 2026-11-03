@@ -1,9 +1,9 @@
 import type { UxEvent } from '@app/domain';
-import type { AppDatabase, UxEventRow } from './schema.ts';
+import type { AppDatabase, EntityRecord, UxEventRow } from './schema.ts';
 
 /*
  * Epic 18 (AD-28): the device's usage-event queue, `ux_events`. Its own table, outside the
- * op log: nothing here touches `outbox`, `remote_ops` or `entities`, and no status or count
+ * op log: nothing here writes `outbox`, `remote_ops` or `entities`, and no status or count
  * of the app reads it. `src/telemetry` fills and drains it only through these functions.
  */
 
@@ -54,11 +54,10 @@ export interface PhotoReadingState {
   block_id: string | null;
 }
 
-/** Every live photo with a reading kind, as stored (read once per finished sync cycle, never live). */
-export async function photoReadingStates(db: AppDatabase): Promise<PhotoReadingState[]> {
-  const files = await db.entities.where('entity').equals('file').toArray();
+function statesOf(files: readonly (EntityRecord | undefined)[]): PhotoReadingState[] {
   const states: PhotoReadingState[] = [];
   for (const record of files) {
+    if (record === undefined) continue;
     const row = record.row as Partial<Record<string, unknown>>;
     if (record.removed_at !== null || row.removed_at != null || row.kind !== 'photo') continue;
     if (typeof row.reading_kind !== 'string' || typeof row.reading_status !== 'string' || typeof row.captured_at !== 'string') continue;
@@ -72,4 +71,52 @@ export async function photoReadingStates(db: AppDatabase): Promise<PhotoReadingS
     });
   }
   return states;
+}
+
+/** Every live photo with a reading kind, as stored: the reading watcher's baseline, read once per database. */
+export async function photoReadingStates(db: AppDatabase): Promise<PhotoReadingState[]> {
+  return statesOf(await db.entities.where('entity').equals('file').toArray());
+}
+
+/** The live photos with a reading kind among `ids`, read by key (E18-A1, R-A14: never a scan of every photo). */
+export async function photoReadingStatesOf(db: AppDatabase, ids: Iterable<string>): Promise<PhotoReadingState[]> {
+  const keys = [...new Set(ids)].map((id): [EntityRecord['entity'], string] => ['file', id]);
+  if (keys.length === 0) return [];
+  return statesOf(await db.entities.bulkGet(keys));
+}
+
+/** The highest `seq` of the pulled log on this device, or 0 before the first pull. */
+export async function lastPulledSeq(db: AppDatabase): Promise<number> {
+  return (await db.remote_ops.orderBy('seq').last())?.seq ?? 0;
+}
+
+const FILE_KEY = 'file:';
+
+/**
+ * The `file` ids this device's own ops written at or after `sinceMs` name (`client_ts`): a
+ * photo committed here after the last look, before its create comes back through the pull.
+ */
+export async function filesWrittenSince(db: AppDatabase, sinceMs: number): Promise<Set<string>> {
+  const ids = new Set<string>();
+  await db.outbox
+    .where('client_ts')
+    .aboveOrEqual(new Date(sinceMs).toISOString())
+    .each((op) => {
+      for (const key of op.targets) if (key.startsWith(FILE_KEY)) ids.add(key.slice(FILE_KEY.length));
+    });
+  return ids;
+}
+
+/** The `file` ids the ops pulled after `seq` name, and the highest `seq` among them (`seq` itself when none). */
+export async function filesPulledAfter(db: AppDatabase, seq: number): Promise<{ ids: Set<string>; seq: number }> {
+  const ids = new Set<string>();
+  let highest = seq;
+  await db.remote_ops
+    .where('seq')
+    .above(seq)
+    .each((op) => {
+      if (op.seq > highest) highest = op.seq;
+      for (const key of op.targets) if (key.startsWith(FILE_KEY)) ids.add(key.slice(FILE_KEY.length));
+    });
+  return { ids, seq: highest };
 }

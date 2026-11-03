@@ -100,7 +100,7 @@ export function ClientPanel({ clientId, client, referenced, onClose }: ClientPan
     );
     const name = client.name;
     showToast(referenced ? t.archived(name) : t.removed(name), {
-      action: { label: t.undo, onPress: () => void undoBatch(db, batch_id, { newId, now }) },
+      action: { label: t.undo, undo: true, onPress: () => void undoBatch(db, batch_id, { newId, now }) },
     });
     onClose();
   }

@@ -1,6 +1,6 @@
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
-import type { Clock, ErrorResponse, NewId } from '@app/domain';
+import { TELEMETRY_ROUTE, type Clock, type ErrorResponse, type NewId } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -127,6 +127,11 @@ export interface AppOptions {
 export const DEFAULT_API_BODY_LIMIT_BYTES = 16 * 1024 * 1024;
 /** Sign-in and get-session bodies are an e-mail and a password. */
 export const AUTH_BODY_LIMIT_BYTES = 64 * 1024;
+/**
+ * E18-A1 (R-A7): `POST /api/telemetry` takes at most 200 events of a few hundred bytes each
+ * (about 120 KB at every field's maximum), so its body is capped far below the shared limit.
+ */
+export const TELEMETRY_BODY_LIMIT_BYTES = 256 * 1024;
 
 function bodyTooLarge(maxSize: number): MiddlewareHandler {
   return bodyLimit({
@@ -180,7 +185,11 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
   // by the emailAndPassword config, not by a route that is missing here.
   app.use('/api/auth/*', bodyTooLarge(AUTH_BODY_LIMIT_BYTES));
   const jsonBodyLimit = bodyTooLarge(options.bodyLimitBytes ?? DEFAULT_API_BODY_LIMIT_BYTES);
-  app.use('/api/*', async (c, next) => (c.req.path.startsWith('/api/auth/') || isFileUpload(c.req.method, c.req.path) ? next() : jsonBodyLimit(c, next)));
+  const telemetryBodyLimit = bodyTooLarge(TELEMETRY_BODY_LIMIT_BYTES);
+  app.use('/api/*', async (c, next) => {
+    if (c.req.path.startsWith('/api/auth/') || isFileUpload(c.req.method, c.req.path)) return next();
+    return c.req.path === TELEMETRY_ROUTE.path ? telemetryBodyLimit(c, next) : jsonBodyLimit(c, next);
+  });
   const limits = options.rateLimits;
   if (limits !== undefined) app.use('/api/auth/sign-in/*', signInRateLimit({ rule: limits.signIn, trustProxy: limits.trustProxy }));
   app.on(['GET', 'POST'], '/api/auth/*', (c) => options.auth.handler(c.req.raw));

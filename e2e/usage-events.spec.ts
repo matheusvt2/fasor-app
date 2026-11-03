@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { SCREENS, TELEMETRY_BATCH_MAX, TELEMETRY_ROUTE, uxEventSchema, type UxEvent } from '@app/domain';
-import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { openChaveSheet } from './support/photos.ts';
 import { syncNow } from './support/sync.ts';
@@ -49,7 +49,7 @@ const TRACKED_HERE = new Set(['screen_view', 'action', 'dialog_open', 'dialog_ca
 /** One event's identity across the device and the wire (the queue's key never leaves the device). */
 const keyOf = (event: UxEvent) => [event.ts, event.session_id, event.name, event.screen, event.target ?? '', event.kind ?? ''].join('|');
 
-test('@p1 18.1-E2E-001 offline the device queues its screens, taps and dialogs in ux_events; online, "Sincronizar agora" ships them to the api, every batch answered 204, every event valid, and the queue empties', async ({ page, context }) => {
+test('@p0 18.1-E2E-001 offline the device queues its screens, taps and dialogs in ux_events; online, "Sincronizar agora" ships them to the api, every batch answered 204, every event valid, and the queue empties', async ({ page, context }) => {
   test.setTimeout(240_000);
   const posts: TelemetryPost[] = [];
   page.on('requestfinished', (request) => {
@@ -156,4 +156,66 @@ test('@p1 18.1-E2E-001 offline the device queues its screens, taps and dialogs i
   expect(startedQueued || posted.some((event) => event.name === 'session_start')).toBe(true);
   // Nothing typed or named in an event: neither the relatório's texts nor the TAGs.
   expect(JSON.stringify(posted)).not.toMatch(/Cubículo|Chave seccionadora|Enel/);
+});
+
+/*
+ * 18.1-E2E-002 (E18-A1, R-A1 and R-V10): the api's limiter answers 429. The device holds its
+ * queue, among it the `undo` of a Cadastros client removed and restored with "Desfazer"; while
+ * every telemetry post is answered 429, "Sincronizar agora" sends exactly one batch in its
+ * flush (a 429 ends it) and deletes nothing. Once the limiter lets go, the next "Sincronizar
+ * agora" empties the queue with 204s.
+ */
+test('@p0 18.1-E2E-002 a 429 on the telemetry post keeps every queued event and ends the flush; the next sync ships them with 204s', async ({ page }) => {
+  test.setTimeout(240_000);
+  let refused = 0;
+  // Every telemetry post is answered 429 from the first one on, so the queue keeps what the walk tracks.
+  await page.route(`**${TELEMETRY_ROUTE.path}`, async (route) => {
+    if (route.request().method() !== TELEMETRY_ROUTE.method) return route.continue();
+    refused += 1;
+    await route.fulfill({ status: 429, contentType: 'application/json', headers: { 'retry-after': '60' }, body: JSON.stringify({ code: 'rate_limited', message: 'Too many events.' }) });
+  });
+  await signIn(page, account.email);
+
+  // A client created, removed and restored in Cadastros: the toast's "Desfazer" is an `undo`.
+  const name = `Cliente Desfazer ${Date.now().toString(36)}`;
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+  await page.getByRole('tab', { name: 'Clientes' }).click();
+  await page.getByRole('button', { name: /^(Novo|Cadastrar) cliente$/ }).click();
+  const panel = page.locator('.registry-panel');
+  await panel.getByLabel('Nome').fill(name);
+  await panel.getByRole('button', { name: 'Fechar edição' }).click();
+  await page.getByRole('button', { name: new RegExp(name) }).click();
+  await panel.getByRole('button', { name: 'Remover' }).click();
+  const confirm = page.getByRole('dialog');
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole('button', { name: 'Remover' }).click();
+  const toast = page.getByTestId('toast');
+  await expect(toast).toContainText(`${name} removido`);
+  await toast.getByRole('button', { name: 'Desfazer' }).click();
+  await expect(page.getByRole('button', { name: new RegExp(name) })).toBeVisible();
+  await expect.poll(async () => (await queued(page)).some((event) => event.name === 'undo' && event.target === 'toast.undo' && event.screen === 'cadastros'), { timeout: 15_000 }).toBe(true);
+
+  // "Sincronizar agora" while the limiter refuses: one post, answered 429, and no row deleted.
+  const held = await queued(page);
+  expect(held.length).toBeGreaterThan(0);
+  const refusedBefore = refused;
+  await syncNow(page);
+  await expect.poll(() => refused, { timeout: 15_000 }).toBe(refusedBefore + 1);
+  // The flush ended on the 429: no second post follows, and every held row is still queued.
+  await page.waitForTimeout(1_000);
+  expect(refused).toBe(refusedBefore + 1);
+  const ids = new Set((await queued(page)).map((event) => event.id));
+  expect(held.filter((event) => !ids.has(event.id))).toEqual([]);
+
+  // The limiter lets go: the next "Sincronizar agora" ships the queue, every answer 204.
+  await page.unroute(`**${TELEMETRY_ROUTE.path}`);
+  const statuses: number[] = [];
+  page.on('requestfinished', (request) => {
+    if (request.method() !== TELEMETRY_ROUTE.method || new URL(request.url()).pathname !== TELEMETRY_ROUTE.path) return;
+    void request.response().then((response) => statuses.push(response?.status() ?? 0));
+  });
+  await syncNow(page);
+  await expect.poll(async () => (await queued(page)).length, { timeout: 30_000 }).toBe(0);
+  await expect.poll(() => statuses.length, { timeout: 15_000 }).toBeGreaterThan(0);
+  expect(statuses.every((status) => status === 204)).toBe(true);
 });

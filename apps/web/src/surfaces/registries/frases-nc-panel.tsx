@@ -57,7 +57,7 @@ export function FrasesNcPanel({ entry, onClose }: { entry: NcPhraseRegistryRow; 
     const op = opOf('remove', 'removed_at', null);
     if (db === null || op === null) return;
     const { batch_id } = await commitBatch(db, [op], { newId, now });
-    showToast(t.removed, { action: { label: t.undo, onPress: () => void undoBatch(db, batch_id, { newId, now }) } });
+    showToast(t.removed, { action: { label: t.undo, undo: true, onPress: () => void undoBatch(db, batch_id, { newId, now }) } });
     onClose();
   }
 

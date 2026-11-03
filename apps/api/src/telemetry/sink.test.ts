@@ -1,7 +1,16 @@
 import type { StampedUxEvent } from '@app/domain';
-import { CreateLogStreamCommand, PutLogEventsCommand } from '@aws-sdk/client-cloudwatch-logs';
+import { CloudWatchLogsClient, CreateLogStreamCommand, PutLogEventsCommand, type CloudWatchLogsClientConfig } from '@aws-sdk/client-cloudwatch-logs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cloudWatchSink, logStreamName, stdoutSink, telemetrySinkOf, type CloudWatchLogsLike, type TelemetrySink } from './sink.ts';
+import {
+  CLOUDWATCH_CLIENT_CONFIG,
+  cloudWatchSink,
+  createCloudWatchSink,
+  logStreamName,
+  stdoutSink,
+  telemetrySinkOf,
+  type CloudWatchLogsLike,
+  type TelemetrySink,
+} from './sink.ts';
 
 const event = (ts: string, extra: Partial<StampedUxEvent> = {}): StampedUxEvent => ({
   v: 1,
@@ -44,6 +53,41 @@ describe('stdout sink', () => {
     expect(lines).toHaveLength(2);
     expect(lines[0]).toMatchObject({ msg: 'ux_event', name: 'action', target: 'home.card_open', received_at: '2026-10-29T12:00:05.000Z', company_id: '019966c1-0000-7000-8000-0000000000dd', user_id: '019966c1-0000-7000-8000-0000000000cc' });
     expect(lines[1]).toMatchObject({ msg: 'ux_event', name: 'screen_view' });
+  });
+
+  it("E18-A1 (R-E6): keeps the log line's own ts and carries the device's instant as event_ts", async () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const before = Date.now();
+    await stdoutSink.write([event('2026-10-01T08:00:00.000Z')]);
+    const [line] = errorLines(spy);
+    expect(line).toMatchObject({ msg: 'ux_event', event_ts: '2026-10-01T08:00:00.000Z' });
+    expect(Date.parse(String(line!.ts))).toBeGreaterThanOrEqual(before);
+    expect(line!.ts).not.toBe('2026-10-01T08:00:00.000Z');
+  });
+});
+
+describe('the production CloudWatch client (E18-A1, R-A4)', () => {
+  it('is built with two attempts at most and a 3 s request timeout: two commands of two attempts stay under the device 15 s abort', async () => {
+    const configs: CloudWatchLogsClientConfig[] = [];
+    const logs = new FakeLogs();
+    const sink = createCloudWatchSink('/fasor/production/ux-events', (config) => {
+      configs.push(config);
+      return logs;
+    });
+    expect(configs).toEqual([{ maxAttempts: 2, requestHandler: { requestTimeout: 3_000 } }]);
+    expect(2 * CLOUDWATCH_CLIENT_CONFIG.maxAttempts * CLOUDWATCH_CLIENT_CONFIG.requestHandler.requestTimeout).toBeLessThan(15_000);
+    await sink.write([event('2026-10-29T12:00:00.000Z')]);
+    expect(logs.sent.some((command) => command instanceof PutLogEventsCommand)).toBe(true);
+  });
+
+  it('is a configuration the SDK takes as such', async () => {
+    const client = new CloudWatchLogsClient({ region: 'us-east-1', ...CLOUDWATCH_CLIENT_CONFIG });
+    try {
+      expect(await client.config.maxAttempts()).toBe(2);
+      expect(typeof client.config.requestHandler.handle).toBe('function');
+    } finally {
+      client.destroy();
+    }
   });
 });
 

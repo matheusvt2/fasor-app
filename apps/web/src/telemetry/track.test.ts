@@ -4,7 +4,7 @@ import { uxEventSchema } from '@app/domain';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openDatabase, type AppDatabase } from '../db/schema.ts';
 import { queuedUxEvents } from '../db/ux-events-store.ts';
-import { configureTelemetry, PRE_CONFIG_BUFFER_MAX, resetTelemetryForTests, SESSION_ID, track, whenTelemetryWritten } from './track.ts';
+import { appVersionOf, configureTelemetry, currentSessionId, PRE_CONFIG_BUFFER_MAX, resetTelemetryForTests, track, whenTelemetryWritten } from './track.ts';
 
 const DEVICE = '019966b0-0030-7000-8000-0000000000dd';
 const RELATORIO = '019966b0-0030-7000-8000-000000000071';
@@ -32,7 +32,7 @@ describe('track (Story 18.1)', () => {
     track({ name: 'action', screen: 'ficha', target: 'ficha.mark_c', relatorio_id: RELATORIO });
     await whenTelemetryWritten();
     const [row] = await queuedUxEvents(db);
-    expect(row).toMatchObject({ v: 1, session_id: SESSION_ID, device_id: DEVICE, app_version: 'dev', name: 'action', screen: 'ficha', target: 'ficha.mark_c', relatorio_id: RELATORIO });
+    expect(row).toMatchObject({ v: 1, session_id: currentSessionId(), device_id: DEVICE, app_version: 'dev', name: 'action', screen: 'ficha', target: 'ficha.mark_c', relatorio_id: RELATORIO });
     expect(Date.parse(row!.ts)).toBeGreaterThanOrEqual(before);
     const event: Record<string, unknown> = { ...row! };
     delete event.id;
@@ -96,6 +96,41 @@ describe('track (Story 18.1)', () => {
     expect(rows.every((r) => r.device_id === DEVICE)).toBe(true);
   });
 
+  it('E18-A1 (R-A15): another database in the same tab starts a new session id; the held events take it', async () => {
+    const first = await freshDb();
+    const loadSession = currentSessionId();
+    configureTelemetry({ db: first, deviceId: DEVICE });
+    // The first configure of a load keeps the load's id.
+    expect(currentSessionId()).toBe(loadSession);
+    track({ name: 'action', screen: 'home', target: 'home.summary' });
+    configureTelemetry(null);
+    // Tracked while no user is signed in: held until the next one is known.
+    track({ name: 'action', screen: 'login', target: 'home.continue' });
+    const second = await freshDb();
+    configureTelemetry({ db: second, deviceId: DEVICE });
+    const rotated = currentSessionId();
+    expect(rotated).not.toBe(loadSession);
+    track({ name: 'action', screen: 'home', target: 'home.card_open' });
+    await whenTelemetryWritten();
+    expect((await queuedUxEvents(first)).map((e) => e.session_id)).toEqual([loadSession]);
+    expect((await queuedUxEvents(second)).map((e) => [e.target, e.session_id])).toEqual([
+      ['home.continue', rotated],
+      ['home.card_open', rotated],
+    ]);
+  });
+
+  it('E18-A1 (R-A15): the same database configured again (an effect re-run, the same user again) keeps the session id', async () => {
+    const user = '019966b0-0030-7000-8000-0000000000ff';
+    const db = openDatabase(user);
+    const loadSession = currentSessionId();
+    configureTelemetry({ db, deviceId: DEVICE });
+    configureTelemetry(null);
+    configureTelemetry({ db, deviceId: DEVICE });
+    // A second handle on the same database name is the same user.
+    configureTelemetry({ db: openDatabase(user), deviceId: DEVICE });
+    expect(currentSessionId()).toBe(loadSession);
+  });
+
   it('stops writing once unconfigured (sign-out) and buffers again', async () => {
     const db = await freshDb();
     configureTelemetry({ db, deviceId: DEVICE });
@@ -103,5 +138,24 @@ describe('track (Story 18.1)', () => {
     track({ name: 'action', screen: 'home', target: 'home.summary' });
     await whenTelemetryWritten();
     expect(await db.ux_events.count()).toBe(0);
+  });
+});
+
+describe('appVersionOf (Story 18.1, E18-A1 R-V12)', () => {
+  it('keeps a 40-hex commit sha and a short one of at least 7 hex digits', () => {
+    const sha = '3b45e83c0123456789abcdef0123456789abcdef';
+    expect(appVersionOf(sha)).toBe(sha);
+    expect(appVersionOf('3b45e83')).toBe('3b45e83');
+    expect(appVersionOf('dev')).toBe('dev');
+  });
+
+  it('reads anything else as dev', () => {
+    expect(appVersionOf('3b45e8')).toBe('dev');
+    expect(appVersionOf(`${'a'.repeat(40)}0`)).toBe('dev');
+    expect(appVersionOf('3B45E83C')).toBe('dev');
+    expect(appVersionOf('v0.5.0')).toBe('dev');
+    expect(appVersionOf('')).toBe('dev');
+    expect(appVersionOf(undefined)).toBe('dev');
+    expect(appVersionOf(1234567)).toBe('dev');
   });
 });

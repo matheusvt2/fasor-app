@@ -1,10 +1,11 @@
 import 'fake-indexeddb/auto';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { openDatabase, type AppDatabase } from '../db/schema.ts';
+import { openDatabase, type AppDatabase, type OutboxRow } from '../db/schema.ts';
 import { queuedUxEvents } from '../db/ux-events-store.ts';
 import { SyncRequestError, type SyncClient } from '../sync/client.ts';
 import type { EngineStatus, SyncEngine, SyncEngineDeps } from '../sync/engine.ts';
+import { flushTelemetry } from '../telemetry/flush.ts';
 import { resetTelemetryForTests, telemetryDatabase, whenTelemetryWritten } from '../telemetry/track.ts';
 import type { SessionState } from './session.tsx';
 import { useSyncActions, type SyncActions } from './sync-actions.ts';
@@ -51,7 +52,15 @@ const client = {
   generate: vi.fn(async () => {
     throw new SyncRequestError({ kind: 'http', status: 409, code: 'not_caught_up' });
   }),
-} as unknown as SyncClient;
+  preview: vi.fn(async (): Promise<unknown> => ({ job_id: '019966b0-0076-7000-8000-0000000000e1' })),
+  rereadPhoto: vi.fn(async (): Promise<void> => undefined),
+} as unknown as SyncClient & { preview: ReturnType<typeof vi.fn>; rereadPhoto: ReturnType<typeof vi.fn> };
+
+// E18-A1 (R-V3): the drain itself is `flush.test.ts`'s; here only that a cycle that ran calls it.
+vi.mock('../telemetry/flush.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../telemetry/flush.ts')>()),
+  flushTelemetry: vi.fn(async () => undefined),
+}));
 
 vi.mock('../sync/client.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../sync/client.ts')>()),
@@ -70,11 +79,12 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-async function mount(): Promise<{ db: AppDatabase; actions: () => SyncActions }> {
+async function mount(before?: (db: AppDatabase) => Promise<void>): Promise<{ db: AppDatabase; actions: () => SyncActions }> {
   const user = `019966b0-0076-7000-8000-${(++counter).toString(16).padStart(12, '0')}`;
   await openDatabase(user).delete();
   const db = openDatabase(user);
   database = db;
+  await before?.(db);
   let actions: SyncActions | null = null;
   function Probe() {
     actions = useSyncActions();
@@ -133,5 +143,134 @@ describe('SyncProvider usage events (Epic 18)', () => {
     act(() => deps!.onChange({ ...IDLE, lastResult: 'offline' }));
     const results = (await queued(db)).filter((event) => event.name === 'sync_result');
     expect(results.map((event) => event.kind)).toEqual(['offline']);
+  });
+});
+
+/** A dead outbox row: an op the server refused for good with `code`. */
+function deadRow(n: number, code: string): OutboxRow {
+  const id = `019966b0-0076-7000-8000-0000000001${n.toString(16).padStart(2, '0')}`;
+  return {
+    op_id: id,
+    kind: 'put',
+    scope: 'relatorio',
+    company_id: '019966b0-0076-7000-8000-0000000000c0',
+    project_id: null,
+    relatorio_id: RELATORIO,
+    path: 'relatorio/setup/parecer',
+    value: null,
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: '019966b0-0076-7000-8000-0000000000a0',
+    device_id: '019966b0-0076-7000-8000-0000000000d0',
+    client_ts: `2026-11-03T12:00:0${n}.000Z`,
+    status: 'dead',
+    error_code: code,
+    targets: [`relatorio:${RELATORIO}`],
+  } as OutboxRow;
+}
+
+describe('SyncProvider usage events, E18-A1', () => {
+  it.each([
+    ['ran', {}],
+    ['failed', { lastFailure: { kind: 'http', status: 503 } }],
+    ['unauthorized', { lastFailure: { kind: 'http', status: 401 } }],
+    ['contract_outdated', { outdated: true }],
+  ] as const)('R-V3: a cycle that ran and ended %s queues its sync_result and drains the queue', async (kind, end) => {
+    const { db } = await mount();
+    act(() => deps!.onChange({ ...IDLE, running: true }));
+    expect(flushTelemetry).not.toHaveBeenCalled();
+    act(() => deps!.onChange({ ...IDLE, ...end, running: false, lastResult: 'ran' } as EngineStatus));
+    await waitFor(() => expect(flushTelemetry).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(flushTelemetry).mock.calls[0]![0]).toBe(db);
+    const results = (await queued(db)).filter((event) => event.name === 'sync_result');
+    expect(results.map((event) => event.kind)).toEqual([kind]);
+  });
+
+  it('R-V3: a status change that is not the end of a running cycle queues no sync_result and drains nothing', async () => {
+    const { db } = await mount();
+    act(() => deps!.onChange({ ...IDLE, lastResult: 'ran' }));
+    act(() => deps!.onChange({ ...IDLE, running: true }));
+    act(() => deps!.onChange({ ...IDLE, running: false, lastResult: 'busy' } as EngineStatus));
+    await whenTelemetryWritten();
+    expect(flushTelemetry).not.toHaveBeenCalled();
+    expect((await queued(db)).filter((event) => event.name === 'sync_result')).toEqual([]);
+  });
+
+  it('R-E2: a "Sincronizar agora" cycle that ends on a network failure is an offline wait', async () => {
+    const { db, actions } = await mount();
+    act(() => deps!.onChange({ ...IDLE, lastResult: 'ran', lastFailure: { kind: 'network' } }));
+    await act(async () => {
+      await actions().syncNow();
+    });
+    act(() => deps!.onChange({ ...IDLE, lastResult: 'ran', lastFailure: { kind: 'http', status: 503 } }));
+    await act(async () => {
+      await actions().syncNow();
+    });
+    const waits = (await queued(db)).filter((event) => event.name === 'wait');
+    expect(waits.map((event) => [event.kind, event.outcome])).toEqual([
+      ['sync', 'offline'],
+      ['sync', 'fail'],
+    ]);
+  });
+
+  it('R-V4: an op refused for good after boot queues one error with its code; a row dead at boot queues none', async () => {
+    const { db } = await mount(async (fresh) => {
+      await fresh.outbox.put(deadRow(1, 'sync_batch_invalid'));
+    });
+    await act(async () => {
+      await db.outbox.put(deadRow(2, 'relatorio_not_found'));
+    });
+    await waitFor(async () => expect((await queued(db)).filter((event) => event.name === 'error')).toHaveLength(1));
+    // A later change of the outbox does not track the same row again.
+    await act(async () => {
+      await db.outbox.put({ ...deadRow(3, 'internal_error'), status: 'pending', error_code: null });
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    const errors = (await queued(db)).filter((event) => event.name === 'error');
+    expect(errors.map(({ kind, relatorio_id }) => ({ kind, relatorio_id }))).toEqual([{ kind: 'relatorio_not_found', relatorio_id: RELATORIO }]);
+  });
+
+  it('R-V5: a preview queues its wait, ok or refused with the error code', async () => {
+    const { db, actions } = await mount();
+    await act(async () => {
+      await actions().preview!(RELATORIO, { last_op_id: null, file_ids_expected: [] });
+    });
+    client.preview.mockImplementationOnce(async () => {
+      throw new SyncRequestError({ kind: 'http', status: 409, code: 'not_caught_up' });
+    });
+    await act(async () => {
+      await expect(actions().preview!(RELATORIO, { last_op_id: null, file_ids_expected: [] })).rejects.toBeInstanceOf(SyncRequestError);
+    });
+    client.preview.mockImplementationOnce(async () => {
+      throw new SyncRequestError({ kind: 'network' });
+    });
+    await act(async () => {
+      await expect(actions().preview!(RELATORIO, { last_op_id: null, file_ids_expected: [] })).rejects.toBeInstanceOf(SyncRequestError);
+    });
+    const events = (await queued(db)).filter((event) => event.name === 'wait' || event.name === 'error');
+    expect(events.map(({ name, kind, outcome, relatorio_id }) => ({ name, kind, outcome, relatorio_id }))).toEqual([
+      { name: 'wait', kind: 'preview', outcome: 'ok', relatorio_id: RELATORIO },
+      { name: 'wait', kind: 'preview', outcome: 'refused', relatorio_id: RELATORIO },
+      { name: 'error', kind: 'not_caught_up', outcome: undefined, relatorio_id: RELATORIO },
+      { name: 'wait', kind: 'preview', outcome: 'offline', relatorio_id: RELATORIO },
+    ]);
+  });
+
+  it('R-V5: a re-read the api refuses queues its error code; one that goes through queues nothing', async () => {
+    const { db, actions } = await mount();
+    await act(async () => {
+      await actions().rereadPhoto!('019966b0-0076-7000-8000-0000000000f1');
+    });
+    client.rereadPhoto.mockImplementationOnce(async () => {
+      throw new SyncRequestError({ kind: 'http', status: 409, code: 'reading_running' });
+    });
+    await act(async () => {
+      await expect(actions().rereadPhoto!('019966b0-0076-7000-8000-0000000000f1')).rejects.toBeInstanceOf(SyncRequestError);
+    });
+    const errors = (await queued(db)).filter((event) => event.name === 'error' || event.name === 'wait');
+    expect(errors.map(({ name, kind }) => ({ name, kind }))).toEqual([{ name: 'error', kind: 'reading_running' }]);
   });
 });
