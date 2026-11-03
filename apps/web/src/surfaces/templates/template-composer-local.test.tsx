@@ -16,7 +16,7 @@ import {
 import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from '../../test-axe.ts';
 import { toRecord } from '../../db/commit.ts';
 import { templateRow } from '../../db/home-store.ts';
@@ -56,13 +56,26 @@ const session = (): SessionState => ({
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
 
-configure({ asyncUtilTimeout: 5000 });
+// E16-A10, E17-A8 (batch e18fb, 2026-11-03): load-independent waits. Each edit is an
+// IndexedDB write plus a live-query round trip, and these files timed out on loaded gate VMs
+// (PR #179, e16c, Epic 16 wave B, e17a) with a 5 s wait and the app's 15 s test budget. Every
+// wait ends on its condition, so an idle run is as fast as before; the wide bounds only stop
+// a loaded machine from failing a test that would pass. No wait in this file sets its own.
+configure({ asyncUtilTimeout: 30_000 });
+vi.setConfig({ testTimeout: 60_000 });
+
+// Pointer and keyboard events dispatch without the zero-delay pause between them (the
+// default `delay: 0` yields to the timer queue after each one); one instance per test.
+let user = userEvent.setup({ delay: null });
+beforeEach(() => {
+  user = userEvent.setup({ delay: null });
+});
 
 async function freshDb(row: TemplateRow): Promise<AppDatabase> {
-  const user = `019966b0-0142-7000-8000-${(++counter).toString(16).padStart(12, '0')}`;
-  const db = openDatabase(user);
+  const owner = `019966b0-0142-7000-8000-${(++counter).toString(16).padStart(12, '0')}`;
+  const db = openDatabase(owner);
   await db.delete();
-  const fresh = openDatabase(user);
+  const fresh = openDatabase(owner);
   await fresh.entities.put(toRecord(`template:${row.id}`, row));
   return fresh;
 }
@@ -182,7 +195,7 @@ describe('14.2 composer: the three levels', () => {
     expect(kicker).toHaveAttribute('aria-hidden', 'true');
     expect(kicker.nextElementSibling).toHaveClass('col-name');
     expect(head).toHaveAccessibleName(/^Coluna 1/);
-    await userEvent.click(head);
+    await user.click(head);
     await waitFor(() => expect(coluna1).toHaveClass('is-open'));
     const rows = [...coluna1.querySelectorAll('.col-body .qty-row')];
     expect(rows.length).toBeGreaterThan(0);
@@ -194,7 +207,7 @@ describe('14.2 composer: the three levels', () => {
     const { container } = renderComposer();
     await card(/^Painel Painel B/);
     expect(await axe(container)).toHaveNoViolations();
-  }, 60_000);
+  });
 
   it('a painel with no coluna says why it takes no equipment and offers "Adicionar coluna"; the coluna added is the palette target', async () => {
     database = await freshDb(composed());
@@ -209,7 +222,7 @@ describe('14.2 composer: the three levels', () => {
     expect(within(painelB).queryByRole('group')).toBeNull();
     expect(within(painelB).queryByRole('button', { name: 'Adicionar equipamento' })).toBeNull();
 
-    await userEvent.click(within(painelB).getByRole('button', { name: 'Adicionar coluna' }));
+    await user.click(within(painelB).getByRole('button', { name: 'Adicionar coluna' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 1 adicionada'));
     await waitFor(() => expect(within(painelB).queryByRole('note')).toBeNull());
     const colunas = within(painelB).getByRole('list', { name: 'Colunas de Painel B em Cabine de transformação' });
@@ -233,16 +246,16 @@ describe('14.2 composer: the three levels', () => {
     database = await freshDb(composed());
     renderComposer();
     const geradores = await card(/^Local Geradores/);
-    await userEvent.click(within(geradores).getByRole('button', { name: 'Adicionar painel' }));
+    await user.click(within(geradores).getByRole('button', { name: 'Adicionar painel' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Painel 1 adicionado'));
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Geradores' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar painel' }));
+    await user.click(screen.getByRole('button', { name: 'Mais opções de Geradores' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Adicionar painel' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Painel 2 adicionado'));
     expect(names(within(geradores).getByRole('list', { name: 'Painéis de Geradores' }), '.block-name')).toEqual(['Painel 1', 'Painel 2']);
     // The painel menu adds a coluna too.
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel 2 em Geradores' }));
+    await user.click(screen.getByRole('button', { name: 'Mais opções de Painel 2 em Geradores' }));
     expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Renomear', 'Subir', 'Adicionar coluna', 'Remover']);
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Adicionar coluna' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Adicionar coluna' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 1 adicionada'));
     expect((await skeletonOf()).filter((n) => n.kind !== 'cabine' && n.parent_ref !== 'loc' && !n.parent_ref.startsWith('P')).map((n) => [n.kind, n.name])).toEqual([
       ['painel', 'Painel 1'],
@@ -256,10 +269,10 @@ describe('14.2 composer: the three levels', () => {
     renderComposer();
     // A collapsed painel: its Overflow adds a coluna, and the card opens on it.
     const painelB = await card(/^Painel Painel B/);
-    await userEvent.click(within(painelB).getByRole('button', { name: /^Painel Painel B/ }));
+    await user.click(within(painelB).getByRole('button', { name: /^Painel Painel B/ }));
     expect(painelB).not.toHaveClass('is-open');
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B em Cabine de transformação' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar coluna' }));
+    await user.click(screen.getByRole('button', { name: 'Mais opções de Painel B em Cabine de transformação' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Adicionar coluna' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 1 adicionada'));
     expect(painelB).toHaveClass('is-open');
     const added = within(painelB).getByRole('list', { name: 'Colunas de Painel B em Cabine de transformação' });
@@ -269,10 +282,10 @@ describe('14.2 composer: the three levels', () => {
 
     // A collapsed local: its Overflow adds a painel, and the card opens on it.
     const geradores = await card(/^Local Geradores/);
-    await userEvent.click(within(geradores).getByRole('button', { name: /^Local Geradores/ }));
+    await user.click(within(geradores).getByRole('button', { name: /^Local Geradores/ }));
     expect(geradores).not.toHaveClass('is-open');
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Geradores' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar painel' }));
+    await user.click(screen.getByRole('button', { name: 'Mais opções de Geradores' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Adicionar painel' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Painel 1 adicionado'));
     expect(geradores).toHaveClass('is-open');
     expect(names(within(geradores).getByRole('list', { name: 'Painéis de Geradores' }), '.block-name')).toEqual(['Painel 1']);
@@ -297,8 +310,8 @@ describe('14.2 composer: the three levels', () => {
     expect(within(cards[1]!).getByRole('list', { name: 'Colunas de Painel 1 em Geradores' })).toBeVisible();
     // The painel's own name alone names no control; its rename dialog keeps it.
     expect(screen.queryByRole('button', { name: 'Mais opções de Painel 1' })).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel 1 em Geradores' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
+    await user.click(screen.getByRole('button', { name: 'Mais opções de Painel 1 em Geradores' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
     expect(await screen.findByRole('dialog', { name: 'Renomear Painel 1' })).toBeVisible();
   });
 
@@ -309,7 +322,7 @@ describe('14.2 composer: the three levels', () => {
     const add = within(painelB).getByRole('button', { name: 'Adicionar coluna' });
     expect(add).toHaveClass('btn', 'btn-secondary');
     add.focus();
-    await userEvent.keyboard('{Enter}');
+    await user.keyboard('{Enter}');
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 1 adicionada'));
     await waitFor(() => expect(within(painelB).queryByRole('note')).toBeNull());
     // The painel has a coluna now: the control is drawn as the text button, and it still holds the focus.
@@ -319,7 +332,7 @@ describe('14.2 composer: the three levels', () => {
     expect(after).toHaveFocus();
     expect(document.body).not.toHaveFocus();
     // A second coluna from the same control, without looking for it again.
-    await userEvent.keyboard('{Enter}');
+    await user.keyboard('{Enter}');
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 2 adicionada'));
     expect(within(painelB).getByRole('button', { name: 'Adicionar coluna' })).toHaveFocus();
   });
@@ -337,12 +350,12 @@ describe('14.2 composer: the three levels', () => {
       expect(chevron.tagName).toBe('SPAN');
       expect(li).toHaveClass('is-open');
       expect(body).toHaveAttribute('aria-expanded', 'true');
-      await userEvent.click(chevron);
+      await user.click(chevron);
       expect(li).not.toHaveClass('is-open');
       expect(body).toHaveAttribute('aria-expanded', 'false');
       expect(body).not.toHaveAttribute('aria-controls');
       expect(li.querySelector(':scope > .block-expand')).toBeNull();
-      await userEvent.click(chevron);
+      await user.click(chevron);
       expect(li).toHaveClass('is-open');
       expect(body).toHaveAttribute('aria-expanded', 'true');
       expect(body.getAttribute('aria-controls')).toBe(li.querySelector(':scope > .block-expand')!.id);
@@ -359,7 +372,7 @@ describe('14.2 composer: the three levels', () => {
     expect(subsolo.querySelector(':scope > .block-body .loc-flag')).toHaveTextContent('17 colunas · 49 blocos');
     expect(names(within(subsolo).getByRole('list', { name: 'Colunas de 1° Subsolo' }), '.col-name')).toHaveLength(17);
     expect(within(subsolo).queryByRole('list', { name: 'Painéis de 1° Subsolo' })).toBeNull();
-    await userEvent.click(within(subsolo).getByRole('button', { name: 'Adicionar coluna' }));
+    await user.click(within(subsolo).getByRole('button', { name: 'Adicionar coluna' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 18 adicionada'));
     expect((await skeletonOf()).find((n) => n.name === 'Coluna 18')).toMatchObject({ kind: 'coluna', parent_ref: 'subsolo-1' });
     const enel = await card(/^Local Cubículo Enel/);
@@ -387,21 +400,21 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     // The colunas travelled with their painel; the local did not move.
     expect((await skeletonOf()).map((n) => n.ref)).toEqual(['loc', 'P2', 'P1', 'c1', 'c2', 'c3', 'ger']);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    await user.click(screen.getByRole('button', { name: 'Desfazer' }));
     await waitFor(() => expect(paineis()).toEqual(['Painel de média tensão', 'Painel B']));
     expect((await skeletonOf()).map((n) => n.ref)).toEqual(['loc', 'P1', 'c1', 'c2', 'c3', 'P2', 'ger']);
 
     // The Overflow: "Descer" on the first painel.
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel de média tensão em Cabine de transformação' }));
+    await user.click(screen.getByRole('button', { name: 'Mais opções de Painel de média tensão em Cabine de transformação' }));
     expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Renomear', 'Descer', 'Adicionar coluna', 'Remover']);
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Descer' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Descer' }));
     await waitFor(() => expect(paineis()).toEqual(['Painel B', 'Painel de média tensão']));
     await waitFor(() => expect(announcer()).toHaveTextContent('Painel de média tensão movido para a posição 2 de 2'));
 
     // The Position box: type a number and press Enter.
     const box = within(await card(/^Painel Painel de média tensão/)).getByRole('textbox', { name: 'Posição de Painel de média tensão entre os painéis de Cabine de transformação' });
-    await userEvent.clear(box);
-    await userEvent.type(box, '1{Enter}');
+    await user.clear(box);
+    await user.type(box, '1{Enter}');
     await waitFor(() => expect(paineis()).toEqual(['Painel de média tensão', 'Painel B']));
     await waitFor(() => expect(announcer()).toHaveTextContent('Painel de média tensão movido para a posição 1 de 2'));
     expect((await outbox()).every((op) => op.path === `template/${ID}/skeleton`)).toBe(true);
@@ -412,18 +425,18 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     renderComposer();
     const locais = () => names(screen.getByRole('list', { name: 'Locais do template' }), '.block-name').filter((name) => !name!.startsWith('Painel'));
     await card(/^Local Geradores/);
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Geradores' }));
+    await user.click(screen.getByRole('button', { name: 'Mais opções de Geradores' }));
     expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Função e nome', 'Subir', 'Adicionar painel', 'Remover']);
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Subir' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Subir' }));
     await waitFor(() => expect(locais()[0]).toBe('Geradores'));
     await waitFor(() => expect(announcer()).toHaveTextContent('Local Geradores movido para a posição 1 de 2'));
     expect((await skeletonOf()).map((n) => n.ref)).toEqual(['ger', 'loc', 'P1', 'c1', 'c2', 'c3', 'P2']);
-    await userEvent.click(await screen.findByRole('button', { name: 'Desfazer' }));
+    await user.click(await screen.findByRole('button', { name: 'Desfazer' }));
     await waitFor(() => expect(locais()[0]).toBe('Cabine de transformação'));
     // A local whose name leads with "Cabine" is read by its own name, in the feminine.
     const box = within(await card(/^Local Cabine de transformação/)).getByRole('textbox', { name: 'Posição de Cabine de transformação' });
-    await userEvent.clear(box);
-    await userEvent.type(box, '2{Enter}');
+    await user.clear(box);
+    await user.type(box, '2{Enter}');
     await waitFor(() => expect(announcer()).toHaveTextContent('Cabine de transformação movida para a posição 2 de 2'));
   });
 
@@ -431,17 +444,17 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     database = await freshDb(composed());
     renderComposer();
     await card(/^Painel Painel B/);
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel B em Cabine de transformação' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
+    await user.click(screen.getByRole('button', { name: 'Mais opções de Painel B em Cabine de transformação' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
     const dialog = await screen.findByRole('dialog', { name: 'Renomear Painel B' });
     const field = within(dialog).getByRole('textbox', { name: 'Nome' });
-    await userEvent.clear(field);
-    await userEvent.type(field, 'Painel de baixa tensão');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+    await user.clear(field);
+    await user.type(field, 'Painel de baixa tensão');
+    await user.click(within(dialog).getByRole('button', { name: 'Salvar' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Painel de baixa tensão renomeado'));
     expect((await skeletonOf()).find((n) => n.ref === 'P2')).toMatchObject({ kind: 'painel', name: 'Painel de baixa tensão' });
     expect((await outbox()).map((op) => op.path)).toEqual([`template/${ID}/skeleton`]);
-    await userEvent.click(await screen.findByRole('button', { name: 'Desfazer' }));
+    await user.click(await screen.findByRole('button', { name: 'Desfazer' }));
     await waitFor(async () => expect((await skeletonOf()).find((n) => n.ref === 'P2')).toMatchObject({ name: 'Painel B' }));
   });
 
@@ -449,17 +462,17 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     database = await freshDb(composed());
     renderComposer();
     await card(/^Local Geradores/);
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Geradores' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Função e nome' }));
+    await user.click(screen.getByRole('button', { name: 'Mais opções de Geradores' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Função e nome' }));
     const dialog = await screen.findByRole('dialog', { name: 'Função e nome' });
     expect(within(dialog).getByRole('textbox', { name: 'Nome' })).toHaveValue('Geradores');
     expect(within(dialog).getAllByRole('radio').every((radio) => radio.getAttribute('aria-checked') === 'false')).toBe(true);
-    await userEvent.click(within(dialog).getByRole('radio', { name: 'Distribuição' }));
+    await user.click(within(dialog).getByRole('radio', { name: 'Distribuição' }));
     // The name of a local being edited is its own: it does not follow the Função.
     expect(within(dialog).getByRole('textbox', { name: 'Nome' })).toHaveValue('Geradores');
-    await userEvent.clear(within(dialog).getByRole('textbox', { name: 'Nome' }));
-    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Nome' }), 'Sala dos geradores');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+    await user.clear(within(dialog).getByRole('textbox', { name: 'Nome' }));
+    await user.type(within(dialog).getByRole('textbox', { name: 'Nome' }), 'Sala dos geradores');
+    await user.click(within(dialog).getByRole('button', { name: 'Salvar' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Local Sala dos geradores atualizado'));
     const local = await card(/^Local Sala dos geradores/);
     expect(local.querySelector(':scope > .block-body .block-sub')).toHaveTextContent('Função: distribuição · Agrupar por tipo: desativado');
@@ -467,11 +480,11 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     const ops = await outbox();
     expect(ops.map((op) => op.path)).toEqual([`template/${ID}/skeleton`]);
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Desfazer' }));
+    await user.click(await screen.findByRole('button', { name: 'Desfazer' }));
     await waitFor(async () => expect((await skeletonOf()).find((n) => n.ref === 'ger')).toEqual({ ref: 'ger', kind: 'cabine', parent_ref: null, name: 'Geradores', agrupar_por_tipo: false }));
     // Opened again on the local that holds a Função: the radio is checked.
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de transformação' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Função e nome' }));
+    await user.click(screen.getByRole('button', { name: 'Mais opções de Cabine de transformação' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Função e nome' }));
     expect(within(await screen.findByRole('dialog', { name: 'Função e nome' })).getByRole('radio', { name: 'Transformação' })).toHaveAttribute('aria-checked', 'true');
   });
 
@@ -484,8 +497,8 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
       await database!.entities.put(toRecord(`template:${ID}`, { ...row, skeleton: change(row.skeleton) }));
     };
     const open = async (name: string) => {
-      await userEvent.click(screen.getByRole('button', { name: `Mais opções de ${name}` }));
-      await userEvent.click(await screen.findByRole('menuitem', { name: 'Função e nome' }));
+      await user.click(screen.getByRole('button', { name: `Mais opções de ${name}` }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Função e nome' }));
       return screen.findByRole('dialog', { name: 'Função e nome' });
     };
 
@@ -497,8 +510,8 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     await pulled((skeleton) => renameNode(skeleton, 'loc', 'Subestação Norte'));
     await waitFor(() => expect(firstLocal().querySelector('.block-name')).toHaveTextContent('Subestação Norte'));
     expect(within(dialog).getByRole('textbox', { name: 'Nome' })).toHaveValue('Cabine de transformação');
-    await userEvent.click(within(dialog).getByRole('radio', { name: 'Primária' }));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+    await user.click(within(dialog).getByRole('radio', { name: 'Primária' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Salvar' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Local Subestação Norte atualizado'));
     expect((await skeletonOf()).find((n) => n.ref === 'loc')).toMatchObject({ name: 'Subestação Norte', funcao: 'primaria' });
 
@@ -508,9 +521,9 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     await pulled((skeleton) => setFuncao(skeleton, 'loc', 'entrada'));
     await waitFor(() => expect(firstLocal().querySelector('.block-sub')).toHaveTextContent('Função: entrada'));
     const name = within(dialog).getByRole('textbox', { name: 'Nome' });
-    await userEvent.clear(name);
-    await userEvent.type(name, 'Subestação Sul');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+    await user.clear(name);
+    await user.type(name, 'Subestação Sul');
+    await user.click(within(dialog).getByRole('button', { name: 'Salvar' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Local Subestação Sul atualizado'));
     expect((await skeletonOf()).find((n) => n.ref === 'loc')).toMatchObject({ name: 'Subestação Sul', funcao: 'entrada' });
     expect((await outbox()).map((op) => op.path)).toEqual([`template/${ID}/skeleton`, `template/${ID}/skeleton`]);
@@ -520,11 +533,11 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     database = await freshDb(composed());
     renderComposer();
     await card(/^Painel Painel de média tensão/);
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Painel de média tensão em Cabine de transformação' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
+    await user.click(screen.getByRole('button', { name: 'Mais opções de Painel de média tensão em Cabine de transformação' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Remover' }));
     const painelDialog = await screen.findByRole('dialog', { name: 'Remover Painel de média tensão?' });
     expect(within(painelDialog).getByText('O painel e as colunas dele, com os equipamentos que elas levam, saem do template.')).toBeVisible();
-    await userEvent.click(within(painelDialog).getByRole('button', { name: 'Remover' }));
+    await user.click(within(painelDialog).getByRole('button', { name: 'Remover' }));
     expect(await screen.findByText('Painel de média tensão removido')).toBeVisible();
     await screen.findByRole('heading', { level: 2, name: 'Esqueleto de locais · 2 locais · 1 painel · 2 blocos' });
     let row = (await templateRow(database, ID))!;
@@ -536,20 +549,20 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     // The focus went to the row now at its place.
     await waitFor(() => expect(screen.getByRole('button', { name: 'Mais opções de Painel B em Cabine de transformação' })).toHaveFocus());
 
-    await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    await user.click(screen.getByRole('button', { name: 'Desfazer' }));
     await screen.findByRole('heading', { level: 2, name: 'Esqueleto de locais · 2 locais · 2 painéis · 3 colunas · 5 blocos' });
 
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de transformação' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
+    await user.click(screen.getByRole('button', { name: 'Mais opções de Cabine de transformação' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Remover' }));
     const localDialog = await screen.findByRole('dialog', { name: 'Remover Cabine de transformação?' });
     expect(within(localDialog).getByText('O local, os equipamentos, os painéis e as colunas dele saem do template.')).toBeVisible();
-    await userEvent.click(within(localDialog).getByRole('button', { name: 'Remover' }));
+    await user.click(within(localDialog).getByRole('button', { name: 'Remover' }));
     expect(await screen.findByText('Cabine de transformação removida')).toBeVisible();
     await screen.findByRole('heading', { level: 2, name: 'Esqueleto de locais · 1 local' });
     row = (await templateRow(database, ID))!;
     expect(row.skeleton.map((n) => n.ref)).toEqual(['ger']);
     expect(row.blocks).toEqual([]);
-    await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    await user.click(screen.getByRole('button', { name: 'Desfazer' }));
     await screen.findByRole('heading', { level: 2, name: 'Esqueleto de locais · 2 locais · 2 painéis · 3 colunas · 5 blocos' });
     expect((await templateRow(database, ID))!.blocks).toHaveLength(4);
   });
@@ -564,13 +577,13 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     expect(within(coluna3).getByRole('button', { name: 'Reordenar Coluna 3 em Painel de média tensão em Cabine de transformação' })).toHaveClass('drag-handle');
     expect(within(coluna3).getByRole('textbox', { name: 'Posição de Coluna 3 em Painel de média tensão em Cabine de transformação' })).toHaveClass('pos-box');
     expect(screen.queryByRole('button', { name: 'Mais opções de Coluna 3' })).toBeNull();
-    await userEvent.click(within(coluna3).getByRole('button', { name: 'Mais opções de Coluna 3 em Painel de média tensão em Cabine de transformação' }));
+    await user.click(within(coluna3).getByRole('button', { name: 'Mais opções de Coluna 3 em Painel de média tensão em Cabine de transformação' }));
     expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Renomear', 'Subir', 'Remover']);
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Subir' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Subir' }));
     await waitFor(() => expect(colunas()).toEqual(['Coluna 1', 'Coluna 3', 'Coluna 2']));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 3 movida para a posição 2 de 3'));
     expect((await skeletonOf()).map((n) => n.ref)).toEqual(['loc', 'P1', 'c1', 'c3', 'c2', 'P2', 'ger']);
-    await userEvent.click(await screen.findByRole('button', { name: 'Desfazer' }));
+    await user.click(await screen.findByRole('button', { name: 'Desfazer' }));
     await waitFor(() => expect(colunas()).toEqual(['Coluna 1', 'Coluna 2', 'Coluna 3']));
   });
 });

@@ -5,18 +5,24 @@
 # GET /api/health over HTTPS to report every component up, records the tag, then runs the
 # production smoke (Story 14.10 part 6): the smoke-seed task resets the test company, the
 # Playwright suite under e2e/production/ runs against the deployed URL in the tools
-# container, and the smoke-seed task runs again as the cleanup, always. A red smoke exits 1
-# naming the failing step and the rollback command; nothing rolls back by itself. Everything
-# runs in containers (infra/bin/tf, infra/bin/aws, docker buildx, or podman build where there
-# is no docker); the AWS login session of AWS_PROFILE (default fasor-admin) must be active
-# for a real run.
+# container, the usage events of the run are counted in CloudWatch (a warning, never a
+# failure), and the smoke-seed task runs again as the cleanup, always. A red smoke exits 1
+# naming the failing step and the rollback command; nothing rolls back by itself. The AWS CLI
+# calls that are safe to repeat are retried when the endpoint drops (aws_retry, lib.sh), and
+# an exit after the roll and before the smoke finished prints the --resume command
+# (E15-A10). Everything runs in containers (infra/bin/tf, infra/bin/aws, docker buildx, or
+# podman build where there is no docker); the AWS login session of AWS_PROFILE (default
+# fasor-admin) must be active for a real run.
 #
-#   infra/bin/deploy [--dry-run] [--skip-build] [--skip-smoke] [--tag <sha>]
+#   infra/bin/deploy [--dry-run] [--skip-build] [--skip-smoke] [--resume] [--tag <sha>]
 #
 #   --dry-run     print every step's command, prefixed DRY-RUN:, with placeholder outputs;
 #                 touches nothing (no build, no push, no AWS or Terraform call)
 #   --skip-build  deploy images already in ECR under the tag (no build, no push)
-#   --skip-smoke  deploy without the production smoke (its three steps say so)
+#   --skip-smoke  deploy without the production smoke (its four steps say so)
+#   --resume      finish a deploy whose roll already ran: skips build, push, migrate and roll,
+#                 checks (read-only) that every service runs the tag, then waits for the
+#                 services, health, record and smoke
 #   --tag <sha>   the tag to deploy; default the HEAD commit. Building needs it to be HEAD.
 set -euo pipefail
 
@@ -29,16 +35,19 @@ stack=production
 dry_run=0
 skip_build=0
 skip_smoke=0
+resume=0
 tag=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) dry_run=1 ;;
     --skip-build) skip_build=1 ;;
     --skip-smoke) skip_smoke=1 ;;
+    # A resumed deploy never builds: its images were pushed by the run it resumes.
+    --resume) resume=1; skip_build=1 ;;
     --tag)
       [ $# -ge 2 ] || { echo "deploy: --tag needs a value" >&2; exit 2; }
       tag="$2"; shift ;;
-    -h|--help) sed -n '2,21p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,26p' "$0"; exit 0 ;;
     *) echo "deploy: unknown argument '$1'" >&2; exit 2 ;;
   esac
   shift
@@ -80,8 +89,27 @@ fail() {
   exit 1
 }
 
+# E15-A10: once the roll has started, any exit before the smoke finished (a lost endpoint the
+# retries did not outlast, a red health, an unforeseen error) names the command that finishes
+# the deploy without building, migrating or rolling again.
+rolled=0
+finished=0
+on_exit() {
+  local status=$?
+  if [ "$status" != 0 ] && [ "$rolled" = 1 ] && [ "$finished" = 0 ]; then
+    local hint="infra/bin/deploy --resume --tag $tag"
+    [ "$skip_smoke" = 1 ] && hint="$hint --skip-smoke"
+    printf '\ndeploy: the services were rolled to %s, but the deploy stopped before it finished\n' "$tag" >&2
+    echo "deploy: to resume: $hint" >&2
+  fi
+}
+trap on_exit EXIT
+
 # --- preflight -----------------------------------------------------------------------
 step "preflight: clean tree, tag, tools"
+# The usage-events check of the smoke counts what landed since this instant (epoch ms).
+read -r deploy_start_s deploy_start_iso < <(date -u '+%s %Y-%m-%dT%H:%M:%SZ')
+deploy_start_ms=$((deploy_start_s * 1000))
 head_sha="$(git -C "$root" rev-parse HEAD)"
 dirty="$(git -C "$root" status --porcelain)"
 if [ -n "$dirty" ]; then
@@ -98,6 +126,7 @@ fi
 command -v "$CTR" >/dev/null || fail "docker or podman is required"
 command -v curl >/dev/null || fail "curl is required"
 echo "tag: $tag"
+[ "$resume" = 1 ] && echo "resuming the deploy of $tag: build, push, migrate and roll are skipped"
 run "${tf[@]}" init -input=false
 
 # --- read the stack ------------------------------------------------------------------
@@ -160,7 +189,12 @@ if [ "$skip_build" = 0 ] && images_in_ecr; then
   echo "tag $tag is already in ECR (immutable tags): deploying it without a rebuild"
   skip_build=1
 fi
-if [ "$skip_build" = 0 ]; then
+if [ "$resume" = 1 ]; then
+  for name in "build the images for $platform" "push the images to ECR"; do
+    step "$name"
+    echo "skipped by --resume"
+  done
+elif [ "$skip_build" = 0 ]; then
   step "build the images for $platform"
   # Epic 18: the web bundle's usage events carry this tag as their `app_version`.
   image_build "$ecr_api:$tag" "$root" -f "$root/apps/api/Dockerfile.prod" --build-arg "VITE_APP_VERSION=$tag"
@@ -184,8 +218,6 @@ else
 fi
 
 # --- migrate -------------------------------------------------------------------------
-step "migrate: one-shot ECS task on the new api image"
-run "${tf[@]}" apply -input=false -auto-approve -var "image_tag=$tag" -target=aws_ecs_task_definition.migrate
 # run_one_shot <label> <family> <log group> <stream prefix> <dry-run exit code> [<consequence>]:
 # runs one task of the family on the instance (EC2 launch type) and waits for it to stop. Sets
 # one_shot_task (the task id) and one_shot_exit (the container's exit code); returns 1, after
@@ -203,7 +235,7 @@ run_one_shot() {
   else
     for attempt in $(seq 1 60); do
       # A stopped instance stays ACTIVE with its agent disconnected; only a connected agent counts.
-      count="$("${aws[@]}" ecs list-container-instances --cluster "$cluster" --status ACTIVE --filter 'agentConnected==true' --query 'length(containerInstanceArns)' --output text)" \
+      count="$(aws_retry "${aws[@]}" ecs list-container-instances --cluster "$cluster" --status ACTIVE --filter 'agentConnected==true' --query 'length(containerInstanceArns)' --output text)" \
         || { echo "deploy: aws ecs list-container-instances failed (is the AWS session still valid?)" >&2; return 1; }
       [ "$count" -ge 1 ] && break
       if [ "$attempt" = 60 ]; then
@@ -227,7 +259,7 @@ run_one_shot() {
     printf 'DRY-RUN: wait until %q ecs describe-tasks --cluster %q --tasks %q reports STOPPED\n' "$bin/aws" "$cluster" "$task_arn"
   else
     for attempt in $(seq 1 180); do
-      last_status="$("${aws[@]}" ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" --query 'tasks[0].lastStatus' --output text)" \
+      last_status="$(aws_retry "${aws[@]}" ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" --query 'tasks[0].lastStatus' --output text)" \
         || { echo "deploy: aws ecs describe-tasks failed (is the AWS session still valid?)" >&2; return 1; }
       [ "$last_status" = "STOPPED" ] && break
       if [ "$attempt" = 180 ]; then
@@ -237,7 +269,7 @@ run_one_shot() {
       sleep 10
     done
   fi
-  one_shot_exit="$(capture "$dry_exit" "${aws[@]}" ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" \
+  one_shot_exit="$(capture "$dry_exit" aws_retry "${aws[@]}" ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" \
     --query 'tasks[0].containers[0].exitCode' --output text)" || one_shot_exit="unknown"
   if [ "$one_shot_exit" != "0" ]; then
     echo "deploy: the $label task exited with '$one_shot_exit'$consequence" >&2
@@ -246,16 +278,54 @@ run_one_shot() {
   fi
 }
 
-# DEPLOY_DRY_RUN_MIGRATION_EXIT: the placeholder exit code of a dry run (default 0). A failed
-# migration stops the deploy before any roll.
-run_one_shot migration "$migrate_family" "$migrate_log_group" migrate/migrate "${DEPLOY_DRY_RUN_MIGRATION_EXIT:-0}" \
-  "; the services were not rolled" || exit 1
-echo "migrations applied (task $one_shot_task)"
+step "migrate: one-shot ECS task on the new api image"
+if [ "$resume" = 1 ]; then
+  # The tag was migrated by the run being resumed: a rerun would start a second migrate task.
+  echo "skipped by --resume"
+else
+  run "${tf[@]}" apply -input=false -auto-approve -var "image_tag=$tag" -target=aws_ecs_task_definition.migrate
+  # DEPLOY_DRY_RUN_MIGRATION_EXIT: the placeholder exit code of a dry run (default 0). A failed
+  # migration stops the deploy before any roll.
+  run_one_shot migration "$migrate_family" "$migrate_log_group" migrate/migrate "${DEPLOY_DRY_RUN_MIGRATION_EXIT:-0}" \
+    "; the services were not rolled" || exit 1
+  echo "migrations applied (task $one_shot_task)"
+fi
 
 # --- roll ----------------------------------------------------------------------------
 step "roll the services to $tag"
-run "${tf[@]}" apply -input=false -auto-approve -var "image_tag=$tag"
-run "${aws[@]}" ecs wait services-stable --cluster "$cluster" --services "${service_list[@]}"
+if [ "$resume" = 1 ]; then
+  echo "skipped by --resume"
+  # Read-only: a resume records only a tag every service already runs, never one that did not roll.
+  step "check the services run $tag (--resume)"
+  for service in "${service_list[@]}"; do
+    task_definition="$(capture "arn:aws:ecs:us-east-1:673409896745:task-definition/$cluster-$service:1" \
+      aws_retry "${aws[@]}" ecs describe-services --cluster "$cluster" --services "$service" \
+      --query 'services[0].taskDefinition' --output text)" \
+      || fail "could not read the service $service (aws ecs describe-services failed)"
+    # DEPLOY_DRY_RUN_RESUME_IMAGE_TAG: the placeholder tag of the images a dry run reads (default: the tag).
+    images="$(capture "$registry/fasor/$service:${DEPLOY_DRY_RUN_RESUME_IMAGE_TAG:-$tag}" \
+      aws_retry "${aws[@]}" ecs describe-task-definition --task-definition "$task_definition" \
+      --query 'taskDefinition.containerDefinitions[].image' --output text)" \
+      || fail "could not read the task definition $task_definition of the service $service"
+    for image in $images; do
+      [ "${image##*:}" = "$tag" ] || fail "the service $service runs $image (task definition $task_definition), not the tag $tag; nothing was recorded (run the deploy without --resume)"
+    done
+    echo "$service runs $images"
+  done
+else
+  rolled=1
+  run "${tf[@]}" apply -input=false -auto-approve -var "image_tag=$tag"
+fi
+# A resume reaches here once every service runs the tag: from now on its exit hints a resume too.
+rolled=1
+
+step "wait until the services are stable"
+run aws_retry "${aws[@]}" ecs wait services-stable --cluster "$cluster" --services "${service_list[@]}"
+# DEPLOY_DRY_RUN_STABLE_EXIT: a dry run's stand-in for a wait that failed (default 0), for the resume hint.
+if [ "$dry_run" = 1 ] && [ "${DEPLOY_DRY_RUN_STABLE_EXIT:-0}" != 0 ]; then
+  echo 'aws: [ERROR]: Could not connect to the endpoint URL: "https://ecs.us-east-1.amazonaws.com/" (dry-run placeholder)' >&2
+  exit "$DEPLOY_DRY_RUN_STABLE_EXIT"
+fi
 
 # --- health --------------------------------------------------------------------------
 step "health: GET $health_url/api/health until every component is up"
@@ -278,9 +348,9 @@ fi
 # Only a healthy roll becomes the tag a later plain `terraform apply` keeps (ssm.tf). The tag
 # it replaces is read first: the smoke's rollback hint names it.
 step "record $tag as the deployed tag"
-previous_tag="$(capture fedcba9876543210fedcba9876543210fedcba98 "${aws[@]}" ssm get-parameter --name "$image_tag_parameter" \
+previous_tag="$(capture fedcba9876543210fedcba9876543210fedcba98 aws_retry "${aws[@]}" ssm get-parameter --name "$image_tag_parameter" \
   --query Parameter.Value --output text)" || previous_tag=""
-run "${aws[@]}" ssm put-parameter --name "$image_tag_parameter" --value "$tag" --overwrite
+run aws_retry "${aws[@]}" ssm put-parameter --name "$image_tag_parameter" --value "$tag" --overwrite
 
 # --- smoke ---------------------------------------------------------------------------
 # Story 14.10 part 6. The suite signs in as the smoke user (smoke.tf) and writes only into
@@ -289,17 +359,67 @@ run "${aws[@]}" ssm put-parameter --name "$image_tag_parameter" --value "$tag" -
 smoke_dir="$root/test-results/production-smoke"
 smoke_reset="smoke: reset the test company"
 smoke_suite="smoke: run the production suite"
+smoke_telemetry="smoke: check the usage events"
 smoke_cleanup="smoke: clean up the test company"
 if [ "$skip_smoke" = 1 ]; then
-  for name in "$smoke_reset" "$smoke_suite" "$smoke_cleanup"; do
+  for name in "$smoke_reset" "$smoke_suite" "$smoke_telemetry" "$smoke_cleanup"; do
     step "$name"
     echo "skipped by --skip-smoke"
   done
+  finished=1
   printf '\ndeployed %s to %s (smoke skipped by --skip-smoke)\n' "$tag" "$health_url"
   exit 0
 fi
 
+# E18-A2 (batch e18fb, 2026-11-03): the usage events still land. Read-only (CloudWatch Logs
+# FilterLogEvents with the deploy's own login), counts only (never an event body, id or
+# e-mail), and a warning, never a failure, in this release: the deferred-work row of batch
+# e18fb makes it a failure after its first green production run. The group names are read
+# here, after the roll, so the first deploy carrying their outputs has them.
+# telemetry_count <placeholder> <log group> <filter pattern>: the number of events of the group
+# since the deploy started that match the pattern, or a non-zero return when it cannot be read.
+telemetry_count() {
+  local placeholder="$1" group="$2" pattern="$3" count
+  count="$(capture "$placeholder" aws_retry "${aws[@]}" logs filter-log-events --log-group-name "$group" \
+    --start-time "$deploy_start_ms" --filter-pattern "$pattern" --query 'length(events)' --output text)" || return 1
+  [[ "$count" =~ ^[0-9]+$ ]] || return 1
+  printf '%s' "$count"
+}
+check_usage_events() {
+  local ux_group api_group sessions="" failures="" attempt warned=0
+  local session_pattern="{ (\$.name = \"session_start\") && (\$.app_version = \"$tag\") }"
+  ux_group="$(output ux_events_log_group /fasor/production/ux-events)" || ux_group=""
+  api_group="$(output api_log_group /fasor/production/api)" || api_group=""
+  if [ -z "$ux_group" ] || [ -z "$api_group" ]; then
+    echo "deploy: warning: could not read the outputs ux_events_log_group and api_log_group; the usage events were not checked" >&2
+    return 0
+  fi
+  # A CloudWatch line appears seconds after the put: poll up to about 2 minutes while the count
+  # reads 0. A read error stops the poll (the retry already outlasted a lost endpoint); a dry
+  # run asks once.
+  for attempt in $(seq 1 12); do
+    sessions="$(telemetry_count "${DEPLOY_DRY_RUN_TELEMETRY_SESSIONS:-1}" "$ux_group" "$session_pattern")" || { sessions=""; break; }
+    if [ "$dry_run" = 1 ] || { [ -n "$sessions" ] && [ "$sessions" -ge 1 ]; }; then break; fi
+    [ "$attempt" = 12 ] || sleep 10
+  done
+  failures="$(telemetry_count "${DEPLOY_DRY_RUN_TELEMETRY_SINK_FAILURES:-0}" "$api_group" '"ux_event_sink_failed"')" || failures=""
+  echo "telemetry: ${sessions:-unknown} session_start with app_version $tag since $deploy_start_iso; ${failures:-unknown} ux_event_sink_failed"
+  if [ -z "$sessions" ]; then
+    echo "deploy: warning: could not read the session_start events of $ux_group" >&2; warned=1
+  elif [ "$sessions" = 0 ]; then
+    echo "deploy: warning: 0 session_start with app_version $tag in $ux_group since $deploy_start_iso: the usage events may not be landing (docs/observability.md)" >&2; warned=1
+  fi
+  if [ -z "$failures" ]; then
+    echo "deploy: warning: could not read the ux_event_sink_failed lines of $api_group" >&2; warned=1
+  elif [ "$failures" != 0 ]; then
+    echo "deploy: warning: $failures ux_event_sink_failed in $api_group since $deploy_start_iso: the api could not write usage events" >&2; warned=1
+  fi
+  [ "$warned" = 1 ] && echo "deploy: (a warning only in this release; the deploy's exit is unchanged)" >&2
+  return 0
+}
+
 smoke_failed=""
+suite_ran=0
 step "$smoke_reset"
 if run_one_shot smoke-seed "$smoke_family" "$smoke_log_group" smoke/smoke-seed "${DEPLOY_DRY_RUN_SMOKE_SEED_EXIT:-0}"; then
   echo "test company reset (task $one_shot_task)"
@@ -339,6 +459,7 @@ if [ -z "$smoke_failed" ]; then
   [ "$CTR" = podman ] && suite+=(--user root)
   suite+=(-e SMOKE_BASE_URL -e SMOKE_EMAIL -e SMOKE_PASSWORD tools pnpm smoke:production)
   suite_exit=0
+  suite_ran=1
   if [ "$dry_run" = 1 ]; then
     (cd "$root" && run ${lock[@]+"${lock[@]}"} "${suite[@]}")
     # DEPLOY_DRY_RUN_SMOKE_EXIT: the suite's placeholder exit code (default 0), for the red path.
@@ -354,6 +475,13 @@ if [ -z "$smoke_failed" ]; then
   fi
 fi
 
+step "$smoke_telemetry"
+if [ "$suite_ran" = 1 ]; then
+  check_usage_events || echo "deploy: warning: the usage-events check stopped early; the deploy's exit is unchanged" >&2
+else
+  echo "not run: the suite did not run"
+fi
+
 # The cleanup runs whatever happened above: the test company never keeps a run's writes.
 cleanup_failed=0
 step "$smoke_cleanup"
@@ -364,6 +492,9 @@ if run_one_shot smoke-seed "$smoke_family" "$smoke_log_group" smoke/smoke-seed \
 else
   cleanup_failed=1
 fi
+# The smoke has run to its end: from here a red exit is a red smoke, reported below, not a
+# deploy to resume.
+finished=1
 
 if [ -n "$smoke_failed" ] || [ "$cleanup_failed" = 1 ]; then
   printf '\n' >&2

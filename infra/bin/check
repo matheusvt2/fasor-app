@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Offline checks of everything in infra/ (Story 11.8); needs no AWS login and calls no AWS
 # API. Every tool runs in a pinned container:
-#   terraform fmt -check -recursive, then init -backend=false and validate per stack;
+#   terraform fmt -check -recursive, then init -backend=false and validate per stack (in the
+#   data dir .terraform/check, never the operator's .terraform);
 #   tflint per stack (infra/.tflint.hcl);
 #   ShellCheck over infra/bin/*.
 # Exits non-zero when any check fails, after running all of them.
@@ -21,9 +22,15 @@ check() {
 
 export TF_OFFLINE=1
 check "terraform fmt" "$bin/tf" . fmt -check -recursive -diff
+# Batch e18fb (2026-11-03, ledger row "Deferred from: the Epic 19 deploy"): init and validate
+# use a data dir of their own under the stack's `.terraform/` (git-ignored). The operator's
+# `.terraform/terraform.tfstate`, written by a real init with the S3 backend, made
+# `init -backend=false` ask for credentials the offline check never has; that state stays
+# untouched here.
+check_data_dir=.terraform/check
 for stack in "${stacks[@]}"; do
-  check "terraform init $stack" "$bin/tf" "$stack" init -backend=false -input=false -no-color
-  check "terraform validate $stack" "$bin/tf" "$stack" validate -no-color
+  check "terraform init $stack" env TF_DATA_DIR="$check_data_dir" "$bin/tf" "$stack" init -backend=false -input=false -no-color
+  check "terraform validate $stack" env TF_DATA_DIR="$check_data_dir" "$bin/tf" "$stack" validate -no-color
   check "tflint $stack" "$CTR" run --rm --user "$(id -u):$(id -g)" -v "$root:/infra" -w "/infra/$stack" \
     ghcr.io/terraform-linters/tflint:v0.59.1 --config=/infra/.tflint.hcl --no-color
 done
