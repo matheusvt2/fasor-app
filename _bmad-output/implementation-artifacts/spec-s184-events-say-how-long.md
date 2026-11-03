@@ -2,10 +2,10 @@
 title: 'Story 18.4: the events say how long, in what order, on what and for whom'
 type: 'feature'
 created: '2026-11-03'
-status: 'in-review'
+status: 'done'
 baseline_revision: '8f0911a4bb4bb8617a52c412162eb5301a52dfa2'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -148,3 +148,17 @@ deferred: []
 - `podman compose restart api` after any change under `packages/domain` or `apps/api`, then `pnpm test:api`.
 - `pnpm lint`, `pnpm static`, `pnpm test:unit` -- green. Playwright runs are the orchestrator's, under the host lock.
 - `infra/bin/check` -- all passed.
+
+## Auto Run Result
+
+Status: done (2026-11-03, batch s184; gate green on the merge of origin/main `cf468e3d`).
+
+**Summary.** Story 18.4 whole, kernel first: `screen_view` gains `duration_ms` and `from` (one view tracker, `telemetry/views.ts`, written when a screen is left: route change, full surface, tab hidden, `pagehide`; reopened on visible and on a bfcache `pageshow`); `session_start` gains `viewport`, `standalone`, `online` (`telemetry/context.ts`, `viewportOf` in the kernel); `input_refused` with `UX_INPUT_TARGETS` and `INPUT_REFUSAL_KINDS`, queued at every typed-value refusal point (kernel reasons in `checks/input-refusal.ts`), a click into a field no longer an `action`; the eight Home targets (`homeStatusTileTarget`, `homePageSizeTarget`), the shared names kept; the `preview` and `generate` waits time the press (`use-preview.ts` to the PDF tab, `use-generate.ts` to the ready revision held; closing the dialog is `cancel`), with the observer extracted to `telemetry/sync-observer.ts` (retro A3, E18-A5 item 3); seven Terraform views (17 in all) bound by `scripts/telemetry-queries.test.ts`; the digest template's "Five questions". Also E16-R1 (banner and row tags gated on `readyHeld`), the rotated session's own `session_start` (e18fa open question 2, stamped no later than its held events), the e18fa runbook sentences and the `ts` correction in `docs/observability.md`, mirrored in `docs/kbs/architecture/usage-events.md` and `docs/kbs/log.md`.
+
+**Review.** One pass (Edge Case Hunter, Verification Gap Reviewer), 14 findings: 10 patched (medium 7: VG-1, VG-2, VG-O1, ECH-4, ECH-9, ECH-10, ECH-11; low 3 as runbook sentences or a listener: ECH-3, ECH-5, ECH-6, ECH-8 counted low), 3 rejected (ECH-1, ECH-2 accepted as a ledger row; ECH-7 false), none deferred to the frontmatter.
+
+**Follow-up review: recommended.** Seven medium entries were patched and not re-reviewed; the unverified risks are the Enter-then-blur dedupe in `components/number-input.tsx` (a refusal reported once per Enter and the blur it causes) and the stricter `screen_view` and `session_start` refinements in the kernel (any producer sending another key now loses the event).
+
+**Verification.** Story gate under the host lock (lock wait 1581 s behind the coordinator's wave gate; load 4.41 at start, 3.89 at end): lint 0 errors (26 warnings, none in this batch's lines) 33 s; static green 36 s; test:api 98 files 750 tests 304 s; test:unit 346 files, 4859 passed and 4 failed under load (15 s timeouts and races in `export-dialog`, `sumario-surface`, `template-composer-local`), re-run alone under the lock: `export-dialog` and `sumario-surface` green, `template-composer-local` (untouched) red on another test once, then green 2 of 2 alone (E15-A4); e2e touched specs (15, both projects): 94 of 94 passed, parallel 62 in 110 s, serial 32 in 170 s, 284 s wall. `infra/bin/check` all passed. Mutation runs: E16-R1 gate removed, the E16-R1 test red; preview `ok` at the request, the preview wait test red; generate `ok` at the request, four generate wait tests red; all restored.
+
+**Residual risks.** The seven views ran offline only; the next `terraform plan` adds seven `aws_cloudwatch_query_definition.ux` and changes `aws_cloudwatch_dashboard.ux` in place. The Conta sentence is unchanged although `viewport`, `standalone`, `online` describe the device (open question for Matheus and Bruno; the deploy waits on it). Old and new bundles mix in `funnel` and `waits` for a while. A new-bundle device posting `input_refused` to an api not yet on this kernel gets `400 telemetry_invalid` and drops that batch, so web and api ship in the same deploy (`infra/bin/deploy` rolls both to one tag).
