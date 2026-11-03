@@ -67,14 +67,15 @@ describe('stdout sink', () => {
 });
 
 describe('the production CloudWatch client (E18-A1, R-A4)', () => {
-  it('is built with two attempts at most and a 5 s request timeout', async () => {
+  it('is built with two attempts at most and a 3 s request timeout: two commands of two attempts stay under the device 15 s abort', async () => {
     const configs: CloudWatchLogsClientConfig[] = [];
     const logs = new FakeLogs();
     const sink = createCloudWatchSink('/fasor/production/ux-events', (config) => {
       configs.push(config);
       return logs;
     });
-    expect(configs).toEqual([{ maxAttempts: 2, requestHandler: { requestTimeout: 5_000 } }]);
+    expect(configs).toEqual([{ maxAttempts: 2, requestHandler: { requestTimeout: 3_000 } }]);
+    expect(2 * CLOUDWATCH_CLIENT_CONFIG.maxAttempts * CLOUDWATCH_CLIENT_CONFIG.requestHandler.requestTimeout).toBeLessThan(15_000);
     await sink.write([event('2026-10-29T12:00:00.000Z')]);
     expect(logs.sent.some((command) => command instanceof PutLogEventsCommand)).toBe(true);
   });

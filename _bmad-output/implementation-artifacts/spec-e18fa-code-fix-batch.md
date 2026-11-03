@@ -2,7 +2,7 @@
 title: 'E18-A1: the Epic 18 code fix batch (device flush, api limits, friction read, tests)'
 type: 'bugfix'
 created: '2026-11-03'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '0fede8ac813fa77e856cf26e976c9c199ebab709'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -115,6 +115,24 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-03 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer (opus); Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them)
+- verdicts: 13 findings — high 0, medium 6, low 4, false 2, maybe-false 1
+- findings:
+  - `[medium]` `patch` VG-1 a photo committed here between a cycle's pull and its look, later pulled back finished, is never tracked (narrowed watcher) — each later look also reads the `file` entities named by outbox rows with `client_ts` after the last look; test added
+  - `[low]` `reject` VG-2 the R-E3 AC is unmet in a real browser (`.is-readonly .tri-state { pointer-events: none }`, locked `components.css`) — same root as ECH-8; recorded as known open and a ledger row, the spec AC narrowed in the PR
+  - `[low]` `reject` VG-3 `docs/observability.md:7` names `ts` as the stdout line's event field — the doc is lane e18fb's; carried as a runbook sentence for the coordinator
+  - `[medium]` `patch` ECH-1 `visibilitychange` and `pagehide` back to back beacon the same batch twice — `beaconTelemetry` made single-flight; test added
+  - `[medium]` `patch` ECH-2 two stalled CloudWatch commands at 2 x 5 s outlast the device's 15 s abort, so a retry duplicates — `requestTimeout` 3 000 ms
+  - `[low]` `reject` ECH-3 device clock skew biases `client_ts` against `received_at` — the comparison is the one E18-A1 (R-A17) prescribes; noted as a residual risk
+  - `[medium]` `patch` ECH-4 a lagging stream brings ops below the global seq high-water mark — same root as VG-1 (the read set misses files changed outside "pulled above the max"); pending photos are read by key and local shots now by the outbox, so only another device's photos remain unwatched, which is by design
+  - `[low]` `patch` ECH-5 two overlapping looks track one landed reading twice — looks serialized; test added
+  - `[maybe-false]` `reject` ECH-6 18.1-E2E-002 may flake when an automatic cycle flushes near "Sincronizar agora" — settled by the gate runs of the spec (pasted in the PR); if it ever flakes, the per-flush marker is the fix
+  - `[false]` `reject` ECH-7 a status 0, 1xx or 3xx deletes rows — a same-origin `fetch` follows redirects and never surfaces 1xx or an opaque 0
+  - `[medium]` `reject` ECH-8 R-E3 not verified in a real browser — see VG-2 (known open, ledger row; a tap on a read-only segment reaches no `[data-telemetry]` control, so it records nothing, neither `action` nor `disabled_tap`)
+  - `[medium]` `patch` ECH-9 a hidden-tab beacon right after a 429 posts up to 200 events the limiter refuses and deletes them — no beacon for 60 s after a 429; test added
+  - `[false]` `reject` ECH-10 a schema-valid `ts` with more sub-second digits than `toISOString` can exceed the 256 KiB bound — only a crafted client writes those, and a crafted batch refused with 413 is the intended answer
 
 ## Design Notes
 

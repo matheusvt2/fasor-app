@@ -92,6 +92,21 @@ export async function lastPulledSeq(db: AppDatabase): Promise<number> {
 
 const FILE_KEY = 'file:';
 
+/**
+ * The `file` ids this device's own ops written at or after `sinceMs` name (`client_ts`): a
+ * photo committed here after the last look, before its create comes back through the pull.
+ */
+export async function filesWrittenSince(db: AppDatabase, sinceMs: number): Promise<Set<string>> {
+  const ids = new Set<string>();
+  await db.outbox
+    .where('client_ts')
+    .aboveOrEqual(new Date(sinceMs).toISOString())
+    .each((op) => {
+      for (const key of op.targets) if (key.startsWith(FILE_KEY)) ids.add(key.slice(FILE_KEY.length));
+    });
+  return ids;
+}
+
 /** The `file` ids the ops pulled after `seq` name, and the highest `seq` among them (`seq` itself when none). */
 export async function filesPulledAfter(db: AppDatabase, seq: number): Promise<{ ids: Set<string>; seq: number }> {
   const ids = new Set<string>();

@@ -1,6 +1,6 @@
 import type { UxOutcome } from '@app/domain';
 import type { AppDatabase } from '../db/schema.ts';
-import { filesPulledAfter, lastPulledSeq, photoReadingStates, photoReadingStatesOf, type PhotoReadingState } from '../db/ux-events-store.ts';
+import { filesPulledAfter, filesWrittenSince, lastPulledSeq, photoReadingStates, photoReadingStatesOf, type PhotoReadingState } from '../db/ux-events-store.ts';
 import { track } from './track.ts';
 
 /*
@@ -11,9 +11,11 @@ import { track } from './track.ts';
  * The first look of a database is the baseline: nothing that landed before it is tracked.
  *
  * E18-A1 (R-A14): only the baseline reads every photo. A later look reads, by key, the photos
- * pending at the last look and the `file` entities named by the ops pulled since it (a
- * reading lands through the pull, and so does a photo shot here once pushed); between looks
- * the module keeps only the pending ids and the highest pulled `seq`.
+ * pending at the last look, the `file` entities named by the ops pulled since it (a reading
+ * lands through the pull) and those named by this device's own ops written since it (a photo
+ * shot here enters `pending` at the first look after its commit); between looks the module
+ * keeps only the pending ids, the highest pulled `seq` and the look's instant. Looks run one
+ * after the other, so two cycles ending together never read the same last look.
  */
 
 const PENDING = new Set<PhotoReadingState['status']>(['none', 'queued', 'running']);
@@ -30,6 +32,7 @@ interface LastLook {
 }
 
 let last: LastLook | null = null;
+let looking: Promise<void> = Promise.resolve();
 
 function idsOf(state: PhotoReadingState): { relatorio_id?: string; block_id?: string } {
   return {
@@ -38,8 +41,14 @@ function idsOf(state: PhotoReadingState): { relatorio_id?: string; block_id?: st
   };
 }
 
-/** Looks once at the device's readings and tracks the ones that landed since the last look. Never rejects. */
-export async function observeReadingResults(db: AppDatabase, nowMs: number = Date.now()): Promise<void> {
+/** Looks once at the device's readings and tracks the ones that landed since the last look, after any look in flight. Never rejects. */
+export function observeReadingResults(db: AppDatabase, nowMs: number = Date.now()): Promise<void> {
+  const look = looking.then(() => lookOnce(db, nowMs));
+  looking = look;
+  return look;
+}
+
+async function lookOnce(db: AppDatabase, nowMs: number): Promise<void> {
   try {
     const before = last?.db === db ? last : null;
     let states: PhotoReadingState[];
@@ -49,8 +58,9 @@ export async function observeReadingResults(db: AppDatabase, nowMs: number = Dat
       states = await photoReadingStates(db);
     } else {
       const pulled = await filesPulledAfter(db, before.seq);
+      const written = await filesWrittenSince(db, before.at);
       seq = pulled.seq;
-      states = await photoReadingStatesOf(db, [...before.pending, ...pulled.ids]);
+      states = await photoReadingStatesOf(db, [...before.pending, ...pulled.ids, ...written]);
     }
     const pending = new Set<string>();
     for (const state of states) {
@@ -78,4 +88,5 @@ export async function observeReadingResults(db: AppDatabase, nowMs: number = Dat
 /** Forgets the last look (tests). */
 export function resetReadingResultsForTests(): void {
   last = null;
+  looking = Promise.resolve();
 }

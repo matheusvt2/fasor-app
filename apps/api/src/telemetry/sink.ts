@@ -89,11 +89,13 @@ export function cloudWatchSink(options: CloudWatchSinkOptions): TelemetrySink {
 }
 
 /**
- * E18-A1 (R-A4, the api half): a put that hangs gives up after 5 s and is tried once more at
- * most, so a stalled CloudWatch endpoint never holds a request (the device's post waits on
- * the sink) for the SDK's defaults.
+ * E18-A1 (R-A4, the api half): a request that hangs gives up after 3 s and is tried once more
+ * at most, so a stalled CloudWatch endpoint never holds a request (the device's post waits on
+ * the sink) for the SDK's defaults. The worst batch, CreateLogStream then PutLogEvents, two
+ * attempts of 3 s each, is 12 s: under the device's 15 s abort, so a batch the server still
+ * writes is never kept and re-sent by the device.
  */
-export const CLOUDWATCH_CLIENT_CONFIG = { maxAttempts: 2, requestHandler: { requestTimeout: 5_000 } } as const satisfies CloudWatchLogsClientConfig;
+export const CLOUDWATCH_CLIENT_CONFIG = { maxAttempts: 2, requestHandler: { requestTimeout: 3_000 } } as const satisfies CloudWatchLogsClientConfig;
 
 /** The production sink: the default credential chain (the task role), region from `AWS_REGION`. */
 export function createCloudWatchSink(

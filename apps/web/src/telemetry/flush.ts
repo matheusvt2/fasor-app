@@ -36,6 +36,14 @@ export const browserTransport: TelemetryTransport = {
 /** Ids of rows a flush or a beacon is sending right now. */
 const inFlight = new Set<number>();
 let running: Promise<void> | null = null;
+let beaconing: Promise<void> | null = null;
+
+/**
+ * After a 429 the limiter refuses this device for a while; a beacon cannot see its answer and
+ * would delete a refused batch, so none is sent inside this window (E18-A1).
+ */
+export const RATE_LIMIT_WINDOW_MS = 60_000;
+let rateLimitedUntil = 0;
 
 /** The events as the route takes them: the queue's key left out. */
 function payloadOf(rows: readonly QueuedUxEvent[]): UxEvent[] {
@@ -65,7 +73,11 @@ async function drain(db: AppDatabase, transport: TelemetryTransport): Promise<vo
         return; // No network: the rows stay for the next flush.
       }
       if (status >= 500) return; // The server failed: the rows stay.
-      if (status === 429) return; // Rate limited: the rows stay, the next cycle resumes.
+      if (status === 429) {
+        // Rate limited: the rows stay, the next cycle resumes; no beacon inside the window.
+        rateLimitedUntil = Date.now() + RATE_LIMIT_WINDOW_MS;
+        return;
+      }
       await deleteUxEvents(db, ids);
     } finally {
       for (const id of ids) inFlight.delete(id);
@@ -109,11 +121,31 @@ function fitting(rows: readonly QueuedUxEvent[], maxBytes: number): { rows: Queu
 /**
  * The hidden-tab path: one batch (at most `TELEMETRY_BATCH_MAX` events and `maxBytes`) to
  * `sendBeacon`, deleted only when the browser took it. Offline, nothing is sent: a beacon
- * that cannot leave would still answer true and lose its rows. Never rejects.
+ * that cannot leave would still answer true and lose its rows, and nothing within
+ * `RATE_LIMIT_WINDOW_MS` of a 429. One beacon at a time: `visibilitychange` and `pagehide`
+ * fire back to back on a tab close, and a call while one runs resolves with that one. Never rejects.
  */
-export async function beaconTelemetry(db: AppDatabase, transport: TelemetryTransport = browserTransport, maxBytes: number = BEACON_MAX_BYTES): Promise<void> {
+export function beaconTelemetry(db: AppDatabase, transport: TelemetryTransport = browserTransport, maxBytes: number = BEACON_MAX_BYTES): Promise<void> {
+  if (beaconing !== null) return beaconing;
+  const beacon = beaconOnce(db, transport, maxBytes).finally(() => {
+    beaconing = null;
+  });
+  beaconing = beacon;
+  return beacon;
+}
+
+/** Forgets the rate-limit window and any flush or beacon in progress (tests). */
+export function resetFlushForTests(): void {
+  rateLimitedUntil = 0;
+  running = null;
+  beaconing = null;
+  inFlight.clear();
+}
+
+async function beaconOnce(db: AppDatabase, transport: TelemetryTransport, maxBytes: number): Promise<void> {
   try {
     if (!transport.online()) return;
+    if (Date.now() < rateLimitedUntil) return;
     const { rows, json } = fitting(await oldestUxEvents(db, TELEMETRY_BATCH_MAX, inFlight), maxBytes);
     if (rows.length === 0) return;
     const ids = rows.map((row) => row.id);

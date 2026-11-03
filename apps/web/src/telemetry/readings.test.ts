@@ -130,6 +130,34 @@ describe('reading results read only what may have landed (E18-A1, R-A14)', () =>
     ]);
   });
 
+  it('a photo shot here after a look, before its create came back, is pending at the next look and tracked when it lands', async () => {
+    const lookAt = Date.parse(CAPTURED) + 1_000;
+    await observeReadingResults(db, lookAt);
+    const shot = '019966b0-0033-7000-8000-0000000000f1';
+    const capturedAt = new Date(lookAt + 2_000).toISOString();
+    // Committed on this device: the entity and its outbox row, no pulled op yet.
+    await storePhoto(shot, 'none', 'plate', capturedAt);
+    await db.outbox.put({ op_id: '019966b0-0033-7000-8000-0000000001f1', client_ts: capturedAt, status: 'pending', targets: [`file:${shot}`], path: `file/${shot}` } as never);
+    await observeReadingResults(db, lookAt + 3_000);
+    expect(await events()).toEqual([]);
+    // Its create and its reading come back in one later pull, already done.
+    await putPhoto(shot, 'done', 'plate', capturedAt);
+    await observeReadingResults(db, lookAt + 9_000);
+    expect((await events()).map((e) => [e.name, e.kind, e.outcome, e.duration_ms])).toEqual([
+      ['reading_result', 'plate', 'ok', undefined],
+      ['wait', 'reading', 'ok', 7_000],
+    ]);
+  });
+
+  it('two looks started together track a landed reading once', async () => {
+    const pending = '019966b0-0033-7000-8000-0000000000f2';
+    await putPhoto(pending, 'running');
+    await observeReadingResults(db, Date.parse(CAPTURED) + 1_000);
+    await putPhoto(pending, 'done');
+    await Promise.all([observeReadingResults(db, Date.parse(CAPTURED) + 5_000), observeReadingResults(db, Date.parse(CAPTURED) + 5_001)]);
+    expect((await events()).map((e) => e.name)).toEqual(['reading_result', 'wait']);
+  });
+
   it('a look with nothing pending and nothing pulled reads no photo at all', async () => {
     await putPhoto('019966b0-0033-7000-8000-0000000000e1', 'done');
     await observeReadingResults(db, Date.parse(CAPTURED) + 1_000);

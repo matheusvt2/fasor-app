@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TELEMETRY_POST_TIMEOUT_MS } from '../api/telemetry-client.ts';
 import { openDatabase, type AppDatabase } from '../db/schema.ts';
 import { appendUxEvents, queuedUxEvents } from '../db/ux-events-store.ts';
-import { BEACON_MAX_BYTES, beaconTelemetry, flushTelemetry, type TelemetryTransport } from './flush.ts';
+import { BEACON_MAX_BYTES, beaconTelemetry, flushTelemetry, RATE_LIMIT_WINDOW_MS, resetFlushForTests, type TelemetryTransport } from './flush.ts';
 
 const DEVICE = '019966b0-0031-7000-8000-0000000000dd';
 
@@ -67,9 +67,11 @@ function fakeTransport(answers: (number | 'network')[], options: { beacon?: bool
 
 let db: AppDatabase;
 beforeEach(async () => {
+  resetFlushForTests();
   db = await freshDb();
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -244,6 +246,32 @@ describe('beaconTelemetry (Story 18.1, the hidden-tab path)', () => {
     expect(fake.beacons[0]!.body.size).toBeLessThanOrEqual(1000);
     expect(sent.map((e) => e.duration_ms)).toEqual(Array.from({ length: sent.length }, (_, i) => i));
     expect(sent.length).toBeGreaterThan(0);
+  });
+
+  it('E18-A1: two back-to-back calls (visibilitychange then pagehide on a tab close) send one beacon', async () => {
+    await queue(db, 5);
+    const fake = fakeTransport([]);
+    await Promise.all([beaconTelemetry(db, fake.transport), beaconTelemetry(db, fake.transport)]);
+    expect(fake.beacons).toHaveLength(1);
+    expect(await db.ux_events.count()).toBe(0);
+  });
+
+  it('E18-A1: within 60 s of a 429 no beacon is sent and the rows stay; after the window it sends', async () => {
+    const start = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(start);
+    await queue(db, 5);
+    await flushTelemetry(db, fakeTransport([429]).transport);
+    expect(await db.ux_events.count()).toBe(5);
+    const fake = fakeTransport([]);
+    clock.mockReturnValue(start + RATE_LIMIT_WINDOW_MS - 1);
+    await beaconTelemetry(db, fake.transport);
+    expect(fake.beacons).toHaveLength(0);
+    expect(await db.ux_events.count()).toBe(5);
+    clock.mockReturnValue(start + RATE_LIMIT_WINDOW_MS);
+    await beaconTelemetry(db, fake.transport);
+    expect(fake.beacons).toHaveLength(1);
+    expect(await db.ux_events.count()).toBe(0);
+    expect(RATE_LIMIT_WINDOW_MS).toBe(60_000);
   });
 
   it('never beacons a batch a flush has in flight', async () => {
