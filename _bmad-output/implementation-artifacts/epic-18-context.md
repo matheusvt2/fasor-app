@@ -129,3 +129,13 @@ asks for a publish outside field hours. Matheus's call next time.
 **The CLI:** `users-read-cli.ts` is in the deployed image; its first production run from the agent session was refused
 by the auto-mode permission classifier ("Production Reads"), so the runbook command (`infra/README.md`, "Map the user
 ids of the usage dashboard to people") is Matheus's to run, or to allow.
+
+*(2026-11-03, 14:12 UTC: Matheus ran the runbook command himself and pasted the output. Task `d55dd4f1` on
+`fasor-production-migrate:32`, exit 0 in 4 s, three lines in the migrate group: two users across two companies, the
+closing count `users: 2`. The two `user_names` labels of the tfvars match the CLI's names, so the "Bruno" assumption
+above is confirmed. Two readings of the output worth keeping: the smoke user shows `sessions: 0` because the smoke
+reset and cleanup revoke its sessions (`seedUser` in `apps/api/src/db/smoke-seed.ts`), so that column is always zero
+for it; and `last_session_at` is when the newest session was opened, not the last activity, since a session lives 30
+days with a daily refresh (`SESSION_EXPIRES_IN_SECONDS`, `apps/api/src/auth/auth.ts`), so the real user's
+`last_session_at` of 2026-10-28 sits under today's document generations. The dashboard's `last_seen` is the activity
+measure; the CLI's columns are account facts. Both readings now stated in `docs/observability.md` and the runbook.)*

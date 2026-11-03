@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 11-03-2026 10:40
+last_updated: 11-03-2026 11:25
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -1567,7 +1567,8 @@ action_items:
       PR #220 and applied to production the same day (ten widgets); the CLI ships with
       the next deploy; the other E18-A2 items stay open; 2026-11-03: name labels (PR #222,
       var.user_names in the operator's tfvars) and the CLI deployed in 54b11947 (smoke red at
-      step 6 once, 8 of 8 on the re-run)"
+      step 6 once, 8 of 8 on the re-run); the CLI's first production run by Matheus the same
+      day (exit 0, two users, the two labels confirmed)"
     owner: "coordinator (batch); Matheus (deploy go)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
