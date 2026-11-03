@@ -145,7 +145,7 @@ Reading order when sources disagree (per SPEC.md): `source-deltas.md` wins; then
 - NFR-12 **AI cost and control.** All AI runs in the backend through one pg-boss queue; the LLM never emits coordinates; readings are logged with tokens and USD; the backend never uses a personal Claude subscription; `LLM_PROVIDER` and `OCR_PROVIDER` default to `fake` fixture providers locally; conclusion text, parecer summary and context captions are computed on the device, never by a model.
 - NFR-13 **Multi-tenancy in the data model.** Every table carries `company_id`; every repository function takes it as a required argument; one test seeds two companies and asserts no cross-read; row-level security deferred until the second company; report type is a seed key with `cabine_primaria` as the only value.
 - NFR-14 **Regulatory accuracy.** No criterion is encoded without operator, type and a declared source (edition nullable); no periodicity is ever encoded as annual; the NR-10 text is keyed by `effective_from`; forbidden marketing claims: required by insurers; NBR 14039 requires annual maintenance; NR-10 10.15.4 d covers insulation testing.
-- NFR-15 **Product naming.** The user-visible product name comes from one config constant (PRODUTO); the codename `fasor` and the design partner's brand never appear in a user-visible string, document or file name; the Fasor Engenharia brand appears only inside the generated document; no emoji anywhere in UI, documents or mocks.
+- NFR-15 **Product naming.** The user-visible product name comes from one config constant (PRODUTO) *(2026-11-03, Matheus: its value is Conforme, Story 20.1; the constant keeps its identifier)*; the codename `fasor` and the design partner's brand never appear in a user-visible string, document or file name; the Fasor Engenharia brand appears only inside the generated document; no emoji anywhere in UI, documents or mocks.
 - NFR-16 **Design fidelity.** DESIGN.md tokens map onto the implementation without changing hex values or sizes; `tokens.css` and `components.css` are the styling layer; both light and dark themes obey the same contrast rules; theme attribute set on the root element so aliased component tokens re-resolve.
 - NFR-17 **Testing floor.** Kernel Vitest tests (seed validation, schema-reference test, op replay byte-equality, Sumário/pre-issue identity on Dexie vs Postgres, cross-tenant test); renderer snapshot test on the Porto Seguro data set plus the draft-equals-issued test; Playwright on desktop Chrome, Android Chrome emulation and WebKit for `src/db` and `src/sync` with the three FR-54 scenarios by name; iPadOS Safari eviction and camera checked manually on a device in the first two days.
 - NFR-18 **Delivery and environments.** **MVP scope: 100% local in Docker; AWS only after the MVP (Matheus, 2026-09-21).** Containers everywhere: local development always via docker-compose (web, api, Postgres 18, MinIO, OCR sidecar profile), nothing runs natively; AWS as the one cloud (ECS Fargate behind an ALB, ECR, RDS for PostgreSQL 18, S3 with versioning, Secrets Manager, CloudWatch Logs, Bedrock, Textract; region `sa-east-1`); infrastructure as ~~AWS CDK~~ Terraform *(2026-09-29, Matheus)* in `infra/`; one image built per commit in CI and promoted staging → production unchanged; config only through environment variables validated by zod at boot and Secrets Manager; structured JSON logs with `company_id`, `relatorio_id`, `job_id`; `GET /api/health`; migrations forward-only as a one-shot ECS task before the service rolls.
@@ -4798,7 +4798,7 @@ So that Home stays short when the company holds a hundred relatórios.
 
 **Today (verified 2026-10-30):** `homeCards` returns every relatório (filter `null`) or one status; nothing caps the list; the mocks' note "Mostrando 4 de 8 relatórios · Ver todos" was never built; `statusBoardCounts` counts everything.
 
-*(Definition of Ready: closed 2026-10-30 by Matheus's three answers to the draft. (1) With no tile pressed the list shows the active statuses only (Rascunho, Em campo, Em revisão); the Emitido tile of the Status board, with its count, is the one way to the emitted relatórios (his "card dos emitidos": pressing it shows them alone, pressing again returns to the active list); the empty note then says which case it is ("Nenhum relatório em andamento. 12 emitidos: toque em Emitido.", authored, composed in the kernel with `plural`) while a device with nothing keeps "Nenhum relatório ainda.". (2) The list shows at most the page size, 10 by default, chosen among 10 · 20 · 50 · 100 through a group of Filter chips (DESIGN.md § Components, the gallery's rule: exactly one pressed) beside the note "Mostrando 10 de 37 relatórios"; the note and the chips appear only when the selection holds more than the smallest page size; the choice is remembered on this device (`local_prefs`, key `home_page_size`, a read and a write in `db/prefs.ts`), never per user on the server; the mocks' "Ver todos" text button is superseded by the chips (dated note in MOCK-GUIDE, `20-home.html` and `key-home.html` redrawn). (3) The order is most recent first: by the relatório's `updated_seq` of the company summary (`RelatorioSummary.updated_seq`, the server's sequence of its last change, so an emitted relatório sorts by its emission and an active one by its last synced edit), descending, then the id; ~~a relatório with no summary entry yet sorts by its service start as today, after the ones with a sequence;~~ *(2026-10-30, Matheus, "A" to the review's question: a relatório with no summary entry yet, created on this device and not synced, is the newest thing here and sorts right after the current card, before the ones with a sequence, by its service start among themselves)* the current card (Em campo on this device) still sorts first; the same order behind every tile. Coordinator's reading of "mais recente", to be corrected by Matheus if he meant the service date. The Status board keeps its four tiles and counts over every relatório. Telemetry: `home.status_chip` as today and a new target `home.page_size` appended to `UX_ACTION_TARGETS` (Epic 18's rule: kernel first). A search and other sort keys wait for Bruno's volume answers (option D).)*
+*(Definition of Ready: closed 2026-10-30 by Matheus's three answers to the draft. (1) With no tile pressed the list shows the active statuses only (Rascunho, Em campo, Em revisão); the Emitido tile of the Status board, with its count, is the one way to the emitted relatórios (his "card dos emitidos": pressing it shows them alone, pressing again returns to the active list); the empty note then says which case it is ("Nenhum relatório em andamento. 12 emitidos: toque em Emitido.", authored, composed in the kernel with `plural`) while a device with nothing keeps "Nenhum relatório ainda.". (2) The list shows at most the page size, 10 by default, chosen among 10 · 20 · 50 · 100 through a group of Filter chips (DESIGN.md § Components, the gallery's rule: exactly one pressed) beside the note "Mostrando 10 de 37 relatórios"; the note and the chips appear only when the selection holds more than the smallest page size; the choice is remembered on this device (`local_prefs`, key `home_page_size`, a read and a write in `db/prefs.ts`), never per user on the server; the mocks' "Ver todos" text button is superseded by the chips (dated note in MOCK-GUIDE, `20-home.html` and `key-home.html` redrawn). (3) The order is most recent first: by the relatório's `updated_seq` of the company summary (`RelatorioSummary.updated_seq`, the server's sequence of its last change, so an emitted relatório sorts by its emission and an active one by its last synced edit), descending, then the id; ~~a relatório with no summary entry yet sorts by its service start as today, after the ones with a sequence;~~ *(2026-10-30, Matheus, "A" to the review's question: a relatório with no summary entry yet, created on this device and not synced, is the newest thing here and sorts right after the current card, before the ones with a sequence, by its service start among themselves)* the current card (Em campo on this device) still sorts first; the same order behind every tile. Coordinator's reading of "mais recente", to be corrected by Matheus if he meant the service date. The Status board keeps its four tiles and counts over every relatório. Telemetry: `home.status_chip` as today and a new target `home.page_size` appended to `UX_ACTION_TARGETS` (Epic 18's rule: kernel first). ~~A search and other sort keys wait for Bruno's volume answers (option D).~~ *(2026-11-03, Matheus: the search by client and obra is Story 20.2; other sort keys still wait.)*)*
 
 **Acceptance Criteria:**
 
@@ -4815,6 +4815,193 @@ So that Home stays short when the company holds a hundred relatórios.
 **Then** the empty note says so and points at the Emitido tile; a device with nothing at all keeps "Nenhum relatório ainda."
 
 **Definition of Done, in addition:** red-first kernel tests for the selection, the order, the page size and the texts; component tests for the three states and the remembered page size; `home.spec.ts` extended with the Emitido tile, the order and the chips at 390 and 1280 px; EXPERIENCE.md § Home and § Status board amended with the date; `20-home.html` and `key-home.html` redrawn with the chips in place of "Ver todos" and MOCK-GUIDE noted; the `targets.test.ts` guard covers `home.page_size`; the story gate (lint, static, test:unit, test:api, the touched specs); ~~the first digest reads `home.status_chip` on Emitido and `home.page_size` per session.~~ *(2026-10-30, review of the build: the events carry no tile and no size, so the first digest reads `home.status_chip` taps and `home.page_size` changes per session; a target per tile and per size is a ledger row of the review.)*
+
+## Epic 20: Conforme, and the field feedback of 2026-11-03
+
+Matheus, 2026-11-03, after the naming brainstorm (`_bmad-output/brainstorming/brainstorm-nome-do-produto-2026-11-03/`, untracked; INPI and domain screening there): *"Vamos com CONFORME por ora"*. He relayed five field feedback items the same day, verbatim: *"Adicionar pesquisar clientes na home"*; *"Pontos de atenção sempre após os ensaios"*; *"Local/tag dos pontos de atenção não da para editar"*; *"Evitar que a planilha dos equipamentos e verificação comece em uma página e acabe em outra"*; *"Todas as fotos precisam estar no final de cada equipamento. exemplo: verificações gerais teve não conformidade; as fotos dessa NC ficam no final da ficha do equipamento junto das demais de ensaios e etc."* His answers in the planning session (2026-11-03) are recorded under each story.
+
+Investigated 2026-11-03 by Matheus with the agent against main `cf468e3d` (context: `implementation-artifacts/epic-20-context.md`):
+
+- The name is one constant, `PRODUTO = 'PRODUTO'` (`packages/domain/src/product.ts` line 2), read by the shell, login, recovery, outdated-contract and Conta surfaces, better-auth's `appName` (`apps/api/src/auth/auth.ts` line 39) and the DOCX `creator`/`lastModifiedBy` (`jobs/generate/docx.ts` lines 354 to 356). Three strings bypass it: `apps/web/index.html` lines 6 (title) and 44 (boot splash), and the Empresa tab note in `copy/pt-br.ts` line 1604. About fifteen test files assert the literal `'PRODUTO'`. The identifiers `releng-{user_id}` (Dexie), `releng.*` (localStorage), `releng-shell-*`/`releng-hold` (service worker), the better-auth cookie prefix `releng` and every `fasor-*` AWS name are not the product name and must not change: renaming them orphans offline data or signs everyone out.
+- Home has no search: `homeList` (`home/cards.ts` lines 394 to 417) takes only `{ filter, pageSize }`; the card title is `sumarioTitle` (client · obra); Story 19.2 deferred the search to Bruno's volume answers (option D); relatórios past the 100th cannot be reached from Home (`deferred-work.md`). The only drawn search field is the Cadastros toolbar (`80-cadastros.html` lines 192 to 197, "não prototipada"); `normalizeRegistryName` (`text/normalize-name.ts`) is the accent- and case-free matcher.
+- Points of attention are not inside a ficha: they are section 8, which prints before section 9 RELATÓRIOS DOS ENSAIOS in FO.SERV-03 order. `instantiateTemplate` sorts the sections by number (`relatorio/instantiate.ts` line 229); a relatório with no section blocks falls back to `seedSectionNumbers` (`relatorio/sumario.ts` lines 198 to 202); printed numbers are positions (`print/layout.ts` line 222); the renderer breaks the page only before the sheets section (`docx.ts` line 343). The Sumário's Subir/Descer already moves a section per relatório.
+- A point's link is fixed when its editor opens (`surfaces/points/point-editor.tsx` line 148) and shown as plain text (lines 531 to 534); `writePoint` (`point-writes.ts` lines 95 to 125) never writes `equipment_id` or `location_id`; `PointField` (`relatorio/ops.ts` line 46) lacks `location_id`, though the op path allows both (`ops/path.ts` lines 70 to 77). A point created on the Points surface is "Geral" for good. The photo capture's "De qual equipamento?" picker (`photoEquipmentGroups`, `photos/gallery.ts` lines 309 to 345) already lists locals and equipment.
+- Section 9 tables (`apps/api/src/jobs/generate/sections/section-9.ts`): `drawRow` sets `cantSplit` on every row and `keepNext` only on header, band and group rows, so DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS and VERIFICAÇÕES DO LOCAL can break between any two body rows; `drawTable` sets nothing table-wide. Section 10 keeps the Parecer box whole with a one-row `cantSplit` wrapper (`sections/section-10.ts` lines 18 to 40), and `docx.ts` lines 340 to 342 note that LibreOffice drops a keep-with-next in one case.
+- A ficha prints, in order (`print/section-9.ts` `sheetOf`, lines 830 to 865): nameplate, configuration, plate photos, checklist, item and NC photos, tests and measurements, the other photos, OBSERVAÇÕES, CONCLUSÃO; a Não ensaiada sheet prints its plate photos before the reason band. Fichas follow one another with no page break. Photo numbers run plate, items, other per sheet (`print/photo-order.ts` `documentPhotoOrder`), after section 7 (Story 17.1).
+
+**Decisions (Matheus, 2026-11-03):** the name is Conforme for now, kept in the one constant so the next change is one line (20.1). The Home search covers client and obra (20.2). Section 8 prints after section 9 on every new relatório, renumbered (20.3). The point editor gets a picker that links, changes or clears the point's equipment or local (20.4). The equipment and verification tables do not split (20.5). In his words for the photos: *"não é para ter foto no meio do equipamento. São 2 alterações, a primeira é, ter um espaço entre equipamentos, tem que ter quebra de página entre equipamentos. A segunda é que as fotos devem vir entre um equipamento e outro, ou seja as fotos do equipamento devem vir após os dados do ensaio, inclusive as fotos não conforme"* (20.6). No seed and no contract bump is planned; a story that finds one necessary says so before it merges. Waves: **A**, two stacks: the web lane 20.1, then 20.2, then 20.4 (the copy module and the e2e shell specs are shared); the document lane 20.3, then 20.5, then 20.6 (`docx.ts`, `section-9.ts` and the layout golden are shared). The 2026-10-08 story gate applies to every story; the full `@p0`, `test:e2e:full` and the matrix run once on the integrated main; the deploy follows on Matheus's go.
+
+### Story 20.1: The product is called Conforme: the one constant, the page title and the boot splash
+
+**Dev model:** opus · **Effort:** medium · one constant value, two literals in `index.html`, one copy literal moved onto the constant, the tests that assert the literal, the naming lines of the planning docs and the KB; no kernel logic, no op, no contract, no identifier change
+
+As anyone opening the app or a generated document,
+I want the product to say Conforme where it said PRODUTO,
+So that the name we chose is the name people see and remember.
+
+**Today (verified 2026-11-03 on main `cf468e3d`):** the UI, the browser tab and the boot splash say "PRODUTO"; the DOCX properties carry "PRODUTO" as creator and last modified by; the Empresa tab note says "o app continua PRODUTO." as a literal.
+
+*(Definition of Ready: decided 2026-11-03 (Matheus, "Vamos com CONFORME por ora"). The value is `Conforme`, capital C only; the constant keeps its identifier `PRODUTO`. `index.html` title and splash and the Empresa note take the name from the constant or are checked against it by `boot-splash.test.ts`. Not renamed: the Dexie database `releng-{user_id}`, the `releng.*` localStorage keys, the service-worker caches, the better-auth cookie prefix, every `fasor-*` AWS name, the domain and the export file names (`relatorio-rev-{n}`). The mocks keep "PRODUTO" with a dated line in MOCK-GUIDE (they are drawings, and `tokens.css`/`components.css` must stay byte-identical); historical implementation specs and reviews are not rewritten.)*
+
+**Acceptance Criteria:**
+
+**Given** any surface of the app, signed in or not, online or offline
+**When** it renders
+**Then** the wordmark, the document titles ("Conforme", "Conta · Conforme", "Sincronização · Conforme"), the boot splash "Carregando Conforme…", the recovery, outdated-contract and Conta sentences say Conforme, and no user-visible string says PRODUTO (NFR-15)
+
+**Given** a relatório generated after the change
+**When** its DOCX and PDF are opened
+**Then** the document properties name Conforme as creator and last modified by, and the document body is unchanged: the company's own brand prints as before, the product name nowhere else (NFR-15; FR-62, FR-63)
+
+**Given** a device that used the app before the change
+**When** it loads the new build
+**Then** its offline data, its session and its preferences are intact, because no storage identifier changed (FR-54, FR-56)
+
+**Definition of Done, in addition:** `domain.test.ts` asserts `PRODUTO === 'Conforme'`; every unit and e2e test that asserted the literal asserts the constant or the new value (`app-shell.test.tsx`, `login-surface.test.tsx`, `shell-version.test.ts`, `docx.test.ts`, `shell.spec.ts`, `auth.spec.ts`, `ui-hygiene.spec.ts`, `durability.spec.ts`, `cadastros.spec.ts`, the `loading-states.spec.ts` title); a repository grep for `'PRODUTO'` outside the constant's identifier, the mocks and historical documents comes back empty; `glossary.md`, NFR-15, `AGENTS.md`, `README.md`, `DESIGN.md`, `EXPERIENCE.md` and the KB naming lines carry the dated amendment; the story gate (lint, static, test:unit, test:api, the touched specs).
+
+### Story 20.2: Search Home by client and obra
+
+**Dev model:** opus · **Effort:** high · kernel (`home/cards.ts`: a normalized search key per card, a `query` option on `homeList`, the no-match text), a search field on `home-surface.tsx` (React Aria SearchField, its label, its clear), copy, one telemetry target, the two Home mocks; no op, no contract
+
+As an engineer or the office opening Home,
+I want to type part of a client's name or of the obra and see only the relatórios that match,
+So that I find a relatório in seconds however many the company holds, including the ones past the page size.
+
+**Today (verified 2026-11-03 on main `cf468e3d`):** Home shows the Status board, the shortcuts and the list cut at the page size; nothing searches; a relatório past the 100th is unreachable from Home.
+
+*(Definition of Ready: decided 2026-11-03 (Matheus, planning session: "Cliente e obra"). The field sits in the "Relatórios" head beside "Novo relatório", drawn from the Cadastros toolbar pattern (`.field`, visually hidden label "Buscar relatório", `.input` with `#i-search`, placeholder "Cliente ou obra", authored); the match is a substring of the client name or the obra, accent-, case- and spacing-free (`normalizeRegistryName`), computed in the kernel over every relatório of the company summary. A pressed Status board tile narrows the search to its status. Coordinator's reading, to be corrected by Matheus: with no tile pressed and a query typed, the search covers every status, Emitido included, because the active-only list of Story 19.2 would otherwise hide every emitted match. The page size and its note apply to the results ("Mostrando 10 de 14 relatórios"); the current card sorts first only when it matches. No match: "Nenhum relatório encontrado para ⟨query⟩." (authored, composed in the kernel). The query is screen state, not stored; the telemetry target `home.search` records that a search was used, never its text (AD-28).)*
+
+**Acceptance Criteria:**
+
+**Given** a company with relatórios of several clients in every status
+**When** the user types "porto" in the search field with no tile pressed
+**Then** the list holds every relatório whose client or obra contains "porto" in any accent or case, most recent first, Emitido included, cut at the page size with its note; clearing the field returns the list of Story 19.2 (UX-DR26, UX-DR63)
+
+**Given** the Em campo tile pressed and a query typed
+**When** the list renders
+**Then** only the Em campo matches show; releasing the tile keeps the query and widens it to every status
+
+**Given** a query that matches nothing
+**When** the list renders
+**Then** the note "Nenhum relatório encontrado para ⟨query⟩." appears with no card, and the Status board counts stay those of the whole company
+
+**Given** the search field at 390, 768 and 1280 px
+**When** it is focused by keyboard or touch
+**Then** it is a labelled search field with a clear button, Escape clears it, focus stays in it while the list updates, and the result count is announced politely
+
+**Definition of Done, in addition:** red-first kernel tests for the key, the match (accents, case, spacing), the tile narrowing, the page cut and the no-match text; component tests for the three states; `home.spec.ts` extended with a search past the page size, an emitted match, the tile narrowing and the clear at 390 and 1280 px; the `targets.test.ts` guard covers `home.search`; `20-home.html` and `key-home.html` draw the field with a dated comment and MOCK-GUIDE a dated line; EXPERIENCE.md § Home amended with the date and the Story 19.2 deferral struck; the `deferred-work.md` line about relatórios past the 100th closed; the story gate (lint, static, test:unit, test:api, the touched specs).
+
+### Story 20.3: Pontos de atenção after the ensaios: the tests section prints before the points section on every new relatório
+
+**Dev model:** opus · **Effort:** high · kernel (`instantiateTemplate`'s section order, the Sumário rows follow), the renderer's page break before the points section, the cross-reference text checked, the layout golden; no contract, no seed change, no op
+
+As the engineer who signs the relatório and the client who reads it,
+I want the points of attention to come after the test reports,
+So that the reader meets the findings after the evidence they come from.
+
+**Today (verified 2026-11-03 on main `cf468e3d`):** a new relatório is created with its sections in FO.SERV-03 number order, so "8 PONTOS DE ATENÇÃO / SUGESTÃO DE CORRETIVAS COMPLEMENTARES" prints before "9 RELATÓRIOS DOS ENSAIOS"; the Sumário shows the same order.
+
+*(Definition of Ready: decided 2026-11-03 (Matheus, planning session: "Seção 8 após a 9"). Every relatório created after the deploy gets RELATÓRIOS DOS ENSAIOS at position 8 and PONTOS DE ATENÇÃO at position 9; the headings, the table of contents and the Sumário numbers follow, since printed numbers are positions. A relatório that exists before the deploy keeps its stored order (its Sumário's Subir/Descer still moves sections), and one with no section blocks keeps the FO.SERV-03 fallback, so no issued revision and no reprint of an existing relatório changes. The points section starts on a new page, as the tests section does. The cross-reference "nos itens 8 e 9" already resolves by position on seed v8 and later; new relatórios instantiate the current seed. The derived Não ensaiado entries stay at the end of the points section (FR-51).)*
+
+**Acceptance Criteria:**
+
+**Given** a relatório created from any template after the change
+**When** its Sumário opens
+**Then** the rows read "8 Relatórios dos ensaios" then "9 Pontos de atenção", and Subir/Descer still move either one (FR-17)
+
+**Given** that relatório generated
+**When** the DOCX and the PDF are read
+**Then** the headings print "8 RELATÓRIOS DOS ENSAIOS" then "9 PONTOS DE ATENÇÃO / SUGESTÃO DE CORRETIVAS COMPLEMENTARES", the table of contents lists them in that order with their pages, the points section starts on a new page after the last ficha, and every "conforme Imagem NN" in the points still resolves (FR-62, FR-65, FR-69)
+
+**Given** a relatório created before the change, issued or not
+**When** it is regenerated
+**Then** its section order and numbers are those it had (FR-74)
+
+**Definition of Done, in addition:** red-first kernel tests on `instantiateTemplate` (new order) and on a pre-existing relatório (order kept); `docx.test.ts` TOC order and the page-break count updated; the layout golden regenerated with `GOLDEN_UPDATE=1` only if its fixture is instantiated through the changed path, and the diff explained in the PR; `relatorio.spec.ts` or `points.spec.ts` asserts the order on a new relatório and in its PDF text; a `source-deltas.md` row (FR-17 "in FO.SERV-03 order"); the story gate (lint, static, test:unit, test:api, the touched specs).
+
+### Story 20.4: Change the equipment or local of a point of attention
+
+**Dev model:** opus · **Effort:** high · a picker in `point-editor.tsx` built on the kernel's `photoEquipmentGroups`, `writePoint` puts `equipment_id` and `location_id` in one batch, `PointField` gains `location_id`, copy, the Points mock; no contract (the op path already allows both fields)
+
+As an engineer reviewing the points of attention,
+I want to set, change or clear the equipment or local a point refers to,
+So that a point created in the wrong place, or from the Points screen as "Geral", prints under the right TAG or local.
+
+**Today (verified 2026-11-03 on main `cf468e3d`):** the editor shows the point's equipment as plain text fixed when it opened; a point created on the Points surface is "Geral" and can never be linked; a point created from an NC row or the Não ensaiado band can never be relinked.
+
+*(Definition of Ready: decided 2026-11-03 (Matheus, planning session: "Trocar o vínculo"). The editor's "Equipamento" line becomes a picker labelled "Equipamento ou local" with "Geral" first, then each local and its equipment grouped as in the photo capture's "De qual equipamento?" (`photoEquipmentGroups`), each equipment by TAG and place; picking one writes `equipment_id` and `location_id` as one batch (equipment: its id and no local; local: its id and no equipment; Geral: neither), saved with the point's other fields and undone with them. The derived Não ensaiado entries are not points and are not editable (FR-51). The picker never renames a TAG; renaming stays in the ficha header. Every point surface (the card, section 8's print, the Sumário row) shows the new link through `pointTitle`, unchanged.)*
+
+**Acceptance Criteria:**
+
+**Given** a point created on the Points surface ("Geral")
+**When** the engineer opens it, picks "TR-01 · Cabine primária" and saves
+**Then** the card and the printed bullet name TR-01 and its place, and the change syncs to another device as one batch (FR-49; AD-3)
+
+**Given** a point created from an NC row of one ficha
+**When** the engineer picks another equipment, a local, or "Geral" and saves
+**Then** the point refers to the new choice everywhere, its text, photos and action are unchanged, and a draft left open survives a reload with the picked link (FR-49, FR-61)
+
+**Given** the picker on a phone and on a desktop
+**When** it is operated by touch and by keyboard
+**Then** it is a labelled listbox with groups, the current link is selected, and focus returns to the picker after a choice
+
+**Definition of Done, in addition:** red-first tests for `writePoint` (the three link kinds, one batch), the draft value and `PointField`; `points.test.ts` for `pointTitle` after a relink; `points.spec.ts` extended: relink a "Geral" point, relink an NC point, clear to "Geral", each checked on the card and in the generated PDF text; `verificacoes-local.spec.ts` covers a point linked to a local; `72-pontos.html` draws the picker with a dated comment and MOCK-GUIDE a dated line; EXPERIENCE.md's point card row amended with the date; a `source-deltas.md` row; the story gate (lint, static, test:unit, test:api, the touched specs).
+
+### Story 20.5: The nameplate and verification tables never start on one page and end on the next
+
+**Dev model:** opus · **Effort:** high · the section 9 renderer (`drawRow`, `drawTable`, the band before a table) keeps DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS and VERIFICAÇÕES DO LOCAL whole, proven on the PDF LibreOffice makes; a per-page read for the PDF tests; no kernel order change, no contract
+
+As the client reading the relatório,
+I want each equipment's nameplate table and verification table to sit whole on one page,
+So that I never read half a table at the bottom of a page and its end on the next.
+
+**Today (verified 2026-11-03 on main `cf468e3d`):** a row never splits (`cantSplit`), but body rows carry no keep-with-next, so a table breaks between any two rows; nothing tests where a page breaks in the PDF.
+
+*(Definition of Ready: decided 2026-11-03 (Matheus, relaying the field feedback). The three tables move whole to the next page when they do not fit, with their band ("DADOS DO EQUIPAMENTO", "VERIFICAÇÕES GERAIS", "VERIFICAÇÕES DO LOCAL") and the attribution line that leads them. Approach in order of preference: keep-with-next on every row but the last plus on the band, checked in the PDF; if LibreOffice drops it, the one-row `cantSplit` wrapper of section 10. A table taller than a full page is the one case allowed to split, and then only at a row boundary. The measurement tables are out of this story; a dated line extends it if Matheus asks.)*
+
+**Acceptance Criteria:**
+
+**Given** a ficha whose VERIFICAÇÕES GERAIS table would start in the last third of a page
+**When** the relatório is generated
+**Then** in the PDF the band and the whole table start on the next page, and every row of the table is on that one page (FR-68)
+
+**Given** DADOS DO EQUIPAMENTO and VERIFICAÇÕES DO LOCAL in the same position
+**When** generated
+**Then** each moves whole with its band in the same way (FR-68)
+
+**Given** a checklist longer than one full page
+**When** generated
+**Then** it splits only at a row boundary and its header row repeats on the next page
+
+**Definition of Done, in addition:** XML assertions on the three tables in the `docx.test.ts` style (keep-with-next on every row but the last, or the wrapper); a per-page text read added to `e2e/support/pdf-text.ts` (page number per text item) and a spec that places a table at the foot of a page through the fixture and asserts it lands whole on the next page; the layout golden unchanged (it pins text only), or its diff explained; the story gate (lint, static, test:unit, test:api, the touched specs).
+
+### Story 20.6: Each equipment on its own page with all its photos at its end
+
+**Dev model:** opus · **Effort:** high · kernel (`print/section-9.ts` `sheetOf` and the Não ensaiada branch: one photo part, last; a local's block likewise), the renderer's page break before each equipment, the photo-order comments; photo numbers unchanged; no contract
+
+As the client reading the relatório,
+I want each equipment to start on a new page and its photos (plate, non-conformities, tests) to come together after its data,
+So that a ficha reads as one block and no photo interrupts its tables.
+
+**Today (verified 2026-11-03 on main `cf468e3d`):** a ficha prints the plate photos under the nameplate, the NC photos under the checklist and the other photos under the tests, then OBSERVAÇÕES and CONCLUSÃO; the next ficha starts right after it on the same page.
+
+*(Definition of Ready: decided 2026-11-03 (Matheus, planning session, his words in the epic preamble). Every equipment ficha of section 9 starts on a new page; the break goes before the first heading that introduces it (a local, group or cabine heading), so a heading never sits alone at the foot of a page, and the first ficha after the section heading takes no second break. A local's block (VERIFICAÇÕES DO LOCAL) starts on a new page the same way. Coordinator's reading of "após os dados do ensaio … no final de cada equipamento … entre um equipamento e outro", to be corrected by Matheus: the ficha prints nameplate, configuration, checklist, tests and measurements, OBSERVAÇÕES, CONCLUSÃO, then one photo block with every photo of the equipment in the order plate, checklist items (NC included, with their item reference), others; a Não ensaiada ficha prints nameplate, reason band, then its photos; a local prints its table, then its site-item photos. The numbering order (`documentPhotoOrder`) is unchanged, so every "Imagem N" in sections 7 and 8 keeps its number.)*
+
+**Acceptance Criteria:**
+
+**Given** a relatório with three equipment, one with an NC photo in VERIFICAÇÕES GERAIS, a plate photo and two test photos
+**When** it is generated
+**Then** each equipment starts on its own page, and that equipment's four photos print together after its CONCLUSÃO, plate first, then the NC photo with its item reference, then the test photos, with no photo between its tables (FR-67, FR-68)
+
+**Given** a Não ensaiada equipment with a plate photo
+**When** generated
+**Then** it starts on a new page with its nameplate and reason band, and the plate photo prints after the band (FR-31, FR-68)
+
+**Given** the photo numbers before and after the change on the same relatório
+**When** compared
+**Then** every photo keeps its number and every "conforme Imagem NN" in the points resolves to the same photo (FR-48)
+
+**Definition of Done, in addition:** red-first kernel tests in `print/section-9.test.ts` for the part order of an ensaiada, a Não ensaiada and a local block; `photo-order.test.ts` and `numbering.test.ts` green unchanged; `docx.test.ts` asserts a page break before each ficha and none doubled after the section heading; the layout golden regenerated with the diff explained; `photo-numbers.spec.ts`, `display-shots.spec.ts` 16.3-E2E-001, `section-7-by-hand.spec.ts` 17.1-E2E-001 and `sheet-photos.spec.ts` 11.11-E2E-001 updated to the new placement and a check that each ficha starts a page in the PDF (through the per-page read Story 20.5 adds); a `source-deltas.md` row (FR-68 "photos linked to the equipment beside its tables"); the story gate (lint, static, test:unit, test:api, the touched specs).
 
 ## Backlog: deferred stories
 

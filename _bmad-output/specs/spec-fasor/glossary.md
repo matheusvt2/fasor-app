@@ -4,7 +4,7 @@ Fixed vocabulary for every downstream artifact. Portuguese terms are the domain'
 
 **Product and structure**
 
-- **Releng** — working title of the product; the UI shows the placeholder **PRODUTO** until a name is confirmed. **fasor** is the internal codename and the design partner's company name (Fasor Engenharia); it never surfaces in a user-visible string, document or file name.
+- **Releng** — working title of the product; ~~the UI shows the placeholder **PRODUTO** until a name is confirmed.~~ *(2026-11-03, Matheus: the product is named **Conforme** "por ora"; the name lives in the one constant `PRODUTO` of `packages/domain/src/product.ts`, Story 20.1.)* **fasor** is the internal codename and the design partner's company name (Fasor Engenharia); it never surfaces in a user-visible string, document or file name.
 - **Relatório** — one visit's technical report: an instance of a Template inside a Project. Owns filled data, photos, points of attention and export revisions. The unit of delivery and of billing. Code, routes and paths use `relatorio`. "Laudo" is not used (the received form calls itself a relatório eight times; NR-10 names the required document a relatório).
 - **Project** — one client and site. Owns many relatórios and the site's Equipment rows. Container only; carries no report data. Site is collapsed into Project in the MVP.
 - **Template** — a reusable ordered composition of Blocks with quantities, sub-block defaults, subtypes and the **location skeleton** (cabines and columns with quantities per column). Not tied to a Project; editing one never touches relatórios created from it. Seeded: "Cabine primária — padrão".
