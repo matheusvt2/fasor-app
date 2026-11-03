@@ -105,6 +105,27 @@ deferred: []
 - Given `infra/bin/check` offline and `scripts/telemetry-queries.test.ts`, when they run, then every view validates and names only kernel fields and literals, 16 of the 17 (all but `users`) start with the smoke filter, and `SOURCE` is the group.
 - Given the runbook and the digest template, when the next digest is written, then each of the five questions names a view and what a reader concludes.
 
+## Review Triage Log
+
+### 2026-11-03 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer (opus); Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them)
+- verdicts: 14 findings — high 0, medium 7, low 6, false 1, maybe-false 0
+- findings:
+  - `[medium]` `patch` VG-1 six refusal sites (grid cell, dictated cell, `SuggestedCell`/`EnvSuggestionFill`, `SuggestionFill`, `KvField`, altitude, `DatePickerField`) had no test of their `trackInputRefused` call — one case each added (`surfaces/ficha/input-refusals.test.tsx`, `word-registry-panel.test.tsx`, `setup-surface.test.tsx`, `ficha-fields.test.tsx`)
+  - `[medium]` `patch` VG-2 the generate wait's `fail` (job failed after the answer), `timeout` and missing-files `refused` branches untested — three cases added to the Story 18.4 block of `export-dialog.test.tsx`
+  - `[medium]` `patch` VG-O1 Enter on a refused grid cell reported twice (Enter settles, the focus move's blur settles again) — `useNumberInput` skips the blur report of the text an Enter already reported; red-first test
+  - `[low]` `reject` ECH-1 a route change while the tab is hidden opens a view `resumeScreen` cannot reopen — rare (a programmatic navigation on a hidden tab) and the fix is a new guard; ledger row (accepted)
+  - `[low]` `reject` ECH-2 a full surface unmounting in the same commit as a route change writes a near-zero view of the cached route — rare and the fix is a new branch; ledger row (accepted)
+  - `[low]` `patch` ECH-3 a signed-out load of `/` writes a few-ms Home view with no `from`, read as a landing by `home_first_nav` — runbook sentence beside the view (E18-A3 rule)
+  - `[medium]` `patch` ECH-4 the hooks stay mounted while the Export dialog is closed, so closing it mid-generate left the wait open and a later `ok` counted the closed time — `useGenerate.cancelWait` called by the dialog's close effect; test
+  - `[low]` `patch` ECH-5 a ready revision that never reaches the device leaves the wait open until it reads `cancel` — runbook sentence (no timer added)
+  - `[low]` `patch` ECH-6 an expired preview reads `fail` while an expired generate reads `timeout` — runbook sentence (no new error type)
+  - `[false]` `reject` ECH-7 waiting for the write chain before the beacon loses the beacon on unload — the beacon already read the queue asynchronously, and rows not beaconed stay queued and ship with the next flush
+  - `[low]` `patch` ECH-8 a bfcache restore may fire `pageshow` without a `visibilitychange`, so no view reopens — `pageshow` with `persisted` calls `resumeScreen`; test
+  - `[medium]` `patch` ECH-9 the rotated session's `session_start` was stamped after the held events it precedes — it takes the earliest held `ts`; red-first test. The previous user's held events taking the new id is e18fa's design: ledger row
+  - `[medium]` `patch` ECH-10 the provider tests of the `observeCycle` and "Sincronizar agora" wiring were removed with the extraction — two `SyncProvider` tests restored
+  - `[medium]` `patch` ECH-11 AC 1 ("anything else on those events is still refused"): `target` and `outcome` passed on `screen_view`, the base optional keys on `session_start` — refused now, red-first kernel tests (no producer sends them)
+
 ## Design Notes
 
 **Views (keys, all starting with `${local.ux_smoke_filter}`; write `` `from` `` backticked):**

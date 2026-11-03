@@ -2811,3 +2811,13 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   evidence: `e2e/usage-events.spec.ts` 18.4-E2E-001.
   class: test-gap
   state: accepted (2026-11-03, batch s184: the assertion is the same, with a word that cannot occur in an id)
+- source_spec: `_bmad-output/implementation-artifacts/spec-s184-events-say-how-long.md`
+  summary: On a sign-out and another user's sign-in in the same tab, the events tracked while no database was configured (the first user's last `screen_view`, written when the login opens) take the new user's session id, so the `paths` view can show the first user's last screen at the start of the second user's session (review ECH-9, second half; the rotated `session_start` now takes the earliest held `ts`).
+  evidence: `apps/web/src/telemetry/track.ts` `configureTelemetry` (held events re-stamped, batch e18fa R-A15 design); `apps/web/src/telemetry/views.ts` (the view left on the route to the login).
+  class: risk
+  state: open (owner: the next telemetry story; options: drop held events older than the sign-in, or keep them under the old id)
+- source_spec: `_bmad-output/implementation-artifacts/spec-s184-events-say-how-long.md`
+  summary: Review ECH-1 and ECH-2, accepted: a route change while the tab is hidden opens a view the tab's return cannot reopen (its hidden time counts), and a full surface (426 update, eviction recovery) that goes in the same commit as a route change writes a near-zero view of the route cached before it.
+  evidence: `apps/web/src/telemetry/views.ts` `enterScreen`, `resumeScreen`; `apps/web/src/telemetry/hooks.ts` `useScreenView` cleanup.
+  class: risk
+  state: accepted (2026-11-03, batch s184 review: both are rare and their fix is a new guard; reopen if `screen_time` shows outliers on `update` or `recovery`)
