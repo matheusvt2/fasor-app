@@ -2,6 +2,7 @@ import { uuidV7Schema } from '@app/domain';
 import { loadConfigOrExit } from '../config.ts';
 import { log, logError } from '../log.ts';
 import { createDb } from './client.ts';
+import { readThenEnd } from './cli-run.ts';
 import { readFriction, totalsOf } from './friction-read.ts';
 
 /**
@@ -42,12 +43,13 @@ function parseArgs(argv: readonly string[]): { companyId: string } {
   let companyId: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i]!;
-    if (flag !== '--company') throw new UsageError(`unknown argument ${JSON.stringify(flag)}`);
+    // E18-A1 (R-A18): a refusal names the expected shape, never the argument or the value (stderr is a log group in production).
+    if (flag !== '--company') throw new UsageError('unknown argument: the only flag is --company <uuidv7>');
     const value = argv[i + 1];
-    if (value === undefined || value.startsWith('--')) throw new UsageError(`${flag} needs a value`);
+    if (value === undefined || value.startsWith('--')) throw new UsageError('--company needs a value: --company <uuidv7>');
     i++;
     if (companyId !== undefined) throw new UsageError('--company given twice');
-    if (!uuidV7Schema.safeParse(value).success) throw new UsageError(`--company must be a uuidv7, got ${JSON.stringify(value)}`);
+    if (!uuidV7Schema.safeParse(value).success) throw new UsageError('--company must be a uuidv7');
     companyId = value;
   }
   if (companyId === undefined) throw new UsageError('--company is required');
@@ -59,7 +61,7 @@ async function run(): Promise<void> {
   const { companyId } = parseArgs(process.argv.slice(2));
   const config = loadConfigOrExit();
   const { sql, db } = createDb(config.DATABASE_URL);
-  try {
+  await readThenEnd(async () => {
     const report = await readFriction(db, companyId);
     for (const relatorio of report.relatorios) {
       for (const sheet of relatorio.sheets) log('friction sheet', { company_id: companyId, relatorio_id: relatorio.relatorio_id, ...sheet });
@@ -68,9 +70,7 @@ async function run(): Promise<void> {
       log('friction relatorio', { company_id: companyId, relatorio_id: relatorio.relatorio_id, status: relatorio.status, ...totalsOf(relatorio.sheets) });
     }
     log('friction company', { company_id: companyId, ...report.company });
-  } finally {
-    await sql.end();
-  }
+  }, () => sql.end());
 }
 
 run().then(

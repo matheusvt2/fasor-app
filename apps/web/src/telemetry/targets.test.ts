@@ -21,6 +21,24 @@ function sources(dir: string): string[] {
   });
 }
 
+/** Each `action: { … }` object literal of `text`, braces balanced (an `onPress` body may hold its own). */
+function actionObjects(text: string): string[] {
+  const found: string[] = [];
+  for (const match of text.matchAll(/action:\s*\{/g)) {
+    const start = match.index + match[0].length - 1;
+    let depth = 0;
+    for (let at = start; at < text.length; at += 1) {
+      if (text[at] === '{') depth += 1;
+      else if (text[at] === '}') depth -= 1;
+      if (depth === 0) {
+        found.push(text.slice(start, at + 1));
+        break;
+      }
+    }
+  }
+  return found;
+}
+
 describe('the minimum instrumentation is wired to the surfaces', () => {
   const text = sources(SRC).join('\n');
 
@@ -32,6 +50,13 @@ describe('the minimum instrumentation is wired to the surfaces', () => {
       return !text.includes(`'${target}'`) && !text.includes(`"${target}"`);
     });
     expect(missing).toEqual([]);
+  });
+
+  it('E18-A1 (R-V10): every toast action labelled by an `.undo` copy key is an undo (`undo: true`), so its "Desfazer" is counted', () => {
+    const undoActions = actionObjects(text).filter((action) => /label:\s*[\w.]+\.undo\b/.test(action));
+    // The four registry panels and the photo viewer, at least.
+    expect(undoActions.length).toBeGreaterThanOrEqual(5);
+    expect(undoActions.filter((action) => !/\bundo:\s*true\b/.test(action))).toEqual([]);
   });
 
   it('tracks every dialog target', () => {

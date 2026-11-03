@@ -19,6 +19,8 @@ import { SyncRequestError } from '../../sync/client.ts';
 import { ExportDialog } from './export-dialog.tsx';
 import { onReAuthRequired } from '../../api/auth-client.ts';
 import { MemoryRouter } from 'react-router';
+import { queuedUxEvents } from '../../db/ux-events-store.ts';
+import { configureTelemetry, resetTelemetryForTests, whenTelemetryWritten } from '../../telemetry/track.ts';
 
 /*
  * Story 4.8: the Export dialog over a real device database (the small Porto Seguro
@@ -1804,5 +1806,27 @@ describe('Story 16.2 review: the banner waits for both reads of the latest snaps
     expect(result.current.sent.read).toBe(false);
     expect(result.current.edited.read).toBe(false);
     await waitFor(() => expect(result.current.sent).toEqual({ sent: false, read: true }));
+  });
+});
+
+describe('Export dialog usage events (E18-A1, R-V7)', () => {
+  it('queues dialog_open on open and dialog_cancel on Esc, both on the export screen', async () => {
+    database = await freshDb();
+    resetTelemetryForTests();
+    configureTelemetry({ db: database, deviceId: '019966c1-0049-7000-8000-0000000000dd' });
+    try {
+      render(<Harness sync={syncState()} />);
+      await waitFor(() => expect(generateButton()).not.toHaveAttribute('aria-disabled'));
+      await userEvent.keyboard('{Escape}');
+      await whenTelemetryWritten();
+      const events = (await queuedUxEvents(database)).filter((e) => e.name === 'dialog_open' || e.name === 'dialog_cancel');
+      expect(events.map(({ name, target, screen }) => ({ name, target, screen }))).toEqual([
+        { name: 'dialog_open', target: 'export', screen: 'export' },
+        { name: 'dialog_cancel', target: 'export', screen: 'export' },
+      ]);
+    } finally {
+      configureTelemetry(null);
+      resetTelemetryForTests();
+    }
   });
 });

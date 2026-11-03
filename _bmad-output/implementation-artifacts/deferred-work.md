@@ -2609,3 +2609,31 @@ Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
   evidence: Deploy of 2026-11-03 (`.scratch-prodfix/deploy-54b11947.log`, artifacts in `.scratch-prodfix/smoke-fail-54b11947/`): `page.waitForRequest: Target page, context or browser has been closed` at `e2e/production/production.smoke.ts:270`, 24 s into the run, steps 1 to 5 green, no preview request of the smoke company in the api log; the same suite 8 of 8 minutes later (`.scratch-prodfix/smoke-rerun-54b11947.log`). The web closes the tab it opened when the preview fails or times out on the device; what failed on the device side was not captured. To decide: the step retries once after a fresh `page.goto`, or the suite captures the device's error toast and console on failure; an automatic re-run of the suite in `infra/bin/deploy` is open question Q-1 of 2026-10-15.
   class: risk
   state: open (owner: the next infra batch, E18-A2 or E15-A10)
+
+## Deferred from: batch e18fa (2026-11-03)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e18fa-code-fix-batch.md`
+  summary: The end-to-end half of R-E3 (a tap on a read-only checklist segment queues a `disabled_tap`) cannot be observed in a browser: `.is-readonly .tri-state { pointer-events: none; }` (the locked `components.css:817`, repeated in `ficha.css:28`) sends the tap to the row beneath, so no `[data-telemetry]` control receives the `pointerdown`.
+  evidence: Batch e18fa: the instrument treats a control inside `[aria-readonly="true"]` as disabled (`instrument.ts` `isDisabled`) and the unit test proves it in jsdom, where no stylesheet applies; the `E5-A2-E2E-004` assertion the spec asked for was not written, since it would fail on every project. To decide: accept the unit coverage, or let the read-only group take pointer events (an `app.css` mirror of the mock rule without `pointer-events: none`, the Tri-state's own guard already refusing the press), which is a look-and-behaviour change for Sally and Matheus.
+  class: risk
+  state: open (owner: Matheus decides; the coordinator records it in the PR)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e18fa-code-fix-batch.md`
+  summary: The reading watcher no longer sees a photo whose only change reached this device through a snapshot download rather than the pulled op log (`remote_ops`).
+  evidence: R-A14 narrowing (`telemetry/readings.ts`): after the baseline, a look reads the photos pending at the last look and the `file` entities named by `remote_ops` rows above the last seen `seq`. A relatório downloaded as a snapshot writes entities without `remote_ops` rows, so a reading that lands that way is not tracked; a photo pending at the last look is still read by key. Spec Design Notes.
+  class: risk
+  state: open (owner: Story 18.4, if the first digest shows reading waits missing)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e18fa-code-fix-batch.md`
+  summary: A 401 on `POST /api/telemetry` still deletes the batch (only 429 was named for keeping), so a session that expires with a full queue loses it.
+  evidence: `telemetry/flush.ts` `drain`: kept on a 5xx, a network failure, a timeout and a 429; deleted on every other 4xx, 401 included (Q1 of Story 18.1). The retro's production read saw one 401 batch dropped after `prodpass.sh cleanup`. Open question of the PR.
+  class: risk
+  state: open (owner: Matheus decides; Story 18.4 if kept)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e18fa-code-fix-batch.md`
+  summary: A session id rotated for a second user in the same tab queues no `session_start` of its own, so the `sessions` views count it only through `count_distinct(session_id)` of its other events.
+  evidence: R-A15 (`telemetry/track.ts` `configureTelemetry`): the id rotates when the database name differs from the last one; no event is queued on rotation (spec Design Notes). Open question of the PR.
+  class: question
+  state: open (owner: Story 18.4)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e18fa-code-fix-batch.md`
+  summary: Structural block puts (`location_id`, `order_key`, `removed_at`, `feeds_block_id`) left the friction read's spans and re-edits but still count in `device_op_count`.
+  evidence: R-A16 (`apps/api/src/db/friction-read.ts`): the item named spans and re-edits only. Whether the device op count should drop them too is an open question of the PR.
+  class: question
+  state: open (owner: Matheus decides at the first digest, E18-A7)

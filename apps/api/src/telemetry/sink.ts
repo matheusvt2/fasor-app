@@ -1,5 +1,5 @@
 import type { StampedUxEvent } from '@app/domain';
-import { CloudWatchLogsClient, CreateLogStreamCommand, PutLogEventsCommand } from '@aws-sdk/client-cloudwatch-logs';
+import { CloudWatchLogsClient, CreateLogStreamCommand, PutLogEventsCommand, type CloudWatchLogsClientConfig } from '@aws-sdk/client-cloudwatch-logs';
 import type { Config } from '../config.ts';
 import { log, logError } from '../log.ts';
 
@@ -15,10 +15,13 @@ export interface TelemetrySink {
   write(events: readonly StampedUxEvent[]): Promise<void>;
 }
 
-/** One `ux_event` JSON line per event on stdout. */
+/**
+ * One `ux_event` JSON line per event on stdout. The line's own `ts` is the log's instant; the
+ * device's instant is `event_ts` (E18-A1, R-E6: spread as is, it overwrote the line's).
+ */
 export const stdoutSink: TelemetrySink = {
   write: async (events) => {
-    for (const event of events) log('ux_event', { ...event });
+    for (const { ts, ...event } of events) log('ux_event', { ...event, event_ts: ts });
   },
 };
 
@@ -85,9 +88,19 @@ export function cloudWatchSink(options: CloudWatchSinkOptions): TelemetrySink {
   };
 }
 
+/**
+ * E18-A1 (R-A4, the api half): a put that hangs gives up after 5 s and is tried once more at
+ * most, so a stalled CloudWatch endpoint never holds a request (the device's post waits on
+ * the sink) for the SDK's defaults.
+ */
+export const CLOUDWATCH_CLIENT_CONFIG = { maxAttempts: 2, requestHandler: { requestTimeout: 5_000 } } as const satisfies CloudWatchLogsClientConfig;
+
 /** The production sink: the default credential chain (the task role), region from `AWS_REGION`. */
-export function createCloudWatchSink(logGroup: string): TelemetrySink {
-  return cloudWatchSink({ client: new CloudWatchLogsClient({}), logGroup, now: () => new Date(), pid: process.pid });
+export function createCloudWatchSink(
+  logGroup: string,
+  makeClient: (config: CloudWatchLogsClientConfig) => CloudWatchLogsLike = (config) => new CloudWatchLogsClient(config),
+): TelemetrySink {
+  return cloudWatchSink({ client: makeClient({ ...CLOUDWATCH_CLIENT_CONFIG }), logGroup, now: () => new Date(), pid: process.pid });
 }
 
 /** The sink the configuration names (`main.ts`): CloudWatch on `TELEMETRY_LOG_GROUP`, else stdout. */

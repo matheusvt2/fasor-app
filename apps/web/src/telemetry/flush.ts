@@ -7,10 +7,13 @@ import { whenTelemetryWritten } from './track.ts';
 /*
  * Epic 18, Story 18.1 (AD-28): draining the usage-event queue. After every sync cycle that
  * ran, `flushTelemetry` posts the oldest events in batches of at most `TELEMETRY_BATCH_MAX`;
- * on `visibilitychange: hidden`, `beaconTelemetry` hands one batch to `sendBeacon`. A batch
- * is deleted on a 2xx and on any 4xx (an invalid batch is dropped, never retried) and kept on
- * a 5xx or when the network fails. One flush at a time, and a row in flight is never sent
- * by another path: events are never posted twice concurrently.
+ * on `visibilitychange: hidden` and on `pagehide`, `beaconTelemetry` hands one batch to
+ * `sendBeacon`. A batch is deleted on a 2xx and on any 4xx but 429 (an invalid batch is
+ * dropped, never retried); it is kept on a 5xx, when the network fails or the post times out
+ * (`TELEMETRY_POST_TIMEOUT_MS`), and on a 429, which also ends the flush: the server's
+ * limiter scheduled the refusal, so the next `ran` cycle resumes (E18-A1, R-A1). One flush
+ * at a time, and a row in flight is never sent by another path: events are never posted
+ * twice concurrently.
  */
 
 /** sendBeacon's quota is 64 KiB per page; a beacon carries at most this many bytes. */
@@ -62,6 +65,7 @@ async function drain(db: AppDatabase, transport: TelemetryTransport): Promise<vo
         return; // No network: the rows stay for the next flush.
       }
       if (status >= 500) return; // The server failed: the rows stay.
+      if (status === 429) return; // Rate limited: the rows stay, the next cycle resumes.
       await deleteUxEvents(db, ids);
     } finally {
       for (const id of ids) inFlight.delete(id);

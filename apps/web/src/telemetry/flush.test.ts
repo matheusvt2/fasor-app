@@ -1,7 +1,8 @@
 // @vitest-environment node
 import 'fake-indexeddb/auto';
 import { TELEMETRY_BATCH_MAX, TELEMETRY_ROUTE, uxEventSchema, type UxEvent } from '@app/domain';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { TELEMETRY_POST_TIMEOUT_MS } from '../api/telemetry-client.ts';
 import { openDatabase, type AppDatabase } from '../db/schema.ts';
 import { appendUxEvents, queuedUxEvents } from '../db/ux-events-store.ts';
 import { BEACON_MAX_BYTES, beaconTelemetry, flushTelemetry, type TelemetryTransport } from './flush.ts';
@@ -68,6 +69,10 @@ let db: AppDatabase;
 beforeEach(async () => {
   db = await freshDb();
 });
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe('flushTelemetry (Story 18.1)', () => {
   it('posts the queue in batches of at most 200 and deletes each batch on a 2xx', async () => {
@@ -90,12 +95,24 @@ describe('flushTelemetry (Story 18.1)', () => {
     expect(await db.ux_events.count()).toBe(0);
   });
 
-  it('drops on a 401 and a 429 too (every 4xx)', async () => {
+  it('drops on a 401 too (every 4xx but 429)', async () => {
     await queue(db, 3);
     await flushTelemetry(db, fakeTransport([401]).transport);
     expect(await db.ux_events.count()).toBe(0);
-    await queue(db, 3);
-    await flushTelemetry(db, fakeTransport([429]).transport);
+  });
+
+  it('E18-A1 (R-A1): a 429 mid-drain keeps that batch and the rest and ends the flush; the next flush resumes', async () => {
+    await queue(db, 600);
+    const fake = fakeTransport([204, 429, 204]);
+    await flushTelemetry(db, fake.transport);
+    // The first batch went; the refused one and the third were never deleted, and no third post was made.
+    expect(fake.posts.map((p) => p.length)).toEqual([200, 200]);
+    expect(await db.ux_events.count()).toBe(400);
+    expect((await queuedUxEvents(db)).map((e) => e.duration_ms)).toEqual(Array.from({ length: 400 }, (_, i) => i + 200));
+    const next = fakeTransport([204, 204]);
+    await flushTelemetry(db, next.transport);
+    expect(next.posts.map((p) => p.length)).toEqual([200, 200]);
+    expect(next.posts[0]![0]!.duration_ms).toBe(200);
     expect(await db.ux_events.count()).toBe(0);
   });
 
@@ -132,6 +149,38 @@ describe('flushTelemetry (Story 18.1)', () => {
     // The first flush went on to the last 5; no event was posted twice.
     expect(fake.posts.map((p) => p.length)).toEqual([200, 5]);
     expect(new Set(fake.posts.flat().map((e) => e.duration_ms)).size).toBe(205);
+    expect(await db.ux_events.count()).toBe(0);
+  });
+
+  it('E18-A1 (R-A4): a post that never settles is aborted after the timeout, the rows stay and a later flush starts a new drain', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await queue(db, 5);
+    const fetch = vi.fn(
+      (_input: string, init: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+        }),
+    );
+    vi.stubGlobal('fetch', fetch);
+    const stalled = flushTelemetry(db);
+    let ended = false;
+    void stalled.then(() => {
+      ended = true;
+    });
+    // Real turns of the event loop (not `vi.waitFor`, which would advance the fake clock).
+    for (let turn = 0; turn < 200 && fetch.mock.calls.length === 0; turn += 1) await new Promise((resolve) => setImmediate(resolve));
+    expect(fetch).toHaveBeenCalledTimes(1);
+    // While the post hangs, another flush starts nothing.
+    void flushTelemetry(db);
+    await vi.advanceTimersByTimeAsync(TELEMETRY_POST_TIMEOUT_MS - 1);
+    expect(ended).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await stalled;
+    expect(await db.ux_events.count()).toBe(5);
+    fetch.mockImplementation(async () => new Response(null, { status: 204 }));
+    await flushTelemetry(db);
+    expect(fetch).toHaveBeenCalledTimes(2);
     expect(await db.ux_events.count()).toBe(0);
   });
 
