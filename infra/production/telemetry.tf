@@ -8,7 +8,9 @@ resource "aws_cloudwatch_log_group" "ux_events" {
 }
 
 # The app role writes its own streams on that group and nothing else of CloudWatch Logs:
-# DescribeLogStreams is scoped to the group, CreateLogStream and PutLogEvents to its streams.
+# CreateLogStream and PutLogEvents on the group and its streams. 2026-11-03 (E18-A2, review
+# R-A11): no DescribeLogStreams, which the sink never calls (`apps/api/src/telemetry/sink.ts`
+# creates its stream and counts an existing one as created).
 resource "aws_iam_role_policy" "app_ux_events" {
   name = "ux-events-log-group"
   role = aws_iam_role.app.id
@@ -18,7 +20,7 @@ resource "aws_iam_role_policy" "app_ux_events" {
       {
         Sid      = "WriteUxEvents"
         Effect   = "Allow"
-        Action   = ["logs:CreateLogStream", "logs:DescribeLogStreams", "logs:PutLogEvents"]
+        Action   = ["logs:CreateLogStream", "logs:PutLogEvents"]
         Resource = [aws_cloudwatch_log_group.ux_events.arn, "${aws_cloudwatch_log_group.ux_events.arn}:*"]
       },
     ]

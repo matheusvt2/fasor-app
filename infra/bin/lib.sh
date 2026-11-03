@@ -31,3 +31,32 @@ aws_session_env() {
     -v "$HOME/.aws:/home/aws/.aws" "$AWS_CLI_IMAGE" \
     configure export-credentials --profile "$profile" --format env-no-export
 }
+
+# aws_retry <command...> (E15-A10, batch e18fb 2026-11-03): runs the command and, when it exits
+# 255 with a lost-connection message of the AWS CLI on stderr, pauses and runs it again, up to
+# DEPLOY_RETRY_ATTEMPTS attempts in all (default 5) with DEPLOY_RETRY_PAUSE_S seconds between
+# them (default 15). Any other failure (a waiter out of attempts, AccessDenied) returns at
+# once. stdout passes through; each attempt's stderr is re-emitted after it. stdin is
+# /dev/null, so infra/bin/aws never allocates a terminal (`-it`), which would send the
+# container's stderr to stdout and hide the message from the check. Only for calls
+# that are safe to repeat (reads, waits, `ssm put-parameter --overwrite`), never `run-task`.
+# The v0.3.0 deploy (2026-10-23) lost https://ecs.us-east-1.amazonaws.com/ during
+# `ecs wait services-stable` right after the roll, and `set -e` ended it before the tag record.
+AWS_RETRY_PATTERN='Could not connect to the endpoint URL|Connect timeout on endpoint URL|Read timeout on endpoint URL|Connection was closed'
+aws_retry() {
+  local attempts="${DEPLOY_RETRY_ATTEMPTS:-5}" pause="${DEPLOY_RETRY_PAUSE_S:-15}" attempt=1 status err
+  err="$(mktemp "${TMPDIR:-/tmp}/aws-retry.XXXXXX")"
+  while :; do
+    status=0
+    "$@" </dev/null 2>"$err" || status=$?
+    cat "$err" >&2
+    if [ "$status" = 255 ] && [ "$attempt" -lt "$attempts" ] && grep -Eq "$AWS_RETRY_PATTERN" "$err"; then
+      attempt=$((attempt + 1))
+      echo "deploy: lost the AWS endpoint (exit 255); attempt $attempt of $attempts in ${pause}s" >&2
+      sleep "$pause"
+      continue
+    fi
+    rm -f "$err"
+    return "$status"
+  done
+}
