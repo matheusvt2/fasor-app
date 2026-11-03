@@ -841,6 +841,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: deferred
   state: ~~open (owner: Epic 7 batch G2 or the integrated Epic 7/8 review)~~ closed (2026-09-28, `spec-epic-9-carry-over.md`, batch C1, E7-A4: `preIssue`'s calibration rows iterate `section11Instruments(snapshot)` and judge each on its registry row, so they name exactly what section 11 prints; `pre-issue-export.test.ts` "the calibration rows follow section 11's own list")
 
+
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-2-7-3-photo-record-points-certificates.md`
   summary: Narrowing. Section 11 prints the placeholder line for an instrument with no certificate attached, but the pre-issue warning row for it is not built. The kernel list it reads is ready: `missingCertificates(snapshot)` in `packages/domain/src/print/section-11.ts`.
   evidence: Epic 7 context, coordinator decisions of 2026-09-26: the pre-issue rows are batch G3's (Stories 7.4/7.5), and batch G2 does not touch `preIssue`.
@@ -1968,6 +1969,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: debt
   state: ~~open (owner: the next carry-over batch, with the two entries it points at)~~ closed (2026-10-14, batch co14a): 6.6-E2E-011, 7.5-E2E-003 and 7.5-E2E-004 pressed `Escape` before React Aria handed the focus back to the dialog (the E9-Q13 family); each now waits for it through the shared `escapeDialog` and asserts the dialog closed. WebKit F-11 was a product defect: WebKit's focus scroll ignores `scroll-padding-bottom` (probe: padding 133 px set, the reading left at 698 px under a bar whose top was 612 px of 800), so a keyboard-moved focus is now scrolled clear of the Sticky action bar and the App bar by `keepClearOfStickyBar` (`toast.tsx`, beside the `--sticky-bar-covered` writer, all browsers), run on the focus and again when the page or the bar changes size within 1.5 s (the reading left grows its row on blur; the Bulk mirror joins the bar); the test now measures three frames after each key, as a person sees it, since both changes land a frame later and WebKit has no scroll anchoring. F-11 on `durability-webkit`: 5 of 5 with the fix, red with the hook removed.
 
+
 ## Deferred from: Story 14.5, the measurement table and the Chave de transferência automática (2026-10-13)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
@@ -2144,6 +2146,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: process
   state: ~~open (owner: the coordinator, with this batch's orchestrator: merge main after e14b merges, gate, open the PR)~~ closed (2026-10-14: PR #126 and PR #127 merged; this branch merged `origin/main` at `3acbddb`, taking main's version of every file the batch did not change and re-applying the Story 14.5 delta on the 114 it did, and gated on that merge)
 
+
 ## Deferred from: Epic 14 QA fix batch (2026-10-14)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-14-qa-fixes.md`
@@ -2175,6 +2178,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: the `install` service of `docker-compose.yml`; pnpm 12.5.1.
   class: debt
   state: ~~open (owner: tooling)~~ closed (2026-10-14, `spec-e14-carry-over-b.md`, E14-A13: pnpm 12 reads its settings from `pnpm_config_*` only, so the `npm_config_store_dir` of the `x-app-env` anchor was ignored and every pnpm call in a container looked for a store itself, writing `_tmp_<pid>_*` probe files into the bind-mounted worktree root (seen 3 to 6 per `install`, left behind when a run is cut short). The anchor now sets `pnpm_config_store_dir` to the store that lookup already picked, `/workspace/node_modules/.pnpm-store`, which skips the probe: no `_tmp_*` file during `install` or `pnpm exec`, `--frozen-lockfile` green, packages still hard linked from the same store, and a fresh set of volumes installs clean.)
+
 
 ## Deferred from: production deploy v0.2.0 (2026-10-14)
 
@@ -2605,7 +2609,7 @@ Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
   summary: The production smoke's step 6 ("preview the PDF") can fail right after a roll with the preview tab closed before the preview request is observed; the deploy then exits 1 without rolling back and the suite has to be re-run by hand.
   evidence: Deploy of 2026-11-03 (`.scratch-prodfix/deploy-54b11947.log`, artifacts in `.scratch-prodfix/smoke-fail-54b11947/`): `page.waitForRequest: Target page, context or browser has been closed` at `e2e/production/production.smoke.ts:270`, 24 s into the run, steps 1 to 5 green, no preview request of the smoke company in the api log; the same suite 8 of 8 minutes later (`.scratch-prodfix/smoke-rerun-54b11947.log`). The web closes the tab it opened when the preview fails or times out on the device; what failed on the device side was not captured. To decide: the step retries once after a fresh `page.goto`, or the suite captures the device's error toast and console on failure; an automatic re-run of the suite in `infra/bin/deploy` is open question Q-1 of 2026-10-15.
   class: risk
-  state: open (owner: the next infra batch, E18-A2 or E15-A10)
+  state: ~~open (owner: the next infra batch, E18-A2 or E15-A10)~~ done (2026-11-03, batch e18fb: step 6 presses the preview through `previewRequest` (`e2e/production/preview-tab.ts`), which retries once, and only when the tab closed before the preview request was seen: it records the dialog's failure line and the page's console errors to `test-results/production-smoke/preview-retry.json` and the log, closes the dialog, reloads the Sumário and presses once more; a second close fails the step with the first error, any other error at once; the eight steps and every assertion unchanged. Unit test with fakes `scripts/preview-tab.test.ts`. The suite's own re-run by the deploy stays open question Q-1)
 
 ## Deferred from: batch e18fa (2026-11-03)
 
