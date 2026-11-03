@@ -10,6 +10,7 @@ import {
   seedOutbox,
 } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
+import { createProjectFromHome, createRelatorio } from './support/relatorio-flow.ts';
 
 /*
  * 1.6-E2E-001. Home over the real pipeline: relatórios are seeded as outbox ops, pushed
@@ -26,6 +27,13 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
  */
 
 const isApiRequest = (url: URL) => url.pathname.startsWith('/api/');
+
+/** The outbox row fields 19.2-E2E-001 reads. */
+interface OutboxRow {
+  kind: string;
+  relatorio_id: string | null;
+  status: string;
+}
 
 const STATUSES = ['Rascunho', 'Em campo', 'Em revisão', 'Emitido'] as const;
 
@@ -274,6 +282,26 @@ test('@p1 19.2-E2E-001 Home opens on the active work, most recent first; Emitido
   await page.reload();
   await tile(page, 'Emitido').click();
   await expect(chips.getByRole('radio', { name: '50', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect.poll(listIds).toEqual(newestFirst);
+
+  // E19-A2 (R-9): a relatório created here with the push blocked sits right after the current
+  // card, before every synced one, and "Continuar" stays on the Em campo card.
+  const isPush = (url: URL) => url.pathname === '/api/sync/ops';
+  await page.route(isPush, (route) => route.abort('internetdisconnected'));
+  await tile(page, 'Emitido').click();
+  await expect.poll(listIds).toEqual([emCampo.relatorio_id, emRevisao.relatorio_id, rascunho.relatorio_id]);
+  await createProjectFromHome(page);
+  await page.getByRole('button', { name: 'Novo relatório a partir de template' }).first().click();
+  const created = await createRelatorio(page);
+  await page.goto('/');
+  await expect(board).toBeVisible();
+  await expect.poll(listIds, { timeout: 30_000 }).toEqual([emCampo.relatorio_id, created, emRevisao.relatorio_id, rascunho.relatorio_id]);
+  await expect(page.locator('.relatorio-card').first()).toHaveClass(/\bis-current\b/);
+  // Committed, not only drawn (E12-A6): its create op waits in the outbox.
+  const outbox = await readStore<OutboxRow>(page, database, 'outbox');
+  expect(outbox.some((row) => row.kind === 'create' && row.relatorio_id === created && row.status !== 'acked')).toBe(true);
+  await page.unroute(isPush);
+  await tile(page, 'Emitido').click();
   await expect.poll(listIds).toEqual(newestFirst);
 
   // 390 px: the note row wraps, nothing scrolls sideways, and the chips are reached by keyboard.
