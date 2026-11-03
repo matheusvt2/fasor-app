@@ -653,6 +653,25 @@ describe('Story 18.4: a refused number or date is an input_refused with its name
     expect(vi.mocked(trackInputRefused).mock.calls.at(-1)).toEqual(['ficha.number', 'not_applicable']);
   });
 
+  it('the date picker: a year outside 1900 .. next year, left, is one out_of_range; moving between its segments reports nothing', async () => {
+    render(
+      <I18nProvider locale="pt-BR">
+        <ToastProvider>
+          <SheetField field={DATE} value="2020-01-01" commit={vi.fn()} draft={{ entityId: 'b', field: DATE.key }} invalidText="x" selectEmpty="Selecione" />
+        </ToastProvider>
+        <button type="button">fora</button>
+      </I18nProvider>,
+    );
+    const group = screen.getByRole('group', { name: /fabrica/i });
+    const segments = within(group).getAllByRole('spinbutton');
+    await userEvent.click(segments[2]!);
+    await userEvent.keyboard('{Backspace}{Backspace}{Backspace}{Backspace}1850');
+    await userEvent.click(segments[0]!);
+    expect(trackInputRefused).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
+    expect(vi.mocked(trackInputRefused).mock.calls).toEqual([['ficha.date', 'out_of_range']]);
+  });
+
   it('the date field: an unreadable date is not_a_date, a year out of range out_of_range, each once per blur or Enter', async () => {
     render(
       <>

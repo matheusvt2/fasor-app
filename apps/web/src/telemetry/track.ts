@@ -86,7 +86,10 @@ export function configureTelemetry(next: TelemetryTarget | null): void {
   try {
     if (lastDatabaseName !== null && next.db.name !== lastDatabaseName) {
       sessionId = newId();
-      held = [build({ name: 'session_start', ...deviceContext() }), ...held.map((event) => ({ ...event, session_id: sessionId }))];
+      // Its instant is no later than the earliest held event's, so a session reads in `ts` order from its start.
+      const start = build({ name: 'session_start', ...deviceContext() });
+      const earliest = held.reduce((min, event) => (event.ts < min ? event.ts : min), start.ts);
+      held = [{ ...start, ts: earliest }, ...held.map((event) => ({ ...event, session_id: sessionId }))];
     }
     lastDatabaseName = next.db.name;
     write(next, held);

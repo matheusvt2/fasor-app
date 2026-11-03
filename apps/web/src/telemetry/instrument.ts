@@ -92,16 +92,22 @@ export function installTelemetryListeners(doc: Document = document): () => void 
     if (doc.visibilityState === 'hidden') beacon();
     else resumeScreen();
   };
+  // Story 18.4: a page restored from the back-forward cache may fire no `visibilitychange`; its `pageshow` reopens the view.
+  const onPageShow = (event: Event) => {
+    if ('persisted' in event && event.persisted === true) resumeScreen();
+  };
   const view = doc.defaultView;
   doc.addEventListener('click', onClick, true);
   doc.addEventListener('pointerdown', onPointerDown, true);
   doc.addEventListener('visibilitychange', onVisibility);
   view?.addEventListener('pagehide', beacon);
+  view?.addEventListener('pageshow', onPageShow);
   return () => {
     doc.removeEventListener('click', onClick, true);
     doc.removeEventListener('pointerdown', onPointerDown, true);
     doc.removeEventListener('visibilitychange', onVisibility);
     view?.removeEventListener('pagehide', beacon);
+    view?.removeEventListener('pageshow', onPageShow);
   };
 }
 

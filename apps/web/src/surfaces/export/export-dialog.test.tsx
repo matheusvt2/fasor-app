@@ -1966,6 +1966,60 @@ describe('Story 18.4: the generate and preview waits time the press, not the req
     ]);
   });
 
+  it('a job past the queue expiry is timeout; one that ends failed after the request answered fail; files no upload brings refused', async () => {
+    const db = await fresh();
+    // The expiring job first: the latest job is the newest by creation, and it was created long ago.
+    const expiring = '019966c1-0000-7000-8000-0000000000f4';
+    const expired = render(<Harness sync={syncState({ generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: expiring, revision_number: 1 })) })} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
+    // Running, created 900 s minus 300 ms ago: it expires almost at once.
+    await act(async () => {
+      await applyPulled(db, jobOps('running', expiring, new Date(Date.now() - 900_000 + 300).toISOString()));
+    });
+    await waitFor(() => expect(within(dialog()).getByRole('alert')).toBeInTheDocument(), { timeout: 3000 });
+    expired.unmount();
+
+    const failed = render(<Harness sync={syncState()} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
+    await act(async () => {
+      await applyPulled(db, jobOps('failed'));
+    });
+    await waitFor(() => expect(within(dialog()).getByRole('alert')).toBeInTheDocument());
+    failed.unmount();
+
+    const missing = vi.fn<SyncState['generate']>().mockRejectedValue(
+      new SyncRequestError({ kind: 'http', status: 409, code: 'not_caught_up', details: { missing_op: false, missing_files: [newId()] } }),
+    );
+    render(<Harness sync={syncState({ generate: missing })} />);
+    await userEvent.click(generateButton());
+    await within(dialog()).findByRole('alert');
+    expect((await waits(db)).map(({ kind, outcome }) => [kind, outcome])).toEqual([
+      ['generate', 'timeout'],
+      ['generate', 'fail'],
+      ['generate', 'refused'],
+    ]);
+  });
+
+  it('closing the dialog mid-generate ends the wait as cancel; the revision landing later adds no ok', async () => {
+    const db = await fresh();
+    const sync = syncState();
+    const { rerender } = render(<Harness sync={sync} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
+    vi.advanceTimersByTime(900);
+    // The Sumário keeps the dialog's hooks mounted while it is closed ("pode fechar").
+    rerender(<Harness sync={sync} open={false} />);
+    await waitFor(async () => expect(await waits(db)).toEqual([{ kind: 'generate', outcome: 'cancel', duration_ms: 900, relatorio_id: REL }]));
+    vi.advanceTimersByTime(5000);
+    await act(async () => {
+      await applyPulled(db, [...jobOps('done'), revisionOf(1).op]);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect((await waits(db)).map(({ outcome }) => outcome)).toEqual(['cancel']);
+  });
+
   it('a press whose dialog goes away before the revision is a cancel', async () => {
     const db = await fresh();
     const { unmount } = render(<Harness sync={syncState()} />);

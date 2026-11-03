@@ -220,6 +220,15 @@ export const uxEventSchema = z
     for (const key of SESSION_START_KEYS) {
       if (event[key] !== undefined && event.name !== 'session_start') refuse(key, `${key} is a session_start field, not ${event.name}'s`);
     }
+    // Story 18.4: a screen_view is the screen, its ids, its duration and from; a session_start the device context.
+    if (event.name === 'screen_view') {
+      for (const key of ['target', 'outcome'] as const) if (event[key] !== undefined) refuse(key, `a screen_view has no ${key}`);
+    }
+    if (event.name === 'session_start') {
+      for (const key of ['target', 'outcome', 'duration_ms', 'relatorio_id', 'block_id'] as const) {
+        if (event[key] !== undefined) refuse(key, `a session_start has no ${key}`);
+      }
+    }
     if (event.name === 'input_refused') {
       if (event.target === undefined) refuse('target', 'an input_refused names its field');
       if (event.kind === undefined) refuse('kind', 'an input_refused names why');

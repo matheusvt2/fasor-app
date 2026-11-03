@@ -5,6 +5,7 @@ import { openDatabase, type AppDatabase, type OutboxRow } from '../db/schema.ts'
 import { queuedUxEvents } from '../db/ux-events-store.ts';
 import { SyncRequestError, type SyncClient } from '../sync/client.ts';
 import type { EngineStatus, SyncEngine, SyncEngineDeps } from '../sync/engine.ts';
+import { flushTelemetry } from '../telemetry/flush.ts';
 import { resetTelemetryForTests, telemetryDatabase, whenTelemetryWritten } from '../telemetry/track.ts';
 import type { SessionState } from './session.tsx';
 import { useSyncActions, type SyncActions } from './sync-actions.ts';
@@ -124,6 +125,24 @@ describe('SyncProvider usage events (Epic 18)', () => {
     });
     waits = (await queued(db)).filter((event) => event.name === 'wait');
     expect(waits.map((event) => event.outcome)).toEqual(['ok', 'refused']);
+  });
+
+  it('Story 18.4: the provider hands each engine status change to the observer: a cycle that ran queues its sync_result and drains the queue', async () => {
+    const { db } = await mount();
+    act(() => deps!.onChange({ ...IDLE, running: true }));
+    act(() => deps!.onChange({ ...IDLE, running: false, lastResult: 'ran', lastFailure: { kind: 'http', status: 503 } }));
+    await waitFor(() => expect(flushTelemetry).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(flushTelemetry).mock.calls[0]![0]).toBe(db);
+    expect((await queued(db)).filter((event) => event.name === 'sync_result').map((event) => event.kind)).toEqual(['failed']);
+  });
+
+  it('Story 18.4: "Sincronizar agora" ends its wait through the observer: a cycle ended on a network failure is offline', async () => {
+    const { db, actions } = await mount();
+    act(() => deps!.onChange({ ...IDLE, lastResult: 'ran', lastFailure: { kind: 'network' } }));
+    await act(async () => {
+      await actions().syncNow();
+    });
+    expect((await queued(db)).filter((event) => event.name === 'wait').map((event) => [event.kind, event.outcome])).toEqual([['sync', 'offline']]);
   });
 
   it('a generate the api refuses queues the error code, on its relatório, and no wait (Story 18.4: the press times it)', async () => {

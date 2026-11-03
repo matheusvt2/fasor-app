@@ -9,7 +9,7 @@ import { queuedUxEvents } from '../db/ux-events-store.ts';
 import { beaconTelemetry } from './flush.ts';
 import { installTelemetryListeners, resetStartTelemetryForTests, startTelemetry } from './instrument.ts';
 import { configureTelemetry, resetTelemetryForTests, whenTelemetryWritten } from './track.ts';
-import { enterScreen, resetViewsForTests } from './views.ts';
+import { enterScreen, leaveScreen, resetViewsForTests } from './views.ts';
 
 // The beacon path is `flush.test.ts`'s; here only that the listeners call it.
 vi.mock('./flush.ts', async (importOriginal) => ({
@@ -239,6 +239,42 @@ describe('Story 18.4: the listeners and the view tracker, and fields that are ne
     await vi.waitFor(() => expect(beaconTelemetry).toHaveBeenCalledTimes(2));
     expect((await queued()).at(-1)).toEqual({ name: 'screen_view', target: undefined, screen: 'sumario' });
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+  });
+
+  it('a page restored from the back-forward cache (pageshow persisted) reopens the view left on pagehide; a fresh pageshow or an uninstalled one does not', async () => {
+    const pageShow = (persisted: boolean) => {
+      const event = new Event('pageshow');
+      Object.defineProperty(event, 'persisted', { value: persisted });
+      window.dispatchEvent(event);
+    };
+    resetViewsForTests();
+    enterScreen('ficha');
+    window.dispatchEvent(new Event('pagehide'));
+    pageShow(false);
+    enterScreen('home');
+    pageShow(true);
+    enterScreen('sumario');
+    await whenTelemetryWritten();
+    const views = async () => (await queuedUxEvents(db)).filter((e) => e.name === 'screen_view').map((e) => [e.screen, e.from]);
+    // The fresh pageshow opened nothing (home came from the ficha left), and a restore while a view is open opens no second one.
+    expect(await views()).toEqual([
+      ['ficha', undefined],
+      ['home', 'ficha'],
+    ]);
+    window.dispatchEvent(new Event('pagehide'));
+    pageShow(true);
+    enterScreen('templates');
+    await whenTelemetryWritten();
+    expect((await views()).slice(2)).toEqual([
+      ['sumario', 'home'],
+      ['sumario', 'sumario'],
+    ]);
+    uninstall();
+    leaveScreen();
+    pageShow(true);
+    enterScreen('home');
+    await whenTelemetryWritten();
+    expect((await views()).slice(4)).toEqual([['templates', 'sumario']]);
   });
 
   it('a click into an input, a textarea, a select or a field named for input_refused queues no action, enabled or disabled', async () => {

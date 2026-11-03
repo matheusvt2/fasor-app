@@ -128,6 +128,8 @@ export interface GenerateState {
   markSent: () => Promise<void>;
   start: () => void;
   reset: () => void;
+  /** Story 18.4: the dialog closed: the press's wait ends as `cancel` (the job itself goes on, "pode fechar"). */
+  cancelWait: () => void;
 }
 
 const jobIsActive = (job: GenerationJobRow | null): job is GenerationJobRow =>
@@ -477,6 +479,7 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
     finishPress('cancel');
     setPhase({ kind: 'idle' });
   }, [finishPress]);
+  const cancelWait = useCallback(() => finishPress('cancel'), [finishPress]);
 
   const markSent = useCallback(async () => {
     if (db === null || user === null) return;
@@ -515,5 +518,6 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
     markSent,
     start,
     reset,
+    cancelWait,
   };
 }

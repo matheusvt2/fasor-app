@@ -338,6 +338,18 @@ describe('Story 18.4: how long, in what order, on what and for whom', () => {
     expect(parses({ ...bare, name: 'input_refused', target: 'ficha.number', kind: 'abc' })).toBe(false);
   });
 
+  it('refuses on screen_view anything but the screen, the ids, the duration and from; on session_start anything but the device context', () => {
+    expect(parses({ ...bare, name: 'screen_view', target: 'home.card_open' })).toBe(false);
+    expect(parses({ ...bare, name: 'screen_view', outcome: 'ok' })).toBe(false);
+    expect(parses({ ...bare, name: 'screen_view', kind: 'sync' })).toBe(false);
+    expect(parses({ ...bare, name: 'session_start', target: 'home.card_open' })).toBe(false);
+    expect(parses({ ...bare, name: 'session_start', kind: 'sync' })).toBe(false);
+    expect(parses({ ...bare, name: 'session_start', outcome: 'ok' })).toBe(false);
+    expect(parses({ ...bare, name: 'session_start', duration_ms: 1 })).toBe(false);
+    expect(parses({ ...bare, name: 'session_start', relatorio_id: RELATORIO })).toBe(false);
+    expect(parses({ ...bare, name: 'session_start', block_id: BLOCK })).toBe(false);
+  });
+
   it('refuses a new field outside its closed list or type', () => {
     expect(parses({ ...bare, name: 'session_start', viewport: 'watch' })).toBe(false);
     expect(parses({ ...bare, name: 'session_start', standalone: 'yes' })).toBe(false);

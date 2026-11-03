@@ -107,7 +107,11 @@ describe('track (Story 18.1)', () => {
     // Tracked while no user is signed in: held until the next one is known.
     track({ name: 'action', screen: 'login', target: 'home.continue' });
     const second = await freshDb();
+    // The next user signs in a while later.
+    const later = new Date(Date.now() + 5000);
+    vi.useFakeTimers({ toFake: ['Date'], now: later });
     configureTelemetry({ db: second, deviceId: DEVICE });
+    vi.useRealTimers();
     const rotated = currentSessionId();
     expect(rotated).not.toBe(loadSession);
     track({ name: 'action', screen: 'home', target: 'home.card_open' });
@@ -122,6 +126,9 @@ describe('track (Story 18.1)', () => {
     ]);
     expect(rows[0]).toMatchObject({ viewport: expect.stringMatching(/^(phone|tablet|desktop)$/), standalone: expect.any(Boolean), online: expect.any(Boolean) });
     expect(rows.filter((e) => e.name === 'session_start')).toHaveLength(1);
+    // The session_start comes first in `ts` order too: no later than the held event it precedes.
+    expect(rows[0]!.ts <= rows[1]!.ts).toBe(true);
+    expect(rows[0]!.ts).toBe(rows[1]!.ts);
   });
 
   it('Story 18.4: the first configure of a load queues no session_start (the load queued its own)', async () => {

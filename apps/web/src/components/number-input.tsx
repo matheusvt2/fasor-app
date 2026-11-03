@@ -130,7 +130,9 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
     else if (!dirty.current && differs(text, storedRaw, storedText)) setText(storedText);
   }
 
-  const settle = (report = false): void => {
+  /** Story 18.4: the text an Enter reported as refused; the blur that follows (the focus moved on) reports it no second time. */
+  const reportedOnEnter = useRef<string | null>(null);
+  const settle = (report: 'blur' | 'enter' | false = false): void => {
     if (!dirty.current) {
       const { storedRaw: raw, storedText: shown } = latest.current;
       if (movedWhileFocused.current && differs(current.current, raw, shown)) setText(shown);
@@ -141,7 +143,9 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
     const value = parse(current.current);
     if (value === 'invalid') {
       setInvalid(true);
-      if (report) latest.current.onRefuse?.(current.current);
+      const repeat = report === 'blur' && reportedOnEnter.current === current.current;
+      reportedOnEnter.current = report === 'enter' ? current.current : null;
+      if (report !== false && !repeat) latest.current.onRefuse?.(current.current);
       return;
     }
     setInvalid(false);
@@ -210,6 +214,7 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
       onChange: (event) => {
         dirty.current = true;
         echoKept.current = false;
+        reportedOnEnter.current = null;
         setInvalid(false);
         setText(event.target.value);
       },
@@ -222,13 +227,13 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
         focusedRef.current = false;
         echoKept.current = false;
         setFocused(false);
-        settle(true);
+        settle('blur');
         latest.current.onFocusChange?.(false);
       },
       onKeyDown: (event) => {
         if (latest.current.onKey?.(event)) return;
         if (event.key === 'Enter' && !event.shiftKey) {
-          settle(true);
+          settle('enter');
           latest.current.onEnter?.(event);
         }
       },

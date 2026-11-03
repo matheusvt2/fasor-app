@@ -2,7 +2,7 @@
 title: 'Story 18.4: the events say how long, in what order, on what and for whom'
 type: 'feature'
 created: '2026-11-03'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '8f0911a4bb4bb8617a52c412162eb5301a52dfa2'
 review_loop_iteration: 0
 followup_review_recommended: false
