@@ -15,6 +15,8 @@ import {
   photoToken,
   recentChecklistObservations,
   repeatChecklistPattern,
+  sheetChecklistPath,
+  textCapOf,
   repeatChecklistSource,
   type BlockDefinition,
   type BlockRow,
@@ -26,7 +28,7 @@ import {
   type SuggestionRow,
 } from '@app/domain';
 import { useId, useRef, useState, type ReactNode } from 'react';
-import { Chip, OverflowMenu, TextButton, TriStateControl, type OverflowMenuAction, type TriStateValue } from '../../components/index.ts';
+import { CharCount, Chip, OverflowMenu, TextButton, TriStateControl, type OverflowMenuAction, type TriStateValue } from '../../components/index.ts';
 import { SuggestionBlock } from '../../components/suggestion-field.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
@@ -288,6 +290,8 @@ export interface ChecklistRowTarget {
   observation: string;
   resultOp: (by: Author, value: TriStateValue | null) => OpDraft;
   observationOp: (by: Author, value: string | null) => OpDraft;
+  /** Story 20.9: the kernel's cap of the observation `observationOp` writes (`textCapOf`). */
+  observationCap: number | null;
   /** Story 9.5: the row's photo-read NC draft the kernel holds now, or null (a site item never has one). */
   ncDraft: SuggestionRow | null;
   /** What "Criar ponto de atenção" starts with, given the ids of the item's photos. */
@@ -320,6 +324,7 @@ export function sheetRowTarget(
     observation: typeof observationCell?.value === 'string' ? observationCell.value : '',
     resultOp: (by, value) => checklistResultOp(by, block.relatorio_id, block.id, item.key, value),
     observationOp: (by, value) => checklistObservationOp(by, block.relatorio_id, block.id, item.key, value),
+    observationCap: textCapOf(sheetChecklistPath(block.id, item.key, 'observation')),
     ncDraft: ncDraftFor(block, item.key, pending),
     pointSeed: (photoIds) => ({ text: photoIds.map((id) => photoToken(id)).join(' '), equipmentId: block.equipment_id, origin: 'manual' }),
     pointMark: (photoIds) => ncRowPointsText(ncRowPointPositions(snapshot.points, block.equipment_id, photoIds)),
@@ -384,6 +389,7 @@ export function ChecklistRow({
     (text) =>
       api.author === null ? undefined : api.commit([target.observationOp(api.author, text.trim() === '' ? null : text)]),
     { entityId: target.entityId, field: `obs-${item.key.replace(/_/g, '-')}` },
+    { cap: target.observationCap },
   );
   // Story 9.4: a dictated observation, held until "Usar"; a keystroke into the field discards it.
   const dictation = useProseDictation();
@@ -504,6 +510,7 @@ export function ChecklistRow({
               className="observation-field"
               value={typed.text}
               readOnly={readOnly}
+              maxLength={target.observationCap ?? undefined}
               data-required={required ? '' : undefined}
               data-missing-field={required ? '' : undefined}
               aria-invalid={required || undefined}
@@ -515,6 +522,7 @@ export function ChecklistRow({
               }}
               onBlur={typed.blur}
             />
+            {readOnly ? null : <CharCount length={typed.text.length} cap={target.observationCap} />}
             {required ? (
               <span className="helper" data-tone="red" id={reasonId}>
                 {t.observationRequired}

@@ -1,7 +1,7 @@
-import { defaultExclusions, empresaRegistered, sectionsCaption, withoutExclusion, type RelatorioSnapshot } from '@app/domain';
+import { defaultExclusions, empresaRegistered, relatorioSetupPath, sectionsCaption, textCapOf, withoutExclusion, type RelatorioSnapshot } from '@app/domain';
 import { useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Button, OverflowMenu, TextButton } from '../../../components/index.ts';
+import { Button, CharCount, OverflowMenu, TextButton } from '../../../components/index.ts';
 import { copy } from '../../../copy/pt-br.ts';
 import { now } from '../../../clock.ts';
 import { restoreFocus } from '../../../input/focus-restore.ts';
@@ -10,6 +10,10 @@ import type { UndoableEdits } from '../../../state/use-undoable-edits.ts';
 import { exclusionsKey, useTextField, type BandRef, type CommitField } from './setup-fields.ts';
 
 // --- Etapa 2 — Objetivo e escopo ----------------------------------------------------------
+
+/** Story 20.9: the kernel's caps of the local and of each exclusion (short texts). */
+const LOCAL_CAP = textCapOf(relatorioSetupPath('local'));
+const EXCLUSION_CAP = textCapOf('relatorio/setup', 'exclusions');
 
 export function Etapa2Escopo({
   snapshot,
@@ -134,7 +138,15 @@ export function Etapa2Escopo({
             <label className="field-label" htmlFor={localId}>
               {t.localLabel}
             </label>
-            <input id={localId} className="input" value={local.text} onChange={(event) => local.change(event.target.value)} onBlur={local.blur} />
+            <input
+              id={localId}
+              className="input"
+              value={local.text}
+              maxLength={LOCAL_CAP ?? undefined}
+              onChange={(event) => local.change(event.target.value)}
+              onBlur={local.blur}
+            />
+            <CharCount length={local.text.length} cap={LOCAL_CAP} />
           </div>
         </div>
         <ul className="exclusion-list" aria-label={t.exclusionsLabel} ref={listRef}>
@@ -143,13 +155,18 @@ export function Etapa2Escopo({
               <span className="exclusion-num" aria-hidden="true">
                 {i + 1}.
               </span>
-              <input
-                className="input grow"
-                aria-label={t.exclusionFieldLabel(i + 1)}
-                value={text}
-                onChange={(event) => onExclusionChange(i, event.target.value)}
-                onBlur={() => exclusionsCommitter.blur()}
-              />
+              {/* Story 20.9: the row's counter sits under its input, so the input and the counter share the grow cell. */}
+              <div className="field grow">
+                <input
+                  className="input"
+                  aria-label={t.exclusionFieldLabel(i + 1)}
+                  value={text}
+                  maxLength={EXCLUSION_CAP ?? undefined}
+                  onChange={(event) => onExclusionChange(i, event.target.value)}
+                  onBlur={() => exclusionsCommitter.blur()}
+                />
+                <CharCount length={text.length} cap={EXCLUSION_CAP} />
+              </div>
               <OverflowMenu
                 name={t.exclusionFieldLabel(i + 1)}
                 label={t.exclusionMenuLabel(i + 1)}

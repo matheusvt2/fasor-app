@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type Ref } from 'react';
 import { Button, ComboBox, Input, Label, ListBox, ListBoxItem, Popover } from 'react-aria-components';
 import { ui } from '../copy/ui';
+import { CharCount } from './char-count.tsx';
 
 /**
  * React Aria's `usePopover` closes a non-modal popover (ours: `isNonModal` is implicit for
@@ -71,6 +72,11 @@ export interface ComboboxProps {
   disabledReasonId?: string;
   /** The text input, for a caller that moves the focus into it (E12-Q11). */
   inputRef?: Ref<HTMLInputElement>;
+  /**
+   * Story 20.9: the kernel's cap of the text the field creates or names (`textCapOf`): the input
+   * stops there, and the shared counter shows under the field from 90 % of it.
+   */
+  maxLength?: number;
 }
 
 /**
@@ -91,6 +97,7 @@ export function Combobox({
   disabledReason,
   disabledReasonId,
   inputRef,
+  maxLength,
 }: ComboboxProps) {
   if (isDisabled && !disabledReason && !disabledReasonId) {
     throw new Error('Combobox: isDisabled requires a disabledReason shown beside the control.');
@@ -133,6 +140,7 @@ export function Combobox({
           ref={inputRef}
           className="input"
           placeholder={placeholder}
+          maxLength={maxLength}
           aria-disabled={isDisabled || undefined}
           aria-describedby={!isDisabled ? undefined : disabledReasonId !== undefined ? disabledReasonId : disabledReason ? reasonId : undefined}
         />
@@ -157,6 +165,8 @@ export function Combobox({
           </ListBox>
         </Popover>
       </ComboBox>
+      {/* Story 20.9: outside the `.field.combobox`, whose chevron spans the field's height. */}
+      <CharCount length={inputValue?.length ?? 0} cap={maxLength ?? null} />
       {isDisabled && disabledReason && disabledReasonId === undefined ? (
         <span className="btn-reason" id={reasonId}>
           {disabledReason}

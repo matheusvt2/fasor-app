@@ -1,6 +1,6 @@
-import { parseVoltageClassKv, registryFieldPath, registryPath, voltageClassInputRefusal, wordRegistryRowText, type OpDraft, type WordRow } from '@app/domain';
+import { parseVoltageClassKv, registryFieldPath, registryPath, textCapOf, voltageClassInputRefusal, wordRegistryRowText, type OpDraft, type WordRow } from '@app/domain';
 import { useId, useRef, useState } from 'react';
-import { Button, ConfirmDialog, SegmentedControl, TextButton, type SegmentedOption } from '../../components/index.ts';
+import { Button, CharCount, ConfirmDialog, SegmentedControl, TextButton, type SegmentedOption } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { commitBatch, undoBatch } from '../../db/commit.ts';
 import { newId } from '../../ids.ts';
@@ -235,6 +235,9 @@ function ManufacturerFields({ copy, row, onCommit }: ManufacturerFieldsProps) {
   );
 }
 
+/** Story 20.9: the kernel's cap of a word's name and of a voltage class's value (short texts). */
+const WORD_FIELD_CAP = textCapOf('registry/field', 'name');
+
 interface NameFieldProps {
   label: string;
   value: string;
@@ -250,6 +253,7 @@ function NameField({ label, value, onCommit }: NameFieldProps) {
       <input
         className="input"
         value={text}
+        maxLength={WORD_FIELD_CAP ?? undefined}
         onChange={(event) => {
           setText(event.target.value);
           committer.change(event.target.value);
@@ -259,6 +263,7 @@ function NameField({ label, value, onCommit }: NameFieldProps) {
           if (event.key === 'Enter') committer.enter();
         }}
       />
+      <CharCount length={text.length} cap={WORD_FIELD_CAP} />
     </label>
   );
 }
@@ -296,6 +301,7 @@ function KvField({ label, unit, unitName, invalidText, value, onCommit }: KvFiel
           className="mf-value"
           inputMode="decimal"
           value={text}
+          maxLength={WORD_FIELD_CAP ?? undefined}
           aria-invalid={invalid || undefined}
           aria-describedby={invalid ? errorId : undefined}
           onChange={(event) => {
@@ -320,6 +326,7 @@ function KvField({ label, unit, unitName, invalidText, value, onCommit }: KvFiel
           {unit}
         </span>
       </div>
+      <CharCount length={text.length} cap={WORD_FIELD_CAP} />
       {invalid ? (
         <span className="helper" id={errorId} role="alert">
           {invalidText}

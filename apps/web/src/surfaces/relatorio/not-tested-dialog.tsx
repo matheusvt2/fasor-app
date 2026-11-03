@@ -1,7 +1,7 @@
-import { getSeed } from '@app/domain';
+import { getSeed, textCapOf } from '@app/domain';
 import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Button, FilterChipGroup, FormDialog } from '../../components/index.ts';
+import { Button, CharCount, FilterChipGroup, FormDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import { useDialogTelemetry } from '../../telemetry/hooks.ts';
@@ -15,6 +15,9 @@ import { useDialogTelemetry } from '../../telemetry/hooks.ts';
  * disabled with its reason, for a tap on a reason and, with "Outro", for text.
  */
 const OUTRO = 'outro';
+
+/** Story 20.9: the kernel's cap of a Não ensaiado mark's note (medium text). */
+const NOTE_CAP = textCapOf('block/field', 'not_tested.text');
 
 export interface NotTestedDialogProps {
   seedVersion: string;
@@ -63,7 +66,8 @@ export function NotTestedDialog({ seedVersion, onClose, onSubmit }: NotTestedDia
       {selected === OUTRO ? (
         <label className="field">
           <span className="field-label">{t.notTestedTextLabel}</span>
-          <input className="input" ref={textInput} value={text} onChange={(event) => setText(event.target.value)} />
+          <input className="input" ref={textInput} value={text} maxLength={NOTE_CAP ?? undefined} onChange={(event) => setText(event.target.value)} />
+          <CharCount length={text.length} cap={NOTE_CAP} />
         </label>
       ) : null}
       <div className="dialog-actions">

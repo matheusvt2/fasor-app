@@ -1,4 +1,4 @@
-import { composeConclusion, defaultBlockConfig, emptySheet, getDefinition, type BlockRow, type Cell, type Sheet } from '@app/domain';
+import { composeConclusion, defaultBlockConfig, emptySheet, getDefinition, TEXT_CAPS, type BlockRow, type Cell, type OpDraft, type Sheet } from '@app/domain';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -117,5 +117,46 @@ describe('E5-A4 the conclusion confirm guards its basis', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(announced).toEqual([]);
+  });
+});
+
+/** Story 20.9: the OBSERVAÇÕES field of an empty sheet, its committed drafts recorded in `committed`. */
+const committed: OpDraft[] = [];
+function renderObservations() {
+  committed.length = 0;
+  const api: FichaApi = {
+    relatorioId: ID,
+    projectId: ID,
+    blockId: ID,
+    author: AUTHOR,
+    commit: vi.fn(async (drafts: OpDraft[]) => {
+      committed.push(...drafts);
+    }),
+    edit: vi.fn(async () => null),
+    undoable: vi.fn(),
+    announce: vi.fn(),
+  };
+  render(
+    <ToastProvider>
+      <ConclusaoSection api={api} block={block({})} definition={SEC} tag="SEC-C05" className="ficha-step" onFocus={() => undefined} section9={{ ref: 'seção 5', prints: true, absent: 'não sai no documento: o relatório não tem a seção 5' }} />
+    </ToastProvider>,
+  );
+}
+
+describe('Story 20.9: OBSERVAÇÕES stops at the kernel cap', () => {
+  it('a paste past 20 000 characters is cut at the cap, the counter shows, and the written op holds exactly the cap', async () => {
+    renderObservations();
+    const area = screen.getByRole('textbox', { name: 'Observações da ficha' });
+    expect(area).toHaveAttribute('maxLength', String(TEXT_CAPS.long));
+    expect(screen.queryByTestId('char-count')).toBeNull();
+    await userEvent.click(area);
+    await userEvent.paste('x'.repeat(TEXT_CAPS.long + 50));
+    expect((area as HTMLTextAreaElement).value).toHaveLength(TEXT_CAPS.long);
+    expect(screen.getByTestId('char-count')).toHaveTextContent('20.000 de 20.000 caracteres');
+    await userEvent.tab();
+    await waitFor(() => expect(committed.length).toBeGreaterThan(0));
+    const op = committed.at(-1)!;
+    expect(op.path).toBe(`sheet/${ID}/observations`);
+    expect(String(op.value)).toHaveLength(TEXT_CAPS.long);
   });
 });

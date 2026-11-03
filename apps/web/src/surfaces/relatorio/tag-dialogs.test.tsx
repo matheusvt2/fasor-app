@@ -1,4 +1,4 @@
-import { newEquipmentBlock, type LocationRow } from '@app/domain';
+import { newEquipmentBlock, TEXT_CAPS, type LocationRow } from '@app/domain';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
@@ -79,6 +79,20 @@ describe('4.5 TAG dialogs', () => {
     await userEvent.type(field, 'Entrada');
     await userEvent.click(save);
     expect(onSubmit).toHaveBeenCalledWith('Entrada');
+    expect(await axe(dialog)).toHaveNoViolations();
+  });
+
+  it('Story 20.9: the TAG field stops at the kernel cap (200): a longer paste is cut, the counter says so, and the submit carries 200 characters', async () => {
+    const { onSubmit, dialog } = renderTag();
+    const field = within(dialog).getByRole('textbox', { name: 'TAG' });
+    expect(field).toHaveAttribute('maxLength', String(TEXT_CAPS.short));
+    expect(within(dialog).queryByTestId('char-count')).toBeNull();
+    await userEvent.clear(field);
+    await userEvent.paste('T'.repeat(TEXT_CAPS.short + 30));
+    expect((field as HTMLInputElement).value).toHaveLength(TEXT_CAPS.short);
+    expect(within(dialog).getByTestId('char-count')).toHaveTextContent('200 de 200 caracteres');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Duplicar' }));
+    expect(onSubmit).toHaveBeenCalledWith('T'.repeat(TEXT_CAPS.short));
     expect(await axe(dialog)).toHaveNoViolations();
   });
 });

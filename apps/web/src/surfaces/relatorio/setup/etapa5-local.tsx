@@ -1,6 +1,6 @@
-import { calendarDateOfInstant, NOT_APPLICABLE_TEXT, siteAltitudeText, type RelatorioSnapshot } from '@app/domain';
+import { calendarDateOfInstant, NOT_APPLICABLE_TEXT, relatorioSetupPath, SITE_ALTITUDE_RANGE_M, siteAltitudeText, textCapOf, type RelatorioSnapshot } from '@app/domain';
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { Button, DateField, NotApplicableButton, TextButton } from '../../../components/index.ts';
+import { Button, CharCount, DateField, NotApplicableButton, TextButton } from '../../../components/index.ts';
 import { useNumberInput, type ParsedNumber } from '../../../components/number-input.tsx';
 import { copy } from '../../../copy/pt-br.ts';
 import { now } from '../../../clock.ts';
@@ -11,6 +11,9 @@ import { useDateField, useTextField, type BandRef, type CommitField, type Commit
 
 /** Story 14.10 lane B: the "Hoje" chip of an empty Próxima intervenção, today in America/Sao_Paulo (Etapa 1's rule, 13.4). */
 const today = () => calendarDateOfInstant(now());
+
+/** Story 20.9: the kernel's cap of the next intervention's justification (medium text). */
+const JUSTIFICATION_CAP = textCapOf(relatorioSetupPath('next_intervention_justification'));
 
 // --- Etapa 5 — Local -------------------------------------------------------------------------
 
@@ -192,9 +195,11 @@ export function Etapa5Local({
               id={justificationId}
               className="input"
               value={justification.text}
+              maxLength={JUSTIFICATION_CAP ?? undefined}
               onChange={(event) => justification.change(event.target.value)}
               onBlur={justification.blur}
             />
+            <CharCount length={justification.text.length} cap={JUSTIFICATION_CAP} />
           </div>
         </div>
       </div>
@@ -209,12 +214,18 @@ const ALTITUDE_IDLE_MS = 500;
  * The typed text as it is (the commit rounds it to whole metres, so a settle never rewrites the
  * field under the cursor); '' is an emptied field; anything else is no number and writes nothing.
  * `badInput`: the browser holds a transient entry its number input reports as '' ("-", "1e").
+ * Story 20.9: whole metres outside the kernel's range (`SITE_ALTITUDE_RANGE_M`, -500 to 9 000 m)
+ * are refused the same way, so nothing is queued that the server would refuse.
  */
-function parseAltitude(text: string, badInput: boolean): ParsedNumber | null | 'invalid' {
+export function parseAltitude(text: string, badInput: boolean): ParsedNumber | null | 'invalid' {
   if (badInput) return 'invalid';
   const trimmed = text.trim();
   if (trimmed === '') return null;
-  return Number.isFinite(Number(trimmed)) ? { raw: trimmed, unit: null } : 'invalid';
+  const value = Number(trimmed);
+  if (!Number.isFinite(value)) return 'invalid';
+  const whole = Math.round(value);
+  if (whole < SITE_ALTITUDE_RANGE_M.min || whole > SITE_ALTITUDE_RANGE_M.max) return 'invalid';
+  return { raw: trimmed, unit: null };
 }
 
 /** Whole metres of a parsed altitude. */
@@ -262,8 +273,9 @@ function AltitudeInput({
     commit: (value) => onCommit(value === null ? null : metres(value)),
     draft: { surface: 'setup', entityId: relatorioId, field: 'site_altitude_m' },
     flushOnUnmount: true,
-    // Story 18.4: the altitude's parse is this surface's own (whole metres of a browser number), so its one refusal is no number.
-    onRefuse: () => trackInputRefused('setup.altitude', 'not_a_number'),
+    // Story 18.4: the altitude's parse is this surface's own (whole metres of a browser number): no number,
+    // or (Story 20.9) a number outside the kernel's range.
+    onRefuse: (text) => trackInputRefused('setup.altitude', Number.isFinite(Number(text.trim())) && text.trim() !== '' ? 'out_of_range' : 'not_a_number'),
   });
   const { ref: hookRef, onChange, ...inputProps } = altitude.inputProps;
 
@@ -301,6 +313,8 @@ function AltitudeInput({
             (hookRef as RefObject<HTMLInputElement | null>).current = el;
           }}
           type="number"
+          min={SITE_ALTITUDE_RANGE_M.min}
+          max={SITE_ALTITUDE_RANGE_M.max}
           className="mf-value"
           aria-invalid={altitude.invalid || undefined}
           onChange={(event) => {

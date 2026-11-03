@@ -1,6 +1,6 @@
-import { registryFieldPath, registryPath, type ClientRow, type OpDraft } from '@app/domain';
+import { registryFieldPath, registryPath, textCapOf, type ClientRow, type OpDraft } from '@app/domain';
 import { useEffect, useId, useRef, useState } from 'react';
-import { Button, ConfirmDialog, TextButton } from '../../components/index.ts';
+import { Button, CharCount, ConfirmDialog, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { commitBatch, undoBatch } from '../../db/commit.ts';
@@ -180,6 +180,9 @@ export function ClientPanel({ clientId, client, referenced, onClose }: ClientPan
   );
 }
 
+/** Story 20.9: the kernel's cap of every field of a client row, its sites' addresses included (short text). */
+const CLIENT_FIELD_CAP = textCapOf('registry/field', 'name');
+
 interface TextFieldProps {
   label: string;
   value: string;
@@ -196,6 +199,7 @@ function TextField({ label, value, onCommit, className }: TextFieldProps) {
       <input
         className="input"
         value={text}
+        maxLength={CLIENT_FIELD_CAP ?? undefined}
         onChange={(event) => {
           setText(event.target.value);
           committer.change(event.target.value);
@@ -205,6 +209,7 @@ function TextField({ label, value, onCommit, className }: TextFieldProps) {
           if (event.key === 'Enter') committer.enter();
         }}
       />
+      <CharCount length={text.length} cap={CLIENT_FIELD_CAP} />
     </label>
   );
 }
@@ -268,6 +273,7 @@ function SitesField({ sites, label, addLabel, removeLabel, onCommit }: SitesFiel
               <input
                 className="input"
                 value={site.address}
+                maxLength={CLIENT_FIELD_CAP ?? undefined}
                 onChange={(event) =>
                   typed(rows.map((row) => (row.id === site.id ? { ...row, address: event.target.value } : row)))
                 }
@@ -276,6 +282,7 @@ function SitesField({ sites, label, addLabel, removeLabel, onCommit }: SitesFiel
                   if (event.key === 'Enter') committer.enter();
                 }}
               />
+              <CharCount length={site.address.length} cap={CLIENT_FIELD_CAP} />
             </label>
             <button
               type="button"

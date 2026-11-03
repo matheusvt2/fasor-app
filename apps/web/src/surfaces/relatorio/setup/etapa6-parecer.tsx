@@ -12,6 +12,7 @@ import {
   sectionRefText,
   sectionsCaption,
   suggestParecer,
+  textCapOf,
   type ParecerVerdict,
   type RelatorioParecer,
   type RelatorioSnapshot,
@@ -22,6 +23,9 @@ import { GeneratedTextField } from '../../../components/generated-text-field.tsx
 import { useLatestChoice } from '../../../components/use-latest-choice.ts';
 import { copy } from '../../../copy/pt-br.ts';
 import type { BandRef } from './setup-fields.ts';
+
+/** Story 20.9: the kernel's cap of the parecer's text (long text). */
+const PARECER_TEXT_CAP = textCapOf('relatorio/setup', 'parecer.text');
 
 /*
  * Etapa 6 — Conclusão e parecer (Story 7.4, `50-relatorio-setup.html` `#setup-parecer`):
@@ -167,6 +171,7 @@ export function Etapa6Parecer({
             onReplace={() => void writeText(composed.text, 'confirmed').catch(() => undefined)}
             onEdit={(text) => writeText(text, 'edited')}
             draft={{ surface: 'setup', entityId: relatorioId, field: 'parecer-text' }}
+            maxLength={PARECER_TEXT_CAP ?? undefined}
             helper={t.parecerHelper}
             confirmedHelper={absent?.confirmedHelper ?? t.parecerConfirmed(sectionRefText(snapshot, 10))}
           />

@@ -1,9 +1,11 @@
 import type { SectionVariable } from '@app/domain';
 import { useEffect, useLayoutEffect, useRef, type KeyboardEvent, type RefObject } from 'react';
 import {
+  endRange,
   insertChip,
   insertLineBreak,
   insertText,
+  placeCaret,
   rangeInside,
   removeChipAtCaret,
   renderText,
@@ -34,6 +36,12 @@ export interface UseSectionTextAreaOptions {
    */
   render?: (area: HTMLElement, text: string) => void;
   paste?: (area: HTMLElement, range: Range | null, text: string) => void;
+  /**
+   * Story 20.9: the kernel's cap of the stored text (`textCapOf`), or null for none. Typing past
+   * it is stopped, a paste is cut at the room left, and an edit of the caller's (a chip, a quick
+   * text) that would grow the text past it is taken back; a text already over it may shrink.
+   */
+  maxLength?: number | null;
 }
 
 export interface SectionTextAreaProps {
@@ -86,6 +94,8 @@ export function useSectionTextArea(options: UseSectionTextAreaOptions): UseSecti
   useLayoutEffect(() => {
     if (area.current !== null) (latest.current.render ?? renderText)(area.current, initial.current);
   }, []);
+  /** Story 20.9: the last text the area held within the cap (or the stored one, which may be over it). */
+  const accepted = useRef(options.initialText);
 
   // The caret the chip row inserts at: the last one the user left in the area, kept while
   // the focus moves to a chip button outside it.
@@ -102,7 +112,26 @@ export function useSectionTextArea(options: UseSectionTextAreaOptions): UseSecti
   }, []);
 
   const changed = () => {
-    if (area.current !== null) latest.current.onChange(serializeArea(area.current));
+    const element = area.current;
+    if (element === null) return;
+    const text = serializeArea(element);
+    const cap = latest.current.maxLength ?? null;
+    if (cap !== null && text.length > cap && text.length > accepted.current.length) {
+      // Story 20.9: an edit that grew the text past the cap is taken back whole.
+      (latest.current.render ?? renderText)(element, accepted.current);
+      placeCaret(element, endRange(element));
+      return;
+    }
+    accepted.current = text;
+    latest.current.onChange(text);
+  };
+
+  /** Story 20.9: how many more characters the stored text takes in place of `range`'s, or null for no cap. */
+  const room = (element: HTMLElement, range: Range | null): number | null => {
+    const cap = latest.current.maxLength ?? null;
+    if (cap === null) return null;
+    const selected = range !== null && rangeInside(element, range) ? range.toString().length : 0;
+    return cap - (serializeArea(element).length - selected);
   };
 
   const currentRange = (): Range | null => {
@@ -116,8 +145,15 @@ export function useSectionTextArea(options: UseSectionTextAreaOptions): UseSecti
     const element = area.current;
     if (element === null) return;
     const onBeforeInput = (event: InputEvent) => {
-      if (event.inputType === 'insertParagraph' || event.inputType === 'insertLineBreak') {
+      if (event.inputType === 'insertText' || event.inputType === 'insertReplacementText') {
+        // Story 20.9: typing stops at the cap of the stored text.
+        const typed = event.data ?? event.dataTransfer?.getData('text/plain') ?? '';
+        const left = room(element, currentRange());
+        if (left !== null && typed.length > left) event.preventDefault();
+      } else if (event.inputType === 'insertParagraph' || event.inputType === 'insertLineBreak') {
         event.preventDefault();
+        const left = room(element, currentRange());
+        if (left !== null && left < 1) return;
         insertLineBreak(element, currentRange());
         changed();
       } else if (
@@ -137,7 +173,12 @@ export function useSectionTextArea(options: UseSectionTextAreaOptions): UseSecti
     };
     const onPaste = (event: ClipboardEvent) => {
       event.preventDefault();
-      (latest.current.paste ?? insertText)(element, currentRange(), (event.clipboardData?.getData('text/plain') ?? '').replace(/\r\n?/g, '\n'));
+      const pasted = (event.clipboardData?.getData('text/plain') ?? '').replace(/\r\n?/g, '\n');
+      // Story 20.9: a paste past the cap lands cut at the room the stored text has left.
+      const left = room(element, currentRange());
+      const text = left === null ? pasted : pasted.slice(0, Math.max(0, left));
+      if (text === '' && pasted !== '') return;
+      (latest.current.paste ?? insertText)(element, currentRange(), text);
       changed();
     };
     element.addEventListener('beforeinput', onBeforeInput);
@@ -170,6 +211,8 @@ export function useSectionTextArea(options: UseSectionTextAreaOptions): UseSecti
       if (event.nativeEvent.isComposing) return;
       // Some browsers raise no `beforeinput` for Enter in every case; one path for both.
       event.preventDefault();
+      const left = room(element, range);
+      if (left !== null && left < 1) return;
       insertLineBreak(element, range);
       changed();
     }
@@ -184,6 +227,7 @@ export function useSectionTextArea(options: UseSectionTextAreaOptions): UseSecti
   };
 
   const setText = (text: string) => {
+    accepted.current = text;
     if (area.current !== null) (latest.current.render ?? renderText)(area.current, text);
   };
 

@@ -1,10 +1,13 @@
-import { artOrTrtLabel, artTrtEchoText, councilLabel, registrationNumberLabel, sectionRefText, sectionsCaption, type RelatorioSnapshot, type UserRow } from '@app/domain';
+import { artOrTrtLabel, artTrtEchoText, councilLabel, registrationNumberLabel, relatorioSetupPath, sectionRefText, sectionsCaption, textCapOf, type RelatorioSnapshot, type UserRow } from '@app/domain';
 import { useId, useRef, useState } from 'react';
-import { Combobox } from '../../../components/index.ts';
+import { CharCount, Combobox } from '../../../components/index.ts';
 import { copy } from '../../../copy/pt-br.ts';
 import { useTextField, type BandRef, type CommitField } from './setup-fields.ts';
 
 // --- Etapa 3 — Responsável ------------------------------------------------------------------
+
+/** Story 20.9: the kernel's cap of the ART/TRT number (short text). */
+const ART_TRT_CAP = textCapOf(relatorioSetupPath('art_trt_number'));
 
 export function Etapa3Responsavel({
   snapshot,
@@ -83,9 +86,11 @@ export function Etapa3Responsavel({
                   id={artTrtId}
                   className="input tabular"
                   value={artTrtNumber.text}
+                  maxLength={ART_TRT_CAP ?? undefined}
                   onChange={(event) => artTrtNumber.change(event.target.value)}
                   onBlur={artTrtNumber.blur}
                 />
+                <CharCount length={artTrtNumber.text.length} cap={ART_TRT_CAP} />
                 {(() => {
                   const echo = artTrtEchoText(label, artTrtNumber.text, sectionRefText(snapshot, 10));
                   return echo === null ? null : <span className="echo">{echo}</span>;

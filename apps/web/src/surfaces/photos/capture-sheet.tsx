@@ -11,11 +11,12 @@ import {
   photosKeptOnSheetText,
   sectionMention,
   skippedFilesText,
+  textCapOf,
   type RelatorioSnapshot,
 } from '@app/domain';
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
-import { Button, Chip } from '../../components/index.ts';
+import { Button, CharCount, Chip } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -224,6 +225,10 @@ interface Batch {
   skipped: number;
   ids: string[] | null;
 }
+
+/** Story 20.9: the kernel's cap of a photo's caption (medium text): typed, dictated or composed, it never queues past it. */
+const CAPTION_CAP = textCapOf('file/field', 'caption');
+const capCaption = (value: string) => (CAPTION_CAP === null ? value : value.slice(0, CAPTION_CAP));
 
 const GERAL: ImportTarget = { blockId: null, itemKey: null, caption: null };
 /**
@@ -587,6 +592,7 @@ export function EquipmentStep({
                 id={fieldId}
                 className="observation-field"
                 value={caption}
+                maxLength={CAPTION_CAP ?? undefined}
                 aria-describedby={noteId}
                 onChange={(event) => {
                   dictation.discard();
@@ -595,12 +601,13 @@ export function EquipmentStep({
               />
               <DictationButton label={t.dictate} onStart={dictation.discard} onResult={dictation.offer} />
             </div>
+            <CharCount length={caption.length} cap={CAPTION_CAP} />
           </div>
           {dictation.pending === null ? null : (
             <DictatedSuggestion
               text={dictation.pending}
               onUse={() => {
-                setCaption(dictation.pending ?? '');
+                setCaption(capCaption(dictation.pending ?? ''));
                 dictation.discard();
               }}
             />
@@ -625,7 +632,7 @@ export function EquipmentStep({
             sources={sources}
             onSave={(text) => {
               dictation.discard();
-              setCaption(text ?? '');
+              setCaption(capCaption(text ?? ''));
             }}
           />
         </div>

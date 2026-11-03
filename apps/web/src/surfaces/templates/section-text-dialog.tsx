@@ -1,10 +1,13 @@
-import { INSERTABLE_SECTION_VARIABLES, sectionVariableChipLabel } from '@app/domain';
+import { INSERTABLE_SECTION_VARIABLES, sectionVariableChipLabel, textCapOf } from '@app/domain';
 import { useEffect, useId, useState } from 'react';
 import { Button, Chip, FormDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { RichTextField } from '../../input/rich-text-field.tsx';
 import { useRichTextArea } from '../../input/use-rich-text-area.ts';
+
+/** Story 20.9: the kernel's cap of a template block's section text (every string of `blocks` is long text at most). */
+const SECTION_TEXT_CAP = textCapOf('template/field', 'blocks');
 
 export interface SectionTextDialogProps {
   /** "1 Objetivo": the section's number and title. */
@@ -40,6 +43,7 @@ export function SectionTextDialog({ sectionTitle, sectionNumber, text, onCommit,
     onChange: (value) => committer.change(value),
     onBlur: () => committer.blur(),
     onFocusChange: setFocused,
+    maxLength: SECTION_TEXT_CAP,
   });
 
   // The dialog opens with the focus in the text (E3-A9), not on the toolbar before it: the
