@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 11-03-2026 11:25
+last_updated: 11-03-2026 11:44
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -213,8 +213,11 @@ development_status:
     done                                                                              # 2026-10-30: PR #212 squash-merged as 62bdd76c and deployed with 3b45e83c; dashboard and nine saved queries live, all nine Complete on production data; first digest due 2026-11-30 | 2026-10-29: batch o18b PR #212 (open, not merged; dashboard and saved queries appear after the deploy's Terraform apply) | 2026-10-29: batch o18b started
   18-4-the-events-say-how-long-in-what-order-on-what-and-for-whom: backlog  # 2026-10-30: drafted in epics.md from backlog-2026-10-30-ux-data-sufficiency.md § 2 on Matheus's "pode fazer" (durations and origin on screen_view, viewport/standalone/online on session_start, input_refused, targets per tile and per size, the document waits re-timed, views, digest questions); built after the E18-A1 and E18-A2 batches on his "pode seguir"
   epic-19: in-progress  # 2026-10-30: Matheus on the 2026-10-29 analysis: "Fazer: B. Atalhos acima da lista"; 19.1 built at once from main 64fe789e; 19.2 (Emitido behind its tile, the capped list) drafted from his words, Definition of Ready waits for his word
-  19-1-templates-and-cadastros-one-tap-from-the-top-the-shortcut-row-above-the-relatorio-list: done  # 2026-10-30: branch story-19-1 from main 64fe789e; story gate: lint, static, test:api 733 of 733, test:unit red under load (template-composer-local, host load 9.1; E16-A10) then 4678 of 4678 alone, home.spec.ts and app-layout.spec.ts 4 of 4; deployed 2026-10-30 in main 29f030b2 (infra/bin/deploy, smoke 8 of 8)
-  19-2-home-opens-on-the-active-work-emitido-behind-its-tile-and-the-list-capped-with-ver-todos: done  # 2026-10-30: branch story-19-2 from main 57d3b5cc; Definition of Ready closed by Matheus (the Emitido tile; 10 · 20 · 50 · 100; most recent first by the summary's updated_seq, "1.a"; the unsynced new relatório right after the current card, "A"); review 20 triage rows (9 patched, 2 deferred to the ledger, 6 rejected, 2 planning edits, 1 intent gap answered A); story gate green three times, last run: lint 0 errors, static, test:api 733 of 733, test:unit 4707 of 4707, home.spec.ts and app-layout.spec.ts 5 of 5; hands-on browser pass at 1280, 768 and 390 px; deployed 2026-10-30 in main 29f030b2 (infra/bin/deploy, smoke 8 of 8) | 2026-10-30: drafted from Matheus's words ("talvez tirar os enviados e aí só quando clicar no card de enviados é que mostra") and Sally's option A plus the mocks' cap; Definition of Ready open: Matheus confirms the three rules
+  epic-19-retrospective: done
+  19-1-templates-and-cadastros-one-tap-from-the-top-the-shortcut-row-above-the-relatorio-list: 
+    done                                                                                             # 2026-10-30: branch story-19-1 from main 64fe789e; story gate: lint, static, test:api 733 of 733, test:unit red under load (template-composer-local, host load 9.1; E16-A10) then 4678 of 4678 alone, home.spec.ts and app-layout.spec.ts 4 of 4; deployed 2026-10-30 in main 29f030b2 (infra/bin/deploy, smoke 8 of 8)
+  19-2-home-opens-on-the-active-work-emitido-behind-its-tile-and-the-list-capped-with-ver-todos: 
+    done                                                                                               # 2026-10-30: branch story-19-2 from main 57d3b5cc; Definition of Ready closed by Matheus (the Emitido tile; 10 · 20 · 50 · 100; most recent first by the summary's updated_seq, "1.a"; the unsynced new relatório right after the current card, "A"); review 20 triage rows (9 patched, 2 deferred to the ledger, 6 rejected, 2 planning edits, 1 intent gap answered A); story gate green three times, last run: lint 0 errors, static, test:api 733 of 733, test:unit 4707 of 4707, home.spec.ts and app-layout.spec.ts 5 of 5; hands-on browser pass at 1280, 768 and 390 px; deployed 2026-10-30 in main 29f030b2 (infra/bin/deploy, smoke 8 of 8) | 2026-10-30: drafted from Matheus's words ("talvez tirar os enviados e aí só quando clicar no card de enviados é que mostra") and Sally's option A plus the mocks' cap; Definition of Ready open: Matheus confirms the three rules
 
   backlog-deferred: backlog  # added 2026-10-21: stories moved out of their epic with a dated decision, epics.md "Backlog: deferred stories"
   13-9-dictation-on-behind-one-line-of-consent: backlog  # 2026-10-21 (Bruno via Matheus, answer 11): moved out of Epic 13 to the backlog; DoR unchanged |  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus
@@ -1559,16 +1562,16 @@ action_items:
       a telemetry step in the production smoke and infra/bin/deploy (a session_start
       with the deployed tag in the group, no ux_event_sink_failed since the deploy);
       offline fmt, init -backend=false, validate; applied by the next deploy on Matheus's
-      go; 2026-10-30, Matheus's pode fazer on the data-sufficiency review: a tenth view,
-      sessions and events by user_id and company_id, and a read-only id-to-name CLI per
-      company for the digest (the user stays an id in the events); part 1, the users
-      view, the users column of sessions_per_day and the id-to-name CLI, built 2026-10-30
-      on branch e18-a2-users-view (Matheus: controlar os usuarios logados), merged as
-      PR #220 and applied to production the same day (ten widgets); the CLI ships with
-      the next deploy; the other E18-A2 items stay open; 2026-11-03: name labels (PR #222,
-      var.user_names in the operator's tfvars) and the CLI deployed in 54b11947 (smoke red at
-      step 6 once, 8 of 8 on the re-run); the CLI's first production run by Matheus the same
-      day (exit 0, two users, the two labels confirmed)"
+      go; 2026-10-30, Matheus's pode fazer on the data-sufficiency review: a tenth
+      view, sessions and events by user_id and company_id, and a read-only id-to-name
+      CLI per company for the digest (the user stays an id in the events); part 1,
+      the users view, the users column of sessions_per_day and the id-to-name CLI,
+      built 2026-10-30 on branch e18-a2-users-view (Matheus: controlar os usuarios
+      logados), merged as PR #220 and applied to production the same day (ten widgets);
+      the CLI ships with the next deploy; the other E18-A2 items stay open; 2026-11-03:
+      name labels (PR #222, var.user_names in the operator's tfvars) and the CLI deployed
+      in 54b11947 (smoke red at step 6 once, 8 of 8 on the re-run); the CLI's first
+      production run by Matheus the same day (exit 0, two users, the two labels confirmed)"
     owner: "coordinator (batch); Matheus (deploy go)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
@@ -1627,3 +1630,47 @@ action_items:
     owner: "coordinator (digest); Matheus and Bruno (decisions)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+  - id: "epic-19-retro-item-159-e19-a1-most-recent-meaning"
+    epic: 19
+    action: "E19-A1 Decide what most recent means for an active relatorio (S-1, R-1):
+      the summary updated_seq is the relatorio row own seq, so synced field work never
+      moves a card. Either amend Story 19.2 DoR (3) and EXPERIENCE.md Home with a
+      dated strike-through plus a test pinning that a ficha edit does not move the
+      card, or a story where the company summary carries the relatorio last activity
+      (max ops.seq per relatorio_id, additive) and Home sorts on it."
+    owner: "Matheus (decision); coordinator (draft and apply)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md"
+  - id: "epic-19-retro-item-160-e19-a2-home-fix-batch"
+    epic: 19
+    action: "E19-A2 Home fix batch, red-first, story gate plus the two Home specs:
+      current card by its own rule (pre-19.2 latest service start) with a two-Em-campo
+      kernel test (R-2); list pending until the company stream state is read (R-3);
+      FilterChipGroup moveTo clicks only on a changed target, onChange fallback for
+      a missing ref (R-5); HOME_ACTIVE_STATUSES derived or pinned (R-7); app-layout
+      toBeInViewport ratio 1 (R-8); 19.2-E2E-001 places an unsynced new relatorio
+      and asserts is-current (R-9); readHomePageSize falls back to 10 (R-11); a role=status
+      line for the note (R-12)."
+    owner: "coordinator (batch)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md"
+  - id: "epic-19-retro-item-161-e19-a3-ledger-rows"
+    epic: 19
+    action: "E19-A3 Ledger rows in deferred-work.md under Deferred from: the Epic
+      19 retrospective: R-4 positive created-here signal from the outbox; R-6 homeCards
+      filter dropped or homeList option renamed; R-10 optimistic page size and a surfaced
+      write failure; R-13 the size control only below the list and focus on unmount
+      (UX question for Matheus and Sally)."
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md"
+  - id: "epic-19-retro-item-162-e19-a4-process-lessons"
+    epic: 19
+    action: "E19-A4 Process lessons: record the 2026-11-03 wave gate test:e2e:full
+      on main (holding the Epic 19 code) with the host load line in epic-19-context.md
+      as Epic 19 P1 coverage check (P-1, pairs with E18-A6); a dated playbook line
+      in epic-batch-orchestrator.md: a story built without a spec still gets a verification-gap
+      read recorded in one line of its sprint-status note (P-2)."
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md"
