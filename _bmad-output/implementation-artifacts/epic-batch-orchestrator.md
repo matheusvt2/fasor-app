@@ -342,3 +342,8 @@ Each names its source in `epic-18-retro-2026-10-30.md`.
   the retrospective's run of 2026-10-30 on `677415a8` (the code of `3b45e83c`): 537 of 542, one red green alone
   (2 of 2), 4 skipped, load 3.30 at the start and 3.08 at the end, lock wait 0 s (`epic-18-retro-2026-10-30.md`
   § Behavior verification).
+- (E19-A4, P-2, 2026-11-03) A story built without a spec (Epic 19's 19.1 and 19.2 were) still gets a
+  verification-gap read before its merge, recorded in one line of its `sprint-status.yaml` note: the read's count
+  and where the rows went, or "verification gap: none found".
+- (2026-11-03, the `cf468e3d` deploy) `infra/bin/deploy` takes the host lock itself around the production smoke;
+  start it with nohup and no `lockf` wrapper, or the smoke fails at once with "already locked".

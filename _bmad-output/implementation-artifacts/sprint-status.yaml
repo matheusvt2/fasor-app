@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 11-03-2026 12:45
+last_updated: 11-03-2026 16:40
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -211,7 +211,7 @@ development_status:
   18-2-the-api-receives-usage-events-and-writes-them-to-cloudwatch: done  # 2026-10-30: PR #213 squash-merged as 3b45e83c and deployed; the log group exists (90 days) and the api writes to it | 2026-10-29: batch o18a PR #213 (open, not merged; the log group appears after the deploy's Terraform apply) | 2026-10-29: batch o18a started
   18-3-seeing-the-funnel-dashboard-saved-queries-and-the-first-friction-digest: 
     done                                                                              # 2026-10-30: PR #212 squash-merged as 62bdd76c and deployed with 3b45e83c; dashboard and nine saved queries live, all nine Complete on production data; first digest due 2026-11-30 | 2026-10-29: batch o18b PR #212 (open, not merged; dashboard and saved queries appear after the deploy's Terraform apply) | 2026-10-29: batch o18b started
-  18-4-the-events-say-how-long-in-what-order-on-what-and-for-whom: backlog  # 2026-10-30: drafted in epics.md from backlog-2026-10-30-ux-data-sufficiency.md § 2 on Matheus's "pode fazer" (durations and origin on screen_view, viewport/standalone/online on session_start, input_refused, targets per tile and per size, the document waits re-timed, views, digest questions); built after the E18-A1 and E18-A2 batches on his "pode seguir"
+  18-4-the-events-say-how-long-in-what-order-on-what-and-for-whom: done  # 2026-11-03: built as batch s184, PR #233 squash-merged as d39a5e6c, deployed the same day (smoke 8 of 8); Conta sentence chosen by Matheus (the short wording). Earlier: 2026-10-30: drafted in epics.md from backlog-2026-10-30-ux-data-sufficiency.md § 2 on Matheus's "pode fazer" (durations and origin on screen_view, viewport/standalone/online on session_start, input_refused, targets per tile and per size, the document waits re-timed, views, digest questions); built after the E18-A1 and E18-A2 batches on his "pode seguir"
   epic-19: in-progress  # 2026-10-30: Matheus on the 2026-10-29 analysis: "Fazer: B. Atalhos acima da lista"; 19.1 built at once from main 64fe789e; 19.2 (Emitido behind its tile, the capped list) drafted from his words, Definition of Ready waits for his word
   epic-19-retrospective: done
   19-1-templates-and-cadastros-one-tap-from-the-top-the-shortcut-row-above-the-relatorio-list: 
@@ -1551,7 +1551,7 @@ action_items:
       to R-V9, R-V11, R-V12 unit part; the route-table test) and usage-events.spec.ts
       promoted to @p0"
     owner: "coordinator (batch)"
-    status: open
+    status: done  # 2026-11-03: batch e18fa, PR #231, deployed in cf468e3d  (was: open)
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
   - id: "epic-18-retro-item-153-e18-a2-observability-fix-batch"
     epic: 18
@@ -1573,7 +1573,7 @@ action_items:
       in 54b11947 (smoke red at step 6 once, 8 of 8 on the re-run); the CLI's first
       production run by Matheus the same day (exit 0, two users, the two labels confirmed)"
     owner: "coordinator (batch); Matheus (deploy go)"
-    status: open
+    status: done  # 2026-11-03: users view (#221, #222, #223) and the remainder in batch e18fb, PR #230, deployed in cf468e3d  (was: open)
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
   - id: "epic-18-retro-item-154-e18-a3-docs-ledger-playbook"
     epic: 18
@@ -1587,7 +1587,7 @@ action_items:
       (a residual risk that changes how a view is read is a runbook sentence in the
       same PR; the wave gate record carries the host load line)"
     owner: "coordinator"
-    status: in-progress  # 2026-11-03: ledger and playbook parts done in PR #227; the docs/observability.md part is in batch e18fb
+    status: done  # 2026-11-03: PR #227 and the docs/observability.md part in PR #230  (was: in-progress  # 2026-11-03: ledger and playbook parts done in PR #227; the docs/observability.md part is in batch e18fb)
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
   - id: "epic-18-retro-item-155-e18-a4-spec-reconciliation"
     epic: 18
@@ -1652,7 +1652,7 @@ action_items:
       and asserts is-current (R-9); readHomePageSize falls back to 10 (R-11); a role=status
       line for the note (R-12)."
     owner: "coordinator (batch)"
-    status: open
+    status: done  # 2026-11-03: batch f19, PR #232, deployed in cf468e3d  (was: open)
     ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md"
   - id: "epic-19-retro-item-161-e19-a3-ledger-rows"
     epic: 19
@@ -1662,7 +1662,7 @@ action_items:
       write failure; R-13 the size control only below the list and focus on unmount
       (UX question for Matheus and Sally)."
     owner: "coordinator"
-    status: open
+    status: done  # 2026-11-03: four rows in deferred-work.md, PR #232  (was: open)
     ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md"
   - id: "epic-19-retro-item-162-e19-a4-process-lessons"
     epic: 19
@@ -1672,5 +1672,5 @@ action_items:
       in epic-batch-orchestrator.md: a story built without a spec still gets a verification-gap
       read recorded in one line of its sprint-status note (P-2)."
     owner: "coordinator"
-    status: open
+    status: done  # 2026-11-03: wave gate record in epic-19-context.md and two playbook lines in epic-batch-orchestrator.md § 8  (was: open)
     ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md"
