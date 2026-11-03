@@ -60,7 +60,7 @@ describe('stampShell', () => {
   it('is a new version when only index.html changes', async () => {
     await build();
     const before = await stampShell(outDir, PRECACHE);
-    await build({ document: documentSource.replace('<title>PRODUTO</title>', '<title>PRODUTO</title><meta name="x" />') });
+    await build({ document: documentSource.replace('</title>', '</title><meta name="x" />') });
     expect(await stampShell(outDir, PRECACHE)).not.toBe(before);
   });
 

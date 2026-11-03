@@ -8,6 +8,7 @@ import {
   newEquipmentBlock,
   numberPhotos,
   PHOTO_UNAVAILABLE_TEXT,
+  PRODUTO,
   replay,
   tocLines,
   type EquipmentBlockType,
@@ -404,7 +405,7 @@ describe('14.2-UNIT section 9 in the DOCX: a painel is a band over its sheets', 
 });
 
 describe('Epic 4 QA Q13 footer size and document properties', () => {
-  it('sets the footer size on its paragraph style and paragraph marks, where the PAGE/NUMPAGES results take it from, and names PRODUTO as the last editor', async () => {
+  it('sets the footer size on its paragraph style and paragraph marks, where the PAGE/NUMPAGES results take it from, and names the product as the last editor', async () => {
     const entries = readZipEntries(await renderFixture());
     const footerName = [...entries.keys()].find((name) => /^word\/footer\d+\.xml$/.test(name))!;
     const footer = entries.get(footerName)!.toString('utf8');
@@ -422,7 +423,9 @@ describe('Epic 4 QA Q13 footer size and document properties', () => {
     const footerStyle = /<w:style [^>]*w:styleId="FooterText"[^>]*>(.*?)<\/w:style>/s.exec(styles)?.[1] ?? '';
     expect(footerStyle).toContain('<w:sz w:val="18"/>');
     const core = entries.get('docProps/core.xml')!.toString('utf8');
-    expect(core).toContain('<cp:lastModifiedBy>PRODUTO</cp:lastModifiedBy>');
+    expect(core).toContain(`<cp:lastModifiedBy>${PRODUTO}</cp:lastModifiedBy>`);
+    expect(core).toContain(`<dc:creator>${PRODUTO}</dc:creator>`);
+    expect(PRODUTO).toBe('Conforme');
     expect(core).not.toContain('Un-named');
   }, 30_000);
 });

@@ -16,6 +16,6 @@ sources: [packages/domain/src]
   *(2026-10-13: `seed/` holds `v1`..`v5` and `measurement.ts` (the measurement-table grammar, Story 14.5); `relatorio/measurement-evaluation.ts` evaluates it; `ops/path.ts` gains the family `sheet/test/value`; `CONTRACT_VERSION` is 19. See [measurement-table](/architecture/measurement-table.md).)*
 - `print/` `group-for-print`, `section-7..11`, `document-control`, `layout`, `revisions`, `last-nameplate`, `sm-c1`.
 - `parse/` and `format/` pt-BR numbers, dates, units (the only place). `text/` plural and composed texts (derived pt-BR lives here, see [copy-homes](/ux/copy-homes.md)). `home/`, `points/`, `photos/`, `files/`, `drafts/`, `device/`, `prefs/`, `reading/`, `checks/`.
-- `ids.ts` UUIDv7, `clock.ts`, `product.ts` (the `PRODUTO` constant).
+- `ids.ts` UUIDv7, `clock.ts`, `product.ts` (the `PRODUTO` constant; *2026-11-03, Story 20.1: value `Conforme`*).
 
 Rule: no I/O, no framework, zod only. Exported through `src/index.ts`. Decision context: [kernel-and-seed](/architecture/kernel-and-seed.md).

@@ -5,6 +5,9 @@
 [data-route="/home"] .home-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-4); }
 [data-route="/home"] .home-head h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
 .frame-phone [data-route="/home"] .home-head .btn { width: 100%; }
+/* 2026-11-03, Story 20.2: the search field takes the Cadastros toolbar basis; a full row on a phone. */
+[data-route="/home"] .home-search { flex: 1 1 280px; min-width: 0; }
+.frame-phone [data-route="/home"] .home-search { flex-basis: 100%; order: 3; }
 [data-route="/home"] .relatorio-cards { display: flex; flex-direction: column; gap: var(--sp-3); }
 [data-route="/home"] .relatorio-card { cursor: pointer; }
 [data-route="/home"] .relatorio-card .card-chev { color: var(--ink-secondary); flex: none; margin: -6px -6px 0 0; }
@@ -40,6 +43,12 @@
     <section class="section" aria-labelledby="home-h-relatórios">
       <div class="home-head">
         <h2 id="home-h-relatórios">Relatórios</h2>
+        <!-- 2026-11-03, Story 20.2: the search field in the "Relatórios" head, from the Cadastros toolbar
+             pattern (80-cadastros.html); it matches client or obra, accent-, case- and spacing-free. -->
+        <div class="field home-search">
+          <span class="field-label visually-hidden">Buscar relatório</span>
+          <div class="input"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span class="placeholder">Cliente ou obra</span></div>
+        </div>
         <button class="btn btn-primary" data-go="#/project/porto-seguro"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo relatório</button>
       </div>
 

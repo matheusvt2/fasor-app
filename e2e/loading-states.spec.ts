@@ -26,7 +26,7 @@ function gate() {
   return { opened, release: () => open() };
 }
 
-test('@p1 the document says "Carregando PRODUTO…" while the bundle is held, and the app replaces it', async ({ page }) => {
+test('@p1 the document says "Carregando Conforme…" while the bundle is held, and the app replaces it', async ({ page }) => {
   const held = gate();
   await page.route(/\/assets\/index-[^/]+\.js$/, async (route: Route) => {
     await held.opened;

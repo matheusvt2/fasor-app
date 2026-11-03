@@ -149,6 +149,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'usage-events-documents.spec.ts',
     why: 'previews and issues the fixed-id Porto Seguro fixture through the shared queue and LibreOffice, and compares the timed waits with the measured tap-to-document intervals, which must not share the CPU with other workers',
   },
+  // Story 20.4: 20.4-E2E-005 generates the revision whose section 8 is read for the relinked points.
+  {
+    file: 'point-relink-print.spec.ts',
+    why: 'generates a revision through the shared queue and LibreOffice to read section 8\'s Local/TAG of three relinked points from the DOCX and the PDF',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

@@ -2,7 +2,8 @@
 title: 'Batch e20w: Stories 20.1, 20.2 and 20.4 (Conforme, Home search by client and obra, relink a point)'
 type: 'feature'
 created: '2026-11-03'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '76af18eff41394de3fbdfcd269a088eb2bc2dc77'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'

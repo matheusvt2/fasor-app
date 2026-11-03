@@ -1,4 +1,13 @@
-import { defaultEmpresaRow, registryFieldPath, registryPath, toIso, type EmpresaRow, type OpDraft, type UploadFileKind } from '@app/domain';
+import {
+  defaultEmpresaRow,
+  PRODUTO,
+  registryFieldPath,
+  registryPath,
+  toIso,
+  type EmpresaRow,
+  type OpDraft,
+  type UploadFileKind,
+} from '@app/domain';
 import { useEffect, useId, useRef, useState } from 'react';
 import { LoadingNote, UploadTile, type PickedFile } from '../../components/index.ts';
 import { now } from '../../clock.ts';
@@ -136,7 +145,7 @@ export function EmpresaTab() {
 
   return (
     <div className="registry-main">
-      <p className="section-note">{t.note}</p>
+      <p className="section-note">{t.note(PRODUTO)}</p>
 
       <div className="empresa-layout">
         <div className="empresa-form">

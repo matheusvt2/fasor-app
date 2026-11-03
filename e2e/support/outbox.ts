@@ -33,7 +33,7 @@ function op(user: SeedUser, input: Omit<OpInput, 'company_id' | 'actor_id' | 'de
   );
 }
 
-export function clientCreateOp(user: SeedUser, clientId = newId()): Op {
+export function clientCreateOp(user: SeedUser, clientId = newId(), name = 'Cliente E2E'): Op {
   return op(user, {
     kind: 'create',
     scope: 'company',
@@ -41,7 +41,7 @@ export function clientCreateOp(user: SeedUser, clientId = newId()): Op {
     value: {
       id: clientId,
       kind: 'client',
-      name: 'Cliente E2E',
+      name,
       cnpj: null,
       contact_name: null,
       contact_phone: null,
@@ -69,12 +69,17 @@ export function voltageClassCreateOp(user: SeedUser, voltageClassId = newId(), n
   });
 }
 
-export function projectCreateOp(user: SeedUser, projectId = newId(), clientId: string | null = null): Op {
+export function projectCreateOp(
+  user: SeedUser,
+  projectId = newId(),
+  clientId: string | null = null,
+  { name = 'Projeto E2E', site = null }: { name?: string; site?: string | null } = {},
+): Op {
   return op(user, {
     kind: 'create',
     scope: 'company',
     path: `project/${projectId}`,
-    value: { id: projectId, client_id: clientId, name: 'Projeto E2E', site: null, removed_at: null },
+    value: { id: projectId, client_id: clientId, name, site, removed_at: null },
   });
 }
 

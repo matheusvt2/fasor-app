@@ -6,6 +6,7 @@ import { escapeDialog } from './support/dialogs.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { typeDate } from './support/relatorio-flow.ts';
+import { syncNow } from './support/sync.ts';
 import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 
 /*
@@ -113,7 +114,7 @@ function notTestedDraft(scope: Scope, blockId: string, reason = 'solicitacao_cli
   return officeDraft(account, scope, `block/${blockId}/not_tested`, { reason, text: null, at: '2026-09-07T12:00:00.000Z', by: account.userId });
 }
 
-async function setUp(page: Page, seed: (scope: Scope, sheets: SeededSheet[]) => OpDraft[] = () => []): Promise<Built> {
+async function setUp(page: Page, seed: (scope: Scope, sheets: SeededSheet[], equipmentOf: Map<string, string>) => OpDraft[] = () => []): Promise<Built> {
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
@@ -126,7 +127,7 @@ async function setUp(page: Page, seed: (scope: Scope, sheets: SeededSheet[]) => 
       .filter((row) => row.equipment_id !== null)
       .map((row) => [row.id, row.equipment_id!] as const),
   );
-  await pushDrafts(page, database, [...built.drafts, ...seed(scope, built.sheets)]);
+  await pushDrafts(page, database, [...built.drafts, ...seed(scope, built.sheets, equipmentOf)]);
   await page.goto(`/relatorio/${built.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   return { relatorioId: built.relatorioId, sheets: built.sheets, equipmentOf };
@@ -157,7 +158,7 @@ test('@p0 6.6-E2E-001 row 8 opens the empty Points surface; "Criar" writes one p
   const editor = page.getByRole('article', { name: 'Novo ponto de atenção em edição' });
   await expect(editor).toBeVisible();
   await expect(page.getByText('Nenhum ponto de atenção.', { exact: true })).toHaveCount(0);
-  await expect(editor.locator('.poa-equipment')).toHaveText('Geral');
+  await expect(editor.locator('.poa-link-value')).toHaveText('Geral');
   await expect(editor.getByRole('textbox', { name: 'Ação recomendada' })).toBeVisible();
   const text = textArea(editor);
   await expect(text).toBeFocused();
@@ -220,7 +221,7 @@ test('@p0 6.6-E2E-002 an NC row\'s "Criar ponto de atenção" links the sheet\'s
   await create.click();
   const dialog = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.locator('.poa-equipment')).toHaveText(`${chave.tag} · Cubículo Enel`);
+  await expect(dialog.locator('.poa-link-value')).toHaveText(`${chave.tag} · Chave seccionadora · Cubículo Enel`);
   await expect(textArea(dialog).locator('.photo-ref')).toHaveText('Imagem 1');
   await textArea(dialog).click();
   await page.keyboard.press('Home');
@@ -809,4 +810,208 @@ test('@p0 P020-E2E-002 a relatório without sections 8 and 10: the saved point\'
   await expect(field).toHaveAttribute('data-state', 'confirmed');
   await expect(toast(page).locator(':scope > span').first()).toHaveText('Resumo do parecer confirmado');
   await expect(field.locator('.helper').filter({ hasText: 'Confirmado' })).toHaveText('Confirmado · não sai no documento: o relatório não tem a seção "Conclusão e parecer"');
+});
+
+// --- Story 20.4: "Equipamento ou local" ---------------------------------------------------
+
+interface LinkOp {
+  kind: string;
+  path: string;
+  value: unknown;
+  batch_id: string | null;
+  op_id: string;
+}
+
+const pointOutbox = async (page: Page) => (await readStore<LinkOp>(page, database, 'outbox')).filter((row) => row.path.startsWith('point/'));
+const linkPicker = (scope: Locator) => scope.getByRole('button', { name: /Equipamento ou local/ });
+/** The open picker's list, portaled to the end of the page. */
+const linkList = (page: Page) => page.getByRole('listbox');
+const chaveOption = (chave: SeededSheet) => `${chave.tag} · Chave seccionadora · Cubículo Enel`;
+
+/** The two puts of one relink, in the outbox order of one batch. */
+function expectRelinkBatch(ops: readonly LinkOp[], pointId: string, equipmentId: string | null, locationId: string | null): void {
+  expect(ops.map((op) => [op.kind, op.path, op.value])).toEqual([
+    ['put', `point/${pointId}/equipment_id`, equipmentId],
+    ['put', `point/${pointId}/location_id`, locationId],
+  ]);
+  expect(ops[0]!.batch_id).not.toBeNull();
+  expect(ops[1]!.batch_id).toBe(ops[0]!.batch_id);
+}
+
+test.describe('on a touch screen', () => {
+  test.use({ hasTouch: true });
+
+  test('@p0 20.4-E2E-001 a Geral point relinked to an equipment by touch at 390 px: the card names the TAG and its place, the outbox holds both puts in one batch, and another device shows it after "Sincronizar agora"', async ({ page, browser }) => {
+    test.setTimeout(240_000);
+    let geral!: PointRow;
+    const { relatorioId, sheets, equipmentOf } = await setUp(page, (scope) => {
+      const built = pointDrafts(scope, [{ text: 'Ponto geral', action: 'Agir' }]);
+      geral = built.rows[0]!;
+      return built.drafts;
+    });
+    const chave = enelChaves(sheets)[0]!;
+    const equipmentId = equipmentOf.get(chave.blockId)!;
+
+    // Another device holds the relatório and its Points surface on the old title.
+    const context = await browser.newContext();
+    try {
+      const other = await context.newPage();
+      await other.setViewportSize({ width: 1280, height: 900 });
+      await signIn(other, account.email);
+      await other.goto(`/relatorio/${relatorioId}/pontos`);
+      await expect(cards(other).first().locator('.poa-title')).toHaveText('Geral', { timeout: 30_000 });
+
+      await page.setViewportSize({ width: 390, height: 844 });
+      await openPoints(page);
+      await cards(page).first().getByRole('button', { name: 'Editar o ponto 1, Geral' }).tap();
+      const editor = page.getByRole('article', { name: 'Ponto de atenção 1 em edição' });
+      const picker = linkPicker(editor);
+      await expect(picker).toContainText('Geral');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+      const before = (await pointOutbox(page)).length;
+
+      await picker.tap();
+      const list = linkList(page);
+      await expect(list).toBeVisible();
+      // A labelled listbox with groups, the current link selected.
+      await expect(list.getByRole('option', { name: 'Geral', exact: true })).toHaveAttribute('aria-selected', 'true');
+      await expect(list.getByRole('group', { name: 'Cubículo Enel' })).toBeVisible();
+      await expect(list.getByRole('group', { name: '1° Subsolo' })).toBeAttached();
+      await list.getByRole('option', { name: chaveOption(chave), exact: true }).tap();
+      await expect(list).toHaveCount(0);
+      await expect(picker).toBeFocused();
+      await expect(picker).toContainText(chaveOption(chave));
+
+      await expect.poll(async () => (await pointOutbox(page)).length).toBe(before + 2);
+      expectRelinkBatch((await pointOutbox(page)).slice(before), geral.id, equipmentId, null);
+      await expect.poll(async () => (await storedPoints(page)).find((row) => row.id === geral.id)).toMatchObject({ equipment_id: equipmentId, location_id: null, text: 'Ponto geral', action: 'Agir' });
+
+      await editor.getByRole('button', { name: 'Concluir' }).tap();
+      await expect(editor).toHaveCount(0);
+      await expect(cards(page).first().locator('.poa-title')).toHaveText(`${chave.tag} · Cubículo Enel`);
+
+      // Synced, then pulled on the other device: the same title there.
+      await syncNow(page);
+      await syncNow(other);
+      await other.goto(`/relatorio/${relatorioId}/pontos`);
+      await expect(cards(other).first().locator('.poa-title')).toHaveText(`${chave.tag} · Cubículo Enel`, { timeout: 30_000 });
+    } finally {
+      await context.close();
+    }
+  });
+});
+
+test('@p0 20.4-E2E-002 an NC point relinked to another equipment and cleared to Geral by keyboard at 1280 px: two puts per pick, its text and action unchanged, the picker focused after each choice', async ({ page }) => {
+  test.setTimeout(150_000);
+  let nc!: PointRow;
+  let chave!: SeededSheet;
+  await setUp(page, (scope, all, equipmentOf) => {
+    chave = enelChaves(all)[0]!;
+    nc = newPointRow({ id: newId(), relatorioId: scope.relatorioId, text: 'Contato com sinais de aquecimento', equipmentId: equipmentOf.get(chave.blockId)!, origin: 'manual', action: 'Reapertar e medir de novo' }, []);
+    return [officeDraft(account, scope, `point/${nc.id}`, nc, 'create')];
+  });
+  await openPoints(page);
+  const edit = page.getByRole('button', { name: `Editar o ponto 1, ${chave.tag} · Cubículo Enel` });
+  await edit.focus();
+  await page.keyboard.press('Enter');
+  const editor = page.getByRole('article', { name: 'Ponto de atenção 1 em edição' });
+  await expect(textArea(editor)).toBeFocused();
+  const picker = linkPicker(editor);
+  // Reached by keyboard: back from the text, field by field.
+  for (let i = 0; i < 20 && !(await picker.evaluate((element) => element === document.activeElement)); i += 1) await page.keyboard.press('Shift+Tab');
+  await expect(picker).toBeFocused();
+  await expect(picker).toContainText(chaveOption(chave));
+
+  // Another equipment: the list opens on the current link; ArrowDown moves to the next one.
+  await page.keyboard.press('Enter');
+  const list = linkList(page);
+  await expect(list).toBeVisible();
+  const current = list.getByRole('option', { name: chaveOption(chave), exact: true });
+  await expect(current).toHaveAttribute('aria-selected', 'true');
+  await expect(current).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  const next = list.locator('[role="option"]:focus');
+  const nextKey = (await next.getAttribute('data-key'))!;
+  const nextText = (await next.textContent())!;
+  expect(nextKey).toMatch(/^equipment:/);
+  await page.keyboard.press('Enter');
+  await expect(list).toHaveCount(0);
+  await expect(picker).toBeFocused();
+  await expect(picker).toContainText(nextText);
+  const nextEquipment = nextKey.slice('equipment:'.length);
+  await expect.poll(async () => (await pointOutbox(page)).length).toBe(2);
+  expectRelinkBatch(await pointOutbox(page), nc.id, nextEquipment, null);
+
+  // Geral: Home is the first option.
+  await page.keyboard.press('Enter');
+  await expect(list).toBeVisible();
+  await page.keyboard.press('Home');
+  await expect(list.getByRole('option', { name: 'Geral', exact: true })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(list).toHaveCount(0);
+  await expect(picker).toBeFocused();
+  await expect(picker).toContainText('Geral');
+  await expect.poll(async () => (await pointOutbox(page)).length).toBe(4);
+  expectRelinkBatch((await pointOutbox(page)).slice(2), nc.id, null, null);
+  // The current link again writes nothing.
+  await page.keyboard.press('Enter');
+  await expect(list).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(list).toHaveCount(0);
+
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(editor).toHaveCount(0);
+  await expect(cards(page).first().locator('.poa-title')).toHaveText('Geral');
+  // Only the link moved: no text, action or photo put, and the row's text and action stand.
+  expect((await pointOutbox(page)).map((op) => op.path.split('/').at(-1))).toEqual(['equipment_id', 'location_id', 'equipment_id', 'location_id']);
+  expect((await storedPoints(page)).find((row) => row.id === nc.id)).toMatchObject({ equipment_id: null, location_id: null, text: 'Contato com sinais de aquecimento', action: 'Reapertar e medir de novo', origin: 'manual' });
+  await page.reload();
+  await expect(cards(page).first().locator('.poa-title')).toHaveText('Geral', { timeout: 30_000 });
+  await expect(cards(page).first().locator('.poa-text')).toHaveText('Contato com sinais de aquecimento');
+});
+
+test('@p0 20.4-E2E-003 FR-61: a new point\'s picked equipment, held before its text, survives a reload in its draft and "Recuperar" creates the point with it', async ({ page }) => {
+  test.setTimeout(150_000);
+  // The commit of the text must not land before the reload (6.6-E2E-013's way): the outbox
+  // refuses writes while the flag is up.
+  await page.addInitScript(() => {
+    const original = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['put']>) {
+      if ((window as unknown as { __refuseOutbox?: boolean }).__refuseOutbox === true && this.name === 'outbox') {
+        throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+      }
+      return original.apply(this, args);
+    };
+  });
+  const { sheets, equipmentOf } = await setUp(page);
+  const chave = enelChaves(sheets)[0]!;
+  await openPoints(page);
+  await page.getByRole('button', { name: 'Criar', exact: true }).click();
+  const editor = page.getByRole('article', { name: 'Novo ponto de atenção em edição' });
+  const picker = linkPicker(editor);
+  await expect(picker).toContainText('Geral');
+
+  // Picked before any text: held, nothing written yet.
+  await picker.click();
+  await linkList(page).getByRole('option', { name: chaveOption(chave), exact: true }).click();
+  await expect(picker).toContainText(chaveOption(chave));
+  expect(await pointOutbox(page)).toEqual([]);
+
+  await page.evaluate(() => {
+    (window as unknown as { __refuseOutbox?: boolean }).__refuseOutbox = true;
+  });
+  await textArea(editor).click();
+  await page.keyboard.type('Isolador trincado');
+  const pointDraftsStored = async () =>
+    (await readStore<{ surface: string; value: { text?: string; equipmentId?: string | null } }>(page, database, 'drafts')).filter((draft) => draft.surface === 'point').map((draft) => draft.value);
+  await expect.poll(async () => (await pointDraftsStored()).map((value) => [value.text, value.equipmentId])).toContainEqual(['Isolador trincado', equipmentOf.get(chave.blockId)]);
+  expect(await storedPoints(page)).toEqual([]);
+
+  await page.reload();
+  await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
+  const offer = toast(page);
+  await expect(offer).toContainText('Rascunho encontrado');
+  await offer.getByRole('button', { name: 'Recuperar' }).click();
+  await expect.poll(async () => (await storedPoints(page)).map((row) => [row.text, row.equipment_id, row.location_id ?? null])).toEqual([['Isolador trincado', equipmentOf.get(chave.blockId), null]]);
+  await expect(cards(page).first().locator('.poa-title')).toHaveText(`${chave.tag} · Cubículo Enel`);
 });

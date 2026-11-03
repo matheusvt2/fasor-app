@@ -18,6 +18,7 @@ import {
   homePageSizeOf,
   isHomePageSize,
   noneActiveText,
+  noSearchMatchText,
   statusBoardCounts,
   templatesSubline,
   type HomeCardsInput,
@@ -731,7 +732,151 @@ describe('homeList (Story 19.2): the selection, the page, the note and the empty
   });
 
   it('nothing on the device is none', () => {
-    expect(homeList([], { filter: null, pageSize: 10 })).toEqual({ cards: [], shown: 0, total: 0, note: null, empty: 'none' });
+    expect(homeList([], { filter: null, pageSize: 10 })).toEqual({ cards: [], shown: 0, total: 0, note: null, empty: 'none', announcement: '' });
     expect(homeList([], { filter: 'emitido', pageSize: 10 }).empty).toBe('none');
+  });
+});
+
+describe('homeList (Story 20.2): the search by client and obra', () => {
+  const genIds = idSequence('019966b0-0020-7000-8000-');
+  const otherClient: RegistryRow = { ...client, id: genIds(), name: 'Indústria Têxtil Ltda' };
+  const portoProject: ProjectRow = { id: genIds(), client_id: CLIENT, name: 'Sede Central', site: 'Avenida do Pôrto 100', removed_at: null };
+  const textileProject: ProjectRow = { id: genIds(), client_id: otherClient.id, name: 'Fábrica  Norte', site: null, removed_at: null };
+
+  /** `n` cards of `status` on `projectId`, each with its own summary sequence counting down from `top`. */
+  function many(status: RelatorioStatus, n: number, top: number, projectId = PROJECT): { rows: RelatorioRow[]; entries: RelatorioSummary[] } {
+    const rows: RelatorioRow[] = [];
+    const entries: RelatorioSummary[] = [];
+    for (let i = 0; i < n; i += 1) {
+      const id = genIds();
+      rows.push({ ...relatorio(id, status), project_id: projectId });
+      entries.push({ ...summary(id, status, top - i), project_id: projectId });
+    }
+    return { rows, entries };
+  }
+  function build(...groups: { rows: RelatorioRow[]; entries: RelatorioSummary[] }[]) {
+    return homeCards(
+      input({
+        relatorios: groups.flatMap((g) => g.rows),
+        summary: groups.flatMap((g) => g.entries),
+        projects: [project, portoProject, textileProject],
+        clients: [client, otherClient],
+      }),
+    );
+  }
+
+  it('each card carries the normalized client name, obra name and obra site as its keys, empty ones dropped', () => {
+    const [porto] = build(many('rascunho', 1, 10, portoProject.id));
+    expect(porto!.searchKeys).toEqual(['seguradora exemplo companhia de seguros', 'sede central', 'avenida do porto 100']);
+    const [textile] = build(many('rascunho', 1, 10, textileProject.id));
+    expect(textile!.searchKeys).toEqual(['industria textil ltda', 'fabrica norte']);
+  });
+
+  it('with no project row the key is the setup local', () => {
+    const id = genIds();
+    const [card] = homeCards(input({ relatorios: [relatorio(id, 'rascunho', { local: 'Galpão  Leste' })], projects: [] }));
+    expect(card!.searchKeys).toEqual(['galpao leste']);
+    const [bare] = homeCards(input({ relatorios: [relatorio(genIds(), 'rascunho')], projects: [] }));
+    expect(bare!.searchKeys).toEqual([]);
+  });
+
+  it('matches a substring of any key, free of accents, case and spacing', () => {
+    const porto = many('rascunho', 2, 50, portoProject.id);
+    const textile = many('em_campo', 2, 40, textileProject.id);
+    const cards = build(porto, textile);
+    const ids = (query: string) => homeList(cards, { filter: null, pageSize: 10, query }).cards.map((c) => c.id);
+    expect(ids('porto')).toEqual(porto.rows.map((r) => r.id));
+    expect(ids('PÔRTO')).toEqual(porto.rows.map((r) => r.id));
+    expect(ids('  fábrica   norte ')).toEqual(textile.rows.map((r) => r.id));
+    expect(ids('TÊXTIL')).toEqual(textile.rows.map((r) => r.id));
+  });
+
+  it('never matches across the client and obra boundary', () => {
+    const cards = build(many('rascunho', 1, 50, textileProject.id));
+    expect(homeList(cards, { filter: null, pageSize: 10, query: 'ltda fabrica' }).cards).toEqual([]);
+  });
+
+  it('with no tile pressed covers every status, Emitido included, in homeCards order', () => {
+    const issued = many('emitido', 2, 90, portoProject.id);
+    const drafts = many('rascunho', 1, 80, portoProject.id);
+    const review = many('em_revisao', 1, 70, portoProject.id);
+    const other = many('rascunho', 3, 60);
+    const cards = build(issued, drafts, review, other);
+    const list = homeList(cards, { filter: null, pageSize: 10, query: 'porto' });
+    expect(list.cards.map((c) => c.id)).toEqual([...issued.rows, ...drafts.rows, ...review.rows].map((r) => r.id));
+    expect(list).toMatchObject({ shown: 4, total: 4, note: null, empty: null, announcement: '4 relatórios encontrados' });
+  });
+
+  it('a pressed tile narrows the search to its status; releasing it widens to every status again', () => {
+    const issued = many('emitido', 2, 90, portoProject.id);
+    const field = many('em_campo', 2, 80, portoProject.id);
+    const cards = build(issued, field, many('em_campo', 2, 70));
+    const narrowed = homeList(cards, { filter: 'em_campo', pageSize: 10, query: 'porto' });
+    expect(narrowed.cards.map((c) => c.id)).toEqual(field.rows.map((r) => r.id));
+    const released = homeList(cards, { filter: null, pageSize: 10, query: 'porto' });
+    expect(released.cards.map((c) => c.id)).toEqual([...issued.rows, ...field.rows].map((r) => r.id));
+  });
+
+  it('cuts the results at the page size, with the note on the results', () => {
+    const issued = many('emitido', 4, 200, portoProject.id);
+    const drafts = many('rascunho', 10, 100, portoProject.id);
+    const cards = build(issued, drafts, many('rascunho', 5, 50));
+    const list = homeList(cards, { filter: null, pageSize: 10, query: 'porto' });
+    expect(list.cards.map((c) => c.id)).toEqual([...issued.rows, ...drafts.rows].slice(0, 10).map((r) => r.id));
+    expect(list).toMatchObject({ shown: 10, total: 14, note: 'Mostrando 10 de 14 relatórios', announcement: 'Mostrando 10 de 14 relatórios' });
+    expect(homeList(cards, { filter: null, pageSize: 20, query: 'porto' })).toMatchObject({ shown: 14, total: 14 });
+  });
+
+  it('one result is announced in the singular', () => {
+    const cards = build(many('rascunho', 1, 10, portoProject.id), many('rascunho', 2, 5));
+    expect(homeList(cards, { filter: null, pageSize: 10, query: 'porto' }).announcement).toBe('1 relatório encontrado');
+  });
+
+  it('the current card stays first when it matches and is absent when it does not', () => {
+    const here = genIds();
+    const others = many('em_campo', 2, 80, portoProject.id);
+    const make = (projectId: string) =>
+      homeCards(
+        input({
+          relatorios: [{ ...relatorio(here, 'em_campo'), project_id: projectId }, ...others.rows],
+          summary: [{ ...summary(here, 'em_campo', 1), project_id: projectId }, ...others.entries],
+          syncStates: [onDevice(here)],
+          projects: [project, portoProject],
+        }),
+      );
+    const matching = homeList(make(portoProject.id), { filter: null, pageSize: 10, query: 'porto' });
+    expect(matching.cards.map((c) => c.id)).toEqual([here, ...others.rows.map((r) => r.id)]);
+    expect(matching.cards[0]!.isCurrent).toBe(true);
+    const absent = homeList(make(PROJECT), { filter: null, pageSize: 10, query: 'porto' });
+    expect(absent.cards.map((c) => c.id)).toEqual(others.rows.map((r) => r.id));
+  });
+
+  it('no match: the kernel sentence names the trimmed query, no card, and the board counts are untouched', () => {
+    const cards = build(many('rascunho', 3, 50, portoProject.id), many('emitido', 2, 40));
+    const list = homeList(cards, { filter: null, pageSize: 10, query: '  zzz ' });
+    expect(list.cards).toEqual([]);
+    expect(list.empty).toEqual({ kind: 'none-for-query', text: 'Nenhum relatório encontrado para zzz.' });
+    expect(list.announcement).toBe('Nenhum relatório encontrado para zzz.');
+    expect(list).toMatchObject({ shown: 0, total: 0, note: null });
+    expect(noSearchMatchText(' zzz  ')).toBe('Nenhum relatório encontrado para zzz.');
+    expect(statusBoardCounts(cards)).toMatchObject({ rascunho: 3, emitido: 2 });
+    const narrowed = homeList(cards, { filter: 'em_campo', pageSize: 10, query: 'zzz' });
+    expect(narrowed.empty).toEqual({ kind: 'none-for-query', text: 'Nenhum relatório encontrado para zzz.' });
+  });
+
+  it('a blank query is exactly the Story 19.2 list', () => {
+    const cards = build(many('rascunho', 12, 100, portoProject.id), many('emitido', 3, 200));
+    for (const query of ['', '   ', undefined]) {
+      for (const filter of [null, 'emitido', 'em_campo'] as const) {
+        expect(homeList(cards, { filter, pageSize: 10, query })).toEqual(homeList(cards, { filter, pageSize: 10 }));
+      }
+    }
+    const list = homeList(cards, { filter: null, pageSize: 10, query: ' ' });
+    expect(list).toMatchObject({ total: 12, note: 'Mostrando 10 de 12 relatórios', announcement: 'Mostrando 10 de 12 relatórios' });
+    expect(homeList(build(many('rascunho', 2, 10)), { filter: null, pageSize: 10 }).announcement).toBe('');
+  });
+
+  it('nothing on the device stays none, query or not', () => {
+    expect(homeList([], { filter: null, pageSize: 10, query: 'porto' }).empty).toBe('none');
   });
 });

@@ -6,6 +6,7 @@ import { sumarioTitle } from '../relatorio/project.ts';
 import type { BlockRow, LocationRow, ProjectRow, RegistryRow, RelatorioRow, RelatorioStatus, SuggestionRow, TemplateRow } from '../schemas/entities.ts';
 import { RELATORIO_STATUSES, statusLabel, statusPillId, type StatusPillId } from '../status/table.ts';
 import { activeTemplates } from '../templates/list.ts';
+import { normalizeRegistryName } from '../text/normalize-name.ts';
 import { plural, relatoriosCount } from '../text/plural.ts';
 import {
   syncBadgeState,
@@ -60,6 +61,12 @@ export interface HomeCard {
    * whose relatório is on this device (Story 12.2); null otherwise.
    */
   counter: { text: string; state: 'complete' | 'pending' } | null;
+  /**
+   * Story 20.2: what the Home search matches, each key on its own (`normalizeRegistryName`):
+   * the client name, the obra's name and its site, or the setup local without a project row.
+   * Empty keys are dropped.
+   */
+  searchKeys: string[];
 }
 
 export interface HomeCardsInput {
@@ -270,6 +277,9 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
       formatServiceDates(source.service_start, source.service_end),
       source.template_id === null ? null : (templates.get(source.template_id) ?? null),
     ]);
+    const searchKeys = (project === undefined ? [source.local] : [clientName, project.name, project.site])
+      .map((key) => (key === null ? '' : normalizeRegistryName(key)))
+      .filter((key) => key !== '');
     const counts = syncCounts(outboxByRelatorio.get(source.id) ?? []);
     const device = deviceOf(states.get(source.id), input.online, input.now, {
       totals: progressOf.get(source.id),
@@ -287,6 +297,7 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
       isCurrent: false,
       isUnavailable: device.kind === 'absent-offline',
       counter: counterOf(source.id, device),
+      searchKeys,
     });
   }
 
@@ -368,12 +379,30 @@ export function noneActiveText(emitted: number): string {
   return `Nenhum relatório em andamento. ${plural(emitted, 'emitido', 'emitidos')}: toque em ${statusLabel('emitido')}.`;
 }
 
+/** Story 20.2: the empty sentence of a search that matches nothing. */
+export function noSearchMatchText(query: string): string {
+  // authored (Story 20.2 DoR): no mock draws a search with no match.
+  return `Nenhum relatório encontrado para ${query.trim()}.`;
+}
+
+/** Story 20.2: the polite count of a search's results. */
+function searchCountText(total: number): string {
+  // authored (Story 20.2): the count a screen reader hears as the results update.
+  return plural(total, 'relatório encontrado', 'relatórios encontrados');
+}
+
 /**
  * Why the list is empty: `none` when the device knows of no relatório, `none-for-filter`
  * when a pressed tile reads zero, `none-active` when only emitted ones exist and no tile is
- * pressed; null when the list has cards.
+ * pressed, `none-for-query` when a search matches nothing (Story 20.2); null when the list
+ * has cards.
  */
-export type HomeListEmpty = null | 'none' | 'none-for-filter' | { kind: 'none-active'; text: string };
+export type HomeListEmpty =
+  | null
+  | 'none'
+  | 'none-for-filter'
+  | { kind: 'none-active'; text: string }
+  | { kind: 'none-for-query'; text: string };
 
 export interface HomeList {
   /** The page of cards to render, in `homeCards` order. */
@@ -384,36 +413,53 @@ export interface HomeList {
   /** "Mostrando n de N relatórios" when the selection holds more than the smallest page; else null (no note, no chips). */
   note: string | null;
   empty: HomeListEmpty;
+  /**
+   * Story 20.2: the polite status text. Without a search, the note or ''; with one, the
+   * no-match sentence, the note, or the count of the results.
+   */
+  announcement: string;
 }
 
 /**
  * Story 19.2: the Home list from every ordered card (`homeCards` with no filter): the
  * pressed tile's status, or the active statuses with none pressed, cut at the page size.
  * The order is `homeCards`', so the current card stays first in every selection.
+ *
+ * Story 20.2: a non-blank `query` keeps the cards one of whose `searchKeys` holds it
+ * (`normalizeRegistryName`), applied after the tile filter and before the cut. With no
+ * tile pressed a search covers every status, Emitido included. A blank query is the
+ * Story 19.2 list exactly.
  */
 export function homeList(
   cards: readonly HomeCard[],
-  options: { filter: RelatorioStatus | null; pageSize: number },
+  options: { filter: RelatorioStatus | null; pageSize: number; query?: string },
 ): HomeList {
+  const needle = normalizeRegistryName(options.query ?? '');
+  const searching = needle !== '';
   const active = HOME_ACTIVE_STATUSES as readonly RelatorioStatus[];
-  const selection = cards.filter((card) => (options.filter === null ? active.includes(card.status) : card.status === options.filter));
+  const inBase = (card: HomeCard): boolean =>
+    options.filter === null ? searching || active.includes(card.status) : card.status === options.filter;
+  const matches = (card: HomeCard): boolean => !searching || card.searchKeys.some((key) => key.includes(needle));
+  const selection = cards.filter((card) => inBase(card) && matches(card));
   const page = selection.slice(0, homePageSizeOf(options.pageSize));
   const total = selection.length;
   let empty: HomeListEmpty = null;
   if (cards.length === 0) empty = 'none';
   else if (total === 0) {
-    empty =
-      options.filter === null
-        ? { kind: 'none-active', text: noneActiveText(cards.filter((card) => card.status === 'emitido').length) }
-        : 'none-for-filter';
+    if (searching) empty = { kind: 'none-for-query', text: noSearchMatchText(options.query ?? '') };
+    else
+      empty =
+        options.filter === null
+          ? { kind: 'none-active', text: noneActiveText(cards.filter((card) => card.status === 'emitido').length) }
+          : 'none-for-filter';
   }
-  return {
-    cards: page,
-    shown: page.length,
-    total,
-    note: total > HOME_PAGE_SIZES[0] ? homeListNote(page.length, total) : null,
-    empty,
-  };
+  const note = total > HOME_PAGE_SIZES[0] ? homeListNote(page.length, total) : null;
+  let announcement = note ?? '';
+  if (searching && cards.length > 0) {
+    if (total === 0) announcement = noSearchMatchText(options.query ?? '');
+    else if (note === null) announcement = searchCountText(total);
+  }
+  return { cards: page, shown: page.length, total, note, empty, announcement };
 }
 
 /**

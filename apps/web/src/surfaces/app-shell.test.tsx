@@ -108,13 +108,13 @@ describe('AppShell app bar', () => {
 
   it('names the browser tab per route (WCAG 2.4.2): the product alone on Home (retro U8)', () => {
     const home = renderShell();
-    expect(document.title).toBe('PRODUTO');
+    expect(document.title).toBe(PRODUTO);
     home.unmount();
     const account = renderShell(syncState(), '/account');
-    expect(document.title).toBe('Conta · PRODUTO');
+    expect(document.title).toBe(`Conta · ${PRODUTO}`);
     account.unmount();
     renderShell(syncState(), '/sync');
-    expect(document.title).toBe('Sincronização · PRODUTO');
+    expect(document.title).toBe(`Sincronização · ${PRODUTO}`);
   });
 
   it('Home has the wordmark and no back button; Account and Sync have "Voltar", which goes Home (retro U8)', async () => {

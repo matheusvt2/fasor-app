@@ -8,7 +8,7 @@ sources: [AGENTS.md, _bmad-output/specs/spec-fasor/SPEC.md]
 ---
 # Overview
 
-Releng captures medium-voltage substation (cabine primária) test sheets on site, on a tablet, offline, and generates Fasor Engenharia's FO.SERV-03 relatório as DOCX and PDF. The user-visible name is the placeholder `PRODUTO`; `fasor` is the internal codename and never appears in user-visible text.
+Releng captures medium-voltage substation (cabine primária) test sheets on site, on a tablet, offline, and generates Fasor Engenharia's FO.SERV-03 relatório as DOCX and PDF. The user-visible name is ~~the placeholder `PRODUTO`~~ *(2026-11-03, Story 20.1: Conforme, the value of the constant `PRODUTO`)*; `fasor` is the internal codename and never appears in user-visible text.
 
 Success test: a relatório composed from the seeded Template, filled with the Porto Seguro job data, generated as a DOCX the client recognizes as their own FO.SERV-03.
 
