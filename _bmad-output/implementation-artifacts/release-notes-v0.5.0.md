@@ -2,6 +2,8 @@
 
 The tag `v0.5.0` was pushed on 2026-10-30 on Matheus's "pode fazer". The GitHub release page is published with `gh release create v0.5.0 --title "v0.5.0" --notes-file <this file from the rule below>`, by Matheus or by an agent session allowed to create a public surface. The notes are everything below the rule.
 
+*(2026-11-03, Matheus: "pode criar a release". Published from the agent session with that command, the notes below the rule as the body: <https://github.com/matheusvt2/fasor-app/releases/tag/v0.5.0>, marked Latest, published at 14:18 UTC. v0.4.0 stays a tag without a page, as the notes say.)*
+
 ---
 
 Epics 18 and 19 and the production pass fix batches of 2026-10-29. Contract 28 (the relatório tombstone op family). Deployed to production in three steps: `94ca957a` and `87ff8a9d` on 2026-10-29, `3b45e83c` and `29f030b2` on 2026-10-30, each with the production smoke 8 of 8. v0.4.0 (2026-10-28, Epic 17 and Story 15.7, contract 27, seed v10) was tagged without a release page; its changes are in the Epic 17 records (#187 to #201).
