@@ -2,10 +2,10 @@
 title: 'E18-A1: the Epic 18 code fix batch (device flush, api limits, friction read, tests)'
 type: 'bugfix'
 created: '2026-11-03'
-status: 'in-review'
+status: 'done'
 baseline_revision: '0fede8ac813fa77e856cf26e976c9c199ebab709'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -150,3 +150,19 @@ deferred: []
 - `podman compose --profile tools run --rm --user root tools pnpm test:unit -- <paths>` while iterating, then whole -- expected: green
 - `podman compose restart api` after any change under `packages/domain` or `apps/api`, then `podman compose --profile tools run --rm --user root tools pnpm test:api` -- expected: green
 - Playwright runs only under the host lock and are run by the orchestrator: the implementer writes the e2e changes, runs `pnpm lint` and `pnpm static` over them, and leaves the runs to the orchestrator.
+
+## Auto Run Result
+
+Status: done (2026-11-03, batch e18fa).
+
+**Summary.** Every E18-A1 finding is fixed with a test or carried as a dated ledger row (`deferred-work.md` § "Deferred from: batch e18fa (2026-11-03)"). Device: 429 keep and end (R-A1), 15 s post abort (R-A4/R-E5), `pagehide` beacon (R-A6), narrowed reading watcher (R-A14), session rotation by database name (R-A15), `undo: true` on the four registry toasts (R-V10), network failure of "Sincronizar agora" as `offline` (R-E2), read-only taps as disabled (R-E3, jsdom only, see residual risks), primary-pointer guard (R-E7). Api: 256 KiB telemetry body cap (R-A7), stdout `event_ts` (R-E6), CloudWatch client `maxAttempts: 2` and 3 s request timeout (R-A4 api half). Friction read: structural fields out of spans and re-edits (R-A16), `client_ts` against the failure's `received_at` (R-A17), restore re-arms (R-E1), refusals without the value and guarded `sql.end()` on both read CLIs (R-A18, R-E8). Tests R-V2 to R-V9, R-V11, R-V12 unit part, A2's route-table test; `e2e/usage-events.spec.ts` 001 promoted to `@p0` and the new `@p0` 002 (429 and the Cadastros undo).
+
+**Files.** Web: `telemetry/{flush,instrument,track,readings}.ts`, `api/telemetry-client.ts`, `db/ux-events-store.ts`, `state/sync.tsx`, `app.tsx` (exported `appRoutes`), the four `surfaces/registries/*-panel.tsx`; new tests `api/telemetry-client.test.ts`, `telemetry/{routes,rendered-targets,dialogs}.test.tsx`, extended `flush`, `instrument`, `track`, `readings`, `targets`, `sync-telemetry`, `export-dialog` tests. Api: `http/app.ts`, `telemetry/sink.ts`, `db/friction-read.ts`, `db/friction-read-cli.ts`, `db/users-read-cli.ts`, new `db/cli-run.ts` with its test; extended `telemetry.integration`, `sink`, `friction-read.integration`, `users-read.integration` tests. E2E: `e2e/usage-events.spec.ts`. Ledger: `deferred-work.md`.
+
+**Review.** One pass (Edge Case Hunter, Verification Gap Reviewer), 13 findings: 5 patched (VG-1 with ECH-4, ECH-1, ECH-2, ECH-5, ECH-9), none deferred to the frontmatter, 8 rejected with their reasons in the triage log (VG-2/ECH-8 and ECH-3 carried as ledger rows, VG-3 as a runbook sentence). Patched counts by entry verdict: medium 4, low 1.
+
+**Follow-up review: recommended.** Four medium entries were patched and not re-reviewed: the reading watcher's read set (`telemetry/readings.ts`: pending by key, pulled since the last `seq`, outbox since the last look; serialized looks), and the beacon's single flight and 60 s window after a 429 (`telemetry/flush.ts`).
+
+**Verification.** Implementation: lint, static, test:unit (337 files, 4753 tests), test:api (98 files, 750 tests) green before the review. Mutation runs on `6306bd3f` (429 keep, abort signal, `pagehide`): each red without its fix, green restored. Story gate on the merge with main `f085d7ec`: recorded in the PR body (`.scratch-e18fa/gate/summary.txt`).
+
+**Residual risks.** R-E3 cannot be observed in a browser (`pointer-events: none` on a read-only Tri-state, locked CSS): a read-only tap records nothing; decision for Matheus. A 401 still drops a batch. Typed-after-failure compares device and server clocks. A photo reached only by a snapshot download, or another device's photo through a lagging stream, is not watched.
