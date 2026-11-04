@@ -6,6 +6,7 @@ import {
   GENERATE_ROUTES,
   makeOp,
   opRejectReasonText,
+  RELATORIO_MAX_BYTES,
   SYNC_PUSH_MAX_BYTES,
   SYNC_ROUTES,
   TEXT_CAPS,
@@ -15,7 +16,7 @@ import {
   type Op,
 } from '@app/domain';
 import { shortStringsOfBytes } from '@app/domain/fixtures/value-caps';
-import type { Locator, Page } from '@playwright/test';
+import type { BrowserContext, Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { appOrigin } from './support/origin.ts';
@@ -144,6 +145,47 @@ async function nameplateOf(page: Page, relatorioId: string): Promise<{ blockId: 
   throw new Error('the relatório has no sheet with a nameplate on this device');
 }
 
+/** e20f: "Pré-visualizar" in the Gerar relatório dialog, until the preview PDF answers (within `JOB_TIMEOUT`, no LibreOffice timeout). */
+async function previewThroughDialog(page: Page, context: BrowserContext, relatorioId: string): Promise<void> {
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Gerar relatório' });
+  const preview = dialog.locator('.generate-row').getByRole('button', { name: /^(Pré-visualizar|Gerando rascunho…)$/ });
+  await expect(preview).toBeVisible();
+  const tabPromise = context.waitForEvent('page');
+  await preview.click();
+  const tab = await tabPromise;
+  const requested = tab.waitForRequest(/\/api\/relatorios\/[0-9a-f-]{36}\/preview\.pdf\?v=[0-9a-f-]{36}$/, { timeout: JOB_TIMEOUT });
+  const url = (await requested).url();
+  const pdf = await page.request.get(url);
+  expect(pdf.status()).toBe(200);
+  expect((await pdf.body()).subarray(0, 4).toString('latin1')).toBe('%PDF');
+  await tab.close();
+}
+
+/** e20f: a hand-written point create of the signed-in user, in the relatório. */
+function pointOp(deviceId: string, relatorioId: string, text: string): Op {
+  const id = newId();
+  return makeOp(
+    {
+      kind: 'create',
+      scope: 'relatorio',
+      company_id: account.companyId,
+      project_id: null,
+      relatorio_id: relatorioId,
+      path: `point/${id}`,
+      value: { id, relatorio_id: relatorioId, text, equipment_id: null, origin: 'manual', order_key: `a${id.slice(-8)}`, removed_at: null } as JsonValue,
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: account.userId,
+      device_id: `${deviceId}-forged`,
+    },
+    { newId, now: new Date() },
+  );
+}
+
 /** e20f: queues an issue of the relatório through the generate route, as "Gerar relatório" does, and waits for its revision. */
 async function issueRevision(page: Page, relatorioId: string): Promise<void> {
   const route = GENERATE_ROUTES.generate(relatorioId);
@@ -256,22 +298,36 @@ test('@p0 20.7-E2E-001 20.8-E2E-001 20.9-E2E-001 20.10-E2E-001 e20f-E2E-001 forg
   expect(await serverStatus(page, relatorioId)).toBe('rascunho');
 
   // Nothing forged landed, and the value at the caps did: the relatório previews in its usual time, with no LibreOffice timeout.
-  await page.goto(`/relatorio/${relatorioId}`);
-  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
-  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Gerar relatório' });
-  const preview = dialog.locator('.generate-row').getByRole('button', { name: /^(Pré-visualizar|Gerando rascunho…)$/ });
-  await expect(preview).toBeVisible();
-  const tabPromise = context.waitForEvent('page');
-  await preview.click();
-  const tab = await tabPromise;
-  const requested = tab.waitForRequest(/\/api\/relatorios\/[0-9a-f-]{36}\/preview\.pdf\?v=[0-9a-f-]{36}$/, { timeout: JOB_TIMEOUT });
-  const url = (await requested).url();
-  const pdf = await page.request.get(url);
-  expect(pdf.status()).toBe(200);
-  expect((await pdf.body()).subarray(0, 4).toString('latin1')).toBe('%PDF');
-  await tab.close();
+  await previewThroughDialog(page, context, relatorioId);
   expect(await serverStatus(page, relatorioId)).toBe('rascunho');
+});
+
+test('@p0 e20f-E2E-004 a relatório filled with point text to just under its budget previews within the job timeout; the op past the budget is refused op_value_invalid', async ({ page, context }) => {
+  test.setTimeout(360_000);
+  await resetEmpresaB(account, { standard: true });
+  await signIn(page, account.email);
+  const built = newRelatorioDrafts(account);
+  await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId)]);
+  const deviceId = await readDeviceId(page, database);
+  const full = 'p'.repeat(TEXT_CAPS.long);
+  // Points of 20 000 characters, each op within every cap: most of the budget in one push, then one at a time until one is refused.
+  const bulk = Array.from({ length: Math.floor((0.8 * RELATORIO_MAX_BYTES) / (TEXT_CAPS.long + 400)) }, () => pointOp(deviceId, built.relatorioId, full));
+  expect((await pushFromPage(page, bulk)).body?.rejected).toEqual([]);
+  let refused: Op | null = null;
+  for (let guard = 0; guard < 40 && refused === null; guard++) {
+    const next = pointOp(deviceId, built.relatorioId, full);
+    const answer = await pushFromPage(page, [next]);
+    if (answer.body?.rejected?.length) {
+      expect(answer.body.rejected).toEqual([{ op_id: next.op_id, code: 'op_value_invalid' }]);
+      refused = next;
+    }
+  }
+  expect(refused, 'an op past the budget was refused').not.toBeNull();
+  const started = Date.now();
+  await previewThroughDialog(page, context, built.relatorioId);
+  const elapsed = Date.now() - started;
+  console.log(`e20f-E2E-004: the at-budget relatório previewed in ${elapsed} ms (${bulk.length} points of 20 000 characters and the ones after)`);
+  expect(elapsed).toBeLessThan(JOB_TIMEOUT);
 });
 
 test('@p0 20.7-E2E-002 a status op of this device the server refuses: Sync status counts it with its sentence, and the relatório shows the server\'s status', async ({ page }) => {
