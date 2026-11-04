@@ -61,6 +61,21 @@ export function lastPageOf(pages: readonly (readonly string[])[], match: (text: 
   return pages.findLastIndex((items) => items.some(match));
 }
 
+/**
+ * Story 20.6 follow-up (2026-11-04): the 1-based numbers of the pages that hold nothing but
+ * the header and footer, `chrome` being their lines (the DOCX's `header` and `footer` of
+ * `extractStructure`; an item that is part of one, a wrapped line, counts as chrome) and
+ * "Página N de M" its page line. A blank page left by an empty paragraph is one of them.
+ * It reads text only: a page whose content is an image with no text (a certificate page of
+ * section 11 after its first) is reported too, so a caller whose PDF holds such pages
+ * excludes them.
+ */
+export function footerOnlyPages(pages: readonly (readonly string[])[], chrome: readonly string[]): number[] {
+  const lines = chrome.map((line) => line.trim()).filter((line) => line !== '' && !line.includes('{PAGE}'));
+  const isChrome = (text: string) => /^Página \d+ de \d+$/.test(text) || lines.some((line) => line.includes(text));
+  return pages.flatMap((items, n) => (items.every(isChrome) ? [n + 1] : []));
+}
+
 /** Words only a ficha or a local block prints: none of them may stand before a ficha's title on its own page (Story 20.6). */
 export const SHEET_CONTENT_MARKS: readonly string[] = ['DADOS DO EQUIPAMENTO', 'VERIFICAÇÕES GERAIS', 'OBSERVAÇÕES', 'CONCLUSÃO', 'VERIFICAÇÕES DO LOCAL', 'CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO'];
 

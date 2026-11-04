@@ -553,6 +553,123 @@ describe('Stories 20.5 and 20.6 section 9 in the DOCX: tables kept whole, item l
   }, 60_000);
 });
 
+describe('Story 20.6 follow-up: no trailing gap', () => {
+  interface BodyElement {
+    kind: 'p' | 'tbl';
+    xml: string;
+    text: string;
+  }
+  /** The body's top-level paragraphs and tables, in order (a table's own paragraphs are inside it). */
+  function bodyElements(document: string): BodyElement[] {
+    const body = /<w:body>([\s\S]*)<\/w:body>/.exec(document)![1]!;
+    const elements: BodyElement[] = [];
+    const open = /<w:(p|tbl)(?=[\s>/])/g;
+    let at = 0;
+    while (at < body.length) {
+      open.lastIndex = at;
+      const start = open.exec(body);
+      if (start === null) break;
+      const tag = start[1] as 'p' | 'tbl';
+      // Scan to the matching close tag, counting nested elements of the same name.
+      const token = new RegExp(`<w:${tag}(?=[\\s>/])[^>]*?(/?)>|</w:${tag}>`, 'g');
+      token.lastIndex = start.index;
+      let depth = 0;
+      let end = -1;
+      for (let match = token.exec(body); match !== null; match = token.exec(body)) {
+        if (match[0].startsWith('</')) depth -= 1;
+        else if (match[1] !== '/') depth += 1;
+        if (depth === 0) {
+          end = match.index + match[0].length;
+          break;
+        }
+      }
+      const xml = body.slice(start.index, end);
+      elements.push({ kind: tag, xml, text: paragraphText(xml) });
+      at = end;
+    }
+    return elements;
+  }
+  const pPr = (element: BodyElement) => (element.kind === 'p' ? (/^<w:p(?:\s[^>]*)?>\s*<w:pPr>([\s\S]*?)<\/w:pPr>/.exec(element.xml)?.[1] ?? '') : '');
+  const styled = (element: BodyElement, style: string) => pPr(element).includes(`<w:pStyle w:val="${style}"/>`);
+  const isGap = (element: BodyElement) => element.kind === 'p' && styled(element, 'SheetGap');
+  const breaks = (element: BodyElement) => pPr(element).includes('<w:pageBreakBefore/>');
+  /** (a) every gap is followed by a table, or by a caption-styled paragraph part that does not break the page. */
+  function expectGapsBetweenParts(elements: readonly BodyElement[]): number {
+    let gaps = 0;
+    elements.forEach((element, i) => {
+      if (!isGap(element)) return;
+      gaps += 1;
+      const next = elements[i + 1];
+      const where = `gap ${gaps} (after "${elements[i - 1]?.text.slice(0, 60)}"), followed by "${next?.text.slice(0, 60)}"`;
+      expect(next, where).toBeDefined();
+      expect(next!.kind === 'tbl' || (styled(next!, 'SheetCaption') && !breaks(next!)), where).toBe(true);
+      // (b) never right before a page break, a Heading 1 or 2, or a ficha's title bar.
+      expect(breaks(next!) || styled(next!, 'Heading1') || styled(next!, 'Heading2') || pPr(next!).includes('w:fill="D9D9D9"'), where).toBe(false);
+    });
+    return gaps;
+  }
+
+  it('ends no ficha and no local block with the gap, and keeps one between two adjacent tables', async () => {
+    const photo = (k: number) => ({ fileId: `foto-${k}`, number: k, caption: `Imagem ${k}: Foto ${k}.` });
+    const layout = withSheetsSection(layoutSpec(fixtureSnapshot(), { revisionNumber: 1, issuedAt: ISSUED_AT }), [
+      {
+        heading: '9.1 Local A',
+        // A local block ending in a table, then its first sheet.
+        localParts: [tablePart(checklistTable('VERIFICAÇÕES DO LOCAL', 3))],
+        sheets: [
+          // Two adjacent tables, then photos last.
+          sheet('FICHA FOTOS', [tablePart(nameplateTable(3)), tablePart(measurementTable('CONFIGURAÇÃO', 2)), photosPart([photo(1), photo(2)])]),
+          // A table, then a paragraph part: the gap stays; the paragraph ends the ficha.
+          sheet('FICHA OBSERVAÇÃO', [tablePart(nameplateTable(3)), { kind: 'paragraph', text: 'OBSERVAÇÕES: texto de teste.' }]),
+          // A table last.
+          sheet('FICHA TABELA', [tablePart(nameplateTable(3)), tablePart(measurementTable('ENSAIO FINAL', 2))]),
+        ],
+      },
+      // A painel band after a ficha; its sheet ends in photos.
+      { heading: 'PAINEL DE TESTE', painel: true, sheets: [sheet('FICHA PAINEL', [tablePart(nameplateTable(3)), photosPart([photo(3)])])] },
+      // A local block ending in photos, then its sheet; the last sheet of the section ends in a table.
+      { heading: '9.2 Local B', localParts: [tablePart(checklistTable('VERIFICAÇÕES DO LOCAL B', 2)), photosPart([photo(4)])], sheets: [sheet('FICHA ÚLTIMA', [tablePart(measurementTable('ENSAIO ÚLTIMO', 2))])] },
+    ]);
+    const document = readZipEntries(await buildDocx(layout, { tocPages: placeholderPages(layout) }))
+      .get('word/document.xml')!
+      .toString('utf8');
+    const elements = bodyElements(document);
+    const tableAt = (first: string) => elements.findIndex((element) => element.kind === 'tbl' && element.text.startsWith(first));
+    const paragraphAt = (text: string) => elements.findIndex((element) => element.kind === 'p' && element.text === text);
+    const photosAt = (caption: string) => elements.findIndex((element) => element.kind === 'tbl' && element.text.includes(caption));
+    const followed = (at: number) => {
+      expect(at).toBeGreaterThan(-1);
+      return elements[at + 1]!;
+    };
+
+    // Each last part is followed directly by what comes next, never by the gap.
+    // (Local A's checklist is the first table named VERIFICAÇÕES DO LOCAL.)
+    expect(followed(tableAt('VERIFICAÇÕES DO LOCAL')).text).toBe('FICHA FOTOS');
+    expect(followed(photosAt('Imagem 2: Foto 2.')).text).toBe('FICHA OBSERVAÇÃO');
+    expect(followed(tableAt('ENSAIO FINAL')).text).toBe('PAINEL DE TESTE');
+    expect(followed(photosAt('Imagem 3: Foto 3.')).text).toBe('9.2 Local B');
+    expect(followed(photosAt('Imagem 4: Foto 4.')).text).toBe('FICHA ÚLTIMA');
+    expect(followed(tableAt('ENSAIO ÚLTIMO')).text).toMatch(/^10 /);
+    // Two adjacent tables keep exactly one gap between them; a table before a paragraph part keeps its gap.
+    const nameplate = tableAt('DADOS DO EQUIPAMENTO');
+    expect(isGap(followed(nameplate))).toBe(true);
+    expect(elements[nameplate + 2]!.kind === 'tbl' && elements[nameplate + 2]!.text.startsWith('CONFIGURAÇÃO')).toBe(true);
+    expect(isGap(followed(tableAt('CONFIGURAÇÃO')))).toBe(true);
+    expect(tableAt('CONFIGURAÇÃO') + 2).toBe(photosAt('Imagem 1: Foto 1.'));
+    const observation = paragraphAt('OBSERVAÇÕES: texto de teste.');
+    expect(isGap(elements[observation - 1]!)).toBe(true);
+    expect(elements[observation + 1]!.text).toBe('FICHA TABELA');
+    // (a) and (b) over the whole body: six gaps (two in FICHA FOTOS, one in each of FICHA
+    // OBSERVAÇÃO, FICHA TABELA, FICHA PAINEL and Local B's block), each between two parts.
+    expect(expectGapsBetweenParts(elements)).toBe(6);
+  }, 60_000);
+
+  it('over the Porto Seguro fixture: every gap sits between two parts of one ficha or local', async () => {
+    const elements = bodyElements(readZipEntries(await renderFixture()).get('word/document.xml')!.toString('utf8'));
+    expect(expectGapsBetweenParts(elements)).toBeGreaterThan(94);
+  }, 60_000);
+});
+
 describe('Epic 4 QA Q13 footer size and document properties', () => {
   it('sets the footer size on its paragraph style and paragraph marks, where the PAGE/NUMPAGES results take it from, and names the product as the last editor', async () => {
     const entries = readZipEntries(await renderFixture());

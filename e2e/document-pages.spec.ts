@@ -5,7 +5,7 @@ import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.t
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
-import { fichaStart, lastPageOf, pdfPageTexts, SHEET_CONTENT_MARKS } from './support/pdf-text.ts';
+import { fichaStart, footerOnlyPages, lastPageOf, pdfPageTexts, SHEET_CONTENT_MARKS } from './support/pdf-text.ts';
 import { devicePhotos, expectCameraOpen, shoot } from './support/photos.ts';
 import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 import { officeDraft, pushDrafts } from './support/relatorio-seed.ts';
@@ -24,7 +24,8 @@ import { syncNow } from './support/sync.ts';
  *   the band and the last item on one page, the next;
  * - 20.6: every ficha starts a page; the disjuntor's plate photo, NC photo (with its item line)
  *   and two test photos print together after its CONCLUSÃO, in that order, and the point that
- *   cites the NC photo names the number printed under it.
+ *   cites the NC photo names the number printed under it;
+ * - 20.6 follow-up (2026-11-04): no page of the PDF holds only the header and footer.
  *
  * Two steps are seeded, not tapped (impractical through the UI): the 91 sheets outside three
  * of Cubículo Enel are removed with one office push (the document then stays a few pages
@@ -187,6 +188,10 @@ test('@p0 20.3/20.5/20.6-E2E-001 a new relatório prints the tests before the po
   const docx = extractStructure(await downloadBytes(await downloadFrom(page, () => exportDialog(page).getByRole('button', { name: 'DOCX — abrir no Word' }).click())));
   const pdf = await downloadFrom(page, () => exportDialog(page).getByRole('button', { name: 'PDF — enviar ao cliente' }).click());
   const pages = await pdfPageTexts(new Uint8Array(await downloadBytes(pdf)));
+
+  // Story 20.6 follow-up: no page holds only the header and footer (the cover counts as content).
+  expect(pages.length).toBeGreaterThan(3);
+  expect(footerOnlyPages(pages, [...docx.header, ...docx.footer]), 'pages holding only the header and footer').toEqual([]);
 
   // 20.3, DOCX: the headings and the ÍNDICE lines (with their page numbers) in the new order.
   const level1 = docx.headings.filter((heading) => heading.level === 1).map((heading) => heading.text);
