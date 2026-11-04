@@ -127,6 +127,8 @@ describe('Login surface', () => {
     session = { ...session, online: false };
     render(<LoginSurface />);
     expect(screen.getByRole('status')).toHaveTextContent(/^Sem conexão/);
+    // e20f (QA N5): a sign-out deletes the device's relatórios, so the sentence promises only the ones still kept.
+    expect(screen.getByRole('status')).toHaveTextContent('os relatórios ainda guardados neste aparelho continuam disponíveis após o login.');
     const button = screen.getByRole('button', { name: 'Entrar' });
     expect(button).toHaveAttribute('aria-disabled', 'true');
     expect(button).toHaveAccessibleDescription('Entrar precisa de conexão');
