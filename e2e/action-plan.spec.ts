@@ -361,9 +361,9 @@ test('@p0 11.10-E2E-001 the DOCX section 8 carries the action-plan table: the po
   expect(download.suggestedFilename()).toBe('relatorio-rev-1.docx');
   const document = readZipEntries(await downloadBytes(download)).get('word/document.xml')!.toString('utf8');
 
-  // From section 8's heading to the next one (E7-A6: never by position).
+  // From the points section's heading to the next one (E7-A6: never by position; 9 on a relatório created since Story 20.3).
   const headings = [...document.matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)].filter((m) => m[0].includes('w:val="Heading1"'));
-  const at = headings.findIndex((m) => paragraphText(m[0]).startsWith('8 '));
+  const at = headings.findIndex((m) => / PONTOS DE ATENÇÃO/.test(paragraphText(m[0])));
   expect(at).toBeGreaterThanOrEqual(0);
   const section = document.slice(headings[at]!.index!, headings[at + 1]?.index ?? document.length);
   const table = section.slice(section.indexOf('<w:tbl>'));

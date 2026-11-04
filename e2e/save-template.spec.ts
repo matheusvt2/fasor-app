@@ -116,7 +116,7 @@ test('@p1 11.3-E2E-003 11.3-AFTER-MOVE: SEC-C05 moved to Coluna 9, then saved: t
   test.setTimeout(150_000);
   const account = seed.companies[1];
   await openRelatorio(page, account);
-  await page.getByRole('button', { name: 'Expandir ou recolher a seção 9' }).click();
+  await page.getByRole('button', { name: 'Expandir ou recolher a seção 8' }).click();
   await expect(tree(page)).toBeVisible();
   await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
   await page.getByRole('button', { name: 'Mais opções de SEC-C05', exact: true }).click();

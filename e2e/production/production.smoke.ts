@@ -161,7 +161,7 @@ test('production smoke: sign in, edit and sync, a sheet photo, a plate reading, 
 
   const marker = `SMOKE-${Date.now()}`;
   const blockId = await step('3. edit a value and sync', async () => {
-    const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+    const chevron = page.getByRole('button', { name: /^Expandir ou recolher a seção \d+$/ });
     if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
     await expect(page.getByRole('list', { name: 'Locais do relatório' })).toBeVisible();
     await expandLocation(page, CABINE);

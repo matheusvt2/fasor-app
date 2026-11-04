@@ -121,7 +121,7 @@ async function sweep(page: Page, surface: string, found: Map<string, Miss & { su
 }
 
 async function openSection9(page: Page): Promise<void> {
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   const locais = page.getByRole('list', { name: 'Locais do relatório' });
   await expect(locais).toBeVisible();

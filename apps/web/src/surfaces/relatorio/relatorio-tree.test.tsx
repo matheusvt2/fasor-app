@@ -269,7 +269,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
     // (coordinator review 2026-10-13). "Adicionar equipamento" is the item of a local that takes the block itself.
     expect(await itemsOf('Mais opções de Cabine de Testes')).toEqual([
       'Abrir primeira ficha (dados do local)',
-      'Agrupar por tipo na seção 9',
+      'Agrupar por tipo na seção 8',
       'Adicionar bloco',
       'Adicionar painel',
       'Adicionar coluna',
@@ -278,7 +278,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
       'Remover',
     ]);
     // Story 14.2, second pass: "Remover" closes the menu of a local and of a coluna, as it does a sheet's.
-    expect(await itemsOf('Mais opções de Cabine Vazia')).toEqual(['Agrupar por tipo na seção 9', 'Adicionar equipamento', 'Adicionar painel', 'Função e nome', 'Subir', 'Remover']);
+    expect(await itemsOf('Mais opções de Cabine Vazia')).toEqual(['Agrupar por tipo na seção 8', 'Adicionar equipamento', 'Adicionar painel', 'Função e nome', 'Subir', 'Remover']);
     expect(await itemsOf('Mais opções de Coluna 1 de Cabine de Testes')).toEqual(['Adicionar bloco', 'Renomear', 'Remover']);
     expect(await itemsOf('Mais opções de DJ-TEST')).toEqual(['Adicionar abaixo', 'Subir', 'Descer', 'Mover para…', 'Duplicar', 'Renomear TAG', 'Remover']);
 
@@ -296,7 +296,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
     database = await seeded();
     renderAt(`/relatorio/${RELATORIO}`);
     await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Cabine de Testes' }));
-    const toggle = await screen.findByRole('menuitemcheckbox', { name: 'Agrupar por tipo na seção 9' });
+    const toggle = await screen.findByRole('menuitemcheckbox', { name: 'Agrupar por tipo na seção 8' });
     expect(toggle).toHaveAttribute('aria-checked', 'false');
     await userEvent.click(toggle);
     await waitFor(() => expect(announcer()).toHaveTextContent('Agrupar por tipo ativado em Cabine de Testes'));
@@ -412,7 +412,7 @@ describe('4.4 rail presentation (/relatorio/:id/arvore)', () => {
     expect(rail.textContent).not.toContain('Objetivo');
     await userEvent.click(within(rail).getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
     const menu = await screen.findByRole('menu');
-    expect([...menu.querySelectorAll('[role^="menuitem"]')].map((i) => i.textContent)).toEqual(['Abrir primeira ficha (dados do local)', 'Agrupar por tipo na seção 9']);
+    expect([...menu.querySelectorAll('[role^="menuitem"]')].map((i) => i.textContent)).toEqual(['Abrir primeira ficha (dados do local)', 'Agrupar por tipo na seção 8']);
     // Story 14.2: the rail line of each level is the kernel's. Story 15.2 (the 15.1 mocks changed the
     // markup and the text): the name is `.tree-name` under the level's kicker, which the meta no longer repeats.
     const rowOf = (name: string) => [...rail.querySelectorAll<HTMLElement>('.tree-row')].find((row) => row.querySelector('.tree-body > .tree-name')?.textContent === name)!;

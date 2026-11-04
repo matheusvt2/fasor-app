@@ -230,10 +230,55 @@ describe('4.8-UNIT-007 layoutSpec follows the relatório\'s section blocks (Sum�
   }
   const byType = (blocks: BlockRow[], type: string) => blocks.find((b) => b.block_type === type)!;
 
-  it('prints the eleven sections in FO.SERV-03 order when the blocks are untouched', () => {
+  it('prints the eleven sections in creation order when the blocks are untouched: FO.SERV-03 order with the tests before the points (Story 20.3)', () => {
     const { snapshot } = withSectionBlocks();
     const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: ISSUED_AT });
-    expect(layout.toc).toEqual(layoutSpec(smallSnapshot(), { revisionNumber: 1, issuedAt: ISSUED_AT }).toc);
+    const fallback = layoutSpec(smallSnapshot(), { revisionNumber: 1, issuedAt: ISSUED_AT }).toc;
+    expect(layout.toc.map((entry) => entry.number)).toEqual(fallback.map((entry) => entry.number));
+    expect(layout.toc.map((entry) => entry.title)).toEqual(fallback.map((entry, i) => fallback[i === 7 ? 8 : i === 8 ? 7 : i]!.title));
+    expect(layout.toc.slice(7, 9)).toEqual([
+      { number: 8, title: 'RELATÓRIOS DOS ENSAIOS' },
+      { number: 9, title: 'PONTOS DE ATENÇÃO / SUGESTÃO DE CORRETIVAS COMPLEMENTARES' },
+    ]);
+  });
+
+  it('Story 20.3: the points section starts a page when it prints after the tests, also when empty; before them (FO.SERV-03 order) it does not', () => {
+    const { snapshot, blocks } = withSectionBlocks();
+    const points = (layout: ReturnType<typeof layoutSpec>) => layout.sections.find((s) => s.title.startsWith('PONTOS DE ATENÇÃO'))!;
+    // With no point and no Não ensaiado sheet the section prints its note alone.
+    const fresh = points(layoutSpec({ ...snapshot, blocks: snapshot.blocks.map((b) => ({ ...b, not_tested: null })) }, { revisionNumber: 1, issuedAt: ISSUED_AT }));
+    expect(fresh.kind).toBe('empty');
+    expect(fresh).toMatchObject({ number: 9, startsPage: true });
+    const withPoint = { ...snapshot, points: [{ id: '019966c1-00f2-7000-8000-000000000001', relatorio_id: snapshot.relatorio.id, text: 'Ponto', equipment_id: null, origin: 'manual' as const, order_key: 'a0', removed_at: null, action: null, priority: null, deadline: null, owner: null }] };
+    expect(points(layoutSpec(withPoint, { revisionNumber: 1, issuedAt: ISSUED_AT }))).toMatchObject({ kind: 'points', startsPage: true });
+    // The order a relatório created before the change stored, and the seed fallback: no break.
+    const s8 = byType(blocks, 'section_8');
+    const s9 = byType(blocks, 'section_9');
+    const old: RelatorioSnapshot = { ...snapshot, blocks: snapshot.blocks.map((b) => (b.id === s8.id ? { ...b, order_key: s9.order_key } : b.id === s9.id ? { ...b, order_key: s8.order_key } : b)) };
+    for (const subject of [old, smallSnapshot(), { ...withPoint, blocks: old.blocks }]) {
+      const section = points(layoutSpec(subject, { revisionNumber: 1, issuedAt: ISSUED_AT }));
+      expect(section.number).toBe(8);
+      expect('startsPage' in section).toBe(false);
+    }
+    // No other section carries the flag.
+    expect(layoutSpec(withPoint, { revisionNumber: 1, issuedAt: ISSUED_AT }).sections.filter((s) => 'startsPage' in s).map((s) => s.number)).toEqual([9]);
+  });
+
+  it('Story 20.3: a relatório created before the change (points block before the tests block) and one with no section block keep FO.SERV-03 order', () => {
+    const { snapshot, blocks } = withSectionBlocks();
+    const points = byType(blocks, 'section_8');
+    const tests = byType(blocks, 'section_9');
+    // The order an older instantiation stored: section_8's key before section_9's.
+    const old: RelatorioSnapshot = {
+      ...snapshot,
+      blocks: snapshot.blocks.map((b) => (b.id === points.id ? { ...b, order_key: tests.order_key } : b.id === tests.id ? { ...b, order_key: points.order_key } : b)),
+    };
+    const fallback = layoutSpec(smallSnapshot(), { revisionNumber: 1, issuedAt: ISSUED_AT }).toc;
+    expect(layoutSpec(old, { revisionNumber: 1, issuedAt: ISSUED_AT }).toc).toEqual(fallback);
+    expect(fallback.slice(7, 9)).toEqual([
+      { number: 8, title: 'PONTOS DE ATENÇÃO / SUGESTÃO DE CORRETIVAS COMPLEMENTARES' },
+      { number: 9, title: 'RELATÓRIOS DOS ENSAIOS' },
+    ]);
   });
 
   it('drops a removed section, follows a move and prints a duplicate, numbered by position', () => {

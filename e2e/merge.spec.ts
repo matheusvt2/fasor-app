@@ -313,7 +313,7 @@ test('@p1 10.1-E2E-004 blocks added on each tablet are kept on both; the same bl
   const eqRow = (p: Page, tag: string) => p.locator('li.s9-eq').filter({ has: p.locator('.block-tag', { hasText: new RegExp(`^${tag}$`) }) });
   const openColuna1 = async (p: Page) => {
     await p.goto(`/relatorio/${relatorioId}`);
-    const chevron = p.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+    const chevron = p.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
     if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
     await expect(tree(p)).toBeVisible();
     const expand = p.getByRole('button', { name: 'Expandir 1° Subsolo' });

@@ -161,8 +161,9 @@ describe('7.4-UNIT composeParecer', () => {
     const snapshot = mapSheets(withSheets(1), (b) => untested(b, 'outro', 'Cubículo trancado'));
     const composed = composeParecer(snapshot);
     // The untested sheet is section 8's derived entry, so it counts as a point of attention too.
+    // Story 20.3: on a new relatório the points section prints at position 9, after the tests.
     expect(composed.text).toBe(
-      `Foi registrada 1 ficha de ensaio: 1 não ensaiada (${tagOf(snapshot, 0)}, por Cubículo trancado). Foi registrado 1 ponto de atenção na seção 8.`,
+      `Foi registrada 1 ficha de ensaio: 1 não ensaiada (${tagOf(snapshot, 0)}, por Cubículo trancado). Foi registrado 1 ponto de atenção na seção 9.`,
     );
     expect(composeParecer(withSheets(0)).text).toBe('Nenhuma ficha de ensaio registrada neste relatório.');
   });

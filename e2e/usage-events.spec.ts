@@ -76,7 +76,7 @@ test('@p0 18.1-E2E-001 offline the device queues its screens, taps and dialogs i
   // The relatório's card opens the Sumário; the tree opens the sheet.
   await page.locator(`[data-relatorio="${relatorioId}"] .card-title`).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expandLocation(page, 'Cubículo Enel');
   await page.locator(`li.s9-eq[data-block-id="${blockId}"] .s9-eq-open`).click();

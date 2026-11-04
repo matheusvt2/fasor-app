@@ -180,7 +180,8 @@ test('@p1 15.7-E2E-002 v10 TC: the DOCX prints its seven VERIFICAÇÕES GERAIS r
   const download = await downloadFrom(page, () => modal.getByRole('button', { name: 'DOCX — abrir no Word' }).click());
   const document = readZipEntries(await downloadBytes(download)).get('word/document.xml')!.toString('utf8');
 
-  const tables = tablesOf(sectionXml(document, 9)).filter((table) => table[0]![0] === 'VERIFICAÇÕES GERAIS');
+  // Story 20.3: the tests section prints at 8 on a relatório created today.
+  const tables = tablesOf(sectionXml(document, 8)).filter((table) => table[0]![0] === 'VERIFICAÇÕES GERAIS');
   expect(tables).toHaveLength(1);
   const numbered = tables[0]!.map((cells) => cells[0]!).filter((text) => /^\d+\. /.test(text));
   const upper = (text: string) => text.toLocaleUpperCase('pt-BR');

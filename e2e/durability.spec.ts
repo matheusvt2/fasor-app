@@ -579,7 +579,7 @@ test('@p1 4.5-E2E-004 phone width: the palette is a bottom sheet, a tap creates 
   const { relatorioId } = await pushNewRelatorio(page, account, deviceDatabaseName(account.userId));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/relatorio/${relatorioId}`);
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   await expect(chevron).toBeVisible({ timeout: 30_000 });
   await chevron.tap();
   await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).tap();

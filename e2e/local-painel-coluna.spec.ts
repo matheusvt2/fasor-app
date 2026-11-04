@@ -463,7 +463,7 @@ test('@p0 14.10-E2E-006 at 1280: "Agrupar por tipo" on a local whose painel hold
 
   // The local's overflow turns the flag on, as a person does; the tree says so.
   await menuOf(page, LOCAL_NAME).click();
-  const agrupar = page.getByRole('menuitemcheckbox', { name: 'Agrupar por tipo na seção 9' });
+  const agrupar = page.getByRole('menuitemcheckbox', { name: 'Agrupar por tipo na seção 8' });
   await expect(agrupar).toHaveAttribute('aria-checked', 'false');
   await agrupar.click();
   await expect(treeAnnouncer(page)).toHaveText(`Agrupar por tipo ativado em ${LOCAL_NAME}`);

@@ -18,8 +18,9 @@ import { progress } from './progress.ts';
 /*
  * UX pass 2026-10-22 (F43/F17): every section number a person reads is the section's Sumário
  * position. A compact template carries sections 1, 5, 7, 8, 9 and 10 (no 2, 3, 4, 6, 11): the
- * Sumário and the document number them 1 to 6, so Pontos de atenção is 4, Relatórios dos
- * ensaios 5 and Conclusão e parecer 6, and Certificados has no number.
+ * Sumário and the document number them 1 to 6, so (Story 20.3, the tests created before the
+ * points) Relatórios dos ensaios is 4, Pontos de atenção 5 and Conclusão e parecer 6, and
+ * Certificados has no number.
  */
 
 const TEMPLATE_ID = '019966b0-0221-7000-8000-000000000001';
@@ -65,26 +66,26 @@ function printedText(snapshot: RelatorioSnapshot): string {
 }
 
 describe('F43 sectionPosition: the Sumário position of a FO.SERV-03 section', () => {
-  it('a compact template: 1, 5, 7, 8, 9, 10 are 1 to 6, the others absent, as the Sumário numbers them', () => {
+  it('a compact template: 1, 5, 7, 9, 8, 10 are 1 to 6 (Story 20.3: the tests before the points), the others absent, as the Sumário numbers them', () => {
     const snapshot = compact();
-    expect([1, 5, 7, 8, 9, 10].map((section) => sectionPosition(snapshot, section))).toEqual([1, 2, 3, 4, 5, 6]);
+    expect([1, 5, 7, 8, 9, 10].map((section) => sectionPosition(snapshot, section))).toEqual([1, 2, 3, 5, 4, 6]);
     expect([2, 3, 4, 6, 11].map((section) => sectionPosition(snapshot, section))).toEqual([null, null, null, null, null]);
     const computed = progress(snapshot);
     const rows = sumarioRows(snapshot, preIssue(snapshot, computed, { now: NOW }), computed);
     for (const section of [1, 5, 7, 8, 9, 10]) expect(sumarioLineOf(rows, `section_${section}` as 'section_1')).toBe(sectionPosition(snapshot, section));
   });
 
-  it('the standard template and a snapshot with no section block (the seed eleven) keep the FO.SERV-03 numbers', () => {
+  it('the standard template numbers the tests 8 and the points 9 (Story 20.3); a snapshot with no section block (the seed eleven) keeps the FO.SERV-03 numbers', () => {
     const full = fresh();
-    expect([1, 8, 9, 10, 11].map((section) => sectionPosition(full, section))).toEqual([1, 8, 9, 10, 11]);
+    expect([1, 8, 9, 10, 11].map((section) => sectionPosition(full, section))).toEqual([1, 9, 8, 10, 11]);
     const legacy = { ...full, blocks: full.blocks.filter((block) => block.location_id !== null) };
     expect([1, 8, 9, 10, 11].map((section) => sectionPosition(legacy, section))).toEqual([1, 8, 9, 10, 11]);
   });
 
   it('sectionRefText and sectionsCaption name a carried section by its position, an absent one by its Sumário title', () => {
     const snapshot = compact();
-    expect(sectionRefText(snapshot, 8)).toBe('seção 4');
-    expect(sectionRefText(snapshot, 9, true)).toBe('Seção 5');
+    expect(sectionRefText(snapshot, 8)).toBe('seção 5');
+    expect(sectionRefText(snapshot, 9, true)).toBe('Seção 4');
     expect(sectionRefText(snapshot, 11)).toBe('seção "Certificados"');
     expect(sectionsCaption(snapshot, [1, 3])).toBe('Seção 1');
     expect(sectionsCaption(snapshot, [10])).toBe('Seção 6');
@@ -94,17 +95,17 @@ describe('F43 sectionPosition: the Sumário position of a FO.SERV-03 section', (
 
   it('sectionMention: a carried section prints under its position; an absent one carries the absent wording', () => {
     const snapshot = compact();
-    expect(sectionMention(snapshot, 8)).toEqual({ ref: 'seção 4', prints: true, absent: 'não sai no documento: o relatório não tem a seção 4' });
+    expect(sectionMention(snapshot, 8)).toEqual({ ref: 'seção 5', prints: true, absent: 'não sai no documento: o relatório não tem a seção 5' });
     expect(sectionMention(snapshot, 11)).toEqual({ ref: 'seção "Certificados"', prints: false, absent: 'não sai no documento: o relatório não tem a seção "Certificados"' });
     expect(sectionMention(fresh(), 11).prints).toBe(true);
   });
 
-  it('the composed parecer counts the points "na seção 4", by position', () => {
+  it('the composed parecer counts the points "na seção 5", by position', () => {
     const base = compact();
     const snapshot = { ...base, points: [point(base, 1), point(base, 2)] };
-    expect(composeParecer(snapshot).text).toContain('Foram registrados 2 pontos de atenção na seção 4.');
+    expect(composeParecer(snapshot).text).toContain('Foram registrados 2 pontos de atenção na seção 5.');
     const full = fresh();
-    expect(composeParecer({ ...full, points: [point(full, 1)] }).text).toContain('Foi registrado 1 ponto de atenção na seção 8.');
+    expect(composeParecer({ ...full, points: [point(full, 1)] }).text).toContain('Foi registrado 1 ponto de atenção na seção 9.');
   });
 });
 

@@ -3,7 +3,7 @@ import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { portoSeguroSmall } from '../../fixtures/porto-seguro/small/op-log.ts';
 import { replay } from '../ops/replay.ts';
 import { NOT_APPLICABLE_NUMBER, NOT_APPLICABLE_TEXT } from '../parse/pt-br-number.ts';
-import { photoStampFull } from '../photos/gallery.ts';
+import { photoItemLine, photoStampFull } from '../photos/gallery.ts';
 import { numberPhotos } from '../photos/numbering.ts';
 import { composeConclusion } from '../relatorio/conclusion.ts';
 import { preIssue, preIssueRowsFor } from '../relatorio/pre-issue.ts';
@@ -210,25 +210,41 @@ describe('7.1 section9Layout: one sheet in FO.SERV-03 order', () => {
   const layout = layoutOf(snapshot);
   const printed = sheetOf(layout, block(1));
 
-  it('prints title, cabine block, plate, plate photos, checklist, checklist photos, each test, other photos, OBSERVAÇÕES and CONCLUSÃO', () => {
+  it('prints title, cabine block, plate, checklist, each test, OBSERVAÇÕES, CONCLUSÃO, then one photo block: plate, items, other (20.6)', () => {
     expect(printed.title).toBe('CHAVE SECCIONADORA DE ENTRADA SEC-01');
     expect(printed.parts.map(partName)).toEqual([
       'CARACTERÍSTICAS DA SE',
       'AMBIENTE DE ENSAIO',
       'DADOS DO EQUIPAMENTO',
-      'photos 2',
       'VERIFICAÇÕES GERAIS',
-      'photos 3',
       'ENSAIO DE ISOLAÇÃO',
       'paragraph',
       'SECCIONADORA CONTATO ABERTO',
       'ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO',
       'paragraph',
       'LINHA',
-      'photos 4 5',
       'OBSERVAÇÕES',
       'CONCLUSÃO',
+      'photos 2 3 4 5',
     ]);
+    // Exactly one photo part, the sheet's last.
+    expect(printed.parts.filter((part) => part.kind === 'photos')).toHaveLength(1);
+  });
+
+  it('20.6: a checklist item photo carries its item line ("Item 8 · Contatos · NC"); the plate and other photos carry none', () => {
+    const photos = printed.parts.flatMap((p) => (p.kind === 'photos' ? p.photos : []));
+    expect(photos.map((p) => [p.number, p.itemLine])).toEqual([
+      [2, undefined],
+      [3, photoItemLine(snapshot.files.find((f) => f.id === id(3001)) as Parameters<typeof photoItemLine>[0], snapshot)!.text],
+      [4, undefined],
+      [5, undefined],
+    ]);
+    expect(photos[1]!.itemLine).toMatch(/^Item \d+ · Contatos · NC$/);
+  });
+
+  it('20.5: marks DADOS DO EQUIPAMENTO and VERIFICAÇÕES GERAIS to keep whole, and no other table of the sheet', () => {
+    const kept = printed.parts.flatMap((part) => (part.kind === 'table' && part.table.keepWhole === true ? [partName(part)] : []));
+    expect(kept).toEqual(['DADOS DO EQUIPAMENTO', 'VERIFICAÇÕES GERAIS']);
   });
 
   it('numbers photos as `numberPhotos` does, in document order (plate, items, other), with "Imagem N: ⟨legenda⟩." or "Imagem N." beneath', () => {
@@ -381,7 +397,7 @@ describe('7.1 section9Layout: the I/O matrix', () => {
     expect(plate[plate.indexOf('POTÊNCIA NOMINAL') + 1]).toBe('N/A');
   });
 
-  it('Não ensaiada: title, attribution, the cabine block on a first sheet, the nameplate, the plate photos, the reason band and the other photos (17.1); nothing else', () => {
+  it('Não ensaiada: title, attribution, the cabine block on a first sheet, the nameplate, the reason band and then its photos, plate first (17.1, 20.6); nothing else', () => {
     const marked = (n: number, type: EquipmentBlockType, reason: string, text: string | null) =>
       edit(sheet(n, 1, type, `a${n}`), (b) => ({
         ...withChecklist({ limpeza: 'C' })(withTest('isolacao', { '0/0': measured('1', 'GΩ') }, INSTRUMENT)(withNameplate({ fabricacao: 'WEG' })(b))),
@@ -403,7 +419,8 @@ describe('7.1 section9Layout: the I/O matrix', () => {
     const first = sheetOf(section, block(1));
     expect(first.attribution).toBe('Preenchido por Bruno Silva · 06/09/2026 09:00');
     expect(first.parts.map(partName)).toEqual(['CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', 'DADOS DO EQUIPAMENTO', 'NÃO ENSAIADO — Solicitação do cliente: Os ensaios não foram realizados conforme solicitação do cliente.', 'photos 1']);
-    expect(sheetOf(section, block(2)).parts.map(partName)).toEqual(['DADOS DO EQUIPAMENTO', 'photos 2', 'NÃO ENSAIADO — Equipamento energizado', 'photos 3']);
+    // Story 20.6: the nameplate, the reason band, then one photo part (plate first).
+    expect(sheetOf(section, block(2)).parts.map(partName)).toEqual(['DADOS DO EQUIPAMENTO', 'NÃO ENSAIADO — Equipamento energizado', 'photos 2 3']);
     // Every numbered photo prints, the printed numbers run 1..3 with no gap.
     expect(sheetsOf(section).flatMap((s) => s.parts.flatMap((p) => (p.kind === 'photos' ? p.photos.map((x) => x.number) : [])))).toEqual([1, 2, 3]);
     expect([...numberPhotos(snapshot).values()]).toEqual([1, 2, 3]);
@@ -635,13 +652,15 @@ describe('7.1 section9Layout: sub-blocks, grids and words', () => {
     ]);
   });
 
-  it('prints a checklist row\'s photo with the photos after the tests when the sheet prints no checklist', () => {
+  it('prints a checklist row\'s photo in the photo block whether or not the sheet prints its checklist', () => {
     const files = [photo(1, { block_id: block(1), item_key: 'limpeza', caption: 'Limpeza do TP', captured_at: '2026-09-06T10:00:00.000Z' })];
     // The checklist is a locked sub-block (`LOCKED_SUB_BLOCKS`): switched off in the config it
     // still prints, and the row's photo right after it.
     const locked = sheetOf(layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0')], [edit(sheet(1, 1, 'tp', 'a0'), withSubBlocks({ checklist: false }))], { files })), block(1));
     const names = locked.parts.map(partName);
-    expect(names.indexOf('photos 1')).toBe(names.indexOf('VERIFICAÇÕES GERAIS') + 1);
+    // Story 20.6: the row's photo prints in the sheet's one photo block, last, after CONCLUSÃO.
+    expect(names.slice(-2)).toEqual(['CONCLUSÃO', 'photos 1']);
+    expect(names).toContain('VERIFICAÇÕES GERAIS');
     // Only a config the kernel reads as enabling no sub-block leaves the checklist out (and
     // the tests with it): the photo then prints with the photos after the tests.
     const bare = edit(sheet(1, 1, 'tp', 'a1'), (b) => ({ ...b, config: { block_type: 'section_1', sub_blocks: {}, na_defaults: [] } }));
@@ -998,6 +1017,16 @@ describe('14.4 section9Layout: VERIFICAÇÕES DO LOCAL, once per local, right af
     expect(numberPhotos(sited).get(id(3003))).toBe(2);
   });
 
+  it('20.5 and 20.6: a local block keeps its order (SE, AMBIENTE, VERIFICAÇÕES DO LOCAL, its photos); only VERIFICAÇÕES DO LOCAL keeps whole; site photos carry no item line', () => {
+    const files = [sitePhoto(2, 1, EMERGENCIA, '2026-09-06T10:00:00.000Z'), sitePhoto(3, 1, EXTINTOR, '2026-09-06T09:00:00.000Z')];
+    const section = layoutOf(on(snapshotOf(locations(false), sheets, { files }), 'v4'));
+    const parts = section.subsections[0]!.localParts!;
+    expect(parts.map(partName)).toEqual([...LOCAL_PARTS, 'photos 1 2']);
+    expect(parts.flatMap((part) => (part.kind === 'table' && part.table.keepWhole === true ? [partName(part)] : []))).toEqual(['VERIFICAÇÕES DO LOCAL']);
+    const photos = parts.flatMap((part) => (part.kind === 'photos' ? part.photos : []));
+    expect(photos.every((p) => !('itemLine' in p))).toBe(true);
+  });
+
   it('matrix "Removed local": a local absent from the snapshot prints nothing, its site photos included', () => {
     const files = [sitePhoto(2, 2, EMERGENCIA, '2026-09-06T10:00:00.000Z')];
     const live = locations(false).filter((row) => row.id !== id(2));
@@ -1130,9 +1159,9 @@ describe('17.4 section9Layout: a display shot is numbered and prints "Imagem N: 
     ]);
     const numbers = numberPhotos(snapshot);
     expect(photos.map((p) => numbers.get(p.fileId))).toEqual([2, 3]);
-    // The photos part stands after the last test table and before OBSERVAÇÕES.
+    // Story 20.6: the photos part closes the sheet, after CONCLUSÃO.
     const names = printed.parts.map((part) => (part.kind === 'photos' ? 'photos' : partName(part)));
-    expect(names.slice(names.indexOf('photos') - 1, names.indexOf('photos') + 2)).toEqual(['LINHA', 'photos', 'OBSERVAÇÕES']);
+    expect(names.slice(-3)).toEqual(['OBSERVAÇÕES', 'CONCLUSÃO', 'photos']);
   });
 
   it('M6: a caption already closed keeps its own punctuation; a display shot on a checklist row still prints after the tests', () => {

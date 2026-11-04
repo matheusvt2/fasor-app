@@ -54,7 +54,7 @@ test('P- captures of the v0.9 skin (CAPTURE_P=1 only)', async ({ page }) => {
 
       await page.goto(`/relatorio/${built.relatorioId}`);
       await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
-      const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+      const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
       if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
       await expect(page.getByRole('list', { name: 'Locais do relatório' })).toBeVisible();
       await page.screenshot({ path: `${OUT}/P-sumario-${size}-${theme}.png` });

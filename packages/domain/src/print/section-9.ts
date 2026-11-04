@@ -1,6 +1,6 @@
 import { formatDateTime } from '../format/datetime.ts';
 import { formatDecimalGroupedPtBr, isNotApplicableNumber, NOT_APPLICABLE_TEXT } from '../parse/pt-br-number.ts';
-import { isUncaptioned, photoStampFull } from '../photos/gallery.ts';
+import { isUncaptioned, photoItemLine, photoStampFull } from '../photos/gallery.ts';
 import { photoRefLabel } from '../photos/numbering.ts';
 import type { SnapshotPhoto } from '../photos/order.ts';
 import { notTestedPointText } from '../points/derived.ts';
@@ -44,12 +44,14 @@ import { documentPhotoOrder, sheetChecklistPrinted, type DocumentPhotoOrder } fr
  *
  * A sheet prints in FO.SERV-03's order (`imports/extract-fo-serv-03.md` §2): the title bar,
  * the attribution line, the cabine's SE and environment on the cabine's first sheet (the
- * first one `groupForPrint` emits for it), DADOS DO EQUIPAMENTO, the plate photos,
- * VERIFICAÇÕES GERAIS, the checklist photos, one block per enabled test (instrument header,
- * criterion line, tables), the other photos, OBSERVAÇÕES and CONCLUSÃO. A switched-off
- * sub-block is omitted; the four uncaptured insulation columns are grid columns and print
- * "-". A Não ensaiada sheet prints its plate, its plate photos, a reason band and then its
- * other photos (Story 17.1: every numbered photo of a placed sheet prints somewhere). Labels are
+ * first one `groupForPrint` emits for it), DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS, one
+ * block per enabled test (instrument header, criterion line, tables), OBSERVAÇÕES, CONCLUSÃO
+ * and then (Story 20.6) one photo block with every photo of the sheet: the plate's, the
+ * checklist items' (each with its item line) and the others. A switched-off sub-block is
+ * omitted; the four uncaptured insulation columns are grid columns and print "-". A Não
+ * ensaiada sheet prints its plate, a reason band and then its photo block (Story 17.1: every
+ * numbered photo of a placed sheet prints somewhere). Story 20.5: DADOS DO EQUIPAMENTO,
+ * VERIFICAÇÕES GERAIS and VERIFICAÇÕES DO LOCAL are marked `keepWhole`. Labels are
  * the seed's strings in caps (the screen shows them sentence-cased); values print as stored.
  * Cells hold only confirmed values, so no suggestion is ever read.
  *
@@ -95,6 +97,13 @@ export interface PrintTable {
   /** Relative column widths, spread over the page's content width by the renderer. */
   columns: number[];
   rows: PrintRow[];
+  /**
+   * Story 20.5 (FR-68): the table never starts on one page and ends on the next. Set on
+   * DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS and VERIFICAÇÕES DO LOCAL only: the renderer
+   * keeps every row with the next and repeats the leading band and header rows when a table
+   * taller than a page has to split (then only at a row boundary). Absent on every other table.
+   */
+  keepWhole?: true;
 }
 
 export interface PrintPhoto {
@@ -106,6 +115,12 @@ export interface PrintPhoto {
    * uncaptioned, "Imagem 3: ⟨full stamp⟩." (Story 17.4).
    */
   caption: string;
+  /**
+   * Story 20.6: a sheet checklist item's photo carries its item line under the caption
+   * ("Item 8 · Contatos · NC", `photoItemLine(...).text`), since it no longer prints right
+   * under its table. Absent on every other photo (plate, others, a local's site items).
+   */
+  itemLine?: string;
 }
 
 export type SheetPart = { kind: 'table'; table: PrintTable } | { kind: 'photos'; photos: PrintPhoto[] } | { kind: 'paragraph'; text: string };
@@ -223,6 +238,9 @@ const headerRow = (labels: readonly string[]): PrintRow => ({ header: true, cell
 const valueCell = (text: string): PrintCell => ({ text, align: 'center' });
 
 const table = (columns: number[], rows: PrintRow[]): SheetPart => ({ kind: 'table', table: { columns, rows } });
+
+/** Story 20.5: a table the renderer keeps whole on one page (`PrintTable.keepWhole`). */
+const wholeTable = (columns: number[], rows: PrintRow[]): SheetPart => ({ kind: 'table', table: { columns, rows, keepWhole: true } });
 
 /** A number and its unit ("3.300 MΩ"), the number alone without a unit. */
 function withUnit(text: string, unit: string | null | undefined): string {
@@ -359,7 +377,7 @@ function nameplatePart(ctx: Context, block: BlockRow, definition: BlockDefinitio
     while (cells.length < 6) cells.push({ text: '', align: 'left' });
     rows.push({ cells });
   }
-  return table([1.6, 1.7, 1.6, 1.7, 1.6, 1.7], rows);
+  return wholeTable([1.6, 1.7, 1.6, 1.7, 1.6, 1.7], rows);
 }
 
 // --- VERIFICAÇÕES GERAIS ------------------------------------------------------------------------
@@ -382,7 +400,7 @@ function checklistPart(block: BlockRow, definition: BlockDefinition, columns: re
       }),
     });
   });
-  return table(
+  return wholeTable(
     columns.map((column, c) => (c === 0 ? 5 : column === 'C' || column === 'NC' || column === 'NA' ? 0.6 : 3.4)),
     rows,
   );
@@ -418,7 +436,7 @@ function siteChecklistPart(cabine: CabineLocation, list: SiteChecklist, columns:
       });
     }
   }
-  return table(
+  return wholeTable(
     columns.map((column, c) => (c === 0 ? 5 : isMarkColumn(column) ? 0.6 : 3.4)),
     rows,
   );
@@ -803,24 +821,27 @@ function photoLine(n: number, caption: string | null): string {
  * shot is numbered like any photo; uncaptioned, its line carries its full stamp
  * ("Imagem 7: 06/09/2026 14:32 · …."), never the bare "Imagem 7.".
  */
-function printPhotos(ctx: Context, photos: readonly SnapshotPhoto[]): PrintPhoto[] {
+function printPhotos(ctx: Context, photos: readonly SnapshotPhoto[], withItemLine = false): PrintPhoto[] {
   return photos.flatMap((photo) => {
     const number = ctx.numbers.get(photo.id);
     if (number === undefined) return [];
     const caption = photo.reading_kind === 'display' && isUncaptioned(photo.caption) ? photoStampFull(photo) : photo.caption;
-    return [{ fileId: photo.id, number, caption: photoLine(number, caption) }];
+    const printed: PrintPhoto = { fileId: photo.id, number, caption: photoLine(number, caption) };
+    // Story 20.6: the item line section 7 prints (`print/section-7.ts`), from the same kernel function.
+    const itemLine = withItemLine ? (photoItemLine(photo, ctx.snapshot)?.text ?? null) : null;
+    return [itemLine === null ? printed : { ...printed, itemLine }];
   });
 }
 
 /**
- * The sheet's photos by where they print (`documentPhotoOrder`'s groups): the plate's after
- * the nameplate, a checklist row's after the checklist, the rest after the tests, a display
- * shot among them in capture order.
+ * The sheet's photos by `documentPhotoOrder`'s groups: the plate's, a checklist row's (each
+ * with its item line, Story 20.6) and the rest, a display shot among them in capture order.
+ * Story 20.6: the three groups print together, in that order, as the sheet's last part.
  */
-function sheetPhotos(ctx: Context, blockId: string): { plate: PrintPhoto[]; items: PrintPhoto[]; other: PrintPhoto[] } {
+function sheetPhotos(ctx: Context, blockId: string): PrintPhoto[] {
   const groups = ctx.photos.sheets.get(blockId);
-  if (groups === undefined) return { plate: [], items: [], other: [] };
-  return { plate: printPhotos(ctx, groups.plate), items: printPhotos(ctx, groups.items), other: printPhotos(ctx, groups.other) };
+  if (groups === undefined) return [];
+  return [...printPhotos(ctx, groups.plate), ...printPhotos(ctx, groups.items, true), ...printPhotos(ctx, groups.other)];
 }
 
 const photosPart = (photos: PrintPhoto[]): SheetPart[] => (photos.length === 0 ? [] : [{ kind: 'photos', photos }]);
@@ -841,9 +862,8 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   const sheet = { blockId, title: sheetTitle(block, tag), attribution: attributionOf(block, ctx.actors), parts };
   if (block.not_tested !== null) {
     // Stories 17.1 and 17.4: its photos print under it, in the walk's order (they no longer
-    // print in section 7): the plate's before the reason band, the rest after it.
-    const photos = sheetPhotos(ctx, blockId);
-    parts.push(...photosPart(photos.plate), notTestedPart(block), ...photosPart([...photos.items, ...photos.other]));
+    // print in section 7). Story 20.6: all of them after the reason band, plate first.
+    parts.push(notTestedPart(block), ...photosPart(sheetPhotos(ctx, blockId)));
     return sheet;
   }
   if (definition === null) return sheet;
@@ -852,15 +872,14 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   if (config !== null) parts.push(config);
   // The walk splits items from the other photos by the same predicate.
   const checklist = sheetChecklistPrinted(block) && seed !== null ? checklistPart(block, definition, seed.checklistColumns) : null;
-  const photos = sheetPhotos(ctx, blockId);
-  parts.push(...photosPart(photos.plate));
-  if (checklist !== null) parts.push(checklist, ...photosPart(photos.items));
+  if (checklist !== null) parts.push(checklist);
   for (const evaluation of evaluateSheetReadings(block, definition)) parts.push(...testParts(block, definition, evaluation, enabled));
   parts.push(...measurementParts(block, definition));
-  parts.push(...photosPart(photos.other));
   const observations = enabled.has('observations') ? observationsPart(block) : null;
   if (observations !== null) parts.push(observations);
   if (enabled.has('conclusion')) parts.push(...conclusionParts(block, definition, tag));
+  // Story 20.6 (FR-68): one photo block closes the ficha, so no photo sits between its tables.
+  parts.push(...photosPart(sheetPhotos(ctx, blockId)));
   return sheet;
 }
 

@@ -178,7 +178,7 @@ test('@p1 12.5-E2E-003 E12-A7 at 390 px: the section 9 header fits a cabine with
   await page.goto(`/relatorio/${built.relatorioId}`);
   const head = page.locator('li.sum-s9 > .sum-s9-head');
   await expect(head.locator('.sum-title')).toBeVisible({ timeout: 30_000 });
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(page.locator('.s9-loc-name', { hasText: LONG })).toBeVisible();
 

@@ -387,7 +387,7 @@ test('@p0 R8LAY-E2E-005 DB-7 on a cabine\'s first sheet Enter runs Tensão prim�
   test.setTimeout(180_000);
   const built = await setUp(page, { width: 1280, height: 800 });
   await page.goto(`/relatorio/${built.relatorioId}`);
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   await expect(chevron).toBeVisible({ timeout: 30_000 });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await page.getByRole('button', { name: 'Mais opções de Cubículo Enel' }).click();
@@ -824,7 +824,7 @@ test('@p1 R8LAY-E2E-012 DA-6 the phone Sumário tree: no split word in a row, ea
     return [officeDraft(account, scope, cellPath(sheetOf(b, 'transformador_forca').blockId, 'isolacao', 0, 1), { raw: '3300', unit: 'GΩ', state: 'measured' })];
   });
   await page.goto(`/relatorio/${built.relatorioId}`);
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   await expect(chevron).toBeVisible({ timeout: 30_000 });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   const tree = page.getByRole('list', { name: 'Locais do relatório' });

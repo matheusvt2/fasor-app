@@ -21,11 +21,17 @@ import { CONTENT_WIDTH_TWIPS, image, sizedImage } from '../docx.ts';
  * Story 7.1 (AD-15), Story 7.2 AC2: draws section 9 from the kernel's `LayoutSectionSheets`
  * (`packages/domain/src/print/section-9.ts`). Every printed string is the layout's; this
  * module only decides widths, borders, shading, spans, images and page breaks: a Heading 2
- * per subsection (a new page before each after the first), each sheet on a new page after
- * its subsection's first, the sheet's title as a grey bar, its tables as native Word tables
- * in 9 pt over the content width whose rows never split across pages, and its photos two per
- * row at half width with their line beneath. A photo whose bytes are missing or unreadable
- * keeps its line and leaves its image cell empty; the document never fails for it.
+ * per subsection, every ficha and every local block on a new page (Story 20.6, the rule on
+ * `section9Children`), the sheet's title as a grey bar, its tables as native Word tables in
+ * 9 pt over the content width whose rows never split across pages, and its photos two per
+ * row at half width with their line beneath (and a checklist item's item line, Story 20.6).
+ * A photo whose bytes are missing or unreadable keeps its line and leaves its image cell
+ * empty; the document never fails for it.
+ *
+ * Story 20.5 (FR-68): DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS and VERIFICAÇÕES DO LOCAL
+ * (`table.keepWhole`) never start on one page and end on the next: every row but the last
+ * keeps with the next, and their band and header rows repeat when one taller than a page
+ * splits (`drawTable`).
  *
  * Story 14.2: a painel subsection (`subsection.painel`) is not a Heading 2 but a band, bold
  * white on dark grey (`.pp-painel` of `key-print-section-9.html`), so it is no line of the
@@ -38,8 +44,8 @@ import { CONTENT_WIDTH_TWIPS, image, sizedImage } from '../docx.ts';
  * under the subsection's heading and before its first sheet, as `key-print-section-9.html`
  * places them, with the tables and photo rows of a sheet. A group row of the site table
  * (`row.group`) is one cell across the table on `F0F0F0` (`.pt-group`), kept with the row
- * under it. A subsection that drew local parts and no sheet (a local with no equipment) is
- * followed on the same page by its own painel band, and by a new page otherwise.
+ * under it. Story 20.6: a local block starts its page with its heading, and whatever follows
+ * it (its first sheet, its painel's band, the next local) starts a new page.
  *
  * Borders, cell margins and the text size live on the table and on paragraph styles, not on
  * every cell and run: 94 sheets are tens of thousands of cells, and the XML each one carries
@@ -108,12 +114,18 @@ function cellParagraphs(cell: PrintCell, keepNext: boolean): Paragraph[] {
   );
 }
 
-/** One row: each cell as wide as the columns it spans; a title band, a header row or a group row stays with the row under it. */
-function drawRow(row: PrintRow, widths: readonly number[]): TableRow {
-  const keepNext = row.header === true || row.band === true || row.group === true;
+/**
+ * One row: each cell as wide as the columns it spans; a title band, a header row or a group
+ * row stays with the row under it, and so does every row but the last of a table kept whole
+ * (`keepNext`). A leading band or header row of a table kept whole repeats at the top of the
+ * next page when the table, taller than a page, has to split (`tableHeader`).
+ */
+function drawRow(row: PrintRow, widths: readonly number[], options: { keepNext: boolean; tableHeader: boolean }): TableRow {
+  const keepNext = options.keepNext || row.header === true || row.band === true || row.group === true;
   let at = 0;
   return new TableRow({
     cantSplit: true,
+    ...(options.tableHeader ? { tableHeader: true } : {}),
     children: row.cells.map((cell) => {
       const span = Math.max(1, cell.span ?? 1);
       const width = widths.slice(at, at + span).reduce((sum, value) => sum + value, 0);
@@ -128,15 +140,33 @@ function drawRow(row: PrintRow, widths: readonly number[]): TableRow {
   });
 }
 
+/** How many rows lead the table as its band and header rows (contiguous from the top). */
+function leadingRows(rows: readonly PrintRow[]): number {
+  let n = 0;
+  while (n < rows.length && (rows[n]!.band === true || rows[n]!.header === true)) n += 1;
+  return n;
+}
+
+/**
+ * A table of the layout. Story 20.5: a table the kernel keeps whole (`keepWhole`) keeps
+ * every row but its last with the next, so LibreOffice and Word move it whole to the next
+ * page when it does not fit; only one taller than a page splits, at a row boundary (every
+ * row is `cantSplit`), with its band and header rows repeated on the next page. A leading
+ * band and header block that is the whole table (no body row) repeats nothing.
+ */
 function drawTable(printed: PrintTable): Table {
   const widths = columnWidths(printed.columns);
+  const whole = printed.keepWhole === true;
+  const last = printed.rows.length - 1;
+  const lead = whole ? leadingRows(printed.rows) : 0;
+  const header = lead > 0 && lead < printed.rows.length ? lead : 0;
   return new Table({
     width: { size: CONTENT_WIDTH_TWIPS, type: WidthType.DXA },
     columnWidths: widths,
     layout: TableLayoutType.FIXED,
     borders: ruledTable,
     margins: CELL_MARGINS,
-    rows: printed.rows.map((row) => drawRow(row, widths)),
+    rows: printed.rows.map((row, i) => drawRow(row, widths, { keepNext: whole && i < last, tableHeader: i < header })),
   });
 }
 
@@ -151,7 +181,9 @@ async function drawPhotos(photos: readonly PrintPhoto[], bytes: ReadonlyMap<stri
       const sized = data === undefined ? null : await sizedImage(data, maxWidthPx, PHOTO_MAX_HEIGHT_PX);
       return cell([
         new Paragraph({ style: SHEET_TEXT, alignment: AlignmentType.CENTER, keepNext: true, children: sized === null ? [] : [image(sized)] }),
-        new Paragraph({ style: SHEET_CAPTION, alignment: AlignmentType.CENTER, children: [new TextRun(photo.caption)] }),
+        new Paragraph({ style: SHEET_CAPTION, alignment: AlignmentType.CENTER, ...(photo.itemLine === undefined ? {} : { keepNext: true }), children: [new TextRun(photo.caption)] }),
+        // Story 20.6: a checklist item's photo names its item under the caption, small and centred.
+        ...(photo.itemLine === undefined ? [] : [new Paragraph({ style: SHEET_CAPTION, alignment: AlignmentType.CENTER, children: [new TextRun(photo.itemLine)] })]),
       ]);
     }),
   );
@@ -212,25 +244,30 @@ function painelBand(text: string, newPage: boolean): Paragraph {
 
 /**
  * Section 9's body under its Heading 1: every subsection's Heading 2 (a painel's band
- * instead), the local's own parts when it carries them (Story 14.4), and its sheets. A
- * subsection starts a new page unless it is the first or the one before it drew no sheet:
- * a heading or band drawn alone is followed on the same page, and so is a local that drew
- * its parts and no sheet when what follows is its painel's band. After such a local any
- * other subsection (the next local's heading) starts a new page.
+ * instead), the local's own parts when it carries them (Story 14.4), and its sheets.
+ * Story 20.6 (FR-68): every ficha and every local block starts a page, the break on the
+ * first heading that introduces it, so a heading never sits alone at a page foot:
+ * - a subsection starts a new page unless it is the first (it follows the section's own
+ *   Heading 1, which already starts a page) or the one before it drew only its heading
+ *   (a heading or band drawn alone keeps with what follows, on the same page);
+ * - a sheet starts a new page unless its subsection's heading is all that precedes it
+ *   (it is the subsection's first and the subsection drew no local part).
  */
 export async function section9Children(section: LayoutSectionSheets, photos: ReadonlyMap<string, Buffer>): Promise<(Paragraph | Table)[]> {
   const out: (Paragraph | Table)[] = [];
   for (const [k, subsection] of section.subsections.entries()) {
     const previous = k > 0 ? section.subsections[k - 1]! : null;
-    const afterLocalAlone = previous !== null && previous.sheets.length === 0 && (previous.localParts?.length ?? 0) > 0 && subsection.painel !== true;
-    const newPage = previous !== null && (previous.sheets.length > 0 || afterLocalAlone);
+    // Story 20.6: a subsection starts a page when the one before it drew anything beyond its heading.
+    const newPage = previous !== null && (previous.sheets.length > 0 || (previous.localParts?.length ?? 0) > 0);
     out.push(
       subsection.painel === true
         ? painelBand(subsection.heading, newPage)
         : new Paragraph({ heading: HeadingLevel.HEADING_2, pageBreakBefore: newPage, children: [new TextRun(subsection.heading)] }),
     );
-    if (subsection.localParts !== undefined) out.push(...(await partsChildren(subsection.localParts, photos)));
-    for (const [i, sheet] of subsection.sheets.entries()) out.push(...(await sheetChildren(sheet, photos, i > 0)));
+    const localParts = subsection.localParts ?? [];
+    if (localParts.length > 0) out.push(...(await partsChildren(localParts, photos)));
+    // Story 20.6: a sheet starts a page unless only its subsection's heading precedes it.
+    for (const [i, sheet] of subsection.sheets.entries()) out.push(...(await sheetChildren(sheet, photos, i > 0 || localParts.length > 0)));
   }
   return out;
 }

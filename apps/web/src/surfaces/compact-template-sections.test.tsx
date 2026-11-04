@@ -23,8 +23,8 @@ import { PointsSurface } from './points/points-surface.tsx';
 /*
  * UX pass 2026-10-22 (F43, coordinator review): the surfaces that name a section, over the
  * small Porto Seguro fixture with the section blocks of a compact template (sections 1, 5, 7,
- * 8, 9 and 10, so Registro fotográfico is row 3, Pontos de atenção 4, Relatórios dos ensaios 5,
- * Conclusão e parecer 6). Every number a person reads is the Sumário position; no FO.SERV-03
+ * 8, 9 and 10, so Registro fotográfico is row 3 and, Story 20.3 creating the tests before the
+ * points, Relatórios dos ensaios 4, Pontos de atenção 5, Conclusão e parecer 6). Every number a person reads is the Sumário position; no FO.SERV-03
  * 9, 10 or 11 is left on the page.
  */
 
@@ -112,17 +112,17 @@ afterEach(() => {
 });
 
 describe('F43 (UX pass 2026-10-22): a compact template, surface by surface', () => {
-  it('Pontos de atenção: the note, the list, a new point\'s order and the remove confirm say "seção 4"', async () => {
+  it('Pontos de atenção: the note, the list, a new point\'s order and the remove confirm say "seção 5"', async () => {
     database = await compactDb();
     const { container } = renderAt(`/relatorio/${RELATORIO}/pontos`, '/relatorio/:id/pontos', <PointsSurface />);
-    await waitFor(() => expect(container.querySelector('.section-note')).toHaveTextContent(/^A ordem aqui é a ordem da seção 4 do relatório\..*a seção 4 imprime, depois dos pontos/));
-    expect(screen.getByRole('group', { name: 'Pontos de atenção da seção 4' })).toBeInTheDocument();
+    await waitFor(() => expect(container.querySelector('.section-note')).toHaveTextContent(/^A ordem aqui é a ordem da seção 5 do relatório\..*a seção 5 imprime, depois dos pontos/));
+    expect(screen.getByRole('group', { name: 'Pontos de atenção da seção 5' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /^Criar$/ }));
-    await waitFor(() => expect(container.querySelector('.poa-order')).toHaveTextContent('Novo ponto · entra no fim da seção 4'));
+    await waitFor(() => expect(container.querySelector('.poa-order')).toHaveTextContent('Novo ponto · entra no fim da seção 5'));
     expect(container.textContent).not.toMatch(NO_FO_SERV_NUMBER);
   });
 
-  it('Pontos de atenção: removing a point says it leaves "seção 4"', async () => {
+  it('Pontos de atenção: removing a point says it leaves "seção 5"', async () => {
     database = await compactDb();
     const id = '019966c1-00f5-7000-8000-000000000001';
     await database.entities.put(
@@ -132,7 +132,7 @@ describe('F43 (UX pass 2026-10-22): a compact template, surface by surface', () 
     await userEvent.click(await screen.findByRole('button', { name: /^Editar o ponto 1/ }));
     await userEvent.click(await screen.findByRole('button', { name: 'Remover ponto' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remover este ponto de atenção?' });
-    expect(dialog).toHaveTextContent('Ele sai da seção 4. Um toque em Desfazer o traz de volta.');
+    expect(dialog).toHaveTextContent('Ele sai da seção 5. Um toque em Desfazer o traz de volta.');
     expect(document.body.textContent).not.toMatch(NO_FO_SERV_NUMBER);
   });
 
@@ -173,17 +173,17 @@ describe('F43 (UX pass 2026-10-22): a compact template, surface by surface', () 
     expect(await screen.findByRole('radio', { name: 'Geral — Registro fotográfico (serviços gerais)' })).toBeInTheDocument();
   });
 
-  it('a ficha: its conclusion helper names "seção 5", through the ficha surface', async () => {
+  it('a ficha: its conclusion helper names "seção 4", through the ficha surface', async () => {
     database = await compactDb();
     const { container } = renderAt(`/relatorio/${RELATORIO}/ficha/${BLOCK_CHAVE_ID}`, '/relatorio/:id/ficha/:blockId', <FichaSurface />);
-    await waitFor(() => expect(container.querySelector('.ficha-conc-text')).toHaveTextContent(/linha Conclusão da (ficha \()?seção 5/));
+    await waitFor(() => expect(container.querySelector('.ficha-conc-text')).toHaveTextContent(/linha Conclusão da (ficha \()?seção 4/));
     expect(container.textContent).not.toMatch(NO_FO_SERV_NUMBER);
   });
 
-  it('a ficha marked not tested: its band says it "entra na seção 4"', async () => {
+  it('a ficha marked not tested: its band says it "entra na seção 5"', async () => {
     database = await compactDb();
     const { container } = renderAt(`/relatorio/${RELATORIO}/ficha/${BLOCK_DISJUNTOR_ID}`, '/relatorio/:id/ficha/:blockId', <FichaSurface />);
-    await waitFor(() => expect(container.querySelector('.not-tested-band')).toHaveTextContent('e entra na seção 4 automaticamente.'));
+    await waitFor(() => expect(container.querySelector('.not-tested-band')).toHaveTextContent('e entra na seção 5 automaticamente.'));
     expect(container.textContent).not.toMatch(NO_FO_SERV_NUMBER);
   });
 });

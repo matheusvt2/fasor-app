@@ -196,7 +196,7 @@ test('@p0 14.14-E2E-002 a Quadro elétrico: the SELV/PELV help, the SELV notice 
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   await syncNowAndReturn(page);
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expandLocation(page, 'Geradores');
 

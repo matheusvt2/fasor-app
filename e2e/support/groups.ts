@@ -10,6 +10,10 @@
  */
 export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
   {
+    file: 'document-pages.spec.ts',
+    why: 'Stories 20.3, 20.5 and 20.6: issues a revision through the shared queue and LibreOffice to read where each ficha, table and photo lands on the PDF pages',
+  },
+  {
     file: 'export.spec.ts',
     why:
       'generates documents through the one pg-boss queue and the one LibreOffice of the api, and loads the small Porto Seguro fixture, whose ids are fixed and whose seed reclaims them from every company',

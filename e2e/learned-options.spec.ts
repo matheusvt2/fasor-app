@@ -132,7 +132,7 @@ test('@p0 14.12-E2E-001 an NC observation typed by hand and a new FABRICANTE bec
   const { relatorioId: second } = await pushNewRelatorio(page, account, database, { emCampo: true });
   await page.goto(`/relatorio/${second}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expandLocation(page, LOCAL);
   await page.getByRole('button', { name: `Adicionar equipamento no local ${LOCAL}`, exact: true }).click();

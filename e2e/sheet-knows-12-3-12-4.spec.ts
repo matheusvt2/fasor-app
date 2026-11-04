@@ -108,7 +108,7 @@ async function openSheet(page: Page, relatorioId: string, blockId: string): Prom
 
 /** Section 9 of the Sumário open. */
 async function openSection9(page: Page): Promise<void> {
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(page.getByRole('list', { name: 'Locais do relatório' })).toBeVisible();
 }
@@ -593,7 +593,7 @@ test('@p0 12.4-E2E-002 "Marcar não ensaiado" from the sheet menu and the tree m
   await expect(primary).not.toHaveAttribute('aria-disabled');
   await primary.click();
   await expect(dialog).toBeHidden();
-  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 8');
+  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 9');
   await expect(page.locator('.not-tested-band .band-reason')).toHaveText('Equipamento inacessível');
   expect((await outbox(page)).find((row) => row.path === `block/${first.blockId}/not_tested`)).toMatchObject({ value: { reason: 'equipamento_inacessivel', text: null } });
 

@@ -4,7 +4,7 @@ import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.t
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
-import { pdfTextItems } from './support/pdf-text.ts';
+import { fichaStart, pdfPageTexts, pdfTextItems } from './support/pdf-text.ts';
 import { expectCameraOpen, shoot } from './support/photos.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { setParecer } from './support/relatorio-flow.ts';
@@ -16,7 +16,8 @@ import { setParecer } from './support/relatorio-flow.ts';
  * camera, then one with the gallery camera (target "Geral"). The Geral photo is "1" and the
  * sheet photo "2" although captured first; the gallery says under its camera where its shots
  * print. In the issued DOCX and PDF, section 7 holds "Imagem 1." alone and "Imagem 2" prints
- * once, under the chave's sheet in section 9. The fixture's ids are fixed and a revision is
+ * once, under the chave's sheet in section 9, after its CONCLUSÃO (Story 20.6), and each of the
+ * fixture's three fichas starts a page of the PDF. The fixture's ids are fixed and a revision is
  * generated, so this spec runs in the serial group (`e2e/support/groups.ts`).
  */
 
@@ -36,6 +37,8 @@ test.beforeEach(({ seed }) => {
 const JOB_TIMEOUT = 150_000;
 const GERAL_NOTE = 'Fotos tiradas aqui entram como Geral e saem no Registro fotográfico; as fotos de um equipamento ou de um local saem só na ficha ou no local.';
 const CHAVE_TAG = 'SEC-TEST';
+/** The small fixture's three fichas, by TAG. */
+const FICHA_TAGS = [CHAVE_TAG, 'DJ-TEST', 'TR-TEST'];
 
 const toast = (page: Page) => page.getByTestId('toast');
 const exportDialog = (page: Page) => page.getByRole('dialog', { name: 'Gerar relatório' });
@@ -114,7 +117,8 @@ test('@p0 17.1-E2E-001 section 7 holds only the "Geral" photo: numbered 1 before
   await expect(toast(page)).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   const docx = extractStructure(await downloadBytes(await downloadFrom(page, () => exportDialog(page).getByRole('button', { name: 'DOCX — abrir no Word' }).click())));
   const pdf = await downloadFrom(page, () => exportDialog(page).getByRole('button', { name: 'PDF — enviar ao cliente' }).click());
-  const text = (await pdfTextItems(new Uint8Array(await downloadBytes(pdf)))).join(' ');
+  const pdfBytes = new Uint8Array(await downloadBytes(pdf));
+  const text = (await pdfTextItems(pdfBytes)).join(' ');
 
   // DOCX: the section 7 heading, the heading after it, and the image lines between them.
   const level1 = docx.headings.filter((heading) => heading.level === 1).map((heading) => heading.text);
@@ -134,6 +138,10 @@ test('@p0 17.1-E2E-001 section 7 holds only the "Geral" photo: numbered 1 before
   const chaveAt = docx.paragraphs.findIndex((paragraph, i) => i > to && paragraph.startsWith('CHAVE SECCIONADORA') && paragraph.endsWith(CHAVE_TAG));
   expect(chaveAt).toBeGreaterThan(to);
   expect(twos[0]!).toBeGreaterThan(chaveAt);
+  // Story 20.6: in the ficha's one photo block, after its CONCLUSÃO, never between its tables.
+  const conclusionAt = docx.paragraphs.indexOf('CONCLUSÃO', chaveAt);
+  expect(conclusionAt).toBeGreaterThan(chaveAt);
+  expect(twos[0]!).toBeGreaterThan(conclusionAt);
   expect(docx.paragraphs.some((paragraph) => paragraph.includes('Imagem 3'))).toBe(false);
 
   // PDF: the same, read from the last (body) occurrence of each heading title (the ÍNDICE lists them first).
@@ -149,5 +157,14 @@ test('@p0 17.1-E2E-001 section 7 holds only the "Geral" photo: numbered 1 before
   const pdfChave = text.indexOf(CHAVE_TAG, pdfTo);
   expect(pdfChave).toBeGreaterThan(pdfTo);
   expect(text.indexOf('Imagem 2')).toBeGreaterThan(pdfChave);
+  expect(text.indexOf('Imagem 2')).toBeGreaterThan(text.indexOf('CONCLUSÃO', pdfChave));
   expect(text).not.toContain('Imagem 3');
+  // Story 20.6, page by page: each of the three fichas starts a page of its own.
+  const pages = await pdfPageTexts(pdfBytes);
+  const starts = FICHA_TAGS.map((tag) => fichaStart(pages, tag));
+  for (const [i, start] of starts.entries()) {
+    expect(start.page, FICHA_TAGS[i]).toBeGreaterThan(-1);
+    expect(start.before, FICHA_TAGS[i]).toEqual([]);
+  }
+  expect(new Set(starts.map((start) => start.page)).size).toBe(FICHA_TAGS.length);
 });
