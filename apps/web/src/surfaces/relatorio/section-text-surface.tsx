@@ -13,16 +13,17 @@ import {
   templateSectionText,
   textCapOf,
   type BlockRow,
+  type EntityState,
   type TemplateRow,
   type RelatorioSnapshot,
 } from '@app/domain';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { Button, Chip, LoadingNote, TextButton } from '../../components/index.ts';
+import { Button, Chip, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
-import { blockRowsOf, relatorioState, templateRows } from '../../db/home-store.ts';
+import { blockRowsOf, templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { RichTextField } from '../../input/rich-text-field.tsx';
@@ -30,6 +31,7 @@ import { useRichTextArea } from '../../input/use-rich-text-area.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
+import { RelatorioGate } from './relatorio-gate.tsx';
 import './relatorio.css';
 import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 
@@ -48,39 +50,42 @@ const NO_TEMPLATES: TemplateRow[] = [];
  */
 export function SectionTextSurface() {
   const { id = '', blockId = '' } = useParams();
-  const db = useSession().database;
-  const state = useLiveQuery(() => (db === null ? undefined : relatorioState(db, id)), [db, id]);
-  const templates = useLiveQuery(() => (db === null ? Promise.resolve(NO_TEMPLATES) : templateRows(db)), [db], NO_TEMPLATES);
-  const snapshot: RelatorioSnapshot | null = useRelatorioSnapshot(state, id);
-  const block = snapshot?.blocks.find((row) => row.id === blockId) ?? null;
-  const t = copy.sectionText;
-
+  // e20f (QA N4): behind `RelatorioGate`, so a deep link on a device that does not hold the relatório yet pulls it (AD-8).
   return (
     <main className="screen" data-route="/relatorio/:id/secao/:blockId">
-      {state === undefined ? (
-        <div className="content">
-          <LoadingNote what={copy.loadingWhat.section} />
-        </div>
-      ) : block === null || snapshot === null || !EDITABLE_TYPES.has(block.block_type) ? (
-        <div className="content">
-          <p className="section-note">{t.notFound}</p>
-          <Link to={`/relatorio/${id}`}>{t.backToSumario}</Link>
-        </div>
-      ) : (
-        <SectionTextEditor
-          key={block.id}
-          relatorioId={id}
-          block={block}
-          seedVersion={snapshot.relatorio.seed_version}
-          templateName={templates.find((row) => row.id === snapshot.relatorio.template_id)?.name ?? null}
-          templateText={templateSectionText(
-            templates.find((row) => row.id === snapshot.relatorio.template_id),
-            block.block_type,
-          )}
-          nextBlockId={nextTextSection(snapshot, block.id)}
-        />
-      )}
+      <RelatorioGate id={id}>{(state) => <SectionTextLoaded key={id} relatorioId={id} blockId={blockId} state={state} />}</RelatorioGate>
     </main>
+  );
+}
+
+function SectionTextLoaded({ relatorioId: id, blockId, state }: { relatorioId: string; blockId: string; state: EntityState }) {
+  const db = useSession().database;
+  const templates = useLiveQuery(() => (db === null ? Promise.resolve(NO_TEMPLATES) : templateRows(db)), [db], NO_TEMPLATES);
+  const snapshot: RelatorioSnapshot = useRelatorioSnapshot(state, id);
+  const block = snapshot.blocks.find((row) => row.id === blockId) ?? null;
+  const t = copy.sectionText;
+
+  if (block === null || !EDITABLE_TYPES.has(block.block_type)) {
+    return (
+      <div className="content">
+        <p className="section-note">{t.notFound}</p>
+        <Link to={`/relatorio/${id}`}>{t.backToSumario}</Link>
+      </div>
+    );
+  }
+  return (
+    <SectionTextEditor
+      key={block.id}
+      relatorioId={id}
+      block={block}
+      seedVersion={snapshot.relatorio.seed_version}
+      templateName={templates.find((row) => row.id === snapshot.relatorio.template_id)?.name ?? null}
+      templateText={templateSectionText(
+        templates.find((row) => row.id === snapshot.relatorio.template_id),
+        block.block_type,
+      )}
+      nextBlockId={nextTextSection(snapshot, block.id)}
+    />
   );
 }
 

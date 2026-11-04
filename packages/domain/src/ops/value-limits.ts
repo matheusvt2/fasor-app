@@ -241,16 +241,171 @@ function putField(path: OpPath): string | null {
   return typeof field === 'string' ? field : null;
 }
 
+/*
+ * e20f (2026-11-04, integrated review of 76cbdb79): the text caps bound each string, not a whole
+ * value, so an open-shaped value (one a `strings` or `structured` rule judges: a seed-defined
+ * cell, a block config, template blocks, a registry row's fields) could still hold thousands of
+ * strings and weigh megabytes. Such a value is also bounded whole, by its serialized size, and
+ * every array anywhere in a client value by its length. A value whose fields all have text caps
+ * of their own is never byte-capped: its caps already bound it. The numbers, and the measured
+ * maxima they were set from (the three fixture logs and the shipped seed template, with at least
+ * 4x margin, `value-limits.test.ts`), are in `spec-e20f-wave-fixes.md` (Design Notes).
+ */
+
+/** The most a value judged by a `strings` or `structured` rule may weigh, serialized as the push body carries it (128 KiB; the largest measured, the seed template's blocks, is 23 840 B). */
+export const VALUE_MAX_BYTES = 128 * 1024;
+
+/** The most items any array in a client op's value may hold (the longest measured, the seed template's 76 blocks). */
+export const VALUE_MAX_ITEMS = 500;
+
+/**
+ * e20f (QA N1): the deepest nesting of objects and arrays a client value (or an op's `meta`) may
+ * hold. The deepest real value is far shallower (measured in `value-limits.test.ts`); a value
+ * nested 20 000 levels deep overflowed the stack of the recursive walks and answered 500.
+ */
+export const VALUE_MAX_DEPTH = 32;
+
+/**
+ * How deep `value` nests (a scalar is 0, an empty object or array 1), walked iteratively so no
+ * input can overflow the stack; stops counting at `limit + 1`, so a hostile value costs at most
+ * that many levels of work per branch.
+ */
+export function valueDepth(value: unknown, limit = VALUE_MAX_DEPTH): number {
+  let deepest = 0;
+  const stack: Array<{ node: unknown; depth: number }> = [{ node: value, depth: 0 }];
+  while (stack.length > 0) {
+    const { node, depth } = stack.pop()!;
+    if (node === null || typeof node !== 'object') continue;
+    const here = depth + 1;
+    if (here > deepest) deepest = here;
+    if (here > limit) return here;
+    for (const child of Array.isArray(node) ? node : Object.values(node as Record<string, unknown>)) {
+      if (child !== null && typeof child === 'object') stack.push({ node: child, depth: here });
+    }
+  }
+  return deepest;
+}
+
+/**
+ * e20f (QA N1): the issue of a raw client op whose `value` or `meta` nests deeper than
+ * `VALUE_MAX_DEPTH`, or null. The push route asks it before any schema parse or recursive walk
+ * reads the op, and refuses such an op alone (`op_value_invalid`).
+ */
+export function opDepthIssue(raw: unknown): string | null {
+  if (raw === null || typeof raw !== 'object') return null;
+  for (const key of ['value', 'meta'] as const) {
+    const depth = valueDepth((raw as Record<string, unknown>)[key]);
+    if (depth > VALUE_MAX_DEPTH) return `${key} nests more than ${VALUE_MAX_DEPTH} levels deep`;
+  }
+  return null;
+}
+
+/** The UTF-8 length of a value as the push body serializes it (`JSON.stringify`); the one definition (the web's push budget reads it too). */
+export function serializedBytes(value: unknown): number {
+  return new TextEncoder().encode(JSON.stringify(value) ?? '').length;
+}
+
+/*
+ * e20f (2026-11-04, second QA pass on 76cbdb79, reproduced live): every op within its caps, two
+ * pushes of 90 points of 20 000 characters each applied, and the next preview failed
+ * `libreoffice_timeout` after 124 s. A per-value cap cannot bound that, so a relatório has a
+ * budget of stored bytes: the serialized live rows of the relatório (what `entities.row` holds).
+ * The Porto Seguro relatório, the largest real one, is 207 live rows and 643 247 bytes, so the
+ * budget is 2.45x it (a kernel test asserts it stays under half). 2 MiB (3.26x) previewed in
+ * 147.9 s end to end in the e2e, too close to the 150 s job wait and the 120 s LibreOffice limit;
+ * 1.5 MiB is the orchestrator's pick, an open question for the coordinator.
+ */
+
+/** The most bytes the live rows of one relatório may hold (1.5 MiB). */
+export const RELATORIO_MAX_BYTES = 1.5 * 1024 * 1024;
+
+/**
+ * Whether a client op may grow a relatório that holds `storedBytes` (its live rows, serialized):
+ * refused when the op names a relatório, writes a value (a create, or a put of anything but
+ * null) and `storedBytes` plus the value's serialized bytes pass `RELATORIO_MAX_BYTES`. A remove
+ * and a put of null always apply, so a full relatório can still be emptied.
+ */
+export function relatorioBudgetVerdict(op: Pick<Op, 'kind' | 'value' | 'relatorio_id'>, storedBytes: number): 'allowed' | 'refused' {
+  if (op.relatorio_id == null || op.kind === 'remove' || op.value === null) return 'allowed';
+  return storedBytes + serializedBytes(op.value) > RELATORIO_MAX_BYTES ? 'refused' : 'allowed';
+}
+
+/** A part of an op's value an open rule (`strings`, `structured`) judges, with where it sits, for the log. */
+export interface OpenValuePart {
+  readonly where: string;
+  readonly value: unknown;
+}
+
+const isOpen = (rule: ValueRule): boolean => rule.kind === 'strings' || rule.kind === 'structured';
+
+/**
+ * The parts of a client op's value an open rule judges: the whole value of a field-less put or of
+ * a field put whose rule is open, each field of a create's row whose rule is open (an unlisted
+ * field falls to `structured`). Empty for a remove, a server-only family, and a value whose rules
+ * are all text caps or schemas.
+ */
+export function openValueParts(op: Op, path: OpPath): readonly OpenValuePart[] {
+  if (op.kind === 'remove') return [];
+  const rule: FamilyValueRule = VALUE_RULES[path.family];
+  switch (rule.kind) {
+    case 'server_only':
+      return [];
+    case 'value':
+      return isOpen(rule.rule) ? [{ where: 'value', value: op.value }] : [];
+    case 'fields': {
+      const field = putField(path);
+      const fieldRule = (field === null ? undefined : rule.fields[field]) ?? rule.otherwise ?? structured;
+      return isOpen(fieldRule) ? [{ where: `value (${field ?? path.family})`, value: op.value }] : [];
+    }
+    case 'row': {
+      const row = op.value;
+      if (row === null || typeof row !== 'object' || Array.isArray(row)) return [];
+      return Object.entries(row as Record<string, unknown>)
+        .filter(([key]) => isOpen(rule.fields[key] ?? rule.otherwise ?? structured))
+        .map(([key, item]) => ({ where: `value.${key}`, value: item }));
+    }
+  }
+}
+
+/** The length of the longest array anywhere in `value`, with where it sits; null when it holds none. */
+export function longestArrayOf(value: unknown, where = 'value'): { where: string; length: number } | null {
+  if (value === null || typeof value !== 'object') return null;
+  let best: { where: string; length: number } | null = Array.isArray(value) ? { where, length: value.length } : null;
+  const entries = Array.isArray(value) ? value.map((item, i) => [String(i), item] as const) : Object.entries(value as Record<string, unknown>);
+  for (const [key, item] of entries) {
+    const inner = longestArrayOf(item, `${where}.${key}`);
+    if (inner !== null && (best === null || inner.length > best.length)) best = inner;
+  }
+  return best;
+}
+
+/** e20f: an array longer than `VALUE_MAX_ITEMS`, or an open part heavier than `VALUE_MAX_BYTES`; null when the value is bounded. */
+function wholeValueIssue(op: Op, path: OpPath): string | null {
+  const longest = longestArrayOf(op.value);
+  if (longest !== null && longest.length > VALUE_MAX_ITEMS) return `${longest.where} holds ${longest.length} items, over ${VALUE_MAX_ITEMS}`;
+  for (const part of openValueParts(op, path)) {
+    const bytes = serializedBytes(part.value);
+    if (bytes > VALUE_MAX_BYTES) return `${part.where} weighs ${bytes} bytes, over ${VALUE_MAX_BYTES}`;
+  }
+  return null;
+}
+
 /**
  * Story 20.9: the issue of a client op's value (for the log), or null when it fits. Every string
- * of the value is at most long and every number finite; then the family's rule: the field's cap,
- * a free-text cell that is text or null, a number value's length and the altitude's range. A
- * `remove` writes no value. A server-only family has no rule: the push route refuses it before.
+ * of the value is at most long and every number finite; e20f: every array at most
+ * `VALUE_MAX_ITEMS` long and every open-shaped part at most `VALUE_MAX_BYTES`; then the family's
+ * rule: the field's cap, a free-text cell that is text or null, a number value's length and the
+ * altitude's range. A `remove` writes no value. A server-only family has no rule: the push route
+ * refuses it before.
  */
 export function opValueIssue(op: Op, path: OpPath): string | null {
   if (op.kind === 'remove') return null;
+  // e20f (QA N1): checked first, iteratively, so the recursive walks below never meet a deep value.
+  if (valueDepth(op.value) > VALUE_MAX_DEPTH) return `value nests more than ${VALUE_MAX_DEPTH} levels deep`;
   const general = stringsIssue(op.value, TEXT_CAPS.long, 'value');
   if (general !== null) return general;
+  const whole = wholeValueIssue(op, path);
+  if (whole !== null) return whole;
   const rule: FamilyValueRule = VALUE_RULES[path.family];
   switch (rule.kind) {
     case 'server_only':

@@ -77,10 +77,8 @@ export function backoffMs(attempt: number, random: () => number): number {
 /** The bytes `{"ops":[` and `]}` add around a push's ops; each op after the first adds one comma. */
 export const PUSH_ENVELOPE_BYTES = '{"ops":[]}'.length;
 
-/** The UTF-8 length of an op as the push body serializes it (`JSON.stringify`). */
-export function serializedBytes(value: unknown): number {
-  return new TextEncoder().encode(JSON.stringify(value)).length;
-}
+/** The UTF-8 length of an op as the push body serializes it: the kernel's one definition (e20f), which the server's whole-value cap reads too. */
+export { serializedBytes } from '@app/domain';
 
 /**
  * Story 20.9 (contract 29): the byte budget of one push: at most `max` bytes of body, each item

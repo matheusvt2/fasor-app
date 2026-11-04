@@ -156,6 +156,14 @@ describe('POST /api/telemetry (Story 18.2)', () => {
     expect(written[0]![0]).toMatchObject({ received_at: NOW.toISOString(), user_id: companyA.userId, company_id: companyA.companyId });
   });
 
+  it('e20f (QA N7): an event dated past the skew (2099) is kept with the receive time; one at the skew keeps its own ts', async () => {
+    const device = newDevice();
+    const atSkew = new Date(NOW.getTime() + 10 * 60_000).toISOString();
+    const res = await post([event(device, { ts: '2099-01-01T00:00:00.000Z' }), event(device, { ts: atSkew }), event(device, { ts: new Date(NOW.getTime() + 10 * 60_000 + 1).toISOString() })]);
+    expect(res.status).toBe(204);
+    expect(written[0]!.map((e) => (e as { ts: string }).ts)).toEqual([NOW.toISOString(), atSkew, NOW.toISOString()]);
+  });
+
   it('answers 204 to an empty batch without calling the sink', async () => {
     expect((await post([])).status).toBe(204);
     expect(written).toEqual([]);

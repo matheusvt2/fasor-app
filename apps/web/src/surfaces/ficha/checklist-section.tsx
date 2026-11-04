@@ -42,6 +42,7 @@ import type { PointSeed } from '../points/point-editor.tsx';
 import type { Author } from '../relatorio/relatorio-ops.ts';
 import { DictatedSuggestion, DictationButton, useProseDictation, useSpeechAvailable } from '../../speech/dictation.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
+import { LEGEND_KEY } from '../../state/user-storage.ts';
 
 /*
  * Story 5.4 (FR-25, FR-26, UX-DR36-38, UX-DR44; `60-ficha.html` "Verificações gerais"):
@@ -87,8 +88,6 @@ export interface ChecklistPhotos {
   caption?: (tile: PhotoTile) => void;
 }
 
-/** sessionStorage: the block whose checklist opened the legend in this session. */
-const LEGEND_KEY = 'ficha:legend-first';
 
 /** The legend heads the first checklist of the session only (EXPERIENCE.md › Checklist row). */
 function legendOpensHere(blockId: string): boolean {

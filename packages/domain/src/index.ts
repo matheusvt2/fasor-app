@@ -58,6 +58,8 @@ export * from './relatorio/section-variables.ts';
 export * from './relatorio/status-advance.ts';
 export * from './relatorio/ops.ts';
 export * from './sync/streams.ts';
+// e20f: the device's clock offset, learned from the server's Date header.
+export * from './sync/clock-offset.ts';
 export * from './relatorio/location-path.ts';
 export * from './relatorio/location-live.ts';
 export * from './relatorio/removal.ts';

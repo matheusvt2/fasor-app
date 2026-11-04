@@ -6,12 +6,14 @@ import {
   relatorioStatusSchema,
   refusalPressureBytes,
   storagePressureBytes,
+  toIso,
   type EvictionBlob,
   type FileRow,
   type RelatorioStatus,
   type StorageReading,
 } from '@app/domain';
 import Dexie from 'dexie';
+import { now } from '../clock.ts';
 import type { AppDatabase, FileBlobRow, ThumbRow, UploadError } from './schema.ts';
 
 /*
@@ -49,7 +51,7 @@ export async function putLocalBlob(
 export async function markBlobAcked(
   db: AppDatabase,
   id: string,
-  ackedAt: string = new Date().toISOString(),
+  ackedAt: string = toIso(now()),
   readingRefused?: FileBlobRow['reading_refused'],
 ): Promise<void> {
   await db.files.where('id').equals(id).modify((row) => {

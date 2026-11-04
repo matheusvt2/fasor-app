@@ -1,3 +1,4 @@
+import { makeOp, SERVER_DEVICE_ID } from '@app/domain';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { entities, ops } from '../db/schema.ts';
@@ -294,7 +295,7 @@ describe('review: the obra a create files its row under, and the rows a value na
     expect(await h.rowOf(companyA, 'relatorio', relatorioId)).toMatchObject({ project_id: projectId });
   });
 
-  it('e20w relink: a point\'s equipment_id and location_id written in one batch apply with live ids and with null; another relatório\'s rows are refused op_value_invalid', async () => {
+  it('e20w relink: a point\'s equipment_id and location_id written in one batch apply with live ids and with null; another relatório\'s rows are refused op_target_missing (e20f; op_value_invalid before)', async () => {
     const own = await h.seedRelatorio(companyA);
     const other = await h.seedRelatorio(companyA);
     const pointId = newId();
@@ -318,12 +319,243 @@ describe('review: the obra a create files its row under, and the rows a value na
     expect(await pointOf()).toMatchObject({ equipment_id: null, location_id: null });
     // Another relatório's local, and an equipment of its obra: refused, the point unchanged.
     const stray = relink(other.blocks[0]!.equipmentId, other.locationId);
-    expect((await h.push(companyA, stray)).rejected).toEqual(stray.map((op) => ({ op_id: op.op_id, code: 'op_value_invalid' })));
+    expect((await h.push(companyA, stray)).rejected).toEqual(stray.map((op) => ({ op_id: op.op_id, code: 'op_target_missing' })));
     expect(await pointOf()).toMatchObject({ equipment_id: null, location_id: null });
     // A create naming another relatório's local is refused the same way.
     const strayPointId = newId();
     const strayCreate = h.clientOp(companyA, { kind: 'create', path: `point/${strayPointId}`, relatorio_id: own.relatorioId, value: { ...pointRow, id: strayPointId, location_id: other.locationId } });
-    expect((await h.push(companyA, [strayCreate])).rejected).toEqual([{ op_id: strayCreate.op_id, code: 'op_value_invalid' }]);
+    expect((await h.push(companyA, [strayCreate])).rejected).toEqual([{ op_id: strayCreate.op_id, code: 'op_target_missing' }]);
     expect(await h.rowOf(companyA, 'point', strayPointId)).toBeUndefined();
   });
 });
+
+/*
+ * e20f (2026-11-04, integrated review of 76cbdb79): every id a client value names is checked from
+ * one kernel table (`REFERENCE_FIELDS`), not only a point's, a photo's and a block's; a refusal is
+ * `op_target_missing` and leaves the row unchanged; a null applies, and a row created earlier in
+ * the same push counts.
+ */
+describe('e20f: every reference a value names exists where the op is filed', () => {
+  const photoRow = (id: string, relatorioId: string) => ({
+    id,
+    company_id: companyA.companyId,
+    relatorio_id: relatorioId,
+    sha256: 'a'.repeat(64),
+    mime: 'image/jpeg',
+    size: 10,
+    uploaded_at: null,
+    variants: null,
+    removed_at: null,
+    kind: 'photo',
+    captured_at: new Date().toISOString(),
+    tz_offset: -180,
+    coords: null,
+    local_seq: 1,
+    block_id: null,
+    item_key: null,
+    caption: null,
+    reading_kind: null,
+    reading_target: null,
+    reading_status: 'none',
+  });
+  const photoCreate = (relatorioId: string) => {
+    const id = newId();
+    return { id, op: h.clientOp(companyA, { kind: 'create', path: `file/${id}`, relatorio_id: relatorioId, value: photoRow(id, relatorioId) }) };
+  };
+  const registryCreate = (kind: 'client' | 'instrument', id = newId()) => {
+    const value =
+      kind === 'client'
+        ? { id, kind, removed_at: null, name: `Cliente ${id.slice(-4)}`, cnpj: null, contact_name: null, contact_phone: null, sites: [] }
+        : { id, kind, removed_at: null, code: `I-${id.slice(-4)}`, name: 'Megômetro', manufacturer: null, model: null, serial: null, cert_number: null, laboratory: null, calibrated_at: null, calibration_interval_months: null, rbc_accredited: null, test_isolacao: null, test_resistencia_contato: null, test_relacao_transformacao: null, certificate_file_id: null };
+    return { id, op: h.clientOp(companyA, { kind: 'create', scope: 'company', path: `registry/${kind}/${id}`, value }) };
+  };
+
+  it('a local\'s parent_id naming R2\'s local or no local is refused; R1\'s own local, null, and a local created earlier in the push apply', async () => {
+    const r1 = await h.seedRelatorio(companyA);
+    const r2 = await h.seedRelatorio(companyA);
+    const columnId = newId();
+    const column = h.clientOp(companyA, { kind: 'create', path: `location/${columnId}`, relatorio_id: r1.relatorioId, value: { id: columnId, relatorio_id: r1.relatorioId, parent_id: r1.locationId, kind: 'coluna', name: 'Coluna nova', order_key: 'z0', removed_at: null } });
+    expect((await h.push(companyA, [column])).rejected).toEqual([]);
+    const parent = (value: string | null) => h.clientOp(companyA, { kind: 'put', path: `location/${columnId}/parent_id`, relatorio_id: r1.relatorioId, value });
+    const refused = [parent(r2.locationId), parent(newId())];
+    expect((await h.push(companyA, refused)).rejected).toEqual(refused.map((op) => ({ op_id: op.op_id, code: 'op_target_missing' })));
+    for (const op of refused) expect(await h.logged(op.op_id)).toBe(false);
+    expect(await h.rowOf(companyA, 'location', columnId)).toMatchObject({ parent_id: r1.locationId });
+    // A painel created earlier in the same push, then R1's own cabine, then null.
+    const painelId = newId();
+    const painel = h.clientOp(companyA, { kind: 'create', path: `location/${painelId}`, relatorio_id: r1.relatorioId, value: { id: painelId, relatorio_id: r1.relatorioId, parent_id: r1.locationId, kind: 'painel', name: 'Painel novo', order_key: 'z1', removed_at: null } });
+    const toPainel = parent(painelId);
+    expect((await h.push(companyA, [painel, toPainel])).rejected).toEqual([]);
+    expect(await h.rowOf(companyA, 'location', columnId)).toMatchObject({ parent_id: painelId });
+    expect((await h.push(companyA, [parent(r1.locationId)])).rejected).toEqual([]);
+    expect((await h.push(companyA, [parent(null)])).rejected).toEqual([]);
+    expect(await h.rowOf(companyA, 'location', columnId)).toMatchObject({ parent_id: null });
+  });
+
+  it('a block\'s feeds_block_id naming a missing block or R2\'s block is refused; R1\'s block and null apply', async () => {
+    const r1 = await h.seedRelatorio(companyA);
+    const r2 = await h.seedRelatorio(companyA);
+    const [fed, feeder] = [r1.blocks[0]!.id, r1.blocks[1]!.id];
+    const feeds = (value: string | null) => h.clientOp(companyA, { kind: 'put', path: `block/${fed}/feeds_block_id`, relatorio_id: r1.relatorioId, value });
+    const refused = [feeds(newId()), feeds(r2.blocks[1]!.id)];
+    expect((await h.push(companyA, refused)).rejected).toEqual(refused.map((op) => ({ op_id: op.op_id, code: 'op_target_missing' })));
+    expect(await h.rowOf(companyA, 'block', fed)).toMatchObject({ feeds_block_id: null });
+    expect((await h.push(companyA, [feeds(feeder)])).rejected).toEqual([]);
+    expect(await h.rowOf(companyA, 'block', fed)).toMatchObject({ feeds_block_id: feeder });
+    expect((await h.push(companyA, [feeds(null)])).rejected).toEqual([]);
+    expect(await h.rowOf(companyA, 'block', fed)).toMatchObject({ feeds_block_id: null });
+  });
+
+  it('the cover photo naming R2\'s photo or no file is refused; R1\'s photo created earlier in the push, and null, apply', async () => {
+    const r1 = await h.seedRelatorio(companyA);
+    const r2 = await h.seedRelatorio(companyA);
+    const theirs = photoCreate(r2.relatorioId);
+    expect((await h.push(companyA, [theirs.op])).rejected).toEqual([]);
+    const cover = (value: string | null) => h.clientOp(companyA, { kind: 'put', path: 'relatorio/setup/cover_photo_file_id', relatorio_id: r1.relatorioId, value });
+    const refused = [cover(theirs.id), cover(newId())];
+    expect((await h.push(companyA, refused)).rejected).toEqual(refused.map((op) => ({ op_id: op.op_id, code: 'op_target_missing' })));
+    expect(await h.rowOf(companyA, 'relatorio', r1.relatorioId)).toMatchObject({ setup: { cover_photo_file_id: null } });
+    const own = photoCreate(r1.relatorioId);
+    expect((await h.push(companyA, [own.op, cover(own.id)])).rejected).toEqual([]);
+    expect(await h.rowOf(companyA, 'relatorio', r1.relatorioId)).toMatchObject({ setup: { cover_photo_file_id: own.id } });
+    expect((await h.push(companyA, [cover(null)])).rejected).toEqual([]);
+  });
+
+  it('instrument_ids with an id that is no instrument (a client, a missing id) is refused; instruments, one created earlier in the push, and [] apply', async () => {
+    const { relatorioId } = await h.seedRelatorio(companyA);
+    const client = registryCreate('client');
+    const instrument = registryCreate('instrument');
+    expect((await h.push(companyA, [client.op, instrument.op])).rejected).toEqual([]);
+    const instruments = (value: string[]) => h.clientOp(companyA, { kind: 'put', path: 'relatorio/setup/instrument_ids', relatorio_id: relatorioId, value });
+    const refused = [instruments([instrument.id, client.id]), instruments([newId()])];
+    expect((await h.push(companyA, refused)).rejected).toEqual(refused.map((op) => ({ op_id: op.op_id, code: 'op_target_missing' })));
+    expect(await h.rowOf(companyA, 'relatorio', relatorioId)).toMatchObject({ setup: { instrument_ids: [] } });
+    const fresh = registryCreate('instrument');
+    expect((await h.push(companyA, [fresh.op, instruments([instrument.id, fresh.id])])).rejected).toEqual([]);
+    expect(await h.rowOf(companyA, 'relatorio', relatorioId)).toMatchObject({ setup: { instrument_ids: [instrument.id, fresh.id] } });
+    expect((await h.push(companyA, [instruments([])])).rejected).toEqual([]);
+  });
+
+  it('a project\'s client_id naming no client (an instrument, a missing id, another company\'s client) is refused; a client and null apply', async () => {
+    const { projectId } = await h.seedRelatorio(companyA);
+    const instrument = registryCreate('instrument');
+    const client = registryCreate('client');
+    expect((await h.push(companyA, [instrument.op, client.op])).rejected).toEqual([]);
+    const clientOf = (value: string | null) => h.clientOp(companyA, { kind: 'put', scope: 'company', path: `project/${projectId}/client_id`, value });
+    const refused = [clientOf(instrument.id), clientOf(newId())];
+    expect((await h.push(companyA, refused)).rejected).toEqual(refused.map((op) => ({ op_id: op.op_id, code: 'op_target_missing' })));
+    expect(await h.rowOf(companyA, 'project', projectId)).toMatchObject({ client_id: null });
+    expect((await h.push(companyA, [clientOf(client.id)])).rejected).toEqual([]);
+    expect(await h.rowOf(companyA, 'project', projectId)).toMatchObject({ client_id: client.id });
+    expect((await h.push(companyA, [clientOf(null)])).rejected).toEqual([]);
+    // A project create naming a missing client is refused the same way; one created earlier in the push applies.
+    const newProject = (clientId: string) => {
+      const id = newId();
+      return h.clientOp(companyA, { kind: 'create', scope: 'company', path: `project/${id}`, value: { id, client_id: clientId, name: 'Obra com cliente', site: null, removed_at: null } });
+    };
+    const orphan = newProject(newId());
+    expect((await h.push(companyA, [orphan])).rejected).toEqual([{ op_id: orphan.op_id, code: 'op_target_missing' }]);
+    const later = registryCreate('client');
+    expect((await h.push(companyA, [later.op, newProject(later.id)])).rejected).toEqual([]);
+  });
+
+  it('review: a brand file naming no file is refused; a company file, a null certificate, and a feeding block created earlier in the push apply', async () => {
+    const { relatorioId, blocks } = await h.seedRelatorio(companyA);
+    const logoId = newId();
+    const logo = h.clientOp(companyA, {
+      kind: 'create',
+      scope: 'company',
+      path: `file/${logoId}`,
+      value: { id: logoId, company_id: companyA.companyId, relatorio_id: null, sha256: 'b'.repeat(64), mime: 'image/png', size: 10, uploaded_at: null, variants: null, removed_at: null, kind: 'logo' },
+    });
+    const empresa = (logoFileId: string | null, coverFileId: string | null) => {
+      const id = newId();
+      return {
+        id,
+        op: h.clientOp(companyA, {
+          kind: 'create',
+          scope: 'company',
+          path: `registry/empresa/${id}`,
+          value: { id, kind: 'empresa', removed_at: null, name: 'Empresa da revisão', cnpj: null, address: null, phone: null, email: null, form_title: null, form_code: null, form_revision: null, logo_file_id: logoFileId, watermark_file_id: null, cover_background_file_id: coverFileId },
+        }),
+      };
+    };
+    const missingLogo = empresa(newId(), null);
+    const missingCover = empresa(null, newId());
+    expect((await h.push(companyA, [missingLogo.op, missingCover.op])).rejected).toEqual([
+      { op_id: missingLogo.op.op_id, code: 'op_target_missing' },
+      { op_id: missingCover.op.op_id, code: 'op_target_missing' },
+    ]);
+    expect(await h.rowOf(companyA, 'registry', missingLogo.id)).toBeUndefined();
+    const branded = empresa(logoId, logoId);
+    expect((await h.push(companyA, [logo, branded.op])).rejected).toEqual([]);
+    expect(await h.rowOf(companyA, 'registry', branded.id)).toMatchObject({ logo_file_id: logoId, cover_background_file_id: logoId });
+    const instrument = registryCreate('instrument');
+    const nullCertificate = h.clientOp(companyA, { kind: 'put', scope: 'company', path: `registry/instrument/${instrument.id}/certificate_file_id`, value: null });
+    expect((await h.push(companyA, [instrument.op, nullCertificate])).rejected).toEqual([]);
+
+    // A block created in the push, then named as the feeding block of another sheet in the same push.
+    const template = await h.rowOf<Record<string, unknown>>(companyA, 'block', blocks[1]!.id);
+    const feederId = newId();
+    const feeder = h.clientOp(companyA, {
+      kind: 'create',
+      path: `block/${feederId}`,
+      relatorio_id: relatorioId,
+      value: { ...template!, id: feederId, order_key: 'zz', feeds_block_id: null, not_tested: null, concluded_by: null, created_by: null, first_edited_at: null, last_modified_by: null, last_modified_at: null, removed_at: null },
+    });
+    const feeds = h.clientOp(companyA, { kind: 'put', path: `block/${blocks[0]!.id}/feeds_block_id`, relatorio_id: relatorioId, value: feederId });
+    expect((await h.push(companyA, [feeder, feeds])).rejected).toEqual([]);
+    expect(await h.rowOf(companyA, 'block', blocks[0]!.id)).toMatchObject({ feeds_block_id: feederId });
+  });
+
+  it('a registry file id naming no file of the company is refused; a file of the company applies', async () => {
+    const { relatorioId } = await h.seedRelatorio(companyA);
+    const instrument = registryCreate('instrument');
+    const photo = photoCreate(relatorioId);
+    expect((await h.push(companyA, [instrument.op, photo.op])).rejected).toEqual([]);
+    const certificate = (value: string | null) => h.clientOp(companyA, { kind: 'put', scope: 'company', path: `registry/instrument/${instrument.id}/certificate_file_id`, value });
+    const missing = certificate(newId());
+    expect((await h.push(companyA, [missing])).rejected).toEqual([{ op_id: missing.op_id, code: 'op_target_missing' }]);
+    expect((await h.push(companyA, [certificate(photo.id)])).rejected).toEqual([]);
+    expect(await h.rowOf(companyA, 'registry', instrument.id)).toMatchObject({ certificate_file_id: photo.id });
+  });
+
+  it('a confirm naming a suggestion of another relatório, or none, is refused; its own suggestion applies', async () => {
+    const r1 = await h.seedRelatorio(companyA);
+    const r2 = await h.seedRelatorio(companyA);
+    const suggestion = (relatorioId: string, blockId: string) => {
+      const id = newId();
+      return {
+        id,
+        op: makeServerOp(relatorioId, `suggestion/${id}`, {
+          id,
+          relatorio_id: relatorioId,
+          target_path: `sheet/${blockId}/observations`,
+          value: 'Lido',
+          trust: 'suggested',
+          mode: 'fill',
+          source: { photo_id: newId(), bbox: [0.1, 0.2, 0.3, 0.4], ocr_token_ids: [], reading_run_id: newId() },
+          status: 'pending',
+          prompt_version: 'p1',
+          hint: null,
+        }),
+      };
+    };
+    const own = suggestion(r1.relatorioId, r1.blocks[0]!.id);
+    const theirs = suggestion(r2.relatorioId, r2.blocks[0]!.id);
+    await h.serverApply(companyA, [own.op, theirs.op]);
+    const confirm = (suggestionId: string) => h.clientOp(companyA, { kind: 'put', path: `sheet/${r1.blocks[0]!.id}/observations`, relatorio_id: r1.relatorioId, value: 'Lido', meta: { source_suggestion_id: suggestionId } });
+    const refused = [confirm(theirs.id), confirm(newId())];
+    expect((await h.push(companyA, refused)).rejected).toEqual(refused.map((op) => ({ op_id: op.op_id, code: 'op_target_missing' })));
+    expect(((await h.rowOf<{ sheet: { observations: unknown } }>(companyA, 'block', r1.blocks[0]!.id))?.sheet.observations ?? null)).toBeNull();
+    expect((await h.push(companyA, [confirm(own.id)])).rejected).toEqual([]);
+  });
+});
+
+/** A server-only create, as the reading job writes one. */
+function makeServerOp(relatorioId: string, path: string, value: Record<string, unknown>) {
+  return makeOp(
+    { kind: 'create', scope: 'relatorio', company_id: companyA.companyId, project_id: null, relatorio_id: relatorioId, path, value: value as never, prev_op_id: null, batch_id: null, meta: null, actor_id: 'system:reading', device_id: SERVER_DEVICE_ID },
+    { newId, now: new Date() },
+  );
+}

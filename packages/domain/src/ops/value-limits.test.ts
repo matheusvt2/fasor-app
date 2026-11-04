@@ -1,12 +1,34 @@
 import { describe, expect, it } from 'vitest';
-import { opLog as portoSeguroLog } from '../../fixtures/porto-seguro/op-log.ts';
+import { opLog as portoSeguroLog, RELATORIO_ID as PORTO_SEGURO_RELATORIO } from '../../fixtures/porto-seguro/op-log.ts';
 import { opLog as portoSeguroSmallLog } from '../../fixtures/porto-seguro/small/op-log.ts';
 import { opLog as replaySmallLog } from '../../fixtures/replay-small/op-log.ts';
 import { FUNCAO_MAX_LENGTH } from '../schemas/block-config.ts';
-import { NC_PHRASE_MAX_LENGTH, RELATORIO_SETUP_KEYS } from '../schemas/entities.ts';
+import { NC_PHRASE_MAX_LENGTH, RELATORIO_SETUP_KEYS, rowIndexColumns, rowRemovedAt } from '../schemas/entities.ts';
 import { opSchema, type Op } from './op.ts';
+import { splitEntityKey } from './apply.ts';
 import { FAMILIES, parsePath } from './path.ts';
-import { FAMILY_VALUE_RULES, opValueIssue, SETUP_VALUE_RULES, SITE_ALTITUDE_RANGE_M, TEXT_CAPS, textCapOf } from './value-limits.ts';
+import { replay } from './replay.ts';
+import { instantiateTemplate } from '../relatorio/instantiate.ts';
+import { standardTemplate } from '../seed/template.ts';
+import { shortStringsOfBytes } from '../../fixtures/value-caps.ts';
+import {
+  FAMILY_VALUE_RULES,
+  longestArrayOf,
+  openValueParts,
+  opValueIssue,
+  serializedBytes,
+  SETUP_VALUE_RULES,
+  SITE_ALTITUDE_RANGE_M,
+  TEXT_CAPS,
+  textCapOf,
+  opDepthIssue,
+  RELATORIO_MAX_BYTES,
+  relatorioBudgetVerdict,
+  VALUE_MAX_BYTES,
+  VALUE_MAX_DEPTH,
+  VALUE_MAX_ITEMS,
+  valueDepth,
+} from './value-limits.ts';
 
 /*
  * Story 20.9 (contract 29, security pass S4): per-kind tests at the cap and one past it, the
@@ -208,5 +230,157 @@ describe('opValueIssue: types and ranges (Story 20.9)', () => {
     expect(textCapOf('relatorio/status')).toBeNull();
     expect(textCapOf(`point/${POINT}`)).toBeNull();
     expect(textCapOf('not/a/path')).toBeNull();
+  });
+});
+
+describe('whole-value caps, set from measurement (e20f)', () => {
+  /** Every op the kernel and its fixtures write: the three fixture logs, a relatório of the shipped seed template, and that template's create and field puts. */
+  function measuredOps(): Op[] {
+    const template = standardTemplate({ id: '019966c1-0000-7000-8000-0000000000aa' });
+    const { drafts } = instantiateTemplate(
+      template,
+      { id: PROJECT },
+      { service_start: '2026-11-01', service_end: '2026-11-02', existingEquipment: [], responsible_user_id: null },
+      { newId: (() => { let n = 0; return () => `019966c1-0000-7000-8001-${String(++n).padStart(12, '0')}`; })(), actorId: '019966c1-0000-7000-8000-0000000000e9', companyId: COMPANY },
+    );
+    const seeded = drafts.map((draft, i) => opSchema.parse({ ...draft, op_id: `019966c1-0000-7000-8002-${String(i).padStart(12, '0')}`, client_ts: '2026-11-04T12:00:00.000Z', device_id: 'tablet-1' }));
+    const templateOps = [
+      op({ kind: 'create', scope: 'company', relatorio_id: null, path: `template/${template.id}`, value: template as never }),
+      ...Object.entries(template)
+        .filter(([key]) => !['id', 'company_id', 'origin', 'seed_version', 'version'].includes(key))
+        .flatMap(([key, value]) => {
+          try {
+            return [op({ kind: 'put', scope: 'company', relatorio_id: null, path: `template/${template.id}/${key}`, value: value as never })];
+          } catch {
+            return [];
+          }
+        }),
+    ];
+    return [...portoSeguroLog, ...portoSeguroSmallLog, ...replaySmallLog, ...seeded, ...templateOps];
+  }
+
+  it('measure: the caps leave at least 4x the largest open value and the longest array of every fixture and seed op', () => {
+    let maxBytes = { where: '', bytes: 0 };
+    let maxItems = { where: '', length: 0 };
+    let checked = 0;
+    for (const entry of measuredOps()) {
+      const path = parsePath(entry.path);
+      if (FAMILY_VALUE_RULES[path.family].kind === 'server_only') continue;
+      checked++;
+      for (const part of openValueParts(entry, path)) {
+        const bytes = serializedBytes(part.value);
+        if (bytes > maxBytes.bytes) maxBytes = { where: `${entry.path} ${part.where}`, bytes };
+      }
+      const longest = longestArrayOf(entry.value);
+      if (longest !== null && longest.length > maxItems.length) maxItems = { where: `${entry.path} ${longest.where}`, length: longest.length };
+    }
+    console.log(`e20f measured: ${checked} ops; largest open value ${maxBytes.bytes} B at ${maxBytes.where}; longest array ${maxItems.length} at ${maxItems.where}`);
+    expect(checked).toBeGreaterThan(1000);
+    expect(VALUE_MAX_BYTES).toBeGreaterThanOrEqual(4 * maxBytes.bytes);
+    expect(VALUE_MAX_ITEMS).toBeGreaterThanOrEqual(4 * maxItems.length);
+  });
+
+  it('QA N1, measure: the deepest value or meta of every fixture and seed op is at least 4x under VALUE_MAX_DEPTH', () => {
+    let deepest = { where: '', depth: 0 };
+    for (const entry of measuredOps()) {
+      for (const key of ['value', 'meta'] as const) {
+        const depth = valueDepth(entry[key]);
+        if (depth > deepest.depth) deepest = { where: `${entry.path} ${key}`, depth };
+      }
+    }
+    console.log(`e20f measured: deepest value ${deepest.depth} at ${deepest.where}`);
+    expect(VALUE_MAX_DEPTH).toBe(32);
+    expect(VALUE_MAX_DEPTH).toBeGreaterThanOrEqual(4 * deepest.depth);
+  });
+
+  it('QA N1: a value nested 20 000 levels deep is refused without overflowing the stack; 32 levels pass, 33 do not', () => {
+    const nested = (levels: number): unknown => {
+      let value: unknown = 'x';
+      for (let i = 0; i < levels; i++) value = { a: value };
+      return value;
+    };
+    expect(valueDepth(nested(32))).toBe(32);
+    expect(valueDepth(nested(33))).toBe(33);
+    expect(valueDepth(nested(20_000))).toBe(VALUE_MAX_DEPTH + 1);
+    expect(valueDepth([[], {}])).toBe(2);
+    expect(valueDepth('x')).toBe(0);
+    expect(opDepthIssue({ value: nested(32), meta: null })).toBeNull();
+    expect(opDepthIssue({ value: nested(33) })).toMatch(/value nests more than 32/);
+    expect(opDepthIssue({ value: null, meta: nested(20_000) })).toMatch(/meta nests more than 32/);
+    expect(issue(put(`block/${BLOCK}/config`, nested(33) as never))).toMatch(/nests more than 32/);
+  });
+
+  it('the numbers: 128 KiB for an open value, 500 items for any array', () => {
+    expect(VALUE_MAX_BYTES).toBe(131_072);
+    expect(VALUE_MAX_ITEMS).toBe(500);
+  });
+
+  it('a nameplate cell at exactly the byte and count caps passes; one more item, or one more byte, is refused', () => {
+    const atCaps = shortStringsOfBytes(VALUE_MAX_ITEMS, VALUE_MAX_BYTES);
+    expect(serializedBytes(atCaps)).toBe(VALUE_MAX_BYTES);
+    expect(atCaps).toHaveLength(VALUE_MAX_ITEMS);
+    const cell = (value: string[]) => put(`sheet/${BLOCK}/nameplate/fabricante`, value);
+    expect(issue(cell(atCaps))).toBeNull();
+    expect(issue(cell(shortStringsOfBytes(VALUE_MAX_ITEMS + 1, VALUE_MAX_BYTES)))).toMatch(/holds 501 items, over 500/);
+    expect(issue(cell(shortStringsOfBytes(VALUE_MAX_ITEMS, VALUE_MAX_BYTES + 1)))).toMatch(/weighs 131073 bytes, over 131072/);
+  });
+
+  it('the matrix: a nameplate cell of 15 000 short strings and a structured value of many 20 000-character strings are refused', () => {
+    expect(issue(put(`sheet/${BLOCK}/nameplate/fabricante`, Array.from({ length: 15_000 }, () => 'x')))).not.toBeNull();
+    const many = Array.from({ length: 7 }, () => 'x'.repeat(TEXT_CAPS.long));
+    expect(issue(put(`block/${BLOCK}/config`, { block_type: 'apresentacao', sub_blocks: {}, na_defaults: [], section_text: null, notes: many }))).toMatch(/weighs \d+ bytes, over 131072/);
+    // Fewer than the cap's worth of long strings passes.
+    expect(issue(put(`block/${BLOCK}/config`, { block_type: 'apresentacao', sub_blocks: {}, na_defaults: [], section_text: null, notes: many.slice(0, 6) }))).toBeNull();
+  });
+
+  it('every array of a client value is counted, the exclusions and the instruments of setup included', () => {
+    const ids = (n: number) => Array.from({ length: n }, (_, i) => `019966c1-0000-7000-8000-${String(i).padStart(12, '0')}`);
+    expect(issue(put('relatorio/setup/instrument_ids', ids(VALUE_MAX_ITEMS)))).toBeNull();
+    expect(issue(put('relatorio/setup/instrument_ids', ids(VALUE_MAX_ITEMS + 1)))).not.toBeNull();
+    expect(issue(put('relatorio/setup/exclusions', Array.from({ length: VALUE_MAX_ITEMS + 1 }, () => 'x')))).not.toBeNull();
+  });
+
+  it('never refuses a value whose every field has a text cap: a setup of four long texts in three-byte characters weighs over the byte cap and passes', () => {
+    const heavy = '€'.repeat(TEXT_CAPS.long);
+    const setup = { service_start: null, service_end: null, atividade: null, local: null, responsible_user_id: null, cover_photo_file_id: null, escopo: heavy, additional_info: heavy, parecer: { verdict: 'apto', text: heavy, text_status: 'edited', text_basis: heavy } };
+    const create = op({
+      kind: 'create',
+      path: `relatorio/${RELATORIO}`,
+      value: { id: RELATORIO, project_id: PROJECT, template_id: null, template_version: null, seed_version: 'v1', status: 'rascunho', setup, export: { scheme: 'por_local_e_tipo' }, preview_file_id: null, removed_at: null } as never,
+    });
+    expect(serializedBytes(create.value)).toBeGreaterThan(VALUE_MAX_BYTES);
+    expect(openValueParts(create, parsePath(create.path)).map((part) => part.where)).not.toContain('value.setup');
+    expect(issue(create)).toBeNull();
+  });
+});
+
+describe('the relatório budget (e20f, aggregate)', () => {
+  it('measure: the Porto Seguro relatório, replayed, holds its live rows in under a third of the budget', () => {
+    const state = replay(portoSeguroLog);
+    let rows = 0;
+    let bytes = 0;
+    for (const [key, row] of state) {
+      const { entity } = splitEntityKey(key);
+      if (rowIndexColumns(entity, row).relatorio_id !== PORTO_SEGURO_RELATORIO || rowRemovedAt(row) !== null) continue;
+      rows++;
+      bytes += serializedBytes(row);
+    }
+    console.log(`e20f measured: Porto Seguro ${rows} live rows, ${bytes} bytes`);
+    expect(RELATORIO_MAX_BYTES).toBe(1.5 * 1024 * 1024);
+    expect(rows).toBeGreaterThan(100);
+    expect(bytes * 2).toBeLessThan(RELATORIO_MAX_BYTES);
+  });
+
+  it('refuses a value that takes the relatório past the budget; at the budget it applies; a remove and a put of null always apply', () => {
+    const point = (text: string) => put(`point/${POINT}/text`, text);
+    const op20k = point('x'.repeat(TEXT_CAPS.long));
+    const bytes = serializedBytes(op20k.value);
+    expect(relatorioBudgetVerdict(op20k, RELATORIO_MAX_BYTES - bytes)).toBe('allowed');
+    expect(relatorioBudgetVerdict(op20k, RELATORIO_MAX_BYTES - bytes + 1)).toBe('refused');
+    expect(relatorioBudgetVerdict(point('y'), RELATORIO_MAX_BYTES)).toBe('refused');
+    expect(relatorioBudgetVerdict(put(`point/${POINT}/text`, null), RELATORIO_MAX_BYTES * 2)).toBe('allowed');
+    expect(relatorioBudgetVerdict(op({ kind: 'remove', path: `point/${POINT}/removed_at` }), RELATORIO_MAX_BYTES * 2)).toBe('allowed');
+    // An op naming no relatório (a company registry entry) is not counted.
+    expect(relatorioBudgetVerdict({ kind: 'put', value: 'x', relatorio_id: null }, RELATORIO_MAX_BYTES * 2)).toBe('allowed');
   });
 });

@@ -161,9 +161,14 @@ export function statusSeen(input: { prevOpId: string | null; logged: unknown }):
   return typeof logged === 'string' && (RELATORIO_STATUSES as readonly string[]).includes(logged) ? (logged as RelatorioStatus) : null;
 }
 
-/** True when the device meant to move the relatório back (`manualMove` from what it saw). */
-function isBackwardIntent(seen: RelatorioStatus, to: RelatorioStatus): boolean {
-  return manualMove(seen, to) !== null;
+/**
+ * True when the move is backward both from the status the server holds and from the one the
+ * device saw (e20f, 2026-11-04). The device's `prev_op_id` is its claim, so `seen` may only
+ * narrow a move: a status op naming an old Emitido op of a relatório now in Rascunho is not a
+ * move back to Em revisão, it is a forward move from Rascunho and needs its generate.
+ */
+function isBackwardIntent(server: RelatorioStatus, seen: RelatorioStatus, to: RelatorioStatus): boolean {
+  return manualMove(server, to) !== null && manualMove(seen, to) !== null;
 }
 
 /** True when some event of AD-22's table moves `server` to `to`. */
@@ -180,7 +185,7 @@ function isForwardRow(server: RelatorioStatus, to: RelatorioStatus): boolean {
  */
 export function statusMoveFacts(input: Pick<StatusMoveInput, 'server' | 'seen' | 'to'>): readonly StatusMoveFact[] {
   const { server, seen, to } = input;
-  if (isBackwardIntent(seen, to) || to === server || !isForwardRow(server, to)) return [];
+  if (isBackwardIntent(server, seen, to) || to === server || !isForwardRow(server, to)) return [];
   if (to === 'em_revisao' && (server === 'rascunho' || server === 'em_campo')) return ['issueJobSinceLastStatus', 'unchangedRevision'];
   if (to === 'emitido') return ['hasRevision'];
   return [];
@@ -188,9 +193,10 @@ export function statusMoveFacts(input: Pick<StatusMoveInput, 'server' | 'seen' |
 
 /**
  * Story 20.7: whether a client `relatorio/status` op may apply, from the status the server holds.
- * - A backward intent (`manualMove(seen, to)`: back from what the device saw) is always allowed
- *   (AD-22: manual backward moves from any state, Emitido to Em revisão on an edit, every
- *   "Desfazer" that steps back).
+ * - A backward move (`manualMove` from the server's status and from what the device saw, e20f)
+ *   is always allowed (AD-22: manual backward moves from any state, Emitido to Em revisão on an
+ *   edit, every "Desfazer" that steps back). The device's `seen` only narrows: forging
+ *   `prev_op_id` gains nothing.
  * - `to === server` is allowed: an idempotent duplicate (two devices completing setup).
  * - Anything else is a forward intent and must be a row of the table from the server's status,
  *   with its precondition: to Em revisão from Rascunho or Em campo needs a generate queued since
@@ -202,7 +208,7 @@ export function statusMoveFacts(input: Pick<StatusMoveInput, 'server' | 'seen' |
  */
 export function statusMoveVerdict(input: StatusMoveInput): StatusVerdict {
   const { server, seen, to } = input;
-  if (isBackwardIntent(seen, to)) return 'allowed';
+  if (isBackwardIntent(server, seen, to)) return 'allowed';
   if (to === server) return 'allowed';
   if (!isForwardRow(server, to)) return 'refused';
   if (to === 'em_revisao' && (server === 'rascunho' || server === 'em_campo')) {

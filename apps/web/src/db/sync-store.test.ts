@@ -235,10 +235,10 @@ describe('dead-op re-materialization (1.4 deferred settling test)', () => {
     await commitOps(db, [x]);
     await markDead(db, [{ op_id: x.op_id, code: 'op_invalid' }]);
     expect((await block(db)).sheet.nameplate.fabricacao).toBeUndefined();
-    expect(await resendDead(db)).toBe(1);
+    expect(await resendDead(db, d.now())).toBe(1);
     expect(await db.outbox.get(x.op_id)).toMatchObject({ status: 'pending', error_code: null });
     expect((await block(db)).sheet.nameplate.fabricacao?.value).toBe('DE-NOVO');
-    expect(await resendDead(db)).toBe(0);
+    expect(await resendDead(db, d.now())).toBe(0);
     db.close();
   });
 
@@ -259,13 +259,63 @@ describe('dead-op re-materialization (1.4 deferred settling test)', () => {
     ]);
     await markAcked(db, [{ op_id: later.op_id, seq: 99 }]);
 
-    expect(await resendDead(db)).toBe(2);
+    expect(await resendDead(db, d.now())).toBe(2);
     expect((await takePending(db)).map((row) => row.op_id)).toEqual([first.op_id, second.op_id]);
     expect(await db.outbox.get(later.op_id)).toMatchObject({ status: 'acked', seq: 99 });
     const row = await block(db);
     expect(row.sheet.nameplate.fabricacao?.value).toBe('LOTE-1');
     expect(row.sheet.observations?.value).toBe('LOTE-2');
     expect(row.sheet.nameplate.tipo?.value).toBe('DEPOIS');
+    db.close();
+  });
+
+  it('e20f: "Reenviar" stamps the rows refused op_attribution again at now, in commit order; other dead rows keep their stamp', async () => {
+    const db = await freshDb();
+    const d = deps();
+    await commitOps(db, seedLog());
+    for (const row of await takePending(db)) await markAcked(db, [{ op_id: row.op_id, seq: 1 }]);
+    // A clock 30 min fast: two ops, the second a removal whose instant came from the same clock.
+    const fast = (ms: number) => new Date(Date.parse('2026-09-21T15:30:00.000Z') + ms);
+    const first = makeOp(put(FIELD, 'RELOGIO-ADIANTADO'), { newId: d.newId, now: fast(0) });
+    const second = makeOp(put(`block/${BLOCK_1_ID}/removed_at`, fast(500).toISOString()), { newId: d.newId, now: fast(1000) });
+    const other = makeOp(put(`sheet/${BLOCK_1_ID}/observations`, 'OUTRO'), { newId: d.newId, now: fast(2000) });
+    await commitOps(db, [first, second, other]);
+    await markDead(db, [
+      { op_id: first.op_id, code: 'op_attribution' },
+      { op_id: second.op_id, code: 'op_attribution' },
+      { op_id: other.op_id, code: 'op_invalid' },
+    ]);
+    const now = new Date('2026-09-21T15:00:00.000Z');
+    expect(await resendDead(db, now)).toBe(3);
+    const rows = await takePending(db);
+    expect(rows.map((row) => row.op_id)).toEqual([first.op_id, second.op_id, other.op_id]);
+    expect(await db.outbox.get(first.op_id)).toMatchObject({ status: 'pending', error_code: null, client_ts: '2026-09-21T15:00:00.000Z' });
+    expect(await db.outbox.get(second.op_id)).toMatchObject({ client_ts: '2026-09-21T15:00:00.001Z', value: '2026-09-21T14:59:59.501Z' });
+    expect(await db.outbox.get(other.op_id)).toMatchObject({ client_ts: other.client_ts, value: 'OUTRO' });
+    db.close();
+  });
+
+  it('review: on a slow clock a refused create and its dependent refused op_target_missing are stamped again together, the create first', async () => {
+    const db = await freshDb();
+    const d = deps();
+    await commitOps(db, seedLog());
+    for (const row of await takePending(db)) await markAcked(db, [{ op_id: row.op_id, seq: 1 }]);
+    // Three days slow: the create is refused op_attribution, and its edit, which names it, op_target_missing.
+    const slow = (ms: number) => new Date(Date.parse('2026-09-18T15:00:00.000Z') + ms);
+    const pointId = '019966b0-000f-7000-8000-0000000000aa';
+    const row = { id: pointId, relatorio_id: RELATORIO_ID, text: 'Ponto novo', equipment_id: null, origin: 'manual', order_key: 'a0', removed_at: null };
+    const create = makeOp({ ...put(`point/${pointId}`, row), kind: 'create' }, { newId: d.newId, now: slow(0) });
+    const edit = makeOp(put(`point/${pointId}/text`, 'Ponto editado'), { newId: d.newId, now: slow(1000) });
+    await commitOps(db, [create, edit]);
+    await markDead(db, [
+      { op_id: create.op_id, code: 'op_attribution' },
+      { op_id: edit.op_id, code: 'op_target_missing' },
+    ]);
+    const now = new Date('2026-09-21T15:00:00.000Z');
+    expect(await resendDead(db, now)).toBe(2);
+    expect((await takePending(db)).map((entry) => entry.op_id)).toEqual([create.op_id, edit.op_id]);
+    expect(await db.outbox.get(create.op_id)).toMatchObject({ status: 'pending', client_ts: '2026-09-21T15:00:00.000Z' });
+    expect(await db.outbox.get(edit.op_id)).toMatchObject({ status: 'pending', client_ts: '2026-09-21T15:00:00.001Z', value: 'Ponto editado' });
     db.close();
   });
 });

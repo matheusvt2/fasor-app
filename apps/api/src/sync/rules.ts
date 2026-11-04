@@ -6,9 +6,11 @@ import {
   latestRevision,
   lowerBoundIssue,
   referenceRowVerdict,
+  relatorioBudgetVerdict,
   relatorioRemovalVerdict,
   relatorioStatusSchema,
   responsibleUserIdOf,
+  serializedBytes,
   statusMoveFacts,
   statusMoveVerdict,
   statusSeen,
@@ -25,7 +27,7 @@ import {
   type RelatorioRow,
   type StatusMoveInput,
 } from '@app/domain';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { CompanyId } from '../db/repositories/company-id.ts';
 import { liveRevisions } from '../db/repositories/revisions.ts';
 import { entities, ops } from '../db/schema.ts';
@@ -55,10 +57,12 @@ export interface ClientCheckCache {
   relatorios: Map<string, string>;
   projects: Set<string>;
   createdAt: Map<string, string>;
+  /** e20f: a relatório's stored bytes, read once, grown by each op that passes the budget (an upper bound). */
+  relatorioBytes: Map<string, number>;
 }
 
 export function clientCheckCache(): ClientCheckCache {
-  return { relatorios: new Map(), projects: new Set(), createdAt: new Map() };
+  return { relatorios: new Map(), projects: new Set(), createdAt: new Map(), relatorioBytes: new Map() };
 }
 
 /** What `checkClientOp` reads besides the transaction. */
@@ -79,9 +83,9 @@ interface Target {
 /**
  * The refusal code of a client op under the rules that read server state, or null when it may
  * apply. In order: the target and the obra a create files its row under (Story 20.10), the status
- * move (20.7), the removal of an Emitido relatório (20.10), the responsible user and the rows the
- * value names (20.10), then the attribution history and the lower bound of its instants (20.8). A
- * refused op writes nothing.
+ * move (20.7), the removal of an Emitido relatório (20.10), the responsible user (`op_value_invalid`)
+ * and, e20f, every other row the op names (`op_target_missing`), then
+ * the attribution history and the lower bound of its instants (20.8). A refused op writes nothing.
  */
 export async function checkClientOp(tx: Tx, companyId: CompanyId, target: Target, deps: ClientCheckDeps): Promise<OpRejectCode | null> {
   const { op, path } = target;
@@ -101,9 +105,34 @@ export async function checkClientOp(tx: Tx, companyId: CompanyId, target: Target
 
   const responsible = responsibleUserIdOf(op, path);
   if (responsible !== null && !(await isCompanyUser(tx, companyId, responsible))) return 'op_value_invalid';
-  if (!(await referencesHold(tx, companyId, op, path, deps.state, deps.cache))) return 'op_value_invalid';
+  // e20f: every other id the op names (REFERENCE_FIELDS) exists where the op is filed.
+  if (!(await referencesHold(tx, companyId, op, path, deps.state, deps.cache))) return 'op_target_missing';
 
-  return attributionStateIssue(tx, companyId, op, path, deps.now, deps.cache);
+  const attribution = await attributionStateIssue(tx, companyId, op, path, deps.now, deps.cache);
+  if (attribution !== null) return attribution;
+  return budgetIssue(tx, companyId, op, deps.cache);
+}
+
+/**
+ * e20f (aggregate): the relatório's budget of stored bytes (`relatorioBudgetVerdict`). Its live
+ * rows' bytes (`entities.row` as text) are read once per push through the live-rows index, then
+ * grown by every op that passes, so a push cannot cross the budget op by op.
+ */
+async function budgetIssue(tx: Tx, companyId: CompanyId, op: Op, cache: ClientCheckCache | undefined): Promise<OpRejectCode | null> {
+  // A remove and a put of null always apply (`relatorioBudgetVerdict`): nothing to read.
+  if (op.relatorio_id == null || op.kind === 'remove' || op.value === null) return null;
+  const relatorioId = op.relatorio_id;
+  let stored = cache?.relatorioBytes.get(relatorioId);
+  if (stored === undefined) {
+    const [found] = await tx
+      .select({ bytes: sql<string | number | null>`coalesce(sum(octet_length(${entities.row}::text)), 0)` })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyId), eq(entities.relatorio_id, relatorioId), isNull(entities.removed_at)));
+    stored = Number(found?.bytes ?? 0);
+  }
+  if (relatorioBudgetVerdict(op, stored) === 'refused') return 'op_value_invalid';
+  cache?.relatorioBytes.set(relatorioId, stored + serializedBytes(op.value));
+  return null;
 }
 
 function relatorioOf(op: Op, state: ReadonlyMap<EntityKey, EntityRow>): RelatorioRow | undefined {
@@ -144,9 +173,10 @@ async function projectExists(tx: Tx, companyId: CompanyId, projectId: string, ca
 }
 
 /**
- * Story 20.10 (review): every row the op's value names (a point's equipment or local, a photo's
- * block or local, a block's local or equipment) exists and belongs to the op's relatório, an
- * equipment to that relatório's obra (`referenceRowVerdict`).
+ * Story 20.10 (review), widened by e20f: every row the op names by id (`REFERENCE_FIELDS`: a
+ * point's equipment or local, a photo's block or local, a block's local, equipment or feeding
+ * block, a local's parent, the cover photo, the instruments, the client, the brand
+ * files, the confirmed suggestion) exists and belongs where the op is filed (`referenceRowVerdict`).
  */
 async function referencesHold(tx: Tx, companyId: CompanyId, op: Op, path: OpPath, state: ReadonlyMap<EntityKey, EntityRow>, cache: ClientCheckCache | undefined): Promise<boolean> {
   const references = valueReferencesOf(op, path);

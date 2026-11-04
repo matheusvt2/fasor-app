@@ -6,19 +6,20 @@ import {
   setupIncompleteReason,
   statusTable,
   type BlockRow,
+  type EntityState,
   type InstrumentRow,
   type RelatorioParecer,
   type RelatorioSnapshot,
   type UserRow,
 } from '@app/domain';
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useSearchParams, useParams } from 'react-router';
-import { Button, LoadingNote } from '../../components/index.ts';
+import { useLocation, useNavigate, useSearchParams, useParams } from 'react-router';
+import { Button } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
 import { relatorioRow } from '../../db/generate-store.ts';
-import { blockRowsOf, instrumentRows, relatorioState } from '../../db/home-store.ts';
+import { blockRowsOf, instrumentRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { newId } from '../../ids.ts';
@@ -31,6 +32,7 @@ import { Etapa3Responsavel } from './setup/etapa3-responsavel.tsx';
 import { Etapa4Instrumentos } from './setup/etapa4-instrumentos.tsx';
 import { Etapa5Local } from './setup/etapa5-local.tsx';
 import { Etapa6Parecer } from './setup/etapa6-parecer.tsx';
+import { RelatorioGate } from './relatorio-gate.tsx';
 import './relatorio.css';
 import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 
@@ -47,29 +49,22 @@ const NO_BLOCKS: BlockRow[] = [];
  */
 export function SetupSurface() {
   const { id = '' } = useParams();
+  // e20f (QA N4): behind `RelatorioGate`, as the Sumário and the ficha are, so a deep link on a device
+  // that does not hold the relatório yet (a fresh sign-in) pulls it (AD-8) instead of saying it is not found.
+  return (
+    <main className="screen" data-route="/relatorio/:id/setup">
+      <RelatorioGate id={id}>{(state) => <SetupLoaded key={id} relatorioId={id} state={state} />}</RelatorioGate>
+    </main>
+  );
+}
+
+function SetupLoaded({ relatorioId: id, state }: { relatorioId: string; state: EntityState }) {
   const db = useSession().database;
-  const state = useLiveQuery(() => (db === null ? undefined : relatorioState(db, id)), [db, id]);
   const users = useLiveQuery(() => (db === null ? Promise.resolve(NO_USERS) : localUsers(db)), [db], NO_USERS);
   const instruments = useLiveQuery(() => (db === null ? Promise.resolve(NO_INSTRUMENTS) : instrumentRows(db)), [db], NO_INSTRUMENTS);
   const blocks = useLiveQuery(() => (db === null ? Promise.resolve(NO_BLOCKS) : blockRowsOf(db, id)), [db, id], NO_BLOCKS);
-  const snapshot: RelatorioSnapshot | null = useRelatorioSnapshot(state, id);
-
-  return (
-    <main className="screen" data-route="/relatorio/:id/setup">
-      {state === undefined ? (
-        <div className="setup-content">
-          <LoadingNote what={copy.loadingWhat.setup} />
-        </div>
-      ) : snapshot === null ? (
-        <div className="setup-content">
-          <p className="section-note">{copy.setup.notFound}</p>
-          <Link to="/">{copy.common.back}</Link>
-        </div>
-      ) : (
-        <SetupContent key={id} relatorioId={id} snapshot={snapshot} users={users} instruments={instruments} blocks={blocks} />
-      )}
-    </main>
-  );
+  const snapshot: RelatorioSnapshot = useRelatorioSnapshot(state, id);
+  return <SetupContent relatorioId={id} snapshot={snapshot} users={users} instruments={instruments} blocks={blocks} />;
 }
 
 interface SetupContentProps {

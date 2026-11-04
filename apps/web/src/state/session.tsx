@@ -27,6 +27,7 @@ import { databaseExists, databaseName, deleteDatabase, openDatabase, type AppDat
 import { newId } from '../ids.ts';
 import { flushTelemetry } from '../telemetry/flush.ts';
 import { configureTelemetry } from '../telemetry/track.ts';
+import { clearUserStorage } from './user-storage.ts';
 import {
   addPendingWipe,
   clearLastSession,
@@ -401,6 +402,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (await withTimeout(deleteDatabase(name), SIGN_OUT_DELETE_WAIT_MS)) removePendingWipe(name);
     }
     clearLastSession();
+    // e20f (QA N3): the relatório ids kept in browser storage go too.
+    clearUserStorage();
     setAiFeaturesValue(null);
     setAiFeatures(true);
     setUser(null);

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { HomePageSize } from '../home/cards.ts';
 import { uuidV7Schema } from '../ids.ts';
+import { CLOCK_SKEW_MS } from '../ops/attribution.ts';
 import type { RelatorioStatus } from '../schemas/entities.ts';
 import { errorCodeSchema } from './errors.ts';
 
@@ -252,6 +253,17 @@ export interface StampedUxEvent extends UxEvent {
   received_at: string;
   user_id: string;
   company_id: string;
+}
+
+/**
+ * e20f (2026-11-04, QA N7): the instant the api stores for a usage event. A device's `ts` more
+ * than `CLOCK_SKEW_MS` past the server's clock (a fast clock, or a forged 2099) is replaced by the
+ * server's receive time, so the event is kept and a dashboard never reads a future instant; any
+ * other `ts`, the past included (a device sends what it queued offline), stays as sent.
+ */
+export function boundedEventTs(ts: string, receivedAt: Date): string {
+  const at = Date.parse(ts);
+  return !Number.isNaN(at) && at > receivedAt.getTime() + CLOCK_SKEW_MS ? receivedAt.toISOString() : ts;
 }
 
 /** What the device knows of a finished sync cycle: the 426 flag and the failure that ended a phase. */

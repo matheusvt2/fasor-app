@@ -1,5 +1,6 @@
+import { CLOCK_OFFSET_TOLERANCE_MS } from '../sync/clock-offset.ts';
 import type { Op } from './op.ts';
-import { familyDef, isCreateFamily, pathField, type OpPath } from './path.ts';
+import { familyDef, isCreateFamily, parsePath, pathField, type OpPath } from './path.ts';
 
 /*
  * Story 20.8 (2026-11-03, contract 29, security pass S3): who and when an op says. The op's own
@@ -235,4 +236,52 @@ export function lowerBoundIssue(bounded: readonly string[], createdAt: string): 
     if (!Number.isNaN(at) && at < earliest) return `${instant} is more than ${CLOCK_SKEW_MS / 60_000} minutes before the relatório's creation (${createdAt})`;
   }
   return null;
+}
+
+/** Sets the leaf at `keys` under `root` (a fresh copy the caller owns); a missing step leaves it as it is. */
+function setLeafAt(root: unknown, keys: readonly string[], leaf: string): void {
+  let at: unknown = root;
+  for (const key of keys.slice(0, -1)) {
+    if (at === null || typeof at !== 'object' || Array.isArray(at)) return;
+    at = (at as Record<string, unknown>)[key];
+  }
+  const last = keys.at(-1);
+  if (last === undefined || at === null || typeof at !== 'object' || Array.isArray(at)) return;
+  (at as Record<string, unknown>)[last] = leaf;
+}
+
+/**
+ * e20f (2026-11-04): an op the server refused `op_attribution` because the device's clock was
+ * wrong, stamped again at `at` (the device's corrected now) for "Reenviar". Its `client_ts`
+ * becomes `at`. Each `bounded` or `future` instant of the table that lies within
+ * `CLOCK_OFFSET_TOLERANCE_MS` of the old `client_ts` was read from the same wrong clock and
+ * shifts by the same delta; any such instant still later than `at` becomes `at`. An instant far
+ * from the old stamp (a colleague's edit put back by an undo, a gallery photo's capture) stays,
+ * and exempt instants and actor leaves are never touched. Pure: returns a new op.
+ */
+export function restampOp(op: Op, at: Date): Op {
+  const atMs = at.getTime();
+  const oldMs = Date.parse(op.client_ts);
+  const delta = Number.isNaN(oldMs) ? 0 : atMs - oldMs;
+  const next: Op = { ...structuredClone(op), client_ts: at.toISOString() };
+  let path: OpPath;
+  try {
+    path = parsePath(op.path);
+  } catch {
+    return next;
+  }
+  for (const { field, leaf, keys } of leavesOf(op, path)) {
+    if (field.pointer === 'op.client_ts' || !('instant' in field) || field.instant === 'exempt') continue;
+    if (typeof leaf !== 'string') continue;
+    const leafMs = Date.parse(leaf);
+    if (Number.isNaN(leafMs)) continue;
+    let shifted = !Number.isNaN(oldMs) && Math.abs(leafMs - oldMs) <= CLOCK_OFFSET_TOLERANCE_MS ? leafMs + delta : leafMs;
+    if (shifted > atMs) shifted = atMs;
+    if (shifted === leafMs) continue;
+    const iso = new Date(shifted).toISOString();
+    if (field.pointer.startsWith('op.')) setLeafAt(next, keys, iso);
+    else if (keys.length === 0) next.value = iso;
+    else setLeafAt(next.value, keys, iso);
+  }
+  return next;
 }

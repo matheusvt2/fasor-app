@@ -7,7 +7,8 @@
     "./zod-jitless": "./src/zod-jitless.ts",
     "./fixtures/replay-small": "./fixtures/replay-small/op-log.ts",
     "./fixtures/porto-seguro": "./fixtures/porto-seguro/op-log.ts",
-    "./fixtures/porto-seguro/small": "./fixtures/porto-seguro/small/op-log.ts"
+    "./fixtures/porto-seguro/small": "./fixtures/porto-seguro/small/op-log.ts",
+    "./fixtures/value-caps": "./fixtures/value-caps.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

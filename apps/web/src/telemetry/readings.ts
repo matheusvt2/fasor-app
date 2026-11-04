@@ -1,4 +1,5 @@
 import type { UxOutcome } from '@app/domain';
+import { now } from '../clock.ts';
 import type { AppDatabase } from '../db/schema.ts';
 import { filesPulledAfter, filesWrittenSince, lastPulledSeq, photoReadingStates, photoReadingStatesOf, type PhotoReadingState } from '../db/ux-events-store.ts';
 import { track } from './track.ts';
@@ -42,7 +43,7 @@ function idsOf(state: PhotoReadingState): { relatorio_id?: string; block_id?: st
 }
 
 /** Looks once at the device's readings and tracks the ones that landed since the last look, after any look in flight. Never rejects. */
-export function observeReadingResults(db: AppDatabase, nowMs: number = Date.now()): Promise<void> {
+export function observeReadingResults(db: AppDatabase, nowMs: number = now().getTime()): Promise<void> {
   const look = looking.then(() => lookOnce(db, nowMs));
   looking = look;
   return look;

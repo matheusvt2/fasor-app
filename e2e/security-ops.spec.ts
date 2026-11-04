@@ -1,8 +1,26 @@
-import { charCountText, CONTRACT_VERSION, CONTRACT_VERSION_HEADER, makeOp, opRejectReasonText, SYNC_PUSH_MAX_BYTES, TEXT_CAPS, type JsonValue, type Op } from '@app/domain';
-import type { Locator, Page } from '@playwright/test';
+import {
+  charCountText,
+  CONTRACT_VERSION,
+  CONTRACT_VERSION_HEADER,
+  findDefinition,
+  GENERATE_ROUTES,
+  makeOp,
+  opRejectReasonText,
+  RELATORIO_MAX_BYTES,
+  SYNC_PUSH_MAX_BYTES,
+  SYNC_ROUTES,
+  TEXT_CAPS,
+  VALUE_MAX_BYTES,
+  VALUE_MAX_ITEMS,
+  type JsonValue,
+  type Op,
+} from '@app/domain';
+import { shortStringsOfBytes } from '@app/domain/fixtures/value-caps';
+import type { BrowserContext, Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
-import { readDeviceId, readStore, seedOutbox } from './support/outbox.ts';
+import { appOrigin } from './support/origin.ts';
+import { pullAll, readDeviceId, readStore, seedOutbox } from './support/outbox.ts';
 import { createProjectFromHome, createRelatorio } from './support/relatorio-flow.ts';
 import { emCampoDraft, newRelatorioDrafts, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
@@ -69,8 +87,8 @@ async function pushFromRunner(page: Page, ops: readonly Op[]): Promise<PushAnswe
   return { status: res.status, body: parsedBody(await res.text()) };
 }
 
-/** A hand-written relatório-scope put of the signed-in user, from a device of their own. */
-function forged(deviceId: string, relatorioId: string, path: string, value: unknown): Op {
+/** A hand-written relatório-scope put of the signed-in user, from a device of their own (`prevOpId`: the op it says it saw on the path). */
+function forged(deviceId: string, relatorioId: string, path: string, value: unknown, prevOpId: string | null = null): Op {
   return makeOp(
     {
       kind: 'put',
@@ -80,7 +98,7 @@ function forged(deviceId: string, relatorioId: string, path: string, value: unkn
       relatorio_id: relatorioId,
       path,
       value: value as JsonValue,
-      prev_op_id: null,
+      prev_op_id: prevOpId,
       batch_id: null,
       meta: null,
       actor_id: account.userId,
@@ -112,7 +130,73 @@ async function tileCounts(page: Page): Promise<number[]> {
 interface EntityRecord {
   entity: string;
   id: string;
-  row: { relatorio_id?: string; equipment_id?: string | null; removed_at?: string | null };
+  row: { relatorio_id?: string; equipment_id?: string | null; removed_at?: string | null; block_type?: string; seed_version?: string };
+}
+
+/** e20f: an equipment sheet of the relatório whose type has a nameplate, and that nameplate's first field, as this device holds it. */
+async function nameplateOf(page: Page, relatorioId: string): Promise<{ blockId: string; field: string }> {
+  const sheets = (await readStore<EntityRecord>(page, database, 'entities')).filter(
+    (record) => record.entity === 'block' && record.row.relatorio_id === relatorioId && record.row.equipment_id != null && record.row.removed_at == null,
+  );
+  for (const sheet of sheets) {
+    const field = findDefinition(sheet.row.seed_version ?? '', sheet.row.block_type ?? '')?.nameplate[0]?.key;
+    if (field !== undefined) return { blockId: sheet.id, field };
+  }
+  throw new Error('the relatório has no sheet with a nameplate on this device');
+}
+
+/** e20f: "Pré-visualizar" in the Gerar relatório dialog, until the preview PDF answers (within `JOB_TIMEOUT`, no LibreOffice timeout). */
+async function previewThroughDialog(page: Page, context: BrowserContext, relatorioId: string): Promise<void> {
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Gerar relatório' });
+  const preview = dialog.locator('.generate-row').getByRole('button', { name: /^(Pré-visualizar|Gerando rascunho…)$/ });
+  await expect(preview).toBeVisible();
+  const tabPromise = context.waitForEvent('page');
+  await preview.click();
+  const tab = await tabPromise;
+  const requested = tab.waitForRequest(/\/api\/relatorios\/[0-9a-f-]{36}\/preview\.pdf\?v=[0-9a-f-]{36}$/, { timeout: JOB_TIMEOUT });
+  const url = (await requested).url();
+  const pdf = await page.request.get(url);
+  expect(pdf.status()).toBe(200);
+  expect((await pdf.body()).subarray(0, 4).toString('latin1')).toBe('%PDF');
+  await tab.close();
+}
+
+/** e20f: a hand-written point create of the signed-in user, in the relatório. */
+function pointOp(deviceId: string, relatorioId: string, text: string): Op {
+  const id = newId();
+  return makeOp(
+    {
+      kind: 'create',
+      scope: 'relatorio',
+      company_id: account.companyId,
+      project_id: null,
+      relatorio_id: relatorioId,
+      path: `point/${id}`,
+      value: { id, relatorio_id: relatorioId, text, equipment_id: null, origin: 'manual', order_key: `a${id.slice(-8)}`, removed_at: null } as JsonValue,
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: account.userId,
+      device_id: `${deviceId}-forged`,
+    },
+    { newId, now: new Date() },
+  );
+}
+
+/** e20f: queues an issue of the relatório through the generate route, as "Gerar relatório" does, and waits for its revision. */
+async function issueRevision(page: Page, relatorioId: string): Promise<void> {
+  const route = GENERATE_ROUTES.generate(relatorioId);
+  const queued = await page.request.post(route.path, {
+    headers: { ...appOrigin(page), [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) },
+    data: { last_op_id: null, file_ids_expected: [] },
+  });
+  expect(queued.status(), await queued.text()).toBe(202);
+  await expect
+    .poll(async () => (await pullAll(page.request, SYNC_ROUTES.pullRelatorio(relatorioId).path)).ops.some((op) => op.path.startsWith('revision/')), { timeout: JOB_TIMEOUT, intervals: [2_000] })
+    .toBe(true);
 }
 
 /** An equipment sheet of the relatório, as this device holds it. */
@@ -124,8 +208,8 @@ async function sheetOf(page: Page, relatorioId: string): Promise<string> {
   return sheet!.id;
 }
 
-test('@p0 20.7-E2E-001 20.8-E2E-001 20.9-E2E-001 20.10-E2E-001 forged ops pushed through the page\'s own session are refused with their codes, the server keeps its rows, and the relatório still previews', async ({ page, context }) => {
-  test.setTimeout(360_000);
+test('@p0 20.7-E2E-001 20.8-E2E-001 20.9-E2E-001 20.10-E2E-001 e20f-E2E-001 forged ops pushed through the page\'s own session are refused with their codes, the server keeps its rows, and the relatório (a value at the caps included) still previews', async ({ page, context }) => {
+  test.setTimeout(540_000);
   await resetEmpresaB(account, { standard: true });
   await signIn(page, account.email);
   await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
@@ -172,23 +256,78 @@ test('@p0 20.7-E2E-001 20.8-E2E-001 20.9-E2E-001 20.10-E2E-001 forged ops pushed
   expect(s5.status).toBe(200);
   expect(s5.body?.rejected).toEqual([{ op_id: misfiled.op_id, code: 'op_target_missing' }]);
 
-  // Nothing forged landed: the relatório previews in its usual time, with no LibreOffice timeout.
-  await page.goto(`/relatorio/${relatorioId}`);
-  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
-  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Gerar relatório' });
-  const preview = dialog.locator('.generate-row').getByRole('button', { name: /^(Pré-visualizar|Gerando rascunho…)$/ });
-  await expect(preview).toBeVisible();
-  const tabPromise = context.waitForEvent('page');
-  await preview.click();
-  const tab = await tabPromise;
-  const requested = tab.waitForRequest(/\/api\/relatorios\/[0-9a-f-]{36}\/preview\.pdf\?v=[0-9a-f-]{36}$/, { timeout: JOB_TIMEOUT });
-  const url = (await requested).url();
-  const pdf = await page.request.get(url);
-  expect(pdf.status()).toBe(200);
-  expect((await pdf.body()).subarray(0, 4).toString('latin1')).toBe('%PDF');
-  await tab.close();
+  // e20f: a value naming a row of another relatório (a feeding block of the other one) is refused the same way.
+  const otherBlock = (await pullAll(page.request, SYNC_ROUTES.pullRelatorio(other.relatorioId).path)).ops.find((op) => op.kind === 'create' && op.path.startsWith('block/'));
+  expect(otherBlock, 'the other relatório has a block').toBeDefined();
+  const feedsOther = forged(deviceId, relatorioId, `block/${block}/feeds_block_id`, (otherBlock!.value as { id: string }).id);
+  const s5b = await pushFromPage(page, [feedsOther]);
+  expect(s5b.body?.rejected).toEqual([{ op_id: feedsOther.op_id, code: 'op_target_missing' }]);
+
+  // e20f: a nameplate cell over the whole-value caps (one item more, or one byte more) is refused; one at exactly the caps applies.
+  const plate = await nameplateOf(page, relatorioId);
+  const platePath = `sheet/${plate.blockId}/nameplate/${plate.field}`;
+  const overItems = forged(deviceId, relatorioId, platePath, shortStringsOfBytes(VALUE_MAX_ITEMS + 1, VALUE_MAX_BYTES));
+  const overBytes = forged(deviceId, relatorioId, platePath, shortStringsOfBytes(VALUE_MAX_ITEMS, VALUE_MAX_BYTES + 1));
+  const over = await pushFromPage(page, [overItems, overBytes]);
+  expect(over.body?.rejected).toEqual([
+    { op_id: overItems.op_id, code: 'op_value_invalid' },
+    { op_id: overBytes.op_id, code: 'op_value_invalid' },
+  ]);
+  const atCaps = forged(deviceId, relatorioId, platePath, shortStringsOfBytes(VALUE_MAX_ITEMS, VALUE_MAX_BYTES));
+  const capped = await pushFromPage(page, [atCaps]);
+  expect(capped.body?.rejected).toEqual([]);
+  expect(capped.body?.applied?.map((entry) => entry.op_id)).toEqual([atCaps.op_id]);
+
+  // e20f: a forged seen status gains nothing. The relatório is issued and sent (Emitido), moved back to Rascunho and
+  // edited; a status put of Em revisão that names the old Emitido op as what it saw, with no generate, is refused.
+  // The parecer is the one blocking pre-issue row of an empty relatório.
+  const parecer = forged(deviceId, relatorioId, 'relatorio/setup/parecer', { verdict: 'apto', text: 'Apto para operação.', text_status: 'edited', text_basis: null });
+  expect((await pushFromPage(page, [parecer])).body?.rejected).toEqual([]);
+  await issueRevision(page, relatorioId);
+  const toRevision = forged(deviceId, relatorioId, 'relatorio/status', 'em_revisao');
+  expect((await pushFromPage(page, [toRevision])).body?.rejected).toEqual([]);
+  const sent = forged(deviceId, relatorioId, 'relatorio/status', 'emitido', toRevision.op_id);
+  expect((await pushFromPage(page, [sent])).body?.rejected).toEqual([]);
+  expect(await serverStatus(page, relatorioId)).toBe('emitido');
+  const back = forged(deviceId, relatorioId, 'relatorio/status', 'rascunho', sent.op_id);
+  const edited = forged(deviceId, relatorioId, `sheet/${block}/observations`, 'Editado depois de voltar');
+  expect((await pushFromPage(page, [back, edited])).body?.rejected).toEqual([]);
+  const forgedSeen = forged(deviceId, relatorioId, 'relatorio/status', 'em_revisao', sent.op_id);
+  const seen = await pushFromPage(page, [forgedSeen]);
+  expect(seen.body?.rejected).toEqual([{ op_id: forgedSeen.op_id, code: 'op_status_transition' }]);
   expect(await serverStatus(page, relatorioId)).toBe('rascunho');
+
+  // Nothing forged landed, and the value at the caps did: the relatório previews in its usual time, with no LibreOffice timeout.
+  await previewThroughDialog(page, context, relatorioId);
+  expect(await serverStatus(page, relatorioId)).toBe('rascunho');
+});
+
+test('@p0 e20f-E2E-004 a relatório filled with point text to just under its budget previews within the job timeout; the op past the budget is refused op_value_invalid', async ({ page, context }) => {
+  test.setTimeout(360_000);
+  await resetEmpresaB(account, { standard: true });
+  await signIn(page, account.email);
+  const built = newRelatorioDrafts(account);
+  await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId)]);
+  const deviceId = await readDeviceId(page, database);
+  const full = 'p'.repeat(TEXT_CAPS.long);
+  // Points of 20 000 characters, each op within every cap: most of the budget in one push, then one at a time until one is refused.
+  const bulk = Array.from({ length: Math.floor((0.8 * RELATORIO_MAX_BYTES) / (TEXT_CAPS.long + 400)) }, () => pointOp(deviceId, built.relatorioId, full));
+  expect((await pushFromPage(page, bulk)).body?.rejected).toEqual([]);
+  let refused: Op | null = null;
+  for (let guard = 0; guard < 40 && refused === null; guard++) {
+    const next = pointOp(deviceId, built.relatorioId, full);
+    const answer = await pushFromPage(page, [next]);
+    if (answer.body?.rejected?.length) {
+      expect(answer.body.rejected).toEqual([{ op_id: next.op_id, code: 'op_value_invalid' }]);
+      refused = next;
+    }
+  }
+  expect(refused, 'an op past the budget was refused').not.toBeNull();
+  const started = Date.now();
+  await previewThroughDialog(page, context, built.relatorioId);
+  const elapsed = Date.now() - started;
+  console.log(`e20f-E2E-004: the at-budget relatório previewed in ${elapsed} ms (${bulk.length} points of 20 000 characters and the ones after)`);
+  expect(elapsed).toBeLessThan(JOB_TIMEOUT);
 });
 
 test('@p0 20.7-E2E-002 a status op of this device the server refuses: Sync status counts it with its sentence, and the relatório shows the server\'s status', async ({ page }) => {

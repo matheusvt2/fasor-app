@@ -10,7 +10,9 @@ import { toRecord } from '../../db/commit.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
 import { applyPulled } from '../../db/sync-store.ts';
 import type { SessionState } from '../../state/session.tsx';
+import { SyncContext } from '../../state/sync.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
+import { makeSyncState } from '../../test/sync-state.ts';
 import { SectionTextSurface } from './section-text-surface.tsx';
 
 /*
@@ -94,13 +96,16 @@ function Where() {
 function tree(id: string, blockId: string) {
   return (
     <MemoryRouter initialEntries={[`/relatorio/${id}/secao/${blockId}`]}>
-      <ToastProvider>
-        <Where />
-        <Routes>
-          <Route path="/relatorio/:id/secao/:blockId" element={<SectionTextSurface />} />
-        </Routes>
-        <ToastOutlet />
-      </ToastProvider>
+      {/* e20f (QA N4): the surface sits behind RelatorioGate, which reads the sync state. */}
+      <SyncContext value={makeSyncState()}>
+        <ToastProvider>
+          <Where />
+          <Routes>
+            <Route path="/relatorio/:id/secao/:blockId" element={<SectionTextSurface />} />
+          </Routes>
+          <ToastOutlet />
+        </ToastProvider>
+      </SyncContext>
     </MemoryRouter>
   );
 }

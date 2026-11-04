@@ -26,8 +26,9 @@ export const copy = {
     // authored: 2026-11-04, Story 20.13 (security pass S8): the server never says which of the two
     // was wrong, so neither does the form (the mock's "Senha incorreta" misled on an unknown e-mail).
     wrongPassword: 'E-mail ou senha incorretos.',
+    // authored: 2026-11-04, e20f (QA N5): a sign-out now deletes the device's relatórios, so it promises only the ones still kept.
     offline:
-      'Sem conexão — entre quando houver sinal; os relatórios já baixados neste aparelho continuam disponíveis após o login.',
+      'Sem conexão — entre quando houver sinal; os relatórios ainda guardados neste aparelho continuam disponíveis após o login.',
     offlineReason: 'Entrar precisa de conexão',
     // authored: the mocks draw no in-flight state for "Entrar".
     signingIn: 'Entrando…',

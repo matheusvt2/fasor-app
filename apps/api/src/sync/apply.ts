@@ -10,6 +10,7 @@ import {
   learnTouchedOf,
   normalizeRegistryName,
   opSchema,
+  opDepthIssue,
   opValueIssue,
   parsePath,
   LocationKindError,
@@ -168,7 +169,28 @@ function assertClientReadingKindPut(op: Op, path: OpPath, state: ReadonlyMap<Ent
   if (!clientReadingKindPutAllowed(photo, op.value)) throw new ReadingKindPutRefusedError(op.path);
 }
 
+/**
+ * e20f (QA N1): one op never fails the push. A value nested past `VALUE_MAX_DEPTH` is refused alone
+ * before any schema parse or recursive walk reads it; any other stack overflow while judging one op
+ * is that op's `op_invalid`.
+ */
 function validate(raw: unknown, companyId: CompanyId, deps: ApplyDeps): Validation {
+  const depth = opDepthIssue(raw);
+  if (depth !== null) {
+    const opId = (raw as { op_id?: unknown }).op_id;
+    const rawPath = (raw as { path?: unknown }).path;
+    logRuleRefusal({ op_id: typeof opId === 'string' ? opId : '', path: typeof rawPath === 'string' ? rawPath : '' }, companyId, 'op_value_invalid', depth);
+    return { ok: false, code: 'op_value_invalid', alone: true };
+  }
+  try {
+    return validateOp(raw, companyId, deps);
+  } catch (error) {
+    if (error instanceof RangeError) return { ok: false, code: 'op_invalid' };
+    throw error;
+  }
+}
+
+function validateOp(raw: unknown, companyId: CompanyId, deps: ApplyDeps): Validation {
   const rawPath = (raw as { path?: unknown } | null)?.path;
   let path: OpPath | null = null;
   if (typeof rawPath === 'string') {
