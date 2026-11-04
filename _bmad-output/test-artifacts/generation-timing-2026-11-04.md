@@ -56,7 +56,7 @@ So the generations in the serial group cost about 3.4 s × 50 ≈ 3 min of its 2
 ## Recommendation
 
 1. **Do not pursue a persistent soffice.** It saves a few hundred ms per conversion, for memory and image cost and a change to how AD-15 is read.
-2. **One small product story is worth proposing**, because it helps every field user and the suite alike:
+2. *(2026-11-04, Matheus: not doing it, "nao vamos fazer". The story below is declined and is not to be proposed again unless he reopens it.)* **One small product story is worth proposing**, because it helps every field user and the suite alike:
    - pickup of 0.5 s on the generate queue, or NOTIFY;
    - a device poll of 1 s while a generation is awaited.
 
