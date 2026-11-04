@@ -2,10 +2,10 @@
 title: 'Batch e20w: Stories 20.1, 20.2 and 20.4 (Conforme, Home search by client and obra, relink a point)'
 type: 'feature'
 created: '2026-11-03'
-status: 'in-review'
+status: 'done'
 baseline_revision: '76af18eff41394de3fbdfcd269a088eb2bc2dc77'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -240,3 +240,50 @@ Layers run: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Int
     - Fix: added `@p0` tests in `e2e/points.spec.ts`.
   - `[false]` `[reject]` (verification gap, other) The relink is said never to be offered for undo.
     - Refuted: `pickLink` returns `result.batchId` from inside `edits.write`, which is what the queue offers as "Desfazer". The trailing `.then` only settles the outer promise.
+
+## Auto Run Result
+
+Status: done.
+
+Review: 3 patched (2 medium, 1 low), 6 rejected (4 low, 2 false), nothing deferred from the review.
+
+**What was built:**
+- **20.1:** `PRODUTO` is `'Conforme'`.
+  - The `index.html` title and splash and the Empresa note take the name.
+  - The literal-asserting tests assert the constant or the new value.
+  - Dated naming amendments in AGENTS.md, README.md, DESIGN.md, EXPERIENCE.md, MOCK-GUIDE, the KB and source-deltas.
+  - No storage identifier changed.
+- **20.2:** Home search.
+  - `home/cards.ts`: `HomeCard.searchKeys`, the `homeList` `query` option, the `none-for-query` empty, `noSearchMatchText` and `HomeList.announcement`.
+  - A React Aria `SearchField` in `.home-head` and the `i-search` sprite symbol.
+  - The two Home mocks and EXPERIENCE.md § Home; the deferred entry "past the 100th" is closed.
+- **20.4:** Point relink.
+  - `points/link.ts`: `pointLinkGroups`, `pointLinkOptions`, `pointLinkKey`, `pointLinkValues`; `PointField` gains `location_id`.
+  - `writePointLink` writes two puts in one batch, and holds the pick until the create on an unstored point.
+  - `point-link-picker.tsx`: a React Aria Select with sections, carried by the draft and the undo.
+  - The mock `72-pontos.html`, EXPERIENCE.md and source-deltas.
+
+**Tests:**
+- Kernel: `cards.test.ts`, `link.test.ts` and `points.test.ts`.
+- Web: `point-writes`, `point-draft-recovery`, `point-link-picker` and `home-surface`.
+- e2e: `home.spec.ts` 20.2-E2E-001; `points.spec.ts` 20.4-E2E-001, -002, -003 and -006; `verificacoes-local.spec.ts` 20.4-E2E-004; the new serial `point-relink-print.spec.ts`.
+
+**Story gate, 2026-11-03:** lock wait 0 s, load 3.55 at the start and 5.46 at the end, with the e20s batch running at the same time.
+
+| Stage | Result | Time |
+|---|---|---|
+| lint | 0 | 26 s |
+| static | 0 | 30 s |
+| test:api | 98 files, 750 tests passed | 307 s |
+| test:unit | 348 files, 4899 tests passed | 221 s |
+| touched specs | 92 tests: 88 passed, 1 failed, 3 skipped | 275 s |
+
+- The touched-spec red was the `@p1` test 1.6-E2E-001 at `home.spec.ts:214`: the Sumário did not draw within the 30 s test timeout after the slowed stream pull. That region of the spec is unchanged.
+- `home.spec.ts` re-ran alone under the lock at load 4.71: 5 of 5 passed, 1.6-E2E-001 included.
+
+**Follow-up review recommended (true):** two medium findings were patched without a re-review: the pick's write chained into the editor's close (`pickLink`'s `lastWrite`/`refused`), and the new-point create path with a pick. The integrated review should read `point-editor.tsx` `pickLink` and `finish` first.
+
+**Residual risks:**
+- `home.search` telemetry is deferred to e20e, because `contract/telemetry.ts` is e20s's.
+- Section 8's bullets print no title, so the print spec checks the action-plan Local/TAG cell.
+- Draft recovery writes the picked link only for new points; a stored point's pick is written at once.
