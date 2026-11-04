@@ -19,8 +19,11 @@ import {
   SITE_ALTITUDE_RANGE_M,
   TEXT_CAPS,
   textCapOf,
+  opDepthIssue,
   VALUE_MAX_BYTES,
+  VALUE_MAX_DEPTH,
   VALUE_MAX_ITEMS,
+  valueDepth,
 } from './value-limits.ts';
 
 /*
@@ -271,6 +274,36 @@ describe('whole-value caps, set from measurement (e20f)', () => {
     expect(checked).toBeGreaterThan(1000);
     expect(VALUE_MAX_BYTES).toBeGreaterThanOrEqual(4 * maxBytes.bytes);
     expect(VALUE_MAX_ITEMS).toBeGreaterThanOrEqual(4 * maxItems.length);
+  });
+
+  it('QA N1, measure: the deepest value or meta of every fixture and seed op is at least 4x under VALUE_MAX_DEPTH', () => {
+    let deepest = { where: '', depth: 0 };
+    for (const entry of measuredOps()) {
+      for (const key of ['value', 'meta'] as const) {
+        const depth = valueDepth(entry[key]);
+        if (depth > deepest.depth) deepest = { where: `${entry.path} ${key}`, depth };
+      }
+    }
+    console.log(`e20f measured: deepest value ${deepest.depth} at ${deepest.where}`);
+    expect(VALUE_MAX_DEPTH).toBe(32);
+    expect(VALUE_MAX_DEPTH).toBeGreaterThanOrEqual(4 * deepest.depth);
+  });
+
+  it('QA N1: a value nested 20 000 levels deep is refused without overflowing the stack; 32 levels pass, 33 do not', () => {
+    const nested = (levels: number): unknown => {
+      let value: unknown = 'x';
+      for (let i = 0; i < levels; i++) value = { a: value };
+      return value;
+    };
+    expect(valueDepth(nested(32))).toBe(32);
+    expect(valueDepth(nested(33))).toBe(33);
+    expect(valueDepth(nested(20_000))).toBe(VALUE_MAX_DEPTH + 1);
+    expect(valueDepth([[], {}])).toBe(2);
+    expect(valueDepth('x')).toBe(0);
+    expect(opDepthIssue({ value: nested(32), meta: null })).toBeNull();
+    expect(opDepthIssue({ value: nested(33) })).toMatch(/value nests more than 32/);
+    expect(opDepthIssue({ value: null, meta: nested(20_000) })).toMatch(/meta nests more than 32/);
+    expect(issue(put(`block/${BLOCK}/config`, nested(33) as never))).toMatch(/nests more than 32/);
   });
 
   it('the numbers: 128 KiB for an open value, 500 items for any array', () => {

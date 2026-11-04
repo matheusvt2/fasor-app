@@ -59,6 +59,25 @@ describe('S4: a value outside its field\'s cap, type or range', () => {
   });
 });
 
+describe('e20f (QA N1): a value nested 20 000 levels deep', () => {
+  it('answers 200 with that op refused op_value_invalid and the other op of the push applied; the api keeps answering', async () => {
+    const { relatorioId, blocks } = await h.seedRelatorio(companyA);
+    const fine = h.clientOp(companyA, { kind: 'put', path: 'relatorio/setup/local', relatorio_id: relatorioId, value: 'Subestação funda' });
+    const deep = h.clientOp(companyA, { kind: 'put', path: `block/${blocks[0]!.id}/config`, relatorio_id: relatorioId, value: '__DEEP__' });
+    h.track([fine, deep]);
+    // Written as text: a value this deep is the attack, and the runner builds it without recursing.
+    const body = JSON.stringify({ ops: [fine, deep] }).replace('"__DEEP__"', `${'{"a":'.repeat(20_000)}"x"${'}'.repeat(20_000)}`);
+    const res = await h.pushRaw(companyA, body);
+    expect(res.status, await res.clone().text()).toBe(200);
+    const answer = (await res.json()) as { applied: { op_id: string }[]; rejected: { op_id: string; code: string }[] };
+    expect(answer.rejected).toEqual([{ op_id: deep.op_id, code: 'op_value_invalid' }]);
+    expect(answer.applied.map((a) => a.op_id)).toEqual([fine.op_id]);
+    expect(await h.logged(deep.op_id)).toBe(false);
+    expect((await h.rowOf<RelatorioRowLike & { setup: { local: string | null } }>(companyA, 'relatorio', relatorioId))?.setup.local).toBe('Subestação funda');
+    expect((await h.pushRaw(companyA, JSON.stringify({ ops: [] }))).status).toBe(200);
+  });
+});
+
 describe('S4 body: the push body cap', () => {
   it('a push over 4 MiB (the 5 MB string of the security pass) is answered 413 body_too_large whole; nothing of it is applied', async () => {
     const { relatorioId } = await h.seedRelatorio(companyA);

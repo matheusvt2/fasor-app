@@ -258,6 +258,48 @@ export const VALUE_MAX_BYTES = 128 * 1024;
 /** The most items any array in a client op's value may hold (the longest measured, the seed template's 76 blocks). */
 export const VALUE_MAX_ITEMS = 500;
 
+/**
+ * e20f (QA N1): the deepest nesting of objects and arrays a client value (or an op's `meta`) may
+ * hold. The deepest real value is far shallower (measured in `value-limits.test.ts`); a value
+ * nested 20 000 levels deep overflowed the stack of the recursive walks and answered 500.
+ */
+export const VALUE_MAX_DEPTH = 32;
+
+/**
+ * How deep `value` nests (a scalar is 0, an empty object or array 1), walked iteratively so no
+ * input can overflow the stack; stops counting at `limit + 1`, so a hostile value costs at most
+ * that many levels of work per branch.
+ */
+export function valueDepth(value: unknown, limit = VALUE_MAX_DEPTH): number {
+  let deepest = 0;
+  const stack: Array<{ node: unknown; depth: number }> = [{ node: value, depth: 0 }];
+  while (stack.length > 0) {
+    const { node, depth } = stack.pop()!;
+    if (node === null || typeof node !== 'object') continue;
+    const here = depth + 1;
+    if (here > deepest) deepest = here;
+    if (here > limit) return here;
+    for (const child of Array.isArray(node) ? node : Object.values(node as Record<string, unknown>)) {
+      if (child !== null && typeof child === 'object') stack.push({ node: child, depth: here });
+    }
+  }
+  return deepest;
+}
+
+/**
+ * e20f (QA N1): the issue of a raw client op whose `value` or `meta` nests deeper than
+ * `VALUE_MAX_DEPTH`, or null. The push route asks it before any schema parse or recursive walk
+ * reads the op, and refuses such an op alone (`op_value_invalid`).
+ */
+export function opDepthIssue(raw: unknown): string | null {
+  if (raw === null || typeof raw !== 'object') return null;
+  for (const key of ['value', 'meta'] as const) {
+    const depth = valueDepth((raw as Record<string, unknown>)[key]);
+    if (depth > VALUE_MAX_DEPTH) return `${key} nests more than ${VALUE_MAX_DEPTH} levels deep`;
+  }
+  return null;
+}
+
 /** The UTF-8 length of a value as the push body serializes it (`JSON.stringify`); the one definition (the web's push budget reads it too). */
 export function serializedBytes(value: unknown): number {
   return new TextEncoder().encode(JSON.stringify(value) ?? '').length;
@@ -333,6 +375,8 @@ function wholeValueIssue(op: Op, path: OpPath): string | null {
  */
 export function opValueIssue(op: Op, path: OpPath): string | null {
   if (op.kind === 'remove') return null;
+  // e20f (QA N1): checked first, iteratively, so the recursive walks below never meet a deep value.
+  if (valueDepth(op.value) > VALUE_MAX_DEPTH) return `value nests more than ${VALUE_MAX_DEPTH} levels deep`;
   const general = stringsIssue(op.value, TEXT_CAPS.long, 'value');
   if (general !== null) return general;
   const whole = wholeValueIssue(op, path);
