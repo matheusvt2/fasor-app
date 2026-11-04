@@ -2,7 +2,8 @@
 title: 'Epic 20 fix batch e20f: device clock, every reference checked, values bounded whole, backward moves judged by the server'
 type: 'bugfix'
 created: '2026-11-04'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '418e308a26d6bfe222d29c99f3fdadb47d10183f'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus
@@ -120,7 +121,9 @@ Item 4 (status):
 
 - Re-stamping to the corrected now (not shifting by the offset) keeps the device's fold equal to the server's: the server receives a resent op after anything written since, and the local fold sorts it last by its new `client_ts`.
 - `seen` can now only narrow a move: forging `prev_op_id` gains nothing.
-- Measured maxima and chosen caps (item 8): filled by the implementer.
+- Measured maxima and chosen caps (item 8): filled by the implementer. *(2026-11-04, implementer: over 4 230 client ops (the three fixture logs, a relatório instantiated from the shipped standard template, and that template's create and field puts), the largest open-shaped value is the standard template's `blocks`, 23 840 B serialized, and the longest array is the same `blocks`, 76 items. Chosen: `VALUE_MAX_BYTES` = 128 KiB (131 072 B, 5.5x) and `VALUE_MAX_ITEMS` = 500 (6.6x); the measurement test in `value-limits.test.ts` asserts at least 4x. The byte cap reads only the parts a `strings` or `structured` rule judges (`openValueParts`); the count cap reads every array of a client value.)*
+- *(2026-11-04, implementer, item 6:)* `relatorio.template_id` is exempt in `REFERENCE_FIELDS`, not a reference: as a reference it refused the relatório create of about 25 api suites (and `db/seed.ts`), which instantiate `standardTemplate({ id: newId() })` without a template row (131 api tests red). Every reader of it looks the template up among the company's templates and drops an id it does not find, so the exemption reads it as provenance. Turning it into a reference is one table line plus a template create in those suites' setup.
+- *(2026-11-04, implementer, item 6:)* the row parent ids of a create (`location.relatorio_id`, `block.relatorio_id`, `file.relatorio_id`, `file.company_id`, `point.relatorio_id`, `equipment.project_id`) are exempt as envelope-checked: `opSchema` already refuses a create row whose parent id is not the op envelope's. A cover photo is filed company-wide (`relatorio_id` null, `commitFilePick`), so a `relatorio`-scope file reference also accepts a file with no relatório; another relatório's photo is refused.
 
 ## Verification
 
