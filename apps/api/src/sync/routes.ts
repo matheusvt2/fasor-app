@@ -4,6 +4,7 @@ import {
   MARK_AWARE_CONTRACT_VERSION,
   MIN_CONTRACT_VERSION,
   sinceQuerySchema,
+  SYNC_PUSH_MAX_BYTES,
   syncPushBodySchema,
   toIso,
   type Clock,
@@ -13,6 +14,7 @@ import {
   type SyncPushResponse,
 } from '@app/domain';
 import { Hono, type Context } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
 import type { Db } from '../db/client.ts';
 import type { CompanyId } from '../db/repositories/company-id.ts';
@@ -97,6 +99,17 @@ const projectNotFound: ErrorResponse = {
   message: 'No such project in this company.',
 };
 
+/**
+ * Story 20.9 (contract 29, security pass S4): `POST /api/sync/ops` reads at most
+ * `SYNC_PUSH_MAX_BYTES` (4 MiB); a larger body is answered `413 body_too_large` whole, in the
+ * envelope `http/app.ts` gives its own 16 MB outer limit, and nothing of it is applied. The device
+ * splits its pushes under the cap (`batches`, `apps/web/src/sync/policy.ts`).
+ */
+const pushBodyLimit = bodyLimit({
+  maxSize: SYNC_PUSH_MAX_BYTES,
+  onError: (c) => c.json({ code: 'body_too_large', message: `The request body is over the ${SYNC_PUSH_MAX_BYTES} byte limit.` } satisfies ErrorResponse, 413),
+});
+
 /** The client's contract version, or null when the header is missing or not an integer. */
 function contractVersionOf(c: Context<AppEnv>): number | null {
   const raw = c.req.header(CONTRACT_VERSION_HEADER);
@@ -129,7 +142,7 @@ const relatorioIdSchema = z.uuid();
 export function createSyncRoutes(db: Db, deps: SyncRouteDeps): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
 
-  routes.post('/api/sync/ops', async (c) => {
+  routes.post('/api/sync/ops', pushBodyLimit, async (c) => {
     const session = requireSession(c);
     const body: unknown = await c.req.json().catch(() => undefined);
     const parsed = syncPushBodySchema.safeParse(body);

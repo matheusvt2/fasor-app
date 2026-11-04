@@ -391,7 +391,7 @@ describe('8.4-INT permanent guards: one run row, failed, no suggestion', () => {
   it('the photo was removed', async () => {
     const { relatorioId, blocks } = await relatorio();
     const id = await readablePhoto(relatorioId, blocks.find((b) => b.block_type === 'transformador_forca')!);
-    await apply([relatorioPut(relatorioId, `file/${id}/removed_at`, '2026-09-27T11:00:00.000Z')]);
+    await apply([relatorioPut(relatorioId, `file/${id}/removed_at`, now().toISOString())]);
     await expectPermanent(id, relatorioId, 'photo was removed');
   }, 60_000);
 
@@ -399,7 +399,7 @@ describe('8.4-INT permanent guards: one run row, failed, no suggestion', () => {
     const { relatorioId, blocks } = await relatorio();
     const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
     const id = await readablePhoto(relatorioId, block);
-    await apply([relatorioPut(relatorioId, `block/${block.id}/removed_at`, '2026-09-27T11:00:00.000Z')]);
+    await apply([relatorioPut(relatorioId, `block/${block.id}/removed_at`, now().toISOString())]);
     await expectPermanent(id, relatorioId, 'target block was removed');
   }, 60_000);
 

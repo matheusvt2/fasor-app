@@ -1,7 +1,6 @@
 import { Readable } from 'node:stream';
 import {
   blockingRows,
-  blockRowSchema,
   generateRequestSchema,
   generationJobRowSchema,
   isJobActive,
@@ -11,8 +10,6 @@ import {
   PDF_MIME,
   preIssue,
   previewFileName,
-  referencedEquipmentIds,
-  relatorioEditedSince,
   revisionFileMime,
   revisionFileName,
   revisionRowSchema,
@@ -31,17 +28,18 @@ import {
   type RevisionRow,
 } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
-import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { Hono, type Context } from 'hono';
 import type { Db } from '../db/client.ts';
 import type { CompanyId } from '../db/repositories/company-id.ts';
 import { liveRevisions } from '../db/repositories/revisions.ts';
 import { barrierMissing, readLiveRelatorio } from './barrier.ts';
-import { entities, ops } from '../db/schema.ts';
+import { entities } from '../db/schema.ts';
 import { GENERATE_ACTOR, type GenerateKind, type GeneratePayload } from '../jobs/generate/job.ts';
 import { logError } from '../log.ts';
 import { getObject } from '../storage/s3.ts';
 import { applyOps, applyServerBatch, type Tx } from '../sync/apply.ts';
+import { editedAfter } from '../sync/edited-after.ts';
 import { serverOp } from '../sync/server-op.ts';
 import { toSnapshot } from '../sync/snapshot.ts';
 import { type AppEnv, requireSession, type SessionContext } from './session.ts';
@@ -131,44 +129,7 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
 
   const missing = (companyId: CompanyId, lastOpId: string | null, fileIds: readonly string[]) => barrierMissing(db, companyId, lastOpId, fileIds);
 
-  /**
-   * AD-15: exists an op of the relatório's stream after the snapshot that counts as an edit.
-   * The stream is the relatório's own ops plus the project-scope ops of the equipment its
-   * live blocks reference (Epic 4 retro items 18, Q15): the kernel decides both.
-   */
-  async function editedAfter(reader: Pick<Db, 'select'>, companyId: CompanyId, relatorioId: string, projectId: string, snapshotSeq: number): Promise<boolean> {
-    const blockRows = await reader
-      .select({ row: entities.row })
-      .from(entities)
-      .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'block'), eq(entities.relatorio_id, relatorioId), isNull(entities.removed_at)));
-    const rows = await reader
-      .select({ path: ops.path, actor_id: ops.actor_id, kind: ops.kind, value: ops.value, seq: ops.seq, scope: ops.scope, relatorio_id: ops.relatorio_id })
-      .from(ops)
-      .where(
-        and(
-          eq(ops.company_id, companyId),
-          gt(ops.seq, snapshotSeq),
-          or(eq(ops.relatorio_id, relatorioId), and(eq(ops.scope, 'project'), eq(ops.project_id, projectId))),
-        ),
-      );
-    const blocks = blockRows.flatMap((r) => {
-      const parsed = blockRowSchema.safeParse(r.row);
-      return parsed.success ? [parsed.data] : [];
-    });
-    return relatorioEditedSince(
-      rows.map((r) => ({
-        path: r.path,
-        actor_id: r.actor_id,
-        kind: r.kind as Op['kind'],
-        value: r.value,
-        seq: r.seq,
-        scope: r.scope as Op['scope'],
-        relatorio_id: r.relatorio_id,
-      })),
-      snapshotSeq,
-      { relatorioId, equipmentIds: referencedEquipmentIds(blocks) },
-    );
-  }
+  // AD-15's "edited since the snapshot" is `sync/edited-after.ts`'s (Story 20.7: the status check reads it too).
 
   function jobOp(companyId: CompanyId, relatorioId: string, input: { kind: Op['kind']; path: string; value: unknown }): Op {
     return serverOp({

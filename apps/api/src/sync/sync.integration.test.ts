@@ -33,6 +33,7 @@ import {
   type LocationRow,
   type Op,
   type OpInput,
+  type RelatorioStatus,
   type SyncPullResponse,
   type SyncPushResponse,
 } from '@app/domain';
@@ -49,6 +50,7 @@ import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { entities, ops, syncDevicePush } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 import { extractStructure } from '../jobs/generate/docx-structure.test-support.ts';
+import { applyOps } from './apply.ts';
 import { toSnapshot } from './snapshot.ts';
 
 /**
@@ -1152,7 +1154,8 @@ describe('10.4-API-001 the company summary carries each relatório\'s progress',
     const blocks = [newId(), newId(), newId()];
     const photos = [newId(), newId(), newId()];
     const cover = newId();
-    const removedAt = '2026-09-29T12:00:00.000Z';
+    // Story 20.8: a removal at a present instant, never before the relatório's creation.
+    const removedAt = now().toISOString();
     const pushed = await pushOk(companyA, [
       relatorioCreate(idsA, relatorioId, newId()),
       ...blocks.map((id) => blockCreate(idsA, relatorioId, id, 'disjuntor_mt')),
@@ -1222,8 +1225,10 @@ describe('6.3/6.5-API-001 a photo caption and removal through the sync route', (
     expect(created.rejected).toEqual([]);
 
     const newCaption = 'Detalhe da limpeza e reaperto realizada na chave seccionadora';
+    // Story 20.8: a removal at a present instant, never before the relatório's creation.
+    const photoRemovedAt = now().toISOString();
     const caption = op(idsA, { kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, path: `file/${photoId}/caption`, value: newCaption });
-    const removed = op(idsA, { kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, path: `file/${photoId}/removed_at`, value: '2026-09-25T12:00:00.000Z' });
+    const removed = op(idsA, { kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, path: `file/${photoId}/removed_at`, value: photoRemovedAt });
     const edits = await pushOk(companyA, [caption, removed]);
     expect(edits.rejected).toEqual([]);
     expect(edits.applied).toHaveLength(2);
@@ -1231,7 +1236,7 @@ describe('6.3/6.5-API-001 a photo caption and removal through the sync route', (
     const rowOf = async () =>
       (await db.select({ row: entities.row, removed_at: entities.removed_at }).from(entities).where(and(eq(entities.entity, 'file'), eq(entities.id, photoId))))[0]!;
     const tombstoned = await rowOf();
-    expect(tombstoned.row).toMatchObject({ caption: newCaption, removed_at: '2026-09-25T12:00:00.000Z' });
+    expect(tombstoned.row).toMatchObject({ caption: newCaption, removed_at: photoRemovedAt });
     expect(tombstoned.removed_at).not.toBeNull();
 
     // "Desfazer": the tombstone cleared, the photo back with its caption.
@@ -1462,18 +1467,28 @@ describe('Story 14.3 (contract 18): Verificações do local through POST /api/sy
     return op(idsA, { ...scoped(relatorioId), kind: 'create', path: `location/${id}`, value: kind === 'cabine' ? { ...base, se: blankSe, env: blankEnv, agrupar_por_tipo: false } : base });
   }
 
-  /** A relatório on `seedVersion` with one local, one painel under it and one coluna in the painel. */
-  async function site(seedVersion = 'v4', status = 'rascunho') {
+  /**
+   * A relatório on `seedVersion` with one local, one painel under it and one coluna in the painel.
+   * Story 20.7 (contract 29): a client create is born Rascunho, so another `status` is seeded as the
+   * server would hold it, with a server-origin status op after the push (never a forged client op).
+   */
+  async function site(seedVersion = 'v4', status: RelatorioStatus = 'rascunho') {
     const ids = { relatorio: newId(), project: newId(), local: newId(), painel: newId(), coluna: newId() };
     const log = [
       projectCreate(idsA, ids.project),
-      relatorioOn(seedVersion, ids.relatorio, ids.project, status),
+      relatorioOn(seedVersion, ids.relatorio, ids.project),
       locationCreate(ids.relatorio, ids.local, 'cabine', null, 'Cabine de transformação'),
       locationCreate(ids.relatorio, ids.painel, 'painel', ids.local, 'Painel de média tensão'),
       locationCreate(ids.relatorio, ids.coluna, 'coluna', ids.painel, 'Coluna 1'),
     ];
     const result = await pushOk(companyA, log);
     expect(result.rejected).toEqual([]);
+    if (status !== 'rascunho') {
+      const seeded = put(ids.relatorio, 'relatorio/status', status);
+      written.opIds.add(seeded.op_id);
+      expect((await applyOps(db, asCompanyId(companyA.companyId), [seeded], { origin: 'server', now })).rejected).toEqual([]);
+      log.push(seeded);
+    }
     return { ...ids, log };
   }
 
@@ -1905,7 +1920,8 @@ describe('Story 14.2, second pass: a location removal batch and its restore thro
       equipmentIds: [equipment.a, equipment.b],
       counts: { paineis: 0, colunas: 2, sheets: 3, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 },
     });
-    const removedAt = '2026-10-13T15:00:00.000Z';
+    // Story 20.8: present instants, never before the relatório's creation.
+    const removedAt = now().toISOString();
     const removal = batchOf(relatorioId, projectId, 'remove', plan, removedAt);
     const removed = await pushOk(companyA, removal);
     expect(removed.rejected).toEqual([]);
@@ -1951,7 +1967,7 @@ describe('Story 14.2, second pass: a location removal batch and its restore thro
     const afterRows = rowsIn(replay(log));
     const back = locationRestorePlan({ ...afterRows, locationId: painel })!;
     expect(back).toMatchObject({ locationIds: plan.locationIds, blockIds: plan.blockIds, equipmentIds: plan.equipmentIds, counts: { paineis: 0, colunas: 2, sheets: 3, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 } });
-    const restore = batchOf(relatorioId, projectId, 'put', back, '2026-10-13T15:05:00.000Z');
+    const restore = batchOf(relatorioId, projectId, 'put', back, new Date(Date.parse(removedAt) + 5 * 60_000).toISOString());
     const restored = await pushOk(companyA, restore);
     expect(restored.rejected).toEqual([]);
     expect(restored.applied.map((a) => a.op_id)).toEqual(restore.map((o) => o.op_id));
@@ -2002,7 +2018,9 @@ describe('Story 14.2, second pass: a location removal batch and its restore thro
     const held = rowsIn(replay(log));
     const plan = locationRemovalPlan({ locations: held.locations, blocks: held.blocks, otherBlocks: [], locationId: painel, projectId, relatorioId, visibility })!;
     expect(plan).toMatchObject({ locationIds: [painel, coluna], blockIds: [sheets.inside], equipmentIds: [equipment.inside] });
-    const removal = batchOf(relatorioId, projectId, 'remove', plan, '2026-10-13T16:00:00.000Z');
+    // Story 20.8: a present instant, never before the relatório's creation.
+    const colunaRemovedAt = now().toISOString();
+    const removal = batchOf(relatorioId, projectId, 'remove', plan, colunaRemovedAt);
     expect((await pushOk(companyA, removal)).rejected).toEqual([]);
     pushed(removal);
 
@@ -2023,7 +2041,7 @@ describe('Story 14.2, second pass: a location removal batch and its restore thro
 
     // Both rows are stored live on the removed coluna: no tombstone of their own hides them.
     for (const id of [sheets.mover, sheets.nova]) expect((await stored('block', id))?.row, id).toMatchObject({ location_id: coluna, removed_at: null });
-    expect((await stored('location', coluna))?.row).toMatchObject({ removed_at: '2026-10-13T16:00:00.000Z' });
+    expect((await stored('location', coluna))?.row).toMatchObject({ removed_at: colunaRemovedAt });
 
     // The server snapshot reads the removed location rows, so the kernel's one liveness rule drops both sheets.
     const kernel = buildSnapshot(replay(log), relatorioId);

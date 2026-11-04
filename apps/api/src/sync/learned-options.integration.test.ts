@@ -403,14 +403,19 @@ describe('Story 14.12 (contract 23): learned options through POST /api/sync/ops'
     expect((await rowsNamed('manufacturer', `${NONCE}o`)).map((r) => r.row.name)).toEqual([`Celtta ${NONCE}o`]);
   });
 
-  it('review: a rename to a blank phrase or past NC_PHRASE_MAX_LENGTH is op_invalid; one at the limit is accepted', async () => {
+  it('review: a rename to a blank phrase is op_invalid, one past NC_PHRASE_MAX_LENGTH op_value_invalid (Story 20.9, contract 29); one at the limit is accepted', async () => {
     const sheet = await disjuntorSheet();
     await pushOk(ncPuts(sheet, `Folga axial ${NONCE}p`));
     const [learned] = await rowsNamed('nc_phrase', `${NONCE}p`);
     const path = registryFieldPath('nc_phrase', learned!.id, 'name');
-    for (const name of ['', '   ', `${NONCE}p`.padEnd(NC_PHRASE_MAX_LENGTH + 1, 'x')]) {
+    // A blank phrase is the row schema's refusal; a phrase past the cap is the value cap's, which the server checks first since contract 29.
+    for (const [name, code] of [
+      ['', 'op_invalid'],
+      ['   ', 'op_invalid'],
+      [`${NONCE}p`.padEnd(NC_PHRASE_MAX_LENGTH + 1, 'x'), 'op_value_invalid'],
+    ] as const) {
       const rename = companyOp('put', path, name);
-      expect((await push([rename])).rejected, JSON.stringify(name)).toEqual([{ op_id: rename.op_id, code: 'op_invalid' }]);
+      expect((await push([rename])).rejected, JSON.stringify(name)).toEqual([{ op_id: rename.op_id, code }]);
     }
     const atLimit = `${NONCE}p`.padEnd(NC_PHRASE_MAX_LENGTH, 'y');
     await pushOk([companyOp('put', path, atLimit)]);

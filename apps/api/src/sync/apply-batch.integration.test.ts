@@ -205,3 +205,121 @@ describe('E6-A1 applyOps: one transaction per push', () => {
     expect(retried.applied.map((a) => a.op_id)).toEqual([create.op_id, rename.op_id, third.op_id]);
   });
 });
+
+/*
+ * Stories 20.7 to 20.10 (contract 29): a refusal by a business rule refuses its op alone. A client
+ * batch whose status op the server refuses still applies its edit ("No edit is lost"), while a
+ * permanent refusal (a row schema) still rolls its whole batch back, as Story 10.1 decided.
+ */
+describe('Story 20.7: a refused status op does not roll back its batch', () => {
+  const ACTOR = newId();
+  const DEVICE = 'tablet-rules-batch';
+
+  function clientOp(input: Omit<OpInput, 'company_id' | 'actor_id' | 'device_id' | 'project_id' | 'prev_op_id' | 'meta'> & Partial<Pick<OpInput, 'prev_op_id'>>): Op {
+    return makeOp({ company_id: companyId, actor_id: ACTOR, device_id: DEVICE, project_id: null, prev_op_id: null, meta: null, ...input }, { newId, now: now() });
+  }
+
+  /** A Rascunho relatório and one block, created as a device creates them; then the server holds `status`. */
+  async function relatorioAt(status: 'em_revisao' | 'rascunho'): Promise<{ relatorioId: string; blockId: string }> {
+    const relatorioId = newId();
+    const blockId = newId();
+    const created = await applyOps(
+      db,
+      companyId,
+      [
+        clientOp({
+          kind: 'create',
+          scope: 'relatorio',
+          relatorio_id: relatorioId,
+          batch_id: null,
+          path: `relatorio/${relatorioId}`,
+          value: {
+            id: relatorioId,
+            project_id: newId(),
+            template_id: null,
+            template_version: null,
+            seed_version: 'v1',
+            status: 'rascunho',
+            setup: { service_start: null, service_end: null, atividade: null, local: null, responsible_user_id: null, cover_photo_file_id: null },
+            export: { scheme: 'por_local_e_tipo' },
+            preview_file_id: null,
+            removed_at: null,
+          },
+        }),
+        clientOp({
+          kind: 'create',
+          scope: 'relatorio',
+          relatorio_id: relatorioId,
+          batch_id: null,
+          path: `block/${blockId}`,
+          value: {
+            id: blockId,
+            relatorio_id: relatorioId,
+            location_id: null,
+            equipment_id: null,
+            block_type: 'disjuntor_mt',
+            config: {},
+            seed_version: 'v1',
+            order_key: 'a0',
+            feeds_block_id: null,
+            not_tested: null,
+            concluded_by: null,
+            sheet: { nameplate: {}, checklist: {}, test: {}, conclusion: {}, observations: null },
+            created_by: null,
+            first_edited_at: null,
+            last_modified_by: null,
+            last_modified_at: null,
+            removed_at: null,
+          },
+        }),
+      ],
+      { now, origin: 'client', actorId: ACTOR },
+    );
+    expect(created.rejected).toEqual([]);
+    if (status !== 'rascunho') {
+      const moved = await applyOps(db, companyId, [serverOp({ kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, path: 'relatorio/status', value: status })], { now, origin: 'server' });
+      expect(moved.rejected).toEqual([]);
+    }
+    return { relatorioId, blockId };
+  }
+
+  const rowOf = async (entity: string, id: string) =>
+    (await db.select({ row: entities.row }).from(entities).where(and(eq(entities.company_id, companyId), eq(entities.entity, entity), eq(entities.id, id))))[0]?.row as
+      | Record<string, unknown>
+      | undefined;
+
+  it('the edit of the batch applies and the status op alone is refused op_status_transition, never logged', async () => {
+    // Another device moved the relatório to Em revisão; this one still sees Rascunho and makes its first field edit.
+    const { relatorioId, blockId } = await relatorioAt('em_revisao');
+    const batchId = newId();
+    const edit = clientOp({ kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, batch_id: batchId, path: `sheet/${blockId}/observations`, value: 'Terminais oxidados' });
+    const status = clientOp({ kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, batch_id: batchId, path: 'relatorio/status', value: 'em_campo' });
+    const result = await applyOps(db, companyId, [edit, status], { now, origin: 'client', actorId: ACTOR });
+    expect(result.applied.map((a) => a.op_id)).toEqual([edit.op_id]);
+    expect(result.rejected).toEqual([{ op_id: status.op_id, code: 'op_status_transition' }]);
+    expect(await rowOf('relatorio', relatorioId)).toMatchObject({ status: 'em_revisao' });
+    expect(((await rowOf('block', blockId))?.sheet as { observations: { value: unknown } }).observations.value).toBe('Terminais oxidados');
+    expect(await db.select({ op_id: ops.op_id }).from(ops).where(eq(ops.op_id, status.op_id))).toEqual([]);
+  });
+
+  it('a value refused in validation refuses its op alone too; a permanent refusal still rolls the batch back', async () => {
+    const { relatorioId, blockId } = await relatorioAt('rascunho');
+    const kept = newId();
+    const edit = clientOp({ kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, batch_id: kept, path: `sheet/${blockId}/observations`, value: 'Fica' });
+    const oversized = clientOp({ kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, batch_id: kept, path: 'relatorio/setup/additional_info', value: 'x'.repeat(20_001) });
+    const first = await applyOps(db, companyId, [edit, oversized], { now, origin: 'client', actorId: ACTOR });
+    expect(first.applied.map((a) => a.op_id)).toEqual([edit.op_id]);
+    expect(first.rejected).toEqual([{ op_id: oversized.op_id, code: 'op_value_invalid' }]);
+
+    const rolled = newId();
+    const lost = clientOp({ kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, batch_id: rolled, path: `sheet/${blockId}/observations`, value: 'Desfeito' });
+    const broken = clientOp({ kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, batch_id: rolled, path: 'relatorio/setup/site_altitude_confirmed', value: 'sim' });
+    const second = await applyOps(db, companyId, [lost, broken], { now, origin: 'client', actorId: ACTOR });
+    expect(second.applied).toEqual([]);
+    expect(second.rejected).toEqual([
+      { op_id: lost.op_id, code: 'op_invalid' },
+      { op_id: broken.op_id, code: 'op_invalid' },
+    ]);
+    expect(((await rowOf('block', blockId))?.sheet as { observations: { value: unknown } }).observations.value).toBe('Fica');
+  });
+});
