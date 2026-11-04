@@ -195,7 +195,7 @@ test('@p0 A5-E2E-004 Login names the failure: fields checked on the device, a 50
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page.getByRole('alert')).toHaveText('Não foi possível falar com o servidor. Tente de novo em instantes.');
   await expect(page.getByLabel('Senha')).not.toHaveAttribute('aria-invalid', 'true');
-  await expect(page.getByText('Senha incorreta')).toHaveCount(0);
+  await expect(page.getByText('E-mail ou senha incorretos.')).toHaveCount(0);
   await expect(page.locator('.login-offline')).toHaveCount(0);
 
   // A retry once the server is back signs in.
