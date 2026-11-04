@@ -169,3 +169,9 @@ The server lane goes first because it closes the two High findings soonest and s
   - test:unit: 5060.
   - `test:e2e:full`: 565 of 569, 4 skipped, 0 failed, 0 flaky, 2490 s.
   - The commit after it changes only this record.
+
+## Batch e20h and its deploy gate (2026-11-04)
+
+- PR #244 (`10e87157`): seed v1 to v5 gain VÁCUO/ÓLEO on the disjuntor and ÓLEO on the transformador de força (`seed/legacy-options.ts`); the empty REGISTRO FOTOGRÁFICO names the tests section; `enable_night_schedule` false. Story gate: lint, static, test:unit 5063 passed, test:api 826 passed and 4 skipped, touched e2e 11 of 11.
+- Terraform applied from main `10e87157` at about 12:30 (America/Sao_Paulo): 0 added, 0 changed, 4 destroyed (the two night schedules, their role and policy); `scheduler list-schedules` lists none. Production runs 24 h.
+- Deploy gate, `test:e2e:full` on `10e87157` under the host lock: parallel 403 tests, 399 passed, 4 skipped, 0 failed, 0 flaky (1037 s); serial 167 of 167 passed (1318 s); total 566 passed, 4 skipped, 0 failed, 2360 s wall. Deploy of the next main commit (this record on top of `10e87157`) follows.
