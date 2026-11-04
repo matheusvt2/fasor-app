@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { CLOCK_SKEW_MS } from '../ops/attribution.ts';
+import { boundedEventTs } from './telemetry.ts';
 import { errorCodeSchema } from './errors.ts';
 import { TELEMETRY_ROUTE } from './index.ts';
 import { HOME_PAGE_SIZES } from '../home/cards.ts';
@@ -357,5 +359,16 @@ describe('Story 18.4: how long, in what order, on what and for whom', () => {
     expect(parses({ ...bare, name: 'session_start', online: 1 })).toBe(false);
     expect(parses({ ...bare, name: 'screen_view', from: 'report' })).toBe(false);
     expect(parses({ ...bare, name: 'screen_view', from: '/relatorio/x' })).toBe(false);
+  });
+});
+
+describe('boundedEventTs (e20f, QA N7)', () => {
+  const RECEIVED = new Date('2026-11-04T12:00:00.000Z');
+  it('keeps an instant up to the skew past the server clock, and the past; clamps one past the skew to the receive time', () => {
+    expect(boundedEventTs('2026-11-01T08:00:00.000Z', RECEIVED)).toBe('2026-11-01T08:00:00.000Z');
+    const atSkew = new Date(RECEIVED.getTime() + CLOCK_SKEW_MS).toISOString();
+    expect(boundedEventTs(atSkew, RECEIVED)).toBe(atSkew);
+    expect(boundedEventTs(new Date(RECEIVED.getTime() + CLOCK_SKEW_MS + 1).toISOString(), RECEIVED)).toBe(RECEIVED.toISOString());
+    expect(boundedEventTs('2099-01-01T00:00:00.000Z', RECEIVED)).toBe(RECEIVED.toISOString());
   });
 });

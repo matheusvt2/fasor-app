@@ -2,6 +2,7 @@ import {
   TELEMETRY_BATCH_MAX,
   TELEMETRY_ROUTE,
   TELEMETRY_SERVER_KEYS,
+  boundedEventTs,
   telemetryBatchSchema,
   type Clock,
   type ErrorResponse,
@@ -84,9 +85,12 @@ export function createTelemetryRoutes(options: TelemetryRouteOptions): Hono<AppE
     const perUser = userLimiter.consume(session.userId, events.length);
     if (!perUser.allowed) return tooMany(c, perUser.retryAfterSeconds);
 
-    const receivedAt = options.now().toISOString();
+    const received = options.now();
+    const receivedAt = received.toISOString();
     const stamped: StampedUxEvent[] = events.map((event) => ({
       ...event,
+      // e20f (QA N7): a ts past the server's clock is stored as the receive time.
+      ts: boundedEventTs(event.ts, received),
       received_at: receivedAt,
       user_id: session.userId,
       company_id: session.companyId,
