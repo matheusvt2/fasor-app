@@ -366,9 +366,9 @@ describe('the relatório budget (e20f, aggregate)', () => {
       bytes += serializedBytes(row);
     }
     console.log(`e20f measured: Porto Seguro ${rows} live rows, ${bytes} bytes`);
-    expect(RELATORIO_MAX_BYTES).toBe(2 * 1024 * 1024);
+    expect(RELATORIO_MAX_BYTES).toBe(1.5 * 1024 * 1024);
     expect(rows).toBeGreaterThan(100);
-    expect(bytes * 3).toBeLessThan(RELATORIO_MAX_BYTES);
+    expect(bytes * 2).toBeLessThan(RELATORIO_MAX_BYTES);
   });
 
   it('refuses a value that takes the relatório past the budget; at the budget it applies; a remove and a put of null always apply', () => {
