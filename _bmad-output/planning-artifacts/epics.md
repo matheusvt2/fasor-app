@@ -4889,6 +4889,8 @@ So that the name we chose is the name people see and remember.
 
 **Definition of Done, in addition:** `domain.test.ts` asserts `PRODUTO === 'Conforme'`; every unit and e2e test that asserted the literal asserts the constant or the new value (`app-shell.test.tsx`, `login-surface.test.tsx`, `shell-version.test.ts`, `docx.test.ts`, `shell.spec.ts`, `auth.spec.ts`, `ui-hygiene.spec.ts`, `durability.spec.ts`, `cadastros.spec.ts`, the `loading-states.spec.ts` title); a repository grep for `'PRODUTO'` outside the constant's identifier, the mocks and historical documents comes back empty; `glossary.md`, NFR-15, `AGENTS.md`, `README.md`, `DESIGN.md`, `EXPERIENCE.md` and the KB naming lines carry the dated amendment; the story gate (lint, static, test:unit, test:api, the touched specs).
 
+*(2026-11-03, built as batch e20w with 20.1, 20.2 and 20.4, PR #237 squash-merged as `db38ffa0`. No narrowing.)*
+
 ### Story 20.2: Search Home by client and obra
 
 **Dev model:** opus · **Effort:** high · kernel (`home/cards.ts`: a normalized search key per card, a `query` option on `homeList`, the no-match text), a search field on `home-surface.tsx` (React Aria SearchField, its label, its clear), copy, one telemetry target, the two Home mocks; no op, no contract
@@ -4921,6 +4923,8 @@ So that I find a relatório in seconds however many the company holds, including
 
 **Definition of Done, in addition:** red-first kernel tests for the key, the match (accents, case, spacing), the tile narrowing, the page cut and the no-match text; component tests for the three states; `home.spec.ts` extended with a search past the page size, an emitted match, the tile narrowing and the clear at 390 and 1280 px; the `targets.test.ts` guard covers `home.search`; `20-home.html` and `key-home.html` draw the field with a dated comment and MOCK-GUIDE a dated line; EXPERIENCE.md § Home amended with the date and the Story 19.2 deferral struck; the `deferred-work.md` line about relatórios past the 100th closed; the story gate (lint, static, test:unit, test:api, the touched specs).
 
+*(2026-11-03, built as batch e20w with 20.1, 20.2 and 20.4, PR #237 squash-merged as `db38ffa0`. Narrowing: the telemetry target `home.search` was deferred to batch e20e, because `contract/telemetry.ts` belonged to e20s in wave 1; it shipped with PR #240.)*
+
 ### Story 20.3: Pontos de atenção after the ensaios: the tests section prints before the points section on every new relatório
 
 **Dev model:** opus · **Effort:** high · kernel (`instantiateTemplate`'s section order, the Sumário rows follow), the renderer's page break before the points section, the cross-reference text checked, the layout golden; no contract, no seed change, no op
@@ -4948,6 +4952,8 @@ So that the reader meets the findings after the evidence they come from.
 **Then** its section order and numbers are those it had (FR-74)
 
 **Definition of Done, in addition:** red-first kernel tests on `instantiateTemplate` (new order) and on a pre-existing relatório (order kept); `docx.test.ts` TOC order and the page-break count updated; the layout golden regenerated with `GOLDEN_UPDATE=1` only if its fixture is instantiated through the changed path, and the diff explained in the PR; `relatorio.spec.ts` or `points.spec.ts` asserts the order on a new relatório and in its PDF text; a `source-deltas.md` row (FR-17 "in FO.SERV-03 order"); the story gate (lint, static, test:unit, test:api, the touched specs).
+
+*(2026-11-04, built as batch e20d with 20.3, 20.5 and 20.6, PR #238 merged as `4ccfe5ad`. Narrowing: the points section starts a page only when it prints after the tests section, so an older relatório keeps its pagination (batch reading of the DoR's "no reprint of an existing relatório changes", open for Matheus).)*
 
 ### Story 20.4: Change the equipment or local of a point of attention
 
@@ -4977,6 +4983,8 @@ So that a point created in the wrong place, or from the Points screen as "Geral"
 
 **Definition of Done, in addition:** red-first tests for `writePoint` (the three link kinds, one batch), the draft value and `PointField`; `points.test.ts` for `pointTitle` after a relink; `points.spec.ts` extended: relink a "Geral" point, relink an NC point, clear to "Geral", each checked on the card and in the generated PDF text; `verificacoes-local.spec.ts` covers a point linked to a local; `72-pontos.html` draws the picker with a dated comment and MOCK-GUIDE a dated line; EXPERIENCE.md's point card row amended with the date; a `source-deltas.md` row; the story gate (lint, static, test:unit, test:api, the touched specs).
 
+*(2026-11-03, built as batch e20w with 20.1, 20.2 and 20.4, PR #237 squash-merged as `db38ffa0`. Narrowings: the printed result is checked in its own serial spec, and section 8's bullets print no title, so the spec asserts the action-plan Local/TAG cell; only a new point's draft recovery writes the picked link, a pick on a stored point is written at once.)*
+
 ### Story 20.5: The nameplate and verification tables never start on one page and end on the next
 
 **Dev model:** opus · **Effort:** high · the section 9 renderer (`drawRow`, `drawTable`, the band before a table) keeps DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS and VERIFICAÇÕES DO LOCAL whole, proven on the PDF LibreOffice makes; a per-page read for the PDF tests; no kernel order change, no contract
@@ -5005,6 +5013,8 @@ So that I never read half a table at the bottom of a page and its end on the nex
 
 **Definition of Done, in addition:** XML assertions on the three tables in the `docx.test.ts` style (keep-with-next on every row but the last, or the wrapper); a per-page text read added to `e2e/support/pdf-text.ts` (page number per text item) and a spec that places a table at the foot of a page through the fixture and asserts it lands whole on the next page; the layout golden unchanged (it pins text only), or its diff explained; the story gate (lint, static, test:unit, test:api, the touched specs).
 
+*(2026-11-04, built as batch e20d with 20.3, 20.5 and 20.6, PR #238 merged as `4ccfe5ad`. The keep-whole proof is on the LibreOffice PDF (`page-placement.integration.test.ts`), which skips in the tools container (no `soffice`) and runs in the api container; inside the gate, `e2e/document-pages.spec.ts` carries the PDF proof.)*
+
 ### Story 20.6: Each equipment on its own page with all its photos at its end
 
 **Dev model:** opus · **Effort:** high · kernel (`print/section-9.ts` `sheetOf` and the Não ensaiada branch: one photo part, last; a local's block likewise), the renderer's page break before each equipment, the photo-order comments; photo numbers unchanged; no contract
@@ -5032,6 +5042,8 @@ So that a ficha reads as one block and no photo interrupts its tables.
 **Then** every photo keeps its number and every "conforme Imagem NN" in the points resolves to the same photo (FR-48)
 
 **Definition of Done, in addition:** red-first kernel tests in `print/section-9.test.ts` for the part order of an ensaiada, a Não ensaiada and a local block; `photo-order.test.ts` and `numbering.test.ts` green unchanged; `docx.test.ts` asserts a page break before each ficha and none doubled after the section heading; the layout golden regenerated with the diff explained; `photo-numbers.spec.ts`, `display-shots.spec.ts` 16.3-E2E-001, `section-7-by-hand.spec.ts` 17.1-E2E-001 and `sheet-photos.spec.ts` 11.11-E2E-001 updated to the new placement and a check that each ficha starts a page in the PDF (through the per-page read Story 20.5 adds); a `source-deltas.md` row (FR-68 "photos linked to the equipment beside its tables"); the story gate (lint, static, test:unit, test:api, the touched specs).
+
+*(2026-11-04, built as batch e20d with 20.3, 20.5 and 20.6, PR #238 merged as `4ccfe5ad`. Narrowings: `sheet-photos.spec.ts` 11.11-E2E-001 has no document check (placement is proven by `document-pages.spec.ts`, 17.1-E2E-001 and 16.3-E2E-001); the item line prints on sheet checklist-item photos only, a local's site-item photos stay under their table; `document-pages.spec.ts` seeds two things through the sync route. The photo block after CONCLUSÃO and a local's block starting a page are the coordinator's readings, open for Matheus.)*
 
 ### Story 20.7: The server decides which status moves a relatório may make
 
@@ -5090,6 +5102,8 @@ So that no device, edited build or hand-written request can mark as issued a rel
 - `docs/kbs` concept and log are updated.
 - The story gate (lint, static, test:unit, test:api, the touched specs).
 
+*(2026-11-04, built as batch e20s with 20.7 to 20.10, PR #239 merged as `e1d60e36`, contract 29. Narrowings: Em revisão also passes on the server's `unchanged` generate state. Open for Matheus: undoing "Voltar para Em campo" is refused when the Em revisão it returns to was edited since its revision. Integrated review of `76cbdb79` (`_bmad-output/test-artifacts/review-e20-integrated-2026-11-04.md`) and fix batch e20f, PR #241 merged as `df65be05`: a move counts as backward only when it is backward from both the server's status and the one the device says it saw, so a forged `prev_op_id` gains nothing. Known open: the issue to Emitido still accepts an older revision when no new one was generated.)*
+
 ### Story 20.8: The server checks who and when an op says
 
 **Dev model:** opus · **Effort:** high · the server's per-op validation of attribution held inside values (`concluded_by`, `not_tested.by`, `meta.restore.removed_by`) and of the client's clock; kernel helpers; no surface change; the codes come with contract 29 (Story 20.7)
@@ -5123,6 +5137,8 @@ So that a colleague cannot conclude a sheet in my name or backdate it.
 - `security-ops.spec.ts` extended with a forged `concluded_by`.
 - A `source-deltas.md` row.
 - The story gate.
+
+*(2026-11-04, built as batch e20s with 20.7 to 20.10, PR #239 merged as `e1d60e36`, contract 29. Narrowings: the lower instant bound takes the same 10 min skew as the upper one; an attributed value naming a colleague is accepted when it restores that colleague's own earlier value (undo). Integrated review of `76cbdb79` (`_bmad-output/test-artifacts/review-e20-integrated-2026-11-04.md`) and fix batch e20f, PR #241 merged as `df65be05`: the device stamps ops from the server's clock and "Reenviar" of an op refused `op_attribution` re-stamps it, so a wrong device clock loses no work. Open for Matheus: a member may put back a colleague's conclusion after reopening.)*
 
 ### Story 20.9: Every op value has a size and a type the server enforces
 
@@ -5177,6 +5193,8 @@ The next preview ran LibreOffice for about 2 minutes and failed `libreoffice_tim
 - A `source-deltas.md` row.
 - The story gate.
 
+*(2026-11-04, built as batch e20s with 20.7 to 20.10, PR #239 merged as `e1d60e36`, contract 29. Narrowings: only the site altitude carries a numeric range, and a stored `"<1000"` altitude cell stays valid; the 5 MB push is refused 413 by the 4 MiB body cap, a 20 001-character value `op_value_invalid`; the counter appears at 90 % of the cap (authored). Known open: a client batch over 4 MiB earns a 413; the production count of stored over-cap values is in the PR body, for Matheus to run. Integrated review of `76cbdb79` (`_bmad-output/test-artifacts/review-e20-integrated-2026-11-04.md`) and fix batch e20f, PR #241 merged as `df65be05`: `VALUE_MAX_BYTES` 128 KiB on `strings` and `structured` values, `VALUE_MAX_ITEMS` 500 on every array and `VALUE_MAX_DEPTH` 32 (a deep value answered 500 before), measured against 4 230 fixture and template ops; and a relatório budget, `RELATORIO_MAX_BYTES` of stored live rows, a remove or a put of null always applying: ~~1.5 MiB, 2.45x the Porto Seguro relatório (at the budget the preview took 99.7 s against the 150 s wait)~~ 4 MiB, 6.5x it, decided by Matheus on 2026-11-04 ("pq a trava de 1,5MB? acho pouco"), in PR #242. Accepted risk: a relatório of long point text near 2 MiB or more can outlast the preview's 150 s wait (2 MiB took 147.9 s), so finding S4 stays partly open there.)*
+
 ### Story 20.10: Every op lands on a row that exists in the relatório it names
 
 **Dev model:** opus · **Effort:** high · the server's target check in the apply transaction (the entity exists, or is created earlier in the same batch, and belongs to the op's `relatorio_id` or `project_id`), the reference checks (`responsible_user_id` is a user of the company), removal of an issued relatório; the code comes with contract 29
@@ -5226,6 +5244,8 @@ So that no write is hidden from the devices and checks that read that relatório
 - A `source-deltas.md` row.
 - The story gate.
 
+*(2026-11-04, built as batch e20s with 20.7 to 20.10, PR #239 merged as `e1d60e36`, contract 29. Narrowing: AD-24 strikes "unknown location" from what the server applies. Integrated review of `76cbdb79` (`_bmad-output/test-artifacts/review-e20-integrated-2026-11-04.md`) and fix batch e20f, PR #241 merged as `df65be05`: `REFERENCE_FIELDS` covers every uuid leaf of the row and op schemas (guarded by a schema-walk test): also `location.parent_id`, `block.feeds_block_id`, `setup.cover_photo_file_id`, `setup.instrument_ids[]`, `project.client_id`, the registry brand and certificate files and `meta.source_suggestion_id`; the point, file and block reference refusals moved from `op_value_invalid` to `op_target_missing`. Narrowings: `relatorio.template_id` is exempt (provenance; every reader drops a template id it does not find); a cover photo filed company-wide is accepted; an instrument id inside a test cell's open value is not checked.)*
+
 ### Story 20.11: Signing out leaves nothing of the user on the device
 
 **Dev model:** opus · **Effort:** high · `state/session.tsx` sign-out (delete the user's Dexie database and the user's cached files, after a flush), the boot path when the server answers 401 online, the Conta sign-out confirm with the pending count, copy, the AD-9 amendment; no op, no contract
@@ -5274,6 +5294,8 @@ So that the next person holding it cannot open my company's data or write in my 
 - AD-9 is amended with the date, and a `source-deltas.md` row records it.
 - The story gate.
 
+*(2026-11-04, built as batch e20e with 20.11 to 20.13, PR #240 merged as `76cbdb79`. Narrowings: the unsent count is outbox ops not acked plus photo blobs not uploaded, so a photo whose op and bytes both wait counts twice; the boot waits up to 3 s online before Home opens from the pointer (authored), and a later 401 still closes the database and goes to `/login`; an offline boot with a pointer and no database goes to `/login`; `security-device.spec.ts` runs on the two desktop projects only. Integrated review of `76cbdb79` (`_bmad-output/test-artifacts/review-e20-integrated-2026-11-04.md`) and fix batch e20f, PR #241 merged as `df65be05`: sign-out also clears the `relatorio-` localStorage keys and the checklist legend key (keeping the theme mirror and the clock offset); the setup and section-text routes download a relatório the device lacks (`RelatorioGate`); the offline login sentence no longer promises what a sign-out deletes. Open for Matheus: an expired session (not a sign-out) keeps its database, by AD-9.)*
+
 ### Story 20.12: Paid readings, audits and image decoding have a ceiling
 
 **Dev model:** opus · **Effort:** high · a per-company daily quota on readings, rereads and audits (configured, counted in Postgres), a reread refused on a photo already read with the same kind, `sharp` `limitInputPixels` on every decode of uploaded bytes, kernel sentences for "limit reached"; the code `quota_exceeded` comes with contract 29 (Story 20.7)
@@ -5318,6 +5340,8 @@ So that the month stays under the USD 100 ceiling and the single instance stays 
 - `docs/observability.md` gains the metric line.
 - A `source-deltas.md` row.
 - The story gate.
+
+*(2026-11-04, built as batch e20e with 20.11 to 20.13, PR #240 merged as `76cbdb79`. Narrowings: the quota day is the `America/Sao_Paulo` calendar day; a quota-refused reading ends `failed`; quota answers are 429 `quota_exceeded`; the pixel refusal reuses `file_too_large` 413. Known open: the `main.ts` wiring has no test. Open for Matheus: whether 400 readings and 30 audits a day per company fit the USD 100 ceiling, checked against the production usage events.)*
 
 ### Story 20.13: The edges: auth endpoints, cross-site writes, telemetry, removed files, HSTS and the login copy
 
@@ -5377,3 +5401,5 @@ So that no other request can rename me, list my sessions, write on my behalf fro
 Stories moved out of their epic with a dated decision, so the epic can close. Each keeps its text, number and Definition of Ready where it was written; this list is where they wait. A story leaves this list when a dated line schedules it into an epic.
 
 - *(2026-10-21, Bruno via Matheus, answer 11; closes E13-A9)* Story 13.9: Dictation on, behind one line of consent. Text under Epic 13. Definition of Ready still open: Matheus decides the consent wording and confirms `webspeech` as the shipped default engine.
+
+*(2026-11-04, built as batch e20e with 20.11 to 20.13, PR #240 merged as `76cbdb79`. Narrowings: the telemetry per-user limit is 2000/min (authored); telemetry and body-less requests are exempt from the JSON rule; the per-e-mail sign-in lockout stays as an accepted risk in `deferred-work.md`; Caddy did turn the early 413 into a 502, fixed in the api, and the Caddyfile adds HSTS and drops `Server`. Integrated review of `76cbdb79` (`_bmad-output/test-artifacts/review-e20-integrated-2026-11-04.md`) and fix batch e20f, PR #241 merged as `df65be05`: files of a removed relatório answer 404; a telemetry event dated more than 10 min ahead is bounded.)*

@@ -311,13 +311,15 @@ export function serializedBytes(value: unknown): number {
  * `libreoffice_timeout` after 124 s. A per-value cap cannot bound that, so a relatório has a
  * budget of stored bytes: the serialized live rows of the relatório (what `entities.row` holds).
  * The Porto Seguro relatório, the largest real one, is 207 live rows and 643 247 bytes, so the
- * budget is 2.45x it (a kernel test asserts it stays under half). 2 MiB (3.26x) previewed in
- * 147.9 s end to end in the e2e, too close to the 150 s job wait and the 120 s LibreOffice limit;
- * 1.5 MiB is the orchestrator's pick, an open question for the coordinator.
+ * budget is 6.5x it (a kernel test asserts it stays under a quarter). ~~1.5 MiB, the orchestrator's
+ * pick~~ 4 MiB, decided by Matheus on 2026-11-04 ("acho pouco"): a relatório of point text near 2 MiB
+ * or more can outlast the 150 s job wait and the 120 s LibreOffice limit (2 MiB previewed in
+ * 147.9 s, 1.5 MiB in 99.7 s), an accepted risk; the budget keeps the push volume bounded, the
+ * per-value caps keep every single value bounded.
  */
 
-/** The most bytes the live rows of one relatório may hold (1.5 MiB). */
-export const RELATORIO_MAX_BYTES = 1.5 * 1024 * 1024;
+/** The most bytes the live rows of one relatório may hold (4 MiB). */
+export const RELATORIO_MAX_BYTES = 4 * 1024 * 1024;
 
 /**
  * Whether a client op may grow a relatório that holds `storedBytes` (its live rows, serialized):

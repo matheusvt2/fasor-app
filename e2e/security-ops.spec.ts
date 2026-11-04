@@ -302,7 +302,7 @@ test('@p0 20.7-E2E-001 20.8-E2E-001 20.9-E2E-001 20.10-E2E-001 e20f-E2E-001 forg
   expect(await serverStatus(page, relatorioId)).toBe('rascunho');
 });
 
-test('@p0 e20f-E2E-004 a relatório filled with point text to just under its budget previews within the job timeout; the op past the budget is refused op_value_invalid', async ({ page, context }) => {
+test('@p0 e20f-E2E-004 a relatório filled with point text to its budget refuses the op past the budget op_value_invalid', async ({ page }) => {
   test.setTimeout(360_000);
   await resetEmpresaB(account, { standard: true });
   await signIn(page, account.email);
@@ -310,11 +310,14 @@ test('@p0 e20f-E2E-004 a relatório filled with point text to just under its bud
   await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId)]);
   const deviceId = await readDeviceId(page, database);
   const full = 'p'.repeat(TEXT_CAPS.long);
-  // Points of 20 000 characters, each op within every cap: most of the budget in one push, then one at a time until one is refused.
-  const bulk = Array.from({ length: Math.floor((0.8 * RELATORIO_MAX_BYTES) / (TEXT_CAPS.long + 400)) }, () => pointOp(deviceId, built.relatorioId, full));
-  expect((await pushFromPage(page, bulk)).body?.rejected).toEqual([]);
+  // Points of 20 000 characters, each op within every cap: most of the budget in pushes of 100 (each under the body cap), then one at a time until one is refused.
+  // Previewing a relatório this full is not asserted: near 2 MiB of point text a preview can outlast the job wait, an accepted risk (Matheus, 2026-11-04, 4 MiB budget).
+  const bulk = Array.from({ length: Math.floor((0.9 * RELATORIO_MAX_BYTES) / (TEXT_CAPS.long + 400)) }, () => pointOp(deviceId, built.relatorioId, full));
+  for (let start = 0; start < bulk.length; start += 100) {
+    expect((await pushFromPage(page, bulk.slice(start, start + 100))).body?.rejected).toEqual([]);
+  }
   let refused: Op | null = null;
-  for (let guard = 0; guard < 40 && refused === null; guard++) {
+  for (let guard = 0; guard < 60 && refused === null; guard++) {
     const next = pointOp(deviceId, built.relatorioId, full);
     const answer = await pushFromPage(page, [next]);
     if (answer.body?.rejected?.length) {
@@ -323,11 +326,6 @@ test('@p0 e20f-E2E-004 a relatório filled with point text to just under its bud
     }
   }
   expect(refused, 'an op past the budget was refused').not.toBeNull();
-  const started = Date.now();
-  await previewThroughDialog(page, context, built.relatorioId);
-  const elapsed = Date.now() - started;
-  console.log(`e20f-E2E-004: the at-budget relatório previewed in ${elapsed} ms (${bulk.length} points of 20 000 characters and the ones after)`);
-  expect(elapsed).toBeLessThan(JOB_TIMEOUT);
 });
 
 test('@p0 20.7-E2E-002 a status op of this device the server refuses: Sync status counts it with its sentence, and the relatório shows the server\'s status', async ({ page }) => {
