@@ -216,7 +216,7 @@ test('@p1 1.3-E2E-002b a cold open whose cookie is gone: offline, Home behind th
     Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false });
   });
   await page.route(isApiRequest, (route) => route.abort('internetdisconnected'));
-  await page.reload();
+  await page.goto('/');
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
   await expect(page.locator('.login-form')).toHaveCount(0);
   const banner = page.locator('.banner[data-banner="re-auth"]');

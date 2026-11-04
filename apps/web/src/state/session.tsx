@@ -381,15 +381,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
    * Throws when the server could not be reached, and then clears nothing: the caller
    * shows the failure and the user stays signed in. Story 20.11: a confirmed sign-out
    * leaves nothing of the user on the device. The usage events still queued are offered to
-   * the server, the handle is closed, the database is recorded as a pending wipe and
-   * deleted, and only then is the pointer cleared. A delete another tab blocks past
+   * the server first, while the session still authorizes them (best effort); then the
+   * server ends the session, the handle is closed, the database is recorded as a pending
+   * wipe and deleted, and only then is the pointer cleared. A delete another tab blocks past
    * `SIGN_OUT_DELETE_WAIT_MS` stays recorded and runs at the next boot before any open.
    */
   const doSignOut = useCallback(async () => {
+    const before = databaseRef.current;
+    if (before !== null) await withTimeout(flushTelemetry(before).catch(() => undefined), SIGN_OUT_DELETE_WAIT_MS);
     await authClient.signOut();
     const db = databaseRef.current;
     const name = db?.name ?? (userRef.current === null ? null : databaseName(userRef.current.id));
-    if (db !== null) await withTimeout(flushTelemetry(db).catch(() => undefined), SIGN_OUT_DELETE_WAIT_MS);
     configureTelemetry(null);
     db?.close();
     databaseRef.current = null;
