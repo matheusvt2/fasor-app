@@ -148,3 +148,24 @@ The server lane goes first because it closes the two High findings soonest and s
   - After wave 2 comes one integrated gate on main: `test:e2e:full` and the matrix, with the load line.
   - After that comes one integrated review, then the second hands-on security pass, then one fix batch if needed.
   - The deploy happens only on Matheus's word.
+
+## Wave gate, integrated review and deploy gate (2026-11-04)
+
+- **Wave gate on `76cbdb79`** (main after #237 to #240), run by the integrated QA agent under the host lock, `LOCKED_AFTER` 5 s:
+  - `pnpm verify`: green, 1917 s. Load `{ 2.66 2.92 3.42 }` at the start and `{ 2.96 3.24 3.81 }` at the end; nothing else ran on the host. test:api 809 passed and 3 skipped, test:unit 5020, `@p0` 339 of 339.
+  - `test:e2e:full`: 559 of 563, 4 skipped, 0 failed, 0 flaky, 2649 s. Load went from 3.29 to 5.74, because the e20f batch stack started mid-run.
+  - `test:e2e:matrix`: 124 of 138, 14 skipped (touch-only or WebKit), 0 failed, 771 s, load up to 11.51.
+- **Integrated review and second security pass:** `_bmad-output/test-artifacts/review-e20-integrated-2026-11-04.md`.
+  - S1, S3, S6, S7 and S8 are closed.
+  - S2, S4 and S5 were partly closed.
+  - Four Medium static findings and six Low or Info items went to fix batch e20f, PR #241, merged as `df65be05`.
+  - Left for Matheus: an expired session keeps its database (AD-9); a colleague's conclusion put back after a reopen; the cost of the 400-a-day reading quota against the USD 100 ceiling.
+- **`test:e2e:full` on `df65be05`**, under the lock, `LOCKED_AFTER` 0 s. Load `{ 3.87 3.59 3.55 }` at the start and `{ 3.45 3.91 4.03 }` at the end; the main stack only.
+  - Result: 564 of 569, 4 skipped, 1 failed.
+  - The failure was `review-layout-copy-3.spec.ts` F-15 (`@p1`). It is explained: the test put certificate ids naming no file, which the e20f reference check refuses. It is fixed in PR #242 by creating the files.
+- **Deploy gate on `0d0a2908`** (PR #242: the F-15 fix and `RELATORIO_MAX_BYTES` 4 MiB on Matheus's word), under the lock, `LOCKED_AFTER` 0 s. Load `{ 3.33 3.81 3.99 }` at the start and `{ 6.76 5.59 5.33 }` at the end; the main stack only.
+  - lint 0, static 0.
+  - test:api: 824 passed and 3 skipped.
+  - test:unit: 5060.
+  - `test:e2e:full`: 565 of 569, 4 skipped, 0 failed, 0 flaky, 2490 s.
+  - The commit after it changes only this record.
