@@ -447,11 +447,16 @@ test('@p0 20.2-E2E-001 Home searches by client and obra: past the page size, Emi
   // Em campo service start makes the last one the current card.
   const others = [0, 1].map((i) => relatorioCreateOp(user, undefined, otherId, { status: 'rascunho', local: `Outro ${i}` }));
   const drafts = Array.from({ length: 8 }, (_, i) => relatorioCreateOp(user, undefined, portoId, { status: 'rascunho', local: `Rascunho ${i}` }));
-  const issued = [0, 1].map((i) => relatorioCreateOp(user, undefined, portoId, { status: 'emitido', local: `Emitido ${i}` }));
-  const fieldOld = relatorioCreateOp(user, undefined, portoId, { status: 'em_campo', local: 'Campo antigo', serviceStart: '2026-09-01' });
-  const fieldNew = relatorioCreateOp(user, undefined, portoId, { status: 'em_campo', local: 'Campo novo', serviceStart: '2026-10-01' });
-  await seedOutbox(page, database, [portoClient, portoProject, otherClient, otherProject, ...others, ...drafts, ...issued, fieldOld, fieldNew]);
+  // Stories 20.7 to 20.10 (contract 29): a client's relatório is born Rascunho, so the Emitido and
+  // Em campo ones are seeded as the server holds them, from another device of the user, after the rest.
+  const office = { ...user, deviceId: `${user.deviceId}-office` };
+  const issued = [0, 1].map((i) => relatorioCreateOp(office, undefined, portoId, { status: 'emitido', local: `Emitido ${i}` }));
+  const fieldOld = relatorioCreateOp(office, undefined, portoId, { status: 'em_campo', local: 'Campo antigo', serviceStart: '2026-09-01' });
+  const fieldNew = relatorioCreateOp(office, undefined, portoId, { status: 'em_campo', local: 'Campo novo', serviceStart: '2026-10-01' });
+  await seedOutbox(page, database, [portoClient, portoProject, otherClient, otherProject, ...others, ...drafts]);
   await page.reload();
+  await syncNow(page);
+  await applyAsServer(account.companyId, [...issued, fieldOld, fieldNew]);
   await syncNow(page);
   await page.getByRole('button', { name: 'Voltar' }).click();
 
