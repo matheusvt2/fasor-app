@@ -8,7 +8,7 @@ import { sheetOrder } from '../relatorio/ficha.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
-import { EMPTY_SECTION_NOTE, layoutSpec } from './layout.ts';
+import { EMPTY_SECTION_NOTE, layoutSpec, photosWithSheetsNote } from './layout.ts';
 import { captionSentence, PHOTO_UNAVAILABLE_TEXT, section7Layout, section7Photos } from './section-7.ts';
 
 /*
@@ -95,6 +95,19 @@ describe('7.2-UNIT-001 section 7 layout', () => {
     expect(section7Layout({ ...base, files: [photo(base, { removed_at: '2026-09-06T19:00:00.000Z' })] }, heading)).toBeNull();
     const layout = layoutSpec(base, { revisionNumber: 1, issuedAt: '2026-09-23T12:00:00.000Z' });
     expect(layout.sections.find((s) => s.number === 7)).toEqual({ number: 7, title: heading.title, kind: 'empty', note: EMPTY_SECTION_NOTE });
+  });
+
+  it('2026-11-04: with only sheet photos, the empty section 7 says they print with their equipment, naming the tests section as printed', () => {
+    const s1 = photo(base, { block_id: chave.id });
+    const n1 = photo(base, { block_id: chave.id, item_key: 'contatos' });
+    const snapshot = { ...base, blocks: base.blocks.map((block) => (block.id === chave.id ? ncChave : block)), files: [s1, n1] };
+    const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: '2026-09-23T12:00:00.000Z' });
+    const tests = layout.sections.find((s) => s.kind === 'sheets')!;
+    expect(photosWithSheetsNote(tests.number)).toBe(`As fotos de cada equipamento estão junto dele, na seção ${tests.number}.`);
+    expect(layout.sections.find((s) => s.number === 7)).toEqual({ number: 7, title: heading.title, kind: 'empty', note: photosWithSheetsNote(tests.number) });
+    // A removed sheet photo leaves nothing to point at: the plain note again.
+    const gone = layoutSpec({ ...snapshot, files: [{ ...s1, removed_at: '2026-09-06T19:00:00.000Z' }] }, { revisionNumber: 1, issuedAt: '2026-09-23T12:00:00.000Z' });
+    expect(gone.sections.find((s) => s.number === 7)).toMatchObject({ kind: 'empty', note: EMPTY_SECTION_NOTE });
   });
 
   it('carries the heading it is given and the authored placeholder the renderer prints without bytes', () => {

@@ -13,6 +13,7 @@ import { isOptionalSectionVariable, resolveSectionText } from '../templates/sect
 import { documentControlRows, MISSING, REVISION_ROW_LABEL, type DocumentControlRow } from './document-control.ts';
 import { section10Layout, type LayoutSection10 } from './section-10.ts';
 import { section11Layout, type LayoutSectionCertificates } from './section-11.ts';
+import { numberPhotos } from '../photos/numbering.ts';
 import { section7Layout, type LayoutSectionPhotos } from './section-7.ts';
 import { section8Layout, type LayoutSectionPoints } from './section-8.ts';
 import { section9Layout, type LayoutSectionSheets } from './section-9.ts';
@@ -39,6 +40,16 @@ import { section9Layout, type LayoutSectionSheets } from './section-9.ts';
 
 /** What sections 7, 8, 9 and 11 print under their heading until Epics 6 and 7 fill them. */
 export const EMPTY_SECTION_NOTE = '(sem conteúdo nesta revisão)';
+
+/**
+ * 2026-11-04 (Matheus, approved for Bruno): what the REGISTRO FOTOGRÁFICO (section 7) prints in
+ * place of `EMPTY_SECTION_NOTE` when it holds no "Geral" photo while the relatório's photos all
+ * print with their sheets and locals in the tests section, named by its printed number.
+ */
+// authored: Amelia's wording, approved by Matheus on 2026-11-04; Bruno reads it next.
+export function photosWithSheetsNote(testsSectionNumber: number): string {
+  return `As fotos de cada equipamento estão junto dele, na seção ${testsSectionNumber}.`;
+}
 
 /** The title of the table of contents page, verbatim from FO.SERV-03. */
 export const TOC_TITLE = 'ÍNDICE';
@@ -83,7 +94,7 @@ export const DRAFT_WATERMARK = 'RASCUNHO';
 
 /** Stories 7.2/7.3: the sections built by their own module; a null return prints the empty note. */
 const SECTION_BUILDERS: Readonly<Partial<Record<number, (snapshot: RelatorioSnapshot, heading: { number: number; title: string }) => LayoutSection | null>>> = {
-  7: section7Layout,
+  // Section 7 is built in `layoutSpec` itself (2026-11-04: its empty note names the tests section).
   8: section8Layout,
   11: section11Layout,
 };
@@ -220,9 +231,19 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
     return resolved.unresolved.some(isOptionalSectionVariable) ? [] : [{ label: row.label, value: resolved.resolved }];
   });
 
+  const printed = printedSections(snapshot);
+  // Story 20.3: the points section (FO.SERV-03 section 8) starts a page when it prints after
+  // the tests section (9), as on a relatório created since then, whatever it holds; before
+  // the tests (FO.SERV-03 order, every older relatório) it runs on as it always did.
+  const testsAt = printed.findIndex((entry) => entry.section === 9);
+  // 2026-11-04: with no "Geral" photo, every numbered photo prints under its sheet or local in
+  // the tests section, so an empty section 7 says where they are when that section prints.
+  const photosNote = testsAt >= 0 && numberPhotos(snapshot).size > 0 ? photosWithSheetsNote(testsAt + 1) : EMPTY_SECTION_NOTE;
+
   const buildSection = (section: number, ownText: string | null, index: number): LayoutSection => {
     const number = index + 1;
     const title = seed.section_titles[String(section)] ?? '';
+    if (section === 7) return section7Layout(snapshot, { number, title }) ?? { number, title, kind: 'empty', note: photosNote };
     // Story 7.1: section 9 prints the equipment sheets (`print/section-9.ts`), else its note.
     if (section === 9) return section9Layout(snapshot, number, title) ?? { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
     const build = SECTION_BUILDERS[section];
@@ -237,11 +258,6 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
     return { number, title, kind: 'text', paragraphs };
   };
 
-  const printed = printedSections(snapshot);
-  // Story 20.3: the points section (FO.SERV-03 section 8) starts a page when it prints after
-  // the tests section (9), as on a relatório created since then, whatever it holds; before
-  // the tests (FO.SERV-03 order, every older relatório) it runs on as it always did.
-  const testsAt = printed.findIndex((entry) => entry.section === 9);
   const sections: LayoutSection[] = printed.map(({ section, ownText }, index) => {
     const built = buildSection(section, ownText, index);
     return section === 8 && testsAt >= 0 && testsAt < index && (built.kind === 'points' || built.kind === 'empty') ? { ...built, startsPage: true as const } : built;

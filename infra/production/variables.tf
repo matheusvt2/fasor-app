@@ -105,10 +105,12 @@ variable "enable_ocr_service" {
   }
 }
 
+# 2026-11-04 (Matheus, for Bruno: field work runs through the night): the default is false, so
+# the instance stays up 24 h; true brings the night stop back.
 variable "enable_night_schedule" {
-  description = "Stops the instance at 00:00 and the database at 00:05, starts the database at 04:40 and the instance at 05:00, America/Sao_Paulo."
+  description = "Stops the instance at 00:00 and starts it at 05:00, America/Sao_Paulo (the database is always on since 2026-10-05). Off since 2026-11-04."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_cloudfront_fallback" {

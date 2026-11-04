@@ -5,6 +5,8 @@
 # 2026-10-05 (Matheus): the database is no longer stopped at night. Its 04:40 start failed
 # three mornings out of five with InsufficientDBInstanceCapacity, leaving production down
 # all day, for a saving of about USD 2 per month.
+# 2026-11-04 (Matheus): off by default (`enable_night_schedule = false`); Bruno has field
+# work at night, so the app stays up 24 h, for about USD 5.72 more a month.
 locals {
   night_actions = {
     stop-instance = {

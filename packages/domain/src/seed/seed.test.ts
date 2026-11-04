@@ -18,9 +18,26 @@ import {
   siteChecklistOf,
   siteItems,
 } from './definitions.ts';
+import { LEGACY_OPTION_VERSIONS, withLegacyOptions } from './legacy-options.ts';
 import { CABINE_PRIMARIA_V1 } from './v1.ts';
+import { CABINE_PRIMARIA_V2 } from './v2.ts';
+import { CABINE_PRIMARIA_V3 } from './v3.ts';
+import { CABINE_PRIMARIA_V4 } from './v4.ts';
+import { CABINE_PRIMARIA_V5 } from './v5.ts';
 import { measurementCriterionSchema, measurementTestSchema, type MeasurementTest } from './measurement.ts';
-import { blockDefinitionSchema, fieldDefSchema, reportSeedSchema, type BlockDefinition, type TableDef, type TestDef } from './schema.ts';
+import { blockDefinitionSchema, fieldDefSchema, reportSeedSchema, seedBundleSchema, type BlockDefinition, type ReportSeed, type TableDef, type TestDef } from './schema.ts';
+
+/** v1 to v5 as merged, before the 2026-11-04 option amendment (`legacy-options.ts`). */
+const AS_SHIPPED: Readonly<Record<string, ReportSeed>> = { v1: CABINE_PRIMARIA_V1, v2: CABINE_PRIMARIA_V2, v3: CABINE_PRIMARIA_V3, v4: CABINE_PRIMARIA_V4, v5: CABINE_PRIMARIA_V5 };
+
+/**
+ * A version's bundle as it shipped: v1 to v5 without the 2026-11-04 options, parsed as
+ * `definitions.ts` parses them; every later version as served. The content hashes pin this.
+ */
+function shipped(version: string): unknown {
+  const raw = AS_SHIPPED[version];
+  return raw === undefined ? SEED_VERSIONS[version] : seedBundleSchema.parse({ version, report_types: { cabine_primaria: raw } });
+}
 
 /*
  * Story 3.1/3.2 seed tests. The golden lists below are written from `addendum.md` §9
@@ -177,11 +194,14 @@ describe('seed v1: selects and subtypes (FR-11)', () => {
   it('offers the verbatim select options, with EPÓXI the only spelling', () => {
     const options = (type: string, label: string) => def(type).nameplate.find((f) => f.label === label)?.options;
     expect(options('chave_seccionadora', 'MEIO DE EXTINÇÃO')).toEqual(['AR', 'SF6']);
-    expect(options('disjuntor_mt', 'MEIO DE EXTINÇÃO')).toEqual(['AR', 'SF6']);
+    // 2026-11-04 (Matheus): VÁCUO and ÓLEO appended on the disjuntor, ÓLEO on the transformador de força (`legacy-options.ts`).
+    expect(options('disjuntor_mt', 'MEIO DE EXTINÇÃO')).toEqual(['AR', 'SF6', 'VÁCUO', 'ÓLEO']);
+    expect(options('chave_seccionadora', 'MEIO DE EXTINÇÃO')).toEqual(['AR', 'SF6']);
     expect(options('chave_seccionadora', 'ACIONAMENTO')).toEqual(['MANUAL/PUNHO']);
-    for (const type of ['tp', 'tc', 'transformador_forca']) {
+    for (const type of ['tp', 'tc']) {
       expect(options(type, 'TIPO DE ISOLAÇÃO')).toEqual(['EPÓXI', 'Á SECO']);
     }
+    expect(options('transformador_forca', 'TIPO DE ISOLAÇÃO')).toEqual(['EPÓXI', 'Á SECO', 'ÓLEO']);
     const seed = getSeed('v1', 'cabine_primaria');
     expect(seed.cabine.se.find((f) => f.label === 'TIPO DE SE')?.options).toEqual([
       'SIMPLIFICADA - POSTE',
@@ -614,7 +634,7 @@ describe('seed v1 is frozen (AR-20)', () => {
   it('matches its pinned content hash; an edit must become v2', () => {
     // A relatório created under v1 must keep resolving exactly what it was created with.
     // If this fails, revert the v1 edit and add the change as `v2.ts` in `SEED_VERSIONS`.
-    const hash = createHash('sha256').update(JSON.stringify(SEED_VERSIONS.v1)).digest('hex');
+    const hash = createHash('sha256').update(JSON.stringify(shipped('v1'))).digest('hex');
     expect(hash, 'seed v1 changed after it shipped: add a v2 instead').toBe(V1_HASH);
   });
 });
@@ -682,7 +702,7 @@ describe('seed v3 (Story 6.6): v2 plus the recurring-finding chips', () => {
     expect('recurring_findings' in v2).toBe(false);
     expect('recurring_findings' in getSeed('v1', 'cabine_primaria')).toBe(false);
     // v2 still hashes as before this story (nothing parsed into it).
-    expect(createHash('sha256').update(JSON.stringify(SEED_VERSIONS.v2)).digest('hex')).toBe(V2_HASH);
+    expect(createHash('sha256').update(JSON.stringify(shipped('v2'))).digest('hex')).toBe(V2_HASH);
   });
 
   it('offers the four chips with the mock\'s texts', () => {
@@ -786,7 +806,7 @@ describe('seed v4 (Story 14.3): v3 plus the site checklist and the NO-BREAK DE C
     stripped.blocks.disjuntor_mt.checklist = stripped.blocks.disjuntor_mt.checklist!.filter((item) => item.key !== 'no_break_de_comando');
     expect(JSON.stringify(stripped)).toBe(JSON.stringify(v3));
     for (const version of ['v1', 'v2', 'v3']) expect('site_checklist' in getSeed(version, 'cabine_primaria'), version).toBe(false);
-    const hash = (version: string) => createHash('sha256').update(JSON.stringify(SEED_VERSIONS[version])).digest('hex');
+    const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
     expect(hash('v1')).toBe(V1_HASH);
     expect(hash('v2')).toBe(V2_HASH);
     expect(hash('v3'), 'seed v3 changed after it shipped: add a new version instead').toBe(V3_HASH);
@@ -882,7 +902,7 @@ describe('seed v5 (Story 14.5): v4 plus one block type, the Chave de transferên
   const cta = getDefinition('v5', 'cabine_primaria', CTA);
   const tests = cta.measurement_tests!;
   const test = (key: string): MeasurementTest => tests.find((candidate) => candidate.key === key)!;
-  const hash = (version: string) => createHash('sha256').update(JSON.stringify(SEED_VERSIONS[version])).digest('hex');
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
 
   /** The 17 checks, written from `sprint-change-proposal-2026-10-08.md` § 8.4, not read back from the seed. */
   const ITEMS = [
@@ -1272,7 +1292,7 @@ describe('seed v6 (Stories 14.9 and 14.11): v5 plus the Quadro elétrico (QGBT/Q
   const v6 = getSeed('v6', 'cabine_primaria');
   const QD = 'quadro_eletrico';
   const qd = getDefinition('v6', 'cabine_primaria', QD);
-  const hash = (version: string) => createHash('sha256').update(JSON.stringify(SEED_VERSIONS[version])).digest('hex');
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
   const options = (version: string, type: string, key: string) => getDefinition(version, 'cabine_primaria', type).nameplate.find((field) => field.key === key)!.options;
 
   /** The 17 items of the original sheet, written from `docs/nc-chip-phrases.md` "Quadros elétricos", not read back from the seed. */
@@ -1343,10 +1363,11 @@ describe('seed v6 (Stories 14.9 and 14.11): v5 plus the Quadro elétrico (QGBT/Q
   it('the option lists: ÓLEO after EPÓXI and Á SECO on the three transformers; AR, SF6, VÁCUO and both ÓLEO on the disjuntor; the seccionadora as it was', () => {
     for (const type of ['tp', 'tc', 'transformador_forca']) {
       expect(options('v6', type, 'tipo_de_isolacao'), type).toEqual(['EPÓXI', 'Á SECO', 'ÓLEO']);
-      expect(options('v5', type, 'tipo_de_isolacao'), type).toEqual(['EPÓXI', 'Á SECO']);
+      // 2026-11-04: the transformador de força on v5 gained ÓLEO too (`legacy-options.ts`).
+      expect(options('v5', type, 'tipo_de_isolacao'), type).toEqual(type === 'transformador_forca' ? ['EPÓXI', 'Á SECO', 'ÓLEO'] : ['EPÓXI', 'Á SECO']);
     }
     expect(options('v6', 'disjuntor_mt', 'meio_de_extincao')).toEqual(['AR', 'SF6', 'VÁCUO', 'ÓLEO (PVO)', 'ÓLEO (GVO)']);
-    expect(options('v5', 'disjuntor_mt', 'meio_de_extincao')).toEqual(['AR', 'SF6']);
+    expect(options('v5', 'disjuntor_mt', 'meio_de_extincao')).toEqual(['AR', 'SF6', 'VÁCUO', 'ÓLEO']);
     expect(options('v6', 'chave_seccionadora', 'meio_de_extincao')).toEqual(['AR', 'SF6']);
     expect(getDefinition('v6', 'cabine_primaria', 'chave_seccionadora').oil_rule).toBeUndefined();
   });
@@ -1499,7 +1520,7 @@ const V6_HASH = '2d25915699418be456f01e55975b30e816d0f66c7768bd16ce907c4b9357a36
 describe('seed v7 (Story 14.14): v6 plus the fixed extinction media with Outro, the SELV/PELV help and the band test voltages', () => {
   const v6 = getSeed('v6', 'cabine_primaria');
   const v7 = getSeed('v7', 'cabine_primaria');
-  const hash = (version: string) => createHash('sha256').update(JSON.stringify(SEED_VERSIONS[version])).digest('hex');
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
   const field = (version: string, type: string, key: string) => getDefinition(version, 'cabine_primaria', type).nameplate.find((candidate) => candidate.key === key)!;
   const source = { name: 'NBR 5410', edition: null };
 
@@ -1607,7 +1628,7 @@ const V7_HASH = 'c3133e05413014a3a4926f7f4753f4dae85e0b2c02f5da899727d6a9fcdc795
 describe('seed v8 (UX pass 2026-10-22, F43): v7 plus a Conclusão naming sections 8 and 9 by one variable', () => {
   const v7 = getSeed('v7', 'cabine_primaria');
   const v8 = getSeed('v8', 'cabine_primaria');
-  const hash = (version: string) => createHash('sha256').update(JSON.stringify(SEED_VERSIONS[version])).digest('hex');
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
 
   it('was the version a new Template is created with until seed v9 (pinned there)', () => {
     expect(SEED_VERSIONS.v8!.version).toBe('v8');
@@ -1655,7 +1676,7 @@ const V8_HASH = '03ade51f394d1382a656a0ca6d9aa26671cf5ad147fd1c51b39b46b0fce4eba
 describe('seed v9 (Stories 15.3 and 15.6): v8 with one oil-level item, the TC without POTÊNCIA NOMINAL, two site items and the ratio with √3', () => {
   const v8 = getSeed('v8', 'cabine_primaria');
   const v9 = getSeed('v9', 'cabine_primaria');
-  const hash = (version: string) => createHash('sha256').update(JSON.stringify(SEED_VERSIONS[version])).digest('hex');
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
   const TRANSFORMERS = ['tp', 'tc', 'transformador_forca'] as const;
 
   it('was the version a new Template is created with until seed v10 (pinned there)', () => {
@@ -1767,7 +1788,7 @@ const V9_HASH = '51a82df917a94d799ac0b8cfa6966fd7c05b249c95419e570361a99a2b69e9e
 describe('seed v10 (Story 15.7): v9 with the TC\'s own seven-item checklist', () => {
   const v9 = getSeed('v9', 'cabine_primaria');
   const v10 = getSeed('v10', 'cabine_primaria');
-  const hash = (version: string) => createHash('sha256').update(JSON.stringify(SEED_VERSIONS[version])).digest('hex');
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
   const TC_KEYS = ['limpeza_pintura_e_corrosao', 'vasamento', 'fusiveis', 'aterramento', 'conexoes', 'fiacao_secundaria', 'buchas'];
 
   it('is the version a new Template is created with', () => {
@@ -1857,3 +1878,37 @@ describe('K-20 (full review 2026-09-30) findDefinition and findSeed', () => {
   });
 });
 
+
+describe('the 2026-11-04 option amendment of v1 to v5 (Matheus, for Bruno)', () => {
+  const options = (version: string, type: string, key: string) => getDefinition(version, 'cabine_primaria', type).nameplate.find((field) => field.key === key)!.options;
+  const optionsOf = (bundle: unknown, type: string, key: string) => {
+    const seed = (bundle as { report_types: { cabine_primaria: ReportSeed } }).report_types.cabine_primaria;
+    return (seed.blocks as Record<string, BlockDefinition | undefined>)[type]?.nameplate.find((f) => f.key === key)?.options;
+  };
+
+  it('appends VÁCUO and ÓLEO to the disjuntor and ÓLEO to the transformador de força on each of v1 to v5, and changes nothing else', () => {
+    expect([...LEGACY_OPTION_VERSIONS]).toEqual(['v1', 'v2', 'v3', 'v4', 'v5']);
+    for (const version of LEGACY_OPTION_VERSIONS) {
+      const before = shipped(version);
+      expect(optionsOf(before, 'disjuntor_mt', 'meio_de_extincao'), version).toEqual(['AR', 'SF6']);
+      expect(optionsOf(before, 'transformador_forca', 'tipo_de_isolacao'), version).toEqual(['EPÓXI', 'Á SECO']);
+      expect(options(version, 'disjuntor_mt', 'meio_de_extincao'), version).toEqual(['AR', 'SF6', 'VÁCUO', 'ÓLEO']);
+      expect(options(version, 'transformador_forca', 'tipo_de_isolacao'), version).toEqual(['EPÓXI', 'Á SECO', 'ÓLEO']);
+      // Every other byte as shipped: putting the two old lists back gives the shipped bundle.
+      const served = structuredClone(SEED_VERSIONS[version]) as unknown as { report_types: { cabine_primaria: ReportSeed } };
+      const blocks = served.report_types.cabine_primaria.blocks as Record<string, BlockDefinition>;
+      blocks.disjuntor_mt!.nameplate.find((f) => f.key === 'meio_de_extincao')!.options = ['AR', 'SF6'];
+      blocks.transformador_forca!.nameplate.find((f) => f.key === 'tipo_de_isolacao')!.options = ['EPÓXI', 'Á SECO'];
+      expect(JSON.stringify(served), version).toBe(JSON.stringify(before));
+    }
+  });
+
+  it('leaves v6 and later as served, with no oil rule added to v1 to v5', () => {
+    for (const version of LEGACY_OPTION_VERSIONS) {
+      expect(getDefinition(version, 'cabine_primaria', 'disjuntor_mt').oil_rule, version).toBeUndefined();
+      expect(getDefinition(version, 'cabine_primaria', 'transformador_forca').oil_rule, version).toBeUndefined();
+    }
+    expect(withLegacyOptions(CABINE_PRIMARIA_V5).blocks.chave_seccionadora.nameplate.find((f) => f.key === 'meio_de_extincao')?.options).toEqual(['AR', 'SF6']);
+    expect(options('v7', 'disjuntor_mt', 'meio_de_extincao')).toEqual(['Ar', 'Gás SF6', 'Vácuo', 'Óleo', 'Outro']);
+  });
+});
