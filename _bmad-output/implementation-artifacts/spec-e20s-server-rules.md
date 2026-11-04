@@ -2,10 +2,10 @@
 title: 'Stories 20.7 to 20.10: the server enforces the business rules of every op (contract 29)'
 type: 'feature'
 created: '2026-11-03'
-status: 'in-review'
+status: 'done'
 baseline_revision: '71ede5af83dadfe0ad823dc2cb7c54303d3b9337'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: max
 context:
@@ -164,3 +164,14 @@ deferred:
 - `pnpm test:unit` -- green, including the new kernel and guard tests.
 - `pnpm test:api` -- green, including the four new integration files, `replay`, `merge`, `panel-retarget` (restart the api container first).
 - `pnpm exec tsx scripts/e2e.ts e2e/security-ops.spec.ts <touched specs> --project desktop-chrome --project durability-desktop-chrome` under the host lock; the touched status durability specs on the matrix projects.
+
+## Auto Run Result
+
+Status: done (2026-11-04).
+
+- **Summary:** contract 29 and the six codes (`f1a2d006`); kernel rules `statusMoveVerdict`/`statusSeen` (`status/table.ts`), `ops/attribution.ts`, `ops/value-limits.ts`, `ops/targets.ts`, `opRejectReasonText` and `charCountText` (`sync/counts.ts`); the server calls them in `validate` and in `applyOneIn` through `apps/api/src/sync/rules.ts` (refusals op-alone, never rolling back a client batch); `POST /api/sync/ops` caps the body at 4 MiB and the device splits pushes by bytes; the web inputs carry the kernel caps and a counter; Sync status shows each refusal's sentence; AD-11, AD-22, AD-24, source-deltas and the KB updated; `e2e/security-ops.spec.ts` (`@p0`, serial) and four new api integration suites.
+- **Files:** see `git diff 71ede5af..HEAD --stat` (about 100 files: kernel rules and tests, `apps/api/src/sync/{apply,rules,edited-after,routes}.ts` and suites, the capped web inputs, `policy.ts`/`engine.ts`, test seeds moved to server ops or valid paths, docs).
+- **Review:** 15 findings (high 1, medium 8, low 5, maybe-false 1). Patched 10 (1 high, 7 medium, 2 low) in one loop (`30e7e3dd`, `f638e517`); deferred 2 (slow-clock resend, copies of over-cap stored values); rejected 3 (one root cause: a resend refused by a stateless check before the dedupe, reachable only across the deploy with a pre-29 over-cap value and a lost answer).
+- **Follow-up review recommended:** true. The patched high (VG-3, the basis of a status op whose `prev_op_id` names an unlogged op) and the value-reference check (ECH-7) were patched after the review and only re-tested, not re-reviewed; the integrated epic review should read them first.
+- **Verification:** story gate on the merge `845a82ef` (e20w and e20d merged in): lint, static, api 790 (3 skipped), unit 5000, e2e 353/357 (3 skipped, 1 red: e20d's 14.2-E2E-005 seeded a reference to an unsynced local, fixed in `359c55ac`), matrix 26/27 (1 skipped). Follow-up on `359c55ac`: lint, static, and 99/99 over local-painel-coluna and 23 other draft-pushing specs.
+- **Residual risks:** production's Caddy relaying the early 413 unchecked; the production count of over-cap stored values not run (query in the PR body); undo of "Voltar para Em campo" refused when the Em revisão it restores was edited since its revision.
