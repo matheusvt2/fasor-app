@@ -227,10 +227,11 @@ async function sheetChildren(sheet: PrintSheet, photos: ReadonlyMap<string, Buff
 /**
  * The parts of a sheet, or of a local (Story 14.4), in order: a paragraph, or a table or
  * photo rows followed by the gap when another part follows. Story 20.6 follow-up
- * (2026-11-04): the last part takes no gap. What follows a sheet or a local is always a
- * paragraph (the next title bar, a Heading 2, a painel band, a Heading 1), so Word never
- * joins that table to another; and a trailing empty paragraph after photo rows that end at
- * the page foot spilled onto a page of its own before the next ficha's page break.
+ * (2026-11-04): the last part takes no gap. What follows a sheet or a local is a paragraph
+ * (the next title bar, a Heading 2, a painel band, a Heading 1) or, when the tests section
+ * was moved to the end of a relatório without sections 10 and 11, the document's end, so
+ * Word never joins that table to another; and a trailing empty paragraph after photo rows
+ * that end at the page foot spilled onto a page of its own before the next ficha's page break.
  */
 async function partsChildren(parts: readonly SheetPart[], photos: ReadonlyMap<string, Buffer>): Promise<(Paragraph | Table)[]> {
   const out: (Paragraph | Table)[] = [];

@@ -66,6 +66,9 @@ export function lastPageOf(pages: readonly (readonly string[])[], match: (text: 
  * the header and footer, `chrome` being their lines (the DOCX's `header` and `footer` of
  * `extractStructure`; an item that is part of one, a wrapped line, counts as chrome) and
  * "Página N de M" its page line. A blank page left by an empty paragraph is one of them.
+ * It reads text only: a page whose content is an image with no text (a certificate page of
+ * section 11 after its first) is reported too, so a caller whose PDF holds such pages
+ * excludes them.
  */
 export function footerOnlyPages(pages: readonly (readonly string[])[], chrome: readonly string[]): number[] {
   const lines = chrome.map((line) => line.trim()).filter((line) => line !== '' && !line.includes('{PAGE}'));

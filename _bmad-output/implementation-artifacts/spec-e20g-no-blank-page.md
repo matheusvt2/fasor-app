@@ -2,7 +2,7 @@
 title: 'Batch e20g: Story 20.6 follow-up, no blank page after a ficha whose photos end at the page foot; Caddy edge headers'
 type: 'bugfix'
 created: '2026-11-04'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'd6e8eea1718e90a2fd2cd14f54bcdbdd4091ffb6'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-20-context.md'
 warnings: ['batched', 'multiple-goals']
 batched_because: 'A small fix batch from the 2026-11-04 field reproduction: the blank-page defect in section 9 and one cosmetic Caddyfile item from the production pass ride one PR to save a gate.'
-deferred: []
+deferred:
+  - summary: >-
+      No automated check sends a request through each production Caddy site block to a live upstream and asserts the edge headers (no Via, no Server, HSTS).
+    evidence: |-
+      infra/bin/check runs caddy validate and the fallback block's status codes with no upstream (--network none), so a proxied answer never happens; the production smoke asserts no header. The e20g proof is manual: the domain block and the CloudFront fallback block were curled through a throwaway caddy:2.11.4-alpine against the batch api; the IP block (shortlived ACME certificate) was not, its header block being identical. Closing it means a stub upstream on 127.0.0.1:3000 in infra/bin/check and a header assertion per block.
+    location: >-
+      infra/bin/check
+    severity: low
 ---
 
 <intent-contract>
@@ -84,6 +91,19 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-04 — Review pass
+- Layers: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 8 findings — high 0, medium 0, low 5, false 3, maybe-false 0
+- findings:
+  - `[low]` `[reject]` ECH-1 section-9.ts: with the tests section moved last and sections 10 and 11 removed (reachable: section blocks move and are removed, `layout.test.ts` L284), the body now ends in a table — Word and LibreOffice add their own end paragraph; at worst a blank last page, only on that rare arrangement; a guard in `buildDocx` adds a branch for a state no one prints in everyday use.
+  - `[low]` `[patch]` ECH-2 section-9.ts `partsChildren` comment claims a paragraph always follows — comment corrected to name the document's end (applied by the orchestrator).
+  - `[low]` `[patch]` ECH-3 e2e/support/pdf-text.ts `footerOnlyPages` reads text only, so an image-only page (a section 11 certificate page after its first) counts as footer-only — the issued relatório of `document-pages.spec.ts` has no certificate image, so no false failure today; doc comment now says so (applied by the orchestrator).
+  - `[false]` `[reject]` ECH-4 page-placement case flags image-only pages — its layouts hold no image without a caption (every photo carries "Imagem N: ..."), so no page is image-only.
+  - `[false]` `[reject]` ECH-5 page-placement `itemOn(... companyLine).y` TypeErrors on an empty company line — the base layout's company line is "Fasor Engenharia" (fixture, `docx.test.ts` footer assertion); the throw is a loud failure, not a false pass.
+  - `[low]` `[reject]` ECH-6 docx.test.ts `bodyElements` loops on an unclosed tag — `document.xml` from `buildDocx` is well-formed; the 60 s test timeout fails it loudly.
+  - `[false]` `[reject]` ECH-7 CloudFront adds its own Via on the fallback path — the AC is Caddy's answer; CloudFront's own Via is outside the Caddyfile and noted in the PR.
+  - `[low]` `[defer]` VGR-1 no automated check of the edge headers per Caddy block, manual proof on one block — the orchestrator extended the manual proof to the CloudFront fallback block (`.scratch-e20g/probe-fallback.log`: 200, HSTS, no Server, no Via); the IP block cannot be served without its ACME certificate; harness work deferred (frontmatter `deferred`).
 
 ## Design Notes
 

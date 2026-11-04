@@ -2896,3 +2896,13 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   class: risk
   state: open (owner: Matheus)
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20g-no-blank-page.md`
+  summary: No automated check sends a request through each production Caddy site block to a live upstream and asserts the edge headers (no `Via`, no `Server`, HSTS); `infra/bin/check` validates the file and the fallback block's status codes only.
+  evidence: e20g review VGR-1. The proof of the `-Via` change is manual (domain and CloudFront fallback blocks through a throwaway `caddy:2.11.4-alpine`); the IP block needs its ACME certificate.
+  class: risk
+  state: open (owner: Matheus; a stub upstream on `127.0.0.1:3000` in `infra/bin/check` closes it)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20g-no-blank-page.md`
+  summary: The plain-HTTP redirect still sends `Server: Caddy`; removing it means replacing Caddy's implicit `:80` redirect with explicit `http://` site blocks on the port that also answers the HTTP-01 challenges of both certificates, which cannot be proven without an ACME server.
+  evidence: e20g Design Notes; `.scratch-e20g` probe of the redirect.
+  class: note
+  state: open (owner: Matheus, cosmetic)
