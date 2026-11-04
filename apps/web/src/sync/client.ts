@@ -26,6 +26,7 @@ import {
   type AuditRequest,
   type AuditResponse,
 } from '@app/domain';
+import { learnServerClock, rawNowMs } from '../clock.ts';
 
 /** The part of a zod schema the client uses; apps/web does not depend on zod itself. */
 interface ResponseSchema<T> {
@@ -161,14 +162,41 @@ export async function fetchRevisionBlob(path: string, fetchImpl: FetchLike = (in
 
 /** The client over the browser's `fetch`; built here because only `src/sync` may call the network (AD-1). */
 export function createBrowserSyncClient(): SyncClient {
-  return createSyncClient({ fetch: (input, init) => fetch(input, init) });
+  return createSyncClient({ fetch: (input, init) => fetch(input, init), rawNowMs, onServerDate: learnServerClock });
 }
 
-export function createSyncClient(deps: { fetch: FetchLike }): SyncClient {
+/**
+ * e20f (2026-11-04): `rawNowMs` is the device's uncorrected clock, and `onServerDate` hears the
+ * `Date` header of every answer of `request` and `send` (2xx or not) with the raw instants the
+ * request left and its answer came back, so `clock.ts` learns the device's offset. Every `/api`
+ * answer is `no-store`, so no cached answer brings an old `Date`.
+ */
+export interface SyncClientDeps {
+  fetch: FetchLike;
+  rawNowMs?: () => number;
+  onServerDate?: (serverDate: string | null, sentAtMs: number, receivedAtMs: number) => void;
+}
+
+export function createSyncClient(deps: SyncClientDeps): SyncClient {
+  /** `deps.fetch`, timed on the raw clock, its `Date` header reported; a network failure reports nothing. */
+  async function timedFetch(input: string, init: RequestInit): Promise<Response> {
+    const sentAtMs = deps.rawNowMs?.() ?? 0;
+    const response = await deps.fetch(input, init);
+    if (deps.onServerDate !== undefined && deps.rawNowMs !== undefined) {
+      const receivedAtMs = deps.rawNowMs();
+      try {
+        deps.onServerDate(response.headers.get('date'), sentAtMs, receivedAtMs);
+      } catch {
+        // Learning the clock never fails a request.
+      }
+    }
+    return response;
+  }
+
   async function request<T>(route: SyncRoute, schema: ResponseSchema<T>, query?: string, body?: unknown): Promise<T> {
     let response: Response;
     try {
-      response = await deps.fetch(query ? `${route.path}?${query}` : route.path, {
+      response = await timedFetch(query ? `${route.path}?${query}` : route.path, {
         method: route.method,
         credentials: 'same-origin',
         headers: {
@@ -207,7 +235,7 @@ export function createSyncClient(deps: { fetch: FetchLike }): SyncClient {
   async function send(path: string, method: string, init: RequestInit): Promise<Response> {
     let response: Response;
     try {
-      response = await deps.fetch(path, {
+      response = await timedFetch(path, {
         ...init,
         method,
         credentials: 'same-origin',

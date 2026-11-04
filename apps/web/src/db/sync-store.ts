@@ -9,6 +9,7 @@ import {
   newRelatorioEquipmentReady,
   outboxBlockId,
   prunableOutboxRow,
+  restampOp,
   splitEntityKey,
   userFieldPath,
   userRowSchema,
@@ -157,11 +158,22 @@ export async function writeSyncState(db: AppDatabase, row: SyncStateRow): Promis
   await db.sync_state.put(row);
 }
 
-/** "Reenviar": every dead row back to pending, its effect re-materialized. Returns how many. */
-export async function resendDead(db: AppDatabase): Promise<number> {
+/**
+ * "Reenviar": every dead row back to pending, its effect re-materialized. Returns how many.
+ * e20f (2026-11-04): a row the server refused `op_attribution` was stamped by a wrong clock, and
+ * sending the same `client_ts` again would be refused again; it is stamped again first
+ * (`restampOp`) at `now` plus its place in commit order, in milliseconds, so the rows keep their
+ * order and the local fold sorts them last, as the server receives them last.
+ */
+export async function resendDead(db: AppDatabase, now: Date): Promise<number> {
   return db.transaction('rw', db.outbox, db.remote_ops, db.entities, async () => {
     const dead = await db.outbox.where('status').equals('dead').toArray();
     const refs = new Set<string>();
+    const misdated = dead.filter((row) => row.error_code === 'op_attribution').sort(byClientTsThenOpId);
+    for (const [i, row] of misdated.entries()) {
+      const again = restampOp(opOf(row), new Date(now.getTime() + i));
+      await db.outbox.update(row.op_id, { client_ts: again.client_ts, value: again.value, ...(again.meta === undefined ? {} : { meta: again.meta }) });
+    }
     for (const row of dead) {
       await db.outbox.update(row.op_id, { status: 'pending', error_code: null });
       for (const key of row.targets) refs.add(key);

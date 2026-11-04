@@ -6,7 +6,7 @@ import { opLog as replaySmallLog } from '../../fixtures/replay-small/op-log.ts';
 import { isoTimestampSchema } from '../clock.ts';
 import { actorIdSchema } from '../ids.ts';
 import { entityRowSchemas } from '../schemas/entities.ts';
-import { ATTRIBUTED_FIELDS, attributionIssue, CLOCK_SKEW_MS, historyClaimHolds, lowerBoundIssue, valuePointerOf } from './attribution.ts';
+import { ATTRIBUTED_FIELDS, attributionIssue, CLOCK_SKEW_MS, historyClaimHolds, lowerBoundIssue, restampOp, valuePointerOf } from './attribution.ts';
 import { opSchema, type Op } from './op.ts';
 import { parsePath } from './path.ts';
 
@@ -269,5 +269,86 @@ describe('lowerBoundIssue (Story 20.8)', () => {
     expect(lowerBoundIssue([minutes(-3 * 24 * 60 - 9)], created)).toBeNull();
     expect(lowerBoundIssue([minutes(-3 * 24 * 60 - 11)], created)).not.toBeNull();
     expect(lowerBoundIssue(['2020-01-01T00:00:00.000Z'], created)).not.toBeNull();
+  });
+});
+
+describe('restampOp (e20f)', () => {
+  const FAST = 30; // minutes the device's clock ran ahead
+  it('a fast clock: client_ts becomes now, removed_at and concluded_by.at shift with it, and the op then passes', () => {
+    const removed = op({ kind: 'put', path: `block/${BLOCK}/removed_at`, value: minutes(FAST), client_ts: minutes(FAST) });
+    expect(check(removed).ok).toBe(false);
+    const again = restampOp(removed, NOW);
+    expect(again.client_ts).toBe(NOW_ISO);
+    expect(again.value).toBe(NOW_ISO);
+    expect(check(again).ok).toBe(true);
+    // The input is not mutated.
+    expect(removed.client_ts).toBe(minutes(FAST));
+    expect(removed.value).toBe(minutes(FAST));
+
+    // concluded_by.at stamped a minute before client_ts by the same clock keeps its distance.
+    const concluded = op({ kind: 'put', path: `block/${BLOCK}/concluded_by`, value: { actor_id: ME, at: minutes(FAST - 1) }, client_ts: minutes(FAST) });
+    const restamped = restampOp(concluded, NOW);
+    expect(restamped.value).toEqual({ actor_id: ME, at: minutes(-1) });
+    expect(check(restamped).ok).toBe(true);
+  });
+
+  it('a colleague\'s edited_at hours earlier stays; the removal instants of the same clock shift', () => {
+    const restore = op({
+      kind: 'put',
+      path: `block/${BLOCK}/removed_at`,
+      value: minutes(FAST),
+      client_ts: minutes(FAST),
+      meta: { restore: { removed_by: ME, removal_conflict: { removed_by: ME, removed_at: minutes(FAST), edited_by: COLLEAGUE, edited_at: minutes(-180) } } },
+    });
+    const again = restampOp(restore, NOW);
+    expect(again.meta).toEqual({ restore: { removed_by: ME, removal_conflict: { removed_by: ME, removed_at: NOW_ISO, edited_by: COLLEAGUE, edited_at: minutes(-180) } } });
+    expect(again.value).toBe(NOW_ISO);
+  });
+
+  it('a slow clock (3 days behind) moves the stamps forward to now; a gallery photo\'s capture far from the stamp stays', () => {
+    const slow = -3 * 24 * 60;
+    const concluded = op({ kind: 'put', path: `block/${BLOCK}/concluded_by`, value: { actor_id: ME, at: minutes(slow) }, client_ts: minutes(slow) });
+    const again = restampOp(concluded, NOW);
+    expect(again.client_ts).toBe(NOW_ISO);
+    expect(again.value).toEqual({ actor_id: ME, at: NOW_ISO });
+    const result = attributionIssue(again, parsePath(again.path), NOW);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(lowerBoundIssue(result.pending.bounded, minutes(-5))).toBeNull();
+
+    const photo = op({
+      kind: 'create',
+      path: `file/${FILE}`,
+      client_ts: minutes(slow),
+      value: {
+        id: FILE,
+        company_id: COMPANY,
+        relatorio_id: RELATORIO,
+        sha256: 'a'.repeat(64),
+        mime: 'image/jpeg',
+        size: 10,
+        uploaded_at: null,
+        variants: null,
+        removed_at: null,
+        kind: 'photo',
+        captured_at: '2020-01-01T00:00:00.000Z',
+        tz_offset: -180,
+        coords: null,
+        local_seq: 1,
+        block_id: null,
+        item_key: null,
+        caption: null,
+        reading_kind: null,
+        reading_target: null,
+        reading_status: 'none',
+      },
+    });
+    expect((restampOp(photo, NOW).value as { captured_at: string }).captured_at).toBe('2020-01-01T00:00:00.000Z');
+  });
+
+  it('a forged instant beyond the server\'s bounds far from the stamp is capped at now, never trusted; exempt leaves stay', () => {
+    const forged = op({ kind: 'put', path: `block/${BLOCK}/removed_at`, value: '2099-01-01T00:00:00.000Z', client_ts: NOW_ISO });
+    expect(restampOp(forged, NOW).value).toBe(NOW_ISO);
+    const seen = op({ kind: 'put', path: `block/${BLOCK}/removed_at`, value: minutes(FAST), client_ts: minutes(FAST), meta: { seen_modified_at: minutes(FAST) } });
+    expect(restampOp(seen, NOW).meta).toEqual({ seen_modified_at: minutes(FAST) });
   });
 });

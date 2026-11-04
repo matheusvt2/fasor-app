@@ -149,3 +149,59 @@ describe('sync client failures', () => {
     expect(await failureOf(empty.pullCompany(0))).toEqual({ kind: 'http', status: 204, code: 'invalid_response' });
   });
 });
+
+describe('the server clock (e20f)', () => {
+  const DATE = 'Wed, 04 Nov 2026 07:49:09 GMT';
+  function clocked(respond: () => Response) {
+    let t = 1_000;
+    const heard: Array<[string | null, number, number]> = [];
+    const client = createSyncClient({
+      fetch: async () => {
+        t += 250;
+        return respond();
+      },
+      rawNowMs: () => t,
+      onServerDate: (date, sent, received) => heard.push([date, sent, received]),
+    });
+    return { client, heard };
+  }
+
+  it('reports the Date header of every answer, 2xx or not, with the raw send and receive instants', async () => {
+    const ok = clocked(() => new Response(JSON.stringify(contractExamples.pushResponse.valid), { status: 200, headers: { date: DATE } }));
+    await ok.client.pushOps(ops);
+    expect(ok.heard).toEqual([[DATE, 1_000, 1_250]]);
+
+    const refused = clocked(() => new Response(JSON.stringify({ code: 'not_caught_up', message: 'x' }), { status: 409, headers: { date: DATE } }));
+    await failureOf(refused.client.generate('r', { kind: 'issue' } as never));
+    expect(refused.heard).toEqual([[DATE, 1_000, 1_250]]);
+
+    const upload = clocked(() => new Response('{}', { status: 413, headers: { date: DATE } }));
+    await failureOf(upload.client.uploadFile('f', new Blob(['x']), 'a'.repeat(64)));
+    expect(upload.heard).toEqual([[DATE, 1_000, 1_250]]);
+
+    const bare = clocked(() => new Response(JSON.stringify(contractExamples.pullResponse.valid), { status: 200 }));
+    await bare.client.pullCompany(0);
+    expect(bare.heard).toEqual([[null, 1_000, 1_250]]);
+  });
+
+  it('a network failure reports nothing, and a listener that throws never fails the request', async () => {
+    const heard: unknown[] = [];
+    const offline = createSyncClient({
+      fetch: async () => {
+        throw new TypeError('offline');
+      },
+      rawNowMs: () => 0,
+      onServerDate: (...args) => heard.push(args),
+    });
+    expect(await failureOf(offline.pullCompany(0))).toEqual({ kind: 'network' });
+    expect(heard).toEqual([]);
+    const throwing = createSyncClient({
+      fetch: async () => json(contractExamples.pullResponse.valid),
+      rawNowMs: () => 0,
+      onServerDate: () => {
+        throw new Error('boom');
+      },
+    });
+    await expect(throwing.pullCompany(0)).resolves.toBeDefined();
+  });
+});

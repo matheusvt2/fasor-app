@@ -460,7 +460,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   );
   const resendDead = useCallback(async () => {
     if (db === null) return;
-    await resendDeadRows(db);
+    await resendDeadRows(db, now());
     await engineRef.current?.runFreshCycle();
   }, [db]);
 
