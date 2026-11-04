@@ -43,7 +43,7 @@ export function putBlockOp(author: Author, relatorioId: string, blockId: string,
 }
 
 /** Story 6.6: the `point/{id}/{field}` fields a device writes (`origin` is set at create). */
-export type PointField = 'text' | 'equipment_id' | 'order_key' | 'action' | 'priority' | 'deadline' | 'owner';
+export type PointField = 'text' | 'equipment_id' | 'location_id' | 'order_key' | 'action' | 'priority' | 'deadline' | 'owner';
 
 /** `point/{id}` create of a whole row (section 8, Story 6.6). */
 export function createPointOp(author: Author, row: PointRow): OpDraft {

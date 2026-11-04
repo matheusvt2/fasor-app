@@ -16,6 +16,7 @@ import { resolveSection8 } from '../print/section-8.ts';
 import { extractPhotoRefs, photoToken, pointTextTokens } from './refs.ts';
 import { derivedPointReasonText, derivedPoints, groupDerivedPoints, notTestedPointText, type DerivedPoint } from './derived.ts';
 import { livePoints, livePointsOfLocals, ncRowPointPositions, ncRowPointsText, newPointRow, photoCitedByText, pointMoveOrderKey, pointsCitingPhoto, pointsWithRemovedPhotos } from './checks.ts';
+import { pointLinkValues } from './link.ts';
 import { pointOrderText, pointsHeadingText, pointsSummary, pointsSummaryText, pointTitle, sectionEightEntries } from './summary.ts';
 
 const A = '019966b0-0070-7000-8000-00000000000a';
@@ -291,6 +292,19 @@ describe('6.6-UNIT pointsSummary and row 8', () => {
     expect(pointTitle({ equipment_id: null }, base)).toBe('Geral');
     expect(pointTitle({ equipment_id: block.equipment_id }, base)).toBe(`${order[0]!.name} · Cubículo Enel`);
     expect(pointTitle({ equipment_id: '019966b0-0070-7000-8000-0000000000ff' }, base)).toBe('Geral');
+  });
+
+  it('Story 20.4: the title follows a relink written as both fields (equipment, local, Geral)', () => {
+    const order = sheetOrder(base);
+    const equipmentId = base.blocks.find((row) => row.id === order[0]!.blockId)!.equipment_id;
+    const local = base.locations.find((row) => row.kind === 'cabine' && row.name === '1° Subsolo')!;
+    const geral = point(base, { equipment_id: null, location_id: null });
+    expect(pointTitle(geral, base)).toBe('Geral');
+    const toEquipment = { ...geral, ...pointLinkValues({ equipmentId, locationId: null }) };
+    expect(pointTitle(toEquipment, base)).toBe(`${order[0]!.name} · Cubículo Enel`);
+    const toLocal = { ...toEquipment, ...pointLinkValues({ equipmentId: null, locationId: local.id }) };
+    expect(pointTitle(toLocal, base)).toBe('1° Subsolo · Verificações do local');
+    expect(pointTitle({ ...toLocal, ...pointLinkValues({ equipmentId: null, locationId: null }) }, base)).toBe('Geral');
   });
 });
 

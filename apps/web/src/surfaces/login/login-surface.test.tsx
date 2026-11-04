@@ -1,3 +1,4 @@
+import { PRODUTO } from '@app/domain';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
@@ -149,6 +150,6 @@ describe('Login surface', () => {
 
   it('the page title is the product name', () => {
     render(<LoginSurface />);
-    expect(document.title).toBe('PRODUTO');
+    expect(document.title).toBe(PRODUTO);
   });
 });

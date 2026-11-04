@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, type Op } from '@app/domain';
+import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, PRODUTO, type Op } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test } from './support/merged-fixtures.ts';
 import {
@@ -156,7 +156,7 @@ test('@p0 1.8-AC-001 a cold open with no network serves the shell from the cache
     // The document and its assets came from the shell cache; Home is drawn from the
     // device store, with no network anywhere in the path.
     await expect(offline.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
-    await expect(offline.locator('.app-bar .wordmark')).toHaveText('PRODUTO');
+    await expect(offline.locator('.app-bar .wordmark')).toHaveText(PRODUTO);
     await expect(offline.locator('.login-form')).toHaveCount(0);
   } finally {
     await context.setOffline(false);

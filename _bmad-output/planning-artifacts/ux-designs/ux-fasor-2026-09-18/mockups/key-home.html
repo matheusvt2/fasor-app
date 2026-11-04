@@ -19,6 +19,9 @@
 .home-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-4); }
 .home-head h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
 .frame-phone .home-head .btn { width: 100%; }
+/* 2026-11-03, Story 20.2: the search field takes the Cadastros toolbar basis; a full row on a phone. */
+.home-search { flex: 1 1 280px; min-width: 0; }
+.frame-phone .home-search { flex-basis: 100%; order: 3; }
 .relatorio-cards { display: flex; flex-direction: column; gap: var(--sp-3); }
 .relatorio-card .card-chev { color: var(--ink-secondary); flex: none; margin: -6px -6px 0 0; }
 /* 2026-09-28: the App bar's right group always takes the grid's third column. Home's h1 is
@@ -33,6 +36,8 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <!-- 2026-11-03, Story 20.2: the search glyph of the Home search field (shell-head.html). -->
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></symbol>
   <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/></symbol>
   <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 0-3 3z"/><path d="M5 4v16a3 3 0 0 1 3-3h11"/></symbol>
 </svg>
@@ -87,6 +92,12 @@
         <section class="section" aria-labelledby="h-relatórios">
           <div class="home-head">
             <h2 id="h-relatórios">Relatórios</h2>
+            <!-- 2026-11-03, Story 20.2: the search field in the "Relatórios" head, from the Cadastros toolbar
+                 pattern (80-cadastros.html); it matches client or obra, accent-, case- and spacing-free. -->
+            <div class="field home-search">
+              <span class="field-label visually-hidden">Buscar relatório</span>
+              <div class="input"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span class="placeholder">Cliente ou obra</span></div>
+            </div>
             <button class="btn btn-primary"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo relatório</button>
           </div>
 
@@ -190,6 +201,12 @@
         <section class="section" aria-labelledby="h-relatórios-d">
           <div class="home-head">
             <h2 id="h-relatórios-d">Relatórios</h2>
+            <!-- 2026-11-03, Story 20.2: the search field in the "Relatórios" head, from the Cadastros toolbar
+                 pattern (80-cadastros.html); it matches client or obra, accent-, case- and spacing-free. -->
+            <div class="field home-search">
+              <span class="field-label visually-hidden">Buscar relatório</span>
+              <div class="input"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span class="placeholder">Cliente ou obra</span></div>
+            </div>
             <button class="btn btn-primary"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo relatório</button>
           </div>
 
@@ -295,6 +312,12 @@
         <section class="section" aria-labelledby="h-relatórios-p">
           <div class="home-head">
             <h2 id="h-relatórios-p">Relatórios</h2>
+            <!-- 2026-11-03, Story 20.2: the search field in the "Relatórios" head, from the Cadastros toolbar
+                 pattern (80-cadastros.html); it matches client or obra, accent-, case- and spacing-free. -->
+            <div class="field home-search">
+              <span class="field-label visually-hidden">Buscar relatório</span>
+              <div class="input"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span class="placeholder">Cliente ou obra</span></div>
+            </div>
             <button class="btn btn-primary"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo relatório</button>
           </div>
 

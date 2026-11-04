@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { defaultEmpresaRow, registryRowSchema, type RegistryRow } from '@app/domain';
+import { defaultEmpresaRow, PRODUTO, registryRowSchema, type RegistryRow } from '@app/domain';
 import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
@@ -128,7 +128,7 @@ describe('Cadastros tabs (B5)', () => {
     database = await freshDb();
     renderSurface();
     await waitFor(() => expect(tab(r.tabEmpresa)).toHaveAttribute('aria-selected', 'true'));
-    await waitFor(() => expect(within(panel()).getByText(r.empresa.note)).toBeInTheDocument());
+    await waitFor(() => expect(within(panel()).getByText(r.empresa.note(PRODUTO))).toBeInTheDocument());
   });
 
   it('F-20: a tab the user chose earlier on this device still wins while the company is not registered', async () => {
@@ -167,7 +167,7 @@ describe('Cadastros tabs (B5)', () => {
 
     await user.click(tab(r.tabEmpresa));
     expect(tab(r.tabEmpresa)).toHaveAttribute('aria-selected', 'true');
-    expect(within(panel()).getByText(r.empresa.note)).toBeInTheDocument();
+    expect(within(panel()).getByText(r.empresa.note(PRODUTO))).toBeInTheDocument();
 
     await user.click(tab(r.tabCriterios));
     expect(within(panel()).getByText(r.criterios.note)).toBeInTheDocument();

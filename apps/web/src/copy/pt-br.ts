@@ -166,6 +166,13 @@ export const copy = {
     // authored: Story 19.2, the accessible name of the page-size chips (10 · 20 · 50 · 100) beside
     // the kernel's "Mostrando n de N relatórios"; no mock names the group.
     pageSizeLabel: 'Relatórios por página',
+    // Story 20.2: the search field in the "Relatórios" head, drawn from the Cadastros toolbar
+    // pattern (`80-cadastros.html`): the visually hidden label and the placeholder are the DoR's
+    // (authored), the clear button's name is authored.
+    searchLabel: 'Buscar relatório',
+    searchPlaceholder: 'Cliente ou obra',
+    // authored: Story 20.2, the accessible name of the field's clear button.
+    searchClear: 'Limpar busca',
     // Verbatim from `key-home.html` frame 3.
     offlineToast: 'Sem conexão. Tudo fica salvo neste aparelho.',
   },
@@ -1124,7 +1131,9 @@ export const copy = {
     // may share a title, never a position.
     cardName: (position: number, title: string) => `ponto ${position}, ${title}`,
     editingReason: 'Conclua o ponto em edição primeiro.',
-    equipmentLabel: 'Equipamento',
+    // Story 20.4 (DoR, authored): the picker that sets, changes or clears a point's equipment or local;
+    // it replaced the plain "Equipamento" line.
+    linkLabel: 'Equipamento ou local',
     // authored (F43, coordinator review): the absent form.
     newOrder: (m: Mention) => (m.prints ? `Novo ponto · entra no fim da ${m.ref}` : `Novo ponto · ${m.absent}`),
     editingLabel: (position: number | null) => (position === null ? 'Novo ponto de atenção em edição' : `Ponto de atenção ${position} em edição`),
@@ -1601,7 +1610,8 @@ export const copy = {
     // Empresa (`key-registries.html` frame 0, `80-cadastros.html` Empresa panel): the
     // company's document identity, the only surface where the brand is edited.
     empresa: {
-      note: 'Identidade do documento gerado: capa, cabeçalho, rodapé e a linha "Contratada" do controle do documento. Só aqui a marca é editada — o app continua PRODUTO.',
+      note: (produto: string) =>
+        `Identidade do documento gerado: capa, cabeçalho, rodapé e a linha "Contratada" do controle do documento. Só aqui a marca é editada — o app continua ${produto}.`,
       // authored: the mock's "Salvar" button is dropped (every field autosaves), so the
       // sentence that used to sit beside it carries the rule on its own.
       autosaveNote: 'Salvo automaticamente. Vale para os relatórios gerados daqui em diante; revisões já emitidas não mudam.',

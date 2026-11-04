@@ -49,8 +49,23 @@
 [data-route="/relatorio/:id/pontos"] .poa-text-area,
 .point-editor-dialog .poa-text-area { white-space: pre-wrap; }
 [data-route="/relatorio/:id/pontos"] .poa-empty { font-size: var(--t-body-size); color: var(--ink-secondary); margin: var(--sp-3) 0; }
-[data-route="/relatorio/:id/pontos"] .poa-equipment,
-.point-editor-dialog .poa-equipment { font-size: var(--t-body-size); }
+/* Story 20.4: "Equipamento ou local", the mock's `.field.combobox` with a button for its `.input`
+   (`72-pontos.html`, edit mode, 2026-11-03). The chevron sits over the box, not the label, as
+   the sheet's select draws it (`ficha.css`). */
+[data-route="/relatorio/:id/pontos"] .poa-link-trigger,
+.point-editor-dialog .poa-link-trigger { padding-right: var(--touch-min); text-align: left; cursor: pointer; }
+[data-route="/relatorio/:id/pontos"] .poa-link-value,
+.point-editor-dialog .poa-link-value { flex: 1; min-width: 0; }
+[data-route="/relatorio/:id/pontos"] .poa-link > .poa-link-trigger > .combobox-chevron,
+.point-editor-dialog .poa-link > .poa-link-trigger > .combobox-chevron { top: calc(var(--t-label-size) * var(--t-label-lh) + var(--field-gap)); bottom: auto; height: var(--touch-field); pointer-events: none; }
+/* The list is portaled to the end of <body>: its rules are not route-scoped. It takes the
+   trigger's width and scrolls inside the popover React Aria sizes to the viewport. */
+.poa-link-list { width: var(--trigger-width); overflow: auto; }
+.poa-link-list .combobox-option { cursor: pointer; min-width: 0; overflow-wrap: anywhere; }
+.poa-link-list .poa-link-group + .poa-link-group { border-top: 1px solid var(--border-hairline); }
+/* authored: a group's heading, the declarations of the photo capture's `.capture-group-label`
+   ("De qual equipamento?", `photos.css`). */
+.poa-link-list .poa-link-group-label { margin: 0; padding: var(--sp-3) var(--sp-4) var(--sp-1); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
 /* In the Form dialog the editor has no card around it: the card's own `.poa-body` column (components.css). */
 .point-editor-dialog .poa-body { display: flex; flex-direction: column; min-width: 0; }
 /* A recurring-finding label longer than a phone's width wraps inside its chip. */

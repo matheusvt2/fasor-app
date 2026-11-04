@@ -91,4 +91,30 @@ describe('14.3-UNIT usePointDraftRecovery', () => {
     expect(plain).not.toHaveProperty('location_id');
     expect(showToast).not.toHaveBeenCalled();
   });
+
+  it('Story 20.4: a new point\'s picked equipment, kept in its draft, goes into the point "Recuperar" creates', async () => {
+    const db = await freshDb();
+    session.database = db;
+    const EQUIPMENT = '019966b0-0152-7000-8000-000000000009';
+    await saveDraft(db, { surface: POINT_DRAFT_SURFACE, entity_id: POINT }, draft({ equipmentId: EQUIPMENT }), new Date('2026-11-03T12:00:00.000Z'));
+    const sources: DraftSource[] = [];
+    const drafts: DraftsState = {
+      draftFound: true,
+      register: (source) => {
+        sources.push(source);
+        return () => {};
+      },
+      persistAll: async () => {},
+      persistOne: async () => {},
+    };
+    const wrapper = ({ children }: { children: ReactNode }) => <DraftsContext value={drafts}>{children}</DraftsContext>;
+    renderHook(() => usePointDraftRecovery(REL), { wrapper });
+    await waitFor(() => expect(sources).toHaveLength(1));
+    const row = await readDraft(db, { surface: POINT_DRAFT_SURFACE, entity_id: POINT });
+    sources[0]!.apply(row!.value);
+    await waitFor(async () => expect(await pointRowsOf(db, REL)).toHaveLength(1));
+    const [point] = await pointRowsOf(db, REL);
+    expect(point).toMatchObject({ id: POINT, equipment_id: EQUIPMENT, text: 'Luminária de emergência inoperante' });
+    expect(point).not.toHaveProperty('location_id');
+  });
 });

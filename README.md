@@ -2,7 +2,7 @@
 
 A tablet-first, offline-first web app that captures medium-voltage substation test sheets on site and generates the FO.SERV-03 relatório as DOCX and PDF. The engineer fills each equipment's ficha on a tablet, with or without signal; the office receives every change through sync and issues numbered revisions of the document.
 
-The product name users see is the placeholder `PRODUTO`, defined once in `packages/domain`. The internal codename never appears in a user-visible string, document or file name.
+The product name users see is ~~the placeholder `PRODUTO`~~ *(2026-11-03, Story 20.1: Conforme, the value of the constant `PRODUTO`)*, defined once in `packages/domain`. The internal codename never appears in a user-visible string, document or file name.
 
 Status: MVP, release `v0.1.0`. Everything runs locally in Docker; one AWS production stack exists (`infra/`).
 

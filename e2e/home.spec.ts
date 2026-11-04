@@ -418,3 +418,145 @@ test('@p1 1.6-E2E-003 a cold open with a session and no connection renders from 
   await expect(page.getByTestId('toast')).toHaveCount(0);
   await page.unroute(isApiRequest);
 });
+
+test('@p0 20.2-E2E-001 Home searches by client and obra: past the page size, Emitido included, narrowed by a tile, cleared by the button and by Escape, at 1280 and 390 px', async ({
+  page,
+  seed,
+}) => {
+  // Sixteen relatórios pushed and the active ones pulled, as 19.2-E2E-001 does.
+  test.setTimeout(120_000);
+  const account = seed.companies[1];
+  await resetEmpresaB(account);
+  const database = deviceDatabaseName(account.userId);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  await waitForCompanyPull(page, database);
+
+  const user = { ...account, deviceId: await readDeviceId(page, database) };
+  // The match is on the client "Pôrto Exemplo Seguros" (accented, typed without the accent) and
+  // its obra "Torres A e B"; the other client's two relatórios never match "porto".
+  const portoClient = clientCreateOp(user, undefined, 'Pôrto Exemplo Seguros');
+  const portoProject = projectCreateOp(user, undefined, portoClient.path.split('/').at(-1)!, { name: 'Torres A e B' });
+  const otherClient = clientCreateOp(user, undefined, 'Indústria Têxtil');
+  const otherProject = projectCreateOp(user, undefined, otherClient.path.split('/').at(-1)!, { name: 'Fábrica Norte' });
+  const portoId = portoProject.path.split('/').at(-1)!;
+  const otherId = otherProject.path.split('/').at(-1)!;
+
+  // Pushed in this order, so the server sequence grows with it: the other client's first (oldest),
+  // then eight Rascunho, two Emitido and two Em campo of the matching client (newest). The later
+  // Em campo service start makes the last one the current card.
+  const others = [0, 1].map((i) => relatorioCreateOp(user, undefined, otherId, { status: 'rascunho', local: `Outro ${i}` }));
+  const drafts = Array.from({ length: 8 }, (_, i) => relatorioCreateOp(user, undefined, portoId, { status: 'rascunho', local: `Rascunho ${i}` }));
+  const issued = [0, 1].map((i) => relatorioCreateOp(user, undefined, portoId, { status: 'emitido', local: `Emitido ${i}` }));
+  const fieldOld = relatorioCreateOp(user, undefined, portoId, { status: 'em_campo', local: 'Campo antigo', serviceStart: '2026-09-01' });
+  const fieldNew = relatorioCreateOp(user, undefined, portoId, { status: 'em_campo', local: 'Campo novo', serviceStart: '2026-10-01' });
+  await seedOutbox(page, database, [portoClient, portoProject, otherClient, otherProject, ...others, ...drafts, ...issued, fieldOld, fieldNew]);
+  await page.reload();
+  await syncNow(page);
+  await page.getByRole('button', { name: 'Voltar' }).click();
+
+  const id = (op: { relatorio_id?: string | null }) => op.relatorio_id!;
+  const listIds = () => page.locator('.relatorio-card').evaluateAll((cards) => cards.map((c) => c.getAttribute('data-relatorio')));
+  const note = page.locator('.home-list-note .section-note');
+  const status = page.getByTestId('home-list-status');
+  const field = page.getByRole('searchbox', { name: 'Buscar relatório' });
+  const clear = page.getByRole('button', { name: 'Limpar busca' });
+  const chips = page.getByRole('radiogroup', { name: 'Relatórios por página' });
+  const newestDrafts = drafts.map(id).reverse();
+  // The search: every status of the matching client, Emitido included, cut at 10 of 12.
+  const allMatches = [id(fieldNew), id(fieldOld), id(issued[1]!), id(issued[0]!), ...newestDrafts];
+  const searchList = allMatches.slice(0, 10);
+
+  // Story 19.2's list: the active ones, the current card first, cut at 10 (12 of this test's, at
+  // least). The board and this list are read from the screen, not computed: a relatório another
+  // test's device pushes into this worker's Empresa B after its reset can join them, and never
+  // matches the search below (another client).
+  await expect.poll(async () => (await tileCounts(page)).slice(1), { timeout: 30_000 }).toEqual([2, 0, 2]);
+  await expect.poll(async () => (await listIds()).slice(0, 10), { timeout: 30_000 }).toEqual([id(fieldNew), id(fieldOld), ...newestDrafts].slice(0, 10));
+  await expect(page.locator('.relatorio-card').first()).toHaveClass(/\bis-current\b/);
+  await expect(note).toHaveText(/^Mostrando 10 de 1[2-9] relatórios$/);
+  const activeList = await listIds();
+  const board = await tileCounts(page);
+  const activeNote = (await note.textContent())!;
+  expect(activeList.some((card) => issued.some((op) => id(op) === card))).toBe(false);
+
+  // 1280 px: the field sits in the "Relatórios" head, beside "Novo relatório".
+  await expect(field).toHaveAttribute('placeholder', 'Cliente ou obra');
+  const fieldBox = (await page.locator('.home-search').boundingBox())!;
+  const newBox = (await page.getByRole('button', { name: 'Novo relatório' }).boundingBox())!;
+  expect(Math.abs(fieldBox.y + fieldBox.height / 2 - (newBox.y + newBox.height / 2))).toBeLessThan(4);
+  expect(fieldBox.x + fieldBox.width).toBeLessThanOrEqual(newBox.x);
+
+  // Typed without the accent and in capitals: every match, Emitido included, past the page size.
+  await field.click();
+  await page.keyboard.type('PORTO');
+  await expect.poll(listIds).toEqual(searchList);
+  await expect(note).toHaveText('Mostrando 10 de 12 relatórios');
+  await expect(status).toHaveText('Mostrando 10 de 12 relatórios');
+  await expect(field).toBeFocused();
+  // The chips widen the page over the results.
+  await chips.getByRole('radio', { name: '20', exact: true }).click();
+  await expect.poll(listIds).toEqual(allMatches);
+  await expect(note).toHaveText('Mostrando 12 de 12 relatórios');
+  await chips.getByRole('radio', { name: '10', exact: true }).click();
+  await expect.poll(listIds).toEqual(searchList);
+
+  // The Em campo tile narrows the search; releasing it keeps the text and widens it again.
+  await tile(page, 'Em campo').click();
+  await expect.poll(listIds).toEqual([id(fieldNew), id(fieldOld)]);
+  await expect(status).toHaveText('2 relatórios encontrados');
+  await expect(note).toHaveCount(0);
+  await tile(page, 'Em campo').click();
+  await expect(field).toHaveValue('PORTO');
+  await expect.poll(listIds).toEqual(searchList);
+
+  // The obra matches too, each key on its own.
+  await field.fill('torres a e b');
+  await expect.poll(listIds).toEqual(searchList);
+  await field.fill('fabrica');
+  await expect.poll(listIds).toEqual(others.map(id).reverse());
+  await expect(status).toHaveText('2 relatórios encontrados');
+
+  // No match: the kernel's sentence, no card, the board counts untouched.
+  await field.fill('zzz');
+  await expect(page.locator('.home-empty .section-note')).toHaveText('Nenhum relatório encontrado para zzz.');
+  await expect(page.locator('.relatorio-card')).toHaveCount(0);
+  await expect(status).toHaveText('Nenhum relatório encontrado para zzz.');
+  expect(await tileCounts(page)).toEqual(board);
+
+  // The clear button returns the Story 19.2 list; focus stays in the field.
+  await clear.click();
+  await expect(field).toHaveValue('');
+  await expect(field).toBeFocused();
+  await expect.poll(listIds).toEqual(activeList);
+  await expect(note).toHaveText(activeNote);
+  await expect(clear).toBeHidden();
+
+  // 390 px: the field takes its own full row under the heading and the button, nothing scrolls
+  // sideways, and Escape clears it with focus kept.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const phoneField = (await page.locator('.home-search').boundingBox())!;
+  const phoneHead = (await page.locator('.home-head').boundingBox())!;
+  const phoneNew = (await page.getByRole('button', { name: 'Novo relatório' }).boundingBox())!;
+  expect(phoneField.width).toBeGreaterThan(phoneHead.width - 2);
+  expect(phoneField.y).toBeGreaterThanOrEqual(phoneNew.y + phoneNew.height);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await field.click();
+  await page.keyboard.type('porto');
+  await expect.poll(listIds).toEqual(searchList);
+  await expect(field).toBeFocused();
+  await expect(clear).toBeVisible();
+  const clearBox = (await clear.boundingBox())!;
+  expect(clearBox.width).toBeGreaterThanOrEqual(48);
+  expect(clearBox.height).toBeGreaterThanOrEqual(48);
+  await page.keyboard.press('Escape');
+  await expect(field).toHaveValue('');
+  await expect(field).toBeFocused();
+  await expect.poll(listIds).toEqual(activeList);
+  // The query is screen state: a reload starts with an empty field.
+  await field.fill('porto');
+  await expect.poll(listIds).toEqual(searchList);
+  await page.reload();
+  await expect(field).toHaveValue('');
+  await expect.poll(listIds, { timeout: 30_000 }).toEqual(activeList);
+});

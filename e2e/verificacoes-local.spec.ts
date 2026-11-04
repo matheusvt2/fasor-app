@@ -1,4 +1,5 @@
-import { photoToken, SEED_VERSION, siteChecklistOf, siteItems, type BlockRow, type LocationRow, type OpDraft, type PointRow } from '@app/domain';
+import { newPointRow, photoToken, SEED_VERSION, siteChecklistOf, siteItems, type BlockRow, type LocationRow, type OpDraft, type PointRow } from '@app/domain';
+import { newId } from '../apps/api/src/ids.ts';
 import type { BrowserContext, Page, Route } from '@playwright/test';
 import { paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { escapeDialog } from './support/dialogs.ts';
@@ -9,7 +10,7 @@ import { readStore } from './support/outbox.ts';
 import { expectCameraOpen, shoot } from './support/photos.ts';
 import { serverRow } from './support/reading-ops.ts';
 import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
-import { emCampoDraft, newRelatorioDrafts, pushDrafts } from './support/relatorio-seed.ts';
+import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNowAndReturn } from './support/sync.ts';
 import { expandLocation } from './support/tree.ts';
@@ -440,7 +441,7 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   await create.click();
   const editor = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
   await expect(editor).toBeVisible();
-  await expect(editor.locator('.poa-equipment')).toHaveText('Cubículo Enel · Verificações do local');
+  await expect(editor.locator('.poa-link-value')).toHaveText('Cubículo Enel · Verificações do local');
   const text = editor.getByRole('textbox', { name: 'Texto' });
   await expect(text.locator('.photo-ref')).toHaveText('Imagem 1');
   await text.click();
@@ -790,7 +791,7 @@ test('@p1 14.3-E2E-004 no sideways scroll at 390, 768 and 1280 px, with an NC ro
   await create.click();
   const editor = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
   await expect(editor).toBeVisible();
-  await expect(editor.locator('.poa-equipment')).toHaveText('Cubículo Enel · Verificações do local');
+  await expect(editor.locator('.poa-link-value')).toHaveText('Cubículo Enel · Verificações do local');
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
   expect(await editor.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await page.keyboard.press('Escape');
@@ -1018,4 +1019,59 @@ test('@p0 15.4-E2E-001 the App bar "Voltar" from a local\'s Verificações lands
   // The committed state: the local row as it was, and no op written by the round trips.
   expect(await locals(page, relatorioId)).toEqual(before);
   expect((await outbox(page)).length).toBe(opsBefore);
+});
+
+test('@p0 20.4-E2E-004 a Geral point picks a local in "Equipamento ou local": both puts in one batch, the card names "Cubículo Enel · Verificações do local" and the Sumário no longer counts the local\'s NC as without a point', async ({ page }) => {
+  test.setTimeout(150_000);
+  await resetEmpresaB(account, { standard: true });
+  await signIn(page, account.email);
+  const built = smallRelatorio();
+  const scope = { relatorioId: built.relatorioId };
+  const geral = newPointRow({ id: newId(), relatorioId: built.relatorioId, text: 'Luminária sem bateria', equipmentId: null, origin: 'manual', action: 'Trocar a bateria' }, []);
+  await pushDrafts(page, database, [
+    ...built.drafts,
+    officeDraft(account, scope, resultPath(built.enelId, EMERGENCIA), 'NC'),
+    officeDraft(account, scope, `point/${geral.id}`, geral, 'create'),
+  ]);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await openSumario(page, built.relatorioId);
+  // The local's NC item has no point of its own yet: the Sumário says so.
+  await expect(sumario(page).locator('li.sum-s9 .sum-status').first()).toContainText(NC_WITHOUT_POINT);
+
+  await page.goto(`/relatorio/${built.relatorioId}/pontos`);
+  const card = page.locator('.poa-list > .point-of-attention-card:not(.is-auto):not(.is-editing)').first();
+  await expect(card.locator('.poa-title')).toHaveText('Geral', { timeout: 30_000 });
+  await card.getByRole('button', { name: 'Editar o ponto 1, Geral' }).click();
+  const editor = page.getByRole('article', { name: 'Ponto de atenção 1 em edição' });
+  const picker = editor.getByRole('button', { name: /Equipamento ou local/ });
+  await picker.click();
+  const list = page.getByRole('listbox');
+  // A local with no equipment: its group holds the local alone.
+  await expect(list.getByRole('group', { name: ENEL }).getByRole('option')).toHaveText(['Cubículo Enel · Verificações do local']);
+  const pointOps = async () => (await outbox(page)).filter((op) => op.path.startsWith('point/'));
+  const before = (await pointOps()).length;
+  await list.getByRole('option', { name: 'Cubículo Enel · Verificações do local', exact: true }).click();
+  await expect(list).toHaveCount(0);
+  await expect(picker).toBeFocused();
+  await expect(picker).toContainText('Cubículo Enel · Verificações do local');
+  await expect.poll(async () => (await pointOps()).length).toBe(before + 2);
+  const ops = (await pointOps()).slice(before);
+  expect(ops.map((op) => [op.kind, op.path, op.value])).toEqual([
+    ['put', `point/${geral.id}/equipment_id`, null],
+    ['put', `point/${geral.id}/location_id`, built.enelId],
+  ]);
+  expect(ops[1]!.batch_id).toBe(ops[0]!.batch_id);
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(editor).toHaveCount(0);
+  await expect(card.locator('.poa-title')).toHaveText('Cubículo Enel · Verificações do local');
+  expect((await pointsOf(page, built.relatorioId)).find((row) => row.id === geral.id)).toMatchObject({
+    equipment_id: null,
+    location_id: built.enelId,
+    text: 'Luminária sem bateria',
+    action: 'Trocar a bateria',
+  });
+
+  // The Sumário: the local's NC is covered by the point now.
+  await openSumario(page, built.relatorioId);
+  await expect(sumario(page).locator('li.sum-s9 .sum-status').first()).not.toContainText(NC_WITHOUT_POINT);
 });

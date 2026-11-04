@@ -2595,6 +2595,7 @@ Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-2-home-opens-on-the-active-work.md`
   summary: Relatórios past the 100th of a selection are unreachable from Home: the largest page is 100 and there is no next page or search.
   evidence: Review ECH-2 and BH-6 (2026-10-30): `homeList` slices at the page size and `HOME_PAGE_SIZES` ends at 100 (Matheus's sizes); a company with more than 100 emitted relatórios reaches the oldest from the Project surface only. EXPERIENCE.md § Home names that way in; a next page or a search (option D of the 2026-10-29 analysis) waits for Bruno's volume answers.
+  state: closed (2026-11-03, Story 20.2, batch e20w: Home searches every relatório of the company by client and obra, every status with no tile pressed, so a relatório past the 100th is one query away; `homeList`'s `query`, `HomeCard.searchKeys`; `e2e/home.spec.ts` searches past the page size)
 
 ## Deferred from: the Epic 19 deploy (2026-10-30)
 
@@ -2859,3 +2860,10 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   evidence: `e2e/security-ops.spec.ts` `pushFromRunner`; the e2e log of the full `@p0` run of 2026-11-03 (one 502 in three runs).
   class: risk
   state: open (owner: the second security pass of wave B, which runs against the integrated main behind Caddy)
+## Deferred from: batch e20w (2026-11-03)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20w-web-conforme-search-relink.md`
+  summary: The Home search field records no usage event: the telemetry target `home.search` (Story 20.2 DoR, AD-28) is not in `UX_ACTION_TARGETS`, so the field carries no `data-telemetry`.
+  evidence: `UX_ACTION_TARGETS` lives in `packages/domain/src/contract/telemetry.ts`, which batch e20s owns in wave 1; `apps/web/src/telemetry/rendered-targets.test.tsx` and `targets.test.ts` refuse a name outside the list. The field is `SearchField` in `apps/web/src/surfaces/home/home-surface.tsx`.
+  class: deferred-feature
+  state: open (owner: batch e20e, wave 2, after e20s merges: append `home.search` to `UX_ACTION_TARGETS`, wire the field's use event so it records that a search was used and never its text (AD-28), and extend the guard to the field)

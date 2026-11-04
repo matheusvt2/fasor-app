@@ -1,4 +1,4 @@
-import { makeOp } from '@app/domain';
+import { makeOp, PRODUTO } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { FIXTURE_RELATORIO_ID, fixturePath, hideTab } from './support/durability.ts';
@@ -202,9 +202,9 @@ test('@p0 A5-E2E-004 Login names the failure: fields checked on the device, a 50
   await page.unroute(signInRoute);
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
-  await expect(page).toHaveTitle('PRODUTO');
+  await expect(page).toHaveTitle(PRODUTO);
   await page.getByRole('link', { name: 'Conta' }).click();
-  await expect(page).toHaveTitle('Conta · PRODUTO');
+  await expect(page).toHaveTitle(`Conta · ${PRODUTO}`);
 });
 
 test('@p0 A5-E2E-005 the draft toast can be dismissed: the draft stays, no banner repeats it, the next launch offers it again', async ({

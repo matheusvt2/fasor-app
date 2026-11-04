@@ -592,6 +592,100 @@ describe('Home: the active list and its page (Story 19.2)', () => {
   });
 });
 
+describe('Home: the search by client and obra (Story 20.2)', () => {
+  const PORTO_PROJECT = ids();
+  const PORTO_CLIENT = ids();
+  const onPorto = (status: RelatorioStatus, updated_seq: number): RelatorioSummary => ({ ...summary(ids(), status, updated_seq), project_id: PORTO_PROJECT });
+  const listIds = () => cards().map((card) => card.getAttribute('data-relatorio'));
+  const field = () => screen.getByRole('searchbox', { name: 'Buscar relatório' });
+  const status = () => screen.getByTestId('home-list-status');
+
+  beforeEach(async () => {
+    database = await freshDb();
+    await seedCompany(database);
+    await database.entities.bulkPut([
+      toRecord(`project:${PORTO_PROJECT}`, { id: PORTO_PROJECT, client_id: PORTO_CLIENT, name: 'Torres A e B', site: null, removed_at: null }),
+      toRecord(`registry:${PORTO_CLIENT}`, {
+        id: PORTO_CLIENT,
+        kind: 'client',
+        name: 'Pôrto Exemplo Seguros',
+        cnpj: null,
+        contact_name: null,
+        contact_phone: null,
+        sites: [],
+        removed_at: null,
+      }),
+    ]);
+  });
+
+  it('results: every match of any status, Emitido included, most recent first, with the count announced', async () => {
+    const issued = onPorto('emitido', 90);
+    const draft = onPorto('rascunho', 80);
+    const others = [summary(ids(), 'rascunho', 70), summary(ids(), 'em_campo', 60)];
+    renderHome(syncState({ summaryRelatorios: [draft, ...others, issued] }));
+    await waitFor(() => expect(listIds()).toEqual([draft.id, ...others.map((entry) => entry.id)]));
+
+    expect(field()).toHaveAttribute('placeholder', 'Cliente ou obra');
+    await userEvent.type(field(), 'PORTO');
+    await waitFor(() => expect(listIds()).toEqual([issued.id, draft.id]));
+    expect(status()).toHaveTextContent(/^2 relatórios encontrados$/);
+    expect(field()).toHaveFocus();
+    // The board counts stay the whole company's.
+    const rascunho = screen.getByRole('button', { name: 'Rascunho, 2 relatórios' });
+    expect(rascunho).toBeVisible();
+
+    // A pressed tile narrows the search; releasing it widens it again.
+    await userEvent.click(rascunho);
+    await waitFor(() => expect(listIds()).toEqual([draft.id]));
+    expect(status()).toHaveTextContent(/^1 relatório encontrado$/);
+    await userEvent.click(rascunho);
+    await waitFor(() => expect(listIds()).toEqual([issued.id, draft.id]));
+    expect(field()).toHaveValue('PORTO');
+  });
+
+  it('no match: the kernel sentence, no card, the board counts untouched', async () => {
+    renderHome(syncState({ summaryRelatorios: [onPorto('rascunho', 80), summary(ids(), 'em_campo', 60)] }));
+    await waitFor(() => expect(cards()).toHaveLength(2));
+    await userEvent.type(field(), 'zzz');
+    expect(await screen.findByText('Nenhum relatório encontrado para zzz.', { selector: '.home-empty .section-note' })).toBeVisible();
+    expect(cards()).toHaveLength(0);
+    expect(status()).toHaveTextContent(/^Nenhum relatório encontrado para zzz\.$/);
+    expect(screen.getByRole('button', { name: 'Rascunho, 1 relatório' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Em campo, 1 relatório' })).toBeVisible();
+  });
+
+  it('cleared: the clear button and Escape both return the Story 19.2 list, focus stays in the field', async () => {
+    const issued = onPorto('emitido', 90);
+    const draft = onPorto('rascunho', 80);
+    const other = summary(ids(), 'em_revisao', 70);
+    renderHome(syncState({ summaryRelatorios: [draft, other, issued] }));
+    await waitFor(() => expect(listIds()).toEqual([draft.id, other.id]));
+
+    await userEvent.type(field(), 'porto');
+    await waitFor(() => expect(listIds()).toEqual([issued.id, draft.id]));
+    await userEvent.click(screen.getByRole('button', { name: 'Limpar busca' }));
+    await waitFor(() => expect(listIds()).toEqual([draft.id, other.id]));
+    expect(field()).toHaveValue('');
+    expect(field()).toHaveFocus();
+    expect(status()).toHaveTextContent(/^$/);
+
+    await userEvent.type(field(), 'torres');
+    await waitFor(() => expect(listIds()).toEqual([issued.id, draft.id]));
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(listIds()).toEqual([draft.id, other.id]));
+    expect(field()).toHaveValue('');
+    expect(field()).toHaveFocus();
+  });
+
+  it('has no axe violations with a query typed', async () => {
+    const { container } = renderHome(syncState({ summaryRelatorios: [onPorto('rascunho', 80)] }));
+    await waitFor(() => expect(cards()).toHaveLength(1));
+    await userEvent.type(field(), 'porto');
+    await waitFor(() => expect(status()).toHaveTextContent(/^1 relatório encontrado$/));
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
 describe('Home: empty state and shortcuts', () => {
   it('says so and offers "Novo relatório", which asks for the client and the obra (Story 4.1)', async () => {
     database = await freshDb();

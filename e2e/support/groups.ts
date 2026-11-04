@@ -154,6 +154,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'security-ops.spec.ts',
     why: 'renders a preview PDF through the shared queue and LibreOffice after the forged pushes, to prove none of them made the relatório ungeneratable',
   },
+  // Story 20.4: 20.4-E2E-005 generates the revision whose section 8 is read for the relinked points.
+  {
+    file: 'point-relink-print.spec.ts',
+    why: 'generates a revision through the shared queue and LibreOffice to read section 8\'s Local/TAG of three relinked points from the DOCX and the PDF',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

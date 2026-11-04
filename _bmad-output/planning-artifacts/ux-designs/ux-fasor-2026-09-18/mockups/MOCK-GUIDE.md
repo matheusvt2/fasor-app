@@ -211,3 +211,15 @@ Matheus's decision on Sally's option B (`_bmad-output/implementation-artifacts/b
 
 ~~The capped-list note `Mostrando 4 de 8 relatórios · Ver todos` stays drawn and unbuilt until Story 19.2.~~ In `prototype/screens/20-home.html` and the two `key-home.html` frames that drew it, the note is now `.home-list-note`: the `.section-note` "Mostrando 10 de 37 relatórios" with a `.chip-row` of four chips (10 · 20 · 50 · 100, the first pressed) beside it, wrapping under the note on a phone; dated comment at the block. The app renders the chips as the Filter chip group (`role="radiogroup"`). The cards drawn under it are unchanged; the app lists the active statuses with no tile pressed and the emitted ones behind the Emitido tile.
 
+
+## 2026-11-03 — The product is called Conforme (Epic 20, Story 20.1)
+
+The app shows the name Conforme from the constant `PRODUTO` (`packages/domain/src/product.ts`). The mocks keep drawing the placeholder "PRODUTO": they are drawings, and `tokens.css` and `components.css`, copied byte-identical into the app, keep their "PRODUTO (fasor)" header comments.
+
+## 2026-11-03 — Home: the search by client and obra (Epic 20, Story 20.2)
+
+In `prototype/screens/20-home.html` and in the three frames of `key-home.html` the `.home-head` of "Relatórios" draws a search field between the heading and "Novo relatório", from the Cadastros toolbar pattern (`80-cadastros.html`): a `.field.home-search` with the visually hidden label "Buscar relatório" and an `.input` holding `#i-search` and the placeholder "Cliente ou obra" (`key-home.html` gains the `i-search` symbol). On a phone the field takes its own full row under the heading and the button. Dated comment at each block. The app adds the field's clear button "Limpar busca", shown only while the field holds text.
+
+## 2026-11-03 — Pontos de atenção: "Equipamento ou local" (Epic 20, Story 20.4)
+
+In `prototype/screens/72-pontos.html` the edit-mode card draws, under its order line, a `.field.combobox` labelled "Equipamento ou local" whose `.input` names the current link ("SEC-C12 · Chave seccionadora · 1° Subsolo › Coluna 12") with the `.combobox-chevron`; dated comment at the block. The list is not drawn: the app opens a `.combobox-list` of `.combobox-option` rows grouped as "De qual equipamento?" groups them ("Geral"; each local with its "⟨local⟩ · Verificações do local" and its equipment; the equipment of no local), each group under a heading in the `.capture-group-label` style.

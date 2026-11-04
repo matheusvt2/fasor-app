@@ -210,6 +210,64 @@ export function writeReplaceDeadline(
   return writePointFields(db, author, relatorioId, pointId, replaceDeadlineWrite, link, values, pending);
 }
 
+/** Story 20.4: the two fields a pick of "Equipamento ou local" writes (`pointLinkValues`). */
+export interface PointLinkValues {
+  equipment_id: string | null;
+  location_id: string | null;
+}
+
+/**
+ * What a link pick did: `written` (its batch, for undo, and whether it created the point);
+ * `pending` when the point is not stored and holds nothing to print yet, so the editor keeps
+ * the pick in its new point's link until the first text, action or Responsável creates it;
+ * `gone` for a point removed or unknown; `unchanged` when the pick is the current link.
+ */
+export type PointLinkWrite =
+  | { kind: 'written'; batchId: string; created: boolean }
+  | { kind: 'pending' }
+  | { kind: 'gone' }
+  | { kind: 'unchanged' };
+
+/**
+ * Story 20.4: a pick in "Equipamento ou local". On a stored point that differs on either field
+ * it is one batch of two puts, `equipment_id` and `location_id`, so a stale local never
+ * survives a pick of an equipment. On a point not stored the pick goes into the row it is
+ * created with: now, when the editor holds text, an action or a Responsável, else later
+ * (`pending`).
+ */
+export async function writePointLink(
+  db: AppDatabase,
+  author: PointAuthor,
+  relatorioId: string,
+  pointId: string,
+  next: PointLinkValues,
+  link: NewPointLink | null,
+  values: PointValues,
+  pending: PointPriorityWrites,
+): Promise<PointLinkWrite> {
+  const fresh = await pointRowsOf(db, relatorioId);
+  const current = fresh.find((row) => row.id === pointId);
+  if (current === undefined) {
+    if (link === null) return { kind: 'gone' };
+    if (next.equipment_id === link.equipmentId && next.location_id === (link.locationId ?? null)) return { kind: 'unchanged' };
+    if (blank(values)) return { kind: 'pending' };
+    const row = newRow(relatorioId, pointId, values, { ...link, equipmentId: next.equipment_id, locationId: next.location_id }, fresh, pending);
+    const { batch_id } = await commitBatch(db, [createPointOp(author, row)], { newId, now });
+    return { kind: 'written', batchId: batch_id, created: true };
+  }
+  if (current.removed_at !== null) return { kind: 'gone' };
+  if (next.equipment_id === current.equipment_id && next.location_id === (current.location_id ?? null)) return { kind: 'unchanged' };
+  const { batch_id } = await commitBatch(
+    db,
+    [
+      putPointOp(author, relatorioId, pointId, 'equipment_id', next.equipment_id),
+      putPointOp(author, relatorioId, pointId, 'location_id', next.location_id),
+    ],
+    { newId, now },
+  );
+  return { kind: 'written', batchId: batch_id, created: false };
+}
+
 /** A live point's 1-based place in section 8 and how many live points there are; null when it is not live. */
 export async function pointPlace(db: AppDatabase, relatorioId: string, pointId: string): Promise<{ position: number; total: number } | null> {
   // Epic 14 QA Q-2: the place among the points section 8 draws, as the list counts them.
