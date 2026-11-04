@@ -2836,7 +2836,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   class: risk
   state: open (owner: Matheus; if the undo must apply, the kernel can accept a move back to the status the op named by `prev_op_id` replaced, which needs that op's previous value in the log)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e20s-server-rules.md`
-  summary: A client batch whose serialized ops alone are over 4 MiB is pushed alone and still earns a 413, since a batch is never split for bytes; and a batch of more than 500 ops is cut by count only. Neither shape exists today (an op's values are capped, and the largest batch, a relatório's creation, is about 200 KB).
+  summary: A client batch whose serialized ops alone are over 4 MiB is pushed alone and still earns a 413, since a batch is never split for bytes~~; and a batch of more than 500 ops is cut by count only~~ *(2026-11-03, batch e20s review: the 500-op slices of such a batch are cut again by bytes, an op alone over the cap in a push of its own)*. Neither shape exists today (an op's values are capped, and the largest batch, a relatório's creation, is about 200 KB).
   evidence: `apps/web/src/sync/policy.ts` `batches`; `apps/web/src/sync/policy.test.ts`.
   class: risk
   state: accepted (2026-11-03, batch e20s: reopen if a 413 is ever logged for a device push)
