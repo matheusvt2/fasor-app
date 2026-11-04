@@ -35,6 +35,12 @@
 # the Elastic IP. Unset, the name is `localhost`, which Caddy serves from its own internal
 # CA and never asks Let's Encrypt for.
 {$APP_DOMAIN:localhost} {
+	# Story 20.13 (security pass S8): the same edge headers as the IP block above.
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
 	reverse_proxy 127.0.0.1:3000
 }
 
