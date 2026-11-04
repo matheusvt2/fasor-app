@@ -23,7 +23,9 @@ export const copy = {
     showPassword: 'Mostrar',
     submit: 'Entrar',
     foot: 'Acesso fornecido pela sua empresa. Sem cadastro por aqui.',
-    wrongPassword: 'Senha incorreta',
+    // authored: 2026-11-04, Story 20.13 (security pass S8): the server never says which of the two
+    // was wrong, so neither does the form (the mock's "Senha incorreta" misled on an unknown e-mail).
+    wrongPassword: 'E-mail ou senha incorretos.',
     offline:
       'Sem conexão — entre quando houver sinal; os relatórios já baixados neste aparelho continuam disponíveis após o login.',
     offlineReason: 'Entrar precisa de conexão',
@@ -68,18 +70,19 @@ export const copy = {
     signOut: 'Sair',
     // authored (Matheus, 2026-09-30: a waiting button says so): "Sair" while the server ends the session.
     signingOut: 'Saindo…',
-    // With nothing pending only the second sentence of the mock's note applies; with
-    // pending work the kernel's summary text ("31 fotos e 3 fichas") leads it.
-    signOutNote: 'Sair antes do envio pede confirmação; nada é apagado deste aparelho.',
+    // With pending work the kernel's summary text ("31 fotos e 3 fichas") leads the note.
+    // authored: 2026-11-04, Story 20.11 (the mock's "nada é apagado deste aparelho" no longer
+    // holds: Sair deletes this account's data from the device after sending what it can).
+    signOutNote: 'Sair envia o que estiver pendente e apaga deste aparelho os dados desta conta.',
     signOutNotePending: (pending: string) =>
-      `${pending} aguardando envio. Sair antes do envio pede confirmação; nada é apagado deste aparelho.`,
-    // authored: the mock's Confirm dialog is the pending-sync variant; with nothing
-    // pending the dialog says what is true, which is that nothing on this device is deleted.
+      `${pending} aguardando envio. Sair envia o que puder, pede confirmação e apaga deste aparelho os dados desta conta.`,
+    // authored: the mock's Confirm dialog is the pending-sync variant; with nothing unsent
+    // the dialog says what happens. authored: 2026-11-04, Story 20.11 (the body).
     signOutDialogTitle: 'Sair desta conta?',
     signOutDialogBody:
-      'Nada é apagado deste aparelho. O que estiver aqui continua aqui e sobe quando você entrar de novo com conexão.',
+      'Os dados desta conta são apagados deste aparelho. Tudo já está no servidor e volta quando você entrar de novo.',
     signOutPendingDialogTitle: 'Sair com envios pendentes?',
-    // The dialog body agrees with its count, so the kernel writes it (`pendingNotSentText`).
+    // The dialog body agrees with its count, so the kernel writes it (`signOutUnsentText`).
     signOutConfirm: 'Sair mesmo assim',
     // authored: the mock has no offline or failure state for "Sair".
     signOutOfflineReason: 'Sair precisa de conexão',

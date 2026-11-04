@@ -295,6 +295,20 @@ describe('13.8 the audit in the Export dialog', () => {
     expect(audit).toHaveBeenCalledTimes(1);
   });
 
+  it('Story 20.12: a request refused 429 quota_exceeded says the daily ceiling, once, and the button stays tappable', async () => {
+    database = await freshDb();
+    const audit = vi.fn(async () => {
+      throw new SyncRequestError({ kind: 'http', status: 429, code: 'quota_exceeded' });
+    });
+    render(<Harness sync={syncState({ audit })} />);
+    const button = await within(dialog()).findByRole('button', { name: 'Conferir antes de emitir' });
+    await userEvent.click(button);
+    expect(await within(dialog()).findByText('Limite diário de conferências atingido. Tente amanhã ou fale com o administrador.')).toBeInTheDocument();
+    expect(within(dialog()).queryByText('Não foi possível conferir agora.')).toBeNull();
+    expect(audit).toHaveBeenCalledTimes(1);
+    expect(button).not.toHaveAttribute('aria-disabled', 'true');
+  });
+
   it('offline, the button waits with its reason', async () => {
     database = await freshDb();
     render(<Harness sync={syncState({ online: false })} />);

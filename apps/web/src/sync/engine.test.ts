@@ -1580,6 +1580,21 @@ describe('6.2 photo uploads', () => {
     h.db.close();
   });
 
+  it('Story 20.12: keeps the pixel-limit details of a dead upload and records a reading the daily ceiling refused', async () => {
+    const h = await harness();
+    await shoot(h, PHOTO_1, '2026-09-21T16:10:00.000Z');
+    await shoot(h, PHOTO_2, '2026-09-21T16:20:00.000Z', 'queued');
+    const details = { limit: 'pixels', max_pixels: 120_000_000 };
+    h.server.failUpload = (id) => (id === PHOTO_1 ? { kind: 'http', status: 413, code: 'file_too_large', details } : null);
+    const upload = h.server.uploadFile.bind(h.server);
+    h.server.uploadFile = async (id, blob, sha256) => ({ ...(await upload(id, blob, sha256)), ...(id === PHOTO_2 ? { reading: 'quota_exceeded' as const } : {}) });
+
+    await h.engine.runCycle();
+    expect((await h.db.files.get(PHOTO_1))!.upload_error).toMatchObject({ state: 'dead', code: 'file_too_large', details });
+    expect(await h.db.files.get(PHOTO_2)).toMatchObject({ acked: true, reading_refused: 'quota_exceeded' });
+    h.db.close();
+  });
+
   it('persists a permanent refusal as dead: a reload does not retry it, the others upload, and a cleared error retries', async () => {
     const h = await harness();
     await shoot(h, PHOTO_1, '2026-09-21T16:10:00.000Z');

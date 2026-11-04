@@ -455,6 +455,9 @@ export async function unackedPhotoUploads(db: AppDatabase): Promise<PendingPhoto
       captured_at: row.captured_at,
       reading_status: row.reading_status,
       error: blob.upload_error !== undefined && blob.upload_error !== null,
+      // Story 20.12: the row names a refusal it can (the pixel limit).
+      error_code: blob.upload_error?.code ?? null,
+      ...(blob.upload_error?.details === undefined ? {} : { error_details: blob.upload_error.details }),
     });
   });
   return out;

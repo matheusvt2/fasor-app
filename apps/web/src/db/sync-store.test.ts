@@ -518,9 +518,9 @@ describe('10.4-UNIT unackedPhotoUploads', () => {
 
     const rows = (await unackedPhotoUploads(db)).sort((a, b) => (a.id < b.id ? -1 : 1));
     expect(rows).toEqual([
-      { id: id(1), caption: 'Foto 1', captured_at: '2026-09-07T17:01:00.000Z', reading_status: 'none', error: false },
-      { id: id(2), caption: 'Foto 2', captured_at: '2026-09-07T17:02:00.000Z', reading_status: 'none', error: true },
-      { id: id(8), caption: 'Foto 8', captured_at: '2026-09-07T17:08:00.000Z', reading_status: 'none', error: false },
+      { id: id(1), caption: 'Foto 1', captured_at: '2026-09-07T17:01:00.000Z', reading_status: 'none', error: false, error_code: null },
+      { id: id(2), caption: 'Foto 2', captured_at: '2026-09-07T17:02:00.000Z', reading_status: 'none', error: true, error_code: 'file_too_large' },
+      { id: id(8), caption: 'Foto 8', captured_at: '2026-09-07T17:08:00.000Z', reading_status: 'none', error: false, error_code: null },
     ]);
     db.close();
   });

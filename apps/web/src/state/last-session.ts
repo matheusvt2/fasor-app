@@ -87,3 +87,39 @@ export function writeAiFeatures(on: boolean): void {
     // Blocked storage: the flag holds for this session, only not across an offline reopen.
   }
 }
+
+/**
+ * Story 20.11: the user databases a sign-out recorded for deletion and could not delete yet
+ * (another tab held them open). Every cold open deletes these first, before any database
+ * opens. Kept apart from the pointer, so clearing the pointer never forgets a wipe.
+ */
+const PENDING_WIPE_KEY = 'releng.pending-wipe';
+
+export function readPendingWipes(): string[] {
+  try {
+    const raw = window.localStorage.getItem(PENDING_WIPE_KEY);
+    if (raw === null) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((name): name is string => typeof name === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePendingWipes(names: readonly string[]): void {
+  try {
+    if (names.length === 0) window.localStorage.removeItem(PENDING_WIPE_KEY);
+    else window.localStorage.setItem(PENDING_WIPE_KEY, JSON.stringify(names));
+  } catch {
+    // Blocked storage: the delete is still attempted now, only not retried at the next boot.
+  }
+}
+
+export function addPendingWipe(name: string): void {
+  const names = readPendingWipes();
+  if (!names.includes(name)) writePendingWipes([...names, name]);
+}
+
+export function removePendingWipe(name: string): void {
+  writePendingWipes(readPendingWipes().filter((entry) => entry !== name));
+}

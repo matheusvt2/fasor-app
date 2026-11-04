@@ -35,6 +35,7 @@ import type { OutboxRow, SyncStateRow } from '../../db/schema.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
+import { track } from '../../telemetry/track.ts';
 import { NewProjectDialog } from './new-project-dialog.tsx';
 import { RelatorioCard } from './relatorio-card.tsx';
 import { ShortcutRow } from './shortcut-row.tsx';
@@ -81,6 +82,12 @@ export function HomeSurface() {
   const [filter, setFilter] = useState<RelatorioStatus | null>(null);
   // Story 20.2: the search text is screen state only, never stored; the kernel matches it.
   const [query, setQuery] = useState('');
+  // Story 20.2 (deferred to e20e): one `home.search` action per search started, the query going
+  // from empty to non-empty; the text itself is never in an event (AD-28).
+  const changeQuery = (next: string) => {
+    if (query === '' && next !== '') track({ name: 'action', target: 'home.search' });
+    setQuery(next);
+  };
   // Story 19.2: the list's page size, this device's preference (`local_prefs.home_page_size`).
   // Undefined until read, so a device with 50 stored never draws a frame of 10 cards.
   // E19-A2 (R-11): a read that fails is a page of 10, never a Home that does not render.
@@ -238,7 +245,7 @@ export function HomeSurface() {
             {/* Story 20.2: the search, drawn from the Cadastros toolbar's field (`80-cadastros.html`).
                 React Aria's SearchField clears on Escape and on its clear button, and keeps focus
                 in the input; the text never leaves this component but for the kernel's match. */}
-            <SearchField className="field home-search" value={query} onChange={setQuery}>
+            <SearchField className="field home-search" value={query} onChange={changeQuery}>
               <Label className="field-label visually-hidden">{copy.home.searchLabel}</Label>
               <div className="input">
                 <svg className="ico" aria-hidden="true">

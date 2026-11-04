@@ -63,6 +63,8 @@ export interface UploadError {
   state: 'dead' | 'failed';
   code: string;
   at: string;
+  /** Story 20.12: the server's `details` of the refusal (the pixel limit of a `413 file_too_large`). Not indexed. */
+  details?: unknown;
 }
 
 /** AD-7: local originals and thumbs; `acked` marks the first eviction candidates. */
@@ -82,6 +84,12 @@ export interface FileBlobRow {
   acked_at?: string;
   /** Story 6.2: the persisted upload failure, absent while none. Not indexed. */
   upload_error?: UploadError;
+  /**
+   * Story 20.12: the upload landed but the reading it was to start was refused by the
+   * company's daily ceiling (`FilePutResponse.reading`). Device-local, not indexed (no new
+   * Dexie version); the reading line says so instead of "Não foi possível ler".
+   */
+  reading_refused?: 'quota_exceeded';
 }
 
 /**
@@ -319,6 +327,24 @@ export class AppDatabase extends Dexie {
 
 export function databaseName(userId: string): string {
   return `releng-${userId}`;
+}
+
+/**
+ * Story 20.11: whether a database exists on this device, without creating it: `Dexie.exists`
+ * opens with no schema, and Dexie aborts the creation IndexedDB would make. False when
+ * IndexedDB refuses to answer.
+ */
+export async function databaseExists(name: string): Promise<boolean> {
+  try {
+    return await Dexie.exists(name);
+  } catch {
+    return false;
+  }
+}
+
+/** Story 20.11: deletes a database (the sign-out wipe); rejects when IndexedDB refuses. */
+export function deleteDatabase(name: string): Promise<void> {
+  return Dexie.delete(name);
 }
 
 /** Opens (creating or upgrading) the user's database; `upToVersion` exists for the upgrade test only. */

@@ -382,11 +382,11 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
         return 'deferred';
       }
       try {
-        await deps.client.uploadFile(item.id, item.blob, item.sha256);
+        const answer = await deps.client.uploadFile(item.id, item.blob, item.sha256);
         // The bytes are on the server: AD-7's first eviction candidate (and any persisted
         // error is cleared). `uploaded_at` itself comes back with the next pull, as a
-        // `system:files` op.
-        await markBlobAcked(deps.db, item.id, toIso(deps.now()));
+        // `system:files` op. Story 20.12: a reading the daily ceiling refused is recorded.
+        await markBlobAcked(deps.db, item.id, toIso(deps.now()), answer?.reading);
         return 'uploaded';
       } catch (error) {
         if (!(error instanceof SyncRequestError)) throw error;
@@ -400,7 +400,12 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
           // screen read as "the server could not be reached". One unusable file is a
           // per-file verdict, not a verdict on the cycle. Story 6.2: persisted as `dead`,
           // so a reload does not re-queue it; only the tile's retry clears it.
-          await setUploadError(deps.db, item.id, { state: 'dead', code: failureCode(error.failure), at: toIso(deps.now()) });
+          await setUploadError(deps.db, item.id, {
+            state: 'dead',
+            code: failureCode(error.failure),
+            at: toIso(deps.now()),
+            ...(error.failure.kind === 'http' && error.failure.details !== undefined ? { details: error.failure.details } : {}),
+          });
           console.error('file upload refused permanently', { id: item.id, failure: error.failure });
           return 'failed';
         }

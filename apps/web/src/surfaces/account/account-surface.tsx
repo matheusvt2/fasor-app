@@ -1,11 +1,11 @@
 import {
   avatarInitial,
   defaultTitleForCouncil,
-  pendingNotSentText,
   registrationOfUserRow,
   KEEP_SCREEN_ON_DEFAULT,
   keepScreenOnSubText,
   registrationRowText,
+  signOutUnsentText,
   storageLine,
   PRODUTO,
   type Registration,
@@ -15,7 +15,9 @@ import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router';
 import { Button, ConfirmDialog, LoadingNote, SegmentedControl, TextButton, Toggle } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { pendingUploads } from '../../db/file-store.ts';
 import { relatorioRows, originalFileCount } from '../../db/home-store.ts';
+import type { AppDatabase } from '../../db/schema.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { clearGeolocationDenied, useGeolocationDenied, writeGeolocationDenied } from '../../db/photo-store.ts';
 import { localUser } from '../../db/sync-store.ts';
@@ -33,8 +35,12 @@ import './account.css';
  * Account (UX-DR22, UX-DR65) from `mockups/key-account.html`: identity rows, the
  * "Registro profissional" settings row with its Form dialog, the "Localização nas fotos"
  * Toggle row (Story 11.5, FR-8, `90-account.html` `#acc-loc-row`), the "Aguardando envio"
- * row that opens Sync status, and the destructive "Sair" with its Confirm dialog, whose
- * wording carries the kernel's pending summary when something waits to be sent.
+ * row that opens Sync status, and the destructive "Sair" with its Confirm dialog.
+ *
+ * Story 20.11: "Sair" deletes this account's data from the device. The press first runs one
+ * sync round ("Saindo…"), then counts what is still unsent (outbox ops not acknowledged and
+ * photo originals not uploaded) and opens the Confirm dialog: with nothing unsent, "Sair desta
+ * conta?"; otherwise "Sair com envios pendentes?" with the kernel's count sentence.
  *
  * There is no "Instalar na tela inicial" row: `source-deltas.md` removed it (web only,
  * no install), even though the mock still draws it. "Leituras por IA" is marked out of
@@ -59,6 +65,16 @@ const THEME_OPTIONS: ReadonlyArray<{ value: ThemePreference; label: string }> = 
   { value: 'light', label: copy.account.themeLight },
   { value: 'dark', label: copy.account.themeDark },
 ];
+/**
+ * Story 20.11: what a sign-out would delete unsent, once the flush ran: every outbox op the
+ * server has not acknowledged (pending, sent or refused) plus every photo original not
+ * uploaded. A photo whose create op and bytes both wait counts twice.
+ */
+export async function unsentCount(db: AppDatabase): Promise<number> {
+  const ops = await db.outbox.where('status').anyOf('pending', 'sent', 'dead').count();
+  return ops + (await pendingUploads(db)).length;
+}
+
 export function AccountSurface() {
   const session = useSession();
   const sync = useSync();
@@ -150,6 +166,8 @@ export function AccountSurface() {
 
   const [editing, setEditing] = useState(false);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+  /** Story 20.11: what the flush left unsent, counted when "Sair" was pressed. */
+  const [unsent, setUnsent] = useState(0);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -203,6 +221,24 @@ export function AccountSurface() {
   async function save(registration: Registration) {
     await session.saveRegistration(registration);
     setEditing(false);
+  }
+
+  /**
+   * Story 20.11: one sync round first (as the Export dialog drains before a server job), then
+   * the count of what is still unsent decides which Confirm dialog opens. A round that fails
+   * leaves its work in the count; it never blocks the dialog.
+   */
+  async function prepareSignOut() {
+    if (signingOut) return;
+    setSignOutError(null);
+    setSigningOut(true);
+    try {
+      await sync.syncNow().catch(() => undefined);
+      setUnsent(db === null ? 0 : await unsentCount(db).catch(() => 0));
+      setConfirmingSignOut(true);
+    } finally {
+      setSigningOut(false);
+    }
   }
 
   /** A sign-out the server never confirmed keeps the session and says so. */
@@ -442,9 +478,7 @@ export function AccountSurface() {
               aria-describedby={signOutNoteId}
               isDisabled={!session.online}
               disabledReason={copy.account.signOutOfflineReason}
-              onPress={() => {
-                if (!signingOut) setConfirmingSignOut(true);
-              }}
+              onPress={() => void prepareSignOut()}
             >
               {signingOut ? copy.account.signingOut : copy.account.signOut}
             </Button>
@@ -468,14 +502,15 @@ export function AccountSurface() {
         />
       ) : null}
 
-      {/* Confirm dialog of the destructive "Sair" (mock: `#acc-dlg-sair`). With pending work
-          it is the mock's "Sair com envios pendentes?" with the kernel's sentence; with
-          nothing pending it says what is true today: nothing on this device is deleted. */}
+      {/* Confirm dialog of the destructive "Sair" (mock: `#acc-dlg-sair`). Story 20.11: with
+          work still unsent after the flush it is the mock's "Sair com envios pendentes?" with
+          the kernel's count sentence; with nothing unsent it says the device data of this
+          account is removed. */}
       <ConfirmDialog
         isOpen={confirmingSignOut}
         onOpenChange={setConfirmingSignOut}
-        title={pending === '' ? copy.account.signOutDialogTitle : copy.account.signOutPendingDialogTitle}
-        description={pending === '' ? copy.account.signOutDialogBody : pendingNotSentText(pending, sync.pendingCount)}
+        title={unsent === 0 ? copy.account.signOutDialogTitle : copy.account.signOutPendingDialogTitle}
+        description={unsent === 0 ? copy.account.signOutDialogBody : signOutUnsentText(unsent)}
         confirmLabel={copy.account.signOutConfirm}
         cancelLabel={copy.account.cancel}
         isDestructive

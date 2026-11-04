@@ -49,7 +49,7 @@ describe('signIn classifies failures', () => {
 
   it('keeps a 400 and a 401 as the wrong-password text', async () => {
     signInEmail.mockResolvedValue({ data: null, error: { status: 400, message: 'Bad' } });
-    expect(await signIn('a@teste.local', 'x')).toMatchObject({ ok: false, reason: 'credentials', message: 'Senha incorreta' });
+    expect(await signIn('a@teste.local', 'x')).toMatchObject({ ok: false, reason: 'credentials', message: 'E-mail ou senha incorretos.' });
   });
 
   it('reads a 500 as the server being unavailable, never as a wrong password or no connection', async () => {
