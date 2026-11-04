@@ -5,6 +5,7 @@ import {
   pulledMergePairs,
   projectIdOfStream,
   projectStreamId,
+  SYNC_PUSH_MAX_BYTES,
   SYNC_PUSH_MAX_OPS,
   toIso,
   type Author,
@@ -51,6 +52,7 @@ import {
   isUnreachableFailure,
   MAX_ATTEMPTS,
   parsePulled,
+  serializedBytes,
   type FailureAction,
 } from './policy.ts';
 
@@ -286,7 +288,9 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     const rows = await takePending(deps.db);
     if (rows.length === 0) return;
     // Every outbox row already carries this device's id: `commitBatch` stamps it (AD-3).
-    for (const batch of batches(rows, SYNC_PUSH_MAX_OPS)) {
+    // Story 20.9: each push stays under the server's body cap (`SYNC_PUSH_MAX_BYTES`), measured
+    // on the op the body serializes, so a long offline backlog never earns a 413.
+    for (const batch of batches(rows, SYNC_PUSH_MAX_OPS, { max: SYNC_PUSH_MAX_BYTES, of: (row) => serializedBytes(opOf(row)) })) {
       const ops: Op[] = batch.map(opOf);
       await markSent(
         deps.db,

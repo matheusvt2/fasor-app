@@ -1,4 +1,4 @@
-import { formatShortDateTime, rejectedText, syncStatusWord } from '@app/domain';
+import { formatShortDateTime, opRejectReasonText, rejectedText, syncStatusWord } from '@app/domain';
 import { useId, useState } from 'react';
 import { Button, LoadingNote, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -26,6 +26,8 @@ export function SyncStatusSurface() {
 
   // F-14: the word and the button's reason read the same `running`, so they never disagree.
   const word = syncStatusWord(sync.badgeState, sync.counts, sync.running);
+  // Stories 20.7 to 20.10: the kernel's sentence of each code the server refused this device's ops with.
+  const reasons = [...new Set((sync.rejectedCodes ?? NO_ROWS).map(opRejectReasonText).filter((text): text is string => text !== null))];
   const decisions = sync.decisions ?? NO_ROWS;
   // E10-Q7: the headline, the badges and the Decisões count are the state's (kernel), never recounted here.
   const headline = sync.headline;
@@ -106,6 +108,11 @@ export function SyncStatusSurface() {
               <li className="sync-row" data-testid="sync-rejected-row">
                 <span className="sr-body">
                   <span className="sr-primary">{rejectedText(sync.counts.dead)}</span>
+                  {reasons.map((reason) => (
+                    <span className="sr-secondary" key={reason}>
+                      {reason}
+                    </span>
+                  ))}
                 </span>
                 <span className="sr-state">
                   <TextButton

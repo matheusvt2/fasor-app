@@ -154,6 +154,12 @@ export interface SyncState {
   /** False while the device's outbox has not been read yet (the Sync status surface says it is loading). Optional for the older test doubles. */
   outboxRead?: boolean;
   /**
+   * Stories 20.7 to 20.10 (contract 29): the distinct codes the server refused this device's dead
+   * ops with, in the order first met, so Sync status says why under the rejected count (each
+   * code's sentence is the kernel's, `opRejectReasonText`). Optional for the older test doubles.
+   */
+  rejectedCodes?: readonly string[];
+  /**
    * E19-A2 (R-3): false while the device's sync states (the company stream and its summary,
    * `summaryRelatorios`) have not been read yet, so Home does not cut a first frame in the
    * wrong order. Optional for the older test doubles, which read as answered.
@@ -345,6 +351,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const rows = loadedRows ?? NO_ROWS;
   // Matheus, 2026-09-30: the Sync status surface says it is loading until the outbox is read.
   const outboxRead = db === null || loadedRows !== undefined;
+  // Stories 20.7 to 20.10: why the server refused the dead rows, one code each, first met first.
+  const rejectedCodes = useMemo(() => {
+    const codes: string[] = [];
+    for (const row of rows) if (row.status === 'dead' && row.error_code !== null && !codes.includes(row.error_code)) codes.push(row.error_code);
+    return codes;
+  }, [rows]);
   // Epic 18: an op the server refused for good (a dead row) is an api error code the user
   // sees on Sync status; each one is tracked once, the rows already dead at boot excepted.
   const deadSeen = useRef<{ db: AppDatabase; ids: Set<string> } | null>(null);
@@ -539,6 +551,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       decisions,
       heldDecisions: held,
       outboxRead,
+      rejectedCodes,
       summaryRead,
       pendingText: pendingSummaryText(counts),
       pendingCount: pendingSummaryCount(counts),
@@ -566,7 +579,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       rereadPhoto,
       audit,
     }),
-    [counts, outboxRead, summaryRead, session.online, unreachable, serverAnswers, status, engineReady, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
+    [counts, outboxRead, rejectedCodes, summaryRead, session.online, unreachable, serverAnswers, status, engineReady, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
   );
 
   return (
