@@ -21,13 +21,13 @@ import { extractStructure, paragraphText, readZipEntries } from '../apps/api/src
 import { newId } from '../apps/api/src/ids.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { addLocal } from './support/local.ts';
-import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 import { pushRevision } from './support/push-server-ops.ts';
 import { emCampoDraft, officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 import { resetEmpresaB, withSeedDb } from './support/reset-empresa-b.ts';
-import { SYNC_CYCLE_TIMEOUT, syncNowAndReturn, waitForCompanyPull } from './support/sync.ts';
+import { syncNow, syncNowAndReturn, waitForCompanyPull } from './support/sync.ts';
 import { expandLocation, section9Chevron } from './support/tree.ts';
 
 /*
@@ -258,7 +258,8 @@ test('@p0 14.2-E2E-001 at 1280: a template of one local (Transformação) with t
   const template = (await entities<TemplateRow>(page)).find((record) => record.entity === 'template' && record.id === templateId)!.row;
   expect(template.skeleton.map((node) => node.kind)).toEqual(['cabine', 'painel', 'coluna', 'coluna', 'coluna']);
   expect(template.skeleton[0]).toMatchObject({ kind: 'cabine', name: LOCAL, funcao: 'transformacao' });
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: SYNC_CYCLE_TIMEOUT });
+  // C-4: a tapped cycle pushes now; the 60 s tick cost about a minute here.
+  await syncNow(page);
 
   // A relatório from it, as a person makes one.
   await page.goto('/');
@@ -647,7 +648,8 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
     ['painel', 'Média tensão'],
   ]);
   expect(skeleton[0]).toMatchObject({ funcao: 'primaria' });
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: SYNC_CYCLE_TIMEOUT });
+  // C-4: a tapped cycle pushes now; the 60 s tick cost about a minute here.
+  await syncNow(page);
 
   // --- the relatório tree ---
   const { relatorioId } = await pushNewRelatorio(page, account, database);

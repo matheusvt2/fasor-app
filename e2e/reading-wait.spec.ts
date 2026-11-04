@@ -371,7 +371,10 @@ test('@p0 13.5-E2E-003 a panel photo whose dialog was left by navigation waits i
 });
 
 test('@p1 13.5-E2E-004 a reading still running past 120 s keeps its age and adds the still-reading note, and the device keeps polling every 60 s', async ({ page }) => {
-  test.setTimeout(360_000);
+  test.setTimeout(120_000);
+  // The page's clock is installed before the app loads, so the wait below jumps the two minutes
+  // as a lid closed and opened again would, instead of spending them (it cost 128 s of real time).
+  await page.clock.install();
   await holdPhotoBytes(page);
   const ids = await openTransformerSheet(page, account, database);
   const plateId = await importThrough(page, nameplate(page).locator('.camera-group').getByRole('button', { name: 'Fotografar placa' }), PLATE, 'placa.jpg');
@@ -386,12 +389,14 @@ test('@p1 13.5-E2E-004 a reading still running past 120 s keeps its age and adds
   page.on('request', (request) => {
     if (new URL(request.url()).pathname === '/api/sync/company') pulls.push(Date.now());
   });
-  await expect(line.locator('.reading-line')).toHaveText(/^Lendo… 2 min \d\d s$/, { timeout: 150_000 });
+  await page.clock.fastForward('02:05');
+  await expect(line.locator('.reading-line')).toHaveText(/^Lendo… 2 min \d\d s$/, { timeout: 20_000 });
   await expect(line.locator('.reading-note')).toHaveText('A leitura está demorando. O app continua conferindo a cada minuto; a foto está guardada.');
   await expect(line.getByRole('button', { name: 'Cancelar' })).toBeVisible();
   // Past the fast window the cycles keep coming, every 60 s.
   const past = Date.now();
-  await expect.poll(() => pulls.filter((at) => at > past).length, { timeout: 75_000 }).toBeGreaterThan(0);
+  await page.clock.fastForward('01:05');
+  await expect.poll(() => pulls.filter((at) => at > past).length, { timeout: 20_000 }).toBeGreaterThan(0);
 });
 
 test('@p1 13.5-E2E-005 the arrival toast\'s "Ver" on a panel suggestion reopens that photo\'s result dialog on the proposal', async ({ page }) => {

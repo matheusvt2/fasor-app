@@ -11,7 +11,7 @@ import {
 } from './support/merged-fixtures.ts';
 import { addLocal } from './support/local.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
-import { SYNC_CYCLE_TIMEOUT, syncNowAndReturn } from './support/sync.ts';
+import { syncNow, syncNowAndReturn } from './support/sync.ts';
 
 /*
  * 3.2-E2E, 3.3-E2E and 3.4-E2E. The Templates surface and the Template composer, driven
@@ -318,7 +318,8 @@ test('@p0 3.4-E2E-001 builds a skeleton from "Novo template" and reorders a colu
   // The reload's launch cycle pushes this "Novo template". It ends here, not in the next
   // test on this worker: a push still in flight when the page closes lands in Empresa B
   // whenever the server gets to it, which was inside 3.4-E2E-003's reset (wave-1 gate, 2026-10-08).
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: SYNC_CYCLE_TIMEOUT });
+  // C-4: a tapped cycle pushes now; the 60 s tick cost about a minute here.
+  await syncNow(page);
 });
 
 test('@p0 3.4-E2E-002 sets quantities per node with the palette stepper; the coluna and the totals follow', async ({ page, seed }) => {
@@ -743,7 +744,8 @@ test('@p0 15.5-E2E-001 at 390 px an open coluna\'s "Adicionar equipamento" opens
       ['transformador_forca', 1],
     ]);
   expect((await outboxPaths(page, account.userId)).every((path) => path.startsWith('template/'))).toBe(true);
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: SYNC_CYCLE_TIMEOUT });
+  // C-4: a tapped cycle pushes now; the 60 s tick cost about a minute here.
+  await syncNow(page);
 });
 
 test('@p1 15.5-E2E-002 the coluna\'s "Adicionar equipamento" opens the right drawer on it at 768 px; at 1280 px the press is idempotent: the coluna stays the target, its row open, no dialog, the focus on the button', async ({
@@ -777,7 +779,8 @@ test('@p1 15.5-E2E-002 the coluna\'s "Adicionar equipamento" opens the right dra
     await expect(palette(page).locator('.pal-target')).toHaveText(/^Toque para adicionar em: Coluna 1 · Painel 1/);
     await expect(add).toBeFocused();
   }
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: SYNC_CYCLE_TIMEOUT });
+  // C-4: a tapped cycle pushes now; the 60 s tick cost about a minute here.
+  await syncNow(page);
 });
 
 // --- Stories 3.5 and 3.6 ------------------------------------------------------------------
