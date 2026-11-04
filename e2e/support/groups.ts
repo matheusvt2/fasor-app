@@ -44,15 +44,13 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'review-field-defects-2.spec.ts',
     why: 'issues revisions through the shared queue and LibreOffice (F-03, F-05) and loads the fixed-id Porto Seguro fixture (F-05)',
   },
-  // Review fixes 2026-10-06, batch 3: layout measured against the renders at 390, 768 and 1280 px.
-  {
-    file: 'review-layout-copy-3.spec.ts',
-    why: 'measures the layout of what the page renders (sticky bars, focused fields, line boxes, popover edges) at fixed viewports, so it must not share the CPU with other workers',
-  },
+  // Chore T2 (2026-11-04, sprint-change-proposal-2026-11-04 § 4.1): review-layout-copy-3 left this list.
+  // It measures boxes at fixed viewports and times no tap, and its 16 tests ran green 5 of 5
+  // (`--repeat-each 5`, 80 runs) in the parallel group on two workers under the host lock.
   // Review fixes 2026-10-08, batch r8lay: tables, dialogs, bars and tree rows measured against the renders.
   {
     file: 'review-layout-interaction-2026-10-08.spec.ts',
-    why: 'measures the layout of what the page renders (table inputs and scrollers, dialogs, the Sticky action bar, tree rows, hit points under inputs) at fixed viewports, so it must not share the CPU with other workers',
+    why: 'measures the layout of what the page renders (table inputs and scrollers, dialogs, the Sticky action bar, tree rows, hit points under inputs) at fixed viewports, so it must not share the CPU with other workers. Chore T2 (2026-11-04) tried it in the parallel group on two workers with `--repeat-each 5`: R8LAY-E2E-008 failed once (repeat 4 of 5, the "Novo relatório" dialog not open 5 s after its click), the other 74 runs green, so it stays',
   },
   // Status flow 2026-10-10: SF-E2E-002 generates a revision on the fixture.
   {

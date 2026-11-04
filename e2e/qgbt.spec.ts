@@ -324,7 +324,9 @@ test('@p0 14.9-E2E-001 at 1280: the composer adds a Quadro elétrico from "Outro
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   await syncNowAndReturn(page);
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: 60_000 });
+  // Back on the Sumário after the navigation, still nothing pending (the tapped cycle above ended on
+  // none); a check, not a wait on the 60 s tick (chore T2).
+  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0');
   await setParecer(page, relatorioId);
   const modal = page.getByRole('dialog', { name: 'Gerar relatório' });
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();

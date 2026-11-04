@@ -3,7 +3,7 @@ type: Runbook
 title: Merge gate
 description: What must be green before a story PR merges, the split gate, and host locking.
 tags: [workflow, verify, gate]
-timestamp: 2026-11-03T00:00:00Z
+timestamp: 2026-11-04T00:00:00Z
 sources: [AGENTS.md, scripts/verify.ts, infra/PUBLISHING.md, _bmad-output/implementation-artifacts/epic-batch-orchestrator.md]
 ---
 # Merge gate
@@ -18,4 +18,5 @@ sources: [AGENTS.md, scripts/verify.ts, infra/PUBLISHING.md, _bmad-output/implem
 - `pnpm audit --prod` is not part of verify; its known advisory is tracked in `_bmad-output/implementation-artifacts/deferred-work.md`.
 - The production smoke (`e2e/production/*.smoke.ts`, `pnpm smoke:production`, 2026-10-15) is not part of `verify`, the story gate or any `test:e2e*` command; the root Playwright config never collects it (`scripts/e2e.test.ts`). Only `infra/bin/deploy` runs it, after a deploy.
 - **Gate record before a deploy (2026-11-03, E18-A6)**: before `infra/bin/deploy` of an integrated main, `test:e2e:full` is green on that commit under the host lock, with the host load line (`sysctl -n vm.loadavg` at start and end, lock wait, what else ran), recorded in `epic-<N>-context.md`; `verify` alone does not count (no `@p1`/`@p2`). Source: `infra/PUBLISHING.md` § Every publish step 1; playbook § 8.
+- **One-off direct push (2026-11-04, Matheus, not a standing rule)**: two test-only fixes (`8dda538c`, `aa5bfff2`) went to main with no story or PR after their touched specs passed; everything after them goes through a branch and a PR. Source: `AGENTS.md` decisions of record, `sprint-change-proposal-2026-11-04.md`.
 - No CI. AWS Budget and deploy are separate: [infra-aws](/architecture/infra-aws.md).

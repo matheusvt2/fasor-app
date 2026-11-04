@@ -31,6 +31,7 @@ import { clientCreateOp, pullAll, readDeviceId, readFileBlobs, readStore, seedOu
 import { devicePhotos, jpegFromPage, jpegSize, openChaveSheet } from './support/photos.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { pushNewRelatorio } from './support/relatorio-seed.ts';
+import { syncNow as syncNowCycle } from './support/sync.ts';
 
 /**
  * FR-54 / NFR-17: "the tab closed mid-sheet, the network dropped mid-push, the quota
@@ -197,13 +198,9 @@ test('@p0 1.8-E2E-002 the network drops mid-push: the cycle resumes and no op is
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
   await expect.poll(() => dropped, { timeout: 30_000 }).toBe(true);
 
-  await page.goto('/sync');
-  const syncNow = page.getByRole('button', { name: 'Sincronizar agora' });
-  await expect(syncNow).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-  await syncNow.click();
-  await expect(page.locator('.app-bar [data-testid="sync-badge"]')).toHaveAttribute('data-pending', '0', {
-    timeout: 30_000,
-  });
+  // The shared tapped cycle (decision C-4): it waits until the cycle that started after the tap
+  // is over and nothing is pending (chore T2 moved this off a hand-rolled 30 s badge wait).
+  await syncNowCycle(page);
 
   // Every op is acked exactly once on the device...
   const outbox = await readStore<OutboxRecord>(page, database, 'outbox');
