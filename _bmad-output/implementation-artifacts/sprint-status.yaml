@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 11-03-2026 19:30
+last_updated: 11-04-2026 17:58
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -219,13 +219,16 @@ development_status:
   19-2-home-opens-on-the-active-work-emitido-behind-its-tile-and-the-list-capped-with-ver-todos: 
     done                                                                                               # 2026-10-30: branch story-19-2 from main 57d3b5cc; Definition of Ready closed by Matheus (the Emitido tile; 10 · 20 · 50 · 100; most recent first by the summary's updated_seq, "1.a"; the unsynced new relatório right after the current card, "A"); review 20 triage rows (9 patched, 2 deferred to the ledger, 6 rejected, 2 planning edits, 1 intent gap answered A); story gate green three times, last run: lint 0 errors, static, test:api 733 of 733, test:unit 4707 of 4707, home.spec.ts and app-layout.spec.ts 5 of 5; hands-on browser pass at 1280, 768 and 390 px; deployed 2026-10-30 in main 29f030b2 (infra/bin/deploy, smoke 8 of 8) | 2026-10-30: drafted from Matheus's words ("talvez tirar os enviados e aí só quando clicar no card de enviados é que mostra") and Sally's option A plus the mocks' cap; Definition of Ready open: Matheus confirms the three rules
 
-  epic-20: backlog  # added 2026-11-03 (Matheus): "Vamos com CONFORME por ora" plus five field feedback items relayed the same day; investigated against main cf468e3d (epic-20-context.md); waves: web lane 20.1, 20.2, 20.4; document lane 20.3, 20.5, 20.6; 2026-11-03 (Matheus): the security pass joins as 20.7 to 20.13, wave B after A (server lane 20.7, 20.8, 20.9, 20.10; edge lane 20.11, 20.12, 20.13)
-  epic-20-retrospective: optional
-  20-1-the-product-is-called-conforme-the-one-constant-the-page-title-and-the-boot-splash: done  # 2026-11-04: merged in #237; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus): DoR decided in the planning session
+  epic-20: done  # 2026-11-04: retrospective accepted-with-open-items (epic-20-retro-2026-11-04.md, E20-A1 to E20-A4); deployed as d6e8eea1 and 85e2b3d8 |  # added 2026-11-03 (Matheus): "Vamos com CONFORME por ora" plus five field feedback items relayed the same day; investigated against main cf468e3d (epic-20-context.md); waves: web lane 20.1, 20.2, 20.4; document lane 20.3, 20.5, 20.6; 2026-11-03 (Matheus): the security pass joins as 20.7 to 20.13, wave B after A (server lane 20.7, 20.8, 20.9, 20.10; edge lane 20.11, 20.12, 20.13)
+  epic-20-retrospective: done
+  20-1-the-product-is-called-conforme-the-one-constant-the-page-title-and-the-boot-splash: 
+    done                                                                                         # 2026-11-04: merged in #237; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus): DoR decided in the planning session
   20-2-search-home-by-client-and-obra: done  # 2026-11-04: merged in #237; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, "Cliente e obra"); the reading of a query with no tile pressed (every status) is the coordinator's, open to his correction
-  20-3-pontos-de-atencao-after-the-ensaios-the-tests-section-prints-before-the-points-section-on-every-new-relatorio: done  # 2026-11-04: merged in #238; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, "Seção 8 após a 9")
+  20-3-pontos-de-atencao-after-the-ensaios-the-tests-section-prints-before-the-points-section-on-every-new-relatorio: 
+    done                                                                                                                    # 2026-11-04: merged in #238; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, "Seção 8 após a 9")
   20-4-change-the-equipment-or-local-of-a-point-of-attention: done  # 2026-11-04: merged in #237; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, "Trocar o vínculo")
-  20-5-the-nameplate-and-verification-tables-never-start-on-one-page-and-end-on-the-next: done  # 2026-11-04: merged in #238; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, relaying the field feedback)
+  20-5-the-nameplate-and-verification-tables-never-start-on-one-page-and-end-on-the-next: 
+    done                                                                                        # 2026-11-04: merged in #238; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, relaying the field feedback)
   20-6-each-equipment-on-its-own-page-with-all-its-photos-at-its-end: done  # 2026-11-04: merged in #238; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, planning session); photo block after CONCLUSAO is the coordinator's reading, open to his correction
   20-7-the-server-decides-which-status-moves-a-relatorio-may-make: done  # 2026-11-04: merged in #239 and fix batch e20f #241; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, security pass security-pass-2026-11-03.md); S1; no roles is the coordinator's reading, open to his correction; bumps contract 29 for wave B
   20-8-the-server-checks-who-and-when-an-op-says: done  # 2026-11-04: merged in #239 and fix batch e20f #241; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, security pass security-pass-2026-11-03.md); S3; the 10-minute clock skew is the coordinator's reading
@@ -233,7 +236,8 @@ development_status:
   20-10-every-op-lands-on-a-row-that-exists-in-the-relatorio-it-names: done  # 2026-11-04: merged in #239 and fix batch e20f #241; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, security pass security-pass-2026-11-03.md); S5 and part of S1; no removal of an issued relatorio is the coordinator's reading
   20-11-signing-out-leaves-nothing-of-the-user-on-the-device: done  # 2026-11-04: merged in #240 and fix batch e20f #241; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, security pass security-pass-2026-11-03.md); S2; wipe after flush and online-401 boot to /login are the coordinator's reading, amends AD-9
   20-12-paid-readings-audits-and-image-decoding-have-a-ceiling: done  # 2026-11-04: merged in #240; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, security pass security-pass-2026-11-03.md); S6; quota numbers are the coordinator's reading; starts after 20.7 merges
-  20-13-the-edges-auth-endpoints-cross-site-writes-telemetry-removed-files-hsts-and-the-login-copy: done  # 2026-11-04: merged in #240 and fix batch e20f #241; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, security pass security-pass-2026-11-03.md); S7 and S8; per-e-mail lockout kept as accepted risk is the coordinator's reading; starts after 20.7 merges
+  20-13-the-edges-auth-endpoints-cross-site-writes-telemetry-removed-files-hsts-and-the-login-copy: 
+    done                                                                                                  # 2026-11-04: merged in #240 and fix batch e20f #241; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, security pass security-pass-2026-11-03.md); S7 and S8; per-e-mail lockout kept as accepted risk is the coordinator's reading; starts after 20.7 merges
 
   backlog-deferred: backlog  # added 2026-10-21: stories moved out of their epic with a dated decision, epics.md "Backlog: deferred stories"
   13-9-dictation-on-behind-one-line-of-consent: backlog  # 2026-10-21 (Bruno via Matheus, answer 11): moved out of Epic 13 to the backlog; DoR unchanged |  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus
@@ -1690,3 +1694,50 @@ action_items:
     owner: "coordinator"
     status: done  # 2026-11-03: wave gate record in epic-19-context.md and two playbook lines in epic-batch-orchestrator.md § 8  (was: open)
     ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md"
+  - id: "epic-20-retro-item-163-e20-a1-fix-batch"
+    epic: 20
+    action: "E20-A1 Fix batch, red-first, story gate plus touched and durability specs:
+      relatorio budget (restore, growth not full value, same byte measure, server
+      rows out, in-push test; R-1); Reenviar restamp scope, commit order, instant
+      shift by clock error (R-2); durations on a monotonic clock, stale offset dropped
+      (R-3); account-surface db null opens the pending dialog, clearUserStorage in
+      runPendingWipes, no altitude write after sign-out (R-4); removed relatorio cover
+      photo 404 and PUT refusal (R-5); point editor finish awaits every write, refused
+      write keeps it open, two e2e cases (R-7); section 7 note and points break from
+      the built section 9 (R-10); node-server 413 test at the cap and cap+1 (R-11);
+      module cycle, RangeError log, orphaned copy, errors.ts docs (R-12, R-8); R-6
+      test after E20-A2."
+    owner: "coordinator (batch, opus high)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md"
+  - id: "epic-20-retro-item-164-e20-a2-matheus-decisions"
+    epic: 20
+    action: "E20-A2 Matheus decisions, one dated line each: R-6 offline undo across
+      devices; R-8/R-9 a distinct relatorio-full refusal, client pre-check, contract
+      30 and MIN_CONTRACT_VERSION; the wave A and B readings (no roles, sign-out wipe,
+      10-min skew, caps, 400 readings and 30 audits a day, 120 MP, search covers Emitido,
+      photos after CONCLUSAO); P-4 quotas against USD 10.91 left under the ceiling
+      with 24 h production; the five known items of epic-20-context.md."
+    owner: "Matheus (decision); coordinator (record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md"
+  - id: "epic-20-retro-item-165-e20-a3-records"
+    epic: 20
+    action: "E20-A3 Records: epic-20 backlog to done in sprint-status; close the stale
+      deferred-work rows (e20w home.search, e20e Reenviar unchanged); run or record
+      skipped the PR #239 over-cap count in production; ledger rows for the R-5 extra
+      query and the R-12 meta caps."
+    owner: "coordinator; Matheus for the production count"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md"
+  - id: "epic-20-retro-item-166-e20-a4-process-lessons"
+    epic: 20
+    action: "E20-A4 Playbook lines: the integrated review adds a code-read pass over
+      the union of every patched-not-re-reviewed list and the fix batch items added
+      after its review (P-1); a batch with no spec and no sprint-status line records
+      its verification-gap read in the PR body (P-2); the deploy checklist lists and
+      records every ledger row marked before the deploy (P-3); a budget or quota rule
+      ships with restore and shrink tests (R-1)."
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md"
