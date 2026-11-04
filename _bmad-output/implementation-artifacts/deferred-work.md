@@ -2906,3 +2906,13 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   evidence: e20g Design Notes; `.scratch-e20g` probe of the redirect.
   class: note
   state: open (owner: Matheus, cosmetic)
+- source_spec: `_bmad-output/implementation-artifacts/spec-test-speed-2.md`
+  summary: The generation spike of `sprint-change-proposal-2026-11-04.md` § 4.2 is approved but unscheduled. Its job is to measure where one generation's ~9.5 s goes (the job's `generate timing` stages, the soffice spawn share, the device's 3 s `GenerateWatcher` poll and pull) and, only if worth it, to propose a costed product story.
+  evidence: T2 review; the proposal's § 5 handoff names no date. The job-side stages are already logged (`apps/api/src/jobs/generate/job.ts`, `generation-time.integration.test.ts`); the device side is not.
+  class: note
+  state: open (owner: Matheus to schedule; Developer or TEA, opus · high)
+- source_spec: `_bmad-output/implementation-artifacts/spec-test-speed-2.md`
+  summary: Two tests in `e2e/durability.spec.ts` still tap "Sincronizar agora" by hand (go to `/sync`, wait for the button to lose `aria-disabled`, click, then poll a store). E5-A1 calls that readiness signal racy, and `e2e/support/sync.ts` `syncNow` waits on the cycle's end instead. They are the one at about line 426 (`tab`) and the one at about line 674.
+  evidence: T2 review; 1.8-E2E-002 in the same file moved to `syncNow` in T2. Neither is a wait on the 60 s tick, so the C-4 guard does not read them.
+  class: note
+  state: open (owner: the next batch touching `durability.spec.ts`)

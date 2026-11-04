@@ -506,6 +506,59 @@ describe('the e2e groups', () => {
   });
 });
 
+/**
+ * Chore T2 (sprint-change-proposal-2026-11-04 § 4.1): the waits on the sync badge's
+ * `data-pending` that can only end on the 60 s automatic cycle, one `file:line` each. Five
+ * tests sat 58-59 s each on this pattern until 8dda538c; decision C-4 says a test taps
+ * "Sincronizar agora" instead.
+ */
+const SYNC_TICK_WAIT_MS = 30_000;
+
+function syncTickWaits(source: string, file: string): string[] {
+  // The whole call up to its `);`, so a value argument holding a call (`String(n)`) cannot hide the timeout.
+  const wait = /toHaveAttribute\(\s*['"`]data-pending['"`]([\s\S]*?)\)\s*;/g;
+  const found: string[] = [];
+  for (const match of source.matchAll(wait)) {
+    const timeout = /\btimeout:\s*([^,}\n]+)/.exec(match[1]!)?.[1]?.trim();
+    if (timeout === undefined) continue;
+    // A literal under 30 s is a cycle's budget; a literal from 30 s, or any constant or expression, is read as the tick.
+    const long = /^[\d_]+$/.test(timeout) ? Number(timeout.replaceAll('_', '')) >= SYNC_TICK_WAIT_MS : true;
+    if (long) found.push(`${file}:${source.slice(0, match.index).split('\n').length}`);
+  }
+  return found;
+}
+
+/** Every e2e source but the shared waits (`support/sync.ts`) and the production smoke, which runs outside every gate. */
+function syncTickScanned(): string[] {
+  return e2eFiles().filter((path) => path !== join(e2eDir, 'support', 'sync.ts') && !path.startsWith(join(e2eDir, 'production') + '/'));
+}
+
+describe('the waits on the sync tick (chore T2, decision C-4)', () => {
+  it('reads a long data-pending wait on one line or across lines, and leaves a short one', () => {
+    const sample = [
+      "await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: SYNC_CYCLE_TIMEOUT });",
+      "await expect(badge).toHaveAttribute('data-pending', '0', { timeout: 20_000 });",
+      'await expect(syncBadge(page)).toHaveAttribute(',
+      "  'data-pending',",
+      "  '0',",
+      '  { timeout: 60_000 },',
+      ');',
+      "await expect(badge).toHaveAttribute('data-state', 'ok', { timeout: 60_000 });",
+      "await expect(badge).toHaveAttribute('data-pending', '0', { timeout: 30_000 });",
+      "await expect(badge).toHaveAttribute('data-pending', '0', { timeout: 29_999 });",
+      "await expect(badge).toHaveAttribute('data-pending', '0', { timeout: SYNC_TIMEOUT });",
+      "await expect(badge).not.toHaveAttribute('data-pending', String(count), { timeout: 60 * 1000 });",
+      "await expect(badge).toHaveAttribute('data-pending', '0');",
+    ].join('\n');
+    expect(syncTickWaits(sample, 'x.spec.ts')).toEqual(['x.spec.ts:1', 'x.spec.ts:3', 'x.spec.ts:9', 'x.spec.ts:11', 'x.spec.ts:12']);
+  });
+
+  it('no e2e source waits on the 60 s sync tick: each taps "Sincronizar agora" (`syncNow`, `syncNowAndReturn` in e2e/support/sync.ts)', () => {
+    const offenders = syncTickScanned().flatMap((path) => syncTickWaits(readFileSync(path, 'utf8'), relative(root, path)));
+    expect(offenders, `wait on syncNow or syncNowAndReturn instead of the automatic cycle: ${offenders.join(', ')}`).toEqual([]);
+  });
+});
+
 describe('scripts/e2e.ts after the preflight (Story 14.10 part 1)', () => {
   it('a preflight answering 1 builds nothing, runs no group and exits 1 with one line', async () => {
     const lines: string[] = [];
