@@ -2866,7 +2866,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   summary: The Home search field records no usage event: the telemetry target `home.search` (Story 20.2 DoR, AD-28) is not in `UX_ACTION_TARGETS`, so the field carries no `data-telemetry`.
   evidence: `UX_ACTION_TARGETS` lives in `packages/domain/src/contract/telemetry.ts`, which batch e20s owns in wave 1; `apps/web/src/telemetry/rendered-targets.test.tsx` and `targets.test.ts` refuse a name outside the list. The field is `SearchField` in `apps/web/src/surfaces/home/home-surface.tsx`.
   class: deferred-feature
-  state: open (owner: batch e20e, wave 2, after e20s merges: append `home.search` to `UX_ACTION_TARGETS`, wire the field's use event so it records that a search was used and never its text (AD-28), and extend the guard to the field)
+  state: ~~open (owner: batch e20e, wave 2, after e20s merges: append `home.search` to `UX_ACTION_TARGETS`, wire the field's use event so it records that a search was used and never its text (AD-28), and extend the guard to the field)~~ closed 2026-11-04 (Epic 20 retrospective P-3): landed in e20e, `apps/web/src/surfaces/home/home-surface.tsx` line 88 records one `home.search` action per search started, tested at `home-surface.test.tsx` line 686
 
 ## Deferred from: Epic 20 batch e20e (2026-11-04)
 
@@ -2894,7 +2894,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   summary: Not fixed, as the spec says (e20s deferral): "Reenviar" re-sends a clock-skew op unchanged.
   evidence: e20s deferral.
   class: risk
-  state: open (owner: Matheus)
+  state: ~~open (owner: Matheus)~~ closed 2026-11-04 (Epic 20 retrospective P-3): fixed in e20f (#241), `resendDead` re-stamps rows refused `op_attribution` (`apps/web/src/db/sync-store.ts`, `restampOp`), proven by `e2e/device-clock.durability.spec.ts`; the re-stamp's own scope and order are retrospective finding R-2 (E20-A1)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e20g-no-blank-page.md`
   summary: No automated check sends a request through each production Caddy site block to a live upstream and asserts the edge headers (no `Via`, no `Server`, HSTS); `infra/bin/check` validates the file and the fallback block's status codes only.
@@ -2916,3 +2916,21 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   evidence: T2 review; 1.8-E2E-002 in the same file moved to `syncNow` in T2. Neither is a wait on the 60 s tick, so the C-4 guard does not read them.
   class: note
   state: open (owner: the next batch touching `durability.spec.ts`)
+
+## Deferred from: the Epic 20 retrospective (2026-11-04, E20-A3)
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md`
+  summary: Every file GET runs a second query (`relatorioRemoved`) after `findFileRow` since e20f (QA N2), so a gallery or thumbnail grid doubles its database round trips (R-5).
+  evidence: `apps/api/src/http/files.ts` line 343.
+  class: debt
+  state: open (owner: the next batch touching `files.ts`; join the relatório's `removed_at` into `findFileRow`'s lookup)
+- source_spec: `_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md`
+  summary: Unknown client `meta` keys are bounded only by the depth cap (`opDepthIssue`), not by the byte and count caps the value carries, so a client can store large strings or arrays in the ops log through `meta` (R-12, plausible, not reproduced).
+  evidence: `packages/domain/src/ops/op.ts` `opMetaSchema` (`z.looseObject`); `packages/domain/src/ops/value-limits.ts` `opDepthIssue`.
+  class: risk
+  state: open (owner: coordinator; apply `VALUE_MAX_BYTES` and `VALUE_MAX_ITEMS` to `meta`, or refuse unknown meta keys from a client)
+- source_spec: `_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md`
+  summary: The read-only count of values over the contract-29 caps (PR #239 body) has no record of a run against production before the d6e8eea1 deploy, though its e20s row says "before the deploy" (P-3).
+  evidence: e20s row "Nothing was counted in production"; `epic-20-context.md` deploy records name no such run.
+  class: risk
+  state: open (owner: Matheus, needs his AWS login; record the per-field result in the e20s row, or that it was skipped)
