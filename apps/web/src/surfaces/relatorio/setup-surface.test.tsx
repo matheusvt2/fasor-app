@@ -653,6 +653,37 @@ describe('4.2 SetupSurface', () => {
       expect(((await database.entities.get(['relatorio', RELATORIO]))!.row as RelatorioRow).setup.site_altitude_m).toBe(760);
     });
 
+    it('Story 20.9: the altitude takes the kernel range as min and max; -501 and 9001 write nothing and are one out_of_range refusal each, -500 and 9000 are written', async () => {
+      vi.mocked(trackInputRefused).mockClear();
+      database = await seeded();
+      renderSetup();
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      expect(input).toHaveAttribute('min', '-500');
+      expect(input).toHaveAttribute('max', '9000');
+      for (const outside of ['-501', '9001']) {
+        input.focus();
+        fireEvent.change(input, { target: { value: outside } });
+        await new Promise((resolve) => setTimeout(resolve, 700));
+        fireEvent.blur(input);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        expect(await altitudeOps(), outside).toEqual([]);
+        expect(input).toHaveAttribute('aria-invalid', 'true');
+      }
+      expect(vi.mocked(trackInputRefused).mock.calls).toEqual([
+        ['setup.altitude', 'out_of_range'],
+        ['setup.altitude', 'out_of_range'],
+      ]);
+      for (const [inside, written] of [
+        ['-500', [-500]],
+        ['9000', [-500, 9000]],
+      ] as const) {
+        input.focus();
+        fireEvent.change(input, { target: { value: inside } });
+        fireEvent.blur(input);
+        await untilStored(altitudeOps, (ops) => expect(ops.map((op) => op.value)).toEqual([...written]));
+      }
+    });
+
     it('a decimal typed is kept as typed while the field has the focus; the write rounds to whole metres', async () => {
       database = await seeded();
       renderSetup();

@@ -4,12 +4,17 @@ import {
   defaultTitleForCouncil,
   registrationNumberLabel,
   registrationSchema,
+  textCapOf,
   type Council,
   type Registration,
 } from '@app/domain';
 import { useId, useState } from 'react';
-import { Button, FormDialog, SegmentedControl } from '../../components/index.ts';
+import { Button, CharCount, FormDialog, SegmentedControl } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
+
+/** Story 20.9: the kernel's caps of the registration number and of the printed title (short texts). */
+const REGISTRATION_NUMBER_CAP = textCapOf('user/field', 'registration_number');
+const TITLE_CAP = textCapOf('user/field', 'title');
 
 const COUNCIL_OPTIONS = councilSchema.options.map((council) => ({ value: council, label: councilLabel(council) }));
 
@@ -116,9 +121,11 @@ export function RegistrationDialog(props: RegistrationDialogProps) {
               name="registrationNumber"
               aria-labelledby={numberLabelId}
               value={registrationNumber}
+              maxLength={REGISTRATION_NUMBER_CAP ?? undefined}
               onChange={(event) => setRegistrationNumber(event.target.value)}
             />
           </div>
+          <CharCount length={registrationNumber.length} cap={REGISTRATION_NUMBER_CAP} />
         </div>
 
         <div className="field">
@@ -132,6 +139,7 @@ export function RegistrationDialog(props: RegistrationDialogProps) {
               aria-labelledby={printedTitleLabelId}
               aria-describedby={helperId}
               value={title}
+              maxLength={TITLE_CAP ?? undefined}
               onChange={(event) => {
                 setTitle(event.target.value);
                 setTitleEdited(true);
@@ -141,6 +149,7 @@ export function RegistrationDialog(props: RegistrationDialogProps) {
           <span className="helper" id={helperId}>
             {copy.account.printedTitleHelper}
           </span>
+          <CharCount length={title.length} cap={TITLE_CAP} />
         </div>
       </div>
 

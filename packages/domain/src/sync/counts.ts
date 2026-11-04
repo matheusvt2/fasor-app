@@ -206,6 +206,52 @@ export function rejectedText(count: number): string {
   return plural(count, 'alteração rejeitada', 'alterações rejeitadas');
 }
 
+/**
+ * Stories 20.7 to 20.10 (contract 29): why the server refused an op, one sentence per code a
+ * business rule gives, shown under the rejected count of Sync status (`.sr-secondary`). Null for
+ * the codes of a malformed op, which no user action causes.
+ */
+export function opRejectReasonText(code: string | null | undefined): string | null {
+  switch (code) {
+    case 'op_status_transition':
+      // authored: 2026-11-03, Story 20.7.
+      return 'Mudança de status recusada: no servidor, o relatório já está em outro status.';
+    case 'op_attribution':
+      // authored: 2026-11-03, Story 20.8.
+      return 'Alteração recusada: o autor ou a data não conferem com o servidor. Confira a data e a hora deste aparelho.';
+    case 'op_value_invalid':
+      // authored: 2026-11-03, Story 20.9.
+      return 'Alteração recusada: um valor passa do tamanho ou do tipo que o campo aceita.';
+    case 'op_target_missing':
+      // authored: 2026-11-03, Story 20.10.
+      return 'Alteração recusada: o item alterado não existe neste relatório no servidor.';
+    case 'op_forbidden':
+      // authored: 2026-11-03, Story 20.10 (review): both refusals of the code, the removal of an
+      // Emitido relatório and a write to another user's own row (`user/{id}`).
+      return 'Alteração recusada: o servidor não permite esta alteração, como remover um relatório emitido ou mudar o cadastro de outra pessoa.';
+    default:
+      return null;
+  }
+}
+
+/** Story 20.9: the share of a text field's cap from which its character count shows (authored, 90 %). */
+export const CHAR_COUNT_FROM = 0.9;
+
+/** "18.000" from 18000: thousands grouped with dots, as pt-BR writes a count. */
+function groupedCount(n: number): string {
+  return String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+/**
+ * Story 20.9: the counter under a capped text field, "180 de 200 caracteres", once the text
+ * reaches `CHAR_COUNT_FROM` of the cap; null below it (the counter is not shown).
+ */
+export function charCountText(length: number, cap: number): string | null {
+  if (cap <= 0 || length < cap * CHAR_COUNT_FROM) return null;
+  // authored: 2026-11-03, Story 20.9.
+  return `${groupedCount(length)} de ${groupedCount(cap)} caracteres`;
+}
+
 /** AD-8 eviction screen, from the company pull: "O servidor tem 3 relatórios e 2 pessoas da equipe." */
 export function serverHoldsText(relatorios: number, users: number): string {
   return `O servidor tem ${relatoriosCount(relatorios)} e ${peopleCount(users)}.`;

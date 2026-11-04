@@ -153,6 +153,12 @@ function relatorioCreate(relatorioId: string, projectId: string, seedVersion: st
   });
 }
 
+/** Story 20.10 (review): the obra a relatório and its equipment are filed under, created first. */
+function projectCreate(projectId: string): Op {
+  written.entityIds.add(projectId);
+  return op({ scope: 'company', kind: 'create', path: `project/${projectId}`, value: { id: projectId, client_id: null, name: 'Obra CTA', site: null, removed_at: null } });
+}
+
 function localCreate(relatorioId: string, id: string): Op {
   written.entityIds.add(id);
   return op({
@@ -254,7 +260,7 @@ async function storedIds(candidates: string[]): Promise<Set<string>> {
 /** A relatório on `seedVersion` with one local; on v5, a Chave de transferência automática on it too. */
 async function relatorio(seedVersion: string) {
   const ids = { relatorio: newId(), project: newId(), local: newId(), block: newId(), equipment: newId() };
-  const log = [relatorioCreate(ids.relatorio, ids.project, seedVersion), localCreate(ids.relatorio, ids.local)];
+  const log = [projectCreate(ids.project), relatorioCreate(ids.relatorio, ids.project, seedVersion), localCreate(ids.relatorio, ids.local)];
   if (seedVersion === 'v5') {
     const cta = ctaCreates(ids);
     log.push(cta.equipment, cta.block);
@@ -346,6 +352,8 @@ describe('Story 14.5 (contract 19): the Chave de transferência automática thro
     // Born on v5, as a contract-19 device would send it; and carrying the relatório's own version.
     const bornOnV5 = ctaCreates(t);
     const onOldSeed = ctaCreates({ ...t, block: newId(), equipment: newId() }, seedVersion);
+    // Story 20.10 (review): the equipment a block create names exists in the obra, as the palette writes it first.
+    expect((await pushOk([bornOnV5.equipment, onOldSeed.equipment])).rejected).toEqual([]);
     const good = newId();
     const batch = [bornOnV5.block, onOldSeed.block, seccionadoraCreate(t.relatorio, good, t.local)];
     const result = await pushOk(batch);

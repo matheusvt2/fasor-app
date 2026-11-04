@@ -111,7 +111,7 @@ function pointDrafts(scope: Scope, texts: readonly { text: string; action: strin
 }
 
 function notTestedDraft(scope: Scope, blockId: string, reason = 'solicitacao_cliente'): OpDraft {
-  return officeDraft(account, scope, `block/${blockId}/not_tested`, { reason, text: null, at: '2026-09-07T12:00:00.000Z', by: account.userId });
+  return officeDraft(account, scope, `block/${blockId}/not_tested`, { reason, text: null, at: new Date().toISOString(), by: account.userId });
 }
 
 async function setUp(page: Page, seed: (scope: Scope, sheets: SeededSheet[], equipmentOf: Map<string, string>) => OpDraft[] = () => []): Promise<Built> {
@@ -725,7 +725,7 @@ test('@p1 6.6-E2E-015 Epic 14 QA Q-2: while a removed local holds a site point, 
     ...built.drafts,
     ...[site, first, second].map((row) => officeDraft(account, scope, `point/${row.id}`, row, 'create')),
     // The local is removed on the office device: its site point leaves the list with it.
-    officeDraft(account, scope, `location/${local.id}/removed_at`, '2026-09-07T12:00:00.000Z'),
+    officeDraft(account, scope, `location/${local.id}/removed_at`, new Date().toISOString()),
   ]);
   await page.goto(`/relatorio/${built.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });

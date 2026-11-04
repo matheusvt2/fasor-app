@@ -6,6 +6,7 @@ import {
   projectsOfClient,
   registryPath,
   sortClientRegistryRows,
+  textCapOf,
   unprojectedSites,
   type ClientRow,
   type OpDraft,
@@ -21,6 +22,10 @@ import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { writeErrorText } from '../templates/template-ops.ts';
+
+/** Story 20.9: the kernel's caps of the client the dialog creates (a registry name) and of the obra (its name and site). */
+const CLIENT_NAME_CAP = textCapOf('registry', 'name');
+const OBRA_CAP = Math.min(textCapOf('project', 'name') ?? Infinity, textCapOf('project', 'site') ?? Infinity);
 
 /** F-05: the option key of a registered site that has no obra yet. */
 const SITE_KEY = 'site:';
@@ -187,6 +192,7 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
           setProjectText('');
         }}
         onCreate={(text) => void createClient(text)}
+        maxLength={CLIENT_NAME_CAP ?? undefined}
       />
       <Combobox
         label={t.siteLabel}
@@ -210,6 +216,7 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
           setProjectText(projectOptions.find((o) => o.id === key)?.label ?? projectText);
         }}
         onCreate={clientId === null ? undefined : (text) => void createProject(text)}
+        maxLength={Number.isFinite(OBRA_CAP) ? OBRA_CAP : undefined}
         isDisabled={clientId === null}
         disabledReasonId={clientId === null ? reasonId : undefined}
         inputRef={siteInput}

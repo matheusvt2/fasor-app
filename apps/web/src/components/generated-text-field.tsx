@@ -2,6 +2,7 @@ import { useId, useRef, useState } from 'react';
 import { ui } from '../copy/ui.ts';
 import { useFieldCommit } from '../input/use-field-commit.ts';
 import { useDraftSource } from '../state/drafts.tsx';
+import { CharCount } from './char-count.tsx';
 
 export type GeneratedTextState = 'unconfirmed' | 'confirmed' | 'edited' | 'stale';
 
@@ -24,6 +25,11 @@ export interface GeneratedTextFieldProps {
   confirmedHelper?: string;
   /** Read-only (a sheet marked not tested, Story 5.9): the text only, no Confirmar, Editar or Substituir. */
   readOnly?: boolean;
+  /**
+   * Story 20.9: the kernel's cap of the stored text (`textCapOf`): the typed text stops there,
+   * and the shared counter shows under it from 90 % of the cap.
+   */
+  maxLength?: number;
 }
 
 /**
@@ -37,7 +43,7 @@ export interface GeneratedTextFieldProps {
  * and stops describing the stored text (E5-Q5). The texts are the caller's (the kernel's). Read-only, it shows the text alone and
  * offers no action.
  */
-export function GeneratedTextField({ label, text, criteriaItems, state, onConfirm, onReplace, onEdit, draft, helper, confirmedHelper, readOnly = false }: GeneratedTextFieldProps) {
+export function GeneratedTextField({ label, text, criteriaItems, state, onConfirm, onReplace, onEdit, draft, helper, confirmedHelper, readOnly = false, maxLength }: GeneratedTextFieldProps) {
   const t = ui.generatedText;
   const labelId = useId();
   const criteriaId = useId();
@@ -97,6 +103,7 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
           aria-labelledby={labelId}
           aria-describedby={describedBy}
           value={value}
+          maxLength={maxLength}
           onChange={(event) => {
             dirty.current = true;
             setValue(event.target.value);
@@ -112,6 +119,7 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
           {text}
         </div>
       )}
+      {typing ? <CharCount length={value.length} cap={maxLength ?? null} /> : null}
       {suggested && !typing ? <span className="suggested-pill">{ui.suggestionField.suggested}</span> : null}
       {stale ? null : criteriaLine}
       {stale && !readOnly ? (

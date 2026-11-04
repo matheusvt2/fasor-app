@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { SYNC_PUSH_MAX_BYTES } from '@app/domain';
 import { opLog } from '@app/domain/fixtures/replay-small';
 import { describe, expect, it } from 'vitest';
 import {
@@ -9,6 +10,8 @@ import {
   isUnreachableFailure,
   MAX_ATTEMPTS,
   parsePulled,
+  PUSH_ENVELOPE_BYTES,
+  serializedBytes,
   unreachableCause,
 } from './policy.ts';
 
@@ -80,6 +83,49 @@ describe('1.5-UNIT-003 push batching', () => {
     // A batch over the limit is cut in limit-sized chunks.
     const big = Array.from({ length: 5 }, (_, i) => inBatch(i, 'big'));
     expect(batches([single(9), ...big], 2).map((b) => b.map((x) => x.i))).toEqual([[9], [0, 1], [2, 3], [4]]);
+  });
+
+  it('Story 20.9: a push closes before its body passes the byte budget, and a client batch is never split for bytes', () => {
+    const item = (i: number, bytes: number, batch: string | null = null) => ({ i, bytes, batch_id: batch });
+    const budget = { max: 100, of: (x: { bytes: number }) => x.bytes };
+    // The envelope is 10 bytes and each op one comma more: two 40-byte ops are 92 bytes, a third 133.
+    expect(PUSH_ENVELOPE_BYTES).toBe(10);
+    expect(batches([item(0, 40), item(1, 40), item(2, 40)], 500, budget).map((b) => b.map((x) => x.i))).toEqual([[0, 1], [2]]);
+    // A batch of two that would straddle the budget moves whole to the next push.
+    expect(batches([item(0, 40), item(1, 40, 'b'), item(2, 40, 'b')], 500, budget).map((b) => b.map((x) => x.i))).toEqual([[0], [1, 2]]);
+    // A batch alone over the budget goes in a push of its own, unsplit; the ops after it start a new one.
+    expect(batches([item(0, 10), item(1, 60, 'b'), item(2, 60, 'b'), item(3, 10)], 500, budget).map((b) => b.map((x) => x.i))).toEqual([[0], [1, 2], [3]]);
+    // Without a budget the count rule alone applies, as before.
+    expect(batches([item(0, 40), item(1, 40), item(2, 40)], 500).map((b) => b.map((x) => x.i))).toEqual([[0, 1, 2]]);
+  });
+
+  it('review: the count slices of a batch over the op limit are cut again by the byte budget; one op over the budget stays alone', () => {
+    const item = (i: number, bytes: number, batch: string | null = null) => ({ i, bytes, batch_id: batch });
+    const budget = { max: 100, of: (x: { bytes: number }) => x.bytes };
+    // A batch of five 40-byte ops over a 4-op limit: the count cut gives [0..3] and [4]; bytes cut [0..3] in two.
+    const big = Array.from({ length: 5 }, (_, i) => item(i, 40, 'big'));
+    expect(batches(big, 4, budget).map((b) => b.map((x) => x.i))).toEqual([[0, 1], [2, 3], [4]]);
+    // An op alone over the budget, inside an oversized batch, goes in a push of its own.
+    const mixed = [item(0, 40, 'b'), item(1, 150, 'b'), item(2, 40, 'b')];
+    expect(batches(mixed, 2, budget).map((b) => b.map((x) => x.i))).toEqual([[0], [1], [2]]);
+  });
+
+  it('Story 20.9: a backlog of 10 MB of text goes in pushes each under SYNC_PUSH_MAX_BYTES, in commit order', () => {
+    const text = 'Observação de campo — '.repeat(500);
+    const backlog = Array.from({ length: 1000 }, (_, i) => ({ i, batch_id: i % 10 === 0 ? null : `b${Math.floor(i / 10)}`, value: `${i} ${text}` }));
+    const split = batches(backlog, 500, { max: SYNC_PUSH_MAX_BYTES, of: serializedBytes });
+    expect(split.length).toBeGreaterThan(2);
+    for (const push of split) expect(serializedBytes({ ops: push })).toBeLessThanOrEqual(SYNC_PUSH_MAX_BYTES);
+    expect(split.flat().map((x) => x.i)).toEqual(backlog.map((x) => x.i));
+    // No client batch is cut: each batch id sits in one push.
+    const pushOf = new Map<string, number>();
+    split.forEach((push, index) => {
+      for (const x of push) {
+        if (x.batch_id === null) continue;
+        expect(pushOf.get(x.batch_id) ?? index, x.batch_id).toBe(index);
+        pushOf.set(x.batch_id, index);
+      }
+    });
   });
 });
 

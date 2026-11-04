@@ -74,13 +74,35 @@ export function backoffMs(attempt: number, random: () => number): number {
   return Math.round(base * (1 + BACKOFF_JITTER * Math.min(Math.max(random(), 0), 1)));
 }
 
+/** The bytes `{"ops":[` and `]}` add around a push's ops; each op after the first adds one comma. */
+export const PUSH_ENVELOPE_BYTES = '{"ops":[]}'.length;
+
+/** The UTF-8 length of an op as the push body serializes it (`JSON.stringify`). */
+export function serializedBytes(value: unknown): number {
+  return new TextEncoder().encode(JSON.stringify(value)).length;
+}
+
+/**
+ * Story 20.9 (contract 29): the byte budget of one push: at most `max` bytes of body, each item
+ * measuring `of(item)` bytes serialized (`serializedBytes`).
+ */
+export interface PushByteBudget<T> {
+  max: number;
+  of: (item: T) => number;
+}
+
 /**
  * The pushes of a queue: slices of at most `size`, in the input order, that never split a
  * client batch (ledger 1161, Story 10.1). The ops of one `batch_id` travel together, at the
  * position of the batch's first op, so the server can apply or refuse the batch as one; only
  * a batch that alone holds more than `size` ops is cut, in `size` chunks.
+ *
+ * Story 20.9 (contract 29): with a byte budget, a push also closes before its serialized body
+ * would pass `budget.max` (the server answers a larger one `413 body_too_large`, which no retry
+ * changes), so a long offline backlog goes in several pushes under the cap. A client batch is
+ * never split for bytes: one that alone is over the budget goes in a push of its own.
  */
-export function batches<T extends { batch_id?: string | null }>(items: readonly T[], size: number): T[][] {
+export function batches<T extends { batch_id?: string | null }>(items: readonly T[], size: number, budget?: PushByteBudget<T>): T[][] {
   const units: T[][] = [];
   const byBatch = new Map<string, T[]>();
   for (const item of items) {
@@ -94,18 +116,48 @@ export function batches<T extends { batch_id?: string | null }>(items: readonly 
     units.push(fresh);
     if (batchId !== null) byBatch.set(batchId, fresh);
   }
+  // Each item costs its bytes plus the comma that separates it from the next one.
+  const bytesOf = (unit: readonly T[]) => (budget === undefined ? 0 : unit.reduce((sum, item) => sum + budget.of(item) + 1, 0));
+  /**
+   * Review: a count slice of a batch over `size` ops, cut again so each push stays under the byte
+   * budget (such a batch is split already, so bytes may split it further); an op alone over the
+   * budget stays in a push of its own.
+   */
+  const byBytes = (slice: T[]): T[][] => {
+    if (budget === undefined) return [slice];
+    const pushes: T[][] = [];
+    let pending: T[] = [];
+    let pendingBytes = 0;
+    for (const item of slice) {
+      const cost = budget.of(item) + 1;
+      if (pending.length > 0 && PUSH_ENVELOPE_BYTES + pendingBytes + cost > budget.max) {
+        pushes.push(pending);
+        pending = [];
+        pendingBytes = 0;
+      }
+      pending.push(item);
+      pendingBytes += cost;
+    }
+    if (pending.length > 0) pushes.push(pending);
+    return pushes;
+  };
   const out: T[][] = [];
   let current: T[] = [];
+  let currentBytes = 0;
   for (const unit of units) {
-    if (current.length > 0 && current.length + unit.length > size) {
+    const unitBytes = bytesOf(unit);
+    const overBytes = budget !== undefined && PUSH_ENVELOPE_BYTES + currentBytes + unitBytes > budget.max;
+    if (current.length > 0 && (current.length + unit.length > size || overBytes)) {
       out.push(current);
       current = [];
+      currentBytes = 0;
     }
     if (unit.length > size) {
-      for (let i = 0; i < unit.length; i += size) out.push(unit.slice(i, i + size));
+      for (let i = 0; i < unit.length; i += size) out.push(...byBytes(unit.slice(i, i + size)));
       continue;
     }
     current.push(...unit);
+    currentBytes += unitBytes;
   }
   if (current.length > 0) out.push(current);
   return out;

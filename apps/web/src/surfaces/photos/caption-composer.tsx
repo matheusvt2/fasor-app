@@ -7,6 +7,7 @@ import {
   captionPartsOf,
   captionWordFor,
   composeCaption,
+  textCapOf,
   type CaptionParts,
   type CaptionWord,
   type RegistryRow,
@@ -14,7 +15,7 @@ import {
 } from '@app/domain';
 import { useId, useRef, useState } from 'react';
 import { Button as AriaButton, ToggleButton } from 'react-aria-components';
-import { Button, Chip, Combobox, InactiveChip } from '../../components/index.ts';
+import { Button, CharCount, Chip, Combobox, InactiveChip } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { SuggestionBlock } from '../../components/suggestion-field.tsx';
 import { useObjectUrl } from '../../components/photo-row.tsx';
@@ -23,6 +24,14 @@ import { ui } from '../../copy/ui.ts';
 import type { CaptionRecents } from '../../db/photo-store.ts';
 import { DictationButton } from '../../speech/dictation.tsx';
 import './photos.css';
+
+/**
+ * Story 20.9: the kernel's cap of a photo's caption (medium text), and of one part the rows
+ * compose it from, a word of the registry (short text), so three parts always fit the caption.
+ */
+const CAPTION_CAP = textCapOf('file/field', 'caption');
+const PART_CAP = textCapOf('registry', 'name');
+const capCaption = (value: string) => (CAPTION_CAP === null ? value : value.slice(0, CAPTION_CAP));
 
 /*
  * Story 6.5 (FR-40; `71-legenda.html`, `key-photos.html` frame 3, EXPERIENCE.md › Caption
@@ -192,7 +201,7 @@ function ComposerBody({ prefill, stored, prefillText = null, sources, onSave, on
   };
 
   const save = () => {
-    const value = editing ? text : (generated ?? '');
+    const value = capCaption(editing ? text : (generated ?? ''));
     // Free text is not made of the chips: only a composed caption feeds the recents.
     if (!editing) sources.remember?.(parts);
     onSave(value.trim() === '' ? null : value.trim(), parts);
@@ -239,12 +248,14 @@ function ComposerBody({ prefill, stored, prefillText = null, sources, onSave, on
                 ref={area}
                 className="observation-field caption-edit"
                 value={text}
+                maxLength={CAPTION_CAP ?? undefined}
                 aria-describedby={reasonId}
                 onChange={(event) => {
                   setDictated(false);
                   setText(event.target.value);
                 }}
               />
+              <CharCount length={text.length} cap={CAPTION_CAP} />
             </>
           ) : (
             <p className="caption-preview" role="status">
@@ -264,7 +275,7 @@ function ComposerBody({ prefill, stored, prefillText = null, sources, onSave, on
                 className="caption-dictation"
                 label={t.dictate}
                 onResult={(heard) => {
-                  const next = dictatedText(heard);
+                  const next = capCaption(dictatedText(heard));
                   if (next === '') return;
                   setText(next);
                   setDictated(true);
@@ -378,6 +389,7 @@ function PartRow({
               ref={otherInput}
               className="input"
               value={typed}
+              maxLength={PART_CAP ?? undefined}
               readOnly={inactive}
               onChange={(event) => {
                 if (inactive) return;
@@ -385,6 +397,7 @@ function PartRow({
                 onChange(event.target.value.trim() === '' ? null : event.target.value);
               }}
             />
+            {inactive ? null : <CharCount length={typed.length} cap={PART_CAP} />}
           </div>
         ) : null}
       </div>
@@ -394,6 +407,7 @@ function PartRow({
           options={comboOptions}
           selectedKey={selectedKey}
           inputValue={query}
+          maxLength={PART_CAP ?? undefined}
           isDisabled={inactive}
           {...(inactive ? { disabledReason: t.editingNote } : {})}
           onInputChange={(next) => {

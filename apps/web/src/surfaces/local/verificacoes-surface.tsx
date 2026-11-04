@@ -4,6 +4,7 @@ import {
   filledByText,
   getSeed,
   itensMarcadosConformeText,
+  locationChecklistPath,
   ncRowPointPositions,
   ncRowPointsText,
   numberPhotos,
@@ -14,6 +15,7 @@ import {
   siteFirstUnanswered,
   siteMissingText,
   siteUnsetItems,
+  textCapOf,
   type CabineLocation,
   type EntityState,
   type OpDraft,
@@ -116,6 +118,7 @@ function siteRowTarget(snapshot: RelatorioSnapshot, location: CabineLocation, ro
     observation: typeof observation === 'string' ? observation : '',
     resultOp: (by, value) => siteResultOp(by, relatorioId, location.id, row.key, value),
     observationOp: (by, value) => siteObservationOp(by, relatorioId, location.id, row.key, value),
+    observationCap: textCapOf(locationChecklistPath(location.id, row.key, 'observation')),
     // No photo-read draft on a site item (the batch spec's open question O4).
     ncDraft: null,
     pointSeed: (photoIds) => ({ text: photoIds.map((id) => photoToken(id)).join(' '), equipmentId: null, origin: 'manual', locationId: location.id }),

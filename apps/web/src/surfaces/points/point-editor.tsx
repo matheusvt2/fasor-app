@@ -13,13 +13,14 @@ import {
   recurringFindings,
   replaceLineText,
   sectionMention,
+  textCapOf,
   type PointPriority,
   type PointPriorityWrites,
   type PointRow,
   type RelatorioSnapshot,
 } from '@app/domain';
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
-import { Button, Chip, DateField, FormDialog } from '../../components/index.ts';
+import { Button, CharCount, Chip, DateField, FormDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import { useRelatorioPhotoTiles, type PhotoTile } from '../../db/photo-store.ts';
@@ -53,6 +54,11 @@ import { PriorityPicker } from './priority-picker.tsx';
 import { insertPhotoChip, insertPlainText, quickTextAt, relabelPhotoChips, renderPointText } from './point-text-editor.ts';
 import { endRange, placeCaret } from '../templates/section-text-editor.ts';
 import './points.css';
+
+/** Story 20.9: the kernel's caps of a point's text (long), action (medium) and owner (short). */
+const POINT_TEXT_CAP = textCapOf('point/field', 'text');
+const POINT_ACTION_CAP = textCapOf('point/field', 'action');
+const POINT_OWNER_CAP = textCapOf('point/field', 'owner');
 
 /*
  * Story 6.6 (`72-pontos.html` "4 in edit mode"): the point of attention editor. The text is
@@ -433,6 +439,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     onBlur: () => textCommit.blur(),
     render: (element, value) => renderPointText(element, value, labelOf),
     paste: insertPlainText,
+    maxLength: POINT_TEXT_CAP,
   });
   const { areaRef, editAtCaret } = area;
 
@@ -625,6 +632,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
           </>
         )}
         <div {...area.areaProps} className="observation-field poa-text-area" aria-labelledby={textLabelId} aria-describedby={helperId} />
+        <CharCount length={text.length} cap={POINT_TEXT_CAP} />
         {dictation.pending === null ? null : <DictatedSuggestion text={dictation.pending} onUse={applyDictated} />}
         <span className="helper" id={helperId}>
           {t.textHelper}
@@ -663,9 +671,11 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
             id={actionId}
             className="observation-field poa-action"
             value={action}
+            maxLength={POINT_ACTION_CAP ?? undefined}
             onChange={(event) => changeAction(event.target.value)}
             onBlur={() => actionCommit.blur()}
           />
+          <CharCount length={action.length} cap={POINT_ACTION_CAP} />
         </div>
 
         <div className="field">
@@ -694,7 +704,15 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
           <label className="field-label" htmlFor={ownerId}>
             {t.ownerLabel}
           </label>
-          <input id={ownerId} className="input" value={owner} onChange={(event) => changeOwner(event.target.value)} onBlur={() => ownerCommit.blur()} />
+          <input
+            id={ownerId}
+            className="input"
+            value={owner}
+            maxLength={POINT_OWNER_CAP ?? undefined}
+            onChange={(event) => changeOwner(event.target.value)}
+            onBlur={() => ownerCommit.blur()}
+          />
+          <CharCount length={owner.length} cap={POINT_OWNER_CAP} />
         </div>
       </div>
 

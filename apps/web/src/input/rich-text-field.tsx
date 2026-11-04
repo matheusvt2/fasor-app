@@ -1,4 +1,5 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
+import { CharCount } from '../components/char-count.tsx';
 import { ui } from '../copy/ui.ts';
 import type { UseRichTextArea } from './use-rich-text-area.ts';
 
@@ -35,16 +36,20 @@ export function RichTextField({ editor, focused, label, labelledBy, describedBy,
     ...(variable === undefined ? [] : [{ label: ui.richText.variable, variable: { expanded: variable.expanded, controls: variable.controls }, onPress: variable.onPress }]),
   ];
   return (
-    <div className={focused ? 'rich-text is-focus' : 'rich-text'}>
-      <Toolbar tools={tools} />
-      <div
-        {...editor.areaProps}
-        className={areaClassName === undefined ? 'rt-area' : `rt-area ${areaClassName}`}
-        aria-label={label}
-        aria-labelledby={labelledBy}
-        aria-describedby={describedBy}
-      />
-    </div>
+    <>
+      <div className={focused ? 'rich-text is-focus' : 'rich-text'}>
+        <Toolbar tools={tools} />
+        <div
+          {...editor.areaProps}
+          className={areaClassName === undefined ? 'rt-area' : `rt-area ${areaClassName}`}
+          aria-label={label}
+          aria-labelledby={labelledBy}
+          aria-describedby={describedBy}
+        />
+      </div>
+      {/* Story 20.9: the stored text's count under the box, from 90 % of the kernel's cap. */}
+      <CharCount length={editor.length} cap={editor.maxLength} />
+    </>
   );
 }
 

@@ -1,8 +1,11 @@
-import { defaultLocalName, FUNCAO_MAX_LENGTH, FUNCAO_OPTIONS, localDialogDescription, type FuncaoKey } from '@app/domain';
+import { defaultLocalName, FUNCAO_MAX_LENGTH, FUNCAO_OPTIONS, localDialogDescription, textCapOf, type FuncaoKey } from '@app/domain';
 import { useId, useRef, useState, type KeyboardEvent } from 'react';
-import { Button, FormDialog } from '../../components/index.ts';
+import { Button, CharCount, FormDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import './local-dialog.css';
+
+/** Story 20.9: the kernel's cap of a local's name (short text); its Função keeps `FUNCAO_MAX_LENGTH`. */
+const NAME_CAP = textCapOf('location', 'name');
 
 /*
  * Story 14.2: the Função dialog (`42-template-composer.html` `#tc-dlg-local`), shared by the
@@ -185,6 +188,7 @@ export function LocalDialog({ mode, initial, seedVersion, onSubmit, onClose }: L
             }}
             onKeyDown={onFieldKeyDown}
           />
+          <CharCount length={other.length} cap={FUNCAO_MAX_LENGTH} />
           {otherRefused ? (
             <span className="helper" data-tone="red" id={otherHelperId} role="alert">
               {t.missingOther}
@@ -204,6 +208,7 @@ export function LocalDialog({ mode, initial, seedVersion, onSubmit, onClose }: L
           id={nameId}
           className="input"
           value={name}
+          maxLength={NAME_CAP ?? undefined}
           aria-invalid={nameRefused ? true : undefined}
           aria-describedby={nameHelperId}
           onChange={(event) => {
@@ -212,6 +217,7 @@ export function LocalDialog({ mode, initial, seedVersion, onSubmit, onClose }: L
           }}
           onKeyDown={onFieldKeyDown}
         />
+        <CharCount length={name.length} cap={NAME_CAP} />
         {nameRefused ? (
           <span className="helper" data-tone="red" id={nameHelperId} role="alert">
             {t.missingName}

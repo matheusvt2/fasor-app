@@ -37,6 +37,7 @@ import {
   totalsText,
   typeConfigFor,
   withoutOrphans,
+  textCapOf,
   type ComposerBlockNode,
   type ComposerCabine,
   type ComposerColuna,
@@ -51,7 +52,7 @@ import {
 } from '@app/domain';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { Button, ConfirmDialog, FormDialog, LoadingNote } from '../../components/index.ts';
+import { CharCount, Button, ConfirmDialog, FormDialog, LoadingNote } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitBatch } from '../../db/commit.ts';
@@ -530,6 +531,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
               <input
                 className="input"
                 value={name}
+                maxLength={TEMPLATE_NAME_CAP ?? undefined}
                 onFocus={() => {
                   nameFocused.current = true;
                 }}
@@ -546,6 +548,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
                   if (event.key === 'Enter') nameCommitter.enter();
                 }}
               />
+              <CharCount length={name.length} cap={TEMPLATE_NAME_CAP} />
             </label>
             <span className="composer-blocos">
               <Button variant="secondary" onPress={() => setPaletteOpen(true)}>
@@ -670,6 +673,13 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
 }
 
 /**
+ * Story 20.9: the kernel's caps of a template's name and of a skeleton node's name, which becomes
+ * a location's name when a relatório is made from the template (short texts).
+ */
+const TEMPLATE_NAME_CAP = textCapOf('template/field', 'name');
+const NODE_NAME_CAP = textCapOf('location', 'name');
+
+/**
  * A painel's or a coluna's "Renomear": one "Nome" field (a local's is "Função e nome", the Função dialog). E3-A9: a blank name is refused with
  * "Informe o nome" under the field and the dialog stays open; the name is unchanged.
  */
@@ -696,6 +706,7 @@ function RenameDialog({ node, onClose, onSave }: { node: ComposerNode; onClose: 
         <input
           className="input"
           value={value}
+          maxLength={NODE_NAME_CAP ?? undefined}
           aria-invalid={refused ? true : undefined}
           aria-describedby={refused ? helperId : undefined}
           onChange={(event) => {
@@ -709,6 +720,7 @@ function RenameDialog({ node, onClose, onSave }: { node: ComposerNode; onClose: 
             }
           }}
         />
+        <CharCount length={value.length} cap={NODE_NAME_CAP} />
         {refused ? (
           <span className="helper" data-tone="red" id={helperId} role="alert">
             {copy.composer.renameEmpty}

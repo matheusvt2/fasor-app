@@ -8,7 +8,7 @@ import { readStore } from './support/outbox.ts';
 import { paletteTypes, relatorioSeedVersion, typeRows } from './support/palette.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
 import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
-import { pushRevision } from './support/push-server-ops.ts';
+import { pushRevision, pushStatusAsServer } from './support/push-server-ops.ts';
 
 /*
  * 4.4-E2E and 4.5-E2E: the location tree in the Sumário's section 9 and on the rail, and
@@ -553,8 +553,9 @@ test('@p0 5.2-E2E-004 (AC2 leftover) cabineMetaText updates live, with no reload
 test('@p1 4.6-E2E-006 an Emitido relatório whose block references an equipment moves to Em revisão when that TAG is renamed from the tree, in the rename\'s batch', async ({ page }) => {
   test.setTimeout(150_000);
   const { relatorioId } = await openRelatorio(page, 1280);
-  // Emitido, as an issue leaves it: the status from the office, the revision as the server writes it.
-  await pushDrafts(page, database, [officeDraft(account, { relatorioId }, 'relatorio/status', 'emitido')]);
+  // Emitido, as an issue leaves it: the status and the revision as the server holds them (Stories
+  // 20.7 to 20.10, contract 29: a client's Rascunho-to-Emitido put is refused).
+  await pushStatusAsServer(account, relatorioId, 'emitido');
   await pushRevision(account.companyId, relatorioId, { number: 1, createdBy: account.userId, createdAt: new Date('2026-09-10T12:00:00.000Z') });
   await syncNowAndReturn(page);
   await page.reload();

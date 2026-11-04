@@ -151,6 +151,38 @@ describe('1.5-UNIT-001 rebase', () => {
   });
 });
 
+describe('Story 20.7: a status op the server refused (op_status_transition)', () => {
+  const relatorioStatus = async (db: AppDatabase) => ((await db.entities.get(['relatorio', RELATORIO_ID]))!.row as { status: string }).status;
+
+  it('converges on the status the server holds at the next pull, and the edit of its batch stays', async () => {
+    const db = await freshDb();
+    const d = deps();
+    await applyPulled(db, seedLog());
+    const pulledStatus = await relatorioStatus(db);
+
+    // The device's first field edit carries Em campo in its own batch (`advanceOnEdit`).
+    const batchId = d.newId();
+    const edit = makeOp(put(`sheet/${BLOCK_1_ID}/observations`, 'campo', { batch_id: batchId }), { newId: d.newId, now: d.now() });
+    const status = makeOp(put('relatorio/status', 'em_campo', { batch_id: batchId, prev_op_id: null }), { newId: d.newId, now: d.now() });
+    await commitOps(db, [edit, status]);
+    expect(await relatorioStatus(db)).toBe('em_campo');
+
+    // Another device moved the relatório to Em revisão first: the server applies the edit and refuses the status op alone.
+    await markSent(db, [edit.op_id, status.op_id]);
+    await markAcked(db, [{ op_id: edit.op_id, seq: 1001 }]);
+    await markDead(db, [{ op_id: status.op_id, code: 'op_status_transition' }]);
+    expect(await relatorioStatus(db)).toBe(pulledStatus);
+
+    // The next pull brings the other device's status op and this device's edit back.
+    const other: Op = { ...status, op_id: '019966b0-0001-7000-8000-00000000ac01', device_id: 'tablet-b', value: 'em_revisao', batch_id: null, seq: 1000 };
+    await applyPulled(db, [other, { ...edit, seq: 1001 }]);
+    expect(await relatorioStatus(db)).toBe('em_revisao');
+    expect((await block(db)).sheet.observations?.value).toBe('campo');
+    expect(await db.outbox.get(status.op_id)).toMatchObject({ status: 'dead', error_code: 'op_status_transition', value: 'em_campo' });
+    db.close();
+  });
+});
+
 describe('dead-op re-materialization (1.4 deferred settling test)', () => {
   it('a rejected op leaves the row, toSnapshot drops its effect, the value stays in the outbox', async () => {
     const db = await freshDb();

@@ -391,7 +391,7 @@ describe('9.5-INT the nc_obs reading kind', () => {
       await expectPermanent(await at({ ...ncObsReadingOf(chave, ITEM).target, block_type: 'tp' }, 32), 'not the photo relatorio block');
       await expectPermanent(await at({ ...ncObsReadingOf(chave, ITEM).target, item_key: 'nao_existe' }, 33), 'checklist item is not on the block');
       const gone = await at(ncObsReadingOf(chave, ITEM).target, 34);
-      await apply([draft('put', 'relatorio', own.relatorioId, `block/${chave.id}/removed_at`, '2026-09-28T11:00:00.000Z')]);
+      await apply([draft('put', 'relatorio', own.relatorioId, `block/${chave.id}/removed_at`, now().toISOString())]);
       await expectPermanent(gone, 'target block was removed');
     }, 60_000);
   });

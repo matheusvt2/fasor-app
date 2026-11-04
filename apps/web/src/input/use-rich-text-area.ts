@@ -47,6 +47,12 @@ export interface UseRichTextAreaOptions {
   onChange: (text: string) => void;
   onBlur?: () => void;
   onFocusChange?: (focused: boolean) => void;
+  /**
+   * Story 20.9: the kernel's cap of the stored text (`textCapOf`), or null for none. Typing past
+   * it is stopped, a paste is cut where the stored text fits, and a command that would grow the
+   * text past it (a chip, a line break, a mark) does nothing; a text already over it may shrink.
+   */
+  maxLength?: number | null;
 }
 
 export interface RichTextAreaProps {
@@ -79,6 +85,10 @@ export interface UseRichTextArea {
   insert: (name: SectionVariable) => void;
   undo: () => void;
   redo: () => void;
+  /** Story 20.9: the stored text's length now, for the shared counter. */
+  length: number;
+  /** Story 20.9: the cap the area holds its stored text to, or null. */
+  maxLength: number | null;
 }
 
 const NONE: FormatState = { bold: false, italic: false, bullet: false, numbered: false };
@@ -95,6 +105,14 @@ export function useRichTextArea(options: UseRichTextAreaOptions): UseRichTextAre
 
   const initial = useRef(options.initialText);
   const history = useRef<{ entries: string[]; index: number; last: ChangeKind | null }>({ entries: [normalizeRichText(options.initialText)], index: 0, last: null });
+  const [length, setLength] = useState(() => normalizeRichText(options.initialText).length);
+  /** Story 20.9: the stored text the area holds now (the history's current entry). */
+  const currentText = () => history.current.entries[history.current.index] ?? '';
+  /** Story 20.9: whether a stored text of `next` characters goes past the cap (a text already over it may still shrink). */
+  const overCap = (next: number) => {
+    const cap = latest.current.maxLength ?? null;
+    return cap !== null && next > cap && next > currentText().length;
+  };
 
   useLayoutEffect(() => {
     if (area.current !== null) renderBlocks(area.current, parseRichText(initial.current));
@@ -135,6 +153,15 @@ export function useRichTextArea(options: UseRichTextAreaOptions): UseRichTextAre
     const element = area.current;
     if (element === null) return;
     const text = storedText(fromLines(readArea(element).lines));
+    if (overCap(text.length)) {
+      // Story 20.9: an input the `beforeinput` guard could not stop (an input method's
+      // composition) is taken back: the area shows the last text within the cap again.
+      renderBlocks(element, parseRichText(currentText()));
+      placeSelection(element, endSelection(readArea(element).lines));
+      saved.current = liveRange()?.cloneRange() ?? null;
+      return;
+    }
+    setLength(text.length);
     const h = history.current;
     if (text !== h.entries[h.index]) {
       if (kind === 'typing' && h.last === 'typing' && h.index > 0) {
@@ -152,15 +179,32 @@ export function useRichTextArea(options: UseRichTextAreaOptions): UseRichTextAre
     latest.current.onChange(text);
   };
 
-  /** Reads the area and the selection, runs `edit`, draws the result and puts the selection back. */
-  const apply = (edit: (lines: Line[], selection: Selection) => Edit | null): boolean => {
+  /** Reads the area and the selection and runs `edit` on them, drawing nothing; null when the edit does nothing. */
+  const plan = (edit: (lines: Line[], selection: Selection) => Edit | null): Edit | null => {
     const element = area.current;
-    if (element === null) return false;
+    if (element === null) return null;
     const read = readArea(element, liveRange() ?? saved.current);
     const selection = read.selection ?? endSelection(read.lines);
     const stripped = stripZeroWidth(read.lines, selection);
-    const result = edit(stripped.lines, stripped.selection);
+    return edit(stripped.lines, stripped.selection);
+  };
+
+  /** Story 20.9: the stored text's length `edit` would leave, or null when it does nothing. */
+  const measure = (edit: (lines: Line[], selection: Selection) => Edit | null): number | null => {
+    const result = plan(edit);
+    return result === null ? null : storedText(fromLines(result.lines)).length;
+  };
+
+  /**
+   * Reads the area and the selection, runs `edit`, draws the result and puts the selection back.
+   * Story 20.9: an edit that would grow the stored text past the cap does nothing (false).
+   */
+  const apply = (edit: (lines: Line[], selection: Selection) => Edit | null): boolean => {
+    const element = area.current;
+    if (element === null) return false;
+    const result = plan(edit);
     if (result === null) return false;
+    if (overCap(storedText(fromLines(result.lines)).length)) return false;
     renderBlocks(element, fromLines(result.lines));
     if (document.activeElement !== element) element.focus({ preventScroll: true });
     placeSelection(element, result.selection);
@@ -179,6 +223,7 @@ export function useRichTextArea(options: UseRichTextAreaOptions): UseRichTextAre
     placeSelection(element, endSelection(lines));
     saved.current = liveRange()?.cloneRange() ?? null;
     refreshPressed();
+    setLength(text.length);
     latest.current.onChange(text);
   };
 
@@ -199,8 +244,8 @@ export function useRichTextArea(options: UseRichTextAreaOptions): UseRichTextAre
   };
 
   const commands = { toggleMark: (mark: Mark) => apply((lines, s) => toggleMark(lines, s, mark)), toggleList: (kind: ListKind) => apply((lines, s) => toggleList(lines, s, kind)) };
-  const latestCommands = useRef({ apply, undo, redo });
-  latestCommands.current = { apply, undo, redo };
+  const latestCommands = useRef({ apply, measure, undo, redo });
+  latestCommands.current = { apply, measure, undo, redo };
 
   // Line breaks, pastes, formatting and history are the editor's own.
   useEffect(() => {
@@ -230,6 +275,16 @@ export function useRichTextArea(options: UseRichTextAreaOptions): UseRichTextAre
           event.preventDefault();
           run((lines, s) => toggleMark(lines, s, 'italic'));
           return;
+        case 'insertText':
+        case 'insertReplacementText': {
+          // Story 20.9: typing stops at the cap of the stored text.
+          const typed = event.data ?? event.dataTransfer?.getData('text/plain') ?? '';
+          const cap = latest.current.maxLength ?? null;
+          if (cap === null || typed.length === 0) return;
+          const selected = document.getSelection()?.toString().length ?? 0;
+          if (currentText().length - selected + typed.length > cap) event.preventDefault();
+          return;
+        }
         default:
           // Any other formatting (underline, colour, indent...) and drag and drop never land.
           if (event.inputType.startsWith('format') || event.inputType === 'insertFromDrop' || event.inputType === 'deleteByDrag') event.preventDefault();
@@ -239,8 +294,22 @@ export function useRichTextArea(options: UseRichTextAreaOptions): UseRichTextAre
       event.preventDefault();
       const html = event.clipboardData?.getData('text/html') ?? '';
       const plain = event.clipboardData?.getData('text/plain') ?? '';
-      const blocks = pastedBlocks(html, plain);
-      latestCommands.current.apply((lines, s) => pasteBlocks(lines, s, blocks));
+      const { apply: run, measure: size } = latestCommands.current;
+      const pasteOf = (blocks: ReturnType<typeof pastedBlocks>) => (lines: Line[], s: Selection) => pasteBlocks(lines, s, blocks);
+      if (run(pasteOf(pastedBlocks(html, plain)))) return;
+      const cap = latest.current.maxLength ?? null;
+      if (cap === null) return;
+      // Story 20.9: a paste past the cap lands cut, as plain text, where the stored text fits.
+      let text = plain;
+      for (let tries = 0; tries < 16 && text.length > 0; tries++) {
+        const would = size(pasteOf(pastedBlocks('', text)));
+        if (would === null) return;
+        if (would <= cap) {
+          run(pasteOf(pastedBlocks('', text)));
+          return;
+        }
+        text = text.slice(0, Math.max(0, text.length - (would - cap)));
+      }
     };
     element.addEventListener('beforeinput', onBeforeInput);
     element.addEventListener('paste', onPaste);
@@ -291,6 +360,7 @@ export function useRichTextArea(options: UseRichTextAreaOptions): UseRichTextAre
     history.current = { entries: [normalizeRichText(text)], index: 0, last: null };
     saved.current = null;
     refreshPressed();
+    setLength(normalizeRichText(text).length);
   };
 
   return {
@@ -301,6 +371,8 @@ export function useRichTextArea(options: UseRichTextAreaOptions): UseRichTextAre
     insert,
     undo,
     redo,
+    length,
+    maxLength: options.maxLength ?? null,
     areaProps: {
       ref: area,
       role: 'textbox',

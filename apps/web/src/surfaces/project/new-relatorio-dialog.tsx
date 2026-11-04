@@ -11,6 +11,7 @@ import {
   templateBlocksText,
   templateBlockTotal,
   templateHelperText,
+  textCapOf,
   type ClientRow,
   type ProjectRow,
   type RelatorioRow,
@@ -168,6 +169,7 @@ export function NewRelatorioDialog({ project, client, relatorios, templates, onC
             setTemplateId(key);
             setTemplateText(pickable.find((row) => row.id === key)?.name ?? templateText);
           }}
+          maxLength={textCapOf('template', 'name') ?? undefined}
         />
         <span className="helper" id={helperId}>
           {templateHelperText(template === null ? null : templateBlockTotal(template))}

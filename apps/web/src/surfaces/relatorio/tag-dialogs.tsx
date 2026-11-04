@@ -1,8 +1,12 @@
-import { equipmentPathText, tagTakenText, tagVerdict, type BlockRow, type EquipmentRow, type LocationRow, type TagVerdict } from '@app/domain';
+import { equipmentPathText, tagTakenText, tagVerdict, textCapOf, type BlockRow, type EquipmentRow, type LocationRow, type TagVerdict } from '@app/domain';
 import { useId, useState } from 'react';
-import { Button, FormDialog } from '../../components/index.ts';
+import { Button, CharCount, FormDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
+
+/** Story 20.9: the kernel's caps of an equipment's TAG and of a location's name (short texts). */
+const TAG_CAP = textCapOf('equipment/field', 'tag');
+const LOCATION_NAME_CAP = textCapOf('location/field', 'name');
 
 /*
  * Story 4.5: the Form dialogs the tree opens — "Duplicar ⟨TAG⟩" and "Renomear TAG ⟨TAG⟩"
@@ -47,6 +51,7 @@ export function TagField({ label, value, onChange, refusal, onEnter }: TagFieldP
       <input
         className="input"
         value={value}
+        maxLength={TAG_CAP ?? undefined}
         autoCapitalize="characters"
         spellCheck={false}
         aria-invalid={shown === null ? undefined : true}
@@ -64,6 +69,7 @@ export function TagField({ label, value, onChange, refusal, onEnter }: TagFieldP
           }
         }}
       />
+      <CharCount length={value.length} cap={TAG_CAP} />
       {shown === null ? null : (
         <span className="helper" data-tone="red" id={helperId} role="alert">
           {shown}
@@ -150,6 +156,7 @@ export function NameDialog({ title, initial, onSubmit, onClose }: NameDialogProp
         <input
           className="input"
           value={name}
+          maxLength={LOCATION_NAME_CAP ?? undefined}
           aria-invalid={left && empty ? true : undefined}
           aria-describedby={left && empty ? helperId : undefined}
           onChange={(event) => {
@@ -165,6 +172,7 @@ export function NameDialog({ title, initial, onSubmit, onClose }: NameDialogProp
             }
           }}
         />
+        <CharCount length={name.length} cap={LOCATION_NAME_CAP} />
         {left && empty ? (
           <span className="helper" data-tone="red" id={helperId} role="alert">
             {t.emptyName}

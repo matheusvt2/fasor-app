@@ -23,7 +23,7 @@ import {
   type WordRow,
 } from '@app/domain';
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { DateField, NotApplicableButton, RegistryPickerField } from '../../components/index.ts';
+import { CharCount, DateField, NotApplicableButton, RegistryPickerField } from '../../components/index.ts';
 import { NOT_APPLICABLE_STORED_RAW, useNumberInput, type ParsedNumber } from '../../components/number-input.tsx';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -147,7 +147,12 @@ function runsOn(event: { key: string; shiftKey: boolean; nativeEvent: KeyboardEv
  * draft while it differs from the committed value. `setup-surface.tsx`'s `useTextField`
  * idiom plus the draft registration of `field-fixture-surface.tsx`.
  */
-export function useTypedText(value: string, commit: (text: string) => void | Promise<void>, draft: DraftKey, options: { flushOnUnmount?: boolean } = {}) {
+export function useTypedText(value: string, commit: (text: string) => void | Promise<void>, draft: DraftKey, options: { flushOnUnmount?: boolean; cap?: number | null } = {}) {
+  // Story 20.9: a text never grows past the kernel's cap of its field, however it arrives (typed,
+  // a chip, a dictation, a recovered draft): the input's `maxLength` stops typing and pasting, and
+  // this clamp stops the inserts the field writes itself.
+  const cap = options.cap ?? null;
+  const clamp = (next: string) => (cap === null || next.length <= cap ? next : next.slice(0, cap));
   const [text, setText] = useState(value);
   const committed = useRef(value);
   const current = useRef(text);
@@ -176,19 +181,21 @@ export function useTypedText(value: string, commit: (text: string) => void | Pro
     field: draft.field,
     read: () => (current.current === committed.current ? null : current.current),
     apply: (recovered) => {
-      const next = typeof recovered === 'string' ? recovered : String(recovered);
+      const next = clamp(typeof recovered === 'string' ? recovered : String(recovered));
       setText(next);
       committer.immediate(next);
     },
   });
   return {
     text,
-    change: (next: string) => {
+    change: (typedText: string) => {
+      const next = clamp(typedText);
       setText(next);
       committer.change(next);
     },
     /** A chip or an insert: shown and committed at once. */
-    set: (next: string) => {
+    set: (inserted: string) => {
+      const next = clamp(inserted);
       setText(next);
       committer.immediate(next);
     },
@@ -245,6 +252,8 @@ export interface FieldProps {
   after?: ReactNode;
   /** F-01: typed text still waiting for its commit is committed when the field leaves the page. */
   flushOnUnmount?: boolean;
+  /** Story 20.9: a text field's cap, the kernel's for the path it writes (`textCapOf`); none for the other kinds. */
+  maxLength?: number;
   /**
    * Story 16.4: a nameplate or cabine number field accepts the "N/A" spellings; any other
    * number field (a measurement test's value) refuses them as text that is no number.
@@ -283,10 +292,13 @@ export function SheetField(props: FieldProps) {
  */
 export const PLAIN_TEXT = { autoCapitalize: 'off', autoCorrect: 'off', spellCheck: false } as const;
 
-function TextField({ field, value, commit, draft, missing, label, helper, after, flushOnUnmount }: FieldProps) {
+function TextField({ field, value, commit, draft, missing, label, helper, after, flushOnUnmount, maxLength }: FieldProps) {
   const id = useId();
   const helperId = useId();
-  const typed = useTypedText(typeof value === 'string' ? value : '', (text) => commit(text.trim() === '' ? null : text), draft, { flushOnUnmount: flushOnUnmount === true });
+  const typed = useTypedText(typeof value === 'string' ? value : '', (text) => commit(text.trim() === '' ? null : text), draft, {
+    flushOnUnmount: flushOnUnmount === true,
+    cap: maxLength ?? null,
+  });
   return (
     <div className="field" data-field-key={field.key}>
       <label className="field-label" htmlFor={id}>
@@ -296,6 +308,7 @@ function TextField({ field, value, commit, draft, missing, label, helper, after,
         id={id}
         className="input"
         value={typed.text}
+        maxLength={maxLength}
         {...PLAIN_TEXT}
         data-missing-field={missing ? '' : undefined}
         aria-describedby={helper === undefined ? undefined : helperId}
@@ -317,6 +330,7 @@ function TextField({ field, value, commit, draft, missing, label, helper, after,
           {helper}
         </span>
       )}
+      <CharCount length={typed.text.length} cap={maxLength ?? null} />
       {after}
     </div>
   );

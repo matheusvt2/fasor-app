@@ -33,6 +33,7 @@ import {
   type LocationRow,
   type Op,
   type OpInput,
+  type RelatorioStatus,
   type SyncPullResponse,
   type SyncPushResponse,
 } from '@app/domain';
@@ -49,6 +50,7 @@ import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { entities, ops, syncDevicePush } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 import { extractStructure } from '../jobs/generate/docx-structure.test-support.ts';
+import { applyOps } from './apply.ts';
 import { toSnapshot } from './snapshot.ts';
 
 /**
@@ -159,6 +161,9 @@ interface Ids {
 
 const idsA: Ids = { company: companyA.companyId, actor: companyA.userId, device: DEVICE_A };
 const idsB: Ids = { company: companyB.companyId, actor: companyB.userId, device: DEVICE_B };
+/** Story 20.10 (review): a relatório create names an obra of the company; the tests whose obra is incidental share one per company (`beforeAll`). */
+const obraA = newId();
+const obraB = newId();
 
 function op(ids: Ids, input: Omit<OpInput, 'company_id' | 'actor_id' | 'device_id'> & Partial<OpInput>): Op {
   const built = makeOp(
@@ -346,6 +351,8 @@ function setupPut(ids: Ids, relatorioId: string, field: string, value: unknown, 
 
 beforeAll(async () => {
   await seedTestCompanies(db, auth);
+  expect((await pushOk(companyA, [projectCreate(idsA, obraA)])).rejected).toEqual([]);
+  expect((await pushOk(companyB, [projectCreate(idsB, obraB)])).rejected).toEqual([]);
 }, 60_000);
 
 afterAll(async () => {
@@ -375,7 +382,7 @@ describe('1.5-API-001 push semantics', () => {
     const relatorioId = newId();
     const batch = [
       clientCreate(idsA, newId()),
-      relatorioCreate(idsA, relatorioId, newId()),
+      relatorioCreate(idsA, relatorioId, obraA),
       setupPut(idsA, relatorioId, 'service_start', '2026-09-22'),
     ];
     const result = await pushOk(companyA, batch);
@@ -395,7 +402,7 @@ describe('1.5-API-001 push semantics', () => {
 
   it('is atomic per op: a bad value and an unknown path are rejected, the rest applies', async () => {
     const relatorioId = newId();
-    const create = relatorioCreate(idsA, relatorioId, newId());
+    const create = relatorioCreate(idsA, relatorioId, obraA);
     const badValue = setupPut(idsA, relatorioId, 'service_start', 42);
     const good = setupPut(idsA, relatorioId, 'local', 'Galpao 3');
     const unknownPath = { ...setupPut(idsA, relatorioId, 'local', 'x'), path: 'relatorio/setup/colour' };
@@ -416,7 +423,7 @@ describe('1.5-API-001 push semantics', () => {
     const equipment = newId();
     const section = newId();
     const setup = [
-      relatorioCreate(idsA, relatorioId, newId()),
+      relatorioCreate(idsA, relatorioId, obraA),
       blockCreate(idsA, relatorioId, equipment, 'disjuntor_mt'),
       blockCreate(idsA, relatorioId, section, 'section_1'),
     ];
@@ -450,7 +457,7 @@ describe('1.5-API-001 push semantics', () => {
   it('rejects a server-only family and the two origin spoofs as op_server_only, a foreign actor as op_invalid', async () => {
     const relatorioId = newId();
     const fileId = newId();
-    const create = relatorioCreate(idsA, relatorioId, newId());
+    const create = relatorioCreate(idsA, relatorioId, obraA);
     const serverOnly = op(idsA, {
       kind: 'put',
       scope: 'relatorio',
@@ -498,7 +505,7 @@ describe('1.5-API-001 push semantics', () => {
 describe('1.5-API-002 idempotency and monotonic seq', () => {
   it('re-pushing the same batch returns the same seqs and leaves one row per op', async () => {
     const relatorioId = newId();
-    const batch = [relatorioCreate(idsA, relatorioId, newId()), setupPut(idsA, relatorioId, 'atividade', 'Manutencao')];
+    const batch = [relatorioCreate(idsA, relatorioId, obraA), setupPut(idsA, relatorioId, 'atividade', 'Manutencao')];
     const first = await pushOk(companyA, batch);
     const second = await pushOk(companyA, batch);
     expect(second.applied).toEqual(first.applied);
@@ -553,7 +560,7 @@ describe('1.5-API-002 idempotency and monotonic seq', () => {
 describe('E6-A1 a push is one transaction under one company lock; a refused op leaves nothing behind', () => {
   it('a row-schema refusal in the middle removes only that op: the ops before and after it land with ascending seqs', async () => {
     const relatorioId = newId();
-    const create = relatorioCreate(idsA, relatorioId, newId());
+    const create = relatorioCreate(idsA, relatorioId, obraA);
     const before = setupPut(idsA, relatorioId, 'local', 'Galpao 7');
     // `service_start` must be a date string: `applyOp`'s row schema refuses 42 (a ZodError).
     const refused = setupPut(idsA, relatorioId, 'service_start', 42);
@@ -592,7 +599,7 @@ describe('E6-A1 a push is one transaction under one company lock; a refused op l
 describe('1.5-API-003 superseded', () => {
   it('applies and reports an op whose prev_op_id is not the latest on its path', async () => {
     const relatorioId = newId();
-    const create = relatorioCreate(idsA, relatorioId, newId());
+    const create = relatorioCreate(idsA, relatorioId, obraA);
     const p1 = setupPut(idsA, relatorioId, 'local', 'v1');
     const p2 = setupPut(idsA, relatorioId, 'local', 'v2', { prev_op_id: p1.op_id });
     const first = await pushOk(companyA, [create, p1, p2]);
@@ -615,7 +622,7 @@ describe('1.5-API-003 superseded', () => {
 
     // The implicit-relatorio path is scoped by relatorio: the same path on another relatorio is not superseded.
     const otherRelatorio = newId();
-    const third = await pushOk(companyA, [relatorioCreate(idsA, otherRelatorio, newId()), setupPut(idsA, otherRelatorio, 'local', 'x')]);
+    const third = await pushOk(companyA, [relatorioCreate(idsA, otherRelatorio, obraA), setupPut(idsA, otherRelatorio, 'local', 'x')]);
     expect(third.superseded).toEqual([]);
   });
 });
@@ -625,6 +632,7 @@ describe('1.5-API-004 pulls', () => {
     const clientId = newId();
     const relatorioId = newId();
     const projectId = newId();
+    expect((await pushOk(companyA, [projectCreate(idsA, projectId)])).rejected).toEqual([]);
     const pushed = await pushOk(companyA, [
       clientCreate(idsA, clientId),
       relatorioCreate(idsA, relatorioId, projectId),
@@ -700,6 +708,7 @@ describe('1.5-API-004 pulls', () => {
     const equipmentId = newId();
     const relatorioId = newId();
     const equipment = equipmentCreate(idsA, equipmentId, projectId);
+    expect((await pushOk(companyA, [projectCreate(idsA, projectId)])).rejected).toEqual([]);
     const before = await pushOk(companyA, [equipment]);
     const create = relatorioCreate(idsA, relatorioId, projectId);
     const put = setupPut(idsA, relatorioId, 'local', 'Torre A');
@@ -767,7 +776,7 @@ describe('1.5-API-004 pulls', () => {
 
   it('answers 404 relatorio_not_found for an unknown, foreign or malformed relatorio id', async () => {
     const foreignRelatorio = newId();
-    await pushOk(companyB, [relatorioCreate(idsB, foreignRelatorio, newId())]);
+    await pushOk(companyB, [relatorioCreate(idsB, foreignRelatorio, obraB)]);
     for (const id of [foreignRelatorio, newId(), 'abc']) {
       const res = await pull(companyA, `/api/sync/relatorios/${id}?since=0`);
       expect(res.status).toBe(404);
@@ -1080,10 +1089,11 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 
-  it('contract 28 (fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-27 pull is refused with 426 contract_outdated on every stream, a version-28 pull is answered', async () => {
-    expect(CONTRACT_VERSION).toBe(28);
-    expect(MIN_CONTRACT_VERSION).toBe(28);
+  it('contract 29 (Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-28 pull is refused with 426 contract_outdated on every stream, a version-29 pull is answered', async () => {
+    expect(CONTRACT_VERSION).toBe(29);
+    expect(MIN_CONTRACT_VERSION).toBe(29);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
+      // 28 cannot parse a push answer carrying a contract-29 refusal code (Stories 20.7 to 20.10);
       // 27 cannot parse a `relatorio/removed_at` op (fix batch fxrm);
       // 26 cannot resolve seed v10 nor parse `relatorio/setup/site_altitude_na` (Stories 15.7 and 17.6);
       // 25 cannot parse the `not_applicable` number state, "N.A" (Story 16.4);
@@ -1095,17 +1105,17 @@ describe('1.5-API-005 contract skew', () => {
       // 19 cannot parse `audit_run/{id}/coverage` (Story 14.10 lane B);
       // 18 cannot parse `sheet/{id}/test/{key}/value/...`, the ninth block type nor resolve seed v5 (Story 14.5);
       // 17 cannot parse `location/{id}/checklist/...` nor resolve seed v4 (Story 14.3); 16 stays refused as since Story 14.2.
-      for (const version of ['27', '26', '25', '24', '23', '22', '21', '20', '19', '18', '17', '16']) {
+      for (const version of ['28', '27', '26', '25', '24', '23', '22', '21', '20', '19', '18', '17', '16']) {
         const old = await pull(companyA, path, version);
         expect(old.status, `${path} at ${version}`).toBe(426);
         expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
       }
     }
-    const current = await pull(companyA, '/api/sync/company?since=0', '28');
+    const current = await pull(companyA, '/api/sync/company?since=0', '29');
     expect(current.status).toBe(200);
     // An outdated client keeps pushing (AD-13): only the pull is refused.
     const batch = [clientCreate(idsA, newId())];
-    const pushed = await push(companyA, { ops: batch }, '27');
+    const pushed = await push(companyA, { ops: batch }, '28');
     expect(pushed.status).toBe(200);
     for (const o of batch) written.opIds.add(o.op_id);
   });
@@ -1151,9 +1161,10 @@ describe('10.4-API-001 the company summary carries each relatório\'s progress',
     const blocks = [newId(), newId(), newId()];
     const photos = [newId(), newId(), newId()];
     const cover = newId();
-    const removedAt = '2026-09-29T12:00:00.000Z';
+    // Story 20.8: a removal at a present instant, never before the relatório's creation.
+    const removedAt = now().toISOString();
     const pushed = await pushOk(companyA, [
-      relatorioCreate(idsA, relatorioId, newId()),
+      relatorioCreate(idsA, relatorioId, obraA),
       ...blocks.map((id) => blockCreate(idsA, relatorioId, id, 'disjuntor_mt')),
       ...photos.map((id) => relatorioFileCreate(idsA, relatorioId, id, 'photo')),
       relatorioFileCreate(idsA, relatorioId, cover, 'cover_photo'),
@@ -1165,7 +1176,7 @@ describe('10.4-API-001 the company summary carries each relatório\'s progress',
     // Company B's relatório with its own rows: never counted in A's summary, and A's never in B's.
     const otherId = newId();
     const other = await pushOk(companyB, [
-      relatorioCreate(idsB, otherId, newId()),
+      relatorioCreate(idsB, otherId, obraB),
       blockCreate(idsB, otherId, newId(), 'disjuntor_mt'),
       relatorioFileCreate(idsB, otherId, newId(), 'photo'),
     ]);
@@ -1217,12 +1228,14 @@ describe('6.3/6.5-API-001 a photo caption and removal through the sync route', (
         reading_status: 'none',
       },
     });
-    const created = await pushOk(companyA, [relatorioCreate(idsA, relatorioId, newId()), create]);
+    const created = await pushOk(companyA, [relatorioCreate(idsA, relatorioId, obraA), create]);
     expect(created.rejected).toEqual([]);
 
     const newCaption = 'Detalhe da limpeza e reaperto realizada na chave seccionadora';
+    // Story 20.8: a removal at a present instant, never before the relatório's creation.
+    const photoRemovedAt = now().toISOString();
     const caption = op(idsA, { kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, path: `file/${photoId}/caption`, value: newCaption });
-    const removed = op(idsA, { kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, path: `file/${photoId}/removed_at`, value: '2026-09-25T12:00:00.000Z' });
+    const removed = op(idsA, { kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, path: `file/${photoId}/removed_at`, value: photoRemovedAt });
     const edits = await pushOk(companyA, [caption, removed]);
     expect(edits.rejected).toEqual([]);
     expect(edits.applied).toHaveLength(2);
@@ -1230,7 +1243,7 @@ describe('6.3/6.5-API-001 a photo caption and removal through the sync route', (
     const rowOf = async () =>
       (await db.select({ row: entities.row, removed_at: entities.removed_at }).from(entities).where(and(eq(entities.entity, 'file'), eq(entities.id, photoId))))[0]!;
     const tombstoned = await rowOf();
-    expect(tombstoned.row).toMatchObject({ caption: newCaption, removed_at: '2026-09-25T12:00:00.000Z' });
+    expect(tombstoned.row).toMatchObject({ caption: newCaption, removed_at: photoRemovedAt });
     expect(tombstoned.removed_at).not.toBeNull();
 
     // "Desfazer": the tombstone cleared, the photo back with its caption.
@@ -1277,7 +1290,7 @@ describe('Story 14.2 (contract 17): Local › Painel › Coluna through POST /ap
   async function tree() {
     const ids = { relatorio: newId(), local: newId(), painel: newId(), coluna: newId(), legado: newId() };
     const log = [
-      relatorioCreate(idsA, ids.relatorio, newId()),
+      relatorioCreate(idsA, ids.relatorio, obraA),
       localCreate(ids.relatorio, ids.local),
       childCreate(ids.relatorio, ids.painel, 'painel', ids.local, 'Painel de média tensão'),
       childCreate(ids.relatorio, ids.coluna, 'coluna', ids.painel, 'Coluna 5'),
@@ -1461,18 +1474,28 @@ describe('Story 14.3 (contract 18): Verificações do local through POST /api/sy
     return op(idsA, { ...scoped(relatorioId), kind: 'create', path: `location/${id}`, value: kind === 'cabine' ? { ...base, se: blankSe, env: blankEnv, agrupar_por_tipo: false } : base });
   }
 
-  /** A relatório on `seedVersion` with one local, one painel under it and one coluna in the painel. */
-  async function site(seedVersion = 'v4', status = 'rascunho') {
+  /**
+   * A relatório on `seedVersion` with one local, one painel under it and one coluna in the painel.
+   * Story 20.7 (contract 29): a client create is born Rascunho, so another `status` is seeded as the
+   * server would hold it, with a server-origin status op after the push (never a forged client op).
+   */
+  async function site(seedVersion = 'v4', status: RelatorioStatus = 'rascunho') {
     const ids = { relatorio: newId(), project: newId(), local: newId(), painel: newId(), coluna: newId() };
     const log = [
       projectCreate(idsA, ids.project),
-      relatorioOn(seedVersion, ids.relatorio, ids.project, status),
+      relatorioOn(seedVersion, ids.relatorio, ids.project),
       locationCreate(ids.relatorio, ids.local, 'cabine', null, 'Cabine de transformação'),
       locationCreate(ids.relatorio, ids.painel, 'painel', ids.local, 'Painel de média tensão'),
       locationCreate(ids.relatorio, ids.coluna, 'coluna', ids.painel, 'Coluna 1'),
     ];
     const result = await pushOk(companyA, log);
     expect(result.rejected).toEqual([]);
+    if (status !== 'rascunho') {
+      const seeded = put(ids.relatorio, 'relatorio/status', status);
+      written.opIds.add(seeded.op_id);
+      expect((await applyOps(db, asCompanyId(companyA.companyId), [seeded], { origin: 'server', now })).rejected).toEqual([]);
+      log.push(seeded);
+    }
     return { ...ids, log };
   }
 
@@ -1904,7 +1927,8 @@ describe('Story 14.2, second pass: a location removal batch and its restore thro
       equipmentIds: [equipment.a, equipment.b],
       counts: { paineis: 0, colunas: 2, sheets: 3, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 },
     });
-    const removedAt = '2026-10-13T15:00:00.000Z';
+    // Story 20.8: present instants, never before the relatório's creation.
+    const removedAt = now().toISOString();
     const removal = batchOf(relatorioId, projectId, 'remove', plan, removedAt);
     const removed = await pushOk(companyA, removal);
     expect(removed.rejected).toEqual([]);
@@ -1950,7 +1974,7 @@ describe('Story 14.2, second pass: a location removal batch and its restore thro
     const afterRows = rowsIn(replay(log));
     const back = locationRestorePlan({ ...afterRows, locationId: painel })!;
     expect(back).toMatchObject({ locationIds: plan.locationIds, blockIds: plan.blockIds, equipmentIds: plan.equipmentIds, counts: { paineis: 0, colunas: 2, sheets: 3, siteAnswers: 0, sitePhotos: 0, sitePoints: 0 } });
-    const restore = batchOf(relatorioId, projectId, 'put', back, '2026-10-13T15:05:00.000Z');
+    const restore = batchOf(relatorioId, projectId, 'put', back, new Date(Date.parse(removedAt) + 5 * 60_000).toISOString());
     const restored = await pushOk(companyA, restore);
     expect(restored.rejected).toEqual([]);
     expect(restored.applied.map((a) => a.op_id)).toEqual(restore.map((o) => o.op_id));
@@ -2001,7 +2025,9 @@ describe('Story 14.2, second pass: a location removal batch and its restore thro
     const held = rowsIn(replay(log));
     const plan = locationRemovalPlan({ locations: held.locations, blocks: held.blocks, otherBlocks: [], locationId: painel, projectId, relatorioId, visibility })!;
     expect(plan).toMatchObject({ locationIds: [painel, coluna], blockIds: [sheets.inside], equipmentIds: [equipment.inside] });
-    const removal = batchOf(relatorioId, projectId, 'remove', plan, '2026-10-13T16:00:00.000Z');
+    // Story 20.8: a present instant, never before the relatório's creation.
+    const colunaRemovedAt = now().toISOString();
+    const removal = batchOf(relatorioId, projectId, 'remove', plan, colunaRemovedAt);
     expect((await pushOk(companyA, removal)).rejected).toEqual([]);
     pushed(removal);
 
@@ -2022,7 +2048,7 @@ describe('Story 14.2, second pass: a location removal batch and its restore thro
 
     // Both rows are stored live on the removed coluna: no tombstone of their own hides them.
     for (const id of [sheets.mover, sheets.nova]) expect((await stored('block', id))?.row, id).toMatchObject({ location_id: coluna, removed_at: null });
-    expect((await stored('location', coluna))?.row).toMatchObject({ removed_at: '2026-10-13T16:00:00.000Z' });
+    expect((await stored('location', coluna))?.row).toMatchObject({ removed_at: colunaRemovedAt });
 
     // The server snapshot reads the removed location rows, so the kernel's one liveness rule drops both sheets.
     const kernel = buildSnapshot(replay(log), relatorioId);

@@ -2823,6 +2823,43 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   class: risk
   state: accepted (2026-11-03, batch s184 review: both are rare and their fix is a new guard; reopen if `screen_time` shows outliers on `update` or `recovery`)
 
+## Deferred from: Epic 20 batch e20s (2026-11-03)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20s-server-rules.md`
+  summary: Nothing was counted in production. Values stored before contract 29 that are over their new cap stay as they are (never rewritten) and keep printing; a device that edits such a field can only shrink it. The read-only query that counts them per field is in the PR body for Matheus to run before the deploy.
+  evidence: `packages/domain/src/ops/value-limits.ts` (`TEXT_CAPS`, `FAMILY_VALUE_RULES`); the PR body's SQL.
+  class: risk
+  state: open (owner: Matheus, before the deploy)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20s-server-rules.md`
+  summary: One "Desfazer" is now refused: undoing "Voltar para Em campo" from an Em revisão whose content changed since its latest revision (or that has no revision yet) puts Em revisão back with no generate queued after the back move and no unchanged revision, so `statusMoveVerdict` reads it as a forward move without its precondition (`op_status_transition`). The device shows the sentence, stays Em campo, and the next generate moves it to Em revisão as usual. Every other undo of a status move applies.
+  evidence: `packages/domain/src/status/table.ts` `statusMoveVerdict`; `apps/api/src/sync/status-transition.integration.test.ts` (the undo of the back move on an unchanged revision applies).
+  class: risk
+  state: open (owner: Matheus; if the undo must apply, the kernel can accept a move back to the status the op named by `prev_op_id` replaced, which needs that op's previous value in the log)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20s-server-rules.md`
+  summary: A client batch whose serialized ops alone are over 4 MiB is pushed alone and still earns a 413, since a batch is never split for bytes~~; and a batch of more than 500 ops is cut by count only~~ *(2026-11-03, batch e20s review: the 500-op slices of such a batch are cut again by bytes, an op alone over the cap in a push of its own)*. Neither shape exists today (an op's values are capped, and the largest batch, a relatório's creation, is about 200 KB).
+  evidence: `apps/web/src/sync/policy.ts` `batches`; `apps/web/src/sync/policy.test.ts`.
+  class: risk
+  state: accepted (2026-11-03, batch e20s: reopen if a 413 is ever logged for a device push)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20s-server-rules.md`
+  summary: Two inputs outside the Story 20.9 inventory take no `maxLength`: the `CnpjField` (format-validated) and the `RegistryPickerField` behind a sheet's manufacturer and voltage class fields; the server still caps both (short text). The setup altitude's `input_refused` reason is now `out_of_range` for a whole number outside -500 to 9 000 m, so the batch s184 row that says it is always `not_a_number` reads one case short.
+  evidence: `apps/web/src/components/registry-picker-field.tsx`; `apps/web/src/surfaces/relatorio/setup/etapa5-local.tsx` `parseAltitude`.
+  class: debt
+  state: open (owner: the next story that touches those fields)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20s-server-rules.md`
+  summary: The history a removal conflict's `edited_by` may restore is any earlier op of that colleague in the same relatório, not one on the removed block's own paths (the edit may be a sheet put, a Não ensaiado mark or a photo carrying the block). A mark the UI shows only in Sync status, never printed.
+  evidence: `packages/domain/src/ops/attribution.ts` (`op.meta.restore.removal_conflict.edited_by`, `same_relatorio_actor`); `apps/api/src/sync/rules.ts` `historyOf`.
+  class: risk
+  state: accepted (2026-11-03, batch e20s)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20s-server-rules.md`
+  summary: The dev-only field fixture (`/__fixture/field`) writes `relatorio/setup/local` puts to a fixed relatório id no company holds, so since contract 29 the server refuses them (`op_target_missing`) and they stay dead rows on the device. The durability specs that use it assert only the device side and pass; A5-E2E-003, which needs its put acked, seeds that relatório as the server holds it (tombstoned at once, so no Home shows it).
+  evidence: `apps/web/src/surfaces/fixtures/field-fixture-surface.tsx` `FIXTURE_RELATORIO_ID`; `e2e/support/durability.ts`; `e2e/ui-hygiene.spec.ts` A5-E2E-003.
+  class: debt
+  state: open (owner: the next story touching the fixture; it could create its own relatório)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20s-server-rules.md`
+  summary: The api answers a push over 4 MiB with 413 before the body is uploaded; the Vite dev proxy in front of the e2e page sometimes reports that early answer as a 502 (EPIPE while it still writes the body), so `security-ops.spec.ts` sends its 5 MB push from the test runner straight to the api with the page's cookie. Whether production's Caddy relays the early 413 was not checked; a device only sends such a push for a client batch alone over the cap (see the row above), and a 5xx would make it retry.
+  evidence: `e2e/security-ops.spec.ts` `pushFromRunner`; the e2e log of the full `@p0` run of 2026-11-03 (one 502 in three runs).
+  class: risk
+  state: open (owner: the second security pass of wave B, which runs against the integrated main behind Caddy)
 ## Deferred from: batch e20w (2026-11-03)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e20w-web-conforme-search-relink.md`

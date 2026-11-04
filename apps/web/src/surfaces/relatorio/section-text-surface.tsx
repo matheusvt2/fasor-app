@@ -1,4 +1,5 @@
 import {
+  blockFieldPath,
   defaultSectionText,
   editedSectionTextConfig,
   putBlockOp,
@@ -10,6 +11,7 @@ import {
   sectionRowTitle,
   sectionVariableChipLabel,
   templateSectionText,
+  textCapOf,
   type BlockRow,
   type TemplateRow,
   type RelatorioSnapshot,
@@ -139,6 +141,8 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, temp
     },
     onBlur: () => committer.blur(),
     onFocusChange: setFocused,
+    // Story 20.9: the kernel's cap of the section text the block config holds (long text).
+    maxLength: textCapOf(blockFieldPath(block.id, 'config')),
   });
   const { insert, setText } = editor;
   const areaRef = editor.areaProps.ref;

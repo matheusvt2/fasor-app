@@ -211,6 +211,21 @@ describe('Sync status surface', () => {
     expect(container.querySelector('.sync-foot')).toHaveTextContent('Ainda não sincronizado');
     expect(screen.getByText('Nenhum envio registrado ainda.')).toBeInTheDocument();
   });
+
+  it('Stories 20.7 to 20.10: says why under the rejected count, one kernel sentence per rule code, none for a malformed op', () => {
+    renderWith(state({ badgeState: 'error', counts: { dead: 3 }, rejectedCodes: ['op_status_transition', 'op_invalid', 'op_value_invalid'] }));
+    const row = screen.getByTestId('sync-rejected-row');
+    expect(row.querySelector('.sr-primary')).toHaveTextContent('3 alterações rejeitadas');
+    expect([...row.querySelectorAll('.sr-secondary')].map((span) => span.textContent)).toEqual([
+      'Mudança de status recusada: no servidor, o relatório já está em outro status.',
+      'Alteração recusada: um valor passa do tamanho ou do tipo que o campo aceita.',
+    ]);
+  });
+
+  it('Stories 20.7 to 20.10: a rejected op of a malformed shape only shows the count', () => {
+    renderWith(state({ badgeState: 'error', counts: { dead: 1 }, rejectedCodes: ['op_invalid'] }));
+    expect(screen.getByTestId('sync-rejected-row').querySelector('.sr-secondary')).toBeNull();
+  });
 });
 
 describe('Sync status surface: the full 85-sync surface (Story 10.4)', () => {

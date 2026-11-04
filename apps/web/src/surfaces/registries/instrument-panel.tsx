@@ -5,6 +5,7 @@ import {
   instrumentManufacturerRecents,
   registryFieldPath,
   registryPath,
+  textCapOf,
   toIso,
   wordRowByName,
   type InstrumentRow,
@@ -14,6 +15,7 @@ import {
 import { useId, useRef, useState } from 'react';
 import {
   Button,
+  CharCount,
   ConfirmDialog,
   RegistryPickerField,
   TextButton,
@@ -444,6 +446,9 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
   );
 }
 
+/** Story 20.9: the kernel's cap of every field of an instrument row, its test defaults' value and unit included (short text). */
+const INSTRUMENT_FIELD_CAP = textCapOf('registry/field', 'name');
+
 interface TextFieldProps {
   label: string;
   value: string;
@@ -465,6 +470,7 @@ function TextField({ label, value, onCommit, type = 'text', className }: TextFie
         className="input"
         type={type}
         value={text}
+        maxLength={type === 'text' ? (INSTRUMENT_FIELD_CAP ?? undefined) : undefined}
         onChange={(event) => {
           setText(event.target.value);
           committer.change(event.target.value);
@@ -478,6 +484,7 @@ function TextField({ label, value, onCommit, type = 'text', className }: TextFie
           if (event.key === 'Enter') committer.enter();
         }}
       />
+      {type === 'text' ? <CharCount length={text.length} cap={INSTRUMENT_FIELD_CAP} /> : null}
     </label>
   );
 }
@@ -571,6 +578,7 @@ function TestDefaultField({ label, helper, value, onCommit }: TestDefaultFieldPr
           className="mf-value"
           aria-label={`${label} — ${copy.registries.instrumentos.valueLabel}`}
           value={raw}
+          maxLength={INSTRUMENT_FIELD_CAP ?? undefined}
           onChange={(event) => {
             setRaw(event.target.value);
             commitNext(event.target.value, unit);
@@ -588,6 +596,7 @@ function TestDefaultField({ label, helper, value, onCommit }: TestDefaultFieldPr
           className="mf-unit"
           aria-label={`${label} — ${copy.registries.instrumentos.unitLabel}`}
           value={unit}
+          maxLength={INSTRUMENT_FIELD_CAP ?? undefined}
           onChange={(event) => {
             setUnit(event.target.value);
             commitNext(raw, event.target.value);
@@ -603,6 +612,8 @@ function TestDefaultField({ label, helper, value, onCommit }: TestDefaultFieldPr
         />
       </div>
       <span className="helper">{helper}</span>
+      <CharCount length={raw.length} cap={INSTRUMENT_FIELD_CAP} />
+      <CharCount length={unit.length} cap={INSTRUMENT_FIELD_CAP} />
     </div>
   );
 }

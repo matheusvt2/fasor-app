@@ -334,7 +334,7 @@ test('@p0 11.10-E2E-001 the DOCX section 8 carries the action-plan table: the po
   const { relatorioId, points } = await setUp(page, {
     texts: ['Plaquetas de identificação ausentes.', 'Diagrama unifilar desatualizado.'],
     // One sheet marked Não ensaiado: a derived row after the manual ones.
-    extra: (scope, sheets) => [officeDraft(account, scope, `block/${sheets[0]!.blockId}/not_tested`, { reason: 'solicitacao_cliente', text: null, at: '2026-09-07T12:00:00.000Z', by: account.userId })],
+    extra: (scope, sheets) => [officeDraft(account, scope, `block/${sheets[0]!.blockId}/not_tested`, { reason: 'solicitacao_cliente', text: null, at: new Date().toISOString(), by: account.userId })],
   });
   const first = points[0]!;
   const editor = await openEditor(page, 1);

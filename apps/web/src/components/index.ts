@@ -65,3 +65,6 @@ export type { PhotoRowProps, UploadPillProps } from './photo-row.tsx';
 
 export { LoadingNote } from './loading-note.tsx';
 export type { LoadingNoteProps } from './loading-note.tsx';
+
+export { CharCount } from './char-count.tsx';
+export type { CharCountProps } from './char-count.tsx';

@@ -5,6 +5,7 @@ import { errorCodeSchema, errorResponseSchema, OP_REJECT_CODES } from './errors.
 import {
   relatorioSummarySchema,
   sinceQuerySchema,
+  SYNC_PUSH_MAX_BYTES,
   SYNC_PUSH_MAX_OPS,
   SYNC_ROUTES,
   syncPullResponseSchema,
@@ -98,9 +99,9 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 28 and refuses version 27 (fix batch fxrm: a version-27 bundle cannot parse a relatorio/removed_at op)', () => {
-    expect(CONTRACT_VERSION).toBe(28);
-    expect(MIN_CONTRACT_VERSION).toBe(28);
+  it('speaks version 29 and refuses version 28 (Stories 20.7 to 20.10: a version-28 bundle cannot parse a push answer carrying a new refusal code)', () => {
+    expect(CONTRACT_VERSION).toBe(29);
+    expect(MIN_CONTRACT_VERSION).toBe(29);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');
@@ -138,10 +139,33 @@ describe('contract constants', () => {
   });
 
   it('enumerates the per-op rejection codes inside the error codes', () => {
-    expect([...OP_REJECT_CODES]).toEqual(['op_invalid', 'op_path_unknown', 'op_server_only', 'op_tenant_mismatch', 'op_forbidden']);
+    expect([...OP_REJECT_CODES]).toEqual([
+      'op_invalid',
+      'op_path_unknown',
+      'op_server_only',
+      'op_tenant_mismatch',
+      'op_forbidden',
+      // Contract 29 (Stories 20.7 to 20.10): appended after the five of contract 2, never reordered.
+      'op_status_transition',
+      'op_attribution',
+      'op_value_invalid',
+      'op_target_missing',
+    ]);
     for (const code of OP_REJECT_CODES) expect(errorCodeSchema.safeParse(code).success).toBe(true);
     expect(errorCodeSchema.safeParse('contract_outdated').success).toBe(true);
     expect(errorCodeSchema.safeParse('duplicate_tag').success).toBe(false);
+  });
+
+  it('contract 29: a push answer may carry each new refusal code, and the two codes of batch e20e are reserved after telemetry_invalid', () => {
+    for (const code of ['op_status_transition', 'op_attribution', 'op_value_invalid', 'op_target_missing'] as const) {
+      expect(syncPushResponseSchema.safeParse({ applied: [], rejected: [{ op_id: 'x', code }], superseded: [] }).success, code).toBe(true);
+    }
+    const codes = errorCodeSchema.options;
+    expect(codes.slice(codes.indexOf('telemetry_invalid'))).toEqual(['telemetry_invalid', 'quota_exceeded', 'forbidden_origin']);
+  });
+
+  it('contract 29 (Story 20.9): the push body is capped at 4 MiB', () => {
+    expect(SYNC_PUSH_MAX_BYTES).toBe(4 * 1024 * 1024);
   });
 
   it('parses `since` as a non-negative integer defaulting to 0', () => {

@@ -153,6 +153,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'usage-events-documents.spec.ts',
     why: 'previews and issues the fixed-id Porto Seguro fixture through the shared queue and LibreOffice, and compares the timed waits with the measured tap-to-document intervals, which must not share the CPU with other workers',
   },
+  // Stories 20.7 to 20.10 (contract 29): the forged pushes of the security pass, then a preview.
+  {
+    file: 'security-ops.spec.ts',
+    why: 'renders a preview PDF through the shared queue and LibreOffice after the forged pushes, to prove none of them made the relatório ungeneratable',
+  },
   // Story 20.4: 20.4-E2E-005 generates the revision whose section 8 is read for the relinked points.
   {
     file: 'point-relink-print.spec.ts',

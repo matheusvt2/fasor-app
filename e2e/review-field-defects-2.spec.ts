@@ -209,7 +209,7 @@ test('@p0 F-03 F-04 issuing with 93 empty sheets asks first, naming the counts; 
     if (request.method() === 'POST' && /\/api\/relatorios\/[0-9a-f-]{36}\/generate$/.test(new URL(request.url()).pathname)) generateRequests.push(request.url());
   });
   const instrument = instrumentDraft(account);
-  const built = await setUp(page, (scope, b) => [instrument, ...completeSheet(scope, enelSeccionadoras(b)[1].blockId, instrument.value as InstrumentRow), officeDraft(account, scope, `block/${enelSeccionadoras(b)[1].blockId}/concluded_by`, { actor_id: account.userId, at: '2026-09-07T12:00:00.000Z' })]);
+  const built = await setUp(page, (scope, b) => [instrument, ...completeSheet(scope, enelSeccionadoras(b)[1].blockId, instrument.value as InstrumentRow), officeDraft(account, scope, `block/${enelSeccionadoras(b)[1].blockId}/concluded_by`, { actor_id: account.userId, at: new Date().toISOString() })]);
   await setParecer(page, built.relatorioId);
 
   // The Sumário names the empty sheets on row 9, and the foot says the issue asks first.

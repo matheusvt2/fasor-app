@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import { deviceDatabaseName, expect, signIn, syncBadge, syncWord, test } from './support/merged-fixtures.ts';
 import {
   clientCreateOp,
+  projectCreateOp,
   pullAll,
   readDeviceId,
   readStore,
@@ -64,12 +65,14 @@ test('@p0 1.5-E2E-001 work done offline reaches the server on "Sincronizar agora
   const user = { ...account, deviceId: await readDeviceId(page, database) };
 
   const client = clientCreateOp(user);
-  const relatorio = relatorioCreateOp(user);
+  // Story 20.10 (review): a relatório is filed under an obra of the company, created first offline too.
+  const project = projectCreateOp(user);
+  const relatorio = relatorioCreateOp(user, undefined, (project.value as { id: string }).id);
   const relatorioId = relatorio.relatorio_id!;
-  await seedOutbox(page, database, [client, relatorio]);
+  await seedOutbox(page, database, [client, project, relatorio]);
 
-  await openSyncStatusWithRowsWaiting(page, '2 pendentes');
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '2');
+  await openSyncStatusWithRowsWaiting(page, '3 pendentes');
+  await expect(syncBadge(page)).toHaveAttribute('data-pending', '3');
 
   const button = page.getByRole('button', { name: 'Sincronizar agora' });
   await button.click();

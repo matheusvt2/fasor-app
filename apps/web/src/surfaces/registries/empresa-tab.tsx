@@ -3,13 +3,14 @@ import {
   PRODUTO,
   registryFieldPath,
   registryPath,
+  textCapOf,
   toIso,
   type EmpresaRow,
   type OpDraft,
   type UploadFileKind,
 } from '@app/domain';
 import { useEffect, useId, useRef, useState } from 'react';
-import { LoadingNote, UploadTile, type PickedFile } from '../../components/index.ts';
+import { CharCount, LoadingNote, UploadTile, type PickedFile } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitBatch } from '../../db/commit.ts';
@@ -298,6 +299,9 @@ interface EmpresaFieldProps {
  * One autosaving field of the tab. Same shape as the Instrumentos panel's: the local
  * text is optimistic while typing and the committed row catches up to it.
  */
+/** Story 20.9: the kernel's cap of every field of a registry row (short text). */
+const REGISTRY_FIELD_CAP = textCapOf('registry/field', 'name');
+
 function EmpresaField({ label, helper, value, onCommit, type = 'text', tabular, className }: EmpresaFieldProps) {
   const [text, setText] = useState(value);
   const committed = useRef(value);
@@ -323,6 +327,7 @@ function EmpresaField({ label, helper, value, onCommit, type = 'text', tabular, 
         className={tabular ? 'input tabular' : 'input'}
         type={type}
         value={text}
+        maxLength={REGISTRY_FIELD_CAP ?? undefined}
         aria-describedby={helper === undefined ? undefined : helperId}
         onChange={(event) => {
           setText(event.target.value);
@@ -338,6 +343,7 @@ function EmpresaField({ label, helper, value, onCommit, type = 'text', tabular, 
           {helper}
         </span>
       )}
+      <CharCount length={text.length} cap={REGISTRY_FIELD_CAP} />
     </div>
   );
 }

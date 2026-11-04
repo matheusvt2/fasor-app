@@ -288,8 +288,10 @@ test('@p0 7.5-E2E-002 E5-Q18b: after revision 1 of project P, a second relatóri
   const relatorio = byPath(`relatorio/${EXPORT_RELATORIO_ID}`).value as Record<string, unknown>;
   const location = byPath(`location/${CABINE_ID}`).value as Record<string, unknown>;
   const chave = byPath(`block/${BLOCK_CHAVE_ID}`).value as Record<string, unknown>;
+  // Stories 20.7 to 20.10 (contract 29): born Rascunho, then Em campo as the fixture's relatório is, through the table's own move.
   const drafts: OpDraft[] = [
-    { ...envelope, kind: 'create', path: `relatorio/${r2}`, value: { ...relatorio, id: r2, setup: { ...(relatorio.setup as object), responsible_user_id: account.userId } } as never },
+    { ...envelope, kind: 'create', path: `relatorio/${r2}`, value: { ...relatorio, id: r2, status: 'rascunho', setup: { ...(relatorio.setup as object), responsible_user_id: account.userId } } as never },
+    { ...envelope, kind: 'put', path: 'relatorio/status', value: 'em_campo' },
     { ...envelope, kind: 'create', path: `location/${cabine}`, value: { ...location, id: cabine, relatorio_id: r2 } as never },
     {
       ...envelope,

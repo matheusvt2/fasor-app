@@ -20,11 +20,13 @@ import {
   plateReadingView,
   selvNoticeFieldOf,
   selvVoltageNoticeText,
+  sheetNameplatePath,
   showsConfirmedGlyph,
   supersededPlatePhotos,
   suggestionView,
   typedTurnsDownSuggestion,
   suggestNameplateCopy,
+  textCapOf,
   toIso,
   type BlockDefinition,
   type BlockRow,
@@ -424,6 +426,7 @@ export function NameplateSection({
               selectEmpty={t.selectEmpty}
               registries={registries}
               acceptsNotApplicable={nameplateAcceptsNotApplicable(block, field.key)}
+              maxLength={textCapOf(sheetNameplatePath(block.id, field.key)) ?? undefined}
               blocks={snapshot.blocks}
               onCreateWord={(kind, name) => createWord(field.key, kind, name)}
               onRegisterWord={registerWord}

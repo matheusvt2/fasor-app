@@ -270,7 +270,7 @@ describe('9.1-INT the display reading kind', () => {
       const { relatorioId, blocks } = await relatorio();
       const [chave, other] = blocks.filter((b) => b.block_type === 'chave_seccionadora');
       const gone = await photo(relatorioId, chave!.id, await shot('display-isolacao'), displayCellTarget(chave!.id, chave!.block_type, 'isolacao', { row: 0, col: 0 }));
-      await apply([draft('put', 'relatorio', relatorioId, `block/${chave!.id}/removed_at`, '2026-09-28T11:00:00.000Z')]);
+      await apply([draft('put', 'relatorio', relatorioId, `block/${chave!.id}/removed_at`, now().toISOString())]);
       await expectPermanent(gone, 'target block was removed');
       const noTest = await photo(relatorioId, other!.id, await shot('display-ttr'), displayCellTarget(other!.id, other!.block_type, 'relacao_transformacao', { row: 0, col: 3 }));
       await expectPermanent(noTest, 'target test is not on the block');
@@ -281,7 +281,7 @@ describe('9.1-INT the display reading kind', () => {
       const other = await relatorio();
       await expectPermanent(await photo(own.relatorioId, null, await shot('display-termo'), displayEnvTarget(other.cabineId)), 'not the photo relatorio cabine');
       const gone = await photo(own.relatorioId, null, await shot('display-termo'), displayEnvTarget(own.cabineId));
-      await apply([draft('put', 'relatorio', own.relatorioId, `location/${own.cabineId}/removed_at`, '2026-09-28T11:00:00.000Z')]);
+      await apply([draft('put', 'relatorio', own.relatorioId, `location/${own.cabineId}/removed_at`, now().toISOString())]);
       await expectPermanent(gone, 'target cabine was removed');
     }, 60_000);
 

@@ -4,6 +4,7 @@ import {
   makeOp,
   mergeInfoText,
   READING_FAST_POLL_WINDOW_MS,
+  SYNC_PUSH_MAX_BYTES,
   type BlockRow,
   type FilePutResponse,
   type FileVariantName,
@@ -23,6 +24,7 @@ import type { Timers } from '../input/field-commit.ts';
 import { SyncRequestError, type SyncClient, type SyncFailure } from './client.ts';
 import { followOnlineEvents } from './online.ts';
 import { createSyncEngine, READING_POLL_INTERVAL_MS, READING_POLL_WINDOW_MS, SYNC_INTERVAL_MS, type EngineStatus, type SyncEngine, type SyncEngineDeps } from './engine.ts';
+import { serializedBytes } from './policy.ts';
 
 /*
  * The engine over an in-memory server and a controllable clock. The server
@@ -951,6 +953,39 @@ describe('sync engine', () => {
     expect(block.sheet.nameplate.fabricacao?.value).toBe('GOOD');
     h.db.close();
   });
+
+  it('Story 20.9 (review): a backlog over SYNC_PUSH_MAX_BYTES goes in several pushes under the cap, each client batch in one push', async () => {
+    const h = await harness();
+    await commitOps(h.db, seedLog());
+    await h.engine.runCycle();
+    const pushedBefore = h.server.pushes.length;
+    // Five client batches of three 400 kB ops: 6 MB in all, 1.2 MB a batch, so a push holds three
+    // batches and a fourth would pass the 4 MiB cap (an op-by-op cut would split it).
+    const newId = ids();
+    const batchId = ids('019966b0-0013-7000-8000-');
+    const text = 'x'.repeat(400_000);
+    const backlog = Array.from({ length: 5 }, () => batchId()).flatMap((batch_id, b) =>
+      Array.from({ length: 3 }, (_, i) => localPut(newId, `${b}.${i} ${text}`, { batch_id })),
+    );
+    await commitOps(h.db, backlog);
+    expect(serializedBytes({ ops: backlog })).toBeGreaterThan(SYNC_PUSH_MAX_BYTES);
+
+    expect(await h.engine.runCycle()).toBe('ran');
+
+    const pushes = h.server.pushes.slice(pushedBefore);
+    expect(pushes.length).toBeGreaterThan(1);
+    for (const push of pushes) expect(serializedBytes({ ops: push })).toBeLessThanOrEqual(SYNC_PUSH_MAX_BYTES);
+    expect(pushes.flat().map((op) => op.op_id)).toEqual(backlog.map((op) => op.op_id));
+    const pushOf = new Map<string, number>();
+    pushes.forEach((push, index) => {
+      for (const op of push) {
+        expect(pushOf.get(op.batch_id!) ?? index, op.batch_id!).toBe(index);
+        pushOf.set(op.batch_id!, index);
+      }
+    });
+    expect(await pushedThrough(h, backlog)).toBe(true);
+    h.db.close();
+  }, 60_000);
 
   describe('10.1 merge information in engine memory', () => {
     const OTHER_USER = '019966b0-0013-7000-8000-0000000000b1';

@@ -1,5 +1,6 @@
 import {
   applyOp,
+  attributionIssue,
   clientReadingKindPutAllowed,
   entityKey,
   FILE_SERVER_FIELDS,
@@ -9,6 +10,7 @@ import {
   learnTouchedOf,
   normalizeRegistryName,
   opSchema,
+  opValueIssue,
   parsePath,
   LocationKindError,
   PathError,
@@ -17,6 +19,7 @@ import {
   SeedPathError,
   SERVER_DEVICE_ID,
   splitEntityKey,
+  statusCreateVerdict,
   targetsOf,
   toIso,
   type Clock,
@@ -38,17 +41,28 @@ import type { CompanyId } from '../db/repositories/company-id.ts';
 import { entities, ops } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 import { log, logError, type LogFields } from '../log.ts';
+import { checkClientOp, clientCheckCache, type ClientCheckCache } from './rules.ts';
 import { serverOp } from './server-op.ts';
 import { templateSeedDecision, templateSeedMoveOp } from './template-seed-step.ts';
 
 /*
  * AD-3, AD-4, AD-24: the server materializer. One transaction per push
- * (E6-A1): per op, insert the op (an existing `op_id` returns its `seq`), load the
- * target rows, call the same `applyOp`, upsert `entities`. Rejected only for shape, unknown path,
- * origin (a server-only family, a spoofed device or actor), ownership (a user
- * row written by anyone but that user) or tenant; never for a domain rule, the one exception
- * being a client `reading_kind` put its photo does not allow (E9-Q2: it would queue a paid
- * reading).
+ * (E6-A1): per op, load the target rows, insert the op (an existing `op_id` returns its `seq`),
+ * call the same `applyOp`, upsert `entities`. Rejected for shape, unknown path, origin (a
+ * server-only family, a spoofed device or actor), ownership (a user row written by anyone but
+ * that user) or tenant, and for a client `reading_kind` put its photo does not allow (E9-Q2: it
+ * would queue a paid reading).
+ *
+ * Stories 20.7 to 20.10 (2026-11-03, contract 29): a client op is also checked against the
+ * business rules the kernel holds, and refused alone when it breaks one: in `validate`, the
+ * stateless ones (the value's size and type, `opValueIssue`; the actor ids and the instants'
+ * upper bound, `attributionIssue`; a relatório born Rascunho, `statusCreateVerdict`); in the apply
+ * transaction, after the merge redirect and before the op is logged, the ones that read the server's
+ * state (`checkClientOp`, `rules.ts`: the target, the status move, the removal of an Emitido
+ * relatório, the responsible user, the attribution history and lower bound). Those refusals
+ * (`op_status_transition`, `op_attribution`, `op_value_invalid`, `op_target_missing`, and
+ * `op_forbidden` for an Emitido removal) write nothing and never roll back the rest of the op's
+ * client batch. Server ops are never checked.
  */
 
 export interface ApplyResult {
@@ -75,8 +89,16 @@ export type ApplyDeps = {
   templateSeedLog?: { info: (msg: string, fields?: LogFields) => void; error: (msg: string, fields?: LogFields) => void };
 } & ({ origin: 'client'; actorId: string } | { origin: 'server' });
 
-/** A valid op carries its parsed path, so the apply path parses it once (A-23). */
-type Validation = { ok: true; op: Op; path: OpPath } | { ok: false; code: OpRejectCode };
+/**
+ * A valid op carries its parsed path, so the apply path parses it once (A-23). A refusal by a
+ * business rule (Stories 20.7 to 20.10) is `alone`: it refuses that op and never its client batch.
+ */
+type Validation = { ok: true; op: Op; path: OpPath } | { ok: false; code: OpRejectCode; alone?: true };
+
+/** Stories 20.7 to 20.10: a client op refused by a business rule, logged once with why (no value, no text). */
+function logRuleRefusal(op: Pick<Op, 'op_id' | 'path'>, companyId: CompanyId, code: OpRejectCode, reason?: string): void {
+  log('client op refused by a business rule', { company_id: companyId, op_id: op.op_id, path: op.path, code, ...(reason === undefined ? {} : { reason }) });
+}
 
 /**
  * The `file/server` fields a create may not carry a value for. `reading_status` is left
@@ -190,6 +212,23 @@ function validate(raw: unknown, companyId: CompanyId, deps: ApplyDeps): Validati
     if (path.family === 'file/field' && (op.kind !== 'put' ? path.field === 'reading_kind' || path.field === 'reading_target' : !clientReadingPutIsValid(path.field, op.value))) {
       return { ok: false, code: 'op_invalid' };
     }
+    // Story 20.9: the value's size and type (every string capped, a free-text cell is text, the altitude in range).
+    const valueIssue = opValueIssue(op, path);
+    if (valueIssue !== null) {
+      logRuleRefusal(op, companyId, 'op_value_invalid', valueIssue);
+      return { ok: false, code: 'op_value_invalid', alone: true };
+    }
+    // Story 20.8: an actor id only the op's own actor may stand in, and no instant past the server's clock.
+    const attribution = attributionIssue(op, path, deps.now());
+    if (!attribution.ok) {
+      logRuleRefusal(op, companyId, 'op_attribution', attribution.issue);
+      return { ok: false, code: 'op_attribution', alone: true };
+    }
+    // Story 20.7: a relatório is born Rascunho.
+    if (path.family === 'relatorio' && statusCreateVerdict((op.value as { status?: unknown } | null)?.status) === 'refused') {
+      logRuleRefusal(op, companyId, 'op_status_transition', 'a relatório create not born rascunho');
+      return { ok: false, code: 'op_status_transition', alone: true };
+    }
   }
   return { ok: true, op, path };
 }
@@ -206,6 +245,25 @@ interface Applied {
   seq: number;
   /** The latest op on the path before this one, when it differs from `prev_op_id`. */
   supersededOver: string | null;
+}
+
+/** Stories 20.7 to 20.10: a client op a rule that reads server state refused; nothing of it was written. */
+interface Refused {
+  refused: OpRejectCode;
+}
+
+/** Who sent the op, and the clock its checks read (a client op is checked, a server op never). */
+interface ApplyContext {
+  origin: ApplyDeps['origin'];
+  now: Clock;
+  /** What the client checks of this push learned of its relatórios (`clientCheckCache`). */
+  checks?: ClientCheckCache;
+}
+
+/** A server op is never refused by a rule (`applyOneIn` checks client ops only). */
+function appliedServerOp(result: Applied | Refused): Applied {
+  if ('refused' in result) throw new Error(`a server op was refused ${result.refused}`);
+  return result;
 }
 
 /** The actor of the server's merge ops (Story 2.5 AC4, Epic 2 retro D-1). */
@@ -404,9 +462,10 @@ async function applyOneIn(
   companyId: CompanyId,
   received: PathedOp,
   receivedAt: string,
-  origin: ApplyDeps['origin'],
+  context: ApplyContext,
   cache: RegistryNames,
-): Promise<Applied> {
+): Promise<Applied | Refused> {
+  const origin = context.origin;
   // Epic 2 retro D-1: an op on a merged-away id is rewritten onto the survivor, and a
   // create that merges is rewritten onto the row it merges into, *before* the op is
   // logged. The log then holds what was applied, so every device that pulls it (the one
@@ -417,6 +476,56 @@ async function applyOneIn(
   const merge = await mergeTarget(tx, companyId, redirected, cache);
   const target = merge === null ? redirected : retarget(redirected, merge.into);
   const op = target.op;
+
+  // The rows the op reads or writes, loaded before it is logged (the same rows as after: the
+  // insert writes no entity, and the company lock is held), so the client checks read them too.
+  const refs = targetsOf(op);
+  const rows = await tx
+    .select()
+    .from(entities)
+    .where(
+      and(
+        eq(entities.company_id, companyId),
+        or(...refs.map((r) => and(eq(entities.entity, r.entity), eq(entities.id, r.id)))),
+      ),
+    );
+  const state = new Map<EntityKey, EntityRow>();
+  for (const row of rows) state.set(entityKey(row.entity as Entity, row.id), row.row);
+
+  // Stories 20.7 to 20.10: after the redirect and before the op is logged, a client op meets the
+  // rules that read server state (`rules.ts`). A refused op writes nothing; one the log already
+  // holds (a re-sent push whose answer was lost) was applied when it first came, so it answers its
+  // seq like any dedupe hit, whatever the state says now.
+  if (origin === 'client') {
+    // E9-Q2 first, as before contract 29: a `reading_kind` put its photo does not allow (no row
+    // included) stays the permanent `op_invalid` it always was, raised before anything is written.
+    let readingRefusal: ReadingKindPutRefusedError | null = null;
+    try {
+      assertClientReadingKindPut(op, target.path, state, origin);
+    } catch (error) {
+      if (!(error instanceof ReadingKindPutRefusedError)) throw error;
+      readingRefusal = error;
+    }
+    const loggedSeq = async () => {
+      const [logged] = await tx
+        .select({ seq: ops.seq })
+        .from(ops)
+        .where(and(eq(ops.op_id, op.op_id), eq(ops.company_id, companyId)));
+      return logged?.seq;
+    };
+    if (readingRefusal !== null) {
+      const seq = await loggedSeq();
+      if (seq !== undefined) return { seq, supersededOver: null };
+      throw readingRefusal;
+    }
+    const code = await checkClientOp(tx, companyId, target, { state, now: context.now, ...(context.checks === undefined ? {} : { cache: context.checks }) });
+    if (code !== null) {
+      const seq = await loggedSeq();
+      if (seq !== undefined) return { seq, supersededOver: null };
+      logRuleRefusal(op, companyId, code);
+      return { refused: code };
+    }
+  }
 
   // The server's current op on this path, read before the insert. Implicit-relatorio
   // families (`relatorio/status`, `relatorio/setup/*`) share one path across relatorios,
@@ -452,21 +561,8 @@ async function applyOneIn(
     return { seq: existing.seq, supersededOver: null };
   }
 
-  const refs = targetsOf(op);
-  const rows = await tx
-    .select()
-    .from(entities)
-    .where(
-      and(
-        eq(entities.company_id, companyId),
-        or(...refs.map((r) => and(eq(entities.entity, r.entity), eq(entities.id, r.id)))),
-      ),
-    );
-  const state = new Map<EntityKey, EntityRow>();
-  for (const row of rows) state.set(entityKey(row.entity as Entity, row.id), row.row);
   let next: ReturnType<typeof applyOp>;
   try {
-    assertClientReadingKindPut(op, target.path, state, origin);
     next = applyOp(state, { ...op, seq });
   } catch (error) {
     // E6-A1: a refusal by `applyOp` (row schema, seed path) comes before any entity write,
@@ -591,7 +687,7 @@ export async function applyServerBatch(
       for (const target of validated) {
         const op = target.op;
         applying = op;
-        const { seq, supersededOver } = await applyOneIn(tx, companyId, target, receivedAt, 'server', cache);
+        const { seq, supersededOver } = appliedServerOp(await applyOneIn(tx, companyId, target, receivedAt, { origin: 'server', now: deps.now }, cache));
         result.applied.push({ op_id: op.op_id, seq });
         if (supersededOver !== null) result.superseded.push({ op_id: op.op_id, over_op_id: supersededOver });
       }
@@ -622,7 +718,8 @@ class BatchRefusedError extends Error {
   }
 }
 
-type Step = ({ ok: true; op: Op; path: OpPath } | { ok: false; op_id: string; code: OpRejectCode }) & { batch_id: string | null };
+/** `alone` (Stories 20.7 to 20.10): refused by a business rule, which never refuses the op's client batch. */
+type Step = ({ ok: true; op: Op; path: OpPath } | { ok: false; op_id: string; code: OpRejectCode; alone?: true }) & { batch_id: string | null };
 
 /**
  * Applies ops in array order for one tenant; one rejected op never blocks the rest.
@@ -645,6 +742,11 @@ type Step = ({ ok: true; op: Op; path: OpPath } | { ok: false; op_id: string; co
  * batch alone and answers every op of it `op_invalid` (an op the validation refused keeps
  * its own code), while the ops of other batches in the push apply. The device never splits
  * a batch across pushes (`batches` in `apps/web/src/sync/policy.ts`).
+ *
+ * Stories 20.7 to 20.10 (contract 29): a refusal by a business rule is the exception. It refuses
+ * its op alone, in `validate` or in `applyOneIn`, before the op wrote anything, and the other ops
+ * of its batch apply: the edit that carried an Em campo status op still applies when the server
+ * refuses the status op ("No edit is lost").
  */
 export async function applyOps(
   db: Db,
@@ -658,8 +760,9 @@ export async function applyOps(
     const validation = validate(raw, companyId, deps);
     if (validation.ok) return { ...validation, batch_id };
     const rawId = (raw as { op_id?: unknown } | null)?.op_id;
-    return { ok: false, op_id: typeof rawId === 'string' ? rawId : '', code: validation.code, batch_id };
+    return { ok: false, op_id: typeof rawId === 'string' ? rawId : '', code: validation.code, ...(validation.alone === true ? { alone: true as const } : {}), batch_id };
   });
+  const context: ApplyContext = { origin: deps.origin, now: deps.now, checks: clientCheckCache() };
   const result: ApplyResult = { applied: [], rejected: [], superseded: [] };
   // The steps of each batch that has more than one op in this push, in array order.
   const groups = new Map<string, Step[]>();
@@ -672,30 +775,44 @@ export async function applyOps(
   for (const [batchId, group] of groups) if (group.length < 2) groups.delete(batchId);
   const opIdOf = (step: Step) => (step.ok ? step.op.op_id : step.op_id);
 
-  /** Every op of a refused batch: `op_invalid`, or the code the validation gave the op itself. */
-  const refuseAll = (group: readonly Step[]) => {
-    for (const member of group) result.rejected.push({ op_id: opIdOf(member), code: member.ok ? 'op_invalid' : member.code });
+  /**
+   * Every op of a refused batch: `op_invalid`, or the code the validation gave the op itself, or
+   * the code a rule refused it with alone inside the batch (`ruled`).
+   */
+  const refuseAll = (group: readonly Step[], ruled: ReadonlyMap<string, OpRejectCode> = new Map()) => {
+    for (const member of group) result.rejected.push({ op_id: opIdOf(member), code: member.ok ? (ruled.get(member.op.op_id) ?? 'op_invalid') : member.code });
   };
 
   const cache: RegistryNames = new Map();
 
-  /** One multi-op batch: all of it under one savepoint, or none of it. */
+  /**
+   * One multi-op batch: all of it under one savepoint, or none of it; an op a business rule
+   * refuses (Stories 20.7 to 20.10) is left out alone and the rest of the batch applies.
+   */
   const applyBatchIn = async (tx: Tx, group: readonly Step[]): Promise<void> => {
-    if (group.some((member) => !member.ok)) {
+    if (group.some((member) => !member.ok && member.alone !== true)) {
       refuseAll(group);
       return;
     }
     const applied: ApplyResult['applied'] = [];
     const superseded: ApplyResult['superseded'] = [];
+    const ruled = new Map<string, OpRejectCode>();
     try {
       await tx.transaction(async (savepoint) => {
         for (const member of group) {
-          const target = member as { op: Op; path: OpPath };
-          const op = target.op;
+          if (!member.ok) {
+            ruled.set(member.op_id, member.code);
+            continue;
+          }
+          const op = member.op;
           try {
-            const { seq, supersededOver } = await applyOneIn(savepoint, companyId, target, toIso(deps.now()), deps.origin, cache);
-            applied.push({ op_id: op.op_id, seq });
-            if (supersededOver !== null) superseded.push({ op_id: op.op_id, over_op_id: supersededOver });
+            const one = await applyOneIn(savepoint, companyId, member, toIso(deps.now()), context, cache);
+            if ('refused' in one) {
+              ruled.set(op.op_id, one.refused);
+              continue;
+            }
+            applied.push({ op_id: op.op_id, seq: one.seq });
+            if (one.supersededOver !== null) superseded.push({ op_id: op.op_id, over_op_id: one.supersededOver });
           } catch (error) {
             if (isPermanentRefusal(error)) throw new BatchRefusedError(op.op_id, { cause: error });
             throw error;
@@ -703,13 +820,15 @@ export async function applyOps(
         }
       });
     } catch (error) {
-      // The savepoint rolled back what the batch wrote, rows the registry cache may name.
+      // The savepoint rolled back what the batch wrote, rows the registry cache and the client checks' cache may name.
       cache.clear();
+      context.checks = clientCheckCache();
       if (!(error instanceof BatchRefusedError)) throw error;
-      refuseAll(group);
+      refuseAll(group, ruled);
       return;
     }
     result.applied.push(...applied);
+    for (const [op_id, code] of ruled) result.rejected.push({ op_id, code });
     result.superseded.push(...superseded);
   };
 
@@ -734,9 +853,13 @@ export async function applyOps(
         continue;
       }
       try {
-        const { seq, supersededOver } = await applyOneIn(tx, companyId, step, toIso(deps.now()), deps.origin, cache);
-        result.applied.push({ op_id: step.op.op_id, seq });
-        if (supersededOver !== null) result.superseded.push({ op_id: step.op.op_id, over_op_id: supersededOver });
+        const one = await applyOneIn(tx, companyId, step, toIso(deps.now()), context, cache);
+        if ('refused' in one) {
+          result.rejected.push({ op_id: step.op.op_id, code: one.refused });
+          continue;
+        }
+        result.applied.push({ op_id: step.op.op_id, seq: one.seq });
+        if (one.supersededOver !== null) result.superseded.push({ op_id: step.op.op_id, over_op_id: one.supersededOver });
       } catch (error) {
         // Only a row-schema or seed-path refusal by applyOp or an op_id taken by another company is a
         // permanent rejection; anything else (connection, lock, pool) propagates so the caller retries
@@ -791,7 +914,7 @@ async function upgradePushedTemplates(tx: Tx, companyId: CompanyId, steps: reado
       continue;
     }
     try {
-      await tx.transaction((savepoint) => applyOneIn(savepoint, companyId, validation, toIso(deps.now()), 'server', cache));
+      await tx.transaction(async (savepoint) => appliedServerOp(await applyOneIn(savepoint, companyId, validation, toIso(deps.now()), { origin: 'server', now: deps.now }, cache)));
       info('template seed upgraded on push', { company_id: companyId, template_id: id, from: decision.from ?? null, to: decision.target });
     } catch (failure) {
       if (!isPermanentRefusal(failure)) throw failure;
@@ -853,7 +976,7 @@ async function learnPushedOptions(tx: Tx, companyId: CompanyId, steps: readonly 
   if (validated.length === 0) return;
   try {
     await tx.transaction(async (savepoint) => {
-      for (const target of validated) await applyOneIn(savepoint, companyId, target, at, 'server', cache);
+      for (const target of validated) appliedServerOp(await applyOneIn(savepoint, companyId, target, at, { origin: 'server', now: deps.now }, cache));
     });
     log('learned options on push', { company_id: companyId, nc_phrases: validated.filter((v) => v.op.path.startsWith('registry/nc_phrase/')).length, manufacturers: validated.filter((v) => v.op.path.startsWith('registry/manufacturer/')).length });
   } catch (failure) {

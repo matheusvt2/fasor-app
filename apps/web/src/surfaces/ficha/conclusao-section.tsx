@@ -10,8 +10,11 @@ import {
   enabledSubBlocksOf,
   observationRequired,
   restrictionWarning,
+  sheetConclusionPath,
+  sheetObservationsPath,
   suggestConclusionPair,
   suggestedSheetObservation,
+  textCapOf,
   type BlockDefinition,
   type SectionMention,
   type BlockRow,
@@ -19,6 +22,7 @@ import {
   type ConclusionResult,
 } from '@app/domain';
 import { useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { CharCount } from '../../components/index.ts';
 import { GeneratedTextField } from '../../components/generated-text-field.tsx';
 import { SuggestionField } from '../../components/suggestion-field.tsx';
 import { useLatestChoice } from '../../components/use-latest-choice.ts';
@@ -184,10 +188,14 @@ export function ConclusaoSection({
   const storedText = conclusionStoredText(block);
 
   const storedObservation = typeof block.sheet.observations?.value === 'string' ? block.sheet.observations.value : '';
+  // Story 20.9: the kernel's caps of OBSERVAÇÕES and of the conclusion text (long texts).
+  const observationCap = textCapOf(sheetObservationsPath(api.blockId));
+  const conclusionTextCap = textCapOf(sheetConclusionPath(api.blockId, 'text'));
   const observation = useTypedText(
     storedObservation,
     (text) => (api.author === null ? undefined : api.commit([sheetObservationsOp(api.author, api.relatorioId, api.blockId, text.trim() === '' ? null : text)])),
     { entityId: api.blockId, field: 'observations' },
+    { cap: observationCap },
   );
   // Story 12.4 (D-7): with the sheet observation empty, the NC items' observations stand in
   // it as a suggestion until its "Confirmar" (or the conclusion text's) writes them; typing
@@ -298,6 +306,7 @@ export function ConclusaoSection({
               id={obsFieldId}
               className="observation-field"
               value={observationSuggested ? suggestedObservation : observation.text}
+              maxLength={observationCap ?? undefined}
               data-required={required ? '' : undefined}
               data-missing-field={required && observationMissing ? '' : undefined}
               aria-invalid={required || undefined}
@@ -318,6 +327,7 @@ export function ConclusaoSection({
                 if (observation.text.trim() === '') setTyping(false);
               }}
             />
+            {observationSuggested || readOnly ? null : <CharCount length={observation.text.length} cap={observationCap} />}
             {observationSuggested ? <span className="suggested-pill">{ui.suggestionField.suggested}</span> : null}
             {observationSuggested && !readOnly ? (
               <div className="generated-actions">
@@ -379,6 +389,7 @@ export function ConclusaoSection({
                 onReplace={() => confirmText(composed.text, 'confirmed')}
                 onEdit={(text) => confirmText(text, 'edited')}
                 draft={{ surface: DRAFT_SURFACE, entityId: api.blockId, field: 'conclusion-text' }}
+                maxLength={conclusionTextCap ?? undefined}
                 helper={t.textHelper(section9)}
                 confirmedHelper={t.textConfirmed(section9)}
                 readOnly={readOnly}

@@ -1,6 +1,6 @@
-import { calendarDateOfInstant, dateRangeText, projectLabel, relatorioOpEnvelope, relatorioSetupPath, type RelatorioSnapshot } from '@app/domain';
+import { calendarDateOfInstant, dateRangeText, projectLabel, relatorioOpEnvelope, relatorioSetupPath, textCapOf, type RelatorioSnapshot } from '@app/domain';
 import { useId } from 'react';
-import { DateField, UploadTile } from '../../../components/index.ts';
+import { CharCount, DateField, UploadTile } from '../../../components/index.ts';
 import { copy } from '../../../copy/pt-br.ts';
 import { now } from '../../../clock.ts';
 import { commitFilePick, useAttachedFile } from '../../../db/file-commit.ts';
@@ -12,6 +12,9 @@ import { useServicePeriod, useTextField, type BandRef, type CommitField, type Co
 
 /** Story 13.4 (INP-3): the "Hoje" chip of an empty service date, today in America/Sao_Paulo. */
 const today = () => calendarDateOfInstant(now());
+
+/** Story 20.9: the kernel's cap of "Informações adicionais" (long text). */
+const ADDITIONAL_INFO_CAP = textCapOf(relatorioSetupPath('additional_info'));
 
 export function Etapa1Capa({
   relatorioId,
@@ -103,9 +106,11 @@ export function Etapa1Capa({
               id={additionalInfoId}
               className="input"
               value={additionalInfo.text}
+              maxLength={ADDITIONAL_INFO_CAP ?? undefined}
               onChange={(event) => additionalInfo.change(event.target.value)}
               onBlur={additionalInfo.blur}
             />
+            <CharCount length={additionalInfo.text.length} cap={ADDITIONAL_INFO_CAP} />
           </div>
           <UploadTile
             className="span-2"

@@ -6,12 +6,15 @@ import {
   cabineProgress,
   getSeed,
   humidityNoteSurfaced,
+  locationEnvPath,
+  locationSePath,
   previousCabineEnv,
   quickNotes,
   SITE_CHECKLIST_LABEL,
   siteAltitudeValue,
   siteChecklistProgress,
   siteCounterText,
+  textCapOf,
   type EntityState,
   type FieldDef,
   type LocationRow,
@@ -143,6 +146,7 @@ export function CabineBlock({
         selectEmpty={t.selectEmpty}
         acceptsNotApplicable
         acceptsPair={acceptsVoltagePair(group, field.key)}
+        maxLength={textCapOf(group === 'se' ? locationSePath(cabine.id, field.key) : locationEnvPath(cabine.id, field.key)) ?? undefined}
         commit={(next) =>
           api.author === null
             ? undefined
