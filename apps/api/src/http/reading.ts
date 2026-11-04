@@ -9,6 +9,7 @@ import {
 } from '@app/domain';
 import { Hono } from 'hono';
 import type { Db } from '../db/client.ts';
+import { QuotaExceededError } from '../db/repositories/ai-usage.ts';
 import { findFileRow } from '../db/repositories/files.ts';
 import { readingKindHandler } from '../jobs/reading/kinds/index.ts';
 import type { ReadingPayload } from '../jobs/reading/payload.ts';
@@ -18,8 +19,10 @@ import { type AppEnv, requireSession } from './session.ts';
 /*
  * Story 8.4: `POST /api/photos/{id}/reread` reads an uploaded reading photo again (Story 9.1:
  * any kind the job has a handler for, the plate and the display): one new
- * reading job and `reading_status = running` (from `done` or `failed`; E78-Q5: a photo still
- * `running` answers 409 `reading_running`, no job sent, no run); the job
+ * reading job and `reading_status = running` (from `failed`; E78-Q5: a photo still
+ * `running` answers 409 `reading_running`, no job sent, no run; Story 20.12: a photo already
+ * `done` answers 200 `done` with no run, and a company at its daily reading ceiling answers
+ * 429 `quota_exceeded`); the job
  * then discards the photo's previous pending suggestions and emits the new run's. The company
  * comes from the session and scopes the lookup (AD-10), so another company's photo, an
  * unknown id, a malformed id and a row that is not a photo all answer the same `404`.
@@ -32,6 +35,8 @@ export interface ReadingRoutesDeps {
   enqueueReading?: (payload: ReadingPayload) => Promise<void>;
   /** Story 11.8 follow-up: `false` when `AI_FEATURES=off`; a kind `readingNeedsAi` names then answers 409. */
   aiFeatures?: boolean;
+  /** Story 20.12: the company's daily reading ceiling; at it the route answers `429 quota_exceeded`. */
+  readingDailyQuota?: number;
 }
 
 function fail(code: ErrorCode, message: string): ErrorResponse {
@@ -57,15 +62,25 @@ export function createReadingRoutes(db: Db, deps: ReadingRoutesDeps): Hono<AppEn
     if (photo.uploaded_at === null) return c.json(fail('not_caught_up', 'The photo has not been uploaded yet.'), 409);
     // E78-Q5: a reading already running is not started again (every further tap was one more run).
     if (photo.reading_status === 'running') return c.json(fail('reading_running', 'This photo is being read.'), 409);
+    // Story 20.12 (security pass S6): a photo already read is not read again; nothing is spent.
+    if (photo.reading_status === 'done') {
+      const done: ReadingRereadResponse = { photo_id: id, reading_status: 'done' };
+      return c.json(done, 200);
+    }
     const enqueue = deps.enqueueReading;
     if (enqueue === undefined) throw new Error('reread: no reading queue is wired');
 
-    await startReading(
-      { db, now: deps.now, newId: deps.newId, enqueue },
-      session.companyId,
-      { id, relatorioId: record.relatorioId },
-      { company_id: session.companyId, photo_id: id, reading_kind: kind },
-    );
+    try {
+      await startReading(
+        { db, now: deps.now, newId: deps.newId, enqueue, ...(deps.readingDailyQuota === undefined ? {} : { dailyQuota: deps.readingDailyQuota }) },
+        session.companyId,
+        { id, relatorioId: record.relatorioId },
+        { company_id: session.companyId, photo_id: id, reading_kind: kind },
+      );
+    } catch (error) {
+      if (error instanceof QuotaExceededError) return c.json(fail('quota_exceeded', 'The daily reading limit of this company is reached.'), 429);
+      throw error;
+    }
     const answer: ReadingRereadResponse = { photo_id: id, reading_status: 'running' };
     return c.json(answer, 202);
   });

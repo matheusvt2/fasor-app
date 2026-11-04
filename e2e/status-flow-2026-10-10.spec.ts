@@ -11,6 +11,7 @@ import { createProjectFromHome, createRelatorio, setParecer } from './support/re
 import { officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNowAndReturn } from './support/sync.ts';
+import { appOrigin } from './support/origin.ts';
 
 /*
  * Status flow 2026-10-10 (Matheus; `implementation-artifacts/spec-status-flow-2026-10-10.md`),
@@ -118,7 +119,7 @@ async function moveBackTo(page: Page, to: string): Promise<void> {
 async function pushFromDevice(page: Page, suffix: string, draft: OpDraft): Promise<void> {
   const deviceId = await readDeviceId(page, database);
   const op = makeOp({ ...draft, batch_id: null, device_id: `${deviceId}-${suffix}` }, { newId, now: new Date() });
-  const pushed = await page.request.post('/api/sync/ops', { headers: { [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) }, data: { ops: [op] } });
+  const pushed = await page.request.post('/api/sync/ops', { headers: { ...appOrigin(page), [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) }, data: { ops: [op] } });
   expect(pushed.ok(), await pushed.text()).toBe(true);
   expect(((await pushed.json()) as { rejected?: unknown[] }).rejected ?? []).toEqual([]);
 }

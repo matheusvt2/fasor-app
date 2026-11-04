@@ -15,11 +15,12 @@ import {
 import { and, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import type { Db } from '../db/client.ts';
+import { consumeDailyQuota, DEFAULT_AUDIT_DAILY_QUOTA, QuotaExceededError } from '../db/repositories/ai-usage.ts';
 import type { CompanyId } from '../db/repositories/company-id.ts';
 import { entities } from '../db/schema.ts';
 import { auditRunPut } from '../jobs/audit/job.ts';
 import { AUDIT_ACTOR, type AuditPayload } from '../jobs/audit/payload.ts';
-import { logError } from '../log.ts';
+import { log, logError } from '../log.ts';
 import { applyOps, applyServerBatch, type Tx } from '../sync/apply.ts';
 import { serverOp } from '../sync/server-op.ts';
 import { barrierMissing, readLiveRelatorio } from './barrier.ts';
@@ -33,7 +34,9 @@ import { type AppEnv, requireSession } from './session.ts';
  * relatório still active (`auditRunActive`, decided under the company lock the create takes)
  * `409 audit_running` with its id and nothing sent; otherwise one `audit_run` create
  * (`queued`), one job on the `audit` queue and `202 {audit_run_id}`. An enqueue failure marks
- * the run `failed` (`enqueue_failed`) and answers 500.
+ * the run `failed` (`enqueue_failed`) and answers 500. Story 20.12: after the active-run check,
+ * under the same lock, one unit of the company's daily audit ceiling is spent; at the ceiling
+ * the answer is `429 quota_exceeded` and no run is written.
  */
 
 export interface AuditRouteDeps {
@@ -43,6 +46,8 @@ export interface AuditRouteDeps {
   enqueue?: (payload: AuditPayload) => Promise<void>;
   /** `false` when `AI_FEATURES=off`; the route then answers `409 ai_features_off`. Absent reads as on. */
   aiFeatures?: boolean;
+  /** Story 20.12: the company's daily audit ceiling; at it the route answers `429 quota_exceeded` and writes nothing. */
+  dailyQuota?: number;
 }
 
 function fail(code: ErrorCode, message: string, details?: unknown): ErrorResponse {
@@ -118,6 +123,8 @@ export function createAuditRoutes(db: Db, deps: AuditRouteDeps): Hono<AppEnv> {
         before: async (tx: Tx) => {
           const other = await activeRun(tx, session.companyId, relatorioId);
           if (other !== null) throw new AuditRunningError(other);
+          // Spent inside the transaction: a refusal rolls back with the run it refused.
+          if (!(await consumeDailyQuota(tx, session.companyId, 'audit', deps.dailyQuota ?? DEFAULT_AUDIT_DAILY_QUOTA))) throw new QuotaExceededError('audit');
         },
       });
     } catch (error) {
@@ -125,8 +132,13 @@ export function createAuditRoutes(db: Db, deps: AuditRouteDeps): Hono<AppEnv> {
         const running: AuditRunningDetails = { audit_run_id: error.run.id };
         return c.json(fail('audit_running', 'An audit of this relatorio is still running.', running), 409);
       }
+      if (error instanceof QuotaExceededError) {
+        log('quota_exceeded', { company_id: session.companyId, relatorio_id: relatorioId, kind: 'audit' });
+        return c.json(fail('quota_exceeded', 'The daily audit limit of this company is reached.'), 429);
+      }
       throw error;
     }
+    log('audit_started', { company_id: session.companyId, relatorio_id: relatorioId, kind: 'audit', job_id: runId });
 
     const payload: AuditPayload = { run_id: runId, company_id: session.companyId, relatorio_id: relatorioId, actor_id: session.userId };
     try {

@@ -13,6 +13,7 @@ import {
 } from './support/merged-fixtures.ts';
 import { syncNow } from './support/sync.ts';
 import { readDeviceId, readStore } from './support/outbox.ts';
+import { appOrigin } from './support/origin.ts';
 
 const MARKER = 'e2e-local-marker';
 
@@ -24,6 +25,9 @@ const isApiRequest = (url: URL) => url.pathname.startsWith('/api/');
 
 /** The last-session pointer the cold open boots from (`apps/web/src/state/last-session.ts`). */
 const readPointer = (page: Page) => page.evaluate(() => window.localStorage.getItem('releng.last-session'));
+
+/** Story 20.11: the IndexedDB databases of this origin, listed without opening (so never creating) one. */
+const listDatabases = (page: Page) => page.evaluate(async () => (await indexedDB.databases()).map((info) => info.name ?? ''));
 
 /**
  * Waits until the company pull has brought this user's kernel row (the `user/{id}` create
@@ -41,7 +45,7 @@ async function waitForUserRow(page: Page, database: string, userId: string): Pro
     .toBe(true);
 }
 
-test('@p0 1.3-E2E-001 signs in, keeps working with the API down, and signs out without dropping the local database', async ({
+test('@p0 1.3-E2E-001 signs in, keeps working with the API down, and signs out deleting the local database', async ({
   page,
   context,
   seed,
@@ -88,9 +92,10 @@ test('@p0 1.3-E2E-001 signs in, keeps working with the API down, and signs out w
   // The session cookie is gone.
   const cookies = await context.cookies();
   expect(cookies.filter((cookie) => cookie.name.includes('session_token'))).toHaveLength(0);
-  // The database and its rows are not.
-  expect(await readLocalMarker(page, database, MARKER)).toMatchObject({ kind: 'relatorio' });
-  expect(await readStoreNames(page, database)).toContain('outbox');
+  // Story 20.11 (security pass S2): so are the database and the pointer.
+  await expect.poll(() => listDatabases(page)).not.toContain(database);
+  expect(await readPointer(page)).toBeNull();
+  expect(await readLocalMarker(page, database, MARKER)).toBeNull();
 });
 
 test('@p1 1.3-E2E-001b offline with no session, Entrar is disabled with the reason beside it', async ({
@@ -120,12 +125,19 @@ test('@p1 1.3-E2E-001c bad credentials show one inline error', async ({ page, se
   await page.getByLabel('Senha').fill('senha-errada-000');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   const error = page.locator('.login-error');
-  await expect(error).toHaveText('Senha incorreta');
+  await expect(error).toHaveText('E-mail ou senha incorretos.');
   await expect(error).toHaveAttribute('role', 'alert');
   await expect(page.locator('.input.is-invalid')).toHaveCount(1);
   const describedBy = await page.locator('input[name="password"]').getAttribute('aria-describedby');
   expect(describedBy).toBe(await error.getAttribute('id'));
   await expect(page.locator('.login-wordmark')).toBeVisible();
+
+  // Story 20.13 (security pass S8): an e-mail no account has reads the same, never "Senha incorreta".
+  await page.getByLabel('E-mail').fill('ninguem@exemplo.invalid');
+  await page.getByLabel('Senha').fill('senha-errada-000');
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(error).toHaveText('E-mail ou senha incorretos.');
+  await expect(page.getByText('Senha incorreta')).toHaveCount(0);
 });
 
 test('@p0 1.3-E2E-002 a 401 mid-call raises the re-auth banner, leaves local data intact, and re-signing in clears it', async ({
@@ -175,7 +187,7 @@ test('@p0 1.3-E2E-002 a 401 mid-call raises the re-auth banner, leaves local dat
   expect(await readLocalMarker(page, database, MARKER)).toMatchObject({ kind: 'relatorio' });
 });
 
-test('@p1 1.3-E2E-002b a cold open whose cookie is gone stays on Home with the re-auth banner, twice, the second time offline', async ({
+test('@p1 1.3-E2E-002b a cold open whose cookie is gone: offline, Home behind the re-auth banner; online, Login with nothing shown; the same sign-in sends the outbox', async ({
   page,
   context,
   seed,
@@ -185,39 +197,73 @@ test('@p1 1.3-E2E-002b a cold open whose cookie is gone stays on Home with the r
 
   await signIn(page, user.email);
   await writeLocalMarker(page, database, MARKER);
+  await waitForUserRow(page, database, user.userId);
 
-  // The session expired while the tab was closed: the cached pointer still names the
-  // user, so boot reaches Home and the server's 401 only raises the banner.
+  // The session expires mid-use: the 401 the sync answers is remembered on the device.
   await context.clearCookies();
-  await page.reload();
+  await syncBadge(page).click();
+  const now = page.getByRole('button', { name: 'Sincronizar agora' });
+  await expect(now).not.toHaveAttribute('aria-disabled', 'true', { timeout: 20_000 });
+  await now.click();
+  await expect(page.locator('.banner[data-banner="re-auth"]')).toBeVisible({ timeout: 20_000 });
 
+  // AD-9, unchanged: a cold open with no connection at all reaches Home from the device, the
+  // banner still up. The document still comes from the dev server (the service worker is the
+  // durability project's), so "no connection" is the API unreachable plus the browser
+  // reporting itself offline, as in 1.6-E2E-003.
+  await page.addInitScript(() => {
+    if (window.sessionStorage.getItem('e2e-online') === '1') return;
+    Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false });
+  });
+  await page.route(isApiRequest, (route) => route.abort('internetdisconnected'));
+  await page.goto('/');
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
   await expect(page.locator('.login-form')).toHaveCount(0);
   const banner = page.locator('.banner[data-banner="re-auth"]');
   await expect(banner).toBeVisible();
-  await expect(banner.locator('.banner-text')).toHaveText(
-    'Sua sessão expirou. Nada foi apagado deste aparelho.',
-  );
+  await expect(banner.locator('.banner-text')).toHaveText('Sua sessão expirou. Nada foi apagado deste aparelho.');
   expect(await readLocalMarker(page, database, MARKER)).toMatchObject({ kind: 'relatorio' });
-  expect(await readStoreNames(page, database)).toContain('outbox');
-  // Retro A8: the boot-time 401 keeps the pointer, exactly like a 401 mid-use.
-  expect(await readPointer(page)).not.toBeNull();
 
-  // A second cold open with no connection at all. The document still comes from the dev
-  // server (the service worker is the durability project's), so "no connection" is the
-  // API unreachable plus the browser reporting itself offline, as in 1.6-E2E-003. The
-  // pointer brings Home back from the device, and the banner still stands.
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false });
-  });
-  await page.route(isApiRequest, (route) => route.abort('internetdisconnected'));
-  await page.reload();
-  await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
-  await expect(page.locator('.login-form')).toHaveCount(0);
-  await expect(page.locator('.banner[data-banner="re-auth"]')).toBeVisible();
-  expect(await readLocalMarker(page, database, MARKER)).toMatchObject({ kind: 'relatorio' });
-  expect(await readPointer(page)).not.toBeNull();
+  // Still offline, a registration saved on the device waits in the outbox.
+  await page.getByRole('link', { name: 'Conta' }).click();
+  await page.getByRole('button', { name: 'Editar' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Número CREA').fill('SP 2011');
+  await dialog.getByRole('button', { name: 'Salvar' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect
+    .poll(async () => (await readStore<{ status: string; path: string }>(page, database, 'outbox')).filter((row) => row.status === 'pending' && row.path.endsWith('/registration_number')).length)
+    .toBe(1);
+
+  // Story 20.11: online, the server's 401 at boot lands on Login and shows nothing of the
+  // device; the pointer and the database (with its outbox) stay for the same user.
+  await page.evaluate(() => window.sessionStorage.setItem('e2e-online', '1'));
   await page.unroute(isApiRequest);
+  await page.reload();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.locator('.login-wordmark')).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Relatórios por status' })).toHaveCount(0);
+  await expect(page.locator('.banner[data-banner="re-auth"]')).toHaveCount(0);
+  expect(await readPointer(page)).not.toBeNull();
+  expect(await listDatabases(page)).toContain(database);
+
+  // The same user signs in: the outbox op reaches the server.
+  await page.getByLabel('E-mail').fill(user.email);
+  await page.getByLabel('Senha').fill(seed.password);
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
+  expect(await readLocalMarker(page, database, MARKER)).toMatchObject({ kind: 'relatorio' });
+  await syncNow(page);
+  await expect
+    .poll(async () => (await (await page.request.get('/api/account')).json()).user, { timeout: 20_000 })
+    .toMatchObject({ registrationNumber: 'SP 2011' });
+
+  // Put the seeded value back, so the suite ends where it began.
+  await page.getByRole('link', { name: 'Conta' }).click();
+  await page.getByRole('button', { name: 'Editar' }).click();
+  await page.getByRole('dialog').getByLabel('Número CREA').fill(user.registrationNumber);
+  await page.getByRole('dialog').getByRole('button', { name: 'Salvar' }).click();
+  await syncNow(page);
 });
 
 test('@p1 1.3-E2E-003 the Registro profissional dialog follows the council and the row re-reads', async ({
@@ -330,6 +376,7 @@ test('@p1 1.3-E2E-003b offline, Salvar commits the registration on the device an
     .poll(async () => (await (await page.request.get('/api/account')).json()).user, { timeout: 20_000 })
     .toMatchObject({ council: 'crt', registrationNumber: 'SP 8888', title: 'Técnico em Eletrotécnica Sênior' });
   const gone = await page.request.put('/api/account/registration', {
+    headers: appOrigin(page),
     data: { council: 'crea', registrationNumber: 'SP 1', title: 'Eng.' },
   });
   expect(gone.status()).toBe(404);

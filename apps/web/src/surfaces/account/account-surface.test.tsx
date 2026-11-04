@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { entityKey, PRODUTO, type UserRow } from '@app/domain';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
 import { MemoryRouter } from 'react-router';
@@ -12,7 +12,7 @@ import { ThemeProvider } from '../../state/theme.tsx';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { makeSyncState } from '../../test/sync-state.ts';
-import { AccountSurface } from './account-surface.tsx';
+import { AccountSurface, SIGN_OUT_FLUSH_WAIT_MS } from './account-surface.tsx';
 
 /*
  * The "Sign out with pending work" row of the Story 1.5 matrix: the "Sair" reason and the
@@ -51,6 +51,16 @@ let session: SessionState = signedIn;
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session }));
 
+/** Story 20.11: how many photo originals the device has not uploaded (the uploader's own query, stubbed). */
+let uploadsWaiting = 0;
+vi.mock('../../db/file-store.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../db/file-store.ts')>()),
+  pendingUploads: async () => {
+    if (uploadsWaiting < 0) throw new Error('the device refused the read');
+    return Array.from({ length: uploadsWaiting }, (_, i) => ({ id: `photo-${i}` }));
+  },
+}));
+
 const syncState = (pendingText: string, pendingCount: number): SyncState =>
   makeSyncState({
     counts: { pending: pendingCount, sheets_pending: pendingCount },
@@ -87,51 +97,123 @@ afterEach(() => {
   document.documentElement.removeAttribute('data-theme');
 });
 
-describe('Account: sign out with pending work', () => {
-  it('with 3 fichas pending, the Sair reason and the Confirm dialog carry the pending summary', async () => {
-    renderAccount(syncState('3 fichas', 3));
+describe('Account: sign out with pending work (Story 20.11)', () => {
+  /** A device database holding `ops` unsent outbox rows and `photos` photo originals not uploaded. */
+  async function deviceWith(ops: number, photos = 0) {
+    const db = openDatabase(`account-signout-${ops}-${photos}-${Math.random()}`);
+    await db.open();
+    for (let i = 0; i < ops; i++) await db.outbox.put({ op_id: `op-${i}`, status: i === 0 ? 'dead' : 'pending', path: 'x/y' } as never);
+    uploadsWaiting = photos;
+    session = { ...signedIn, database: db, signOut: vi.fn(async () => {}) };
+    return db;
+  }
 
-    expect(screen.getByTestId('account-pending-value')).toHaveTextContent('3 fichas aguardando envio');
+  afterEach(async () => {
+    const db = session.database;
+    session = signedIn;
+    uploadsWaiting = 0;
+    if (db !== null) {
+      db.close();
+      await db.delete();
+    }
+  });
+
+  it('flushes first ("Saindo…"), then counts what is still unsent; the Confirm dialog says Sair deletes it', async () => {
+    const db = await deviceWith(3);
+    let finish: () => void = () => {};
+    const sync = syncState('3 fichas', 3);
+    const syncNow = vi.fn(() => new Promise<'ran'>((resolve) => (finish = () => resolve('ran'))));
+    renderAccount({ ...sync, syncNow });
+
+    expect(await screen.findByTestId('account-pending-value')).toHaveTextContent('3 fichas aguardando envio');
     expect(screen.getByRole('link', { name: 'Ver status de sincronização' })).toHaveAttribute('href', '/sync');
 
     const sair = screen.getByRole('button', { name: 'Sair' });
     expect(sair).toHaveAccessibleDescription(
-      '3 fichas aguardando envio. Sair antes do envio pede confirmação; nada é apagado deste aparelho.',
+      '3 fichas aguardando envio. Sair envia o que puder, pede confirmação e apaga deste aparelho os dados desta conta.',
     );
     await userEvent.click(sair);
+    expect(syncNow).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('button', { name: 'Saindo…' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    finish();
 
-    const dialog = screen.getByRole('dialog');
+    const dialog = await screen.findByRole('dialog');
     expect(dialog).toHaveAccessibleName('Sair com envios pendentes?');
-    expect(dialog).toHaveAccessibleDescription(
-      '3 fichas ainda não foram enviadas. Elas continuam neste aparelho e sobem quando você entrar de novo com conexão.',
-    );
+    expect(dialog).toHaveAccessibleDescription('3 alterações ainda não foram enviadas. Sair apaga-as deste aparelho.');
     expect(screen.getByRole('button', { name: 'Sair mesmo assim' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
+
+    // Cancelar keeps everything: no sign-out, the outbox as it was.
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(session.signOut).not.toHaveBeenCalled();
+    expect(await db.outbox.count()).toBe(3);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Sair' }));
+    finish();
+    await screen.findByRole('dialog');
+    await userEvent.click(screen.getByRole('button', { name: 'Sair mesmo assim' }));
+    await waitFor(() => expect(session.signOut).toHaveBeenCalledTimes(1));
   });
 
-  it('with nothing pending, the Story 1.3 wording is back', async () => {
+  it('with nothing unsent after the flush, "Sair desta conta?" says the device data of this account is removed', async () => {
+    await deviceWith(0);
     renderAccount(syncState('', 0));
 
-    expect(screen.getByTestId('account-pending-value')).toHaveTextContent('Nada aguardando envio');
+    expect(await screen.findByTestId('account-pending-value')).toHaveTextContent('Nada aguardando envio');
 
     const sair = screen.getByRole('button', { name: 'Sair' });
-    expect(sair).toHaveAccessibleDescription('Sair antes do envio pede confirmação; nada é apagado deste aparelho.');
+    expect(sair).toHaveAccessibleDescription('Sair envia o que estiver pendente e apaga deste aparelho os dados desta conta.');
     await userEvent.click(sair);
 
-    const dialog = screen.getByRole('dialog');
+    const dialog = await screen.findByRole('dialog');
     expect(dialog).toHaveAccessibleName('Sair desta conta?');
     expect(dialog).toHaveAccessibleDescription(
-      'Nada é apagado deste aparelho. O que estiver aqui continua aqui e sobe quando você entrar de novo com conexão.',
+      'Os dados desta conta são apagados deste aparelho. Tudo já está no servidor e volta quando você entrar de novo.',
     );
     expect(screen.getByRole('button', { name: 'Sair mesmo assim' })).toBeInTheDocument();
   });
 
-  it('uses the singular sentence for one pending item', async () => {
-    renderAccount(syncState('1 ficha', 1));
-    await userEvent.click(screen.getByRole('button', { name: 'Sair' }));
-    expect(screen.getByRole('dialog')).toHaveAccessibleDescription(
-      '1 ficha ainda não foi enviada. Ela continua neste aparelho e sobe quando você entrar de novo com conexão.',
-    );
+  it('counts photo originals not uploaded too, and uses the singular sentence for one', async () => {
+    await deviceWith(0, 1);
+    renderAccount(syncState('1 foto', 1));
+    await userEvent.click(await screen.findByRole('button', { name: 'Sair' }));
+    expect(await screen.findByRole('dialog')).toHaveAccessibleDescription('1 alteração ainda não foi enviada. Sair apaga-a deste aparelho.');
+  });
+
+  it('a count that cannot be read opens the pending dialog, never the nothing-pending one', async () => {
+    await deviceWith(0);
+    uploadsWaiting = -1;
+    renderAccount(syncState('', 0));
+    await userEvent.click(await screen.findByRole('button', { name: 'Sair' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveAccessibleName('Sair com envios pendentes?');
+    expect(dialog).toHaveAccessibleDescription('Não foi possível conferir o que ainda não foi enviado. Sair pode apagar alterações deste aparelho.');
+  });
+
+  it('a sync round that never settles is waited for at most SIGN_OUT_FLUSH_WAIT_MS, then the confirm opens with the count', async () => {
+    await deviceWith(2);
+    const syncNow = vi.fn(() => new Promise<'ran'>(() => {}));
+    renderAccount({ ...syncState('2 fichas', 2), syncNow });
+    const sair = await screen.findByRole('button', { name: 'Sair' });
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      await user.click(sair);
+      expect(await screen.findByRole('button', { name: 'Saindo…' })).toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(SIGN_OUT_FLUSH_WAIT_MS - 1_000);
+      });
+      expect(screen.queryByRole('dialog')).toBeNull();
+      await act(async () => {
+        vi.advanceTimersByTime(1_000);
+      });
+      const dialog = await screen.findByRole('dialog');
+      expect(dialog).toHaveAccessibleName('Sair com envios pendentes?');
+      expect(dialog).toHaveAccessibleDescription('2 alterações ainda não foram enviadas. Sair apaga-as deste aparelho.');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -259,7 +341,7 @@ describe('Account: the two dialogs share one modal shell (retro F-DUP-1, F-UNVER
     const sair = screen.getByRole('button', { name: 'Sair' });
 
     await userEvent.click(sair);
-    const dialog = screen.getByRole('dialog');
+    const dialog = await screen.findByRole('dialog');
     expect(dialog).toHaveAttribute('aria-modal', 'true');
     expect(dialog).toHaveClass('confirm-dialog');
     expect(dialog.closest('.dialog-modal')).not.toBeNull();

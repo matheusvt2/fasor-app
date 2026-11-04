@@ -6,6 +6,7 @@ import { log, logError } from '../../../log.ts';
 import { decodePages, encodePages, type CertificatePagesCache } from '../certificate-cache.ts';
 import { CONTENT_WIDTH_TWIPS, image, PX_PER_CM, sizedImage, text } from '../docx.ts';
 import { CERTIFICATE_RASTERIZE_BUDGET_MS, CertificateUnreadableError, DEFAULT_RASTERIZE_TIMEOUT_MS, rasterizePdfPages, type Rasterizer } from '../pdf-raster.ts';
+import { MAX_INPUT_PIXELS } from '../../../storage/variants.ts';
 
 /*
  * Story 7.3 (AC2): section 11, the calibration certificates, rendered from the kernel's
@@ -60,7 +61,7 @@ export class CertificatePagesError extends Error {
 }
 
 async function imagePages(bytes: Buffer, mime: string): Promise<Buffer[]> {
-  const oriented = sharp(bytes).rotate().resize({ ...IMAGE_MAX_PX, fit: 'inside', withoutEnlargement: true });
+  const oriented = sharp(bytes, { limitInputPixels: MAX_INPUT_PIXELS }).rotate().resize({ ...IMAGE_MAX_PX, fit: 'inside', withoutEnlargement: true });
   return [await (mime === 'image/jpeg' ? oriented.jpeg({ quality: 90 }) : oriented.png()).toBuffer()];
 }
 

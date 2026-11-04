@@ -25,6 +25,13 @@ import { type AppEnv, requireSession } from './session.ts';
 /** A device spends one per event; 1 000 a minute per user and device (Story 18.2). */
 export const TELEMETRY_RATE_LIMIT: RateLimitRule = { max: 1000, windowMs: 60_000 };
 
+/**
+ * Story 20.13 (security pass S8, authored 2026-11-04): the same events also spend from one
+ * window per signed-in user, 2 000 a minute, so a client rotating its `device_id` cannot spend
+ * more than that (`TELEMETRY_USER_RATE_LIMIT_MAX`).
+ */
+export const TELEMETRY_USER_RATE_LIMIT: RateLimitRule = { max: 2000, windowMs: 60_000 };
+
 const invalid: ErrorResponse = {
   code: 'telemetry_invalid',
   message: `The body is not an array of at most ${TELEMETRY_BATCH_MAX} valid usage events.`,
@@ -42,12 +49,15 @@ export interface TelemetryRouteOptions {
   sink: TelemetrySink;
   now: Clock;
   limit?: RateLimitRule;
+  /** Story 20.13: the per-user window over every device; defaults to `TELEMETRY_USER_RATE_LIMIT`. */
+  userLimit?: RateLimitRule;
   /** The limiter's clock (tests move it); defaults to `Date.now`. */
   limitNow?: () => number;
 }
 
 export function createTelemetryRoutes(options: TelemetryRouteOptions): Hono<AppEnv> {
   const limiter = new FixedWindowLimiter(options.limit ?? TELEMETRY_RATE_LIMIT, options.limitNow);
+  const userLimiter = new FixedWindowLimiter(options.userLimit ?? TELEMETRY_USER_RATE_LIMIT, options.limitNow);
   const routes = new Hono<AppEnv>();
 
   routes.post(TELEMETRY_ROUTE.path, async (c) => {
@@ -70,6 +80,9 @@ export function createTelemetryRoutes(options: TelemetryRouteOptions): Hono<AppE
       const decision = limiter.consume(`${session.userId}:${device}`, count);
       if (!decision.allowed) return tooMany(c, decision.retryAfterSeconds);
     }
+    // Story 20.13: keyed by the session's user, never by an id the client chose.
+    const perUser = userLimiter.consume(session.userId, events.length);
+    if (!perUser.allowed) return tooMany(c, perUser.retryAfterSeconds);
 
     const receivedAt = options.now().toISOString();
     const stamped: StampedUxEvent[] = events.map((event) => ({

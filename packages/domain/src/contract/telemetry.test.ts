@@ -230,6 +230,7 @@ describe('usage events contract (Epic 18, AD-28)', () => {
       'home.page_size_20',
       'home.page_size_50',
       'home.page_size_100',
+      'home.search',
     ]);
     expect(UX_DIALOG_TARGETS).toEqual(['capture_sheet', 'move_block', 'rename_tag', 'export', 'not_tested', 'conflict']);
     for (const target of [...UX_ACTION_TARGETS, ...UX_DIALOG_TARGETS]) expect(TELEMETRY_TARGET_PATTERN.test(target)).toBe(true);

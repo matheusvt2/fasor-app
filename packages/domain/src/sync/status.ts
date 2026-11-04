@@ -1,3 +1,4 @@
+import { uploadRefusedText } from '../files/candidate.ts';
 import { formatShortDateTime } from '../format/datetime.ts';
 import { blockName, type MergeInfo, type MergeInfoContext } from '../merge/info.ts';
 import type { MergeRule } from '../merge/rules.ts';
@@ -173,6 +174,9 @@ export interface PendingPhotoInput {
   reading_status?: string | null;
   /** The upload stopped (`upload_error` on the blob). */
   error: boolean;
+  /** Story 20.12: the stopped upload's error code and the server's details, when it recorded them. */
+  error_code?: string | null;
+  error_details?: unknown;
 }
 
 export interface PendingPhotoRow {
@@ -203,7 +207,10 @@ export function pendingPhotoRows(photos: readonly PendingPhotoInput[]): { rows: 
     rows: ordered.slice(0, PENDING_PHOTO_ROWS_MAX).map((photo) => ({
       id: photo.id,
       primary: photoPrimary(photo.caption),
-      secondary: photo.captured_at === null ? '' : formatShortDateTime(photo.captured_at),
+      // Story 20.12: a refusal the device can name (the pixel limit) says so in place of the time.
+      secondary:
+        (photo.error ? uploadRefusedText(photo.error_code, photo.error_details) : null) ??
+        (photo.captured_at === null ? '' : formatShortDateTime(photo.captured_at)),
       state: photo.error ? 'error' : 'pending',
     })),
     more: Math.max(0, ordered.length - PENDING_PHOTO_ROWS_MAX),

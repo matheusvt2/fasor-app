@@ -228,6 +228,8 @@ export function createSyncClient(deps: { fetch: FetchLike }): SyncClient {
         kind: 'http',
         status: response.status,
         ...(envelope.success ? { code: envelope.data.code } : {}),
+        // Story 20.12: a `413 file_too_large` says which limit (`details.limit: 'pixels'`).
+        ...(envelope.success && envelope.data.details !== undefined ? { details: envelope.data.details } : {}),
       });
     }
     return response;

@@ -3,6 +3,7 @@ import { Readable } from 'node:stream';
 import {
   checkFileCandidate,
   FILE_SHA256_HEADER,
+  MAX_IMAGE_PIXELS,
   fileVariantSchema,
   isUploadFileKind,
   MAX_FILE_BYTES,
@@ -14,6 +15,7 @@ import {
   type FilePutResponse,
   type FileVariantName,
   type FileVariants,
+  type PixelLimitDetails,
 } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { Hono } from 'hono';
@@ -22,10 +24,10 @@ import type { CompanyId } from '../db/repositories/company-id.ts';
 import { findFileRow, type FileRowLookup } from '../db/repositories/files.ts';
 import { newId } from '../ids.ts';
 import type { ReadingKind, ReadingPayload } from '../jobs/reading/payload.ts';
-import { sendReading } from '../jobs/reading/send.ts';
+import { sendReading, type SendReadingOutcome } from '../jobs/reading/send.ts';
 import { logError } from '../log.ts';
 import { getObject, headObject, putObject } from '../storage/s3.ts';
-import { hasVariants, renderVariants } from '../storage/variants.ts';
+import { hasVariants, imagePixelCount, renderVariants } from '../storage/variants.ts';
 import { applyServerBatch } from '../sync/apply.ts';
 import { serverOp } from '../sync/server-op.ts';
 import { type AppEnv, requireSession } from './session.ts';
@@ -106,7 +108,16 @@ export interface FileRoutesDeps {
   enqueueReading?: (payload: ReadingPayload) => Promise<void>;
   /** Story 11.8 follow-up: `false` when `AI_FEATURES=off` (`jobs/reading/send.ts`); absent reads as on. */
   aiFeatures?: boolean;
+  /** Story 20.12: the company's daily reading ceiling (`jobs/reading/send.ts`). */
+  readingDailyQuota?: number;
 }
+
+/** Story 20.12: the answer of an image that declares more pixels than `MAX_IMAGE_PIXELS`. */
+const tooManyPixels: ErrorResponse = {
+  code: 'file_too_large',
+  message: `The image is over the ${MAX_IMAGE_PIXELS} pixel limit.`,
+  details: { limit: 'pixels', max_pixels: MAX_IMAGE_PIXELS } satisfies PixelLimitDetails,
+};
 
 export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: FileRoutesDeps): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
@@ -161,9 +172,16 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
   }
 
   /** Sends the photo's reading (of its own kind, Story 9.1; `jobs/reading/send.ts`). */
-  async function queueReading(companyId: CompanyId, lookup: FileRowLookup, readingKind: ReadingKind): Promise<void> {
-    await sendReading(
-      { db, now: deps.now, newId, ...(deps.enqueueReading === undefined ? {} : { enqueue: deps.enqueueReading }), ...(deps.aiFeatures === undefined ? {} : { aiFeatures: deps.aiFeatures }) },
+  async function queueReading(companyId: CompanyId, lookup: FileRowLookup, readingKind: ReadingKind): Promise<SendReadingOutcome> {
+    return sendReading(
+      {
+        db,
+        now: deps.now,
+        newId,
+        ...(deps.readingDailyQuota === undefined ? {} : { dailyQuota: deps.readingDailyQuota }),
+        ...(deps.enqueueReading === undefined ? {} : { enqueue: deps.enqueueReading }),
+        ...(deps.aiFeatures === undefined ? {} : { aiFeatures: deps.aiFeatures }),
+      },
       companyId,
       { id: lookup.row.id, relatorioId: lookup.relatorioId },
       readingKind,
@@ -225,6 +243,13 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
     }
     if (digest !== row.sha256 || (claimed !== undefined && claimed !== row.sha256)) {
       return c.json(fail('file_sha_mismatch', 'The body does not hash to the row sha256.'), 409);
+    }
+
+    // Story 20.12 (security pass S6): an image's header names its size; one over the pixel
+    // limit is refused before anything is stored or decoded (sharp reads only the header).
+    if (hasVariants(row.mime)) {
+      const pixels = await imagePixelCount(body, row.mime);
+      if (pixels !== null && pixels > MAX_IMAGE_PIXELS) return c.json(tooManyPixels, 413);
     }
 
     // Keyed by the id the row is filed under, never by the id its JSON claims. A photo's
@@ -289,12 +314,14 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
     // once (Story 9.1: of whatever kind the row names, the payload carrying it). The re-read
     // row says `queued` only until the first PUT wrote `running`, so a retried PUT sends no
     // second job and writes no second status op. Never fatal to the upload.
+    // Story 20.12: a reading the daily ceiling refused is said in the answer (the photo is kept).
     const current = stored?.row;
+    let reading: SendReadingOutcome | null = null;
     if (current !== undefined && current.kind === 'photo' && current.reading_kind !== null && current.reading_status === 'queued') {
-      await queueReading(session.companyId, lookup, current.reading_kind);
+      reading = await queueReading(session.companyId, lookup, current.reading_kind);
     }
 
-    const answer: FilePutResponse = { id, uploaded_at: uploadedAt, variants };
+    const answer: FilePutResponse = { id, uploaded_at: uploadedAt, variants, ...(reading === 'quota_exceeded' ? { reading } : {}) };
     return c.json(answer, 200, { 'x-content-type-options': 'nosniff' });
   });
 
@@ -309,6 +336,9 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
     if (lookup === null) return c.json(notFound, 404);
     const { row, relatorioId } = lookup;
     if (row.uploaded_at === null) return c.json(notFound, 404);
+    // Story 20.13 (security pass S8): a removed file is not served (its row or its lookup
+    // tombstoned); an issued revision's documents are served by their own routes.
+    if (lookup.removedAt !== null || row.removed_at != null) return c.json(notFound, 404);
 
     // Every key is derived exactly as the PUT writes it, from the session's company, the
     // row's kind and the id the row is filed under. `row.variants` is client-supplied

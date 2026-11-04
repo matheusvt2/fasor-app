@@ -1,3 +1,4 @@
+import { TELEMETRY_BATCH_MAX } from '@app/domain';
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -21,6 +22,12 @@ describe('config', () => {
     expect(config.PORT).toBe(3000);
     expect(config.LLM_PROVIDER).toBe('fake');
     expect(config.OCR_PROVIDER).toBe('fake');
+  });
+
+  it('Story 20.13: the per-user telemetry limit defaults to 2 000 and is never below one full batch', () => {
+    expect(loadConfig(valid).TELEMETRY_USER_RATE_LIMIT_MAX).toBe(2000);
+    expect(loadConfig({ ...valid, TELEMETRY_USER_RATE_LIMIT_MAX: String(TELEMETRY_BATCH_MAX) }).TELEMETRY_USER_RATE_LIMIT_MAX).toBe(TELEMETRY_BATCH_MAX);
+    expect(() => loadConfig({ ...valid, TELEMETRY_USER_RATE_LIMIT_MAX: String(TELEMETRY_BATCH_MAX - 1) })).toThrow(/TELEMETRY_USER_RATE_LIMIT_MAX/);
   });
 
   it('defaults AI features on and reads off (Story 11.8 follow-up)', () => {

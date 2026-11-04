@@ -192,13 +192,27 @@ export function pendingSummaryCount(counts: SyncCounts): number {
 }
 
 /**
- * The sign-out confirm sentence around a pending summary, in agreement with its count:
- * "1 ficha ainda não foi enviada. Ela continua ..." / "3 fichas ainda não foram enviadas. Elas continuam ...".
+ * Story 20.11: the sign-out confirm sentence once the flush is done, over the count of what is
+ * still unsent on the device (outbox ops not acknowledged plus photo originals not uploaded):
+ * "1 alteração ainda não foi enviada. Sair apaga-a deste aparelho." /
+ * "3 alterações ainda não foram enviadas. Sair apaga-as deste aparelho."
  */
-export function pendingNotSentText(summary: string, count: number): string {
+export function signOutUnsentText(count: number): string {
+  // authored: 2026-11-04, Story 20.11 (coordinator's reading; the sign-out deletes the device data).
   return count === 1
-    ? `${summary} ainda não foi enviada. Ela continua neste aparelho e sobe quando você entrar de novo com conexão.`
-    : `${summary} ainda não foram enviadas. Elas continuam neste aparelho e sobem quando você entrar de novo com conexão.`;
+    ? '1 alteração ainda não foi enviada. Sair apaga-a deste aparelho.'
+    : `${count} alterações ainda não foram enviadas. Sair apaga-as deste aparelho.`;
+}
+
+/**
+ * Story 20.12: the sentence of a reading or an audit the server refused with `429
+ * quota_exceeded` (the company's daily ceiling of paid AI work).
+ */
+export function quotaExceededText(kind: 'reading' | 'audit'): string {
+  // authored: 2026-11-04, Story 20.12.
+  return kind === 'reading'
+    ? 'Limite diário de leituras atingido. Tente amanhã ou fale com o administrador.'
+    : 'Limite diário de conferências atingido. Tente amanhã ou fale com o administrador.';
 }
 
 /** Sync status: "1 alteração rejeitada" / "3 alterações rejeitadas". */

@@ -1,6 +1,7 @@
 import {
   documentControlRows,
   empresaRegistered,
+  quotaExceededText,
   exportPrecheck,
   failedReason,
   generatingReason,
@@ -523,7 +524,8 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
               <SessionExpiredNote />
             ) : audit.failed ? (
               <div className="gen-error" role="alert">
-                <span>{copy.audit.failed}</span>
+                {/* Story 20.12: a tap the company's daily ceiling refused says so (kernel sentence). */}
+                <span>{audit.quotaExceeded ? quotaExceededText('audit') : copy.audit.failed}</span>
               </div>
             ) : null}
             <div className="audit-actions">

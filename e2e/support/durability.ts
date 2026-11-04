@@ -2,6 +2,7 @@ import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { expect, type BrowserContext, type Page, type Route } from '@playwright/test';
 import { SEED_PASSWORD } from './merged-fixtures.ts';
+import { appOrigin } from './origin.ts';
 
 /**
  * Helpers for the three FR-54 scenarios (NFR-17). They run against the built bundle on
@@ -54,6 +55,7 @@ export async function signInForDurability(
   await goToNeutralDocument(page);
   const baseURL = new URL(page.url()).origin;
   const signIn = await page.request.post('/api/auth/sign-in/email', {
+    headers: appOrigin(page),
     data: { email, password: SEED_PASSWORD },
   });
   expect(signIn.ok(), `sign-in answered ${signIn.status()}`).toBe(true);

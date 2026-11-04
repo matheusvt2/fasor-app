@@ -3,6 +3,7 @@ import type { S3Client } from '@aws-sdk/client-s3';
 import sharp from 'sharp';
 import type { CompanyId } from '../../db/repositories/company-id.ts';
 import { getObject, putObject } from '../../storage/s3.ts';
+import { MAX_INPUT_PIXELS } from '../../storage/variants.ts';
 
 /*
  * Review fixes 2026-09-30: a certificate PDF is rasterized once. Its page images are kept
@@ -50,7 +51,7 @@ export async function decodePages(bytes: Buffer): Promise<Buffer[] | undefined> 
   }
   if (pages.length === 0) return undefined;
   try {
-    for (const page of pages) await sharp(page).metadata();
+    for (const page of pages) await sharp(page, { limitInputPixels: MAX_INPUT_PIXELS }).metadata();
   } catch {
     return undefined;
   }

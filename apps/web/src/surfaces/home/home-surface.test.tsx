@@ -13,6 +13,7 @@ import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { makeSyncState } from '../../test/sync-state.ts';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
+import { track } from '../../telemetry/track.ts';
 import { HomeSurface } from './home-surface.tsx';
 
 /*
@@ -54,6 +55,11 @@ const session = (): SessionState => ({
 });
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
+// Story 20.2 (deferred to e20e): the search's usage event is read off the one `track()`.
+vi.mock('../../telemetry/track.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../telemetry/track.ts')>()),
+  track: vi.fn(),
+}));
 
 const syncRelatorio = vi.fn(async () => 'ran' as const);
 
@@ -675,6 +681,24 @@ describe('Home: the search by client and obra (Story 20.2)', () => {
     await waitFor(() => expect(listIds()).toEqual([draft.id, other.id]));
     expect(field()).toHaveValue('');
     expect(field()).toHaveFocus();
+  });
+
+  it('records one home.search action per search started, never its text', async () => {
+    renderHome(syncState({ summaryRelatorios: [onPorto('rascunho', 80)] }));
+    await waitFor(() => expect(cards()).toHaveLength(1));
+    vi.mocked(track).mockClear();
+    const searches = () => vi.mocked(track).mock.calls.filter(([event]) => event.name === 'action' && event.target === 'home.search');
+
+    await userEvent.type(field(), 'porto');
+    expect(searches()).toHaveLength(1);
+    expect(searches()[0]![0]).toEqual({ name: 'action', target: 'home.search' });
+    expect(JSON.stringify(vi.mocked(track).mock.calls)).not.toContain('porto');
+    await userEvent.type(field(), ' x');
+    expect(searches()).toHaveLength(1);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Limpar busca' }));
+    await userEvent.type(field(), 't');
+    expect(searches()).toHaveLength(2);
   });
 
   it('has no axe violations with a query typed', async () => {

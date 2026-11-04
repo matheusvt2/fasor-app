@@ -493,9 +493,14 @@ test('@p0 20.2-E2E-001 Home searches by client and obra: past the page size, Emi
   expect(fieldBox.x + fieldBox.width).toBeLessThanOrEqual(newBox.x);
 
   // Typed without the accent and in capitals: every match, Emitido included, past the page size.
+  const posted = recordTelemetryPosts(page);
+  const searchFrom = await page.evaluate(() => new Date().toISOString());
   await field.click();
   await page.keyboard.type('PORTO');
   await expect.poll(listIds).toEqual(searchList);
+  // Story 20.2 (deferred to e20e): one `home.search` action for the search started, never its text.
+  await expect.poll(async () => (await homeActions(page, database, posted, searchFrom)).filter((target) => target === 'home.search').length).toBe(1);
+  expect(JSON.stringify([...posted, ...(await readStore(page, database, 'ux_events'))])).not.toMatch(/porto/i);
   await expect(note).toHaveText('Mostrando 10 de 12 relatórios');
   await expect(status).toHaveText('Mostrando 10 de 12 relatórios');
   await expect(field).toBeFocused();

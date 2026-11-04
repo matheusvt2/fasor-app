@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { isAutoPulled, statusLabel, statusTileLabel } from '../status/table.ts';
 import { storageLine } from '../device/storage.ts';
-import { pendingNotSentText, rejectedText, serverHoldsText } from '../sync/counts.ts';
+import { quotaExceededText, rejectedText, serverHoldsText, signOutUnsentText } from '../sync/counts.ts';
 import { peopleCount, plural, relatoriosCount } from './plural.ts';
 
 /*
@@ -36,13 +36,14 @@ describe('plural and the count phrases', () => {
     expect(serverHoldsText(1, 1)).toBe('O servidor tem 1 relatório e 1 pessoa da equipe.');
   });
 
-  it('agrees the sign-out sentence with its count', () => {
-    expect(pendingNotSentText('1 ficha', 1)).toBe(
-      '1 ficha ainda não foi enviada. Ela continua neste aparelho e sobe quando você entrar de novo com conexão.',
-    );
-    expect(pendingNotSentText('3 fichas', 3)).toBe(
-      '3 fichas ainda não foram enviadas. Elas continuam neste aparelho e sobem quando você entrar de novo com conexão.',
-    );
+  it('agrees the sign-out sentence with its count (Story 20.11)', () => {
+    expect(signOutUnsentText(1)).toBe('1 alteração ainda não foi enviada. Sair apaga-a deste aparelho.');
+    expect(signOutUnsentText(3)).toBe('3 alterações ainda não foram enviadas. Sair apaga-as deste aparelho.');
+  });
+
+  it('says which daily ceiling a refused reading or audit met (Story 20.12)', () => {
+    expect(quotaExceededText('reading')).toBe('Limite diário de leituras atingido. Tente amanhã ou fale com o administrador.');
+    expect(quotaExceededText('audit')).toBe('Limite diário de conferências atingido. Tente amanhã ou fale com o administrador.');
   });
 
   it('keeps the storage line on the shared helper', () => {

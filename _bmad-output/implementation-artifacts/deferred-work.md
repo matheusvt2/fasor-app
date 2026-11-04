@@ -2867,3 +2867,32 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   evidence: `UX_ACTION_TARGETS` lives in `packages/domain/src/contract/telemetry.ts`, which batch e20s owns in wave 1; `apps/web/src/telemetry/rendered-targets.test.tsx` and `targets.test.ts` refuse a name outside the list. The field is `SearchField` in `apps/web/src/surfaces/home/home-surface.tsx`.
   class: deferred-feature
   state: open (owner: batch e20e, wave 2, after e20s merges: append `home.search` to `UX_ACTION_TARGETS`, wire the field's use event so it records that a search was used and never its text (AD-28), and extend the guard to the field)
+
+## Deferred from: Epic 20 batch e20e (2026-11-04)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20e-device-quotas-edges.md`
+  summary: The per-e-mail sign-in lockout stays (security pass S8): any client can keep a known e-mail out of sign-in with 10 attempts every 5 minutes. A device with a live 30-day session is not affected.
+  evidence: `apps/api/src/http/rate-limit.ts` `signInRateLimit`; coordinator's reading of Story 20.13 (accepted risk).
+  class: risk
+  state: accepted (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20e-device-quotas-edges.md`
+  summary: An early answer of the api to a large body can reach the client as Caddy's 502, not the api's JSON. Measured on the batch's stack (a throwaway `caddy:2.11.4-alpine` with `reverse_proxy api:3000`): a 1 MB sign-in body is relayed as the api's JSON 413; a 20 MB push was once a 502 and once the JSON 413; a 5 MB push (answered 401 or 413 after the async session read) was a 502 in three runs of four. The cause is the api, not Caddy: `@hono/node-server` 2.1.1 (`autoCleanupIncoming`, default on) destroys an incoming body the route did not read, which resets the connection while Caddy still writes it. Neither `request_body max_size` nor `request_buffers` in the Caddyfile changed the outcome, so the Caddyfile was left with the HSTS change only.
+  evidence: `.scratch-e20e/caddy/check413.mjs` and its copy of the Caddyfile (batch worktree, not tracked); `node_modules/@hono/node-server/dist/index.mjs` `getRequestListener` and `drainIncoming`.
+  class: risk
+  state: ~~open (owner: Matheus; a candidate fix is `serve({ ..., autoCleanupIncoming: false })` in `apps/api/src/main.ts`, so Node drains the unread body itself, to be measured behind Caddy before it lands)~~ *(2026-11-04, e20e orchestrator: closed in `eb5bcf04`. The reset came from the body limiters and the origin guard touching `c.req.raw.body`, which turns the incoming body into a stream that is never drained. `bodyTooLarge` in `apps/api/src/http/app.ts` now answers a declared `Content-Length` over its cap from the header alone, the push's 4 MiB cap also runs before the session read, and the origin guard reads `raw.body` only for a request with neither length nor chunked header. Behind a plain `reverse_proxy api:3000`, `.scratch-e20e/caddy/check413-session.mjs` (1 MB sign-in, 5 MB and 20 MB pushes with a session, six rounds) gave 6 of 18 answers as 502 with the check reverted and 0 of 54 with it; `autoCleanupIncoming: false` alone did not help and was not kept. A chunked body over a cap still goes through hono's `bodyLimit`, unmeasured behind Caddy; browsers send a length for every body the app posts.)*
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20e-device-quotas-edges.md`
+  summary: The sign-out unsent count counts a photo whose create op and bytes both wait once per item the uploader sees: the create op is counted while unacknowledged, and the original only once its create is acknowledged (`pendingUploads` lists a file only after the server holds its row), so the double count of the spec's reading (1) does not happen; a refused (`dead`) upload is counted too, since Sair would delete it.
+  evidence: `apps/web/src/surfaces/account/account-surface.tsx` `unsentCount`; `apps/web/src/db/file-store.ts` `pendingUploads`.
+  class: note
+  state: open (owner: Matheus, to confirm the reading)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20e-device-quotas-edges.md`
+  summary: The matrix projects (`durability-android-chrome`, `durability-webkit`) run only `*durability.spec.ts` files (`playwright.config.ts` `testMatch`), so `security-device.spec.ts` and `auth.spec.ts` run on `desktop-chrome` only; the boot and sign-in paths reach WebKit through `durability.spec.ts`.
+  evidence: `playwright.config.ts` projects.
+  class: note
+  state: open (owner: Matheus; renaming the spec to `security-device.durability.spec.ts` would put it on the matrix)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20e-device-quotas-edges.md`
+  summary: Not fixed, as the spec says (e20s deferral): "Reenviar" re-sends a clock-skew op unchanged.
+  evidence: e20s deferral.
+  class: risk
+  state: open (owner: Matheus)
+

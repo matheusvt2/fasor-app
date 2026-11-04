@@ -360,12 +360,22 @@ describe('8.4-INT the plate read end to end over the compose api', () => {
   }, 60_000);
 
   it('a reread answers 202 running, makes a new run and discards the previous pending suggestions', async () => {
+    // Story 20.12: a photo already `done` is not read again (200 done, no job); one whose
+    // reading then failed is, which is the "Tentar novamente" the device offers.
+    const done = await reread(companyA, photoId);
+    expect(done.status, await done.clone().text()).toBe(200);
+    expect(readingRereadResponseSchema.parse(await done.json())).toEqual({ photo_id: photoId, reading_status: 'done' });
+    expect(await jobsFor(photoId)).toBe(1);
+    const failed = readingServerOp({ companyId: companyA.companyId, relatorioId, kind: 'put', path: readingStatusPath(photoId), value: 'failed', batchId: null, now, newId });
+    written.opIds.add(failed.op_id as string);
+    expect((await applyOps(db, asCompanyId(companyA.companyId), [failed], { origin: 'server', now })).rejected).toEqual([]);
+
     const res = await reread(companyA, photoId);
     expect(res.status, await res.clone().text()).toBe(202);
     expect(readingRereadResponseSchema.parse(await res.json())).toEqual({ photo_id: photoId, reading_status: 'running' });
 
-    const all = await waitForStatuses(relatorioId, photoId, 4);
-    expect(statusOps(all, photoId).map((op) => op.value)).toEqual(['running', 'done', 'running', 'done']);
+    const all = await waitForStatuses(relatorioId, photoId, 5);
+    expect(statusOps(all, photoId).map((op) => op.value)).toEqual(['running', 'done', 'failed', 'running', 'done']);
     const runs = await runsOf(photoId);
     expect(runs).toHaveLength(2);
     expect(runs[1]!.id).not.toBe(runs[0]!.id);
@@ -500,10 +510,16 @@ describe('9.1-INT a display read end to end over the compose api', () => {
     expect(await displayJobs(id)).toBe(1);
 
     expect((await reread(companyB, id)).status).toBe(404);
+    // Story 20.12: `done` is not read again; a failed one is.
+    expect((await reread(companyA, id)).status).toBe(200);
+    expect(await displayJobs(id)).toBe(1);
+    const failed = readingServerOp({ companyId: companyA.companyId, relatorioId, kind: 'put', path: readingStatusPath(id), value: 'failed', batchId: null, now, newId });
+    written.opIds.add(failed.op_id as string);
+    expect((await applyOps(db, asCompanyId(companyA.companyId), [failed], { origin: 'server', now })).rejected).toEqual([]);
     const again = await reread(companyA, id);
     expect(again.status, await again.clone().text()).toBe(202);
-    const after = await waitForStatuses(relatorioId, id, 4);
-    expect(statusOps(after, id).map((op) => op.value)).toEqual(['running', 'done', 'running', 'done']);
+    const after = await waitForStatuses(relatorioId, id, 5);
+    expect(statusOps(after, id).map((op) => op.value)).toEqual(['running', 'done', 'failed', 'running', 'done']);
     expect(await runsOf(id)).toHaveLength(2);
     expect(await displayJobs(id)).toBe(2);
   }, 90_000);

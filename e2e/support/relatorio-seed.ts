@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 import { newId } from '../../apps/api/src/ids.ts';
 import { expect, timed, type SeedAccount } from './merged-fixtures.ts';
 import { readDeviceId } from './outbox.ts';
+import { appOrigin } from './origin.ts';
 
 type Account = SeedAccount;
 
@@ -65,7 +66,7 @@ async function pushDraftsSteps(page: Page, database: string, drafts: readonly Op
   const at = new Date();
   const ops = drafts.map((draft) => makeOp({ ...draft, batch_id: drafts.length > 1 ? batchId : null, device_id: `${deviceId}-office` }, { newId, now: at }));
   const pushed = await page.request.post('/api/sync/ops', {
-    headers: { [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) },
+    headers: { ...appOrigin(page), [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) },
     data: { ops },
   });
   expect(pushed.ok(), await pushed.text()).toBe(true);

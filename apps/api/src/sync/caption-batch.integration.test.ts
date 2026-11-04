@@ -76,7 +76,7 @@ async function signIn(): Promise<string> {
 type App = ReturnType<typeof createApp>;
 
 function appWith(calls: ReadingPayload[]): App {
-  return createApp({ probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueReading: async (payload) => void calls.push(payload) });
+  return createApp({ originGuard: 'off', probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueReading: async (payload) => void calls.push(payload) });
 }
 
 function request(app: App, path: string, init: RequestInit): Promise<Response> | Response {

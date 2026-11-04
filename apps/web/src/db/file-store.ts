@@ -46,12 +46,35 @@ export async function putLocalBlob(
  * Marks a file's bytes as sent: AD-7's first eviction candidates, oldest `acked_at` first
  * (Story 6.2). A persisted upload error is cleared with it: the server took the bytes.
  */
-export async function markBlobAcked(db: AppDatabase, id: string, ackedAt: string = new Date().toISOString()): Promise<void> {
+export async function markBlobAcked(
+  db: AppDatabase,
+  id: string,
+  ackedAt: string = new Date().toISOString(),
+  readingRefused?: FileBlobRow['reading_refused'],
+): Promise<void> {
   await db.files.where('id').equals(id).modify((row) => {
     row.acked = true;
     row.acked_at = ackedAt;
     delete row.upload_error;
+    // Story 20.12: the upload's answer said the daily ceiling refused the reading.
+    if (readingRefused !== undefined) row.reading_refused = readingRefused;
   });
+}
+
+/**
+ * Story 20.12 (review): forgets the daily-ceiling refusal of the photo's reading once the server
+ * accepted a new one, so a later failure for another reason reads as such.
+ */
+export async function clearReadingRefused(db: AppDatabase, id: string): Promise<void> {
+  await db.files.where('id').equals(id).modify((row) => {
+    delete row.reading_refused;
+  });
+}
+
+/** Story 20.12: whether the reading this photo's upload was to start was refused by the daily ceiling. */
+export async function readingRefusedByQuota(db: AppDatabase, id: string): Promise<boolean> {
+  const rows = await db.files.where('id').equals(id).toArray();
+  return rows.some((row) => row.reading_refused === 'quota_exceeded');
 }
 
 /** Story 6.2: records why an upload stopped, kept across reloads. */

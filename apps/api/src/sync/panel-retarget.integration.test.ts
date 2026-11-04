@@ -19,7 +19,7 @@ import {
   type OpDraft,
   type SyncPushResponse,
 } from '@app/domain';
-import { and, eq, inArray, like } from 'drizzle-orm';
+import { and, eq, inArray, like, sql as dsql } from 'drizzle-orm';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAuth } from '../auth/auth.ts';
@@ -28,7 +28,7 @@ import { now } from '../clock.ts';
 import { loadConfig } from '../config.ts';
 import { createDb } from '../db/client.ts';
 import { asCompanyId } from '../db/repositories/company-id.ts';
-import { entities, ops } from '../db/schema.ts';
+import { aiUsageDaily, entities, ops } from '../db/schema.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { createApp } from '../http/app.ts';
 import { newId } from '../ids.ts';
@@ -82,8 +82,27 @@ async function signIn(): Promise<string> {
 
 type App = ReturnType<typeof createApp>;
 
-function appWith(calls: ReadingPayload[]): App {
-  return createApp({ probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueReading: async (payload) => void calls.push(payload) });
+function appWith(calls: ReadingPayload[], readings?: number): App {
+  return createApp({
+    originGuard: 'off',
+    probes,
+    auth,
+    db,
+    s3,
+    bucket: config.S3_BUCKET,
+    staticDir,
+    enqueueReading: async (payload) => void calls.push(payload),
+    ...(readings === undefined ? {} : { quotas: { readings, audits: 30 } }),
+  });
+}
+
+/** Story 20.12: company A's reading count of today (`America/Sao_Paulo`), 0 without a row. */
+async function readingsToday(): Promise<number> {
+  const rows = await db
+    .select({ count: aiUsageDaily.count })
+    .from(aiUsageDaily)
+    .where(and(eq(aiUsageDaily.company_id, companyA.companyId), eq(aiUsageDaily.kind, 'reading'), eq(aiUsageDaily.day, dsql`(now() at time zone 'America/Sao_Paulo')::date`)));
+  return rows[0]?.count ?? 0;
 }
 
 function request(app: App, path: string, init: RequestInit): Promise<Response> | Response {
@@ -260,6 +279,29 @@ describe('9.2-INT the panel photo re-targeted to the new block plate', () => {
       .where(and(eq(ops.company_id, companyA.companyId), eq(ops.path, `file/${photo.id}/reading_status`)));
     const kindSeq = result.applied.find((a) => a.op_id === batch.at(-1)!.op_id)!.seq;
     expect(statusOps.filter((op) => op.seq > kindSeq).map((op) => [op.value, op.actor_id])).toEqual([['running', 'system:reading']]);
+  }, 60_000);
+
+  it('Story 20.12: at the daily ceiling the re-target sends no reading, marks the photo failed, and spends nothing', async () => {
+    await db.delete(aiUsageDaily).where(eq(aiUsageDaily.company_id, companyA.companyId));
+    try {
+      const calls: ReadingPayload[] = [];
+      // A ceiling of one reading a day: the upload's panel reading spends it.
+      const app = appWith(calls, 1);
+      const { relatorioId, projectId, coluna } = await relatorio(app);
+      const photo = await panelPhoto(relatorioId, coluna.id);
+      expect((await push(app, [photo.op])).rejected).toEqual([]);
+      await upload(app, photo.id, photo.bytes);
+      expect(calls).toEqual([{ company_id: companyA.companyId, photo_id: photo.id, reading_kind: 'panel' }]);
+      expect(await readingsToday()).toBe(1);
+
+      const { batch } = confirmBatch(relatorioId, projectId, coluna, photo.id);
+      expect((await push(app, batch)).rejected).toEqual([]);
+      expect(calls).toEqual([{ company_id: companyA.companyId, photo_id: photo.id, reading_kind: 'panel' }]);
+      expect(await fileRow(companyA.companyId, photo.id)).toMatchObject({ reading_kind: 'plate', reading_status: 'failed' });
+      expect(await readingsToday()).toBe(1);
+    } finally {
+      await db.delete(aiUsageDaily).where(eq(aiUsageDaily.company_id, companyA.companyId));
+    }
   }, 60_000);
 
   it('a photo not uploaded yet: the re-target sends nothing and the row stays plate and queued; the upload then sends plate', async () => {

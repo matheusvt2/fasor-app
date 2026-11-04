@@ -1,6 +1,7 @@
 import { toIso, type Clock, type NewId, type Op } from '@app/domain';
 import { and, desc, eq } from 'drizzle-orm';
 import type { Db } from '../../db/client.ts';
+import { consumeDailyQuota, DEFAULT_READING_DAILY_QUOTA, QuotaExceededError } from '../../db/repositories/ai-usage.ts';
 import type { CompanyId } from '../../db/repositories/company-id.ts';
 import { findFileRow } from '../../db/repositories/files.ts';
 import { ops } from '../../db/schema.ts';
@@ -126,6 +127,12 @@ export interface StartReadingDeps {
   now: Clock;
   newId: NewId;
   enqueue: (payload: ReadingPayload) => Promise<void>;
+  /**
+   * Story 20.12: the company's daily reading ceiling (rereads included). One unit is spent
+   * before the job is sent; at the ceiling nothing is sent and `QuotaExceededError` is thrown.
+   * Absent, `DEFAULT_READING_DAILY_QUOTA`.
+   */
+  dailyQuota?: number;
 }
 
 /**
@@ -134,6 +141,7 @@ export interface StartReadingDeps {
  * under the company lock): a job fast enough to write `done` or `failed` first keeps its
  * outcome instead of being overwritten by a stale `running`. Returns whether `running` was
  * written. A failed send throws `ReadingSendError` to the caller, before anything is written.
+ * Story 20.12: a company at its daily ceiling throws `QuotaExceededError` before the send.
  */
 export async function startReading(
   deps: StartReadingDeps,
@@ -142,6 +150,14 @@ export async function startReading(
   payload: ReadingPayload,
 ): Promise<boolean> {
   const seen = await latestStatusOpId(deps.db, companyId, photo.id);
+  const fields = { company_id: companyId, relatorio_id: photo.relatorioId, file_id: photo.id, kind: 'reading', reading_kind: payload.reading_kind };
+  if (!(await consumeDailyQuota(deps.db, companyId, 'reading', deps.dailyQuota ?? DEFAULT_READING_DAILY_QUOTA))) {
+    // One line per refusal (`infra/production/metrics.tf` counts them per company).
+    log('quota_exceeded', fields);
+    throw new QuotaExceededError('reading');
+  }
+  // One line per reading started (the `Readings` metric per company).
+  log('reading_started', fields);
   try {
     await deps.enqueue(payload);
   } catch (error) {

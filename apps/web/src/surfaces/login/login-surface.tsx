@@ -36,7 +36,7 @@ export function validateLogin(email: string, password: string): FieldErrors {
  *
  * A failed attempt says what actually failed (retro U4): an empty or malformed field is
  * caught here and named under that field, with no request sent; the server rejecting the
- * pair is "Senha incorreta" under the password; a server that does not answer is its own
+ * pair is "E-mail ou senha incorretos." under the password; a server that does not answer is its own
  * sentence and marks no field, because nothing typed was wrong.
  */
 export function LoginSurface() {

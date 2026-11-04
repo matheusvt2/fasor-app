@@ -9,7 +9,7 @@ import { LoginSurface, validateLogin } from './login-surface.tsx';
 
 /*
  * Retro U4: Login says what failed. Field checks run on the device before any request;
- * "Senha incorreta" is only the server rejecting the pair; a server that does not answer
+ * "E-mail ou senha incorretos." is only the server rejecting the pair; a server that does not answer
  * has its own sentence and marks no field; only a device without a network says "Sem
  * conexão". The session is mocked at the module, as the Account test does.
  */
@@ -63,23 +63,23 @@ describe('Login surface', () => {
     expect(screen.getByLabelText('Senha')).not.toHaveAttribute('aria-invalid');
   });
 
-  it('a wrong pair is "Senha incorreta" under the password, as before', async () => {
-    signIn.mockResolvedValue({ ok: false, reason: 'credentials', message: 'Senha incorreta' });
+  it('a wrong pair is "E-mail ou senha incorretos." under the password, as before', async () => {
+    signIn.mockResolvedValue({ ok: false, reason: 'credentials', message: 'E-mail ou senha incorretos.' });
     render(<LoginSurface />);
     await fillAndSubmit('a@teste.local', 'errada');
     expect(signIn).toHaveBeenCalledWith('a@teste.local', 'errada');
     const password = screen.getByLabelText('Senha');
     expect(password).toHaveAttribute('aria-invalid', 'true');
-    expect(password).toHaveAccessibleDescription('Senha incorreta');
+    expect(password).toHaveAccessibleDescription('E-mail ou senha incorretos.');
   });
 
-  it('L10: too many attempts (429) has its own sentence, marks no field and never says "Senha incorreta"', async () => {
+  it('L10: too many attempts (429) has its own sentence, marks no field and never says "E-mail ou senha incorretos."', async () => {
     signIn.mockResolvedValue({ ok: false, reason: 'rate-limited', message: 'Muitas tentativas. Tente novamente em alguns minutos.' });
     const { container } = render(<LoginSurface />);
     await fillAndSubmit('a@teste.local', 'certa');
     expect(await screen.findByRole('alert')).toHaveTextContent('Muitas tentativas. Tente novamente em alguns minutos.');
     expect(screen.getByLabelText('Senha')).not.toHaveAttribute('aria-invalid');
-    expect(container).not.toHaveTextContent('Senha incorreta');
+    expect(container).not.toHaveTextContent('E-mail ou senha incorretos.');
   });
 
   it('F-23: after an expired session the e-mail of that account is already typed', () => {
@@ -114,10 +114,10 @@ describe('Login surface', () => {
     );
     expect(screen.getByLabelText('Senha')).not.toHaveAttribute('aria-invalid');
     expect(screen.getByLabelText('E-mail')).not.toHaveAttribute('aria-invalid');
-    expect(container).not.toHaveTextContent('Senha incorreta');
+    expect(container).not.toHaveTextContent('E-mail ou senha incorretos.');
     expect(container).not.toHaveTextContent('Sem conexão');
     // A retry is allowed at once.
-    signIn.mockResolvedValue({ ok: false, reason: 'credentials', message: 'Senha incorreta' });
+    signIn.mockResolvedValue({ ok: false, reason: 'credentials', message: 'E-mail ou senha incorretos.' });
     await userEvent.click(screen.getByRole('button', { name: 'Entrar' }));
     expect(signIn).toHaveBeenCalledTimes(2);
     expect(await axe(container)).toHaveNoViolations();
@@ -134,16 +134,16 @@ describe('Login surface', () => {
     expect(signIn).not.toHaveBeenCalled();
   });
 
-  it('going offline after "Senha incorreta" shows the offline sentence alone', async () => {
-    signIn.mockResolvedValue({ ok: false, reason: 'credentials', message: 'Senha incorreta' });
+  it('going offline after "E-mail ou senha incorretos." shows the offline sentence alone', async () => {
+    signIn.mockResolvedValue({ ok: false, reason: 'credentials', message: 'E-mail ou senha incorretos.' });
     const { container, rerender } = render(<LoginSurface />);
     await fillAndSubmit('a@teste.local', 'errada');
-    expect(screen.getByLabelText('Senha')).toHaveAccessibleDescription('Senha incorreta');
+    expect(screen.getByLabelText('Senha')).toHaveAccessibleDescription('E-mail ou senha incorretos.');
 
     session = { ...session, online: false };
     rerender(<LoginSurface />);
     expect(screen.getByRole('status')).toHaveTextContent(/^Sem conexão/);
-    expect(container).not.toHaveTextContent('Senha incorreta');
+    expect(container).not.toHaveTextContent('E-mail ou senha incorretos.');
     expect(screen.getByLabelText('Senha')).not.toHaveAttribute('aria-invalid');
     expect(screen.queryByRole('alert')).toBeNull();
   });

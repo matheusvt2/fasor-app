@@ -38,6 +38,8 @@ export interface AuditState {
   blocked: boolean;
   /** The last tap failed because the session is gone: the sign-in note instead of the failure line. */
   sessionExpired: boolean;
+  /** Story 20.12: the last tap was refused `429 quota_exceeded`: the kernel's ceiling sentence instead of the failure line. */
+  quotaExceeded: boolean;
   online: boolean;
   start: () => void;
   /** Stops the tap in flight (the dialog closed): no POST after it, nothing reads as failed. */
@@ -59,6 +61,7 @@ export function useAudit(relatorioId: string, timing: GenerateTiming = DEFAULT_T
   const [requestFailed, setRequestFailed] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
   /** The tap in flight's abort; null when none runs. */
   const current = useRef<AbortController | null>(null);
 
@@ -144,6 +147,7 @@ export function useAudit(relatorioId: string, timing: GenerateTiming = DEFAULT_T
     if (current.current !== null || !syncRef.current.online || db === null) return;
     setRequestFailed(false);
     setSessionExpired(false);
+    setQuotaExceeded(false);
     // Like "Gerar relatório": a dead op stops the tap before anything is asked.
     if (syncRef.current.counts.dead > 0) {
       setBlocked(true);
@@ -167,6 +171,7 @@ export function useAudit(relatorioId: string, timing: GenerateTiming = DEFAULT_T
             return;
           }
           console.error('audit failed', error);
+          setQuotaExceeded(error instanceof SyncRequestError && error.failure.kind === 'http' && error.failure.code === 'quota_exceeded');
           setSessionExpired(isSessionExpired(error) || reAuthRequired.current);
           setRequestFailed(true);
         },
@@ -185,6 +190,7 @@ export function useAudit(relatorioId: string, timing: GenerateTiming = DEFAULT_T
     setBusy(false);
     setRequestFailed(false);
     setSessionExpired(false);
+    setQuotaExceeded(false);
   }, [abortTap]);
 
   const failed = !busy && display.active === null && (requestFailed || display.failed);
@@ -194,6 +200,7 @@ export function useAudit(relatorioId: string, timing: GenerateTiming = DEFAULT_T
     failed,
     blocked: !busy && blocked,
     sessionExpired: failed && requestFailed && sessionExpired,
+    quotaExceeded: failed && requestFailed && quotaExceeded,
     online: sync.online,
     start,
     cancel,

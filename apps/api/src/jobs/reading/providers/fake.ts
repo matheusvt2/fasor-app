@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { FAKE_FIXTURE_DEFAULTS } from '../kinds/index.ts';
 import type { ReadingKind } from '../payload.ts';
 import { PermanentReadingError, ProviderError, ProviderTimeoutError } from './errors.ts';
+import { MAX_INPUT_PIXELS } from '../../../storage/variants.ts';
 
 /*
  * Story 8.4 (AD-27): the `fake` OCR and structuring providers replay a fixture keyed by the
@@ -163,7 +164,7 @@ export function fakeOcrProvider(dir: string, sha256: string, fixtureKey: FakeFix
       // The default fixture replays on a photo of any size: its boxes follow the image read.
       let size: { width: number; height: number };
       try {
-        const metadata = await sharp(input.bytes).metadata();
+        const metadata = await sharp(input.bytes, { limitInputPixels: MAX_INPUT_PIXELS }).metadata();
         size = { width: metadata.width, height: metadata.height };
       } catch (error) {
         throw new PermanentReadingError('fake ocr: the image cannot be decoded', { cause: error });

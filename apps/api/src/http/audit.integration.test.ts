@@ -90,7 +90,7 @@ async function signIn(): Promise<string> {
 type App = ReturnType<typeof createApp>;
 
 function appWith(sent: AuditPayload[], options: { aiFeatures?: boolean } = {}): App {
-  return createApp({ probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueAudit: async (payload) => void sent.push(payload), ...options });
+  return createApp({ originGuard: 'off', probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueAudit: async (payload) => void sent.push(payload), ...options });
 }
 
 function request(app: App, path: string, init: RequestInit = {}, version: number = CONTRACT_VERSION): Promise<Response> | Response {
@@ -385,6 +385,7 @@ describe('13.8-API-001 one tap, one run, one job', () => {
 describe('13.8-API-004 the queue refuses the job', () => {
   it('answers 500, records the run failed/enqueue_failed, and a later tap with a working queue is queued (not 409)', async () => {
     const broken = createApp({
+      originGuard: 'off',
       probes,
       auth,
       db,

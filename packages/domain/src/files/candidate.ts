@@ -10,6 +10,32 @@
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
 /**
+ * Story 20.12 (security pass S6): the most pixels (width times height, every page counted)
+ * an uploaded image may declare. The server refuses a larger one with `413 file_too_large`
+ * and `details: {limit: 'pixels', max_pixels}` before decoding it, and every decode of
+ * uploaded bytes is capped at it.
+ */
+export const MAX_IMAGE_PIXELS = 120_000_000;
+
+/** The `details` of a `413 file_too_large` the pixel limit gave. */
+export interface PixelLimitDetails {
+  limit: 'pixels';
+  max_pixels: number;
+}
+
+/**
+ * Story 20.12: why the server refused an upload for good, when the device can say it better
+ * than "Erro": the pixel limit. Null for any other refusal.
+ */
+export function uploadRefusedText(code: string | null | undefined, details?: unknown): string | null {
+  if (code !== 'file_too_large') return null;
+  const limit = typeof details === 'object' && details !== null ? (details as { limit?: unknown }).limit : undefined;
+  if (limit !== 'pixels') return null;
+  // authored: 2026-11-04, Story 20.12.
+  return `A imagem passa de ${MAX_IMAGE_PIXELS / 1_000_000} megapixels e não pode ser enviada.`;
+}
+
+/**
  * The kinds this story uploads and the mime types each accepts (Epic 2 context:
  * certificate pdf/jpeg/png, logo png/svg, cover_background jpeg/png; Story 4.2 adds the
  * relatório's own cover_photo jpeg/png; Story 6.2 adds the photo, re-encoded to JPEG on

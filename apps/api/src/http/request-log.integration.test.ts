@@ -32,7 +32,7 @@ const auth = createAuth({
 });
 const staticDir = mkdtempSync(join(tmpdir(), 'request-log-'));
 const up = async () => undefined;
-const app = createApp({ probes: { db: up, queue: up, storage: up, libreoffice: up }, auth, db, s3, bucket: config.S3_BUCKET, staticDir });
+const app = createApp({ originGuard: 'off', probes: { db: up, queue: up, storage: up, libreoffice: up }, auth, db, s3, bucket: config.S3_BUCKET, staticDir });
 
 let cookie = '';
 

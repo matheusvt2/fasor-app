@@ -1,4 +1,6 @@
+import { TELEMETRY_BATCH_MAX } from '@app/domain';
 import { z } from 'zod';
+import { DEFAULT_AUDIT_DAILY_QUOTA, DEFAULT_READING_DAILY_QUOTA } from './db/repositories/ai-usage.ts';
 import { logError } from './log.ts';
 
 /**
@@ -116,6 +118,17 @@ export const configSchema = z
      */
     TELEMETRY_SINK: z.preprocess(unsetWhenEmpty, z.enum(['stdout', 'cloudwatch']).default('stdout')),
     TELEMETRY_LOG_GROUP: z.preprocess(unsetWhenEmpty, z.string().min(1).optional()),
+    /**
+     * Story 20.13: usage events per signed-in user per minute, over every device (always on). At
+     * least one full batch (`TELEMETRY_BATCH_MAX`), else every full batch would be refused for good.
+     */
+    TELEMETRY_USER_RATE_LIMIT_MAX: z.preprocess(unsetWhenEmpty, z.coerce.number().int().min(TELEMETRY_BATCH_MAX).default(2000)),
+    /**
+     * Story 20.12 (security pass S6): the daily ceilings of paid AI work per company, on the
+     * `America/Sao_Paulo` calendar day: readings started (rereads included) and emission audits.
+     */
+    READING_DAILY_QUOTA: z.preprocess(unsetWhenEmpty, z.coerce.number().int().nonnegative().default(DEFAULT_READING_DAILY_QUOTA)),
+    AUDIT_DAILY_QUOTA: z.preprocess(unsetWhenEmpty, z.coerce.number().int().nonnegative().default(DEFAULT_AUDIT_DAILY_QUOTA)),
   })
   .superRefine((config, ctx) => {
     // The compose default is public (this repository is): a production process refuses it.

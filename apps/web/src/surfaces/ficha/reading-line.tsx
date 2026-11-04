@@ -1,8 +1,9 @@
-import { readingWait, toIso } from '@app/domain';
+import { quotaExceededText, readingWait, toIso } from '@app/domain';
 import { useRef, useState, type ReactNode } from 'react';
 import { TextButton } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { clearReadingRefused, readingRefusedByQuota } from '../../db/file-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { SyncRequestError } from '../../sync/client.ts';
 import { clearReadingCancelled, clearRereadAsked, readReadingCancelled, readRereadAsked, readRereadAt, writeReadingCancelled, writeRereadAsked, writeRereadAt } from '../../db/prefs.ts';
@@ -206,6 +207,10 @@ export interface FailedReadingProps {
  * the status op it answered (`statusOpId`), so a reload before the next status op arrives keeps
  * the button disabled with its asked reason. Story 13.5: a cancel recorded for the photo is
  * cleared before asking, so the new run's suggestions show.
+ *
+ * Story 20.12: a reading the company's daily ceiling refused, on the upload that was to start it
+ * (recorded on this device's blob row) or on a "Tentar novamente" answered `429
+ * quota_exceeded`, says so with the kernel's sentence instead of "Não foi possível ler".
  */
 export function FailedReading({ photoId, statusOpId, canRetry, onFallback, fallbackLabel }: FailedReadingProps) {
   const t = copy.ficha.nameplate;
@@ -215,6 +220,9 @@ export function FailedReading({ photoId, statusOpId, canRetry, onFallback, fallb
   const db = session.database;
   const { showToast } = useToast();
   const [asking, setAsking] = useState(false);
+  const [retryRefused, setRetryRefused] = useState(false);
+  const uploadRefused = useLiveQuery(() => (db === null ? Promise.resolve(false) : readingRefusedByQuota(db, photoId).catch(() => false)), [db, photoId], false);
+  const quotaExceeded = retryRefused || uploadRefused;
   // `null` until the recorded press has been read: right after a reload a fast tap must not
   // start a second reread before the record says whether one was already asked.
   const recorded = useLiveQuery(
@@ -229,21 +237,27 @@ export function FailedReading({ photoId, statusOpId, canRetry, onFallback, fallb
     if (asked || loading || sync.rereadPhoto === undefined) return;
     const rereadPhoto = sync.rereadPhoto;
     setAsking(true);
+    // Story 20.12 (review): each press is judged on its own answer.
+    setRetryRefused(false);
     void (db === null ? Promise.resolve() : clearReadingCancelled(db, photoId).then(() => writeRereadAsked(db, photoId, statusOpId)))
       .then(() => rereadPhoto(photoId))
+      // Accepted: the upload's daily-ceiling refusal no longer describes this photo's reading.
+      .then(() => (db === null ? undefined : clearReadingRefused(db, photoId).catch(() => undefined)))
       // The server moves the reading on (`running`, then suggestions or `failed` again); the
       // next pull brings it, now.
       .then(() => requestSyncCycle())
-      .catch(() => {
+      .catch((error: unknown) => {
         setAsking(false);
         if (db !== null) void clearRereadAsked(db, photoId).catch(() => undefined);
-        showToast(t.retryFailed);
+        // Story 20.12: the daily ceiling is said on the line itself, not as a passing toast.
+        if (error instanceof SyncRequestError && error.failure.kind === 'http' && error.failure.code === 'quota_exceeded') setRetryRefused(true);
+        else showToast(t.retryFailed);
       });
   };
   return (
     <>
       <p className="reading-line" role="status">
-        {t.readFailed}
+        {quotaExceeded ? quotaExceededText('reading') : t.readFailed}
       </p>
       <div className="row-wrap">
         {canRetry ? (

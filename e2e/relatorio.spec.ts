@@ -17,6 +17,7 @@ import { readDeviceId, readStore } from './support/outbox.ts';
 import { pushRevision, pushStatusAsServer } from './support/push-server-ops.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
 import { CLIENT, createProjectFromHome, createRelatorio, SITE, typeDate } from './support/relatorio-flow.ts';
+import { appOrigin } from './support/origin.ts';
 
 /*
  * 4.1-E2E and 4.3-E2E. A relatório is born from Home ("Novo relatório" › client and obra
@@ -59,7 +60,7 @@ async function pushOp(page: Page, relatorioId: string, deviceId: string, path: s
     { newId, now: new Date() },
   );
   const pushed = await page.request.post('/api/sync/ops', {
-    headers: { [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) },
+    headers: { ...appOrigin(page), [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) },
     data: { ops: [op] },
   });
   expect(pushed.ok(), await pushed.text()).toBe(true);
@@ -486,7 +487,7 @@ test('@p1 4.3-E2E-002 Em campo opens section 9 expanded at the last sheet cabine
     { newId, now: new Date() },
   );
   const pushed = await page.request.post('/api/sync/ops', {
-    headers: { [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) },
+    headers: { ...appOrigin(page), [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) },
     data: { ops: [status] },
   });
   expect(pushed.ok(), await pushed.text()).toBe(true);

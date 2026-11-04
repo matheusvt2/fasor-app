@@ -3,6 +3,7 @@ import { ocrReadResultSchema, type OcrImage, type OcrProvider, type OcrReadResul
 import sharp from 'sharp';
 import { callWithTimeout, classifyAwsError } from '../../../ai/aws.ts';
 import { PermanentReadingError } from './errors.ts';
+import { MAX_INPUT_PIXELS } from '../../../storage/variants.ts';
 
 /*
  * Story 11.7: the `textract` OCR provider, Amazon Textract `DetectDocumentText` (synchronous,
@@ -136,7 +137,7 @@ export function textractProvider(options: TextractProviderOptions): OcrProvider 
       }
       let size: { width: number; height: number };
       try {
-        const metadata = await sharp(image.bytes).metadata();
+        const metadata = await sharp(image.bytes, { limitInputPixels: MAX_INPUT_PIXELS }).metadata();
         size = { width: metadata.width, height: metadata.height };
       } catch (error) {
         throw new PermanentReadingError('textract: the image cannot be decoded', { cause: error });

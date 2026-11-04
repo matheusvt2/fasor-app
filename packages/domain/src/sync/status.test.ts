@@ -160,6 +160,14 @@ describe('pendingPhotoRows and morePhotosText', () => {
     expect(more).toBe(0);
   });
 
+  it('names a refusal of the pixel limit in place of the time (Story 20.12)', () => {
+    const { rows } = pendingPhotoRows([
+      { ...photo(1, { error: true }), error_code: 'file_too_large', error_details: { limit: 'pixels', max_pixels: 120_000_000 } },
+      { ...photo(2, { error: true }), error_code: 'file_too_large' },
+    ]);
+    expect(rows.map((row) => row.secondary)).toEqual(['A imagem passa de 120 megapixels e não pode ser enviada.', '07/09 14:02']);
+  });
+
   it('shows at most ten rows and counts the rest', () => {
     const { rows, more } = pendingPhotoRows(Array.from({ length: 13 }, (_, i) => photo(i + 1)));
     expect(rows).toHaveLength(10);

@@ -47,6 +47,8 @@ export interface SyncRouteDeps {
   enqueueReading?: (payload: ReadingPayload) => Promise<void>;
   /** Story 11.8 follow-up: `false` when `AI_FEATURES=off` (`jobs/reading/send.ts`); absent reads as on. */
   aiFeatures?: boolean;
+  /** Story 20.12: the company's daily reading ceiling; a re-target over it marks the photo `failed`. */
+  readingDailyQuota?: number;
 }
 
 /** The photo ids of the applied client `file/{id}/reading_kind` puts of a push, once each. */
@@ -71,8 +73,16 @@ async function sendRetargetedReading(db: Db, companyId: CompanyId, photoId: stri
   if (record === null || record.removedAt !== null || record.row.kind !== 'photo') return;
   const photo = record.row;
   if (photo.removed_at !== null || photo.uploaded_at === null || photo.reading_status !== 'queued' || photo.reading_kind === null) return;
+  // Story 20.12: over the daily ceiling `sendReading` marks the photo `failed`, as on file receipt.
   await sendReading(
-    { db, now: deps.now, newId: deps.newId ?? mintId, ...(deps.enqueueReading === undefined ? {} : { enqueue: deps.enqueueReading }), ...(deps.aiFeatures === undefined ? {} : { aiFeatures: deps.aiFeatures }) },
+    {
+      db,
+      now: deps.now,
+      newId: deps.newId ?? mintId,
+      ...(deps.readingDailyQuota === undefined ? {} : { dailyQuota: deps.readingDailyQuota }),
+      ...(deps.enqueueReading === undefined ? {} : { enqueue: deps.enqueueReading }),
+      ...(deps.aiFeatures === undefined ? {} : { aiFeatures: deps.aiFeatures }),
+    },
     companyId,
     { id: photo.id, relatorioId: record.relatorioId },
     photo.reading_kind,

@@ -138,11 +138,15 @@ export const FILE_ROUTES = {
 
 /**
  * Answer of a stored (or already-stored) upload. `variants` is null while sharp has not
- * run or could not run; the object and `uploaded_at` stand either way.
+ * run or could not run; the object and `uploaded_at` stand either way. Story 20.12
+ * (optional, no contract bump): `reading: 'quota_exceeded'` when the upload was to start the
+ * photo's reading and the company's daily reading ceiling refused it (the photo is kept and
+ * its `reading_status` is `failed`).
  */
 export const filePutResponseSchema = z.object({
   id: z.string().min(1),
   uploaded_at: isoTimestampSchema,
   variants: z.object({ thumb: z.string(), print: z.string() }).nullable(),
+  reading: z.literal('quota_exceeded').optional(),
 });
 export type FilePutResponse = z.infer<typeof filePutResponseSchema>;

@@ -146,6 +146,7 @@ describe('8.4-INT file receipt and the reading queue', () => {
   it('E78-Q7: a send that fails: the upload answers 200 and the plate photo ends failed ("Tentar novamente" is offered)', async () => {
     const calls: ReadingPayload[] = [];
     const app = createApp({
+      originGuard: 'off',
       probes,
       auth,
       db,
@@ -171,6 +172,7 @@ describe('8.4-INT file receipt and the reading queue', () => {
 
   it('E78-Q7: a reread whose send fails answers 500 and writes nothing', async () => {
     const app = createApp({
+      originGuard: 'off',
       probes,
       auth,
       db,
@@ -191,7 +193,7 @@ describe('8.4-INT file receipt and the reading queue', () => {
   }, 60_000);
 
   it('an app without a queue: the upload answers 200 and the plate photo stays queued', async () => {
-    const app = createApp({ probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir });
+    const app = createApp({ originGuard: 'off', probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir });
     const { id, bytes } = await photo(app, { reading_kind: 'plate', reading_status: 'queued' });
     const res = await request(app, `/api/files/${id}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: bytes });
     expect(res.status).toBe(200);
@@ -200,7 +202,7 @@ describe('8.4-INT file receipt and the reading queue', () => {
 
   it('a photo without a reading kind: no send, no status op', async () => {
     const calls: ReadingPayload[] = [];
-    const app = createApp({ probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueReading: async (payload) => void calls.push(payload) });
+    const app = createApp({ originGuard: 'off', probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueReading: async (payload) => void calls.push(payload) });
     const none = await photo(app, { reading_kind: null, reading_status: 'none' });
     const res = await request(app, `/api/files/${none.id}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: none.bytes });
     expect(res.status, await res.clone().text()).toBe(200);
@@ -210,7 +212,7 @@ describe('8.4-INT file receipt and the reading queue', () => {
 
   it('9.1-INT a queued display photo is sent with its own kind, once: running; a retried PUT sends nothing more', async () => {
     const calls: ReadingPayload[] = [];
-    const app = createApp({ probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueReading: async (payload) => void calls.push(payload) });
+    const app = createApp({ originGuard: 'off', probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueReading: async (payload) => void calls.push(payload) });
     const display = await photo(app, { reading_kind: 'display', reading_status: 'queued' });
     for (let attempt = 0; attempt < 2; attempt++) {
       const res = await request(app, `/api/files/${display.id}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: display.bytes });
@@ -223,14 +225,14 @@ describe('8.4-INT file receipt and the reading queue', () => {
 
 describe('11.8-INT AI_FEATURES=off: the LLM kinds are refused, display stays, the account says so', () => {
   function offApp(calls: ReadingPayload[]): App {
-    return createApp({ probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, aiFeatures: false, enqueueReading: async (payload) => void calls.push(payload) });
+    return createApp({ originGuard: 'off', probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, aiFeatures: false, enqueueReading: async (payload) => void calls.push(payload) });
   }
 
   it('GET /api/account answers features.ai false when off and true by default', async () => {
     const off = await request(offApp([]), '/api/account', { method: 'GET' });
     expect(off.status).toBe(200);
     expect(accountResponseSchema.parse(await off.json()).features).toEqual({ ai: false });
-    const on = await request(createApp({ probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir }), '/api/account', { method: 'GET' });
+    const on = await request(createApp({ originGuard: 'off', probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir }), '/api/account', { method: 'GET' });
     expect(accountResponseSchema.parse(await on.json()).features).toEqual({ ai: true });
   }, 60_000);
 
@@ -264,6 +266,7 @@ describe('11.8-INT AI_FEATURES=off: the LLM kinds are refused, display stays, th
 
     // A display photo whose first send failed is read again.
     const failing = createApp({
+      originGuard: 'off',
       probes,
       auth,
       db,

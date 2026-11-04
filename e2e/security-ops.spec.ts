@@ -279,3 +279,51 @@ test('@p0 20.9-E2E-002 a paste past the cap stops at the cap in the sheet observ
   await justification.fill('j'.repeat(10));
   await expect(page.getByTestId('char-count')).toHaveCount(0);
 });
+
+test('@p0 20.13-E2E-001 a cross-site push with the session cookie (a foreign Origin, or a text/plain body) is refused 403 forbidden_origin and applies nothing', async ({ page }) => {
+  await signIn(page, account.email);
+  const deviceId = await readDeviceId(page, database);
+  const projectId = newId();
+  const name = `CROSS-SITE-${Date.now()}`;
+  const op = makeOp(
+    {
+      kind: 'create',
+      scope: 'company',
+      company_id: account.companyId,
+      project_id: null,
+      relatorio_id: null,
+      path: `project/${projectId}`,
+      value: { id: projectId, client_id: null, name, site: name, removed_at: null },
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: account.userId,
+      device_id: `${deviceId}-forged`,
+    },
+    { newId, now: new Date() },
+  );
+  const body = JSON.stringify({ ops: [op] });
+  const version = { [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) };
+  // `page.request` carries the context's session cookie, as a form post from another site would.
+  const foreign = await page.request.post('/api/sync/ops', { headers: { ...version, origin: 'https://evil.example', 'content-type': 'application/json' }, data: body });
+  expect(foreign.status()).toBe(403);
+  expect(((await foreign.json()) as { code?: string }).code).toBe('forbidden_origin');
+  const plain = await page.request.post('/api/sync/ops', { headers: { ...version, origin: new URL(page.url()).origin, 'content-type': 'text/plain' }, data: body });
+  expect(plain.status()).toBe(403);
+  expect(((await plain.json()) as { code?: string }).code).toBe('forbidden_origin');
+  const noOrigin = await page.request.post('/api/sync/ops', { headers: { ...version, 'content-type': 'application/json' }, data: body });
+  expect(noOrigin.status()).toBe(403);
+
+  // Nothing reached the server's log, and nothing is waiting on the device.
+  const stream = await page.evaluate(
+    async ({ header, value }) => (await fetch('/api/sync/company?since=0', { headers: { [header]: value } })).text(),
+    { header: CONTRACT_VERSION_HEADER, value: String(CONTRACT_VERSION) },
+  );
+  expect(stream).not.toContain(op.op_id);
+  expect(stream).not.toContain(name);
+  expect(JSON.stringify(await readStore(page, database, 'outbox'))).not.toContain(name);
+
+  // The app's own way in (its origin, a JSON body) is the same request accepted.
+  const own = await page.request.post('/api/sync/ops', { headers: { ...version, origin: new URL(page.url()).origin, 'content-type': 'application/json' }, data: body });
+  expect(own.status(), await own.text()).toBe(200);
+});

@@ -18,8 +18,13 @@ export function readingRereadPath(photoId: string): string {
   return READING_REREAD_PATH.replace(':id', photoId);
 }
 
+/**
+ * Story 20.12: a photo already `done` is not read again (no job, no quota spent) and answers
+ * `200` with `done`; a new run answers `202` with `running`. A company over its daily reading
+ * ceiling answers `429 quota_exceeded`.
+ */
 export const readingRereadResponseSchema = z.object({
   photo_id: uuidV7Schema,
-  reading_status: z.literal('running'),
+  reading_status: z.enum(['running', 'done']),
 });
 export type ReadingRereadResponse = z.infer<typeof readingRereadResponseSchema>;
