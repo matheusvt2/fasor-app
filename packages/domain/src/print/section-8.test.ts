@@ -174,8 +174,8 @@ describe('7.3-UNIT-004 section 8 layout', () => {
     const base = fresh();
     expect(section8Layout(base, heading)).toBeNull();
     const layout = layoutSpec(base, { revisionNumber: 1, issuedAt: '2026-09-23T12:00:00.000Z' });
-    // Story 20.3: a new relatório prints the points section at position 9 (after the tests).
-    expect(layout.sections.find((s) => s.title === heading.title)).toEqual({ number: 9, title: heading.title, kind: 'empty', note: EMPTY_SECTION_NOTE });
+    // Story 20.3: a new relatório prints the points section at position 9, after the tests, on a page of its own.
+    expect(layout.sections.find((s) => s.title === heading.title)).toEqual({ number: 9, title: heading.title, kind: 'empty', note: EMPTY_SECTION_NOTE, startsPage: true });
   });
 
   it('numbers the tokens with the snapshot\'s own photos (numberPhotos, as section 7 prints them)', () => {

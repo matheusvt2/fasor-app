@@ -148,13 +148,13 @@ describe('4.8-UNIT-006 DOCX structure golden', () => {
   }, 60_000);
 });
 
-describe('E7-A4 and Story 20.3 the tests and the points sections start a page', () => {
-  it('breaks the page before the tests\' and the points\' own Heading 1, and before no other section heading (the fixture keeps the FO.SERV-03 order)', async () => {
+describe('E7-A4 section 9 starts a page', () => {
+  it('breaks the page before section 9\'s own Heading 1, and before no other section heading (Story 20.3: the fixture keeps the FO.SERV-03 order, so its points section runs on as before)', async () => {
     const document = readZipEntries(await renderFixture()).get('word/document.xml')!.toString('utf8');
     const headings = [...document.matchAll(/<w:p>([\s\S]*?)<\/w:p>/g)].map((m) => m[1]!).filter((p) => p.includes('<w:pStyle w:val="Heading1"/>'));
     const section9 = headings.find((p) => paragraphText(p) === '9 RELATÓRIOS DOS ENSAIOS')!;
     expect(section9).toContain('<w:pageBreakBefore/>');
-    expect(headings.filter((p) => p.includes('<w:pageBreakBefore/>')).map(paragraphText)).toEqual(['8 PONTOS DE ATENÇÃO / SUGESTÃO DE CORRETIVAS COMPLEMENTARES', '9 RELATÓRIOS DOS ENSAIOS']);
+    expect(headings.filter((p) => p.includes('<w:pageBreakBefore/>')).map(paragraphText)).toEqual(['9 RELATÓRIOS DOS ENSAIOS']);
   }, 60_000);
 });
 
@@ -200,10 +200,11 @@ describe('7.1-UNIT section 9 in the DOCX', () => {
 
   it('starts each subsection after the first and each sheet after its subsection\'s first on a new page, never splits a row, and spans the bands', async () => {
     const document = readZipEntries(await renderFixture()).get('word/document.xml')!.toString('utf8');
-    // Section 9's own heading: 1 break (E7-A4); section 8's (Story 20.3): 1; 11 subsections: 10
-    // breaks; 94 sheets in 11 subsections: 83 breaks. The fixture is on seed v1, so no local
-    // block precedes a subsection's first sheet (Story 20.6 adds a break there on v4 and later).
-    expect(document.match(/<w:pageBreakBefore\/>/g)).toHaveLength(1 + 1 + 10 + 83);
+    // Section 9's own heading: 1 break (E7-A4); 11 subsections: 10 breaks; 94 sheets in 11
+    // subsections: 83 breaks. The fixture keeps the FO.SERV-03 order (its points section, before
+    // the tests, takes no break, Story 20.3) and is on seed v1, so no local block precedes a
+    // subsection's first sheet (Story 20.6 adds a break there on v4 and later).
+    expect(document.match(/<w:pageBreakBefore\/>/g)).toHaveLength(1 + 10 + 83);
     const tables = [...document.matchAll(/<w:tbl>([\s\S]*?)<\/w:tbl>/g)].map((match) => match[1]!);
     // The cover and the document control come first; section 7's photo tables, section 10's
     // parecer box and section 11 (Stories 7.2 to 7.4) never carry a row guard, the sheets always do.
@@ -425,6 +426,16 @@ describe('Story 20.3 a new relatório in the DOCX: the tests section before the 
     const headings = [...document.matchAll(/<w:p>([\s\S]*?)<\/w:p>/g)].map((m) => m[1]!).filter((p) => p.includes('<w:pStyle w:val="Heading1"/>'));
     expect(headings.filter((p) => p.includes('<w:pageBreakBefore/>')).map(paragraphText)).toEqual(['8 RELATÓRIOS DOS ENSAIOS', '9 PONTOS DE ATENÇÃO / SUGESTÃO DE CORRETIVAS COMPLEMENTARES']);
   }, 60_000);
+
+  it('breaks the page before an empty points section printed after the tests (its note alone)', async () => {
+    const base = fixtureSnapshot();
+    const empty = withNewSectionOrder({ ...base, points: [], blocks: base.blocks.map((block) => ({ ...block, not_tested: null })) });
+    const layout = layoutSpec(empty, { revisionNumber: 1, issuedAt: ISSUED_AT });
+    expect(layout.sections.find((section) => section.number === 9)).toMatchObject({ kind: 'empty', startsPage: true });
+    const document = readZipEntries(await buildDocx(layout, { tocPages: placeholderPages(layout) })).get('word/document.xml')!.toString('utf8');
+    const headings = [...document.matchAll(/<w:p>([\s\S]*?)<\/w:p>/g)].map((m) => m[1]!).filter((p) => p.includes('<w:pStyle w:val="Heading1"/>'));
+    expect(headings.filter((p) => p.includes('<w:pageBreakBefore/>')).map(paragraphText)).toEqual(['8 RELATÓRIOS DOS ENSAIOS', '9 PONTOS DE ATENÇÃO / SUGESTÃO DE CORRETIVAS COMPLEMENTARES']);
+  }, 60_000);
 });
 
 describe('Stories 20.5 and 20.6 section 9 in the DOCX: tables kept whole, item lines and a page per ficha', () => {
@@ -526,13 +537,16 @@ describe('Stories 20.5 and 20.6 section 9 in the DOCX: tables kept whole, item l
       // A local block with no sheet, then the next local: both break.
       { heading: '9.4 Local D', localParts: [tablePart(checklistTable('VERIFICAÇÕES DO LOCAL', 2))], sheets: [] },
       { heading: '9.5 Local E', sheets: [short('FICHA E1')] },
+      // A local block with no sheet, then its painel's band: the band starts a page too.
+      { heading: '9.6 Local F', localParts: [tablePart(checklistTable('VERIFICAÇÕES DO LOCAL', 2))], sheets: [] },
+      { heading: 'PAINEL DE SAÍDA', painel: true, sheets: [short('FICHA F1')] },
     ]);
     const document = await documentOf(layout);
     // Every break in section 9's body (the section headings' own Heading 1 breaks left out).
     const breaks = paragraphsOf(document)
       .filter((p) => p.includes('<w:pageBreakBefore/>') && !p.includes('<w:pStyle w:val="Heading1"/>'))
       .map(paragraphText);
-    expect(breaks).toEqual(['FICHA A1', 'FICHA A2', '9.2 Local B', 'PAINEL DE MÉDIA TENSÃO', '9.4 Local D', '9.5 Local E']);
+    expect(breaks).toEqual(['FICHA A1', 'FICHA A2', '9.2 Local B', 'PAINEL DE MÉDIA TENSÃO', '9.4 Local D', '9.5 Local E', '9.6 Local F', 'PAINEL DE SAÍDA']);
     // The section's own Heading 1 breaks; its first subsection heading does not (no double break).
     const heading = paragraphsOf(document).find((p) => paragraphText(p) === '9.1 Local A')!;
     expect(heading).not.toContain('<w:pageBreakBefore/>');
@@ -726,9 +740,8 @@ describe('7.2/7.3-UNIT sections 7, 8 and 11', () => {
     const document = entries.get('word/document.xml')!.toString('utf8');
     // The first certificate page sits under the heading (kept with it); every later one
     // starts its own page, and each fits the content box (at most 18.46 x 23 cm in EMU).
-    // Plus section 9's 94 breaks (E7-A4: its own heading; Story 7.1: 10 subsections after the first, 83 sheets)
-    // and section 8's own heading (Story 20.3).
-    expect(document.match(/<w:pageBreakBefore\/>/g) ?? []).toHaveLength(1 + 1 + 94);
+    // Plus section 9's 94 breaks (E7-A4: its own heading; Story 7.1: 10 subsections after the first, 83 sheets).
+    expect(document.match(/<w:pageBreakBefore\/>/g) ?? []).toHaveLength(1 + 94);
     const extents = [...document.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/g)].map((m) => [Number(m[1]), Number(m[2])]);
     expect(extents).toHaveLength(4);
     for (const [cx, cy] of extents.slice(2)) {

@@ -242,6 +242,28 @@ describe('4.8-UNIT-007 layoutSpec follows the relatório\'s section blocks (Sum�
     ]);
   });
 
+  it('Story 20.3: the points section starts a page when it prints after the tests, also when empty; before them (FO.SERV-03 order) it does not', () => {
+    const { snapshot, blocks } = withSectionBlocks();
+    const points = (layout: ReturnType<typeof layoutSpec>) => layout.sections.find((s) => s.title.startsWith('PONTOS DE ATENÇÃO'))!;
+    // With no point and no Não ensaiado sheet the section prints its note alone.
+    const fresh = points(layoutSpec({ ...snapshot, blocks: snapshot.blocks.map((b) => ({ ...b, not_tested: null })) }, { revisionNumber: 1, issuedAt: ISSUED_AT }));
+    expect(fresh.kind).toBe('empty');
+    expect(fresh).toMatchObject({ number: 9, startsPage: true });
+    const withPoint = { ...snapshot, points: [{ id: '019966c1-00f2-7000-8000-000000000001', relatorio_id: snapshot.relatorio.id, text: 'Ponto', equipment_id: null, origin: 'manual' as const, order_key: 'a0', removed_at: null, action: null, priority: null, deadline: null, owner: null }] };
+    expect(points(layoutSpec(withPoint, { revisionNumber: 1, issuedAt: ISSUED_AT }))).toMatchObject({ kind: 'points', startsPage: true });
+    // The order a relatório created before the change stored, and the seed fallback: no break.
+    const s8 = byType(blocks, 'section_8');
+    const s9 = byType(blocks, 'section_9');
+    const old: RelatorioSnapshot = { ...snapshot, blocks: snapshot.blocks.map((b) => (b.id === s8.id ? { ...b, order_key: s9.order_key } : b.id === s9.id ? { ...b, order_key: s8.order_key } : b)) };
+    for (const subject of [old, smallSnapshot(), { ...withPoint, blocks: old.blocks }]) {
+      const section = points(layoutSpec(subject, { revisionNumber: 1, issuedAt: ISSUED_AT }));
+      expect(section.number).toBe(8);
+      expect('startsPage' in section).toBe(false);
+    }
+    // No other section carries the flag.
+    expect(layoutSpec(withPoint, { revisionNumber: 1, issuedAt: ISSUED_AT }).sections.filter((s) => 'startsPage' in s).map((s) => s.number)).toEqual([9]);
+  });
+
   it('Story 20.3: a relatório created before the change (points block before the tests block) and one with no section block keep FO.SERV-03 order', () => {
     const { snapshot, blocks } = withSectionBlocks();
     const points = byType(blocks, 'section_8');

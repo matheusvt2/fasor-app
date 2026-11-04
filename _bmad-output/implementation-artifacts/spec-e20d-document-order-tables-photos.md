@@ -2,10 +2,10 @@
 title: 'Batch e20d: Stories 20.3, 20.5 and 20.6 (tests section before the points, tables kept whole, each equipment on its own page with its photos at its end)'
 type: 'feature'
 created: '2026-11-03'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'db38ffa0d8d9449944e9e1f4877a8526921e9cc0'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -113,15 +113,36 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-11-03 — Review pass
+
+Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter and Intent Alignment (token economy; the integrated epic review covers them).
+
+- verdicts: 14 findings — high 0, medium 6, low 6, false 1, maybe-false 1
+- findings:
+  - `medium` `patch` ECH-1 an empty points section (`kind: 'empty'`) gets no page break and runs on under the last ficha — fixed: the kernel's `layoutSpec` sets `startsPage: true` on section 8, whatever its variant, when section 9 precedes it; `docx.ts` breaks on it.
+  - `medium` `patch` ECH-2 claim "points heading breaks wherever it prints" fails for the empty variant — same root and fix as ECH-1.
+  - `medium` `patch` ECH-3 the audit input (`audit/input.ts` `partLines`) drops the new item line of a sheet photo, so an NC photo after CONCLUSÃO no longer names its item — fixed: the item line is appended as the section 7 branch does, with an audit test.
+  - `false` `reject` ECH-4 `photoItemLine` resolves against `cabine_primaria` and can miss an items-group photo — the items group holds only photos whose `item_key` is in the printed checklist of the same seed definition (`sheetChecklistPrinted`), which `photoItemLine` resolves with the same `getDefinition`; section 7 uses the same function.
+  - `low` `reject` ECH-5 an item photo of an unprinted checklist (group "other") gets no item line — the story's item reference belongs to the checklist the ficha prints; naming an item of a table that is not printed would point at nothing; adding it is new behavior, not a correction.
+  - `medium` `defer` ECH-6 `page-placement.integration.test.ts` skips in the gate's tools container (no LibreOffice) — run in the api container for this batch and pasted in the PR; putting LibreOffice in the tools image is out of scope.
+  - `medium` `defer` ECH-7 claim "proven on the LibreOffice PDF" rests in the gate on `document-pages.spec.ts` (VERIFICAÇÕES GERAIS only) — same root as ECH-6.
+  - `low` `patch` ECH-8 `fichaStart` returns page -1 and an empty `before` when the title is not found, so a caller checking only `before` passes vacuously — fixed: it throws naming the tag.
+  - `low` `reject` ECH-9 a kept table's last row has no keep-with-next, so a one-line part after it can open the next page alone — the story keeps the three tables whole, not what follows them; chaining the last row would drag the table onto the next page with the following part.
+  - `low` `patch` VG-1 no test pins the changed branch "a painel band after a local drawn alone starts a page" — fixed: a `docx.test.ts` case with `{ localParts, sheets: [] }` then `{ painel: true }`.
+  - `medium` `patch` VG-2 audit item line — same root and fix as ECH-3.
+  - `low` `defer` VG-3 the keep-whole PDF proof sits in a skipped suite — same root as ECH-6.
+  - `low` `patch` VG-4 empty points section — same root and fix as ECH-1.
+  - `maybe-false` `patch` VG-5 the points break also changes the pagination of an existing relatório's reprint, which the 20.3 DoR excludes ("no reprint of an existing relatório changes") — reading corrected by the batch: the points section starts a page only when it prints after the tests section, so an old-order relatório reprints as before; old-fixture expectations restored.
+
 ## Design Notes
 
-- Open reading kept as the DoR says: the points page break applies to every relatório, old order included (it changes pagination, not order or numbers, of a regenerated old relatório; an issued revision's stored files never change).
+- ~~Open reading kept as the DoR says: the points page break applies to every relatório, old order included (it changes pagination, not order or numbers, of a regenerated old relatório; an issued revision's stored files never change).~~ *(2026-11-03, coordinator's batch decision after review: the points section starts a page only when it prints after the tests section, whatever its kind, empty included; in FO.SERV-03 order it runs on, so an existing relatório reprints unchanged. The kernel decides it: `layoutSpec` sets `startsPage: true` on that section and `docx.ts` breaks on it.)*
 - Open reading: the item line is added to sheet checklist-item photos only; a local's site-item photos stay right under their table as today, so they get none.
 - Risk to check first: the fixture already emits `pageBreakBefore` on every sheet after its subsection's first (`docx.test.ts` L202 `1 + 10 + 83`), yet the field report says fichas run on. Read `pdfPageTexts` of a generated fixture PDF before changing the rule; if LibreOffice drops `pageBreakBefore` on the shaded, bordered title paragraph after a table, put the break on a paragraph LibreOffice honors (e.g. an empty paragraph with `pageBreakBefore`, or a `PageBreak` run) and say so here.
 - As built (2026-11-03, implementation): LibreOffice honors `pageBreakBefore` on the title bar after a table (`page-placement.integration.test.ts` case 3 and `e2e/document-pages.spec.ts`), so the break stays on the title paragraph. The run-on the field saw is the first ficha after a local block (seed v4 and later): the old rule broke a sheet only for `i > 0`, so a subsection's first ficha followed VERIFICAÇÕES DO LOCAL on the same page, and a painel band followed a local alone. The Porto Seguro fixture is on seed v1 (no local block), which is why its break count looked complete.
 - Path shipped for 20.5: keep-with-next on every cell paragraph of every row but the last, `tblHeader` on the leading band and header rows, `cantSplit` kept. The PDF proof (`page-placement.integration.test.ts`) shows LibreOffice moves each of the three tables whole and splits a checklist taller than a page only at row boundaries with the band and header repeated; the same run with `keepWhole` ignored fails both cases (checked by hand), so the section 10 one-row wrapper fallback was not needed.
 - Golden: `porto-seguro-skeleton.json` is unchanged and was not regenerated: it pins headings, table text, header and footer; the fixture's sheets carry no photos (no photo part moves) and keep-whole changes no text. `photo-order.test.ts` stays as it was except the M5 placement lines (they asserted the Não ensaiada plate photo before the reason band, which 20.6 moves after it); every numbering assertion of that test, and `numbering.test.ts`, is unchanged and green.
-- Ripple of 20.3 beyond the named files: the Sumário and every surface speak positions, so on a new relatório the tests row is 8 ("Expandir ou recolher a seção 8", "Agrupar por tipo na seção 8", "Conclusão da ficha (seção 8)") and the points row 9 ("entra na seção 9", "na seção 9"). Unit tests over `instantiateTemplate` (kernel `section-position`, `sumario`, `parecer`, `layout`, `section-8`, `audit`; web `sumario-surface`, `relatorio-tree*`, `compact-template-sections`, `export-dialog`) and about 35 e2e specs and helpers that open section 9 by its chevron name or read sections by number were updated to the new numbers; the production smoke matches the chevron by a pattern, since prod holds relatórios of both orders. A section printed empty (its note) takes no break, as before: only a points section with content (`kind: 'points'`) breaks, as only a tests section with sheets does.
+- Ripple of 20.3 beyond the named files: the Sumário and every surface speak positions, so on a new relatório the tests row is 8 ("Expandir ou recolher a seção 8", "Agrupar por tipo na seção 8", "Conclusão da ficha (seção 8)") and the points row 9 ("entra na seção 9", "na seção 9"). Unit tests over `instantiateTemplate` (kernel `section-position`, `sumario`, `parecer`, `layout`, `section-8`, `audit`; web `sumario-surface`, `relatorio-tree*`, `compact-template-sections`, `export-dialog`) and about 35 e2e specs and helpers that open section 9 by its chevron name or read sections by number were updated to the new numbers; the production smoke matches the chevron by a pattern, since prod holds relatórios of both orders. ~~A section printed empty (its note) takes no break, as before: only a points section with content (`kind: 'points'`) breaks, as only a tests section with sheets does.~~ *(2026-11-03: superseded by the `startsPage` line above.)*
 - LibreOffice is in the api image only; the tools container that runs `pnpm test:api` has none. `page-placement.integration.test.ts` therefore skips itself where no `soffice` is on the PATH and is run in the api container: `podman compose exec api pnpm --filter @app/api exec vitest run src/jobs/generate/page-placement.integration.test.ts` (3 of 3 green). The real-pipeline proof inside the gate is `e2e/document-pages.spec.ts`.
 - Seeded, not tapped, in `e2e/document-pages.spec.ts`: removing the 91 sheets outside three of Cubículo Enel (one office push of `remove` ops) and the point citing the NC photo (one office create); everything else (creation, Sumário checks and moves, the long plate, the three cameras, the parecer, the issue) goes through the UI.
 - Not done: `e2e/sheet-photos.spec.ts` 11.11-E2E-001 gains no document check. It never generates; a per-page check there would issue a 94-sheet relatório and move the whole spec into the serial group. Its screen assertion (the strip after Conclusão) is unchanged, and the document placement of a plate photo, an item photo and other photos is proven by `e2e/document-pages.spec.ts`, 17.1-E2E-001 and 16.3-E2E-001.
@@ -134,3 +155,14 @@ deferred: []
 - `podman compose --profile tools run --rm --user root tools pnpm test:api` -- green, including `page-placement.integration.test.ts`.
 - `podman compose --profile tools run --rm --user root tools pnpm exec tsx scripts/e2e.ts e2e/document-pages.spec.ts <touched specs> --project desktop-chrome --project durability-desktop-chrome` (under the lock) -- green.
 - `pnpm lint` and `pnpm static` in the tools container -- green.
+
+## Auto Run Result
+
+Status: done
+
+- **Summary:** 20.3: `instantiateTemplate` creates the tests section before the points section; the kernel's `layoutSpec` marks the points section `startsPage` when it prints after the tests (empty included), and `docx.ts` breaks on it. 20.5: the kernel marks DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS and VERIFICAÇÕES DO LOCAL `keepWhole`; the renderer keeps every row but the last with the next and repeats the leading band and header rows (`tblHeader`). 20.6: each ficha prints one photo block after CONCLUSÃO (plate, items with their item line, others), a Não ensaiada ficha after its reason band; every ficha and local block starts a page; photo numbers unchanged.
+- **Files:** kernel `relatorio/instantiate.ts`, `print/section-9.ts`, `print/layout.ts`, `print/section-8.ts` (type), `print/photo-order.ts` (comments), `audit/input.ts`; api `jobs/generate/docx.ts`, `sections/section-9.ts`, new `page-placement.integration.test.ts` and `page-layout.test-support.ts`; e2e `support/pdf-text.ts` (`pdfPageTexts`, `fichaStart`), new `document-pages.spec.ts` (serial group), about 35 specs renumbered for the new Sumário positions, the production smoke; docs `source-deltas.md`, `docs/kbs/architecture/rendering.md`, `docs/kbs/log.md`.
+- **Review:** 14 findings; 6 rows patched (points break including the empty variant and old order, audit item line, `fichaStart` throw, painel-band test); 3 rows deferred (the LibreOffice suite skips in the tools container; run in the api container, output in the PR); rejected ECH-4 (false: same predicate and definition as section 7), ECH-5 (an unprinted checklist has no table to refer to), ECH-9 (keeping the last row would drag the table with what follows).
+- **Follow-up review recommended:** true. Patched at entry verdict: 2 medium (the `startsPage` rule, the audit item line), 2 low. Named risk: both were patched after review and are not re-reviewed; the integrated review reads them first.
+- **Verification:** the story gate in the PR body (lint, static, test:unit, test:api, the touched specs) and page-placement 3/3 in the api container.
+- **Residual risks:** keep-whole of DADOS DO EQUIPAMENTO and VERIFICAÇÕES DO LOCAL and the header repeat are proven on the PDF only by the api-container suite, not inside `pnpm test:api`.

@@ -72,7 +72,7 @@ export const SHEET_CONTENT_MARKS: readonly string[] = ['DADOS DO EQUIPAMENTO', '
 export function fichaStart(pages: readonly (readonly string[])[], tag: string): { page: number; before: string[] } {
   const isTitle = (text: string) => text.endsWith(` ${tag}`) && text === text.toLocaleUpperCase('pt-BR');
   const page = lastPageOf(pages, isTitle);
-  if (page < 0) return { page, before: [] };
+  if (page < 0) throw new Error(`no ficha title ending in "${tag}" in the PDF`);
   const items = pages[page]!;
   const before = items.slice(0, items.findIndex(isTitle)).filter((text) => SHEET_CONTENT_MARKS.includes(text) || /^Imagem \d+[.:]/.test(text));
   return { page, before };

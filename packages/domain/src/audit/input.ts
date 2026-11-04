@@ -122,7 +122,8 @@ function partLines(parts: readonly SheetPart[], photoRefs: Map<string, AuditRef>
       return;
     }
     if (part.kind === 'photos') {
-      for (const photo of part.photos) lines.push(photoLine(photo.fileId, photo.number, photo.caption, photoRefs));
+      // Story 20.6: a checklist item's photo names its item, as section 7's do.
+      for (const photo of part.photos) lines.push(photoLine(photo.fileId, photo.number, photo.itemLine === undefined ? photo.caption : `${photo.caption} (${photo.itemLine})`, photoRefs));
       return;
     }
     part.table.rows.forEach((row, r) => {

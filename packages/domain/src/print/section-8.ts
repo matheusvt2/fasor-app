@@ -59,6 +59,8 @@ export interface LayoutSectionPoints {
   bullets: string[];
   /** Story 11.10: the action-plan table under the bullets, one row per bullet. */
   table: ActionPlanRow[];
+  /** Story 20.3: the section prints after the tests section and starts a page (set by `layoutSpec`). */
+  startsPage?: true;
 }
 
 type Section8Snapshot = Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'blocks' | 'equipment' | 'points'>;

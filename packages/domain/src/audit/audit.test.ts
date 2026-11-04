@@ -149,6 +149,38 @@ describe('13.8-UNIT-006 section refs when the printed numbering differs from FO.
   });
 });
 
+describe('Story 20.6 auditInput: a checklist item photo keeps its item reference', () => {
+  it('sends the sheet photo line with its item line, as section 7 sends it', () => {
+    const base = smallSnapshot();
+    const id = '019966c1-0000-7000-8000-00000000f206';
+    const photo = {
+      id,
+      relatorio_id: base.relatorio.id,
+      kind: 'photo',
+      sha256: 'ab',
+      mime: 'image/jpeg',
+      size: 1,
+      uploaded_at: null,
+      variants: null,
+      removed_at: null,
+      captured_at: '2026-09-06T10:00:00.000Z',
+      tz_offset: -180,
+      coords: null,
+      local_seq: 1,
+      block_id: BLOCK_CHAVE_ID,
+      item_key: 'contatos',
+      caption: 'Contatos oxidados',
+      reading_kind: null,
+      reading_target: null,
+      reading_status: 'none',
+      people_in_photo: false,
+    } as unknown as FileRow;
+    const snapshot: RelatorioSnapshot = { ...base, files: [...base.files, photo] };
+    const line = auditInput(draft(snapshot), snapshot).text.split('\n').find((text) => text.includes(`[photo:${id}]`));
+    expect(line).toMatch(/Imagem \d+: Contatos oxidados\. \(Item \d+ · Contatos( · (C|NC|NA))?\)$/);
+  });
+});
+
 describe('13.8-UNIT-002 auditInput over the full fixture: photos, no file key, the cap', () => {
   const snapshot = fullSnapshot();
   const layout = draft(snapshot);
