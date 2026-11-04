@@ -305,6 +305,29 @@ export function serializedBytes(value: unknown): number {
   return new TextEncoder().encode(JSON.stringify(value) ?? '').length;
 }
 
+/*
+ * e20f (2026-11-04, second QA pass on 76cbdb79, reproduced live): every op within its caps, two
+ * pushes of 90 points of 20 000 characters each applied, and the next preview failed
+ * `libreoffice_timeout` after 124 s. A per-value cap cannot bound that, so a relatório has a
+ * budget of stored bytes: the serialized live rows of the relatório (what `entities.row` holds).
+ * The Porto Seguro relatório, the largest real one, is 207 live rows and 643 247 bytes, so the
+ * budget is 3.26x it (a kernel test asserts it stays under a third).
+ */
+
+/** The most bytes the live rows of one relatório may hold (2 MiB). */
+export const RELATORIO_MAX_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Whether a client op may grow a relatório that holds `storedBytes` (its live rows, serialized):
+ * refused when the op names a relatório, writes a value (a create, or a put of anything but
+ * null) and `storedBytes` plus the value's serialized bytes pass `RELATORIO_MAX_BYTES`. A remove
+ * and a put of null always apply, so a full relatório can still be emptied.
+ */
+export function relatorioBudgetVerdict(op: Pick<Op, 'kind' | 'value' | 'relatorio_id'>, storedBytes: number): 'allowed' | 'refused' {
+  if (op.relatorio_id == null || op.kind === 'remove' || op.value === null) return 'allowed';
+  return storedBytes + serializedBytes(op.value) > RELATORIO_MAX_BYTES ? 'refused' : 'allowed';
+}
+
 /** A part of an op's value an open rule (`strings`, `structured`) judges, with where it sits, for the log. */
 export interface OpenValuePart {
   readonly where: string;

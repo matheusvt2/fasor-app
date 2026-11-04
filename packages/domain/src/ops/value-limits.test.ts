@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { opLog as portoSeguroLog } from '../../fixtures/porto-seguro/op-log.ts';
+import { opLog as portoSeguroLog, RELATORIO_ID as PORTO_SEGURO_RELATORIO } from '../../fixtures/porto-seguro/op-log.ts';
 import { opLog as portoSeguroSmallLog } from '../../fixtures/porto-seguro/small/op-log.ts';
 import { opLog as replaySmallLog } from '../../fixtures/replay-small/op-log.ts';
 import { FUNCAO_MAX_LENGTH } from '../schemas/block-config.ts';
-import { NC_PHRASE_MAX_LENGTH, RELATORIO_SETUP_KEYS } from '../schemas/entities.ts';
+import { NC_PHRASE_MAX_LENGTH, RELATORIO_SETUP_KEYS, rowIndexColumns, rowRemovedAt } from '../schemas/entities.ts';
 import { opSchema, type Op } from './op.ts';
+import { splitEntityKey } from './apply.ts';
 import { FAMILIES, parsePath } from './path.ts';
+import { replay } from './replay.ts';
 import { instantiateTemplate } from '../relatorio/instantiate.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { shortStringsOfBytes } from '../../fixtures/value-caps.ts';
@@ -20,6 +22,8 @@ import {
   TEXT_CAPS,
   textCapOf,
   opDepthIssue,
+  RELATORIO_MAX_BYTES,
+  relatorioBudgetVerdict,
   VALUE_MAX_BYTES,
   VALUE_MAX_DEPTH,
   VALUE_MAX_ITEMS,
@@ -347,5 +351,36 @@ describe('whole-value caps, set from measurement (e20f)', () => {
     expect(serializedBytes(create.value)).toBeGreaterThan(VALUE_MAX_BYTES);
     expect(openValueParts(create, parsePath(create.path)).map((part) => part.where)).not.toContain('value.setup');
     expect(issue(create)).toBeNull();
+  });
+});
+
+describe('the relatório budget (e20f, aggregate)', () => {
+  it('measure: the Porto Seguro relatório, replayed, holds its live rows in under a third of the budget', () => {
+    const state = replay(portoSeguroLog);
+    let rows = 0;
+    let bytes = 0;
+    for (const [key, row] of state) {
+      const { entity } = splitEntityKey(key);
+      if (rowIndexColumns(entity, row).relatorio_id !== PORTO_SEGURO_RELATORIO || rowRemovedAt(row) !== null) continue;
+      rows++;
+      bytes += serializedBytes(row);
+    }
+    console.log(`e20f measured: Porto Seguro ${rows} live rows, ${bytes} bytes`);
+    expect(RELATORIO_MAX_BYTES).toBe(2 * 1024 * 1024);
+    expect(rows).toBeGreaterThan(100);
+    expect(bytes * 3).toBeLessThan(RELATORIO_MAX_BYTES);
+  });
+
+  it('refuses a value that takes the relatório past the budget; at the budget it applies; a remove and a put of null always apply', () => {
+    const point = (text: string) => put(`point/${POINT}/text`, text);
+    const op20k = point('x'.repeat(TEXT_CAPS.long));
+    const bytes = serializedBytes(op20k.value);
+    expect(relatorioBudgetVerdict(op20k, RELATORIO_MAX_BYTES - bytes)).toBe('allowed');
+    expect(relatorioBudgetVerdict(op20k, RELATORIO_MAX_BYTES - bytes + 1)).toBe('refused');
+    expect(relatorioBudgetVerdict(point('y'), RELATORIO_MAX_BYTES)).toBe('refused');
+    expect(relatorioBudgetVerdict(put(`point/${POINT}/text`, null), RELATORIO_MAX_BYTES * 2)).toBe('allowed');
+    expect(relatorioBudgetVerdict(op({ kind: 'remove', path: `point/${POINT}/removed_at` }), RELATORIO_MAX_BYTES * 2)).toBe('allowed');
+    // An op naming no relatório (a company registry entry) is not counted.
+    expect(relatorioBudgetVerdict({ kind: 'put', value: 'x', relatorio_id: null }, RELATORIO_MAX_BYTES * 2)).toBe('allowed');
   });
 });
