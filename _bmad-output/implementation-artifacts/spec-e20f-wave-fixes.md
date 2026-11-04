@@ -2,7 +2,7 @@
 title: 'Epic 20 fix batch e20f: device clock, every reference checked, values bounded whole, backward moves judged by the server'
 type: 'bugfix'
 created: '2026-11-04'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '418e308a26d6bfe222d29c99f3fdadb47d10183f'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -113,9 +113,43 @@ Item 4 (status):
 - Given each item's red-first test, when run on `76cbdb79`, then it fails; on the batch head it passes.
 - Given the story gate (lint, static, test:unit, test:api) and the touched specs plus `security-ops`, `security-device`, `sync`, `sync-status`, second-device specs, and the durability specs on the matrix projects, when run on the head that merges, then all are green.
 
+## Added items (coordinator, 2026-11-04, after the second QA pass on 76cbdb79)
+
+The coordinator added these to the batch (`review-e20-integrated-2026-11-04.md` in the session scratchpad; reproductions `probe-e20.ts`, `probe-e20b.ts`). Each gets a test that fails on `76cbdb79`.
+
+12. **Item 3, aggregate (reproduced live):** two pushes of 90 points of 20 000 characters each (every op within its caps) applied, and the next preview failed `libreoffice_timeout` after 124 s. Per-value caps cannot bound that. Add a per-relatório budget in the kernel (`packages/domain/src/ops/value-limits.ts`): `RELATORIO_MAX_BYTES` = 2 MiB of stored rows (the serialized live rows of the relatório, what `entities.row` holds). Measured (orchestrator, `replay` of the Porto Seguro op log): the Porto Seguro relatório is 207 live rows, 643 247 bytes, 230 644 characters of strings, so 2 MiB is 3.26x the largest real relatório; a kernel test asserts the Porto Seguro replay stays under a third of the budget. The server (`apps/api/src/sync/rules.ts`, in `checkClientOp`) refuses `op_value_invalid` a client create or put naming a relatório when the relatório's stored bytes plus the op value's serialized bytes exceed the budget; the stored bytes are read once per relatório per push (`sum(octet_length(row::text))` over its live rows, through the `entities_company_relatorio_entity_live_idx` index) into `ClientCheckCache` and grown by each applied op's value bytes (an upper bound, so a push cannot sneak past the budget op by op). A remove, and a put of null, always apply (a full relatório can still be emptied). Integration test: a relatório filled close to the budget refuses the op that crosses it and still applies a null put. e2e (`security-ops.spec.ts`): fill a relatório with point text up to just under the budget, then the preview succeeds within `JOB_TIMEOUT` with no `libreoffice_timeout` (record its time in the report); the op past the budget is refused `op_value_invalid`. If that preview does not finish well under the timeout, report the measured time and stop: the budget number is then the coordinator's decision.
+13. **N1:** a value nested 20 000 levels deep answers 500 (stack overflow in the recursive walks). Add `VALUE_MAX_DEPTH` (32; measure the deepest legitimate value, about 4) and refuse deeper values `op_value_invalid` without recursing past the cap: check depth iteratively, or before any recursive walk (`stringsIssue`, the reference walk, the zod parse in `apps/api/src/sync/apply.ts` validate). Also catch a `RangeError` per op in `validate` as `op_invalid`, so one op never fails the push. Integration test through the push route: 200 with that op refused, the other ops of the push applied.
+14. **N2:** `apps/api/src/http/files.ts:341` serves a photo of a removed (tombstoned) relatório. Answer 404 when the file's relatório row is tombstoned, as for a tombstoned file (the revision DOCX/PDF routes keep their own rules). Case in `apps/api/src/http/edges.integration.test.ts`: 200, remove the relatório, 404, restore, 200.
+15. **N3:** sign-out leaves `relatorio-altitude-asked:{id}` keys in localStorage (`apps/web/src/surfaces/relatorio/setup/altitude-reading.ts:15`). `doSignOut` (`apps/web/src/state/session.tsx:389-411`) removes every localStorage key the app owns that names a relatório or another user-specific id (the `relatorio-` prefix at least; also the checklist legend key in sessionStorage, `apps/web/src/surfaces/ficha/checklist-section.tsx:90`), keeping device-wide keys (`releng.clock-offset`, the theme mirror). Assertion in `e2e/security-device.spec.ts`: after "Sair", no localStorage or sessionStorage key names a relatório id.
+16. **N4:** after sign-out and a fresh sign-in, a deep link to `/relatorio/{id}/setup` or `/relatorio/{id}/secao/{blockId}` of an Em revisão or Emitido relatório shows "Relatório não encontrado." and never downloads it: `setup-surface.tsx` and `section-text-surface.tsx` lack `RelatorioGate`. Wrap them as the ficha, local, photos, points and Sumário surfaces are. e2e: a fresh device opens each deep link of an Em revisão relatório and sees the surface.
+17. **N5:** `apps/web/src/copy/pt-br.ts:30` promises "os relatórios já baixados neste aparelho continuam disponíveis após o login", which a sign-out now makes false. Smallest true change, marked `// authored: 2026-11-04, e20f (QA N5)`: "os relatórios ainda guardados neste aparelho continuam disponíveis após o login." Update any spec asserting the old sentence (grep `e2e/` and `apps/web`).
+18. **N7:** a telemetry event dated 2099 answers 204. In the ingest (`apps/api/src/http/telemetry.ts` / `apps/api/src/telemetry/sink.ts`), an event whose `ts` lies more than `CLOCK_SKEW_MS` past the server's clock is stored with the server's receive time instead (clamp, so a fast device loses no event); a kernel helper holds the rule. Test at the boundary (now + 10 min kept, now + 10 min + 1 ms clamped).
+
+Out of scope: N6 (dev-only origin wildcard).
+
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-04 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 14 findings — high 0, medium 3, low 8, false 3, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` ECH-1: the offset moving backward mid-session makes `now()` jump back, so later own ops sort before pending ones — patched: a kernel `monotonicNowMs` keeps the corrected clock non-decreasing within the session for a gap up to `CLOCK_SKEW_MS / 2`; past it the clock jumps (those pending stamps are refused anyway and "Reenviar" re-stamps them).
+  - `[low]` `[patch]` ECH-2: a round trip up to 5 min lets the estimate err by 2.5 min, more than the 60 s band — patched: no estimate when the round trip exceeds `CLOCK_OFFSET_TOLERANCE_MS`.
+  - `[medium]` `[patch]` ECH-3: on a slow clock a refused create's dependents stay dead `op_target_missing` with old stamps and sort before the re-stamped create — patched: `resendDead` re-stamps `op_attribution` and `op_target_missing` rows together in commit order.
+  - `[low]` `[reject]` ECH-4: an own bounded leaf more than 60 s from `client_ts` is not shifted — every own leaf the web writes is stamped in the same commit as its `client_ts` (milliseconds apart); unlikely, and the fix needs the relatório's creation on the device.
+  - `[low]` `[reject]` ECH-5: `op_attribution` also covers actor refusals, which get re-stamped too — such an op is refused again on resend unless its history claim now holds; re-stamping keeps the device's fold equal to the server's arrival order (Design Notes).
+  - `[low]` `[reject]` ECH-6: a stored offset goes stale when the device clock is fixed while offline — the first answer online re-learns it, and any refusal in between is recovered by "Reenviar"; a TTL adds state for a rare case.
+  - `[false]` `[reject]` ECH-7: a `*` record step in a reference pointer yields no ids — no entry of `REFERENCE_FIELDS` uses `*` (grep), so no check is skipped; latent only.
+  - `[low]` `[reject]` ECH-8: `fixtures/value-caps.ts` has no guard for zero items or negative content — a test helper called with fixed sizes in the boundary tests; no caller reaches it.
+  - `[low]` `[patch]` ECH-9: `relatorio.template_id` is exempt while the spec asked for a reference, and the `rules.ts` comment still lists the template — the exemption is kept as a narrowing (every reader drops an unknown template id; as a reference it needed template rows in about 25 api suites); patched the comment.
+  - `[false]` `[reject]` ECH-10: `restampOp` clamps a forged far-future instant to now, so it applies after "Reenviar" — the clamp runs in the honest client; the server still refuses every pushed instant past its bounds (S3 unchanged), and an attacker can push an in-bounds instant directly anyway.
+  - `[low]` `[patch]` ECH-11: no integration case for the brand file ids, a `feeds_block_id` created earlier in the push, or a null certificate — patched: one integration test covering them.
+  - `[medium]` `[patch]` VG-O1: same root cause as ECH-1 (backward offset reorders own ops, and a reference can be pushed before its create) — patched with ECH-1.
+  - `[low]` `[patch]` VG-O2: readings telemetry compares raw `Date.now()` with stamps from the corrected clock — patched: `observeReadingResults` and `markFileAcked` default to `now()` of `clock.ts`.
+  - `[false]` `[reject]` VG-O3: durations on `now()` jump once when the offset is learned — after the ECH-1 patch a backward move up to 5 min is held; a forward jump happens once per learned offset and only shortens one wake-lock idle or one reading poll interval; no user-visible harm found.
+  - Verification Gap Reviewer: no verification gaps in the traced behaviors.
 
 ## Design Notes
 
