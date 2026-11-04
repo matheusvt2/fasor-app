@@ -2,7 +2,7 @@
 title: 'Stories 20.11, 20.12 and 20.13: signing out clears the device, paid work has a ceiling, and the edges are closed (plus the deferred home.search target of 20.2)'
 type: 'feature'
 created: '2026-11-04'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'e1d60e368e205a98f6a4e4988aeb24fb77e53e4c'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -13,7 +13,14 @@ context:
   - '{project-root}/_bmad-output/test-artifacts/manual/security-pass-2026-11-03.md'
 warnings: ['batched', 'oversized']
 batched_because: 'the edge lane of wave B (security findings S2, S6, S7, S8): the three stories share apps/api/src/http/app.ts, copy/pt-br.ts and the sign-in/sign-out specs; the home.search target is a one-line deferral of 20.2 that e20s owned the file of'
-deferred: []
+deferred:
+  - summary: >-
+      The production wiring in apps/api/src/main.ts (the configured daily quotas, the telemetry per-user limit, the cached LibreOffice probe) is exercised by no test.
+    evidence: |-
+      Reverting `libreoffice: cachedProbe(probeLibreOffice)` or dropping `quotas:` fails nothing; main.ts is an untested entry point, and covering it means moving its option building into a testable function.
+    location: >-
+      apps/api/src/main.ts:120-131
+    severity: low
 ---
 
 <intent-contract>
@@ -126,6 +133,29 @@ deferred: []
 - Given the full unit, api and touched e2e suites, when run, then all are green; every changed test assertion is listed in the PR body.
 
 ## Spec Change Log
+
+## Review Triage Log
+
+### 2026-11-04 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer ran; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 16 findings — high 0, medium 7, low 8, false 1, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` VG-1 the sign-out's telemetry flush before `authClient.signOut()` is pinned by no test — a `session.test.tsx` call-order case.
+  - `[medium]` `[patch]` VG-2 the same-user sign-in clearing its pending wipe is untested; without it the next boot deletes a live database — a `session.test.tsx` case.
+  - `[medium]` `[patch]` VG-3 the pixel-limit sentence's two hops (`client.ts` `send` details, `sync-store.ts` `error_details`) are untested — two unit cases.
+  - `[low]` `[patch]` VG-4 the push re-target send under a configured quota is untested — a `quota.integration.test.ts` case.
+  - `[low]` `[defer]` VG-5 `main.ts` wiring (quotas, telemetry user limit, cached probe) untested — frontmatter `deferred`.
+  - `[low]` `[patch]` VG-O1 `app.ts` comment said `main.ts` turns `autoCleanupIncoming` off; it does not (measured unnecessary) — comment corrected by the orchestrator, `deferred-work.md` row closed with the measurement.
+  - `[medium]` `[patch]` VG-O2 `reading_refused` on the blob row is never cleared, so a later failure for another reason shows the daily-limit sentence — cleared on an accepted reread (grouped with ECH-6).
+  - `[low]` `[reject]` ECH-1 a queue outage after `consumeDailyQuota` spends a reading unit with no job — needs the pg-boss queue down at enqueue; a refund branch adds a write path for a rare case.
+  - `[low]` `[reject]` ECH-2 the same for an audit whose enqueue fails — same reason as ECH-1.
+  - `[false]` `[reject]` ECH-3 readings whose kind needs no AI still consume the quota — the DoR counts every reading ("400 readings including rereads"), and every kind runs the paid OCR provider in production.
+  - `[medium]` `[patch]` ECH-4 `unsentCount(db).catch(() => 0)` turns a failed count into "nothing pending" before the database delete — a failed count shows the pending confirm.
+  - `[medium]` `[patch]` ECH-5 the sign-out flush (`sync.syncNow()`) has no time bound, so "Saindo…" can last indefinitely — bounded wait.
+  - `[medium]` `[patch]` ECH-6 same root cause as VG-O2.
+  - `[low]` `[reject]` ECH-7 a refused telemetry batch still drains the per-device windows — only at the per-user ceiling of 2000 events a minute; reordering the limiters adds a two-phase check for no user-visible effect.
+  - `[low]` `[patch]` ECH-8 `TELEMETRY_USER_RATE_LIMIT_MAX` below `TELEMETRY_BATCH_MAX` refuses every full batch forever — `.min(TELEMETRY_BATCH_MAX)` in the config schema.
+  - `[low]` `[reject]` ECH-9 (claim) a 401 slower than `BOOT_SESSION_WAIT_MS` shows Home before Login — the spec's narrowing (2) on purpose: a slow link must not hold the field device on the splash; the late 401 still closes the database.
 
 ## Design Notes
 

@@ -151,7 +151,7 @@ export const TELEMETRY_BODY_LIMIT_BYTES = 256 * 1024;
  * header alone, before anything touches `c.req.raw.body`. Hono's `bodyLimit` reads `raw.body`
  * first, which under `@hono/node-server` makes the incoming body a stream that is never drained;
  * the socket was then reset under Caddy's still-writing proxy, which relayed a 502 instead of
- * this 413 (`main.ts` turns `autoCleanupIncoming` off so Node drains the unread body itself).
+ * this 413. Measured without and with this check: `.scratch-e20e/caddy/check413-session.mjs`.
  * A chunked body still goes through `bodyLimit`.
  */
 function bodyTooLarge(maxSize: number): MiddlewareHandler {
