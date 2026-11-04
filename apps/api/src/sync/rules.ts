@@ -40,11 +40,29 @@ import { editedAfter } from './edited-after.ts';
  * checked here (`applyOneIn` calls this for `origin: 'client'` only).
  */
 
+/**
+ * What the checks of one push learned of its relatórios, so a push of a few hundred ops naming
+ * the same relatório reads its row and its creation instant once: a relatório found to exist, and
+ * its creation instant once read. A relatório not found is never remembered (an earlier op of the
+ * same push may create it). Cleared when a batch's savepoint rolls back, since the rows it names
+ * may be gone (`applyOps`).
+ */
+export interface ClientCheckCache {
+  relatorios: Set<string>;
+  createdAt: Map<string, string>;
+}
+
+export function clientCheckCache(): ClientCheckCache {
+  return { relatorios: new Set(), createdAt: new Map() };
+}
+
 /** What `checkClientOp` reads besides the transaction. */
 export interface ClientCheckDeps {
   /** The rows `targetsOf(op)` names, loaded under the push's lock before the op is logged. */
   state: ReadonlyMap<EntityKey, EntityRow>;
   now: Clock;
+  /** The push's own cache (`clientCheckCache`); absent, every lookup reads the database. */
+  cache?: ClientCheckCache;
 }
 
 /** A pathed op (after the merge redirect), as `applyOneIn` holds it. */
@@ -61,7 +79,7 @@ interface Target {
  */
 export async function checkClientOp(tx: Tx, companyId: CompanyId, target: Target, deps: ClientCheckDeps): Promise<OpRejectCode | null> {
   const { op, path } = target;
-  if (!(await targetHolds(tx, companyId, op, path, deps.state))) return 'op_target_missing';
+  if (!(await targetHolds(tx, companyId, op, path, deps.state, deps.cache))) return 'op_target_missing';
 
   if (path.family === 'relatorio/status' && op.kind === 'put') {
     const code = await statusIssue(tx, companyId, op, deps.state);
@@ -76,7 +94,7 @@ export async function checkClientOp(tx: Tx, companyId: CompanyId, target: Target
   const responsible = responsibleUserIdOf(op, path);
   if (responsible !== null && !(await isCompanyUser(tx, companyId, responsible))) return 'op_value_invalid';
 
-  return attributionStateIssue(tx, companyId, op, path, deps.now);
+  return attributionStateIssue(tx, companyId, op, path, deps.now, deps.cache);
 }
 
 function relatorioOf(op: Op, state: ReadonlyMap<EntityKey, EntityRow>): RelatorioRow | undefined {
@@ -84,15 +102,19 @@ function relatorioOf(op: Op, state: ReadonlyMap<EntityKey, EntityRow>): Relatori
 }
 
 /** Story 20.10: the op's target exists in the relatório (or obra) it names. */
-async function targetHolds(tx: Tx, companyId: CompanyId, op: Op, path: OpPath, state: ReadonlyMap<EntityKey, EntityRow>): Promise<boolean> {
+async function targetHolds(tx: Tx, companyId: CompanyId, op: Op, path: OpPath, state: ReadonlyMap<EntityKey, EntityRow>, cache: ClientCheckCache | undefined): Promise<boolean> {
   const lookup = targetLookupOf(op, path);
   switch (lookup.kind) {
     case 'none':
       return true;
     case 'refused':
       return false;
-    case 'relatorio':
-      return (state.get(entityKey('relatorio', lookup.id)) ?? (await rowOf(tx, companyId, 'relatorio', lookup.id))) !== undefined;
+    case 'relatorio': {
+      if (cache?.relatorios.has(lookup.id) === true) return true;
+      const exists = (state.get(entityKey('relatorio', lookup.id)) ?? (await rowOf(tx, companyId, 'relatorio', lookup.id))) !== undefined;
+      if (exists) cache?.relatorios.add(lookup.id);
+      return exists;
+    }
     case 'row':
       return targetRowVerdict(op, lookup.entity, state.get(entityKey(lookup.entity, lookup.id))) === 'allowed';
   }
@@ -173,7 +195,7 @@ async function unchangedRevision(tx: Tx, companyId: CompanyId, relatorioId: stri
 }
 
 /** Story 20.8: the history claims and the lower bound of a client op's attribution. */
-async function attributionStateIssue(tx: Tx, companyId: CompanyId, op: Op, path: OpPath, now: Clock): Promise<OpRejectCode | null> {
+async function attributionStateIssue(tx: Tx, companyId: CompanyId, op: Op, path: OpPath, now: Clock, cache: ClientCheckCache | undefined): Promise<OpRejectCode | null> {
   const check = attributionIssue(op, path, now());
   // The stateless half refused this op already in the push route's validation.
   if (!check.ok) return 'op_attribution';
@@ -181,7 +203,11 @@ async function attributionStateIssue(tx: Tx, companyId: CompanyId, op: Op, path:
     if (!historyClaimHolds(claim, await historyOf(tx, companyId, op, claim))) return 'op_attribution';
   }
   if (check.pending.bounded.length === 0 || op.relatorio_id == null) return null;
-  const createdAt = await relatorioCreatedAt(tx, companyId, op.relatorio_id);
+  let createdAt = cache?.createdAt.get(op.relatorio_id) ?? null;
+  if (createdAt === null) {
+    createdAt = await relatorioCreatedAt(tx, companyId, op.relatorio_id);
+    if (createdAt !== null) cache?.createdAt.set(op.relatorio_id, createdAt);
+  }
   return createdAt !== null && lowerBoundIssue(check.pending.bounded, createdAt) !== null ? 'op_attribution' : null;
 }
 

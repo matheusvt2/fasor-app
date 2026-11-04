@@ -191,6 +191,9 @@ function inRange(value: number, range: Range): boolean {
   return value >= range.min && value <= range.max;
 }
 
+/** A dot-decimal `raw` (AD-11), signed: what a number value's range judges. */
+const PLAIN_DECIMAL = /^-?\d+(\.\d+)?$/;
+
 function ruleIssue(rule: ValueRule, value: unknown, where: string): string | null {
   switch (rule.kind) {
     case 'text':
@@ -209,8 +212,10 @@ function ruleIssue(rule: ValueRule, value: unknown, where: string): string | nul
       const cap = TEXT_CAPS.short;
       if (typeof raw === 'string' && raw.length > cap) return `${where}.raw holds ${raw.length} characters, over ${cap}`;
       if (typeof unit === 'string' && unit.length > cap) return `${where}.unit holds ${unit.length} characters, over ${cap}`;
-      if (rule.range === undefined || typeof raw !== 'string' || raw.trim() === '') return null;
-      const parsed = Number(raw);
+      // The range judges a raw that is a plain decimal number only: FO.SERV-03 also writes a bound
+      // ("<1000" m, the Porto Seguro relatório's AMBIENTE DE ENSAIO), which the kind keeps as typed.
+      if (rule.range === undefined || typeof raw !== 'string' || !PLAIN_DECIMAL.test(raw.trim())) return null;
+      const parsed = Number(raw.trim());
       return Number.isFinite(parsed) && inRange(parsed, rule.range) ? null : `${where}.raw ${raw} is outside ${rule.range.min} to ${rule.range.max}`;
     }
     case 'integer':

@@ -41,7 +41,7 @@ import type { CompanyId } from '../db/repositories/company-id.ts';
 import { entities, ops } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 import { log, logError, type LogFields } from '../log.ts';
-import { checkClientOp } from './rules.ts';
+import { checkClientOp, clientCheckCache, type ClientCheckCache } from './rules.ts';
 import { serverOp } from './server-op.ts';
 import { templateSeedDecision, templateSeedMoveOp } from './template-seed-step.ts';
 
@@ -256,6 +256,8 @@ interface Refused {
 interface ApplyContext {
   origin: ApplyDeps['origin'];
   now: Clock;
+  /** What the client checks of this push learned of its relatórios (`clientCheckCache`). */
+  checks?: ClientCheckCache;
 }
 
 /** A server op is never refused by a rule (`applyOneIn` checks client ops only). */
@@ -516,7 +518,7 @@ async function applyOneIn(
       if (seq !== undefined) return { seq, supersededOver: null };
       throw readingRefusal;
     }
-    const code = await checkClientOp(tx, companyId, target, { state, now: context.now });
+    const code = await checkClientOp(tx, companyId, target, { state, now: context.now, ...(context.checks === undefined ? {} : { cache: context.checks }) });
     if (code !== null) {
       const seq = await loggedSeq();
       if (seq !== undefined) return { seq, supersededOver: null };
@@ -760,7 +762,7 @@ export async function applyOps(
     const rawId = (raw as { op_id?: unknown } | null)?.op_id;
     return { ok: false, op_id: typeof rawId === 'string' ? rawId : '', code: validation.code, ...(validation.alone === true ? { alone: true as const } : {}), batch_id };
   });
-  const context: ApplyContext = { origin: deps.origin, now: deps.now };
+  const context: ApplyContext = { origin: deps.origin, now: deps.now, checks: clientCheckCache() };
   const result: ApplyResult = { applied: [], rejected: [], superseded: [] };
   // The steps of each batch that has more than one op in this push, in array order.
   const groups = new Map<string, Step[]>();
@@ -818,8 +820,9 @@ export async function applyOps(
         }
       });
     } catch (error) {
-      // The savepoint rolled back what the batch wrote, rows the registry cache may name.
+      // The savepoint rolled back what the batch wrote, rows the registry cache and the client checks' cache may name.
       cache.clear();
+      context.checks = clientCheckCache();
       if (!(error instanceof BatchRefusedError)) throw error;
       refuseAll(group, ruled);
       return;

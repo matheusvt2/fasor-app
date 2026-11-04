@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { opLog as portoSeguroLog } from '../../fixtures/porto-seguro/op-log.ts';
+import { opLog as portoSeguroSmallLog } from '../../fixtures/porto-seguro/small/op-log.ts';
+import { opLog as replaySmallLog } from '../../fixtures/replay-small/op-log.ts';
 import { FUNCAO_MAX_LENGTH } from '../schemas/block-config.ts';
 import { NC_PHRASE_MAX_LENGTH, RELATORIO_SETUP_KEYS } from '../schemas/entities.ts';
 import { opSchema, type Op } from './op.ts';
@@ -58,6 +61,18 @@ describe('FAMILY_VALUE_RULES (Story 20.9)', () => {
   it('a server-only family has no value rule of its own (the push route refuses it before)', () => {
     for (const def of FAMILIES) {
       if (def.serverOnly === true) expect(FAMILY_VALUE_RULES[def.family], def.family).toEqual({ kind: 'server_only' });
+    }
+  });
+
+  it('the caps fit real data: every op of the Porto Seguro relatório (delivered), its small cut and the replay fixture passes', () => {
+    for (const [name, log] of [
+      ['porto-seguro', portoSeguroLog],
+      ['porto-seguro/small', portoSeguroSmallLog],
+      ['replay-small', replaySmallLog],
+    ] as const) {
+      const refused = log.filter((op) => opValueIssue(op, parsePath(op.path)) !== null).map((op) => `${op.path}: ${opValueIssue(op, parsePath(op.path))}`);
+      expect(refused, name).toEqual([]);
+      expect(log.length, name).toBeGreaterThan(0);
     }
   });
 
@@ -148,6 +163,8 @@ describe('opValueIssue: types and ranges (Story 20.9)', () => {
     expect(issue(put(`location/${LOCATION}/env/altitude_m`, value('-501')))).not.toBeNull();
     expect(issue(put(`location/${LOCATION}/env/altitude_m`, value('9001')))).not.toBeNull();
     expect(issue(put(`location/${LOCATION}/env/altitude_m`, { raw: '', unit: null, state: 'not_applicable' }))).toBeNull();
+    // Real data: the Porto Seguro relatório's AMBIENTE DE ENSAIO writes a bound, "<1000" m; the range judges plain numbers only.
+    expect(issue(put(`location/${LOCATION}/env/altitude_m`, value('<1000')))).toBeNull();
     expect(issue(put(`location/${LOCATION}/se/primary_kv`, value('13.8')))).toBeNull();
     expect(issue(put(`location/${LOCATION}/se/primary_kv`, value(chars(201))))).not.toBeNull();
     expect(issue(put(`location/${LOCATION}/env/temperature_c`, { raw: '25', unit: chars(201), state: 'measured' }))).not.toBeNull();

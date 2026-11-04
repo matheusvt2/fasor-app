@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { opLog as portoSeguroLog } from '../../fixtures/porto-seguro/op-log.ts';
+import { opLog as portoSeguroSmallLog } from '../../fixtures/porto-seguro/small/op-log.ts';
+import { opLog as replaySmallLog } from '../../fixtures/replay-small/op-log.ts';
 import { isoTimestampSchema } from '../clock.ts';
 import { actorIdSchema } from '../ids.ts';
 import { entityRowSchemas } from '../schemas/entities.ts';
@@ -213,6 +216,30 @@ describe('attributionIssue (Story 20.8)', () => {
   it('a cleared mark (null) names no one, and a remove carries its client_ts only', () => {
     expect(check(op({ kind: 'put', path: `block/${BLOCK}/concluded_by`, value: null }))).toEqual({ ok: true, pending: { history: [], bounded: [NOW_ISO] } });
     expect(check(op({ kind: 'remove', path: `block/${BLOCK}/removed_at` }))).toEqual({ ok: true, pending: { history: [], bounded: [NOW_ISO] } });
+  });
+});
+
+describe('attributionIssue over real data (Story 20.8)', () => {
+  it('every op of the Porto Seguro relatório, its small cut and the replay fixture passes, naming no colleague, each instant after its relatório\'s creation', () => {
+    for (const [name, log] of [
+      ['porto-seguro', portoSeguroLog],
+      ['porto-seguro/small', portoSeguroSmallLog],
+      ['replay-small', replaySmallLog],
+    ] as const) {
+      const created = new Map(log.filter((o) => o.kind === 'create' && o.path === `relatorio/${o.relatorio_id}`).map((o) => [o.relatorio_id!, o.client_ts]));
+      const problems: string[] = [];
+      for (const o of log) {
+        const result = attributionIssue(o, parsePath(o.path), new Date());
+        if (!result.ok) problems.push(`${o.path}: ${result.issue}`);
+        else if (result.pending.history.length > 0) problems.push(`${o.path}: names ${result.pending.history.map((claim) => claim.actorId).join(', ')}`);
+        else {
+          const at = o.relatorio_id == null ? undefined : created.get(o.relatorio_id);
+          const lower = at === undefined ? null : lowerBoundIssue(result.pending.bounded, at);
+          if (lower !== null) problems.push(`${o.path}: ${lower}`);
+        }
+      }
+      expect(problems, name).toEqual([]);
+    }
   });
 });
 
