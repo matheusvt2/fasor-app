@@ -13,7 +13,21 @@ context:
   - '{project-root}/_bmad-output/test-artifacts/manual/security-pass-2026-11-03.md'
 warnings: ['batched', 'oversized']
 batched_because: 'all four stories change the server per-op validation (apps/api/src/sync/apply.ts validate and the apply transaction), packages/domain/src/contract/errors.ts and one new spec, e2e/security-ops.spec.ts'
-deferred: []
+deferred:
+  - summary: >-
+      An op refused op_attribution because the device clock ran more than 10 min behind the relatorio's creation is resent with the same client_ts and refused again on every resend.
+    evidence: |-
+      apps/web/src/db/sync-store.ts resends dead rows unchanged; re-stamping client_ts on resend changes what the op says, a product choice for Matheus.
+    location: >-
+      apps/web/src/db/sync-store.ts
+    severity: medium
+  - summary: >-
+      A create or put that copies a stored value already over its new cap (template save, copy from the last visit) is refused op_value_invalid.
+    evidence: |-
+      Real only if production holds values over a cap; the read-only count query in the PR body settles it.
+    location: >-
+      packages/domain/src/ops/value-limits.ts
+    severity: medium (unverified)
 ---
 
 <intent-contract>
@@ -107,9 +121,33 @@ deferred: []
 - Given a device whose status op was refused, when it next pulls, then its relatório shows the server's status, and Sync status shows "1 alteração rejeitada" with the code's sentence.
 - Given a push backlog over 4 MiB, when the device flushes, then it sends several pushes under the cap and none answers 413.
 
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-11-03 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer ran; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 15 findings — high 1, medium 8, low 5, false 0, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` ECH-1 `apps/web/src/sync/policy.ts` slices of a unit over 500 ops are cut by count only, not bytes — patch: byte-check those slices; a single client batch over 4 MiB alone stays a known risk (`deferred-work.md`, accepted).
+  - `[low]` `[reject]` ECH-2 a re-sent op the log already holds is refused by a stateless check before the dedupe — needs a value over cap applied before contract 29 plus a lost answer across the deploy; a contract-29 op passes the same checks again.
+  - `[medium]` `[patch]` ECH-3 `rules.ts` creation instant is the creator's `client_ts`, itself up to 10 min fast — patch: the earlier of `client_ts` and `received_at`.
+  - `[medium]` `[defer]` ECH-4 an op refused `op_attribution` for a slow clock is resent with the same `client_ts` and refused forever — re-stamping on resend is a product choice; deferred to Matheus.
+  - `[maybe-false]` `[defer]` ECH-5 a copy of a stored value already over its cap is refused — medium if true; settled by the production count query in the PR body.
+  - `[medium]` `[patch]` ECH-6 `targets.ts` creates carrying `project_id` are not checked against an existing project — patch: `op_target_missing`.
+  - `[medium]` `[patch]` ECH-7 references carried in a value (`location_id`, `block_id`, `equipment_id`) are not checked to exist in the op's relatório — patch: `op_value_invalid`, with the e20w relink integration test.
+  - `[low]` `[patch]` ECH-8 `rules.ts` history lookup capped at 100 ops misses an older matching value — patch: cap removed or filtered in SQL.
+  - `[medium]` `[patch]` ECH-9 (claim) the 4 MiB AC fails for a large size chunk — same root cause and patch as ECH-1.
+  - `[low]` `[reject]` ECH-10 (claim) resend across the deploy — same as ECH-2.
+  - `[medium]` `[patch]` VG-1 the engine's byte split is never exercised through `engine.ts` — patch: an `engine.test.ts` case.
+  - `[medium]` `[patch]` VG-2 the `same_relatorio_actor` history branch never runs with a colleague named — patch: an `attribution.integration.test.ts` case.
+  - `[high]` `[patch]` VG-3 the undo of a refused (never logged) status op falls back to seen = server status and can move Emitido back to Rascunho — patch: a non-null `prev_op_id` that names no logged status op of the relatório is refused `op_status_transition`.
+  - `[low]` `[patch]` VG-4 `opRejectReasonText('op_forbidden')` speaks only of removing an Emitido relatório, also shown for another user's row refusal — patch: a general sentence.
+  - `[low]` `[reject]` VG-5 resend before dedupe — same as ECH-2.
+
 ## Design Notes
 
-**Status verdict (20.7).** `statusMoveVerdict({server, seen, to, issueJobSinceLastStatus, unchangedRevision, hasRevision})`. `seen` is the status the device saw: the value of the op named by `prev_op_id` when the server log holds it on that relatório's `relatorio/status`, `rascunho` when `prev_op_id` is null (a relatório is born `rascunho`), else `server`. The device's intent is backward when `manualMove(seen, to)` is non-null; a backward intent is always allowed (AD-22, including Emitido to Em revisão on edit and every Desfazer that steps back). `to === server` is allowed (an idempotent duplicate, e.g. two devices completing setup). Otherwise the intent is forward and must be a forward row from the server's status: some event with `statusTable(server, event) === to`, plus: to `em_revisao` from `rascunho`/`em_campo` needs `issueJobSinceLastStatus` (an issue `generation_job` create whose seq is greater than the relatório's latest status op seq; no status op yet counts as seq 0) or `unchangedRevision` (a latest revision exists and `editedAfter(latest.snapshot_seq)` is false: the server's `unchanged` answer, which `advanceOnGenerate` also turns into Em revisão); to `emitido` needs `server === 'em_revisao'` and `hasRevision`. The two-device case then refuses B in both orders (seen Rascunho, to Em campo is forward; from Em revisão or Emitido it is no row). Only compute the job and revision facts when the verdict needs them.
+**Status verdict (20.7).** `statusMoveVerdict({server, seen, to, issueJobSinceLastStatus, unchangedRevision, hasRevision})`. `seen` is the status the device saw: the value of the op named by `prev_op_id` when the server log holds it on that relatório's `relatorio/status`, `rascunho` when `prev_op_id` is null (a relatório is born `rascunho`), ~~else `server`~~ *(review pass 2026-11-03, VG-3: a non-null `prev_op_id` that names no logged status op of the relatório is refused `op_status_transition`)*. The device's intent is backward when `manualMove(seen, to)` is non-null; a backward intent is always allowed (AD-22, including Emitido to Em revisão on edit and every Desfazer that steps back). `to === server` is allowed (an idempotent duplicate, e.g. two devices completing setup). Otherwise the intent is forward and must be a forward row from the server's status: some event with `statusTable(server, event) === to`, plus: to `em_revisao` from `rascunho`/`em_campo` needs `issueJobSinceLastStatus` (an issue `generation_job` create whose seq is greater than the relatório's latest status op seq; no status op yet counts as seq 0) or `unchangedRevision` (a latest revision exists and `editedAfter(latest.snapshot_seq)` is false: the server's `unchanged` answer, which `advanceOnGenerate` also turns into Em revisão); to `emitido` needs `server === 'em_revisao'` and `hasRevision`. The two-device case then refuses B in both orders (seen Rascunho, to Em campo is forward; from Em revisão or Emitido it is no row). Only compute the job and revision facts when the verdict needs them.
 
 **Attribution (20.8).** `ATTRIBUTED_FIELDS` lists, per family and value pointer, the actor-id and instant leaves: `block/field` `concluded_by.{actor_id, at}`, `not_tested.{by, at}`; the `block` create's `concluded_by` and `not_tested`; `meta.restore.removed_by` and `meta.restore.removal_conflict.{removed_by, edited_by, removed_at, edited_at}` on `block/{id}/removed_at`; and every other instant or actor field of a client-writable value or create row (removed_at puts, `captured_at`, `created_at`, `issued_at`, dates kept as dates are not instants), each with `actor: 'op'|'history'|'none'` and `instant: 'bounded'|'future'|'exempt'` plus a one-line reason for each exemption (a photo's `captured_at` from the gallery predates the relatório: future bound only). Rule: an actor leaf must equal `op.actor_id`, or (history) be the actor of an earlier logged op on the same path whose value holds the same leaf (the Desfazer of a colleague's conclusion or removal); a bounded instant and every op's `client_ts` are at most `now + CLOCK_SKEW_MS` and, for an op naming a relatório, at least its creation instant minus `CLOCK_SKEW_MS`. Guard test: walk the zod shapes in `schemas/entities.ts` and `ops/op.ts` (unwrapping optional, nullable, default; objects and one level of records) and fail when a leaf whose schema is `actorIdSchema` or `isoTimestampSchema` has no table entry.
 
