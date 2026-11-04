@@ -132,6 +132,12 @@ function relatorioCreate(relatorioId: string, projectId: string, seedVersion: st
   });
 }
 
+/** Story 20.10 (review): the obra a relatório and its equipment are filed under, created first. */
+function projectCreate(projectId: string): Op {
+  written.entityIds.add(projectId);
+  return op({ scope: 'company', kind: 'create', path: `project/${projectId}`, value: { id: projectId, client_id: null, name: 'Obra v7', site: null, removed_at: null } });
+}
+
 function localCreate(relatorioId: string, id: string): Op {
   written.entityIds.add(id);
   return op({
@@ -221,7 +227,7 @@ async function rowOfEntity(entity: string, id: string): Promise<unknown> {
 
 async function relatorio(seedVersion: string) {
   const ids = { relatorio: newId(), project: newId(), local: newId() };
-  const log = [relatorioCreate(ids.relatorio, ids.project, seedVersion), localCreate(ids.relatorio, ids.local)];
+  const log = [projectCreate(ids.project), relatorioCreate(ids.relatorio, ids.project, seedVersion), localCreate(ids.relatorio, ids.local)];
   const result = await pushOk(log);
   expect(result.rejected).toEqual([]);
   return { ...ids, log };

@@ -727,10 +727,14 @@ function photoCreate(ids: Ids, relatorioId: string, bytes: Uint8Array, mime = 'i
 
 /**
  * Story 20.10 (contract 29): a relatório-scope file lands in a relatório the company holds, so the
- * photo's relatório is created in the same push, before the photo (a Rascunho with no content).
+ * photo's relatório is created in the same push, before the photo (a Rascunho with no content),
+ * under an obra created first (review: a relatório create names an obra of the company).
  */
-function relatorioCreate(ids: Ids, relatorioId: string): Op {
+function relatorioCreate(ids: Ids, relatorioId: string): Op[] {
+  const projectId = newId();
+  written.entityIds.add(projectId);
   written.entityIds.add(relatorioId);
+  const project = op(ids, { kind: 'create', scope: 'company', path: `project/${projectId}`, value: { id: projectId, client_id: null, name: 'Obra das fotos', site: null, removed_at: null } });
   const built = op(ids, {
     kind: 'create',
     scope: 'relatorio',
@@ -738,7 +742,7 @@ function relatorioCreate(ids: Ids, relatorioId: string): Op {
     path: `relatorio/${relatorioId}`,
     value: {
       id: relatorioId,
-      project_id: newId(),
+      project_id: projectId,
       template_id: null,
       template_version: null,
       seed_version: 'v1',
@@ -749,8 +753,9 @@ function relatorioCreate(ids: Ids, relatorioId: string): Op {
       removed_at: null,
     },
   });
+  written.opIds.add(project.op_id);
   written.opIds.add(built.op_id);
-  return built;
+  return [project, built];
 }
 
 async function jpegBytes(width: number, height: number): Promise<Uint8Array> {
@@ -771,7 +776,7 @@ describe('6.2-API-001 a photo through the sync route and PUT', () => {
     expect(early.status).toBe(409);
     expect(errorResponseSchema.parse(await early.json()).code).toBe('file_row_missing');
 
-    await pushOk(companyA, [relatorioCreate(idsA, relatorioId), createOp]);
+    await pushOk(companyA, [...relatorioCreate(idsA, relatorioId), createOp]);
     const first = await put(companyA, id, bytes);
     expect(first.status, await first.clone().text()).toBe(200);
     const body = filePutResponseSchema.parse(await first.json());
@@ -814,7 +819,7 @@ describe('6.2-API-001 a photo through the sync route and PUT', () => {
     const png = await pngBytes();
     const relatorioId = newId();
     const { id, op: createOp } = photoCreate(idsA, relatorioId, png, 'image/png');
-    await pushOk(companyA, [relatorioCreate(idsA, relatorioId), createOp]);
+    await pushOk(companyA, [...relatorioCreate(idsA, relatorioId), createOp]);
     const res = await put(companyA, id, png);
     expect(res.status).toBe(400);
     expect(errorResponseSchema.parse(await res.json()).code).toBe('file_kind_invalid');

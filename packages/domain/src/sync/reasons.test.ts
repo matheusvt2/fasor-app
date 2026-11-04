@@ -13,7 +13,8 @@ describe('opRejectReasonText', () => {
     expect(opRejectReasonText('op_attribution')).toBe('Alteração recusada: o autor ou a data não conferem com o servidor. Confira a data e a hora deste aparelho.');
     expect(opRejectReasonText('op_value_invalid')).toBe('Alteração recusada: um valor passa do tamanho ou do tipo que o campo aceita.');
     expect(opRejectReasonText('op_target_missing')).toBe('Alteração recusada: o item alterado não existe neste relatório no servidor.');
-    expect(opRejectReasonText('op_forbidden')).toBe('Alteração recusada: um relatório emitido só pode ser removido depois de voltar para Em revisão.');
+    // Review: `op_forbidden` also refuses a write to another user's own row, so its sentence names both.
+    expect(opRejectReasonText('op_forbidden')).toBe('Alteração recusada: o servidor não permite esta alteração, como remover um relatório emitido ou mudar o cadastro de outra pessoa.');
     for (const code of ['op_invalid', 'op_path_unknown', 'op_server_only', 'op_tenant_mismatch', null, undefined, 'internal_error']) {
       expect(opRejectReasonText(code), String(code)).toBeNull();
     }

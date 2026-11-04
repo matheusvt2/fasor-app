@@ -236,11 +236,17 @@ describe('statusMoveFacts (Story 20.7)', () => {
 });
 
 describe('statusSeen (Story 20.7)', () => {
-  it('reads the value of the op prev_op_id names, Rascunho with no prev_op_id, and the server status for an op the log does not hold', () => {
-    expect(statusSeen({ prevOpId: null, logged: undefined, server: 'em_revisao' })).toBe('rascunho');
-    expect(statusSeen({ prevOpId: '019966c1-0000-7000-8000-000000000001', logged: 'emitido', server: 'em_campo' })).toBe('emitido');
-    expect(statusSeen({ prevOpId: '019966c1-0000-7000-8000-000000000001', logged: undefined, server: 'em_campo' })).toBe('em_campo');
-    expect(statusSeen({ prevOpId: '019966c1-0000-7000-8000-000000000001', logged: 'arquivado', server: 'em_campo' })).toBe('em_campo');
+  it('reads the value of the op prev_op_id names, and Rascunho with no prev_op_id', () => {
+    expect(statusSeen({ prevOpId: null, logged: undefined })).toBe('rascunho');
+    expect(statusSeen({ prevOpId: '019966c1-0000-7000-8000-000000000001', logged: 'emitido' })).toBe('emitido');
+  });
+
+  it('review: a prev_op_id the log does not hold (a refused status op) gives no basis, so the move is refused', () => {
+    expect(statusSeen({ prevOpId: '019966c1-0000-7000-8000-000000000001', logged: undefined })).toBeNull();
+    expect(statusSeen({ prevOpId: '019966c1-0000-7000-8000-000000000001', logged: 'arquivado' })).toBeNull();
+    // The case: the server holds Emitido, refused a stale Em campo, and gets that op's "Desfazer" back to Rascunho.
+    // With the server's status as the basis it would read as a backward move from Emitido and apply.
+    expect(statusMoveVerdict({ seen: 'emitido', server: 'emitido', to: 'rascunho' })).toBe('allowed');
   });
 });
 

@@ -226,8 +226,9 @@ export function opRejectReasonText(code: string | null | undefined): string | nu
       // authored: 2026-11-03, Story 20.10.
       return 'Alteração recusada: o item alterado não existe neste relatório no servidor.';
     case 'op_forbidden':
-      // authored: 2026-11-03, Story 20.10.
-      return 'Alteração recusada: um relatório emitido só pode ser removido depois de voltar para Em revisão.';
+      // authored: 2026-11-03, Story 20.10 (review): both refusals of the code, the removal of an
+      // Emitido relatório and a write to another user's own row (`user/{id}`).
+      return 'Alteração recusada: o servidor não permite esta alteração, como remover um relatório emitido ou mudar o cadastro de outra pessoa.';
     default:
       return null;
   }

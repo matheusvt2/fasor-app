@@ -118,6 +118,29 @@ export function batches<T extends { batch_id?: string | null }>(items: readonly 
   }
   // Each item costs its bytes plus the comma that separates it from the next one.
   const bytesOf = (unit: readonly T[]) => (budget === undefined ? 0 : unit.reduce((sum, item) => sum + budget.of(item) + 1, 0));
+  /**
+   * Review: a count slice of a batch over `size` ops, cut again so each push stays under the byte
+   * budget (such a batch is split already, so bytes may split it further); an op alone over the
+   * budget stays in a push of its own.
+   */
+  const byBytes = (slice: T[]): T[][] => {
+    if (budget === undefined) return [slice];
+    const pushes: T[][] = [];
+    let pending: T[] = [];
+    let pendingBytes = 0;
+    for (const item of slice) {
+      const cost = budget.of(item) + 1;
+      if (pending.length > 0 && PUSH_ENVELOPE_BYTES + pendingBytes + cost > budget.max) {
+        pushes.push(pending);
+        pending = [];
+        pendingBytes = 0;
+      }
+      pending.push(item);
+      pendingBytes += cost;
+    }
+    if (pending.length > 0) pushes.push(pending);
+    return pushes;
+  };
   const out: T[][] = [];
   let current: T[] = [];
   let currentBytes = 0;
@@ -130,7 +153,7 @@ export function batches<T extends { batch_id?: string | null }>(items: readonly 
       currentBytes = 0;
     }
     if (unit.length > size) {
-      for (let i = 0; i < unit.length; i += size) out.push(unit.slice(i, i + size));
+      for (let i = 0; i < unit.length; i += size) out.push(...byBytes(unit.slice(i, i + size)));
       continue;
     }
     current.push(...unit);

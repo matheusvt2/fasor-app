@@ -219,8 +219,9 @@ describe('Story 20.7: a refused status op does not roll back its batch', () => {
     return makeOp({ company_id: companyId, actor_id: ACTOR, device_id: DEVICE, project_id: null, prev_op_id: null, meta: null, ...input }, { newId, now: now() });
   }
 
-  /** A Rascunho relatório and one block, created as a device creates them; then the server holds `status`. */
+  /** A Rascunho relatório of a new obra and one block, created as a device creates them; then the server holds `status`. */
   async function relatorioAt(status: 'em_revisao' | 'rascunho'): Promise<{ relatorioId: string; blockId: string }> {
+    const projectId = newId();
     const relatorioId = newId();
     const blockId = newId();
     const created = await applyOps(
@@ -229,13 +230,21 @@ describe('Story 20.7: a refused status op does not roll back its batch', () => {
       [
         clientOp({
           kind: 'create',
+          scope: 'company',
+          relatorio_id: null,
+          batch_id: null,
+          path: `project/${projectId}`,
+          value: { id: projectId, client_id: null, name: 'Obra do lote', site: null, removed_at: null },
+        }),
+        clientOp({
+          kind: 'create',
           scope: 'relatorio',
           relatorio_id: relatorioId,
           batch_id: null,
           path: `relatorio/${relatorioId}`,
           value: {
             id: relatorioId,
-            project_id: newId(),
+            project_id: projectId,
             template_id: null,
             template_version: null,
             seed_version: 'v1',

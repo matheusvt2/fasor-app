@@ -140,6 +140,12 @@ function relatorioCreate(relatorioId: string, projectId: string, seedVersion: st
   });
 }
 
+/** Story 20.10 (review): the obra a relatório and its equipment are filed under, created first. */
+function projectCreate(projectId: string): Op {
+  written.entityIds.add(projectId);
+  return op({ scope: 'company', kind: 'create', path: `project/${projectId}`, value: { id: projectId, client_id: null, name: 'Obra v6', site: null, removed_at: null } });
+}
+
 function localCreate(relatorioId: string, id: string): Op {
   written.entityIds.add(id);
   return op({
@@ -234,7 +240,7 @@ async function storedIds(candidates: string[]): Promise<Set<string>> {
 
 async function relatorio(seedVersion: string) {
   const ids = { relatorio: newId(), project: newId(), local: newId() };
-  const log = [relatorioCreate(ids.relatorio, ids.project, seedVersion), localCreate(ids.relatorio, ids.local)];
+  const log = [projectCreate(ids.project), relatorioCreate(ids.relatorio, ids.project, seedVersion), localCreate(ids.relatorio, ids.local)];
   const result = await pushOk(log);
   expect(result.rejected).toEqual([]);
   return { ...ids, log };
@@ -292,6 +298,8 @@ describe('Stories 14.9 and 14.11 (contract 21): seed v6 through POST /api/sync/o
     const refused = blockCreates(t, QD, 'v5');
     const bornOnV6 = blockCreates(t, QD, 'v6');
     const good = blockCreates(t, 'chave_transferencia_automatica', 'v5');
+    // Story 20.10 (review): the equipment a block create names exists in the obra, as the palette writes it first.
+    expect((await pushOk([refused.equipment, bornOnV6.equipment, good.equipment])).rejected).toEqual([]);
     const batch = [refused.block, bornOnV6.block, good.block];
     const result = await pushOk(batch);
     expect(result.rejected).toEqual([

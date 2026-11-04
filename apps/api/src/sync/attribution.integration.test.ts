@@ -22,7 +22,8 @@ const at = (offsetMs: number) => new Date(Date.now() + offsetMs);
 beforeAll(() => h.setup(), 60_000);
 afterAll(() => h.cleanup());
 
-type BlockRowLike = { concluded_by: { actor_id: string; at: string } | null; not_tested: unknown; removed_at: string | null };
+type RemovalConflict = { removed_by: string | null; removed_at: string; edited_by: string | null; edited_at: string | null };
+type BlockRowLike = { concluded_by: { actor_id: string; at: string } | null; not_tested: unknown; removed_at: string | null; removal_conflict?: RemovalConflict | null };
 const blockOf = (id: string) => h.rowOf<BlockRowLike>(companyA, 'block', id);
 
 describe('S3: a value naming another actor than the op\'s', () => {
@@ -96,6 +97,38 @@ describe('S3: a value naming another actor than the op\'s', () => {
     expect((await h.push(companyA, [undoKeep])).rejected).toEqual([]);
     expect((await blockOf(blocks[1]!.id))?.removed_at).toBe(removedAt);
   });
+
+  it('review: the undo of "Manter" puts back a removal conflict naming the colleague who edited the block, whose edit the relatório logs', async () => {
+    const { relatorioId, blocks } = await h.seedRelatorio(companyA);
+    const block = blocks[0]!.id;
+    // The colleague edits the sheet on their own device; this user, who never saw that edit, removes the block.
+    const edit = h.clientOp(companyA, { kind: 'put', path: `sheet/${block}/observations`, relatorio_id: relatorioId, value: 'Editado pelo colega', actor_id: COLLEAGUE, device_id: COLLEAGUE_DEVICE });
+    await h.serverApply(companyA, [edit]);
+    const removedAt = new Date().toISOString();
+    const removal = h.clientOp(companyA, { kind: 'put', path: `block/${block}/removed_at`, relatorio_id: relatorioId, value: removedAt, meta: { seen_modified_at: null } });
+    expect((await h.push(companyA, [removal])).rejected).toEqual([]);
+    const mark = (await blockOf(block))?.removal_conflict;
+    expect(mark).toMatchObject({ removed_by: companyA.userId, edited_by: COLLEAGUE });
+    // "Manter" clears the mark; its "Desfazer" carries the removal and the mark back (`meta.restore`).
+    const keep = h.clientOp(companyA, { kind: 'put', path: `block/${block}/removed_at`, relatorio_id: relatorioId, value: null, prev_op_id: removal.op_id });
+    expect((await h.push(companyA, [keep])).rejected).toEqual([]);
+    expect((await blockOf(block))?.removal_conflict ?? null).toBeNull();
+    const undo = (editedBy: string) =>
+      h.clientOp(companyA, {
+        kind: 'put',
+        path: `block/${block}/removed_at`,
+        relatorio_id: relatorioId,
+        value: removedAt,
+        prev_op_id: keep.op_id,
+        meta: { restore: { removed_by: companyA.userId, removal_conflict: { ...mark!, edited_by: editedBy } } },
+      });
+    // An editor with no op in the relatório is refused; the colleague whose edit it logs is applied.
+    const stranger = undo(newId());
+    expect((await h.push(companyA, [stranger])).rejected).toEqual([{ op_id: stranger.op_id, code: 'op_attribution' }]);
+    const restore = undo(COLLEAGUE);
+    expect((await h.push(companyA, [restore])).rejected).toEqual([]);
+    expect(await blockOf(block)).toMatchObject({ removed_at: removedAt, removal_conflict: mark });
+  });
 });
 
 describe('S3 clock: an instant past the server\'s clock or before the relatório\'s creation', () => {
@@ -127,6 +160,19 @@ describe('S3 clock: an instant past the server\'s clock or before the relatório
       { op_id: backdated.op_id, code: 'op_attribution' },
     ]);
     expect(result.applied.map((a) => a.op_id)).toEqual([nineBefore.op_id]);
+  });
+
+  it('review: the creation instant is the earlier of the create\'s client_ts and its receipt, so a creator\'s fast clock moves no bound', async () => {
+    // The creating device runs 9 minutes fast (accepted, under the 10-minute skew).
+    const { relatorioId, blocks } = await h.seedRelatorio(companyA, at(CLOCK_SKEW_MS - MINUTE));
+    const observation = (when: Date) => h.clientOp(companyA, { kind: 'put', path: `sheet/${blocks[0]!.id}/observations`, relatorio_id: relatorioId, value: 'Relógio atrasado' }, when);
+    // A clock 5 minutes slow, right after the receipt: within the bound of the receipt, though 14
+    // minutes before the creator's client_ts. Eleven minutes before the receipt stays refused.
+    const fiveBefore = observation(at(-5 * MINUTE));
+    const elevenBefore = observation(at(-(CLOCK_SKEW_MS + MINUTE)));
+    const result = await h.push(companyA, [fiveBefore, elevenBefore]);
+    expect(result.rejected).toEqual([{ op_id: elevenBefore.op_id, code: 'op_attribution' }]);
+    expect(result.applied.map((a) => a.op_id)).toEqual([fiveBefore.op_id]);
   });
 
   it('offline two days: ops two days old, after the relatório\'s creation, apply, and section 9 prints their dates', async () => {

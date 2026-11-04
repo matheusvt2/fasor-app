@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { opSchema, type Op } from './op.ts';
 import { parsePath } from './path.ts';
-import { responsibleUserIdOf, targetLookupOf, targetRowVerdict } from './targets.ts';
+import { createProjectOf, referenceRowVerdict, responsibleUserIdOf, targetLookupOf, targetRowVerdict, valueReferencesOf } from './targets.ts';
 import type { EntityRow } from '../schemas/entities.ts';
 
 /*
@@ -88,6 +88,54 @@ describe('targetRowVerdict (Story 20.10)', () => {
   it('the relatório itself, for an implicit family, is its own relatório', () => {
     const local = op({ kind: 'put', path: 'relatorio/setup/local', value: 'x' });
     expect(targetRowVerdict(local, 'relatorio', { id: R1, project_id: PROJECT } as unknown as EntityRow)).toBe('allowed');
+  });
+});
+
+describe('createProjectOf (Story 20.10, review)', () => {
+  it('names the obra an equipment or a relatório create files its row under, and nothing for any other op', () => {
+    const equipment = op({ kind: 'create', scope: 'project', relatorio_id: null, project_id: PROJECT, path: `equipment/${EQUIPMENT}`, value: { id: EQUIPMENT, project_id: PROJECT, tag: 'TR-01', type: 'transformador_forca', last_nameplate: null, removed_at: null } });
+    expect(createProjectOf(equipment, parsePath(equipment.path))).toBe(PROJECT);
+    const relatorio = op({
+      kind: 'create',
+      path: `relatorio/${R1}`,
+      value: { id: R1, project_id: OTHER_PROJECT, template_id: null, template_version: null, seed_version: 'v1', status: 'rascunho', setup: { service_start: null, service_end: null, atividade: null, local: null, responsible_user_id: null, cover_photo_file_id: null }, export: { scheme: 'por_local_e_tipo' }, preview_file_id: null, removed_at: null },
+    });
+    expect(createProjectOf(relatorio, parsePath(relatorio.path))).toBe(OTHER_PROJECT);
+    const tag = op({ kind: 'put', scope: 'project', relatorio_id: null, project_id: PROJECT, path: `equipment/${EQUIPMENT}/tag`, value: 'TR-02' });
+    expect(createProjectOf(tag, parsePath(tag.path))).toBeNull();
+  });
+});
+
+describe('valueReferencesOf and referenceRowVerdict (Story 20.10, review)', () => {
+  const LOCATION = '019966c1-0000-7000-8000-0000000000c2';
+  const point = (field: 'equipment_id' | 'location_id', value: string | null) => op({ kind: 'put', path: `point/${BLOCK}/${field}`, value });
+
+  it('names the rows a value points at, on a create and on the put of that field; a null names nothing', () => {
+    expect(valueReferencesOf(point('equipment_id', EQUIPMENT), parsePath(`point/${BLOCK}/equipment_id`))).toEqual([{ entity: 'equipment', id: EQUIPMENT, field: 'equipment_id' }]);
+    expect(valueReferencesOf(point('location_id', LOCATION), parsePath(`point/${BLOCK}/location_id`))).toEqual([{ entity: 'location', id: LOCATION, field: 'location_id' }]);
+    expect(valueReferencesOf(point('location_id', null), parsePath(`point/${BLOCK}/location_id`))).toEqual([]);
+    const move = op({ kind: 'put', path: `block/${BLOCK}/location_id`, value: LOCATION });
+    expect(valueReferencesOf(move, parsePath(move.path))).toEqual([{ entity: 'location', id: LOCATION, field: 'location_id' }]);
+    const text = op({ kind: 'put', path: `point/${BLOCK}/text`, value: LOCATION });
+    expect(valueReferencesOf(text, parsePath(text.path))).toEqual([]);
+    const block = op({
+      kind: 'create',
+      path: `block/${BLOCK}`,
+      value: { id: BLOCK, relatorio_id: R1, location_id: LOCATION, equipment_id: EQUIPMENT, block_type: 'chave_seccionadora', config: {}, seed_version: 'v1', order_key: 'a0', feeds_block_id: null, not_tested: null, concluded_by: null, sheet: { nameplate: {}, checklist: {}, test: {}, conclusion: {}, observations: null }, created_by: null, first_edited_at: null, last_modified_by: null, last_modified_at: null, removed_at: null },
+    });
+    expect(valueReferencesOf(block, parsePath(block.path)).map((ref) => ref.entity)).toEqual(['location', 'equipment']);
+  });
+
+  it('a reference must exist and belong to the op\'s relatório (an equipment: its obra)', () => {
+    const put = point('location_id', LOCATION);
+    const ref = valueReferencesOf(put, parsePath(put.path))[0]!;
+    expect(referenceRowVerdict(put, ref, undefined, PROJECT)).toBe('refused');
+    expect(referenceRowVerdict(put, ref, { id: LOCATION, relatorio_id: R1 } as unknown as EntityRow, PROJECT)).toBe('allowed');
+    expect(referenceRowVerdict(put, ref, { id: LOCATION, relatorio_id: R2 } as unknown as EntityRow, PROJECT)).toBe('refused');
+    const relink = point('equipment_id', EQUIPMENT);
+    const equipmentRef = valueReferencesOf(relink, parsePath(relink.path))[0]!;
+    expect(referenceRowVerdict(relink, equipmentRef, { id: EQUIPMENT, project_id: PROJECT } as unknown as EntityRow, PROJECT)).toBe('allowed');
+    expect(referenceRowVerdict(relink, equipmentRef, { id: EQUIPMENT, project_id: OTHER_PROJECT } as unknown as EntityRow, PROJECT)).toBe('refused');
   });
 });
 

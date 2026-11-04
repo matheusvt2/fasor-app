@@ -1,9 +1,11 @@
 import {
   attributionIssue,
+  createProjectOf,
   entityKey,
   historyClaimHolds,
   latestRevision,
   lowerBoundIssue,
+  referenceRowVerdict,
   relatorioRemovalVerdict,
   relatorioStatusSchema,
   responsibleUserIdOf,
@@ -12,6 +14,7 @@ import {
   statusSeen,
   targetLookupOf,
   targetRowVerdict,
+  valueReferencesOf,
   type Clock,
   type EntityKey,
   type EntityRow,
@@ -41,19 +44,21 @@ import { editedAfter } from './edited-after.ts';
  */
 
 /**
- * What the checks of one push learned of its relatórios, so a push of a few hundred ops naming
- * the same relatório reads its row and its creation instant once: a relatório found to exist, and
- * its creation instant once read. A relatório not found is never remembered (an earlier op of the
- * same push may create it). Cleared when a batch's savepoint rolls back, since the rows it names
- * may be gone (`applyOps`).
+ * What the checks of one push learned of its relatórios and obras, so a push of a few hundred ops
+ * naming the same relatório reads its row and its creation instant once: a relatório found to
+ * exist (with its obra), an obra found to exist, and a relatório's creation instant once read.
+ * Something not found is never remembered (an earlier op of the same push may create it).
+ * Replaced when a batch's savepoint rolls back, since the rows it names may be gone (`applyOps`).
  */
 export interface ClientCheckCache {
-  relatorios: Set<string>;
+  /** Relatório id to its obra (`project_id`). */
+  relatorios: Map<string, string>;
+  projects: Set<string>;
   createdAt: Map<string, string>;
 }
 
 export function clientCheckCache(): ClientCheckCache {
-  return { relatorios: new Set(), createdAt: new Map() };
+  return { relatorios: new Map(), projects: new Set(), createdAt: new Map() };
 }
 
 /** What `checkClientOp` reads besides the transaction. */
@@ -73,13 +78,16 @@ interface Target {
 
 /**
  * The refusal code of a client op under the rules that read server state, or null when it may
- * apply. In order: the target (Story 20.10), the status move (20.7), the removal of an Emitido
- * relatório (20.10), the responsible user (20.10), then the attribution history and the lower bound
- * of its instants (20.8). A refused op writes nothing.
+ * apply. In order: the target and the obra a create files its row under (Story 20.10), the status
+ * move (20.7), the removal of an Emitido relatório (20.10), the responsible user and the rows the
+ * value names (20.10), then the attribution history and the lower bound of its instants (20.8). A
+ * refused op writes nothing.
  */
 export async function checkClientOp(tx: Tx, companyId: CompanyId, target: Target, deps: ClientCheckDeps): Promise<OpRejectCode | null> {
   const { op, path } = target;
   if (!(await targetHolds(tx, companyId, op, path, deps.state, deps.cache))) return 'op_target_missing';
+  const project = createProjectOf(op, path);
+  if (project !== null && !(await projectExists(tx, companyId, project, deps.cache))) return 'op_target_missing';
 
   if (path.family === 'relatorio/status' && op.kind === 'put') {
     const code = await statusIssue(tx, companyId, op, deps.state);
@@ -93,12 +101,23 @@ export async function checkClientOp(tx: Tx, companyId: CompanyId, target: Target
 
   const responsible = responsibleUserIdOf(op, path);
   if (responsible !== null && !(await isCompanyUser(tx, companyId, responsible))) return 'op_value_invalid';
+  if (!(await referencesHold(tx, companyId, op, path, deps.state, deps.cache))) return 'op_value_invalid';
 
   return attributionStateIssue(tx, companyId, op, path, deps.now, deps.cache);
 }
 
 function relatorioOf(op: Op, state: ReadonlyMap<EntityKey, EntityRow>): RelatorioRow | undefined {
   return op.relatorio_id == null ? undefined : (state.get(entityKey('relatorio', op.relatorio_id)) as RelatorioRow | undefined);
+}
+
+/** The obra of a relatório the company holds (live or tombstoned), or null when it holds none of that id. */
+async function relatorioProjectOf(tx: Tx, companyId: CompanyId, relatorioId: string, state: ReadonlyMap<EntityKey, EntityRow>, cache: ClientCheckCache | undefined): Promise<string | null> {
+  const known = cache?.relatorios.get(relatorioId);
+  if (known !== undefined) return known;
+  const row = (state.get(entityKey('relatorio', relatorioId)) ?? (await rowOf(tx, companyId, 'relatorio', relatorioId))) as RelatorioRow | undefined;
+  if (row === undefined) return null;
+  cache?.relatorios.set(relatorioId, row.project_id);
+  return row.project_id;
 }
 
 /** Story 20.10: the op's target exists in the relatório (or obra) it names. */
@@ -109,15 +128,35 @@ async function targetHolds(tx: Tx, companyId: CompanyId, op: Op, path: OpPath, s
       return true;
     case 'refused':
       return false;
-    case 'relatorio': {
-      if (cache?.relatorios.has(lookup.id) === true) return true;
-      const exists = (state.get(entityKey('relatorio', lookup.id)) ?? (await rowOf(tx, companyId, 'relatorio', lookup.id))) !== undefined;
-      if (exists) cache?.relatorios.add(lookup.id);
-      return exists;
-    }
+    case 'relatorio':
+      return (await relatorioProjectOf(tx, companyId, lookup.id, state, cache)) !== null;
     case 'row':
       return targetRowVerdict(op, lookup.entity, state.get(entityKey(lookup.entity, lookup.id))) === 'allowed';
   }
+}
+
+/** Story 20.10 (review): the obra an equipment or relatório create names is a project of the company. */
+async function projectExists(tx: Tx, companyId: CompanyId, projectId: string, cache: ClientCheckCache | undefined): Promise<boolean> {
+  if (cache?.projects.has(projectId) === true) return true;
+  const exists = (await rowOf(tx, companyId, 'project', projectId)) !== undefined;
+  if (exists) cache?.projects.add(projectId);
+  return exists;
+}
+
+/**
+ * Story 20.10 (review): every row the op's value names (a point's equipment or local, a photo's
+ * block or local, a block's local or equipment) exists and belongs to the op's relatório, an
+ * equipment to that relatório's obra (`referenceRowVerdict`).
+ */
+async function referencesHold(tx: Tx, companyId: CompanyId, op: Op, path: OpPath, state: ReadonlyMap<EntityKey, EntityRow>, cache: ClientCheckCache | undefined): Promise<boolean> {
+  const references = valueReferencesOf(op, path);
+  if (references.length === 0) return true;
+  const relatorioProject = op.relatorio_id == null ? null : await relatorioProjectOf(tx, companyId, op.relatorio_id, state, cache);
+  for (const reference of references) {
+    const row = state.get(entityKey(reference.entity, reference.id)) ?? (await rowOf(tx, companyId, reference.entity, reference.id));
+    if (referenceRowVerdict(op, reference, row, relatorioProject) === 'refused') return false;
+  }
+  return true;
 }
 
 async function rowOf(tx: Tx, companyId: CompanyId, entity: string, id: string): Promise<EntityRow | undefined> {
@@ -142,7 +181,10 @@ async function statusIssue(tx: Tx, companyId: CompanyId, op: Op, state: Readonly
   const relatorioId = row.id;
   const prevOpId = op.prev_op_id ?? null;
   const logged = prevOpId === null ? undefined : await loggedStatusValue(tx, companyId, relatorioId, prevOpId);
-  const base = { server: row.status, seen: statusSeen({ prevOpId, logged, server: row.status }), to: to.data };
+  const seen = statusSeen({ prevOpId, logged });
+  // Review: a move from a status op the log does not hold (one the server refused) has no basis.
+  if (seen === null) return 'op_status_transition';
+  const base = { server: row.status, seen, to: to.data };
   const needs = statusMoveFacts(base);
   const facts: Partial<Pick<StatusMoveInput, 'issueJobSinceLastStatus' | 'unchangedRevision' | 'hasRevision'>> = {};
   if (needs.includes('issueJobSinceLastStatus')) facts.issueJobSinceLastStatus = await issueJobSinceLastStatus(tx, companyId, relatorioId);
@@ -211,7 +253,11 @@ async function attributionStateIssue(tx: Tx, companyId: CompanyId, op: Op, path:
   return createdAt !== null && lowerBoundIssue(check.pending.bounded, createdAt) !== null ? 'op_attribution' : null;
 }
 
-/** The earlier logged ops a history claim's rule reads: the colleague's ops on the op's path, or in its relatório. */
+/**
+ * The earlier logged op a history claim's rule needs: the colleague's op on the op's path (for
+ * `same_path_value`, one whose value holds the same id at the claim's pointer, filtered in SQL so an
+ * older one is found however many ops the path holds), or any colleague's op in the relatório.
+ */
 async function historyOf(tx: Tx, companyId: CompanyId, op: Op, claim: HistoryClaim): Promise<{ actor_id: string; value: unknown }[]> {
   if (claim.rule === 'same_relatorio_actor') {
     if (op.relatorio_id == null) return [];
@@ -221,21 +267,26 @@ async function historyOf(tx: Tx, companyId: CompanyId, op: Op, claim: HistoryCla
       .where(and(eq(ops.company_id, companyId), eq(ops.relatorio_id, op.relatorio_id), eq(ops.actor_id, claim.actorId)))
       .limit(1);
   }
+  // The pointer's keys are the table's own (`actor_id`, `by`, `concluded_by`): a text[] path for `#>>`.
+  const holdsSameId = claim.rule === 'same_path_value' ? sql`${ops.value} #>> ${`{${claim.pointer.join(',')}}`}::text[] = ${claim.actorId}` : undefined;
   return tx
     .select({ actor_id: ops.actor_id, value: ops.value })
     .from(ops)
-    .where(and(eq(ops.company_id, companyId), eq(ops.path, op.path), eq(ops.actor_id, claim.actorId), op.relatorio_id == null ? undefined : eq(ops.relatorio_id, op.relatorio_id)))
-    .orderBy(desc(ops.seq))
-    .limit(100);
+    .where(and(eq(ops.company_id, companyId), eq(ops.path, op.path), eq(ops.actor_id, claim.actorId), op.relatorio_id == null ? undefined : eq(ops.relatorio_id, op.relatorio_id), holdsSameId))
+    .limit(1);
 }
 
-/** The relatório's creation instant: the `client_ts` of its `relatorio/{id}` create in the log, or null. */
+/**
+ * The relatório's creation instant: the earlier of its `relatorio/{id}` create's `client_ts` and the
+ * instant the server received it (a creating device's clock may itself run up to the skew fast), or null.
+ */
 async function relatorioCreatedAt(tx: Tx, companyId: CompanyId, relatorioId: string): Promise<string | null> {
   const [create] = await tx
-    .select({ client_ts: ops.client_ts })
+    .select({ client_ts: ops.client_ts, received_at: ops.received_at })
     .from(ops)
     .where(and(eq(ops.company_id, companyId), eq(ops.path, `relatorio/${relatorioId}`), eq(ops.kind, 'create')))
     .orderBy(ops.seq)
     .limit(1);
-  return create?.client_ts ?? null;
+  if (create === undefined) return null;
+  return Date.parse(create.received_at) < Date.parse(create.client_ts) ? create.received_at : create.client_ts;
 }

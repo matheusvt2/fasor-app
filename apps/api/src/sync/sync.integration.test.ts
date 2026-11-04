@@ -161,6 +161,9 @@ interface Ids {
 
 const idsA: Ids = { company: companyA.companyId, actor: companyA.userId, device: DEVICE_A };
 const idsB: Ids = { company: companyB.companyId, actor: companyB.userId, device: DEVICE_B };
+/** Story 20.10 (review): a relatório create names an obra of the company; the tests whose obra is incidental share one per company (`beforeAll`). */
+const obraA = newId();
+const obraB = newId();
 
 function op(ids: Ids, input: Omit<OpInput, 'company_id' | 'actor_id' | 'device_id'> & Partial<OpInput>): Op {
   const built = makeOp(
@@ -348,6 +351,8 @@ function setupPut(ids: Ids, relatorioId: string, field: string, value: unknown, 
 
 beforeAll(async () => {
   await seedTestCompanies(db, auth);
+  expect((await pushOk(companyA, [projectCreate(idsA, obraA)])).rejected).toEqual([]);
+  expect((await pushOk(companyB, [projectCreate(idsB, obraB)])).rejected).toEqual([]);
 }, 60_000);
 
 afterAll(async () => {
@@ -377,7 +382,7 @@ describe('1.5-API-001 push semantics', () => {
     const relatorioId = newId();
     const batch = [
       clientCreate(idsA, newId()),
-      relatorioCreate(idsA, relatorioId, newId()),
+      relatorioCreate(idsA, relatorioId, obraA),
       setupPut(idsA, relatorioId, 'service_start', '2026-09-22'),
     ];
     const result = await pushOk(companyA, batch);
@@ -397,7 +402,7 @@ describe('1.5-API-001 push semantics', () => {
 
   it('is atomic per op: a bad value and an unknown path are rejected, the rest applies', async () => {
     const relatorioId = newId();
-    const create = relatorioCreate(idsA, relatorioId, newId());
+    const create = relatorioCreate(idsA, relatorioId, obraA);
     const badValue = setupPut(idsA, relatorioId, 'service_start', 42);
     const good = setupPut(idsA, relatorioId, 'local', 'Galpao 3');
     const unknownPath = { ...setupPut(idsA, relatorioId, 'local', 'x'), path: 'relatorio/setup/colour' };
@@ -418,7 +423,7 @@ describe('1.5-API-001 push semantics', () => {
     const equipment = newId();
     const section = newId();
     const setup = [
-      relatorioCreate(idsA, relatorioId, newId()),
+      relatorioCreate(idsA, relatorioId, obraA),
       blockCreate(idsA, relatorioId, equipment, 'disjuntor_mt'),
       blockCreate(idsA, relatorioId, section, 'section_1'),
     ];
@@ -452,7 +457,7 @@ describe('1.5-API-001 push semantics', () => {
   it('rejects a server-only family and the two origin spoofs as op_server_only, a foreign actor as op_invalid', async () => {
     const relatorioId = newId();
     const fileId = newId();
-    const create = relatorioCreate(idsA, relatorioId, newId());
+    const create = relatorioCreate(idsA, relatorioId, obraA);
     const serverOnly = op(idsA, {
       kind: 'put',
       scope: 'relatorio',
@@ -500,7 +505,7 @@ describe('1.5-API-001 push semantics', () => {
 describe('1.5-API-002 idempotency and monotonic seq', () => {
   it('re-pushing the same batch returns the same seqs and leaves one row per op', async () => {
     const relatorioId = newId();
-    const batch = [relatorioCreate(idsA, relatorioId, newId()), setupPut(idsA, relatorioId, 'atividade', 'Manutencao')];
+    const batch = [relatorioCreate(idsA, relatorioId, obraA), setupPut(idsA, relatorioId, 'atividade', 'Manutencao')];
     const first = await pushOk(companyA, batch);
     const second = await pushOk(companyA, batch);
     expect(second.applied).toEqual(first.applied);
@@ -555,7 +560,7 @@ describe('1.5-API-002 idempotency and monotonic seq', () => {
 describe('E6-A1 a push is one transaction under one company lock; a refused op leaves nothing behind', () => {
   it('a row-schema refusal in the middle removes only that op: the ops before and after it land with ascending seqs', async () => {
     const relatorioId = newId();
-    const create = relatorioCreate(idsA, relatorioId, newId());
+    const create = relatorioCreate(idsA, relatorioId, obraA);
     const before = setupPut(idsA, relatorioId, 'local', 'Galpao 7');
     // `service_start` must be a date string: `applyOp`'s row schema refuses 42 (a ZodError).
     const refused = setupPut(idsA, relatorioId, 'service_start', 42);
@@ -594,7 +599,7 @@ describe('E6-A1 a push is one transaction under one company lock; a refused op l
 describe('1.5-API-003 superseded', () => {
   it('applies and reports an op whose prev_op_id is not the latest on its path', async () => {
     const relatorioId = newId();
-    const create = relatorioCreate(idsA, relatorioId, newId());
+    const create = relatorioCreate(idsA, relatorioId, obraA);
     const p1 = setupPut(idsA, relatorioId, 'local', 'v1');
     const p2 = setupPut(idsA, relatorioId, 'local', 'v2', { prev_op_id: p1.op_id });
     const first = await pushOk(companyA, [create, p1, p2]);
@@ -617,7 +622,7 @@ describe('1.5-API-003 superseded', () => {
 
     // The implicit-relatorio path is scoped by relatorio: the same path on another relatorio is not superseded.
     const otherRelatorio = newId();
-    const third = await pushOk(companyA, [relatorioCreate(idsA, otherRelatorio, newId()), setupPut(idsA, otherRelatorio, 'local', 'x')]);
+    const third = await pushOk(companyA, [relatorioCreate(idsA, otherRelatorio, obraA), setupPut(idsA, otherRelatorio, 'local', 'x')]);
     expect(third.superseded).toEqual([]);
   });
 });
@@ -627,6 +632,7 @@ describe('1.5-API-004 pulls', () => {
     const clientId = newId();
     const relatorioId = newId();
     const projectId = newId();
+    expect((await pushOk(companyA, [projectCreate(idsA, projectId)])).rejected).toEqual([]);
     const pushed = await pushOk(companyA, [
       clientCreate(idsA, clientId),
       relatorioCreate(idsA, relatorioId, projectId),
@@ -702,6 +708,7 @@ describe('1.5-API-004 pulls', () => {
     const equipmentId = newId();
     const relatorioId = newId();
     const equipment = equipmentCreate(idsA, equipmentId, projectId);
+    expect((await pushOk(companyA, [projectCreate(idsA, projectId)])).rejected).toEqual([]);
     const before = await pushOk(companyA, [equipment]);
     const create = relatorioCreate(idsA, relatorioId, projectId);
     const put = setupPut(idsA, relatorioId, 'local', 'Torre A');
@@ -769,7 +776,7 @@ describe('1.5-API-004 pulls', () => {
 
   it('answers 404 relatorio_not_found for an unknown, foreign or malformed relatorio id', async () => {
     const foreignRelatorio = newId();
-    await pushOk(companyB, [relatorioCreate(idsB, foreignRelatorio, newId())]);
+    await pushOk(companyB, [relatorioCreate(idsB, foreignRelatorio, obraB)]);
     for (const id of [foreignRelatorio, newId(), 'abc']) {
       const res = await pull(companyA, `/api/sync/relatorios/${id}?since=0`);
       expect(res.status).toBe(404);
@@ -1157,7 +1164,7 @@ describe('10.4-API-001 the company summary carries each relatório\'s progress',
     // Story 20.8: a removal at a present instant, never before the relatório's creation.
     const removedAt = now().toISOString();
     const pushed = await pushOk(companyA, [
-      relatorioCreate(idsA, relatorioId, newId()),
+      relatorioCreate(idsA, relatorioId, obraA),
       ...blocks.map((id) => blockCreate(idsA, relatorioId, id, 'disjuntor_mt')),
       ...photos.map((id) => relatorioFileCreate(idsA, relatorioId, id, 'photo')),
       relatorioFileCreate(idsA, relatorioId, cover, 'cover_photo'),
@@ -1169,7 +1176,7 @@ describe('10.4-API-001 the company summary carries each relatório\'s progress',
     // Company B's relatório with its own rows: never counted in A's summary, and A's never in B's.
     const otherId = newId();
     const other = await pushOk(companyB, [
-      relatorioCreate(idsB, otherId, newId()),
+      relatorioCreate(idsB, otherId, obraB),
       blockCreate(idsB, otherId, newId(), 'disjuntor_mt'),
       relatorioFileCreate(idsB, otherId, newId(), 'photo'),
     ]);
@@ -1221,7 +1228,7 @@ describe('6.3/6.5-API-001 a photo caption and removal through the sync route', (
         reading_status: 'none',
       },
     });
-    const created = await pushOk(companyA, [relatorioCreate(idsA, relatorioId, newId()), create]);
+    const created = await pushOk(companyA, [relatorioCreate(idsA, relatorioId, obraA), create]);
     expect(created.rejected).toEqual([]);
 
     const newCaption = 'Detalhe da limpeza e reaperto realizada na chave seccionadora';
@@ -1283,7 +1290,7 @@ describe('Story 14.2 (contract 17): Local › Painel › Coluna through POST /ap
   async function tree() {
     const ids = { relatorio: newId(), local: newId(), painel: newId(), coluna: newId(), legado: newId() };
     const log = [
-      relatorioCreate(idsA, ids.relatorio, newId()),
+      relatorioCreate(idsA, ids.relatorio, obraA),
       localCreate(ids.relatorio, ids.local),
       childCreate(ids.relatorio, ids.painel, 'painel', ids.local, 'Painel de média tensão'),
       childCreate(ids.relatorio, ids.coluna, 'coluna', ids.painel, 'Coluna 5'),

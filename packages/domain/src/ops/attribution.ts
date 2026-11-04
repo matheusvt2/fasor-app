@@ -224,7 +224,8 @@ export function historyClaimHolds(claim: HistoryClaim, logged: readonly LoggedAt
 
 /**
  * The lower bound of Story 20.8: an issue when an instant of an op naming a relatório lies more
- * than `CLOCK_SKEW_MS` before that relatório's creation (the `client_ts` of its create), else null.
+ * than `CLOCK_SKEW_MS` before that relatório's creation (the earlier of its create's `client_ts`
+ * and the instant the server received that create), else null.
  */
 export function lowerBoundIssue(bounded: readonly string[], createdAt: string): string | null {
   const earliest = Date.parse(createdAt) - CLOCK_SKEW_MS;

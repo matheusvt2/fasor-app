@@ -180,6 +180,28 @@ describe('two devices with a stale status: one marks the revision as sent, the o
     expect(await statusOf(relatorioId)).toBe('emitido');
   });
 
+  it('review: the "Desfazer" of B\'s refused status op is refused too, so Emitido never steps back to Rascunho', async () => {
+    const { relatorioId, toRevision } = await inRevision();
+    const sent = h.statusOp(companyA, relatorioId, 'emitido', toRevision.op_id);
+    expect((await h.push(companyA, [sent])).rejected).toEqual([]);
+    // B, still seeing Rascunho, moves to Em campo and presses "Desfazer" before the refusal comes back.
+    const stale = h.statusOp(companyA, relatorioId, 'em_campo', null, { device_id: DEVICE_B });
+    const undo = h.statusOp(companyA, relatorioId, 'rascunho', stale.op_id, { device_id: DEVICE_B });
+    expect((await h.push(companyA, [stale])).rejected).toEqual([{ op_id: stale.op_id, code: 'op_status_transition' }]);
+    // Its basis was never logged: from the server's Emitido it would read as a backward move and apply.
+    expect((await h.push(companyA, [undo])).rejected).toEqual([{ op_id: undo.op_id, code: 'op_status_transition' }]);
+    expect(await statusOf(relatorioId)).toBe('emitido');
+    expect(await h.logged(undo.op_id)).toBe(false);
+    // Both in one push, as a device that pressed "Desfazer" before syncing sends them: both refused.
+    const staleAgain = h.statusOp(companyA, relatorioId, 'em_campo', null, { device_id: DEVICE_B });
+    const undoAgain = h.statusOp(companyA, relatorioId, 'rascunho', staleAgain.op_id, { device_id: DEVICE_B });
+    expect((await h.push(companyA, [staleAgain, undoAgain])).rejected).toEqual([
+      { op_id: staleAgain.op_id, code: 'op_status_transition' },
+      { op_id: undoAgain.op_id, code: 'op_status_transition' },
+    ]);
+    expect(await statusOf(relatorioId)).toBe('emitido');
+  });
+
   it('a re-sent push whose status op was applied answers its seq again, whatever the status is now', async () => {
     const { relatorioId } = await h.seedRelatorio(companyA);
     const setupComplete = h.statusOp(companyA, relatorioId, 'em_campo', null);

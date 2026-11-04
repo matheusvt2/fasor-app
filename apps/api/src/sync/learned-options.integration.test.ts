@@ -149,6 +149,8 @@ async function disjuntorSheet(): Promise<Sheet> {
     config: defaultBlockConfig('v6', 'disjuntor_mt') as unknown as JsonValue,
   });
   await pushOk([
+    // Story 20.10 (review): a relatório and an equipment are filed under an obra of the company.
+    companyOp('create', `project/${ids.project}`, { id: ids.project, client_id: null, name: 'Obra das opções', site: null, removed_at: null }),
     op({
       ...scoped(ids.relatorio),
       kind: 'create',

@@ -148,14 +148,17 @@ export type StatusVerdict = 'allowed' | 'refused';
 
 /**
  * The status the device saw when it wrote a status op: the value of the op its `prev_op_id`
- * names when the server log holds that op on this relatório's `relatorio/status` (`logged`),
- * Rascunho when `prev_op_id` is null (a relatório is born Rascunho, and no status op was seen),
- * and otherwise the server's own status (an op the log does not hold tells nothing).
+ * names when the server log holds that op on this relatório's `relatorio/status` (`logged`), and
+ * Rascunho when `prev_op_id` is null (a relatório is born Rascunho, and no status op was seen).
+ * Null when `prev_op_id` names an op the log does not hold there: a device stamps the last op it
+ * applied on the path, never a dead one, and its ops reach the server in commit order, so such a
+ * move was made on top of a status op the server refused (a "Desfazer" committed before the
+ * refusal came back). It has no basis and is refused too (`op_status_transition`).
  */
-export function statusSeen(input: { prevOpId: string | null; logged: unknown; server: RelatorioStatus }): RelatorioStatus {
+export function statusSeen(input: { prevOpId: string | null; logged: unknown }): RelatorioStatus | null {
   if (input.prevOpId === null) return 'rascunho';
   const logged = input.logged;
-  return typeof logged === 'string' && (RELATORIO_STATUSES as readonly string[]).includes(logged) ? (logged as RelatorioStatus) : input.server;
+  return typeof logged === 'string' && (RELATORIO_STATUSES as readonly string[]).includes(logged) ? (logged as RelatorioStatus) : null;
 }
 
 /** True when the device meant to move the relatório back (`manualMove` from what it saw). */

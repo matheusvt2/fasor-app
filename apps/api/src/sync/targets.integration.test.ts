@@ -184,7 +184,7 @@ describe('what keeps applying', () => {
 
 describe('the responsible engineer and the removal of an issued relatório', () => {
   it('a responsible_user_id that is no user of the company is refused op_value_invalid, in a put and in a create; the company\'s user applies', async () => {
-    const { relatorioId } = await h.seedRelatorio(companyA);
+    const { relatorioId, projectId } = await h.seedRelatorio(companyA);
     const nobody = h.clientOp(companyA, { kind: 'put', path: 'relatorio/setup/responsible_user_id', relatorio_id: relatorioId, value: newId() });
     const foreign = h.clientOp(companyA, { kind: 'put', path: 'relatorio/setup/responsible_user_id', relatorio_id: relatorioId, value: companyB.userId });
     const own = h.clientOp(companyA, { kind: 'put', path: 'relatorio/setup/responsible_user_id', relatorio_id: relatorioId, value: companyA.userId });
@@ -202,7 +202,7 @@ describe('the responsible engineer and the removal of an issued relatório', () 
       relatorio_id: createdId,
       value: {
         id: createdId,
-        project_id: newId(),
+        project_id: projectId,
         template_id: null,
         template_version: null,
         seed_version: 'v1',
@@ -249,5 +249,81 @@ describe('the responsible engineer and the removal of an issued relatório', () 
       .from(entities)
       .where(and(eq(entities.company_id, companyA.companyId), eq(entities.id, relatorioId), eq(entities.entity, 'relatorio')));
     expect(live).toEqual([{ removed_at: null }]);
+  });
+});
+
+describe('review: the obra a create files its row under, and the rows a value names', () => {
+  const equipmentCreate = (id: string, projectId: string) =>
+    h.clientOp(companyA, { kind: 'create', scope: 'project', project_id: projectId, path: `equipment/${id}`, value: { id, project_id: projectId, tag: 'TR-OBRA', type: 'transformador_forca', last_nameplate: null, removed_at: null } });
+  const relatorioCreate = (id: string, projectId: string) =>
+    h.clientOp(companyA, {
+      kind: 'create',
+      path: `relatorio/${id}`,
+      relatorio_id: id,
+      value: {
+        id,
+        project_id: projectId,
+        template_id: null,
+        template_version: null,
+        seed_version: 'v1',
+        status: 'rascunho',
+        setup: { service_start: null, service_end: null, atividade: null, local: null, responsible_user_id: null, cover_photo_file_id: null },
+        export: { scheme: 'por_local_e_tipo' },
+        preview_file_id: null,
+        removed_at: null,
+      },
+    });
+
+  it('an equipment or relatório create naming no obra of the company is refused op_target_missing; an obra created earlier in the push counts', async () => {
+    const theirs = await h.seedRelatorio(companyB);
+    const none = newId();
+    const refused = [equipmentCreate(newId(), none), equipmentCreate(newId(), theirs.projectId), relatorioCreate(newId(), none), relatorioCreate(newId(), theirs.projectId)];
+    const projectId = newId();
+    const equipmentId = newId();
+    const relatorioId = newId();
+    const filed = [
+      h.clientOp(companyA, { kind: 'create', scope: 'company', path: `project/${projectId}`, value: { id: projectId, client_id: null, name: 'Obra nova', site: null, removed_at: null } }),
+      equipmentCreate(equipmentId, projectId),
+      relatorioCreate(relatorioId, projectId),
+    ];
+    const result = await h.push(companyA, [...refused, ...filed]);
+    expect(result.rejected).toEqual(refused.map((op) => ({ op_id: op.op_id, code: 'op_target_missing' })));
+    expect(result.applied.map((a) => a.op_id)).toEqual(filed.map((op) => op.op_id));
+    for (const op of refused) expect(await h.logged(op.op_id)).toBe(false);
+    expect(await h.rowOf(companyA, 'equipment', equipmentId)).toMatchObject({ project_id: projectId });
+    expect(await h.rowOf(companyA, 'relatorio', relatorioId)).toMatchObject({ project_id: projectId });
+  });
+
+  it('e20w relink: a point\'s equipment_id and location_id written in one batch apply with live ids and with null; another relatório\'s rows are refused op_value_invalid', async () => {
+    const own = await h.seedRelatorio(companyA);
+    const other = await h.seedRelatorio(companyA);
+    const pointId = newId();
+    const pointRow = { id: pointId, relatorio_id: own.relatorioId, text: 'Ponto religado', equipment_id: null, origin: 'manual', order_key: 'a0', removed_at: null };
+    const create = h.clientOp(companyA, { kind: 'create', path: `point/${pointId}`, relatorio_id: own.relatorioId, value: pointRow });
+    expect((await h.push(companyA, [create])).rejected).toEqual([]);
+    const relink = (equipmentId: string | null, locationId: string | null) => {
+      const batchId = newId();
+      return [
+        h.clientOp(companyA, { kind: 'put', path: `point/${pointId}/equipment_id`, relatorio_id: own.relatorioId, value: equipmentId, batch_id: batchId }),
+        h.clientOp(companyA, { kind: 'put', path: `point/${pointId}/location_id`, relatorio_id: own.relatorioId, value: locationId, batch_id: batchId }),
+      ];
+    };
+    const pointOf = () => h.rowOf<{ equipment_id: string | null; location_id?: string | null }>(companyA, 'point', pointId);
+
+    // Live ids of the relatório (its equipment, its local): applied.
+    expect((await h.push(companyA, relink(own.blocks[0]!.equipmentId, own.locationId))).rejected).toEqual([]);
+    expect(await pointOf()).toMatchObject({ equipment_id: own.blocks[0]!.equipmentId, location_id: own.locationId });
+    // "Geral": both null, applied.
+    expect((await h.push(companyA, relink(null, null))).rejected).toEqual([]);
+    expect(await pointOf()).toMatchObject({ equipment_id: null, location_id: null });
+    // Another relatório's local, and an equipment of its obra: refused, the point unchanged.
+    const stray = relink(other.blocks[0]!.equipmentId, other.locationId);
+    expect((await h.push(companyA, stray)).rejected).toEqual(stray.map((op) => ({ op_id: op.op_id, code: 'op_value_invalid' })));
+    expect(await pointOf()).toMatchObject({ equipment_id: null, location_id: null });
+    // A create naming another relatório's local is refused the same way.
+    const strayPointId = newId();
+    const strayCreate = h.clientOp(companyA, { kind: 'create', path: `point/${strayPointId}`, relatorio_id: own.relatorioId, value: { ...pointRow, id: strayPointId, location_id: other.locationId } });
+    expect((await h.push(companyA, [strayCreate])).rejected).toEqual([{ op_id: strayCreate.op_id, code: 'op_value_invalid' }]);
+    expect(await h.rowOf(companyA, 'point', strayPointId)).toBeUndefined();
   });
 });
