@@ -10,6 +10,7 @@ import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
+import { pushStatusAsServer } from './support/push-server-ops.ts';
 import { pushDrafts } from './support/relatorio-seed.ts';
 
 /*
@@ -468,12 +469,12 @@ test('@p0 E4-E2E-002 a second relatório of an obra whose Emitido relatório thi
     { service_start: '2026-03-02', service_end: '2026-03-03', existingEquipment: [], responsible_user_id: null },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
-  const issued = r1.drafts.map((draft) =>
-    draft.kind === 'create' && draft.path === `relatorio/${r1.relatorioId}` ? { ...draft, value: { ...(draft.value as object), status: 'emitido' } as never } : draft,
-  );
   const r1Tags = r1.drafts.filter((draft) => draft.path.startsWith('equipment/')).map((draft) => (draft.value as { tag: string }).tag);
   expect(r1Tags).toHaveLength(94);
-  await pushDrafts(page, database, [project, ...issued]);
+  // Stories 20.7 to 20.10 (contract 29): a relatório is born Rascunho, so R1's Emitido is seeded
+  // as the server holds it once its creation landed.
+  await pushDrafts(page, database, [project, ...r1.drafts]);
+  await pushStatusAsServer(account, r1.relatorioId, 'emitido');
 
   // This device knows the obra (company stream) and holds none of R1.
   await page.goto(`/project/${projectId}`);

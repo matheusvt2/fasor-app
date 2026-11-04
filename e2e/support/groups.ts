@@ -149,6 +149,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'usage-events-documents.spec.ts',
     why: 'previews and issues the fixed-id Porto Seguro fixture through the shared queue and LibreOffice, and compares the timed waits with the measured tap-to-document intervals, which must not share the CPU with other workers',
   },
+  // Stories 20.7 to 20.10 (contract 29): the forged pushes of the security pass, then a preview.
+  {
+    file: 'security-ops.spec.ts',
+    why: 'renders a preview PDF through the shared queue and LibreOffice after the forged pushes, to prove none of them made the relatório ungeneratable',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

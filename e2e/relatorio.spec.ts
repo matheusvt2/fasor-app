@@ -14,7 +14,7 @@ import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { syncNowAndReturn } from './support/sync.ts';
 import { readDeviceId, readStore } from './support/outbox.ts';
-import { pushRevision } from './support/push-server-ops.ts';
+import { pushRevision, pushStatusAsServer } from './support/push-server-ops.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
 import { CLIENT, createProjectFromHome, createRelatorio, SITE, typeDate } from './support/relatorio-flow.ts';
 
@@ -716,11 +716,12 @@ test('@p0 4.6-E2E-001 Emitido shows the issued banner; moving a numbered row adv
   const deviceId = await readDeviceId(page, database);
 
   // The relatório must exist server-side before the direct `revision` create below can
-  // target it; the status put goes through the ordinary client op push (`4.3-E2E-002`'s
-  // pattern), the `revision` row through `pushRevision` (its own family is `serverOnly`,
-  // refused on `/api/sync/ops` the way `file/server`/`suggestion` are).
+  // target it; the `revision` row goes through `pushRevision` (its own family is `serverOnly`,
+  // refused on `/api/sync/ops` the way `file/server`/`suggestion` are). Stories 20.7 to 20.10
+  // (contract 29): the server refuses a client's Rascunho-to-Emitido put, so the Emitido this
+  // spec starts from is seeded as the server holds it, from the office device.
   await syncNowAndReturn(page);
-  await pushOp(page, relatorioId, deviceId, 'relatorio/status', 'emitido');
+  await pushStatusAsServer(account, relatorioId, 'emitido', `${deviceId}-office`);
   const createdAt = new Date('2026-09-10T12:00:00.000Z');
   await pushRevision(account.companyId, relatorioId, { number: 2, createdBy: account.userId, createdAt });
   await syncNowAndReturn(page);

@@ -10,6 +10,7 @@ import {
   relatorioCreateOp,
   seedOutbox,
 } from './support/outbox.ts';
+import { applyAsServer } from './support/push-server-ops.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { createProjectFromHome, createRelatorio } from './support/relatorio-flow.ts';
 
@@ -101,20 +102,25 @@ test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first 
   const project = projectCreateOp(user, undefined, clientId);
   const projectId = project.path.split('/').at(-1)!;
 
-  const emCampo = relatorioCreateOp(user, undefined, projectId, {
+  // Stories 20.7 to 20.10 (contract 29): a client's relatório is born Rascunho, so the Em campo and
+  // Emitido ones are seeded as the server holds them, from another device of the user.
+  const office = { ...user, deviceId: `${user.deviceId}-office` };
+  const emCampo = relatorioCreateOp(office, undefined, projectId, {
     status: 'em_campo',
     local: 'Blocos Norte e Sul',
     serviceStart: '2026-09-06',
     serviceEnd: '2026-09-08',
   });
   const rascunho = relatorioCreateOp(user, undefined, projectId, { status: 'rascunho', local: 'Oxigênio' });
-  const emitido = relatorioCreateOp(user, undefined, projectId, { status: 'emitido', local: 'Subestação' });
+  const emitido = relatorioCreateOp(office, undefined, projectId, { status: 'emitido', local: 'Subestação' });
   const emCampoId = emCampo.relatorio_id!;
   const rascunhoId = rascunho.relatorio_id!;
   const emitidoId = emitido.relatorio_id!;
 
-  await seedOutbox(page, database, [client, project, emCampo, rascunho, emitido]);
+  await seedOutbox(page, database, [client, project, rascunho]);
   await page.reload();
+  await syncNow(page);
+  await applyAsServer(account.companyId, [emCampo, emitido]);
   await syncNow(page);
 
   // Rascunho and Em campo are pulled onto the device with no cap (AD-8).
@@ -262,13 +268,18 @@ test('@p1 19.2-E2E-001 Home opens on the active work, most recent first; Emitido
   // the emitted ones climb from January to September and wrap back to January at the tenth,
   // with ties among them. Only the summary's sequence gives the order asserted below.
   const rascunho = relatorioCreateOp(user, undefined, projectId, { status: 'rascunho', local: 'Antigo', serviceStart: '2026-10-20' });
+  // Stories 20.7 to 20.10 (contract 29): a client's relatório is born Rascunho, so the others are
+  // seeded as the server holds them, from another device of the user, after the Rascunho one.
+  const office = { ...user, deviceId: `${user.deviceId}-office` };
   const emitidos = Array.from({ length: 12 }, (_, i) =>
-    relatorioCreateOp(user, undefined, projectId, { status: 'emitido', local: `Emitido ${i + 1}`, serviceStart: `2026-0${(i % 9) + 1}-01` }),
+    relatorioCreateOp(office, undefined, projectId, { status: 'emitido', local: `Emitido ${i + 1}`, serviceStart: `2026-0${(i % 9) + 1}-01` }),
   );
-  const emRevisao = relatorioCreateOp(user, undefined, projectId, { status: 'em_revisao', local: 'Revisão', serviceStart: '2026-05-01' });
-  const emCampo = relatorioCreateOp(user, undefined, projectId, { status: 'em_campo', local: 'Campo', serviceStart: '2026-01-01' });
-  await seedOutbox(page, database, [client, project, rascunho, ...emitidos, emRevisao, emCampo]);
+  const emRevisao = relatorioCreateOp(office, undefined, projectId, { status: 'em_revisao', local: 'Revisão', serviceStart: '2026-05-01' });
+  const emCampo = relatorioCreateOp(office, undefined, projectId, { status: 'em_campo', local: 'Campo', serviceStart: '2026-01-01' });
+  await seedOutbox(page, database, [client, project, rascunho]);
   await page.reload();
+  await syncNow(page);
+  await applyAsServer(account.companyId, [...emitidos, emRevisao, emCampo]);
   await syncNow(page);
   await page.getByRole('button', { name: 'Voltar' }).click();
 

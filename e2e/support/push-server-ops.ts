@@ -1,4 +1,17 @@
-import { makeOp, SERVER_DEVICE_ID, suggestionPath, toIso, type AuditRunRow, type EquipmentRow, type JsonValue, type OpInput, type RevisionRow, type SuggestionRow } from '@app/domain';
+import {
+  makeOp,
+  SERVER_DEVICE_ID,
+  suggestionPath,
+  toIso,
+  type AuditRunRow,
+  type EquipmentRow,
+  type JsonValue,
+  type Op,
+  type OpInput,
+  type RelatorioStatus,
+  type RevisionRow,
+  type SuggestionRow,
+} from '@app/domain';
 import { loadConfig } from '../../apps/api/src/config.ts';
 import { createDb } from '../../apps/api/src/db/client.ts';
 import { asCompanyId } from '../../apps/api/src/db/repositories/company-id.ts';
@@ -191,6 +204,43 @@ export async function pushAuditRun(
   } finally {
     await sql.end();
   }
+}
+
+/**
+ * Stories 20.7 to 20.10 (contract 29): ops the server's rules refuse from a client (a relatório
+ * born in another status than Rascunho, a status no AD-22 row reaches from where the server is),
+ * applied as the server writes them, for a spec whose subject is what a device shows of that
+ * state, never how it got there. The ops keep their own actor and device (another device of the
+ * user, as a spec seeds them), and the device learns them on its next pull.
+ */
+export async function applyAsServer(companyId: string, ops: readonly Op[]): Promise<void> {
+  const config = loadConfig();
+  const { sql, db } = createDb(config.DATABASE_URL);
+  try {
+    const result = await applyOps(db, asCompanyId(companyId), ops, { origin: 'server', now: () => new Date() });
+    if (result.rejected.length > 0) throw new Error(`server-seeded ops rejected: ${JSON.stringify(result.rejected)}`);
+  } finally {
+    await sql.end();
+  }
+}
+
+/** A relatório's status as the server would hold it after the moves a spec skips (`applyAsServer`), from another device of the user. */
+export async function pushStatusAsServer(account: { companyId: string; userId: string }, relatorioId: string, status: RelatorioStatus, deviceId = 'office-seed'): Promise<void> {
+  const input: OpInput = {
+    kind: 'put',
+    scope: 'relatorio',
+    company_id: account.companyId,
+    project_id: null,
+    relatorio_id: relatorioId,
+    path: 'relatorio/status',
+    value: status,
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: account.userId,
+    device_id: deviceId,
+  };
+  await applyAsServer(account.companyId, [makeOp(input, { newId, now: new Date() })]);
 }
 
 /**
