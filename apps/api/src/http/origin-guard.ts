@@ -38,10 +38,13 @@ function isFileUpload(method: string, path: string): boolean {
  * browser's body-less `fetch` POST says `Content-Length: 0`; `@hono/node-server` gives every
  * POST a body stream, so one with neither header is still held to the JSON rule.
  */
-function hasNoBody(request: { contentLength: string | undefined; transferEncoding: string | undefined; hasStream: boolean }): boolean {
+function hasNoBody(request: { contentLength: string | undefined; transferEncoding: string | undefined; hasStream: () => boolean }): boolean {
   if (request.transferEncoding !== undefined && request.transferEncoding.trim() !== '') return false;
   if (request.contentLength !== undefined) return request.contentLength.trim() === '0';
-  return !request.hasStream;
+  // Read last and only here: under `@hono/node-server` touching `raw.body` turns the incoming
+  // body into a stream, which is then never drained when an early 413 answers, and the reset
+  // socket reaches the client behind Caddy as a 502 (e20e, `app.ts` `bodyTooLarge`).
+  return !request.hasStream();
 }
 
 function isJson(contentType: string | undefined): boolean {
@@ -61,7 +64,7 @@ export function originGuard(options: OriginGuardOptions): MiddlewareHandler {
     const exempt =
       isFileUpload(method, path) ||
       path === TELEMETRY_ROUTE.path ||
-      hasNoBody({ contentLength: c.req.header('content-length'), transferEncoding: c.req.header('transfer-encoding'), hasStream: c.req.raw.body !== null });
+      hasNoBody({ contentLength: c.req.header('content-length'), transferEncoding: c.req.header('transfer-encoding'), hasStream: () => c.req.raw.body !== null });
     if (!exempt && !isJson(c.req.header('content-type'))) return c.json(forbiddenOrigin, 403);
     return next();
   };

@@ -2,7 +2,7 @@
 title: 'Stories 20.11, 20.12 and 20.13: signing out clears the device, paid work has a ceiling, and the edges are closed (plus the deferred home.search target of 20.2)'
 type: 'feature'
 created: '2026-11-04'
-status: 'ready-for-dev'
+status: 'in-progress'
 baseline_revision: 'e1d60e368e205a98f6a4e4988aeb24fb77e53e4c'
 review_loop_iteration: 0
 followup_review_recommended: false

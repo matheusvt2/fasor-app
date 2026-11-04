@@ -1,8 +1,8 @@
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
-import { TELEMETRY_ROUTE, type Clock, type ErrorResponse, type NewId } from '@app/domain';
+import { SYNC_PUSH_MAX_BYTES, SYNC_ROUTES, TELEMETRY_ROUTE, type Clock, type ErrorResponse, type NewId } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
-import { Hono, type MiddlewareHandler } from 'hono';
+import { type Context, Hono, type MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import type { PgBoss } from 'pg-boss';
 import type { Auth } from '../auth/auth.ts';
@@ -146,11 +146,22 @@ export const AUTH_BODY_LIMIT_BYTES = 64 * 1024;
  */
 export const TELEMETRY_BODY_LIMIT_BYTES = 256 * 1024;
 
+/**
+ * e20e (the e20s note on Caddy): a declared `Content-Length` over the cap is answered from the
+ * header alone, before anything touches `c.req.raw.body`. Hono's `bodyLimit` reads `raw.body`
+ * first, which under `@hono/node-server` makes the incoming body a stream that is never drained;
+ * the socket was then reset under Caddy's still-writing proxy, which relayed a 502 instead of
+ * this 413 (`main.ts` turns `autoCleanupIncoming` off so Node drains the unread body itself).
+ * A chunked body still goes through `bodyLimit`.
+ */
 function bodyTooLarge(maxSize: number): MiddlewareHandler {
-  return bodyLimit({
-    maxSize,
-    onError: (c) => c.json({ code: 'body_too_large', message: `The request body is over the ${maxSize} byte limit.` } satisfies ErrorResponse, 413),
-  });
+  const tooLarge = (c: Context) => c.json({ code: 'body_too_large', message: `The request body is over the ${maxSize} byte limit.` } satisfies ErrorResponse, 413);
+  const streamed = bodyLimit({ maxSize, onError: tooLarge });
+  return async (c, next) => {
+    const declared = Number(c.req.header('content-length'));
+    if (Number.isFinite(declared) && declared > maxSize) return tooLarge(c);
+    return streamed(c, next);
+  };
 }
 
 /** `PUT /api/files/:id` reads its body under its own 25 MB cap (`files.ts`), never under the JSON one. */
@@ -218,9 +229,15 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
   app.use('/api/auth/*', bodyTooLarge(AUTH_BODY_LIMIT_BYTES));
   const jsonBodyLimit = bodyTooLarge(options.bodyLimitBytes ?? DEFAULT_API_BODY_LIMIT_BYTES);
   const telemetryBodyLimit = bodyTooLarge(TELEMETRY_BODY_LIMIT_BYTES);
+  // e20e (the e20s note on Caddy): the push's 4 MiB cap is also checked here, before the
+  // session read. Answered after it, the unread body was cut and Caddy relayed a 502 instead
+  // of this JSON 413 (`.scratch-e20e/caddy/check413-session.mjs`); the route keeps its own cap.
+  const pushBodyLimit = bodyTooLarge(Math.min(options.bodyLimitBytes ?? DEFAULT_API_BODY_LIMIT_BYTES, SYNC_PUSH_MAX_BYTES));
   app.use('/api/*', async (c, next) => {
     if (c.req.path.startsWith('/api/auth/') || isFileUpload(c.req.method, c.req.path)) return next();
-    return c.req.path === TELEMETRY_ROUTE.path ? telemetryBodyLimit(c, next) : jsonBodyLimit(c, next);
+    if (c.req.path === TELEMETRY_ROUTE.path) return telemetryBodyLimit(c, next);
+    if (c.req.method === SYNC_ROUTES.pushOps.method && c.req.path === SYNC_ROUTES.pushOps.path) return pushBodyLimit(c, next);
+    return jsonBodyLimit(c, next);
   });
   const limits = options.rateLimits;
   if (limits !== undefined) app.use('/api/auth/sign-in/*', signInRateLimit({ rule: limits.signIn, trustProxy: limits.trustProxy }));

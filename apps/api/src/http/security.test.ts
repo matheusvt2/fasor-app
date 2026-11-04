@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { Hono } from 'hono';
+import { SYNC_PUSH_MAX_BYTES } from '@app/domain';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Auth } from '../auth/auth.ts';
 import type { Db } from '../db/client.ts';
@@ -136,6 +137,30 @@ describe('body limits', () => {
     });
     const res = await app.request('/api/sync/ops', { method: 'POST', body, duplex: 'half' } as RequestInit);
     expect(res.status).toBe(413);
+  });
+
+  it('e20e: answers a declared length over the cap from the header alone, never reading the body', async () => {
+    // Behind Caddy, a 413 answered after the body stream was opened reset the socket and the
+    // client got a 502 (`.scratch-e20e/caddy/check413-session.mjs`: 6 of 18 before, 0 of 54 after).
+    for (const path of ['/api/sync/ops', '/api/auth/sign-in/email']) {
+      let pulled = 0;
+      const body = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          pulled += 1;
+          controller.enqueue(new TextEncoder().encode('x'.repeat(1024)));
+        },
+      });
+      const res = await makeApp().request(path, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'content-length': String(SYNC_PUSH_MAX_BYTES + 1) },
+        body,
+        duplex: 'half',
+      } as RequestInit);
+      expect(res.status, path).toBe(413);
+      expect(await res.json()).toMatchObject({ code: 'body_too_large' });
+      // At most the stream's own first fill; a read through the limiter would pull past 4 MiB.
+      expect(pulled, path).toBeLessThanOrEqual(1);
+    }
   });
 
   it('lets a body under the limit through to the route (401 without a session)', async () => {
