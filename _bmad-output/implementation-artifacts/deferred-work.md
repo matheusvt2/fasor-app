@@ -2849,3 +2849,13 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   evidence: `packages/domain/src/ops/attribution.ts` (`op.meta.restore.removal_conflict.edited_by`, `same_relatorio_actor`); `apps/api/src/sync/rules.ts` `historyOf`.
   class: risk
   state: accepted (2026-11-03, batch e20s)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20s-server-rules.md`
+  summary: The dev-only field fixture (`/__fixture/field`) writes `relatorio/setup/local` puts to a fixed relatório id no company holds, so since contract 29 the server refuses them (`op_target_missing`) and they stay dead rows on the device. The durability specs that use it assert only the device side and pass; A5-E2E-003, which needs its put acked, seeds that relatório as the server holds it (tombstoned at once, so no Home shows it).
+  evidence: `apps/web/src/surfaces/fixtures/field-fixture-surface.tsx` `FIXTURE_RELATORIO_ID`; `e2e/support/durability.ts`; `e2e/ui-hygiene.spec.ts` A5-E2E-003.
+  class: debt
+  state: open (owner: the next story touching the fixture; it could create its own relatório)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20s-server-rules.md`
+  summary: The api answers a push over 4 MiB with 413 before the body is uploaded; the Vite dev proxy in front of the e2e page sometimes reports that early answer as a 502 (EPIPE while it still writes the body), so `security-ops.spec.ts` sends its 5 MB push from the test runner straight to the api with the page's cookie. Whether production's Caddy relays the early 413 was not checked; a device only sends such a push for a client batch alone over the cap (see the row above), and a 5xx would make it retry.
+  evidence: `e2e/security-ops.spec.ts` `pushFromRunner`; the e2e log of the full `@p0` run of 2026-11-03 (one 502 in three runs).
+  class: risk
+  state: open (owner: the second security pass of wave B, which runs against the integrated main behind Caddy)

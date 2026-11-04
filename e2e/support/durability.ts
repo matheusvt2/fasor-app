@@ -16,6 +16,15 @@ import { SEED_PASSWORD } from './merged-fixtures.ts';
  */
 export const fixturePath = (idleMs = 60_000) => `/__fixture/field?idle=${idleMs}`;
 
+/**
+ * The relatório the field fixture writes its `relatorio/setup/local` puts to: the same fixed id as
+ * `FIXTURE_RELATORIO_ID` of `apps/web/src/surfaces/fixtures/field-fixture-surface.tsx` (not
+ * imported: that module is a React surface). Stories 20.7 to 20.10 (contract 29): no company
+ * holds it, so the server refuses those puts (`op_target_missing`); a spec that needs them to
+ * reach the server seeds the relatório first, as the server holds it (A5-E2E-003).
+ */
+export const FIXTURE_RELATORIO_ID = '019966b0-0808-7000-8000-0000000000f1';
+
 /** Matches the API routes only; the dev server's own module paths must keep loading. */
 export const isApiRequest = (url: URL) => url.pathname.startsWith('/api/');
 

@@ -32,28 +32,41 @@ interface PushAnswer {
   body: { applied?: { op_id: string }[]; rejected?: { op_id: string; code: string }[]; code?: string } | null;
 }
 
-/**
- * POSTs `ops` to `/api/sync/ops` from the page itself, with the page's cookie and the contract
- * header. `padTo`, when given, fills the first op's value inside the page with that many
- * characters, so a 5 MB body never crosses the test runner's channel.
- */
-async function pushFromPage(page: Page, ops: readonly Op[], padTo?: number): Promise<PushAnswer> {
-  return page.evaluate(
-    async ({ opsJson, padTo, header, version }) => {
-      const parsed = JSON.parse(opsJson) as Record<string, unknown>[];
-      const sent = padTo === undefined ? parsed : [{ ...parsed[0], value: 'x'.repeat(padTo) }, ...parsed.slice(1)];
-      const res = await fetch('/api/sync/ops', { method: 'POST', headers: { 'content-type': 'application/json', [header]: version }, body: JSON.stringify({ ops: sent }) });
-      const text = await res.text();
-      let body: unknown;
-      try {
-        body = JSON.parse(text);
-      } catch {
-        body = null;
-      }
-      return { status: res.status, body: body as PushAnswer['body'] };
+/** A push's answer body, parsed when it is JSON. */
+function parsedBody(text: string): PushAnswer['body'] {
+  try {
+    return JSON.parse(text) as PushAnswer['body'];
+  } catch {
+    return null;
+  }
+}
+
+/** POSTs `ops` to `/api/sync/ops` from the page itself, with the page's cookie and the contract header. */
+async function pushFromPage(page: Page, ops: readonly Op[]): Promise<PushAnswer> {
+  const answer = await page.evaluate(
+    async ({ opsJson, header, version }) => {
+      const res = await fetch('/api/sync/ops', { method: 'POST', headers: { 'content-type': 'application/json', [header]: version }, body: `{"ops":${opsJson}}` });
+      return { status: res.status, text: await res.text() };
     },
-    { opsJson: JSON.stringify(ops), padTo, header: CONTRACT_VERSION_HEADER, version: String(CONTRACT_VERSION) },
+    { opsJson: JSON.stringify(ops), header: CONTRACT_VERSION_HEADER, version: String(CONTRACT_VERSION) },
   );
+  return { status: answer.status, body: parsedBody(answer.text) };
+}
+
+/**
+ * The same push with the page's own session cookie, sent from the test runner straight to the api
+ * (`API_PROXY_TARGET`). For the 5 MB body only: the api answers 413 before the upload ends, and the
+ * dev server's proxy in front of the page may report that early answer as a 502 while it is still
+ * writing the body (a race of the e2e setup, not of the api).
+ */
+async function pushFromRunner(page: Page, ops: readonly Op[]): Promise<PushAnswer> {
+  const cookie = (await page.context().cookies(page.url())).map((entry) => `${entry.name}=${entry.value}`).join('; ');
+  const res = await fetch(`${process.env.API_PROXY_TARGET ?? 'http://localhost:3000'}/api/sync/ops`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie, origin: new URL(page.url()).origin, [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) },
+    body: JSON.stringify({ ops }),
+  });
+  return { status: res.status, body: parsedBody(await res.text()) };
 }
 
 /** A hand-written relatório-scope put of the signed-in user, from a device of their own. */
@@ -142,9 +155,9 @@ test('@p0 20.7-E2E-001 20.8-E2E-001 20.9-E2E-001 20.10-E2E-001 forged ops pushed
   expect(s3.body?.rejected).toEqual([{ op_id: concluded.op_id, code: 'op_attribution' }]);
 
   // S4: the 5 MB string in one push is over the body cap; a 20 001-character value under it is refused alone.
-  const huge = forged(deviceId, relatorioId, 'relatorio/setup/additional_info', '');
-  const s4body = await pushFromPage(page, [huge], 5 * 1024 * 1024);
-  expect(5 * 1024 * 1024).toBeGreaterThan(SYNC_PUSH_MAX_BYTES);
+  const huge = forged(deviceId, relatorioId, 'relatorio/setup/additional_info', 'x'.repeat(5 * 1024 * 1024));
+  expect(Buffer.byteLength(JSON.stringify({ ops: [huge] }))).toBeGreaterThan(SYNC_PUSH_MAX_BYTES);
+  const s4body = await pushFromRunner(page, [huge]);
   expect(s4body.status).toBe(413);
   expect(s4body.body?.code).toBe('body_too_large');
   const oversized = forged(deviceId, relatorioId, 'relatorio/setup/additional_info', 'x'.repeat(TEXT_CAPS.long + 1));

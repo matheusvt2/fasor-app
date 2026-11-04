@@ -1,7 +1,10 @@
+import { makeOp } from '@app/domain';
 import type { Page } from '@playwright/test';
-import { fixturePath, hideTab } from './support/durability.ts';
+import { newId } from '../apps/api/src/ids.ts';
+import { FIXTURE_RELATORIO_ID, fixturePath, hideTab } from './support/durability.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncWord, test } from './support/merged-fixtures.ts';
-import { readStore } from './support/outbox.ts';
+import { readStore, relatorioCreateOp } from './support/outbox.ts';
+import { applyAsServer } from './support/push-server-ops.ts';
 
 /*
  * Epic 1 retro A5, checked in a real browser: the mock's container classes translated
@@ -128,6 +131,16 @@ test('@p0 A5-E2E-002 both Account dialogs render in Inter with styled fields, ca
 test('@p0 A5-E2E-003 coming back online pushes at once, not on the 60 s tick', async ({ page, context, seed }) => {
   const account = seed.companies[1];
   const database = deviceDatabaseName(account.userId);
+  // Stories 20.7 to 20.10 (contract 29): the fixture's put lands only on a relatório the company
+  // holds, so its fixed relatório is seeded as the server holds it (a second create is a no-op),
+  // tombstoned at once so no other spec of this company meets it on Home; a put on a tombstoned
+  // row still applies (LWW).
+  const office = { companyId: account.companyId, userId: account.userId, deviceId: 'office-seed' };
+  const removal = makeOp(
+    { kind: 'put', scope: 'relatorio', company_id: account.companyId, project_id: null, relatorio_id: FIXTURE_RELATORIO_ID, path: 'relatorio/removed_at', value: new Date().toISOString(), prev_op_id: null, batch_id: null, meta: null, actor_id: account.userId, device_id: office.deviceId },
+    { newId, now: new Date() },
+  );
+  await applyAsServer(account.companyId, [relatorioCreateOp(office, FIXTURE_RELATORIO_ID), removal]);
   await signIn(page, account.email);
   await page.goto(fixturePath());
   const input = page.getByTestId('fixture-input');
