@@ -2,7 +2,7 @@
 title: 'Batch e20g: Story 20.6 follow-up, no blank page after a ficha whose photos end at the page foot; Caddy edge headers'
 type: 'bugfix'
 created: '2026-11-04'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'd6e8eea1718e90a2fd2cd14f54bcdbdd4091ffb6'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -116,3 +116,38 @@ deferred:
 - `podman compose --profile tools run --rm --user root tools pnpm --filter @app/api exec vitest run src/jobs/generate/docx.test.ts` (docx.test.ts belongs to the api project, `test:api`) -- expected green; red on main for the new describe.
 - `podman compose exec api pnpm --filter @app/api exec vitest run src/jobs/generate/page-placement.integration.test.ts` -- expected all cases green; red on main for the new case.
 - Under `lockf -t 20000 /tmp/fasor-verify.lock`: `podman compose --profile tools run --rm --user root tools pnpm exec tsx scripts/e2e.ts e2e/document-pages.spec.ts --project desktop-chrome --project durability-desktop-chrome` -- green.
+
+## Auto Run Result
+
+Status: done (2026-11-04).
+
+- **Change:** `partsChildren` (`apps/api/src/jobs/generate/sections/section-9.ts`) draws the `SheetGap` paragraph only between two parts, never after a ficha's or a local's last part. On the field case, the trailing gap after photo rows that ended at the page foot spilled onto a page of its own, and the next ficha's `pageBreakBefore` broke again. `docx.ts` needed no change: section 7 ends in its table and sections 8, 10 and 11 end in text. `infra/caddy/Caddyfile` adds `-Via` to its three header blocks. The redirect's `Server: Caddy` is skipped (Design Notes; `deferred-work.md`).
+- **Files:**
+  - `section-9.ts`: the fix and its comments.
+  - `docx.test.ts`: new describe "Story 20.6 follow-up: no trailing gap".
+  - `page-placement.integration.test.ts`: `render` takes photos; the new photo-rows-at-foot sweep.
+  - `e2e/support/pdf-text.ts`: `footerOnlyPages`.
+  - `e2e/document-pages.spec.ts`: no footer-only page.
+  - `infra/caddy/Caddyfile`: `-Via`.
+  - `docs/kbs/architecture/rendering.md` and `docs/kbs/log.md`.
+  - `deferred-work.md`: two rows.
+- **Review:** 8 findings.
+  - 2 patched (comments, low).
+  - 1 deferred (VGR-1, low: no automated edge-header check).
+  - 5 rejected, with reasons in the triage log.
+  - Follow-up review recommended: false (no high, no medium patched).
+- **Verification:**
+  - **Red on main** (fix reverted): `docx.test.ts` 2 failed. The page-placement case failed with footer-only pages `[28, 31, 34, 37]`.
+  - **Gate on 07ed99e7** (lock wait 0 s, load 5.70 at the start and 8.29 at the end, the main stack and this batch's stack up):
+    - lint 0, static 0;
+    - test:api 826 passed, 4 skipped;
+    - page-placement in the api container 4 of 4;
+    - touched e2e 76 of 76 (17 specs).
+    - test:unit had 5052 of 5060, with 8 timeouts (15 s and 60 s) in 4 web files this batch does not touch. Re-run alone under the lock on 7521c2f5, they pass 69 of 69 (E15-A4).
+  - **Head 7521c2f5** (comments only): lint 0, static 0.
+  - **Caddy, throwaway `caddy:2.11.4-alpine`:**
+    - the domain block: HSTS, no `Server`, no `Via` (before the change: `via: 1.1 Caddy`);
+    - the CloudFront fallback block: HSTS, no `Server`, no `Via`.
+- **Residual risks:**
+  - The page-placement sweep is tuned to this LibreOffice's metrics; its "reaches the foot" guard fails loudly if they drift.
+  - A body that ends in section 9's table (the tests section moved last, 10 and 11 removed) relies on Word's own end paragraph (ECH-1, rejected).
