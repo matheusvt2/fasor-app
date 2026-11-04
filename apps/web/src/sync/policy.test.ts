@@ -152,6 +152,12 @@ describe('2.2-UNIT-004 upload retry classification', () => {
     expect(classifyUploadFailure({ kind: 'http', status: 409, code: 'file_row_missing' })).toBe('defer');
   });
 
+  it('E20-A1: defers a 404 not_found (a withdrawn file, served again once restored)', () => {
+    expect(classifyUploadFailure({ kind: 'http', status: 404, code: 'not_found' })).toBe('defer');
+    // A 404 with no such code follows the sync table.
+    expect(classifyUploadFailure({ kind: 'http', status: 404 })).toBe('permanent');
+  });
+
   it('never retries a verdict no retry can change', () => {
     expect(classifyUploadFailure({ kind: 'http', status: 409, code: 'file_sha_mismatch' })).toBe('permanent');
     expect(classifyUploadFailure({ kind: 'http', status: 413, code: 'file_too_large' })).toBe('permanent');

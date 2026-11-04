@@ -1,7 +1,8 @@
 import { FUNCAO_MAX_LENGTH } from '../schemas/block-config.ts';
-import { NC_PHRASE_MAX_LENGTH } from '../schemas/entities.ts';
+import { NC_PHRASE_MAX_LENGTH, rowIndexColumns, rowRemovedAt, type Entity, type EntityRow } from '../schemas/entities.ts';
+import { applyOp, splitEntityKey, type EntityKey, type EntityState } from './apply.ts';
 import type { Op } from './op.ts';
-import { familyDef, safeParsePath, type OpPath, type PathFamily } from './path.ts';
+import { FAMILIES, familyDef, pathField, safeParsePath, type OpPath, type PathFamily } from './path.ts';
 
 /*
  * Story 20.9 (2026-11-03, contract 29, security pass S4): every op value has a size and a type
@@ -322,14 +323,76 @@ export function serializedBytes(value: unknown): number {
 export const RELATORIO_MAX_BYTES = 4 * 1024 * 1024;
 
 /**
- * Whether a client op may grow a relatório that holds `storedBytes` (its live rows, serialized):
- * refused when the op names a relatório, writes a value (a create, or a put of anything but
- * null) and `storedBytes` plus the value's serialized bytes pass `RELATORIO_MAX_BYTES`. A remove
- * and a put of null always apply, so a full relatório can still be emptied.
+ * E20-A1 (R-1d): the entity kinds only the server creates (their create family is `serverOnly`:
+ * suggestions, generation jobs, revisions, audit runs, users). Their rows are never counted in a
+ * relatório's budget, so previews, audits and readings never spend the user's room.
  */
-export function relatorioBudgetVerdict(op: Pick<Op, 'kind' | 'value' | 'relatorio_id'>, storedBytes: number): 'allowed' | 'refused' {
-  if (op.relatorio_id == null || op.kind === 'remove' || op.value === null) return 'allowed';
-  return storedBytes + serializedBytes(op.value) > RELATORIO_MAX_BYTES ? 'refused' : 'allowed';
+export const RELATORIO_BUDGET_SERVER_ENTITIES: readonly Entity[] = [
+  ...new Set(FAMILIES.filter((family) => family.create === true && family.serverOnly === true).map((family) => family.entity)),
+];
+
+const serverEntities: ReadonlySet<string> = new Set(RELATORIO_BUDGET_SERVER_ENTITIES);
+
+/**
+ * E20-A1 (R-1c): the bytes one stored row counts toward relatório `relatorioId`'s budget: its
+ * serialized bytes (`serializedBytes`, the push body's own serializer) when it is a live row of a
+ * client entity kind filed under that relatório, else 0. The server sums this over the rows it
+ * stores (`apps/api/src/sync/rules.ts`), so both sides of the budget are measured alike.
+ */
+export function relatorioBudgetRowBytes(entity: Entity, row: EntityRow, relatorioId: string): number {
+  if (serverEntities.has(entity) || rowRemovedAt(row) !== null) return 0;
+  if (rowIndexColumns(entity, row).relatorio_id !== relatorioId) return 0;
+  return serializedBytes(row);
+}
+
+/**
+ * E20-A1 (R-1a, R-1b): how many bytes a client op adds to the live rows of its relatório, given
+ * the rows it targets (`state`, tombstoned ones included, as the server loads them): the kernel's
+ * own reducer applies it, and the growth is the counted bytes of every row it changes after minus
+ * before (`relatorioBudgetRowBytes`). So a put is judged by the value it replaces (a shorter text
+ * is negative), a restore (`.../removed_at` put to null) by the whole row it revives, a removal by
+ * the row it tombstones (negative), and a create by the row it stores. 0 for an op that names no
+ * relatório, and for one the reducer refuses (the apply refuses it next, with its own code).
+ */
+export function relatorioBudgetGrowth(state: EntityState, op: Op): number {
+  const relatorioId = op.relatorio_id;
+  if (relatorioId == null) return 0;
+  let next: EntityState;
+  try {
+    next = applyOp(state, op);
+  } catch {
+    return 0;
+  }
+  let growth = 0;
+  for (const [key, row] of next) {
+    const before = state.get(key);
+    if (row === before) continue;
+    const { entity } = splitEntityKey(key as EntityKey);
+    growth += relatorioBudgetRowBytes(entity, row, relatorioId) - (before === undefined ? 0 : relatorioBudgetRowBytes(entity, before, relatorioId));
+  }
+  return growth;
+}
+
+/** A path that writes a row's tombstone (`relatorio/removed_at`, `{entity}/{id}/removed_at`). */
+function isTombstonePath(path: string): boolean {
+  const parsed = safeParsePath(path);
+  return parsed !== null && (parsed.family === 'relatorio/removed_at' || pathField(parsed) === 'removed_at');
+}
+
+/**
+ * Whether a client op may grow a relatório that holds `storedBytes` (its live rows of client
+ * kinds, `relatorioBudgetRowBytes` summed) by `growth` bytes (`relatorioBudgetGrowth`). E20-A1:
+ * refused only when the op names a relatório, grows it, and `storedBytes + growth` passes
+ * `RELATORIO_MAX_BYTES`; an op that adds nothing or shrinks it always applies, so a full
+ * relatório can still be edited down. A remove, and a put of null on any path but a tombstone,
+ * always apply; a restore (a tombstone put to null) is judged like any growth: a relatório with
+ * no room for the row refuses it, and the user removes something else first.
+ */
+export function relatorioBudgetVerdict(op: Pick<Op, 'kind' | 'value' | 'relatorio_id' | 'path'>, storedBytes: number, growth: number): 'allowed' | 'refused' {
+  if (op.relatorio_id == null || op.kind === 'remove') return 'allowed';
+  if (op.value === null && !isTombstonePath(op.path)) return 'allowed';
+  if (growth <= 0) return 'allowed';
+  return storedBytes + growth > RELATORIO_MAX_BYTES ? 'refused' : 'allowed';
 }
 
 /** A part of an op's value an open rule (`strings`, `structured`) judges, with where it sits, for the log. */

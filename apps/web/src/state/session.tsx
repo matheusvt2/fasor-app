@@ -167,9 +167,15 @@ function withTimeout(work: Promise<unknown>, ms: number): Promise<boolean> {
   });
 }
 
-/** Story 20.11: the deletes a sign-out could not finish, retried before any database opens. */
+/**
+ * Story 20.11: the deletes a sign-out could not finish, retried before any database opens.
+ * E20-A1 (R-4b): a pending wipe means a sign-out stopped part way (a tab closed mid-way), so the
+ * user's browser-storage keys it clears last go too (`clearUserStorage`).
+ */
 async function runPendingWipes(): Promise<void> {
-  for (const name of readPendingWipes()) {
+  const pending = readPendingWipes();
+  if (pending.length > 0) clearUserStorage();
+  for (const name of pending) {
     if (await withTimeout(deleteDatabase(name), SIGN_OUT_DELETE_WAIT_MS)) removePendingWipe(name);
   }
 }

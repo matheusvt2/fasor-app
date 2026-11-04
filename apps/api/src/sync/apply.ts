@@ -185,7 +185,14 @@ function validate(raw: unknown, companyId: CompanyId, deps: ApplyDeps): Validati
   try {
     return validateOp(raw, companyId, deps);
   } catch (error) {
-    if (error instanceof RangeError) return { ok: false, code: 'op_invalid' };
+    if (error instanceof RangeError) {
+      // E20-A1 (R-12): logged like every other refusal of one op, with the error's text.
+      const opId = (raw as { op_id?: unknown } | null)?.op_id;
+      const rawPath = (raw as { path?: unknown } | null)?.path;
+      // Review loop 1: neither is checked yet, so each is cut to 200 characters for the log.
+      logRuleRefusal({ op_id: typeof opId === 'string' ? opId.slice(0, 200) : '', path: typeof rawPath === 'string' ? rawPath.slice(0, 200) : '' }, companyId, 'op_invalid', error.message);
+      return { ok: false, code: 'op_invalid' };
+    }
     throw error;
   }
 }

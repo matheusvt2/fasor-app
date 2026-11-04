@@ -1,4 +1,4 @@
-import { CLOCK_SKEW_MS, SYNC_ROUTES, type Op } from '@app/domain';
+import { CLOCK_OFFSET_TOLERANCE_MS, CLOCK_SKEW_MS, SYNC_ROUTES, type Op } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { signInForDurability, withoutServiceWorker } from './support/durability.ts';
 import { deviceDatabaseName, expect, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -51,10 +51,15 @@ async function shiftPageClock(page: Page, shiftMs: number): Promise<void> {
   }, shiftMs);
 }
 
-/** The offset this device applies to its clock, as `clock.ts` keeps it; null when none was learned. */
+/**
+ * The offset this device applies to its clock, as `clock.ts` keeps it; null when none was learned.
+ * E20-A1: kept as `{"offset":…,"rawMs":…}`; a plain number is the format kept before.
+ */
 async function storedOffset(page: Page): Promise<number | null> {
   const raw = await page.evaluate((key) => window.localStorage.getItem(key), OFFSET_KEY);
-  return raw === null ? null : Number(raw);
+  if (raw === null) return null;
+  const parsed = JSON.parse(raw) as number | { offset: number };
+  return typeof parsed === 'number' ? parsed : parsed.offset;
 }
 
 const outbox = (page: Page) => readStore<OutboxRecord>(page, database, 'outbox');
@@ -186,4 +191,59 @@ test('@p0 e20f-DUR-003 work stamped before the offset was known is refused op_at
     expect(logged?.client_ts, entry.path).toBe(entry.client_ts);
   }
   await expect(row).toHaveCount(0);
+});
+
+test('@p0 E20-A1-DUR-001 a Não ensaiado mark made offline on a clock 30 minutes fast: after "Reenviar" the server logs its instant at the real time it was made, not at the resend time', async ({ page, context }) => {
+  test.setTimeout(240_000);
+  await withoutServiceWorker(page);
+  await shiftPageClock(page, 30 * MINUTE);
+  await resetEmpresaB(account, { standard: true });
+  await signInForDurability(page, context, account.email);
+  await expect.poll(() => storedOffset(page), { timeout: 30_000 }).not.toBeNull();
+  const built = newRelatorioDrafts(account);
+  await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId)]);
+  const sheet = built.sheets[0]!;
+  // Opened online first, so the device holds the relatório.
+  await page.goto(`/relatorio/${built.relatorioId}/ficha/${sheet.blockId}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+
+  // Cut from the api, with the offset forgotten: the mark carries the fast clock.
+  const isApi = (url: URL) => url.pathname.startsWith('/api/');
+  await page.route(isApi, (route) => route.abort('internetdisconnected'));
+  await page.evaluate((key) => window.localStorage.removeItem(key), OFFSET_KEY);
+  await page.reload();
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  expect(await storedOffset(page)).toBeNull();
+  await page.getByRole('button', { name: `Mais opções da ficha ${sheet.tag}` }).click();
+  await page.getByRole('menuitem', { name: 'Marcar não ensaiado' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Marcar não ensaiado' });
+  await dialog.getByRole('radio', { name: 'Outro' }).click();
+  await dialog.getByLabel('Descreva o motivo').fill('Equipamento inacessível');
+  await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
+  await expect(dialog).toBeHidden();
+  const path = `block/${sheet.blockId}/not_tested`;
+  await expect.poll(async () => (await outbox(page)).some((row) => row.path === path), { timeout: 15_000 }).toBe(true);
+  const markedAt = Date.now();
+  const mark = (await outbox(page)).find((row) => row.path === path)!;
+  expect(Date.parse((mark.value as { at: string }).at) - markedAt).toBeGreaterThan(CLOCK_SKEW_MS);
+
+  // Back online: refused op_attribution, and the answer teaches the offset.
+  await page.unroute(isApi);
+  await tapSyncNow(page);
+  await expect.poll(async () => (await outbox(page)).find((row) => row.op_id === mark.op_id)?.error_code, { timeout: 60_000 }).toBe('op_attribution');
+  await expect.poll(() => storedOffset(page), { timeout: 30_000 }).not.toBeNull();
+  // The resend comes well after the mark, so an instant moved to the resend time would show.
+  // eslint-disable-next-line playwright/no-wait-for-timeout -- the gap between the mark and "Reenviar" is the point of the test
+  await page.waitForTimeout(10_000);
+  const row = page.getByTestId('sync-rejected-row');
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  await row.getByRole('button', { name: 'Reenviar' }).click();
+  await expectAllAcked(page, [mark.op_id]);
+
+  // The server holds the instant the engineer marked it, on the server's clock (one-second header resolution).
+  const relatorioLog = await pullAll(page.request, SYNC_ROUTES.pullRelatorio(built.relatorioId).path);
+  const logged = relatorioLog.ops.find((op: Op) => op.op_id === mark.op_id);
+  const at = Date.parse((logged?.value as { at: string }).at);
+  expect(Math.abs(at - Date.now())).toBeLessThan(CLOCK_OFFSET_TOLERANCE_MS);
+  expect(Math.abs(at - markedAt)).toBeLessThan(5_000);
 });

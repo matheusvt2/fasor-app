@@ -1,6 +1,6 @@
 import { KEEP_SCREEN_ON_DEFAULT, WAKE_LOCK_IDLE_MS, wakeLockWanted } from '@app/domain';
 import { useEffect } from 'react';
-import { now } from '../clock.ts';
+import { elapsedNowMs } from '../clock.ts';
 import { useLiveQuery } from '../db/live.ts';
 import { readKeepScreenOn } from '../db/prefs.ts';
 import type { AppDatabase } from '../db/schema.ts';
@@ -41,7 +41,7 @@ const state = {
   holders: 0,
   /** The switch as the holders read it; null until read (no lock is asked for before). */
   enabled: null as boolean | null,
-  lastInteraction: now().getTime(),
+  lastInteraction: elapsedNowMs(),
   sentinel: null as Sentinel | null,
   requesting: false,
   /** The request in flight, by number: a late answer to an abandoned one is told apart. */
@@ -61,8 +61,9 @@ function visible(): boolean {
   return typeof document === 'undefined' || document.visibilityState === 'visible';
 }
 
+/** E20-A1 (R-3): measured on the monotonic clock, so a learned clock offset never makes the screen idle early or never. */
 function idleMs(): number {
-  return now().getTime() - state.lastInteraction;
+  return elapsedNowMs() - state.lastInteraction;
 }
 
 function wanted(): boolean {
@@ -130,13 +131,13 @@ function evaluate(): void {
 }
 
 const onInteraction = () => {
-  state.lastInteraction = now().getTime();
+  state.lastInteraction = elapsedNowMs();
   evaluate();
 };
 
 const onVisibility = () => {
   // Coming back to the page counts as an interaction (the engineer just unlocked the tablet).
-  if (visible()) state.lastInteraction = now().getTime();
+  if (visible()) state.lastInteraction = elapsedNowMs();
   evaluate();
 };
 
@@ -153,7 +154,7 @@ function listen(on: boolean): void {
 export function holdScreenWakeLock(): () => void {
   // The first holder came with a tap (the one that opened the sheet or the camera): it counts
   // as an interaction, so a sheet opened long after the app loaded is not taken for idle.
-  if (state.holders === 0) state.lastInteraction = now().getTime();
+  if (state.holders === 0) state.lastInteraction = elapsedNowMs();
   state.holders += 1;
   listen(true);
   evaluate();
@@ -180,7 +181,7 @@ export function resetScreenWakeLockForTests(): void {
   clearTimeout(state.idleTimer);
   clearTimeout(state.requestTimer);
   listen(false);
-  Object.assign(state, { holders: 0, enabled: null, lastInteraction: now().getTime(), sentinel: null, requesting: false, request: 0, requestTimer: undefined, idleTimer: undefined, listening: false });
+  Object.assign(state, { holders: 0, enabled: null, lastInteraction: elapsedNowMs(), sentinel: null, requesting: false, request: 0, requestTimer: undefined, idleTimer: undefined, listening: false });
 }
 
 /**

@@ -1,4 +1,4 @@
-import { CLOCK_SKEW_MS } from '../ops/attribution.ts';
+import { CLOCK_OFFSET_TOLERANCE_MS, CLOCK_SKEW_MS } from './clock-constants.ts';
 
 /*
  * e20f (2026-11-04, integrated review of 76cbdb79): a device whose clock is wrong stamps ops the
@@ -7,13 +7,8 @@ import { CLOCK_SKEW_MS } from '../ops/attribution.ts';
  * its raw clock plus that offset. The server's check is unchanged.
  */
 
-/**
- * How close two offset estimates must be to count as the same (60 s). The `Date` header has a
- * one-second resolution and a round trip adds its own error; an estimate inside this band of
- * the applied offset changes nothing, so the stamps of one device do not churn their order, and
- * an estimate inside this band of zero is a correct clock (offset 0).
- */
-export const CLOCK_OFFSET_TOLERANCE_MS = 60_000;
+// E20-A1 (R-12): defined in the leaf `sync/clock-constants.ts`, re-exported here unchanged.
+export { CLOCK_OFFSET_TOLERANCE_MS };
 
 /**
  * The server clock minus the device clock, read from one answer: the `Date` header (`serverDate`,
@@ -58,4 +53,41 @@ export function nextClockOffset(applied: number, estimate: number | null): numbe
 export function monotonicNowMs(lastIssuedMs: number | null, correctedMs: number): number {
   if (lastIssuedMs === null || correctedMs >= lastIssuedMs) return correctedMs;
   return lastIssuedMs - correctedMs <= CLOCK_SKEW_MS / 2 ? lastIssuedMs : correctedMs;
+}
+
+/**
+ * E20-A1 (R-3, amended in review loop 1): where the device's raw clock stood against its
+ * monotonic clock at one instant of a page (both in milliseconds; on the web the monotonic one is
+ * the page's monotonic high-resolution time on the raw clock's scale of its load, which a change
+ * of the system clock does not move). It is never compared across pages.
+ */
+export interface ClockOffsetBasis {
+  readonly rawMs: number;
+  readonly monotonicMs: number;
+}
+
+/**
+ * E20-A1 (R-3): at load, whether a stored offset learned when the raw clock read `learnedRawMs`
+ * no longer holds: the raw clock now reads more than `CLOCK_OFFSET_TOLERANCE_MS` before that
+ * instant, so it was set back while the app was closed. A clock set forward while closed cannot
+ * be told from time passing and is kept; the next answer corrects it.
+ */
+export function storedClockOffsetStale(learnedRawMs: number, nowRawMs: number): boolean {
+  if (!Number.isFinite(learnedRawMs) || !Number.isFinite(nowRawMs)) return true;
+  return nowRawMs < learnedRawMs - CLOCK_OFFSET_TOLERANCE_MS;
+}
+
+/**
+ * E20-A1 (R-3): within a page, how the raw clock moved against the monotonic one since `anchor`:
+ * `stale` when it moved back by more than `CLOCK_OFFSET_TOLERANCE_MS` (the device's clock was set
+ * back while the app ran), `forward` when it moved ahead by more (a sleep, since the monotonic
+ * clock stops while a tablet sleeps, or a clock set forward: the two cannot be told apart, so the
+ * offset is kept and the anchor moves there), else `same`.
+ */
+export function clockOffsetDrift(anchor: ClockOffsetBasis, current: ClockOffsetBasis): 'same' | 'forward' | 'stale' {
+  const values = [anchor.rawMs, anchor.monotonicMs, current.rawMs, current.monotonicMs];
+  if (!values.every(Number.isFinite)) return 'stale';
+  const drift = current.rawMs - current.monotonicMs - (anchor.rawMs - anchor.monotonicMs);
+  if (drift < -CLOCK_OFFSET_TOLERANCE_MS) return 'stale';
+  return drift > CLOCK_OFFSET_TOLERANCE_MS ? 'forward' : 'same';
 }

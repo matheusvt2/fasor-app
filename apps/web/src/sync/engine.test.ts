@@ -1517,6 +1517,47 @@ describe('6.2 photo uploads', () => {
       h.db.close();
     });
 
+    it('E20-A1 (R-3): the window is measured on elapsedMs: a learned 30-minute jump of now mid-window keeps the 5 s cadence until 120 s have elapsed', async () => {
+      let jump = 0;
+      const base = Date.parse('2026-09-21T16:00:00.000Z');
+      const h = await harness({}, { clockNow: true });
+      // Rebuilt with distinct clocks: now() reads the fake time plus a jump, elapsedMs() the fake time alone.
+      h.engine.stop();
+      const engine = createSyncEngine({
+        db: h.db,
+        client: h.server,
+        timers: h.clock.timers,
+        random: () => 0,
+        now: () => new Date(base + h.clock.now() + jump),
+        elapsedMs: () => h.clock.now(),
+        newId: ids('019966b0-0015-7000-8000-'),
+        isOnline: () => h.online.value,
+        onReAuth: () => {},
+        onOutdated: () => {},
+        onChange: () => {},
+        subscribeOnline: () => () => {},
+      });
+      await shoot(h, PHOTO_1, '2026-09-21T16:10:00.000Z', 'queued');
+      await readingStatus(h, PHOTO_1, 'running');
+      engine.start();
+      await waitFor(() => cycles(h) === 1 && !engine.status().running, 'the launch cycle');
+      await h.clock.advance(30_000);
+      expect(cycles(h)).toBe(7);
+      // The device learns its clock runs 30 minutes slow: now() jumps, the elapsed time does not.
+      jump = 30 * 60_000;
+      await h.clock.advance(5_000);
+      expect(cycles(h)).toBe(8);
+      await h.clock.advance(80_000);
+      expect(cycles(h)).toBe(24);
+      // Past 120 s elapsed: back to 60 s.
+      await h.clock.advance(10_000);
+      expect(cycles(h)).toBe(25);
+      await h.clock.advance(50_000);
+      expect(cycles(h)).toBe(25);
+      engine.stop();
+      h.db.close();
+    });
+
     it('13.5-UNIT past the window with the reading still running, a cycle every 60 s for as long as it runs (never a stop), until it clears', async () => {
       expect(READING_POLL_WINDOW_MS).toBe(READING_FAST_POLL_WINDOW_MS);
       const h = await harness({}, { clockNow: true });

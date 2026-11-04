@@ -191,6 +191,16 @@ describe('Account: sign out with pending work (Story 20.11)', () => {
     expect(dialog).toHaveAccessibleDescription('Não foi possível conferir o que ainda não foi enviado. Sair pode apagar alterações deste aparelho.');
   });
 
+  it('E20-A1 (R-4a): with no open database handle the count cannot be read, so the pending dialog opens, never "nada pendente"', async () => {
+    uploadsWaiting = 0;
+    session = { ...signedIn, database: null, signOut: vi.fn(async () => {}) };
+    renderAccount(syncState('', 0));
+    await userEvent.click(await screen.findByRole('button', { name: 'Sair' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveAccessibleName('Sair com envios pendentes?');
+    expect(dialog).toHaveAccessibleDescription('Não foi possível conferir o que ainda não foi enviado. Sair pode apagar alterações deste aparelho.');
+  });
+
   it('a sync round that never settles is waited for at most SIGN_OUT_FLUSH_WAIT_MS, then the confirm opens with the count', async () => {
     await deviceWith(2);
     const syncNow = vi.fn(() => new Promise<'ran'>(() => {}));

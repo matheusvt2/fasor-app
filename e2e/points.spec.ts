@@ -1016,6 +1016,145 @@ test('@p0 20.4-E2E-003 FR-61: a new point\'s picked equipment, held before its t
   await expect(cards(page).first().locator('.poa-title')).toHaveText(`${chave.tag} · Cubículo Enel`);
 });
 
+/** E6-R1's way to make the device refuse writes: its outbox throws a full store's error while the flag is up. */
+async function refusableOutbox(page: Page): Promise<(refuse: boolean) => Promise<void>> {
+  await page.addInitScript(() => {
+    const original = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['put']>) {
+      if ((window as unknown as { __refuseOutbox?: boolean }).__refuseOutbox === true && this.name === 'outbox') {
+        throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+      }
+      return original.apply(this, args);
+    };
+  });
+  return (refuse) =>
+    page.evaluate((flag) => {
+      (window as unknown as { __refuseOutbox?: boolean }).__refuseOutbox = flag;
+    }, refuse);
+}
+
+const QUOTA_TOAST = 'Não foi possível salvar neste aparelho. Libere espaço e tente de novo.';
+
+test('@p0 E20-A1-E2E-001 a link pick the device refused, then picked again and stored, lets one "Concluir" close the editor; a refused pick left alone keeps it open', async ({ page }) => {
+  test.setTimeout(180_000);
+  const refuse = await refusableOutbox(page);
+  let nc!: PointRow;
+  let chave!: SeededSheet;
+  await setUp(page, (scope, all, equipmentOf) => {
+    chave = enelChaves(all)[0]!;
+    nc = newPointRow({ id: newId(), relatorioId: scope.relatorioId, text: 'Contato oxidado', equipmentId: equipmentOf.get(chave.blockId)!, origin: 'manual', action: null }, []);
+    return [officeDraft(account, scope, `point/${nc.id}`, nc, 'create')];
+  });
+  await openPoints(page);
+  const edit = page.getByRole('button', { name: `Editar o ponto 1, ${chave.tag} · Cubículo Enel` });
+  await edit.click();
+  const editor = page.getByRole('article', { name: 'Ponto de atenção 1 em edição' });
+  await expect(textArea(editor)).toBeFocused();
+  const picker = linkPicker(editor);
+  const pickGeral = async () => {
+    await picker.click();
+    await linkList(page).getByRole('option', { name: 'Geral', exact: true }).click();
+  };
+
+  // The device refuses the pick's write: the toast says so, and nothing reaches the outbox.
+  await refuse(true);
+  await pickGeral();
+  await expect(toast(page).filter({ hasText: QUOTA_TOAST })).toBeVisible();
+  expect(await pointOutbox(page)).toEqual([]);
+  // The device takes writes again and the same pick is stored: one "Concluir" closes the editor.
+  await refuse(false);
+  await pickGeral();
+  await expect.poll(async () => (await pointOutbox(page)).length).toBe(2);
+  expectRelinkBatch(await pointOutbox(page), nc.id, null, null);
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(editor).toHaveCount(0);
+  await expect(cards(page).first().locator('.poa-title')).toHaveText('Geral');
+
+  // A refused pick left alone: "Concluir" waits for it and stays open (the pick was not written).
+  await page.getByRole('button', { name: 'Editar o ponto 1, Geral' }).click();
+  await expect(textArea(editor)).toBeFocused();
+  await refuse(true);
+  await picker.click();
+  await linkList(page).getByRole('option', { name: chaveOption(chave), exact: true }).click();
+  await expect(toast(page).filter({ hasText: QUOTA_TOAST })).toBeVisible();
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  // eslint-disable-next-line playwright/no-wait-for-timeout -- a close that would happen happens within this wait: the editor settles its writes in milliseconds
+  await page.waitForTimeout(1_500);
+  await expect(editor).toBeVisible();
+  expect((await storedPoints(page)).find((row) => row.id === nc.id)).toMatchObject({ equipment_id: null });
+  // The next "Concluir" closes it, with the point as stored.
+  await refuse(false);
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(editor).toHaveCount(0);
+  await expect(cards(page).first().locator('.poa-title')).toHaveText('Geral');
+});
+
+test('@p0 E20-A1-E2E-003 a priority pick the device refuses keeps the editor open on "Concluir"; picked again once it takes writes, the first "Concluir" closes it', async ({ page }) => {
+  test.setTimeout(150_000);
+  const refuse = await refusableOutbox(page);
+  let nc!: PointRow;
+  let chave!: SeededSheet;
+  await setUp(page, (scope, all, equipmentOf) => {
+    chave = enelChaves(all)[0]!;
+    nc = newPointRow({ id: newId(), relatorioId: scope.relatorioId, text: 'Isolador trincado', equipmentId: equipmentOf.get(chave.blockId)!, origin: 'manual', action: null }, []);
+    return [officeDraft(account, scope, `point/${nc.id}`, nc, 'create')];
+  });
+  await openPoints(page);
+  await page.getByRole('button', { name: `Editar o ponto 1, ${chave.tag} · Cubículo Enel` }).click();
+  const editor = page.getByRole('article', { name: 'Ponto de atenção 1 em edição' });
+  await expect(textArea(editor)).toBeFocused();
+  const p1 = editor.getByRole('radio', { name: 'P1, Curto prazo, 30 dias' });
+
+  await refuse(true);
+  await p1.click();
+  await expect(toast(page).filter({ hasText: QUOTA_TOAST })).toBeVisible();
+  expect(await pointOutbox(page)).toEqual([]);
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  // eslint-disable-next-line playwright/no-wait-for-timeout -- as in E20-A1-E2E-001: a close would happen within this wait
+  await page.waitForTimeout(1_500);
+  await expect(editor).toBeVisible();
+  expect((await storedPoints(page)).find((row) => row.id === nc.id)).toMatchObject({ priority: null });
+
+  await refuse(false);
+  await p1.click();
+  await expect.poll(async () => (await storedPoints(page)).find((row) => row.id === nc.id)?.priority).toBe('P1');
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(editor).toHaveCount(0);
+});
+
+test('@p0 E20-A1-E2E-002 a new point whose text the device refused is created by the link pick that follows: "Concluir" closes it with "Ponto de atenção salvo"', async ({ page }) => {
+  test.setTimeout(150_000);
+  const refuse = await refusableOutbox(page);
+  const { sheets, equipmentOf } = await setUp(page);
+  const chave = enelChaves(sheets)[0]!;
+  await openPoints(page);
+  await page.getByRole('button', { name: 'Criar', exact: true }).click();
+  const editor = page.getByRole('article', { name: 'Novo ponto de atenção em edição' });
+  await expect(textArea(editor)).toBeFocused();
+
+  // The text's own commit is refused: no point is stored yet.
+  await refuse(true);
+  await page.keyboard.type('Isolador sem placa');
+  await expect(toast(page).filter({ hasText: QUOTA_TOAST })).toBeVisible();
+  expect(await storedPoints(page)).toEqual([]);
+
+  // Back to normal, the pick is the write that creates the point, with the typed text and the pick.
+  await refuse(false);
+  const picker = linkPicker(editor);
+  await picker.click();
+  await linkList(page).getByRole('option', { name: chaveOption(chave), exact: true }).click();
+  await expect
+    .poll(async () => (await storedPoints(page)).map((row) => [row.text, row.equipment_id]))
+    .toEqual([['Isolador sem placa', equipmentOf.get(chave.blockId)]]);
+  const outboxOps = await pointOutbox(page);
+  expect(outboxOps.map((op) => op.kind)).toEqual(['create']);
+
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(editor).toHaveCount(0);
+  await expect(toast(page).filter({ hasText: 'Ponto de atenção salvo' })).toContainText('Ponto de atenção salvo · 1 de 1 na seção 9');
+  await expect(cards(page).first().locator('.poa-title')).toHaveText(`${chave.tag} · Cubículo Enel`);
+});
+
 test('@p0 20.4-E2E-006 a pick in a new point\'s editor goes into its create: from an NC row\'s dialog another equipment, from "Criar" on the Points surface an equipment of another local picked before the text; no reload, each row and card carries the pick', async ({ page }) => {
   test.setTimeout(180_000);
   const { relatorioId, chave, row } = await openNcRow(page);

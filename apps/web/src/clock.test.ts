@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  */
 
 const KEY = 'releng.clock-offset';
+/** What `clock.ts` keeps (E20-A1): the offset and the raw instant it was learned at, in one value. */
+const stored = () => JSON.parse(window.localStorage.getItem(KEY) ?? 'null') as { offset: number; rawMs: number } | null;
 const SERVER = 'Wed, 04 Nov 2026 07:49:09 GMT';
 const SERVER_MS = Date.parse(SERVER);
 
@@ -15,7 +17,9 @@ async function freshClock() {
 }
 
 describe('clock.ts (e20f)', () => {
-  beforeEach(() => window.localStorage.removeItem(KEY));
+  beforeEach(() => {
+    window.localStorage.removeItem(KEY);
+  });
   afterEach(() => {
     vi.useRealTimers();
     window.localStorage.removeItem(KEY);
@@ -28,7 +32,7 @@ describe('clock.ts (e20f)', () => {
     clock.learnServerClock(SERVER, clock.rawNowMs(), clock.rawNowMs() + 100);
     expect(Math.abs(clock.clockOffsetMs() + 30 * 60_000)).toBeLessThan(1_000);
     expect(Math.abs(clock.now().getTime() - SERVER_MS)).toBeLessThan(1_000);
-    expect(Number(window.localStorage.getItem(KEY))).toBe(clock.clockOffsetMs());
+    expect(stored()?.offset).toBe(clock.clockOffsetMs());
 
     // An offline boot: no answer yet, the stored offset applies at once.
     const again = await freshClock();
@@ -78,5 +82,60 @@ describe('clock.ts (e20f)', () => {
     expect(clock.clockOffsetMs()).toBe(0);
     clock.learnServerClock(null, clock.rawNowMs(), clock.rawNowMs());
     expect(clock.clockOffsetMs()).toBe(0);
+  });
+
+  it('E20-A1 (R-3): elapsedNowMs measures durations on the monotonic clock: a learned 30-minute offset moves now(), never it', async () => {
+    vi.useFakeTimers({ now: SERVER_MS - 30 * 60_000 });
+    const clock = await freshClock();
+    const startNow = clock.now().getTime();
+    const startElapsed = clock.elapsedNowMs();
+    clock.learnServerClock(SERVER, clock.rawNowMs(), clock.rawNowMs());
+    expect(clock.now().getTime() - startNow).toBeGreaterThan(29 * 60_000);
+    expect(clock.elapsedNowMs() - startElapsed).toBe(0);
+    vi.advanceTimersByTime(5_000);
+    expect(clock.elapsedNowMs() - startElapsed).toBe(5_000);
+  });
+
+  it('E20-A1 (R-3): a 2-hour sleep (the raw clock runs, the monotonic one stops) keeps the offset; a clock set back while running drops it', async () => {
+    vi.useFakeTimers({ now: SERVER_MS + 30 * 60_000 });
+    const clock = await freshClock();
+    clock.learnServerClock(SERVER, clock.rawNowMs(), clock.rawNowMs());
+    const learned = clock.clockOffsetMs();
+    expect(Math.abs(learned + 30 * 60_000)).toBeLessThan(1_000);
+    expect(stored()).toEqual({ offset: learned, rawMs: SERVER_MS + 30 * 60_000 });
+    // Asleep for two hours: the system clock moves, the monotonic one does not.
+    vi.setSystemTime(Date.now() + 2 * 60 * 60_000);
+    expect(clock.clockOffsetMs()).toBe(learned);
+    // An hour of use: both clocks move together.
+    vi.advanceTimersByTime(60 * 60_000);
+    expect(clock.clockOffsetMs()).toBe(learned);
+    // The tablet's clock is corrected while the app runs: set back 30 minutes.
+    vi.setSystemTime(Date.now() - 30 * 60_000);
+    expect(clock.clockOffsetMs()).toBe(0);
+    expect(Math.abs(clock.now().getTime() - Date.now())).toBeLessThan(1_000);
+    expect(window.localStorage.getItem(KEY)).toBeNull();
+  });
+
+  it('E20-A1 (R-3): at load, an offset whose clock was set back past the instant it was learned is dropped; one learned earlier, or kept as a plain number, still applies', async () => {
+    vi.useFakeTimers({ now: SERVER_MS });
+    window.localStorage.setItem(KEY, JSON.stringify({ offset: -30 * 60_000, rawMs: SERVER_MS + 30 * 60_000 }));
+    expect((await freshClock()).clockOffsetMs()).toBe(0);
+    expect(window.localStorage.getItem(KEY)).toBeNull();
+
+    window.localStorage.setItem(KEY, JSON.stringify({ offset: -30 * 60_000, rawMs: SERVER_MS - 3 * 60 * 60_000 }));
+    expect((await freshClock()).clockOffsetMs()).toBe(-30 * 60_000);
+
+    window.localStorage.setItem(KEY, String(-30 * 60_000));
+    expect((await freshClock()).clockOffsetMs()).toBe(-30 * 60_000);
+  });
+
+  it('E20-A1 (R-3): an answer that confirms the offset moves its stored raw instant to now', async () => {
+    vi.useFakeTimers({ now: SERVER_MS + 30 * 60_000 });
+    const clock = await freshClock();
+    clock.learnServerClock(SERVER, clock.rawNowMs(), clock.rawNowMs());
+    const learned = stored()!;
+    vi.advanceTimersByTime(10 * 60_000);
+    clock.learnServerClock(new Date(SERVER_MS + 10 * 60_000).toUTCString(), clock.rawNowMs(), clock.rawNowMs());
+    expect(stored()).toEqual({ offset: learned.offset, rawMs: learned.rawMs + 10 * 60_000 });
   });
 });

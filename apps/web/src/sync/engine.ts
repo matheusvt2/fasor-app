@@ -102,6 +102,11 @@ export interface SyncEngineDeps {
   timers: Timers;
   random: () => number;
   now: Clock;
+  /**
+   * E20-A1 (R-3): a monotonic clock in milliseconds, for durations only (the reading poll
+   * window), so a learned clock offset never shortens or stretches one. Defaults to `now`.
+   */
+  elapsedMs?: () => number;
   newId: NewId;
   isOnline: () => boolean;
   onReAuth: () => void;
@@ -218,8 +223,9 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   /** Story 10.1: op pairs waiting for both ops (and the row after them) to be on this device. */
   let mergePairs: { op_id: string; over_op_id: string; tries: number }[] = [];
   let timer: unknown = null;
-  /** E78-Q8: when the first cycle of this burst saw a `running` reading (ms of `deps.now()`); null when the last one saw none. */
+  /** E78-Q8: when the first cycle of this burst saw a `running` reading (ms of `elapsedMs()`); null when the last one saw none. */
   let readingSince: number | null = null;
+  const elapsedMs = deps.elapsedMs ?? (() => deps.now().getTime());
   let unsubscribe: (() => void) | null = null;
   let started = false;
   /** Set by `stop()`: the in-flight cycle ends at its next step and reports nothing more. */
@@ -716,7 +722,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
 
   /** The wait before the next timed cycle: the reading cadence inside its window (E78-Q8), else the interval. */
   const nextDelay = (): number => {
-    if (readingSince === null || deps.now().getTime() - readingSince >= READING_POLL_WINDOW_MS) return intervalMs;
+    if (readingSince === null || elapsedMs() - readingSince >= READING_POLL_WINDOW_MS) return intervalMs;
     return Math.min(READING_POLL_INTERVAL_MS, intervalMs);
   };
 
@@ -747,7 +753,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       return;
     }
     if (readingSince !== null) return;
-    readingSince = deps.now().getTime();
+    readingSince = elapsedMs();
     if (!started || stopped) return;
     if (timer !== null) deps.timers.clearTimeout(timer);
     schedule();

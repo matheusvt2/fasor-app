@@ -1,4 +1,4 @@
-import { CLOCK_OFFSET_TOLERANCE_MS } from '../sync/clock-offset.ts';
+import { CLOCK_SKEW_MS } from '../sync/clock-constants.ts';
 import type { Op } from './op.ts';
 import { familyDef, isCreateFamily, parsePath, pathField, type OpPath } from './path.ts';
 
@@ -21,8 +21,8 @@ import { familyDef, isCreateFamily, parsePath, pathField, type OpPath } from './
  * transaction, which loads the rows and asks `historyClaimHolds` and `lowerBoundIssue`.
  */
 
-/** How far ahead of the server's clock, and how far before a relatório's creation, an instant may lie (10 minutes). */
-export const CLOCK_SKEW_MS = 10 * 60_000;
+// E20-A1 (R-12): defined in the leaf `sync/clock-constants.ts`, re-exported here unchanged.
+export { CLOCK_SKEW_MS };
 
 export type ActorRule = 'op' | 'history' | 'none';
 export type InstantRule = 'bounded' | 'future' | 'exempt';
@@ -251,19 +251,32 @@ function setLeafAt(root: unknown, keys: readonly string[], leaf: string): void {
 }
 
 /**
- * e20f (2026-11-04): an op the server refused `op_attribution` because the device's clock was
- * wrong, stamped again at `at` (the device's corrected now) for "Reenviar". Its `client_ts`
- * becomes `at`. Each `bounded` or `future` instant of the table that lies within
- * `CLOCK_OFFSET_TOLERANCE_MS` of the old `client_ts` was read from the same wrong clock and
- * shifts by the same delta; any such instant still later than `at` becomes `at`. An instant far
- * from the old stamp (a colleague's edit put back by an undo, a gallery photo's capture) stays,
- * and exempt instants and actor leaves are never touched. Pure: returns a new op.
+ * E20-A1 (R-2, R-12): how close to an op's old `client_ts` a value instant must lie to count as
+ * read from the same clock as the stamp (60 s), for `restampOp`. Its own window: tuning the
+ * device's offset tolerance (`CLOCK_OFFSET_TOLERANCE_MS`) does not change what a resend rewrites.
  */
-export function restampOp(op: Op, at: Date): Op {
+export const RESTAMP_WINDOW_MS = 60_000;
+
+/**
+ * e20f (2026-11-04): an op the server refused because the device's clock was wrong, stamped
+ * again at `at` (the device's corrected now) for "Reenviar". Its `client_ts` becomes `at`.
+ * E20-A1 (R-2): each `bounded` or `future` instant of the table that lies within
+ * `RESTAMP_WINDOW_MS` of the old `client_ts` was read from the same wrong clock, so it moves by
+ * the clock's error the device has learned since (`clockErrorMs`, the server's clock minus the
+ * device's: `clockOffsetMs()` on the web), not to the resend time; one still later than `at`
+ * after that becomes `at`. Review loop 1: an error of 0 means none is known (the clock was fixed
+ * before the device reconnected), and then the instant moves by the stamp's own delta
+ * (`at - old client_ts`, e20f's rule), so a slow clock's instants never stay behind a create
+ * stamped again at now. An instant far from the old stamp (a colleague's edit put back by an
+ * undo, a gallery photo's capture) is left exactly as it is, and exempt instants and actor
+ * leaves are never touched. Pure: returns a new op.
+ */
+export function restampOp(op: Op, at: Date, clockErrorMs = 0): Op {
   const atMs = at.getTime();
   const oldMs = Date.parse(op.client_ts);
-  const delta = Number.isNaN(oldMs) ? 0 : atMs - oldMs;
   const next: Op = { ...structuredClone(op), client_ts: at.toISOString() };
+  if (Number.isNaN(oldMs)) return next;
+  const error = Number.isFinite(clockErrorMs) && clockErrorMs !== 0 ? clockErrorMs : atMs - oldMs;
   let path: OpPath;
   try {
     path = parsePath(op.path);
@@ -274,9 +287,8 @@ export function restampOp(op: Op, at: Date): Op {
     if (field.pointer === 'op.client_ts' || !('instant' in field) || field.instant === 'exempt') continue;
     if (typeof leaf !== 'string') continue;
     const leafMs = Date.parse(leaf);
-    if (Number.isNaN(leafMs)) continue;
-    let shifted = !Number.isNaN(oldMs) && Math.abs(leafMs - oldMs) <= CLOCK_OFFSET_TOLERANCE_MS ? leafMs + delta : leafMs;
-    if (shifted > atMs) shifted = atMs;
+    if (Number.isNaN(leafMs) || Math.abs(leafMs - oldMs) > RESTAMP_WINDOW_MS) continue;
+    const shifted = Math.min(leafMs + error, atMs);
     if (shifted === leafMs) continue;
     const iso = new Date(shifted).toISOString();
     if (field.pointer.startsWith('op.')) setLeafAt(next, keys, iso);

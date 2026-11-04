@@ -21,7 +21,7 @@ import type { S3Client } from '@aws-sdk/client-s3';
 import { Hono } from 'hono';
 import type { Db } from '../db/client.ts';
 import type { CompanyId } from '../db/repositories/company-id.ts';
-import { findFileRow, relatorioRemoved, type FileRowLookup } from '../db/repositories/files.ts';
+import { fileWithdrawn, findFileRow, type FileRowLookup } from '../db/repositories/files.ts';
 import { newId } from '../ids.ts';
 import type { ReadingKind, ReadingPayload } from '../jobs/reading/payload.ts';
 import { sendReading, type SendReadingOutcome } from '../jobs/reading/send.ts';
@@ -211,6 +211,9 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
       return c.json(fail('file_row_missing', 'The file row has not been applied yet.'), 409);
     }
     const { row } = lookup;
+    // E20-A1 (R-5): a removed file, one of a removed relatório, or the cover of removed
+    // relatórios only takes no bytes and queues no reading: 404, before the body is read.
+    if (await fileWithdrawn(db, session.companyId, id, lookup)) return c.json(notFound, 404);
     if (!isUploadFileKind(row.kind)) {
       return c.json(fail('file_kind_invalid', 'This file kind is not stored by this route.'), 400);
     }
@@ -336,11 +339,10 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
     if (lookup === null) return c.json(notFound, 404);
     const { row, relatorioId } = lookup;
     if (row.uploaded_at === null) return c.json(notFound, 404);
-    // Story 20.13 (security pass S8): a removed file is not served (its row or its lookup
-    // tombstoned); an issued revision's documents are served by their own routes.
-    if (lookup.removedAt !== null || row.removed_at != null) return c.json(notFound, 404);
-    // e20f (QA N2): nor a file of a removed relatório; restoring the relatório serves it again.
-    if (relatorioId !== null && (await relatorioRemoved(db, session.companyId, relatorioId))) return c.json(notFound, 404);
+    // Story 20.13 (security pass S8): a removed file is not served; e20f (QA N2): nor a file of a
+    // removed relatório; E20-A1 (R-5): nor the cover photo of removed relatórios only. Restoring
+    // the relatório serves it again (`fileWithdrawn`).
+    if (await fileWithdrawn(db, session.companyId, id, lookup)) return c.json(notFound, 404);
 
     // Every key is derived exactly as the PUT writes it, from the session's company, the
     // row's kind and the id the row is filed under. `row.variants` is client-supplied

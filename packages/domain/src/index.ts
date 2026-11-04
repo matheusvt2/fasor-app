@@ -60,6 +60,8 @@ export * from './relatorio/ops.ts';
 export * from './sync/streams.ts';
 // e20f: the device's clock offset, learned from the server's Date header.
 export * from './sync/clock-offset.ts';
+// E20-A1: what "Reenviar" stamps again, and in what order.
+export * from './sync/resend.ts';
 export * from './relatorio/location-path.ts';
 export * from './relatorio/location-live.ts';
 export * from './relatorio/removal.ts';

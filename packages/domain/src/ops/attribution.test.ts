@@ -6,7 +6,7 @@ import { opLog as replaySmallLog } from '../../fixtures/replay-small/op-log.ts';
 import { isoTimestampSchema } from '../clock.ts';
 import { actorIdSchema } from '../ids.ts';
 import { entityRowSchemas } from '../schemas/entities.ts';
-import { ATTRIBUTED_FIELDS, attributionIssue, CLOCK_SKEW_MS, historyClaimHolds, lowerBoundIssue, restampOp, valuePointerOf } from './attribution.ts';
+import { ATTRIBUTED_FIELDS, attributionIssue, CLOCK_SKEW_MS, historyClaimHolds, lowerBoundIssue, RESTAMP_WINDOW_MS, restampOp, valuePointerOf } from './attribution.ts';
 import { opSchema, type Op } from './op.ts';
 import { parsePath } from './path.ts';
 
@@ -277,7 +277,7 @@ describe('restampOp (e20f)', () => {
   it('a fast clock: client_ts becomes now, removed_at and concluded_by.at shift with it, and the op then passes', () => {
     const removed = op({ kind: 'put', path: `block/${BLOCK}/removed_at`, value: minutes(FAST), client_ts: minutes(FAST) });
     expect(check(removed).ok).toBe(false);
-    const again = restampOp(removed, NOW);
+    const again = restampOp(removed, NOW, -FAST * 60_000);
     expect(again.client_ts).toBe(NOW_ISO);
     expect(again.value).toBe(NOW_ISO);
     expect(check(again).ok).toBe(true);
@@ -287,7 +287,7 @@ describe('restampOp (e20f)', () => {
 
     // concluded_by.at stamped a minute before client_ts by the same clock keeps its distance.
     const concluded = op({ kind: 'put', path: `block/${BLOCK}/concluded_by`, value: { actor_id: ME, at: minutes(FAST - 1) }, client_ts: minutes(FAST) });
-    const restamped = restampOp(concluded, NOW);
+    const restamped = restampOp(concluded, NOW, -FAST * 60_000);
     expect(restamped.value).toEqual({ actor_id: ME, at: minutes(-1) });
     expect(check(restamped).ok).toBe(true);
   });
@@ -300,7 +300,7 @@ describe('restampOp (e20f)', () => {
       client_ts: minutes(FAST),
       meta: { restore: { removed_by: ME, removal_conflict: { removed_by: ME, removed_at: minutes(FAST), edited_by: COLLEAGUE, edited_at: minutes(-180) } } },
     });
-    const again = restampOp(restore, NOW);
+    const again = restampOp(restore, NOW, -FAST * 60_000);
     expect(again.meta).toEqual({ restore: { removed_by: ME, removal_conflict: { removed_by: ME, removed_at: NOW_ISO, edited_by: COLLEAGUE, edited_at: minutes(-180) } } });
     expect(again.value).toBe(NOW_ISO);
   });
@@ -308,7 +308,7 @@ describe('restampOp (e20f)', () => {
   it('a slow clock (3 days behind) moves the stamps forward to now; a gallery photo\'s capture far from the stamp stays', () => {
     const slow = -3 * 24 * 60;
     const concluded = op({ kind: 'put', path: `block/${BLOCK}/concluded_by`, value: { actor_id: ME, at: minutes(slow) }, client_ts: minutes(slow) });
-    const again = restampOp(concluded, NOW);
+    const again = restampOp(concluded, NOW, -slow * 60_000);
     expect(again.client_ts).toBe(NOW_ISO);
     expect(again.value).toEqual({ actor_id: ME, at: NOW_ISO });
     const result = attributionIssue(again, parsePath(again.path), NOW);
@@ -342,13 +342,37 @@ describe('restampOp (e20f)', () => {
         reading_status: 'none',
       },
     });
-    expect((restampOp(photo, NOW).value as { captured_at: string }).captured_at).toBe('2020-01-01T00:00:00.000Z');
+    expect((restampOp(photo, NOW, -slow * 60_000).value as { captured_at: string }).captured_at).toBe('2020-01-01T00:00:00.000Z');
   });
 
-  it('a forged instant beyond the server\'s bounds far from the stamp is capped at now, never trusted; exempt leaves stay', () => {
+  it('E20-A1 review loop 1: with no clock error known (0), an in-window instant moves by the stamp\'s own delta, so a slow clock\'s conclusion lands just before the new stamp', () => {
+    const slow = -3 * 24 * 60;
+    const concluded = op({ kind: 'put', path: `block/${BLOCK}/concluded_by`, value: { actor_id: ME, at: minutes(slow - 1) }, client_ts: minutes(slow) });
+    expect(restampOp(concluded, NOW).value).toEqual({ actor_id: ME, at: minutes(-1) });
+    expect(restampOp(concluded, NOW, 0).value).toEqual({ actor_id: ME, at: minutes(-1) });
+    // A known error moves it by the error instead.
+    expect(restampOp(concluded, NOW, -slow * 60_000 - 5 * 60_000).value).toEqual({ actor_id: ME, at: minutes(-6) });
+  });
+
+  it('E20-A1 (R-2): a forged instant far from the stamp is left as it is (the server refuses it again); exempt leaves stay', () => {
     const forged = op({ kind: 'put', path: `block/${BLOCK}/removed_at`, value: '2099-01-01T00:00:00.000Z', client_ts: NOW_ISO });
-    expect(restampOp(forged, NOW).value).toBe(NOW_ISO);
+    expect(restampOp(forged, NOW, -FAST * 60_000).value).toBe('2099-01-01T00:00:00.000Z');
     const seen = op({ kind: 'put', path: `block/${BLOCK}/removed_at`, value: minutes(FAST), client_ts: minutes(FAST), meta: { seen_modified_at: minutes(FAST) } });
-    expect(restampOp(seen, NOW).meta).toEqual({ seen_modified_at: minutes(FAST) });
+    expect(restampOp(seen, NOW, -FAST * 60_000).meta).toEqual({ seen_modified_at: minutes(FAST) });
+  });
+
+  it('E20-A1 (R-2): a value instant moves by the learned clock error, not to the resend time; clamped to the new stamp; only within its own window', () => {
+    // Concluded at 12:29 by a clock 30 minutes fast (really 11:59), resent two hours later.
+    const concluded = op({ kind: 'put', path: `block/${BLOCK}/concluded_by`, value: { actor_id: ME, at: minutes(FAST - 1) }, client_ts: minutes(FAST) });
+    const later = new Date(NOW.getTime() + 120 * 60_000);
+    const again = restampOp(concluded, later, -FAST * 60_000);
+    expect(again.client_ts).toBe(later.toISOString());
+    expect(again.value).toEqual({ actor_id: ME, at: minutes(-1) });
+    // Shifted past the new stamp by the error, it becomes the stamp.
+    expect(restampOp(concluded, NOW, 60 * 60_000).value).toEqual({ actor_id: ME, at: NOW_ISO });
+    // One millisecond outside the window: untouched, even past the new stamp.
+    const edge = op({ kind: 'put', path: `block/${BLOCK}/concluded_by`, value: { actor_id: ME, at: new Date(Date.parse(minutes(FAST)) - RESTAMP_WINDOW_MS - 1).toISOString() }, client_ts: minutes(FAST) });
+    expect(restampOp(edge, NOW, -FAST * 60_000).value).toEqual(edge.value);
+    expect(RESTAMP_WINDOW_MS).toBe(60_000);
   });
 });

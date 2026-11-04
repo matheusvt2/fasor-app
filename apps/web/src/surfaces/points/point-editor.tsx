@@ -175,10 +175,21 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   const touched = useRef(false);
   /** This editor wrote to the point. */
   const wrote = useRef(false);
-  const lastWrite = useRef<Promise<unknown>>(Promise.resolve());
+  /**
+   * E20-A1 (R-7): every write of this editor not settled yet (`persist`, `persistDeadline`, a
+   * priority or deadline pick, a link pick). A close waits for all of them, however they were
+   * queued, and stays open when any was refused.
+   */
+  const inFlight = useRef(new Set<Promise<void>>());
   const goneShown = useRef(false);
-  /** A write since the last close attempt was refused (quota, a closed database). */
+  /** A write during the current close attempt was refused (quota, a closed database). */
   const refused = useRef(false);
+  /**
+   * E20-A1 (R-7): a priority, deadline or link pick refused since the last close attempt. A close
+   * writes the typed fields again (`persist`, the deadline's committer), but never a pick: its
+   * refusal alone keeps the next close open, once.
+   */
+  const pickRefused = useRef(false);
   const finishing = useRef(false);
   const mounted = useRef(true);
   const onDoneRef = useRef(onDone);
@@ -204,6 +215,30 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     },
     [],
   );
+
+  /**
+   * Tracks a write until it settles: a refusal marks the close attempt in progress, and a
+   * refused pick outside one (`pick`) marks the next. Returns the write settled either way.
+   */
+  const track = (write: Promise<unknown>, pick = false): Promise<void> => {
+    const settled = write.then(
+      () => {
+        // Review loop 1: a pick stored after a refused one leaves nothing unwritten.
+        if (pick) pickRefused.current = false;
+      },
+      () => {
+        refused.current = true;
+        if (pick && !finishing.current) pickRefused.current = true;
+      },
+    );
+    inFlight.current.add(settled);
+    void settled.then(() => inFlight.current.delete(settled));
+    return settled;
+  };
+  /** Resolves once every tracked write has settled, the ones queued while waiting included. */
+  const settleWrites = async (): Promise<void> => {
+    while (inFlight.current.size > 0) await Promise.all([...inFlight.current]);
+  };
 
   /** "Este ponto não está mais neste relatório", once. */
   const showGone = () => {
@@ -253,14 +288,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     // A refused write is toasted once, by the edit queue (`writeErrorText`); the editor keeps
     // what was typed (`values`, and the draft source) and a close waiting on it stays open.
     // The promise resolves either way, so `useFieldCommit` does not say it a second time.
-    const settled = run.then(
-      () => undefined,
-      () => {
-        refused.current = true;
-      },
-    );
-    lastWrite.current = settled;
-    return settled;
+    return track(run);
   };
 
   const textCommit = useFieldCommit<string>({ commit: () => persist(['text']) });
@@ -315,11 +343,15 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     if (db === null || user === null) return Promise.resolve();
     const author = { id: user.id, companyId: user.companyId };
     const taken = { ...values.current };
-    return edits.commit(async () => {
+    const run = edits.commit(async () => {
       const held = pendingRef.current;
       noteFieldsWrite(await writeDeadline(db, author, relatorioId, pointId, next, linkRef.current, taken, held), taken, held);
       void saveDraftRef.current();
     });
+    // E20-A1 (R-7): a close waits for it; `useFieldCommit` still gets the refusal (it toasts and
+    // keeps the typed Prazo for the next flush, which a close runs).
+    void track(run);
+    return run;
   };
   const deadlineCommit = useFieldCommit<string | null>({ commit: (next) => persistDeadline(next) });
 
@@ -333,17 +365,19 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     run: (database: NonNullable<typeof db>, author: { id: string; companyId: string }, taken: PointValues, held: PointPriorityWrites) => Promise<PointFieldsWrite>,
     toast: string | null,
   ) => {
-    if (db === null || user === null) return;
+    // Review loop 1: a pick after the close started is ignored, as `pickLink`.
+    if (db === null || user === null || finishing.current) return;
     const author = { id: user.id, companyId: user.companyId };
     // A Prazo being typed lands first, so the pick reads it as typed.
     deadlineCommit.flush();
     const taken = { ...values.current };
-    void edits
-      .write(async () => {
-        const held = pendingRef.current;
-        return noteFieldsWrite(await run(db, author, taken, held), taken, held);
-      })
-      .then(
+    const write = edits.write(async () => {
+      const held = pendingRef.current;
+      return noteFieldsWrite(await run(db, author, taken, held), taken, held);
+    });
+    // E20-A1 (R-7): a close waits for the pick, and a refused one (toasted by the edit queue) keeps it open.
+    void track(write, true);
+    void write.then(
       (batchId) => (toast === null ? undefined : edits.undoable(toast, batchId, { label: t.undo })),
       () => undefined,
     );
@@ -368,7 +402,8 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
    * goes into the create row, written now when the editor already holds text to print.
    */
   const pickLink = (key: string) => {
-    if (db === null || user === null) return;
+    // E20-A1 (R-7): a pick after the close started is ignored; the close does not wait for it.
+    if (db === null || user === null || finishing.current) return;
     const option = pointLinkOptions(linkGroups).find((candidate) => candidate.key === key);
     if (option === undefined) return;
     const author = { id: user.id, companyId: user.companyId };
@@ -400,15 +435,10 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
         }
       });
     // As `persist`: a close waits on this pick, and a refused pick keeps the editor open.
-    const settled = run.then(
-      () => undefined,
-      () => {
-        refused.current = true;
-      },
-    );
-    lastWrite.current = settled;
+    void track(run, true);
   };
   const changeDeadline = (next: string | null) => {
+    if (finishing.current) return;
     setTypedDeadline(next);
     deadlineCommit.change(next);
     draftAutosave.changed();
@@ -517,6 +547,9 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     if (finishing.current) return;
     finishing.current = true;
     refused.current = false;
+    // A pick refused before this close is not written again by it: the close stays open once.
+    const earlierPickRefused = pickRefused.current;
+    pickRefused.current = false;
     // A commit refused earlier left its value unstored with nothing pending: this close writes
     // both fields again (an untouched new point still writes nothing unless "Concluir").
     const link = linkRef.current;
@@ -532,9 +565,10 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     ownerCommit.flush();
     deadlineCommit.flush();
     if ((explicit && link !== null && !wrote.current) || retry) void persist(['text', 'action', 'owner']);
-    void lastWrite.current.then(async () => {
+    // E20-A1 (R-7): every write queued so far, whatever queued it, settles before the close.
+    void settleWrites().then(async () => {
       // Refused: the editor stays open with what was typed (the toast said why).
-      if (refused.current) {
+      if (refused.current || earlierPickRefused) {
         finishing.current = false;
         return;
       }

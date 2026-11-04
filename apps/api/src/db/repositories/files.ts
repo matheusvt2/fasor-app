@@ -1,5 +1,5 @@
 import { fileRowSchema, uuidV7Schema, type FileRow } from '@app/domain';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '../client.ts';
 import { entities } from '../schema.ts';
 import type { CompanyId } from './company-id.ts';
@@ -73,4 +73,34 @@ export async function relatorioRemoved(db: Reader, companyId: CompanyId, relator
     .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'relatorio'), eq(entities.id, relatorioId)))
     .limit(1);
   return record !== undefined && record.removed_at !== null;
+}
+
+/**
+ * E20-A1 (R-5): whether a company-wide file is the cover photo of removed relatórios only. A
+ * cover photo is filed under no relatório (`file-commit.ts`), so `relatorioRemoved` never sees
+ * it: it is named by `relatorio.setup.cover_photo_file_id`. True when at least one relatório of
+ * the company names it as its cover and every one that does is removed; false when none names it
+ * or a live one does.
+ */
+export async function coverOfRemovedRelatoriosOnly(db: Reader, companyId: CompanyId, fileId: string): Promise<boolean> {
+  const records = await db
+    .select({ removed_at: entities.removed_at })
+    .from(entities)
+    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'relatorio'), sql`${entities.row}->'setup'->>'cover_photo_file_id' = ${fileId}`));
+  return records.length > 0 && records.every((record) => record.removed_at !== null);
+}
+
+/**
+ * Story 20.13 (S8), e20f (QA N2), E20-A1 (R-5): whether the file routes withhold a file the
+ * company holds, answering 404 as for one it does not: the file is removed (its row or its
+ * lookup tombstoned), it is filed under a removed relatório, or it is the cover photo of removed
+ * relatórios only. Restoring the relatório serves it again. An issued revision's documents are
+ * served by their own routes.
+ */
+export async function fileWithdrawn(db: Reader, companyId: CompanyId, id: string, lookup: FileRowLookup): Promise<boolean> {
+  if (lookup.removedAt !== null || lookup.row.removed_at != null) return true;
+  if (lookup.relatorioId !== null) return relatorioRemoved(db, companyId, lookup.relatorioId);
+  // A cover is a photo: a logo or a certificate is never asked (the cover query scans the company's relatórios).
+  if (lookup.row.kind !== 'photo') return false;
+  return coverOfRemovedRelatoriosOnly(db, companyId, id);
 }

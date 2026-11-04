@@ -337,6 +337,92 @@ describe('e20f (QA N2) the photos of a removed relatório are not served', () =>
   }, 60_000);
 });
 
+describe('E20-A1 (R-5) the cover photo of a removed relatório, and uploads to removed files', () => {
+  const envelope = { company_id: companyA.companyId, project_id: null, prev_op_id: null, batch_id: null, meta: null, actor_id: companyA.userId };
+
+  /** A project and a relatório of Empresa A, created through the push; returns the relatório's envelope. */
+  async function relatorio(): Promise<{ relatorioId: string; inRelatorio: typeof envelope & { scope: 'relatorio'; relatorio_id: string } }> {
+    const projectId = newId();
+    const relatorioId = newId();
+    for (const entity of [projectId, relatorioId]) written.fileIds.add(entity);
+    const inRelatorio = { ...envelope, scope: 'relatorio' as const, relatorio_id: relatorioId };
+    await push([
+      stamp({ ...envelope, kind: 'create', scope: 'company', relatorio_id: null, path: `project/${projectId}`, value: { id: projectId, client_id: null, name: 'Obra da capa', site: null, removed_at: null } as never }),
+      stamp({
+        ...inRelatorio,
+        kind: 'create',
+        path: `relatorio/${relatorioId}`,
+        value: {
+          id: relatorioId,
+          project_id: projectId,
+          template_id: null,
+          template_version: null,
+          seed_version: 'v1',
+          status: 'rascunho',
+          setup: { service_start: null, service_end: null, atividade: null, local: null, responsible_user_id: null, cover_photo_file_id: null },
+          export: { scheme: 'por_local_e_tipo' },
+          preview_file_id: null,
+          removed_at: null,
+        } as never,
+      }),
+    ]);
+    return { relatorioId, inRelatorio };
+  }
+
+  it('a company-wide cover photo answers 404 while every relatório naming it is removed, 200 while one of them is live, and 200 again after the restore', async () => {
+    const first = await relatorio();
+    const second = await relatorio();
+    const id = newId();
+    written.fileIds.add(id);
+    const bytes = new Uint8Array(await sharp({ create: { width: 6, height: 6, channels: 3, background: '#505050' } }).jpeg().toBuffer());
+    await push([photoCreate(id, bytes, 'image/jpeg')]);
+    expect((await upload(id, bytes, 'image/jpeg')).status).toBe(200);
+    const status = async () => (await call(`/api/files/${id}/original`, { method: 'GET', cookie })).status;
+    const cover = (at: typeof first) => stamp({ ...at.inRelatorio, kind: 'put', path: 'relatorio/setup/cover_photo_file_id', value: id as never });
+    await push([cover(first), cover(second)]);
+    expect(await status()).toBe(200);
+
+    // One of the two removed: the live one still names it.
+    await push([stamp({ ...first.inRelatorio, kind: 'remove', path: 'relatorio/removed_at', value: null })]);
+    expect(await status()).toBe(200);
+    // Both removed: no live relatório names it.
+    await push([stamp({ ...second.inRelatorio, kind: 'remove', path: 'relatorio/removed_at', value: null })]);
+    expect(await status()).toBe(404);
+    expect((await call(`/api/files/${id}/thumb`, { method: 'GET', cookie })).status).toBe(404);
+    // A PUT of its bytes is refused the same way, before the body is read.
+    expect((await upload(id, bytes, 'image/jpeg')).status).toBe(404);
+
+    await push([stamp({ ...second.inRelatorio, kind: 'put', path: 'relatorio/removed_at', value: null })]);
+    expect(await status()).toBe(200);
+  }, 60_000);
+
+  it('a PUT to a removed file, or to a photo of a removed relatório, answers 404 and stores nothing; restored, the upload goes through', async () => {
+    const bytes = new Uint8Array(await sharp({ create: { width: 5, height: 5, channels: 3, background: '#707070' } }).jpeg().toBuffer());
+    const removedFile = newId();
+    written.fileIds.add(removedFile);
+    await push([photoCreate(removedFile, bytes, 'image/jpeg')]);
+    await push([stamp({ ...envelope, kind: 'put', scope: 'company', relatorio_id: null, path: `file/${removedFile}/removed_at`, value: '2026-11-01T12:00:00.000Z' as never })]);
+    const refused = await upload(removedFile, bytes, 'image/jpeg');
+    expect(refused.status).toBe(404);
+    expect(errorResponseSchema.parse(await refused.json()).code).toBe('not_found');
+
+    const { relatorioId, inRelatorio } = await relatorio();
+    const id = newId();
+    written.fileIds.add(id);
+    const create = photoCreate(id, bytes, 'image/jpeg');
+    // A plate photo: its upload would queue a paid reading.
+    await push([stamp({ ...create, ...inRelatorio, value: { ...(create.value as Record<string, unknown>), relatorio_id: relatorioId, reading_kind: 'plate', reading_status: 'queued' } as never })]);
+    await push([stamp({ ...inRelatorio, kind: 'remove', path: 'relatorio/removed_at', value: null })]);
+    expect((await upload(id, bytes, 'image/jpeg')).status).toBe(404);
+    const [row] = await db.select({ row: entities.row }).from(entities).where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, 'file'), eq(entities.id, id)));
+    expect(row?.row).toMatchObject({ uploaded_at: null, reading_status: 'queued' });
+    expect(await db.select({ op_id: ops.op_id }).from(ops).where(and(eq(ops.company_id, companyA.companyId), like(ops.path, `file/${id}/%`)))).toEqual([]);
+
+    await push([stamp({ ...inRelatorio, kind: 'put', path: 'relatorio/removed_at', value: null })]);
+    expect((await upload(id, bytes, 'image/jpeg')).status).toBe(200);
+  }, 60_000);
+});
+
 describe('20.12-INT the pixel limit (S6)', () => {
   it('a PNG and a JPEG whose headers claim 200 MP are refused 413 with the pixel details before any decode; health answers meanwhile', async () => {
     expect(MAX_INPUT_PIXELS).toBe(MAX_IMAGE_PIXELS);
