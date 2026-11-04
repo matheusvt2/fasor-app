@@ -349,6 +349,25 @@ describe('sign-out deletes the device data (Story 20.11)', () => {
     expect(await exists()).toBe(false);
     expect(readPendingWipes()).toEqual([]);
   });
+
+  it('E20-A1 (R-4b): a recorded wipe also clears the user\'s browser-storage keys a sign-out stopped part way left; with no wipe they stay', async () => {
+    window.localStorage.setItem('relatorio-altitude-asked:019966c1-0000-7000-8000-0000000000a1', '{"altitude":812}');
+    window.sessionStorage.setItem('ficha:legend-first', '019966c1-0000-7000-8000-0000000000b1');
+    addPendingWipe(databaseName(profile.id));
+    readSession.mockRejectedValue(new TypeError('Failed to fetch'));
+    const view = renderSession();
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-out|ok|none'));
+    expect(window.localStorage.getItem('relatorio-altitude-asked:019966c1-0000-7000-8000-0000000000a1')).toBeNull();
+    expect(window.sessionStorage.getItem('ficha:legend-first')).toBeNull();
+    view.unmount();
+
+    // A boot with no wipe recorded leaves them (the user is still signed in on this device).
+    window.localStorage.setItem('relatorio-altitude-asked:019966c1-0000-7000-8000-0000000000a2', '{"altitude":null}');
+    readSession.mockRejectedValue(new TypeError('Failed to fetch'));
+    renderSession();
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-out|ok|none'));
+    expect(window.localStorage.getItem('relatorio-altitude-asked:019966c1-0000-7000-8000-0000000000a2')).toBe('{"altitude":null}');
+  });
 });
 
 describe('the remembered 401 (retro A8)', () => {

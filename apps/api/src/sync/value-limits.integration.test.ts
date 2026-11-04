@@ -1,5 +1,6 @@
-import { errorResponseSchema, findDefinition, RELATORIO_MAX_BYTES, SEED_VERSION, serializedBytes, SYNC_PUSH_MAX_BYTES, TEXT_CAPS, VALUE_MAX_BYTES, VALUE_MAX_ITEMS } from '@app/domain';
-import { sql } from 'drizzle-orm';
+import { errorResponseSchema, findDefinition, RELATORIO_MAX_BYTES, relatorioBudgetRowBytes, SEED_VERSION, serializedBytes, SYNC_PUSH_MAX_BYTES, TEXT_CAPS, VALUE_MAX_BYTES, VALUE_MAX_ITEMS, type Entity } from '@app/domain';
+import { and, eq, isNull } from 'drizzle-orm';
+import { entities } from '../db/schema.ts';
 import { shortStringsOfBytes } from '@app/domain/fixtures/value-caps';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { newId } from '../ids.ts';
@@ -60,56 +61,120 @@ describe('S4: a value outside its field\'s cap, type or range', () => {
   });
 });
 
-describe('e20f: the relatório budget of stored bytes', () => {
-  /** The relatório's live rows as the server stores them, in bytes (what the budget reads). */
+describe('e20f, E20-A1 (R-1): the relatório budget of stored bytes', () => {
+  /**
+   * The relatório's live rows of client kinds, in bytes, as the server measures them: each row
+   * serialized by the push body's serializer (`relatorioBudgetRowBytes`), server rows left out.
+   */
   async function storedBytes(relatorioId: string): Promise<number> {
-    const rows = await h.db.execute<{ bytes: string | number | null }>(
-      sql`select coalesce(sum(octet_length(row::text)), 0) as bytes from entities where company_id = ${companyA.companyId} and relatorio_id = ${relatorioId} and removed_at is null`,
-    );
-    return Number(rows[0]?.bytes ?? 0);
+    const rows = await h.db
+      .select({ entity: entities.entity, row: entities.row })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyA.companyId), eq(entities.relatorio_id, relatorioId), isNull(entities.removed_at)));
+    return rows.reduce((sum, record) => sum + relatorioBudgetRowBytes(record.entity as Entity, record.row, relatorioId), 0);
   }
   const pointCreate = (relatorioId: string, text: string) => {
     const id = newId();
     return { id, op: h.clientOp(companyA, { kind: 'create', path: `point/${id}`, relatorio_id: relatorioId, value: { id, relatorio_id: relatorioId, text, equipment_id: null, origin: 'manual', order_key: `a${id.slice(-6)}`, removed_at: null } }) };
   };
+  /** The bytes a point of `text` stores (its row with the schema's defaults): ids and order keys have fixed lengths. */
+  const pointBytes = (relatorioId: string, text: string) =>
+    serializedBytes({ id: newId(), relatorio_id: relatorioId, text, equipment_id: null, origin: 'manual', order_key: 'a000000', removed_at: null, action: null, priority: null, deadline: null, owner: null });
+  const put = (relatorioId: string, path: string, value: unknown) => h.clientOp(companyA, { kind: 'put', path, relatorio_id: relatorioId, value });
+  const remove = (relatorioId: string, id: string) => h.clientOp(companyA, { kind: 'remove', path: `point/${id}/removed_at`, relatorio_id: relatorioId });
+  /** Creates points (each within the text cap) until exactly `room` bytes are left under the budget. */
+  async function fillTo(relatorioId: string, room: number): Promise<string[]> {
+    const empty = pointBytes(relatorioId, '');
+    const ids: string[] = [];
+    for (let guard = 0; guard < 400; guard++) {
+      const length = RELATORIO_MAX_BYTES - (await storedBytes(relatorioId)) - room - empty;
+      expect(length, `room ${room}`).toBeGreaterThan(0);
+      // The last point takes all that is left; one before it leaves the last at least 1 000 characters.
+      const take = length <= TEXT_CAPS.long ? length : Math.min(TEXT_CAPS.long, length - empty - 1_000);
+      const filler = pointCreate(relatorioId, 'f'.repeat(take));
+      expect((await h.push(companyA, [filler.op])).rejected).toEqual([]);
+      ids.push(filler.id);
+      if (take === length) break;
+    }
+    expect(RELATORIO_MAX_BYTES - (await storedBytes(relatorioId))).toBe(room);
+    return ids;
+  }
 
-  it('a relatório filled close to the budget refuses the op that crosses it, and still applies a small value, a put of null and a remove', async () => {
+  it('one relatório filled near the budget: a crossing create is refused; a shrinking put, a put of null and a removal apply; a restore is refused without room and applies with it; five growing puts of one push apply while they fit', async () => {
     const { relatorioId } = await h.seedRelatorio(companyA);
     const full = 'p'.repeat(TEXT_CAPS.long);
     const kept: string[] = [];
+    const fullBytes = pointBytes(relatorioId, full);
     // Fill with points of 20 000 characters, each op within every cap, until less than one more fits.
     for (let round = 0; round < 6; round++) {
       const remaining = RELATORIO_MAX_BYTES - (await storedBytes(relatorioId));
-      const count = Math.min(150, Math.floor((remaining - TEXT_CAPS.long) / (TEXT_CAPS.long + 400)));
+      const count = Math.min(150, Math.floor((remaining - fullBytes) / fullBytes));
       if (count <= 0) break;
       const batch = Array.from({ length: count }, () => pointCreate(relatorioId, full));
       expect((await h.push(companyA, batch.map((entry) => entry.op))).rejected).toEqual([]);
       kept.push(...batch.map((entry) => entry.id));
     }
-    // Then one at a time while a full point still fits (the server reads the same stored bytes).
-    const sizeOf = serializedBytes(pointCreate(relatorioId, full).op.value);
-    for (let guard = 0; guard < 10 && RELATORIO_MAX_BYTES - (await storedBytes(relatorioId)) >= sizeOf; guard++) {
-      const fits = pointCreate(relatorioId, full);
-      expect((await h.push(companyA, [fits.op])).rejected).toEqual([]);
-      kept.push(fits.id);
-    }
-    const remaining = RELATORIO_MAX_BYTES - (await storedBytes(relatorioId));
-    expect(remaining).toBeLessThan(sizeOf);
-    expect(remaining).toBeGreaterThan(3);
+    // Fillers leave exactly 500 bytes: the server measures the rows as this test does.
+    await fillTo(relatorioId, 500);
 
     // One more full point crosses the budget (alone it is within every cap): refused, never logged, the rows unchanged.
     const crossing = pointCreate(relatorioId, full);
     expect((await h.push(companyA, [crossing.op])).rejected).toEqual([{ op_id: crossing.op.op_id, code: 'op_value_invalid' }]);
     expect(await h.logged(crossing.op.op_id)).toBe(false);
     expect(await h.rowOf(companyA, 'point', crossing.id)).toBeUndefined();
-    expect(RELATORIO_MAX_BYTES - (await storedBytes(relatorioId))).toBe(remaining);
+    expect(RELATORIO_MAX_BYTES - (await storedBytes(relatorioId))).toBe(500);
 
-    // A small value still fits; a put of null and a remove always apply, so a full relatório can still be emptied.
-    const small = h.clientOp(companyA, { kind: 'put', path: 'relatorio/setup/local', relatorio_id: relatorioId, value: 'A' });
-    const nullPut = h.clientOp(companyA, { kind: 'put', path: 'relatorio/setup/additional_info', relatorio_id: relatorioId, value: null });
-    const removals = kept.slice(0, 1).map((id) => h.clientOp(companyA, { kind: 'remove', path: `point/${id}/removed_at`, relatorio_id: relatorioId }));
-    expect((await h.push(companyA, [small, nullPut, ...removals])).rejected).toEqual([]);
-  }, 180_000);
+    // R-1b: a text replaced by a shorter one (19 999 characters, far over the 500 bytes left) applies.
+    const shrink = put(relatorioId, `point/${kept[0]}/text`, 'p'.repeat(TEXT_CAPS.long - 1));
+    expect((await h.push(companyA, [shrink])).rejected).toEqual([]);
+    expect(RELATORIO_MAX_BYTES - (await storedBytes(relatorioId))).toBe(501);
+    // A small value that fits, a put of null and a removal always apply.
+    const small = put(relatorioId, 'relatorio/setup/local', 'A');
+    const nullPut = put(relatorioId, 'relatorio/setup/additional_info', null);
+    const removal = remove(relatorioId, kept[1]!);
+    expect((await h.push(companyA, [small, nullPut, removal])).rejected).toEqual([]);
+
+    // R-1a: the room the removal freed is taken; restoring the removed point would cross the budget: refused.
+    const takers = await fillTo(relatorioId, 600);
+    const restore = put(relatorioId, `point/${kept[1]}/removed_at`, null);
+    expect((await h.push(companyA, [restore])).rejected).toEqual([{ op_id: restore.op_id, code: 'op_value_invalid' }]);
+    expect(await h.logged(restore.op_id)).toBe(false);
+    expect((await h.rowOf<{ removed_at: string | null }>(companyA, 'point', kept[1]!))?.removed_at).not.toBeNull();
+    expect(RELATORIO_MAX_BYTES - (await storedBytes(relatorioId))).toBe(600);
+    // With the room given back (in the same push, before it), the same restore applies.
+    const again = put(relatorioId, `point/${kept[1]}/removed_at`, null);
+    expect((await h.push(companyA, [...takers.map((id) => remove(relatorioId, id)), again])).rejected).toEqual([]);
+    expect((await h.rowOf<{ removed_at: string | null }>(companyA, 'point', kept[1]!))?.removed_at).toBeNull();
+
+    // R-1e: five puts of one push that each grow a point by 19 999 bytes, with room for three and a half: the last two are refused.
+    for (const id of kept.slice(2, 6)) expect((await h.push(companyA, [remove(relatorioId, id)])).rejected).toEqual([]);
+    const short = Array.from({ length: 5 }, () => pointCreate(relatorioId, 'a'));
+    expect((await h.push(companyA, short.map((entry) => entry.op))).rejected).toEqual([]);
+    const growth = TEXT_CAPS.long - 1;
+    await fillTo(relatorioId, 3 * growth + growth / 2 + 0.5);
+    const before = await storedBytes(relatorioId);
+    const grows = short.map((entry) => put(relatorioId, `point/${entry.id}/text`, 'b'.repeat(TEXT_CAPS.long)));
+    const answer = await h.push(companyA, grows);
+    expect(answer.applied.map((applied) => applied.op_id)).toEqual(grows.slice(0, 3).map((op) => op.op_id));
+    expect(answer.rejected).toEqual(grows.slice(3).map((op) => ({ op_id: op.op_id, code: 'op_value_invalid' })));
+    expect(await storedBytes(relatorioId)).toBe(before + 3 * growth);
+    expect(await storedBytes(relatorioId)).toBeLessThanOrEqual(RELATORIO_MAX_BYTES);
+  }, 360_000);
+
+  it('R-1d: a relatório whose stored bytes are server rows only (an audit run, a generation job) still takes a user\'s write', async () => {
+    const { relatorioId } = await h.seedRelatorio(companyA);
+    const huge = 'e'.repeat(RELATORIO_MAX_BYTES);
+    for (const [entity, row] of [
+      ['audit_run', { status: 'failed', findings: [], error: huge, prompt_version: null, created_at: '2026-11-04T12:00:00.000Z', started_at: null, finished_at: null }],
+      ['generation_job', { kind: 'preview', status: 'failed', error: huge, result_file_id: null, result: null, created_at: '2026-11-04T12:00:00.000Z', started_at: null }],
+    ] as const) {
+      const id = newId();
+      await h.db.insert(entities).values({ company_id: companyA.companyId, entity, id, relatorio_id: relatorioId, project_id: null, row: { id, relatorio_id: relatorioId, ...row } as never, removed_at: null, updated_seq: 0 });
+    }
+    const write = h.clientOp(companyA, { kind: 'put', path: 'relatorio/setup/additional_info', relatorio_id: relatorioId, value: 'x'.repeat(TEXT_CAPS.long) });
+    expect((await h.push(companyA, [write])).rejected).toEqual([]);
+    expect((await h.rowOf<RelatorioRowLike>(companyA, 'relatorio', relatorioId))?.setup.additional_info).toHaveLength(TEXT_CAPS.long);
+  });
 });
 
 describe('e20f (QA N1): a value nested 20 000 levels deep', () => {

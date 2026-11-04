@@ -260,7 +260,8 @@ export function AccountSurface() {
     setSigningOut(true);
     try {
       await settledWithin(sync.syncNow(), SIGN_OUT_FLUSH_WAIT_MS);
-      setUnsent(db === null ? 0 : await unsentCount(db).catch(() => null));
+      // E20-A1 (R-4a): no open handle means the count cannot be read, never "nada pendente".
+      setUnsent(db === null ? null : await unsentCount(db).catch(() => null));
       setConfirmingSignOut(true);
     } finally {
       setSigningOut(false);

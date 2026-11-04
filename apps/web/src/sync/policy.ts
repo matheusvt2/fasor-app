@@ -22,7 +22,8 @@ export function classifyFailure(failure: SyncFailure): FailureAction {
  *
  * `defer` is the one rule that differs from the sync table: `409 file_row_missing` says
  * the device's own create op has not been applied yet, which the next cycle fixes by
- * itself — the file stays pending and nothing is recorded as a server failure.
+ * itself — the file stays pending and nothing is recorded as a server failure. So does a
+ * `404 not_found` (E20-A1): the server withholds a removed file until it is restored.
  * `permanent` is a verdict no retry can change (the body does not hash to the row, or the
  * body is over the limit); everything else follows `classifyFailure`.
  */
@@ -36,6 +37,10 @@ export function classifyUploadFailure(failure: SyncFailure): UploadAction {
     return failure.code === 'file_row_missing' ? 'defer' : 'permanent';
   }
   if (failure.kind === 'http' && failure.status === 413) return 'permanent';
+  // E20-A1 review loop 1: the PUT answers 404 `not_found` only for a file it withholds (removed, of
+  // a removed relatório, the cover of removed relatórios only; a row it lacks is 409). A restore
+  // serves it again, so the file stays pending and a later cycle uploads it.
+  if (failure.kind === 'http' && failure.status === 404 && failure.code === 'not_found') return 'defer';
   const action = classifyFailure(failure);
   return action === 'stop' ? 'permanent' : action;
 }

@@ -286,11 +286,13 @@ describe('dead-op re-materialization (1.4 deferred settling test)', () => {
       { op_id: other.op_id, code: 'op_invalid' },
     ]);
     const now = new Date('2026-09-21T15:00:00.000Z');
-    expect(await resendDead(db, now)).toBe(3);
+    // E20-A1 (R-2): the clock error the device learned (30 min fast) is passed in.
+    expect(await resendDead(db, now, -30 * 60_000)).toBe(3);
     const rows = await takePending(db);
     expect(rows.map((row) => row.op_id)).toEqual([first.op_id, second.op_id, other.op_id]);
     expect(await db.outbox.get(first.op_id)).toMatchObject({ status: 'pending', error_code: null, client_ts: '2026-09-21T15:00:00.000Z' });
-    expect(await db.outbox.get(second.op_id)).toMatchObject({ client_ts: '2026-09-21T15:00:00.001Z', value: '2026-09-21T14:59:59.501Z' });
+    // The removal instant moves by the clock error (15:00:00.500) and is then held at its own stamp.
+    expect(await db.outbox.get(second.op_id)).toMatchObject({ client_ts: '2026-09-21T15:00:00.001Z', value: '2026-09-21T15:00:00.001Z' });
     expect(await db.outbox.get(other.op_id)).toMatchObject({ client_ts: other.client_ts, value: 'OUTRO' });
     db.close();
   });
@@ -316,6 +318,63 @@ describe('dead-op re-materialization (1.4 deferred settling test)', () => {
     expect((await takePending(db)).map((entry) => entry.op_id)).toEqual([create.op_id, edit.op_id]);
     expect(await db.outbox.get(create.op_id)).toMatchObject({ status: 'pending', client_ts: '2026-09-21T15:00:00.000Z' });
     expect(await db.outbox.get(edit.op_id)).toMatchObject({ status: 'pending', client_ts: '2026-09-21T15:00:00.001Z', value: 'Ponto editado' });
+    db.close();
+  });
+});
+
+describe('E20-A1 (R-2) "Reenviar" stamps again only what a wrong clock stamped, in commit order', () => {
+  async function seeded() {
+    const db = await freshDb();
+    const d = deps();
+    await commitOps(db, seedLog());
+    for (const row of await takePending(db)) await markAcked(db, [{ op_id: row.op_id, seq: 1 }]);
+    return { db, d };
+  }
+  const pointRow = (id: string) => ({ id, relatorio_id: RELATORIO_ID, text: 'Ponto novo', equipment_id: null, origin: 'manual', order_key: 'a0', removed_at: null });
+
+  it('a dead op_target_missing row with no create stamped again among its targets goes back pending with its stamps unchanged', async () => {
+    const { db, d } = await seeded();
+    const missing = '019966b0-000f-7000-8000-0000000000bb';
+    const misdated = makeOp(put(FIELD, 'RELOGIO-ADIANTADO'), { newId: d.newId, now: new Date('2026-09-21T15:30:00.000Z') });
+    const orphan = makeOp(put(`point/${missing}/text`, 'Ponto de outro aparelho'), { newId: d.newId, now: new Date('2026-09-21T14:00:00.000Z') });
+    await commitOps(db, [misdated, orphan]);
+    await markDead(db, [
+      { op_id: misdated.op_id, code: 'op_attribution' },
+      { op_id: orphan.op_id, code: 'op_target_missing' },
+    ]);
+    expect(await resendDead(db, new Date('2026-09-21T15:00:00.000Z'), -30 * 60_000)).toBe(2);
+    expect(await db.outbox.get(misdated.op_id)).toMatchObject({ status: 'pending', client_ts: '2026-09-21T15:00:00.000Z' });
+    expect(await db.outbox.get(orphan.op_id)).toMatchObject({ status: 'pending', error_code: null, client_ts: orphan.client_ts, value: 'Ponto de outro aparelho' });
+    db.close();
+  });
+
+  it('a create and its dependent are stamped again in commit order (op_id), the create first, even when the clock moved back between them', async () => {
+    const { db, d } = await seeded();
+    const pointId = '019966b0-000f-7000-8000-0000000000ac';
+    // Committed first at 15:30 on a fast clock, then the clock was set back: the edit says 15:10.
+    const create = makeOp({ ...put(`point/${pointId}`, pointRow(pointId)), kind: 'create' }, { newId: d.newId, now: new Date('2026-09-21T15:30:00.000Z') });
+    const edit = makeOp(put(`point/${pointId}/text`, 'Ponto editado'), { newId: d.newId, now: new Date('2026-09-21T15:10:00.000Z') });
+    expect(create.op_id < edit.op_id).toBe(true);
+    await commitOps(db, [create, edit]);
+    await markDead(db, [
+      { op_id: create.op_id, code: 'op_attribution' },
+      { op_id: edit.op_id, code: 'op_target_missing' },
+    ]);
+    expect(await resendDead(db, new Date('2026-09-21T16:00:00.000Z'))).toBe(2);
+    expect(await db.outbox.get(create.op_id)).toMatchObject({ client_ts: '2026-09-21T16:00:00.000Z' });
+    expect(await db.outbox.get(edit.op_id)).toMatchObject({ client_ts: '2026-09-21T16:00:00.001Z', value: 'Ponto editado' });
+    expect((await takePending(db)).map((row) => row.op_id)).toEqual([create.op_id, edit.op_id]);
+    db.close();
+  });
+
+  it('a concluded_by.at stamped by a clock 30 minutes fast moves by the learned error, not to the resend time', async () => {
+    const { db, d } = await seeded();
+    const concluded = makeOp(put(`block/${BLOCK_1_ID}/concluded_by`, { actor_id: USER_ID, at: '2026-09-21T15:29:00.000Z' }), { newId: d.newId, now: new Date('2026-09-21T15:30:00.000Z') });
+    await commitOps(db, [concluded]);
+    await markDead(db, [{ op_id: concluded.op_id, code: 'op_attribution' }]);
+    // Resent two hours later (real time 17:00), after the device learned it runs 30 minutes fast.
+    expect(await resendDead(db, new Date('2026-09-21T17:00:00.000Z'), -30 * 60_000)).toBe(1);
+    expect(await db.outbox.get(concluded.op_id)).toMatchObject({ client_ts: '2026-09-21T17:00:00.000Z', value: { actor_id: USER_ID, at: '2026-09-21T14:59:00.000Z' } });
     db.close();
   });
 });

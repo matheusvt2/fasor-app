@@ -1,6 +1,6 @@
 import { AUDIT_RUN_EXPIRE_S, auditRunActive, auditRunningDetailsSchema, expectedFileIds, toIso, type AuditDisplay } from '@app/domain';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { now } from '../../clock.ts';
+import { elapsedNowMs, now } from '../../clock.ts';
 import { auditRunRow, useLatestAuditRun } from '../../db/audit-store.ts';
 import { lastOpIdFor } from '../../db/generate-store.ts';
 import { toSnapshot } from '../../db/snapshot.ts';
@@ -109,14 +109,15 @@ export function useAudit(relatorioId: string, timing: GenerateTiming = DEFAULT_T
         }
       }
       // Pull until the run is finished; one that never arrives, or stops counting as running, is given up.
-      const askedAt = now().getTime();
+      // E20-A1 (R-3): a duration, on the monotonic clock.
+      const askedAt = elapsedNowMs();
       for (;;) {
         throwIfAborted(signal);
         await engine.syncRelatorio(relatorioId).catch(() => undefined);
         const row = await auditRunRow(db, runId);
         if (row !== null && row.status === 'done') return;
         if (row !== null && (row.status === 'failed' || !auditRunActive(row, toIso(now())))) throw new Error(`audit run ${runId} ended without findings`);
-        if (row === null && now().getTime() - askedAt > AUDIT_RUN_EXPIRE_S * 1000) throw new Error(`audit run ${runId} never arrived`);
+        if (row === null && elapsedNowMs() - askedAt > AUDIT_RUN_EXPIRE_S * 1000) throw new Error(`audit run ${runId} never arrived`);
         await wait(timing.pollMs, signal);
       }
     },

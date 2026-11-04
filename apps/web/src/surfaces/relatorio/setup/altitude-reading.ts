@@ -1,4 +1,4 @@
-import { ALTITUDE_KEY_PREFIX } from '../../../state/user-storage.ts';
+import { ALTITUDE_KEY_PREFIX, onClearUserStorage, userStorageGeneration } from '../../../state/user-storage.ts';
 
 /*
  * F-11 / W-14 (review 2026-09-30; Story 4.2 AC 2 "asks once for the site altitude"): the
@@ -17,6 +17,8 @@ export interface AltitudeAnswer {
 const KEY_PREFIX = ALTITUDE_KEY_PREFIX;
 
 const inFlight = new Map<string, Promise<AltitudeAnswer>>();
+// E20-A1 (R-4c): a sign-out forgets the questions in flight with the kept answers.
+onClearUserStorage(() => inFlight.clear());
 
 /** The answer kept for this relatório, or undefined when the device was never asked (or storage is unavailable). */
 export function keptAltitudeAnswer(relatorioId: string): AltitudeAnswer | undefined {
@@ -56,7 +58,10 @@ export function siteAltitudeReading(relatorioId: string, geolocation: Geolocatio
     );
   });
   inFlight.set(relatorioId, asked);
+  const generation = userStorageGeneration();
   void asked.then((answer) => {
+    // E20-A1 (R-4c): an answer that settles after a sign-out cleared the user's keys is not kept.
+    if (userStorageGeneration() !== generation) return;
     keepAltitudeAnswer(relatorioId, answer);
     inFlight.delete(relatorioId);
   });

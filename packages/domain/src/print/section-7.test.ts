@@ -110,6 +110,27 @@ describe('7.2-UNIT-001 section 7 layout', () => {
     expect(gone.sections.find((s) => s.number === 7)).toMatchObject({ kind: 'empty', note: EMPTY_SECTION_NOTE });
   });
 
+  it('E20-A1 (R-10): a numbered photo the tests section does not print (a local\'s photo of no site item) points nowhere: the plain note', () => {
+    const local = photo(base, { location_id: base.locations[0]!.id });
+    const snapshot = { ...base, files: [local] };
+    expect(numberPhotos(snapshot).size).toBe(1);
+    const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: '2026-09-23T12:00:00.000Z' });
+    expect(layout.sections.find((s) => s.number === 7)).toEqual({ number: 7, title: heading.title, kind: 'empty', note: EMPTY_SECTION_NOTE });
+  });
+
+  it('E20-A1 (R-10): with the section 9 block removed, section 7 prints the plain note and the points section starts no page', () => {
+    const s1 = photo(base, { block_id: chave.id });
+    const snapshot = { ...base, files: [s1], blocks: base.blocks.filter((block) => block.block_type !== 'section_9') };
+    expect(numberPhotos(snapshot).size).toBe(1);
+    const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: '2026-09-23T12:00:00.000Z' });
+    expect(layout.sections.some((s) => s.kind === 'sheets')).toBe(false);
+    expect(layout.sections.find((s) => s.number === 7)).toEqual({ number: 7, title: heading.title, kind: 'empty', note: EMPTY_SECTION_NOTE });
+    const points = layout.sections.find((s) => s.title.startsWith('PONTOS DE ATENÇÃO'))!;
+    expect(points).toBeDefined();
+    expect('startsPage' in points).toBe(false);
+    expect(layout.sections.filter((s) => 'startsPage' in s)).toEqual([]);
+  });
+
   it('carries the heading it is given and the authored placeholder the renderer prints without bytes', () => {
     const one = photo(base);
     expect(section7Layout({ ...base, files: [one] }, heading)).toMatchObject({ number: 7, title: heading.title, kind: 'photos', photos: [{ fileId: one.id, number: 1 }] });

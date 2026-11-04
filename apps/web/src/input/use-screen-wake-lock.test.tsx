@@ -1,6 +1,7 @@
 import { WAKE_LOCK_IDLE_MS } from '@app/domain';
 import { render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { clockOffsetMs, learnServerClock, rawNowMs } from '../clock.ts';
 import { holdScreenWakeLock, resetScreenWakeLockForTests, setKeepScreenOn, useScreenWakeLock, WAKE_LOCK_REQUEST_LIMIT_MS } from './use-screen-wake-lock.ts';
 
 /*
@@ -122,6 +123,32 @@ describe('R8CAP-UNIT the screen wake lock', () => {
     await settle();
     expect(lock.request).toHaveBeenCalledTimes(2);
     expect(lock.held()).toHaveLength(1);
+    release();
+  });
+
+  it('E20-A1 (R-3): the idle time is a duration: a 30-minute clock offset learned meanwhile neither releases the lock nor keeps it past ten minutes', async () => {
+    const lock = fakeWakeLock();
+    setKeepScreenOn(true);
+    const release = holdScreenWakeLock();
+    await settle();
+    expect(lock.held()).toHaveLength(1);
+    try {
+      // The server says this device runs 30 minutes slow: "now" jumps forward, the idle time does not.
+      learnServerClock(new Date(rawNowMs() + 30 * 60_000).toUTCString(), rawNowMs(), rawNowMs());
+      expect(clockOffsetMs()).toBeGreaterThan(29 * 60_000);
+      const second = holdScreenWakeLock();
+      await settle();
+      expect(lock.held()).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(WAKE_LOCK_IDLE_MS - 1_000);
+      expect(lock.held()).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(lock.held()).toHaveLength(0);
+      second();
+    } finally {
+      learnServerClock(new Date(rawNowMs()).toUTCString(), rawNowMs(), rawNowMs());
+      window.localStorage.removeItem('releng.clock-offset');
+    }
+    expect(clockOffsetMs()).toBe(0);
     release();
   });
 

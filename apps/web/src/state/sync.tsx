@@ -55,7 +55,7 @@ import {
 import { clearUploadError } from '../db/file-store.ts';
 import { readingCountRows, type ReadingCountRows } from '../db/suggestion-store.ts';
 import { storageHeadroom } from '../device/storage-estimate.ts';
-import { now } from '../clock.ts';
+import { clockOffsetMs, elapsedNowMs, now } from '../clock.ts';
 import { newId } from '../ids.ts';
 import { createBrowserSyncClient, type SyncClient } from '../sync/client.ts';
 import type { SyncFailure } from '../sync/client.ts';
@@ -296,6 +296,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       timers: browserTimers,
       random: Math.random,
       now,
+      elapsedMs: elapsedNowMs,
       newId,
       isOnline: () => onlineRef.current,
       onReAuth: publishReAuth,
@@ -460,7 +461,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   );
   const resendDead = useCallback(async () => {
     if (db === null) return;
-    await resendDeadRows(db, now());
+    // E20-A1 (R-2): value instants move by the clock error this device has learned.
+    await resendDeadRows(db, now(), clockOffsetMs());
     await engineRef.current?.runFreshCycle();
   }, [db]);
 

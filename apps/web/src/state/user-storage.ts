@@ -15,8 +15,30 @@ const USER_LOCAL_PREFIXES = ['relatorio-'] as const;
 /** sessionStorage: the block whose checklist opened the legend in this session (`checklist-section.tsx`). */
 export const LEGEND_KEY = 'ficha:legend-first';
 
+/**
+ * E20-A1 (R-4c): what clears with the keys in memory: a module holding a user's answer in flight
+ * (`altitude-reading.ts`) registers here, so a late answer after a sign-out is never kept.
+ */
+const clearers = new Set<() => void>();
+
+/** Runs `clear` on every `clearUserStorage`; returns the unregister. */
+export function onClearUserStorage(clear: () => void): () => void {
+  clearers.add(clear);
+  return () => clearers.delete(clear);
+}
+
+/** How many times `clearUserStorage` ran in this page: an answer asked before a clear is not kept after it. */
+let generation = 0;
+
+/** The current clear generation (`clearUserStorage` moves it). */
+export function userStorageGeneration(): number {
+  return generation;
+}
+
 /** Removes every key above; storage that cannot be read is left as it is. */
 export function clearUserStorage(): void {
+  generation += 1;
+  for (const clear of clearers) clear();
   try {
     const local = globalThis.localStorage;
     if (local !== undefined) {

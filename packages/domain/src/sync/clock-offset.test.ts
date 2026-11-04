@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CLOCK_SKEW_MS } from '../ops/attribution.ts';
-import { CLOCK_OFFSET_TOLERANCE_MS, clockOffsetEstimate, monotonicNowMs, nextClockOffset } from './clock-offset.ts';
+import * as constants from './clock-constants.ts';
+import { CLOCK_OFFSET_TOLERANCE_MS, clockOffsetDrift, clockOffsetEstimate, monotonicNowMs, nextClockOffset, storedClockOffsetStale } from './clock-offset.ts';
 
 /* e20f (2026-11-04): the device learns its clock offset from the server's Date header. */
 
@@ -69,5 +70,41 @@ describe('monotonicNowMs (e20f review)', () => {
     expect(monotonicNowMs(LAST, LAST - 1)).toBe(LAST);
     expect(monotonicNowMs(LAST, LAST - CLOCK_SKEW_MS / 2)).toBe(LAST);
     expect(monotonicNowMs(LAST, LAST - CLOCK_SKEW_MS / 2 - 1)).toBe(LAST - CLOCK_SKEW_MS / 2 - 1);
+  });
+});
+
+describe('clockOffsetDrift (E20-A1, R-3, review loop 1)', () => {
+  const anchor = { rawMs: SERVER_MS, monotonicMs: 1_000 };
+  it('is the same while both clocks move together, whatever time passes, and within the tolerance', () => {
+    expect(clockOffsetDrift(anchor, { rawMs: SERVER_MS + 86_400_000, monotonicMs: 1_000 + 86_400_000 })).toBe('same');
+    expect(clockOffsetDrift(anchor, { rawMs: SERVER_MS + CLOCK_OFFSET_TOLERANCE_MS, monotonicMs: 1_000 })).toBe('same');
+    expect(clockOffsetDrift(anchor, { rawMs: SERVER_MS - CLOCK_OFFSET_TOLERANCE_MS, monotonicMs: 1_000 })).toBe('same');
+  });
+
+  it('a 2-hour sleep (the raw clock runs, the monotonic one stops) is a forward drift, kept', () => {
+    expect(clockOffsetDrift(anchor, { rawMs: SERVER_MS + 2 * 3_600_000, monotonicMs: 1_000 })).toBe('forward');
+  });
+
+  it('a clock set back while running is stale; so is a reading that is not finite', () => {
+    expect(clockOffsetDrift(anchor, { rawMs: SERVER_MS - CLOCK_OFFSET_TOLERANCE_MS - 1, monotonicMs: 1_000 })).toBe('stale');
+    expect(clockOffsetDrift(anchor, { rawMs: SERVER_MS - 30 * 60_000, monotonicMs: 1_000 + 5_000 })).toBe('stale');
+    expect(clockOffsetDrift(anchor, { rawMs: Number.NaN, monotonicMs: 0 })).toBe('stale');
+  });
+});
+
+describe('storedClockOffsetStale (E20-A1, R-3, review loop 1)', () => {
+  it('at load, drops an offset only when the raw clock reads before the learned instant past the tolerance (set back while closed)', () => {
+    expect(storedClockOffsetStale(SERVER_MS, SERVER_MS - 30 * 60_000)).toBe(true);
+    expect(storedClockOffsetStale(SERVER_MS, SERVER_MS - CLOCK_OFFSET_TOLERANCE_MS)).toBe(false);
+    expect(storedClockOffsetStale(SERVER_MS, SERVER_MS + 3 * 86_400_000)).toBe(false);
+    expect(storedClockOffsetStale(Number.NaN, SERVER_MS)).toBe(true);
+  });
+});
+
+describe('the clock windows (E20-A1, R-12)', () => {
+  it('live in a leaf module, re-exported unchanged by the modules that used to define them', () => {
+    expect(CLOCK_OFFSET_TOLERANCE_MS).toBe(constants.CLOCK_OFFSET_TOLERANCE_MS);
+    expect(CLOCK_SKEW_MS).toBe(constants.CLOCK_SKEW_MS);
+    expect([constants.CLOCK_SKEW_MS, constants.CLOCK_OFFSET_TOLERANCE_MS]).toEqual([600_000, 60_000]);
   });
 });

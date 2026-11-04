@@ -20,9 +20,13 @@ import { z } from 'zod';
  * - `op_attribution`: a value naming another actor than the op's, or an instant past the
  *   server's clock or before the relatório's creation, beyond the skew (`attributionIssue`);
  * - `op_value_invalid`: a value outside its field's type, length cap or range
- *   (`opValueIssue`), or a `responsible_user_id` that is no user of the company;
+ *   (`opValueIssue`), or a `responsible_user_id` that is no user of the company; since e20f
+ *   also a value nested past `VALUE_MAX_DEPTH`, and an op that would take its relatório's live
+ *   rows past `RELATORIO_MAX_BYTES` (the relatório budget, `relatorioBudgetVerdict`);
  * - `op_target_missing`: a put or remove whose row does not exist, or exists in another
  *   relatório or obra than the op names, and a create naming a relatório the company lacks;
+ *   since e20f also an op whose value names a row (`valueReferencesOf`: an equipment, a local,
+ *   a photo, a registry entry, ...) that does not exist or belongs elsewhere;
  * - `op_forbidden` also refuses, alone, the removal of an Emitido relatório.
  */
 export const opRejectCodeSchema = z.enum([

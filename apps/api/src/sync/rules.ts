@@ -6,11 +6,14 @@ import {
   latestRevision,
   lowerBoundIssue,
   referenceRowVerdict,
+  RELATORIO_BUDGET_SERVER_ENTITIES,
+  RELATORIO_MAX_BYTES,
+  relatorioBudgetGrowth,
+  relatorioBudgetRowBytes,
   relatorioBudgetVerdict,
   relatorioRemovalVerdict,
   relatorioStatusSchema,
   responsibleUserIdOf,
-  serializedBytes,
   statusMoveFacts,
   statusMoveVerdict,
   statusSeen,
@@ -18,6 +21,7 @@ import {
   targetRowVerdict,
   valueReferencesOf,
   type Clock,
+  type Entity,
   type EntityKey,
   type EntityRow,
   type HistoryClaim,
@@ -27,7 +31,7 @@ import {
   type RelatorioRow,
   type StatusMoveInput,
 } from '@app/domain';
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, notInArray, sql } from 'drizzle-orm';
 import type { CompanyId } from '../db/repositories/company-id.ts';
 import { liveRevisions } from '../db/repositories/revisions.ts';
 import { entities, ops } from '../db/schema.ts';
@@ -57,7 +61,7 @@ export interface ClientCheckCache {
   relatorios: Map<string, string>;
   projects: Set<string>;
   createdAt: Map<string, string>;
-  /** e20f: a relatório's stored bytes, read once, grown by each op that passes the budget (an upper bound). */
+  /** e20f: a relatório's stored bytes, read once, then moved by the growth of each op that passes the budget (E20-A1). */
   relatorioBytes: Map<string, number>;
 }
 
@@ -110,29 +114,51 @@ export async function checkClientOp(tx: Tx, companyId: CompanyId, target: Target
 
   const attribution = await attributionStateIssue(tx, companyId, op, path, deps.now, deps.cache);
   if (attribution !== null) return attribution;
-  return budgetIssue(tx, companyId, op, deps.cache);
+  return budgetIssue(tx, companyId, op, deps.state, deps.cache);
 }
 
 /**
- * e20f (aggregate): the relatório's budget of stored bytes (`relatorioBudgetVerdict`). Its live
- * rows' bytes (`entities.row` as text) are read once per push through the live-rows index, then
- * grown by every op that passes, so a push cannot cross the budget op by op.
+ * e20f (aggregate), E20-A1 (R-1): the relatório's budget of stored bytes (`relatorioBudgetVerdict`).
+ * The op is judged by its growth (`relatorioBudgetGrowth`, over the rows it targets, tombstoned
+ * ones included), so a shrinking put applies and a restore counts the row it revives. Only an op
+ * that grows the relatório reads the stored side: its live rows of client kinds, read once per
+ * push through the live-rows index and each measured in JS by the same serializer as the op side
+ * (`relatorioBudgetRowBytes`; Postgres' `jsonb` text adds a space after every `,` and `:`, so its
+ * `octet_length` overstates the stored rows). The push's cache then moves by each passing op's
+ * growth, so a push cannot cross the budget op by op.
  */
-async function budgetIssue(tx: Tx, companyId: CompanyId, op: Op, cache: ClientCheckCache | undefined): Promise<OpRejectCode | null> {
-  // A remove and a put of null always apply (`relatorioBudgetVerdict`): nothing to read.
-  if (op.relatorio_id == null || op.kind === 'remove' || op.value === null) return null;
+async function budgetIssue(tx: Tx, companyId: CompanyId, op: Op, state: ReadonlyMap<EntityKey, EntityRow>, cache: ClientCheckCache | undefined): Promise<OpRejectCode | null> {
+  if (op.relatorio_id == null) return null;
   const relatorioId = op.relatorio_id;
-  let stored = cache?.relatorioBytes.get(relatorioId);
-  if (stored === undefined) {
-    const [found] = await tx
-      .select({ bytes: sql<string | number | null>`coalesce(sum(octet_length(${entities.row}::text)), 0)` })
-      .from(entities)
-      .where(and(eq(entities.company_id, companyId), eq(entities.relatorio_id, relatorioId), isNull(entities.removed_at)));
-    stored = Number(found?.bytes ?? 0);
+  const growth = relatorioBudgetGrowth(state, op);
+  const known = cache?.relatorioBytes.get(relatorioId);
+  // Allowed even on a full relatório (it adds nothing, or it is a put of null): nothing to read.
+  if (relatorioBudgetVerdict(op, RELATORIO_MAX_BYTES, growth) === 'allowed') {
+    if (known !== undefined) cache?.relatorioBytes.set(relatorioId, known + growth);
+    return null;
   }
-  if (relatorioBudgetVerdict(op, stored) === 'refused') return 'op_value_invalid';
-  cache?.relatorioBytes.set(relatorioId, stored + serializedBytes(op.value));
+  const stored = known ?? (await storedRelatorioBytes(tx, companyId, relatorioId));
+  if (relatorioBudgetVerdict(op, stored, growth) === 'refused') return 'op_value_invalid';
+  cache?.relatorioBytes.set(relatorioId, stored + growth);
   return null;
+}
+
+/** The bytes the relatório's live rows of client kinds hold (`relatorioBudgetRowBytes` summed). */
+async function storedRelatorioBytes(tx: Tx, companyId: CompanyId, relatorioId: string): Promise<number> {
+  const rows = await tx
+    .select({ entity: entities.entity, row: entities.row })
+    .from(entities)
+    .where(
+      and(
+        eq(entities.company_id, companyId),
+        eq(entities.relatorio_id, relatorioId),
+        isNull(entities.removed_at),
+        notInArray(entities.entity, [...RELATORIO_BUDGET_SERVER_ENTITIES]),
+      ),
+    );
+  let bytes = 0;
+  for (const { entity, row } of rows) bytes += relatorioBudgetRowBytes(entity as Entity, row, relatorioId);
+  return bytes;
 }
 
 function relatorioOf(op: Op, state: ReadonlyMap<EntityKey, EntityRow>): RelatorioRow | undefined {

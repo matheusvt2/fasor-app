@@ -1,6 +1,6 @@
 import { expectedFileIds, GENERATE_JOB_EXPIRE_S, isJobActive, toIso, type UxOutcome } from '@app/domain';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { now } from '../../clock.ts';
+import { elapsedNowMs, now } from '../../clock.ts';
 import { generationJobRow, lastOpIdFor } from '../../db/generate-store.ts';
 import { toSnapshot } from '../../db/snapshot.ts';
 import { useSession } from '../../state/session.tsx';
@@ -135,7 +135,8 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
       }
       // Pull until the job is done (its file named) or ends without one; a job row that
       // never arrives is given up once a job of its own would have expired.
-      const askedAt = now().getTime();
+      // E20-A1 (R-3): a duration, on the monotonic clock.
+      const askedAt = elapsedNowMs();
       for (;;) {
         throwIfAborted(signal);
         await engine.syncRelatorio(relatorioId).catch(() => undefined);
@@ -153,7 +154,7 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
           return;
         }
         if (job !== null && (job.status === 'failed' || job.status === 'done' || !isJobActive(job, toIso(now())))) throw new Error(`preview job ${jobId} ended without a file`);
-        if (job === null && now().getTime() - askedAt > GENERATE_JOB_EXPIRE_S * 1000) throw new Error(`preview job ${jobId} never arrived`);
+        if (job === null && elapsedNowMs() - askedAt > GENERATE_JOB_EXPIRE_S * 1000) throw new Error(`preview job ${jobId} never arrived`);
         await wait(timing.pollMs, signal);
       }
     },

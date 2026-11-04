@@ -5,7 +5,7 @@ import { opLog as replaySmallLog } from '../../fixtures/replay-small/op-log.ts';
 import { FUNCAO_MAX_LENGTH } from '../schemas/block-config.ts';
 import { NC_PHRASE_MAX_LENGTH, RELATORIO_SETUP_KEYS, rowIndexColumns, rowRemovedAt } from '../schemas/entities.ts';
 import { opSchema, type Op } from './op.ts';
-import { splitEntityKey } from './apply.ts';
+import { entityKey, splitEntityKey, type EntityState } from './apply.ts';
 import { FAMILIES, parsePath } from './path.ts';
 import { replay } from './replay.ts';
 import { instantiateTemplate } from '../relatorio/instantiate.ts';
@@ -22,7 +22,10 @@ import {
   TEXT_CAPS,
   textCapOf,
   opDepthIssue,
+  RELATORIO_BUDGET_SERVER_ENTITIES,
   RELATORIO_MAX_BYTES,
+  relatorioBudgetGrowth,
+  relatorioBudgetRowBytes,
   relatorioBudgetVerdict,
   VALUE_MAX_BYTES,
   VALUE_MAX_DEPTH,
@@ -371,16 +374,59 @@ describe('the relatório budget (e20f, aggregate)', () => {
     expect(bytes * 4).toBeLessThan(RELATORIO_MAX_BYTES);
   });
 
-  it('refuses a value that takes the relatório past the budget; at the budget it applies; a remove and a put of null always apply', () => {
-    const point = (text: string) => put(`point/${POINT}/text`, text);
-    const op20k = point('x'.repeat(TEXT_CAPS.long));
-    const bytes = serializedBytes(op20k.value);
-    expect(relatorioBudgetVerdict(op20k, RELATORIO_MAX_BYTES - bytes)).toBe('allowed');
-    expect(relatorioBudgetVerdict(op20k, RELATORIO_MAX_BYTES - bytes + 1)).toBe('refused');
-    expect(relatorioBudgetVerdict(point('y'), RELATORIO_MAX_BYTES)).toBe('refused');
-    expect(relatorioBudgetVerdict(put(`point/${POINT}/text`, null), RELATORIO_MAX_BYTES * 2)).toBe('allowed');
-    expect(relatorioBudgetVerdict(op({ kind: 'remove', path: `point/${POINT}/removed_at` }), RELATORIO_MAX_BYTES * 2)).toBe('allowed');
+  /** A live point of the relatório holding `text`, as the server stores it. */
+  const pointRow = (text: string, removedAt: string | null = null) =>
+    ({ id: POINT, relatorio_id: RELATORIO, text, equipment_id: null, origin: 'manual', order_key: 'a0', removed_at: removedAt, action: null, priority: null, deadline: null, owner: null }) as const;
+  const stateOf = (row: object | null): EntityState => new Map(row === null ? [] : [[entityKey('point', POINT), row as never]]);
+
+  it('E20-A1 (R-1b): a put is judged by its growth over the value it replaces; at the budget it applies, one byte past it is refused', () => {
+    const state = stateOf(pointRow('x'.repeat(100)));
+    const grow = put(`point/${POINT}/text`, 'x'.repeat(TEXT_CAPS.long));
+    const growth = relatorioBudgetGrowth(state, grow);
+    expect(growth).toBe(TEXT_CAPS.long - 100);
+    expect(relatorioBudgetVerdict(grow, RELATORIO_MAX_BYTES - growth, growth)).toBe('allowed');
+    expect(relatorioBudgetVerdict(grow, RELATORIO_MAX_BYTES - growth + 1, growth)).toBe('refused');
+    // A shorter text shrinks the relatório: it applies on a relatório over the budget.
+    const shrink = put(`point/${POINT}/text`, 'x'.repeat(99));
+    expect(relatorioBudgetGrowth(state, shrink)).toBe(-1);
+    expect(relatorioBudgetVerdict(shrink, RELATORIO_MAX_BYTES * 2, -1)).toBe('allowed');
+    // The same text again adds nothing.
+    expect(relatorioBudgetGrowth(state, put(`point/${POINT}/text`, 'x'.repeat(100)))).toBe(0);
+  });
+
+  it('E20-A1 (R-1a): a restore is judged by the bytes of the row it revives; a removal and a put of null on another path always apply', () => {
+    const removed = pointRow('x'.repeat(5_000), '2026-11-03T11:00:00.000Z');
+    const restore = put(`point/${POINT}/removed_at`, null);
+    const growth = relatorioBudgetGrowth(stateOf(removed), restore);
+    expect(growth).toBe(serializedBytes({ ...removed, removed_at: null }));
+    expect(relatorioBudgetVerdict(restore, RELATORIO_MAX_BYTES - growth, growth)).toBe('allowed');
+    expect(relatorioBudgetVerdict(restore, RELATORIO_MAX_BYTES - growth + 1, growth)).toBe('refused');
+    // The relatório's own tombstone: the same rule.
+    expect(relatorioBudgetVerdict(put('relatorio/removed_at', null), RELATORIO_MAX_BYTES, 10)).toBe('refused');
+    // Restoring a live row adds nothing.
+    expect(relatorioBudgetGrowth(stateOf(pointRow('x')), restore)).toBe(0);
+    // A removal takes the row's bytes out; a remove and a put of null elsewhere always apply.
+    const live = pointRow('x'.repeat(5_000));
+    expect(relatorioBudgetGrowth(stateOf(live), op({ kind: 'remove', path: `point/${POINT}/removed_at` }))).toBe(-serializedBytes(live));
+    expect(relatorioBudgetVerdict(op({ kind: 'remove', path: `point/${POINT}/removed_at` }), RELATORIO_MAX_BYTES * 2, 1)).toBe('allowed');
+    expect(relatorioBudgetVerdict(put(`point/${POINT}/action`, null), RELATORIO_MAX_BYTES * 2, 1)).toBe('allowed');
     // An op naming no relatório (a company registry entry) is not counted.
-    expect(relatorioBudgetVerdict({ kind: 'put', value: 'x', relatorio_id: null }, RELATORIO_MAX_BYTES * 2)).toBe('allowed');
+    expect(relatorioBudgetVerdict({ kind: 'put', path: `point/${POINT}/text`, value: 'x', relatorio_id: null }, RELATORIO_MAX_BYTES * 2, 1)).toBe('allowed');
+  });
+
+  it('E20-A1: a create grows the relatório by the row it stores, defaults included', () => {
+    const create = op({ kind: 'create', path: `point/${POINT}`, value: { id: POINT, relatorio_id: RELATORIO, text: 'Ponto', equipment_id: null, origin: 'manual', order_key: 'a0', removed_at: null } as never });
+    expect(relatorioBudgetGrowth(stateOf(null), create)).toBe(serializedBytes(pointRow('Ponto')));
+    expect(relatorioBudgetGrowth(stateOf(null), create)).toBeGreaterThan(serializedBytes(create.value));
+  });
+
+  it('E20-A1 (R-1d): the rows only the server creates are never counted; a row of another relatório neither', () => {
+    expect([...RELATORIO_BUDGET_SERVER_ENTITIES].sort()).toEqual(['audit_run', 'generation_job', 'revision', 'suggestion', 'user']);
+    const job = { id: POINT, relatorio_id: RELATORIO, removed_at: null, kind: 'preview' } as never;
+    expect(relatorioBudgetRowBytes('generation_job', job, RELATORIO)).toBe(0);
+    expect(relatorioBudgetRowBytes('audit_run', job, RELATORIO)).toBe(0);
+    expect(relatorioBudgetRowBytes('point', pointRow('x') as never, RELATORIO)).toBe(serializedBytes(pointRow('x')));
+    expect(relatorioBudgetRowBytes('point', pointRow('x') as never, PROJECT)).toBe(0);
+    expect(relatorioBudgetRowBytes('point', pointRow('x', '2026-11-03T11:00:00.000Z') as never, RELATORIO)).toBe(0);
   });
 });

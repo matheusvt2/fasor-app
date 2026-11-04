@@ -1449,7 +1449,6 @@ export const copy = {
   // the mock where it draws the same field; the rest is `// authored:`.
   setup: {
     heading: 'Dados do relatório',
-    notFound: 'Relatório não encontrado.',
     // Etapa 1 — Capa.
     etapa1Title: 'Etapa 1 — Capa',
     // authored: this batch's own band note, since the mock's Etapa 1 covers a superset.
@@ -1586,8 +1585,6 @@ export const copy = {
     relatorio: 'relatório',
     templates: 'templates',
     template: 'template',
-    setup: 'dados do relatório',
-    section: 'seção',
     project: 'obra',
     clientes: 'clientes',
     instrumentos: 'instrumentos',

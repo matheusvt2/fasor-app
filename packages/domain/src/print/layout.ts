@@ -13,7 +13,6 @@ import { isOptionalSectionVariable, resolveSectionText } from '../templates/sect
 import { documentControlRows, MISSING, REVISION_ROW_LABEL, type DocumentControlRow } from './document-control.ts';
 import { section10Layout, type LayoutSection10 } from './section-10.ts';
 import { section11Layout, type LayoutSectionCertificates } from './section-11.ts';
-import { numberPhotos } from '../photos/numbering.ts';
 import { section7Layout, type LayoutSectionPhotos } from './section-7.ts';
 import { section8Layout, type LayoutSectionPoints } from './section-8.ts';
 import { section9Layout, type LayoutSectionSheets } from './section-9.ts';
@@ -236,16 +235,19 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
   // the tests section (9), as on a relatório created since then, whatever it holds; before
   // the tests (FO.SERV-03 order, every older relatório) it runs on as it always did.
   const testsAt = printed.findIndex((entry) => entry.section === 9);
-  // 2026-11-04: with no "Geral" photo, every numbered photo prints under its sheet or local in
-  // the tests section, so an empty section 7 says where they are when that section prints.
-  const photosNote = testsAt >= 0 && numberPhotos(snapshot).size > 0 ? photosWithSheetsNote(testsAt + 1) : EMPTY_SECTION_NOTE;
+  // E20-A1 (R-10): the tests section is built first, so the section 7 note reads what it prints.
+  const tests = testsAt < 0 ? null : section9Layout(snapshot, testsAt + 1, seed.section_titles['9'] ?? '');
+  // 2026-11-04: with no "Geral" photo, the photos print under their sheet or local in the tests
+  // section, so an empty section 7 says where they are; E20-A1: only when that section prints
+  // and holds at least one photo part (a numbered photo it does not print points nowhere).
+  const photosNote = tests !== null && sectionHoldsPhotos(tests) ? photosWithSheetsNote(tests.number) : EMPTY_SECTION_NOTE;
 
   const buildSection = (section: number, ownText: string | null, index: number): LayoutSection => {
     const number = index + 1;
     const title = seed.section_titles[String(section)] ?? '';
     if (section === 7) return section7Layout(snapshot, { number, title }) ?? { number, title, kind: 'empty', note: photosNote };
     // Story 7.1: section 9 prints the equipment sheets (`print/section-9.ts`), else its note.
-    if (section === 9) return section9Layout(snapshot, number, title) ?? { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
+    if (section === 9) return (index === testsAt ? tests : section9Layout(snapshot, number, title)) ?? { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
     const build = SECTION_BUILDERS[section];
     if (build !== undefined) return build(snapshot, { number, title }) ?? { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
     const composed = sectionType(section) !== null;
@@ -286,6 +288,13 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
     sections,
     watermark: inputs.draft === true ? DRAFT_WATERMARK : null,
   };
+}
+
+/** E20-A1 (R-10): whether the built tests section prints at least one photo part, under a sheet or a local. */
+function sectionHoldsPhotos(section: LayoutSectionSheets): boolean {
+  return section.subsections.some(
+    (subsection) => (subsection.localParts ?? []).some((part) => part.kind === 'photos') || subsection.sheets.some((sheet) => sheet.parts.some((part) => part.kind === 'photos')),
+  );
 }
 
 /** The heading text of a section as printed and as the PDF outline names it: "1 OBJETIVO". */

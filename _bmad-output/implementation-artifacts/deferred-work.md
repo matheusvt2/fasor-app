@@ -2934,3 +2934,15 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   evidence: e20s row "Nothing was counted in production"; `epic-20-context.md` deploy records name no such run.
   class: risk
   state: open (owner: Matheus, needs his AWS login; record the per-field result in the e20s row, or that it was skipped)
+
+## Deferred from: E20-A1 retrospective fix batch (2026-11-04)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20a1-retro-fixes.md`
+  summary: The preview and audit "never arrived" expiries moved to the monotonic clock (`use-preview.ts`, `use-audit.ts`) have no test harness, so a regression back to the corrected `now()` would pass every test.
+  evidence: review pass 1, triage #10 (VG-3); a search for `usePreview`, `useAudit` and "never arrived" in `apps/web/src/**/*.test.*` and `e2e/` finds no test.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20a1-retro-fixes.md`
+  summary: The relatório budget's stored side now reads and re-serializes every live client row of the relatório once per push that grows it, where before it was one SQL `sum(octet_length)`; the cost on the push path is unmeasured.
+  evidence: review pass 1, triage #17 (BH-5), maybe-false, medium if real; settle it by timing a growing push on a Porto Seguro-sized relatório (and a 4 MiB one) against the old SQL sum, then keep, or move to a per-relatório byte counter.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e20a1-retro-fixes.md`
+  summary: `POST /api/photos/{id}/reread` (`apps/api/src/http/reading.ts`) and `sendRetargetedReading` (`apps/api/src/sync/routes.ts`) check only the photo's own tombstone, not `fileWithdrawn`, so a photo of a removed relatório can still spend a paid reading.
+  evidence: review pass 1, triage #18 (VG-6); `reading.ts:54-57` repeats the old inline check; no test rereads a photo of a removed relatório.

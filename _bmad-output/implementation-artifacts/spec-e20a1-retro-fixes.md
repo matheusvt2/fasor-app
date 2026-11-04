@@ -2,11 +2,11 @@
 title: 'E20-A1: the Epic 20 retrospective fix batch (budget, resend, clock, sign-out, files, point editor, print guards, edge test, hygiene)'
 type: 'bugfix'
 created: '2026-11-04'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
 baseline_revision: '8a70f700aba248e346dbf518f0386971d5ccf5f7'
 baseline_commit: '8a70f700aba248e346dbf518f0386971d5ccf5f7'
-review_loop_iteration: 0
+review_loop_iteration: 1
 dev_model: opus
 dev_effort: high
 context:
@@ -138,35 +138,40 @@ batched_reason: 'Action item E20-A1 of the Epic 20 retrospective: the confirmed 
 ## Tasks & Acceptance
 
 **Execution:**
-1. `value-limits.ts`, `rules.ts`: the budget.
+1. [x] `value-limits.ts`, `rules.ts`: the budget.
    - Judge by growth: `stored - bytes(current value at path) + bytes(new value)`. A non-positive growth always applies.
    - A restore (`put .../removed_at` null) is judged by the revived row's bytes.
    - Sum only client entity kinds (exclude every `serverOnly` family).
    - Measure the stored side with the same serializer as the op side. Re-serialize in JS, or use the bytes of `jsonb` cast to compact text, and document which.
    - Grow the in-push cache by the growth.
    - Kernel tests at N and N+1; integration cases for restore, shrink, in-push and server rows, on one fill.
-2. `sync-store.ts`, `attribution.ts`: "Reenviar".
+2. [x] `sync-store.ts`, `attribution.ts`: "Reenviar".
    - Restamp `op_attribution` rows.
    - Restamp `op_target_missing` rows only when one of their `targets`, or a value reference, is the key of a create restamped in this run.
    - Order the restamped rows by `op_id` (commit order on the device), not by the old `client_ts`.
    - `restampOp` gains the learned clock error: value instants within the tolerance shift by that error, clamped to `at`. Far leaves are left untouched (the clamp no longer touches them).
    - The caller passes `clockOffsetMs()`.
-3. `clock.ts` and the four duration consumers.
+3. [x] `clock.ts` and the four duration consumers.
    - Add `elapsedNowMs()` (monotonic, `performance.now`) for durations, and migrate the call sites listed.
-   - Store the offset with the raw clock and the monotonic clock at learn time. Drop it at load or read when raw minus monotonic moved more than the tolerance since.
-4. `account-surface.tsx:263` → `db === null ? null`.
+   - ~~Store the offset with the raw clock and the monotonic clock at learn time. Drop it at load or read when raw minus monotonic moved more than the tolerance since.~~ *(2026-11-04, review loop 1: `performance.now` stops while a tablet sleeps, and `Date.now` does not, so that rule dropped the offset after every sleep over 60 s.)*
+   - Store the offset with the raw clock at learn time.
+     - At load, drop it only when the raw clock now reads more than the tolerance before the stored raw instant (set back while the app was closed). Then re-anchor the in-page basis to the load instant, so a monotonic value from another page is never compared.
+     - Within a page, drop it only when the raw clock moved *backward* against the monotonic one by more than the tolerance (set back while running).
+     - A forward drift is sleep or a clock set forward, which cannot be told apart, so it is kept; the next server answer corrects it.
+     - Store the offset and its raw instant in one value.
+4. [x] `account-surface.tsx:263` → `db === null ? null`.
    - `runPendingWipes` also calls `clearUserStorage()` when a wipe is pending.
    - `altitude-reading.ts` writes no answer after a sign-out cleared storage (session or generation check), and `clearUserStorage` empties `inFlight`.
-5. `files.ts`.
+5. [x] `files.ts`.
    - GET answers 404 for a file named as `cover_photo_file_id` by a removed relatório (and only by removed ones).
    - PUT answers 404 for a removed file, or a file of a removed relatório, before reading the body.
    - Integration cases in `edges.integration.test.ts`.
-6. `point-editor.tsx`.
+6. [x] `point-editor.tsx`.
    - `finish` awaits every queued write (persist, pick, `writeFields`, `persistDeadline`).
    - A refused write of any of them keeps the editor open.
    - A pick after `finish` started is ignored.
    - e2e in `points.spec.ts`: a refused pick keeps the editor open; a pick that created the point shows "Ponto de atenção salvo".
-7. `layout.ts`.
+7. [x] `layout.ts`.
    - `photosNote` only when the built section 9 holds at least one photo part. Build section 9 before section 7.
    - Tests with `section_9` removed: section 7 note and section 8 `startsPage`.
 8. A new `apps/api/src/http/body-limit.node.integration.test.ts` (or the nearest name that the api Vitest config picks up).
@@ -191,9 +196,72 @@ These are coordinator readings taken under "siga ate o final", open to Matheus's
 
 ## Implementation Notes
 
+- 2026-11-04, implementer (bmad-dev-opus-high), reviewed by the coordinator against the diff:
+  - Task 1 judges growth with the kernel's own reducer (`relatorioBudgetGrowth`: `applyOp` on the target rows, counted bytes after minus before), not the `readPath` formula the task sketched. It is exact for creates (stored defaults) and sheet cells, so the in-push cache never runs under the real size.
+  - New exports: `relatorioBudgetRowBytes`, `RELATORIO_BUDGET_SERVER_ENTITIES` (every `serverOnly` create family: audit_run, generation_job, revision, suggestion, user).
+  - `relatorioBudgetVerdict(op, stored, growth)` has a new signature.
+  - Task 2 is the new kernel module `sync/resend.ts` (`resendRestampOrder`, transitive dependents, `op_id` order); `restampOp(op, at, clockErrorMs)` has its own `RESTAMP_WINDOW_MS` (60 s).
+  - Task 3 keeps the offset key and adds `releng.clock-offset-basis`; the kernel says when it is stale (`clockOffsetStale`).
+  - Task 9: `CLOCK_SKEW_MS` and `CLOCK_OFFSET_TOLERANCE_MS` have one home, `sync/clock-constants.ts`, re-exported from their old modules.
+- Red-first on `8a70f700` (sources stashed, tests kept): every new test failed except three coverage pins:
+  - E20-A1-E2E-002, whose behavior already held;
+  - the section-9-removed layout test, which pins the existing `testsAt >= 0` guard;
+  - Task 8's node-server test. With `@hono/node-server` 2.x and Hono 4.13.8 the header-only 413 and the streamed 413 both answer JSON and close with a FIN, so the test also passes with the e20e header check disabled. The Caddy-side 502 it was meant to guard needs Caddy in front, and stays on the VGR-1 ledger row.
+  - The api budget tests fail on the baseline at import (`relatorioBudgetRowBytes` absent), not at the behavior.
+- Assertions changed on purpose:
+  - `attribution.test.ts`: the e20f `restampOp` tests pass the clock error; "a forged far instant is capped at now" became "a far instant stays".
+  - `sync-store.test.ts`: the e20f Reenviar test passes -30 min, and the removal instant is `15:00:00.001Z` instead of `14:59:59.501Z`.
+  - `value-limits.test.ts` and `value-limits.integration.test.ts`: the e20f budget tests were rewritten for the growth rule, on one fill.
+- Gate run by the implementer, under `lockf`:
+  - lint 0 errors (26 warnings: 25 existing, plus the `waitForTimeout` of E20-A1-E2E-001, as at `points.spec.ts:507`);
+  - static 0;
+  - test:unit 5085 of 5085;
+  - test:api 831 passed, 4 skipped;
+  - touched specs 50 of 50 on desktop-chrome and durability-desktop-chrome;
+  - `device-clock.durability` 6 of 6 on the two matrix projects.
+
 ## Spec Change Log
 
+- 2026-11-04, review loop 1.
+  - **Trigger:** Blind Hunter 1, Edge Case Hunter 1, 2 and 11, and the verification-gap "other" finding all report the same defect. `clockOffsetStale` treated any drift of raw minus monotonic over 60 s as a clock set. `performance.now` stops during device suspend on Android and iPadOS, so an offline tablet that slept dropped its learned offset and went back to its wrong clock, undoing Story 20.8 and e20f.
+  - **Amended:** task 3's drop rule (above).
+  - **Known-bad state avoided:** an offset lost on every wake.
+  - **Narrowed loopback, recorded as a deviation from the workflow:** the code was not reverted. Every other task is KEEP, as built and verified (tasks 1, 2, 4 to 9, their tests and the assertion changes listed in Implementation Notes). Only `clockOffsetStale`, `clock.ts` and their tests are re-derived, together with the patch findings below.
+
 ## Review Triage Log
+
+### 2026-11-04 — Review pass 1
+
+- **Layers run:** Blind Hunter, Edge Case Hunter and Verification Gap, all on opus. None was skipped.
+- **Findings:** 31 raw findings, 24 after dedupe.
+- **Verdicts:** high 1, medium 7, low 12, false 0, maybe-false 2.
+
+| # | Sources | Verdict | Finding and evidence | Route |
+|---|---|---|---|---|
+| 1 | BH-1, ECH-1, ECH-2, ECH-11, VG-other-1 | high | The offset is dropped after any sleep over 60 s. `clockOffsetStale` drift rule; `performance.now` pauses in suspend while `Date.now` runs. A stored basis from an earlier page is also compared across pages. | bad_spec (task 3 amended; narrowed loopback) |
+| 2 | ECH-3, ECH-4, BH-2, VG-other-2 | medium | `restampOp` shifts by the current offset only. When the offset is unknown (0, for example a clock fixed before reconnecting), a slow clock's value instants stay days before the relatório's create, which was itself restamped to now. They are refused again on every "Reenviar". e20f's shift-to-resend-time covered that case. | patch: an error of 0 falls back to the e20f delta (`at − old client_ts`). The double-shift of a row stamped after the offset was learned is accepted: such a row is refused `op_attribution` only for an actor or lower-bound claim that a resend does not cure anyway. |
+| 3 | ECH-6, BH-4 | medium | The PUT 404 for a withdrawn file maps to `permanent` (`policy.ts` `classifyUploadFailure`, via `classifyFailure` `stop`). After a restore the bytes never upload by themselves. Since lookup-null answers 409, this 404 is the withdrawn case alone. | patch: a 404 `not_found` on the upload PUT defers, with a policy test |
+| 4 | BH-8 | medium | `pickRefused` is cleared only by `finish`. After a refused pick and a later stored pick, "Concluir" stays open once more and needs a second tap. | patch: a pick that settles stored clears `pickRefused`; the e2e sequence picks twice before "Concluir" |
+| 5 | ECH-5, BH-9 | medium | A priority, clear or deadline pick after `finish` started is still queued; only `pickLink` checks `finishing`. | patch: `writeFields` and `changeDeadline` return early while finishing |
+| 6 | VG-5 | medium | A refused priority pick that keeps the editor open is not tested in e2e. | patch: a test beside E20-A1-E2E-001 with `refusableOutbox` |
+| 7 | VG-2 | medium | `resendRestampOrder` has no kernel test for a value-reference dependent or a transitive chain. | patch: `packages/domain/src/sync/resend.test.ts` |
+| 8 | VG-1 | medium | The `clockOffsetMs()` argument at `sync.tsx:465` is not verified at the caller. DUR-003 asserts no value instant. | patch: extend `e20f-DUR-003` (or a sibling) with a removal written offline on the shifted clock; after "Reenviar" the logged `removed_at` is within the tolerance of server time |
+| 9 | VG-3 | low | The engine's `elapsedMs` window is not tested with distinct clocks. | patch: an `engine.test.ts` case where `now` jumps 30 min and `elapsedMs` does not |
+| 10 | VG-3 (hooks) | low | The preview and audit "never arrived" expiries have no test harness. | defer |
+| 11 | VG-4 | low | A confirming answer refreshing the stored basis is not tested. | patch, folded into the task 3 re-derivation tests |
+| 12 | BH-6 | low | `coverOfRemovedRelatoriosOnly` runs on every company-wide file, logos and certificates included (an unindexed jsonb filter). | patch: query only for a photo-kind file |
+| 13 | BH-7 | low | The `RangeError` branch logs an unchecked `op_id` and `path` at full length. | patch: truncate both, as a log field (200 characters) |
+| 14 | ECH-8 | low | The node-server test hangs instead of failing when the server resets before answering. | patch: reject on a request error before the answer |
+| 15 | BH-11, VG-7 | low | The node-server test's header claims it guards the e20e header check, and it does not. | patch: correct the header comment to name what it pins and point to VGR-1 |
+| 16 | ECH-10, BH-3 | low | `op_id` (UUIDv7 on the raw clock) is commit order only within one page. After a reload under a clock set back, a dependent can sort first. | patch: narrow the doc comment in `resend.ts`; the limitation is accepted |
+| 17 | BH-5 | maybe-false | `storedRelatorioBytes` reads and re-serializes every live client row of the relatório on each growing push, where before it was one SQL sum. Unmeasured; would be medium if real. Settled by timing a push on a Porto Seguro-sized relatório. | defer |
+| 18 | VG-6 | low | `POST /api/photos/{id}/reread` and `sendRetargetedReading` do not use `fileWithdrawn`, so a photo of a removed relatório can still spend a reading. | defer |
+| 19 | ECH-7, BH-10 | low | While a wipe stays pending (blocked delete), every boot clears device-wide `relatorio-*` keys, erasing the next user's altitude memo. Unlikely; the fix adds state. | reject |
+| 20 | BH-12 | low | Offset and basis are written as two keys, not atomically. | folded into #1 (one value) |
+| 21 | ECH-9 | low | Server-written fields on client rows (file variants, reading fields, `preview_file_id`) still count toward the budget. These are bytes, not documents. | reject |
+| 22 | BH-13 | low | `refusableOutbox` is a third inline copy, and E20-A1-E2E-001 uses a fixed 1.5 s wait. A refactor touching two other tests. | reject (the wait matches the existing `points.spec.ts:507`) |
+| 23 | VG-7 | maybe-false | The Caddy-side 502 the test was meant to guard is still verified only outside the repository. | defer (already the VGR-1 ledger row) |
+| 24 | BH-2 (part) | low | A row stamped after the offset was learned and refused for another reason gets its instants double-shifted. | reject, see #2 |
 
 ## Verification
 
