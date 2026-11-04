@@ -2,7 +2,7 @@
 title: 'Epic 20 fix batch e20f: device clock, every reference checked, values bounded whole, backward moves judged by the server'
 type: 'bugfix'
 created: '2026-11-04'
-status: 'in-review'
+status: 'done'
 baseline_revision: '418e308a26d6bfe222d29c99f3fdadb47d10183f'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -165,3 +165,13 @@ Out of scope: N6 (dev-only origin wildcard).
 **Commands (inside the `tools` container, `podman compose --profile tools run --rm --user root tools ...`):**
 - `pnpm lint`, `pnpm static`, `pnpm test:unit`, `pnpm test:api` -- expected: exit 0.
 - `pnpm exec tsx scripts/e2e.ts e2e/device-clock.durability.spec.ts e2e/security-ops.spec.ts --project desktop-chrome --project durability-desktop-chrome` under `lockf -t 20000 /tmp/fasor-verify.lock` -- expected: green.
+
+## Auto Run Result
+
+Status: done (2026-11-04, orchestrator e20f).
+
+- **Implemented:** items 1 to 4 of the integrated review of 76cbdb79 (device clock offset from the `Date` header, a monotonic corrected clock, "Reenviar" re-stamping `op_attribution` and `op_target_missing` rows; one table of every id leaf with `op_target_missing`; `VALUE_MAX_BYTES` 128 KiB on open shapes and `VALUE_MAX_ITEMS` 500; a backward status move judged from both the server's status and the seen one), and the coordinator's added items 12 to 18 (relatório budget 1.5 MiB, depth cap 32, a file of a removed relatório answers 404, sign-out clears the relatório keys, setup and section text behind `RelatorioGate`, the login sentence, the telemetry instant clamp). No contract bump.
+- **Review:** Edge Case Hunter and Verification Gap Reviewer (Blind Hunter and Intent Alignment skipped, token economy). 14 findings: 7 patched (3 medium, 4 low; ECH-1 and VG-O1 share one root cause), 7 rejected with reasons; none deferred. Items 12 to 18 came after the review: patched, not re-reviewed.
+- **Follow-up review recommended:** false by the rule (no high patched); the integrated QA re-check covers items 12 to 18.
+- **Verification:** on 72b82f5c, lint 0, static 0, test:api 824 passed and 3 skipped, test:unit 5060 passed, targeted e2e 148 passed and 3 skipped of 151; on d1a78a1f (DUR-003 without the shell worker), lint 0, static 0, matrix 79 passed and 8 skipped of 87. Mutation: with the offset taken out of `now`, DUR-001 to DUR-003 fail (3 of 3).
+- **Residual risks:** the 1.5 MiB budget (99.7 s preview at the budget) and the `relatorio.template_id` exemption are open questions; a stored offset goes stale when the device clock is fixed while offline, until the first answer.
