@@ -124,7 +124,7 @@ describe('statusMoveVerdict (Story 20.7)', () => {
 
   function oracle(input: StatusMoveInput): 'allowed' | 'refused' {
     const { seen, server, to } = input;
-    if (index(to) < index(seen)) return 'allowed';
+    if (index(to) < index(seen) && index(to) < index(server)) return 'allowed';
     if (to === server) return 'allowed';
     if (!FORWARD_ROWS[server].includes(to)) return 'refused';
     if (to === 'em_revisao' && (server === 'rascunho' || server === 'em_campo')) return input.issueJobSinceLastStatus === true || input.unchangedRevision === true ? 'allowed' : 'refused';
@@ -203,6 +203,22 @@ describe('statusMoveVerdict (Story 20.7)', () => {
     // B arrives first: the server holds Em revisão; B is refused, then A applies.
     expect(statusMoveVerdict({ seen: 'rascunho', server: 'em_revisao', to: 'em_campo' })).toBe('refused');
     expect(statusMoveVerdict({ seen: 'em_revisao', server: 'em_revisao', to: 'emitido', hasRevision: true })).toBe('allowed');
+  });
+});
+
+describe('statusMoveVerdict, the seen status only narrows (e20f)', () => {
+  it('a forged seen status gains nothing: once Emitido, now Rascunho, a put of Em revisão naming the old Emitido op is refused', () => {
+    expect(statusMoveVerdict({ seen: 'emitido', server: 'rascunho', to: 'em_revisao' })).toBe('refused');
+    expect(statusMoveVerdict({ seen: 'emitido', server: 'em_campo', to: 'em_revisao' })).toBe('refused');
+    expect(statusMoveFacts({ seen: 'emitido', server: 'rascunho', to: 'em_revisao' })).toEqual(['issueJobSinceLastStatus', 'unchangedRevision']);
+    // With a generate queued since the last status op it is the generate's own forward row.
+    expect(statusMoveVerdict({ seen: 'emitido', server: 'rascunho', to: 'em_revisao', issueJobSinceLastStatus: true })).toBe('allowed');
+  });
+
+  it('a move backward from both the server and the device stays allowed (manual Voltar, the undo of a first edit)', () => {
+    expect(statusMoveVerdict({ seen: 'em_campo', server: 'em_campo', to: 'rascunho' })).toBe('allowed');
+    expect(statusMoveVerdict({ seen: 'em_revisao', server: 'emitido', to: 'em_campo' })).toBe('allowed');
+    expect(statusMoveVerdict({ seen: 'emitido', server: 'em_revisao', to: 'rascunho' })).toBe('allowed');
   });
 });
 

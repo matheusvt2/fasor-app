@@ -88,6 +88,26 @@ describe('S1: a forged status is refused, and the server row keeps its status', 
   });
 });
 
+describe('e20f: a forged seen status gains nothing', () => {
+  it('once Emitido, now Rascunho and edited since: Em revisão naming the old Emitido op, with no generate, is refused', async () => {
+    const { relatorioId, blocks, toRevision } = await inRevision();
+    const sent = h.statusOp(companyA, relatorioId, 'emitido', toRevision.op_id);
+    expect((await h.push(companyA, [sent])).rejected).toEqual([]);
+    const back = h.statusOp(companyA, relatorioId, 'rascunho', sent.op_id);
+    expect((await h.push(companyA, [back])).rejected).toEqual([]);
+    const edit = h.clientOp(companyA, { kind: 'put', path: `sheet/${blocks[0]!.id}/observations`, relatorio_id: relatorioId, value: 'Editado depois de voltar' });
+    expect((await h.push(companyA, [edit])).rejected).toEqual([]);
+    expect(await statusOf(relatorioId)).toBe('rascunho');
+
+    const forged = h.statusOp(companyA, relatorioId, 'em_revisao', sent.op_id);
+    const result = await h.push(companyA, [forged]);
+    expect(result.applied).toEqual([]);
+    expect(result.rejected).toEqual([{ op_id: forged.op_id, code: 'op_status_transition' }]);
+    expect(await statusOf(relatorioId)).toBe('rascunho');
+    expect(await h.logged(forged.op_id)).toBe(false);
+  });
+});
+
 describe('the UI paths apply as before', () => {
   it('setup complete, generate, mark as sent, an edit after Emitido, the backward moves and their Desfazer, and a generate answered unchanged', async () => {
     const { relatorioId, blocks } = await h.seedRelatorio(companyA);
