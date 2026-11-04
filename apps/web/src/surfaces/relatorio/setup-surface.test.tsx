@@ -12,7 +12,9 @@ import { openDatabase, type AppDatabase } from '../../db/schema.ts';
 import { applyPulled } from '../../db/sync-store.ts';
 import type { SessionState } from '../../state/session.tsx';
 import { StatusToaster } from '../../state/status-toaster.tsx';
+import { SyncContext } from '../../state/sync.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
+import { makeSyncState } from '../../test/sync-state.ts';
 import { trackInputRefused } from '../../telemetry/hooks.ts';
 import { SetupSurface } from './setup-surface.tsx';
 import { loadIndependentWaits, untilStored } from '../../test/load.ts';
@@ -107,6 +109,8 @@ function tree(id: string, search = '') {
     // wrong segment.
     <I18nProvider locale="pt-BR">
       <MemoryRouter initialEntries={[`/relatorio/${id}/setup${search}`]}>
+        {/* e20f (QA N4): the surface sits behind RelatorioGate, which reads the sync state. */}
+        <SyncContext value={makeSyncState()}>
         <ToastProvider>
           {/* The shell's status toaster: what "Concluir" says is the status change itself. */}
           <StatusToaster />
@@ -117,6 +121,7 @@ function tree(id: string, search = '') {
           </Routes>
           <ToastOutlet />
         </ToastProvider>
+        </SyncContext>
       </MemoryRouter>
     </I18nProvider>
   );
@@ -866,14 +871,16 @@ describe('4.2 SetupSurface', () => {
     database = await seeded();
     render(
       <MemoryRouter initialEntries={[`/relatorio/${RELATORIO}/setup?etapa=3`]}>
-        <ToastProvider>
-          {/* The shell's status toaster: what "Concluir" says is the status change itself. */}
-          <StatusToaster />
-          <Routes>
-            <Route path="/relatorio/:id/setup" element={<SetupSurface />} />
-          </Routes>
-          <ToastOutlet />
-        </ToastProvider>
+        <SyncContext value={makeSyncState()}>
+          <ToastProvider>
+            {/* The shell's status toaster: what "Concluir" says is the status change itself. */}
+            <StatusToaster />
+            <Routes>
+              <Route path="/relatorio/:id/setup" element={<SetupSurface />} />
+            </Routes>
+            <ToastOutlet />
+          </ToastProvider>
+        </SyncContext>
       </MemoryRouter>,
     );
     const heading = await screen.findByRole('heading', { level: 2, name: 'Etapa 3 — Responsável' });
