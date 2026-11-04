@@ -2,7 +2,7 @@ import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
-import { pushNewRelatorio } from './support/relatorio-seed.ts';
+import { emCampoDraft, newRelatorioDrafts, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 import { syncNow } from './support/sync.ts';
 
 /*
@@ -154,4 +154,43 @@ test('@p0 20.11-E2E-003 Sair with work still unsent: the confirm counts it, Canc
   await expect.poll(() => databases(page)).not.toContain(database);
   expect(await readPointer(page)).toBeNull();
   await page.unroute('**/api/sync/ops');
+});
+
+test('@p0 e20f-E2E-002 QA N3: after Sair no localStorage or sessionStorage key names a relatório or a sheet of the user; the device-wide keys stay', async ({ page }) => {
+  test.setTimeout(150_000);
+  // The device answers an altitude, so the setup keeps that answer for the relatório.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition: (ok: PositionCallback) => ok({ coords: { altitude: 812, latitude: -23.5, longitude: -46.6, accuracy: 5 } } as GeolocationPosition) },
+    });
+  });
+  await signIn(page, account.email);
+  const built = newRelatorioDrafts(account);
+  await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId)]);
+  await syncNow(page);
+  await page.goto(`/relatorio/${built.relatorioId}/setup?etapa=5`);
+  const stored = () =>
+    page.evaluate(() => {
+      const all: string[] = [];
+      for (const storage of [window.localStorage, window.sessionStorage]) {
+        for (let i = 0; i < storage.length; i++) {
+          const key = storage.key(i)!;
+          all.push(`${key}=${storage.getItem(key) ?? ''}`);
+        }
+      }
+      return all;
+    });
+  const naming = async () => (await stored()).filter((entry) => entry.includes(built.relatorioId) || built.sheets.some((sheet) => entry.includes(sheet.blockId)));
+  await expect.poll(naming, { timeout: 30_000 }).not.toEqual([]);
+  // A ficha's checklist keeps which sheet opened its legend this session.
+  const sheet = built.sheets.find((candidate) => candidate.blockType === 'chave_seccionadora') ?? built.sheets[0]!;
+  await page.goto(`/relatorio/${built.relatorioId}/ficha/${sheet.blockId}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await page.evaluate(() => window.localStorage.setItem('releng.theme', 'dark'));
+
+  await page.goto('/');
+  await signOut(page);
+  expect(await naming()).toEqual([]);
+  expect((await stored()).some((entry) => entry.startsWith('releng.theme='))).toBe(true);
 });

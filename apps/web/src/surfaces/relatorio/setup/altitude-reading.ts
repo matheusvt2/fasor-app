@@ -1,3 +1,5 @@
+import { ALTITUDE_KEY_PREFIX } from '../../../state/user-storage.ts';
+
 /*
  * F-11 / W-14 (review 2026-09-30; Story 4.2 AC 2 "asks once for the site altitude"): the
  * device is asked for its position at most once per relatório. The first answer, granted or
@@ -12,7 +14,7 @@ export interface AltitudeAnswer {
   altitude: number | null;
 }
 
-const KEY_PREFIX = 'relatorio-altitude-asked:';
+const KEY_PREFIX = ALTITUDE_KEY_PREFIX;
 
 const inFlight = new Map<string, Promise<AltitudeAnswer>>();
 
