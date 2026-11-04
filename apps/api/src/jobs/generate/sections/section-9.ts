@@ -47,6 +47,10 @@ import { CONTENT_WIDTH_TWIPS, image, sizedImage } from '../docx.ts';
  * under it. Story 20.6: a local block starts its page with its heading, and whatever follows
  * it (its first sheet, its painel's band, the next local) starts a new page.
  *
+ * Story 20.6 follow-up (2026-11-04): the empty gap paragraph that keeps two tables apart is
+ * drawn only between parts, never after a sheet's or a local's last part, where it spilled
+ * onto a blank page of its own before the next ficha's page break (`partsChildren`).
+ *
  * Borders, cell margins and the text size live on the table and on paragraph styles, not on
  * every cell and run: 94 sheets are tens of thousands of cells, and the XML each one carries
  * is what the `docx` library and LibreOffice spend their time on.
@@ -63,7 +67,7 @@ const SHEET_GAP = 'SheetGap';
 export const SECTION_9_PARAGRAPH_STYLES: readonly IParagraphStyleOptions[] = [
   { id: SHEET_TEXT, name: 'Sheet Text', basedOn: 'Normal', run: { size: 18 }, paragraph: { spacing: { before: 0, after: 0 } } },
   { id: SHEET_CAPTION, name: 'Sheet Caption', basedOn: 'Normal', run: { size: 16 }, paragraph: { spacing: { before: 20, after: 40 } } },
-  // The gap after a table (Word joins two tables that no paragraph separates): 3 pt tall.
+  // The gap after a table that another part follows (Word joins two tables that no paragraph separates): 3 pt tall.
   { id: SHEET_GAP, name: 'Sheet Gap', basedOn: 'Normal', run: { size: 4 }, paragraph: { spacing: { before: 0, after: 0, line: 60, lineRule: LineRuleType.EXACT } } },
 ];
 
@@ -220,12 +224,23 @@ async function sheetChildren(sheet: PrintSheet, photos: ReadonlyMap<string, Buff
   return out;
 }
 
-/** The parts of a sheet, or of a local (Story 14.4), in order: a paragraph, or a table or photo rows followed by the gap. */
+/**
+ * The parts of a sheet, or of a local (Story 14.4), in order: a paragraph, or a table or
+ * photo rows followed by the gap when another part follows. Story 20.6 follow-up
+ * (2026-11-04): the last part takes no gap. What follows a sheet or a local is always a
+ * paragraph (the next title bar, a Heading 2, a painel band, a Heading 1), so Word never
+ * joins that table to another; and a trailing empty paragraph after photo rows that end at
+ * the page foot spilled onto a page of its own before the next ficha's page break.
+ */
 async function partsChildren(parts: readonly SheetPart[], photos: ReadonlyMap<string, Buffer>): Promise<(Paragraph | Table)[]> {
   const out: (Paragraph | Table)[] = [];
-  for (const part of parts) {
-    if (part.kind === 'paragraph') out.push(new Paragraph({ style: SHEET_CAPTION, children: [new TextRun(part.text)] }));
-    else out.push(part.kind === 'table' ? drawTable(part.table) : await drawPhotos(part.photos, photos), gap());
+  for (const [i, part] of parts.entries()) {
+    if (part.kind === 'paragraph') {
+      out.push(new Paragraph({ style: SHEET_CAPTION, children: [new TextRun(part.text)] }));
+      continue;
+    }
+    out.push(part.kind === 'table' ? drawTable(part.table) : await drawPhotos(part.photos, photos));
+    if (i < parts.length - 1) out.push(gap());
   }
   return out;
 }

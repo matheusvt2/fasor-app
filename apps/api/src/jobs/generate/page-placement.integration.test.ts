@@ -4,10 +4,11 @@ import { delimiter, join } from 'node:path';
 import { buildSnapshot, layoutSpec, replay, type DocumentLayout, type PrintSheetSubsection } from '@app/domain';
 import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import { buildDocx } from './docx.ts';
 import { convertToPdf } from './libreoffice.ts';
-import { checklistTable, fillerParts, nameplateTable, sheet, tablePart, withNewSectionOrder, withSheetsSection } from './page-layout.test-support.ts';
+import { checklistTable, fillerParts, nameplateTable, photosPart, sheet, tablePart, withNewSectionOrder, withSheetsSection } from './page-layout.test-support.ts';
 import { placeholderPages } from './toc.ts';
 
 /*
@@ -19,7 +20,8 @@ import { placeholderPages } from './toc.ts';
  * today carries (the tests before the points) and its sheets section replaced by hand-built
  * subsections, so each case puts a table exactly where it needs it: filler lines push
  * DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS and VERIFICAÇÕES DO LOCAL into the last part of a
- * page, a checklist runs longer than a page, and short fichas follow a local block.
+ * page, a checklist runs longer than a page, and short fichas follow a local block. The
+ * Story 20.6 follow-up (2026-11-04) case ends a ficha's photo rows at the page foot.
  *
  * It needs LibreOffice, which the api image carries and the tools image does not: run it
  * in the api container,
@@ -72,9 +74,9 @@ const base = (): DocumentLayout => {
   return layoutSpec(withNewSectionOrder(snapshot), { revisionNumber: 1, issuedAt: '2026-09-23T12:00:00.000Z' });
 };
 
-async function render(subsections: PrintSheetSubsection[]): Promise<{ layout: DocumentLayout; pages: { height: number; items: Item[] }[] }> {
+async function render(subsections: PrintSheetSubsection[], photos?: ReadonlyMap<string, Buffer>): Promise<{ layout: DocumentLayout; pages: { height: number; items: Item[] }[] }> {
   const layout = withSheetsSection(base(), subsections);
-  const docx = await buildDocx(layout, { tocPages: placeholderPages(layout) });
+  const docx = await buildDocx(layout, { tocPages: placeholderPages(layout), ...(photos === undefined ? {} : { images: { photos } }) });
   const pdf = await convertToPdf(docx, { jobId: `page-placement-${Date.now()}` });
   return { layout, pages: await pdfPages(pdf) };
 }
@@ -166,4 +168,55 @@ describe.skipIf(!sofficeOnPath)('20.5 and 20.6 page placement on the PDF LibreOf
     expect(points).toBeGreaterThan(fichaPages.at(-1)!);
     expect(pages[points]!.items.some((item) => item.str.startsWith('Texto de FICHA B2'))).toBe(false);
   }, 180_000);
+
+  it('Story 20.6 follow-up: a ficha whose photo rows end at the page foot is followed by the next ficha on the very next page, with no page of header and footer only', async () => {
+    // Each case is a subsection whose first ficha runs filler down its page and ends with one
+    // photo row, its photos a pixel taller than the case before, so the sweep walks the row's
+    // foot down to the page's (measured: 52 lines and 132 px end it under a point from the foot
+    // on this LibreOffice) and past it (the row moves whole to the next page). A short ficha
+    // follows each. An opening subsection takes section 8's Heading 1, so every case lays out alike.
+    const heights = Array.from({ length: 12 }, (_, k) => 122 + k);
+    const photos = new Map<string, Buffer>();
+    const subsections: PrintSheetSubsection[] = [{ heading: '8.1 Abertura', sheets: [sheet('FICHA ABERTURA', [tablePart(nameplateTable(3))])] }];
+    for (const [k, height] of heights.entries()) {
+      for (const side of ['A', 'B']) {
+        photos.set(`foto-${k}-${side}`, await sharp({ create: { width: 300, height, channels: 3, background: { r: 200, g: 100, b: 20 } } }).png().toBuffer());
+      }
+      subsections.push({
+        heading: `8.${k + 2} Caso ${k}`,
+        sheets: [
+          sheet(`FICHA FOTOS ${k}`, [
+            tablePart(nameplateTable(3)),
+            ...fillerParts(52, `Enchimento ${k}`),
+            photosPart([
+              { fileId: `foto-${k}-A`, number: 2 * k + 1, caption: `Imagem ${2 * k + 1}: Foto A do caso ${k}.` },
+              { fileId: `foto-${k}-B`, number: 2 * k + 2, caption: `Imagem ${2 * k + 2}: Foto B do caso ${k}.` },
+            ]),
+          ]),
+          sheet(`FICHA SEGUINTE ${k}`, [tablePart(nameplateTable(3))]),
+        ],
+      });
+    }
+    const { layout, pages } = await render(subsections, photos);
+
+    // No page holds only the header and footer: every page carries something else.
+    const chrome = new Set([layout.header.titleLine, layout.header.formLine, layout.footer.companyLine, layout.footer.contactLine].filter((line) => line !== ''));
+    const isChrome = (text: string) => chrome.has(text) || /^Página \d+ de \d+$/.test(text);
+    const footerOnly = pages.flatMap((page, n) => (page.items.every((item) => isChrome(item.str)) ? [n + 1] : []));
+    expect(footerOnly, 'pages holding only the header and footer').toEqual([]);
+
+    let footed = 0;
+    for (const k of heights.keys()) {
+      const caption = `Imagem ${2 * k + 2}: Foto B do caso ${k}.`;
+      const photosPage = onePage(pages, caption);
+      const fillerPage = onePage(pages, `Enchimento ${k} 52`);
+      // The next ficha's title is on the page right after the photos' last page.
+      expect(onePage(pages, `FICHA SEGUINTE ${k}`), `case ${k}: the next ficha right after the photos`).toBe(photosPage + 1);
+      if (photosPage !== fillerPage) continue;
+      // The sweep reaches the foot: the photo row that still fits ends right above the footer.
+      const footer = itemOn(pages, photosPage, layout.footer.companyLine).y;
+      if (itemOn(pages, photosPage, caption).y - footer < 20) footed += 1;
+    }
+    expect(footed, 'at least one case whose photo row ends at the page foot').toBeGreaterThan(0);
+  }, 240_000);
 });
