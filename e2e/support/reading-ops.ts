@@ -326,7 +326,7 @@ export async function openSheetOfType(
   const { relatorioId } = await pushNewRelatorio(page, account, database, { emCampo: true });
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   const tree = page.getByRole('list', { name: 'Locais do relatório' });
   await expect(tree).toBeVisible();

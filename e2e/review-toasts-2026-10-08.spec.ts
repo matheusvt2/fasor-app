@@ -206,7 +206,7 @@ test('@p0 R8E-E2E-003 at 390 px an undo toast leaves the last photo rows of the 
   await expect(page.locator('[data-route="/relatorio/:id/arvore"] .sticky-action-bar')).toHaveCount(0);
   for (let expand = tree.getByRole('button', { name: /^Expandir / }); (await expand.count()) > 0; ) await expand.first().click();
   await tree.getByRole('button', { name: 'Mais opções de Cubículo Enel' }).click();
-  await page.getByRole('menuitemcheckbox', { name: 'Agrupar por tipo na seção 9' }).or(page.getByRole('menuitem', { name: 'Agrupar por tipo na seção 9' })).click();
+  await page.getByRole('menuitemcheckbox', { name: 'Agrupar por tipo na seção 8' }).or(page.getByRole('menuitem', { name: 'Agrupar por tipo na seção 8' })).click();
   await expect(toast(page).getByRole('button', { name: 'Desfazer' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight)).toBe(true);
   await lastRowClearOfToast(page, tree.locator('button.tree-body').last(), async () => {

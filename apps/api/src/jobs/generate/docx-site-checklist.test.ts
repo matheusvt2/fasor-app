@@ -232,8 +232,8 @@ describe('14.4 VERIFICAÇÕES DO LOCAL in the DOCX: once per local, right after 
     // The local with no equipment is a line of the ÍNDICE and starts its own page.
     expect(structure.paragraphs).toContain(`9.2 Cubículo Enel\t${TOC_PLACEHOLDER}`);
     expect(paragraphXml('9.2 Cubículo Enel')[0]).toContain('<w:pageBreakBefore/>');
-    // The first sheet follows the local's parts on the same page.
-    expect(paragraphXml('TRANSFORMADOR DE FORÇA TR-1')[0]).not.toContain('<w:pageBreakBefore/>');
+    // Story 20.6: the first sheet starts its own page after the local's parts (each ficha on a page of its own).
+    expect(paragraphXml('TRANSFORMADOR DE FORÇA TR-1')[0]).toContain('<w:pageBreakBefore/>');
     expect(paragraphXml('TRANSFORMADOR DE FORÇA TR-2')[0]).toContain('<w:pageBreakBefore/>');
   }, 60_000);
 
@@ -267,7 +267,7 @@ describe('14.4 VERIFICAÇÕES DO LOCAL in the DOCX: once per local, right after 
     expect(count(section, 'CARACTERÍSTICAS DA SE')).toBe(2);
   }, 60_000);
 
-  it('flag on with no equipment directly on the local: its own numbered heading comes first with the table, then the first painel band on the same page', async () => {
+  it('flag on with no equipment directly on the local: its own numbered heading comes first with the table, then the first painel band on a new page (Story 20.6)', async () => {
     const { structure, section, siteTables, paragraphXml } = await render(snapshotOf({ scheme: 'por_local_e_tipo', agrupar: true, direct: false }));
     expect(structure.headings.filter((h) => h.level === 2).map((h) => h.text)).toEqual([
       '9.1 Cabine primária',
@@ -277,8 +277,8 @@ describe('14.4 VERIFICAÇÕES DO LOCAL in the DOCX: once per local, right after 
     ]);
     expect(ascending(section, ['9.1 Cabine primária', ...LOCAL_BLOCK, PHOTO_LINE, 'PAINEL DE ENTRADA', 'CHAVE SECCIONADORA SEC-C01', 'PAINEL DE SAÍDA', '9.4 Cubículo Enel', ...LOCAL_BLOCK])).toBe(true);
     expect(siteTables).toHaveLength(2);
-    // The band follows the local's own parts; the next local starts a page.
-    expect(paragraphXml('PAINEL DE ENTRADA')[0]).not.toContain('<w:pageBreakBefore/>');
+    // Story 20.6: the band starts a page after the local's own parts (the local block keeps a page of its own); the next local starts a page.
+    expect(paragraphXml('PAINEL DE ENTRADA')[0]).toContain('<w:pageBreakBefore/>');
     expect(paragraphXml('9.4 Cubículo Enel')[0]).toContain('<w:pageBreakBefore/>');
     // The first sheet of the painel carries no cabine table: the local printed them.
     expect(count(section, 'CARACTERÍSTICAS DA SE')).toBe(2);

@@ -212,7 +212,8 @@ test('@p0 15.3-E2E-002 v9 local: items 20 and 21 close Ambiente, are answered in
   await expect(toast(page)).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   const download = await downloadFrom(page, () => modal.getByRole('button', { name: 'DOCX — abrir no Word' }).click());
   const document = readZipEntries(await downloadBytes(download)).get('word/document.xml')!.toString('utf8');
-  const tables = tablesOf(sectionXml(document, 9)).filter((table) => table[0]![0] === SITE_TITLE);
+  // Story 20.3: the tests section prints at 8 on a relatório created today.
+  const tables = tablesOf(sectionXml(document, 8)).filter((table) => table[0]![0] === SITE_TITLE);
   expect(tables).toHaveLength(1);
   const items = itemRows(tables[0]!);
   expect(items).toHaveLength(SITE.length);

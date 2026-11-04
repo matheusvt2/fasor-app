@@ -138,7 +138,10 @@ describe('13.8-UNIT-006 section refs when the printed numbering differs from FO.
     expect(sectionPosition(snapshot, 10)).toBe(9);
     expect(sectionPosition(snapshot, 11)).toBe(10);
     expect(sectionPosition(snapshot, 2)).toBeNull();
-    expect(byId.get('section:8')?.target).toEqual({ kind: 'section', rowKey: 'section_9' });
+    // Story 20.3: a new relatório carries the tests (section_9) before the points (section_8),
+    // so with section 2 removed the tests print as 7 and the points as 8.
+    expect(byId.get('section:7')?.target).toEqual({ kind: 'section', rowKey: 'section_9' });
+    expect(byId.get('section:8')?.target).toEqual({ kind: 'section', rowKey: 'section_8' });
     expect(byId.has('section:11')).toBe(false);
     // The parecer is sent first, under its printed number.
     expect(input.text.startsWith('[section:9] 9 ')).toBe(true);

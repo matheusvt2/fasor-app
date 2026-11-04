@@ -7,6 +7,7 @@ import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './su
 import { readStore } from './support/outbox.ts';
 import { devicePhotos, expectCameraOpen } from './support/photos.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
+import { fichaStart, pdfPageTexts } from './support/pdf-text.ts';
 import { setParecer } from './support/relatorio-flow.ts';
 
 /*
@@ -18,7 +19,8 @@ import { setParecer } from './support/relatorio-flow.ts';
  * composer and the viewer, the point editor's picker offers it as "Imagem 2", removing it
  * reads the sheet-photo sentence and leaves the Geral photo's 1, and in the generated DOCX
  * section 7 holds only the Geral photo ("Imagem 1.") while the chave's sheet in section 9
- * prints "Imagem 2: ⟨legenda⟩.". The fixture's ids are fixed and a revision is generated, so
+ * prints "Imagem 2: ⟨legenda⟩." in its one photo block after CONCLUSÃO (Story 20.6), and in the
+ * PDF each of the fixture's three fichas starts a page. The fixture's ids are fixed and a revision is generated, so
  * this spec runs in the serial group (`e2e/support/groups.ts`).
  */
 
@@ -73,7 +75,7 @@ async function openChave(page: Page): Promise<void> {
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
 }
 
-test('@p0 16.3-E2E-001 a "Ler visor" display shot is numbered (17.4): its badge on screen, offered by the picker, out of section 7, printed under its test in section 9 as "Imagem N: ⟨legenda⟩."', async ({ page }) => {
+test('@p0 16.3-E2E-001 a "Ler visor" display shot is numbered (17.4): its badge on screen, offered by the picker, out of section 7, printed in section 9 after its ficha\'s CONCLUSÃO as "Imagem N: ⟨legenda⟩."', async ({ page }) => {
   test.setTimeout(420_000);
   await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
@@ -154,6 +156,21 @@ test('@p0 16.3-E2E-001 a "Ler visor" display shot is numbered (17.4): its badge 
   expect(structure.paragraphs.filter((p) => p === displayLine)).toHaveLength(1);
   expect(structure.paragraphs.indexOf(displayLine)).toBeGreaterThan(to);
   expect(structure.paragraphs.filter((p) => /^Imagem \d+[.:]/.test(p))).toEqual(['Imagem 1.', displayLine]);
+  // Story 20.6: after the chave's CONCLUSÃO, never under its test tables.
+  const chaveAt = structure.paragraphs.findIndex((p, i) => i > to && p.startsWith('CHAVE SECCIONADORA') && p.endsWith('SEC-TEST'));
+  const conclusionAt = structure.paragraphs.indexOf('CONCLUSÃO', chaveAt);
+  expect(chaveAt).toBeGreaterThan(to);
+  expect(conclusionAt).toBeGreaterThan(chaveAt);
+  expect(structure.paragraphs.indexOf(displayLine)).toBeGreaterThan(conclusionAt);
+  // And in the PDF, each of the three fichas starts a page of its own.
+  const pdf = await downloadFrom(page, () => exportDialog(page).getByRole('button', { name: 'PDF — enviar ao cliente' }).click());
+  const pages = await pdfPageTexts(new Uint8Array(await downloadBytes(pdf)));
+  const starts = ['SEC-TEST', 'DJ-TEST', 'TR-TEST'].map((tag) => fichaStart(pages, tag));
+  for (const start of starts) {
+    expect(start.page).toBeGreaterThan(-1);
+    expect(start.before).toEqual([]);
+  }
+  expect(new Set(starts.map((start) => start.page)).size).toBe(3);
   await page.keyboard.press('Escape');
   await expect(exportDialog(page)).toBeHidden();
 

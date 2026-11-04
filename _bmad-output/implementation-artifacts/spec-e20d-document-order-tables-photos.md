@@ -91,13 +91,13 @@ deferred: []
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] Kernel 20.3: `relatorio/instantiate.ts` sort + red-first tests.
-- [ ] Kernel 20.6/20.5: `print/section-9.ts` part order, `keepWhole`, `itemLine` + red-first `section-9.test.ts`; `photo-order.ts` comments.
-- [ ] Renderer: `docx.ts` points break; `sections/section-9.ts` keeps, header repeat, item line, page-break rule; `docx.test.ts` and sibling suites.
-- [ ] `page-placement.integration.test.ts` on the real PDF; decide keepNext vs wrapper from it.
-- [ ] `e2e/support/pdf-text.ts` `pdfPageTexts`; new `e2e/document-pages.spec.ts` (serial group); update the four named specs and any grep hit.
-- [ ] Golden: `GOLDEN_UPDATE=1` for the 20.6 move; diff summarized in Design Notes.
-- [ ] `source-deltas.md` rows 140-141 dated delivered; `docs/kbs/log.md` line.
+- [x] Kernel 20.3: `relatorio/instantiate.ts` sort + red-first tests.
+- [x] Kernel 20.6/20.5: `print/section-9.ts` part order, `keepWhole`, `itemLine` + red-first `section-9.test.ts`; `photo-order.ts` comments.
+- [x] Renderer: `docx.ts` points break; `sections/section-9.ts` keeps, header repeat, item line, page-break rule; `docx.test.ts` and sibling suites.
+- [x] `page-placement.integration.test.ts` on the real PDF; decide keepNext vs wrapper from it.
+- [x] `e2e/support/pdf-text.ts` `pdfPageTexts`; new `e2e/document-pages.spec.ts` (serial group); update the four named specs and any grep hit.
+- [x] Golden: `GOLDEN_UPDATE=1` for the 20.6 move; diff summarized in Design Notes.
+- [x] `source-deltas.md` rows 140-141 dated delivered; `docs/kbs/log.md` line.
 
 **Acceptance Criteria:**
 - Given a relatório created from any template after the change, when its Sumário opens, then the rows read "8 Relatórios dos ensaios" then "9 Pontos de atenção", and Subir/Descer still move either one.
@@ -118,6 +118,13 @@ deferred: []
 - Open reading kept as the DoR says: the points page break applies to every relatório, old order included (it changes pagination, not order or numbers, of a regenerated old relatório; an issued revision's stored files never change).
 - Open reading: the item line is added to sheet checklist-item photos only; a local's site-item photos stay right under their table as today, so they get none.
 - Risk to check first: the fixture already emits `pageBreakBefore` on every sheet after its subsection's first (`docx.test.ts` L202 `1 + 10 + 83`), yet the field report says fichas run on. Read `pdfPageTexts` of a generated fixture PDF before changing the rule; if LibreOffice drops `pageBreakBefore` on the shaded, bordered title paragraph after a table, put the break on a paragraph LibreOffice honors (e.g. an empty paragraph with `pageBreakBefore`, or a `PageBreak` run) and say so here.
+- As built (2026-11-03, implementation): LibreOffice honors `pageBreakBefore` on the title bar after a table (`page-placement.integration.test.ts` case 3 and `e2e/document-pages.spec.ts`), so the break stays on the title paragraph. The run-on the field saw is the first ficha after a local block (seed v4 and later): the old rule broke a sheet only for `i > 0`, so a subsection's first ficha followed VERIFICAÇÕES DO LOCAL on the same page, and a painel band followed a local alone. The Porto Seguro fixture is on seed v1 (no local block), which is why its break count looked complete.
+- Path shipped for 20.5: keep-with-next on every cell paragraph of every row but the last, `tblHeader` on the leading band and header rows, `cantSplit` kept. The PDF proof (`page-placement.integration.test.ts`) shows LibreOffice moves each of the three tables whole and splits a checklist taller than a page only at row boundaries with the band and header repeated; the same run with `keepWhole` ignored fails both cases (checked by hand), so the section 10 one-row wrapper fallback was not needed.
+- Golden: `porto-seguro-skeleton.json` is unchanged and was not regenerated: it pins headings, table text, header and footer; the fixture's sheets carry no photos (no photo part moves) and keep-whole changes no text. `photo-order.test.ts` stays as it was except the M5 placement lines (they asserted the Não ensaiada plate photo before the reason band, which 20.6 moves after it); every numbering assertion of that test, and `numbering.test.ts`, is unchanged and green.
+- Ripple of 20.3 beyond the named files: the Sumário and every surface speak positions, so on a new relatório the tests row is 8 ("Expandir ou recolher a seção 8", "Agrupar por tipo na seção 8", "Conclusão da ficha (seção 8)") and the points row 9 ("entra na seção 9", "na seção 9"). Unit tests over `instantiateTemplate` (kernel `section-position`, `sumario`, `parecer`, `layout`, `section-8`, `audit`; web `sumario-surface`, `relatorio-tree*`, `compact-template-sections`, `export-dialog`) and about 35 e2e specs and helpers that open section 9 by its chevron name or read sections by number were updated to the new numbers; the production smoke matches the chevron by a pattern, since prod holds relatórios of both orders. A section printed empty (its note) takes no break, as before: only a points section with content (`kind: 'points'`) breaks, as only a tests section with sheets does.
+- LibreOffice is in the api image only; the tools container that runs `pnpm test:api` has none. `page-placement.integration.test.ts` therefore skips itself where no `soffice` is on the PATH and is run in the api container: `podman compose exec api pnpm --filter @app/api exec vitest run src/jobs/generate/page-placement.integration.test.ts` (3 of 3 green). The real-pipeline proof inside the gate is `e2e/document-pages.spec.ts`.
+- Seeded, not tapped, in `e2e/document-pages.spec.ts`: removing the 91 sheets outside three of Cubículo Enel (one office push of `remove` ops) and the point citing the NC photo (one office create); everything else (creation, Sumário checks and moves, the long plate, the three cameras, the parecer, the issue) goes through the UI.
+- Not done: `e2e/sheet-photos.spec.ts` 11.11-E2E-001 gains no document check. It never generates; a per-page check there would issue a 94-sheet relatório and move the whole spec into the serial group. Its screen assertion (the strip after Conclusão) is unchanged, and the document placement of a plate photo, an item photo and other photos is proven by `e2e/document-pages.spec.ts`, 17.1-E2E-001 and 16.3-E2E-001.
 
 ## Verification
 

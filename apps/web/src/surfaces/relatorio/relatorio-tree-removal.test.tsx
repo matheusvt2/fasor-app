@@ -232,7 +232,7 @@ describe('14.2 second pass: "Remover" in the location Overflow', () => {
     expect(within(rail).getByRole('button', { name: 'Expandir Coluna 5 de Painel de média tensão de Cabine de Testes' })).toHaveAttribute('data-tree-chevron', COLUNA_5);
     await userEvent.click(within(rail).getByRole('button', { name: LOCAL_MENU }));
     const menu = await screen.findByRole('menu');
-    expect([...menu.querySelectorAll('[role^="menuitem"]')].map((item) => item.textContent)).toEqual(['Abrir primeira ficha (dados do local)', 'Agrupar por tipo na seção 9']);
+    expect([...menu.querySelectorAll('[role^="menuitem"]')].map((item) => item.textContent)).toEqual(['Abrir primeira ficha (dados do local)', 'Agrupar por tipo na seção 8']);
     expect(within(menu).queryByText('Remover')).toBeNull();
   });
 });
@@ -649,7 +649,7 @@ describe('14.2 second pass: "Restaurar ficha removida" with removed locations', 
     renderAt(`/relatorio/${RELATORIO}`);
     await screen.findByRole('list', { name: 'Locais do relatório' });
     // Section 9 collapsed, so the restore has to open it.
-    await userEvent.click(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Expandir ou recolher a seção 8' }));
     await waitFor(() => expect(document.querySelector('.sum-s9')).not.toHaveClass('is-open'));
 
     const dialog = await openRestore();

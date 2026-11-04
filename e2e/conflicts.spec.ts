@@ -91,7 +91,7 @@ async function openSheet(page: Page, relatorioId: string, blockId: string): Prom
 /** The Sumário with section 9 open and every location expanded. */
 async function openTree(page: Page, relatorioId: string): Promise<void> {
   await page.goto(`/relatorio/${relatorioId}`);
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   await expect(chevron).toBeVisible({ timeout: 30_000 });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(page.getByRole('list', { name: 'Locais do relatório' })).toBeVisible();

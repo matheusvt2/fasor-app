@@ -28,7 +28,7 @@ test.beforeEach(({ seed }) => {
 
 const tree = (page: Page) => page.getByRole('list', { name: 'Locais do relatório' });
 const firstCabine = (page: Page) => tree(page).locator(':scope > li.s9-local').first();
-const section9Chevron = (page: Page) => page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+const section9Chevron = (page: Page) => page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
 const currentCard = (page: Page) => page.locator('.relatorio-card.is-current');
 
 /** Records a journey's tap count on the test and in the run's output (the list reporter prints stdout). */

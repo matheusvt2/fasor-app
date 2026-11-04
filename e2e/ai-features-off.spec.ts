@@ -106,7 +106,7 @@ test('@p0 11.8-E2E-001 AI features off: no plate, panel or NC-draft entry; "Ler 
   // The Sumário's field palette: every type the seed ships (Epic 14 QA Q-1: from the kernel), no "Fotografar equipamento".
   await page.goto(`/relatorio/${ids.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expandLocation(page, 'Cubículo Enel');
   await page.getByRole('button', { name: 'Adicionar equipamento no local Cubículo Enel' }).click();

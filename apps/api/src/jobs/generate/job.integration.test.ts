@@ -262,8 +262,9 @@ describe('7.2/7.3-INT-001 a revision with a photo, a point citing it and two cer
       const document = readZipEntries(docx).get('word/document.xml')!.toString('utf8');
       // The second 2E page, plus section 9's three breaks on the small fixture (E7-A4: its own
       // heading; Story 7.1: a new page for each subsection after the first and each sheet
-      // after its subsection's first).
-      expect(document.match(/<w:pageBreakBefore\/>/g) ?? []).toHaveLength(1 + 3);
+      // after its subsection's first), plus section 8's own heading (Story 20.3: the points
+      // section starts a page; this revision carries a point).
+      expect(document.match(/<w:pageBreakBefore\/>/g) ?? []).toHaveLength(1 + 3 + 1);
     },
     200_000,
   );

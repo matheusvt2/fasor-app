@@ -11,6 +11,7 @@ import {
   PRODUTO,
   replay,
   tocLines,
+  type DocumentLayout,
   type EquipmentBlockType,
   type LayoutSection,
   type LocationRow,
@@ -22,6 +23,7 @@ import { describe, expect, it } from 'vitest';
 import { buildDocx, CELL_MARGINS_TWIPS, CONTENT_WIDTH_TWIPS, PX_PER_CM, TOC_PLACEHOLDER } from './docx.ts';
 import { PAINEL_BAND_COLOR, PAINEL_BAND_FILL } from './sections/section-9.ts';
 import { extractStructure, paragraphText, readZipEntries, type DocxStructure } from './docx-structure.test-support.ts';
+import { checklistTable, measurementTable, nameplateTable, photosPart, sheet, tablePart, withNewSectionOrder, withSheetsSection } from './page-layout.test-support.ts';
 import { placeholderPages } from './toc.ts';
 
 /*
@@ -146,13 +148,13 @@ describe('4.8-UNIT-006 DOCX structure golden', () => {
   }, 60_000);
 });
 
-describe('E7-A4 section 9 starts a page', () => {
-  it('breaks the page before section 9\'s own Heading 1, and before no other section heading', async () => {
+describe('E7-A4 and Story 20.3 the tests and the points sections start a page', () => {
+  it('breaks the page before the tests\' and the points\' own Heading 1, and before no other section heading (the fixture keeps the FO.SERV-03 order)', async () => {
     const document = readZipEntries(await renderFixture()).get('word/document.xml')!.toString('utf8');
     const headings = [...document.matchAll(/<w:p>([\s\S]*?)<\/w:p>/g)].map((m) => m[1]!).filter((p) => p.includes('<w:pStyle w:val="Heading1"/>'));
     const section9 = headings.find((p) => paragraphText(p) === '9 RELATÓRIOS DOS ENSAIOS')!;
     expect(section9).toContain('<w:pageBreakBefore/>');
-    expect(headings.filter((p) => p.includes('<w:pageBreakBefore/>')).map(paragraphText)).toEqual(['9 RELATÓRIOS DOS ENSAIOS']);
+    expect(headings.filter((p) => p.includes('<w:pageBreakBefore/>')).map(paragraphText)).toEqual(['8 PONTOS DE ATENÇÃO / SUGESTÃO DE CORRETIVAS COMPLEMENTARES', '9 RELATÓRIOS DOS ENSAIOS']);
   }, 60_000);
 });
 
@@ -198,15 +200,18 @@ describe('7.1-UNIT section 9 in the DOCX', () => {
 
   it('starts each subsection after the first and each sheet after its subsection\'s first on a new page, never splits a row, and spans the bands', async () => {
     const document = readZipEntries(await renderFixture()).get('word/document.xml')!.toString('utf8');
-    // Section 9's own heading: 1 break (E7-A4); 11 subsections: 10 breaks; 94 sheets in 11 subsections: 83 breaks.
-    expect(document.match(/<w:pageBreakBefore\/>/g)).toHaveLength(1 + 10 + 83);
+    // Section 9's own heading: 1 break (E7-A4); section 8's (Story 20.3): 1; 11 subsections: 10
+    // breaks; 94 sheets in 11 subsections: 83 breaks. The fixture is on seed v1, so no local
+    // block precedes a subsection's first sheet (Story 20.6 adds a break there on v4 and later).
+    expect(document.match(/<w:pageBreakBefore\/>/g)).toHaveLength(1 + 1 + 10 + 83);
     const tables = [...document.matchAll(/<w:tbl>([\s\S]*?)<\/w:tbl>/g)].map((match) => match[1]!);
     // The cover and the document control come first; section 7's photo tables, section 10's
     // parecer box and section 11 (Stories 7.2 to 7.4) never carry a row guard, the sheets always do.
-    // Section 8's action-plan table (Story 11.10) guards only its repeated header row.
+    // Section 8's action-plan table (Story 11.10) guards only its repeated header row. Since
+    // Story 20.5 the sheets' kept-whole tables repeat their header rows too, so it is found by its text.
     const sheetRows = tables
       .slice(2)
-      .filter((table) => table.includes('<w:cantSplit/>') && !table.includes('<w:tblHeader/>')).flatMap((table) => [...table.matchAll(/<w:tr(?:\s[^>]*)?>([\s\S]*?)<\/w:tr>/g)].map((match) => match[1]!));
+      .filter((table) => table.includes('<w:cantSplit/>') && !paragraphText(table).includes(ACTION_PLAN_COLUMNS[5]!)).flatMap((table) => [...table.matchAll(/<w:tr(?:\s[^>]*)?>([\s\S]*?)<\/w:tr>/g)].map((match) => match[1]!));
     expect(sheetRows.length).toBeGreaterThan(94 * 10);
     for (const row of sheetRows) expect(row).toContain('<w:cantSplit/>');
     const bands = sheetRows.filter((row) => paragraphText(row) === 'DADOS DO EQUIPAMENTO');
@@ -404,6 +409,136 @@ describe('14.2-UNIT section 9 in the DOCX: a painel is a band over its sheets', 
   }, 60_000);
 });
 
+describe('Story 20.3 a new relatório in the DOCX: the tests section before the points section', () => {
+  it('prints "8 RELATÓRIOS DOS ENSAIOS" then "9 PONTOS DE ATENÇÃO ...", the ÍNDICE in that order, and breaks the page before both', async () => {
+    // The fixture with the section blocks a relatório created today carries.
+    const layout = layoutSpec(withNewSectionOrder(fixtureSnapshot()), { revisionNumber: 1, issuedAt: ISSUED_AT });
+    const docx = await buildDocx(layout, { tocPages: placeholderPages(layout) });
+    const structure = extractStructure(docx);
+    const level1 = structure.headings.filter((h) => h.level === 1).map((h) => h.text);
+    expect(level1.slice(6, 10)).toEqual(['7 REGISTRO FOTOGRÁFICO MANUTENÇÃO PREVENTIVA', '8 RELATÓRIOS DOS ENSAIOS', '9 PONTOS DE ATENÇÃO / SUGESTÃO DE CORRETIVAS COMPLEMENTARES', '10 CONCLUSÃO E OBSERVAÇÕES TÉCNICAS']);
+    // The subsections now number 8.k, and the ÍNDICE lists them between 8 and 9.
+    expect(structure.headings.filter((h) => h.level === 2)[0]!.text).toBe('8.1 Cubículo Enel');
+    const toc = structure.paragraphs.filter((p) => /^\d+(\.\d+)? .*\t00$/.test(p)).map((p) => p.split('\t')[0]!.split(' ', 1)[0]);
+    expect(toc).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', ...Array.from({ length: 11 }, (_, i) => `8.${i + 1}`), '9', '10', '11']);
+    const document = readZipEntries(docx).get('word/document.xml')!.toString('utf8');
+    const headings = [...document.matchAll(/<w:p>([\s\S]*?)<\/w:p>/g)].map((m) => m[1]!).filter((p) => p.includes('<w:pStyle w:val="Heading1"/>'));
+    expect(headings.filter((p) => p.includes('<w:pageBreakBefore/>')).map(paragraphText)).toEqual(['8 RELATÓRIOS DOS ENSAIOS', '9 PONTOS DE ATENÇÃO / SUGESTÃO DE CORRETIVAS COMPLEMENTARES']);
+  }, 60_000);
+});
+
+describe('Stories 20.5 and 20.6 section 9 in the DOCX: tables kept whole, item lines and a page per ficha', () => {
+  const baseLayout = () => layoutSpec(fixtureSnapshot(), { revisionNumber: 1, issuedAt: ISSUED_AT });
+  async function documentOf(layout: DocumentLayout): Promise<string> {
+    return readZipEntries(await buildDocx(layout, { tocPages: placeholderPages(layout) }))
+      .get('word/document.xml')!
+      .toString('utf8');
+  }
+  const tablesOf = (document: string) => [...document.matchAll(/<w:tbl>([\s\S]*?)<\/w:tbl>/g)].map((match) => match[1]!);
+  const rowsOf = (table: string) => [...table.matchAll(/<w:tr(?:\s[^>]*)?>([\s\S]*?)<\/w:tr>/g)].map((match) => match[1]!);
+  const paragraphsOf = (xml: string) => [...xml.matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)].map((match) => match[0]);
+  const tableNamed = (document: string, name: string) => tablesOf(document).filter((table) => paragraphText(rowsOf(table)[0]!) === name);
+  /** Whether every paragraph of the row keeps with the next. */
+  const keptRow = (row: string) => paragraphsOf(row).every((p) => p.includes('<w:keepNext/>'));
+
+  it('20.5: keeps every row but the last of DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS and VERIFICAÇÕES DO LOCAL with the next and repeats their band and header rows; a measurement table neither', async () => {
+    const layout = withSheetsSection(baseLayout(), [
+      {
+        heading: '9.1 Local de teste',
+        localParts: [tablePart(checklistTable('VERIFICAÇÕES DO LOCAL', 6, { groups: 2 }))],
+        sheets: [sheet('CHAVE SECCIONADORA T-1', [tablePart(nameplateTable(7)), tablePart(checklistTable('VERIFICAÇÕES GERAIS', 5)), tablePart(measurementTable('ENSAIO DE MEDIÇÃO', 4))])],
+      },
+    ]);
+    const document = await documentOf(layout);
+    for (const [name, lead] of [
+      ['DADOS DO EQUIPAMENTO', 1],
+      ['VERIFICAÇÕES GERAIS', 2],
+      ['VERIFICAÇÕES DO LOCAL', 2],
+    ] as const) {
+      const [table, ...more] = tableNamed(document, name);
+      expect(more, name).toEqual([]);
+      const rows = rowsOf(table!);
+      expect(rows.length, name).toBeGreaterThan(lead + 1);
+      rows.forEach((row, i) => {
+        expect(row, `${name} row ${i}`).toContain('<w:cantSplit/>');
+        expect(keptRow(row), `${name} row ${i} keepNext`).toBe(i < rows.length - 1);
+        expect(row.includes('<w:tblHeader/>'), `${name} row ${i} tblHeader`).toBe(i < lead);
+      });
+    }
+    // The measurement table (out of Story 20.5): its band and header keep with the next as
+    // before, its value rows do not, and nothing repeats.
+    const [measurement] = tableNamed(document, 'ENSAIO DE MEDIÇÃO');
+    const rows = rowsOf(measurement!);
+    expect(rows.map(keptRow)).toEqual([true, true, false, false, false, false]);
+    expect(measurement).not.toContain('<w:tblHeader/>');
+  }, 60_000);
+
+  it('20.5 over the fixture: every DADOS DO EQUIPAMENTO and VERIFICAÇÕES GERAIS table repeats exactly its band (and header) rows; no other sheet table repeats a row', async () => {
+    const document = readZipEntries(await renderFixture()).get('word/document.xml')!.toString('utf8');
+    const tables = tablesOf(document).slice(2);
+    let kept = 0;
+    for (const table of tables) {
+      const rows = rowsOf(table);
+      const name = paragraphText(rows[0]!);
+      if (name === 'DADOS DO EQUIPAMENTO' || name === 'VERIFICAÇÕES GERAIS') {
+        kept += 1;
+        expect(rows.filter((row) => row.includes('<w:tblHeader/>'))).toHaveLength(name === 'DADOS DO EQUIPAMENTO' ? 1 : 2);
+        expect(rows.slice(0, -1).every(keptRow)).toBe(true);
+        expect(keptRow(rows.at(-1)!)).toBe(false);
+      } else if (!paragraphText(table).includes(ACTION_PLAN_COLUMNS[5]!)) {
+        expect(table, name).not.toContain('<w:tblHeader/>');
+      }
+    }
+    // 81 nameplates (94 sheets but the 13 cabos) and 91 checklists (all but the three that print none).
+    expect(kept).toBe(81 + 91);
+  }, 60_000);
+
+  it('20.6: a checklist item photo prints its item line under its caption, in the same cell; a plain photo none', async () => {
+    const layout = withSheetsSection(baseLayout(), [
+      {
+        heading: '9.1 Local de teste',
+        sheets: [
+          sheet('CHAVE SECCIONADORA T-1', [
+            photosPart([
+              { fileId: 'f1', number: 3, caption: 'Imagem 3: Placa.' },
+              { fileId: 'f2', number: 4, caption: 'Imagem 4: Contatos oxidados.', itemLine: 'Item 8 · Contatos · NC' },
+            ]),
+          ]),
+        ],
+      },
+    ]);
+    const document = await documentOf(layout);
+    const cells = [...document.matchAll(/<w:tc>([\s\S]*?)<\/w:tc>/g)].map((match) => paragraphsOf(match[1]!).map(paragraphText));
+    expect(cells).toContainEqual(['', 'Imagem 4: Contatos oxidados.', 'Item 8 · Contatos · NC']);
+    expect(cells).toContainEqual(['', 'Imagem 3: Placa.']);
+  }, 60_000);
+
+  it('20.6: every ficha and every local block starts a page, the break on the heading that introduces it, never doubled after the section heading', async () => {
+    const short = (title: string) => sheet(title, [tablePart(nameplateTable(3))]);
+    const layout = withSheetsSection(baseLayout(), [
+      // A local block, then two sheets: both sheets break (something beyond the heading precedes each).
+      { heading: '9.1 Local A', localParts: [tablePart(checklistTable('VERIFICAÇÕES DO LOCAL', 3))], sheets: [short('FICHA A1'), short('FICHA A2')] },
+      // After a subsection that drew sheets: the heading breaks, its first sheet follows it.
+      { heading: '9.2 Local B', sheets: [short('FICHA B1')] },
+      // A painel band drawn alone: it breaks (sheets before it), and what follows stays with it.
+      { heading: 'PAINEL DE MÉDIA TENSÃO', painel: true, sheets: [] },
+      { heading: '9.3 Coluna 1 do Painel', sheets: [short('FICHA C1')] },
+      // A local block with no sheet, then the next local: both break.
+      { heading: '9.4 Local D', localParts: [tablePart(checklistTable('VERIFICAÇÕES DO LOCAL', 2))], sheets: [] },
+      { heading: '9.5 Local E', sheets: [short('FICHA E1')] },
+    ]);
+    const document = await documentOf(layout);
+    // Every break in section 9's body (the section headings' own Heading 1 breaks left out).
+    const breaks = paragraphsOf(document)
+      .filter((p) => p.includes('<w:pageBreakBefore/>') && !p.includes('<w:pStyle w:val="Heading1"/>'))
+      .map(paragraphText);
+    expect(breaks).toEqual(['FICHA A1', 'FICHA A2', '9.2 Local B', 'PAINEL DE MÉDIA TENSÃO', '9.4 Local D', '9.5 Local E']);
+    // The section's own Heading 1 breaks; its first subsection heading does not (no double break).
+    const heading = paragraphsOf(document).find((p) => paragraphText(p) === '9.1 Local A')!;
+    expect(heading).not.toContain('<w:pageBreakBefore/>');
+  }, 60_000);
+});
+
 describe('Epic 4 QA Q13 footer size and document properties', () => {
   it('sets the footer size on its paragraph style and paragraph marks, where the PAGE/NUMPAGES results take it from, and names the product as the last editor', async () => {
     const entries = readZipEntries(await renderFixture());
@@ -591,8 +726,9 @@ describe('7.2/7.3-UNIT sections 7, 8 and 11', () => {
     const document = entries.get('word/document.xml')!.toString('utf8');
     // The first certificate page sits under the heading (kept with it); every later one
     // starts its own page, and each fits the content box (at most 18.46 x 23 cm in EMU).
-    // Plus section 9's 94 breaks (E7-A4: its own heading; Story 7.1: 10 subsections after the first, 83 sheets).
-    expect(document.match(/<w:pageBreakBefore\/>/g) ?? []).toHaveLength(1 + 94);
+    // Plus section 9's 94 breaks (E7-A4: its own heading; Story 7.1: 10 subsections after the first, 83 sheets)
+    // and section 8's own heading (Story 20.3).
+    expect(document.match(/<w:pageBreakBefore\/>/g) ?? []).toHaveLength(1 + 1 + 94);
     const extents = [...document.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/g)].map((m) => [Number(m[1]), Number(m[2])]);
     expect(extents).toHaveLength(4);
     for (const [cx, cy] of extents.slice(2)) {

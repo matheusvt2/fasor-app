@@ -76,7 +76,7 @@ test('@p0 7.4-E2E-001 a relatório with no parecer: row 10 and the dialog say "P
   // The document control summary, read-only: a dl whose revision row promises Rev. 1.
   await expect(dialog(page).locator('dl.doc-control dt').nth(1)).toHaveText('Revisão do documento');
   await expect(dialog(page).locator('dl.doc-control dd').nth(1)).toHaveText('Rev. 1');
-  await expect(dialog(page).locator('.export-sec9-note')).toContainText('Seção 9 impressa no agrupamento do FO.SERV-03');
+  await expect(dialog(page).locator('.export-sec9-note')).toContainText('Seção 8 impressa no agrupamento do FO.SERV-03');
 
   // "Editar em Dados do relatório" opens Etapa 6, its heading focused.
   await blocking.getByRole('button', { name: 'Editar em Dados do relatório' }).click();

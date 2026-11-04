@@ -9,6 +9,7 @@ import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './su
 import { readFileBlobs, readStore } from './support/outbox.ts';
 import { devicePhotos } from './support/photos.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
+import { fichaStart, lastPageOf, pdfPageTexts } from './support/pdf-text.ts';
 import { setParecer } from './support/relatorio-flow.ts';
 import { pushDrafts } from './support/relatorio-seed.ts';
 import { syncNow } from './support/sync.ts';
@@ -238,4 +239,22 @@ test('@p1 7.3-E2E-001 the DOCX prints "Imagem 1:" in section 7, the point citing
   const section11 = document.slice(document.lastIndexOf('CERTIFICADOS</w:t>'));
   expect((section11.match(/<w:pageBreakBefore\/>/g) ?? []).length).toBe(1);
   expect(structure.headings.map((h) => h.text)).toEqual(expect.arrayContaining(['7 REGISTRO FOTOGRÁFICO MANUTENÇÃO PREVENTIVA', '11 CERTIFICADOS']));
+
+  // Stories 20.3 and 20.6 on the PDF, page by page: the fixture keeps its FO.SERV-03 order (the
+  // points, 8, before the tests, 9) and its numbers; the points section starts a page of its
+  // own (no photo line of section 7 before its heading there), and each ficha starts a page.
+  const pdf = await downloadFrom(page, () => dialog(page).getByRole('button', { name: 'PDF — enviar ao cliente' }).click());
+  const pages = await pdfPageTexts(new Uint8Array(await downloadBytes(pdf)));
+  const pointsPage = lastPageOf(pages, (text) => text.startsWith('8 PONTOS DE ATENÇÃO'));
+  const testsPage = lastPageOf(pages, (text) => text === '9 RELATÓRIOS DOS ENSAIOS');
+  expect(pointsPage).toBeGreaterThan(-1);
+  expect(testsPage).toBeGreaterThan(pointsPage);
+  const pointsItems = pages[pointsPage]!;
+  expect(pointsItems.slice(0, pointsItems.findIndex((text) => text.startsWith('8 PONTOS DE ATENÇÃO'))).filter((text) => /^Imagem \d+[.:]/.test(text))).toEqual([]);
+  const starts = ['SEC-TEST', 'DJ-TEST', 'TR-TEST'].map((tag) => fichaStart(pages, tag));
+  for (const start of starts) {
+    expect(start.page).toBeGreaterThan(testsPage - 1);
+    expect(start.before).toEqual([]);
+  }
+  expect(new Set(starts.map((start) => start.page)).size).toBe(3);
 });
