@@ -42,7 +42,7 @@ Unit and api are healthy, at about 40 ms per test. The e2e groups carry the time
 
 4. **Generation itself is the floor of the serial group.**
    - AD-15 fixes generate concurrency at 1 per api instance: `libreoffice.ts` chains every soffice run.
-   - A generating test spends about 9.5 s between "Gerar relatório" and the "Revisão N pronta" toast. Across the serial suite that is most of the 660 s.
+   - ~~A generating test spends about 9.5 s between "Gerar relatório" and the "Revisão N pronta" toast. Across the serial suite that is most of the 660 s.~~ *(2026-11-04, spike `_bmad-output/test-artifacts/generation-timing-2026-11-04.md`: 9.5 s is the p90, read off the slow tail; the device's own press-to-ready median over 110 generations is 3.4 s, so the generations are about 3 min of the serial group's 22.)*
    - The 9.5 s includes at least:
      - the DOCX build;
      - two or three soffice spawns per job; the profile is kept warm (A-17), but the process is not;
@@ -129,7 +129,7 @@ Proposed spec file: `_bmad-output/implementation-artifacts/spec-test-speed-2.md`
 - What would a persistent soffice process (one conversion at a time, AD-15 unchanged) save per conversion? What would it cost in memory on the AWS instance, against the USD 100 per month ceiling?
 - Would a shorter `GenerateWatcher` poll, or a nudge on the job's status op, shorten the device-side wait without load on the api?
 
-**Output.** A short findings note in `_bmad-output/test-artifacts/`. If a change is worth making, a story proposal in `epics.md` with its own acceptance criteria and its cost line. Because a faster generation helps every field user as well as the suite, that story belongs to the product backlog, not to a test chore.
+**Output.** A short findings note in `_bmad-output/test-artifacts/`. *(2026-11-04: done, `_bmad-output/test-artifacts/generation-timing-2026-11-04.md`. Median press to ready 3.4 s: queue pickup about 1.0 s (pg-boss polls every 2 s), job 1.3 s, device poll about 1.1 s (3 s interval). A persistent soffice is not worth it. A pickup of 0.5 s or NOTIFY plus a 1 s device poll would bring it to about 1.7 s; that is a product story for Matheus to decide.)* If a change is worth making, a story proposal in `epics.md` with its own acceptance criteria and its cost line. Because a faster generation helps every field user as well as the suite, that story belongs to the product backlog, not to a test chore.
 
 ### 4.3 Record of the direct pushes (AGENTS.md)
 
