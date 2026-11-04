@@ -20,6 +20,7 @@ import {
   type SiteChecklist,
   type TextBlock,
 } from './schema.ts';
+import { withLegacyOptions } from './legacy-options.ts';
 import { CABINE_PRIMARIA_V1 } from './v1.ts';
 import { CABINE_PRIMARIA_V2 } from './v2.ts';
 import { CABINE_PRIMARIA_V3 } from './v3.ts';
@@ -37,6 +38,9 @@ import { CABINE_PRIMARIA_V10 } from './v10.ts';
  * bundle ever shipped stays in `SEED_VERSIONS`, so a relatório created under `v1`
  * resolves the same definitions for as long as it exists. A change to a definition is a
  * new version appended here, never an edit of a shipped one (`seed.test.ts` pins v1).
+ * One exception, decided by Matheus on 2026-11-04: v1 to v5 gain options appended to two
+ * select lists (`legacy-options.ts`), which keeps every stored value and every issued
+ * document as it was; `seed.test.ts` pins both the shipped and the amended content.
  */
 
 /**
@@ -96,11 +100,12 @@ function bundle(version: string, cabinePrimaria: ReportSeed): SeedBundle {
 
 /** Every seed version this bundle shipped, append-only. */
 export const SEED_VERSIONS: Readonly<Record<string, SeedBundle>> = deepFreeze({
-  v1: bundle('v1', CABINE_PRIMARIA_V1),
-  v2: bundle('v2', CABINE_PRIMARIA_V2),
-  v3: bundle('v3', CABINE_PRIMARIA_V3),
-  v4: bundle('v4', CABINE_PRIMARIA_V4),
-  v5: bundle('v5', CABINE_PRIMARIA_V5),
+  // 2026-11-04 (Matheus): v1 to v5 gain the oil and vacuum options Bruno asked for, appended (`legacy-options.ts`).
+  v1: bundle('v1', withLegacyOptions(CABINE_PRIMARIA_V1)),
+  v2: bundle('v2', withLegacyOptions(CABINE_PRIMARIA_V2)),
+  v3: bundle('v3', withLegacyOptions(CABINE_PRIMARIA_V3)),
+  v4: bundle('v4', withLegacyOptions(CABINE_PRIMARIA_V4)),
+  v5: bundle('v5', withLegacyOptions(CABINE_PRIMARIA_V5)),
   v6: bundle('v6', CABINE_PRIMARIA_V6),
   v7: bundle('v7', CABINE_PRIMARIA_V7),
   v8: bundle('v8', CABINE_PRIMARIA_V8),
