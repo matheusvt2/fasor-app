@@ -90,6 +90,17 @@ describe('sync client failures', () => {
     }
   });
 
+  it('Story 20.12: a file upload refused 413 for the pixel limit carries the server\'s details', async () => {
+    const details = { limit: 'pixels', max_pixels: 120_000_000 };
+    const client = createSyncClient({ fetch: async () => json({ code: 'file_too_large', message: 'x', details }, 413) });
+    expect(await failureOf(client.uploadFile('019966b0-0000-7000-8000-000000000001', new Blob(['x'], { type: 'image/jpeg' }), 'ab'.repeat(32)))).toEqual({
+      kind: 'http',
+      status: 413,
+      code: 'file_too_large',
+      details,
+    });
+  });
+
   it('maps an HTTP error without a parseable envelope to {kind: http, status} and a rejected fetch to network', async () => {
     const bare = createSyncClient({ fetch: async () => new Response('gateway', { status: 502 }) });
     expect(await failureOf(bare.pushOps(ops))).toEqual({ kind: 'http', status: 502 });

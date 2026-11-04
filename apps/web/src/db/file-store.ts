@@ -61,6 +61,16 @@ export async function markBlobAcked(
   });
 }
 
+/**
+ * Story 20.12 (review): forgets the daily-ceiling refusal of the photo's reading once the server
+ * accepted a new one, so a later failure for another reason reads as such.
+ */
+export async function clearReadingRefused(db: AppDatabase, id: string): Promise<void> {
+  await db.files.where('id').equals(id).modify((row) => {
+    delete row.reading_refused;
+  });
+}
+
 /** Story 20.12: whether the reading this photo's upload was to start was refused by the daily ceiling. */
 export async function readingRefusedByQuota(db: AppDatabase, id: string): Promise<boolean> {
   const rows = await db.files.where('id').equals(id).toArray();

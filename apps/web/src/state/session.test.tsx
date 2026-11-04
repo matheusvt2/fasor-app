@@ -46,8 +46,18 @@ vi.mock('../api/auth-client.ts', () => ({
     };
   },
   signIn: (email: string, password: string) => signIn(email, password),
-  signOut: () => signOut(),
+  signOut: () => {
+    order.push('server sign-out');
+    return signOut();
+  },
 }));
+
+/** Story 20.11 (review): what sign-out did, in order (the usage-event flush and the server's sign-out). */
+const order: string[] = [];
+const flushTelemetry = vi.fn(async (db: { name: string; isOpen: () => boolean }) => {
+  order.push(`flush ${db.name} ${db.isOpen() ? 'open' : 'closed'}`);
+});
+vi.mock('../telemetry/flush.ts', () => ({ flushTelemetry: (db: { name: string; isOpen: () => boolean }) => flushTelemetry(db) }));
 
 const profile: UserProfile = {
   id: '0a000000-0000-7000-8000-0000000000a1',
@@ -94,6 +104,8 @@ beforeEach(() => {
   signIn.mockReset();
   signOut.mockReset();
   signOut.mockResolvedValue(undefined);
+  flushTelemetry.mockClear();
+  order.length = 0;
   reAuthListener = null;
   current = null;
 });
@@ -271,6 +283,58 @@ describe('sign-out deletes the device data (Story 20.11)', () => {
       await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-out|ok|none'));
       expect(readPendingWipes()).toEqual([]);
       expect(await exists()).toBe(false);
+    },
+    20_000,
+  );
+
+  it('offers the queued usage events with the open database before the server ends the session', async () => {
+    await seedDatabase();
+    writeLastSession(profile);
+    readSession.mockResolvedValue({ user: profile, features: { ai: true } });
+    renderSession();
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent(`signed-in|ok|${profile.id}`));
+    await act(async () => {
+      await current!.signOut();
+    });
+    expect(order).toEqual([`flush ${databaseName(profile.id)} open`, 'server sign-out']);
+  });
+
+  it(
+    'a form sign-in of the same user clears the wipe a blocked sign-out left, so the reboot keeps the database and its outbox',
+    async () => {
+      await seedDatabase();
+      writeLastSession(profile);
+      readSession.mockResolvedValue({ user: profile, features: { ai: true } });
+      const view = renderSession();
+      await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent(`signed-in|ok|${profile.id}`));
+      // Another tab's raw connection holds the delete past the wait: the wipe stays pending.
+      const holder = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open(databaseName(profile.id));
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      await act(async () => {
+        await current!.signOut();
+      });
+      expect(readPendingWipes()).toEqual([databaseName(profile.id)]);
+      holder.close();
+
+      // The same user signs in again through the form and writes to the outbox.
+      signIn.mockResolvedValue({ ok: true, user: profile, features: { ai: true } });
+      await act(async () => {
+        await current!.signIn(profile.email, 'senha');
+      });
+      expect(readPendingWipes()).toEqual([]);
+      await current!.database!.outbox.put({ op_id: 'op-after', status: 'pending', path: 'x/y' } as never);
+      current?.database?.close();
+      view.unmount();
+
+      // The reboot finds no wipe to run: the database and its outbox survive.
+      readSession.mockRejectedValue(new TypeError('Failed to fetch'));
+      renderSession();
+      await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent(`signed-in|ok|${profile.id}`));
+      expect(await exists()).toBe(true);
+      expect(await current!.database!.outbox.get('op-after')).toMatchObject({ status: 'pending' });
     },
     20_000,
   );

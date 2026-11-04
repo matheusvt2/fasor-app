@@ -83,6 +83,8 @@ export const copy = {
       'Os dados desta conta são apagados deste aparelho. Tudo já está no servidor e volta quando você entrar de novo.',
     signOutPendingDialogTitle: 'Sair com envios pendentes?',
     // The dialog body agrees with its count, so the kernel writes it (`signOutUnsentText`).
+    // authored: 2026-11-04, Story 20.11 (review): the device could not count what is unsent.
+    signOutUnsentUnknown: 'Não foi possível conferir o que ainda não foi enviado. Sair pode apagar alterações deste aparelho.',
     signOutConfirm: 'Sair mesmo assim',
     // authored: the mock has no offline or failure state for "Sair".
     signOutOfflineReason: 'Sair precisa de conexão',

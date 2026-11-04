@@ -3,7 +3,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { TextButton } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
-import { readingRefusedByQuota } from '../../db/file-store.ts';
+import { clearReadingRefused, readingRefusedByQuota } from '../../db/file-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { SyncRequestError } from '../../sync/client.ts';
 import { clearReadingCancelled, clearRereadAsked, readReadingCancelled, readRereadAsked, readRereadAt, writeReadingCancelled, writeRereadAsked, writeRereadAt } from '../../db/prefs.ts';
@@ -237,8 +237,12 @@ export function FailedReading({ photoId, statusOpId, canRetry, onFallback, fallb
     if (asked || loading || sync.rereadPhoto === undefined) return;
     const rereadPhoto = sync.rereadPhoto;
     setAsking(true);
+    // Story 20.12 (review): each press is judged on its own answer.
+    setRetryRefused(false);
     void (db === null ? Promise.resolve() : clearReadingCancelled(db, photoId).then(() => writeRereadAsked(db, photoId, statusOpId)))
       .then(() => rereadPhoto(photoId))
+      // Accepted: the upload's daily-ceiling refusal no longer describes this photo's reading.
+      .then(() => (db === null ? undefined : clearReadingRefused(db, photoId).catch(() => undefined)))
       // The server moves the reading on (`running`, then suggestions or `failed` again); the
       // next pull brings it, now.
       .then(() => requestSyncCycle())

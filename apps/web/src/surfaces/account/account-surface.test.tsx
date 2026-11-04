@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { entityKey, PRODUTO, type UserRow } from '@app/domain';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
 import { MemoryRouter } from 'react-router';
@@ -12,7 +12,7 @@ import { ThemeProvider } from '../../state/theme.tsx';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { makeSyncState } from '../../test/sync-state.ts';
-import { AccountSurface } from './account-surface.tsx';
+import { AccountSurface, SIGN_OUT_FLUSH_WAIT_MS } from './account-surface.tsx';
 
 /*
  * The "Sign out with pending work" row of the Story 1.5 matrix: the "Sair" reason and the
@@ -55,7 +55,10 @@ vi.mock('../../state/session.tsx', () => ({ useSession: () => session }));
 let uploadsWaiting = 0;
 vi.mock('../../db/file-store.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../db/file-store.ts')>()),
-  pendingUploads: async () => Array.from({ length: uploadsWaiting }, (_, i) => ({ id: `photo-${i}` })),
+  pendingUploads: async () => {
+    if (uploadsWaiting < 0) throw new Error('the device refused the read');
+    return Array.from({ length: uploadsWaiting }, (_, i) => ({ id: `photo-${i}` }));
+  },
 }));
 
 const syncState = (pendingText: string, pendingCount: number): SyncState =>
@@ -176,6 +179,41 @@ describe('Account: sign out with pending work (Story 20.11)', () => {
     renderAccount(syncState('1 foto', 1));
     await userEvent.click(await screen.findByRole('button', { name: 'Sair' }));
     expect(await screen.findByRole('dialog')).toHaveAccessibleDescription('1 alteração ainda não foi enviada. Sair apaga-a deste aparelho.');
+  });
+
+  it('a count that cannot be read opens the pending dialog, never the nothing-pending one', async () => {
+    await deviceWith(0);
+    uploadsWaiting = -1;
+    renderAccount(syncState('', 0));
+    await userEvent.click(await screen.findByRole('button', { name: 'Sair' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveAccessibleName('Sair com envios pendentes?');
+    expect(dialog).toHaveAccessibleDescription('Não foi possível conferir o que ainda não foi enviado. Sair pode apagar alterações deste aparelho.');
+  });
+
+  it('a sync round that never settles is waited for at most SIGN_OUT_FLUSH_WAIT_MS, then the confirm opens with the count', async () => {
+    await deviceWith(2);
+    const syncNow = vi.fn(() => new Promise<'ran'>(() => {}));
+    renderAccount({ ...syncState('2 fichas', 2), syncNow });
+    const sair = await screen.findByRole('button', { name: 'Sair' });
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      await user.click(sair);
+      expect(await screen.findByRole('button', { name: 'Saindo…' })).toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(SIGN_OUT_FLUSH_WAIT_MS - 1_000);
+      });
+      expect(screen.queryByRole('dialog')).toBeNull();
+      await act(async () => {
+        vi.advanceTimersByTime(1_000);
+      });
+      const dialog = await screen.findByRole('dialog');
+      expect(dialog).toHaveAccessibleName('Sair com envios pendentes?');
+      expect(dialog).toHaveAccessibleDescription('2 alterações ainda não foram enviadas. Sair apaga-as deste aparelho.');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

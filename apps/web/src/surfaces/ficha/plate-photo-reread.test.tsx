@@ -129,6 +129,25 @@ describe('Story 20.12: the daily reading ceiling on the failed line', () => {
     expect(screen.getByRole('button', { name: 'Preencher manualmente' })).toBeInTheDocument();
   });
 
+  it('a reread the server accepts forgets the upload\'s refusal, so a later failure reads "Não foi possível ler"', async () => {
+    session.database = await freshDb();
+    await session.database.files.put({ id: PHOTO, variant: 'original', blob: new Blob(['x']), acked: true, created_at: '2026-11-04T10:00:00.000Z', reading_refused: 'quota_exceeded' });
+    const sync = makeSyncState();
+    const first = render(row(OP_A, sync));
+    await waitFor(() => expect(line()).toHaveTextContent(QUOTA), { timeout: 5000 });
+    await waitFor(() => expect(retry()).not.toHaveAttribute('aria-disabled'), { timeout: 5000 });
+    await userEvent.click(retry());
+    await waitFor(() => expect(sync.rereadPhoto).toHaveBeenCalledWith(PHOTO));
+    await waitFor(async () => expect((await session.database!.files.get(PHOTO))?.reading_refused).toBeUndefined());
+    first.unmount();
+
+    // The new reading failed for another reason (a new status op): the plain failed line.
+    render(row(OP_B, makeSyncState()));
+    await waitFor(() => expect(retry()).not.toHaveAttribute('aria-disabled'), { timeout: 5000 });
+    expect(line()).toHaveTextContent('Não foi possível ler');
+    expect(line()).not.toHaveTextContent(QUOTA);
+  });
+
   it('a "Tentar novamente" answered 429 quota_exceeded says the sentence on the line, not a toast', async () => {
     session.database = await freshDb();
     const sync = makeSyncState({ rereadPhoto: vi.fn(async () => Promise.reject(new SyncRequestError({ kind: 'http', status: 429, code: 'quota_exceeded' }))) });

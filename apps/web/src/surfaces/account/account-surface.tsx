@@ -70,6 +70,29 @@ const THEME_OPTIONS: ReadonlyArray<{ value: ThemePreference; label: string }> = 
  * server has not acknowledged (pending, sent or refused) plus every photo original not
  * uploaded. A photo whose create op and bytes both wait counts twice.
  */
+/**
+ * Story 20.11 (review): how long "Saindo…" waits for the sync round before the Confirm dialog
+ * opens with whatever is still unsent; a round that never settles must not hold "Sair".
+ */
+export const SIGN_OUT_FLUSH_WAIT_MS = 15_000;
+
+/** Resolves when `work` settles or `ms` pass, whichever is first; never rejects. */
+function settledWithin(work: Promise<unknown>, ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    work.then(
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+    );
+  });
+}
+
 export async function unsentCount(db: AppDatabase): Promise<number> {
   const ops = await db.outbox.where('status').anyOf('pending', 'sent', 'dead').count();
   return ops + (await pendingUploads(db)).length;
@@ -167,7 +190,8 @@ export function AccountSurface() {
   const [editing, setEditing] = useState(false);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   /** Story 20.11: what the flush left unsent, counted when "Sair" was pressed. */
-  const [unsent, setUnsent] = useState(0);
+  // `null`: the count could not be read, so the dialog is the pending one (never "nothing pending").
+  const [unsent, setUnsent] = useState<number | null>(0);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -226,15 +250,17 @@ export function AccountSurface() {
   /**
    * Story 20.11: one sync round first (as the Export dialog drains before a server job), then
    * the count of what is still unsent decides which Confirm dialog opens. A round that fails
-   * leaves its work in the count; it never blocks the dialog.
+   * leaves its work in the count; it never blocks the dialog, and a round that does not settle
+   * within `SIGN_OUT_FLUSH_WAIT_MS` is not waited for. A count that cannot be read opens the
+   * pending dialog, so unsent work is never deleted behind "nada pendente".
    */
   async function prepareSignOut() {
     if (signingOut) return;
     setSignOutError(null);
     setSigningOut(true);
     try {
-      await sync.syncNow().catch(() => undefined);
-      setUnsent(db === null ? 0 : await unsentCount(db).catch(() => 0));
+      await settledWithin(sync.syncNow(), SIGN_OUT_FLUSH_WAIT_MS);
+      setUnsent(db === null ? 0 : await unsentCount(db).catch(() => null));
       setConfirmingSignOut(true);
     } finally {
       setSigningOut(false);
@@ -510,7 +536,7 @@ export function AccountSurface() {
         isOpen={confirmingSignOut}
         onOpenChange={setConfirmingSignOut}
         title={unsent === 0 ? copy.account.signOutDialogTitle : copy.account.signOutPendingDialogTitle}
-        description={unsent === 0 ? copy.account.signOutDialogBody : signOutUnsentText(unsent)}
+        description={unsent === 0 ? copy.account.signOutDialogBody : unsent === null ? copy.account.signOutUnsentUnknown : signOutUnsentText(unsent)}
         confirmLabel={copy.account.signOutConfirm}
         cancelLabel={copy.account.cancel}
         isDestructive

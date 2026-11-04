@@ -496,7 +496,7 @@ describe('10.4-UNIT unackedPhotoUploads', () => {
       uploaded_at: null,
       ...extra,
     });
-    const put = async (n: number, row: Record<string, unknown>, blob: { acked?: boolean; variant?: 'original' | 'thumb'; error?: boolean } = {}) => {
+    const put = async (n: number, row: Record<string, unknown>, blob: { acked?: boolean; variant?: 'original' | 'thumb'; error?: boolean; details?: unknown } = {}) => {
       await db.entities.put({ entity: 'file', id: id(n), relatorio_id: RELATORIO_ID, project_id: null, removed_at: (row.removed_at as string | null) ?? null, row: row as never });
       await db.files.put({
         id: id(n),
@@ -504,7 +504,9 @@ describe('10.4-UNIT unackedPhotoUploads', () => {
         blob: new Blob(['x']),
         acked: blob.acked ?? false,
         created_at: '2026-09-07T17:00:00.000Z',
-        ...(blob.error ? { upload_error: { state: 'dead' as const, code: 'file_too_large', at: '2026-09-07T17:10:00.000Z' } } : {}),
+        ...(blob.error
+          ? { upload_error: { state: 'dead' as const, code: 'file_too_large', at: '2026-09-07T17:10:00.000Z', ...(blob.details === undefined ? {} : { details: blob.details }) } }
+          : {}),
       });
     };
     await put(1, photoRow(1));
@@ -515,12 +517,23 @@ describe('10.4-UNIT unackedPhotoUploads', () => {
     await put(6, { id: id(6), kind: 'certificate', relatorio_id: null, removed_at: null, uploaded_at: null });
     await put(7, photoRow(7), { variant: 'thumb' });
     await put(8, photoRow(8, { removed_at: undefined, uploaded_at: undefined }));
+    // Story 20.12: the server's details of the refusal come back for the row's sentence.
+    await put(9, photoRow(9), { error: true, details: { limit: 'pixels', max_pixels: 120_000_000 } });
 
     const rows = (await unackedPhotoUploads(db)).sort((a, b) => (a.id < b.id ? -1 : 1));
     expect(rows).toEqual([
       { id: id(1), caption: 'Foto 1', captured_at: '2026-09-07T17:01:00.000Z', reading_status: 'none', error: false, error_code: null },
       { id: id(2), caption: 'Foto 2', captured_at: '2026-09-07T17:02:00.000Z', reading_status: 'none', error: true, error_code: 'file_too_large' },
       { id: id(8), caption: 'Foto 8', captured_at: '2026-09-07T17:08:00.000Z', reading_status: 'none', error: false, error_code: null },
+      {
+        id: id(9),
+        caption: 'Foto 9',
+        captured_at: '2026-09-07T17:09:00.000Z',
+        reading_status: 'none',
+        error: true,
+        error_code: 'file_too_large',
+        error_details: { limit: 'pixels', max_pixels: 120_000_000 },
+      },
     ]);
     db.close();
   });
