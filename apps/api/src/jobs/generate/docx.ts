@@ -37,6 +37,7 @@ import { section8Children } from './sections/section-8.ts';
 import { SECTION_9_PARAGRAPH_STYLES, section9Children } from './sections/section-9.ts';
 import type { TocPages } from './toc.ts';
 import { watermarkPng } from './watermark.ts';
+import { MAX_INPUT_PIXELS } from '../../storage/variants.ts';
 
 /*
  * Story 4.8 (AD-15): the one place that knows the `docx` library. It renders the kernel's
@@ -123,7 +124,7 @@ const dimensions = new WeakMap<Buffer, Promise<{ width?: number; height?: number
 function dimensionsOf(data: Buffer): Promise<{ width?: number; height?: number } | null> {
   let known = dimensions.get(data);
   if (known === undefined) {
-    known = sharp(data)
+    known = sharp(data, { limitInputPixels: MAX_INPUT_PIXELS })
       .metadata()
       .then(
         (meta) => ({ width: meta.width, height: meta.height }),

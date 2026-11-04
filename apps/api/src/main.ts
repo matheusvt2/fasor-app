@@ -7,6 +7,7 @@ import { createDb } from './db/client.ts';
 import { migrate } from './db/migrate.ts';
 import { upgradeTemplateSeeds } from './db/template-seed-upgrade.ts';
 import { createApp } from './http/app.ts';
+import { cachedProbe } from './http/health.ts';
 import { now } from './clock.ts';
 import { newId } from './ids.ts';
 import { createAuditProvider } from './jobs/audit/provider.ts';
@@ -97,11 +98,12 @@ if (config.WORKER === '1') {
   log('audit worker registered', { llm_provider: config.LLM_PROVIDER, ai_features: config.AI_FEATURES });
 }
 
+const trustedOrigins = parseTrustedOrigins(config.TRUSTED_ORIGINS);
 const auth = createAuth({
   db,
   secret: config.SESSION_SECRET,
   baseURL: config.AUTH_BASE_URL,
-  trustedOrigins: parseTrustedOrigins(config.TRUSTED_ORIGINS),
+  trustedOrigins,
 });
 
 // Epic 18 (AD-28): the usage-event sink; `cloudwatch` through the default credential chain.
@@ -115,13 +117,18 @@ const app = createApp({
   boss,
   aiFeatures: config.AI_FEATURES === 'on',
   bodyLimitBytes: config.API_BODY_LIMIT_BYTES,
-  telemetry: { sink: telemetrySink },
+  telemetry: { sink: telemetrySink, userLimit: { max: config.TELEMETRY_USER_RATE_LIMIT_MAX, windowMs: 60_000 } },
+  // Story 20.12: the daily ceilings of paid AI work per company.
+  quotas: { readings: config.READING_DAILY_QUOTA, audits: config.AUDIT_DAILY_QUOTA },
+  // Story 20.13: the origins better-auth trusts, its base URL's among them.
+  originGuard: { trustedOrigins: [...trustedOrigins, ...(config.AUTH_BASE_URL === undefined ? [] : [new URL(config.AUTH_BASE_URL).origin])] },
   ...(rateLimits === undefined ? {} : { rateLimits }),
   probes: {
     db: () => sql`select 1`,
     queue: () => boss.getQueues(),
     storage: () => probeStorage(s3, config.S3_BUCKET),
-    libreoffice: probeLibreOffice,
+    // Story 20.13: LibreOffice is started at most once a minute, whatever calls the health route.
+    libreoffice: cachedProbe(probeLibreOffice),
   },
 });
 

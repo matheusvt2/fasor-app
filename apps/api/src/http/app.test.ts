@@ -17,7 +17,7 @@ const auth = {
 const db = {} as Db;
 // Static serving never reaches the file routes either.
 const s3 = {} as S3Client;
-const makeApp = (staticDir: string) => createApp({ probes, auth, db, s3, bucket: 'test', staticDir });
+const makeApp = (staticDir: string) => createApp({ originGuard: 'off', probes, auth, db, s3, bucket: 'test', staticDir });
 
 describe('static bundle serving + SPA fallback', () => {
   let staticDir: string;

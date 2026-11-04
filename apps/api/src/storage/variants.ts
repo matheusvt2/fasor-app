@@ -1,3 +1,4 @@
+import { MAX_IMAGE_PIXELS } from '@app/domain';
 import sharp from 'sharp';
 
 /*
@@ -15,6 +16,32 @@ export const THUMB_MAX_PX = 512;
 export const PRINT_MAX_PX = 2000;
 /** Story 6.2: the JPEG quality of both variants. */
 export const JPEG_QUALITY = 85;
+
+/**
+ * Story 20.12 (security pass S6): the `limitInputPixels` of every `sharp(` over uploaded bytes
+ * (the kernel's `MAX_IMAGE_PIXELS`, 120 MP): a larger image is refused by sharp instead of
+ * decoded, so one crafted header can never hold the single production instance.
+ */
+export const MAX_INPUT_PIXELS = MAX_IMAGE_PIXELS;
+
+/** The density a vector is rasterized at, so the `resize` below is a downscale. */
+const SVG_DENSITY = 300;
+
+/**
+ * Story 20.12: the pixels an uploaded image declares (width times height, every page counted),
+ * read from its header without decoding; null when sharp cannot read the header (the variants
+ * step then fails and logs it, as before). A vector is measured at the density it is drawn at.
+ */
+export async function imagePixelCount(source: Uint8Array, mime: string): Promise<number | null> {
+  try {
+    const metadata = await sharp(source, { ...(mime === 'image/svg+xml' ? { density: SVG_DENSITY } : {}), limitInputPixels: false }).metadata();
+    if (metadata.width === undefined || metadata.height === undefined) return null;
+    const pageHeight = metadata.pageHeight ?? metadata.height;
+    return metadata.width * pageHeight * Math.max(1, metadata.pages ?? 1);
+  } catch {
+    return null;
+  }
+}
 
 export interface RenderedVariant {
   bytes: Uint8Array;
@@ -40,7 +67,7 @@ async function render(source: Uint8Array, mime: string, maxPx: number): Promise<
   const format = outputFormat(mime);
   // A vector has no intrinsic pixel size: the density makes sharp rasterize it large
   // enough that the `resize` below is a downscale, never an upscale of a 72 dpi render.
-  const input = mime === 'image/svg+xml' ? sharp(source, { density: 300 }) : sharp(source);
+  const input = sharp(source, { ...(mime === 'image/svg+xml' ? { density: SVG_DENSITY } : {}), limitInputPixels: MAX_INPUT_PIXELS });
   // `.rotate()` with no angle applies the EXIF orientation and drops the tag; it comes before
   // `resize` so `fit: inside` bounds the upright dimensions.
   const pipeline = input.rotate().resize({ width: maxPx, height: maxPx, fit: 'inside', withoutEnlargement: true });

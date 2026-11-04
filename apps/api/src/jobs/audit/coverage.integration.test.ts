@@ -73,7 +73,7 @@ async function signIn(): Promise<string> {
 
 type App = ReturnType<typeof createApp>;
 
-const appWith = (sent: AuditPayload[]): App => createApp({ probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueAudit: async (payload) => void sent.push(payload) });
+const appWith = (sent: AuditPayload[]): App => createApp({ originGuard: 'off', probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueAudit: async (payload) => void sent.push(payload) });
 
 function request(app: App, path: string, init: RequestInit = {}): Promise<Response> | Response {
   return app.request(path, { ...init, headers: { cookie, [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION), ...(init.headers as Record<string, string>) } });

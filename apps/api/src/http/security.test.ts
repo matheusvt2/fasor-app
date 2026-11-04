@@ -30,7 +30,7 @@ function stubAuth(signedIn: boolean): Auth {
 }
 
 function makeApp(overrides: Partial<AppOptions> = {}, signedIn = false) {
-  return createApp({ probes, auth: stubAuth(signedIn), db: {} as Db, s3: {} as S3Client, bucket: 'test', ...overrides });
+  return createApp({ probes, auth: stubAuth(signedIn), db: {} as Db, s3: {} as S3Client, bucket: 'test', originGuard: 'off', ...overrides });
 }
 
 const signIn = (email: string, address: string) => ({

@@ -84,7 +84,7 @@ afterAll(async () => {
 describe('4.8-INT-004 generate when the queue refuses the job', () => {
   it('records the job as failed/enqueue_failed, answers the error envelope, and a later press with a working queue is queued', async () => {
     const probes = { db: up, queue: up, storage: up, libreoffice: up };
-    const broken = createApp({ probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueGenerate: async () => { throw new Error('boom'); } });
+    const broken = createApp({ originGuard: 'off', probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueGenerate: async () => { throw new Error('boom'); } });
     const failed = await post(broken);
     expect(failed.status).toBe(500);
     expect(errorResponseSchema.parse(await failed.json()).code).toBe('internal_error');
@@ -93,7 +93,7 @@ describe('4.8-INT-004 generate when the queue refuses the job', () => {
     expect(afterFailure[0]).toMatchObject({ status: 'failed', error: 'enqueue_failed' });
 
     const sent: GeneratePayload[] = [];
-    const working = createApp({ probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueGenerate: async (payload) => void sent.push(payload) });
+    const working = createApp({ originGuard: 'off', probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueGenerate: async (payload) => void sent.push(payload) });
     const queued = await post(working);
     expect(queued.status, await queued.clone().text()).toBe(202);
     const answer = generateResponseSchema.parse(await queued.json());

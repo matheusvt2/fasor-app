@@ -1,6 +1,6 @@
 import type { OcrImage } from '@app/domain';
 import sharp from 'sharp';
-import { JPEG_QUALITY } from '../../storage/variants.ts';
+import { JPEG_QUALITY, MAX_INPUT_PIXELS } from '../../storage/variants.ts';
 
 /*
  * Story 8.4: the image both reading providers receive. Since Epic 9 A12 the `print` variant
@@ -29,12 +29,12 @@ function mimeOf(format: string | undefined, fallback: string): OcrImage['mime'] 
 }
 
 export async function readingImage(input: ReadingImageInput): Promise<ReadingImage> {
-  const metadata = await sharp(input.print).metadata();
+  const metadata = await sharp(input.print, { limitInputPixels: MAX_INPUT_PIXELS }).metadata();
   const mime = mimeOf(metadata.format, input.printMime);
   if (metadata.format === 'jpeg' || metadata.format === 'png') {
     return { bytes: input.print, mime, width: metadata.width, height: metadata.height };
   }
-  const pipeline = sharp(input.print);
+  const pipeline = sharp(input.print, { limitInputPixels: MAX_INPUT_PIXELS });
   const encoded = mime === 'image/jpeg' ? pipeline.jpeg({ quality: JPEG_QUALITY }) : pipeline.png();
   const { data, info } = await encoded.toBuffer({ resolveWithObject: true });
   return { bytes: new Uint8Array(data), mime, width: info.width, height: info.height };

@@ -3,6 +3,7 @@ import { AlignmentType, Paragraph, Table, TableBorders, TableCell, TableRow, Wid
 import sharp from 'sharp';
 import { logError } from '../../../log.ts';
 import { CONTENT_WIDTH_TWIPS, image, PX_PER_CM, sizedImage, text } from '../docx.ts';
+import { MAX_INPUT_PIXELS } from '../../../storage/variants.ts';
 
 /*
  * Story 7.2 (AC1): section 7, the photo record, rendered from the kernel's
@@ -56,7 +57,7 @@ export async function loadPhotoImages(
         continue;
       }
       try {
-        await sharp(bytes).metadata();
+        await sharp(bytes, { limitInputPixels: MAX_INPUT_PIXELS }).metadata();
         out.set(id, bytes);
       } catch (error) {
         logError('generate photo unreadable', { ...context, file_id: id, error: String(error) });

@@ -54,6 +54,7 @@ const sink: TelemetrySink = {
   },
 };
 const app = createApp({
+  originGuard: 'off',
   probes: { db: up, queue: up, storage: up, libreoffice: up },
   auth,
   db,
@@ -285,7 +286,7 @@ describe('POST /api/telemetry (Story 18.2)', () => {
   });
 
   it('writes one ux_event line per event through the default stdout sink', async () => {
-    const plain = createApp({ probes: { db: up, queue: up, storage: up, libreoffice: up }, auth, db, s3, bucket: config.S3_BUCKET, staticDir, now: () => NOW });
+    const plain = createApp({ originGuard: 'off', probes: { db: up, queue: up, storage: up, libreoffice: up }, auth, db, s3, bucket: config.S3_BUCKET, staticDir, now: () => NOW });
     const device = newDevice();
     const { response, lines } = await stdout(() =>
       plain.request(TELEMETRY_ROUTE.path, {

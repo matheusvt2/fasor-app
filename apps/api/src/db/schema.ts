@@ -5,6 +5,7 @@ import {
   boolean,
   check,
   customType,
+  date,
   index,
   integer,
   pgTable,
@@ -145,6 +146,23 @@ export const readingRuns = pgTable(
 );
 
 /*
+ * Story 20.12 (security pass S6): the per-company daily counters of paid AI work, one row per
+ * company, `America/Sao_Paulo` calendar day and kind (`reading`: every reading started, rereads
+ * included; `audit`: every emission audit run created). `consumeDailyQuota`
+ * (`db/repositories/ai-usage.ts`) is the only writer; never synced to a device.
+ */
+export const aiUsageDaily = pgTable(
+  'ai_usage_daily',
+  {
+    company_id: uuid('company_id').notNull(),
+    day: date('day', { mode: 'string' }).notNull(),
+    kind: text('kind').notNull(),
+    count: integer('count').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.company_id, t.day, t.kind] }), check('ai_usage_daily_kind_check', sql`${t.kind} in ('reading', 'audit')`)],
+);
+
+/*
  * Identity (Story 1.3). `company.id` is a uuid so it joins `ops.company_id` and
  * `entities.company_id` without a cast. Route handlers read these tables only
  * through `./repositories`, whose every function takes the company id as a
@@ -249,4 +267,4 @@ export const verification = pgTable(
   (table) => [index('verification_identifier_idx').on(table.identifier)],
 );
 
-export const schema = { ops, entities, syncDevicePush, readingRuns, company, user, session, account, verification };
+export const schema = { ops, entities, syncDevicePush, readingRuns, aiUsageDaily, company, user, session, account, verification };

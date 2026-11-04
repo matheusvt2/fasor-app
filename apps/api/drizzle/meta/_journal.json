@@ -43,6 +43,13 @@
       "when": 1790802791468,
       "tag": "0005_entities_live_relatorio_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793767185897,
+      "tag": "0006_ai_usage_daily",
+      "breakpoints": true
     }
   ]
 }

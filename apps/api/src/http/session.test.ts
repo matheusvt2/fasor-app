@@ -18,7 +18,7 @@ const s3 = {} as S3Client;
 
 function appWith(getSession: () => Promise<unknown>) {
   const auth = { handler: async () => new Response(null, { status: 404 }), api: { getSession } } as unknown as Auth;
-  return createApp({ probes, auth, db, s3, bucket: 'test', staticDir: '/nonexistent' });
+  return createApp({ originGuard: 'off', probes, auth, db, s3, bucket: 'test', staticDir: '/nonexistent' });
 }
 
 afterEach(() => vi.restoreAllMocks());
