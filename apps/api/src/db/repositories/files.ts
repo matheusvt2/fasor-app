@@ -60,3 +60,17 @@ export async function findFileRows(db: Reader, companyId: CompanyId, ids: readon
   }
   return out;
 }
+
+/**
+ * e20f (2026-11-04, QA N2): whether the relatório a file is filed under is removed (its row
+ * tombstoned), so the file route stops serving its photos with it. False for a relatório the
+ * company does not hold.
+ */
+export async function relatorioRemoved(db: Reader, companyId: CompanyId, relatorioId: string): Promise<boolean> {
+  const [record] = await db
+    .select({ removed_at: entities.removed_at })
+    .from(entities)
+    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'relatorio'), eq(entities.id, relatorioId)))
+    .limit(1);
+  return record !== undefined && record.removed_at !== null;
+}

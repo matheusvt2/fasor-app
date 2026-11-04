@@ -293,6 +293,50 @@ describe('20.13-INT a removed file is not served (S8)', () => {
   }, 60_000);
 });
 
+describe('e20f (QA N2) the photos of a removed relatório are not served', () => {
+  it('a photo of a relatório answers 200, 404 once the relatório is removed, and 200 again once it is restored', async () => {
+    const projectId = newId();
+    const relatorioId = newId();
+    const id = newId();
+    for (const entity of [projectId, relatorioId, id]) written.fileIds.add(entity);
+    const envelope = { company_id: companyA.companyId, project_id: null, prev_op_id: null, batch_id: null, meta: null, actor_id: companyA.userId };
+    const inRelatorio = { ...envelope, scope: 'relatorio' as const, relatorio_id: relatorioId };
+    await push([
+      stamp({ ...envelope, kind: 'create', scope: 'company', relatorio_id: null, path: `project/${projectId}`, value: { id: projectId, client_id: null, name: 'Obra das bordas', site: null, removed_at: null } as never }),
+      stamp({
+        ...inRelatorio,
+        kind: 'create',
+        path: `relatorio/${relatorioId}`,
+        value: {
+          id: relatorioId,
+          project_id: projectId,
+          template_id: null,
+          template_version: null,
+          seed_version: 'v1',
+          status: 'rascunho',
+          setup: { service_start: null, service_end: null, atividade: null, local: null, responsible_user_id: null, cover_photo_file_id: null },
+          export: { scheme: 'por_local_e_tipo' },
+          preview_file_id: null,
+          removed_at: null,
+        } as never,
+      }),
+    ]);
+    const bytes = new Uint8Array(await sharp({ create: { width: 6, height: 6, channels: 3, background: '#303030' } }).jpeg().toBuffer());
+    const create = photoCreate(id, bytes, 'image/jpeg');
+    await push([stamp({ ...create, ...inRelatorio, value: { ...(create.value as Record<string, unknown>), relatorio_id: relatorioId } as never })]);
+    expect((await upload(id, bytes, 'image/jpeg')).status).toBe(200);
+    const status = async () => (await call(`/api/files/${id}/original`, { method: 'GET', cookie })).status;
+    expect(await status()).toBe(200);
+
+    await push([stamp({ ...inRelatorio, kind: 'remove', path: 'relatorio/removed_at', value: null })]);
+    expect(await status()).toBe(404);
+    expect((await call(`/api/files/${id}/thumb`, { method: 'GET', cookie })).status).toBe(404);
+
+    await push([stamp({ ...inRelatorio, kind: 'put', path: 'relatorio/removed_at', value: null })]);
+    expect(await status()).toBe(200);
+  }, 60_000);
+});
+
 describe('20.12-INT the pixel limit (S6)', () => {
   it('a PNG and a JPEG whose headers claim 200 MP are refused 413 with the pixel details before any decode; health answers meanwhile', async () => {
     expect(MAX_INPUT_PIXELS).toBe(MAX_IMAGE_PIXELS);

@@ -21,7 +21,7 @@ import type { S3Client } from '@aws-sdk/client-s3';
 import { Hono } from 'hono';
 import type { Db } from '../db/client.ts';
 import type { CompanyId } from '../db/repositories/company-id.ts';
-import { findFileRow, type FileRowLookup } from '../db/repositories/files.ts';
+import { findFileRow, relatorioRemoved, type FileRowLookup } from '../db/repositories/files.ts';
 import { newId } from '../ids.ts';
 import type { ReadingKind, ReadingPayload } from '../jobs/reading/payload.ts';
 import { sendReading, type SendReadingOutcome } from '../jobs/reading/send.ts';
@@ -339,6 +339,8 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
     // Story 20.13 (security pass S8): a removed file is not served (its row or its lookup
     // tombstoned); an issued revision's documents are served by their own routes.
     if (lookup.removedAt !== null || row.removed_at != null) return c.json(notFound, 404);
+    // e20f (QA N2): nor a file of a removed relatório; restoring the relatório serves it again.
+    if (relatorioId !== null && (await relatorioRemoved(db, session.companyId, relatorioId))) return c.json(notFound, 404);
 
     // Every key is derived exactly as the PUT writes it, from the session's company, the
     // row's kind and the id the row is filed under. `row.variants` is client-supplied
