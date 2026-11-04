@@ -98,6 +98,15 @@ The vocabulary is closed on purpose, so a new event or target is a code change i
 
 *(2026-11-03, batch e18fb.)* **The lists are append-only within a release.** A name, kind, target or screen is never removed or renamed while devices may still hold events that carry it: the api validates every event of a batch against the kernel it was built with, so an event with a name the new kernel no longer has makes the whole device batch `400 telemetry_invalid`, and the device drops that batch (review R-A2). Retire a name by no longer emitting it, and remove it from the kernel only in a later release, once the old bundles are gone.
 
+## Paid AI work per company (Story 20.12, 2026-11-04)
+
+Two CloudWatch metric filters on the api log group (`infra/production/metrics.tf`) count, in the namespace `Conforme/Usage` (CloudWatch > Metrics):
+
+- **`Readings`** by `company_id`: one per reading started, rereads included (the api's `reading_started` line). It is the paid work the daily ceiling counts (`READING_DAILY_QUOTA`, 400 a day per company); a company near it every day either works a lot or rereads a lot, which the `actions` view's `reading.retry` tells apart.
+- **`QuotaExceeded`** by `company_id` and `kind` (`reading` or `audit`): one per reading or audit the ceiling refused (the api's `quota_exceeded` line). Any value means someone met "Limite diário de … atingido" on a device; a steady one says the ceiling is too low for that company (raise it in the env, `AUDIT_DAILY_QUOTA` for audits).
+
+The day is the `America/Sao_Paulo` calendar day; the counters themselves are the `ai_usage_daily` table. Since Story 20.12 a reread of a photo already read spends nothing, so the `actions` view's `reading.retry` can be higher than the `Readings` the ceiling counts.
+
 ## Retention and cost
 
 The group keeps events **90 days** (`var.ux_events_retention_days`), then CloudWatch deletes them. Ingestion is about 50 MB a month (USD 0.50 per GB: about USD 0.03 to 0.10, booked on the group's row of `infra/README.md` § Cost). The dashboard (one of the three free ones) and the saved queries are free; each opening of the dashboard scans the window at USD 0.005 per GB, cents a month.
