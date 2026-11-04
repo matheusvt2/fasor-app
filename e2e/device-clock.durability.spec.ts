@@ -1,6 +1,6 @@
 import { CLOCK_SKEW_MS, SYNC_ROUTES, type Op } from '@app/domain';
 import type { Page } from '@playwright/test';
-import { signInForDurability } from './support/durability.ts';
+import { signInForDurability, withoutServiceWorker } from './support/durability.ts';
 import { deviceDatabaseName, expect, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { pullAll, readStore } from './support/outbox.ts';
 import { createProjectFromHome } from './support/relatorio-flow.ts';
@@ -137,14 +137,17 @@ for (const [title, shift] of [
 
 test('@p0 e20f-DUR-003 work stamped before the offset was known is refused op_attribution, and "Reenviar" stamps it again so it applies', async ({ page, context }) => {
   test.setTimeout(240_000);
+  await withoutServiceWorker(page);
   await shiftPageClock(page, 30 * MINUTE);
   await resetEmpresaB(account, { standard: true });
   await signInForDurability(page, context, account.email);
   await expect.poll(() => storedOffset(page), { timeout: 30_000 }).not.toBeNull();
 
-  // The device forgets the offset and is cut from the sync routes: what it writes now carries its fast clock.
-  const isSync = (url: URL) => url.pathname.startsWith('/api/sync/');
-  await page.route(isSync, (route) => route.abort('internetdisconnected'));
+  // The device forgets the offset and is cut from the api: what it writes now carries its fast clock.
+  // (No service worker in this scenario: on WebKit its requests skip `page.route`, so the cut api
+  // would still answer and teach the offset again.)
+  const isApi = (url: URL) => url.pathname.startsWith('/api/');
+  await page.route(isApi, (route) => route.abort('internetdisconnected'));
   await page.evaluate((key) => window.localStorage.removeItem(key), OFFSET_KEY);
   await page.reload();
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible({ timeout: 30_000 });
@@ -160,7 +163,7 @@ test('@p0 e20f-DUR-003 work stamped before the offset was known is refused op_at
   const ids = written.map((row) => row.op_id);
 
   // Back online: the server refuses every one of them (its clock check is unchanged), and its answer teaches the offset.
-  await page.unroute(isSync);
+  await page.unroute(isApi);
   await tapSyncNow(page);
   await expect
     .poll(async () => (await outbox(page)).filter((row) => ids.includes(row.op_id)).map((row) => `${row.status} ${row.error_code}`), { timeout: 60_000 })
