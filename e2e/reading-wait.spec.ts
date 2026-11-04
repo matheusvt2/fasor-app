@@ -112,6 +112,8 @@ async function seenToasts(page: Page): Promise<string[]> {
 
 test('@p0 13.5-E2E-001 a plate and a thermo-hygrometer reading pending past 10 s show their age and "Cancelar"; cancelled, the photos stay and every suggestion the real job then writes is discarded, with no arrival toast', async ({ page }) => {
   test.setTimeout(240_000);
+  // The page's clock jumps the 10 s to the age instead of spending them (fast-forward, as in 13.5-E2E-004).
+  await page.clock.install();
   await ackPhotoBytes(page);
   const ids = await openTransformerSheet(page, account, database);
   const plateId = await importThrough(page, nameplate(page).locator('.camera-group').getByRole('button', { name: 'Fotografar placa' }), PLATE, 'placa.jpg');
@@ -124,6 +126,7 @@ test('@p0 13.5-E2E-001 a plate and a thermo-hygrometer reading pending past 10 s
   const plateLine = plateRow(page).locator('.reading-wait');
   await expect(plateLine.locator('.reading-line')).toHaveText(/^Lendo…( \d+ s)?$/);
   // From 10 s: the age, ticking, and "Cancelar".
+  await page.clock.fastForward('00:11');
   await expect(plateLine.locator('.reading-line')).toHaveText(/^Lendo… \d+ s$/, { timeout: 20_000 });
   const first = Number(/(\d+) s$/.exec((await plateLine.locator('.reading-line').textContent())!)![1]);
   expect(first).toBeGreaterThanOrEqual(10);
@@ -215,6 +218,8 @@ test('@p0 13.5-E2E-006 review F-06/F-07/F-08: one line per thermo-hygrometer pho
   test.setTimeout(180_000);
   // Review 2026-10-08 (DG-4): the bytes acked at the network (the wait counts from the ack),
   // never received by the server (the reread below answers `not_caught_up`).
+  // The page's clock jumps the 10 s to the age instead of spending them (fast-forward, as in 13.5-E2E-004).
+  await page.clock.install();
   await ackPhotoBytes(page);
   await openTransformerSheet(page, account, database);
   const plateId = await importThrough(page, nameplate(page).locator('.camera-group').getByRole('button', { name: 'Fotografar placa' }), PLATE, 'placa.jpg');
@@ -228,6 +233,7 @@ test('@p0 13.5-E2E-006 review F-06/F-07/F-08: one line per thermo-hygrometer pho
 
   // F-06: the ticking age is outside the live region; the region changes only at 10 s.
   const plateLine = plateRow(page).locator('.reading-wait');
+  await page.clock.fastForward('00:11');
   await expect(plateLine.locator('.reading-line')).toHaveText(/^Lendo… \d+ s$/, { timeout: 20_000 });
   expect(await plateLine.locator('.reading-line').evaluate((element) => element.closest('[role="status"], [aria-live]') === null)).toBe(true);
   await expect(plateLine.getByRole('status')).toHaveText('Lendo… já é possível cancelar.');
@@ -326,9 +332,12 @@ function pushPanelSuggestion(relatorioId: string, photoId: string): Promise<stri
 
 test('@p0 13.5-E2E-003 a panel photo whose dialog was left by navigation waits in its palette: the row shows its state, then the proposal, and a tap reopens the dialog where "Confirmar" creates the block', async ({ page }) => {
   test.setTimeout(180_000);
+  // The page's clock jumps the 10 s to the age instead of spending them (fast-forward, as in 13.5-E2E-004).
+  await page.clock.install();
   const { relatorioId, photoId } = await panelShot(page);
   // Review F-06: past 10 s the dialog shows the age outside its live region, which still says "Lendo a foto…".
   const waiting = result(page).locator('.detect-waiting');
+  await page.clock.fastForward('00:11');
   await expect(waiting).toHaveText(/^Lendo… \d+ s$/, { timeout: 20_000 });
   expect(await waiting.evaluate((element) => element.closest('[role="status"], [aria-live]') === null)).toBe(true);
   await expect(result(page).getByRole('status')).toHaveText('Lendo a foto…');

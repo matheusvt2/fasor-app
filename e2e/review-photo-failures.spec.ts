@@ -221,6 +221,8 @@ test('@p1 R8CAP-E2E-004 a single plate shot says it is saving, the shutter disab
 
 test('@p0 R8CAP-E2E-005 a plate photo whose bytes the server does not hold yet reads "Lendo…" with no age and no "Cancelar", however long; once the bytes are acked the age counts from the ack', async ({ page }) => {
   test.setTimeout(180_000);
+  // The page's clock jumps each 10 s wait instead of spending it (fast-forward, as in 13.5-E2E-004).
+  await page.clock.install();
   await holdPhotoBytes(page);
   await openTransformerSheet(page, account, database);
   const plateId = await shootPlate(page);
@@ -228,6 +230,7 @@ test('@p0 R8CAP-E2E-005 a plate photo whose bytes the server does not hold yet r
   const captured = Date.parse((await devicePhotos(page, database)).find((photo) => photo.id === plateId)!.captured_at);
   const pageNow = () => page.evaluate(() => Date.now());
   // Past 10 s since the capture, the server still without the bytes (each PUT answered 409).
+  await page.clock.fastForward('00:12');
   await expect.poll(pageNow, { timeout: 20_000 }).toBeGreaterThan(captured + 11_000);
   const line = plateRow(page).locator('.reading-wait .reading-line');
   await expect(line).toHaveText('Lendo…');
@@ -245,6 +248,7 @@ test('@p0 R8CAP-E2E-005 a plate photo whose bytes the server does not hold yet r
   await expect(line).toHaveText('Lendo…');
   await expect(plateRow(page).getByRole('button', { name: 'Cancelar' })).toHaveCount(0);
   // From 10 s after the ack: the age, counted from the ack, clearly below the age since the capture.
+  await page.clock.fastForward('00:11');
   await expect(line).toHaveText(/^Lendo… \d+ s$/, { timeout: 20_000 });
   const shown = Number(/(\d+) s$/.exec((await line.textContent())!)![1]);
   const now = await pageNow();
