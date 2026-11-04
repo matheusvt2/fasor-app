@@ -459,6 +459,55 @@ describe('e20f: every reference a value names exists where the op is filed', () 
     expect((await h.push(companyA, [later.op, newProject(later.id)])).rejected).toEqual([]);
   });
 
+  it('review: a brand file naming no file is refused; a company file, a null certificate, and a feeding block created earlier in the push apply', async () => {
+    const { relatorioId, blocks } = await h.seedRelatorio(companyA);
+    const logoId = newId();
+    const logo = h.clientOp(companyA, {
+      kind: 'create',
+      scope: 'company',
+      path: `file/${logoId}`,
+      value: { id: logoId, company_id: companyA.companyId, relatorio_id: null, sha256: 'b'.repeat(64), mime: 'image/png', size: 10, uploaded_at: null, variants: null, removed_at: null, kind: 'logo' },
+    });
+    const empresa = (logoFileId: string | null, coverFileId: string | null) => {
+      const id = newId();
+      return {
+        id,
+        op: h.clientOp(companyA, {
+          kind: 'create',
+          scope: 'company',
+          path: `registry/empresa/${id}`,
+          value: { id, kind: 'empresa', removed_at: null, name: 'Empresa da revisão', cnpj: null, address: null, phone: null, email: null, form_title: null, form_code: null, form_revision: null, logo_file_id: logoFileId, watermark_file_id: null, cover_background_file_id: coverFileId },
+        }),
+      };
+    };
+    const missingLogo = empresa(newId(), null);
+    const missingCover = empresa(null, newId());
+    expect((await h.push(companyA, [missingLogo.op, missingCover.op])).rejected).toEqual([
+      { op_id: missingLogo.op.op_id, code: 'op_target_missing' },
+      { op_id: missingCover.op.op_id, code: 'op_target_missing' },
+    ]);
+    expect(await h.rowOf(companyA, 'registry', missingLogo.id)).toBeUndefined();
+    const branded = empresa(logoId, logoId);
+    expect((await h.push(companyA, [logo, branded.op])).rejected).toEqual([]);
+    expect(await h.rowOf(companyA, 'registry', branded.id)).toMatchObject({ logo_file_id: logoId, cover_background_file_id: logoId });
+    const instrument = registryCreate('instrument');
+    const nullCertificate = h.clientOp(companyA, { kind: 'put', scope: 'company', path: `registry/instrument/${instrument.id}/certificate_file_id`, value: null });
+    expect((await h.push(companyA, [instrument.op, nullCertificate])).rejected).toEqual([]);
+
+    // A block created in the push, then named as the feeding block of another sheet in the same push.
+    const template = await h.rowOf<Record<string, unknown>>(companyA, 'block', blocks[1]!.id);
+    const feederId = newId();
+    const feeder = h.clientOp(companyA, {
+      kind: 'create',
+      path: `block/${feederId}`,
+      relatorio_id: relatorioId,
+      value: { ...template!, id: feederId, order_key: 'zz', feeds_block_id: null, not_tested: null, concluded_by: null, created_by: null, first_edited_at: null, last_modified_by: null, last_modified_at: null, removed_at: null },
+    });
+    const feeds = h.clientOp(companyA, { kind: 'put', path: `block/${blocks[0]!.id}/feeds_block_id`, relatorio_id: relatorioId, value: feederId });
+    expect((await h.push(companyA, [feeder, feeds])).rejected).toEqual([]);
+    expect(await h.rowOf(companyA, 'block', blocks[0]!.id)).toMatchObject({ feeds_block_id: feederId });
+  });
+
   it('a registry file id naming no file of the company is refused; a file of the company applies', async () => {
     const { relatorioId } = await h.seedRelatorio(companyA);
     const instrument = registryCreate('instrument');

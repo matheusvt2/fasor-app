@@ -158,18 +158,24 @@ export async function writeSyncState(db: AppDatabase, row: SyncStateRow): Promis
   await db.sync_state.put(row);
 }
 
+/** The refusals "Reenviar" stamps again before it resends (`resendDead`). */
+const RESTAMPED_CODES: ReadonlySet<string> = new Set(['op_attribution', 'op_target_missing']);
+
 /**
  * "Reenviar": every dead row back to pending, its effect re-materialized. Returns how many.
  * e20f (2026-11-04): a row the server refused `op_attribution` was stamped by a wrong clock, and
  * sending the same `client_ts` again would be refused again; it is stamped again first
  * (`restampOp`) at `now` plus its place in commit order, in milliseconds, so the rows keep their
- * order and the local fold sorts them last, as the server receives them last.
+ * order and the local fold sorts them last, as the server receives them last. Review: the rows
+ * refused `op_target_missing` are stamped again with them, in the same order: on a slow clock a
+ * refused create leaves its dependents dead as `op_target_missing`, and with their old stamps they
+ * would sort before the create stamped again and be refused once more.
  */
 export async function resendDead(db: AppDatabase, now: Date): Promise<number> {
   return db.transaction('rw', db.outbox, db.remote_ops, db.entities, async () => {
     const dead = await db.outbox.where('status').equals('dead').toArray();
     const refs = new Set<string>();
-    const misdated = dead.filter((row) => row.error_code === 'op_attribution').sort(byClientTsThenOpId);
+    const misdated = dead.filter((row) => RESTAMPED_CODES.has(row.error_code ?? '')).sort(byClientTsThenOpId);
     for (const [i, row] of misdated.entries()) {
       const again = restampOp(opOf(row), new Date(now.getTime() + i));
       await db.outbox.update(row.op_id, { client_ts: again.client_ts, value: again.value, ...(again.meta === undefined ? {} : { meta: again.meta }) });

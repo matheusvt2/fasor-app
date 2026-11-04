@@ -147,7 +147,7 @@ async function projectExists(tx: Tx, companyId: CompanyId, projectId: string, ca
 /**
  * Story 20.10 (review), widened by e20f: every row the op names by id (`REFERENCE_FIELDS`: a
  * point's equipment or local, a photo's block or local, a block's local, equipment or feeding
- * block, a local's parent, the cover photo, the instruments, the template, the client, the brand
+ * block, a local's parent, the cover photo, the instruments, the client, the brand
  * files, the confirmed suggestion) exists and belongs where the op is filed (`referenceRowVerdict`).
  */
 async function referencesHold(tx: Tx, companyId: CompanyId, op: Op, path: OpPath, state: ReadonlyMap<EntityKey, EntityRow>, cache: ClientCheckCache | undefined): Promise<boolean> {

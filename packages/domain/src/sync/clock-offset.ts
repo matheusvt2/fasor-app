@@ -19,8 +19,9 @@ export const CLOCK_OFFSET_TOLERANCE_MS = 60_000;
  * The server clock minus the device clock, read from one answer: the `Date` header (`serverDate`,
  * whole seconds, so its instant is taken at the middle of its second) against the middle of the
  * request's round trip (`sentAtMs`, `receivedAtMs`, the device's raw clock). Null when the header
- * is absent or unparsable, or when the round trip is negative or longer than `CLOCK_SKEW_MS / 2`
- * (an answer that slow says too little about when the server wrote it).
+ * is absent or unparsable, or when the round trip is negative or longer than
+ * `CLOCK_OFFSET_TOLERANCE_MS` (an answer that slow may err by more than the tolerance, so a
+ * correct clock behind a slow answer would get an offset and flip back).
  */
 export function clockOffsetEstimate(serverDate: string | null, sentAtMs: number, receivedAtMs: number): number | null {
   if (serverDate === null) return null;
@@ -28,7 +29,7 @@ export function clockOffsetEstimate(serverDate: string | null, sentAtMs: number,
   if (Number.isNaN(serverMs)) return null;
   if (!Number.isFinite(sentAtMs) || !Number.isFinite(receivedAtMs)) return null;
   const roundTrip = receivedAtMs - sentAtMs;
-  if (roundTrip < 0 || roundTrip > CLOCK_SKEW_MS / 2) return null;
+  if (roundTrip < 0 || roundTrip > CLOCK_OFFSET_TOLERANCE_MS) return null;
   return serverMs + 500 - (sentAtMs + roundTrip / 2);
 }
 
@@ -42,4 +43,19 @@ export function nextClockOffset(applied: number, estimate: number | null): numbe
   if (Math.abs(estimate - applied) <= CLOCK_OFFSET_TOLERANCE_MS) return applied;
   if (Math.abs(estimate) <= CLOCK_OFFSET_TOLERANCE_MS) return 0;
   return Math.round(estimate);
+}
+
+/**
+ * e20f review: the instant the device stamps next, never earlier than the last one it issued in
+ * this session. When the applied offset moves back (a device a few minutes fast learns its
+ * offset with its own ops still pending), the corrected clock jumps back, and a later edit would
+ * sort before an earlier one of the same path (`byClientTsThenOpId`). So while the corrected
+ * instant lies behind `lastIssuedMs` by at most `CLOCK_SKEW_MS / 2`, the last issued instant is
+ * returned (the clock holds until real time catches up); past that gap (a clock more than five
+ * minutes fast, whose pending stamps the server refuses anyway and "Reenviar" stamps again) the
+ * corrected instant is returned.
+ */
+export function monotonicNowMs(lastIssuedMs: number | null, correctedMs: number): number {
+  if (lastIssuedMs === null || correctedMs >= lastIssuedMs) return correctedMs;
+  return lastIssuedMs - correctedMs <= CLOCK_SKEW_MS / 2 ? lastIssuedMs : correctedMs;
 }

@@ -1,4 +1,4 @@
-import { clockOffsetEstimate, nextClockOffset, type Clock } from '@app/domain';
+import { clockOffsetEstimate, monotonicNowMs, nextClockOffset, type Clock } from '@app/domain';
 
 /*
  * The one place apps/web reads the clock (TC-1); everything else takes `now` from here.
@@ -43,7 +43,14 @@ export function clockOffsetMs(): number {
   return appliedOffset;
 }
 
-export const now: Clock = () => new Date(rawNowMs() + appliedOffset);
+/** The last instant `now` returned in this session: the corrected clock never runs back past it by a small step (`monotonicNowMs`). */
+let lastIssuedMs: number | null = null;
+
+export const now: Clock = () => {
+  const issued = monotonicNowMs(lastIssuedMs, rawNowMs() + appliedOffset);
+  lastIssuedMs = issued;
+  return new Date(issued);
+};
 
 /**
  * One server answer's `Date` header, with the raw instants the request was sent and its answer
