@@ -399,25 +399,20 @@ test('@p1 F-15 three instruments and no certificate: row 11 reads "3 instrumento
   await page.getByRole('dialog', { name: 'Gerar relatório' }).getByRole('button', { name: 'Ver no sumário' }).click();
   await expect(sumario(page).locator('li.sum-row.is-highlighted[data-row="section_11"]')).toBeVisible();
 
-  // The three certificates attached from the office (a registry field put per instrument).
+  // The three certificates attached from the office: a certificate file row per instrument, then
+  // the registry field put naming it (since e20f the server refuses a certificate id naming no file).
+  const office = { scope: 'company', company_id: account.companyId, project_id: null, relatorio_id: null, prev_op_id: null, batch_id: null, meta: null, actor_id: account.userId } as const;
   await pushDrafts(
     page,
     database,
-    ids.map(
-      (id): OpDraft => ({
-        kind: 'put',
-        scope: 'company',
-        company_id: account.companyId,
-        project_id: null,
-        relatorio_id: null,
-        path: `registry/instrument/${id}/certificate_file_id`,
-        value: newId(),
-        prev_op_id: null,
-        batch_id: null,
-        meta: null,
-        actor_id: account.userId,
-      }),
-    ),
+    ids.flatMap((id): OpDraft[] => {
+      const fileId = newId();
+      const file = { id: fileId, company_id: account.companyId, relatorio_id: null, kind: 'certificate', sha256: 'ab'.repeat(32), mime: 'application/pdf', size: 10, uploaded_at: null, variants: null, removed_at: null };
+      return [
+        { ...office, kind: 'create', path: `file/${fileId}`, value: file },
+        { ...office, kind: 'put', path: `registry/instrument/${id}/certificate_file_id`, value: fileId },
+      ];
+    }),
   );
   await openSumario(page, built.relatorioId);
   await expect(row11).toHaveText('3 instrumentos', { timeout: 30_000 });
