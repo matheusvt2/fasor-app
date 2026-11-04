@@ -270,7 +270,7 @@ test('@p0 12.1-E2E-004 lost tap: "Concluir ficha" right after Enter on the last 
       await openSheet(page, relatorioId, sheet.blockId);
       await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
       const generated = page.locator('.ficha-conc-text .suggestion-field.is-generated');
-      await expect(generated.locator('.helper')).toHaveText('Confirmado · impresso na linha Conclusão da ficha (seção 9)');
+      await expect(generated.locator('.helper')).toHaveText('Confirmado · impresso na linha Conclusão da ficha (seção 8)');
       await expect(generated.locator('.suggestion-alt')).toHaveCount(0);
       await expect(generated.getByRole('button', { name: 'Confirmar' })).toHaveCount(0);
     }

@@ -26,7 +26,7 @@ test.beforeEach(({ seed }) => {
 });
 
 const SECC = getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora');
-const CONFIRMED_HELPER = 'Confirmado · impresso na linha Conclusão da ficha (seção 9)';
+const CONFIRMED_HELPER = 'Confirmado · impresso na linha Conclusão da ficha (seção 8)';
 const STALE_LINE = 'Sugerido: texto atualizado — Substituir';
 
 type Scope = { relatorioId: string };

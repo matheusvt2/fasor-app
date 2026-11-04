@@ -124,7 +124,7 @@ for (const size of [
   test(`@p0 R8E-E2E-002 at ${size.width} px a long Sumário opened at the top shows "Pré-visualizar" and "Gerar relatório" on top at their centres, and the dialog opens without a scroll`, async ({ page }) => {
     test.setTimeout(180_000);
     const relatorioId = await setUp(page, size);
-    const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+    const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
     if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
     const tree = page.getByRole('list', { name: 'Locais do relatório' });
     await expect(tree).toBeVisible();

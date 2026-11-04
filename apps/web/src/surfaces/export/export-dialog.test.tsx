@@ -1107,7 +1107,7 @@ describe('Export dialog (Story 4.8)', () => {
 });
 
 describe('F43 (UX pass 2026-10-22): the Export dialog speaks the Sumário positions', () => {
-  it('a compact template (sections 1, 5, 7, 8, 9, 10): "Seção 5 impressa no agrupamento", and the parecer row points at "seção 6"', async () => {
+  it('a compact template (sections 1, 5, 7, 9, 8, 10 since Story 20.3): "Seção 4 impressa no agrupamento", and the parecer row points at "seção 6"', async () => {
     const user = `019966c1-0049-7000-8000-${(++counter).toString(16).padStart(12, '0')}`;
     await openDatabase(user).delete();
     database = openDatabase(user);
@@ -1128,7 +1128,7 @@ describe('F43 (UX pass 2026-10-22): the Export dialog speaks the Sumário positi
     await database.entities.bulkPut(sections.map((b) => toRecord(`block:${b.id}`, b)));
     render(<Harness sync={syncState()} />);
     const modal = dialog();
-    await waitFor(() => expect(modal.querySelector('.export-sec9-note')).toHaveTextContent('Seção 5 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag Agrupar por tipo de cada local).'));
+    await waitFor(() => expect(modal.querySelector('.export-sec9-note')).toHaveTextContent('Seção 4 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag Agrupar por tipo de cada local).'));
     await waitFor(() => expect(modal.querySelector('li.is-blocking .pc-text')).toHaveTextContent(/ — seção 6 \(Apto/));
     expect(modal.textContent).not.toMatch(/[Ss]eção (9|10|11)\b/);
   });

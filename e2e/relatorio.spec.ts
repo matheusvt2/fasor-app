@@ -91,9 +91,10 @@ const TITLES = [
   'Requisitos básicos',
   'Recomendações gerais (NR-10)',
   'Verificações e ensaios aplicáveis',
+  // Story 20.3: a new relatório carries the tests section before the points section.
   'Registro fotográfico',
-  'Pontos de atenção',
   'Relatórios dos ensaios',
+  'Pontos de atenção',
   'Conclusão e parecer',
   'Certificados',
 ];
@@ -249,7 +250,7 @@ test('@p0 4.1-E2E-003 a second relatório of the same obra reuses its equipment 
   expect(outbox.filter((op) => op.batch_id === batchOf(first) && op.path.startsWith('equipment/'))).toHaveLength(94);
 
   // The tree shows the same TAGs the first relatório got.
-  await page.getByRole('button', { name: 'Expandir ou recolher a seção 9' }).click();
+  await page.getByRole('button', { name: 'Expandir ou recolher a seção 8' }).click();
   await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
   const coluna5 = page.locator('li.s9-coluna').filter({ has: page.locator(':scope > .s9-col .s9-col-name', { hasText: /^Coluna 5$/ }) });
   await expect(coluna5.locator(':scope > .s9-eqs > li.s9-eq .block-tag')).toHaveText(['SEC-C05', 'DJ-C05']);
@@ -282,7 +283,7 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   await expect(rows.nth(0).locator('.sum-status')).not.toContainText('Responsável técnico em branco');
   // Story 12.3: the cabines' empty data is pending on section 9 too (never blocking); F-03
   // (review 2026-10-06): the empty sheets are named there as information.
-  await expect(rows.nth(10).locator('.sum-status')).toHaveText(/^0 de 94 · 94 fichas vazias · Cubículo Enel: faltam 6 campos · /);
+  await expect(rows.nth(9).locator('.sum-status')).toHaveText(/^0 de 94 · 94 fichas vazias · Cubículo Enel: faltam 6 campos · /);
   await expect(rows.nth(3).locator('.sum-status')).toHaveText('texto padrão');
   // Story 7.4: the parecer is the one row that stops "Gerar relatório" (row 10, in red); the
   // foot says so, and the preview (Story 7.5) is live.
@@ -304,7 +305,7 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
 
-  // Rows 1 and 3 open the setup at Etapa 2; row 2 opens the section text; 7, 8 and 10 open their surfaces; 11 has no control.
+  // Rows 1 and 3 open the setup at Etapa 2; row 2 opens the section text; 7, 9 (the points, Story 20.3) and 10 open their surfaces; 11 has no control.
   await rows.nth(2).getByRole('button', { name: /^Objetivo/ }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/setup\\?etapa=2$`));
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 2 — Objetivo e escopo' })).toBeFocused();
@@ -327,7 +328,7 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   // on a row not drawn yet passes at once, so the check waits for the 13 rows first. Rows 7, 8
   // and 10 open (Stories 6.3, 6.6, 7.4, as `sumario-surface.test.tsx` says); only row 11 has no control.
   await expect(sumarioTitles(page)).toHaveText(TITLES);
-  for (const i of [8, 9, 11]) await expect(rows.nth(i).locator('button.sum-open')).toHaveCount(1);
+  for (const i of [8, 10, 11]) await expect(rows.nth(i).locator('button.sum-open')).toHaveCount(1);
   await expect(rows.nth(12).locator('button.sum-open')).toHaveCount(0);
 
   // "Gerar relatório" opens the Export dialog (Story 4.8, `e2e/export.spec.ts`); Esc closes it
@@ -438,7 +439,7 @@ test('@p1 4.3-E2E-002 Em campo opens section 9 expanded at the last sheet cabine
   await expect(sumarioTitles(page)).toHaveText(TITLES);
 
   // Rascunho: collapsed.
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   await expect(chevron).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('.s9-tree')).toBeHidden();
   await syncNowAndReturn(page);

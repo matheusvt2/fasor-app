@@ -62,7 +62,7 @@ async function openRelatorio(page: Page, width: number): Promise<{ relatorioId: 
 
 /** Section 9 open and Cubículo Enel expanded. */
 async function openEnel(page: Page): Promise<void> {
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
   await expandLocation(page, 'Cubículo Enel');
@@ -309,7 +309,7 @@ test('@p0 5.2-E2E-001 the cabine block: edited on the cabine first sheet as loca
 
   // 1° Subsolo's first sheet copies Cubículo Enel's environment, with an undo.
   await page.goto(`/relatorio/${relatorioId}`);
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await page.getByRole('button', { name: 'Mais opções de 1° Subsolo' }).click();
   await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados do local)' }).click();
@@ -696,7 +696,7 @@ test('@p1 UX-F51 phone 390: the collapsed "Do local" line puts its values on the
   ]);
   await page.goto(`/relatorio/${built.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expandLocation(page, LONG_NAME);
   const local = tree(page).locator(':scope > li.s9-local').filter({ has: page.locator(':scope > .s9-loc-row .s9-loc-name', { hasText: LONG_NAME }) });
@@ -1138,7 +1138,7 @@ test('@p0 5.9-E2E-001 "Marcar não ensaiado" from the sheet header: reason chips
   await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
   await expect(dialog).toBeHidden();
 
-  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 8');
+  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 9');
   await expect(page.locator('.sheet-title .not-tested-chip')).toHaveText('Não ensaiado');
   await expect(page.locator('.not-tested-band .band-reason')).toHaveText('Equipamento inacessível na visita');
   await expect(page.getByTestId('ficha-progress')).toHaveText('Completa');
@@ -1513,7 +1513,7 @@ test('@p1 E5-Q18e the Sumário counts a sheet marked not tested: "0 não ensaiad
   const dialog = page.getByRole('dialog', { name: 'Marcar não ensaiado' });
   await dialog.getByRole('radio', { name: 'Solicitação do cliente' }).click();
   await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
-  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 8');
+  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 9');
 
   await page.goto(`/relatorio/${relatorioId}`);
   const count = summary.getByRole('button', { name: '1 não ensaiada' });
@@ -1521,7 +1521,7 @@ test('@p1 E5-Q18e the Sumário counts a sheet marked not tested: "0 não ensaiad
   await expect(summary.getByRole('button', { name: /não ensaiadas$/ })).toHaveCount(0);
   // G5: a not-tested sheet is counted by "1 não ensaiada", never as concluded.
   await expect(concludedButton).toHaveText(`${concludedBefore} de ${total} fichas concluídas`);
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) === 'true') await chevron.click();
   await count.click();
   await expect(chevron).toHaveAttribute('aria-expanded', 'true');

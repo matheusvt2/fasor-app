@@ -107,7 +107,9 @@ describe('4.1-UNIT instantiateTemplate over the standard template', () => {
   });
 
   it('the eleven section blocks come in FO.SERV-03 order with no location and no equipment, 7 and 9 synthesized', () => {
-    expect(sortByOrderKey(sections).map((b) => b.block_type)).toEqual([...RELATORIO_SECTION_TYPES]);
+    // Story 20.3 (FR-17): RELATÓRIOS DOS ENSAIOS (section_9) at position 8, PONTOS DE ATENÇÃO (section_8) at 9.
+    expect(sortByOrderKey(sections).map((b) => b.block_type)).toEqual(RELATORIO_SECTION_TYPES.map((type) => (type === 'section_8' ? 'section_9' : type === 'section_9' ? 'section_8' : type)));
+    expect(sortByOrderKey(sections).map((b) => b.block_type).slice(6, 9)).toEqual(['section_7', 'section_9', 'section_8']);
     for (const section of sections) {
       expect(section.equipment_id).toBeNull();
       expect(section.seed_version).toBe(SEED_VERSION);

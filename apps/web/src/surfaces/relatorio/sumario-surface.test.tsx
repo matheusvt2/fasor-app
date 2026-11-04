@@ -158,7 +158,7 @@ afterEach(() => {
 });
 
 describe('F43 (UX pass 2026-10-22): a compact template speaks the Sumário positions', () => {
-  it('sections 1, 5, 7, 8, 9 and 10 are rows 1 to 6: section 9\'s chevron and its local\'s "Agrupar por tipo" name row 5', async () => {
+  it('sections 1, 5, 7, 9, 8 and 10 are rows 1 to 6 (Story 20.3): section 9\'s chevron and its local\'s "Agrupar por tipo" name row 4', async () => {
     const db = await freshDb();
     await applyPulled(db, portoSeguroSmall.log);
     const kept = sectionBlocksFor(RELATORIO).filter((b) => !['section_2', 'section_3', 'section_4', 'section_6', 'section_11'].includes(b.block_type));
@@ -166,11 +166,12 @@ describe('F43 (UX pass 2026-10-22): a compact template speaks the Sumário posit
     database = db;
     renderSumario();
     await waitFor(() => expect(rows()).toHaveLength(8));
-    const chevron = await screen.findByRole('button', { name: 'Expandir ou recolher a seção 5' });
+    const chevron = await screen.findByRole('button', { name: 'Expandir ou recolher a seção 4' });
+    expect(screen.queryByRole('button', { name: 'Expandir ou recolher a seção 8' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Expandir ou recolher a seção 9' })).toBeNull();
     if (chevron.getAttribute('aria-expanded') !== 'true') await userEvent.click(chevron);
     await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Cabine de Testes' }));
-    expect(await screen.findByRole('menuitemcheckbox', { name: 'Agrupar por tipo na seção 5' })).toBeVisible();
+    expect(await screen.findByRole('menuitemcheckbox', { name: 'Agrupar por tipo na seção 4' })).toBeVisible();
   });
 });
 
@@ -197,7 +198,7 @@ describe('p020 P-1b: the reason line says what will not print', () => {
 });
 
 describe('4.3 SumarioSurface', () => {
-  it('lists the 13 rows in FO.SERV-03 order with the kernel titles, metas and notes', async () => {
+  it('lists the 13 rows in FO.SERV-03 order, the tests before the points (Story 20.3), with the kernel titles, metas and notes', async () => {
     database = await seeded();
     const { container } = renderSumario();
     await waitFor(() => expect(rows()).toHaveLength(13));
@@ -211,8 +212,8 @@ describe('4.3 SumarioSurface', () => {
       'Recomendações gerais (NR-10)',
       'Verificações e ensaios aplicáveis',
       'Registro fotográfico',
-      'Pontos de atenção',
       'Relatórios dos ensaios',
+      'Pontos de atenção',
       'Conclusão e parecer',
       'Certificados',
     ]);
@@ -224,8 +225,8 @@ describe('4.3 SumarioSurface', () => {
     expect(numbered.map((li) => (li.querySelector('.pos-box') as HTMLInputElement).value)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']);
     expect(within(numbered[1]!).getByRole('textbox', { name: 'Número de Definições — digite outro para mover' })).toHaveClass('pos-box', 'sum-pos');
     // The fixture's three sheets: one not tested (handled on the section 9 row, never concluded: fix batch fxpw G5), two in progress.
-    expect(numbered[8]!.querySelector('.sum-status')).toHaveTextContent('1 de 3 · 1 não ensaiada');
-    expect(numbered[8]!).toHaveClass('has-pend');
+    expect(numbered[7]!.querySelector('.sum-status')).toHaveTextContent('1 de 3 · 1 não ensaiada');
+    expect(numbered[7]!).toHaveClass('has-pend');
     expect(numbered[1]!.querySelector('.sum-status')).toHaveTextContent('texto padrão');
     // Story 7.5: the fixture has no Empresa, so section 1's text names it as a gap; section 3 reads the setup line.
     expect(numbered[0]!.querySelector('.sum-status')).toHaveTextContent('Dado do relatório em branco: Empresa executora');
@@ -255,7 +256,7 @@ describe('4.3 SumarioSurface', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('offers the Overflow per row kind and opens rows 1/3 on the setup, row 2 on the section text and row 8 on the points', async () => {
+  it('offers the Overflow per row kind and opens rows 1/3 on the setup, row 2 on the section text and row 9 on the points', async () => {
     database = await seeded();
     renderSumario();
     await waitFor(() => expect(rows()).toHaveLength(13));
@@ -268,21 +269,21 @@ describe('4.3 SumarioSurface', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Objetivo' }));
     expect((await screen.findAllByRole('menuitem')).map((m) => m.textContent)).toEqual(['Adicionar abaixo', 'Descer', 'Duplicar', 'Remover']);
     await userEvent.keyboard('{Escape}');
-    // Story 6.6: row 8 is generated (Subir · Descer only) and opens the Points surface.
+    // Story 6.6: the points row is generated (Subir · Descer only) and opens the Points surface (row 9 since Story 20.3).
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Pontos de atenção' }));
     expect((await screen.findAllByRole('menuitem')).map((m) => m.textContent)).toEqual(['Subir', 'Descer']);
     await userEvent.keyboard('{Escape}');
     // Row 11 has no `.sum-open` button; 1 and 3 open the setup, 2 the text, 7 the gallery
-    // (Story 6.3), 8 the points (Story 6.6), 10 the setup at Etapa 6 (Story 7.4).
-    const [, , r1, , , , , , r7, r8, , r10, r11] = rows();
+    // (Story 6.3), 9 the points (Story 6.6; row 9 since Story 20.3), 10 the setup at Etapa 6 (Story 7.4).
+    const [, , r1, , , , , , r7, , r9, r10, r11] = rows();
     expect(r11!.querySelector('button.sum-open')).toBeNull();
     expect(r10!.querySelector('button.sum-open')).not.toBeNull();
     expect(r7!.querySelector('button.sum-open')).not.toBeNull();
     // Story 15.2 (F34): the one derived entry counted once (it read "1 ponto · 1 não ensaiada");
     // with no live point it reads the automatic count alone (fix batch fx15q).
-    const r8Button = within(r8!).getByRole('button', { name: /^Pontos de atenção/ });
-    expect(r8Button).toHaveTextContent('1 automático');
-    expect(r8Button).not.toHaveTextContent('pontos +');
+    const r9Button = within(r9!).getByRole('button', { name: /^Pontos de atenção/ });
+    expect(r9Button).toHaveTextContent('1 automático');
+    expect(r9Button).not.toHaveTextContent('pontos +');
     await userEvent.click(within(r1!).getByRole('button', { name: /^Objetivo/ }));
     expect(await screen.findByTestId('setup-route')).toHaveTextContent('Setup 2');
     cleanup();
@@ -293,7 +294,7 @@ describe('4.3 SumarioSurface', () => {
     cleanup();
     renderSumario();
     await waitFor(() => expect(rows()).toHaveLength(13));
-    await userEvent.click(within(rows()[9]!).getByRole('button', { name: /^Pontos de atenção/ }));
+    await userEvent.click(within(rows()[10]!).getByRole('button', { name: /^Pontos de atenção/ }));
     expect(await screen.findByTestId('pontos-route')).toBeVisible();
     cleanup();
     renderSumario();
@@ -378,7 +379,7 @@ describe('4.3 SumarioSurface', () => {
     // The fixture is Em campo: section 9 opens expanded, on the cabine of the last sheet.
     expect(container.querySelector('.sumario')).not.toHaveClass('is-review');
     expect(container.querySelector('.sum-s9')).toHaveClass('is-open');
-    const chevron = screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+    const chevron = screen.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
     expect(chevron).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('Organizados por local aqui; no documento, agrupados como no FO.SERV-03.')).toHaveClass('s9-note');
     const tree = screen.getByRole('list', { name: 'Locais do relatório' });
@@ -415,10 +416,10 @@ describe('4.3 SumarioSurface', () => {
     const second = renderSumario();
     await waitFor(() => expect(rows()).toHaveLength(13));
     expect(second.container.querySelector('.sum-s9')).not.toHaveClass('is-open');
-    expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 8' })).toHaveAttribute('aria-expanded', 'false');
     // Opened collapsed: nothing scrolls, not even after an expand by hand; the cabine stays
     // collapsed and says "você parou aqui" for its row.
-    await userEvent.click(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Expandir ou recolher a seção 8' }));
     await waitFor(() => expect(second.container.querySelector('.s9-local.is-current')).not.toBeNull());
     expect(second.container.querySelector('.s9-local.is-current')).not.toHaveClass('is-open');
     expect(second.container.querySelector('.s9-local.is-current .s9-loc-name .sum-here')).toHaveTextContent('você parou aqui');
@@ -435,7 +436,7 @@ describe('4.3 SumarioSurface', () => {
     const { container } = renderSumario(RELATORIO, syncState(), { openSection9: true, focusBlockId: chaveBlockId });
     await waitFor(() => expect(rows()).toHaveLength(13));
     expect(container.querySelector('.sum-s9')).toHaveClass('is-open');
-    expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 8' })).toHaveAttribute('aria-expanded', 'true');
     await waitFor(() => expect(container.querySelector(`li.s9-eq[data-block-id="${chaveBlockId}"] [data-tree-open]`)).toHaveFocus());
   });
 
@@ -470,11 +471,11 @@ describe('4.3 SumarioSurface', () => {
     // "0 de 3 fichas concluídas" counts none, so section 9's own row takes the focus.
     (document.activeElement as HTMLElement).blur();
     await userEvent.click(within(summary).getByRole('button', { name: '0 de 3 fichas concluídas' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 8' })).toHaveFocus());
     // No sheet holds an NC: section 9's own row takes the focus.
     (document.activeElement as HTMLElement).blur();
     await userEvent.click(within(summary).getByRole('button', { name: '0 NC abertos' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 8' })).toHaveFocus());
   });
 
   it('"Desfazer" after Remover brings the row back and hands the focus to its Overflow trigger', async () => {
@@ -501,7 +502,7 @@ describe('4.3 SumarioSurface', () => {
     const { container } = renderSumario();
     await waitFor(() => expect(rows()).toHaveLength(13));
     expect(container.querySelector('ol.sumario')).toHaveClass('is-review');
-    expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 8' })).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('marks the parent cabine, and only it, when the last sheet sits in one of its colunas', async () => {

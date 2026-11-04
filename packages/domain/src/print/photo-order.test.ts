@@ -232,7 +232,7 @@ describe('17.1-UNIT documentPhotoOrder', () => {
     ]);
   });
 
-  it('M5: a Não ensaiada sheet between two tested sheets prints its plate photo before its reason band and its burst after it; the printed numbers run 1..N with no gap', () => {
+  it('M5: a Não ensaiada sheet between two tested sheets prints its plate photo and its burst after its reason band (20.6), numbered plate first; the printed numbers run 1..N with no gap', () => {
     const files = [
       photo(1, at(1), { block_id: block(2) }), // the untested sheet's burst
       photo(2, at(2), { block_id: block(1) }),
@@ -250,12 +250,12 @@ describe('17.1-UNIT documentPhotoOrder', () => {
     ]);
     expect(section9Numbers(snapshot)).toEqual(entries(snapshot));
     expect(section9Numbers(snapshot).map(([, n]) => n)).toEqual([1, 2, 3, 4]);
-    // Under the untested sheet: the plate photo, the reason band, then the burst.
+    // Under the untested sheet (Story 20.6): the reason band, then its photos, the plate's first.
     const printed = section9Layout(snapshot, 9, 'RELATÓRIOS DOS ENSAIOS')!.subsections.flatMap((sub) => sub.sheets).find((s) => s.blockId === block(2))!;
     const names = printed.parts.map((part) => (part.kind === 'photos' ? `photos ${part.photos.map((p) => p.number).join(' ')}` : part.kind === 'table' ? part.table.rows[0]!.cells[0]!.text : 'paragraph'));
     const band = names.findIndex((name) => name.startsWith('NÃO ENSAIADO'));
     expect(band).toBeGreaterThan(-1);
-    expect(names.slice(band - 1, band + 2)).toEqual(['photos 2', names[band], 'photos 3']);
+    expect(names.slice(band, band + 2)).toEqual([names[band], 'photos 2 3']);
   });
 
   it('M5: a block whose definition does not resolve is not placed: its photo numbers after every placed photo and prints nowhere', () => {

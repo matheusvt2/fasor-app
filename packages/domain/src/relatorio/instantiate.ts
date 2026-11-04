@@ -67,6 +67,15 @@ export function relatorioSectionNumber(type: string): number | null {
   return isRelatorioSectionType(type) ? Number(type.slice('section_'.length)) : null;
 }
 
+/**
+ * Story 20.3: where a section of the given FO.SERV-03 number sits among a new relatório's
+ * section blocks: its number, except that section 9 (RELATÓRIOS DOS ENSAIOS) comes before
+ * section 8 (PONTOS DE ATENÇÃO).
+ */
+function creationPosition(number: number): number {
+  return number === 9 ? 8 : number === 8 ? 9 : number;
+}
+
 /** What the creation reads of the project's equipment: enough to bind a block to a live row and keep new TAGs unique. */
 export type PriorEquipment = Pick<EquipmentRow, 'id' | 'tag' | 'type' | 'removed_at'>;
 
@@ -218,7 +227,11 @@ export function instantiateTemplate(
     drafts.push({ ...relatorioScope, kind: 'create', path: `location/${id}`, value: row as unknown as JsonValue });
   }
 
-  // Section blocks, in FO.SERV-03 number order; 7 and 9 are synthesized.
+  // Section blocks, in FO.SERV-03 number order but for one swap (Story 20.3, FR-17): the
+  // tests section (section_9) is created before the points section (section_8), so a new
+  // relatório prints RELATÓRIOS DOS ENSAIOS at position 8 and PONTOS DE ATENÇÃO at 9. Only
+  // the creation order changes: a stored relatório keeps its blocks' order, and one with no
+  // section blocks keeps the FO.SERV-03 fallback (`seedSectionNumbers`). 7 and 9 are synthesized.
   const liveBlocks = withoutOrphans(template);
   const sections: { number: number; config: JsonValue; type: string }[] = liveBlocks
     .filter((block) => isSectionBlockType(block.block_type))
@@ -226,7 +239,7 @@ export function instantiateTemplate(
   for (const type of GENERATED_SECTION_TYPES) {
     sections.push({ number: relatorioSectionNumber(type)!, type, config: { block_type: type, sub_blocks: {}, na_defaults: [], section_text: null } });
   }
-  sections.sort((a, b) => a.number - b.number);
+  sections.sort((a, b) => creationPosition(a.number) - creationPosition(b.number));
   sections.forEach((section, n) => {
     const id = deps.newId();
     const row = blockRow(id, relatorioId, seedVersion, {

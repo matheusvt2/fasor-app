@@ -51,7 +51,7 @@ async function openRelatorio(page: Page, width: number): Promise<{ relatorioId: 
 
 /** Opens section 9 (a Rascunho relatório opens it collapsed). */
 async function openSection9(page: Page): Promise<void> {
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
 }
@@ -135,7 +135,7 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
 
   // "Agrupar por tipo" toggles the cabine flag, announced, and survives a reload.
   await menuOf(page, 'Cubículo Enel').click();
-  const agrupar = page.getByRole('menuitemcheckbox', { name: 'Agrupar por tipo na seção 9' });
+  const agrupar = page.getByRole('menuitemcheckbox', { name: 'Agrupar por tipo na seção 8' });
   await expect(agrupar).toHaveAttribute('aria-checked', 'false');
   await agrupar.click();
   await expect(announcer(page)).toHaveText('Agrupar por tipo ativado em Cubículo Enel');
@@ -484,7 +484,7 @@ test('@p0 5.9-E2E-003 "Marcar não ensaiado" from a Block card Overflow: the rea
   await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
   await expect(dialog).toBeHidden();
 
-  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 8');
+  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 9');
   await expect(eqRow(page, firstTag).locator('.s9-state')).toHaveText('⊘ Não ensaiada · Solicitação do cliente');
 
   // Not offered a second time once the sheet is already not tested (spec OPEN QUESTION).

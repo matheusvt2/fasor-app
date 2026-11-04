@@ -13,13 +13,14 @@ import { groupForPrint } from './group-for-print.ts';
  * local's site-item photos once, on the first subsection emitted for that local (only on a
  * seed shipping a site list, only items of that list), then per sheet its plate photos, its
  * checklist items' photos and the others (bursts, display shots, panels) in capture order
- * inside each group. A display shot is numbered like any photo and prints after the tests.
+ * inside each group. A display shot is numbered like any photo. Story 20.6: section 9 prints
+ * the three groups together, in this order, in the ficha's one photo block after CONCLUSÃO.
  *
  * A photo the walk cannot place (a block in no subsection, a block whose definition does not
  * resolve, a site photo whose item the seed does not list, a photo with an `item_key` or a
  * reading but no sheet and no local) still holds a number, after every placed photo, in
  * capture order, so no printed "Imagem N" skips a number. Every placed photo prints in
- * section 9, a Não ensaiada sheet's included (around its reason band). The walk never
+ * section 9, a Não ensaiada sheet's included (after its reason band). The walk never
  * evaluates a sheet: `groupForPrint` and the predicates below.
  */
 
@@ -28,11 +29,11 @@ export type NumberingSnapshot = Pick<RelatorioSnapshot, 'files' | 'relatorio' | 
 
 /** One sheet's photos by where section 9 prints them, each group in capture order. */
 export interface SheetPhotoGroups {
-  /** The nameplate's photos, after DADOS DO EQUIPAMENTO. */
+  /** The nameplate's photos: first in the ficha's one photo block, after CONCLUSÃO (Story 20.6). */
   plate: SnapshotPhoto[];
-  /** The checklist rows' photos, after VERIFICAÇÕES GERAIS (only when the checklist prints). */
+  /** The checklist rows' photos (only when the checklist prints): in the ficha's one photo block, after the plate's. */
   items: SnapshotPhoto[];
-  /** The rest, after the tests: bursts, display shots, panels, items of a checklist not printed. */
+  /** The rest, last in the ficha's one photo block: bursts, display shots, panels, items of a checklist not printed. */
   other: SnapshotPhoto[];
 }
 

@@ -337,10 +337,14 @@ export async function buildDocx(layout: DocumentLayout, options: BuildDocxOption
   // Sections. Story 11.4: each numbered list (its item numbered 1 starts one) restarts at 1.
   const lists = newNumberedLists();
   for (const section of layout.sections) {
-    // E7-A4: section 9 starts a page from its own heading, so its first sheet never splits
-    // across the page section 8 ends on (a break before its first subsection would leave
-    // the Heading 1 alone at the foot of that page; LibreOffice keeps no keep-with-next over it).
-    children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: section.kind === 'sheets', children: [text(sectionHeading(section))] }));
+    // E7-A4: the tests section starts a page from its own heading, so its first sheet never
+    // splits across the page the section before it ends on (a break before its first
+    // subsection would leave the Heading 1 alone at the foot of that page; LibreOffice keeps
+    // no keep-with-next over it). Story 20.3: the points section starts a page the same way
+    // when the kernel says it prints after the tests (`startsPage`), empty or not; before the
+    // tests (FO.SERV-03 order) it runs on, so an older relatório reprints as it did.
+    const startsPage = section.kind === 'sheets' || ((section.kind === 'points' || section.kind === 'empty') && section.startsPage === true);
+    children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: startsPage, children: [text(sectionHeading(section))] }));
     if (section.kind === 'empty') children.push(new Paragraph({ children: [text(section.note)], spacing: { after: 120 } }));
     else if (section.kind === 'section_10') children.push(...section10Children(section, CONTENT_WIDTH_TWIPS, lists));
     else if (section.kind === 'photos') children.push(...(await section7Children(section, options.images?.photos ?? new Map())));

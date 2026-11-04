@@ -68,7 +68,7 @@ async function openRelatorio(page: Page, width: number): Promise<{ relatorioId: 
   await page.goto(`/relatorio/${ids.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   seedVersion = await relatorioSeedVersion(page, database, ids.relatorioId);
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
   await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();

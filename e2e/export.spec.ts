@@ -496,7 +496,7 @@ test('@p0 E4-E2E-002 a second relatório of an obra whose Emitido relatório thi
   await page.goto(`/relatorio/${r2}`);
   // Story 12.5 (J-17): the App bar names the relatório; the Sumário list says where we are.
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(page.getByRole('list', { name: 'Locais do relatório' })).toBeVisible();
   await expect(page.getByText(/duplicada/)).toHaveCount(0);

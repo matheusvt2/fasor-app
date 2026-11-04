@@ -46,7 +46,7 @@ test('@p1 9.2-E2E-004 the panel is read by the real job, the corrected type is c
   const { relatorioId } = await pushNewRelatorio(page, account, database);
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
   const before = await tagsIn(coluna(page, 'Coluna 9')).allTextContents();

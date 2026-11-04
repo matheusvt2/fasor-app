@@ -81,7 +81,7 @@ describe('4.3-UNIT sumarioRows', () => {
   const snapshot = fresh();
   const rows = rowsOf(snapshot);
 
-  it('lists the cover, the control and the eleven numbered rows in FO.SERV-03 order', () => {
+  it('lists the cover, the control and the eleven numbered rows in FO.SERV-03 order, the tests before the points (Story 20.3)', () => {
     expect(rows).toHaveLength(13);
     expect(rows.map((r) => r.title)).toEqual([
       'Capa e dados do relatório',
@@ -93,12 +93,16 @@ describe('4.3-UNIT sumarioRows', () => {
       'Recomendações gerais (NR-10)',
       'Verificações e ensaios aplicáveis',
       'Registro fotográfico',
-      'Pontos de atenção',
       'Relatórios dos ensaios',
+      'Pontos de atenção',
       'Conclusão e parecer',
       'Certificados',
     ]);
     expect(rows.map((r) => r.number)).toEqual([null, null, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect(rows.slice(9, 11).map((r) => [r.number, r.rowKey])).toEqual([
+      [8, 'section_9'],
+      [9, 'section_8'],
+    ]);
     expect(rows.map((r) => r.kind)).toEqual([
       'fixed',
       'fixed',
@@ -287,8 +291,11 @@ describe('E78-Q1 sumarioRows on a snapshot with no section block', () => {
     const { rows, issues } = both(ps);
     const numbered = numberedRows(rows);
     expect(numbered.map((r) => [r.number, r.rowKey, r.virtual, r.blockId])).toEqual(Array.from({ length: 11 }, (_, i) => [i + 1, `section_${i + 1}`, true, null]));
-    expect(numbered.map((r) => r.title)).toEqual(rowsOf(fresh()).slice(2).map((r) => r.title));
-    expect(numbered.map((r) => r.kind)).toEqual(rowsOf(fresh()).slice(2).map((r) => r.kind));
+    // The FO.SERV-03 fallback keeps 8 before 9; a new relatório (Story 20.3) swaps them.
+    const swap = <T>(list: T[]): T[] => list.map((_, i) => list[i === 7 ? 8 : i === 8 ? 7 : i]!);
+    expect(numbered.map((r) => r.title)).toEqual(swap(rowsOf(fresh()).slice(2).map((r) => r.title)));
+    expect(numbered.map((r) => r.kind)).toEqual(swap(rowsOf(fresh()).slice(2).map((r) => r.kind)));
+    expect(numbered.slice(7, 9).map((r) => r.title)).toEqual(['Pontos de atenção', 'Relatórios dos ensaios']);
     expect(numbered.every((r) => r.siblings === 11)).toBe(true);
     expect(numbered.filter((r) => r.expandable).map((r) => r.rowKey)).toEqual(['section_9']);
     const row10 = rows.find((r) => r.rowKey === 'section_10')!;

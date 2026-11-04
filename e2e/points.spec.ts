@@ -179,7 +179,7 @@ test('@p0 6.6-E2E-001 row 8 opens the empty Points surface; "Criar" writes one p
   await editor.getByRole('textbox', { name: 'Ação recomendada' }).fill('Instalar plaquetas de identificação');
   await editor.getByRole('button', { name: 'Concluir' }).click();
   await expect(editor).toHaveCount(0);
-  await expect(toast(page)).toContainText('Ponto de atenção salvo · 1 de 1 na seção 8');
+  await expect(toast(page)).toContainText('Ponto de atenção salvo · 1 de 1 na seção 9');
 
   // One point, autosaved (a create, then its field puts); the text holds the token, never the number.
   const pointId = expectOnePointAutosaved(await outbox(page));
@@ -304,7 +304,7 @@ test('@p0 6.6-E2E-004 Alt+↑ and the Overflow\'s "Subir" move a card with one o
   await edit2.focus();
   await page.keyboard.press('Alt+ArrowUp');
   await expect(texts()).toHaveText(['Segundo', 'Primeiro', 'Terceiro']);
-  await expect(page.getByTestId('points-announcer')).toHaveText('Ponto de atenção movido: 1 de 3 na seção 8');
+  await expect(page.getByTestId('points-announcer')).toHaveText('Ponto de atenção movido: 1 de 3 na seção 9');
   await expect(page.getByRole('button', { name: 'Editar o ponto 1, Geral' })).toBeFocused();
   let ops = await outbox(page);
   expect(ops.map((op) => op.path)).toEqual([`point/${rows[1]!.id}/order_key`]);
@@ -317,7 +317,7 @@ test('@p0 6.6-E2E-004 Alt+↑ and the Overflow\'s "Subir" move a card with one o
   await page.getByRole('button', { name: 'Mais opções de ponto 3, Geral' }).click();
   await page.getByRole('menuitem', { name: 'Subir' }).click();
   await expect(texts()).toHaveText(['Segundo', 'Terceiro', 'Primeiro']);
-  await expect(page.getByTestId('points-announcer')).toHaveText('Ponto de atenção movido: 2 de 3 na seção 8');
+  await expect(page.getByTestId('points-announcer')).toHaveText('Ponto de atenção movido: 2 de 3 na seção 9');
   ops = await outbox(page);
   expect(ops.map((op) => op.path)).toEqual([`point/${rows[1]!.id}/order_key`, `point/${rows[2]!.id}/order_key`]);
 
@@ -397,7 +397,7 @@ test('@p0 6.6-E2E-009 E6-Q2: text typed in the point dialog is kept on Esc; the 
   await expect(dialog.getByRole('button', { name: 'Cancelar' })).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
-  await expect(toast(page)).toContainText('Ponto de atenção salvo · 1 de 1 na seção 8');
+  await expect(toast(page)).toContainText('Ponto de atenção salvo · 1 de 1 na seção 9');
   await expect(create).toBeFocused();
 
   const pointId = expectOnePointAutosaved(await outbox(page));
@@ -736,7 +736,7 @@ test('@p1 6.6-E2E-015 Epic 14 QA Q-2: while a removed local holds a site point, 
   await page.getByRole('button', { name: 'Editar o ponto 1, Geral' }).focus();
   await page.keyboard.press('Alt+ArrowDown');
   await expect(texts()).toHaveText(['Segundo', 'Primeiro']);
-  await expect(page.getByTestId('points-announcer')).toHaveText('Ponto de atenção movido: 2 de 2 na seção 8');
+  await expect(page.getByTestId('points-announcer')).toHaveText('Ponto de atenção movido: 2 de 2 na seção 9');
   expect((await outbox(page)).map((op) => op.path)).toEqual([`point/${first.id}/order_key`]);
   await page.reload();
   await expect(texts()).toHaveText(['Segundo', 'Primeiro'], { timeout: 30_000 });
@@ -746,7 +746,7 @@ test('@p1 6.6-E2E-015 Epic 14 QA Q-2: while a removed local holds a site point, 
   const editor = page.getByRole('article', { name: 'Ponto de atenção 2 em edição' });
   await editor.getByRole('textbox', { name: 'Ação recomendada' }).fill('A revisada');
   await editor.getByRole('button', { name: 'Concluir' }).click();
-  await expect(toast(page)).toContainText('Ponto de atenção salvo · 2 de 2 na seção 8');
+  await expect(toast(page)).toContainText('Ponto de atenção salvo · 2 de 2 na seção 9');
 });
 
 test('@p0 P020-E2E-002 a relatório without sections 8 and 10: the saved point\'s toast names no section 8, Etapa 6 says the parecer does not print, the Sumário reason line says it once', async ({ page }) => {
@@ -774,7 +774,7 @@ test('@p0 P020-E2E-002 a relatório without sections 8 and 10: the saved point\'
   await expect(reason).toContainText(sentence);
   expect((await reason.textContent())!.split(sentence)).toHaveLength(2);
 
-  // A point saved from the Points surface: the toast says it does not print, never "na seção 8".
+  // A point saved from the Points surface: the toast says it does not print, never "na seção N".
   await page.goto(`/relatorio/${relatorioId}/pontos`);
   await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
   await page.getByRole('button', { name: 'Criar', exact: true }).click();
@@ -784,7 +784,7 @@ test('@p0 P020-E2E-002 a relatório without sections 8 and 10: the saved point\'
   await editor.getByRole('button', { name: 'Concluir' }).click();
   await expect(editor).toHaveCount(0);
   await expect(toast(page)).toContainText('Ponto de atenção salvo · 2 de 2 · não sai no documento: o relatório não tem a seção "Pontos de atenção"');
-  await expect(toast(page)).not.toContainText('na seção 8');
+  await expect(toast(page)).not.toContainText(/na seção \d/);
   // The committed state: one point, its text stored.
   const pointId = expectOnePointAutosaved(await outbox(page));
   await expect.poll(async () => (await storedPoints(page)).find((point) => point.id === pointId)?.text).toContain('Detector de tensão inoperante.');

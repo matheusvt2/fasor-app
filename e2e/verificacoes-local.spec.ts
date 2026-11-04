@@ -138,7 +138,7 @@ async function openSumario(page: Page, relatorioId: string): Promise<void> {
 }
 
 async function openSection9(page: Page): Promise<void> {
-  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
 }
@@ -548,14 +548,15 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   await expect(toast(page)).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   const document = await downloadDocx(page, 1);
 
-  const nine = sectionXml(document, 9);
+  // Story 20.3: on a relatório created today the tests section is 8 and the points 9.
+  const nine = sectionXml(document, 8);
   const parts = subsections(nine);
   // Exactly once per local: seven locals, seven tables, each in the first subsection printed for its local.
   const withTable = parts.filter((part) => tablesOf(part.xml).some((table) => table[0]![0] === SITE_TITLE));
   expect(paragraphsOf(nine).filter((paragraph) => paragraph === SITE_TITLE)).toHaveLength(names.length);
   expect(withTable).toHaveLength(names.length);
   // A local with no type grouping prints under its own name; 1° Subsolo and Geradores (grouped by type) under their first type group.
-  expect(withTable.map((part) => part.heading.replace(/^9\.\d+ /, ''))).toEqual([
+  expect(withTable.map((part) => part.heading.replace(/^8\.\d+ /, ''))).toEqual([
     ENEL,
     expect.stringContaining('1° Subsolo'),
     'Oxigênio',
@@ -608,7 +609,7 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
 
   // The local with no equipment: its own numbered heading, the cabine tables and the table with no mark, and no sheet.
   const emptyPart = withTable.at(-1)!;
-  expect(emptyPart.heading).toMatch(/^9\.\d+ Sala dos painéis$/);
+  expect(emptyPart.heading).toMatch(/^8\.\d+ Sala dos painéis$/);
   expect(itemRows(tablesOf(emptyPart.xml)[2]!).every((cells) => cells.slice(1).every((mark) => mark === ''))).toBe(true);
   expect(tablesOf(emptyPart.xml)).toHaveLength(3);
   expect(parts.at(-1)!.heading).toBe(emptyPart.heading);
@@ -619,7 +620,7 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   expect(seven.some((paragraph) => /^Imagem \d+[.:]/.test(paragraph))).toBe(false);
   expect(paragraphsOf(document).filter((paragraph) => paragraph === photoLine)).toHaveLength(1);
   // Section 8: the point, and its row naming the local.
-  const eight = sectionXml(document, 8);
+  const eight = sectionXml(document, 9);
   expect(paragraphsOf(eight)).toContain(`${POINT_TEXT}, conforme Imagem 1. ${POINT_ACTION}`);
   const [plan] = tablesOf(eight);
   expect(plan![1]![0]).toBe('1');
@@ -678,7 +679,7 @@ test('@p0 14.3-E2E-002 an item answered on an Emitido relatório: the banner say
   await generateRevision(page, 2);
   await expect(exportDialog(page).locator('.revision-row')).toHaveCount(2);
   const document = await downloadDocx(page, 2);
-  const tables = tablesOf(sectionXml(document, 9)).filter((table) => table[0]![0] === SITE_TITLE);
+  const tables = tablesOf(sectionXml(document, 8)).filter((table) => table[0]![0] === SITE_TITLE);
   expect(tables).toHaveLength(1);
   const items = itemRows(tables[0]!);
   expect(items[1]).toEqual(['2. TAPETE OU ESTRADO ISOLANTE', '', '', 'X', '']);
@@ -1009,7 +1010,7 @@ test('@p0 15.4-E2E-001 the App bar "Voltar" from a local\'s Verificações lands
     await expect(title(page)).toBeVisible();
     await page.getByRole('button', { name: 'Voltar', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
-    await expect(page.getByRole('button', { name: 'Expandir ou recolher a seção 9' })).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByRole('button', { name: 'Expandir ou recolher a seção 8' })).toHaveAttribute('aria-expanded', 'true');
     await expect(siteButton(page, ENEL)).toBeFocused();
     await expect(siteButton(page, ENEL)).toBeInViewport();
     // Nothing on the Sumário links to the tree surface.

@@ -72,6 +72,8 @@ export interface LayoutSectionEmpty {
   title: string;
   kind: 'empty';
   note: string;
+  /** Story 20.3: set on the points section when it prints after the tests section (`layoutSpec`). */
+  startsPage?: true;
 }
 
 export type LayoutSection = LayoutSectionText | LayoutSectionEmpty | LayoutSection10 | LayoutSectionPhotos | LayoutSectionPoints | LayoutSectionCertificates | LayoutSectionSheets;
@@ -218,7 +220,7 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
     return resolved.unresolved.some(isOptionalSectionVariable) ? [] : [{ label: row.label, value: resolved.resolved }];
   });
 
-  const sections: LayoutSection[] = printedSections(snapshot).map(({ section, ownText }, index) => {
+  const buildSection = (section: number, ownText: string | null, index: number): LayoutSection => {
     const number = index + 1;
     const title = seed.section_titles[String(section)] ?? '';
     // Story 7.1: section 9 prints the equipment sheets (`print/section-9.ts`), else its note.
@@ -233,6 +235,16 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
     if (section === 10) return section10Layout(snapshot, { number, title, paragraphs: paragraphs ?? [] });
     if (paragraphs === null || paragraphs.length === 0) return { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
     return { number, title, kind: 'text', paragraphs };
+  };
+
+  const printed = printedSections(snapshot);
+  // Story 20.3: the points section (FO.SERV-03 section 8) starts a page when it prints after
+  // the tests section (9), as on a relatório created since then, whatever it holds; before
+  // the tests (FO.SERV-03 order, every older relatório) it runs on as it always did.
+  const testsAt = printed.findIndex((entry) => entry.section === 9);
+  const sections: LayoutSection[] = printed.map(({ section, ownText }, index) => {
+    const built = buildSection(section, ownText, index);
+    return section === 8 && testsAt >= 0 && testsAt < index && (built.kind === 'points' || built.kind === 'empty') ? { ...built, startsPage: true as const } : built;
   });
 
   return {
