@@ -1213,6 +1213,9 @@ test('@p1 14.2-E2E-005 Epic 14 QA Q-6: a local holding only its site work (answe
     reading_status: 'none',
   };
   const point = newPointRow({ id: newId(), relatorioId, text: 'Extintor vencido', equipmentId: null, origin: 'manual', action: 'Trocar', locationId: localId }, []);
+  // Stories 20.7 to 20.10 (contract 29): the other device can only name a local the server holds,
+  // so this device's local reaches the server first.
+  await syncNowAndReturn(page);
   await pushDrafts(page, database, [officeDraft(account, scope, `file/${photoId}`, photo, 'create'), officeDraft(account, scope, `point/${point.id}`, point, 'create')]);
   await syncNowAndReturn(page);
   await expect.poll(async () => (await entities<{ id: string }>(page)).filter((record) => record.id === photoId || record.id === point.id).length, { timeout: 30_000 }).toBe(2);
