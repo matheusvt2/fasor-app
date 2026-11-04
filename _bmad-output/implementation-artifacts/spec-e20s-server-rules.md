@@ -2,7 +2,8 @@
 title: 'Stories 20.7 to 20.10: the server enforces the business rules of every op (contract 29)'
 type: 'feature'
 created: '2026-11-03'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '71ede5af83dadfe0ad823dc2cb7c54303d3b9337'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus
