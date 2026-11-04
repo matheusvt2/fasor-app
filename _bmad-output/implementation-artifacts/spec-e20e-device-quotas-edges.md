@@ -2,10 +2,10 @@
 title: 'Stories 20.11, 20.12 and 20.13: signing out clears the device, paid work has a ceiling, and the edges are closed (plus the deferred home.search target of 20.2)'
 type: 'feature'
 created: '2026-11-04'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'e1d60e368e205a98f6a4e4988aeb24fb77e53e4c'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -167,3 +167,14 @@ deferred:
 - `pnpm lint`, `pnpm static` -- clean.
 - `pnpm test:unit`, `pnpm test:api` -- green.
 - Under `lockf -t 20000 /tmp/fasor-verify.lock`: `pnpm verify` (the origin guard touches every spec's sign-in), then the touched `@p1` specs (`auth.spec.ts`, `durability.spec.ts`, `home.spec.ts`, `security-device.spec.ts`, the quota spec) on `desktop-chrome` and `durability-desktop-chrome`, then `security-device.spec.ts`, `auth.spec.ts` and `durability.spec.ts` on the matrix projects.
+
+## Auto Run Result
+
+Status: done (2026-11-04).
+
+- **Summary:** 20.11: sign-out flushes (bounded 15 s), confirms with the kernel's unsent count, then deletes `releng-{id}` with a pending-wipe retry; an online boot answered 401 goes to `/login` without opening the database; offline opens only an existing database. 20.12: `ai_usage_daily` (migration 0006) and `consumeDailyQuota` gate every reading start (400/day) and audit (30/day), 429 `quota_exceeded` with kernel sentences, a reread of a `done` photo spends nothing, `limitInputPixels` 120 MP on every decode of uploaded bytes and a header refusal at upload, two CloudWatch metric filters. 20.13: auth allowlist, origin and JSON guard (`forbidden_origin`), telemetry per user, removed files 404, cached LibreOffice probe, HSTS on the domain block, login copy. The e20s Caddy note was true and is fixed in the api (`bodyTooLarge` answers a declared over-cap length from the header). 20.2: `home.search`.
+- **Files:** `apps/web/src/state/{session.tsx,last-session.ts}`, `surfaces/account/account-surface.tsx`, `surfaces/ficha/reading-line.tsx`, `db/{file-store,schema,sync-store}.ts`, `sync/{client,engine}.ts`, `copy/pt-br.ts`, `surfaces/home/home-surface.tsx`; `apps/api/src/http/{app,origin-guard,files,reading,audit,telemetry,health}.ts`, `db/repositories/ai-usage.ts`, `db/schema.ts`, `drizzle/0006_ai_usage_daily.sql`, `jobs/reading/{status,send,image}.ts`, `storage/variants.ts`, the other `sharp` callers, `config.ts`, `main.ts`, `auth/trusted-origins.ts`; kernel `sync/counts.ts`, `sync/status.ts`, `files/candidate.ts`, `contract/{reading,sync,telemetry}.ts`; `infra/caddy/Caddyfile`, `infra/production/metrics.tf`; e2e `security-device.spec.ts`, `reading-quota.spec.ts`, `security-ops.spec.ts` and the updated specs; docs (AD-9, EXPERIENCE.md, source-deltas, observability, deferred-work, KB).
+- **Review:** 16 findings (medium 7, low 8, false 1). Patched 10 in one loop (`f9a1de56`; 7 medium in 6 entries, 3 low); deferred 1 (main.ts wiring untested, low); rejected 5 (ECH-1 and ECH-2 quota refund on a failed enqueue, ECH-3 false, ECH-7 limiter order, ECH-9 the designed 3 s boot wait).
+- **Follow-up review recommended:** true. Patched and only re-tested: the bounded sign-out flush and the unreadable-count confirm (`account-surface.tsx`), the clearing of `reading_refused`, and the orchestrator's header-only 413 (`bodyTooLarge`, `origin-guard.ts` lazy body probe); the integrated review should read them first.
+- **Verification:** see the PR body's gate section (lint, static, test:unit, test:api, `@p0` e2e through `pnpm verify`, the touched specs with every tag, `durability.spec.ts` on the matrix projects); red-first runs of `security-device.spec.ts` on the baseline session and of the edges tests with the guard off; the Caddy 413 measurement.
+- **Residual risks:** the 3 s online boot wait on a slow link shows Home before a late 401; a chunked over-cap body behind Caddy unmeasured; quota defaults unchecked against production volumes; `terraform plan` not run (no AWS access by rule).
