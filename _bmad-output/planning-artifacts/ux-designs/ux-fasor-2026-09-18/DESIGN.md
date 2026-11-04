@@ -1,6 +1,6 @@
 ---
 name: fasor
-description: Field tool for medium-voltage substation maintenance reports (relatório de cabine primária). Sober, sunlight-readable, tablet-first. Product name chosen as Releng in the brief (availability unchecked) — UI shows the literal placeholder PRODUTO until confirmed.
+description: Field tool for medium-voltage substation maintenance reports (relatório de cabine primária). Sober, sunlight-readable, tablet-first. Product name chosen as Releng in the brief (availability unchecked) — ~~UI shows the literal placeholder PRODUTO until confirmed.~~ (2026-11-03, Story 20.1: the product is named Conforme; the UI shows it from the constant PRODUTO; the mocks keep drawing PRODUTO.)
 version: 0.9.0  # 2026-09-25 v0.9: was 0.8.0 (Story 12.5 promoted § v0.9 direction)
 status: draft
 updated: 2026-09-25  # 2026-09-25 v0.9: was 2026-09-21
@@ -661,7 +661,7 @@ components:
 
 ## Brand & Style
 
-The product was named *Releng* in the brief (availability unchecked) and has no visual identity. Wherever the name would appear, the UI shows the literal placeholder **PRODUTO** until the name is confirmed (decision recorded in `.memlog.md`, the decision log cited as "memlog" throughout). What it does have is a job: replace the handwritten A4 sheet that a field engineer fills out inside a de-energized medium-voltage substation, and produce the company's own report (FO.SERV-03) the same day.
+The product was named *Releng* in the brief (availability unchecked) and has no visual identity. Wherever the name would appear, the UI shows ~~the literal placeholder **PRODUTO** until the name is confirmed~~ *(2026-11-03, Story 20.1: the name **Conforme**, the value of the constant `PRODUTO`; the mocks keep drawing PRODUTO)* (decision recorded in `.memlog.md`, the decision log cited as "memlog" throughout). What it does have is a job: replace the handwritten A4 sheet that a field engineer fills out inside a de-energized medium-voltage substation, and produce the company's own report (FO.SERV-03) the same day.
 
 The identity created here follows one constraint the user set: **sober colors, chosen for readability under direct sunlight** — high contrast, no reliance on mid-tones to carry meaning. The look is a well-printed test sheet, not a consumer app: white paper, black ink, one deep blue for actions, and a small set of semantic colors that mean exactly one thing each (conforme / não conforme / não se aplica; aprovado / reprovado; fora do limite; não ensaiado; sync state). Every semantic color is paired with a text label or icon, so the meaning survives a washed-out screen.
 
@@ -886,7 +886,7 @@ Visual spec only; behavior lives in `EXPERIENCE.md` § Component Patterns under 
 |---|---|
 | Test every screen at full brightness under direct sun, in both themes; all text ≥ 4.5:1, ink on surfaces ≥ 7:1 | Rely on mid-tone grays, pastel fills or subtle shadows to carry meaning |
 | Pair every semantic color with a word or glyph (C / NC / NA, "Sem conexão", "Não ensaiado") | Convey state by color only — a washed-out screen or a color-blind engineer loses it |
-| Show the literal placeholder **PRODUTO** where the product name would go | Invent a name, logo or icon for the product |
+| Show ~~the literal placeholder **PRODUTO**~~ *(2026-11-03, Story 20.1: the name Conforme, from the constant `PRODUTO`)* where the product name would go | Invent a name, logo or icon for the product |
 | Keep the Fasor Engenharia brand (orange triangle, wordmark, header/footer, address) inside the generated DOCX/PDF only | Put any client or design-partner branding in the app; use orange as an accent |
 | Edit the company brand (logo, cover background, watermark, header/footer lines, form code) in Registries › Empresa only, and draw it inside the app only in that tab's Brand preview | Show the logo or watermark on Login, in the App bar or on any other surface; hard-code the design partner's brand in the product |
 | Use amber for "out of limit — suggestion"; red only for what the engineer marked NC / Reprovado | Auto-color a value red as if the app had decided the verdict |

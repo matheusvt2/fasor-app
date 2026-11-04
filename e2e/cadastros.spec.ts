@@ -1,4 +1,4 @@
-import { formatCriterionValue, makeOp, SEEDED_CRITERIA, type Op } from '@app/domain';
+import { formatCriterionValue, makeOp, PRODUTO, SEEDED_CRITERIA, type Op } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { copy } from '../apps/web/src/copy/pt-br.ts';
@@ -642,7 +642,7 @@ test('@p0 2.3-E2E-001 Empresa: every field autosaves its own op and the preview 
   // The assets are missing, so both slots draw their placeholder.
   await expect(preview.locator('.bp-logo.bp-empty').first()).toBeVisible();
 
-  // AC 2.3-4: the app chrome still reads PRODUTO, never the company name.
+  // AC 2.3-4: the app chrome still reads the product name (Conforme), never the company name.
   await expect(page.locator('.app-bar')).not.toContainText('Empresa E2E');
 
   // One op per field, and no Save ever pressed.
@@ -696,7 +696,7 @@ test('@p2 2.3-E2E-002 a logo picked on Empresa reaches the preview and uploads w
   await expect(page.locator('.brand-tile.is-logo .tile-name')).toContainText('Enviado');
 });
 
-test('@p1 2.3-E2E-003 the Empresa tab fits 390, 768 and 1280 px in both themes, and the app bar stays PRODUTO', async ({
+test('@p1 2.3-E2E-003 the Empresa tab fits 390, 768 and 1280 px in both themes, and the app bar stays Conforme', async ({
   page,
   seed,
 }) => {
@@ -727,10 +727,10 @@ test('@p1 2.3-E2E-003 the Empresa tab fits 390, 768 and 1280 px in both themes, 
   await page.emulateMedia({ colorScheme: null });
 
   // AC 2.3-4: with a company name set, the surface that draws a wordmark still draws
-  // `PRODUTO` -- the brand lives only in the Empresa preview.
+  // the product name (`PRODUTO`, Conforme) -- the brand lives only in the Empresa preview.
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/');
-  await expect(page.locator('.app-bar .wordmark')).toHaveText('PRODUTO');
+  await expect(page.locator('.app-bar .wordmark')).toHaveText(PRODUTO);
   await page.goto('/cadastros');
   await page.getByRole('tab', { name: 'Empresa' }).click();
 

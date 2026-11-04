@@ -100,6 +100,7 @@ export * from './points/checks.ts';
 export * from './points/derived.ts';
 export * from './points/summary.ts';
 export * from './points/priority.ts';
+export * from './points/link.ts';
 export * from './drafts/key.ts';
 export * from './sync/counts.ts';
 export * from './sync/status.ts';

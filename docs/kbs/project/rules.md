@@ -10,7 +10,7 @@ sources: [AGENTS.md]
 
 - Public repository. Never copy client material from `docs/context/` or `docs/media/` (gitignored), nor third-party names, CNPJs or coordinates from `docs/concorrentes/`, into tracked files; cite by path. Sole exception (Matheus, 2026-09-21): the Porto Seguro fixture `packages/domain/fixtures/porto-seguro/` and its goldens.
 - No emoji anywhere: UI, docs, mocks, code, commits, chat, agent persona prefixes. Icons are SVG sprite symbols or CSS glyphs.
-- Name: the UI says `PRODUTO` from one constant; `fasor` never in a user-visible string, document or file name.
+- Name: the UI says ~~`PRODUTO`~~ *(2026-11-03, Story 20.1: Conforme, the value of the constant `PRODUTO`)* from one constant; `fasor` never in a user-visible string, document or file name.
 - The deliverable is a `relatorio`, never `laudo`, in code, routes, paths and UI. Identifiers are English plus the domain words `relatorio`, `cabine`, `ficha`, `parecer`. UI copy and generated text are pt-BR verbatim from FO.SERV-03. Code, comments, commits and new docs are English.
 - Everything runs in Docker; never install or run a service natively. The MVP runs fully local; AWS comes after (Epic 11). AWS spend stays under USD 100 per month for all services and environments; `infra/` carries an AWS Budget. Infrastructure is Terraform in `infra/`, run in containers, never CDK, hand-written CloudFormation or console changes. AWS access uses the `fasor-admin` profile in `~/.aws`, never stored keys.
 - No story before the AWS deploy may need a cloud account or paid API key. `LLM_PROVIDER` and `OCR_PROVIDER` default to `fake`. The backend never uses a personal Claude subscription.

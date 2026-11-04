@@ -12,6 +12,6 @@ sources: [AGENTS.md]
 2. **Static surface copy -> `apps/web/src/copy/pt-br.ts`.** Headings, labels, notes, button words, fixed sentences of one surface, verbatim from the mocks or marked `// authored:`.
 3. **Component chrome -> `apps/web/src/copy/ui.ts`.** Words a shared component owns on every screen ("Ativado", "Cancelar", overflow trigger label template).
 
-The product name comes from one constant (`PRODUTO`, `packages/domain/src/product.ts`). No emoji. UI and generated text say `relatorio`, never `laudo`: [rules](/project/rules.md).
+The product name comes from one constant (`PRODUTO`, `packages/domain/src/product.ts`; *2026-11-03, Story 20.1: its value is `Conforme`*). No emoji. UI and generated text say `relatorio`, never `laudo`: [rules](/project/rules.md).
 
 Code: kernel text helpers `packages/domain/src/text/plural.ts` (`plural`, `relatoriosCount`); `sync/counts.ts` (`pendingSummaryText`, `rejectedText`, `serverHoldsText`); `status/table.ts` (`statusLabel`, `isAutoPulled`); `registration.ts` (`registrationRowText`); `device/storage.ts` (`storageLine`); `product.ts` (`PRODUTO`). Web copy: `apps/web/src/copy/pt-br.ts` (static surface copy, object `copy`), `apps/web/src/copy/ui.ts` (component chrome). Rule: [rules](/project/rules.md).

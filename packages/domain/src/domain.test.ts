@@ -3,7 +3,7 @@ import { PRODUTO, healthResponseSchema } from './index.ts';
 
 describe('domain kernel smoke', () => {
   it('exposes the product name constant', () => {
-    expect(PRODUTO).toBe('PRODUTO');
+    expect(PRODUTO).toBe('Conforme');
   });
 
   it('validates a health payload', () => {

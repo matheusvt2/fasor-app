@@ -76,3 +76,59 @@
 .home-screen .home-list-note .section-note {
   margin-bottom: 0;
 }
+
+/* Story 20.2: the search field in the "Relatórios" head, beside "Novo relatório". The flex
+   basis is the Cadastros toolbar's (`.registry-toolbar .field`, `80-cadastros.html`); the
+   input inside the mock's `.input` wrapper carries no box of its own, so the wrapper's fill,
+   rule and focus state are the field's. */
+.home-screen .home-search {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.home-screen .home-search .input input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  min-height: var(--touch-field);
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  outline: none;
+}
+
+.home-screen .home-search .input input::placeholder {
+  color: var(--ink-secondary);
+}
+
+/* The browser's own clear glyph would sit beside the field's clear button. */
+.home-screen .home-search .input input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.home-screen .home-search .input > .ico {
+  flex: none;
+  color: var(--ink-secondary);
+}
+
+.home-screen .home-search .home-search-clear {
+  flex: none;
+  margin-right: calc(-1 * var(--sp-3));
+  color: var(--ink-secondary);
+}
+
+/* An empty field has nothing to clear. */
+.home-screen .home-search[data-empty] .home-search-clear {
+  display: none;
+}
+
+/* Below breakpoint-tablet the field takes its own full-width row under the heading and the
+   button (`.frame-phone`, AGENTS.md § Mock container selectors). */
+@media (max-width: 767.98px) {
+  .home-screen .home-search {
+    flex-basis: 100%;
+    order: 3;
+  }
+}

@@ -1,3 +1,4 @@
+import { PRODUTO } from '@app/domain';
 import type { Page } from '@playwright/test';
 import {
   deviceDatabaseName,
@@ -49,7 +50,7 @@ test('@p0 1.3-E2E-001 signs in, keeps working with the API down, and signs out w
   const database = deviceDatabaseName(user.userId);
 
   await signIn(page, user.email);
-  await expect(page.locator('.app-bar .wordmark')).toHaveText('PRODUTO');
+  await expect(page.locator('.app-bar .wordmark')).toHaveText(PRODUTO);
   await writeLocalMarker(page, database, MARKER);
   expect(await readStoreNames(page, database)).toEqual([
     'drafts',
@@ -83,7 +84,7 @@ test('@p0 1.3-E2E-001 signs in, keeps working with the API down, and signs out w
   await expect(dialog.getByRole('button', { name: 'Cancelar' })).toBeFocused();
   await dialog.getByRole('button', { name: 'Sair mesmo assim' }).click();
 
-  await expect(page.locator('.login-wordmark')).toHaveText('PRODUTO');
+  await expect(page.locator('.login-wordmark')).toHaveText(PRODUTO);
   // The session cookie is gone.
   const cookies = await context.cookies();
   expect(cookies.filter((cookie) => cookie.name.includes('session_token'))).toHaveLength(0);
@@ -97,7 +98,7 @@ test('@p1 1.3-E2E-001b offline with no session, Entrar is disabled with the reas
   context,
 }) => {
   await page.goto('/login');
-  await expect(page.locator('.login-wordmark')).toHaveText('PRODUTO');
+  await expect(page.locator('.login-wordmark')).toHaveText(PRODUTO);
   await context.setOffline(true);
   await expect(page.locator('.login-offline')).toHaveAttribute('role', 'status');
   await expect(page.locator('.login-offline')).toContainText('Sem conexão — entre quando houver sinal');

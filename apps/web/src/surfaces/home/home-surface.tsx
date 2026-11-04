@@ -22,6 +22,7 @@ import {
   suggestionRowsOf,
 } from '@app/domain';
 import { useEffect, useId, useMemo, useState } from 'react';
+import { Button as AriaButton, Input, Label, SearchField } from 'react-aria-components';
 import { useNavigate } from 'react-router';
 import { Button, FilterChipGroup, LoadingNote } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -78,6 +79,8 @@ export function HomeSurface() {
   const shortcutsHeadingId = useId();
 
   const [filter, setFilter] = useState<RelatorioStatus | null>(null);
+  // Story 20.2: the search text is screen state only, never stored; the kernel matches it.
+  const [query, setQuery] = useState('');
   // Story 19.2: the list's page size, this device's preference (`local_prefs.home_page_size`).
   // Undefined until read, so a device with 50 stored never draws a frame of 10 cards.
   // E19-A2 (R-11): a read that fails is a page of 10, never a Home that does not render.
@@ -148,7 +151,10 @@ export function HomeSurface() {
   // ordering, the filtering and the cut in the kernel and not in this component.
   const allCards = useMemo(() => homeCards({ ...base, filter: null }), [base]);
   const counts = useMemo(() => statusBoardCounts(allCards), [allCards]);
-  const list = useMemo(() => homeList(allCards, { filter, pageSize: pageSize ?? DEFAULT_HOME_PAGE_SIZE }), [allCards, filter, pageSize]);
+  const list = useMemo(
+    () => homeList(allCards, { filter, pageSize: pageSize ?? DEFAULT_HOME_PAGE_SIZE, query }),
+    [allCards, filter, pageSize, query],
+  );
 
   function choosePageSize(id: string) {
     const size = Number(id);
@@ -229,14 +235,32 @@ export function HomeSurface() {
         <section className="section" aria-labelledby={listHeadingId}>
           <div className="home-head">
             <h2 id={listHeadingId}>{copy.home.relatoriosHeading}</h2>
+            {/* Story 20.2: the search, drawn from the Cadastros toolbar's field (`80-cadastros.html`).
+                React Aria's SearchField clears on Escape and on its clear button, and keeps focus
+                in the input; the text never leaves this component but for the kernel's match. */}
+            <SearchField className="field home-search" value={query} onChange={setQuery}>
+              <Label className="field-label visually-hidden">{copy.home.searchLabel}</Label>
+              <div className="input">
+                <svg className="ico" aria-hidden="true">
+                  <use href="/sprite.svg#i-search" />
+                </svg>
+                <Input placeholder={copy.home.searchPlaceholder} />
+                <AriaButton className="icon-btn home-search-clear" aria-label={copy.home.searchClear}>
+                  <svg className="ico" aria-hidden="true">
+                    <use href="/sprite.svg#i-close" />
+                  </svg>
+                </AriaButton>
+              </div>
+            </SearchField>
             <Button onPress={() => setCreating(true)} data-telemetry="home.new_relatorio">
               {copy.home.newRelatorio}
             </Button>
           </div>
 
-          {/* E19-A2 (R-12): always mounted, so a page-size or tile change to the kernel's note is announced. */}
+          {/* E19-A2 (R-12): always mounted, so a page-size or tile change to the kernel's note is announced.
+              Story 20.2: with a search, the kernel's count or no-match sentence. */}
           <p className="visually-hidden" role="status" data-testid="home-list-status">
-            {relatoriosPending ? '' : (list.note ?? '')}
+            {relatoriosPending ? '' : list.announcement}
           </p>
           {relatoriosPending ? (
             <LoadingNote what={copy.loadingWhat.relatorios} />

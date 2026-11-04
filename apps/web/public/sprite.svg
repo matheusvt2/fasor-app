@@ -28,6 +28,11 @@
     <path d="M6 6l12 12" />
     <path d="M18 6L6 18" />
   </symbol>
+  <!-- Story 20.2: the Home search field's glyph, as the prototype's shell-head.html draws it. -->
+  <symbol id="i-search" viewBox="0 0 24 24">
+    <circle cx="11" cy="11" r="6" />
+    <path d="M20 20l-4.5-4.5" />
+  </symbol>
   <symbol id="i-plus" viewBox="0 0 24 24">
     <path d="M12 5v14" />
     <path d="M5 12h14" />

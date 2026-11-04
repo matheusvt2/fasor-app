@@ -5,8 +5,11 @@ import {
   numberPhotos,
   pointCreatedDate,
   photoRefLabel,
+  pointLinkGroups,
+  pointLinkKey,
+  pointLinkOptions,
+  pointLinkValues,
   pointOrderText,
-  pointTitle,
   recurringFindings,
   replaceLineText,
   sectionMention,
@@ -37,12 +40,15 @@ import {
   POINT_DRAFT_SURFACE,
   writeDeadline,
   writePoint,
+  writePointLink,
   writePriorityPick,
   writeReplaceDeadline,
   type NewPointLink,
   type PointFieldsWrite,
+  type PointLinkWrite,
   type PointValues,
 } from './point-writes.ts';
+import { PointLinkPicker } from './point-link-picker.tsx';
 import { PriorityPicker } from './priority-picker.tsx';
 import { insertPhotoChip, insertPlainText, quickTextAt, relabelPhotoChips, renderPointText } from './point-text-editor.ts';
 import { endRange, placeCaret } from '../templates/section-text-editor.ts';
@@ -144,8 +150,17 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
 
   // --- E6-Q2: autosave ---------------------------------------------------------------------
   const [pointId] = useState(() => point?.id ?? newPointId ?? newId());
-  /** A new point's link; null when editing a stored one (a missing row is then `gone`). */
-  const [link] = useState<NewPointLink | null>(() => (point === null ? { equipmentId: seed.equipmentId, origin: seed.origin, locationId: seed.locationId ?? null } : null));
+  /**
+   * A new point's link; null when editing a stored one (a missing row is then `gone`). Story
+   * 20.4: a pick in "Equipamento ou local" before the point is stored replaces it, like a
+   * pending priority, so the create row carries the pick. The ref is what the writes read.
+   */
+  const linkRef = useRef<NewPointLink | null>(point === null ? { equipmentId: seed.equipmentId, origin: seed.origin, locationId: seed.locationId ?? null } : null);
+  const [link, setLinkState] = useState<NewPointLink | null>(linkRef.current);
+  const setLink = (next: NewPointLink) => {
+    linkRef.current = next;
+    setLinkState(next);
+  };
   /** What the fields hold now (read by the commits, the draft source and the close). */
   const values = useRef<PointValues>({ text: initialText, action: point?.action ?? '', owner: point?.owner ?? '' });
   /** What the store holds, as far as this editor wrote or read it. */
@@ -211,7 +226,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     const run = edits.write(
       async () => {
         const held = pendingRef.current;
-        const result = await writePoint(db, author, relatorioId, pointId, taken, fields, link, held);
+        const result = await writePoint(db, author, relatorioId, pointId, taken, fields, linkRef.current, held);
         if (result.kind === 'gone') {
           showGone();
           return null;
@@ -296,7 +311,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     const taken = { ...values.current };
     return edits.commit(async () => {
       const held = pendingRef.current;
-      noteFieldsWrite(await writeDeadline(db, author, relatorioId, pointId, next, link, taken, held), taken, held);
+      noteFieldsWrite(await writeDeadline(db, author, relatorioId, pointId, next, linkRef.current, taken, held), taken, held);
       void saveDraftRef.current();
     });
   };
@@ -328,11 +343,65 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     );
   };
   const pickPriority = (next: PointPriority) =>
-    writeFields((database, author, taken, held) => writePriorityPick(database, author, relatorioId, pointId, next, link, taken, held), null);
+    writeFields((database, author, taken, held) => writePriorityPick(database, author, relatorioId, pointId, next, linkRef.current, taken, held), null);
   const clearPriority = () =>
-    writeFields((database, author, taken, held) => writePriorityPick(database, author, relatorioId, pointId, null, link, taken, held), null);
+    writeFields((database, author, taken, held) => writePriorityPick(database, author, relatorioId, pointId, null, linkRef.current, taken, held), null);
   const replaceDeadline = () =>
-    writeFields((database, author, taken, held) => writeReplaceDeadline(database, author, relatorioId, pointId, link, taken, held), t.deadlineReplaced);
+    writeFields((database, author, taken, held) => writeReplaceDeadline(database, author, relatorioId, pointId, linkRef.current, taken, held), t.deadlineReplaced);
+
+  // --- Story 20.4: "Equipamento ou local" -----------------------------------------------------
+  const linkGroups = useMemo(() => pointLinkGroups(snapshot), [snapshot]);
+  // A stored point shows what the store holds; a new one what it will be created with.
+  const linkSelected = pointLinkKey(
+    liveRow !== null ? liveRow : { equipment_id: link?.equipmentId ?? point?.equipment_id ?? null, location_id: link?.locationId ?? point?.location_id ?? null },
+    snapshot,
+  );
+  /**
+   * A pick: on a stored point one batch of both fields, offered for undo with the editor's
+   * other writes; on a point not stored it is held in the new point's link (and its draft) and
+   * goes into the create row, written now when the editor already holds text to print.
+   */
+  const pickLink = (key: string) => {
+    if (db === null || user === null) return;
+    const option = pointLinkOptions(linkGroups).find((candidate) => candidate.key === key);
+    if (option === undefined) return;
+    const author = { id: user.id, companyId: user.companyId };
+    const next = pointLinkValues(option);
+    const held = linkRef.current;
+    if (held !== null) {
+      setLink({ ...held, equipmentId: next.equipment_id, locationId: next.location_id });
+      draftAutosave.changed();
+    }
+    const taken = { ...values.current };
+    const run = edits.write(async () => {
+        const pendingHeld = pendingRef.current;
+        const result: PointLinkWrite = await writePointLink(db, author, relatorioId, pointId, next, held, taken, pendingHeld);
+        switch (result.kind) {
+          case 'gone':
+            showGone();
+            return null;
+          case 'pending':
+          case 'unchanged':
+            return null;
+          case 'written':
+            wrote.current = true;
+            if (result.created) {
+              stored.current = taken;
+              if (pendingRef.current === pendingHeld) setPending({});
+              void saveDraftRef.current();
+            }
+            return result.batchId;
+        }
+      });
+    // As `persist`: a close waits on this pick, and a refused pick keeps the editor open.
+    const settled = run.then(
+      () => undefined,
+      () => {
+        refused.current = true;
+      },
+    );
+    lastWrite.current = settled;
+  };
   const changeDeadline = (next: string | null) => {
     setTypedDeadline(next);
     deadlineCommit.change(next);
@@ -394,6 +463,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
       // Story 11.9: a typed Prazo not committed yet, and what a point not stored holds pending.
       const heldPending: PointPriorityWrites = { ...pendingRef.current };
       if (typedRef.current !== shownDeadline.current) heldPending.deadline = typedRef.current;
+      const link = linkRef.current;
       const unsaved =
         link !== null && !wrote.current
           ? touched.current && (now.text.trim() !== '' || actionValue(now.action) !== null || ownerValue(now.owner) !== null)
@@ -423,6 +493,9 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
       setText(draft.text);
       setAction(draft.action);
       setOwner(draft.owner);
+      // Story 20.4: a new point's picked link comes back with its draft and goes into its create row.
+      const held = linkRef.current;
+      if (held !== null && draft.is_new) setLink({ ...held, equipmentId: draft.equipmentId, locationId: draft.locationId ?? null });
       // Story 11.9: a recovered typed Prazo (or pending pick) is written with the fields.
       if (Object.keys(draft.pending).length > 0) {
         setPending({ ...pendingRef.current, ...draft.pending });
@@ -439,6 +512,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     refused.current = false;
     // A commit refused earlier left its value unstored with nothing pending: this close writes
     // both fields again (an untouched new point still writes nothing unless "Concluir").
+    const link = linkRef.current;
     const unstored =
       link === null
         ? stored.current.text !== values.current.text ||
@@ -488,7 +562,6 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   const refs = useMemo(() => extractPhotoRefs(text), [text]);
   const tileOf = useMemo(() => new Map(tiles.map((tile) => [tile.id, tile])), [tiles]);
   const findings = recurringFindings(snapshot.relatorio.seed_version);
-  const equipmentTitle = pointTitle({ equipment_id: point?.equipment_id ?? seed.equipmentId, location_id: point?.location_id ?? seed.locationId ?? null }, snapshot);
 
   const textLabelId = useId();
   const helperId = useId();
@@ -528,10 +601,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
         <span className="poa-order">{order}</span>
       </div>
 
-      <div className="field">
-        <span className="field-label">{t.equipmentLabel}</span>
-        <p className="poa-equipment">{equipmentTitle}</p>
-      </div>
+      <PointLinkPicker groups={linkGroups} selectedKey={linkSelected} onPick={pickLink} />
 
       <div className="field">
         <div className="poa-text-head">
