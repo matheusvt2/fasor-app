@@ -154,6 +154,9 @@ export const UX_ACTION_TARGETS = [
   'home.page_size_20',
   'home.page_size_50',
   'home.page_size_100',
+  // 2026-11-04, Story 20.2 (deferred to e20e): one event per search started on Home (the query
+  // going from empty to non-empty), never its text (AD-28).
+  'home.search',
 ] as const;
 export type UxActionTarget = (typeof UX_ACTION_TARGETS)[number];
 

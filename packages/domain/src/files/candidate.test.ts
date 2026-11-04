@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkFileCandidate, fileKindAccept, MAX_FILE_BYTES, objectKey, UPLOAD_FILE_KINDS } from './candidate.ts';
+import { checkFileCandidate, fileKindAccept, MAX_FILE_BYTES, MAX_IMAGE_PIXELS, objectKey, UPLOAD_FILE_KINDS, uploadRefusedText } from './candidate.ts';
 import { fileSizeText, fileTileLine } from './tile.ts';
 
 const CID = '019966b0-0000-7000-8000-000000000001';
@@ -78,5 +78,18 @@ describe('2.2-UNIT-003 tile lines', () => {
     expect(fileTileLine({ name: null, mime: 'application/pdf', size: 1024, uploaded_at: '2026-09-22T10:00:00.000Z' })).toBe(
       'PDF · 1,0 kB · Enviado',
     );
+  });
+});
+
+describe('Story 20.12 uploadRefusedText', () => {
+  it('names the pixel limit and nothing else', () => {
+    expect(MAX_IMAGE_PIXELS).toBe(120_000_000);
+    expect(uploadRefusedText('file_too_large', { limit: 'pixels', max_pixels: MAX_IMAGE_PIXELS })).toBe(
+      'A imagem passa de 120 megapixels e não pode ser enviada.',
+    );
+    expect(uploadRefusedText('file_too_large')).toBeNull();
+    expect(uploadRefusedText('file_too_large', { limit: 'bytes' })).toBeNull();
+    expect(uploadRefusedText('file_sha_mismatch', { limit: 'pixels' })).toBeNull();
+    expect(uploadRefusedText(null)).toBeNull();
   });
 });
