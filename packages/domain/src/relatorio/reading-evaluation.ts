@@ -11,8 +11,7 @@ import {
   inputHeaderText,
   nameplateRatioInput,
   nameplateTap,
-  ratioFactorValue,
-  ratioFormulaHelperText,
+  ratioGroupOf,
   RATIO_POWER,
   readingLabelText,
   readStored,
@@ -28,6 +27,7 @@ import {
   type TestKey,
   type VisibleColumn,
 } from './reading-cells.ts';
+import { VECTOR_GROUP_MISSING_TEXT, VECTOR_GROUP_UNRECOGNIZED_TEXT, vectorGroupCaptureLabel, vectorGroupFactor, vectorGroupFormulaText, vectorGroupShortText } from './vector-group.ts';
 
 /*
  * E9-A7: THE evaluation of a sheet's readings (see `reading-cells.ts` for the addressing) and
@@ -163,14 +163,27 @@ function formatCalculated(value: number): string {
 
 function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestDef, criterion: CriterionSeed | null, table: TableDef, offset: number): EvaluatedTable {
   const ratio = test.key === 'relacao_transformacao';
+  // Story 21.1: the vector group of a transformer ratio table (seed v9 and later), read from its plate.
+  const resolution = ratio ? ratioGroupOf(block, table.ratio_factor) : null;
+  const group = resolution?.group ?? null;
+  const groupMissing = resolution !== null && group === null;
+  // U1/U2's multiplier: the group's k, 1 on a table with no factor, none while a v11 table has no group.
+  const factor = resolution === null ? 1 : group === null ? null : vectorGroupFactor(group.k);
+  const captureCols = table.value_columns.flatMap((c, i) => (c.role === 'capture' ? [i] : []));
+  /** A column's label: on a group's three captures the group's pair of that phase, else the seed's. */
+  const labelOf = (column: ColumnDef, col: number): string => {
+    if (group === null || column.role !== 'capture' || captureCols.length !== group.phases.length) return column.label;
+    return vectorGroupCaptureLabel(group, captureCols.indexOf(col)) ?? column.label;
+  };
   const columns: VisibleColumn[] = [];
   const derived = table.value_columns.flatMap((c, i) => (c.role === 'derived' ? [i] : []));
   table.value_columns.forEach((column, col) => {
     if (column.role === 'print') return;
+    const label = labelOf(column, col);
     columns.push({
       col,
-      label: column.label,
-      header: column.role === 'input' ? inputHeaderText(column.label, column.unit) : headerText(column.label),
+      label,
+      header: column.role === 'input' ? inputHeaderText(column.label, column.unit) : headerText(label),
       role: column.role,
       unit: column.unit,
       derivedKind: column.role !== 'derived' ? null : col === derived[derived.length - 1] && derived.length > 1 ? 'condicao' : 'calculated',
@@ -194,7 +207,7 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
       const cell: EvaluatedCell = {
         address,
         role: column.role as 'capture' | 'input',
-        column: headerText(column.label),
+        column: headerText(labelOf(column, col)),
         state,
         raw: stored?.raw ?? '',
         unit,
@@ -231,9 +244,10 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
       const [primary, secondary] = effective;
       // VAL CALCULADO exists only for a positive primário and secundário: a zero or negative
       // side would give a zero ratio and an infinite deviation.
-      if (primary !== null && primary !== undefined && secondary !== null && secondary !== undefined && primary > 0 && secondary > 0) {
-        // Story 15.6 (seed v9): the transformador de força's table multiplies U1/U2 by √3.
-        const value = (primary / secondary) * ratioFactorValue(table.ratio_factor);
+      if (factor !== null && primary !== null && primary !== undefined && secondary !== null && secondary !== undefined && primary > 0 && secondary > 0) {
+        // Story 15.6 (seed v9): the transformador de força's table multiplies U1/U2 by √3; Story 21.1
+        // (seed v11, and v9/v10 with a group on the plate): by its vector group's k.
+        const value = (primary / secondary) * factor;
         const raw = canonicalDecimal(value.toFixed(6));
         if (Number.isFinite(value) && Number(raw) > 0) calculated = { raw, text: formatCalculated(value) };
       }
@@ -285,7 +299,11 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
     columns,
     rows,
     ratio,
-    formulaHelper: ratio ? ratioFormulaHelperText(table.ratio_factor) : null,
+    formulaHelper: group === null ? null : vectorGroupFormulaText(group.k),
+    shortHelper: group === null ? null : vectorGroupShortText(group),
+    groupHelper: resolution === null ? null : groupMissing ? VECTOR_GROUP_MISSING_TEXT : resolution.assumed ? VECTOR_GROUP_UNRECOGNIZED_TEXT : null,
+    vectorGroup: group?.code ?? null,
+    groupMissing,
   };
 }
 

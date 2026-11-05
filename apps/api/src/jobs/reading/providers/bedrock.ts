@@ -4,6 +4,7 @@ import {
   proseResultSchema,
   SEED_VERSION,
   structuringResultSchema,
+  VECTOR_GROUP_CODES,
   type FieldDef,
   type OcrImage,
   type ProseInput,
@@ -65,7 +66,8 @@ export {
 
 /** The prompt of the structuring step; bump it with every change of the prompt or the tool schema. */
 // 2 (review 2026-10-08, AIR-1/AIR-V1): dates as precise as printed, never an invented month; pt-BR separators spelled out.
-export const BEDROCK_STRUCTURING_PROMPT_VERSION = 'bedrock-structuring-2';
+// 3 (Story 21.2): the transformer's vector group, printed or read from the drawn HV and LV diagrams, one of the 47 codes.
+export const BEDROCK_STRUCTURING_PROMPT_VERSION = 'bedrock-structuring-3';
 
 /** The prompt of the prose step (caption, NC draft); bump it with every change of the prompt or the tool schema. */
 export const BEDROCK_PROSE_PROMPT_VERSION = 'bedrock-prose-1';
@@ -169,10 +171,32 @@ function fieldLine(field: FieldDef): string {
   return `- ${field.key} (${details.join('; ')}): ${field.label}`;
 }
 
+/**
+ * Story 21.2: the plate kind's structuring input. `vectorGroupKey` names the field that holds a
+ * transformador de força's vector group (its LIGAÇÃO SECUNDÁRIA), set by `kinds/plate.ts`; the
+ * contract's `StructuringInput` (`contract/ocr.ts`) stays as it is, and every other provider
+ * ignores the extra key.
+ */
+export interface PlateStructuringInput extends StructuringInput {
+  vectorGroupKey?: string;
+}
+
+/** Story 21.2: the paragraph that asks for the vector group, printed or drawn, as one of the 47 codes. */
+export function vectorGroupPrompt(key: string): string {
+  return [
+    `The field ${key} holds the transformer's vector group (IEC 60076-1: high-voltage connection in capitals, low-voltage connection in lower case, then the clock number).`,
+    `Give exactly one of these codes: ${VECTOR_GROUP_CODES.join(' | ')}.`,
+    'When the plate prints the code (for example "Dyn1", "DYN1" or "Dyn 1"), give that code and cite the words that print it.',
+    'When no code is printed, read the vector diagrams the plate draws for the high-voltage (H1 H2 H3, H0) and low-voltage (X1 X2 X3, X0) windings: D is a delta, Y a star, YN a star with its neutral brought out, Z a zigzag, ZN a zigzag with its neutral; the clock number is the low-voltage phase shift in 30 degree steps. Give that group and cite the OCR words nearest the diagram, such as its terminal labels.',
+  ].join('\n');
+}
+
 /** The structuring request's text: the fields, then the OCR words as `t<n>: text` lines, never their boxes. */
-export function structuringPrompt(input: Pick<StructuringInput, 'ocr' | 'fields'>): string {
+export function structuringPrompt(input: Pick<PlateStructuringInput, 'ocr' | 'fields' | 'vectorGroupKey'>): string {
   const words = input.ocr.tokens.length === 0 ? '(no words)' : input.ocr.tokens.map((token) => `${token.id}: ${token.text}`).join('\n');
-  return `Fields:\n${input.fields.map(fieldLine).join('\n')}\n\nOCR words:\n${words}`;
+  const key = input.vectorGroupKey;
+  const group = key !== undefined && input.fields.some((field) => field.key === key) ? `\n\n${vectorGroupPrompt(key)}` : '';
+  return `Fields:\n${input.fields.map(fieldLine).join('\n')}${group}\n\nOCR words:\n${words}`;
 }
 
 const PROSE_SYSTEM = [
@@ -227,7 +251,7 @@ export function bedrockStructuringProvider(options: BedrockProviderOptions): Str
   assertPricedModel(options.modelId);
   return {
     async structure(input: StructuringInput): Promise<StructuringResult> {
-      const content: ContentBlock[] = [imageBlock(input.image), { text: structuringPrompt(input) }];
+      const content: ContentBlock[] = [imageBlock(input.image), { text: structuringPrompt(input as PlateStructuringInput) }];
       const answer = await converseTool(options, {
         modelId: options.modelId,
         system: STRUCTURING_SYSTEM,

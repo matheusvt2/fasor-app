@@ -1,0 +1,352 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "TRANSFORMADOR",
+        "bbox": [
+          70,
+          70,
+          481,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "DE",
+        "bbox": [
+          494,
+          70,
+          549,
+          100
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "FORÇA",
+        "bbox": [
+          562,
+          70,
+          711,
+          108
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "IDENTIFICAÇÃO",
+        "bbox": [
+          72,
+          152,
+          270,
+          181
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "TR-03",
+        "bbox": [
+          640,
+          156,
+          723,
+          177
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "FABRICAÇÃO",
+        "bbox": [
+          72,
+          230,
+          234,
+          259
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "Varnelo",
+        "bbox": [
+          640,
+          234,
+          751,
+          255
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          308,
+          175,
+          333
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "NOMINAL",
+        "bbox": [
+          187,
+          312,
+          307,
+          333
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "AT",
+        "bbox": [
+          317,
+          313,
+          349,
+          332
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t10",
+        "text": "13,8",
+        "bbox": [
+          642,
+          312,
+          703,
+          336
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t11",
+        "text": "kV",
+        "bbox": [
+          715,
+          312,
+          750,
+          332
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t12",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          386,
+          175,
+          411
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t13",
+        "text": "NOMINAL",
+        "bbox": [
+          187,
+          390,
+          307,
+          411
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t14",
+        "text": "BT",
+        "bbox": [
+          319,
+          391,
+          351,
+          410
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t15",
+        "text": "380",
+        "bbox": [
+          641,
+          390,
+          693,
+          411
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t16",
+        "text": "V",
+        "bbox": [
+          703,
+          391,
+          723,
+          410
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t17",
+        "text": "LIGAÇÃO",
+        "bbox": [
+          72,
+          464,
+          184,
+          493
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t18",
+        "text": "SECUNDÁRIA",
+        "bbox": [
+          195,
+          463,
+          364,
+          489
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t19",
+        "text": "H1",
+        "bbox": [
+          316,
+          637,
+          350,
+          655
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t20",
+        "text": "H2",
+        "bbox": [
+          406,
+          793,
+          439,
+          811
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t21",
+        "text": "H3",
+        "bbox": [
+          226,
+          793,
+          259,
+          812
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t22",
+        "text": "X1",
+        "bbox": [
+          845,
+          637,
+          878,
+          655
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t23",
+        "text": "X2",
+        "bbox": [
+          935,
+          793,
+          968,
+          811
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t24",
+        "text": "X3",
+        "bbox": [
+          755,
+          793,
+          788,
+          812
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t25",
+        "text": "X0",
+        "bbox": [
+          846,
+          784,
+          879,
+          803
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "identificacao",
+        "value": "TR-03",
+        "ocr_token_ids": [
+          "t4"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "fabricacao",
+        "value": "Varnelo",
+        "ocr_token_ids": [
+          "t6"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_nominal_at",
+        "value": {
+          "raw": "13.8",
+          "unit": "kV",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t10",
+          "t11"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_nominal_bt",
+        "value": {
+          "raw": "380",
+          "unit": "V",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t15",
+          "t16"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "ligacao_secundaria",
+        "value": "Yyn0",
+        "ocr_token_ids": [
+          "t19"
+        ],
+        "confidence": 0.8
+      }
+    ]
+  }
+}

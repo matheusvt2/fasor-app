@@ -504,7 +504,9 @@ function valoresHeader(cols: readonly number[], evaluated: EvaluatedTable, colum
 /** One header row, or two where the seed groups its columns (PONTO DE ENSAIO/CONEXÃO over LINHA · TERRA · GUARD). */
 function measurementHeader(definition: TableDef, evaluated: EvaluatedTable): PrintRow[] {
   const values = definition.value_columns;
-  const columnLabel = (column: ColumnDef, col: number) => (column.label === VALORES ? valoresHeader([col], evaluated, values) : printLabel(column.label));
+  // Story 21.1: a column prints the evaluated label, which on a ratio table's captures is its vector group's pair.
+  const columnLabel = (column: ColumnDef, col: number) =>
+    column.label === VALORES ? valoresHeader([col], evaluated, values) : printLabel(evaluated.columns.find((visible) => visible.col === col)?.label ?? column.label);
   const bottom = headerRow([...definition.connection_columns.map(printLabel), ...values.map(columnLabel)]);
   if (definition.connection_group === undefined && !values.some((column) => column.group !== undefined)) return [bottom];
   const top: PrintCell[] = [];

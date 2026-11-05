@@ -2,7 +2,8 @@
 title: 'e21r: the transformer ratio follows its vector group, read from the plate too (21.1, 21.2)'
 type: 'feature'
 created: '2026-11-05'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '80f2f9f74df6d726844c278efc16d3ee8eb41ac4'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus

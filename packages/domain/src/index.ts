@@ -82,6 +82,7 @@ export * from './relatorio/oil-rule.ts';
 export * from './relatorio/test-voltage.ts';
 export * from './relatorio/ficha.ts';
 export * from './relatorio/readings.ts';
+export * from './relatorio/vector-group.ts';
 export * from './relatorio/measurement-evaluation.ts';
 export * from './relatorio/conclusion.ts';
 export * from './relatorio/parecer.ts';

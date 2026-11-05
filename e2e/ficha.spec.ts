@@ -1,4 +1,14 @@
-import { cellAddressesOf, getDefinition, ratioFormulaHelperText, type OpDraft } from '@app/domain';
+import {
+  cellAddressesOf,
+  getDefinition,
+  ratioFormulaHelperText,
+  SEED_VERSION,
+  VECTOR_GROUP_MISSING_TEXT,
+  vectorGroupByCode,
+  vectorGroupCaptureLabel,
+  vectorGroupFormulaText,
+  type OpDraft,
+} from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -635,6 +645,9 @@ test('@p1 UX-F42 a transformer ratio row out of ±0,5 % reads INSATISFATÓRIO, i
   await tap.fill('5');
   await tap.press('Tab');
   await expect.poll(async () => (await outbox(page)).find((row) => row.path === `sheet/${blockId}/nameplate/tap_atual`)?.value).toBe('5');
+  // Story 21.1 (seed v11): the ratio follows the vector group the plate names; Dyn1 keeps Story 15.6's √3.
+  await field(page, 'ligacao_secundaria').locator('select').selectOption('Dyn1');
+  await expect.poll(async () => (await outbox(page)).find((row) => row.path === `sheet/${blockId}/nameplate/ligacao_secundaria`)?.value).toBe('Dyn1');
 
   await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
   const ttr = page.locator('table.ficha-ttr');
@@ -668,6 +681,48 @@ test('@p1 UX-F42 a transformer ratio row out of ±0,5 % reads INSATISFATÓRIO, i
   await outInput.press('Tab');
   await expect(row.locator('td').last()).toContainText('Satisfatório');
   await expect(row.locator('td').last()).not.toContainText('Insatisfatório');
+});
+
+test('@p0 21.1-E2E-001 a v11 star-star transformer (Yyn0) typed by hand: no VAL CALCULADO until the group is chosen, then U1 / U2 = 36,32, its own terminal pairs and SATISFATÓRIO', async ({ page }) => {
+  test.setTimeout(150_000);
+  expect(SEED_VERSION).toBe('v11');
+  const { blockId } = await openTransformerSheet(page, account, database, { width: 1280 });
+  const ttr = page.locator('table.ficha-ttr');
+  const row = ttr.locator('tbody tr').first();
+  const helpers = page.locator('.ficha-mt[data-table-key="relacao_transformacao"] > p.helper');
+
+  // No group yet: the inputs and captures are typeable, nothing is computed, one helper asks for the group.
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  await cellInput(page, 'V primário').click();
+  for (const value of ['13,8', '380', '36,3', '36,3', '36,3']) {
+    await page.keyboard.type(value);
+    await page.keyboard.press('Tab');
+  }
+  await expect.poll(async () => (await outbox(page)).filter((r) => r.path === `sheet/${blockId}/test/relacao_transformacao/cell/0/5`).at(-1)?.value).toEqual({ raw: '36.3', unit: null, state: 'measured' });
+  await expect(row.locator('td.cell-calc').first()).not.toContainText(/\d/);
+  await expect(row.locator('td').last()).toHaveText('—');
+  await expect(helpers).toHaveText([VECTOR_GROUP_MISSING_TEXT]);
+
+  // The plate's LIGAÇÃO SECUNDÁRIA, chosen from the 47 codes as a person would.
+  await stepper(page).getByRole('button', { name: /^Placa,/ }).click();
+  await field(page, 'ligacao_secundaria').locator('select').selectOption('Yyn0');
+  await expect.poll(async () => (await outbox(page)).filter((r) => r.path === `sheet/${blockId}/nameplate/ligacao_secundaria`).at(-1)?.value).toBe('Yyn0');
+
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  const yyn0 = vectorGroupByCode('Yyn0')!;
+  const pairs = [0, 1, 2].map((phase) => vectorGroupCaptureLabel(yyn0, phase)!);
+  expect(pairs).toEqual(['H1-H3 / X1-X3', 'H2-H1 / X2-X1', 'H3-H2 / X3-X2']);
+  await expect(ttr.locator('thead th')).toHaveText(['TAP nº', 'V primário (kV)', 'V secundário (V)', 'Calculado', ...pairs, 'Condição']);
+  await expect(row.locator('td.cell-calc').first()).toContainText('36,32');
+  await expect(row.locator('td').last()).toContainText('Satisfatório');
+  await expect(helpers).toHaveText([vectorGroupFormulaText(yyn0.k)]);
+  for (const [i, pair] of pairs.entries()) {
+    await expect(cellBox(page, `relacao_transformacao:0:${3 + i}`).locator('input.mf-value')).toHaveAccessibleName(pair);
+  }
+  // Below 768 px the ratio stacks into a card naming each capture by its pair.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const card = page.locator('.measurement-card').first();
+  for (const pair of pairs) await expect(card.locator('.field-label', { hasText: pair })).toHaveCount(1);
 });
 
 test('@p1 UX-F51 phone 390: the collapsed "Do local" line puts its values on their own line, the line\'s width, no word broken', async ({ page }) => {

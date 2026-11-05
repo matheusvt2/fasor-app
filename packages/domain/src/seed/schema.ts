@@ -118,8 +118,13 @@ export const tableDefSchema = z
      * U1/U2. `sqrt3` makes it U1 · √3 / U2 (the transformador de força: the primary is line-to-line,
      * the captures phase-to-neutral). Optional and never defaulted, so v1 to v8 parse to the bytes
      * they shipped with.
+     *
+     * Seed v11 (Story 21.1, Bruno 2026-11-05): `vector_group` makes the factor, the capture pairs and
+     * the shorts follow the vector group the block's LIGAÇÃO SECUNDÁRIA names (`relatorio/vector-group.ts`);
+     * with no group there is no VAL CALCULADO. On `sqrt3` (v9, v10) a LIGAÇÃO SECUNDÁRIA that names a
+     * group applies it too, and one that names none keeps √3 and the Dyn1 pairs.
      */
-    ratio_factor: z.enum(['sqrt3']).optional(),
+    ratio_factor: z.enum(['sqrt3', 'vector_group']).optional(),
   })
   .refine((t) => t.rows.every((row) => row.length === t.connection_columns.length), {
     message: 'every row has one cell per connection column',

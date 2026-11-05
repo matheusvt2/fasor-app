@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { suggestionAnnouncement, vectorGroupFormulaText } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -73,6 +74,17 @@ test('@p0 E78-Q2 8.4-E2E-001 a plate imported through the app is read by the rea
   expect(records.find((record) => record.entity === 'file' && record.id === photoId)!.row.reading_status).toBe('done');
   const pending = records.filter((record) => record.entity === 'suggestion' && record.row.status === 'pending' && record.row.source?.photo_id === photoId);
   expect(pending).toHaveLength(11);
+
+  // Story 21.2 (seed v11): the plate prints "Dyn1", so LIGAÇÃO SECUNDÁRIA is offered it, trusted and
+  // with no diagram note; once confirmed, the ratio applies the group's √3.
+  const group = field(page, 'ligacao_secundaria').locator('.field.suggestion-field');
+  await expect(group).toHaveAttribute('data-state', 'suggested');
+  await expect(group.locator('input')).toHaveValue('Dyn1');
+  await expect(field(page, 'ligacao_secundaria').locator('.helper')).toHaveCount(0);
+  await group.getByRole('button', { name: suggestionAnnouncement('suggested', 'Dyn1') }).click();
+  await expect(field(page, 'ligacao_secundaria').locator('select')).toHaveValue('Dyn1');
+  await page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' }).getByRole('button', { name: /^Ensaios,/ }).click();
+  await expect(page.locator('.ficha-mt[data-table-key="relacao_transformacao"] > p.helper')).toHaveText([vectorGroupFormulaText('sqrt3')]);
 });
 
 test('@p1 E78-Q14 8.6-E2E-003 the plate crop fills the box width at 768 and 390 px, not a sliver of the read region', async ({ page }) => {

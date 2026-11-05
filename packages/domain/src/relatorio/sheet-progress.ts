@@ -189,10 +189,13 @@ function verificacoesMissing(block: BlockRow, definition: BlockDefinition, enabl
 }
 
 function ensaiosCounts(block: BlockRow, definition: BlockDefinition): SheetStepProgress {
-  const cells = evaluatedCells(evaluateSheetReadings(block, definition));
+  const evaluations = evaluateSheetReadings(block, definition);
+  const cells = evaluatedCells(evaluations);
   const measurements = measurementCounts(evaluateSheetMeasurements(block, definition));
+  // Story 21.1: a v11 ratio row with no vector group to compute VAL CALCULADO counts one missing.
+  const groupMissing = evaluations.reduce((sum, test) => sum + test.tables.reduce((rows, table) => rows + (table.groupMissing ? table.rows.length : 0), 0), 0);
   return {
-    missing: cells.filter((cell) => cell.missing).length + measurements.missing,
+    missing: cells.filter((cell) => cell.missing).length + groupMissing + measurements.missing,
     outOfLimit: cells.filter((cell) => cell.verdict === 'out').length + measurements.outOfLimit,
   };
 }

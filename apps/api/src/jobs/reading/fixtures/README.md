@@ -170,6 +170,18 @@ The output is reproducible in the same container image; a different font set cha
 bytes, so a re-run that prints new shas needs `kinds/plate.ts` updated and the old JSONs
 removed.
 
+## The two seed v11 transformer plates (Story 21.2)
+
+Two 1200 x 900 PNGs in `images/`, made by `make-plate-fixtures.ts transformador_forca_dyn1
+transformador_forca_yyn0` on the seed v11 transformador de força. They are no block type's
+default (the transformer's stays `plate-transformador.jpg`): their fixtures replay only for a
+photo of their own bytes, as `job.integration.test.ts` and `bedrock-eval.ts` send them.
+
+| Image | Fixture | Values |
+|---|---|---|
+| `plate-transformador-dyn1.png` | `03b3fc52...json` | identificacao `TR-02`; fabricacao `Varnelo`; n_serie `TF-330918`; potencia_nominal `{raw: 300, unit: kVA}`; tensao_nominal_at `{raw: 13.8, unit: kV}` (prints `13,8 kV`); tensao_nominal_bt `{raw: 380, unit: V}`; ligacao_secundaria `Dyn1`, citing its printed word: `suggested` |
+| `plate-transformador-yyn0.png` | `2a69ba08...json` | identificacao `TR-03`; fabricacao `Varnelo`; tensao_nominal_at and _bt as above; LIGAÇÃO SECUNDÁRIA prints no value and the plate draws the HV star (H1 H2 H3) and the LV star with its neutral (X1 X2 X3, X0); ligacao_secundaria `Yyn0` at 0.8, citing the diagram's `H1`: no cited run prints the group, so the kernel makes it `verify`, citing no token over the whole image ("Lido do diagrama — confira") |
+
 ## The error and timeout images
 
 `images/plate-error.png` and `images/plate-timeout.png` are 64 x 48 single-colour PNGs made

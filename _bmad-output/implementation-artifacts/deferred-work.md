@@ -2946,3 +2946,12 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/spec-e20a1-retro-fixes.md`
   summary: `POST /api/photos/{id}/reread` (`apps/api/src/http/reading.ts`) and `sendRetargetedReading` (`apps/api/src/sync/routes.ts`) check only the photo's own tombstone, not `fileWithdrawn`, so a photo of a removed relatório can still spend a paid reading.
   evidence: review pass 1, triage #18 (VG-6); `reading.ts:54-57` repeats the old inline check; no test rereads a photo of a removed relatório.
+
+## Deferred from: Epic 21 batch e21r (2026-11-05)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e21r-ratio-vector-group.md`
+  summary: Before the deploy, Matheus runs `apps/api/src/scripts/bedrock-eval.ts` on the real plate set with prompt `bedrock-structuring-3`; record the group column per plate in the PR.
+  evidence: Story 21.2 DoD; the script is prepared (its "Vector group read" table, the two synthetic v11 transformer plates added to its default set) and was never run in the batch (paid call).
+- source_spec: `_bmad-output/implementation-artifacts/spec-e21r-ratio-vector-group.md`
+  summary: The drawn-diagram path of Story 21.2 is exercised end to end on the device with the reading job's suggestion seeded as the job writes it (`e2e/plate.spec.ts` 21.2-E2E-001), and through the real job only in `apps/api` (`job.integration.test.ts`, the committed plate's own fixture): an imported photo is re-encoded by the device, so the fake providers replay the transformer's default plate (printed Dyn1) and never the drawn one.
+  evidence: `providers/fake.ts` chooses a default fixture by reading kind, block type and table only; making the drawn plate a default would change every transformer plate test.

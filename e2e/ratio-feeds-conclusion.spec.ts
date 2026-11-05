@@ -48,6 +48,9 @@ test('@p0 17.5-E2E-001 a transformer ratio row INSATISFATÓRIO suggests "Aprovad
   await tap.fill('5');
   await tap.press('Tab');
   await expect.poll(() => lastValue(page, `sheet/${blockId}/nameplate/tap_atual`)).toBe('5');
+  // Story 21.1 (seed v11): the group the ratio follows; Dyn1 keeps U1 · √3 / U2.
+  await field(page, 'ligacao_secundaria').locator('select').selectOption('Dyn1');
+  await expect.poll(() => lastValue(page, `sheet/${blockId}/nameplate/ligacao_secundaria`)).toBe('Dyn1');
 
   // 13,8 kV · √3 / 380 V = 62,90: 62,8 is within ±0,5 %, 36,3 is out (42,29 %).
   await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();

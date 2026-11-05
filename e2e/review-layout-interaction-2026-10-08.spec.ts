@@ -206,6 +206,9 @@ test('@p0 R8LAY-E2E-001 DC-1 the transformer TTR at 768, 1024 (rail open) and 12
   const built = await setUp(page, { width: 1280, height: 800 });
   const sheet = sheetOf(built, 'transformador_forca');
   await openSheet(page, built.relatorioId, sheet.blockId);
+  // Story 21.1 (seed v11): the ratio follows the plate's vector group; Dyn1 is the transformer this layout was measured on.
+  await page.locator('#ficha-step-placa [data-field-key="ligacao_secundaria"] select').filter({ visible: true }).first().selectOption('Dyn1');
+  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `sheet/${sheet.blockId}/nameplate/ligacao_secundaria`).at(-1)?.value).toBe('Dyn1');
   const ttr = table(page, 'relacao_transformacao');
   await ttr.scrollIntoViewIfNeeded();
   const inputs = ttr.locator('table.ficha-ttr input.mf-value');
@@ -324,7 +327,6 @@ const PLATE_RUN: readonly [string, string, unknown][] = [
   ['data_fabricacao', '082024', '2024-08'],
   ['tensao_nominal_at', '13,8', { raw: '13.8', unit: 'kV', state: 'measured' }],
   ['tensao_nominal_bt', '380', { raw: '380', unit: 'V', state: 'measured' }],
-  ['ligacao_secundaria', 'Dyn1', 'Dyn1'],
 ];
 
 const plateInput = (page: Page, key: string) => page.locator(`#ficha-step-placa [data-field-key="${key}"] input`).filter({ visible: true }).first();
@@ -343,6 +345,10 @@ for (const width of [1280, 390] as const) {
     for (const key of ['identificacao', 'n_serie', 'tipo', ...PLATE_RUN.map(([k]) => k)]) {
       await expect(plateInput(page, key), key).toHaveAttribute('enterkeyhint', 'next');
     }
+    // Story 21.1 (seed v11): LIGAÇÃO SECUNDÁRIA is a select of the vector groups, chosen first, so the
+    // typed run below ends on TENSÃO NOMINAL BT and its Enter skips the filled select.
+    await page.locator('#ficha-step-placa [data-field-key="ligacao_secundaria"] select').filter({ visible: true }).first().selectOption('Dyn1');
+    await written('ligacao_secundaria', 'Dyn1');
     // Identificação: Enter lands on Fabricação (a word field: its first control).
     await plateInput(page, 'identificacao').click();
     await page.keyboard.type('TR-A');

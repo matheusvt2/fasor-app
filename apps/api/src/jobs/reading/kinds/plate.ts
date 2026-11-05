@@ -2,6 +2,7 @@ import {
   betterReading,
   buildReadingSuggestions,
   getDefinition,
+  isVectorGroupField,
   plateReadingTargetSchema,
   registryRowSchema,
   shouldEscalate,
@@ -13,6 +14,7 @@ import type { Db } from '../../../db/client.ts';
 import type { CompanyId } from '../../../db/repositories/company-id.ts';
 import { entities } from '../../../db/schema.ts';
 import { log } from '../../../log.ts';
+import type { PlateStructuringInput } from '../providers/bedrock.ts';
 import { PermanentReadingError } from '../providers/errors.ts';
 import { readOcr, targetBlock } from './shared.ts';
 import type { ReadingKindHandler } from './types.ts';
@@ -89,7 +91,9 @@ export const plateHandler: ReadingKindHandler = {
       fixture: { block_type: block.block_type, table_key: null },
       async run({ providers, image, runId, newId }) {
         const ocr = await readOcr(providers, image, { mode: 'text' });
-        const input = { image: { bytes: image.bytes, mime: image.mime }, ocr, fields: [...fields] };
+        // Story 21.2: a transformador de força's LIGAÇÃO SECUNDÁRIA is its vector group, asked for printed or drawn.
+        const groupField = fields.find((field) => isVectorGroupField(block.block_type, field.key));
+        const input: PlateStructuringInput = { image: { bytes: image.bytes, mime: image.mime }, ocr, fields: [...fields], ...(groupField === undefined ? {} : { vectorGroupKey: groupField.key }) };
         const build = (structuring: StructuringResult) =>
           buildReadingSuggestions({
             relatorioId,
