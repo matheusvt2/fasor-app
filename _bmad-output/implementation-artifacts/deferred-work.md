@@ -2829,7 +2829,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   summary: Nothing was counted in production. Values stored before contract 29 that are over their new cap stay as they are (never rewritten) and keep printing; a device that edits such a field can only shrink it. The read-only query that counts them per field is in the PR body for Matheus to run before the deploy.
   evidence: `packages/domain/src/ops/value-limits.ts` (`TEXT_CAPS`, `FAMILY_VALUE_RULES`); the PR body's SQL.
   class: risk
-  state: open (owner: Matheus, before the deploy)
+  state: ~~open (owner: Matheus, before the deploy)~~ *(2026-11-04, E20-A3: closed. 0 values over their cap in every field of the PR #239 query, and 0 site altitudes outside -500 to 9 000 m, against 12 relatórios, 422 blocks, 421 files, 96 locations and 12 points (`entities` rows). The query ran unchanged on 2026-11-04 at about 23:06 (America/Sao_Paulo), after the e0b47ad4 deploy, as a `tsx -e` command override on the `fasor-production-migrate` task inside `sql.begin('read only', ...)`; tasks 958cda7c (count) and f4e32093 (row counts), both exit 0, output in `/fasor/production/migrate`. No stored value needs the shrink-only path.)*
 - source_spec: `_bmad-output/implementation-artifacts/spec-e20s-server-rules.md`
   summary: One "Desfazer" is now refused: undoing "Voltar para Em campo" from an Em revisão whose content changed since its latest revision (or that has no revision yet) puts Em revisão back with no generate queued after the back move and no unchanged revision, so `statusMoveVerdict` reads it as a forward move without its precondition (`op_status_transition`). The device shows the sentence, stays Em campo, and the next generate moves it to Em revisão as usual. Every other undo of a status move applies.
   evidence: `packages/domain/src/status/table.ts` `statusMoveVerdict`; `apps/api/src/sync/status-transition.integration.test.ts` (the undo of the back move on an unchanged revision applies).
@@ -2933,7 +2933,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   summary: The read-only count of values over the contract-29 caps (PR #239 body) has no record of a run against production before the d6e8eea1 deploy, though its e20s row says "before the deploy" (P-3).
   evidence: e20s row "Nothing was counted in production"; `epic-20-context.md` deploy records name no such run.
   class: risk
-  state: open (owner: Matheus, needs his AWS login; record the per-field result in the e20s row, or that it was skipped)
+  state: ~~open (owner: Matheus, needs his AWS login; record the per-field result in the e20s row, or that it was skipped)~~ *(2026-11-04, E20-A3: closed; run after the e0b47ad4 deploy on Matheus's login, 0 values over cap; the result is in the e20s row)*
 
 ## Deferred from: E20-A1 retrospective fix batch (2026-11-04)
 
