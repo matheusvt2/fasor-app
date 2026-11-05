@@ -239,6 +239,12 @@ development_status:
   20-13-the-edges-auth-endpoints-cross-site-writes-telemetry-removed-files-hsts-and-the-login-copy: 
     done                                                                                                  # 2026-11-04: merged in #240 and fix batch e20f #241; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, security pass security-pass-2026-11-03.md); S7 and S8; per-e-mail lockout kept as accepted risk is the coordinator's reading; starts after 20.7 merges
 
+  epic-21: backlog  # added 2026-11-05 (Bruno WhatsApp via Matheus): ratio by vector group and section 7 photo order; research ttr-vector-groups-2026-11-05
+  epic-21-retrospective: optional
+  21-1-the-transformer-ratio-follows-its-vector-group: ready-for-dev  # added 2026-11-05 (Matheus: "Considere todos", "Sim" for v9/v10); seed v11, contract 30; empty-group behaviour is the coordinator's reading
+  21-2-the-plate-reading-identifies-the-vector-group-also-from-the-drawn-diagram: ready-for-dev  # added 2026-11-05 (Matheus: "a leitura deve identificar o diagrama tambem quando por foto"); starts after 21.1 merges
+  21-3-move-a-photo-up-or-down-in-the-registro-fotografico: ready-for-dev  # added 2026-11-05 (Bruno); section 7 only and Subir/Descer are the coordinator's reading, open to Matheus; shares contract 30 with 21.1
+
   backlog-deferred: backlog  # added 2026-10-21: stories moved out of their epic with a dated decision, epics.md "Backlog: deferred stories"
   13-9-dictation-on-behind-one-line-of-consent: backlog  # 2026-10-21 (Bruno via Matheus, answer 11): moved out of Epic 13 to the backlog; DoR unchanged |  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus
 

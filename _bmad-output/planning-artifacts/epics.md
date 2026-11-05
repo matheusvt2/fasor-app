@@ -4164,6 +4164,8 @@ So that the measured H-H / X-X0 ratios compare against the right value and a goo
 
 *(2026-10-23, Matheus: the first-number BT fallback **stays on every seed version**. The dry-template migration is moot: the production migrate task of v0.3.0 moved all 7 templates to v9 and skipped none. The formula helper was seen at 390 px in the QA pass, `qa-e15-2026-10-23.md`.)*
 
+*(2026-11-05, Bruno via Matheus: the fixed √3 gave a wrong ratio on a star-star transformer. The factor and the pairs now follow the vector group, Story 21.1; a `source-deltas.md` row records the amendment.)*
+
 ### Story 15.7: The TC's own checklist (seed v10)
 
 *(Added 2026-10-22 from Bruno's answer 7: the TC de proteção should not share the transformer list; Bruno reviews and sends the TC list; Matheus asks for it at the next interaction. Backlog until the list arrives.)*
@@ -5397,6 +5399,200 @@ So that no other request can rename me, list my sessions, write on my behalf fro
 - The accepted-risk row is in `deferred-work.md`.
 - A `source-deltas.md` row for the auth allowlist.
 - The story gate.
+
+## Epic 21: The ratio follows the vector group, and the REGISTRO FOTOGRÁFICO in the order of the work (Bruno's WhatsApp of 2026-11-05)
+
+Bruno, WhatsApp of 2026-11-05, relayed by Matheus. The text is a voice transcription, quoted verbatim:
+
+> *"A gente não parametrizou não configurou os tipos de transformadores e aí eu tenho um transformador lá que ele é estrela estrela e aí o cálculo lá de de transformação é diferente. Então a ligação do secundário lá igual a gente tem o DN, um, tudo mais a gente não cadastrou outros. E aí hoje ele preencheu e deu errado. [...] pra criar ali e poder alterar qual que é o tipo de fechamento pra poder fazer o cálculo certo e um outro ponto era no registro fotográfico lá no Item sete se a gente consegue mudar pra gente alterar a posição das fotos tipo eu quero que essa foto vai pra cima, essa vai pra baixo, relatório porque a gente sempre coloca as fotos num fluxo de trabalho. Então primeiro ali é o quê? A gente coloca as fotos do que a gente fez. Então primeiro a Enel chegando, desligando, depois ver De ausência de tensão depois abre tudo limpeza reaperto fecha tudo né? E aí os ensaios ficam as fotos em cada equipamento são as fotos gerais e assim está ficando misturado a gente não consegue puxar a foto pra cima ou pra baixo"*
+
+The relatório was filled by an intern.
+
+Investigated on 2026-11-05 by Matheus with the agent, against main `a8628a30`:
+
+- **The ratio.**
+  - The transformador de força's ratio table computes VAL CALCULADO = U1 · √3 / U2 on seed v9 and v10. The factor is fixed (`seed/v9.ts` lines 66 to 70; `relatorio/reading-evaluation.ts` line 236, `ratioFactorValue`).
+  - The three capture columns are fixed too: H1-H3 / X1-X0, H2-H1 / X2-X0, H3-H2 / X3-X0 (`seed/v1.ts` lines 481 to 495). This formula and these pairs hold for Dyn1 only.
+  - Bruno chose this on 2026-10-22, in Story 15.6's answer 3: *"Transformador de força sempre utilizar a fórmula com raiz 3"*. On a star-star unit (Yy0, Yyn0: k = 1, pairs H1-H3 / X1-X3 ...) VAL CALCULADO comes out about 1.73 times too high, and a good transformer reads INSATISFATÓRIO.
+  - LIGAÇÃO SECUNDÁRIA is a free text field of the nameplate (`seed/v1.ts` line 49). Nothing reads it. In practice it holds the whole group code: the Porto Seguro fixture types "DYN1" on every transformer.
+- **The plate reading.**
+  - The structuring step already sends the image to the model alongside the OCR words (`apps/api/src/jobs/reading/providers/bedrock.ts` line 230), so a drawn vector diagram is visible to it.
+  - The Story 8.5 guard accepts a digit only when the OCR saw it (`reading/build.ts`).
+  - The synthetic transformer plate carries `ligacao_secundaria: 'Y'` (`apps/api/src/scripts/make-plate-fixtures.ts` line 117).
+- **The REGISTRO FOTOGRÁFICO.**
+  - Section 7 prints the "Geral" photos (`photos/order.ts` `isGeralPhoto`) in capture order: `(captured_at, local_seq, id)`, `comparePhotos`. The one numbering sequence starts with them (`print/photo-order.ts`).
+  - A photo row has no order field, and `FILE_FIELDS` (`ops/path.ts` line 56) holds none, so nothing can move a photo.
+  - An import takes its instant from the EXIF DateTimeOriginal, and falls back to the file's date (`apps/web/src/files/photo-import.ts` lines 101 to 108). A photo that went through WhatsApp has no EXIF, so it lands at its arrival time. This is likely part of the "misturado".
+  - A Geral photo can already be moved to a sheet (`file/{id}/block_id`), after which it prints in section 9.
+
+Research: `_bmad-output/planning-artifacts/research/ttr-vector-groups-2026-11-05/research.md`. It covers 47 three-phase groups, with the measured pairs, shorts and factor of each, from Megger's TTR100 manual, Tabla 5-2 (ANSI C57.12.70 markings H/X, as in Brazil). It also covers NBR 5356 and NBR 5380 through *O Setor Elétrico* ed. 100 (ratio in every tap, ± 0,5 %).
+
+**Decisions (Matheus, 2026-11-05):**
+- On the groups: *"Considere todos. E a leitura deve identificar o diagrama tambem quando por foto"* (21.1, 21.2).
+- On the source: *"Procure na literatura e ISOs brasileiras"* (the research note).
+- On applying the fix to relatórios already open on seed v9 and v10: *"Sim"* (21.1).
+- The photo order applies to section 7 only, as Bruno asked. This is the coordinator's reading, open to Matheus's correction (21.3).
+
+**The coordinator's readings in this epic, each marked in its DoR:**
+- On v9 and v10, an empty or unrecognised LIGAÇÃO SECUNDÁRIA keeps today's Dyn1 behaviour, so no issued document changes by itself.
+- On v11, an empty group computes no VAL CALCULADO until one is chosen.
+- The four groups flagged in the research (Dyn3, Dyn9, Dy3, Dy9) ship as transcribed, listed for Bruno.
+
+**Waves and gates:**
+- Waves: **A**, two stacks.
+  - The ratio lane: 21.1, then 21.2. They share the group table, seed v11 and contract 30.
+  - The photo lane: 21.3. It shares contract 30 with 21.1; whichever merges second rebases onto it.
+- The 2026-10-08 story gate applies to every story. The full `@p0`, `test:e2e:full` and the matrix run once on the integrated main. The deploy follows on Matheus's go.
+
+### Story 21.1: The transformer ratio follows its vector group (seed v11, contract 30)
+
+**Dev model:** opus · **Effort:** high · one kernel table of 47 groups, a group parser, the ratio evaluation and the capture column labels read from the group on seed v9 and later, seed v11 turning LIGAÇÃO SECUNDÁRIA into a select of the 47 codes, the screen helper, the print headers; `source-deltas.md` row amends Story 15.6
+
+As Bruno or a technician testing a transformador de força of any connection,
+I want VAL CALCULADO, the measured pairs and the verdict to follow the transformer's vector group,
+So that a star-star or any other non-Dyn1 transformer is not flagged INSATISFATÓRIO by the wrong formula.
+
+**Today (verified 2026-11-05 on main `a8628a30`):** see the epic's first two investigation bullets. A v9 or v10 transformador de força computes U1 · √3 / U2 and prints the Dyn1 pairs for every group.
+
+*(Definition of Ready, closed 2026-11-05 by Matheus: every group of the research note, and open relatórios on v9 and v10 included.)*
+- **The group table** lives in `packages/domain`. It holds the 47 rows of the research note, each with its three (H, X) pairs, the shorted winding per phase when there is one, and k. One canonical code per row in IEC case ("Dyn1", "YNyn0").
+- **The parser** maps a LIGAÇÃO SECUNDÁRIA value to a row, ignoring case, spaces, slashes and hyphens. "DYN1", "Dyn 1" and "D/yn1" give Dyn1.
+- **Seed v11** derives from v10 (AD-21). The transformador de força's LIGAÇÃO SECUNDÁRIA becomes a select of the 47 codes: label unchanged (FO.SERV-03 verbatim), options in IEC case, ordered by the manual's row number. The ratio table carries `ratio_factor: 'vector_group'`.
+- **Seed v9 and v10 are not edited.** The kernel reads the group on their `sqrt3` table too: a parsed LIGAÇÃO SECUNDÁRIA sets the factor and the pairs, and an empty or unparsed one keeps today's √3 and Dyn1 pairs (coordinator's reading). v1 to v8 keep U1/U2, and the Porto Seguro goldens do not move.
+- **On v11, an empty group** computes no VAL CALCULADO and shows a one-line helper asking for the group (coordinator's reading, authored copy).
+- **Revisions.** An issued revision stays as issued. A relatório whose group now parses to something other than Dyn1 recalculates on its next revision, and the Story 16.2 staleness banner tells the engineer.
+- **Bruno's list.** Dyn3, Dyn9, Dy3 and Dy9 ship as transcribed and are listed in the PR for Bruno.
+
+**Acceptance Criteria:**
+
+**Given** a v11 transformador de força with LIGAÇÃO SECUNDÁRIA "Yyn0", primário 13,8 kV and secundário 380 V
+**When** its ratio row evaluates
+**Then** VAL CALCULADO is 13 800 / 380 = 36,32 (k = 1, formatted as today); a capture of 36,3 is within ± 0,5 % and the row is SATISFATÓRIO; the three capture columns read H1-H3 / X1-X3, H2-H1 / X2-X1, H3-H2 / X3-X2 on screen and in print (FR-68; AD-15)
+
+**Given** the same transformer with "Dyn1"
+**When** it evaluates
+**Then** VAL CALCULADO is 62,90 and the columns are today's H1-H3 / X1-X0, H2-H1 / X2-X0, H3-H2 / X3-X0, byte-identical to a v10 sheet with the same values
+
+**Given** each of the 47 groups of the research note
+**When** a kernel test evaluates a row with U1 13,8 kV and U2 380 V
+**Then** VAL CALCULADO is U1 · k / U2 with that group's k, and the three capture labels are that group's pairs. A group with a shorted winding prints its pair as the note writes it (e.g. "H1-(H3+H2) / X1-X2"), and the screen helper names the winding to short per phase ("Curto-circuitar H3-H2", authored)
+
+**Given** a v9 or v10 relatório, open or issued, whose LIGAÇÃO SECUNDÁRIA reads "YYN0" (or "yy0", "Y/yn0")
+**When** the sheet renders or a new revision generates
+**Then** the group's factor and pairs apply, as on v11; with LIGAÇÃO SECUNDÁRIA empty, "Y" or any text the parser does not map, the row computes exactly as today (√3, Dyn1 pairs) and the screen helper says so ("Ligação não reconhecida: calculado como Dyn1", authored)
+
+**Given** a v11 transformer with no group chosen
+**When** its ratio table renders
+**Then** VAL CALCULADO and CONDIÇÕES stay empty, the captures can still be typed, and a one-line helper asks for the LIGAÇÃO SECUNDÁRIA; the Sumário and the pre-issue check count the row as incomplete as they count a missing V PRIMÁRIO today
+
+**Given** the formula helper under VAL CALCULADO (Story 15.6)
+**When** a group is set
+**Then** it names that group's formula ("Calculado: U1 / U2", "U1 · √3 / U2", "U1 / (U2 · √3)", "U1 · √3 / (2 · U2)", "2 · U1 / (√3 · U2)"), screen only
+
+**Definition of Done, in addition:**
+- A kernel table test pins the 47 rows against the research note.
+- Parser tests cover the spellings above and the unmatched cases.
+- `readings.test.ts` and `section-9.test.ts` cover v8, v10 and v11 with Dyn1, Yyn0, YNd11 and Yd1.
+- `seed.test.ts` pins v11's difference from v10.
+- The contract bump (30) with `MIN_CONTRACT_VERSION` as the 2026-09 rule says.
+- `e2e/ficha.spec.ts`:
+  - a v11 Yyn0 case typed by hand and asserted SATISFATÓRIO;
+  - a v10 relatório whose LIGAÇÃO SECUNDÁRIA is changed from "DYN1" to "YYN0", asserting the new VAL CALCULADO and the staleness banner.
+- The touched durability specs on the matrix projects.
+- A `source-deltas.md` row amending Story 15.6's fixed √3.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` notes.
+
+### Story 21.2: The plate reading identifies the vector group, also from the drawn diagram
+
+**Dev model:** opus · **Effort:** medium · the transformador de força's plate structuring names the 47 codes and reads the vector diagram; the value lands canonical in LIGAÇÃO SECUNDÁRIA (select on v11, text on v9/v10); the Story 8.5 guard decides suggested or verify; fake fixtures and the paid eval set
+
+As a technician photographing a transformer nameplate,
+I want the reading to fill LIGAÇÃO SECUNDÁRIA with the right group, even when the plate only draws the diagram,
+So that the ratio of Story 21.1 is right without my typing it, and I know when to check it.
+
+**Today (verified 2026-11-05 on main `a8628a30`):** see the epic's plate reading bullet. The reading fills LIGAÇÃO SECUNDÁRIA with whatever text it finds, and nothing asks it to read the vector diagram.
+
+*(Definition of Ready, closed 2026-11-05 by Matheus: "a leitura deve identificar o diagrama tambem quando por foto".)*
+- **Starts after 21.1 merges.** It uses 21.1's group table and parser.
+- **The prompt** of the transformador de força's plate structuring lists the 47 codes. It asks for the printed code, or, when none is printed, for the group the drawn high- and low-voltage diagrams show.
+- **Where the value goes.** It is stored as the canonical code: an option on v11, the canonical text on v9/v10.
+- **Suggested or verify.** A code whose characters the OCR saw is `suggested`, as today. A group the model read from the drawing alone, with no OCR token carrying its clock digit, is always `verify` (Story 8.5's guard holds; NFR on AI honesty).
+- **The verify note** names the source: "Lido do diagrama — confira" (authored).
+
+**Acceptance Criteria:**
+
+**Given** a v11 transformer plate photo printing "Dyn1" (fake provider fixture)
+**When** the plate reading completes
+**Then** LIGAÇÃO SECUNDÁRIA is suggested as "Dyn1", accepted with the plate's other fields as today, and the ratio table computes with k = √3
+
+**Given** a plate photo that draws a Yyn0 diagram and prints no code (new fake fixture: the structuring answer carries the group and no OCR token holds it)
+**When** the reading completes
+**Then** LIGAÇÃO SECUNDÁRIA is offered as "Yyn0" in the verify state with the note "Lido do diagrama — confira", never auto-accepted; once the technician confirms, the ratio table computes with k = 1
+
+**Given** a structuring answer for LIGAÇÃO SECUNDÁRIA that the 21.1 parser does not map (e.g. "Y")
+**When** the suggestions are built
+**Then** on v11 the field is left empty with the verify state (a select takes no value outside its options); on v9/v10 the text is offered as today
+
+**Given** the paid eval script (`apps/api/src/scripts/bedrock-eval.ts`)
+**When** Matheus runs it on the real plate set with the new prompt (outside `verify`; no key in tests)
+**Then** its report lists the group read per plate, so the prompt is judged on real photos before the deploy
+
+**Definition of Done, in addition:**
+- `reading/build.test.ts` and the plate handler tests cover printed, drawn and unmapped groups.
+- New fake fixtures: a printed Dyn1 plate and a drawn Yyn0 plate, made by `make-plate-fixtures.ts`.
+- `e2e/plate-reading` (or the spec that covers the transformer plate today) runs the drawn case through to the verify state and the accepted ratio.
+- The eval run recorded in the PR before the deploy.
+- `docs/kbs/log.md`.
+
+### Story 21.3: Move a photo up or down in the REGISTRO FOTOGRÁFICO (contract 30)
+
+**Dev model:** opus · **Effort:** high · a fractional `order_key` on the photo row and its `file/{id}/order_key` op, section 7's order and the one numbering sequence following it, Subir and Descer on a "Geral" photo in the gallery; shares contract 30 with 21.1
+
+As Bruno assembling the REGISTRO FOTOGRÁFICO,
+I want to move a photo up or down,
+So that section 7 tells the work in the order it was done (arrival of the utility crew, switching off, absence of voltage, opening, cleaning, retightening, closing), whatever time the photos carry.
+
+**Today (verified 2026-11-05 on main `a8628a30`):** see the epic's photo bullets. Section 7 follows capture order, and nothing can change it. Imports without EXIF land at their file date.
+
+*(Definition of Ready, defaults taken on 2026-11-05 as the coordinator's reading, open to Matheus.)*
+- **Scope.**
+  - Section 7's "Geral" photos only. The order inside a ficha (section 9, Story 20.6) is out of scope.
+  - No drag and drop: Subir and Descer, the Sumário's own words (`copy/pt-br.ts`).
+- **The data.** A photo row gains an optional `order_key` (`ops/order-key.ts`, as for blocks and points) and `order_key` joins `FILE_FIELDS`.
+- **The order.** One op per move (AD-3). A photo never moved has no key and keeps its capture-order place. A moved photo lands exactly between the two photos it was put between. A new photo lands last. Both sides agree through the kernel only (AD-1, AD-13).
+- **Numbering.** It follows section 7's new order. Section 8's "conforme Imagem N", the audit and the gallery's numbers read `numberPhotos` as today, so they follow by themselves.
+- **No mock.** The gallery's Overflow on a "Geral" tile gains Subir and Descer, and an item that cannot move is disabled. No invented look.
+- **Two devices.** The same photo moved on two devices is resolved by key, then id (`sortByOrderKey`), as blocks are.
+
+**Acceptance Criteria:**
+
+**Given** a relatório with five "Geral" photos in capture order 1 to 5
+**When** the engineer moves photo 4 up twice in the gallery
+**Then** section 7 prints and numbers them 1, 4, 2, 3, 5 ("Imagem 1" to "Imagem 5" in that order), the preview and the DOCX/PDF agree, and every later number (section 9) is unchanged
+
+**Given** a photo imported from WhatsApp with no EXIF, which sorts last by its file date
+**When** it is moved to second place
+**Then** it stays second after a reload, after a sync to a second device, and after another photo is captured (the new one is last)
+
+**Given** a section 8 point that references "conforme Imagem 3"
+**When** the photo it links moves to place 5
+**Then** the point prints "conforme Imagem 5", because the reference follows the photo
+
+**Given** the first or the last "Geral" photo
+**When** its Overflow opens
+**Then** Subir (first) or Descer (last) is disabled, and a photo on a sheet, an item or a local shows neither
+
+**Given** two devices moving the same photo offline to different places
+**When** both sync
+**Then** both show the same order, the one `sortByOrderKey` gives, with no conflict dialog (structure merges by itself, as the Sync status note says)
+
+**Definition of Done, in addition:**
+- Kernel tests: `photos/order.ts` keyed and unkeyed mix, `numberPhotos` after moves, the op path and value limits for `file/{id}/order_key`, and the merge of two moves.
+- The api applies and validates the new field (Story 20.9's caps, Story 20.10's target rule).
+- A Playwright spec moves a photo in the gallery, generates the preview and asserts section 7's order and numbers through to the DOCX text, at 390, 768 and 1280 px.
+- The touched durability specs on the matrix projects.
+- The contract bump shared with 21.1.
+- `docs/kbs/log.md`.
 
 ## Backlog: deferred stories
 
