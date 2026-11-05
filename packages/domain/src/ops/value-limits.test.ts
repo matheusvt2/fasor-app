@@ -122,6 +122,8 @@ describe('opValueIssue: the three text kinds at the cap and one past it (Story 2
     [`sheet/${BLOCK}/nameplate/n_serie`, 'short', TEXT_CAPS.short],
     // Medium: a caption, an item note, a point's action, the next intervention's justification.
     [`file/${FILE}/caption`, 'medium', TEXT_CAPS.medium],
+    // Story 21.3 (contract 30): a photo's section 7 key is capped as every order key.
+    [`file/${FILE}/order_key`, 'medium', TEXT_CAPS.medium],
     [`sheet/${BLOCK}/checklist/limpeza/observation`, 'medium', TEXT_CAPS.medium],
     [`point/${POINT}/action`, 'medium', TEXT_CAPS.medium],
     ['relatorio/setup/next_intervention_justification', 'medium', TEXT_CAPS.medium],

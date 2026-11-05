@@ -561,6 +561,16 @@ export const photoFileRowSchema = z.object({
    * row carrying both `block_id` and `location_id` is read as its block's.
    */
   location_id: nullableId.optional(),
+  /**
+   * Story 21.3 (contract 30): the photo's place in section 7 (REGISTRO FOTOGRÁFICO), a fractional
+   * key of `ops/order-key.ts` written by one `file/{id}/order_key` put per "Subir" or "Descer".
+   * Optional: absent and null both mean the photo was never moved, so it keeps its capture-order
+   * place (`photos/order.ts` `section7Key`) and a row stored before the field existed parses to
+   * the same bytes. Only `0-9a-z`: a forged key with another character would make
+   * `orderKeyBetween` throw on every device that moves a photo next to it. Read for a "Geral"
+   * photo only; a key on a photo of a sheet, an item or a local is ignored.
+   */
+  order_key: z.string().regex(/^[0-9a-z]+$/).nullable().optional(),
 });
 
 export const otherFileKindSchema = z.enum([

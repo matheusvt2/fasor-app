@@ -82,6 +82,8 @@ export interface PhotoRowProps {
    */
   suggestion?: ReactNode;
   people?: ReactNode;
+  /** Story 21.3: the tile's Overflow (a "Geral" photo's "Subir" and "Descer"), the surface's element, after "Legendar". */
+  menu?: ReactNode;
 }
 
 /** DESIGN.md › Photo stamp: the time, and a pin glyph whose accessible text is "GPS". */
@@ -101,7 +103,7 @@ export function PhotoStamp({ text, gps, className = 'photo-stamp', id }: { text:
   );
 }
 
-export function PhotoRow({ label, caption, thumb, state, onRetry, number, stamp, onOpen, onCaption, suggestion, people }: PhotoRowProps) {
+export function PhotoRow({ label, caption, thumb, state, onRetry, number, stamp, onOpen, onCaption, suggestion, people, menu }: PhotoRowProps) {
   const src = useObjectUrl(thumb);
   // E6-Q10 (EXPERIENCE.md › Photo tile): the tile is described by its stamp, caption and pill.
   const stampId = useId();
@@ -158,6 +160,7 @@ export function PhotoRow({ label, caption, thumb, state, onRetry, number, stamp,
             {ui.photoRow.caption}
           </AriaButton>
         )}
+        {menu ?? null}
         {people ?? null}
       </div>
     </div>

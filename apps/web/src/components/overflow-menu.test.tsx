@@ -120,4 +120,27 @@ describe('OverflowMenu', () => {
     expect(popoverProps.length).toBeGreaterThan(0);
     expect(popoverProps.every((props) => props.placement === 'bottom end')).toBe(true);
   });
+  it('Story 21.3: a disabled item shows, is aria-disabled and never calls its action; the others still do', async () => {
+    const onUp = vi.fn();
+    const onDown = vi.fn();
+    render(
+      <OverflowMenu
+        name="Foto 1"
+        items={[
+          { id: 'up', label: 'Subir', onAction: onUp, disabled: true },
+          { id: 'down', label: 'Descer', onAction: onDown },
+        ]}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Foto 1' }));
+    const up = screen.getByRole('menuitem', { name: 'Subir' });
+    expect(up).toHaveAttribute('aria-disabled', 'true');
+    expect(up).toHaveAttribute('data-disabled');
+    await userEvent.click(up);
+    expect(onUp).not.toHaveBeenCalled();
+    const down = screen.getByRole('menuitem', { name: 'Descer' });
+    expect(down).not.toHaveAttribute('aria-disabled');
+    await userEvent.click(down);
+    expect(onDown).toHaveBeenCalledTimes(1);
+  });
 });

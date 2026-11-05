@@ -534,6 +534,13 @@ body {
   opacity: 0.4;
 }
 
+/* Story 21.3: a gallery photo's "Subir" on the first place and "Descer" on the last stay in the
+   Overflow, disabled; mirrors `.btn.is-disabled, .btn[aria-disabled="true"] { opacity: .4 }`
+   (components.css), the mock's only disabled look. No mock draws a disabled menu item. */
+.overflow-menu .menu-item[data-disabled] {
+  opacity: 0.4;
+}
+
 /* ---------- App bar ----------
    The mock's wordmark and avatar are `<button>`s (ink text via the `.frame button` reset);
    in the app they navigate, so they are links, and a link would otherwise take the UA's

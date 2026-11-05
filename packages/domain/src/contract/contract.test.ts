@@ -99,9 +99,9 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 29 and refuses version 28 (Stories 20.7 to 20.10: a version-28 bundle cannot parse a push answer carrying a new refusal code)', () => {
-    expect(CONTRACT_VERSION).toBe(29);
-    expect(MIN_CONTRACT_VERSION).toBe(29);
+  it('speaks version 30 and refuses version 29 (Story 21.3: a version-29 bundle cannot parse a file/{id}/order_key put)', () => {
+    expect(CONTRACT_VERSION).toBe(30);
+    expect(MIN_CONTRACT_VERSION).toBe(30);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

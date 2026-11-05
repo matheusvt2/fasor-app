@@ -146,6 +146,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'section-7-by-hand.spec.ts',
     why: 'loads the fixed-id Porto Seguro fixture and generates a revision (DOCX and PDF) through the shared queue and LibreOffice',
   },
+  // Story 21.3: photos moved with "Subir" and "Descer", read back from the issued DOCX and PDF.
+  {
+    file: 'photo-order.spec.ts',
+    why: 'loads the fixed-id Porto Seguro fixture and generates revisions (DOCX and PDF) through the shared queue and LibreOffice',
+  },
   // Story 18.4: 18.4-E2E-002 and -003 time a preview and a generation from the press to the document.
   {
     file: 'usage-events-documents.spec.ts',

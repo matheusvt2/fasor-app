@@ -67,7 +67,7 @@ export const relatorioSnapshotSchema = z.object({
 
 export type RelatorioSnapshot = z.infer<typeof relatorioSnapshotSchema>;
 
-function byOrderKeyThenId(a: { id: string; order_key?: string }, b: { id: string; order_key?: string }): number {
+function byOrderKeyThenId(a: { id: string; order_key?: string | null }, b: { id: string; order_key?: string | null }): number {
   const ka = a.order_key ?? '';
   const kb = b.order_key ?? '';
   if (ka !== kb) return ka < kb ? -1 : 1;

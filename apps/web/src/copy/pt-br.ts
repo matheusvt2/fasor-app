@@ -986,6 +986,10 @@ export const copy = {
     peopleInPhoto: 'Pessoas na foto',
     // authored: the tile's suggestion group name.
     suggestedCaption: 'Legenda sugerida',
+    // Story 21.3: a "Geral" tile's Overflow, the Sumário's words (`sumario.moveUp`/`moveDown`,
+    // EXPERIENCE.md › Block card); the announcement after a move is the kernel's `photoMovedText`.
+    moveUp: 'Subir',
+    moveDown: 'Descer',
     // authored (Story 17.1, listed for Bruno): the line under the gallery camera.
     // authored (fx17r, R18, open for Bruno): with section 7 absent the Geral photos stay in the gallery (vocabulary of gallery.note and photoRemoveDescription).
     geralNote: (m: Mention) =>
