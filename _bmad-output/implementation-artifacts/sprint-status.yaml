@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 11-04-2026 22:20
+last_updated: 11-04-2026 23:15
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -1728,7 +1728,7 @@ action_items:
       skipped the PR #239 over-cap count in production; ledger rows for the R-5 extra
       query and the R-12 meta caps."
     owner: "coordinator; Matheus for the production count"
-    status: open
+    status: done  # 2026-11-04: (1) epic-20 done and (2) the two stale rows closed in #249, (4) the three ledger rows added in #249; (3) the PR #239 over-cap count ran in production after the e0b47ad4 deploy, 0 values over cap, recorded in the e20s row
     ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md"
   - id: "epic-20-retro-item-166-e20-a4-process-lessons"
     epic: 20
@@ -1739,5 +1739,5 @@ action_items:
       records every ledger row marked before the deploy (P-3); a budget or quota rule
       ships with restore and shrink tests (R-1)."
     owner: "coordinator"
-    status: open
+    status: done  # 2026-11-04: four dated lines in epic-batch-orchestrator.md section 9 (P-1 two-pass integrated review, P-2 verification-gap read in the PR body, P-3 before-the-deploy rows in the deploy record, R-1 restore and shrink tests)
     ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md"

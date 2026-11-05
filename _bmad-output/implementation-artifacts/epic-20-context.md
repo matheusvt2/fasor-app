@@ -175,3 +175,12 @@ The server lane goes first because it closes the two High findings soonest and s
 - PR #244 (`10e87157`): seed v1 to v5 gain VÁCUO/ÓLEO on the disjuntor and ÓLEO on the transformador de força (`seed/legacy-options.ts`); the empty REGISTRO FOTOGRÁFICO names the tests section; `enable_night_schedule` false. Story gate: lint, static, test:unit 5063 passed, test:api 826 passed and 4 skipped, touched e2e 11 of 11.
 - Terraform applied from main `10e87157` at about 12:30 (America/Sao_Paulo): 0 added, 0 changed, 4 destroyed (the two night schedules, their role and policy); `scheduler list-schedules` lists none. Production runs 24 h.
 - Deploy gate, `test:e2e:full` on `10e87157` under the host lock: parallel 403 tests, 399 passed, 4 skipped, 0 failed, 0 flaky (1037 s); serial 167 of 167 passed (1318 s); total 566 passed, 4 skipped, 0 failed, 2360 s wall. Deploy of the next main commit (this record on top of `10e87157`) follows.
+
+## E20-A1 wave gate and deploy (2026-11-04)
+
+- Wave gate on main `e0b47ad4` (PR #250, the E20-A1 fix batch), under the host lock, `LOCKED_AFTER` 0 s (the lock was free). Load `{ 3.27 2.55 2.15 }` at the start (21:19, America/Sao_Paulo); the end load was not taken (gap against § 8, E18-A3); the main stack only, no batch stack up.
+  - `test:e2e:full`: parallel 423 tests, 419 passed, 4 skipped (926.7 s); serial 151 of 151 (1135.3 s); total 570 passed, 4 skipped, 0 failed, 0 flaky, 2068 s wall.
+  - `test:e2e:matrix`: parallel 108 tests, 95 passed, 13 skipped (239.7 s); serial 42 tests, 41 passed, 1 skipped (234.8 s); total 136 passed, 14 skipped, 0 failed, 0 flaky, 478 s wall.
+- Deploy of `e0b47ad4` with `infra/bin/deploy` (no lockf wrapper), on Matheus's word ("pode seguir e deploiar"): build, push, migrate and roll green; production smoke 8 of 8 (plate reading 12 fields, PDF preview 447 009 bytes, Revisão 1, DOCX 104 109 and PDF 380 699 bytes); telemetry 7 `session_start` with `app_version` e0b47ad4 since 01:02:45Z, 0 `ux_event_sink_failed`; test company cleaned up.
+- "Before the deploy" ledger rows (E20-A4, P-3): the e20s over-cap count was the one open; it ran after the deploy (E20-A3, 0 values over cap, `deferred-work.md` e20s row).
+- PR #251 marked `epic-20-retro-item-163-e20-a1-fix-batch` done.

@@ -347,3 +347,25 @@ Each names its source in `epic-18-retro-2026-10-30.md`.
   and where the rows went, or "verification gap: none found".
 - (2026-11-03, the `cf468e3d` deploy) `infra/bin/deploy` takes the host lock itself around the production smoke;
   start it with nohup and no `lockf` wrapper, or the smoke fails at once with "already locked".
+
+## 9. Rules carried from the Epic 20 retrospective (2026-11-04, E20-A4)
+
+Each names its source in `epic-20-retro-2026-11-04.md`.
+
+- (E20-A4, P-1, 2026-11-04) The integrated review is two passes. The first is the behavior pass as before. The
+  second is a code read, with its own brief, over the union of every batch's "patched, not re-reviewed" list and of
+  the fix batch's items added after its own review, with the verification-gap and edge-case lenses; the review report
+  records the second pass and its count, or "second pass: none found". Precedent: Epic 20's batches listed their
+  patches for the integrated review, which ran only a behavior pass, and the retrospective found R-1 to R-12 in that
+  code.
+- (E20-A4, P-2, 2026-11-04; extends E19-A4 in § 8) A batch with no spec and no `sprint-status.yaml` line records
+  its verification-gap read in the PR body: the read's count and where the rows went, or "verification gap: none
+  found".
+- (E20-A4, P-3, 2026-11-04; extends E18-A6 in § 8) Deploy checklist: before `infra/bin/deploy`, list every open
+  `deferred-work.md` row whose state says "before the deploy" (`grep -n "before the deploy"`), and record each one's
+  result (run, its outcome, or skipped and why) in the epic context's deploy record. Precedent: the e20s over-cap
+  count of PR #239 was meant to run before the d6e8eea1 deploy and had no record of a run; it ran on 2026-11-04 after
+  the e0b47ad4 deploy (0 values over cap).
+- (E20-A4, R-1, 2026-11-04) A budget or quota rule ships with tests for its restore path (a tombstone put back) and
+  its shrink path (an edit that makes a value smaller), beside the over-the-limit case. Precedent: the 4 MiB
+  relatório budget of Epic 20 refused a shrink and let a restore through, fixed in E20-A1.
