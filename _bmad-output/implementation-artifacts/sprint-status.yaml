@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 11-04-2026 17:58
+last_updated: 11-04-2026 22:20
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -1708,7 +1708,7 @@ action_items:
       module cycle, RangeError log, orphaned copy, errors.ts docs (R-12, R-8); R-6
       test after E20-A2."
     owner: "coordinator (batch, opus high)"
-    status: open
+    status: done  # 2026-11-04: merged #250 (e0b47ad4), wave gate full 570/574 and matrix 136/150 with 0 failed, deployed e0b47ad4 with smoke 8/8; the R-6 test waits on E20-A2 and goes with that decision
     ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md"
   - id: "epic-20-retro-item-164-e20-a2-matheus-decisions"
     epic: 20
