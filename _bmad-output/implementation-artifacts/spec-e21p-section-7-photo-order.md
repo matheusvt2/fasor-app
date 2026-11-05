@@ -2,7 +2,7 @@
 title: 'e21p: move a photo up or down in the REGISTRO FOTOGRAFICO (Story 21.3)'
 type: 'feature'
 created: '2026-11-05'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'f149fedd7534a7d53812bcedaa4d316a451b936c'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-21-context.md'
 warnings: ['batched']
 batched_reason: 'Batch e21p carries Story 21.3 alone (epic-21-context.md batch plan); the batched warning marks the epic delivery, run in parallel with e21r (21.1, 21.2), which owns the bump to contract 30.'
-deferred: []
+deferred:
+  - summary: >-
+      "Subir" on a photo directly below a run of equal effective keys (two devices minted one key) lands after the run again, so the photo does not move while the announcement and focus check read the landing index.
+    evidence: |-
+      `orderKeyForMove` (ops/order-key.ts, pre-existing, shared with blocks and points) lands a row after a whole run of equal keys; `geralPhotoMoveKey` inherits it, and gallery-surface.tsx computes the announcement from `moveLandingIndex`. Reachable only after two devices minted the same key between the same neighbours. Settle by a kernel test with an equal-key run above the moved photo and a fix in the shared helper for all three callers.
+    location: >-
+      packages/domain/src/ops/order-key.ts orderKeyForMove; apps/web/src/surfaces/photos/gallery-surface.tsx moveTile
+    severity: low
 ---
 
 <intent-contract>
@@ -120,6 +127,19 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-05 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer ran; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 8 findings — high 0, medium 2, low 5, false 1, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` Point editor's photo picker keeps capture order while its "Imagem N" labels follow the moved numbering (point-editor.tsx `offered = tiles`) — picker ordered with `galleryTileOrder`; 21.3-E2E-004 asserts the picker's label order after the moves.
+  - `[low]` `[defer]` Subir below an equal-key run does not move the photo (shared `orderKeyForMove` behaviour, pre-existing) — deferred to frontmatter `deferred`.
+  - `[low]` `[defer]` Announcement and focus check use `moveLandingIndex`, wrong in the same equal-key case — same root cause as above, deferred with it.
+  - `[low]` `[reject]` Two consecutive moves with identical announcement text do not re-announce — the points list has the same pattern; rare (two different photos landing on the same place in a row) and the fix adds state juggling.
+  - `[false]` `[reject]` A disabled toggle item could fire through its section selection — no caller passes `disabled` with `checked`; the only disabled items are the gallery's plain Subir/Descer.
+  - `[low]` `[reject]` A keyed photo filed to a sheet and set back to Geral returns at its moved place — this is the spec's recorded open reading ("A key survives a photo leaving section 7"), listed in the PR for Matheus.
+  - `[low]` `[reject]` Pre-1970 instants clamp to 0 and can diverge from `comparePhotos` — documented in `captureOrderKey`; an EXIF reset reads 1970-01-01 or later, not before.
+  - `[medium]` `[patch]` The `order_key` regex accepts keys ending in `0`; a forged "0" makes `orderKeyBetween(null, '0')` throw on every move to first place — regex now requires a last character in `1-9a-z` (never minted otherwise), kernel and api tests added.
 
 ## Design Notes
 

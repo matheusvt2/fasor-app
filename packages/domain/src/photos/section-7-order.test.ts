@@ -93,7 +93,6 @@ describe('21.3-UNIT-001 captureOrderKey equals capture order', () => {
     const key = captureOrderKey({ captured_at: '2026-11-05T10:00:00.000Z', local_seq: 7 });
     expect(key).toMatch(/^t[0-9a-z]{17}$/);
     expect(key.endsWith('00000007')).toBe(true);
-    expect(photoFileRowSchema.shape.order_key.safeParse(key).success).toBe(true);
   });
 
   it('an unparsable instant sorts last, as comparePhotos puts it', () => {
@@ -246,6 +245,22 @@ describe('21.3-UNIT-003 the row schema and the op', () => {
     expect(photoFileRowSchema.safeParse(row({ order_key: null })).success).toBe(true);
     expect(photoFileRowSchema.safeParse(row({ order_key: 't0mh2k5' })).success).toBe(true);
     for (const bad of ['', 'ABC', 'a-b', 'a b', 'é', 5, true]) expect(photoFileRowSchema.safeParse(row({ order_key: bad })).success, String(bad)).toBe(false);
+  });
+
+  it('a key ending in `0` is refused ("0", "00", "a0": no key fits below "0"), and every key a move mints passes', () => {
+    for (const bad of ['0', '00', 'a0', 'tz0']) expect(photoFileRowSchema.safeParse(row({ order_key: bad })).success, bad).toBe(false);
+    // Moves to first, to last, into the middle, next to a run of equal keys and back: every minted key is storable.
+    const minted: string[] = [];
+    let files: Photo[] = [...FIVE, photo(21, 50, { order_key: 'tz' }), photo(22, 40, { order_key: 'tz' })];
+    const plan: [number, number][] = [[5, 0], [1, 6], [3, 2], [4, 5], [2, 0], [21, 0], [5, 6], [3, 3]];
+    for (const [n, to] of plan) {
+      const key = geralPhotoMoveKey(geralPhotos(snap(files)), id(n), to);
+      if (key === null) continue;
+      minted.push(key);
+      files = files.map((f) => (f.id === id(n) ? { ...f, order_key: key } : f));
+    }
+    expect(minted.length).toBeGreaterThan(5);
+    for (const key of minted) expect(photoFileRowSchema.safeParse(row({ order_key: key })).success, key).toBe(true);
   });
 
   it('applyOp writes a `file/{id}/order_key` put, and refuses a number or a key outside the alphabet', () => {

@@ -2946,3 +2946,9 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/spec-e20a1-retro-fixes.md`
   summary: `POST /api/photos/{id}/reread` (`apps/api/src/http/reading.ts`) and `sendRetargetedReading` (`apps/api/src/sync/routes.ts`) check only the photo's own tombstone, not `fileWithdrawn`, so a photo of a removed relatório can still spend a paid reading.
   evidence: review pass 1, triage #18 (VG-6); `reading.ts:54-57` repeats the old inline check; no test rereads a photo of a removed relatório.
+
+## Deferred from: Epic 21 batch e21p (2026-11-05)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e21p-section-7-photo-order.md`
+  summary: "Subir" on a photo (or block, or point) directly below a run of equal order keys, which two devices can mint apart, lands after the run again, so nothing moves, while the gallery's announcement says it moved (it reads `moveLandingIndex`).
+  evidence: review pass 1 (edge-case hunter); `orderKeyForMove` in `packages/domain/src/ops/order-key.ts` is pre-existing and shared by blocks, points and now photos. Owner: a later fix batch; settle it with a kernel test of an equal-key run above the moved row.

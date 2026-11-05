@@ -22,7 +22,8 @@ import { syncNow } from './support/sync.ts';
  * "Descer" are disabled and the sheet photo's tile has no Overflow. The issued DOCX and PDF print
  * section 7 in the moved order as "Imagem 1" to "Imagem 5", and the sheet photo keeps its
  * section 9 number. At 390, 768 and 1280 px; a fourth test checks that a section 8 point citing
- * "Imagem 3" prints "conforme Imagem 5" once that photo moved to place 5. The fixture's ids are
+ * "Imagem 3" prints "conforme Imagem 5" once that photo moved to place 5, and the point editor's
+ * "Escolher fotos" offers the photos in the gallery's order. The fixture's ids are
  * fixed and revisions are generated, so this spec runs in the serial group (`e2e/support/groups.ts`).
  */
 
@@ -306,4 +307,20 @@ test('@p0 21.3-E2E-004 a section 8 point citing "Imagem 3" prints "conforme Imag
     'Imagem 4: Captura 5.',
     'Imagem 5: Captura 3.',
   ]);
+
+  // The point editor's "Escolher fotos" offers the photos in the gallery's order: the sheet photo
+  // (captured first, Imagem 6) in its capture slot, the Geral ones in section 7's moved order.
+  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/pontos`);
+  await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'Criar', exact: true }).click();
+  const editor = page.getByRole('article', { name: 'Novo ponto de atenção em edição' });
+  await expect(editor).toBeVisible();
+  await editor.getByRole('button', { name: 'Escolher fotos' }).click();
+  const picker = page.getByRole('dialog', { name: 'Escolher fotos' });
+  const offered = picker.getByRole('group', { name: 'Fotos do relatório' }).getByRole('button');
+  const expected = [/^Imagem 6[,]/, /^Imagem 1, Captura 1, referenciar$/, /^Imagem 2, Captura 2, referenciar$/, /^Imagem 3, Captura 4, referenciar$/, /^Imagem 4, Captura 5, referenciar$/, /^Imagem 5, Captura 3, referenciar$/];
+  await expect(offered).toHaveCount(expected.length);
+  for (const [i, name] of expected.entries()) await expect(offered.nth(i)).toHaveAccessibleName(name);
+  await picker.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(picker).toHaveCount(0);
 });

@@ -265,7 +265,7 @@
  * retried forever), so `MIN_CONTRACT_VERSION` goes to 29 too.
  *
  * 30 (2026-11-05, Story 21.3, batch e21p): a photo row gains an optional `order_key`
- * (`photoFileRowSchema`, `0-9a-z` only, absent and null both meaning never moved), and
+ * (`photoFileRowSchema`, `0-9a-z` only and never ending in `0`, absent and null both meaning never moved), and
  * `FILE_FIELDS` gains `order_key`, so `file/{id}/order_key` is a new put path: one put per
  * "Subir" or "Descer" in the gallery's Overflow places a "Geral" photo in section 7 (the
  * REGISTRO FOTOGRÁFICO), and the one numbering sequence follows (`photos/order.ts`

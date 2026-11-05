@@ -90,19 +90,22 @@ describe('21.3-API-001 a photo order key through the sync route', () => {
     }
   });
 
-  it('a key over the cap, of another type or outside 0-9a-z is refused per op; the rest of the push applies', async () => {
+  it('a key over the cap, of another type, outside 0-9a-z or ending in 0 is refused per op; the rest of the push applies', async () => {
     const { relatorioId } = await h.seedRelatorio(companyA);
     const photo = newId();
     expect((await h.push(companyA, [photoCreate(companyA, relatorioId, photo, 1)])).rejected).toEqual([]);
     const over = orderKeyPut(relatorioId, photo, 'a'.repeat(TEXT_CAPS.medium + 1));
     const number = orderKeyPut(relatorioId, photo, 42);
     const alphabet = orderKeyPut(relatorioId, photo, 'Ab-1');
+    // A key ending in `0` leaves no key below it ("0"): `orderKeyBetween` would throw on a move to first.
+    const zero = orderKeyPut(relatorioId, photo, '0');
     const good = orderKeyPut(relatorioId, photo, 'e');
-    const result = await h.push(companyA, [over, number, alphabet, good]);
+    const result = await h.push(companyA, [over, number, alphabet, zero, good]);
     expect(result.rejected).toEqual([
       { op_id: over.op_id, code: 'op_value_invalid' },
       { op_id: number.op_id, code: 'op_invalid' },
       { op_id: alphabet.op_id, code: 'op_invalid' },
+      { op_id: zero.op_id, code: 'op_invalid' },
     ]);
     expect(result.applied.map((a) => a.op_id)).toEqual([good.op_id]);
     expect(await storedKey(photo)).toBe('e');
