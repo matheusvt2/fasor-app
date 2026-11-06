@@ -15,8 +15,9 @@ import { syncNow } from './support/sync.ts';
  * through the sync, and a photo added afterwards lands last. Two devices moving the same photo
  * offline converge by the fold (the later applied put wins on both), with no conflict dialog.
  * Ana is this worker's Empresa A user and Eduardo her colleague, each in a browser context of
- * their own (their own IndexedDB); the photos are imports, so the spec runs on every matrix
- * project (no camera on WebKit). "Sincronizar agora" drives every sync (never the 60 s timer).
+ * their own (their own IndexedDB); the photos are imports. Playwright's WebKit build cannot
+ * store a photo Blob in IndexedDB (`camera-app.durability.spec.ts`), so the WebKit project skips
+ * both tests; desktop and Android Chrome run them. "Sincronizar agora" drives every sync (never the 60 s timer).
  */
 
 interface Device {
@@ -140,7 +141,8 @@ async function eduardoOn(browser: Browser, seed: WorkerSeed, relatorioId: string
   return eduardo;
 }
 
-test('@p0 21.3-E2E-005 an EXIF-less import moved to second stays second after a reload, after a sync to a second device and after another photo is added (the new one last)', async ({ page, context, browser, seed }) => {
+test('@p0 21.3-E2E-005 an EXIF-less import moved to second stays second after a reload, after a sync to a second device and after another photo is added (the new one last)', async ({ page, context, browser, seed, browserName }) => {
+  test.skip(browserName === 'webkit', 'Playwright WebKit cannot store a photo Blob in IndexedDB');
   test.setTimeout(300_000);
   const { ana, relatorioId, dated } = await anaWithThreePhotos(page, context, seed);
 
@@ -183,7 +185,8 @@ test('@p0 21.3-E2E-005 an EXIF-less import moved to second stays second after a 
   }
 });
 
-test('@p0 21.3-E2E-006 two devices move the same photo offline to different places; after "Sincronizar agora" on both they show the same order, with no conflict dialog', async ({ page, context, browser, seed }) => {
+test('@p0 21.3-E2E-006 two devices move the same photo offline to different places; after "Sincronizar agora" on both they show the same order, with no conflict dialog', async ({ page, context, browser, seed, browserName }) => {
+  test.skip(browserName === 'webkit', 'Playwright WebKit cannot store a photo Blob in IndexedDB');
   test.setTimeout(300_000);
   const { ana, relatorioId, dated } = await anaWithThreePhotos(page, context, seed);
   await syncNow(page);
