@@ -184,6 +184,9 @@
 [data-route="/home"] .home-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-4); }
 [data-route="/home"] .home-head h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
 .frame-phone [data-route="/home"] .home-head .btn { width: 100%; }
+/* 2026-11-03, Story 20.2: the search field takes the Cadastros toolbar basis; a full row on a phone. */
+[data-route="/home"] .home-search { flex: 1 1 280px; min-width: 0; }
+.frame-phone [data-route="/home"] .home-search { flex-basis: 100%; order: 3; }
 [data-route="/home"] .relatorio-cards { display: flex; flex-direction: column; gap: var(--sp-3); }
 [data-route="/home"] .relatorio-card { cursor: pointer; }
 [data-route="/home"] .relatorio-card .card-chev { color: var(--ink-secondary); flex: none; margin: -6px -6px 0 0; }
@@ -205,10 +208,26 @@
       </div>
     </section>
 
+    <!-- 2026-10-30, Epic 19 Story 19.1 (Matheus: "Fazer: B"): the Atalhos section moved above the Relatórios list; same markup. -->
+    <!-- Shortcuts -->
+    <section class="section" aria-labelledby="home-h-atalhos">
+      <h2 id="home-h-atalhos" class="visually-hidden">Atalhos</h2>
+      <div class="shortcut-row">
+        <a class="shortcut-card" href="#/templates"><svg class="ico" aria-hidden="true"><use href="#i-layers"/></svg><span>Templates<span class="shortcut-sub">2 templates · padrão FO.SERV-03</span></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
+        <a class="shortcut-card" href="#/cadastros"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span>Cadastros<span class="shortcut-sub">Clientes · Instrumentos · Fabricantes · Classes de tensão</span></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
+      </div>
+    </section>
+
     <!-- Relatórios -->
     <section class="section" aria-labelledby="home-h-relatórios">
       <div class="home-head">
         <h2 id="home-h-relatórios">Relatórios</h2>
+        <!-- 2026-11-03, Story 20.2: the search field in the "Relatórios" head, from the Cadastros toolbar
+             pattern (80-cadastros.html); it matches client or obra, accent-, case- and spacing-free. -->
+        <div class="field home-search">
+          <span class="field-label visually-hidden">Buscar relatório</span>
+          <div class="input"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span class="placeholder">Cliente ou obra</span></div>
+        </div>
         <button class="btn btn-primary" data-go="#/project/porto-seguro"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo relatório</button>
       </div>
 
@@ -266,16 +285,8 @@
         </a>
 
       </div>
-      <p class="section-note" style="margin-top: var(--sp-3)">Mostrando 4 de 8 relatórios · <button class="btn btn-text" style="padding:0" data-toast="Lista completa — não prototipada">Ver todos</button></p>
-    </section>
-
-    <!-- Shortcuts -->
-    <section class="section" aria-labelledby="home-h-atalhos">
-      <h2 id="home-h-atalhos" class="visually-hidden">Atalhos</h2>
-      <div class="shortcut-row">
-        <a class="shortcut-card" href="#/templates"><svg class="ico" aria-hidden="true"><use href="#i-layers"/></svg><span>Templates<span class="shortcut-sub">2 templates · padrão FO.SERV-03</span></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
-        <a class="shortcut-card" href="#/cadastros"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span>Cadastros<span class="shortcut-sub">Clientes · Instrumentos · Fabricantes · Classes de tensão</span></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
-      </div>
+      <!-- 2026-10-30, Story 19.2 (Matheus): the note "Mostrando 4 de 8 relatórios · Ver todos" became the note plus the page-size Filter chips 10 · 20 · 50 · 100 (first pressed, kept on the device). The list opens on the active statuses, Emitido behind its tile, most recent first; note and chips show only when the selection holds more than 10. -->
+      <div class="home-list-note" style="display:flex; flex-wrap:wrap; align-items:center; gap: var(--sp-2) var(--sp-3); margin-top: var(--sp-3)"><p class="section-note" style="margin-bottom:0">Mostrando 10 de 37 relatórios</p><div class="chip-row" role="group" aria-label="Relatórios por página"><button class="chip" aria-pressed="true">10</button><button class="chip" aria-pressed="false">20</button><button class="chip" aria-pressed="false">50</button><button class="chip" aria-pressed="false">100</button></div></div>
     </section>
 
   </div><!-- /content -->
@@ -1097,6 +1108,15 @@
 [data-route="/templates"] .tpl-row.is-archived .rr-primary { color: var(--ink-secondary); }
 [data-route="/templates"] .tpl-group { margin-top: var(--sp-6); }
 .frame-phone [data-route="/templates"] .section-head .btn-primary { width: 100%; }
+/* 2026-11-06, Story 14.7 DoR (Epic 22 wave C): "Tipos de equipamento". Governs: EXPERIENCE.md § IA › Templates and Tipo de equipamento;
+   spine AD-21 note of 2026-11-06 (registry, palettes, renaming only through "Duplicar"). Status pill: the existing component; the two
+   type states reuse existing tokens (Publicado = the Emitido color, conforme; Aposentado = the Rascunho color plus the archived row's ink),
+   always with the word, never color alone. */
+[data-route="/templates"] .status-pill[data-status="publicado"] { color: var(--conforme); }
+[data-route="/templates"] .status-pill[data-status="aposentado"] { color: var(--ink-secondary); }
+[data-route="/templates"] .type-row .rr-primary { display: inline-flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+[data-route="/templates"] .type-row .rr-lib { cursor: default; }
+[data-route="/templates"] .type-sub { margin-top: var(--sp-5); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); margin-bottom: var(--sp-2); }
 </style>
 <section class="screen" data-route="/templates" data-title="Templates" data-shell="app" data-rail="false">
   <div class="tpl-content">
@@ -1154,7 +1174,97 @@
       </ul>
     </section>
 
+    <!-- 2026-11-06, Story 14.7 DoR (Epic 22 wave C, Bruno's "cadastrar equipamentos e editar informações padrões"): the
+         "Tipos de equipamento" list. Library types are read-only with "Duplicar" only; company types carry Rascunho · Publicado ·
+         Aposentado and their version. Reached only from Templates, never from a field surface (UX-DR70). Copy authored. -->
+    <section class="section tpl-group" aria-labelledby="tpl-h-tipos" id="tpl-tipos">
+      <div class="section-head"><h2 id="tpl-h-tipos">Tipos de equipamento</h2></div>
+      <p class="section-note">Um tipo de equipamento define a ficha: placa, verificações, ensaios e critérios. Os tipos da biblioteca vêm com o PRODUTO e não mudam; para ajustar um, duplique e edite a cópia. Publicar congela uma versão: relatórios já criados mantêm a versão que usaram.</p>
+
+      <p class="type-sub" id="tpl-h-tipos-empresa">Da empresa (3)</p>
+      <ul class="registry-list" aria-labelledby="tpl-h-tipos-empresa">
+        <li class="registry-row tpl-row type-row">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-layers"/></svg>
+          <button class="rr-text" data-go="#/templates/tipos/no-break-comando" aria-label="Editar tipo No-break de comando">
+            <span class="rr-primary">No-break de comando <span class="status-pill" data-status="publicado">Publicado · versão 2</span></span>
+            <span class="rr-secondary">Rascunho da versão 3 aberto · TAG NB · duplicado de Chave de transferência automática · editado por Bruno · 05/11 16:40 · usado em 2 relatórios</span>
+          </button>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de No-break de comando"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+          <div class="rr-actions">
+            <button class="btn btn-text" data-go="#/templates/tipos/no-break-comando"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>Editar</button>
+            <button class="btn btn-text" data-go="#/templates/tipos/no-break-comando" data-toast="Rascunho criado: No-break de comando (cópia)"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button>
+            <button class="btn btn-text" data-open="#tpl-dlg-aposentar"><svg class="ico" aria-hidden="true"><use href="#i-archive"/></svg>Aposentar</button>
+          </div>
+        </li>
+        <li class="registry-row tpl-row type-row">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-layers"/></svg>
+          <button class="rr-text" data-go="#/templates/tipos/no-break-comando" aria-label="Editar tipo Chave ASCO 13,8 kV">
+            <span class="rr-primary">Chave ASCO 13,8 kV <span class="status-pill" data-status="rascunho">Rascunho</span></span>
+            <span class="rr-secondary">Nunca publicado · 2 avisos para publicar · duplicado de Chave de transferência automática · editado por Eduardo · 06/11 09:12</span>
+          </button>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de Chave ASCO 13,8 kV"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+          <div class="rr-actions">
+            <button class="btn btn-text" data-go="#/templates/tipos/no-break-comando"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>Editar</button>
+            <button class="btn btn-text" data-toast="Rascunho descartado" data-toast-action="Desfazer"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg>Descartar rascunho</button>
+          </div>
+        </li>
+        <li class="registry-row tpl-row type-row is-archived">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-layers"/></svg>
+          <button class="rr-text" data-go="#/templates/tipos/no-break-comando" aria-label="Ver tipo Fonte capacitiva">
+            <span class="rr-primary">Fonte capacitiva <span class="status-pill" data-status="aposentado">Aposentado · versão 1</span></span>
+            <span class="rr-secondary">Aposentado por Bruno · 30/10 · fora das paletas · o relatório e o template que o usam continuam funcionando</span>
+          </button>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de Fonte capacitiva"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+          <div class="rr-actions">
+            <button class="btn btn-text" data-toast="Tipo reativado · volta para as paletas">Reativar</button>
+            <button class="btn btn-text" data-go="#/templates/tipos/no-break-comando" data-toast="Rascunho criado: Fonte capacitiva (cópia)"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button>
+          </div>
+        </li>
+      </ul>
+
+      <p class="type-sub" id="tpl-h-tipos-lib">Da biblioteca (10) · somente leitura</p>
+      <ul class="registry-list" aria-labelledby="tpl-h-tipos-lib">
+        <li class="registry-row tpl-row type-row">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-book"/></svg>
+          <div class="rr-text rr-lib"><span class="rr-primary">Chave seccionadora</span><span class="rr-secondary">Biblioteca · TAG SEC · manual, epóxi ou a seco</span></div>
+          <div class="rr-actions"><button class="btn btn-text" data-go="#/templates/tipos/no-break-comando" data-toast="Rascunho criado: Chave seccionadora (cópia)"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button></div>
+        </li>
+        <li class="registry-row tpl-row type-row">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-book"/></svg>
+          <div class="rr-text rr-lib"><span class="rr-primary">Disjuntor MT</span><span class="rr-secondary">Biblioteca · TAG DJ</span></div>
+          <div class="rr-actions"><button class="btn btn-text" data-go="#/templates/tipos/no-break-comando" data-toast="Rascunho criado: Disjuntor MT (cópia)"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button></div>
+        </li>
+        <li class="registry-row tpl-row type-row">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-book"/></svg>
+          <div class="rr-text rr-lib"><span class="rr-primary">Transformador de força</span><span class="rr-secondary">Biblioteca · TAG TR</span></div>
+          <div class="rr-actions"><button class="btn btn-text" data-go="#/templates/tipos/no-break-comando" data-toast="Rascunho criado: Transformador de força (cópia)"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button></div>
+        </li>
+        <li class="registry-row tpl-row type-row">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-book"/></svg>
+          <div class="rr-text rr-lib"><span class="rr-primary">Chave de transferência automática</span><span class="rr-secondary">Biblioteca · TAG CTA · Outros equipamentos</span></div>
+          <div class="rr-actions"><button class="btn btn-text" data-go="#/templates/tipos/no-break-comando" data-toast="Rascunho criado: Chave de transferência automática (cópia)"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button></div>
+        </li>
+        <li class="registry-row tpl-row type-row">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-book"/></svg>
+          <div class="rr-text rr-lib"><span class="rr-primary">Mais 6 tipos da biblioteca</span><span class="rr-secondary">Cabos de entrada, Cabos de saída, Para-raios, TP, TC, Quadro elétrico (QGBT/QD) · cada um com "Duplicar"</span></div>
+        </li>
+      </ul>
+      <p class="section-note" style="margin-top: var(--sp-3)">Para renomear um tipo da biblioteca, duplique: a cópia leva o nome novo. O tipo da biblioteca continua nas paletas.</p>
+    </section>
+
   </div><!-- /tpl-content -->
+
+  <!-- 2026-11-06, Story 14.7: "Aposentar" asks for confirmation (copy authored). -->
+  <div class="dialog-scrim" id="tpl-dlg-aposentar" hidden>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="tpl-dlg-aposentar-t">
+      <p class="dialog-title" id="tpl-dlg-aposentar-t">Aposentar No-break de comando?</p>
+      <p>O tipo sai das paletas do template e da ficha. Os 2 relatórios e o template que já o usam continuam funcionando e imprimindo como estão. O rascunho da versão 3 fica guardado.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Tipo aposentado · fora das paletas" data-toast-action="Desfazer">Aposentar</button>
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- ===================== screens/42-template-composer.html ===================== -->
@@ -1889,6 +1999,304 @@
     <div class="bar-buttons">
       <button class="btn btn-secondary" data-go="#/templates">Cancelar</button>
       <button class="btn btn-primary" data-go="#/templates" data-toast="Template salvo">Salvar template</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== screens/43-tipo-equipamento.html ===================== -->
+<style data-screen="tipo-equipamento">
+/* 2026-11-06, Story 14.7 DoR (Epic 22 wave C; Bruno's "cadastrar equipamentos e editar informações padrões"). New screen: the editor of a
+   company equipment type, opened from Templates › "Tipos de equipamento" (Editar, Duplicar). Every visual is an existing components.css
+   block (Tabs, Field, Combobox, Chip, Segmented, Registry row, Data table, Toggle, Checklist row, Tri-state, Measurement table, Banner,
+   Status pill, Form dialog with Option rows, Sticky action bar); this style block is layout only. Copy authored.
+   Governs: EXPERIENCE.md § IA › Tipo de equipamento (2026-11-06); § Component Patterns › Registry row, Combobox, Data table;
+   spine AD-21 note of 2026-11-06 (definition shape, criteria with source, versions, validation), AD-3 note of 2026-11-06 (autosave as ops). */
+[data-route="/templates/tipos/no-break-comando"] .tipo-head { padding: var(--sp-5) var(--gutter-tablet) var(--sp-3); background: var(--surface-raised); display: flex; flex-direction: column; gap: var(--sp-2); }
+.frame-desktop [data-route="/templates/tipos/no-break-comando"] .tipo-head { padding: var(--sp-5) var(--gutter-desktop) var(--sp-3); }
+.frame-phone [data-route="/templates/tipos/no-break-comando"] .tipo-head { padding: var(--sp-4) var(--gutter-phone) var(--sp-3); }
+[data-route="/templates/tipos/no-break-comando"] .tipo-title { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+[data-route="/templates/tipos/no-break-comando"] .tipo-title h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+[data-route="/templates/tipos/no-break-comando"] .tipo-meta { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/templates/tipos/no-break-comando"] .status-pill[data-status="publicado"] { color: var(--conforme); }
+[data-route="/templates/tipos/no-break-comando"] .tipo-content { width: 100%; padding: var(--sp-5) var(--gutter-tablet); max-width: calc(var(--content-max) + 2 * var(--gutter-desktop)); margin: 0 auto; flex: 1; display: flex; flex-direction: column; gap: var(--sp-5); }
+.frame-desktop [data-route="/templates/tipos/no-break-comando"] .tipo-content { padding: var(--sp-6) var(--gutter-desktop); }
+.frame-phone [data-route="/templates/tipos/no-break-comando"] .tipo-content { padding: var(--sp-4) var(--gutter-phone); }
+[data-route="/templates/tipos/no-break-comando"] .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+[data-route="/templates/tipos/no-break-comando"] .field-grid .span-2 { grid-column: 1 / -1; }
+.frame-phone [data-route="/templates/tipos/no-break-comando"] .field-grid { grid-template-columns: 1fr; }
+.frame-phone [data-route="/templates/tipos/no-break-comando"] .field-grid .span-2 { grid-column: auto; }
+[data-route="/templates/tipos/no-break-comando"] .registry-row { padding-left: var(--sp-3); padding-right: var(--sp-2); }
+[data-route="/templates/tipos/no-break-comando"] .registry-row .rr-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; }
+[data-route="/templates/tipos/no-break-comando"] .def-edit { padding: var(--sp-4) var(--sp-3); background: var(--focus-fill); border-bottom: 1px solid var(--border-hairline); display: flex; flex-direction: column; gap: var(--sp-4); }
+[data-route="/templates/tipos/no-break-comando"] .def-add { margin-top: var(--sp-2); }
+/* The row open below (mirrors the Cadastros selected row) and the add-chip in primary (mirrors the chips-recent "Outro…" chip). */
+[data-route="/templates/tipos/no-break-comando"] .registry-row.is-open { background: var(--focus-fill); box-shadow: inset 4px 0 0 var(--primary); font-weight: 600; }
+[data-route="/templates/tipos/no-break-comando"] .registry-row.is-open .rr-secondary { font-weight: 400; }
+[data-route="/templates/tipos/no-break-comando"] .chip.chip-add { color: var(--primary); border-color: var(--primary); }
+[data-route="/templates/tipos/no-break-comando"] .data-table .input { min-height: var(--touch-min); }
+[data-route="/templates/tipos/no-break-comando"] .data-table td.cell-src .helper { display: block; margin-top: var(--sp-1); }
+.frame-phone [data-route="/templates/tipos/no-break-comando"] .data-table,
+.frame-phone [data-route="/templates/tipos/no-break-comando"] .data-table tbody,
+.frame-phone [data-route="/templates/tipos/no-break-comando"] .data-table tr,
+.frame-phone [data-route="/templates/tipos/no-break-comando"] .data-table td { display: block; }
+.frame-phone [data-route="/templates/tipos/no-break-comando"] .data-table thead { display: none; }
+.frame-phone [data-route="/templates/tipos/no-break-comando"] .data-table td::before { content: attr(data-label); display: block; font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); }
+[data-route="/templates/tipos/no-break-comando"] .preview-frame { border: 1px solid var(--border-strong); border-radius: var(--r-lg); background: var(--surface-base); padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-4); }
+[data-route="/templates/tipos/no-break-comando"] .grammar-list { display: flex; flex-direction: column; gap: var(--sp-2); }
+[data-route="/templates/tipos/no-break-comando"] .grammar-list .option-row { flex-wrap: wrap; padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
+[data-route="/templates/tipos/no-break-comando"] .grammar-list .og-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+[data-route="/templates/tipos/no-break-comando"] .grammar-list .og-hint { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+</style>
+<section class="screen" data-route="/templates/tipos/no-break-comando" data-title="Tipo de equipamento" data-shell="app" data-rail="false">
+
+  <!-- Head: name, status and version, what the draft is, where the autosave is. -->
+  <div class="tipo-head">
+    <div class="tipo-title">
+      <h2>No-break de comando</h2>
+      <span class="status-pill" data-status="publicado">Publicado · versão 2</span>
+    </div>
+    <p class="tipo-meta">Editando o rascunho da versão 3 · salvo neste aparelho às 14:32 · duplicado de Chave de transferência automática (biblioteca) · usado em 2 relatórios, que continuam na versão 2</p>
+  </div>
+
+  <nav class="tabs" role="tablist" aria-label="Partes do tipo">
+    <button class="tab" role="tab" aria-selected="true" data-tab="tipo-panel-id">Identificação</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="tipo-panel-placa">Placa (8)</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="tipo-panel-verif">Verificações (5)</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="tipo-panel-ensaios">Ensaios (2)</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="tipo-panel-crit">Critérios (4) · 1 aviso</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="tipo-panel-prev">Pré-visualização</button>
+  </nav>
+
+  <div class="tipo-content">
+
+    <!-- ============ Identificação: label, TAG prefix, noun and gender (composed text) ============ -->
+    <div id="tipo-panel-id" data-tab-panel role="tabpanel" aria-label="Identificação">
+      <div class="banner" data-variant="info" role="note"><span class="banner-text">Cada alteração fica salva no rascunho. Os relatórios só veem a versão 3 depois de "Publicar"; os já criados continuam na versão que usaram.</span></div>
+      <div class="field-grid" style="margin-top: var(--sp-4)">
+        <div class="field span-2">
+          <span class="field-label">Nome do tipo</span>
+          <div class="input is-focus">No-break de comando</div>
+          <span class="helper">Aparece nas paletas, no título da ficha e na seção 9 impressa. Mudar o nome publica com a próxima versão.</span>
+        </div>
+        <div class="field">
+          <span class="field-label">Prefixo da TAG</span>
+          <div class="input tabular">NB</div>
+          <span class="helper">TAG sugerida: NB-01, NB-02… · letras maiúsculas e números, até 6</span>
+        </div>
+        <div class="field">
+          <span class="field-label">Grupo na impressão</span>
+          <div class="input is-readonly">Outros equipamentos, depois de Transformadores</div>
+        </div>
+        <div class="field">
+          <span class="field-label">Nome no singular</span>
+          <div class="input">no-break</div>
+        </div>
+        <div class="field">
+          <span class="field-label">Nome no plural</span>
+          <div class="input">no-breaks</div>
+        </div>
+        <div class="field span-2">
+          <span class="field-label" id="tipo-genero-l">Gênero</span>
+          <div class="segmented" role="radiogroup" aria-labelledby="tipo-genero-l">
+            <button class="seg" role="radio" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Masculino (o)</button>
+            <button class="seg" role="radio" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Feminino (a)</button>
+          </div>
+          <span class="helper">Usado nas frases compostas: "O no-break NB-01 encontra-se apto para operação."</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Placa: nameplate fields (kind, unit, options) ============ -->
+    <div id="tipo-panel-placa" data-tab-panel role="tabpanel" aria-label="Placa" hidden>
+      <section class="section" aria-labelledby="tipo-h-placa">
+        <div class="section-head"><h2 id="tipo-h-placa">Campos da placa</h2></div>
+        <p class="section-note">Na ordem da ficha. Tipos: Texto · Número (com unidade) · Data · Lista (com opções) · Fabricante · Classe de tensão.</p>
+        <ul class="registry-list" aria-label="Campos da placa">
+          <li class="registry-row"><button class="rr-text"><span class="rr-primary">Fabricante</span><span class="rr-secondary">Fabricante · lista de Cadastros</span></button><button class="overflow-trigger" data-toast="Subir · Descer · Remover — não prototipado" aria-label="Mais opções de Fabricante"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="registry-row"><button class="rr-text"><span class="rr-primary">Modelo</span><span class="rr-secondary">Texto</span></button><button class="overflow-trigger" data-toast="Subir · Descer · Remover — não prototipado" aria-label="Mais opções de Modelo"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="registry-row"><button class="rr-text"><span class="rr-primary">Número de série</span><span class="rr-secondary">Texto</span></button><button class="overflow-trigger" data-toast="Subir · Descer · Remover — não prototipado" aria-label="Mais opções de Número de série"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="registry-row"><button class="rr-text"><span class="rr-primary">Potência nominal</span><span class="rr-secondary">Número · VA</span></button><button class="overflow-trigger" data-toast="Subir · Descer · Remover — não prototipado" aria-label="Mais opções de Potência nominal"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="registry-row"><button class="rr-text"><span class="rr-primary">Tensão de saída</span><span class="rr-secondary">Número · Vcc</span></button><button class="overflow-trigger" data-toast="Subir · Descer · Remover — não prototipado" aria-label="Mais opções de Tensão de saída"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="registry-row is-open"><button class="rr-text" aria-expanded="true"><span class="rr-primary">Tipo de bateria</span><span class="rr-secondary">Lista · 3 opções</span></button><button class="overflow-trigger" data-toast="Subir · Descer · Remover — não prototipado" aria-label="Mais opções de Tipo de bateria"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="def-edit" aria-label="Editar campo Tipo de bateria">
+            <div class="field-grid">
+              <div class="field"><span class="field-label">Rótulo</span><div class="input">Tipo de bateria</div></div>
+              <div class="field combobox"><span class="field-label">Tipo do campo</span><div class="input">Lista</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field span-2">
+                <span class="field-label">Opções, na ordem da lista</span>
+                <div class="chip-row">
+                  <span class="chip">Chumbo-ácido regulada por válvula (VRLA)</span>
+                  <span class="chip">Chumbo-ácido ventilada</span>
+                  <span class="chip">Níquel-cádmio</span>
+                  <button class="chip chip-add" data-toast="Nova opção — não prototipado"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Opção</button>
+                </div>
+                <span class="helper">Unidade não se aplica a uma lista.</span>
+              </div>
+            </div>
+          </li>
+          <li class="registry-row"><button class="rr-text"><span class="rr-primary">Quantidade de baterias</span><span class="rr-secondary">Número · sem unidade</span></button><button class="overflow-trigger" data-toast="Subir · Descer · Remover — não prototipado" aria-label="Mais opções de Quantidade de baterias"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="registry-row"><button class="rr-text"><span class="rr-primary">Data de fabricação</span><span class="rr-secondary">Data</span></button><button class="overflow-trigger" data-toast="Subir · Descer · Remover — não prototipado" aria-label="Mais opções de Data de fabricação"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+        </ul>
+        <button class="btn btn-text def-add" data-toast="Campo novo no fim da lista, do tipo Texto"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar campo</button>
+      </section>
+    </div>
+
+    <!-- ============ Verificações: checklist items and their NC phrases ============ -->
+    <div id="tipo-panel-verif" data-tab-panel role="tabpanel" aria-label="Verificações" hidden>
+      <section class="section" aria-labelledby="tipo-h-verif">
+        <div class="section-head"><h2 id="tipo-h-verif">Itens de verificação</h2></div>
+        <p class="section-note">Cada item é marcado C · NC · NA na ficha. As frases de NC (3 a 4) viram atalhos quando o técnico marca NC.</p>
+        <ul class="registry-list" aria-label="Itens de verificação">
+          <li class="registry-row"><button class="rr-text"><span class="rr-primary">1. Limpeza e fixação do gabinete</span><span class="rr-secondary">3 frases de NC</span></button><button class="overflow-trigger" data-toast="Subir · Descer · Remover — não prototipado" aria-label="Mais opções do item 1"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="registry-row"><button class="rr-text"><span class="rr-primary">2. Ventilação e temperatura do ambiente</span><span class="rr-secondary">3 frases de NC</span></button><button class="overflow-trigger" data-toast="Subir · Descer · Remover — não prototipado" aria-label="Mais opções do item 2"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="registry-row is-open"><button class="rr-text" aria-expanded="true"><span class="rr-primary">3. Bornes e conexões das baterias</span><span class="rr-secondary">4 frases de NC · lembrete na ficha</span></button><button class="overflow-trigger" data-toast="Subir · Descer · Remover — não prototipado" aria-label="Mais opções do item 3"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="def-edit" aria-label="Editar item 3">
+            <div class="field"><span class="field-label">Texto do item</span><div class="input">Bornes e conexões das baterias</div></div>
+            <div class="field">
+              <span class="field-label">Frases de NC (3 a 4)</span>
+              <div class="chip-row">
+                <span class="chip">Bornes oxidados</span>
+                <span class="chip">Conexão frouxa</span>
+                <span class="chip">Vazamento de eletrólito</span>
+                <span class="chip">Bateria estufada</span>
+              </div>
+              <span class="helper">Limite de 4 frases atingido: remova uma para trocar.</span>
+            </div>
+            <div class="field"><span class="field-label">Lembrete na ficha (opcional, não sai na impressão)</span><div class="input">Conferir o torque indicado pelo fabricante</div></div>
+          </li>
+          <li class="registry-row"><button class="rr-text"><span class="rr-primary">4. Alarmes e sinalização do painel</span><span class="rr-secondary">3 frases de NC</span></button><button class="overflow-trigger" data-toast="Subir · Descer · Remover — não prototipado" aria-label="Mais opções do item 4"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="registry-row"><button class="rr-text"><span class="rr-primary">5. Placa de identificação legível</span><span class="rr-secondary">3 frases de NC</span></button><button class="overflow-trigger" data-toast="Subir · Descer · Remover — não prototipado" aria-label="Mais opções do item 5"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+        </ul>
+        <button class="btn btn-text def-add" data-toast="Item novo no fim da lista"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar item</button>
+      </section>
+    </div>
+
+    <!-- ============ Ensaios: tests from the grammar picker, incl. the measurement table ============ -->
+    <div id="tipo-panel-ensaios" data-tab-panel role="tabpanel" aria-label="Ensaios" hidden>
+      <section class="section" aria-labelledby="tipo-h-ensaios">
+        <div class="section-head">
+          <h2 id="tipo-h-ensaios">Ensaios</h2>
+          <button class="btn btn-secondary" data-open="#tipo-dlg-gramatica"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar ensaio</button>
+        </div>
+        <p class="section-note">Cada ensaio vem de um formato pronto. O critério de cada linha fica na aba Critérios, com a fonte.</p>
+        <ul class="registry-list" aria-label="Ensaios">
+          <li class="registry-row"><button class="rr-text"><span class="rr-primary">Resistência de isolamento</span><span class="rr-secondary">Isolação (tabela por fase) · critério: Isolamento mínimo</span></button><button class="overflow-trigger" data-toast="Subir · Descer · Remover — não prototipado" aria-label="Mais opções de Resistência de isolamento"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="registry-row is-open"><button class="rr-text" aria-expanded="true"><span class="rr-primary">Tensões medidas</span><span class="rr-secondary">Tabela de medições · 3 linhas · 1 coluna</span></button><button class="overflow-trigger" data-toast="Subir · Descer · Remover — não prototipado" aria-label="Mais opções de Tensões medidas"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="def-edit" aria-label="Editar ensaio Tensões medidas">
+            <div class="field-grid">
+              <div class="field"><span class="field-label">Título do ensaio</span><div class="input">Tensões medidas</div></div>
+              <div class="field combobox"><span class="field-label">Instrumento</span><div class="input">Multímetro, escolhido na ficha</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+            </div>
+            <table class="data-table" aria-label="Linhas da tabela de medições">
+              <thead><tr><th scope="col">Linha</th><th scope="col">Coluna: Valor medido</th><th scope="col">Critério</th></tr></thead>
+              <tbody>
+                <tr><td data-label="Linha"><div class="input">Tensão de entrada</div></td><td data-label="Valor medido">Número · Vca</td><td class="cell-crit" data-label="Critério">entre 198 e 242 Vca</td></tr>
+                <tr><td data-label="Linha"><div class="input">Tensão de saída</div></td><td data-label="Valor medido">Número · Vcc</td><td class="cell-crit" data-label="Critério">±5 % de 125 Vcc</td></tr>
+                <tr><td data-label="Linha"><div class="input">Tensão de flutuação do banco</div></td><td data-label="Valor medido">Número · Vcc</td><td class="cell-crit" data-label="Critério">entre 132 e 138 Vcc</td></tr>
+              </tbody>
+            </table>
+            <button class="btn btn-text" style="align-self: flex-start" data-toast="Linha nova no fim da tabela"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar linha</button>
+            <div class="toggle-row"><span><span class="toggle-label">Opcional na ficha</span><br><span class="toggle-sub">O técnico pode desligar este ensaio quando não for possível fazê-lo</span></span><button class="toggle" role="switch" aria-checked="true" aria-label="Opcional na ficha"><span class="toggle-word">Ativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
+          </li>
+        </ul>
+      </section>
+    </div>
+
+    <!-- ============ Critérios: the type's defaults, editable with their source (closes deferred-work.md N7 for company types) ============ -->
+    <div id="tipo-panel-crit" data-tab-panel role="tabpanel" aria-label="Critérios" hidden>
+      <section class="section" aria-labelledby="tipo-h-crit">
+        <div class="section-head"><h2 id="tipo-h-crit">Critérios de aceitação deste tipo</h2></div>
+        <p class="section-note">Os valores padrão que a ficha usa para sugerir Conforme ou Fora do limite. Todo critério precisa de uma fonte, que sai na legenda da tabela impressa. Mudar um valor vale a partir da versão publicada.</p>
+        <table class="data-table">
+          <thead><tr><th scope="col">Critério</th><th scope="col">Regra</th><th scope="col">Valor</th><th scope="col">Fonte</th></tr></thead>
+          <tbody>
+            <tr>
+              <td data-label="Critério">Isolamento mínimo<span class="helper" style="display:block">Resistência de isolamento</span></td>
+              <td data-label="Regra"><div class="field combobox"><div class="input">maior que</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div></td>
+              <td class="cell-crit" data-label="Valor"><div class="input tabular">100 MΩ</div></td>
+              <td class="cell-src" data-label="Fonte"><div class="input">Manual do fabricante</div><span class="helper">Edição: rev. 3, 2024</span></td>
+            </tr>
+            <tr>
+              <td data-label="Critério">Tensão de entrada<span class="helper" style="display:block">Tensões medidas</span></td>
+              <td data-label="Regra"><div class="field combobox"><div class="input">entre</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div></td>
+              <td class="cell-crit" data-label="Valor"><div class="input tabular">198 e 242 Vca</div></td>
+              <td class="cell-src" data-label="Fonte"><div class="input">ABNT NBR 5410</div><span class="helper">Edição: 2004</span></td>
+            </tr>
+            <tr>
+              <td data-label="Critério">Tensão de saída<span class="helper" style="display:block">Tensões medidas</span></td>
+              <td data-label="Regra"><div class="field combobox"><div class="input">±</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div></td>
+              <td class="cell-crit" data-label="Valor"><div class="input tabular is-focus">5 % de 125 Vcc</div></td>
+              <td class="cell-src" data-label="Fonte"><div class="input">Manual do fabricante</div><span class="helper">Edição: rev. 3, 2024</span></td>
+            </tr>
+            <tr>
+              <td data-label="Critério">Flutuação do banco<span class="helper" style="display:block">Tensões medidas</span></td>
+              <td data-label="Regra"><div class="field combobox"><div class="input">entre</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div></td>
+              <td class="cell-crit" data-label="Valor"><div class="input tabular">132 e 138 Vcc</div></td>
+              <td class="cell-src" data-label="Fonte"><div class="input"><span class="placeholder">Nome da norma, manual ou documento</span></div><span class="helper" data-tone="red">Informe a fonte do critério.</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="section-note" style="margin-top: var(--sp-3)">Regras: maior que · menor que · maior ou igual a · menor ou igual a · entre · ± · aprovado ou reprovado.</p>
+      </section>
+    </div>
+
+    <!-- ============ Pré-visualização: the sheet as the field will see it (same components as 60-ficha / 63-ficha-cta) ============ -->
+    <div id="tipo-panel-prev" data-tab-panel role="tabpanel" aria-label="Pré-visualização" hidden>
+      <p class="section-note">Como a ficha aparece no campo com o rascunho atual. Nada aqui é salvo.</p>
+      <div class="preview-frame" aria-label="Pré-visualização da ficha NB-01">
+        <div class="tipo-title"><h2>NB-01 · No-break de comando</h2></div>
+        <div class="field-grid">
+          <div class="field"><span class="field-label">Fabricante</span><div class="input"><span class="placeholder">Escolher</span></div></div>
+          <div class="field combobox"><span class="field-label">Tipo de bateria</span><div class="input"><span class="placeholder">Escolher</span></div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+        </div>
+        <ul class="checklist">
+          <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">3.</span>Bornes e conexões das baterias</span><div class="tri-state" role="radiogroup" aria-label="3. Bornes e conexões das baterias"><button class="seg" role="radio" data-value="c" aria-checked="false" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div></div></li>
+        </ul>
+        <table class="measurement-table" aria-label="Tensões medidas"><thead><tr><th scope="col">Medição</th><th scope="col" class="col-value">Valor medido</th></tr></thead><tbody>
+          <tr><td class="cell-point">Tensão de entrada</td><td class="cell-value"><div class="measurement-field"><span class="mf-value"></span><span class="mf-unit">Vca</span></div></td></tr>
+          <tr><td class="cell-point">Tensão de saída</td><td class="cell-value"><div class="measurement-field"><span class="mf-value"></span><span class="mf-unit">Vcc</span></div></td></tr>
+          <tr><td class="cell-point">Tensão de flutuação do banco</td><td class="cell-value"><div class="measurement-field"><span class="mf-value"></span><span class="mf-unit">Vcc</span></div></td></tr>
+        </tbody></table>
+      </div>
+    </div>
+
+  </div><!-- /tipo-content -->
+
+  <div class="sticky-action-bar">
+    <span class="btn-reason">1 aviso antes de publicar: Critérios › Flutuação do banco sem fonte</span>
+    <div class="bar-buttons">
+      <button class="btn btn-text" data-open="#tipo-dlg-aposentar"><svg class="ico" aria-hidden="true"><use href="#i-archive"/></svg>Aposentar</button>
+      <button class="btn btn-secondary" data-go="#/templates">Voltar aos tipos</button>
+      <button class="btn btn-primary" aria-disabled="true" data-toast="Versão 3 publicada · relatórios criados a partir de agora usam a versão 3">Publicar versão 3</button>
+    </div>
+  </div>
+
+  <!-- Grammar picker: the four seeded test formats and the measurement table (copy authored). -->
+  <div class="dialog-scrim" id="tipo-dlg-gramatica" hidden>
+    <div class="form-dialog" role="dialog" aria-modal="true" aria-labelledby="tipo-dlg-gramatica-t">
+      <p class="dialog-title" id="tipo-dlg-gramatica-t">Adicionar ensaio</p>
+      <div class="grammar-list" role="radiogroup" aria-label="Formato do ensaio">
+        <button class="option-row" role="radio" aria-checked="false"><span class="radio" aria-hidden="true"></span><span class="og-text"><span>Isolação</span><span class="og-hint">Tabela por fase e ponto de medição, um critério mínimo · já usado neste tipo</span></span></button>
+        <button class="option-row" role="radio" aria-checked="false"><span class="radio" aria-hidden="true"></span><span class="og-text"><span>Resistência de contato</span><span class="og-hint">Um valor por polo, critério máximo</span></span></button>
+        <button class="option-row" role="radio" aria-checked="false"><span class="radio" aria-hidden="true"></span><span class="og-text"><span>Relação de transformação</span><span class="og-hint">Por TAP e fase, desvio em %</span></span></button>
+        <button class="option-row" role="radio" aria-checked="false"><span class="radio" aria-hidden="true"></span><span class="og-text"><span>Leitura de corrente no visor</span><span class="og-hint">IA e IP lidos no relé</span></span></button>
+        <button class="option-row is-selected" role="radio" aria-checked="true"><span class="radio is-on" aria-hidden="true"></span><span class="og-text"><span>Tabela de medições</span><span class="og-hint">Linhas com nome, colunas com unidade ou opções, um critério por linha</span></span></button>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Ensaio adicionado: Tabela de medições">Adicionar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dialog-scrim" id="tipo-dlg-aposentar" hidden>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="tipo-dlg-aposentar-t">
+      <p class="dialog-title" id="tipo-dlg-aposentar-t">Aposentar No-break de comando?</p>
+      <p>O tipo sai das paletas do template e da ficha. Os 2 relatórios e o template que já o usam continuam funcionando e imprimindo como estão. O rascunho da versão 3 fica guardado.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-go="#/templates" data-toast="Tipo aposentado · fora das paletas" data-toast-action="Desfazer">Aposentar</button>
+      </div>
     </div>
   </div>
 </section>
@@ -4648,6 +5056,15 @@ Verificar simultaneidade da abertura e do fechamento das fases; verificar o esta
           <div class="poa-body">
             <div>
               <span class="poa-order">4 de 4 · criado do item 10 de SEC-C12 · salvo automaticamente</span>
+            </div>
+
+            <!-- 2026-11-03, Story 20.4: "Equipamento ou local", a listbox picker with groups ("Geral"; each local with
+                 "⟨local⟩ · Verificações do local" and its equipment; the equipment of no local), each equipment by TAG,
+                 type and place as "De qual equipamento?" names it. A pick writes equipment_id and location_id as one batch. -->
+            <div class="field combobox">
+              <span class="field-label" id="pontos-ed-vinculo-l">Equipamento ou local</span>
+              <div class="input" role="button" aria-haspopup="listbox" aria-labelledby="pontos-ed-vinculo-l" tabindex="0" data-toast="Lista agrupada: Geral, cada local e seus equipamentos — não prototipada">SEC-C12 · Chave seccionadora · 1° Subsolo › Coluna 12</div>
+              <span class="combobox-chevron" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></span>
             </div>
 
             <div class="field">
