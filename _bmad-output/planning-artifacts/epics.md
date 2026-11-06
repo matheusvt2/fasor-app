@@ -3387,6 +3387,8 @@ So that the office can add types without a code release and no relatório ever c
 
 *(Definition of Ready: `bmad-architecture` has settled the AD-21, AD-3 and AD-15 amendments proposed on 2026-10-08 (registry and op families, the resolver context, the contract version, the `blockTypeSchema` shape) and they are written in the spine without "proposed".)*
 
+*(2026-11-06, coordinator's reading under Matheus's "Cadastro e padrões", open to his correction: this Definition of Ready is met. The amendments are settled in `ARCHITECTURE-SPINE.md` as the notes of 2026-11-06 under AD-3 (the families `equipment_type/{id}`, `equipment_type/{id}/{draft|retired_at|removed_at}` and the create-only `equipment_type_version/{id}`, the `applyOp` refusals, contract 33), AD-15 (the snapshot's optional `equipment_types`) and AD-21 (the registry, `companyTypeDefinitionSchema`, `blockTypeSchema` as a union with `type:{uuidv7}` plus `BlockConfig.type_version`, the resolver context `DefinitionContext` with `findDefinitionIn`/`getDefinitionIn`, versions in use, palettes, renaming a library type only through "Duplicar"). The 2026-10-21 criterion on renaming a library type in place is therefore not built.)*
+
 **Acceptance Criteria:**
 
 **Given** the registry
@@ -3424,6 +3426,8 @@ I want to copy an equipment type, edit it and publish it,
 So that the job's unusual equipment has a sheet before the visit.
 
 *(Definition of Ready: Story ~~14.5~~ 14.6 is merged; the editor frames ~~of Story 14.1~~ are approved — 2026-10-09: they moved here from Story 14.1 and are drawn first with `bmad-ux`, matching the criterion struck there: a "Tipos de equipamento" list in `41-templates.html` with library types read-only and "Duplicar", company types with Rascunho · Publicado · Aposentado, and a `43-tipo-equipamento.html` editor.)*
+
+*(2026-11-06, coordinator's reading under Matheus's "Cadastro e padrões", open to his correction: the frames are drawn, so the frames clause of this Definition of Ready is met pending Matheus's approval; the other clause, Story 14.6 merged, still holds. Frames: `ux-fasor-2026-09-18/mockups/prototype/screens/41-templates.html` § Tipos de equipamento (company types with Status pill and version, Editar · Duplicar · Aposentar with its Confirm dialog, Descartar rascunho, Reativar; library types read-only with "Duplicar" only) and the new `prototype/screens/43-tipo-equipamento.html` (Identificação · Placa · Verificações · Ensaios with the format picker and the measurement table · Critérios, editable with their source, which is where "editar informações padrões" lands · Pré-visualização; Publicar disabled with the kernel's issue as its reason). Behavior: `EXPERIENCE.md` § Information Architecture, the Templates row and the new Tipo de equipamento row of 2026-11-06; conventions: `MOCK-GUIDE.md` § 2026-11-06. The conditional criterion on renaming a library type in the list is not built: the spine's AD-21 note of 2026-11-06 renames a library type only through "Duplicar".)*
 
 **Acceptance Criteria:**
 
