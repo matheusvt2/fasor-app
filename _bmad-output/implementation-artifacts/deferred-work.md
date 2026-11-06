@@ -3024,3 +3024,18 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: The e2e walk of a local's NC site item as a derived entry (Pontos card, "Abrir verificações", Editar) is not written; the kernel covers it (`points/derived-kinds.test.ts`, `relatorio/site-checklist.test.ts`) and `e2e/verificacoes-local.spec.ts` asserts the origin `nc` point written from the item.
   evidence: `e2e/points.spec.ts` 22.5-E2E-001 (sheet NC and out reading only).
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
+  summary: A point of origin `nc` or `reading` relinked to another equipment or local (Story 20.4 pick, or a later `point/{id}/equipment_id` put) keeps its `item_key`/`test_key` but changes its owner, so it suppresses the new owner's entry and the original entry prints again; needs an immutable source (the block id at create) or a relink guard when `origin !== 'manual'`.
+  evidence: `packages/domain/src/points/derived.ts` `pointSource`; review findings EC3 and VG8 of the e22c pass.
+  class: bug
+  state: open (owner: the Epic 22 wave A integrated review)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
+  summary: A derived entry of a sheet with no equipment (`equipment_id` null) is never suppressed (Story 6.6's rule), so "Editar" or "Criar ponto" on it writes a point that prints beside the entry.
+  evidence: `packages/domain/src/points/derived.ts` `entrySource`; review findings EC4, EC5, EC13.
+  class: bug
+  state: open (owner: the Epic 22 wave A integrated review)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
+  summary: A stricter parecer verdict, once tapped, stays stored after the fichas clear (the stored LWW object has no "follow the derived verdict" state), so the effective verdict can stay stricter than the fichas with no way back but tapping the derived one, which also stores it.
+  evidence: `apps/web/src/surfaces/relatorio/setup/etapa6-parecer.tsx` verdict tap; `relatorio/parecer.ts` `effectiveParecer`; review finding EC8.
+  class: decision
+  state: open (owner: Bruno, relayed by Matheus)
