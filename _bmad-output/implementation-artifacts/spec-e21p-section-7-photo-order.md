@@ -2,10 +2,10 @@
 title: 'e21p: move a photo up or down in the REGISTRO FOTOGRAFICO (Story 21.3)'
 type: 'feature'
 created: '2026-11-05'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'f149fedd7534a7d53812bcedaa4d316a451b936c'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -156,3 +156,28 @@ deferred:
 - `pnpm lint`, `pnpm static` -- clean.
 - `pnpm test:api` (after `podman compose restart api`) -- green, including `photo-order.integration.test.ts`.
 - Under `lockf -t 20000 /tmp/fasor-verify.lock`: `pnpm exec tsx scripts/e2e.ts e2e/photo-order.spec.ts e2e/photo-order.durability.spec.ts e2e/section-7-by-hand.spec.ts e2e/photo-numbers.spec.ts e2e/gallery.spec.ts --project desktop-chrome --project durability-desktop-chrome`, then the durability spec on `durability-android-chrome` and `durability-webkit`.
+
+## Auto Run Result
+
+Status: done (batch e21p, Story 21.3).
+
+- **Change:** an optional `order_key` on the photo row (contract 30, `MIN_CONTRACT_VERSION` 30) and `file/{id}/order_key` in `FILE_FIELDS`. Section 7 is ordered by effective key (`photos/order.ts`) and the numbering follows it. A Geral gallery tile's Overflow has "Subir"/"Descer", disabled at the ends. The point editor's picker uses the same tile order.
+- **Files:**
+  - Kernel: `photos/order.ts`, `print/photo-order.ts`, `print/section-7.ts`, `photos/numbering.ts`, `schemas/entities.ts`, `schemas/snapshot.ts` (null key type), `ops/path.ts`, `ops/value-limits.ts`, `contract/version.ts`.
+  - Web: `overflow-menu.tsx`, `photo-row.tsx`, `photo-store.ts`, `photo-ops.ts`, `gallery-surface.tsx`, `point-editor.tsx`, `copy/pt-br.ts`, `app.css` (disabled menu item).
+  - Unit tests: `photos/section-7-order.test.ts`, the path, value-limit and contract tests, `overflow-menu.test.tsx`.
+  - Api tests: `photo-order.integration.test.ts`, `sync.integration.test.ts` (version skew).
+  - E2e: `photo-order.spec.ts` (serial group), `photo-order.durability.spec.ts`.
+  - KB: `docs/kbs/log.md`, `files-and-photos.md`.
+- **Review:** Edge Case Hunter and Verification Gap Reviewer ran. Blind Hunter and Intent Alignment were skipped for token economy. Of 8 findings:
+  - 2 medium were patched: the picker order, and the key regex that accepted keys ending in `0`.
+  - 1 low was deferred: an equal-key run in the shared `orderKeyForMove`.
+  - 4 low and 1 false were rejected, with reasons in the triage log.
+- **Follow-up review:** `true`, because two medium entries were patched on this first pass. The unverified risk is that the regex patch and the picker reorder were not re-reviewed. The PR lists them under "Patched, not re-reviewed".
+- **Verification:**
+  - lint 0, static 0, re-run on the final head.
+  - test:api: 836 passed, 4 skipped.
+  - test:unit: 5108 passed, 6 failed. The 6 were 15 s timeouts or lost typing in untouched files, at load 23.5 with e21r's gate running. Rerun of the 6: 5 green. `setup-surface.test.tsx` failed again on the same exclusion typing test, then passed alone, 52 of 52.
+  - Touched e2e on desktop-chrome and durability-desktop-chrome: 63 of 63.
+  - Durability spec on the matrix: 4 passed, and the 2 WebKit runs skipped because Playwright WebKit cannot store a photo Blob in IndexedDB.
+- **Residual risks:** the open readings in Design Notes, and the deferred equal-key run.
