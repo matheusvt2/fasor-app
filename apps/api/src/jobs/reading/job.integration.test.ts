@@ -1130,6 +1130,47 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', model: HAIKU, prompt_version: 'bedrock-structuring-4' });
   }, 60_000);
 
+  it('e21a R-1: the drawn plate answered with the model\'s own "Dy1" and diagram facts citing only ids the OCR did not return keeps "Dy1" as a diagram read, not lost', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const bytes = new Uint8Array(readFileSync(join(IMAGES, 'plate-transformador-yyn0.png')));
+    const drawnSha = sha256(bytes);
+    copyFileSync(join(DEFAULT_FIXTURES_DIR, `${drawnSha}.json`), join(fixturesDir, `${drawnSha}.json`));
+    const drawn = fixtureOf(drawnSha).structuring as { values: Record<string, unknown>[]; vector_diagram: Record<string, unknown> };
+    const answer = {
+      values: [...drawn.values, { key: 'ligacao_secundaria', value: 'Dy1', ocr_token_ids: ['t19'], confidence: 0.9 }],
+      vector_diagram: { ...drawn.vector_diagram, ocr_token_ids: ['t998', 't999'] },
+    };
+    const id = await photo(relatorioId, block, bytes, 'image/png');
+    await read(bedrockDeps(converse({ [HAIKU]: answer }), ''), id);
+    expect(await status(id)).toBe('done');
+    const group = (await suggestions(relatorioId)).find((s) => s.source.photo_id === id && s.target_path === `sheet/${block.id}/nameplate/ligacao_secundaria`);
+    expect(group).toMatchObject({ value: 'Dy1', trust: 'verify', status: 'pending' });
+    expect(group!.source.ocr_token_ids).toEqual([]);
+    expect(group!.source.bbox).toEqual([0, 0, 1, 1]);
+    expect(plateSuggestionNoteText(group!)).toBe('Lido do diagrama — confira');
+  }, 60_000);
+
+  it('e21a R-9: the printed Dyn1 plate answered with its "Dyn1" entry plus Yyn0 diagram facts citing real labels stores "Dyn1" suggested, citing its word, no note', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const bytes = new Uint8Array(readFileSync(join(IMAGES, 'plate-transformador-dyn1.png')));
+    const printedSha = sha256(bytes);
+    copyFileSync(join(DEFAULT_FIXTURES_DIR, `${printedSha}.json`), join(fixturesDir, `${printedSha}.json`));
+    const printed = fixtureOf(printedSha).structuring as { values: { key: string; ocr_token_ids: string[] }[] };
+    const own = printed.values.find((value) => value.key === 'ligacao_secundaria')!;
+    expect(own).toMatchObject({ value: 'Dyn1' });
+    // Yyn0 facts citing words the OCR did return (LIGAÇÃO, SECUNDÁRIA), so the fold could compose them.
+    const answer = { values: printed.values, vector_diagram: { hv_shape: 'star', hv_neutral: false, lv_shape: 'star', lv_neutral: true, x1_hours: 0, ocr_token_ids: ['t24', 't25'] } };
+    const id = await photo(relatorioId, block, bytes, 'image/png');
+    await read(bedrockDeps(converse({ [HAIKU]: answer }), ''), id);
+    expect(await status(id)).toBe('done');
+    const group = (await suggestions(relatorioId)).find((s) => s.source.photo_id === id && s.target_path === `sheet/${block.id}/nameplate/ligacao_secundaria`);
+    expect(group).toMatchObject({ value: 'Dyn1', trust: 'suggested', status: 'pending' });
+    expect(group!.source.ocr_token_ids).toEqual(own.ocr_token_ids);
+    expect(plateSuggestionNoteText(group!)).toBeNull();
+  }, 60_000);
+
   it('a plate more than half verify is read once more on the escalation model; the reading with more suggested values is kept, usage summed', async () => {
     const { relatorioId, blocks } = await relatorio();
     const block = blocks.find((b) => b.block_type === 'transformador_forca')!;

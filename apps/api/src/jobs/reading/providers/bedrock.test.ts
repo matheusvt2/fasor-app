@@ -497,3 +497,60 @@ describe('e21f the drawn vector diagram: described by the model, composed by the
     expect(result.output).toEqual(panelValues);
   });
 });
+
+describe('e21a the vector-diagram fold through the bedrock provider (R-1, R-2, R-3)', () => {
+  const withGroup: PlateStructuringInput = { ...plateInput, vectorGroupKey: 'ligacao_secundaria' };
+  const others = plateValues.values.filter((value) => value.key !== 'ligacao_secundaria');
+  const yyn0 = { hv_shape: 'star', hv_neutral: false, lv_shape: 'star', lv_neutral: true, x1_hours: 0, ocr_token_ids: ['t4', 't9'] };
+  const groupOf = (values: readonly { key: string }[]) => values.find((value) => value.key === 'ligacao_secundaria');
+  /** The synthetic plate's OCR plus one word printing "Dyn1". */
+  const printedId = `t${plateOcr.tokens.length}`;
+  const printedOcr = { ...plateOcr, tokens: [...plateOcr.tokens, { id: printedId, text: 'Dyn1', bbox: [10, 10, 60, 30] as [number, number, number, number], confidence: 0.99 }] };
+
+  it('R-1: the model\'s own "Dy1" and diagram facts citing only ids the OCR did not return: the "Dy1" entry is kept, not dropped', async () => {
+    const dy1 = { key: 'ligacao_secundaria', value: 'Dy1', ocr_token_ids: ['t4'], confidence: 0.9 };
+    const facts = { ...yyn0, ocr_token_ids: ['t998', 't999'] };
+    const result = await structurer(replying([toolUse('record_values', { values: [...others, dy1], vector_diagram: facts })])).structure(withGroup);
+    expect(groupOf(result.output.values)).toEqual(dy1);
+    expect(result.output.values).toHaveLength(others.length + 1);
+  });
+
+  it('R-2: printed-wins is the kernel\'s rule, after the job\'s normalization: "Dýn1" citing a word printing "Dyn1" lands on the v11 option Dyn1, printed, and wins over the diagram', async () => {
+    const accented = { key: 'ligacao_secundaria', value: 'Dýn1', ocr_token_ids: [printedId], confidence: 0.9 };
+    const result = await structurer(replying([toolUse('record_values', { values: [...others, accented], vector_diagram: yyn0 })])).structure({ ...withGroup, ocr: printedOcr });
+    expect(groupOf(result.output.values)).toEqual(accented);
+  });
+
+  it('R-3: one "reading vector diagram" line with the outcome, the composed code, the five facts and counts; no OCR text', async () => {
+    const lines = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      const printed = { key: 'ligacao_secundaria', value: 'Dyn1', ocr_token_ids: [printedId], confidence: 0.95 };
+      for (const [values, vector_diagram, outcome] of [
+        [others, yyn0, 'composed'],
+        [[...others, printed], yyn0, 'printed_wins'],
+        [others, null, 'null'],
+        [others, { ...yyn0, x1_hours: 12 }, 'malformed'],
+        [others, { ...yyn0, x1_hours: 4 }, 'uncomposable'],
+        [others, { ...yyn0, ocr_token_ids: ['t999'] }, 'uncited'],
+      ] as const) {
+        lines.mockClear();
+        await structurer(replying([toolUse('record_values', { values, vector_diagram })])).structure({ ...withGroup, ocr: printedOcr });
+        const logged = lines.mock.calls.map((call) => JSON.parse(String(call[0])) as Record<string, unknown>).filter((line) => line.msg === 'reading vector diagram');
+        expect(logged, outcome).toHaveLength(1);
+        expect(logged[0], outcome).toMatchObject({ level: 'info', model: HAIKU, outcome });
+        const text = String(lines.mock.calls.find((call) => String(call[0]).includes('reading vector diagram'))![0]);
+        for (const token of printedOcr.tokens) expect(text.includes(`"${token.text}"`), `${outcome}: ${token.text}`).toBe(false);
+      }
+      lines.mockClear();
+      await structurer(replying([toolUse('record_values', { values: others, vector_diagram: yyn0 })])).structure({ ...withGroup, ocr: printedOcr });
+      const composed = JSON.parse(String(lines.mock.calls.find((call) => String(call[0]).includes('reading vector diagram'))![0])) as Record<string, unknown>;
+      expect(composed).toMatchObject({ outcome: 'composed', code: 'Yyn0', hv_shape: 'star', hv_neutral: false, lv_shape: 'star', lv_neutral: true, x1_hours: 0, cited: 2, replaced: false });
+      // No group key (a panel), no line.
+      lines.mockClear();
+      await structurer(replying([toolUse('record_values', { ...panelValues, vector_diagram: yyn0 })])).structure({ image, ocr: panelOcr, fields: [...PANEL_FIELDS] });
+      expect(lines.mock.calls.filter((call) => String(call[0]).includes('reading vector diagram'))).toEqual([]);
+    } finally {
+      lines.mockRestore();
+    }
+  });
+});

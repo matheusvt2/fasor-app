@@ -4,10 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { ocrReadResultSchema, structuringOutputSchema, type StructuringOutput } from '../contract/ocr.ts';
 import type { WordRow } from '../registry/word-row.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
-import { SEED_VERSION } from '../seed/definitions.ts';
+import { getDefinition, SEED_VERSION } from '../seed/definitions.ts';
 import { confirmAllCandidates } from '../relatorio/suggestion-group.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
-import { buildReadingSuggestions, DIAGRAM_READ_NOTE, plateSuggestionNoteText, type BuildReadingSuggestionsInput } from './build.ts';
+import { buildReadingSuggestions, DIAGRAM_READ_NOTE, plateSuggestionNoteText, vectorGroupReadOf, type BuildReadingSuggestionsInput } from './build.ts';
 import { FULL_IMAGE_BBOX } from './prose.ts';
 
 /*
@@ -354,5 +354,107 @@ describe('21.2-UNIT the vector group from the plate', () => {
     expect(plateSuggestionNoteText({ target_path: `file/${PHOTO}/caption`, source })).toBeNull();
     expect(plateSuggestionNoteText({ target_path: `sheet/${BLOCK}/checklist/limpeza/observation`, source })).toBeNull();
     expect(plateSuggestionNoteText({ target_path: `sheet/${BLOCK}/nameplate/ligacao_secundaria`, source: { ...source, ocr_token_ids: ['t1'] } })).toBeNull();
+  });
+});
+
+describe('e21a R-2 vectorGroupReadOf: the kernel classification of one structured group value, as the job stores it', () => {
+  const groupField = (version: string) => getDefinition(version, 'cabine_primaria', 'transformador_forca').nameplate.find((field) => field.key === 'ligacao_secundaria')!;
+  const tokens = [
+    { id: 't0', text: 'LIGAÇÃO' },
+    { id: 't1', text: 'Dyn1' },
+    { id: 't2', text: 'H1' },
+    { id: 't3', text: 'Dyn' },
+    { id: 't4', text: '1' },
+    { id: 't5', text: 'I' },
+  ];
+  const entry = (value: unknown, ocr_token_ids: readonly unknown[]) => ({ value, ocr_token_ids });
+
+  it('printed: the cited run prints the entry\'s own group (one word, split, or "Dyn" "I")', () => {
+    for (const version of ['v9', 'v10', 'v11']) {
+      for (const ids of [['t1'], ['t3', 't4'], ['t4', 't3'], ['t3', 't5']]) {
+        expect(vectorGroupReadOf(groupField(version), entry('Dyn1', ids), tokens), `${version} ${ids.join(' ')}`).toEqual({ kind: 'printed', code: 'Dyn1' });
+      }
+      expect(vectorGroupReadOf(groupField(version), entry('DYN1', ['t1']), tokens)).toEqual({ kind: 'printed', code: 'Dyn1' });
+    }
+  });
+
+  it('other group: the cited run prints another group; diagram: it prints none', () => {
+    for (const version of ['v9', 'v10', 'v11']) {
+      expect(vectorGroupReadOf(groupField(version), entry('Dy1', ['t1']), tokens)).toEqual({ kind: 'other_group', code: 'Dy1' });
+      expect(vectorGroupReadOf(groupField(version), entry('Dy1', ['t2']), tokens)).toEqual({ kind: 'diagram', code: 'Dy1' });
+    }
+  });
+
+  it('dropped: an unknown cited id, no citation, a non-string id (unknown_token); a v11 value naming no option (invalid_shape)', () => {
+    for (const version of ['v9', 'v10', 'v11']) {
+      for (const ids of [['t1', 't99'], [], [7], ['t99']]) {
+        expect(vectorGroupReadOf(groupField(version), entry('Dyn1', ids), tokens), `${version} ${JSON.stringify(ids)}`).toEqual({ kind: 'dropped', reason: 'unknown_token' });
+      }
+    }
+    expect(vectorGroupReadOf(groupField('v11'), entry('Y', ['t0']), tokens)).toEqual({ kind: 'dropped', reason: 'invalid_shape' });
+    expect(vectorGroupReadOf(groupField('v11'), entry({ raw: '1', unit: null, state: 'measured' }, ['t0']), tokens)).toEqual({ kind: 'dropped', reason: 'invalid_shape' });
+  });
+
+  it('unparsed: a v9/v10 text naming no group is stored as read', () => {
+    for (const version of ['v9', 'v10']) {
+      expect(vectorGroupReadOf(groupField(version), entry('  Y ', ['t0']), tokens)).toEqual({ kind: 'unparsed', value: 'Y' });
+    }
+  });
+
+  it('the value is read after the job\'s normalization: an accented "Dýn1" lands on the v11 option Dyn1 and is printed', () => {
+    expect(vectorGroupReadOf(groupField('v11'), entry('Dýn1', ['t1']), tokens)).toEqual({ kind: 'printed', code: 'Dyn1' });
+  });
+
+  it('agrees with buildReadingSuggestions on every row: printed and other group cite their words, diagram cites none, dropped stores nothing', () => {
+    const groupOcr = ocrReadResultSchema.parse({
+      image: { width: 1000, height: 1000 },
+      tokens: tokens.map((token, i) => ({ ...token, bbox: [10 + i * 100, 10, 90 + i * 100, 30], confidence: 0.99 })),
+      preprocessing_applied: false,
+    });
+    const cases: [string, string, string[]][] = [
+      ['v11', 'Dyn1', ['t1']],
+      ['v11', 'Dyn1', ['t3', 't5']],
+      ['v11', 'Dýn1', ['t1']],
+      ['v11', 'Dy1', ['t1']],
+      ['v11', 'Dy1', ['t2']],
+      ['v11', 'Dyn1', ['t1', 't99']],
+      ['v11', 'Y', ['t0']],
+      ['v10', 'Y', ['t0']],
+      ['v10', 'Dyn1', ['t1']],
+    ];
+    for (const [version, value, ids] of cases) {
+      const built = buildReadingSuggestions(
+        input({
+          block: { ...block(), seed_version: version },
+          ocr: groupOcr,
+          image: { width: 1000, height: 1000 },
+          output: { values: [{ key: 'ligacao_secundaria', value, ocr_token_ids: ids, confidence: 0.9 }] },
+        }),
+      );
+      const read = vectorGroupReadOf(groupField(version), entry(value, ids), groupOcr.tokens);
+      const label = `${version} ${value} ${ids.join(' ')}`;
+      const row = built.rows[0];
+      switch (read.kind) {
+        case 'dropped':
+          expect(built, label).toEqual({ rows: [], dropped: [{ key: 'ligacao_secundaria', reason: read.reason }] });
+          break;
+        case 'unparsed':
+          expect(row, label).toMatchObject({ value: read.value });
+          break;
+        case 'printed':
+          expect(row, label).toMatchObject({ value: read.code });
+          expect(row!.source.ocr_token_ids, label).toEqual(ids);
+          expect(plateSuggestionNoteText(row!), label).toBeNull();
+          break;
+        case 'other_group':
+          expect(row, label).toMatchObject({ value: read.code, trust: 'verify' });
+          expect(row!.source.ocr_token_ids, label).toEqual(ids);
+          break;
+        case 'diagram':
+          expect(row, label).toMatchObject({ value: read.code, trust: 'verify' });
+          expect(plateSuggestionNoteText(row!), label).toBe(DIAGRAM_READ_NOTE);
+          break;
+      }
+    }
   });
 });

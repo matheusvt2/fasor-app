@@ -67,6 +67,25 @@ describe('8.4-API committed fake fixtures', () => {
     );
   });
 
+  it('e21a R-4: a fixture with two values of one key fails the fixture schema (the contract\'s unique-key rule), with or without vector_diagram', () => {
+    const ocr = { image: { width: 10, height: 10 }, tokens: [{ id: 't0', text: 'TR-03', bbox: [0, 0, 5, 5], confidence: 0.99 }], preprocessing_applied: false };
+    const value = { key: 'identificacao', value: 'TR-03', ocr_token_ids: ['t0'], confidence: 0.97 };
+    const facts = { hv_shape: 'star', hv_neutral: false, lv_shape: 'star', lv_neutral: true, x1_hours: 0, ocr_token_ids: ['t0'] };
+    expect(fakeReadingFixtureSchema.safeParse({ outcome: 'ok', ocr, structuring: { values: [value] } }).success).toBe(true);
+    for (const structuring of [{ values: [value, { ...value, value: 'TR-04' }] }, { values: [value, value], vector_diagram: facts }, { values: [value, value], vector_diagram: null }]) {
+      const parsed = fakeReadingFixtureSchema.safeParse({ outcome: 'ok', ocr, structuring });
+      expect(parsed.success).toBe(false);
+      expect(parsed.error?.issues.map((issue) => issue.message)).toContain('each field key appears at most once');
+    }
+  });
+
+  it('e21a R-4: the fake provider imports nothing from the Bedrock module', () => {
+    const source = readFileSync(join(import.meta.dirname, 'fake.ts'), 'utf8');
+    const specifiers = [...source.matchAll(/\bfrom\s+['"]([^'"]+)['"]|\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)|^\s*import\s+['"]([^'"]+)['"]/gm)].map((match) => match[1] ?? match[2] ?? match[3]);
+    expect(specifiers.length).toBeGreaterThan(0);
+    expect(specifiers.filter((specifier) => /(^|\/)bedrock(\.ts)?$|client-bedrock/.test(specifier!))).toEqual([]);
+  });
+
   it('replays the plate: its 43 tokens, the model fake, prompt fake-1 and zero usage', async () => {
     const ocr = await fakeOcrProvider(DEFAULT_FIXTURES_DIR, PLATE_SHA).read(image);
     expect(ocr.image).toEqual({ width: 1600, height: 1100 });

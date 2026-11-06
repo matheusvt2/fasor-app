@@ -133,3 +133,14 @@ Parser, a single trailing letter "I" or "l" after a connection letter reads as c
 - `pnpm --filter @app/api exec vitest run src/jobs/reading/providers src/scripts` -- green.
 - `pnpm --filter @app/api exec vitest run src/jobs/reading/job.integration.test.ts` -- green.
 - `pnpm lint`, `pnpm static` -- clean.
+
+**Red-first record (2026-11-06, the tests written before each fix, run on the baseline code):**
+- Parser: the 8 "reads" rows of `e21a parseVectorGroup` (`"Dyn I" reads Dyn1`: expected undefined to be 'Dyn1') and the property test.
+- Kernel: the 6 `vectorGroupReadOf` tests (`TypeError: vectorGroupReadOf is not a function`).
+- P-4: `blank is the isCellFilled rule` (`vector_group {"state":"empty"}: expected false to be true`).
+- R-1 provider: `expected undefined to deeply equal { key: 'ligacao_secundaria', ... }` (the "Dy1" entry dropped). R-1 job: `expected undefined to match object { value: 'Dy1', trust: 'verify', ... }` (no suggestion).
+- R-2 provider: the accented "Dýn1" entry was replaced by the composed "Yyn0" (the old private rule skipped normalization). R-2 eval: `eval-group-read.test.ts` failed to load (no module; the baseline `groupRead` read "Dyn1" for an entry citing t99).
+- R-3: `composed: expected [] to have a length of 1 but got +0` (no log line).
+- R-4: the duplicate-key fixture parsed (`expected true to be false`); `fake.ts` imported `['./bedrock.ts']`.
+- R-9 (test only): green on the baseline; mutation run with printed-wins disabled (`index >= 0 && false && isPrinted(...)`): red, `expected { ... } to match object { value: 'Dyn1', ... }`; restored, green.
+- Note: `vectorGroupReadOf`'s `unparsed` kind carries the stored `value` (the eval prints it JSON-quoted); the spec's type listed `{ kind: 'unparsed' }` alone.

@@ -3,6 +3,7 @@ import type { BlockRow, Cell } from '../schemas/entities.ts';
 import type { CriterionSeed } from '../seed/criteria.ts';
 import type { BlockDefinition, ColumnDef, TableDef, TestDef } from '../seed/schema.ts';
 import { screenAcronym } from './screen-label.ts';
+import { isCellFilled } from './sheet-state.ts';
 import { DEFAULT_VECTOR_GROUP_CODE, parseVectorGroup, VECTOR_GROUP_FIELD, vectorGroupByCode, type VectorGroup } from './vector-group.ts';
 
 /*
@@ -245,7 +246,8 @@ export interface RatioGroupResolution {
 export function ratioGroupOf(block: Pick<BlockRow, 'sheet'>, factor: TableDef['ratio_factor']): RatioGroupResolution | null {
   if (factor === undefined) return null;
   const value = block.sheet.nameplate[VECTOR_GROUP_FIELD]?.value;
-  const blank = value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
+  // e21a (P-4): the `isCellFilled` rule itself, so a cell holding `{ state: 'empty' }` is blank too.
+  const blank = !isCellFilled(block.sheet.nameplate[VECTOR_GROUP_FIELD]);
   const parsed = parseVectorGroup(value);
   if (parsed !== null) return { group: parsed, assumed: false, blank };
   if (factor === 'vector_group') return { group: null, assumed: false, blank };

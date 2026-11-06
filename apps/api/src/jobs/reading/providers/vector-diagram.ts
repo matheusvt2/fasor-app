@@ -1,6 +1,7 @@
-import { composeVectorGroup, inTokenOrder, parseVectorGroup, printedVectorGroups, type OcrToken, type StructuringInput } from '@app/domain';
+import { composeVectorGroup, vectorGroupReadOf, type FieldDef, type OcrToken, type StructuringInput } from '@app/domain';
 import { z } from 'zod';
 import type { JsonSchema } from '../../../ai/bedrock.ts';
+import { log } from '../../../log.ts';
 
 /*
  * e21f (Story 21.2 fix, the coordinator's paid eval of 2026-11-05): asked for the vector group of
@@ -14,7 +15,12 @@ import type { JsonSchema } from '../../../ai/bedrock.ts';
  * contract parse (`StructuringOutput` is strict and unchanged). The value cites the diagram's
  * terminal labels, which print no group, so `buildReadingSuggestions` makes it a diagram read
  * (`verify`, no token cited, the whole image, "Lido do diagrama — confira"). A group the model
- * gives citing words that print a group wins over the diagram.
+ * gives citing words that print it wins over the diagram.
+ *
+ * e21a (Epic 21 retrospective R-1 to R-3): whether the model's entry is printed is the kernel's
+ * classification (`vectorGroupReadOf`, the one rule the job stores by); facts none of whose ids the
+ * OCR returned cannot be cited and are ignored, so the model's own entry stays; and the fold returns
+ * its outcome, logged as one `reading vector diagram` line (`logVectorDiagram`).
  */
 
 /** The tool input's key that carries the drawn diagram's facts. */
@@ -83,50 +89,110 @@ export function vectorGroupKeyOf(input: Partial<Pick<PlateStructuringInput, 'fie
   return fields.some((field: unknown) => isRecord(field) && field.key === key) ? key : undefined;
 }
 
+/** e21a (R-2): the vector-group field of a structuring input: its key and its definition, which the kernel classification reads. */
+export interface VectorGroupTarget {
+  key: string;
+  field: Pick<FieldDef, 'kind' | 'unit' | 'options' | 'option_aliases'>;
+}
+
+/** The vector-group field of a structuring input (`vectorGroupKeyOf`, then its definition in `fields`); undefined when it names none. */
+export function vectorGroupOf(input: Partial<Pick<PlateStructuringInput, 'fields' | 'vectorGroupKey'>> | null | undefined): VectorGroupTarget | undefined {
+  const key = vectorGroupKeyOf(input);
+  if (key === undefined) return undefined;
+  const field = input!.fields!.find((candidate) => isRecord(candidate) && candidate.key === key);
+  return field === undefined ? undefined : { key, field };
+}
+
 /**
- * Whether a structured group entry is a printed read the kernel keeps: its value parses, every id it
- * cites is in the OCR read (the kernel drops an entry citing an unknown id, `buildReadingSuggestions`),
- * and its cited words print that same group (`printedVectorGroups`, the kernel's rule).
+ * e21a (R-3): what the fold did. `absent`: the input carries no `vector_diagram`; `null`: it is null;
+ * `malformed`: the facts fail their schema (or the input's `values` is not an array, left for the
+ * contract parse); `uncomposable`: the facts name no row of the table; `printed_wins`: the model's
+ * own entry prints its group; `uncited`: none of the ids the facts cite is in the OCR read, so they
+ * are ignored and the model's entry stays; `composed`: the composed code is the group's value.
  */
-function printsItsGroup(entry: Record<string, unknown>, tokens: readonly Pick<OcrToken, 'id' | 'text'>[]): boolean {
-  const group = parseVectorGroup(entry.value);
-  if (group === null) return false;
-  const ids = entry.ocr_token_ids;
-  if (!Array.isArray(ids) || ids.length === 0) return false;
-  const byId = new Map(tokens.map((token) => [token.id, token]));
-  const cited: Pick<OcrToken, 'id' | 'text'>[] = [];
-  for (const id of new Set(ids)) {
-    const token = typeof id === 'string' ? byId.get(id) : undefined;
-    if (token === undefined) return false;
-    cited.push(token);
-  }
-  return printedVectorGroups(inTokenOrder(cited)).has(group.code);
+export type VectorDiagramOutcome = 'absent' | 'null' | 'malformed' | 'uncomposable' | 'printed_wins' | 'uncited' | 'composed';
+
+export interface VectorDiagramFold {
+  /** The tool input, `vector_diagram` stripped and the composed value folded in when `composed`. */
+  input: unknown;
+  /** Null when the input names no vector-group field: nothing is logged. */
+  outcome: VectorDiagramOutcome | null;
+  /** The facts as parsed; null when absent, null or malformed. */
+  facts: VectorDiagramAnswer | null;
+  /** The code the facts compose; null when they compose none. */
+  code: string | null;
+  /** How many distinct ids of the facts the OCR read returned (what the composed value cites). */
+  cited: number;
+  /** True when the composed value replaced an entry the model gave. */
+  replaced: boolean;
 }
 
 /**
  * The tool input with `vector_diagram` folded into the group field's value and stripped: always
- * stripped; with no `key` nothing else changes. A group entry the model gave whose value parses and
- * whose cited words print a group wins and the diagram is ignored. Otherwise a diagram that
- * validates and composes becomes `{key, value: <code>, ocr_token_ids: <the diagram's>, confidence: 0.5}`,
- * replacing a non-printed entry. A null, malformed or uncomposable diagram changes nothing else.
- * A malformed input is returned as it is, for the schema to judge.
+ * stripped; with no `group` nothing else changes. A group entry the model gave that the kernel
+ * reads as printed (`vectorGroupReadOf`) wins and the diagram is ignored. Facts that validate and
+ * compose but cite no id the OCR returned are ignored too (R-1: the model's own entry stays, read by
+ * the kernel as any entry). Otherwise the composed code becomes
+ * `{key, value: <code>, ocr_token_ids: <the diagram's known ids>, confidence: 0.5}`, replacing a
+ * non-printed entry. A null, malformed or uncomposable diagram changes nothing else. A malformed
+ * input is returned as it is, for the schema to judge.
  */
-export function withVectorDiagram(input: unknown, key: string | undefined, tokens: readonly Pick<OcrToken, 'id' | 'text'>[]): unknown {
-  if (!isRecord(input) || !Object.hasOwn(input, VECTOR_DIAGRAM_KEY)) return input;
+export function withVectorDiagram(input: unknown, group: VectorGroupTarget | undefined, tokens: readonly Pick<OcrToken, 'id' | 'text'>[]): VectorDiagramFold {
+  const fold = (outcome: VectorDiagramOutcome, folded: unknown, facts: VectorDiagramAnswer | null = null, code: string | null = null, cited = 0, replaced = false): VectorDiagramFold => ({
+    input: folded,
+    outcome: group === undefined ? null : outcome,
+    facts,
+    code,
+    cited,
+    replaced,
+  });
+  if (!isRecord(input) || !Object.hasOwn(input, VECTOR_DIAGRAM_KEY)) return fold('absent', input);
   const { [VECTOR_DIAGRAM_KEY]: raw, ...rest } = input;
-  if (key === undefined) return rest;
-  const facts = vectorDiagramFactsSchema.safeParse(raw);
-  if (!facts.success) return rest;
-  const code = composeVectorGroup(facts.data);
-  if (code === null) return rest;
-  const values = rest.values;
-  if (!Array.isArray(values)) return rest;
-  const index = values.findIndex((value: unknown) => isRecord(value) && value.key === key);
-  if (index >= 0 && printsItsGroup(values[index] as Record<string, unknown>, tokens)) return rest;
-  // Only the labels the OCR read returned are cited (the kernel drops a value citing an unknown id);
-  // none left is an uncited value, dropped next by `withoutUncitedValues`.
+  if (group === undefined) return fold('absent', rest);
+  if (raw === null) return fold('null', rest);
+  const parsed = vectorDiagramFactsSchema.safeParse(raw);
+  if (!parsed.success) return fold('malformed', rest);
+  const facts = parsed.data;
+  const code = composeVectorGroup(facts);
+  // Only the labels the OCR read returned are cited (the kernel drops a value citing an unknown id).
   const known = new Set(tokens.map((token) => token.id));
+  const ids = [...new Set(facts.ocr_token_ids)].filter((id) => known.has(id));
+  if (code === null) return fold('uncomposable', rest, facts, null, ids.length);
+  const values = rest.values;
+  if (!Array.isArray(values)) return fold('malformed', rest, facts, code, ids.length);
+  const index = values.findIndex((value: unknown) => isRecord(value) && value.key === group.key);
+  if (index >= 0 && isPrinted(group, values[index] as Record<string, unknown>, tokens)) return fold('printed_wins', rest, facts, code, ids.length);
+  // R-1: facts that cannot be cited are ignored; the model's own entry (if any) goes on as it is.
+  if (ids.length === 0) return fold('uncited', rest, facts, code, 0);
   // The server ignores the model's confidence (`reading/digits.ts`): 0.5 is inert.
-  const composed = { key, value: code, ocr_token_ids: [...new Set(facts.data.ocr_token_ids)].filter((id) => known.has(id)), confidence: 0.5 };
-  return { ...rest, values: index >= 0 ? values.map((value: unknown, i) => (i === index ? composed : value)) : [...values, composed] };
+  const composed = { key: group.key, value: code, ocr_token_ids: ids, confidence: 0.5 };
+  const folded = { ...rest, values: index >= 0 ? values.map((value: unknown, i) => (i === index ? composed : value)) : [...values, composed] };
+  return fold('composed', folded, facts, code, ids.length, index >= 0);
+}
+
+/** Whether the kernel reads the model's own group entry as printed (`vectorGroupReadOf`, the rule the job stores by). */
+function isPrinted(group: VectorGroupTarget, entry: Record<string, unknown>, tokens: readonly Pick<OcrToken, 'id' | 'text'>[]): boolean {
+  const ids = Array.isArray(entry.ocr_token_ids) ? (entry.ocr_token_ids as unknown[]) : [];
+  return vectorGroupReadOf(group.field, { value: entry.value, ocr_token_ids: ids }, tokens).kind === 'printed';
+}
+
+/**
+ * e21a (R-3): one `reading vector diagram` line per structuring call that names a vector-group field:
+ * the model, the fold's outcome, the composed code, the five facts, how many of the facts' ids the
+ * OCR returned, and whether a model entry was replaced. Never any OCR text.
+ */
+export function logVectorDiagram(fold: VectorDiagramFold, model: string): void {
+  if (fold.outcome === null) return;
+  log('reading vector diagram', {
+    model,
+    outcome: fold.outcome,
+    code: fold.code,
+    hv_shape: fold.facts?.hv_shape ?? null,
+    hv_neutral: fold.facts?.hv_neutral ?? null,
+    lv_shape: fold.facts?.lv_shape ?? null,
+    lv_neutral: fold.facts?.lv_neutral ?? null,
+    x1_hours: fold.facts?.x1_hours ?? null,
+    cited: fold.cited,
+    replaced: fold.replaced,
+  });
 }

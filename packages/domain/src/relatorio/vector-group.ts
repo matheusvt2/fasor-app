@@ -120,6 +120,8 @@ const LV_LETTERS = ['YN', 'ZN', 'D', 'Y', 'Z'] as const;
 const CLOCK = /^(?:[0-9]|1[01])$/;
 /** What the parser ignores: every character that is not a letter or a digit (spaces, slashes, hyphens, dots, brackets, commas). */
 const IGNORED = /[^\p{L}\p{N}]/gu;
+/** e21a: one upper-case I or lower-case l closing the text right after a connection letter (Y, N, D, Z in either case): a plate's clock 1. */
+const LETTER_CLOCK_ONE = /(?<=[YNDZyndz])[Il]$/;
 
 /**
  * The vector group a LIGAÇÃO SECUNDÁRIA text names, or null. Case and every character that is not
@@ -128,10 +130,16 @@ const IGNORED = /[^\p{L}\p{N}]/gu;
  * high-voltage letters are read greedily but must leave a valid low-voltage connection and clock
  * ("YNyn0" is YN + yn + 0, never Y + "Nyn0"); a clock the table has no row for, letters left
  * over, an empty text, "Y" or "DYN" read null.
+ *
+ * e21a: a real plate prints "Dyn I" (the letter I for the digit 1). A single trailing upper-case I or
+ * lower-case l right after a connection letter reads as clock 1 ("Dyn I", "Dynl", "YNd l" read
+ * Dyn1, Dyn1, YNd1). No connection letter is I or l, so every such text read null before; the rule
+ * maps only to clock 1, never 10 or 11 ("Dyn II", "Dyn 1I", "Dyn lI" stay null), and a lower-case i
+ * or an upper-case L stays null.
  */
 export function parseVectorGroup(text: unknown): VectorGroup | null {
   if (typeof text !== 'string') return null;
-  const compact = text.replace(IGNORED, '').toUpperCase();
+  const compact = text.replace(IGNORED, '').replace(LETTER_CLOCK_ONE, '1').toUpperCase();
   if (compact === '') return null;
   for (const hv of HV_LETTERS) {
     if (!compact.startsWith(hv)) continue;

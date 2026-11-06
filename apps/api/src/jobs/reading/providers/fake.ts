@@ -17,9 +17,9 @@ import sharp from 'sharp';
 import { z } from 'zod';
 import { FAKE_FIXTURE_DEFAULTS } from '../kinds/index.ts';
 import type { ReadingKind } from '../payload.ts';
-import { withoutUncitedValues } from './bedrock.ts';
 import { PermanentReadingError, ProviderError, ProviderTimeoutError } from './errors.ts';
-import { vectorDiagramFactsSchema, vectorGroupKeyOf, withVectorDiagram, type PlateStructuringInput } from './vector-diagram.ts';
+import { withoutUncitedValues } from './uncited.ts';
+import { logVectorDiagram, vectorDiagramFactsSchema, vectorGroupOf, withVectorDiagram, type PlateStructuringInput } from './vector-diagram.ts';
 import { MAX_INPUT_PIXELS } from '../../../storage/variants.ts';
 
 /*
@@ -48,13 +48,20 @@ export const FAKE_PROMPT_VERSION = 'fake-1';
  * e21f: a fixture's structuring answer is the tool input a model returns: the values and, for a
  * plate that draws its vector diagrams, the `vector_diagram` facts the provider folds into the
  * group's value (`withVectorDiagram`) before the contract parse.
+ *
+ * e21a (R-4): with the contract's rule that each field key appears at most once
+ * (`structuringOutputSchema`, `contract/ocr.ts`), so the committed-fixtures test catches a duplicate.
  */
 const fakeStructuringFixtureSchema = z
   .object({
     values: z.array(structuringValueSchema),
     vector_diagram: vectorDiagramFactsSchema.strict().nullable().optional(),
   })
-  .strict();
+  .strict()
+  .refine((structuring) => new Set(structuring.values.map((value) => value.key)).size === structuring.values.length, {
+    message: 'each field key appears at most once',
+    path: ['values'],
+  });
 
 export const fakeReadingFixtureSchema = z
   .object({
@@ -195,10 +202,11 @@ export function fakeStructuringProvider(dir: string, sha256: string, fixtureKey:
     async structure(input: StructuringInput): Promise<StructuringResult> {
       const { fixture, key } = await resolveFakeFixture(dir, sha256, fixtureKey);
       failFor(fixture, key, 'structuring');
-      // e21f: the same fold and uncited drop as the bedrock provider's, then the contract's own parse.
+      // e21f: the same fold, log line (e21a) and uncited drop as the bedrock provider's, then the contract's own parse.
       const plate = input as PlateStructuringInput | undefined;
-      const folded = withVectorDiagram(fixture.structuring ?? { values: [] }, vectorGroupKeyOf(plate), plate?.ocr?.tokens ?? []);
-      const output = structuringOutputSchema.safeParse(withoutUncitedValues(folded));
+      const fold = withVectorDiagram(fixture.structuring ?? { values: [] }, vectorGroupOf(plate), plate?.ocr?.tokens ?? []);
+      logVectorDiagram(fold, FAKE_MODEL);
+      const output = structuringOutputSchema.safeParse(withoutUncitedValues(fold.input));
       if (!output.success) throw new PermanentReadingError(`fake structuring: fixture ${key} is not a StructuringOutput once folded: ${output.error.message.slice(0, 300)}`);
       return {
         output: output.data,
