@@ -7,6 +7,7 @@ import {
   vectorGroupByCode,
   vectorGroupCaptureLabel,
   vectorGroupFormulaText,
+  vectorGroupNeutralCaptureLabel,
   vectorGroupShortText,
   type OpDraft,
 } from '@app/domain';
@@ -703,6 +704,20 @@ test('@p0 21.1-E2E-001 a v11 star-star transformer (Yyn0) typed by hand: no VAL 
   await expect(row.locator('td.cell-calc').first()).not.toContainText(/\d/);
   await expect(row.locator('td').last()).toHaveText('—');
   await expect(helpers).toHaveText([VECTOR_GROUP_MISSING_TEXT]);
+  // e21g D1: no terminal pair before the group is chosen: the captures read "Fase 1".."Fase 3",
+  // as table headers at 1280 and 768, as card labels at 390.
+  const neutral = [0, 1, 2].map((phase) => vectorGroupNeutralCaptureLabel(phase));
+  expect(neutral).toEqual(['Fase 1', 'Fase 2', 'Fase 3']);
+  for (const width of [1280, 768]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(ttr.locator('thead th'), String(width)).toHaveText(['TAP nº', 'V primário (kV)', 'V secundário (V)', 'Calculado', ...neutral, 'Condição']);
+    await expect(ttr, String(width)).not.toContainText('X1-X0');
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  const neutralCard = page.locator('.measurement-card').first();
+  for (const label of neutral) await expect(neutralCard.locator('.field-label', { hasText: label })).toHaveCount(1);
+  await expect(neutralCard).not.toContainText('X1-X0');
+  await page.setViewportSize({ width: 1280, height: 900 });
 
   // The plate's LIGAÇÃO SECUNDÁRIA, chosen from the 47 codes as a person would.
   await stepper(page).getByRole('button', { name: /^Placa,/ }).click();
@@ -724,6 +739,104 @@ test('@p0 21.1-E2E-001 a v11 star-star transformer (Yyn0) typed by hand: no VAL 
   await page.setViewportSize({ width: 390, height: 844 });
   const card = page.locator('.measurement-card').first();
   for (const pair of pairs) await expect(card.locator('.field-label', { hasText: pair })).toHaveCount(1);
+});
+
+/** e21g D7: a v11 transformador de força seeded complete by office drafts, all but LIGAÇÃO SECUNDÁRIA (empty unless `ligacao`). */
+async function openCompleteTransformer(page: Page, width: number): Promise<{ relatorioId: string; blockId: string; tag: string }> {
+  await resetCompany(account, { standard: true });
+  await page.setViewportSize({ width, height: width < 768 ? 844 : 900 });
+  await signIn(page, account.email);
+  const built = newRelatorioDrafts(account);
+  expect(SEED_VERSION).toBe('v11');
+  const scope = { relatorioId: built.relatorioId };
+  const sheet = built.sheets.find((s) => s.blockType === 'transformador_forca')!;
+  const TF = getDefinition('v11', 'cabine_primaria', 'transformador_forca');
+  const m = (raw: string, unit: string | null) => ({ raw, unit, state: 'measured' });
+  // Every cabine complete, so the first sheet of a cabine counts no cabine field.
+  const cabines = built.drafts.filter((d) => d.kind === 'create' && d.path.startsWith('location/') && (d.value as { kind?: string }).kind === 'cabine');
+  const cabineDrafts = cabines.flatMap((d) => {
+    const id = (d.value as { id: string }).id;
+    return [
+      officeDraft(account, scope, `location/${id}/se/type`, 'BLINDADA'),
+      officeDraft(account, scope, `location/${id}/se/primary_kv`, m('13.8', 'kV')),
+      officeDraft(account, scope, `location/${id}/se/secondary_kv`, m('380', 'V')),
+      officeDraft(account, scope, `location/${id}/se/installed_kva`, m('1500', 'kVA')),
+      officeDraft(account, scope, `location/${id}/env/temperature_c`, m('25', '°C')),
+      officeDraft(account, scope, `location/${id}/env/humidity_pct`, m('65', '%')),
+    ];
+  });
+  const plateValue = (f: (typeof TF.nameplate)[number]): unknown => {
+    if (f.key === 'tensao_nominal_at') return m('13.8', 'kV');
+    if (f.key === 'tensao_nominal_bt') return m('380', 'V');
+    if (f.key === 'tipo_de_isolacao') return 'ÓLEO';
+    if (f.key === 'tap_atual') return '3';
+    if (f.kind === 'number') return m('100', f.unit ?? null);
+    if (f.kind === 'date') return '2020-01-01';
+    if (f.kind === 'select') return f.options![0];
+    return 'X';
+  };
+  // The ratio: 13,8 kV / 380 V, the three captures 36,3 (within on Yyn0); the insulation 150 GΩ.
+  const readingValue = (testKey: string, col: number): unknown => (testKey === 'isolacao' ? m('150', 'GΩ') : col === 0 ? m('13.8', 'kV') : col === 1 ? m('380', 'V') : m('36.3', null));
+  await pushDrafts(page, database, [
+    ...built.drafts,
+    emCampoDraft(account, built.relatorioId),
+    ...cabineDrafts,
+    ...TF.nameplate.filter((f) => f.key !== 'ligacao_secundaria').map((f) => officeDraft(account, scope, `sheet/${sheet.blockId}/nameplate/${f.key}`, plateValue(f))),
+    ...TF.checklist!.map((item) => officeDraft(account, scope, `sheet/${sheet.blockId}/checklist/${item.key}/result`, 'C')),
+    ...TF.tests.flatMap((t) => cellAddressesOf(TF, t.key).map((c) => officeDraft(account, scope, `sheet/${sheet.blockId}/test/${c.testKey}/cell/${c.row}/${c.col}`, readingValue(c.testKey, c.col)))),
+    officeDraft(account, scope, `sheet/${sheet.blockId}/conclusion/result`, 'aprovado'),
+    officeDraft(account, scope, `sheet/${sheet.blockId}/conclusion/restriction`, 'sem_restricoes'),
+  ]);
+  await page.goto(`/relatorio/${built.relatorioId}/ficha/${sheet.blockId}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await syncNowAndReturn(page);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  return { relatorioId: built.relatorioId, blockId: sheet.blockId, tag: sheet.tag };
+}
+
+test('@p0 21.1-E2E-004 e21g D7: "Concluir ficha" on a v11 transformer whose only gap is its vector group lands on Placa with LIGAÇÃO SECUNDÁRIA focused, empty or naming no group; Yyn0 completes it', async ({ page }) => {
+  test.setTimeout(240_000);
+  // One relatório, both widths per case: Concluir writes nothing, so each case is replayed at 390 on the same sheet.
+  const { relatorioId, blockId, tag } = await openCompleteTransformer(page, 1280);
+  const select = field(page, 'ligacao_secundaria').locator('select');
+  const concluirFromEnsaios = async (label: string) => {
+    await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+    await expect(stepper(page).getByRole('button', { name: /^Ensaios,/ }), label).toHaveAttribute('aria-current', 'step');
+    await page.getByRole('button', { name: `Mais opções da ficha ${tag}` }).click();
+    await page.getByRole('menuitem', { name: 'Concluir ficha' }).click();
+    await expect(page.getByTestId('ficha-announcer'), label).toHaveText('Faltam obrigatórios — indo para o primeiro campo faltando');
+    await expect(stepper(page).getByRole('button', { name: /^Placa,/ }), label).toHaveAttribute('aria-current', 'step');
+    await expect(select, label).toBeFocused();
+    expect((await outbox(page)).some((r) => r.path === `block/${blockId}/concluded_by`), label).toBe(false);
+    await expect(page).toHaveURL(new RegExp(`/ficha/${blockId}$`));
+  };
+  const atWidths = async (label: string) => {
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: width < 768 ? 844 : 900 });
+      await concluirFromEnsaios(`${label} ${width}`);
+    }
+  };
+
+  // Case A: LIGAÇÃO SECUNDÁRIA empty, the plate's only gap.
+  await expect(stepper(page).getByRole('button', { name: 'Placa, 1 faltando' })).toBeVisible();
+  await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toBeVisible();
+  await expect(stepper(page).getByRole('button', { name: 'Conclusão, 0 faltando' })).toBeVisible();
+  await atWidths('empty');
+
+  // Case B: a stored "Y" from the office names no group: Placa counts it filled, Ensaios counts the group.
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await pushDrafts(page, database, [officeDraft(account, { relatorioId }, `sheet/${blockId}/nameplate/ligacao_secundaria`, 'Y')]);
+  await syncNowAndReturn(page);
+  await expect(select).toHaveValue('Y', { timeout: 30_000 });
+  await expect(stepper(page).getByRole('button', { name: 'Placa, 0 faltando' })).toBeVisible();
+  await expect(stepper(page).getByRole('button', { name: 'Ensaios, 1 faltando' })).toBeVisible();
+  await atWidths('Y');
+
+  // Choosing Yyn0 (at 390, where the last case left the sheet) completes it; nothing was concluded.
+  await select.selectOption('Yyn0');
+  await expect.poll(async () => (await outbox(page)).filter((r) => r.path === `sheet/${blockId}/nameplate/ligacao_secundaria`).at(-1)?.value).toBe('Yyn0');
+  await expect(page.getByTestId('ficha-progress')).toHaveText('Ficha completa');
+  expect((await outbox(page)).some((r) => r.path === `block/${blockId}/concluded_by`)).toBe(false);
 });
 
 test('@p1 21.1-E2E-003 a v11 Yd1 transformer: the captures read its shorted leads, and the helpers name its formula and the winding to short per phase', async ({ page }) => {

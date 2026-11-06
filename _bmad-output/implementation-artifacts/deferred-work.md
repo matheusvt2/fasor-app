@@ -2959,9 +2959,11 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/spec-e21r-ratio-vector-group.md` (review, owner: the Epic 21 integrated review or its fix batch)
   summary: `suggestConclusionPair` can offer "Aprovado · Sem restrições" on a v11 transformer whose LIGAÇÃO SECUNDÁRIA is empty and whose captures are measured, since no VAL CALCULADO judges them.
   evidence: `relatorio/conclusion.ts` does not read `EvaluatedTable.groupMissing`; a ratio row missing V PRIMÁRIO behaves the same today, and the sheet still counts the row missing, so "Concluir ficha" stays blocked.
+  state: closed (2026-11-06, fix batch e21g, D6, PR #260)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e21r-ratio-vector-group.md` (review, owner: the Epic 21 integrated review or its fix batch)
   summary: When the v11 missing group is the only thing missing in Ensaios, "Concluir ficha" lands on Ensaios with no field focused (the fix is on Placa).
   evidence: `apps/web/src/surfaces/ficha/ensaios-section.tsx` `firstMissing` reads evaluated cells only, and the group has no cell; the missing-group helper is shown under the ratio table.
+  state: closed (2026-11-06, fix batch e21g, D7, PR #260)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e21r-ratio-vector-group.md` (review, before the deploy with the eval run)
   summary: A drawn-only vector diagram whose terminal labels the OCR did not return is dropped as uncited, so no group is suggested.
   evidence: `providers/bedrock.ts` `withoutUncitedValues` and `structuringValueSchema` (`min(1)`) drop a value citing no token; changing that touches `contract/ocr.ts` and the OCR sidecar gate. The paid eval run shows how often the real plates hit it.

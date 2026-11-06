@@ -28,8 +28,12 @@ export interface FichaSteps {
   /** A focus arriving in `step`: leaving the previous step only when it came from the keyboard. */
   focusIn: (step: SheetStep) => void;
   stepClass: (step: SheetStep) => string;
-  /** Scrolls to a step and expands it; with `missing`, focuses its first missing field. */
-  goTo: (step: SheetStep, missing: boolean) => void;
+  /**
+   * Scrolls to a step and expands it; with `missing`, focuses its first missing field. e21g D7:
+   * with a `fieldKey` (the kernel's `sheetJumpTarget`), focuses that field (`[data-field-key]`
+   * inside the step) instead of the first missing marker.
+   */
+  goTo: (step: SheetStep, missing: boolean, fieldKey?: string | null) => void;
 }
 
 export function useFichaSteps(progress: SheetProgress, shown: readonly SheetStep[]): FichaSteps {
@@ -67,12 +71,15 @@ export function useFichaSteps(progress: SheetProgress, shown: readonly SheetStep
   const focusIn = (step: SheetStep) => setCurrent(step, !isPointerModality() && !isEnterRunMoving());
   const collapsed = (step: SheetStep) => step !== current && left.has(step) && stepMayCollapse(progress, step);
 
-  /** Scrolls to a step and expands it; with `missing`, focuses its first missing field. */
-  const goTo = (step: SheetStep, missing: boolean) => {
+  /** Scrolls to a step and expands it; with `missing`, focuses its first missing field, or the field `fieldKey` names. */
+  const goTo = (step: SheetStep, missing: boolean, fieldKey: string | null = null) => {
     setCurrent(step, true);
     const hostOf = () => document.getElementById(`ficha-step-${step}`);
-    // The first marker drawn now (a TTR table and its phone cards both carry one; CSS shows one).
-    const markerIn = (host: HTMLElement) => (missing ? ([...host.querySelectorAll<HTMLElement>('[data-missing-field]')].find((element) => element.getClientRects().length > 0) ?? null) : null);
+    // e21g D7: the named field when the kernel gave one, else the first missing marker drawn now
+    // (a TTR table and its phone cards both carry one; CSS shows one). A pending plate suggestion
+    // carries the same field key, so it is skipped, as `focusPlainField` does.
+    const selector = fieldKey === null ? '[data-missing-field]' : `[data-field-key="${fieldKey}"]:not(.ficha-suggestion)`;
+    const markerIn = (host: HTMLElement) => (missing ? ([...host.querySelectorAll<HTMLElement>(selector)].find((element) => element.getClientRects().length > 0) ?? null) : null);
     /** What the land (or the watch below) last gave the focus to. */
     let landed: HTMLElement | null = null;
     const land = () => {

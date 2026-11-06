@@ -74,7 +74,8 @@ function anyAnswered(block: BlockRow): boolean {
  * row is NC, any reading is out of criterion or any ratio row INSATISFATÓRIO (Story 17.5,
  * `failedRatioRows`), else Sem restrições. Null when the sheet
  * is marked not tested, once any segment is set, or while nothing is measured and nothing
- * answered. Never Reprovado.
+ * answered; e21g D6: null too in place of Sem restrições while a ratio table waits for its
+ * vector group (`groupMissing`). Never Reprovado.
  */
 export function suggestConclusionPair(block: BlockRow): ConclusionPair | null {
   if (block.not_tested !== null) return null;
@@ -96,7 +97,12 @@ export function suggestConclusionPair(block: BlockRow): ConclusionPair | null {
     tableCells.some((cell) => cell.verdict === 'out');
   // Story 14.9: a reading measured under a test no criterion judges (a QGBT with no TENSÃO
   // NOMINAL, or above 1000 V) is never a pass: no "Sem restrições" is suggested over it.
-  const unjudged = evaluations.some((test) => test.criterion === null && evaluatedCells([test]).some((cell) => cell.role === 'capture' && cell.state === 'measured'));
+  // e21g D6: nor over a v11 ratio table waiting for its vector group, which cannot be judged
+  // whatever was typed, while its plate can be filled (the `ensaiosCounts` rule); a restriction
+  // still suggests Com restrições.
+  const unjudged =
+    evaluations.some((test) => test.criterion === null && evaluatedCells([test]).some((cell) => cell.role === 'capture' && cell.state === 'measured')) ||
+    (enabledSubBlocksOf(block).has('nameplate') && evaluations.some((test) => test.tables.some((table) => table.groupMissing)));
   if (!restricted && unjudged) return null;
   return { result: 'aprovado', restriction: restricted ? 'com_restricoes' : 'sem_restricoes' };
 }
