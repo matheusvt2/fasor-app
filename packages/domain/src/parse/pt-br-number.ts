@@ -186,6 +186,20 @@ export function isNotApplicableText(typed: string): boolean {
   return NOT_APPLICABLE_SPELLING.test(typed.replace(/\s+/g, '').toUpperCase());
 }
 
+// Story 22.2: the spellings a text value prints as "N/A", trimmed and in any case: "NA",
+// "N.A", "N.A.", "NA." and "N/A". Narrower than the input's (no inner whitespace): a text field
+// keeps what was typed unless it is plainly one of them.
+const NOT_APPLICABLE_PRINTED = /^(n\.?a\.?|n\/a)$/i;
+
+/**
+ * Story 22.2 (Bruno, 2026-11-06): a text as the document prints it, one "N/A" for every N/A
+ * spelling ("na", "N.A.", "n/a"), any other text as given ("-" stays "-"). Shared by the text
+ * and the number fields of the nameplate, the cabine and a configuration.
+ */
+export function printNotApplicable(text: string): string {
+  return NOT_APPLICABLE_PRINTED.test(text.trim()) ? NOT_APPLICABLE_TEXT : text;
+}
+
 /** The stored `not_applicable` number value (a type alias, so it is a JSON value as it stands). */
 export type NotApplicableNumber = {
   readonly raw: '';

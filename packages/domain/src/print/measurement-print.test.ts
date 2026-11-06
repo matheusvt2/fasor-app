@@ -266,7 +266,7 @@ describe('section9Layout: a Chave de transferência automática', () => {
     expect(rows[18]![0]).toBe('17. GERADOR DEIXADO EM AUTOMÁTICO AO FINAL');
   });
 
-  it('E1: the instrument line, the ACEITÁVEL line with its source, the poles under headers carrying the unit, and the lowest of each side', () => {
+  it('E1: the instrument line, no ACEITÁVEL line (22.2), the poles under headers carrying the unit, and the lowest of each side', () => {
     const { state, f } = filled();
     const instrument = { instrument_id: id(800), code: '3M', manufacturer: 'Hi-Tech', model: 'HTMO-10', serial: 'G282926', cert_number: '37276/26', calibrated_at: null, valid_until: null, test_parameter: null };
     const picked = applyOp(state, f.op({ path: sheetTestPath(CTA_BLOCK, E1, 'instrument'), value: instrument }));
@@ -276,7 +276,6 @@ describe('section9Layout: a Chave de transferência automática', () => {
       ['INSTRUMENTO: HTMO-10 · Hi-Tech · Nº SÉRIE G282926 · RBC 37276/26'],
       // 2026-10-14 (Bruno): the test current on the values line.
       ['CORRENTE DE ENSAIO: 100 A'],
-      ['ACEITÁVEL: ≤ 50 % acima do menor do mesmo lado · NETA 7.22.3 (fonte secundária)'],
       ['POLO', 'LADO NORMAL (µΩ)', 'LADO EMERGÊNCIA (µΩ)'],
       ['POLO A', '38', '40'],
       ['POLO B', '41', '39'],
@@ -291,49 +290,52 @@ describe('section9Layout: a Chave de transferência automática', () => {
     expect(e1.rows.find((row) => row.cells[0]!.text === 'POLO C')!.cells.map((cell) => cell.text)).toEqual(['POLO C', '36', '63']);
     expect(e1.rows[0]).toMatchObject({ band: true, cells: [{ span: 3, shade: true }] });
     expect(e1.rows[1]!.cells[0]).toMatchObject({ span: 3, align: 'left' });
-    expect(e1.rows[4]!.header).toBe(true);
+    expect(e1.rows[3]!.header).toBe(true);
     // No instrument picked: the line says so.
     expect(texts(titled(printed(blockOf(state)).sheet, 'E1 · RESISTÊNCIA DE CONTATO'))[1]).toEqual(['INSTRUMENTO: -']);
     // A megôhmetro on E2: the line never carries a test parameter, so no "5 kV" beside the criterion's "1.000 Vcc".
     const megohmetro = { ...instrument, model: 'DMG10Ki', manufacturer: 'Instrum', serial: 'IN919021', cert_number: '37428/26', test_parameter: '5 kV' };
     const e2 = texts(titled(printed(blockOf(applyOp(state, f.op({ path: sheetTestPath(CTA_BLOCK, E2, 'instrument'), value: megohmetro })))).sheet, 'E2 · ISOLAMENTO PRINCIPAL'));
-    expect(e2.slice(1, 3)).toEqual([['INSTRUMENTO: DMG10Ki · Instrum · Nº SÉRIE IN919021 · RBC 37428/26'], ['ACEITÁVEL: 1.000 Vcc · ≥ 100 MΩ · NETA tabela 100.1 (fonte secundária)']]);
+    expect(e2.slice(1, 3)).toEqual([['INSTRUMENTO: DMG10Ki · Instrum · Nº SÉRIE IN919021 · RBC 37428/26'], ['MEDIÇÃO', 'NORMAL FECHADA (GΩ)', 'EMERGÊNCIA FECHADA (GΩ)', 'ABERTA (GΩ)']]);
   });
 
-  it('E2 and E3: GΩ in the headers, the fixed cells as written, the criterion of the tensão', () => {
+  it('E2 and E3: GΩ in the headers, the fixed cells as written, no ACEITÁVEL line (22.2)', () => {
     const { sheet: cta } = printed(blockOf(filled().state));
     const e2 = texts(titled(cta, 'E2 · ISOLAMENTO PRINCIPAL'));
-    expect(e2.slice(0, 5)).toEqual([
+    expect(e2.slice(0, 4)).toEqual([
       ['E2 · ISOLAMENTO PRINCIPAL'],
       ['INSTRUMENTO: -'],
-      ['ACEITÁVEL: 1.000 Vcc · ≥ 100 MΩ · NETA tabela 100.1 (fonte secundária)'],
       ['MEDIÇÃO', 'NORMAL FECHADA (GΩ)', 'EMERGÊNCIA FECHADA (GΩ)', 'ABERTA (GΩ)'],
       ['A-T', '12,4', '12,4', '12,4'],
     ]);
     // C1: four poles and a neutral, and no N-T row (2026-10-14).
-    expect(e2.map((row) => row[0]).slice(4)).toEqual(['A-T', 'B-T', 'C-T', 'A-B', 'B-C', 'C-A', 'LINHA-CARGA']);
+    expect(e2.map((row) => row[0]).slice(3)).toEqual(['A-T', 'B-T', 'C-T', 'A-B', 'B-C', 'C-A', 'LINHA-CARGA']);
     expect(e2[e2.length - 1]).toEqual(['LINHA-CARGA', '—', '—', '12,4']);
     expect(texts(titled(cta, 'E3 · ISOLAMENTO DO CONTROLE'))).toEqual([
       ['E3 · ISOLAMENTO DO CONTROLE'],
       ['INSTRUMENTO: -'],
-      ['ACEITÁVEL: 500 Vcc (fiação de 300 V) ou 1.000 Vcc (600 V) · ≥ 2 MΩ, com o chicote do controlador desconectado · NETA 7.22.3 (fonte secundária); manual do fabricante'],
       ['MEDIÇÃO', 'VALOR (MΩ)'],
       ['FIAÇÃO × TERRA', '850'],
     ]);
-    // In MT the line reads the firm's seeded criterion.
+    // In MT no line reads the criterion either.
     const mt = printed(blockOf(ctaState({ tensao: 'mt' }).state)).sheet;
-    expect(texts(titled(mt, 'E2 · ISOLAMENTO PRINCIPAL'))[2]).toEqual(['ACEITÁVEL: >400 MΩ · aceitável na ficha']);
+    expect(texts(titled(mt, 'E2 · ISOLAMENTO PRINCIPAL')).flat().some((text) => text.startsWith('ACEITÁVEL'))).toBe(false);
+  });
+
+  it('22.2: no measurement test of a CTA prints an "ACEITÁVEL: … · fonte" row', () => {
+    const { sheet: cta } = printed(blockOf(filled().state));
+    const all = cta.parts.flatMap((part) => (part.kind === 'table' ? texts(part.table).flat() : []));
+    expect(all.some((text) => text.startsWith('ACEITÁVEL:'))).toBe(false);
   });
 
   it('E4: no instrument line, each cell with its own unit, a choice in caps', () => {
     const e4 = texts(titled(printed(blockOf(filled().state)).sheet, 'E4 · AJUSTES DO CONTROLADOR'));
-    expect(e4.slice(0, 4)).toEqual([
+    expect(e4.slice(0, 3)).toEqual([
       ['E4 · AJUSTES DO CONTROLADOR'],
-      ['ACEITÁVEL: Deixado = projeto · manual do fabricante do controlador; ficha DTAC (RJ)'],
       ['AJUSTE', 'FÁBRICA', 'PROJETO', 'ENCONTRADO', 'DEIXADO'],
       ['NORMAL · PICKUP DE TENSÃO', '-', '5 %', '5 %', '5 %'],
     ]);
-    expect(e4).toHaveLength(3 + 14);
+    expect(e4).toHaveLength(2 + 14);
     expect(e4.find((row) => row[0] === 'FALTA DE FASE')).toEqual(['FALTA DE FASE', '-', 'LIGADO', 'LIGADO', 'LIGADO']);
     expect(e4.find((row) => row[0] === 'TD 3A · RETRANSFERÊNCIA')).toEqual(['TD 3A · RETRANSFERÊNCIA', '-', '5 min', '30 min', '30 min']);
     expect(e4.find((row) => row[0] === 'EXERCITADOR')).toEqual(['EXERCITADOR', '-', 'DESLIGADO', 'DESLIGADO', 'DESLIGADO']);
@@ -350,7 +352,6 @@ describe('section9Layout: a Chave de transferência automática', () => {
     expect(texts(e5)).toEqual([
       ['E5 · TRANSFERÊNCIA'],
       ['MÉTODO: FALTA REAL POR ABERTURA DO DISJUNTOR · CARGA: COM CARGA (62 %) · FONTE DOS TEMPOS: INSTRUMENTO'],
-      ['ACEITÁVEL: Assumir a carga ≤ 10 s · NFPA 110 nível 1; OVG, SEDI Goiás, BCB e NFPA 70B A.39.2'],
       ['ETAPA', 'AJUSTE', 'MEDIDO'],
       ['FALHA DA NORMAL ATÉ PARTIDA', '-', '3,2 s'],
       ['ATÉ CARGA NA EMERGÊNCIA', 'limite 10 s', '8,4 s'],
@@ -359,21 +360,20 @@ describe('section9Layout: a Chave de transferência automática', () => {
       ['FALHA DA EMERGÊNCIA', '—', '0,9 s'],
       ['NA EMERGÊNCIA, COM CARGA', '381 V · 60,1 Hz · 248 A'],
     ]);
-    expect(e5.rows[9]!.cells[1]).toMatchObject({ span: 2 });
+    expect(e5.rows[8]!.cells[1]).toMatchObject({ span: 2 });
     // Without the load readings the row is not printed.
-    expect(texts(titled(printed(blockOf(state)).sheet, 'E5 · TRANSFERÊNCIA'))).toHaveLength(9);
+    expect(texts(titled(printed(blockOf(state)).sheet, 'E5 · TRANSFERÊNCIA'))).toHaveLength(8);
   });
 
   it('E6: the ambient temperature on its line, the classes in caps, the optional ΔT columns "-" when not typed', () => {
     const e6 = texts(titled(printed(blockOf(filled().state)).sheet, 'E6 · TERMOGRAFIA SOB CARGA'));
-    expect(e6.slice(0, 5)).toEqual([
+    expect(e6.slice(0, 4)).toEqual([
       ['E6 · TERMOGRAFIA SOB CARGA'],
       ['TEMPERATURA AMBIENTE: 27 °C'],
-      ['ACEITÁVEL: Classe Normal (ΔT entre similares: 1 a 3 °C possível deficiência, 4 a 15 °C provável, acima de 15 °C grave) · NETA tabela 100.18 (fonte secundária)'],
       ['TERMINAL × FASE', 'TEMPERATURA (°C)', 'ΔT SIMILARES (°C)', 'ΔT AMBIENTE (°C)', 'CLASSE'],
       ['NORMAL · A', '41,2', '-', '-', 'NORMAL'],
     ]);
-    expect(e6).toHaveLength(4 + 9);
+    expect(e6).toHaveLength(3 + 9);
   });
 
   it('matrix "Test switched off": a test switched off prints nothing; "Config rows": a hidden row is not printed', () => {
@@ -382,11 +382,11 @@ describe('section9Layout: a Chave de transferência automática', () => {
     expect(bands(printed(blockOf(off)).sheet)).not.toContain('E1 · RESISTÊNCIA DE CONTATO');
     expect(bands(printed(blockOf(off)).sheet)).toContain('E2 · ISOLAMENTO PRINCIPAL');
     const three = printed(blockOf(ctaState({ polos: '3' }).state)).sheet;
-    expect(texts(titled(three, 'E1 · RESISTÊNCIA DE CONTATO')).map((row) => row[0])).toEqual(['E1 · RESISTÊNCIA DE CONTATO', 'INSTRUMENTO: -', expect.stringMatching(/^ACEITÁVEL: /), 'POLO', 'POLO A', 'POLO B', 'POLO C']);
+    expect(texts(titled(three, 'E1 · RESISTÊNCIA DE CONTATO')).map((row) => row[0])).toEqual(['E1 · RESISTÊNCIA DE CONTATO', 'INSTRUMENTO: -', 'POLO', 'POLO A', 'POLO B', 'POLO C']);
     const two = printed(blockOf(ctaState({ polos: '2' }).state)).sheet;
-    expect(texts(titled(two, 'E2 · ISOLAMENTO PRINCIPAL')).map((row) => row[0]).slice(4)).toEqual(['A-T', 'B-T', 'A-B', 'LINHA-CARGA']);
+    expect(texts(titled(two, 'E2 · ISOLAMENTO PRINCIPAL')).map((row) => row[0]).slice(3)).toEqual(['A-T', 'B-T', 'A-B', 'LINHA-CARGA']);
     // An empty sheet prints "-" in every typed cell and no lowest-of-column row.
-    expect(texts(titled(three, 'E1 · RESISTÊNCIA DE CONTATO')).slice(4)).toEqual([
+    expect(texts(titled(three, 'E1 · RESISTÊNCIA DE CONTATO')).slice(3)).toEqual([
       ['POLO A', '-', '-'],
       ['POLO B', '-', '-'],
       ['POLO C', '-', '-'],

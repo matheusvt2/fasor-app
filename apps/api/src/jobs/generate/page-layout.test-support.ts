@@ -69,7 +69,13 @@ export const fillerParts = (lines: number, prefix = 'Linha de enchimento'): Shee
 
 export const photosPart = (photos: PrintPhoto[]): SheetPart => ({ kind: 'photos', photos });
 
-export const sheet = (title: string, parts: SheetPart[], blockId = title): PrintSheet => ({ blockId, title, attribution: null, parts });
+export const sheet = (title: string, parts: SheetPart[], blockId = title): PrintSheet => ({ blockId, title, parts });
+
+/** Story 22.3: a table part as the kernel marks the tables of a ficha up to CONCLUSÃO (`keepRows` unless kept whole), kept with the next part when `withNext`. */
+export const keptPart = (table: PrintTable, withNext = false): SheetPart => {
+  const kept: PrintTable = table.keepWhole === true ? table : { ...table, keepRows: true };
+  return withNext ? { kind: 'table', table: kept, keepWithNext: true } : { kind: 'table', table: kept };
+};
 
 /**
  * Story 20.3: `base` with the eleven section blocks a relatório created today carries

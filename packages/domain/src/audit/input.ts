@@ -122,8 +122,8 @@ function partLines(parts: readonly SheetPart[], photoRefs: Map<string, AuditRef>
       return;
     }
     if (part.kind === 'photos') {
-      // Story 20.6: a checklist item's photo names its item, as section 7's do.
-      for (const photo of part.photos) lines.push(photoLine(photo.fileId, photo.number, photo.itemLine === undefined ? photo.caption : `${photo.caption} (${photo.itemLine})`, photoRefs));
+      // Story 22.2: a section 9 photo prints its caption line alone (no item line), so the audit reads that.
+      for (const photo of part.photos) lines.push(photoLine(photo.fileId, photo.number, photo.caption, photoRefs));
       return;
     }
     part.table.rows.forEach((row, r) => {

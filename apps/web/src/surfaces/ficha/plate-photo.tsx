@@ -7,6 +7,7 @@ import { copy } from '../../copy/pt-br.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { usePinchZoom } from '../../input/use-pinch-zoom.ts';
 import { useAiFeatures } from '../../state/ai-features.tsx';
+import { AttachFileAction } from './attach-file.tsx';
 import { useServerReachable } from '../../state/sync.tsx';
 import { useCamera } from './camera-view.tsx';
 import { PlateCaptureTile } from './photo-openers.tsx';
@@ -37,12 +38,16 @@ import type { CaptureTarget } from './use-photo-capture.ts';
  * only once the server holds the bytes (DG-4, `readingWaitStart`).
  */
 
-/** No plate photo yet: the copy chips (if any) and the tile under them. */
+/**
+ * No plate photo yet: the copy chips (if any), the tile under them and (Story 22.1) "Anexar
+ * arquivo", a plate photo file committed with the tile's own target.
+ */
 export function PlateCameraGroup({ relatorioId, target, chips }: { relatorioId: string; target: () => CaptureTarget; chips: ReactNode }) {
   return (
     <div className="camera-group">
       {chips}
       <PlateCaptureTile relatorioId={relatorioId} target={target} pendingRow={<PlatePendingRow />} />
+      <AttachFileAction relatorioId={relatorioId} target={target} />
     </div>
   );
 }
@@ -205,6 +210,8 @@ export function PlatePhotoRow({
             retakeOpening={camera.opening}
             onFallback={onFillManually}
             fallbackLabel={t.fillManually}
+            // Story 22.1: a plate file for the retake, the older plates' readings cancelled as for a shot (CAPT-V1).
+            attach={retake == null || !aiFeatures ? null : <AttachFileAction relatorioId={retake.relatorioId} target={retake.target} onSaved={retake.onShot} />}
           />
         ) : null}
         {camera.denied ? (

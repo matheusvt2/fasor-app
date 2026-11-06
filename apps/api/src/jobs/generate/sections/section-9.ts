@@ -24,9 +24,9 @@ import { CONTENT_WIDTH_TWIPS, image, sizedImage } from '../docx.ts';
  * per subsection, every ficha and every local block on a new page (Story 20.6, the rule on
  * `section9Children`), the sheet's title as a grey bar, its tables as native Word tables in
  * 9 pt over the content width whose rows never split across pages, and its photos two per
- * row at half width with their line beneath (and a checklist item's item line, Story 20.6).
- * A photo whose bytes are missing or unreadable keeps its line and leaves its image cell
- * empty; the document never fails for it.
+ * row at half width with their line beneath. A photo whose bytes are missing or unreadable
+ * keeps its line and leaves its image cell empty; the document never fails for it. Story 22.2:
+ * no attribution line under the title bar and no item line under a photo.
  *
  * Story 20.5 (FR-68): DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS and VERIFICAÇÕES DO LOCAL
  * (`table.keepWhole`) never start on one page and end on the next: every row but the last
@@ -46,6 +46,12 @@ import { CONTENT_WIDTH_TWIPS, image, sizedImage } from '../docx.ts';
  * (`row.group`) is one cell across the table on `F0F0F0` (`.pt-group`), kept with the row
  * under it. Story 20.6: a local block starts its page with its heading, and whatever follows
  * it (its first sheet, its painel's band, the next local) starts a new page.
+ *
+ * Story 22.3 (FR-68): a table the kernel marks `keepRows` keeps every row but its last with
+ * the next (no header repeat), and a part marked `keepWithNext` keeps its last row, or its
+ * paragraph, and the gap after it with the next part. Every sheet starts a page, so a sheet
+ * that fits stays whole on it, and a taller one breaks only between parts the kernel left
+ * free, CONCLUSÃO always with the part before it; the photo block stays free to break.
  *
  * Story 20.6 follow-up (2026-11-04): the empty gap paragraph that keeps two tables apart is
  * drawn only between parts, never after a sheet's or a local's last part, where it spilled
@@ -156,11 +162,14 @@ function leadingRows(rows: readonly PrintRow[]): number {
  * every row but its last with the next, so LibreOffice and Word move it whole to the next
  * page when it does not fit; only one taller than a page splits, at a row boundary (every
  * row is `cantSplit`), with its band and header rows repeated on the next page. A leading
- * band and header block that is the whole table (no body row) repeats nothing.
+ * band and header block that is the whole table (no body row) repeats nothing. Story 22.3:
+ * a `keepRows` table keeps every row but its last with the next too, with no header repeat,
+ * and `withNext` (the part's `keepWithNext`) keeps its last row with what follows.
  */
-function drawTable(printed: PrintTable): Table {
+function drawTable(printed: PrintTable, withNext = false): Table {
   const widths = columnWidths(printed.columns);
   const whole = printed.keepWhole === true;
+  const kept = whole || printed.keepRows === true;
   const last = printed.rows.length - 1;
   const lead = whole ? leadingRows(printed.rows) : 0;
   const header = lead > 0 && lead < printed.rows.length ? lead : 0;
@@ -170,7 +179,7 @@ function drawTable(printed: PrintTable): Table {
     layout: TableLayoutType.FIXED,
     borders: ruledTable,
     margins: CELL_MARGINS,
-    rows: printed.rows.map((row, i) => drawRow(row, widths, { keepNext: whole && i < last, tableHeader: i < header })),
+    rows: printed.rows.map((row, i) => drawRow(row, widths, { keepNext: (kept && i < last) || (withNext && i === last), tableHeader: i < header })),
   });
 }
 
@@ -185,9 +194,7 @@ async function drawPhotos(photos: readonly PrintPhoto[], bytes: ReadonlyMap<stri
       const sized = data === undefined ? null : await sizedImage(data, maxWidthPx, PHOTO_MAX_HEIGHT_PX);
       return cell([
         new Paragraph({ style: SHEET_TEXT, alignment: AlignmentType.CENTER, keepNext: true, children: sized === null ? [] : [image(sized)] }),
-        new Paragraph({ style: SHEET_CAPTION, alignment: AlignmentType.CENTER, ...(photo.itemLine === undefined ? {} : { keepNext: true }), children: [new TextRun(photo.caption)] }),
-        // Story 20.6: a checklist item's photo names its item under the caption, small and centred.
-        ...(photo.itemLine === undefined ? [] : [new Paragraph({ style: SHEET_CAPTION, alignment: AlignmentType.CENTER, children: [new TextRun(photo.itemLine)] })]),
+        new Paragraph({ style: SHEET_CAPTION, alignment: AlignmentType.CENTER, children: [new TextRun(photo.caption)] }),
       ]);
     }),
   );
@@ -205,7 +212,7 @@ async function drawPhotos(photos: readonly PrintPhoto[], bytes: ReadonlyMap<stri
   });
 }
 
-const gap = (): Paragraph => new Paragraph({ style: SHEET_GAP, children: [] });
+const gap = (keepNext: boolean): Paragraph => new Paragraph({ style: SHEET_GAP, ...(keepNext ? { keepNext: true } : {}), children: [] });
 
 async function sheetChildren(sheet: PrintSheet, photos: ReadonlyMap<string, Buffer>, newPage: boolean): Promise<(Paragraph | Table)[]> {
   const out: (Paragraph | Table)[] = [
@@ -219,7 +226,6 @@ async function sheetChildren(sheet: PrintSheet, photos: ReadonlyMap<string, Buff
       children: [new TextRun({ text: sheet.title, bold: true, size: TITLE_TEXT })],
     }),
   ];
-  if (sheet.attribution !== null) out.push(new Paragraph({ style: SHEET_CAPTION, alignment: AlignmentType.RIGHT, keepNext: true, children: [new TextRun(sheet.attribution)] }));
   out.push(...(await partsChildren(sheet.parts, photos)));
   return out;
 }
@@ -236,12 +242,14 @@ async function sheetChildren(sheet: PrintSheet, photos: ReadonlyMap<string, Buff
 async function partsChildren(parts: readonly SheetPart[], photos: ReadonlyMap<string, Buffer>): Promise<(Paragraph | Table)[]> {
   const out: (Paragraph | Table)[] = [];
   for (const [i, part] of parts.entries()) {
+    // Story 22.3: a part kept with the next keeps its last row (or its paragraph) and its gap with it.
+    const withNext = part.keepWithNext === true;
     if (part.kind === 'paragraph') {
-      out.push(new Paragraph({ style: SHEET_CAPTION, children: [new TextRun(part.text)] }));
+      out.push(new Paragraph({ style: SHEET_CAPTION, ...(withNext ? { keepNext: true } : {}), children: [new TextRun(part.text)] }));
       continue;
     }
-    out.push(part.kind === 'table' ? drawTable(part.table) : await drawPhotos(part.photos, photos));
-    if (i < parts.length - 1) out.push(gap());
+    out.push(part.kind === 'table' ? drawTable(part.table, withNext) : await drawPhotos(part.photos, photos));
+    if (i < parts.length - 1) out.push(gap(withNext));
   }
   return out;
 }

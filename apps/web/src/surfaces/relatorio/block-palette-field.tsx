@@ -84,13 +84,15 @@ export interface FieldPaletteProps {
    * block placed where this palette places it; absent, the row is not drawn.
    */
   onPhotograph?: (target: PaletteTarget) => void;
+  /** Story 22.1: "Anexar arquivo" beside the camera row, a photo file read as the panel shot is; absent, it is not drawn. */
+  onAttach?: (target: PaletteTarget) => void;
   /** Story 13.5 (WAIT-3): the panel photos of this location still waiting for their dialog (`panelAwaitingRows`). */
   awaiting?: readonly { photoId: string; text: string }[];
   /** Story 13.5: reopens the dialog of one of them; absent, the rows are not drawn. */
   onResume?: (photoId: string, target: PaletteTarget) => void;
 }
 
-export function FieldPalette({ target, seedVersion, locations, blocks, equipment, onCreate, onClose, onPhotograph, awaiting = [], onResume }: FieldPaletteProps) {
+export function FieldPalette({ target, seedVersion, locations, blocks, equipment, onCreate, onClose, onPhotograph, onAttach, awaiting = [], onResume }: FieldPaletteProps) {
   const t = copy.sumario.palette;
   const headingId = useId();
   const cameraSubId = useId();
@@ -170,6 +172,14 @@ export function FieldPalette({ target, seedVersion, locations, blocks, equipment
             <p className="camera-sub" id={cameraSubId}>
               {t.photographSub}
             </p>
+            {onAttach === undefined ? null : (
+              <button type="button" className="btn btn-text" onClick={() => onAttach({ locationId: location.id, anchorBlockId: target.anchorBlockId })}>
+                <svg className="ico" aria-hidden="true">
+                  <use href="/sprite.svg#i-image" />
+                </svg>
+                {copy.photos.attachFile}
+              </button>
+            )}
           </div>
         )}
         {onResume === undefined || awaiting.length === 0 ? null : (

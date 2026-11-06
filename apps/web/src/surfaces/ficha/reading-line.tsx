@@ -305,6 +305,8 @@ export interface EmptyReadingProps {
   /** The way to type instead: "Preencher manualmente" on the plate, "Digitar" on a cell. */
   onFallback: () => void;
   fallbackLabel: ReactNode;
+  /** Story 22.1: "Anexar arquivo" beside "Fotografar de novo" (the same target); absent where the retake is not offered. */
+  attach?: ReactNode;
 }
 
 /**
@@ -312,7 +314,7 @@ export interface EmptyReadingProps {
  * nothing (a dark or blurred frame, most likely). The photo stays; "Fotografar de novo" takes
  * one shot of the same target, and the fallback takes the engineer to typing.
  */
-export function EmptyReading({ onRetake, retakeOpening = false, onFallback, fallbackLabel }: EmptyReadingProps) {
+export function EmptyReading({ onRetake, retakeOpening = false, onFallback, fallbackLabel, attach = null }: EmptyReadingProps) {
   const t = copy.readingWait;
   return (
     <>
@@ -326,6 +328,7 @@ export function EmptyReading({ onRetake, retakeOpening = false, onFallback, fall
             {t.retake}
           </TextButton>
         )}
+        {attach}
         <TextButton data-telemetry="reading.type_instead" onPress={onFallback}>
           {fallbackLabel}
         </TextButton>
@@ -343,11 +346,14 @@ export function DisplayEmptyLine({
   photoId,
   onRetake,
   retakeOpening,
+  attach,
 }: {
   photoId: string;
   /** "Fotografar de novo", told the cell or field the line sits in (the camera gives the focus back there); null where not offered. */
   onRetake: ((root: HTMLElement | null) => void) | null;
   retakeOpening?: boolean;
+  /** Story 22.1: "Anexar arquivo" beside the retake; absent where it is not offered. */
+  attach?: ReactNode;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const root = () => host.current?.closest<HTMLElement>('.ficha-cell, [data-field-key]') ?? null;
@@ -361,6 +367,7 @@ export function DisplayEmptyLine({
         retakeOpening={retakeOpening ?? false}
         onFallback={typeInstead}
         fallbackLabel={copy.readingWait.typeInstead}
+        attach={attach ?? null}
       />
     </div>
   );

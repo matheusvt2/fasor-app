@@ -79,6 +79,25 @@ describe('7.2-UNIT-001 section 7 layout', () => {
     expect(photos[1]).toMatchObject({ label: 'Imagem 2:', caption: ' Detalhe da chave!', stamp: '06/09/2026 15:00 · −23,5505, −46,6333', itemLine: null });
   });
 
+  it('22.3: a caption repeated in the section takes " (2)", " (3)" before its period; numbers and uncaptioned photos unchanged', () => {
+    const at = (minute: number) => `2026-09-06T17:${String(minute).padStart(2, '0')}:00.000Z`;
+    const files = [
+      photo(base, { captured_at: at(1), caption: 'Vista geral' }),
+      photo(base, { captured_at: at(2), caption: null }),
+      photo(base, { captured_at: at(3), caption: 'Vista geral.' }),
+      photo(base, { captured_at: at(4), caption: 'Fachada' }),
+      photo(base, { captured_at: at(5), caption: ' Vista geral ' }),
+    ];
+    const photos = section7Photos({ ...base, files });
+    expect(photos.map((p) => [p.number, p.label, p.caption])).toEqual([
+      [1, 'Imagem 1:', ' Vista geral.'],
+      [2, 'Imagem 2.', null],
+      [3, 'Imagem 3:', ' Vista geral (2).'],
+      [4, 'Imagem 4:', ' Fachada.'],
+      [5, 'Imagem 5:', ' Vista geral (3).'],
+    ]);
+  });
+
   it('S7 uncaptioned: "Imagem N." alone; a removed photo is gone and the numbers close the gap', () => {
     const first = photo(base, { captured_at: '2026-09-06T17:00:00.000Z', caption: null });
     const removed = photo(base, { captured_at: '2026-09-06T17:10:00.000Z', removed_at: '2026-09-06T19:00:00.000Z' });

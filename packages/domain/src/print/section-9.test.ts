@@ -15,7 +15,7 @@ import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import { TEST_PROJECT } from '../test-support.ts';
 import { EMPTY_SECTION_NOTE, layoutSpec, tocLines } from './layout.ts';
-import { section9Layout, type LayoutSectionSheets, type PrintSheet, type PrintTable, type SheetPart } from './section-9.ts';
+import { section9Layout, wordsWiderThanColumns, type LayoutSectionSheets, type PrintSheet, type PrintTable, type SheetPart } from './section-9.ts';
 
 /*
  * Story 7.1 (+ 7.2 AC2, E12-A2): the section 9 layout over small hand-built relatórios,
@@ -218,10 +218,8 @@ describe('7.1 section9Layout: one sheet in FO.SERV-03 order', () => {
       'DADOS DO EQUIPAMENTO',
       'VERIFICAÇÕES GERAIS',
       'ENSAIO DE ISOLAÇÃO',
-      'paragraph',
       'SECCIONADORA CONTATO ABERTO',
       'ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO',
-      'paragraph',
       'LINHA',
       'OBSERVAÇÕES',
       'CONCLUSÃO',
@@ -231,15 +229,39 @@ describe('7.1 section9Layout: one sheet in FO.SERV-03 order', () => {
     expect(printed.parts.filter((part) => part.kind === 'photos')).toHaveLength(1);
   });
 
-  it('20.6: a checklist item photo carries its item line ("Item 8 · Contatos · NC"); the plate and other photos carry none', () => {
+  it('22.2: no photo prints an item line, a checklist item\'s included (the screen still shows it)', () => {
     const photos = printed.parts.flatMap((p) => (p.kind === 'photos' ? p.photos : []));
-    expect(photos.map((p) => [p.number, p.itemLine])).toEqual([
-      [2, undefined],
-      [3, photoItemLine(snapshot.files.find((f) => f.id === id(3001)) as Parameters<typeof photoItemLine>[0], snapshot)!.text],
-      [4, undefined],
-      [5, undefined],
+    expect(photos.map((p) => p.number)).toEqual([2, 3, 4, 5]);
+    expect(photoItemLine(snapshot.files.find((f) => f.id === id(3001)) as Parameters<typeof photoItemLine>[0], snapshot)!.text).toMatch(/^Item \d+ · Contatos · NC$/);
+    expect(photos.every((p) => !('itemLine' in p))).toBe(true);
+  });
+
+  it('22.2: prints no attribution, no "CRITÉRIO:" line and no criteria line; the ACEITÁVEL header cell keeps the criterion', () => {
+    expect('attribution' in printed).toBe(false);
+    expect(printed.parts.filter((p) => p.kind === 'paragraph')).toEqual([]);
+    expect(texts(tableNamed(printed, 'ENSAIO DE ISOLAÇÃO'))[2]!.at(-1)).toBe('>400 MΩ');
+    const all = printed.parts.flatMap((p) => (p.kind === 'table' ? texts(p.table).flat() : p.kind === 'paragraph' ? [p.text] : p.photos.map((ph) => ph.caption)));
+    expect(all.some((text) => text.startsWith('CRITÉRIO') || text.startsWith('Concluída por') || text.startsWith('Preenchido por'))).toBe(false);
+  });
+
+  it('22.3: every table up to CONCLUSÃO keeps its rows (keepWhole or keepRows); the joints that belong together keep with the next', () => {
+    const tables = printed.parts.filter((p): p is Extract<SheetPart, { kind: 'table' }> => p.kind === 'table');
+    expect(tables.every((p) => p.table.keepWhole === true || p.table.keepRows === true)).toBe(true);
+    expect(tables.filter((p) => p.table.keepWhole === true).every((p) => p.table.keepRows === undefined)).toBe(true);
+    expect(printed.parts.map((part) => [partName(part), part.keepWithNext === true])).toEqual([
+      ['CARACTERÍSTICAS DA SE', true],
+      ['AMBIENTE DE ENSAIO', true],
+      ['DADOS DO EQUIPAMENTO', false],
+      ['VERIFICAÇÕES GERAIS', false],
+      ['ENSAIO DE ISOLAÇÃO', true],
+      ['SECCIONADORA CONTATO ABERTO', false],
+      ['ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO', true],
+      ['LINHA', false],
+      // The part right before CONCLUSÃO keeps with it.
+      ['OBSERVAÇÕES', true],
+      ['CONCLUSÃO', false],
+      ['photos 2 3 4 5', false],
     ]);
-    expect(photos[1]!.itemLine).toMatch(/^Item \d+ · Contatos · NC$/);
   });
 
   it('20.5: marks DADOS DO EQUIPAMENTO and VERIFICAÇÕES GERAIS to keep whole, and no other table of the sheet', () => {
@@ -280,29 +302,27 @@ describe('7.1 section9Layout: one sheet in FO.SERV-03 order', () => {
     expect(rows).toHaveLength(2 + 14);
   });
 
-  it('prints each test\'s copied instrument header, its criterion line and its tables (contato aberto and fechado side by side)', () => {
+  it('prints each test\'s copied instrument header and its tables (contato aberto and fechado side by side), no criterion line (22.2)', () => {
     expect(texts(tableNamed(printed, 'ENSAIO DE ISOLAÇÃO'))).toEqual([
       ['ENSAIO DE ISOLAÇÃO'],
       ['INSTRUM./FABRIC.', 'TIPO', 'Nº SÉRIE', 'RBC', 'TENSÃO ENSAIO', 'ACEITÁVEL'],
       ['Instrument', 'DMG10Ki', 'IN919021', '37428/26', '10 kV', '>400 MΩ'],
     ]);
     expect(texts(tableNamed(printed, 'ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO'))[1]).toEqual(['INSTRUM./FABRIC.', 'TIPO', 'Nº SÉRIE', 'RBC', 'CORRENTE', 'ACEITÁVEL']);
-    expect(printed.parts.filter((p) => p.kind === 'paragraph').map((p) => (p as { text: string }).text)).toEqual([
-      'CRITÉRIO: >400 MΩ · aceitável na ficha',
-      'CRITÉRIO: <250 µΩ · aceitável na ficha',
-    ]);
+    expect(printed.parts.filter((p) => p.kind === 'paragraph')).toEqual([]);
+    // 22.2: the header carries the one unit, the cells print bare.
     expect(texts(tableNamed(printed, 'SECCIONADORA CONTATO ABERTO'))).toEqual([
       ['SECCIONADORA CONTATO ABERTO', 'SECCIONADORA CONTATO FECHADO'],
       ['LINHA', 'TERRA', 'GUARD', 'VALORES (GΩ)', 'LINHA', 'TERRA', 'GUARD', 'VALORES (GΩ)'],
-      ['T1', 'T2', 'MASSA', '173 GΩ', 'FASE A', 'MASSA', '', '173 GΩ'],
-      ['T3', 'T4', 'MASSA', '720 GΩ', 'FASE B', 'MASSA', '', '720 GΩ'],
-      ['T5', 'T6', 'MASSA', '860 GΩ', 'FASE C', 'MASSA', '', '860 GΩ'],
+      ['T1', 'T2', 'MASSA', '173', 'FASE A', 'MASSA', '', '173'],
+      ['T3', 'T4', 'MASSA', '720', 'FASE B', 'MASSA', '', '720'],
+      ['T5', 'T6', 'MASSA', '860', 'FASE C', 'MASSA', '', '860'],
     ]);
     expect(texts(tableNamed(printed, 'LINHA'))).toEqual([
       ['LINHA', 'TERRA', 'GUARD', 'VALORES (µΩ)'],
-      ['T1-T2', 'FASE A', 'MASSA', '132 µΩ'],
-      ['T3-T4', 'FASE B', 'MASSA', '157 µΩ'],
-      ['T5-T6', 'FASE C', 'MASSA', '183 µΩ'],
+      ['T1-T2', 'FASE A', 'MASSA', '132'],
+      ['T3-T4', 'FASE B', 'MASSA', '157'],
+      ['T5-T6', 'FASE C', 'MASSA', '183'],
     ]);
   });
 
@@ -397,7 +417,7 @@ describe('7.1 section9Layout: the I/O matrix', () => {
     expect(plate[plate.indexOf('POTÊNCIA NOMINAL') + 1]).toBe('N/A');
   });
 
-  it('Não ensaiada: title, attribution, the cabine block on a first sheet, the nameplate, the reason band and then its photos, plate first (17.1, 20.6); nothing else', () => {
+  it('Não ensaiada: title, no attribution (22.2), the cabine block on a first sheet, the nameplate, the reason band and then its photos, plate first (17.1, 20.6); nothing else', () => {
     const marked = (n: number, type: EquipmentBlockType, reason: string, text: string | null) =>
       edit(sheet(n, 1, type, `a${n}`), (b) => ({
         ...withChecklist({ limpeza: 'C' })(withTest('isolacao', { '0/0': measured('1', 'GΩ') }, INSTRUMENT)(withNameplate({ fabricacao: 'WEG' })(b))),
@@ -417,8 +437,10 @@ describe('7.1 section9Layout: the I/O matrix', () => {
     );
     const section = layoutOf(snapshot);
     const first = sheetOf(section, block(1));
-    expect(first.attribution).toBe('Preenchido por Bruno Silva · 06/09/2026 09:00');
+    expect('attribution' in first).toBe(false);
     expect(first.parts.map(partName)).toEqual(['CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', 'DADOS DO EQUIPAMENTO', 'NÃO ENSAIADO — Solicitação do cliente: Os ensaios não foram realizados conforme solicitação do cliente.', 'photos 1']);
+    // 22.3: the plate keeps with the reason band; the band, last before the photos, keeps with nothing.
+    expect(first.parts.map((part) => part.keepWithNext === true)).toEqual([true, true, true, false, false]);
     // Story 20.6: the nameplate, the reason band, then one photo part (plate first).
     expect(sheetOf(section, block(2)).parts.map(partName)).toEqual(['DADOS DO EQUIPAMENTO', 'NÃO ENSAIADO — Equipamento energizado', 'photos 2 3']);
     // Every numbered photo prints, the printed numbers run 1..3 with no gap.
@@ -463,17 +485,17 @@ describe('7.1 section9Layout: the I/O matrix', () => {
     };
     const criteriaLine = composeConclusion(FULL_CHAVE.block, definition, 'SEC-01').criteriaLine;
 
-    it('text_status = edited: the stored text prints, the current criteria line beneath (whatever its basis)', () => {
+    it('text_status = edited: the stored text prints, and (22.2) no criteria line beneath, though the screen still composes one', () => {
       const { rows, criteria } = conclusionOf(withText('edited', 'stale-basis'));
       expect(rows[2]).toEqual(['A seccionadora SEC-01 apresentou oxidação nos contatos.']);
-      expect(criteria).toBe(criteriaLine);
+      expect(criteria).toBeNull();
       expect(criteriaLine).toContain('item 8 NC');
     });
 
     it('confirmed with text_basis equal to the current basis: printed the same as edited', () => {
       const { rows, criteria } = conclusionOf(withText('confirmed', basis));
       expect(rows[2]).toEqual(['A seccionadora SEC-01 apresentou oxidação nos contatos.']);
-      expect(criteria).toBe(criteriaLine);
+      expect(criteria).toBeNull();
     });
 
     it('confirmed but stale, unconfirmed, or the pair incomplete: the pair row prints and the text does not', () => {
@@ -504,7 +526,7 @@ describe('7.1 section9Layout: the I/O matrix', () => {
     it('p020 P-3: confirmed, basis moved, text equal to the composed one: prints', () => {
       const { rows, criteria } = conclusionOf(withStored(composedText));
       expect(rows[2]).toEqual([composedText.trim()]);
-      expect(criteria).toBe(criteriaLine);
+      expect(criteria).toBeNull();
     });
 
     it('p020 P-3: confirmed, basis moved, text differs from the composed one: not printed (as before)', () => {
@@ -529,6 +551,8 @@ describe('7.1 section9Layout: the I/O matrix', () => {
     expect(grid(1)[0]).toEqual(['PONTO DE ENSAIO/CONEXÃO', 'VALORES', 'QUALIDADE ISOLAÇÃO']);
     expect(grid(1).slice(2).map((row) => row[4])).toEqual(['2,8 GΩ', '1,2 TΩ', '900 MΩ', '-']);
     expect(grid(2)[0]).toEqual(['PONTO DE ENSAIO/CONEXÃO', 'VALORES (GΩ)', 'QUALIDADE ISOLAÇÃO']);
+    // 22.2: one unit in the header, the cells bare.
+    expect(grid(2).slice(2, 4).map((row) => row[4])).toEqual(['2,8', '3']);
     // Nothing measured: the seed's unit of the column.
     expect(grid(3)[0]).toEqual(['PONTO DE ENSAIO/CONEXÃO', 'VALORES (GΩ)', 'QUALIDADE ISOLAÇÃO']);
   });
@@ -569,7 +593,7 @@ describe('7.1 section9Layout: sub-blocks, grids and words', () => {
     const grid = texts(tableNamed(sheetOf(section, block(2)), 'PONTO DE ENSAIO/CONEXÃO'));
     expect(grid[1]).toEqual(['LINHA', 'TERRA', 'GUARD', '30 SEGUNDOS', '1 MINUTO', 'ESTAB./10MIN', 'ABSORÇÃO', 'POLARIZAÇÃO']);
     expect(grid.slice(2)).toEqual([
-      ['FASE A', 'MASSA/BLIND.', '', '-', '2,8 GΩ', '-', '-', '-'],
+      ['FASE A', 'MASSA/BLIND.', '', '-', '2,8', '-', '-', '-'],
       ['FASE B', 'MASSA/BLIND.', '', '-', '-', '-', '-', '-'],
       ['FASE C', 'MASSA/BLIND.', '', '-', '-', '-', '-', '-'],
       ['FASE RESERVA', 'MASSA/BLIND.', '', '-', '-', '-', '-', '-'],
@@ -582,8 +606,8 @@ describe('7.1 section9Layout: sub-blocks, grids and words', () => {
     const off = edit(sheet(1, 1, 'tp', 'a0'), withTest('isolacao', cells, INSTRUMENT));
     const on = edit(off, withSubBlocks({ ia_ip_display: true }));
     const rowOf = (built: Built) => texts(tableNamed(sheetOf(layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0')], [built])), block(1)), 'PONTO DE ENSAIO/CONEXÃO'))[2];
-    expect(rowOf(off)).toEqual(['FASE R', 'MASSA', '', '-', '2,8 GΩ', '-', '-', '-']);
-    expect(rowOf(on)).toEqual(['FASE R', 'MASSA', '', '-', '2,8 GΩ', '-', '1,3', '2,1']);
+    expect(rowOf(off)).toEqual(['FASE R', 'MASSA', '', '-', '2,8', '-', '-', '-']);
+    expect(rowOf(on)).toEqual(['FASE R', 'MASSA', '', '-', '2,8', '-', '1,3', '2,1']);
   });
 
   it('prints VAL CALCULADO and SATISFATÓRIO from the kernel, "-" where it has none, and keeps "TP\'s" as FO.SERV-03 writes it', () => {
@@ -623,18 +647,16 @@ describe('7.1 section9Layout: sub-blocks, grids and words', () => {
     expect(titleOf(sheet(1, 1, 'tp', 'a0', 'tp-x'))).toBe('TP tp-x');
   });
 
-  it('attributes a sheet to who concluded it, else to who filled it last, with the full date; null for an unknown actor or no timestamp', () => {
-    const attributionOf = (patch: (b: BlockRow) => BlockRow) => {
+  it('22.2: prints no attribution, whoever concluded or last filled the sheet', () => {
+    const printedOf = (patch: (b: BlockRow) => BlockRow) => {
       const built = edit(sheet(1, 1, 'tp', 'a0'), patch);
-      return sheetOf(layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0')], [built], { actors: [USER] })), block(1)).attribution;
+      return sheetOf(layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0')], [built], { actors: [USER] })), block(1));
     };
     const filled = { last_modified_by: USER.id, last_modified_at: '2026-09-06T12:41:00.000Z' };
-    expect(attributionOf((b) => ({ ...b, ...filled, concluded_by: { actor_id: USER.id, at: '2026-09-06T13:02:00.000Z' } }))).toBe('Concluída por Bruno Silva · 06/09/2026 10:02');
-    expect(attributionOf((b) => ({ ...b, ...filled, concluded_by: { actor_id: id(999), at: '2026-09-06T13:02:00.000Z' } }))).toBe('Preenchido por Bruno Silva · 06/09/2026 09:41');
-    expect(attributionOf((b) => ({ ...b, ...filled }))).toBe('Preenchido por Bruno Silva · 06/09/2026 09:41');
-    expect(attributionOf((b) => ({ ...b, last_modified_by: id(999), last_modified_at: '2026-09-06T12:41:00.000Z' }))).toBeNull();
-    expect(attributionOf((b) => ({ ...b, last_modified_by: USER.id, last_modified_at: null }))).toBeNull();
-    expect(attributionOf((b) => b)).toBeNull();
+    for (const printed of [printedOf((b) => ({ ...b, ...filled, concluded_by: { actor_id: USER.id, at: '2026-09-06T13:02:00.000Z' } })), printedOf((b) => ({ ...b, ...filled }))]) {
+      expect('attribution' in printed).toBe(false);
+      expect(JSON.stringify(printed)).not.toMatch(/Concluída por|Preenchido por|Bruno Silva/);
+    }
   });
 
   it('closes a photo line with a period only when the caption has no closing punctuation of its own', () => {
@@ -1025,6 +1047,9 @@ describe('14.4 section9Layout: VERIFICAÇÕES DO LOCAL, once per local, right af
     expect(parts.flatMap((part) => (part.kind === 'table' && part.table.keepWhole === true ? [partName(part)] : []))).toEqual(['VERIFICAÇÕES DO LOCAL']);
     const photos = parts.flatMap((part) => (part.kind === 'photos' ? part.photos : []));
     expect(photos.every((p) => !('itemLine' in p))).toBe(true);
+    // 22.3: the SE and environment tables keep with the next part and keep their rows; the photos carry neither.
+    expect(parts.map((part) => part.keepWithNext === true)).toEqual([true, true, false, false]);
+    expect(parts.map((part) => (part.kind === 'table' ? (part.table.keepWhole === true ? 'whole' : part.table.keepRows === true ? 'rows' : 'none') : part.kind))).toEqual(['rows', 'rows', 'whole', 'photos']);
   });
 
   it('matrix "Removed local": a local absent from the snapshot prints nothing, its site photos included', () => {
@@ -1232,5 +1257,86 @@ describe('17.4 section9Layout: a display shot is numbered and prints "Imagem N: 
       [general.id, 1],
       [display.id, 2],
     ]);
+  });
+});
+
+describe('Stories 22.2 and 22.3: one N/A, the unit once, whole words and distinct captions', () => {
+  const printedOf = (built: Built, over: Partial<RelatorioSnapshot> = {}) => sheetOf(layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0')], [built], over)), built.block.id);
+  const valueAfter = (rows: string[][], label: string) => {
+    const flat = rows.flat();
+    return flat[flat.indexOf(label) + 1];
+  };
+
+  it('22.2: nameplate text typed "na", "N.A.", "n/a", "NA" or "N.A" prints "N/A"; "-" and other text print as typed', () => {
+    const typed = (value: string) => valueAfter(texts(tableNamed(printedOf(edit(sheet(1, 1, 'transformador_forca', 'a0', 'TR-1'), withNameplate({ fabricacao: value }))), 'DADOS DO EQUIPAMENTO')), 'FABRICAÇÃO');
+    for (const value of ['na', 'N.A.', 'n/a', 'NA', 'N.A', ' n.a ']) expect(typed(value), value).toBe(NOT_APPLICABLE_TEXT);
+    expect(typed('-')).toBe('-');
+    expect(typed('NAVAL')).toBe('NAVAL');
+    expect(typed('N. A.')).toBe('N. A.');
+    // A voltage class (TENSÃO DE PLACA) typed as an N/A spelling: "N/A", never "na kV"; a class still prints with kV.
+    const tensao = (value: string) => valueAfter(texts(tableNamed(printedOf(edit(sheet(1, 1, 'chave_seccionadora', 'a0', 'SEC-01'), withNameplate({ tensao_de_placa: value }))), 'DADOS DO EQUIPAMENTO')), 'TENSÃO DE PLACA');
+    for (const value of ['na', 'N.A.', 'n/a']) expect(tensao(value), value).toBe(NOT_APPLICABLE_TEXT);
+    expect(tensao('15')).toBe('15 kV');
+  });
+
+  it('22.2: a cabine text typed as an N/A spelling prints "N/A"', () => {
+    const se = { type: 'n.a.', primary_kv: null, secondary_kv: null, installed_kva: null };
+    const printed = sheetOf(layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0', { se })], [sheet(1, 1, 'tp', 'a0')])), block(1));
+    expect(texts(tableNamed(printed, 'CARACTERÍSTICAS DA SE'))[2]![0]).toBe('N/A');
+  });
+
+  it('22.3: "TRANSFORMADOR TRIFÁSICO" in DADOS DO EQUIPAMENTO breaks no word; the label columns keep their weights', () => {
+    const printed = printedOf(edit(sheet(1, 1, 'transformador_forca', 'a0', 'TR-1'), withNameplate({ tipo: 'TRANSFORMADOR TRIFÁSICO' })));
+    const plate = tableNamed(printed, 'DADOS DO EQUIPAMENTO');
+    expect(valueAfter(texts(plate), 'TIPO')).toBe('TRANSFORMADOR TRIFÁSICO');
+    // The value columns (1, 3, 5) only: the label columns keep their weights whatever their labels.
+    const values = (table: Pick<PrintTable, 'columns' | 'rows'>) => wordsWiderThanColumns(table).filter((w) => w.col % 2 === 1);
+    expect(values(plate)).toEqual([]);
+    expect(values({ ...plate, columns: [1.6, 1.7, 1.6, 1.7, 1.6, 1.7] }).map((w) => w.word)).toContain('TRANSFORMADOR');
+    for (const label of [0, 2, 4]) expect(plate.columns[label]).toBeCloseTo(1.6, 9);
+    // A plate whose words all fit keeps the pinned weights exactly.
+    expect(tableNamed(printedOf(sheet(2, 1, 'tp', 'a0')), 'DADOS DO EQUIPAMENTO').columns).toEqual([1.6, 1.7, 1.6, 1.7, 1.6, 1.7]);
+  });
+
+  it('22.3: three photos of one sheet with the same caption read "(2)" and "(3)"; the numbers and an uncaptioned photo are unchanged', () => {
+    const caption = 'Ensaio de resistência de isolamento — TR-1';
+    const files = [
+      photo(1, { block_id: block(1), caption, captured_at: '2026-09-06T10:00:00.000Z' }),
+      photo(2, { block_id: block(1), caption: null, captured_at: '2026-09-06T10:01:00.000Z' }),
+      photo(3, { block_id: block(1), caption: `${caption}.`, captured_at: '2026-09-06T10:02:00.000Z' }),
+      photo(4, { block_id: block(1), caption, captured_at: '2026-09-06T10:03:00.000Z' }),
+    ];
+    const printed = printedOf(sheet(1, 1, 'transformador_forca', 'a0', 'TR-1'), { files });
+    const photos = printed.parts.flatMap((p) => (p.kind === 'photos' ? p.photos : []));
+    expect(photos.map((p) => [p.number, p.caption])).toEqual([
+      [1, `Imagem 1: ${caption}.`],
+      [2, 'Imagem 2.'],
+      [3, `Imagem 3: ${caption} (2).`],
+      [4, `Imagem 4: ${caption} (3).`],
+    ]);
+  });
+
+  it('22.3: the ordinal runs across the plate, item and other groups of one sheet, and starts again on the next sheet', () => {
+    const files = [
+      photo(1, { block_id: block(1), reading_kind: 'plate', caption: 'Placa', captured_at: '2026-09-06T10:00:00.000Z' }),
+      photo(2, { block_id: block(1), caption: 'Placa', captured_at: '2026-09-06T10:01:00.000Z' }),
+      photo(3, { block_id: block(2), caption: 'Placa', captured_at: '2026-09-06T10:02:00.000Z' }),
+    ];
+    const section = layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0')], [sheet(1, 1, 'tp', 'a0'), sheet(2, 1, 'tp', 'a1')], { files }));
+    const captionsOf = (n: number) => sheetOf(section, block(n)).parts.flatMap((p) => (p.kind === 'photos' ? p.photos.map((x) => x.caption) : []));
+    expect(captionsOf(1)).toEqual(['Imagem 1: Placa.', 'Imagem 2: Placa (2).']);
+    expect(captionsOf(2)).toEqual(['Imagem 3: Placa.']);
+  });
+
+  it('22.2 and 22.3 reach every seed version: a v5 and a v11 transformer print no paragraph and keep their rows up to CONCLUSÃO', () => {
+    for (const version of ['v5', 'v11']) {
+      const built = newEquipmentBlock({ blockId: id(1001), equipmentId: id(2001), relatorioId: RELATORIO, projectId: TEST_PROJECT, locationId: id(1), type: 'transformador_forca', tag: 'TR-1', seedVersion: version, orderKey: 'a0' });
+      const printed = sheetOf(layoutOf({ ...snapshotOf([cabine(1, 'Cabine A', 'a0')], [built]), relatorio: { ...small.relatorio, seed_version: version } }), block(1));
+      expect(printed.parts.some((p) => p.kind === 'paragraph'), version).toBe(false);
+      const at = printed.parts.findIndex((p) => partName(p) === 'CONCLUSÃO');
+      expect(at, version).toBeGreaterThan(0);
+      expect(printed.parts[at - 1]!.keepWithNext, version).toBe(true);
+      for (const part of printed.parts.slice(0, at + 1)) if (part.kind === 'table') expect(part.table.keepWhole === true || part.table.keepRows === true, `${version} ${partName(part)}`).toBe(true);
+    }
   });
 });
