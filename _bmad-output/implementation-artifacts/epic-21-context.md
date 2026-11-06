@@ -97,3 +97,11 @@ Matheus, 2026-11-05: "pode fazer o pr, merge, e deploy, se passar tudo pode faze
 **Deploy checklist** (§ 8, § 9):
 - `grep -n "before the deploy" deferred-work.md` lists the e21r eval row (partly done, synthetic set), the e21r uncited-diagram row (open, needs the real set), the e21f eval row (closed) and older rows already closed.
 - `test:e2e:full` on 8252cee4: 580 of 584 passed, 0 failed, 4 skipped (2279 s), under the host lock (wait 1 s, load 5.01 at the start, 4.11 at the end, only the main stack up). The deploy goes from the records merge on top of 8252cee4, which changes only documents.
+
+**Deploy.**
+- Deployed 45546f69 (the code of 8252cee4, plus records) on 2026-11-06 at about 00:30 (America/Sao_Paulo), with `infra/bin/deploy`, nohup, no lock wrapper. Contract 30, MIN 30, seed v11, prompt `bedrock-structuring-4`.
+- Health was up and the tag was recorded.
+- Production smoke: 8 of 8 passed (the plate read 12 fields; PDF preview, Revisão 1, DOCX and PDF downloaded).
+- Telemetry: 7 `session_start` with the new app_version and 0 `ux_event_sink_failed`.
+- The test company was cleaned up (task 502c6519).
+- Not done: no release tag was pushed and no release page was written (they wait for Matheus's word). The Epic 21 retrospective has not run.
