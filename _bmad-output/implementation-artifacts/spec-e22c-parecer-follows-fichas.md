@@ -150,3 +150,7 @@ deferred: []
 - `pnpm exec vitest run --project @app/domain <files>` then `pnpm test:unit` -- green.
 - `podman compose restart api` then `pnpm test:api` -- green.
 - `pnpm exec tsx scripts/e2e.ts <touched specs> --project desktop-chrome --project durability-desktop-chrome` under `lockf -t 20000 /tmp/fasor-verify.lock` -- green.
+
+## Auto Run Result
+
+Status: done. Implementation, one review-fix loop (Edge Case Hunter and Verification Gap; triage above), e2e fix pass, main eb61c5b4 (e22p) merged as 045a58ae. Story gate on 045a58ae: lint 0 errors, static clean, test:api 883 passed 6 skipped, test:unit 5292/5292, touched e2e (39 specs incl. e22p list) 279/279, durability matrix 41 passed 1 skipped. Known open: deferred-work.md section e22c.
