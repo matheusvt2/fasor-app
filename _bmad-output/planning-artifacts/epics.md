@@ -3375,6 +3375,8 @@ So that the next job with a no-break or a chave ASCO is recorded in the relatór
 
 *(2026-10-27, Bruno via Matheus, answer 9 to the 2026-10-26 list: ok to the count; he reports each real relatório done in the app as it happens. No job recorded yet.)*
 
+*(2026-11-06, Matheus, "Cadastro e padrões", from Bruno's review of 2026-11-06: the E14-A12 gate is lifted with no job recorded; this story leaves the backlog as Epic 22 wave C, before 14.7 and 14.8. The DoR below still holds. See Epic 22.)*
+
 *(2026-10-21, Bruno via Matheus, answer 9: the office can rename an equipment type. This belongs to Stories 14.6 and 14.7: the type's on-screen name (its label) is company data the office edits, on a company type as one of its fields. Whether a library type (the eight, the CTA, the Quadro elétrico) is renamed in place, as a company-scoped name over the frozen seed label, or only through "Duplicar", is settled by this story's `bmad-architecture` step with the AD-21 amendment (default: through "Duplicar", since library types are read-only in Story 14.7's list). The TAG prefix and IDENTIFICAÇÃO stay as they are; no per-equipment screen label is added (answer 8, Story 14.9).)*
 
 **Dev model:** opus · **Effort:** max · opens the closed type enums, threads a resolver context through every definition lookup and `applyOp`, and keeps replay byte-equal
@@ -3413,6 +3415,8 @@ So that the office can add types without a code release and no relatório ever c
 
 *(2026-10-09: renumbered from 14.6.)*
 
+*(2026-11-06, Matheus: scheduled into Epic 22 wave C after 14.6. Its scope also covers Bruno's "editar informações padrões": the Critérios tab becomes editable on a company type, closing `deferred-work.md` line 2012.)*
+
 **Dev model:** opus · **Effort:** high · an office surface over Story ~~14.5's~~ 14.6's *(2026-10-09)* ops, from ~~the 14.1 mocks~~ its own editor frames *(2026-10-09)*
 
 As an office user,
@@ -3446,6 +3450,8 @@ So that the job's unusual equipment has a sheet before the visit.
 ### Story 14.8: Office types in templates, the field and the document: the no-break de comando end to end
 
 *(2026-10-09: renumbered from 14.7 when the library types moved to Story 14.5; this story now proves duplicate-and-adjust on a library type and a company type in use. 2026-10-10: the library type is the CTA; the no-break is not a type.)*
+
+*(2026-11-06, Matheus: scheduled into Epic 22 wave C after 14.7.)*
 
 **Dev model:** opus · **Effort:** high · palettes, sheet rendering and section 9 for company types, proven on the first real case
 
@@ -5605,6 +5611,640 @@ So that section 7 tells the work in the order it was done (arrival of the utilit
 *(2026-11-05, coordinator, at the merge of PR #254: 21.3 shipped in e21p. Narrowings: the DOCX and PDF are generated at 1280 px only (the gallery is asserted at 390, 768 and 1280 px); the durability spec skips WebKit, which cannot store a photo Blob (the `camera-app.durability.spec.ts` precedent). Open for Matheus or Bruno: imports keep their capture-order place and only a new capture lands last; the gallery note still says "Ordem cronológica de captura" (review note N-3).)*
 
 *(2026-11-06, coordinator, fix batch e21g, PR #260: D3, the gallery note now starts "Fotos gerais na ordem do relatório (mude com Subir e Descer); fotos das fichas na ordem de captura." (closes N-3); D4, none, an import keeps its capture-time place among unmoved photos and only a new capture lands last, as designed (N-4).)*
+
+## Epic 22: Bruno's review of a concluded relatório: a PDF without internal lines, a parecer that follows the fichas, seed v12, the previous visit and the office's own types (Bruno, 2026-11-06)
+
+Bruno's review of a relatório he concluded on 2026-11-04, relayed by Matheus on 2026-11-06 in two blocks, quoted verbatim:
+
+> *"Realmente ainda não dá para cadastrar equipamentos e editar informações padrões.*
+> *1 - TR‑1 está cadastrado como trafo a seco (EPÓXI), mas é a óleo. A plaqueta diz "Tipo óleo isolante B" e as fotos mostram radiadores e indicador de nível. Por isso: "Tipo: B" é o tipo do óleo, não o tipo do trafo; Tipo de isolação deve ser "Óleo mineral";*
+> *2 - TR‑1 com Secundário × Massa a 10 kV num enrolamento de 220 V. Ou a tensão registrada está errada, ou o ensaio foi feito fora do padrão (0,5 ou 1 kV na BT). A ficha tem um campo só de tensão, então registrar em observação a tensão real usada em cada medição. Incluir o teste em BT de 1kV.*
+> *3 - No Transformador de força muda o campo de ligação secundária para deslocamento angular de ligações. Mudar a formula de relação de transformação conforme o deslocamento."*
+
+> *"Melhorias no app*
+> *25. Remover metadados internos do PDF: "Concluída por Bruno · 04/11/2026"; "CRITÉRIO: … aceitável na ficha"; as linhas-resumo "R_iso … · critério …"; as tags "Item 9 · … · NC" nas legendas.*
+> *26. Regras automáticas sugeridas: qualquer NC ou observação força "Com restrições"; ensaio não realizado por defeito, ou valor fora do critério, gera REPROVADO; todo NC e toda reprovação vão automaticamente para o item 9; o item 10 é derivado das fichas, não um campo livre.*
+> *27. Ficha conforme o tipo de equipamento: trafo a seco ou a óleo deve marcar NA automaticamente nos itens que não se aplicam; TC/TP não deveriam usar o checklist de trafo de força (válvula de alívio, relé de gás, ventiladores).*
+> *28. Ensaio: campo de tensão de ensaio por linha; valor calculado do TTR por fórmula a partir da placa; critério de TC/TP pela classe de exatidão; opção "> limite do instrumento".*
+> *29. Padronização: "N/A" único (hoje há NA, n/a, -, 0L); unidade só no cabeçalho ou só na célula (hoje "VALORES (GΩ)" + "4,9 GΩ");*
+> *30. Layout: não quebrar a ficha entre páginas (a SEC PROTECAO ficou com a conclusão na página seguinte); legendas diferentes para fotos repetidas (Imagens 22–24, 25–27, 33–35 têm o mesmo texto); colunas de dados mais largas ("TRANSFORMADO / R TRIFÁSICO" está quebrando).*
+> *31. Escopo: as fotos de QF GBT E, QG e QF GBT N não têm ficha correspondente. Criar uma ficha simples de inspeção de QGBT ou citar no escopo.*
+> *32. Opcional: uma coluna "manutenção anterior" nas fichas, já que o item 2 promete essa comparação."*
+
+Items 1 to 24 of the second list were not relayed. The feedback's "item 9" is PONTOS DE ATENÇÃO (section 8 in the seed, printed at position 9 since Story 20.3) and its "item 10" is CONCLUSÃO.
+
+Investigated on 2026-11-06 by Matheus with the agent, against main `5584a6e3`, read-only:
+
+- **The relatório is on seed v5.** A read-only count in production (migrate task override, counts only) found one TR-1 sheet concluded on 2026-11-04, in a relatório born on seed v5 and still Em revisão. The seed is frozen per relatório (AD-21), so v6's ÓLEO option and oil rule, v6's Quadro elétrico, v10's TC checklist and v11's group select never reached it. ÓLEO reached v1 to v5 only through the 2026-11-04 amendment (`seed/legacy-options.ts`).
+- **Item 1 (TR-1).** TIPO DE ISOLAÇÃO offered EPÓXI and Á SECO only on v1 to v5 (`seed/v1.ts` line 42); "ÓLEO" is the v6 label Bruno chose on 2026-10-20 (`seed/v6.ts` line 28). TIPO is free text (`seed/v1.ts` line 39) and no seed version has a field for the oil type, so "B" could only land in TIPO. The plate structuring sends TIPO with no hint and forces a select to one of its listed options (`apps/api/src/jobs/reading/providers/bedrock.ts` lines 181 and 188 to 193).
+- **Item 2 (megger).** The insulation table has three rows and one TENSÃO ENSAIO for all three, copied as text from the picked instrument's registry default (`relatorio/instrument-pick.ts` lines 55 to 60); no sheet control changes it. The criterion is a fixed > 400 MΩ (`seed/criteria.ts` lines 44 to 53). Voltage bands and a test-voltage check exist only on the Quadro elétrico (`relatorio/test-voltage.ts`).
+- **Item 3 (deslocamento angular).** Since Story 21.1 VAL CALCULADO follows the whole group code (k from the group, not the clock number alone: Dd0 = 1, Dyn1 = √3, YNd1 = 1/√3). The label is LIGAÇÃO SECUNDÁRIA, kept verbatim by Story 21.1's DoR.
+- **Item 25.** All four lines are authored, none is in FO.SERV-03: the attribution and the "CRITÉRIO: … · aceitável na ficha" line (Story 7.1, `print/section-9.ts` lines 205 to 211 and 329 to 341), the criteria line under the conclusion (UX-DR47, `print/section-9.ts` line 795) and the item line under an NC photo (Story 20.6, `print/section-9.ts` lines 826 to 847). The Porto Seguro goldens carry none of them.
+- **Item 26.** The ficha suggests "Aprovado · Sem restrições?" or "Aprovado · Com restrições?" and never writes a value (`relatorio/conclusion.ts` lines 72 to 108); Reprovado is never suggested (FR-29, NFR-10). An observation counts nowhere. The only derived points are Não ensaiado sheets (`points/derived.ts`). Section 10's summary is kernel-composed but can be edited or replaced as free text (`relatorio/parecer.ts` lines 312 to 344), its verdict is tapped by the engineer, and its third fixed bullet ("Apesar dos resultados dos testes serem positivos…", `seed/sections-v1.ts` line 221) prints even under Não apto (field review DF-4 of 2026-10-08, never disposed).
+- **Item 27.** A dry unit on v6 and later shows the seven oil items as NA with no tap (`relatorio/oil-rule.ts`); an oil unit marks nothing. The TC has its own seven-item list since v10 (`seed/v10.ts` lines 38 to 49); the TP still uses the transformador de força's fourteen items (Story 15.7 left it out).
+- **Item 28.** Test voltage per row: missing in every table. TTR VAL CALCULADO from the plate: done (V PRIMÁRIO and V SECUNDÁRIO fall back to the plate's nominal voltages, `relatorio/reading-cells.ts` lines 372 to 386). TC and TP criterion: a fixed ± 0,5 % (`seed/criteria.ts` lines 64 to 73, decision F42 of 2026-10-22); the TC's EXATIDÃO is free text nothing reads and the TP has no such field. Over-range: a reading cell holds empty, measured, not measured or invalid, and ">", "OL" or "0L" is refused (`parse/pt-br-number.ts` lines 130 to 146).
+- **Item 29.** Number fields already store one N/A (`pt-br-number.ts` lines 178 to 207) and print "N/A"; text fields print as typed. The insulation table prints the unit in its header and in each cell (`print/section-9.ts` lines 493 to 501 and 527 to 528, Story 7.1 AC); the library measurement tables already drop the cell's unit when the header has it (lines 708 to 725).
+- **Item 30.** Only DADOS DO EQUIPAMENTO and the two VERIFICAÇÕES tables are kept whole (Story 20.5); CONCLUSÃO and the paragraphs between tables carry no keep-with-next. A caption is composed at capture from the activity, the equipment and the local (`photos/caption.ts` lines 317 to 324), so three shots of one test share it. A nameplate value column is about 82.85 pt wide and "TRANSFORMADOR" in Arial 9 pt about 83.0 pt; the measurement tables fit their columns (`fittedColumns`), the two-value tables do not.
+- **Item 31.** "Quadro elétrico (QGBT/QD)" is a library type since v6, a full sheet (nine nameplate fields, twenty checks, an NBR 5410 insulation test). Photos with no sheet print as "Geral" in section 7.
+- **Item 32.** Section 2 promises the comparison (`seed/sections-v1.ts` line 66); SPEC Non-goals exclude it ("no comparison with the previous report"). Only the nameplate reaches a later visit (`equipment.last_nameplate`, AD-25).
+- **"Cadastrar equipamentos e editar informações padrões".** Templates edit skeletons, sub-block switches and subtypes; checklist items, nameplate fields and options, defaults and criteria are seed code, and the Critérios tab is read-only. Company types are Stories 14.6 to 14.8, in the backlog behind the E14-A12 gate (no job recorded as of 2026-10-27).
+- **Photo from the computer (Matheus, 2026-11-06: "Inserir a opção de anexar foto pelo pc e fazer a leitura por IA, não somente abrir a câmera").** With Conta › "Câmera do aparelho" on, "Fotografar placa" and "Ler visor" open a hidden `<input type=file capture>` (`surfaces/ficha/camera-single-shot.tsx` line 155); desktop browsers ignore `capture` and open the file picker, and the picked file keeps its reading target (line 118). The switch defaults off without touch (`prefs/camera.ts` `cameraAppDefault`) and nothing on the sheet offers a file. The gallery's "Adicionar fotos" imports with no reading.
+
+**Decisions (Matheus, 2026-11-06):**
+- On the author: *"Tudo do Bruno"*.
+- Item 25: *"Remover as quatro"*: the four lines leave the PDF and stay on screen.
+- Item 26: *"Seguir o Bruno inteiro"*: the app derives the ficha conclusion, the points and the parecer, which amends NFR-10, FR-29, FR-71, `EXPERIENCE.md` (lines 128, 173, 239, 243) and the SPEC non-goal "A decision-maker" (`source-deltas.md`, 2026-11-06).
+- Scope: the four large items are in: test voltage, accuracy class and over-range; *"Cadastro e padrões"* (Stories 14.6 to 14.8 leave the backlog and the E14-A12 gate is lifted); *"Manutenção anterior"* (the SPEC non-goal "A comparison tool" is lifted); *"Ficha simples de QGBT"*.
+- Old seeds: *"Só relatórios novos"*: seed v12 reaches relatórios created after its deploy; kernel and print changes reach every relatório (Bruno's v5 relatório included), and no relatório migrates its seed.
+- On this plan: *"pode criar o epic 22 pelo metodo normal"*.
+
+**The coordinator's readings in this epic, each marked in its DoR and open to Matheus's or Bruno's correction:**
+- "Cadastrar equipamentos e editar informações padrões" means equipment types and their defaults (Stories 14.6 to 14.8), not a registry of equipment units per obra.
+- Bruno's item 3 renames the field to DESLOCAMENTO ANGULAR and keeps the group code as its value, because the clock number alone does not give k.
+- The TP takes the TC's v10 checklist.
+- An oil unit marks no item NA until Bruno names a dry-only one.
+- The wordings marked authored in each story are listed in its PR for Bruno.
+
+**Waves and gates:**
+- **Wave A**, two stacks.
+  - The print lane, e22p: 22.1, 22.2, 22.3. No contract bump.
+  - The parecer lane, e22c: 22.4, 22.5, 22.6. It bumps the contract to 31.
+- **Wave B**, two stacks, after wave A's gate.
+  - The seed lane, e22s: 22.7, 22.8, 22.9, 22.11. It owns seed v12 and bumps the contract to 32.
+  - The readings lane, e22r: 22.10, 22.12. It adds its notes under 32.
+- **Wave C**, one stack, after wave B's gate: Stories 14.6, 14.7 and 14.8, in that order.
+  - It starts once `bmad-architecture` settles the AD-21, AD-3 and AD-15 amendments, and `bmad-ux` draws the editor frames (their DoRs).
+  - It bumps the contract to 33.
+- The 2026-10-08 story gate applies to every story. The full `@p0`, `test:e2e:full` and the matrix run once per wave on the integrated main. Each deploy follows Matheus's go.
+
+### Story 22.1: Attach a photo from the computer to a reading
+
+**Dev model:** opus · **Effort:** medium · an "Anexar arquivo" action beside every opener that asks for a reading (plate, Ler visor, panel), the picked file committed with the same reading target as a shot, any device; web only, no contract change
+
+As Bruno at the office with the photos already on the computer,
+I want to attach a photo file where the app asks for a plate, display or panel photo,
+So that the reading by AI fills the fields as if I had shot it, without a camera.
+
+**Today (verified 2026-11-06 on main `5584a6e3`):** see the epic's last investigation bullet. A file reaches a reading only through the "Câmera do aparelho" switch on a desktop browser, which says nothing about files; the gallery's "Adicionar fotos" imports without a reading.
+
+*(Definition of Ready, defaults taken on 2026-11-06 as the coordinator's reading, open to Matheus.)*
+- **Where.** The plate tile ("Fotografar placa", retake included), every "Ler visor" opener (sheet cell, CTA cell and cabine environment) and the panel capture get a second action, "Anexar arquivo" (authored), at every width. On a device without touch it sits beside the camera action. On a touch device it sits in the same row, so a photo from the files app is reachable too.
+- **What it does.** It opens the system picker for one image, using `useDirectPicker`'s pattern (Story 11.11) and the import's HEIC conversion (`files/photo-import.ts`). The file is committed through the same capture path and `CaptureTarget` as a shot, `reading` included, so the reading job, the suggestions, the retake's cancel of older plates and the quota (Story 20.12) behave exactly as for a shot.
+- **The instant.** A picked file takes its EXIF DateTimeOriginal, else the file's date, as imports do today.
+- **The switch.** "Câmera do aparelho" is unchanged.
+- **AI off.** With AI features off for the company, the action is hidden where the shot's reading is hidden.
+
+**Acceptance Criteria:**
+
+**Given** a transformador de força sheet at 1280 px with no plate photo
+**When** the engineer taps "Anexar arquivo" on the plate tile and picks a plate JPEG
+**Then** the photo lands as the plate photo with its reading pending, the fake provider's suggestions arrive, and accepting them fills the nameplate exactly as a shot would (FR-35; AD-26)
+
+**Given** a "Ler visor" opener on an insulation cell
+**When** a display photo file is attached
+**Then** it is stored with the cell's `display` target, its reading fills the cell suggestion, and the photo prints under its test as a shot does (Story 16.3)
+
+**Given** a HEIC file, a file over the size cap and a non-image file
+**When** each is picked
+**Then** the HEIC converts and reads; the oversized file shows the import's size message; the non-image is not offered by the picker (`PHOTO_ACCEPT`)
+
+**Given** a plate that already has a photo
+**When** "Anexar arquivo" is used for the retake
+**Then** the older plate readings are cancelled as for "Fotografar de novo" (CAPT-V1)
+
+**Given** 390, 768 and 1280 px
+**When** each opener renders
+**Then** "Anexar arquivo" is reachable with a 44 px target and an accessible name, and no new look is invented (`app.css` notes the mock rule it mirrors)
+
+**Definition of Done, in addition:**
+- A Playwright spec attaches a plate file and a display file through `setInputFiles`, at 390, 768 and 1280 px, through to the accepted suggestion.
+- Unit tests for the opener's picked-file path.
+- The touched durability specs on the matrix projects. WebKit is skipped where it cannot store a photo Blob, as the `camera-app.durability.spec.ts` precedent does.
+- `docs/kbs/log.md`.
+
+### Story 22.2: The printed ficha without internal lines, one N/A and the unit once
+
+**Dev model:** opus · **Effort:** medium · print only plus one kernel normalizer: drop the attribution, the "CRITÉRIO: …" line, the criteria line under the conclusion and the item line under section 9 photos; text fields print one "N/A"; a reading table prints its unit in the header or in the cells, never both
+
+As Bruno sending the relatório to the client,
+I want the PDF to carry only what the form carries,
+So that internal bookkeeping does not read as part of the technical report.
+
+**Today (verified 2026-11-06 on main `5584a6e3`):** see the epic's item 25 and item 29 bullets.
+
+*(Definition of Ready, closed 2026-11-06 by Matheus: "Remover as quatro".)*
+- **Removed from print, kept on screen.**
+  - The sheet attribution ("Concluída por …", "Preenchido por …").
+  - The "CRITÉRIO: … · aceitável na ficha" line, and the "ACEITÁVEL: … · fonte" row the measurement tests print (Story 14.5), since that row repeats the header's ACEITÁVEL too (coordinator's reading).
+  - The criteria line under CONCLUSÃO ("R_iso … · critério …").
+  - The item line under a section 9 photo ("Item 9 · … · NC").
+- **The criterion's value stays printed** where the form prints it: the ACEITÁVEL cell of the instrument header.
+- **One N/A.** A text field of the nameplate or a configuration whose trimmed value is "NA", "N.A", "N.A.", "N/A" or "n/a" (any case) prints "N/A", through a kernel function `printNotApplicable` shared with the number fields. A "-" typed in a text field prints as typed. "0L" is Story 22.10's (coordinator's reading).
+- **The unit once.** A reading table whose measured cells share one unit prints it in the header only ("VALORES (GΩ)", cells "4,9"). A table whose units differ prints the bare header and each cell with its unit, as today. This is the pattern the library measurement tables already follow (`print/section-9.ts` lines 708 to 725).
+- **Records amended.** FR-68's "attribution" and "criterion and source", Story 7.1 AC2, UX-DR47's "printed under the Conclusão row", `EXPERIENCE.md` line 172 and Story 20.6's item line in print: one `source-deltas.md` row, 2026-11-06.
+
+**Acceptance Criteria:**
+
+**Given** a concluded transformador de força sheet with an NC photo, a criteria line and an attribution
+**When** the relatório generates (preview, DOCX, PDF)
+**Then** section 9 prints none of: the attribution, the "CRITÉRIO:" line, the criteria line and the photo's item line; the sheet on screen still shows all four; the ACEITÁVEL header cell still prints the criterion
+
+**Given** a CTA sheet with E1 to E6
+**When** it prints
+**Then** no "ACEITÁVEL: … · fonte" row prints under its tests
+
+**Given** nameplate text fields typed "na", "N.A." and "n/a", and one typed "-"
+**When** the sheet prints
+**Then** the first three print "N/A" and the last prints "-"
+
+**Given** an insulation table with three readings in GΩ, and one with 900 MΩ, 2 GΩ and 1,2 TΩ
+**When** each prints
+**Then** the first prints "VALORES (GΩ)" with bare numbers; the second prints "VALORES" with each value and its unit
+
+**Given** the Porto Seguro fixture
+**When** the golden comparison runs
+**Then** the goldens are unchanged, or any change is a reviewed regeneration named in the PR
+
+**Definition of Done, in addition:**
+- `section-9.test.ts`, `docx.test.ts`, `docx-qgbt.test.ts` and the print kernel tests updated.
+- `document-pages.spec.ts`, or the spec that reads section 9's text, asserts the four absences and the unit header on the DOCX text.
+- The `source-deltas.md` row.
+- `docs/kbs/log.md`.
+
+### Story 22.3: A ficha never splits from its conclusion, columns fit their words, and repeated captions differ
+
+**Dev model:** opus · **Effort:** high · keep-together from a sheet's title bar to the end of CONCLUSÃO, fitted pair columns in DADOS DO EQUIPAMENTO, CONFIGURAÇÃO, the cabine tables and the instrument header, and an ordinal on captions repeated inside one sheet's photo block or section 7
+
+As Bruno reading the PDF,
+I want a ficha on one page with its conclusion, whole words in the tables and distinct photo captions,
+So that the relatório reads like a finished document.
+
+**Today (verified 2026-11-06 on main `5584a6e3`):** see the epic's item 30 bullet. Story 20.5 left the measurement tables out of keep-whole on purpose and said a dated line would extend it if Matheus asked (`epics.md` Story 20.5 DoR); this story is that extension.
+
+*(Definition of Ready, defaults taken on 2026-11-06 as the coordinator's reading, open to Matheus.)*
+- **Keep together.** Every row, table gap and paragraph from a sheet's title bar to the end of its CONCLUSÃO carries keep-with-next, except the last. The photo block after CONCLUSÃO (Story 20.6) stays free to break.
+  - A sheet taller than one page breaks only between parts: plate, checklist, each test, conclusion. CONCLUSÃO always stays with the part before it.
+  - A local's block follows the same rule.
+- **Fitted pairs.** The two-value tables size their value columns to their longest word, as `fittedColumns` does for the measurement tables, within the page width. Their label columns keep their weights. The skeleton's pinned weights (`page-layout.test-support.ts` line 54) move only if the fit needs it.
+- **Repeated captions.** Inside one sheet's photo block, and inside section 7, a caption equal to an earlier one gets an ordinal suffix at print: "Ensaio de resistência de isolamento — TR-1 (2)", "(3)" (authored). The first keeps its text. Captions stay as stored, so the screen is unchanged.
+- **Proof.** The LibreOffice PDF, as Story 20.5 proved it (`page-placement.integration.test.ts`).
+
+**Acceptance Criteria:**
+
+**Given** a seccionadora sheet whose CONCLUSÃO would fall alone on the next page
+**When** the PDF renders
+**Then** the sheet starts on a page that holds it whole, CONCLUSÃO included; the photo block may follow on the next page
+
+**Given** a transformador de força sheet taller than one page
+**When** it renders
+**Then** the break falls between two parts, never inside a table, and CONCLUSÃO is on the same page as the part before it
+
+**Given** a nameplate value "TRANSFORMADOR TRIFÁSICO" in Arial 9 pt
+**When** DADOS DO EQUIPAMENTO prints
+**Then** no word breaks inside itself; the same holds for CONFIGURAÇÃO, the cabine tables and the instrument header with their longest seeded and typed words
+
+**Given** three photos of one sheet with the same caption
+**When** the sheet's photo block prints
+**Then** they read "Imagem N: ⟨caption⟩.", "Imagem N+1: ⟨caption⟩ (2).", "Imagem N+2: ⟨caption⟩ (3).", and photo numbers are unchanged
+
+**Given** the Porto Seguro fixture, whose section 7 repeats a caption up to eight times
+**When** the goldens compare
+**Then** the only differences are the ordinal suffixes and the keep-with-next flags, reviewed and regenerated in the PR
+
+**Definition of Done, in addition:**
+- XML tests for keep-with-next on every row, gap and paragraph of a sheet.
+- `page-placement.integration.test.ts` extended with a seccionadora and a two-page transformer.
+- A width test that measures every seeded option and typed value of the fixtures against its column.
+- Kernel tests for the caption ordinal.
+- The golden regeneration reviewed in the PR.
+- `docs/kbs/log.md`.
+
+### Story 22.4: The ficha's conclusion follows Bruno's rules (contract 31)
+
+**Dev model:** opus · **Effort:** high · a kernel floor for the conclusion pair (NC or observation gives Com restrições; an out-of-criterion value or a defect Não ensaiado gives Reprovado), the effective pair as the stricter of floor and stored value, segments below the floor disabled, "Concluir ficha" writing the floor; amends FR-29 and NFR-10
+
+As Bruno,
+I want the ficha's conclusion to follow from what the ficha holds,
+So that no ficha with an NC, an observation or a failed test prints as approved without restrictions.
+
+**Today (verified 2026-11-06 on main `5584a6e3`):** see the epic's item 26 bullet. The engineer may choose Sem restrições over an NC (a warning only) and over an out-of-criterion insulation or contact reading (no warning).
+
+*(Definition of Ready, closed 2026-11-06 by Matheus: "Seguir o Bruno inteiro"; the mechanics are the coordinator's reading.)*
+- **The floor** is computed by the kernel as `conclusionFloor(block)`, replacing `suggestConclusionPair`:
+  - **Reprovado** when any reading of the sheet is out of criterion: insulation, contact, ratio INSATISFATÓRIO, or a measurement-table cell out.
+  - **Reprovado** too when the sheet is Não ensaiado for a reason the seed flags `defect: true`. Seed v12 adds that reason (Story 22.7); no older seed has one.
+  - **Aprovado · Com restrições** when, short of the above, any checklist row is NC, or the sheet observation or a checklist row's observation holds text.
+  - **Aprovado · Sem restrições** otherwise.
+  - A ratio waiting for its vector group gives no floor (e21g D6 holds).
+- **Stricter only.** The two radiogroups disable every segment looser than the floor, with one line naming why (kernel text, authored). The engineer may always choose a stricter pair.
+- **Concluir ficha.** With a pair unset or looser than the floor, it writes the floor's ops in the same batch.
+- **The effective pair** is the stricter of the floor and the stored pair. Section 9, the Sumário, the parecer and the counts all read it (AD-1, AD-13). A stored pair looser than a later floor is never shown as the conclusion. The sheet shows "Conclusão ajustada pela ficha" (authored) until the engineer confirms.
+- **Com restrições still requires the observation** (source-deltas row 52). The floor's reason pre-fills the suggested observation (`suggestedSheetObservation`), as today.
+- **Contract 31.** Concluir writes the existing `conclusion/result` and `/restriction` ops, so no op shape changes. The bump is taken because the effective pair is a new rule every client must read, and a 30 client would show a looser pair. `MIN_CONTRACT_VERSION` moves to 31 unless the PR shows why not. Stories 22.5 and 22.6 add their notes under 31.
+- **Records amended.** FR-29's "Reprovado is never suggested" and its suggestion row; NFR-10 "it never sets a verdict"; `EXPERIENCE.md` lines 128 and 239; the SPEC non-goal "no verdict auto-set, no failing value turned into Reprovado". One `source-deltas.md` row, 2026-11-06.
+
+**Acceptance Criteria:**
+
+**Given** a sheet with every row C and readings within criterion
+**When** "Concluir ficha" is tapped with no pair chosen
+**Then** the sheet concludes as Aprovado · Sem restrições
+
+**Given** a sheet with one NC row, or with text in its observation
+**When** the conclusion radiogroups render
+**Then** Sem restrições is disabled with the reason line, the pair is Aprovado · Com restrições at least, and the engineer can still choose Reprovado
+
+**Given** an insulation reading of 300 MΩ against > 400 MΩ, or a ratio row INSATISFATÓRIO
+**When** the sheet concludes
+**Then** its effective result is Reprovado; Aprovado is disabled with the reason line; section 9 prints Reprovado
+
+**Given** a sheet concluded Aprovado · Sem restrições before a reading was corrected out of criterion
+**When** the sheet, the Sumário and the preview render
+**Then** each shows Reprovado as the effective pair, the sheet shows the adjusted note, and the next revision prints Reprovado
+
+**Given** a v5 relatório (Bruno's)
+**When** it renders after this story
+**Then** the floor applies to its sheets as to any other, because the rule is the kernel's, not the seed's
+
+**Definition of Done, in addition:**
+- Kernel tests of `conclusionFloor` over every source (NC, observation, each reading kind, a defect reason via a test seed, a missing group), and of the effective pair.
+- `applyOp` tests for the Concluir batch.
+- The contract bump with its `MIN_CONTRACT_VERSION` decision in the PR.
+- `e2e/ficha.spec.ts` covers the disabled segments, the floor on Concluir and the adjusted note.
+- The touched durability specs on the matrix projects.
+- The `source-deltas.md` row.
+- `docs/kbs/log.md`.
+
+### Story 22.5: Every NC and every reprovação is a point of attention by itself
+
+**Dev model:** opus · **Effort:** high · new derived point kinds (NC checklist row, out-of-criterion test, Reprovado sheet) beside Não ensaiado, their suppression by a point written from the same source, the Pontos screen and section 8's print; shares contract 31 with 22.4
+
+As Bruno,
+I want every NC and every reprovação listed in PONTOS DE ATENÇÃO without creating them one by one,
+So that the client sees every problem in the section meant for it.
+
+**Today (verified 2026-11-06 on main `5584a6e3`):** see the epic's item 26 bullet. An NC row offers "Criar ponto de atenção", which writes `origin: 'manual'` (`surfaces/ficha/checklist-section.tsx` line 328); out-of-criterion readings, failed ratios and Reprovado sheets create nothing.
+
+*(Definition of Ready, closed 2026-11-06 by Matheus: "Seguir o Bruno inteiro"; the kinds and the suppression are the coordinator's reading.)*
+- **The kinds.** `derivedPoints` gains three, each derived and never stored (Story 6.6's pattern):
+  - an NC checklist row of a sheet or a local, one entry per row;
+  - a test with a reading out of criterion, one entry per test, naming its worst row;
+  - a sheet whose effective result is Reprovado (Story 22.4) for a reason not covered by the first two.
+  - The entries print after the manual points, in tree order, Não ensaiado included.
+- **Their text** is composed by the kernel:
+  - for an NC, the learned or seeded NC phrase (Story 14.12) with the item label;
+  - for a reading, the test, the value and the criterion;
+  - with the equipment or local title of `equipmentPointTitle`, and the NC row's photo referenced "conforme Imagem N" (section 8's `[[foto]]` token).
+- **Editing.** "Criar ponto de atenção" on an NC row, and "Editar" on a derived entry, write a point with a new origin naming its source (`origin: 'nc'` with `item_key`, `origin: 'reading'` with `test_key`, `origin: 'reprovado'`) that replaces the entry. Removing that point brings the entry back.
+- **Old manual points.** A point written from an NC row before this story has `origin: 'manual'` and no source, so it does not suppress the new entry. The Pontos screen shows such a pair of the same equipment with "Possível duplicado" (authored), and the engineer removes one. These cases are listed for Bruno.
+- **Counts.** "N automáticos" counts every derived kind. The pre-issue row on site NCs outnumbering points (`relatorio/pre-issue.ts` lines 461 to 466) retires, since every NC now has its entry.
+- **Records amended.** AD-26's manual "Criar ponto" and the source-deltas row of Story 6.6, by one row of 2026-11-06.
+
+**Acceptance Criteria:**
+
+**Given** a relatório with two NC rows on TR-1, one NC on a local and an insulation reading out on DJ-01
+**When** the Pontos screen and section 8 render
+**Then** four derived entries list after the manual points in tree order, each with its composed text, and "N automáticos" counts 4 more than before
+
+**Given** an NC derived entry
+**When** the engineer taps "Editar", changes its action and deadline and saves
+**Then** a point with `origin: 'nc'` and the row's `item_key` replaces the entry; removing that point brings the entry back
+
+**Given** the NC row is set back to C
+**When** the screen re-renders
+**Then** its entry disappears, and a point written from it stays as a manual-like point flagged "Origem resolvida" (authored)
+
+**Given** a relatório opened before this story with a manual point written from an NC row
+**When** the Pontos screen renders
+**Then** the derived entry and the manual point show "Possível duplicado", and removing the manual point leaves only the entry
+
+**Definition of Done, in addition:**
+- Kernel tests for each kind, the suppression and the duplicate flag.
+- The op schema for the new origins with Story 20.9's caps and Story 20.10's target rule on the api.
+- A Playwright spec through the Pontos screen to the DOCX's section 8.
+- The touched durability specs on the matrix projects.
+- The `source-deltas.md` row.
+- `docs/kbs/log.md`.
+
+### Story 22.6: The CONCLUSÃO of the relatório is derived from the fichas
+
+**Dev model:** opus · **Effort:** high · the parecer verdict derived (any Reprovado gives Não apto, any restriction gives Apto com restrições), stricter only; the summary always kernel-composed, its free edit removed; the third fixed bullet only under Apto and Apto com restrições; the section references follow the printed positions; amends FR-71 and NFR-10
+
+As Bruno,
+I want section 10 to state what the fichas found,
+So that the relatório's conclusion never contradicts its own tests.
+
+**Today (verified 2026-11-06 on main `5584a6e3`):** see the epic's item 26 bullet. The verdict is tapped; Não apto is never suggested; a Reprovado sheet does not move the suggestion; the summary can be replaced by free text; the third bullet prints under Não apto; a custom Conclusão text prints the literal "itens 8 e 9" (`deferred-work.md` line 2304).
+
+*(Definition of Ready, closed 2026-11-06 by Matheus: "Seguir o Bruno inteiro"; the details are the coordinator's reading.)*
+- **The derived verdict**, from the effective pairs of Story 22.4 and every other source `composeParecer` counts:
+  - **Não apto** when any sheet is effectively Reprovado.
+  - **Apto com restrições** when any sheet is Com restrições, any sheet is Não ensaiado for another reason, any site item is NC, or any point of attention exists.
+  - **Apto** otherwise.
+  - The engineer may choose a stricter verdict only; looser ones are disabled with the reason. With none chosen, the derived verdict prints.
+  - The one blocking pre-issue row ("missing verdict") retires.
+- **The summary** is always `composeParecer`'s text, which now names Reprovado sheets and out-of-criterion readings. Confirmar, Editar and Substituir are removed.
+- **Existing typed text.** A relatório whose summary was edited or replaced keeps that text as a paragraph "Observações do responsável" (authored) after the composed text. The engineer can clear it but not add one where there was none (coordinator's reading).
+- **The fixed bullets.**
+  - The third ("Apesar dos resultados dos testes serem positivos para a continuidade de operação…") prints under Apto and Apto com restrições, never under Não apto. This closes DF-4 of the 2026-10-08 field review.
+  - The references to the tests and points sections resolve through `{itens_resultados}` from the printed positions, also in a template's own Conclusão text (Story 11.4), where today the literal "itens 8 e 9" prints whatever the positions. This closes `deferred-work.md` line 2304.
+  - These are print rules on the seed's text, so no new seed version.
+- **Records amended.** FR-71; NFR-10 "Não apto never suggested"; `EXPERIENCE.md` lines 173 and 243; NFR-12 is kept (still computed on the device, never by a model). One `source-deltas.md` row, 2026-11-06.
+
+**Acceptance Criteria:**
+
+**Given** a relatório with one sheet effectively Reprovado
+**When** the Conclusão surface and section 10 render
+**Then** the verdict is Não apto, Apto and Apto com restrições are disabled with the reason, the summary names the Reprovado sheet, and the third bullet does not print
+
+**Given** a relatório with one sheet Com restrições and none Reprovado
+**When** it renders
+**Then** the verdict is Apto com restrições, Apto is disabled, Não apto can be chosen, and the third bullet prints
+
+**Given** a relatório whose summary was replaced by typed text before this story
+**When** it renders
+**Then** the composed summary prints, followed by "Observações do responsável" with the typed text
+
+**Given** a template whose own Conclusão text names the results sections
+**When** a relatório from it prints section 10
+**Then** the reference reads the positions of RELATÓRIOS DOS ENSAIOS and PONTOS DE ATENÇÃO as printed, as the seeded text does
+
+**Definition of Done, in addition:**
+- Kernel tests of the derived verdict, the stricter-only rule, the composed summary's new clauses and the position references.
+- `section-10` print tests.
+- A Playwright spec over the Conclusão surface through to the DOCX.
+- The touched durability specs on the matrix projects.
+- The `source-deltas.md` row.
+- `docs/kbs/log.md`.
+
+### Story 22.7: Seed v12: oil transformers, the deslocamento angular, the TP's checklist and the defect reason (contract 32)
+
+**Dev model:** opus · **Effort:** high · seed v12 derived from v11: TIPO DE ISOLAÇÃO with ÓLEO MINERAL, a TIPO DO ÓLEO field, LIGAÇÃO SECUNDÁRIA relabelled DESLOCAMENTO ANGULAR, the TP on the TC's checklist, the "Defeito no equipamento" Não ensaiado reason flagged `defect`; the plate structuring told what TIPO and TIPO DO ÓLEO are
+
+As Bruno filling an oil transformer, a TP or a sheet he could not test,
+I want the sheet to offer the right options and checks,
+So that an oil unit is not filed as dry and a TP is not judged on a power transformer's list.
+
+**Today (verified 2026-11-06 on main `5584a6e3`):** see the epic's item 1, 3 and 27 bullets.
+
+*(Definition of Ready, closed 2026-11-06 by Matheus for new relatórios only; the contents are Bruno's items 1, 3 and 27, and the details are the coordinator's reading.)*
+- **Seed v12** derives from v11 (AD-21), and only relatórios created afterwards use it. The batch owns `seed/v12.ts`; 22.8, 22.9 and 22.11 add to it in the same batch.
+- **Transformador de força.**
+  - TIPO DE ISOLAÇÃO's options are EPÓXI, Á SECO, ÓLEO MINERAL (Bruno: "Tipo de isolação deve ser 'Óleo mineral'"). ÓLEO MINERAL is an oil value for the oil rule (`relatorio/oil-rule.ts`).
+  - A new nameplate field, TIPO DO ÓLEO, is a select of A and B (the ANP classes of mineral insulating oil), after TIPO DE ISOLAÇÃO. It is excused, and prints "-", on a non-oil unit, as the oil fields are.
+  - LIGAÇÃO SECUNDÁRIA is labelled DESLOCAMENTO ANGULAR (screen: "Deslocamento angular"). Its options, its value (the group code) and Story 21.1's formula are unchanged. Bruno's "Mudar a formula … conforme o deslocamento" is already true (coordinator's reading).
+  - The TP and TC get ÓLEO MINERAL too, where v11 lists ÓLEO.
+- **The TP's checklist** is the TC's v10 list (coordinator's reading). Bruno corrects it in the PR.
+- **Oil units.** No item is marked NA by an oil insulation until Bruno names a dry-only item (coordinator's reading). The dry rule is unchanged.
+- **Não ensaiado.** A new reason "Defeito no equipamento", flagged `defect: true`, which Story 22.4's floor reads. Its printed justification is authored and listed for Bruno.
+- **Plate structuring.** The transformer prompt says that TIPO is the manufacturer's type or model designation, that "Tipo óleo isolante B" is TIPO DO ÓLEO = B, and that the insulation follows the oil words. A prompt version bump, with the eval set gaining one oil plate.
+- **Contract 32** with its `MIN_CONTRACT_VERSION` decision in the PR.
+- **Records amended.** Story 21.1's "label unchanged (FO.SERV-03 verbatim)" and the 2026-10-20 "ÓLEO" label, by one `source-deltas.md` row.
+
+**Acceptance Criteria:**
+
+**Given** a new relatório on v12 with a transformador de força
+**When** its nameplate renders
+**Then** TIPO DE ISOLAÇÃO offers EPÓXI, Á SECO, ÓLEO MINERAL; TIPO DO ÓLEO offers A and B; the group select reads "Deslocamento angular" on screen and DESLOCAMENTO ANGULAR in print
+
+**Given** ÓLEO MINERAL chosen
+**When** the checklist renders
+**Then** the seven oil items are answerable; with EPÓXI they show NA with no tap, and TIPO DO ÓLEO prints "-"
+
+**Given** a v12 TP
+**When** its checklist renders
+**Then** it holds the TC's items, with no VÁLVULA DE ALÍVIO, RELÉ DE GÁS or VENTILADORES
+
+**Given** a sheet marked Não ensaiado with "Defeito no equipamento"
+**When** the parecer renders
+**Then** the sheet counts as Reprovado (Story 22.4) and its derived point prints the reason's justification
+
+**Given** a fake plate fixture printing "Tipo óleo isolante B" and "TIPO TRICAST"
+**When** the reading completes
+**Then** TIPO DO ÓLEO is suggested B, TIPO is suggested TRICAST, and TIPO DE ISOLAÇÃO is ÓLEO MINERAL (verify state when the plate does not print the insulation)
+
+**Given** a v11 and a v5 relatório
+**When** they render
+**Then** nothing in their seed changes
+
+**Definition of Done, in addition:**
+- `seed.test.ts` pins v12's difference from v11 and the shipped hashes.
+- Oil-rule tests with ÓLEO MINERAL.
+- Plate fixtures and the reading tests.
+- The paid eval run by Matheus before the deploy (outside `verify`).
+- The contract bump.
+- A Playwright spec on a v12 relatório.
+- The touched durability specs on the matrix projects.
+- The `source-deltas.md` row.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+### Story 22.8: The test voltage per row of the insulation table (seed v12)
+
+**Dev model:** opus · **Effort:** high · a TENSÃO column per row on the v12 insulation tables (transformador de força, TP, TC, seccionadora, disjuntor, para-raio, and the cabine where seeded), its options and defaults, a notice when a row's voltage exceeds the winding's rating, the print column
+
+As Bruno testing a transformer's low-voltage winding at 1 kV,
+I want each insulation row to carry its own test voltage,
+So that a BT row is not printed at the 10 kV of the high-voltage rows.
+
+**Today (verified 2026-11-06 on main `5584a6e3`):** see the epic's item 2 bullet.
+
+*(Definition of Ready, closed 2026-11-06 by Matheus ("Ensaio: tensão e classe"); the details are the coordinator's reading.)*
+- **The column.** Every v12 insulation table gains TENSÃO (kV) per row, a select of 0,5, 1, 2,5, 5 and 10 kV.
+  - The instrument header's TENSÃO ENSAIO stays, as the instrument's default.
+  - Each row starts at that default, except the rows whose LINHA is a low-voltage winding (SECUNDÁRIO), which start at 1 kV (Bruno: "Incluir o teste em BT de 1kV").
+- **The notice.** A row whose voltage exceeds what its winding's rated voltage supports shows a screen-only notice, using `relatorio/test-voltage.ts`'s pattern. Above 0,5 kV is the limit for a winding of 220 V; the bands are the Quadro elétrico's (Story 14.14). The notice never blocks.
+- **The criterion** stays > 400 MΩ for every row. Bruno corrects it if a BT row takes another.
+- **Print.** The grid gains the column after CONEXÃO and prints each row's voltage. This amends KEEP_FORM (2026-10-22) for v12 tables only, by one `source-deltas.md` row.
+- **Older seeds** keep one voltage per test. The observation remains the way to record a per-row voltage there.
+
+**Acceptance Criteria:**
+
+**Given** a v12 transformador de força with a 10 kV megger picked
+**When** the insulation table renders
+**Then** PRIMÁRIO/MASSA and PRIMÁRIO/SECUNDÁRIO start at 10 kV and SECUNDÁRIO/MASSA at 1 kV, each changeable per row
+
+**Given** SECUNDÁRIO/MASSA set to 10 kV on a 220 V secondary
+**When** the row renders
+**Then** the notice names the winding and the suggested 0,5 or 1 kV; the value can still be saved and concluded
+
+**Given** the table prints
+**When** the DOCX renders
+**Then** each row prints its voltage in its own column, and a v11 table prints as today
+
+**Definition of Done, in addition:**
+- Seed tests for the column on each v12 type.
+- Kernel tests for defaults and the notice.
+- Section 9 print tests.
+- A Playwright spec through the DOCX.
+- The touched durability specs on the matrix projects.
+- The `source-deltas.md` row.
+- `docs/kbs/log.md`.
+
+### Story 22.9: The TC and TP ratio criterion follows the accuracy class (seed v12)
+
+**Dev model:** opus · **Effort:** medium · EXATIDÃO becomes a select on the v12 TC and a new field on the v12 TP; the ratio criterion reads the class (± class %), the transformador de força keeps ± 0,5 %; screen helper and print ACEITÁVEL follow
+
+As Bruno testing a TC of class 1,2,
+I want its ratio judged against its own class,
+So that a good instrument transformer is not printed INSATISFATÓRIO at 0,7 %.
+
+**Today (verified 2026-11-06 on main `5584a6e3`):** see the epic's item 28 bullet. Five Porto Seguro TP and TC rows at 0,57 % to 0,84 % read INSATISFATÓRIO under ± 0,5 % (F42).
+
+*(Definition of Ready, closed 2026-11-06 by Matheus ("Ensaio: tensão e classe"); the class lists are the coordinator's reading from NBR 6856 (TC) and NBR 6855 (TP), listed for Bruno.)*
+- **The classes.**
+  - On the v12 TC, EXATIDÃO is a select: 0,3, 0,6, 1,2, 3 (measurement) and 5P, 10P (protection).
+  - The v12 TP gains EXATIDÃO: 0,3, 0,6, 1,2.
+  - The plate reading maps a printed class ("0,6C25", "10P20", "1,2P75") to its class through a kernel parser. The burden part is ignored.
+- **The criterion.** A measurement class gives ± class %. A protection class gives ± 3 % for 5P and 10P (coordinator's reading). With no class, the criterion stays ± 0,5 % and the screen helper asks for the class. The transformador de força keeps ± 0,5 % (NBR 5356).
+- **Through the existing hook.** The kernel's `criterion_override` takes the class, so `reading-evaluation.ts` changes only in where the criterion comes from.
+- **Print.** ACEITÁVEL prints the class's criterion.
+- **Older seeds** keep ± 0,5 %, and F42 holds there.
+- **Records amended.** F42 is amended for v12 by one `source-deltas.md` row.
+
+**Acceptance Criteria:**
+
+**Given** a v12 TC with EXATIDÃO 1,2 and a ratio error of 0,84 %
+**When** the row evaluates
+**Then** it is SATISFATÓRIO, ACEITÁVEL prints "± 1,2 %", and the conclusion floor (Story 22.4) is not raised
+
+**Given** the same TC with no class
+**When** it evaluates
+**Then** it is judged at ± 0,5 % and the helper asks for EXATIDÃO
+
+**Given** a plate printing "0,6C25"
+**When** the reading completes
+**Then** EXATIDÃO is suggested 0,6
+
+**Definition of Done, in addition:**
+- Kernel tests for the class parser and the criterion.
+- Seed tests.
+- Reading tests.
+- Section 9 print tests.
+- A Playwright spec.
+- The `source-deltas.md` row.
+- `docs/kbs/log.md`.
+
+### Story 22.10: A reading above the instrument's limit (contract 32)
+
+**Dev model:** opus · **Effort:** high · a new reading cell state `over_range` with the instrument's limit, entered by a "> limite" control or by typing ">", "OL" or "0L"; judged against the criterion (a > 400 MΩ criterion is met by > 2 TΩ); prints "> 2 TΩ"; shares contract 32 with 22.7
+
+As a technician whose megger shows OL,
+I want to record that the value is above the instrument's range,
+So that the reading is honest and judged, not typed as a guessed number.
+
+**Today (verified 2026-11-06 on main `5584a6e3`):** see the epic's item 28 bullet. ">" and "OL" are refused; the DMG10Ki's over-range display "1 . 0" is handled nowhere (`epics.md` line 2181).
+
+*(Definition of Ready, closed 2026-11-06 by Matheus ("Ensaio: tensão e classe"); the details are the coordinator's reading.)*
+- **The state.** A reading cell gains `state: 'over_range'`, with `raw` holding the limit and `unit` its unit.
+  - Typing ">2T", "> 2 TΩ", "OL" or "0L" in a reading cell stores it. "OL" and "0L" take the picked instrument's top of range from the Instrumentos registry, or ask for the limit when the registry has none.
+  - A "> limite" action sits beside N/A in the cell's menu.
+  - Measurement-table cells take it too.
+- **Judging.** A > criterion is met when the limit meets it. A < criterion (contact resistance) is failed. A ± criterion (ratio) cannot take the state: the cell refuses it with a message.
+- **Print** shows "> 2 TΩ" (unit once, per Story 22.2). Derived cells that need a number (absorção, polarização where computed) print "-".
+- **The plate and display readings** never propose the state; the technician sets it.
+- **Older seeds.** The state is kernel and op shape, so it reaches every relatório.
+
+**Acceptance Criteria:**
+
+**Given** an insulation cell
+**When** the technician types "OL" with a 10 kV megger whose registry range ends at 2 TΩ
+**Then** the cell stores over_range 2 TΩ, shows "> 2 TΩ", the row is within > 400 MΩ, and print shows "> 2 TΩ"
+
+**Given** a contact resistance cell
+**When** "> limite" is set at 2 000 µΩ
+**Then** the row is out of criterion and the floor of Story 22.4 is Reprovado
+
+**Given** a ratio cell
+**When** "OL" is typed
+**Then** it is refused with the authored message
+
+**Definition of Done, in addition:**
+- Parser, kernel and `applyOp` tests.
+- The api's value caps for the new state (Story 20.9).
+- The contract note under 32.
+- A Playwright spec through the DOCX.
+- The touched durability specs on the matrix projects.
+- `docs/kbs/log.md`.
+
+### Story 22.11: A short QGBT inspection sheet (seed v12)
+
+**Dev model:** opus · **Effort:** medium · a v12 library type "Inspeção de QGBT" with a short nameplate, a visual checklist, photos and conclusion, no tests, printed in the QGBT/QD's group; offered in the palette and the template
+
+As Bruno photographing the low-voltage panels of a cabine,
+I want a short inspection sheet for each QGBT,
+So that those photos and findings belong to a sheet and the scope lists them.
+
+**Today (verified 2026-11-06 on main `5584a6e3`):** see the epic's item 31 bullet. The full Quadro elétrico sheet exists on v6 and later; Bruno's photos went to section 7 with no sheet.
+
+*(Definition of Ready, closed 2026-11-06 by Matheus ("Ficha simples de QGBT"); the content is the coordinator's reading, drafted from the Quadro elétrico's v6 sheet and listed for Bruno.)*
+- **The type** is `inspecao_qgbt`, TAG prefix QGBT.
+  - Nameplate: IDENTIFICAÇÃO, FABRICANTE, TENSÃO NOMINAL, CORRENTE NOMINAL.
+  - Checklist: the Quadro elétrico's visual items, without the ones its tests cover.
+  - CONCLUSÃO, and photos.
+  - No test sub-block.
+- **Print.** Section 9 prints it in the QGBT/QD's group after the full sheets, with Story 22.3's layout.
+- **The scope.** Section 3 lists the QGBT sheets of the relatório in its equipment list as it lists every type. Nothing about photos without a sheet changes.
+
+**Acceptance Criteria:**
+
+**Given** a v12 relatório
+**When** the engineer adds "Inspeção de QGBT" in a painel
+**Then** the sheet renders the four fields, the checklist and CONCLUSÃO; photos attach to it; the conclusion floor applies
+
+**Given** it prints
+**When** the DOCX renders
+**Then** it sits in the QGBT/QD's group with its checklist and photos, and section 3 counts it
+
+**Definition of Done, in addition:**
+- Seed tests.
+- Composer and palette tests.
+- A Playwright spec from the palette to the DOCX.
+- The touched durability specs on the matrix projects.
+- `docs/kbs/log.md`.
+
+### Story 22.12: The previous visit's value beside each reading (contract 32)
+
+**Dev model:** opus · **Effort:** high · a `last_results` projection per equipment written when a revision is issued (as `last_nameplate`, AD-25), read on the sheet as a hint and printed as a MANUT. ANTERIOR column in the reading tables when the equipment has one; lifts the SPEC non-goal "A comparison tool"
+
+As Bruno,
+I want each reading to show what the previous maintenance measured,
+So that the relatório makes the comparison its section 2 promises.
+
+**Today (verified 2026-11-06 on main `5584a6e3`):** see the epic's item 32 bullet.
+
+*(Definition of Ready, closed 2026-11-06 by Matheus ("Manutenção anterior"); the details are the coordinator's reading.)*
+- **The projection.** When a revision is issued, each equipment's `last_results` is written, beside `last_nameplate` (`print/last-nameplate.ts`, AD-25).
+  - It holds, per test key and row, the printed value and unit, the revision number and its date.
+  - It is the only other content of an Emitido relatório that reaches a device. The spine's AD-25 is amended in the same PR.
+- **The match.** Same equipment (by TAG within the obra, as instantiation reuses it), same test key, same row key. Rows whose key changed between seeds do not match and stay empty.
+- **On the sheet.** Each reading shows "Anterior: 4,9 GΩ (rev. 2, 12/03/2026)" as a helper (authored). It is never copied into the cell.
+- **In print.** A table whose equipment has any previous value prints a MANUT. ANTERIOR column after the values. A table without one prints as today. This amends KEEP_FORM for that case.
+- **Records amended.** SPEC Non-goals "A comparison tool" (`SPEC.md` line 174) and AD-25, by one `source-deltas.md` row.
+
+**Acceptance Criteria:**
+
+**Given** an obra whose TR-1 was issued in revision 1 with an insulation reading of 4,9 GΩ
+**When** a new relatório of that obra opens TR-1's sheet
+**Then** the insulation row shows the previous value as a helper, and the cell stays empty
+
+**Given** the new relatório generates
+**When** section 9 prints TR-1
+**Then** its insulation table has MANUT. ANTERIOR with 4,9 GΩ on that row; an equipment with no previous visit prints no such column
+
+**Given** a revision is issued
+**When** the api writes the projection
+**Then** `last_results` holds the issued values, a cross-tenant test proves company B never reads company A's projection, and replay stays byte-equal (AD-2, AD-3)
+
+**Definition of Done, in addition:**
+- Kernel and api tests of the projection and the match.
+- The contract note under 32.
+- A Playwright spec over two relatórios of one obra through to the DOCX.
+- The spine's AD-25 amended.
+- The `source-deltas.md` row.
+- `docs/kbs/log.md`.
+
+### Wave C: Stories 14.6, 14.7 and 14.8, the office's own types
+
+*(2026-11-06, Matheus, "Cadastro e padrões": Stories 14.6, 14.7 and 14.8 leave the backlog and close Epic 22 as wave C. The E14-A12 gate (two or three real jobs on the library types) is lifted. Bruno's "ainda não dá para cadastrar equipamentos e editar informações padrões" is their scope, read as equipment types and their defaults (checklist items, nameplate fields and options, default values, criteria); this is the coordinator's reading, open to Matheus. Their text, Definitions of Ready and Done stay under Epic 14. Their DoRs still hold: `bmad-architecture` settles the AD-21, AD-3 and AD-15 amendments before 14.6, and `bmad-ux` draws the editor frames before 14.7. Story 14.7 also opens the Critérios tab to edits on a company type, closing `deferred-work.md` line 2012.)*
 
 ## Backlog: deferred stories
 
