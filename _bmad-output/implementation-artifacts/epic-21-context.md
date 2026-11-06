@@ -120,3 +120,8 @@ Matheus, 2026-11-05: "pode fazer o pr, merge, e deploy, se passar tudo pode faze
 **Fix batch e21g** (review notes N-1 to N-3 and two e21r rows, D1 to D7) merged as PR #260 (5673ded5).
 
 **Fix batch e21a** (E21-A1, R-1 to R-4 and R-9 of the retrospective; the P-4 re-read of e21g's three patches; the "Dyn I" parse; these records, E21-A3; the playbook § 10, E21-A4): branch `e21a-reading-fixes`, spec `spec-e21a-reading-fixes.md`, PR opened against main and not merged by the batch.
+
+**Second deploy checklist** (coordinator, 2026-11-06; e21g #260 and e21a #261, main 42b05896):
+- `test:e2e:full` on 42b05896: 581 of 585 passed, 0 failed, 4 skipped, 0 flaky (2250 s), under the host lock (wait 0 s, load 5.30 at the start, 3.13 at the end, only the main stack up).
+- `grep -n "before the deploy" deferred-work.md` rows: the e21r eval and uncited-diagram rows were closed by the real-set eval and e21a; the others were closed earlier.
+- The deploy goes, on Matheus's word ("pode subir"), from the records merge on top of 42b05896, which changes only documents.
