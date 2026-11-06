@@ -17,6 +17,7 @@ import {
   measurementCellName,
   nextUnit,
   ratioFormulaHelperText,
+  ratioGroupOf,
   readingLabelText,
   runEnterKeyHint,
   runTarget,
@@ -26,7 +27,7 @@ import {
   type CellAddress,
   condicaoScreenText,
 } from './readings.ts';
-import { sheetProgress } from './sheet-progress.ts';
+import { sheetJumpTarget, sheetProgress } from './sheet-progress.ts';
 import { VECTOR_GROUPS, vectorGroupFactor, vectorGroupFormulaText } from './vector-group.ts';
 
 const ID = '019966b0-0051-7000-8000-000000000001';
@@ -733,6 +734,10 @@ describe('21.1-UNIT the transformer ratio follows its vector group', () => {
       expect(table.groupHelper).toBe('Informe a LIGAÇÃO SECUNDÁRIA na placa para calcular');
       expect(table.groupMissing).toBe(true);
       expect(table.vectorGroup).toBeNull();
+      // e21g D1: no terminal pair while the group is missing: the captures read "Fase 1".."Fase 3".
+      expect(captureLabels(table), String(ligacao)).toEqual(['Fase 1', 'Fase 2', 'Fase 3']);
+      expect(cardLabels(table), String(ligacao)).toEqual(['Fase 1', 'Fase 2', 'Fase 3']);
+      expect(table.columns.some((c) => c.label.includes('X1-X0'))).toBe(false);
     }
     const sheet = (version: string, ligacao: string | null) => {
       const nameplate: Record<string, Cell> = ligacao === null ? {} : { ligacao_secundaria: cell(ligacao) };
@@ -768,16 +773,66 @@ describe('21.1-UNIT the transformer ratio follows its vector group', () => {
         expect(table.formulaHelper).toBe('Calculado: U1 / U2');
         expect(table.groupHelper).toBeNull();
       }
-      for (const text of [null, '', 'Y', 'DYN', 'estrela-estrela']) {
-        const table = ratioOf(version, text, ['62.8', '62.8', '62.8']);
-        expect(table.rows[0]!.calculated?.text, `${version} ${String(text)}`).toBe('62,90');
-        expect(captureLabels(table)).toEqual(['H1-H3 / X1-X0', 'H2-H1 / X2-X0', 'H3-H2 / X3-X0']);
-        expect(table.formulaHelper).toBe('Calculado: U1 · √3 / U2');
-        expect(table.groupHelper).toBe('Ligação não reconhecida: calculado como Dyn1');
-        expect(table.groupMissing).toBe(false);
-        expect(table.vectorGroup).toBe('Dyn1');
+      // e21g D2: an empty field says it is empty; a text naming no group keeps the old line.
+      for (const [texts, helper] of [
+        [[null, '', '   '], 'LIGAÇÃO SECUNDÁRIA vazia: calculado como Dyn1'],
+        [['Y', 'DYN', 'estrela-estrela'], 'Ligação não reconhecida: calculado como Dyn1'],
+      ] as const) {
+        for (const text of texts) {
+          const table = ratioOf(version, text, ['62.8', '62.8', '62.8']);
+          expect(table.rows[0]!.calculated?.text, `${version} ${String(text)}`).toBe('62,90');
+          expect(captureLabels(table)).toEqual(['H1-H3 / X1-X0', 'H2-H1 / X2-X0', 'H3-H2 / X3-X0']);
+          expect(table.formulaHelper).toBe('Calculado: U1 · √3 / U2');
+          expect(table.groupHelper, `${version} ${String(text)}`).toBe(helper);
+          expect(table.groupMissing).toBe(false);
+          expect(table.vectorGroup).toBe('Dyn1');
+        }
       }
     }
+  });
+
+  it('e21g D2: ratioGroupOf says whether LIGAÇÃO SECUNDÁRIA is blank (null, missing, not a string, whitespace)', () => {
+    const of = (value: unknown, factor: 'vector_group' | 'sqrt3') => {
+      const nameplate: Record<string, Cell> = value === undefined ? {} : { ligacao_secundaria: cell(value) };
+      return ratioGroupOf({ sheet: { ...emptySheet(), nameplate } }, factor);
+    };
+    for (const factor of ['vector_group', 'sqrt3'] as const) {
+      for (const value of [undefined, null, '', '   ', 42]) expect(of(value, factor)?.blank, `${factor} ${String(value)}`).toBe(true);
+      for (const value of ['Y', 'Yyn0', ' Dyn1 ']) expect(of(value, factor)?.blank, `${factor} ${value}`).toBe(false);
+    }
+    expect(of('Y', 'sqrt3')).toMatchObject({ assumed: true, blank: false });
+    expect(of(null, 'sqrt3')).toMatchObject({ assumed: true, blank: true });
+    expect(of('Y', 'vector_group')).toMatchObject({ group: null, assumed: false, blank: false });
+  });
+
+  it('e21g D7: the Ensaios group share and the jump target of "Concluir ficha"', () => {
+    const sheet = (ligacao: string | null, extra: [number, number, Cell][] = []) => {
+      const nameplate: Record<string, Cell> = ligacao === null ? {} : { ligacao_secundaria: cell(ligacao) };
+      return { ...block('transformador_forca', { nameplate, ...test('relacao_transformacao', extra) }, defaultBlockConfig('v11', 'transformador_forca')), seed_version: 'v11' };
+    };
+    const rows = getDefinition('v11', 'cabine_primaria', 'transformador_forca').tests.find((t) => t.key === 'relacao_transformacao')!.tables.reduce((n, t) => n + t.rows.length, 0);
+    const withY = sheetProgress({ blocks: [sheet('Y')] }, sheet('Y').id);
+    expect(withY.steps.ensaios.group).toBe(rows);
+    expect(sheetProgress({ blocks: [sheet('Yyn0')] }, sheet('Yyn0').id).steps.ensaios.group).toBeUndefined();
+    expect('group' in sheetProgress({ blocks: [sheet('Yyn0')] }, sheet('Yyn0').id).steps.ensaios).toBe(false);
+    for (const step of ['placa', 'verificacoes', 'conclusao'] as const) expect(withY.steps[step].group, step).toBeUndefined();
+
+    const steps = (ensaios: { missing: number; group?: number }, placa = 0) => ({
+      placa: { missing: placa, outOfLimit: 0 },
+      verificacoes: { missing: 0, outOfLimit: 0 },
+      ensaios: { outOfLimit: 0, ...ensaios },
+      conclusao: { missing: 0, outOfLimit: 0 },
+    });
+    // The group is the only Ensaios gap: land on the Placa field that holds it.
+    expect(sheetJumpTarget({ firstIncompleteStep: 'ensaios', steps: steps({ missing: 3, group: 3 }) })).toEqual({ step: 'placa', fieldKey: 'ligacao_secundaria' });
+    // A reading cell missing as well: Ensaios, its first missing cell.
+    expect(sheetJumpTarget({ firstIncompleteStep: 'ensaios', steps: steps({ missing: 4, group: 3 }) })).toEqual({ step: 'ensaios', fieldKey: null });
+    expect(sheetJumpTarget({ firstIncompleteStep: 'ensaios', steps: steps({ missing: 2 }) })).toEqual({ step: 'ensaios', fieldKey: null });
+    // Complete: no target. Another first step: that step.
+    expect(sheetJumpTarget({ firstIncompleteStep: null, steps: steps({ missing: 0 }) })).toBeNull();
+    expect(sheetJumpTarget({ firstIncompleteStep: 'placa', steps: steps({ missing: 3, group: 3 }, 1) })).toEqual({ step: 'placa', fieldKey: null });
+    // From a real sheet: a v11 "Y" with nothing else typed misses reading cells too, so Ensaios.
+    expect(sheetJumpTarget(withY)?.step).toBe(withY.firstIncompleteStep);
   });
 
   it('v8 and the TP and TC never read a group: plain U1/U2, the seed labels, no helper', () => {

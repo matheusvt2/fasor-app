@@ -1136,8 +1136,9 @@ describe('Stories 15.3 and 15.6 (seed v9): what a v9 relatório prints, a v8 one
     expect(ratioTable('v11', 'Dyn1')).toEqual([DYN1_HEADER, row('62,90', 'INSATISFATÓRIO')]);
     expect(ratioTable('v11', 'YNd11')).toEqual([header(['H1-H0 / X1-X3', 'H2-H0 / X2-X1', 'H3-H0 / X3-X2']), row('20,97', 'INSATISFATÓRIO')]);
     expect(ratioTable('v11', 'Yd1')).toEqual([header(['H1-(H3+H2) / X1-X2', 'H2-(H1+H3) / X2-X3', 'H3-(H2+H1) / X3-X1']), row('31,45', 'INSATISFATÓRIO')]);
-    // v11 with no group: no VAL CALCULADO, no CONDIÇÕES, the seed labels.
-    expect(ratioTable('v11', null)).toEqual([DYN1_HEADER, row('-', '-')]);
+    // v11 with no group: no VAL CALCULADO, no CONDIÇÕES; e21g D1: neutral capture headers, no Dyn1 pair.
+    expect(ratioTable('v11', null)).toEqual([header(['FASE 1', 'FASE 2', 'FASE 3']), row('-', '-')]);
+    expect(ratioTable('v11', 'Y')).toEqual([header(['FASE 1', 'FASE 2', 'FASE 3']), row('-', '-')]);
     // v10: a typed group applies; "DYN1" prints exactly as v11's Dyn1; an unparsed text prints as Dyn1.
     expect(ratioTable('v10', 'DYN1')).toEqual(ratioTable('v11', 'Dyn1'));
     expect(ratioTable('v10', 'Dyn1')).toEqual(ratioTable('v11', 'Dyn1'));

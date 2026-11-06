@@ -12,6 +12,7 @@ import { isOilItem, oilDerivedNaKeys } from './oil-rule.ts';
 import { evaluatedCells, evaluateSheetReadings } from './readings.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 import { firstInTree } from './tree.ts';
+import { VECTOR_GROUP_FIELD } from './vector-group.ts';
 
 /*
  * Story 5.1: the per-sheet progress the Sheet header's Progress counter, the Section
@@ -97,6 +98,11 @@ export interface SheetStepProgress {
    * Com restrições requires (0 or 1); absent everywhere else and when it is not missing.
    */
   observation?: number;
+  /**
+   * e21g D7: on `ensaios` only, the share of `missing` that is ratio rows waiting for the
+   * transformer's vector group (LIGAÇÃO SECUNDÁRIA); absent everywhere else and when 0.
+   */
+  group?: number;
 }
 
 export interface SheetProgress {
@@ -200,6 +206,7 @@ function ensaiosCounts(block: BlockRow, definition: BlockDefinition, enabled: Re
   return {
     missing: cells.filter((cell) => cell.missing).length + groupMissing + measurements.missing,
     outOfLimit: cells.filter((cell) => cell.verdict === 'out').length + measurements.outOfLimit,
+    ...(groupMissing > 0 ? { group: groupMissing } : {}),
   };
 }
 
@@ -241,6 +248,27 @@ export function sheetProgress(snapshot: SheetProgressSnapshot, blockId: string):
   }
   const firstIncompleteStep = SHEET_STEPS.find((step) => steps[step].missing > 0) ?? null;
   return { steps, complete: firstIncompleteStep === null, firstIncompleteStep };
+}
+
+/** e21g D7: where "Concluir ficha" lands on an incomplete sheet: a step, and the field to focus when the kernel knows it. */
+export interface SheetJumpTarget {
+  step: SheetStep;
+  /** The `data-field-key` to focus inside the step; null lands on the step's first missing field. */
+  fieldKey: string | null;
+}
+
+/**
+ * e21g D7: the jump target of an incomplete sheet. When the first incomplete step is Ensaios and
+ * all it misses is the vector group (LIGAÇÃO SECUNDÁRIA holds a value naming no group, so Placa
+ * counts it filled), the target is that Placa field; otherwise the first incomplete step. Null
+ * when complete. The counts never change; only the landing does.
+ */
+export function sheetJumpTarget(progress: Pick<SheetProgress, 'firstIncompleteStep' | 'steps'>): SheetJumpTarget | null {
+  const step = progress.firstIncompleteStep;
+  if (step === null) return null;
+  const ensaios = progress.steps.ensaios;
+  if (step === 'ensaios' && ensaios.group !== undefined && ensaios.missing === ensaios.group) return { step: 'placa', fieldKey: VECTOR_GROUP_FIELD };
+  return { step, fieldKey: null };
 }
 
 /**

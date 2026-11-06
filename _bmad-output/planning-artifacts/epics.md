@@ -5504,6 +5504,8 @@ So that a star-star or any other non-Dyn1 transformer is not flagged INSATISFAT�
 
 *(2026-11-05, coordinator, at the merge of PRs #254, #255 and #256: 21.1 shipped in e21r, PR #255. Narrowings: the v10 "DYN1" to "YYN0" case runs in the new serial `e2e/seed-v11.spec.ts`; on v11 a plate value the parser does not map is dropped and the field stays empty (review note N-5); with no group chosen a v11 table still shows the Dyn1 pairs as capture headers (review note N-1, a decision for Matheus or Bruno); Dyn3, Dyn9, Dy3 and Dy9 ship as transcribed and are listed for Bruno.)*
 
+*(2026-11-06, coordinator, fix batch e21g, PR #PR, under Matheus's "revise usando sua inteligencia": D1, while a v11 table has no group its capture headers read "Fase 1" to "Fase 3" on the sheet and "FASE 1" to "FASE 3" in section 9, never the Dyn1 pairs (closes N-1); D2, a v9 or v10 table whose LIGAÇÃO SECUNDÁRIA is empty says "LIGAÇÃO SECUNDÁRIA vazia: calculado como Dyn1", an unparsed text keeps "Ligação não reconhecida" (N-2); D4, none (see Story 21.3); D5, none, an unmapped plate value stays dropped on v11 (N-5); D6, no "Aprovado · Sem restrições" suggestion while a ratio waits for its group; D7, "Concluir ficha" lands on Placa with LIGAÇÃO SECUNDÁRIA focused when the group is all Ensaios misses (the two e21r review rows in `deferred-work.md`).)*
+
 ### Story 21.2: The plate reading identifies the vector group, also from the drawn diagram
 
 **Dev model:** opus · **Effort:** medium · the transformador de força's plate structuring names the 47 codes and reads the vector diagram; the value lands canonical in LIGAÇÃO SECUNDÁRIA (select on v11, text on v9/v10); the Story 8.5 guard decides suggested or verify; fake fixtures and the paid eval set
@@ -5599,6 +5601,8 @@ So that section 7 tells the work in the order it was done (arrival of the utilit
 - `docs/kbs/log.md`.
 
 *(2026-11-05, coordinator, at the merge of PR #254: 21.3 shipped in e21p. Narrowings: the DOCX and PDF are generated at 1280 px only (the gallery is asserted at 390, 768 and 1280 px); the durability spec skips WebKit, which cannot store a photo Blob (the `camera-app.durability.spec.ts` precedent). Open for Matheus or Bruno: imports keep their capture-order place and only a new capture lands last; the gallery note still says "Ordem cronológica de captura" (review note N-3).)*
+
+*(2026-11-06, coordinator, fix batch e21g, PR #PR: D3, the gallery note now starts "Fotos gerais na ordem do relatório (mude com Subir e Descer); fotos das fichas na ordem de captura." (closes N-3); D4, none, an import keeps its capture-time place among unmoved photos and only a new capture lands last, as designed (N-4).)*
 
 ## Backlog: deferred stories
 

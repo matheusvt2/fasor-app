@@ -241,6 +241,17 @@ export function vectorGroupShortText(group: VectorGroup): string | null {
 export const VECTOR_GROUP_MISSING_TEXT = 'Informe a LIGAÇÃO SECUNDÁRIA na placa para calcular';
 // authored: Story 21.1, the helper of a v9/v10 ratio table whose LIGAÇÃO SECUNDÁRIA names no group.
 export const VECTOR_GROUP_UNRECOGNIZED_TEXT = 'Ligação não reconhecida: calculado como Dyn1';
+// authored: e21g D2, the helper of a v9/v10 ratio table whose LIGAÇÃO SECUNDÁRIA is empty.
+export const VECTOR_GROUP_EMPTY_TEXT = 'LIGAÇÃO SECUNDÁRIA vazia: calculado como Dyn1';
+
+/**
+ * e21g D1: the neutral capture column label of one phase (0 = A) while a v11 ratio table has no
+ * vector group, so no terminal pair is shown before the group is known: "Fase 1".
+ */
+export function vectorGroupNeutralCaptureLabel(phase: number): string {
+  // authored: e21g D1, the capture header of a v11 ratio table waiting for its group.
+  return `Fase ${phase + 1}`;
+}
 
 /** Story 21.2: the nameplate field that holds the transformer's vector group. */
 export const VECTOR_GROUP_FIELD = 'ligacao_secundaria';

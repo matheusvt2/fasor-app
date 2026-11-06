@@ -6,6 +6,7 @@ import {
   filledByText,
   formatTimeOfDay,
   moveTargets,
+  sheetJumpTarget,
   sheetProgress,
   suggestedInstruments,
   tagRenamedText,
@@ -19,6 +20,7 @@ import {
   type OpDraft,
   type RelatorioSnapshot,
   sectionMention,
+  type SheetJumpTarget,
   type SheetProgress,
   type SheetStep,
   type UserRow,
@@ -101,7 +103,7 @@ export function useFichaActions({
   sessionUser: SessionState['user'];
   api: FichaApi;
   editor: RelatorioEditor;
-  goTo: (step: SheetStep, missing: boolean) => void;
+  goTo: (step: SheetStep, missing: boolean, fieldKey?: string | null) => void;
   navigate: NavigateFunction;
   showToast: ToastState['showToast'];
   saved: () => void;
@@ -136,14 +138,15 @@ export function useFichaActions({
       goNext();
       return;
     }
-    let firstMissing: SheetStep | null = null;
+    let firstMissing: SheetJumpTarget | null = null;
     void api
       .edit((blocks, by, rows) => {
         const fresh = blocks.find((row) => row.id === blockId && row.removed_at === null);
         if (fresh === undefined || fresh.concluded_by !== null || fresh.not_tested !== null) return null;
         const freshProgress = sheetProgress({ blocks, locations: rows.locations, equipment: rows.equipment, relatorio }, blockId);
         if (!freshProgress.complete) {
-          firstMissing = freshProgress.firstIncompleteStep ?? 'placa';
+          // e21g D7: the kernel's landing (the LIGAÇÃO SECUNDÁRIA field when the group is all Ensaios misses).
+          firstMissing = sheetJumpTarget(freshProgress) ?? { step: 'placa', fieldKey: null };
           return null;
         }
         // The TAG the ficha's own text field composes with: the fresh project equipment row's
@@ -168,7 +171,7 @@ export function useFichaActions({
           if (otherwise === 'next') goNext();
           else if (firstMissing !== null) {
             editor.announce(t.incomplete);
-            goTo(firstMissing, true);
+            goTo(firstMissing.step, true, firstMissing.fieldKey);
           }
           return;
         }

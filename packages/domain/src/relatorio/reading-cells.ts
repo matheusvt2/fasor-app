@@ -126,7 +126,8 @@ export interface EvaluatedTable {
   /**
    * Story 21.1: on a v11 table with no group, "Informe a LIGAÇÃO SECUNDÁRIA na placa para
    * calcular"; on a v9/v10 table whose LIGAÇÃO SECUNDÁRIA names no group, "Ligação não
-   * reconhecida: calculado como Dyn1"; null otherwise. On the sheet only.
+   * reconhecida: calculado como Dyn1"; null otherwise. On the sheet only. e21g D2: on a v9/v10
+   * table whose LIGAÇÃO SECUNDÁRIA is empty, "LIGAÇÃO SECUNDÁRIA vazia: calculado como Dyn1".
    */
   groupHelper: string | null;
   /** Story 21.1: the code of the vector group the table evaluates with ("Yyn0"), null on a table without one. */
@@ -231,6 +232,8 @@ export interface RatioGroupResolution {
   group: VectorGroup | null;
   /** True on a v9/v10 table whose LIGAÇÃO SECUNDÁRIA names no group: Dyn1 is assumed, as Story 15.6 fixed it. */
   assumed: boolean;
+  /** e21g D2: the LIGAÇÃO SECUNDÁRIA value is null, missing, not a string or blank after trim (the `isCellFilled` rule). */
+  blank: boolean;
 }
 
 /**
@@ -241,10 +244,12 @@ export interface RatioGroupResolution {
  */
 export function ratioGroupOf(block: Pick<BlockRow, 'sheet'>, factor: TableDef['ratio_factor']): RatioGroupResolution | null {
   if (factor === undefined) return null;
-  const parsed = parseVectorGroup(block.sheet.nameplate[VECTOR_GROUP_FIELD]?.value);
-  if (parsed !== null) return { group: parsed, assumed: false };
-  if (factor === 'vector_group') return { group: null, assumed: false };
-  return { group: vectorGroupByCode(DEFAULT_VECTOR_GROUP_CODE), assumed: true };
+  const value = block.sheet.nameplate[VECTOR_GROUP_FIELD]?.value;
+  const blank = typeof value !== 'string' || value.trim() === '';
+  const parsed = parseVectorGroup(value);
+  if (parsed !== null) return { group: parsed, assumed: false, blank };
+  if (factor === 'vector_group') return { group: null, assumed: false, blank };
+  return { group: vectorGroupByCode(DEFAULT_VECTOR_GROUP_CODE), assumed: true, blank };
 }
 
 // --- units ---------------------------------------------------------------------------------

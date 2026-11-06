@@ -16,6 +16,9 @@
  */
 type Mention = { ref: string; prints: boolean; absent: string };
 
+// authored: e21g D3, the gallery's order: Geral photos follow section 7 (Subir and Descer move them), sheet photos keep capture order.
+const GALLERY_ORDER_NOTE = 'Fotos gerais na ordem do relatório (mude com Subir e Descer); fotos das fichas na ordem de captura.';
+
 export const copy = {
   login: {
     emailLabel: 'E-mail',
@@ -964,10 +967,12 @@ export const copy = {
     // `key-photos.html` line 105, verbatim. F43 (UX pass 2026-10-22): `section` is the kernel's
     // `sectionRefText` for section 7 ("seção 3" by its Sumário position).
     // authored (F43, coordinator review): with section 7 absent, the photos do not print.
+    // authored: e21g D3, the first sentence of both `note` variants.
+    orderNote: GALLERY_ORDER_NOTE,
     note: (m: Mention) =>
       m.prints
-        ? `Ordem cronológica de captura. Os números são provisórios até a exportação (${m.ref} do relatório). A hora e o pino vêm da captura; sem permissão de localização no aparelho, só a hora.`
-        : `Ordem cronológica de captura. As fotos não saem no documento: o relatório não tem a ${m.ref}. A hora e o pino vêm da captura; sem permissão de localização no aparelho, só a hora.`,
+        ? `${GALLERY_ORDER_NOTE} Os números são provisórios até a exportação (${m.ref} do relatório). A hora e o pino vêm da captura; sem permissão de localização no aparelho, só a hora.`
+        : `${GALLERY_ORDER_NOTE} As fotos não saem no documento: o relatório não tem a ${m.ref}. A hora e o pino vêm da captura; sem permissão de localização no aparelho, só a hora.`,
     // `70-fotos.html` `.chip-row` aria-label, verbatim.
     // authored (Story 14.2): `70-fotos.html` says "Filtrar por cabine"; on screen the root is the "local".
     filterLabel: 'Filtrar por local',

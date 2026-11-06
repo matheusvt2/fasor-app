@@ -2,6 +2,7 @@ import { BLOCK_CHAVE_ID } from '@app/domain/fixtures/porto-seguro/small';
 import { photoToken, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
+import { copy } from '../apps/web/src/copy/pt-br.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
@@ -212,6 +213,10 @@ for (const [n, width] of [[1, 390], [2, 768], [3, 1280]] as const) {
 
     // Before: capture order, the sheet photo (captured first) numbered after section 7.
     expect(await tileOrder(page)).toEqual([[sheet.id, '6'], [p1, '1'], [p2, '2'], [p3, '3'], [p4, '4'], [p5, '5']]);
+    // e21g D3: the gallery note says Geral photos follow the relatório (Subir, Descer), sheet photos capture order.
+    const note = page.locator('.section-note').first();
+    await expect(note).toContainText(copy.gallery.orderNote);
+    await expect(note).not.toContainText('Ordem cronológica');
     await expect(galleryItem(page, sheet.id).getByRole('button', { name: /^Mais opções de / })).toHaveCount(0);
     await expectFits(page, p4);
 

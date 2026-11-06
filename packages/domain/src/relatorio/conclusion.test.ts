@@ -77,6 +77,23 @@ describe('5.8-UNIT suggestConclusionPair', () => {
     expect(conclusionSuggestionText(pair!)).toBe('Aprovado · Sem restrições?');
   });
 
+  it('e21g D6: a v11 transformer whose ratio waits for its group is never Sem restrições; a restriction still suggests Com restrições', () => {
+    const TRAFO = getDefinition('v11', 'cabine_primaria', 'transformador_forca');
+    const trafo = (ligacao: string | null, over: { nc?: boolean; captures?: string } = {}) => {
+      const checklist = Object.fromEntries(TRAFO.checklist!.map((item, i) => [item.key, { result: cell(over.nc === true && i === 0 ? 'NC' : 'C'), ...(over.nc === true && i === 0 ? { observation: cell('Obs') } : {}) }]));
+      const raw = over.captures ?? '36.3';
+      const test: Sheet['test'] = { relacao_transformacao: { cells: { '0': { '0': measured('13.8', 'kV'), '1': measured('380', 'V'), '3': measured(raw, null), '4': measured(raw, null), '5': measured(raw, null) } } } };
+      return block(
+        { checklist, test, nameplate: ligacao === null ? {} : { ligacao_secundaria: cell(ligacao) } },
+        { block_type: 'transformador_forca', seed_version: 'v11', config: defaultBlockConfig('v11', 'transformador_forca') },
+      );
+    };
+    for (const ligacao of [null, '', 'Y']) expect(suggestConclusionPair(trafo(ligacao)), String(ligacao)).toBeNull();
+    expect(suggestConclusionPair(trafo(null, { nc: true }))).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
+    expect(suggestConclusionPair(trafo('Yyn0'))).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
+    expect(suggestConclusionPair(trafo('Yyn0', { captures: '50' }))).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
+  });
+
   it('any NC row or any out-of-criterion reading: Aprovado · Com restrições; never Reprovado', () => {
     const nc = block({ checklist: { ...allC(), contatos: { result: cell('NC') } }, test: within() });
     expect(suggestConclusionPair(nc)).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });

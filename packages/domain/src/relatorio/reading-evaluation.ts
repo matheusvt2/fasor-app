@@ -27,7 +27,7 @@ import {
   type TestKey,
   type VisibleColumn,
 } from './reading-cells.ts';
-import { VECTOR_GROUP_MISSING_TEXT, VECTOR_GROUP_UNRECOGNIZED_TEXT, vectorGroupCaptureLabel, vectorGroupFactor, vectorGroupFormulaText, vectorGroupShortText } from './vector-group.ts';
+import { VECTOR_GROUP_EMPTY_TEXT, VECTOR_GROUP_MISSING_TEXT, VECTOR_GROUP_UNRECOGNIZED_TEXT, vectorGroupCaptureLabel, vectorGroupNeutralCaptureLabel, vectorGroupFactor, vectorGroupFormulaText, vectorGroupShortText } from './vector-group.ts';
 
 /*
  * E9-A7: THE evaluation of a sheet's readings (see `reading-cells.ts` for the addressing) and
@@ -170,8 +170,12 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
   // U1/U2's multiplier: the group's k, 1 on a table with no factor, none while a v11 table has no group.
   const factor = resolution === null ? 1 : group === null ? null : vectorGroupFactor(group.k);
   const captureCols = table.value_columns.flatMap((c, i) => (c.role === 'capture' ? [i] : []));
-  /** A column's label: on a group's three captures the group's pair of that phase, else the seed's. */
+  /**
+   * A column's label: on a group's three captures the group's pair of that phase, else the seed's;
+   * e21g D1: while a v11 table waits for its group, a capture reads "Fase N" by capture index.
+   */
   const labelOf = (column: ColumnDef, col: number): string => {
+    if (groupMissing && column.role === 'capture') return vectorGroupNeutralCaptureLabel(captureCols.indexOf(col));
     if (group === null || column.role !== 'capture' || captureCols.length !== group.phases.length) return column.label;
     return vectorGroupCaptureLabel(group, captureCols.indexOf(col)) ?? column.label;
   };
@@ -301,7 +305,7 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
     ratio,
     formulaHelper: group === null ? null : vectorGroupFormulaText(group.k),
     shortHelper: group === null ? null : vectorGroupShortText(group),
-    groupHelper: resolution === null ? null : groupMissing ? VECTOR_GROUP_MISSING_TEXT : resolution.assumed ? VECTOR_GROUP_UNRECOGNIZED_TEXT : null,
+    groupHelper: resolution === null ? null : groupMissing ? VECTOR_GROUP_MISSING_TEXT : resolution.assumed ? (resolution.blank ? VECTOR_GROUP_EMPTY_TEXT : VECTOR_GROUP_UNRECOGNIZED_TEXT) : null,
     vectorGroup: group?.code ?? null,
     groupMissing,
   };
