@@ -2,7 +2,7 @@
 title: 'e21a: Epic 21 retrospective reading fixes (E21-A1: R-1, R-2, R-3, R-4, R-9), the P-4 re-read of e21g, the "Dyn I" parse, records'
 type: 'bugfix'
 created: '2026-11-06'
-status: 'in-review'
+status: 'done'
 baseline_revision: '5673ded5127305b46ac8f58a4f4f157c78a35b56'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -156,3 +156,22 @@ Parser, a single trailing letter "I" or "l" after a connection letter reads as c
 - R-4: the duplicate-key fixture parsed (`expected true to be false`); `fake.ts` imported `['./bedrock.ts']`.
 - R-9 (test only): green on the baseline; mutation run with printed-wins disabled (`index >= 0 && false && isPrinted(...)`): red, `expected { ... } to match object { value: 'Dyn1', ... }`; restored, green.
 - Note: `vectorGroupReadOf`'s `unparsed` kind carries the stored `value` (the eval prints it JSON-quoted); the spec's type listed `{ kind: 'unparsed' }` alone.
+
+## Auto Run Result
+
+Status: done (orchestrated retrospective fix batch e21a; the PR is opened by the orchestrator, not merged).
+
+- **Change (E21-A1):**
+  - R-1: facts whose labels the OCR did not return are ignored (outcome `uncited`), so the model's own group entry is kept and stored as a diagram read (`verify`, "Lido do diagrama — confira").
+  - R-2: `vectorGroupReadOf` (`reading/build.ts`) is the one classification (printed, other group, diagram, unparsed, dropped); `buildReadingSuggestions`, the fold (`isPrinted`) and the eval (`scripts/eval-group-read.ts`) read it; the private `printsItsGroup` is gone.
+  - R-3: `withVectorDiagram` returns its outcome, and `logVectorDiagram` writes one `reading vector diagram` line (model, outcome, code, the five facts, the known-id count, replaced) in both providers, never OCR text.
+  - R-4: `withoutUncitedValues` lives in `providers/uncited.ts` (re-exported from `bedrock.ts`); `fake.ts` no longer imports the Bedrock module; the fake fixture schema has the unique-key refine again.
+  - R-9: a job-level test, printed Dyn1 plus Yyn0 facts stays `suggested` citing its word (mutation run recorded above).
+  - "Dyn I": `parseVectorGroup` reads one trailing upper-case I or lower-case l after a connection letter as clock 1.
+  - P-4 re-read of e21g: 1 defect fixed (`blank` is `!isCellFilled`), 1 open reading (D6 with the plate off), 1 gap left (unreachable).
+- **Files:** `packages/domain/src/reading/build.ts` (+ test), `relatorio/vector-group.ts` (+ test), `relatorio/reading-cells.ts` (+ `readings.test.ts`); `apps/api/src/jobs/reading/providers/vector-diagram.ts`, `uncited.ts` (new), `bedrock.ts`, `fake.ts` (+ their tests); `job.integration.test.ts`; `apps/api/src/scripts/eval-group-read.ts` (new, + test), `bedrock-eval.ts`. Records: `epic-21-context.md`, `deferred-work.md`, `epics.md` (Story 21.2), `epic-batch-orchestrator.md` § 10, `docs/kbs/architecture/kernel-and-seed.md`, `docs/kbs/log.md`.
+- **Review:** 6 findings (4 low, 2 false): 3 patched in one loop (the fake log line test, a non-object input is `malformed`, the fold doc), 1 low rejected (a stray I/l token cited beside a group's letters; still `verify`), 2 false (a printed "Dyn I" is `verify` by design; v9/v10 "Dyn I" or "Yd I" moving off the assumed Dyn1 is the decided fix). Nothing deferred.
+- **P-4 self re-read of this loop's patches:** none found (Review Triage Log).
+- **Follow-up review:** false (no high or medium patched; patched counts: low 3).
+- **Verification (story gate on `91502ca4`, host lock wait 0 s, load 3.52 at the start and 5.57 at the end; the main checkout's stack `fasor` up, no other batch stack or gate):** lint 0 (17 s), static 0 (27 s), test:api 880 passed, 4 skipped (358 s), test:unit 5235 of 5236 (349 s), e2e `plate`, `plate-reading`, `plate-every-type`, `seed-v11`, `ficha`, `ratio-feeds-conclusion` on desktop-chrome and durability-desktop-chrome 58 of 58 (parallel 46, serial 12, 235 s). The one unit red, `apps/web/src/surfaces/relatorio/relatorio-tree.test.tsx` Q7 (a move announced within 1.5 s of its render; a file this batch does not touch), passed alone under the lock, 11 of 11 (wait 0 s, load 4.11 at the start, 4.47 at the end).
+- **Residual risks:** the fold and the parser change are exercised on stubbed Converse answers and the fake fixture; whether the real "Dyn I" plate's answer cites those words (and so reads printed) shows on the next production reading through the new log line or the next paid eval (E21-A2).
