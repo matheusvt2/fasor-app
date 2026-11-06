@@ -2,7 +2,7 @@
 title: 'e21f: the drawn vector diagram is described by the model and composed by the kernel (Story 21.2 fix)'
 type: 'bugfix'
 created: '2026-11-05'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'fdc1992455b328f255c6876207f9db4f97b7c668'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -131,3 +131,14 @@ deferred:
 - `pnpm --filter @app/api exec vitest run src/jobs/reading/job.integration.test.ts` -- green (needs the batch stack's Postgres and MinIO up; restart `api` first).
 - `pnpm lint`, `pnpm static` -- clean.
 - The orchestrator runs `podman compose restart api`, then test:unit, test:api and the touched e2e specs under the host lock.
+
+## Auto Run Result
+
+Status: done (orchestrated fix batch e21f; the PR is opened by the orchestrator, not merged).
+
+- **Change:** the structuring tool asks a transformador de força plate for the drawn diagrams' facts (`vector_diagram`: shapes, neutrals, X1's hour, terminal labels; prompt `bedrock-structuring-4`); `composeVectorGroup` (kernel) composes the code; `withVectorDiagram` (api) folds it into the group's structured value before the contract parse in both the bedrock and the fake providers, so the e21r diagram path (`verify`, no token, whole image, "Lido do diagrama — confira") is unchanged. A printed code citing words that print that same group wins. No contract change.
+- **Files:** `relatorio/vector-group.ts` (+ test), `reading/build.ts` (`printedVectorGroups` exported), `providers/vector-diagram.ts` (new, + test), `providers/bedrock.ts` (+ test), `providers/fake.ts` (+ test), the Yyn0 fixture JSON and `make-plate-fixtures.ts` (PNG unchanged), fixtures README, `job.integration.test.ts`, `bedrock-eval.ts` ("(diagram)" marker), `deferred-work.md`, KB note and log, the Epic 21 integrated review report.
+- **Review:** 9 findings (8 low, 1 false): 6 patched in one loop by the orchestrator (4 distinct fixes: diagram cites only known labels; an unknown cited id makes an entry not printed; printed means its words print its own code; the fake drops uncited values), 1 deferred (the eval marker has no test harness), 2 rejected (a printed group the model leaves out of values against the prompt stays `verify` with the note; the "suggest nothing" claim is the matrix's defined behavior).
+- **Follow-up review:** false (no high or medium patched; patched counts: low 4 fixes).
+- **Verification:** story gate on `a8f22c0b` under the host lock (wait 1120 s, load 5.15 at the start, 3.99 at the end; the coordinator's integrated gate ran on the main stack before it): lint, static green; test:unit 361 files, 5204 tests; test:api 108 files (1 skipped), 865 tests (4 skipped); e2e `plate`, `plate-reading`, `plate-every-type`, `seed-v11` on desktop-chrome and durability-desktop-chrome 22 of 22; total 817 s.
+- **Residual risks:** the fix is exercised on stubbed Converse answers and the fake fixture only; the coordinator's paid eval with `bedrock-structuring-4` decides it ("before the deploy" row).
