@@ -272,9 +272,9 @@
  * SECUNDÁRIA the parser reads applies its group too (an unparsed one keeps √3 and the Dyn1 pairs).
  * It is the version of a new template. A plate reading may now emit a nameplate suggestion citing
  * no OCR token over the whole image (`ocr_token_ids: []`, the prose precedent), a vector group
- * read from the drawn diagram, always `verify`; `suggestionRowSchema` already took that shape. No
- * op kind, path family, row field nor reject code is new: a row written before 30 parses to the
- * same bytes. `MIN_CONTRACT_VERSION` goes to 30 too.
+ * read from the drawn diagram, always `verify`; `suggestionRowSchema` already took that shape. These
+ * two stories add no op kind, path family, row field nor reject code (Story 21.3's `order_key`
+ * below does): a row written before 30 parses to the same bytes. `MIN_CONTRACT_VERSION` goes to 30 too.
  *
  * 30 (2026-11-05, Story 21.3, batch e21p): a photo row gains an optional `order_key`
  * (`photoFileRowSchema`, `0-9a-z` only and never ending in `0`, absent and null both meaning never moved), and
