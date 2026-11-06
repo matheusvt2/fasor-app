@@ -805,6 +805,17 @@ describe('21.1-UNIT the transformer ratio follows its vector group', () => {
     expect(of('Y', 'vector_group')).toMatchObject({ group: null, assumed: false, blank: false });
   });
 
+  it('e21a P-4: blank is the isCellFilled rule, so a cell holding an empty number state is blank too', () => {
+    for (const factor of ['vector_group', 'sqrt3'] as const) {
+      for (const value of [{ state: 'empty' }, { raw: '', unit: null, state: 'empty' }]) {
+        const empty = ratioGroupOf({ sheet: { ...emptySheet(), nameplate: { ligacao_secundaria: cell(value) } } }, factor);
+        expect(empty?.blank, `${factor} ${JSON.stringify(value)}`).toBe(true);
+      }
+      const measured = ratioGroupOf({ sheet: { ...emptySheet(), nameplate: { ligacao_secundaria: cell({ raw: '1', unit: null, state: 'measured' }) } } }, factor);
+      expect(measured?.blank, factor).toBe(false);
+    }
+  });
+
   it('e21g D7: the Ensaios group share and the jump target of "Concluir ficha"', () => {
     const sheet = (ligacao: string | null, extra: [number, number, Cell][] = []) => {
       const nameplate: Record<string, Cell> = ligacao === null ? {} : { ligacao_secundaria: cell(ligacao) };

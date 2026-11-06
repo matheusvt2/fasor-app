@@ -179,6 +179,44 @@ describe('21.1-UNIT parseVectorGroup', () => {
   });
 });
 
+describe('e21a parseVectorGroup: a trailing letter I or l after a connection letter is clock 1 ("Dyn I")', () => {
+  it.each([
+    ['Dyn I', 'Dyn1'],
+    ['DynI', 'Dyn1'],
+    ['Dynl', 'Dyn1'],
+    ['dyn l', 'Dyn1'],
+    ['Dy I', 'Dy1'],
+    ['YNd l', 'YNd1'],
+    ['Yd I', 'Yd1'],
+    ['(Dyn I)', 'Dyn1'],
+  ])('%j reads %s', (text, code) => {
+    expect(parseVectorGroup(text)?.code).toBe(code);
+  });
+
+  it.each(['Dyn II', 'Dyn ll', 'Dyn 1I', 'Dyn lI', 'Dyn Il', 'Dyn i', 'DynL', 'Yyn I', 'I', 'l', ' I ', 'Dyn I1', 'Dyn l0'])('%j reads null', (text) => {
+    expect(parseVectorGroup(text)).toBeNull();
+  });
+
+  it('property: over the 47 codes, an I/l spelling of the clock reads the code only when the clock is exactly 1, never a clock 10 or 11', () => {
+    const spellings = ['I', 'l', ' I', ' l'];
+    for (const code of VECTOR_GROUP_CODES) {
+      const clock = /\d+$/.exec(code)![0];
+      const letters = code.slice(0, -clock.length);
+      for (const spelling of spellings) {
+        // The letters followed by one I or l: the clock-1 code when the table has it, else nothing.
+        const read = parseVectorGroup(`${letters}${spelling}`)?.code ?? null;
+        expect(read, `${letters}${spelling}`).toBe(VECTOR_GROUP_CODES.includes(`${letters}1`) ? `${letters}1` : null);
+        if (clock === '1') expect(read, `${code} as ${letters}${spelling}`).toBe(code);
+      }
+      if (clock === '10' || clock === '11') {
+        for (const two of ['II', 'Il', 'lI', 'll', '1I', 'I1', '1l', 'l1', 'I0', 'l0', 'I 1', '1 I']) {
+          expect(parseVectorGroup(`${letters}${two}`), `${letters}${two}`).toBeNull();
+        }
+      }
+    }
+  });
+});
+
 describe('21.2-UNIT the vector-group field', () => {
   it('is the transformador de força LIGAÇÃO SECUNDÁRIA only', () => {
     expect(isVectorGroupField('transformador_forca', 'ligacao_secundaria')).toBe(true);

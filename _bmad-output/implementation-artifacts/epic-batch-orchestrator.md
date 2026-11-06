@@ -369,3 +369,32 @@ Each names its source in `epic-20-retro-2026-11-04.md`.
 - (E20-A4, R-1, 2026-11-04) A budget or quota rule ships with tests for its restore path (a tombstone put back) and
   its shrink path (an edit that makes a value smaller), beside the over-the-limit case. Precedent: the 4 MiB
   relatório budget of Epic 20 refused a shrink and let a restore through, fixed in E20-A1.
+
+## 10. Rules carried from the Epic 21 retrospective (2026-11-06, E21-A4)
+
+Each names its source in `epic-21-retro-2026-11-06.md`.
+
+- (E21-A4, P-1, 2026-11-06) A story whose AC depends on what a model perceives (a plate, a display, a caption, a
+  diagram) runs its paid eval before its batch PR merges: on the synthetic set and on a real set fetched first into
+  the ignored `docs/media/`, never committed. The coordinator runs it with Matheus's AWS login, because a batch
+  never holds a paid key (Policy), and the eval table goes in the PR body as merge evidence beside the gate. The
+  batch spec names its fake-provider tests of that AC as plumbing tests: a fixture whose structuring answer is the
+  expected value checks the build, the trust and the device, never the reading. Precedent: Story 21.2's drawn Yyn0
+  plate passed every fake test and read Dy1 3 of 3 on the model, found only by the coordinator's run after both
+  batches merged; it cost fix batch e21f, a second gate and a fix no review re-read.
+- (E21-A4, P-2, 2026-11-06) A reading prompt that needs a derived value (a group code, a class, a verdict) asks the
+  model for the perceptual facts and lets a kernel function compose the value (AD-13 applied to model output).
+  Precedent: asked for the code the model answered Dy1 3 of 3; asked for the facts it answered them right 5 of 5,
+  and with `composeVectorGroup` the drawn plate read Yyn0 3 of 3 (`spec-e21f-diagram-vector-group.md`). Also in
+  `docs/kbs/architecture/kernel-and-seed.md`.
+- (E21-A4, P-3, 2026-11-06) The integrated review's stack and its Playwright MCP browser stay down while the
+  integrated gate runs its `test:unit` and `test:e2e*` stages. A test red under load in two gates of one epic gets
+  a `deferred-work.md` row and a hardening owner. Precedent: Epic 21's integrated gate on `fdc19924` ran beside the
+  review stack `fasor-e21q` and a browser for about 25 minutes and met three reds, all green alone; the four tests
+  that went red in two or more gates are the retrospective's ledger row (`reading-arrivals.test.tsx`,
+  `home-surface.test.tsx`, `setup-surface.test.tsx`, R8LAY-E2E-008).
+- (E21-A4, P-4, 2026-11-06; extends § 9 P-1) A fix batch that follows the integrated review gets the second-pass
+  brief itself: the verification-gap and edge-case lenses over its own diff, its review-loop patches above all,
+  recorded in its PR body with the count, or "none found", before it merges. Precedent: e21f came after the
+  integrated review, patched four fixes with "follow-up review: false", and no re-read is on record; the
+  retrospective's read of that code found R-1 and R-2.

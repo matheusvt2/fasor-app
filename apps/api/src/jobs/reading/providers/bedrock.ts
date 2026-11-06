@@ -17,9 +17,12 @@ import {
 import { z } from 'zod';
 import { assertPricedModel, converseTool, type BedrockProviderOptions, type JsonSchema } from '../../../ai/bedrock.ts';
 import { PermanentReadingError } from './errors.ts';
-import { VECTOR_DIAGRAM_KEY, VECTOR_DIAGRAM_TOOL_SCHEMA, vectorGroupKeyOf, withVectorDiagram, type PlateStructuringInput } from './vector-diagram.ts';
+import { withoutUncitedValues } from './uncited.ts';
+import { logVectorDiagram, VECTOR_DIAGRAM_KEY, VECTOR_DIAGRAM_TOOL_SCHEMA, vectorGroupKeyOf, vectorGroupOf, withVectorDiagram, type PlateStructuringInput } from './vector-diagram.ts';
 
 export type { PlateStructuringInput } from './vector-diagram.ts';
+// e21a (R-4): the uncited drop lives in a provider-neutral module; its name stays importable from here.
+export { withoutUncitedValues } from './uncited.ts';
 
 // Review 2026-10-08 (C4): the Converse client layer moved to `apps/api/src/ai/bedrock.ts`; its
 // names stay importable from here for the reading's tests and scripts.
@@ -238,22 +241,6 @@ function imageBlock(image: OcrImage): ContentBlock {
   return { image: { format: image.mime === 'image/png' ? 'png' : 'jpeg', source: { bytes: image.bytes } } };
 }
 
-/**
- * The tool input without the values that cite no OCR token (`ocr_token_ids` missing, `null` or `[]`);
- * anything else, a malformed input included, is left for the schema to judge.
- */
-export function withoutUncitedValues(input: unknown): unknown {
-  if (typeof input !== 'object' || input === null || Array.isArray(input)) return input;
-  const values = (input as { values?: unknown }).values;
-  if (!Array.isArray(values)) return input;
-  const cited = values.filter((value: unknown) => {
-    if (typeof value !== 'object' || value === null) return true;
-    const ids = (value as { ocr_token_ids?: unknown }).ocr_token_ids;
-    return !(ids === undefined || ids === null || (Array.isArray(ids) && ids.length === 0));
-  });
-  return { ...input, values: cited };
-}
-
 /** Story 11.6: the structuring step (plate, panel) through Converse tool use on `modelId`. */
 export function bedrockStructuringProvider(options: BedrockProviderOptions): StructuringProvider {
   assertPricedModel(options.modelId);
@@ -270,8 +257,10 @@ export function bedrockStructuringProvider(options: BedrockProviderOptions): Str
         maxTokens: STRUCTURING_MAX_TOKENS,
       });
       // e21f: the drawn diagram's facts become the group's value (or are dropped), then the uncited values go.
-      const folded = withVectorDiagram(answer.input, groupKey, input.ocr.tokens);
-      const parsed = structuringResultSchema.safeParse({ output: withoutUncitedValues(folded), model: options.modelId, prompt_version: BEDROCK_STRUCTURING_PROMPT_VERSION, usage: answer.usage });
+      // e21a (R-3): the fold's outcome is one log line.
+      const fold = withVectorDiagram(answer.input, vectorGroupOf(plate), input.ocr.tokens);
+      logVectorDiagram(fold, options.modelId);
+      const parsed = structuringResultSchema.safeParse({ output: withoutUncitedValues(fold.input), model: options.modelId, prompt_version: BEDROCK_STRUCTURING_PROMPT_VERSION, usage: answer.usage });
       if (!parsed.success) throw new PermanentReadingError(`bedrock: ${options.modelId}: the tool input is not a StructuringOutput: ${parsed.error.message.slice(0, 300)}`);
       return parsed.data;
     },

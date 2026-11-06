@@ -4,13 +4,10 @@ import { basename, extname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import {
   getDefinition,
-  inTokenOrder,
   isVectorGroupField,
   normalizeReadingValue,
   normalizeRegistryName,
   PANEL_FIELDS,
-  parseVectorGroup,
-  printedVectorGroups,
   SEED_VERSION,
   type FieldDef,
   type OcrReadResult,
@@ -20,6 +17,7 @@ import { z } from 'zod';
 import { readingImage, type ReadingImage } from '../jobs/reading/image.ts';
 import { BEDROCK_DEFAULT_REGION, bedrockClientSource, bedrockStructuringProvider, type PlateStructuringInput } from '../jobs/reading/providers/bedrock.ts';
 import { createReadingProviders } from '../jobs/reading/providers/index.ts';
+import { groupRead } from './eval-group-read.ts';
 import { TEXTRACT_DEFAULT_REGION } from '../jobs/reading/providers/textract.ts';
 import { renderVariants } from '../storage/variants.ts';
 
@@ -65,9 +63,11 @@ import { renderVariants } from '../storage/variants.ts';
  * Story 21.2: a transformador de força plate is asked for its vector group as the job asks for it
  * (`vectorGroupKey`, prompt `bedrock-structuring-4`; since e21f a drawn diagram comes back as
  * facts the provider composes, `providers/vector-diagram.ts`), and a second table reports, per plate and
- * model, the group read from LIGAÇÃO SECUNDÁRIA (`parseVectorGroup`; an unparsed answer is quoted,
- * none is "-"; a group whose cited words print no group is marked "<code> (diagram)") beside the
- * expected one. The synthetic set gains the two seed v11 transformer plates
+ * model, the group read from LIGAÇÃO SECUNDÁRIA beside the expected one. e21a: the column reads the
+ * kernel classification the job stores by (`vectorGroupReadOf`, through `eval-group-read.ts`): the code
+ * when its cited words print it, "<code> (diagram)" when they print no group, "<code> (other group)"
+ * when they print another, an unparsed text quoted, "- (dropped)" when the job stores nothing (an
+ * unknown cited id, a value naming no option), "-" for no entry. The synthetic set gains the two seed v11 transformer plates
  * of `make-plate-fixtures.ts` (one printing "Dyn1", one drawing a Yyn0 diagram).
  *
  * Options: `--models a,b` (default: the four candidates and Nova Pro), `--ocr textract|fake|ocr-svc`,
@@ -247,19 +247,6 @@ function table(rows: Row[]): string {
   return [render(header), render(widths.map((width) => '-'.repeat(width))), ...lines.map(render)].join('\n');
 }
 
-/**
- * Story 21.2: the group a reading gives LIGAÇÃO SECUNDÁRIA: its code, the unparsed answer quoted, or "-" for none.
- * e21f: a group whose cited words print no group (`printedVectorGroups`, the kernel's rule) was read from the drawn diagram: "<code> (diagram)".
- */
-function groupRead(result: StructuringResult, key: string, ocr: OcrReadResult): string {
-  const entry = result.output.values.find((candidate) => candidate.key === key);
-  if (entry === undefined) return '-';
-  const code = parseVectorGroup(entry.value)?.code;
-  if (code === undefined) return JSON.stringify(entry.value);
-  const cited = ocr.tokens.filter((token) => entry.ocr_token_ids.includes(token.id));
-  return printedVectorGroups(inTokenOrder(cited)).size === 0 ? `${code} (diagram)` : code;
-}
-
 /** Story 21.2: one row per transformer plate, the expected group then each model's read. */
 function groupTable(models: readonly string[], groups: readonly { sample: string; expected: string; read: Map<string, string> }[]): string {
   const header = ['plate', 'expected group', ...models];
@@ -310,7 +297,8 @@ async function run(): Promise<number> {
   for (const sample of samples) {
     const fields = fieldsOf(sample.expected);
     // Story 21.2: the transformer's vector-group field, asked for as the plate job asks for it.
-    const groupKey = sample.expected.kind === 'plate' ? fields.find((field) => isVectorGroupField(sample.expected.block_type!, field.key))?.key : undefined;
+    const groupField = sample.expected.kind === 'plate' ? fields.find((field) => isVectorGroupField(sample.expected.block_type!, field.key)) : undefined;
+    const groupKey = groupField?.key;
     const group = groupKey === undefined ? null : { sample: sample.name, expected: sample.expected.values[groupKey] ?? '-', read: new Map<string, string>() };
     if (group !== null) groups.push(group);
     const original = new Uint8Array(await readFile(sample.path));
@@ -330,7 +318,7 @@ async function run(): Promise<number> {
       try {
         const input: PlateStructuringInput = { image: { bytes: image.bytes, mime: image.mime }, ocr, fields, ...(groupKey === undefined ? {} : { vectorGroupKey: groupKey }) };
         const result = await providers.get(model)!.structure(input);
-        if (group !== null) group.read.set(model, groupRead(result, groupKey!, ocr));
+        if (group !== null) group.read.set(model, groupRead(result, groupField!, ocr));
         const scored = score(sample, fields, ocr, result);
         row.expected += scored.expected;
         row.right += scored.right;
