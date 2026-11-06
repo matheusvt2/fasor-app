@@ -3039,3 +3039,24 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   evidence: `apps/web/src/surfaces/relatorio/setup/etapa6-parecer.tsx` verdict tap; `relatorio/parecer.ts` `effectiveParecer`; review finding EC8.
   class: decision
   state: open (owner: Bruno, relayed by Matheus)
+
+## Deferred from: Epic 22 batch e22p (2026-11-06)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22p-print-and-attach.md` (Story 22.1, narrowing)
+  summary: The DoR's "the oversized file shows the import's size message": no client size message exists on the import path; a large file is re-encoded to the 2560 px original cap like any import (`22.1-E2E-004` asserts the cap). A non-image is not offered (`PHOTO_ACCEPT`) and, forced, is skipped with the import's toast.
+  evidence: `apps/web/src/files/photo-import.ts`, `photo-encode.ts` `ORIGINAL_MAX_PX`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22p-print-and-attach.md` (Story 22.1, test narrowing)
+  summary: `22.1-E2E-003` (HEIC) answers the `heic-to` chunk with a stand-in that decodes through the browser: no HEVC HEIC encoder exists in the stack (sharp's libheif writes AVIF only) and the repo carries no HEIC fixture, so the third-party decoder itself is not exercised end to end. The route matches `/assets/heic-to*.js`; a renamed chunk fails the test loudly. Owner: a later test batch, with a real HEIC fixture from a phone (no client material).
+  evidence: `e2e/attach-file.spec.ts`; `podman compose exec api node -e` with `sharp().heif({ compression: 'hevc' })` answers "Unsupported compression".
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22p-print-and-attach.md` (Story 22.1)
+  summary: "Anexar arquivo" carries no `data-telemetry` name: a new usage event name is a contract change (`contract/telemetry.ts`), which this batch may not make. Owner: the next batch that bumps the contract, if Matheus wants the attach counted apart from the shot.
+  evidence: `packages/domain/src/contract/telemetry.ts`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22p-print-and-attach.md` (Story 22.3, narrowing of the DoR, decided in the spec)
+  summary: Keep-together is per joint, not "every row and paragraph keep-with-next from the title bar to CONCLUSÃO": every table keeps its rows, and only the joints named in the spec keep with the next part, so a ficha taller than a page breaks between two parts (a chain over the whole ficha would break inside a table). The nameplate and VERIFICAÇÕES GERAIS keep with the next part only as the plate before a Não ensaiado band or as the part right before CONCLUSÃO.
+  evidence: `packages/domain/src/print/section-9.ts` `keptTogether`; `page-placement.integration.test.ts` 22.3 cases.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22p-print-and-attach.md` (Story 22.3)
+  summary: Label columns keep their weights (coordinator constraint), so a long bold label can still wrap inside itself by the kernel's estimate: "IDENTIFICAÇÃO" in DADOS DO EQUIPAMENTO measures about 9,5 em against its 9,4 em share. Whether it breaks on the real PDF is not checked here. Owner: Matheus or Bruno, if a printed label is seen broken.
+  evidence: `print-fit.test.ts` measures value columns only; `wordsWiderThanColumns` reports the label.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22p-print-and-attach.md` (Story 22.2)
+  summary: The spec names `_bmad-output/planning-artifacts/source-deltas.md`; the file is `_bmad-output/specs/spec-fasor/source-deltas.md`, where the 2026-11-06 FR-68 row was already written by the planning PR: it was marked built rather than duplicated, and the AD-18 attribution row amended beside it.
+  evidence: `source-deltas.md` rows FR-68 (2026-11-06) and FR-32/AD-18.

@@ -299,14 +299,16 @@ describe('section 9 of a QGBT', () => {
     const instrument = texts(tableNamed(sheet, 'ENSAIO DE ISOLAÇÃO'));
     expect(instrument[1]).toEqual(['INSTRUM./FABRIC.', 'TIPO', 'Nº SÉRIE', 'RBC', 'TENSÃO ENSAIO', 'ACEITÁVEL MΩ']);
     expect(instrument[2]!.at(-1)).toBe('0,5');
-    expect(sheet.parts).toContainEqual({ kind: 'paragraph', text: 'CRITÉRIO: >=0,5 MΩ · NBR 5410' });
+    // Story 22.2: no "CRITÉRIO:" line; the ACEITÁVEL cell above carries the criterion.
+    expect(sheet.parts.some((part) => part.kind === 'paragraph')).toBe(false);
     const measurement = sheet.parts.filter((part): part is Extract<SheetPart, { kind: 'table' }> => part.kind === 'table').map((part) => texts(part.table));
     const values = measurement.find((rows) => rows.some((row) => row[0] === 'NEUTRO'))!;
     expect(values.filter((row) => ['FASE A', 'FASE B', 'FASE C', 'NEUTRO'].includes(row[0]!)).map((row) => row.slice(0, 5))).toEqual([
-      ['FASE A', 'MASSA', '', '-', '850 MΩ'],
-      ['FASE B', 'MASSA', '', '-', '850 MΩ'],
-      ['FASE C', 'MASSA', '', '-', '0,4 MΩ'],
-      ['NEUTRO', 'MASSA', '', '-', '850 MΩ'],
+      // Story 22.2: one unit, in the VALORES header; the cells bare.
+      ['FASE A', 'MASSA', '', '-', '850'],
+      ['FASE B', 'MASSA', '', '-', '850'],
+      ['FASE C', 'MASSA', '', '-', '0,4'],
+      ['NEUTRO', 'MASSA', '', '-', '850'],
     ]);
     expect(texts(tableNamed(sheet, 'OBSERVAÇÕES'))[1]).toEqual(['Quadro com acesso restrito.']);
     expect(texts(tableNamed(sheet, 'CONCLUSÃO'))[1]).toEqual(['APROVADO', '', 'REPROVADO', 'X', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']);
@@ -317,6 +319,6 @@ describe('section 9 of a QGBT', () => {
     expect(texts(tableNamed(at690, 'ENSAIO DE ISOLAÇÃO'))[2]!.at(-1)).toBe('1,0');
     const none = section9Layout(snapshotOf(filledState(null)), 9, 'RELATÓRIOS DOS ENSAIOS')!.subsections[0]!.sheets[1]!;
     expect(texts(tableNamed(none, 'ENSAIO DE ISOLAÇÃO'))[2]!.at(-1)).toBe('-');
-    expect(none.parts).toContainEqual({ kind: 'paragraph', text: 'CRITÉRIO: critério não avaliado · NBR 5410' });
+    expect(none.parts.some((part) => part.kind === 'paragraph')).toBe(false);
   });
 });

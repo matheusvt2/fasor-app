@@ -948,6 +948,9 @@ export const copy = {
     tileLabel: (n: number) => `Foto ${n}`,
     // `70-fotos.html` Sticky action bar, verbatim.
     addPhotos: 'Adicionar fotos',
+    // authored (Story 22.1, open for Bruno): beside every opener that asks a reading (plate,
+    // "Ler visor", panel), a photo file from the device committed as that opener's shot.
+    attachFile: 'Anexar arquivo',
     dragReason: 'ou arraste para cá',
     // EXPERIENCE.md › Photo capture sheet: the drop zone's word while files are dragged over it.
     dropHint: 'Solte para adicionar',

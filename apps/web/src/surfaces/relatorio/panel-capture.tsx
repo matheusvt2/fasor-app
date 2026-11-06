@@ -36,6 +36,7 @@ import { restoreFocus } from '../../input/focus-restore.ts';
 import { useScreenWakeLock } from '../../input/use-screen-wake-lock.ts';
 import { useNowIso } from '../../state/now-iso.ts';
 import { useSession } from '../../state/session.tsx';
+import { useAttachFile } from '../ficha/attach-file.tsx';
 import { useCamera } from '../ficha/camera-view.tsx';
 import type { CaptureTarget } from '../ficha/use-photo-capture.ts';
 import type { PaletteTarget, PanelPhotoInput } from './block-palette-field.tsx';
@@ -58,6 +59,12 @@ import type { PaletteTarget, PanelPhotoInput } from './block-palette-field.tsx';
 export interface PanelCaptureHandle {
   /** Opens the camera for a block placed as the palette would place it; call it inside the tap. */
   open: (target: PaletteTarget) => void;
+  /**
+   * Story 22.1: "Anexar arquivo" of the palette: the system picker for one photo file, committed
+   * as the camera's shot would be (the `panel` reading of the palette's location, the photo id
+   * minted here), so the same result dialog opens once its row is stored. Call it inside the tap.
+   */
+  attach: (target: PaletteTarget) => void;
   /**
    * Story 13.5 (WAIT-3): reopens the result dialog of a panel photo taken earlier whose dialog
    * was left by navigation, without the camera; nothing opens once the photo is gone or
@@ -172,6 +179,18 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
     { singleShot: true, shotHint: () => t.cameraHint },
   );
   const cameraOpen = camera.open;
+  // Story 22.1: the picker's input lives here, beside the camera's, so it outlives the palette that pressed it.
+  // A cancelled picker or a file that stored nothing clears the shot and gives the focus back where
+  // the camera's would go (`focusAfter`): the palette that held the opener is gone.
+  const picker = useAttachFile(relatorioId, undefined, (abandoned) => {
+    const current = shotRef.current;
+    if (current === null || current.photoId !== abandoned.fileId) return;
+    shotRef.current = null;
+    setShot(null);
+    const after = focusAfterRef.current;
+    if (after !== undefined) restoreFocus(() => after(current.target), { mode: 'settled' });
+  });
+  const pickerOpen = picker.open;
 
   const open = useCallback(
     (target: PaletteTarget) => {
@@ -185,6 +204,18 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
     },
     [cameraOpen],
   );
+  const attach = useCallback(
+    (target: PaletteTarget) => {
+      const next = { target, photoId: newId() };
+      lastTarget.current = target;
+      shotRef.current = next;
+      setShot(next);
+      setPicked(null);
+      setExpanded(false);
+      pickerOpen(captureTarget(next));
+    },
+    [pickerOpen],
+  );
   const resume = useCallback((photoId: string, target: PaletteTarget) => {
     const next = { target, photoId };
     lastTarget.current = target;
@@ -193,7 +224,7 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
     setPicked(null);
     setExpanded(false);
   }, []);
-  useImperativeHandle(ref, () => ({ open, resume }), [open, resume]);
+  useImperativeHandle(ref, () => ({ open, attach, resume }), [open, attach, resume]);
 
   const photoId = shot?.photoId ?? null;
   const data = useLiveQuery(async () => {
@@ -235,7 +266,7 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
     return createPortal(
       <>
         {camera.element}
-        {null}
+        {picker.input}
       </>,
       document.body,
       'panel-capture',
@@ -276,6 +307,7 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
   return createPortal(
     <>
       {camera.element}
+      {picker.input}
       <DialogShell
         className="form-dialog detect-dialog"
         overlayClassName="detect-scrim"

@@ -1,6 +1,7 @@
 import { isUncaptioned, photoItemLine, photoStampFull } from '../photos/gallery.ts';
 import { numberPhotos, photoRefLabel } from '../photos/numbering.ts';
 import { geralPhotos } from '../photos/order.ts';
+import { withCaptionOrdinals } from './caption-ordinal.ts';
 import type { NumberingSnapshot } from './photo-order.ts';
 
 /*
@@ -52,24 +53,32 @@ export function captionSentence(caption: string): string {
   return /[.!?]$/.test(text) ? text : `${text}.`;
 }
 
-/** The "Geral" photos of section 7 in print order, numbered; empty when the relatório holds none. */
+/**
+ * The "Geral" photos of section 7 in print order, numbered; empty when the relatório holds
+ * none. Story 22.3: a caption repeated in the section takes an ordinal ("Vista geral (2)."),
+ * the numbers unchanged (`withCaptionOrdinals`).
+ */
 export function section7Photos(snapshot: Section7Snapshot): LayoutPhoto[] {
   const numbers = numberPhotos(snapshot);
-  return geralPhotos(snapshot)
+  const numbered = geralPhotos(snapshot)
     .flatMap((photo) => {
       const number = numbers.get(photo.id);
-      if (number === undefined) return [];
-      const captioned = !isUncaptioned(photo.caption);
-      return [{
-        fileId: photo.id,
-        number,
-        label: `${photoRefLabel(number)}${captioned ? ':' : '.'}`,
-        caption: captioned ? ` ${captionSentence(photo.caption!)}` : null,
-        stamp: photoStampFull(photo),
-        itemLine: photoItemLine(photo, snapshot)?.text ?? null,
-      }];
+      return number === undefined ? [] : [{ photo, number }];
     })
     .sort((a, b) => a.number - b.number);
+  const captions = withCaptionOrdinals(numbered.map(({ photo }) => photo.caption));
+  return numbered.map(({ photo, number }, i) => {
+    const caption = captions[i] ?? null;
+    const captioned = !isUncaptioned(caption);
+    return {
+      fileId: photo.id,
+      number,
+      label: `${photoRefLabel(number)}${captioned ? ':' : '.'}`,
+      caption: captioned ? ` ${captionSentence(caption!)}` : null,
+      stamp: photoStampFull(photo),
+      itemLine: photoItemLine(photo, snapshot)?.text ?? null,
+    };
+  });
 }
 
 /** Section 7's layout under its heading; null when there is no live "Geral" photo (the section prints the empty note). */

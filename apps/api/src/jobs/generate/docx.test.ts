@@ -23,7 +23,7 @@ import { describe, expect, it } from 'vitest';
 import { buildDocx, CELL_MARGINS_TWIPS, CONTENT_WIDTH_TWIPS, PX_PER_CM, TOC_PLACEHOLDER } from './docx.ts';
 import { PAINEL_BAND_COLOR, PAINEL_BAND_FILL } from './sections/section-9.ts';
 import { extractStructure, paragraphText, readZipEntries, type DocxStructure } from './docx-structure.test-support.ts';
-import { checklistTable, measurementTable, nameplateTable, photosPart, sheet, tablePart, withNewSectionOrder, withSheetsSection } from './page-layout.test-support.ts';
+import { checklistTable, keptPart, measurementTable, nameplateTable, photosPart, sheet, tablePart, withNewSectionOrder, withSheetsSection } from './page-layout.test-support.ts';
 import { placeholderPages } from './toc.ts';
 
 /*
@@ -495,8 +495,8 @@ describe('Stories 20.5 and 20.6 section 9 in the DOCX: tables kept whole, item l
       if (name === 'DADOS DO EQUIPAMENTO' || name === 'VERIFICAÇÕES GERAIS') {
         kept += 1;
         expect(rows.filter((row) => row.includes('<w:tblHeader/>'))).toHaveLength(name === 'DADOS DO EQUIPAMENTO' ? 1 : 2);
+        // Story 22.3: the last row keeps with the next part only where the kernel joined them (a plate before a reason band, the part before CONCLUSÃO).
         expect(rows.slice(0, -1).every(keptRow)).toBe(true);
-        expect(keptRow(rows.at(-1)!)).toBe(false);
       } else if (!paragraphText(table).includes(ACTION_PLAN_COLUMNS[5]!)) {
         expect(table, name).not.toContain('<w:tblHeader/>');
       }
@@ -505,7 +505,7 @@ describe('Stories 20.5 and 20.6 section 9 in the DOCX: tables kept whole, item l
     expect(kept).toBe(81 + 91);
   }, 60_000);
 
-  it('20.6: a checklist item photo prints its item line under its caption, in the same cell; a plain photo none', async () => {
+  it('22.2: a photo prints its image and its caption line, nothing under it (no item line)', async () => {
     const layout = withSheetsSection(baseLayout(), [
       {
         heading: '9.1 Local de teste',
@@ -513,7 +513,7 @@ describe('Stories 20.5 and 20.6 section 9 in the DOCX: tables kept whole, item l
           sheet('CHAVE SECCIONADORA T-1', [
             photosPart([
               { fileId: 'f1', number: 3, caption: 'Imagem 3: Placa.' },
-              { fileId: 'f2', number: 4, caption: 'Imagem 4: Contatos oxidados.', itemLine: 'Item 8 · Contatos · NC' },
+              { fileId: 'f2', number: 4, caption: 'Imagem 4: Contatos oxidados.' },
             ]),
           ]),
         ],
@@ -521,8 +521,66 @@ describe('Stories 20.5 and 20.6 section 9 in the DOCX: tables kept whole, item l
     ]);
     const document = await documentOf(layout);
     const cells = [...document.matchAll(/<w:tc>([\s\S]*?)<\/w:tc>/g)].map((match) => paragraphsOf(match[1]!).map(paragraphText));
-    expect(cells).toContainEqual(['', 'Imagem 4: Contatos oxidados.', 'Item 8 · Contatos · NC']);
+    expect(cells).toContainEqual(['', 'Imagem 4: Contatos oxidados.']);
     expect(cells).toContainEqual(['', 'Imagem 3: Placa.']);
+  }, 60_000);
+
+  it('22.2 over the fixture: section 9 prints no attribution, no "CRITÉRIO:" line, no criteria line and no item line', async () => {
+    const document = readZipEntries(await renderFixture()).get('word/document.xml')!.toString('utf8');
+    const texts = paragraphsOf(document).map(paragraphText);
+    expect(texts.some((text) => /^(Concluída por|Preenchido por|CRITÉRIO:|Item \d+ · )/.test(text))).toBe(false);
+    expect(texts.some((text) => text.includes(' · critério '))).toBe(false);
+  }, 60_000);
+
+  it('22.3: every row of a ficha\'s tables up to CONCLUSÃO keeps with the next but a table\'s last; a part kept with the next keeps its last row and its gap; the photo block keeps nothing', async () => {
+    const photo = (k: number) => ({ fileId: `foto-${k}`, number: k, caption: `Imagem ${k}: Foto ${k}.` });
+    const layout = withSheetsSection(baseLayout(), [
+      {
+        heading: '9.1 Local de teste',
+        sheets: [
+          sheet('TRANSFORMADOR DE FORÇA TR-9', [
+            keptPart(measurementTable('CARACTERÍSTICAS DA SE', 1), true),
+            keptPart(measurementTable('AMBIENTE DE ENSAIO', 1), true),
+            keptPart(nameplateTable(6)),
+            keptPart(checklistTable('VERIFICAÇÕES GERAIS', 4)),
+            keptPart(measurementTable('ENSAIO DE ISOLAÇÃO', 1), true),
+            keptPart(measurementTable('PONTO DE ENSAIO', 3)),
+            keptPart(measurementTable('OBSERVAÇÕES', 1), true),
+            keptPart(measurementTable('CONCLUSÃO', 1)),
+            photosPart([photo(1), photo(2), photo(3)]),
+          ]),
+        ],
+      },
+    ]);
+    const document = await documentOf(layout);
+    const expected: [string, boolean][] = [
+      ['CARACTERÍSTICAS DA SE', true],
+      ['AMBIENTE DE ENSAIO', true],
+      ['DADOS DO EQUIPAMENTO', false],
+      ['VERIFICAÇÕES GERAIS', false],
+      ['ENSAIO DE ISOLAÇÃO', true],
+      ['PONTO DE ENSAIO', false],
+      ['OBSERVAÇÕES', true],
+      ['CONCLUSÃO', false],
+    ];
+    for (const [name, withNext] of expected) {
+      const [table, ...more] = tableNamed(document, name);
+      expect(more, name).toEqual([]);
+      const rows = rowsOf(table!);
+      rows.forEach((row, i) => expect(keptRow(row), `${name} row ${i}`).toBe(i < rows.length - 1 || withNext));
+    }
+    // The gap after each part but the photos: kept with the next exactly where the part is.
+    const body = /<w:body>([\s\S]*)<\/w:body>/.exec(document)![1]!;
+    const sheetBody = body.slice(body.indexOf('TRANSFORMADOR DE FORÇA TR-9'));
+    const gaps = paragraphsOf(sheetBody).filter((p) => p.includes('<w:pStyle w:val="SheetGap"/>'));
+    expect(gaps.map((p) => p.includes('<w:keepNext/>'))).toEqual(expected.map(([, withNext]) => withNext));
+    // The photo block keeps nothing with the next: no caption carries keepNext.
+    const photoTable = tablesOf(document).find((table) => paragraphText(table).includes('Imagem 1: Foto 1.'))!;
+    const captions = paragraphsOf(photoTable).filter((p) => paragraphText(p).startsWith('Imagem '));
+    expect(captions).toHaveLength(3);
+    expect(captions.some((p) => p.includes('<w:keepNext/>'))).toBe(false);
+    // Only a kept-whole table repeats its band and header rows.
+    for (const [name] of expected.filter(([name]) => name !== 'DADOS DO EQUIPAMENTO' && name !== 'VERIFICAÇÕES GERAIS')) expect(tableNamed(document, name)[0], name).not.toContain('<w:tblHeader/>');
   }, 60_000);
 
   it('20.6: every ficha and every local block starts a page, the break on the heading that introduces it, never doubled after the section heading', async () => {

@@ -175,7 +175,7 @@ describe('S3 clock: an instant past the server\'s clock or before the relatório
     expect(result.applied.map((a) => a.op_id)).toEqual([fiveBefore.op_id]);
   });
 
-  it('offline two days: ops two days old, after the relatório\'s creation, apply, and section 9 prints their dates', async () => {
+  it('offline two days: ops two days old, after the relatório\'s creation, apply; section 9 prints no attribution (Story 22.2)', async () => {
     const created = at(-3 * DAY);
     const { relatorioId, blocks } = await h.seedRelatorio(companyA, created);
     const twoDaysAgo = at(-2 * DAY);
@@ -192,8 +192,9 @@ describe('S3 clock: an instant past the server\'s clock or before the relatório
     expect((await blockOf(block))?.concluded_by).toEqual(concluded);
 
     const snapshot = await toSnapshot(h.db, asCompanyId(companyA.companyId), relatorioId);
+    // Story 22.2: the attribution stays on the screen (the stored concluded_by above) and no longer prints.
     const printed = JSON.stringify(section9Layout(snapshot, 9, 'RELATÓRIOS DOS ENSAIOS'));
-    expect(printed).toContain(`Concluída por ${companyA.name}`);
-    expect(printed).toContain(formatDateTime(twoDaysAgo.toISOString()));
+    expect(printed).not.toContain('Concluída por');
+    expect(printed).not.toContain(formatDateTime(twoDaysAgo.toISOString()));
   });
 });

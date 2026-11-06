@@ -559,7 +559,6 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
       ['E1 · RESISTÊNCIA DE CONTATO'],
       ['INSTRUMENTO: -'],
       ['CORRENTE DE ENSAIO: 100 A'],
-      ['ACEITÁVEL: ≤ 50 % acima do menor do mesmo lado · NETA 7.22.3 (fonte secundária)'],
       ['POLO', 'LADO NORMAL (µΩ)', 'LADO EMERGÊNCIA (µΩ)'],
       ['POLO A', '38', '40'],
       ['POLO B', '41', '39'],

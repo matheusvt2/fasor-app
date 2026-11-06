@@ -372,6 +372,11 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
                   panelRef.current?.open(target);
                   setPalette(null);
                 },
+                // Story 22.1: the picker opens inside the tap; its input is the panel capture's, so the palette may close.
+                onAttach: (target: PaletteTarget) => {
+                  panelRef.current?.attach(target);
+                  setPalette(null);
+                },
               }
             : {})}
           {...(presentation === 'sumario'

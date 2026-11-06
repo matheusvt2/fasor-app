@@ -313,14 +313,13 @@ describe('14.5-UNIT section 9 in the DOCX: a Chave de transferência automática
     expect(checklist!.slice(2).filter((row) => row[2] === 'X')).toHaveLength(1);
   }, 60_000);
 
-  it('E1 prints its instrument and ACEITÁVEL lines, the four poles and the lowest of each side', async () => {
+  it('E1 prints its instrument line and no ACEITÁVEL line (22.2), the four poles and the lowest of each side', async () => {
     const { titled } = await renderFilled();
     expect(titled('E1 · RESISTÊNCIA DE CONTATO')).toEqual([
       [
         ['E1 · RESISTÊNCIA DE CONTATO'],
         ['INSTRUMENTO: -'],
         ['CORRENTE DE ENSAIO: 100 A'],
-        ['ACEITÁVEL: ≤ 50 % acima do menor do mesmo lado · NETA 7.22.3 (fonte secundária)'],
         ['POLO', 'LADO NORMAL (µΩ)', 'LADO EMERGÊNCIA (µΩ)'],
         ['POLO A', '38', '40'],
         ['POLO B', '41', '39'],
@@ -338,7 +337,6 @@ describe('14.5-UNIT section 9 in the DOCX: a Chave de transferência automática
       [
         ['E5 · TRANSFERÊNCIA'],
         ['MÉTODO: FALTA REAL POR ABERTURA DO DISJUNTOR · CARGA: COM CARGA (62 %) · FONTE DOS TEMPOS: INSTRUMENTO'],
-        ['ACEITÁVEL: Assumir a carga ≤ 10 s · NFPA 110 nível 1; OVG, SEDI Goiás, BCB e NFPA 70B A.39.2'],
         ['ETAPA', 'AJUSTE', 'MEDIDO'],
         ['FALHA DA NORMAL ATÉ PARTIDA', '-', '3,2 s'],
         ['ATÉ CARGA NA EMERGÊNCIA', 'limite 10 s', '8,4 s'],
@@ -354,47 +352,43 @@ describe('14.5-UNIT section 9 in the DOCX: a Chave de transferência automática
     const { titled } = await renderFilled();
     const [e2, ...moreE2] = titled('E2 · ISOLAMENTO PRINCIPAL');
     expect(moreE2).toEqual([]);
-    expect(e2!.slice(0, 5)).toEqual([
+    expect(e2!.slice(0, 4)).toEqual([
       ['E2 · ISOLAMENTO PRINCIPAL'],
       ['INSTRUMENTO: -'],
-      ['ACEITÁVEL: 1.000 Vcc · ≥ 100 MΩ · NETA tabela 100.1 (fonte secundária)'],
       ['MEDIÇÃO', 'NORMAL FECHADA (GΩ)', 'EMERGÊNCIA FECHADA (GΩ)', 'ABERTA (GΩ)'],
       ['A-T', '12,4', '12,4', '12,4'],
     ]);
     expect(e2!.at(-1)).toEqual(['LINHA-CARGA', '—', '—', '12,4']);
     // C1: four poles and a switched neutral, and no N-T row (2026-10-14).
-    expect(e2!.slice(4).map((row) => row[0])).toEqual(['A-T', 'B-T', 'C-T', 'A-B', 'B-C', 'C-A', 'LINHA-CARGA']);
+    expect(e2!.slice(3).map((row) => row[0])).toEqual(['A-T', 'B-T', 'C-T', 'A-B', 'B-C', 'C-A', 'LINHA-CARGA']);
     expect(titled('E3 · ISOLAMENTO DO CONTROLE')).toEqual([
       [
         ['E3 · ISOLAMENTO DO CONTROLE'],
         ['INSTRUMENTO: -'],
-        ['ACEITÁVEL: 500 Vcc (fiação de 300 V) ou 1.000 Vcc (600 V) · ≥ 2 MΩ, com o chicote do controlador desconectado · NETA 7.22.3 (fonte secundária); manual do fabricante'],
         ['MEDIÇÃO', 'VALOR (MΩ)'],
         ['FIAÇÃO × TERRA', '850'],
       ],
     ]);
     const [e4] = titled('E4 · AJUSTES DO CONTROLADOR');
-    expect(e4).toHaveLength(3 + 14);
-    expect(e4!.slice(0, 4)).toEqual([
+    expect(e4).toHaveLength(2 + 14);
+    expect(e4!.slice(0, 3)).toEqual([
       ['E4 · AJUSTES DO CONTROLADOR'],
-      ['ACEITÁVEL: Deixado = projeto · manual do fabricante do controlador; ficha DTAC (RJ)'],
       ['AJUSTE', 'FÁBRICA', 'PROJETO', 'ENCONTRADO', 'DEIXADO'],
       ['NORMAL · PICKUP DE TENSÃO', '-', '5 %', '5 %', '5 %'],
     ]);
     expect(e4!.find((row) => row[0] === 'TD 3A · RETRANSFERÊNCIA')).toEqual(['TD 3A · RETRANSFERÊNCIA', '-', '5 min', '30 min', '30 min']);
     expect(e4!.find((row) => row[0] === 'FALTA DE FASE')).toEqual(['FALTA DE FASE', '-', 'LIGADO', 'LIGADO', 'LIGADO']);
     const [e6] = titled('E6 · TERMOGRAFIA SOB CARGA');
-    expect(e6).toHaveLength(4 + 9);
-    expect(e6!.slice(0, 5)).toEqual([
+    expect(e6).toHaveLength(3 + 9);
+    expect(e6!.slice(0, 4)).toEqual([
       ['E6 · TERMOGRAFIA SOB CARGA'],
       ['TEMPERATURA AMBIENTE: 27 °C'],
-      ['ACEITÁVEL: Classe Normal (ΔT entre similares: 1 a 3 °C possível deficiência, 4 a 15 °C provável, acima de 15 °C grave) · NETA tabela 100.18 (fonte secundária)'],
       ['TERMINAL × FASE', 'TEMPERATURA (°C)', 'ΔT SIMILARES (°C)', 'ΔT AMBIENTE (°C)', 'CLASSE'],
       ['NORMAL · A', '41,2', '-', '-', 'NORMAL'],
     ]);
   }, 60_000);
 
-  it('CONCLUSÃO marks the pair and prints the confirmed paragraph, with its criteria line beneath the table', async () => {
+  it('CONCLUSÃO marks the pair and prints the confirmed paragraph, and (22.2) no criteria line beneath the table', async () => {
     const { titled, section } = await renderFilled();
     // The transformer's conclusion (an empty pair) and, after it, the CTA's.
     const conclusion = titled('CONCLUSÃO').at(-1);
@@ -403,10 +397,12 @@ describe('14.5-UNIT section 9 in the DOCX: a Chave de transferência automática
     expect(conclusion![1]).toEqual(['APROVADO', '', 'REPROVADO', 'X', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']);
     expect(conclusion![2]).toEqual([CONCLUSION_TEXT]);
     expect(section.filter((p) => p === CONCLUSION_TEXT)).toHaveLength(1);
-    // The criteria line is the paragraph right under the table, the last of the sheet.
+    // Story 22.2: the criteria line the screen shows no longer prints; the table's text is the sheet's last.
     const sheet = section.slice(section.indexOf(CTA_TITLE));
-    expect(sheet.slice(sheet.indexOf(CONCLUSION_TEXT) + 1).filter((p) => p !== '')).toEqual([CRITERIA_LINE]);
-    expect(ascending(order(sheet, [CTA_TITLE, 'CONCLUSÃO', CONCLUSION_TEXT, CRITERIA_LINE]))).toBe(true);
+    expect(sheet.slice(sheet.indexOf(CONCLUSION_TEXT) + 1).filter((p) => p !== '')).toEqual([]);
+    expect(section).not.toContain(CRITERIA_LINE);
+    expect(sheet.some((p) => p.startsWith('ACEITÁVEL:'))).toBe(false);
+    expect(ascending(order(sheet, [CTA_TITLE, 'CONCLUSÃO', CONCLUSION_TEXT]))).toBe(true);
   }, 60_000);
 
   it('a test switched off prints nothing: no table, no line and no off note, and its neighbours stay', async () => {

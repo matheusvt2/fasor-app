@@ -192,17 +192,17 @@ describe('14.9-UNIT section 9 in the DOCX: a Quadro elétrico (QGBT/QD) under "O
     expect(everything).not.toContain('CANALETA, CHICOTE');
   }, 60_000);
 
-  it('ENSAIO DE ISOLAÇÃO prints its instrument header with ACEITÁVEL MΩ the band minimum, the criterion line and the four rows', async () => {
+  it('ENSAIO DE ISOLAÇÃO prints its instrument header with ACEITÁVEL MΩ the band minimum, no criterion line (22.2) and the four rows, bare under the unit header', async () => {
     const { titled, section, structure } = await renderFilled();
     const header = titled('ENSAIO DE ISOLAÇÃO').find((table) => table[1]?.at(-1) === 'ACEITÁVEL MΩ');
     expect(header).toEqual([['ENSAIO DE ISOLAÇÃO'], ['INSTRUM./FABRIC.', 'TIPO', 'Nº SÉRIE', 'RBC', 'TENSÃO ENSAIO', 'ACEITÁVEL MΩ'], ['-', '-', '-', '-', '-', '0,5']]);
-    expect(section).toContain('CRITÉRIO: >=0,5 MΩ · NBR 5410');
+    expect(section).not.toContain('CRITÉRIO:');
     const values = structure.tables.find((table) => table.some((row) => row[0] === 'NEUTRO'))!;
     expect(values.filter((row) => ['FASE A', 'FASE B', 'FASE C', 'NEUTRO'].includes(row[0]!)).map((row) => row.slice(0, 5))).toEqual([
-      ['FASE A', 'MASSA', '', '-', '850 MΩ'],
-      ['FASE B', 'MASSA', '', '-', '1.200 MΩ'],
-      ['FASE C', 'MASSA', '', '-', '0,4 MΩ'],
-      ['NEUTRO', 'MASSA', '', '-', '900 MΩ'],
+      ['FASE A', 'MASSA', '', '-', '850'],
+      ['FASE B', 'MASSA', '', '-', '1.200'],
+      ['FASE C', 'MASSA', '', '-', '0,4'],
+      ['NEUTRO', 'MASSA', '', '-', '900'],
     ]);
   }, 60_000);
 
