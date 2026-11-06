@@ -745,6 +745,19 @@ describe('21.1-UNIT the transformer ratio follows its vector group', () => {
     expect(missing(sheet('v10', null))).toBe(missing(sheet('v10', 'DYN1')));
   });
 
+  it('the missing group counts only while the plate can be filled: nameplate on, one per ratio row; off, none extra', () => {
+    const sheet = (ligacao: string | null, nameplate: boolean) => {
+      const config = defaultBlockConfig('v11', 'transformador_forca') as { sub_blocks: Record<string, { enabled: boolean }> };
+      const own = nameplate ? config : { ...config, sub_blocks: { ...config.sub_blocks, nameplate: { enabled: false } } };
+      const plate: Record<string, Cell> = ligacao === null ? {} : { ligacao_secundaria: cell(ligacao) };
+      return { ...block('transformador_forca', { nameplate: plate }, own), seed_version: 'v11' };
+    };
+    const missing = (b: BlockRow) => sheetProgress({ blocks: [b] }, b.id).steps.ensaios.missing;
+    const rows = getDefinition('v11', 'cabine_primaria', 'transformador_forca').tests.find((t) => t.key === 'relacao_transformacao')!.tables.reduce((n, t) => n + t.rows.length, 0);
+    expect(missing(sheet(null, true)) - missing(sheet('Yyn0', true))).toBe(rows);
+    expect(missing(sheet(null, false)) - missing(sheet('Yyn0', false))).toBe(0);
+  });
+
   it('v9 and v10 apply a group their text names; an empty or unparsed text keeps √3 and the Dyn1 pairs and says so', () => {
     for (const version of ['v9', 'v10']) {
       for (const text of ['YYN0', 'yy0', 'Y/yn0']) {

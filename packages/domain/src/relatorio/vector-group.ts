@@ -118,12 +118,13 @@ const HV_LETTERS = ['YN', 'ZN', 'D', 'Y', 'Z'] as const;
 /** The low-voltage connections, longest first. */
 const LV_LETTERS = ['YN', 'ZN', 'D', 'Y', 'Z'] as const;
 const CLOCK = /^(?:[0-9]|1[01])$/;
-/** What the parser ignores: whitespace, slashes, hyphens and dashes, dots and underscores. */
-const IGNORED = /[\s/\\\-‐-―._]/g;
+/** What the parser ignores: every character that is not a letter or a digit (spaces, slashes, hyphens, dots, brackets, commas). */
+const IGNORED = /[^\p{L}\p{N}]/gu;
 
 /**
- * The vector group a LIGAÇÃO SECUNDÁRIA text names, or null. Case, spaces, slashes, hyphens,
- * dots and underscores are ignored ("DYN1", "Dyn 1", "D/yn1", "dyn-1" read Dyn1). The
+ * The vector group a LIGAÇÃO SECUNDÁRIA text names, or null. Case and every character that is not
+ * a letter or a digit are ignored ("DYN1", "Dyn 1", "D/yn1", "dyn-1", "(Dyn1)", "Dyn1," read Dyn1;
+ * "LIG:Dyn1" keeps letters in front and reads null). The
  * high-voltage letters are read greedily but must leave a valid low-voltage connection and clock
  * ("YNyn0" is YN + yn + 0, never Y + "Nyn0"); a clock the table has no row for, letters left
  * over, an empty text, "Y" or "DYN" read null.

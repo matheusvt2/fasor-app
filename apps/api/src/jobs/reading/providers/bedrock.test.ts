@@ -254,7 +254,7 @@ describe('11.6 Bedrock: no tool_use or invalid JSON is permanent', () => {
 });
 
 describe('AIR-1 and AIR-V1 (review 2026-10-08): the structuring prompt', () => {
-  it('asks for dates exactly as precise as printed and spells out the pt-BR separators; its version is 2', async () => {
+  it('asks for dates exactly as precise as printed and spells out the pt-BR separators; its version is 3', async () => {
     expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-3');
     const client = replying([toolUse('record_values', plateValues)]);
     await structurer(client).structure(plateInput);

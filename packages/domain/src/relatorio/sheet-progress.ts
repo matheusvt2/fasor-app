@@ -188,12 +188,15 @@ function verificacoesMissing(block: BlockRow, definition: BlockDefinition, enabl
   return missing;
 }
 
-function ensaiosCounts(block: BlockRow, definition: BlockDefinition): SheetStepProgress {
+function ensaiosCounts(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<SubBlockKey>): SheetStepProgress {
   const evaluations = evaluateSheetReadings(block, definition);
   const cells = evaluatedCells(evaluations);
   const measurements = measurementCounts(evaluateSheetMeasurements(block, definition));
-  // Story 21.1: a v11 ratio row with no vector group to compute VAL CALCULADO counts one missing.
-  const groupMissing = evaluations.reduce((sum, test) => sum + test.tables.reduce((rows, table) => rows + (table.groupMissing ? table.rows.length : 0), 0), 0);
+  // Story 21.1: a v11 ratio row with no vector group to compute VAL CALCULADO counts one missing,
+  // only while the plate that holds LIGAÇÃO SECUNDÁRIA can be filled (its sub-block enabled).
+  const groupMissing = !enabled.has('nameplate')
+    ? 0
+    : evaluations.reduce((sum, test) => sum + test.tables.reduce((rows, table) => rows + (table.groupMissing ? table.rows.length : 0), 0), 0);
   return {
     missing: cells.filter((cell) => cell.missing).length + groupMissing + measurements.missing,
     outOfLimit: cells.filter((cell) => cell.verdict === 'out').length + measurements.outOfLimit,
@@ -232,7 +235,7 @@ export function sheetProgress(snapshot: SheetProgressSnapshot, blockId: string):
     const placa = placaMissing(snapshot, block, enabled);
     steps.placa = { missing: placa.plate + placa.cabine, outOfLimit: 0, ...(placa.cabine > 0 ? { cabine: placa.cabine } : {}) };
     steps.verificacoes.missing = verificacoesMissing(block, definition, enabled);
-    steps.ensaios = ensaiosCounts(block, definition);
+    steps.ensaios = ensaiosCounts(block, definition, enabled);
     const conclusao = conclusaoMissing(block, enabled);
     steps.conclusao = { missing: conclusao.missing, outOfLimit: 0, ...(conclusao.observation > 0 ? { observation: conclusao.observation } : {}) };
   }

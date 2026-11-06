@@ -25,9 +25,10 @@ import { normalizeReadingValue, type NormalizedReadingValue } from './value.ts';
  * group parser reads is stored as its code ("DYN1" as "Dyn1"; on the v11 select the option
  * mapping already does so, and a value naming no group is dropped `invalid_shape` like any select;
  * on the v9/v10 text an unparsed value stays as read). A group the cited tokens print (any run of
- * them, in token order, parses to it) follows the digit rule; otherwise the model read it from the
- * drawn diagram: `verify`, citing no token (`ocr_token_ids: []`) over the whole image, the device's
- * signal for "Lido do diagrama — confira" (`plateSuggestionNoteText`).
+ * them, in token order, parses to it) follows the digit rule. A group whose cited runs print another
+ * group ("Dyn11" for "Dyn1") keeps its citations and box and is `verify`. A group no cited run prints
+ * as any group was read from the drawn diagram: `verify`, citing no token (`ocr_token_ids: []`) over
+ * the whole image, the device's signal for "Lido do diagrama — confira" (`plateSuggestionNoteText`).
  */
 
 export type ReadingDropReason = 'unknown_key' | 'unknown_token' | 'invalid_shape';
@@ -97,13 +98,17 @@ export function buildReadingSuggestions(input: BuildReadingSuggestionsInput): Bu
       dropped.push({ key: field.key, reason: normalized.reason });
       continue;
     }
-    // Story 21.2: the vector group, as its code; read from the drawing when no cited run prints it.
+    // Story 21.2: the vector group, as its code; read from the drawing when no cited run prints a group,
+    // and to verify when the cited runs print another group.
     let diagram = false;
+    let otherGroup = false;
     if (isVectorGroupField(input.block.block_type, field.key)) {
       const group = parseVectorGroup(normalized.value);
       if (group !== null) {
         normalized = { ok: true, value: group.code, verify: normalized.verify };
-        diagram = !printsVectorGroup(ordered, group.code);
+        const printed = printedVectorGroups(ordered);
+        diagram = printed.size === 0;
+        otherGroup = !diagram && !printed.has(group.code);
       }
     }
     const assessed = assessReadingValue({
@@ -111,7 +116,7 @@ export function buildReadingSuggestions(input: BuildReadingSuggestionsInput): Bu
       value: normalized.value,
       cited: ordered,
       registry: input.registry,
-      verify: normalized.verify || diagram,
+      verify: normalized.verify || diagram || otherGroup,
       ...(normalized.printedText === undefined ? {} : { printedText: normalized.printedText }),
     });
     const union = unionBox(ordered.map((token) => token.bbox))!;
@@ -138,16 +143,18 @@ export function buildReadingSuggestions(input: BuildReadingSuggestionsInput): Bu
   return { rows, dropped };
 }
 
-/** Story 21.2: whether a run of the cited tokens, in token order, prints the group `code` (joined with spaces, read by the parser). */
-function printsVectorGroup(ordered: readonly Pick<OcrToken, 'text'>[], code: string): boolean {
+/** Story 21.2: the codes of the groups the runs of the cited tokens print, in token order (each run joined with spaces, read by the parser). */
+function printedVectorGroups(ordered: readonly Pick<OcrToken, 'text'>[]): Set<string> {
+  const codes = new Set<string>();
   for (let start = 0; start < ordered.length; start++) {
     let text = '';
     for (let end = start; end < ordered.length; end++) {
       text = end === start ? ordered[end]!.text : `${text} ${ordered[end]!.text}`;
-      if (parseVectorGroup(text)?.code === code) return true;
+      const group = parseVectorGroup(text);
+      if (group !== null) codes.add(group.code);
     }
   }
-  return false;
+  return codes;
 }
 
 /** The nameplate path `sheet/{block}/nameplate/{key}`. */

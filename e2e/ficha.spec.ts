@@ -7,6 +7,7 @@ import {
   vectorGroupByCode,
   vectorGroupCaptureLabel,
   vectorGroupFormulaText,
+  vectorGroupShortText,
   type OpDraft,
 } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
@@ -723,6 +724,17 @@ test('@p0 21.1-E2E-001 a v11 star-star transformer (Yyn0) typed by hand: no VAL 
   await page.setViewportSize({ width: 390, height: 844 });
   const card = page.locator('.measurement-card').first();
   for (const pair of pairs) await expect(card.locator('.field-label', { hasText: pair })).toHaveCount(1);
+});
+
+test('@p1 21.1-E2E-003 a v11 Yd1 transformer: the captures read its shorted leads, and the helpers name its formula and the winding to short per phase', async ({ page }) => {
+  test.setTimeout(150_000);
+  await openTransformerSheet(page, account, database, { width: 1280 });
+  await field(page, 'ligacao_secundaria').locator('select').selectOption('Yd1');
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  const yd1 = vectorGroupByCode('Yd1')!;
+  const pairs = [0, 1, 2].map((phase) => vectorGroupCaptureLabel(yd1, phase)!);
+  await expect(page.locator('table.ficha-ttr thead th')).toHaveText(['TAP nº', 'V primário (kV)', 'V secundário (V)', 'Calculado', ...pairs, 'Condição']);
+  await expect(page.locator('.ficha-mt[data-table-key="relacao_transformacao"] > p.helper')).toHaveText([vectorGroupFormulaText('sqrt3_half'), vectorGroupShortText(yd1)!]);
 });
 
 test('@p1 UX-F51 phone 390: the collapsed "Do local" line puts its values on their own line, the line\'s width, no word broken', async ({ page }) => {

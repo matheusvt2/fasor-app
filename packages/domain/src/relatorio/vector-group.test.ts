@@ -138,6 +138,9 @@ describe('21.1-UNIT parseVectorGroup', () => {
     ['dyn.1', 'Dyn1'],
     ['dyn_1', 'Dyn1'],
     [' Dyn1 ', 'Dyn1'],
+    ['(Dyn1)', 'Dyn1'],
+    ['Dyn1,', 'Dyn1'],
+    ['Dyn1;', 'Dyn1'],
     ['YYN0', 'Yyn0'],
     ['yy0', 'Yy0'],
     ['Y/yn0', 'Yyn0'],
@@ -164,7 +167,7 @@ describe('21.1-UNIT parseVectorGroup', () => {
     }
   });
 
-  it.each(['', '   ', 'Y', 'DYN', 'D', 'Dyn', 'Dyn2', 'Dyn12', 'Yy1', 'Dyn1x', 'xDyn1', 'Dyn01', 'Estrela', 'Triângulo-estrela', 'YN0', 'Dyn1 380V'])('%j reads null', (text) => {
+  it.each(['', '   ', 'Y', 'DYN', 'D', 'Dyn', 'Dyn2', 'Dyn12', 'Yy1', 'Dyn1x', 'xDyn1', 'Dyn01', 'LIG:Dyn1', 'Estrela', 'Triângulo-estrela', 'YN0', 'Dyn1 380V'])('%j reads null', (text) => {
     expect(parseVectorGroup(text)).toBeNull();
   });
 

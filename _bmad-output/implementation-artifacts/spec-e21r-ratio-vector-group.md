@@ -2,7 +2,7 @@
 title: 'e21r: the transformer ratio follows its vector group, read from the plate too (21.1, 21.2)'
 type: 'feature'
 created: '2026-11-05'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '80f2f9f74df6d726844c278efc16d3ee8eb41ac4'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -13,7 +13,28 @@ context:
   - '{project-root}/_bmad-output/planning-artifacts/research/ttr-vector-groups-2026-11-05/research.md'
 warnings: ['batched', 'oversized']
 batched_reason: '21.2 reads 21.1 group table and parser; both touch the transformer LIGACAO SECUNDARIA, seed v11 and the plate fixtures (epic-21-context.md batch plan).'
-deferred: []
+deferred:
+  - summary: >-
+      suggestConclusionPair can offer Aprovado / Sem restricoes over a v11 ratio with no vector group (captures unjudged).
+    evidence: |-
+      conclusion.ts suggestConclusionPair does not read groupMissing; parity with a ratio row missing V PRIMARIO today.
+    location: >-
+      packages/domain/src/relatorio/conclusion.ts:79
+    severity: low
+  - summary: >-
+      Concluir ficha lands on Ensaios with no focused field when only the v11 missing group remains.
+    evidence: |-
+      ensaios-section.tsx firstMissing reads evaluatedCells only; groupMissing has no cell; the missing-group helper is visible there.
+    location: >-
+      apps/web/src/surfaces/ficha/ensaios-section.tsx:99
+    severity: medium
+  - summary: >-
+      A drawn-only diagram whose terminal labels the OCR did not return is dropped as uncited.
+    evidence: |-
+      bedrock.ts withoutUncitedValues and structuringValueSchema min(1) drop a value citing no token; changing it touches contract/ocr.ts (spec Never). The paid eval before the deploy settles how often it happens.
+    location: >-
+      apps/api/src/jobs/reading/providers/bedrock.ts:238
+    severity: medium (unverified)
 ---
 
 <intent-contract>
@@ -115,6 +136,24 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-05 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer (opus); Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 13 findings — high 0, medium 7, low 5, false 0, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` VG: the plate job's `vectorGroupKey` never asserted on the job path (dropping it keeps `bedrock-structuring-3` with no group prompt) — job.integration converse stub records the prompt text; transformer plate asserts the group paragraph, panel asserts its absence.
+  - `[medium]` `[patch]` VG: `shortHelper` never rendered by a device test — `@p1` Yd1 test in `e2e/ficha.spec.ts` (formula + short helper + Yd1 headers from the kernel).
+  - `[medium]` `[patch]` VG: `ReplaceLine` diagram note untested — unit case in `nameplate-field.test.tsx` (empty ids show `DIAGRAM_READ_NOTE`, cited ids none).
+  - `[low]` `[defer]` VG other: `suggestConclusionPair` can offer "Sem restrições" over an unjudged v11 empty-group ratio — same as a ratio row missing V PRIMÁRIO today (parity); the fix is a new guard; deferred to the integrated review (deferred-work row).
+  - `[low]` `[patch]` VG other: `bedrock.test.ts` title says version 2 — title corrected.
+  - `[medium]` `[defer]` EC: Concluir lands on Ensaios with no focused field when only `groupMissing` remains (`ensaios-section.tsx` `firstMissing` reads cells only) — the missing-group helper is shown there; routing to Placa is new UI behavior; deferred (deferred-work row).
+  - `[medium]` `[patch]` EC: nameplate sub-block disabled on v11 keeps every ratio row missing forever — `groupMissing` counted only while the nameplate sub-block is enabled, with a boundary test; open question O-6 for Matheus.
+  - `[low]` `[defer]` EC: same as the conclusion-suggestion finding above (grouped, same root cause).
+  - `[medium]` `[patch]` EC: punctuation around a printed code ("(Dyn1)", "Dyn1,") makes `printsVectorGroup` call it a diagram read — the parser ignores every non-letter, non-digit character; tests.
+  - `[maybe-false]` `[defer]` EC: a drawn-only diagram whose labels OCR missed is dropped as uncited (`withoutUncitedValues`, `structuringValueSchema` min(1)) — by design (spec Never: no `contract/ocr.ts` change); if true medium (unverified); the paid eval run before the deploy settles it.
+  - `[low]` `[patch]` EC: a cited token printing another group ("Dyn11" for "Dyn1") is labelled a diagram read — diagram only when no cited run parses to any group; another group keeps its citations and goes `verify`; build tests.
+  - `[low]` `[reject]` EC: v1..v8 transformer plate readings now canonicalize the code and may emit a diagram read — harmless (the ratio ignores the group there, the read stays `verify`), and the fix is an added seed-version guard.
+  - `[low]` `[reject]` EC: "Dyn01" or "Yy12" do not parse — not a spelling the plates or the fixture use; the fix adds clock normalization branches; an unparsed v9/v10 text says so on screen ("Ligação não reconhecida").
 
 ## Design Notes
 

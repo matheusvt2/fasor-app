@@ -258,6 +258,8 @@ describe('21.2-UNIT the vector group from the plate', () => {
       { id: 't4', text: '1', bbox: [345, 50, 355, 70], confidence: 0.99 },
       { id: 't5', text: 'H1', bbox: [500, 500, 520, 520], confidence: 0.99 },
       { id: 't6', text: 'X1', bbox: [700, 500, 720, 520], confidence: 0.99 },
+      { id: 't7', text: 'Dyn11', bbox: [300, 90, 370, 110], confidence: 0.99 },
+      { id: 't8', text: '(Dyn1)', bbox: [300, 130, 370, 150], confidence: 0.99 },
     ],
     preprocessing_applied: false,
   });
@@ -296,11 +298,30 @@ describe('21.2-UNIT the vector group from the plate', () => {
     expect(row.source.ocr_token_ids).toEqual([]);
     expect(row.source.bbox).toEqual(FULL_IMAGE_BBOX);
     expect(plateSuggestionNoteText(row)).toBe('Lido do diagrama — confira');
-    // A printed "Dyn1" cited for a "Yyn0" answer is not the group printed either.
-    expect(read('v11', 'Yyn0', ['t2']).rows[0]!.trust).toBe('verify');
     const sheet = { id: BLOCK, seed_version: 'v11', block_type: 'transformador_forca', sheet: { nameplate: {}, checklist: {}, test: {} } as unknown as BlockRow['sheet'], config: defaultBlockConfig('v11', 'transformador_forca') };
     expect(confirmAllCandidates(sheet as never, [row])).toEqual([]);
     expect(confirmAllCandidates(sheet as never, read('v11', 'Dyn1', ['t2']).rows)).toHaveLength(1);
+  });
+
+  it('v11: the cited runs decide: the same group printed is suggested ("(Dyn1)" too); another group printed is verify with its citations and box, no note; no group printed is the diagram read', () => {
+    const same = read('v11', 'Dyn1', ['t8']).rows[0]!;
+    expect(same).toMatchObject({ value: 'Dyn1', trust: 'suggested' });
+    expect(same.source.ocr_token_ids).toEqual(['t8']);
+    for (const [value, ids] of [
+      ['Dyn1', ['t7']],
+      ['Yyn0', ['t2']],
+    ] as const) {
+      const other = read('v11', value, [...ids]).rows[0]!;
+      expect(other, `${value} ${ids.join(' ')}`).toMatchObject({ value, trust: 'verify' });
+      expect(other.source.ocr_token_ids).toEqual(ids);
+      expect(other.source.bbox).not.toEqual(FULL_IMAGE_BBOX);
+      expect(plateSuggestionNoteText(other)).toBeNull();
+    }
+    const none = read('v11', 'Dyn1', ['t5']).rows[0]!;
+    expect(none).toMatchObject({ value: 'Dyn1', trust: 'verify' });
+    expect(none.source.ocr_token_ids).toEqual([]);
+    expect(none.source.bbox).toEqual(FULL_IMAGE_BBOX);
+    expect(plateSuggestionNoteText(none)).toBe(DIAGRAM_READ_NOTE);
   });
 
   it('v11: a value naming no group is dropped (invalid_shape), as any select value outside its options', () => {

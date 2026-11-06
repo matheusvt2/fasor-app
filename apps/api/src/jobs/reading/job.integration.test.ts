@@ -40,7 +40,7 @@ import { createReadingProviders } from './providers/index.ts';
 import { readingServerOp, readingStatusPath, startReading } from './status.ts';
 import { PermanentReadingError } from './providers/index.ts';
 import { textractTokens, type TextractLike } from './providers/textract.ts';
-import type { BedrockConverseOutput, BedrockLike } from './providers/bedrock.ts';
+import { vectorGroupPrompt, type BedrockConverseOutput, type BedrockLike } from './providers/bedrock.ts';
 import { enqueueReading, ensureReadingQueue, failDeadReading, readingDeadLetterQueue, registerReadingWorker, type ReadingQueueOptions } from './worker.ts';
 
 /*
@@ -1032,17 +1032,20 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
   };
   const TOKENS: Record<string, { inputTokens: number; outputTokens: number }> = { [HAIKU]: { inputTokens: 2000, outputTokens: 300 }, [NOVA_PRO]: { inputTokens: 2100, outputTokens: 500 }, [QWEN]: { inputTokens: 1700, outputTokens: 120 } };
 
-  /** A client answering each model with its own tool input, recording the models it was asked. */
-  function converse(byModel: Record<string, unknown>): BedrockLike & { models: string[]; images: Uint8Array[] } {
+  /** A client answering each model with its own tool input, recording the models it was asked, the images and the prompt texts. */
+  function converse(byModel: Record<string, unknown>): BedrockLike & { models: string[]; images: Uint8Array[]; prompts: string[] } {
     const models: string[] = [];
     const images: Uint8Array[] = [];
+    const prompts: string[] = [];
     return {
       models,
       images,
+      prompts,
       async send(command): Promise<BedrockConverseOutput> {
         const modelId = command.input.modelId!;
         models.push(modelId);
         images.push(command.input.messages![0]!.content![0]!.image!.source!.bytes!);
+        prompts.push(command.input.messages![0]!.content![1]!.text!);
         const tokens = TOKENS[modelId]!;
         return {
           output: { message: { role: 'assistant', content: [{ toolUse: { toolUseId: 'u1', name: 'record_values', input: byModel[modelId] as never } }] } },
@@ -1079,6 +1082,8 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     // One verify of eleven: no escalation, one call, on the job's own image bytes.
     expect(client.models).toEqual([HAIKU]);
     expect((await sharp(client.images[0]!).metadata()).width).toBe(1200);
+    // Story 21.2: the transformer plate's LIGAÇÃO SECUNDÁRIA is asked for as its vector group.
+    expect(client.prompts[0]).toContain(vectorGroupPrompt('ligacao_secundaria'));
     const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
     expect(mine).toHaveLength(11);
     expect(mine.every((s) => s.status === 'pending' && s.prompt_version === 'bedrock-structuring-3')).toBe(true);
@@ -1102,6 +1107,8 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     await read(bedrockDeps(client), id);
     expect(await status(id)).toBe('done');
     expect(client.models).toEqual([HAIKU, NOVA_PRO]);
+    // Story 21.2: the escalation call asks for the vector group too.
+    for (const prompt of client.prompts) expect(prompt).toContain(vectorGroupPrompt('ligacao_secundaria'));
     const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
     expect(mine).toHaveLength(11);
     expect(mine.filter((s) => s.trust === 'verify')).toHaveLength(1);
@@ -1230,6 +1237,8 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     await read(bedrockDeps(client), id, 'panel');
     expect(await status(id)).toBe('done');
     expect(client.models).toEqual([QWEN]);
+    // Story 21.2: a panel reading never asks for a vector group.
+    expect(client.prompts[0]).not.toContain('vector group');
     const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
     expect(mine).toHaveLength(1);
     expect(mine[0]).toMatchObject({ trust: 'verify' });
