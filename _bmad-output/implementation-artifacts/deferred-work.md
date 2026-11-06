@@ -2952,6 +2952,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/spec-e21r-ratio-vector-group.md`
   summary: Before the deploy, Matheus runs `apps/api/src/scripts/bedrock-eval.ts` on the real plate set with prompt ~~`bedrock-structuring-3`~~ `bedrock-structuring-4` (2026-11-05, fix batch e21f); record the group column per plate in the PR.
   evidence: Story 21.2 DoD; the script is prepared (its "Vector group read" table, the two synthetic v11 transformer plates added to its default set) and was never run in the batch (paid call).
+  state: partly done (2026-11-05, coordinator, Matheus's go-ahead for the overnight deploy): run on the synthetic set only, since the real plate set (`docs/media/`, git-ignored) is not on this machine. Production model `global.anthropic.claude-haiku-4-5-20251001-v1:0`, Textract OCR. On `bedrock-structuring-3` (main fdc19924) the drawn Yyn0 plate read Dy1 3 of 3 (fixed by e21f); on `bedrock-structuring-4` (PR #256 head 3d8a76ed) Dyn1, Dyn1 and Yyn0 (diagram) 3 of 3, field accuracy 96.2 % (25/26), citations 100 %, about USD 0.006 per reading. The real-set run stays open (owner: Matheus).
 - source_spec: `_bmad-output/implementation-artifacts/spec-e21r-ratio-vector-group.md`
   summary: The drawn-diagram path of Story 21.2 is exercised end to end on the device with the reading job's suggestion seeded as the job writes it (`e2e/plate.spec.ts` 21.2-E2E-001), and through the real job only in `apps/api` (`job.integration.test.ts`, the committed plate's own fixture): an imported photo is re-encoded by the device, so the fake providers replay the transformer's default plate (printed Dyn1) and never the drawn one.
   evidence: `providers/fake.ts` chooses a default fixture by reading kind, block type and table only; making the drawn plate a default would change every transformer plate test.
@@ -2964,18 +2965,21 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/spec-e21r-ratio-vector-group.md` (review, before the deploy with the eval run)
   summary: A drawn-only vector diagram whose terminal labels the OCR did not return is dropped as uncited, so no group is suggested.
   evidence: `providers/bedrock.ts` `withoutUncitedValues` and `structuringValueSchema` (`min(1)`) drop a value citing no token; changing that touches `contract/ocr.ts` and the OCR sidecar gate. The paid eval run shows how often the real plates hit it.
+  state: open (2026-11-05: the synthetic drawn plate's labels were returned by Textract and cited in all runs; how often real plates hit it needs the real-set run, owner: Matheus)
 
 ## Deferred from: Epic 21 fix batch e21f (2026-11-05)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e21f-diagram-vector-group.md`
   summary: Before the deploy, the coordinator reruns `apps/api/src/scripts/bedrock-eval.ts` with `bedrock-structuring-4`; the drawn Yyn0 plate (`plate-transformador-yyn0.png`) must read Yyn0 (the group table shows "Yyn0 (diagram)").
   evidence: the coordinator's paid eval of 2026-11-05 read the drawn plate "Dy1" 3 of 3 on `bedrock-structuring-3`; the fix (the model describes the diagram in `vector_diagram`, `composeVectorGroup` composes the code) is exercised only on stubbed Converse answers and the fake fixture, never on the model (paid call).
+  state: closed (2026-11-05, coordinator: three runs on PR #256 head 3d8a76ed, the drawn plate read "Yyn0 (diagram)" 3 of 3, the printed plates Dyn1 plain)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e21f-diagram-vector-group.md`
   summary: A group the model composes itself, citing words that print no group, with no `vector_diagram` facts, keeps the e21r handling (a diagram read, `verify`); only facts that compose replace it.
   evidence: spec Design Notes (conservative, listed in the PR); `providers/vector-diagram.ts` `withVectorDiagram` changes nothing without composable facts.
 - source_spec: `_bmad-output/implementation-artifacts/spec-e21f-diagram-vector-group.md` (review, owner: the coordinator at the eval run)
   summary: The eval's "(diagram)" marker (`bedrock-eval.ts` `groupRead`) has no test; the script has no harness and runs only as the paid eval, so whoever reads its table checks the marker against the plate (drawn plate "Yyn0 (diagram)", printed plates plain).
   evidence: verification-gap review of e21f; `groupRead` is not exported and no test imports `apps/api/src/scripts/`.
+  state: closed (2026-11-05, coordinator: checked against the plates in the three runs above; drawn plate marked, printed plates plain)
 
 ## Deferred from: Epic 21 batch e21p (2026-11-05)
 

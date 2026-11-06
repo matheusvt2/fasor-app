@@ -5502,6 +5502,8 @@ So that a star-star or any other non-Dyn1 transformer is not flagged INSATISFAT�
 - A `source-deltas.md` row amending Story 15.6's fixed √3.
 - `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md` notes.
 
+*(2026-11-05, coordinator, at the merge of PRs #254, #255 and #256: 21.1 shipped in e21r, PR #255. Narrowings: the v10 "DYN1" to "YYN0" case runs in the new serial `e2e/seed-v11.spec.ts`; on v11 a plate value the parser does not map is dropped and the field stays empty (review note N-5); with no group chosen a v11 table still shows the Dyn1 pairs as capture headers (review note N-1, a decision for Matheus or Bruno); Dyn3, Dyn9, Dy3 and Dy9 ship as transcribed and are listed for Bruno.)*
+
 ### Story 21.2: The plate reading identifies the vector group, also from the drawn diagram
 
 **Dev model:** opus · **Effort:** medium · the transformador de força's plate structuring names the 47 codes and reads the vector diagram; the value lands canonical in LIGAÇÃO SECUNDÁRIA (select on v11, text on v9/v10); the Story 8.5 guard decides suggested or verify; fake fixtures and the paid eval set
@@ -5543,6 +5545,8 @@ So that the ratio of Story 21.1 is right without my typing it, and I know when t
 - `e2e/plate-reading` (or the spec that covers the transformer plate today) runs the drawn case through to the verify state and the accepted ratio.
 - The eval run recorded in the PR before the deploy.
 - `docs/kbs/log.md`.
+
+*(2026-11-05, coordinator, at the merge of PRs #255 and #256: 21.2 shipped in e21r, PR #255, and fix batch e21f, PR #256. The paid eval found the drawn Yyn0 plate read as Dy1 on `bedrock-structuring-3`; e21f has the model describe the drawing (`vector_diagram`: winding shapes, drawn neutrals, X1's hour) and the kernel compose the code (`composeVectorGroup`), prompt `bedrock-structuring-4`, read Yyn0 3 of 3. Narrowings: the drawn plate's device e2e seeds the job's suggestion and the real job runs it only in the api tests; the eval ran on the synthetic set only, the real-set run is Matheus's (`deferred-work.md`).)*
 
 ### Story 21.3: Move a photo up or down in the REGISTRO FOTOGRÁFICO (contract 30)
 
@@ -5593,6 +5597,8 @@ So that section 7 tells the work in the order it was done (arrival of the utilit
 - The touched durability specs on the matrix projects.
 - The contract bump shared with 21.1.
 - `docs/kbs/log.md`.
+
+*(2026-11-05, coordinator, at the merge of PR #254: 21.3 shipped in e21p. Narrowings: the DOCX and PDF are generated at 1280 px only (the gallery is asserted at 390, 768 and 1280 px); the durability spec skips WebKit, which cannot store a photo Blob (the `camera-app.durability.spec.ts` precedent). Open for Matheus or Bruno: imports keep their capture-order place and only a new capture lands last; the gallery note still says "Ordem cronológica de captura" (review note N-3).)*
 
 ## Backlog: deferred stories
 

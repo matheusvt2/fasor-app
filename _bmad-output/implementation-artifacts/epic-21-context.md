@@ -66,3 +66,34 @@ Why 21.1 and 21.2 share a batch: 21.2 reads 21.1's group table and parser, and b
   - Before the second PR merges, the cross-batch merge rule applies (§ 6).
   - After both merge comes one integrated gate on main: `test:e2e:full` and the matrix, with the load line. Then the two-pass integrated review (§ 9), then one fix batch if needed.
   - The deploy happens only on Matheus's word. The 21.2 paid eval run (`bedrock-eval.ts`) is a "before the deploy" item for Matheus.
+
+## Merges, integrated gate, review and deploy record (coordinator, 2026-11-05)
+
+Matheus, 2026-11-05: "pode fazer o pr, merge, e deploy, se passar tudo pode fazer, ja estou logado na conta" and "pode fazer na madrugada".
+
+**Merges.**
+- PR #254 (e21p, 21.3) merged first as 94d03830.
+- PR #255 (e21r, 21.1 and 21.2) merged second as fdc19924, after the cross-batch rule. Main was merged into the branch as aa580eb2, with one contract-30 bump and MIN 30. On that head, lint, static, test:unit (5194), test:api (839) and both batches' touched specs (238 of 238 on desktop-chrome and durability-desktop-chrome) all passed.
+- PR #256 (fix batch e21f) merged as 8252cee4.
+
+**Integrated gate on fdc19924.**
+- Run under the host lock, wait 1 s. Load was 4.54 at the start and 5.15 at the end. The main stack was up. The integrated review's own stack (fasor-e21q) and a Playwright MCP browser ran beside it for about 25 minutes.
+- lint 0 (21 s), static 0 (30 s), test:api 839 passed and 4 skipped (406 s).
+- test:unit: 5192 of 5194 passed. Two web files failed on `waitFor` timeouts: `src/state/reading-arrivals.test.tsx` (the caption toast) and `src/surfaces/home/home-surface.test.tsx` (12.2 "Continuar"). Run alone twice at load 3.17, both passed (44 of 44, twice).
+- `test:e2e:full`: 579 of 584 passed, 4 skipped. 1 red: @p0 R8LAY-E2E-008, where the "Novo relatório" dialog was not visible within 5 s at one viewport. Run alone under the lock (wait 790 s, load 4.15 at the start and 3.71 at the end, beside the fasor-e21f stack), it passed 1 of 1. The same spec passed in e21r's merged-head gate. Explanation: load from the review pass running in parallel. Neither red touches Epic 21 code.
+- `test:e2e:matrix`: 140 passed, 16 skipped (the WebKit Blob skips), 0 failed (582 s).
+
+**Integrated review** (`epic-21-integrated-review-2026-11-05.md`, two passes per § 9):
+- Behavior pass: every AC walkable in the browser passed at 390, 768 and 1280 px.
+- Second pass: 5 notes, no blocker or should-fix (N-1 to N-5, for Matheus or Bruno).
+
+**Paid eval** (coordinator; the "before the deploy" rows; `deferred-work.md`):
+- Production model Claude Haiku 4.5, Textract OCR, on the synthetic set only (the real plate set is not on this machine).
+- On `bedrock-structuring-3` the drawn Yyn0 plate read Dy1 in 3 of 3 runs. That was a defect against 21.2's AC, so it became fix batch e21f, PR #256.
+  - The model now describes the drawing (`vector_diagram`), and the kernel composes the code (`composeVectorGroup`).
+  - e21f's story gate: lint, static, unit 5204, api 865, plate specs 22 of 22. Lock wait 1120 s, load 5.15 at the start and 3.99 at the end.
+- On `bedrock-structuring-4` (head 3d8a76ed), over 3 runs: the printed plates read Dyn1 and the drawn plate read "Yyn0 (diagram)" 3 of 3. Field accuracy 96.2 %, citations 100 %, about USD 0.006 per reading. The real-set run stays with Matheus.
+
+**Deploy checklist** (§ 8, § 9):
+- `grep -n "before the deploy" deferred-work.md` lists the e21r eval row (partly done, synthetic set), the e21r uncited-diagram row (open, needs the real set), the e21f eval row (closed) and older rows already closed.
+- `test:e2e:full` on 8252cee4: 580 of 584 passed, 0 failed, 4 skipped (2279 s), under the host lock (wait 1 s, load 5.01 at the start, 4.11 at the end, only the main stack up). The deploy goes from the records merge on top of 8252cee4, which changes only documents.
