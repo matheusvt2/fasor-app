@@ -209,7 +209,7 @@ describe('8.2-UNIT the plate photo row on a read-only sheet', () => {
 });
 
 describe('8.2-UNIT the empty plate', () => {
-  it('draws the copy chips first, then the "Fotografar placa" tile, with no "Digitar"', () => {
+  it('draws the copy chips first, then the "Fotografar placa" tile and (22.1) "Anexar arquivo", with no "Digitar"', () => {
     const { container } = wrap(
       <PlateCameraGroup
         relatorioId={PHOTO}
@@ -228,7 +228,14 @@ describe('8.2-UNIT the empty plate', () => {
       'camera-capture-tile',
       // F-26: the opening status line, always mounted, empty until the camera is asked for.
       'visually-hidden camera-opening-status',
+      // Story 22.1: a plate photo file, the tile's own target.
+      'btn btn-text',
     ]);
+    const attach = screen.getByRole('button', { name: 'Anexar arquivo' });
+    expect(attach.querySelector('use')).toHaveAttribute('href', '/sprite.svg#i-image');
+    const input = screen.getByTestId('attach-file-input');
+    expect(input).toHaveAttribute('accept', 'image/*,.heic,.heif');
+    expect(input).not.toHaveAttribute('multiple');
     expect(group.querySelector('.camera-opening-status')).toHaveTextContent('');
     expect(screen.getByRole('button', { name: 'Fotografar placa' })).toHaveClass('camera-capture-tile');
     expect(screen.queryByText('Digitar')).toBeNull();

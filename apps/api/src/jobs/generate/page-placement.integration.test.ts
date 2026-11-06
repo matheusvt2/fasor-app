@@ -1,14 +1,14 @@
 import { accessSync, constants } from 'node:fs';
 import { createRequire } from 'node:module';
 import { delimiter, join } from 'node:path';
-import { buildSnapshot, layoutSpec, replay, type DocumentLayout, type PrintSheetSubsection } from '@app/domain';
+import { buildSnapshot, layoutSpec, replay, type DocumentLayout, type PrintRow, type PrintSheetSubsection, type PrintTable, type SheetPart } from '@app/domain';
 import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import { buildDocx } from './docx.ts';
 import { convertToPdf } from './libreoffice.ts';
-import { checklistTable, fillerParts, nameplateTable, photosPart, sheet, tablePart, withNewSectionOrder, withSheetsSection } from './page-layout.test-support.ts';
+import { bandRow, bodyRow, checklistTable, fillerParts, headerRow, keptPart, nameplateTable, photosPart, sheet, tablePart, withNewSectionOrder, withSheetsSection } from './page-layout.test-support.ts';
 import { placeholderPages } from './toc.ts';
 
 /*
@@ -22,6 +22,11 @@ import { placeholderPages } from './toc.ts';
  * DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS and VERIFICAÇÕES DO LOCAL into the last part of a
  * page, a checklist runs longer than a page, and short fichas follow a local block. The
  * Story 20.6 follow-up (2026-11-04) case ends a ficha's photo rows at the page foot.
+ *
+ * Story 22.3: a seccionadora-shaped ficha swept down its page so its CONCLUSÃO reaches the
+ * page foot (rendered once as the kernel marks it and once with every keep flag stripped, the
+ * control, which must leave CONCLUSÃO alone on a page at least once), and a transformer
+ * ficha taller than a page, which breaks only between parts.
  *
  * It needs LibreOffice, which the api image carries and the tools image does not: run it
  * in the api container,
@@ -219,4 +224,92 @@ describe.skipIf(!sofficeOnPath)('20.5 and 20.6 page placement on the PDF LibreOf
     }
     expect(footed, 'at least one case whose photo row ends at the page foot').toBeGreaterThan(0);
   }, 240_000);
+});
+
+/** A table whose every row reads apart (its first cell "⟨code⟩.k", short enough not to wrap), so the PDF says where each row landed. */
+function namedTable(title: string, code: string, rows: number, columns = 3): PrintTable {
+  const labels = Array.from({ length: columns }, (_, c) => (c === 0 ? 'FASE' : `C${c}`));
+  const body: PrintRow[] = Array.from({ length: rows }, (_, k) => bodyRow([`${code}.${k + 1}`, ...Array.from({ length: columns - 1 }, (_, c) => String(100 + 10 * k + c))]));
+  return { columns: labels.map(() => 1), rows: [bandRow(title, columns), headerRow(labels), ...body] };
+}
+
+/** The parts with every Story 22.3 flag removed: the control render, as section 9 printed before. */
+function unkept(parts: readonly SheetPart[]): SheetPart[] {
+  return parts.map((part): SheetPart => {
+    if (part.kind !== 'table') return part.kind === 'photos' ? { kind: 'photos', photos: part.photos } : { kind: 'paragraph', text: part.text };
+    return { kind: 'table', table: { columns: part.table.columns, rows: part.table.rows, ...(part.table.keepWhole === true ? { keepWhole: true as const } : {}) } };
+  });
+}
+
+describe.skipIf(!sofficeOnPath)('22.3 a ficha keeps together on the PDF LibreOffice makes', () => {
+  /** The first and the last page a table's body rows landed on. */
+  const tableSpan = (pages: { items: Item[] }[], code: string, rows: number): [number, number] => [onePage(pages, `${code}.1`), onePage(pages, `${code}.${rows}`)];
+
+  it('a seccionadora whose CONCLUSÃO would fall alone keeps it with the part before it, and no table splits; the control leaves it alone', async () => {
+    // A seccionadora's parts, the kernel's flags on them (`keptTogether`), after `lines` filler
+    // lines that stand for what precedes a sheet on its page (a heading, the cabine's tables).
+    const seccionadora = (k: number, lines: number): SheetPart[] => [
+      ...fillerParts(lines, `Antes ${k}`),
+      keptPart(nameplateTable(10)),
+      keptPart(checklistTable('VERIFICAÇÕES GERAIS', 14)),
+      keptPart(namedTable('ENSAIO DE ISOLAÇÃO', `IS${k}`, 1, 6), true),
+      keptPart(namedTable('CONTATO ABERTO', `CA${k}`, 3, 8)),
+      keptPart(namedTable('ENSAIO DE RESISTÊNCIA', `RE${k}`, 1, 6), true),
+      keptPart(namedTable('LINHA', `LI${k}`, 3, 4)),
+      keptPart(namedTable('OBSERVAÇÕES', `OB${k}`, 1, 1), true),
+      keptPart(namedTable('CONCLUSÃO', `CO${k}`, 1, 8)),
+      photosPart([{ fileId: `foto-${k}`, number: k + 1, caption: `Imagem ${k + 1}: Vista ${k}.` }]),
+    ];
+    const sweep = Array.from({ length: 16 }, (_, k) => ({ k, lines: 4 + 2 * k }));
+    const subsections = (parts: (k: number, lines: number) => SheetPart[]): PrintSheetSubsection[] =>
+      sweep.map(({ k, lines }) => ({ heading: `8.${k + 1} Caso ${k}`, sheets: [sheet(`SECCIONADORA ${k}`, parts(k, lines))] }));
+    const kept = await render(subsections(seccionadora));
+    const control = await render(subsections((k, lines) => unkept(seccionadora(k, lines))));
+
+    let alone = 0;
+    for (const { k } of sweep) {
+      const conclusion = (pages: { items: Item[] }[]) => onePage(pages, `CO${k}.1`);
+      const before = (pages: { items: Item[] }[]) => onePage(pages, `OB${k}.1`);
+      expect(conclusion(kept.pages), `case ${k}: CONCLUSÃO with the part before it`).toBe(before(kept.pages));
+      for (const [code, rows] of [[`CA${k}`, 3], [`LI${k}`, 3]] as const) {
+        const [first, last] = tableSpan(kept.pages, code, rows);
+        expect(last, `case ${k}: ${code} on one page`).toBe(first);
+      }
+      // A test's header stays with its table.
+      expect(onePage(kept.pages, `IS${k}.1`), `case ${k}: the instrument header with its table`).toBe(onePage(kept.pages, `CA${k}.1`));
+      expect(onePage(kept.pages, `RE${k}.1`), `case ${k}: the instrument header with its table`).toBe(onePage(kept.pages, `LI${k}.1`));
+      if (conclusion(control.pages) !== before(control.pages)) alone += 1;
+    }
+    expect(alone, 'the control leaves CONCLUSÃO alone on its page at least once').toBeGreaterThan(0);
+  }, 300_000);
+
+  it('a transformer taller than a page breaks only between parts, never inside a table, CONCLUSÃO on the page of the part before it', async () => {
+    const long = (k: number) => `Observação ${k}: sinais de aquecimento nas conexões, reaperto e limpeza recomendados na próxima parada.`;
+    const parts: SheetPart[] = [
+      keptPart(nameplateTable(12)),
+      keptPart(checklistTable('VERIFICAÇÕES GERAIS', 22, { observation: long })),
+      keptPart(namedTable('ENSAIO DE ISOLAÇÃO', 'IS', 1, 6), true),
+      keptPart(namedTable('ALTA × TERRA', 'AT', 6, 8), true),
+      keptPart(namedTable('BAIXA × TERRA', 'BT', 6, 8)),
+      keptPart(namedTable('ENSAIO DE RELAÇÃO', 'RT', 1, 5), true),
+      keptPart(namedTable('TAP Nº', 'TP', 5, 8)),
+      keptPart(namedTable('OBSERVAÇÕES', 'OB', 2, 1), true),
+      keptPart(namedTable('CONCLUSÃO', 'CO', 1, 8)),
+    ];
+    const { pages } = await render([{ heading: '8.1 Transformador', sheets: [sheet('TRANSFORMADOR DE FORÇA TR-1', parts)] }]);
+    const title = onePage(pages, 'TRANSFORMADOR DE FORÇA TR-1');
+    const conclusion = onePage(pages, 'CO.1');
+    expect(conclusion, 'the ficha runs over more than one page').toBeGreaterThan(title);
+    for (const [code, rows] of [['AT', 6], ['BT', 6], ['TP', 5], ['OB', 2]] as const) {
+      const [first, last] = tableSpan(pages, code, rows);
+      expect(last, `${code} on one page`).toBe(first);
+    }
+    // The kept-whole tables too: their band and their last row on one page.
+    expect(onePage(pages, 'CAMPO 12')).toBe(onePage(pages, 'DADOS DO EQUIPAMENTO'));
+    expect(onePage(pages, '22. ITEM DE TESTE 22')).toBe(pagesOf(pages, 'VERIFICAÇÕES GERAIS')[0]);
+    // The joints kept together: each test with its header, CONCLUSÃO with the part before it.
+    expect(onePage(pages, 'IS.1')).toBe(onePage(pages, 'BT.6'));
+    expect(onePage(pages, 'RT.1')).toBe(onePage(pages, 'TP.5'));
+    expect(conclusion).toBe(onePage(pages, 'OB.2'));
+  }, 180_000);
 });

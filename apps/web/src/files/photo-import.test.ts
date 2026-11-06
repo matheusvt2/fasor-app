@@ -120,6 +120,22 @@ describe('6.4-UNIT-001 importPhotoFiles', () => {
     expect(committed[2]!.reading).toBeNull();
   });
 
+  it('22.1: a one-file pick takes the id the caller minted (the retake spares it by id); several files each get their own', async () => {
+    const { value, committed } = deps();
+    const minted = '019966b0-0067-7000-8000-0000000000bb';
+    const reading = { kind: 'plate' as const, target: { block_id: BLOCK_1_ID, block_type: 'transformador_forca' } };
+    const one = await importPhotoFiles([new File([jpegWithExif()], 'placa.jpg', { type: 'image/jpeg' })], { ...target, reading, fileId: minted }, value);
+    expect(one.saved).toEqual([minted]);
+    expect(committed[0]).toMatchObject({ fileId: minted, reading });
+    const two = await importPhotoFiles(
+      [new File([jpegWithExif()], 'a.jpg', { type: 'image/jpeg' }), new File([jpegWithExif()], 'b.jpg', { type: 'image/jpeg' })],
+      { ...target, fileId: minted },
+      value,
+    );
+    expect(two.saved).toHaveLength(2);
+    expect(two.saved).not.toContain(minted);
+  });
+
   it('14.3: a site item target (a local and its item, no sheet) commits the photo with both, so it is never an orphan; a sheet target carries no local', async () => {
     const { value, committed } = deps();
     const LOCAL = '019966b0-0067-7000-8000-0000000000aa';

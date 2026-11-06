@@ -149,8 +149,8 @@ describe('13.8-UNIT-006 section refs when the printed numbering differs from FO.
   });
 });
 
-describe('Story 20.6 auditInput: a checklist item photo keeps its item reference', () => {
-  it('sends the sheet photo line with its item line, as section 7 sends it', () => {
+describe('Story 22.2 auditInput: a checklist item photo is sent as it prints', () => {
+  it('sends the sheet photo line alone, with no item line (section 9 no longer prints one)', () => {
     const base = smallSnapshot();
     const id = '019966c1-0000-7000-8000-00000000f206';
     const photo = {
@@ -177,7 +177,7 @@ describe('Story 20.6 auditInput: a checklist item photo keeps its item reference
     } as unknown as FileRow;
     const snapshot: RelatorioSnapshot = { ...base, files: [...base.files, photo] };
     const line = auditInput(draft(snapshot), snapshot).text.split('\n').find((text) => text.includes(`[photo:${id}]`));
-    expect(line).toMatch(/Imagem \d+: Contatos oxidados\. \(Item \d+ · Contatos( · (C|NC|NA))?\)$/);
+    expect(line).toMatch(/Imagem \d+: Contatos oxidados\.$/);
   });
 });
 

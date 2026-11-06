@@ -130,6 +130,9 @@ describe('13.5-UNIT the wait and failed lines of a display reading', () => {
     );
     expect(await screen.findByText('Nada foi lido nesta foto')).toHaveClass('reading-line');
     expect(screen.getByRole('button', { name: 'Fotografar de novo' })).toBeInTheDocument();
+    // Story 22.1: "Anexar arquivo" beside the retake, its picker one picture.
+    expect(screen.getByRole('button', { name: 'Anexar arquivo' })).toHaveClass('btn', 'btn-text');
+    expect(screen.getByTestId('attach-file-input')).not.toHaveAttribute('multiple');
     await userEvent.click(screen.getByRole('button', { name: 'Digitar' }));
     expect(screen.getByRole('textbox', { name: 'T1, Valor' })).toHaveFocus();
     unmount();
@@ -137,6 +140,7 @@ describe('13.5-UNIT the wait and failed lines of a display reading', () => {
     renderBanner('empty', {}, tileAged(0, { reading_status: 'done' }));
     expect(await screen.findByText('Nada foi lido nesta foto')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Fotografar de novo' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Anexar arquivo' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Digitar' })).toBeInTheDocument();
   });
 

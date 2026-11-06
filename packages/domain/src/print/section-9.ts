@@ -1,6 +1,5 @@
-import { formatDateTime } from '../format/datetime.ts';
-import { formatDecimalGroupedPtBr, isNotApplicableNumber, NOT_APPLICABLE_TEXT } from '../parse/pt-br-number.ts';
-import { isUncaptioned, photoItemLine, photoStampFull } from '../photos/gallery.ts';
+import { formatDecimalGroupedPtBr, isNotApplicableNumber, NOT_APPLICABLE_TEXT, printNotApplicable } from '../parse/pt-br-number.ts';
+import { isUncaptioned, photoStampFull } from '../photos/gallery.ts';
 import { photoRefLabel } from '../photos/numbering.ts';
 import type { SnapshotPhoto } from '../photos/order.ts';
 import { notTestedPointText } from '../points/derived.ts';
@@ -29,10 +28,11 @@ import { siteAltitudeValue } from '../relatorio/setup-complete.ts';
 import { SITE_CHECKLIST_LABEL, siteObservationOf, siteResultOf } from '../relatorio/site-checklist.ts';
 import { blockTypeLabel, notTestedReasonText } from '../relatorio/tree.ts';
 import type { SubBlockKey } from '../schemas/block-config.ts';
-import type { BlockRow, NumberValue, UserRow } from '../schemas/entities.ts';
+import type { BlockRow, NumberValue } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { findDefinition, findSeed, getSeed } from '../seed/definitions.ts';
 import type { BlockDefinition, CabineDefinition, ColumnDef, FieldDef, ReportSeed, SiteChecklist, TableDef, TestDef } from '../seed/schema.ts';
+import { withCaptionOrdinals } from './caption-ordinal.ts';
 import { blockRoleOf, groupForPrint, type PrintGroupWarning } from './group-for-print.ts';
 import { documentPhotoOrder, sheetChecklistPrinted, type DocumentPhotoOrder } from './photo-order.ts';
 
@@ -43,11 +43,14 @@ import { documentPhotoOrder, sheetChecklistPrinted, type DocumentPhotoOrder } fr
  * draws: widths, borders, shading, spans, images and page breaks (AD-1/AD-13, AD-15).
  *
  * A sheet prints in FO.SERV-03's order (`imports/extract-fo-serv-03.md` §2): the title bar,
- * the attribution line, the cabine's SE and environment on the cabine's first sheet (the
- * first one `groupForPrint` emits for it), DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS, one
- * block per enabled test (instrument header, criterion line, tables), OBSERVAÇÕES, CONCLUSÃO
- * and then (Story 20.6) one photo block with every photo of the sheet: the plate's, the
- * checklist items' (each with its item line) and the others. A switched-off sub-block is
+ * the cabine's SE and environment on the cabine's first sheet (the first one `groupForPrint`
+ * emits for it), DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS, one block per enabled test
+ * (instrument header, tables), OBSERVAÇÕES, CONCLUSÃO and then (Story 20.6) one photo block
+ * with every photo of the sheet: the plate's, the checklist items' and the others. Story 22.2
+ * (Bruno, 2026-11-06, "Remover as quatro"): the attribution line, the "CRITÉRIO:" line, the
+ * criteria line under CONCLUSÃO and a photo's item line no longer print (the screen still
+ * shows them); the criterion prints in the ACEITÁVEL cell of the instrument header. A
+ * switched-off sub-block is
  * omitted; the four uncaptured insulation columns are grid columns and print "-". A Não
  * ensaiada sheet prints its plate, a reason band and then its photo block (Story 17.1: every
  * numbered photo of a placed sheet prints somewhere). Story 20.5: DADOS DO EQUIPAMENTO,
@@ -58,11 +61,23 @@ import { documentPhotoOrder, sheetChecklistPrinted, type DocumentPhotoOrder } fr
  * Story 14.5: a type with a configuration prints it as a CONFIGURAÇÃO table after DADOS DO
  * EQUIPAMENTO, and each measurement test switched on prints as one table after the seeded
  * tests: its title, its instrument line where it has a picker, how it was run (the values
- * line), the ACEITÁVEL line (criterion and source), the rows the configuration shows, the
- * lowest-of-column row where its criterion has one, and its grouped values. A test switched
+ * line), the rows the configuration shows, the lowest-of-column row where its criterion has
+ * one, and its grouped values (Story 22.2: the "ACEITÁVEL: … · fonte" line is gone). A test switched
  * off prints nothing, as a disabled sub-block does, and (2026-10-14, Bruno) so does one its
  * own value says was not run (E5 "Não realizado"). An out-of-criterion cell prints as any
  * other, the plain value with no mark, the seeded tables' convention.
+ *
+ * Story 22.2: a text value typed as an N/A spelling ("na", "N.A.", "n/a") prints "N/A"
+ * (`printNotApplicable`), and a reading table whose VALORES header carries its one unit
+ * prints its cells bare ("VALORES (GΩ)" over "4,9").
+ *
+ * Story 22.3: every table from a sheet's first part to its CONCLUSÃO keeps its rows together
+ * (`keepRows`, or `keepWhole` where Story 20.5 set it), and the joints between parts that
+ * belong together carry `keepWithNext`, so a sheet that fits on its page stays whole and a
+ * taller one breaks only between parts, CONCLUSÃO kept with the part before it. The label and
+ * value pair tables, the cabine tables and the instrument header widen a value column whose
+ * longest word would break (`widenToFit`), and a caption repeated inside one photo block
+ * takes an ordinal (`withCaptionOrdinals`).
  */
 
 // --- the print model ---------------------------------------------------------------------
@@ -104,6 +119,12 @@ export interface PrintTable {
    * taller than a page has to split (then only at a row boundary). Absent on every other table.
    */
   keepWhole?: true;
+  /**
+   * Story 22.3: every row but the last keeps with the next, with no header repeat: set on every
+   * other table of a sheet from its first part to CONCLUSÃO and on a local's tables, so a table
+   * never splits while it fits on a page.
+   */
+  keepRows?: true;
 }
 
 export interface PrintPhoto {
@@ -115,22 +136,21 @@ export interface PrintPhoto {
    * uncaptioned, "Imagem 3: ⟨full stamp⟩." (Story 17.4).
    */
   caption: string;
-  /**
-   * Story 20.6: a sheet checklist item's photo carries its item line under the caption
-   * ("Item 8 · Contatos · NC", `photoItemLine(...).text`), since it no longer prints right
-   * under its table. Absent on every other photo (plate, others, a local's site items).
-   */
-  itemLine?: string;
 }
 
-export type SheetPart = { kind: 'table'; table: PrintTable } | { kind: 'photos'; photos: PrintPhoto[] } | { kind: 'paragraph'; text: string };
+/**
+ * One part of a sheet or of a local. Story 22.3: `keepWithNext` keeps the part's last row (or
+ * its paragraph) and the gap after it with the next part, so the two never part at a page foot.
+ */
+export type SheetPart =
+  | { kind: 'table'; table: PrintTable; keepWithNext?: true }
+  | { kind: 'photos'; photos: PrintPhoto[]; keepWithNext?: true }
+  | { kind: 'paragraph'; text: string; keepWithNext?: true };
 
 export interface PrintSheet {
   blockId: string;
   /** The grey title bar: type, role and TAG ("CHAVE SECCIONADORA DE ENTRADA SEC-C01"). */
   title: string;
-  /** "Concluída por Bruno · 06/09/2026 10:02", "Preenchido por …", or null. */
-  attribution: string | null;
   parts: SheetPart[];
 }
 
@@ -202,13 +222,8 @@ const IA_IP_COLUMNS: ReadonlySet<string> = new Set(['ABSORÇÃO', 'POLARIZAÇÃO
 const MARK = 'X';
 const DASH = '-';
 
-// authored: the prefix of a test's criterion line, "CRITÉRIO: >400 MΩ · aceitável na ficha".
-const CRITERION_PREFIX = 'CRITÉRIO';
 // authored: the reason band of a sheet marked not tested (open question for Bruno).
 const NOT_TESTED_PREFIX = 'NÃO ENSAIADO';
-// authored: the attribution line's verbs, after the Sheet header's ("Concluída por Bruno · 06/09 10:02").
-const CONCLUDED_BY = 'Concluída por';
-const FILLED_BY = 'Preenchido por';
 // authored: the role words of a sheet title ("CHAVE SECCIONADORA DE ENTRADA SEC-C01"), and
 // the title of a cabos de saída sheet with role alimentação ("CABOS DE ALIMENTAÇÃO CB-TR1").
 const ROLE_WORDS = { entrada: 'de entrada', saida: 'de saída', alimentacao: 'de alimentação' } as const;
@@ -251,7 +266,8 @@ function withUnit(text: string, unit: string | null | undefined): string {
  * A stored field value as the document prints it: numbers pt-BR with their unit (the stored
  * one, else the field's), a voltage class with " kV", a date dd/mm/aaaa (a date typed in
  * another shape as stored), text as typed; "-" when empty; "N/A" with no unit for the
- * `not_applicable` state (Story 16.4). Never uppercased.
+ * `not_applicable` state (Story 16.4) and (Story 22.2) for a value typed as an N/A spelling
+ * (`printNotApplicable`). Never uppercased.
  */
 function storedValueText(field: Pick<FieldDef, 'kind' | 'unit'>, value: unknown): string {
   if (value === null || value === undefined) return DASH;
@@ -261,15 +277,16 @@ function storedValueText(field: Pick<FieldDef, 'kind' | 'unit'>, value: unknown)
     if (typeof number.raw !== 'string') return DASH;
     const text = fieldValueText(field, { raw: number.raw, state: number.state });
     if (text.trim() === '') return DASH;
-    return withUnit(text, typeof number.unit === 'string' ? number.unit : (field.unit ?? null));
+    const printed = printNotApplicable(text);
+    return printed === NOT_APPLICABLE_TEXT ? printed : withUnit(text, typeof number.unit === 'string' ? number.unit : (field.unit ?? null));
   }
   if (typeof value === 'string') {
     if (value.trim() === '') return DASH;
     if (field.kind === 'voltage_class') return wordRegistryRowText({ kind: 'voltage_class', name: value } as WordRow).primary;
     const text = fieldValueText(field, value);
-    return text === '' ? value : text;
+    return printNotApplicable(text === '' ? value : text);
   }
-  return fieldValueText(field, value);
+  return printNotApplicable(fieldValueText(field, value));
 }
 
 // --- the context of one render -----------------------------------------------------------------
@@ -278,7 +295,6 @@ interface Context {
   snapshot: RelatorioSnapshot;
   blocks: ReadonlyMap<string, BlockRow>;
   tags: ReadonlyMap<string, string>;
-  actors: ReadonlyMap<string, UserRow>;
   /** Every live photo's number, in document order (`numberPhotos`'s map). */
   numbers: ReadonlyMap<string, number>;
   /** Stories 17.1 and 17.4: the one walk the numbers come from; its groups are what prints where. */
@@ -291,7 +307,6 @@ function contextOf(snapshot: RelatorioSnapshot): Context {
     snapshot,
     blocks: new Map(snapshot.blocks.map((block) => [block.id, block])),
     tags: new Map(snapshot.equipment.map((row) => [row.id, row.tag])),
-    actors: new Map(snapshot.actors.map((user) => [user.id, user])),
     numbers: new Map(photos.order.map((photo, i) => [photo.id, i + 1])),
     photos,
   };
@@ -311,7 +326,7 @@ function sheetSeedOf(seedVersion: string): { cabine: CabineDefinition; checklist
   }
 }
 
-// --- the title and the attribution -------------------------------------------------------------
+// --- the title ---------------------------------------------------------------------------------
 
 /** Type, role and TAG: "CHAVE SECCIONADORA DE ENTRADA SEC-C01", "CABOS DE ALIMENTAÇÃO CB-TR1"; the TAG as stored. */
 function sheetTitle(block: BlockRow, tag: string): string {
@@ -326,20 +341,6 @@ function sheetTitle(block: BlockRow, tag: string): string {
   return trimmed === '' ? printed : `${printed} ${trimmed}`;
 }
 
-function attributed(verb: string, actor: UserRow | undefined, at: string): string | null {
-  const name = actor?.name.trim() ?? '';
-  const when = formatDateTime(at);
-  return name === '' || when === '' ? null : `${verb} ${name}${SEP}${when}`;
-}
-
-/** Who concluded the sheet and when, else who last filled it; null for an unknown actor or no timestamp. */
-function attributionOf(block: BlockRow, actors: ReadonlyMap<string, UserRow>): string | null {
-  const concluded = block.concluded_by === null ? null : attributed(CONCLUDED_BY, actors.get(block.concluded_by.actor_id), block.concluded_by.at);
-  if (concluded !== null) return concluded;
-  if (block.last_modified_by === null || block.last_modified_at === null) return null;
-  return attributed(FILLED_BY, actors.get(block.last_modified_by), block.last_modified_at);
-}
-
 // --- the cabine block -------------------------------------------------------------------------
 
 /**
@@ -349,17 +350,22 @@ function attributionOf(block: BlockRow, actors: ReadonlyMap<string, UserRow>): s
  * one exists, else the setup's prints ("N/A" when `site_altitude_na`, Story 17.6).
  */
 function cabineParts(cabine: CabineLocation, definition: CabineDefinition, siteAltitude: NumberValue | null): SheetPart[] {
-  const group = (title: string, fields: readonly FieldDef[], values: Record<string, unknown>): SheetPart =>
-    table(
-      fields.map(() => 1),
-      [bandRow(title, fields.length), headerRow(fields.map((field) => printLabel(field.label))), { cells: fields.map((field) => valueCell(storedValueText(field, values[field.key]))) }],
-    );
+  // Story 22.3: equal weights widened where a word would break (every column holds values, its header label counting as a word),
+  // each table kept with the part after it.
+  const group = (title: string, fields: readonly FieldDef[], values: Record<string, unknown>): SheetPart => {
+    const rows = [bandRow(title, fields.length), headerRow(fields.map((field) => printLabel(field.label))), { cells: fields.map((field) => valueCell(storedValueText(field, values[field.key]))) }];
+    return { ...table(widenToFit(fields.map(() => 1), rows, fields.map((_, col) => col)), rows), keepWithNext: true };
+  };
   const env: Record<string, unknown> = { ...(cabine.env as Record<string, unknown>) };
   if ((env.altitude_m === null || env.altitude_m === undefined) && siteAltitude !== null) env.altitude_m = siteAltitude;
   return [group(CABINE_SE_TITLE, definition.se, cabine.se as Record<string, unknown>), group(CABINE_ENV_TITLE, definition.env, env)];
 }
 
 // --- DADOS DO EQUIPAMENTO ---------------------------------------------------------------------
+
+/** The label and value pair tables' base weights (three pairs to a row) and their value columns (Story 22.3). */
+const PAIR_WEIGHTS: readonly number[] = [1.6, 1.7, 1.6, 1.7, 1.6, 1.7];
+const PAIR_VALUE_COLUMNS: readonly number[] = [1, 3, 5];
 
 /** Three label/value pairs per row. The TAG field with no cell of its own prints the block's TAG (E12-A2). */
 function nameplatePart(ctx: Context, block: BlockRow, definition: BlockDefinition): SheetPart {
@@ -377,7 +383,7 @@ function nameplatePart(ctx: Context, block: BlockRow, definition: BlockDefinitio
     while (cells.length < 6) cells.push({ text: '', align: 'left' });
     rows.push({ cells });
   }
-  return wholeTable([1.6, 1.7, 1.6, 1.7, 1.6, 1.7], rows);
+  return wholeTable(widenToFit(PAIR_WEIGHTS, rows, PAIR_VALUE_COLUMNS), rows);
 }
 
 // --- VERIFICAÇÕES GERAIS ------------------------------------------------------------------------
@@ -450,11 +456,11 @@ function siteChecklistPart(cabine: CabineLocation, list: SiteChecklist, columns:
 function localPartsOf(ctx: Context, cabine: CabineLocation, seed: ReportSeed, list: SiteChecklist): SheetPart[] {
   // The walk kept only this local's photos on an item of `list` (the seed's site list).
   const photos = printPhotos(ctx, ctx.photos.locals.get(cabine.id) ?? []);
-  return [
+  return keptTogether([
     ...cabineParts(cabine, seed.cabine, siteAltitudeValue(ctx.snapshot.relatorio.setup)),
     siteChecklistPart(cabine, list, seed.checklist_columns),
     ...photosPart(photos),
-  ];
+  ]);
 }
 
 // --- one test ----------------------------------------------------------------------------------
@@ -478,9 +484,15 @@ function instrumentPart(block: BlockRow, test: TestDef, evaluation: TestEvaluati
     ...(parameter === null ? [] : [text(header?.test_parameter)]),
     acceptable,
   ];
+  const rows = [bandRow(printLabel(test.label), labels.length), headerRow(labels), { cells: values.map(valueCell) }];
+  // Story 22.3: equal weights widened where a word would break, the header labels counting as words.
   return table(
-    labels.map(() => 1),
-    [bandRow(printLabel(test.label), labels.length), headerRow(labels), { cells: values.map(valueCell) }],
+    widenToFit(
+      labels.map(() => 1),
+      rows,
+      labels.map((_, col) => col),
+    ),
+    rows,
   );
 }
 
@@ -490,15 +502,43 @@ function bandValueText(value: number): string {
   return value.toFixed(decimals).replace('.', ',');
 }
 
-/** The measured units under a VALORES header: one prints "VALORES (GΩ)", several "VALORES"; none falls back to the seed's column unit. */
-function valoresHeader(cols: readonly number[], evaluated: EvaluatedTable, columns: readonly ColumnDef[]): string {
+/** The one unit a VALORES header over these columns carries: the measured cells' one unit, else the seed's; null when they differ. */
+function valoresUnit(cols: readonly number[], evaluated: EvaluatedTable, columns: readonly ColumnDef[]): string | null {
   const measured = new Set<string>();
   for (const row of evaluated.rows) {
     for (const cell of row.cells) if (cols.includes(cell.address.col) && cell.state === 'measured' && cell.unit !== null) measured.add(cell.unit);
   }
   const seeded = new Set(cols.map((col) => columns[col]?.unit ?? null).filter((unit): unit is string => unit !== null));
   const units = measured.size > 0 ? measured : seeded;
-  return units.size === 1 ? `${VALORES} (${[...units][0]})` : VALORES;
+  return units.size === 1 ? [...units][0]! : null;
+}
+
+/** The measured units under a VALORES header: one prints "VALORES (GΩ)", several "VALORES"; none falls back to the seed's column unit. */
+function valoresHeader(cols: readonly number[], evaluated: EvaluatedTable, columns: readonly ColumnDef[]): string {
+  const unit = valoresUnit(cols, evaluated, columns);
+  return unit === null ? VALORES : `${VALORES} (${unit})`;
+}
+
+/**
+ * Story 22.2: the unit each value column's printed header carries, so its cells print bare: a
+ * column titled VALORES, or one under a VALORES group (every column of the group shares the
+ * group header's unit), when that header names one unit; null for every other column.
+ */
+function headerUnits(definition: TableDef, evaluated: EvaluatedTable): (string | null)[] {
+  const values = definition.value_columns;
+  return values.map((column, col) => {
+    if (column.label === VALORES) return valoresUnit([col], evaluated, values);
+    if (column.group !== VALORES) return null;
+    const cols = values.flatMap((other, c) => (other.group === VALORES && groupRun(values, c, col) ? [c] : []));
+    return valoresUnit(cols, evaluated, values);
+  });
+}
+
+/** True when columns `a` and `b` sit in one contiguous run of the same group (the run `measurementHeader` spans). */
+function groupRun(values: readonly ColumnDef[], a: number, b: number): boolean {
+  const [from, to] = a <= b ? [a, b] : [b, a];
+  for (let c = from; c <= to; c++) if (values[c]!.group !== values[a]!.group) return false;
+  return true;
 }
 
 /** One header row, or two where the seed groups its columns (PONTO DE ENSAIO/CONEXÃO over LINHA · TERRA · GUARD). */
@@ -523,11 +563,15 @@ function measurementHeader(definition: TableDef, evaluated: EvaluatedTable): Pri
   return [{ header: true, cells: top }, bottom];
 }
 
-/** A typed reading: the number with its own unit, "-" when not measured or empty; an untyped ratio input reads the nameplate. */
-function readingText(cell: EvaluatedCell, column: ColumnDef): string {
-  if (cell.state === 'measured') return withUnit(cell.displayText, cell.unit);
+/**
+ * A typed reading: the number with its own unit, "-" when not measured or empty; an untyped
+ * ratio input reads the nameplate. Story 22.2: the number alone when its header carries that unit.
+ */
+function readingText(cell: EvaluatedCell, column: ColumnDef, headerUnit: string | null): string {
+  const unitOf = (unit: string | null | undefined) => (headerUnit !== null && unit === headerUnit ? null : unit);
+  if (cell.state === 'measured') return withUnit(cell.displayText, unitOf(cell.unit));
   if (cell.state === 'invalid') return cell.raw.trim() === '' ? DASH : cell.raw;
-  if (cell.state === 'empty' && cell.fallback !== null) return withUnit(cell.fallback.text, column.unit);
+  if (cell.state === 'empty' && cell.fallback !== null) return withUnit(cell.fallback.text, unitOf(column.unit));
   return DASH;
 }
 
@@ -541,12 +585,21 @@ function printColumnText(block: BlockRow, testKey: TestKey, row: number, col: nu
   return withUnit(formatDecimalGroupedPtBr(number.raw), typeof number.unit === 'string' ? number.unit : null);
 }
 
-function valueText(block: BlockRow, testKey: TestKey, row: EvaluatedRow, evaluated: EvaluatedTable, col: number, column: ColumnDef, enabled: ReadonlySet<SubBlockKey>): string {
+function valueText(
+  block: BlockRow,
+  testKey: TestKey,
+  row: EvaluatedRow,
+  evaluated: EvaluatedTable,
+  col: number,
+  column: ColumnDef,
+  enabled: ReadonlySet<SubBlockKey>,
+  headerUnit: string | null,
+): string {
   switch (column.role) {
     case 'capture':
     case 'input': {
       const cell = row.cells.find((candidate) => candidate.address.col === col);
-      return cell === undefined ? DASH : readingText(cell, column);
+      return cell === undefined ? DASH : readingText(cell, column, headerUnit);
     }
     case 'derived':
       return evaluated.columns.find((visible) => visible.col === col)?.derivedKind === 'condicao' ? (row.condicao ?? DASH) : (row.calculated?.text ?? DASH);
@@ -613,19 +666,86 @@ function fittedColumns(rows: readonly PrintRow[], count: number): number[] {
   return minimum.map((em, col) => em + (room * (preferred[col]! - em)) / asked);
 }
 
+/** Each column's longest word in ems, over the cells that sit in it alone (a cell spanning several columns is left out). */
+function longestWords(rows: readonly PrintRow[], count: number): number[] {
+  const longest = new Array<number>(count).fill(0);
+  for (const row of rows) {
+    let col = 0;
+    for (const cell of row.cells) {
+      const span = cell.span ?? 1;
+      if (span === 1 && col < count) longest[col] = Math.max(longest[col]!, ...cell.text.split(/\s+/).map((part) => emWidth(part, cell.bold === true)));
+      col += span;
+    }
+  }
+  return longest;
+}
+
+/**
+ * Story 22.3 (FR-68): the base weights of a fixed-shape table (the label and value pairs, the
+ * cabine tables, the instrument header), widened only where a word would break inside itself.
+ * A value column whose longest word (its margins included) is wider than its share of the
+ * page takes the difference from the other value columns' slack, never below their own
+ * longest word; label columns keep their weights. The base weights come back unchanged when
+ * every word fits, and as fitted as the slack allows when it falls short.
+ */
+export function widenToFit(base: readonly number[], rows: readonly PrintRow[], valueColumns: readonly number[]): number[] {
+  const total = base.reduce((sum, weight) => sum + weight, 0);
+  if (total <= 0) return [...base];
+  const share = base.map((weight) => (weight / total) * CONTENT_WIDTH_EM);
+  const need = longestWords(rows, base.length).map((em) => em + CELL_ALLOWANCE_EM);
+  const values = [...new Set(valueColumns)].filter((col) => col >= 0 && col < base.length);
+  let wanted = 0;
+  let spare = 0;
+  for (const col of values) {
+    const gap = need[col]! - share[col]!;
+    if (gap > 0) wanted += gap;
+    else spare -= gap;
+  }
+  const moved = Math.min(wanted, spare);
+  if (moved <= 0) return [...base];
+  const widths = [...share];
+  for (const col of values) {
+    const gap = need[col]! - share[col]!;
+    widths[col] = gap > 0 ? share[col]! + (moved * gap) / wanted : share[col]! + (moved * gap) / spare;
+  }
+  return widths.map((em) => (em * total) / CONTENT_WIDTH_EM);
+}
+
+/**
+ * Story 22.3: the words of a printed table wider than their column (margins included), as
+ * `{ col, word }`; empty when every word fits. The measure `widenToFit` sizes by, for tests and checks.
+ */
+export function wordsWiderThanColumns(printed: Pick<PrintTable, 'columns' | 'rows'>): { col: number; word: string }[] {
+  const total = printed.columns.reduce((sum, weight) => sum + weight, 0);
+  const out: { col: number; word: string }[] = [];
+  for (const row of printed.rows) {
+    let col = 0;
+    for (const cell of row.cells) {
+      const span = cell.span ?? 1;
+      if (span === 1 && col < printed.columns.length) {
+        const width = (printed.columns[col]! / total) * CONTENT_WIDTH_EM;
+        for (const word of cell.text.split(/\s+/)) if (emWidth(word, cell.bold === true) + CELL_ALLOWANCE_EM > width + 1e-9) out.push({ col, word });
+      }
+      col += span;
+    }
+  }
+  return out;
+}
+
 /** One measurement table: its title band, its header, then one row per connection with every value column. */
 function measurementTable(block: BlockRow, testKey: TestKey, definition: TableDef, evaluated: EvaluatedTable, enabled: ReadonlySet<SubBlockKey>): PrintTable {
   const width = definition.connection_columns.length + definition.value_columns.length;
   const rows: PrintRow[] = [];
   if (definition.title !== undefined) rows.push(bandRow(printLabel(definition.title), width));
   rows.push(...measurementHeader(definition, evaluated));
+  const units = headerUnits(definition, evaluated);
   definition.rows.forEach((connection, r) => {
     const row = evaluated.rows[r]!;
     rows.push({
       cells: [
         // F42: a typed connection the seed leaves blank prints the evaluated one (the plate's TAP ATUAL), "-" when none.
         ...connection.map((text, i) => valueCell(definition.connection_typed && text.trim() === '' ? row.connection[i] || DASH : printLabel(text))),
-        ...definition.value_columns.map((column, col) => valueCell(valueText(block, testKey, row, evaluated, col, column, enabled))),
+        ...definition.value_columns.map((column, col) => valueCell(valueText(block, testKey, row, evaluated, col, column, enabled, units[col] ?? null))),
       ],
     });
   });
@@ -652,11 +772,9 @@ function testParts(block: BlockRow, definition: BlockDefinition, evaluation: Tes
   const [first, second] = test.tables;
   const paired =
     tables.length === 2 && first !== undefined && second !== undefined && simpleTitled(first) && simpleTitled(second) && first.rows.length === second.rows.length && tables[0]!.columns.length === tables[1]!.columns.length;
-  return [
-    instrumentPart(block, test, evaluation),
-    { kind: 'paragraph', text: `${CRITERION_PREFIX}: ${evaluation.criterionText}${SEP}${evaluation.sourceName}` },
-    ...(paired ? [sideBySide(tables[0]!, tables[1]!)] : tables).map((printed): SheetPart => ({ kind: 'table', table: printed })),
-  ];
+  // Story 22.3: the instrument header and every table but the last keep with the next, so a test never parts from its header.
+  const printed = (paired ? [sideBySide(tables[0]!, tables[1]!)] : tables).map((one, i, all): SheetPart => (i < all.length - 1 ? { kind: 'table', table: one, keepWithNext: true } : { kind: 'table', table: one }));
+  return [{ ...instrumentPart(block, test, evaluation), keepWithNext: true }, ...printed];
 }
 
 // --- CONFIGURAÇÃO and the measurement tests (Story 14.5) ----------------------------------------
@@ -672,7 +790,7 @@ function pairsTable(title: string, pairs: readonly { label: string; value: strin
     while (cells.length < 6) cells.push({ text: '', align: 'left' });
     rows.push({ cells });
   }
-  return table([1.6, 1.7, 1.6, 1.7, 1.6, 1.7], rows);
+  return table(widenToFit(PAIR_WEIGHTS, rows, PAIR_VALUE_COLUMNS), rows);
 }
 
 /** The block's configuration in force (the stored options, else the defaults), or null for a type with none. */
@@ -681,7 +799,7 @@ function configPart(block: BlockRow, definition: BlockDefinition): SheetPart | n
   if (fields.length === 0) return null;
   return pairsTable(
     CONFIG_TITLE,
-    fields.map((field) => ({ label: printLabel(field.label), value: printLabel(field.valueLabel) })),
+    fields.map((field) => ({ label: printLabel(field.label), value: printNotApplicable(printLabel(field.valueLabel)) })),
   );
 }
 
@@ -738,7 +856,6 @@ function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation): 
   if (test.valuesLine !== null) {
     rows.push(lineRow(test.valuesLine.parts.map((part) => `${printLabel(part.label)}: ${part.kind === 'choice' ? printLabel(part.text) : part.text}`).join(SEP), width));
   }
-  rows.push(lineRow(`${ACCEPTABLE_LABEL}: ${test.criterionText}${SEP}${test.sourceName}`, width));
   const units = test.columns.map((column) => sharedUnit(test, column.col));
   rows.push(headerRow([printLabel(test.rowHeader), ...test.columns.map((column, c) => (units[c] === null ? printLabel(column.label) : `${printLabel(column.label)} (${units[c]})`))]));
   for (const row of test.rows) {
@@ -776,9 +893,10 @@ function observationsPart(block: BlockRow): SheetPart | null {
 }
 
 /**
- * The result pair with an X in the chosen boxes, and the confirmed conclusion text under it
- * with its criteria line: an edited text always, a confirmed one while its basis is still
- * the current one (AR-11); never an unconfirmed or stale text, nor one of an incomplete pair.
+ * The result pair with an X in the chosen boxes, and the confirmed conclusion text under it:
+ * an edited text always, a confirmed one while its basis is still the current one (AR-11);
+ * never an unconfirmed or stale text, nor one of an incomplete pair. Story 22.2: the criteria
+ * line no longer prints under it (the screen still shows it).
  */
 function conclusionParts(block: BlockRow, definition: BlockDefinition, tag: string): SheetPart[] {
   const chosen = new Set<string>([conclusionResultOf(block), conclusionRestrictionOf(block)].filter((value): value is ConclusionResult | ConclusionRestriction => value !== null));
@@ -791,9 +909,7 @@ function conclusionParts(block: BlockRow, definition: BlockDefinition, tag: stri
     { cells: CONCLUSION_BOXES.flatMap(({ value, label }) => [{ text: printLabel(label), bold: true, align: 'left' as const }, valueCell(chosen.has(value) ? MARK : '')]) },
   ];
   if (text !== null) rows.push({ cells: [{ text: text.trim(), span: CONCLUSION_BOXES.length * 2, align: 'left' }] });
-  const parts: SheetPart[] = [table([1.4, 0.45, 1.5, 0.45, 2.1, 0.45, 4.55, 0.45], rows)];
-  if (text !== null && composed.criteriaLine !== '') parts.push({ kind: 'paragraph', text: composed.criteriaLine });
-  return parts;
+  return [table([1.4, 0.45, 1.5, 0.45, 2.1, 0.45, 4.55, 0.45], rows)];
 }
 
 // --- the reason band --------------------------------------------------------------------------
@@ -821,29 +937,32 @@ function photoLine(n: number, caption: string | null): string {
 /**
  * Photos as printed: "Imagem N: ⟨legenda⟩." or "Imagem N.". Story 17.4: a "Ler visor" display
  * shot is numbered like any photo; uncaptioned, its line carries its full stamp
- * ("Imagem 7: 06/09/2026 14:32 · …."), never the bare "Imagem 7.".
+ * ("Imagem 7: 06/09/2026 14:32 · …."), never the bare "Imagem 7.". Story 22.2: no item line
+ * under a checklist item's photo. Story 22.3: a caption repeated inside the block takes an
+ * ordinal ("… TR-1 (2)."), the numbers unchanged (`withCaptionOrdinals`).
  */
-function printPhotos(ctx: Context, photos: readonly SnapshotPhoto[], withItemLine = false): PrintPhoto[] {
-  return photos.flatMap((photo) => {
+function printPhotos(ctx: Context, photos: readonly SnapshotPhoto[]): PrintPhoto[] {
+  const numbered = photos.flatMap((photo) => {
     const number = ctx.numbers.get(photo.id);
-    if (number === undefined) return [];
-    const caption = photo.reading_kind === 'display' && isUncaptioned(photo.caption) ? photoStampFull(photo) : photo.caption;
-    const printed: PrintPhoto = { fileId: photo.id, number, caption: photoLine(number, caption) };
-    // Story 20.6: the item line section 7 prints (`print/section-7.ts`), from the same kernel function.
-    const itemLine = withItemLine ? (photoItemLine(photo, ctx.snapshot)?.text ?? null) : null;
-    return [itemLine === null ? printed : { ...printed, itemLine }];
+    return number === undefined ? [] : [{ photo, number }];
+  });
+  // An uncaptioned display shot prints its stamp, which takes no ordinal.
+  const captions = withCaptionOrdinals(numbered.map(({ photo }) => photo.caption));
+  return numbered.map(({ photo, number }, i) => {
+    const caption = photo.reading_kind === 'display' && isUncaptioned(photo.caption) ? photoStampFull(photo) : (captions[i] ?? null);
+    return { fileId: photo.id, number, caption: photoLine(number, caption) };
   });
 }
 
 /**
- * The sheet's photos by `documentPhotoOrder`'s groups: the plate's, a checklist row's (each
- * with its item line, Story 20.6) and the rest, a display shot among them in capture order.
- * Story 20.6: the three groups print together, in that order, as the sheet's last part.
+ * The sheet's photos by `documentPhotoOrder`'s groups: the plate's, a checklist row's and the
+ * rest, a display shot among them in capture order. Story 20.6: the three groups print
+ * together, in that order, as the sheet's last part, one block (Story 22.3: one ordinal run).
  */
 function sheetPhotos(ctx: Context, blockId: string): PrintPhoto[] {
   const groups = ctx.photos.sheets.get(blockId);
   if (groups === undefined) return [];
-  return [...printPhotos(ctx, groups.plate), ...printPhotos(ctx, groups.items, true), ...printPhotos(ctx, groups.other)];
+  return printPhotos(ctx, [...groups.plate, ...groups.items, ...groups.other]);
 }
 
 const photosPart = (photos: PrintPhoto[]): SheetPart[] => (photos.length === 0 ? [] : [{ kind: 'photos', photos }]);
@@ -858,17 +977,19 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   const seed = sheetSeedOf(block.seed_version);
   const enabled = enabledSubBlocksOf(block);
   const parts: SheetPart[] = [];
+  const sheet = (): PrintSheet => ({ blockId, title: sheetTitle(block, tag), parts: keptTogether(parts) });
   if (cabine !== null && seed !== null) parts.push(...cabineParts(cabine, seed.cabine, siteAltitudeValue(ctx.snapshot.relatorio.setup)));
   const nameplate = definition !== null && enabled.has('nameplate') && definition.nameplate.length > 0;
   if (nameplate) parts.push(nameplatePart(ctx, block, definition));
-  const sheet = { blockId, title: sheetTitle(block, tag), attribution: attributionOf(block, ctx.actors), parts };
   if (block.not_tested !== null) {
+    // Story 22.3: the plate keeps with the reason band under it.
+    if (nameplate) parts.push({ ...parts.pop()!, keepWithNext: true });
     // Stories 17.1 and 17.4: its photos print under it, in the walk's order (they no longer
     // print in section 7). Story 20.6: all of them after the reason band, plate first.
     parts.push(notTestedPart(block), ...photosPart(sheetPhotos(ctx, blockId)));
-    return sheet;
+    return sheet();
   }
-  if (definition === null) return sheet;
+  if (definition === null) return sheet();
 
   const config = configPart(block, definition);
   if (config !== null) parts.push(config);
@@ -879,10 +1000,38 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   parts.push(...measurementParts(block, definition));
   const observations = enabled.has('observations') ? observationsPart(block) : null;
   if (observations !== null) parts.push(observations);
-  if (enabled.has('conclusion')) parts.push(...conclusionParts(block, definition, tag));
+  if (enabled.has('conclusion')) {
+    // Story 22.3: CONCLUSÃO never sits alone at the top of a page; it keeps with the part before it.
+    if (parts.length > 0) parts.push({ ...parts.pop()!, keepWithNext: true });
+    parts.push(...conclusionParts(block, definition, tag));
+  }
   // Story 20.6 (FR-68): one photo block closes the ficha, so no photo sits between its tables.
   parts.push(...photosPart(sheetPhotos(ctx, blockId)));
-  return sheet;
+  return sheet();
+}
+
+/**
+ * Story 22.3 (FR-68): a sheet's or a local's parts as they keep together on the page. Every
+ * table before the photo block keeps its rows together (`keepRows`; a `keepWhole` table already
+ * does), and a part keeps with the next only where one follows that is not the photo block,
+ * which stays free to break (Story 20.6). Every sheet starts a page, so a sheet that fits on
+ * it prints whole and a taller one breaks only at a joint left free: between two parts.
+ */
+function keptTogether(parts: readonly SheetPart[]): SheetPart[] {
+  return parts.map((part, i): SheetPart => {
+    const next = parts[i + 1];
+    const keep = part.keepWithNext === true && next !== undefined && next.kind !== 'photos';
+    switch (part.kind) {
+      case 'table': {
+        const kept: PrintTable = part.table.keepWhole === true ? part.table : { ...part.table, keepRows: true };
+        return keep ? { kind: 'table', table: kept, keepWithNext: true } : { kind: 'table', table: kept };
+      }
+      case 'photos':
+        return { kind: 'photos', photos: part.photos };
+      case 'paragraph':
+        return keep ? { kind: 'paragraph', text: part.text, keepWithNext: true } : { kind: 'paragraph', text: part.text };
+    }
+  });
 }
 
 // --- section 9 ------------------------------------------------------------------------------------

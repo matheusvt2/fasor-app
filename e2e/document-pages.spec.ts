@@ -164,9 +164,14 @@ test('@p0 20.3/20.5/20.6-E2E-001 a new relatório prints the tests before the po
   const ncPhoto = photos.find((photo) => photo.item_key === NC_ITEM)!;
   expect(ncPhoto).toBeDefined();
 
-  // A point citing the NC photo, written on the office device.
+  // A point citing the NC photo, written on the office device; Story 22.2: three insulation
+  // readings of the contato aberto table in one unit, so its VALORES header carries the unit.
   const pointId = newId();
+  const reading = (row: number, raw: string) => officeDraft(account, { relatorioId }, `sheet/${disjuntor.id}/test/isolacao/cell/${row}/0`, { raw, unit: 'GΩ', state: 'measured' });
   await pushDrafts(page, database, [
+    reading(0, '4.9'),
+    reading(1, '3'),
+    reading(2, '2'),
     officeDraft(
       account,
       { relatorioId },
@@ -234,18 +239,35 @@ test('@p0 20.3/20.5/20.6-E2E-001 a new relatório prints the tests before the po
   expect(span[bandAt]!, 'the checklist\'s last row on the band\'s page').toContain(lastItem);
   expect(span[0]!).toContain('DADOS DO EQUIPAMENTO');
 
-  // 20.6: the disjuntor's photos together after its CONCLUSÃO: plate, the NC photo with its item line, the two test photos.
+  // 20.6: the disjuntor's photos together after its CONCLUSÃO: plate, the NC photo, the two test photos.
   const block = span.flat();
   const conclusion = block.lastIndexOf('CONCLUSÃO');
   const imageAt = block.flatMap((text, i) => (/^Imagem \d+[.:]/.test(text) ? [i] : []));
   expect(imageAt).toHaveLength(4);
   expect(imageAt.every((at) => at > conclusion)).toBe(true);
   expect(imageAt.map((at) => Number(/^Imagem (\d+)/.exec(block[at]!)![1]))).toEqual([1, 2, 3, 4]);
-  const itemLine = block.findIndex((text) => /^Item 8 · .+ · NC$/.test(text));
-  expect(itemLine).toBeGreaterThan(imageAt[1]!);
-  expect(itemLine).toBeLessThan(imageAt[2]!);
+  // Story 22.2: no item line under the NC photo any more (the screen still shows it).
+  expect(block.some((text) => /^Item \d+ · .+ · NC$/.test(text))).toBe(false);
   // No photo line anywhere else before the points (section 7 holds none, the other fichas none).
   expect(pages.slice(0, pointsPage).flat().filter((text) => /^Imagem \d+[.:]/.test(text))).toHaveLength(4);
   // The point cites the NC photo by the number printed under it.
   expect(pages.slice(pointsPage).flat().join(' ')).toContain('Contatos com desgaste, conforme Imagem 2.');
+
+  // Story 22.2, DOCX: section 9 prints no attribution, no "CRITÉRIO:" line, no criteria line and
+  // no item line; the ACEITÁVEL header cell still prints the criterion.
+  const body = docx.paragraphs;
+  expect(body.filter((text) => /^(Concluída por|Preenchido por|CRITÉRIO:|Item \d+ · )/.test(text))).toEqual([]);
+  expect(body.some((text) => text.includes(' · critério '))).toBe(false);
+  expect(docx.tables.some((table) => table[1]?.at(-1) === 'ACEITÁVEL' && table[2]?.at(-1) === '>400 MΩ')).toBe(true);
+  // The unit once: "VALORES (GΩ)" over bare cells, never "4,9 GΩ".
+  const insulation = docx.tables.find((table) => table.some((row) => row.includes('4,9')))!;
+  expect(insulation, 'the contato aberto table with its readings').toBeDefined();
+  expect(insulation.some((row) => row.includes('VALORES (GΩ)'))).toBe(true);
+  expect(insulation.flat().filter((cell) => ['4,9', '3', '2'].includes(cell))).toHaveLength(3);
+  expect(docx.tables.flat(2).some((cell) => /\d GΩ$/.test(cell))).toBe(false);
+  // Story 22.3: the two test photos share the sheet's caption: the second reads " (2)" before its period.
+  const captionOf = (n: number) => body.find((text) => text.startsWith(`Imagem ${n}:`)) ?? body.find((text) => text === `Imagem ${n}.`)!;
+  const third = captionOf(3).replace(/^Imagem 3/, '');
+  expect(third).toMatch(/^: .+\.$/);
+  expect(captionOf(4)).toBe(`Imagem 4${third.replace(/\.$/, ' (2).')}`);
 });

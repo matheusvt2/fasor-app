@@ -58,6 +58,12 @@ export interface ImportTarget {
   caption: string | null;
   /** Story 9.5: the reading the photos ask for (an NC row's `nc_obs`); omitted, the kernel's rule chooses. */
   reading?: PhotoCaptureInput['reading'];
+  /**
+   * Story 22.1: the photo's id, minted by the caller (the plate retake spares it by id when it
+   * cancels the older plates, the panel capture finds its row by it). Only for a pick of one
+   * file; with several files every photo gets its own id.
+   */
+  fileId?: string;
 }
 
 export interface ImportDeps {
@@ -87,6 +93,8 @@ async function readHead(file: Blob): Promise<Uint8Array> {
 /** Imports the files one after another, in the order given. */
 export async function importPhotoFiles(files: readonly File[], target: ImportTarget, deps: ImportDeps): Promise<ImportResult> {
   const saved: string[] = [];
+  // Story 22.1: the caller's id goes to the one file of a single pick, never to a batch.
+  const callerId = files.length > 1 ? undefined : target.fileId;
   let skipped = 0;
   for (const file of files) {
     if (!isImportableImage(file)) {
@@ -107,7 +115,7 @@ export async function importPhotoFiles(files: readonly File[], target: ImportTar
       const fallback = Number.isFinite(file.lastModified) && file.lastModified > 0 ? new Date(file.lastModified) : clock;
       const time = capturedAtFrom(exif, toIso(fallback), exif.dateTimeOriginal === null ? -fallback.getTimezoneOffset() : deviceOffset);
       const coords = (deps.withLocation ?? true) && exif.gps !== null ? { ...exif.gps, accuracy_m: null, source: 'exif' as const } : null;
-      const fileId = deps.newId();
+      const fileId = callerId ?? deps.newId();
       await deps.commit({
         companyId: deps.companyId,
         relatorioId: deps.relatorioId,

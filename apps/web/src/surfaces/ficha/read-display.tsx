@@ -59,6 +59,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { useAiFeatures } from '../../state/ai-features.tsx';
+import { AttachFileAction } from './attach-file.tsx';
 import { useServerReachable } from '../../state/sync.tsx';
 import { trackInputRefused } from '../../telemetry/hooks.ts';
 import { useToast } from '../../state/toast.tsx';
@@ -329,6 +330,12 @@ export function QueuedBanner({ entry, tile, retake = null }: { entry: DisplayQue
                 }
           }
           retakeOpening={camera.opening}
+          // Story 22.1: a display file of the same target and caption, beside the retake.
+          attach={
+            retake === null || retakePhoto === null || !canRetry ? null : (
+              <AttachFileAction relatorioId={retake.relatorioId} target={() => retakeTarget.current ?? { blockId: null, itemKey: null, caption: null }} />
+            )
+          }
         />
       );
     }
@@ -626,6 +633,11 @@ export function ReadDisplayButton({
     opener,
     { shotTarget, shotHint: (shot) => displayBurstHintText(displayBurstStop(stops, start.current, shot)), doneLabel: t.readDisplayDone },
   );
+  // Story 22.1: an attached file is the burst's first shot: the first row of this table no display photo targets yet.
+  const attachTarget = (): CaptureTarget => {
+    const stop = displayBurstStop(stops, displayBurstStart(stops, photosOf(snapshot), block.id, testKey, tableKey), 0);
+    return stop === null ? targetFor(testKey) : targetOf(stop);
+  };
   return (
     <>
       <AriaButton
@@ -641,6 +653,8 @@ export function ReadDisplayButton({
         </svg>
         {t.readDisplay}
       </AriaButton>
+      {/* Story 22.1: one display file, read into the cell the burst's first shot would read. */}
+      <AttachFileAction relatorioId={api.relatorioId} target={attachTarget} />
       {camera.denied ? (
         <p className="camera-denied" id={deniedId} role="status">
           {copy.photos.denied}
@@ -756,6 +770,8 @@ export function EnvReadDisplayButton({ relatorioId, cabineId, target }: { relato
       <span className="btn-reason" id={reasonId}>
         {t.readDisplayReason}
       </span>
+      {/* Story 22.1: a thermo-hygrometer file, read into the cabine's environment as the shot is. */}
+      <AttachFileAction relatorioId={relatorioId} target={shot} />
       {camera.denied ? (
         <p className="camera-denied" id={deniedId} role="status">
           {copy.photos.denied}

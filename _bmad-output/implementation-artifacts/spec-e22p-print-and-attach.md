@@ -2,7 +2,8 @@
 title: 'e22p: Stories 22.1 to 22.3, attach a photo file to a reading and a cleaner printed ficha'
 type: 'feature'
 created: '2026-11-06'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: 'b71b9075'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'
@@ -103,6 +104,8 @@ deferred: []
 ## Review Triage Log
 
 ## Verification
+
+**Environment (this host):** the CLI is `podman compose` (never docker), run from the worktree root; the stack `fasor-e22p` is up (postgres, minio, api). Never build images. Never run pnpm, node or Playwright on the host or outside the tools container; never run Playwright at all (the orchestrator runs the e2e specs under the host lock) — write and typecheck the specs only. Restart the api (`podman compose restart api`) after changes under `packages/domain` or `apps/api` before api tests. Redirect long output to `.scratch-e22p/*.log` and read the tail.
 
 **Commands (inside the tools container, `podman compose --profile tools run --rm --user root tools …`):**
 - `pnpm lint` and `pnpm static` -- clean.
