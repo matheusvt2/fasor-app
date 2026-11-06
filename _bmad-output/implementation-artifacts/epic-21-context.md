@@ -125,3 +125,5 @@ Matheus, 2026-11-05: "pode fazer o pr, merge, e deploy, se passar tudo pode faze
 - `test:e2e:full` on 42b05896: 581 of 585 passed, 0 failed, 4 skipped, 0 flaky (2250 s), under the host lock (wait 0 s, load 5.30 at the start, 3.13 at the end, only the main stack up).
 - `grep -n "before the deploy" deferred-work.md` rows: the e21r eval and uncited-diagram rows were closed by the real-set eval and e21a; the others were closed earlier.
 - The deploy goes, on Matheus's word ("pode subir"), from the records merge on top of 42b05896, which changes only documents.
+
+**Second deploy.** Deployed dac14b81 (the code of 42b05896, plus records) on 2026-11-06 at about 14:30 (America/Sao_Paulo), with `infra/bin/deploy`, nohup, no lock wrapper. Health was up and the tag was recorded. Production smoke: 8 of 8 passed (the plate read 12 fields; PDF preview, Revisão 1, DOCX and PDF downloaded). Telemetry: 7 `session_start` with the new app_version, 0 `ux_event_sink_failed`. Test company cleaned up (task e10b27e0). No release tag yet; it waits for Matheus's word.
