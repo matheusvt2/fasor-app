@@ -2,7 +2,7 @@
 title: 'e21a: Epic 21 retrospective reading fixes (E21-A1: R-1, R-2, R-3, R-4, R-9), the P-4 re-read of e21g, the "Dyn I" parse, records'
 type: 'bugfix'
 created: '2026-11-06'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '5673ded5127305b46ac8f58a4f4f157c78a35b56'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -114,6 +114,18 @@ Parser, a single trailing letter "I" or "l" after a connection letter reads as c
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-06 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer (opus); Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 6 findings — high 0, medium 0, low 4, false 2, maybe-false 0
+- findings:
+  - `[low]` `[patch]` VG: the fake provider's `reading vector diagram` line had no test (deleting `logVectorDiagram` in `fake.ts` kept every test green) — `fake.test.ts` case: the drawn Yyn0 fixture writes one line `{ model: 'fake', outcome: 'composed', code: 'Yyn0' }` with no token text, a panel writes none; mutation (call deleted) red, restored green.
+  - `[false]` `[reject]` EC: a printed "Dyn I" is always stored `verify`, never `suggested` — the designed outcome (Design Notes "Dyn I" safety): the digit rule sees no "1" in the cited words, so the printed read keeps its box and asks for a check; it is no longer a diagram read.
+  - `[low]` `[reject]` EC: a group's letters cited beside a stray border glyph that the OCR read as a letter I or l now print that group (`printedVectorGroups` joins cited runs) — the model must itself answer that group and cite the stray token; the result is still `verify` by the digit rule with the cited box; guarding it (same-token only) adds a rule for a case not seen.
+  - `[low]` `[patch]` EC: a tool input that is not an object was logged `absent` — `withVectorDiagram` returns `malformed` for a non-record input (`absent` only for a record without `vector_diagram`); test for null, string, array, undefined.
+  - `[low]` `[patch]` EC: `VectorDiagramFold.facts` said "null when malformed", but the values-not-an-array `malformed` fold carries facts and code — doc corrected; that case pinned by the same test.
+  - `[false]` `[reject]` EC: a stored v9/v10 "Dyn I" or "Yd I" changes its ratio on re-render — only from an assumed Dyn1 with "Ligação não reconhecida" to the printed group, which is the fix Matheus asked for on open v9/v10 relatórios ("Sim", `epic-21-context.md` § Decisions); "Dyn I" keeps the same factor and pairs. Listed in the PR as a behavior change.
+- P-4 self re-read of this loop's patches (edge-case and verification-gap lenses, 2026-11-06): none found. The non-record guard returns `outcome: null` when no group field is set (nothing logged), and the input is passed on unchanged for the contract parse to refuse as before; the fake path always hands a record (`fixture.structuring ?? { values: [] }`); the new fake test and the non-record test each fail with their line removed.
 
 ## Design Notes
 

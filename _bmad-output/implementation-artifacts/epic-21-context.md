@@ -105,3 +105,18 @@ Matheus, 2026-11-05: "pode fazer o pr, merge, e deploy, se passar tudo pode faze
 - Telemetry: 7 `session_start` with the new app_version and 0 `ux_event_sink_failed`.
 - The test company was cleaned up (task 502c6519).
 - Not done: no release tag was pushed and no release page was written (they wait for Matheus's word). The Epic 21 retrospective has not run.
+
+## After the deploy (coordinator and batch e21a, 2026-11-06)
+
+**Release.** v0.6.0 was tagged on 45546f69 and published on 2026-11-06, on Matheus's word ("pode publicar").
+
+**Real-set eval** (coordinator, 2026-11-06; counts only, no plate content):
+- Six real transformer plates were downloaded from the production bucket into the git-ignored `docs/media/real-plates-2026-11-06/`. They are never committed.
+- Prompt `bedrock-structuring-4`, Claude Haiku 4.5, Textract OCR, two identical runs.
+- 5 of 6 read Dyn1, one of them as a diagram read (`verify`, "Lido do diagrama — confira"). 1, a blurred and rotated photo, got no suggestion. 0 were wrong.
+- None of the six is star-star; every real plate is Dyn1.
+- The plate read from the diagram prints "Dyn I", with a letter I in place of the 1. That answers the retrospective's open question (R-7): a printed code the parser did not match, not a drawing-only plate. Batch e21a makes `parseVectorGroup` read a single trailing I or l as clock 1.
+
+**Fix batch e21g** (review notes N-1 to N-3 and two e21r rows, D1 to D7) merged as PR #260 (5673ded5).
+
+**Fix batch e21a** (E21-A1, R-1 to R-4 and R-9 of the retrospective; the P-4 re-read of e21g's three patches; the "Dyn I" parse; these records, E21-A3; the playbook § 10, E21-A4): branch `e21a-reading-fixes`, spec `spec-e21a-reading-fixes.md`, PR opened against main and not merged by the batch.

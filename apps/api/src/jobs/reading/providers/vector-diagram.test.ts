@@ -144,6 +144,12 @@ describe('e21f withVectorDiagram', () => {
     expect(fold({ values: 'x', vector_diagram: yyn0 })).toEqual({ values: 'x' });
   });
 
+  it('e21a review: a tool input that is not an object is malformed, not absent; a record without vector_diagram is absent', () => {
+    for (const input of [null, 'values', [1], undefined]) expect(withVectorDiagram(input, GROUP, tokens)).toMatchObject({ outcome: 'malformed', facts: null, code: null });
+    expect(outcomeOf({ values: [] })).toBe('absent');
+    expect(withVectorDiagram({ values: 'x', vector_diagram: yyn0 }, GROUP, tokens)).toMatchObject({ outcome: 'malformed', code: 'Yyn0', facts: { hv_shape: 'star' } });
+  });
+
   it('the zigzag and neutral letters reach the fold: YNzn11 composes, ZNz0 (no table row) does not', () => {
     const facts = { hv_shape: 'zigzag', hv_neutral: true, lv_shape: 'zigzag', lv_neutral: false, x1_hours: 0, ocr_token_ids: ['t2'] };
     // ZNz0 is not a table row; YNzn11 is.

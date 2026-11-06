@@ -2,10 +2,10 @@ import { createHash } from 'node:crypto';
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import { isPermanentReadingError, PermanentReadingError, ProviderError, ProviderTimeoutError } from './errors.ts';
 import sharp from 'sharp';
-import { digitCoverage, EQUIPMENT_BLOCK_TYPES, getDefinition, inTokenOrder, normalizeReadingValue, readingValueText, SEED_VERSION } from '@app/domain';
+import { digitCoverage, EQUIPMENT_BLOCK_TYPES, getDefinition, inTokenOrder, normalizeReadingValue, PANEL_FIELDS, readingValueText, SEED_VERSION } from '@app/domain';
 import {
   DEFAULT_FIXTURE_BY_BLOCK_TYPE,
   DEFAULT_FIXTURES_DIR,
@@ -76,6 +76,28 @@ describe('8.4-API committed fake fixtures', () => {
       const parsed = fakeReadingFixtureSchema.safeParse({ outcome: 'ok', ocr, structuring });
       expect(parsed.success).toBe(false);
       expect(parsed.error?.issues.map((issue) => issue.message)).toContain('each field key appears at most once');
+    }
+  });
+
+  it('e21a R-3: the fake provider writes one "reading vector diagram" line for a transformer plate, none for a panel', async () => {
+    const lines = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      const drawnSha = '2a69ba085bdcb89951e4a36353ed0d5d542e0e234816a18fa8252514476c3ebd';
+      const ocr = await fakeOcrProvider(DEFAULT_FIXTURES_DIR, drawnSha).read(image);
+      const fields = [...getDefinition('v11', 'cabine_primaria', 'transformador_forca').nameplate];
+      await fakeStructuringProvider(DEFAULT_FIXTURES_DIR, drawnSha).structure({ image, ocr, fields, vectorGroupKey: 'ligacao_secundaria' } as never);
+      const logged = lines.mock.calls.map((call) => String(call[0])).filter((line) => line.includes('reading vector diagram'));
+      expect(logged).toHaveLength(1);
+      expect(JSON.parse(logged[0]!)).toMatchObject({ msg: 'reading vector diagram', model: 'fake', outcome: 'composed', code: 'Yyn0' });
+      for (const token of ocr.tokens) expect(logged[0]!.includes(`"${token.text}"`), token.text).toBe(false);
+
+      lines.mockClear();
+      const panelSha = '36f3fca92f329117f736195e6bcdcae60ba683a82a7d3dcd0aff154b158d3d51';
+      const panelOcr = await fakeOcrProvider(DEFAULT_FIXTURES_DIR, panelSha).read(image);
+      await fakeStructuringProvider(DEFAULT_FIXTURES_DIR, panelSha).structure({ image, ocr: panelOcr, fields: [...PANEL_FIELDS] });
+      expect(lines.mock.calls.filter((call) => String(call[0]).includes('reading vector diagram'))).toEqual([]);
+    } finally {
+      lines.mockRestore();
     }
   });
 

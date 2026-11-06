@@ -105,8 +105,8 @@ export function vectorGroupOf(input: Partial<Pick<PlateStructuringInput, 'fields
 
 /**
  * e21a (R-3): what the fold did. `absent`: the input carries no `vector_diagram`; `null`: it is null;
- * `malformed`: the facts fail their schema (or the input's `values` is not an array, left for the
- * contract parse); `uncomposable`: the facts name no row of the table; `printed_wins`: the model's
+ * `malformed`: the facts fail their schema, or the input is not an object or its `values` is not an
+ * array (left for the contract parse); `uncomposable`: the facts name no row of the table; `printed_wins`: the model's
  * own entry prints its group; `uncited`: none of the ids the facts cite is in the OCR read, so they
  * are ignored and the model's entry stays; `composed`: the composed code is the group's value.
  */
@@ -117,9 +117,12 @@ export interface VectorDiagramFold {
   input: unknown;
   /** Null when the input names no vector-group field: nothing is logged. */
   outcome: VectorDiagramOutcome | null;
-  /** The facts as parsed; null when absent, null or malformed. */
+  /**
+   * The facts as parsed; null when absent, null, the facts malformed or the input not an object. A
+   * `malformed` fold whose input's `values` is not an array still carries the facts and their code.
+   */
   facts: VectorDiagramAnswer | null;
-  /** The code the facts compose; null when they compose none. */
+  /** The code the facts compose; null when they compose none (or were not parsed). */
   code: string | null;
   /** How many distinct ids of the facts the OCR read returned (what the composed value cites). */
   cited: number;
@@ -146,7 +149,9 @@ export function withVectorDiagram(input: unknown, group: VectorGroupTarget | und
     cited,
     replaced,
   });
-  if (!isRecord(input) || !Object.hasOwn(input, VECTOR_DIAGRAM_KEY)) return fold('absent', input);
+  // A tool input that is not an object is a malformed answer, left for the contract parse.
+  if (!isRecord(input)) return fold('malformed', input);
+  if (!Object.hasOwn(input, VECTOR_DIAGRAM_KEY)) return fold('absent', input);
   const { [VECTOR_DIAGRAM_KEY]: raw, ...rest } = input;
   if (group === undefined) return fold('absent', rest);
   if (raw === null) return fold('null', rest);
