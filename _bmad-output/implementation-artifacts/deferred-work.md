@@ -2988,3 +2988,21 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/spec-e21p-section-7-photo-order.md`
   summary: "Subir" on a photo (or block, or point) directly below a run of equal order keys, which two devices can mint apart, lands after the run again, so nothing moves, while the gallery's announcement says it moved (it reads `moveLandingIndex`).
   evidence: review pass 1 (edge-case hunter); `orderKeyForMove` in `packages/domain/src/ops/order-key.ts` is pre-existing and shared by blocks, points and now photos. Owner: a later fix batch; settle it with a kernel test of an equal-key run above the moved row.
+
+## Deferred from: the Epic 21 retrospective (2026-11-06)
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md` (R-5, owner: E21-A2)
+  summary: The plate escalation model (`us.amazon.nova-pro-v1:0`, the `bedrock_escalation_model_id` default) gets the `bedrock-structuring-4` tool schema with the required, nullable `vector_diagram` object and was never measured on it; a refusal is caught and only logged (`kinds/plate.ts:116-123`).
+  evidence: every escalation test stubs Converse; the e21f integration test turns escalation off; the evals of 2026-11-05 and 2026-11-06 ran Haiku 4.5 only.
+- source_spec: `_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md` (R-6, owner: E21-A2, a measured prompt revision)
+  summary: Prompt and schema wording: `hv_neutral` names only the star centre (a zigzag HV neutral, ZNy5 or ZNy11, may compose as Zy5 or Zy11); the system rule "give one value for each field you can read" contradicts "leave the group out and fill vector_diagram"; the tool description omits `vector_diagram`; `vector_diagram.ocr_token_ids` has no `minItems: 1`.
+  evidence: `providers/vector-diagram.ts:53,62`; `providers/bedrock.ts:174,269`. Each fix is a prompt change, so a new prompt version and a paid eval.
+- source_spec: `_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md` (R-7, owner: E21-A2)
+  summary: "Printed wins" in the fold depends on OCR fidelity: a printed code the OCR garbles is replaced by the composed diagram code, and nothing checks that the composed value's citations print no group (a value citing a printed code's word would reach the device `suggested`, with no diagram note).
+  evidence: `providers/vector-diagram.ts:91-104,125,130`; on the real set of 2026-11-06 one of five Dyn1 reads came back as a diagram read, cause not recorded.
+- source_spec: `_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md` (R-8, owner: a later reading batch)
+  summary: Two group entries in one structuring answer fail the whole plate reading (the unique-key refine, unchanged by e21f); a nested `vector_diagram` answered as a JSON string is ignored; `make-plate-fixtures.ts` hard-codes the Yyn0 facts for any drawn plate and uses `value: null` to mean "omit".
+  evidence: `contract/ocr.ts:167-173`; `providers/vector-diagram.ts:118`; `apps/api/src/scripts/make-plate-fixtures.ts:217,287,293`.
+- source_spec: `_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md` (P-3, owner: E21-A4, a test-hardening batch)
+  summary: Four tests went red under load in two or more gates and passed alone each time: `apps/web/src/state/reading-arrivals.test.tsx` (the caption toast), `apps/web/src/surfaces/home/home-surface.test.tsx` (12.2 "Continuar"), `apps/web/src/surfaces/relatorio/setup-surface.test.tsx` (the exclusion typing) and R8LAY-E2E-008 (`e2e/review-layout-interaction-2026-10-08.spec.ts`, the "Novo relatório" dialog within 5 s).
+  evidence: PR #254 § Story gate (load 23.5); PR #255 § Earlier gate (load 26); `epic-21-context.md` § Integrated gate (load 4.5 to 5.2, with the review stack beside it); `docs/kbs/log.md` chore T2 (R8LAY-E2E-008 red once in 5); `epic-12-retro-2026-09-25.md:73` (`home-surface.test.tsx`).
