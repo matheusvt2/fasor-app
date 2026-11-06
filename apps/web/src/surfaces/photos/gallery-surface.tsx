@@ -8,8 +8,15 @@ import {
   offersPeopleMark,
   pendingSuggestions,
   suggestionRowsOf,
+  captionPhotoLabel,
   captionWordFor,
   contextCaptionParts,
+  galleryTileOrder,
+  geralMoveOptions,
+  geralPhotoMoveKey,
+  geralPhotos,
+  moveLandingIndex,
+  photoMovedText,
   siteCaption,
   GALLERY_ALL,
   galleryCabineOptions,
@@ -36,11 +43,12 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { useParams } from 'react-router';
 import { useBackToExport } from '../../state/back-target.tsx';
-import { Button, Chip, FilterChipGroup, PhotoRow } from '../../components/index.ts';
+import { Button, Chip, FilterChipGroup, OverflowMenu, PhotoRow } from '../../components/index.ts';
 import { SuggestionBlock } from '../../components/suggestion-field.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import { useEditedSince, useRevisions } from '../../db/generate-store.ts';
+import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from '../../input/focus-restore.ts';
 import { useRelatorioPhotoTiles, type PhotoTile } from '../../db/photo-store.ts';
 import { splitImportable } from '../../files/photo-import.ts';
 import { useSession } from '../../state/session.tsx';
@@ -53,6 +61,7 @@ import { DropHint, PhotoCaptureSheet, useDropZone } from './capture-sheet.tsx';
 import {
   confirmAllCaptionSuggestions,
   confirmCaptionSuggestion,
+  movePhoto,
   removePhoto,
   restorePhoto,
   setPeopleInPhoto,
@@ -78,6 +87,12 @@ import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
  * suggestion of the relatório). A tile with no sheet (or already marked) carries the "Pessoas
  * na foto" chip: pressing it on writes the mark and discards the photo's pending caption in
  * one batch. Which suggestion shows is the kernel's (`captionSuggestions`).
+ *
+ * Story 21.3: the tiles are in the kernel's gallery order (`galleryTileOrder`: capture order,
+ * the "Geral" tiles' slots in section 7's order). A "Geral" tile carries an Overflow with
+ * "Subir" and "Descer" (disabled at the ends, `geralMoveOptions`); a press writes the one
+ * `file/{id}/order_key` put the kernel mints (`geralPhotoMoveKey`), announces where the photo
+ * landed (`photoMovedText`) and gives the focus back to that tile's Overflow trigger.
  */
 export function GallerySurface() {
   const { id = '' } = useParams();
@@ -116,7 +131,10 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const { retryUpload } = useSyncActions();
   const snapshot: RelatorioSnapshot = useRelatorioSnapshot(state, relatorioId);
   const tiles = useRelatorioPhotoTiles(db, relatorioId);
-  const all = tiles;
+  // Story 21.3: capture order with the "Geral" tiles in section 7's order (the kernel's).
+  const all = useMemo(() => galleryTileOrder(tiles), [tiles]);
+  // Story 21.3: section 7's photos, in its order, over the snapshot: the moves read them.
+  const geral = useMemo(() => geralPhotos(snapshot), [snapshot]);
   // Stories 17.1 and 17.4: the kernel's numbers in document order, over the snapshot (a display
   // shot's included); a tile the snapshot does not hold yet draws no badge for that render.
   const numbers = useMemo(() => numberPhotos(snapshot), [snapshot]);
@@ -227,6 +245,44 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
       .catch(writeFailed);
   };
 
+  // --- Story 21.3: "Subir" and "Descer" on a "Geral" tile ------------------------------------
+  const [moveStatus, setMoveStatus] = useState('');
+  const moveTile = (tile: PhotoTile, toIndex: number) => {
+    if (db === null || author === null) return;
+    let key: string | null;
+    try {
+      key = geralPhotoMoveKey(geral, tile.id, toIndex);
+    } catch (error) {
+      writeFailed(error);
+      return;
+    }
+    if (key === null) return;
+    const landing = moveLandingIndex(geral.length, toIndex);
+    const total = geral.length;
+    // Where the tile will sit once the write re-renders the list (the kernel's order with the new key).
+    const movedKey = key;
+    const at = galleryTileOrder(all.map((row) => (row.id === tile.id ? { ...row, order_key: movedKey } : row))).findIndex((row) => row.id === tile.id);
+    void movePhoto(db, author, relatorioId, tile.id, key)
+      .then(() => {
+        const mention = sectionMention(snapshot, 7);
+        setMoveStatus(photoMovedText(landing + 1, total, mention.prints, mention.ref));
+        // The tile's own trigger takes the focus back, once the tile sits at its new place and
+        // carries its new number (moving a keyed row can drop the focus to <body>).
+        restoreFocus(
+          () => {
+            const item = surface.current?.querySelector<HTMLElement>(`.gallery-item[data-photo-id="${tile.id}"]`) ?? null;
+            if (item === null || item.parentElement === null) return null;
+            const index = [...item.parentElement.children].indexOf(item);
+            const badge = item.querySelector<HTMLElement>('.photo-tile')?.dataset.photoNumber;
+            if (index !== at || badge !== String(landing + 1)) return null;
+            return item.querySelector<HTMLElement>('.overflow-trigger');
+          },
+          { frames: LIST_FOCUS_WATCH_FRAMES, once: true },
+        );
+      })
+      .catch(writeFailed);
+  };
+
   const saveCaption = (tile: PhotoTile, text: string | null) => {
     if (db === null || user === null) return;
     void setPhotoCaption(db, { id: user.id, companyId: user.companyId }, relatorioId, tile.id, text, pending)
@@ -280,6 +336,9 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
           <p className="visually-hidden" role="status" data-testid="gallery-filter-status">
             {filterText}
           </p>
+          <p className="visually-hidden" role="status" data-testid="gallery-move-status">
+            {moveStatus}
+          </p>
           {all.length === 0 ? <p className="section-note gallery-empty">{t.empty}</p> : null}
           <div className="gallery-grid" role="list" aria-label={t.listLabel}>
             {shown.map((tile) => {
@@ -287,6 +346,8 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
               const suggestion = suggested.get(tile.id);
               const suggestionText = suggestion === undefined ? null : String(suggestion.value);
               const marked = tile.people_in_photo === true;
+              // Story 21.3: only a "Geral" photo the snapshot holds moves (section 7's order).
+              const moves = geralMoveOptions(geral, tile.id);
               return (
                 <div key={tile.id} role="listitem" className="gallery-item" data-photo-id={tile.id}>
                   <PhotoRow
@@ -319,6 +380,17 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
                     onRetry={() => void retryUpload?.(tile.id)}
                     onOpen={() => setViewing(tile.id)}
                     onCaption={() => setCaptioning(tile)}
+                    menu={
+                      moves === null ? undefined : (
+                        <OverflowMenu
+                          name={captionPhotoLabel(number)}
+                          items={[
+                            { id: 'up', label: t.moveUp, disabled: !moves.canMoveUp, onAction: () => moveTile(tile, moves.position - 2) },
+                            { id: 'down', label: t.moveDown, disabled: !moves.canMoveDown, onAction: () => moveTile(tile, moves.position) },
+                          ]}
+                        />
+                      )
+                    }
                   />
                 </div>
               );

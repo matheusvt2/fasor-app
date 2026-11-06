@@ -2,6 +2,7 @@ import {
   deadlineState,
   extractPhotoRefs,
   formatCalendarDate,
+  galleryTileOrder,
   numberPhotos,
   pointCreatedDate,
   photoRefLabel,
@@ -859,8 +860,9 @@ function PhotoPicker({
   onPick: (id: string) => void;
 }) {
   const t = copy.points;
-  // Story 17.4: a display shot is numbered and offered like any photo.
-  const offered = tiles;
+  // Story 17.4: a display shot is numbered and offered like any photo. Story 21.3: in the
+  // gallery's order (the "Geral" photos in section 7's order), as their numbers follow it.
+  const offered = useMemo(() => galleryTileOrder(tiles), [tiles]);
   return (
     <FormDialog isOpen={isOpen} onOpenChange={onOpenChange} title={t.pickerTitle} className="poa-picker-dialog">
       {offered.length === 0 ? (

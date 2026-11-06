@@ -1089,11 +1089,12 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 
-  it('contract 30 (Stories 21.1 and 21.2; Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-29 pull is refused with 426 contract_outdated on every stream, a version-30 pull is answered', async () => {
+  it('contract 30 (Stories 21.1 to 21.3; Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-29 pull is refused with 426 contract_outdated on every stream, a version-30 pull is answered', async () => {
     expect(CONTRACT_VERSION).toBe(30);
     expect(MIN_CONTRACT_VERSION).toBe(30);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
       // 29 cannot resolve seed v11 and computes a v9/v10 non-Dyn1 transformer with √3 (Stories 21.1 and 21.2);
+      // 29 cannot parse a `file/{id}/order_key` put (Story 21.3);
       // 28 cannot parse a push answer carrying a contract-29 refusal code (Stories 20.7 to 20.10);
       // 27 cannot parse a `relatorio/removed_at` op (fix batch fxrm);
       // 26 cannot resolve seed v10 nor parse `relatorio/setup/site_altitude_na` (Stories 15.7 and 17.6);

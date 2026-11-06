@@ -99,7 +99,7 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 30 and refuses version 29 (Stories 21.1 and 21.2: a version-29 bundle cannot resolve seed v11 and would compute a v9/v10 non-Dyn1 transformer with √3)', () => {
+  it('speaks version 30 and refuses version 29 (Stories 21.1 and 21.2: a version-29 bundle cannot resolve seed v11 and would compute a v9/v10 non-Dyn1 transformer with √3; Story 21.3: it cannot parse a file/{id}/order_key put)', () => {
     expect(CONTRACT_VERSION).toBe(30);
     expect(MIN_CONTRACT_VERSION).toBe(30);
     // E10-Q6: the push refuses an older client only where it would settle a mark.

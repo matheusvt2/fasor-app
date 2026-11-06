@@ -47,6 +47,8 @@ export interface PhotoTile {
   reading_status_at?: string | null;
   /** Story 13.5: when the server took this device's bytes of the photo (`markBlobAcked`); absent or null while not sent. */
   bytes_acked_at?: string | null;
+  /** Story 21.3: the photo's section 7 key (contract 30); absent or null when never moved. */
+  order_key?: string | null;
   /** Story 9.3: the "Pessoas na foto" mark (absent reads false). */
   people_in_photo?: boolean;
 }
@@ -83,6 +85,7 @@ async function photoTiles(db: AppDatabase, relatorioId: string, keep: (row: Phot
     block_id: row.block_id,
     item_key: row.item_key,
     ...(row.location_id == null ? {} : { location_id: row.location_id }),
+    ...(row.order_key == null ? {} : { order_key: row.order_key }),
     caption: row.caption,
     captured_at: row.captured_at,
     local_seq: row.local_seq,

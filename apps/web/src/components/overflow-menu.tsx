@@ -11,6 +11,12 @@ export interface OverflowMenuAction {
    * `menuitemcheckbox` whose `aria-checked` is this value, and a press calls `onAction`.
    */
   checked?: boolean;
+  /**
+   * Story 21.3: the item shows but cannot be chosen (React Aria `disabledKeys`: skipped by the
+   * arrow keys, `aria-disabled`). A gallery photo's "Subir" on the first place. Callers that
+   * hide an end item keep doing so.
+   */
+  disabled?: boolean;
 }
 
 export interface OverflowMenuProps {
@@ -34,6 +40,7 @@ export const OVERFLOW_MENU_PLACEMENT = 'bottom end' as const;
  */
 export function OverflowMenu({ name, items, destructiveItems = [], label }: OverflowMenuProps) {
   const actionsById = new Map([...items, ...destructiveItems].map((item) => [item.id, item]));
+  const disabledKeys = [...items, ...destructiveItems].filter((item) => item.disabled === true).map((item) => item.id);
 
   return (
     <MenuTrigger>
@@ -50,10 +57,11 @@ export function OverflowMenu({ name, items, destructiveItems = [], label }: Over
       <Popover ref={relabelDismissButtons} placement={OVERFLOW_MENU_PLACEMENT}>
         <Menu
           className="overflow-menu"
+          {...(disabledKeys.length === 0 ? {} : { disabledKeys })}
           onAction={(key) => {
             const item = actionsById.get(String(key));
             // A toggle item answers through its section's selection change instead.
-            if (item !== undefined && item.checked === undefined) item.onAction();
+            if (item !== undefined && item.checked === undefined && item.disabled !== true) item.onAction();
           }}
         >
           {items.map((item) =>

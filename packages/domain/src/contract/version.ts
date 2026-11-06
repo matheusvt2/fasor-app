@@ -275,6 +275,18 @@
  * read from the drawn diagram, always `verify`; `suggestionRowSchema` already took that shape. No
  * op kind, path family, row field nor reject code is new: a row written before 30 parses to the
  * same bytes. `MIN_CONTRACT_VERSION` goes to 30 too.
+ *
+ * 30 (2026-11-05, Story 21.3, batch e21p): a photo row gains an optional `order_key`
+ * (`photoFileRowSchema`, `0-9a-z` only and never ending in `0`, absent and null both meaning never moved), and
+ * `FILE_FIELDS` gains `order_key`, so `file/{id}/order_key` is a new put path: one put per
+ * "Subir" or "Descer" in the gallery's Overflow places a "Geral" photo in section 7 (the
+ * REGISTRO FOTOGRÁFICO), and the one numbering sequence follows (`photos/order.ts`
+ * `geralPhotos`, `print/photo-order.ts`). The value is capped as any order key (medium,
+ * Story 20.9). A row written before 30 parses to the same bytes and keeps its capture-order
+ * place. A version-29 bundle cannot parse the put (its `opSchema` refuses the field, so a pulled
+ * page carrying one fails whole) and its row schema would strip the key, so its gallery would
+ * number section 7 in capture order where the server prints the moved order:
+ * `MIN_CONTRACT_VERSION` goes to 30 too.
  */
 export const CONTRACT_VERSION = 30;
 
@@ -439,6 +451,13 @@ export const CONTRACT_VERSION = 30;
  * Sumário and documents would disagree with the server's. A stream carries those as soon as the
  * template upgrade runs, and the v9/v10 relatórios already hold such texts, so the version-29
  * bundle updates too.
+ *
+ * 30 (2026-11-05, Story 21.3): a version-29 (or older) bundle's `opSchema` refuses a
+ * `file/{id}/order_key` put (the `FILE_FIELDS` enum), so a pulled page carrying one fails whole
+ * (`invalid_response`), the precedent of versions 20, 23 and 28; and its `photoFileRowSchema`
+ * would strip `order_key`, so its gallery and preview would number section 7 in capture order
+ * where the server's documents print the moved order. A relatório stream carries the put as
+ * soon as any device moves a photo, so the version-29 bundle updates too.
  */
 export const MIN_CONTRACT_VERSION = 30;
 

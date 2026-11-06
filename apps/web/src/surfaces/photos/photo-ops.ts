@@ -33,7 +33,7 @@ function put(
   author: Author,
   relatorioId: string,
   fileId: string,
-  field: 'caption' | 'removed_at' | 'block_id' | 'item_key' | 'people_in_photo' | 'reading_kind',
+  field: 'caption' | 'removed_at' | 'block_id' | 'item_key' | 'people_in_photo' | 'reading_kind' | 'order_key',
   value: JsonValue,
 ): OpDraft {
   return { ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: fileFieldPath(fileId, field), value };
@@ -80,6 +80,14 @@ export async function setPeopleInPhoto(
   pending: readonly SuggestionRow[] = [],
 ): Promise<void> {
   await commitBatch(db, [put(author, relatorioId, fileId, 'people_in_photo', marked), ...(marked ? captionDiscardOps(author, fileId, pending) : [])], deps);
+}
+
+/**
+ * Story 21.3: "Subir" or "Descer" on a "Geral" photo, one `file/{id}/order_key` put (AD-3: no
+ * sibling rewritten). The key is the kernel's (`geralPhotoMoveKey`); the surface only writes it.
+ */
+export async function movePhoto(db: AppDatabase, author: Author, relatorioId: string, fileId: string, key: string): Promise<void> {
+  await commitBatch(db, [put(author, relatorioId, fileId, 'order_key', key)], deps);
 }
 
 /**
