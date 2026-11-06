@@ -98,10 +98,11 @@ export function suggestConclusionPair(block: BlockRow): ConclusionPair | null {
   // Story 14.9: a reading measured under a test no criterion judges (a QGBT with no TENSÃO
   // NOMINAL, or above 1000 V) is never a pass: no "Sem restrições" is suggested over it.
   // e21g D6: nor over a v11 ratio table waiting for its vector group, which cannot be judged
-  // whatever was typed; a restriction still suggests Com restrições.
+  // whatever was typed, while its plate can be filled (the `ensaiosCounts` rule); a restriction
+  // still suggests Com restrições.
   const unjudged =
     evaluations.some((test) => test.criterion === null && evaluatedCells([test]).some((cell) => cell.role === 'capture' && cell.state === 'measured')) ||
-    evaluations.some((test) => test.tables.some((table) => table.groupMissing));
+    (enabledSubBlocksOf(block).has('nameplate') && evaluations.some((test) => test.tables.some((table) => table.groupMissing)));
   if (!restricted && unjudged) return null;
   return { result: 'aprovado', restriction: restricted ? 'com_restricoes' : 'sem_restricoes' };
 }

@@ -791,14 +791,14 @@ describe('21.1-UNIT the transformer ratio follows its vector group', () => {
     }
   });
 
-  it('e21g D2: ratioGroupOf says whether LIGAÇÃO SECUNDÁRIA is blank (null, missing, not a string, whitespace)', () => {
+  it('e21g D2: ratioGroupOf says whether LIGAÇÃO SECUNDÁRIA is blank (null, missing, whitespace; a number is filled)', () => {
     const of = (value: unknown, factor: 'vector_group' | 'sqrt3') => {
       const nameplate: Record<string, Cell> = value === undefined ? {} : { ligacao_secundaria: cell(value) };
       return ratioGroupOf({ sheet: { ...emptySheet(), nameplate } }, factor);
     };
     for (const factor of ['vector_group', 'sqrt3'] as const) {
-      for (const value of [undefined, null, '', '   ', 42]) expect(of(value, factor)?.blank, `${factor} ${String(value)}`).toBe(true);
-      for (const value of ['Y', 'Yyn0', ' Dyn1 ']) expect(of(value, factor)?.blank, `${factor} ${value}`).toBe(false);
+      for (const value of [undefined, null, '', '   ']) expect(of(value, factor)?.blank, `${factor} ${String(value)}`).toBe(true);
+      for (const value of ['Y', 'Yyn0', ' Dyn1 ', 42]) expect(of(value, factor)?.blank, `${factor} ${value}`).toBe(false);
     }
     expect(of('Y', 'sqrt3')).toMatchObject({ assumed: true, blank: false });
     expect(of(null, 'sqrt3')).toMatchObject({ assumed: true, blank: true });

@@ -76,8 +76,9 @@ export function useFichaSteps(progress: SheetProgress, shown: readonly SheetStep
     setCurrent(step, true);
     const hostOf = () => document.getElementById(`ficha-step-${step}`);
     // e21g D7: the named field when the kernel gave one, else the first missing marker drawn now
-    // (a TTR table and its phone cards both carry one; CSS shows one).
-    const selector = fieldKey === null ? '[data-missing-field]' : `[data-field-key="${fieldKey}"]`;
+    // (a TTR table and its phone cards both carry one; CSS shows one). A pending plate suggestion
+    // carries the same field key, so it is skipped, as `focusPlainField` does.
+    const selector = fieldKey === null ? '[data-missing-field]' : `[data-field-key="${fieldKey}"]:not(.ficha-suggestion)`;
     const markerIn = (host: HTMLElement) => (missing ? ([...host.querySelectorAll<HTMLElement>(selector)].find((element) => element.getClientRects().length > 0) ?? null) : null);
     /** What the land (or the watch below) last gave the focus to. */
     let landed: HTMLElement | null = null;

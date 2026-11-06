@@ -2,7 +2,7 @@
 title: 'Epic 21 follow-up fix batch e21g: review notes N-1 to N-5 and the two e21r deferred rows'
 type: 'bugfix'
 created: '2026-11-06'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'ac9ca7ddd2e7af8cf72835be1cc2a9dacddb3a5e'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -105,6 +105,16 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-11-06 — Review pass
+- Layers: Edge Case Hunter and Verification Gap Reviewer (opus). Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them.
+- verdicts: 6 findings — high 0, medium 2, low 3, false 1, maybe-false 0 (the verification-gap layer filed no gap and one other finding; the edge-case layer filed five; the two medium rows share one root cause)
+- findings:
+  - `[medium]` `[patch]` (verification gap, other finding) D6's `groupMissing` clause ignores the nameplate sub-block that `ensaiosCounts` gates on: with the plate off, Sem restrições is never suggested and the group cannot be filled — patched: the clause requires `enabledSubBlocksOf(block).has('nameplate')`; a D6 test case with the plate off now expects Sem restrições.
+  - `[medium]` `[patch]` (edge case 1) the same defect as above, filed by the edge-case layer; same root cause, same patch.
+  - `[low]` `[patch]` (edge case 2) with a `fieldKey`, `goTo` also matches a pending plate suggestion's `.ficha-suggestion[data-field-key]`, so the focus could land on the suggestion instead of the select — patched: selector `[data-field-key="…"]:not(.ficha-suggestion)`, as `focusPlainField` does.
+  - `[low]` `[reject]` (edge case 3) a named field not rendered falls back to focusing the step host — the target is only `ligacao_secundaria`, which renders whenever `group` is counted (nameplate enabled, open sheet); a fallback branch adds complexity for a state not shown reachable.
+  - `[false]` `[reject]` (edge case 4) the focus watch may pull focus to an already answered field — the target is computed from the fresh rows inside the edit, not the stale render, and the watch stops at the first pointerdown/keydown, as it does for every jump.
+  - `[low]` `[patch]` (edge case 5, claim) `blank` marked any non-string value blank, while its comment says it follows `isCellFilled` (a number is filled) — patched: blank only for null/undefined or a string that trims to ''; the `ratioGroupOf` test now expects 42 not blank.
 ## Design Notes
 
 - **D1 scope.** "Fase N" applies only while `groupMissing` (v11, `ratio_factor: 'vector_group'`, no parsed group), to capture columns, by capture index. v9/v10 never reach it (their unparsed group is Dyn1, assumed). The neutral label is pt-BR derived text, so it lives in the kernel beside `vectorGroupCaptureLabel`. `headerText("Fase 1")` and `printLabel` give "Fase 1" and "FASE 1".

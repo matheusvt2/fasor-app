@@ -232,7 +232,7 @@ export interface RatioGroupResolution {
   group: VectorGroup | null;
   /** True on a v9/v10 table whose LIGAÇÃO SECUNDÁRIA names no group: Dyn1 is assumed, as Story 15.6 fixed it. */
   assumed: boolean;
-  /** e21g D2: the LIGAÇÃO SECUNDÁRIA value is null, missing, not a string or blank after trim (the `isCellFilled` rule). */
+  /** e21g D2: the LIGAÇÃO SECUNDÁRIA value is null, missing or a string blank after trim (the `isCellFilled` rule). */
   blank: boolean;
 }
 
@@ -245,7 +245,7 @@ export interface RatioGroupResolution {
 export function ratioGroupOf(block: Pick<BlockRow, 'sheet'>, factor: TableDef['ratio_factor']): RatioGroupResolution | null {
   if (factor === undefined) return null;
   const value = block.sheet.nameplate[VECTOR_GROUP_FIELD]?.value;
-  const blank = typeof value !== 'string' || value.trim() === '';
+  const blank = value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
   const parsed = parseVectorGroup(value);
   if (parsed !== null) return { group: parsed, assumed: false, blank };
   if (factor === 'vector_group') return { group: null, assumed: false, blank };

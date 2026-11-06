@@ -92,6 +92,10 @@ describe('5.8-UNIT suggestConclusionPair', () => {
     expect(suggestConclusionPair(trafo(null, { nc: true }))).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
     expect(suggestConclusionPair(trafo('Yyn0'))).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
     expect(suggestConclusionPair(trafo('Yyn0', { captures: '50' }))).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
+    // The nameplate sub-block off: the group cannot be filled, so it never withholds Sem restrições.
+    const config = defaultBlockConfig('v11', 'transformador_forca') as { sub_blocks: Record<string, { enabled: boolean }> };
+    const plateOff = { ...trafo(null), config: { ...config, sub_blocks: { ...config.sub_blocks, nameplate: { enabled: false } } } as BlockRow['config'] };
+    expect(suggestConclusionPair(plateOff)).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
   });
 
   it('any NC row or any out-of-criterion reading: Aprovado · Com restrições; never Reprovado', () => {
