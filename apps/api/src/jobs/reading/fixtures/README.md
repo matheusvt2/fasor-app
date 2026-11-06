@@ -180,7 +180,7 @@ photo of their own bytes, as `job.integration.test.ts` and `bedrock-eval.ts` sen
 | Image | Fixture | Values |
 |---|---|---|
 | `plate-transformador-dyn1.png` | `03b3fc52...json` | identificacao `TR-02`; fabricacao `Varnelo`; n_serie `TF-330918`; potencia_nominal `{raw: 300, unit: kVA}`; tensao_nominal_at `{raw: 13.8, unit: kV}` (prints `13,8 kV`); tensao_nominal_bt `{raw: 380, unit: V}`; ligacao_secundaria `Dyn1`, citing its printed word: `suggested` |
-| `plate-transformador-yyn0.png` | `2a69ba08...json` | identificacao `TR-03`; fabricacao `Varnelo`; tensao_nominal_at and _bt as above; LIGAÇÃO SECUNDÁRIA prints no value and the plate draws the HV star (H1 H2 H3) and the LV star with its neutral (X1 X2 X3, X0); ligacao_secundaria `Yyn0` at 0.8, citing the diagram's `H1`: no cited run prints the group, so the kernel makes it `verify`, citing no token over the whole image ("Lido do diagrama — confira") |
+| `plate-transformador-yyn0.png` | `2a69ba08...json` | identificacao `TR-03`; fabricacao `Varnelo`; tensao_nominal_at and _bt as above; LIGAÇÃO SECUNDÁRIA prints no value and the plate draws the HV star (H1 H2 H3) and the LV star with its neutral (X1 X2 X3, X0); no ligacao_secundaria value (e21f): the answer carries `vector_diagram` (`hv_shape` star, `hv_neutral` false, `lv_shape` star, `lv_neutral` true, `x1_hours` 0, citing the seven terminal labels `t19`-`t25`), which the provider composes into `Yyn0` (`composeVectorGroup`, `providers/vector-diagram.ts`); no cited run prints the group, so the kernel makes it `verify`, citing no token over the whole image ("Lido do diagrama — confira") |
 
 ## The error and timeout images
 

@@ -17,6 +17,9 @@ import {
 import { z } from 'zod';
 import { assertPricedModel, converseTool, type BedrockProviderOptions, type JsonSchema } from '../../../ai/bedrock.ts';
 import { PermanentReadingError } from './errors.ts';
+import { VECTOR_DIAGRAM_KEY, VECTOR_DIAGRAM_TOOL_SCHEMA, vectorGroupKeyOf, withVectorDiagram, type PlateStructuringInput } from './vector-diagram.ts';
+
+export type { PlateStructuringInput } from './vector-diagram.ts';
 
 // Review 2026-10-08 (C4): the Converse client layer moved to `apps/api/src/ai/bedrock.ts`; its
 // names stay importable from here for the reading's tests and scripts.
@@ -67,7 +70,8 @@ export {
 /** The prompt of the structuring step; bump it with every change of the prompt or the tool schema. */
 // 2 (review 2026-10-08, AIR-1/AIR-V1): dates as precise as printed, never an invented month; pt-BR separators spelled out.
 // 3 (Story 21.2): the transformer's vector group, printed or read from the drawn HV and LV diagrams, one of the 47 codes.
-export const BEDROCK_STRUCTURING_PROMPT_VERSION = 'bedrock-structuring-3';
+// 4 (e21f): a drawn diagram is described in the tool's `vector_diagram` facts and composed by the kernel (`composeVectorGroup`), never by the model.
+export const BEDROCK_STRUCTURING_PROMPT_VERSION = 'bedrock-structuring-4';
 
 /** The prompt of the prose step (caption, NC draft); bump it with every change of the prompt or the tool schema. */
 export const BEDROCK_PROSE_PROMPT_VERSION = 'bedrock-prose-1';
@@ -107,8 +111,22 @@ function valueSchemaFor(fields: readonly FieldDef[]): JsonSchema {
  * The structuring tool's input JSON Schema, derived from the field definitions: the shape of
  * `structuringOutputSchema`, its keys narrowed to the fields' keys and its values to the
  * shapes their kinds take. Per-field detail (kind, unit, options) goes in the prompt.
+ *
+ * e21f: with a `vectorGroupKey` naming one of the fields, a required, nullable top-level
+ * `vector_diagram` asks for the drawn diagrams' facts (`VECTOR_DIAGRAM_TOOL_SCHEMA`); the provider
+ * folds them into the group's value (`withVectorDiagram`). Without one the schema is as before.
  */
-export function structuringToolSchema(fields: readonly FieldDef[]): JsonSchema {
+export function structuringToolSchema(fields: readonly FieldDef[], vectorGroupKey?: string): JsonSchema {
+  const schema = valuesToolSchema(fields);
+  if (vectorGroupKey === undefined || !fields.some((field) => field.key === vectorGroupKey)) return schema;
+  return {
+    ...schema,
+    properties: { ...(schema.properties as Record<string, unknown>), [VECTOR_DIAGRAM_KEY]: VECTOR_DIAGRAM_TOOL_SCHEMA },
+    required: ['values', VECTOR_DIAGRAM_KEY],
+  };
+}
+
+function valuesToolSchema(fields: readonly FieldDef[]): JsonSchema {
   return {
     type: 'object',
     properties: {
@@ -171,31 +189,21 @@ function fieldLine(field: FieldDef): string {
   return `- ${field.key} (${details.join('; ')}): ${field.label}`;
 }
 
-/**
- * Story 21.2: the plate kind's structuring input. `vectorGroupKey` names the field that holds a
- * transformador de força's vector group (its LIGAÇÃO SECUNDÁRIA), set by `kinds/plate.ts`; the
- * contract's `StructuringInput` (`contract/ocr.ts`) stays as it is, and every other provider
- * ignores the extra key.
- */
-export interface PlateStructuringInput extends StructuringInput {
-  vectorGroupKey?: string;
-}
-
 /** Story 21.2: the paragraph that asks for the vector group, printed or drawn, as one of the 47 codes. */
 export function vectorGroupPrompt(key: string): string {
   return [
     `The field ${key} holds the transformer's vector group (IEC 60076-1: high-voltage connection in capitals, low-voltage connection in lower case, then the clock number).`,
     `Give exactly one of these codes: ${VECTOR_GROUP_CODES.join(' | ')}.`,
     'When the plate prints the code (for example "Dyn1", "DYN1" or "Dyn 1"), give that code and cite the words that print it.',
-    'When no code is printed, read the vector diagrams the plate draws for the high-voltage (H1 H2 H3, H0) and low-voltage (X1 X2 X3, X0) windings: D is a delta, Y a star, YN a star with its neutral brought out, Z a zigzag, ZN a zigzag with its neutral; the clock number is the low-voltage phase shift in 30 degree steps. Give that group and cite the OCR words nearest the diagram, such as its terminal labels.',
+    `When no code is printed, leave ${key} out of values and fill vector_diagram instead: describe what is drawn, never compose the code.`,
   ].join('\n');
 }
 
 /** The structuring request's text: the fields, then the OCR words as `t<n>: text` lines, never their boxes. */
 export function structuringPrompt(input: Pick<PlateStructuringInput, 'ocr' | 'fields' | 'vectorGroupKey'>): string {
   const words = input.ocr.tokens.length === 0 ? '(no words)' : input.ocr.tokens.map((token) => `${token.id}: ${token.text}`).join('\n');
-  const key = input.vectorGroupKey;
-  const group = key !== undefined && input.fields.some((field) => field.key === key) ? `\n\n${vectorGroupPrompt(key)}` : '';
+  const key = vectorGroupKeyOf(input);
+  const group = key !== undefined ? `\n\n${vectorGroupPrompt(key)}` : '';
   return `Fields:\n${input.fields.map(fieldLine).join('\n')}${group}\n\nOCR words:\n${words}`;
 }
 
@@ -251,15 +259,19 @@ export function bedrockStructuringProvider(options: BedrockProviderOptions): Str
   assertPricedModel(options.modelId);
   return {
     async structure(input: StructuringInput): Promise<StructuringResult> {
-      const content: ContentBlock[] = [imageBlock(input.image), { text: structuringPrompt(input as PlateStructuringInput) }];
+      const plate = input as PlateStructuringInput;
+      const groupKey = vectorGroupKeyOf(plate);
+      const content: ContentBlock[] = [imageBlock(input.image), { text: structuringPrompt(plate) }];
       const answer = await converseTool(options, {
         modelId: options.modelId,
         system: STRUCTURING_SYSTEM,
         content,
-        tool: { name: STRUCTURING_TOOL, description: 'Records the field values read on the photo, each citing the OCR word ids that spell it.', schema: structuringToolSchema(input.fields) },
+        tool: { name: STRUCTURING_TOOL, description: 'Records the field values read on the photo, each citing the OCR word ids that spell it.', schema: structuringToolSchema(input.fields, groupKey) },
         maxTokens: STRUCTURING_MAX_TOKENS,
       });
-      const parsed = structuringResultSchema.safeParse({ output: withoutUncitedValues(answer.input), model: options.modelId, prompt_version: BEDROCK_STRUCTURING_PROMPT_VERSION, usage: answer.usage });
+      // e21f: the drawn diagram's facts become the group's value (or are dropped), then the uncited values go.
+      const folded = withVectorDiagram(answer.input, groupKey, input.ocr.tokens);
+      const parsed = structuringResultSchema.safeParse({ output: withoutUncitedValues(folded), model: options.modelId, prompt_version: BEDROCK_STRUCTURING_PROMPT_VERSION, usage: answer.usage });
       if (!parsed.success) throw new PermanentReadingError(`bedrock: ${options.modelId}: the tool input is not a StructuringOutput: ${parsed.error.message.slice(0, 300)}`);
       return parsed.data;
     },

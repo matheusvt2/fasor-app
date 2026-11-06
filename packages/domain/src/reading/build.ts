@@ -143,8 +143,11 @@ export function buildReadingSuggestions(input: BuildReadingSuggestionsInput): Bu
   return { rows, dropped };
 }
 
-/** Story 21.2: the codes of the groups the runs of the cited tokens print, in token order (each run joined with spaces, read by the parser). */
-function printedVectorGroups(ordered: readonly Pick<OcrToken, 'text'>[]): Set<string> {
+/**
+ * Story 21.2: the codes of the groups the runs of the cited tokens print, in token order (each run joined with spaces, read by the parser).
+ * Exported (e21f) for the plate reading's vector-diagram fold and the eval: a printed group there wins over the drawn diagram.
+ */
+export function printedVectorGroups(ordered: readonly Pick<OcrToken, 'text'>[]): Set<string> {
   const codes = new Set<string>();
   for (let start = 0; start < ordered.length; start++) {
     let text = '';

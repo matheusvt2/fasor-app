@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  composeVectorGroup,
   DEFAULT_VECTOR_GROUP_CODE,
   isVectorGroupField,
   isVectorGroupOptions,
@@ -11,7 +12,9 @@ import {
   vectorGroupFactor,
   vectorGroupFormulaText,
   vectorGroupShortText,
+  type VectorDiagramFacts,
   type VectorGroupFactor,
+  type WindingShape,
 } from './vector-group.ts';
 
 /*
@@ -185,5 +188,46 @@ describe('21.2-UNIT the vector-group field', () => {
     expect(isVectorGroupOptions([...VECTOR_GROUP_CODES])).toBe(true);
     expect(isVectorGroupOptions(['AR', 'SF6'])).toBe(false);
     expect(isVectorGroupOptions(undefined)).toBe(false);
+  });
+});
+
+describe('21.2-UNIT composeVectorGroup (e21f: the model describes the diagram, the kernel composes the code)', () => {
+  const SHAPE: Readonly<Record<string, WindingShape>> = { Y: 'star', D: 'delta', Z: 'zigzag' };
+  /** The facts a code's drawing shows, decomposed from the code itself: HV letter and N, LV letter and n, hour. */
+  function factsOf(code: string): VectorDiagramFacts {
+    const match = /^(Y|D|Z)(N?)(y|d|z)(n?)(\d+)$/.exec(code);
+    if (match === null) throw new Error(`cannot decompose ${code}`);
+    const [, hv, hvN, lv, lvN, hours] = match;
+    return { hv_shape: SHAPE[hv!]!, hv_neutral: hvN === 'N', lv_shape: SHAPE[lv!.toUpperCase()]!, lv_neutral: lvN === 'n', x1_hours: Number(hours) };
+  }
+
+  it('composes each of the 47 codes back from its facts', () => {
+    expect(VECTOR_GROUP_CODES).toHaveLength(47);
+    for (const code of VECTOR_GROUP_CODES) expect(composeVectorGroup(factsOf(code)), code).toBe(code);
+  });
+
+  it('the drawn Yyn0 plate: two stars, X0 at the LV centre, no H0, X1 with H1', () => {
+    expect(composeVectorGroup({ hv_shape: 'star', hv_neutral: false, lv_shape: 'star', lv_neutral: true, x1_hours: 0 })).toBe('Yyn0');
+    expect(composeVectorGroup({ hv_shape: 'delta', hv_neutral: false, lv_shape: 'star', lv_neutral: true, x1_hours: 1 })).toBe('Dyn1');
+  });
+
+  it('a delta with a neutral reads null', () => {
+    expect(composeVectorGroup({ hv_shape: 'delta', hv_neutral: true, lv_shape: 'star', lv_neutral: true, x1_hours: 1 })).toBeNull();
+    expect(composeVectorGroup({ hv_shape: 'star', hv_neutral: false, lv_shape: 'delta', lv_neutral: true, x1_hours: 1 })).toBeNull();
+  });
+
+  it.each([-1, 12, 1.5, Number.NaN, Number.POSITIVE_INFINITY])('hour %s reads null', (hours) => {
+    expect(composeVectorGroup({ hv_shape: 'delta', hv_neutral: false, lv_shape: 'star', lv_neutral: true, x1_hours: hours })).toBeNull();
+  });
+
+  it('a combination the table does not hold reads null (star-star at 1 o\'clock, star-star at 4)', () => {
+    expect(composeVectorGroup({ hv_shape: 'star', hv_neutral: false, lv_shape: 'star', lv_neutral: false, x1_hours: 1 })).toBeNull();
+    expect(composeVectorGroup({ hv_shape: 'star', hv_neutral: false, lv_shape: 'star', lv_neutral: false, x1_hours: 4 })).toBeNull();
+  });
+
+  it('an unknown shape or a non-boolean neutral reads null', () => {
+    expect(composeVectorGroup({ hv_shape: 'triangle' as WindingShape, hv_neutral: false, lv_shape: 'star', lv_neutral: true, x1_hours: 0 })).toBeNull();
+    expect(composeVectorGroup({ hv_shape: 'star', hv_neutral: false, lv_shape: 'toString' as WindingShape, lv_neutral: true, x1_hours: 0 })).toBeNull();
+    expect(composeVectorGroup({ hv_shape: 'star', hv_neutral: 'no' as unknown as boolean, lv_shape: 'star', lv_neutral: true, x1_hours: 0 })).toBeNull();
   });
 });
