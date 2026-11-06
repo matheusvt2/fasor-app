@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 11-04-2026 23:15
+last_updated: 11-06-2026 09:40
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -239,10 +239,11 @@ development_status:
   20-13-the-edges-auth-endpoints-cross-site-writes-telemetry-removed-files-hsts-and-the-login-copy: 
     done                                                                                                  # 2026-11-04: merged in #240 and fix batch e20f #241; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, security pass security-pass-2026-11-03.md); S7 and S8; per-e-mail lockout kept as accepted risk is the coordinator's reading; starts after 20.7 merges
 
-  epic-21: in-progress  # 2026-11-05: all three stories merged (#254, #255, fix batch #256); integrated gate and review in epic-21-context.md |  # added 2026-11-05 (Bruno WhatsApp via Matheus): ratio by vector group and section 7 photo order; research ttr-vector-groups-2026-11-05
-  epic-21-retrospective: optional
+  epic-21: done  # 2026-11-06: retrospective accepted-with-open-items (epic-21-retro-2026-11-06.md, E21-A1 to E21-A5); deployed as 45546f69, release v0.6.0 | 2026-11-05: all three stories merged (#254, #255, fix batch #256); integrated gate and review in epic-21-context.md |  # added 2026-11-05 (Bruno WhatsApp via Matheus): ratio by vector group and section 7 photo order; research ttr-vector-groups-2026-11-05
+  epic-21-retrospective: done
   21-1-the-transformer-ratio-follows-its-vector-group: done  # 2026-11-05: merged in #255; was ready-for-dev  # added 2026-11-05 (Matheus: "Considere todos", "Sim" for v9/v10); seed v11, contract 30; empty-group behaviour is the coordinator's reading
-  21-2-the-plate-reading-identifies-the-vector-group-also-from-the-drawn-diagram: done  # 2026-11-05: merged in #255 and fix batch e21f #256; was ready-for-dev  # added 2026-11-05 (Matheus: "a leitura deve identificar o diagrama tambem quando por foto"); starts after 21.1 merges
+  21-2-the-plate-reading-identifies-the-vector-group-also-from-the-drawn-diagram: 
+    done                                                                                # 2026-11-05: merged in #255 and fix batch e21f #256; was ready-for-dev  # added 2026-11-05 (Matheus: "a leitura deve identificar o diagrama tambem quando por foto"); starts after 21.1 merges
   21-3-move-a-photo-up-or-down-in-the-registro-fotografico: done  # 2026-11-05: merged in #254; was ready-for-dev  # added 2026-11-05 (Bruno); section 7 only and Subir/Descer are the coordinator's reading, open to Matheus; shares contract 30 with 21.1
 
   backlog-deferred: backlog  # added 2026-10-21: stories moved out of their epic with a dated decision, epics.md "Backlog: deferred stories"
@@ -1747,3 +1748,61 @@ action_items:
     owner: "coordinator"
     status: done  # 2026-11-04: four dated lines in epic-batch-orchestrator.md section 9 (P-1 two-pass integrated review, P-2 verification-gap read in the PR body, P-3 before-the-deploy rows in the deploy record, R-1 restore and shrink tests)
     ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md"
+  - id: "epic-21-retro-item-167-e21-a1-reading-fix-batch"
+    epic: 21
+    action: "E21-A1 Reading fix batch, red-first, story gate plus plate, plate-reading,
+      plate-every-type and seed-v11 specs, after e21g merges: the fold keeps the model
+      group entry when no known diagram id is left (R-1); one kernel predicate for
+      printed / other group / diagram / dropped used by buildReadingSuggestions, withVectorDiagram
+      and bedrock-eval groupRead (R-2); a reading vector diagram log line with the
+      fold outcome (R-3); the unique-key refine on fakeStructuringFixtureSchema and
+      withoutUncitedValues in a provider-neutral module (R-4); a job-level test that
+      printed Dyn1 plus diagram facts stays suggested (R-9). No prompt change."
+    owner: "coordinator (batch, opus high)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
+  - id: "epic-21-retro-item-168-e21-a2-paid-eval-prompt-revision"
+    epic: 21
+    action: "E21-A2 Next paid eval: bedrock-eval.ts with Nova Pro on the transformer
+      rows of the synthetic and real sets on bedrock-structuring-4 (R-5); any R-6
+      wording fix ships as bedrock-structuring-5 measured on both sets and both models
+      before its PR merges; record whether the real Dyn1 diagram read prints its code
+      (R-7); add a real non-Dyn1 plate when one exists (ask Bruno for the star-star
+      plate of his 2026-11-05 message)."
+    owner: "Matheus (AWS login, Bruno); coordinator (run and record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
+  - id: "epic-21-retro-item-169-e21-a3-records"
+    epic: 21
+    action: "E21-A3 Records after e21g merges: epic-21-context.md gains v0.6.0 tag
+      and publication, the 2026-11-06 real-set eval (ids and counts only) and e21g;
+      deferred-work.md closes the e21r eval row with the real-set result and updates
+      the e21r uncited-diagram row; epics.md dated line under Story 21.2 (real-set
+      eval after the deploy, accepted deviation; N-4 and N-5 accepted as designed)."
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
+  - id: "epic-21-retro-item-170-e21-a4-process-lessons"
+    epic: 21
+    action: "E21-A4 Playbook section 10, one dated line each: an AC that depends on
+      model perception runs its paid eval (synthetic plus a real set kept out of the
+      repository under docs/media) before its batch PR merges, run by the coordinator,
+      table as merge evidence, fake tests named plumbing tests (P-1); a reading prompt
+      asks for perceptual facts and a kernel function composes codes and verdicts,
+      plus a KB line (P-2); the integrated review stack and browser stay down during
+      the integrated gate unit and e2e stages, and a test red under load in two gates
+      of one epic gets a ledger row and an owner (P-3); a fix batch after the integrated
+      review runs the second-pass brief over its own diff and records it in its PR
+      body (P-4)."
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
+  - id: "epic-21-retro-item-171-e21-a5-decisions"
+    epic: 21
+    action: "E21-A5 Decisions, one dated line each under the story in epics.md: Bruno
+      on the k of Dyn3, Dyn9, Dy3 and Dy9; Matheus on the open readings O-1 to O-6
+      of PR #255 and the two e21p readings of PR #254; Matheus on P-2 as a dated line
+      in the architecture spine (AD-13 extended to model output)."
+    owner: "Matheus and Bruno (decision); coordinator (record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
