@@ -5,7 +5,10 @@ import { ocrReadResultSchema, structuringOutputSchema, type StructuringOutput } 
 import type { WordRow } from '../registry/word-row.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
 import { SEED_VERSION } from '../seed/definitions.ts';
-import { buildReadingSuggestions, type BuildReadingSuggestionsInput } from './build.ts';
+import { confirmAllCandidates } from '../relatorio/suggestion-group.ts';
+import { defaultBlockConfig } from '../seed/template.ts';
+import { buildReadingSuggestions, DIAGRAM_READ_NOTE, plateSuggestionNoteText, type BuildReadingSuggestionsInput } from './build.ts';
+import { FULL_IMAGE_BBOX } from './prose.ts';
 
 /*
  * Stories 8.4 and 8.5 over the committed fake fixture of the synthetic transformer plate
@@ -240,5 +243,116 @@ describe('AIR-1 and AIR-V1 buildReadingSuggestions: units as printed, bare years
   it('a model raw that kept the pt-BR thousands dot is the printed number, as a check', () => {
     const built = buildReadingSuggestions(input({ ocr: plateOcr, output: values([value('tensao_nominal_at', { raw: '13.800', unit: 'V', state: 'measured' }, ['t0', 't1'])]) }));
     expect(rowOf(built.rows, 'tensao_nominal_at')).toMatchObject({ value: { raw: '13.8', unit: 'kV' }, trust: 'verify' });
+  });
+});
+
+describe('21.2-UNIT the vector group from the plate', () => {
+  /** A plate with the group code printed (t2), split (t3 t4), and the diagram's terminal labels (t5 t6). */
+  const groupOcr = ocrReadResultSchema.parse({
+    image: { width: 1000, height: 1000 },
+    tokens: [
+      { id: 't0', text: 'LIGAÇÃO', bbox: [10, 10, 100, 30], confidence: 0.99 },
+      { id: 't1', text: 'SECUNDÁRIA', bbox: [110, 10, 250, 30], confidence: 0.99 },
+      { id: 't2', text: 'Dyn1', bbox: [300, 10, 360, 30], confidence: 0.99 },
+      { id: 't3', text: 'Dyn', bbox: [300, 50, 340, 70], confidence: 0.99 },
+      { id: 't4', text: '1', bbox: [345, 50, 355, 70], confidence: 0.99 },
+      { id: 't5', text: 'H1', bbox: [500, 500, 520, 520], confidence: 0.99 },
+      { id: 't6', text: 'X1', bbox: [700, 500, 720, 520], confidence: 0.99 },
+      { id: 't7', text: 'Dyn11', bbox: [300, 90, 370, 110], confidence: 0.99 },
+      { id: 't8', text: '(Dyn1)', bbox: [300, 130, 370, 150], confidence: 0.99 },
+    ],
+    preprocessing_applied: false,
+  });
+  const read = (version: string, value: string, ids: string[], blockType = 'transformador_forca') =>
+    buildReadingSuggestions(
+      input({
+        block: { ...block({}, blockType), seed_version: version },
+        ocr: groupOcr,
+        image: { width: 1000, height: 1000 },
+        output: structuringOutputSchema.parse({ values: [{ key: 'ligacao_secundaria', value, ocr_token_ids: ids, confidence: 0.9 }] }),
+      }),
+    );
+
+  it('v11: a printed "Dyn1" is suggested citing its token; "DYN1" lands as the option "Dyn1"; split or labelled runs count as printed', () => {
+    for (const [value, ids] of [
+      ['Dyn1', ['t2']],
+      ['DYN1', ['t2']],
+      ['Dyn1', ['t3', 't4']],
+      ['Dyn1', ['t0', 't1', 't2']],
+    ] as const) {
+      const built = read('v11', value, [...ids]);
+      expect(built.dropped, `${value} ${ids.join(' ')}`).toEqual([]);
+      const row = built.rows[0]!;
+      expect(row.value).toBe('Dyn1');
+      expect(row.trust).toBe('suggested');
+      expect(row.source.ocr_token_ids).toEqual(ids);
+      expect(row.source.bbox).not.toEqual(FULL_IMAGE_BBOX);
+      expect(plateSuggestionNoteText(row)).toBeNull();
+    }
+  });
+
+  it('v11: a group read from the drawn diagram (its cited tokens do not print it) is verify, cites no token, covers the whole image and carries the note; never a Confirmar todos candidate', () => {
+    const built = read('v11', 'Yyn0', ['t5', 't6']);
+    const row = built.rows[0]!;
+    expect(row).toMatchObject({ value: 'Yyn0', trust: 'verify', status: 'pending', target_path: `sheet/${BLOCK}/nameplate/ligacao_secundaria` });
+    expect(row.source.ocr_token_ids).toEqual([]);
+    expect(row.source.bbox).toEqual(FULL_IMAGE_BBOX);
+    expect(plateSuggestionNoteText(row)).toBe('Lido do diagrama — confira');
+    const sheet = { id: BLOCK, seed_version: 'v11', block_type: 'transformador_forca', sheet: { nameplate: {}, checklist: {}, test: {} } as unknown as BlockRow['sheet'], config: defaultBlockConfig('v11', 'transformador_forca') };
+    expect(confirmAllCandidates(sheet as never, [row])).toEqual([]);
+    expect(confirmAllCandidates(sheet as never, read('v11', 'Dyn1', ['t2']).rows)).toHaveLength(1);
+  });
+
+  it('v11: the cited runs decide: the same group printed is suggested ("(Dyn1)" too); another group printed is verify with its citations and box, no note; no group printed is the diagram read', () => {
+    const same = read('v11', 'Dyn1', ['t8']).rows[0]!;
+    expect(same).toMatchObject({ value: 'Dyn1', trust: 'suggested' });
+    expect(same.source.ocr_token_ids).toEqual(['t8']);
+    for (const [value, ids] of [
+      ['Dyn1', ['t7']],
+      ['Yyn0', ['t2']],
+    ] as const) {
+      const other = read('v11', value, [...ids]).rows[0]!;
+      expect(other, `${value} ${ids.join(' ')}`).toMatchObject({ value, trust: 'verify' });
+      expect(other.source.ocr_token_ids).toEqual(ids);
+      expect(other.source.bbox).not.toEqual(FULL_IMAGE_BBOX);
+      expect(plateSuggestionNoteText(other)).toBeNull();
+    }
+    const none = read('v11', 'Dyn1', ['t5']).rows[0]!;
+    expect(none).toMatchObject({ value: 'Dyn1', trust: 'verify' });
+    expect(none.source.ocr_token_ids).toEqual([]);
+    expect(none.source.bbox).toEqual(FULL_IMAGE_BBOX);
+    expect(plateSuggestionNoteText(none)).toBe(DIAGRAM_READ_NOTE);
+  });
+
+  it('v11: a value naming no group is dropped (invalid_shape), as any select value outside its options', () => {
+    expect(read('v11', 'Y', ['t5'])).toEqual({ rows: [], dropped: [{ key: 'ligacao_secundaria', reason: 'invalid_shape' }] });
+  });
+
+  it('v9/v10 text: a parsed group is stored as its code; an unparsed text is offered as read', () => {
+    for (const version of ['v9', 'v10']) {
+      expect(read(version, 'DYN1', ['t2']).rows[0]).toMatchObject({ value: 'Dyn1', trust: 'suggested' });
+      const unparsed = read(version, 'Y', ['t0']).rows[0]!;
+      expect(unparsed).toMatchObject({ value: 'Y', trust: 'suggested' });
+      expect(unparsed.source.ocr_token_ids).toEqual(['t0']);
+      const drawn = read(version, 'Yyn0', ['t5']).rows[0]!;
+      expect(drawn).toMatchObject({ value: 'Yyn0', trust: 'verify' });
+      expect(plateSuggestionNoteText(drawn)).toBe('Lido do diagrama — confira');
+    }
+  });
+
+  it('TP and TC keep LIGAÇÃO SECUNDÁRIA as read', () => {
+    for (const type of ['tp', 'tc']) {
+      const row = read('v11', 'DYN1', ['t2'], type).rows[0]!;
+      expect(row, type).toMatchObject({ value: 'DYN1' });
+      expect(row.source.ocr_token_ids).toEqual(['t2']);
+    }
+  });
+
+  it('the note names only a nameplate suggestion citing no token', () => {
+    const source = { photo_id: PHOTO, bbox: FULL_IMAGE_BBOX, ocr_token_ids: [], reading_run_id: RUN };
+    expect(plateSuggestionNoteText({ target_path: `sheet/${BLOCK}/nameplate/ligacao_secundaria`, source })).toBe(DIAGRAM_READ_NOTE);
+    expect(plateSuggestionNoteText({ target_path: `file/${PHOTO}/caption`, source })).toBeNull();
+    expect(plateSuggestionNoteText({ target_path: `sheet/${BLOCK}/checklist/limpeza/observation`, source })).toBeNull();
+    expect(plateSuggestionNoteText({ target_path: `sheet/${BLOCK}/nameplate/ligacao_secundaria`, source: { ...source, ocr_token_ids: ['t1'] } })).toBeNull();
   });
 });

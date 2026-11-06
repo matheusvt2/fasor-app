@@ -264,6 +264,18 @@
  * code (its `syncPushResponseSchema` refuses the code, so the whole answer fails and the push is
  * retried forever), so `MIN_CONTRACT_VERSION` goes to 29 too.
  *
+ * 30 (2026-11-05, Stories 21.1 and 21.2, Bruno's WhatsApp of the same day): seed v11, v10 with the
+ * transformador de força's LIGAÇÃO SECUNDÁRIA as a select of the 47 vector groups
+ * (`relatorio/vector-group.ts`) and its ratio table's `ratio_factor` as `vector_group` (the
+ * enum gains the value): VAL CALCULADO is U1 · k / U2 with the group's k, the captures read the
+ * group's terminal pairs, and with no group there is none. On seeds v9 and v10 a LIGAÇÃO
+ * SECUNDÁRIA the parser reads applies its group too (an unparsed one keeps √3 and the Dyn1 pairs).
+ * It is the version of a new template. A plate reading may now emit a nameplate suggestion citing
+ * no OCR token over the whole image (`ocr_token_ids: []`, the prose precedent), a vector group
+ * read from the drawn diagram, always `verify`; `suggestionRowSchema` already took that shape. These
+ * two stories add no op kind, path family, row field nor reject code (Story 21.3's `order_key`
+ * below does): a row written before 30 parses to the same bytes. `MIN_CONTRACT_VERSION` goes to 30 too.
+ *
  * 30 (2026-11-05, Story 21.3, batch e21p): a photo row gains an optional `order_key`
  * (`photoFileRowSchema`, `0-9a-z` only and never ending in `0`, absent and null both meaning never moved), and
  * `FILE_FIELDS` gains `order_key`, so `file/{id}/order_key` is a new put path: one put per
@@ -431,6 +443,14 @@ export const CONTRACT_VERSION = 30;
  * split a push under the 4 MiB body cap, and it shows no sentence for the new refusals. The
  * server refuses its status ops and oversized values from the first push of the deploy on, so
  * the version-28 bundle updates too, through the outdated-contract screen as on every bump.
+ *
+ * 30 (2026-11-05, Stories 21.1 and 21.2): a version-29 (or older) bundle cannot resolve seed v11,
+ * which a template the server moves to v11 and every relatório created on it carry. On a v9 or v10
+ * transformer whose LIGAÇÃO SECUNDÁRIA names a group other than Dyn1 ("YYN0") it would compute
+ * VAL CALCULADO with √3 where the server's kernel applies the group's k, so its condições,
+ * Sumário and documents would disagree with the server's. A stream carries those as soon as the
+ * template upgrade runs, and the v9/v10 relatórios already hold such texts, so the version-29
+ * bundle updates too.
  *
  * 30 (2026-11-05, Story 21.3): a version-29 (or older) bundle's `opSchema` refuses a
  * `file/{id}/order_key` put (the `FILE_FIELDS` enum), so a pulled page carrying one fails whole

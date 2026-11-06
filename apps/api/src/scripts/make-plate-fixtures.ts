@@ -26,6 +26,14 @@ import sharp from 'sharp';
  * and each cites the value tokens that print all of its digits, so the kernel's rules make
  * them `suggested` (a voltage class absent from the company registry stays `verify`). It
  * prints each type's sha256 for `kinds/plate.ts`.
+ *
+ * Story 21.2 adds two transformador de força plates on seed v11, named apart from the block type
+ * (`transformador_forca_dyn1`, `transformador_forca_yyn0`) since the transformer's default plate
+ * stays `services/ocr/tests/fixtures/plate-transformador.jpg`. They are no block type's default:
+ * their fixtures replay only for a photo of their own bytes (the job integration test, the eval).
+ * The first prints the group "Dyn1"; the second prints none and draws the star (HV) and
+ * star-with-neutral (LV) vector diagrams with their terminal labels, and its structured value
+ * "Yyn0" cites the diagram's "H1" label, so the kernel reads it as a diagram read (`verify`).
  */
 
 /** `FIXTURES_DIR` of `providers/fake.ts`, without loading the reading kinds. */
@@ -44,12 +52,18 @@ interface PlateRow {
   key: string;
   tokens: string[];
   value: unknown;
+  /** Story 21.2: the value cites these labels of the drawn diagram instead of its own tokens (none printed). */
+  citeDiagram?: string[];
 }
 
 interface PlateSpec {
-  blockType: 'para_raio' | 'chave_seccionadora' | 'disjuntor_mt' | 'tp' | 'tc' | 'chave_transferencia_automatica' | 'quadro_eletrico';
+  blockType: 'para_raio' | 'chave_seccionadora' | 'disjuntor_mt' | 'tp' | 'tc' | 'chave_transferencia_automatica' | 'quadro_eletrico' | 'transformador_forca';
+  /** The argument that selects the plate when it is not its block type (Story 21.2: two transformer plates). */
+  name?: string;
   file: string;
   rows: PlateRow[];
+  /** Story 21.2: the vector diagrams drawn at the bottom of the plate, star HV and star-with-neutral LV (Yyn0). */
+  diagram?: 'yyn0';
 }
 
 const num = (raw: string, unit: string) => ({ raw, unit, state: 'measured' });
@@ -174,7 +188,44 @@ const PLATES: PlateSpec[] = [
       { key: 'ip', tokens: ['IP54'], value: 'IP54' },
     ],
   },
+  {
+    // Story 21.2: a seed v11 transformer plate that prints its vector group.
+    blockType: 'transformador_forca',
+    name: 'transformador_forca_dyn1',
+    file: 'plate-transformador-dyn1.png',
+    rows: [
+      { key: 'identificacao', tokens: ['TR-02'], value: 'TR-02' },
+      { key: 'fabricacao', tokens: ['Varnelo'], value: 'Varnelo' },
+      { key: 'n_serie', tokens: ['TF-330918'], value: 'TF-330918' },
+      { key: 'potencia_nominal', tokens: ['300', 'kVA'], value: num('300', 'kVA') },
+      { key: 'tensao_nominal_at', tokens: ['13,8', 'kV'], value: num('13.8', 'kV') },
+      { key: 'tensao_nominal_bt', tokens: ['380', 'V'], value: num('380', 'V') },
+      { key: 'ligacao_secundaria', tokens: ['Dyn1'], value: 'Dyn1' },
+    ],
+  },
+  {
+    // Story 21.2: a seed v11 transformer plate that prints no group and draws a Yyn0 diagram.
+    blockType: 'transformador_forca',
+    name: 'transformador_forca_yyn0',
+    file: 'plate-transformador-yyn0.png',
+    rows: [
+      { key: 'identificacao', tokens: ['TR-03'], value: 'TR-03' },
+      { key: 'fabricacao', tokens: ['Varnelo'], value: 'Varnelo' },
+      { key: 'tensao_nominal_at', tokens: ['13,8', 'kV'], value: num('13.8', 'kV') },
+      { key: 'tensao_nominal_bt', tokens: ['380', 'V'], value: num('380', 'V') },
+      { key: 'ligacao_secundaria', tokens: [], value: 'Yyn0', citeDiagram: ['H1'] },
+    ],
+    diagram: 'yyn0',
+  },
 ];
+
+/** The argument that names a plate: its own name, else its block type. */
+const plateName = (plate: PlateSpec) => plate.name ?? plate.blockType;
+
+/** Story 21.2: the room the drawn diagrams take at the bottom of the plate. */
+const DIAGRAM_HEIGHT = 300;
+const DIAGRAM_ARM = 70;
+const DIAGRAM_LABEL_SIZE = 24;
 
 interface Token {
   id: string;
@@ -222,17 +273,31 @@ async function make(plate: PlateSpec): Promise<string> {
 
   const header = await words(definition.label.toUpperCase().split(' '), LABEL_X, 100, HEADER_SIZE, true, tokens);
   let body = header.svg;
-  const step = Math.floor((HEIGHT - 210) / plate.rows.length);
+  const step = Math.floor((HEIGHT - 210 - (plate.diagram === undefined ? 0 : DIAGRAM_HEIGHT)) / plate.rows.length);
+  const deferred: { row: PlateRow }[] = [];
   for (const [index, row] of plate.rows.entries()) {
     const field = fields.get(row.key);
-    if (field === undefined) throw new Error(`${plate.blockType} has no nameplate key ${row.key}`);
+    if (field === undefined) throw new Error(`${plateName(plate)} has no nameplate key ${row.key}`);
     const baseline = 150 + step * index + ROW_SIZE;
     body += `<line x1="50" y1="${baseline + 14}" x2="1150" y2="${baseline + 14}" stroke="#9AA0A6" stroke-width="2"/>`;
     const label = await words(field.label.split(' '), LABEL_X, baseline, ROW_SIZE, false, tokens);
     const value = await words(row.tokens, VALUE_X, baseline, ROW_SIZE, true, tokens);
     body += label.svg + value.svg;
-    values.push({ key: row.key, value: row.value, ocr_token_ids: value.ids, confidence: 0.97 });
+    if (row.citeDiagram !== undefined) deferred.push({ row });
+    else values.push({ key: row.key, value: row.value, ocr_token_ids: value.ids, confidence: 0.97 });
   }
+  if (plate.diagram !== undefined) {
+    const drawn = await yyn0Diagram(HEIGHT - DIAGRAM_HEIGHT + 20, tokens);
+    body += drawn.svg;
+    for (const { row } of deferred) {
+      const ids = row.citeDiagram!.map((text) => {
+        const id = drawn.labels.get(text);
+        if (id === undefined) throw new Error(`${plateName(plate)}: the diagram has no label ${text}`);
+        return id;
+      });
+      values.push({ key: row.key, value: row.value, ocr_token_ids: ids, confidence: 0.8 });
+    }
+  } else if (deferred.length > 0) throw new Error(`${plateName(plate)}: a row cites a diagram the plate does not draw`);
 
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}">` +
@@ -253,15 +318,51 @@ async function make(plate: PlateSpec): Promise<string> {
   return sha;
 }
 
-/** The plates to make: every one, or only the block types named as arguments. */
+/**
+ * Story 21.2: the star (HV, H1 H2 H3) and star-with-neutral (LV, X1 X2 X3 and X0 at the centre)
+ * vector diagrams of a Yyn0 transformer, side by side from `top`, each phase arm with its terminal
+ * label; the labels are OCR tokens like any word. Returns the SVG and the token id of each label.
+ */
+async function yyn0Diagram(top: number, tokens: Token[]): Promise<{ svg: string; labels: Map<string, string> }> {
+  const labels = new Map<string, string>();
+  let svg = '';
+  const star = async (cx: number, cy: number, prefix: 'H' | 'X', neutral: boolean) => {
+    // Phase 1 up, 2 lower right, 3 lower left (the clock's 12, 4 and 8 o'clock).
+    const angles = [-90, 30, 150];
+    for (const [i, angle] of angles.entries()) {
+      const rad = (angle * Math.PI) / 180;
+      const x = Math.round(cx + DIAGRAM_ARM * Math.cos(rad));
+      const y = Math.round(cy + DIAGRAM_ARM * Math.sin(rad));
+      svg += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#111111" stroke-width="4"/>`;
+      const lx = Math.round(cx + (DIAGRAM_ARM + 34) * Math.cos(rad)) - 16;
+      const ly = Math.round(cy + (DIAGRAM_ARM + 34) * Math.sin(rad)) + 9;
+      const word = await words([`${prefix}${i + 1}`], lx, ly, DIAGRAM_LABEL_SIZE, true, tokens);
+      labels.set(`${prefix}${i + 1}`, word.ids[0]!);
+      svg += word.svg;
+    }
+    if (neutral) {
+      svg += `<circle cx="${cx}" cy="${cy}" r="6" fill="#111111"/>`;
+      // Straight below the centre, between the 4 and 8 o'clock arms.
+      const word = await words([`${prefix}0`], cx - 15, cy + 52, DIAGRAM_LABEL_SIZE, true, tokens);
+      labels.set(`${prefix}0`, word.ids[0]!);
+      svg += word.svg;
+    }
+  };
+  const cy = top + 130;
+  await star(330, cy, 'H', false);
+  await star(860, cy, 'X', true);
+  return { svg, labels };
+}
+
+/** The plates to make: every one, or only the names (else block types) given as arguments. */
 function selected(args: readonly string[]): PlateSpec[] {
   if (args.length === 0) return PLATES;
-  const unknown = args.filter((arg) => !PLATES.some((plate) => plate.blockType === arg));
-  if (unknown.length > 0) throw new Error(`no plate for block type ${unknown.join(', ')}; known: ${PLATES.map((plate) => plate.blockType).join(', ')}`);
-  return PLATES.filter((plate) => args.includes(plate.blockType));
+  const unknown = args.filter((arg) => !PLATES.some((plate) => plateName(plate) === arg));
+  if (unknown.length > 0) throw new Error(`no plate named ${unknown.join(', ')}; known: ${PLATES.map(plateName).join(', ')}`);
+  return PLATES.filter((plate) => args.includes(plateName(plate)));
 }
 
 for (const plate of selected(process.argv.slice(2))) {
   const sha = await make(plate);
-  console.log(`${plate.blockType} ${plate.file} ${sha}`);
+  console.log(`${plateName(plate)} ${plate.file} ${sha}`);
 }

@@ -84,6 +84,8 @@ export interface PlateField {
   hint?: SuggestionRow['hint'];
   /** `replace` when the target cell was filled before the reading (the job writes it so). */
   mode?: SuggestionRow['mode'];
+  /** Story 21.2: the cited OCR tokens, `['t0']` by default; `[]` is a vector group read from the drawn diagram. */
+  ocrTokenIds?: string[];
 }
 
 /**
@@ -133,7 +135,7 @@ export async function pushPlateSuggestions(
       value: field.value,
       trust: field.trust ?? 'suggested',
       mode: field.mode ?? 'fill',
-      source: { photo_id: plate.photoId, bbox: field.bbox, ocr_token_ids: ['t0'], reading_run_id: run },
+      source: { photo_id: plate.photoId, bbox: field.bbox, ocr_token_ids: field.ocrTokenIds ?? ['t0'], reading_run_id: run },
       status: 'pending',
       prompt_version: 'e2e-1',
       hint: field.hint ?? null,

@@ -18,6 +18,7 @@ import {
   PANEL_FIELDS,
   SEED_VERSION,
   structuringOutputSchema,
+  VECTOR_GROUP_CODES,
   type BlockRow,
   type OcrImage,
   type StructuringInput,
@@ -32,7 +33,9 @@ import {
   bedrockClientSource,
   bedrockProseProvider,
   bedrockStructuringProvider,
+  structuringPrompt,
   usdFor,
+  type PlateStructuringInput,
   type BedrockConverseOutput,
   type BedrockLike,
 } from './bedrock.ts';
@@ -251,8 +254,8 @@ describe('11.6 Bedrock: no tool_use or invalid JSON is permanent', () => {
 });
 
 describe('AIR-1 and AIR-V1 (review 2026-10-08): the structuring prompt', () => {
-  it('asks for dates exactly as precise as printed and spells out the pt-BR separators; its version is 2', async () => {
-    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-2');
+  it('asks for dates exactly as precise as printed and spells out the pt-BR separators; its version is 3', async () => {
+    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-3');
     const client = replying([toolUse('record_values', plateValues)]);
     await structurer(client).structure(plateInput);
     const system = client.commands[0]!.input.system![0]!.text!;
@@ -260,6 +263,26 @@ describe('AIR-1 and AIR-V1 (review 2026-10-08): the structuring prompt', () => {
     expect(system).toContain('never add a month or a day');
     expect(system).not.toContain('- date: YYYY-MM or YYYY-MM-DD.');
     expect(system).toContain('"13.800" is 13800 and "1,5" is 1.5');
+  });
+});
+
+describe('21.2 the structuring prompt asks for the vector group, printed or drawn', () => {
+  it('a transformer plate input with its vector-group field gets the 47 codes and the diagram reading; any other input does not', async () => {
+    const withGroup: PlateStructuringInput = { ...plateInput, vectorGroupKey: 'ligacao_secundaria' };
+    const client = replying([toolUse('record_values', plateValues)]);
+    const result = await structurer(client).structure(withGroup);
+    expect(result.prompt_version).toBe('bedrock-structuring-3');
+    const text = client.commands[0]!.input.messages![0]!.content![1]!.text!;
+    expect(text).toContain('The field ligacao_secundaria holds the transformer\'s vector group');
+    expect(text).toContain(`Give exactly one of these codes: ${VECTOR_GROUP_CODES.join(' | ')}.`);
+    expect(text).toContain('read the vector diagrams the plate draws');
+    expect(text).toContain('cite the OCR words nearest the diagram');
+    // The paragraph sits between the fields and the OCR words.
+    expect(text.indexOf('Fields:')).toBeLessThan(text.indexOf('vector group'));
+    expect(text.indexOf('vector group')).toBeLessThan(text.indexOf('OCR words:'));
+    expect(structuringPrompt(plateInput)).not.toContain('vector group');
+    // A key the fields do not hold asks for nothing.
+    expect(structuringPrompt({ ...plateInput, vectorGroupKey: 'nao_existe' })).not.toContain('vector group');
   });
 });
 

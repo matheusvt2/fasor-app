@@ -1,0 +1,384 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "TRANSFORMADOR",
+        "bbox": [
+          70,
+          70,
+          481,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "DE",
+        "bbox": [
+          494,
+          70,
+          549,
+          100
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "FORÇA",
+        "bbox": [
+          562,
+          70,
+          711,
+          108
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "IDENTIFICAÇÃO",
+        "bbox": [
+          72,
+          152,
+          270,
+          181
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "TR-02",
+        "bbox": [
+          640,
+          156,
+          723,
+          177
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "FABRICAÇÃO",
+        "bbox": [
+          72,
+          250,
+          234,
+          279
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "Varnelo",
+        "bbox": [
+          640,
+          254,
+          751,
+          275
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "Nº",
+        "bbox": [
+          72,
+          352,
+          101,
+          372
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "SÉRIE",
+        "bbox": [
+          112,
+          347,
+          185,
+          373
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "TF-330918",
+        "bbox": [
+          640,
+          352,
+          793,
+          373
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t10",
+        "text": "POTÊNCIA",
+        "bbox": [
+          72,
+          445,
+          201,
+          471
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t11",
+        "text": "NOMINAL",
+        "bbox": [
+          213,
+          450,
+          333,
+          471
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t12",
+        "text": "300",
+        "bbox": [
+          641,
+          450,
+          693,
+          471
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t13",
+        "text": "kVA",
+        "bbox": [
+          705,
+          450,
+          759,
+          470
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t14",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          544,
+          175,
+          569
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t15",
+        "text": "NOMINAL",
+        "bbox": [
+          187,
+          548,
+          307,
+          569
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t16",
+        "text": "AT",
+        "bbox": [
+          317,
+          549,
+          349,
+          568
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t17",
+        "text": "13,8",
+        "bbox": [
+          642,
+          548,
+          703,
+          572
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t18",
+        "text": "kV",
+        "bbox": [
+          715,
+          548,
+          750,
+          568
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t19",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          642,
+          175,
+          667
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t20",
+        "text": "NOMINAL",
+        "bbox": [
+          187,
+          646,
+          307,
+          667
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t21",
+        "text": "BT",
+        "bbox": [
+          319,
+          647,
+          351,
+          666
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t22",
+        "text": "380",
+        "bbox": [
+          641,
+          646,
+          693,
+          667
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t23",
+        "text": "V",
+        "bbox": [
+          703,
+          647,
+          723,
+          666
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t24",
+        "text": "LIGAÇÃO",
+        "bbox": [
+          72,
+          740,
+          184,
+          769
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t25",
+        "text": "SECUNDÁRIA",
+        "bbox": [
+          195,
+          739,
+          364,
+          765
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t26",
+        "text": "Dyn1",
+        "bbox": [
+          642,
+          745,
+          714,
+          770
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "identificacao",
+        "value": "TR-02",
+        "ocr_token_ids": [
+          "t4"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "fabricacao",
+        "value": "Varnelo",
+        "ocr_token_ids": [
+          "t6"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "n_serie",
+        "value": "TF-330918",
+        "ocr_token_ids": [
+          "t9"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "potencia_nominal",
+        "value": {
+          "raw": "300",
+          "unit": "kVA",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t12",
+          "t13"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_nominal_at",
+        "value": {
+          "raw": "13.8",
+          "unit": "kV",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t17",
+          "t18"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_nominal_bt",
+        "value": {
+          "raw": "380",
+          "unit": "V",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t22",
+          "t23"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "ligacao_secundaria",
+        "value": "Dyn1",
+        "ocr_token_ids": [
+          "t26"
+        ],
+        "confidence": 0.97
+      }
+    ]
+  }
+}

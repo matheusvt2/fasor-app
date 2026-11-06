@@ -481,6 +481,9 @@ function MeasurementTable({
       ) : null}
       {/* Story 15.6: the kernel's formula under a ratio table whose VAL CALCULADO applies a factor, at every width; never printed. */}
       {table.formulaHelper === null ? null : <p className="helper">{table.formulaHelper}</p>}
+      {/* Story 21.1: the kernel's vector-group helpers (the windings to short, a missing or unrecognized group); never printed. */}
+      {table.shortHelper === null ? null : <p className="helper">{table.shortHelper}</p>}
+      {table.groupHelper === null ? null : <p className="helper">{table.groupHelper}</p>}
     </div>
   );
 }

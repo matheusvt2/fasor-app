@@ -3,6 +3,7 @@ import type { BlockRow, Cell } from '../schemas/entities.ts';
 import type { CriterionSeed } from '../seed/criteria.ts';
 import type { BlockDefinition, ColumnDef, TableDef, TestDef } from '../seed/schema.ts';
 import { screenAcronym } from './screen-label.ts';
+import { DEFAULT_VECTOR_GROUP_CODE, parseVectorGroup, VECTOR_GROUP_FIELD, vectorGroupByCode, type VectorGroup } from './vector-group.ts';
 
 /*
  * Stories 5.5-5.6 (FR-27, FR-28, UX-DR39/40): THE evaluation of a sheet's readings. The
@@ -40,7 +41,11 @@ export type ReadingSource = 'typed' | 'nameplate' | 'derived';
 /** A column the Measurement table draws (every value column but `print`). */
 export interface VisibleColumn {
   col: number;
-  /** The seed's label, as FO.SERV-03 prints it ("1 MINUTO"). */
+  /**
+   * The seed's label, as FO.SERV-03 prints it ("1 MINUTO"). Story 21.1: a capture column of a
+   * ratio table evaluated with a vector group reads that group's pair of its phase instead
+   * ("H1-H3 / X1-X3" on a Yyn0), on screen and in print; storage stays addressed by `col`.
+   */
   label: string;
   /** The header the table shows ("1 minuto", "Valor", "Calculado"). */
   header: string;
@@ -109,8 +114,25 @@ export interface EvaluatedTable {
   /**
    * Story 15.6 (seed v9): the sentence under a ratio table whose VAL CALCULADO applies a factor
    * ("Calculado: U1 · √3 / U2"), on the sheet only, never printed; null on every other table.
+   * Story 21.1: the formula of the vector group the table evaluates with ("Calculado: U1 / U2" on a
+   * Yyn0); null while a v11 table has no group.
    */
   formulaHelper: string | null;
+  /**
+   * Story 21.1: the windings the TTR short-circuits per phase on a group that shorts any
+   * ("Curto-circuitar H3-H2 na fase A, H1-H3 na B e H2-H1 na C"), on the sheet only; else null.
+   */
+  shortHelper: string | null;
+  /**
+   * Story 21.1: on a v11 table with no group, "Informe a LIGAÇÃO SECUNDÁRIA na placa para
+   * calcular"; on a v9/v10 table whose LIGAÇÃO SECUNDÁRIA names no group, "Ligação não
+   * reconhecida: calculado como Dyn1"; null otherwise. On the sheet only.
+   */
+  groupHelper: string | null;
+  /** Story 21.1: the code of the vector group the table evaluates with ("Yyn0"), null on a table without one. */
+  vectorGroup: string | null;
+  /** Story 21.1: a v11 ratio table with no group: no VAL CALCULADO, and each row counts one missing in Ensaios. */
+  groupMissing: boolean;
 }
 
 export interface TestEvaluation {
@@ -194,20 +216,35 @@ export function condicaoScreenText(condicao: EvaluatedRow['condicao']): string {
   return condicao === 'SATISFATÓRIO' ? 'Satisfatório' : 'Insatisfatório';
 }
 
-// authored: Story 15.6, the formula the transformador de força's VAL CALCULADO applies on seed v9.
-/** The helper under a ratio table by its seed `ratio_factor`. */
-const RATIO_FORMULA_TEXT: Readonly<Record<NonNullable<TableDef['ratio_factor']>, string>> = {
-  sqrt3: 'Calculado: U1 · √3 / U2',
-};
-
-/** Story 15.6: the formula helper of a ratio table, null when its VAL CALCULADO is the plain U1/U2. */
+/**
+ * Story 15.6: the formula helper of a ratio table by its seed `ratio_factor` alone: `sqrt3` reads
+ * the Dyn1 formula ("Calculado: U1 · √3 / U2"); no factor (the plain U1/U2) and `vector_group`
+ * (the formula is the group's, `EvaluatedTable.formulaHelper`) read null.
+ */
 export function ratioFormulaHelperText(factor: TableDef['ratio_factor']): string | null {
-  return factor === undefined ? null : RATIO_FORMULA_TEXT[factor];
+  return factor === 'sqrt3' ? 'Calculado: U1 · √3 / U2' : null;
 }
 
-/** Story 15.6: the multiplier of U1/U2 a seed `ratio_factor` names (1 without one). */
-export function ratioFactorValue(factor: TableDef['ratio_factor']): number {
-  return factor === 'sqrt3' ? Math.sqrt(3) : 1;
+/** Story 21.1: the vector group a ratio table evaluates with. */
+export interface RatioGroupResolution {
+  /** The group; null on a v11 table whose LIGAÇÃO SECUNDÁRIA names none (no VAL CALCULADO). */
+  group: VectorGroup | null;
+  /** True on a v9/v10 table whose LIGAÇÃO SECUNDÁRIA names no group: Dyn1 is assumed, as Story 15.6 fixed it. */
+  assumed: boolean;
+}
+
+/**
+ * Story 21.1: the vector group of a ratio table with a seed `ratio_factor`, read from the block's
+ * LIGAÇÃO SECUNDÁRIA (`parseVectorGroup`); null for a table without one (TP, TC, seeds v1 to v8),
+ * which keeps the plain U1/U2. `vector_group` (v11): the parsed group, else none. `sqrt3` (v9, v10):
+ * the parsed group, else Dyn1, assumed.
+ */
+export function ratioGroupOf(block: Pick<BlockRow, 'sheet'>, factor: TableDef['ratio_factor']): RatioGroupResolution | null {
+  if (factor === undefined) return null;
+  const parsed = parseVectorGroup(block.sheet.nameplate[VECTOR_GROUP_FIELD]?.value);
+  if (parsed !== null) return { group: parsed, assumed: false };
+  if (factor === 'vector_group') return { group: null, assumed: false };
+  return { group: vectorGroupByCode(DEFAULT_VECTOR_GROUP_CODE), assumed: true };
 }
 
 // --- units ---------------------------------------------------------------------------------

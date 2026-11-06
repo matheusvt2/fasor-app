@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { FieldDef, SuggestionRow } from '@app/domain';
+import { DIAGRAM_READ_NOTE, type FieldDef, type SuggestionRow } from '@app/domain';
 import { NameplateField, ReplaceLine, type NameplateSuggestionsModel } from './nameplate-suggestions.tsx';
 
 /*
@@ -76,5 +76,25 @@ describe('14.10-UNIT ReplaceLine: the tray of option A (key-suggestion-options.h
     expect(confirm).toHaveBeenCalledWith(SUGGESTION, SERIAL);
     await userEvent.click(keep);
     expect(keepTyped).toHaveBeenCalledWith(SUGGESTION);
+  });
+
+  it('Story 21.2: a vector group read from the drawn diagram (no cited token) says "Lido do diagrama — confira"; one citing its tokens says nothing', () => {
+    const LIGACAO = { key: 'ligacao_secundaria', label: 'LIGAÇÃO SECUNDÁRIA', kind: 'text' } as unknown as FieldDef;
+    const model = { confirm: vi.fn(), keepTyped: vi.fn() } as unknown as NameplateSuggestionsModel;
+    const read = (ocr_token_ids: string[]) =>
+      ({
+        id: 's2',
+        value: 'Yyn0',
+        status: 'pending',
+        trust: 'verify',
+        target_path: 'sheet/b1/nameplate/ligacao_secundaria',
+        source: { photo_id: 'p1', bbox: [0, 0, 1, 1], ocr_token_ids, reading_run_id: 'r1' },
+      }) as unknown as SuggestionRow;
+    const drawn = render(<ReplaceLine model={model} field={LIGACAO} suggestion={read([])} typed="DYN1" />);
+    expect(drawn.container.querySelectorAll('.helper')).toHaveLength(1);
+    expect(drawn.container.querySelector('.helper')).toHaveTextContent(DIAGRAM_READ_NOTE);
+    drawn.unmount();
+    const printed = render(<ReplaceLine model={model} field={LIGACAO} suggestion={read(['t2'])} typed="DYN1" />);
+    expect(printed.container.querySelectorAll('.helper')).toHaveLength(0);
   });
 });

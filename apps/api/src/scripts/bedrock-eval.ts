@@ -4,9 +4,11 @@ import { basename, extname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import {
   getDefinition,
+  isVectorGroupField,
   normalizeReadingValue,
   normalizeRegistryName,
   PANEL_FIELDS,
+  parseVectorGroup,
   SEED_VERSION,
   type FieldDef,
   type OcrReadResult,
@@ -14,7 +16,7 @@ import {
 } from '@app/domain';
 import { z } from 'zod';
 import { readingImage, type ReadingImage } from '../jobs/reading/image.ts';
-import { BEDROCK_DEFAULT_REGION, bedrockClientSource, bedrockStructuringProvider } from '../jobs/reading/providers/bedrock.ts';
+import { BEDROCK_DEFAULT_REGION, bedrockClientSource, bedrockStructuringProvider, type PlateStructuringInput } from '../jobs/reading/providers/bedrock.ts';
 import { createReadingProviders } from '../jobs/reading/providers/index.ts';
 import { TEXTRACT_DEFAULT_REGION } from '../jobs/reading/providers/textract.ts';
 import { renderVariants } from '../storage/variants.ts';
@@ -57,6 +59,12 @@ import { renderVariants } from '../storage/variants.ts';
  *     tools pnpm --filter @app/api exec tsx src/scripts/bedrock-eval.ts \
  *     --models global.anthropic.claude-haiku-4-5-20251001-v1:0,global.amazon.nova-2-lite-v1:0,qwen.qwen3-vl-235b-a22b,mistral.mistral-large-3-675b-instruct
  *   rm secrets/aws-session.env
+ *
+ * Story 21.2: a transformador de força plate is asked for its vector group as the job asks for it
+ * (`vectorGroupKey`, prompt `bedrock-structuring-3`), and a second table reports, per plate and
+ * model, the group read from LIGAÇÃO SECUNDÁRIA (`parseVectorGroup`; an unparsed answer is quoted,
+ * none is "-") beside the expected one. The synthetic set gains the two seed v11 transformer plates
+ * of `make-plate-fixtures.ts` (one printing "Dyn1", one drawing a Yyn0 diagram).
  *
  * Options: `--models a,b` (default: the four candidates and Nova Pro), `--ocr textract|fake|ocr-svc`,
  * `--dir <folder>`, `--verbose` (one line per reading). The regions are BEDROCK_REGION and
@@ -112,6 +120,24 @@ const SYNTHETIC: Sample[] = [
         tensao_nominal_bt: '380',
         ligacao_secundaria: 'Dyn1',
       },
+    },
+  },
+  {
+    name: 'plate-transformador-dyn1 (synthetic, Story 21.2)',
+    path: join(repoRoot, 'apps/api/src/jobs/reading/fixtures/images/plate-transformador-dyn1.png'),
+    expected: {
+      kind: 'plate',
+      block_type: 'transformador_forca',
+      values: { identificacao: 'TR-02', fabricacao: 'Varnelo', n_serie: 'TF-330918', potencia_nominal: '300', tensao_nominal_at: '13.8', tensao_nominal_bt: '380', ligacao_secundaria: 'Dyn1' },
+    },
+  },
+  {
+    name: 'plate-transformador-yyn0 (synthetic, drawn diagram, Story 21.2)',
+    path: join(repoRoot, 'apps/api/src/jobs/reading/fixtures/images/plate-transformador-yyn0.png'),
+    expected: {
+      kind: 'plate',
+      block_type: 'transformador_forca',
+      values: { identificacao: 'TR-03', fabricacao: 'Varnelo', tensao_nominal_at: '13.8', tensao_nominal_bt: '380', ligacao_secundaria: 'Yyn0' },
     },
   },
   {
@@ -217,6 +243,22 @@ function table(rows: Row[]): string {
   return [render(header), render(widths.map((width) => '-'.repeat(width))), ...lines.map(render)].join('\n');
 }
 
+/** Story 21.2: the group a reading gives LIGAÇÃO SECUNDÁRIA: its code, the unparsed answer quoted, or "-" for none. */
+function groupRead(result: StructuringResult, key: string): string {
+  const value = result.output.values.find((candidate) => candidate.key === key)?.value;
+  if (value === undefined) return '-';
+  return parseVectorGroup(value)?.code ?? JSON.stringify(value);
+}
+
+/** Story 21.2: one row per transformer plate, the expected group then each model's read. */
+function groupTable(models: readonly string[], groups: readonly { sample: string; expected: string; read: Map<string, string> }[]): string {
+  const header = ['plate', 'expected group', ...models];
+  const lines = groups.map((entry) => [entry.sample, entry.expected, ...models.map((model) => entry.read.get(model) ?? 'failed')]);
+  const widths = header.map((title, column) => Math.max(title.length, ...lines.map((line) => line[column]!.length)));
+  const render = (cells: string[]) => `| ${cells.map((cell, column) => cell.padEnd(widths[column]!)).join(' | ')} |`;
+  return [render(header), render(widths.map((width) => '-'.repeat(width))), ...lines.map(render)].join('\n');
+}
+
 async function run(): Promise<number> {
   const { values: options } = parseArgs({
     options: {
@@ -254,8 +296,13 @@ async function run(): Promise<number> {
     }
   }
 
+  const groups: { sample: string; expected: string; read: Map<string, string> }[] = [];
   for (const sample of samples) {
     const fields = fieldsOf(sample.expected);
+    // Story 21.2: the transformer's vector-group field, asked for as the plate job asks for it.
+    const groupKey = sample.expected.kind === 'plate' ? fields.find((field) => isVectorGroupField(sample.expected.block_type!, field.key))?.key : undefined;
+    const group = groupKey === undefined ? null : { sample: sample.name, expected: sample.expected.values[groupKey] ?? '-', read: new Map<string, string>() };
+    if (group !== null) groups.push(group);
     const original = new Uint8Array(await readFile(sample.path));
     const mime = mimeOf(sample.path);
     const variants = await renderVariants(original, mime);
@@ -271,7 +318,9 @@ async function run(): Promise<number> {
       const row = rows.get(model)!;
       row.readings += 1;
       try {
-        const result = await providers.get(model)!.structure({ image: { bytes: image.bytes, mime: image.mime }, ocr, fields });
+        const input: PlateStructuringInput = { image: { bytes: image.bytes, mime: image.mime }, ocr, fields, ...(groupKey === undefined ? {} : { vectorGroupKey: groupKey }) };
+        const result = await providers.get(model)!.structure(input);
+        if (group !== null) group.read.set(model, groupRead(result, groupKey!));
         const scored = score(sample, fields, ocr, result);
         row.expected += scored.expected;
         row.right += scored.right;
@@ -293,6 +342,7 @@ async function run(): Promise<number> {
   const all = [...rows.values()];
   console.log(`\nOCR ${ocrProvider}, Bedrock ${region}, ${samples.length} image(s)\n`);
   console.log(table(all));
+  if (groups.length > 0) console.log(`\nVector group read (LIGAÇÃO SECUNDÁRIA)\n\n${groupTable(models, groups)}`);
   return all.every((row) => row.failed === row.readings) ? 1 : 0;
 }
 

@@ -2947,6 +2947,24 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   summary: `POST /api/photos/{id}/reread` (`apps/api/src/http/reading.ts`) and `sendRetargetedReading` (`apps/api/src/sync/routes.ts`) check only the photo's own tombstone, not `fileWithdrawn`, so a photo of a removed relatório can still spend a paid reading.
   evidence: review pass 1, triage #18 (VG-6); `reading.ts:54-57` repeats the old inline check; no test rereads a photo of a removed relatório.
 
+## Deferred from: Epic 21 batch e21r (2026-11-05)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e21r-ratio-vector-group.md`
+  summary: Before the deploy, Matheus runs `apps/api/src/scripts/bedrock-eval.ts` on the real plate set with prompt `bedrock-structuring-3`; record the group column per plate in the PR.
+  evidence: Story 21.2 DoD; the script is prepared (its "Vector group read" table, the two synthetic v11 transformer plates added to its default set) and was never run in the batch (paid call).
+- source_spec: `_bmad-output/implementation-artifacts/spec-e21r-ratio-vector-group.md`
+  summary: The drawn-diagram path of Story 21.2 is exercised end to end on the device with the reading job's suggestion seeded as the job writes it (`e2e/plate.spec.ts` 21.2-E2E-001), and through the real job only in `apps/api` (`job.integration.test.ts`, the committed plate's own fixture): an imported photo is re-encoded by the device, so the fake providers replay the transformer's default plate (printed Dyn1) and never the drawn one.
+  evidence: `providers/fake.ts` chooses a default fixture by reading kind, block type and table only; making the drawn plate a default would change every transformer plate test.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e21r-ratio-vector-group.md` (review, owner: the Epic 21 integrated review or its fix batch)
+  summary: `suggestConclusionPair` can offer "Aprovado · Sem restrições" on a v11 transformer whose LIGAÇÃO SECUNDÁRIA is empty and whose captures are measured, since no VAL CALCULADO judges them.
+  evidence: `relatorio/conclusion.ts` does not read `EvaluatedTable.groupMissing`; a ratio row missing V PRIMÁRIO behaves the same today, and the sheet still counts the row missing, so "Concluir ficha" stays blocked.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e21r-ratio-vector-group.md` (review, owner: the Epic 21 integrated review or its fix batch)
+  summary: When the v11 missing group is the only thing missing in Ensaios, "Concluir ficha" lands on Ensaios with no field focused (the fix is on Placa).
+  evidence: `apps/web/src/surfaces/ficha/ensaios-section.tsx` `firstMissing` reads evaluated cells only, and the group has no cell; the missing-group helper is shown under the ratio table.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e21r-ratio-vector-group.md` (review, before the deploy with the eval run)
+  summary: A drawn-only vector diagram whose terminal labels the OCR did not return is dropped as uncited, so no group is suggested.
+  evidence: `providers/bedrock.ts` `withoutUncitedValues` and `structuringValueSchema` (`min(1)`) drop a value citing no token; changing that touches `contract/ocr.ts` and the OCR sidecar gate. The paid eval run shows how often the real plates hit it.
+
 ## Deferred from: Epic 21 batch e21p (2026-11-05)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e21p-section-7-photo-order.md`

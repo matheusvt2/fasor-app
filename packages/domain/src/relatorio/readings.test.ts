@@ -27,6 +27,7 @@ import {
   condicaoScreenText,
 } from './readings.ts';
 import { sheetProgress } from './sheet-progress.ts';
+import { VECTOR_GROUPS, vectorGroupFactor, vectorGroupFormulaText } from './vector-group.ts';
 
 const ID = '019966b0-0051-7000-8000-000000000001';
 const OP = '019966b0-0051-7000-8000-000000000002';
@@ -660,5 +661,133 @@ describe('17.5-UNIT failedRatioRows (F42, E15-A2)', () => {
     const off = { ...config, sub_blocks: { ...config.sub_blocks, relacao_transformacao: { enabled: false } } };
     const b = block('tp', test('relacao_transformacao', [...tpInputs(0), [0, 3, measured('125', null)]]), off);
     expect(failedRatioRows(evaluateSheetReadings(b, TP))).toEqual([]);
+  });
+});
+
+describe('21.1-UNIT the transformer ratio follows its vector group', () => {
+  const ratioOf = (version: string, ligacao: string | null, captures: string[] = [], type: EquipmentBlockType = 'transformador_forca') => {
+    const nameplate: Record<string, Cell> = ligacao === null ? {} : { ligacao_secundaria: cell(ligacao) };
+    const cells: [number, number, Cell][] = [[0, 0, measured('13.8', 'kV')], [0, 1, measured('380', 'V')], ...captures.map((raw, i): [number, number, Cell] => [0, 3 + i, measured(raw, null)])];
+    const b = { ...block(type, { nameplate, ...test('relacao_transformacao', cells) }, defaultBlockConfig(version, type)), seed_version: version };
+    return evaluateSheetReadings(b, getDefinition(version, 'cabine_primaria', type)).find((t) => t.testKey === 'relacao_transformacao')!.tables[0]!;
+  };
+  const captureLabels = (table: ReturnType<typeof ratioOf>) => table.columns.filter((c) => c.role === 'capture').map((c) => c.label);
+  const cardLabels = (table: ReturnType<typeof ratioOf>) => table.rows[0]!.cells.filter((c) => c.role === 'capture').map((c) => c.column);
+
+  it('v11 Yyn0 at 13,8 kV / 380 V: VAL CALCULADO 36,32, 36,3 SATISFATÓRIO, the star-star pairs and U1 / U2', () => {
+    const table = ratioOf('v11', 'Yyn0', ['36.3', '36.3', '36.3']);
+    expect(table.rows[0]!.calculated?.text).toBe('36,32');
+    expect(table.rows[0]!.condicao).toBe('SATISFATÓRIO');
+    expect(captureLabels(table)).toEqual(['H1-H3 / X1-X3', 'H2-H1 / X2-X1', 'H3-H2 / X3-X2']);
+    expect(cardLabels(table)).toEqual(['H1-H3 / X1-X3', 'H2-H1 / X2-X1', 'H3-H2 / X3-X2']);
+    expect(table.formulaHelper).toBe('Calculado: U1 / U2');
+    expect(table.shortHelper).toBeNull();
+    expect(table.groupHelper).toBeNull();
+    expect(table.vectorGroup).toBe('Yyn0');
+    expect(table.groupMissing).toBe(false);
+  });
+
+  it('v11 Dyn1 evaluates exactly as the v10 sheet (62,90, the seed labels, the √3 formula)', () => {
+    const v11 = ratioOf('v11', 'Dyn1', ['62.8', '62.8', '62.8']);
+    const v10 = ratioOf('v10', 'DYN1', ['62.8', '62.8', '62.8']);
+    expect(v11.rows[0]!.calculated).toEqual({ raw: '62.900792', text: '62,90' });
+    expect(v11.rows).toEqual(v10.rows);
+    expect(v11.columns).toEqual(v10.columns);
+    expect(v11.formulaHelper).toBe('Calculado: U1 · √3 / U2');
+    expect(v10.groupHelper).toBeNull();
+    expect(captureLabels(v11)).toEqual(['H1-H3 / X1-X0', 'H2-H1 / X2-X0', 'H3-H2 / X3-X0']);
+  });
+
+  it('YNd11 and the shorted Yd1', () => {
+    const ynd11 = ratioOf('v11', 'YNd11');
+    expect(ynd11.rows[0]!.calculated?.text).toBe('20,97');
+    expect(ynd11.formulaHelper).toBe('Calculado: U1 / (U2 · √3)');
+    expect(captureLabels(ynd11)).toEqual(['H1-H0 / X1-X3', 'H2-H0 / X2-X1', 'H3-H0 / X3-X2']);
+    const yd1 = ratioOf('v11', 'Yd1');
+    expect(yd1.rows[0]!.calculated?.text).toBe('31,45');
+    expect(captureLabels(yd1)).toEqual(['H1-(H3+H2) / X1-X2', 'H2-(H1+H3) / X2-X3', 'H3-(H2+H1) / X3-X1']);
+    expect(yd1.formulaHelper).toBe('Calculado: U1 · √3 / (2 · U2)');
+    expect(yd1.shortHelper).toBe('Curto-circuitar H3-H2 na fase A, H1-H3 na B e H2-H1 na C');
+  });
+
+  it('each of the 47 groups at 13,8 kV / 380 V: VAL CALCULADO = U1 · k / U2 and the captures read its pairs', () => {
+    for (const group of VECTOR_GROUPS) {
+      const table = ratioOf('v11', group.code);
+      const value = (13800 / 380) * vectorGroupFactor(group.k);
+      expect(table.rows[0]!.calculated?.text, group.code).toBe(value.toFixed(2).replace('.', ','));
+      expect(captureLabels(table), group.code).toEqual(group.phases.map((phase) => `${phase.h} / ${phase.x}`));
+      expect(table.formulaHelper, group.code).toBe(vectorGroupFormulaText(group.k));
+      expect(table.shortHelper === null, group.code).toBe(group.phases[0].short === null);
+    }
+  });
+
+  it('v11 with no group: no VAL CALCULADO nor CONDIÇÕES, captures typeable, one helper asks for the group, and the row counts one missing', () => {
+    for (const ligacao of [null, '', 'Y']) {
+      const table = ratioOf('v11', ligacao, ['36.3', '36.3', '36.3']);
+      expect(table.rows[0]!.calculated, String(ligacao)).toBeNull();
+      expect(table.rows[0]!.condicao).toBeNull();
+      expect(table.rows[0]!.cells.filter((c) => c.role === 'capture').map((c) => c.state)).toEqual(['measured', 'measured', 'measured']);
+      expect(table.rows[0]!.cells.every((c) => c.verdict === null)).toBe(true);
+      expect(table.formulaHelper).toBeNull();
+      expect(table.shortHelper).toBeNull();
+      expect(table.groupHelper).toBe('Informe a LIGAÇÃO SECUNDÁRIA na placa para calcular');
+      expect(table.groupMissing).toBe(true);
+      expect(table.vectorGroup).toBeNull();
+    }
+    const sheet = (version: string, ligacao: string | null) => {
+      const nameplate: Record<string, Cell> = ligacao === null ? {} : { ligacao_secundaria: cell(ligacao) };
+      const cells: [number, number, Cell][] = [[0, 0, measured('13.8', 'kV')], [0, 1, measured('380', 'V')], [0, 3, measured('36.3', null)], [0, 4, measured('36.3', null)], [0, 5, measured('36.3', null)]];
+      return { ...block('transformador_forca', { nameplate, ...test('relacao_transformacao', cells) }, defaultBlockConfig(version, 'transformador_forca')), seed_version: version };
+    };
+    const missing = (b: BlockRow) => sheetProgress({ blocks: [b] }, b.id).steps.ensaios.missing;
+    expect(missing(sheet('v11', null)) - missing(sheet('v11', 'Yyn0'))).toBe(1);
+    // v10 with no group computes as Dyn1: nothing more missing.
+    expect(missing(sheet('v10', null))).toBe(missing(sheet('v10', 'DYN1')));
+  });
+
+  it('the missing group counts only while the plate can be filled: nameplate on, one per ratio row; off, none extra', () => {
+    const sheet = (ligacao: string | null, nameplate: boolean) => {
+      const config = defaultBlockConfig('v11', 'transformador_forca') as { sub_blocks: Record<string, { enabled: boolean }> };
+      const own = nameplate ? config : { ...config, sub_blocks: { ...config.sub_blocks, nameplate: { enabled: false } } };
+      const plate: Record<string, Cell> = ligacao === null ? {} : { ligacao_secundaria: cell(ligacao) };
+      return { ...block('transformador_forca', { nameplate: plate }, own), seed_version: 'v11' };
+    };
+    const missing = (b: BlockRow) => sheetProgress({ blocks: [b] }, b.id).steps.ensaios.missing;
+    const rows = getDefinition('v11', 'cabine_primaria', 'transformador_forca').tests.find((t) => t.key === 'relacao_transformacao')!.tables.reduce((n, t) => n + t.rows.length, 0);
+    expect(missing(sheet(null, true)) - missing(sheet('Yyn0', true))).toBe(rows);
+    expect(missing(sheet(null, false)) - missing(sheet('Yyn0', false))).toBe(0);
+  });
+
+  it('v9 and v10 apply a group their text names; an empty or unparsed text keeps √3 and the Dyn1 pairs and says so', () => {
+    for (const version of ['v9', 'v10']) {
+      for (const text of ['YYN0', 'yy0', 'Y/yn0']) {
+        const table = ratioOf(version, text, ['36.3', '36.3', '36.3']);
+        expect(table.rows[0]!.calculated?.text, `${version} ${text}`).toBe('36,32');
+        expect(table.rows[0]!.condicao).toBe('SATISFATÓRIO');
+        expect(captureLabels(table)).toEqual(['H1-H3 / X1-X3', 'H2-H1 / X2-X1', 'H3-H2 / X3-X2']);
+        expect(table.formulaHelper).toBe('Calculado: U1 / U2');
+        expect(table.groupHelper).toBeNull();
+      }
+      for (const text of [null, '', 'Y', 'DYN', 'estrela-estrela']) {
+        const table = ratioOf(version, text, ['62.8', '62.8', '62.8']);
+        expect(table.rows[0]!.calculated?.text, `${version} ${String(text)}`).toBe('62,90');
+        expect(captureLabels(table)).toEqual(['H1-H3 / X1-X0', 'H2-H1 / X2-X0', 'H3-H2 / X3-X0']);
+        expect(table.formulaHelper).toBe('Calculado: U1 · √3 / U2');
+        expect(table.groupHelper).toBe('Ligação não reconhecida: calculado como Dyn1');
+        expect(table.groupMissing).toBe(false);
+        expect(table.vectorGroup).toBe('Dyn1');
+      }
+    }
+  });
+
+  it('v8 and the TP and TC never read a group: plain U1/U2, the seed labels, no helper', () => {
+    const v8 = ratioOf('v8', 'Yd1');
+    expect(v8.rows[0]!.calculated?.text).toBe('36,32');
+    expect(captureLabels(v8)).toEqual(['H1-H3 / X1-X0', 'H2-H1 / X2-X0', 'H3-H2 / X3-X0']);
+    expect([v8.formulaHelper, v8.shortHelper, v8.groupHelper, v8.vectorGroup, v8.groupMissing]).toEqual([null, null, null, null, false]);
+    for (const type of ['tp', 'tc'] as const) {
+      const table = ratioOf('v11', 'Yd1', [], type);
+      expect([table.formulaHelper, table.shortHelper, table.groupHelper, table.vectorGroup, table.groupMissing], type).toEqual([null, null, null, null, false]);
+    }
   });
 });

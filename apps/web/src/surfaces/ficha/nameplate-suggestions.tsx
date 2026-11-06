@@ -16,6 +16,7 @@ import {
   refusedFieldInputKind,
   pendingSuggestions,
   photoRemovedText,
+  plateSuggestionNoteText,
   screenLabel,
   suggestionAnnouncement,
   suggestionGroupCounts,
@@ -351,6 +352,7 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
   const [invalid, setInvalid] = useState(false);
   const label = screenLabel(field.label);
   const valueText = suggestionValueText(field, suggestion.value);
+  const diagramNote = plateSuggestionNoteText(suggestion);
   const isNumber = field.kind === 'number';
   const root = useRef<HTMLDivElement>(null);
   /** While a typed value is being written (and once it is), a second blur or tap writes nothing. */
@@ -454,7 +456,10 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
             <span className="helper" data-tone="red" id={helperId}>
               {invalidText}
             </span>
-          ) : null
+          ) : diagramNote === null ? null : (
+            // Story 21.2: a vector group read from the drawn diagram, not a printed word.
+            <span className="helper">{diagramNote}</span>
+          )
         }
       >
         {input}
@@ -487,11 +492,14 @@ function focusPlainField(key: string, frames = 10): void {
 export function ReplaceLine({ model, field, suggestion, typed }: { model: NameplateSuggestionsModel; field: FieldDef; suggestion: SuggestionRow; typed: unknown }) {
   const label = screenLabel(field.label);
   const suggested = suggestionValueText(field, suggestion.value);
+  const diagramNote = plateSuggestionNoteText(suggestion);
   return (
     <div className="suggestion-tray" role="group" aria-label={ui.suggestionField.trayLabel(label)} data-suggestion-id={suggestion.id}>
       <p className="suggestion-tray-text">
         {ui.suggestionField.suggested}: <b>{suggested}</b>
       </p>
+      {/* Story 21.2: a vector group read from the drawn diagram, not a printed word. */}
+      {diagramNote === null ? null : <p className="helper">{diagramNote}</p>}
       <div className="suggestion-tray-actions">
         <button type="button" className="btn btn-secondary" aria-label={ui.suggestionField.replaceLabel(label, suggested)} onClick={() => model.confirm(suggestion, field)}>
           {ui.suggestionField.replace}

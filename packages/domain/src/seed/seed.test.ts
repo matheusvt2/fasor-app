@@ -18,6 +18,7 @@ import {
   siteChecklistOf,
   siteItems,
 } from './definitions.ts';
+import { VECTOR_GROUP_CODES } from '../relatorio/vector-group.ts';
 import { LEGACY_OPTION_VERSIONS, withLegacyOptions } from './legacy-options.ts';
 import { CABINE_PRIMARIA_V1 } from './v1.ts';
 import { CABINE_PRIMARIA_V2 } from './v2.ts';
@@ -1749,14 +1750,18 @@ describe('seed v9 (Stories 15.3 and 15.6): v8 with one oil-level item, the TC wi
     expect(keys('v9', 'transformador_forca')).toContain('potencia_nominal');
   });
 
-  it('ratio_factor sqrt3 sits on the v9 (and v10) transformador de força ratio table only', () => {
+  it('ratio_factor sits on the v9 and v10 (sqrt3) and v11 (vector_group) transformador de força ratio table only', () => {
     const factors: string[] = [];
     for (const version of Object.keys(SEED_VERSIONS)) {
       for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
         for (const test of definition.tests) for (const table of test.tables) if ('ratio_factor' in table) factors.push(`${version}/${definition.block_type}/${test.key}/${table.ratio_factor}`);
       }
     }
-    expect(factors).toEqual(['v9/transformador_forca/relacao_transformacao/sqrt3', 'v10/transformador_forca/relacao_transformacao/sqrt3']);
+    expect(factors).toEqual([
+      'v9/transformador_forca/relacao_transformacao/sqrt3',
+      'v10/transformador_forca/relacao_transformacao/sqrt3',
+      'v11/transformador_forca/relacao_transformacao/vector_group',
+    ]);
   });
 
   it('the site checklist: 21 items, the two new ones items 20 and 21 at the end of Ambiente; v4 to v8 keep 19', () => {
@@ -1791,10 +1796,9 @@ describe('seed v10 (Story 15.7): v9 with the TC\'s own seven-item checklist', ()
   const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
   const TC_KEYS = ['limpeza_pintura_e_corrosao', 'vasamento', 'fusiveis', 'aterramento', 'conexoes', 'fiacao_secundaria', 'buchas'];
 
-  it('is the version a new Template is created with', () => {
-    expect(SEED_VERSION).toBe('v10');
+  it('was the version a new Template is created with until seed v11 (pinned there)', () => {
     expect(SEED_VERSIONS.v10!.version).toBe('v10');
-    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10']);
+    expect(Object.keys(SEED_VERSIONS)).toContain('v10');
     expect(equipmentTypesOf('v10')).toEqual(equipmentTypesOf('v9'));
   });
 
@@ -1864,6 +1868,62 @@ describe('seed v10 (Story 15.7): v9 with the TC\'s own seven-item checklist', ()
     expect(tc.tests).toEqual(v9Tc.tests);
     expect(tc.sub_blocks).toEqual(v9Tc.sub_blocks);
     expect(getDefinition('v9', 'cabine_primaria', 'tc').checklist).toHaveLength(14);
+  });
+});
+
+/** v10 as it shipped (Story 15.7); a change to it is a new version. */
+const V10_HASH = 'deb9338028b2d1d1b2522fa1bc7f5a41e91d89184bfa294cf4c13dbcc96cf908';
+
+describe('seed v11 (Story 21.1): v10 with the transformador de força\'s vector group', () => {
+  const v10 = getSeed('v10', 'cabine_primaria');
+  const v11 = getSeed('v11', 'cabine_primaria');
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
+
+  it('is the version a new Template is created with', () => {
+    expect(SEED_VERSION).toBe('v11');
+    expect(SEED_VERSIONS.v11!.version).toBe('v11');
+    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11']);
+    expect(equipmentTypesOf('v11')).toEqual(equipmentTypesOf('v10'));
+  });
+
+  it('differs from v10 by exactly the transformer LIGAÇÃO SECUNDÁRIA select and its ratio_factor, and v1 to v10 hash as they shipped', () => {
+    const stripped = structuredClone(v11) as typeof v11;
+    const own = stripped.blocks.transformador_forca as BlockDefinition;
+    const at = own.nameplate.findIndex((field) => field.key === 'ligacao_secundaria');
+    expect(own.nameplate[at]).toEqual({ key: 'ligacao_secundaria', label: 'LIGAÇÃO SECUNDÁRIA', kind: 'select', options: [...VECTOR_GROUP_CODES] });
+    own.nameplate[at] = structuredClone(v10.blocks.transformador_forca.nameplate[at]!);
+    for (const test of own.tests) {
+      for (const table of test.tables) {
+        if (table.ratio_factor === undefined) continue;
+        expect(table.ratio_factor).toBe('vector_group');
+        table.ratio_factor = 'sqrt3';
+      }
+    }
+    expect(JSON.stringify(stripped)).toBe(JSON.stringify(v10));
+    expect(hash('v1')).toBe(V1_HASH);
+    expect(hash('v2')).toBe(V2_HASH);
+    expect(hash('v3')).toBe(V3_HASH);
+    expect(hash('v4')).toBe(V4_HASH);
+    expect(hash('v5')).toBe(V5_HASH);
+    expect(hash('v6')).toBe(V6_HASH);
+    expect(hash('v7')).toBe(V7_HASH);
+    expect(hash('v8')).toBe(V8_HASH);
+    expect(hash('v9')).toBe(V9_HASH);
+    expect(hash('v10'), 'seed v10 changed after it shipped: add a new version instead').toBe(V10_HASH);
+  });
+
+  it('the select offers the 47 codes in the manual order; TP and TC keep LIGAÇÃO SECUNDÁRIA as text and their plain ratio; the capture labels stay', () => {
+    const field = getDefinition('v11', 'cabine_primaria', 'transformador_forca').nameplate.find((candidate) => candidate.key === 'ligacao_secundaria')!;
+    expect(field.options).toHaveLength(47);
+    expect(field.options![0]).toBe('Dd0');
+    expect(field.options).toContain('Dyn1');
+    expect(field.options).toContain('Yyn0');
+    for (const type of ['tp', 'tc']) {
+      expect(getDefinition('v11', 'cabine_primaria', type), type).toEqual(getDefinition('v10', 'cabine_primaria', type));
+      expect(getDefinition('v11', 'cabine_primaria', type).nameplate.find((candidate) => candidate.key === 'ligacao_secundaria')!.kind, type).toBe('text');
+    }
+    const ratio = getDefinition('v11', 'cabine_primaria', 'transformador_forca').tests.find((test) => test.key === 'relacao_transformacao')!.tables[0]!;
+    expect(ratio.value_columns.filter((column) => column.role === 'capture').map((column) => column.label)).toEqual(['H1-H3 / X1-X0', 'H2-H1 / X2-X0', 'H3-H2 / X3-X0']);
   });
 });
 

@@ -1,4 +1,4 @@
-import { getDefinition, initialOrderKey, newEquipmentBlock, oilNaChipText, SEED_VERSION, type BlockRow, type LocationRow, type OpDraft } from '@app/domain';
+import { getDefinition, initialOrderKey, newEquipmentBlock, oilNaChipText, SEED_VERSION, SEED_VERSIONS, type BlockRow, type LocationRow, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -59,7 +59,10 @@ async function openSheet(page: Page, relatorioId: string, blockId: string): Prom
 
 test('@p0 15.7-E2E-001 v10 TC sheet: its own seven items in order, VASAMENTO NA on Á SECO with no chip, the ratio test kept; the TP keeps the transformer list', async ({ page }) => {
   test.setTimeout(180_000);
-  expect(SEED_VERSION).toBe('v10');
+  // Seed v11 (Story 21.1) keeps v10's TC and TP: the current seed's sheets are v10's.
+  expect(Object.keys(SEED_VERSIONS)).toContain('v10');
+  expect(getDefinition(SEED_VERSION, 'cabine_primaria', 'tc')).toEqual(getDefinition('v10', 'cabine_primaria', 'tc'));
+  expect(getDefinition(SEED_VERSION, 'cabine_primaria', 'tp')).toEqual(getDefinition('v10', 'cabine_primaria', 'tp'));
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);

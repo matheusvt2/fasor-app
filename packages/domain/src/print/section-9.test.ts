@@ -1122,6 +1122,34 @@ describe('Stories 15.3 and 15.6 (seed v9): what a v9 relatório prints, a v8 one
     }
   });
 
+  it('21.1: the transformer ratio prints its vector group\'s VAL CALCULADO and capture pairs (v8 / v10 / v11 x Dyn1 / Yyn0 / YNd11 / Yd1); Dyn1 on v10 and v11 prints the same table', () => {
+    const ratioTable = (version: string, ligacao: string | null) => {
+      const cells = { '0/0': measured('13.8', 'kV'), '0/1': measured('380', 'V'), '0/3': measured('36.3', null), '0/4': measured('36.3', null), '0/5': measured('36.3', null) };
+      const built = edit(sheetOn(version, 1, 'transformador_forca'), (b) => withTest('relacao_transformacao', cells)(withNameplate(ligacao === null ? {} : { ligacao_secundaria: ligacao })(b)));
+      return texts(tableNamed(printedOf(version, built), 'TAP Nº'));
+    };
+    const DYN1_HEADER = ['TAP Nº', 'V PRIMÁRIO', 'V SECUNDÁRIO', 'VAL CALCULADO', 'H1-H3 / X1-X0', 'H2-H1 / X2-X0', 'H3-H2 / X3-X0', 'CONDIÇÕES'];
+    const header = (pairs: string[]) => ['TAP Nº', 'V PRIMÁRIO', 'V SECUNDÁRIO', 'VAL CALCULADO', ...pairs, 'CONDIÇÕES'];
+    const row = (calculated: string, condicao: string) => ['-', '13,8 kV', '380 V', calculated, '36,3', '36,3', '36,3', condicao];
+    // v11.
+    expect(ratioTable('v11', 'Yyn0')).toEqual([header(['H1-H3 / X1-X3', 'H2-H1 / X2-X1', 'H3-H2 / X3-X2']), row('36,32', 'SATISFATÓRIO')]);
+    expect(ratioTable('v11', 'Dyn1')).toEqual([DYN1_HEADER, row('62,90', 'INSATISFATÓRIO')]);
+    expect(ratioTable('v11', 'YNd11')).toEqual([header(['H1-H0 / X1-X3', 'H2-H0 / X2-X1', 'H3-H0 / X3-X2']), row('20,97', 'INSATISFATÓRIO')]);
+    expect(ratioTable('v11', 'Yd1')).toEqual([header(['H1-(H3+H2) / X1-X2', 'H2-(H1+H3) / X2-X3', 'H3-(H2+H1) / X3-X1']), row('31,45', 'INSATISFATÓRIO')]);
+    // v11 with no group: no VAL CALCULADO, no CONDIÇÕES, the seed labels.
+    expect(ratioTable('v11', null)).toEqual([DYN1_HEADER, row('-', '-')]);
+    // v10: a typed group applies; "DYN1" prints exactly as v11's Dyn1; an unparsed text prints as Dyn1.
+    expect(ratioTable('v10', 'DYN1')).toEqual(ratioTable('v11', 'Dyn1'));
+    expect(ratioTable('v10', 'Dyn1')).toEqual(ratioTable('v11', 'Dyn1'));
+    expect(ratioTable('v10', 'YYN0')).toEqual(ratioTable('v11', 'Yyn0'));
+    expect(ratioTable('v10', 'yd1')).toEqual(ratioTable('v11', 'Yd1'));
+    expect(ratioTable('v10', 'YNd11')).toEqual(ratioTable('v11', 'YNd11'));
+    expect(ratioTable('v10', 'Y')).toEqual([DYN1_HEADER, row('62,90', 'INSATISFATÓRIO')]);
+    expect(ratioTable('v10', null)).toEqual([DYN1_HEADER, row('62,90', 'INSATISFATÓRIO')]);
+    // v8: U1/U2 and the seed labels whatever the group.
+    for (const ligacao of ['Dyn1', 'Yyn0', 'YNd11', 'Yd1']) expect(ratioTable('v8', ligacao), ligacao).toEqual([DYN1_HEADER, row('36,32', 'SATISFATÓRIO')]);
+  });
+
   it('VERIFICAÇÕES DO LOCAL prints 21 numbered rows on v9, the two new ones 20 and 21 under AMBIENTE; v8 prints 19', () => {
     const answers: Extract<LocationRow, { kind: 'cabine' }>['checklist'] = {
       grades_e_portas_estado_e_fixacao: { result: cell('NC'), observation: cell('Grade ou porta solta ou mal fixada') },

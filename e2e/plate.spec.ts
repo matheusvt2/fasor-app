@@ -1,3 +1,4 @@
+import { DIAGRAM_READ_NOTE, suggestionAnnouncement, vectorGroupFormulaText } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, horizontalOverflow, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -277,6 +278,63 @@ test('@p0 8.6-E2E-001 Flow 2b: the arrival toast opens the sheet, the crop outli
   // The one replace still waits for its own tap, the engineer's value untouched.
   await expect(at).toHaveValue('13,8');
   await context.setOffline(false);
+});
+
+test('@p0 21.2-E2E-001 a vector group read from the drawn diagram: LIGAÇÃO SECUNDÁRIA offered "Yyn0" in Verificar with "Lido do diagrama — confira", never in Confirmar todos; its confirm makes the ratio U1 / U2', async ({ page }) => {
+  test.setTimeout(240_000);
+  await holdPhotoBytes(page);
+  const ids = await openTransformerSheet(page, account, database, { width: 1280 });
+  const photoId = await shootPlate(page);
+  await syncNow(page);
+
+  // The reading job's run over a plate that prints no group and draws a star-star diagram, as the
+  // job writes it (Story 21.2): Yyn0 in verify, citing no OCR token, over the whole image; and one
+  // grounded field beside it.
+  const sid = await pushPlateSuggestions(account.companyId, ids.relatorioId, {
+    blockId: ids.blockId,
+    photoId,
+    fields: {
+      identificacao: { value: 'TR-03', bbox: [0.05, 0.12, 0.45, 0.2] },
+      ligacao_secundaria: { value: 'Yyn0', trust: 'verify', bbox: [0, 0, 1, 1], ocrTokenIds: [] },
+    },
+  });
+  // The pull brings the reading: the toast's "Ver" opens the sheet it fills.
+  await syncNow(page);
+  await expect(toast(page)).toContainText('1 leitura pronta para confirmar', { timeout: 30_000 });
+  await toast(page).getByRole('button', { name: 'Ver' }).click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${ids.relatorioId}/ficha/${ids.blockId}$`));
+  const group = suggestionOf(page, 'ligacao_secundaria');
+  await expect(group).toBeVisible({ timeout: 30_000 });
+  await expect(group).toHaveAttribute('data-state', 'verify');
+  await expect(group.locator('.verify-pill')).toBeVisible();
+  await expect(group.locator('input.sv')).toHaveValue('Yyn0');
+  await expect(field(page, 'ligacao_secundaria').locator('.helper')).toHaveText(DIAGRAM_READ_NOTE);
+  await expect(field(page, 'identificacao').locator('.helper')).toHaveCount(0);
+
+  // "Confirmar todos" takes the grounded field only: the diagram read waits for its own tap.
+  await section(page).locator('.suggestion-group-head').getByRole('button', { name: 'Confirmar todos (1)' }).click();
+  await expect.poll(async () => (await outbox(page)).some((row) => row.path === `suggestion/${sid.identificacao}/status`)).toBe(true);
+  expect((await outbox(page)).some((row) => row.path === `suggestion/${sid.ligacao_secundaria}/status` || row.path === `sheet/${ids.blockId}/nameplate/ligacao_secundaria`)).toBe(false);
+  await expect(group).toHaveAttribute('data-state', 'verify');
+
+  // The engineer checks the drawing and confirms.
+  await group.getByRole('button', { name: suggestionAnnouncement('verify', 'Yyn0') }).click();
+  await expect.poll(async () => (await outbox(page)).find((row) => row.path === `sheet/${ids.blockId}/nameplate/ligacao_secundaria`)?.value).toBe('Yyn0');
+  const confirmed = (await outbox(page)).find((row) => row.path === `sheet/${ids.blockId}/nameplate/ligacao_secundaria`)!;
+  expect(confirmed.meta).toMatchObject({ source_suggestion_id: sid.ligacao_secundaria });
+  await expect(field(page, 'ligacao_secundaria').locator('select')).toHaveValue('Yyn0');
+
+  // The ratio now follows Yyn0: k = 1, 13,8 kV / 380 V = 36,32.
+  await page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' }).getByRole('button', { name: /^Ensaios,/ }).click();
+  await page.getByRole('textbox', { name: 'V primário', exact: true }).click();
+  for (const value of ['13,8', '380', '36,3', '36,3', '36,3']) {
+    await page.keyboard.type(value);
+    await page.keyboard.press('Tab');
+  }
+  const row = page.locator('table.ficha-ttr tbody tr').first();
+  await expect(row.locator('td.cell-calc').first()).toContainText('36,32');
+  await expect(row.locator('td').last()).toContainText('Satisfatório');
+  await expect(page.locator('.ficha-mt[data-table-key="relacao_transformacao"] > p.helper')).toHaveText([vectorGroupFormulaText('1')]);
 });
 
 test('@p1 8.2-E2E-003 Sync status counts the readings in the queue and the suggestions to confirm; the sheet says "Sugestões prontas"', async ({ page, context }) => {
