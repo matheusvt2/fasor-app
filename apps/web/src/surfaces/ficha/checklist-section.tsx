@@ -11,9 +11,9 @@ import {
   itensMarcadosConformeText,
   ncChipPhrases,
   ncEntryText,
+  withPhotoTokens,
   ncRowPointPositions,
   ncRowPointsText,
-  photoToken,
   recentChecklistObservations,
   repeatChecklistPattern,
   sheetChecklistPath,
@@ -328,7 +328,7 @@ export function sheetRowTarget(
     ncDraft: ncDraftFor(block, item.key, pending),
     // Story 22.5: the point replaces the row's derived NC entry (`origin` `nc`, its item), starting with that entry's text.
     pointSeed: (photoIds) => ({
-      text: ncEntryText(snapshot, { blockId: block.id }, item.key) ?? photoIds.map((id) => photoToken(id)).join(' '),
+      text: withPhotoTokens(ncEntryText(snapshot, { blockId: block.id }, item.key), photoIds),
       equipmentId: block.equipment_id,
       origin: 'nc',
       itemKey: item.key,

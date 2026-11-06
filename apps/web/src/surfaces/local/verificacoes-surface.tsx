@@ -6,10 +6,10 @@ import {
   itensMarcadosConformeText,
   locationChecklistPath,
   ncEntryText,
+  withPhotoTokens,
   ncRowPointPositions,
   ncRowPointsText,
   numberPhotos,
-  photoToken,
   ncChipPhrases,
   recentSiteObservations,
   siteChecklistView,
@@ -124,7 +124,7 @@ function siteRowTarget(snapshot: RelatorioSnapshot, location: CabineLocation, ro
     ncDraft: null,
     // Story 22.5: the point replaces the item's derived NC entry (`origin` `nc`, its item), starting with that entry's text.
     pointSeed: (photoIds) => ({
-      text: ncEntryText(snapshot, { locationId: location.id }, row.key) ?? photoIds.map((id) => photoToken(id)).join(' '),
+      text: withPhotoTokens(ncEntryText(snapshot, { locationId: location.id }, row.key), photoIds),
       equipmentId: null,
       origin: 'nc',
       locationId: location.id,

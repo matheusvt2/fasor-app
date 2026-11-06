@@ -372,6 +372,17 @@ export function ncEntryText(snapshot: DerivedSnapshot, owner: { blockId: string 
 }
 
 /**
+ * Story 22.5: the seed text of a point written from an NC row: the entry's text, then the token
+ * of every item photo it does not cite yet (a photo taken just before the tap is not in the
+ * snapshot the entry was composed from); the tokens alone when the row has no entry.
+ */
+export function withPhotoTokens(text: string | null, photoIds: readonly string[]): string {
+  const base = text ?? '';
+  const missing = photoIds.filter((id) => !base.includes(photoToken(id))).map((id) => photoToken(id));
+  return [base, ...missing].filter((part) => part !== '').join(' ');
+}
+
+/**
  * Story 22.5: what a point written from a derived entry starts with ("Editar" on the entry):
  * its text, its origin and source, its equipment or local.
  */

@@ -288,11 +288,17 @@ test('@p0 14.9-E2E-001 at 1280: the composer adds a Quadro elétrico from "Outro
   for (const row of [0, 1, 3]) await expect(cellBox(page, row).locator('.measurement-field')).not.toHaveAttribute('data-state', 'out-of-limit');
   await expect(stepper(page).getByRole('button', { name: 'Ensaios, 0 faltando' })).toBeVisible({ timeout: 15_000 });
 
-  // The conclusion: suggested from the NC item and the out reading; its text names both.
+  // The conclusion: Story 22.4, the out reading sets the floor Reprovado · Com restrições (the NC
+  // item alone would give Aprovado · Com restrições); Aprovado is disabled; its text names both.
   await goToStep(page, 'Conclusão', 'conclusao');
   const suggestion = page.getByRole('group', { name: 'Sugestão' });
-  await expect(suggestion).toContainText('Aprovado · Com restrições?');
+  await expect(suggestion).toContainText('Reprovado · Com restrições?');
+  await expect(page.getByRole('radiogroup', { name: 'Resultado' }).getByRole('radio', { name: 'Aprovado', exact: true })).toBeDisabled();
+  await expect(page.locator('.conclusion-control .conclusion-hint').first()).toHaveText(
+    'A ficha exige no mínimo Reprovado · Com restrições: leitura fora do critério e item não conforme.',
+  );
   await suggestion.getByRole('button', { name: 'Confirmar' }).click();
+  await expect.poll(async () => lastWritten(page, `sheet/${blockId}/conclusion/result`)).toBe('reprovado');
   const text = page.getByRole('textbox', { name: 'Texto da conclusão' });
   await expect(text).toContainText(`quadro elétrico ${localTag}`);
   await expect(text).toContainText('0,4 MΩ em Fase C–Massa');
@@ -359,7 +365,7 @@ test('@p0 14.9-E2E-001 at 1280: the composer adds a Quadro elétrico from "Outro
   const header = titled('ENSAIO DE ISOLAÇÃO').find((table) => table[1]?.at(-1) === 'ACEITÁVEL MΩ' && table[2]?.at(-1) === '0,5');
   expect(header, JSON.stringify(titled('ENSAIO DE ISOLAÇÃO'))).toBeDefined();
   const conclusion = titled('CONCLUSÃO').find((table) => (table[2]?.[0] ?? '').includes(localTag))!;
-  expect(conclusion[1]).toEqual(['APROVADO', 'X', 'REPROVADO', '', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']);
+  expect(conclusion[1]).toEqual(['APROVADO', '', 'REPROVADO', 'X', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']);
   expect(conclusion[2]![0]).toContain(`(item ${nc + 1}, NC)`);
   expect(conclusion[2]![0]).toContain('0,4 MΩ em Fase C–Massa (critério: >=0,5 MΩ, NBR 5410)');
 });

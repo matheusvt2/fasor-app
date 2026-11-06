@@ -1727,10 +1727,12 @@ test('@p1 E5-Q18e the Sumário counts a sheet marked not tested: "0 não ensaiad
   await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
   const hint = page.locator('.conclusion-hint').first();
-  await expect(hint).toContainText(/^O relatório exige no mínimo (Apto com restrições|Não apto): /);
+  // A fresh relatório (every other sheet empty): the untested sheet and its derived point give Apto com restrições.
+  await expect(hint).toHaveText('O relatório exige no mínimo Apto com restrições: 1 não ensaiada e 1 ponto de atenção.');
   const verdicts = page.getByRole('radiogroup', { name: 'Parecer' });
+  await expect(verdicts.getByRole('radio', { name: 'Apto com restrições', exact: true })).toHaveAttribute('aria-checked', 'true');
   await expect(verdicts.getByRole('radio', { name: 'Apto', exact: true })).toBeDisabled();
-  if ((await verdicts.getByRole('radio', { name: 'Apto com restrições', exact: true }).getAttribute('aria-checked')) === 'true') await expect(hint).toContainText('1 não ensaiada');
+  await expect(page.locator('.parecer-box .pb-verdict')).toHaveText('Apto com restrições');
   const generated = page.locator('.suggestion-field.is-generated .generated-text');
   await expect(generated).toContainText(`Foram registradas ${total} fichas de ensaio: `);
   await expect(generated).toContainText(/1 não ensaiada \(.*, por solicitação do cliente\)/);

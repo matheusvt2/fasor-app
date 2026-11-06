@@ -949,12 +949,12 @@ test('@p0 14.3-E2E-008 2026-10-14 (Bruno): a site item answered NC counts in "NC
   await expect(summary.getByRole('button', { name: '0 NC abertos', exact: true })).toBeVisible();
   await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
-  // No sheet and no site NC left: nothing to suggest, so no hint at all; the confirmed summary
-  // (which named the item) is now stale; the criteria line is the recomposed one, without the item.
-  await expect(page.locator('.suggestion-alt')).toContainText('Sugerido: texto atualizado');
+  // No sheet and no site NC left: the derived verdict is Apto, so no reason line at all; Story
+  // 22.6: the summary is the composed one, recomposed without the item (no stale row).
+  await expect(page.locator('.suggestion-alt')).toHaveCount(0);
   await expect(page.locator('.conclusion-hint')).toHaveCount(0);
   await expect(page.getByText('NC nas verificações do local')).toHaveCount(0);
-  await expect(field.locator('.generated-text')).toContainText(sentence);
+  await expect(field.locator('.generated-text')).not.toContainText(sentence);
   await expect(field.locator('.criteria-line')).toBeVisible();
   await expect(field.locator('.criteria-line')).not.toContainText('verificações do local');
 });

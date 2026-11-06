@@ -97,7 +97,8 @@ describe('22.4-UNIT conclusionFloor and the suggestion row (amends 5.8 suggestCo
       );
     };
     for (const ligacao of [null, '', 'Y']) expect(conclusionFloor(trafo(ligacao)), String(ligacao)).toBeNull();
-    expect(conclusionFloor(trafo(null, { nc: true }))).toEqual({ pair: { result: 'aprovado', restriction: 'com_restricoes' }, reasons: ['nc', 'observation'] });
+    // An NC row's own observation belongs to the NC: one reason.
+    expect(conclusionFloor(trafo(null, { nc: true }))).toEqual({ pair: { result: 'aprovado', restriction: 'com_restricoes' }, reasons: ['nc'] });
     expect(floorPair(trafo('Yyn0'))).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
     expect(conclusionFloor(trafo('Yyn0', { captures: '50' }))).toEqual({ pair: { result: 'reprovado', restriction: 'com_restricoes' }, reasons: ['ratio'] });
     // The nameplate sub-block off: the group cannot be filled, so it never withholds Sem restrições.

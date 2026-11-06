@@ -798,20 +798,20 @@ test('@p0 P020-E2E-002 a relatório without sections 8 and 10: the saved point\'
   await expect(page.getByTestId('points-announcer')).toHaveText('Ponto de atenção movido: 1 de 2 · não sai no documento: o relatório não tem a seção "Pontos de atenção"');
   await expect.poll(async () => (await outbox(page)).filter((op) => op.path === `point/${pointId}/order_key`)).toHaveLength(1);
 
-  // Etapa 6: the note says the parecer does not print, and the box's kicker too once a verdict is set.
+  // Etapa 6: the note says the parecer does not print, and the box's kicker too. Story 22.6: the two
+  // points make the derived verdict Apto com restrições (Apto disabled), and the summary is the
+  // composed one, read-only, its helper naming no section 10.
   await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
   await expect(page.getByText('Este relatório não tem a seção "Conclusão e parecer": o parecer e a assinatura não saem no documento.', { exact: true })).toBeVisible();
-  const verdict = page.getByRole('radiogroup', { name: 'Parecer' }).getByRole('radio', { name: 'Apto', exact: true });
-  await verdict.click();
-  await expect(verdict).toHaveAttribute('aria-checked', 'true');
+  const verdicts = page.getByRole('radiogroup', { name: 'Parecer' });
+  await expect(verdicts.getByRole('radio', { name: 'Apto com restrições', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(verdicts.getByRole('radio', { name: 'Apto', exact: true })).toBeDisabled();
+  await expect(page.locator('#setup-parecer .conclusion-hint')).toHaveText('O relatório exige no mínimo Apto com restrições: 2 pontos de atenção.');
   await expect(page.locator('.parecer-box .pb-kicker')).toHaveText('Não sai no documento (sem seção "Conclusão e parecer")');
-  // "Confirmar" on the summary: the toast and the confirmed helper name no section 10.
   const field = page.locator('.suggestion-field.is-generated');
-  await field.getByRole('button', { name: 'Confirmar' }).click();
-  await expect(field).toHaveAttribute('data-state', 'confirmed');
-  await expect(toast(page).locator(':scope > span').first()).toHaveText('Resumo do parecer confirmado');
-  await expect(field.locator('.helper').filter({ hasText: 'Confirmado' })).toHaveText('Confirmado · não sai no documento: o relatório não tem a seção "Conclusão e parecer"');
+  await expect(field.getByRole('button')).toHaveCount(0);
+  await expect(field.locator('.helper')).toHaveText('Confirmado · não sai no documento: o relatório não tem a seção "Conclusão e parecer"');
 });
 
 // --- Story 20.4: "Equipamento ou local" ---------------------------------------------------

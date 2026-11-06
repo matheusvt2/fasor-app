@@ -48,7 +48,7 @@ function pointDrafts(scope: Scope, texts: readonly { text: string; action: strin
   return { drafts: rows.map((row) => officeDraft(account, scope, `point/${row.id}`, row, 'create')), rows };
 }
 
-async function setUp(page: Page, seed: (scope: Scope, sheets: SeededSheet[]) => OpDraft[]): Promise<{ relatorioId: string; sheets: SeededSheet[]; equipmentOf: Map<string, string> }> {
+async function setUp(page: Page, seed: (scope: Scope, sheets: SeededSheet[], equipmentOf: Map<string, string>) => OpDraft[]): Promise<{ relatorioId: string; sheets: SeededSheet[]; equipmentOf: Map<string, string> }> {
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
@@ -61,7 +61,7 @@ async function setUp(page: Page, seed: (scope: Scope, sheets: SeededSheet[]) => 
       .filter((row) => row.equipment_id !== null)
       .map((row) => [row.id, row.equipment_id!] as const),
   );
-  await pushDrafts(page, database, [...built.drafts, ...seed(scope, built.sheets)]);
+  await pushDrafts(page, database, [...built.drafts, ...seed(scope, built.sheets, equipmentOf)]);
   await page.goto(`/relatorio/${built.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   return { relatorioId: built.relatorioId, sheets: built.sheets, equipmentOf };
@@ -150,3 +150,65 @@ test('@p0 22.5-E2E-001 NC rows of a sheet and an out insulation list as derived 
   await expect(auto).toHaveCount(3);
 });
 
+
+test('@p0 22.5-E2E-002 an old manual point of the same equipment and the NC entry both read "Possível duplicado"; a point written from the out reading is stored as origin reading and replaces its entry; the NC row set back to C leaves its point "Origem resolvida"', async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  const { relatorioId, sheets, equipmentOf } = await setUp(page, (scope, all, equipment) => {
+    const chave = enelChaves(all)[0]!;
+    const dj = all.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
+    const [first] = cellAddressesOf(getDefinition(SEED_VERSION, 'cabine_primaria', 'disjuntor_mt'), 'isolacao');
+    // A point written from the NC row before Story 22.5: origin manual, the same equipment.
+    const old = newPointRow({ id: newId(), relatorioId: scope.relatorioId, text: 'Terminais oxidados', equipmentId: null, origin: 'manual', action: 'Limpar' }, []);
+    return [
+      officeDraft(account, scope, `point/${old.id}`, { ...old, equipment_id: equipment.get(chave.blockId) ?? null }, 'create'),
+      officeDraft(account, scope, `sheet/${chave.blockId}/checklist/${FIRST_ITEM.key}/result`, 'NC'),
+      officeDraft(account, scope, `sheet/${chave.blockId}/checklist/${FIRST_ITEM.key}/observation`, 'oxidação nos terminais'),
+      officeDraft(account, scope, `sheet/${dj.blockId}/test/isolacao/cell/${first!.row}/${first!.col}`, { raw: '300', unit: 'MΩ', state: 'measured' }),
+    ];
+  });
+  const chave = enelChaves(sheets)[0]!;
+  const dj = sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
+  await openPoints(page);
+  const auto = autoCards(page);
+  await expect(auto).toHaveCount(2);
+
+  // (a) The old manual point does not suppress the NC entry: both are flagged.
+  const manual = cards(page).filter({ hasText: 'Terminais oxidados' });
+  await expect(manual.locator('[data-flag]')).toHaveText('Possível duplicado');
+  const ncCard = auto.filter({ hasText: 'oxidação nos terminais' });
+  await expect(ncCard.locator('[data-flag]')).toHaveText('Possível duplicado');
+
+  // (c) "Editar" on the out-insulation entry: the point is stored as origin reading with its test, and the entry goes.
+  const readingCard = auto.filter({ has: page.locator('.not-tested-chip', { hasText: 'Fora do critério' }) });
+  await readingCard.getByRole('button', { name: /^Editar o ponto automático/ }).click();
+  const editor = page.locator('.point-of-attention-card.is-editing');
+  await expect(textArea(editor)).toContainText('300 MΩ');
+  await editor.getByRole('textbox', { name: 'Ação recomendada' }).fill('Repetir o ensaio de isolação');
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(editor).toHaveCount(0);
+  await expect.poll(async () => (await storedPoints(page)).filter((row) => row.origin === 'reading').length).toBe(1);
+  expect((await storedPoints(page)).find((row) => row.origin === 'reading')).toMatchObject({ equipment_id: equipmentOf.get(dj.blockId), test_key: 'isolacao', action: 'Repetir o ensaio de isolação' });
+  await expect(auto).toHaveCount(1);
+
+  // (b) The NC entry written as a point, then its row set back to C: the point stays, "Origem resolvida".
+  await ncCard.getByRole('button', { name: /^Editar o ponto automático/ }).click();
+  await editor.getByRole('textbox', { name: 'Ação recomendada' }).fill('Limpar os terminais');
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(editor).toHaveCount(0);
+  await expect.poll(async () => (await storedPoints(page)).filter((row) => row.origin === 'nc').length).toBe(1);
+  const ncPoint = (await storedPoints(page)).find((row) => row.origin === 'nc')!;
+  expect(ncPoint).toMatchObject({ equipment_id: equipmentOf.get(chave.blockId), item_key: FIRST_ITEM.key });
+  await expect(auto).toHaveCount(0);
+  await page.goto(`/relatorio/${relatorioId}/ficha/${chave.blockId}`);
+  const row = page.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${FIRST_ITEM.key}"]`);
+  await row.scrollIntoViewIfNeeded({ timeout: 30_000 });
+  await row.getByRole('radio', { name: 'Conforme', exact: true }).click();
+  await expect(row.getByRole('radio', { name: 'Conforme', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await page.goto(`/relatorio/${relatorioId}/pontos`);
+  const resolved = cards(page).filter({ hasText: 'oxidação nos terminais' });
+  await expect(resolved.locator('[data-flag]')).toHaveText('Origem resolvida', { timeout: 30_000 });
+  // The manual point is no longer a possible duplicate: its NC entry is gone.
+  await expect(manual.locator('[data-flag]')).toHaveCount(0);
+});

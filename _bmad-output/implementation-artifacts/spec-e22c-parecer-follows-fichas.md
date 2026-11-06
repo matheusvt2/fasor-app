@@ -2,7 +2,7 @@
 title: 'e22c: Stories 22.4 to 22.6, the conclusion, the points and the parecer follow the fichas (contract 31)'
 type: 'feature'
 created: '2026-11-06'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '186caceed5856f0dd6bb657d5841e27678ffcd80'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -107,6 +107,34 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-06 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them)
+- verdicts: 24 findings — high 0, medium 9, low 9, false 0, maybe-false 0 (6 rejected by design)
+- findings:
+  - `[medium]` `[patch]` EC1 a not-tested sheet with a stored Reprovado pair made the parecer Não apto — effectiveConclusionPair ignores the stored pair of a not-tested sheet.
+  - `[low]` `[reject]` EC2 zero or open sheets derive Apto with no blocking row — Story 22.6 "Apto otherwise" and the retired row are the decision; the `sheets` pending row still stands for open sheets.
+  - `[medium]` `[defer]` EC3 relinking an nc/reading point to another equipment moves its suppression key — needs an immutable source (block id) or a relink guard; deferred-work row.
+  - `[low]` `[defer]` EC4 Editar on a derived entry of a sheet with no equipment never suppresses it — Story 6.6's existing rule (a block with no equipment is never suppressed); deferred-work row.
+  - `[low]` `[defer]` EC5 Criar ponto on an NC row of a sheet with no equipment — same root as EC4.
+  - `[medium]` `[patch]` EC6 Criar ponto dropped a photo taken just before the tap — the seed appends the missing photo tokens.
+  - `[low]` `[reject]` EC7 any manual point on an equipment with an NC entry is flagged Possível duplicado — the story's reading ("such a pair of the same equipment"); listed for Bruno.
+  - `[medium]` `[defer]` EC8 a stricter parecer tapped stays stored after the fichas clear — no "follow derived" state in the stored LWW object; deferred-work row.
+  - `[low]` `[reject]` EC9 a C row's kept observation still floors Com restrições — the story: "a checklist row's observation holds text"; listed for Bruno.
+  - `[low]` `[reject]` EC10 "nos itens 8 e 9" split across rich runs keeps the literal in the DOCX — rare (own text with mixed formatting inside the phrase); fix adds re-splitting complexity.
+  - `[low]` `[reject]` EC11 third bullet detection on rich runs — same as EC10.
+  - `[low]` `[patch]` EC12 stale comments name suggestConclusionPair — updated.
+  - `[medium]` `[defer]` EC13 claim: Editar replaces the entry — fails for sheets with no equipment; same root as EC4.
+  - `[medium]` `[patch]` VG1 FR-61 draft recovery dropped nc/reading drafts and their source keys — origins and keys carried; unit tests.
+  - `[medium]` `[patch]` VG2 no test of a photographed NC entry in section 8 — kernel test with numberPhotos.
+  - `[medium]` `[patch]` VG3 Possível duplicado / Origem resolvida never checked on screen — e2e added to points-derived.spec.ts.
+  - `[medium]` `[patch]` VG4 test_key through the Editar path untested — e2e added.
+  - `[low]` `[patch]` VG5 E5-Q18e assertion made conditional — pinned.
+  - `[medium]` `[patch]` VG6 unedited specs (qgbt, cta, status-flow, export-visual, points P020-E2E-002) — updated.
+  - `[low]` `[patch]` VG7 production smoke clicks Apto — no longer depends on Apto enabled.
+  - `[medium]` `[defer]` VG8 relink moves the source key — same root as EC3.
+  - `[low]` `[patch]` VG9 stale comments — same as EC12.
+  - `[low]` `[reject]` EC/VG duplicates of claims already rowed (2) — merged rows above keep their own verdicts.
 
 ## Design Notes
 

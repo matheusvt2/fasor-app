@@ -1,7 +1,6 @@
 import type { Page } from '@playwright/test';
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { expect, horizontalOverflow, signIn, test } from './support/merged-fixtures.ts';
-import { setParecer } from './support/relatorio-flow.ts';
 
 /*
  * 4.8-E2E-003 (`@p2`, the real-browser pass of the story's last AC): the Export dialog at
@@ -43,13 +42,9 @@ test('@p2 4.8-E2E-003 the Export dialog renders its states at 390, 768 and 1280 
   await page.goto(`/relatorio/${RELATORIO_ID}`);
   await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Em campo', { timeout: 30_000 });
 
-  // Story 7.5: with no parecer the dialog shows the blocking row and waits; then it is set.
+  // Story 22.6: with no parecer stored the derived verdict stands, so nothing blocks: the dialog opens idle.
   await trigger(page).click();
-  await expect(dialog(page).locator('.precheck li.is-blocking')).toBeVisible();
-  await frames(page, 'blocked');
-  await page.keyboard.press('Escape');
-  await setParecer(page, RELATORIO_ID);
-  await trigger(page).click();
+  await expect(dialog(page).locator('.precheck li.is-blocking')).toHaveCount(0);
   await frames(page, 'idle');
 
   // The failed state, from a request the network drops.

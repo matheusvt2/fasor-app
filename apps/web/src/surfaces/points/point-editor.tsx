@@ -524,6 +524,9 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
         equipmentId: link?.equipmentId ?? point?.equipment_id ?? null,
         ...((link?.locationId ?? point?.location_id ?? null) === null ? {} : { locationId: link?.locationId ?? point?.location_id ?? null }),
         origin: link?.origin ?? point?.origin ?? 'manual',
+        // Story 22.5: a new point's source, so a recovered point is created with it.
+        ...((link?.itemKey ?? null) === null ? {} : { itemKey: link!.itemKey }),
+        ...((link?.testKey ?? null) === null ? {} : { testKey: link!.testKey }),
         is_new: link !== null,
       };
     },

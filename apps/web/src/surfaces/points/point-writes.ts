@@ -316,7 +316,10 @@ export function pointDraftValue(value: unknown): PointDraftValue | null {
   const v = value as Record<string, unknown>;
   if (typeof v.relatorio_id !== 'string' || typeof v.text !== 'string' || typeof v.action !== 'string' || typeof v.is_new !== 'boolean') return null;
   if (v.equipmentId !== null && typeof v.equipmentId !== 'string') return null;
-  if (v.origin !== 'manual' && v.origin !== 'not_tested') return null;
+  // Story 22.5: a point written from a derived entry keeps its origin and source.
+  if (v.origin !== 'manual' && v.origin !== 'not_tested' && v.origin !== 'nc' && v.origin !== 'reading' && v.origin !== 'reprovado') return null;
+  const itemKey = typeof v.itemKey === 'string' ? v.itemKey : null;
+  const testKey = typeof v.testKey === 'string' ? v.testKey : null;
   // A draft written before Story 11.9 has no Responsável: it reads as blank.
   const owner = typeof v.owner === 'string' ? v.owner : '';
   // Story 14.3: a draft written before the field, or of a point of no local, has no `locationId`.
@@ -330,6 +333,8 @@ export function pointDraftValue(value: unknown): PointDraftValue | null {
     equipmentId: v.equipmentId,
     origin: v.origin,
     ...(locationId === null ? {} : { locationId }),
+    ...(itemKey === null ? {} : { itemKey }),
+    ...(testKey === null ? {} : { testKey }),
     pending: pendingValue(v.pending),
   };
 }

@@ -24,7 +24,7 @@ import { enabledSubBlocksOf } from './sheet-state.ts';
  * measurement-table grammar (`seed/measurement.ts`; today the six of the Chave de
  * transferência automática). It is to those tests what `evaluateSheetReadings` is to the four
  * seeded grammars, and the same consumers read both: `sheetProgress` counts what is missing
- * and out of criterion, `suggestConclusionPair` and `composeConclusion` read the out readings,
+ * and out of criterion, `conclusionFloor` (Story 22.4; formerly `suggestConclusionPair`) and `composeConclusion` read the out readings,
  * section 9 prints the tables. Nothing in `apps/*` judges a cell, hides a row or composes a
  * line of its own (AD-1/AD-13).
  *
@@ -467,7 +467,7 @@ function shownPercent(pct: number, maxPercent: number, within: boolean): number 
  * Epic 14 QA Q-3: the cells a `relative_to_lowest` criterion in force covers take only a
  * reading above zero (`positiveOnlyText`); on a test that counts, one already stored at zero
  * or below (an older op, a hand-written one) is marked to check: no verdict of its own (unless
- * another criterion put it out), the "Conferir" helper, and `suggestConclusionPair` withheld.
+ * another criterion put it out), the "Conferir" helper, and `conclusionFloor` withheld (Story 22.4; formerly `suggestConclusionPair`).
  */
 function markPositiveOnly(rows: readonly EvaluatedMeasurementRow[], criterion: Extract<MeasurementCriterion, { type: 'relative_to_lowest' }>, live: boolean): void {
   const reference = lowerFirst(criterion.reference_label);

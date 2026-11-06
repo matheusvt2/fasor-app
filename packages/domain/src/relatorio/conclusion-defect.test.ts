@@ -64,4 +64,14 @@ describe('22.4-UNIT a defect Não ensaiado reason (test seed)', () => {
     expect(effectiveConclusionPair(block('defeito_teste'))).toEqual({ result: 'reprovado', restriction: 'com_restricoes' });
     expect(conclusionFloor(block('solicitacao_cliente'))).toBeNull();
   });
+
+  it('a sheet concluded Reprovado then marked Não ensaiado for another reason ignores its stored pair; a defect reason keeps its floor', () => {
+    const concluded = (reason: string): BlockRow => {
+      const b = block(reason);
+      const cell = (value: string) => ({ value, source_suggestion_id: null, op_id: ID });
+      return { ...b, sheet: { ...b.sheet, conclusion: { result: cell('reprovado'), restriction: cell('com_restricoes') } } };
+    };
+    expect(effectiveConclusionPair(concluded('solicitacao_cliente'))).toEqual({ result: null, restriction: null });
+    expect(effectiveConclusionPair(concluded('defeito_teste'))).toEqual({ result: 'reprovado', restriction: 'com_restricoes' });
+  });
 });

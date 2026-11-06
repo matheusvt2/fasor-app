@@ -110,7 +110,7 @@ test('@p0 4.8-E2E-001 11.1-E2E-001 a relatório born on Home: the Sumário\'s "G
       (await readStore<{ path: string; value: unknown }>(page, database, 'outbox')).filter((op) => op.path === 'relatorio/setup/additional_info').map((op) => op.value),
     )
     .toEqual([ADDITIONAL_INFO]);
-  // Story 7.4: the parecer is set first; "Parecer não preenchido" is the one row that blocks.
+  // Story 7.4: the parecer is set first (Story 22.6: a stricter verdict only; nothing blocks without it).
   await setParecer(page, relatorioId);
 
   // The foot's button opens the dialog: modal, labelled by its title, idle with no revision.

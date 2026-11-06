@@ -87,12 +87,15 @@ function holdsText(cell: Cell | null | undefined): boolean {
   return isCellFilled(cell) && typeof cell!.value === 'string' && cell!.value.trim() !== '';
 }
 
-/** Story 22.4: the sheet observation, or an enabled checklist row's observation, holds text. */
+/**
+ * Story 22.4: the sheet observation, or the observation of an enabled checklist row that is not
+ * NC, holds text (an NC row's observation belongs to its NC, already a reason of its own).
+ */
 function anyObservation(block: BlockRow, definition: BlockDefinition): boolean {
   const enabled = enabledSubBlocksOf(block);
   if (enabled.has('observations') && holdsText(block.sheet.observations)) return true;
   if (definition.checklist === null || !enabled.has('checklist')) return false;
-  return definition.checklist.some((item) => holdsText(block.sheet.checklist[item.key]?.observation));
+  return definition.checklist.some((item) => checklistResultOf(block, item.key) !== 'NC' && holdsText(block.sheet.checklist[item.key]?.observation));
 }
 
 /**
@@ -166,13 +169,17 @@ export interface EffectiveConclusionPair {
  * the stored value (result Reprovado over Aprovado, restriction Com over Sem); an unset stored
  * half reads the floor's, so an open sheet with a floor prints its floor marks in a draft.
  * The ficha, section 9, the Sumário, the parecer and the counts read this, never the stored
- * pair alone: a stored pair looser than a later floor is never shown as the conclusion.
+ * pair alone: a stored pair looser than a later floor is never shown as the conclusion. A sheet
+ * marked Não ensaiado ignores its stored pair: only a defect reason's floor gives it one.
  */
 export function effectiveConclusionPair(block: BlockRow): EffectiveConclusionPair {
   const floor = conclusionFloor(block)?.pair ?? null;
+  // A sheet marked not tested prints no conclusion: a pair stored before the mark is ignored,
+  // and only a defect reason's floor applies (review of batch e22c).
+  const tested = block.not_tested === null;
   return {
-    result: stricter(RESULT_RANK, floor?.result ?? null, conclusionResultOf(block)),
-    restriction: stricter(RESTRICTION_RANK, floor?.restriction ?? null, conclusionRestrictionOf(block)),
+    result: stricter(RESULT_RANK, floor?.result ?? null, tested ? conclusionResultOf(block) : null),
+    restriction: stricter(RESTRICTION_RANK, floor?.restriction ?? null, tested ? conclusionRestrictionOf(block) : null),
   };
 }
 

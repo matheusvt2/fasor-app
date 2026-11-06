@@ -217,7 +217,7 @@ test('@p1 7.3-E2E-001 the DOCX prints "Imagem 1:" in section 7, the point citing
   };
   await pushDrafts(page, database, [point]);
 
-  // Generate and download the DOCX: "Parecer não preenchido" is the one row that blocks (E78-Q1).
+  // Generate and download the DOCX (Story 22.6: the parecer is derived; `setParecer` sets Apto only when the fichas allow it).
   await setParecer(page, EXPORT_RELATORIO_ID);
   await openSumario(page);
   await generateRevision(page, 1);

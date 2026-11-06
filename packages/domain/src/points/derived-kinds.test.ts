@@ -11,7 +11,9 @@ import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { newPointRow } from './checks.ts';
-import { derivedPoints, derivedPointKindLabel, derivedPointSeed, possibleDuplicatePoints, resolvedOriginPoints } from './derived.ts';
+import { numberPhotos } from '../photos/numbering.ts';
+import { derivedPoints, derivedPointKindLabel, derivedPointSeed, possibleDuplicatePoints, resolvedOriginPoints, withPhotoTokens } from './derived.ts';
+import { photoToken } from './refs.ts';
 import { pointsSummary, pointsSummaryText, sectionEightEntries } from './summary.ts';
 
 /*
@@ -162,6 +164,48 @@ describe('22.5-UNIT the derived kinds', () => {
     expect(derivedPoints(floorOnly).filter((e) => e.kind === 'reprovado')).toEqual([]);
     // Suppressed by a point of origin reprovado.
     expect(derivedPoints(withPoints(chosen, point(chosen, { origin: 'reprovado', equipment_id: trafo.equipment_id }))).some((e) => e.kind === 'reprovado')).toBe(false);
+  });
+
+  it('an NC row with a photo: its entry cites the photo, the section 8 bullet reads "conforme Imagem N", the action-plan row names N', () => {
+    const { snapshot, trafo } = scenario();
+    const item = findDefinition(trafo.seed_version, trafo.block_type)!.checklist![0]!;
+    const photoId = '019966b0-2210-7000-8000-000000000001';
+    const photo = {
+      id: photoId,
+      company_id: TEST_COMPANY,
+      relatorio_id: snapshot.relatorio.id,
+      kind: 'photo' as const,
+      sha256: '0'.repeat(64),
+      mime: 'image/jpeg',
+      size: 1000,
+      uploaded_at: null,
+      variants: null,
+      removed_at: null,
+      captured_at: '2026-09-07T12:00:00.000Z',
+      tz_offset: -180,
+      coords: null,
+      local_seq: 1,
+      block_id: trafo.id,
+      item_key: item.key,
+      caption: null,
+      reading_kind: null,
+      reading_target: null,
+      reading_status: 'none' as const,
+      people_in_photo: false,
+    };
+    const withPhoto = { ...snapshot, files: [...snapshot.files, photo] } as RelatorioSnapshot;
+    const numbering = numberPhotos(withPhoto);
+    const n = numbering.get(photoId);
+    expect(n).toBeDefined();
+    const entry = derivedPoints(withPhoto).find((e) => e.kind === 'nc' && e.item_key === item.key)!;
+    expect(entry.text.endsWith(photoToken(photoId))).toBe(true);
+    const bullets = resolveSection8(withPhoto, numbering);
+    const bulletIndex = bullets.findIndex((bullet) => bullet.text.includes('oxidação nos terminais'));
+    expect(bullets[bulletIndex]!.text).toMatch(new RegExp(`oxidação nos terminais, conforme Imagem ${n}\\.$`));
+    expect(resolveActionPlan(withPhoto, numbering)[bulletIndex]!.images).toBe(String(n));
+    // The seed of "Criar ponto de atenção" keeps a photo the entry does not cite yet.
+    expect(withPhotoTokens(entry.text, [photoId, 'other'])).toBe(`${entry.text} ${photoToken('other')}`);
+    expect(withPhotoTokens(null, [photoId])).toBe(photoToken(photoId));
   });
 
   it('a v5 relatório gets the derived entries as a v11 one does (the rule is the kernel\'s)', () => {
