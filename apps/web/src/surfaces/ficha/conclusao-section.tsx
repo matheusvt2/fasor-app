@@ -203,8 +203,12 @@ export function ConclusaoSection({
   const readOnly = useSheetReadOnly();
   const enabled = enabledSubBlocksOf(block);
 
-  // Story 22.4: the effective pair (the floor's included) is what the radiogroups show.
-  const { result, restriction } = effectiveConclusionPair(block);
+  // Story 22.4: the effective pair (the floor's included) is what the radiogroups show. A sheet
+  // marked not tested (read-only, Story 5.9) keeps showing the pair stored before the mark, which
+  // no longer counts anywhere (`effectiveConclusionPair` ignores it).
+  const effective = effectiveConclusionPair(block);
+  const result = readOnly ? conclusionResultOf(block) : effective.result;
+  const restriction = readOnly ? conclusionRestrictionOf(block) : effective.restriction;
   const suggestion = conclusionSuggestion(block);
   const floorReason = conclusionFloorReasonText(block);
   const adjusted = conclusionAdjusted(block);

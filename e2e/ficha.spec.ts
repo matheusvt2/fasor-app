@@ -552,7 +552,9 @@ test('@p0 5.5-E2E-001 a reading typed the Brazilian way: echo while typing, a su
   await expect(cellBox(page, 'isolacao:0:0').locator('.measurement-field')).not.toHaveAttribute('data-state', 'out-of-limit');
   await t5.getByRole('button', { name: 'Marcar Com restrições' }).click();
   await expect(restrictionGroup(page).getByRole('radio', { name: 'Com restrições' })).toHaveAttribute('aria-checked', 'true');
-  await expect(resultGroup(page).locator('[aria-checked="true"]')).toHaveCount(0);
+  // Story 22.4: the out reading sets the floor Reprovado, shown though only the restriction was written; Aprovado is disabled.
+  await expect(resultGroup(page).getByRole('radio', { name: 'Reprovado' })).toHaveAttribute('aria-checked', 'true');
+  await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado' })).toBeDisabled();
   const conclusionOps = (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${blockId}/conclusion/`));
   expect(conclusionOps.map((row) => [row.path.split('/').at(-1), row.value])).toEqual([['restriction', 'com_restricoes']]);
 
@@ -1309,11 +1311,16 @@ test('@p1 5.5-E2E-002 phone 390: the TTR stacks into cards, the plain tables sta
   await expect(cellBox(page, 'isolacao:1:1').locator('.unit-cycle')).toHaveAccessibleName('teraohms, toque para alternar');
 
   await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
+  // Story 22.4: what the floor shows before any tap; Delete clears the stored result back to it.
+  const shown = await resultGroup(page).locator('[aria-checked="true"]').allTextContents();
   const aprovado = resultGroup(page).getByRole('radio', { name: 'Aprovado' });
   await aprovado.click();
   await expect(aprovado).toHaveAttribute('aria-checked', 'true');
+  const resultOps = async () => (await outbox(page)).filter((row) => row.path.endsWith('/conclusion/result')).map((row) => row.value);
+  await expect.poll(resultOps).toEqual(['aprovado']);
   await aprovado.press('Delete');
-  await expect(resultGroup(page).locator('[aria-checked="true"]')).toHaveCount(0);
+  await expect.poll(resultOps).toEqual(['aprovado', null]);
+  await expect(resultGroup(page).locator('[aria-checked="true"]')).toHaveText(shown);
 });
 
 test('@p0 5.9-E2E-001 "Marcar não ensaiado" from the sheet header: reason chips, "Outro" reveals text, toast, band, chip in the title, read-only nameplate/checklist, no bulk mirror; unsynced Desfazer clears it at once', async ({ page }) => {

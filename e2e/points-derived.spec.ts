@@ -138,8 +138,9 @@ test('@p0 22.5-E2E-001 NC rows of a sheet and an out insulation list as derived 
   expect(response.status()).toBe(200);
   const paragraphs = extractStructure(Buffer.from(await response.body())).paragraphs;
   expect(paragraphs.some((p) => p.startsWith('Limpar e reapertar os terminais') || p.includes('oxidação nos terminais. Limpar e reapertar os terminais'))).toBe(true);
-  expect(paragraphs.filter((p) => p.startsWith('Item não conforme: ')).length).toBe(1);
-  expect(paragraphs.filter((p) => p.startsWith('Ensaio fora do critério: ')).length).toBe(1);
+  // Each entry is one bullet and one action-plan row (its "Ponto de atenção" cell is the bullet's text).
+  expect(paragraphs.filter((p) => p.startsWith('Item não conforme: ')).length).toBe(2);
+  expect(paragraphs.filter((p) => p.startsWith('Ensaio fora do critério: ')).length).toBe(2);
 
   // Removing the point brings the entry back.
   await page.goto(`/relatorio/${relatorioId}/pontos`);

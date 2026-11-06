@@ -453,10 +453,8 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   await expect(nc.locator('.nc-point-ref')).toHaveText('Ponto de atenção 1');
   await expect.poll(async () => (await pointsOf(page, relatorioId)).map((stored) => stored.action)).toEqual([POINT_ACTION]);
   const [point] = await pointsOf(page, relatorioId);
-  // Story 22.5: written from the NC item (origin nc, its item), starting with the item's derived text and photo.
-  expect(point).toMatchObject({ location_id: enelId, equipment_id: null, origin: 'nc', item_key: EMERGENCIA, action: POINT_ACTION });
-  expect(point!.text.startsWith(`${POINT_TEXT} Item `)).toBe(true);
-  expect(point!.text.endsWith(photoToken(photoId))).toBe(true);
+  // Story 22.5: written from the NC item (origin nc, its item), citing the item's photo.
+  expect(point).toMatchObject({ location_id: enelId, equipment_id: null, origin: 'nc', item_key: EMERGENCIA, action: POINT_ACTION, text: `${POINT_TEXT} ${photoToken(photoId)}` });
 
   // "Concluir verificações" with nothing missing returns to the tree; the row reads N de N.
   await bar(page).getByRole('button', { name: 'Concluir verificações' }).click();
@@ -855,7 +853,8 @@ test('@p0 E14-CO-B-E2E-001 E14-A7: on the Checklist row, a point dialog opened a
   // E12-A6: the point is committed: in the device's store and in the outbox.
   await expect.poll(async () => (await pointsOf(page, relatorioId)).map((stored) => stored.action)).toEqual([POINT_ACTION]);
   const [point] = await pointsOf(page, relatorioId);
-  expect(point).toMatchObject({ location_id: enelId, equipment_id: null, origin: 'manual', action: POINT_ACTION });
+  // Story 22.5: written from the NC item: origin nc with its item.
+  expect(point).toMatchObject({ location_id: enelId, equipment_id: null, origin: 'nc', item_key: EMERGENCIA, action: POINT_ACTION });
   expect((await outbox(page)).filter((op) => op.path.startsWith(`point/${point!.id}`)).length).toBeGreaterThan(0);
 });
 

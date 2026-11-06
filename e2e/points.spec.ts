@@ -204,7 +204,7 @@ test('@p0 6.6-E2E-001 row 8 opens the empty Points surface; "Criar" writes one p
   await expect(row8(page).locator('.sum-status')).toHaveText('1 ponto · 1 ponto sem prazo');
 });
 
-test('@p0 6.6-E2E-002 22.5-E2E an NC row\'s "Criar ponto de atenção" links the sheet\'s equipment, starts with the row\'s derived text and photo, is written as origin nc with the item, and the focus returns to the row', async ({ page }) => {
+test('@p0 6.6-E2E-002 22.5-E2E an NC row\'s "Criar ponto de atenção" links the sheet\'s equipment and the item\'s photo, is written as origin nc with the item, and the focus returns to the row', async ({ page }) => {
   test.setTimeout(150_000);
   const photoId = newId();
   const { relatorioId, sheets, equipmentOf } = await setUp(page, (scope, all) => {
@@ -233,9 +233,9 @@ test('@p0 6.6-E2E-002 22.5-E2E an NC row\'s "Criar ponto de atenção" links the
 
   const pointId = expectOnePointAutosaved(await outbox(page));
   const point = (await storedPoints(page)).find((row) => row.id === pointId)!;
-  // Story 22.5: the point replaces the row's derived NC entry (its origin and item), starting with that entry's text.
+  // Story 22.5: the point replaces the row's derived NC entry (its origin and item).
   expect(point).toMatchObject({ equipment_id: equipmentOf.get(chave.blockId), origin: 'nc', item_key: FIRST_ITEM.key, action: 'Reapertar e medir de novo' });
-  expect(point.text).toBe(`Contato com sinais de aquecimento Item 1 (${FIRST_ITEM.label.toLocaleLowerCase('pt-BR')}) não conforme ${photoToken(photoId)}`);
+  expect(point.text).toBe(`Contato com sinais de aquecimento ${photoToken(photoId)}`);
 
   // The Points surface titles it by the equipment; the row's derived entry is gone (replaced).
   await page.goto(`/relatorio/${relatorioId}/pontos`);
@@ -441,9 +441,11 @@ test('@p0 6.6-E2E-010 E6-Q2: a point typed and not yet saved when the tab dies i
   await expect(offer).toContainText('Rascunho encontrado');
   await offer.getByRole('button', { name: 'Recuperar' }).click();
   await expect.poll(async () => (await storedPoints(reopened)).map((point) => point.text)).toEqual(['Sem aterramento']);
-  // An item with no photo names no point (E6-Q11): nothing tells its point from another item's.
+  // ~~An item with no photo names no point (E6-Q11)~~ Story 22.5: the recovered point keeps its origin nc and the
+  // item it was written from, so the row names it even with no photo.
+  expect((await storedPoints(reopened))[0]).toMatchObject({ origin: 'nc', item_key: FIRST_ITEM.key });
   const reopenedRow = reopened.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${FIRST_ITEM.key}"]`);
-  await expect(reopenedRow.locator('.nc-point-ref')).toHaveCount(0);
+  await expect(reopenedRow.locator('.nc-point-ref')).toHaveText('Ponto de atenção 1');
 });
 
 test('@p0 6.6-E2E-013 E6-R1: a point typed and reloaded with no hide event first is still offered back, and "Recuperar" stores it', async ({ page }) => {

@@ -10,7 +10,6 @@ import {
   screenLabel,
   itensMarcadosConformeText,
   ncChipPhrases,
-  ncEntryText,
   withPhotoTokens,
   ncRowPointPositions,
   ncRowPointsText,
@@ -326,9 +325,9 @@ export function sheetRowTarget(
     observationOp: (by, value) => checklistObservationOp(by, block.relatorio_id, block.id, item.key, value),
     observationCap: textCapOf(sheetChecklistPath(block.id, item.key, 'observation')),
     ncDraft: ncDraftFor(block, item.key, pending),
-    // Story 22.5: the point replaces the row's derived NC entry (`origin` `nc`, its item), starting with that entry's text.
+    // Story 22.5: the point replaces the row's derived NC entry (`origin` `nc`, its item); it starts with the item's photos, the engineer types the rest.
     pointSeed: (photoIds) => ({
-      text: withPhotoTokens(ncEntryText(snapshot, { blockId: block.id }, item.key), photoIds),
+      text: withPhotoTokens(null, photoIds),
       equipmentId: block.equipment_id,
       origin: 'nc',
       itemKey: item.key,

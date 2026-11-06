@@ -363,18 +363,9 @@ export function notTestedPointText(block: Pick<BlockRow, 'not_tested' | 'seed_ve
 }
 
 /**
- * Story 22.5: the text of an NC row's entry, whether or not a point already replaces it: what
- * "Criar ponto de atenção" on the row starts the point with. Null when the row is not NC.
- */
-export function ncEntryText(snapshot: DerivedSnapshot, owner: { blockId: string } | { locationId: string }, itemKey: string): string | null {
-  const key = 'blockId' in owner ? `nc:${owner.blockId}:${itemKey}` : `nc:${owner.locationId}:${itemKey}`;
-  return allDerivedPoints(snapshot).find((entry) => entry.key === key)?.text ?? null;
-}
-
-/**
- * Story 22.5: the seed text of a point written from an NC row: the entry's text, then the token
- * of every item photo it does not cite yet (a photo taken just before the tap is not in the
- * snapshot the entry was composed from); the tokens alone when the row has no entry.
+ * Story 22.5: a text followed by the token of every photo it does not cite yet (a photo taken
+ * just before the tap is not in the snapshot the text was composed from); the tokens alone with
+ * no text, what "Criar ponto de atenção" on an NC row starts the point with.
  */
 export function withPhotoTokens(text: string | null, photoIds: readonly string[]): string {
   const base = text ?? '';
