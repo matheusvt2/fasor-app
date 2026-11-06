@@ -5,6 +5,7 @@ import {
   getSeed,
   itensMarcadosConformeText,
   locationChecklistPath,
+  ncEntryText,
   ncRowPointPositions,
   ncRowPointsText,
   numberPhotos,
@@ -121,8 +122,15 @@ function siteRowTarget(snapshot: RelatorioSnapshot, location: CabineLocation, ro
     observationCap: textCapOf(locationChecklistPath(location.id, row.key, 'observation')),
     // No photo-read draft on a site item (the batch spec's open question O4).
     ncDraft: null,
-    pointSeed: (photoIds) => ({ text: photoIds.map((id) => photoToken(id)).join(' '), equipmentId: null, origin: 'manual', locationId: location.id }),
-    pointMark: (photoIds) => ncRowPointsText(ncRowPointPositions(snapshot.points, { locationId: location.id }, photoIds)),
+    // Story 22.5: the point replaces the item's derived NC entry (`origin` `nc`, its item), starting with that entry's text.
+    pointSeed: (photoIds) => ({
+      text: ncEntryText(snapshot, { locationId: location.id }, row.key) ?? photoIds.map((id) => photoToken(id)).join(' '),
+      equipmentId: null,
+      origin: 'nc',
+      locationId: location.id,
+      itemKey: row.key,
+    }),
+    pointMark: (photoIds) => ncRowPointsText(ncRowPointPositions(snapshot.points, { locationId: location.id }, photoIds, row.key)),
     // Story 14.12: a site item learns nothing and offers no learned phrase (answer 7 scopes them per equipment type).
     chips: ncChipPhrases({ seeded: row.nc_phrases, learned: [], blockType: null, itemKey: row.key, recents: recentSiteObservations(snapshot, row.key, row.nc_phrases, location.id) }),
   };

@@ -966,7 +966,7 @@ test('@p0 5.7-E2E-001 the Instrument picker: empty state opens Cadastros; a pick
   await expect(page.locator('section[data-test-key="isolacao"]').getByRole('radio').first()).toContainText('2E');
 });
 
-test('@p0 5.8-E2E-001 one tap on the suggestion sets both pairs, the composed text is confirmed, a later reading makes it stale, Com restrições requires the observation, then "Concluir ficha" concludes', async ({ page }) => {
+test('@p0 5.8-E2E-001 22.4-E2E one tap on the suggestion sets both pairs, the composed text is confirmed, a later reading out makes it stale and adjusts the conclusion to Reprovado · Com restrições (looser segments disabled), the observation is required, then "Concluir ficha" concludes', async ({ page }) => {
   test.setTimeout(180_000);
   const { relatorioId } = await openRelatorio(page, 1280);
   await openEnel(page);
@@ -1029,24 +1029,22 @@ test('@p0 5.8-E2E-001 one tap on the suggestion sets both pairs, the composed te
   await expect.poll(async () => (await textOps()).includes(replacedText)).toBe(true);
   expect(replacedText).not.toBe(confirmedText);
 
-  // Sem restrições with a non-conforming item: the warning under the pair.
-  // By keyboard on row 1 (Conforme -> ArrowRight -> Não conforme, and back), so the
-  // stepper's scroll cannot move the target under the pointer.
-  await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
-  // The stepper lands its focus on the step a few frames later; wait for it, or it steals the radio's.
-  await expect(page.locator('#ficha-step-verificacoes')).toBeFocused();
-  await checklistRow(page, 1).getByRole('radio', { name: 'Conforme', exact: true }).focus();
-  await page.keyboard.press('ArrowRight');
-  await expect(checklistRow(page, 1).getByRole('radio', { name: 'Não conforme' })).toHaveAttribute('aria-checked', 'true');
-  await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
-  await expect(page.locator('.conclusion-control .conclusion-hint[role="status"]')).toHaveText('Há itens não conformes');
-  await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
-  await expect(page.locator('#ficha-step-verificacoes')).toBeFocused();
-  await checklistRow(page, 1).getByRole('radio', { name: 'Não conforme' }).focus();
-  await page.keyboard.press('ArrowLeft');
-  await expect(checklistRow(page, 1).getByRole('radio', { name: 'Conforme', exact: true })).toHaveAttribute('aria-checked', 'true');
-  await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
-  await expect(page.locator('.conclusion-control .conclusion-hint')).toHaveCount(0);
+  // Story 22.4: the reading corrected out (0,2 GΩ against >400 MΩ) sets the floor Reprovado · Com
+  // restrições over the stored Aprovado · Sem restrições: the radiogroups show the effective pair,
+  // the looser segments are disabled with the one reason line, and the sheet says the conclusion
+  // was adjusted; its Confirmar writes the effective pair.
+  await expect(resultGroup(page).getByRole('radio', { name: 'Reprovado' })).toHaveAttribute('aria-checked', 'true');
+  await expect(restrictionGroup(page).getByRole('radio', { name: 'Com restrições' })).toHaveAttribute('aria-checked', 'true');
+  await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado' })).toBeDisabled();
+  await expect(restrictionGroup(page).getByRole('radio', { name: 'Sem restrições' })).toBeDisabled();
+  await expect(page.locator('.conclusion-control .conclusion-hint').first()).toHaveText('A ficha exige no mínimo Reprovado · Com restrições: leitura fora do critério.');
+  const adjusted = page.locator('.conclusion-control .conclusion-hint[role="status"]');
+  await expect(adjusted).toContainText('Conclusão ajustada pela ficha');
+  await adjusted.getByRole('button', { name: 'Confirmar' }).click();
+  await expect(adjusted).toHaveCount(0);
+  const lastOf = async (field: string) => (await outbox(page)).filter((row) => row.path === `sheet/${blockId}/conclusion/${field}`).at(-1)?.value;
+  await expect.poll(() => lastOf('result')).toBe('reprovado');
+  await expect.poll(() => lastOf('restriction')).toBe('com_restricoes');
 
   // "Editar": stored as edited at once, typed, blurred; the edited text survives a reload.
   await page.locator('.suggestion-field.is-generated').getByRole('button', { name: 'Editar' }).click();
@@ -1062,7 +1060,6 @@ test('@p0 5.8-E2E-001 one tap on the suggestion sets both pairs, the composed te
   await expect(page.getByRole('textbox', { name: 'Texto da conclusão' })).toHaveValue(`${replacedText} Texto revisado.`);
 
   // Com restrições: the observation is required, then written; "Concluir ficha" concludes.
-  await restrictionGroup(page).getByRole('radio', { name: 'Com restrições' }).click();
   await expect(page.getByText('Obrigatória com restrições')).toBeVisible();
   await expect(page.getByLabel('Observações da ficha')).toHaveAttribute('data-required', '');
   // p020 P-4: only the observation is missing, and the header names it.
@@ -1076,7 +1073,7 @@ test('@p0 5.8-E2E-001 one tap on the suggestion sets both pairs, the composed te
   await expect.poll(async () => (await outbox(page)).some((row) => row.path === `block/${blockId}/concluded_by`)).toBe(true);
 });
 
-test('@p0 5.8-E2E-002 "Concluir ficha" lands on the first empty reading, then on the first Resultado radio, then on the observation Com restrições requires', async ({ page }) => {
+test('@p0 5.8-E2E-002 22.4-E2E "Concluir ficha" lands on the first empty reading, then (the floor filling the pair) on the observation a stricter Com restrições requires, then concludes writing the floor\'s result with concluded_by', async ({ page }) => {
   test.setTimeout(180_000);
   const { relatorioId } = await openRelatorio(page, 1280);
   await openEnel(page);
@@ -1106,17 +1103,36 @@ test('@p0 5.8-E2E-002 "Concluir ficha" lands on the first empty reading, then on
   for (const value of ['150', '160', '170', '180', '190', '200', '100', '110', '120']) await typeAndEnter(page, value);
   await expect(stepper(page).getByRole('button', { name: 'Ensaios, 0 faltando' })).toBeVisible();
 
-  // Readings complete, the pair unset: the Conclusão step, its first Resultado radio.
-  await concluir();
-  await expect(stepper(page).getByRole('button', { name: /^Conclusão,/ })).toHaveAttribute('aria-current', 'step');
-  await expect(resultGroup(page).getByRole('radio').first()).toBeFocused();
+  // Story 22.4: readings within and every row C give the floor Aprovado · Sem restrições, which
+  // the radiogroups show before any tap; nothing is disabled and no reason line shows.
+  await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
+  await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado' })).toHaveAttribute('aria-checked', 'true');
+  await expect(restrictionGroup(page).getByRole('radio', { name: 'Sem restrições' })).toHaveAttribute('aria-checked', 'true');
+  for (const name of ['Aprovado', 'Reprovado']) await expect(resultGroup(page).getByRole('radio', { name })).toBeEnabled();
+  for (const name of ['Sem restrições', 'Com restrições']) await expect(restrictionGroup(page).getByRole('radio', { name })).toBeEnabled();
+  await expect(page.locator('.conclusion-control .conclusion-hint')).toHaveCount(0);
 
-  // Com restrições with no observation: the observation field.
-  await resultGroup(page).getByRole('radio', { name: 'Aprovado' }).click();
+  // A stricter Com restrições with no observation: the observation field.
   await restrictionGroup(page).getByRole('radio', { name: 'Com restrições' }).click();
   await concluir();
   await expect(page.getByLabel('Observações da ficha')).toBeFocused();
   expect((await outbox(page)).some((row) => row.path === `block/${blockId}/concluded_by`)).toBe(false);
+
+  // Back to Sem restrições, the result never tapped: "Concluir ficha" concludes and writes the
+  // floor's result in the same batch as `concluded_by`, so the store holds both cells.
+  await restrictionGroup(page).getByRole('radio', { name: 'Sem restrições' }).click();
+  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `sheet/${blockId}/conclusion/restriction`).at(-1)?.value).toBe('sem_restricoes');
+  expect((await outbox(page)).some((row) => row.path === `sheet/${blockId}/conclusion/result`)).toBe(false);
+  await page.getByRole('button', { name: `Mais opções da ficha ${tag}` }).click();
+  await page.getByRole('menuitem', { name: 'Concluir ficha' }).click();
+  await expect(toast(page)).toContainText('Ficha concluída');
+  await expect.poll(async () => (await outbox(page)).some((row) => row.path === `block/${blockId}/concluded_by`)).toBe(true);
+  const rows = await outbox(page);
+  const concluded = rows.find((row) => row.path === `block/${blockId}/concluded_by`)!;
+  const result = rows.filter((row) => row.path === `sheet/${blockId}/conclusion/result`);
+  expect(result.map((row) => row.value)).toEqual(['aprovado']);
+  expect(result[0]!.batch_id).toBe(concluded.batch_id);
+  expect(rows.find((row) => row.path === `sheet/${blockId}/conclusion/text_status` && row.batch_id === concluded.batch_id)?.value).toBe('confirmed');
 });
 
 // --- Story 12.1: D-2 section collapse timing and J-15 the mirror -------------------------------
@@ -1170,7 +1186,7 @@ test('@p0 12.1-E2E-011 D-2: the NC chip completing the checklist keeps it open; 
   await expect(page.getByLabel('Observação do item 1', { exact: true })).toBeVisible();
 
   // A pointer focus in the section below makes it current but never collapses the one above.
-  await resultGroup(page).getByRole('radio', { name: 'Aprovado' }).click();
+  await resultGroup(page).getByRole('radio', { name: 'Reprovado' }).click();
   await expect(stepper(page).getByRole('button', { name: /^Conclusão,/ })).toHaveAttribute('aria-current', 'step');
   await expect(stepHost(page, 'verificacoes')).not.toHaveClass(/is-collapsed/);
 
@@ -1706,16 +1722,15 @@ test('@p1 E5-Q18e the Sumário counts a sheet marked not tested: "0 não ensaiad
   await count.click();
   await expect(chevron).toHaveAttribute('aria-expanded', 'true');
 
-  // G5: Etapa 6's hint and summary state the same counts as the header.
+  // G5: Etapa 6's reason line and summary state the same counts as the header. Story 22.6: the
+  // not-tested sheet makes the derived verdict Apto com restrições, Apto disabled.
   await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
   const hint = page.locator('.conclusion-hint').first();
-  await expect(hint).toContainText('Sugerido pelas contagens: Apto com restrições?');
-  await expect(hint).toContainText(`${concludedBefore} de ${total} fichas concluídas`);
-  await expect(hint).toContainText('1 não ensaiada');
-  const verdict = page.getByRole('radiogroup', { name: 'Parecer' }).getByRole('radio', { name: 'Apto com restrições', exact: true });
-  await verdict.click();
-  await expect(verdict).toHaveAttribute('aria-checked', 'true');
+  await expect(hint).toContainText(/^O relatório exige no mínimo (Apto com restrições|Não apto): /);
+  const verdicts = page.getByRole('radiogroup', { name: 'Parecer' });
+  await expect(verdicts.getByRole('radio', { name: 'Apto', exact: true })).toBeDisabled();
+  if ((await verdicts.getByRole('radio', { name: 'Apto com restrições', exact: true }).getAttribute('aria-checked')) === 'true') await expect(hint).toContainText('1 não ensaiada');
   const generated = page.locator('.suggestion-field.is-generated .generated-text');
   await expect(generated).toContainText(`Foram registradas ${total} fichas de ensaio: `);
   await expect(generated).toContainText(/1 não ensaiada \(.*, por solicitação do cliente\)/);

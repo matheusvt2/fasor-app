@@ -156,6 +156,7 @@ describe('7.3-UNIT-003 derived entries', () => {
       kind: 'derived',
       text: `Equipamentos não ensaiados: ${t1}, ${t2} e ${t3}. Não foi possível realizar os ensaios elétricos devido à impossibilidade de realizar a desenergização completa da edificação, em razão da necessidade de continuidade operacional das instalações.`,
       block_ids: entries.slice(0, 3).map((e) => e.block_id),
+      keys: entries.slice(0, 3).map((e) => e.key),
     });
     expect(bullets[2]!.text).toBe(`Equipamento não ensaiado: ${t5}. Os ensaios não foram realizados conforme solicitação do cliente.`);
   });
@@ -254,15 +255,20 @@ describe('7.3-UNIT-004 section 8 layout', () => {
 describe('7.3-UNIT-005 section 8 on the Porto Seguro fixture', () => {
   const snapshot = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
 
-  it('lists its seven stored points in order_key order (four manual, three written from untested sheets) and no derived entry', () => {
+  it('lists its seven stored points in order_key order (four manual, three written from untested sheets), then (Story 22.5) one entry per out test', () => {
     const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: '2026-09-23T12:00:00.000Z' });
     const section = layout.sections.find((s) => s.number === 8)!;
     expect(section.kind).toBe('points');
     if (section.kind !== 'points') return;
     const stored = livePoints(snapshot.points);
     expect(stored).toHaveLength(7);
-    expect(section.bullets).toEqual(stored.map((p) => p.text));
-    expect(derivedPoints(snapshot)).toEqual([]);
+    expect(section.bullets.slice(0, 7)).toEqual(stored.map((p) => p.text));
+    // The 18 sheets whose readings are out of criterion, in tree order, printed as the Não ensaiado bullets are.
+    expect(section.bullets.slice(7)).toHaveLength(18);
+    expect(section.bullets[7]).toBe('Ensaio fora do critério: CE-ENEL · Cubículo Enel. Ensaio de isolação: 220 MΩ em Fase reserva–Massa/blind. (critério: >400 MΩ).');
+    expect(section.table).toHaveLength(25);
+    expect(section.table[7]).toMatchObject({ number: '8', local: 'CE-ENEL · Cubículo Enel', action: '—', images: '—' });
+    expect(derivedPoints(snapshot).every((entry) => entry.kind === 'reading')).toBe(true);
     expect(stored.map((p) => p.origin)).toEqual(['manual', 'manual', 'manual', 'not_tested', 'not_tested', 'not_tested', 'manual']);
   });
 });

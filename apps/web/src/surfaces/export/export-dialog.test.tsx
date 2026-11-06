@@ -1129,7 +1129,9 @@ describe('F43 (UX pass 2026-10-22): the Export dialog speaks the Sumário positi
     render(<Harness sync={syncState()} />);
     const modal = dialog();
     await waitFor(() => expect(modal.querySelector('.export-sec9-note')).toHaveTextContent('Seção 4 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag Agrupar por tipo de cada local).'));
-    await waitFor(() => expect(modal.querySelector('li.is-blocking .pc-text')).toHaveTextContent(/ — seção 6 \(Apto/));
+    // Story 22.6: no blocking row any more (the parecer is derived); the dialog still names no FO.SERV-03 section number.
+    await waitFor(() => expect(modal.querySelector('.generate-row')).not.toBeNull());
+    expect(modal.querySelector('li.is-blocking')).toBeNull();
     expect(modal.textContent).not.toMatch(/[Ss]eção (9|10|11)\b/);
   });
 });

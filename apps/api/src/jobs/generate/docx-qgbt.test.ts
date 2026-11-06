@@ -210,7 +210,8 @@ describe('14.9-UNIT section 9 in the DOCX: a Quadro elétrico (QGBT/QD) under "O
     const { titled } = await renderFilled();
     expect(titled('OBSERVAÇÕES').at(-1)).toEqual([['OBSERVAÇÕES'], ['Quadro com acesso restrito.']]);
     const conclusion = titled('CONCLUSÃO').at(-1)!;
-    expect(conclusion[1]).toEqual(['APROVADO', 'X', 'REPROVADO', '', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']);
+    // Story 22.4: the out reading makes the effective result Reprovado, whatever was tapped.
+    expect(conclusion[1]).toEqual(['APROVADO', '', 'REPROVADO', 'X', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']);
     expect(conclusion[2]![0]).toContain(`O quadro elétrico ${QD_TAG} (Brivolta, 380 V) apresentou resistência de isolação mínima de 0,4 MΩ em Fase C–Massa (critério: >=0,5 MΩ, NBR 5410)`);
     expect(conclusion[2]![0]).toContain(`${NC_OBSERVATION} (item 8, NC)`);
   }, 60_000);

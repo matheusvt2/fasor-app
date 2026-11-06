@@ -52,6 +52,9 @@ export interface NewPointLink {
   origin: PointRow['origin'];
   /** Story 14.3: the local of a point created from a site item ("Verificações do local"); absent or null otherwise. */
   locationId?: string | null;
+  /** Story 22.5: the source of a point written from a derived entry (an NC row's item, an out test); absent or null otherwise. */
+  itemKey?: string | null;
+  testKey?: string | null;
 }
 
 /** What a write did: `created` when it was the point's create op. */
@@ -69,7 +72,17 @@ export const ownerValue = actionValue;
 /** A new point's row from what the editor holds (its text, action and Responsável), with the priority and deadline picked before it was stored. */
 function newRow(relatorioId: string, pointId: string, values: PointValues, link: NewPointLink, fresh: readonly PointRow[], pending: PointPriorityWrites): PointRow {
   const row = newPointRow(
-    { id: pointId, relatorioId, text: values.text, equipmentId: link.equipmentId, origin: link.origin, action: actionValue(values.action), locationId: link.locationId ?? null },
+    {
+      id: pointId,
+      relatorioId,
+      text: values.text,
+      equipmentId: link.equipmentId,
+      origin: link.origin,
+      action: actionValue(values.action),
+      locationId: link.locationId ?? null,
+      itemKey: link.itemKey ?? null,
+      testKey: link.testKey ?? null,
+    },
     fresh,
   );
   return { ...row, owner: ownerValue(values.owner), ...pending };

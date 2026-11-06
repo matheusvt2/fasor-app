@@ -9,11 +9,12 @@ import { livePoints, pointsWithoutAction } from './checks.ts';
 
 /*
  * Story 6.6: section 8 as data. Its entries are the live points in `order_key` order, then
- * the derived untested entries (`derivedPoints`); the counts and texts the Points surface
- * and Sumário row 8 show are composed here once (AD-1, AD-13).
+ * the derived entries (`derivedPoints`: the untested sheets and, Story 22.5, every NC row, out
+ * test and Reprovado sheet); the counts and texts the Points surface and Sumário row 8 show
+ * are composed here once (AD-1, AD-13).
  */
 
-type PointsSnapshot = Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment' | 'points'>;
+type PointsSnapshot = Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment' | 'points' | 'relatorio' | 'files'>;
 
 export type SectionEightEntry = { kind: 'point'; point: PointRow } | { kind: 'derived'; derived: DerivedPoint };
 
@@ -80,23 +81,27 @@ export interface PointsSummary {
   total: number;
   /** Live manual points with no Ação recomendada. */
   semAcao: number;
-  /** Derived entries plus live points written from an untested sheet. */
+  /** Derived Não ensaiado entries plus live points written from an untested sheet. */
   naoEnsaiadas: number;
-  /** Story 15.2 (F34): the derived (automatic) entries alone, counted once in row 8 ("+ 1 automático"). */
+  /** Story 15.2 (F34): the derived (automatic) entries alone, counted once in row 8 ("+ 1 automático"); Story 22.5: every kind. */
   derived: number;
+  /** Story 22.5: the derived Não ensaiado entries alone. */
+  derivedNotTested: number;
 }
 
 export function pointsSummary(snapshot: PointsSnapshot): PointsSummary {
   const live = livePoints(snapshot.points);
   const derived = derivedPoints(snapshot);
+  const derivedNotTested = derived.filter((entry) => entry.kind === 'not_tested').length;
   return {
     total: live.length + derived.length,
     semAcao: pointsWithoutAction(snapshot.points).length,
     derived: derived.length,
+    derivedNotTested,
     // A point written from an untested sheet counts only while that sheet is still untested,
     // so row 8 agrees with row 9 once the sheet is tested again.
     naoEnsaiadas:
-      derived.length +
+      derivedNotTested +
       live.filter(
         (point) =>
           point.origin === 'not_tested' &&
@@ -121,7 +126,7 @@ export const NO_POINTS_TEXT = 'Nenhum ponto de atenção';
 export function pointsSummaryText(summary: PointsSummary): string {
   if (summary.total === 0) return NO_POINTS_TEXT;
   const live = summary.total - summary.derived;
-  const untestedLive = summary.naoEnsaiadas - summary.derived;
+  const untestedLive = summary.naoEnsaiadas - summary.derivedNotTested;
   return [
     summary.derived === 0
       ? plural(summary.total, 'ponto', 'pontos')

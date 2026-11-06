@@ -204,7 +204,7 @@ test('@p0 6.6-E2E-001 row 8 opens the empty Points surface; "Criar" writes one p
   await expect(row8(page).locator('.sum-status')).toHaveText('1 ponto · 1 ponto sem prazo');
 });
 
-test('@p0 6.6-E2E-002 an NC row\'s "Criar ponto de atenção" links the sheet\'s equipment and the item\'s photo, and the focus returns to the row', async ({ page }) => {
+test('@p0 6.6-E2E-002 22.5-E2E an NC row\'s "Criar ponto de atenção" links the sheet\'s equipment, starts with the row\'s derived text and photo, is written as origin nc with the item, and the focus returns to the row', async ({ page }) => {
   test.setTimeout(150_000);
   const photoId = newId();
   const { relatorioId, sheets, equipmentOf } = await setUp(page, (scope, all) => {
@@ -233,12 +233,14 @@ test('@p0 6.6-E2E-002 an NC row\'s "Criar ponto de atenção" links the sheet\'s
 
   const pointId = expectOnePointAutosaved(await outbox(page));
   const point = (await storedPoints(page)).find((row) => row.id === pointId)!;
-  expect(point).toMatchObject({ equipment_id: equipmentOf.get(chave.blockId), origin: 'manual', action: 'Reapertar e medir de novo' });
-  expect(point.text).toBe(`Contato com sinais de aquecimento ${photoToken(photoId)}`);
+  // Story 22.5: the point replaces the row's derived NC entry (its origin and item), starting with that entry's text.
+  expect(point).toMatchObject({ equipment_id: equipmentOf.get(chave.blockId), origin: 'nc', item_key: FIRST_ITEM.key, action: 'Reapertar e medir de novo' });
+  expect(point.text).toBe(`Contato com sinais de aquecimento Item 1 (${FIRST_ITEM.label.toLocaleLowerCase('pt-BR')}) não conforme ${photoToken(photoId)}`);
 
-  // The Points surface titles it by the equipment.
+  // The Points surface titles it by the equipment; the row's derived entry is gone (replaced).
   await page.goto(`/relatorio/${relatorioId}/pontos`);
   await expect(cards(page).first().locator('.poa-title')).toHaveText(`${chave.tag} · Cubículo Enel`, { timeout: 30_000 });
+  await expect(autoCards(page)).toHaveCount(0);
 });
 
 test('@p0 6.6-E2E-003 an untested sheet lists itself after the manual points; a point written from that sheet replaces it', async ({ page }) => {

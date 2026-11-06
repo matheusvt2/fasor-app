@@ -287,8 +287,23 @@
  * page carrying one fails whole) and its row schema would strip the key, so its gallery would
  * number section 7 in capture order where the server prints the moved order:
  * `MIN_CONTRACT_VERSION` goes to 30 too.
+ *
+ * 31 (2026-11-06, Stories 22.4 to 22.6, batch e22c): the conclusion, the points of attention
+ * and the parecer follow the fichas. Story 22.4: the kernel derives a floor for each sheet's
+ * conclusion pair (`conclusionFloor`: an out reading, a ratio INSATISFATÓRIO, a measurement
+ * cell out or a defect Não ensaiado reason give Reprovado · Com restrições; an NC row or an
+ * observation give Aprovado · Com restrições) and every reader shows the effective pair, the
+ * stricter of floor and stored ("Concluir ficha" writes it through the existing
+ * `conclusion/result` and `/restriction` puts, no new op shape); a seed's not-tested reason
+ * gains the optional `defect` flag, which no shipped seed sets. Story 22.5: a point row's
+ * `origin` gains `nc`, `reading` and `reprovado`, with the optional `item_key` and `test_key`
+ * (fixed at create, capped short, absent and null both meaning none, so a row written before
+ * 31 parses to the same bytes), and section 8 derives an entry for every NC row, out test and
+ * Reprovado sheet. Story 22.6: the parecer verdict is derived from the effective pairs (a
+ * stored one counts only when stricter), the summary is always the composed one and a summary
+ * typed before prints as "Observações do responsável"; "Parecer não preenchido" retires.
  */
-export const CONTRACT_VERSION = 30;
+export const CONTRACT_VERSION = 31;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -458,8 +473,17 @@ export const CONTRACT_VERSION = 30;
  * would strip `order_key`, so its gallery and preview would number section 7 in capture order
  * where the server's documents print the moved order. A relatório stream carries the put as
  * soon as any device moves a photo, so the version-29 bundle updates too.
+ *
+ * 31 (2026-11-06, Stories 22.4 to 22.6): a version-30 (or older) bundle's `pointRowSchema`
+ * refuses a point create whose `origin` is `nc`, `reading` or `reprovado`, so a pulled page
+ * carrying one fails whole (`invalid_response`), the precedent of versions 20, 23, 28 and 30;
+ * and it would show and print a stored conclusion pair looser than the floor its sheet now
+ * sets (an Aprovado · Sem restrições over an NC or a reading out of criterion), a tapped
+ * parecer looser than the fichas' and no derived NC or out-reading point, where the server's
+ * documents print the effective pair, the derived verdict and every derived entry. The
+ * version-30 bundle updates too.
  */
-export const MIN_CONTRACT_VERSION = 30;
+export const MIN_CONTRACT_VERSION = 31;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

@@ -1,18 +1,18 @@
 import {
   composeParecer,
+  effectiveParecer,
   PARECER_VERDICTS,
   parecerBoxText,
   parecerAbsentTexts,
   parecerBoxTone,
-  parecerHintText,
-  parecerTextState,
+  parecerLooser,
+  parecerOwnText,
+  parecerReasonText,
   parecerVerdictLabel,
-  parecerWithText,
+  parecerWithoutOwnText,
   parecerWithVerdict,
   sectionRefText,
   sectionsCaption,
-  suggestParecer,
-  textCapOf,
   type ParecerVerdict,
   type RelatorioParecer,
   type RelatorioSnapshot,
@@ -24,19 +24,19 @@ import { useLatestChoice } from '../../../components/use-latest-choice.ts';
 import { copy } from '../../../copy/pt-br.ts';
 import type { BandRef } from './setup-fields.ts';
 
-/** Story 20.9: the kernel's cap of the parecer's text (long text). */
-const PARECER_TEXT_CAP = textCapOf('relatorio/setup', 'parecer.text');
-
 /*
  * Etapa 6 — Conclusão e parecer (Story 7.4, `50-relatorio-setup.html` `#setup-parecer`):
- * the three-segment Conclusion control (`conclusion-pair is-verdict parecer-choice`,
- * nothing preselected), the counts' suggestion as its hint (never Não apto, never set), the
- * summary as the shared Generated text field (Confirmar, Editar, Substituir as Story 5.8,
- * which wins over the mock's `parecer-own` field; dictation stays out of the slice), and
- * the Parecer box preview, toned by the verdict once one is set, never by a suggestion.
- * Every tap and text action writes the whole `setup.parecer` object built from the value
- * the store holds at write time (`onWriteParecer`), never the render's. Every word, count
- * and sentence is the kernel's; the static copy is `copy.setup`.
+ * the three-segment Conclusion control (`conclusion-pair is-verdict parecer-choice`), the
+ * summary as the shared Generated text field, and the Parecer box preview, toned by the
+ * verdict. Every tap writes the whole `setup.parecer` object built from the value the store
+ * holds at write time (`onWriteParecer`), never the render's. Every word, count and sentence
+ * is the kernel's; the static copy is `copy.setup`.
+ *
+ * Story 22.6 (2026-11-06, Bruno; amends FR-71): the segments show the effective verdict
+ * (`effectiveParecer`: derived from the fichas, or a stricter one the engineer tapped); every
+ * verdict looser than the derived one is disabled, with the kernel's reason line. The summary
+ * is the composed one, read-only (~~Confirmar, Editar, Substituir~~); a summary typed before
+ * shows under "Observações do responsável" with "Limpar", and none can be added.
  */
 
 /** Builds the next parecer from the one the store holds now; null writes nothing. */
@@ -55,34 +55,36 @@ export function Etapa6Parecer({
   relatorioId: string;
   snapshot: RelatorioSnapshot;
   onWriteParecer: WriteParecer;
-  /** Shown when the band was opened from the Export dialog's blocking row (`?volta=exportar`). */
+  /** Shown when the band was opened from the Export dialog (`?volta=exportar`). */
   onBackToExport: (() => void) | null;
   bandRef: BandRef;
 }) {
   const t = copy.setup;
   const labelId = useId();
   const hintId = useId();
-  const parecer = snapshot.relatorio.setup.parecer;
-  const verdict = parecer?.verdict ?? null;
-  const suggestion = useMemo(() => suggestParecer(snapshot), [snapshot]);
-  const hint = useMemo(() => parecerHintText(suggestion, snapshot), [suggestion, snapshot]);
+  const verdict = useMemo(() => effectiveParecer(snapshot), [snapshot]);
+  const reason = useMemo(() => parecerReasonText(snapshot), [snapshot]);
   const composed = useMemo(() => composeParecer(snapshot), [snapshot]);
-  const textState = parecerTextState(parecer, composed);
+  const ownText = parecerOwnText(snapshot);
   // p020 P-1b: a relatório without section 10 says the parecer does not print (the kernel's texts).
   const absent = useMemo(() => parecerAbsentTexts(snapshot), [snapshot]);
+  const looser = (segment: ParecerVerdict) => parecerLooser(snapshot, segment);
 
   const setVerdict = (next: ParecerVerdict | null) => {
-    // A verdict is never cleared: the parecer only moves between the three.
-    if (next === null) return;
+    // A verdict is never cleared, and never set looser than the fichas give.
+    if (next === null || parecerLooser(snapshot, next)) return;
     void onWriteParecer((current) => (current?.verdict === next ? null : parecerWithVerdict(current, next))).catch(() => undefined);
   };
   const { latest, emit } = useLatestChoice<ParecerVerdict>(verdict, setVerdict);
   const refs = useRef(new Map<ParecerVerdict, HTMLButtonElement | null>());
-  const selected = verdict === null ? -1 : SEGMENTS.indexOf(verdict);
-  const tabbable = selected === -1 ? 0 : selected;
+  const selected = SEGMENTS.indexOf(verdict);
 
-  const moveTo = (index: number) => {
-    const target = SEGMENTS[(index + SEGMENTS.length) % SEGMENTS.length]!;
+  const moveTo = (index: number, step: number) => {
+    // Story 22.6: the arrows skip a disabled verdict.
+    let at = (index + SEGMENTS.length) % SEGMENTS.length;
+    for (let tries = 0; tries < SEGMENTS.length && looser(SEGMENTS[at]!); tries += 1) at = (at + step + SEGMENTS.length) % SEGMENTS.length;
+    const target = SEGMENTS[at]!;
+    if (looser(target)) return;
     refs.current.get(target)?.focus();
     if (target !== latest.current) emit(target);
   };
@@ -90,15 +92,15 @@ export function Etapa6Parecer({
     const step = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[event.key];
     if (step !== undefined) {
       event.preventDefault();
-      moveTo(index + step);
+      moveTo(index + step, step);
     } else if (event.key === 'Home' || event.key === 'End') {
       event.preventDefault();
-      moveTo(event.key === 'Home' ? 0 : SEGMENTS.length - 1);
+      if (event.key === 'Home') moveTo(0, 1);
+      else moveTo(SEGMENTS.length - 1, -1);
     }
   };
 
-  const writeText = (text: string, status: 'confirmed' | 'edited', toast?: string) =>
-    onWriteParecer((current) => (current === null ? null : parecerWithText(current, text, status, composed.basis)), toast === undefined ? undefined : { toast });
+  const clearOwnText = () => void onWriteParecer((current) => (current === null || current.text_status === null ? null : parecerWithoutOwnText(current))).catch(() => undefined);
 
   return (
     <section className="section-band" aria-labelledby="setup-e6" id="setup-parecer" ref={(el) => bandRef(el)}>
@@ -127,7 +129,7 @@ export function Etapa6Parecer({
             className="conclusion-pair is-verdict parecer-choice"
             role="radiogroup"
             aria-labelledby={labelId}
-            aria-describedby={hint === null ? undefined : hintId}
+            aria-describedby={reason === null ? undefined : hintId}
           >
             {SEGMENTS.map((segment, index) => (
               <button
@@ -137,7 +139,8 @@ export function Etapa6Parecer({
                 className="seg"
                 data-value={parecerBoxTone(segment)}
                 aria-checked={segment === verdict}
-                tabIndex={index === tabbable ? 0 : -1}
+                disabled={looser(segment)}
+                tabIndex={index === selected ? 0 : -1}
                 ref={(element) => {
                   refs.current.set(segment, element);
                 }}
@@ -154,36 +157,45 @@ export function Etapa6Parecer({
               </button>
             ))}
           </div>
-          {hint === null ? null : (
+          {reason === null ? null : (
             <span className="conclusion-hint" id={hintId}>
-              {hint}
+              {reason}
             </span>
           )}
         </div>
 
-        {parecer === null ? null : (
-          <GeneratedTextField
-            label={t.parecerSummaryLabel}
-            text={textState === 'unconfirmed' ? composed.text : (parecer.text ?? '')}
-            criteriaItems={composed.criteriaItems}
-            state={textState}
-            onConfirm={() => void writeText(composed.text, 'confirmed', absent?.toast ?? t.parecerConfirmedToast(sectionRefText(snapshot, 10))).catch(() => undefined)}
-            onReplace={() => void writeText(composed.text, 'confirmed').catch(() => undefined)}
-            onEdit={(text) => writeText(text, 'edited')}
-            draft={{ surface: 'setup', entityId: relatorioId, field: 'parecer-text' }}
-            maxLength={PARECER_TEXT_CAP ?? undefined}
-            helper={t.parecerHelper}
-            confirmedHelper={absent?.confirmedHelper ?? t.parecerConfirmed(sectionRefText(snapshot, 10))}
-          />
-        )}
+        <GeneratedTextField
+          label={t.parecerSummaryLabel}
+          text={composed.text}
+          criteriaItems={composed.criteriaItems}
+          state="confirmed"
+          onConfirm={() => undefined}
+          onReplace={() => undefined}
+          onEdit={() => undefined}
+          draft={{ surface: 'setup', entityId: relatorioId, field: 'parecer-text' }}
+          confirmedHelper={absent?.confirmedHelper ?? t.parecerComposed(sectionRefText(snapshot, 10))}
+          readOnly
+        />
 
-        {parecer === null ? null : (
-          <div className="parecer-box" role="status" aria-live="polite" data-verdict={parecerBoxTone(parecer.verdict)}>
-            <span className="pb-kicker">{absent?.kicker ?? t.parecerKicker(sectionRefText(snapshot, 10))}</span>
-            <span className="pb-verdict">{parecerVerdictLabel(parecer.verdict)}</span>
-            <span className="pb-text">{parecerBoxText(snapshot)}</span>
+        {ownText === null ? null : (
+          <div className="field">
+            <span className="field-label">
+              {t.parecerOwnTextLabel}
+            </span>
+            <p className="section-note">
+              {ownText}
+            </p>
+            <div className="row">
+              <TextButton onPress={clearOwnText}>{t.parecerOwnTextClear}</TextButton>
+            </div>
           </div>
         )}
+
+        <div className="parecer-box" role="status" aria-live="polite" data-verdict={parecerBoxTone(verdict)}>
+          <span className="pb-kicker">{absent?.kicker ?? t.parecerKicker(sectionRefText(snapshot, 10))}</span>
+          <span className="pb-verdict">{parecerVerdictLabel(verdict)}</span>
+          <span className="pb-text">{parecerBoxText(snapshot)}</span>
+        </div>
       </div>
     </section>
   );

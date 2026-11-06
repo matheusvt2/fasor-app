@@ -10,6 +10,7 @@ import {
   screenLabel,
   itensMarcadosConformeText,
   ncChipPhrases,
+  ncEntryText,
   ncRowPointPositions,
   ncRowPointsText,
   photoToken,
@@ -325,8 +326,14 @@ export function sheetRowTarget(
     observationOp: (by, value) => checklistObservationOp(by, block.relatorio_id, block.id, item.key, value),
     observationCap: textCapOf(sheetChecklistPath(block.id, item.key, 'observation')),
     ncDraft: ncDraftFor(block, item.key, pending),
-    pointSeed: (photoIds) => ({ text: photoIds.map((id) => photoToken(id)).join(' '), equipmentId: block.equipment_id, origin: 'manual' }),
-    pointMark: (photoIds) => ncRowPointsText(ncRowPointPositions(snapshot.points, block.equipment_id, photoIds)),
+    // Story 22.5: the point replaces the row's derived NC entry (`origin` `nc`, its item), starting with that entry's text.
+    pointSeed: (photoIds) => ({
+      text: ncEntryText(snapshot, { blockId: block.id }, item.key) ?? photoIds.map((id) => photoToken(id)).join(' '),
+      equipmentId: block.equipment_id,
+      origin: 'nc',
+      itemKey: item.key,
+    }),
+    pointMark: (photoIds) => ncRowPointsText(ncRowPointPositions(snapshot.points, block.equipment_id, photoIds, item.key)),
     chips: ncChipPhrases({
       seeded: item.nc_phrases,
       learned,

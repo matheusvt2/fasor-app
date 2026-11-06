@@ -604,7 +604,12 @@ export const pointRowSchema = z.object({
   relatorio_id: uuidV7Schema,
   text: z.string(),
   equipment_id: nullableId,
-  origin: z.enum(['manual', 'not_tested']),
+  /**
+   * Story 22.5 (contract 31): `nc`, `reading` and `reprovado` name the derived entry a point
+   * was written from ("Editar" on the entry, "Criar ponto de atenção" on an NC row), with its
+   * `item_key` or `test_key`; the point replaces that entry (`points/derived.ts`).
+   */
+  origin: z.enum(['manual', 'not_tested', 'nc', 'reading', 'reprovado']),
   order_key: z.string(),
   removed_at: nullableIso,
   action: nullableString.default(null),
@@ -617,6 +622,14 @@ export const pointRowSchema = z.object({
    * the field existed parses to the same bytes. Written at create or through `point/{id}/location_id`.
    */
   location_id: nullableId.optional(),
+  /**
+   * Story 22.5 (contract 31): the checklist item of a point written from an NC row (`origin`
+   * `nc`), and the test of one written from an out reading (`origin` `reading`). Optional:
+   * absent and null both mean none, so a row stored before the fields existed parses to the
+   * same bytes. Fixed at create, like `origin` (`ops/path.ts`).
+   */
+  item_key: nullableString.optional(),
+  test_key: nullableString.optional(),
 });
 
 /**

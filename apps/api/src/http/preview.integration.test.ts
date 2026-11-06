@@ -7,7 +7,6 @@ import {
   generateResponseSchema,
   generationJobRowSchema,
   makeOp,
-  preIssueBlockedDetailsSchema,
   previewResponseSchema,
   relatorioRowSchema,
   revisionRowSchema,
@@ -38,7 +37,7 @@ import { applyOps } from '../sync/apply.ts';
 /*
  * Stories 7.4 and 7.5 over the compose api (LibreOffice included), on the small Porto
  * Seguro fixture seeded onto Empresa A with no parecer: a bundle of the old contract is
- * refused a pull (426); the issue is refused with `409 pre_issue_blocked` while the parecer
+ * refused a pull (426); ~~the issue is refused with `409 pre_issue_blocked` while the parecer~~ (Story 22.6: never, the verdict is derived)
  * is missing, and creates no job; a preview queues, renders and serves `preview.pdf` without
  * any status, revision or `last_nameplate`, even while an issue job runs; the parecer put
  * pushed through the sync route releases the issue, whose DOCX prints section 10 and whose
@@ -233,16 +232,17 @@ describe('7.4/7.5-INT parecer, preview and the blocked issue', () => {
     expect(errorResponseSchema.parse(await res.json()).code).toBe('contract_outdated');
   });
 
-  it('refuses the issue with 409 pre_issue_blocked while no parecer is set, and creates no job', async () => {
+  it('Story 22.6 (amends 7.5): with no parecer stored the derived verdict stands, so the issue is never refused for it', async () => {
     await pushParecer(null);
-    const jobsBefore = (await db.select({ id: entities.id }).from(entities).where(and(eq(entities.entity, 'generation_job'), eq(entities.relatorio_id, RELATORIO_ID)))).length;
-    const res = await post(companyA, `/api/relatorios/${RELATORIO_ID}/generate`, BARRIER);
-    expect(res.status).toBe(409);
-    const body = errorResponseSchema.parse(await res.json());
-    expect(body.code).toBe('pre_issue_blocked');
-    expect(preIssueBlockedDetailsSchema.parse(body.details)).toEqual({ rows: ['parecer_missing'] });
-    const jobs = await db.select({ id: entities.id }).from(entities).where(and(eq(entities.entity, 'generation_job'), eq(entities.relatorio_id, RELATORIO_ID)));
-    expect(jobs).toHaveLength(jobsBefore);
+    // Past the gate (nothing blocks), the press answers the issue job a worker already runs.
+    const running = await fakeJob('issue', { status: 'running', created_at: minutesAgo(1), started_at: minutesAgo(1) });
+    try {
+      const res = await post(companyA, `/api/relatorios/${RELATORIO_ID}/generate`, BARRIER);
+      expect(res.status, await res.clone().text()).toBe(200);
+      expect(generateResponseSchema.parse(await res.json())).toMatchObject({ outcome: 'running', job_id: running });
+    } finally {
+      await endJob(running);
+    }
   });
 
   it("answers another company's preview press with 404 and queues no job", async () => {
@@ -331,7 +331,11 @@ describe('7.4/7.5-INT parecer, preview and the blocked issue', () => {
       const revision = revisionRowSchema.parse(pulled.find((op) => op.kind === 'create' && op.path.startsWith('revision/'))!.value);
       const docx = await authed(companyA, `/api/revisions/${revision.id}/docx`);
       const structure = extractStructure(Buffer.from(await docx.arrayBuffer()));
-      expect(structure.tables).toContainEqual([['Apto\nResumo do parecer confirmado.']]);
+      // Story 22.6: the fixture's untested sheet makes the derived verdict Apto com restrições, stricter than the stored Apto,
+      // and the box prints the composed summary, never the stored confirmed one.
+      const box = structure.tables.find((table) => table.length === 1 && table[0]!.length === 1 && table[0]![0]!.startsWith('Apto com restrições\n'));
+      expect(box?.[0]?.[0]).toMatch(/^Apto com restrições\nForam registradas 3 fichas de ensaio: /);
+      expect(box?.[0]?.[0]).not.toContain('Resumo do parecer confirmado.');
       expect(structure.paragraphs.some((p) => p.startsWith('Este relatório tem validade apenas acompanhada da'))).toBe(true);
       expect(structure.paragraphs).toContain(companyA.name);
 

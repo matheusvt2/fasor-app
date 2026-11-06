@@ -8,6 +8,7 @@ import {
   photoToken,
   pointRowSchema,
   putPointOp,
+  safeParsePath,
   standardTemplate,
   syncPullResponseSchema,
   syncPushResponseSchema,
@@ -185,6 +186,74 @@ describe('6.6-API-001 point fields through the sync route', () => {
 
       // A version-3 bundle cannot parse these puts: its pull is refused (AD-13).
       expect((await authed(`/api/sync/relatorios/${relatorioId}?since=0`, {}, '3')).status).toBe(426);
+    },
+    60_000,
+  );
+});
+
+describe('22.5-API-001 a point written from a derived entry through the sync route', () => {
+  it(
+    'pushes a point create with origin nc and its item_key, and one with origin reading and its test_key, and pulls them back identical; the source is fixed at create; a version-30 bundle is answered 426',
+    async () => {
+      const author = { id: company.userId, companyId: company.companyId };
+      const projectId = newId();
+      const projectDraft: OpDraft = {
+        kind: 'create',
+        scope: 'company',
+        company_id: company.companyId,
+        project_id: null,
+        relatorio_id: null,
+        path: `project/${projectId}`,
+        value: { id: projectId, client_id: null, name: 'Obra pontos derivados', site: 'Obra pontos derivados', removed_at: null },
+        prev_op_id: null,
+        batch_id: null,
+        meta: null,
+        actor_id: company.userId,
+      };
+      const { relatorioId, drafts } = instantiateTemplate(
+        standardTemplate({ id: newId() }),
+        { id: projectId },
+        { service_start: '2026-11-06', service_end: '2026-11-06', existingEquipment: [], responsible_user_id: null },
+        { newId, actorId: company.userId, companyId: company.companyId },
+      );
+      const at = now();
+      const creation = [projectDraft, ...drafts].map((draft) => makeOp({ ...draft, device_id: DEVICE }, { newId, now: at }));
+      for (const op of creation) written.entityIds.add((op.value as { id: string }).id);
+      await pushOk(creation);
+      const equipmentId = (creation.find((op) => op.path.startsWith('equipment/'))!.value as { id: string }).id;
+
+      const nc: PointRow = newPointRow(
+        { id: newId(), relatorioId, text: 'Item 1 (limpeza): acúmulo de poeira', equipmentId, origin: 'nc', action: 'Limpar', itemKey: 'limpeza' },
+        [],
+      );
+      const reading: PointRow = newPointRow({ id: newId(), relatorioId, text: 'Ensaio de isolação: 300 MΩ', equipmentId, origin: 'reading', action: null, testKey: 'isolacao' }, [nc]);
+      expect(nc).toMatchObject({ origin: 'nc', item_key: 'limpeza' });
+      expect(reading).toMatchObject({ origin: 'reading', test_key: 'isolacao' });
+      written.entityIds.add(nc.id);
+      written.entityIds.add(reading.id);
+      const stamp = (draft: OpDraft): Op => makeOp({ ...draft, device_id: DEVICE }, { newId, now: now() });
+      const creates = [stamp(createPointOp(author, nc)), stamp(createPointOp(author, reading))];
+      await pushOk(creates);
+
+      const pull = await authed(`/api/sync/relatorios/${relatorioId}?since=0`);
+      expect(pull.status, await pull.clone().text()).toBe(200);
+      const page = syncPullResponseSchema.parse(await pull.json());
+      const pulled = new Map((page.ops as Op[]).map((op) => [op.op_id, op]));
+      expect(pointRowSchema.parse(pulled.get(creates[0]!.op_id)!.value)).toEqual(nc);
+      expect(pointRowSchema.parse(pulled.get(creates[1]!.op_id)!.value)).toEqual(reading);
+      const [stored] = await db
+        .select({ row: entities.row })
+        .from(entities)
+        .where(and(eq(entities.company_id, company.companyId), eq(entities.entity, 'point'), eq(entities.id, nc.id)));
+      expect(pointRowSchema.parse(stored!.row)).toEqual(nc);
+
+      // The source is fixed at create: `point/{id}/item_key` and `/test_key` are not paths a put may name.
+      expect(safeParsePath(`point/${nc.id}/item_key`)).toBeNull();
+      expect(safeParsePath(`point/${nc.id}/test_key`)).toBeNull();
+      expect(safeParsePath(`point/${nc.id}/action`)).not.toBeNull();
+
+      // A version-30 bundle cannot parse a point of these origins: its pull is refused (contract 31).
+      expect((await authed(`/api/sync/relatorios/${relatorioId}?since=0`, {}, '30')).status).toBe(426);
     },
     60_000,
   );

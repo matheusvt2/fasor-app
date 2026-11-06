@@ -5,6 +5,7 @@ import { locationChecklistPath, locationFieldPath } from '../ops/path.ts';
 import { contextCaption, siteCaption, type ContextCaptionMeta } from '../photos/caption.ts';
 import { galleryCabineOptions, photoCabineId, photoItemLine, photoSiteLocal } from '../photos/gallery.ts';
 import { ncRowPointPositions, ncRowPointsText, newPointRow } from '../points/checks.ts';
+import { derivedPoints } from '../points/derived.ts';
 import { photoToken } from '../points/refs.ts';
 import { pointsSummary, pointTitle, POINT_TITLE_GENERAL, sectionEightEntries } from '../points/summary.ts';
 import { section7Photos } from '../print/section-7.ts';
@@ -40,8 +41,6 @@ import {
   siteNcCount,
   siteNcItems,
   siteNcOf,
-  siteNcWithoutPoint,
-  siteNcWithoutPointText,
   siteUnanswered,
   siteUnansweredText,
   siteUnsetItems,
@@ -372,7 +371,8 @@ describe('14.3 preIssue: one non-blocking row names the locals with unanswered i
       { id: 'site_checklist_unanswered', row: 'section_9', severity: 'pending', text: 'Verificações do local sem resposta: Cubículo Enel (19 itens) e 1° Subsolo (7 itens)', kind: 'site_checklist_unanswered' },
     ]);
     expect(preIssueRowsFor(rows, 'section_9').some((row) => row.kind === 'site_checklist_unanswered')).toBe(true);
-    expect(blockingRows(rows).map((row) => row.kind)).toEqual(['parecer_missing']);
+    // Story 22.6: nothing blocks.
+    expect(blockingRows(rows)).toEqual([]);
   });
 
   it('words one local and one item in the singular, and raises nothing once every local is complete or on a relatório with no site list', () => {
@@ -449,10 +449,11 @@ describe('14.3 a point created from a site item', () => {
     expect(ncRowPointPositions([...points, ofEquipment], { equipmentId: BLOCK }, [PHOTO])).toEqual([4]);
   });
 
-  it('is titled with its local, "⟨local⟩ · Verificações do local", and prints in section 8 and the action plan like any manual point', () => {
+  it('is titled with its local, "⟨local⟩ · Verificações do local", and prints in section 8 and the action plan like any point', () => {
+    // Story 22.5: "Criar ponto de atenção" on the NC item writes `origin: nc` with its item, which replaces the item's derived entry.
     const state = withRows(fold(baseState(), mockOps(SUBSOLO)), [
       [entityKey('file', PHOTO), sitePhoto()],
-      [entityKey('point', POINT), sitePoint()],
+      [entityKey('point', POINT), sitePoint({ origin: 'nc', item_key: EMERGENCIA })],
     ]);
     const snapshot = snapshotOf(state);
     expect(pointTitle(snapshot.points[0]!, snapshot)).toBe('1° Subsolo · Verificações do local');
@@ -477,8 +478,9 @@ describe('14.3 a point created from a site item', () => {
   it('matrix "Removed local": both snapshot builders leave the point out while its local is removed, and bring it back on restore; a point naming no local is always kept', () => {
     const f = opFactory(new Date('2026-09-23T12:00:00.000Z'));
     const general = newPointRow({ id: OTHER_PHOTO, relatorioId: TEST_RELATORIO, text: 'Ponto geral', equipmentId: null, origin: 'manual', action: null }, [sitePoint()]);
+    // Story 22.5: the point written from the NC item replaces its derived entry.
     const live = withRows(fold(baseState(), mockOps(SUBSOLO)), [
-      [entityKey('point', POINT), sitePoint()],
+      [entityKey('point', POINT), sitePoint({ origin: 'nc', item_key: EMERGENCIA })],
       [entityKey('point', OTHER_PHOTO), general],
     ]);
     const remove = f.op({ path: locationFieldPath(SUBSOLO, 'removed_at'), value: '2026-09-23T12:00:00.000Z' });
@@ -588,39 +590,35 @@ describe('14.3 a photo taken on a site item', () => {
   });
 });
 
-describe('Epic 14 QA Q-4: a site NC with no point of attention raises one pending row before issue', () => {
+describe('22.5-UNIT a site NC is a point of attention by itself (retires Epic 14 QA Q-4\'s pre-issue row)', () => {
   const ncOn = (locationId: string, keys: readonly string[], f = opFactory()): Op[] => keys.map((key) => f.op({ path: locationChecklistPath(locationId, key, 'result'), value: 'NC' }));
-  const ncRow = (snapshot: RelatorioSnapshot) => preIssue(snapshot).filter((row) => row.kind === 'site_checklist_nc_without_point');
+  const ncEntries = (snapshot: RelatorioSnapshot) => derivedPoints(snapshot).filter((entry) => entry.kind === 'nc');
 
-  it('names every local with more NC items than points naming it, after the unanswered row; pending, never blocking', () => {
+  it('one derived entry per NC site item, at its local in tree order; no pre-issue row; nothing blocks', () => {
     const state = fold(baseState(), [...ncOn(SUBSOLO, [EMERGENCIA, EXTINTOR]), ...ncOn(ENEL, [EPI])]);
-    // 1° Subsolo: two NC items and one point; Cubículo Enel: one NC and none.
-    const snapshot = snapshotOf(withRows(state, [[entityKey('point', POINT), sitePoint()]]));
-    expect(siteNcWithoutPoint(snapshot)).toEqual([
-      { locationId: ENEL, name: 'Cubículo Enel', nc: 1, points: 0 },
-      { locationId: SUBSOLO, name: '1° Subsolo', nc: 2, points: 1 },
+    const snapshot = snapshotOf(state);
+    const entries = ncEntries(snapshot);
+    expect(entries.map((entry) => [entry.location_id, entry.item_key, entry.title])).toEqual([
+      [ENEL, EPI, sitePointTitle('Cubículo Enel')],
+      [SUBSOLO, EXTINTOR, sitePointTitle('1° Subsolo')],
+      [SUBSOLO, EMERGENCIA, sitePointTitle('1° Subsolo')],
     ]);
+    expect(entries.every((entry) => entry.block_id === null && entry.equipment_id === null)).toBe(true);
     const rows = preIssue(snapshot);
-    expect(ncRow(snapshot)).toEqual([
-      { id: 'site_checklist_nc_without_point', row: 'section_9', severity: 'pending', text: 'Verificações do local com NC sem ponto de atenção: Cubículo Enel e 1° Subsolo', kind: 'site_checklist_nc_without_point' },
-    ]);
-    const kinds = rows.map((row) => row.kind);
-    expect(kinds.indexOf('site_checklist_nc_without_point')).toBe(kinds.indexOf('site_checklist_unanswered') + 1);
-    expect(blockingRows(rows).map((row) => row.kind)).toEqual(['parecer_missing']);
+    expect(rows.some((row) => (row.kind as string) === 'site_checklist_nc_without_point')).toBe(false);
+    expect(blockingRows(rows)).toEqual([]);
   });
 
-  it('the row goes once each NC item has its point; a removed point or a removed local counts nothing; v1 to v3 raise none', () => {
+  it('a point written from the item (origin nc, its item_key, the local) replaces its entry; a manual one does not; a removed local or v1 to v3 derive nothing', () => {
     const state = fold(baseState(), ncOn(SUBSOLO, [EMERGENCIA]));
-    expect(ncRow(snapshotOf(state)).map((row) => row.text)).toEqual(['Verificações do local com NC sem ponto de atenção: 1° Subsolo']);
-    expect(ncRow(snapshotOf(withRows(state, [[entityKey('point', POINT), sitePoint()]])))).toEqual([]);
-    expect(ncRow(snapshotOf(withRows(state, [[entityKey('point', POINT), sitePoint({ removed_at: '2026-09-23T12:00:00.000Z' })]])))).toHaveLength(1);
-    // A point of another local does not answer this one's NC.
-    expect(ncRow(snapshotOf(withRows(state, [[entityKey('point', POINT), sitePoint({ location_id: ENEL })]])))).toHaveLength(1);
+    expect(ncEntries(snapshotOf(state))).toHaveLength(1);
+    expect(ncEntries(snapshotOf(withRows(state, [[entityKey('point', POINT), sitePoint({ origin: 'nc', item_key: EMERGENCIA })]])))).toEqual([]);
+    expect(ncEntries(snapshotOf(withRows(state, [[entityKey('point', POINT), sitePoint({ origin: 'nc', item_key: EXTINTOR })]])))).toHaveLength(1);
+    expect(ncEntries(snapshotOf(withRows(state, [[entityKey('point', POINT), sitePoint()]])))).toHaveLength(1);
     const f = opFactory(new Date('2026-09-23T12:00:00.000Z'));
     const removed = fold(state, [f.op({ path: locationFieldPath(SUBSOLO, 'removed_at'), value: '2026-09-23T12:00:00.000Z' })]);
-    expect(ncRow(snapshotOf(removed))).toEqual([]);
-    for (const version of ['v1', 'v2', 'v3']) expect(ncRow(snapshotOf(baseState(version)))).toEqual([]);
-    expect(siteNcWithoutPointText([])).toBeNull();
+    expect(ncEntries(snapshotOf(removed))).toEqual([]);
+    for (const version of ['v1', 'v2', 'v3']) expect(ncEntries(snapshotOf(baseState(version)))).toEqual([]);
   });
 });
 

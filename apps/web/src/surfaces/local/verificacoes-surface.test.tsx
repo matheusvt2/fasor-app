@@ -442,7 +442,10 @@ describe('14.3 "Verificações do local": the surface', () => {
     await waitFor(async () => expect((await outbox()).some((op) => op.kind === 'create' && op.path.startsWith('point/'))).toBe(true));
     const create = (await outbox()).find((op) => op.kind === 'create' && op.path.startsWith('point/'))!;
     const point = create.value as unknown as PointRow;
-    expect(point).toMatchObject({ relatorio_id: RELATORIO, location_id: LOCAL, equipment_id: null, origin: 'manual', text: `[[foto:${PHOTO}]]` });
+    // Story 22.5: written from the NC item (origin nc, its item), starting with the item's derived text and photo.
+    expect(point).toMatchObject({ relatorio_id: RELATORIO, location_id: LOCAL, equipment_id: null, origin: 'nc', item_key: EMERGENCIA });
+    expect(point.text.startsWith('Item 11 (')).toBe(true);
+    expect(point.text.endsWith(`[[foto:${PHOTO}]]`)).toBe(true);
     await waitFor(() => expect(rowOf(EMERGENCIA).querySelector('.nc-point-ref')).toHaveTextContent('Ponto de atenção 1'));
     // The dialog hands the focus back to the button that opened it, still the same element of the row.
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());

@@ -340,6 +340,13 @@ export const notTestedReasonSchema = z.object({
   key: seedKey,
   label: z.string().min(1),
   justification: z.string().min(1).nullable(),
+  /**
+   * Story 22.4: the reason names a defect found on the equipment, so a sheet marked Não
+   * ensaiado for it concludes Reprovado · Com restrições (`conclusionFloor`). Optional and
+   * set by no shipped seed (seed v12, Story 22.7, owns the real reason), so every shipped
+   * version parses to the bytes it shipped with; absent reads false (`isDefectReason`).
+   */
+  defect: z.boolean().optional(),
 });
 export type NotTestedReason = z.infer<typeof notTestedReasonSchema>;
 

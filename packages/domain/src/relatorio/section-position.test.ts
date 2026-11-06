@@ -121,7 +121,7 @@ describe('F43 seed v8: the Conclusão names sections 8 and 9 by their Sumário p
     expect(sectionVariables(without(compact(), ['section_8', 'section_9']), null)).toMatchObject({ itens_resultados: 'no corpo' });
   });
 
-  it('a v8 compact relatório prints "itens 4 e 5"; a v7 one keeps FO.SERV-03\'s "itens 8 e 9"', () => {
+  it('a v8 compact relatório prints "itens 4 e 5"; Story 22.6: a v7 one too, its fixed "itens 8 e 9" read by the printed positions', () => {
     const v8 = compact();
     expect(v8.relatorio.seed_version).toBe(SEED_VERSION);
     const printed = printedText(v8);
@@ -130,7 +130,7 @@ describe('F43 seed v8: the Conclusão names sections 8 and 9 by their Sumário p
     expect(printed).not.toContain('itens 8 e 9');
     expect(printed).not.toContain('{secao_');
     const v7 = { ...v8, relatorio: { ...v8.relatorio, seed_version: 'v7' } };
-    expect(printedText(v7)).toContain('encontram-se nos itens 8 e 9 deste relatório;');
-    expect(printedText(v7)).not.toContain('itens 4 e 5');
+    expect(printedText(v7)).toContain('encontram-se nos itens 4 e 5 deste relatório;');
+    expect(printedText(v7)).not.toContain('itens 8 e 9');
   });
 });

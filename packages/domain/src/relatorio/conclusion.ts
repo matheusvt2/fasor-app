@@ -1,12 +1,13 @@
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
-import type { BlockRow } from '../schemas/entities.ts';
+import type { BlockRow, Cell } from '../schemas/entities.ts';
+import { isDefectReason } from '../seed/defect-reason.ts';
 import { findDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr } from '../text/plural.ts';
 import { evaluateSheetMeasurements, measurementCells, worstMeasurements, type WorstMeasurement } from './measurement-evaluation.ts';
-import { evaluatedCells, evaluateSheetReadings, failedRatioRows, worstReadings, type FailedRatioRow, type TestKey, type WorstReading } from './readings.ts';
+import { evaluatedCells, evaluateSheetReadings, failedRatioRows, worstReadings, type TestKey, type WorstReading } from './readings.ts';
 import { checklistResultOf } from './sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 
@@ -14,11 +15,13 @@ import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
  * Story 5.8 (FR-29, FR-30, AR-11, UX-DR43-47): the sheet's conclusion. The pair the app
  * suggests, the paragraph it composes and the words around them are derived here, from the
  * same reading evaluation the Measurement table shows (`evaluateSheetReadings`), so a
- * reading out of criterion drives the field's helper, the "Com restrições" suggestion and
- * the criteria line identically. The app never sets a verdict: the pair is written only by
- * the engineer's tap, and Reprovado is never suggested. The conclusion text is derived on
- * read, never a row; what is stored is only what the engineer confirmed (`text`,
- * `text_status`, `text_basis`).
+ * reading out of criterion drives the field's helper, the floor and the criteria line
+ * identically. ~~The app never sets a verdict: the pair is written only by the engineer's
+ * tap, and Reprovado is never suggested.~~ Story 22.4 (2026-11-06, Bruno; amends FR-29 and
+ * NFR-10): the sheet's values set a floor (`conclusionFloor`), every reader shows the
+ * effective pair (`effectiveConclusionPair`, the stricter of floor and stored), and
+ * "Concluir ficha" writes it. The conclusion text is derived on read, never a row; what is
+ * stored is only what the engineer confirmed (`text`, `text_status`, `text_basis`).
  */
 
 export type ConclusionResult = 'aprovado' | 'reprovado';
@@ -69,73 +72,170 @@ function anyAnswered(block: BlockRow): boolean {
   return Object.values(block.sheet.checklist).some((item) => isCellFilled(item.result));
 }
 
+/** Story 22.4: why the floor stands, one reason per source the sheet holds, in this order. */
+export type ConclusionFloorReason = 'defect' | 'reading' | 'ratio' | 'measurement' | 'nc' | 'observation';
+
+/** Story 22.4: the least strict pair the sheet allows, and the sources that set it. */
+export interface ConclusionFloor {
+  pair: ConclusionPair;
+  /** Empty for the Aprovado · Sem restrições floor of a clean sheet. */
+  reasons: ConclusionFloorReason[];
+}
+
+/** A cell holding typed text. */
+function holdsText(cell: Cell | null | undefined): boolean {
+  return isCellFilled(cell) && typeof cell!.value === 'string' && cell!.value.trim() !== '';
+}
+
+/** Story 22.4: the sheet observation, or an enabled checklist row's observation, holds text. */
+function anyObservation(block: BlockRow, definition: BlockDefinition): boolean {
+  const enabled = enabledSubBlocksOf(block);
+  if (enabled.has('observations') && holdsText(block.sheet.observations)) return true;
+  if (definition.checklist === null || !enabled.has('checklist')) return false;
+  return definition.checklist.some((item) => holdsText(block.sheet.checklist[item.key]?.observation));
+}
+
 /**
- * The amber suggestion row's pair (Story 5.8 AC 1): Aprovado, with Com restrições when any
- * row is NC, any reading is out of criterion or any ratio row INSATISFATÓRIO (Story 17.5,
- * `failedRatioRows`), else Sem restrições. Null when the sheet
- * is marked not tested, once any segment is set, or while nothing is measured and nothing
- * answered; e21g D6: null too in place of Sem restrições while a ratio table waits for its
- * vector group (`groupMissing`). Never Reprovado.
+ * Story 22.4 (Bruno, 2026-11-06, item 26; amends FR-29 and NFR-10): the floor of the sheet's
+ * conclusion, the least strict pair what the sheet holds allows. In order:
+ * - Reprovado · Com restrições when a reading is out of criterion (insulation, contact, a
+ *   ratio row INSATISFATÓRIO through `failedRatioRows`, a measurement-table cell), or when
+ *   the sheet is marked Não ensaiado for a reason its seed flags `defect` (`isDefectReason`;
+ *   no shipped seed has one yet). Com restrições stays with Reprovado, as the old suggestion
+ *   kept it over an out reading (open for Bruno).
+ * - Aprovado · Com restrições, short of that, when a checklist row is NC, or the sheet
+ *   observation or a checklist row's observation holds text.
+ * - Aprovado · Sem restrições, short of both, once something was measured or answered and
+ *   nothing stands to check (Epic 14 QA Q-3), unjudged (Story 14.9) or waiting for its vector
+ *   group (e21g D6).
+ * - Null otherwise, and for a sheet marked Não ensaiado for any other reason.
+ * The rule is the kernel's, never the seed's (beyond the `defect` flag): a v5 relatório gets it
+ * as a v11 one does.
  */
-export function suggestConclusionPair(block: BlockRow): ConclusionPair | null {
-  if (block.not_tested !== null) return null;
-  if (isCellFilled(block.sheet.conclusion.result) || isCellFilled(block.sheet.conclusion.restriction)) return null;
+export function conclusionFloor(block: BlockRow): ConclusionFloor | null {
+  if (block.not_tested !== null) {
+    return isDefectReason(block.seed_version, block.not_tested.reason) ? { pair: { result: 'reprovado', restriction: 'com_restricoes' }, reasons: ['defect'] } : null;
+  }
   const definition = definitionOf(block);
   if (definition === null) return null;
   const evaluations = evaluateSheetReadings(block, definition);
   const cells = evaluatedCells(evaluations);
   // Story 14.5: the cells of the measurement tests count as the seeded tables' captures do.
   const tableCells = measurementCells(evaluateSheetMeasurements(block, definition));
-  // Epic 14 QA Q-3: a zero or negative reading the criterion cannot judge stands: no suggestion until it is checked.
+  const plainCells = evaluatedCells(evaluations.filter((test) => test.testKey !== 'relacao_transformacao'));
+  const failures: ConclusionFloorReason[] = [];
+  if (plainCells.some((cell) => cell.verdict === 'out')) failures.push('reading');
+  if (failedRatioRows(evaluations).length > 0) failures.push('ratio');
+  if (tableCells.some((cell) => cell.verdict === 'out')) failures.push('measurement');
+  const restrictions: ConclusionFloorReason[] = [];
+  if (ncItems(block, definition).length > 0) restrictions.push('nc');
+  if (anyObservation(block, definition)) restrictions.push('observation');
+  if (failures.length > 0) return { pair: { result: 'reprovado', restriction: 'com_restricoes' }, reasons: [...failures, ...restrictions] };
+  if (restrictions.length > 0) return { pair: { result: 'aprovado', restriction: 'com_restricoes' }, reasons: restrictions };
+  // Epic 14 QA Q-3: a zero or negative reading the criterion cannot judge stands: no floor until it is checked.
   if (tableCells.some((cell) => cell.toCheck)) return null;
   const measured = cells.some((cell) => cell.role === 'capture' && cell.state === 'measured') || tableCells.some((cell) => cell.state === 'measured');
   if (!measured && !anyAnswered(block)) return null;
-  const restricted =
-    ncItems(block, definition).length > 0 ||
-    failedRatioRows(evaluations).length > 0 ||
-    cells.some((cell) => cell.verdict === 'out') ||
-    tableCells.some((cell) => cell.verdict === 'out');
   // Story 14.9: a reading measured under a test no criterion judges (a QGBT with no TENSÃO
-  // NOMINAL, or above 1000 V) is never a pass: no "Sem restrições" is suggested over it.
-  // e21g D6: nor over a v11 ratio table waiting for its vector group, which cannot be judged
-  // whatever was typed, while its plate can be filled (the `ensaiosCounts` rule); a restriction
-  // still suggests Com restrições.
+  // NOMINAL, or above 1000 V) is never a pass. e21g D6: nor a v11 ratio table waiting for its
+  // vector group while its plate can be filled (the `ensaiosCounts` rule).
   const unjudged =
     evaluations.some((test) => test.criterion === null && evaluatedCells([test]).some((cell) => cell.role === 'capture' && cell.state === 'measured')) ||
     (enabledSubBlocksOf(block).has('nameplate') && evaluations.some((test) => test.tables.some((table) => table.groupMissing)));
-  if (!restricted && unjudged) return null;
-  return { result: 'aprovado', restriction: restricted ? 'com_restricoes' : 'sem_restricoes' };
+  if (unjudged) return null;
+  return { pair: { result: 'aprovado', restriction: 'sem_restricoes' }, reasons: [] };
+}
+
+const RESULT_RANK: Readonly<Record<ConclusionResult, number>> = { aprovado: 1, reprovado: 2 };
+const RESTRICTION_RANK: Readonly<Record<ConclusionRestriction, number>> = { sem_restricoes: 1, com_restricoes: 2 };
+
+function stricter<T extends string>(rank: Readonly<Record<T, number>>, a: T | null, b: T | null): T | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return rank[a] >= rank[b] ? a : b;
+}
+
+/** Story 22.4: the pair every reader shows and prints; either half null while neither the floor nor the store sets it. */
+export interface EffectiveConclusionPair {
+  result: ConclusionResult | null;
+  restriction: ConclusionRestriction | null;
+}
+
+/**
+ * Story 22.4 (AD-1, AD-13): the effective pair, per dimension the stricter of the floor and
+ * the stored value (result Reprovado over Aprovado, restriction Com over Sem); an unset stored
+ * half reads the floor's, so an open sheet with a floor prints its floor marks in a draft.
+ * The ficha, section 9, the Sumário, the parecer and the counts read this, never the stored
+ * pair alone: a stored pair looser than a later floor is never shown as the conclusion.
+ */
+export function effectiveConclusionPair(block: BlockRow): EffectiveConclusionPair {
+  const floor = conclusionFloor(block)?.pair ?? null;
+  return {
+    result: stricter(RESULT_RANK, floor?.result ?? null, conclusionResultOf(block)),
+    restriction: stricter(RESTRICTION_RANK, floor?.restriction ?? null, conclusionRestrictionOf(block)),
+  };
+}
+
+/**
+ * Story 22.4: a complete stored pair the floor has since made stricter (a reading corrected
+ * out of criterion after "Concluir ficha"): the ficha shows "Conclusão ajustada pela ficha"
+ * with a Confirmar that writes the effective pair.
+ */
+export function conclusionAdjusted(block: BlockRow): boolean {
+  const result = conclusionResultOf(block);
+  const restriction = conclusionRestrictionOf(block);
+  if (result === null || restriction === null) return false;
+  const effective = effectiveConclusionPair(block);
+  return effective.result !== result || effective.restriction !== restriction;
+}
+
+/** Story 22.4: whether a segment is looser than the floor, so the radiogroups disable it (a stricter one stays choosable). */
+export function isLooserThanFloor(block: BlockRow, value: ConclusionResult | ConclusionRestriction): boolean {
+  const floor = conclusionFloor(block)?.pair ?? null;
+  if (floor === null) return false;
+  if (value === 'aprovado' || value === 'reprovado') return RESULT_RANK[value] < RESULT_RANK[floor.result];
+  return RESTRICTION_RANK[value] < RESTRICTION_RANK[floor.restriction];
 }
 
 const RESULT_WORDS: Readonly<Record<ConclusionResult, string>> = { aprovado: 'Aprovado', reprovado: 'Reprovado' };
 const RESTRICTION_WORDS: Readonly<Record<ConclusionRestriction, string>> = { sem_restricoes: 'Sem restrições', com_restricoes: 'Com restrições' };
 
-/** The suggestion row's words: "Aprovado · Sem restrições?". */
-export function conclusionSuggestionText(pair: ConclusionPair): string {
-  return `${RESULT_WORDS[pair.result]} · ${RESTRICTION_WORDS[pair.restriction]}?`;
-}
+// authored (Story 22.4, open for Bruno): each source of the floor as the reason line names it.
+const FLOOR_REASON_WORDS: Readonly<Record<ConclusionFloorReason, string>> = {
+  defect: 'não ensaiado por defeito',
+  reading: 'leitura fora do critério',
+  ratio: 'relação de transformação insatisfatória',
+  measurement: 'medição fora do critério',
+  nc: 'item não conforme',
+  observation: 'observação registrada',
+};
 
-// authored (Story 17.5, open for Bruno): the warning of Sem restrições over a failed ratio row.
-/** The ratio clause of the warning, without its leading "Há " ("relação de transformação insatisfatória em Fase R"). */
-function ratioRestrictionClause(rows: readonly FailedRatioRow[]): string {
-  return `relação de transformação insatisfatória em ${listPtBr(rows.map((row) => row.label))}`;
+/**
+ * Story 22.4: the one line under the radiogroups naming why segments are disabled: "A ficha
+ * exige no mínimo Reprovado · Com restrições: leitura fora do critério." Null while no
+ * segment is disabled (no floor, or the Aprovado · Sem restrições floor).
+ */
+export function conclusionFloorReasonText(block: BlockRow): string | null {
+  const floor = conclusionFloor(block);
+  if (floor === null || floor.reasons.length === 0) return null;
+  // authored (Story 22.4, open for Bruno): the reason line of the disabled segments.
+  return `A ficha exige no mínimo ${RESULT_WORDS[floor.pair.result]} · ${RESTRICTION_WORDS[floor.pair.restriction]}: ${listPtBr(floor.reasons.map((reason) => FLOOR_REASON_WORDS[reason]))}.`;
 }
 
 /**
- * The inline warning of Sem restrições beside an NC row (allowed, EXPERIENCE.md › Conclusion
- * control) or over a ratio row INSATISFATÓRIO (Story 17.5); one sentence naming both when
- * both stand.
+ * The suggestion row's pair while the stored pair is unset (Story 5.8 AC 1; Story 22.4: the
+ * floor, Reprovado included). Null on a sheet marked not tested, once any segment is set, or
+ * while there is no floor.
  */
-export function restrictionWarning(block: BlockRow): string | null {
-  if (conclusionRestrictionOf(block) !== 'sem_restricoes') return null;
-  const definition = definitionOf(block);
-  if (definition === null) return null;
-  const ncs = ncItems(block, definition).length > 0;
-  const ratio = failedRatioRows(evaluateSheetReadings(block, definition));
-  if (ratio.length === 0) return ncs ? 'Há itens não conformes' : null;
-  const clause = ratioRestrictionClause(ratio);
-  // authored (Story 17.5, open for Bruno): both findings in one sentence.
-  return ncs ? `Há itens não conformes e ${clause}` : `Há ${clause}`;
+export function conclusionSuggestion(block: BlockRow): ConclusionPair | null {
+  if (block.not_tested !== null) return null;
+  if (isCellFilled(block.sheet.conclusion.result) || isCellFilled(block.sheet.conclusion.restriction)) return null;
+  return conclusionFloor(block)?.pair ?? null;
+}
+
+/** The suggestion row's words: "Aprovado · Sem restrições?". */
+export function conclusionSuggestionText(pair: ConclusionPair): string {
+  return `${RESULT_WORDS[pair.result]} · ${RESTRICTION_WORDS[pair.restriction]}?`;
 }
 
 /**
@@ -157,9 +257,9 @@ export function suggestedSheetObservation(block: BlockRow, definition: BlockDefi
   return lines.length === 0 ? null : lines.join('\n');
 }
 
-/** Com restrições makes the sheet observation required (Story 5.8 AC 2). */
-export function observationRequired(block: Pick<BlockRow, 'sheet'>): boolean {
-  return conclusionRestrictionOf(block) === 'com_restricoes';
+/** Com restrições makes the sheet observation required (Story 5.8 AC 2); Story 22.4: the effective restriction, the floor's included. */
+export function observationRequired(block: BlockRow): boolean {
+  return effectiveConclusionPair(block).restriction === 'com_restricoes';
 }
 
 // --- the composed paragraph -----------------------------------------------------------
@@ -281,8 +381,8 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   const checklist =
     ncs.length === 0 ? 'todos os itens verificados conformes' : listPtBr(ncs.map((item) => `${item.observation ?? item.label.toLocaleLowerCase('pt-BR')} (item ${item.n}, NC)`));
 
-  const result = conclusionResultOf(block);
-  const restriction = conclusionRestrictionOf(block);
+  // Story 22.4: the effective pair, so a text the floor made stricter recommends the correction.
+  const { result, restriction } = effectiveConclusionPair(block);
   const recommend = restriction === 'com_restricoes' || result === 'reprovado';
   const verb = noun.plural ? 'apresentaram' : 'apresentou';
   // authored (OQ-3 placeholder): the sentence states only what exists.
@@ -365,10 +465,12 @@ export function conclusionTextState(block: Pick<BlockRow, 'sheet'>, composed: Pi
 
 /**
  * E5-A4: true when the pair is complete, the way the sheet's progress counts it
- * (`sheet-progress.ts`): a result and a restriction are both set.
+ * (`sheet-progress.ts`): a result and a restriction are both set. Story 22.4: the effective
+ * pair, so a floor completes an unset half.
  */
-export function conclusionPairComplete(block: Pick<BlockRow, 'sheet'>): boolean {
-  return conclusionResultOf(block) !== null && conclusionRestrictionOf(block) !== null;
+export function conclusionPairComplete(block: BlockRow): boolean {
+  const pair = effectiveConclusionPair(block);
+  return pair.result !== null && pair.restriction !== null;
 }
 
 /**
@@ -376,7 +478,7 @@ export function conclusionPairComplete(block: Pick<BlockRow, 'sheet'>): boolean 
  * unconfirmed or the pair it concludes is incomplete (E5-A4: a result or a restriction
  * cleared after the confirm leaves the confirmed text unprintable until the pair is set again).
  */
-export function conclusionTextForPrint(block: Pick<BlockRow, 'sheet'>): string | null {
+export function conclusionTextForPrint(block: BlockRow): string | null {
   if (conclusionTextStatusOf(block) === null || !conclusionPairComplete(block)) return null;
   const text = storedText(block, 'text');
   return text === null || text.trim() === '' ? null : text;

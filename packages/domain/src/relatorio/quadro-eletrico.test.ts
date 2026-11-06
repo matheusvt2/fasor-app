@@ -11,7 +11,7 @@ import { getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import { quantityLabel, subBlockSummaryText, TOTALS_ORDER, totalsText } from '../templates/text.ts';
 import { opFactory, TEST_PROJECT, TEST_RELATORIO, type OpFactory } from '../test-support.ts';
-import { composeConclusion, suggestConclusionPair } from './conclusion.ts';
+import { composeConclusion, conclusionSuggestion } from './conclusion.ts';
 import { nameplateMissingKeys } from './dry-insulation.ts';
 import { CTA } from './measurement-test-support.ts';
 import { voltsOf } from './reading-evaluation.ts';
@@ -233,20 +233,20 @@ describe('the readings judged by the band', () => {
     expect(evaluation!.sourceName).toBe('NBR 5410');
     expect(evaluatedCells([evaluation!]).every((cell) => cell.verdict === null && cell.helperText === null)).toBe(true);
     expect(worstReadings([evaluation!])).toEqual([]);
-    expect(suggestConclusionPair(block)).toBeNull();
+    expect(conclusionSuggestion(block)).toBeNull();
     // An NC item still suggests the restriction.
     const withNc = filled('13800', ['850'], [[sheetChecklistPath(BLOCK, 'barramentos', 'result'), 'NC']]);
-    expect(suggestConclusionPair(withNc)).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
+    expect(conclusionSuggestion(withNc)).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
     // Measured but never judged: the text says so.
     expect(composeConclusion(block, definition(), 'QD-01').text).toContain('valores medidos sem comparação com o critério de aceitação');
   });
 
-  it('an NC item and an out reading: "Aprovado · Com restrições?" and a text naming both', () => {
+  it('an NC item and an out reading: "Reprovado · Com restrições?" (Story 22.4) and a text naming both', () => {
     const block = filled('380', ['850', '1200', '0.4', '900'], [
       [sheetChecklistPath(BLOCK, 'barramentos', 'result'), 'NC'],
       [sheetChecklistPath(BLOCK, 'barramentos', 'observation'), 'oxidação no barramento'],
     ]);
-    expect(suggestConclusionPair(block)).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
+    expect(conclusionSuggestion(block)).toEqual({ result: 'reprovado', restriction: 'com_restricoes' });
     const text = composeConclusion(block, definition(), 'QD-01').text;
     expect(text.startsWith('O quadro elétrico QD-01 (380 V) apresentou resistência de isolação mínima de 0,4 MΩ em Fase C–Massa (critério: >=0,5 MΩ, NBR 5410)')).toBe(true);
     expect(text).toContain('oxidação no barramento (item 11, NC)');

@@ -6,6 +6,7 @@ import type { BlockDefinition } from '../seed/schema.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { formatShortDateTime } from '../format/datetime.ts';
 import { cabineOf, cabineProgress } from './cabine.ts';
+import { effectiveConclusionPair } from './conclusion.ts';
 import { nameplateMissingKeys } from './dry-insulation.ts';
 import { evaluateSheetMeasurements, measurementCounts } from './measurement-evaluation.ts';
 import { isOilItem, oilDerivedNaKeys } from './oil-rule.ts';
@@ -41,6 +42,7 @@ import { VECTOR_GROUP_FIELD } from './vector-group.ts';
  *   a test switched off, or one its own value says was not run, requires nothing.
  * - `conclusao`: 1 while the result is unset, 1 while the restriction is unset, and 1 while
  *   the restriction is Com restrições and the sheet observation is empty (Story 5.8 AC 2).
+ *   Story 22.4: of the effective pair (`effectiveConclusionPair`), so a floor counts as set.
  *   The conclusion text never counts: an unconfirmed text does not block "Concluir ficha".
  * A disabled sub-block counts nothing (AR-17). A pending suggestion is a row, never a
  * cell, so an unconfirmed suggestion is empty here by construction.
@@ -212,12 +214,13 @@ function ensaiosCounts(block: BlockRow, definition: BlockDefinition, enabled: Re
 
 function conclusaoMissing(block: BlockRow, enabled: ReadonlySet<SubBlockKey>): { missing: number; observation: number } {
   if (!enabled.has('conclusion')) return { missing: 0, observation: 0 };
-  const { result, restriction } = block.sheet.conclusion;
+  // Story 22.4: the effective pair, so a floor fills an unset half ("Concluir ficha" writes it).
+  const { result, restriction } = effectiveConclusionPair(block);
   let missing = 0;
   let observation = 0;
-  if (!isCellFilled(result)) missing += 1;
-  if (!isCellFilled(restriction)) missing += 1;
-  else if (restriction!.value === COM_RESTRICOES && enabled.has('observations') && !isCellFilled(block.sheet.observations)) observation = 1;
+  if (result === null) missing += 1;
+  if (restriction === null) missing += 1;
+  else if (restriction === COM_RESTRICOES && enabled.has('observations') && !isCellFilled(block.sheet.observations)) observation = 1;
   return { missing: missing + observation, observation };
 }
 

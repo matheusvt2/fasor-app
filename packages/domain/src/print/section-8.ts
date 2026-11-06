@@ -18,7 +18,9 @@ import type { NumberingSnapshot } from './photo-order.ts';
  * recomendada after the text's full stop. A stored point written from an untested sheet (`origin: not_tested`) is a
  * bullet of its own, never merged (open question 1). Then the derived Não ensaiado entries
  * in tree order, consecutive entries with the same reason and justification as one bullet
- * (`groupDerivedPoints`, E3-A9 bullet 4).
+ * (`groupDerivedPoints`, E3-A9 bullet 4). Story 22.5: the NC, out-reading and Reprovado
+ * entries in the same tree order, one bullet and one action-plan row each, printed as the
+ * Não ensaiado bullet is ("⟨head⟩: ⟨title⟩. ⟨text⟩").
  *
  * Story 11.10 (FR-52, AR-25): beneath the bullets, whenever section 8 prints, the
  * action-plan table: one row per bullet in bullet order, numbered 1..n continuously
@@ -32,7 +34,7 @@ export const REMOVED_PHOTO_REF_TEXT = 'imagem removida';
 
 export type Section8Bullet =
   | { kind: 'point'; text: string; point_id: string }
-  | { kind: 'derived'; text: string; block_ids: string[] };
+  | { kind: 'derived'; text: string; block_ids: string[]; keys: string[] };
 
 /** One row of the action-plan table, every cell ready to print ("—" when missing). */
 export interface ActionPlanRow {
@@ -63,7 +65,7 @@ export interface LayoutSectionPoints {
   startsPage?: true;
 }
 
-type Section8Snapshot = Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'blocks' | 'equipment' | 'points'>;
+type Section8Snapshot = Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'blocks' | 'equipment' | 'points' | 'files'>;
 
 /** A cell value: trimmed, "—" when blank or missing. */
 function cell(value: string | null | undefined): string {
@@ -152,14 +154,28 @@ function sentence(text: string): string {
   return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
+// authored (Story 22.5, open for Bruno): the head of an NC, out-reading and Reprovado bullet.
+const DERIVED_HEADS: Readonly<Record<Exclude<DerivedPoint['kind'], 'not_tested'>, string>> = {
+  nc: 'Item não conforme',
+  reading: 'Ensaio fora do critério',
+  reprovado: 'Equipamento reprovado',
+};
+
 /**
  * The bullet of one derived group: "Equipamento não ensaiado: ⟨title⟩. ⟨J⟩" for one sheet,
  * "Equipamentos não ensaiados: ⟨t1⟩, ⟨t2⟩ e ⟨t3⟩. ⟨J⟩" for several. J is the group's
- * justification (the typed text for "Outro"), else the reason's label, as a sentence.
+ * justification (the typed text for "Outro"), else the reason's label, as a sentence. Story
+ * 22.5: an NC, out-reading or Reprovado entry prints "⟨head⟩: ⟨title⟩. ⟨text⟩", its photo
+ * tokens resolved as a manual point's ("conforme Imagem N").
  */
-export function derivedGroupText(group: DerivedPointGroup, entries: readonly DerivedPoint[]): string {
-  const byBlock = new Map(entries.map((entry) => [entry.block_id, entry]));
-  const members = group.block_ids.map((id) => byBlock.get(id)).filter((entry): entry is DerivedPoint => entry !== undefined);
+export function derivedGroupText(group: DerivedPointGroup, entries: readonly DerivedPoint[], numbering: ReadonlyMap<string, number> = new Map()): string {
+  const byKey = new Map(entries.map((entry) => [entry.key, entry]));
+  const members = group.keys.map((key) => byKey.get(key)).filter((entry): entry is DerivedPoint => entry !== undefined);
+  if (group.kind !== 'not_tested') {
+    const entry = members[0];
+    if (entry === undefined) return '';
+    return `${DERIVED_HEADS[group.kind]}: ${entry.title}. ${sentence(resolveBulletPhotoTokens(entry.text, numbering))}`;
+  }
   const titles = members.map((entry) => entry.title);
   const reason = group.justification ?? members[0]?.reason_label ?? group.reason_key;
   // authored: the source prints one untested equipment per bullet in its own prose; the
@@ -180,8 +196,9 @@ export function resolveSection8(snapshot: Section8Snapshot, numbering: ReadonlyM
   const entries = derivedPoints(snapshot);
   const derived: Section8Bullet[] = groupDerivedPoints(entries).map((group) => ({
     kind: 'derived',
-    text: derivedGroupText(group, entries),
+    text: derivedGroupText(group, entries, numbering),
     block_ids: [...group.block_ids],
+    keys: [...group.keys],
   }));
   return [...points, ...derived];
 }
@@ -203,7 +220,7 @@ function pointLocal(point: Pick<PointRow, 'equipment_id' | 'location_id'>, snaps
 /**
  * The action-plan rows, one per section 8 bullet in the same order (`resolveSection8`):
  * the live points, then the derived groups (their bullet text, their sheets' titles joined
- * by "; ", nothing else), numbered 1..n.
+ * by "; ", and, Story 22.5, the photos an NC entry cites; nothing else), numbered 1..n.
  */
 export function resolveActionPlan(snapshot: Section8Snapshot, numbering: ReadonlyMap<string, number>): ActionPlanRow[] {
   const points = livePoints(snapshot.points).map((point) => ({
@@ -216,21 +233,19 @@ export function resolveActionPlan(snapshot: Section8Snapshot, numbering: Readonl
     images: pointImages(point, numbering),
   }));
   const entries = derivedPoints(snapshot);
-  const byBlock = new Map(entries.map((entry) => [entry.block_id, entry]));
-  const derived = groupDerivedPoints(entries).map((group) => ({
-    point: derivedGroupText(group, entries),
-    local: cell(
-      group.block_ids
-        .map((id) => byBlock.get(id)?.title)
-        .filter((title): title is string => title !== undefined)
-        .join('; '),
-    ),
-    priority: ACTION_PLAN_NONE,
-    deadline: ACTION_PLAN_NONE,
-    action: ACTION_PLAN_NONE,
-    owner: ACTION_PLAN_NONE,
-    images: ACTION_PLAN_NONE,
-  }));
+  const byKey = new Map(entries.map((entry) => [entry.key, entry]));
+  const derived = groupDerivedPoints(entries).map((group) => {
+    const members = group.keys.map((key) => byKey.get(key)).filter((entry): entry is DerivedPoint => entry !== undefined);
+    return {
+      point: derivedGroupText(group, entries, numbering),
+      local: cell(members.map((entry) => entry.title).join('; ')),
+      priority: ACTION_PLAN_NONE,
+      deadline: ACTION_PLAN_NONE,
+      action: ACTION_PLAN_NONE,
+      owner: ACTION_PLAN_NONE,
+      images: group.kind === 'not_tested' ? ACTION_PLAN_NONE : pointImages({ text: members.map((entry) => entry.text).join(' '), action: null }, numbering),
+    };
+  });
   return [...points, ...derived].map((row, i) => ({ number: String(i + 1), ...row }));
 }
 

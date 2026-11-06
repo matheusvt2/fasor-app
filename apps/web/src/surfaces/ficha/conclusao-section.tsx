@@ -1,18 +1,21 @@
 import {
   appendObservation,
   composeConclusion,
+  conclusionAdjusted,
   conclusionBasisMatches,
+  conclusionFloorReasonText,
   conclusionRestrictionOf,
   conclusionResultOf,
   conclusionStoredText,
+  conclusionSuggestion,
   conclusionSuggestionText,
   conclusionTextState,
+  effectiveConclusionPair,
   enabledSubBlocksOf,
+  isLooserThanFloor,
   observationRequired,
-  restrictionWarning,
   sheetConclusionPath,
   sheetObservationsPath,
-  suggestConclusionPair,
   suggestedSheetObservation,
   textCapOf,
   type BlockDefinition,
@@ -42,8 +45,12 @@ import { useSheetObservationDictation } from './sheet-observation-dictation.tsx'
  * both, gone once any segment is set, never Reprovado); the Conclusion control, two
  * stacked radiogroups with the Tri-state control's keyboard (arrows, Home/End, Delete
  * clears); the "Há itens não conformes" warning; and, once the result is picked, the
- * Generated text field with the device-composed paragraph and its Criteria line. The app
- * never writes a verdict the engineer did not tap. On a sheet marked not tested (Story 5.9)
+ * Generated text field with the device-composed paragraph and its Criteria line. ~~The app
+ * never writes a verdict the engineer did not tap.~~ Story 22.4: the radiogroups show the
+ * effective pair (the stricter of the kernel's floor and the stored pair), every segment looser
+ * than the floor is disabled with the kernel's one reason line, the suggestion row offers the
+ * floor (Reprovado included), and a stored pair a later floor made stricter shows "Conclusão
+ * ajustada pela ficha" with a Confirmar that writes the effective pair. On a sheet marked not tested (Story 5.9)
  * the Conclusão section is `.is-readonly` with the reason line: the two radiogroups are
  * `aria-readonly` (the value stays visible; a tap, an arrow or Delete changes nothing), no
  * suggestion row, and the Generated text field offers no action. The sheet Observation
@@ -62,25 +69,39 @@ function ConclusionPair<T extends string>({
   label,
   segments,
   value,
+  stored,
   onChange,
   missing,
   readOnly,
+  isDisabled,
+  describedBy,
 }: {
   label: string;
   segments: readonly Segment<T>[];
+  /** Story 22.4: the value shown, the effective one (the floor's where nothing stricter is stored). */
   value: T | null;
+  /** Story 22.4: the stored value, the one a tap compares with: a tap on a segment the floor shows stores it. */
+  stored: T | null;
   onChange: (value: T | null) => void;
   missing: boolean;
   readOnly: boolean;
+  /** Story 22.4: a segment looser than the floor, drawn disabled and skipped by the arrows. */
+  isDisabled: (value: T) => boolean;
+  /** Story 22.4: the reason line's id while a segment is disabled. */
+  describedBy?: string | undefined;
 }) {
   const refs = useRef(new Map<T, HTMLButtonElement | null>());
   const selected = segments.findIndex((segment) => segment.value === value);
-  const tabbable = selected === -1 ? 0 : selected;
+  const tabbable = selected === -1 ? Math.max(0, segments.findIndex((segment) => !isDisabled(segment.value))) : selected;
   // E5-Q8: the guards read the last emitted value, never the prop one round trip behind.
-  const { latest, emit } = useLatestChoice(value, onChange);
+  const { latest, emit } = useLatestChoice(stored, onChange);
 
-  const moveTo = (index: number) => {
-    const target = segments[(index + segments.length) % segments.length]!;
+  const moveTo = (index: number, step = 1) => {
+    // Story 22.4: the arrows skip a disabled segment.
+    let at = (index + segments.length) % segments.length;
+    for (let tries = 0; tries < segments.length && isDisabled(segments[at]!.value); tries += 1) at = (at + step + segments.length) % segments.length;
+    const target = segments[at]!;
+    if (isDisabled(target.value)) return;
     refs.current.get(target.value)?.focus();
     if (!readOnly && target.value !== latest.current) emit(target.value);
   };
@@ -90,7 +111,7 @@ function ConclusionPair<T extends string>({
       case 'ArrowLeft':
       case 'ArrowUp':
         event.preventDefault();
-        moveTo(index - 1);
+        moveTo(index - 1, -1);
         return;
       case 'ArrowRight':
       case 'ArrowDown':
@@ -103,7 +124,7 @@ function ConclusionPair<T extends string>({
         return;
       case 'End':
         event.preventDefault();
-        moveTo(segments.length - 1);
+        moveTo(segments.length - 1, -1);
         return;
       case 'Delete':
       case 'Backspace':
@@ -122,6 +143,7 @@ function ConclusionPair<T extends string>({
       aria-label={label}
       aria-readonly={readOnly || undefined}
       aria-invalid={(!readOnly && value === null) || undefined}
+      aria-describedby={describedBy}
       data-missing-field={missing && !readOnly ? '' : undefined}
     >
       {segments.map((segment, index) => (
@@ -132,13 +154,14 @@ function ConclusionPair<T extends string>({
           className="seg"
           data-value={segment.attr}
           aria-checked={segment.value === value}
+          disabled={isDisabled(segment.value)}
           tabIndex={index === tabbable ? 0 : -1}
           ref={(element) => {
             refs.current.set(segment.value, element);
           }}
           onClick={() => {
             // A re-tap of the chosen segment never un-marks it (a glove double-tap).
-            if (!readOnly && segment.value !== latest.current) emit(segment.value);
+            if (!readOnly && !isDisabled(segment.value) && segment.value !== latest.current) emit(segment.value);
           }}
           onKeyDown={(event) => onKeyDown(event, index)}
         >
@@ -176,13 +199,16 @@ export function ConclusaoSection({
   const obsReasonId = useId();
   const obsSuggestedId = useId();
   const concHeading = useId();
+  const floorReasonId = useId();
   const readOnly = useSheetReadOnly();
   const enabled = enabledSubBlocksOf(block);
 
-  const result = conclusionResultOf(block);
-  const restriction = conclusionRestrictionOf(block);
-  const suggestion = suggestConclusionPair(block);
-  const warning = restrictionWarning(block);
+  // Story 22.4: the effective pair (the floor's included) is what the radiogroups show.
+  const { result, restriction } = effectiveConclusionPair(block);
+  const suggestion = conclusionSuggestion(block);
+  const floorReason = conclusionFloorReasonText(block);
+  const adjusted = conclusionAdjusted(block);
+  const looser = (value: ConclusionResult | ConclusionRestriction) => !readOnly && isLooserThanFloor(block, value);
   const composed = useMemo(() => composeConclusion(block, definition, tag), [block, definition, tag]);
   const textState = conclusionTextState(block, composed);
   const storedText = conclusionStoredText(block);
@@ -232,6 +258,19 @@ export function ConclusaoSection({
 
   const setResult = (value: ConclusionResult | null) => edit((_b, by) => [conclusionOp(by, api.relatorioId, api.blockId, 'result', value)]);
   const setRestriction = (value: ConclusionRestriction | null) => edit((_b, by) => [conclusionOp(by, api.relatorioId, api.blockId, 'restriction', value)]);
+
+  /** Story 22.4: "Confirmar" under the adjusted note writes the effective pair of the fresh block, one batch. */
+  const confirmAdjusted = () =>
+    edit((blocks, by) => {
+      const fresh = blocks.find((row) => row.id === api.blockId && row.removed_at === null);
+      if (fresh === undefined) return null;
+      const pair = effectiveConclusionPair(fresh);
+      const ops = [
+        ...(pair.result !== null && pair.result !== conclusionResultOf(fresh) ? [conclusionOp(by, api.relatorioId, api.blockId, 'result', pair.result)] : []),
+        ...(pair.restriction !== null && pair.restriction !== conclusionRestrictionOf(fresh) ? [conclusionOp(by, api.relatorioId, api.blockId, 'restriction', pair.restriction)] : []),
+      ];
+      return ops.length === 0 ? null : ops;
+    });
 
   const applySuggestion = () => {
     if (suggestion === null) return;
@@ -370,13 +409,41 @@ export function ConclusaoSection({
             </div>
           )}
           <div className="conclusion-control">
-            <ConclusionPair label={t.resultGroup} segments={resultSegments} value={result} onChange={setResult} missing={result === null} readOnly={readOnly} />
-            <ConclusionPair label={t.restrictionGroup} segments={restrictionSegments} value={restriction} onChange={setRestriction} missing={result !== null && restriction === null} readOnly={readOnly} />
-            {warning === null ? null : (
-              <span className="conclusion-hint" role="status">
-                {warning}
+            <ConclusionPair
+              label={t.resultGroup}
+              segments={resultSegments}
+              value={result}
+              stored={conclusionResultOf(block)}
+              onChange={setResult}
+              missing={result === null}
+              readOnly={readOnly}
+              isDisabled={looser}
+              describedBy={floorReason === null || readOnly ? undefined : floorReasonId}
+            />
+            <ConclusionPair
+              label={t.restrictionGroup}
+              segments={restrictionSegments}
+              value={restriction}
+              stored={conclusionRestrictionOf(block)}
+              onChange={setRestriction}
+              missing={result !== null && restriction === null}
+              readOnly={readOnly}
+              isDisabled={looser}
+              describedBy={floorReason === null || readOnly ? undefined : floorReasonId}
+            />
+            {floorReason === null || readOnly ? null : (
+              <span className="conclusion-hint" id={floorReasonId}>
+                {floorReason}
               </span>
             )}
+            {adjusted && !readOnly ? (
+              <span className="conclusion-hint" role="status">
+                {t.adjustedNote}{' '}
+                <button type="button" className="btn btn-secondary confirm-action" onClick={confirmAdjusted}>
+                  {ui.suggestionField.confirm}
+                </button>
+              </span>
+            ) : null}
           </div>
           {result === null ? null : (
             <div className="ficha-conc-text">

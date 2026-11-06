@@ -399,7 +399,8 @@ describe('14.5-UNIT section 9 in the DOCX: a Chave de transferência automática
     // The transformer's conclusion (an empty pair) and, after it, the CTA's.
     const conclusion = titled('CONCLUSÃO').at(-1);
     expect(conclusion).toHaveLength(3);
-    expect(conclusion![1]).toEqual(['APROVADO', 'X', 'REPROVADO', '', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']);
+    // Story 22.4: the out readings make the effective result Reprovado, whatever was tapped.
+    expect(conclusion![1]).toEqual(['APROVADO', '', 'REPROVADO', 'X', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']);
     expect(conclusion![2]).toEqual([CONCLUSION_TEXT]);
     expect(section.filter((p) => p === CONCLUSION_TEXT)).toHaveLength(1);
     // The criteria line is the paragraph right under the table, the last of the sheet.

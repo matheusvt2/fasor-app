@@ -3,24 +3,30 @@ import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
 import type { BlockRow, Cell, RelatorioParecer, UserRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { siteItems } from '../seed/definitions.ts';
+import { findDefinition, siteItems } from '../seed/definitions.ts';
+import { cellAddressesOf } from './readings.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { instantiateTemplate } from './instantiate.ts';
 import {
   composeParecer,
+  derivedParecer,
+  effectiveParecer,
   parecerBoxText,
   parecerBoxTone,
   parecerCounts,
-  parecerHintText,
+  parecerLooser,
+  parecerOwnText,
+  parecerReasonText,
   parecerTextForPrint,
   parecerTextState,
   parecerVerdictLabel,
+  parecerWithoutOwnText,
   parecerWithText,
   parecerWithVerdict,
-  suggestParecer,
 } from './parecer.ts';
+import { pointsSummary } from '../points/summary.ts';
 import { fichasConcluidasText, progress, relatorioCounter } from './progress.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
 
@@ -71,67 +77,69 @@ const tagOf = (snapshot: RelatorioSnapshot, index: number) => {
   return snapshot.equipment.find((e) => e.id === block.equipment_id)!.tag;
 };
 
-describe('7.4-UNIT suggestParecer (I/O matrix)', () => {
-  it('suggests Apto when every live sheet is concluded Aprovado · Sem restrições', () => {
+function withParecer(snapshot: RelatorioSnapshot, parecer: RelatorioParecer | null): RelatorioSnapshot {
+  return { ...snapshot, relatorio: { ...snapshot.relatorio, setup: { ...snapshot.relatorio.setup, parecer } } };
+}
+
+describe('22.6-UNIT derivedParecer, effectiveParecer and the reason line (amends 7.4 suggestParecer)', () => {
+  it('Apto when every live sheet is Aprovado · Sem restrições with no site NC and no point, and with no sheet or open sheets: always one verdict', () => {
     const snapshot = mapSheets(withSheets(3), (b) => conclude(b, 'aprovado', 'sem_restricoes'));
-    expect(suggestParecer(snapshot)).toBe('apto');
-    expect(parecerHintText('apto', snapshot)).toBe('Sugerido pelas contagens: Apto? — 3 de 3 fichas concluídas. A escolha é sua: um toque.');
+    expect(derivedParecer(snapshot)).toBe('apto');
+    expect(parecerReasonText(snapshot)).toBeNull();
+    expect(derivedParecer(withSheets(0))).toBe('apto');
+    expect(derivedParecer(withSheets(3))).toBe('apto');
+    for (const verdict of ['apto', 'apto_com_restricoes', 'nao_apto'] as const) expect(parecerLooser(snapshot, verdict)).toBe(false);
   });
 
-  it('suggests Apto com restrições on any Com restrições, any NC row or any Não ensaiada, concluded or not', () => {
+  it('Apto com restrições on any Com restrições, any NC row (through the floor), any Não ensaiada or any point; Apto disabled, Não apto choosable', () => {
     const base = withSheets(3);
-    expect(suggestParecer(mapSheets(base, (b, i) => (i === 0 ? conclude(b, 'aprovado', 'com_restricoes') : b)))).toBe('apto_com_restricoes');
+    expect(derivedParecer(mapSheets(base, (b, i) => (i === 0 ? conclude(b, 'aprovado', 'com_restricoes') : b)))).toBe('apto_com_restricoes');
     const firstChecklistKey = Object.keys(base.blocks.filter(isEquipmentBlock)[1]!.sheet.checklist)[0] ?? 'limpeza';
-    expect(suggestParecer(mapSheets(base, (b, i) => (i === 1 ? withNc(b, firstChecklistKey) : b)))).toBe('apto_com_restricoes');
+    // An NC under a stored Sem restrições: the floor makes it Com restrições.
+    const nc = mapSheets(base, (b, i) => (i === 1 ? conclude(withNc(b, firstChecklistKey), 'aprovado', 'sem_restricoes') : conclude(b, 'aprovado', 'sem_restricoes')));
+    expect(derivedParecer(nc)).toBe('apto_com_restricoes');
+    expect(parecerCounts(nc).withRestriction).toEqual([tagOf(nc, 1)]);
     const oneUntested = mapSheets(base, (b, i) => (i === 2 ? untested(b, 'impossibilidade_desligamento') : conclude(b, 'aprovado', 'sem_restricoes')));
-    expect(suggestParecer(oneUntested)).toBe('apto_com_restricoes');
-    expect(parecerHintText('apto_com_restricoes', oneUntested)).toBe(
-      'Sugerido pelas contagens: Apto com restrições? — 2 de 3 fichas concluídas, 1 não ensaiada. A escolha é sua: um toque.',
-    );
+    expect(derivedParecer(oneUntested)).toBe('apto_com_restricoes');
+    // The untested sheet is a derived point of attention too.
+    expect(parecerReasonText(oneUntested)).toBe('O relatório exige no mínimo Apto com restrições: 1 não ensaiada e 1 ponto de atenção.');
+    expect(parecerLooser(oneUntested, 'apto')).toBe(true);
+    expect(parecerLooser(oneUntested, 'nao_apto')).toBe(false);
   });
 
-  it('E78-Q9: the hint\'s "N de M fichas concluídas" is the Critérios line\'s "N concluídas" (one count, not tested apart)', () => {
-    const base = withSheets(5);
-    const cases = [
-      mapSheets(base, (b, i) => (i === 0 ? untested(b, 'impossibilidade_desligamento') : i === 1 ? conclude(b, 'aprovado', 'com_restricoes') : b)),
-      mapSheets(base, (b, i) => (i < 2 ? untested(b, 'outro', 'sem acesso') : conclude(b, 'aprovado', 'sem_restricoes'))),
-      mapSheets(base, (b) => untested(b, 'impossibilidade_desligamento')),
-    ];
-    for (const snapshot of cases) {
-      const counts = parecerCounts(snapshot);
-      const hint = parecerHintText(suggestParecer(snapshot), snapshot)!;
-      const concluded = composeParecer(snapshot).criteriaItems[1]!;
-      expect(hint).toContain(`— ${counts.concluded} de ${counts.total} fichas concluídas`);
-      expect(concluded).toBe(`${counts.concluded} ${counts.concluded === 1 ? 'concluída' : 'concluídas'}`);
-    }
-    expect(parecerCounts(cases[0]!)).toMatchObject({ total: 5, concluded: 1, open: 3 });
-    expect(parecerCounts(cases[2]!)).toMatchObject({ total: 5, concluded: 0, open: 0 });
+  it('Não apto when any sheet is effectively Reprovado: stored, or set by the floor over an out reading', () => {
+    const reprovado = mapSheets(withSheets(2), (b, i) => conclude(b, i === 0 ? 'reprovado' : 'aprovado', 'sem_restricoes'));
+    expect(derivedParecer(reprovado)).toBe('nao_apto');
+    expect(parecerCounts(reprovado).reprovado).toEqual([tagOf(reprovado, 0)]);
+    expect(parecerReasonText(reprovado)).toBe(`O relatório exige no mínimo Não apto: 1 ficha reprovada (${tagOf(reprovado, 0)}).`);
+    expect(parecerLooser(reprovado, 'apto')).toBe(true);
+    expect(parecerLooser(reprovado, 'apto_com_restricoes')).toBe(true);
+    expect(parecerLooser(reprovado, 'nao_apto')).toBe(false);
+    const composed = composeParecer(reprovado);
+    expect(composed.text).toContain(`1 ficha foi reprovada (${tagOf(reprovado, 0)}).`);
+    expect(composed.criteriaItems).toContain(`1 reprovada (${tagOf(reprovado, 0)})`);
   });
 
-  it('fix batch fxpw G5: the Sumário header, the parecer hint and the summary state one concluded count on one snapshot', () => {
+  it('the effective verdict: a stored stricter verdict stands, a looser one never shows', () => {
+    const apto = mapSheets(withSheets(2), (b) => conclude(b, 'aprovado', 'sem_restricoes'));
+    expect(effectiveParecer(apto)).toBe('apto');
+    expect(effectiveParecer(withParecer(apto, parecerWithVerdict(null, 'apto_com_restricoes')))).toBe('apto_com_restricoes');
+    expect(effectiveParecer(withParecer(apto, parecerWithVerdict(null, 'nao_apto')))).toBe('nao_apto');
+    const reprovado = mapSheets(withSheets(2), (b, i) => conclude(b, i === 0 ? 'reprovado' : 'aprovado', 'com_restricoes'));
+    expect(effectiveParecer(withParecer(reprovado, parecerWithVerdict(null, 'apto')))).toBe('nao_apto');
+  });
+
+  it('E78-Q9 and fxpw G5: the Critérios line\'s "N concluídas" is the parecer\'s one count, a not tested sheet counted apart', () => {
     const snapshot = mapSheets(withSheets(3), (b, i) => (i === 0 ? conclude(b, 'aprovado', 'sem_restricoes') : i === 1 ? untested(b, 'impossibilidade_desligamento') : b));
     const computed = progress(snapshot);
     expect(fichasConcluidasText(computed)).toBe('1 de 3 fichas concluídas');
     expect(computed.not_tested).toBe(1);
-    const hint = parecerHintText(suggestParecer(snapshot) ?? 'apto_com_restricoes', snapshot)!;
-    expect(hint).toContain('1 de 3 fichas concluídas');
-    expect(hint).toContain('1 não ensaiada');
+    expect(parecerCounts(snapshot)).toMatchObject({ total: 3, concluded: 1, open: 1 });
     const composed = composeParecer(snapshot);
     expect(composed.text).toContain(`Foram registradas 3 fichas de ensaio: 1 concluída, 1 não ensaiada (${tagOf(snapshot, 1)}, por impossibilidade de desligamento) e 1 ainda não concluída.`);
     expect(composed.criteriaItems.slice(0, 3)).toEqual(['3 fichas', '1 concluída', `1 não ensaiada (${tagOf(snapshot, 1)})`]);
     // The remaining-work counter (Home card, Project row) still counts the not-tested sheet as handled.
     expect(relatorioCounter(snapshot.blocks, []).text).toBe('2 de 3 fichas');
-  });
-
-  it('suggests nothing with no sheet, with sheets open and no restriction, or a Reprovado with no restriction; never Não apto', () => {
-    const none = withSheets(0);
-    expect(suggestParecer(none)).toBeNull();
-    expect(parecerHintText(null, none)).toBeNull();
-    expect(suggestParecer(mapSheets(withSheets(3), (b, i) => (i === 0 ? conclude(b, 'aprovado', 'sem_restricoes') : b)))).toBeNull();
-    const reprovado = mapSheets(withSheets(2), (b, i) => conclude(b, i === 0 ? 'reprovado' : 'aprovado', 'sem_restricoes'));
-    expect(suggestParecer(reprovado)).toBeNull();
-    // A Reprovado with a restriction still suggests restrictions, never Não apto.
-    expect(suggestParecer(mapSheets(withSheets(2), (b) => conclude(b, 'reprovado', 'com_restricoes')))).toBe('apto_com_restricoes');
   });
 });
 
@@ -181,15 +189,17 @@ describe('7.4-UNIT parecer text states and print', () => {
     expect(parecerTextState(set({ text: 'x', text_status: 'confirmed', text_basis: 'old' }), composed)).toBe('stale');
   });
 
-  it('prints only a confirmed or edited text (a stale one included), never an unconfirmed one', () => {
-    const snap = (parecer: RelatorioParecer | null) => {
-      const s = withSheets(0);
-      return { ...s, relatorio: { ...s.relatorio, setup: { ...s.relatorio.setup, parecer } } };
-    };
-    expect(parecerTextForPrint(snap(null))).toBeNull();
-    expect(parecerTextForPrint(snap(set({ text: 'composto' })))).toBeNull();
-    expect(parecerTextForPrint(snap(set({ text: 'Resumo.', text_status: 'confirmed', text_basis: 'old' })))).toBe('Resumo.');
-    expect(parecerTextForPrint(snap(set({ text: '  ', text_status: 'edited', text_basis: 'x' })))).toBeNull();
+  it('22.6: prints the composed summary whatever is stored; a typed (edited) text is the own text, which can be cleared', () => {
+    const snap = (parecer: RelatorioParecer | null) => withParecer(withSheets(1), parecer);
+    const composed = composeParecer(withSheets(1)).text;
+    expect(parecerTextForPrint(snap(null))).toBe(composed);
+    expect(parecerTextForPrint(snap(set({ text: 'composto' })))).toBe(composed);
+    expect(parecerTextForPrint(snap(set({ text: 'Resumo.', text_status: 'confirmed', text_basis: 'old' })))).toBe(composed);
+    expect(parecerOwnText(snap(set({ text: 'Resumo.', text_status: 'confirmed', text_basis: 'old' })))).toBeNull();
+    expect(parecerOwnText(snap(set({ text: ' Meu texto. ', text_status: 'edited', text_basis: 'x' })))).toBe('Meu texto.');
+    expect(parecerOwnText(snap(set({ text: '  ', text_status: 'edited', text_basis: 'x' })))).toBeNull();
+    expect(parecerOwnText(snap(null))).toBeNull();
+    expect(parecerWithoutOwnText(set({ verdict: 'nao_apto', text: 'Meu texto.', text_status: 'edited', text_basis: 'x' }))).toEqual({ verdict: 'nao_apto', text: null, text_status: null, text_basis: null });
   });
 
   it('labels, tones and the whole-object writes', () => {
@@ -205,10 +215,10 @@ describe('7.4-UNIT parecer text states and print', () => {
     const responsible: UserRow = { id: TEST_USER, name: 'Rafael Lamonde', email: 'r@x', council: 'crea', registration_number: '5063583141', title: null, photo_location_enabled: false };
     const withArt = { ...s, responsible, relatorio: { ...s.relatorio, setup: { ...s.relatorio.setup, art_trt_number: '2620262602583' } } };
     expect(parecerBoxText(withArt)).toBe(
-      'Seguido do resumo confirmado acima e, depois, dos itens fixos da conclusão e da assinatura de Rafael Lamonde (ART 2620262602583).',
+      'Seguido do resumo acima e, depois, dos itens fixos da conclusão e da assinatura de Rafael Lamonde (ART 2620262602583).',
     );
     expect(parecerBoxText({ ...withArt, responsible: { ...responsible, council: 'crt' } })).toContain('(TRT 2620262602583)');
-    expect(parecerBoxText(s)).toBe('Seguido do resumo confirmado acima e, depois, dos itens fixos da conclusão e da assinatura do responsável técnico.');
+    expect(parecerBoxText(s)).toBe('Seguido do resumo acima e, depois, dos itens fixos da conclusão e da assinatura do responsável técnico.');
   });
 });
 
@@ -232,33 +242,21 @@ describe('2026-10-14 (Bruno) an NC site item counts in the parecer (N4, N5)', ()
   const rootName = (snapshot: RelatorioSnapshot, local: number) => snapshot.locations.filter((row) => row.kind === 'cabine' && row.parent_id === null)[local]!.name.trim();
   const allApto = () => mapSheets(withSheets(3), (b) => conclude(b, 'aprovado', 'sem_restricoes'));
 
-  it('N4: a site NC with every sheet Aprovado · Sem restrições suggests Apto com restrições, and the hint counts it', () => {
+  it('N4: a site NC with every sheet Aprovado · Sem restrições gives Apto com restrições, and the reason line counts it with its derived point', () => {
     const snapshot = withSiteNc(allApto(), 0, [3]);
-    expect(suggestParecer(allApto())).toBe('apto');
-    expect(suggestParecer(snapshot)).toBe('apto_com_restricoes');
-    expect(parecerHintText('apto_com_restricoes', snapshot)).toBe(
-      'Sugerido pelas contagens: Apto com restrições? — 3 de 3 fichas concluídas, 1 NC nas verificações do local. A escolha é sua: um toque.',
-    );
-    expect(parecerHintText('apto_com_restricoes', withSiteNc(snapshot, 0, [3, 5]))).toContain('2 NC nas verificações do local');
+    expect(derivedParecer(allApto())).toBe('apto');
+    expect(derivedParecer(snapshot)).toBe('apto_com_restricoes');
+    // Story 22.5: the NC site item is a point of attention by itself.
+    expect(parecerReasonText(snapshot)).toBe('O relatório exige no mínimo Apto com restrições: 1 NC nas verificações do local e 1 ponto de atenção.');
+    expect(parecerReasonText(withSiteNc(snapshot, 0, [3, 5]))).toContain('2 NC nas verificações do local');
   });
 
-  it('N4 edge: with no sheet at all, a site NC still suggests Apto com restrições; with none, no suggestion', () => {
-    expect(suggestParecer(withSheets(0))).toBeNull();
-    expect(suggestParecer(withSiteNc(withSheets(0), 0, [1]))).toBe('apto_com_restricoes');
+  it('N4 edge: with no sheet at all, a site NC still gives Apto com restrições; with none, Apto', () => {
+    expect(derivedParecer(withSheets(0))).toBe('apto');
+    expect(derivedParecer(withSiteNc(withSheets(0), 0, [1]))).toBe('apto_com_restricoes');
   });
 
-  it('the hint: no "0 de 0 fichas" with no sheet; one sheet and no site NC as before; one sheet and two site NC', () => {
-    const none = withSiteNc(withSheets(0), 0, [1]);
-    expect(parecerHintText(suggestParecer(none), none)).toBe('Sugerido pelas contagens: Apto com restrições? — 1 NC nas verificações do local. A escolha é sua: um toque.');
-    const one = mapSheets(withSheets(1), (b) => conclude(b, 'aprovado', 'sem_restricoes'));
-    expect(parecerHintText(suggestParecer(one), one)).toBe('Sugerido pelas contagens: Apto? — 1 de 1 fichas concluídas. A escolha é sua: um toque.');
-    const two = withSiteNc(one, 0, [1, 2]);
-    expect(parecerHintText(suggestParecer(two), two)).toBe(
-      'Sugerido pelas contagens: Apto com restrições? — 1 de 1 fichas concluídas, 2 NC nas verificações do local. A escolha é sua: um toque.',
-    );
-  });
-
-  it('the whole summary with a sheet NC and a site NC: the site sentence right after "Itens não conformes"', () => {
+  it('the whole summary with a sheet NC and a site NC: the site sentence right after "Itens não conformes", then the points', () => {
     const base = withSheets(1);
     const block = base.blocks.filter(isEquipmentBlock)[0]!;
     const key = Object.keys(block.sheet.checklist)[0] ?? 'limpeza';
@@ -267,7 +265,10 @@ describe('2026-10-14 (Bruno) an NC site item counts in the parecer (N4, N5)', ()
     const sheetText = composeParecer(sheetNc).text;
     const site = `Verificações do local não conformes: item 3 (${items[2]!.label.toLocaleLowerCase('pt-BR')}) em 1 local.`;
     expect(sheetText).toContain('Itens não conformes: ');
-    expect(composeParecer(snapshot).text).toBe(`${sheetText} ${site}`);
+    // Story 22.5: each NC is a derived point, so the points sentence closes the summary.
+    const [head, points] = sheetText.split(' Foi registrado 1 ponto de atenção');
+    expect(points).toBeDefined();
+    expect(composeParecer(snapshot).text).toBe(`${head} ${site} Foram registrados 2 pontos de atenção${points!}`);
   });
 
   it('N5: the summary names each site item with its locals count, a Critérios item per item, and the basis changes', () => {
@@ -278,7 +279,9 @@ describe('2026-10-14 (Bruno) an NC site item counts in the parecer (N4, N5)', ()
     const composed = composeParecer(snapshot);
     const label = (n: number) => items[n - 1]!.label.toLocaleLowerCase('pt-BR');
     expect(composed.text).toContain(`Verificações do local não conformes: item 3 (${label(3)}) em 2 locais e item 7 (${label(7)}) em 1 local.`);
-    expect(composed.criteriaItems).toEqual([...composeParecer(base).criteriaItems, 'verificações do local, item 3 NC (2)', 'verificações do local, item 7 NC (1)']);
+    // Story 22.5: the three NC site items are three derived points.
+    expect(pointsSummary(snapshot).derived).toBe(3);
+    expect(composed.criteriaItems).toEqual([...composeParecer(base).criteriaItems, 'verificações do local, item 3 NC (2)', 'verificações do local, item 7 NC (1)', '3 pontos de atenção']);
     expect(composed.basis).not.toBe(composeParecer(base).basis);
     expect(rootName(snapshot, 0)).not.toBe('');
   });
@@ -292,20 +295,20 @@ describe('2026-10-14 (Bruno) an NC site item counts in the parecer (N4, N5)', ()
     // An answer other than NC counts nowhere.
     const conforme = { ...base, locations: base.locations.map((row) => (row.kind === 'cabine' && row.parent_id === null ? { ...row, checklist: { [items[0]!.key]: { result: cell('C') } } } : row)) };
     expect(composeParecer(conforme).basis).toBe(composed.basis);
-    expect(suggestParecer(conforme)).toBe('apto');
+    expect(derivedParecer(conforme)).toBe('apto');
   });
 
   it('N2: a removed local carries nothing; a relatório on v3 has no site list', () => {
     const snapshot = withSiteNc(allApto(), 0, [3]);
     const removed = { ...snapshot, locations: snapshot.locations.map((row) => (row.kind === 'cabine' && Object.keys(row.checklist ?? {}).length > 0 ? { ...row, removed_at: AT } : row)) };
-    expect(suggestParecer(removed)).toBe('apto');
+    expect(derivedParecer(removed)).toBe('apto');
     expect(composeParecer(removed).text).not.toContain('Verificações do local');
     // Restored, it counts again.
     const restored = { ...removed, locations: removed.locations.map((row) => ({ ...row, removed_at: null })) };
-    expect(suggestParecer(restored)).toBe('apto_com_restricoes');
+    expect(derivedParecer(restored)).toBe('apto_com_restricoes');
     const v3 = { ...snapshot, relatorio: { ...snapshot.relatorio, seed_version: 'v3' } };
     // A v3 relatório carrying a site-shaped checklist is not restricted by it.
-    expect(suggestParecer(v3)).toBe('apto');
+    expect(derivedParecer(v3)).toBe('apto');
     expect(parecerCounts(v3).siteNc).toBe(0);
     expect(composeParecer(v3).criteriaItems.some((item) => item.startsWith('verificações do local'))).toBe(false);
   });
@@ -328,13 +331,16 @@ describe('17.5-UNIT a ratio row INSATISFATÓRIO restricts the sheet in the parec
     return snapshot.equipment.find((e) => e.id === tp.equipment_id)!.tag;
   };
 
-  it('B5: a sheet concluded Sem restrições over a failed ratio counts in withRestriction, the hint counts it, the summary and Critérios name it', () => {
+  it('B5 (Story 22.6): a sheet concluded Sem restrições over a failed ratio is effectively Reprovado: Não apto, and the summary and Critérios name it', () => {
     const snapshot = withTp('125');
     const name = tpName(snapshot);
     const counts = parecerCounts(snapshot);
     expect(counts.withRestriction).toEqual([name]);
-    expect(suggestParecer(snapshot)).toBe('apto_com_restricoes');
-    expect(parecerHintText('apto_com_restricoes', snapshot)).toContain(`${counts.concluded} de ${counts.total} fichas concluídas, 1 com restrições.`);
+    expect(counts.reprovado).toEqual([name]);
+    // The failed ratio has its own clause, never the out-readings one.
+    expect(counts.outReadings).toEqual([]);
+    expect(derivedParecer(snapshot)).toBe('nao_apto');
+    expect(parecerReasonText(snapshot)).toBe(`O relatório exige no mínimo Não apto: 1 ficha reprovada (${name}).`);
     const composed = composeParecer(snapshot);
     expect(composed.text).toContain(`1 ficha apresentou restrições (${name}).`);
     expect(composed.text).toContain(`Relação de transformação insatisfatória em 1 ficha (${name}).`);
@@ -351,7 +357,7 @@ describe('17.5-UNIT a ratio row INSATISFATÓRIO restricts the sheet in the parec
 
   it('a within ratio: Apto, no ratio sentence nor item, and the basis has no `ratio` key (byte-identical to before)', () => {
     const snapshot = withTp('120.1');
-    expect(suggestParecer(snapshot)).toBe('apto');
+    expect(derivedParecer(snapshot)).toBe('apto');
     const composed = composeParecer(snapshot);
     expect(composed.text).not.toContain('Relação de transformação');
     expect(composed.criteriaItems.some((item) => item.startsWith('relação de transformação'))).toBe(false);
@@ -365,6 +371,27 @@ describe('17.5-UNIT a ratio row INSATISFATÓRIO restricts the sheet in the parec
     const snapshot = mapSheets(withTp('125'), (b) => (b.id === tpId ? untested(b, 'impossibilidade_desligamento') : b));
     const composed = composeParecer(snapshot);
     expect(parecerCounts(snapshot).withRestriction).toEqual([]);
+    expect(parecerCounts(snapshot).reprovado).toEqual([]);
     expect(composed.text).not.toContain('Relação de transformação');
+  });
+});
+
+describe('22.6-UNIT the out-of-criterion readings clause', () => {
+  it('a sheet with an insulation reading out names the sheet in its own sentence and Critérios item; the basis keys appear only then', () => {
+    const base = mapSheets(withSheets(Number.MAX_SAFE_INTEGER), (b) => conclude(b, 'aprovado', 'sem_restricoes'));
+    const target = base.blocks.find((b) => b.block_type === 'para_raio')!;
+    const [first] = cellAddressesOf(findDefinition(target.seed_version, target.block_type)!, 'isolacao');
+    const insulation = { isolacao: { cells: { [String(first!.row)]: { [String(first!.col)]: cell({ raw: '300', unit: 'MΩ', state: 'measured' }) } } } };
+    const snapshot = mapSheets(base, (b) => (b.id === target.id ? { ...b, sheet: { ...b.sheet, test: insulation } } : b));
+    const name = snapshot.equipment.find((e) => e.id === target.equipment_id)!.tag;
+    const counts = parecerCounts(snapshot);
+    expect(counts.outReadings).toEqual([name]);
+    expect(counts.reprovado).toEqual([name]);
+    const composed = composeParecer(snapshot);
+    expect(composed.text).toContain(`1 ficha foi reprovada (${name}).`);
+    expect(composed.text).toContain(`Leituras fora do critério de aceitação em 1 ficha (${name}).`);
+    expect(composed.criteriaItems).toContain(`leituras fora do critério (${name})`);
+    const { total, concluded, open, notTested, withRestriction } = parecerCounts(base);
+    expect(composeParecer(base).basis).toBe(fnv1a(canonicalJson({ total, concluded, open, notTested, withRestriction, nc: [], points: 0 })));
   });
 });

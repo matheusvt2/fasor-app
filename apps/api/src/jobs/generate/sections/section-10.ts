@@ -1,4 +1,4 @@
-import type { LayoutSection10 } from '@app/domain';
+import { parecerOwnTextParagraph, type LayoutSection10 } from '@app/domain';
 import { AlignmentType, BorderStyle, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, type IBorderOptions } from 'docx';
 import { numberedItem, richRuns, type NumberedLists } from '../rich-runs.ts';
 
@@ -8,6 +8,8 @@ import { numberedItem, richRuns, type NumberedLists } from '../rich-runs.ts';
  * the Parecer box is a bordered one-cell table with the verdict word as its bold title and
  * the confirmed summary under it, then the section's fixed bullets, the validity line and
  * the signature block (name, printed title, registration), centred. No signature image.
+ * Story 22.6: a summary typed before the summary became the composed one prints as one more
+ * paragraph in the box, "Observações do responsável: …" (the kernel's words).
  */
 
 const border: IBorderOptions = { style: BorderStyle.SINGLE, size: 8, color: '404040' };
@@ -16,11 +18,15 @@ const borders = { top: border, bottom: border, left: border, right: border };
 /** Renders section 10's body (everything under its heading), inside a content width in twips. */
 export function section10Children(section: LayoutSection10, contentWidthTwips: number, lists: NumberedLists): (Paragraph | Table)[] {
   // E78-Q11: the box never splits across pages: its row cannot split, and its title keeps with the summary.
-  const hasText = section.parecer.text !== null;
+  const hasText = section.parecer.text !== null || section.parecer.ownText !== null;
   const boxChildren: Paragraph[] = [
     new Paragraph({ children: [new TextRun({ text: section.parecer.title, bold: true, size: 24 })], spacing: { after: 80 }, keepLines: true, keepNext: hasText }),
   ];
-  if (section.parecer.text !== null) boxChildren.push(new Paragraph({ children: [new TextRun({ text: section.parecer.text })], spacing: { after: 60 }, keepLines: true }));
+  const own = section.parecer.ownText;
+  if (section.parecer.text !== null) {
+    boxChildren.push(new Paragraph({ children: [new TextRun({ text: section.parecer.text })], spacing: { after: 60 }, keepLines: true, keepNext: own !== null }));
+  }
+  if (own !== null) boxChildren.push(new Paragraph({ children: [new TextRun({ text: parecerOwnTextParagraph(own) })], spacing: { after: 60 }, keepLines: true }));
   const box = new Table({
     width: { size: contentWidthTwips, type: WidthType.DXA },
     columnWidths: [contentWidthTwips],

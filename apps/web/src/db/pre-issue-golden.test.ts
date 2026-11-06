@@ -29,9 +29,10 @@ describe('7.5-UNIT AD-2 pre-issue identity (Dexie)', () => {
     const computed = progress(snapshot);
     const rows = preIssue(snapshot, computed, { now: new Date(PRE_ISSUE_GOLDEN_NOW) });
     expect(rows).toEqual(JSON.parse(readFileSync(GOLDEN, 'utf8')));
-    // What the Sumário draws from them: the one blocking row, on virtual row 10 (E78-Q1: the fixture predates section blocks).
-    expect(sumarioRows(snapshot, rows, computed).filter((row) => row.blocking).map((row) => [row.number, row.virtual, row.meta])).toEqual([[10, true, 'Parecer não preenchido']]);
-    expect(rows.filter((row) => row.severity === 'blocking').map((row) => row.text)).toEqual(['Parecer não preenchido']);
+    // What the Sumário draws from them: Story 22.6, no blocking row; virtual row 10 (E78-Q1: the fixture predates section blocks) reads the derived verdict.
+    expect(sumarioRows(snapshot, rows, computed).filter((row) => row.blocking)).toEqual([]);
+    expect(sumarioRows(snapshot, rows, computed).find((row) => row.rowKey === 'section_10')).toMatchObject({ number: 10, virtual: true, meta: 'Não apto' });
+    expect(rows.filter((row) => row.severity === 'blocking')).toEqual([]);
     db.close();
   }, 60_000);
 });

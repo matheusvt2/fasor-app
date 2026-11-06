@@ -1,4 +1,4 @@
-import { buildSnapshot, layoutSpec, replay, type RelatorioSnapshot, type UserRow } from '@app/domain';
+import { buildSnapshot, composeParecer, layoutSpec, replay, type RelatorioSnapshot, type UserRow } from '@app/domain';
 import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
@@ -26,7 +26,11 @@ const RESPONSIBLE: UserRow = {
   photo_location_enabled: false,
 };
 
-/** The Porto Seguro fixture with its responsible, the ART and a confirmed parecer (the log carries neither). */
+/**
+ * The Porto Seguro fixture with its responsible, the ART and a parecer whose summary was typed
+ * before Story 22.6 (the log carries neither). Its 18 sheets with readings out of criterion make
+ * the derived verdict Não apto, stricter than the stored one.
+ */
 function fixture(): RelatorioSnapshot {
   const snapshot = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
   return {
@@ -37,7 +41,7 @@ function fixture(): RelatorioSnapshot {
       setup: {
         ...snapshot.relatorio.setup,
         art_trt_number: '2620262602583',
-        parecer: { verdict: 'apto_com_restricoes', text: 'Resumo do parecer confirmado.', text_status: 'confirmed', text_basis: 'x' },
+        parecer: { verdict: 'apto_com_restricoes', text: 'Resumo do parecer digitado.', text_status: 'edited', text_basis: 'x' },
       },
     },
   };
@@ -54,13 +58,15 @@ const maskDates = (text: string) => text.replace(/\d{2}\/\d{2}\/\d{4}/g, 'DD/MM/
 const stripDrawings = (text: string) => text.replace(/<w:r>(?:(?!<w:r>).)*?<w:drawing>.*?<\/w:drawing>.*?<\/w:r>/gs, '');
 
 describe('7.4-UNIT section 10 in the DOCX', () => {
-  it('prints the box (verdict as title, the confirmed text), the three bullets, the validity line and the signature block', async () => {
-    const layout = layoutSpec(fixture(), { revisionNumber: 1, issuedAt: ISSUED_AT });
+  it('22.6: prints the box (the effective verdict as title, the composed summary, then the typed one as "Observações do responsável"), the bullets without the third under Não apto, the validity line and the signature block', async () => {
+    const snapshot = fixture();
+    const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: ISSUED_AT });
     const structure = extractStructure(await buildDocx(layout, { tocPages: placeholderPages(layout) }));
-    expect(structure.tables).toContainEqual([['Apto com restrições\nResumo do parecer confirmado.']]);
+    expect(structure.tables).toContainEqual([[`Não apto\n${composeParecer(snapshot).text}\nObservações do responsável: Resumo do parecer digitado.`]]);
     const at = structure.paragraphs.indexOf('Este relatório tem validade apenas acompanhada da ART 2620262602583');
     expect(at).toBeGreaterThan(0);
-    expect(structure.paragraphs.slice(at - 3, at).every((p) => p.length > 40)).toBe(true);
+    expect(structure.paragraphs.slice(at - 2, at).every((p) => p.length > 40)).toBe(true);
+    expect(structure.paragraphs.some((p) => p.startsWith('Apesar dos resultados dos testes serem positivos'))).toBe(false);
     expect(structure.paragraphs.slice(at + 1, at + 4)).toEqual(['Rafael Lamonde', 'Eng. Eletricista', 'CREA 5063583141']);
     expect(structure.headings.map((h) => h.text)).toContain('10 CONCLUSÃO E OBSERVAÇÕES TÉCNICAS');
   }, 30_000);
@@ -68,10 +74,10 @@ describe('7.4-UNIT section 10 in the DOCX', () => {
   it('E78-Q11: the Parecer box row cannot split across pages, and its title keeps with its summary', async () => {
     const document = xml(await render(false), 'word/document.xml');
     const tables = document.match(/<w:tbl>.*?<\/w:tbl>/gs) ?? [];
-    const box = tables.find((table) => table.includes('Resumo do parecer confirmado.'));
+    const box = tables.find((table) => table.includes('Observações do responsável: Resumo do parecer digitado.'));
     expect(box).toBeDefined();
     expect(box).toMatch(/<w:trPr>(?:(?!<\/w:trPr>).)*<w:cantSplit(?: w:val="(?:true|1|on)")?\/>/s);
-    const title = box!.match(/<w:p>(?:(?!<\/w:p>).)*Apto com restrições.*?<\/w:p>/s)?.[0] ?? '';
+    const title = box!.match(/<w:p>(?:(?!<\/w:p>).)*Não apto.*?<\/w:p>/s)?.[0] ?? '';
     expect(title).toMatch(/<w:keepNext(?: w:val="(?:true|1|on)")?\/>/);
     expect(title).toMatch(/<w:keepLines(?: w:val="(?:true|1|on)")?\/>/);
   }, 30_000);

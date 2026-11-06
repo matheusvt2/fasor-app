@@ -3009,3 +3009,18 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md` (P-3, owner: E21-A4, a test-hardening batch)
   summary: Four tests went red under load in two or more gates and passed alone each time: `apps/web/src/state/reading-arrivals.test.tsx` (the caption toast), `apps/web/src/surfaces/home/home-surface.test.tsx` (12.2 "Continuar"), `apps/web/src/surfaces/relatorio/setup-surface.test.tsx` (the exclusion typing) and R8LAY-E2E-008 (`e2e/review-layout-interaction-2026-10-08.spec.ts`, the "Novo relatório" dialog within 5 s).
   evidence: PR #254 § Story gate (load 23.5); PR #255 § Earlier gate (load 26); `epic-21-context.md` § Integrated gate (load 4.5 to 5.2, with the review stack beside it); `docs/kbs/log.md` chore T2 (R8LAY-E2E-008 red once in 5); `epic-12-retro-2026-09-25.md:73` (`home-surface.test.tsx`).
+
+## Deferred from: e22c (2026-11-06)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
+  summary: "Possível duplicado" pairs every live manual point of an equipment or local with every NC entry of it; it does not read the point's photos or text, so an unrelated manual point of the same equipment is flagged too (the coordinator's reading; open for Bruno).
+  evidence: `packages/domain/src/points/derived.ts` `possibleDuplicatePoints`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
+  summary: The out cell's "Marcar com restrições" action (`measurement-field.tsx`, `measurement-test-section.tsx`) still writes only the restriction; under Story 22.4 the floor already gives Reprovado · Com restrições, so the action is redundant on the effective pair. Not removed (outside the spec's Code Map).
+  evidence: `apps/web/src/surfaces/ficha/measurement-field.tsx` `markRestricted`; `measurement-test-section.tsx` `markRestricted`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
+  summary: The `blocking` severity and the Export dialog's blocking-row UI (`copy.export.blockingMeta`, `editInSetup`) stay with no rule emitting a blocking row; the parecer copy keys `parecerHelper`, `parecerConfirmed` and `parecerConfirmedToast` are no longer rendered.
+  evidence: `packages/domain/src/relatorio/pre-issue.ts` `PreIssueSeverity`; `apps/web/src/surfaces/export/export-dialog.tsx`; `apps/web/src/copy/pt-br.ts` `setup`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
+  summary: The e2e walk of a local's NC site item as a derived entry (Pontos card, "Abrir verificações", Editar) is not written; the kernel covers it (`points/derived-kinds.test.ts`, `relatorio/site-checklist.test.ts`) and `e2e/verificacoes-local.spec.ts` asserts the origin `nc` point written from the item.
+  evidence: `e2e/points.spec.ts` 22.5-E2E-001 (sheet NC and out reading only).

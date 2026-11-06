@@ -428,11 +428,11 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   await expect(page.locator('.content > section.vl-group .section-head .btn-reason')).toHaveText(GROUP_SIZES.map((size) => `${size} de ${size}`));
   await expect(bulk(page)).toHaveAttribute('aria-disabled', 'true');
 
-  // Epic 14 QA Q-4: the NC item has no point of attention yet, so one pending row before issue
-  // names the local on section 9 of the Sumário; it goes once the point exists (below).
+  // ~~Epic 14 QA Q-4: the NC item has no point of attention yet, so one pending row before issue
+  // names the local~~ Story 22.5: the NC item is a derived point of attention by itself, so that row retired.
   await bar(page).getByRole('button', { name: 'Concluir verificações' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
-  await expect(sumario(page).locator('li.sum-s9 .sum-status').first()).toContainText(NC_WITHOUT_POINT);
+  await expect(sumario(page).locator('li.sum-s9 .sum-status').first()).not.toContainText(NC_WITHOUT_POINT);
   await (await siteCard(page, ENEL)).click();
   await expect(title(page)).toHaveText('Verificações do local — Cubículo Enel');
 
@@ -453,7 +453,10 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   await expect(nc.locator('.nc-point-ref')).toHaveText('Ponto de atenção 1');
   await expect.poll(async () => (await pointsOf(page, relatorioId)).map((stored) => stored.action)).toEqual([POINT_ACTION]);
   const [point] = await pointsOf(page, relatorioId);
-  expect(point).toMatchObject({ location_id: enelId, equipment_id: null, origin: 'manual', action: POINT_ACTION, text: `${POINT_TEXT} ${photoToken(photoId)}` });
+  // Story 22.5: written from the NC item (origin nc, its item), starting with the item's derived text and photo.
+  expect(point).toMatchObject({ location_id: enelId, equipment_id: null, origin: 'nc', item_key: EMERGENCIA, action: POINT_ACTION });
+  expect(point!.text.startsWith(`${POINT_TEXT} Item `)).toBe(true);
+  expect(point!.text.endsWith(photoToken(photoId))).toBe(true);
 
   // "Concluir verificações" with nothing missing returns to the tree; the row reads N de N.
   await bar(page).getByRole('button', { name: 'Concluir verificações' }).click();
@@ -518,7 +521,7 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   expect(serverEnel.checklist![EMERGENCIA]!.observation!.value).toBe(NC_PHRASE);
   expect((await serverRow(account.companyId, 'location', emptyId)) as unknown as Local).not.toHaveProperty('checklist');
   expect(await serverRow(account.companyId, 'file', photoId)).toMatchObject({ location_id: enelId, item_key: EMERGENCIA, block_id: null, reading_kind: null, caption: CAPTION });
-  expect(await serverRow(account.companyId, 'point', point!.id)).toMatchObject({ location_id: enelId, equipment_id: null, text: `${POINT_TEXT} ${photoToken(photoId)}` });
+  expect(await serverRow(account.companyId, 'point', point!.id)).toMatchObject({ location_id: enelId, equipment_id: null, origin: 'nc', item_key: EMERGENCIA, text: point!.text });
 
   // --- the Sumário and the Export dialog: one non-blocking row names the locals left; the parecer alone blocks ---
   await openSumario(page, relatorioId);
@@ -530,7 +533,8 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   // Epic 14 QA Q-4: the NC item has its point now: no row names it.
   await expect(row9).not.toContainText(NC_WITHOUT_POINT);
   await expect(row9).not.toHaveClass(/is-blocking/);
-  await expect(sumario(page).locator('.sum-status.is-blocking')).toHaveText(['Parecer não preenchido']);
+  // Story 22.6: nothing blocks ("Parecer não preenchido" retired).
+  await expect(sumario(page).locator('.sum-status.is-blocking')).toHaveCount(0);
   // Section 8 names the point by its local.
   await page.goto(`/relatorio/${relatorioId}/pontos`);
   await expect(page.locator('.poa-list > .point-of-attention-card:not(.is-auto) .poa-title').first()).toHaveText('Cubículo Enel · Verificações do local', { timeout: 30_000 });
@@ -915,26 +919,22 @@ test('@p0 14.3-E2E-008 2026-10-14 (Bruno): a site item answered NC counts in "NC
   await expect(siteButton(page, ENEL).locator('.nc-badge')).toHaveText('1 NC');
   await expect(tree(page).locator('.nc-badge')).toHaveCount(1);
 
-  // Etapa 6: the suggestion and its hint count the site NC; the composed summary names the item.
+  // Etapa 6: the derived verdict and its reason line count the site NC; the composed summary names the item.
   const item = siteItems(SEED_VERSION).find((entry) => entry.key === EMERGENCIA)!;
   const sentence = `Verificações do local não conformes: item ${item.number} (${item.label.toLocaleLowerCase('pt-BR')}) em 1 local.`;
   await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
   const hint = page.locator('.conclusion-hint').first();
-  await expect(hint).toContainText('Sugerido pelas contagens: Apto com restrições?');
+  await expect(hint).toContainText('O relatório exige no mínimo Apto com restrições: ');
   await expect(hint).toContainText('1 NC nas verificações do local');
   const verdict = page.getByRole('radiogroup', { name: 'Parecer' }).getByRole('radio', { name: 'Apto com restrições', exact: true });
-  await verdict.click();
   await expect(verdict).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('radiogroup', { name: 'Parecer' }).getByRole('radio', { name: 'Apto', exact: true })).toBeDisabled();
   const field = page.locator('.suggestion-field.is-generated');
   await expect(field.locator('.generated-text')).toContainText(sentence);
   await expect(field.locator('.criteria-line')).toContainText(`verificações do local, item ${item.number} NC (1)`);
-  // Confirmed: the stored summary carries the site sentence.
-  await field.getByRole('button', { name: 'Confirmar' }).click();
-  await expect(field).toHaveAttribute('data-state', 'confirmed');
-  await expect
-    .poll(async () => (await outbox(page)).filter((op) => op.path === 'relatorio/setup/parecer').at(-1)?.value)
-    .toMatchObject({ verdict: 'apto_com_restricoes', text_status: 'confirmed', text: expect.stringContaining(sentence) });
+  // Story 22.6: the summary is the composed one, read-only (no Confirmar).
+  await expect(field.getByRole('button')).toHaveCount(0);
 
   // The local removed: its site items count nowhere.
   await openSumario(page, relatorioId);
@@ -1036,8 +1036,8 @@ test('@p0 20.4-E2E-004 a Geral point picks a local in "Equipamento ou local": bo
   ]);
   await page.setViewportSize({ width: 1280, height: 900 });
   await openSumario(page, built.relatorioId);
-  // The local's NC item has no point of its own yet: the Sumário says so.
-  await expect(sumario(page).locator('li.sum-s9 .sum-status').first()).toContainText(NC_WITHOUT_POINT);
+  // Story 22.5: the local's NC item is a derived point by itself; the Q-4 row retired.
+  await expect(sumario(page).locator('li.sum-s9 .sum-status').first()).not.toContainText(NC_WITHOUT_POINT);
 
   await page.goto(`/relatorio/${built.relatorioId}/pontos`);
   const card = page.locator('.poa-list > .point-of-attention-card:not(.is-auto):not(.is-editing)').first();

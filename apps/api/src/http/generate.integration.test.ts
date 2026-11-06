@@ -354,13 +354,9 @@ describe('4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:
     expect(unknown.status).toBe(404);
   });
 
-  it('Story 7.5: refuses with 409 pre_issue_blocked until the parecer is set; the parecer put goes through the sync route and releases the issue', async () => {
+  it('Story 22.6 (amends 7.5): with no parecer stored the derived verdict stands, so no pre-issue row blocks the issue', async () => {
     await pushParecer(null);
-    const blocked = await generate(companyA, { last_op_id: null, file_ids_expected: [] });
-    expect(blocked.status).toBe(409);
-    expect(errorResponseSchema.parse(await blocked.json()).code).toBe('pre_issue_blocked');
-    await pushParecer(PARECER);
-    // Released: past the gate, the route answers the issue job a worker already runs
+    // Past the gate (nothing blocks), the route answers the issue job a worker already runs
     // (a stand-in row, ended at once), so no revision is allocated here.
     const standIn = newId();
     const job = (status: 'running' | 'failed', path = `generation_job/${standIn}`): Op => ({

@@ -13,8 +13,10 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
 /*
  * Stories 7.4 and 7.5 driven as a person would: the parecer set in Dados do relatório ›
- * Etapa 6, the one blocking row on the Sumário and in the Export dialog with its way there
- * and back, the issued DOCX's section 10, the RASCUNHO preview in a new tab, the next
+ * Etapa 6, ~~the one blocking row on the Sumário and in the Export dialog with its way there
+ * and back~~ (Story 22.6: the verdict is derived from the fichas, a stricter one chosen in
+ * Etapa 6, and nothing blocks), the issued DOCX's section 10 (Story 22.6: Não apto with no
+ * third bullet, an earlier typed summary as "Observações do responsável"), the RASCUNHO preview in a new tab, the next
  * visit's "Copiar da última visita", the ready toast off the Sumário (R4), "Restaurar" cut at
  * the last revision (Epic 4 item 29) and the dialog at phone width. The jobs run for real in
  * the api container (LibreOffice), so the timeouts are the job's.
@@ -50,7 +52,7 @@ async function openFixtureSumario(page: Page): Promise<void> {
   await expect(headerPill(page)).toHaveText('Em campo', { timeout: 30_000 });
 }
 
-test('@p0 7.4-E2E-001 a relatório with no parecer: row 10 and the dialog say "Parecer não preenchido"; the band sets it (one op), the summary is confirmed and edited, and the back link reopens the dialog, released', async ({
+test('@p0 7.4-E2E-001 22.6-E2E a new relatório: row 10 reads the derived verdict and nothing blocks; Etapa 6 offers only stricter verdicts, one tap is one op, the summary is the composed one (no Confirmar, Editar or Substituir), and the back link reopens the dialog', async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -60,79 +62,63 @@ test('@p0 7.4-E2E-001 a relatório with no parecer: row 10 and the dialog say "P
   await createProjectFromHome(page);
   const relatorioId = await createRelatorio(page);
 
-  // AC2: row 10 in red, the foot names it; the foot's button still opens the dialog.
+  // Story 22.6: 94 empty sheets, no point: the derived verdict is Apto, and no row blocks.
   const row10 = sumario(page).getByRole('listitem').nth(11);
-  await expect(row10.locator('.sum-status.is-blocking')).toHaveText('Parecer não preenchido');
-  await expect(page.locator('.sticky-action-bar .btn-reason').first()).toHaveText('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.');
+  await expect(row10.locator('.sum-status')).toHaveText('Apto');
+  await expect(sumario(page).locator('.sum-status.is-blocking')).toHaveCount(0);
   // Status flow 2026-10-10 (M6, decision 5): the status's next step, under the status pill.
   // Story 14.3: this relatório is born on seed v4, so the sentence names the site checklist too.
   await expect(page.getByTestId('status-next-step')).toHaveText(/^Rascunho: falta .+ em Dados do relatório\. Preencher uma ficha ou as verificações do local passa o relatório a Em campo\.$/);
   await footButton(page).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}\\?exportar=1$`));
-  const blocking = dialog(page).locator('.precheck li.is-blocking');
-  await expect(blocking.locator('.pc-block')).toHaveText('Parecer não preenchido');
-  await expect(generateButton(page)).toHaveAttribute('aria-disabled', 'true');
-  await expect(generateButton(page)).toHaveAccessibleDescription('Preencha o parecer (linha 10 do sumário) para emitir a revisão 1. O rascunho pode ser visto antes.');
+  await expect(dialog(page).locator('.precheck li.is-blocking')).toHaveCount(0);
+  await expect(generateButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   // The document control summary, read-only: a dl whose revision row promises Rev. 1.
   await expect(dialog(page).locator('dl.doc-control dt').nth(1)).toHaveText('Revisão do documento');
   await expect(dialog(page).locator('dl.doc-control dd').nth(1)).toHaveText('Rev. 1');
   await expect(dialog(page).locator('.export-sec9-note')).toContainText('Seção 8 impressa no agrupamento do FO.SERV-03');
+  await page.keyboard.press('Escape');
 
-  // "Editar em Dados do relatório" opens Etapa 6, its heading focused.
-  await blocking.getByRole('button', { name: 'Editar em Dados do relatório' }).click();
-  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/setup\\?etapa=6&volta=exportar$`));
-  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused();
+  // Etapa 6 opened from the dialog's way there (`?volta=exportar`), its heading focused.
+  await page.goto(`/relatorio/${relatorioId}/setup?etapa=6&volta=exportar`);
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
 
-  // AC1: one tap, one op carrying the whole parecer; nothing preselected before.
+  // The derived Apto is shown, every verdict choosable (none looser), no reason line.
   const group = page.getByRole('radiogroup', { name: 'Parecer' });
-  for (const name of ['Apto', 'Apto com restrições', 'Não apto']) await expect(group.getByRole('radio', { name, exact: true })).toHaveAttribute('aria-checked', 'false');
-  await expect(page.locator('.parecer-box')).toHaveCount(0);
+  await expect(group.getByRole('radio', { name: 'Apto', exact: true })).toHaveAttribute('aria-checked', 'true');
+  for (const name of ['Apto', 'Apto com restrições', 'Não apto']) await expect(group.getByRole('radio', { name, exact: true })).toBeEnabled();
+  await expect(page.locator('#setup-parecer .conclusion-hint')).toHaveCount(0);
+  const box = page.locator('.parecer-box');
+  await expect(box.locator('.pb-verdict')).toHaveText('Apto');
+
+  // A stricter verdict: one tap, one op carrying the whole parecer.
   await group.getByRole('radio', { name: 'Apto com restrições', exact: true }).click();
   await expect(group.getByRole('radio', { name: 'Apto com restrições', exact: true })).toHaveAttribute('aria-checked', 'true');
   await expect.poll(async () => (await outboxOps(page, 'relatorio/setup/parecer')).map((op) => op.value)).toEqual([
     { verdict: 'apto_com_restricoes', text: null, text_status: null, text_basis: null },
   ]);
-  const box = page.locator('.parecer-box');
   await expect(box).toHaveAttribute('data-verdict', 'restricoes');
   await expect(box.locator('.pb-verdict')).toHaveText('Apto com restrições');
 
-  // The composed summary with its Criteria line, then Confirmar.
+  // The summary: the composed text with its Criteria line, read-only.
   const field = page.locator('.suggestion-field.is-generated');
-  await expect(field).toHaveAttribute('data-state', 'suggested');
   await expect(field.locator('.generated-text')).toHaveText(/^Foram registradas 94 fichas de ensaio: 94 ainda não concluídas\./);
   await expect(field.locator('.criteria-line')).toContainText('Critérios usados');
   await expect(field.locator('.criteria-line')).toContainText('94 fichas');
-  await field.getByRole('button', { name: 'Confirmar' }).click();
-  await expect(page.getByText('Resumo do parecer confirmado — impresso na seção 10')).toBeVisible();
-  await expect(field).toHaveAttribute('data-state', 'confirmed');
-  await expect.poll(async () => (await outboxOps(page, 'relatorio/setup/parecer')).map((op) => (op.value as { text_status: string | null }).text_status)).toEqual([null, 'confirmed']);
+  await expect(field.getByRole('button')).toHaveCount(0);
+  await expect(field.locator('textarea')).toHaveCount(0);
 
-  // Editar: the text is the engineer's own, stored as edited.
-  await field.getByRole('button', { name: 'Editar' }).click();
-  const area = field.getByRole('textbox', { name: 'Resumo do parecer' });
-  await expect(area).toBeFocused();
-  await page.keyboard.press('End');
-  await page.keyboard.type(' Ver seção 8.');
-  await page.keyboard.press('Tab');
-  await expect
-    .poll(async () => (await outboxOps(page, 'relatorio/setup/parecer')).at(-1)?.value)
-    .toMatchObject({ verdict: 'apto_com_restricoes', text_status: 'edited', text: expect.stringMatching(/ Ver seção 8\.$/) });
-
-  // The back link reopens the dialog, released.
+  // The back link reopens the dialog.
   await page.getByRole('button', { name: 'Voltar para Gerar relatório' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}\\?exportar=1$`));
   await expect(dialog(page)).toBeVisible();
-  await expect(dialog(page).locator('.precheck li.is-blocking')).toHaveCount(0);
   await expect(generateButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   await expect(dialog(page).locator('.generate-row .btn-reason')).toHaveText(IDLE_1);
-  // "Ver no sumário" closes the dialog and marks the rows its warnings stand on.
-  await dialog(page).getByRole('button', { name: 'Ver no sumário' }).click();
-  await expect(dialog(page)).toBeHidden();
-  await expect(sumario(page).locator('.sum-row.is-highlighted').first()).toBeVisible();
+  await page.keyboard.press('Escape');
   await expect(row10.locator('.sum-status')).toHaveText('Apto com restrições');
 });
 
-test('@p0 E78-Q1 7.5-E2E-006 a relatório with no section block (the Porto Seguro fixture): row 10 is drawn and blocks, the foot and the dialog both say "linha 10"; with the parecer set nothing blocks', async ({
+test('@p0 E78-Q1 7.5-E2E-006 22.6-E2E a relatório with no section block (the Porto Seguro fixture): row 10 is drawn with the derived verdict, and nothing blocks on the foot or in the dialog', async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -150,33 +136,94 @@ test('@p0 E78-Q1 7.5-E2E-006 a relatório with no section block (the Porto Segur
   await expect(numbered.locator(':scope > .sum-ctrls .overflow-trigger, :scope > .sum-s9-head > .sum-ctrls .overflow-trigger')).toHaveCount(0);
   const row10 = sumario(page).locator('li[data-row="section_10"]');
   await expect(row10.locator('.sum-title')).toHaveText('Conclusão e parecer');
-  await expect(row10.locator('.sum-status.is-blocking')).toHaveText('Parecer não preenchido');
-  const reason = page.locator('.sticky-action-bar .btn-reason').first();
-  await expect(reason).toHaveText('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.');
-
-  // The dialog: the same blocking row and the same line.
-  await footButton(page).click();
-  await expect(dialog(page).locator('.precheck li.is-blocking .pc-block')).toHaveText('Parecer não preenchido');
-  await expect(generateButton(page)).toHaveAttribute('aria-disabled', 'true');
-  await expect(generateButton(page)).toHaveAccessibleDescription('Preencha o parecer (linha 10 do sumário) para emitir a revisão 1. O rascunho pode ser visto antes.');
-  await page.keyboard.press('Escape');
-  await expect(dialog(page)).toBeHidden();
-
-  // Row 10 opens Dados do relatório › Etapa 6 (no block is needed for it).
-  await row10.getByRole('button').first().click();
-  await expect(page).toHaveURL(new RegExp(`/relatorio/${EXPORT_RELATORIO_ID}/setup\\?etapa=6$`));
-
-  // With the parecer set: nothing blocks, on either surface.
-  await setParecer(page, EXPORT_RELATORIO_ID, 'Apto com restrições');
+  // The fixture's sheet marked Não ensaiado makes the derived verdict Apto com restrições.
   await expect(row10.locator('.sum-status')).toHaveText('Apto com restrições');
   await expect(row10.locator('.sum-status.is-blocking')).toHaveCount(0);
+  const reason = page.locator('.sticky-action-bar .btn-reason').first();
   await expect(reason).toHaveText('Nada impede gerar.');
   await expect(page.getByTestId('status-next-step')).toHaveText('Em campo: gerar o relatório passa a Em revisão.');
+
+  // The dialog: no blocking row, "Gerar relatório" enabled.
   await footButton(page).click();
   await expect(dialog(page).locator('.precheck li.is-blocking')).toHaveCount(0);
   await expect(generateButton(page)).toBeEnabled();
   await expect(generateButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   await page.keyboard.press('Escape');
+  await expect(dialog(page)).toBeHidden();
+
+  // Row 10 opens Dados do relatório › Etapa 6 (no block is needed for it), Apto disabled.
+  await row10.getByRole('button').first().click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${EXPORT_RELATORIO_ID}/setup\\?etapa=6$`));
+  const group = page.getByRole('radiogroup', { name: 'Parecer' });
+  await expect(group.getByRole('radio', { name: 'Apto', exact: true })).toBeDisabled();
+  await expect(group.getByRole('radio', { name: 'Apto com restrições', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('#setup-parecer .conclusion-hint')).toHaveText('O relatório exige no mínimo Apto com restrições: 1 não ensaiada e 1 ponto de atenção.');
+});
+
+test('@p0 22.6-E2E-001 a sheet effectively Reprovado: Etapa 6 is Não apto with the looser verdicts disabled, and the DOCX\'s section 10 prints Não apto, the summary naming the sheet, no third bullet, and the earlier typed summary as "Observações do responsável"', async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  await resetEmpresaBWithFixture(account);
+  await signIn(page, account.email);
+  await openFixtureSumario(page);
+  const envelope = { scope: 'relatorio' as const, company_id: account.companyId, project_id: null, relatorio_id: EXPORT_RELATORIO_ID, prev_op_id: null, batch_id: null, meta: null, actor_id: account.userId };
+  // The chave concluded Reprovado; a summary typed before Story 22.6 (stored `edited`).
+  await pushDrafts(page, database, [
+    { ...envelope, kind: 'put', path: `sheet/${BLOCK_CHAVE_ID}/conclusion/result`, value: 'reprovado' },
+    { ...envelope, kind: 'put', path: `sheet/${BLOCK_CHAVE_ID}/conclusion/restriction`, value: 'com_restricoes' },
+    { ...envelope, kind: 'put', path: `sheet/${BLOCK_CHAVE_ID}/observations`, value: 'Contatos com desgaste acentuado.' },
+    {
+      ...envelope,
+      kind: 'put',
+      path: 'relatorio/setup/parecer',
+      value: { verdict: 'apto', text: 'Resumo digitado antes pelo engenheiro.', text_status: 'edited', text_basis: 'x' } as never,
+    },
+  ]);
+
+  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/setup?etapa=6`);
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
+  const group = page.getByRole('radiogroup', { name: 'Parecer' });
+  await expect(group.getByRole('radio', { name: 'Não apto', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(group.getByRole('radio', { name: 'Apto', exact: true })).toBeDisabled();
+  await expect(group.getByRole('radio', { name: 'Apto com restrições', exact: true })).toBeDisabled();
+  await expect(page.locator('#setup-parecer .conclusion-hint')).toHaveText(/^O relatório exige no mínimo Não apto: 1 ficha reprovada \(.+\)\.$/);
+  await expect(page.locator('.parecer-box .pb-verdict')).toHaveText('Não apto');
+  const summary = page.locator('.suggestion-field.is-generated .generated-text');
+  await expect(summary).toContainText(/1 ficha foi reprovada \(.+\)\./);
+  // The earlier typed summary under "Observações do responsável", which can be cleared, never added.
+  await expect(page.getByText('Observações do responsável', { exact: true })).toBeVisible();
+  await expect(page.getByText('Resumo digitado antes pelo engenheiro.')).toBeVisible();
+
+  // Issued: the DOCX's section 10.
+  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}`);
+  await expect(sumario(page)).toBeVisible({ timeout: 30_000 });
+  await expect(sumario(page).locator('li[data-row="section_10"] .sum-status')).toHaveText('Não apto');
+  await footButton(page).click();
+  await generateButton(page).click();
+  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
+  await page.keyboard.press('Escape');
+  const revisions = await readStore<{ entity: string; row: { id: string; number: number } }>(page, database, 'entities');
+  const revision = revisions.find((record) => record.entity === 'revision' && record.row.number === 1)!;
+  const response = await page.request.get(`/api/revisions/${revision.row.id}/docx`);
+  expect(response.status()).toBe(200);
+  const structure = extractStructure(Buffer.from(await response.body()));
+  const box = structure.tables.find((table) => table.length === 1 && table[0]!.length === 1 && table[0]![0]!.startsWith('Não apto\n'));
+  expect(box).toBeDefined();
+  expect(box![0]![0]).toMatch(/1 ficha foi reprovada \(.+\)\./);
+  expect(box![0]![0]).toContain('Observações do responsável: Resumo digitado antes pelo engenheiro.');
+  expect(structure.paragraphs.some((p) => p.startsWith('Apesar dos resultados dos testes serem positivos'))).toBe(false);
+  const validity = structure.paragraphs.findIndex((p) => p.startsWith('Este relatório tem validade apenas acompanhada da'));
+  expect(validity).toBeGreaterThan(2);
+  // The two fixed bullets left before it.
+  expect(structure.paragraphs.slice(validity - 2, validity).every((p) => p.length > 40)).toBe(true);
+
+  // Back in Etapa 6, "Limpar" clears the typed summary (one op) and the box no longer prints it.
+  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/setup?etapa=6`);
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'Limpar', exact: true }).click();
+  await expect.poll(async () => (await outboxOps(page, 'relatorio/setup/parecer')).at(-1)?.value).toEqual({ verdict: 'apto', text: null, text_status: null, text_basis: null });
+  await expect(page.getByText('Observações do responsável', { exact: true })).toHaveCount(0);
 });
 
 test('@p0 7.4-E2E-002 with a parecer set, "Gerar relatório" issues revision 1: section 10 prints the box, the bullets, the validity line and the signature; the relatório is Em revisão until marked as sent, then Emitido', async ({
@@ -186,6 +233,7 @@ test('@p0 7.4-E2E-002 with a parecer set, "Gerar relatório" issues revision 1: 
   await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
   await openFixtureSumario(page);
+  // Story 22.6: the fixture's untested sheet makes the derived verdict Apto com restrições, so Apto is disabled and the derived one prints.
   await setParecer(page, EXPORT_RELATORIO_ID, 'Apto');
   await expect(headerPill(page)).toHaveText('Em campo');
   await footButton(page).click();
@@ -204,7 +252,10 @@ test('@p0 7.4-E2E-002 with a parecer set, "Gerar relatório" issues revision 1: 
   const response = await page.request.get(`/api/revisions/${revision.row.id}/docx`);
   expect(response.status()).toBe(200);
   const structure = extractStructure(Buffer.from(await response.body()));
-  expect(structure.tables).toContainEqual([['Apto']]);
+  const box = structure.tables.find((table) => table.length === 1 && table[0]!.length === 1 && table[0]![0]!.startsWith('Apto com restrições\n'));
+  expect(box).toBeDefined();
+  // Story 22.6: the composed summary always prints in the box.
+  expect(box![0]![0]).toContain('Foram registradas 3 fichas de ensaio');
   const validity = structure.paragraphs.findIndex((p) => p.startsWith('Este relatório tem validade apenas acompanhada da'));
   expect(validity).toBeGreaterThan(3);
   // The three fixed bullets before it, the signature after it.
@@ -218,8 +269,8 @@ test('@p0 7.5-E2E-001 "Pré-visualizar" opens preview.pdf in a new tab, reading 
   await signIn(page, account.email);
   await openFixtureSumario(page);
   await footButton(page).click();
-  // No parecer: issuing is blocked, previewing is not.
-  await expect(generateButton(page)).toHaveAttribute('aria-disabled', 'true');
+  // Story 22.6: nothing blocks issuing; previewing does not issue either.
+  await expect(generateButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   const statusBefore = (await outboxOps(page, 'relatorio/status')).length;
 
   const tabPromise = context.waitForEvent('page');
@@ -377,7 +428,7 @@ test('@p1 7.5-E2E-005 the Export dialog at 390 px: the precheck, the document co
   await page.setViewportSize({ width: 390, height: 844 });
   await openFixtureSumario(page);
   await footButton(page).click();
-  await expect(dialog(page).locator('.precheck li.is-blocking')).toBeVisible();
+  await expect(dialog(page).locator('.precheck')).toBeVisible();
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
   for (const part of ['.precheck', 'dl.doc-control', '.generate-row']) {
     const box = (await dialog(page).locator(part).first().boundingBox())!;
@@ -388,8 +439,8 @@ test('@p1 7.5-E2E-005 the Export dialog at 390 px: the precheck, the document co
   const [dt, dd] = [dialog(page).locator('dl.doc-control dt').first(), dialog(page).locator('dl.doc-control dd').first()];
   expect((await dd.boundingBox())!.y).toBeGreaterThan((await dt.boundingBox())!.y);
   // Review fixes 2026-10-06 (F-17): a row's sentence takes the full row and its action drops under it.
+  // Story 22.6: the blocking row that carried an action retired; the rows that still carry one keep the rule.
   const rowsWithActions = dialog(page).locator('.precheck li').filter({ has: page.locator('.pc-actions') });
-  expect(await rowsWithActions.count()).toBeGreaterThan(0);
   for (let i = 0; i < (await rowsWithActions.count()); i++) {
     const row = rowsWithActions.nth(i);
     const pcText = (await row.locator('.pc-text').boundingBox())!;

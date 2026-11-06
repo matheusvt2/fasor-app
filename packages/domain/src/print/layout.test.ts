@@ -76,12 +76,12 @@ describe('4.8-UNIT-001 layoutSpec on the full fixture', () => {
     expect(byNumber.get(10)?.kind).toBe('section_10');
     expect(byNumber.get(9)?.kind).toBe('sheets');
     expect(EMPTY_SECTION_NOTE).toBe('(sem conteúdo nesta revisão)');
-    // Stories 7.2/7.3 (section-7/8/11.test.ts assert their contents): 82 photos, 7 points, 3 certificates.
+    // Stories 7.2/7.3 (section-7/8/11.test.ts assert their contents): 82 photos, 7 points and (Story 22.5) 18 out tests, 3 certificates.
     const photos = byNumber.get(7)!;
     const points = byNumber.get(8)!;
     const certificates = byNumber.get(11)!;
     expect(photos.kind === 'photos' ? photos.photos.length : null).toBe(82);
-    expect(points.kind === 'points' ? points.bullets.length : null).toBe(7);
+    expect(points.kind === 'points' ? points.bullets.length : null).toBe(7 + 18);
     expect(certificates.kind === 'certificates' ? certificates.certificates.length : null).toBe(3);
   });
 
