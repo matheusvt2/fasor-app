@@ -2,7 +2,7 @@
 title: 'e21r: the transformer ratio follows its vector group, read from the plate too (21.1, 21.2)'
 type: 'feature'
 created: '2026-11-05'
-status: 'in-review'
+status: 'done'
 baseline_revision: '80f2f9f74df6d726844c278efc16d3ee8eb41ac4'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -167,3 +167,14 @@ deferred:
 - `pnpm test:unit -- packages/domain/src/relatorio packages/domain/src/seed packages/domain/src/print packages/domain/src/reading` -- green while iterating; whole `pnpm test:unit` at the end.
 - `podman compose restart api` then `pnpm test:api` -- green.
 - Targeted e2e: `pnpm exec tsx scripts/e2e.ts <specs> --project desktop-chrome --project durability-desktop-chrome` under the lock -- the orchestrator runs the final gate; report the spec list.
+
+## Auto Run Result
+
+Status: done (orchestrated batch e21r; the PR is opened by the orchestrator, not merged).
+
+- **Change:** Story 21.1, the transformador de força's ratio follows its vector group: the 47-group kernel table and parser (`relatorio/vector-group.ts`), seed v11 (LIGAÇÃO SECUNDÁRIA a select of the codes, `ratio_factor: 'vector_group'`), the evaluation, helpers and section 9 headers by group on v9 and later, the missing-group count, contract 30 (minimum 30). Story 21.2, the plate reading asks for the printed or drawn group (`bedrock-structuring-3`), stores it as its code, and a diagram read is `verify` with "Lido do diagrama — confira".
+- **Files:** kernel (`vector-group.ts`, `seed/v11.ts`, `seed/schema.ts`, `seed/definitions.ts`, `seed/select-option.ts`, `reading-cells.ts`, `reading-evaluation.ts`, `readings.ts`, `sheet-progress.ts`, `print/section-9.ts`, `reading/build.ts`, `contract/version.ts`, `index.ts`); web (`ensaios-section.tsx`, `nameplate-suggestions.tsx`); api (`kinds/plate.ts`, `providers/bedrock.ts`, `scripts/make-plate-fixtures.ts`, `scripts/bedrock-eval.ts`, two plate fixtures); tests (kernel, api, e2e `ficha`, `plate`, `plate-reading`, `seed-v10`, new `seed-v11`, `ratio-feeds-conclusion`, `review-layout-interaction-2026-10-08`, `support/*`); docs (`source-deltas.md`, KB, `deferred-work.md`).
+- **Review:** 13 findings; 7 patched (3 medium verification gaps, 2 medium edge cases, 2 low), 4 deferred (`deferred` list and `deferred-work.md`), 2 low rejected (v1..v8 canonicalization is harmless and needs a new guard; "Dyn01"/"Yy12" are not spellings in use).
+- **Follow-up review:** false (no high patched; two medium patched are test-only gaps plus the parser and plate-off count, listed under "Patched, not re-reviewed" for the integrated review). Patched counts: medium 5, low 2.
+- **Verification:** story gate on the pre-merge head: lint, static, test:api (834 passed) green; test:unit 358 of 360 files and e2e 174 of 175 under load 26 (two web unit files and R8DRY-E2E-005, none touched by the batch), all green alone under the lock (360 of 360 files, 5173 tests; R8DRY-E2E-005 2 of 2). The merged-head gate (with e21p's specs) is in the PR body.
+- **Residual risks:** the paid eval has not run (a "before the deploy" row); the drawn plate's device e2e seeds the suggestion; the four flagged groups (Dyn3, Dyn9, Dy3, Dy9) await Bruno.
