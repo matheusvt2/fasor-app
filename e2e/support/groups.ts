@@ -57,6 +57,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'status-flow-2026-10-10.spec.ts',
     why: 'generates a revision through the shared queue and LibreOffice and loads the fixed-id Porto Seguro fixture',
   },
+  // Story 22.5: 22.5-E2E-001 generates the DOCX its derived section 8 entries are read from.
+  {
+    file: 'points-derived.spec.ts',
+    why: 'Story 22.5: generates a revision through the shared queue and LibreOffice to read the derived NC and out-reading entries of section 8 from the DOCX',
+  },
   // Stories 11.9/11.10: 11.10-E2E-001 generates the DOCX its action-plan table is read from.
   {
     file: 'action-plan.spec.ts',

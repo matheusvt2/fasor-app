@@ -84,13 +84,6 @@
     "kind": "cabine_incompleta"
   },
   {
-    "id": "parecer_missing",
-    "row": "section_10",
-    "severity": "blocking",
-    "text": "Parecer não preenchido",
-    "kind": "parecer_missing"
-  },
-  {
     "id": "setup_missing:instruments",
     "row": "section_11",
     "severity": "pending",

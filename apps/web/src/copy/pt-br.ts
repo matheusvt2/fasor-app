@@ -1140,6 +1140,12 @@ export const copy = {
     autoOrder: 'Listado automaticamente · após os pontos manuais',
     autoReason: 'O motivo é editado na ficha; o ponto sai daqui se a ficha voltar a ser ensaiada',
     openSheet: (tag: string) => `Abrir ficha ${tag}`,
+    // authored (Story 22.5, open for Bruno): the derived NC, out-reading and Reprovado cards and the two flags.
+    derivedReason: 'Sai daqui quando a ficha deixar de ter o problema; Editar grava um ponto que o substitui',
+    openLocal: (name: string) => `Abrir verificações de ${name}`,
+    editDerivedLabel: (title: string) => `Editar o ponto automático, ${title}`,
+    possibleDuplicate: 'Possível duplicado',
+    originResolved: 'Origem resolvida',
     // authored: the parts of the editor no mock names.
     concluir: 'Concluir',
     cancel: 'Cancelar',
@@ -1433,6 +1439,8 @@ export const copy = {
       reprovado: 'Reprovado',
       semRestricoes: 'Sem restrições',
       comRestricoes: 'Com restrições',
+      // authored (Story 22.4, open for Bruno): the note over a stored pair a later floor made stricter.
+      adjustedNote: 'Conclusão ajustada pela ficha',
       // authored: the suggestion row's field label.
       suggestionLabel: 'Sugestão',
       observationTitle: 'Observações',
@@ -1549,6 +1557,10 @@ export const copy = {
     parecerHelper: 'Montado no aparelho a partir das contagens do relatório — não é um veredito. Nada é impresso até você confirmar.',
     parecerConfirmed: (section: string) => `Confirmado · impresso na caixa de parecer da ${section}`,
     parecerConfirmedToast: (section: string) => `Resumo do parecer confirmado — impresso na ${section}`,
+    // authored (Story 22.6, open for Bruno): the composed summary's line, the own text's label and its clear action.
+    parecerComposed: (section: string) => `Montado no aparelho a partir das fichas · impresso na caixa de parecer da ${section}`,
+    parecerOwnTextLabel: 'Observações do responsável',
+    parecerOwnTextClear: 'Limpar',
     parecerKicker: (section: string) => `Como imprime na ${section}`,
     // authored: the way back to the Export dialog when the band was opened from its blocking row.
     backToExport: 'Voltar para Gerar relatório',

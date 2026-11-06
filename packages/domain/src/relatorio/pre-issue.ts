@@ -6,7 +6,6 @@ import { captionSuggestions, legendasSugeridasText } from '../photos/captions.ts
 import { livePhotos } from '../photos/order.ts';
 import { photosAwaitingText, photosUncaptionedText } from '../photos/text.ts';
 import { artLabel } from '../print/document-control.ts';
-import { printsSection } from '../print/layout.ts';
 import { missingCertificates, section11Instruments } from '../print/section-11.ts';
 import type { SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
@@ -24,12 +23,11 @@ import { composeConclusion, conclusionTextForPrint, conclusionTextState } from '
 import { sheetOrder } from './ficha.ts';
 import { relatorioSectionNumber, type RelatorioSectionType } from './instantiate.ts';
 import { integrityFindings } from './integrity.ts';
-import { parecerOf } from './parecer.ts';
 import { cabineLocationIds, emptySheetCount, fichasVaziasText, naoEnsaiadasText, progress, progressCounterText, type Progress } from './progress.ts';
 import { section3Blocks, sectionVariables } from './section-variables.ts';
 import { setupGaps, type SetupGap } from './setup-complete.ts';
 import { enabledSubBlocksOf, isEquipmentBlock, sheetState } from './sheet-state.ts';
-import { siteNcWithoutPoint, siteNcWithoutPointText, siteUnanswered, siteUnansweredText } from './site-checklist.ts';
+import { siteUnanswered, siteUnansweredText } from './site-checklist.ts';
 import { blocksWithPendingSuggestions, fichasComSugestoesText, livePendingSuggestions } from './suggestions.ts';
 import { sectionBlocks } from './sumario.ts';
 
@@ -38,8 +36,10 @@ import { sectionBlocks } from './sumario.ts';
  * render (Epic 4 context: "never two implementations that could disagree"). Every rule
  * yields typed rows addressed to a Sumário row (`row`), with a severity and a `kind`, so
  * a later epic appends its family by pushing rows here and the Sumário draws them without
- * changing. Story 7.5 closes the list: exactly one row may be `blocking`, "Parecer não
- * preenchido" (section 10); everything else warns and the document prints its consequence.
+ * changing. Story 7.5 closes the list: ~~exactly one row may be `blocking`, "Parecer não
+ * preenchido" (section 10)~~ (Story 22.6, 2026-11-06: the verdict is derived from the fichas,
+ * so it is never missing and no row blocks); everything warns and the document prints its
+ * consequence. The `blocking` severity stays for a later rule.
  * The `sync` rows (rejected ops, the other devices' last send) are what no Sumário row can
  * say: only the Export dialog draws them.
  */
@@ -57,7 +57,6 @@ export type PreIssueKind =
   | 'cabine_sem_equipamento'
   | 'cabine_incompleta'
   | 'site_checklist_unanswered'
-  | 'site_checklist_nc_without_point'
   | 'company'
   | 'client'
   | 'photos_uncaptioned'
@@ -67,7 +66,6 @@ export type PreIssueKind =
   | 'points_sem_acao'
   | 'point_photo_removed'
   | 'points_sem_prazo'
-  | 'parecer_missing'
   | 'conclusion_unconfirmed'
   | 'conclusion_stale'
   | 'suggestions_pending'
@@ -281,9 +279,6 @@ export function lastSendText(name: string, at: string): string {
   return `Último envio de ${name}: ${formatShortDateTime(at)}`;
 }
 
-/** The one blocking row's text (`73-exportar.html` `#exportar-pc-parecer`). */
-export const PARECER_MISSING_TEXT = 'Parecer não preenchido';
-
 /**
  * The live section blocks whose text prints a variable with no value as `[Label]`, each with
  * those variables once, in order of first appearance (Story 7.5's `section_variables` rows
@@ -458,19 +453,10 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   if (siteText !== null) {
     rows.push({ id: 'site_checklist_unanswered', row: 'section_9', severity: 'pending', text: siteText, kind: 'site_checklist_unanswered' });
   }
-  // Epic 14 QA Q-4: one row naming the locals whose NC site items outnumber their points of
-  // attention, after the unanswered row; pending, never blocking.
-  const ncText = siteNcWithoutPointText(siteNcWithoutPoint(snapshot));
-  if (ncText !== null) {
-    rows.push({ id: 'site_checklist_nc_without_point', row: 'section_9', severity: 'pending', text: ncText, kind: 'site_checklist_nc_without_point' });
-  }
-
-  // Story 7.4/7.5: the one blocking row, only while section 10 prints: a live `section_10`
-  // block, or no live section block at all (the legacy snapshot prints the seed's eleven,
-  // `print/layout.ts` `printedSections`). p020 P-1b: through the one rule, `printsSection`.
-  if (printsSection(snapshot, 10) && parecerOf(snapshot) === null) {
-    rows.push({ id: 'parecer_missing', row: 'section_10', severity: 'blocking', text: PARECER_MISSING_TEXT, kind: 'parecer_missing' });
-  }
+  // ~~Epic 14 QA Q-4: one row naming the locals whose NC site items outnumber their points of
+  // attention~~ Story 22.5: retired, every NC site item is a point of attention by itself.
+  // ~~Story 7.4/7.5: the one blocking row, "Parecer não preenchido"~~ Story 22.6: retired, the
+  // verdict is derived from the fichas (`derivedParecer`) and always exists.
 
   // Section 11: the setup's instruments, the calibration of each instrument section 11
   // prints (E7-A4: its own list, `section11Instruments`, so the rows name exactly what the
@@ -542,7 +528,7 @@ export function blockingRows(rows: readonly PreIssueRow[]): PreIssueRow[] {
 const EXPLICIT_KINDS: ReadonlySet<PreIssueKind> = new Set(['sheets_empty', 'photos_pending_upload', 'photos_upload_error', 'cert_number_mismatch', 'rejected', 'last_send']);
 
 export interface ExportPrecheck {
-  /** The rows that stop "Gerar relatório" (only "Parecer não preenchido"). */
+  /** The rows that stop "Gerar relatório" (none since Story 22.6 retired "Parecer não preenchido"). */
   blocking: PreIssueRow[];
   /** The rows the dialog draws one per line. */
   explicit: PreIssueRow[];
@@ -587,21 +573,10 @@ export function exportPrecheck(rows: readonly PreIssueRow[]): ExportPrecheck {
 }
 
 /**
- * The reason beside a blocked "Gerar relatório" (`73-exportar.html`
- * `#exportar-gen-blocked-reason`): "Preencha o parecer (linha 10 do sumário) para emitir a
- * revisão 3. O rascunho pode ser visto antes." `line` is section 10's Sumário number; the
- * parenthesis is left out when the relatório has no such row.
- */
-export function parecerMissingReason(number: number, line: number | null): string {
-  const where = line === null ? '' : ` (linha ${line} do sumário)`;
-  return `Preencha o parecer${where} para emitir a revisão ${number}. O rascunho pode ser visto antes.`;
-}
-
-/**
  * F-03 (review 2026-10-06, D1): what issuing a revision prints blank, counted for the
  * confirmation "Gerar relatório" asks for before it issues. `emptySheets` are the live sheets
  * nothing was typed on; `blankFields` the distinct relatório data a section text or a cover row
- * prints as a `[Label]` placeholder ("[Empresa executora]", "[Responsável]"). Only the parecer blocks issuing; these ask.
+ * prints as a `[Label]` placeholder ("[Empresa executora]", "[Responsável]"). Nothing blocks issuing (Story 22.6); these ask.
  */
 export interface IssueConfirmation {
   emptySheets: number;

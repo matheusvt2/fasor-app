@@ -8,7 +8,7 @@ import { DEFAULT_VECTOR_GROUP_CODE, parseVectorGroup, VECTOR_GROUP_FIELD, vector
 
 /*
  * Stories 5.5-5.6 (FR-27, FR-28, UX-DR39/40): THE evaluation of a sheet's readings. The
- * Measurement table, `sheetProgress`, `suggestConclusionPair` and `composeConclusion` all read
+ * Measurement table, `sheetProgress`, `conclusionFloor` (Story 22.4) and `composeConclusion` all read
  * `evaluateSheetReadings`, so "out of criterion" has exactly one rule and `compareCriterion`
  * is called for a sheet from nowhere else (AD-1/AD-13).
  *

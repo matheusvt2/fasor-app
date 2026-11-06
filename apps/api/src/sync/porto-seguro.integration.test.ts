@@ -84,7 +84,8 @@ describe('3.7-INT-001 Porto Seguro fixture replay byte-equality (Drizzle layer)'
     if (process.env.GOLDEN_UPDATE === '1') writeFileSync(PRE_ISSUE_GOLDEN, `${JSON.stringify(rows, null, 2)}\n`);
     expect(rows).toEqual(JSON.parse(readFileSync(PRE_ISSUE_GOLDEN, 'utf8')));
     // The fixture carries no parecer: the one blocking row is there.
-    expect(rows.filter((row) => row.severity === 'blocking').map((row) => row.kind)).toEqual(['parecer_missing']);
+    // Story 22.6: nothing blocks ("Parecer não preenchido" retired).
+    expect(rows.filter((row) => row.severity === 'blocking')).toEqual([]);
   });
 });
 

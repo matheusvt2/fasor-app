@@ -8,11 +8,10 @@ import type { CabineLocation } from '../relatorio/cabine.ts';
 import {
   composeConclusion,
   conclusionPairComplete,
-  conclusionRestrictionOf,
-  conclusionResultOf,
   conclusionTextForPrint,
   conclusionTextState,
   conclusionTextStatusOf,
+  effectiveConclusionPair,
   type ConclusionRestriction,
   type ConclusionResult,
 } from '../relatorio/conclusion.ts';
@@ -900,7 +899,9 @@ function observationsPart(block: BlockRow): SheetPart | null {
  * line no longer prints under it (the screen still shows it).
  */
 function conclusionParts(block: BlockRow, definition: BlockDefinition, tag: string): SheetPart[] {
-  const chosen = new Set<string>([conclusionResultOf(block), conclusionRestrictionOf(block)].filter((value): value is ConclusionResult | ConclusionRestriction => value !== null));
+  // Story 22.4: the X marks of the effective pair (the stricter of the floor and the stored pair).
+  const effective = effectiveConclusionPair(block);
+  const chosen = new Set<string>([effective.result, effective.restriction].filter((value): value is ConclusionResult | ConclusionRestriction => value !== null));
   const composed = composeConclusion(block, definition, tag);
   const status = conclusionTextStatusOf(block);
   const printable = conclusionPairComplete(block) && (status === 'edited' || (status === 'confirmed' && conclusionTextState(block, composed) === 'confirmed'));

@@ -58,12 +58,12 @@ describe('p020 P-1b printsSection, the one rule', () => {
     expect(printsSection(legacy, 10)).toBe(true);
   });
 
-  it('the parecer_missing row still follows section 10 (behavior unchanged)', () => {
+  it('Story 22.6: no row blocks, with section 10 or without it (the parecer_missing row retired)', () => {
     const snapshot = fresh();
-    const kinds = (s: RelatorioSnapshot) => preIssue(s, undefined, { now: NOW }).map((row) => row.kind);
-    expect(kinds(snapshot)).toContain('parecer_missing');
-    expect(kinds(without(snapshot, ['section_10']))).not.toContain('parecer_missing');
-    expect(kinds(without(snapshot, [...TEXT_SECTIONS, 'section_7', 'section_9']))).toContain('parecer_missing');
+    const blocking = (s: RelatorioSnapshot) => preIssue(s, undefined, { now: NOW }).filter((row) => row.severity === 'blocking');
+    expect(blocking(snapshot)).toEqual([]);
+    expect(blocking(without(snapshot, ['section_10']))).toEqual([]);
+    expect(blocking(without(snapshot, [...TEXT_SECTIONS, 'section_7', 'section_9']))).toEqual([]);
   });
 
   it('nothing printed changes: the layout of a relatório without 8 and 10 prints only its own sections', () => {

@@ -1,5 +1,6 @@
 import { councilLabel, defaultTitleForCouncil } from '../registration.ts';
-import { parecerOf, parecerTextForPrint, parecerVerdictLabel } from '../relatorio/parecer.ts';
+import { effectiveParecer, parecerOwnText, parecerTextForPrint, parecerVerdictLabel } from '../relatorio/parecer.ts';
+import { resultsItemsText } from '../relatorio/section-variables.ts';
 import type { Council } from '../schemas/council.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import type { RichRun } from '../templates/rich-text.ts';
@@ -13,6 +14,14 @@ import { artLabel } from './document-control.ts';
  * TRT by the responsible's council, and the signature block (name, printed title,
  * registration). No signature image. `layout.ts` dispatches here for section 10 and
  * `apps/api/src/jobs/generate/sections/section-10.ts` renders it; neither composes a string.
+ *
+ * Story 22.6 (Bruno, 2026-11-06): the box title is the effective verdict (`effectiveParecer`,
+ * never missing), its text the composed summary, then a summary typed before this story as
+ * "Observações do responsável" (`ownText`). Under Não apto the third fixed bullet ("Apesar dos
+ * resultados dos testes serem positivos...") does not print (DF-4 of the 2026-10-08 field
+ * review), and the fixed reference "nos itens 8 e 9" of a v1 to v7 seed text or of a
+ * template's own text reads the printed positions (`resultsItemsText`, as `{itens_resultados}`
+ * of v8 on). Both are print rules on the seed's text: no new seed version.
  */
 
 export interface LayoutSection10 {
@@ -20,10 +29,12 @@ export interface LayoutSection10 {
   title: string;
   kind: 'section_10';
   parecer: {
-    /** The verdict word, or `[Parecer]` while none is set (a preview; issue is blocked then). */
+    /** The verdict word of the effective verdict (Story 22.6: always one). */
     title: string;
-    /** The confirmed or edited summary; null while unconfirmed. */
+    /** The composed summary (Story 22.6: always printed). */
     text: string | null;
+    /** Story 22.6: a summary typed before Story 22.6, printed after the composed one ("Observações do responsável: …"); null when none. */
+    ownText: string | null;
   };
   /**
    * The section's fixed items, in order: each its plain `text` and, Story 11.4, its printed
@@ -36,9 +47,19 @@ export interface LayoutSection10 {
   signature: { name: string; title: string; registration: string };
 }
 
-// authored: the box title of a relatório with no parecer yet, in the `[Label]` form a
-// section body prints for a missing value (only a preview can print it).
-export const PARECER_MISSING_TITLE = '[Parecer]';
+/** Story 22.6: the seed's start of the third fixed bullet, which never prints under Não apto. */
+const POSITIVE_RESULTS_BULLET = 'Apesar dos resultados dos testes serem positivos';
+
+/** Story 22.6: FO.SERV-03's fixed reference to the results sections, as seeded in v1 to v7 and copied into a template's own text. */
+const FIXED_RESULTS_REFERENCE = 'nos itens 8 e 9';
+
+// authored (Story 22.6, open for Bruno): the paragraph a summary typed before the summary became the composed one prints as.
+export const PARECER_OWN_TEXT_LABEL = 'Observações do responsável';
+
+/** The own-text paragraph: "Observações do responsável: ⟨text⟩". */
+export function parecerOwnTextParagraph(text: string): string {
+  return `${PARECER_OWN_TEXT_LABEL}: ${text}`;
+}
 
 /**
  * "Este relatório tem validade apenas acompanhada da ART 2620262602583" (CREA), "… da TRT 9"
@@ -71,20 +92,25 @@ export function section10Layout(
   snapshot: RelatorioSnapshot,
   base: { number: number; title: string; paragraphs?: readonly { kind?: string; number?: number; text: string; runs?: readonly RichRun[] }[] },
 ): LayoutSection10 {
-  const parecer = parecerOf(snapshot);
+  const verdict = effectiveParecer(snapshot);
+  const reference = resultsItemsText(snapshot);
+  const positioned = (text: string) => text.replaceAll(FIXED_RESULTS_REFERENCE, reference);
   return {
     number: base.number,
     title: base.title,
     kind: 'section_10',
     parecer: {
-      title: parecer === null ? PARECER_MISSING_TITLE : parecerVerdictLabel(parecer.verdict),
+      title: parecerVerdictLabel(verdict),
       text: parecerTextForPrint(snapshot),
+      ownText: parecerOwnText(snapshot),
     },
-    bullets: (base.paragraphs ?? []).map((paragraph) => ({
-      ...(paragraph.kind === 'numbered' ? { kind: 'numbered' as const, ...(paragraph.number === undefined ? {} : { number: paragraph.number }) } : { kind: 'item' as const }),
-      text: paragraph.text,
-      runs: paragraph.runs === undefined ? [{ text: paragraph.text }] : [...paragraph.runs],
-    })),
+    bullets: (base.paragraphs ?? [])
+      .filter((paragraph) => verdict !== 'nao_apto' || !paragraph.text.trimStart().startsWith(POSITIVE_RESULTS_BULLET))
+      .map((paragraph) => ({
+        ...(paragraph.kind === 'numbered' ? { kind: 'numbered' as const, ...(paragraph.number === undefined ? {} : { number: paragraph.number }) } : { kind: 'item' as const }),
+        text: positioned(paragraph.text),
+        runs: paragraph.runs === undefined ? [{ text: positioned(paragraph.text) }] : paragraph.runs.map((run) => ({ ...run, text: positioned(run.text) })),
+      })),
     validityLine: validityLine(snapshot.responsible?.council ?? null, snapshot.relatorio.setup.art_trt_number),
     signature: signatureOf(snapshot.responsible),
   };

@@ -204,7 +204,7 @@ test('@p0 6.6-E2E-001 row 8 opens the empty Points surface; "Criar" writes one p
   await expect(row8(page).locator('.sum-status')).toHaveText('1 ponto · 1 ponto sem prazo');
 });
 
-test('@p0 6.6-E2E-002 an NC row\'s "Criar ponto de atenção" links the sheet\'s equipment and the item\'s photo, and the focus returns to the row', async ({ page }) => {
+test('@p0 6.6-E2E-002 22.5-E2E an NC row\'s "Criar ponto de atenção" links the sheet\'s equipment and the item\'s photo, is written as origin nc with the item, and the focus returns to the row', async ({ page }) => {
   test.setTimeout(150_000);
   const photoId = newId();
   const { relatorioId, sheets, equipmentOf } = await setUp(page, (scope, all) => {
@@ -233,12 +233,14 @@ test('@p0 6.6-E2E-002 an NC row\'s "Criar ponto de atenção" links the sheet\'s
 
   const pointId = expectOnePointAutosaved(await outbox(page));
   const point = (await storedPoints(page)).find((row) => row.id === pointId)!;
-  expect(point).toMatchObject({ equipment_id: equipmentOf.get(chave.blockId), origin: 'manual', action: 'Reapertar e medir de novo' });
+  // Story 22.5: the point replaces the row's derived NC entry (its origin and item).
+  expect(point).toMatchObject({ equipment_id: equipmentOf.get(chave.blockId), origin: 'nc', item_key: FIRST_ITEM.key, action: 'Reapertar e medir de novo' });
   expect(point.text).toBe(`Contato com sinais de aquecimento ${photoToken(photoId)}`);
 
-  // The Points surface titles it by the equipment.
+  // The Points surface titles it by the equipment; the row's derived entry is gone (replaced).
   await page.goto(`/relatorio/${relatorioId}/pontos`);
   await expect(cards(page).first().locator('.poa-title')).toHaveText(`${chave.tag} · Cubículo Enel`, { timeout: 30_000 });
+  await expect(autoCards(page)).toHaveCount(0);
 });
 
 test('@p0 6.6-E2E-003 an untested sheet lists itself after the manual points; a point written from that sheet replaces it', async ({ page }) => {
@@ -439,9 +441,11 @@ test('@p0 6.6-E2E-010 E6-Q2: a point typed and not yet saved when the tab dies i
   await expect(offer).toContainText('Rascunho encontrado');
   await offer.getByRole('button', { name: 'Recuperar' }).click();
   await expect.poll(async () => (await storedPoints(reopened)).map((point) => point.text)).toEqual(['Sem aterramento']);
-  // An item with no photo names no point (E6-Q11): nothing tells its point from another item's.
+  // ~~An item with no photo names no point (E6-Q11)~~ Story 22.5: the recovered point keeps its origin nc and the
+  // item it was written from, so the row names it even with no photo.
+  expect((await storedPoints(reopened))[0]).toMatchObject({ origin: 'nc', item_key: FIRST_ITEM.key });
   const reopenedRow = reopened.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${FIRST_ITEM.key}"]`);
-  await expect(reopenedRow.locator('.nc-point-ref')).toHaveCount(0);
+  await expect(reopenedRow.locator('.nc-point-ref')).toHaveText('Ponto de atenção 1');
 });
 
 test('@p0 6.6-E2E-013 E6-R1: a point typed and reloaded with no hide event first is still offered back, and "Recuperar" stores it', async ({ page }) => {
@@ -796,20 +800,20 @@ test('@p0 P020-E2E-002 a relatório without sections 8 and 10: the saved point\'
   await expect(page.getByTestId('points-announcer')).toHaveText('Ponto de atenção movido: 1 de 2 · não sai no documento: o relatório não tem a seção "Pontos de atenção"');
   await expect.poll(async () => (await outbox(page)).filter((op) => op.path === `point/${pointId}/order_key`)).toHaveLength(1);
 
-  // Etapa 6: the note says the parecer does not print, and the box's kicker too once a verdict is set.
+  // Etapa 6: the note says the parecer does not print, and the box's kicker too. Story 22.6: the two
+  // points make the derived verdict Apto com restrições (Apto disabled), and the summary is the
+  // composed one, read-only, its helper naming no section 10.
   await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
   await expect(page.getByText('Este relatório não tem a seção "Conclusão e parecer": o parecer e a assinatura não saem no documento.', { exact: true })).toBeVisible();
-  const verdict = page.getByRole('radiogroup', { name: 'Parecer' }).getByRole('radio', { name: 'Apto', exact: true });
-  await verdict.click();
-  await expect(verdict).toHaveAttribute('aria-checked', 'true');
+  const verdicts = page.getByRole('radiogroup', { name: 'Parecer' });
+  await expect(verdicts.getByRole('radio', { name: 'Apto com restrições', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(verdicts.getByRole('radio', { name: 'Apto', exact: true })).toBeDisabled();
+  await expect(page.locator('#setup-parecer .conclusion-hint')).toHaveText('O relatório exige no mínimo Apto com restrições: 2 pontos de atenção.');
   await expect(page.locator('.parecer-box .pb-kicker')).toHaveText('Não sai no documento (sem seção "Conclusão e parecer")');
-  // "Confirmar" on the summary: the toast and the confirmed helper name no section 10.
   const field = page.locator('.suggestion-field.is-generated');
-  await field.getByRole('button', { name: 'Confirmar' }).click();
-  await expect(field).toHaveAttribute('data-state', 'confirmed');
-  await expect(toast(page).locator(':scope > span').first()).toHaveText('Resumo do parecer confirmado');
-  await expect(field.locator('.helper').filter({ hasText: 'Confirmado' })).toHaveText('Confirmado · não sai no documento: o relatório não tem a seção "Conclusão e parecer"');
+  await expect(field.getByRole('button')).toHaveCount(0);
+  await expect(field.locator('.helper')).toHaveText('Confirmado · não sai no documento: o relatório não tem a seção "Conclusão e parecer"');
 });
 
 // --- Story 20.4: "Equipamento ou local" ---------------------------------------------------

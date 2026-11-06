@@ -3,6 +3,8 @@ import {
   conclusionRestrictionOf,
   conclusionResultOf,
   conclusionTextOnConclude,
+  effectiveConclusionPair,
+  enabledSubBlocksOf,
   filledByText,
   formatTimeOfDay,
   moveTargets,
@@ -132,6 +134,9 @@ export function useFichaActions({
    * (`conclusionTextOnConclude`: `text`, `text_status = confirmed`, `text_basis`) when the
    * pair is set and no text was confirmed or edited yet (`text_status` null); an edited or
    * already confirmed text is left as it is, and the tap count does not change.
+   * Story 22.4: with the stored pair unset or looser than the floor, the same batch writes the
+   * effective pair (`conclusion/result` and `/restriction` puts) before the text, which is
+   * composed from that same effective pair.
    */
   const conclude = (otherwise: 'jump' | 'next' = 'jump') => {
     if (block.concluded_by !== null) {
@@ -153,8 +158,13 @@ export function useFichaActions({
         // (`useProjectEquipment`, the same source as Story 5.8's "Confirmar"), '' when none.
         const tag = fresh.equipment_id === null ? '' : (rows.equipment.find((row) => row.id === fresh.equipment_id)?.tag ?? '');
         const text = conclusionTextOnConclude(fresh, definition, tag);
+        const pair = fresh.not_tested === null && enabledSubBlocksOf(fresh).has('conclusion') ? effectiveConclusionPair(fresh) : null;
         return [
           ...suggestedInstruments({ blocks, instruments }, blockId).map((suggestion) => testInstrumentOp(by, relatorioId, blockId, suggestion.testKey, suggestion.header)),
+          ...(pair !== null && pair.result !== null && pair.result !== conclusionResultOf(fresh) ? [conclusionOp(by, relatorioId, blockId, 'result', pair.result)] : []),
+          ...(pair !== null && pair.restriction !== null && pair.restriction !== conclusionRestrictionOf(fresh)
+            ? [conclusionOp(by, relatorioId, blockId, 'restriction', pair.restriction)]
+            : []),
           ...(text === null
             ? []
             : [

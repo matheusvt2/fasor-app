@@ -31,9 +31,13 @@ export function hasNotTestedPoint(points: readonly PointRow[], equipmentId: stri
   return equipmentId !== null && points.some((point) => point.removed_at === null && point.origin === 'not_tested' && point.equipment_id === equipmentId);
 }
 
-/** Live manual points with a blank Ação recomendada (a point written from an untested sheet is not asked for one). */
+/**
+ * Live manual points with a blank Ação recomendada (a point written from an untested sheet is
+ * not asked for one). Story 22.5: a point written from an NC row, an out reading or a Reprovado
+ * sheet is the engineer's own, asked for one as a manual point is.
+ */
 export function pointsWithoutAction(points: readonly PointRow[]): PointRow[] {
-  return livePoints(points).filter((point) => point.origin === 'manual' && (point.action === null || point.action.trim() === ''));
+  return livePoints(points).filter((point) => point.origin !== 'not_tested' && (point.action === null || point.action.trim() === ''));
 }
 
 /** "1 ponto sem ação" / "2 pontos sem ação": the pre-issue row of manual points with no action. */
@@ -68,6 +72,13 @@ export interface NewPointInput {
    * point of an equipment or a general one keeps the row shape from before the field existed.
    */
   locationId?: string | null;
+  /**
+   * Story 22.5: the source of a point written from a derived entry (`origin` `nc` with its
+   * checklist item, `reading` with its test). Absent or null: the row carries no key, so every
+   * other point keeps the row shape from before the fields existed.
+   */
+  itemKey?: string | null;
+  testKey?: string | null;
 }
 
 /** A new point, placed after every live point (the end of the manual part of section 8). */
@@ -88,6 +99,8 @@ export function newPointRow(input: NewPointInput, points: readonly PointRow[]): 
     deadline: null,
     owner: null,
     ...(locationId === null ? {} : { location_id: locationId }),
+    ...((input.itemKey ?? null) === null ? {} : { item_key: input.itemKey }),
+    ...((input.testKey ?? null) === null ? {} : { test_key: input.testKey }),
   };
 }
 
@@ -163,16 +176,20 @@ export interface NcRowOwner {
  * Story 14.3: a site item's row matches the same way by its local: the manual points whose
  * `location_id` is that local, citing one of the item's photos. `owner` is the sheet's
  * equipment id (as before) or an `NcRowOwner` naming the equipment or the local.
+ *
+ * Story 22.5: a point written from the row since (`origin` `nc`) names its item (`item_key`):
+ * it matches by that, photo or not, when `itemKey` is given.
  */
-export function ncRowPointPositions(points: readonly PointRow[], owner: string | null | NcRowOwner, itemPhotoIds: readonly string[]): number[] {
+export function ncRowPointPositions(points: readonly PointRow[], owner: string | null | NcRowOwner, itemPhotoIds: readonly string[], itemKey: string | null = null): number[] {
   const equipmentId = typeof owner === 'string' ? owner : (owner?.equipmentId ?? null);
   const locationId = owner === null || typeof owner === 'string' ? null : (owner.locationId ?? null);
-  if ((equipmentId === null && locationId === null) || itemPhotoIds.length === 0) return [];
+  if (equipmentId === null && locationId === null) return [];
   return livePoints(points).flatMap((point, i) => {
-    if (point.origin !== 'manual') return [];
     const ofEquipment = equipmentId !== null && point.equipment_id === equipmentId;
     const ofLocal = locationId !== null && (point.location_id ?? null) === locationId;
     if (!ofEquipment && !ofLocal) return [];
+    if (point.origin === 'nc') return itemKey !== null && point.item_key === itemKey ? [i + 1] : [];
+    if (point.origin !== 'manual' || itemPhotoIds.length === 0) return [];
     return extractPhotoRefs(point.text).some((id) => itemPhotoIds.includes(id)) ? [i + 1] : [];
   });
 }

@@ -36,6 +36,7 @@ export * from './seed/criteria.ts';
 export * from './seed/schema.ts';
 export * from './seed/measurement.ts';
 export * from './seed/definitions.ts';
+export * from './seed/defect-reason.ts';
 export * from './seed/template.ts';
 export * from './seed/voltage-classes.ts';
 export * from './seed/select-option.ts';

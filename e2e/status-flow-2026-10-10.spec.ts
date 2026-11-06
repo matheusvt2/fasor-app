@@ -156,7 +156,8 @@ for (const viewport of WIDTHS) {
     await expect(step(page)).toHaveText(`Rascunho: falta ${gaps} em Dados do relatório. Preencher uma ficha ou as verificações do local passa o relatório a Em campo.`, { timeout: 30_000 });
     await expect(page.locator('.sheet-meta + [data-testid="status-next-step"]')).toHaveCount(1);
     await expect(bar(page).getByTestId('status-next-step')).toHaveCount(0);
-    await expect(foot(page)).toHaveText('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.');
+    // Story 22.6: the parecer is derived, so nothing blocks; the bar says so (and what issuing asks first).
+    await expect(foot(page)).toHaveText(/^Nada impede gerar\./);
     await expect(controle(page)).toContainText('Rev. 1 na primeira emissão');
     await expect(footMarkSent(page)).toHaveCount(0);
 

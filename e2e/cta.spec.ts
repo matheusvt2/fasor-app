@@ -469,11 +469,17 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
   await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toBeVisible();
   await expect(stepper(page).getByRole('button', { name: 'Ensaios, 0 faltando' })).toBeVisible({ timeout: 15_000 });
 
-  // The conclusion: suggested from the NC item and the out reading; its text names both.
+  // The conclusion: Story 22.4, the out reading sets the floor Reprovado · Com restrições (the NC
+  // item alone would give Aprovado · Com restrições); Aprovado is disabled; its text names both.
   await goToStep(page, 'Conclusão', 'conclusao');
   const suggestion = page.getByRole('group', { name: 'Sugestão' });
-  await expect(suggestion).toContainText('Aprovado · Com restrições?');
+  await expect(suggestion).toContainText('Reprovado · Com restrições?');
+  await expect(page.getByRole('radiogroup', { name: 'Resultado' }).getByRole('radio', { name: 'Aprovado', exact: true })).toBeDisabled();
+  await expect(page.locator('.conclusion-control .conclusion-hint').first()).toHaveText(
+    'A ficha exige no mínimo Reprovado · Com restrições: medição fora do critério e item não conforme.',
+  );
   await suggestion.getByRole('button', { name: 'Confirmar' }).click();
+  await expect.poll(async () => lastWritten(page, `sheet/${blockId}/conclusion/result`)).toBe('reprovado');
   await expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Com restrições' })).toHaveAttribute('aria-checked', 'true');
   const text = page.getByRole('textbox', { name: 'Texto da conclusão' });
   await expect(text).toContainText(`chave de transferência automática ${tag}`);
@@ -572,7 +578,7 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
   expect(e4Table!.find((row) => row[0] === 'FALTA DE FASE')).toEqual(['FALTA DE FASE', '-', 'LIGADO', 'LIGADO', 'LIGADO']);
   // The conclusion: the pair marked and the confirmed paragraph, which names the out reading and the NC item.
   const conclusion = titled('CONCLUSÃO').at(-1)!;
-  expect(conclusion[1]).toEqual(['APROVADO', 'X', 'REPROVADO', '', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']);
+  expect(conclusion[1]).toEqual(['APROVADO', '', 'REPROVADO', 'X', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']);
   expect(conclusion[2]![0]).toContain(`A chave de transferência automática ${tag}`);
   expect(conclusion[2]![0]).toContain('Polo C, Lado Emergência (63 µΩ');
   expect(conclusion[2]![0]).toContain('(item 3, NC)');

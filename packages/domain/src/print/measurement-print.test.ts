@@ -435,7 +435,8 @@ describe('section9Layout: a Chave de transferência automática', () => {
     done = applyOp(done, f.op({ path: sheetObservationsPath(CTA_BLOCK), value: 'Polo C do lado Emergência a investigar.' }));
     const cta = printed(blockOf(done)).sheet;
     expect(bands(cta).slice(-2)).toEqual(['OBSERVAÇÕES', 'CONCLUSÃO']);
-    expect(texts(titled(cta, 'CONCLUSÃO'))[1]).toEqual(['APROVADO', 'X', 'REPROVADO', '', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']);
+    // Story 22.4: the out readings make the effective result Reprovado, whatever was tapped.
+    expect(texts(titled(cta, 'CONCLUSÃO'))[1]).toEqual(['APROVADO', '', 'REPROVADO', 'X', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']);
     // No text was confirmed: none prints.
     expect(texts(titled(cta, 'CONCLUSÃO'))).toHaveLength(2);
     expect(cta.parts.some((part) => part.kind === 'paragraph')).toBe(false);

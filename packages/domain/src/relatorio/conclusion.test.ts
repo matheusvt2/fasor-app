@@ -12,15 +12,19 @@ import { getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import {
   composeConclusion,
+  conclusionAdjusted,
   conclusionBasisMatches,
+  conclusionFloor,
+  conclusionFloorReasonText,
   conclusionPairComplete,
+  conclusionSuggestion,
   conclusionSuggestionText,
   conclusionTextForPrint,
   conclusionTextOnConclude,
   conclusionTextState,
+  effectiveConclusionPair,
+  isLooserThanFloor,
   observationRequired,
-  restrictionWarning,
-  suggestConclusionPair,
   suggestedSheetObservation,
 } from './conclusion.ts';
 import { measurementInstrumentHeaderOf } from './instrument-pick.ts';
@@ -70,14 +74,18 @@ const plate: Sheet['nameplate'] = {
 };
 const contatosIndex = SEC.checklist!.findIndex((item) => item.key === 'contatos') + 1;
 
-describe('5.8-UNIT suggestConclusionPair', () => {
-  it('all C/NA and all within: Aprovado · Sem restrições', () => {
-    const pair = suggestConclusionPair(block({ checklist: allC(), test: within() }));
-    expect(pair).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
-    expect(conclusionSuggestionText(pair!)).toBe('Aprovado · Sem restrições?');
+const floorPair = (b: BlockRow) => conclusionFloor(b)?.pair ?? null;
+
+describe('22.4-UNIT conclusionFloor and the suggestion row (amends 5.8 suggestConclusionPair)', () => {
+  it('all C/NA and all within: Aprovado · Sem restrições, no reason, nothing disabled', () => {
+    const b = block({ checklist: allC(), test: within() });
+    expect(conclusionFloor(b)).toEqual({ pair: { result: 'aprovado', restriction: 'sem_restricoes' }, reasons: [] });
+    expect(conclusionSuggestionText(conclusionSuggestion(b)!)).toBe('Aprovado · Sem restrições?');
+    expect(conclusionFloorReasonText(b)).toBeNull();
+    for (const value of ['aprovado', 'reprovado', 'sem_restricoes', 'com_restricoes'] as const) expect(isLooserThanFloor(b, value)).toBe(false);
   });
 
-  it('e21g D6: a v11 transformer whose ratio waits for its group is never Sem restrições; a restriction still suggests Com restrições', () => {
+  it('e21g D6: a v11 transformer whose ratio waits for its group gives no floor; a restriction or a failure still sets one', () => {
     const TRAFO = getDefinition('v11', 'cabine_primaria', 'transformador_forca');
     const trafo = (ligacao: string | null, over: { nc?: boolean; captures?: string } = {}) => {
       const checklist = Object.fromEntries(TRAFO.checklist!.map((item, i) => [item.key, { result: cell(over.nc === true && i === 0 ? 'NC' : 'C'), ...(over.nc === true && i === 0 ? { observation: cell('Obs') } : {}) }]));
@@ -88,31 +96,105 @@ describe('5.8-UNIT suggestConclusionPair', () => {
         { block_type: 'transformador_forca', seed_version: 'v11', config: defaultBlockConfig('v11', 'transformador_forca') },
       );
     };
-    for (const ligacao of [null, '', 'Y']) expect(suggestConclusionPair(trafo(ligacao)), String(ligacao)).toBeNull();
-    expect(suggestConclusionPair(trafo(null, { nc: true }))).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
-    expect(suggestConclusionPair(trafo('Yyn0'))).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
-    expect(suggestConclusionPair(trafo('Yyn0', { captures: '50' }))).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
+    for (const ligacao of [null, '', 'Y']) expect(conclusionFloor(trafo(ligacao)), String(ligacao)).toBeNull();
+    // An NC row's own observation belongs to the NC: one reason.
+    expect(conclusionFloor(trafo(null, { nc: true }))).toEqual({ pair: { result: 'aprovado', restriction: 'com_restricoes' }, reasons: ['nc'] });
+    expect(floorPair(trafo('Yyn0'))).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
+    expect(conclusionFloor(trafo('Yyn0', { captures: '50' }))).toEqual({ pair: { result: 'reprovado', restriction: 'com_restricoes' }, reasons: ['ratio'] });
     // The nameplate sub-block off: the group cannot be filled, so it never withholds Sem restrições.
     const config = defaultBlockConfig('v11', 'transformador_forca') as { sub_blocks: Record<string, { enabled: boolean }> };
     const plateOff = { ...trafo(null), config: { ...config, sub_blocks: { ...config.sub_blocks, nameplate: { enabled: false } } } as BlockRow['config'] };
-    expect(suggestConclusionPair(plateOff)).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
+    expect(floorPair(plateOff)).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
+    // The group missing: the pair stays required (no floor fills it).
+    expect(effectiveConclusionPair(trafo(null))).toEqual({ result: null, restriction: null });
   });
 
-  it('any NC row or any out-of-criterion reading: Aprovado · Com restrições; never Reprovado', () => {
+  it('an NC row, a sheet observation or a row observation: Aprovado · Com restrições; Sem disabled, Reprovado choosable', () => {
     const nc = block({ checklist: { ...allC(), contatos: { result: cell('NC') } }, test: within() });
-    expect(suggestConclusionPair(nc)).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
-    const test = within();
-    test.isolacao!.cells['0'] = { '0': measured('330', 'MΩ') };
-    const out = block({ checklist: allC(), test });
-    expect(suggestConclusionPair(out)).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
-    expect(conclusionSuggestionText(suggestConclusionPair(out)!)).toBe('Aprovado · Com restrições?');
+    expect(conclusionFloor(nc)).toEqual({ pair: { result: 'aprovado', restriction: 'com_restricoes' }, reasons: ['nc'] });
+    expect(isLooserThanFloor(nc, 'sem_restricoes')).toBe(true);
+    expect(isLooserThanFloor(nc, 'reprovado')).toBe(false);
+    expect(isLooserThanFloor(nc, 'aprovado')).toBe(false);
+    expect(conclusionFloorReasonText(nc)).toBe('A ficha exige no mínimo Aprovado · Com restrições: item não conforme.');
+    const sheetObs = block({ checklist: allC(), test: within(), observations: cell('Porta empenada') });
+    expect(conclusionFloor(sheetObs)).toEqual({ pair: { result: 'aprovado', restriction: 'com_restricoes' }, reasons: ['observation'] });
+    const rowObs = block({ checklist: { ...allC(), contatos: { result: cell('C'), observation: cell('Leve oxidação') } }, test: within() });
+    expect(floorPair(rowObs)).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
+    // A blank observation is no text.
+    expect(floorPair(block({ checklist: allC(), test: within(), observations: cell('   ') }))).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
   });
 
-  it('none once any segment is set, when not tested, or while nothing is measured or answered', () => {
-    expect(suggestConclusionPair(block({ checklist: allC(), conclusion: { restriction: cell('sem_restricoes') } }))).toBeNull();
-    expect(suggestConclusionPair(block({ checklist: allC(), conclusion: { result: cell('reprovado') } }))).toBeNull();
-    expect(suggestConclusionPair(block({ checklist: allC() }, { not_tested: { reason: 'solicitacao_cliente', text: null, at: '2026-09-06T12:00:00.000Z', by: ID } }))).toBeNull();
-    expect(suggestConclusionPair(block())).toBeNull();
+  it('an insulation reading of 300 MΩ against >400 MΩ, or a contact reading out: Reprovado · Com restrições; Aprovado and Sem disabled', () => {
+    const test = within();
+    test.isolacao!.cells['0'] = { '0': measured('300', 'MΩ') };
+    const out = block({ checklist: allC(), test });
+    expect(conclusionFloor(out)).toEqual({ pair: { result: 'reprovado', restriction: 'com_restricoes' }, reasons: ['reading'] });
+    expect(conclusionSuggestionText(conclusionSuggestion(out)!)).toBe('Reprovado · Com restrições?');
+    expect(isLooserThanFloor(out, 'aprovado')).toBe(true);
+    expect(isLooserThanFloor(out, 'sem_restricoes')).toBe(true);
+    expect(conclusionFloorReasonText(out)).toBe('A ficha exige no mínimo Reprovado · Com restrições: leitura fora do critério.');
+    const contact = within();
+    contact.resistencia_contato!.cells['2'] = { '0': measured('300', 'µΩ') };
+    const both = block({ checklist: { ...allC(), contatos: { result: cell('NC') } }, test: contact });
+    expect(conclusionFloor(both)?.reasons).toEqual(['reading', 'nc']);
+    expect(conclusionFloorReasonText(both)).toBe('A ficha exige no mínimo Reprovado · Com restrições: leitura fora do critério e item não conforme.');
+  });
+
+  it('a v5 sheet gets the same floor as a v11 one: the rule is the kernel\'s, not the seed\'s', () => {
+    const v5 = (sheet: Partial<Sheet>) =>
+      block(sheet, { seed_version: 'v5', config: defaultBlockConfig('v5', 'chave_seccionadora', { subtype: 'manual' }) });
+    const SEC5 = getDefinition('v5', 'cabine_primaria', 'chave_seccionadora');
+    const allC5 = Object.fromEntries(SEC5.checklist!.map((item) => [item.key, { result: cell('C') }]));
+    const test = within();
+    test.isolacao!.cells['0'] = { '0': measured('300', 'MΩ') };
+    expect(floorPair(v5({ checklist: allC5, test: within() }))).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
+    expect(floorPair(v5({ checklist: allC5, test }))).toEqual({ result: 'reprovado', restriction: 'com_restricoes' });
+    expect(floorPair(v5({ checklist: { ...allC5, contatos: { result: cell('NC') } }, test: within() }))).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
+  });
+
+  it('no suggestion once any segment is set, when not tested, or while nothing is measured or answered', () => {
+    expect(conclusionSuggestion(block({ checklist: allC(), conclusion: { restriction: cell('sem_restricoes') } }))).toBeNull();
+    expect(conclusionSuggestion(block({ checklist: allC(), conclusion: { result: cell('reprovado') } }))).toBeNull();
+    expect(conclusionSuggestion(block({ checklist: allC() }, { not_tested: { reason: 'solicitacao_cliente', text: null, at: '2026-09-06T12:00:00.000Z', by: ID } }))).toBeNull();
+    expect(conclusionFloor(block({ checklist: allC() }, { not_tested: { reason: 'solicitacao_cliente', text: null, at: '2026-09-06T12:00:00.000Z', by: ID } }))).toBeNull();
+    expect(conclusionSuggestion(block())).toBeNull();
+    expect(conclusionFloor(block())).toBeNull();
+  });
+});
+
+describe('22.4-UNIT the effective pair and the adjusted note', () => {
+  const sem = { result: cell('aprovado'), restriction: cell('sem_restricoes') };
+
+  it('per dimension the stricter of the floor and the stored pair; an unset half reads the floor', () => {
+    const test = within();
+    test.isolacao!.cells['0'] = { '0': measured('300', 'MΩ') };
+    expect(effectiveConclusionPair(block({ checklist: allC(), test, conclusion: sem }))).toEqual({ result: 'reprovado', restriction: 'com_restricoes' });
+    // A stored stricter pair stands over a looser floor.
+    expect(effectiveConclusionPair(block({ checklist: allC(), test: within(), conclusion: { result: cell('reprovado'), restriction: cell('com_restricoes') } }))).toEqual({
+      result: 'reprovado',
+      restriction: 'com_restricoes',
+    });
+    expect(effectiveConclusionPair(block({ checklist: allC(), test: within() }))).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
+    expect(effectiveConclusionPair(block({ checklist: allC(), test: within(), conclusion: { result: cell('reprovado') } }))).toEqual({ result: 'reprovado', restriction: 'sem_restricoes' });
+    expect(effectiveConclusionPair(block())).toEqual({ result: null, restriction: null });
+  });
+
+  it('a sheet concluded Aprovado · Sem restrições before a reading was corrected out reads Reprovado and is adjusted', () => {
+    expect(conclusionAdjusted(block({ checklist: allC(), test: within(), conclusion: sem }))).toBe(false);
+    const test = within();
+    test.isolacao!.cells['1'] = { '0': measured('0.3', 'GΩ') };
+    const later = block({ checklist: allC(), test, conclusion: sem });
+    expect(conclusionAdjusted(later)).toBe(true);
+    expect(effectiveConclusionPair(later)).toEqual({ result: 'reprovado', restriction: 'com_restricoes' });
+    // Its composed text recommends the correction (the effective pair), and the stored text is stale.
+    expect(composeConclusion(later, SEC, 'SEC-C05').text).toContain('Recomenda-se a correção dos pontos indicados antes da próxima manutenção.');
+    // An incomplete stored pair is never "adjusted": the floor only fills it.
+    expect(conclusionAdjusted(block({ checklist: allC(), test, conclusion: { result: cell('aprovado') } }))).toBe(false);
+  });
+
+  it('observation required by the effective restriction, the floor\'s included', () => {
+    expect(observationRequired(block({ checklist: { ...allC(), contatos: { result: cell('NC') } }, test: within() }))).toBe(true);
+    expect(observationRequired(block({ checklist: allC(), test: within() }))).toBe(false);
   });
 });
 
@@ -230,13 +312,13 @@ describe('5.8-UNIT composeConclusion', () => {
     expect(withReading).not.toBe(before);
   });
 
-  it('the same evaluation: an out reading drives the field helper, the Com restrições suggestion and the criteria line', () => {
+  it('the same evaluation: an out reading drives the field helper, the floor and the criteria line', () => {
     const test = within();
     test.resistencia_contato!.cells['2'] = { '0': measured('300', 'µΩ') };
     const b = block({ checklist: allC(), test });
     const cellEval = evaluateSheetReadings(b, SEC)[1]!.tables[0]!.rows[2]!.cells[0]!;
     expect(cellEval.helperText).toBe('Acima do aceitável (<250 µΩ)');
-    expect(suggestConclusionPair(b)?.restriction).toBe('com_restricoes');
+    expect(conclusionSuggestion(b)).toEqual({ result: 'reprovado', restriction: 'com_restricoes' });
     const composed = composeConclusion(b, SEC, 'SEC-C05');
     expect(composed.criteriaItems).toContain('R_cont T5-T6–Fase C 300 µΩ · critério <250 µΩ');
     expect(composed.text).toContain('resistência de contato máxima de 300 µΩ em T5-T6–Fase C (critério: <250 µΩ, aceitável na ficha)');
@@ -280,25 +362,31 @@ describe('5.8-UNIT the text lifecycle', () => {
     expect(conclusionTextForPrint(edited)).toBe('meu texto');
   });
 
-  it('E5-A4: a confirmed text is not printable once its result or restriction is cleared', () => {
-    const b = block({ checklist: allC(), test: within(), conclusion: pair });
+  it('E5-A4: a confirmed text is not printable once its result or restriction is cleared (and, Story 22.4, no floor fills it)', () => {
+    // A sheet with nothing measured or answered has no floor: a cleared half leaves the pair incomplete.
+    const b = block({ conclusion: pair });
     const composed = composeConclusion(b, SEC, 'SEC-C05');
     const text = { text: cell(composed.text), text_status: cell('confirmed'), text_basis: cell(composed.basis) };
-    const confirmed = block({ checklist: allC(), test: within(), conclusion: { ...pair, ...text } });
+    const confirmed = block({ conclusion: { ...pair, ...text } });
     expect(conclusionPairComplete(confirmed)).toBe(true);
     expect(conclusionTextForPrint(confirmed)).toBe(composed.text);
 
-    const noResult = block({ checklist: allC(), test: within(), conclusion: { ...pair, ...text, result: cell(null) } });
+    const noResult = block({ conclusion: { ...pair, ...text, result: cell(null) } });
     expect(conclusionPairComplete(noResult)).toBe(false);
     expect(conclusionTextForPrint(noResult)).toBeNull();
 
-    const noRestriction = block({ checklist: allC(), test: within(), conclusion: { ...pair, ...text, restriction: cell(null) } });
+    const noRestriction = block({ conclusion: { ...pair, ...text, restriction: cell(null) } });
     expect(conclusionPairComplete(noRestriction)).toBe(false);
     expect(conclusionTextForPrint(noRestriction)).toBeNull();
 
     // Set again, the stored text prints again (stale or not, as before).
-    const setAgain = block({ checklist: allC(), test: within(), conclusion: { ...pair, ...text, restriction: cell('com_restricoes') } });
+    const setAgain = block({ conclusion: { ...pair, ...text, restriction: cell('com_restricoes') } });
     expect(conclusionTextForPrint(setAgain)).toBe(composed.text);
+
+    // Story 22.4: with a floor, a cleared half reads the floor's, so the pair stays complete.
+    const floored = block({ checklist: allC(), test: within(), conclusion: { ...pair, ...text, result: cell(null) } });
+    expect(conclusionPairComplete(floored)).toBe(true);
+    expect(conclusionTextForPrint(floored)).toBe(composed.text);
   });
 
   it('E5-A4: the basis predicate says whether the text the engineer saw is still the composed one', () => {
@@ -312,13 +400,14 @@ describe('5.8-UNIT the text lifecycle', () => {
     expect(conclusionBasisMatches(seen, SEC, 'SEC-C06', basis)).toBe(false);
   });
 
-  it('Com restrições requires the observation; Sem restrições with an NC row warns', () => {
+  it('Com restrições requires the observation; Sem restrições over an NC row is adjusted to Com (Story 22.4: no warning)', () => {
     expect(observationRequired(block({ conclusion: { restriction: cell('com_restricoes') } }))).toBe(true);
     expect(observationRequired(block({ conclusion: { restriction: cell('sem_restricoes') } }))).toBe(false);
     const nc = { ...allC(), contatos: { result: cell('NC') } };
-    expect(restrictionWarning(block({ checklist: nc, conclusion: { restriction: cell('sem_restricoes') } }))).toBe('Há itens não conformes');
-    expect(restrictionWarning(block({ checklist: allC(), conclusion: { restriction: cell('sem_restricoes') } }))).toBeNull();
-    expect(restrictionWarning(block({ checklist: nc, conclusion: { restriction: cell('com_restricoes') } }))).toBeNull();
+    const semOverNc = block({ checklist: nc, conclusion: { result: cell('aprovado'), restriction: cell('sem_restricoes') } });
+    expect(effectiveConclusionPair(semOverNc).restriction).toBe('com_restricoes');
+    expect(observationRequired(semOverNc)).toBe(true);
+    expect(conclusionAdjusted(semOverNc)).toBe(true);
   });
 });
 
@@ -391,8 +480,12 @@ describe('R8CONC-UNIT conclusionTextOnConclude (review 2026-10-08 Decision 1, JR
     const staleConfirmed = stored('confirmed', 'deadbeef');
     expect(conclusionTextState(staleConfirmed, composeConclusion(staleConfirmed, SEC, 'SEC-C05'))).toBe('stale');
     expect(conclusionTextOnConclude(staleConfirmed, SEC, 'SEC-C05')).toBeNull();
-    expect(conclusionTextOnConclude(block({ ...b.sheet, conclusion: { result: cell('aprovado') } }), SEC, 'SEC-C05')).toBeNull();
-    expect(conclusionTextOnConclude(block({ ...b.sheet, conclusion: { restriction: cell('sem_restricoes') } }), SEC, 'SEC-C05')).toBeNull();
+    // Story 22.4: a half the floor fills is no longer missing; with no floor (nothing measured or answered) it is.
+    expect(conclusionTextOnConclude(block({ ...b.sheet, conclusion: { result: cell('aprovado') } }), SEC, 'SEC-C05')).toEqual({ text: composed.text, basis: composed.basis });
+    expect(conclusionTextOnConclude(block({ conclusion: { result: cell('aprovado') } }), SEC, 'SEC-C05')).toBeNull();
+    expect(conclusionTextOnConclude(block({ conclusion: { restriction: cell('sem_restricoes') } }), SEC, 'SEC-C05')).toBeNull();
+    // With nothing stored at all, the floor alone completes the pair: "Concluir ficha" writes both and the text.
+    expect(conclusionTextOnConclude(block({ ...b.sheet, conclusion: {} }), SEC, 'SEC-C05')).toEqual({ text: composed.text, basis: composed.basis });
     // The conclusion is locked on in every equipment config (LOCKED_SUB_BLOCKS); a config that
     // enables no sub-block at all is the one way to turn it off and exercise the guard.
     expect(conclusionTextOnConclude(block(b.sheet, { config: { block_type: 'section_8', sub_blocks: {}, na_defaults: [] } }), SEC, 'SEC-C05')).toBeNull();
@@ -444,6 +537,52 @@ describe('R8CONC-UNIT conclusionTextOnConclude (review 2026-10-08 Decision 1, JR
     expect(undone.concluded_by).toEqual(original.concluded_by);
     expect(conclusionTextState(undone, composeConclusion(undone, SEC, 'SEC-C05'))).toBe('unconfirmed');
     expect(conclusionTextForPrint(undone)).toBeNull();
+  });
+
+  /** Story 22.4: the batch "Concluir ficha" writes now: the effective pair where the stored one differs, then the text ops and `concluded_by`. */
+  function floorBatch(b: BlockRow, tag: string): Op[] {
+    const f = opFactory(undefined, idSequence('019966b0-0054-7000-8000-'));
+    const batch_id = '019966b0-0051-7000-8000-000000000098';
+    const pair = effectiveConclusionPair(b);
+    const text = conclusionTextOnConclude(b, SEC, tag)!;
+    return [
+      ...(pair.result !== null && pair.result !== b.sheet.conclusion.result?.value ? [f.op({ path: sheetConclusionPath(b.id, 'result'), value: pair.result, batch_id })] : []),
+      ...(pair.restriction !== null && pair.restriction !== b.sheet.conclusion.restriction?.value
+        ? [f.op({ path: sheetConclusionPath(b.id, 'restriction'), value: pair.restriction, batch_id })]
+        : []),
+      f.op({ path: sheetConclusionPath(b.id, 'text'), value: text.text, batch_id }),
+      f.op({ path: sheetConclusionPath(b.id, 'text_status'), value: 'confirmed', batch_id }),
+      f.op({ path: sheetConclusionPath(b.id, 'text_basis'), value: text.basis, batch_id }),
+      f.op({ path: blockFieldPath(b.id, 'concluded_by'), value: { actor_id: ID, at: '2026-09-06T12:00:00.000Z' }, batch_id }),
+    ];
+  }
+
+  it('22.4: with no pair chosen, the fold of the Concluir batch stores the floor Aprovado · Sem restrições and the confirmed text', () => {
+    const original = block({ checklist: allC(), test: within(), nameplate: plate });
+    const key = entityKey('block', original.id);
+    const batch = floorBatch(original, 'SEC-C05');
+    expect(batch.map((op) => op.path.split('/').at(-1))).toEqual(['result', 'restriction', 'text', 'text_status', 'text_basis', 'concluded_by']);
+    const concluded = batch.reduce((s, op) => applyOp(s, op), new Map([[key, original]]) as EntityState).get(key) as BlockRow;
+    expect(concluded.sheet.conclusion.result?.value).toBe('aprovado');
+    expect(concluded.sheet.conclusion.restriction?.value).toBe('sem_restricoes');
+    expect(conclusionAdjusted(concluded)).toBe(false);
+    const composed = composeConclusion(concluded, SEC, 'SEC-C05');
+    expect(conclusionTextState(concluded, composed)).toBe('confirmed');
+    expect(conclusionTextForPrint(concluded)).toBe(composed.text);
+  });
+
+  it('22.4: a stored Aprovado · Sem restrições over an out reading: the batch writes Reprovado · Com restrições, and the text it confirms recommends the correction', () => {
+    const test = within();
+    test.isolacao!.cells['0'] = { '0': measured('300', 'MΩ') };
+    const original = block({ checklist: allC(), test, nameplate: plate, conclusion: { result: cell('aprovado'), restriction: cell('sem_restricoes') } });
+    expect(conclusionAdjusted(original)).toBe(true);
+    const key = entityKey('block', original.id);
+    const batch = floorBatch(original, 'SEC-C05');
+    const concluded = batch.reduce((s, op) => applyOp(s, op), new Map([[key, original]]) as EntityState).get(key) as BlockRow;
+    expect([concluded.sheet.conclusion.result?.value, concluded.sheet.conclusion.restriction?.value]).toEqual(['reprovado', 'com_restricoes']);
+    expect(conclusionAdjusted(concluded)).toBe(false);
+    expect(conclusionTextForPrint(concluded)).toContain('Recomenda-se a correção dos pontos indicados antes da próxima manutenção.');
+    expect(conclusionTextState(concluded, composeConclusion(concluded, SEC, 'SEC-C05'))).toBe('confirmed');
   });
 });
 
@@ -572,34 +711,31 @@ describe('p020 P-3 (v0.2.0 production check): a CTA concluded with "Concluir e a
   });
 });
 
-describe('17.5-UNIT a ratio row INSATISFATÓRIO feeds the suggestion, the warning and the composed conclusion (F42, E15-A2)', () => {
+describe('17.5-UNIT a ratio row INSATISFATÓRIO feeds the floor and the composed conclusion (F42, E15-A2; Story 22.4)', () => {
   const TP = getDefinition('v1', 'cabine_primaria', 'tp');
   const tpAllC = (): Sheet['checklist'] => Object.fromEntries(TP.checklist!.map((item) => [item.key, { result: cell('C') }]));
   const ratio = (capture: string): Sheet['test'] => ({ relacao_transformacao: { cells: { '0': { '0': measured('13.8', 'kV'), '1': measured('115', 'V'), '3': measured(capture, null) } } } });
   const tpBlock = (sheet: Partial<Sheet>) => block(sheet, { block_type: 'tp', config: defaultBlockConfig('v1', 'tp') });
   const ncKey = TP.checklist![0]!.key;
 
-  it('B1: a failed ratio and nothing else suggests Aprovado · Com restrições', () => {
+  it('B1 (Story 22.4): a failed ratio and nothing else gives Reprovado · Com restrições', () => {
     const b = tpBlock({ test: ratio('125') });
-    expect(suggestConclusionPair(b)).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
-    expect(conclusionSuggestionText(suggestConclusionPair(b)!)).toBe('Aprovado · Com restrições?');
-    // Every row within: as today.
-    expect(suggestConclusionPair(tpBlock({ test: ratio('120.1') }))).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
+    expect(conclusionFloor(b)).toEqual({ pair: { result: 'reprovado', restriction: 'com_restricoes' }, reasons: ['ratio'] });
+    expect(conclusionSuggestionText(conclusionSuggestion(b)!)).toBe('Reprovado · Com restrições?');
+    // Every row within: as before.
+    expect(floorPair(tpBlock({ test: ratio('120.1') }))).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
     // At the limit (0,5 %): within.
-    expect(suggestConclusionPair(tpBlock({ test: ratio('120.6') }))?.restriction).toBe('sem_restricoes');
+    expect(floorPair(tpBlock({ test: ratio('120.6') }))?.restriction).toBe('sem_restricoes');
   });
 
-  it('B2: Sem restrições over a failed ratio warns with the authored sentence; with an NC row too, one sentence naming both', () => {
+  it('B2 (Story 22.4): Sem restrições over a failed ratio is adjusted; the reason line names the ratio, and the NC row with it', () => {
     const sem = { result: cell('aprovado'), restriction: cell('sem_restricoes') };
-    expect(restrictionWarning(tpBlock({ test: ratio('125'), conclusion: sem }))).toBe('Há relação de transformação insatisfatória em Fase R');
-    expect(restrictionWarning(tpBlock({ test: ratio('125'), checklist: { ...tpAllC(), [ncKey]: { result: cell('NC') } }, conclusion: sem }))).toBe(
-      'Há itens não conformes e relação de transformação insatisfatória em Fase R',
+    expect(conclusionAdjusted(tpBlock({ test: ratio('125'), conclusion: sem }))).toBe(true);
+    expect(conclusionFloorReasonText(tpBlock({ test: ratio('125'), conclusion: sem }))).toBe('A ficha exige no mínimo Reprovado · Com restrições: relação de transformação insatisfatória.');
+    expect(conclusionFloorReasonText(tpBlock({ test: ratio('125'), checklist: { ...tpAllC(), [ncKey]: { result: cell('NC') } }, conclusion: sem }))).toBe(
+      'A ficha exige no mínimo Reprovado · Com restrições: relação de transformação insatisfatória e item não conforme.',
     );
-    // NC only and within only: as today.
-    expect(restrictionWarning(tpBlock({ test: ratio('120.1'), checklist: { ...tpAllC(), [ncKey]: { result: cell('NC') } }, conclusion: sem }))).toBe('Há itens não conformes');
-    expect(restrictionWarning(tpBlock({ test: ratio('120.1'), conclusion: sem }))).toBeNull();
-    // Com restrições: no warning.
-    expect(restrictionWarning(tpBlock({ test: ratio('125'), conclusion: { result: cell('aprovado'), restriction: cell('com_restricoes') } }))).toBeNull();
+    expect(conclusionAdjusted(tpBlock({ test: ratio('120.1'), conclusion: sem }))).toBe(false);
   });
 
   it('B3: the composed text names the ratio clause, the criteria line its item, and the basis differs from the within case', () => {

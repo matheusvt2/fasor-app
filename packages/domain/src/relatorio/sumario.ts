@@ -16,7 +16,7 @@ import { locationRestoreDetailText, locationRestorePlan, removedAncestorIds, typ
 import { isEquipmentBlock } from './sheet-state.ts';
 import { locationControlName } from './tree.ts';
 import { pointsSummary, pointsSummaryText } from '../points/summary.ts';
-import { parecerOf, parecerVerdictLabel } from './parecer.ts';
+import { effectiveParecer, parecerVerdictLabel } from './parecer.ts';
 import { certificatesAttachedText, instrumentsCountText, section11Instruments } from '../print/section-11.ts';
 import { getSeed, siteChecklistOf } from '../seed/definitions.ts';
 import { idleRevisionNumber, latestRevision, revisionTitle } from '../print/revisions.ts';
@@ -230,11 +230,9 @@ function metaOfSection(block: Pick<BlockRow, 'block_type' | 'config'>, issues: r
   }
   // Stories 6.3/6.5: "82 fotos · 1 sem legenda · 3 aguardando envio", like section 9's counter.
   if (block.block_type === 'section_7') return join([photoCountText(livePhotos(snapshot).length), ...own]);
-  // Story 7.4: row 10 names what stops it ("Parecer não preenchido"), else the verdict set.
-  if (block.block_type === 'section_10' && own.length === 0) {
-    const parecer = parecerOf(snapshot);
-    if (parecer !== null) return parecerVerdictLabel(parecer.verdict);
-  }
+  // Story 7.4: row 10 names the verdict. Story 22.6: the effective one (derived from the
+  // fichas, or a stricter one the engineer chose), always set.
+  if (block.block_type === 'section_10' && own.length === 0) return parecerVerdictLabel(effectiveParecer(snapshot));
   // Story 7.3: "3 instrumentos", then its own pre-issue rows, like section 7.
   // With no instrument at all, the pre-issue row already says so; the count would repeat it.
   // Review fixes 2026-10-06 (F-15): then how many certificates are attached; with none, that

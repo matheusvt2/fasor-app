@@ -3,7 +3,7 @@ import { applyOp, entityKey } from '../ops/apply.ts';
 import { blockFieldPath, sheetConclusionPath, sheetObservationsPath } from '../ops/path.ts';
 import type { BlockRow, JsonValue } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
-import { composeConclusion, conclusionSuggestionText, conclusionTextOnConclude, suggestConclusionPair } from './conclusion.ts';
+import { composeConclusion, conclusionSuggestionText, conclusionTextOnConclude, conclusionSuggestion } from './conclusion.ts';
 import {
   blockConfigWithOption,
   blockConfigWithSubBlock,
@@ -154,14 +154,14 @@ describe('Epic 14 QA Q-3: a zero or negative reading on E1 is refused at input, 
     expect(cellOf(block, E1, 'polo_b', 'lado_normal')).toMatchObject({ verdict: 'within', toCheck: false, helperText: null, positiveOnlyText: POSITIVE });
     expect(testOf(block, E1).reference!.cells[0]!.text).toBe('40 µΩ');
     expect(anyMeasurementToCheck(evaluate(block))).toBe(true);
-    expect(suggestConclusionPair(block)).toBeNull();
+    expect(conclusionSuggestion(block)).toBeNull();
     const text = composeConclusion(block, definition, CTA_TAG).text;
     expect(text).not.toMatch(/dentro dos critérios/);
     expect(text).toMatch(/valores medidos com leitura a conferir/);
     // The 0 corrected: the suggestion and the "within" wording come back.
     const fixed = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: micro('39'), polo_b: micro('40'), polo_c: micro('41') }));
     expect(anyMeasurementToCheck(evaluate(fixed))).toBe(false);
-    expect(conclusionSuggestionText(suggestConclusionPair(fixed)!)).toBe('Aprovado · Sem restrições?');
+    expect(conclusionSuggestionText(conclusionSuggestion(fixed)!)).toBe('Aprovado · Sem restrições?');
     expect(composeConclusion(fixed, definition, CTA_TAG).text).toMatch(/dentro dos critérios/);
   });
 
@@ -169,10 +169,10 @@ describe('Epic 14 QA Q-3: a zero or negative reading on E1 is refused at input, 
     const zeros = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: micro('0'), polo_b: micro('0'), polo_c: micro('900') }));
     expect(testOf(zeros, E1).rows.map((row) => row.cells[0]!.toCheck)).toEqual([true, true, false]);
     expect(verdicts(zeros, E1, 'lado_normal')).toEqual([null, null, null]);
-    expect(suggestConclusionPair(zeros)).toBeNull();
+    expect(conclusionSuggestion(zeros)).toBeNull();
     const negative = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: micro('-3'), polo_b: micro('40'), polo_c: micro('41') }));
     expect(cellOf(negative, E1, 'polo_a', 'lado_normal')).toMatchObject({ verdict: null, toCheck: true, helperText: CHECK });
-    expect(suggestConclusionPair(negative)).toBeNull();
+    expect(conclusionSuggestion(negative)).toBeNull();
     // A test switched off judges nothing: nothing to check either.
     const off: BlockRow = { ...zeros, config: blockConfigWithSubBlock(zeros.config, 'cta_resistencia_contato', false) };
     expect(anyMeasurementToCheck(evaluate(off))).toBe(false);
@@ -743,8 +743,10 @@ describe('sheetProgress counts the measurement tests in the Ensaios step', () =>
     // One pole out of the relative limit and one setting left different from the project.
     expect(progress.steps.ensaios).toEqual({ missing: 0, outOfLimit: 2 });
     expect(stepMayCollapse(progress, 'ensaios')).toBe(false);
-    expect(progress.steps.conclusao.missing).toBe(2);
-    expect(sheetSummaryText(progress, shownSheetSteps(block))).toBe('Placa, verificações e leituras prontas · falta a conclusão');
+    // Story 22.4: the out readings set the floor Reprovado · Com restrições, so the pair is filled
+    // and only the observation Com restrições requires is missing.
+    expect(progress.steps.conclusao).toEqual({ missing: 1, outOfLimit: 0, observation: 1 });
+    expect(sheetSummaryText(progress, shownSheetSteps(block))).toBe('Placa, verificações e leituras prontas · faltam as observações');
     expect(sheetState(block)).toBe('em_preenchimento');
     // With the pair set (Com restrições asks for the sheet observation) nothing is missing.
     let done = applyOp(filled, f.op({ path: sheetConclusionPath(CTA_BLOCK, 'result'), value: 'aprovado' }));
@@ -758,7 +760,7 @@ describe('sheetProgress counts the measurement tests in the Ensaios step', () =>
   it('a sheet marked not tested asks for nothing', () => {
     const block: BlockRow = { ...ctaBlock(), not_tested: { reason: 'impossibilidade_desligamento', text: null, at: '2026-09-21T12:00:00.000Z', by: ctaRows().block.created_by ?? '019966b0-0003-7000-8000-000000000002' } };
     expect(progressOf(block)).toMatchObject({ complete: true });
-    expect(suggestConclusionPair(block)).toBeNull();
+    expect(conclusionSuggestion(block)).toBeNull();
   });
 
   it('a value counts as a filled cell of its test: the sheet is "em preenchimento" from the first one, unless the test is off', () => {
@@ -775,20 +777,20 @@ describe('the conclusion reads the measurement tests', () => {
     return { state: writeSheet(state, f, ctaFilledWrites()), f };
   };
 
-  it('suggests "Aprovado · Com restrições?" with an out reading or an NC item, "Sem restrições?" with neither, nothing on an untouched sheet', () => {
-    expect(suggestConclusionPair(ctaBlock())).toBeNull();
+  it('Story 22.4: suggests "Reprovado · Com restrições?" with an out reading, "Sem restrições?" with neither, nothing on an untouched sheet', () => {
+    expect(conclusionSuggestion(ctaBlock())).toBeNull();
     const within = ctaBlock({ polos: '4' }, NORMAL);
-    expect(conclusionSuggestionText(suggestConclusionPair(within)!)).toBe('Aprovado · Sem restrições?');
+    expect(conclusionSuggestionText(conclusionSuggestion(within)!)).toBe('Aprovado · Sem restrições?');
     const out = ctaBlock({ polos: '4' }, [...NORMAL, ...EMERGENCIA]);
-    expect(conclusionSuggestionText(suggestConclusionPair(out)!)).toBe('Aprovado · Com restrições?');
-    // A choice out of its criterion restricts too, and so does a setting left different.
-    expect(suggestConclusionPair(ctaBlock({}, [{ test: E6, row: 'normal_a', col: 'classe', value: choice('grave') }]))).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
+    expect(conclusionSuggestionText(conclusionSuggestion(out)!)).toBe('Reprovado · Com restrições?');
+    // A choice out of its criterion fails too, and so does a setting left different.
+    expect(conclusionSuggestion(ctaBlock({}, [{ test: E6, row: 'normal_a', col: 'classe', value: choice('grave') }]))).toEqual({ result: 'reprovado', restriction: 'com_restricoes' });
     // A test value alone is not a measurement: nothing is suggested yet.
-    expect(suggestConclusionPair(ctaBlock({}, [{ test: E5, key: 'metodo', value: choice('falta_real') }]))).toBeNull();
+    expect(conclusionSuggestion(ctaBlock({}, [{ test: E5, key: 'metodo', value: choice('falta_real') }]))).toBeNull();
     // An out reading of a test switched off, or of one not run, restricts nothing.
     const off: BlockRow = { ...out, config: blockConfigWithSubBlock(out.config, 'cta_resistencia_contato', false) };
-    expect(suggestConclusionPair(off)).toBeNull();
-    expect(conclusionSuggestionText(suggestConclusionPair(blockOf(filled().state))!)).toBe('Aprovado · Com restrições?');
+    expect(conclusionSuggestion(off)).toBeNull();
+    expect(conclusionSuggestionText(conclusionSuggestion(blockOf(filled().state))!)).toBe('Reprovado · Com restrições?');
   });
 
   it('the composed text names the NC item and each out reading with its criterion and source', () => {
@@ -798,7 +800,8 @@ describe('the conclusion reads the measurement tests', () => {
       'A chave de transferência automática CTA-GER (valor fabricante, 400 V, 400 A) apresentou ' +
         'resistência de contato fora do critério em Polo C, Lado Emergência (63 µΩ; critério: ≤ 50 % acima do menor do mesmo lado, NETA 7.22.3 (fonte secundária)) e ' +
         'ajustes do controlador fora do critério em TD 3A · retransferência, Deixado (30 min; critério: Deixado = projeto, manual do fabricante do controlador; ficha DTAC (RJ)) e ' +
-        'Aviso de transferência manual ausente na tampa frontal (item 3, NC).',
+        // Story 22.4: the effective pair (the floor's Reprovado · Com restrições) recommends the correction.
+        'Aviso de transferência manual ausente na tampa frontal (item 3, NC). Recomenda-se a correção dos pontos indicados antes da próxima manutenção.',
     );
     expect(composed.criteriaItems).toEqual([
       'E1 Polo C, Lado Emergência 63 µΩ · critério ≤ 50 % acima do menor do mesmo lado',
@@ -817,7 +820,7 @@ describe('the conclusion reads the measurement tests', () => {
     const before = composeConclusion(blockOf(state), definition, CTA_TAG);
     const after = composeConclusion(blockOf(fixed), definition, CTA_TAG);
     expect(after.text).toBe(
-      'A chave de transferência automática CTA-GER (valor fabricante, 400 V, 400 A) apresentou valores medidos dentro dos critérios de aceitação e Aviso de transferência manual ausente na tampa frontal (item 3, NC).',
+      'A chave de transferência automática CTA-GER (valor fabricante, 400 V, 400 A) apresentou valores medidos dentro dos critérios de aceitação e Aviso de transferência manual ausente na tampa frontal (item 3, NC). Recomenda-se a correção dos pontos indicados antes da próxima manutenção.',
     );
     expect(after.criteriaItems).toEqual(['item 3 NC']);
     expect(after.basis).not.toBe(before.basis);
@@ -831,8 +834,9 @@ describe('the conclusion reads the measurement tests', () => {
 
   it('"Concluir ficha" confirms the composed text with the pair, as on a seeded sheet', () => {
     const { state, f } = filled();
+    // Story 22.4: the floor (Reprovado · Com restrições) completes the pair before any tap.
+    expect(conclusionTextOnConclude(blockOf(state), definition, CTA_TAG)).not.toBeNull();
     let done = applyOp(state, f.op({ path: sheetConclusionPath(CTA_BLOCK, 'result'), value: 'aprovado' }));
-    expect(conclusionTextOnConclude(blockOf(done), definition, CTA_TAG)).toBeNull();
     done = applyOp(done, f.op({ path: sheetConclusionPath(CTA_BLOCK, 'restriction'), value: 'com_restricoes' }));
     const text = conclusionTextOnConclude(blockOf(done), definition, CTA_TAG)!;
     expect(text.text).toMatch(/^A chave de transferência automática CTA-GER .* Recomenda-se a correção dos pontos indicados antes da próxima manutenção\.$/);

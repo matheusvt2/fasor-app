@@ -498,19 +498,23 @@ describe('7.1 section9Layout: the I/O matrix', () => {
       expect(criteria).toBeNull();
     });
 
-    it('confirmed but stale, unconfirmed, or the pair incomplete: the pair row prints and the text does not', () => {
-      for (const built of [
-        withText('confirmed', 'stale-basis'),
-        withText(null, basis),
-        withText('edited', basis, (b) => {
-          delete b.sheet.conclusion.restriction;
-          return b;
-        }),
-      ]) {
+    it('confirmed but stale, or unconfirmed: the pair row prints and the text does not', () => {
+      for (const built of [withText('confirmed', 'stale-basis'), withText(null, basis)]) {
         const { rows, criteria } = conclusionOf(built);
         expect(rows).toHaveLength(2);
         expect(criteria).toBeNull();
       }
+    });
+
+    it('Story 22.4: a stored half cleared on a sheet with a floor reads the floor, so the pair stays complete, marked, and the edited text prints', () => {
+      const built = withText('edited', basis, (b) => {
+        delete b.sheet.conclusion.restriction;
+        return b;
+      });
+      const { rows } = conclusionOf(built);
+      expect(rows).toHaveLength(3);
+      // The NC row's floor is Com restrições.
+      expect(rows[1]).toEqual(['APROVADO', 'X', 'REPROVADO', '', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']);
     });
 
     // p020 P-3: a stored text equal to the composed one is never stale, so it prints.

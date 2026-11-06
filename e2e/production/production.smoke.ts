@@ -312,12 +312,12 @@ test('production smoke: sign in, edit and sync, a sheet photo, a plate reading, 
   });
 
   await step('7. generate a revision', async () => {
-    // "Parecer não preenchido" is the one row that stops "Gerar relatório": Etapa 6 first.
+    // Story 22.6: the verdict is derived from the fichas and never blocks; Etapa 6 shows it, one
+    // segment checked, whichever the sample's sheets give (a looser segment is disabled, never tapped).
     await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
     await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeVisible({ timeout: 30_000 });
-    const apto = page.getByRole('radiogroup', { name: 'Parecer' }).getByRole('radio', { name: 'Apto', exact: true });
-    await apto.click();
-    await expect(apto).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('radiogroup', { name: 'Parecer' }).locator('[role="radio"][aria-checked="true"]')).toHaveCount(1);
+    await expect(page.locator('.parecer-box .pb-verdict')).toHaveText(/^(Apto|Apto com restrições|Não apto)$/);
     await page.goto(`/relatorio/${relatorioId}`);
     await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
 

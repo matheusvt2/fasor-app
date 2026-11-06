@@ -195,23 +195,29 @@ describe('6.6-UNIT derivedPoints', () => {
 
 describe('6.6-UNIT groupDerivedPoints (E3-A9 bullet 4)', () => {
   const entry = (block_id: string, reason_key: string, justification: string | null): DerivedPoint => ({
+    kind: 'not_tested',
+    key: `not_tested:${block_id}`,
     block_id,
+    location_id: null,
     equipment_id: null,
     name: block_id,
     title: block_id,
     reason_key,
     reason_label: reason_key,
     justification,
+    text: justification ?? reason_key,
+    item_key: null,
+    test_key: null,
   });
 
   it('merges consecutive entries with the same reason and justification, and only consecutive ones', () => {
     expect(
       groupDerivedPoints([entry('1', 'r', 'J'), entry('2', 'r', 'J'), entry('3', 'r', 'K'), entry('4', 's', 'K'), entry('5', 'r', 'J')]),
     ).toEqual([
-      { reason_key: 'r', justification: 'J', block_ids: ['1', '2'] },
-      { reason_key: 'r', justification: 'K', block_ids: ['3'] },
-      { reason_key: 's', justification: 'K', block_ids: ['4'] },
-      { reason_key: 'r', justification: 'J', block_ids: ['5'] },
+      { kind: 'not_tested', reason_key: 'r', justification: 'J', block_ids: ['1', '2'], keys: ['not_tested:1', 'not_tested:2'] },
+      { kind: 'not_tested', reason_key: 'r', justification: 'K', block_ids: ['3'], keys: ['not_tested:3'] },
+      { kind: 'not_tested', reason_key: 's', justification: 'K', block_ids: ['4'], keys: ['not_tested:4'] },
+      { kind: 'not_tested', reason_key: 'r', justification: 'J', block_ids: ['5'], keys: ['not_tested:5'] },
     ]);
     expect(groupDerivedPoints([])).toEqual([]);
   });
@@ -230,7 +236,7 @@ describe('6.6-UNIT pointsSummary and row 8', () => {
     const first = point(marked, { action: 'Instalar plaquetas' });
     const snapshot = withPoints(marked, first, point(withPoints(marked, first), { action: '  ' }));
     const summary = pointsSummary(snapshot);
-    expect(summary).toEqual({ total: 5, semAcao: 1, naoEnsaiadas: 3, derived: 3 });
+    expect(summary).toEqual({ total: 5, semAcao: 1, naoEnsaiadas: 3, derived: 3, derivedNotTested: 3 });
     expect(pointsSummaryText(summary)).toBe('2 pontos + 3 automáticos · 1 sem ação');
     const computed = progress(snapshot);
     const row8 = sumarioRows(snapshot, preIssue(snapshot, computed), computed).find((row) => row.rowKey === 'section_8')!;
@@ -244,10 +250,10 @@ describe('6.6-UNIT pointsSummary and row 8', () => {
   });
 
   it('omits the parts that are 0, and names an empty section 8', () => {
-    expect(pointsSummaryText({ total: 0, semAcao: 0, naoEnsaiadas: 0, derived: 0 })).toBe('Nenhum ponto de atenção');
+    expect(pointsSummaryText({ total: 0, semAcao: 0, naoEnsaiadas: 0, derived: 0, derivedNotTested: 0 })).toBe('Nenhum ponto de atenção');
     // A live point written from a sheet still untested (no derived entry).
-    expect(pointsSummaryText({ total: 1, semAcao: 0, naoEnsaiadas: 1, derived: 0 })).toBe('1 ponto · 1 não ensaiada');
-    expect(pointsSummaryText({ total: 2, semAcao: 2, naoEnsaiadas: 0, derived: 0 })).toBe('2 pontos · 2 sem ação');
+    expect(pointsSummaryText({ total: 1, semAcao: 0, naoEnsaiadas: 1, derived: 0, derivedNotTested: 0 })).toBe('1 ponto · 1 não ensaiada');
+    expect(pointsSummaryText({ total: 2, semAcao: 2, naoEnsaiadas: 0, derived: 0, derivedNotTested: 0 })).toBe('2 pontos · 2 sem ação');
     const computed = progress(base);
     const row8 = sumarioRows(base, preIssue(base, computed), computed).find((row) => row.rowKey === 'section_8')!;
     expect(row8.meta).toBe('Nenhum ponto de atenção');
@@ -256,25 +262,25 @@ describe('6.6-UNIT pointsSummary and row 8', () => {
 
   it('15.2-UNIT F34: counts the automatic point once, after the live points', () => {
     // 1 live point + 1 derived entry: Bruno's app read "2 pontos · 1 não ensaiada".
-    expect(pointsSummaryText({ total: 2, semAcao: 0, naoEnsaiadas: 1, derived: 1 })).toBe('1 ponto + 1 automático');
-    expect(pointsSummaryText({ total: 5, semAcao: 1, naoEnsaiadas: 1, derived: 1 })).toBe('4 pontos + 1 automático · 1 sem ação');
+    expect(pointsSummaryText({ total: 2, semAcao: 0, naoEnsaiadas: 1, derived: 1, derivedNotTested: 1 })).toBe('1 ponto + 1 automático');
+    expect(pointsSummaryText({ total: 5, semAcao: 1, naoEnsaiadas: 1, derived: 1, derivedNotTested: 1 })).toBe('4 pontos + 1 automático · 1 sem ação');
     // Only automatic points: the count alone, never "0 pontos + ..." (fix batch fx15q).
-    expect(pointsSummaryText({ total: 1, semAcao: 0, naoEnsaiadas: 1, derived: 1 })).toBe('1 automático');
-    expect(pointsSummaryText({ total: 2, semAcao: 0, naoEnsaiadas: 2, derived: 2 })).toBe('2 automáticos');
-    expect(pointsSummaryText({ total: 2, semAcao: 1, naoEnsaiadas: 2, derived: 2 })).toBe('2 automáticos · 1 sem ação');
-    expect(pointsSummaryText({ total: 3, semAcao: 0, naoEnsaiadas: 0, derived: 0 })).toBe('3 pontos');
+    expect(pointsSummaryText({ total: 1, semAcao: 0, naoEnsaiadas: 1, derived: 1, derivedNotTested: 1 })).toBe('1 automático');
+    expect(pointsSummaryText({ total: 2, semAcao: 0, naoEnsaiadas: 2, derived: 2, derivedNotTested: 2 })).toBe('2 automáticos');
+    expect(pointsSummaryText({ total: 2, semAcao: 1, naoEnsaiadas: 2, derived: 2, derivedNotTested: 2 })).toBe('2 automáticos · 1 sem ação');
+    expect(pointsSummaryText({ total: 3, semAcao: 0, naoEnsaiadas: 0, derived: 0, derivedNotTested: 0 })).toBe('3 pontos');
     // A live point from an untested sheet beside a derived entry still adds "1 não ensaiada".
-    expect(pointsSummaryText({ total: 2, semAcao: 0, naoEnsaiadas: 2, derived: 1 })).toBe('1 ponto + 1 automático · 1 não ensaiada');
+    expect(pointsSummaryText({ total: 2, semAcao: 0, naoEnsaiadas: 2, derived: 1, derivedNotTested: 1 })).toBe('1 ponto + 1 automático · 1 não ensaiada');
   });
 
   it('counts a stored not_tested point as não ensaiada, never as sem ação', () => {
     const block = marked.blocks.find((row) => row.id === sheetOrder(marked)[0]!.blockId)!;
     const snapshot = withPoints(marked, point(marked, { origin: 'not_tested', equipment_id: block.equipment_id, action: null }));
-    expect(pointsSummary(snapshot)).toEqual({ total: 3, semAcao: 0, naoEnsaiadas: 3, derived: 2 });
+    expect(pointsSummary(snapshot)).toEqual({ total: 3, semAcao: 0, naoEnsaiadas: 3, derived: 2, derivedNotTested: 2 });
     // Story 15.2 (F34): the two derived entries once, and the live point from an untested sheet as "não ensaiada".
     expect(pointsSummaryText(pointsSummary(snapshot))).toBe('1 ponto + 2 automáticos · 1 não ensaiada');
     // Once that sheet is tested again, its stored point stays but is no longer "não ensaiada".
-    expect(pointsSummary(withNotTested(snapshot, { 0: null }))).toEqual({ total: 3, semAcao: 0, naoEnsaiadas: 2, derived: 2 });
+    expect(pointsSummary(withNotTested(snapshot, { 0: null }))).toEqual({ total: 3, semAcao: 0, naoEnsaiadas: 2, derived: 2, derivedNotTested: 2 });
     expect(pointsSummaryText(pointsSummary(withNotTested(snapshot, { 0: null })))).toBe('1 ponto + 2 automáticos');
   });
 
@@ -375,17 +381,22 @@ describe('6.6-UNIT new points and moves', () => {
 describe('6.6-UNIT the Porto Seguro fixture', () => {
   const snapshot = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
 
-  it('derives nothing (its three untested sheets have their stored points) and keeps its seven entries in stored order', () => {
-    expect(derivedPoints(snapshot)).toEqual([]);
+  it('derives no Não ensaiado entry (its three untested sheets have their stored points), one entry per out test (Story 22.5), and keeps its seven points in stored order', () => {
+    const derived = derivedPoints(snapshot);
+    expect(derived.filter((entry) => entry.kind === 'not_tested')).toEqual([]);
+    // Story 22.5: the fixture's 18 sheets with a reading out of criterion each list their test.
+    expect(derived.map((entry) => entry.kind)).toEqual(Array.from({ length: 18 }, () => 'reading'));
+    expect(derived[0]).toMatchObject({ title: 'CE-ENEL · Cubículo Enel', test_key: 'isolacao' });
+    expect(derived[0]!.text).toMatch(/^Ensaio de isolação: 220 MΩ em .+ \(critério: >400 MΩ\)$/);
     const entries = sectionEightEntries(snapshot);
-    expect(entries).toHaveLength(7);
-    expect(entries.every((entry) => entry.kind === 'point')).toBe(true);
+    expect(entries).toHaveLength(7 + 18);
+    expect(entries.slice(0, 7).every((entry) => entry.kind === 'point')).toBe(true);
     const stored = [...snapshot.points].sort((a, b) => (a.order_key < b.order_key ? -1 : 1)).map((row) => row.id);
-    expect(entries.map((entry) => (entry.kind === 'point' ? entry.point.id : ''))).toEqual(stored);
+    expect(entries.slice(0, 7).map((entry) => (entry.kind === 'point' ? entry.point.id : ''))).toEqual(stored);
     expect(snapshot.points.filter((row) => row.origin === 'manual')).toHaveLength(4);
     // Rows written before Story 6.6 parse with the new fields empty.
     expect(snapshot.points.every((row) => row.action === null && row.priority === null && row.deadline === null && row.owner === null)).toBe(true);
-    expect(pointsSummary(snapshot)).toEqual({ total: 7, semAcao: 4, naoEnsaiadas: 3, derived: 0 });
+    expect(pointsSummary(snapshot)).toEqual({ total: 25, semAcao: 4, naoEnsaiadas: 3, derived: 18, derivedNotTested: 0 });
   });
 });
 

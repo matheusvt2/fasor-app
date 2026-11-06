@@ -192,7 +192,8 @@ describe('p020 P-1b: the reason line says what will not print', () => {
     database.close();
     database = await seeded();
     renderSumario();
-    await waitFor(() => expect(document.querySelector('.sticky-action-bar .btn-reason')).toHaveTextContent('Só Conclusão e parecer (linha 10) impede gerar.'));
+    // Story 22.6: nothing blocks (the parecer is derived).
+    await waitFor(() => expect(document.querySelector('.sticky-action-bar .btn-reason')).toHaveTextContent('Nada impede gerar.'));
     expect(document.querySelector('.sticky-action-bar .btn-reason')!.textContent).not.toContain('não saem no documento');
   });
 });
@@ -231,15 +232,14 @@ describe('4.3 SumarioSurface', () => {
     // Story 7.5: the fixture has no Empresa, so section 1's text names it as a gap; section 3 reads the setup line.
     expect(numbered[0]!.querySelector('.sum-status')).toHaveTextContent('Dado do relatório em branco: Empresa executora');
     expect(numbered[2]!.querySelector('.sum-status')).toHaveTextContent('editado em Dados do relatório › Etapa 2');
-    // Story 7.4: the one blocking row, in red on row 10.
-    expect(container.querySelector('.sum-status.is-blocking')).toBe(numbered[9]!.querySelector('.sum-status'));
-    expect(numbered[9]!.querySelector('.sum-status')).toHaveTextContent('Parecer não preenchido');
+    // Story 22.6: row 10 reads the derived verdict (the untested sheet gives Apto com restrições); nothing blocks.
+    expect(container.querySelector('.sum-status.is-blocking')).toBeNull();
+    expect(numbered[9]!.querySelector('.sum-status')).toHaveTextContent('Apto com restrições');
     // The header counts and the foot reason.
     const summary = screen.getByRole('group', { name: 'Resumo do relatório' });
     expect(within(summary).getAllByRole('button').map((b) => b.textContent)).toEqual(['0 de 3 fichas concluídas', '0 NC abertos', '1 não ensaiada', '0 sugestões por confirmar']);
     expect(capa!.querySelector('.sum-status')).toHaveTextContent('Fim da parada em branco');
-    const reason = 'Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.';
-    expect(screen.getByText(reason)).toHaveClass('btn-reason');
+    expect(container.querySelector('.sticky-action-bar .btn-reason')).toHaveTextContent(/^Nada impede gerar\./);
     // Status flow 2026-10-10 (M6, decision 5): the status's next step, right under the status pill.
     const step = screen.getByTestId('status-next-step');
     expect(step).toHaveTextContent('Em campo: gerar o relatório passa a Em revisão.');
@@ -249,7 +249,7 @@ describe('4.3 SumarioSurface', () => {
     expect(controle!.querySelector('.sum-status')).toHaveTextContent('montado dos dados do relatório · Rev. 1 na primeira emissão');
     // Story 7.5: the preview is live; "Gerar relatório" opens the dialog, where the block stops it.
     expect(screen.getByRole('button', { name: 'Pré-visualizar' })).not.toHaveAttribute('aria-disabled');
-    expect(screen.getByRole('button', { name: 'Gerar relatório' })).toHaveAccessibleDescription(reason);
+    expect(screen.getByRole('button', { name: 'Gerar relatório' })).toHaveAccessibleDescription(container.querySelector('.sticky-action-bar .btn-reason')!.textContent!);
     expect(screen.getByRole('button', { name: 'Mais opções do relatório' })).toBeVisible();
     expect(container.querySelector('.sheet-title')).toHaveTextContent('Cliente de Testes Ltda · Local de Testes');
     expect(container.querySelector('.sheet-meta')).toHaveTextContent('Em campo 06/09/2026');
@@ -733,12 +733,8 @@ describe('4.3 SumarioSurface', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Gerar relatório' })).toHaveFocus());
   });
 
-  it('7.5: while the parecer blocks, the foot button opens the dialog (?exportar=1), where "Gerar relatório" is aria-disabled with its reason and "Editar em Dados do relatório" opens Etapa 6', async () => {
+  it('7.5 22.6: the foot button opens the dialog (?exportar=1), where nothing blocks: "Gerar relatório" is enabled and no blocking row is drawn', async () => {
     database = await seeded();
-    function Where() {
-      const [search] = useSearchParams();
-      return <p data-testid="setup-at">{search.toString()}</p>;
-    }
     render(
       <MemoryRouter initialEntries={[`/relatorio/${RELATORIO}`]}>
         <SyncContext value={syncState()}>
@@ -748,12 +744,11 @@ describe('4.3 SumarioSurface', () => {
                 path="/relatorio/:id"
                 element={
                   <>
-                    <p id="reason">Só Conclusão e parecer (linha 10) impede gerar.</p>
+                    <p id="reason">Nada impede gerar.</p>
                     <GenerateAction relatorioId={RELATORIO} reasonId="reason" onSeeInSumario={() => {}} />
                   </>
                 }
               />
-              <Route path="/relatorio/:id/setup" element={<Where />} />
             </Routes>
           </ToastProvider>
         </SyncContext>
@@ -761,16 +756,14 @@ describe('4.3 SumarioSurface', () => {
     );
     const button = screen.getByRole('button', { name: 'Gerar relatório' });
     expect(button).not.toHaveAttribute('aria-disabled');
-    expect(button).toHaveAccessibleDescription('Só Conclusão e parecer (linha 10) impede gerar.');
+    expect(button).toHaveAccessibleDescription('Nada impede gerar.');
     await userEvent.click(button);
     const dialog = await screen.findByRole('dialog', { name: 'Gerar relatório' });
-    const blocking = await within(dialog).findByText('Parecer não preenchido');
-    expect(blocking).toHaveClass('pc-block');
+    expect(await within(dialog).findByText('Nenhuma revisão gerada ainda.')).toBeVisible();
+    expect(within(dialog).queryByText('Parecer não preenchido')).toBeNull();
+    expect(dialog.querySelector('li.is-blocking')).toBeNull();
     const generate = within(dialog).getByRole('button', { name: 'Gerar relatório' });
-    expect(generate).toHaveAttribute('aria-disabled', 'true');
-    expect(generate).toHaveAccessibleDescription(/^Preencha o parecer .*para emitir a revisão 1\. O rascunho pode ser visto antes\.$/);
-    await userEvent.click(within(dialog).getAllByRole('button', { name: 'Editar em Dados do relatório' })[0]!);
-    expect(await screen.findByTestId('setup-at')).toHaveTextContent('etapa=6&volta=exportar');
+    expect(generate).not.toHaveAttribute('aria-disabled', 'true');
   });
 });
 
@@ -885,7 +878,7 @@ describe('status flow 2026-10-10: the Sumário says the status and its next step
     await waitFor(() => expect(rows()).toHaveLength(13));
     expect(step()).toHaveTextContent(/^Rascunho: falta .*a data de fim.* em Dados do relatório\. Preencher uma ficha passa o relatório a Em campo\.$/);
     // Decision 5: the bar's reason is the blocking sentence alone.
-    expect(foot()).toHaveTextContent(/^Só Conclusão e parecer \(linha 10\) impede gerar\. O resto está escrito em cada linha\.$/);
+    expect(foot()).toHaveTextContent(/^Nada impede gerar\./);
     expect(screen.queryByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeNull();
   });
 
@@ -900,9 +893,9 @@ describe('status flow 2026-10-10: the Sumário says the status and its next step
     expect(row9.querySelector('.sum-status')).toHaveTextContent('Verificações do local sem resposta: Cabine de Testes (19 itens)');
     expect(row9.querySelector('.sum-status')).not.toHaveClass('is-blocking');
     expect(row9).toHaveClass('has-pend');
-    // The parecer stays the one blocking row.
-    expect(foot()).toHaveTextContent(/^Só Conclusão e parecer \(linha 10\) impede gerar\. O resto está escrito em cada linha\.$/);
-    expect(document.querySelectorAll('.sum-status.is-blocking')).toHaveLength(1);
+    // Story 22.6: nothing blocks.
+    expect(foot()).toHaveTextContent(/^Nada impede gerar\./);
+    expect(document.querySelectorAll('.sum-status.is-blocking')).toHaveLength(0);
   });
 
   it('Em revisão, nothing edited since revision 1: banner and next step say "not yet sent", the Controle row "Rev. 1 gerada" then "emitida", and "Marcar como enviado ao cliente" writes one issue op', async () => {
@@ -915,7 +908,7 @@ describe('status flow 2026-10-10: the Sumário says the status and its next step
     // The action is described by the next-step sentence; it sits in the bar, the sentence does not.
     expect(mark).toHaveAccessibleDescription(step().textContent!);
     expect(mark.closest('.sticky-action-bar')).not.toBeNull();
-    expect(foot()).toHaveTextContent(/^Só Conclusão e parecer \(linha 10\) impede gerar\. O resto está escrito em cada linha\.$/);
+    expect(foot()).toHaveTextContent(/^Nada impede gerar\./);
     // Decision 4: generated, not yet with the client.
     await waitFor(() => expect(controleMeta()).toHaveTextContent('montado dos dados do relatório · Rev. 1 gerada'));
     expect(await axe(container)).toHaveNoViolations();

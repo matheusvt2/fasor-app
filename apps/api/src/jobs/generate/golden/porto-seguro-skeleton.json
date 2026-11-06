@@ -93,7 +93,25 @@
       ["4","Não foi possível realizar os ensaios elétricos nesta seccionadora devido à impossibilidade de realizar a desenergização completa da edificação, em razão da necessidade de continuidade operacional das instalações, conforme solicitação do cliente. Recomenda-se que os ensaios pendentes sejam programados e realizados na próxima intervenção.","SEC-C1 · 1° Subsolo › Coluna 1","—","—","—","—","—"],
       ["5","Não foi possível realizar os ensaios elétricos neste disjuntor (TIE) devido à impossibilidade de realizar a desenergização completa da edificação, em razão da necessidade de continuidade operacional das instalações, conforme solicitação do cliente. Recomenda-se que os ensaios pendentes sejam programados e realizados na próxima intervenção.","DJ-TIE-1 · 1° Subsolo › Coluna 3","—","—","—","—","—"],
       ["6","Não foi possível realizar os ensaios elétricos nesta seccionadora devido à impossibilidade de realizar a desenergização completa da edificação, em razão da necessidade de continuidade operacional das instalações, conforme solicitação do cliente. Recomenda-se que os ensaios pendentes sejam programados e realizados na próxima intervenção.","SEC-C17 · 1° Subsolo › Coluna 17","—","—","—","—","—"],
-      ["7","Conforme orientação do cliente, não foram realizados os serviços de reaperto das conexões e limpeza interna nos QGBT’s das Torres A e B, em razão da impossibilidade de desenergização dos equipamentos e da necessidade de continuidade operacional da edificação. Ressalta-se que, conforme informado pelo cliente, os QGBT’s foram submetidos previamente à inspeção termográfica por empresa terceira, não tendo sido identificados pontos de anomalia térmica.","—","—","—","—","—","—"]
+      ["7","Conforme orientação do cliente, não foram realizados os serviços de reaperto das conexões e limpeza interna nos QGBT’s das Torres A e B, em razão da impossibilidade de desenergização dos equipamentos e da necessidade de continuidade operacional da edificação. Ressalta-se que, conforme informado pelo cliente, os QGBT’s foram submetidos previamente à inspeção termográfica por empresa terceira, não tendo sido identificados pontos de anomalia térmica.","—","—","—","—","—","—"],
+      ["8","Ensaio fora do critério: CE-ENEL · Cubículo Enel. Ensaio de isolação: 220 MΩ em Fase reserva–Massa/blind. (critério: >400 MΩ).","CE-ENEL · Cubículo Enel","—","—","—","—","—"],
+      ["9","Ensaio fora do critério: PR-ENEL-ENT · Cubículo Enel. Ensaio de isolação: 230 MΩ em Fase C–Massa (critério: >400 MΩ).","PR-ENEL-ENT · Cubículo Enel","—","—","—","—","—"],
+      ["10","Ensaio fora do critério: SEC-ENEL-ENT · Cubículo Enel. Ensaio de resistência ôhmica de contato: 297 µΩ em T3-T4–Fase B (critério: <250 µΩ).","SEC-ENEL-ENT · Cubículo Enel","—","—","—","—","—"],
+      ["11","Ensaio fora do critério: SEC-ENEL-SAI · Cubículo Enel. Ensaio de resistência ôhmica de contato: 379 µΩ em T1-T2–Fase A (critério: <250 µΩ).","SEC-ENEL-SAI · Cubículo Enel","—","—","—","—","—"],
+      ["12","Ensaio fora do critério: DJ-ENEL · Cubículo Enel. Ensaio de resistência ôhmica de contato: 303 µΩ em T5-T6–Fase C (critério: <250 µΩ).","DJ-ENEL · Cubículo Enel","—","—","—","—","—"],
+      ["13","Ensaio fora do critério: PR-ENEL-SAI · Cubículo Enel. Ensaio de isolação: 5,7 MΩ em Fase A–Massa (critério: >400 MΩ).","PR-ENEL-SAI · Cubículo Enel","—","—","—","—","—"],
+      ["14","Ensaio fora do critério: TP-C16 · 1° Subsolo › Coluna 16. Ensaio de relação de transformação: desvio de 0,6 % em Fase T (critério: ±0,5 %).","TP-C16 · 1° Subsolo › Coluna 16","—","—","—","—","—"],
+      ["15","Ensaio fora do critério: CE-OXI · Oxigênio. Ensaio de isolação: 27 MΩ em Fase A–Massa/blind. (critério: >400 MΩ).","CE-OXI · Oxigênio","—","—","—","—","—"],
+      ["16","Ensaio fora do critério: SEC-OXI · Oxigênio. Ensaio de resistência ôhmica de contato: 310 µΩ em T1-T2–Fase A (critério: <250 µΩ).","SEC-OXI · Oxigênio","—","—","—","—","—"],
+      ["17","Ensaio fora do critério: PR-OXI · Oxigênio. Ensaio de isolação: 5,6 MΩ em Fase A–Massa (critério: >400 MΩ).","PR-OXI · Oxigênio","—","—","—","—","—"],
+      ["18","Ensaio fora do critério: CE-COBA · Cobertura A. Ensaio de isolação: 66 MΩ em Fase B–Massa/blind. (critério: >400 MΩ).","CE-COBA · Cobertura A","—","—","—","—","—"],
+      ["19","Ensaio fora do critério: PR-COBA · Cobertura A. Ensaio de isolação: 66 MΩ em Fase B–Massa (critério: >400 MΩ).","PR-COBA · Cobertura A","—","—","—","—","—"],
+      ["20","Ensaio fora do critério: CE-COBB · Cobertura B. Ensaio de isolação: 66 MΩ em Fase B–Massa/blind. (critério: >400 MΩ).","CE-COBB · Cobertura B","—","—","—","—","—"],
+      ["21","Ensaio fora do critério: PR-COBB · Cobertura B. Ensaio de isolação: 36 MΩ em Fase C–Massa (critério: >400 MΩ).","PR-COBB · Cobertura B","—","—","—","—","—"],
+      ["22","Ensaio fora do critério: DJ-COBB · Cobertura B. Ensaio de resistência ôhmica de contato: 313 µΩ em T3-T4–Fase B (critério: <250 µΩ).","DJ-COBB · Cobertura B","—","—","—","—","—"],
+      ["23","Ensaio fora do critério: SEC-GER3 · Geradores. Ensaio de resistência ôhmica de contato: 261 µΩ em T3-T4–Fase B (critério: <250 µΩ).","SEC-GER3 · Geradores","—","—","—","—","—"],
+      ["24","Ensaio fora do critério: TC-GER1 · Geradores. Ensaio de relação de transformação: desvio de 0,84 % em Fase R (critério: ±0,5 %).","TC-GER1 · Geradores","—","—","—","—","—"],
+      ["25","Ensaio fora do critério: TC-GER2 · Geradores. Ensaio de relação de transformação: desvio de 0,62 % em Fase T (critério: ±0,5 %).","TC-GER2 · Geradores","—","—","—","—","—"]
     ],
     [
       ["CARACTERÍSTICAS DA SE"],
@@ -133,7 +151,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["DADOS DO EQUIPAMENTO"],
@@ -168,7 +186,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["DADOS DO EQUIPAMENTO"],
@@ -220,7 +238,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["DADOS DO EQUIPAMENTO"],
@@ -272,7 +290,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["DADOS DO EQUIPAMENTO"],
@@ -433,7 +451,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["DADOS DO EQUIPAMENTO"],
@@ -464,7 +482,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["VERIFICAÇÕES GERAIS"],
@@ -2393,7 +2411,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["DADOS DO EQUIPAMENTO"],
@@ -2524,7 +2542,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
       ["VERIFICAÇÕES GERAIS"],
@@ -2601,7 +2619,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
       ["VERIFICAÇÕES GERAIS"],
@@ -2678,7 +2696,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
       ["VERIFICAÇÕES GERAIS"],
@@ -2755,7 +2773,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
       ["VERIFICAÇÕES GERAIS"],
@@ -2832,7 +2850,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
       ["CARACTERÍSTICAS DA SE"],
@@ -2868,7 +2886,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["DADOS DO EQUIPAMENTO"],
@@ -2920,7 +2938,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["DADOS DO EQUIPAMENTO"],
@@ -2951,7 +2969,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["VERIFICAÇÕES GERAIS"],
@@ -3028,7 +3046,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
       ["CARACTERÍSTICAS DA SE"],
@@ -3064,7 +3082,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["DADOS DO EQUIPAMENTO"],
@@ -3095,7 +3113,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["DADOS DO EQUIPAMENTO"],
@@ -3278,7 +3296,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
       ["CARACTERÍSTICAS DA SE"],
@@ -3314,7 +3332,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["DADOS DO EQUIPAMENTO"],
@@ -3345,7 +3363,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["DADOS DO EQUIPAMENTO"],
@@ -3451,7 +3469,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["VERIFICAÇÕES GERAIS"],
@@ -3528,7 +3546,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
       ["CARACTERÍSTICAS DA SE"],
@@ -3694,7 +3712,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["DADOS DO EQUIPAMENTO"],
@@ -4225,7 +4243,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["DADOS DO EQUIPAMENTO"],
@@ -4332,7 +4350,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","X","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)","X"]
     ],
     [
       ["DADOS DO EQUIPAMENTO"],
@@ -4549,7 +4567,7 @@
       ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
-      ["[Parecer]"]
+      ["Não apto\nForam registradas 94 fichas de ensaio: 3 não ensaiadas (SEC-C1, por solicitação do cliente; DJ-TIE-1, por solicitação do cliente; SEC-C17, por solicitação do cliente) e 91 ainda não concluídas. 18 fichas foram reprovadas (CE-ENEL, PR-ENEL-ENT, SEC-ENEL-ENT, SEC-ENEL-SAI, DJ-ENEL, PR-ENEL-SAI, TP-C16, CE-OXI, SEC-OXI, PR-OXI, CE-COBA, PR-COBA, CE-COBB, PR-COBB, DJ-COBB, SEC-GER3, TC-GER1 e TC-GER2). 18 fichas apresentaram restrições (CE-ENEL, PR-ENEL-ENT, SEC-ENEL-ENT, SEC-ENEL-SAI, DJ-ENEL, PR-ENEL-SAI, TP-C16, CE-OXI, SEC-OXI, PR-OXI, CE-COBA, PR-COBA, CE-COBB, PR-COBB, DJ-COBB, SEC-GER3, TC-GER1 e TC-GER2). Relação de transformação insatisfatória em 3 fichas (TP-C16, TC-GER1 e TC-GER2). Leituras fora do critério de aceitação em 15 fichas (CE-ENEL, PR-ENEL-ENT, SEC-ENEL-ENT, SEC-ENEL-SAI, DJ-ENEL, PR-ENEL-SAI, CE-OXI, SEC-OXI, PR-OXI, CE-COBA, PR-COBA, CE-COBB, PR-COBB, DJ-COBB e SEC-GER3). Foram registrados 25 pontos de atenção na seção 8."]
     ]
   ],
   "header": [

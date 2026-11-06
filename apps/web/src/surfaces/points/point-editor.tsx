@@ -98,6 +98,9 @@ export interface PointSeed {
   origin: PointRow['origin'];
   /** Story 14.3: the local of a point created from a site item; its `equipmentId` is then null. */
   locationId?: string | null;
+  /** Story 22.5: the source of a point written from a derived entry (`origin` `nc` with its item, `reading` with its test). */
+  itemKey?: string | null;
+  testKey?: string | null;
 }
 
 /** Where a point the editor wrote to sits in section 8 once it closed. */
@@ -162,7 +165,9 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
    * 20.4: a pick in "Equipamento ou local" before the point is stored replaces it, like a
    * pending priority, so the create row carries the pick. The ref is what the writes read.
    */
-  const linkRef = useRef<NewPointLink | null>(point === null ? { equipmentId: seed.equipmentId, origin: seed.origin, locationId: seed.locationId ?? null } : null);
+  const linkRef = useRef<NewPointLink | null>(
+    point === null ? { equipmentId: seed.equipmentId, origin: seed.origin, locationId: seed.locationId ?? null, itemKey: seed.itemKey ?? null, testKey: seed.testKey ?? null } : null,
+  );
   const [link, setLinkState] = useState<NewPointLink | null>(linkRef.current);
   const setLink = (next: NewPointLink) => {
     linkRef.current = next;
@@ -519,6 +524,9 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
         equipmentId: link?.equipmentId ?? point?.equipment_id ?? null,
         ...((link?.locationId ?? point?.location_id ?? null) === null ? {} : { locationId: link?.locationId ?? point?.location_id ?? null }),
         origin: link?.origin ?? point?.origin ?? 'manual',
+        // Story 22.5: a new point's source, so a recovered point is created with it.
+        ...((link?.itemKey ?? null) === null ? {} : { itemKey: link!.itemKey }),
+        ...((link?.testKey ?? null) === null ? {} : { testKey: link!.testKey }),
         is_new: link !== null,
       };
     },

@@ -36,6 +36,17 @@ describe('14.3-UNIT pointDraftValue', () => {
     expect(pointDraftValue({ ...base, origin: 'site' })).toBeNull();
   });
 
+  it('Story 22.5: reads back the origin and source of a point written from a derived entry; an unknown origin is refused', () => {
+    const EQUIPMENT = '019966c1-0150-7000-8000-000000000004';
+    const nc = { ...base, equipmentId: EQUIPMENT, origin: 'nc', itemKey: 'limpeza' };
+    expect(pointDraftValue(nc)).toEqual(nc);
+    const reading = { ...base, equipmentId: EQUIPMENT, origin: 'reading', testKey: 'isolacao' };
+    expect(pointDraftValue(reading)).toEqual(reading);
+    expect(pointDraftValue({ ...base, equipmentId: EQUIPMENT, origin: 'reprovado' })).toEqual({ ...base, equipmentId: EQUIPMENT, origin: 'reprovado' });
+    expect(pointDraftValue({ ...base, itemKey: 7 })).not.toHaveProperty('itemKey');
+    expect(pointDraftValue({ ...base, origin: 'derivado' })).toBeNull();
+  });
+
   it('Story 20.4: reads back a picked equipment or local of a new point', () => {
     const EQUIPMENT = '019966c1-0150-7000-8000-000000000003';
     expect(pointDraftValue({ ...base, equipmentId: EQUIPMENT })).toEqual({ ...base, equipmentId: EQUIPMENT });
@@ -125,6 +136,20 @@ describe('20.4-UNIT writePointLink', () => {
     const ops = await pointOps();
     expect(ops.map((op) => op.kind)).toEqual(['create']);
     expect(await stored()).toMatchObject({ equipment_id: null, location_id: SITE, text: typed.text, priority: 'P1' });
+  });
+
+  it('Story 22.5: a recovered nc or reading draft creates its point with its origin and source', async () => {
+    for (const [origin, source, field] of [
+      ['nc', { itemKey: 'limpeza' }, { item_key: 'limpeza' }],
+      ['reading', { testKey: 'isolacao' }, { test_key: 'isolacao' }],
+    ] as const) {
+      const draft = pointDraftValue({ relatorio_id: RELATORIO, ...typed, is_new: true, equipmentId: EQUIPMENT, origin, ...source, pending: {} })!;
+      const link: NewPointLink = { equipmentId: draft.equipmentId, origin: draft.origin, locationId: draft.locationId ?? null, itemKey: draft.itemKey ?? null, testKey: draft.testKey ?? null };
+      await writePoint(db, author, RELATORIO, POINT, draft, ['text', 'action', 'owner'], link, draft.pending);
+      expect(await stored()).toMatchObject({ equipment_id: EQUIPMENT, origin, ...field });
+      await db.delete();
+      db = openDatabase(USER);
+    }
   });
 
   it('the held link goes into the create row the first text writes', async () => {

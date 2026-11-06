@@ -44,7 +44,9 @@ export function usePointDraftRecovery(relatorioId: string): void {
               apply: (value) => {
                 const recovered = pointDraftValue(value);
                 if (recovered === null) return;
-                const link = recovered.is_new ? { equipmentId: recovered.equipmentId, origin: recovered.origin, locationId: recovered.locationId ?? null } : null;
+                const link = recovered.is_new
+                  ? { equipmentId: recovered.equipmentId, origin: recovered.origin, locationId: recovered.locationId ?? null, itemKey: recovered.itemKey ?? null, testKey: recovered.testKey ?? null }
+                  : null;
                 void writePoint(db, author, relatorioId, row.entity_id, recovered, ['text', 'action', 'owner'], link, recovered.pending).catch((error: unknown) => showToast(writeErrorText(error)));
               },
             }),

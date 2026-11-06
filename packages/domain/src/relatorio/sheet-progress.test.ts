@@ -70,7 +70,9 @@ function testCells(cellsPerTest: Record<string, number>): Sheet['test'] {
   for (const [key, n] of Object.entries(cellsPerTest)) {
     const cells: Record<string, Record<string, Cell>> = {};
     for (const a of cellAddressesOf(SEC, key as TestKey).slice(0, n)) {
-      cells[String(a.row)] = { ...cells[String(a.row)], [String(a.col)]: cell({ raw: '100', unit: 'GΩ', state: 'measured' }) };
+      // Story 22.4: each test within its criterion (an out reading would set the conclusion floor).
+      const reading = key === 'resistencia_contato' ? { raw: '100', unit: 'µΩ', state: 'measured' } : { raw: '100', unit: 'GΩ', state: 'measured' };
+      cells[String(a.row)] = { ...cells[String(a.row)], [String(a.col)]: cell(reading) };
     }
     out[key] = { cells };
   }
@@ -180,7 +182,9 @@ describe('5.1-UNIT sheetProgress', () => {
   it('the first incomplete step follows the stepper order', () => {
     const b = block({ nameplate: fullNameplate(), checklist: allChecklist('C'), conclusion: PAIR });
     expect(progressOf(b).firstIncompleteStep).toBe('ensaios');
-    const onlyConclusion = block({ nameplate: fullNameplate(), checklist: allChecklist('NA'), test: testCells({ isolacao: 6, resistencia_contato: 3 }) });
+    // Story 22.4: a floor fills the pair, so the conclusion step owes the observation an observation-restricted sheet requires.
+    const noted = { ...allChecklist('NA'), [SEC.checklist![0]!.key]: { result: cell('NA'), observation: cell('Sem acesso ao item.') } };
+    const onlyConclusion = block({ nameplate: fullNameplate(), checklist: noted, test: testCells({ isolacao: 6, resistencia_contato: 3 }) });
     expect(progressOf(onlyConclusion).firstIncompleteStep).toBe('conclusao');
   });
 
@@ -221,8 +225,12 @@ describe('12.1-UNIT D-2 outOfLimit and stepMayCollapse', () => {
     const out = progressOf(block({ nameplate: fullNameplate(), checklist: allChecklist('C'), test: readings({ raw: '330', unit: 'MΩ', state: 'measured' }), conclusion: PAIR }));
     expect(out.steps.ensaios).toEqual({ missing: 0, outOfLimit: 1 });
     expect(out.steps.placa.outOfLimit + out.steps.verificacoes.outOfLimit + out.steps.conclusao.outOfLimit).toBe(0);
-    // An amber reading blocks nothing: the sheet is still complete.
-    expect(out.complete).toBe(true);
+    // Story 22.4: the out reading sets the floor Reprovado · Com restrições, and Com restrições
+    // requires the observation: the conclusion step owes it, and the sheet completes once typed.
+    expect(out.steps.conclusao).toEqual({ missing: 1, outOfLimit: 0, observation: 1 });
+    expect(out.complete).toBe(false);
+    const typed = progressOf(block({ nameplate: fullNameplate(), checklist: allChecklist('C'), test: readings({ raw: '330', unit: 'MΩ', state: 'measured' }), conclusion: PAIR, observations: cell('Isolação baixa em T1.') }));
+    expect(typed.complete).toBe(true);
   });
 
   it('a step may collapse only with nothing missing and no reading out of its criterion', () => {
@@ -382,7 +390,8 @@ describe('review 2026-10-08 Decision 2: VOL. ÓLEO on a dry transformador de for
     const b = tf({ nameplate: plateWithout('EPÓXI'), checklist: allTf('C'), conclusion: PAIR });
     const partial = progressOf(b);
     expect(sheetSummaryText(partial)).toMatch(/^Placa, verificações e conclusão prontas · faltam \d+ leituras$/);
-    const p = progressOf(tf({ nameplate: plateWithout('EPÓXI'), checklist: allTf('C'), test: fullTests(), conclusion: PAIR }));
+    // Story 22.4: these readings fail their criteria, so Com restrições (the floor) asks for the observation.
+    const p = progressOf(tf({ nameplate: plateWithout('EPÓXI'), checklist: allTf('C'), test: fullTests(), conclusion: PAIR, observations: cell('Leituras a revisar.') }));
     expect(p.steps.placa.missing).toBe(0);
     expect(p.steps.ensaios.missing).toBe(0);
     expect(p.complete).toBe(true);
@@ -403,11 +412,18 @@ describe('p020 P-4 the header names the Observações Com restrições requires'
     expect(sheetSummaryText(p)).not.toContain('a conclusão');
   });
 
+  /** Story 22.4: a sheet whose readings set a floor never misses the pair; the wording of a missing pair is read on counts as a sheet with no floor gives them. */
+  const owing = (conclusao: { missing: number; outOfLimit: number; observation?: number }) => {
+    const complete = progressOf(ready(comRestricoes, cell('x')));
+    return { ...complete, steps: { ...complete.steps, conclusao }, complete: false, firstIncompleteStep: 'conclusao' as const };
+  };
+
   it('the pair alone, or the pair and the observation', () => {
-    expect(sheetSummaryText(progressOf(ready({ result: cell('aprovado') })))).toBe('Placa, verificações e leituras prontas · falta a conclusão');
-    expect(progressOf(ready({ result: cell('aprovado') })).steps.conclusao).toEqual({ missing: 1, outOfLimit: 0 });
-    const both = progressOf(ready({ restriction: cell('com_restricoes') }));
-    expect(both.steps.conclusao).toEqual({ missing: 2, outOfLimit: 0, observation: 1 });
+    expect(sheetSummaryText(owing({ missing: 1, outOfLimit: 0 }))).toBe('Placa, verificações e leituras prontas · falta a conclusão');
+    // Story 22.4: on this sheet the floor (Aprovado · Sem restrições) fills the unset half.
+    expect(progressOf(ready({ result: cell('aprovado') })).steps.conclusao).toEqual({ missing: 0, outOfLimit: 0 });
+    expect(progressOf(ready({ restriction: cell('com_restricoes') })).steps.conclusao).toEqual({ missing: 1, outOfLimit: 0, observation: 1 });
+    const both = owing({ missing: 2, outOfLimit: 0, observation: 1 });
     expect(sheetSummaryText(both)).toBe('Placa, verificações e leituras prontas · falta a conclusão e as observações');
     // After a count the verb follows the count, as before.
     const counts = { ...both, steps: { ...both.steps, ensaios: { missing: 9, outOfLimit: 0 } } };
@@ -419,7 +435,7 @@ describe('p020 P-4 the header names the Observações Com restrições requires'
   it('the verb follows the plural flag carried on the first part, not its wording', () => {
     const parts = sheetSummaryParts(progressOf(ready(comRestricoes)));
     expect(parts.at(-1)).toEqual({ text: 'as observações', kind: 'text', plural: true });
-    const both = sheetSummaryParts(progressOf(ready({ restriction: cell('com_restricoes') })));
+    const both = sheetSummaryParts(owing({ missing: 2, outOfLimit: 0, observation: 1 }));
     expect(both.slice(-3)).toEqual([
       { text: 'a conclusão', kind: 'text' },
       { text: ' e ', kind: 'text' },

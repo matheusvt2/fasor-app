@@ -429,7 +429,8 @@ describe('Story 20.3 a new relatório in the DOCX: the tests section before the 
 
   it('breaks the page before an empty points section printed after the tests (its note alone)', async () => {
     const base = fixtureSnapshot();
-    const empty = withNewSectionOrder({ ...base, points: [], blocks: base.blocks.map((block) => ({ ...block, not_tested: null })) });
+    // Story 22.5: the readings out of criterion are derived points too, so they are cleared with the points and the marks.
+    const empty = withNewSectionOrder({ ...base, points: [], blocks: base.blocks.map((block) => ({ ...block, not_tested: null, sheet: { ...block.sheet, test: {} } })) });
     const layout = layoutSpec(empty, { revisionNumber: 1, issuedAt: ISSUED_AT });
     expect(layout.sections.find((section) => section.number === 9)).toMatchObject({ kind: 'empty', startsPage: true });
     const document = readZipEntries(await buildDocx(layout, { tocPages: placeholderPages(layout) })).get('word/document.xml')!.toString('utf8');

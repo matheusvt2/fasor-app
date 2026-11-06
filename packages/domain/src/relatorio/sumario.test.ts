@@ -147,12 +147,12 @@ describe('4.3-UNIT sumarioRows', () => {
     expect(meta.section_7).toBe('Nenhuma foto');
     // Story 6.6: row 8 counts its entries; a new relatório has none.
     expect(meta.section_8).toBe('Nenhum ponto de atenção');
-    // Story 7.4: row 10 names the one blocking row; row 11 the instruments not chosen yet.
-    expect(meta.section_10).toBe('Parecer não preenchido');
+    // Story 22.6: row 10 names the derived verdict (never missing); row 11 the instruments not chosen yet.
+    expect(meta.section_10).toBe('Apto');
     expect(meta.section_11).toBe('Nenhum instrumento em Dados do relatório');
-    expect(rows.filter((r) => r.blocking).map((r) => r.rowKey)).toEqual(['section_10']);
-    expect(rows.filter((r) => r.pending).map((r) => r.rowKey)).toEqual(['capa', 'section_1', 'section_9', 'section_10', 'section_11']);
-    expect(generateReason(rows)).toBe('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.');
+    expect(rows.filter((r) => r.blocking).map((r) => r.rowKey)).toEqual([]);
+    expect(rows.filter((r) => r.pending).map((r) => r.rowKey)).toEqual(['capa', 'section_1', 'section_9', 'section_11']);
+    expect(generateReason(rows)).toBe('Nada impede gerar.');
   });
 
   it('E4 retro item 22: an edited section reads "texto editado"; the template text alone reads "texto do template"', () => {
@@ -299,19 +299,20 @@ describe('E78-Q1 sumarioRows on a snapshot with no section block', () => {
     expect(numbered.every((r) => r.siblings === 11)).toBe(true);
     expect(numbered.filter((r) => r.expandable).map((r) => r.rowKey)).toEqual(['section_9']);
     const row10 = rows.find((r) => r.rowKey === 'section_10')!;
-    expect(row10).toMatchObject({ number: 10, meta: 'Parecer não preenchido', blocking: true, pending: true });
-    expect(rows.filter((r) => r.blocking).map((r) => r.rowKey)).toEqual(['section_10']);
+    // Story 22.6: the fixture's readings out of criterion make its derived verdict Não apto; nothing blocks.
+    expect(row10).toMatchObject({ number: 10, meta: 'Não apto', blocking: false, pending: false });
+    expect(rows.filter((r) => r.blocking).map((r) => r.rowKey)).toEqual([]);
     expect(sumarioLineOf(rows, 'section_10')).toBe(10);
-    expect(generateReason(rows, issues)).toBe('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.');
+    expect(generateReason(rows, issues)).toBe('Nada impede gerar.');
     // The same rows a real row 9 would read (the counter and the cabines left blank).
     expect(rows.find((r) => r.rowKey === 'section_9')!.meta).toBe(
       '3 de 94 · 3 não ensaiadas · Cubículo Enel: falta a tensão secundária · 1° Subsolo: faltam 6 campos · Geradores: faltam 6 campos',
     );
   });
 
-  it('with the parecer set, nothing blocks and row 10 reads the verdict', () => {
+  it('with the parecer set, nothing blocks and row 10 reads the effective verdict (Story 22.6: a stored Apto com restrições under the fichas\' Não apto reads Não apto)', () => {
     const { rows, issues } = both(withParecer(ps));
-    expect(rows.find((r) => r.rowKey === 'section_10')).toMatchObject({ meta: 'Apto com restrições', blocking: false });
+    expect(rows.find((r) => r.rowKey === 'section_10')).toMatchObject({ meta: 'Não apto', blocking: false });
     expect(exportPrecheck(issues).blocking).toEqual([]);
     expect(generateReason(rows, issues)).toBe('Nada impede gerar.');
     // F-03 (D1): nothing blocks, but the issue asks first while sheets are empty or fields blank.
@@ -350,7 +351,8 @@ describe('E78-Q1 sumarioRows on a snapshot with no section block', () => {
   it('a blocking pre-issue row with no Sumário row is still named, by its title', () => {
     const s = fresh();
     const { rows } = both(s);
-    const blocking: PreIssueRow = { id: 'x', row: 'section_10', severity: 'blocking', text: 'Parecer não preenchido', kind: 'parecer_missing' };
+    // Story 22.6: no rule blocks any more; the foot still names a blocking row a later rule adds.
+    const blocking: PreIssueRow = { id: 'x', row: 'section_10', severity: 'blocking', text: 'Linha que bloqueia', kind: 'setup_missing' };
     const without = rows.filter((r) => r.rowKey !== 'section_10');
     expect(generateReason(without, [blocking])).toBe('Só Conclusão e parecer impede gerar. O resto está escrito em cada linha.');
   });
@@ -546,7 +548,8 @@ describe('2026-10-10 status flow: Controle do documento meta and the next-step s
   });
 
   it('decision 5: generateReason is the blocking sentence alone, whatever the status', () => {
-    expect(generateReason(rowsOf(fresh()))).toBe('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.');
+    // Story 22.6: nothing blocks any more.
+    expect(generateReason(rowsOf(fresh()))).toBe('Nada impede gerar.');
     expect(generateReason.length).toBeLessThanOrEqual(3);
   });
 

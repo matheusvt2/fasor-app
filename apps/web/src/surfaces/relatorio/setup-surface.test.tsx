@@ -186,73 +186,75 @@ describe('4.2 SetupSurface', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Etapa 5 — Local' })).toBeVisible();
     expect(screen.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeVisible();
     const group = screen.getByRole('radiogroup', { name: 'Parecer' });
-    expect(within(group).getAllByRole('radio').map((r) => [r.textContent, r.getAttribute('aria-checked')])).toEqual([
-      ['Apto', 'false'],
-      ['Apto com restrições', 'false'],
-      ['Não apto', 'false'],
-    ]);
-    // Nothing set: no summary field and no box yet; the counts' suggestion is the hint.
-    expect(screen.queryByText('Resumo do parecer')).toBeNull();
-    expect(container.querySelector('.parecer-box')).toBeNull();
+    // Story 22.6: nothing stored, the derived verdict shows (the fixture's untested sheet: Apto com restrições), Apto disabled with the reason line.
+    await waitFor(() =>
+      expect(within(group).getAllByRole('radio').map((r) => [r.textContent, r.getAttribute('aria-checked'), (r as HTMLButtonElement).disabled])).toEqual([
+        ['Apto', 'false', true],
+        ['Apto com restrições', 'true', false],
+        ['Não apto', 'false', false],
+      ]),
+    );
+    expect(group).toHaveAccessibleDescription('O relatório exige no mínimo Apto com restrições: 1 não ensaiada e 1 ponto de atenção.');
+    expect(screen.getByText('Resumo do parecer')).toBeVisible();
+    expect(container.querySelector('.parecer-box .pb-verdict')).toHaveTextContent('Apto com restrições');
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('7.4 AC1: a verdict tap writes the whole parecer once; the summary shows the kernel\'s text and Criteria line; Confirmar stores it confirmed', async () => {
+  it('7.4 AC1 22.6: a stricter verdict tap writes the whole parecer once; a looser one is disabled; the summary is the kernel\'s text, read-only; an earlier typed summary shows under "Observações do responsável" and "Limpar" clears it', async () => {
     database = await seeded();
     const { container } = renderSetup();
     const group = await screen.findByRole('radiogroup', { name: 'Parecer' });
+    await waitFor(() => expect(within(group).getByRole('radio', { name: 'Apto com restrições' })).toHaveAttribute('aria-checked', 'true'));
     await userEvent.click(within(group).getByRole('radio', { name: 'Não apto' }));
     await untilStored(() => database!.outbox.where('path').equals('relatorio/setup/parecer').count(), (count) => expect(count).toBe(1));
     const [op] = await database!.outbox.where('path').equals('relatorio/setup/parecer').toArray();
     expect(op!.value).toEqual({ verdict: 'nao_apto', text: null, text_status: null, text_basis: null });
     await waitFor(() => expect(within(group).getByRole('radio', { name: 'Não apto' })).toHaveAttribute('aria-checked', 'true'));
-    // The box is toned by the verdict set, never by a suggestion.
     expect(container.querySelector('.parecer-box')).toHaveAttribute('data-verdict', 'nao-apto');
     expect(container.querySelector('.parecer-box .pb-verdict')).toHaveTextContent('Não apto');
-    // A re-tap writes nothing.
+    // A re-tap writes nothing; Apto stays disabled.
     await userEvent.click(within(group).getByRole('radio', { name: 'Não apto' }));
-    const field = container.querySelector('.suggestion-field.is-generated')!;
-    expect(field).toHaveAttribute('data-state', 'suggested');
+    expect(within(group).getByRole('radio', { name: 'Apto' })).toBeDisabled();
+    expect(await database!.outbox.where('path').equals('relatorio/setup/parecer').count()).toBe(1);
+    // The summary: the composed text with its Criteria line, read-only (no Confirmar, Editar, Substituir).
+    const field = container.querySelector('.suggestion-field.is-generated')! as HTMLElement;
+    expect(field).toHaveAttribute('data-state', 'confirmed');
     expect(field.querySelector('.generated-text')).toHaveTextContent(/^Foram registradas 3 fichas de ensaio: /);
     expect(field.querySelector('.criteria-line')).toHaveTextContent(/Critérios usados.*3 fichas/);
-    await userEvent.click(within(field as HTMLElement).getByRole('button', { name: 'Confirmar' }));
-    await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (row) => {
-      expect((row!.row as RelatorioRow).setup.parecer).toMatchObject({ verdict: 'nao_apto', text_status: 'confirmed' });
-    });
-    expect(await database!.outbox.where('path').equals('relatorio/setup/parecer').count()).toBe(2);
-    const confirmed = (await database!.entities.get(['relatorio', RELATORIO]))!.row as RelatorioRow;
-    expect(confirmed.setup.parecer!.text).toMatch(/^Foram registradas 3 fichas de ensaio: /);
-    expect(confirmed.setup.parecer!.text_basis).toMatch(/^[0-9a-f]{8}$/);
-    await waitFor(() => expect(container.querySelector('.suggestion-field.is-generated')).toHaveAttribute('data-state', 'confirmed'));
-    expect(await screen.findByText('Resumo do parecer confirmado — impresso na seção 10')).toBeVisible();
-    // Changing the verdict keeps the confirmed summary (one object, written whole).
-    await userEvent.click(within(group).getByRole('radio', { name: 'Apto com restrições' }));
-    await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (row) => {
-      expect((row!.row as RelatorioRow).setup.parecer).toMatchObject({ verdict: 'apto_com_restricoes', text_status: 'confirmed' });
-    });
+    expect(within(field).queryAllByRole('button')).toEqual([]);
+    expect(screen.queryByText('Observações do responsável')).toBeNull();
+
+    // A summary typed before Story 22.6 shows under "Observações do responsável"; "Limpar" clears it (one op).
+    const stored = (await database!.entities.get(['relatorio', RELATORIO]))!;
+    const row = stored.row as RelatorioRow;
+    await database!.entities.put({ ...stored, row: { ...row, setup: { ...row.setup, parecer: { verdict: 'nao_apto', text: 'Texto digitado antes.', text_status: 'edited', text_basis: 'x' } } } });
+    expect(await screen.findByText('Observações do responsável')).toBeVisible();
+    expect(screen.getByText('Texto digitado antes.')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Limpar' }));
+    await untilStored(() => database!.outbox.where('path').equals('relatorio/setup/parecer').toArray(), (ops) =>
+      expect(ops.at(-1)!.value).toEqual({ verdict: 'nao_apto', text: null, text_status: null, text_basis: null }),
+    );
   });
 
-  it('7.4: the parecer radiogroup by keyboard: ArrowRight from "Apto" checks "Apto com restrições" with one op; Home and End move to the ends', async () => {
+  it('7.4 22.6: the parecer radiogroup by keyboard skips the disabled verdict: End checks "Não apto" with one op, Home lands on "Apto com restrições"', async () => {
     database = await seeded();
     renderSetup();
     const group = await screen.findByRole('radiogroup', { name: 'Parecer' });
     const radio = (name: string) => within(group).getByRole('radio', { name });
     const parecerOps = async () => (await database!.outbox.where('path').equals('relatorio/setup/parecer').toArray()).map((op) => (op.value as { verdict: string }).verdict);
-    await userEvent.click(radio('Apto'));
-    await untilStored(parecerOps, (ops) => expect(ops).toEqual(['apto']));
-    await waitFor(() => expect(radio('Apto')).toHaveAttribute('aria-checked', 'true'));
-    radio('Apto').focus();
-    await userEvent.keyboard('{ArrowRight}');
     await waitFor(() => expect(radio('Apto com restrições')).toHaveAttribute('aria-checked', 'true'));
-    expect(radio('Apto com restrições')).toHaveFocus();
-    await untilStored(parecerOps, (ops) => expect(ops).toEqual(['apto', 'apto_com_restricoes']));
+    radio('Apto com restrições').focus();
     await userEvent.keyboard('{End}');
     await waitFor(() => expect(radio('Não apto')).toHaveAttribute('aria-checked', 'true'));
     expect(radio('Não apto')).toHaveFocus();
+    await untilStored(parecerOps, (ops) => expect(ops).toEqual(['nao_apto']));
     await userEvent.keyboard('{Home}');
-    await waitFor(() => expect(radio('Apto')).toHaveAttribute('aria-checked', 'true'));
-    expect(radio('Apto')).toHaveFocus();
-    await untilStored(parecerOps, (ops) => expect(ops).toEqual(['apto', 'apto_com_restricoes', 'nao_apto', 'apto']));
+    await waitFor(() => expect(radio('Apto com restrições')).toHaveAttribute('aria-checked', 'true'));
+    expect(radio('Apto com restrições')).toHaveFocus();
+    await untilStored(parecerOps, (ops) => expect(ops).toEqual(['nao_apto', 'apto_com_restricoes']));
+    // ArrowLeft from it wraps past the disabled Apto to Não apto.
+    await userEvent.keyboard('{ArrowLeft}');
+    await waitFor(() => expect(radio('Não apto')).toHaveAttribute('aria-checked', 'true'));
   });
 
   it('7.5: opened from the Export dialog (?etapa=6&volta=exportar), Etapa 6 offers the way back to it', async () => {

@@ -75,7 +75,8 @@ function mutableKeys(keys: readonly string[], alsoImmutable: readonly string[] =
 }
 
 const PROJECT_FIELDS = mutableKeys(entityKeys('project'));
-const POINT_FIELDS = mutableKeys(entityKeys('point'));
+// Story 22.5: a point's source (`item_key`, `test_key`) is fixed at create, as its `origin` is.
+const POINT_FIELDS = mutableKeys(entityKeys('point'), ['item_key', 'test_key']);
 const TEMPLATE_FIELDS = mutableKeys(entityKeys('template'));
 // `user.email` is identity-owned: better-auth writes it, never an op (AD-9). It is
 // immutable for the `user` entity alone -- the Empresa registry's own `email` is a

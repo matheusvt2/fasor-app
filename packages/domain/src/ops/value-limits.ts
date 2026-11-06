@@ -150,7 +150,7 @@ const VALUE_RULES = {
   file: { kind: 'row', fields: { sha256: short, mime: short, caption: medium, item_key: short, order_key: orderKey } },
   'file/field': { kind: 'fields', fields: { caption: medium, item_key: short, reading_target: structured, order_key: orderKey }, otherwise: schema },
   'file/server': SERVER_ONLY,
-  point: { kind: 'row', fields: { text: long, order_key: orderKey, action: medium, owner: short } },
+  point: { kind: 'row', fields: { text: long, order_key: orderKey, action: medium, owner: short, item_key: short, test_key: short } },
   'point/field': { kind: 'fields', fields: { text: long, order_key: orderKey, action: medium, owner: short }, otherwise: schema },
   suggestion: SERVER_ONLY,
   'suggestion/status': { kind: 'value', rule: schema },

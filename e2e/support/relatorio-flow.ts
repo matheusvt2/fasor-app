@@ -88,16 +88,23 @@ export type ParecerWord = 'Apto' | 'Apto com restrições' | 'Não apto';
 
 /**
  * Story 7.4: sets the parecer as a person does, in Dados do relatório › Etapa 6 (one tap on
- * a verdict segment), then goes back to the relatório's Sumário. "Parecer não preenchido" is
- * the one row that stops "Gerar relatório", so every issue walk passes here first.
+ * a verdict segment), then goes back to the relatório's Sumário. ~~"Parecer não preenchido" is
+ * the one row that stops "Gerar relatório", so every issue walk passes here first.~~ Story 22.6:
+ * the verdict is derived from the fichas and never missing; a segment looser than the derived
+ * one is disabled, so the tap is made only when the segment is enabled and not already the
+ * effective verdict, and the box then reads the verdict asked for. A walk asking for a looser
+ * verdict than the fichas give leaves the derived one standing.
  */
 export async function setParecer(page: Page, relatorioId: string, verdict: ParecerWord = 'Apto'): Promise<void> {
   await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
   const segment = page.getByRole('radiogroup', { name: 'Parecer' }).getByRole('radio', { name: verdict, exact: true });
-  await segment.click();
-  await expect(segment).toHaveAttribute('aria-checked', 'true');
-  await expect(page.locator('.parecer-box .pb-verdict')).toHaveText(verdict);
+  await expect(page.locator('.parecer-box .pb-verdict')).not.toHaveText('');
+  if (await segment.isEnabled()) {
+    if ((await segment.getAttribute('aria-checked')) !== 'true') await segment.click();
+    await expect(segment).toHaveAttribute('aria-checked', 'true');
+    await expect(page.locator('.parecer-box .pb-verdict')).toHaveText(verdict);
+  }
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
 }

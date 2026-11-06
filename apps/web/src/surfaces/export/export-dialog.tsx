@@ -12,7 +12,6 @@ import {
   MARK_SENT_LABEL,
   missingFilesText,
   nextEditNote,
-  parecerMissingReason,
   pendingSuggestions,
   progress,
   readyTitle,
@@ -21,8 +20,6 @@ import {
   sectionMention,
   sectionRefText,
   suggestionRowsOf,
-  sumarioLineOf,
-  sumarioRows,
   toIso,
   type AuditTarget,
   type RevisionFileFormat,
@@ -242,12 +239,6 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
     () => (snapshot === null ? [] : documentControlRows(snapshot, { revisionNumber: idleNumber, issuedAt: toIso(now()), art: snapshot.relatorio.setup.art_trt_number })),
     [snapshot, idleNumber],
   );
-  // Section 10's Sumário line, the one the blocked reason names: the Sumário's own rows (E78-Q1,
-  // virtual ones included), so the dialog and the foot always say the same "linha 10".
-  const parecerLine = useMemo(
-    () => (snapshot === null || computed === null ? null : sumarioLineOf(sumarioRows(snapshot, issues, computed), 'section_10')),
-    [snapshot, issues, computed],
-  );
   const summarizedRows = useMemo(() => {
     const explicit = new Set([...precheck.blocking, ...precheck.explicit]);
     return [...new Set(issues.filter((row) => !explicit.has(row)).map((row) => row.row))];
@@ -384,7 +375,8 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
     const disabledReason = !online
       ? copy.export.offlineReason
       : blocked
-        ? parecerMissingReason(idleNumber, parecerLine)
+        ? // Story 22.6: no rule blocks since "Parecer não preenchido" retired; a later blocking row names itself.
+          precheck.blocking[0]!.text
         : phase.kind === 'flushing' || phase.kind === 'requesting'
           ? copy.export.flushing
           : undefined;
