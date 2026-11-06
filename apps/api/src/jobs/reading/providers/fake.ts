@@ -4,10 +4,12 @@ import {
   ocrReadResultSchema,
   proseOutputSchema,
   structuringOutputSchema,
+  structuringValueSchema,
   type OcrProvider,
   type OcrReadResult,
   type ProseProvider,
   type ProseResult,
+  type StructuringInput,
   type StructuringProvider,
   type StructuringResult,
 } from '@app/domain';
@@ -15,7 +17,9 @@ import sharp from 'sharp';
 import { z } from 'zod';
 import { FAKE_FIXTURE_DEFAULTS } from '../kinds/index.ts';
 import type { ReadingKind } from '../payload.ts';
+import { withoutUncitedValues } from './bedrock.ts';
 import { PermanentReadingError, ProviderError, ProviderTimeoutError } from './errors.ts';
+import { vectorDiagramFactsSchema, vectorGroupKeyOf, withVectorDiagram, type PlateStructuringInput } from './vector-diagram.ts';
 import { MAX_INPUT_PIXELS } from '../../../storage/variants.ts';
 
 /*
@@ -40,11 +44,23 @@ export const DEFAULT_FIXTURES_DIR = join(import.meta.dirname, '..', 'fixtures');
 export const FAKE_MODEL = 'fake';
 export const FAKE_PROMPT_VERSION = 'fake-1';
 
+/**
+ * e21f: a fixture's structuring answer is the tool input a model returns: the values and, for a
+ * plate that draws its vector diagrams, the `vector_diagram` facts the provider folds into the
+ * group's value (`withVectorDiagram`) before the contract parse.
+ */
+const fakeStructuringFixtureSchema = z
+  .object({
+    values: z.array(structuringValueSchema),
+    vector_diagram: vectorDiagramFactsSchema.strict().nullable().optional(),
+  })
+  .strict();
+
 export const fakeReadingFixtureSchema = z
   .object({
     outcome: z.enum(['ok', 'error', 'timeout']).default('ok'),
     ocr: ocrReadResultSchema.optional(),
-    structuring: structuringOutputSchema.optional(),
+    structuring: fakeStructuringFixtureSchema.optional(),
     // Stories 9.3 and 9.5: the prose answer (`{text}` or null); absent reads null.
     prose: proseOutputSchema.optional(),
   })
@@ -176,11 +192,16 @@ export function fakeOcrProvider(dir: string, sha256: string, fixtureKey: FakeFix
 
 export function fakeStructuringProvider(dir: string, sha256: string, fixtureKey: FakeFixtureKey | null = null): StructuringProvider {
   return {
-    async structure(): Promise<StructuringResult> {
+    async structure(input: StructuringInput): Promise<StructuringResult> {
       const { fixture, key } = await resolveFakeFixture(dir, sha256, fixtureKey);
       failFor(fixture, key, 'structuring');
+      // e21f: the same fold and uncited drop as the bedrock provider's, then the contract's own parse.
+      const plate = input as PlateStructuringInput | undefined;
+      const folded = withVectorDiagram(fixture.structuring ?? { values: [] }, vectorGroupKeyOf(plate), plate?.ocr?.tokens ?? []);
+      const output = structuringOutputSchema.safeParse(withoutUncitedValues(folded));
+      if (!output.success) throw new PermanentReadingError(`fake structuring: fixture ${key} is not a StructuringOutput once folded: ${output.error.message.slice(0, 300)}`);
       return {
-        output: fixture.structuring ?? { values: [] },
+        output: output.data,
         model: FAKE_MODEL,
         prompt_version: FAKE_PROMPT_VERSION,
         usage: { input_tokens: 0, output_tokens: 0, usd: 0 },

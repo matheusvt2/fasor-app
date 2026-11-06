@@ -32,8 +32,10 @@ import sharp from 'sharp';
  * stays `services/ocr/tests/fixtures/plate-transformador.jpg`. They are no block type's default:
  * their fixtures replay only for a photo of their own bytes (the job integration test, the eval).
  * The first prints the group "Dyn1"; the second prints none and draws the star (HV) and
- * star-with-neutral (LV) vector diagrams with their terminal labels, and its structured value
- * "Yyn0" cites the diagram's "H1" label, so the kernel reads it as a diagram read (`verify`).
+ * star-with-neutral (LV) vector diagrams with their terminal labels. e21f: its structuring answer
+ * gives no LIGAÇÃO SECUNDÁRIA value; it describes the drawing in `vector_diagram` (two stars, X0
+ * at the LV centre, no H0, X1 with H1) citing every terminal label, the provider composes "Yyn0"
+ * from those facts (`composeVectorGroup`), and the kernel reads it as a diagram read (`verify`).
  */
 
 /** `FIXTURES_DIR` of `providers/fake.ts`, without loading the reading kinds. */
@@ -47,13 +49,11 @@ const HEADER_SIZE = 40;
 const ROW_SIZE = 26;
 const WORD_GAP = 10;
 
-/** One nameplate row: the value tokens as printed and the structured value the model returns. */
+/** One nameplate row: the value tokens as printed and the structured value the model returns (null: the row prints its label only and the model gives no value). */
 interface PlateRow {
   key: string;
   tokens: string[];
   value: unknown;
-  /** Story 21.2: the value cites these labels of the drawn diagram instead of its own tokens (none printed). */
-  citeDiagram?: string[];
 }
 
 interface PlateSpec {
@@ -213,7 +213,8 @@ const PLATES: PlateSpec[] = [
       { key: 'fabricacao', tokens: ['Varnelo'], value: 'Varnelo' },
       { key: 'tensao_nominal_at', tokens: ['13,8', 'kV'], value: num('13.8', 'kV') },
       { key: 'tensao_nominal_bt', tokens: ['380', 'V'], value: num('380', 'V') },
-      { key: 'ligacao_secundaria', tokens: [], value: 'Yyn0', citeDiagram: ['H1'] },
+      // e21f: no group printed and no value given; the drawn diagram's facts carry it.
+      { key: 'ligacao_secundaria', tokens: [], value: null },
     ],
     diagram: 'yyn0',
   },
@@ -270,11 +271,11 @@ async function make(plate: PlateSpec): Promise<string> {
   const fields = new Map<string, FieldDef>(definition.nameplate.map((field) => [field.key, field]));
   const tokens: Token[] = [];
   const values: { key: string; value: unknown; ocr_token_ids: string[]; confidence: number }[] = [];
+  let vectorDiagram: Record<string, unknown> | undefined;
 
   const header = await words(definition.label.toUpperCase().split(' '), LABEL_X, 100, HEADER_SIZE, true, tokens);
   let body = header.svg;
   const step = Math.floor((HEIGHT - 210 - (plate.diagram === undefined ? 0 : DIAGRAM_HEIGHT)) / plate.rows.length);
-  const deferred: { row: PlateRow }[] = [];
   for (const [index, row] of plate.rows.entries()) {
     const field = fields.get(row.key);
     if (field === undefined) throw new Error(`${plateName(plate)} has no nameplate key ${row.key}`);
@@ -283,21 +284,14 @@ async function make(plate: PlateSpec): Promise<string> {
     const label = await words(field.label.split(' '), LABEL_X, baseline, ROW_SIZE, false, tokens);
     const value = await words(row.tokens, VALUE_X, baseline, ROW_SIZE, true, tokens);
     body += label.svg + value.svg;
-    if (row.citeDiagram !== undefined) deferred.push({ row });
-    else values.push({ key: row.key, value: row.value, ocr_token_ids: value.ids, confidence: 0.97 });
+    if (row.value !== null) values.push({ key: row.key, value: row.value, ocr_token_ids: value.ids, confidence: 0.97 });
   }
   if (plate.diagram !== undefined) {
     const drawn = await yyn0Diagram(HEIGHT - DIAGRAM_HEIGHT + 20, tokens);
     body += drawn.svg;
-    for (const { row } of deferred) {
-      const ids = row.citeDiagram!.map((text) => {
-        const id = drawn.labels.get(text);
-        if (id === undefined) throw new Error(`${plateName(plate)}: the diagram has no label ${text}`);
-        return id;
-      });
-      values.push({ key: row.key, value: row.value, ocr_token_ids: ids, confidence: 0.8 });
-    }
-  } else if (deferred.length > 0) throw new Error(`${plateName(plate)}: a row cites a diagram the plate does not draw`);
+    // e21f: what the Yyn0 drawing shows, citing every terminal label in drawing order (H1 H2 H3 X1 X2 X3 X0).
+    vectorDiagram = { hv_shape: 'star', hv_neutral: false, lv_shape: 'star', lv_neutral: true, x1_hours: 0, ocr_token_ids: [...drawn.labels.values()] };
+  }
 
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}">` +
@@ -312,7 +306,7 @@ async function make(plate: PlateSpec): Promise<string> {
   const fixture = {
     outcome: 'ok',
     ocr: { image: { width: WIDTH, height: HEIGHT }, tokens, preprocessing_applied: false },
-    structuring: { values },
+    structuring: vectorDiagram === undefined ? { values } : { values, vector_diagram: vectorDiagram },
   };
   await writeFile(join(FIXTURES_DIR, `${sha}.json`), `${JSON.stringify(fixture, null, 2)}\n`);
   return sha;

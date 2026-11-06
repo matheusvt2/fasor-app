@@ -147,6 +147,49 @@ export function parseVectorGroup(text: unknown): VectorGroup | null {
   return null;
 }
 
+/** e21f: the shape a winding's vector diagram draws: three arms from one centre, a closed triangle, or a star whose arms bend. */
+export type WindingShape = 'star' | 'delta' | 'zigzag';
+
+/**
+ * e21f: what a plate's drawn vector diagrams show, as the plate reading describes them (never the
+ * code itself): each winding's shape, whether its neutral (H0, X0) is printed at its centre, and
+ * the clock hour X1 points to with H1 at 12 o'clock.
+ */
+export interface VectorDiagramFacts {
+  hv_shape: WindingShape;
+  hv_neutral: boolean;
+  lv_shape: WindingShape;
+  lv_neutral: boolean;
+  x1_hours: number;
+}
+
+const HV_SHAPE_LETTER: Readonly<Record<WindingShape, string>> = { star: 'Y', delta: 'D', zigzag: 'Z' };
+
+/** One winding's letters (upper case): the shape's letter, plus N for a drawn neutral on a star or zigzag; null for a delta with a neutral or an unknown shape. */
+function windingLetters(shape: unknown, neutral: unknown): string | null {
+  if (typeof shape !== 'string' || !Object.hasOwn(HV_SHAPE_LETTER, shape) || typeof neutral !== 'boolean') return null;
+  const letter = HV_SHAPE_LETTER[shape as WindingShape];
+  if (!neutral) return letter;
+  return letter === 'D' ? null : `${letter}N`;
+}
+
+/**
+ * e21f (Story 21.2 fix): the vector group code the drawn diagrams compose: the high-voltage letter
+ * (star Y, delta D, zigzag Z, N after a star or zigzag whose neutral is drawn), the low-voltage
+ * letters in lower case the same way, then `x1_hours`. Null when the facts name no row of the
+ * table: a delta with a neutral, an hour that is not an integer from 0 to 11, an unknown shape, or
+ * a combination the 47 groups do not hold (star-star at 1 o'clock).
+ */
+export function composeVectorGroup(facts: VectorDiagramFacts): string | null {
+  const hv = windingLetters(facts.hv_shape, facts.hv_neutral);
+  const lv = windingLetters(facts.lv_shape, facts.lv_neutral);
+  if (hv === null || lv === null) return null;
+  const hours = facts.x1_hours;
+  if (typeof hours !== 'number' || !Number.isInteger(hours) || hours < 0 || hours > 11) return null;
+  const code = `${hv}${lv.toLowerCase()}${hours}`;
+  return BY_CODE.has(code) ? code : null;
+}
+
 /** The multiplier of U1/U2 a factor names. */
 export function vectorGroupFactor(k: VectorGroupFactor): number {
   switch (k) {

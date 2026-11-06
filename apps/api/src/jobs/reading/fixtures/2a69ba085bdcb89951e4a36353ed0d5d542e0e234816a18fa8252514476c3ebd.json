@@ -338,15 +338,23 @@
           "t16"
         ],
         "confidence": 0.97
-      },
-      {
-        "key": "ligacao_secundaria",
-        "value": "Yyn0",
-        "ocr_token_ids": [
-          "t19"
-        ],
-        "confidence": 0.8
       }
-    ]
+    ],
+    "vector_diagram": {
+      "hv_shape": "star",
+      "hv_neutral": false,
+      "lv_shape": "star",
+      "lv_neutral": true,
+      "x1_hours": 0,
+      "ocr_token_ids": [
+        "t19",
+        "t20",
+        "t21",
+        "t22",
+        "t23",
+        "t24",
+        "t25"
+      ]
+    }
   }
 }

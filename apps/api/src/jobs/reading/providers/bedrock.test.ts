@@ -254,8 +254,8 @@ describe('11.6 Bedrock: no tool_use or invalid JSON is permanent', () => {
 });
 
 describe('AIR-1 and AIR-V1 (review 2026-10-08): the structuring prompt', () => {
-  it('asks for dates exactly as precise as printed and spells out the pt-BR separators; its version is 3', async () => {
-    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-3');
+  it('asks for dates exactly as precise as printed and spells out the pt-BR separators; its version is 4', async () => {
+    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-4');
     const client = replying([toolUse('record_values', plateValues)]);
     await structurer(client).structure(plateInput);
     const system = client.commands[0]!.input.system![0]!.text!;
@@ -271,12 +271,15 @@ describe('21.2 the structuring prompt asks for the vector group, printed or draw
     const withGroup: PlateStructuringInput = { ...plateInput, vectorGroupKey: 'ligacao_secundaria' };
     const client = replying([toolUse('record_values', plateValues)]);
     const result = await structurer(client).structure(withGroup);
-    expect(result.prompt_version).toBe('bedrock-structuring-3');
+    expect(result.prompt_version).toBe('bedrock-structuring-4');
     const text = client.commands[0]!.input.messages![0]!.content![1]!.text!;
     expect(text).toContain('The field ligacao_secundaria holds the transformer\'s vector group');
     expect(text).toContain(`Give exactly one of these codes: ${VECTOR_GROUP_CODES.join(' | ')}.`);
-    expect(text).toContain('read the vector diagrams the plate draws');
-    expect(text).toContain('cite the OCR words nearest the diagram');
+    expect(text).toContain('When the plate prints the code (for example "Dyn1", "DYN1" or "Dyn 1"), give that code and cite the words that print it.');
+    // e21f: a drawn diagram is described, never composed by the model.
+    expect(text).toContain('When no code is printed, leave ligacao_secundaria out of values and fill vector_diagram instead: describe what is drawn, never compose the code.');
+    expect(text).not.toContain('read the vector diagrams the plate draws');
+    expect(text).not.toContain('cite the OCR words nearest the diagram');
     // The paragraph sits between the fields and the OCR words.
     expect(text.indexOf('Fields:')).toBeLessThan(text.indexOf('vector group'));
     expect(text.indexOf('vector group')).toBeLessThan(text.indexOf('OCR words:'));
@@ -420,5 +423,77 @@ describe('11.6 Bedrock prices and the client', () => {
     expect(createClient).toHaveBeenCalledTimes(1);
     expect(createClient).toHaveBeenCalledWith('us-west-2');
     expect(client.commands).toHaveLength(2);
+  });
+});
+
+describe('e21f the drawn vector diagram: described by the model, composed by the kernel', () => {
+  const withGroup: PlateStructuringInput = { ...plateInput, vectorGroupKey: 'ligacao_secundaria' };
+  /** The synthetic plate's values without its LIGAÇÃO SECUNDÁRIA. */
+  const others = plateValues.values.filter((value) => value.key !== 'ligacao_secundaria');
+  const yyn0 = { hv_shape: 'star', hv_neutral: false, lv_shape: 'star', lv_neutral: true, x1_hours: 0, ocr_token_ids: ['t4', 't9'] };
+  const groupOf = (values: readonly { key: string }[]) => values.find((value) => value.key === 'ligacao_secundaria');
+  type ToolSchema = { properties: Record<string, { type?: unknown; required?: string[]; properties?: Record<string, unknown> }>; required: string[] };
+  const toolSchemaOf = (client: FakeClient) => client.commands[0]!.input.toolConfig!.tools![0]!.toolSpec!.inputSchema!.json as ToolSchema;
+
+  it('the tool schema carries a required, nullable vector_diagram only with the vector-group key', async () => {
+    const client = replying([toolUse('record_values', { values: others, vector_diagram: null })]);
+    await structurer(client).structure(withGroup);
+    const schema = toolSchemaOf(client);
+    expect(schema.required).toEqual(['values', 'vector_diagram']);
+    const diagram = schema.properties.vector_diagram!;
+    expect(diagram.type).toEqual(['object', 'null']);
+    expect(diagram.required).toEqual(['hv_shape', 'hv_neutral', 'lv_shape', 'lv_neutral', 'x1_hours', 'ocr_token_ids']);
+    expect(diagram.properties!.x1_hours).toMatchObject({ type: 'integer', minimum: 0, maximum: 11 });
+    expect(diagram.properties!.hv_shape).toMatchObject({ enum: ['star', 'delta', 'zigzag'] });
+
+    for (const input of [plateInput, { ...plateInput, vectorGroupKey: 'nao_existe' } as PlateStructuringInput]) {
+      const plain = replying([toolUse('record_values', plateValues)]);
+      await structurer(plain).structure(input);
+      expect(Object.keys(toolSchemaOf(plain).properties)).toEqual(['values']);
+      expect(toolSchemaOf(plain).required).toEqual(['values']);
+    }
+  });
+
+  it('values lacking the group and a Yyn0 vector_diagram: the group entry is "Yyn0" citing the labels, and no vector_diagram key is left', async () => {
+    const result = await structurer(replying([toolUse('record_values', { values: others, vector_diagram: yyn0 })])).structure(withGroup);
+    expect(groupOf(result.output.values)).toEqual({ key: 'ligacao_secundaria', value: 'Yyn0', ocr_token_ids: ['t4', 't9'], confidence: 0.5 });
+    expect(result.output.values).toHaveLength(others.length + 1);
+    expect(Object.keys(result.output)).toEqual(['values']);
+    expect(result.prompt_version).toBe('bedrock-structuring-4');
+  });
+
+  it('a wrong composed "Dy1" citing a label that prints no group is replaced by the diagram\'s "Yyn0"', async () => {
+    const values = [...others, { key: 'ligacao_secundaria', value: 'Dy1', ocr_token_ids: ['t4'], confidence: 0.9 }];
+    const result = await structurer(replying([toolUse('record_values', { values, vector_diagram: yyn0 })])).structure(withGroup);
+    expect(groupOf(result.output.values)).toMatchObject({ value: 'Yyn0', ocr_token_ids: ['t4', 't9'] });
+    expect(result.output.values.filter((value) => value.key === 'ligacao_secundaria')).toHaveLength(1);
+  });
+
+  it('a printed group wins: the diagram is ignored', async () => {
+    const ocr = { ...plateOcr, tokens: [...plateOcr.tokens, { id: `t${plateOcr.tokens.length}`, text: 'Dyn1', bbox: [10, 10, 60, 30] as [number, number, number, number], confidence: 0.99 }] };
+    const printedId = `t${plateOcr.tokens.length}`;
+    const printed = { key: 'ligacao_secundaria', value: 'Dyn1', ocr_token_ids: [printedId], confidence: 0.95 };
+    const result = await structurer(replying([toolUse('record_values', { values: [...others, printed], vector_diagram: yyn0 })])).structure({ ...withGroup, ocr });
+    expect(groupOf(result.output.values)).toEqual(printed);
+    expect(Object.keys(result.output)).toEqual(['values']);
+  });
+
+  it('a null diagram, a malformed one or no vector-group key changes nothing but the stripped key', async () => {
+    for (const vector_diagram of [null, { ...yyn0, x1_hours: 12 }, { ...yyn0, hv_neutral: 'no' }, { hv_shape: 'star' }]) {
+      const result = await structurer(replying([toolUse('record_values', { values: others, vector_diagram })])).structure(withGroup);
+      expect(result.output).toEqual({ values: others });
+    }
+    const unkeyed = await structurer(replying([toolUse('record_values', { values: others, vector_diagram: yyn0 })])).structure(plateInput);
+    expect(unkeyed.output).toEqual({ values: others });
+  });
+
+  it('a diagram citing no token is folded, then dropped as uncited', async () => {
+    const result = await structurer(replying([toolUse('record_values', { values: others, vector_diagram: { ...yyn0, ocr_token_ids: [] } })])).structure(withGroup);
+    expect(result.output).toEqual({ values: others });
+  });
+
+  it('a panel input with a stray vector_diagram: stripped, the panel values kept', async () => {
+    const result = await structurer(replying([toolUse('record_values', { ...panelValues, vector_diagram: yyn0 })])).structure({ image, ocr: panelOcr, fields: [...PANEL_FIELDS] });
+    expect(result.output).toEqual(panelValues);
   });
 });
