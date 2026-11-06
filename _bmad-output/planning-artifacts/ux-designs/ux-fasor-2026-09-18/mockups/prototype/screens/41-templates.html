@@ -18,6 +18,15 @@
 [data-route="/templates"] .tpl-row.is-archived .rr-primary { color: var(--ink-secondary); }
 [data-route="/templates"] .tpl-group { margin-top: var(--sp-6); }
 .frame-phone [data-route="/templates"] .section-head .btn-primary { width: 100%; }
+/* 2026-11-06, Story 14.7 DoR (Epic 22 wave C): "Tipos de equipamento". Governs: EXPERIENCE.md § IA › Templates and Tipo de equipamento;
+   spine AD-21 note of 2026-11-06 (registry, palettes, renaming only through "Duplicar"). Status pill: the existing component; the two
+   type states reuse existing tokens (Publicado = the Emitido color, conforme; Aposentado = the Rascunho color plus the archived row's ink),
+   always with the word, never color alone. */
+[data-route="/templates"] .status-pill[data-status="publicado"] { color: var(--conforme); }
+[data-route="/templates"] .status-pill[data-status="aposentado"] { color: var(--ink-secondary); }
+[data-route="/templates"] .type-row .rr-primary { display: inline-flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+[data-route="/templates"] .type-row .rr-lib { cursor: default; }
+[data-route="/templates"] .type-sub { margin-top: var(--sp-5); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); margin-bottom: var(--sp-2); }
 </style>
 <section class="screen" data-route="/templates" data-title="Templates" data-shell="app" data-rail="false">
   <div class="tpl-content">
@@ -75,5 +84,95 @@
       </ul>
     </section>
 
+    <!-- 2026-11-06, Story 14.7 DoR (Epic 22 wave C, Bruno's "cadastrar equipamentos e editar informações padrões"): the
+         "Tipos de equipamento" list. Library types are read-only with "Duplicar" only; company types carry Rascunho · Publicado ·
+         Aposentado and their version. Reached only from Templates, never from a field surface (UX-DR70). Copy authored. -->
+    <section class="section tpl-group" aria-labelledby="tpl-h-tipos" id="tpl-tipos">
+      <div class="section-head"><h2 id="tpl-h-tipos">Tipos de equipamento</h2></div>
+      <p class="section-note">Um tipo de equipamento define a ficha: placa, verificações, ensaios e critérios. Os tipos da biblioteca vêm com o PRODUTO e não mudam; para ajustar um, duplique e edite a cópia. Publicar congela uma versão: relatórios já criados mantêm a versão que usaram.</p>
+
+      <p class="type-sub" id="tpl-h-tipos-empresa">Da empresa (3)</p>
+      <ul class="registry-list" aria-labelledby="tpl-h-tipos-empresa">
+        <li class="registry-row tpl-row type-row">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-layers"/></svg>
+          <button class="rr-text" data-go="#/templates/tipos/no-break-comando" aria-label="Editar tipo No-break de comando">
+            <span class="rr-primary">No-break de comando <span class="status-pill" data-status="publicado">Publicado · versão 2</span></span>
+            <span class="rr-secondary">Rascunho da versão 3 aberto · TAG NB · duplicado de Chave de transferência automática · editado por Bruno · 05/11 16:40 · usado em 2 relatórios</span>
+          </button>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de No-break de comando"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+          <div class="rr-actions">
+            <button class="btn btn-text" data-go="#/templates/tipos/no-break-comando"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>Editar</button>
+            <button class="btn btn-text" data-go="#/templates/tipos/no-break-comando" data-toast="Rascunho criado: No-break de comando (cópia)"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button>
+            <button class="btn btn-text" data-open="#tpl-dlg-aposentar"><svg class="ico" aria-hidden="true"><use href="#i-archive"/></svg>Aposentar</button>
+          </div>
+        </li>
+        <li class="registry-row tpl-row type-row">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-layers"/></svg>
+          <button class="rr-text" data-go="#/templates/tipos/no-break-comando" aria-label="Editar tipo Chave ASCO 13,8 kV">
+            <span class="rr-primary">Chave ASCO 13,8 kV <span class="status-pill" data-status="rascunho">Rascunho</span></span>
+            <span class="rr-secondary">Nunca publicado · 2 avisos para publicar · duplicado de Chave de transferência automática · editado por Eduardo · 06/11 09:12</span>
+          </button>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de Chave ASCO 13,8 kV"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+          <div class="rr-actions">
+            <button class="btn btn-text" data-go="#/templates/tipos/no-break-comando"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>Editar</button>
+            <button class="btn btn-text" data-toast="Rascunho descartado" data-toast-action="Desfazer"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg>Descartar rascunho</button>
+          </div>
+        </li>
+        <li class="registry-row tpl-row type-row is-archived">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-layers"/></svg>
+          <button class="rr-text" data-go="#/templates/tipos/no-break-comando" aria-label="Ver tipo Fonte capacitiva">
+            <span class="rr-primary">Fonte capacitiva <span class="status-pill" data-status="aposentado">Aposentado · versão 1</span></span>
+            <span class="rr-secondary">Aposentado por Bruno · 30/10 · fora das paletas · o relatório e o template que o usam continuam funcionando</span>
+          </button>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de Fonte capacitiva"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+          <div class="rr-actions">
+            <button class="btn btn-text" data-toast="Tipo reativado · volta para as paletas">Reativar</button>
+            <button class="btn btn-text" data-go="#/templates/tipos/no-break-comando" data-toast="Rascunho criado: Fonte capacitiva (cópia)"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button>
+          </div>
+        </li>
+      </ul>
+
+      <p class="type-sub" id="tpl-h-tipos-lib">Da biblioteca (10) · somente leitura</p>
+      <ul class="registry-list" aria-labelledby="tpl-h-tipos-lib">
+        <li class="registry-row tpl-row type-row">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-book"/></svg>
+          <div class="rr-text rr-lib"><span class="rr-primary">Chave seccionadora</span><span class="rr-secondary">Biblioteca · TAG SEC · manual, epóxi ou a seco</span></div>
+          <div class="rr-actions"><button class="btn btn-text" data-go="#/templates/tipos/no-break-comando" data-toast="Rascunho criado: Chave seccionadora (cópia)"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button></div>
+        </li>
+        <li class="registry-row tpl-row type-row">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-book"/></svg>
+          <div class="rr-text rr-lib"><span class="rr-primary">Disjuntor MT</span><span class="rr-secondary">Biblioteca · TAG DJ</span></div>
+          <div class="rr-actions"><button class="btn btn-text" data-go="#/templates/tipos/no-break-comando" data-toast="Rascunho criado: Disjuntor MT (cópia)"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button></div>
+        </li>
+        <li class="registry-row tpl-row type-row">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-book"/></svg>
+          <div class="rr-text rr-lib"><span class="rr-primary">Transformador de força</span><span class="rr-secondary">Biblioteca · TAG TR</span></div>
+          <div class="rr-actions"><button class="btn btn-text" data-go="#/templates/tipos/no-break-comando" data-toast="Rascunho criado: Transformador de força (cópia)"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button></div>
+        </li>
+        <li class="registry-row tpl-row type-row">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-book"/></svg>
+          <div class="rr-text rr-lib"><span class="rr-primary">Chave de transferência automática</span><span class="rr-secondary">Biblioteca · TAG CTA · Outros equipamentos</span></div>
+          <div class="rr-actions"><button class="btn btn-text" data-go="#/templates/tipos/no-break-comando" data-toast="Rascunho criado: Chave de transferência automática (cópia)"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button></div>
+        </li>
+        <li class="registry-row tpl-row type-row">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-book"/></svg>
+          <div class="rr-text rr-lib"><span class="rr-primary">Mais 6 tipos da biblioteca</span><span class="rr-secondary">Cabos de entrada, Cabos de saída, Para-raios, TP, TC, Quadro elétrico (QGBT/QD) · cada um com "Duplicar"</span></div>
+        </li>
+      </ul>
+      <p class="section-note" style="margin-top: var(--sp-3)">Para renomear um tipo da biblioteca, duplique: a cópia leva o nome novo. O tipo da biblioteca continua nas paletas.</p>
+    </section>
+
   </div><!-- /tpl-content -->
+
+  <!-- 2026-11-06, Story 14.7: "Aposentar" asks for confirmation (copy authored). -->
+  <div class="dialog-scrim" id="tpl-dlg-aposentar" hidden>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="tpl-dlg-aposentar-t">
+      <p class="dialog-title" id="tpl-dlg-aposentar-t">Aposentar No-break de comando?</p>
+      <p>O tipo sai das paletas do template e da ficha. Os 2 relatórios e o template que já o usam continuam funcionando e imprimindo como estão. O rascunho da versão 3 fica guardado.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Tipo aposentado · fora das paletas" data-toast-action="Desfazer">Aposentar</button>
+      </div>
+    </div>
+  </div>
 </section>
