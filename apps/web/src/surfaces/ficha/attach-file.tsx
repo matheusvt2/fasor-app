@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react';
+import { useCallback, useRef, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { copy } from '../../copy/pt-br.ts';
 import { PHOTO_ACCEPT, type ImportResult, type ImportTarget } from '../../files/photo-import.ts';
@@ -34,27 +34,68 @@ type ImportFiles = (files: readonly File[], target: ImportTarget) => Promise<Imp
 
 /**
  * The picked files of one press: the first one only (the picker offers one), imported with the
- * opener's target; `onSaved` hears the target once the photo is stored. Nothing for an empty pick.
+ * opener's target; `onSaved` hears the target once the photo is stored, `onAbandon` when nothing
+ * was stored (an empty pick, a skipped file, an import that could not run).
  */
-export async function attachPicked(files: readonly File[], target: CaptureTarget, importFiles: ImportFiles, onSaved?: (target: CaptureTarget) => void): Promise<ImportResult | null> {
+export async function attachPicked(
+  files: readonly File[],
+  target: CaptureTarget,
+  importFiles: ImportFiles,
+  onSaved?: (target: CaptureTarget) => void,
+  onAbandon?: (target: CaptureTarget) => void,
+): Promise<ImportResult | null> {
   const file = files[0];
-  if (file === undefined) return null;
-  const result = await importFiles([file], importTargetOf(target));
+  if (file === undefined) {
+    onAbandon?.(target);
+    return null;
+  }
+  let result: ImportResult | null;
+  try {
+    result = await importFiles([file], importTargetOf(target));
+  } catch (error) {
+    onAbandon?.(target);
+    throw error;
+  }
   if (result !== null && result.saved.length > 0) onSaved?.(target);
+  else onAbandon?.(target);
   return result;
 }
 
 /**
  * The picker behind an opener: `open(target)` clicks the hidden input inside the press, keeping
  * the target for the file it brings; `input` is rendered where it outlives the press (the panel
- * capture keeps it in the tree while the palette that pressed it closes).
+ * capture keeps it in the tree while the palette that pressed it closes). `onAbandon` hears a
+ * picker cancelled (the input's `cancel` event) or a pick that stored nothing, so a caller whose
+ * opener is gone gives the focus back.
  */
-export function useAttachFile(relatorioId: string, onSaved?: (target: CaptureTarget) => void): { open: (target: CaptureTarget) => void; input: ReactNode } {
+export function useAttachFile(
+  relatorioId: string,
+  onSaved?: (target: CaptureTarget) => void,
+  onAbandon?: (target: CaptureTarget) => void,
+): { open: (target: CaptureTarget) => void; input: ReactNode } {
   const importFiles = usePhotoImport(relatorioId);
   const ref = useRef<HTMLInputElement>(null);
   const pending = useRef<CaptureTarget | null>(null);
   const latestSaved = useRef(onSaved);
   latestSaved.current = onSaved;
+  const latestAbandon = useRef(onAbandon);
+  latestAbandon.current = onAbandon;
+  // React has no `onCancel` for an input: the picker's own `cancel` event, listened to natively on
+  // whichever element the input is (a remounted input gets the listener too).
+  const attach = useCallback((input: HTMLInputElement | null) => {
+    ref.current = input;
+    if (input === null) return;
+    const cancel = () => {
+      const target = pending.current;
+      pending.current = null;
+      if (target !== null) latestAbandon.current?.(target);
+    };
+    input.addEventListener('cancel', cancel);
+    return () => {
+      input.removeEventListener('cancel', cancel);
+      if (ref.current === input) ref.current = null;
+    };
+  }, []);
   return {
     open: (target) => {
       pending.current = target;
@@ -62,7 +103,7 @@ export function useAttachFile(relatorioId: string, onSaved?: (target: CaptureTar
     },
     input: (
       <input
-        ref={ref}
+        ref={attach}
         type="file"
         accept={PHOTO_ACCEPT}
         hidden
@@ -74,8 +115,14 @@ export function useAttachFile(relatorioId: string, onSaved?: (target: CaptureTar
           event.target.value = '';
           const target = pending.current;
           pending.current = null;
-          if (target === null || files.length === 0) return;
-          void attachPicked(files, target, importFiles, (saved) => latestSaved.current?.(saved)).catch((error: unknown) => console.error('attached photo not saved', error));
+          if (target === null) return;
+          void attachPicked(
+            files,
+            target,
+            importFiles,
+            (saved) => latestSaved.current?.(saved),
+            (abandoned) => latestAbandon.current?.(abandoned),
+          ).catch((error: unknown) => console.error('attached photo not saved', error));
         }}
       />
     ),

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { PLATE_CAPTION, photosImportedText, suggestionAnnouncement } from '@app/domain';
+import { displayEnvTarget, PLATE_CAPTION, photosImportedText, suggestionAnnouncement } from '@app/domain';
 import type { FileChooser, Locator, Page } from '@playwright/test';
 import { withoutServiceWorker } from './support/durability.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -41,6 +41,7 @@ test.beforeEach(async ({ page }) => {
 const FIXTURES = resolve(import.meta.dirname, '../services/ocr/tests/fixtures');
 const PLATE = readFileSync(resolve(FIXTURES, 'plate-transformador.jpg'));
 const ISOLACAO = readFileSync(resolve(FIXTURES, 'display-isolacao.jpg'));
+const TERMO = readFileSync(resolve(FIXTURES, 'display-termo.jpg'));
 const PANEL = readFileSync(resolve(import.meta.dirname, '../apps/api/src/jobs/reading/fixtures/images/panel-seccionadora.png'));
 const GOHM = 'GΩ';
 /** The encoder's cap on the stored original's long edge (`ORIGINAL_MAX_PX`, `apps/web/src/files/photo-encode.ts`). */
@@ -294,4 +295,52 @@ test('@p0 22.1-E2E-005 a plate reading that read nothing: "Anexar arquivo" besid
   const keys = async () => (await prefs(page)).map((entry) => entry.key);
   await expect.poll(keys).toContain(`reading_cancelled:${first}`);
   expect(await keys()).not.toContain(`reading_cancelled:${second}`);
+});
+
+/** The cabine a block sits under: its location walked up to the root (the thermo-hygrometer's `displayEnvTarget`). */
+async function cabineOf(page: Page, blockId: string): Promise<string> {
+  const records = await readStore<{ entity: string; id: string; row: { location_id?: string | null; parent_id?: string | null } }>(page, database, 'entities');
+  const parents = new Map(records.filter((record) => record.entity === 'location').map((record) => [record.id, record.row.parent_id ?? null]));
+  let at = records.find((record) => record.entity === 'block' && record.id === blockId)!.row.location_id!;
+  while (parents.get(at) !== null && parents.get(at) !== undefined) at = parents.get(at)!;
+  return at;
+}
+
+test('@p0 22.1-E2E-007 "Anexar arquivo" beside the thermo-hygrometer\'s "Ler visor" commits a display photo of the cabine\'s environment', async ({ page }) => {
+  test.setTimeout(180_000);
+  // The bytes stay on the device: the create is what this asserts, no real job runs beside it.
+  await holdPhotoBytes(page);
+  const ids = await openChaveSheet(page, account, database);
+  const actions = page.locator('section.ficha-amb .ficha-amb-actions');
+  await expect(actions.getByRole('button', { name: 'Ler visor' })).toBeVisible();
+  const button = actions.getByRole('button', { name: 'Anexar arquivo' });
+  await expectReachable(button);
+  const photoId = await attach(page, button, { name: 'termo.jpg', mimeType: 'image/jpeg', buffer: TERMO });
+  const create = await photoCreate(page, photoId);
+  expect(create).toMatchObject({ kind: 'photo', reading_kind: 'display', reading_status: 'queued' });
+  expect(create.reading_target).toEqual(displayEnvTarget(await cabineOf(page, ids.blockId)));
+});
+
+test('@p0 22.1-E2E-008 a "Ler visor" reading that read nothing: "Anexar arquivo" beside "Fotografar de novo" commits a display photo of the empty photo\'s own target', async ({ page }) => {
+  test.setTimeout(240_000);
+  await holdPhotoBytes(page);
+  const ids = await openChaveSheet(page, account, database);
+  const actions = page.locator('#ficha-step-ensaios .ficha-mt[data-table-key="contato_aberto"] .mt-actions');
+  const first = await attach(page, actions.getByRole('button', { name: 'Anexar arquivo' }), { name: 'visor.jpg', mimeType: 'image/jpeg', buffer: ISOLACAO });
+  await syncNowAndReturn(page);
+  await pushReadingStatus(account.companyId, ids.relatorioId, first, 'done');
+  await syncNowAndReturn(page);
+
+  const empty = cellOf(page, 'T1, Valor').locator('.reading-empty');
+  await expect(empty.locator('.reading-line')).toHaveText('Nada foi lido nesta foto');
+  await expect(empty.getByRole('button', { name: 'Fotografar de novo' })).toBeVisible();
+  const again = empty.getByRole('button', { name: 'Anexar arquivo' });
+  await expectReachable(again);
+  const second = await attach(page, again, { name: 'visor-2.jpg', mimeType: 'image/jpeg', buffer: ISOLACAO });
+  expect(second).not.toBe(first);
+  const create = await photoCreate(page, second);
+  expect(create).toMatchObject({ kind: 'photo', block_id: ids.blockId, reading_kind: 'display', reading_status: 'queued' });
+  expect(create.reading_target).toEqual((await photoCreate(page, first)).reading_target);
+  expect(create.reading_target).toEqual({ block_id: ids.blockId, block_type: 'chave_seccionadora', table_key: 'isolacao', start_cell: { row: 0, col: 0 } });
+  await expect(cellOf(page, 'T1, Valor').locator('.reading-empty')).toHaveCount(0);
 });

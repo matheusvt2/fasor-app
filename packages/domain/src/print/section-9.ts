@@ -282,6 +282,7 @@ function storedValueText(field: Pick<FieldDef, 'kind' | 'unit'>, value: unknown)
   }
   if (typeof value === 'string') {
     if (value.trim() === '') return DASH;
+    if (printNotApplicable(value) === NOT_APPLICABLE_TEXT) return NOT_APPLICABLE_TEXT;
     if (field.kind === 'voltage_class') return wordRegistryRowText({ kind: 'voltage_class', name: value } as WordRow).primary;
     const text = fieldValueText(field, value);
     return printNotApplicable(text === '' ? value : text);

@@ -2,7 +2,7 @@
 title: 'e22p: Stories 22.1 to 22.3, attach a photo file to a reading and a cleaner printed ficha'
 type: 'feature'
 created: '2026-11-06'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'b71b9075'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -13,7 +13,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-22-context.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 # batched: 22.2 and 22.3 share print/section-9.ts and its api renderer; 22.1 is small and web-only (epic-22-context.md batch plan).
-deferred: []
+deferred:
+  - summary: >-
+      The LibreOffice page-placement proof of 22.3 (ACs 3 and 4) is skipped by the tools container's test:api; it runs only where soffice is on the path (the api container).
+    evidence: |-
+      page-placement.integration.test.ts describe.skipIf(!sofficeOnPath), the Story 20.5 pattern; the batch ran it in the api container and records the output in the PR body.
+    location: >-
+      apps/api/src/jobs/generate/page-placement.integration.test.ts
+    severity: medium
 ---
 
 <intent-contract>
@@ -103,6 +110,19 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-11-06 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 8 findings — high 0, medium 4, low 4, false 0, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` VG: the AI-off empty plate never asserted "Anexar arquivo" absent — assertion added to the AI-off case of `plate-photo.test.tsx`.
+  - `[medium]` `[patch]` VG: the thermo-hygrometer and empty-display-retake attach sites were never pressed — `22.1-E2E-007` and `22.1-E2E-008` added, asserting `reading_kind` and `reading_target` of the create.
+  - `[medium]` `[defer]` VG: the LibreOffice placement proof is skipped by test:api in the tools container — deferred (Story 20.5 pattern); run in the api container and recorded in the PR.
+  - `[low]` `[reject]` EC: a second press during a slow HEIC import can queue two plate photos — needs a deliberate second pick within the import's seconds; the fix adds in-flight state.
+  - `[medium]` `[patch]` EC: a cancelled or skipped palette pick left the focus on body and a phantom shot — `useAttachFile` gains `onAbandon` (native `cancel`, empty or skipped pick); `panel-capture.tsx` clears the shot and restores the focus to `focusAfter(target)`; unit tests in `attach-file.test.tsx`.
+  - `[low]` `[reject]` EC: the opener unmounting while the picker is open drops the file — needs a sync arrival during the open picker; the fix moves the input's host.
+  - `[low]` `[reject]` EC: a caption ending in "!" or "?" prints "X! (2)." and a stored "X (2)" can collide — the first is the spec's chosen form; the collision needs a typed caption equal to a printed ordinal.
+  - `[low]` `[patch]` EC: CLASSE DE TENSÃO typed "na" printed as typed — `storedValueText` applies `printNotApplicable` before the voltage-class branch; kernel test added.
+
 ## Verification
 
 **Environment (this host):** the CLI is `podman compose` (never docker), run from the worktree root; the stack `fasor-e22p` is up (postgres, minio, api). Never build images. Never run pnpm, node or Playwright on the host or outside the tools container; never run Playwright at all (the orchestrator runs the e2e specs under the host lock) — write and typecheck the specs only. Restart the api (`podman compose restart api`) after changes under `packages/domain` or `apps/api` before api tests. Redirect long output to `.scratch-e22p/*.log` and read the tail.
@@ -112,3 +132,12 @@ deferred: []
 - `pnpm exec vitest run --project @app/domain packages/domain/src/print` and `pnpm exec vitest run --project @app/web <touched files>` -- green while iterating.
 - `pnpm exec vitest run apps/api/src/jobs/generate` (api project, compose Postgres up; restart api first) -- green, golden diff reviewed.
 - Touched e2e (under the host lock, by the orchestrator): `pnpm exec tsx scripts/e2e.ts e2e/attach-file.spec.ts e2e/document-pages.spec.ts … --project desktop-chrome --project durability-desktop-chrome`.
+
+## Auto Run Result
+
+- Summary: 22.2 drops the attribution, the CRITÉRIO line, the measurement ACEITÁVEL row, the criteria line and the section 9 item line from print, prints one "N/A" for typed N/A spellings (`printNotApplicable`) and the unit once under a single-unit VALORES header. 22.3 adds `keepRows`/`keepWithNext` flags (`keptTogether`), minimal value-column widening (`widenToFit`) and caption ordinals (`withCaptionOrdinals`, section 9 photo blocks and section 7). 22.1 adds "Anexar arquivo" (`attach-file.tsx`) beside the plate tile and retake, every "Ler visor" opener and the palette panel capture, through the import path with the opener's `CaptureTarget`.
+- Golden: `porto-seguro-skeleton.json` 431 lines changed, all explained by script: 397 bare cells under a unit header, 34 section 7 ordinal suffixes; nothing else.
+- Review: 8 findings; 4 patched (medium 3, low 1), 1 deferred, 3 low rejected (see the triage log).
+- Follow-up review recommended: false (no high patched; the medium patches are test additions and one focus return covered by unit tests).
+- Verification: lint and static clean; domain print 256 of 256; api generate/attribution/audit green; LibreOffice placement 6 of 6 in the api container; touched specs and the story gate recorded in the PR body.
+- Residual risks: see `deferred-work.md` § "Deferred from: Epic 22 batch e22p".

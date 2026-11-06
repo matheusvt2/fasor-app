@@ -180,7 +180,16 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
   );
   const cameraOpen = camera.open;
   // Story 22.1: the picker's input lives here, beside the camera's, so it outlives the palette that pressed it.
-  const picker = useAttachFile(relatorioId);
+  // A cancelled picker or a file that stored nothing clears the shot and gives the focus back where
+  // the camera's would go (`focusAfter`): the palette that held the opener is gone.
+  const picker = useAttachFile(relatorioId, undefined, (abandoned) => {
+    const current = shotRef.current;
+    if (current === null || current.photoId !== abandoned.fileId) return;
+    shotRef.current = null;
+    setShot(null);
+    const after = focusAfterRef.current;
+    if (after !== undefined) restoreFocus(() => after(current.target), { mode: 'settled' });
+  });
   const pickerOpen = picker.open;
 
   const open = useCallback(

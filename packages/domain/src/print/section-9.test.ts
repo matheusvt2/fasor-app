@@ -1273,6 +1273,10 @@ describe('Stories 22.2 and 22.3: one N/A, the unit once, whole words and distinc
     expect(typed('-')).toBe('-');
     expect(typed('NAVAL')).toBe('NAVAL');
     expect(typed('N. A.')).toBe('N. A.');
+    // A voltage class (TENSÃO DE PLACA) typed as an N/A spelling: "N/A", never "na kV"; a class still prints with kV.
+    const tensao = (value: string) => valueAfter(texts(tableNamed(printedOf(edit(sheet(1, 1, 'chave_seccionadora', 'a0', 'SEC-01'), withNameplate({ tensao_de_placa: value }))), 'DADOS DO EQUIPAMENTO')), 'TENSÃO DE PLACA');
+    for (const value of ['na', 'N.A.', 'n/a']) expect(tensao(value), value).toBe(NOT_APPLICABLE_TEXT);
+    expect(tensao('15')).toBe('15 kV');
   });
 
   it('22.2: a cabine text typed as an N/A spelling prints "N/A"', () => {

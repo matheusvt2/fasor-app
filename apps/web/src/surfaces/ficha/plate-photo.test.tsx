@@ -332,6 +332,8 @@ describe('review 2026-10-08 (CAPT-V1) the empty plate reading', () => {
     );
     expect(await screen.findByText('Nada foi lido nesta foto')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Fotografar de novo' })).toBeNull();
+    // Story 22.1: the attach goes where the retake goes.
+    expect(screen.queryByRole('button', { name: 'Anexar arquivo' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Preencher manualmente' })).toBeInTheDocument();
   });
 
