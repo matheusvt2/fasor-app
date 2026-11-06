@@ -280,5 +280,5 @@ export function routeHarness(deviceId: string) {
     await sql.end();
   }
 
-  return { db, setup, cleanup, push, pushRaw, clientOp, serverApply, seedRelatorio, rowOf, logged, latestStatusOp, queueIssueJob, cutRevision, statusOp, headSeq, track };
+  return { db, setup, cleanup, authed, push, pushRaw, clientOp, serverApply, seedRelatorio, rowOf, logged, latestStatusOp, queueIssueJob, cutRevision, statusOp, headSeq, track };
 }

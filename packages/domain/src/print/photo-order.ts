@@ -1,4 +1,4 @@
-import { isGeralPhoto, livePhotos, type SnapshotPhoto } from '../photos/order.ts';
+import { compareSection7, isGeralPhoto, livePhotos, type SnapshotPhoto } from '../photos/order.ts';
 import { enabledSubBlocksOf } from '../relatorio/sheet-state.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
@@ -8,7 +8,7 @@ import { groupForPrint } from './group-for-print.ts';
 /*
  * Stories 17.1 and 17.4 (Bruno, 2026-10-27; AD-1, AD-17): the one document order of the
  * photos of a relatório, the order `numberPhotos` numbers and section 9 prints. First the
- * "Geral" photos (`isGeralPhoto`, section 7) in capture order; then section 9's photos as its
+ * "Geral" photos (`isGeralPhoto`, section 7) in section 7's order (Story 21.3: `compareSection7`, capture order unless a photo was moved); then section 9's photos as its
  * layout prints them, subsection by subsection of `groupForPrint` (the stored scheme): a
  * local's site-item photos once, on the first subsection emitted for that local (only on a
  * seed shipping a site list, only items of that list), then per sheet its plate photos, its
@@ -38,7 +38,7 @@ export interface SheetPhotoGroups {
 }
 
 export interface DocumentPhotoOrder {
-  /** Section 7's photos, in capture order. */
+  /** Section 7's photos, in section 7's order (Story 21.3: capture order unless moved). */
   geral: SnapshotPhoto[];
   /** Each local's site-item photos section 9 prints, keyed by the cabine id. */
   locals: ReadonlyMap<string, SnapshotPhoto[]>;
@@ -78,7 +78,8 @@ function push(map: Map<string, SnapshotPhoto[]>, key: string, photo: SnapshotPho
 /** The document order of a snapshot's live photos and the groups section 9 prints. */
 export function documentPhotoOrder(snapshot: NumberingSnapshot): DocumentPhotoOrder {
   const live = livePhotos(snapshot);
-  const geral = live.filter(isGeralPhoto);
+  // Story 21.3: section 7's order (`compareSection7`), capture order for a photo never moved.
+  const geral = live.filter(isGeralPhoto).sort(compareSection7);
   const byBlock = new Map<string, SnapshotPhoto[]>();
   const byLocal = new Map<string, SnapshotPhoto[]>();
   for (const photo of live) {

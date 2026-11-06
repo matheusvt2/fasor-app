@@ -52,8 +52,9 @@ export const EQUIPMENT_FIELDS = ['tag', 'removed_at'] as const;
  * `reading_kind` put re-queues the reading, `ops/apply.ts`).
  * Story 9.3 (contract 8): `people_in_photo`, the "Pessoas na foto" mark.
  * Story 14.3 (contract 18): `location_id`, the local of a site-item photo, beside `block_id`.
+ * Story 21.3 (contract 30): `order_key`, a "Geral" photo's place in section 7 (one put per move).
  */
-export const FILE_FIELDS = ['caption', 'block_id', 'item_key', 'removed_at', 'reading_kind', 'reading_target', 'people_in_photo', 'location_id'] as const;
+export const FILE_FIELDS = ['caption', 'block_id', 'item_key', 'removed_at', 'reading_kind', 'reading_target', 'people_in_photo', 'location_id', 'order_key'] as const;
 export const FILE_SERVER_FIELDS = ['uploaded_at', 'variants', 'reading_status'] as const;
 export const GENERATION_JOB_FIELDS = ['status', 'error', 'result_file_id', 'result', 'started_at'] as const;
 /**

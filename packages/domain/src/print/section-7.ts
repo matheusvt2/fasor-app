@@ -6,7 +6,7 @@ import type { NumberingSnapshot } from './photo-order.ts';
 /*
  * Story 7.2 (AC1), Story 17.1 (Bruno, 2026-10-27): section 7, the REGISTRO FOTOGRÁFICO, as
  * layout data. It holds only the "Geral" photos (`isGeralPhoto`: no sheet, no item, no local,
- * no reading), the ones added to it by hand, in capture order; they open the one numbering
+ * no reading), the ones added to it by hand, in section 7's order (Story 21.3, `geralPhotos`: capture order unless "Subir" or "Descer" moved one); they open the one numbering
  * sequence (`numberPhotos`), so they are "Imagem 1" to "Imagem N" here, two per row in the
  * document. A photo of a sheet, a checklist or site item, a plate or a display shot prints
  * only under its sheet or its local in section 9, with its own number of the same sequence,

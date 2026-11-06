@@ -263,8 +263,20 @@
  * and pulled op still parses. A version-28 bundle cannot parse a push answer that carries a new
  * code (its `syncPushResponseSchema` refuses the code, so the whole answer fails and the push is
  * retried forever), so `MIN_CONTRACT_VERSION` goes to 29 too.
+ *
+ * 30 (2026-11-05, Story 21.3, batch e21p): a photo row gains an optional `order_key`
+ * (`photoFileRowSchema`, `0-9a-z` only and never ending in `0`, absent and null both meaning never moved), and
+ * `FILE_FIELDS` gains `order_key`, so `file/{id}/order_key` is a new put path: one put per
+ * "Subir" or "Descer" in the gallery's Overflow places a "Geral" photo in section 7 (the
+ * REGISTRO FOTOGRÁFICO), and the one numbering sequence follows (`photos/order.ts`
+ * `geralPhotos`, `print/photo-order.ts`). The value is capped as any order key (medium,
+ * Story 20.9). A row written before 30 parses to the same bytes and keeps its capture-order
+ * place. A version-29 bundle cannot parse the put (its `opSchema` refuses the field, so a pulled
+ * page carrying one fails whole) and its row schema would strip the key, so its gallery would
+ * number section 7 in capture order where the server prints the moved order:
+ * `MIN_CONTRACT_VERSION` goes to 30 too.
  */
-export const CONTRACT_VERSION = 29;
+export const CONTRACT_VERSION = 30;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -419,8 +431,15 @@ export const CONTRACT_VERSION = 29;
  * split a push under the 4 MiB body cap, and it shows no sentence for the new refusals. The
  * server refuses its status ops and oversized values from the first push of the deploy on, so
  * the version-28 bundle updates too, through the outdated-contract screen as on every bump.
+ *
+ * 30 (2026-11-05, Story 21.3): a version-29 (or older) bundle's `opSchema` refuses a
+ * `file/{id}/order_key` put (the `FILE_FIELDS` enum), so a pulled page carrying one fails whole
+ * (`invalid_response`), the precedent of versions 20, 23 and 28; and its `photoFileRowSchema`
+ * would strip `order_key`, so its gallery and preview would number section 7 in capture order
+ * where the server's documents print the moved order. A relatório stream carries the put as
+ * soon as any device moves a photo, so the version-29 bundle updates too.
  */
-export const MIN_CONTRACT_VERSION = 29;
+export const MIN_CONTRACT_VERSION = 30;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes
