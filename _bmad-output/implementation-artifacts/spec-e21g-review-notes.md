@@ -2,7 +2,7 @@
 title: 'Epic 21 follow-up fix batch e21g: review notes N-1 to N-5 and the two e21r deferred rows'
 type: 'bugfix'
 created: '2026-11-06'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'ac9ca7ddd2e7af8cf72835be1cc2a9dacddb3a5e'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -131,3 +131,31 @@ deferred: []
 - `podman compose --profile tools run --rm --user root tools pnpm exec vitest run packages/domain/src/relatorio packages/domain/src/print/section-9.test.ts` -- expected: green.
 - `podman compose --profile tools run --rm --user root tools pnpm exec vitest run apps/web/src/surfaces/ficha apps/web/src/surfaces/compact-template-sections.test.tsx apps/web/src/surfaces/photos` -- expected: green.
 - `podman compose --profile tools run --rm --user root tools pnpm lint` and `pnpm static` -- expected: clean.
+
+## Auto Run Result
+
+Status: done
+
+**Summary.** D1 to D7 of the coordinator (2026-11-06). D1: a v11 ratio table waiting for its group shows and prints "Fase 1" to "Fase 3" as capture headers (kernel `vectorGroupNeutralCaptureLabel`). D2: a v9/v10 empty LIGAÇÃO SECUNDÁRIA says "LIGAÇÃO SECUNDÁRIA vazia: calculado como Dyn1" (`RatioGroupResolution.blank`, `VECTOR_GROUP_EMPTY_TEXT`). D3: the gallery note starts "Fotos gerais na ordem do relatório (mude com Subir e Descer); fotos das fichas na ordem de captura." (`copy.gallery.orderNote`). D4, D5: no change (Design Notes). D6: `suggestConclusionPair` offers no Sem restrições while a ratio table waits for its group and the plate can be filled. D7: `sheetJumpTarget` (kernel) and `goTo(step, missing, fieldKey)` land "Concluir ficha" on the LIGAÇÃO SECUNDÁRIA select when the group is all Ensaios misses.
+
+**Files.**
+- `packages/domain/src/relatorio/vector-group.ts` -- the neutral label and the empty-field text.
+- `packages/domain/src/relatorio/reading-cells.ts` -- `blank` on the group resolution.
+- `packages/domain/src/relatorio/reading-evaluation.ts` -- neutral labels while `groupMissing`; the empty/unrecognized helper.
+- `packages/domain/src/relatorio/conclusion.ts` -- D6.
+- `packages/domain/src/relatorio/sheet-progress.ts` -- `steps.ensaios.group`, `sheetJumpTarget`, `SheetJumpTarget`.
+- `apps/web/src/surfaces/ficha/use-ficha-steps.ts`, `use-ficha-actions.ts` -- the jump to a named field.
+- `apps/web/src/copy/pt-br.ts` -- the gallery note.
+- Tests: `readings.test.ts`, `section-9.test.ts`, `conclusion.test.ts`; `e2e/ficha.spec.ts` (21.1-E2E-001 extended, 21.1-E2E-004 new), `e2e/photo-order.spec.ts` (the note at 390, 768, 1280).
+- Records: `deferred-work.md` (two e21r rows closed), `epics.md` (dated lines under 21.1 and 21.3), `docs/kbs/architecture/kernel-and-seed.md`, `docs/kbs/log.md`.
+
+**Review.** One pass, two layers (Edge Case Hunter, Verification Gap). 6 findings: 3 patched (D6 follows the nameplate rule, medium, two reports of one root cause; the jump skips a pending `.ficha-suggestion`, low; `blank` follows `isCellFilled`, low), 1 low rejected (named field not rendered: not reachable while `group` is counted), 1 false (the focus watch follows fresh rows and stops on input). Nothing deferred. Patched, not re-reviewed: the three patches above (each with its unit test).
+
+**Follow-up review recommendation:** false (no high patched; one medium entry patched). Patched counts: medium 1 entry, low 2.
+
+**Verification (story gate on 4fe720fe, the merge of main a79b0710).**
+- Part 1, host lock wait 0 s, load 10.48 at the start and 8.95 at the end (the main checkout's stack up, nothing else): lint 0 (44 s), static 0 (56 s), test:unit 5205 of 5207 (444 s); the 2 red were `apps/web/src/surfaces/relatorio/relatorio-tree-painel.test.tsx` (a 15 s timeout and a missing "Posição" box under load, a file this batch does not touch).
+- Part 2, lock wait 0 s, load 7.76 at the start and 3.81 at the end: that file alone 16 of 16 (29 s); test:api 865 passed, 4 skipped (375 s); touched specs (`ficha`, `photo-order`, `seed-v11`, `seed-v10`, `ratio-feeds-conclusion`, `gallery`, `review-layout-interaction-2026-10-08`, `sheet-knows-12-3-12-4`) on desktop-chrome and durability-desktop-chrome: 83 of 83 (parallel 61, serial 22, 292 s).
+- Mutation run (D7): `conclude` reverted to `firstIncompleteStep`; 21.1-E2E-004 went red at "Y 1280" (Placa not the current step), its empty-field case passing, as the Design Notes predict; restored, tree clean.
+
+**Residual risks.** The D7 code path matters only when the v11 select holds a value naming no group, which the app's own paths never write (every incoming value goes through `selectOptionFor`); the empty case already landed on Placa. D3's wording is authored, for Bruno to read.
