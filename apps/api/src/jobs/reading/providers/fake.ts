@@ -17,6 +17,7 @@ import sharp from 'sharp';
 import { z } from 'zod';
 import { FAKE_FIXTURE_DEFAULTS } from '../kinds/index.ts';
 import type { ReadingKind } from '../payload.ts';
+import { withoutUncitedValues } from './bedrock.ts';
 import { PermanentReadingError, ProviderError, ProviderTimeoutError } from './errors.ts';
 import { vectorDiagramFactsSchema, vectorGroupKeyOf, withVectorDiagram, type PlateStructuringInput } from './vector-diagram.ts';
 import { MAX_INPUT_PIXELS } from '../../../storage/variants.ts';
@@ -194,10 +195,10 @@ export function fakeStructuringProvider(dir: string, sha256: string, fixtureKey:
     async structure(input: StructuringInput): Promise<StructuringResult> {
       const { fixture, key } = await resolveFakeFixture(dir, sha256, fixtureKey);
       failFor(fixture, key, 'structuring');
-      // e21f: the same fold as the bedrock provider's, then the contract's own parse.
+      // e21f: the same fold and uncited drop as the bedrock provider's, then the contract's own parse.
       const plate = input as PlateStructuringInput | undefined;
       const folded = withVectorDiagram(fixture.structuring ?? { values: [] }, vectorGroupKeyOf(plate), plate?.ocr?.tokens ?? []);
-      const output = structuringOutputSchema.safeParse(folded);
+      const output = structuringOutputSchema.safeParse(withoutUncitedValues(folded));
       if (!output.success) throw new PermanentReadingError(`fake structuring: fixture ${key} is not a StructuringOutput once folded: ${output.error.message.slice(0, 300)}`);
       return {
         output: output.data,

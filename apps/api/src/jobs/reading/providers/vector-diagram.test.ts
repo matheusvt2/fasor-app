@@ -52,6 +52,22 @@ describe('e21f withVectorDiagram', () => {
     }
   });
 
+  it('review: a printed entry citing one unknown id beside its word is not a printed read (the kernel would drop it): the diagram wins', () => {
+    const entry = { key: KEY, value: 'Dyn1', ocr_token_ids: ['t1', 't99'], confidence: 0.9 };
+    expect(withVectorDiagram({ values: [entry], vector_diagram: yyn0 }, KEY, tokens)).toEqual({ values: [composed] });
+  });
+
+  it('review: an entry whose words print another group ("Dy1" citing "Dyn1") is replaced by the diagram', () => {
+    const entry = { key: KEY, value: 'Dy1', ocr_token_ids: ['t1'], confidence: 0.9 };
+    expect(withVectorDiagram({ values: [entry], vector_diagram: yyn0 }, KEY, tokens)).toEqual({ values: [composed] });
+  });
+
+  it('review: the diagram cites only the labels the OCR returned; with none left it is uncited', () => {
+    const facts = { ...yyn0, ocr_token_ids: ['t2', 't99', 't3', 't2', 't4'] };
+    expect(withVectorDiagram({ values: [], vector_diagram: facts }, KEY, tokens)).toEqual({ values: [composed] });
+    expect(withVectorDiagram({ values: [], vector_diagram: { ...yyn0, ocr_token_ids: ['t98', 't99'] } }, KEY, tokens)).toEqual({ values: [{ ...composed, ocr_token_ids: [] }] });
+  });
+
   it('a null or absent diagram: the input unchanged but for the stripped key', () => {
     const entry = { key: KEY, value: 'Dy1', ocr_token_ids: ['t2'], confidence: 0.9 };
     expect(withVectorDiagram({ values: [entry], vector_diagram: null }, KEY, tokens)).toEqual({ values: [entry] });

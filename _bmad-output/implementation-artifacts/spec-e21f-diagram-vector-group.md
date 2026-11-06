@@ -2,7 +2,7 @@
 title: 'e21f: the drawn vector diagram is described by the model and composed by the kernel (Story 21.2 fix)'
 type: 'bugfix'
 created: '2026-11-05'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'fdc1992455b328f255c6876207f9db4f97b7c668'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -13,7 +13,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/spec-e21r-ratio-vector-group.md'
 warnings: ['batched']
 batched_reason: 'One fix batch for the Epic 21 integrated review: the coordinator paid eval found the drawn Yyn0 plate read as Dy1 3 of 3; prompt, kernel, providers and fixtures change together.'
-deferred: []
+deferred:
+  - summary: >-
+      The eval's "(diagram)" marker in bedrock-eval.ts groupRead has no test.
+    evidence: |-
+      groupRead is not exported and no test imports apps/api/src/scripts/; the script runs only as the paid eval, read by a person.
+    location: >-
+      apps/api/src/scripts/bedrock-eval.ts
+    severity: low
 ---
 
 <intent-contract>
@@ -94,6 +101,20 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-05 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer (opus); Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 9 findings — high 0, medium 0, low 8, false 1, maybe-false 0
+- findings:
+  - `[low]` `[patch]` EC: diagram facts citing an id the OCR did not return made the composed entry drop as `unknown_token` (and replace a model entry first) — the fold now cites only the labels the OCR returned (deduplicated); none left is uncited and dropped next; tests.
+  - `[low]` `[patch]` EC: `printsItsGroup` skipped unknown cited ids, so a printed entry the kernel then drops beat a composable diagram — any unknown cited id makes it not printed; test.
+  - `[low]` `[reject]` EC: the plate prints a group but the model leaves it out of values and fills the diagram — against the prompt, still `verify` with the note, and the fix adds a whole-OCR scan branch.
+  - `[low]` `[patch]` EC: an entry whose words print another group ("Dy1" citing "Dyn1") was kept over the diagram — printed now means the cited words print the entry's own code (the kernel's `printed.has(code)`); test.
+  - `[low]` `[patch]` EC: the fake failed permanently on a fixture diagram citing no token where bedrock drops it — the fake applies `withoutUncitedValues` after the fold; `fake.test.ts` case.
+  - `[false]` `[reject]` EC claim: "impossible facts suggest nothing" while a model's own entry survives — the spec's matrix row "diagram uncomposable: an existing entry kept" and Design Notes define exactly this; the AC speaks of the composition.
+  - `[low]` `[defer]` VG: the eval's "(diagram)" marker has no test — the script has no harness and runs only as the paid eval; `deferred-work.md` row.
+  - `[low]` `[patch]` VG other: same root cause as the second EC row (unknown ids in printed-wins), grouped.
+  - `[low]` `[patch]` VG other: same root cause as the fake uncited row, grouped.
 
 ## Design Notes
 

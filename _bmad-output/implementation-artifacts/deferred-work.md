@@ -2973,6 +2973,9 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/spec-e21f-diagram-vector-group.md`
   summary: A group the model composes itself, citing words that print no group, with no `vector_diagram` facts, keeps the e21r handling (a diagram read, `verify`); only facts that compose replace it.
   evidence: spec Design Notes (conservative, listed in the PR); `providers/vector-diagram.ts` `withVectorDiagram` changes nothing without composable facts.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e21f-diagram-vector-group.md` (review, owner: the coordinator at the eval run)
+  summary: The eval's "(diagram)" marker (`bedrock-eval.ts` `groupRead`) has no test; the script has no harness and runs only as the paid eval, so whoever reads its table checks the marker against the plate (drawn plate "Yyn0 (diagram)", printed plates plain).
+  evidence: verification-gap review of e21f; `groupRead` is not exported and no test imports `apps/api/src/scripts/`.
 
 ## Deferred from: Epic 21 batch e21p (2026-11-05)
 

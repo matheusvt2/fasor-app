@@ -104,6 +104,17 @@ describe('8.4-API committed fake fixtures', () => {
     // `ok` without an OCR read cannot be replayed.
     expect(await failure(fakeOcrProvider(scratch, 'c'.repeat(64)).read(image))).toBeInstanceOf(PermanentReadingError);
   });
+
+  it('e21f review: a fixture whose vector_diagram cites no token drops the composed group, as the bedrock provider does, and never fails', async () => {
+    const ocr = { image: { width: 10, height: 10 }, tokens: [{ id: 't0', text: 'TR-03', bbox: [0, 0, 5, 5] as [number, number, number, number], confidence: 0.99 }], preprocessing_applied: false };
+    const facts = { hv_shape: 'star', hv_neutral: false, lv_shape: 'star', lv_neutral: true, x1_hours: 0 };
+    const values = [{ key: 'identificacao', value: 'TR-03', ocr_token_ids: ['t0'], confidence: 0.97 }];
+    writeFileSync(join(scratch, `${'d'.repeat(64)}.json`), JSON.stringify({ outcome: 'ok', ocr, structuring: { values, vector_diagram: { ...facts, ocr_token_ids: [] } } }));
+    const fields = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').nameplate;
+    const input = { image, ocr, fields: [...fields], vectorGroupKey: 'ligacao_secundaria' };
+    const result = await fakeStructuringProvider(scratch, 'd'.repeat(64)).structure(input);
+    expect(result.output).toEqual({ values });
+  });
 });
 
 describe('E78-Q2 the fake falls back to the block type\'s default fixture', () => {

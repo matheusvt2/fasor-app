@@ -83,17 +83,24 @@ export function vectorGroupKeyOf(input: Partial<Pick<PlateStructuringInput, 'fie
   return fields.some((field: unknown) => isRecord(field) && field.key === key) ? key : undefined;
 }
 
-/** Whether a structured group entry's value parses and the OCR words it cites print a group (`printedVectorGroups`, the kernel's rule). */
+/**
+ * Whether a structured group entry is a printed read the kernel keeps: its value parses, every id it
+ * cites is in the OCR read (the kernel drops an entry citing an unknown id, `buildReadingSuggestions`),
+ * and its cited words print that same group (`printedVectorGroups`, the kernel's rule).
+ */
 function printsItsGroup(entry: Record<string, unknown>, tokens: readonly Pick<OcrToken, 'id' | 'text'>[]): boolean {
-  if (parseVectorGroup(entry.value) === null) return false;
+  const group = parseVectorGroup(entry.value);
+  if (group === null) return false;
   const ids = entry.ocr_token_ids;
-  if (!Array.isArray(ids)) return false;
+  if (!Array.isArray(ids) || ids.length === 0) return false;
   const byId = new Map(tokens.map((token) => [token.id, token]));
-  const cited = [...new Set(ids)].flatMap((id) => {
+  const cited: Pick<OcrToken, 'id' | 'text'>[] = [];
+  for (const id of new Set(ids)) {
     const token = typeof id === 'string' ? byId.get(id) : undefined;
-    return token === undefined ? [] : [token];
-  });
-  return printedVectorGroups(inTokenOrder(cited)).size > 0;
+    if (token === undefined) return false;
+    cited.push(token);
+  }
+  return printedVectorGroups(inTokenOrder(cited)).has(group.code);
 }
 
 /**
@@ -116,7 +123,10 @@ export function withVectorDiagram(input: unknown, key: string | undefined, token
   if (!Array.isArray(values)) return rest;
   const index = values.findIndex((value: unknown) => isRecord(value) && value.key === key);
   if (index >= 0 && printsItsGroup(values[index] as Record<string, unknown>, tokens)) return rest;
+  // Only the labels the OCR read returned are cited (the kernel drops a value citing an unknown id);
+  // none left is an uncited value, dropped next by `withoutUncitedValues`.
+  const known = new Set(tokens.map((token) => token.id));
   // The server ignores the model's confidence (`reading/digits.ts`): 0.5 is inert.
-  const composed = { key, value: code, ocr_token_ids: [...facts.data.ocr_token_ids], confidence: 0.5 };
+  const composed = { key, value: code, ocr_token_ids: [...new Set(facts.data.ocr_token_ids)].filter((id) => known.has(id)), confidence: 0.5 };
   return { ...rest, values: index >= 0 ? values.map((value: unknown, i) => (i === index ? composed : value)) : [...values, composed] };
 }
