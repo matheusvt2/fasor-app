@@ -2,7 +2,7 @@
 title: 'e22r: Stories 22.10 and 22.12, readings above range and the previous visit value (contract 32)'
 type: 'feature'
 created: '2026-11-06'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'd7a77dea9cc7d4bed9af260d69a35c793cdc0feb'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -148,3 +148,7 @@ deferred: []
 - `pnpm lint`, `pnpm static`, `pnpm test:unit`, `pnpm test:api` -- expected: green.
 - `pnpm exec tsx scripts/e2e.ts e2e/over-range.spec.ts e2e/over-range.durability.spec.ts e2e/previous-visit.spec.ts e2e/ficha.spec.ts e2e/display-shots.spec.ts e2e/qgbt.spec.ts e2e/photo-numbers.spec.ts e2e/ratio-feeds-conclusion.spec.ts e2e/points-derived.spec.ts e2e/parecer-export.spec.ts e2e/document-pages.spec.ts e2e/nameplate-values.spec.ts e2e/cadastros.spec.ts --project desktop-chrome --project durability-desktop-chrome` -- expected: green (the orchestrator runs it under the host lock).
 - `pnpm exec tsx scripts/e2e.ts e2e/over-range.durability.spec.ts e2e/ficha.durability.spec.ts e2e/lost-taps.durability.spec.ts --project durability-desktop-chrome --project durability-android-chrome --project durability-webkit` -- expected: green.
+
+## Auto Run Result
+
+Status: done (2026-11-06). Implementation by bmad-dev-opus-high, one review-fix loop (6 patched, 3 rejected, 1 deferred). Story gate on b132419d under the host lock (wait 262 s, load 4.95 at start, 9.32 at end, with the e22s and e22f stacks up): lint 0, static 0, test:api 885 passed / 6 skipped, test:unit 5362 passed in 370 files, touched e2e 93 of 93 (desktop-chrome and durability-desktop-chrome), durability matrix 38 passed and 1 skipped of 39 (three projects). Pending: merge main after e22s (contract 32, `print/section-9.ts`) and re-run the touched specs on that merge.
