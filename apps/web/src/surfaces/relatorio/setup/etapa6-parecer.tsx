@@ -34,7 +34,9 @@ import type { BandRef } from './setup-fields.ts';
  *
  * Story 22.6 (2026-11-06, Bruno; amends FR-71): the segments show the effective verdict
  * (`effectiveParecer`: derived from the fichas, or a stricter one the engineer tapped); every
- * verdict looser than the derived one is disabled, with the kernel's reason line. The summary
+ * verdict looser than the derived one is disabled, with the kernel's reason line. e22f S5: with
+ * no concluded sheet and no verdict tapped there is none: no segment is checked and the box,
+ * as before Story 22.6, waits for one. The summary
  * is the composed one, read-only (~~Confirmar, Editar, Substituir~~); a summary typed before
  * shows under "Observações do responsável" with "Limpar", and none can be added.
  */
@@ -77,7 +79,9 @@ export function Etapa6Parecer({
   };
   const { latest, emit } = useLatestChoice<ParecerVerdict>(verdict, setVerdict);
   const refs = useRef(new Map<ParecerVerdict, HTMLButtonElement | null>());
-  const selected = SEGMENTS.indexOf(verdict);
+  // e22f S5: no verdict while no sheet is concluded and none was tapped: no segment checked, the first tabbable.
+  const selected = verdict === null ? -1 : SEGMENTS.indexOf(verdict);
+  const tabbable = selected === -1 ? SEGMENTS.findIndex((segment) => !looser(segment)) : selected;
 
   const moveTo = (index: number, step: number) => {
     // Story 22.6: the arrows skip a disabled verdict.
@@ -140,7 +144,7 @@ export function Etapa6Parecer({
                 data-value={parecerBoxTone(segment)}
                 aria-checked={segment === verdict}
                 disabled={looser(segment)}
-                tabIndex={index === selected ? 0 : -1}
+                tabIndex={index === tabbable ? 0 : -1}
                 ref={(element) => {
                   refs.current.set(segment, element);
                 }}
@@ -191,11 +195,13 @@ export function Etapa6Parecer({
           </div>
         )}
 
-        <div className="parecer-box" role="status" aria-live="polite" data-verdict={parecerBoxTone(verdict)}>
-          <span className="pb-kicker">{absent?.kicker ?? t.parecerKicker(sectionRefText(snapshot, 10))}</span>
-          <span className="pb-verdict">{parecerVerdictLabel(verdict)}</span>
-          <span className="pb-text">{parecerBoxText(snapshot)}</span>
-        </div>
+        {verdict === null ? null : (
+          <div className="parecer-box" role="status" aria-live="polite" data-verdict={parecerBoxTone(verdict)}>
+            <span className="pb-kicker">{absent?.kicker ?? t.parecerKicker(sectionRefText(snapshot, 10))}</span>
+            <span className="pb-verdict">{parecerVerdictLabel(verdict)}</span>
+            <span className="pb-text">{parecerBoxText(snapshot)}</span>
+          </div>
+        )}
       </div>
     </section>
   );

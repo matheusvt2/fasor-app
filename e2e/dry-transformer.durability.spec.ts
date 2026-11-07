@@ -93,7 +93,15 @@ function seedCabines(scope: Scope, drafts: readonly OpDraft[]): OpDraft[] {
 function seedReadings(scope: Scope, blockId: string): OpDraft[] {
   return TF.tests.flatMap((t) =>
     cellAddressesOf(TF, t.key).map((c) =>
-      officeDraft(account, scope, `sheet/${blockId}/test/${c.testKey}/cell/${c.row}/${c.col}`, c.testKey === 'isolacao' ? n('150', 'GΩ') : n('100', null)),
+      // e22f: the ratio's AT and BT columns read 100 kV and 100 V (seed v5, no vector group), so its
+      // captures type the calculated 1000: within criterion. With 100 they were 90 % off, the
+      // Story 22.4 floor Reprovado · Com restrições, and the sheet was never "Ficha completa".
+      officeDraft(
+        account,
+        scope,
+        `sheet/${blockId}/test/${c.testKey}/cell/${c.row}/${c.col}`,
+        c.testKey === 'isolacao' ? n('150', 'GΩ') : c.testKey === 'relacao_transformacao' && c.col >= 2 ? n('1000', null) : n('100', null),
+      ),
     ),
   );
 }

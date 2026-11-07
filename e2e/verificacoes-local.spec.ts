@@ -84,7 +84,6 @@ const EMERGENCIA = 'iluminacao_de_emergencia_autonomia_minima_de_2_h';
 const CAPTION = 'Verificação de iluminação de emergência (autonomia mínima de 2 h) do Cubículo Enel';
 const NC_PHRASE = 'Autonomia abaixo de 2 h';
 const NA_NOTE = 'Sem equipamento a óleo no local';
-const POINT_TEXT = 'Luminária de emergência inoperante';
 const POINT_ACTION = 'Substituir as baterias';
 const SITE_TITLE = 'VERIFICAÇÕES DO LOCAL';
 const GROUPS = ['SEGURANÇA E EPC NO LOCAL', 'COMBATE A INCÊNDIO', 'ILUMINAÇÃO', 'ATERRAMENTO', 'SINALIZAÇÃO E DOCUMENTAÇÃO', 'AMBIENTE'];
@@ -444,9 +443,9 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   await expect(editor.locator('.poa-link-value')).toHaveText('Cubículo Enel · Verificações do local');
   const text = editor.getByRole('textbox', { name: 'Texto' });
   await expect(text.locator('.photo-ref')).toHaveText('Imagem 1');
-  await text.click();
-  await page.keyboard.press('Home');
-  await page.keyboard.type(`${POINT_TEXT} `);
+  // e22f S4: the point starts with the item's derived entry text (its NC phrase), as "Editar" on
+  // that entry does, so nothing needs typing here.
+  await expect(text).toContainText(/^Item \d+ \(.+\): .+/);
   await editor.getByRole('textbox', { name: 'Ação recomendada' }).fill(POINT_ACTION);
   await editor.getByRole('button', { name: 'Concluir' }).click();
   await expect(editor).toHaveCount(0);
@@ -454,7 +453,10 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   await expect.poll(async () => (await pointsOf(page, relatorioId)).map((stored) => stored.action)).toEqual([POINT_ACTION]);
   const [point] = await pointsOf(page, relatorioId);
   // Story 22.5: written from the NC item (origin nc, its item), citing the item's photo.
-  expect(point).toMatchObject({ location_id: enelId, equipment_id: null, origin: 'nc', item_key: EMERGENCIA, action: POINT_ACTION, text: `${POINT_TEXT} ${photoToken(photoId)}` });
+  expect(point).toMatchObject({ location_id: enelId, equipment_id: null, origin: 'nc', item_key: EMERGENCIA, action: POINT_ACTION });
+  expect(point!.text.endsWith(` ${photoToken(photoId)}`)).toBe(true);
+  const entryText = point!.text.slice(0, -` ${photoToken(photoId)}`.length);
+  expect(entryText).toMatch(/^Item \d+ \(.+\): .+$/);
 
   // "Concluir verificações" with nothing missing returns to the tree; the row reads N de N.
   await bar(page).getByRole('button', { name: 'Concluir verificações' }).click();
@@ -623,7 +625,7 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   expect(paragraphsOf(document).filter((paragraph) => paragraph === photoLine)).toHaveLength(1);
   // Section 8: the point, and its row naming the local.
   const eight = sectionXml(document, 9);
-  expect(paragraphsOf(eight)).toContain(`${POINT_TEXT}, conforme Imagem 1. ${POINT_ACTION}`);
+  expect(paragraphsOf(eight)).toContain(`${entryText}, conforme Imagem 1. ${POINT_ACTION}`);
   const [plan] = tablesOf(eight);
   expect(plan![1]![0]).toBe('1');
   expect(plan![1]).toContain('Cubículo Enel · Verificações do local');

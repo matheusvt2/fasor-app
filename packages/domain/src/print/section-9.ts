@@ -6,12 +6,8 @@ import { notTestedPointText } from '../points/derived.ts';
 import { wordRegistryRowText, type WordRow } from '../registry/word-row.ts';
 import type { CabineLocation } from '../relatorio/cabine.ts';
 import {
-  composeConclusion,
-  conclusionPairComplete,
-  conclusionTextForPrint,
-  conclusionTextState,
-  conclusionTextStatusOf,
-  effectiveConclusionPair,
+  printedConclusionPair,
+  printedConclusionText,
   type ConclusionRestriction,
   type ConclusionResult,
 } from '../relatorio/conclusion.ts';
@@ -953,13 +949,12 @@ function observationsPart(block: BlockRow): SheetPart | null {
  * line no longer prints under it (the screen still shows it).
  */
 function conclusionParts(block: BlockRow, definition: BlockDefinition, tag: string): SheetPart[] {
-  // Story 22.4: the X marks of the effective pair (the stricter of the floor and the stored pair).
-  const effective = effectiveConclusionPair(block);
-  const chosen = new Set<string>([effective.result, effective.restriction].filter((value): value is ConclusionResult | ConclusionRestriction => value !== null));
-  const composed = composeConclusion(block, definition, tag);
-  const status = conclusionTextStatusOf(block);
-  const printable = conclusionPairComplete(block) && (status === 'edited' || (status === 'confirmed' && conclusionTextState(block, composed) === 'confirmed'));
-  const text = printable ? conclusionTextForPrint(block) : null;
+  // Story 22.4: the X marks of the effective pair (the stricter of the floor and the stored pair);
+  // e22f N2: of the chosen pair while the sheet is open, so the floor alone prints no mark.
+  const printed = printedConclusionPair(block);
+  const chosen = new Set<string>([printed.result, printed.restriction].filter((value): value is ConclusionResult | ConclusionRestriction => value !== null));
+  // e22f S1: a confirmed text the floor made stale prints the text composed now.
+  const text = printedConclusionText(block, definition, tag);
   const rows: PrintRow[] = [
     bandRow(CONCLUSION_TITLE, CONCLUSION_BOXES.length * 2),
     { cells: CONCLUSION_BOXES.flatMap(({ value, label }) => [{ text: printLabel(label), bold: true, align: 'left' as const }, valueCell(chosen.has(value) ? MARK : '')]) },

@@ -93,13 +93,16 @@ export type ParecerWord = 'Apto' | 'Apto com restrições' | 'Não apto';
  * the verdict is derived from the fichas and never missing; a segment looser than the derived
  * one is disabled, so the tap is made only when the segment is enabled and not already the
  * effective verdict, and the box then reads the verdict asked for. A walk asking for a looser
- * verdict than the fichas give leaves the derived one standing.
+ * verdict than the fichas give leaves the derived one standing. e22f S5: a relatório with
+ * nothing judged has no verdict until one is tapped, so issue walks pass here again.
  */
 export async function setParecer(page: Page, relatorioId: string, verdict: ParecerWord = 'Apto'): Promise<void> {
   await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
   const segment = page.getByRole('radiogroup', { name: 'Parecer' }).getByRole('radio', { name: verdict, exact: true });
-  await expect(page.locator('.parecer-box .pb-verdict')).not.toHaveText('');
+  // e22f S5: with nothing judged and no verdict tapped there is no verdict and no box (and
+  // "Parecer não preenchido" blocks issuing again), so the band's segments say it has loaded.
+  await expect(segment).toBeVisible();
   if (await segment.isEnabled()) {
     if ((await segment.getAttribute('aria-checked')) !== 'true') await segment.click();
     await expect(segment).toHaveAttribute('aria-checked', 'true');

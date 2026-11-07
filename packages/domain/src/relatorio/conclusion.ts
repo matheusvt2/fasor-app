@@ -6,8 +6,9 @@ import { findDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr } from '../text/plural.ts';
-import { evaluateSheetMeasurements, measurementCells, worstMeasurements, type WorstMeasurement } from './measurement-evaluation.ts';
-import { evaluatedCells, evaluateSheetReadings, failedRatioRows, worstReadings, type TestKey, type WorstReading } from './readings.ts';
+import { measurementCells, worstMeasurements, type WorstMeasurement } from './measurement-evaluation.ts';
+import { evaluatedCells, failedRatioRows, worstReadings, type TestKey, type WorstReading } from './readings.ts';
+import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
 import { checklistResultOf } from './sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 
@@ -116,15 +117,25 @@ function anyObservation(block: BlockRow, definition: BlockDefinition): boolean {
  * as a v11 one does.
  */
 export function conclusionFloor(block: BlockRow): ConclusionFloor | null {
+  // e22f S7: once per block row (rows are immutable), every reader of the effective pair shares it.
+  if (FLOORS.has(block)) return FLOORS.get(block)!;
+  const floor = computeFloor(block);
+  FLOORS.set(block, floor);
+  return floor;
+}
+
+const FLOORS = new WeakMap<BlockRow, ConclusionFloor | null>();
+
+function computeFloor(block: BlockRow): ConclusionFloor | null {
   if (block.not_tested !== null) {
     return isDefectReason(block.seed_version, block.not_tested.reason) ? { pair: { result: 'reprovado', restriction: 'com_restricoes' }, reasons: ['defect'] } : null;
   }
   const definition = definitionOf(block);
   if (definition === null) return null;
-  const evaluations = evaluateSheetReadings(block, definition);
+  const evaluations = sheetReadings(block, definition);
   const cells = evaluatedCells(evaluations);
   // Story 14.5: the cells of the measurement tests count as the seeded tables' captures do.
-  const tableCells = measurementCells(evaluateSheetMeasurements(block, definition));
+  const tableCells = measurementCells(sheetMeasurements(block, definition));
   const plainCells = evaluatedCells(evaluations.filter((test) => test.testKey !== 'relacao_transformacao'));
   const failures: ConclusionFloorReason[] = [];
   if (plainCells.some((cell) => cell.verdict === 'out')) failures.push('reading');
@@ -181,6 +192,34 @@ export function effectiveConclusionPair(block: BlockRow): EffectiveConclusionPai
     result: stricter(RESULT_RANK, floor?.result ?? null, tested ? conclusionResultOf(block) : null),
     restriction: stricter(RESTRICTION_RANK, floor?.restriction ?? null, tested ? conclusionRestrictionOf(block) : null),
   };
+}
+
+/**
+ * e22f (integrated review N2, the floor is a floor, not a conclusion): the pair the engineer
+ * has chosen, each half the stored value made stricter by the floor (so a stored half looser
+ * than a later floor is still never shown), and null for a half nothing was stored in. The
+ * sheet's progress counts the conclusion step from it, and an open sheet prints it: until the
+ * sheet is concluded, the floor alone sets no mark and fills no step. A sheet marked Não
+ * ensaiado chooses nothing.
+ */
+export function chosenConclusionPair(block: BlockRow): EffectiveConclusionPair {
+  if (block.not_tested !== null) return { result: null, restriction: null };
+  const effective = effectiveConclusionPair(block);
+  return {
+    result: conclusionResultOf(block) === null ? null : effective.result,
+    restriction: conclusionRestrictionOf(block) === null ? null : effective.restriction,
+  };
+}
+
+/**
+ * e22f N2: the X marks section 9 prints: the chosen pair, the one the sheet's progress counts,
+ * so a draft never prints a mark only the floor sets and the screen and the document agree (the
+ * conclude batch writes the floor, Story 22.4, so a concluded sheet prints it; a pair cleared
+ * after the conclude prints no mark, as its header counts it missing). A sheet marked Não
+ * ensaiado prints its effective pair (a defect reason's floor alone).
+ */
+export function printedConclusionPair(block: BlockRow): EffectiveConclusionPair {
+  return block.not_tested !== null ? effectiveConclusionPair(block) : chosenConclusionPair(block);
 }
 
 /**
@@ -363,12 +402,12 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   const tag = equipmentTag.trim();
   const subject = [noun.noun, tag === '' ? null : tag, identity.length === 0 ? null : `(${identity.join(', ')})`].filter((part) => part !== null).join(' ');
 
-  const evaluations = evaluateSheetReadings(block, definition);
+  const evaluations = sheetReadings(block, definition);
   const cells = evaluatedCells(evaluations);
   const worst = worstReadings(evaluations);
   const out = worst.filter((reading) => reading.verdict === 'out');
   // Story 14.5: the measurement tests (none on the eight FO.SERV-03 types), read as the seeded tables are.
-  const measurements = evaluateSheetMeasurements(block, definition);
+  const measurements = sheetMeasurements(block, definition);
   const tableCells = measurementCells(measurements);
   const tableOut = worstMeasurements(measurements);
   const outClauses = [...out.map(readingClause), ...tableOut.map(measurementClause)];
@@ -501,6 +540,50 @@ export function conclusionTextForPrint(block: BlockRow): string | null {
  */
 export function conclusionBasisMatches(block: BlockRow, definition: BlockDefinition, equipmentTag: string, basis: string): boolean {
   return composeConclusion(block, definition, equipmentTag).basis === basis;
+}
+
+/**
+ * e22f S1: what "Confirmar" under "Conclusão ajustada pela ficha" writes, from the fresh block:
+ * each half of the effective pair that differs from the stored one, and, when the stored text
+ * is the confirmed suggestion (`text_status` `confirmed`, never `edited`) and no longer the one
+ * composed now (`stale`), the composed text with its basis, so the adjusted sheet does not keep
+ * a text that names the looser pair. Writing the pair leaves the effective pair, and so the
+ * composition, unchanged, so the text composed before the write is the one that stands after
+ * it. An edited text is the engineer's own and is never written: it then reads `stale`
+ * ("Substituir"). Null when nothing differs.
+ */
+export function conclusionAdjustWrites(
+  block: BlockRow,
+  definition: BlockDefinition,
+  equipmentTag: string,
+): { result: ConclusionResult | null; restriction: ConclusionRestriction | null; text: { text: string; basis: string } | null } | null {
+  const pair = effectiveConclusionPair(block);
+  const result = pair.result !== null && pair.result !== conclusionResultOf(block) ? pair.result : null;
+  const restriction = pair.restriction !== null && pair.restriction !== conclusionRestrictionOf(block) ? pair.restriction : null;
+  const composed = composeConclusion(block, definition, equipmentTag);
+  const text = conclusionTextStatusOf(block) === 'confirmed' && conclusionTextState(block, composed) === 'stale' ? { text: composed.text, basis: composed.basis } : null;
+  return result === null && restriction === null && text === null ? null : { result, restriction, text };
+}
+
+/**
+ * The paragraph section 9 prints under the X marks (AR-11): an edited text always, a confirmed
+ * one while it is still the text composed now, never an unconfirmed text, nor one of an
+ * incomplete printed pair (`printedConclusionPair`). e22f S1: a confirmed text the floor made stale (the sheet adjusted, its
+ * stored pair looser than the effective one, "Conclusão ajustada pela ficha") prints the text
+ * composed now: the engineer confirmed the suggestion, and the stricter pair the document prints
+ * is never left without its paragraph. Null when nothing prints.
+ */
+export function printedConclusionText(block: BlockRow, definition: BlockDefinition, equipmentTag: string): string | null {
+  // e22f N2: the pair section 9 marks, so an open sheet whose pair only the floor sets prints no paragraph either.
+  const printed = printedConclusionPair(block);
+  if (printed.result === null || printed.restriction === null) return null;
+  const status = conclusionTextStatusOf(block);
+  if (status === null) return null;
+  if (status === 'edited') return conclusionTextForPrint(block);
+  const composed = composeConclusion(block, definition, equipmentTag);
+  const state = conclusionTextState(block, composed);
+  if (state === 'confirmed') return conclusionTextForPrint(block);
+  return state === 'stale' && conclusionAdjusted(block) ? composed.text : null;
 }
 
 /** The stored conclusion text, or null. */

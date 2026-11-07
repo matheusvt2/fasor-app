@@ -15,8 +15,8 @@ import { artLabel } from './document-control.ts';
  * registration). No signature image. `layout.ts` dispatches here for section 10 and
  * `apps/api/src/jobs/generate/sections/section-10.ts` renders it; neither composes a string.
  *
- * Story 22.6 (Bruno, 2026-11-06): the box title is the effective verdict (`effectiveParecer`,
- * never missing), its text the composed summary, then a summary typed before this story as
+ * Story 22.6 (Bruno, 2026-11-06): the box title is the effective verdict (`effectiveParecer`;
+ * e22f S5: `[Parecer]` while none exists), its text the composed summary, then a summary typed before this story as
  * "Observações do responsável" (`ownText`). Under Não apto the third fixed bullet ("Apesar dos
  * resultados dos testes serem positivos...") does not print (DF-4 of the 2026-10-08 field
  * review), and the fixed reference "nos itens 8 e 9" of a v1 to v7 seed text or of a
@@ -29,7 +29,7 @@ export interface LayoutSection10 {
   title: string;
   kind: 'section_10';
   parecer: {
-    /** The verdict word of the effective verdict (Story 22.6: always one). */
+    /** The verdict word of the effective verdict; e22f S5: `[Parecer]` while none exists (a preview; issue is blocked then). */
     title: string;
     /** The composed summary (Story 22.6: always printed). */
     text: string | null;
@@ -46,6 +46,11 @@ export interface LayoutSection10 {
   validityLine: string;
   signature: { name: string; title: string; registration: string };
 }
+
+// authored: the box title of a relatório with no parecer yet, in the `[Label]` form a
+// section body prints for a missing value (only a preview can print it). e22f S5: back, for a
+// relatório with no concluded sheet and no verdict tapped (`effectiveParecer` null).
+export const PARECER_MISSING_TITLE = '[Parecer]';
 
 /** Story 22.6: the seed's start of the third fixed bullet, which never prints under Não apto. */
 const POSITIVE_RESULTS_BULLET = 'Apesar dos resultados dos testes serem positivos';
@@ -100,7 +105,7 @@ export function section10Layout(
     title: base.title,
     kind: 'section_10',
     parecer: {
-      title: parecerVerdictLabel(verdict),
+      title: verdict === null ? PARECER_MISSING_TITLE : parecerVerdictLabel(verdict),
       text: parecerTextForPrint(snapshot),
       ownText: parecerOwnText(snapshot),
     },

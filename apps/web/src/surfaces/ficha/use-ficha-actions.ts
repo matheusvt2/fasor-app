@@ -83,6 +83,7 @@ export function useFichaActions({
   block,
   definition,
   progress,
+  concludeProgress,
   next,
   instruments,
   users,
@@ -99,6 +100,8 @@ export function useFichaActions({
   block: BlockRow;
   definition: BlockDefinition;
   progress: SheetProgress;
+  /** e22f N2: `sheetProgress` with `floorFills`, what "Concluir ficha" decides on; `progress` when absent. */
+  concludeProgress?: SheetProgress;
   next: NextSheet;
   instruments: InstrumentRow[];
   users: UserRow[];
@@ -148,7 +151,8 @@ export function useFichaActions({
       .edit((blocks, by, rows) => {
         const fresh = blocks.find((row) => row.id === blockId && row.removed_at === null);
         if (fresh === undefined || fresh.concluded_by !== null || fresh.not_tested !== null) return null;
-        const freshProgress = sheetProgress({ blocks, locations: rows.locations, equipment: rows.equipment, relatorio }, blockId);
+        // e22f N2: as the conclude leaves the sheet, the floor filling an unset half.
+        const freshProgress = sheetProgress({ blocks, locations: rows.locations, equipment: rows.equipment, relatorio }, blockId, { floorFills: true });
         if (!freshProgress.complete) {
           // e21g D7: the kernel's landing (the LIGAÇÃO SECUNDÁRIA field when the group is all Ensaios misses).
           firstMissing = sheetJumpTarget(freshProgress) ?? { step: 'placa', fieldKey: null };
@@ -191,7 +195,9 @@ export function useFichaActions({
       .catch(() => undefined);
   };
 
-  const concludable = progress.complete && block.concluded_by === null && block.not_tested === null;
+  // e22f N2: the primary concludes when the conclude would (the floor filling an unset half),
+  // while the header line still counts the conclusion as missing until a pair is stored.
+  const concludable = (concludeProgress ?? progress).complete && block.concluded_by === null && block.not_tested === null;
   const primaryLabel = concludable ? t.concluir : next.kind === 'ficha' ? t.proximaFicha : next.kind === 'coluna' ? t.proximaColuna : t.voltarRelatorio;
   // An open sheet's primary concludes on the fresh rows: right after the last value is typed
   // this render may still say "Próxima ficha" (the commit has not been drawn yet).

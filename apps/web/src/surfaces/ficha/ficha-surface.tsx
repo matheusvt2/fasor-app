@@ -111,7 +111,7 @@ function FichaBody({
   const blockId = block.id;
   // Review 2026-10-08 (FLD-1): the screen stays awake while a sheet is open ("Manter a tela ligada" in Conta).
   useScreenWakeLock(true);
-  const { session, db, navigate, showToast, projectId, equipment, users, instruments, ncPhrases, registries, editor, savedAt, saved, own, tag, typeName, progress, next, cabine, cabineFirst, enabled, api } =
+  const { session, db, navigate, showToast, projectId, equipment, users, instruments, ncPhrases, registries, editor, savedAt, saved, own, tag, typeName, progress, concludeProgress, next, cabine, cabineFirst, enabled, api } =
     useFichaData({ relatorioId, snapshot, state, block });
   // E12-A7: only the steps whose sub-block is on; the header sentence names only these.
   const shownSteps = useMemo(() => shownSheetSteps(block, { cabineFirst }), [block, cabineFirst]);
@@ -126,6 +126,7 @@ function FichaBody({
     block,
     definition,
     progress,
+    concludeProgress,
     next,
     instruments,
     users,

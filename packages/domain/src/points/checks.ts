@@ -74,8 +74,9 @@ export interface NewPointInput {
   locationId?: string | null;
   /**
    * Story 22.5: the source of a point written from a derived entry (`origin` `nc` with its
-   * checklist item, `reading` with its test). Absent or null: the row carries no key, so every
-   * other point keeps the row shape from before the fields existed.
+   * checklist item, `reading` with its test). ~~Absent or null: the row carries no key, so every
+   * other point keeps the row shape from before the fields existed.~~ e22f N4: `item_key` is
+   * always written (null when absent), the mark of a contract-31 row; `test_key` only when set.
    */
   itemKey?: string | null;
   testKey?: string | null;
@@ -99,7 +100,9 @@ export function newPointRow(input: NewPointInput, points: readonly PointRow[]): 
     deadline: null,
     owner: null,
     ...(locationId === null ? {} : { location_id: locationId }),
-    ...((input.itemKey ?? null) === null ? {} : { item_key: input.itemKey }),
+    // e22f N4: always written from contract 31 on (null when the point names no item), so a row
+    // with no `item_key` key at all is known to predate it (`predatesItemSource`).
+    item_key: input.itemKey ?? null,
     ...((input.testKey ?? null) === null ? {} : { test_key: input.testKey }),
   };
 }
