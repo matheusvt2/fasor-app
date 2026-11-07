@@ -18,6 +18,7 @@ import {
   type PhotoFileRow,
   type SuggestionRow,
 } from '@app/domain';
+import { useDefinitionContext } from '../../state/definition-context.ts';
 import { useSearchParams } from 'react-router';
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref } from 'react';
 import { ConfirmDialog, TextButton } from '../../components/index.ts';
@@ -193,6 +194,8 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
     [reveal],
   );
   const actions = useTreeActions(context, host);
+  // Story 14.8: the company's equipment types on this device, offered by the field palette.
+  const definitions = useDefinitionContext();
 
   // The Sumário opened on the last sheet (Em campo) and the rail: the path to it opens once,
   // as soon as the pref is read, and the row is scrolled into view once drawn.
@@ -358,6 +361,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
         <FieldPalette
           target={palette}
           seedVersion={context.seedVersion}
+          definitions={definitions}
           locations={snapshot.locations}
           blocks={snapshot.blocks}
           equipment={equipment}

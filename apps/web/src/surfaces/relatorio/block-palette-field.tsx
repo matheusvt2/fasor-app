@@ -1,4 +1,5 @@
 import {
+  EMPTY_DEFINITION_CONTEXT,
   findDefinitionIn,
   LIBRARY_GROUP_LABEL,
   locationChoices,
@@ -8,6 +9,7 @@ import {
   tagVerdict,
   takesBlocks,
   type BlockDefinition,
+  type DefinitionContext,
   type BlockRow,
   type BlockTypeKey,
   type EquipmentRow,
@@ -20,7 +22,6 @@ import { Button } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { tagReason, tagRefusalText, TagField } from './tag-dialogs.tsx';
-import { useDefinitionContext } from '../../state/definition-context.ts';
 
 /*
  * Story 4.5: the field Block palette (`40-relatorio-overview.html` `#lo-palette`,
@@ -77,6 +78,8 @@ export interface PaletteCreate {
 export interface FieldPaletteProps {
   target: PaletteTarget;
   seedVersion: string;
+  /** Story 14.8: the company's equipment types on this device (the tree's `useDefinitionContext`); none by default. */
+  definitions?: DefinitionContext;
   /** The relatório's live locations (the Local options) and blocks (where a taken TAG sits). */
   locations: readonly LocationRow[];
   blocks: readonly BlockRow[];
@@ -97,7 +100,7 @@ export interface FieldPaletteProps {
   onResume?: (photoId: string, target: PaletteTarget) => void;
 }
 
-export function FieldPalette({ target, seedVersion, locations, blocks, equipment, onCreate, onClose, onPhotograph, onAttach, awaiting = [], onResume }: FieldPaletteProps) {
+export function FieldPalette({ target, seedVersion, definitions = EMPTY_DEFINITION_CONTEXT, locations, blocks, equipment, onCreate, onClose, onPhotograph, onAttach, awaiting = [], onResume }: FieldPaletteProps) {
   const t = copy.sumario.palette;
   const headingId = useId();
   const cameraSubId = useId();
@@ -120,7 +123,6 @@ export function FieldPalette({ target, seedVersion, locations, blocks, equipment
   const location = locations.filter(takesBlocks).find((row) => row.id === target.locationId) ?? null;
   const [openType, setOpenType] = useState<BlockTypeKey | null>(null);
   // Story 14.8: the company's published, non-retired types follow the library types (AD-21 item 6).
-  const definitions = useDefinitionContext();
   if (location === null) return null;
   const items = paletteItems(seedVersion, location, equipment, definitions);
   const seeded = items.filter((item) => !item.library);
