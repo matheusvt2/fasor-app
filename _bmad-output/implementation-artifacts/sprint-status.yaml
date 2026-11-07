@@ -246,7 +246,7 @@ development_status:
     done                                                                                # 2026-11-05: merged in #255 and fix batch e21f #256; was ready-for-dev  # added 2026-11-05 (Matheus: "a leitura deve identificar o diagrama tambem quando por foto"); starts after 21.1 merges
   21-3-move-a-photo-up-or-down-in-the-registro-fotografico: done  # 2026-11-05: merged in #254; was ready-for-dev  # added 2026-11-05 (Bruno); section 7 only and Subir/Descer are the coordinator's reading, open to Matheus; shares contract 30 with 21.1
 
-  epic-22: in-progress  # 2026-11-06: wave A merged (#266, #267) | was backlog  # added 2026-11-06 (Bruno's review of a relatório concluded 2026-11-04, via Matheus; verified on 5584a6e3, the relatório is on seed v5): waves A (e22p, e22c), B (e22s, e22r), C (e22t = 14.6-14.8); epic-22-context.md
+  epic-22: done  # 2026-11-07: waves A, B and C deployed as ae3d37e0, smoke 8 of 8 | was in-progress  # 2026-11-06: wave A merged (#266, #267) | was backlog  # added 2026-11-06 (Bruno's review of a relatório concluded 2026-11-04, via Matheus; verified on 5584a6e3, the relatório is on seed v5): waves A (e22p, e22c), B (e22s, e22r), C (e22t = 14.6-14.8); epic-22-context.md
   epic-22-retrospective: optional
   22-1-attach-a-photo-from-the-computer-to-a-reading: done  # 2026-11-06: merged in #266; was ready-for-dev  # added 2026-11-06 (Matheus); wave A, e22p; openers and the "Anexar arquivo" wording are the coordinator's reading
   22-2-the-printed-ficha-without-internal-lines-one-na-and-the-unit-once: done  # 2026-11-06: merged in #266; was ready-for-dev  # added 2026-11-06 (Matheus: "Remover as quatro"); wave A, e22p; the measurement "ACEITAVEL" row is the coordinator's reading
